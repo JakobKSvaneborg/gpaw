@@ -297,7 +297,7 @@ class RTTDDFT:
             cef = ConstantElectricField(magnitude * Hartree / Bohr, direction)
 
             # Propagate kick
-            self.kick(cef)
+            return self.kick(cef)
 
     def kick(self,
              ext: ExternalPotential):
@@ -324,6 +324,12 @@ class RTTDDFT:
             self.propagator.kick(state=self.state,
                                  pot_calc=self.pot_calc,
                                  dm_calc=dm_operator_calc)
+            dipolemoment_xv = [
+                self.calculate_dipole_moment(wfs)  # type: ignore
+                for wfs in self.state.ibzwfs]
+            dipolemoment_v = np.sum(dipolemoment_xv, axis=0)
+            result = RTTDDFTResult(time=0, dipolemoment=dipolemoment_v)
+            return result
 
     def ipropagate(self,
                    time_step: float = 10.0,
