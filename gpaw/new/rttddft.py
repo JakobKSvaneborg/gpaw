@@ -15,6 +15,7 @@ from gpaw.new.calculation import DFTState, DFTCalculation
 from gpaw.new.lcao.hamiltonian import HamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.gpw import read_gpw
+from gpaw.new.symmetry import Symmetries
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.tddft.units import asetime_to_autime, autime_to_asetime, au_to_eA
 from gpaw.utilities.timing import nulltimer
@@ -211,6 +212,16 @@ class RTTDDFT:
         if propagator is None:
             propagator = ECNAlgorithm()
 
+        # Disable symmetries, ie keep only identity operation
+        # I suppose this should be done in the kick, as the kick breaks
+        # the symmetry
+        symmetry = state.ibzwfs.ibz.symmetries.symmetry
+        natoms = symmetry.a_sa.shape[1]
+        symmetry.op_scc = np.eye(3)[None, ...]
+        symmetry.ft_sc = np.zeros((1, 3))
+        symmetry.a_sa = np.arange(natoms)[None, ...]
+        state.ibzwfs.ibz.symmetries = Symmetries(symmetry)
+
         self.state = state
         self.pot_calc = pot_calc
         self.propagator = propagator
@@ -224,8 +235,6 @@ class RTTDDFT:
 
         self.timer = nulltimer
         self.log = print
-
-        self.ham_calc = hamiltonian.create_hamiltonian_matrix_calculator(state)
 
     @classmethod
     def from_dft_calculation(cls,
@@ -333,14 +342,13 @@ class RTTDDFT:
         time_step = time_step * asetime_to_autime
 
         for iteration in range(maxiter):
+            ham_calc = self.hamiltonian.create_hamiltonian_matrix_calculator(
+                self.state)
             self.propagator.propagate(time_step,
                                       state=self.state,
                                       pot_calc=self.pot_calc,
-                                      ham_calc=self.ham_calc)
+                                      ham_calc=ham_calc)
             time = self.history.propagate(time_step)
-            # TODO This seems to be broken
-            # dipolemoment = self.state.density.calculate_dipole_moment(
-            #     self.pot_calc.fracpos_ac)
             dipolemoment_xv = [
                 self.calculate_dipole_moment(wfs)  # type: ignore
                 for wfs in self.state.ibzwfs]
