@@ -163,6 +163,9 @@ def main():
 
         dt = 10 * as_to_au * autime_to_asetime
         with open('new_fd_dm.out', 'w') as fp:
+            # TODO for some reason these are NDArrayReader objects
+            for wfs in new_tddft.state.ibzwfs:
+                wfs.psit_nX.data = wfs.psit_nX.data[:]
             result = new_tddft.absorption_kick(kick_v)
             fp.write(f'# Kick {kick_v}; Time 0.0')
             write_result(fp, result)
@@ -173,7 +176,8 @@ def main():
         import matplotlib.pyplot as plt
         for dmfile, label in [('old_lcao_dm.out', 'Old LCAO'),
                               ('new_lcao_dm.out', 'New LCAO'),
-                              ('old_fd_dm.out', 'New FD'),
+                              ('old_fd_dm.out', 'Old FD'),
+                              ('new_fd_dm.out', 'New FD'),
                               ]:
             try:
                 t, _, dmx, dmy, dmz = np.loadtxt(dmfile, unpack=True)
