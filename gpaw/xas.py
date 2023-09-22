@@ -62,6 +62,7 @@ class XAS:
                     break
 
         A_ci = setup.A_ci
+        assert A_ci is not None, 'Overlaps are not implemented'
 
         # xas, xes or all modes
         if mode == 'xas':
