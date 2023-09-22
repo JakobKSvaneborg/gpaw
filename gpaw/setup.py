@@ -1254,11 +1254,17 @@ class Setup(BaseSetup):
         nj = len(phi_jg)
         i = 0
         for j in range(nj):
-            l = self.l_j[j]
+            l = self.l_j[j]  # @Esther: this is the angular momentum
+            # @Esther: There are no m-values in the phi_jg, so you have to
+            # figure these out yourself. I.e. you'll just have the radial overlaps.
+            # It may be thus better to implement Gaunt-coefficient related overlaps in xas.py
+            # and evaluate just the necessary radial integrals here.
+            # This will change how the code works, though.
             if l == 1:
                 a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
                                        n=1) / (4 * pi)
 
+                # @Esther: these should be the directions of the light polarization
                 for m in range(3):
                     c = (m + 1) % 3
                     self.A_ci[c, i] = a
