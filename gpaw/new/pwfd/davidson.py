@@ -103,7 +103,8 @@ class Davidson(Eigensolver):
         for wfs, weight_n in zips(ibzwfs, weight_un):
             e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
             error += wfs.weight * e
-        return ibzwfs.kpt_band_comm.sum(float(error)) * ibzwfs.spin_degeneracy
+        return ibzwfs.kpt_band_comm.sum_scalar(
+            float(error)) * ibzwfs.spin_degeneracy
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN
@@ -208,23 +209,23 @@ class Davidson(Eigensolver):
 
             if domain_comm.rank == 0:
                 if band_comm.rank == 0:
-                    # M0_nn.data[:] = H_NN.data[:B, :B]
-                    M0_nn.data[:] = H_NN.data[:B, :B].T
+                    M0_nn.data[:] = H_NN.data[:B, :B]
+                    M0_nn.complex_conjugate()
                 M0_nn.redist(M_nn)
             domain_comm.broadcast(M_nn.data, 0)
 
-            M_nn.multiply(psit_nX, opa='C', out=residual_nX)
-            M_nn.multiply(P_ani, opa='C', out=P3_ani)
+            M_nn.multiply(psit_nX, out=residual_nX)
+            M_nn.multiply(P_ani, out=P3_ani)
 
             if domain_comm.rank == 0:
                 if band_comm.rank == 0:
-                    # M0_nn.data[:] = H_NN.data[B:, :B]
-                    M0_nn.data[:] = H_NN.data[:B, B:].T
+                    M0_nn.data[:] = H_NN.data[:B, B:]
+                    M0_nn.complex_conjugate()
                 M0_nn.redist(M_nn)
             domain_comm.broadcast(M_nn.data, 0)
 
-            M_nn.multiply(psit2_nX, opa='C', beta=1.0, out=residual_nX)
-            M_nn.multiply(P2_ani, opa='C', beta=1.0, out=P3_ani)
+            M_nn.multiply(psit2_nX, beta=1.0, out=residual_nX)
+            M_nn.multiply(P2_ani, beta=1.0, out=P3_ani)
             psit_nX.data[:] = residual_nX.data
             P_ani, P3_ani = P3_ani, P_ani
             wfs._P_ani = P_ani

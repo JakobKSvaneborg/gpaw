@@ -141,6 +141,9 @@ class UGDesc(Domain):
         """
         return UGArray(self, dims, comm, xp=xp)
 
+    def from_data(self, data):
+        return UGArray(self, data.shape[:-3], data=data)
+
     def blocks(self, data: np.ndarray):
         """Yield views of blocks of data."""
         s0, s1, s2 = self.parsize_c

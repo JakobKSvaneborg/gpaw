@@ -196,7 +196,7 @@ class Density:
             comp_charge += self.delta0_a[a]
         # comp_charge could be cupy.ndarray:
         comp_charge = float(comp_charge) * sqrt(4 * pi)
-        comp_charge = self.nt_sR.desc.comm.sum(comp_charge)
+        comp_charge = self.nt_sR.desc.comm.sum_scalar(comp_charge)
         charge = comp_charge + self.charge
         pseudo_charge = self.nt_sR[:self.ndensities].integrate().sum()
         if pseudo_charge != 0.0:

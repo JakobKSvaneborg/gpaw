@@ -884,14 +884,14 @@ def broadcast_array(array: np.ndarray, *communicators) -> np.ndarray:
     return array
 
 
-def send(obj, rank: int, comm) -> None:
+def send(obj, rank: int, comm: MPIComm) -> None:
     """Send object to rank on the MPI communicator comm."""
     b = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
     comm.send(np.array(len(b)), rank)
     comm.send(np.frombuffer(b, np.int8).copy(), rank)
 
 
-def receive(rank: int, comm) -> Any:
+def receive(rank: int, comm: MPIComm) -> Any:
     """Receive object from rank on the MPI communicator comm."""
     n = np.array(0)
     comm.receive(n, rank)

@@ -93,7 +93,7 @@ class SCFLoop:
             yield ctx
 
             converged, converged_items, entries = check_convergence(cc, ctx)
-            nconverged = self.comm.sum(int(converged))
+            nconverged = self.comm.sum_scalar(int(converged))
             assert nconverged in [0, self.comm.size], converged_items
 
             if log:

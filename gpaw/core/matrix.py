@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from types import ModuleType
 from typing import Dict, Tuple
-
 import _gpaw
 import numpy as np
 import scipy.linalg as sla
@@ -177,17 +176,6 @@ class Matrix:
             out = Matrix(M, N, A.dtype, dist=dist.new(M, N))
         elif not isinstance(out, Matrix):
             out = out.matrix
-
-        if 0:  # dist.comm.size > 1:
-            # Special cases that don't need scalapack - most likely also
-            # faster:
-            if alpha == 1.0 and opa == 'N' and opb == 'N':
-                return fastmmm(A, B, out, beta)
-            if alpha == 1.0 and beta == 1.0 and opa == 'N' and opb == 'C':
-                if symmetric:
-                    return fastmmm2(A, B, out)
-                else:
-                    return fastmmm2notsym(A, B, out)
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
         return out
@@ -562,6 +550,41 @@ def _matrix(M):
     return _matrix(M.matrix)
 
 
+def redist(dist1, M1, dist2, M2, context):
+    _gpaw.scalapack_redist(dist1.desc, dist2.desc,
+                           M1, M2,
+                           dist1.desc[2], dist1.desc[3],
+                           1, 1, 1, 1,  # 1-indexing
+                           context, 'G')
+
+
+def create_distribution(M: int,
+                        N: int,
+                        comm: MPIComm | None = None,
+                        r: int = 1,
+                        c: int = 1,
+                        b: int | None = None,
+                        xp=None) -> MatrixDistribution:
+    if xp is cp:
+        assert b is None
+        if r == 1 and c == 1:
+            pass  # comm = None
+        comm = comm or serial_comm
+        return CuPyDistribution(M, N, comm,
+                                r if r != -1 else comm.size,
+                                c if c != -1 else comm.size,
+                                b)
+
+    if comm is None or comm.size == 1:
+        assert r == 1 and abs(c) == 1 or c == 1 and abs(r) == 1
+        return NoDistribution(M, N)
+
+    return BLACSDistribution(M, N, comm,
+                             r if r != -1 else comm.size,
+                             c if c != -1 else comm.size,
+                             b)
+
+
 class MatrixDistribution:
     comm: MPIComm
     rows: int
@@ -631,6 +654,7 @@ class NoDistribution(MatrixDistribution):
                         return
                     blas.r2k(0.5 * alpha, a.data, b.data, beta, c.data)
             else:
+                1 / 0
                 assert opa == 'C' and opb == 'N'
                 assert a is not b
                 blas.r2k(0.5 * alpha, a.data, b.data, beta, c.data, 'n')
@@ -704,6 +728,18 @@ class BLACSDistribution(MatrixDistribution):
                                  self.blocksize)
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
+        if self.comm.size > 1:
+            # Special cases that don't need scalapack - most likely also
+            # faster:
+            if opa == 'N' and opb == 'N':
+                return mmm_nn(a, b, c, alpha, beta, blas.mmm)
+            if opa == 'N' and opb == 'C':
+                if symmetric:
+                    if beta == 1.0:
+                        return mmm_nc_sym(a, b, c, alpha, blas.mmm)
+                else:
+                    return mmm_nc(a, b, c, alpha, beta, blas.mmm)
+
         if symmetric:
             assert opa == 'N'
             assert opb == 'C' or opb == 'T' and a.dtype == float
@@ -731,39 +767,13 @@ class BLACSDistribution(MatrixDistribution):
                              opb, opa)
 
 
-def redist(dist1, M1, dist2, M2, context):
-    _gpaw.scalapack_redist(dist1.desc, dist2.desc,
-                           M1, M2,
-                           dist1.desc[2], dist1.desc[3],
-                           1, 1, 1, 1,  # 1-indexing
-                           context, 'G')
-
-
-def create_distribution(M: int,
-                        N: int,
-                        comm: MPIComm | None = None,
-                        r: int = 1,
-                        c: int = 1,
-                        b: int | None = None,
-                        xp=None) -> MatrixDistribution:
-    if xp is cp:
-        assert b is None
-        if r == 1 and c == 1:
-            pass  # comm = None
-        comm = comm or serial_comm
-        return CuPyDistribution(M, N, comm,
-                                r if r != -1 else comm.size,
-                                c if c != -1 else comm.size,
-                                b)
-
-    if comm is None or comm.size == 1:
-        assert r == 1 and abs(c) == 1 or c == 1 and abs(r) == 1
-        return NoDistribution(M, N)
-
-    return BLACSDistribution(M, N, comm,
-                             r if r != -1 else comm.size,
-                             c if c != -1 else comm.size,
-                             b)
+def cublas_mmm(alpha, a, opa, b, opb, beta, c):
+    if c.size == 0:
+        return
+    if a.size == 0 and beta == 1.0:
+        return
+    cp.cublas.gemm(opa.replace('C', 'H'), opb.replace('C', 'H'),
+                   a, b, c, alpha, beta)
 
 
 class CuPyDistribution(MatrixDistribution):
@@ -780,7 +790,9 @@ class CuPyDistribution(MatrixDistribution):
         self.shape = (m, N)
 
     def __str__(self):
-        return 'CuPyDistribution({}x{})'.format(*self.shape)
+        M, N = self.full_shape
+        m, N = self.shape
+        return f'CuPyDistribution(global={M}x{N}, local={m}x{N})'
 
     def global_index(self, n):
         1 / 0
@@ -794,13 +806,14 @@ class CuPyDistribution(MatrixDistribution):
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
         if self.comm.size > 1:
-            a = a.gather()
-            b = b.gather()
-            c0 = c
-            c = c.gather()
-            if self.comm.rank > 0:
-                c.redist(c0)
-                return
+            if opa == 'N' and opb == 'N':
+                return mmm_nn(a, b, c, alpha, beta, cublas_mmm)
+            if opa == 'N' and opb == 'C':
+                if symmetric:
+                    if beta == 1.0:
+                        return mmm_nc_sym(a, b, c, alpha, cublas_mmm)
+                else:
+                    return mmm_nc(a, b, c, alpha, beta, cublas_mmm)
 
         if symmetric:
             if opa == 'N':
@@ -822,19 +835,14 @@ class CuPyDistribution(MatrixDistribution):
                                        b.data, a.data, c.data,
                                        0.5 * alpha, 1.0)
             else:
+                1 / 0
                 assert opa == 'C' and opb == 'N'
                 assert a is not b
                 raise NotImplementedError
                 blas.r2k(0.5 * alpha, a.data, b.data, beta, c.data, 'n')
 
         else:
-            if c.data.size > 0:
-                cp.cublas.gemm(opa.replace('C', 'H'),
-                               opb.replace('C', 'H'),
-                               a.data, b.data, c.data,
-                               alpha, beta)
-        if self.comm.size > 1:
-            c.redist(c0)
+            cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c.data)
 
     def eighg(self, H, L):
         """
@@ -855,17 +863,24 @@ class CuPyDistribution(MatrixDistribution):
         return eig_M
 
 
-def fastmmm(m1, m2, m3, beta):
-    comm = m1.dist.comm
+def mmm_nn(m1, m2, m3, alpha, beta, mmm):
+    """Parallel matrix-matrix multiplication.
 
+    :::
+
+        m  <- αm m + βm
+         3      1 2    3
+    """
+    comm = m1.dist.comm
     buf1 = m2.data
+    xp = m1.xp
 
     N = m1.shape[0]
     n = (N + comm.size - 1) // comm.size
 
     for r in range(comm.size):
         if r == 0:
-            buf2 = np.empty((n, buf1.shape[1]), dtype=buf1.dtype)
+            buf2 = xp.empty((n, buf1.shape[1]), dtype=buf1.dtype)
 
         rrequest = None
         srequest = None
@@ -882,13 +897,12 @@ def fastmmm(m1, m2, m3, beta):
         r0 = (comm.rank + r) % comm.size
         n1 = min(r0 * n, N)
         n2 = min(n1 + n, N)
-        blas.mmm(1.0, m1.data[:, n1:n2], 'N', buf1[:n2 - n1], 'N',
-                 beta, m3.data)
+        mmm(alpha, m1.data[:, n1:n2], 'N', buf1[:n2 - n1], 'N', beta, m3.data)
 
         beta = 1.0
 
         if r == 0:
-            buf1 = np.empty_like(buf2)
+            buf1 = xp.empty_like(buf2)
 
         buf1, buf2 = buf2, buf1
 
@@ -900,20 +914,24 @@ def fastmmm(m1, m2, m3, beta):
     return m3
 
 
-def fastmmm2(a, b, out):
-    if a.comm:
-        assert b.comm is a.comm
-        if a.comm.size > 1:
-            assert out.comm == a.comm
-            assert out.state == 'a sum is needed'
+def mmm_nc_sym(a, b, out, alpha, mmm):
+    """Symmetric parallel matrix-matrix multiplication.
 
+    :::
+
+                †
+        c <- αab + c
+
+    Only lower half of c is updated.
+    """
     comm = a.dist.comm
     M, N = a.shape
     m = (M + comm.size - 1) // comm.size
     mym = len(a.data)
+    xp = a.xp
 
-    buf1 = np.empty((m, N), dtype=a.dtype)
-    buf2 = np.empty((m, N), dtype=a.dtype)
+    buf1 = xp.empty((m, N), dtype=a.dtype)
+    buf2 = xp.empty((m, N), dtype=a.dtype)
     half = comm.size // 2
     aa = a.data
     bb = b.data
@@ -938,11 +956,11 @@ def fastmmm2(a, b, out):
             m2 = min(m1 + m, M)
             if r == 0:
                 # symmmmmmmmmmmmmmmmmmmmmmetricccccccccccccccc
-                blas.mmm(1.0, aa, 'N', bb, 'C', 1.0, out.data[:, m1:m2])
+                mmm(alpha, aa, 'N', bb, 'C', 1.0, out.data[:, m1:m2])
             else:
                 beta = 1.0 if r <= comm.rank else 0.0
-                blas.mmm(1.0, aa, 'N', buf2[:m2 - m1], 'C',
-                         beta, out.data[:, m1:m2])
+                mmm(alpha, aa, 'N', buf2[:m2 - m1], 'C',
+                    beta, out.data[:, m1:m2])
             # out.data[:, m1:m2] = m12.data[:, :m2 - m1]
 
         if rrequest:
@@ -969,7 +987,7 @@ def fastmmm2(a, b, out):
                 m1 = min(row * m, M)
                 m2 = min(m1 + m, M)
                 if mym > 0 and m2 > m1:
-                    block = np.empty((mym, m2 - m1), out.dtype)
+                    block = xp.empty((mym, m2 - m1), out.dtype)
                     blocks.append((m1, m2, block))
                     requests.append(comm.receive(block, row, 12, False))
 
@@ -980,20 +998,22 @@ def fastmmm2(a, b, out):
     return out
 
 
-def fastmmm2notsym(a, b, out):
-    if a.comm:
-        assert b.comm is a.comm
-        if a.comm.size > 1:
-            assert out.comm == a.comm
-            assert out.state == 'a sum is needed'
+def mmm_nc(a, b, out, alpha, beta, mmm):
+    """Symmetric parallel matrix-matrix multiplication.
 
+    :::
+
+                †
+        c <- αab  + βc
+    """
     comm = a.dist.comm
     M, N = a.shape
     m = (M + comm.size - 1) // comm.size
     mym = len(a.data)
+    xp = a.xp
 
-    buf1 = np.empty((m, N), dtype=a.dtype)
-    buf2 = np.empty((m, N), dtype=a.dtype)
+    buf1 = xp.empty((m, N), dtype=a.dtype)
+    buf2 = xp.empty((m, N), dtype=a.dtype)
     aa = a.data
     bb = b.data
 
@@ -1014,7 +1034,7 @@ def fastmmm2notsym(a, b, out):
         m1 = min(((comm.rank - r) % comm.size) * m, M)
         m2 = min(m1 + m, M)
         # symmmmmmmmmmmmmmmmmmmmmmetricccccccccccccccc ??
-        blas.mmm(1.0, aa, 'N', bb[:m2 - m1], 'C', 1.0, out.data[:, m1:m2])
+        mmm(alpha, aa, 'N', bb[:m2 - m1], 'C', beta, out.data[:, m1:m2])
 
         if rrequest:
             comm.wait(rrequest)

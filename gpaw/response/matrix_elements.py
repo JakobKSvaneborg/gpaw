@@ -364,8 +364,8 @@ class TransversePairPotentialCalculator(PlaneWaveMatrixElementCalculator):
 
 class SiteMatrixElement(MatrixElement):
     def __init__(self, tblocks, qpd, atomic_site_data):
-        self.nsites = atomic_site_data.nsites
-        self.npartitions = atomic_site_data.npartitions
+        self.nsites = len(atomic_site_data.sites)
+        self.npartitions = atomic_site_data.sites.npartitions
         super().__init__(tblocks, qpd)
 
     def zeros(self):
@@ -430,7 +430,7 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
 
     def print_rshe_info(self, a, info_string):
         """Print information about the expansion at site a."""
-        A = self.atomic_site_data.A_a[a]  # Atomic index of site a
+        A = self.atomic_site_data.sites.A_a[a]  # Atomic index of site a
         info_string = f'RSHE of site {a} (atom {A}):\n' + info_string
         self.context.print(info_string.replace('\n', '\n    ') + '\n')
 
@@ -444,7 +444,8 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
         F_apii = []
         adata = self.atomic_site_data
         for rshe, A, rc_p, lambd_p in zip(
-                self.rshe_a, adata.A_a, adata.rc_ap, adata.lambd_ap):
+                self.rshe_a, adata.sites.A_a,
+                adata.sites.rc_ap, adata.lambd_ap):
             # Calculate the PAW correction
             pawdata = self.gs.pawdatasets[A]
             F_apii.append(calculate_site_matrix_element_correction(
@@ -488,18 +489,19 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
         adata = self.atomic_site_data
         stfc = spherical_truncation_function_collection(
             self.gs.gd, adata.spos_ac,
-            adata.rc_ap, adata.drcut, adata.lambd_ap,
+            adata.sites.rc_ap, adata.drcut, adata.lambd_ap,
             kd=site_matrix_element.qpd.kd, dtype=complex)
 
         # Integrate Θ(r∊Ω_ap) f(r) ñ_kt(r)
         ntlocal = nt_mytR.shape[0]
-        ft_amytp = {a: np.empty((ntlocal, adata.npartitions), dtype=complex)
-                    for a in range(adata.nsites)}
+        ft_amytp = {a: np.empty((ntlocal, adata.sites.npartitions),
+                                dtype=complex)
+                    for a in range(len(adata.sites))}
         stfc.integrate(nt_mytR * f_R[np.newaxis], ft_amytp, q=0)
 
         # Add integral to output array
         f_mytap = site_matrix_element.array
-        for a in range(adata.nsites):
+        for a in range(len(adata.sites)):
             f_mytap[:, a] += ft_amytp[a]
 
     @timer('Calculate site matrix element PAW correction')
@@ -518,7 +520,7 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
         f_mytap = site_matrix_element.array
         F_apii = self.get_paw_correction_tensor()
         for a, (A, F_pii) in enumerate(zip(
-                self.atomic_site_data.A_a, F_apii)):
+                self.atomic_site_data.sites.A_a, F_apii)):
             # Make outer product of the projector overlaps
             P1ccP2_mytii = P1_Amyti[A].conj()[..., np.newaxis] \
                 * P2_Amyti[A][:, np.newaxis]
