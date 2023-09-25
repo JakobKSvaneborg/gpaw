@@ -95,6 +95,7 @@ class XAS:
                 c = (m + 1) % 3
                 A_ci[c, i] = G * A_j[i]
                 i += 1   
+                
         assert i == setup.ni
         
         # xas, xes or all modes

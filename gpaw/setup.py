@@ -1278,6 +1278,7 @@ class Setup(BaseSetup):
         
         nj = len(phi_jg)
         i = 0
+        
         for j in range(nj):
             l = self.l_j[j]
             
