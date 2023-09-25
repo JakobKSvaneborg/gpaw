@@ -623,6 +623,7 @@ class LeanSetup(BaseSetup):
         self.phicorehole_g = s.phicorehole_g  # should be optional
         if s.phicorehole_g is not None:
             self.A_ci = s.A_ci  # oscillator strengths
+            self.A_j = s.A_j
 
         # Required to get all electron density
         self.rgd = s.rgd
@@ -1248,74 +1249,45 @@ class Setup(BaseSetup):
     def calculate_oscillator_strengths(self, phi_jg):
         # XXX implement oscillator strengths for lcorehole != 0
         
-              
-        self.A_ci = np.zeros((3, self.ni))
-        # number of final states
         nj = len(phi_jg)
         
-        # Gaunt coeffitions
-        G_LLL = gaunt(self.lmax)
-        '''
-                 /            /                                  
-         G_LLL = | sin(t) dt  | Y_(l0,m0) Y_(l1,m2) Y_(l3,m3) df 
-                 /            /                                  
-        '''
-        
-        # m qunatum number for the corehole, l = 0 or l = 1
         if self.lcorehole == 0:
-            M1 = [0]
-        elif self.lcorehole == 1:
-            M1 = range(1,4)
+            
+            self.A_ci = np.zeros((3, self.ni))
+            nj = len(phi_jg)
+            i = 0
+            for j in range(nj):
+                l = self.l_j[j] 
+                
+                if l == 1:
+                    a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
+                                        n=1) / (4 * pi)
+
+                    for m in range(3):
+                        c = (m + 1) % 3
+                        self.A_ci[c, i] = a
+                        i += 1
+                else:
+                    i += 2 * l + 1
+            assert i == self.ni
+        else:
+            self.A_ci = None
+            
+        # Setup radial oscillator strenghts for 
+        self.A_j = np.zeros((self.ni))
         
-        '''                                               -                  -
-                                                         | / int              |
-        < f | r_i | c > = Sum_i Sum_(lf,mf) Sum_mc Sum_m | | R_f R_c r_i^3 dr | sqrt(4pi/3) G_LLL
-                                                         | / 0                |
-                                                          -                  -
-        '''
+        nj = len(phi_jg)
         i = 0
         for j in range(nj):
             l = self.l_j[j]
             
-            # m qunatum number for the final state for l = 0 or l = 1
-            if l == 1:
-                M = range(1,4)
-            elif l == 2:
-                M = range(4,9)
-            else:
-                i += 2 * l + 1
-                
-            if l == 1 or l ==2:
-                for m, m2 in enumerate(M):
-                    s = 0
-                    # sum over m0 
-                    for m0 in range(1,4):
-                        # when l = 1 we don't know the m of the corehole so 
-                        # we threat it as a suer position and 
-                        # divide with sqrt(len(M1)
-                        for m1 in M1:
-                            g = G_LLL[m0, m1, m2]
-                            s += g
-                    
-                    S = sqrt(4*pi/3)*s /sqrt(len(M1))
-                    
-                    
-                    a1 = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                                            n=1) * S / (4 * pi)
-                    
-                    # old implimentation  of A_ci matix ellement 
-                    # (I leve it in for now so I can plot the difrance easier)
-                    
-                    #a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                    #                       n=1) / (4 * pi)
-                    #if (self.lcorehole == 0 and l == 2) or (self.lcorehole == 1 and l == 1):
-                    #    a = 0.0
-                        
-                    
-                    c = (m + 1) % 3
-                    self.A_ci[c, i] = a1
-                    i += 1
-                    
+            a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
+                                    n=1) / (4 * pi)
+            
+            for _ in range((l*2)+1):
+                self.A_j[i] = a
+                i +=  1
+        
         assert i == self.ni
 
 
