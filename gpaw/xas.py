@@ -5,7 +5,11 @@ import numpy as np
 from gpaw.overlap import Overlap
 from ase.units import Hartree
 from gpaw.utilities.cg import CG
+
+from gpaw.setup import Setup
+from gpaw.xc import XC
 import gpaw.mpi as mpi
+
 
 
 class XAS:
@@ -60,9 +64,9 @@ class XAS:
             for a, setup in enumerate(wfs.setups):
                 if setup.phicorehole_g is not None:
                     break
-
+        
         A_ci = setup.A_ci
-
+        
         # xas, xes or all modes
         if mode == 'xas':
             n_start = nocc
@@ -93,7 +97,7 @@ class XAS:
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
             P_ni = kpt.P_ani[a][n_start:n_end]
             a_cn = np.inner(A_ci, P_ni)
-            weight = kpt.weight * wfs.nspins / 2
+            weight = kpt.weight * wfs.nspins / 2 
             print('weight', weight)
             print(a_cn.shape, self.sigma_cn.shape)
             self.sigma_cn[:, n1:n2] = weight**0.5 * a_cn  # .real
