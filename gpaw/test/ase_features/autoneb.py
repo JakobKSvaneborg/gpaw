@@ -6,12 +6,12 @@ import ase.parallel as mpi
 from ase.build import fcc211, add_adsorbate
 from ase.constraints import FixAtoms
 from ase.optimize import QuasiNewton
-from ase.neb import NEBtools
 from ase.autoneb import AutoNEB
 
 
 @pytest.mark.skip(reason='TODO')
-def test_autoneb():
+def test_autoneb(needs_ase_master):
+    from ase.mep.neb import NEBTools
     size = mpi.world.size
     rank = mpi.world.rank
 
@@ -71,7 +71,7 @@ def test_autoneb():
                       maxsteps=[25, 1000])
     autoneb.run()
 
-    nebtools = NEBtools(autoneb.all_images)
+    nebtools = NEBTools(autoneb.all_images)
     barrier, delta_e = nebtools.get_barrier()
     print('barrier', barrier)
     ref = 0.74051020956857272  # 1.484 <- with better parameters

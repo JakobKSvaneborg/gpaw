@@ -36,7 +36,6 @@ def test_paw_corrections(pawdata):
 
 
 @pytest.mark.response
-@pytest.mark.serial
 def test_paw_correction_consistency(gpw_files):
     """Test consistency of the pair density PAW corrections."""
     context = ResponseContext()

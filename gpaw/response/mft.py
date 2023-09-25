@@ -200,12 +200,11 @@ class IsotropicExchangeCalculator:
         return chiksr
 
 
-class AtomicSiteData:
-    r"""Data object for spherical atomic sites."""
+class AtomicSites:
+    """Object defining a set of spherical atomic sites."""
 
-    def __init__(self, gs: ResponseGroundStateAdapter,
-                 indices, radii):
-        """Construct the atomic site data object from a ground state adapter.
+    def __init__(self, indices, radii):
+        """Construct the AtomicSites.
 
         Parameters
         ----------
@@ -225,17 +224,26 @@ class AtomicSiteData:
         # Convert radii to internal units (Å to Bohr)
         self.rc_ap = rc_ap / Bohr
 
-        self.nsites = len(self.A_a)
         self.npartitions = self.rc_ap.shape[1]
-        self.shape = (self.nsites, self.npartitions)
+        self.shape = rc_ap.shape
 
-        assert self._in_valid_site_radii_range(gs), \
+    def __len__(self):
+        return len(self.A_a)
+
+
+class AtomicSiteData:
+    r"""Data object for a set of spherical atomic sites."""
+
+    def __init__(self, gs: ResponseGroundStateAdapter, sites: AtomicSites):
+        """Extract atomic site data from a ground state adapter."""
+        assert self._in_valid_site_radii_range(gs, sites), \
             'Please provide site radii in the valid range, see '\
             'AtomicSiteData.valid_site_radii_range()'
+        self.sites = sites
 
         # Extract the scaled positions and micro_setups for each atomic site
-        self.spos_ac = gs.spos_ac[self.A_a]
-        self.micro_setup_a = [gs.micro_setups[A] for A in self.A_a]
+        self.spos_ac = gs.spos_ac[sites.A_a]
+        self.micro_setup_a = [gs.micro_setups[A] for A in sites.A_a]
 
         # Extract pseudo density on the fine real-space grid
         self.finegd = gs.finegd
@@ -247,9 +255,9 @@ class AtomicSiteData:
         self.drcut = default_spherical_drcut(self.gd)
         self.lambd_ap = np.array(
             [[find_volume_conserving_lambd(rcut, self.drcut)
-              for rcut in rc_p] for rc_p in self.rc_ap])
+              for rcut in rc_p] for rc_p in sites.rc_ap])
         self.stfc = spherical_truncation_function_collection(
-            self.finegd, self.spos_ac, self.rc_ap, self.drcut, self.lambd_ap)
+            self.finegd, self.spos_ac, sites.rc_ap, self.drcut, self.lambd_ap)
 
     @staticmethod
     def _valid_site_radii_range(gs):
@@ -297,13 +305,14 @@ class AtomicSiteData:
         # Convert to external units (Bohr to Å)
         return rmin_A * Bohr, rmax_A * Bohr
 
-    def _in_valid_site_radii_range(self, gs):
+    @staticmethod
+    def _in_valid_site_radii_range(gs, sites):
         rmin_A, rmax_A = AtomicSiteData._valid_site_radii_range(gs)
-        for a, A in enumerate(self.A_a):
+        for a, A in enumerate(sites.A_a):
             if not np.all(
                     np.logical_and(
-                        self.rc_ap[a] > rmin_A[A] - 1e-8,
-                        self.rc_ap[a] < rmax_A[A] + 1e-8)):
+                        sites.rc_ap[a] > rmin_A[A] - 1e-8,
+                        sites.rc_ap[a] < rmax_A[A] + 1e-8)):
                 return False
         return True
 
@@ -327,7 +336,7 @@ class AtomicSiteData:
         f_ap = | dr θ(|r-r_a|<rc_ap) f(n(r))
                /
         """
-        out_ap = np.zeros(self.shape, dtype=float)
+        out_ap = np.zeros(self.sites.shape, dtype=float)
         self._integrate_pseudo_contribution(add_f, out_ap)
         self._integrate_paw_correction(add_f, out_ap)
         return out_ap
@@ -347,11 +356,12 @@ class AtomicSiteData:
         add_f(self.finegd, self.nt_sr, ft_r)
 
         # Integrate θ(|r-r_a|<rc_ap) f(ñ(r))
-        ftdict_ap = {a: np.empty(self.npartitions) for a in range(self.nsites)}
+        ftdict_ap = {a: np.empty(self.sites.npartitions)
+                     for a in range(len(self.sites))}
         self.stfc.integrate(ft_r, ftdict_ap)
 
         # Add pseudo contribution to the output array
-        for a in range(self.nsites):
+        for a in range(len(self.sites)):
             out_ap[a] += ftdict_ap[a]
 
     def _integrate_paw_correction(self, add_f, out_ap):
@@ -365,7 +375,7 @@ class AtomicSiteData:
                 /
         """
         for a, (micro_setup, rc_p, lambd_p) in enumerate(zip(
-                self.micro_setup_a, self.rc_ap, self.lambd_ap)):
+                self.micro_setup_a, self.sites.rc_ap, self.lambd_ap)):
             # Evaluate the PAW correction and integrate angular components
             df_ng = micro_setup.evaluate_paw_correction(add_f)
             df_g = integrate_lebedev(df_ng)
@@ -382,20 +392,20 @@ class StaticSitePairFunction(PairFunction):
 
     def __init__(self,
                  qpd: SingleQPWDescriptor,
-                 atomic_site_data: AtomicSiteData):
+                 sites: AtomicSites):
         self.qpd = qpd
         self.q_c = qpd.q_c
 
-        self.atomic_site_data = atomic_site_data
+        self.sites = sites
 
         self.array = self.zeros()
 
     @property
     def shape(self):
-        nsites = self.atomic_site_data.nsites
-        npartitions = self.atomic_site_data.npartitions
+        nsites = len(self.sites)
+        npartitions = self.sites.npartitions
         return nsites, nsites, npartitions
-        
+
     def zeros(self):
         return np.zeros(self.shape, dtype=complex)
 
@@ -451,7 +461,8 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
         # Set up data object (without a plane-wave representation, which is
         # irrelevant in this case)
         qpd = self.get_pw_descriptor(q_c, ecut=1e-3)
-        site_pair_function = StaticSitePairFunction(qpd, atomic_site_data)
+        site_pair_function = StaticSitePairFunction(
+            qpd, atomic_site_data.sites)
 
         # Perform actual calculation
         self._integrate(site_pair_function, transitions)

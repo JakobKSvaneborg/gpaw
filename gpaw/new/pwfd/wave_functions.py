@@ -9,9 +9,10 @@ from gpaw.core.arrays import DistributedArrays
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.plane_waves import PWArray
-from gpaw.core.uniform_grid import UGDesc, UGArray
+from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.fftw import get_efficient_fft_size
 from gpaw.gpu import as_np
+from gpaw.mpi import receive, send
 from gpaw.new import prod, zips
 from gpaw.new.potential import Potential
 from gpaw.new.wave_functions import WaveFunctions
@@ -360,6 +361,29 @@ class PWFDWaveFunctions(WaveFunctions):
                 band_comm.send(self.psit_nX.data[ba:bb], dest=0)
 
         return None
+
+    def send(self, rank, comm):
+        stuff = (self.kpt_c,
+                 self.psit_nX.data,
+                 self.spin,
+                 self.q,
+                 self.k,
+                 self.weight,
+                 self.ncomponents)
+        send(stuff, rank, comm)
+
+    def receive(self, rank, comm):
+        kpt_c, data, spin, q, k, weight, ncomponents = receive(rank, comm)
+        psit_nX = self.psit_nX.desc.new(kpt=kpt_c, comm=None).from_data(data)
+        return PWFDWaveFunctions(psit_nX,
+                                 spin,
+                                 q,
+                                 k,
+                                 self.setups,
+                                 self.fracpos_ac,
+                                 self.atomdist,
+                                 weight,
+                                 ncomponents)
 
     def dipole_matrix_elements(self,
                                center_v: Vector = None) -> Array3D:

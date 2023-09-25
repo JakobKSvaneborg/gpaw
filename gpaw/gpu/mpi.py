@@ -14,6 +14,7 @@ class CuPyMPI:
 
     def sum(self, array, root=-1):
         if isinstance(array, (float, int)):
+            1 / 0
             return self.comm.sum(array, root)
         if isinstance(array, np.ndarray):
             self.comm.sum(array, root)

@@ -148,8 +148,8 @@ class BaseMixer:
             i2 = iold - 1
 
             for i1, R_1sG in enumerate(R_isG):
-                a = self.gd.comm.sum(self.dotprod(R_1sG, mR_sG, dD_iasp[i1],
-                                                  dD_iasp[-1]))
+                a = self.gd.comm.sum_scalar(
+                    self.dotprod(R_1sG, mR_sG, dD_iasp[i1], dD_iasp[-1]))
                 A_ii[i1, i2] = a
                 A_ii[i2, i1] = a
             A_ii[:i2, :i2] = self.A_ii[-i2:, -i2:]
@@ -258,7 +258,7 @@ class FFTBaseMixer(BaseMixer):
                      for R_Q in R_sQ)
         else:
             cs = 0.0
-        return self.gd.comm.sum(cs)
+        return self.gd.comm.sum_scalar(cs)
 
     def mix_density(self, nt_sR, D_asp, g_ss=None):
         # Transform real-space density to Fourier space

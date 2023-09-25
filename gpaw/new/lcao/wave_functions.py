@@ -6,13 +6,13 @@ import numpy as np
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
 from gpaw.core.matrix import Matrix
-from gpaw.mpi import MPIComm, serial_comm
+from gpaw.mpi import MPIComm, receive, send, serial_comm
 from gpaw.new import cached_property
+from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, Array3D
-from gpaw.new.potential import Potential
 
 
 class LCAOWaveFunctions(WaveFunctions):
@@ -196,9 +196,38 @@ class LCAOWaveFunctions(WaveFunctions):
     def move(self,
              fracpos_ac: Array2D,
              atomdist: AtomDistribution) -> None:
-        ...
+        1 / 0
 
     def force_contribution(self, potential: Potential, F_av: Array2D):
         from gpaw.new.lcao.forces import add_force_contributions
         add_force_contributions(self, potential, F_av)
         return F_av
+
+    def send(self, rank, comm):
+        stuff = (self.kpt_c,
+                 self.C_nM.data,
+                 self.spin,
+                 self.q,
+                 self.k,
+                 self.weight,
+                 self.ncomponents)
+        send(stuff, rank, comm)
+
+    def receive(self, rank, comm):
+        kpt_c, data, spin, q, k, weight, ncomponents = receive(rank, comm)
+        return LCAOWaveFunctions(setups=self.setups,
+                                 density_adder=self.density_adder,
+                                 tci_derivatives=self.tci_derivatives,
+                                 basis=self.basis,
+                                 C_nM=Matrix(*data.shape, data=data),
+                                 S_MM=None,
+                                 T_MM=None,
+                                 P_aMi=None,
+                                 fracpos_ac=self.fracpos_ac,
+                                 atomdist=self.atomdist,
+                                 kpt_c=kpt_c,
+                                 spin=spin,
+                                 q=q,
+                                 k=k,
+                                 weight=weight,
+                                 ncomponents=ncomponents)

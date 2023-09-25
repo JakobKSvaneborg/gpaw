@@ -292,7 +292,7 @@ class GridDescriptor(Domain):
             result = a_xg.reshape(xshape + (-1,)).sum(axis=-1) * self.dv
             if global_integral:
                 if result.ndim == 0:
-                    result = self.comm.sum(result)
+                    result = self.comm.sum_scalar(result)
                 else:
                     self.comm.sum(result)
             return result
