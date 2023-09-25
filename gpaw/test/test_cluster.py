@@ -1,13 +1,15 @@
 from math import sqrt
+import pytest
 
 from ase import Atoms
+from ase.build import fcc111
 
 from gpaw.cluster import Cluster
 from gpaw.mpi import world
 from gpaw.test import equal
 
 
-def test_cluster(in_tmp_dir):
+def test_cluster():
     R = 2.0
     CO = Atoms('CO', [(1, 0, 0), (1, 0, R)])
 
@@ -50,7 +52,7 @@ def test_cluster(in_tmp_dir):
             print(a.symbol, b[c], a.position[c], cc[c, c] - a.position[c])
             assert a.position[c] > b[c]
         equal(cc[c, c] / h % 4, 0.0, 1e-10)
-
+             
     # I/O
     fxyz = 'CO.xyz'
     fpdb = 'CO.pdb'
@@ -82,3 +84,38 @@ def test_cluster(in_tmp_dir):
         world.barrier()
 
         CO = Cluster(filename=fxyz)
+
+
+def test_minimal_box_mixed_pbc():
+    
+    atoms = Cluster(Atoms('H'))
+    atoms.center(vacuum=2)
+    atoms.pbc = [0, 1, 1]
+    cell0 = atoms.cell.copy()
+    
+    box = 3
+    atoms.minimal_box(box)
+    assert atoms.cell[0, 0] == 2 * box
+    assert atoms.cell[1:, 1:] == pytest.approx(cell0[1:, 1:])
+    
+    atoms.cell[1, 1] = 3
+    atoms.minimal_box(box, h='periodic')
+    
+    assert atoms.cell[0, 0] == pytest.approx(7)
+    
+    # testing non orthogonal uint sell
+    a = 3.92
+    vac = 2
+    atoms = Cluster(fcc111('Pt', (1, 1, 1), a=a, vacuum=vac))
+    atoms.pbc = [1, 1, 0]
+    cell0 = atoms.cell
+    atoms.minimal_box(box)
+    
+    assert atoms.cell[2, 2] == 2 * box
+    assert atoms.cell[:1, :1] == pytest.approx(cell0[:1, :1])
+    
+    atoms.cell[0, 0] = 4
+    atoms.cell[1, 1] = 3
+    atoms.minimal_box(box, h='periodic')
+    
+    assert atoms.cell[2, 2] == pytest.approx(7)
