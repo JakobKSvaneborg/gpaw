@@ -73,7 +73,7 @@ class Cluster(Atoms):
         old_cell = self.cell
         
         if True in pbc:
-            
+            # create extr2 to consider pbc with non orthogonal unit cell
             extr2 = np.zeros((3, 3))
             
             for ip, p in enumerate(pbc):
@@ -110,11 +110,10 @@ class Cluster(Atoms):
                 
                 if True in pbc:
                     L = extr2[c, c]
-                    
                     N = np.ceil(L / h[c] / multiple) * multiple
-                    
                     # correct L
                     dL = N * h[c] - L
+                    # move accordingly
                     extr2[c, c] += dL
                     extr[0][c] -= dL / 2
                     
