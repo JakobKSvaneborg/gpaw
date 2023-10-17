@@ -1273,7 +1273,7 @@ class Setup(BaseSetup):
         else:
             self.A_ci = None
             
-        # Setup radial oscillator strenghts for 
+        # Setup radial oscillator strengths for
         self.A_j = np.zeros((self.ni))
         
         nj = len(phi_jg)
