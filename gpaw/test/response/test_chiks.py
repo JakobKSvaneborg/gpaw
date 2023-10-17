@@ -307,7 +307,7 @@ def test_chiks_vs_chi0(in_tmp_dir, gpw_files, system, qrel):
     # Make it possible to check timings for the test
     context.write_timer()
 
-    
+
 @pytest.mark.response
 @pytest.mark.parametrize(
     'system,qrel,gammacentered',
@@ -321,7 +321,7 @@ def test_xi(gpw_files, system, qrel, gammacentered):
     nbands = response_band_cutoff[wfs]
     atol, rtol = get_tolerances(system, qrel)
     q_c = get_q_c(wfs, qrel)
-    
+
     complex_frequencies = np.array([0., 0.05, 0.1, 0.2]) + 0.1j
     zd = ComplexFrequencyDescriptor.from_array(complex_frequencies)
 

@@ -1,4 +1,3 @@
-
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
@@ -87,7 +86,7 @@ class ParallelTimer(DebugTimer):
     def __init__(self, prefix='timings', flush=False):
         ndigits = len(str(mpi.world.size - 1))
         ranktxt = '%0*d' % (ndigits, mpi.world.rank)
-        fname = '%s.%s.txt' % (prefix, ranktxt)
+        fname = f'{prefix}.{ranktxt}.txt'
         txt = open(fname, 'w', buffering=1 if flush else -1)
         DebugTimer.__init__(self, comm=mpi.world, txt=txt)
         self.prefix = prefix

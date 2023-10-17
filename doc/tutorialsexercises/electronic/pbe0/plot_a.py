@@ -9,8 +9,8 @@ def lattice_constant(volumes, energies):
     v, e, B = eos.fit()
     a = (v * 4)**(1 / 3)
     return a
-    
-    
+
+
 con = ase.db.connect('si.db')
 results = []
 K = list(range(2, 9))
@@ -23,7 +23,7 @@ for k in K:
     E0 = [row.epbe0 for row in rows]
     A.append(lattice_constant(V, E))
     A0.append(lattice_constant(V, E0))
-    
+
 print(K, A, A0)
 
 plt.plot(K, A, label='PBE')

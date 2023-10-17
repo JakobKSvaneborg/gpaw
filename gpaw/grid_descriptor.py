@@ -138,7 +138,7 @@ class GridDescriptor(Domain):
                     n_p[:] = (np.arange(self.parsize_c[c] + 1) +
                               1 - self.pbc_c[c]).clip(0, self.N_c[c])
                 else:
-                    msg = ('Grid {0} too small for {1} cores!'
+                    msg = ('Grid {} too small for {} cores!'
                            .format('x'.join(str(n) for n in self.N_c),
                                    'x'.join(str(n) for n in self.parsize_c)))
                     raise BadGridError(msg)

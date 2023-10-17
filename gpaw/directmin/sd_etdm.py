@@ -12,7 +12,7 @@ import copy
 from gpaw.directmin.tools import array_to_dict, dict_to_array
 
 
-class SearchDirectionBase(object):
+class SearchDirectionBase:
     """
     Base class for search direction algorithms
     """
@@ -22,7 +22,7 @@ class SearchDirectionBase(object):
         self.kp = None
         self.p = None
         self.k = None
-        super(SearchDirectionBase, self).__init__()
+        super().__init__()
 
     def __str__(self):
         raise NotImplementedError('Search direction class needs string '
@@ -43,7 +43,7 @@ class SearchDirectionBase(object):
         self.k = 0
 
 
-class ModeFollowingBase(object):
+class ModeFollowingBase:
     """
     Base gradient partitioning and negation implementation for minimum mode
     following
@@ -148,8 +148,7 @@ class ModeFollowing(ModeFollowingBase, SearchDirectionBase):
         self.sd = search_direction
         self.name = self.sd.name + '_gmf'
         self.type = self.sd.type + '_gmf'
-        super(ModeFollowing, self).__init__(partial_diagonalizer,
-                                            convex_step_length)
+        super().__init__(partial_diagonalizer, convex_step_length)
 
     @property
     def beta_0(self):
@@ -174,7 +173,7 @@ class SteepestDescent(SearchDirectionBase):
     """
 
     def __init__(self):
-        super(SteepestDescent, self).__init__()
+        super().__init__()
 
         self.name = 'sd'
         self.type = 'steepest-descent'
@@ -203,7 +202,7 @@ class FRcg(SteepestDescent):
     """
 
     def __init__(self):
-        super(FRcg, self).__init__()
+        super().__init__()
         self.name = 'fr-cg'
         self.type = 'conjugate-gradients'
 
@@ -236,7 +235,7 @@ class FRcg(SteepestDescent):
 class QuickMin(SearchDirectionBase):
 
     def __init__(self, dt=0.01, mass=0.01):
-        super(QuickMin, self).__init__()
+        super().__init__()
         self.dt = dt
         self.mass = mass
         self.name = 'quick-min'
@@ -281,7 +280,7 @@ class LBFGS(SearchDirectionBase):
         """
         :param memory: amount of previous steps to use
         """
-        super(LBFGS, self).__init__()
+        super().__init__()
 
         self.s_k = {i: None for i in range(memory)}
         self.y_k = {i: None for i in range(memory)}
@@ -399,7 +398,7 @@ class LBFGS_P(SearchDirectionBase):
         """
         :param memory: amount of previous steps to use
         """
-        super(LBFGS_P, self).__init__()
+        super().__init__()
         self.s_k = {i: None for i in range(memory)}
         self.y_k = {i: None for i in range(memory)}
         self.rho_k = np.zeros(shape=memory)
@@ -523,7 +522,7 @@ class LSR1P(SearchDirectionBase):
         """
         :param memory: amount of previous steps to use
         """
-        super(LSR1P, self).__init__()
+        super().__init__()
 
         self.u_k = {i: None for i in range(memory)}
         self.j_k = {i: None for i in range(memory)}

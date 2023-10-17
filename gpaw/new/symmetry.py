@@ -79,7 +79,7 @@ class SymmetrizationPlan:
             for spin in range(len(source)):
                 total += len(ind)
                 target[spin, ind] = self.S_aZZ[a] @ source[spin, ind]
-        assert total == source.shape[1]
+        assert total / len(source) == source.shape[1]
 
 
 def create_symmetries_object(atoms, ids=None, magmoms=None, parameters=None):

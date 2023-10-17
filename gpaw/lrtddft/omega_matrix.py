@@ -602,7 +602,7 @@ class OmegaMatrix:
     def read(self, filename=None, fh=None):
         """Read myself from a file"""
         if fh is None:
-            f = open(filename, 'r')
+            f = open(filename)
         else:
             f = fh
 

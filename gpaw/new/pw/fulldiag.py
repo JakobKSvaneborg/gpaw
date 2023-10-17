@@ -140,16 +140,7 @@ def diagonalize(potential: Potential,
                     'Creashing to prevent corrupted results.')
             psit_nG = wfs.psit_nX.desc.empty(nbands)
             psit_nG.data[:nbands] = H_GG.data[:nbands].conj()
-            new_wfs = PWFDWaveFunctions(
-                psit_nG,
-                wfs.spin,
-                wfs.q,
-                wfs.k,
-                wfs.setups,
-                wfs.fracpos_ac,
-                wfs.atomdist,
-                wfs.weight,
-                wfs.ncomponents)
+            new_wfs = PWFDWaveFunctions.from_wfs(wfs, psit_nX=psit_nG)
             new_wfs._eig_n = eig_n
             wfs_qs[-1].append(new_wfs)
 

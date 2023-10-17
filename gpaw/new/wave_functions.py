@@ -29,6 +29,7 @@ class WaveFunctions:
                  weight: float = 1.0,
                  ncomponents: int = 1,
                  dtype=float,
+                 qspiral_v=None,
                  domain_comm: MPIComm = serial_comm,
                  band_comm: MPIComm = serial_comm):
         """"""
@@ -47,6 +48,7 @@ class WaveFunctions:
         self.domain_comm = domain_comm
         self.band_comm = band_comm
         self.nbands = nbands
+        self.qspiral_v = qspiral_v
 
         assert domain_comm.size == atomdist.comm.size
 

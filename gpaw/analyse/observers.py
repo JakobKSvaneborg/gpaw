@@ -1,4 +1,4 @@
-class Observer(object):
+class Observer:
 
     def __init__(self, interval=1):
         object.__init__(self)

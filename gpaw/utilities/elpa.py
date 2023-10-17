@@ -5,7 +5,7 @@ import _gpaw
 
 def _elpaconstants():
     consts = _gpaw.pyelpa_constants()
-    assert consts[0] == 0, 'ELPA_OK is {}, expected 0'.format(consts[0])
+    assert consts[0] == 0, f'ELPA_OK is {consts[0]}, expected 0'
     return {'elpa_ok': consts[0],
             '1stage': consts[1],
             '2stage': consts[2]}
@@ -101,7 +101,7 @@ class LibElpa:
             self._parameters[key] = value
 
     def __repr__(self):
-        return 'LibElpa({})'.format(self._parameters)
+        return f'LibElpa({self._parameters})'
 
     def __del__(self):
         if hasattr(self, '_ptr'):

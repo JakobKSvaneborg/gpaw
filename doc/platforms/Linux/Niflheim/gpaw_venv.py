@@ -95,7 +95,7 @@ def fix_installed_scripts(venvdir: Path) -> None:
     print(f'Patching binaries from {bindir} to {venvdir}/bin')
     sedscript = f's+{rootdir}+{venvdir}+g'
     #print('sed script:', sedscript)
-    
+
     # Loop over potential executables
     for exe in bindir.iterdir():
         target = venvdir / 'bin' / exe.name

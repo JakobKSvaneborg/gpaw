@@ -7,7 +7,6 @@ from gpaw.nlopt.matrixel import make_nlodata
 from gpaw.mpi import world
 
 
-@pytest.mark.later
 @pytest.mark.skipif(world.size > 4, reason='System too small')
 def test_shift(in_tmp_dir):
 

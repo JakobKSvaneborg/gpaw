@@ -21,7 +21,7 @@ for name in all_names:
         e = 'default'
         params = parameters[symbol]
         data[symbol] = []
-        
+
     gen = Generator(symbol, 'PBE', scalarrel=True, txt=None)
     gen.run(write_xml=False, **params)
     nlfer = []

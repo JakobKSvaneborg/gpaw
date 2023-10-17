@@ -247,7 +247,7 @@ class Generator(AllElectron):
 
         t('Cutoffs:')
         for rc, s in zip(rcut_l, 'spdf'):
-            t('rc(%s)=%.3f' % (s, rc))
+            t(f'rc({s})={rc:.3f}')
         t('rc(vbar)=%.3f' % rcutvbar)
         t('rc(comp)=%.3f' % rcutcomp)
         t('rc(nct)=%.3f' % rcutmax)
@@ -574,7 +574,7 @@ class Generator(AllElectron):
                         n_n[n], 'spdf'[l], f, e_n[n],
                         np.dot(s_ln[l][n]**2, dr)))
                 else:
-                    t('*%s    : %12.6f' % ('spdf'[l], e_n[n]))
+                    t('*{}    : {:12.6f}'.format('spdf'[l], e_n[n]))
         t('--------------------------------')
 
         self.logd = {}
@@ -853,7 +853,8 @@ class Generator(AllElectron):
                 else:
                     t()
             else:
-                t('*%s:                %12.6f' % ('spdf'[l], ePAW), end='')
+                t('*{}:                {:12.6f}'.format('spdf'[l], ePAW),
+                  end='')
                 if ePAW < self.emax:
                     t('  GHOST-STATE!')
                     self.ghost = True

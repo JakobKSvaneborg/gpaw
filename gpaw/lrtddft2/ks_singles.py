@@ -1,4 +1,3 @@
-# flake8: noqa
 import os
 
 import io
@@ -42,24 +41,30 @@ class KohnShamSingleExcitation:
         self.pair_density.get(dnt_Gip, dnt_gip, drhot_gip)
 
     def __str__(self):
-        if self.dip_mom_r is not None and self.dip_mom_v is not None and self.magn_mom is not None:
-            str = "# KS single excitation from state %05d to state %05d: dE_pi = %18.12lf, f_pi = %18.12lf,  dmr_ip = (%18.12lf, %18.12lf, %18.12lf), dmv_ip = (%18.12lf, %18.12lf, %18.12lf), dmm_ip = %18.12lf" \
-                % ( self.occ_ind, \
-                        self.unocc_ind, \
-                        self.energy_diff, \
-                        self.pop_diff, \
-                        self.dip_mom_r[0], self.dip_mom_r[1], self.dip_mom_r[2], \
-                        self.dip_mom_v[0], self.dip_mom_v[1], self.dip_mom_v[2], \
-                        self.magn_mom )
+        if self.dip_mom_r is not None and self.dip_mom_v is not None\
+                and self.magn_mom is not None:
+            str = "# KS single excitation from state %05d to state %05d:"\
+                  " dE_pi = %18.12lf, f_pi = %18.12lf,"\
+                  " dmr_ip = (%18.12lf, %18.12lf, %18.12lf),"\
+                  " dmv_ip = (%18.12lf, %18.12lf, %18.12lf),"\
+                  " dmm_ip = %18.12lf" \
+                % (self.occ_ind,
+                    self.unocc_ind,
+                    self.energy_diff,
+                    self.pop_diff,
+                    self.dip_mom_r[0], self.dip_mom_r[1], self.dip_mom_r[2],
+                    self.dip_mom_v[0], self.dip_mom_v[1], self.dip_mom_v[2],
+                    self.magn_mom)
         elif self.energy_diff is not None and self.pop_diff is not None:
-            str = "# KS single excitation from state %05d to state %05d: dE_pi = %18.12lf, f_pi = %18.12lf" \
-                % ( self.occ_ind, \
-                        self.unocc_ind,  \
-                        self.energy_diff, \
-                        self.pop_diff )
+            str = "# KS single excitation from state %05d to state %05d:"\
+                  " dE_pi = %18.12lf, f_pi = %18.12lf" \
+                % (self.occ_ind,
+                    self.unocc_ind,
+                    self.energy_diff,
+                    self.pop_diff)
         elif self.occ_ind is not None and self.unocc_ind is not None:
             str = "# KS single excitation from state %05d to state %05d" \
-                % ( self.occ_ind, self.unocc_ind )
+                % (self.occ_ind, self.unocc_ind)
         else:
             raise RuntimeError("Uninitialized KSSingle")
         return str
@@ -191,7 +196,8 @@ class KohnShamSingles:
                 kss.pop_diff = fdiff
                 kss.dip_mom_r = dm
                 kss.magn_mom = mm
-                #assert self.index_of_kss(i,p) is None, 'KS transition %d->%d found twice in KS_singles files.' % (i,p)
+                # assert self.index_of_kss(i,p) is None, 'KS transition'\
+                #   '%d->%d found twice in KS_singles files.' % (i,p)
                 self.kss_list.append(kss)
 
             # if none read
@@ -220,7 +226,7 @@ class KohnShamSingles:
         if self.kss_prop_ready:
             return
 
-        #self.timer.start('Calculate KS properties')
+        # self.timer.start('Calculate KS properties')
 
         # Init pair densities
         dnt_Gip = self.calc.wfs.gd.empty()
@@ -243,7 +249,7 @@ class KohnShamSingles:
         # Coordinate vector r
         R0 = 0.5 * np.diag(self.calc.wfs.gd.cell_cv)
         # R0 = np.array([0.0,0.0,0.0]) # old_version
-        #print 'R0', R0
+        # print 'R0', R0
         r_cG, r2_G = coordinates(self.calc.wfs.gd, origin=R0)
         r_cg, r2_g = coordinates(self.calc.density.finegd, origin=R0)
 
@@ -269,8 +275,10 @@ class KohnShamSingles:
 
             # Transition dipole moment, mu_ip = <p| (-r) |i>
             kss_ip.calculate_pair_density(dnt_Gip, dnt_gip, drhot_gip)
-            #kss_ip.dip_mom_r = self.calc.density.finegd.calculate_dipole_moment(drhot_gip)
-            #kss_ip.dip_mom_r = self.calc.density.finegd.calculate_dipole_moment(drhot_gip)
+            # kss_ip.dip_mom_r
+            #    = self.calc.density.finegd.calculate_dipole_moment(drhot_gip)
+            # kss_ip.dip_mom_r
+            #    = self.calc.density.finegd.calculate_dipole_moment(drhot_gip)
             kss_ip.dip_mom_r = np.zeros(3)
             kss_ip.dip_mom_r[0] = -self.calc.density.finegd.integrate(
                 r_cg[0] * drhot_gip)
@@ -279,7 +287,8 @@ class KohnShamSingles:
             kss_ip.dip_mom_r[2] = -self.calc.density.finegd.integrate(
                 r_cg[2] * drhot_gip)
 
-            # Magnetic transition dipole, m_ip = -(1/2c) <i|L|p> = i/2c <i|r x p|p>
+            # Magnetic transition dipole,
+            # m_ip = -(1/2c) <i|L|p> = i/2c <i|r x p|p>
             # see Autschbach et al., J. Chem. Phys., 116, 6930 (2002)
 
             # Gradients
@@ -304,7 +313,7 @@ class KohnShamSingles:
 
             # augmentation contributions to magnetic moment
             # <psi1| r x nabla |psi2> = <psi1| (r-Ra+Ra) x nabla |psi2>
-            #                         = <psi1| (r-Ra) x nabla |psi2> + Ra x <psi1| nabla |psi2>
+            # = <psi1| (r-Ra) x nabla |psi2> + Ra x <psi1| nabla |psi2>
             rxnabla_a = np.zeros(3)
             # <psi1| (r-Ra) x nabla |psi2>
             for a, P_ni in self.calc.wfs.kpt_u[self.kpt_ind].P_ani.items():
@@ -340,7 +349,8 @@ class KohnShamSingles:
 
             self.calc.wfs.gd.comm.sum(Rxnabla_a)  # sum up from different procs
 
-            #print (kss_ip.occ_ind, kss_ip.unocc_ind), kss_ip.dip_mom_r, rxnabla_g, rxnabla_a, Rxnabla_a
+            # print (kss_ip.occ_ind, kss_ip.unocc_ind),
+            #    kss_ip.dip_mom_r, rxnabla_g, rxnabla_a, Rxnabla_a
 
             # m_ip = -1/2c <i|r x p|p> = i/2c <i|r x nabla|p>
             # just imaginary part!!!
@@ -365,7 +375,7 @@ class KohnShamSingles:
         self.lr_comms.parent_comm.barrier()
 
         self.kss_prop_ready = True  # avoid repeated work
-        #self.timer.stop('Calculate KS properties')
+        # self.timer.stop('Calculate KS properties')
 
 
 # Small utility class
@@ -373,6 +383,7 @@ class KohnShamSingles:
 # FIXME: USE EXISTING METHOD
 class LRiPairDensity:
     """Pair density calculator class."""
+
     def __init__(self, density):
         """Initialization needs density instance"""
         self.density = density
@@ -414,7 +425,7 @@ class LRiPairDensity:
             # allowed to pack as used in the scalar product with
             # the symmetric array Delta_pL
             D_p = pack(D_ii)
-            #FIXME: CHECK THIS D_p  = pack(D_ii, tolerance=1e30)
+            # FIXME: CHECK THIS D_p  = pack(D_ii, tolerance=1e30)
 
             # Determine compensation charge coefficients:
             Q_aL[a] = np.dot(D_p, self.density.setups[a].Delta_pL)
@@ -422,4 +433,4 @@ class LRiPairDensity:
         # Add compensation charges
         rhot_g[:] = nt_g[:]
         self.density.ghat.add(rhot_g, Q_aL)
-        #print 'dens', self.density.finegd.integrate(rhot_g)
+        # print 'dens', self.density.finegd.integrate(rhot_g)

@@ -129,6 +129,10 @@ def spinor_precondition(psit_nsG, residual_nsG, out):
 
 
 class SpinorPWHamiltonian(Hamiltonian):
+    def __init__(self, qspiral_v):
+        super().__init__()
+        self.qspiral_v = qspiral_v
+
     def apply(self,
               vt_xR: UGArray,
               dedtaut_xR: UGArray | None,
@@ -139,12 +143,12 @@ class SpinorPWHamiltonian(Hamiltonian):
         out_nsG = out
         pw = psit_nsG.desc
 
-        if pw.qspiral_v is None:
+        if self.qspiral_v is None:
             np.multiply(pw.ekin_G, psit_nsG.data, out_nsG.data)
         else:
             for s, sign in enumerate([1, -1]):
                 ekin_G = 0.5 * ((pw.G_plus_k_Gv +
-                                 0.5 * sign * pw.qspiral_v)**2).sum(1)
+                                 0.5 * sign * self.qspiral_v)**2).sum(1)
                 np.multiply(ekin_G, psit_nsG.data[:, s], out_nsG.data[:, s])
 
         grid = vt_xR.desc.new(dtype=complex)

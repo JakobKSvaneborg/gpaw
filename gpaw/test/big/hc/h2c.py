@@ -6,7 +6,6 @@ See:
     many-body perturbation theory and density-functional methods
     applied to an infinite chain of hydrogen atoms*, Phys. Rev. B 50,
     14791-14801 (1994)
-    
 """
 
 import numpy as np

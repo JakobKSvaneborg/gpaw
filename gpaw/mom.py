@@ -137,7 +137,7 @@ class OccupationsMOM:
         if self.width == 0.0:
             s += 'off\n'
         else:
-            s += '{0:.4f} eV\n'.format(self.width * Ha)
+            s += f'{self.width * Ha:.4f} eV\n'
         return s
 
     def calculate(self,
@@ -201,9 +201,8 @@ class OccupationsMOM:
                     self.wf[kpt.s][f_n_unique] = kpt.psit_nG[occupied].copy()
                     # Atomic contributions times projector overlaps
                     self.p_an[kpt.s][f_n_unique] = \
-                        dict([(a, np.dot(self.wfs.setups[a].dO_ii,
-                                         P_ni[occupied].T))
-                              for a, P_ni in kpt.P_ani.items()])
+                        {a: np.dot(self.wfs.setups[a].dO_ii, P_ni[occupied].T)
+                         for a, P_ni in kpt.P_ani.items()}
 
         self.initialized = True
 

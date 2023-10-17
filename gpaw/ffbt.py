@@ -193,8 +193,11 @@ class FourierBesselTransformer:
             f'Incompatible cutoffs {spline.get_cutoff()} and {self.rcut}'
         l = spline.get_angular_momentum_number()
         f_g = spline.map(self.r_g)
-        f_q = ffbt(l, f_g, self.r_g, self.k_q)
+        f_q = self._transform(l, f_g)
         return f_q
+
+    def _transform(self, l, f_g):
+        return ffbt(l, f_g, self.r_g, self.k_q)
 
     def rescaled_transform(self, spline):
         """Perform a rescaled Fourier-Bessel transform of f(r).
@@ -209,11 +212,12 @@ class FourierBesselTransformer:
         """
         # Calculate f(k) and rescale for finite k
         l = spline.get_angular_momentum_number()
-        f_q = self.transform(spline)
+        f_g = spline.map(self.r_g)
+        f_q = self._transform(l, f_g)
         f_q[1:] *= 4 * np.pi / self.k_q[1:]**(2 * l + 1)
 
         # Calculate k=0 contribution
-        f_q[0] = self.calculate_rescaled_average(spline)
+        f_q[0] = self._calculate_rescaled_average(l, f_g)
 
         return f_q
 
@@ -230,6 +234,9 @@ class FourierBesselTransformer:
         """
         l = spline.get_angular_momentum_number()
         f_g = spline.map(self.r_g)
+        return self._calculate_rescaled_average(l, f_g)
+
+    def _calculate_rescaled_average(self, l, f_g):
         prefactor = 4 * np.pi * rescaled_bessel_limit(l) * self.dr
         return prefactor * np.dot(self.r_g**(2 * l + 2), f_g)
 

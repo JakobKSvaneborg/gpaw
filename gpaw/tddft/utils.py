@@ -166,7 +166,7 @@ class DynamicOverlapMonitor:
             def S(x):
                 return x
 
-            dS_aii = dict([(a, self.setups[a].dO_ii) for a in P_ani])
+            dS_aii = {a: self.setups[a].dO_ii for a in P_ani}
             S_nn = self.operator.calculate_matrix_elements(psit_nG, P_ani,
                                                            S, dS_aii)
             S_unn.append(S_nn)

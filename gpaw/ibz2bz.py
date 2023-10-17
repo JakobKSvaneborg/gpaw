@@ -209,10 +209,6 @@ def get_overlap(bands,
                 dO_aii):
     """Computes the overlap between all-electron wave functions.
 
-    Similar to gpaw.berryphase.get_overlap but adapted to work with projector
-    objects rather than arrays.
-    Eventually berryphase.get_overlap should be replaced by this function. XXX
-
     Parameters
     ----------
     bands:  list of integers

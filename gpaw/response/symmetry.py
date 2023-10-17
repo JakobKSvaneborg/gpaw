@@ -28,7 +28,8 @@ class KPointFinder:
 
 class PWSymmetryAnalyzer:
     """Class for handling planewave symmetries."""
-    def __init__(self, kd, qpd, context,
+
+    def __init__(self, kpoints, qpd, context,
                  disable_point_group=False,
                  disable_time_reversal=False):
         """Creates a PWSymmetryAnalyzer object.
@@ -51,7 +52,7 @@ class PWSymmetryAnalyzer:
             Switch for disabling time reversal.
         """
         self.qpd = qpd
-        self.kd = kd
+        self.kd = kd = kpoints.kd
         self.context = context
 
         # Settings
@@ -75,7 +76,7 @@ class PWSymmetryAnalyzer:
         self.nsym = 2 * self.nU
         self.use_time_reversal = not self.disable_time_reversal
 
-        self.kptfinder = KPointFinder(kd.bzk_kc)
+        self.kptfinder = kpoints.kptfinder
         self.initialize()
 
     @timer('Initialize')
@@ -109,13 +110,13 @@ class PWSymmetryAnalyzer:
 
     def print_symmetries(self):
         """Handsome print function for symmetry operations."""
-
-        isl = ['']
+        isl = ['\n']
         nx = 6  # You are not allowed to use non-symmorphic syms (value 3)
         ns = len(self.s_s)
         y = 0
         for y in range((ns + nx - 1) // nx):
             for c in range(3):
+                tisl = []
                 for x in range(nx):
                     s = x + y * nx
                     if s == ns:
@@ -123,18 +124,20 @@ class PWSymmetryAnalyzer:
                     tmp = self.get_symmetry_operator(self.s_s[s])
                     op_cc, sign, TR, shift_c, ft_c = tmp
                     op_c = sign * op_cc[c]
-                    isl.append(f'  ({op_c[0]:2d} {op_c[1]:2d} {op_c[2]:2d})')
-                isl.append('')
-            self.context.print('\n'.join(isl))  # flush output
+                    tisl.append(f'  ({op_c[0]:2d} {op_c[1]:2d} {op_c[2]:2d})')
+                tisl.append('\n')
+                isl.append(''.join(tisl))
+            isl.append('\n')
+        self.context.print(''.join(isl))  # flush output
 
     @timer('Analyze')
     def analyze_kpoints(self):
         """Calculate the reduction in the number of kpoints."""
         K_gK = self.group_kpoints()
         ng = len(K_gK)
-        self.infostring += '{0} groups of equivalent kpoints. '.format(ng)
+        self.infostring += f'{ng} groups of equivalent kpoints. '
         percent = (1. - (ng + 0.) / self.kd.nbzkpts) * 100
-        self.infostring += '{0}% reduction. '.format(percent)
+        self.infostring += f'{percent}% reduction. '
 
     @timer('Analyze symmetries.')
     def analyze_symmetries(self):
@@ -202,7 +205,7 @@ class PWSymmetryAnalyzer:
 
 #        s_s = stmp_s
 
-        self.infostring += 'Found {} allowed symmetries. '.format(len(s_s))
+        self.infostring += f'Found {len(s_s)} allowed symmetries. '
         self.s_s = s_s
         self.shift_sc = shift_sc
 
@@ -259,7 +262,7 @@ class PWSymmetryAnalyzer:
 
         return bzk_kc
 
-    def get_reduced_kd(self, pbc_c=np.ones(3, bool)):
+    def get_reduced_kd(self, *, pbc_c):
         # Get the little group of q
         U_scc = []
         for s in self.s_s:
@@ -358,7 +361,7 @@ class PWSymmetryAnalyzer:
     @timer('symmetrize_wGG')
     def symmetrize_wGG(self, A_wGG):
         """Symmetrize an array in GG'."""
-        
+
         for A_GG in A_wGG:
             tmp_GG = np.zeros_like(A_GG, order='C')
             # tmp2_GG = np.zeros_like(A_GG)
@@ -375,7 +378,7 @@ class PWSymmetryAnalyzer:
                 #     tmp2_GG += A_GG[G_G, :][:, G_G]
                 # if sign == -1:
                 #     tmp2_GG += A_GG[G_G, :][:, G_G].T
-            
+
             # assert np.allclose(tmp_GG, tmp2_GG)
             A_GG[:] = tmp_GG / self.how_many_symmetries()
 

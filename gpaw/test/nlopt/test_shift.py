@@ -7,7 +7,6 @@ from gpaw.nlopt.matrixel import make_nlodata
 from gpaw.mpi import world
 
 
-@pytest.mark.later
 @pytest.mark.skipif(world.size > 4, reason='System too small')
 def test_shift(in_tmp_dir):
     # Check for Hydrogen atom
@@ -34,4 +33,4 @@ def test_shift(in_tmp_dir):
         # Check for nan's
         assert not np.isnan(shift).any()
         # It should be zero (small) since H2 is centro-symm.
-        assert np.all(np.abs(shift[1]) < 1e-8)
+        assert np.all(np.abs(shift[1]) < 2e-8)

@@ -21,10 +21,10 @@ class KSLCAO:
 
         with timer('Construct Gradient Matrix'):
             use_egdecomp = matrix_exp == 'egdecomp'
-            
+
             hc_mn, h_ij, h_ia = self.get_ham_in_mol_orb_representation(
                 h_mm, c_nm, f_n, representation, use_egdecomp)
-            
+
             with timer('Residual'):
                 error = self.get_residual_error(
                     hc_mn, kpt.S_MM, c_nm, h_ij, f_n, wfs.nvalence,
@@ -43,7 +43,7 @@ class KSLCAO:
                         h_ij = np.concatenate((h_ij, h_ia), axis=1)
                 h_ij = h_ij.ravel()
                 h_ij = h_ij[h_ij != np.inf]
-        
+
                 ones_mat = np.ones(shape=(len(f_n), len(f_n)))
                 anti_occ = f_n * ones_mat - f_n[:, np.newaxis] * ones_mat
                 anti_occ = anti_occ[ind_up]
@@ -68,7 +68,6 @@ class KSLCAO:
 
     def get_ham_in_mol_orb_representation(self, h_mm, c_nm, f_n,
                                           representation, full_ham):
-
         """
         H = (C_nM @ H_MM @ C_nM.T.conj()).conj()
         for sparse and u_inv representation we calculate
@@ -94,7 +93,7 @@ class KSLCAO:
             h_ia = h_ij[:occ][:, occ:]
 
         return hc_mn, h_ij, h_ia
-    
+
     def get_residual_error(
             self, hc_mn, S_MM, c_nm, h_ij, f_n, nvalence, constraints=None):
         """
@@ -112,11 +111,10 @@ class KSLCAO:
                 hc_mn[:, con1] = 0.0
         norm = sum(hc_mn.conj() * hc_mn * f_n[:occ])
         error = sum(norm.real) * Hartree ** 2 / nvalence
-        
+
         return error
 
     def get_exact_gradient_matrix(self, h_ij, evec, evals):
- 
         """
         Given eigendecomposition of A
         calculate exact gradient matrix
@@ -131,7 +129,7 @@ class KSLCAO:
         grad = evec @ grad @ evec.T.conj()
         for i in range(grad.shape[0]):
             grad[i][i] *= 0.5
-        
+
         return grad
 
 

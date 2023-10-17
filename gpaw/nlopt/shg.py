@@ -1,4 +1,3 @@
-
 import numpy as np
 from ase.units import Bohr, _hbar, _e, _me, _eps0
 from ase.utils.timing import Timer
@@ -46,7 +45,7 @@ def get_shg(
 
     # Start a timer
     timer = Timer()
-    parprint('Calculating SHG spectrum (in {:d} cores).'.format(world.size))
+    parprint(f'Calculating SHG spectrum (in {world.size:d} cores).')
 
     # Useful variables
     pol_v = ['xyz'.index(ii) for ii in pol]
@@ -56,7 +55,7 @@ def get_shg(
     # Use the TRS to reduce calculation time
     w_l = np.hstack((-w_lc[-1::-1], w_lc))
     nw = 2 * nw
-    parprint('Calculation in the {} gauge for element {}.'.format(gauge, pol))
+    parprint(f'Calculation in the {gauge} gauge for element {pol}.')
 
     # Load the required data
     with timer('Load and distribute the data'):

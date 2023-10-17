@@ -20,7 +20,7 @@ def generate_freq_w(foldedfreqs_f):
     return freq_w
 
 
-class FrequencyDensityMatrixReader(object):
+class FrequencyDensityMatrixReader:
     def __init__(self, filename, ksl, kpt_u):
         self.ksl = ksl
         self.kpt_u = kpt_u
@@ -168,7 +168,7 @@ class FrequencyDensityMatrix(TDDFTObserver):
         self.write(self.restart_filename)
 
     def write(self, filename):
-        self.log('%s: Writing to %s' % (self.__class__.__name__, filename))
+        self.log(f'{self.__class__.__name__}: Writing to {filename}')
         writer = Writer(filename, self.world, mode='w',
                         tag=self.__class__.ulmtag)
         writer.write(version=self.__class__.version)

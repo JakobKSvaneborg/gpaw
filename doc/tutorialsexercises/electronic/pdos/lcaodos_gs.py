@@ -2,10 +2,10 @@ from ase.build import mx2
 
 from gpaw import GPAW, FermiDirac
 
-atoms = mx2(formula='HfS2', kind='1T', a=3.648, thickness=2.895,
+name = 'HfS2'
+atoms = mx2(formula=name, kind='1T', a=3.648, thickness=2.895,
             size=(1, 1, 1), vacuum=12.0)
 atoms.center(vacuum=6.0, axis=2)
-name = atoms.get_chemical_formula(mode='hill')
 
 h = 0.18
 kx = 9

@@ -181,7 +181,7 @@ class GGA(XCFunctional):
         self.grad_v = get_gradient_ops(gd, self.stencil_range)
 
     def todict(self):
-        d = super(GGA, self).todict()
+        d = super().todict()
         d['stencil'] = self.stencil_range
         return d
 

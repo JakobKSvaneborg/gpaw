@@ -1,4 +1,3 @@
-
 import numpy as np
 from scipy.linalg import eigh
 
@@ -43,7 +42,7 @@ class MatrixDescriptor:
         ok = self.check(a_mn)
         if not ok:
             if not a_mn.flags.contiguous:
-                msg = 'Matrix with shape %s is not contiguous' % (a_mn.shape,)
+                msg = f'Matrix with shape {a_mn.shape} is not contiguous'
             else:
                 msg = ('%s-descriptor incompatible with %s-matrix' %
                        (self.shape, a_mn.shape))

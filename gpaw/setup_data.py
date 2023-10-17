@@ -175,7 +175,7 @@ class SetupData:
                 text('    - %d%s%-5s %9.3f   %5.3f' % (
                     n, 'spdf'[l], f, eps * Ha, self.rcut_j[j] * Bohr))
             else:
-                text('    -  %s       %9.3f   %5.3f' % (
+                text('    -  {}       {:9.3f}   {:5.3f}'.format(
                     'spdf'[l], eps * Ha, self.rcut_j[j] * Bohr))
             j += 1
         text()

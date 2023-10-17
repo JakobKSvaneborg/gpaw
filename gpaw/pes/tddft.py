@@ -142,7 +142,7 @@ class TDDFTPES(BasePES):
         """Evaluate overlap matrix of mother and daughter ground states.
 
         """
-        g0 = np.zeros((self.imax))
+        g0 = np.zeros(self.imax)
         for i, i_m in enumerate(self.gs_m):
             keep_row = list(self.gs_m)
             keep_row.remove(i_m)

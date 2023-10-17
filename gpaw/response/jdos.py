@@ -12,7 +12,7 @@ class JDOS(PairFunction):
     def __init__(self, spincomponent, qpd, zd):
         self.spincomponent = spincomponent
         super().__init__(qpd, zd)
-    
+
     def zeros(self):
         nz = len(self.zd)
         return np.zeros(nz, float)
@@ -144,4 +144,3 @@ class JDOSCalculator(PairFunctionIntegrator):
                      '',
                      self.get_basic_info_string()]
         return '\n'.join(info_list)
-        

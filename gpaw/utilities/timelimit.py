@@ -90,7 +90,7 @@ class TimeLimiter(Observer):
             The minimum number of updates until time estimates are given.
         """
         if loop not in [self.scf, self.tddft]:
-            raise RuntimeError('Unsupported loop type: {}'.format(loop))
+            raise RuntimeError(f'Unsupported loop type: {loop}')
         self.loop = loop
         if self.comm.rank == 0:
             self.order = order

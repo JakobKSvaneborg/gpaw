@@ -332,6 +332,7 @@ static PyObject * mpi_receive(MPIObject *self, PyObject *args, PyObject *kwargs)
     n *= Array_DIM(a, d);
   if (block)
     {
+      maybeSynchronize(a);
       int ret = MPI_Recv(Array_BYTES(a), n, MPI_BYTE, src, tag, self->comm,
 			 MPI_STATUS_IGNORE);
       if (ret != MPI_SUCCESS)
@@ -347,6 +348,7 @@ static PyObject * mpi_receive(MPIObject *self, PyObject *args, PyObject *kwargs)
       if (req == NULL) return NULL;
       req->buffer = (PyObject*)a;
       Py_INCREF(req->buffer);
+      maybeSynchronize(a);
       int ret = MPI_Irecv(Array_BYTES(a), n, MPI_BYTE, src, tag, self->comm,
 			  &(req->rq));
       if (ret != MPI_SUCCESS)
@@ -872,7 +874,7 @@ static PyObject * mpi_scatter(MPIObject *self, PyObject *args)
   int n = Array_ITEMSIZE(recvobj);
   for (int d = 0; d < Array_NDIM(recvobj); d++)
     n *= Array_DIM(recvobj,d);
-  maybeSynchronize(sendobj);
+  maybeSynchronize(recvobj);
   MPI_Scatter(source, n, MPI_BYTE, Array_BYTES(recvobj),
 	      n, MPI_BYTE, root, self->comm);
   Py_RETURN_NONE;
@@ -1379,6 +1381,7 @@ PyObject* globally_broadcast_bytes(PyObject *self, PyObject *args)
         char *src = PyBytes_AsString(pybytes);  // Read-only
         memcpy(dst, src, size);
     }
+    maybeSynchronize(pybytes);
     MPI_Bcast(dst, size, MPI_BYTE, 0, comm);
 
     PyObject *value = PyBytes_FromStringAndSize(dst, size);

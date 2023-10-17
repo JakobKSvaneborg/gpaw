@@ -27,7 +27,7 @@ def info():
             if githash is None:
                 githash = ''
             else:
-                githash = '-{:.10}'.format(githash)
+                githash = f'-{githash:.10}'
             results.append((name + '-' + module.__version__ + githash,
                             module.__file__.rsplit('/', 1)[0] + '/'))
 
@@ -39,7 +39,7 @@ def info():
 
     module = import_module('_gpaw')
     if hasattr(module, 'githash'):
-        githash = '-{:.10}'.format(module.githash())
+        githash = f'-{module.githash():.10}'
     else:
         githash = ''
     results.append(('_gpaw' + githash,

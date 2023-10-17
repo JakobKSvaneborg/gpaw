@@ -106,7 +106,7 @@ class AllElectron(IOContext):
                     break
 
             coreholestate = '%d%s' % (self.ncorehole, 'spdf'[self.lcorehole])
-            t('Core hole in %s state (%s occupation: %.1f)' % (
+            t('Core hole in {} state ({} occupation: {:.1f})'.format(
                 coreholestate, coreholestate, self.f_j[self.jcorehole]))
         else:
             self.jcorehole = None
@@ -284,8 +284,8 @@ class AllElectron(IOContext):
             # (printed and inside setup)
             Ekin *= self.tw_coeff
             t()
-            t('Lambda:{0}'.format(self.tw_coeff))
-            t('Correct eigenvalue:{0}'.format(e_j[0] * self.tw_coeff))
+            t(f'Lambda:{self.tw_coeff}')
+            t(f'Correct eigenvalue:{e_j[0] * self.tw_coeff}')
             t()
 
         t()

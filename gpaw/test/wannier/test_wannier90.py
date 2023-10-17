@@ -22,7 +22,7 @@ def out():
 @pytest.mark.skipif(': 3.' not in out(),
                     reason="requires at least Wannier90 version 3.0")
 @pytest.mark.parametrize('mode', ['sym', 'nosym'])
-def test_wannier90(gpw_files, mode, in_tmp_dir):
+def test_wannier90(gpw_files, mode, in_tmp_dir, wannier90):
     o_ai = [[], [0, 1, 2, 3]]
     bands = range(4)
 

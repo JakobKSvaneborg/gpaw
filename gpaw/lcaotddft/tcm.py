@@ -45,7 +45,7 @@ def plot_DOS(ax, energy_e, dos_e, base_e, dos_min, dos_max,
     set_dos_lim(dos_min, dos_max)
 
 
-class TCM(object):
+class TCM:
 
     def __init__(self, energy_o, energy_u, fermilevel):
         self.energy_o = energy_o

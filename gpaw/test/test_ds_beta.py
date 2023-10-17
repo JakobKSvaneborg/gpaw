@@ -47,11 +47,11 @@ def test_ds_beta(in_tmp_dir):
                 ds.append(initial.get_ds(Ekin, form))
                 parprint('analytic 1s energy, beta, ds %5.3f' %
                          (Ekin + Ha / 2.), end='')
-                parprint('%8.4f %12.5f' % (2, ds[-1]))
+                parprint(f'{2:8.4f} {ds[-1]:12.5f}')
             ds.append(csb.get_ds(Ekin))
             parprint('numeric  1s energy, beta, ds %5.3f' %
                      (Ekin + Ha / 2.), end='')
-            parprint('%8.4f %12.5f' % (csb.get_beta(Ekin), ds[-1]))
+            parprint(f'{csb.get_beta(Ekin):8.4f} {ds[-1]:12.5f}')
         parprint('error analytic GS:',
                  int(100 * abs(ds[1] / ds[0] - 1.) + .5), '%')
         assert abs(ds[1] / ds[0] - 1.) < 0.31

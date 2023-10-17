@@ -5,7 +5,7 @@ from gpaw.io import Writer
 from gpaw.lcaotddft.observer import TDDFTObserver
 
 
-class WaveFunctionReader(object):
+class WaveFunctionReader:
     def __init__(self, filename, index=None, wfreader=None):
         if index is None:
             self.reader = ulm.Reader(filename)

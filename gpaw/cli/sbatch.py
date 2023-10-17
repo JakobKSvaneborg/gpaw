@@ -10,7 +10,7 @@ usage = """gpaw sbatch [-0] -- [sbatch options] script.py [script options]
 class CLICommand:
     """Submit a GPAW Python script via sbatch.
 
-    
+
    If a virtual environment is active when submitting, it will be activated for
    the job as well.
    """

@@ -18,12 +18,12 @@ with open(f'results-{h:.2f}.txt', 'w') as resultfile:
             hund = False
         calc = GPAW(mode='fd', h=h, hund=hund,
                     txt=f'gpaw-{name}-{h:.2f}.txt')
-    
+
         system.calc = calc
-    
+
         energy = system.get_potential_energy()
         energies[name] = energy
         print(name, energy, file=resultfile)
-    
+
     e_atomization = energies['H2O'] - 2 * energies['H'] - energies['O']
     print(e_atomization, file=resultfile)

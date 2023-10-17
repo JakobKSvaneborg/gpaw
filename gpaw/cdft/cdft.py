@@ -216,7 +216,7 @@ class CDFT(Calculator):
         # get number of core electrons at each constrained region
         # used for pseudo free energy to neglect core contributions
         # in coupling calculation
-        self.n_core_electrons = np.zeros((len(self.regions)))
+        self.n_core_electrons = np.zeros(len(self.regions))
         for a in self.atoms:
             for r in range(len(self.regions[:self.n_charge_regions])):
                 if a.index in self.regions[r] and not self.difference:
@@ -347,8 +347,8 @@ class CDFT(Calculator):
                     (total_electrons - self.n_core_electrons)[0])
 
             if self.iteration == 0:
-                p('Optimizer: {n}'.format(n=self.method))
-                p('Optimizer setups:{n}'.format(n=self.options))
+                p(f'Optimizer: {self.method}')
+                p(f'Optimizer setups:{self.options}')
 
             header = '----------------------------------------\n'
             header += 'Iteration: {0}\n'
@@ -360,9 +360,9 @@ class CDFT(Calculator):
             p(
                 header.format(self.iteration,
                               self.Edft,
-                              ''.join('{0:4.3f}  '.format(v)
+                              ''.join(f'{v:4.3f}  '
                                       for v in self.v_i * Hartree),
-                              ''.join('{0:6.4f}  '.format(dn)
+                              ''.join(f'{dn:6.4f}  '
                                       for dn in dn_intermediate),
                               fill='left',
                               align='left'))
@@ -438,12 +438,12 @@ class CDFT(Calculator):
         return w_g
 
     def jacobian(self, v_i):
-        if np.all((np.abs(self.dn_i) < self.gtol)):
+        if np.all(np.abs(self.dn_i) < self.gtol):
             # forces scipy opt to converge when gtol is reached
             return np.zeros(len(self.v_i))
         else:
             return -self.dn_i
-    
+
     def cdft_free_energy(self):
         return self.Ecdft
 
@@ -726,7 +726,7 @@ class CDFTPotential(ExternalPotential):
                 n=len(self.indices_i) - self.n_charge_regions))
         else:
             p('Number of spin constrained regions: 0')
-        p('Charge difference: {n}'.format(n=self.difference))
+        p(f'Charge difference: {self.difference}')
         p('Parameters')
         p('Atom      Width[A]      Rc[A]')
         for a in self.mu:

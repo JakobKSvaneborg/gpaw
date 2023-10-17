@@ -33,14 +33,14 @@ def test_gauss_func():
         print('\nGaussian of order', gL)
         for mL in range(9):
             m = gauss.get_moment(g, mL)  # the mL'th moment of g
-            print('  %s\'th moment = %2.6f' % (mL, m))
+            print(f'  {mL}\'th moment = {m:2.6f}')
             equal(m, gL == mL, 1e-4)
 
     # Check the moments of the constructed 1s density
     print('\nDensity of Hydrogen atom')
     for L in range(4):
         m = gauss.get_moment(nH, L)
-        print('  %s\'th moment = %2.6f' % (L, m))
+        print(f'  {L}\'th moment = {m:2.6f}')
         equal(m, (L == 0) / sqrt(4 * pi), 1.5e-3)
 
     # Check that it is removed correctly
@@ -68,7 +68,7 @@ def test_gauss_func():
         residual = gd.integrate((pot - vg)**2)**0.5
 
         # print result
-        print('L=%s, processor %s of %s: %s' % (
+        print('L={}, processor {} of {}: {}'.format(
             L,
             gd.comm.rank + 1,
             gd.comm.size,

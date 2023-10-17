@@ -66,10 +66,9 @@ class Phonons(phonons.Phonons):
         """Read force constants from files."""
 
         # Data structure for force constants
-        self.C_qaavv = [dict([(a, dict([(a_, np.zeros((3, 3),
-                                                      dtype=self.dtype))
-                                        for a_ in self.indices]))
-                              for a in self.indices])
+        self.C_qaavv = [{a: {a_: np.zeros((3, 3), dtype=self.dtype)
+                             for a_ in self.indices}
+                         for a in self.indices}
                         for q in range(self.kd.nibzkpts)]
 
         assert self.name is not None
@@ -82,8 +81,7 @@ class Phonons(phonons.Phonons):
                     try:
                         fd = open(os.path.join(self.path, filename), 'rb')
                     except EOFError:
-                        print(("Redo file %s "
-                               % os.path.join(self.path, filename)))
+                        print(f'Redo file {os.path.join(self.path, filename)}')
                     C_qav_a = pickle.load(fd)
                     fd.close()
                     for a_ in self.indices:

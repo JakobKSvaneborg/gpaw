@@ -63,7 +63,7 @@ def count_lines():
                 .format(year, month), shell=True).strip()
             print(year, month, hash)
             subprocess.call(['git', 'checkout', hash])
-    
+
             c = count('c', r'\*.[ch]')
             py = count('.', r'\*.py')
             test = count('gpaw/test', r'\*.py')

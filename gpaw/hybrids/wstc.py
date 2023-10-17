@@ -26,7 +26,7 @@ class WignerSeitzTruncatedCoulomb:
         self.nk_c = nk_c
         bigcell_cv = cell_cv * nk_c[:, np.newaxis]
         L_c = (np.linalg.inv(bigcell_cv)**2).sum(0)**-0.5
-        
+
         self.rc = 0.5 * L_c.min()
         self.a = 5 / self.rc
 
@@ -52,7 +52,7 @@ class WignerSeitzTruncatedCoulomb:
         v_ijk[0, 0, 0] = 2 * self.a / pi**0.5
 
         self.K_Q = np.fft.fftn(v_ijk) * self.gd.dv
-    
+
     def get_description(self):
         descriptors = []
         descriptors.append('Inner radius for %dx%dx%d Wigner-Seitz cell: '
@@ -61,9 +61,9 @@ class WignerSeitzTruncatedCoulomb:
             self.a / Bohr))
         descriptors.append('FFT size for calculating truncated Coulomb: '
                            '%dx%dx%d' % tuple(self.gd.N_c))
-        
+
         return '\n'.join(descriptors)
-    
+
     def get_potential(self, pd, q_v=None):
         q_c = pd.kd.bzk_kc[0]
         shift_c = (q_c * self.nk_c).round().astype(int)

@@ -30,7 +30,7 @@ def sendreceive_dict(comm, a_i, dest, b_i, src_i, iitems):
     comm.waitall(requests)
 
 
-class BaseInducedField(object):
+class BaseInducedField:
     """Partially virtual base class for induced field calculations.
 
     Attributes:
@@ -253,11 +253,11 @@ class BaseInducedField(object):
             try:
                 readwrites = self.readwritemode_str_to_list[mode]
             except KeyError:
-                raise IOError('unknown readwrite mode string')
+                raise OSError('unknown readwrite mode string')
         elif isinstance(mode, list):
             readwrites = mode
         else:
-            raise IOError('unknown readwrite mode type')
+            raise OSError('unknown readwrite mode type')
 
         if any(k in readwrites for k in ['Frho', 'Fphi', 'Fef', 'Ffe']):
             readwrites.append('field')
@@ -266,7 +266,7 @@ class BaseInducedField(object):
 
     def read(self, filename, mode='', idiotproof=True):
         if idiotproof and not filename.endswith('.ind'):
-            raise IOError('Filename must end with `.ind`.')
+            raise OSError('Filename must end with `.ind`.')
 
         reads = self._parse_readwritemode(mode)
 
@@ -283,7 +283,7 @@ class BaseInducedField(object):
         # Test data type
         dtype = {'float': float, 'complex': complex}[r.dtype]
         if dtype != self.dtype:
-            raise IOError('Data is an incompatible type.')
+            raise OSError('Data is an incompatible type.')
 
         # Read dimensions
         na = r.na
@@ -297,13 +297,13 @@ class BaseInducedField(object):
         if self.has_paw:
             # Test dimensions
             if na != self.na:
-                raise IOError('natoms is incompatible with calculator')
+                raise OSError('natoms is incompatible with calculator')
             if nspins != self.nspins:
-                raise IOError('nspins is incompatible with calculator')
+                raise OSError('nspins is incompatible with calculator')
             if (ng != self.gd.get_size_of_global_array()).any():
-                raise IOError('grid is incompatible with calculator')
+                raise OSError('grid is incompatible with calculator')
             if (self.Fbgef_v != self.paw.kick_strength).any():
-                raise IOError('kick is incompatible with calculator')
+                raise OSError('kick is incompatible with calculator')
         else:
             # Construct objects / assign values without paw
             self.na = na
@@ -354,12 +354,12 @@ class BaseInducedField(object):
 
         """
         if idiotproof and not filename.endswith('.ind'):
-            raise IOError('Filename must end with `.ind`.')
+            raise OSError('Filename must end with `.ind`.')
 
         writes = self._parse_readwritemode(mode)
 
         if 'field' in writes and self.fieldgd is None:
-            raise IOError('field variables cannot be written ' +
+            raise OSError('field variables cannot be written ' +
                           'before they are calculated')
 
         from gpaw.io import Writer

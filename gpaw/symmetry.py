@@ -393,10 +393,10 @@ class Symmetry:
     def __str__(self):
         n = len(self.op_scc)
         nft = self.ft_sc.any(1).sum()
-        lines = ['Symmetries present (total): {0}'.format(n)]
+        lines = [f'Symmetries present (total): {n}']
         if not self.symmorphic:
             lines.append(
-                'Symmetries with fractional translations: {0}'.format(nft))
+                f'Symmetries with fractional translations: {nft}')
 
         # X-Y grid of symmetry matrices:
 

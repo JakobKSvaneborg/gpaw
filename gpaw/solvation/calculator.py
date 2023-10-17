@@ -66,7 +66,7 @@ class SolvationGPAW(GPAW):
                         atomic_radii=atomic_radii,
                         u0=efpot.u0)
                 else:
-                    raise IOError('Reading the given effective potential '
+                    raise OSError('Reading the given effective potential '
                                   'is not implemented yet')
 
             if 'name' in impl_in.cavity.surface_calculator:
@@ -75,7 +75,7 @@ class SolvationGPAW(GPAW):
                     from gpaw.solvation.cavity import GradientSurface
                     surface_calculator = GradientSurface(suca.nn)
                 else:
-                    raise IOError('Reading in the given used surface '
+                    raise OSError('Reading in the given used surface '
                                   'calculator is not implemented')
 
             T = impl_in.cavity.temperature

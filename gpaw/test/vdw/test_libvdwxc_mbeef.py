@@ -12,6 +12,7 @@ pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')
 
 
+@pytest.mark.later
 @pytest.mark.mgga
 def test_vdw_libvdwxc_mbeef():
     setup = gen('Si', xcname='PBEsol')

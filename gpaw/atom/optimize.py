@@ -338,13 +338,13 @@ class DatasetOptimizer:
                   .format(self.Z,
                           self.symbol,
                           x[n],
-                          ', '.join('{:4.1f}'.format(e) + s
+                          ', '.join(f'{e:4.1f}' + s
                                     for e, s
                                     in zip(x[n + 1:n + 7] / self.tolerances,
                                            'rlciex')),
-                          ', '.join('{:+.2f}'.format(e)
+                          ', '.join(f'{e:+.2f}'
                                     for e in x[:self.nenergies]),
-                          ', '.join('{:.2f}'.format(r)
+                          ', '.join(f'{r:.2f}'
                                     for r in x[self.nenergies:n])))
 
     def best(self):
@@ -362,7 +362,7 @@ class DatasetOptimizer:
             print(fmt.format(self.Z,
                              self.symbol,
                              projectors,
-                             ','.join('{0:.2f}'.format(r) for r in radii),
+                             ','.join(f'{r:.2f}' for r in radii),
                              nderiv0,
                              r0,
                              error))

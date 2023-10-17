@@ -113,10 +113,10 @@ class ExcitedState(GPAW):
         if self.world.rank == 0:
             with open(filename + '.exst', 'w') as f:
                 f.write('# ' + self.__class__.__name__ + __version__ + '\n')
-                f.write('Displacement: {0}'.format(self.d) + '\n')
+                f.write(f'Displacement: {self.d}' + '\n')
                 f.write('Index: ' + self.index.__class__.__name__ + '\n')
                 for k, v in self.index.__dict__.items():
-                    f.write('{0}, {1}'.format(k, v) + '\n')
+                    f.write(f'{k}, {v}' + '\n')
         self.world.barrier()
 
     @classmethod
@@ -132,7 +132,7 @@ class ExcitedState(GPAW):
                                log=calculator.log)
         lrtddft.calculator = calculator
 
-        with open(filename + '.exst', 'r') as f:
+        with open(filename + '.exst') as f:
             f.readline()
             d = f.readline().replace('\n', '').split()[1]
             indextype = f.readline().replace('\n', '').split()[1]
@@ -213,7 +213,7 @@ class ExcitedState(GPAW):
         self.log('--------------------------')
         self.log('Excited state')
         self.log(self.index)
-        self.log('Energy:   {0}'.format(energy))
+        self.log(f'Energy:   {energy}')
         self.log()
 
         self.results['energy'] = energy
@@ -273,9 +273,9 @@ class ExcitedState(GPAW):
             self.log('Excited state forces in eV/Ang:')
             symbols = self.atoms.get_chemical_symbols()
             for a, symbol in enumerate(symbols):
-                self.log(('%3d %-2s %10.5f %10.5f %10.5f' %
-                          ((a, symbol) +
-                           tuple(self.results['forces'][a]))))
+                self.log('%3d %-2s %10.5f %10.5f %10.5f' %
+                         ((a, symbol) +
+                          tuple(self.results['forces'][a])))
 
         return self.results['forces']
 

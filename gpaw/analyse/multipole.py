@@ -85,6 +85,6 @@ class Multipole:
         L = 0
         for l in range(self.lmax + 1):
             for m in range(-l, l + 1):
-                print('{0:2d} {1:3d} {2:g}'.format(l, m, q_L[L]), file=f)
+                print(f'{l:2d} {m:3d} {q_L[L]:g}', file=f)
                 L += 1
         f.close()

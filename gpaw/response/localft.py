@@ -498,9 +498,9 @@ class LocalPAWFTEngine:
         # Setup arrays to fully vectorize computations
         nM = len(L_M)
         (r_gMmyG, l_gMmyG,
-         Gnorm_gMmyG) = [a.reshape(len(r_g), nM, nmyG)
+         Gnorm_gMmyG) = (a.reshape(len(r_g), nM, nmyG)
                          for a in np.meshgrid(r_g, l_M, Gnorm_myG,
-                                              indexing='ij')]
+                                              indexing='ij'))
 
         with self.context.timer('Compute spherical bessel functions'):
             # Slow step

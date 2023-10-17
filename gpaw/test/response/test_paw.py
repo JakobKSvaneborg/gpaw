@@ -30,9 +30,16 @@ def pawdata():
 @pytest.mark.serial
 @pytest.mark.parametrize('pawdata', pawdata())
 def test_paw_corrections(pawdata):
+    radial_points = 2**10
+    if pawdata.symbol in {'I', 'Hg', 'Pb'}:
+        # More points where needed, for performance.
+        # https://gitlab.com/gpaw/gpaw/-/issues/984
+        radial_points *= 4
+
     G_Gv = np.zeros((5, 3))
     G_Gv[:, 0] = np.linspace(0, 20, 5)
-    calculate_pair_density_correction(G_Gv, pawdata=pawdata)
+    calculate_pair_density_correction(G_Gv, pawdata=pawdata,
+                                      radial_points=radial_points)
 
 
 @pytest.mark.response
@@ -49,7 +56,7 @@ def test_paw_correction_consistency(gpw_files):
     qG_Gv = qpd.get_reciprocal_vectors(add_q=True)
 
     # Calculate ordinary pair density corrections
-    pawdata = gs.pawdatasets[0]
+    pawdata = gs.pawdatasets.by_atom[0]
     Q1_Gii = calculate_pair_density_correction(qG_Gv, pawdata=pawdata)
 
     # Calculate pair density as a generalized matrix element
@@ -73,7 +80,7 @@ def test_site_paw_correction_consistency(gpw_files):
                                                   context=context)
 
     # Expand the LDA fxc kernel in real spherical harmonics
-    pawdata = gs.pawdatasets[0]
+    pawdata = gs.pawdatasets.by_atom[0]
     micro_setup = gs.micro_setups[0]
     add_fxc = partial(add_LSDA_trans_fxc, fxc='ALDA')
     rshe, _ = micro_setup.expand_function(add_fxc, wmin=1e-8)

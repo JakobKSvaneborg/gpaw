@@ -166,11 +166,13 @@ class UGDesc(Domain):
                                 functions,
                                 positions,
                                 *,
+                                qspiral_v=None,
                                 atomdist=None,
                                 integral=None,
                                 cut=False,
                                 xp=None):
         """Create UGAtomCenteredFunctions object."""
+        assert qspiral_v is None
         return UGAtomCenteredFunctions(functions,
                                        positions,
                                        self,

@@ -147,7 +147,7 @@ class Derivatives:
         return numerical_der
 
 
-class Davidson(object):
+class Davidson:
     """
     Finite difference generalized Davidson partial diagonalizer to obtain a
     number of the eigenpairs with the smallest eigenvalues.

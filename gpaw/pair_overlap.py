@@ -1,12 +1,14 @@
-# flake8: noqa
 import numpy as np
 
 from gpaw import debug
 from gpaw.mpi import world
-mpi_debug = lambda x, ordered=True: None  # silenced
 from gpaw.overlap import Overlap
 from gpaw.utilities import unpack
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
+
+
+def mpi_debug(x, ordered=True):
+    return None  # silenced
 
 
 class PairOverlap:
@@ -19,18 +21,18 @@ class PairOverlap:
         return self.ni_a[-1].item()
 
     def assign_atomic_pair_matrix(self, X_aa, a1, a2, dX_ii):
-        X_aa[self.ni_a[a1]:self.ni_a[a1+1],\
-             self.ni_a[a2]:self.ni_a[a2+1]] = dX_ii
+        X_aa[self.ni_a[a1]:self.ni_a[a1 + 1],
+             self.ni_a[a2]:self.ni_a[a2 + 1]] = dX_ii
 
     def extract_atomic_pair_matrix(self, X_aa, a1, a2):
-        return X_aa[self.ni_a[a1]:self.ni_a[a1+1],\
-                    self.ni_a[a2]:self.ni_a[a2+1]]
+        return X_aa[self.ni_a[a1]:self.ni_a[a1 + 1],
+                    self.ni_a[a2]:self.ni_a[a2 + 1]]
 
     def calculate_overlaps(self, spos_ac, lfc1, lfc2=None):
         raise RuntimeError('This is a virtual member function.')
 
     def calculate_atomic_pair_overlaps(
-            self, lfs1, lfs2):  #XXX Move some code here from above...
+            self, lfs1, lfs2):  # XXX Move some code here from above...
         raise RuntimeError('This is a virtual member function.')
 
 
@@ -60,7 +62,8 @@ class GridPairOverlap(PairOverlap):
 
             assert len(lfc1.spline_aj) == len(lfc1.spos_ac)  # not distributed
             assert len(lfc2.spline_aj) == len(lfc2.spos_ac)  # not distributed
-            #assert lfc1.lfs_a.keys() == lfc2.lfs_a.keys() # XXX must they be equal?!?
+            # assert lfc1.lfs_a.keys() == lfc2.lfs_a.keys()
+            # XXX must they be equal?!?
 
         # Both loops are over all atoms in all domains
         for a1, spline1_j in enumerate(lfc1.spline_aj):
@@ -98,8 +101,9 @@ class GridPairOverlap(PairOverlap):
                     if debug:
                         assert lfs1.dtype == lfc1.dtype
                         assert self.setups[
-                            a1].ni == lfs1.ni, 'setups[%d].ni=%d, lfc1.lfs_a[%d].ni=%d' % (
-                                a1, self.setups[a1].ni, a1, lfs1.i)
+                            a1].ni == lfs1.ni, 'setups[%d].ni=%d,'\
+                            'lfc1.lfs_a[%d].ni=%d'\
+                            % (a1, self.setups[a1].ni, a1, lfs1.i)
 
                     b2 = 0
                     for beg2_c, end2_c, sdisp2_c in self.gd.get_boxes(
@@ -107,11 +111,12 @@ class GridPairOverlap(PairOverlap):
                             cut=False):  # loop over lfs2.box_b instead?
                         if debug:
                             mpi_debug(
-                                '      b2=%d, beg2_c=%s, end2_c=%s, sdisp2_c=%s'
-                                % (b2, beg2_c, end2_c, sdisp2_c),
+                                '      b2=%d, beg2_c=%s, end2_c=%s, sdisp2'
+                                'c=%s' % (b2, beg2_c, end2_c, sdisp2_c),
                                 ordered=False)
 
-                        # Atom a2 has at least one piece so the LFC has LocFuncs
+                        # Atom a2 has at least one piece so the LFC has
+                        # LocFuncs
                         lfs2 = lfc2.lfs_a[a2]
 
                         # Similarly, the LocFuncs must have the piece at hand
@@ -120,8 +125,9 @@ class GridPairOverlap(PairOverlap):
                         if debug:
                             assert lfs2.dtype == lfc2.dtype
                             assert self.setups[
-                                a2].ni == lfs2.ni, 'setups[%d].ni=%d, lfc2.lfs_a[%d].ni=%d' % (
-                                    a2, self.setups[a2].ni, a2, lfs2.ni)
+                                a2].ni == lfs2.ni, 'setups[%d].ni=%d,'\
+                                ' lfc2.lfs_a[%d].ni=%d'\
+                                % (a2, self.setups[a2].ni, a2, lfs2.ni)
 
                         # Find the intersection of the two boxes
                         beg_c = np.max((beg1_c, beg2_c), axis=0)
@@ -135,16 +141,19 @@ class GridPairOverlap(PairOverlap):
                         # Intersection is non-empty, add overlap contribution
                         if (beg_c < end_c).all():
                             bra_iB1 = box1.get_functions()
-                            w1slice = [slice(None)]+[slice(b,e) for b,e in \
-                                zip(beg_c-beg1_c, end_c-beg1_c)]
+                            w1slice = [slice(None)] + [slice(b, e) for b, e in
+                                                       zip(beg_c - beg1_c,
+                                                           end_c - beg1_c)]
 
                             ket_iB2 = box2.get_functions()
-                            w2slice = [slice(None)]+[slice(b,e) for b,e in \
-                                zip(beg_c-beg2_c, end_c-beg2_c)]
+                            w2slice = [slice(None)] + [slice(b, e) for b, e in
+                                                       zip(beg_c - beg2_c,
+                                                           end_c - beg2_c)]
 
-                            X_ii += self.gd.dv * np.inner( \
-                                bra_iB1[w1slice].reshape((lfs1.ni,-1)), \
-                                ket_iB2[w2slice].reshape((lfs2.ni,-1))) #XXX phase factors for kpoints
+                            X_ii += self.gd.dv * np.inner(
+                                bra_iB1[w1slice].reshape((lfs1.ni, -1)),
+                                ket_iB2[w2slice].reshape((lfs2.ni, -1)))
+                            # XXX phase factors for kpoints
 
                             del bra_iB1, ket_iB2
 
@@ -222,8 +231,8 @@ class GridPairOverlap(PairOverlap):
                             cut=False):  # loop over lfs2.box_b instead?
                         if debug:
                             mpi_debug(
-                                '      b2=%d, beg2_c=%s, end2_c=%s, sdisp2_c=%s'
-                                % (b2, beg2_c, end2_c, sdisp2_c),
+                                '      b2=%d, beg2_c=%s, end2_c=%s,'
+                                'sdisp2_c=%s' % (b2, beg2_c, end2_c, sdisp2_c),
                                 ordered=False)
 
                         # Find the intersection of the two boxes
@@ -239,20 +248,26 @@ class GridPairOverlap(PairOverlap):
                         if (beg_c < end_c).all():
                             i1 = 0
                             for j1, spline1 in enumerate(spline1_j):
-                                bra1_mB = spline1.get_functions(self.gd, \
-                                    beg_c, end_c, spos_ac[a1]-sdisp1_c)
+                                bra1_mB = spline1.get_functions(self.gd,
+                                                                beg_c, end_c,
+                                                                spos_ac[a1]
+                                                                - sdisp1_c)
                                 nm1 = bra1_mB.shape[0]
 
                                 i2 = 0
                                 for j2, spline2 in enumerate(spline2_j):
-                                    ket2_mB = spline2.get_functions(self.gd, \
-                                        beg_c, end_c, spos_ac[a2]-sdisp2_c)
+                                    ket2_mB = spline2.get_functions(self.gd,
+                                                                    beg_c,
+                                                                    end_c,
+                                                                    spos_ac[a2]
+                                                                    - sdisp2_c)
                                     nm2 = ket2_mB.shape[0]
 
                                     X_mm = X_ii[i1:i1 + nm1, i2:i2 + nm2]
-                                    X_mm += self.gd.dv * np.inner( \
-                                        bra1_mB.reshape((nm1,-1)), \
-                                        ket2_mB.reshape((nm2,-1))) #XXX phase factors for kpoints
+                                    X_mm += self.gd.dv * np.inner(
+                                        bra1_mB.reshape((nm1, -1)),
+                                        ket2_mB.reshape((nm2, -1)))
+                                    # XXX phase factors for kpoints
 
                                     del ket2_mB
                                     i2 += nm2
@@ -272,6 +287,7 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
     """
     TODO
     """
+
     def __init__(self, wfs, atoms):
         """TODO
 
@@ -301,7 +317,8 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
         for a1,setup1 in enumerate(self.setups):
             for a2 in wfs.pt.my_atom_indices:
                 setup2 = self.setups[a2]
-                R = (atoms[a1].get_position() - atoms[a2].get_position()) / Bohr
+                R = (atoms[a1].get_position()
+                     - atoms[a2].get_position()) / Bohr
 
                 if a1 == a2:
                     B_ii = setup1.B_ii
@@ -312,19 +329,20 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
                 #elif a1 == a2:
                 #    B_ii = setup1.B_ii
                 #else:
-                #    B_ii = self.B_aa[ni_a[a2]:ni_a[a2+1], ni_a[a1]:ni_a[a1+1]].T
+                #    B_ii = self.B_aa[ni_a[a2]:ni_a[a2+1],
+                                      ni_a[a1]:ni_a[a1+1]].T
 
                 #self.B_aa[self.ni_a[a1]:self.ni_a[a1+1], \
                 #          self.ni_a[a2]:self.ni_a[a2+1]] = B_ii
                 self.assign_atomic_pair_matrix(self.B_aa, a1, a2, B_ii)
-        self.gd.comm.sum(self.B_aa) #TODO too heavy?
+        self.gd.comm.sum(self.B_aa)  # TODO too heavy?
         """
-        #self.B_aa = overlap_projectors(wfs.gd, wfs.pt, wfs.setups)
+        # self.B_aa = overlap_projectors(wfs.gd, wfs.pt, wfs.setups)
 
         self.B_aa = self.calculate_overlaps(wfs.spos_ac, wfs.pt)
 
         # Create two-center (block-diagonal) coefficients for overlap operator
-        dO_aa = np.zeros((nproj, nproj), dtype=float)  #always float?
+        dO_aa = np.zeros((nproj, nproj), dtype=float)  # always float?
         for a, setup in enumerate(self.setups):
             self.assign_atomic_pair_matrix(dO_aa, a, a, setup.dO_ii)
 
@@ -334,7 +352,7 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
         # Calculate two-center coefficients for inverse overlap operator
         lhs_aa = np.eye(nproj) + self.xO_aa
         rhs_aa = -dO_aa
-        self.dC_aa = np.linalg.solve(lhs_aa.T, rhs_aa.T).T  #TODO parallel
+        self.dC_aa = np.linalg.solve(lhs_aa.T, rhs_aa.T).T  # TODO parallel
 
         # Calculate two-center rotation matrix for inverse overlap projections
         self.xC_aa = self.get_rotated_coefficients(self.dC_aa)
@@ -361,13 +379,13 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
         self.timer.start('Update two-center projections')
 
         nproj = len(self)
-        dI_aa = np.zeros((nproj, nproj), dtype=float)  #always float?
+        dI_aa = np.zeros((nproj, nproj), dtype=float)  # always float?
 
         for a, dI_sp in dI_asp.items():
             dI_p = dI_sp[kpt.s]
             dI_ii = unpack(dI_p)
             self.assign_atomic_pair_matrix(dI_aa, a, a, dI_ii)
-        self.gd.comm.sum(dI_aa)  #TODO too heavy?
+        self.gd.comm.sum(dI_aa)  # TODO too heavy?
 
         dM_aa = self.get_rotated_coefficients(dI_aa)
         Q_axi = wfs.pt.dict(shape, zero=True)
@@ -377,10 +395,11 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
             else:
                 # Atom a1 is not in domain so allocate a temporary buffer
                 Q_xi = np.zeros(shape + (self.setups[a1].ni, ),
-                                dtype=wfs.pt.dtype)  #TODO
+                                dtype=wfs.pt.dtype)  # TODO
             for a2, P_xi in P_axi.items():
                 dM_ii = self.extract_atomic_pair_matrix(dM_aa, a1, a2)
-                Q_xi += np.dot(P_xi, dM_ii.T)  #sum over a2 and last i in dM_ii
+                # sum over a2 and last i in dM_ii
+                Q_xi += np.dot(P_xi, dM_ii.T)
             self.gd.comm.sum(Q_xi)
 
         self.timer.stop('Update two-center projections')
@@ -441,12 +460,12 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
                 else:
                     # Atom a1 is not in domain so allocate a temporary buffer
                     Q_xi = np.zeros(shape + (self.setups[a1].ni, ),
-                                    dtype=wfs.pt.dtype)  #TODO
+                                    dtype=wfs.pt.dtype)  # TODO
                 for a2, P_xi in P_axi.items():
                     # xO_aa are the overlap extrapolators across atomic pairs
                     xO_ii = self.extract_atomic_pair_matrix(self.xO_aa, a1, a2)
                     Q_xi += np.dot(P_xi,
-                                   xO_ii.T)  #sum over a2 and last i in xO_ii
+                                   xO_ii.T)  # sum over a2 and last i in xO_ii
                 self.gd.comm.sum(Q_xi)
 
             return Q_axi
@@ -479,11 +498,12 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
             else:
                 # Atom a1 is not in domain so allocate a temporary buffer
                 Q_xi = np.zeros(shape + (self.setups[a1].ni, ),
-                                dtype=wfs.pt.dtype)  #TODO
+                                dtype=wfs.pt.dtype)  # TODO
             for a2, P_xi in P_axi.items():
                 # dC_aa are the inverse coefficients across atomic pairs
                 dC_ii = self.extract_atomic_pair_matrix(self.dC_aa, a1, a2)
-                Q_xi += np.dot(P_xi, dC_ii.T)  #sum over a2 and last i in dC_ii
+                # sum over a2 and last i in dC_ii
+                Q_xi += np.dot(P_xi, dC_ii.T)
             self.gd.comm.sum(Q_xi)
 
         wfs.pt.add(b_xG, Q_axi, kpt.q)
@@ -497,12 +517,12 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
                 else:
                     # Atom a1 is not in domain so allocate a temporary buffer
                     Q_xi = np.zeros(shape + (self.setups[a1].ni, ),
-                                    dtype=wfs.pt.dtype)  #TODO
+                                    dtype=wfs.pt.dtype)  # TODO
                 for a2, P_xi in P_axi.items():
                     # xC_aa are the inverse extrapolators across atomic pairs
                     xC_ii = self.extract_atomic_pair_matrix(self.xC_aa, a1, a2)
                     Q_xi += np.dot(P_xi,
-                                   xC_ii.T)  #sum over a2 and last i in xC_ii
+                                   xC_ii.T)  # sum over a2 and last i in xC_ii
                 self.gd.comm.sum(Q_xi)
 
             return Q_axi

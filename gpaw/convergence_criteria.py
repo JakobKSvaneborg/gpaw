@@ -172,7 +172,7 @@ class Energy(Criterion):
         converged = error < self.tol
         entry = ''
         if np.isfinite(energy):
-            entry = '{:11.6f}'.format(total_energy)
+            entry = f'{total_energy:11.6f}'
         return converged, entry
 
 
@@ -210,7 +210,7 @@ class Density(Criterion):
         if (error is None or np.isinf(error) or error == 0):
             entry = ''
         else:
-            entry = '{:+5.2f}'.format(np.log10(error))
+            entry = f'{np.log10(error):+5.2f}'
         return converged, entry
 
 
@@ -245,7 +245,7 @@ class Eigenstates(Criterion):
         if (context.wfs.nvalence == 0 or error == 0 or np.isinf(error)):
             entry = ''
         else:
-            entry = '{:+5.2f}'.format(np.log10(error))
+            entry = f'{np.log10(error):+6.2f}'
         return converged, entry
 
     def get_error(self, context):
@@ -313,7 +313,7 @@ class Forces(Criterion):
         entry = ''
         if np.isfinite(error):
             if error:
-                entry = '{:+5.2f}'.format(np.log10(error))
+                entry = f'{np.log10(error):+5.2f}'
             else:
                 entry = '-inf'
         return converged, entry
@@ -361,7 +361,7 @@ class WorkFunction(Criterion):
             error = np.inf
         converged = (error < self.tol)
         if error < np.inf:
-            entry = '{:+5.2f}'.format(np.log10(error))
+            entry = f'{np.log10(error):+5.2f}'
         else:
             entry = ''
         return converged, entry
@@ -386,7 +386,7 @@ class MinIter(Criterion):
 
     def __call__(self, context):
         converged = context.niter >= self.n
-        entry = '{:d}'.format(context.niter)
+        entry = f'{context.niter:d}'
         return converged, entry
 
 
@@ -410,5 +410,5 @@ class MaxIter(Criterion):
 
     def __call__(self, context):
         converged = context.niter >= self.n
-        entry = '{:d}'.format(context.niter)
+        entry = f'{context.niter:d}'
         return converged, entry

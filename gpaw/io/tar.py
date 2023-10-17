@@ -12,7 +12,7 @@ floatsize = np.array([1], float).itemsize
 complexsize = np.array([1], complex).itemsize
 itemsizes = {'int': intsize, 'float': floatsize, 'complex': complexsize}
 
-    
+
 class FileReference:
     """Common base class for having reference to a file. The actual I/O
        classes implementing the referencing should be inherited from
@@ -79,13 +79,13 @@ class Reader(xml.sax.handler.ContentHandler):
 
     def dimension(self, name):
         return self.dims[name]
-    
+
     def __getitem__(self, name):
         return self.parameters[name]
 
     def has_array(self, name):
         return name in self.shapes
-    
+
     def get(self, name, *indices, **kwargs):
         broadcast = kwargs.pop('broadcast', False)
         if self.master or not broadcast:
@@ -104,12 +104,12 @@ class Reader(xml.sax.handler.ContentHandler):
         if broadcast:
             array = mpi_broadcast(array, 0, self.comm)
         return array
-    
+
     def get_reference(self, name, indices, length=None):
         fileobj, shape, size, dtype = self.get_file_object(name, indices)
         assert dtype != np.int32
         return TarFileReference(fileobj, shape, dtype, self.byteswap, length)
-    
+
     def get_file_object(self, name, indices):
         dtype, type, itemsize = self.get_data_type(name)
         fileobj = self.tar.extractfile(name)
@@ -164,7 +164,7 @@ class TarFileReference(FileReference):
         else:  # Probably tuple or ellipsis
             raise NotImplementedError('You can only slice a TarReference '
                                       'with [:] or [int]')
-            
+
         n = len(indices)
 
         size = np.prod(self.shape[n:], dtype=int) * self.itemsize

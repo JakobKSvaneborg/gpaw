@@ -67,7 +67,7 @@ def test_response_silicon_chi_RPA(in_tmp_dir):
     chi_factory.context.set_timer(Timer())
 
     t4 = time.time()
-    
+
     # Calculate also the ALDA susceptibility manually
     hxc_kernel = HXCKernel(chi_factory.get_hartree_kernel('00', chiks.qpd),
                            chi_factory.get_xc_kernel('ALDA', '00', chiks.qpd))

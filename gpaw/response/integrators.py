@@ -67,7 +67,7 @@ class Integrator:
                 arguments.append(domain_l[index])
             mydomain.append(tuple(arguments))
 
-        self.context.print('Distributing domain %s' % (domainsize,),
+        self.context.print(f'Distributing domain {domainsize}',
                            'over %d process%s' %
                            (self.kncomm.size,
                             ['es', ''][self.kncomm.size == 1]),
@@ -515,7 +515,7 @@ class HilbertTetrahedron:
     def run(self, n_MG, deps_Mk, W_Mw, i0_M, i1_M, out_wxx):
         """Update output array with dissipative part."""
         blocks1d = Blocks1D(self.blockcomm, out_wxx.shape[2])
-        
+
         for n_G, deps_k, W_w, i0, i1 in zip(n_MG, deps_Mk, W_Mw,
                                             i0_M, i1_M):
             if i0 == i1:

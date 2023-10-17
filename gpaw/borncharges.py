@@ -100,7 +100,7 @@ def borncharges(calc, delta=0.01):
             'indices_a': indices,
             'sym_a': sym_a}
 
-    filename = 'borncharges-{}.json'.format(delta)
+    filename = f'borncharges-{delta}.json'
 
     with paropen(filename, 'w') as fd:
         json.dump(data, fd)

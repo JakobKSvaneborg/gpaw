@@ -205,7 +205,7 @@ class FDTDInducedField(BaseInducedField, TDDFTObserver):
         if self.has_paw:
             # Test time
             if abs(time - self.time) >= 1e-9:
-                raise IOError('Timestamp is incompatible with calculator.')
+                raise OSError('Timestamp is incompatible with calculator.')
         else:
             self.time = time
 
