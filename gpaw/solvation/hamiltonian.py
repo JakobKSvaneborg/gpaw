@@ -228,7 +228,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         # Hamiltonian.summary, but with the cavity and interactions added.
 
         log('Energy contributions relative to reference atoms:',
-            '(reference = {0:.6f})\n'.format(self.setups.Eref * Ha))
+            f'(reference = {self.setups.Eref * Ha:.6f})\n')
 
         energies = [('Kinetic:      ', self.e_kinetic),
                     ('Potential:    ', self.e_coulomb),
@@ -240,7 +240,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         if len(self.interactions) > 0:
             energies += [('Interactions', None)]
             for ia in self.interactions:
-                energies += [(' {:s}:'.format(ia.subscript),
+                energies += [(f' {ia.subscript:s}:',
                               getattr(self, 'e_' + ia.subscript))]
 
         for name, e in energies:

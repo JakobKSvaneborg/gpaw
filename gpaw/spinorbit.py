@@ -40,14 +40,14 @@ class WaveFunction:
         self.f_m[:] = nan
         self.bz_index = bz_index
 
-    def transform(self, IBZ2BZMap, K) -> 'WaveFunction':
+    def transform(self, IBZ2BZMap, K) -> WaveFunction:
         """Transforms PAW projections from IBZ to BZ k-point."""
         projections = IBZ2BZMap.map_projections(self.projections)
         return WaveFunction(self.eig_m.copy(), projections, K)
 
     def redistribute_atoms(self,
                            atom_partition: AtomPartition
-                           ) -> 'WaveFunction':
+                           ) -> WaveFunction:
         projections = self.projections.redist(atom_partition)
         return WaveFunction(self.eig_m.copy(), projections, self.bz_index)
 
@@ -163,10 +163,10 @@ class BZWaveFunctions:
     """Container for eigenvalues and PAW projections (all of BZ)."""
     def __init__(self,
                  kd: KPointDescriptor,
-                 wfs: dict[int, WaveFunction],
+                 wfs: Dict[int, WaveFunction],
                  occ: Optional[OccupationNumberCalculator],
                  nelectrons: float,
-                 nl_aj: dict[int, list[tuple[int, int]]]):
+                 nl_aj: Dict[int, List[Tuple[int, int]]]):
         self.wfs = wfs
         self.occ = occ
         self.nelectrons = nelectrons

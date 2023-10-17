@@ -185,7 +185,7 @@ class Unfold:
             try:
                 e_mK, P_mK = pickle.load(open('weights_' + self.name +
                                               '.pckl', 'rb'))
-            except IOError:
+            except OSError:
                 e_Km = []
                 P_Km = []
                 if world.rank == 0:
@@ -321,7 +321,7 @@ def plot_spectral_function(filename, color='blue', eref=None,
     try:
         e, A_ke, x, X, points_name = pickle.load(open(filename + '.pckl',
                                                       'rb'))
-    except IOError:
+    except OSError:
         print('You Need to Calculate the SF first!')
         raise SystemExit()
 

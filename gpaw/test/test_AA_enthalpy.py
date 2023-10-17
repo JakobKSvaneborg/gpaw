@@ -115,7 +115,7 @@ def calculate(element, vacuum, xc, magmom):
                      mixer=mixer,
                      parallel=dict(augment_grids=True),
                      nbands=-2,
-                     txt='%s.%s.txt' % (element, xc))
+                     txt=f'{element}.{xc}.txt')
     atom.calc = calc_atom
 
     mixer = Mixer(beta=0.4, weight=100)
@@ -131,7 +131,7 @@ def calculate(element, vacuum, xc, magmom):
                 eigensolver='rmm-diis',
                 mixer=mixer,
                 parallel=dict(augment_grids=True),
-                txt='%s2.%s.txt' % (element, xc))
+                txt=f'{element}2.{xc}.txt')
     compound.set_distance(0, 1, data[element]['R_AA_B3LYP'])
     compound.center(vacuum=vacuum)
 

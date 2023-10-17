@@ -236,7 +236,7 @@ class PairDensity:
             ni = setup.ni
             D_p = D_ap.get(a)
             if D_p is None:
-                D_p = np.empty((ni * (ni + 1) // 2))
+                D_p = np.empty(ni * (ni + 1) // 2)
             if gd.comm.size > 1:
                 gd.comm.broadcast(D_p, self.wfs.partition.rank_a[a])
             D_ii = unpack2(D_p)

@@ -13,7 +13,6 @@ def test_do_GW_too(in_tmp_dir, gpw_files, scalapack, needs_ase_master):
                ecut_extrapolation=True,
                ecut=40)
     results0 = gw0.calculate()
-
     gw = G0W0(gpw_files['c_pw'], 'gwtoo',
               bands=(3, 5),
               nblocks=1,

@@ -323,8 +323,8 @@ class PWF2:
             if self.ibl:
                 M = self.M_k[q]
                 self.P_awi = self.pwf_q[q].rotate_projections(
-                    dict([(a, P_ni[:M]) for a, P_ni in kpt.P_ani.items()]),
-                    dict([(a, P_qMi[q]) for a, P_qMi in self.P_aqMi.items()]),
+                    {a: P_ni[:M] for a, P_ni in kpt.P_ani.items()},
+                    {a: P_qMi[q] for a, P_qMi in self.P_aqMi.items()},
                     indices)
             else:
                 assert 0
@@ -406,10 +406,10 @@ class LCAOwrap:
 
     def get_projections(self, q=0, indices=None):
         if indices is None:
-            return dict([(a, P_qwi[q]) for a, P_qwi in self.P_aqwi.items()])
+            return {a: P_qwi[q] for a, P_qwi in self.P_aqwi.items()}
         else:
-            return dict([(a, P_qwi[q].take(indices, 0))
-                         for a, P_qwi in self.P_aqwi.items()])
+            return {a: P_qwi[q].take(indices, 0)
+                    for a, P_qwi in self.P_aqwi.items()}
 
     def get_orbitals(self, q=-1, indices=None):
         assert q == -1

@@ -38,6 +38,7 @@ def test_gpu_pw_k(gpu, par):
     dft = DFTCalculation.from_parameters(
         atoms,
         dict(mode={'name': 'pw'},
+             spinpol=True,
              kpts=(4, 1, 1),
              parallel={'gpu': gpu,
                        par: size},

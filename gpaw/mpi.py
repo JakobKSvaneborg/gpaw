@@ -1092,7 +1092,7 @@ class Parallelization:
 
         # We want a communicator for kpts/bands, i.e. the complement of the
         # grid comm: a communicator uniting all cores with the same domain.
-        c1, c2, c3 = [communicators[name] for name in order]
+        c1, c2, c3 = (communicators[name] for name in order)
         allranks = [range(c1.size), range(c2.size), range(c3.size)]
 
         def get_communicator_complement(name):
@@ -1195,7 +1195,7 @@ def print_mpi_stack_trace(type, value, tb):
 
     for lineno, line in enumerate(lines):
         lineno = ('%%0%dd' % line_ndigits) % lineno
-        sys.stderr.write('rank=%s L%s: %s\n' % (rankstring, lineno, line))
+        sys.stderr.write(f'rank={rankstring} L{lineno}: {line}\n')
 
 
 if world.size > 1:  # Triggers for dry-run communicators too, but we care not.

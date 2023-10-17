@@ -485,10 +485,10 @@ def write_pair_function(filename, zd, pf_z):
 
     # Write results file
     with open(filename, 'w') as fd:
-        print('# {0:>11}, {1:>11}, {2:>11}'.format(
+        print('# {:>11}, {:>11}, {:>11}'.format(
             'omega [eV]', 'pf_w.real', 'pf_w.imag'), file=fd)
         for omega, pf in zip(omega_w, pf_w):
-            print('  {0:11.6f}, {1:11.6f}, {2:11.6f}'.format(
+            print('  {:11.6f}, {:11.6f}, {:11.6f}'.format(
                 omega, pf.real, pf.imag), file=fd)
 
 

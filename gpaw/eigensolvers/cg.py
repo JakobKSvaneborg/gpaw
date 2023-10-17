@@ -116,7 +116,7 @@ class CG(Eigensolver):
                 pR_G = self.preconditioner(R_G, kpt, ekin)
 
                 # New search direction
-                gamma = comm.sum(np.vdot(pR_G, R_G).real)
+                gamma = comm.sum_scalar(np.vdot(pR_G, R_G).real)
                 phi_G[:] = -pR_G - gamma / gamma_old * phi_old_G
                 gamma_old = gamma
                 phi_old_G[:] = phi_G[:]

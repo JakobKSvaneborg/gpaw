@@ -408,7 +408,7 @@ class ETDM:
             for k in g_vec_u:
                 der_phi_2i[0] += g_vec_u[k].conj() @ p_vec_u[k]
             der_phi_2i[0] = der_phi_2i[0].real
-            der_phi_2i[0] = wfs.kd.comm.sum(der_phi_2i[0])
+            der_phi_2i[0] = wfs.kd.comm.sum_scalar(der_phi_2i[0])
 
             alpha, phi_alpha, der_phi_alpha, g_vec_u = \
                 self.line_search.step_length_update(a_vec_u, p_vec_u,

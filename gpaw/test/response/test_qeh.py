@@ -20,7 +20,7 @@ xxx isotropic_q = False is temporarily turned off. However,
 
 class FragileBB(BuildingBlock):
     def update_building_block(self, *args, **kwargs):
-        if not hasattr(self, 'doom') and self.nq == 0:
+        if not hasattr(self, 'doom') and self.last_q_idx == 0:
             self.doom = 0
         self.doom += 1  # Advance doom
         print('doom', self.doom)

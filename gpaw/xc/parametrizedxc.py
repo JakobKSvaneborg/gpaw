@@ -30,7 +30,7 @@ class ParametrizedKernel(XCKernel):
             dedsigma_xg_tmp = np.empty_like(dedsigma_xg)
         else:
             dedsigma_xg_tmp = None
-            
+
         for kernel, c in zip(self.kernels, self.coefs):
             dedn_sg_tmp[:] = 0.0
             if self.type == 'GGA':

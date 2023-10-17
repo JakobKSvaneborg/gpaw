@@ -771,7 +771,7 @@ class PAWSetupGenerator:
                 G = k * G_k[1]
                 ecut = 0.5 * G**2
                 h = pi / G
-                self.log(' %6.1f (%4.2f)' % (ecut * Ha, h), end='')
+                self.log(f' {ecut * Ha:6.1f} ({h:4.2f})', end='')
             plt.semilogy(G_k, abs(e_k - e_k[-1]) * Ha, label=label)
         self.log()
         plt.axis(xmax=20)
@@ -805,7 +805,7 @@ class PAWSetupGenerator:
                                            waves.phi_ng, waves.phit_ng):
                 if n == -1:
                     gc = self.rgd.ceil(waves.rcut)
-                    name = '*%s (%.2f Ha)' % ('spdf'[l], e)
+                    name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
                 else:
                     gc = len(self.rgd)
                     name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
@@ -823,7 +823,7 @@ class PAWSetupGenerator:
         for l, waves in enumerate(self.waves_l):
             for n, e, pt_g in zip(waves.n_n, waves.e_n, waves.pt_ng):
                 if n == -1:
-                    name = '*%s (%.2f Ha)' % ('spdf'[l], e)
+                    name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
                 else:
                     name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
                 plt.plot(r_g, pt_g * r_g, color=colors[i], label=name)
@@ -888,7 +888,7 @@ class PAWSetupGenerator:
             self.basis.append(bf)
 
             txt += '%d%s split valence:\n' % (n0, 'spdf'[l])
-            txt += '  cutoff: %.3f Bohr (tail-norm=%f)\n' % (rc, splitnorm)
+            txt += f'  cutoff: {rc:.3f} Bohr (tail-norm={splitnorm:f})\n'
 
         # Polarization:
         if lpol < 4:
@@ -1474,7 +1474,7 @@ def main(args):
             parameters = []
             for key, value in kwargs.items():
                 if value is not None:
-                    parameters.append('{0}={1!r}'.format(key, value))
+                    parameters.append(f'{key}={value!r}')
             setup.generatordata = ',\n    '.join(parameters)
             setup.write_xml()
 

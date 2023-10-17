@@ -542,8 +542,8 @@ class EquidistantRadialGridDescriptor(RadialGridDescriptor):
 
     def xml(self, id='grid1'):
         assert self.r_g[0] == 0.0
-        return ('<radial_grid eq="r=d*i" d="{0!r}" '
-                'istart="0" iend="{1}" id="{2}"/>\n'
+        return ('<radial_grid eq="r=d*i" d="{!r}" '
+                'istart="0" iend="{}" id="{}"/>\n'
                 .format(self.r_g[1], len(self.r_g) - 1, id))
 
     def spline(self, a_g, rcut=None, l=0, points=None):

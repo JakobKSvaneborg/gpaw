@@ -47,9 +47,9 @@ Optimizing the unit cell
 ------------------------
 
 **Warning**: due to difficulties in optimizing cell and positions
-simultaneously :class:`ase.constraints.UnitCellFilter` may produce incorrect
+simultaneously :class:`ase.filters.UnitCellFilter` may produce incorrect
 results. Always verify obtained structures by means of performing separate
-cell (see :class:`ase.constraints.StrainFilter`) and positions optimizations
+cell (see :class:`ase.filters.StrainFilter`) and positions optimizations
 (see :mod:`ase.optimize`). Consider a much more tight fmax than the one used
 in this tutorial!
 

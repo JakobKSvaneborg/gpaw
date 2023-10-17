@@ -43,7 +43,7 @@ def get_density(rho_MM, wfs, density, density_type='comp', u=0):
     raise RuntimeError('Unknown density type: %s' % density_type)
 
 
-class DensityMatrix(object):
+class DensityMatrix:
 
     def __init__(self, paw):
         self.wfs = paw.wfs

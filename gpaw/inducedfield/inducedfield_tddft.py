@@ -12,7 +12,7 @@ from gpaw.inducedfield.inducedfield_base import BaseInducedField, \
 
 class TDDFTInducedField(BaseInducedField, TDDFTObserver):
     """Induced field class for time propagation TDDFT.
-    
+
     Attributes (see also ``BaseInducedField``):
     -------------------------------------------
     time: float
@@ -26,7 +26,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
     D0_asp: dict of ndarray (float)
         Ground state D_asp
     """
-    
+
     def __init__(self, filename=None, paw=None,
                  frequencies=None, folding='Gauss', width=0.08,
                  interval=1, restart_file=None
@@ -52,10 +52,10 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
         # self.interval
         # self.timer
         # Observer does also paw.attach(self, ...)
-        
+
         # Restart file
         self.restart_file = restart_file
-        
+
         # These are allocated in allocate()
         self.Fnt_wsG = None
         self.n0t_sG = None
@@ -70,10 +70,10 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
 
         BaseInducedField.__init__(self, filename, paw,
                                   frequencies, folding, width)
-        
+
     def initialize(self, paw, allocate=True):
         BaseInducedField.initialize(self, paw, allocate)
-        
+
         if self.has_paw:
             assert hasattr(paw, 'time') and hasattr(paw, 'niter'), 'Use TDDFT!'
             self.time = paw.time                # !
@@ -81,7 +81,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
 
     def set_folding(self, folding, width):
         BaseInducedField.set_folding(self, folding, width)
-        
+
         if self.folding is None:
             self.envelope = lambda t: 1.0
         else:
@@ -91,35 +91,35 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
                 self.envelope = lambda t: np.exp(- self.width * t)
             else:
                 raise RuntimeError('unknown folding "' + self.folding + '"')
-        
+
     def allocate(self):
         if not self.allocated:
-            
+
             # Ground state pseudo density
             self.n0t_sG = self.gd.empty((self.nspins, )) + np.nan
-            
+
             # Fourier transformed pseudo density
             self.Fnt_wsG = self.gd.zeros((self.nw, self.nspins),
                                          dtype=self.dtype)
-    
+
             # Ground state D_asp
             self.D0_asp = {}
             for a, D_sp in self.density.D_asp.items():
                 self.D0_asp[a] = D_sp.copy()
-            
+
             # Size of D_p for each atom
             self.np_a = {}
             for a, D_sp in self.D0_asp.items():
                 self.np_a[a] = np.array([len(D_sp[0])])
-            
+
             # Fourier transformed D_asp
             self.FD_awsp = {}
             for a, np_ in self.np_a.items():
                 self.FD_awsp[a] = np.zeros((self.nw, self.nspins, np_[0]),
                                            dtype=self.dtype)
-            
+
             self.allocated = True
-            
+
         if debug:
             assert is_contiguous(self.Fnt_wsG, self.dtype)
 
@@ -129,7 +129,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
         self.Fnt_wsG = None
         self.D0_asp = None
         self.FD_awsp = None
-        
+
     def _update(self, paw):
         if paw.action == 'init':
             if paw.niter == 0:
@@ -176,22 +176,22 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
         if self.restart_file is not None:
             self.write(self.restart_file)
             self.log(f'{self.__class__.__name__}: Wrote restart file')
-    
+
     def interpolate_pseudo_density(self, gridrefinement=2):
-        
+
         gd = self.gd
         Fnt_wsg = self.Fnt_wsG.copy()
-        
+
         # Find m for
         # gridrefinement = 2**m
         m1 = np.log(gridrefinement) / np.log(2.)
         m = int(np.round(m1))
-        
+
         # Check if m is really integer
         if np.absolute(m - m1) < 1e-8:
             for i in range(m):
                 gd2 = gd.refine()
-                
+
                 # Interpolate
                 interpolator = Transformer(gd, gd2, self.stencil,
                                            dtype=self.dtype)
@@ -205,18 +205,18 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
                 Fnt_wsg = Fnt2_wsg
         else:
             raise NotImplementedError
-        
+
         return Fnt_wsg, gd
-    
+
     def comp_charge_correction(self, gridrefinement=2):
-    
+
         # TODO: implement for gr==1 also
         assert gridrefinement == 2
-        
+
         # Density
         Fnt_wsg, gd = self.interpolate_pseudo_density(gridrefinement)
         Frhot_wg = Fnt_wsg.sum(axis=1)
-        
+
         tmp_g = gd.empty(dtype=float)
         for w in range(self.nw):
             # Determine compensation charge coefficients:
@@ -235,7 +235,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
 #                print is_contiguous(FQ_L.real)
             self.density.ghat.add(tmp_g, FQ2_aL)
             Frhot_wg[w] += tmp_g
-            
+
             # Add imag part of compensation charges
             tmp_g[:] = 0
             FQ2_aL = {}
@@ -245,11 +245,11 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
             Frhot_wg[w] += 1.0j * tmp_g
 
         return Frhot_wg, gd
-    
+
     def paw_corrections(self, gridrefinement=2):
-        
+
         Fn_wsg, gd = self.interpolate_pseudo_density(gridrefinement)
-        
+
         # Splines
         splines = {}
         phi_aj = []
@@ -272,7 +272,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
         spos_ac = self.atoms.get_scaled_positions()
         phi.set_positions(spos_ac)
         phit.set_positions(spos_ac)
-        
+
         tmp_g = gd.empty(dtype=float)
         rho_MM = np.zeros((phi.Mmax, phi.Mmax), dtype=self.dtype)
         rho2_MM = np.zeros_like(rho_MM)
@@ -293,7 +293,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
                     # unpack does complex conjugation that we don't want so
                     # remove conjugation
                     D_ij = np.triu(D_ij, 1) + np.conj(np.tril(D_ij))
-                    
+
 #                    if FD_wsp is None:
 #                        FD_wsp = np.empty((self.nw, self.nspins,
 #                                           ni * (ni + 1) // 2),
@@ -302,11 +302,11 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
 #                        gd.comm.broadcast(FD_wsp, self.rank_a[a])
 #                    D_ij = unpack2(FD_wsp[w][s])
 #                    D_ij = np.triu(D_ij, 1) + np.conj(np.tril(D_ij))
-                    
+
                     M2 = M1 + ni
                     rho_MM[M1:M2, M1:M2] = D_ij
                     M1 = M2
-     
+
                 # Add real part of AE corrections
                 tmp_g[:] = 0
                 rho2_MM[:] = rho_MM.real
@@ -322,7 +322,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
 #                                                               np.intc),
 #                                                      np.zeros(self.na))
                 Fn_wsg[w][s] += tmp_g
-                
+
                 # Add imag part of AE corrections
                 tmp_g[:] = 0
                 rho2_MM[:] = rho_MM.imag
@@ -338,9 +338,9 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
 #                                                               np.intc),
 #                                                      np.zeros(self.na))
                 Fn_wsg[w][s] += 1.0j * tmp_g
-        
+
         return Fn_wsg, gd
-        
+
     def get_induced_density(self, from_density, gridrefinement):
         # Return charge density (electrons = negative charge)
         if from_density == 'pseudo':
@@ -357,7 +357,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
             return Frho_wg, gd
         else:
             raise RuntimeError('unknown from_density "' + from_density + '"')
-    
+
     def _read(self, reader, reads):
         BaseInducedField._read(self, reader, reads)
 
@@ -366,7 +366,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
         if self.has_paw:
             # Test time
             if abs(time - self.time) >= 1e-9:
-                raise IOError('Timestamp is incompatible with calculator.')
+                raise OSError('Timestamp is incompatible with calculator.')
         else:
             self.time = time
 
@@ -383,14 +383,14 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
         # Read arrays
         readarray('n0t_sG')
         readarray('Fnt_wsG')
-        
+
         if 'D0' in reads:
             D0_asp = r.D0_asp
             self.D0_asp = {}
             for a in range(self.na):
                 if self.domain_comm.rank == self.rank_a[a]:
                     self.D0_asp[a] = D0_asp[a]
-        
+
         if 'FD' in reads:
             FD_awsp = r.FD_awsp
             self.FD_awsp = {}
@@ -403,7 +403,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
 
         # Collect np_a to master
         if self.kpt_comm.rank == 0 and self.band_comm.rank == 0:
-            
+
             # Create empty dict on domain master
             if self.domain_comm.rank == 0:
                 np_a = {}
@@ -414,7 +414,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
             # Collect dict to master
             sendreceive_dict(self.domain_comm, np_a, 0,
                              self.np_a, self.rank_a, range(self.na))
-        
+
         # Write time propagation status
         writer.write(time=self.time, np_a=np_a)
 
@@ -431,7 +431,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
         if 'n0t' in writes:
             writer.write(n0t_sG=self.gd.collect(self.n0t_sG))
         writearray('Fnt_wsG', (self.nw, self.nspins) + ng, self.dtype)
-        
+
         if 'D0' in writes:
             # Collect D0_asp to world master
             if self.kpt_comm.rank == 0 and self.band_comm.rank == 0:

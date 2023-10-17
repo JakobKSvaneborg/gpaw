@@ -515,7 +515,7 @@ class SJM(SolvationGPAW):
                'plotting them could give you insight into the problem.')
         msg = textwrap.fill(msg) + '\n'
         for n, p in zip(previous_electrons, previous_potentials):
-            msg += '{:+.6f} {:.6f}\n'.format(n, p)
+            msg += f'{n:+.6f} {p:.6f}\n'
         self.log(msg, flush=True)
         raise PotentialConvergenceError(msg)
 
@@ -754,7 +754,7 @@ def _write_trace_in_z(grid, property, name, dir):
     property_z = property.mean(0).mean(0)
     with paropen(os.path.join(dir, name), 'w') as f:
         for i, val in enumerate(property_z):
-            f.write('%f %1.8f\n' % ((i + 1) * grid.h_cv[2][2] * Bohr, val))
+            f.write(f'{(i + 1) * grid.h_cv[2][2] * Bohr:f} {val:1.8f}\n')
 
 
 def _write_property_on_grid(grid, property, atoms, name, dir):

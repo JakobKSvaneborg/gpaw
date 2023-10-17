@@ -101,12 +101,12 @@ class ComputeCluster:
                 return
             except KeyError:
                 raise KeyError(
-                    'Architecture {0} unknown, known are\n'.format(
+                    'Architecture {} unknown, known are\n'.format(
                         architecture) + self.list_architectures())
 
         def get_hostname():
             if os.path.isfile('/etc/FZJ/systemname'):
-                with open('/etc/FZJ/systemname', "r") as f:
+                with open('/etc/FZJ/systemname') as f:
                     return f.read().strip()
 
             if 'HOSTNAME' in list(os.environ.keys()):
@@ -132,13 +132,13 @@ class ComputeCluster:
                 self.arch = host
                 self.data = d
                 return
-        raise KeyError('Host {0} unknown, try -a option.\n'.format(hostname) +
+        raise KeyError(f'Host {hostname} unknown, try -a option.\n' +
                        self.list_architectures())
 
     def list_architectures(self):
         string = ''
         for arch in _hardware_info:
-            string += '  {0}\n'.format(arch)
+            string += f'  {arch}\n'
         return string
 
     def write(self, filename=None, **set):

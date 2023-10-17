@@ -3,7 +3,7 @@ from gpaw.core.plane_waves import PWDesc
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 
 
-class SpiralPW:
+class SpiralPWDesc:
     def __init__(self,
                  pw: PWDesc,
                  qspiral_v):
@@ -29,7 +29,7 @@ class SpiralPWACF:
             PWAtomCenteredFunctions(
                 functions,
                 positions,
-                SpiralPW(pw, 0.5 * sign * qspiral_v),
+                SpiralPWDesc(pw, 0.5 * sign * qspiral_v),
                 atomdist=atomdist)
             for sign in [1, -1]]
 

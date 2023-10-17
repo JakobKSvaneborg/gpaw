@@ -99,14 +99,14 @@ def dielectric(exlist,
 
         print('# Dielec function', file=out)
         print('# GPAW version:', gpaw.__version__, file=out)
-        print('# width={0} [{1}]'.format(width, energyunit), file=out)
+        print(f'# width={width} [{energyunit}]', file=out)
         if form == 'r':
             print('# length form', file=out)
         else:
             assert form == 'v'
             print('# velocity form', file=out)
         print(
-            '# om [{0}]  eps1/eps0  eps2/eps0   n     k     R'
+            '# om [{}]  eps1/eps0  eps2/eps0   n     k     R'
             .format(energyunit), file=out)
 
         energies, eps1, eps2, N, K, R = get_dielectric(

@@ -6,7 +6,7 @@ from gpaw.io import Writer
 from gpaw.lcaotddft.observer import TDDFTObserver
 
 
-class LineDensityReader(object):
+class LineDensityReader:
     def __init__(self, filename):
         self.reader = ulm.Reader(filename)
         tag = self.reader.get_tag()
@@ -81,7 +81,7 @@ class LineDensityWriter(TDDFTObserver):
                                  tag=self.__class__.ulmtag)
         self.dx = np.linalg.norm(h_v)
         assert self.density_type in ['comp', 'pseudo', 'pseudocoarse'], \
-            'Unknown density type: {}'.format(self.density_type)
+            f'Unknown density type: {self.density_type}'
 
     def _update(self, paw):
         # Write metadata to main writer

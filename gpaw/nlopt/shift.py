@@ -1,4 +1,3 @@
-
 import numpy as np
 from ase.units import Bohr, _hbar, _e, _me
 from ase.utils.timing import Timer
@@ -45,13 +44,13 @@ def get_shift(
 
     # Start a timer
     timer = Timer()
-    parprint('Calculating shift current (in {:d} cores).'.format(world.size))
+    parprint(f'Calculating shift current (in {world.size:d} cores).')
 
     # Useful variables
     pol_v = ['xyz'.index(ii) for ii in pol]
     w_l = np.array(freqs)
     nw = len(freqs)
-    parprint('Calculation for element {}.'.format(pol))
+    parprint(f'Calculation for element {pol}.')
 
     # Load the required data
     with timer('Load and distribute the data'):

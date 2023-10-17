@@ -27,7 +27,7 @@ class EnergyWriter(TDDFTObserver):
     def _write_header(self, paw):
         if paw.niter != 0:
             return
-        line = '# %s[version=%s]\n' % (self.__class__.__name__, self.version)
+        line = f'# {self.__class__.__name__}[version={self.version}]\n'
         line += ('# %15s %22s %22s %22s %22s %22s %22s\n' %
                  ('time', 'kinetic0', 'coulomb', 'zero', 'external',
                   'xc', 'band'))

@@ -138,7 +138,7 @@ class BuildingBlock:
         self.q_abs = (self.q_vs**2).sum(axis=1)**0.5
         self.q_infs = q_infs
         self.complete = False
-        self.nq = 0
+        self.last_q_idx = 0
         if self.load_chi_file():
             if self.complete:
                 self.context.print('Building block loaded from file')
@@ -148,18 +148,18 @@ class BuildingBlock:
         if self.complete:
             return
         Nq = self.q_cs.shape[0]
-        for nq in range(self.nq, Nq):
-            self.nq = nq
-            self.save_chi_file()
-            q_c = self.q_cs[nq]
-            q_inf = self.q_infs[nq]
+        for current_q_idx in range(self.last_q_idx, Nq):
+            self.save_chi_file(q_idx=current_q_idx)
+            self.last_q_idx = current_q_idx
+            q_c = self.q_cs[current_q_idx]
+            q_inf = self.q_infs[current_q_idx]
             if np.allclose(q_inf, 0):
                 q_inf = None
 
             qcstr = '(' + ', '.join(['%.3f' % x for x in q_c]) + ')'
             self.context.print(
                 'Calculating contribution from q-point #%d/%d, q_c=%s' % (
-                    nq + 1, Nq, qcstr), flush=False)
+                    current_q_idx + 1, Nq, qcstr), flush=False)
             if q_inf is not None:
                 qstr = '(' + ', '.join(['%.3f' % x for x in q_inf]) + ')'
                 self.context.print('    and q_inf=%s' % qstr, flush=False)
@@ -177,11 +177,8 @@ class BuildingBlock:
             comm = self.context.comm
             w1 = min(self.df.blocks1d.blocksize * comm.rank, nw)
 
-            _, _, chiM_qw, chiD_qw, _, drhoM_qz, drhoD_qz = \
-                get_chi_2D(self.wd.omega_w, qpd, chi_wGG)
-
-            chiM_w = chiM_qw[0]
-            chiD_w = chiD_qw[0]
+            chiM_w, chiD_w, drhoM_z, drhoD_z = \
+                self.get_chi_2D(qpd, chi_wGG)
             chiM_w = self.collect(chiM_w)
             chiD_w = self.collect(chiD_w)
 
@@ -189,9 +186,10 @@ class BuildingBlock:
                 assert w1 == 0  # drhoM and drhoD in static limit
                 self.update_building_block(chiM_w[np.newaxis, :],
                                            chiD_w[np.newaxis, :],
-                                           drhoM_qz, drhoD_qz)
+                                           drhoM_z[np.newaxis, :],
+                                           drhoD_z[np.newaxis, :])
 
-        # Induced densities are not probably described in q-> 0 limit-
+        # Induced densities are not properly described in q-> 0 limit-
         # replace with finite q result:
         if self.context.comm.rank == 0:
             for n in range(Nq):
@@ -212,10 +210,80 @@ class BuildingBlock:
         self.drhoM_qz = np.append(self.drhoM_qz, drhoM_qz, axis=0)
         self.drhoD_qz = np.append(self.drhoD_qz, drhoD_qz, axis=0)
 
-    def save_chi_file(self, filename=None):
+    def get_chi_2D(self, qpd, chi_wGG):
+        r"""Calculate the monopole and dipole contribution to the
+        2D susceptibility chi_2D for single q-point q, defined as
+
+        ::
+
+          \chi^M_2D(q, \omega) = \int\int dr dr' \chi(q, \omega, r,r') \\
+                              = L \chi_{G=G'=0}(q, \omega)
+          \chi^D_2D(q, \omega) = \int\int dr dr' z \chi(q, \omega, r,r') z'
+                               = 1/L sum_{G_z,G_z'} z_factor(G_z)
+                               chi_{G_z,G_z'} z_factor(G_z'),
+          Where z_factor(G_z) =  +/- i e^{+/- i*G_z*z0}
+          (L G_z cos(G_z L/2)-2 sin(G_z L/2))/G_z^2
+
+        qpd: Single q-point descriptor
+        chi_wGG: Susceptibility in PW basis
+          """
+
+        nw = chi_wGG.shape[0]
+        z = self.z
+        L = qpd.gd.cell_cv[2, 2]  # Length of cell in Bohr
+
+        # XXX This seems like a bit dangerous assumption
+        z0 = L / 2.  # position of layer
+        chiM_w = np.zeros([nw], dtype=complex)
+        chiD_w = np.zeros([nw], dtype=complex)
+        drhoM_z = np.zeros([len(z)], dtype=complex)  # induced density
+        drhoD_z = np.zeros([len(z)], dtype=complex)  # induced dipole density
+
+        npw = chi_wGG.shape[1]
+        G_Gv = qpd.get_reciprocal_vectors(add_q=False)
+
+        Glist = []
+        for iG in range(npw):  # List of G with Gx,Gy = 0
+            if G_Gv[iG, 0] == 0 and G_Gv[iG, 1] == 0:
+                Glist.append(iG)
+
+        # If node lacks frequency points due to block parallelization then
+        # return empty arrays
+        if nw == 0:
+            return chiM_w, chiD_w, drhoM_z, drhoD_z
+        chiM_w = L * chi_wGG[:, 0, 0]
+        drhoM_z += chi_wGG[0, 0, 0]
+        for iG in Glist[1:]:
+            G_z = G_Gv[iG, 2]
+            qGr_R = np.inner(G_z, z.T).T
+            # Fourier transform to get induced density at \omega=0
+            drhoM_z += np.exp(1j * qGr_R) * chi_wGG[0, iG, 0]
+            for iG1 in Glist[1:]:
+                G_z1 = G_Gv[iG1, 2]
+                # integrate with z along both coordinates
+                factor = z_factor(z0, L, G_z)
+                factor1 = z_factor(z0, L, G_z1, sign=-1)
+                chiD_w[:] += 1. / L * factor * chi_wGG[:, iG, iG1] * \
+                    factor1
+                # induced dipole density due to V_ext = z
+                drhoD_z[:] += 1. / L * np.exp(1j * qGr_R) * \
+                    chi_wGG[0, iG, iG1] * factor1
+        # Normalize induced densities with chi
+        if nw != 0:
+            drhoM_z /= chiM_w[0]
+            drhoD_z /= chiD_w[0]
+
+        """ Returns chi2D monopole and dipole, induced
+        densities and z array (all in Bohr)
+        """
+        return chiM_w, chiD_w, drhoM_z, drhoD_z
+
+    def save_chi_file(self, filename=None, q_idx=None):
+        if q_idx is None:
+            q_idx = self.last_q_idx
         if filename is None:
             filename = self.filename
-        data = {'last_q': self.nq,
+        data = {'last_q': q_idx,
                 'complete': self.complete,
                 'isotropic_q': self.isotropic_q,
                 'q_cs': self.q_cs,
@@ -236,12 +304,12 @@ class BuildingBlock:
     def load_chi_file(self):
         try:
             data = np.load(self.filename + '-chi.npz')
-        except IOError:
+        except OSError:
             return False
         if (np.all(data['omega_w'] == self.wd.omega_w) and
             np.all(data['q_cs'] == self.q_cs) and
             np.all(data['z'] == self.z)):
-            self.nq = data['last_q']
+            self.last_q_idx = data['last_q']
             self.complete = data['complete']
             self.chiM_qw = data['chiM_qw']
             self.chiD_qw = data['chiD_qw']
@@ -379,108 +447,6 @@ def check_building_blocks(BBfiles=None):
                   (data['omega_w'] == w).all()):
             return False
     return True
-
-
-def get_chi_2D(omega_w=None, qpd=None, chi_wGG=None, q0=None,
-               filenames=None, name=None):
-    r"""Calculate the monopole and dipole contribution to the
-    2D susceptibillity chi_2D, defined as
-
-    ::
-
-      \chi^M_2D(q, \omega) = \int\int dr dr' \chi(q, \omega, r,r') \\
-                          = L \chi_{G=G'=0}(q, \omega)
-      \chi^D_2D(q, \omega) = \int\int dr dr' z \chi(q, \omega, r,r') z'
-                           = 1/L sum_{G_z,G_z'} z_factor(G_z)
-                           chi_{G_z,G_z'} z_factor(G_z'),
-      Where z_factor(G_z) =  +/- i e^{+/- i*G_z*z0}
-      (L G_z cos(G_z L/2)-2 sin(G_z L/2))/G_z^2
-
-    input parameters:
-
-    filenames: list of str
-        list of chi_wGG.pckl files for different q calculated with
-        the DielectricFunction module in GPAW
-    name: str
-        name writing output files
-    """
-
-    q_list_abs = []
-    if chi_wGG is None and filenames is not None:
-        omega_w, qpd, chi_wGG, q0 = read_chi_wGG(filenames[0])
-        nq = len(filenames)
-    elif chi_wGG is not None:
-        nq = 1
-    nw = chi_wGG.shape[0]
-    r = qpd.gd.get_grid_point_coordinates()
-    z = r[2, 0, 0, :]
-    L = qpd.gd.cell_cv[2, 2]  # Length of cell in Bohr
-    z0 = L / 2.  # position of layer
-    chiM_qw = np.zeros([nq, nw], dtype=complex)
-    chiD_qw = np.zeros([nq, nw], dtype=complex)
-    drhoM_qz = np.zeros([nq, len(z)], dtype=complex)  # induced density
-    drhoD_qz = np.zeros([nq, len(z)], dtype=complex)  # induced dipole density
-
-    for iq in range(nq):
-        if iq != 0:
-            omega_w, qpd, chi_wGG, q0 = read_chi_wGG(filenames[iq])
-        if q0 is not None:
-            q = q0
-        else:
-            q = qpd.K_qv
-        npw = chi_wGG.shape[1]
-        G_Gv = qpd.get_reciprocal_vectors(add_q=False)
-
-        Glist = []
-        for iG in range(npw):  # List of G with Gx,Gy = 0
-            if G_Gv[iG, 0] == 0 and G_Gv[iG, 1] == 0:
-                Glist.append(iG)
-        q_abs = np.linalg.norm(q)
-        q_list_abs.append(q_abs)
-
-        # If node lacks frequency points due to block parallelization then
-        # return empty arrays
-        if nw == 0:
-            continue
-        chiM_qw[iq] = L * chi_wGG[:, 0, 0]
-        drhoM_qz[iq] += chi_wGG[0, 0, 0]
-        for iG in Glist[1:]:
-            G_z = G_Gv[iG, 2]
-            qGr_R = np.inner(G_z, z.T).T
-            # Fourier transform to get induced density at \omega=0
-            drhoM_qz[iq] += np.exp(1j * qGr_R) * chi_wGG[0, iG, 0]
-            for iG1 in Glist[1:]:
-                G_z1 = G_Gv[iG1, 2]
-                # integrate with z along both coordinates
-                factor = z_factor(z0, L, G_z)
-                factor1 = z_factor(z0, L, G_z1, sign=-1)
-                chiD_qw[iq, :] += 1. / L * factor * chi_wGG[:, iG, iG1] * \
-                    factor1
-                # induced dipole density due to V_ext = z
-                drhoD_qz[iq, :] += 1. / L * np.exp(1j * qGr_R) * \
-                    chi_wGG[0, iG, iG1] * factor1
-    # Normalize induced densities with chi
-    if nw != 0:
-        drhoM_qz /= np.repeat(chiM_qw[:, 0, np.newaxis], drhoM_qz.shape[1],
-                              axis=1)
-        drhoD_qz /= np.repeat(chiD_qw[:, 0, np.newaxis], drhoM_qz.shape[1],
-                              axis=1)
-
-    """ Returns q array, frequency array, chi2D monopole and dipole, induced
-    densities and z array (all in Bohr)
-    """
-    if name is not None:
-        arrays = [np.array(q_list_abs), omega_w, chiM_qw, chiD_qw,
-                  z, drhoM_qz, drhoD_qz]
-        names = ['q_abs', 'omega_w', 'z',
-                 'chiM_qw', 'chiD_qw',
-                 'drhoM_qz', 'drhoD_qz']
-        data = {}
-        for array, name in zip(arrays, names):
-            data[name] = array
-        np.save(name + '-chi.npz', **data)
-    return np.array(q_list_abs) / Bohr, omega_w * Hartree, chiM_qw, \
-        chiD_qw, z, drhoM_qz, drhoD_qz
 
 
 def z_factor(z0, d, G, sign=1):

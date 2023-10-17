@@ -699,7 +699,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
         self.bd = bd = BandDescriptor(nbands, self.bd.comm)
         self.occupations.bd = bd
 
-        log('Diagonalizing full Hamiltonian ({} lowest bands)'.format(nbands))
+        log(f'Diagonalizing full Hamiltonian ({nbands} lowest bands)')
         log('Matrix size (min, max): {}, {}'.format(self.pd.ngmin,
                                                     self.pd.ngmax))
         mem = 3 * self.pd.ngmax**2 * 16 / S / 1024**2
@@ -721,7 +721,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
                     nprow -= 1
                 npcol = S // nprow
                 b = 64
-            log('ScaLapack grid: {}x{},'.format(nprow, npcol),
+            log(f'ScaLapack grid: {nprow}x{npcol},',
                 'block-size:', b)
             bg = BlacsGrid(bd.comm, S, 1)
             bg2 = BlacsGrid(bd.comm, nprow, npcol)

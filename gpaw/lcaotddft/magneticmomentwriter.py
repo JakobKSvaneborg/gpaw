@@ -328,7 +328,7 @@ class MagneticMomentWriter(TDDFTObserver):
         TDDFTObserver.__init__(self, paw, interval)
         self.ioctx = IOContext()
         mode = paw.wfs.mode
-        assert mode in ['fd', 'lcao'], 'unknown mode: {}'.format(mode)
+        assert mode in ['fd', 'lcao'], f'unknown mode: {mode}'
         if paw.niter == 0:
             if origin is None:
                 origin = 'COM'
@@ -422,7 +422,7 @@ class MagneticMomentWriter(TDDFTObserver):
         self._write(f'# {"time":>15} {"mmx":>17} {"mmy":>22} {"mmz":>22}\n')
 
     def _read_header(self, filename):
-        with open(filename, 'r', encoding='utf-8') as fd:
+        with open(filename, encoding='utf-8') as fd:
             line = fd.readline()
         try:
             name, version, kwargs = parse_header(line[2:])

@@ -568,8 +568,8 @@ def upfplot(setup, show=True, calculate=False):
 
     import matplotlib.pyplot as plt
     fig = plt.figure()
-    fig.canvas.set_window_title('%s - UPF setup for %s' % (pp['fname'],
-                                                           setup.symbol))
+    fig.canvas.set_window_title('{} - UPF setup for {}'.format(pp['fname'],
+                                                               setup.symbol))
 
     vax = fig.add_subplot(221)
     pax = fig.add_subplot(222)

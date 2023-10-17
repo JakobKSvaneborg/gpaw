@@ -93,7 +93,7 @@ def block_partition(comm, nblocks):
     |     |     |     |     |     |     |     |     | |
     | 16  | 17  | 18  | 19  | 20  | 21  | 22  | 23  | |
     |_____|_____|_____|_____|_____|_____|_____|_____| ⋁
-    
+
     """
     if nblocks == 'max':
         # Maximize the number of blocks
@@ -227,7 +227,7 @@ class PlaneWaveBlockDistributor:
             wblocks = Blocks1D(comm, nw)
             assert array.shape == (wblocks.nlocal, nG, nG)
             return distribution in ['wGG', 'zGG']
-        
+
     def distribute_as(self, array, nw, distribution):
         """Redistribute array.
 
@@ -241,7 +241,7 @@ class PlaneWaveBlockDistributor:
             return array
         else:
             return self._redistribute(array, nw)
-    
+
     def distribute_frequencies(self, in_wGG, nw):
         """Distribute frequencies to all cores."""
 

@@ -52,7 +52,7 @@ def test_reuse_wfs_celldisp(in_tmp_dir):
         logerr2 = first_iter_err.pop()
 
         if world.rank == 0:
-            print('reuse={}'.format(bool(reuse)))
+            print(f'reuse={bool(reuse)}')
             print('logerr1', logerr1)
             print('logerr2', logerr2)
             gain = logerr2 - logerr1

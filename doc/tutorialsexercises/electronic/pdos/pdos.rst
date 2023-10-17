@@ -195,30 +195,22 @@ The meaning of an integer valued ``angular`` keyword can be determined
 by running::
 
   >>> from gpaw.utilities.dos import print_projectors
-  >>> print_projectors('Fe')
+  >>> print_projectors('Au')
 
 Note that the set of atomic partial waves do not form an orthonormal
 basis, thus the properties of the introduction are not fulfilled.
 This PDOS can however be used as a qualitative measure of the local
 character of the DOS.
 
-An example of how to obtain and plot the *d* band on atom number ``10`` of a
-stored calculation, is shown below::
+An example of how to obtain and plot the *d* band on atom number ``0`` of Au,
+is shown below (see :download:`atomic_orbital_gs.py` and
+:download:`atomic_orbital_pdos.py`):
 
-  import numpy as np
-  import pylab as plt
-  from gpaw import GPAW
+.. literalinclude:: atomic_orbital_gs.py
+.. literalinclude:: atomic_orbital_pdos.py
+   :start-after: web-page
 
-  calc = GPAW('old_calculation.gpw', txt=None)
-  energy, pdos = calc.get_orbital_ldos(a=10, angular='d')
-  I = np.trapz(pdos, energy)
-  center = np.trapz(pdos * energy, energy) / I
-  width = np.sqrt(np.trapz(pdos * (energy - center)**2, energy) / I)
-  plt.plot(energy, pdos)
-  plt.xlabel('Energy (eV)')
-  plt.ylabel('d-projected DOS on atom 10')
-  plt.title('d-band center = %s eV, d-band width = %s eV' % (center, width))
-  plt.show()
+.. image:: ag-ddos.png
 
 Warning: You should always plot the PDOS before using the calculated
 center and width to check that it is sensible. The very localized

@@ -613,7 +613,7 @@ class AllElectronAtom:
             equation = 'scalar-relativistic Schrödinger'
         else:
             equation = 'non-relativistic Schrödinger'
-        self.log('\nSolving %s equation using %s:' % (equation, self.method))
+        self.log(f'\nSolving {equation} equation using {self.method}:')
 
         dn = self.Z
 
@@ -681,7 +681,7 @@ class AllElectronAtom:
                         ('xc           ', self.exc),
                         ('total        ',
                          self.ekin + self.eH + self.eZ + self.exc)]:
-            self.log(' %s %+13.6f  %+13.5f' % (text, e, units.Hartree * e))
+            self.log(f' {text} {e:+13.6f}  {units.Hartree * e:+13.5f}')
 
         self.calculate_exx()
         self.log('\nExact exchange energy: %.6f Hartree, %.5f eV' %

@@ -295,8 +295,8 @@ class LocalizedFunctionsCollection(BaseLFC):
 
         natoms = len(spos_ac)
         # Holm-Nielsen check:
-        if ((self.gd.comm.sum_scalar(float(sum(self.my_atom_indices))) !=
-             natoms * (natoms - 1) // 2)):
+        if (self.gd.comm.sum_scalar(float(sum(self.my_atom_indices))) !=
+            natoms * (natoms - 1) // 2):
             raise ValueError('Holm-Nielsen check failed.  Grid might be '
                              'too coarse.  Use h < %.3f'
                              % (smallest_safe_grid_spacing * Bohr))

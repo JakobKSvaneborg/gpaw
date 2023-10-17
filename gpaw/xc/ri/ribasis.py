@@ -33,7 +33,7 @@ def generate_ri_basis(basis, accuracy):
             for l in range((l1 + l2) % 2, l1 + l2 + 1, 2):
                 if l > lmax:
                     continue
- 
+
                 # min: The support of basis function is the intersection
                 # of the individual supports.
                 add(phit1_g * phit2_g, l, rc=min(rc1, rc2))

@@ -19,14 +19,11 @@ def check(atoms, rcut=0.8):
 
 @pytest.mark.wannier
 @pytest.mark.serial
-def test_pe_w90(gpw_files, in_tmp_dir):
+def test_pe_w90(gpw_files, in_tmp_dir, wannier90):
     calc = GPAW(gpw_files['c2h4_pw_nosym'])
     o = calculate_overlaps(calc, n2=6, nwannier=6,
                            projections={'C': 's', 'H': 's'})
-    try:
-        w = o.localize_w90('pe')
-    except FileNotFoundError:
-        return  # no wannier90.x executable
+    w = o.localize_w90('pe')
     check(w.centers_as_atoms())
 
 

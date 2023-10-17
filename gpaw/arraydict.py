@@ -80,7 +80,7 @@ class ArrayDict(MutableMapping):
 
     def __setitem__(self, a, value):
         assert value.shape == self.shapes_a[a], \
-            'defined shape %s vs new %s' % (self.shapes_a[a], value.shape)
+            f'defined shape {self.shapes_a[a]} vs new {value.shape}'
         assert value.dtype == self.dtype
         self.data[a] = value
 
@@ -96,12 +96,12 @@ class ArrayDict(MutableMapping):
     def check_consistency(self):
         k1 = set(self.partition.my_indices)
         k2 = set(self.data.keys())
-        assert k1 == k2, 'Required keys %s different from actual %s' % (k1, k2)
+        assert k1 == k2, f'Required keys {k1} different from actual {k2}'
         for a, array in self.items():
             assert array.dtype == self.dtype
             assert array.shape == self.shapes_a[a], \
-                'array shape %s vs specified shape %s' % (array.shape,
-                                                          self.shapes_a[a])
+                (f'array shape {array.shape} '
+                 f'vs specified shape {self.shapes_a[a]}')
 
     def toarray(self, axis=None):
         # We could also implement it as a contiguous buffer.
@@ -164,7 +164,7 @@ class ArrayDict(MutableMapping):
         tokens = []
         for key in sorted(self.keys()):
             shapestr = 'x'.join(map(str, self.shapes_a[key]))
-            tokens.append('%s:%s' % (self.keymap.a2key(key), shapestr))
+            tokens.append(f'{self.keymap.a2key(key)}:{shapestr}')
         text = ', '.join(tokens)
         return '%s@rank%d/%d {%s}' % (self.__class__.__name__,
                                       self.partition.comm.rank,

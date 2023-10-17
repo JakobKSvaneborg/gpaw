@@ -4,7 +4,7 @@ from ase.units import alpha, Hartree, Bohr
 from gpaw.lcaotddft.hamiltonian import KickHamiltonian
 
 
-class RRemission(object):
+class RRemission:
     r"""
     Radiation-reaction potential accoridng to Schaefer et al.
     [arXiv 2109.09839] The potential accounts for the friction

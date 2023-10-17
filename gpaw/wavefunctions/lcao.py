@@ -32,7 +32,7 @@ class LCAO(Mode):
                                  **kwargs)
 
     def __repr__(self):
-        return 'LCAO({})'.format(self.todict())
+        return f'LCAO({self.todict()})'
 
     def todict(self):
         dct = Mode.todict(self)

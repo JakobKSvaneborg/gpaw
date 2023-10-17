@@ -44,7 +44,7 @@ class DipoleCorrection:
                 if abs(gd.cell_cv[c, axes]).max() < 1e-12:
                     break
             else:
-                raise ValueError('No axis perpendicular to {0}-plane!'
+                raise ValueError('No axis perpendicular to {}-plane!'
                                  .format(self.c))
             self.c = c
 

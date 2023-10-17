@@ -49,7 +49,7 @@ class QuadrupoleMomentWriter(TDDFTObserver):
     def _write_header(self, paw):
         if paw.niter != 0:
             return
-        line = '# %s[version=%s]' % (self.__class__.__name__, self.version)
+        line = f'# {self.__class__.__name__}[version={self.version}]'
         line += '(center=[%.6f, %.6f, %.6f]' % tuple(self.center_v)
         line += ', density=%s)\n' % repr(self.density_type)
         line += ('# %15s %15s %22s %22s %22s %22s %22s %22s\n' %
@@ -57,7 +57,7 @@ class QuadrupoleMomentWriter(TDDFTObserver):
         self._write(line)
 
     def read_header(self, filename):
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             line = f.readline()
         regexp = (r"^(?P<name>\w+)\[version=(?P<version>\d+)\]\(center=\["
                   r"(?P<center0>[-+0-9\.]+), "

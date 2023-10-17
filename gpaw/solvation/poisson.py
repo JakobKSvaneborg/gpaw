@@ -179,7 +179,7 @@ class PolarizationPoissonSolver(BasePoissonSolver):
             if error < self.eps:
                 return niter
             phi_old = phi.copy()
-            
+
         raise PoissonConvergenceError(
             'PolarizationPoisson solver did not converge in '
             + f'{niter} iterations!')

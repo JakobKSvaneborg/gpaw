@@ -1,4 +1,3 @@
-
 import numpy as np
 from gpaw.arraydict import ArrayDict
 from gpaw.density import Density

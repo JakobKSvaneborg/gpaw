@@ -28,7 +28,7 @@ calc = GPAW(mode='fd',
             eigensolver='cg',
             txt=tag + '.txt')
 slab.calc = calc
-  
+
 opt = LBFGS(slab, logfile=tag + '.log', trajectory=tag + '.traj')
 opt.run(fmax=0.05)
 calc.write(tag + '.gpw')

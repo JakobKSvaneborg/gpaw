@@ -188,9 +188,9 @@ class Cavity(NeedsGD):
 
     def summary(self, log):
         """Log cavity surface area and volume."""
-        A = ('{:.5f}'.format(self.A * Bohr ** 2) if self.A is not None
+        A = (f'{self.A * Bohr ** 2:.5f}' if self.A is not None
              else 'not calculated (no calculator defined)')
-        V = ('{:.5f}'.format(self.V * Bohr ** 3) if self.V is not None
+        V = (f'{self.V * Bohr ** 3:.5f}' if self.V is not None
              else 'not calculated (no calculator defined)')
         log(f'Solvation cavity surface area: {A}')
         log(f'Solvation cavity volume: {V}')

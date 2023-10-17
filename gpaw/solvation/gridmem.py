@@ -1,4 +1,4 @@
-class NeedsGD(object):
+class NeedsGD:
     """Common base class for classes using a grid descriptor."""
 
     def __init__(self):

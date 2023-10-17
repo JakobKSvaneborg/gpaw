@@ -64,7 +64,7 @@ def zips(*iterables, strict=True):
 
 def spinsum(a_sX: UGArray, mean: bool = False) -> UGArray:
     if a_sX.dims[0] == 2:
-        a_X = a_sX.desc.empty()
+        a_X = a_sX.desc.empty(xp=a_sX.xp)
         a_sX.data[:2].sum(axis=0, out=a_X.data)
         if mean:
             a_X.data *= 0.5

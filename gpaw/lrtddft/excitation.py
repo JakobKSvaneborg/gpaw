@@ -54,7 +54,7 @@ class ExcitationList(list):
 
     def get_trk(self):
         """Evaluate the Thomas Reiche Kuhn sum rule"""
-        trkm = np.zeros((3))
+        trkm = np.zeros(3)
         for ex in self:
             me = ex.get_dipole_me()
             trkm += ex.get_energy() * (me.real ** 2 + me.imag ** 2)
@@ -63,7 +63,7 @@ class ExcitationList(list):
     def get_polarizabilities(self, lmax=7):
         """Calculate the Polarisabilities
         see Jamorski et al. J. Chem. Phys. 104 (1996) 5134"""
-        S = np.zeros((lmax + 1))
+        S = np.zeros(lmax + 1)
         for ex in self:
             e = ex.get_energy()
             f = ex.get_oscillator_strength()[0]

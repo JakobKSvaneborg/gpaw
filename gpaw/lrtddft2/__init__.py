@@ -456,7 +456,7 @@ class LrTDDFT2:
 
     def read(self, basename):
         """Does not do much at the moment."""
-        info_file = open(basename + '.lr_info', 'r')
+        info_file = open(basename + '.lr_info')
         for line in info_file:
             if line[0] == '#':
                 continue

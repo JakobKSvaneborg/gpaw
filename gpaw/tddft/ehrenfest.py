@@ -28,7 +28,7 @@ from gpaw.forces import calculate_forces
 
 
 class EhrenfestVelocityVerlet:
-    
+
     def __init__(self, calc, mass_scale=1.0, setups='paw'):
         """Initializes the Ehrenfest MD calculator.
 
@@ -49,7 +49,7 @@ class EhrenfestVelocityVerlet:
         Use propagator = 'EFSICN' for when creating the TDDFT object from a
         PAW ground state calculator and propagator = 'EFSICN_HGH' for HGH
         pseudopotentials
-        
+
         """
         self.calc = calc
         self.setups = setups
@@ -62,11 +62,11 @@ class EhrenfestVelocityVerlet:
         else:
             self.v[:] = 0.0
             self.calc.atoms.set_velocities(self.v)
-        
+
         self.vt = self.v.copy()
         self.vh = self.v.copy()
         self.time = 0.0
-        
+
         self.M = calc.atoms.get_masses() * amu_to_aumass * mass_scale
 
         self.a = self.v.copy()
@@ -180,7 +180,7 @@ class EhrenfestVelocityVerlet:
         self.e_coulomb = self.calc.get_td_energy()
         self.Etot = self.Ekin + self.e_coulomb
         return self.Etot
-        
+
     def get_velocities_in_au(self):
         return self.v
 

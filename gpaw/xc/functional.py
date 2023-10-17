@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class XCFunctional(object):
+class XCFunctional:
     orbital_dependent = False
 
     def __init__(self, name, type):

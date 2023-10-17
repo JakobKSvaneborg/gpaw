@@ -22,7 +22,7 @@ def test_coulomb():
         if world.size > 1:
             C.load('real')
             t0 = time.time()
-            print('Processor %s of %s: %s Ha in %s sec' % (
+            print('Processor {} of {}: {} Ha in {} sec'.format(
                 gd.comm.rank + 1,
                 gd.comm.size,
                 -0.5 * C.coulomb(nH, method='real'),

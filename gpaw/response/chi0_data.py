@@ -53,7 +53,7 @@ class Chi0BodyData(Chi0RelatedData):
     @property
     def mynG(self):
         return self.blocks1d.nlocal
-    
+
     @property
     def WgG_shape(self):
         return (self.nw, self.mynG, self.nG)
@@ -136,7 +136,7 @@ class Chi0OpticalExtensionData(Chi0RelatedData):
         super().__init__(wd, qpd)
 
         self.head_Wvv, self.wings_WxvG = self.zeros()
-        
+
     def zeros(self):
         return (np.zeros(self.Wvv_shape, complex),  # head
                 np.zeros(self.WxvG_shape, complex))  # wings

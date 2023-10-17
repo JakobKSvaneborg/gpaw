@@ -109,7 +109,7 @@ def read_td_file_kicks(fname):
 
     # Search kicks
     kick_i = []
-    with open(fname, 'r') as f:
+    with open(fname) as f:
         for line in f:
             if line.startswith('# Kick'):
                 kick_v, time = parse_kick_line(line)
@@ -285,7 +285,7 @@ def write_spectrum(dipole_moment_file, spectrum_file,
         col_i = []
         data_iw = [omega_w * au_to_eV]
         for v in range(len(kick_v)):
-            h = '%s_%s' % (symbol, 'xyz'[v])
+            h = '{}_{}'.format(symbol, 'xyz'[v])
             if spec_wv.dtype == complex:
                 col_i.append('Re[%s]' % h)
                 data_iw.append(spec_wv[:, v].real)

@@ -4,7 +4,6 @@ import numpy as np
 
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
 from gpaw.response.pw_parallelization import block_partition
-from gpaw.response.symmetry import KPointFinder
 from gpaw.utilities.blas import mmm
 
 
@@ -85,11 +84,7 @@ class KPointPairFactory:
                                                       nblocks)
         self.nblocks = nblocks
 
-        self.kptfinder = KPointFinder(self.gs.kd.bzk_kc)
         self.context.print('Number of blocks:', nblocks)
-
-    def find_kpoint(self, k_c):
-        return self.kptfinder.find(k_c)
 
     def distribute_k_points_and_bands(self, band1, band2, kpts=None):
         """Distribute spins, k-points and bands.
@@ -152,7 +147,7 @@ class KPointPairFactory:
 
         # Parse kpoint: is k_c an index or a vector
         if not isinstance(k_c, numbers.Integral):
-            K = self.kptfinder.find(k_c)
+            K = self.gs.kpoints.kptfinder.find(k_c)
         else:
             # Fall back to index
             K = k_c
@@ -351,7 +346,7 @@ class ActualPairDensityCalculator:
         k_v = 2 * np.pi * np.dot(kpt1.k_c, np.linalg.inv(gd.cell_cv).T)
 
         ut_vR = self.ut_sKnvR[kpt1.s][kpt1.K][n - kpt1.n1]
-        atomdata_a = self.gs.pawdatasets
+        atomdata_a = self.gs.pawdatasets.by_atom
         C_avi = [np.dot(atomdata.nabla_iiv.T, P_ni[n - kpt1.na])
                  for atomdata, P_ni in zip(atomdata_a, kpt1.P_ani)]
 
@@ -413,7 +408,7 @@ class ActualPairDensityCalculator:
         # Load kpoints
         gd = self.gs.gd
         k_v = 2 * np.pi * np.dot(kpt.k_c, np.linalg.inv(gd.cell_cv).T)
-        atomdata_a = self.gs.pawdatasets
+        atomdata_a = self.gs.pawdatasets.by_atom
 
         # Break bands into degenerate chunks
         degchunks_cn = []  # indexing c as chunk number
@@ -428,7 +423,7 @@ class ActualPairDensityCalculator:
                     raise RuntimeError(
                         'You are cutting over a degenerate band '
                         'using block parallelization.')
-                degchunks_cn.append((inds_n))
+                degchunks_cn.append(inds_n)
 
         # Calculate matrix elements by diagonalizing each block
         for ind_n in degchunks_cn:
@@ -447,8 +442,7 @@ class ActualPairDensityCalculator:
             for n in range(deg):
                 ut_vR = ut_nvR[n]
                 C_avi = [np.dot(atomdata.nabla_iiv.T, P_ni[ind_n[n] - na])
-                         for atomdata, P_ni in zip(atomdata_a,
-                                                   kpt.P_ani)]
+                         for atomdata, P_ni in zip(atomdata_a, kpt.P_ani)]
 
                 nabla0_nv = -self.gs.gd.integrate(ut_vR, ut_nR).T
                 nt_n = self.gs.gd.integrate(ut_nR[n], ut_nR)

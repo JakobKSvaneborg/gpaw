@@ -460,7 +460,7 @@ def get_alpha(n, sigma, tau):
     # von Weisaecker
     ind = (n != 0.).nonzero()
     gdms = np.maximum(sigma, 1e-40)  # |nabla rho|^2
-    tau_w = np.zeros((np.shape(n)))
+    tau_w = np.zeros(np.shape(n))
     tau_w[ind] = np.maximum(np.divide(gdms[ind], 8.0 * n[ind]), 1e-40)
 
     # z and alpha

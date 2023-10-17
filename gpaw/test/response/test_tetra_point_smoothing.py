@@ -9,10 +9,10 @@ from scipy.ndimage import gaussian_filter1d
 
 
 def test_point_tetra_match(in_tmp_dir):
-    
+
     gs_file = 'gs.gpw'
     response_file = 'gsresponse.gpw'
-    
+
     # Create graphene lattice
     a = 2.5
     atoms = Atoms(
@@ -63,13 +63,13 @@ def test_point_tetra_match(in_tmp_dir):
     omega = df.get_frequencies()
     df2_tetra = np.imag(df2_tetra)
     df2_point = np.imag(df2_point)
-    
+
     # Do not use frequencies near the w=0 singularity
     slicer = [(freq >= 1.5) and (freq <= 20) for freq in omega]
     # Convolve with Gaussian to smoothen the curve
     sigma = 1.9
     df2_gauss = gaussian_filter1d(df2_point[slicer], sigma)
-    
+
     rms_diff_tetra_point = np.sqrt(np.sum((df2_tetra[slicer]
                                    - df2_point[slicer])**2) / np.sum(slicer))
     rms_diff_tetra_gauss = np.sqrt(np.sum((df2_tetra[slicer]
@@ -78,7 +78,7 @@ def test_point_tetra_match(in_tmp_dir):
     assert rms_diff_tetra_point < 1.35
     assert rms_diff_tetra_gauss < 1.10
     assert rms_diff_tetra_point * 0.80 > rms_diff_tetra_gauss
-    
+
     freq1, amp1 = findpeak(omega[slicer], df2_tetra[slicer])
     freq2, amp2 = findpeak(omega[slicer], df2_gauss)
 

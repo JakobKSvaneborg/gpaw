@@ -70,9 +70,9 @@ class DynamicalMatrix:
 
         # Matrix of force constants -- dict of dicts in atomic indices
         # Only q-vectors in the irreducible BZ stored here
-        self.C_qaavv = [dict([(a, dict([(a_, np.zeros((3, 3), dtype=dtype))
-                                        for a_ in self.indices]))
-                              for a in self.indices])
+        self.C_qaavv = [{a: {a_: np.zeros((3, 3), dtype=dtype)
+                             for a_ in self.indices}
+                         for a in self.indices}
                         for q in range(self.kd.nibzkpts)]
 
         # Force constants and dynamical matrix attributes
@@ -117,10 +117,9 @@ class DynamicalMatrix:
         """Set indices of atoms to be included in the calculation."""
 
         self.indices = indices
-        self.C_qaavv = [dict([(a,
-                               dict([(a_, np.zeros((3, 3), dtype=self.dtype))
-                                     for a_ in self.indices]))
-                              for a in self.indices])
+        self.C_qaavv = [{a: {a_: np.zeros((3, 3), dtype=self.dtype)
+                             for a_ in self.indices}
+                         for a in self.indices}
                         for q in range(self.kd.nibzkpts)]
 
     def set_name_and_path(self, name, path):
@@ -156,8 +155,7 @@ class DynamicalMatrix:
                     try:
                         fd = open(os.path.join(self.path, filename), 'rb')
                     except EOFError:
-                        print(("Redo file %s "
-                               % os.path.join(self.path, filename)))
+                        print(f'Redo file {os.path.join(self.path, filename)}')
                     C_qav_a = pickle.load(fd)
                     fd.close()
                     for a_ in self.indices:
@@ -317,14 +315,12 @@ class DynamicalMatrix:
 
         # Integral of Hartree potential times the second derivative of ghat
         vH_g = calc.hamiltonian.vHt_g
-        d2ghat_aLvv = dict([(atom.index, np.zeros((3, 3)))
-                            for atom in self.atoms])
+        d2ghat_aLvv = {atom.index: np.zeros((3, 3)) for atom in self.atoms}
         ghat.second_derivative(vH_g, d2ghat_aLvv)
 
         # Integral of electron density times the second derivative of vbar
         nt_g = calc.density.nt_g
-        d2vbar_avv = dict([(atom.index, np.zeros((3, 3)))
-                           for atom in self.atoms])
+        d2vbar_avv = {atom.index: np.zeros((3, 3)) for atom in self.atoms}
         vbar.second_derivative(nt_g, d2vbar_avv)
 
         # Matrix of force constants to be updated; q=-1 for Gamma calculation!
@@ -360,15 +356,13 @@ class DynamicalMatrix:
 
             # Calculate d2P_anivv coefficients
             # d2P_anivv = self.calculate_d2P_anivv()
-            d2P_anivv = dict(
-                [(atom.index,
-                  np.zeros(
-                      (nbands, pt.get_function_count(atom.index), 3, 3)))
-                 for atom in self.atoms])
+            d2P_anivv = {atom.index:
+                         np.zeros((nbands, pt.get_function_count(atom.index),
+                                   3, 3))
+                         for atom in self.atoms}
             # XXX Temp dict, second_derivative method only takes a_G array
             # -- no extra dims
-            d2P_avv = dict([(atom.index, np.zeros((3, 3)))
-                            for atom in self.atoms])
+            d2P_avv = {atom.index: np.zeros((3, 3)) for atom in self.atoms}
 
             for n in range(nbands):
                 pt.second_derivative(psit_nG[n], d2P_avv)
