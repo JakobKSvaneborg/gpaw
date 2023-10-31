@@ -6,11 +6,8 @@ from gpaw.overlap import Overlap
 from ase.units import Hartree
 from gpaw.utilities.cg import CG
 
-from gpaw.setup import Setup
-from gpaw.xc import XC
 from gpaw.gaunt import gaunt
 import gpaw.mpi as mpi
-
 
 
 class XAS:
@@ -65,23 +62,23 @@ class XAS:
             for a, setup in enumerate(wfs.setups):
                 if setup.phicorehole_g is not None:
                     break
-        
-        #A_ci = setup.A_ci
-        
-        A_j = setup.A_j # radial part if the oscillator strength
+
+        # A_ci = setup.A_ci
+
+        A_j = setup.A_j  # radial part if the oscillator strength
         # Set up A_ci with Gaunt coeffitions
-        
+
         G_LLL = gaunt(setup.lmax)
-        
+
         # The m quantum numbers
         M = {0: [0]}
         for l in range(1, setup.lmax + 1):
-            M[l] = range(M[l - 1][ - 1] + 1, M[l - 1][-1] + (l * 2) + 2)
-        
+            M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
+
         nj = len(setup.data.phi_jg)
-        
+
         A_ci = np.zeros((3, setup.ni))
-        
+
         i = 0
         for j in range(nj):
             l = setup.l_j[j]
@@ -90,14 +87,14 @@ class XAS:
                 for m0 in M[1]:
                     for m1 in M[setup.data.lcorehole]:
                         G += G_LLL[m0, m1, m2]
-                G = sqrt(4 * pi / 3 ) * G
+                G = sqrt(4 * pi / 3) * G
 
                 c = (m + 1) % 3
                 A_ci[c, i] = G * A_j[i]
-                i += 1   
-                
+                i += 1
+
         assert i == setup.ni
-        
+
         # xas, xes or all modes
         if mode == 'xas':
             n_start = nocc
@@ -111,7 +108,7 @@ class XAS:
             n_start = 0
             n_end = wfs.bd.nbands
             n = wfs.bd.nbands
-        else: 
+        else:
             raise RuntimeError(
                 "wrong keyword for 'mode', use 'xas', 'xes' or 'all'")
 
@@ -128,7 +125,7 @@ class XAS:
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
             P_ni = kpt.P_ani[a][n_start:n_end]
             a_cn = np.inner(A_ci, P_ni)
-            weight = 3*kpt.weight * wfs.nspins / 2 # muntiplied with 3
+            weight = 3 * kpt.weight * wfs.nspins / 2  # muntiplied with 3
             print('weight', weight)
             print(a_cn.shape, self.sigma_cn.shape)
             self.sigma_cn[:, n1:n2] = weight**0.5 * a_cn  # .real
