@@ -28,3 +28,5 @@ GPAW calculator:
    scissors/scissors
    xc/xc
    custom_convergence
+   pm/pm
+   sic/sic

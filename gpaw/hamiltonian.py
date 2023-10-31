@@ -80,6 +80,7 @@ class Hamiltonian:
         self.e_xc = None
         self.e_entropy = None
         self.e_band = None
+        self.e_sic = None
 
         self.e_total_free = None
         self.e_total_extrapolated = None
@@ -115,28 +116,32 @@ class Hamiltonian:
 
     def __str__(self):
         s = 'Hamiltonian:\n'
-        s += ('  XC and Coulomb potentials evaluated on a {0}*{1}*{2} grid\n'
+        s += ('  XC and Coulomb potentials evaluated on a {}*{}*{} grid\n'
               .format(*self.finegd.N_c))
         s += '  Using the %s Exchange-Correlation functional\n' % self.xc.name
         # We would get the description of the XC functional here,
         # except the thing has probably not been fully initialized yet.
         if self.vext is not None:
-            s += '  External potential:\n    {0}\n'.format(self.vext)
+            s += f'  External potential:\n    {self.vext}\n'
         return s
 
     def summary(self, wfs, log):
         log('Energy contributions relative to reference atoms:',
-            '(reference = {0:.6f})\n'.format(self.setups.Eref * Ha))
+            f'(reference = {self.setups.Eref * Ha:.6f})\n')
 
         energies = [('Kinetic:      ', self.e_kinetic),
                     ('Potential:    ', self.e_coulomb),
                     ('External:     ', self.e_external),
                     ('XC:           ', self.e_xc),
                     ('Entropy (-ST):', self.e_entropy),
-                    ('Local:        ', self.e_zero)]
+                    ('Local:        ', self.e_zero),
+                    ('SIC:        ', self.e_sic)]
 
         for name, e in energies:
-            log('%-14s %+11.6f' % (name, Ha * e))
+            if name == 'SIC:        ' and e is None:
+                continue
+            else:
+                log('%-14s %+11.6f' % (name, Ha * e))
 
         log('--------------------------')
         log('Free energy:   %+11.6f' % (Ha * self.e_total_free))
@@ -352,7 +357,7 @@ class Hamiltonian:
 
         return np.array([e_kinetic, e_coulomb, e_zero, e_external, e_xc])
 
-    def get_energy(self, e_entropy, wfs, kin_en_using_band=True):
+    def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
         """Sum up all eigenvalues weighted with occupation numbers"""
         self.e_band = wfs.calculate_band_energy()
         if kin_en_using_band:
@@ -372,6 +377,11 @@ class Hamiltonian:
         self.e_total_free = (self.e_kinetic + self.e_coulomb +
                              self.e_external + self.e_zero + self.e_xc +
                              self.e_entropy)
+
+        if e_sic is not None:
+            self.e_sic = e_sic
+            self.e_total_free += e_sic
+
         self.e_total_extrapolated = (
             self.e_total_free +
             wfs.occupations.extrapolate_factor * e_entropy)
@@ -478,7 +488,7 @@ class Hamiltonian:
         for a, D_sp in D_asp.items():
             setup = self.setups[a]
             atomic_e_xc += xc.calculate_paw_correction(setup, D_sp, a=a)
-        e_xc = finegd_e_xc + self.world.sum(atomic_e_xc)
+        e_xc = finegd_e_xc + self.world.sum_scalar(atomic_e_xc)
         return e_xc - self.e_xc
 
     def estimate_memory(self, mem):
@@ -580,16 +590,16 @@ class Hamiltonian:
                         e_kin += f * wfs.integrate(
                             Lapl(psit_G, kpt), psit_G, False)
             e_kin = e_kin.real
-            e_kin = wfs.gd.comm.sum(e_kin)
+            e_kin = wfs.gd.comm.sum_scalar(e_kin)
 
-        e_kin = wfs.kd.comm.sum(e_kin)  # ?
+        e_kin = wfs.kd.comm.sum_scalar(e_kin)  # ?
         # paw corrections
         e_kin_paw = 0.0
         for a, D_sp in density.D_asp.items():
             setup = wfs.setups[a]
             D_p = D_sp.sum(0)
             e_kin_paw += np.dot(setup.K_p, D_p) + setup.Kc
-        e_kin_paw = density.gd.comm.sum(e_kin_paw)
+        e_kin_paw = density.gd.comm.sum_scalar(e_kin_paw)
         return e_kin + e_kin_paw
 
     def calculate_kinetic_energy_using_kin_en_matrix(self, density,
@@ -634,14 +644,14 @@ class Hamiltonian:
             self.timer.stop('Pseudo part')
         # del rho_MM
 
-        e_kinetic = wfs.kd.comm.sum(e_kinetic)
+        e_kinetic = wfs.kd.comm.sum_scalar(e_kinetic)
         # paw corrections
         for a, D_sp in density.D_asp.items():
             setup = wfs.setups[a]
             D_p = D_sp.sum(0)
             e_kin_paw += np.dot(setup.K_p, D_p) + setup.Kc
 
-        e_kin_paw = self.gd.comm.sum(e_kin_paw)
+        e_kin_paw = self.gd.comm.sum_scalar(e_kin_paw)
 
         return e_kinetic.real + e_kin_paw
 

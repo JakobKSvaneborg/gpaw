@@ -70,6 +70,16 @@ class WaveFunctions:
     def summary(self, log):
         log(eigenvalue_string(self))
 
+        func = None
+        if hasattr(self.eigensolver, 'dm_helper'):
+            func = getattr(self.eigensolver.dm_helper.func, 'name', None)
+        elif hasattr(self.eigensolver, 'odd'):
+            func = getattr(self.eigensolver.odd, 'name', None)
+        if func is None:
+            pass
+        elif 'SIC' in func:
+            self.summary_func(log)
+
         if self.fermi_levels is None:
             return
 
@@ -106,7 +116,7 @@ class WaveFunctions:
         except AttributeError:
             pass
 
-        return self.kptband_comm.sum(e_band)
+        return self.kptband_comm.sum_scalar(e_band)
 
     def calculate_density_contribution(self, nt_sG):
         """Calculate contribution to pseudo density from wave functions.
@@ -435,7 +445,7 @@ class WaveFunctions:
             for kpt in self.kpt_u:
                 if kpt.s == spin:
                     homo = max(kpt.eps_n[myn], homo)
-        homo = self.world.max(homo)
+        homo = self.world.max_scalar(homo)
 
         lumo = np.inf
         if n < self.bd.nbands:  # there are not enough bands for LUMO
@@ -444,7 +454,7 @@ class WaveFunctions:
                 for kpt in self.kpt_u:
                     if kpt.s == spin:
                         lumo = min(kpt.eps_n[myn], lumo)
-            lumo = self.world.min(lumo)
+            lumo = self.world.min_scalar(lumo)
 
         return np.array([homo, lumo])
 
@@ -581,6 +591,179 @@ class WaveFunctions:
             if not old:  # skip for old tar-files gpw's
                 f_n *= kpt.weight
             kpt.f_n = f_n
+
+    def summary_func(self, log):
+
+        pot = None
+        if hasattr(self.eigensolver, 'dm_helper'):
+            pot = self.eigensolver.dm_helper.func
+        elif hasattr(self.eigensolver, 'odd'):
+            pot = self.eigensolver.odd
+
+        f_sn = {}
+        for kpt in self.kpt_u:
+            u = kpt.s * self.kd.nibzkpts + kpt.q
+            f_sn[u] = kpt.f_n
+
+        log("For SIC calculations there are\n"
+            "diagonal elements of Lagrange matrix and "
+            "its eigenvalues.\n"
+            "Eigenvalues are printed above. \n"
+            "Labeling here corresponds "
+            "to how optimal orbitals are sorted "
+            "in array\n")
+        if self.nspins == 1:
+            header = " Band         L_ii  " \
+                     "Occupancy"
+            log(header)
+
+            lagr_labeled = {}
+            for c, x in enumerate(pot.lagr_diag_s[0]):
+                lagr_labeled[str(round(x, 12))] = c
+            lagr = sorted(pot.lagr_diag_s[0])
+            for x in lagr:
+                i = lagr_labeled[str(round(x, 12))]
+                log('%5d  %11.5f  %9.5f' % (
+                    i, Ha * x, f_sn[0][i]))
+
+        if self.nspins == 2:
+            if self.kd.comm.size > 1:
+                if self.kd.comm.rank == 0:
+                    # occupation numbers
+                    size = np.array([0])
+                    self.kd.comm.receive(size, 1)
+                    f_2n = np.zeros(shape=(int(size[0])))
+                    self.kd.comm.receive(f_2n, 1)
+                    f_sn[1] = f_2n
+
+                    # orbital energies
+                    size = np.array([0])
+                    self.kd.comm.receive(size, 1)
+                    lagr_1 = np.zeros(shape=(int(size[0])))
+                    self.kd.comm.receive(lagr_1, 1)
+
+                else:
+                    # occupations
+                    size = np.array([f_sn[1].shape[0]])
+                    self.kd.comm.send(size, 0)
+                    self.kd.comm.send(f_sn[1], 0)
+
+                    # orbital energies
+                    a = pot.lagr_diag_s[1].copy()
+                    size = np.array([a.shape[0]])
+                    self.kd.comm.send(size, 0)
+                    self.kd.comm.send(a, 0)
+
+                    del a
+
+            if self.kd.comm.rank == 0:
+                log('                  Up                 '
+                    '  Down')
+                log(' Band         L_ii   Occupancy  '
+                    ' Band      L_ii   Occupancy')
+
+                lagr_0 = np.sort(pot.lagr_diag_s[0])
+                lagr_labeled_0 = {}
+                for c, x in enumerate(pot.lagr_diag_s[0]):
+                    lagr_labeled_0[str(round(x, 12))] = c
+
+                if self.kd.comm.size == 1:
+                    lagr_1 = np.sort(pot.lagr_diag_s[1])
+                    lagr_labeled_1 = {}
+                    for c, x in enumerate(
+                            pot.lagr_diag_s[1]):
+                        lagr_labeled_1[str(round(x, 12))] = c
+                else:
+                    lagr_labeled_1 = {}
+                    for c, x in enumerate(lagr_1):
+                        lagr_labeled_1[str(round(x, 12))] = c
+                    lagr_1 = np.sort(lagr_1)
+
+                for x, y in zip(lagr_0, lagr_1):
+                    i0 = lagr_labeled_0[str(round(x, 12))]
+                    i1 = lagr_labeled_1[str(round(y, 12))]
+
+                    log('%5d  %11.5f  %9.5f'
+                        '%5d  %11.5f  %9.5f' %
+                        (i0, Ha * x,
+                         f_sn[0][i0],
+                         i1,
+                         Ha * y,
+                         f_sn[1][i1]))
+
+        log("\n")
+        log(flush=True)
+
+        sic_n = pot.e_sic_by_orbitals
+        if pot.name == 'PZ-SIC':
+            log('Perdew-Zunger SIC')
+        elif 'SPZ' in pot.name:
+            log('Self-Interaction Corrections:\n')
+            sf = pot.scalingf
+        else:
+            raise NotImplementedError
+
+        if self.nspins == 2 and self.kd.comm.size > 1:
+            if self.kd.comm.rank == 0:
+                size = np.array([0])
+                self.kd.comm.receive(size, 1)
+                sic_n2 = np.zeros(shape=(int(size[0]), 2),
+                                  dtype=float)
+                self.kd.comm.receive(sic_n2, 1)
+                sic_n[1] = sic_n2
+
+                if 'SPZ' in pot.name:
+                    sf_2 = np.zeros(shape=(int(size[0]), 1),
+                                    dtype=float)
+                    self.kd.comm.receive(sf_2, 1)
+                    sf[1] = sf_2
+            else:
+                size = np.array([sic_n[1].shape[0]])
+                self.kd.comm.send(size, 0)
+                self.kd.comm.send(sic_n[1], 0)
+
+                if 'SPZ' in pot.name:
+                    self.kd.comm.send(sf[1], 0)
+
+        if self.kd.comm.rank == 0:
+            for s in range(self.nspins):
+                log('Spin: %3d ' % (s))
+                header = """\
+            Self-Har.  Self-XC   Hartree + XC  Scaling
+            energy:    energy:   energy:       Factors:"""
+                log(header)
+                u_s = 0.0
+                xc_s = 0.0
+                for i in range(len(sic_n[s])):
+
+                    u = sic_n[s][i][0]
+                    xc = sic_n[s][i][1]
+                    if 'SPZ' in pot.name:
+                        f = (sf[s][i], sf[s][i])
+                    else:
+                        f = (pot.beta_c, pot.beta_x)
+
+                    log('band: %3d ' %
+                        (i), end='')
+                    log('%11.6f%11.6f%11.6f %8.3f%7.3f' %
+                        (-Ha * u / (f[0] * f_sn[s][i]),
+                         -Ha * xc / (f[1] * f_sn[s][i]),
+                         -Ha * (u / (f[0] * f_sn[s][i]) +
+                                xc / (f[1] * f_sn[s][i])),
+                         f[0], f[1]), end='')
+                    log(flush=True)
+                    u_s += u / (f[0] * f_sn[s][i])
+                    xc_s += xc / (f[1] * f_sn[s][i])
+                log('--------------------------------'
+                    '-------------------------')
+                log('Total     ', end='')
+                log('%11.6f%11.6f%11.6f' %
+                    (-Ha * u_s,
+                     -Ha * xc_s,
+                     -Ha * (u_s + xc_s)
+                     ), end='')
+                log("\n")
+                log(flush=True)
 
 
 def eigenvalue_string(wfs, comment=' '):

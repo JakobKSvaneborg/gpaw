@@ -5,6 +5,7 @@ from ase.build import bulk
 from gpaw import GPAW, Mixer
 
 
+@pytest.mark.gllb
 @pytest.mark.skipif(world.size < 4,
                     reason='world.size < 4')
 def test_parallel_diamond_gllb(in_tmp_dir):

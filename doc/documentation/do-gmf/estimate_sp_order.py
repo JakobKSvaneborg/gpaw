@@ -2,7 +2,7 @@ from ase.io import read
 from gpaw import GPAW, LCAO
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.tools import excite
-from gpaw.directmin.etdm import ETDM
+from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.derivatives import Davidson
 
 calc = GPAW(xc='PBE',
@@ -10,7 +10,7 @@ calc = GPAW(xc='PBE',
             h=0.2,
             basis='dzp',
             spinpol=True,
-            eigensolver={'name': 'etdm', 'representation': 'u-invar'},
+            eigensolver={'name': 'etdm-lcao', 'representation': 'u-invar'},
             occupations={'name': 'fixed-uniform'},
             mixer={'backend': 'no-mixing'},
             nbands='nao',
@@ -29,8 +29,8 @@ h = 26  # Hole
 p = 27  # Excited electron
 
 # Constrained optimization freezing hole and excited electron
-calc.set(eigensolver=ETDM(constraints=[[[h], [p]], []],
-                          need_init_orbs=False),
+calc.set(eigensolver=LCAOETDM(constraints=[[[h], [p]], []],
+                              need_init_orbs=False),
          txt='N-Phenylpyrrole_EX_constrained.txt')
 
 # Spin-mixed open-shell occupation numbers

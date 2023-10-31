@@ -60,7 +60,7 @@ class ElectrostaticPotential:
             setup = self.setups[a]
             D_p = pack(D_sii.sum(0))
             dEH_a[a] = setup.dEH0 + setup.dEH_p @ D_p
-        self.D_asii.comm.sum(dEH_a)
+        self.D_asii.layout.atomdist.comm.sum(dEH_a)
         return dEH_a * Ha * Bohr**3
 
     def pseudo_potential(self,

@@ -4,30 +4,29 @@ import numpy as np
 from gpaw import debug
 from gpaw.fd_operators import Laplace
 from gpaw.transformers import Transformer
-from gpaw.utilities.blas import axpy
 
 
 class Preconditioner:
-    def __init__(self, gd0, kin0, dtype=float, block=1):
+    def __init__(self, gd0, kin0, dtype=float, block=1, xp=np):
         gd1 = gd0.coarsen()
         gd2 = gd1.coarsen()
         self.kin0 = kin0
-        self.kin1 = Laplace(gd1, -0.5, 1, dtype)
-        self.kin2 = Laplace(gd2, -0.5, 1, dtype)
-        self.scratch0 = gd0.zeros((2, block), dtype, False)
-        self.scratch1 = gd1.zeros((3, block), dtype, False)
-        self.scratch2 = gd2.zeros((3, block), dtype, False)
+        self.kin1 = Laplace(gd1, -0.5, 1, dtype, xp=xp)
+        self.kin2 = Laplace(gd2, -0.5, 1, dtype, xp=xp)
+        self.scratch0 = gd0.zeros((2, block), dtype, False, xp=xp)
+        self.scratch1 = gd1.zeros((3, block), dtype, False, xp=xp)
+        self.scratch2 = gd2.zeros((3, block), dtype, False, xp=xp)
         self.step = 0.66666666 / kin0.get_diagonal_element()
 
-        self.restrictor_object0 = Transformer(gd0, gd1, 1, dtype)
-        self.restrictor_object1 = Transformer(gd1, gd2, 1, dtype)
-        self.interpolator_object2 = Transformer(gd2, gd1, 1, dtype)
-        self.interpolator_object1 = Transformer(gd1, gd0, 1, dtype)
+        self.restrictor_object0 = Transformer(gd0, gd1, 1, dtype, xp=xp)
+        self.restrictor_object1 = Transformer(gd1, gd2, 1, dtype, xp=xp)
+        self.interpolator_object2 = Transformer(gd2, gd1, 1, dtype, xp=xp)
+        self.interpolator_object1 = Transformer(gd1, gd0, 1, dtype, xp=xp)
         self.restrictor0 = self.restrictor_object0.apply
         self.restrictor1 = self.restrictor_object1.apply
         self.interpolator2 = self.interpolator_object2.apply
         self.interpolator1 = self.interpolator_object1.apply
-        self.use_c_precond = True
+        self.use_c_precond = False  # XXX GPU FD restructure
 
     def calculate_kinetic_energy(self, psit_xG, kpt):
         return None
@@ -88,6 +87,6 @@ class Preconditioner:
         self.interpolator1(-d1, d0, phases)
         self.kin0.apply(d0, q0, phases)
         q0 -= residuals
-        axpy(-step, q0, d0)  # d0 -= step * q0
+        d0 -= step * q0
         d0 *= -1.0
         return d0

@@ -18,7 +18,7 @@ def create_laser(name, **kwargs):
         raise ValueError('Unknown laser: %s' % name)
 
 
-class Laser(object):
+class Laser:
     def __init__(self):
         pass
 

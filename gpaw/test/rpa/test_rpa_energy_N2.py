@@ -1,50 +1,28 @@
 import pytest
-from ase.build import molecule
-from gpaw import GPAW, PW
+from gpaw import GPAW
+from gpaw.mpi import serial_comm
 from gpaw.xc.rpa import RPACorrelation
 from gpaw.hybrids.energy import non_self_consistent_energy as nsc_energy
 
 
 @pytest.mark.rpa
 @pytest.mark.response
-def test_rpa_rpa_energy_N2(in_tmp_dir, scalapack):
+def test_rpa_rpa_energy_N2(in_tmp_dir, gpw_files, scalapack):
     ecut = 25
 
-    N2 = molecule('N2')
-    N2.center(vacuum=2.0)
+    N2_calc = GPAW(gpw_files['n2_pw'], communicator=serial_comm)
 
-    calc = GPAW(mode=PW(force_complex_dtype=True),
-                xc='PBE',
-                parallel={'domain': 1},
-                eigensolver='rmm-diis')
-    N2.calc = calc
-    E_n2_pbe = N2.get_potential_energy()
+    E_n2_pbe = N2_calc.get_potential_energy()
+    E_n2_hf = nsc_energy(N2_calc, 'EXX')
 
-    E_n2_hf = nsc_energy(N2.calc, 'EXX')
-
-    calc.diagonalize_full_hamiltonian(nbands=104, scalapack=True)
-    calc.write('N2.gpw', mode='all')
-
-    rpa = RPACorrelation('N2.gpw', nfrequencies=8, ecut=[ecut])
+    rpa = RPACorrelation(N2_calc, nfrequencies=8, ecut=[ecut])
     E_n2_rpa = rpa.calculate()
 
-    N = molecule('N')
-    N.set_cell(N2.cell)
-    N.center()
+    N_calc = GPAW(gpw_files['n_pw'], communicator=serial_comm)
+    E_n_pbe = N_calc.get_potential_energy()
+    E_n_hf = nsc_energy(N_calc, 'EXX')
 
-    calc = GPAW(mode=PW(force_complex_dtype=True),
-                xc='PBE',
-                parallel={'domain': 1},
-                eigensolver='rmm-diis')
-    N.calc = calc
-    E_n_pbe = N.get_potential_energy()
-
-    calc.diagonalize_full_hamiltonian(nbands=104, scalapack=True)
-    calc.write('N.gpw', mode='all')
-
-    E_n_hf = nsc_energy('N.gpw', 'EXX')
-
-    rpa = RPACorrelation('N.gpw', nfrequencies=8, ecut=[ecut])
+    rpa = RPACorrelation(N_calc, nfrequencies=8, ecut=[ecut])
     E_n_rpa = rpa.calculate()
 
     print('Atomization energies:')

@@ -120,7 +120,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
                 vt_g += self.vt_ia_g
         Eias = np.array([ia.E for ia in self.interactions])
 
-        Ekin1 = self.gd.comm.sum(self.calculate_kinetic_energy(density))
+        Ekin1 = self.gd.comm.sum_scalar(self.calculate_kinetic_energy(density))
         W_aL = self.calculate_atomic_hamiltonians(density)
         atomic_energies = self.update_corrections(density, W_aL)
         self.world.sum(atomic_energies)
@@ -194,9 +194,9 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
                     fixed * del_g_del_r_vg[v],
                     global_integral=False)
 
-    def get_energy(self, e_entropy, wfs, kin_en_using_band=True):
+    def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
         RealSpaceHamiltonian.get_energy(self, e_entropy, wfs,
-                                        kin_en_using_band)
+                                        kin_en_using_band, e_sic)
         # The total energy calculated by the parent class includes the
         # solvent electrostatic contributions but not the interaction
         # energies. We add those here and store the electrostatic energies.
@@ -228,7 +228,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         # Hamiltonian.summary, but with the cavity and interactions added.
 
         log('Energy contributions relative to reference atoms:',
-            '(reference = {0:.6f})\n'.format(self.setups.Eref * Ha))
+            f'(reference = {self.setups.Eref * Ha:.6f})\n')
 
         energies = [('Kinetic:      ', self.e_kinetic),
                     ('Potential:    ', self.e_coulomb),
@@ -240,7 +240,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         if len(self.interactions) > 0:
             energies += [('Interactions', None)]
             for ia in self.interactions:
-                energies += [(' {:s}:'.format(ia.subscript),
+                energies += [(f' {ia.subscript:s}:',
                               getattr(self, 'e_' + ia.subscript))]
 
         for name, e in energies:

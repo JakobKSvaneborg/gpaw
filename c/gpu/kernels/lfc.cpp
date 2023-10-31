@@ -481,18 +481,20 @@ PyObject* integrate_gpu(LFCObject *lfc, PyObject *args)
     int c_nd = PyTuple_Size(c_shape);
     int nM = (int) PyLong_AsLong(PyTuple_GetItem(c_shape, c_nd - 1));
 
-    if (!lfc->bloch_boundary_conditions) {
-        const double* a_G = (const double*) a_xG_gpu;
-        double* c_M = (double*) c_xM_gpu;
+    if (nM > 0) {
+        if (!lfc->bloch_boundary_conditions) {
+            const double* a_G = (const double*) a_xG_gpu;
+            double* c_M = (double*) c_xM_gpu;
 
-        lfc_reducemap(lfc, a_G, nG, c_M, nM, nx, q);
-        gpuCheckLastError();
-    } else {
-        const gpuDoubleComplex* a_G = (const gpuDoubleComplex*) a_xG_gpu;
-        gpuDoubleComplex* c_M = (gpuDoubleComplex*) c_xM_gpu;
+            lfc_reducemap(lfc, a_G, nG, c_M, nM, nx, q);
+            gpuCheckLastError();
+        } else {
+            const gpuDoubleComplex* a_G = (const gpuDoubleComplex*) a_xG_gpu;
+            gpuDoubleComplex* c_M = (gpuDoubleComplex*) c_xM_gpu;
 
-        lfc_reducemapz(lfc, a_G, nG, c_M, nM, nx, q);
-        gpuCheckLastError();
+            lfc_reducemapz(lfc, a_G, nG, c_M, nM, nx, q);
+            gpuCheckLastError();
+        }
     }
     if (PyErr_Occurred())
         return NULL;
@@ -520,37 +522,39 @@ PyObject* add_gpu(LFCObject *lfc, PyObject *args)
     int c_nd = PyTuple_Size(c_shape);
     int nM = (int) PyLong_AsLong(PyTuple_GetItem(c_shape, c_nd - 1));
 
-    if (!lfc->bloch_boundary_conditions) {
-        double* a_G = (double*) a_xG_gpu;
-        const double* c_M = (const double*) c_xM_gpu;
-        int blockx = lfc->max_nG;
-        int gridx = (lfc->nB_gpu + BLOCK_Y - 1) / BLOCK_Y;
-        dim3 dimBlock(blockx, BLOCK_Y);
-        dim3 dimGrid(gridx, nx);
+    if (nM > 0) {
+        if (!lfc->bloch_boundary_conditions) {
+            double* a_G = (double*) a_xG_gpu;
+            const double* c_M = (const double*) c_xM_gpu;
+            int blockx = lfc->max_nG;
+            int gridx = (lfc->nB_gpu + BLOCK_Y - 1) / BLOCK_Y;
+            dim3 dimBlock(blockx, BLOCK_Y);
+            dim3 dimGrid(gridx, nx);
 
-        gpuLaunchKernel(
-                add_kernel, dimGrid, dimBlock, 0, 0,
-                a_G, c_M, lfc->G_B1_gpu, lfc->G_B2_gpu,
-                lfc->volume_i_gpu, lfc->A_gm_i_gpu, lfc->ni_gpu,
-                lfc->nimax, nG, nM, lfc->phase_i_gpu, lfc->max_k, q,
-                lfc->nB_gpu);
-        gpuCheckLastError();
-    } else {
-        gpuDoubleComplex* a_G = (gpuDoubleComplex*) a_xG_gpu;
-        const gpuDoubleComplex* c_M = (const gpuDoubleComplex*) c_xM_gpu;
+            gpuLaunchKernel(
+                    add_kernel, dimGrid, dimBlock, 0, 0,
+                    a_G, c_M, lfc->G_B1_gpu, lfc->G_B2_gpu,
+                    lfc->volume_i_gpu, lfc->A_gm_i_gpu, lfc->ni_gpu,
+                    lfc->nimax, nG, nM, lfc->phase_i_gpu, lfc->max_k, q,
+                    lfc->nB_gpu);
+            gpuCheckLastError();
+        } else {
+            gpuDoubleComplex* a_G = (gpuDoubleComplex*) a_xG_gpu;
+            const gpuDoubleComplex* c_M = (const gpuDoubleComplex*) c_xM_gpu;
 
-        int blockx = lfc->max_nG;
-        int gridx = (lfc->nB_gpu + BLOCK_Y - 1) / BLOCK_Y;
-        dim3 dimBlock(blockx, BLOCK_Y);
-        dim3 dimGrid(gridx, nx);
+            int blockx = lfc->max_nG;
+            int gridx = (lfc->nB_gpu + BLOCK_Y - 1) / BLOCK_Y;
+            dim3 dimBlock(blockx, BLOCK_Y);
+            dim3 dimGrid(gridx, nx);
 
-        gpuLaunchKernel(
-                add_kernelz, dimGrid, dimBlock, 0, 0,
-                a_G, c_M, lfc->G_B1_gpu, lfc->G_B2_gpu,
-                lfc->volume_i_gpu, lfc->A_gm_i_gpu, lfc->ni_gpu,
-                lfc->nimax, nG, nM, lfc->phase_i_gpu, lfc->max_k, q,
-                lfc->nB_gpu);
-        gpuCheckLastError();
+            gpuLaunchKernel(
+                    add_kernelz, dimGrid, dimBlock, 0, 0,
+                    a_G, c_M, lfc->G_B1_gpu, lfc->G_B2_gpu,
+                    lfc->volume_i_gpu, lfc->A_gm_i_gpu, lfc->ni_gpu,
+                    lfc->nimax, nG, nM, lfc->phase_i_gpu, lfc->max_k, q,
+                    lfc->nB_gpu);
+            gpuCheckLastError();
+        }
     }
     if (PyErr_Occurred())
         return NULL;

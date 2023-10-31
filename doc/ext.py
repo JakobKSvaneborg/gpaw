@@ -8,7 +8,7 @@ def git_role(role, rawtext, text, lineno, inliner, options={}, content=[]):
                          role,
                          rawtext, text, lineno, inliner, options, content)
 
-    
+
 def setup(app):
     app.add_role('mol', mol_role)
     app.add_role('git', git_role)

@@ -8,7 +8,7 @@ from gpaw.lcaotddft.utilities import write_uMM
 from gpaw.lcaotddft.utilities import write_wuMM
 
 
-class TimeDependentPotential(object):
+class TimeDependentPotential:
     def __init__(self):
         self.ext_i = []
         self.laser_i = []
@@ -58,7 +58,7 @@ class TimeDependentPotential(object):
         self.initialized = True
 
 
-class KickHamiltonian(object):
+class KickHamiltonian:
     def __init__(self, ham, dens, ext):
         nspins = ham.nspins
         vext_g = ext.get_potential(ham.finegd)
@@ -92,7 +92,7 @@ class KickHamiltonian(object):
         self.dH_asp = ham.atomdist.from_aux(dHaux_asp)
 
 
-class TimeDependentHamiltonian(object):
+class TimeDependentHamiltonian:
     def __init__(self, fxc=None, td_potential=None, scale=None,
                  rremission=None):
         assert fxc is None or isinstance(fxc, str)

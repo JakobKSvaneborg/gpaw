@@ -392,7 +392,7 @@ def test_Co_hcp_site_kernels():
     Kall_pm_qpaGG = [np.array([K_aGG for K_aGG in
                                all_sitekernels_app.calculate(qpd)])
                      for qpd in qpd_q]
-    
+
     # Part 4: Check the calculated kernels
 
     # Check geometry shapes of basic arrays

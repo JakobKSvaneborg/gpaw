@@ -384,7 +384,7 @@ overlap).
 \end{equation}
 %
 and likewise for the smooth waves.%: $\sum_n f_n \bra{\s{\psi}_{n}^{a}}\wh{O}\ket{\s{\psi}_{n}^{a}} = \sum_{i_1i_2}^\text{val} \bra{\s{\phi}_{i_1}^{a}}\wh{O}\ket{\s{\phi}_{i_2}^a} \sum_n^\text{val}f_n P_{i_1}^{a*}P_{i_2}^a$.
-\par Introducing the Hermitian one-center density matrix 
+\par Introducing the Hermitian one-center density matrix
 %
 \begin{equation}\label{eq: density matrix}
 D_{i_1i_2}^a =\sum_n f_n P_{ni_1}^{a*} P_{ni_2}^{a} = \sum_n f_n
@@ -610,7 +610,7 @@ charge neutral (see eq. \ref{eq: rhot charge neutral}).
   \end{split}
 \end{equation}
 %
-where we have introduced the smooth total density 
+where we have introduced the smooth total density
 %
 \begin{equation}
   \s{\rho}(\br) = \s{n} + \sum_a \s{Z}^a(\br).
@@ -703,7 +703,7 @@ where
   \Delta C^a_{i_1i_2} =& (\phi_{i_1}^a\phi_{i_2}^{a}|n_c^a) - (\s{\phi}_{i_1}^a\s{\phi}_{i_2}^{a}|\s{n}_c^a) - \Z^a\int d\br \frac{\phi_{i_1}^{a}(\br)\phi_{i_2}^{a}(\br)}{r} \nonumber \\
   &- \Delta^a (\s{\phi}_{i_1}^a\s{\phi}_{i_2}^{a}|\s{g}_{00}^a) - \Delta^a_{00,i_1i_2}\Big( \Delta^a (\s{n}_c^a|\s{g}_{00}^a) + ((\s{g}^a_{00})) \Big)\label{eq:coulom tensor 1}\\
   \Delta C^a_{i_1i_2i_3i_4} =& \tfrac{1}{2} \left[(\phi_{i_1}^a\phi_{i_2}^{a} | \phi_{i_3}^a\phi_{i_4}^{a}) - (\s{\phi}_{i_1}^a\s{\phi}_{i_2}^{a}|\s{\phi}_{i_3}^a\s{\phi}_{i_4}^{a}) \right] \nonumber\\
-  & -\sum_L \left[ \tfrac{1}{2}\Delta^a_{Li_1i_2}(\s{\phi}_{i_1}^a\s{\phi}_{i_2}^{a}|\s{g}_L^a) + \tfrac{1}{2}\Delta^a_{Li_3i_4}(\s{\phi}_{i_3}^a\s{\phi}_{i_4}^{a}|\s{g}_L^a) + \Delta^a_{Li_1i_2}((\s{g}^a_L))\Delta^a_{Li_3i_4} \right]\label{eq:coulom tensor 2}
+  & -\tfrac{1}{2}\sum_L \left[ \Delta^a_{Li_1i_2}(\s{\phi}_{i_1}^a\s{\phi}_{i_2}^{a}|\s{g}_L^a) + \Delta^a_{Li_3i_4}(\s{\phi}_{i_3}^a\s{\phi}_{i_4}^{a}|\s{g}_L^a) + \Delta^a_{Li_1i_2}((\s{g}^a_L))\Delta^a_{Li_3i_4} \right]\label{eq:coulom tensor 2}
 \end{align}
 %
 Note that all integrals can be limited to the inside of the
@@ -735,7 +735,7 @@ Summing up all the energy contributions, we see that the Kohn-Sham total energy
 \begin{equation*}
   E[n] = T_s[\{\psi_n\}] + U_H'[\rho] + E_{xc}[n]
 \end{equation*}
-% 
+%
 can be separated into a part calculated on smooth functions, $\s{E}$,
 and some atomic corrections, $\Delta E^a$, involving quantities
 localized around the nuclei only.
@@ -743,7 +743,7 @@ localized around the nuclei only.
 \begin{equation}\label{eq: PAW energy functional}
 E = \s{E} + \sum_a \Delta E^a
 \end{equation}
-% 
+%
 where the smooth part
 %
 \begin{equation}
@@ -867,7 +867,7 @@ and not its complex conjugate, the symmetry properties \ref{eq: C
 
 \subsection{Forces in PAW}\label{sec: forces}
 In the ground state, the forces on each nuclei can be calculated directly from
-% 
+%
 \begin{equation}
   \label{eq: force}
   \begin{split}
@@ -955,7 +955,7 @@ where
 \par The total energy can then be evaluated by
 %
 \begin{equation}
-  E = T_s[\{\s{\psi}_n\}] + U_H[\s{\rho}] + E_{xc}[\s{n}] + \sum_a \Delta E^a  
+  E = T_s[\{\s{\psi}_n\}] + U_H[\s{\rho}] + E_{xc}[\s{n}] + \sum_a \Delta E^a
 \end{equation}
 %
 with $\Delta E^a$ given by
@@ -1160,7 +1160,7 @@ that
 \begin{equation}
 \int d\f{r} r^l Y_L(\hat{\f{r}})\s{g}_{L'}^a(\f{r}) = \delta_{LL'}
 \end{equation}
-% 
+%
 In \gpaw{} the radial functions are chosen as generalized Gaussian
 according to (here shown for $\bR^a=0$):
 %
@@ -1181,7 +1181,7 @@ The core density follows directly from the all electron partial waves by
 \begin{equation}\label{eq: core density}
 n_c(r) = \sum_i^\text{core} |\phi_i(\br)|^2 = \sum_j^\text{core} 2(2l+1) |\phi_j(r)|^2 / 4\pi
 \end{equation}
-% 
+%
 \par The smooth core densities $\s{n}_c^a(\br)$ are like the smooth
 partial waves expanded in a few (two or three) Bessel functions,
 Gaussians, polynomials or otherwise, fitted such that it matches the
@@ -1214,10 +1214,10 @@ This expression can be used as an `intelligent zero'. Using this, we
 can make the replacement of the smooth potential
 %
 \begin{equation}
-  \s{v}_\text{eff}(\br) = u_H[\s{\rho}](\br) + v_{xc}[\s{n}](\br) \to \s{v}_\text{eff}(\br) = u_H[\s{\rho}](\br) + v_{xc}[\s{n}](\br) + \bar{v}(\br)  
+  \s{v}_\text{eff}(\br) = u_H[\s{\rho}](\br) + v_{xc}[\s{n}](\br) \to \s{v}_\text{eff}(\br) = u_H[\s{\rho}](\br) + v_{xc}[\s{n}](\br) + \bar{v}(\br)
 \end{equation}
 %
-if we at the same time add 
+if we at the same time add
 %
 \begin{equation}
   B^a + \sum_{i_1i_2} B^a_{i_1i_2} D^a_{i_1i_2}

@@ -10,6 +10,7 @@ differentt uniform 3D grids.
 import numpy as np
 
 from gpaw import debug
+from gpaw.gpu import cupy_is_fake
 from gpaw.utilities import is_contiguous
 import _gpaw
 
@@ -81,6 +82,8 @@ class _Transformer:
                                       xp=self.xp)
         if self.xp is np:
             self.transformer.apply(input, output, phases)
+        elif cupy_is_fake:
+            self.transformer.apply(input._data, output._data, phases)
         else:
             self.transformer.apply_gpu(input.data.ptr,
                                        output.data.ptr,

@@ -142,7 +142,7 @@ class TDDFTPES(BasePES):
         """Evaluate overlap matrix of mother and daughter ground states.
 
         """
-        g0 = np.zeros((self.imax))
+        g0 = np.zeros(self.imax)
         for i, i_m in enumerate(self.gs_m):
             keep_row = list(self.gs_m)
             keep_row.remove(i_m)
@@ -199,7 +199,7 @@ class TDDFTPES(BasePES):
                     ij = packed_index(i, j, len(Pi_i))
                     ma += Delta_pL[ij, 0] * pij
 
-        ma = self.gd.comm.sum(ma)
+        ma = self.gd.comm.sum_scalar(ma)
         return sqrt(4 * pi) * ma
 
     def check_systems(self):

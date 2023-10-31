@@ -33,7 +33,7 @@ def equal(a, b, eps=1e-8):
     return abs(a - b) < eps
 
 
-class Propagator(object):
+class Propagator:
 
     def __init__(self):
         object.__init__(self)

@@ -6,7 +6,6 @@ from ase.utils import lazyproperty
 
 from gpaw.projections import Projections, serial_comm
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
-from gpaw.response.symmetry import KPointFinder
 from gpaw.response.pw_parallelization import Blocks1D
 
 
@@ -119,10 +118,6 @@ class KohnShamKPointPairExtractor:
         # Prepare to distribute transitions
         self.tblocks = None
 
-        # Prepare to find k-point data from vector
-        kd = self.gs.kd
-        self.kptfinder = KPointFinder(kd.bzk_kc)
-
         # Prepare to redistribute kptdata
         self.rrequests = []
         self.srequests = []
@@ -151,12 +146,12 @@ class KohnShamKPointPairExtractor:
         nocc2 = int(nocc2)
 
         # Collect nocc for all k-points
-        nocc1 = self.gs.kd.comm.min(nocc1)
-        nocc2 = self.gs.kd.comm.max(nocc2)
+        nocc1 = self.gs.kd.comm.min_scalar(nocc1)
+        nocc2 = self.gs.kd.comm.max_scalar(nocc2)
 
         # Sum over band distribution
-        nocc1 = self.gs.bd.comm.sum(nocc1)
-        nocc2 = self.gs.bd.comm.sum(nocc2)
+        nocc1 = self.gs.bd.comm.sum_scalar(nocc1)
+        nocc2 = self.gs.bd.comm.sum_scalar(nocc2)
 
         self.nocc1 = int(nocc1)
         self.nocc2 = int(nocc2)
@@ -304,7 +299,7 @@ class KohnShamKPointPairExtractor:
         t_t = np.arange(nt)
         nh = 0
         for p, k_c in enumerate(k_pc):  # p indicates the receiving process
-            K = self.kptfinder.find(k_c)
+            K = self.gs.kpoints.kptfinder.find(k_c)
             ik = self.gs.kd.bz2ibz_k[K]
             for r2 in range(p * self.tblocks.blockcomm.size,
                             min((p + 1) * self.tblocks.blockcomm.size,
@@ -602,7 +597,7 @@ class KohnShamKPointPairExtractor:
 
         # Find k-point indeces
         k_c = k_pc[self.kpts_blockcomm.rank]
-        K = self.kptfinder.find(k_c)
+        K = self.gs.kpoints.kptfinder.find(k_c)
         ik = gs.kd.bz2ibz_k[K]
 
         (myu_eu, myn_eurn, nh,

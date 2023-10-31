@@ -70,7 +70,7 @@ class PairFunctionIntegrator(ABC):
     KPointPairIntegral.weighted_kpoint_pairs() generates these kptpairs along
     with their integral weights such that self._integrate() can construct the
     pair functions in a flexible, yet general manner.
-    
+
     NB: Although it is not a fundamental limitation to pair functions as
     described above, the current implementation is based on a plane-wave
     represenation of spatial coordinates. This means that symmetries are
@@ -138,7 +138,7 @@ class PairFunctionIntegrator(ABC):
         """
         # Initialize the plane-wave symmetry analyzer
         analyzer = self.get_pw_symmetry_analyzer(out.qpd)
-        
+
         # Perform the actual integral as a point integral over k-point pairs
         integral = KPointPairPointIntegral(self.kptpair_extractor, analyzer)
         weighted_kptpairs = integral.weighted_kpoint_pairs(transitions)
@@ -216,7 +216,7 @@ class PairFunctionIntegrator(ABC):
         from gpaw.response.symmetry import PWSymmetryAnalyzer
 
         return PWSymmetryAnalyzer(
-            self.gs.kd, qpd, self.context,
+            self.gs.kpoints, qpd, self.context,
             disable_point_group=self.disable_point_group,
             disable_time_reversal=self.disable_time_reversal)
 

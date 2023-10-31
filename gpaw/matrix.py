@@ -113,7 +113,7 @@ class Matrix:
 
     def __repr__(self):
         dist = str(self.dist).split('(')[1]
-        return 'Matrix({}: {}'.format(self.dtype.name, dist)
+        return f'Matrix({self.dtype.name}: {dist}'
 
     def new(self, dist='inherit'):
         """Create new matrix of same shape and dtype.

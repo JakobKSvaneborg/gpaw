@@ -31,7 +31,7 @@ class Jellium():
         """ Set the grid descriptor for the Jellium background charge"""
         self.gd = gd
         self.mask_g = self.get_mask().astype(float)
-        self.volume = self.gd.comm.sum(self.mask_g.sum()) * self.gd.dv
+        self.volume = self.gd.comm.sum_scalar(self.mask_g.sum()) * self.gd.dv
         if self.charge != 0.:
             self.rs = (3 / pi / 4 * self.volume / abs(self.charge))**(1 / 3)
         else:

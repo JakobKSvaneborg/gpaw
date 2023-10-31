@@ -41,6 +41,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
 
     f_(nks,n'k+qs')(G+q) = <ψ_nks| e^-i(G+q)r f(r) |ψ_n'k+qs'>
     """
+
     def __init__(self, gs: ResponseGroundStateAdapter, context=None,
                  nblocks=1,
                  ecut=50, gammacentered=False,
@@ -302,7 +303,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
         with self.context.timer('Set up gcc and xf'):
             # Multiply the temporal part with the k-point integration weight
             x_Zt *= weight
-            
+
             # Set up f_kt(G+q) and g_kt^*(G'+q)
             f_tG = matrix_element1.get_global_array()
             if matrix_element2 is matrix_element1:
@@ -429,6 +430,7 @@ class ChiKSCalculator(GeneralizedSuscetibilityCalculator):
 
     are the plane-wave pair densities of each transition.
     """
+
     def create_matrix_element_calculators(self):
         pair_density_calc = NewPairDensityCalculator(self.gs, self.context)
         return pair_density_calc, pair_density_calc
@@ -459,6 +461,7 @@ class SelfEnhancementCalculator(GeneralizedSuscetibilityCalculator):
     are the plane-wave pair densities and transverse magnetic pair potentials
     respectively.
     """
+
     def __init__(self, gs: ResponseGroundStateAdapter, context=None,
                  rshelmax: int = -1,
                  rshewmin: float | None = None,
@@ -485,7 +488,7 @@ class SelfEnhancementCalculator(GeneralizedSuscetibilityCalculator):
         super().__init__(gs, context=context,
                          disable_time_reversal=True,
                          **kwargs)
-    
+
     def create_matrix_element_calculators(self):
         pair_density_calc = NewPairDensityCalculator(self.gs, self.context)
         pair_potential_calc = TransversePairPotentialCalculator(
@@ -493,7 +496,7 @@ class SelfEnhancementCalculator(GeneralizedSuscetibilityCalculator):
             rshelmax=self.rshelmax,
             rshewmin=self.rshewmin)
         return pair_density_calc, pair_potential_calc
-    
+
     def _set_up_internals(self, spincomponent, *args, **kwargs):
         # For now, we are hardcoded to use the transverse pair potential,
         # calculating Ξ^++ corresponding to χ^+-

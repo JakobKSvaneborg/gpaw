@@ -16,6 +16,7 @@ pytestmark = pytest.mark.skipif(world.size != 4,
                                 reason='world.size != 4')
 
 
+@pytest.mark.later
 def test_parallel_fd_parallel():
     tolerance = 4e-5
 

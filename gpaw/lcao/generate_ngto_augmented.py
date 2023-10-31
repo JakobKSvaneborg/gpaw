@@ -59,7 +59,7 @@ def read_gaussian_basis_file(fname):
     gtos = []
     description = ''
 
-    with open(fname, 'r') as fd:
+    with open(fname) as fd:
         line_i = fd.readlines()
 
     i = 0
@@ -217,12 +217,12 @@ def generate_nao_ngto_basis(atom, *, xc, nao, name,
             assert len(alpha_j) == len(coeff_j)
             # Float conversion
             coeff_j = [float(c) for c in coeff_j]
-            coeff_alpha_list = ['%+.3f*%.3f' % (c, a)
+            coeff_alpha_list = [f'{c:+.3f}*{a:.3f}'
                                 for c, a in zip(coeff_j, alpha_j)]
             coeff_alpha_label = ''.join(coeff_alpha_list[0:3])
             if len(coeff_alpha_list) > 3:
                 coeff_alpha_label += '+...'
-            ngtolabel = 'NGTO(%s,%s)' % ('spdfghi'[l], coeff_alpha_label)
+            ngtolabel = 'NGTO({},{})'.format('spdfghi'[l], coeff_alpha_label)
             description.append('    ' + ngtolabel)
             add_ngto(basis, l, coeff_j, alpha_j, tol, ngtolabel)
 

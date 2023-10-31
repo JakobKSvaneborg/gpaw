@@ -139,7 +139,7 @@ def _non_local(calc: GPAWOld | ASECalculator,
 
     nocc = max(((kpt.f_n / kpt.weight) > ftol).sum()
                for kpt in wfs.kpt_u)
-    nocc = kd.comm.max(wfs.bd.comm.sum(int(nocc)))
+    nocc = kd.comm.max_scalar(wfs.bd.comm.sum_scalar(int(nocc)))
 
     coulomb = coulomb_interaction(omega, wfs.gd, kd)
     sym = Symmetry(kd)

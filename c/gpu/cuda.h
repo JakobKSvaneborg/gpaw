@@ -24,6 +24,7 @@
 #define gpuCreal                  cuCreal
 #define gpuCimag                  cuCimag
 #define gpuCadd                   cuCadd
+#define gpuCsub                   cuCsub
 #define gpuCmul                   cuCmul
 #define gpuConj                   cuConj
 
@@ -74,7 +75,6 @@
 
 #define gpublasCreate             cublasCreate
 #define gpublasSetStream          cublasSetStream
-#define gpublasDgemm              cublasDgemm
 #define gpublasGetMatrixAsync     cublasGetMatrixAsync
 #define gpublasSetMatrixAsync     cublasSetMatrixAsync
 #define gpublasDsyrk              cublasDsyrk

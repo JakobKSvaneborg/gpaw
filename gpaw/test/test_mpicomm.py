@@ -1,4 +1,3 @@
-
 import numpy as np
 from gpaw import debug
 from gpaw.mpi import world, serial_comm, _Communicator, SerialCommunicator

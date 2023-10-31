@@ -49,8 +49,6 @@ def build_parser():
     parser.add_option('--vconf-sharp-confinement', action='store_true',
                       help='use sharp rather than smooth confinement '
                       'potential')
-    parser.add_option('--debug', action='store_true',
-                      help='use gpaw-DEBUG mode')
     parser.add_option('--lpol', type=int, default=None,
                       help='angular momentum quantum number '
                       'of polarization function.  '
@@ -83,10 +81,7 @@ smart parameters."""
 
 def main():
     parser = build_parser()
-    opts, args = parser.parse_args()
-    # if __name__ == '__main__' and len(args) == 0:
-    #     parser.print_help()
-    #     sys.exit(0)
+    opts, symbols = parser.parse_args()
 
     from gpaw.atom.basis import BasisMaker
     from gpaw import ConvergenceError
@@ -94,24 +89,7 @@ def main():
 
     zetacount, polcount = parse_basis_name(opts.type)
 
-    referencefiles = [None] * len(args)
-    reference_atom_indices = [None] * len(args)
-    if polcount > 0:
-        symbols = []
-        for i, arg in enumerate(args):
-            # Parse argument as <symbol>:<reference-file>:<nuclear index>.
-            symbol_and_file = arg.split(':')
-            symbol = symbol_and_file[0]
-            symbols.append(symbol)
-            if len(symbol_and_file) > 1:
-                referencefiles[i] = symbol_and_file[1]  # filename
-            if len(symbol_and_file) == 3:
-                reference_atom_indices[i] = int(symbol_and_file[2])
-    else:
-        symbols = args
-
-    for symbol, referencefile, referenceindex in zip(symbols, referencefiles,
-                                                     reference_atom_indices):
+    for symbol in symbols:
         try:
             bm = BasisMaker(symbol, name=opts.name, gtxt=None,
                             non_relativistic_guess=opts.non_relativistic_guess,
@@ -138,8 +116,6 @@ def main():
         basis = bm.generate(zetacount, polcount,
                             tailnorm=tailnorm,
                             energysplit=opts.energy_shift,
-                            referencefile=referencefile,
-                            referenceindex=referenceindex,
                             rcutpol_rel=opts.rcut_pol_rel,
                             rcutmax=opts.rcut_max,
                             rcharpol_rel=opts.rchar_pol_rel,

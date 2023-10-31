@@ -438,8 +438,7 @@ class BlacsDescriptor(MatrixDescriptor):
         for each locally stored block of the array.
         """
         if not self.check(array_mn):
-            raise ValueError('Bad array shape (%s vs %s)' % (self,
-                                                             array_mn.shape))
+            raise ValueError(f'Bad array shape ({self} vs {array_mn.shape})')
 
         grid = self.blacsgrid
         mb = self.mb

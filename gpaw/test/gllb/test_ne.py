@@ -19,7 +19,7 @@ def test_gllb_ne(in_tmp_dir, add_cwd_to_setup_paths):
             eps = g.e_j[-1]
         else:
             eps = 0.0
-        eps = world.sum(eps)
+        eps = world.sum_scalar(eps)
         world.barrier()
 
         a = 5

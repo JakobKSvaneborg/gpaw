@@ -59,7 +59,7 @@ def non_self_consistent_energy(calc: Union[Calculator, str, Path],
 
     nocc = max(((kpt.f_n / kpt.weight) > ftol).sum()
                for kpt in wfs.kpt_u)
-    nocc = kd.comm.max(wfs.bd.comm.sum(int(nocc)))
+    nocc = kd.comm.max_scalar(wfs.bd.comm.sum_scalar(int(nocc)))
 
     xcname, exx_fraction, omega = parse_name(xcname)
 
@@ -67,7 +67,7 @@ def non_self_consistent_energy(calc: Union[Calculator, str, Path],
     exc = 0.0
     for a, D_sp in dens.D_asp.items():
         exc += xc.calculate_paw_correction(setups[a], D_sp)
-    exc = dens.finegd.comm.sum(exc)
+    exc = dens.finegd.comm.sum_scalar(exc)
     if dens.nt_sg is None:
         dens.interpolate_pseudo_density()
     exc += xc.calculate(dens.finegd, dens.nt_sg)
@@ -127,8 +127,8 @@ def calculate_energy(kpts, paw, wfs, sym, coulomb, spos_ac):
         e = k1.f_n.dot(e_nn).dot(k2.f_n) / sym.kd.nbzkpts**2
         exxvv -= 0.5 * e
 
-    exxvv = comm.sum(exxvv)
-    exxvc = comm.sum(exxvc)
+    exxvv = comm.sum_scalar(exxvv)
+    exxvc = comm.sum_scalar(exxvc)
 
     return exxvc, exxvv
 

@@ -24,7 +24,7 @@ class ExteriorElectronDensity:
 
         n = len(atoms)
         atom_c = atoms.positions / Bohr
-        vdWradius = np.empty((n))
+        vdWradius = np.empty(n)
         for a, atom in enumerate(atoms):
             vdWradius[a] = self.get_vdWradius(atom.number)
 

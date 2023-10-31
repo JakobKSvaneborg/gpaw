@@ -138,7 +138,7 @@ class GridDescriptor(Domain):
                     n_p[:] = (np.arange(self.parsize_c[c] + 1) +
                               1 - self.pbc_c[c]).clip(0, self.N_c[c])
                 else:
-                    msg = ('Grid {0} too small for {1} cores!'
+                    msg = ('Grid {} too small for {} cores!'
                            .format('x'.join(str(n) for n in self.N_c),
                                    'x'.join(str(n) for n in self.parsize_c)))
                     raise BadGridError(msg)
@@ -292,7 +292,7 @@ class GridDescriptor(Domain):
             result = a_xg.reshape(xshape + (-1,)).sum(axis=-1) * self.dv
             if global_integral:
                 if result.ndim == 0:
-                    result = self.comm.sum_scalar(result)
+                    result = self.comm.sum_scalar(result.item())
                 else:
                     self.comm.sum(result)
             return result

@@ -146,7 +146,8 @@ def get_domains_from_gd(comm, gd, offset_c=None):
     return n_cp, rank2parpos
 
 
-def grid2grid(comm, gd1, gd2, src_g, dst_g, offset1_c=None, offset2_c=None):
+def grid2grid(comm, gd1, gd2, src_g, dst_g, offset1_c=None, offset2_c=None,
+              xp=np):
     assert np.all(src_g.shape == gd1.n_c)
     assert np.all(dst_g.shape == gd2.n_c)
 
@@ -156,7 +157,7 @@ def grid2grid(comm, gd1, gd2, src_g, dst_g, offset1_c=None, offset2_c=None):
     general_redistribute(comm,
                          n1_cp, n2_cp,
                          rank2parpos1, rank2parpos2,
-                         src_g, dst_g)
+                         src_g, dst_g, xp=xp)
 
 
 def main():

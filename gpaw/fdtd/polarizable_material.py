@@ -84,7 +84,7 @@ class PolarizableMaterial():
             arguments = component['arguments']
             eps_infty = component['eps_infty']
             eps = component['eps']  # Data as array
-            eval('self.add_component(%s(permittivity = Permittivity(data=eps), %s))' % (name, arguments))
+            eval(f'self.add_component({name}(permittivity = Permittivity(data=eps), {arguments}))')
 
     # Save information on the structures for restarting
     def write(self, writer):
@@ -113,13 +113,13 @@ class PolarizableMaterial():
         self.messages.append("    bar_omega         alpha          beta")
         self.messages.append("  ----------------------------------------")
         for j in range(permittivity.Nj):
-            self.messages.append("%12.6f  %12.6f  %12.6f" % (permittivity.oscillators[j].bar_omega,
+            self.messages.append("{:12.6f}  {:12.6f}  {:12.6f}".format(permittivity.oscillators[j].bar_omega,
                                                              permittivity.oscillators[j].alpha,
                                                              permittivity.oscillators[j].beta))
         self.messages.append("  ----------------------------------------")
         self.messages.append("...done initializing Polarizable Material")
-        masksum  = self.gd.comm.sum(int(np.sum(mask)))
-        masksize = self.gd.comm.sum(int(np.size(mask)))
+        masksum  = self.gd.comm.sum_scalar(int(np.sum(mask)))
+        masksize = self.gd.comm.sum_scalar(int(np.size(mask)))
         self.messages.append("Fill ratio: %f percent" % (100.0 * float(masksum)/float(masksize)))
 
 
@@ -175,7 +175,7 @@ class PolarizableBox():
         self.permittivity = permittivity
 
         self.name = 'PolarizableBox'
-        self.arguments = 'corner1=[%f, %f, %f], corner2=[%f, %f, %f]' % (corner1[0], corner1[1], corner1[2],
+        self.arguments = 'corner1=[{:f}, {:f}, {:f}], corner2=[{:f}, {:f}, {:f}]'.format(corner1[0], corner1[1], corner1[2],
                                                                          corner2[0], corner2[1], corner2[2])
 
     # Setup grid descriptor and the permittivity values inside the box
@@ -220,7 +220,7 @@ class PolarizableAtomisticRegion():
         dbohr = self.distance*Bohr
         self.arguments = 'distance = %20.12e, atom_positions=[' % dbohr
         for ap in self.atom_positions:
-            self.arguments += '[%20.12e, %20.12e, %20.12e],' % (ap[0], ap[1], ap[2])
+            self.arguments += f'[{ap[0]:20.12e}, {ap[1]:20.12e}, {ap[2]:20.12e}],'
         self.arguments = self.arguments[:-1] + ']'
 
     # Setup grid descriptor and the permittivity values inside the box
@@ -248,7 +248,7 @@ class PolarizableSphere():
         assert(len(self.center)==3)
 
         self.name = 'PolarizableSphere'
-        self.arguments = 'center=[%20.12e, %20.12e, %20.12e], radius=%20.12e' % (center[0], center[1], center[2], radius)
+        self.arguments = f'center=[{center[0]:20.12e}, {center[1]:20.12e}, {center[2]:20.12e}], radius={radius:20.12e}'
 
     def get_mask(self, gd):
 
@@ -272,7 +272,7 @@ class PolarizableEllipsoid():
         self.permittivity = permittivity
 
         self.name = 'PolarizableEllipsoid'
-        self.arguments = 'center=[%20.12e, %20.12e, %20.12e], radii=[%20.12e, %20.12e, %20.12e]' % (center[0], center[1], center[2], radii[0], radii[1], radii[2])
+        self.arguments = f'center=[{center[0]:20.12e}, {center[1]:20.12e}, {center[2]:20.12e}], radii=[{radii[0]:20.12e}, {radii[1]:20.12e}, {radii[2]:20.12e}]'
 
 
     def get_mask(self, gd):
@@ -295,7 +295,7 @@ class PolarizableRod():
         self.name = 'PolarizableRod'
         self.arguments = 'radius = %20.12e, corners=[' % radius
         for c in corners:
-            self.arguments += '[%20.12e, %20.12e, %20.12e],' % (c[0], c[1], c[2])
+            self.arguments += f'[{c[0]:20.12e}, {c[1]:20.12e}, {c[2]:20.12e}],'
         self.arguments = self.arguments[:-1] + ']'
         self.arguments += f', round_corners={round_corners}'
 
@@ -318,7 +318,7 @@ class PolarizableRod():
         for p in self.corners[1:]:
             # http://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line:
             # d = |(a-p)-((a-p).n)n|   point p, line a+tn  (|n|=1)
-            n = (p-a)/np.sqrt((p-a).dot((p-a)))
+            n = (p-a)/np.sqrt((p-a).dot(p-a))
             v1 = np.array([a[w]-r_gv[:, :, :, w] for w in range(3)]).transpose((1, 2, 3, 0)) # a-p
 
             v2 = np.sum(np.array([v1[:, :, :, w]*n[w] for w in range(3)]), axis=0)  # (a-p).n
@@ -424,7 +424,7 @@ class PolarizableTetrahedron():
         self.name = 'PolarizableTetrahedron'
         self.arguments = 'corners=['
         for c in corners:
-            self.arguments += '[%20.12e, %20.12e, %20.12e],' % (c[0], c[1], c[2])
+            self.arguments += f'[{c[0]:20.12e}, {c[1]:20.12e}, {c[2]:20.12e}],'
         self.arguments += ']'
 
         self.corners      = np.array(corners)/Bohr # from Angstroms to atomic units
@@ -516,7 +516,7 @@ class Permittivity:
 
         # Input as filename
         if fname != None: # read permittivity from a 3-column file
-            with open(fname, 'r') as fp:
+            with open(fname) as fp:
                 lines = fp.readlines()
 
             self.Nj = len(lines)

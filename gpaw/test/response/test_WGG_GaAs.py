@@ -17,7 +17,7 @@ def test_Wsymm(in_tmp_dir, scalapack):
         cell = bulk('Ga', 'fcc', a=5.68).cell
         a = Atoms('GaAs', cell=cell, pbc=True,
                   scaled_positions=((0, 0, 0), (0.25, 0.25, 0.25)))
-        
+
         # First with symmetry off
         calc = GPAW(mode=PW(400),
                     xc='LDA',
@@ -34,7 +34,7 @@ def test_Wsymm(in_tmp_dir, scalapack):
         else:
             calc.write('GaAs_symm.gpw', mode='all')
         return calc
-    
+
     def get_IBZ_k(calc):
         gs = calc.gs_adapter()
         qclist = gs.kd.ibzk_kc

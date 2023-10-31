@@ -76,7 +76,7 @@ def pw_matrix(pw: PWDesc,
                 x_R.fft(out=x_G)
                 H_GG.data[G - G1] += -0.5j * dv * G_Gv[:, v] * x_G.data
 
-    H_GG.add_to_diagonal(dv * pw.ekin_G)
+    H_GG.add_to_diagonal(dv * pw.ekin_G[G1:G2])
     S_GG.data[:] = 0.0
     S_GG.add_to_diagonal(dv)
 
@@ -108,14 +108,16 @@ def diagonalize(potential: Potential,
     """Diagonalize hamiltonian in plane-wave basis."""
     vt_sR = potential.vt_sR
     dH_asii = potential.dH_asii
-    dedtaut_sR = potential.dedtaut_sR or [None, None]
+    dedtaut_sR: UGArray | list[None] = [None] * len(vt_sR)
+    if potential.dedtaut_sR is not None:
+        dedtaut_sR = potential.dedtaut_sR
 
     if nbands is None:
         nbands = min(wfs.array_shape(global_shape=True)[0]
                      for wfs in ibzwfs)
-        array = np.array(nbands)
-        ibzwfs.kpt_comm.max(array)
-        nbands = int(array)
+        nbands = ibzwfs.kpt_comm.min_scalar(nbands)
+
+    band_comm = ibzwfs.band_comm
 
     wfs_qs: list[list[WaveFunctions]] = []
     for wfs_s in ibzwfs.wfs_qs:
@@ -124,42 +126,37 @@ def diagonalize(potential: Potential,
             dS_aii = [setup.dO_ii for setup in wfs.setups]
             assert isinstance(wfs, PWFDWaveFunctions)
             assert isinstance(wfs.pt_aiX, PWAtomCenteredFunctions)
-            H_GG, S_GG = pw_matrix(wfs.psit_nX.desc,
+            pw = wfs.psit_nX.desc
+            H_GG, S_GG = pw_matrix(pw,
                                    wfs.pt_aiX,
                                    dH_asii[:, wfs.spin],
                                    dS_aii,
                                    vt_sR[wfs.spin],
                                    dedtaut_sR[wfs.spin],
-                                   wfs.psit_nX.comm)
+                                   band_comm)
+
             eig_n = H_GG.eigh(S_GG, limit=nbands)
-            if eig_n[0] < -1000:
-                raise RuntimeError(
-                    f'Lowest eigenvalue is {eig_n[0]} Hartree. '
-                    'You might be suffering from MKL library bug MKLD-11440. '
-                    'See issue #241 in GPAW. '
-                    'Creashing to prevent corrupted results.')
-            psit_nG = wfs.psit_nX.desc.empty(nbands)
-            psit_nG.data[:nbands] = H_GG.data[:nbands].conj()
-            new_wfs = PWFDWaveFunctions(
-                psit_nG,
-                wfs.spin,
-                wfs.q,
-                wfs.k,
-                wfs.setups,
-                wfs.fracpos_ac,
-                wfs.atomdist,
-                wfs.weight,
-                wfs.ncomponents)
+            H_GG.complex_conjugate()
+            assert eig_n[0] > -1000, 'See issue #241'
+            psit_nG = pw.empty(nbands, comm=band_comm)
+            mynbands, nG = psit_nG.data.shape
+            maxmynbands = (nbands + band_comm.size - 1) // band_comm.size
+            C_nG = H_GG.new(
+                dist=(band_comm, band_comm.size, 1, maxmynbands, 1))
+            H_GG.redist(C_nG)
+            psit_nG.data[:] = C_nG.data[:mynbands]
+            new_wfs = PWFDWaveFunctions.from_wfs(wfs, psit_nX=psit_nG)
             new_wfs._eig_n = eig_n
             wfs_qs[-1].append(new_wfs)
 
     new_ibzwfs = IBZWaveFunctions(
         ibzwfs.ibz,
-        ibzwfs.nelectrons,
-        ibzwfs.ncomponents,
-        wfs_qs,
-        ibzwfs.kpt_comm,
-        ibzwfs.comm)
+        nelectrons=ibzwfs.nelectrons,
+        ncomponents=ibzwfs.ncomponents,
+        wfs_qs=wfs_qs,
+        kpt_comm=ibzwfs.kpt_comm,
+        kpt_band_comm=ibzwfs.kpt_band_comm,
+        comm=ibzwfs.comm)
 
     new_ibzwfs.calculate_occs(occ_calc)
 

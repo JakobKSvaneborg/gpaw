@@ -119,7 +119,7 @@ def main(args, parser):
                     marking = ' [*]'
                 else:
                     marking = '    '
-                print(' %s %s' % (marking, url))
+                print(f' {marking} {url}')
 
         if len(urls) == 0:
             url = baseurls[args.source]

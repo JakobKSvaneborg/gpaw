@@ -158,8 +158,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     else:
         nt_sR_array = None
         vt_sR_array = None
-        taut_sR = None
-        dedtaut_sR = None
+        taut_sR_array = None
+        dedtaut_sR_array = None
         D_sap_array = None
         dH_sap_array = None
         shape = None

@@ -223,8 +223,8 @@ class HybridXC(HybridXCBase):
         # Note that the quantities passed are on the
         # density/Hamiltonian grids!
         # They may be distributed differently from own quantities.
-        self.ekin = self.kpt_comm.sum(self.ekin_s.sum())
-        return exc + self.kpt_comm.sum(self.exx_s.sum())
+        self.ekin = self.kpt_comm.sum_scalar(self.ekin_s.sum())
+        return exc + self.kpt_comm.sum_scalar(self.exx_s.sum())
 
     def calculate_exx(self):
         for kpt in self.kpt_u:
@@ -459,8 +459,8 @@ class HybridXC(HybridXCBase):
                         else:
                             exx += hybrid * setup.ExxC
 
-        self.exx_s[kpt.s] = self.gd.comm.sum(exx)
-        self.ekin_s[kpt.s] = self.gd.comm.sum(ekin)
+        self.exx_s[kpt.s] = self.gd.comm.sum_scalar(exx)
+        self.ekin_s[kpt.s] = self.gd.comm.sum_scalar(ekin)
 
     def correct_hamiltonian_matrix(self, kpt, H_nn):
         if not hasattr(kpt, 'vxx_ani'):

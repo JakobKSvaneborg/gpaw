@@ -21,7 +21,7 @@ def test_constraints_directopt_lcao(in_tmp_dir):
                 basis='dzp',
                 h=0.22,
                 occupations={'name': 'fixed-uniform'},
-                eigensolver={'name': 'etdm'},
+                eigensolver={'name': 'etdm-lcao'},
                 mixer={'backend': 'no-mixing'},
                 nbands='nao',
                 symmetry='off',
@@ -38,7 +38,7 @@ def test_constraints_directopt_lcao(in_tmp_dir):
     calc.wfs.kpt_u[0].C_nM[homo] = np.cos(a) * c[homo] + np.sin(a) * c[lumo]
     calc.wfs.kpt_u[0].C_nM[lumo] = np.cos(a) * c[lumo] - np.sin(a) * c[homo]
 
-    calc.set(eigensolver={'name': 'etdm',
+    calc.set(eigensolver={'name': 'etdm-lcao',
                           'constraints': [[[homo], [lumo]], []],
                           'need_init_orbs': False})
 

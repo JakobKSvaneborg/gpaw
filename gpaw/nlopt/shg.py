@@ -1,15 +1,14 @@
-
 import numpy as np
 from ase.units import Bohr, _hbar, _e, _me, _eps0
 from ase.utils.timing import Timer
 from ase.parallel import parprint
 from gpaw.mpi import world
-from gpaw.nlopt.basic import load_data
 from gpaw.nlopt.matrixel import get_rml, get_derivative
 from gpaw.utilities.progressbar import ProgressBar
 
 
 def get_shg(
+        nlodata,
         freqs=[1.0],
         eta=0.05,
         pol='yyy',
@@ -17,36 +16,38 @@ def get_shg(
         gauge='lg',
         ftol=1e-4, Etol=1e-6,
         band_n=None,
-        out_name='shg.npy',
-        mml_name='mml.npz'):
-    """Calculate RPA SHG spectrum for nonmagnetic semiconductors.
+        out_name='shg.npy'):
+    """
+    Calculate SHG spectrum within the independent particle approximation (IPA)
+    for nonmagnetic semiconductors.
 
     Output: shg.npy file with numpy array containing the spectrum and
     frequencies.
 
     Parameters:
 
+    nlodata:
+        Data object of class NLOData. Contains energies, occupancies and
+        momentum matrix elements.
     freqs:
-        Excitation frequency array (a numpy array or list)
+        Excitation frequency array (a numpy array or list).
     eta:
-        Broadening, a number or an array (default 0.05 eV)
+        Broadening, a number or an array (default 0.05 eV).
     pol:
-        Tensor element (default 'yyy')
+        Tensor element (default 'yyy').
     gauge:
-        Choose the gauge (lg or vg)
+        Choose the gauge ('lg' or 'vg').
     Etol, ftol:
-        Tol. in energy and fermi to consider degeneracy
+        Tol. in energy and fermi to consider degeneracy.
     band_n:
-        List of bands in the sum (default 0 to nb)
+        List of bands in the sum (default 0 to nb).
     out_name:
-        Output filename (default 'shg.npy')
-    mml_name:
-        The momentum filename (default 'mml.npz')
+        Output filename (default 'shg.npy').
     """
 
     # Start a timer
     timer = Timer()
-    parprint('Calculating SHG spectrum (in {:d} cores).'.format(world.size))
+    parprint(f'Calculating SHG spectrum (in {world.size:d} cores).')
 
     # Useful variables
     pol_v = ['xyz'.index(ii) for ii in pol]
@@ -56,11 +57,11 @@ def get_shg(
     # Use the TRS to reduce calculation time
     w_l = np.hstack((-w_lc[-1::-1], w_lc))
     nw = 2 * nw
-    parprint('Calculation in the {} gauge for element {}.'.format(gauge, pol))
+    parprint(f'Calculation in the {gauge} gauge for element {pol}.')
 
     # Load the required data
     with timer('Load and distribute the data'):
-        k_info = load_data(mml_name=mml_name)
+        k_info = nlodata.distribute()
         if k_info:
             tmp = list(k_info.values())[0]
             nb = len(tmp[1])

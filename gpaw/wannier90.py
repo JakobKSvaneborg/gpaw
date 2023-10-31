@@ -60,8 +60,10 @@ class Wannier90:
                     dis_num_iter=200,
                     dis_froz_max=0.1,
                     dis_mix_ratio=0.5,
-                    search_shells=None):
-
+                    dis_win_min=None,
+                    dis_win_max=None,
+                    search_shells=None,
+                    write_u_matrices=False):
         calc = self.calc
         seed = self.seed
         bands = self.bands
@@ -115,9 +117,9 @@ class Wannier90:
             for orb in orbitals_i:
                 l = l_i[orb]
                 n = n_i[orb]
-                print('f=%1.2f, %1.2f, %1.2f : s ' % (r_c[0], r_c[1], r_c[2]),
+                print(f'f={r_c[0]:1.2f}, {r_c[1]:1.2f}, {r_c[2]:1.2f} : s ',
                       end='', file=f)
-                print('# n = %s, l = %s' % (n, l), file=f)
+                print(f'# n = {n}, l = {l}', file=f)
 
         print('end projections', file=f)
         print(file=f)
@@ -126,6 +128,8 @@ class Wannier90:
             print('spinors = True', file=f)
         else:
             print('spinors = False', file=f)
+        if write_u_matrices:
+            print('write_u_matrices = True', file=f)
         print('write_hr = True', file=f)
         if write_xyz:
             print('write_xyz = True', file=f)
@@ -138,7 +142,7 @@ class Wannier90:
         print('num_bands       = %d' % len(bands), file=f)
 
         if search_shells is not None:
-            print("search_shells = {0}".format(search_shells), file=f)
+            print(f"search_shells = {search_shells}", file=f)
 
         maxn = max(bands)
         if maxn + 1 != len(bands):
@@ -162,16 +166,19 @@ class Wannier90:
         if len(bands) > Nw:
             ef = calc.get_fermi_level()
             print('fermi_energy  = %2.3f' % ef, file=f)
-            print('dis_froz_max  = %2.3f' % (ef + dis_froz_max), file=f)
+            if dis_froz_max is not None:
+                print('dis_froz_max  = %2.3f' % (ef + dis_froz_max), file=f)
+            if dis_win_min is not None:
+                print('dis_win_min  = %2.3f' % (ef + dis_win_min), file=f)
+            if dis_win_max is not None:
+                print('dis_win_max  = %2.3f' % (ef + dis_win_max), file=f)
             print('dis_num_iter  = %d' % dis_num_iter, file=f)
             print('dis_mix_ratio = %1.1f' % dis_mix_ratio, file=f)
         print(file=f)
 
         print('begin unit_cell_cart', file=f)
         for cell_c in calc.atoms.cell:
-            print('%14.10f %14.10f %14.10f' % (cell_c[0],
-                                               cell_c[1],
-                                               cell_c[2]),
+            print(f'{cell_c[0]:14.10f} {cell_c[1]:14.10f} {cell_c[2]:14.10f}',
                   file=f)
         print('end unit_cell_cart', file=f)
         print(file=f)
@@ -179,7 +186,7 @@ class Wannier90:
         print('begin atoms_frac', file=f)
         for atom, pos_c in zip(calc.atoms, pos_ac):
             print(atom.symbol, end='', file=f)
-            print('%14.10f %14.10f %14.10f' % (pos_c[0], pos_c[1], pos_c[2]),
+            print(f'{pos_c[0]:14.10f} {pos_c[1]:14.10f} {pos_c[2]:14.10f}',
                   file=f)
         print('end atoms_frac', file=f)
         print(file=f)
@@ -198,7 +205,7 @@ class Wannier90:
         print('begin kpoints', file=f)
 
         for kpt in calc.get_bz_k_points():
-            print('%14.10f %14.10f %14.10f' % (kpt[0], kpt[1], kpt[2]), file=f)
+            print(f'{kpt[0]:14.10f} {kpt[1]:14.10f} {kpt[2]:14.10f}', file=f)
         print('end kpoints', file=f)
 
         f.close()
@@ -336,7 +343,7 @@ class Wannier90:
         kpts_kc = calc.get_bz_k_points()
         Nk = len(kpts_kc)
 
-        nnkp = open(seed + '.nnkp', 'r')
+        nnkp = open(seed + '.nnkp')
         lines = nnkp.readlines()
         for il, line in enumerate(lines):
             if len(line.split()) > 1:
@@ -405,7 +412,7 @@ class Wannier90:
                 for m1 in range(len(M_mm)):
                     for m2 in range(len(M_mm)):
                         M = M_mm[m2, m1]
-                        print('%20.12f %20.12f' % (M.real, M.imag), file=f)
+                        print(f'{M.real:20.12f} {M.imag:20.12f}', file=f)
 
         f.close()
 
@@ -439,7 +446,7 @@ class Wannier90:
             f = open('UNK%s.%d' % (str(ik + 1).zfill(5), spin + 1), 'w')
             grid_v = np.shape(u_nG)[1:]
             print(grid_v[0], grid_v[1], grid_v[2], ik + 1, Nn, file=f)
-            for n in range(Nn):
+            for n in bands:
                 for iz in range(grid_v[2]):
                     for iy in range(grid_v[1]):
                         for ix in range(grid_v[0]):
@@ -448,6 +455,7 @@ class Wannier90:
             f.close()
 
     def wavefunctions(self, bz_index, bands):
+        maxband = bands[-1] + 1
         if self.spinors:
             # For spinors, G denotes spin and grid: G = (s, gx, gy, gz)
             return self.soc[bz_index].wavefunctions(
@@ -456,10 +464,9 @@ class Wannier90:
         ibz_index = self.calc.wfs.kd.bz2ibz_k[bz_index]
         ut_nR = np.array([self.calc.wfs.get_wave_function_array(
             n, ibz_index, self.spin,
-            periodic=True)
-            for n in bands])
+            periodic=True) for n in range(maxband)])
         ut_nR_sym = np.array([self.ibz2bz[bz_index].map_pseudo_wave_to_BZ(
-            ut_nR[n]) for n in bands])
+            ut_nR[n]) for n in range(maxband)])
 
         return ut_nR_sym
 
@@ -503,3 +510,59 @@ def get_projections_in_bz(wfs, K, s, ibz2bz, bcomm=None):
     # map projections to bz
     proj_sym = ibz2bz[K].map_projections(proj)
     return proj_sym
+
+
+def read_umat(seed, kd, dis=False):
+    """
+    Reads wannier transformation matrix
+    """
+    if ".mat" not in seed:
+        if dis:
+            seed += "_u_dis.mat"
+        else:
+            seed += "_u.mat"
+    f = open(seed, "r")
+    f.readline()  # first line is a comment
+    nk, nw1, nw2 = [int(i) for i in f.readline().split()]
+    assert nk == kd.nbzkpts
+    uwan = np.empty([nw1, nw2, nk], dtype=complex)
+    iklist = []  # list to store found iks
+    for ik1 in range(nk):
+        f.readline()  # empty line
+        K_c = [float(rdum) for rdum in f.readline().split()]
+        ik = kd.where_is_q(K_c, kd.bzk_kc)
+        assert np.allclose(np.array(K_c), kd.bzk_kc[ik])
+        iklist.append(ik)
+        for ib1 in range(nw1):
+            for ib2 in range(nw2):
+                rdum1, rdum2 = [float(rdum) for rdum in
+                                f.readline().split()]
+                uwan[ib1, ib2, ik] = complex(rdum1, rdum2)
+    assert set(iklist) == set(range(nk))  # check that all k:s were found
+    return uwan, nk, nw1, nw2
+
+
+def read_uwan(seed, kd, dis=False):
+    """
+    Reads wannier transformation matrix
+    Input parameters:
+    -----------------
+    seed: str
+          seed in wannier calculation
+    kd: kpt descriptor
+    dis: logical
+        should be set to true if nband > nwan
+    """
+    assert '.mat' not in seed
+    # reads in wannier transformation matrix
+    umat, nk, nw1, nw2 = read_umat(seed, kd, dis=False)
+
+    if dis:
+        # Reads in transformation to optimal subspace
+        umat_dis, nk, nw1, nw2 = read_umat(seed, kd, dis=True)
+        uwan = np.zeros_like(umat_dis)
+        for ik in range(nk):
+            uwan[:, :, ik] = umat[:, :, ik] @ umat_dis[:, :, ik]
+    else:
+        uwan = umat
+    return uwan, nk, nw1, nw2

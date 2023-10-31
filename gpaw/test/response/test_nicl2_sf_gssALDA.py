@@ -19,6 +19,7 @@ pytestmark = pytest.mark.skipif(world.size < 4,
 
 @pytest.mark.kspair
 @pytest.mark.response
+@pytest.mark.later
 def test_nicl2_magnetic_response(in_tmp_dir, gpw_files):
     # ---------- Inputs ---------- #
 

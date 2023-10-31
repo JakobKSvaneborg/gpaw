@@ -55,9 +55,9 @@ def calculate_raman(calc, w_ph, w_in, d_i, d_o, resonant_only=False,
     assert calc.wfs.bd.comm.size == 1
     kd = calc.wfs.kd
 
-    print("Calculating Raman spectrum: Laser frequency = {} eV".format(w_in))
+    print(f"Calculating Raman spectrum: Laser frequency = {w_in} eV")
     if suffix is None:
-        suffix = "{}nm".format(int(1239.841 / w_in))
+        suffix = f"{int(1239.841 / w_in)}nm"
 
     # Phonon frequencies
     if isinstance(w_ph, str):
@@ -183,7 +183,7 @@ def calculate_raman(calc, w_ph, w_in, d_i, d_o, resonant_only=False,
 
     # Loop over kpoints - this is parallelised
     for kpt in calc.wfs.kpt_u:
-        print("Rank {}: s={}, k={}".format(kd.comm.rank, kpt.s, kpt.k))
+        print(f"Rank {kd.comm.rank}: s={kpt.s}, k={kpt.k}")
 
         # Check if we need to add timer-add time reversed kpoint
         if (calc.symmetry.time_reversal and not
@@ -351,10 +351,10 @@ def plot_raman(figname, RIsuffix, relative=False, w_min=None, w_max=None):
 
     if isinstance(RIsuffix, str):
         legend = False
-        RI_name = ["RI_{}.npy".format(RIsuffix)]
+        RI_name = [f"RI_{RIsuffix}.npy"]
     else:  # assume list
         legend = True
-        RI_name = ["RI_{}.npy".format(name) for name in RIsuffix]
+        RI_name = [f"RI_{name}.npy" for name in RIsuffix]
         cm = plt.get_cmap('inferno')
         cNorm = colors.Normalize(vmin=0, vmax=len(RI_name))
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)

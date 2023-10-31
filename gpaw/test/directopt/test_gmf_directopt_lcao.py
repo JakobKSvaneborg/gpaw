@@ -2,7 +2,7 @@ import pytest
 
 from gpaw import GPAW, LCAO
 from gpaw.directmin.tools import excite
-from gpaw.directmin.etdm import ETDM
+from gpaw.directmin.etdm_lcao import LCAOETDM
 
 from ase import Atoms
 import numpy as np
@@ -23,7 +23,7 @@ def test_gmf_directopt_lcao(in_tmp_dir):
                 basis='dzp',
                 h=0.22,
                 occupations={'name': 'fixed-uniform'},
-                eigensolver='etdm',
+                eigensolver='etdm-lcao',
                 mixer={'backend': 'no-mixing'},
                 nbands='nao',
                 symmetry='off',
@@ -36,7 +36,7 @@ def test_gmf_directopt_lcao(in_tmp_dir):
     # Excited state occupation numbers
     f_sn = excite(calc, 0, 0, spin=(0, 0))
 
-    calc.set(eigensolver=ETDM(
+    calc.set(eigensolver=LCAOETDM(
         partial_diagonalizer={'name': 'Davidson', 'logfile': None, 'seed': 42},
         linesearch_algo={'name': 'max-step'},
         searchdir_algo={'name': 'LBFGS-P_GMF'},

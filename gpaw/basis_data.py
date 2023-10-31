@@ -40,7 +40,7 @@ def get_basis_name(zetacount, polarizationcount):
         return '%szp' % zetachar
     else:
         polarizationchar = _basis_number2letter[polarizationcount]
-        return '%sz%sp' % (zetachar, polarizationchar)
+        return f'{zetachar}z{polarizationchar}p'
 
 
 class Basis:
@@ -83,7 +83,7 @@ class Basis:
     def ritosplines(self):
         return [self.rgd.spline(ribf.phit_g, ribf.rc, ribf.l, points=400)
                 for ribf in self.ribf_j]
-   
+
     def read_xml(self, filename=None, world=None):
         parser = BasisSetXMLParser(self)
         parser.parse(filename, world=world)
@@ -97,7 +97,7 @@ class Basis:
         if self.name is None:
             filename = '%s.basis' % self.symbol
         else:
-            filename = '%s.%s.basis' % (self.symbol, self.name)
+            filename = f'{self.symbol}.{self.name}.basis'
 
         with open(filename, 'w') as fd:
             self.write_to(fd)
@@ -106,7 +106,7 @@ class Basis:
         write = fd.write
         write('<paw_basis version="0.1">\n')
 
-        generatorattrs = ' '.join(['%s="%s"' % (key, value)
+        generatorattrs = ' '.join([f'{key}="{value}"'
                                    for key, value
                                    in self.generatorattrs.items()])
         write('  <generator %s>' % generatorattrs)
@@ -115,12 +115,12 @@ class Basis:
         write('\n  </generator>\n')
 
         write('  ' + self.rgd.xml())
-       
+
         # Write both the basis functions and auxiliary ones
         for bfs in [self.bf_j, self.ribf_j]:
             for bf in bfs:
                 write(bf.xml(indentation='  '))
-        
+
         write('</paw_basis>\n')
 
     def reduce(self, name):
@@ -171,12 +171,13 @@ class Basis:
         lines.append(f'Number of RI-basis functions {self.nrio}')
         for ribf in self.ribf_j:
             lines.append('l=%d %s' % (ribf.l, ribf.type))
-        
+
         return '\n  '.join(lines)
 
 
 class BasisFunction:
     """Encapsulates various basis function data."""
+
     def __init__(self, n=None, l=None, rc=None, phit_g=None, type=''):
         self.n = n
         self.l = l
@@ -192,7 +193,7 @@ class BasisFunction:
         txt = '<basis_function '
         if self.n is not None:
             txt += 'n="%d" ' % self.n
-        txt += ('l="%r" rc="%r" type="%s"' % (self.l, self.rc, self.type))
+        txt += (f'l="{self.l!r}" rc="{self.rc!r}" type="{self.type}"')
         if gridid is not None:
             txt += ' grid="%s"' % gridid
         return txt + '>'
@@ -227,7 +228,7 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
         else:
             name = basis.name
             reduced = None
-        fullname = '%s.%s.basis' % (basis.symbol, name)
+        fullname = f'{basis.symbol}.{name}.basis'
         if filename is None:
             basis.filename, source = search_for_file(fullname, world=world)
         else:

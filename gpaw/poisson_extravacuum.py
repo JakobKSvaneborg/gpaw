@@ -254,7 +254,7 @@ class ExtraVacuumPoissonSolver(_PoissonSolver):
         lines = [line]
 
         def add_line(line, pad=0):
-            lines.extend(['%s%s' % (' ' * pad, line)])
+            lines.extend(['{}{}'.format(' ' * pad, line)])
 
         def get_cell(ps):
             descr = ps.get_description().replace('\n', '\n%s' % (' ' * 8))
@@ -265,7 +265,7 @@ class ExtraVacuumPoissonSolver(_PoissonSolver):
                 h_eff = gd.dv**(1.0 / 3.0) * Bohr
                 l1 = '{:8d} x {:8d} x {:8d} points'.format(*gd.N_c)
                 l2 = '{:8.2f} x {:8.2f} x {:8.2f} AA'.format(*par[:3])
-                l3 = 'Effective grid spacing dv^(1/3) = {:.4f}'.format(h_eff)
+                l3 = f'Effective grid spacing dv^(1/3) = {h_eff:.4f}'
                 add_line('Grid: %s' % l1, 8)
                 add_line('      %s' % l2, 8)
                 add_line('      %s' % l3, 8)

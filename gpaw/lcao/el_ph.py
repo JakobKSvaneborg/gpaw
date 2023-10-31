@@ -342,7 +342,7 @@ def get_grid_dP_aMix(spos_ac, wfs, q):  # XXXXXX q
             pt.derivative(phi_MG, dP_bMix, q=q)
             dP_Mix[ni:ni + nao] = dP_bMix[0]
             ni += nao
-            parprint('projector grad. doing atoms (%s, %s) ' % (a, b))
+            parprint(f'projector grad. doing atoms ({a}, {b}) ')
 
         dP_aMix[a] = dP_Mix
     return dP_aMix

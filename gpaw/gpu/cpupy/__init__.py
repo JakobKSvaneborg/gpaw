@@ -140,8 +140,10 @@ class ndarray:
     def all(self):
         return ndarray(self._data.all())
 
-    def sum(self, **kwargs):
-        return ndarray(self._data.sum(**kwargs))
+    def sum(self, out=None, **kwargs):
+        if out is not None:
+            out = out._data
+        return ndarray(self._data.sum(out=out, **kwargs))
 
     def __repr__(self):
         return 'cp.' + np.array_repr(self._data)
@@ -188,6 +190,9 @@ class ndarray:
         if isinstance(other, (float, complex, int)):
             return self._data == other
         return ndarray(self._data == other._data)
+
+    def __neg__(self):
+        return ndarray(-self._data)
 
     def __mul__(self, f):
         if isinstance(f, (float, complex)):

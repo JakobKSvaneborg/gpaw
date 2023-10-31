@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,6 +9,24 @@ from ase.utils import lazyproperty
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
+
+
+class PAWDatasetCollection:
+    def __init__(self, setups):
+        by_species = {}
+        by_atom = []
+        id_by_atom = []
+
+        for atom_id, setup in enumerate(setups):
+            species_id = setups.id_a[atom_id]
+            if species_id not in by_species:
+                by_species[species_id] = ResponsePAWDataset(setup)
+            by_atom.append(by_species[species_id])
+            id_by_atom.append(species_id)
+
+        self.by_species = by_species
+        self.by_atom = by_atom
+        self.id_by_atom = id_by_atom
 
 
 class ResponseGroundStateAdapter:
@@ -30,12 +49,13 @@ class ResponseGroundStateAdapter:
 
         self.fermi_level = wfs.fermi_level
         self.atoms = calc.atoms
-        self.pawdatasets = [ResponsePAWDataset(setup) for setup in calc.setups]
+        self.pawdatasets = PAWDatasetCollection(calc.setups)
 
         self.pbc = self.atoms.pbc
         self.volume = self.gd.volume
 
         self.nvalence = wfs.nvalence
+        self.nocc1, self.nocc2 = self.count_occupied_bands()
 
         self.ibz2bz = IBZ2BZMaps.from_calculator(calc)
 
@@ -45,7 +65,7 @@ class ResponseGroundStateAdapter:
         self._calc = calc
 
     @classmethod
-    def from_gpw_file(cls, gpw, context):
+    def from_gpw_file(cls, gpw, context) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
         from gpaw import GPAW, disable_dry_run
         assert Path(gpw).is_file()
@@ -226,6 +246,11 @@ class ResponseGroundStateAdapter:
         return nocc1, nocc2
 
     @property
+    def metallic(self):
+        # Does the number of filled bands equal the number of non-empty bands?
+        return self.nocc1 != self.nocc2
+
+    @property
     def ibzq_qc(self):
         # For G0W0Kernel
         kd = self.kd
@@ -244,19 +269,25 @@ class ResponseGroundStateAdapter:
         return ibz_vertices_kc
 
     def get_aug_radii(self):
-        return np.array([max(pawdata.rcut_j) for pawdata in self.pawdatasets])
+        return np.array([max(pawdata.rcut_j)
+                         for pawdata in self.pawdatasets.by_atom])
 
     @lazyproperty
     def micro_setups(self):
         from gpaw.response.localft import extract_micro_setup
         micro_setups = []
-        for a, pawdata in enumerate(self.pawdatasets):
+        for a, pawdata in enumerate(self.pawdatasets.by_atom):
             micro_setups.append(extract_micro_setup(pawdata, self.D_asp[a]))
         return micro_setups
 
     @property
     def atomrotations(self):
         return self._wfs.setups.atomrotations
+
+    @lazyproperty
+    def kpoints(self):
+        from gpaw.response.kpoints import ResponseKPointGrid
+        return ResponseKPointGrid(self.kd, self.gd.icell_cv, self.kd.bzk_kc)
 
 
 # Contains all the relevant information

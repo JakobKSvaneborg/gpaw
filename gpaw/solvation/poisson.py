@@ -174,12 +174,12 @@ class PolarizationPoissonSolver(BasePoissonSolver):
                 phi, rho_mod, charge=None, maxcharge=maxcharge,
                 zero_initial_phi=zero_initial_phi, timer=timer)
             residual = phi - phi_old
-            error = self.gd.comm.sum(np.dot(residual.ravel(),
-                                            residual.ravel())) * self.gd.dv
+            error = self.gd.comm.sum_scalar(
+                np.dot(residual.ravel(), residual.ravel())) * self.gd.dv
             if error < self.eps:
                 return niter
             phi_old = phi.copy()
-            
+
         raise PoissonConvergenceError(
             'PolarizationPoisson solver did not converge in '
             + f'{niter} iterations!')

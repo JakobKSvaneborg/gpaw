@@ -144,7 +144,7 @@ class AtomDistribution:
         array([0, 0, 0])
         """
         if natoms is None:
-            natoms = comm.max(max(atom_indices)) + 1
+            natoms = comm.max_scalar(max(atom_indices)) + 1
         rank_a = np.zeros(natoms, int)  # type: ignore
         rank_a[atom_indices] = comm.rank
         comm.sum(rank_a)

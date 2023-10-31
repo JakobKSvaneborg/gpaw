@@ -554,7 +554,7 @@ def plot(symbol, extension=None):
         return
     s.plot()
     if extension is not None:
-        plt.savefig('hgh.%s.%s' % (symbol, extension))
+        plt.savefig(f'hgh.{symbol}.{extension}')
 
 
 def plot_many(*symbols):

@@ -115,7 +115,7 @@ def calculate(element, vacuum, xc, magmom):
                      mixer=mixer,
                      parallel=dict(augment_grids=True),
                      nbands=-2,
-                     txt='%s.%s.txt' % (element, xc))
+                     txt=f'{element}.{xc}.txt')
     atom.calc = calc_atom
 
     mixer = Mixer(beta=0.4, weight=100)
@@ -131,7 +131,7 @@ def calculate(element, vacuum, xc, magmom):
                 eigensolver='rmm-diis',
                 mixer=mixer,
                 parallel=dict(augment_grids=True),
-                txt='%s2.%s.txt' % (element, xc))
+                txt=f'{element}2.{xc}.txt')
     compound.set_distance(0, 1, data[element]['R_AA_B3LYP'])
     compound.center(vacuum=vacuum)
 
@@ -173,6 +173,7 @@ E_ref = {'H': {'B3LYP': -0.11369634560501423,
                'PBEH': -0.30365500626180042}}  # svnversion 5599 # -np 4
 
 
+@pytest.mark.later
 @pytest.mark.slow
 @pytest.mark.parametrize('xc', ['PBE0', 'B3LYP'])
 def test_exx_AA_enthalpy(in_tmp_dir, add_cwd_to_setup_paths, xc):

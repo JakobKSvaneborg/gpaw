@@ -461,7 +461,7 @@ def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
     else:
         wglobal_wG = None
         Nw = 0
-    Nw = gd.comm.sum(Nw)  # distribute Nw to all nodes
+    Nw = gd.comm.sum_scalar(Nw)  # distribute Nw to all nodes
     w_wG = gd.empty(n=Nw)
     gd.distribute(wglobal_wG, w_wG)
     del wglobal_wG
@@ -526,12 +526,11 @@ def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
         mmmx(1.0, Uisq_qp, 'N', f_pG, 'N', 0.0, g_qG)
         g_qG = gd.collect(g_qG)
         if world.rank == 0:
-            P_app = dict([(a, np.array([pack(np.outer(P_wi[w1], P_wi[w2]),
-                                             tolerance=1e3)
-                                        for w1, w2 in np.ndindex(Nw, Nw)]))
-                          for a, P_wi in P_awi.items()])
-            P_aqp = dict([(a, np.dot(Uisq_qp, Px_pp))
-                          for a, Px_pp in P_app.items()])
+            P_app = {a: np.array([pack(np.outer(P_wi[w1], P_wi[w2]),
+                                       tolerance=1e3)
+                                  for w1, w2 in np.ndindex(Nw, Nw)])
+                     for a, P_wi in P_awi.items()}
+            P_aqp = {a: np.dot(Uisq_qp, Px_pp) for a, Px_pp in P_app.items()}
             with open(writeoptimizedpairs, 'wb') as fd:
                 pickle.dump((g_qG, P_aqp), fd, 2)
 
@@ -604,8 +603,8 @@ def _makeV(gpwfile, orbitalfile, rotationfile, coulombfile, log, fft):
             g2_qG, P2_aqp = make_optimized(q2start, q2end)
 
         for q1, q2 in np.ndindex(nq1, nq2):
-            P1_ap = dict([(a, P_qp[q1]) for a, P_qp in P1_aqp.items()])
-            P2_ap = dict([(a, P_qp[q2]) for a, P_qp in P2_aqp.items()])
+            P1_ap = {a: P_qp[q1] for a, P_qp in P1_aqp.items()}
+            P2_ap = {a: P_qp[q2] for a, P_qp in P2_aqp.items()}
             V_qq[q2 + q2start, q1] = coulomb.calculate(g1_qG[q1], g2_qG[q2],
                                                        P1_ap, P2_ap)
             if q2 == 0 and world.rank == 0:

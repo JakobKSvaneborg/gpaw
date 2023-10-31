@@ -2,14 +2,14 @@ import os
 import subprocess
 import sys
 
-from ase.utils import import_module
-from ase.utils import search_current_git_hash
+from ase.utils import import_module, search_current_git_hash
 
-import gpaw
 import _gpaw
+import gpaw
 import gpaw.fftw as fftw
-from gpaw.mpi import rank, have_mpi
-from gpaw.utilities import compiled_with_sl, compiled_with_libvdwxc
+from gpaw.mpi import have_mpi, rank
+from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED
+from gpaw.utilities import compiled_with_libvdwxc, compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
 
 
@@ -27,7 +27,7 @@ def info():
             if githash is None:
                 githash = ''
             else:
-                githash = '-{:.10}'.format(githash)
+                githash = f'-{githash:.10}'
             results.append((name + '-' + module.__version__ + githash,
                             module.__file__.rsplit('/', 1)[0] + '/'))
 
@@ -39,7 +39,7 @@ def info():
 
     module = import_module('_gpaw')
     if hasattr(module, 'githash'):
-        githash = '-{:.10}'.format(module.githash())
+        githash = f'-{module.githash():.10}'
     else:
         githash = ''
     results.append(('_gpaw' + githash,
@@ -51,7 +51,8 @@ def info():
                         p.communicate()[0].strip().decode() or False))
     results.append(('MPI enabled', have_mpi))
     results.append(('OpenMP enabled', _gpaw.have_openmp))
-    results.append(('GPU-aware MPI', getattr(_gpaw, 'gpu_aware_mpi', False)))
+    results.append(('GPU enabled', GPU_ENABLED))
+    results.append(('GPU-aware MPI', GPU_AWARE_MPI))
     if have_mpi:
         have_sl = compiled_with_sl()
         have_elpa = LibElpa.have_elpa()

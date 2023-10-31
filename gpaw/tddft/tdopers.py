@@ -1,4 +1,3 @@
-# flake8: noqa
 # Written by Lauri Lehtovaara, 2007
 """This module implements classes for time-dependent variables and
 operators."""
@@ -17,6 +16,7 @@ class TimeDependentHamiltonian:
     This class contains information required to apply time-dependent
     Hamiltonian to a wavefunction.
     """
+
     def __init__(self, wfs, spos_ac, hamiltonian, td_potential):
         """Create the TimeDependentHamiltonian-object.
 
@@ -48,11 +48,11 @@ class TimeDependentHamiltonian:
             poisson.eps = 1e-12
 
         # external potential
-        #if hamiltonian.vext_g is None:
+        # if hamiltonian.vext_g is None:
         #    hamiltonian.vext_g = hamiltonian.finegd.zeros()
 
-        #self.ti_vext_g = hamiltonian.vext_g
-        #self.td_vext_g = hamiltonian.finegd.zeros(n=hamiltonian.nspins)
+        # self.ti_vext_g = hamiltonian.vext_g
+        # self.td_vext_g = hamiltonian.finegd.zeros(n=hamiltonian.nspins)
 
         self.P = None
 
@@ -101,11 +101,11 @@ class TimeDependentHamiltonian:
         self.hamiltonian.update(density)
         # average and difference
         self.hamiltonian.vt_sG[:], self.vt_sG[:] = \
-            0.5*(self.hamiltonian.vt_sG + self.vt_sG), \
+            0.5 * (self.hamiltonian.vt_sG + self.vt_sG), \
             self.hamiltonian.vt_sG - self.vt_sG
         for a, dH_sp in self.hamiltonian.dH_asp.items():
-            dH_sp[:], self.dH_asp[a][:] = 0.5*(dH_sp + self.dH_asp[a]), \
-                dH_sp - self.dH_asp[a] #pack/unpack is linear for real values
+            dH_sp[:], self.dH_asp[a][:] = 0.5 * (dH_sp + self.dH_asp[a]), \
+                dH_sp - self.dH_asp[a]  # pack/unpack is linear for real values
 
     def half_apply_local_potential(self, psit_nG, Htpsit_nG, s):
         """Apply the half-difference Hamiltonian operator to a set of vectors.
@@ -172,7 +172,7 @@ class TimeDependentHamiltonian:
             # FIXME: add half difference here... but maybe it's not important
             # as this will be used only for getting initial guess. So, should
             # not affect to the results, only to the speed of convergence.
-            #raise NotImplementedError
+            # raise NotImplementedError
             pass
 
     def apply(self, kpt, psit, hpsit, calculate_P_ani=True):
@@ -205,12 +205,12 @@ class TimeDependentHamiltonian:
 
         # Imaginary potential
         if self.absorbing_boundary is not None \
-               and self.absorbing_boundary.type == 'IPOT':
+                and self.absorbing_boundary.type == 'IPOT':
             hpsit[:] += self.absorbing_boundary.get_potential_matrix() * psit
 
         # Perfectly matched layers
         if self.absorbing_boundary is not None \
-               and self.absorbing_boundary.type == 'PML':
+                and self.absorbing_boundary.type == 'PML':
             # Perfectly matched layer is applied as potential Vpml = Tpml-T
             # Where  T = -0.5*\nabla^{2}\psi  (Use latex for these equations)
             # See abc.py for details
@@ -229,7 +229,7 @@ class TimeDependentHamiltonian:
 
         # Time-dependent dipole field
         if self.td_potential is not None:
-            #TODO on shaky ground here...
+            # TODO on shaky ground here...
             strength = self.td_potential.strength
             add_linear_field(
                 self.wfs, self.spos_ac, psit, hpsit,
@@ -259,7 +259,8 @@ class TimeDependentHamiltonian:
                                  kpt,
                                  v_atom,
                                  calculate_P_ani=True):
-        """ Operates on psit_nG with the P-term that is present in PAW based Ehrenfest dynamics
+        """ Operates on psit_nG with the P-term that is present in PAW based
+        Ehrenfest dynamics
 
         Parameters
         ----------
@@ -279,33 +280,33 @@ class TimeDependentHamiltonian:
         P_axi = wfs.pt.dict(shape)
         wfs.pt.integrate(psit_nG, P_axi, kpt.q)
 
-        #Coefficients for calculating P \psi_n
+        # Coefficients for calculating P \psi_n
         # P = -i sum_a v_a P^a, P^a = T^{\dagger} \nabla_{R_a} T
         w_ani = wfs.pt.dict(wfs.bd.mynbands, zero=True)
-        #projector derivatives < nabla pt_i^a | psit_n >
+        # projector derivatives < nabla pt_i^a | psit_n >
         dpt_aniv = wfs.pt.dict(wfs.bd.mynbands, derivative=True)
         wfs.pt.derivative(psit_nG, dpt_aniv, kpt.q)
-        #wfs.calculate_forces(paw.hamiltonian, F_av)
+        # wfs.calculate_forces(paw.hamiltonian, F_av)
         for a in dpt_aniv.keys():
-            #ni = wfs.pt.get_function_count(a)
+            # ni = wfs.pt.get_function_count(a)
             for c in range(3):
 
                 P_xi = P_axi[a]
-                #nabla_iiv contains terms < \phi_i1^a | d / d v phi_i2^a >
-                #- < phit_i1^a | d / dv phit_i2^a>, where v is either x,y or z
+                # nabla_iiv contains terms < \phi_i1^a | d / d v phi_i2^a >
+                # - < phit_i1^a | d / dv phit_i2^a>, where v is either x,y or z
                 nabla_ii = wfs.setups[a].nabla_iiv[:, :, c]
                 dpt_ni = dpt_aniv[a][:, :, c]
                 dO_ii = wfs.setups[a].dO_ii
-                #dphi_aniv[a] = np.dot(P_xi, nabla_ii.transpose())
+                # dphi_aniv[a] = np.dot(P_xi, nabla_ii.transpose())
                 dphi_ni = np.dot(P_xi, nabla_ii.transpose())
                 pt_ni = np.dot(dpt_ni, dO_ii)
-                #pt_aniv[a] = np.dot(Dpt_ni, dO_ii)
+                # pt_aniv[a] = np.dot(Dpt_ni, dO_ii)
                 w_ani[a] += (dphi_ni + pt_ni) * v_atom[a, c]
 
             w_ani[a] *= complex(0, 1)
-            #dO_ani[a] *= complex(0,1)
+            # dO_ani[a] *= complex(0,1)
 
-        #wfs.pt.add(ppsit, W_ani, kpt.q)
+        # wfs.pt.add(ppsit, W_ani, kpt.q)
         wfs.pt.add(hpsit, w_ani, kpt.q)
 
 
@@ -316,6 +317,7 @@ class AbsorptionKickHamiltonian:
     This class contains information required to apply absorption kick
     Hamiltonian to a wavefunction.
     """
+
     def __init__(self, wfs, spos_ac, strength=[0.0, 0.0, 1e-3]):
         """Create the AbsorptionKickHamiltonian-object.
 
@@ -394,7 +396,7 @@ class AbsorptionKickHamiltonian:
         """
         hpsit[:] = 0.0
 
-        #TODO on shaky ground here...
+        # TODO on shaky ground here...
         add_linear_field(self.wfs, self.spos_ac, psit, hpsit,
                          self.abs_hamiltonian, kpt)
 
@@ -406,6 +408,7 @@ class TimeDependentOverlap(Overlap):
     This class contains information required to apply time-dependent
     overlap operator to a set of wavefunctions.
     """
+
     def __init__(self, timer):
         """Creates the TimeDependentOverlap-object.
 
@@ -459,7 +462,7 @@ class TimeDependentOverlap(Overlap):
             time-independent grid-based wavefunctions
 
         """
-        #for kpt in wfs.kpt_u:
+        # for kpt in wfs.kpt_u:
         #    # copy old
         #    P_ani = {}
         #    for a,P_ni in kpt.P_ani.items():
@@ -474,7 +477,7 @@ class TimeDependentOverlap(Overlap):
         # !!! FIX ME !!! update overlap operator/projectors/...
         pass
 
-    #def apply(self, psit, spsit, wfs, kpt, calculate_P_ani=True):
+    # def apply(self, psit, spsit, wfs, kpt, calculate_P_ani=True):
     #    """Apply the time-dependent overlap operator to the wavefunction
     #    psit of the k-point kpt.
     #
@@ -535,8 +538,8 @@ class TimeDependentOverlap(Overlap):
         self.timer.start('Apply exact inverse overlap')
         from gpaw.utilities.blas import axpy
 
-        #from gpaw.tddft.cscg import multi_zdotu, multi_scale, multi_zaxpy
-        #initialization
+        # from gpaw.tddft.cscg import multi_zdotu, multi_scale, multi_zaxpy
+        # initialization
         # Multivector dot product, a^T b, where ^T is transpose
 
         def multi_zdotu(s, x, y, nvec):
@@ -572,20 +575,20 @@ class TimeDependentOverlap(Overlap):
         multi_zdotu(scale, a_nG, a_nG, nvec)
         scale = np.abs(scale)
 
-        x = b_nG  #XXX TODO rename this
+        x = b_nG  # XXX TODO rename this
 
-        #x0 = S^-1_approx a_nG
+        # x0 = S^-1_approx a_nG
         self.apply_inverse(a_nG, x, wfs, kpt, calculate_P_ani, use_cg=False)
-        #r0 = a_nG - S x_0
+        # r0 = a_nG - S x_0
         self.apply(-x, r, wfs, kpt, calculate_P_ani)
         r += a_nG
-        #print 'r.max() =', abs(r).max()
+        # print 'r.max() =', abs(r).max()
 
         max_iter = 50
 
         for i in range(max_iter):
 
-            #print 'iter =', i
+            # print 'iter =', i
 
             self.apply_inverse(r, z, wfs, kpt, calculate_P_ani, use_cg=False)
 
@@ -605,12 +608,12 @@ class TimeDependentOverlap(Overlap):
 
             multi_zdotu(normr2, r, r, nvec)
 
-            #rhoc = rho.copy()
+            # rhoc = rho.copy()
             rho_prev[:] = rho.copy()
-            #rho.copy()
-            #rho_prev = rho.copy()
+            # rho.copy()
+            # rho_prev = rho.copy()
 
-            #print '||r|| =', np.sqrt(np.abs(normr2/scale))
+            # print '||r|| =', np.sqrt(np.abs(normr2/scale))
             if ((np.sqrt(np.abs(normr2) / scale)) < tol_cg).all():
                 break
 
@@ -645,27 +648,29 @@ class TimeDependentWaveFunctions(FDWaveFunctions):
             Ehrenfest dynamics
         """
 
-        #If td_correction is not none, we replace the overlap part of the
-        #force, sum_n f_n eps_n < psit_n | dO / dR_a | psit_n>, with
-        #sum_n f_n <psit_n | H S^-1 D^a + c.c. | psit_n >, with D^a
-        #defined as D^a = sum_{i1,i2} | pt_i1^a > [O_{i1,i2} < d pt_i2^a / dR_a |
-        #+ (< phi_i1^a | d phi_i2^a / dR_a > - < phit_i1^a | d phit_i2^a / dR_a >) < pt_i1^a|].
-        #This is required in order to conserve the total energy also when electronic
-        #excitations start to play a significant role.
+        # If td_correction is not none, we replace the overlap part of the
+        # force, sum_n f_n eps_n < psit_n | dO / dR_a | psit_n>, with
+        # sum_n f_n <psit_n | H S^-1 D^a + c.c. | psit_n >, with D^a
+        # defined as D^a = sum_{i1,i2}
+        # | pt_i1^a > [O_{i1,i2} < d pt_i2^a / dR_a |
+        # + (< phi_i1^a | d phi_i2^a / dR_a >
+        # - < phit_i1^a | d phit_i2^a / dR_a >) < pt_i1^a|].
+        # This is required in order to conserve the total energy also when
+        # electronic excitations start to play a significant role.
 
-        #TODO: move the corrections into the tddft directory
+        # TODO: move the corrections into the tddft directory
 
         # Calculate force-contribution from k-points:
         F_av.fill(0.0)
         F_aniv = self.pt.dict(self.bd.mynbands, derivative=True)
-        #print 'self.dtype =', self.dtype
+        # print 'self.dtype =', self.dtype
         for kpt in self.kpt_u:
             self.pt.derivative(kpt.psit_nG, F_aniv, kpt.q)
 
-            #self.overlap.update_k_point_projections(kpt)
+            # self.overlap.update_k_point_projections(kpt)
             self.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
             hpsit = self.gd.zeros(len(kpt.psit_nG), dtype=self.dtype)
-            #eps_psit = self.gd.zeros(len(kpt.psit_nG), dtype=self.dtype)
+            # eps_psit = self.gd.zeros(len(kpt.psit_nG), dtype=self.dtype)
             sinvhpsit = self.gd.zeros(len(kpt.psit_nG), dtype=self.dtype)
             hamiltonian.apply(kpt.psit_nG,
                               hpsit,
@@ -677,8 +682,6 @@ class TimeDependentWaveFunctions(FDWaveFunctions):
                                        self,
                                        kpt,
                                        calculate_P_ani=True)
-            #print 'sinvhpsit_0_cg - epspsit_0.max', abs(sinvhpsit[0]-eps_psit[0]).max()
-            #print 'sinvhpsit_0 - epspsit_0.max', abs(sinvhpsit2[0]-eps_psit[0]).max()
 
             G_axi = self.pt.dict(self.bd.mynbands)
             self.pt.integrate(sinvhpsit, G_axi, kpt.q)
@@ -702,14 +705,14 @@ class TimeDependentWaveFunctions(FDWaveFunctions):
                     np.dot(fP_ni.conj().transpose(), G_ni))
                 F_vii += F_vii_sinvh_dpt + F_vii_sinvh_dphi
 
-                #F_av_dO[a] += 2 * F_vii_dO.real.trace(0,1,2)
-                #F_av_dH[a] += 2 * F_vii_dH.real.trace(0,1,2)
+                # F_av_dO[a] += 2 * F_vii_dO.real.trace(0,1,2)
+                # F_av_dH[a] += 2 * F_vii_dH.real.trace(0,1,2)
                 F_av[a] += 2 * F_vii.real.trace(0, 1, 2)
 
             # Hack used in delta-scf calculations:
             if hasattr(kpt, 'c_on'):
                 assert self.bd.comm.size == 1
-                self.pt.derivative(kpt.psit_nG, F_aniv, kpt.q)  #XXX again
+                self.pt.derivative(kpt.psit_nG, F_aniv, kpt.q)  # XXX again
                 d_nn = np.zeros((self.bd.mynbands, self.bd.mynbands),
                                 dtype=complex)
                 for ne, c_n in zip(kpt.ne_o, kpt.c_on):
@@ -733,6 +736,7 @@ class TimeDependentWaveFunctions(FDWaveFunctions):
 # DummyDensity
 class DummyDensity:
     """Implements dummy (= does nothing) density for AbsorptionKick."""
+
     def __init__(self, wfs):
         """Placeholder Density object for AbsorptionKick.
 
@@ -761,6 +765,7 @@ class TimeDependentDensity(DummyDensity):
     This class contains information required to get the time-dependent
     density.
     """
+
     def __init__(self, paw):
         """Creates the TimeDependentDensity-object.
 
@@ -780,7 +785,7 @@ class TimeDependentDensity(DummyDensity):
         None
 
         """
-        #for kpt in self.wfs.kpt_u:
+        # for kpt in self.wfs.kpt_u:
         #    self.wfs.pt.integrate(kpt.psit_nG, kpt.P_ani)
         self.density.update(self.wfs)
 

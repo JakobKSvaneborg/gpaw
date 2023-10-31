@@ -41,7 +41,7 @@ def get_bfs_maps(calc):
     return a_M, l_M
 
 
-class KohnShamDecomposition(object):
+class KohnShamDecomposition:
     version = 1
     ulmtag = 'KSD'
     readwrite_attrs = ['fermilevel', 'only_ia', 'w_p', 'f_p', 'ia_p',
@@ -214,7 +214,7 @@ class KohnShamDecomposition(object):
     def write(self, filename):
         from ase.io.trajectory import write_atoms
 
-        self.log('%s: Writing to %s' % (self.__class__.__name__, filename))
+        self.log(f'{self.__class__.__name__}: Writing to {filename}')
         writer = Writer(filename, self.world, mode='w',
                         tag=self.__class__.ulmtag)
         writer.write(version=self.__class__.version)

@@ -1,7 +1,8 @@
 import numpy as np
+from gpaw.xc.kernel import XCKernel
 
 
-class XCFunctional(object):
+class XCFunctional:
     orbital_dependent = False
 
     def __init__(self, name, type):
@@ -9,6 +10,7 @@ class XCFunctional(object):
         self.gd = None
         self.ekin = 0.0
         self.type = type
+        self.kernel: XCKernel
 
     def todict(self):
         """Get dictionary representation of XC functional.

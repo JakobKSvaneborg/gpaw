@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class DirectLCAO(object):
+class DirectLCAO:
     """Eigensolver for LCAO-basis calculation"""
 
     def __init__(self, diagonalizer=None):

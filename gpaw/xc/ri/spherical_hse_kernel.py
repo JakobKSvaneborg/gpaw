@@ -140,4 +140,3 @@ class RadialHSE:
 
     def screened_coulomb_dv(self, n_g, l):
         return self.screened_coulomb(n_g, l) * self.rgd.r_g * self.rgd.dr_g
-    

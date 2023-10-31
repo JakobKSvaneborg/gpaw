@@ -16,7 +16,7 @@ stages:
   - build
   - precalculate
   - test
-
+  - deploy
 
 .build:
   stage: build
@@ -31,6 +31,7 @@ stages:
       libraries = []
       library_dirs = []
       include_dirs = []
+
       extra_compile_args = ['-fPIC',
                             '-O3',
                             '-g',
@@ -72,7 +73,7 @@ stages:
 
 
 build:
-  image: $IMAGE_PATH/build:oldest
+  image: $IMAGE_PATH/main:oldest
   extends: .build
   tags:
     - linux
@@ -84,7 +85,7 @@ build:
 
 
 build-latest:
-  image: $IMAGE_PATH/build:latest
+  image: $IMAGE_PATH/main:latest
   extends: .build
   tags:
     - linux
@@ -95,16 +96,37 @@ build-latest:
       undef_macros = []
       # TODO: PySys_SetArgv() etc deprecated in Python 3.11
       extra_compile_args += ['-Wno-deprecated-declarations']
+
+      from pathlib import Path
+      libvdwxc = True
+      libraries += ['vdwxc']
+
+      libvdwxc_dir = Path('/install/libvdwxc')
+      libvdwxc_libdir = libvdwxc_dir / 'lib'
+      library_dirs += [libvdwxc_libdir]
+      extra_link_args += [f'-Wl,-rpath={libvdwxc_libdir}']
+      include_dirs += [libvdwxc_dir / 'include']
+
+      elpa = True
+      elpa_dir = Path('/install/elpa')
+      elpa_libdir = elpa_dir / 'lib'
+      # Maybe we should do a glob to avoid version dependence:
+      elpa_includedir = elpa_dir / 'include/elpa-2022.11.001'
+      libraries += ['elpa']
+      library_dirs += [f'{elpa_libdir}']
+      extra_link_args += [f'-Wl,-rpath={elpa_libdir}']
+      include_dirs += [f'{elpa_includedir}']
+
       EOF
     - cat siteconfig.py
     - pip install --user --upgrade numpy scipy
-    - pip install --user --log build.log --editable .
+    - pip install --user --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
 
 
 build-cuda:
-  image: $IMAGE_PATH/build-cuda:ubuntu-20.04-cuda-11.6.0
+  image: $IMAGE_PATH/cuda:11
   extends:
     - .build
     - .gpu-job
@@ -126,7 +148,7 @@ build-cuda:
 
 
 build-hip-cuda:
-  image: $IMAGE_PATH/build-hip-cuda:ubuntu-20.04-cuda-11.6.0-hip-5.3.3
+  image: $IMAGE_PATH/cuda:11
   extends:
     - .build
     - .gpu-job
@@ -153,7 +175,7 @@ build-hip-cuda:
 
 
 build-minimal:
-  image: $IMAGE_PATH/build:oldest
+  image: $IMAGE_PATH/main:oldest
   extends: .build
   tags:
     - linux
@@ -170,7 +192,7 @@ build-minimal:
 
 
 prepare-libxc:
-  image: $IMAGE_PATH/build:oldest
+  image: $IMAGE_PATH/main:oldest
   stage: build
   tags:
     - linux
@@ -198,7 +220,7 @@ prepare-libxc:
 
 
 build-libxc:
-  image: $IMAGE_PATH/build:oldest
+  image: $IMAGE_PATH/main:oldest
   extends:
     - .build
   needs:
@@ -219,7 +241,7 @@ build-libxc:
 
 
 test:
-  image: $IMAGE_PATH/run:oldest
+  image: $IMAGE_PATH/main:oldest
   extends:
     - .test
   needs:
@@ -228,10 +250,13 @@ test:
     - linux
   script:
     - gpaw info
-    - OMP_NUM_THREADS=2 pytest -v -m ci -We -Wi::ImportWarning
-  # This is the only test which uses OpenMP.
-  # We may want to identify a limited set of tests that must work
-  # with OpenMP, but so far we just have it in this job.
+    - >
+      OMP_NUM_THREADS=2 pytest -v -m ci -We -Wi::ImportWarning
+      -Wi:'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header, got 216 from PyObject':RuntimeWarning
+
+    # This is the only test which uses OpenMP.
+    # We may want to identify a limited set of tests that must work
+    # with OpenMP, but so far we just have it in this job.
 
     - gpaw-python -m gpaw info
     - >
@@ -241,7 +266,7 @@ test:
 
 
 test-latest:
-  image: $IMAGE_PATH/run:latest
+  image: $IMAGE_PATH/main:latest
   extends:
     - .test
   needs:
@@ -249,7 +274,6 @@ test-latest:
   tags:
     - linux
   script:
-    - pip install coverage pytest-cov
     - gpaw info
 
     # Create a .coveragerc file so we can get nicely printed coverage:
@@ -268,6 +292,8 @@ test-latest:
     - >
       OMP_NUM_THREADS=2 gpaw-python -m pytest -v -m ci
       -We -Wi::ImportWarning
+      -Wi:'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header, got 216 from PyObject':RuntimeWarning
+
   artifacts:
     paths:
       - htmlcov/
@@ -276,7 +302,7 @@ test-latest:
 
 
 test-latest-new:
-  image: $IMAGE_PATH/run:latest
+  image: $IMAGE_PATH/main:latest
   extends:
     - .test
   needs:
@@ -289,7 +315,7 @@ test-latest-new:
 
 
 test-minimal:
-  image: $IMAGE_PATH/run:oldest
+  image: $IMAGE_PATH/main:oldest
   extends:
     - .test
   needs:
@@ -298,11 +324,12 @@ test-minimal:
     - linux
   script:
     - gpaw info
-    - pytest -v -m ci -We -Wi::ImportWarning
-
+    - >
+      pytest -v -m ci -We -Wi::ImportWarning
+      -Wi:'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header, got 216 from PyObject':RuntimeWarning
 
 test-cuda:
-  image: $IMAGE_PATH/run-cuda:ubuntu-20.04-cuda-11.6.0
+  image: $IMAGE_PATH/cuda:11
   extends:
     - .test
     - .gpu-job
@@ -319,7 +346,7 @@ test-cuda:
     - gpaw-python -m pytest -v -m gpu
 
 test-cuda-mpi:
-  image: $IMAGE_PATH/run-cuda:ubuntu-20.04-cuda-11.6.0
+  image: $IMAGE_PATH/cuda:11
   extends:
     - .test
     - .gpu-job
@@ -335,7 +362,7 @@ test-cuda-mpi:
 
 
 test-hip-cuda:
-  image: $IMAGE_PATH/run-hip-cuda:ubuntu-20.04-cuda-11.6.0-hip-5.3.3
+  image: $IMAGE_PATH/cuda:11
   extends:
     - .test
     - .gpu-job
@@ -350,7 +377,7 @@ test-hip-cuda:
 
 
 test-libxc:
-  image: $IMAGE_PATH/run:oldest
+  image: $IMAGE_PATH/main:oldest
   extends:
     - .test
   needs:
@@ -361,16 +388,15 @@ test-libxc:
     - gpaw info
     - pytest -v -m libxc
 
-
 check-agts:
-  image: $IMAGE_PATH/run:oldest
+  image: $IMAGE_PATH/main:oldest
   stage: test
   needs:
     - build
   tags:
     - linux
   script:
-    - pip install git+https://gitlab.com/myqueue/myqueue.git@master
+    - pip install --user git+https://gitlab.com/myqueue/myqueue.git@master
     - mq config --in-place
     - mq init
     - mq workflow -p agts.py -zT | tail -1 | tee task_count
@@ -379,7 +405,7 @@ check-agts:
 
 
 lint:
-  image: $IMAGE_PATH/run:latest
+  image: $IMAGE_PATH/main:latest
   stage: build
   tags:
     - linux
@@ -417,7 +443,7 @@ lint:
 
 
 typecheck:
-  image: $IMAGE_PATH/run:latest
+  image: $IMAGE_PATH/main:latest
   stage: build
   tags:
     - linux
@@ -429,7 +455,7 @@ typecheck:
 
 
 docs:
-  image: $IMAGE_PATH/docs:oldest
+  image: $IMAGE_PATH/main:oldest
   stage: test
   needs:
     - build
@@ -449,7 +475,7 @@ docs:
 
 
 gpwfiles:
-  image: $IMAGE_PATH/run:latest
+  image: $IMAGE_PATH/main:latest
   extends:
     - .test
   needs:
@@ -459,21 +485,18 @@ gpwfiles:
     - xeon24
   before_script:
     - !reference [default, before_script]
-    - pip install pytest-instafail pytest-xdist
   script:
-    - pytest -n 8 -m generate_gpw_files
+    - pytest -n 16 -m generate_gpw_files
   artifacts:
     paths:
       - .pytest_cache/
     expire_in: 30 mins
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
-  #    when: never
-  #  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 
 .nightly:
-  image: $IMAGE_PATH/run:latest
+  image: $IMAGE_PATH/main:latest
   variables:
     GPAW_MPI_NPROCS: "1"
   extends:
@@ -502,8 +525,13 @@ nightly-mpi-1:
   script:
     - gpaw info
     - pytest --cache-show
-    - pytest -n 4 --instafail -r s --durations 30
-
+    - >
+      pytest -n 8 --instafail -r s --durations 30
+      --cov=gpaw --cov-report=html --cov-report=term
+  artifacts:
+    paths:
+      - htmlcov/
+    expire_in: 1 day
 
 nightly-mpi-1-new:
   variables:
@@ -515,8 +543,34 @@ nightly-mpi-1-new:
     - pytest -n 4 --cache-clear -m generate_gpw_files
     - >
       pytest -n 4 --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids)"
+      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
 
+nightly-mpi-2-new:
+  variables:
+    GPAW_NEW: "1"
+    GPAW_MPI_NPROCS: "2"
+  extends:
+    - .nightly
+  script:
+    - gpaw info
+    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m
+      pytest --instafail -r s --durations 30 -m
+      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
+
+nightly-mpi-4-new:
+  variables:
+    GPAW_NEW: "1"
+    GPAW_MPI_NPROCS: "4"
+  extends:
+    - .nightly
+  script:
+    - gpaw info
+    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m
+      pytest --instafail -r s --durations 30 -m "ci and not later"
 
 nightly-mpi-2:
   variables:
@@ -537,3 +591,20 @@ nightly-mpi-8:
     GPAW_MPI_NPROCS: "8"
   extends:
     - .nightly
+
+
+pages:
+  image: $IMAGE_PATH/main:latest  # (Any image present on the runner will do)
+  stage: deploy
+  dependencies:
+    - nightly-mpi-1
+  tags:
+    - xeon24
+  script:
+    - mv htmlcov/ public
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"

@@ -242,8 +242,8 @@ class SIC(XCFunctional):
                 desic, dekin = spin.calculate()
                 self.esic += desic
                 self.ekin += dekin
-        self.esic = self.kpt_comm.sum(self.esic)
-        self.ekin = self.kpt_comm.sum(self.ekin)
+        self.esic = self.kpt_comm.sum_scalar(self.esic)
+        self.ekin = self.kpt_comm.sum_scalar(self.ekin)
 
         return exc + self.esic
 
@@ -337,7 +337,7 @@ class SIC(XCFunctional):
 
         for s in range(self.nspins):
             W_mn = reader.hamiltonian.xc.get(
-                'unitary_transformation{0}'.format(s))
+                f'unitary_transformation{s}')
 
             if s in self.spin_s:
                 self.spin_s[s].initial_W_mn = W_mn
@@ -356,7 +356,7 @@ class SIC(XCFunctional):
             W_mn = self.get_unitary_transformation(s)
 
             if W_mn is not None:
-                writer.write('unitary_transformation{0}'.format(s), W_mn)
+                writer.write(f'unitary_transformation{s}', W_mn)
 
     def get_unitary_transformation(self, s):
         if s in self.spin_s.keys():
@@ -369,7 +369,7 @@ class SIC(XCFunctional):
         else:
             n = 0
 
-        n = self.wfs.world.sum(n)
+        n = self.wfs.world.sum_scalar(n)
 
         if n > 0:
             W_mn = np.zeros((n, n), dtype=self.dtype)

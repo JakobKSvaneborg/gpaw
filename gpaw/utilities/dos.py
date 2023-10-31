@@ -507,7 +507,7 @@ class RawLDOS:
                 while e < emax:
                     val = {}
                     for key in ldbe:
-                        val[key] = np.zeros((3))
+                        val[key] = np.zeros(3)
                     for k in range(wfs.kd.nibzkpts):
                         w = wfs.kpt_u[k].weight
                         e_n = self.paw.get_eigenvalues(kpt=k, spin=s)

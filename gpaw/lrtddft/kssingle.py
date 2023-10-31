@@ -71,7 +71,7 @@ class KSSingles(ExcitationList):
         self.select(nspins)
 
         trkm = self.get_trk()
-        self.log('KSS {0} transitions (restrict={1})'.format(
+        self.log('KSS {} transitions (restrict={})'.format(
             len(self), self.restrict))
         self.log('KSS TRK sum %g (%g,%g,%g)' %
                  (np.sum(trkm) / 3., trkm[0], trkm[1], trkm[2]))
@@ -315,7 +315,7 @@ class KSSingles(ExcitationList):
             f = fh
 
         f.write('# KSSingles\n')
-        f.write('{0} {1}\n'.format(len(self), np.dtype(self.dtype)))
+        f.write(f'{len(self)} {np.dtype(self.dtype)}\n')
         f.write(json.dumps(self.restrict.values) + '\n')
         for kss in self:
             f.write(kss.outstring())
@@ -577,12 +577,12 @@ class KSSingle(Excitation, PairDensity):
 
     def distribute(self):
         """Distribute results to all cores."""
-        self.spin = self.kpt_comm.sum(self.spin)
-        self.pspin = self.kpt_comm.sum(self.pspin)
-        self.k = self.kpt_comm.sum(self.k)
-        self.weight = self.kpt_comm.sum(self.weight)
-        self.energy = self.kpt_comm.sum(self.energy)
-        self.fij = self.kpt_comm.sum(self.fij)
+        self.spin = self.kpt_comm.sum_scalar(self.spin)
+        self.pspin = self.kpt_comm.sum_scalar(self.pspin)
+        self.k = self.kpt_comm.sum_scalar(self.k)
+        self.weight = self.kpt_comm.sum_scalar(self.weight)
+        self.energy = self.kpt_comm.sum_scalar(self.energy)
+        self.fij = self.kpt_comm.sum_scalar(self.fij)
 
         self.kpt_comm.sum(self.me)
         self.kpt_comm.sum(self.mur)
@@ -650,11 +650,11 @@ class KSSingle(Excitation, PairDensity):
 
     def outstring(self):
         if self.mur.dtype == float:
-            string = '{0:d} {1:d}  {2:d} {3:d}  {4:.10g} {5:f}'.format(
+            string = '{:d} {:d}  {:d} {:d}  {:.10g} {:f}'.format(
                 self.i, self.j, self.pspin, self.spin, self.energy, self.fij)
         else:
             string = (
-                '{0:d} {1:d}  {2:d} {3:d} {4:d} {5:.10g}  {6:g} {7:g}'.format(
+                '{:d} {:d}  {:d} {:d} {:d} {:.10g}  {:g} {:g}'.format(
                     self.i, self.j, self.pspin, self.spin, self.k,
                     self.weight, self.energy, self.fij))
         string += '  '
@@ -663,7 +663,7 @@ class KSSingle(Excitation, PairDensity):
             string = ''
             if me.dtype == float:
                 for m in me:
-                    string += ' {0:.5e}'.format(m)
+                    string += f' {m:.5e}'
             else:
                 for m in me:
                     string += ' {0.real:.5e}{0.imag:+.5e}j'.format(m)
@@ -683,9 +683,9 @@ class KSSingle(Excitation, PairDensity):
             (self.i, self.j, self.pspin, self.spin,
              self.energy * Hartree)
         if self.me.dtype == float:
-            string += ' (%g,%g,%g)' % (self.me[0], self.me[1], self.me[2])
+            string += f' ({self.me[0]:g},{self.me[1]:g},{self.me[2]:g})'
         else:
-            string += ' kpt={0:d} w={1:g}'.format(self.k, self.weight)
+            string += f' kpt={self.k:d} w={self.weight:g}'
             string += ' ('
             # use velocity form
             s = - np.sqrt(self.energy * self.fij)

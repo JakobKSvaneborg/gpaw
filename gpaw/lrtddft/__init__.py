@@ -352,7 +352,7 @@ class LrTDDFT(ExcitationList):
 
             if len(self):
                 f.write('# Eigenvalues\n')
-                f.write('{0}\n'.format(len(self)))
+                f.write(f'{len(self)}\n')
                 for ex in self:
                     f.write(ex.outstring())
                 f.write('# Eigenvectors\n')

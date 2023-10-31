@@ -113,8 +113,8 @@ def test_super_selection_rules(lmax: int = 2):
                         lp_range = np.arange(abs(l1 - l2), l1 + l2 + 1)
                         assert np.min(abs(lp_range - l3)) <= l4 <= l1 + l2 + l3
                         # m' needs to be allowed and repeated
-                        mpset1 = set([-m1 - m2, m1 + m2, -m1 + m2, m1 - m2])
-                        mpset2 = set([-m3 - m4, m3 + m4, -m3 + m4, m3 - m4])
+                        mpset1 = {-m1 - m2, m1 + m2, -m1 + m2, m1 - m2}
+                        mpset2 = {-m3 - m4, m3 + m4, -m3 + m4, m3 - m4}
                         assert len(mpset1 | mpset2) < len(mpset1) + len(mpset2)
 
 
@@ -137,7 +137,7 @@ def test_super_permutation_symmetry(lmax: int = 2):
                 for L4 in range(L3max):
                     assert abs(G_LLLL[L1, L2, L3, L4]
                                - G_LLLL[L1, L2, L4, L3]) < 1e-10
-        
+
 
 def unit_sphere_test_coordinates():
     """Unit-sphere coordinates to test"""

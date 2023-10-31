@@ -314,7 +314,7 @@ class BSEBackend:
 
         # Calculate Hamiltonian
         t0 = time()
-        self.context.print('Calculating %s matrix elements at q_c = %s' % (
+        self.context.print('Calculating {} matrix elements at q_c = {}'.format(
             self.mode, self.q_c))
         H_ksmnKsmn = np.zeros((myKsize, Ns, Nv, Nc, nK, Ns, Nv, Nc), complex)
         for ik1, iK1 in enumerate(myKrange):
@@ -439,7 +439,7 @@ class BSEBackend:
                 self.pawcorr_q = [
                     PWPAWCorrectionData(
                         Q_aGii, qpd=qpd,
-                        pawdatasets=self.gs.pawdatasets,
+                        pawdatasets=self.gs.pawdataset_by_species,
                         pos_av=self.gs.get_pos_av(),
                         atomrotations=self.gs.atomrotations)
                     for Q_aGii, qpd in zip(data['Q'], self.qpd_q)]
@@ -475,7 +475,7 @@ class BSEBackend:
             hilbert=False,
             nbands=self.nbands)
 
-        self.blockcomm = self._chi0calc.integrator.blockcomm
+        self.blockcomm = self._chi0calc.chi0_body_calc.integrator.blockcomm
 
     def calculate_screened_potential(self):
         """Calculate W_GG(q)"""
@@ -510,7 +510,7 @@ class BSEBackend:
                 dt = time() - t0
                 tleft = dt * self.qd.nibzkpts / (iq + 1) - dt
                 self.context.print(
-                    '  Finished %s q-points in %s - Estimated %s left' % (
+                    '  Finished {} q-points in {} - Estimated {} left'.format(
                         iq + 1, timedelta(seconds=round(dt)), timedelta(
                             seconds=round(tleft))))
 
@@ -659,7 +659,7 @@ class BSEBackend:
         N = -np.dot(dw_w, wchi_w.imag) * self.gs.volume / (2 * np.pi**2)
         self.context.print('', flush=False)
         self.context.print('Checking f-sum rule:', flush=False)
-        self.context.print('  Valence = %s, N = %f' % (nv, N), flush=False)
+        self.context.print(f'  Valence = {nv}, N = {N:f}', flush=False)
         self.context.print('')
 
         if write_eig is not None:
@@ -1012,7 +1012,7 @@ def read_bse_eigenvalues(filename):
 def write_spectrum(filename, w_w, A_w):
     with open(filename, 'w') as fd:
         for w, A in zip(w_w, A_w):
-            print('%.9f, %.9f' % (w, A), file=fd)
+            print(f'{w:.9f}, {A:.9f}', file=fd)
 
 
 def read_spectrum(filename):

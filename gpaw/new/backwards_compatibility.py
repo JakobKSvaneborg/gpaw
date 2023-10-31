@@ -43,7 +43,8 @@ class FakeWFS:
         if isinstance(wfs, PWFDWaveFunctions):
             if hasattr(wfs.psit_nX.desc, 'ecut'):
                 self.mode = 'pw'
-                self.pd = PWDescriptor(wfs.psit_nX.desc.ecut,
+                self.ecut = wfs.psit_nX.desc.ecut
+                self.pd = PWDescriptor(self.ecut,
                                        self.gd, self.dtype, self.kd)
                 self.pwgrid = grid.new(dtype=self.dtype)
             else:

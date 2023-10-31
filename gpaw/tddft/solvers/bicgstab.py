@@ -1,4 +1,3 @@
-# flake8: noqa
 # Written by Lauri Lehtovaara, 2008
 """This module defines BiCGStab-class, which implements biconjugate
 gradient stabilized method. Requires Numpy and GPAW's own BLAS."""
@@ -79,10 +78,11 @@ class BiCGStab(BaseSolver):
         # if scale < eps, then convergence check breaks down
         if (scale < self.eps).any():
             raise RuntimeError(
-                "BigCGStab method detected underflow for squared norm of right-hand side (scale = %le < eps = %le)."
+                "BigCGStab method detected underflow for squared norm of"
+                " right-hand side (scale = %le < eps = %le)."
                 % (scale, self.eps))
 
-        #print 'Scale = ', scale
+        # print 'Scale = ', scale
 
         slow_convergence_iters = 50
 
@@ -90,19 +90,20 @@ class BiCGStab(BaseSolver):
             # rho_i-1 = q^H r_i-1
             multi_zdotc(rho, q, r, nvec)
 
-            #print 'Rho = ', rho
+            # print 'Rho = ', rho
 
             # if i=1, p_i = r_i-1
             # else beta = (rho_i-1 / rho_i-2) (alpha_i-1 / omega_i-1)
             #      p_i = r_i-1 + b_i-1 (p_i-1 - omega_i-1 v_i-1)
             beta = (rho / rhop) * (alpha / omega)
 
-            #print 'Beta = ', beta
+            # print 'Beta = ', beta
 
             # if abs(beta) / scale < eps, then BiCGStab breaks down
             if ((i > 0) and ((np.abs(beta) / scale) < self.eps).any()):
                 raise RuntimeError(
-                    "Biconjugate gradient stabilized method failed (abs(beta)=%le < eps = %le)."
+                    "Biconjugate gradient stabilized method failed"
+                    " (abs(beta)=%le < eps = %le)."
                     % (np.min(np.abs(beta)), self.eps))
 
             # p = r + beta * (p - omega * v)
@@ -122,7 +123,7 @@ class BiCGStab(BaseSolver):
             multi_zaxpy(-alpha, v, r, nvec)
             # s is denoted by r
 
-            #print 'Alpha = ', alpha
+            # print 'Alpha = ', alpha
 
             # x_i = x_i-1 + alpha_i (M^-1.p_i) + omega_i (M^-1.s)
             # next line is x_i = x_i-1 + alpha (M^-1.p_i)
@@ -131,14 +132,15 @@ class BiCGStab(BaseSolver):
             # if ( |s|^2 < tol^2 ) done
             multi_zdotc(tmp, r, r, nvec)
             if ((np.abs(tmp) / scale) < self.tol * self.tol).all():
-                #print 'R2 of proc #', rank, '  = ' , tmp, \
+                # print 'R2 of proc #', rank, '  = ' , tmp, \
                 #    ' after ', i+1, ' iterations'
                 break
 
             # print if slow convergence
             if ((i + 1) % slow_convergence_iters) == 0:
-                print('Log10 S2 of proc #', rank, '  = ' , np.round(np.log10(np.abs(tmp)),1), \
-                      ' after ', i+1, ' iterations')
+                print('Log10 S2 of proc #', rank, '  = ',
+                      np.round(np.log10(np.abs(tmp)), 1),
+                      ' after ', i + 1, ' iterations')
 
             # t = A.(M^-1.s), M = 1
             A.apply_preconditioner(r, m)
@@ -148,7 +150,7 @@ class BiCGStab(BaseSolver):
             multi_zdotc(tmp, t, t, nvec)
             omega = omega / tmp
 
-            #print 'Omega = ', omega
+            # print 'Omega = ', omega
 
             # x_i = x_i-1 + alpha_i (M^-1.p_i) + omega_i (M^-1.s)
             # next line is x_i = ... + omega_i (M^-1.s)
@@ -160,19 +162,21 @@ class BiCGStab(BaseSolver):
             # if ( |r|^2 < tol^2 ) done
             multi_zdotc(tmp, r, r, nvec)
             if ((np.abs(tmp) / scale) < self.tol * self.tol).all():
-                #print 'R2 of proc #', rank, '  = ' , tmp, \
+                # print 'R2 of proc #', rank, '  = ' , tmp, \
                 #    ' after ', i+1, ' iterations'
                 break
 
             # print if slow convergence
             if ((i + 1) % slow_convergence_iters) == 0:
-                print('Log10 R2 of proc #', rank, '  = ' , np.round(np.log10(np.abs(tmp)),1), \
-                      ' after ', i+1, ' iterations')
+                print('Log10 R2 of proc #', rank, '  = ',
+                      np.round(np.log10(np.abs(tmp)), 1),
+                      ' after ', i + 1, ' iterations')
 
             # if abs(omega) < eps, then BiCGStab breaks down
             if ((np.abs(omega) / scale) < self.eps).any():
                 raise RuntimeError(
-                    "Biconjugate gradient stabilized method failed (abs(omega)/scale=%le < eps = %le)."
+                    "Biconjugate gradient stabilized method failed"
+                    " (abs(omega)/scale=%le < eps = %le)."
                     % (np.min(np.abs(omega)) / scale, self.eps))
             # finally update rho
             rhop[:] = rho
@@ -180,15 +184,16 @@ class BiCGStab(BaseSolver):
         # if max iters reached, raise error
         if (i >= self.max_iter - 1):
             raise RuntimeError(
-                "Biconjugate gradient stabilized method failed to converged within given number of iterations (= %d)."
+                "Biconjugate gradient stabilized method failed to converge"
+                " within given number of iterations (= %d)."
                 % self.max_iter)
 
         # done
         self.iterations = i + 1
-        #print 'BiCGStab iterations = ', self.iterations
+        # print 'BiCGStab iterations = ', self.iterations
 
         if self.timer is not None:
             self.timer.stop('BiCGStab')
 
         return self.iterations
-        #print self.iterations
+        # print self.iterations

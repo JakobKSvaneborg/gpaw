@@ -1,6 +1,6 @@
 def quick(project='bulk', system=None):
     """Create Python script to get going quickly.
-    
+
     project: str
         Must be 'bulk' or 'molecule'.
     system: str

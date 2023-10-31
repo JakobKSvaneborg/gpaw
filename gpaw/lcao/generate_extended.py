@@ -22,10 +22,9 @@ class BasisSpecification:
 
     def __str__(self):
         l_j = self.setup.l_j
-        jvtxt = ', '.join(['%s(l=%s)' % (j, l_j[j]) for j in self.jvalues])
-        jetxt = ', '.join(['%s(l=%s)' % (j, l_j[j]) for j in self.jextra])
-        return '%s: jvalues=[%s], jextra=[%s]' % (self.setup.symbol,
-                                                  jvtxt, jetxt)
+        jvtxt = ', '.join([f'{j}(l={l_j[j]})' for j in self.jvalues])
+        jetxt = ', '.join([f'{j}(l={l_j[j]})' for j in self.jextra])
+        return f'{self.setup.symbol}: jvalues=[{jvtxt}], jextra=[{jetxt}]'
 
 
 description = """Generate basis sets that include unoccupied p states as
@@ -50,11 +49,11 @@ def main():
         othersymbols = []
         for symbol in parameters_extra:
             name = parameters_extra[symbol]['name']
-            code = '%s.%s' % (symbol, name)
+            code = f'{symbol}.{name}'
             othersymbols.append(code)
         # Setups that cause trouble
         # trouble = set(['Os.8', 'Ta.5', 'V.5', 'W.6', 'Ir.9'])
-        trouble = set([])
+        trouble = set()
         othersymbols = [symbol for symbol in othersymbols
                         if symbol not in trouble]
         symbols.extend(sorted(othersymbols))

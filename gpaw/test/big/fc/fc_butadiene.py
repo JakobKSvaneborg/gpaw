@@ -72,7 +72,7 @@ fq = np.append(0, fq)
 if world.rank == 0:
     plt.vlines(fq, 0, S, color='darkblue',
                label='Huang-Rhys factors', linewidth=2.0)
-    
+
     plt.legend(loc='upper right')
     plt.axis([-1000, 6000, 0, 1.05])
     plt.ylabel('HR factors [a.u.]')

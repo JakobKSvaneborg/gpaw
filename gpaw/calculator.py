@@ -329,15 +329,18 @@ class GPAW(Calculator):
     def _set_atoms(self, atoms):
         check_atoms_too_close(atoms)
         self.atoms = atoms
+        mpi.synchronize_atoms(self.atoms, self.world)
+
         # GPAW works in terms of the scaled positions.  We want to
         # extract the scaled positions in only one place, and that is
         # here.  No other place may recalculate them, or we might end up
         # with rounding errors and inconsistencies.
-        self.spos_ac = atoms.get_scaled_positions() % 1.0
+        self.spos_ac = np.ascontiguousarray(atoms.get_scaled_positions() % 1.0)
+        self.world.broadcast(self.spos_ac, 0)
 
     def read(self, filename):
         from ase.io.trajectory import read_atoms
-        self.log('Reading from {}'.format(filename))
+        self.log(f'Reading from {filename}')
 
         self.reader = reader = Reader(filename)
         assert reader.version <= 3, 'Can\'t read new GPW-files'
@@ -346,7 +349,7 @@ class GPAW(Calculator):
         self._set_atoms(atoms)
 
         res = reader.results
-        self.results = dict((key, res.get(key)) for key in res.keys())
+        self.results = {key: res.get(key) for key in res.keys()}
         if self.results:
             self.log('Read {}'.format(', '.join(sorted(self.results))))
 
@@ -478,6 +481,12 @@ class GPAW(Calculator):
                 self.results['magmom'] = 0.0
                 self.results['magmoms'] = np.zeros(len(self.atoms))
 
+            occ_name = getattr(self.wfs.occupations, "name", None)
+            if occ_name == 'mom' and self.wfs.occupations.update_numbers:
+                if isinstance(self.parameters.occupations, dict):
+                    for s, numbers in enumerate(self.wfs.occupations.numbers):
+                        self.parameters['occupations']['numbers'][s] = numbers
+
             self.summary()
 
             self.call_observers(self.scf.niter, final=True)
@@ -525,7 +534,7 @@ class GPAW(Calculator):
         # Verify that keys are consistent with default ones.
         for key in kwargs:
             if key != 'txt' and key not in self.default_parameters:
-                raise TypeError('Unknown GPAW parameter: {}'.format(key))
+                raise TypeError(f'Unknown GPAW parameter: {key}')
 
             if key in ['symmetry',
                        'experimental'] and isinstance(kwargs[key], dict):
@@ -555,7 +564,7 @@ class GPAW(Calculator):
                 if isinstance(dct, dict) and None in dct:
                     dct['default'] = dct.pop(None)
                     warnings.warn(
-                        'Please use {key}={dct}'.format(key=key, dct=dct),
+                        f'Please use {key}={dct}',
                         DeprecatedParameterWarning)
 
         if not changed_parameters:
@@ -622,8 +631,6 @@ class GPAW(Calculator):
         else:
             atoms = atoms.copy()
             self._set_atoms(atoms)
-
-        mpi.synchronize_atoms(atoms, self.world)
 
         rank_a = self.wfs.gd.get_ranks_from_positions(self.spos_ac)
         atom_partition = AtomPartition(self.wfs.gd.comm, rank_a, name='gd')
@@ -761,7 +768,7 @@ class GPAW(Calculator):
 
             if spinpol:
                 self.log('Spin-polarized calculation.')
-                self.log('Magnetic moment: {:.6f}\n'.format(magmom_av.sum()))
+                self.log(f'Magnetic moment: {magmom_av.sum():.6f}\n')
             else:
                 self.log('Spin-paired calculation\n')
         else:
@@ -828,7 +835,7 @@ class GPAW(Calculator):
             # Number of bound partial waves:
             nbandsmax = sum(setup.get_default_nbands()
                             for setup in self.setups)
-            nbands = int(np.ceil((1.2 * (nvalence + M) / 2))) + 4
+            nbands = int(np.ceil(1.2 * (nvalence + M) / 2)) + 4
             if nbands > nbandsmax:
                 nbands = nbandsmax
             if mode.name == 'lcao' and nbands > nao:
@@ -963,6 +970,19 @@ class GPAW(Calculator):
         n = par.convergence.get('bands', 'occupied')
         if isinstance(n, int) and n < 0:
             n += self.wfs.bd.nbands
+
+        solver_name = getattr(self.wfs.eigensolver, "name", None)
+        if solver_name == 'etdm-fdpw':
+            if not self.wfs.eigensolver.converge_unocc:
+                if n == 'all' or (isinstance(n, int)
+                                  and n > self.wfs.nvalence / 2):
+                    warnings.warn(
+                        'Please, use eigensolver=FDPWETDM(..., '
+                        'converge_unocc=True) to converge unoccupied bands')
+                    n = 'occupied'
+            else:
+                n = 'all'
+
         self.log('Bands to converge:', n)
 
         self.log(flush=True)

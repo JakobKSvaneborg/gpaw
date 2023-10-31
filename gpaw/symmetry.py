@@ -393,10 +393,10 @@ class Symmetry:
     def __str__(self):
         n = len(self.op_scc)
         nft = self.ft_sc.any(1).sum()
-        lines = ['Symmetries present (total): {0}'.format(n)]
+        lines = [f'Symmetries present (total): {n}']
         if not self.symmorphic:
             lines.append(
-                'Symmetries with fractional translations: {0}'.format(nft))
+                f'Symmetries with fractional translations: {nft}')
 
         # X-Y grid of symmetry matrices:
 
@@ -450,7 +450,7 @@ def map_k_points(bzk_kc, U_scc, time_reversal, comm=None, tol=1e-11):
     nbzkpts = len(bzk_kc)
     ka = nbzkpts * comm.rank // comm.size
     kb = nbzkpts * (comm.rank + 1) // comm.size
-    assert comm.sum(kb - ka) == nbzkpts
+    assert comm.sum_scalar(kb - ka) == nbzkpts
 
     if time_reversal:
         U_scc = np.concatenate([U_scc, -U_scc])

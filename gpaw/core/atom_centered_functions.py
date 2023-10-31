@@ -164,7 +164,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
         self._layout = AtomArraysLayout([sum(2 * f.l + 1 for f in funcs)
                                          for funcs in self.functions],
                                         self._atomdist,
-                                        self.grid.dtype)
+                                        self.grid.dtype, xp=self.xp)
 
     def to_uniform_grid(self,
                         out: UGArray,

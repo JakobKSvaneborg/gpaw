@@ -378,7 +378,7 @@ class PWLFC(BaseLFC):
                 I1 = I2
 
         if isinstance(c_axi, float):
-            c_axi = dict((a, c_axi) for a in range(len(self.pos_av)))
+            c_axi = {a: c_axi for a in range(len(self.pos_av))}
 
         G0_Gv = self.pd.get_reciprocal_vectors(q=q)
 

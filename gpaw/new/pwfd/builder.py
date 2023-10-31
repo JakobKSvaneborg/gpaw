@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from math import pi
 
 import numpy as np
 
@@ -12,6 +13,11 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
+    def __init__(self, atoms, params, *, comm, qspiral=None):
+        super().__init__(atoms, params, comm=comm)
+        self.qspiral_v = (None if qspiral is None else
+                          qspiral @ self.grid.icell * (2 * pi))
+
     def create_eigensolver(self, hamiltonian):
         eigsolv_params = self.params.eigensolver.copy()
         name = eigsolv_params.pop('name', 'dav')
@@ -44,7 +50,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 setups=self.setups,
                 fracpos_ac=self.fracpos_ac,
                 atomdist=self.atomdist,
-                ncomponents=self.ncomponents)
+                ncomponents=self.ncomponents,
+                qspiral_v=self.qspiral_v)
 
             return wfs
 
@@ -108,7 +115,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 setups=self.setups,
                 fracpos_ac=self.fracpos_ac,
                 atomdist=self.atomdist,
-                ncomponents=self.ncomponents)
+                ncomponents=self.ncomponents,
+                qspiral_v=self.qspiral_v)
             wfs._eig_n = eig_n
             return wfs
 
@@ -140,7 +148,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 setups=self.setups,
                 fracpos_ac=self.fracpos_ac,
                 atomdist=self.atomdist,
-                ncomponents=self.ncomponents)
+                ncomponents=self.ncomponents,
+                qspiral_v=self.qspiral_v)
 
             eig_n = self.xp.empty(self.nbands)
             eig_n[:] = np.inf

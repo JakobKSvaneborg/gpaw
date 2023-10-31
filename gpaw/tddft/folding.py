@@ -21,7 +21,7 @@ def convert_to_au(val, units='eV'):
     raise RuntimeError('Unknown units: %s' % units)
 
 
-class FoldedFrequencies(object):
+class FoldedFrequencies:
     def __init__(self, frequencies, folding, units='eV'):
         freqs = np.array([frequencies], dtype=float).ravel()
         self.frequencies = convert_to_au(freqs, units=units)
@@ -46,14 +46,14 @@ class FoldedFrequencies(object):
         return s
 
 
-class Frequency(object):
+class Frequency:
     def __init__(self, freq, folding, units='eV'):
         ff = FoldedFrequencies(freq, folding, units)
         self.folding = ff.folding
         self.freq = ff.frequencies[0]
 
 
-class Folding(object):
+class Folding:
     def __init__(self, folding, width, units='eV'):
         if width is None:
             folding = None
@@ -91,4 +91,4 @@ class Folding(object):
     def __repr__(self):
         if self.folding is None:
             return 'No folding'
-        return '%s(%.5f eV)' % (self.folding, self.width * au_to_eV)
+        return f'{self.folding}({self.width * au_to_eV:.5f} eV)'

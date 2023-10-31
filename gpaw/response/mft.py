@@ -1,35 +1,24 @@
 from __future__ import annotations
 
-# General modules
 from abc import abstractmethod
 
 import numpy as np
 
-# GPAW modules
-from gpaw.sphere.integrate import (integrate_lebedev,
-                                   radial_truncation_function,
-                                   spherical_truncation_function_collection,
-                                   default_spherical_drcut,
-                                   find_volume_conserving_lambd)
-
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
+from gpaw.response import (ResponseGroundStateAdapter, ResponseContext,
+                           GPWFilename, TXTFilename,
+                           ensure_gs, ensure_gs_and_context)
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.chiks import ChiKSCalculator, smat
-from gpaw.response.localft import (LocalFTCalculator,
-                                   add_LSDA_Wxc,
-                                   add_spin_polarization,
-                                   add_LSDA_spin_splitting)
+from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
 from gpaw.response.site_kernels import SiteKernels
+from gpaw.response.site_data import AtomicSites, AtomicSiteData
 from gpaw.response.pair_functions import SingleQPWDescriptor, PairFunction
 from gpaw.response.pair_integrator import PairFunctionIntegrator
-from gpaw.response.matrix_elements import (SiteMatrixElementCalculator,
-                                           SitePairDensityCalculator,
-                                           SitePairSpinSplittingCalculator)
+from gpaw.response.pair_transitions import PairTransitions
+from gpaw.response.matrix_elements import (SitePairDensityCalculator,
+                                           SiteZeemanPairEnergyCalculator)
 
-# ASE modules
-from ase.units import Hartree, Bohr
-
-from ase.neighborlist import natural_cutoffs, build_neighbor_list
+from ase.units import Hartree
 
 
 class IsotropicExchangeCalculator:
@@ -200,206 +189,277 @@ class IsotropicExchangeCalculator:
         return chiksr
 
 
-class AtomicSites:
-    """Object defining a set of spherical atomic sites."""
+def calculate_site_magnetization(
+        gs: ResponseGroundStateAdapter | GPWFilename,
+        sites: AtomicSites):
+    """Calculate the site magnetization.
 
-    def __init__(self, indices, radii):
-        """Construct the AtomicSites.
-
-        Parameters
-        ----------
-        indices : 1D array-like
-            Atomic index A for each site index a.
-        radii : 2D array-like
-            Atomic radius rc for each site index a and partitioning p.
-        """
-        self.A_a = np.asarray(indices)
-        assert self.A_a.ndim == 1
-        assert len(np.unique(self.A_a)) == len(self.A_a)
-
-        # Parse the input atomic radii
-        rc_ap = np.asarray(radii)
-        assert rc_ap.ndim == 2
-        assert rc_ap.shape[0] == len(self.A_a)
-        # Convert radii to internal units (Å to Bohr)
-        self.rc_ap = rc_ap / Bohr
-
-        self.npartitions = self.rc_ap.shape[1]
-        self.shape = rc_ap.shape
-
-    def __len__(self):
-        return len(self.A_a)
+    Returns
+    -------
+    magmom_ap : np.ndarray
+        Magnetic moment in μB of site a under partitioning p, calculated
+        directly from the ground state density.
+    """
+    gs = ensure_gs(gs)
+    site_data = AtomicSiteData(gs, sites)
+    return site_data.calculate_magnetic_moments()
 
 
-class AtomicSiteData:
-    r"""Data object for a set of spherical atomic sites."""
+def calculate_site_zeeman_energy(
+        gs: ResponseGroundStateAdapter | GPWFilename,
+        sites: AtomicSites):
+    """Calculate the site Zeeman energy.
 
-    def __init__(self, gs: ResponseGroundStateAdapter, sites: AtomicSites):
-        """Extract atomic site data from a ground state adapter."""
-        assert self._in_valid_site_radii_range(gs, sites), \
-            'Please provide site radii in the valid range, see '\
-            'AtomicSiteData.valid_site_radii_range()'
-        self.sites = sites
-
-        # Extract the scaled positions and micro_setups for each atomic site
-        self.spos_ac = gs.spos_ac[sites.A_a]
-        self.micro_setup_a = [gs.micro_setups[A] for A in sites.A_a]
-
-        # Extract pseudo density on the fine real-space grid
-        self.finegd = gs.finegd
-        self.nt_sr = gs.nt_sr
-
-        # Set up the atomic truncation functions which define the sites based
-        # on the coarse real-space grid
-        self.gd = gs.gd
-        self.drcut = default_spherical_drcut(self.gd)
-        self.lambd_ap = np.array(
-            [[find_volume_conserving_lambd(rcut, self.drcut)
-              for rcut in rc_p] for rc_p in sites.rc_ap])
-        self.stfc = spherical_truncation_function_collection(
-            self.finegd, self.spos_ac, sites.rc_ap, self.drcut, self.lambd_ap)
-
-    @staticmethod
-    def _valid_site_radii_range(gs):
-        """For each atom in gs, determine the valid site radii range in Bohr.
-
-        The lower bound is determined by the spherical truncation width, when
-        truncating integrals on the real-space grid.
-        The upper bound is determined by the distance to the nearest
-        augmentation sphere.
-        """
-        atoms = gs.atoms
-        drcut = default_spherical_drcut(gs.gd)
-        rmin_A = np.array([drcut / 2] * len(atoms))
-
-        # Find neighbours based on covalent radii
-        cutoffs = natural_cutoffs(atoms, mult=2)
-        neighbourlist = build_neighbor_list(atoms, cutoffs,
-                                            self_interaction=False)
-        # Determine rmax for each atom
-        augr_A = gs.get_aug_radii()
-        rmax_A = []
-        for A in range(len(atoms)):
-            pos = atoms.positions[A]
-            # Calculate the distance to the augmentation sphere of each
-            # neighbour
-            aug_distances = []
-            for An, offset in zip(*neighbourlist.get_neighbors(A)):
-                posn = atoms.positions[An] + offset @ atoms.get_cell()
-                dist = np.linalg.norm(posn - pos) / Bohr  # Å -> Bohr
-                aug_dist = dist - augr_A[An]
-                assert aug_dist > 0.
-                aug_distances.append(aug_dist)
-            # In order for PAW corrections to be valid, we need a sphere of
-            # radius rcut not to overlap with any neighbouring augmentation
-            # spheres
-            rmax_A.append(min(aug_distances))
-        rmax_A = np.array(rmax_A)
-
-        return rmin_A, rmax_A
-
-    @staticmethod
-    def valid_site_radii_range(gs):
-        """Get the valid site radii for all atoms in a given ground state."""
-        rmin_A, rmax_A = AtomicSiteData._valid_site_radii_range(gs)
-        # Convert to external units (Bohr to Å)
-        return rmin_A * Bohr, rmax_A * Bohr
-
-    @staticmethod
-    def _in_valid_site_radii_range(gs, sites):
-        rmin_A, rmax_A = AtomicSiteData._valid_site_radii_range(gs)
-        for a, A in enumerate(sites.A_a):
-            if not np.all(
-                    np.logical_and(
-                        sites.rc_ap[a] > rmin_A[A] - 1e-8,
-                        sites.rc_ap[a] < rmax_A[A] + 1e-8)):
-                return False
-        return True
-
-    def calculate_magnetic_moments(self):
-        """Calculate the magnetic moments at each atomic site."""
-        magmom_ap = self.integrate_local_function(add_spin_polarization)
-        return magmom_ap
-
-    def calculate_spin_splitting(self):
-        r"""Calculate the spin splitting Δ^(xc) for each atomic site."""
-        dxc_ap = self.integrate_local_function(add_LSDA_spin_splitting)
-        return dxc_ap * Hartree  # return the splitting in eV
-
-    def integrate_local_function(self, add_f):
-        r"""Integrate a local function f[n](r) = f(n(r)) over the atomic sites.
-
-        For every site index a and partitioning p, the integral is defined via
-        a smooth truncation function θ(|r-r_a|<rc_ap):
-
-               /
-        f_ap = | dr θ(|r-r_a|<rc_ap) f(n(r))
-               /
-        """
-        out_ap = np.zeros(self.sites.shape, dtype=float)
-        self._integrate_pseudo_contribution(add_f, out_ap)
-        self._integrate_paw_correction(add_f, out_ap)
-        return out_ap
-
-    def _integrate_pseudo_contribution(self, add_f, out_ap):
-        """Calculate the pseudo contribution to the atomic site integrals.
-
-        For local functions of the density, the pseudo contribution is
-        evaluated by a numerical integration on the real-space grid:
-
-        ̰       /
-        f_ap = | dr θ(|r-r_a|<rc_ap) f(ñ(r))
-               /
-        """
-        # Evaluate the local function on the real-space grid
-        ft_r = self.finegd.zeros()
-        add_f(self.finegd, self.nt_sr, ft_r)
-
-        # Integrate θ(|r-r_a|<rc_ap) f(ñ(r))
-        ftdict_ap = {a: np.empty(self.sites.npartitions)
-                     for a in range(len(self.sites))}
-        self.stfc.integrate(ft_r, ftdict_ap)
-
-        # Add pseudo contribution to the output array
-        for a in range(len(self.sites)):
-            out_ap[a] += ftdict_ap[a]
-
-    def _integrate_paw_correction(self, add_f, out_ap):
-        """Calculate the PAW correction to an atomic site integral.
-
-        The PAW correction is evaluated on the atom centered radial grid, using
-        the all-electron and pseudo densities generated from the partial waves:
-
-                /
-        Δf_ap = | r^2 dr θ(r<rc_ap) [f(n_a(r)) - f(ñ_a(r))]
-                /
-        """
-        for a, (micro_setup, rc_p, lambd_p) in enumerate(zip(
-                self.micro_setup_a, self.sites.rc_ap, self.lambd_ap)):
-            # Evaluate the PAW correction and integrate angular components
-            df_ng = micro_setup.evaluate_paw_correction(add_f)
-            df_g = integrate_lebedev(df_ng)
-            for p, (rcut, lambd) in enumerate(zip(rc_p, lambd_p)):
-                # Evaluate the smooth truncation function
-                theta_g = radial_truncation_function(
-                    micro_setup.rgd.r_g, rcut, self.drcut, lambd)
-                # Integrate θ(r) Δf(r) on the radial grid
-                out_ap[a, p] += micro_setup.rgd.integrate_trapz(df_g * theta_g)
+    Returns
+    -------
+    EZ_ap : np.ndarray
+        Local Zeeman energy in eV of site a under partitioning p, calculated
+        directly from the ground state density.
+    """
+    gs = ensure_gs(gs)
+    site_data = AtomicSiteData(gs, sites)
+    return site_data.calculate_zeeman_energies() * Hartree  # Ha -> eV
 
 
-class StaticSitePairFunction(PairFunction):
-    """Data object for static site pair functions."""
+def calculate_single_particle_site_magnetization(
+        gs: ResponseGroundStateAdapter | GPWFilename,
+        sites: AtomicSites,
+        context: ResponseContext | TXTFilename = '-'):
+    """Calculate the single-particle site magnetization.
 
+    Returns
+    -------
+    sp_magmom_ap : np.ndarray
+        Magnetic moment in μB of site a under partitioning p, calculated based
+        on a single-particle sum rule.
+    """
+    gs, context = ensure_gs_and_context(gs, context=context)
+    single_particle_calc = SingleParticleSiteMagnetizationCalculator(
+        gs, sites, context=context)
+    site_magnetization = single_particle_calc()
+    return site_magnetization.array
+
+
+def calculate_single_particle_site_zeeman_energy(
+        gs: ResponseGroundStateAdapter | GPWFilename,
+        sites: AtomicSites,
+        context: ResponseContext | TXTFilename = '-'):
+    """Calculate the single-particle site Zeeman energy.
+
+    Returns
+    -------
+    sp_EZ_ap : np.ndarray
+        Local Zeeman energy in eV of site a under partitioning p, calculated
+        based on a single-particle sum rule.
+    """
+    gs, context = ensure_gs_and_context(gs, context=context)
+    single_particle_calc = SingleParticleSiteZeemanEnergyCalculator(
+        gs, sites, context=context)
+    site_zeeman_energy = single_particle_calc()
+    return site_zeeman_energy.array * Hartree  # Ha -> eV
+
+
+def calculate_pair_site_magnetization(
+        gs: ResponseGroundStateAdapter | GPWFilename,
+        sites: AtomicSites,
+        context: ResponseContext | TXTFilename = '-',
+        q_c=[0., 0., 0.],
+        nbands: int | None = None):
+    """Calculate the pair site magnetization.
+
+    Parameters
+    ----------
+    q_c : Vector
+        q-vector to evaluate the pair site magnetization for.
+    nbands : int or None
+        Number of bands to include in the band summation of the pair site
+        magnetization. If nbands is None, it includes all bands.
+
+    Returns
+    -------
+    magmom_abp : np.ndarray
+        Pair magnetization in μB of site a and b under partitioning p,
+        calculated based on a two-particle sum rule.
+    """
+    gs, context = ensure_gs_and_context(gs, context=context)
+    two_particle_calc = TwoParticleSiteMagnetizationCalculator(
+        gs, sites, context=context, nbands=nbands)
+    pair_site_magnetization = two_particle_calc(q_c)
+    return pair_site_magnetization.array
+
+
+def calculate_pair_site_zeeman_energy(
+        gs: ResponseGroundStateAdapter | GPWFilename,
+        sites: AtomicSites,
+        context: ResponseContext | TXTFilename = '-',
+        q_c=[0., 0., 0.],
+        nbands: int | None = None):
+    """Calculate the pair site Zeeman energy.
+
+    Parameters
+    ----------
+    q_c : Vector
+        q-vector to evaluate the pair site Zeeman energy for.
+    nbands : int or None
+        Number of bands to include in the band summation of the pair site
+        Zeeman energy. If nbands is None, it includes all bands.
+
+    Returns
+    -------
+    EZ_abp : np.ndarray
+        Local pair Zeeman energy in eV of site a and b under partitioning p,
+        calculated based on a two-particle sum rule.
+    """
+    gs, context = ensure_gs_and_context(gs, context=context)
+    two_particle_calc = TwoParticleSiteZeemanEnergyCalculator(
+        gs, sites, context=context, nbands=nbands)
+    pair_site_zeeman_energy = two_particle_calc(q_c)
+    return pair_site_zeeman_energy.array * Hartree  # Ha -> eV
+
+
+class StaticSiteFunction(PairFunction):
+    """Data object for static single-particle site functions."""
     def __init__(self,
                  qpd: SingleQPWDescriptor,
                  sites: AtomicSites):
         self.qpd = qpd
         self.q_c = qpd.q_c
-
         self.sites = sites
-
         self.array = self.zeros()
 
+    @property
+    def shape(self):
+        return self.sites.shape
+
+    def zeros(self):
+        return np.zeros(self.shape, dtype=float)
+
+
+class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
+    r"""Calculator for single-particle site sum rules.
+
+    For any site matrix element f^a_(nks,n'k's'), one may define a single-
+    particle site sum rule by considering only the diagonal of the matrix
+    element:
+                 __  __
+             1   \   \
+    f_a^μ = ‾‾‾  /   /  σ^μ_ss f_nks f^a_(nks,nks)
+            N_k  ‾‾  ‾‾
+                 k   n,s
+
+    where μ∊{0,z}.
+    """
+
+    def __init__(self, gs, sites, context):
+        super().__init__(gs, context,
+                         disable_point_group=True,
+                         disable_time_reversal=True)
+
+        # Set up calculator for the f^a matrix element
+        self.sites = sites
+        self.matrix_element_calc = self.create_matrix_element_calculator()
+
+    @abstractmethod
+    def create_matrix_element_calculator(self):
+        """Create the desired site matrix element calculator."""
+
+    def __call__(self):
+        # Set up transitions
+        # Loop over bands, which are fully or partially occupied
+        nocc2 = self.kptpair_extractor.nocc2
+        n_n = list(range(nocc2))
+        n_t = np.array(n_n + n_n)
+        s_t = np.array([0] * nocc2 + [1] * nocc2)
+        transitions = PairTransitions(n1_t=n_t, n2_t=n_t, s1_t=s_t, s2_t=s_t)
+
+        # Set up data object with q=0
+        qpd = self.get_pw_descriptor([0., 0., 0.], ecut=1e-3)
+        site_function = StaticSiteFunction(qpd, self.sites)
+
+        # Perform actual calculation
+        self._integrate(site_function, transitions)
+
+        return site_function
+
+    def add_integrand(self, kptpair, weight, site_function):
+        r"""Add the integrand of the outer k-point integral.
+
+        With
+                   __
+                1  \
+        f_a^μ = ‾  /  (...)_k
+                V  ‾‾
+                   k
+
+        the integrand has to be multiplied with the cell volume V0:
+                     __
+                     \
+        (...)_k = V0 /  σ^μ_ss f_nks f^a_(nks,nks)
+                     ‾‾
+                     n,s
+        """
+        # Calculate matrix elements
+        site_matrix_element = self.matrix_element_calc(
+            kptpair, site_function.qpd)
+        assert site_matrix_element.tblocks.blockcomm.size == 1
+        f_tap = site_matrix_element.get_global_array()
+
+        # Since we only use diagonal site matrix elements, corresponding
+        # to the expectation value of the real functions Θ(r∊Ω_ap) and f(r),
+        # f^a_(nks,nks) = <ψ_nks|Θ(r∊Ω_ap)f(r)|ψ_nks>,
+        # the matrix elements are real
+        assert np.allclose(f_tap.imag, 0.)
+        f_tap = f_tap.real
+
+        # Calculate Pauli matrix factors and multiply the occupations
+        sigma = self.get_pauli_matrix()
+        sigma_t = sigma[kptpair.transitions.s1_t, kptpair.transitions.s2_t]
+        f_t = kptpair.get_all(kptpair.ikpt1.f_myt)
+        sigmaf_t = sigma_t * f_t
+
+        # Calculate and add integrand
+        site_function.array[:] += self.gs.volume * weight * np.einsum(
+            't, tap -> ap', sigmaf_t, f_tap)
+
+    @abstractmethod
+    def get_pauli_matrix(self):
+        """Get the desired Pauli matrix σ^μ_ss."""
+
+
+class SingleParticleSiteMagnetizationCalculator(
+        SingleParticleSiteSumRuleCalculator):
+    r"""Calculator for the single-particle site magnetization sum rule.
+
+    The site magnetization is calculated from the site pair density:
+                 __  __
+             1   \   \
+    n_a^z = ‾‾‾  /   /  σ^z_ss f_nks n^a_(nks,nks)
+            N_k  ‾‾  ‾‾
+                 k   n,s
+    """
+    def create_matrix_element_calculator(self):
+        return SitePairDensityCalculator(self.gs, self.context, self.sites)
+
+    def get_pauli_matrix(self):
+        return smat('z')
+
+
+class SingleParticleSiteZeemanEnergyCalculator(
+        SingleParticleSiteMagnetizationCalculator):
+    r"""Calculator for the single-particle site Zeeman energy sum rule.
+                 __  __
+             1   \   \
+    E_a^Z = ‾‾‾  /   /  σ^z_ss f_nks E^(Z,a)_(nks,nks)
+            N_k  ‾‾  ‾‾
+                 k   n,s
+    """
+    def create_matrix_element_calculator(self):
+        return SiteZeemanPairEnergyCalculator(
+            self.gs, self.context, self.sites, rshewmin=1e-8)
+
+
+class StaticSitePairFunction(StaticSiteFunction):
+    """Data object for static pair site functions."""
     @property
     def shape(self):
         nsites = len(self.sites)
@@ -426,32 +486,29 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
 
     def __init__(self,
                  gs: ResponseGroundStateAdapter,
+                 sites: AtomicSites,
                  context: ResponseContext | None = None,
-                 nblocks: int = 1,
                  nbands: int | None = None):
         """Construct the two-particle site sum rule calculator."""
         if context is None:
             context = ResponseContext()
         super().__init__(gs, context,
-                         nblocks=nblocks,
-                         # Disable use of symmetries for now. The sum rule site
-                         # magnetization symmetries can always be derived and
-                         # implemented at a later stage.
                          disable_point_group=True,
                          disable_time_reversal=True)
-
         self.nbands = nbands
-        self.matrix_element_calc1: SiteMatrixElementCalculator | None = None
-        self.matrix_element_calc2: SiteMatrixElementCalculator | None = None
 
-    def __call__(self, q_c, atomic_site_data: AtomicSiteData):
-        """Calculate the site sum rule for a given wave vector q_c."""
         # Set up calculators for the f^a and g^b matrix elements
-        mecalc1, mecalc2 = self.create_matrix_element_calculators(
-            atomic_site_data)
+        self.sites = sites
+        mecalc1, mecalc2 = self.create_matrix_element_calculators()
         self.matrix_element_calc1 = mecalc1
         self.matrix_element_calc2 = mecalc2
 
+    @abstractmethod
+    def create_matrix_element_calculators(self):
+        """Create the desired site matrix element calculators."""
+
+    def __call__(self, q_c):
+        """Calculate the site sum rule for a given wave vector q_c."""
         spincomponent = self.get_spincomponent()
         transitions = self.get_band_and_spin_transitions(
             spincomponent, nbands=self.nbands, bandsummation='double')
@@ -461,17 +518,12 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
         # Set up data object (without a plane-wave representation, which is
         # irrelevant in this case)
         qpd = self.get_pw_descriptor(q_c, ecut=1e-3)
-        site_pair_function = StaticSitePairFunction(
-            qpd, atomic_site_data.sites)
+        site_pair_function = StaticSitePairFunction(qpd, self.sites)
 
         # Perform actual calculation
         self._integrate(site_pair_function, transitions)
 
-        return site_pair_function.array
-
-    @abstractmethod
-    def create_matrix_element_calculators(self, atomic_site_data):
-        """Create the desired site matrix element calculators."""
+        return site_pair_function
 
     @abstractmethod
     def get_spincomponent(self):
@@ -556,9 +608,9 @@ class TwoParticleSiteMagnetizationCalculator(TwoParticleSiteSumRuleCalculator):
     This is directly related to the sum rule of the χ^(+-) spin component of
     the four-component susceptibility tensor.
     """
-    def create_matrix_element_calculators(self, atomic_site_data):
+    def create_matrix_element_calculators(self):
         site_pair_density_calc = SitePairDensityCalculator(
-            self.gs, self.context, atomic_site_data)
+            self.gs, self.context, self.sites)
         return site_pair_density_calc, site_pair_density_calc
 
     def get_spincomponent(self):
@@ -568,28 +620,24 @@ class TwoParticleSiteMagnetizationCalculator(TwoParticleSiteSumRuleCalculator):
         return smat('+')
 
 
-class TwoParticleSiteSpinSplittingCalculator(
+class TwoParticleSiteZeemanEnergyCalculator(
         TwoParticleSiteMagnetizationCalculator):
-    r"""Calculator for the two-particle site spin splitting sum rule.
+    r"""Calculator for the two-particle site Zeeman energy sum rule.
 
-    The site spin splitting can be calculated from the site pair density and
-    site pair spin splitting via the following sum rule [publication in
+    The site Zeeman energy can be calculated from the site pair density and
+    site Zeeman pair energy via the following sum rule [publication in
     preparation]:
-                          __  __
-    ˍ                 1   \   \  /
-    Δ^(xc)_ab^z(q) = ‾‾‾  /   /  | (f_nk↑ - f_mk+q↓)
-                     N_k  ‾‾  ‾‾ \                                        \
-                          k   n,m  × Δ^(xc,a)_(nk↑,mk+q↓) n^b_(mk+q↓,nk↑) |
-                                                                          /
-              = δ_(a,b) Δ^(xc)_a^z
+                     __  __
+    ˍ            1   \   \  /
+    E_ab^Z(q) = ‾‾‾  /   /  | (f_nk↑ - f_mk+q↓)
+                N_k  ‾‾  ‾‾ \                                       \
+                     k   n,m  × E^(Z,a)_(nk↑,mk+q↓) n^b_(mk+q↓,nk↑) |
+                                                                    /
+              = δ_(a,b) E_a^Z
     """
-    def create_matrix_element_calculators(self, atomic_site_data):
-        site_pair_spin_splitting_calc = SitePairSpinSplittingCalculator(
-            self.gs, self.context, atomic_site_data)
+    def create_matrix_element_calculators(self):
+        site_zeeman_pair_energy_calc = SiteZeemanPairEnergyCalculator(
+            self.gs, self.context, self.sites, rshewmin=1e-8)
         site_pair_density_calc = SitePairDensityCalculator(
-            self.gs, self.context, atomic_site_data)
-        return site_pair_spin_splitting_calc, site_pair_density_calc
-
-    def __call__(self, *args):
-        dxc_abp = super().__call__(*args)
-        return dxc_abp * Hartree  # Ha -> eV
+            self.gs, self.context, self.sites)
+        return site_zeeman_pair_energy_calc, site_pair_density_calc

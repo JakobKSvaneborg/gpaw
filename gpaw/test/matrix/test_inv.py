@@ -7,8 +7,7 @@ from gpaw.mpi import broadcast_exception, world
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_inv(dtype):
     if world.size > 1 and dtype == float:
-        # Not implemented
-        return
+        pytest.skip('Not implemented')
 
     N = 15
     S0 = Matrix(N, N,
@@ -37,3 +36,7 @@ def test_inv(dtype):
     with broadcast_exception(world):
         if world.rank == 0:
             assert abs(S0.data - np.eye(N)).max() < 1e-14
+
+
+if __name__ == '__main__':
+    test_inv(complex)

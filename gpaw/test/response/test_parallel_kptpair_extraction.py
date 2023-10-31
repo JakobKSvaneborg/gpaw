@@ -43,7 +43,7 @@ def test_parallel_extract_kptdata(in_tmp_dir, gpw_files,
     context = ResponseContext()
     serial_gs = ResponseGroundStateAdapter.from_gpw_file(
         gpw_files[wfs], context)
-    
+
     # Initialize parallel ground state adapter
     calc = GPAW(gpw_files[wfs], parallel=dict(domain=1))
     nbands = response_band_cutoff[wfs]
@@ -112,7 +112,7 @@ def initialize_integral(extractor, context, q_c):
     # Initialize symmetry analyzer
     gs = extractor.gs
     qpd = SingleQPWDescriptor.from_q(q_c, 1e-3, gs.gd)
-    analyzer = PWSymmetryAnalyzer(gs.kd, qpd, context)
+    analyzer = PWSymmetryAnalyzer(gs.kpoints, qpd, context)
 
     return KPointPairPointIntegral(extractor, analyzer)
 

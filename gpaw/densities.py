@@ -55,7 +55,7 @@ class Densities:
 
             for a, D_sii in self.D_asii.items():
                 Q_sL = np.einsum('sij, ijL -> sL',
-                                 D_sii, self.setups[a].Delta_iiL)
+                                 D_sii.real, self.setups[a].Delta_iiL)
                 delta = (self.setups[a].Delta0 +
                          self.setups[a].Nv / (4 * pi)**0.5)
                 Q_sL[:ndensities, 0] += delta / ndensities
@@ -99,6 +99,7 @@ class Densities:
 
         splines = {}
         for a, D_sii in self.D_asii.items():
+            D_sii = D_sii.real
             fracpos_c = self.fracpos_ac[a]
             setup = self.setups[a]
             if setup not in splines:

@@ -1,22 +1,16 @@
 import numpy as np
 import pytest
-from ase import Atoms
 from gpaw import GPAW
-from gpaw.fdtd.poisson_fdtd import FDTDPoissonSolver
-from gpaw.fdtd.polarizable_material import (PermittivityPlus,
-                                            PolarizableMaterial,
-                                            PolarizableSphere)
 from gpaw.inducedfield.inducedfield_base import BaseInducedField
 from gpaw.inducedfield.inducedfield_fdtd import (
     FDTDInducedField, calculate_hybrid_induced_field)
 from gpaw.inducedfield.inducedfield_tddft import TDDFTInducedField
-from gpaw.mpi import world
 from gpaw.tddft import TDDFT, DipoleMomentWriter
 from gpaw.test import equal
 
 
 @pytest.mark.later
-def test_fdtd_ed_inducedfield(in_tmp_dir):
+def test_fdtd_ed_inducedfield(in_tmp_dir, gpw_files):
     do_print_values = 0  # Use this for printing the reference values
 
     # Accuracy
@@ -24,58 +18,9 @@ def test_fdtd_ed_inducedfield(in_tmp_dir):
     poisson_eps = 1e-12
     density_eps = 1e-6
 
-    # Whole simulation cell (Angstroms)
-    large_cell = [20, 20, 30]
-
-    # Quantum subsystem
-    atom_center = np.array([10.0, 10.0, 20.0])
-    atoms = Atoms('Na2', [atom_center + [0.0, 0.0, -1.50],
-                          atom_center + [0.0, 0.0, +1.50]])
-
-    # Permittivity file
-    if world.rank == 0:
-        fo = open('ed.txt', 'w')
-        fo.writelines(['1.20 0.20 25.0'])
-        fo.close()
-    world.barrier()
-
-    # Classical subsystem
-    classical_material = PolarizableMaterial()
-    sphere_center = np.array([10.0, 10.0, 10.0])
-    classical_material.add_component(
-        PolarizableSphere(permittivity=PermittivityPlus('ed.txt'),
-                          center=sphere_center,
-                          radius=5.0))
-
-    # Combined Poisson solver
-    poissonsolver = FDTDPoissonSolver(classical_material=classical_material,
-                                      eps=poisson_eps,
-                                      qm_spacing=0.40,
-                                      cl_spacing=0.40 * 4,
-                                      cell=large_cell,
-                                      remove_moments=(1, 4),
-                                      communicator=world,
-                                      potential_coupler='Refiner')
-    poissonsolver.set_calculation_mode('iterate')
-
-    # Combined system
-    atoms.set_cell(large_cell)
-    atoms, qm_spacing, gpts = poissonsolver.cut_cell(atoms,
-                                                     vacuum=2.50)
-
-    # Initialize GPAW
-    gs_calc = GPAW(mode='fd',
-                   gpts=gpts,
-                   eigensolver='cg',
-                   nbands=-1,
-                   poissonsolver=poissonsolver,
-                   symmetry={'point_group': False},
-                   convergence={'energy': energy_eps,
-                                'density': density_eps})
-    atoms.calc = gs_calc
-
-    # Ground state
-    energy = atoms.get_potential_energy()
+    # load gpw file
+    gs_calc = GPAW(gpw_files['na2_isolated'])
+    energy = gs_calc.get_potential_energy()
 
     # Test ground state
     equal(energy, -0.631881, energy_eps * gs_calc.get_number_of_electrons())
@@ -84,17 +29,12 @@ def test_fdtd_ed_inducedfield(in_tmp_dir):
     equal(gs_calc.hamiltonian.poisson.shift_indices_1, [4, 4, 10], 0)
     equal(gs_calc.hamiltonian.poisson.shift_indices_2, [8, 8, 16], 0)
 
-    # Save state
-    gs_calc.write('gs.gpw', 'all')
-    classical_material = None
-    gs_calc = None
-
     # Initialize TDDFT and FDTD
     kick = [0.0, 0.0, 1.0e-3]
     time_step = 10.0
     iterations = 10
 
-    td_calc = TDDFT('gs.gpw')
+    td_calc = TDDFT(gpw_files['na2_isolated'])
     DipoleMomentWriter(td_calc, 'dm.dat')
 
     # Attach InducedFields to the calculation
@@ -113,11 +53,6 @@ def test_fdtd_ed_inducedfield(in_tmp_dir):
     td_calc.write('td.gpw', 'all')
     cl_ind.write('cl.ind')
     qm_ind.write('qm.ind')
-    td_calc = None
-    cl_ind.paw = None
-    qm_ind.paw = None
-    cl_ind = None
-    qm_ind = None
 
     # Restart
     td_calc = TDDFT('td.gpw')
@@ -141,12 +76,6 @@ def test_fdtd_ed_inducedfield(in_tmp_dir):
     equal(td_calc.hamiltonian.poisson.get_quantum_dipole_moment(),
           ref_qm_dipole_moment, tol)
 
-    cl_ind.paw = None
-    qm_ind.paw = None
-    td_calc = None
-    cl_ind = None
-    qm_ind = None
-
     # Calculate induced fields
     td_calc = TDDFT('td.gpw')
 
@@ -163,14 +92,6 @@ def test_fdtd_ed_inducedfield(in_tmp_dir):
     # Total system, interpolate/extrapolate to a grid with spacing h
     tot_ind = calculate_hybrid_induced_field(cl_ind, qm_ind, h=0.4)
     tot_ind.write('tot_field.ind', mode='all')
-
-    tot_ind.paw = None
-    cl_ind.paw = None
-    qm_ind.paw = None
-    td_calc = None
-    cl_ind = None
-    qm_ind = None
-    tot_ind = None
 
     # Test induced fields
     ref_values = [72404.467117024149,

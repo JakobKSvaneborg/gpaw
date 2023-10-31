@@ -1,4 +1,3 @@
-
 import numpy as np
 from gpaw.arraydict import ArrayDict
 from gpaw.density import Density
@@ -120,7 +119,7 @@ class ReciprocalSpaceHamiltonian(Hamiltonian):
         self.timer.stop('XC 3D grid')
 
         energies = np.array([epot, ebar, eext, exc])
-        self.estress = self.gd.comm.sum(epot + ebar)
+        self.estress = self.gd.comm.sum_scalar(epot + ebar)
         return energies
 
     def calculate_atomic_hamiltonians(self, density):
