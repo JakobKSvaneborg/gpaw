@@ -52,7 +52,7 @@ def test_cluster():
             print(a.symbol, b[c], a.position[c], cc[c, c] - a.position[c])
             assert a.position[c] > b[c]
         equal(cc[c, c] / h % 4, 0.0, 1e-10)
-             
+
     # I/O
     fxyz = 'CO.xyz'
     fpdb = 'CO.pdb'
