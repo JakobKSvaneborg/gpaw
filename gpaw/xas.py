@@ -80,14 +80,14 @@ class XAS:
         i = 0
         for j in range(nj):
             l = setup.l_j[j]
-            
+
             for L2 in M[l]:
                 for L0 in M[1]:
                     for m, L1 in enumerate(M[l_core]):
                         G = (G_LLL[L0, L1, L2])
-                        
+
                         G = sqrt(4 * pi / 3) * G
-                        
+
                         c = L0 % 3
                         A_cmi[c, m, i] = G * A_j[i]
 
@@ -123,7 +123,7 @@ class XAS:
                 continue
             n2 = n1 + n
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
-            
+
             P_ni = kpt.P_ani[a][n_start:n_end]
             a_cn = np.inner(A_cmi, P_ni)
             weight = kpt.weight * wfs.nspins / 2
@@ -303,7 +303,7 @@ class XAS:
                     x = np.clip(x, -100.0, 100.0)
                     a_c += np.outer(a_cj[:, n],
                                     (alpha / pi)**0.5 * np.exp(x))
-        
+
             else:
 
                 # constant broadening fwhm until linbroad[1] and a
@@ -317,7 +317,8 @@ class XAS:
                 e_j = np.zeros((len(eps_n)))
                 a_cj = np.zeros((sigma2_cmn.shape[0], len(eps_n)))
 
-                sigma2_cn = np.zeros((sigma2_cmn.shape[0], sigma2_cmn.shape[-1]))
+                sigma2_cn = np.zeros((sigma2_cmn.shape[0],
+                                      sigma2_cmn.shape[-1]))
 
                 for m in range(sigma2_cmn.shape[1]):
                     sigma2_cn += sigma2_cmn[:, m, :]
@@ -330,7 +331,7 @@ class XAS:
                 for n, eps in enumerate(eps_n):
                     if n == 0:
                         e_j[i] = eps
-                        a_cj[:, i] = sigma2_cn[:, n]#
+                        a_cj[:, i] = sigma2_cn[:, n]
                         j = 1
                     elif round(eps, 5) == round(e_j[i], 5):
                         a_cj[:, i] += sigma2_cn[:, n]

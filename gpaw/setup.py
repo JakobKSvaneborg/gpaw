@@ -1282,7 +1282,7 @@ class Setup(BaseSetup):
             l = self.l_j[j]
 
             a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                                    n=1) / (4 * pi)
+                                   n=1) / (4 * pi)
 
             for _ in range((l * 2) + 1):
                 self.A_j[i] = a
