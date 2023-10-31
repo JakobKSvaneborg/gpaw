@@ -848,7 +848,7 @@ class Setup(BaseSetup):
         self.lcorehole = data.lcorehole
         if data.phicorehole_g is not None:
             self.calculate_oscillator_strengths(phi_jg)
-            
+
         # Construct splines:
         self.vbar = rgd.spline(vbar_g, rcutfilter)
 
@@ -1247,11 +1247,11 @@ class Setup(BaseSetup):
 
     def calculate_oscillator_strengths(self, phi_jg):
         # XXX implement oscillator strengths for lcorehole != 0
-        
+
         nj = len(phi_jg)
-        
+
         if self.lcorehole == 0:
-            
+
             self.A_ci = np.zeros((3, self.ni))
             nj = len(phi_jg)
             i = 0
@@ -1271,23 +1271,23 @@ class Setup(BaseSetup):
             assert i == self.ni
         else:
             self.A_ci = None
-            
+
         # Setup radial oscillator strengths for
         self.A_j = np.zeros((self.ni))
-        
+
         nj = len(phi_jg)
         i = 0
-        
+
         for j in range(nj):
             l = self.l_j[j]
-            
+
             a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
                                     n=1) / (4 * pi)
-            
+
             for _ in range((l * 2) + 1):
                 self.A_j[i] = a
                 i += 1
-        
+
         assert i == self.ni
 
 
