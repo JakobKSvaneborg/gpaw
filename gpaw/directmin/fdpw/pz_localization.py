@@ -83,8 +83,8 @@ class PZLocalization:
                 self.kappa = kappa1
             self.e_total += e_sic
 
-        self.kappa = wfs.kd.comm.max(self.kappa)
-        self.e_total = wfs.kd.comm.sum(self.e_total)
+        self.kappa = wfs.kd.comm.max_scalar(self.kappa)
+        self.e_total = wfs.kd.comm.sum_scalar(self.e_total)
         self.eg_count += 1
         self.total_eg_count += 1
 
@@ -110,7 +110,7 @@ class PZLocalization:
             il1 = get_indices(p_k[k].shape[0])
             der_phi += np.dot(g_k[k][il1].conj(), p_k[k][il1]).real
 
-        der_phi = wfs.kd.comm.sum(der_phi)
+        der_phi = wfs.kd.comm.sum_scalar(der_phi)
 
         return phi, der_phi, g_k
 
@@ -371,6 +371,6 @@ def g_max_norm(g_k, wfs):
         else:
             max_norm.append(np.max(np.absolute(g_k[k])))
     max_norm = np.max(np.asarray(max_norm))
-    g_max = wfs.world.max(max_norm)
+    g_max = wfs.world.max_scalar(max_norm)
 
     return g_max

@@ -513,7 +513,7 @@ class FDPWETDM(Eigensolver):
                 if kpt.f_n[i] > 1.0e-10:
                     der_phi_2i[0] += self.dot(
                         wfs, g, p_knG[k][i], kpt, addpaw=False).item().real
-        der_phi_2i[0] = wfs.kd.comm.sum(der_phi_2i[0])
+        der_phi_2i[0] = wfs.kd.comm.sum_scalar(der_phi_2i[0])
 
         alpha, phi_alpha, der_phi_alpha, grad_knG = \
             self.line_search.step_length_update(
@@ -592,7 +592,7 @@ class FDPWETDM(Eigensolver):
                     der_phi += self.dot(
                         wfs, g, search_dir[k][i], kpt,
                         addpaw=False).item().real
-        der_phi = wfs.kd.comm.sum(der_phi)
+        der_phi = wfs.kd.comm.sum_scalar(der_phi)
 
         return phi, der_phi, grad_k
 
@@ -632,7 +632,7 @@ class FDPWETDM(Eigensolver):
                     for kpt in wfs.kpt_u:
                         e_sic += self.odd.get_energy_and_gradients_kpt(
                             wfs, kpt, grad, self.iloop.U_k, add_grad=True)
-                    self.e_sic = wfs.kd.comm.sum(e_sic)
+                    self.e_sic = wfs.kd.comm.sum_scalar(e_sic)
                     ham.get_energy(0.0, wfs, kin_en_using_band=False,
                                    e_sic=self.e_sic)
                 energy += self.e_sic
@@ -853,7 +853,7 @@ class FDPWETDM(Eigensolver):
                     norm.append(a)
         # error = sum(norm) * Hartree**2 / wfs.nvalence
         error = sum(norm)
-        error = wfs.kd.comm.sum(error)
+        error = wfs.kd.comm.sum_scalar(error)
 
         return error.real
 
@@ -1045,8 +1045,8 @@ class FDPWETDM(Eigensolver):
             error_t += error
             energy_t += energy
 
-        error_t = wfs.kd.comm.sum(error_t)
-        energy_t = wfs.kd.comm.sum(energy_t)
+        error_t = wfs.kd.comm.sum_scalar(error_t)
+        energy_t = wfs.kd.comm.sum_scalar(energy_t)
         self.error = error_t
 
         wfs.timer.stop('Gradient unoccupied orbitals')

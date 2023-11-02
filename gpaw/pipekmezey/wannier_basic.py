@@ -11,8 +11,7 @@ from time import time
 from math import pi
 import numpy as np
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
-from ase.dft.wannier import (calculate_weights, gram_schmidt,
-                             get_kklst, get_invkklst)
+from ase.dft.wannier import calculate_weights, gram_schmidt
 from ase.transport.tools import dagger
 from ase.parallel import parprint
 
@@ -92,6 +91,7 @@ class WannierLocalization:
     """
 
     def __init__(self, wfs, calc=None, spin=0, seed=None, verbose=False):
+        from ase.dft.wannier import get_kklst, get_invkklst
 
         # Bloch phase sign convention
         sign = -1

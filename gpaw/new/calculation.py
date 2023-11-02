@@ -40,6 +40,7 @@ units = {'energy': Ha,
          'dipole': Bohr,
          'magmom': 1.0,
          'magmoms': 1.0,
+         'non_collinear_magmom': 1.0,
          'non_collinear_magmoms': 1.0}
 
 
@@ -206,6 +207,7 @@ class DFTCalculation:
         self.results['magmom'] = mm_v[2]
         self.results['magmoms'] = mm_av[:, 2].copy()
         self.results['non_collinear_magmoms'] = mm_av
+        self.results['non_collinear_magmom'] = mm_v
 
         if self.state.density.ncomponents > 1:
             x, y, z = mm_v
