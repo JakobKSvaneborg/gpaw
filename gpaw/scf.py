@@ -1,12 +1,11 @@
 import time
-import warnings
 
 import numpy as np
-from ase.units import Ha
 
 from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import check_convergence
 from gpaw.forces import calculate_forces
+from gpaw.directmin.scf_helper import do_if_converged, check_eigensolver_state
 
 
 class SCFLoop:
@@ -18,7 +17,7 @@ class SCFLoop:
         self.niter = None
         self.reset()
         self.converged = False
-        self.eigensolver_used = None
+        self.eigensolver_name = None
 
     def __str__(self):
         s = 'Convergence criteria:\n'
@@ -43,26 +42,32 @@ class SCFLoop:
         for criterion in self.criteria.values():
             criterion.reset()
         self.converged = False
-        self.eigensolver_used = None
+        self.eigensolver_name = None
 
     def irun(self, wfs, ham, dens, log, callback):
 
-        self.eigensolver_used = getattr(wfs.eigensolver, "name", None)
-        self.check_eigensolver_state(wfs, ham, dens)
+        self.eigensolver_name = getattr(wfs.eigensolver, "name", None)
+        check_eigensolver_state(self.eigensolver_name, wfs, ham, dens, log)
         self.niter = 1
         converged = False
 
         while self.niter <= self.maxiter:
-            self.iterate_eigensolver(wfs, ham, dens)
+            restart = self.iterate_eigensolver(wfs, ham, dens, log)
 
             ctx = self.check_convergence(
                 dens, ham, wfs, log, callback)
             yield ctx
 
+            if restart:
+                log('MOM has detected variational collapse, '
+                    'occupied orbitals have changed')
+
             converged = (self.converged and
                          self.niter >= self.niter_fixdensity)
             if converged:
-                self.do_if_converged(wfs, ham, dens, log)
+                do_if_converged(
+                    self.eigensolver_name, wfs, ham, dens, log
+                )
                 break
 
             self.update_ham_and_dens(wfs, ham, dens)
@@ -107,20 +112,19 @@ class SCFLoop:
         raise KohnShamConvergenceError(
             'Did not converge!  See text output for help.')
 
-    def check_eigensolver_state(self, wfs, ham, dens):
+    def iterate_eigensolver(self, wfs, ham, dens, log):
 
-        if self.eigensolver_used == 'etdm':
-            wfs.eigensolver.eg_count = 0
-            wfs.eigensolver.globaliters = 0
-            wfs.eigensolver.check_assertions(wfs, dens)
-            if wfs.eigensolver.dm_helper is None:
-                wfs.eigensolver.initialize_dm_helper(wfs, ham, dens)
-
-    def iterate_eigensolver(self, wfs, ham, dens):
-
-        if self.eigensolver_used == 'etdm':
+        restart = False
+        if self.eigensolver_name == 'etdm-lcao':
             wfs.eigensolver.iterate(ham, wfs, dens)
-            wfs.eigensolver.check_mom(wfs, dens)
+            restart = wfs.eigensolver.check_mom(wfs, dens)
+            e_entropy = 0.0
+            kin_en_using_band = False
+        elif self.eigensolver_name == 'etdm-fdpw':
+            if not wfs.eigensolver.initialized:
+                wfs.eigensolver.initialize_dm_helper(wfs, ham, dens, log)
+            wfs.eigensolver.iterate(ham, wfs, dens, log)
+            restart = wfs.eigensolver.check_restart(wfs)
             e_entropy = 0.0
             kin_en_using_band = False
         else:
@@ -128,32 +132,22 @@ class SCFLoop:
             e_entropy = wfs.calculate_occupation_numbers(dens.fixed)
             kin_en_using_band = True
 
-        ham.get_energy(e_entropy, wfs, kin_en_using_band=kin_en_using_band)
+        if hasattr(wfs.eigensolver, 'e_sic'):
+            e_sic = wfs.eigensolver.e_sic
+        else:
+            e_sic = 0.0
 
-    def do_if_converged(self, wfs, ham, dens, log):
+        ham.get_energy(
+            e_entropy, wfs, kin_en_using_band=kin_en_using_band, e_sic=e_sic)
 
-        if self.eigensolver_used == 'etdm':
-            energy = ham.get_energy(0.0, wfs, kin_en_using_band=False)
-            wfs.calculate_occupation_numbers(dens.fixed)
-            wfs.eigensolver.get_canonical_representation(
-                ham, wfs, dens, sort_eigenvalues=True)
-            energy_converged = wfs.eigensolver.update_ks_energy(ham, wfs, dens)
-            energy_diff_after_scf = abs(energy - energy_converged) * Ha
-            if energy_diff_after_scf > 1.0e-6:
-                warnings.warn('Jump in energy of %f eV detected at the end of '
-                              'SCF after getting canonical orbitals, SCF '
-                              'might have converged to the wrong solution '
-                              'or achieved energy convergence to the correct '
-                              'solution above 1.0e-6 eV'
-                              % (energy_diff_after_scf))
-
-            log('\nOccupied states converged after'
-                ' {:d} e/g evaluations'.format(wfs.eigensolver.eg_count))
+        return restart
 
     def update_ham_and_dens(self, wfs, ham, dens):
 
         to_update = self.niter > self.niter_fixdensity and not dens.fixed
-        if self.eigensolver_used == 'etdm' or not to_update:
+        if self.eigensolver_name == 'etdm-lcao' \
+                or self.eigensolver_name == 'etdm-fdpw' \
+                or not to_update:
             ham.npoisson = 0
         else:
             dens.update(wfs)
@@ -163,6 +157,13 @@ class SCFLoop:
 def write_iteration(criteria, converged_items, entries, ctx, log):
     custom = (set(criteria) -
               {'energy', 'eigenstates', 'density'})
+
+    eigensolver_name = getattr(ctx.wfs.eigensolver, "name", None)
+    print_iloop = False
+    if eigensolver_name == 'etdm-fdpw':
+        if ctx.wfs.eigensolver.iloop is not None or \
+                ctx.wfs.eigensolver.outer_iloop is not None:
+            print_iloop = True
 
     if ctx.niter == 1:
         header1 = ('     {:<4s} {:>8s} {:>12s}  '
@@ -178,6 +179,9 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
         if ctx.wfs.nspins == 2:
             header1 += '{:>8s} '.format('magmom')
             header2 += '{:>8s} '.format('')
+        if print_iloop:
+            header1 += '{:>12s} '.format('iter')
+            header2 += '{:>12s} '.format('inner loop')
         log(header1.rstrip())
         log(header2.rstrip())
 
@@ -208,6 +212,12 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
             line += f'  {totmom_v[2]:+.4f}'
         else:
             line += ' {:+.1f},{:+.1f},{:+.1f}'.format(*totmom_v)
+
+    # Inner loop etdm
+    if print_iloop:
+        iloop_counter = (ctx.wfs.eigensolver.eg_count_iloop +
+                         ctx.wfs.eigensolver.eg_count_outer_iloop)
+        line += ('{:12d}'.format(iloop_counter))
 
     log(line.rstrip())
     log.fd.flush()

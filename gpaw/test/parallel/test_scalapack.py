@@ -172,13 +172,13 @@ def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
 
     # We don't like exceptions on only one cpu
     # diag_ex_err = world.sum(diag_ex_err)
-    diag_dc_err = world.sum(diag_dc_err)
+    diag_dc_err = world.sum_scalar(diag_dc_err)
     # diag_mr3_err = world.sum(diag_mr3_err)
     # general_diag_ex_err = world.sum(general_diag_ex_err)
-    general_diag_dc_err = world.sum(general_diag_dc_err)
+    general_diag_dc_err = world.sum_scalar(general_diag_dc_err)
     # general_diag_mr3_err = world.sum(general_diag_mr3_err)
-    inverse_chol_err = world.sum(inverse_chol_err)
-    inverse_err = world.sum(inverse_err)
+    inverse_chol_err = world.sum_scalar(inverse_chol_err)
+    inverse_err = world.sum_scalar(inverse_err)
     # assert diag_ex_err < tol
     assert diag_dc_err < tol
     # assert diag_mr3_err < tol

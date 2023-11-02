@@ -146,12 +146,12 @@ class KohnShamKPointPairExtractor:
         nocc2 = int(nocc2)
 
         # Collect nocc for all k-points
-        nocc1 = self.gs.kd.comm.min(nocc1)
-        nocc2 = self.gs.kd.comm.max(nocc2)
+        nocc1 = self.gs.kd.comm.min_scalar(nocc1)
+        nocc2 = self.gs.kd.comm.max_scalar(nocc2)
 
         # Sum over band distribution
-        nocc1 = self.gs.bd.comm.sum(nocc1)
-        nocc2 = self.gs.bd.comm.sum(nocc2)
+        nocc1 = self.gs.bd.comm.sum_scalar(nocc1)
+        nocc2 = self.gs.bd.comm.sum_scalar(nocc2)
 
         self.nocc1 = int(nocc1)
         self.nocc2 = int(nocc2)

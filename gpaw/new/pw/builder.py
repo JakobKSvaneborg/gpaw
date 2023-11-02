@@ -60,7 +60,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if self.params.xc['name'] in ['HSE06', 'PBE0', 'EXX']:
             return ...
         return create_functional(self._xc,
-                                 self.fine_grid)
+                                 self.fine_grid, self.xp)
 
     @cached_property
     def interpolation_desc(self):

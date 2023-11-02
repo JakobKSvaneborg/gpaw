@@ -21,7 +21,7 @@ class HarmonicPotential(ExternalPotential):
 
 @pytest.mark.later
 def test_ext_potential_harmonic(in_tmp_dir):
-    """Test againts analytic result (no xc, no Coulomb)."""
+    """Test against the analytic result (no xc, no Coulomb)."""
     a = 4.0
     x = Atoms(cell=(a, a, a))  # no atoms
 

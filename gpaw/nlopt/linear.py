@@ -1,28 +1,28 @@
 import numpy as np
 from ase.units import Bohr, _hbar, _e, _me, _eps0
 
-from gpaw.nlopt.basic import load_data
 from gpaw.mpi import world
 
 
 def get_chi_tensor(
+        nlodata,
         freqs=[1.0], eta=0.05,
         ftol=1e-4, Etol=1e-6, eshift=0.0,
-        band_n=None, mml_name='mml.npz', out_name=None):
+        band_n=None, out_name=None):
     """
     Calculate full linear susceptibility tensor for nonmagnetic semiconductors.
 
     Input:
-        freqs           Excitation frequency array (a numpy array or list)
-        eta             Broadening, a number or an array (default 0.05 eV)
-        Etol, ftol      Tol. in energy and fermi to consider degeneracy
-        eshift          Bandgap correction
-        band_n          List of bands in the sum (default 0 to nb)
-        out_name        If it is given: output filename
-        mml_name        The momentum filename (default 'mml.npz')
+        nlodata         Data object of type NLOData.
+        freqs           Excitation frequency array (a numpy array or list).
+        eta             Broadening, a number or an array (default 0.05 eV).
+        Etol, ftol      Tolerance in energy and fermi to consider degeneracy.
+        eshift          Bandgap correction.
+        band_n          List of bands in the sum (default 0 to nb).
+        out_name        If it is given: output filename.
     Output:
-        chi_vvl         The output tensor (3, 3, nw)
-        chi.npy         If specified: array containing the spectrum and freqs
+        chi_vvl         The output tensor (3, 3, nw).
+        chi.npy         If specified: array containing the spectrum and freqs.
 
     """
 
@@ -31,7 +31,7 @@ def get_chi_tensor(
     w_lc = freqs + 1j * eta
 
     # Load the required data
-    k_info = load_data(mml_name=mml_name)
+    k_info = nlodata.distribute()
     if k_info:
         tmp = list(k_info.values())[0]
         nb = len(tmp[1])

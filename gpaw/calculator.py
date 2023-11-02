@@ -481,6 +481,12 @@ class GPAW(Calculator):
                 self.results['magmom'] = 0.0
                 self.results['magmoms'] = np.zeros(len(self.atoms))
 
+            occ_name = getattr(self.wfs.occupations, "name", None)
+            if occ_name == 'mom' and self.wfs.occupations.update_numbers:
+                if isinstance(self.parameters.occupations, dict):
+                    for s, numbers in enumerate(self.wfs.occupations.numbers):
+                        self.parameters['occupations']['numbers'][s] = numbers
+
             self.summary()
 
             self.call_observers(self.scf.niter, final=True)
@@ -964,6 +970,19 @@ class GPAW(Calculator):
         n = par.convergence.get('bands', 'occupied')
         if isinstance(n, int) and n < 0:
             n += self.wfs.bd.nbands
+
+        solver_name = getattr(self.wfs.eigensolver, "name", None)
+        if solver_name == 'etdm-fdpw':
+            if not self.wfs.eigensolver.converge_unocc:
+                if n == 'all' or (isinstance(n, int)
+                                  and n > self.wfs.nvalence / 2):
+                    warnings.warn(
+                        'Please, use eigensolver=FDPWETDM(..., '
+                        'converge_unocc=True) to converge unoccupied bands')
+                    n = 'occupied'
+            else:
+                n = 'all'
+
         self.log('Bands to converge:', n)
 
         self.log(flush=True)

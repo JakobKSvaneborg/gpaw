@@ -152,10 +152,13 @@ def add_gradient_correction(grad_v, gradn_svg, sigma_xg, dedsigma_xg, v_sg):
     for v in range(3):
         for s in range(nspins):
             grad_v[v](dedsigma_xg[2 * s] * gradn_svg[s, v], vv_g)
-            axpy(-2.0, vv_g, v_sg[s])
+            vv_g *= 2.0
+            v_sg[s] -= vv_g
+            # axpy(-2.0, vv_g, v_sg[s])
             if nspins == 2:
                 grad_v[v](dedsigma_xg[1] * gradn_svg[s, v], vv_g)
-                axpy(-1.0, vv_g, v_sg[1 - s])
+                v_sg[1 - s] -= vv_g
+                # axpy(-1.0, vv_g, v_sg[1 - s])
                 # TODO: can the number of gradient evaluations be reduced?
 
 
@@ -166,19 +169,20 @@ def gga_vars(gd, grad_v, n_sg):
     return sigma_xg, dedsigma_xg, gradn_svg
 
 
-def get_gradient_ops(gd, nn):
-    return [Gradient(gd, v, n=nn).apply for v in range(3)]
+def get_gradient_ops(gd, nn, xp):
+    return [Gradient(gd, v, n=nn, xp=xp).apply for v in range(3)]
 
 
 class GGA(XCFunctional):
-    def __init__(self, kernel, stencil=2):
+    def __init__(self, kernel, stencil=2, xp=np):
         XCFunctional.__init__(self, kernel.name, kernel.type)
         self.kernel = kernel
         self.stencil_range = stencil
+        self.xp = xp
 
     def set_grid_descriptor(self, gd):
         XCFunctional.set_grid_descriptor(self, gd)
-        self.grad_v = get_gradient_ops(gd, self.stencil_range)
+        self.grad_v = get_gradient_ops(gd, self.stencil_range, self.xp)
 
     def todict(self):
         d = super().todict()

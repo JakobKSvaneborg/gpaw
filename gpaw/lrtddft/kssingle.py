@@ -577,12 +577,12 @@ class KSSingle(Excitation, PairDensity):
 
     def distribute(self):
         """Distribute results to all cores."""
-        self.spin = self.kpt_comm.sum(self.spin)
-        self.pspin = self.kpt_comm.sum(self.pspin)
-        self.k = self.kpt_comm.sum(self.k)
-        self.weight = self.kpt_comm.sum(self.weight)
-        self.energy = self.kpt_comm.sum(self.energy)
-        self.fij = self.kpt_comm.sum(self.fij)
+        self.spin = self.kpt_comm.sum_scalar(self.spin)
+        self.pspin = self.kpt_comm.sum_scalar(self.pspin)
+        self.k = self.kpt_comm.sum_scalar(self.k)
+        self.weight = self.kpt_comm.sum_scalar(self.weight)
+        self.energy = self.kpt_comm.sum_scalar(self.energy)
+        self.fij = self.kpt_comm.sum_scalar(self.fij)
 
         self.kpt_comm.sum(self.me)
         self.kpt_comm.sum(self.mur)

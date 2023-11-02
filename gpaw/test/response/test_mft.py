@@ -3,33 +3,28 @@ Test with unrealisticly loose parameters to catch if the numerics change.
 """
 
 # General modules
-from abc import abstractmethod
-
 import pytest
 import numpy as np
 
 # Script modules
-from ase.units import Ha
-
 from gpaw import GPAW
 
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext
-from gpaw.response.chiks import ChiKSCalculator, smat
+from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.localft import LocalFTCalculator, LocalPAWFTCalculator
 from gpaw.response.site_data import AtomicSites, AtomicSiteData
 from gpaw.response.mft import (IsotropicExchangeCalculator,
-                               StaticSitePairFunction,
-                               TwoParticleSiteMagnetizationCalculator,
-                               TwoParticleSiteSpinSplittingCalculator)
+                               calculate_site_magnetization,
+                               calculate_single_particle_site_magnetization,
+                               calculate_pair_site_magnetization,
+                               calculate_site_zeeman_energy,
+                               calculate_single_particle_site_zeeman_energy,
+                               calculate_pair_site_zeeman_energy)
 from gpaw.response.site_kernels import (SphericalSiteKernels,
                                         CylindricalSiteKernels,
                                         ParallelepipedicSiteKernels)
 from gpaw.response.heisenberg import (calculate_single_site_magnon_energies,
                                       calculate_fm_magnon_energies)
-from gpaw.response.pair_integrator import PairFunctionIntegrator
-from gpaw.response.pair_transitions import PairTransitions
-from gpaw.response.matrix_elements import (SitePairDensityCalculator,
-                                           SitePairSpinSplittingCalculator)
 from gpaw.test.conftest import response_band_cutoff
 from gpaw.test.response.test_chiks import generate_qrel_q, get_q_c
 
@@ -238,67 +233,61 @@ def test_Co_hcp(in_tmp_dir, gpw_files):
 @pytest.mark.response
 @pytest.mark.parametrize('qrel', generate_qrel_q())
 def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel):
-    # Set up ground state adapter and atomic site data
+    # Set up ground state adapter and basic parameters
     calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
-    nbands = response_band_cutoff['co_pw']
     gs = ResponseGroundStateAdapter(calc)
-    context = ResponseContext('Co_sum_rule.txt')
-    site_data = get_co_atomic_site_data(gs)
-    nblocks = generate_nblocks(context)
+    sites = get_co_sites(gs)
+    context = 'Co_sum_rule.txt'
+    nbands = response_band_cutoff['co_pw']
 
     # Get wave vector to test
     q_c = get_q_c('co_pw', qrel)
 
+    # Calculate site magnetization
+    magmom_ar = calculate_site_magnetization(gs, sites)
+
     # ----- Single-particle site magnetization ----- #
-    # Set up calculator and calculate the site magnetization
-    simple_site_mag_calc = SingleParticleSiteMagnetizationCalculator(
-        gs, site_data.sites, context)
-    ssite_mag_ar = simple_site_mag_calc()
 
-    # Test that the imaginary part vanishes (we use only diagonal pair
-    # densities correcsponding to |ψ_nks(r)|^2)
-    assert np.allclose(ssite_mag_ar.imag, 0.)
-    ssite_mag_ar = ssite_mag_ar.real
-
-    # Test that the results match a conventional calculation
-    magmom_ar = site_data.calculate_magnetic_moments()
-    assert ssite_mag_ar == pytest.approx(magmom_ar, rel=5e-3)
+    # Test that the single-particle site magnetization matches a conventional
+    # calculation based on the density
+    sp_magmom_ar = calculate_single_particle_site_magnetization(
+        gs, sites, context=context)
+    assert sp_magmom_ar == pytest.approx(magmom_ar, rel=5e-3)
 
     # ----- Two-particle site magnetization ----- #
-    # Set up calculator and calculate site magnetization by sum rule
-    sum_rule_site_mag_calc = TwoParticleSiteMagnetizationCalculator(
-        gs, site_data.sites, context, nblocks=nblocks, nbands=nbands)
-    site_mag_abr = sum_rule_site_mag_calc(q_c)
-    context.write_timer()
 
-    # Test that the sum rule site magnetization is a positive-valued diagonal
+    magmom_abr = calculate_pair_site_magnetization(
+        gs, sites, context=context, q_c=q_c, nbands=nbands)
+
+    # Test that the site pair magnetization is a positive-valued diagonal
     # real array
-    site_mag_ra = site_mag_abr.diagonal()
-    assert np.all(site_mag_ra.real > 0)
-    assert np.all(np.abs(site_mag_ra.imag) / site_mag_ra.real < 1e-6)
-    site_mag_ra = site_mag_ra.real
+    tp_magmom_ra = magmom_abr.diagonal()
+    assert np.all(tp_magmom_ra.real > 0)
+    assert np.all(np.abs(tp_magmom_ra.imag) / tp_magmom_ra.real < 1e-6)
     assert np.all(np.abs(np.diagonal(np.fliplr(  # off-diagonal elements
-        site_mag_abr))) / site_mag_ra < 5e-2)
-    site_mag_ar = site_mag_ra.T
+        magmom_abr))) / tp_magmom_ra.real < 5e-2)
+
     # Test that the magnetic moments on the two Co atoms are identical
-    assert site_mag_ar[0] == pytest.approx(site_mag_ar[1], rel=1e-4)
+    tp_magmom_ar = magmom_abr.diagonal().T.real
+    assert tp_magmom_ar[0] == pytest.approx(tp_magmom_ar[1], rel=1e-4)
 
     # Test that the result more or less matches a conventional calculation at
     # close-packing
-    assert np.average(site_mag_ar, axis=0)[-1] == pytest.approx(
+    assert np.average(tp_magmom_ar, axis=0)[-1] == pytest.approx(
         np.average(magmom_ar, axis=0)[-1], rel=5e-2)
 
     # Test values against reference
-    print(np.average(site_mag_ar, axis=0)[::2])
-    assert np.average(site_mag_ar, axis=0)[::2] == pytest.approx(
+    print(np.average(tp_magmom_ar, axis=0)[::2])
+    assert np.average(tp_magmom_ar, axis=0)[::2] == pytest.approx(
         np.array([3.91823444e-04, 1.45641911e-01, 6.85939109e-01,
                   1.18813171e+00, 1.49761591e+00, 1.58954270e+00]), rel=5e-2)
 
     # import matplotlib.pyplot as plt
-    # rc_r = site_data.sites.rc_ap[0] * Bohr
-    # plt.plot(rc_r, site_mag_ar[0], '-o', mec='k')
-    # plt.plot(rc_r, ssite_mag_ar[0], '-o', mec='k', zorder=1)
-    # plt.plot(rc_r, magmom_ar[0], '-o', mec='k', zorder=0)
+    # from ase.units import Bohr
+    # rc_r = sites.rc_ap[0] * Bohr
+    # plt.plot(rc_r, magmom_ar[0], '-o', mec='k')
+    # plt.plot(rc_r, sp_magmom_ar[0], '-o', mec='k', zorder=0)
+    # plt.plot(rc_r, tp_magmom_ar[0], '-o', mec='k', zorder=1)
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
     # plt.ylabel(r'$m$ [$\mu_\mathrm{B}$]')
     # plt.title(str(q_c))
@@ -307,65 +296,58 @@ def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel):
 
 @pytest.mark.response
 @pytest.mark.parametrize('qrel', generate_qrel_q())
-def test_Co_site_spin_splitting_sum_rule(in_tmp_dir, gpw_files, qrel):
+def test_Co_site_zeeman_energy_sum_rule(in_tmp_dir, gpw_files, qrel):
     # Set up ground state adapter and atomic site data
     calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
-    nbands = response_band_cutoff['co_pw']
     gs = ResponseGroundStateAdapter(calc)
+    sites = get_co_sites(gs)
     context = ResponseContext('Co_sum_rule.txt')
-    site_data = get_co_atomic_site_data(gs)
-    nblocks = generate_nblocks(context)
+    nbands = response_band_cutoff['co_pw']
 
     # Get wave vector to test
     q_c = get_q_c('co_pw', qrel)
 
-    # ----- Single-particle site spin splitting ----- #
-    # Set up calculator and calculate the site magnetization
-    single_particle_dxc_calc = SingleParticleSiteSpinSplittingCalculator(
-        gs, site_data.sites, context)
-    single_particle_dxc_ar = single_particle_dxc_calc()
+    # Calculate the site Zeeman energy
+    EZ_ar = calculate_site_zeeman_energy(gs, sites)
 
-    # Test that the imaginary part vanishes (we use only diagonal pair
-    # spin splitting densities correcsponding to -2W_xc^z(r)|ψ_nks(r)|^2)
-    assert np.allclose(single_particle_dxc_ar.imag, 0.)
-    single_particle_dxc_ar = single_particle_dxc_ar.real
+    # ----- Single-particle site Zeeman energy ----- #
 
     # Test that the results match a conventional calculation
-    dxc_ar = site_data.calculate_spin_splitting()
-    assert single_particle_dxc_ar == pytest.approx(dxc_ar, rel=5e-3)
+    sp_EZ_ar = calculate_single_particle_site_zeeman_energy(
+        gs, sites, context=context)
+    assert sp_EZ_ar == pytest.approx(EZ_ar, rel=5e-3)
 
-    # ----- Two-particle site spin splitting ----- #
-    # Set up calculator and calculate site spin splitting by sum rule
-    two_particle_dxc_calc = TwoParticleSiteSpinSplittingCalculator(
-        gs, site_data.sites, context, nblocks=nblocks, nbands=nbands)
-    tp_dxc_abr = two_particle_dxc_calc(q_c)
-    context.write_timer()
+    # ----- Two-particle site Zeeman energy ----- #
 
-    # Test that the two-particle spin splitting is a positive-valued diagonal
+    EZ_abr = calculate_pair_site_zeeman_energy(
+        gs, sites, context=context, q_c=q_c, nbands=nbands)
+
+    # Test that the pair site Zeeman energy is a positive-valued diagonal
     # real array
-    tp_dxc_ra = tp_dxc_abr.diagonal()
-    assert np.all(tp_dxc_ra.real > 0)
-    assert np.all(np.abs(tp_dxc_ra.imag) / tp_dxc_ra.real < 1e-4)
-    tp_dxc_ra = tp_dxc_ra.real
+    tp_EZ_ra = EZ_abr.diagonal()
+    assert np.all(tp_EZ_ra.real > 0)
+    assert np.all(np.abs(tp_EZ_ra.imag) / tp_EZ_ra.real < 1e-4)
     assert np.all(np.abs(np.diagonal(np.fliplr(  # off-diagonal elements
-        tp_dxc_abr))) / tp_dxc_ra < 5e-2)
-    tp_dxc_ar = tp_dxc_ra.T
-    # Test that the spin splitting on the two Co atoms is identical
-    assert tp_dxc_ar[0] == pytest.approx(tp_dxc_ar[1], rel=1e-4)
+        EZ_abr))) / tp_EZ_ra.real < 5e-2)
+
+    # Test that the Zeeman energy on the two Co atoms is identical
+    tp_EZ_ar = EZ_abr.diagonal().T.real
+    assert tp_EZ_ar[0] == pytest.approx(tp_EZ_ar[1], rel=1e-4)
 
     # Test values against reference
-    print(np.average(tp_dxc_ar, axis=0)[::2])
-    assert np.average(tp_dxc_ar, axis=0)[::2] == pytest.approx(
+    print(np.average(tp_EZ_ar, axis=0)[::2])
+    assert np.average(tp_EZ_ar, axis=0)[::2] * 2. == pytest.approx(
         np.array([3.68344584e-04, 3.13780575e-01, 1.35409600e+00,
                   2.14237563e+00, 2.52032513e+00, 2.61406726e+00]), rel=5e-2)
 
     # import matplotlib.pyplot as plt
-    # rc_r = site_data.sites.rc_ap[0] * Bohr
-    # plt.plot(rc_r, tp_dxc_ar[0], '-o', mec='k')
-    # plt.plot(rc_r, single_particle_dxc_ar[0], '-o', mec='k', zorder=1)
-    # plt.plot(rc_r, dxc_ar[0], '-o', mec='k', zorder=0)
+    # from ase.units import Bohr
+    # rc_r = sites.rc_ap[0] * Bohr
+    # plt.plot(rc_r, EZ_ar[0], '-o', mec='k')
+    # plt.plot(rc_r, sp_EZ_ar[0], '-o', mec='k', zorder=0)
+    # plt.plot(rc_r, tp_EZ_ar[0], '-o', mec='k', zorder=1)
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
-    # plt.ylabel(r'$\Delta_\mathrm{xc}$ [eV]')
+    # plt.ylabel(r'$E_\mathrm{Z}$ [eV]')
     # plt.title(str(q_c))
     # plt.show()
 
@@ -373,147 +355,10 @@ def test_Co_site_spin_splitting_sum_rule(in_tmp_dir, gpw_files, qrel):
 # ---------- Test functionality ---------- #
 
 
-def get_co_atomic_site_data(gs):
-    # Set up atomic sites
+def get_co_sites(gs):
+    # Set up site radii
     rmin_a, _ = AtomicSiteData.valid_site_radii_range(gs)
     # Make sure that the two sites do not overlap
     nn_dist = min(2.5071, np.sqrt(2.5071**2 / 3 + 4.0695**2 / 4))
     rc_r = np.linspace(rmin_a[0], nn_dist / 2, 11)
-    sites = AtomicSites(indices=[0, 1], radii=[rc_r, rc_r])
-    return AtomicSiteData(gs, sites)
-
-
-def generate_nblocks(context):
-    if context.comm.size % 4 == 0:
-        nblocks = 4
-    elif context.comm.size % 2 == 0:
-        nblocks = 2
-    else:
-        nblocks = 1
-    return nblocks
-
-
-class SingleParticleSiteQuantity(StaticSitePairFunction):
-    @property
-    def shape(self):
-        return self.sites.shape
-
-
-class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
-    r"""Calculator for single-particle site sum rules.
-
-    For any site matrix element f^a_(nks,n'k's'), one may define a single-
-    particle site sum rule by considering only the diagonal of the matrix
-    element:
-                 __  __
-             1   \   \
-    f_a^μ = ‾‾‾  /   /  σ^μ_ss f_nks f^a_(nks,nks)
-            N_k  ‾‾  ‾‾
-                 k   n,s
-
-    where μ∊{0,z}.
-    """
-
-    def __init__(self, gs, sites, context):
-        super().__init__(gs, context,
-                         disable_point_group=True,
-                         disable_time_reversal=True)
-
-        # Set up calculator for the f^a matrix element
-        self.sites = sites
-        self.matrix_element_calc = self.create_matrix_element_calculator()
-
-    @abstractmethod
-    def create_matrix_element_calculator(self):
-        """Create the desired site matrix element calculator."""
-
-    def __call__(self):
-        # Set up transitions
-        # Loop over bands, which are fully or partially occupied
-        nocc2 = self.kptpair_extractor.nocc2
-        n_n = list(range(nocc2))
-        n_t = np.array(n_n + n_n)
-        s_t = np.array([0] * nocc2 + [1] * nocc2)
-        transitions = PairTransitions(n1_t=n_t, n2_t=n_t, s1_t=s_t, s2_t=s_t)
-
-        # Set up data object with q=0
-        qpd = self.get_pw_descriptor([0., 0., 0.], ecut=1e-3)
-        site_quantity = SingleParticleSiteQuantity(qpd, self.sites)
-
-        # Perform actual calculation
-        self._integrate(site_quantity, transitions)
-
-        return site_quantity.array
-
-    def add_integrand(self, kptpair, weight, site_quantity):
-        r"""Add the integrand of the outer k-point integral.
-
-        With
-                   __
-                1  \
-        f_a^μ = ‾  /  (...)_k
-                V  ‾‾
-                   k
-
-        the integrand has to be multiplied with the cell volume V0:
-                     __
-                     \
-        (...)_k = V0 /  σ^μ_ss f_nks f^a_(nks,nks)
-                     ‾‾
-                     n,s
-        """
-        # Calculate matrix elements
-        site_matrix_element = self.matrix_element_calc(
-            kptpair, site_quantity.qpd)
-        assert site_matrix_element.tblocks.blockcomm.size == 1
-        f_tap = site_matrix_element.get_global_array()
-
-        # Calculate Pauli matrix factors and multiply the occupations
-        sigma = self.get_pauli_matrix()
-        sigma_t = sigma[kptpair.transitions.s1_t, kptpair.transitions.s2_t]
-        f_t = kptpair.get_all(kptpair.ikpt1.f_myt)
-        sigmaf_t = sigma_t * f_t
-
-        # Calculate and add integrand
-        site_quantity.array[:] += self.gs.volume * weight * np.einsum(
-            't, tap -> ap', sigmaf_t, f_tap)
-
-    @abstractmethod
-    def get_pauli_matrix(self):
-        """Get the desired Pauli matrix σ^μ_ss."""
-
-
-class SingleParticleSiteMagnetizationCalculator(
-        SingleParticleSiteSumRuleCalculator):
-    r"""Calculator for the single-particle site magnetization sum rule.
-
-    The site magnetization is calculated from the site pair density:
-                 __  __
-             1   \   \
-    n_a^z = ‾‾‾  /   /  σ^z_ss f_nks n^a_(nks,nks)
-            N_k  ‾‾  ‾‾
-                 k   n,s
-    """
-    def create_matrix_element_calculator(self):
-        return SitePairDensityCalculator(self.gs, self.context, self.sites)
-
-    def get_pauli_matrix(self):
-        return smat('z')
-
-
-class SingleParticleSiteSpinSplittingCalculator(
-        SingleParticleSiteMagnetizationCalculator):
-    r"""Calculator for the single-particle site spin splitting sum rule.
-                      __  __
-                  1   \   \
-    Δ^(xc)_a^z = ‾‾‾  /   /  σ^z_ss f_nks Δ^(xc,a)_(nks,nks)
-                 N_k  ‾‾  ‾‾
-                      k   n,s
-    """
-    def create_matrix_element_calculator(self):
-        return SitePairSpinSplittingCalculator(
-            self.gs, self.context, self.sites, rshewmin=1e-8)
-
-    def __call__(self):
-        dxc_ap = super().__call__()
-        return dxc_ap * Ha  # Ha -> eV
+    return AtomicSites(indices=[0, 1], radii=[rc_r, rc_r])

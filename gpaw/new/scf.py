@@ -12,16 +12,13 @@ from gpaw.convergence_criteria import (Criterion, check_convergence,
 from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
 from gpaw.yml import indent
+from gpaw import KohnShamConvergenceError
 
 if TYPE_CHECKING:
     from gpaw.new.calculation import DFTState
 
 
-class SCFConvergenceError(Exception):
-    ...
-
-
-class TooFewBandsError(SCFConvergenceError):
+class TooFewBandsError(KohnShamConvergenceError):
     """Not enough bands for CBM+x convergence cfriterium."""
 
 
@@ -103,7 +100,7 @@ class SCFLoop:
                 break
             if self.niter == maxiter:
                 if wfs_error < inf:
-                    raise SCFConvergenceError
+                    raise KohnShamConvergenceError
                 raise TooFewBandsError
 
             if self.update_density_and_potential:

@@ -47,7 +47,7 @@ class TB09Kernel:
                     # We don't have the integral yet - just use 1.0:
                     self.c = 1.0
                 else:
-                    self.I = self.world.sum(self.I)
+                    self.I = self.world.sum_scalar(self.I)
                     self.c = (self.alpha + self.beta *
                               (self.I / self.gd.volume)**0.5)
 

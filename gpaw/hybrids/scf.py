@@ -100,7 +100,10 @@ def calculate(kpts, wfs, paw, sym, coulomb):
                      kpt.weight)
         wfs.pt.add(w_nG, v1_ani, kpt.psit.kpt)
 
-    return comm.sum(exxvv), comm.sum(exxvc), comm.sum(ekin), w_knG
+    return (comm.sum_scalar(exxvv),
+            comm.sum_scalar(exxvc),
+            comm.sum_scalar(ekin),
+            w_knG)
 
 
 def calculate_exx_for_pair(k1,

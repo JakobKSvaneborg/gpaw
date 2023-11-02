@@ -584,15 +584,14 @@ def calculate_LSDA_Wxc(gd, n_sR):
     return (v_sR[0] - v_sR[1]) / 2
 
 
-def add_LSDA_spin_splitting(gd, n_sR, dxc_R):
-    """Calculate and add the LSDA spin splitting to the output array.
+def add_LSDA_zeeman_energy(gd, n_sR, EZ_R):
+    """Calculate and add the LSDA Zeeman energy to the output array.
 
-    The spin splitting is defined as:
+    The Zeeman energy is defined as:
 
-    Δ^(xc)(r) = - 2 B^(xc)(r) m(r) = - 2 W_xc^z n^z(r).
+    E_Z(r) = - B^(xc)(r) m(r) = - W_xc^z n^z(r).
     """
-    dxc_R += - 2. * calculate_LSDA_Wxc(gd, n_sR) \
-        * calculate_spin_polarization(n_sR)
+    EZ_R += - calculate_LSDA_Wxc(gd, n_sR) * calculate_spin_polarization(n_sR)
 
 
 def add_LDA_dens_fxc(gd, n_sR, fxc_R, *, fxc):

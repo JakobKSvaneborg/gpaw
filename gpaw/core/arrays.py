@@ -81,6 +81,12 @@ class DistributedArrays(Generic[DomainType]):
     def __getitem__(self, index):
         raise NotImplementedError
 
+    def __bool__(self):
+        raise ValueError
+
+    def __len__(self):
+        return self.dims[0]
+
     def __iter__(self):
         for index in range(self.dims[0]):
             yield self[index]

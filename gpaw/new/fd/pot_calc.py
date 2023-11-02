@@ -37,6 +37,8 @@ class FDPotentialCalculator(PotentialCalculator):
         self._interpolate = wf_grid.transformer(fine_grid, n, xp=xp)
         self._restrict = fine_grid.transformer(wf_grid, n, xp=xp)
 
+        self.xp = xp
+
         super().__init__(xc, poisson_solver, setups,
                          fracpos_ac=fracpos_ac)
 
@@ -72,7 +74,7 @@ class FDPotentialCalculator(PotentialCalculator):
             Nt1_s = nt_sR.integrate()
             Nt2_s = nt_sr.integrate()
             for Nt1, Nt2, nt_r in zips(Nt1_s, Nt2_s, nt_sr):
-                if Nt2 > 1e-14:
+                if float(Nt2) > 1e-14:
                     nt_r.data *= Nt1 / Nt2
         return nt_sr, None, None
 
@@ -87,23 +89,23 @@ class FDPotentialCalculator(PotentialCalculator):
 
         e_xc, vxct_sr, dedtaut_sr = self.xc.calculate(nt_sr, taut_sr)
 
-        charge_r = grid2.empty()
+        charge_r = grid2.empty(xp=self.xp)
         charge_r.data[:] = nt_sr.data[:density.ndensities].sum(axis=0)
         e_zero = self.vbar_r.integrate(charge_r)
 
         ccc_aL = density.calculate_compensation_charge_coefficients()
 
         # Normalize: (LCAO basis functions may extend outside box)
-        comp_charge = (4 * pi)**0.5 * sum(ccc_L[0]
+        comp_charge = (4 * pi)**0.5 * sum(float(ccc_L[0])
                                           for ccc_L in ccc_aL.values())
-        comp_charge = ccc_aL.layout.atomdist.comm.sum(comp_charge)
+        comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         pseudo_charge = charge_r.integrate()
         charge_r.data *= -(comp_charge + density.charge) / pseudo_charge
 
         self.ghat_aLr.add_to(charge_r, ccc_aL)
 
         if vHt_r is None:
-            vHt_r = grid2.zeros()
+            vHt_r = grid2.zeros(xp=self.xp)
         self.poisson_solver.solve(vHt_r, charge_r)
         e_coulomb = 0.5 * vHt_r.integrate(charge_r)
 

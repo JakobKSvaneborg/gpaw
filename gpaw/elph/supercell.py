@@ -29,7 +29,7 @@ class Supercell:
     """Class for supercell-related stuff."""
 
     def __init__(self, atoms: Atoms, supercell_name: str = "supercell",
-                 supercell: tuple = (1, 1, 1)) -> None:
+                 supercell: tuple = (1, 1, 1), indices=None) -> None:
         """Initialize supercell class.
 
         Parameters
@@ -46,6 +46,10 @@ class Supercell:
         self.atoms = atoms
         self.supercell_name = supercell_name
         self.supercell = supercell
+        if indices is None:
+            self.indices = np.arange(len(atoms))
+        else:
+            self.indices = indices
 
     def _calculate_supercell_entry(self, a, v, V1t_sG, dH1_asp, wfs,
                                    dH_asp) -> ArrayND:
@@ -55,7 +59,6 @@ class Supercell:
         bfs = wfs.basis_functions
         dtype = wfs.dtype
         nspins = wfs.nspins
-        indices = np.arange(len(self.atoms))
 
         # Array for different k-point components
         g_sqMM = np.zeros((nspins, len(kpt_u) // nspins, nao, nao), dtype)
@@ -75,7 +78,7 @@ class Supercell:
 
         # 2) Gradient of non-local part (projectors)
         P_aqMi = wfs.P_aqMi
-        # 2a) dH^a part has contributions from all other atoms
+        # 2a) dH^a part has contributions from all atoms
         for kpt in kpt_u:
             # Matrix elements
             gp_MM = np.zeros((nao, nao), dtype)
@@ -90,7 +93,7 @@ class Supercell:
 
         # 2b) dP^a part has only contributions from the same atoms
         # For the contribution from the derivative of the projectors
-        dPdR_aqvMi = wfs.manytci.P_aqMi(indices, derivative=True)
+        dPdR_aqvMi = wfs.manytci.P_aqMi(bfs.my_atom_indices, derivative=True)
         dH_ii = unpack2(dH_asp[a][kpt.s])
         for kpt in kpt_u:
             gp_MM = np.zeros((nao, nao), dtype)
@@ -161,7 +164,7 @@ class Supercell:
         assert bd.comm.size == 1
 
         # Calculate finite-difference gradients (in Hartree / Bohr)
-        V1t_xsG, dH1_xasp = self.calculate_gradient(fd_name)
+        V1t_xsG, dH1_xasp = self.calculate_gradient(fd_name, self.indices)
 
         # Equilibrium atomic Hamiltonian matrix (projector coefficients)
         fd_cache = MultiFileJSONCache(fd_name)
@@ -193,13 +196,14 @@ class Supercell:
         # Calculate < i k | grad H | j k >, i.e. matrix elements in LCAO basis
 
         # Do each cartesian component separately
-        for i, a in enumerate(np.arange(len(self.atoms))):
+        for i, a in enumerate(self.indices):
             for v in range(3):
                 # Corresponding array index
-                x = 3 * i + v
+                xoutput = 3 * a + v
+                xinput = 3 * i + v
 
                 # If exist already, don't recompute
-                with supercell_cache.lock(str(x)) as handle:
+                with supercell_cache.lock(str(xoutput)) as handle:
                     if handle is None:
                         continue
 
@@ -207,7 +211,7 @@ class Supercell:
                              (["x", "y", "z"][v], a))
 
                     g_sqMM = self._calculate_supercell_entry(
-                        a, v, V1t_xsG[x], dH1_xasp[x], wfs, dH_asp
+                        a, v, V1t_xsG[xinput], dH1_xasp[xinput], wfs, dH_asp
                     )
 
                     # Extract R_c=(0, 0, 0) block by Fourier transforming
@@ -231,7 +235,7 @@ class Supercell:
                     g_sNMNM = g_sMM.reshape((nspins, N, nao_cell, N, nao_cell))
                     g_sNNMM = g_sNMNM.swapaxes(2, 3).copy()
                     handle.save(g_sNNMM)
-                if x == 0:
+                if xinput == 0:
                     with supercell_cache.lock("info") as handle:
                         if handle is not None:
                             info = {
@@ -267,7 +271,8 @@ class Supercell:
         return {"M_a": M_a, "nao_a": nao_a}
 
     @classmethod
-    def calculate_gradient(cls, fd_name: str) -> Tuple[ArrayND, list]:
+    def calculate_gradient(cls, fd_name: str,
+                           indices=None) -> Tuple[ArrayND, list]:
         """Calculate gradient of effective potential and projector coefs.
 
         This function loads the generated json files and calculates
@@ -289,8 +294,11 @@ class Supercell:
         V1t_xsG = []
         dH1_xasp = []
 
+        if indices is None:
+            indices = np.arange(natom)
+
         x = 0
-        for a in range(natom):
+        for a in indices:
             for v in "xyz":
                 name = "%d%s" % (a, v)
                 # Potential and atomic density matrix for atomic displacement
@@ -322,6 +330,7 @@ class Supercell:
         name: str
             User specified name of the cache.
         """
+        # TODO: load by indices?
         supercell_cache = MultiFileJSONCache(name)
         if "sc_version" not in supercell_cache["info"]:
             print("Cache created with old version. Use electronphonon.py")

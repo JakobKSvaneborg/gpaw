@@ -149,8 +149,8 @@ def test_pblas_rk_r2k(dtype, mprocs, nprocs,
         rk_err = 0.0
 
     # We don't like exceptions on only one cpu
-    r2k_err = world.sum(r2k_err)
-    rk_err = world.sum(rk_err)
+    r2k_err = world.sum_scalar(r2k_err)
+    rk_err = world.sum_scalar(rk_err)
 
     equal(r2k_err, 0, tol)
     equal(rk_err, 0, tol)

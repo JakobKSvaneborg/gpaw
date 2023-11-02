@@ -59,7 +59,7 @@ def non_self_consistent_energy(calc: Union[Calculator, str, Path],
 
     nocc = max(((kpt.f_n / kpt.weight) > ftol).sum()
                for kpt in wfs.kpt_u)
-    nocc = kd.comm.max(wfs.bd.comm.sum_scalar(int(nocc)))
+    nocc = kd.comm.max_scalar(wfs.bd.comm.sum_scalar(int(nocc)))
 
     xcname, exx_fraction, omega = parse_name(xcname)
 

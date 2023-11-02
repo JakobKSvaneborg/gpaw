@@ -349,7 +349,7 @@ class Matrix:
             if S is not None:
                 S0 = S
                 S = S0.new(dist=dist)
-                self.redist(S)
+                S0.redist(S)
         else:
             assert self.dist.comm.size == slcomm.size
             H = self
@@ -833,13 +833,9 @@ class CuPyDistribution(MatrixDistribution):
                         return
                     if c.data.size > 0:
                         assert beta in [0.0, 1.0]
-                        # Optimize this?
                         cp.cublas.gemm('N', 'H',
                                        a.data, b.data, c.data,
-                                       0.5 * alpha, beta)
-                        cp.cublas.gemm('N', 'H',
-                                       b.data, a.data, c.data,
-                                       0.5 * alpha, 1.0)
+                                       alpha, beta)
             else:
                 1 / 0
                 assert opa == 'C' and opb == 'N'

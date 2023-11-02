@@ -57,7 +57,7 @@ will happen automatically when you create a DFT-calculation object like this:
 or when you create an ASE-calculator interface:
 
 >>> from gpaw.new.ase_interface import GPAW
->>> atoms.calc = GPAW(**params)
+>>> atoms.calc = GPAW(**params, txt='li.txt')
 
 
 Full picture

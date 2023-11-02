@@ -1,5 +1,6 @@
 import numpy as np
-from gpaw.directmin.etdm import random_a, get_n_occ
+from gpaw.directmin.tools import get_n_occ, get_indices, random_a, \
+    sort_orbitals_according_to_occ, sort_orbitals_according_to_energies
 from ase.units import Hartree
 from gpaw.mpi import world
 from gpaw.io.logger import GPAWLogger
@@ -8,13 +9,13 @@ from copy import deepcopy
 
 class Derivatives:
 
-    def __init__(self, etdm, wfs, c_ref=None, a_vec_u=None,
+    def __init__(self, etdm, wfs, c_ref=None, a=None,
                  update_c_ref=False, eps=1.0e-7, random_amat=False):
         """
         :param etdm:
         :param wfs:
         :param c_ref: reference orbitals C_ref
-        :param a_vec_u: skew-Hermitian matrix A
+        :param a: skew-Hermitian matrix A
         :param update_c_ref: if True update reference orbitals
         :param eps: finite difference displacement
         :param random_amat: if True, use random matrix A
@@ -23,31 +24,45 @@ class Derivatives:
         self.eps = eps
 
         # initialize vectors of elements matrix A
-        if a_vec_u is None:
-            self.a_vec_u = {u: np.zeros_like(v)
-                            for u, v in etdm.a_vec_u.items()}
+        if a is None:
+            if wfs.mode == 'lcao':
+                self.a = {u: np.zeros_like(v, dtype=wfs.dtype)
+                          for u, v in etdm.a_vec_u.items()}
+            else:
+                self.a = {u: np.zeros_like(v, dtype=wfs.dtype)
+                          for u, v in etdm.U_k.items()}
 
         if random_amat:
             for kpt in wfs.kpt_u:
                 u = etdm.kpointval(kpt)
-                a = random_a(etdm.a_vec_u[u].shape, wfs.dtype)
+                if wfs.mode == 'lcao':
+                    a = random_a(etdm.a_vec_u[u].shape, wfs.dtype)
+                else:
+                    a = random_a(etdm.U_k[u].shape, wfs.dtype)
                 wfs.gd.comm.broadcast(a, 0)
-                self.a_vec_u[u] = a
+                self.a[u] = a
 
-        # initialize orbitals:
-        if c_ref is None:
+        # initialize orbitals
+        if c_ref is None and wfs.mode == 'lcao':
             self.c_ref = etdm.dm_helper.reference_orbitals
         else:
             self.c_ref = c_ref
 
         # update ref orbitals if needed
         if update_c_ref:
-            etdm.rotate_wavefunctions(wfs, self.a_vec_u, etdm.n_dim,
-                                      self.c_ref)
-            etdm.dm_helper.set_reference_orbitals(wfs, etdm.n_dim)
-            self.c_ref = etdm.dm_helper.reference_orbitals
-            self.a_vec_u = {u: np.zeros_like(v)
-                            for u, v in etdm.a_vec_u.items()}
+            if wfs.mode == 'lcao':
+                etdm.rotate_wavefunctions(wfs, self.a, self.c_ref)
+                etdm.dm_helper.set_reference_orbitals(wfs, etdm.n_dim)
+                self.c_ref = etdm.dm_helper.reference_orbitals
+                self.a = {u: np.zeros_like(v, dtype=wfs.dtype)
+                          for u, v in etdm.a_vec_u.items()}
+            else:
+                etdm.rotate_wavefunctions(wfs, self.a)
+                for kpt in wfs.kpt_u:
+                    k = etdm.kpointval(kpt)
+                    etdm.psit_knG[k] = kpt.psit_nG.copy()
+                self.a = {u: np.zeros_like(v, dtype=wfs.dtype)
+                          for u, v in etdm.U_k.items()}
 
     def get_analytical_derivatives(self, etdm, ham, wfs, dens,
                                    what2calc='gradient'):
@@ -67,14 +82,22 @@ class Derivatives:
 
         if what2calc == 'gradient':
             # calculate analytical gradient
-            analytical_der = etdm.get_energy_and_gradients(self.a_vec_u,
-                                                           etdm.n_dim,
-                                                           ham, wfs, dens,
-                                                           self.c_ref)[1]
+            if wfs.mode == 'lcao':
+                analytical_der = etdm.get_energy_and_gradients(
+                    self.a, ham, wfs, dens, self.c_ref)[1]
+            else:
+                analytical_der = etdm.get_energy_and_gradients(
+                    self.a, wfs, dens, ham)[1]
         else:
             # Calculate analytical approximation to hessian
-            analytical_der = np.hstack([etdm.get_hessian(kpt).copy()
-                                        for kpt in wfs.kpt_u])
+            if wfs.mode == 'lcao':
+                ind_up = etdm.ind_up
+                analytical_der = np.hstack([get_approx_analytical_hessian(
+                    kpt, etdm.dtype,
+                    ind_up[etdm.kpointval(kpt)]).copy() for kpt in wfs.kpt_u])
+            else:
+                analytical_der = np.hstack([get_approx_analytical_hessian(
+                    kpt, etdm.dtype).copy() for kpt in wfs.kpt_u])
             analytical_der = construct_real_hessian(analytical_der)
             analytical_der = np.diag(analytical_der)
 
@@ -97,15 +120,31 @@ class Derivatives:
 
         assert what2calc in ['gradient', 'hessian']
 
+        if wfs.mode == 'lcao':
+            numerical_der = self.get_numerical_derivatives_lcao(
+                etdm, ham, wfs, dens, what2calc=what2calc)
+        else:
+            if what2calc == 'gradient':
+                numerical_der = self.get_numerical_gradient_fdpw(
+                    etdm, wfs, dens, ham, self.a)
+            else:
+                numerical_der = self.get_numerical_hessian_fdpw(
+                    etdm, wfs, dens, ham, self.a)
+
+        return numerical_der
+
+    def get_numerical_derivatives_lcao(
+            self, etdm, ham, wfs, dens, what2calc='gradient'):
+
         # total dimensionality if matrices are real
-        dim = sum([len(a) for a in self.a_vec_u.values()])
+        dim = sum([len(a) for a in self.a.values()])
         steps = [1.0, 1.0j] if etdm.dtype == complex else [1.0]
         use_energy_or_gradient = {'gradient': 0, 'hessian': 1}
 
         matrix_exp = etdm.matrix_exp
         if what2calc == 'gradient':
             numerical_der = {u: np.zeros_like(v)
-                             for u, v in self.a_vec_u.items()}
+                             for u, v in self.a.items()}
         else:
             numerical_der = np.zeros(shape=(len(steps) * dim,
                                             len(steps) * dim))
@@ -117,18 +156,16 @@ class Derivatives:
         for step in steps:
             for kpt in wfs.kpt_u:
                 u = etdm.kpointval(kpt)
-                for i in range(len(self.a_vec_u[u])):
-                    a = self.a_vec_u[u][i]
+                for i in range(len(self.a[u])):
+                    a = self.a[u][i]
 
-                    self.a_vec_u[u][i] = a + step * self.eps
+                    self.a[u][i] = a + step * self.eps
                     fplus = etdm.get_energy_and_gradients(
-                        self.a_vec_u, etdm.n_dim, ham, wfs, dens,
-                        self.c_ref)[f]
+                        self.a, ham, wfs, dens, self.c_ref)[f]
 
-                    self.a_vec_u[u][i] = a - step * self.eps
+                    self.a[u][i] = a - step * self.eps
                     fminus = etdm.get_energy_and_gradients(
-                        self.a_vec_u, etdm.n_dim, ham, wfs, dens,
-                        self.c_ref)[f]
+                        self.a, ham, wfs, dens, self.c_ref)[f]
 
                     derf = apply_central_finite_difference_approx(
                         fplus, fminus, self.eps)
@@ -139,12 +176,124 @@ class Derivatives:
                         numerical_der[row] = construct_real_hessian(derf)
 
                     row += 1
-                    self.a_vec_u[u][i] = a
+                    self.a[u][i] = a
 
         if what2calc == 'hessian':
             etdm.matrix_exp = matrix_exp
 
         return numerical_der
+
+    def get_numerical_gradient_fdpw(self, etdm, wfs, dens, ham, A_s):
+        dtype = etdm.dtype
+        h = [self.eps, -self.eps]
+        coef = [1.0, -1.0]
+        Gr_n_x = {}
+        Gr_n_y = {}
+
+        if dtype is complex:
+            for kpt in wfs.kpt_u:
+                k = etdm.n_kps * kpt.s + kpt.q
+                dim = A_s[k].shape[0]
+                iut = np.triu_indices(dim, 1)
+                dim_gr = iut[0].shape[0]
+
+                for z in range(2):
+                    grad_num = np.zeros(shape=dim_gr,
+                                        dtype=etdm.dtype)
+                    igr = 0
+                    for i, j in zip(*iut):
+                        A = A_s[k][i][j]
+                        for l in range(2):
+                            if z == 1:
+                                if i == j:
+                                    A_s[k][i][j] = A + 1.0j * h[l]
+                                else:
+                                    A_s[k][i][j] = A + 1.0j * h[l]
+                                    A_s[k][j][i] = -np.conjugate(
+                                        A + 1.0j * h[l])
+                            else:
+                                if i == j:
+                                    A_s[k][i][j] = A + 0.0j * h[l]
+                                else:
+                                    A_s[k][i][j] = A + h[l]
+                                    A_s[k][j][i] = -np.conjugate(
+                                        A + h[l])
+                            E = etdm.get_energy_and_gradients(
+                                A_s, wfs, dens, ham)[0]
+                            grad_num[igr] += E * coef[l]
+                        grad_num[igr] *= 1.0 / (2.0 * self.eps)
+                        if i == j:
+                            A_s[k][i][j] = A
+                        else:
+                            A_s[k][i][j] = A
+                            A_s[k][j][i] = -np.conjugate(A)
+                        igr += 1
+                    if z == 0:
+                        Gr_n_x[k] = grad_num.copy()
+                    else:
+                        Gr_n_y[k] = grad_num.copy()
+
+            Gr_n = {k: (Gr_n_x[k] + 1.0j * Gr_n_y[k]) for k in
+                    Gr_n_x.keys()}
+        else:
+            for kpt in wfs.kpt_u:
+                k = etdm.n_kps * kpt.s + kpt.q
+                dim = A_s[k].shape[0]
+                iut = np.triu_indices(dim, 1)
+                dim_gr = iut[0].shape[0]
+                grad_num = np.zeros(shape=dim_gr, dtype=etdm.dtype)
+
+                igr = 0
+                for i, j in zip(*iut):
+                    A = A_s[k][i][j]
+                    for l in range(2):
+                        A_s[k][i][j] = A + h[l]
+                        A_s[k][j][i] = -(A + h[l])
+                        E = etdm.get_energy_and_gradients(
+                            A_s, wfs, dens, ham)[0]
+                        grad_num[igr] += E * coef[l]
+                    grad_num[igr] *= 1.0 / (2.0 * self.eps)
+                    A_s[k][i][j] = A
+                    A_s[k][j][i] = -A
+                    igr += 1
+
+                Gr_n_x[k] = grad_num.copy()
+
+            Gr_n = {k: (Gr_n_x[k]) for k in Gr_n_x.keys()}
+
+        return Gr_n
+
+    def get_numerical_hessian_fdpw(self, etdm, wfs, dens, ham, A_s):
+        h = [self.eps, -self.eps]
+        coef = [1.0, -1.0]
+        num_hes = {}
+
+        for kpt in wfs.kpt_u:
+            k = etdm.n_kps * kpt.s + kpt.q
+            dim = A_s[k].shape[0]
+            iut = np.tril_indices(dim, -1)
+            dim_gr = iut[0].shape[0]
+            hessian = np.zeros(shape=(dim_gr, dim_gr),
+                               dtype=etdm.dtype)
+            ih = 0
+            for i, j in zip(*iut):
+                A = A_s[k][i][j]
+                for l in range(2):
+                    A_s[k][i][j] = A + h[l]
+                    A_s[k][j][i] = -(A + h[l])
+                    g = etdm.get_energy_and_gradients(A_s, wfs, dens, ham)[1]
+                    g = g[k][iut]
+                    hessian[ih, :] += g * coef[l]
+
+                hessian[ih, :] *= 1.0 / (2.0 * self.eps)
+
+                A_s[k][i][j] = A
+                A_s[k][j][i] = -A
+                ih += 1
+
+            num_hes[k] = hessian.copy()
+
+        return num_hes
 
 
 class Davidson:
@@ -160,7 +309,7 @@ class Davidson:
 
     def __init__(self, etdm, logfile, fd_mode=None, m=None, h=None,
                  eps=None, cap_krylov=None, gmf=False,
-                 accurate_first_pdiag=True, remember_sp_order=False,
+                 accurate_first_pdiag=True, remember_sp_order=None,
                  sp_order=None, seed=None):
         """
         :param etdm: ETDM object for which the partial eigendecomposition
@@ -202,6 +351,7 @@ class Davidson:
         :param seed: Seed for random perturbation of initial Krylov space.
         """
 
+        self.name = 'Davidson'
         self.gmf = gmf
         self.etdm = etdm
         self.fd_mode = fd_mode
@@ -250,7 +400,7 @@ class Davidson:
 
     def check_inputs(self):
         defaults = self.set_defaults()
-        assert self.etdm.name == 'etdm', 'Check etdm.'
+        assert self.etdm.name == 'etdm-lcao', 'Check etdm.'
         if self.logfile is not None:
             assert isinstance(self.logfile, str), 'Check logfile.'
         if self.fd_mode is None:
@@ -321,7 +471,8 @@ class Davidson:
     def run(self, wfs, ham, dens, use_prev=False):
         self.initialize(wfs, use_prev)
         if not self.gmf:
-            self.etdm.sort_orbitals_mom(wfs)
+            sort_orbitals_according_to_occ(
+                wfs, self.etdm.constraints, update_mom=True)
         self.n_iter = 0
         self.c_ref = [deepcopy(wfs.kpt_u[x].C_nM)
                       for x in range(len(wfs.kpt_u))]
@@ -346,8 +497,8 @@ class Davidson:
         for k, kpt in enumerate(wfs.kpt_u):
             kpt.C_nM = deepcopy(self.c_ref[k])
         if not self.gmf:
-            for kpt in wfs.kpt_u:
-                self.etdm.sort_orbitals(ham, wfs, kpt)
+            sort_orbitals_according_to_energies(
+                ham, wfs, self.etdm.constraints, use_eps=True)
         self.first_run = False
 
     def obtain_grad_at_c_ref(self, wfs, ham, dens):
@@ -357,7 +508,7 @@ class Davidson:
             n_dim[k] = wfs.bd.nbands
             a_vec_u[k] = np.zeros_like(self.etdm.a_vec_u[k])
         self.grad = self.etdm.get_energy_and_gradients(
-            a_vec_u, n_dim, ham, wfs, dens, self.c_ref)[1]
+            a_vec_u, ham, wfs, dens, self.c_ref)[1]
 
     def determine_sp_order_from_lambda(self):
         sp_order = 0
@@ -420,11 +571,12 @@ class Davidson:
         appr_hess = []
         self.dimtot = 0
         for k, kpt in enumerate(wfs.kpt_u):
-            hdia = self.etdm.get_hessian(kpt)
+            hdia = get_approx_analytical_hessian(
+                kpt, self.etdm.dtype, ind_up=self.etdm.ind_up[k])
             self.dim_u[k] = len(hdia)
             self.dimtot += len(hdia)
             appr_hess += list(hdia.copy())
-            self.nocc[k] = get_n_occ(kpt)
+            self.nocc[k] = get_n_occ(kpt)[0]
         return appr_hess
 
     def estimate_spo_and_update_appr_hess(self, wfs, use_prev=False):
@@ -703,7 +855,7 @@ class Davidson:
                 a_vec_u[k] += 1.0j * v[self.dimtot + start: self.dimtot + end]
             start += self.dim_u[k]
         return self.etdm.get_energy_and_gradients(
-            a_vec_u, n_dim, ham, wfs, dens, c_ref)[1]
+            a_vec_u, ham, wfs, dens, c_ref)[1]
 
     def break_instability(self, wfs, n_dim, c_ref, number,
                           initial_guess='displace', ham=None, dens=None):
@@ -740,7 +892,7 @@ class Davidson:
                                                          'line search.'
             a_vec_u = self.do_line_search(
                 wfs, dens, ham, n_dim, c_ref, instability)
-        self.etdm.rotate_wavefunctions(wfs, a_vec_u, n_dim, c_ref)
+        self.etdm.rotate_wavefunctions(wfs, a_vec_u, c_ref)
 
     def displace(self, instability):
         a_vec_u = deepcopy(self.etdm.a_vec_u)
@@ -762,7 +914,7 @@ class Davidson:
             p_vec_u[k] = instability[start: stop]
             start += self.dim_u[k]
         phi, g_vec_u = self.etdm.get_energy_and_gradients(
-            a_vec_u, n_dim, ham, wfs, dens, c_ref)
+            a_vec_u, ham, wfs, dens, c_ref)
         der_phi = 0.0
         for k in g_vec_u:
             der_phi += g_vec_u[k].conj() @ p_vec_u[k]
@@ -778,19 +930,22 @@ class Davidson:
         return a_vec_u
 
     def estimate_sp_order(self, calc, method='appr-hess', target_more=1):
-        self.etdm.sort_orbitals_mom(calc.wfs)
-        constraints_copy = deepcopy(self.etdm.constraints)
-        self.etdm.constraints = [[] for _ in range(len(calc.wfs.kpt_u))]
+        sort_orbitals_according_to_occ(
+            calc.wfs, self.etdm.constraints, update_mom=method == 'full-hess')
         appr_hess, appr_sp_order = self.estimate_spo_and_update_appr_hess(
             calc.wfs)
+        if calc.wfs.dtype is complex:
+            appr_sp_order *= 2
         if method == 'full-hess':
+            constraints_copy = deepcopy(self.etdm.constraints)
+            self.etdm.constraints = [[] for _ in range(len(calc.wfs.kpt_u))]
             self.sp_order = appr_sp_order + target_more
             self.run(calc.wfs, calc.hamiltonian, calc.density)
             appr_hess, appr_sp_order = self.estimate_spo_and_update_appr_hess(
                 calc.wfs, use_prev=True)
-        for kpt in calc.wfs.kpt_u:
-            self.etdm.sort_orbitals(calc.hamiltonian, calc.wfs, kpt)
-        self.etdm.constraints = deepcopy(constraints_copy)
+            self.etdm.constraints = deepcopy(constraints_copy)
+        sort_orbitals_according_to_energies(
+            calc.hamiltonian, calc.wfs, self.etdm.constraints, use_eps=True)
         return appr_sp_order
 
 
@@ -833,3 +988,30 @@ def apply_central_finite_difference_approx(fplus, fminus, eps):
         raise ValueError()
 
     return derf
+
+
+def get_approx_analytical_hessian(kpt, dtype, ind_up=None):
+    """
+    Calculate the following diagonal approximation to the Hessian:
+    h_{lm, lm} = -2.0 * (eps_n[l] - eps_n[m]) * (f[l] - f[m])
+    """
+
+    f_n = kpt.f_n
+    eps_n = kpt.eps_n
+    if ind_up:
+        il1 = list(ind_up)
+    else:
+        il1 = list(get_indices(eps_n.shape[0]))
+
+    hess = np.zeros(len(il1[0]), dtype=dtype)
+    x = 0
+    for n, m in zip(*il1):
+        df = f_n[n] - f_n[m]
+        hess[x] = -2.0 * (eps_n[n] - eps_n[m]) * df
+        if abs(hess[x]) < 1.0e-10:
+            hess[x] = 0.0
+        if dtype == complex:
+            hess[x] += 1.0j * hess[x]
+        x += 1
+
+    return hess

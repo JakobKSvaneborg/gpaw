@@ -1,20 +1,24 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 from __future__ import annotations
+
+import atexit
+import pickle
 import sys
 import time
 import traceback
-import atexit
-import pickle
 from contextlib import contextmanager
 from typing import Any
 
-from ase.parallel import world as aseworld, MPI as ASE_MPI
+import _gpaw
 import numpy as np
+import warnings
+from ase.parallel import MPI as ASE_MPI
+from ase.parallel import world as aseworld
 
 import gpaw
+
 from .broadcast_imports import world as _world
-import _gpaw
 
 MASTER = 0
 
@@ -45,7 +49,7 @@ def broadcast_exception(comm):
             broadcast(ex, rank, comm)
             raise
     else:
-        rank = comm.max(-1)
+        rank = comm.max_scalar(-1)
     # rank will now be the highest failing rank or -1
     if rank >= 0:
         raise broadcast(None, rank, comm)
@@ -119,7 +123,8 @@ class _Communicator:
 
         """
         if isinstance(a, (int, float, complex)):
-            return self.comm.sum(a, root)
+            warnings.warn('Please use sum_scalar(...)', stacklevel=2)
+            return self.comm.sum_scalar(a, root)
         else:
             # assert a.ndim != 0
             tc = a.dtype
@@ -152,6 +157,7 @@ class _Communicator:
 
         """
         if isinstance(a, (int, float)):
+            1 / 0
             return self.comm.product(a, root)
         else:
             tc = a.dtype
@@ -180,7 +186,8 @@ class _Communicator:
 
         """
         if isinstance(a, (int, float)):
-            return self.comm.max(a, root)
+            warnings.warn('Please use max_scalar(...)', stacklevel=2)
+            return self.comm.max_scalar(a, root)
         else:
             tc = a.dtype
             assert tc == int or tc == float
@@ -212,7 +219,8 @@ class _Communicator:
 
         """
         if isinstance(a, (int, float)):
-            return self.comm.min(a, root)
+            warnings.warn('Please use min_scalar(...)', stacklevel=2)
+            return self.comm.min_scalar(a, root)
         else:
             tc = a.dtype
             assert tc == int or tc == float
@@ -636,6 +644,7 @@ class SerialCommunicator:
 
     def sum(self, array, root=-1):
         if isinstance(array, (int, float, complex)):
+            warnings.warn('Please use sum_scalar(...)', stacklevel=2)
             return array
 
     def sum_scalar(self, a, root=-1):
@@ -645,13 +654,17 @@ class SerialCommunicator:
         r[:] = s
 
     def min(self, value, root=-1):
-        return value
+        if isinstance(value, (int, float, complex)):
+            warnings.warn('Please use min_scalar(...)', stacklevel=2)
+            return value
 
     def min_scalar(self, value, root=-1):
         return value
 
     def max(self, value, root=-1):
-        return value
+        if isinstance(value, (int, float, complex)):
+            warnings.warn('Please use max_scalar(...)', stacklevel=2)
+            return value
 
     def max_scalar(self, value, root=-1):
         return value

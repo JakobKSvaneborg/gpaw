@@ -82,7 +82,8 @@ class DFTComponentsBuilder:
         self.spin_degeneracy = self.ncomponents % 2 + 1
 
         if isinstance(params.xc, (dict, str)):
-            self._xc = XC(params.xc, collinear=(self.ncomponents < 4))
+            self._xc = XC(params.xc, collinear=(self.ncomponents < 4),
+                          xp=self.xp)
         else:
             self._xc = params.xc
 
@@ -154,8 +155,7 @@ class DFTComponentsBuilder:
         raise NotImplementedError
 
     def create_xc_functional(self):
-        return create_functional(self._xc,
-                                 self.fine_grid)
+        return create_functional(self._xc, self.fine_grid, self.xp)
 
     def check_cell(self, cell):
         number_of_lattice_vectors = cell.rank

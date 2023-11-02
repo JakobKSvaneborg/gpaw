@@ -71,9 +71,9 @@ To provide initial guess orbitals for an excited state DO-GMF calculation, a gro
 state calculation is typically performed first. Then, a DO-GMF calculation can be
 requested as follows::
 
-  from gpaw.directmin.etdm import ETDM
+  from gpaw.directmin.lcao_etdm import LCAOETDM
 
-  calc.set(eigensolver=ETDM(
+  calc.set(eigensolver=LCAOETDM(
            partial_diagonalizer={'name': 'Davidson', 'logfile': None},
            linesearch_algo={'name': 'max-step'},
            searchdir_algo={'name': 'l-bfgs-p_gmf'},
@@ -137,9 +137,9 @@ Hessian (the latter is preferred). This can be done using::
 
 The estimated saddle point order then needs to be specified when requesting a DO-GMF calculation::
 
-  from gpaw.directmin.etdm import ETDM
+  from gpaw.directmin.lcao_etdm import LCAOETDM
 
-  calc.set(eigensolver=ETDM(
+  calc.set(eigensolver=LCAOETDM(
            partial_diagonalizer={'name': 'Davidson',
                                  'sp_order': appr_sp_order},
            ...)

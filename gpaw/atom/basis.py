@@ -16,42 +16,6 @@ from gpaw.atom.radialgd import (AERadialGridDescriptor,
                                 EquidistantRadialGridDescriptor)
 
 
-def get_basis_l(f_j, l_j, Nv):
-    N = 0
-    lvalues = []
-    j_l = []
-    Nl_j = len(l_j)
-    while N < Nv:
-        Nl_j -= 1
-        if f_j[Nl_j] > 0:
-            lvalues.append(l_j[Nl_j])
-            N += f_j[Nl_j]
-            j_l.append(Nl_j)
-    assert N == Nv
-
-    if min(lvalues) != 0:  # always include s-orbital !
-        lvalues = lvalues + [0]
-        reversed_l_j = list(l_j)
-        reversed_l_j.reverse()
-        j = len(reversed_l_j) - reversed_l_j.index(0) - 1
-        j_l.append(j)
-
-    return [j_l, lvalues]
-
-
-def get_gaussianlike_basis_function(rgd, l, rchar, gcut):
-    rcut = rgd.r_g[gcut]
-    gaussian = QuasiGaussian(1.0 / rchar**2, rcut)
-    r_g = rgd.r_g[:gcut + 1]
-    phit_g = gaussian(r_g) * r_g**l
-    phit_g[-1] = 0.0
-    norm = np.dot(rgd.dr_g[:gcut + 1], (r_g * phit_g)**2)**0.5
-    phit_g /= norm
-    norm2 = np.dot(rgd.dr_g[:gcut + 1], (r_g * phit_g)**2)**0.5
-    assert abs(1.0 - norm2) < 1e-10
-    return phit_g
-
-
 def make_split_valence_basis_function(r_g, psi_g, l, gcut):
     """Get polynomial which joins psi smoothly at rcut.
 
@@ -187,13 +151,6 @@ class BasisMaker:
         psit_mg = psi_mg * w_g + np.dot(Qt_nm.T, s_ng - u_ng * w_g)
         return psit_mg
 
-    def make_orbital_vector(self, j, rcut, vconf=None):
-        """Returns a smooth basis vector given an all-electron one."""
-        l = self.generator.l_j[j]
-        psi_g, e = self.generator.solve_confined(j, rcut, vconf)
-        psit_g = self.smoothify(psi_g, l)
-        return psit_g
-
     def rcut_by_energy(self, j, esplit=.1, tolerance=.1, rguess=6.,
                        vconf_args=None):
         """Find confinement cutoff corresponding to given orbital energy shift.
@@ -218,11 +175,6 @@ class BasisMaker:
         rmax = g.r[-1]
 
         de = e - e_base
-        # print '--------'
-        # print 'Start bisection'
-        # print'e_base =',e_base
-        # print 'e =',e
-        # print '--------'
         while de < de_min or de > de_max:
             if de < de_min:  # Move rc left -> smaller cutoff, higher energy
                 rmax = rc
@@ -234,22 +186,18 @@ class BasisMaker:
                 vconf = g.get_confinement_potential(amplitude, ri_rel * rc, rc)
             psi_g, e = g.solve_confined(j, rc, vconf)
             de = e - e_base
-            # print 'rc = %.03f :: e = %.03f :: de = %.03f' % (rc, e*Hartree,
-            #                                                  de*Hartree)
-            # if rmin - rmax < 1e-
             if g.r2g(rmax) - g.r2g(rmin) <= 1:  # adjacent points
                 break  # cannot meet tolerance due to grid resolution
-        # print 'Done!'
+
         return psi_g, e, de, vconf, rc
 
     def generate(self, zetacount=2, polarizationcount=1,
                  tailnorm=(0.16, 0.3, 0.6), energysplit=0.1, tolerance=1.0e-3,
-                 referencefile=None, referenceindex=None, rcutpol_rel=1.0,
+                 rcutpol_rel=1.0,
                  rcutmax=20.0,
                  rcharpol_rel=None,
                  vconf_args=(12.0, 0.6), txt='-',
                  include_energy_derivatives=False,
-                 # lvalues=None, # XXX clean up some of these!
                  jvalues=None,
                  l_pol=None):
         """Generate an entire basis set.
@@ -265,8 +213,6 @@ class BasisMaker:
         ``tailnorm``          List of tail norms for split-valence scheme
         ``energysplit``       Energy increase defining confinement radius (eV)
         ``tolerance``         Tolerance of energy split (eV)
-        ``referencefile``     gpw-file used to generate polarization function
-        ``referenceindex``    Index in reference system of relevant atom
         ``rcutpol_rel``       Polarization rcut relative to largest other rcut
         ``rcutmax``           No cutoff will be greater than this value
         ``vconf_args``        Parameters (alpha, ri/rc) for conf. potential
@@ -550,49 +496,6 @@ class BasisMaker:
 
         return basis
 
-    def grplot(self, bf_j):
-        """Plot basis functions on generator's radial grid."""
-        import matplotlib.pyplot as plt
-        rc = max([bf.rc for bf in bf_j])
-        g = self.generator
-        r = g.r
-        for bf in bf_j:
-            label = bf.type
-            # XXX times g.r or not times g.r ?
-            plt.plot(r, bf.phit_g / r, label=label[:12])
-        axis = plt.axis()
-        newaxis = [0., rc, axis[2], axis[3]]
-        plt.axis(newaxis)
-        plt.legend()
-        plt.show()
-
-    def plot(self, basis, figure=None, title=None, filename=None):
-        """Plot basis functions using MatPlotLib."""
-        # XXX method should no longer belong to a basis maker
-        import matplotlib.pyplot as plt
-        rc = max([bf.rc for bf in basis.bf_j])
-        r = np.linspace(0., basis.d * (basis.ng - 1), basis.ng)
-        g = self.generator
-        if figure is not None:
-            plt.figure(figure)
-        else:
-            plt.figure()  # not very elegant
-        if title is None:
-            title = g.symbol
-        plt.title(title)
-        for bf in basis.bf_j:
-            label = bf.type
-            # XXX times g.r or not times g.r ?
-            phit_g = np.zeros_like(r)
-            phit_g[:len(bf.phit_g)] = bf.phit_g
-            plt.plot(r, phit_g * r, label=label[:12])
-        axis = plt.axis()
-        newaxis = [0., rc, axis[2], axis[3]]
-        plt.axis(newaxis)
-        plt.legend()
-        if filename is not None:
-            plt.savefig(filename)
-
 
 class QuasiGaussian:
     """Gaussian-like functions for expansion of orbitals.
@@ -622,7 +525,3 @@ class QuasiGaussian:
         p = (self.a - self.b * r2)
         y = np.where(condition, g - p, 0.)
         return self.A * y
-
-    def renormalize(self, norm):
-        """Divide function by norm."""
-        self.A /= norm

@@ -1,29 +1,19 @@
-# web-page: e-spiral.png, m-spiral.png
+# web-page: e-spiral.png
 import numpy as np
 import matplotlib.pyplot as plt
 from ase.spectrum.band_structure import BandStructure
-from gpaw.new.ase_interface import GPAW
+from ase.build import mx2
 
-energies = []
-magmoms = []
-for i in range(31):
-    atoms = GPAW(f'gs-{i:02}.gpw').get_atoms()
-    energy = atoms.get_potential_energy()
-    magmom = atoms.calc.calculation.magmoms()[0]
-    energies.append(energy)
-    magmoms.append(np.linalg.norm(magmom))
+atoms = mx2('NiI2', kind='1T', a=3.969662131560825,
+            thickness=3.027146598949815, vacuum=4)
 
-energies = np.array(energies) * 1000
-energies -= energies[0]
-magmoms = np.array(magmoms)
+data = np.load('data.npz')
+energies = data['energies']
+magmoms = data['magmoms']
 
-path = atoms.cell.bandpath('GXW', npoints=31)
+path = atoms.cell.bandpath('GMKG', npoints=31)
 
+energies = (energies - energies[0]) * 1000
 bs = BandStructure(path, energies[np.newaxis, :, np.newaxis])
-bs.plot(emin=-25, emax=5, label='q', ylabel='Energy [meV per atom]')
+bs.plot(emin=-30, emax=45, ylabel='Energy [meV per atom]')
 plt.savefig('e-spiral.png')
-
-bs = BandStructure(path, magmoms[np.newaxis, :, np.newaxis])
-bs.plot(emin=-0.1, emax=1.5, label='q',
-        ylabel=r'Total magnetic moment [$\mu_B$]')
-plt.savefig('m-spiral.png')

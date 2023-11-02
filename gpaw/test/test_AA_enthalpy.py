@@ -173,6 +173,7 @@ E_ref = {'H': {'B3LYP': -0.11369634560501423,
                'PBEH': -0.30365500626180042}}  # svnversion 5599 # -np 4
 
 
+@pytest.mark.later
 @pytest.mark.slow
 @pytest.mark.parametrize('xc', ['PBE0', 'B3LYP'])
 def test_exx_AA_enthalpy(in_tmp_dir, add_cwd_to_setup_paths, xc):

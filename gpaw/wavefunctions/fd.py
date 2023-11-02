@@ -52,6 +52,7 @@ class FDWaveFunctions(FDPWWaveFunctions):
         self.kin = Laplace(self.gd, -0.5, stencil, self.dtype)
 
         self.taugrad_v = None  # initialized by MGGA functional
+        self.read_from_file_init_wfs_dm = False
 
     def empty(self, n=(), global_array=False, realspace=False, q=-1):
         return self.gd.empty(n, self.dtype, global_array)
@@ -261,6 +262,7 @@ class FDWaveFunctions(FDPWWaveFunctions):
             # Read to memory:
             for kpt in self.kpt_u:
                 kpt.psit.read_from_file()
+                self.read_from_file_init_wfs_dm = True
 
     def initialize_from_lcao_coefficients(self, basis_functions):
         for kpt in self.kpt_u:

@@ -319,7 +319,7 @@ class EigendecomposedSpectrum:
             npos_max = int(np.max(np.sum(pos_we, axis=1)))
         else:
             npos_max = 0
-        npos_max = self.wblocks.blockcomm.max(npos_max)
+        npos_max = self.wblocks.blockcomm.max_scalar(npos_max)
 
         # Allocate new arrays, using np.nan for padding (the number of positive
         # eigenvalues might vary with frequency)

@@ -176,17 +176,16 @@ class ASECalculator:
             self.move_atoms(atoms)
             self.converge()
 
-        if prop not in self.calculation.results:
-            if prop == 'forces':
-                with self.timer('Forces'):
-                    self.calculation.forces()
-            elif prop == 'stress':
-                with self.timer('Stress'):
-                    self.calculation.stress()
-            elif prop == 'dipole':
-                self.calculation.dipole()
-            else:
-                raise KeyError('Unknown property:', prop)
+        if prop == 'forces':
+            with self.timer('Forces'):
+                self.calculation.forces()
+        elif prop == 'stress':
+            with self.timer('Stress'):
+                self.calculation.stress()
+        elif prop == 'dipole':
+            self.calculation.dipole()
+        elif prop not in self.calculation.results:
+            raise KeyError('Unknown property:', prop)
 
         return self.calculation.results[prop] * units[prop]
 
@@ -244,7 +243,7 @@ class ASECalculator:
         """Helper method for force-convergence criterium."""
         with self.timer('Forces'):
             self.calculation.forces(silent=True)
-        return self.calculation.results['forces']
+        return self.calculation.results['forces'].copy()
 
     def __del__(self):
         self.log('---')
@@ -383,8 +382,8 @@ class ASECalculator:
         if isinstance(vHt_x, UGArray):
             return vHt_x.gather(broadcast=True).to_pbc_grid().data * Ha
 
-        return vHt_x.ifft(
-            grid=self.calculation.pot_calc.fine_grid).data * Ha
+        grid = self.calculation.pot_calc.fine_grid
+        return vHt_x.ifft(grid=grid).gather(broadcast=True).data * Ha
 
     def get_atomic_electrostatic_potentials(self):
         return self.calculation.electrostatic_potential().atomic_potentials()
@@ -520,6 +519,7 @@ class ASECalculator:
             dexc += xc.calculate_paw_correction(
                 setup,
                 np.array([pack(D_ii) for D_ii in D_sii.real]))
+        dexc = state.ibzwfs.domain_comm.sum_scalar(dexc)
         return (exct + dexc - state.potential.energies['xc']) * Ha
 
     def diagonalize_full_hamiltonian(self,

@@ -2,7 +2,7 @@ import time
 import numpy as np
 import warnings
 from gpaw import GPAW, FermiDirac
-from gpaw.directmin.etdm import ETDM
+from gpaw.directmin.etdm_lcao import LCAOETDM
 
 
 def read_data(output):
@@ -23,8 +23,8 @@ def set_calc(atoms, calc_args, txt, dm):
     if dm:
         calc = GPAW(**calc_args,
                     txt=txt,
-                    eigensolver=ETDM(matrix_exp='egdecomp-u-invar',
-                                     representation='u-invar'),
+                    eigensolver=LCAOETDM(matrix_exp='egdecomp-u-invar',
+                                         representation='u-invar'),
                     mixer={'backend': 'no-mixing'},
                     nbands='nao',
                     occupations={'name': 'fixed-uniform'})

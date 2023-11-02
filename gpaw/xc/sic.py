@@ -242,8 +242,8 @@ class SIC(XCFunctional):
                 desic, dekin = spin.calculate()
                 self.esic += desic
                 self.ekin += dekin
-        self.esic = self.kpt_comm.sum(self.esic)
-        self.ekin = self.kpt_comm.sum(self.ekin)
+        self.esic = self.kpt_comm.sum_scalar(self.esic)
+        self.ekin = self.kpt_comm.sum_scalar(self.ekin)
 
         return exc + self.esic
 
@@ -369,7 +369,7 @@ class SIC(XCFunctional):
         else:
             n = 0
 
-        n = self.wfs.world.sum(n)
+        n = self.wfs.world.sum_scalar(n)
 
         if n > 0:
             W_mn = np.zeros((n, n), dtype=self.dtype)

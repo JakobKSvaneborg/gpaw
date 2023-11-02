@@ -22,10 +22,11 @@ def test_shift(in_tmp_dir):
     calc.write('gs.gpw', 'all')
 
     # Get the mml
-    make_nlodata()
+    nlodata = make_nlodata('gs.gpw', world)
 
     # Do a linear response caclulation
-    get_chi_tensor(freqs=np.linspace(0, 5, 100), out_name='linear.npy')
+    freqs = np.linspace(0, 5, 101)
+    get_chi_tensor(nlodata, freqs=freqs, out_name='linear.npy')
 
     # Check it
     if world.rank == 0:

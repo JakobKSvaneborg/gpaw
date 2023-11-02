@@ -566,14 +566,13 @@ class SitePairDensityCalculator(SiteMatrixElementCalculator):
         pass
 
 
-class SitePairSpinSplittingCalculator(SiteMatrixElementCalculator):
-    """Class for calculating site pair spin splittings.
+class SiteZeemanPairEnergyCalculator(SiteMatrixElementCalculator):
+    """Class for calculating site Zeeman pair energies.
 
-    The site pair spin splitting corresponds to a site matrix element with
-    f(r) = - 2 W_xc^z(r):
+    The site Zeeman pair energy is defined as the site matrix element with
+    f(r) = - W_xc^z(r):
 
-    Δ^(xc,ap)_(nks,n'k+qs') = - 2 <ψ_nks|Θ(r∊Ω_ap)W_xc^z(r)|ψ_n'k+qs'>
+    E^(Z,ap)_(nks,n'k+qs') = - <ψ_nks|Θ(r∊Ω_ap)W_xc^z(r)|ψ_n'k+qs'>
     """
-
     def add_f(self, gd, n_sx, f_x):
-        f_x[:] += - 2. * calculate_LSDA_Wxc(gd, n_sx)
+        f_x[:] += - calculate_LSDA_Wxc(gd, n_sx)
