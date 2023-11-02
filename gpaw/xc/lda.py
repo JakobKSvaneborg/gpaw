@@ -121,7 +121,7 @@ class LDA(XCFunctional):
         for v_g, n_g in zip(v_sg, n_sg):
             stress -= self.gd.integrate(v_g, n_g, global_integral=False)
         if not skip_sum:
-            stress = self.gd.comm.sum(stress)
+            stress = self.gd.comm.sum_scalar(stress)
         return np.eye(3) * stress
 
 

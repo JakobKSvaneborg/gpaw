@@ -77,6 +77,7 @@ def test_elph_li(in_tmp_dir):
                     assert (abs(np.max(abs(elph.g_xsNNMM[x, s, 0, 0])) -
                                 np.max(abs(elph.g_xsNNMM[0, 0, 0, 0]))) < 5e-5)
         # remove json cache
+        world.barrier()
         elph.clean()
 
     if world.rank == 0:

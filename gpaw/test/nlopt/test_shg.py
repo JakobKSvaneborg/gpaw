@@ -22,11 +22,12 @@ def test_shg(in_tmp_dir):
     calc.write('gs.gpw', 'all')
 
     # Get the mml
-    make_nlodata()
+    nlodata = make_nlodata('gs.gpw', comm=world)
 
     # Do a SHG
-    get_shg(freqs=np.linspace(0, 5, 100))
-    get_shg(freqs=np.linspace(0, 5, 100), gauge='vg', out_name='shg2.npy')
+    freqs = np.linspace(0, 5, 101)
+    get_shg(nlodata, freqs=freqs)
+    get_shg(nlodata, freqs=freqs, gauge='vg', out_name='shg2.npy')
 
     # Check it
     if world.rank == 0:
@@ -61,13 +62,11 @@ def test_shg_spinpol(gpw_files, in_tmp_dir):
 
         # Get nlodata from pre-calculated SiC fixtures
         calc = gpw_files[f'sic_pw{tag}']
-        make_nlodata(calc, out_name=f'mml{tag}.npz', ni=0, nf=8)
-        world.barrier()
+        nlodata = make_nlodata(calc, ni=0, nf=8, comm=world)
 
         # Calculate 'xyz' tensor element of SHG spectra
-        get_shg(freqs=freqs, eta=0.025, pol='xyz',
-                out_name=f'shg_xyz{tag}.npy',
-                mml_name=f'mml{tag}.npz')
+        get_shg(nlodata, freqs=freqs, eta=0.025, pol='xyz',
+                out_name=f'shg_xyz{tag}.npy')
         world.barrier()
 
         # Load the calculated SHG spectra (in units of nm/V)

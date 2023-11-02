@@ -98,8 +98,8 @@ class PWDescriptor:
         self.ngmax = max(self.ng_q)
 
         if kd is not None:
-            self.ngmin = kd.comm.min(self.ngmin)
-            self.ngmax = kd.comm.max(self.ngmax)
+            self.ngmin = kd.comm.min_scalar(self.ngmin)
+            self.ngmax = kd.comm.max_scalar(self.ngmax)
 
         # Distribute things:
         S = gd.comm.size
@@ -382,7 +382,7 @@ class PWDescriptor:
 
         if result.ndim == 0:
             if global_integral:
-                return self.gd.comm.sum(result.item())
+                return self.gd.comm.sum_scalar(result.item())
             return result.item()
         else:
             assert global_integral or self.gd.comm.size == 1

@@ -2,7 +2,7 @@ import pytest
 
 import numpy as np
 
-from ase.units import Bohr
+from ase.units import Bohr, Ha
 
 from gpaw import GPAW
 from gpaw.sphere.integrate import integrate_lebedev
@@ -129,18 +129,19 @@ def test_Co_site_data(gpw_files):
     assert magmom_ar[1, nr:2 * nr] == pytest.approx([magmom_ar[1, -1]] * nr)
     assert magmom_ar[1, 2 * nr:] == pytest.approx(magmom_ar[1, :nr])
 
-    # Calculate the atomic spin splitting
+    # Calculate the atomic Zeeman energy
     rc_r = rc_r[:-1]
     sites = AtomicSites(indices=[0, 1], radii=[rc_r, rc_r])
     site_data = AtomicSiteData(gs, sites)
-    dxc_ar = site_data.calculate_spin_splitting()
-    print(dxc_ar[0, ::20])
+    EZ_ar = site_data.calculate_zeeman_energies()
+    print(EZ_ar[0, ::20])
 
-    # Test that the spin splitting comes out as expected
-    assert dxc_ar[0] == pytest.approx(dxc_ar[1])
-    assert dxc_ar[0, ::20] == pytest.approx([0.02638351, 1.41476112,
-                                             2.49540004, 2.79727200,
-                                             2.82727948, 2.83670767], rel=1e-3)
+    # Test that the Zeeman energy comes out as expected
+    assert EZ_ar[0] == pytest.approx(EZ_ar[1])
+    assert EZ_ar[0, ::20] * 2 * Ha == pytest.approx([0.02638351, 1.41476112,
+                                                     2.49540004, 2.79727200,
+                                                     2.82727948, 2.83670767],
+                                                    rel=1e-3)
 
     # import matplotlib.pyplot as plt
     # plt.subplot(1, 2, 1)
@@ -149,8 +150,8 @@ def test_Co_site_data(gpw_files):
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
     # plt.ylabel(r'$m$ [$\mu_\mathrm{B}$]')
     # plt.subplot(1, 2, 2)
-    # plt.plot(rc_r, dxc_ar[0])
+    # plt.plot(rc_r, EZ_ar[0] * Ha)  # Hartree -> eV
     # plt.axvline(augr * Bohr, c='0.5', linestyle='--')
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
-    # plt.ylabel(r'$\Delta_\mathrm{xc}$ [eV]')
+    # plt.ylabel(r'$E_\mathrm{Z}$ [eV]')
     # plt.show()

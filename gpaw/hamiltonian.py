@@ -80,6 +80,7 @@ class Hamiltonian:
         self.e_xc = None
         self.e_entropy = None
         self.e_band = None
+        self.e_sic = None
 
         self.e_total_free = None
         self.e_total_extrapolated = None
@@ -133,10 +134,14 @@ class Hamiltonian:
                     ('External:     ', self.e_external),
                     ('XC:           ', self.e_xc),
                     ('Entropy (-ST):', self.e_entropy),
-                    ('Local:        ', self.e_zero)]
+                    ('Local:        ', self.e_zero),
+                    ('SIC:        ', self.e_sic)]
 
         for name, e in energies:
-            log('%-14s %+11.6f' % (name, Ha * e))
+            if name == 'SIC:        ' and e is None:
+                continue
+            else:
+                log('%-14s %+11.6f' % (name, Ha * e))
 
         log('--------------------------')
         log('Free energy:   %+11.6f' % (Ha * self.e_total_free))
@@ -352,7 +357,7 @@ class Hamiltonian:
 
         return np.array([e_kinetic, e_coulomb, e_zero, e_external, e_xc])
 
-    def get_energy(self, e_entropy, wfs, kin_en_using_band=True):
+    def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
         """Sum up all eigenvalues weighted with occupation numbers"""
         self.e_band = wfs.calculate_band_energy()
         if kin_en_using_band:
@@ -372,6 +377,11 @@ class Hamiltonian:
         self.e_total_free = (self.e_kinetic + self.e_coulomb +
                              self.e_external + self.e_zero + self.e_xc +
                              self.e_entropy)
+
+        if e_sic is not None:
+            self.e_sic = e_sic
+            self.e_total_free += e_sic
+
         self.e_total_extrapolated = (
             self.e_total_free +
             wfs.occupations.extrapolate_factor * e_entropy)
@@ -478,7 +488,7 @@ class Hamiltonian:
         for a, D_sp in D_asp.items():
             setup = self.setups[a]
             atomic_e_xc += xc.calculate_paw_correction(setup, D_sp, a=a)
-        e_xc = finegd_e_xc + self.world.sum(atomic_e_xc)
+        e_xc = finegd_e_xc + self.world.sum_scalar(atomic_e_xc)
         return e_xc - self.e_xc
 
     def estimate_memory(self, mem):

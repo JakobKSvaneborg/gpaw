@@ -1,4 +1,5 @@
 import numpy as np
+from gpaw.xc.kernel import XCKernel
 
 
 class XCFunctional:
@@ -9,6 +10,7 @@ class XCFunctional:
         self.gd = None
         self.ekin = 0.0
         self.type = type
+        self.kernel: XCKernel
 
     def todict(self):
         """Get dictionary representation of XC functional.

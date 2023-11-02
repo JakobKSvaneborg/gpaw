@@ -330,7 +330,7 @@ References
 ==========
 
 .. [#Durhuus] F. L. Durhuus, T. Skovhus and T. Olsen,
-           *arXiv:2204.04169* (2022)
+	   *J. Phys.: Condens. Matter* **35**, 105802 (2023)
 
 .. [#Skovhus] T. Skovhus and T. Olsen,
            *Phys. Rev. B* **103**, 245110 (2021)

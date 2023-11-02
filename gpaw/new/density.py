@@ -310,10 +310,10 @@ class Density:
 
         if self.ncomponents == 2:
             for a, D_sii in self.D_asii.items():
-                M_ii = D_sii[0] - D_sii[1]
+                M_ii = as_np(D_sii[0] - D_sii[1])
                 magmom_av[a, 2] = np.einsum('ij, ij ->', M_ii, self.N0_aii[a])
-                magmom_v[2] += (np.einsum('ij, ij ->', M_ii,
-                                          self.delta_aiiL[a][:, :, 0]) *
+                delta_ii = as_np(self.delta_aiiL[a][:, :, 0])
+                magmom_v[2] += (np.einsum('ij, ij ->', M_ii, delta_ii) *
                                 sqrt(4 * pi))
             domain_comm.sum(magmom_av)
             domain_comm.sum(magmom_v)

@@ -774,7 +774,7 @@ class FFTVDWFunctional(VDWFunctionalBase):
             self.timer.stop()
 
         self.timer.stop()
-        return 0.5 * world.sum(energy) * gd.dv / self.shape.prod()
+        return 0.5 * world.sum_scalar(energy) * gd.dv / self.shape.prod()
 
     def calculate_potential(self, n_g, a2_g, i_g, dq0_g, p_ag, F_ag,
                             e_LDAc_g, v_LDAc_g, v_g, deda2_g):

@@ -4,14 +4,16 @@ from gpaw.directmin.tools import d_matrix
 
 
 class KSLCAO:
-
     """
     This class is used to calculate the gradient of the KS functional
     w.r.t rotation parameters in LCAO
     """
 
-    def __init__(self):
+    def __init__(self, wfs, dens, ham):
         self.name = 'ks'
+        self.wfs = wfs
+        self.dens = dens
+        self.ham = ham
 
     def todict(self):
         return {'name': self.name}
@@ -100,8 +102,7 @@ class KSLCAO:
         Calculate residual error of KS equations
         """
         occ = sum(f_n > 1.0e-10)
-        hc_mn = hc_mn[:, :occ] - \
-            S_MM.conj() @ c_nm[:occ].T @ h_ij[:occ, :occ]
+        hc_mn = hc_mn[:, :occ] - S_MM.conj() @ c_nm[:occ].T @ h_ij[:occ, :occ]
         if constraints:
             # Zero out the components of the residual that are constrained,
             # so that the constrained degrees of freedom are always considered

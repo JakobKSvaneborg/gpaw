@@ -44,17 +44,18 @@ def create_ibz_wave_functions(*,
         wfs_qs.append(wfs_s)
 
     return IBZWaveFunctions(ibz,
-                            nelectrons,
-                            ncomponents,
-                            wfs_qs,
-                            kpt_comm,
-                            kpt_band_comm,
-                            comm)
+                            nelectrons=nelectrons,
+                            ncomponents=ncomponents,
+                            wfs_qs=wfs_qs,
+                            kpt_comm=kpt_comm,
+                            kpt_band_comm=kpt_band_comm,
+                            comm=comm)
 
 
 class IBZWaveFunctions:
     def __init__(self,
                  ibz: IBZ,
+                 *,
                  nelectrons: float,
                  ncomponents: int,
                  wfs_qs: list[list[WaveFunctions]],
@@ -290,7 +291,7 @@ class IBZWaveFunctions:
             wfs.force_contribution(potential, F_av)
         if self.xp is not np:
             synchronize()
-        self.kpt_comm.sum(F_av)
+        self.kpt_band_comm.sum(F_av)
         return F_av
 
     def write(self,
@@ -473,9 +474,9 @@ class IBZWaveFunctions:
 
         n = int(round(self.nelectrons)) // N
         assert N * n == self.nelectrons
-        homo = self.kpt_comm.max(max(wfs_s[spin].eig_n[n - 1]
-                                     for wfs_s in self.wfs_qs))
-        lumo = self.kpt_comm.min(min(wfs_s[spin].eig_n[n]
-                                     for wfs_s in self.wfs_qs))
+        homo = self.kpt_comm.max_scalar(max(wfs_s[spin].eig_n[n - 1]
+                                            for wfs_s in self.wfs_qs))
+        lumo = self.kpt_comm.min_scalar(min(wfs_s[spin].eig_n[n]
+                                            for wfs_s in self.wfs_qs))
 
         return np.array([homo, lumo])

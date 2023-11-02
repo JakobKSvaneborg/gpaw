@@ -60,6 +60,7 @@ class PWFDWaveFunctions(WaveFunctions):
     def from_wfs(cls,
                  wfs: PWFDWaveFunctions,
                  psit_nX: XArray,
+                 fracpos_ac=None,
                  atomdist=None) -> PWFDWaveFunctions:
         return cls(
             psit_nX,
@@ -67,7 +68,7 @@ class PWFDWaveFunctions(WaveFunctions):
             q=wfs.q,
             k=wfs.k,
             setups=wfs.setups,
-            fracpos_ac=wfs.fracpos_ac,
+            fracpos_ac=wfs.fracpos_ac if fracpos_ac is None else fracpos_ac,
             atomdist=atomdist or wfs.atomdist,
             weight=wfs.weight,
             ncomponents=wfs.ncomponents,
@@ -386,22 +387,22 @@ class PWFDWaveFunctions(WaveFunctions):
                  self.spin,
                  self.q,
                  self.k,
-                 self.weight,
-                 self.ncomponents)
+                 self.weight)
         send(stuff, rank, comm)
 
     def receive(self, rank, comm):
-        kpt_c, data, spin, q, k, weight, ncomponents = receive(rank, comm)
+        kpt_c, data, spin, q, k, weight = receive(rank, comm)
         psit_nX = self.psit_nX.desc.new(kpt=kpt_c, comm=None).from_data(data)
         return PWFDWaveFunctions(psit_nX,
-                                 spin,
-                                 q,
-                                 k,
-                                 self.setups,
-                                 self.fracpos_ac,
-                                 self.atomdist,
-                                 weight,
-                                 ncomponents)
+                                 spin=spin,
+                                 q=q,
+                                 k=k,
+                                 setups=self.setups,
+                                 fracpos_ac=self.fracpos_ac,
+                                 atomdist=self.atomdist.gather(),
+                                 weight=weight,
+                                 ncomponents=self.ncomponents,
+                                 qspiral_v=self.qspiral_v)
 
     def dipole_matrix_elements(self,
                                center_v: Vector = None) -> Array3D:
@@ -506,4 +507,5 @@ class PWFDWaveFunctions(WaveFunctions):
         self._P_ani = None
         self._pt_aiX = None
 
-        return PWFDWaveFunctions.from_wfs(self, psit_nX)
+        return PWFDWaveFunctions.from_wfs(self, psit_nX,
+                                          fracpos_ac=fracpos_ac)

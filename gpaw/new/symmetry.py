@@ -8,6 +8,31 @@ from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
 
 
+def safe_id(magmom_av, tolerance=1e-3):
+    """Convert magnetic moments to integer id's.
+
+    While calculating id's for atoms, there may be rounding errors
+    in magnetic moments supplied. This will create an unique integer
+    identifier for each magnetic moment double, based on the range
+    as set by the first occurence of each floating point number:
+    [magmom_a - tolerance, magmom_a + tolerance].
+
+    >>> safe_id([1.01, 0.99, 0.5], tolerance=0.025)
+    [0, 0, 2]
+    """
+    id_a = []
+    for a, magmom_v in enumerate(magmom_av):
+        quantized = None
+        for a2 in range(a):
+            if np.linalg.norm(magmom_av[a2] - magmom_v) < tolerance:
+                quantized = a2
+                break
+        if quantized is None:
+            quantized = a
+        id_a.append(quantized)
+    return id_a
+
+
 class SymmetrizationPlan:
     def __init__(self, xp, rotations, a_sa, l_aj, layout):
         ns = a_sa.shape[0]  # Number of symmetries
@@ -84,12 +109,8 @@ class SymmetrizationPlan:
 
 def create_symmetries_object(atoms, ids=None, magmoms=None, parameters=None):
     ids = ids or [()] * len(atoms)
-    if magmoms is None:
-        pass
-    elif magmoms.ndim == 1:
-        ids = [id + (m,) for id, m in zips(ids, magmoms)]
-    else:
-        ids = [id + tuple(m) for id, m in zips(ids, magmoms)]
+    if magmoms is not None:
+        ids = [id + (m,) for id, m in zips(ids, safe_id(magmoms))]
     symmetry = OldSymmetry(ids,
                            atoms.cell.complete(),
                            atoms.pbc,

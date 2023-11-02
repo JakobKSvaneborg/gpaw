@@ -7,7 +7,7 @@ import numpy as np
 
 
 @pytest.mark.do
-def test_directmin_lcao_generalized_fd_davidson(in_tmp_dir):
+def test_generalized_davidson_lcao(in_tmp_dir):
     """
     Test complex numerical Hessian
     w.r.t rotation parameters in LCAO
@@ -21,7 +21,7 @@ def test_directmin_lcao_generalized_fd_davidson(in_tmp_dir):
                 h=0.25,
                 basis='dz(dzp)',
                 spinpol=False,
-                eigensolver={'name': 'etdm',
+                eigensolver={'name': 'etdm-lcao',
                              'representation': 'u-invar'},
                 occupations={'name': 'fixed-uniform'},
                 mixer={'backend': 'no-mixing'},
@@ -45,11 +45,11 @@ def test_directmin_lcao_generalized_fd_davidson(in_tmp_dir):
     a_mat_u = {0: [np.sqrt(2) * np.pi / 4.0 + 1.0j * np.sqrt(2) * np.pi / 4.0]}
     c_nm_ref = calc.wfs.eigensolver.dm_helper.reference_orbitals
     calc.wfs.eigensolver.rotate_wavefunctions(
-        calc.wfs, a_mat_u, {0: calc.wfs.bd.nbands}, c_nm_ref)
+        calc.wfs, a_mat_u, c_nm_ref)
     calc.wfs.eigensolver.update_ks_energy(calc.hamiltonian,
                                           calc.wfs, calc.density)
     calc.wfs.eigensolver.get_canonical_representation(
-        calc.hamiltonian, calc.wfs, calc.density, sort_eigenvalues=True)
+        calc.hamiltonian, calc.wfs, calc.density)
     calc.wfs.eigensolver.dm_helper.set_reference_orbitals(
         calc.wfs, {0: calc.wfs.bd.nbands})
 

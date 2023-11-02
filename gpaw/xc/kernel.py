@@ -62,7 +62,7 @@ class XCKernel:
         S = n_sg.shape[0]
         assert 1 <= S <= 2
         G = n_sg.shape[1:]
-        assert e_g.shape == G
+        assert e_g.shape == G, (e_g.shape, G)
         assert e_g.flags.contiguous and e_g.dtype == float
         assert dedn_sg.shape == (S,) + G
         assert dedn_sg.flags.contiguous

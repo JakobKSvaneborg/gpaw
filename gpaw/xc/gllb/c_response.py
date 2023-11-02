@@ -487,13 +487,13 @@ class C_Response(Contribution):
                                           P_ni[lumo_n]).real)
                     E += self.integrate_sphere(a, Dresp_sp, D_sp, Dwf_p,
                                                spin=spin)
-                E = self.gd.comm.sum(E)
+                E = self.gd.comm.sum_scalar(E)
                 E += self.gd.integrate(nt_G * dxc_pot.vt_sG[spin])
                 E += kpt.eps_n[lumo_n] - lumo
                 min_energy = min(min_energy, E)
 
         # Take the smallest value over all distributed k points
-        dxc = self.wfs.kd.comm.min(min_energy)
+        dxc = self.wfs.kd.comm.min_scalar(min_energy)
         return KSgap * Ha, dxc * Ha
 
     def calculate_discontinuity_from_average(self,

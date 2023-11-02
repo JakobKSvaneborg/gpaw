@@ -45,7 +45,7 @@ class ElectronPhononMatrix:
     """Class for containing the electron-phonon matrix"""
 
     def __init__(self, atoms: Atoms, supercell_cache: str, phonon,
-                 load_sc_as_needed: bool = True) -> None:
+                 load_sc_as_needed: bool = True, indices=None) -> None:
         """Initialize with base class args and kwargs.
 
         Parameters
@@ -62,10 +62,36 @@ class ElectronPhononMatrix:
             Load supercell matrix elements only as needed.
             Greatly reduces memory requirement for large systems,
             but introduces huge filesystem overhead
+        indices: list
+            List of atoms (indices) to use. Default: Use all.
         """
         self.timer = Timer()
 
         self.atoms = atoms
+        if indices is None:
+            self.indices = np.arange(len(atoms))
+        else:
+            self.indices = indices
+        if isinstance(self.indices, np.ndarray):
+            self.indices = self.indices.tolist()
+
+        if not load_sc_as_needed:
+            assert indices is None, "Use 'load_sc_as_needed' with 'indices'"
+
+        self._set_supercell_cache(supercell_cache, load_sc_as_needed)
+
+        self.timer.start("Read phonons")
+        self._set_phonon_cache(phonon, atoms)
+
+        if set(self.phonon.indices) != set(self.indices):
+            self.phonon.set_atoms(self.indices)
+            self.phonon.D_N = None
+
+        self._read_phonon_cache()
+        self.timer.stop("Read phonons")
+
+    def _set_supercell_cache(self, supercell_cache: str,
+                             load_sc_as_needed: bool):
         self.supercell_cache = MultiFileJSONCache(supercell_cache)
         self.R_cN = self._get_lattice_vectors()
 
@@ -76,7 +102,7 @@ class ElectronPhononMatrix:
             self.g_xsNNMM, _ = Supercell.load_supercell_matrix(supercell_cache)
             self._yield_g_NNMM = self._yield_g_NNMM_from_var
 
-        self.timer.start("Read phonons")
+    def _set_phonon_cache(self, phonon, atoms):
         if isinstance(phonon, Phonons):
             self.phonon = phonon
         elif isinstance(phonon, str):
@@ -87,19 +113,19 @@ class ElectronPhononMatrix:
                                   name=phonon, delta=info["delta"],
                                   center_refcell=True)
         elif isinstance(phonon, dict):
-            # this would need to be updated of Phonon defaults change
+            # this would need to be updated if Phonon defaults change
             supercell = phonon.get("supercell", (1, 1, 1))
             name = phonon.get("name", "phonon")
             delta = phonon.get("delta", 0.01)
             center_refcell = phonon.get("center_refcell", False)
-            self.phonon = Phonons(atoms, None, supercell, name, delta,
-                                  center_refcell)
+            self.phonon = Phonons(atoms, supercell=supercell, name=name,
+                                  delta=delta, center_refcell=center_refcell)
         else:
             raise TypeError
 
+    def _read_phonon_cache(self):
         if self.phonon.D_N is None:
             self.phonon.read(symmetrize=10)
-        self.timer.stop("Read phonons")
 
     def _yield_g_NNMM_as_needed(self, x, s):
         return self.supercell_cache[str(x)][s]
@@ -151,7 +177,7 @@ class ElectronPhononMatrix:
         nmodes = u_l.shape[0]
         nbands = C2_nM.shape[0]
         nao = C2_nM.shape[1]
-        ndisp = 3 * len(self.atoms)
+        ndisp = 3 * len(self.indices)
 
         # Allocate array for couplings
         g_lnn = np.zeros((nmodes, nbands, nbands), dtype=complex)
@@ -165,28 +191,33 @@ class ElectronPhononMatrix:
         if not precalc:
             phase_n = np.exp(-2.0j * np.pi * np.einsum("i,in->n", k_c,
                                                        self.R_cN))
-        for x in range(ndisp):
-            if not precalc:
-                g_NNMM = self._yield_g_NNMM(x, s)
-                assert nao == g_NNMM.shape[-1]
-                # some of these things take a long time. make it fast
-                with self.timer("g_MM"):
-                    g_MM = np.einsum("mnop,m,n->op", g_NNMM, phase_m,
-                                     phase_n, optimize=OPTIMIZE)
-                    assert g_MM.shape[0] == g_MM.shape[1]
-                with self.timer("g_nn"):
-                    g_nn = np.dot(C2_nM.conj(), np.dot(g_MM, C1_nM.T))
-                    # g_nn = np.einsum('no,op,mp->nm', C2_nM.conj(),
-                    #                   g_MM, C1_nM)
-            else:
-                with self.timer("g_Mn"):
-                    g_Mn = np.einsum("mon,m->on", g_xNMn[x], phase_m)
-                with self.timer("g_nn"):
-                    g_nn = np.dot(C2_nM.conj(), g_Mn)
-            with self.timer("g_lnn"):
-                # g_lnn += np.einsum('i,kl->ikl', u_lx[:, x], g_nn,
-                #                   optimize=OPTIMIZE)
-                g_lnn += np.multiply.outer(u_lx[:, x], g_nn)
+
+        # Do each cartesian component separately
+        for i, a in enumerate(self.indices):
+            for v in range(3):
+                xinput = 3 * a + v
+                xoutput = 3 * i + v
+                if not precalc:
+                    g_NNMM = self._yield_g_NNMM(xinput, s)
+                    assert nao == g_NNMM.shape[-1]
+                    # some of these things take a long time. make it fast
+                    with self.timer("g_MM"):
+                        g_MM = np.einsum("mnop,m,n->op", g_NNMM, phase_m,
+                                         phase_n, optimize=OPTIMIZE)
+                        assert g_MM.shape[0] == g_MM.shape[1]
+                    with self.timer("g_nn"):
+                        g_nn = np.dot(C2_nM.conj(), np.dot(g_MM, C1_nM.T))
+                        # g_nn = np.einsum('no,op,mp->nm', C2_nM.conj(),
+                        #                   g_MM, C1_nM)
+                else:
+                    with self.timer("g_Mn"):
+                        g_Mn = np.einsum("mon,m->on", g_xNMn[xoutput], phase_m)
+                    with self.timer("g_nn"):
+                        g_nn = np.dot(C2_nM.conj(), g_Mn)
+                with self.timer("g_lnn"):
+                    # g_lnn += np.einsum('i,kl->ikl', u_lx[:, x], g_nn,
+                    #                   optimize=OPTIMIZE)
+                    g_lnn += np.multiply.outer(u_lx[:, xoutput], g_nn)
 
         # Multiply prefactor sqrt(hbar / 2 * M * omega) in units of Bohr
         if prefactor:
@@ -206,14 +237,15 @@ class ElectronPhononMatrix:
         g_xNkMn = []
         phase_kn = np.exp(-2.0j * np.pi * np.einsum("ki,in->kn", kd.bzk_kc,
                                                     self.R_cN))
-        for x in range(3 * len(self.atoms)):
-            g_NNMM = self._yield_g_NNMM_as_needed(x, s)
-            g_NkMM = np.einsum("mnop,kn->mkop", g_NNMM, phase_kn,
-                               optimize=OPTIMIZE)
-            g_NkMn = np.einsum("mkop,knp->mkon", g_NkMM, c_knM,
-                               optimize=OPTIMIZE)
-
-            g_xNkMn.append(g_NkMn)
+        for a in self.indices:
+            for v in range(3):
+                x = 3 * a + v
+                g_NNMM = self._yield_g_NNMM_as_needed(x, s)
+                g_NkMM = np.einsum("mnop,kn->mkop", g_NNMM, phase_kn,
+                                   optimize=OPTIMIZE)
+                g_NkMn = np.einsum("mkop,knp->mkon", g_NkMM, c_knM,
+                                   optimize=OPTIMIZE)
+                g_xNkMn.append(g_NkMn)
         return np.array(g_xNkMn)
 
     def bloch_matrix(self, calc: GPAW, k_qc: ArrayND = None,
@@ -259,7 +291,7 @@ class ElectronPhononMatrix:
         assert k_qc.ndim == 2
 
         g_sqklnn = np.zeros([wfs.nspins, k_qc.shape[0], kd.nbzkpts,
-                             3 * len(self.atoms), wfs.bd.nbands,
+                             3 * len(self.indices), wfs.bd.nbands,
                              wfs.bd.nbands], dtype=complex)
 
         for s in range(wfs.nspins):

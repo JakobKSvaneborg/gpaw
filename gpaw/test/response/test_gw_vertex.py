@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from gpaw.response.g0w0 import G0W0
+from gpaw.mpi import world
 
 
 @pytest.mark.response
@@ -9,7 +10,10 @@ from gpaw.response.g0w0 import G0W0
     ('GWS', 4.988230),
     ('GWG', 4.894904)])
 def test_fxc_mode(in_tmp_dir, gpw_files, fxc_mode, ref_gap, scalapack,
-                  needs_ase_master):
+                  needs_ase_master, gpaw_new):
+    if gpaw_new and world.size > 1:
+        pytest.skip('Hybrids not working in parallel with GPAW_NEW=1')
+
     gw = G0W0(gpw_files['bn_pw'],
               bands=(3, 5),
               nbands=9,

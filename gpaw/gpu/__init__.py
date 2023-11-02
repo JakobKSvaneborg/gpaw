@@ -78,6 +78,13 @@ def as_xp(array, xp):
     return array
 
 
+def einsum(subscripts, *operands, out):
+    if isinstance(out, np.ndarray):
+        np.einsum(subscripts, *operands, out=out)
+    else:
+        out[:] = cupy.einsum(subscripts, *operands)
+
+
 def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     """Wrapper for ``eigh()``.
 

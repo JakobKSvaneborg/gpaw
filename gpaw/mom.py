@@ -16,7 +16,7 @@ from gpaw.occupations import FixedOccupationNumbers, ParallelLayout
 def prepare_mom_calculation(calc,
                             atoms,
                             numbers,
-                            use_projections=False,
+                            use_projections=True,
                             update_numbers=True,
                             use_fixed_occupations=False,
                             width=0.0,
@@ -32,13 +32,12 @@ def prepare_mom_calculation(calc,
         Occupation numbers (in the range from 0 to 1). Used
         for the initialization of the MOM reference orbitals.
     use_projections: bool
-        If True, the occupied orbitals at iteration k are chosen
-        as the orbitals ``|psi^(k)_m>`` with the biggest weights
-        ``P_m`` evaluated as the projections onto the manifold of
-        reference orbitals ``|psi_n>``: ``P_m = (Sum_n(|O_nm|^2))^0.5
-        (O_nm = <psi_n|psi^(k)_m>)`` see
-        :doi:`10.1021/acs.jctc.7b00994`. If False (default),
-        the weights are evaluated as: ``P_m = max_n(|O_nm|)``
+        If True (default), the occupied orbitals at iteration k are
+        chosen as the orbitals ``|psi^(k)_m>`` with the biggest
+        weights ``P_m`` evaluated as the projections onto the manifold
+        of reference orbitals ``|psi_n>``: ``P_m = (Sum_n(|O_nm|^2))^0.5
+        (O_nm = <psi_n|psi^(k)_m>)`` see :doi:`10.1021/acs.jctc.7b00994`.
+        If False, the weights are evaluated as: ``P_m = max_n(|O_nm|)``,
         see :doi:`10.1021/acs.jctc.0c00488`.
     update_numbers: bool
         If True (default), 'numbers' gets updated with the calculated

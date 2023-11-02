@@ -6,6 +6,7 @@ from ase.build import molecule
 from gpaw import GPAW
 
 
+@pytest.mark.later
 def test_restart(in_tmp_dir):
     system = molecule('H2')
     system.center(vacuum=2.5)

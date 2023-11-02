@@ -191,6 +191,9 @@ class ndarray:
             return self._data == other
         return ndarray(self._data == other._data)
 
+    def __neg__(self):
+        return ndarray(-self._data)
+
     def __mul__(self, f):
         if isinstance(f, (float, complex)):
             return ndarray(f * self._data)

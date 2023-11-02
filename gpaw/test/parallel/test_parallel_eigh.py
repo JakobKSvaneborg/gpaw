@@ -17,7 +17,7 @@ def parallel_eigh(matrixfile, blacsgrid=(4, 2), blocksize=64):
         NM = len(H_MM)
     else:
         NM = 0
-    NM = world.sum(NM)  # distribute matrix shape to all nodes
+    NM = world.sum_scalar(NM)  # distribute matrix shape to all nodes
 
     # descriptor for the individual blocks
     block_desc = grid.new_descriptor(NM, NM, blocksize, blocksize)

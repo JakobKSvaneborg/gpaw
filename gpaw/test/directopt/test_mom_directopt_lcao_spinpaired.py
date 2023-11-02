@@ -3,7 +3,7 @@ import pytest
 from ase import Atoms
 from gpaw import GPAW
 from gpaw.mom import prepare_mom_calculation
-from gpaw.directmin.etdm import ETDM
+from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import excite
 
 
@@ -18,8 +18,8 @@ def test_mom_directopt_lcao_spinpaired(in_tmp_dir):
                    [-1.24286000e+00, -1.46832100e-02, -9.32554970e-01]])
     atoms.center(vacuum=4)
 
-    eigensolver = ETDM(searchdir_algo={'name': 'l-sr1p'},
-                       linesearch_algo={'name': 'max-step'})
+    eigensolver = LCAOETDM(searchdir_algo={'name': 'l-sr1p'},
+                           linesearch_algo={'name': 'max-step'})
 
     calc = GPAW(mode='lcao',
                 basis='dzp',

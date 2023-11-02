@@ -1,30 +1,39 @@
 import numpy as np
-from gpaw.new.ase_interface import GPAW
 from myqueue.workflow import run
 
 
 def workflow():
-    with run(script='fe_sgs.py', cores=40, tmax='4h'):
+    with run(script='nii2_sgs.py', cores=40, tmax='2h'):
         run(script='plot.py')
         run(function=check)
 
+        with run(script='nii2_soc.py', cores=16, tmax='30m'):
+            run(script='plot_soc.py')
+            run(function=check_soc)
+
 
 def check():
-    energies = []
-    magmoms = []
-    for i in [0, 30]:
-        atoms = GPAW(f'gs-{i:02}.gpw').get_atoms()
-        energy = atoms.get_potential_energy()
-        magmom = np.linalg.norm(atoms.calc.calculation.magmoms()[0])
-        energies.append(energy)
-        magmoms.append(magmom)
-
+    data = np.load('data.npz')
+    energies = data['energies']
+    energies = (energies - energies[0]) * 1000
+    magmoms = data['magmoms']
     print(energies, magmoms)
 
-    assert abs(energies[0] - energies[1] - 0.0108) < 0.001
-    assert abs(magmoms[0]) < 0.02
-    assert abs(magmoms[1] - 0.83) < 0.02
+    assert np.argmin(energies) == 24
+    assert abs(max(energies) - min(energies) - 67.82) < 0.01
+    assert abs(magmoms[0] - 1.81) < 0.01
+
+
+def check_soc():
+    data = np.load('soc_data.npz')
+    soc = data['soc']
+    soc = (soc - soc[0]) * 1000
+    print(soc)
+
+    assert np.argmin(soc) == 3394
+    assert abs(max(soc) - min(soc) - 3.44) < 0.01
 
 
 if __name__ == '__main__':
     check()
+    check_soc()

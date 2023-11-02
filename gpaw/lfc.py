@@ -6,6 +6,7 @@ from ase.units import Bohr
 import _gpaw
 from gpaw import debug
 from gpaw.grid_descriptor import GridDescriptor, GridBoundsError
+from gpaw.gpu import cupy_is_fake
 from gpaw.utilities import smallest_safe_grid_spacing
 
 """
@@ -341,9 +342,6 @@ class LocalizedFunctionsCollection(BaseLFC):
         self.G_B = self.G_B[indices]
         self.W_B = self.W_B[indices]
 
-        self.lfc = _gpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
-                             self.gd.dv, self.phase_qW, self.xp is not np)
-
         # Find out which ranks have a piece of the
         # localized functions:
         x_a = np.zeros(natoms, bool)
@@ -368,6 +366,9 @@ class LocalizedFunctionsCollection(BaseLFC):
             for i in range(3):
                 for iterator in iterators:
                     next(iterator)
+
+        self.lfc = _gpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
+                             self.gd.dv, self.phase_qW, self.xp is not np)
 
         return sdisp_Wc
 
@@ -406,14 +407,15 @@ class LocalizedFunctionsCollection(BaseLFC):
             assert q == -1 and a_xG.ndim == 3
             c_xM = self.xp.empty(self.Mmax)
             c_xM.fill(c_axi)
-            if self.xp is not np:
-                if self.Mmax > 0:
-                    self.lfc.add_gpu(c_xM.data.ptr,
-                                     c_xM.shape,
-                                     a_xG.data.ptr,
-                                     a_xG.shape, q)
-            else:
+            if self.xp is np:
                 self.lfc.add(c_xM, a_xG, q)
+            elif cupy_is_fake:
+                self.lfc.add(c_xM._data, a_xG._data, q)
+            else:
+                self.lfc.add_gpu(c_xM.data.ptr,
+                                 c_xM.shape,
+                                 a_xG.data.ptr,
+                                 a_xG.shape, q)
             return
 
         dtype = a_xG.dtype
@@ -435,7 +437,7 @@ class LocalizedFunctionsCollection(BaseLFC):
             sphere = self.sphere_a[a]
             M2 = M1 + sphere.Mmax
             if c_xi is None:
-                c_xi = np.empty(xshape + (sphere.Mmax,), dtype)
+                c_xi = self.xp.empty(xshape + (sphere.Mmax,), dtype)
                 b_axi[a] = c_xi
                 requests.append(comm.receive(c_xi, sphere.rank, a, False))
             else:
@@ -447,23 +449,22 @@ class LocalizedFunctionsCollection(BaseLFC):
         for request in requests:
             comm.wait(request)
 
-        if self.xp is np:
-            c_xM = np.empty(xshape + (self.Mmax,), dtype)
-            M1 = 0
-            for a in self.atom_indices:
-                c_xi = c_axi.get(a)
-                sphere = self.sphere_a[a]
-                M2 = M1 + sphere.Mmax
-                if c_xi is None:
-                    c_xi = b_axi[a]
-                c_xM[..., M1:M2] = c_xi
-                M1 = M2
-            self.lfc.add(c_xM, a_xG, q)
-            return
+        c_xM = self.xp.empty(xshape + (self.Mmax,), dtype)
+        M1 = 0
+        for a in self.atom_indices:
+            c_xi = c_axi.get(a)
+            sphere = self.sphere_a[a]
+            M2 = M1 + sphere.Mmax
+            if c_xi is None:
+                c_xi = b_axi[a]
+            c_xM[..., M1:M2] = c_xi
+            M1 = M2
 
-        assert comm.size == 1
-        if self.Mmax > 0:
-            c_xM = c_axi.data
+        if self.xp is np:
+            self.lfc.add(c_xM, a_xG, q)
+        elif cupy_is_fake:
+            self.lfc.add(c_xM._data, a_xG._data, q)
+        else:
             self.lfc.add_gpu(c_xM.data.ptr,
                              c_xM.shape,
                              a_xG.data.ptr,
@@ -573,19 +574,17 @@ class LocalizedFunctionsCollection(BaseLFC):
 
         comm = self.gd.comm
 
+        c_xM = self.xp.zeros(xshape + (self.Mmax,), dtype)
         if self.xp is np:
-            c_xM = np.zeros(xshape + (self.Mmax,), dtype)
             self.lfc.integrate(a_xG, c_xM, q)
+        elif cupy_is_fake:
+            self.lfc.integrate(a_xG._data, c_xM._data, q)
         else:
-            assert comm.size == 1
-            if self.Mmax > 0:
-                c_xM_gpu = c_axi.data
-                self.lfc.integrate_gpu(a_xG.data.ptr,
-                                       a_xG.shape,
-                                       c_xM_gpu.data.ptr,
-                                       c_xM_gpu.shape, q)
-                c_xM_gpu *= self.gd.dv
-            return
+            self.lfc.integrate_gpu(a_xG.data.ptr,
+                                   a_xG.shape,
+                                   c_xM.data.ptr,
+                                   c_xM.shape, q)
+            c_xM *= self.gd.dv
 
         rank = comm.rank
         srequests = []
@@ -603,8 +602,9 @@ class LocalizedFunctionsCollection(BaseLFC):
                                            sphere.rank, a, False))
             else:
                 if len(sphere.ranks) > 0:
-                    c_rxi = np.empty(sphere.ranks.shape + xshape + (M2 - M1,),
-                                     dtype)
+                    c_rxi = self.xp.empty(
+                        sphere.ranks.shape + xshape + (M2 - M1,),
+                        dtype)
                     c_arxi[a] = c_rxi
                     for r, b_xi in zip(sphere.ranks, c_rxi):
                         rrequests.append(comm.receive(b_xi, r, a, False))
@@ -620,8 +620,9 @@ class LocalizedFunctionsCollection(BaseLFC):
             M2 = M1 + sphere.Mmax
             if c_xi is not None:
                 if len(sphere.ranks) > 0:
-                    c_xi[:] = c_xM[..., M1:M2] + c_arxi[a].sum(axis=0)
-                else:
+                    if c_xM.shape[-1] > M1:
+                        c_xi[:] = c_xM[..., M1:M2] + c_arxi[a].sum(axis=0)
+                elif c_xM.shape[-1] > M1:
                     c_xi[:] = c_xM[..., M1:M2]
             M1 = M2
 

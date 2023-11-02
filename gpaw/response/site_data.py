@@ -1,6 +1,6 @@
 import numpy as np
 
-from ase.units import Bohr, Hartree
+from ase.units import Bohr
 from ase.neighborlist import natural_cutoffs, build_neighbor_list
 
 from gpaw.sphere.integrate import (integrate_lebedev,
@@ -10,7 +10,7 @@ from gpaw.sphere.integrate import (integrate_lebedev,
                                    find_volume_conserving_lambd)
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.localft import (add_spin_polarization,
-                                   add_LSDA_spin_splitting)
+                                   add_LSDA_zeeman_energy)
 
 
 class AtomicSites:
@@ -134,10 +134,10 @@ class AtomicSiteData:
         magmom_ap = self.integrate_local_function(add_spin_polarization)
         return magmom_ap
 
-    def calculate_spin_splitting(self):
-        r"""Calculate the spin splitting Δ^(xc) for each atomic site."""
-        dxc_ap = self.integrate_local_function(add_LSDA_spin_splitting)
-        return dxc_ap * Hartree  # return the splitting in eV
+    def calculate_zeeman_energies(self):
+        r"""Calculate the local Zeeman energy E_Z for each atomic site."""
+        EZ_ap = self.integrate_local_function(add_LSDA_zeeman_energy)
+        return EZ_ap
 
     def integrate_local_function(self, add_f):
         r"""Integrate a local function f[n](r) = f(n(r)) over the atomic sites.

@@ -137,7 +137,8 @@ class Kmatrix:
         self.lr_comms.parent_comm.barrier()
         # self.timer.stop('Read K-matrix')
 
-        self.file_format = self.lr_comms.parent_comm.max(self.file_format)
+        self.file_format = self.lr_comms.parent_comm.max_scalar(
+            self.file_format)
 
         # send and receive elem_list
         # self.timer.start('Communicate K-matrix')
@@ -374,7 +375,7 @@ class Kmatrix:
                 Ia = self.calculate_paw_fHXC_corrections(kss_ip, kss_jq, I_asp)
 
                 # self.timer.stop('Atomic corrections')
-                Ia = self.lr_comms.dd_comm.sum(Ia)
+                Ia = self.lr_comms.dd_comm.sum_scalar(Ia)
 
                 # Total integral
                 Itot = Ig + Ia

@@ -63,7 +63,7 @@ def calculate_stress(calc):
             a_ani[a] = 2 * a_ni.conj()
         s0_vv += wfs.pt.stress_tensor_contribution(kpt.psit_nG, a_ani,
                                                    q=kpt.q)
-    s0_vv -= dens.gd.comm.sum(s0.real) * np.eye(3)
+    s0_vv -= dens.gd.comm.sum_scalar(s0.real) * np.eye(3)
     s0_vv /= dens.gd.comm.size
     wfs.world.sum(s0_vv)
     s_vv += s0_vv

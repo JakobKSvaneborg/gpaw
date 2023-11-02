@@ -23,6 +23,7 @@
 #define gpuCreal                  hipCreal
 #define gpuCimag                  hipCimag
 #define gpuCadd                   hipCadd
+#define gpuCsub                   hipCsub
 #define gpuCmul                   hipCmul
 #define gpuConj                   hipConj
 
@@ -73,7 +74,6 @@
 
 #define gpublasCreate             hipblasCreate
 #define gpublasSetStream          hipblasSetStream
-#define gpublasDgemm              hipblasDgemm
 #define gpublasGetMatrixAsync     hipblasGetMatrixAsync
 #define gpublasSetMatrixAsync     hipblasSetMatrixAsync
 #define gpublasDsyrk              hipblasDsyrk

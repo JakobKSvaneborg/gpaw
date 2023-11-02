@@ -320,7 +320,7 @@ class OmegaMatrix:
                         # use pack as I_sp used pack2
                         P_p = pack(P_ii)
                         Exc += np.dot(I_asp[a][kss[kq].pspin], P_p)
-                    Om_xc[ij, kq] += weight * self.gd.comm.sum(Exc)
+                    Om_xc[ij, kq] += weight * self.gd.comm.sum_scalar(Exc)
                     timer2.stop()
 
                 elif self.derivativeLevel == 2:
@@ -395,7 +395,7 @@ class OmegaMatrix:
             #   ----    ip  jr prst ks qt
             #   prst
             Ia += 2.0 * np.dot(Dkq_p, np.dot(C_pp, Dij_p))
-        I += self.gd.comm.sum(Ia)
+        I += self.gd.comm.sum_scalar(Ia)
         if timer:
             timer.stop()
 

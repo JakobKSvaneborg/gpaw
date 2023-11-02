@@ -221,5 +221,5 @@ class Davidson(Eigensolver):
                 self.calculate_residuals(
                     kpt, wfs, ham, psit, P, kpt.eps_n, R, P2)
 
-        error = wfs.gd.comm.sum(error)
+        error = wfs.gd.comm.sum_scalar(error)
         return error

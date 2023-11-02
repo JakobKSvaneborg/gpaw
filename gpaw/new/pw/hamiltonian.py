@@ -74,7 +74,8 @@ class PWHamiltonian(Hamiltonian):
                 vt_G.data -= 0.5j * Gplusk1_Gv[:, v] * tmp_G.data
 
     def create_preconditioner(self,
-                              blocksize: int
+                              blocksize: int,
+                              xp=np
                               ) -> Callable[[PWArray,
                                              PWArray,
                                              PWArray], None]:
@@ -169,7 +170,7 @@ class SpinorPWHamiltonian(Hamiltonian):
 
         return out_nsG
 
-    def create_preconditioner(self, blocksize):
+    def create_preconditioner(self, blocksize, xp):
         return spinor_precondition
 
 

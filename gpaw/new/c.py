@@ -2,10 +2,12 @@ from typing import TYPE_CHECKING
 
 from gpaw.typing import Array1D, ArrayND
 from gpaw.gpu import cupy as cp
+import _gpaw
 
 __all__ = ['GPU_AWARE_MPI']
 
-GPU_AWARE_MPI = False
+GPU_AWARE_MPI = getattr(_gpaw, 'gpu_aware_mpi', False)
+GPU_ENABLED = getattr(_gpaw, 'GPU_ENABLED', False)
 
 
 def add_to_density(f: float,
@@ -83,6 +85,11 @@ def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
         J1 = J2
 
 
+def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
+    for residual_G, eps, wfs_G in zip(residual_nG, eps_n, wfs_nG):
+        residual_G -= eps * wfs_G
+
+
 def add_to_density_gpu(weight_n, psit_nR, nt_R):
     for weight, psit_R in zip(weight_n, psit_nR):
         nt_R += float(weight) * cp.abs(psit_R)**2
@@ -92,20 +99,24 @@ def symmetrize_ft(a_R, b_R, r_cc, t_c, offset_c):
     raise NotImplementedError
 
 
+def evaluate_lda_gpu(nt_sr, vxct_sr, e_r) -> None:
+    from gpaw.xc.kernel import XCKernel
+    XCKernel('LDA').calculate(e_r._data, nt_sr._data, vxct_sr._data)
+
+
+def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
+    from gpaw.xc.kernel import XCKernel
+    XCKernel('PBE').calculate(e_r._data, nt_sr._data, vxct_sr._data,
+                              sigma_xr._data, dedsigma_xr._data)
+
+
 if not TYPE_CHECKING:
-    try:
-        from _gpaw import (  # noqa
-            add_to_density, pw_precond, pw_insert,
-            pwlfc_expand, symmetrize_ft)
-    except ImportError:
-        pass
-    try:
-        from _gpaw import gpu_aware_mpi as GPU_AWARE_MPI
-    except ImportError:
-        pass
-    try:
+    from _gpaw import (  # noqa
+        add_to_density, pw_precond, pw_insert,
+        pwlfc_expand, symmetrize_ft)
+
+    if GPU_ENABLED:
         from _gpaw import (  # noqa
             pwlfc_expand_gpu, add_to_density_gpu, pw_insert_gpu,
-            dH_aii_times_P_ani_gpu)
-    except ImportError:
-        pass
+            dH_aii_times_P_ani_gpu, evaluate_lda_gpu, evaluate_pbe_gpu,
+            calculate_residuals_gpu)

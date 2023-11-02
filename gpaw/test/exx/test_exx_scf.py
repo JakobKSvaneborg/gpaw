@@ -14,6 +14,7 @@ pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
 
 
+@pytest.mark.later
 def test_exx_exx_scf(in_tmp_dir, add_cwd_to_setup_paths):
     h = 0.3
 

@@ -60,8 +60,10 @@ class Wannier90:
                     dis_num_iter=200,
                     dis_froz_max=0.1,
                     dis_mix_ratio=0.5,
-                    search_shells=None):
-
+                    dis_win_min=None,
+                    dis_win_max=None,
+                    search_shells=None,
+                    write_u_matrices=False):
         calc = self.calc
         seed = self.seed
         bands = self.bands
@@ -126,6 +128,8 @@ class Wannier90:
             print('spinors = True', file=f)
         else:
             print('spinors = False', file=f)
+        if write_u_matrices:
+            print('write_u_matrices = True', file=f)
         print('write_hr = True', file=f)
         if write_xyz:
             print('write_xyz = True', file=f)
@@ -162,7 +166,12 @@ class Wannier90:
         if len(bands) > Nw:
             ef = calc.get_fermi_level()
             print('fermi_energy  = %2.3f' % ef, file=f)
-            print('dis_froz_max  = %2.3f' % (ef + dis_froz_max), file=f)
+            if dis_froz_max is not None:
+                print('dis_froz_max  = %2.3f' % (ef + dis_froz_max), file=f)
+            if dis_win_min is not None:
+                print('dis_win_min  = %2.3f' % (ef + dis_win_min), file=f)
+            if dis_win_max is not None:
+                print('dis_win_max  = %2.3f' % (ef + dis_win_max), file=f)
             print('dis_num_iter  = %d' % dis_num_iter, file=f)
             print('dis_mix_ratio = %1.1f' % dis_mix_ratio, file=f)
         print(file=f)
@@ -437,7 +446,7 @@ class Wannier90:
             f = open('UNK%s.%d' % (str(ik + 1).zfill(5), spin + 1), 'w')
             grid_v = np.shape(u_nG)[1:]
             print(grid_v[0], grid_v[1], grid_v[2], ik + 1, Nn, file=f)
-            for n in range(Nn):
+            for n in bands:
                 for iz in range(grid_v[2]):
                     for iy in range(grid_v[1]):
                         for ix in range(grid_v[0]):
@@ -446,6 +455,7 @@ class Wannier90:
             f.close()
 
     def wavefunctions(self, bz_index, bands):
+        maxband = bands[-1] + 1
         if self.spinors:
             # For spinors, G denotes spin and grid: G = (s, gx, gy, gz)
             return self.soc[bz_index].wavefunctions(
@@ -454,10 +464,9 @@ class Wannier90:
         ibz_index = self.calc.wfs.kd.bz2ibz_k[bz_index]
         ut_nR = np.array([self.calc.wfs.get_wave_function_array(
             n, ibz_index, self.spin,
-            periodic=True)
-            for n in bands])
+            periodic=True) for n in range(maxband)])
         ut_nR_sym = np.array([self.ibz2bz[bz_index].map_pseudo_wave_to_BZ(
-            ut_nR[n]) for n in bands])
+            ut_nR[n]) for n in range(maxband)])
 
         return ut_nR_sym
 
@@ -501,3 +510,59 @@ def get_projections_in_bz(wfs, K, s, ibz2bz, bcomm=None):
     # map projections to bz
     proj_sym = ibz2bz[K].map_projections(proj)
     return proj_sym
+
+
+def read_umat(seed, kd, dis=False):
+    """
+    Reads wannier transformation matrix
+    """
+    if ".mat" not in seed:
+        if dis:
+            seed += "_u_dis.mat"
+        else:
+            seed += "_u.mat"
+    f = open(seed, "r")
+    f.readline()  # first line is a comment
+    nk, nw1, nw2 = [int(i) for i in f.readline().split()]
+    assert nk == kd.nbzkpts
+    uwan = np.empty([nw1, nw2, nk], dtype=complex)
+    iklist = []  # list to store found iks
+    for ik1 in range(nk):
+        f.readline()  # empty line
+        K_c = [float(rdum) for rdum in f.readline().split()]
+        ik = kd.where_is_q(K_c, kd.bzk_kc)
+        assert np.allclose(np.array(K_c), kd.bzk_kc[ik])
+        iklist.append(ik)
+        for ib1 in range(nw1):
+            for ib2 in range(nw2):
+                rdum1, rdum2 = [float(rdum) for rdum in
+                                f.readline().split()]
+                uwan[ib1, ib2, ik] = complex(rdum1, rdum2)
+    assert set(iklist) == set(range(nk))  # check that all k:s were found
+    return uwan, nk, nw1, nw2
+
+
+def read_uwan(seed, kd, dis=False):
+    """
+    Reads wannier transformation matrix
+    Input parameters:
+    -----------------
+    seed: str
+          seed in wannier calculation
+    kd: kpt descriptor
+    dis: logical
+        should be set to true if nband > nwan
+    """
+    assert '.mat' not in seed
+    # reads in wannier transformation matrix
+    umat, nk, nw1, nw2 = read_umat(seed, kd, dis=False)
+
+    if dis:
+        # Reads in transformation to optimal subspace
+        umat_dis, nk, nw1, nw2 = read_umat(seed, kd, dis=True)
+        uwan = np.zeros_like(umat_dis)
+        for ik in range(nk):
+            uwan[:, :, ik] = umat[:, :, ik] @ umat_dis[:, :, ik]
+    else:
+        uwan = umat
+    return uwan, nk, nw1, nw2

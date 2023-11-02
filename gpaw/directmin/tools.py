@@ -4,6 +4,7 @@ Tools for directmin
 
 import numpy as np
 import scipy.linalg as lalg
+from copy import deepcopy
 
 
 def expm_ed(a_mat, evalevec=False):
@@ -159,30 +160,6 @@ def minimum_cubic_interpol(x_0, x_1, f_0, f_1, df_0, df_1):
     return x_min
 
 
-def minimum_parabola_interpol(x_0, x_1, f_0, f_1, df_0):
-    """
-    given f(x0), f'(x0) and f(x1)
-    calc. x_min where parabola interpolation
-    f(x) = a x^2 + b x + c is minimal
-    :return: x_min
-    """
-    assert x_0 <= x_1
-
-    r = x_1 - x_0
-    a = (f_1 - f_0 - r * df_0) / r ** 2
-    b = df_0
-    c = f_0
-
-    a_min = - b / (2.0 * a)
-    f_min = a * a_min ** 2 + b * a_min + c
-    if f_min > f_1:
-        a_min = x_1 - x_0
-        if f_0 < f_1:
-            a_min = 0
-    x_min = a_min + x_0
-    return x_min
-
-
 def matrix_function(evals, evecs, func=lambda x: x):
     """
     calculate matrix function func(A)
@@ -217,7 +194,7 @@ def loewdin_lcao(C_nM, S_MM):
 
 def gramschmidt_lcao(C_nM, S_MM):
     """
-    Gram-Schmidt orthonormalization using cholesky decomposition
+    Gram-Schmidt orthonormalization using Cholesky decomposition
     for LCAO mode
 
     :param C_nM: LCAO coefficients
@@ -231,39 +208,206 @@ def gramschmidt_lcao(C_nM, S_MM):
     return lalg.solve(L_nn, C_nM)
 
 
-def excite(calc, i, a, spin=(0, 0)):
+def excite(calc, i, a, spin=(0, 0), sort=False):
+    """Helper function to initialize a variational excited state calculation.
+
+    Promote an electron from homo + i of k-point spin[0] to lumo + a of
+    k-point spin[1].
+
+    Parameters
+    ----------
+    calc: GPAW instance
+        GPAW calculator object.
+    i: int
+        Subtract 1 from the occupation number of the homo + i orbital of
+        k-point spin[0]. E.g. if i=-1, an electron is removed from the
+        homo - 1 orbital.
+    a: int
+        Add 1 to the occupation number of the lumo + a orbital of k-point
+        spin[1]. E.g. if a=1, an electron is added to the lumo + 1 orbital.
+    spin: tuple of two int
+        spin[0] is the k-point from which an electron is removed and spin[1]
+        is the k-point where an electron is added.
+    sort: bool
+        If True, sort the orbitals in the wfs object according to the new
+        occupation numbers, and modify the f_n attribute of the kpt objects.
+        Default is False.
+
+    Returns
+    -------
+    list of numpy.ndarray
+        List of new occupation numbers. Can be supplied to
+        mom.prepare_mom_calculation to initialize an excited state calculation
+        with MOM.
     """
-    remove an electron from spin[0], homo + i
-    and add an electron to spin[1], lumo + a
-    occupation number will be taken from
-    calc.get_occupation_numbers() for each spin
+    f_sn = [calc.get_occupation_numbers(spin=s).copy()
+            for s in range(calc.wfs.nspins)]
 
-    :return: new occupation numbers
-    """
+    f_n0 = np.asarray(f_sn[spin[0]])
+    lumo = len(f_n0[f_n0 > 0])
+    homo = lumo - 1
 
-    f_sn = []
-    for s in range(calc.wfs.nspins):
-        f_sn.append(
-            calc.get_occupation_numbers(spin=s))
+    f_sn[spin[0]][homo + i] -= 1.0
+    f_sn[spin[1]][lumo + a] += 1.0
 
-    k = 0
-    for _ in reversed(f_sn[spin[0]]):
-        k += 1
-        if _ > 0:
-            break
-
-    homo = len(f_sn[spin[0]]) - k
-
-    lumo = 0
-    for _ in f_sn[spin[1]]:
-        if _ == 0:
-            break
-        lumo += 1
-
-    f_sn[spin[0]][homo + i] -= 1
-    f_sn[spin[1]][lumo + a] += 1
+    if sort:
+        for s in spin:
+            for kpt in calc.wfs.kpt_u:
+                if kpt.s == s:
+                    kpt.f_n = f_sn[s]
+                    changedocc = sort_orbitals_according_to_occ_kpt(
+                        calc.wfs, kpt, update_mom=False)[0]
+                    if changedocc:
+                        f_sn[s] = kpt.f_n
 
     return f_sn
+
+
+def sort_orbitals_according_to_occ(
+        wfs, constraints=None, update_mom=False, update_eps=True):
+    """
+    Sort orbitals according to the occupation
+    numbers so that there are no holes in the
+    distribution of occupation numbers
+    :return:
+    """
+    restart = False
+    for kpt in wfs.kpt_u:
+        changedocc, ind = sort_orbitals_according_to_occ_kpt(
+            wfs, kpt, update_mom=update_mom, update_eps=update_eps)
+
+        if changedocc:
+            if constraints:
+                k = wfs.kd.nibzkpts * kpt.s + kpt.q
+                # Identities of the constrained orbitals have
+                # changed and needs to be updated
+                constraints[k] = update_constraints_kpt(
+                    constraints[k], list(ind))
+            restart = True
+
+    return restart
+
+
+def sort_orbitals_according_to_occ_kpt(
+        wfs, kpt, update_mom=False, update_eps=True):
+    """
+    Sort orbitals according to the occupation
+    numbers so that there are no holes in the
+    distribution of occupation numbers
+    :return:
+    """
+    changedocc = False
+    update_proj = True
+    ind = np.array([])
+
+    # Need to initialize the wave functions if
+    # restarting from gpw file in fd or pw mode
+    if kpt.psit_nG is not None:
+        if not isinstance(kpt.psit_nG, np.ndarray):
+            wfs.initialize_wave_functions_from_restart_file()
+            update_proj = False
+
+    n_occ, occupied = get_n_occ(kpt)
+    if n_occ != 0.0 and np.min(kpt.f_n[:n_occ]) == 0:
+        ind_occ = np.argwhere(occupied)
+        ind_unocc = np.argwhere(~occupied)
+        ind = np.vstack((ind_occ, ind_unocc))
+        ind = np.squeeze(ind)
+
+        if hasattr(wfs.eigensolver, 'dm_helper'):
+            wfs.eigensolver.dm_helper.sort_orbitals(wfs, kpt, ind)
+        else:
+            sort_orbitals_kpt(wfs, kpt, ind, update_proj)
+
+        kpt.f_n = kpt.f_n[ind]
+        if update_eps:
+            kpt.eps_n = kpt.eps_n[ind]
+
+        if update_mom:
+            # OccupationsMOM.numbers needs
+            # to be updated after sorting
+            update_mom_numbers(wfs, kpt)
+
+        changedocc = True
+
+    return changedocc, ind
+
+
+def sort_orbitals_according_to_energies(
+        ham, wfs, constraints=None, use_eps=True):
+    """
+    Sort orbitals according to the eigenvalues or
+    the diagonal elements of the Hamiltonian matrix
+    """
+
+    for kpt in wfs.kpt_u:
+        if use_eps:
+            orbital_energies = kpt.eps_n
+        else:
+            if hasattr(wfs.eigensolver, 'dm_helper'):
+                orbital_energies = wfs.eigensolver.dm_helper.orbital_energies(
+                    wfs, ham, kpt)
+            else:
+                raise NotImplementedError
+        ind = np.argsort(orbital_energies)
+        # check if it is necessary to sort
+        x = np.max(abs(ind - np.arange(len(ind))))
+        if x > 0:
+            # now sort wfs according to orbital energies
+            if hasattr(wfs.eigensolver, 'dm_helper'):
+                wfs.eigensolver.dm_helper.sort_orbitals(wfs, kpt, ind)
+            else:
+                sort_orbitals_kpt(wfs, kpt, ind, update_proj=True)
+
+            kpt.f_n[np.arange(len(ind))] = kpt.f_n[ind]
+            kpt.eps_n[np.arange(len(ind))] = orbital_energies[ind]
+
+            occ_name = getattr(wfs.occupations, "name", None)
+            if occ_name == 'mom':
+                # OccupationsMOM.numbers needs to be updated
+                # after sorting
+                update_mom_numbers(wfs, kpt)
+            if constraints:
+                k = wfs.kd.nibzkpts * kpt.s + kpt.q
+                # Identity if the constrained orbitals have
+                # changed and need to be updated
+                constraints[k] = update_constraints_kpt(
+                    constraints[k], list(ind))
+
+
+def update_mom_numbers(wfs, kpt):
+    if wfs.collinear and wfs.nspins == 1:
+        degeneracy = 2
+    else:
+        degeneracy = 1
+    wfs.occupations.numbers[kpt.s] = \
+        kpt.f_n / (kpt.weightk * degeneracy)
+
+
+def sort_orbitals_kpt(wfs, kpt, ind, update_proj=False):
+    if wfs.mode == 'lcao':
+        kpt.C_nM[np.arange(len(ind)), :] = kpt.C_nM[ind, :]
+        wfs.atomic_correction.calculate_projections(wfs, kpt)
+    else:
+        kpt.psit_nG[np.arange(len(ind))] = kpt.psit_nG[ind]
+        if update_proj:
+            wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
+
+
+def update_constraints_kpt(constraints, ind):
+    """
+    Change the constraint indices to match a new indexation, e.g. due to
+    sorting the orbitals
+
+    :param constraints: The list of constraints for one K-point
+    :param ind: List containing information about the change in indexation
+    """
+
+    new = deepcopy(constraints)
+    for i in range(len(constraints)):
+        for k in range(len(constraints[i])):
+            new[i][k] = ind.index(constraints[i][k])
+    return new
 
 
 def dict_to_array(x):
@@ -306,23 +450,31 @@ def array_to_dict(x, dim):
     return y
 
 
-def rotate_orbitals(wfs, orbitals, angle, channel):
+def rotate_orbitals(etdm, wfs, indices, angles, channels):
     """
-    Applies a single rotation between two orbitals.
+    Applies rotations between pairs of orbitals.
 
-    :param wfs:
-    :param orbitals: List of two orbital indices
-    :param angle: Rotation angle (deg.)
-    :param channel: Spin channel of the orbitals
+    :param etdm:       ETDM object for a converged or at least initialized
+                       calculation
+    :param indices:    List of indices. Each element must be a list of an
+                       orbital pair corresponding to the orbital rotation.
+                       For occupied-virtual rotations (unitary invariant or
+                       sparse representations), the first index represents the
+                       occupied, the second the virtual orbital.
+                       For occupied-occupied rotations (sparse representation
+                       only), the first index must always be smaller than the
+                       second.
+    :param angles:     List of angles in radians.
+    :param channels:   List of spin channels.
     """
 
-    a = angle * np.pi / 180.0
-    i = channel
-    c = wfs.kpt_u[i].C_nM.copy()
-    wfs.kpt_u[i].C_nM[orbitals[0]] = \
-        np.cos(a) * c[orbitals[0]] + np.sin(a) * c[orbitals[1]]
-    wfs.kpt_u[i].C_nM[orbitals[1]] = \
-        np.cos(a) * c[orbitals[1]] - np.sin(a) * c[orbitals[0]]
+    angles = - np.array(angles) * np.pi / 180.0
+    a_vec_u = get_a_vec_u(etdm, wfs, indices, angles, channels)
+    c = {}
+    for kpt in wfs.kpt_u:
+        k = etdm.kpointval(kpt)
+        c[k] = wfs.kpt_u[k].C_nM.copy()
+    etdm.rotate_wavefunctions(wfs, a_vec_u, c)
 
 
 def get_a_vec_u(etdm, wfs, indices, angles, channels, occ=None):
@@ -351,11 +503,11 @@ def get_a_vec_u(etdm, wfs, indices, angles, channels, occ=None):
                        specified values.
     """
 
-    etdm.sort_orbitals_mom(wfs)
+    sort_orbitals_according_to_occ(wfs, etdm.constraints, update_mom=True)
 
     new_vec_u = {}
     ind_up = etdm.ind_up
-    a_vec_u = etdm.a_vec_u
+    a_vec_u = deepcopy(etdm.a_vec_u)
     conversion = []
     for k in a_vec_u.keys():
         new_vec_u[k] = np.zeros_like(a_vec_u[k])
@@ -391,3 +543,23 @@ def get_a_vec_u(etdm, wfs, indices, angles, channels, occ=None):
         new_vec_u[s][res] = ang
 
     return new_vec_u
+
+
+def get_n_occ(kpt):
+    occupied = kpt.f_n > 1.0e-10
+    n_occ = len(kpt.f_n[occupied])
+
+    return n_occ, occupied
+
+
+def get_indices(dimens):
+    return np.tril_indices(dimens, -1)
+
+
+def random_a(shape, dtype):
+    a = np.random.random_sample(shape)
+    if dtype == complex:
+        a = a.astype(complex)
+        a += 1.0j * np.random.random_sample(shape)
+
+    return a

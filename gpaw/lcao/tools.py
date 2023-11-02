@@ -461,7 +461,7 @@ def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
     else:
         wglobal_wG = None
         Nw = 0
-    Nw = gd.comm.sum(Nw)  # distribute Nw to all nodes
+    Nw = gd.comm.sum_scalar(Nw)  # distribute Nw to all nodes
     w_wG = gd.empty(n=Nw)
     gd.distribute(wglobal_wG, w_wG)
     del wglobal_wG

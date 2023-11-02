@@ -450,7 +450,7 @@ def map_k_points(bzk_kc, U_scc, time_reversal, comm=None, tol=1e-11):
     nbzkpts = len(bzk_kc)
     ka = nbzkpts * comm.rank // comm.size
     kb = nbzkpts * (comm.rank + 1) // comm.size
-    assert comm.sum(kb - ka) == nbzkpts
+    assert comm.sum_scalar(kb - ka) == nbzkpts
 
     if time_reversal:
         U_scc = np.concatenate([U_scc, -U_scc])

@@ -4,7 +4,7 @@ from ase.parallel import paropen
 from gpaw import GPAW, LCAO
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.tools import excite
-from gpaw.directmin.etdm import ETDM
+from gpaw.directmin.etdm_lcao import LCAOETDM
 
 
 for spinpol in [True, False]:
@@ -21,7 +21,7 @@ for spinpol in [True, False]:
                 h=0.2,
                 basis='dzp',
                 spinpol=spinpol,
-                eigensolver='etdm',
+                eigensolver='etdm-lcao',
                 occupations={'name': 'fixed-uniform'},
                 mixer={'backend': 'no-mixing'},
                 nbands='nao',
@@ -41,9 +41,9 @@ for spinpol in [True, False]:
         kpt.C_nM[lumo][:] = pm
         kpt.C_nM[lumo + 1][:] = pp
 
-    calc.set(eigensolver=ETDM(searchdir_algo={'name': 'l-sr1p'},
-                              linesearch_algo={'name': 'max-step'},
-                              need_init_orbs=False))
+    calc.set(eigensolver=LCAOETDM(searchdir_algo={'name': 'l-sr1p'},
+                                  linesearch_algo={'name': 'max-step'},
+                                  need_init_orbs=False))
 
     # Occupation numbers for sigma->pi* excited state:
     # Remove one electron from homo (sigma) and add one electron to lumo (pi*)

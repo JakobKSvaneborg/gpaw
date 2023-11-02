@@ -9,6 +9,7 @@ pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
 
 
+@pytest.mark.later
 def test_fileio_parallel(in_tmp_dir):
     a = 2.87
     atoms = bulk('Fe', 'bcc', a=a)
