@@ -26,7 +26,7 @@ def test_corehole_h2o(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     xas = XAS(calc)
     x, y = xas.get_spectra()
     e2_n = xas.eps_n
-    w_n = np.sum(xas.sigma_cn.real**2, axis=0)
+    w_n = np.sum(np.sum(xas.sigma_cmn.real**2, axis=0), axis=0)
     de2 = e2_n[1] - e2_n[0]
 
     equal(de2, 2.064, 0.005)
