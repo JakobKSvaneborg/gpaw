@@ -363,8 +363,8 @@ class VDWXC(XCFunctional):
 
     def summary(self, log):
         from ase.units import Hartree as Ha
-        enl = self.libvdwxc.comm.sum(self.last_nonlocal_energy)
-        esl = self.gd.comm.sum(self.last_semilocal_energy)
+        enl = self.libvdwxc.comm.sum_scalar(self.last_nonlocal_energy)
+        esl = self.gd.comm.sum_scalar(self.last_semilocal_energy)
         # In the current implementation these communicators have the same
         # processes always:
         assert self.libvdwxc.comm.size == self.gd.comm.size

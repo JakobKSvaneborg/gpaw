@@ -43,8 +43,7 @@ def test_vdw_libvdwxc_functionals():
                 print(xc.libvdwxc.tostring())
             v_sg = gd.zeros(1)
             E = xc.calculate(gd, n_sg, v_sg)
-            nv = gd.integrate(n_sg * v_sg, global_integral=True)
-            nv = float(nv)  # Comes out as an array due to spin axis
+            nv = gd.integrate(n_sg * v_sg, global_integral=True)[0]
 
             Eerr = abs(E - Eref)
             nverr = abs(nv - nvref)

@@ -335,11 +335,11 @@ class PZSICFDPW:
                                              W_aL[a])) * self.beta_c
 
         if self.sic_coarse_grid is False:
-            ec = self.finegd.comm.sum(ec)
-            exc = self.finegd.comm.sum(exc)
+            ec = self.finegd.comm.sum_scalar(ec)
+            exc = self.finegd.comm.sum_scalar(exc)
         else:
-            ec = self.cgd.comm.sum(ec)
-            exc = self.cgd.comm.sum(exc)
+            ec = self.cgd.comm.sum_scalar(ec)
+            exc = self.cgd.comm.sum_scalar(exc)
 
         return np.array([-ec * self.beta_c, -exc * self.beta_x]), dH_ap
 
@@ -500,7 +500,7 @@ class PZSICFDPW:
             excpaw += self.xc.calculate_paw_correction(
                 setup, D_sp, dH_sp, addcoredensity=False)
             dH_ap[a] = -dH_sp[0] * self.beta_x
-        excpaw = wfs.gd.comm.sum(excpaw)
+        excpaw = wfs.gd.comm.sum_scalar(excpaw)
         exc += excpaw
         wfs.timer.stop("Calc. PAW-XC")
 
@@ -540,7 +540,7 @@ class PZSICFDPW:
             ehartpaw += np.dot(D_p, M_p)
             dH_ap[a] += -(2.0 * M_p + np.dot(setup.Delta_pL,
                                              W_aL[a])) * self.beta_c
-        ehartpaw = wfs.gd.comm.sum(ehartpaw)
+        ehartpaw = wfs.gd.comm.sum_scalar(ehartpaw)
         ehart += ehartpaw
         wfs.timer.stop("Calc. PAW-Hartree")
 

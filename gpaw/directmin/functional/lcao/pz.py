@@ -409,11 +409,11 @@ class PZSICLCAO:
 
         timer.start('Wait for sum')
         if self.sic_coarse_grid is False:
-            ec = self.finegd.comm.sum(ec)
-            exc = self.finegd.comm.sum(exc)
+            ec = self.finegd.comm.sum_scalar(ec)
+            exc = self.finegd.comm.sum_scalar(exc)
         else:
-            ec = self.cgd.comm.sum(ec)
-            exc = self.cgd.comm.sum(exc)
+            ec = self.cgd.comm.sum_scalar(ec)
+            exc = self.cgd.comm.sum_scalar(exc)
         timer.stop('Wait for sum')
 
         return np.array([-ec * self.beta_c, -exc * self.beta_x]), dH_ap

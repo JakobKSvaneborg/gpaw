@@ -192,9 +192,9 @@ class ERLocalization:
             ec += np.dot(D_p, M_p)
             dH_ap[a] += (2.0 * M_p + np.dot(setup.Delta_pL, W_aL[a]))
         if self.sic_coarse_grid is False:
-            ec = self.finegd.comm.sum(ec)
+            ec = self.finegd.comm.sum_scalar(ec)
         else:
-            ec = self.cgd.comm.sum(ec)
+            ec = self.cgd.comm.sum_scalar(ec)
 
         return np.array([-ec]), dH_ap
 

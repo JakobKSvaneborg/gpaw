@@ -276,6 +276,16 @@ class ASECalculator:
     def get_magnetic_moments(self, atoms: Atoms | None = None) -> Array1D:
         return self.calculate_property(atoms, 'magmoms')
 
+    def get_non_collinear_magnetic_moment(self,
+                                          atoms: Atoms | None = None
+                                          ) -> Array1D:
+        return self.calculate_property(atoms, 'non_collinear_magmom')
+
+    def get_non_collinear_magnetic_moments(self,
+                                           atoms: Atoms | None = None
+                                           ) -> Array2D:
+        return self.calculate_property(atoms, 'non_collinear_magmoms')
+
     def write(self, filename, mode=''):
         """Write calculator object to a file.
 

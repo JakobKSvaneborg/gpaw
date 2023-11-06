@@ -11,7 +11,6 @@ def gpwfile(in_tmp_dir):
     calc = GPAW(
         mode='pw',
         xc='PBE',
-        experimental={'niter_fixdensity': 2},
         nbands=16,
         convergence={'bands': 15},
         setups={'Mo': '6'},

@@ -32,9 +32,18 @@ def test_noncollinear_o2(in_tmp_dir, gpaw_new):
     assert e == pytest.approx(e0, abs=0.002)
     assert abs(p0)**2 == pytest.approx((abs(p)**2).sum(axis=0), abs=1e-4)
 
+    m1_v = a.calc.get_non_collinear_magnetic_moment()
+    m1_av = a.calc.get_non_collinear_magnetic_moments()
     a.calc.write('o2.gpw')
     a.calc.write('o2w.gpw', 'all')
     calc = GPAW('o2w.gpw')
+    m2_v = calc.get_non_collinear_magnetic_moment()
+    m2_av = calc.get_non_collinear_magnetic_moments()
+    m3_v, m3_av = calc.calculation.magmoms()  # recompute
+    assert m1_v == pytest.approx(m2_v)
+    assert m1_av == pytest.approx(m2_av)
+    assert m1_v == pytest.approx(m3_v)
+    assert m1_av == pytest.approx(m3_av)
 
     p = calc.get_pseudo_wave_function(10, periodic=True)
     assert abs(p0)**2 == pytest.approx((abs(p)**2).sum(axis=0), abs=1e-4)
