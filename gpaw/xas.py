@@ -1,12 +1,13 @@
 import pickle
 from math import log, pi, sqrt
+from typing import Tuple
 
 import numpy as np
 from gpaw.overlap import Overlap
 from ase.units import Hartree
 from gpaw.utilities.cg import CG
-
 from gpaw.gaunt import gaunt
+from gpaw.typing import Array1D, Array2D, Array3D
 import gpaw.mpi as mpi
 
 
@@ -254,56 +255,19 @@ class XAS:
             else:
                 emin = min(eps_n) - 2 * fwhm
                 emax = max(eps_n) + 2 * fwhm
-                e = emin + np.arange(N + 1) * ((emax - emin) / N) + shift
+                e = emin + np.arange(N + 1) * ((emax - emin) / N)
 
-            a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
+            a_c = np.zeros((len(sigma2_cn), len(e)))
 
             if linbroad is None:
                 # constant broadening fwhm
                 alpha = 4 * log(2) / fwhm**2
-                e_j = np.zeros((len(eps_n[eps_start:eps_end])))
-                a_cj = np.zeros((sigma2_cmn.shape[0],
-                                 len(eps_n[eps_start:eps_end])))
 
-                # Avrage over all initial states
-                sigma2_cn = np.zeros((sigma2_cmn.shape[0],
-                                      sigma2_cmn.shape[-1]))
-
-                for m in range(sigma2_cmn.shape[1]):
-                    sigma2_cn += sigma2_cmn[:, m, :]
-
-                sigma2_cn /= sigma2_cmn.shape[1]
-
-                i = 0
-
-                # avrage over each state with the same energy
                 for n, eps in enumerate(eps_n[eps_start:eps_end]):
-                    if n == 0:
-                        e_j[i] = eps
-                        a_cj[:, i] = sigma2_cn[:, n + eps_start]
-                        j = 1
-                    elif round(eps, 5) == round(e_j[i], 5):
-                        a_cj[:, i] += sigma2_cn[:, n + eps_start]
-                        j += 1
-                    else:
-                        a_cj[:, i] /= j
-                        j = 1
-                        i += 1
-                        e_j[i] += eps
-                        a_cj[:, i] += sigma2_cn[:, n + eps_start]
-
-                e_j = np.trim_zeros(e_j, 'b') + shift
-                a_cj = a_cj[:, :len(e_j)]
-                for c in range(a_cj.shape[0]):
-                    a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
-
-                # Fold
-                for n, eps in enumerate(e_j):
                     x = -alpha * (e - eps)**2
                     x = np.clip(x, -100.0, 100.0)
-                    a_c += np.outer(a_cj[:, n],
+                    a_c += np.outer(sigma2_cn[:, n + eps_start],
                                     (alpha / pi)**0.5 * np.exp(x))
-
             else:
 
                 # constant broadening fwhm until linbroad[1] and a
@@ -313,42 +277,7 @@ class XAS:
                 lin_e1 = linbroad[1]
                 lin_e2 = linbroad[2]
                 print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
-
-                e_j = np.zeros((len(eps_n)))
-                a_cj = np.zeros((sigma2_cmn.shape[0], len(eps_n)))
-
-                sigma2_cn = np.zeros((sigma2_cmn.shape[0],
-                                      sigma2_cmn.shape[-1]))
-
-                for m in range(sigma2_cmn.shape[1]):
-                    sigma2_cn += sigma2_cmn[:, m, :]
-
-                sigma2_cn /= sigma2_cmn.shape[1]
-
-                i = 0
-
-                # avrage over each state with the same energy
                 for n, eps in enumerate(eps_n):
-                    if n == 0:
-                        e_j[i] = eps
-                        a_cj[:, i] = sigma2_cn[:, n]
-                        j = 1
-                    elif round(eps, 5) == round(e_j[i], 5):
-                        a_cj[:, i] += sigma2_cn[:, n]
-                        j += 1
-                    else:
-                        a_cj[:, i] /= j
-                        j = 1
-                        i += 1
-                        e_j[i] += eps
-                        a_cj[:, i] += sigma2_cn[:, n]
-
-                e_j = np.trim_zeros(e_j, 'b') + shift
-                a_cj = a_cj[:, :len(e_j)]
-                for c in range(a_cj.shape[0]):
-                    a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
-
-                for n, eps in enumerate(e_j):
                     if eps < lin_e1:
                         alpha = 4 * log(2) / fwhm**2
                     elif eps <= lin_e2:
@@ -360,10 +289,63 @@ class XAS:
 
                     x = -alpha * (e - eps)**2
                     x = np.clip(x, -100.0, 100.0)
-                    a_c += np.outer(a_cj[:, n],
+                    a_c += np.outer(sigma2_cn[:, n],
                                     (alpha / pi)**0.5 * np.exp(x))
 
-            return e, a_c
+        return e, a_c
+
+    def constant_broadening_fwhm(
+            self, fwhm: float, eps_start: int, shift: float,
+            eps_n: Array1D, sigma2_cmn: Array3D,
+            e: Array1D) -> Tuple[Array1D, Array2D]:
+        a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
+
+        # constant broadening fwhm
+        alpha = 4 * log(2) / fwhm ** 2
+        e_j = np.zeros((len(eps_n)))
+        a_cj = np.zeros((sigma2_cmn.shape[0],
+                         len(eps_n)))
+
+        # Avrage over all initial states
+        sigma2_cn = np.zeros((sigma2_cmn.shape[0],
+                              sigma2_cmn.shape[-1]))
+
+        for m in range(sigma2_cmn.shape[1]):
+            sigma2_cn += sigma2_cmn[:, m, :]
+
+        sigma2_cn /= sigma2_cmn.shape[1]
+
+        i = 0
+
+        # avrage over each state with the same energy
+        for n, eps in enumerate(eps_n):
+            if n == 0:
+                e_j[i] = eps
+                a_cj[:, i] = sigma2_cn[:, n + eps_start]
+                j = 1
+            elif round(eps, 5) == round(e_j[i], 5):
+                a_cj[:, i] += sigma2_cn[:, n + eps_start]
+                j += 1
+            else:
+                a_cj[:, i] /= j
+                j = 1
+                i += 1
+                e_j[i] += eps
+                a_cj[:, i] += sigma2_cn[:, n + eps_start]
+
+        e_j = np.trim_zeros(e_j, 'b') + shift
+        a_cj = a_cj[:, :len(e_j)]
+        for c in range(a_cj.shape[0]):
+            a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
+
+        # Fold
+        for n, eps in enumerate(e_j):
+            x = -alpha * (e - eps) ** 2
+            x = np.clip(x, -100.0, 100.0)
+            a_c += np.outer(a_cj[:, n],
+                            (alpha / pi) ** 0.5 * np.exp(x))
+
+        return e, a_c
 
 
 class RecursionMethod:
