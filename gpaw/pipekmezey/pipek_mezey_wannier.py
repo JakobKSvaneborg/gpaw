@@ -53,8 +53,7 @@ from math import pi
 from ase.transport.tools import dagger
 from gpaw.pipekmezey.weightfunction import WeightFunc, WignerSeitz
 from gpaw.pipekmezey.wannier_basic import md_min, get_atoms_object_from_wfs
-from ase.dft.wannier import (calculate_weights, get_kklst,
-                             get_invkklst)
+from ase.dft.wannier import calculate_weights
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 from ase.parallel import world
 
@@ -99,6 +98,7 @@ class PipekMezey:
     def __init__(self, wfs=None, calc=None,
                  method='W', penalty=2.0, spin=0,
                  mu=None, dtype=None, seed=None):
+        from ase.dft.wannier import get_kklst, get_invkklst
 
         assert wfs or calc is not None
 

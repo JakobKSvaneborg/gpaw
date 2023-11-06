@@ -28,7 +28,9 @@ def run(atoms, method, kwargs):
     calc = GPAW(**kwargs)
 
     atoms.calc = calc
-    E1 = atoms.get_potential_energy()
+    with pytest.warns(UserWarning,
+                      match='Custom convergence criterion'):
+        E1 = atoms.get_potential_energy()
     assert conv.history[-1] < conv_tol
     niter1 = len(conv.history)
     del conv.history[:]
