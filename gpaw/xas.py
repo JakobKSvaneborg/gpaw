@@ -65,7 +65,6 @@ class XAS:
                     break
 
         A_j = setup.A_j  # radial part if the oscillator strength
-        # Set up A_ci with Gaunt coeffitions
 
         G_LLL = gaunt(setup.lmax)
 
@@ -257,6 +256,11 @@ class XAS:
                 emax = max(eps_n) + 2 * fwhm
                 e = emin + np.arange(N + 1) * ((emax - emin) / N)
 
+            sigma2_cn = np.zeros((sigma2_cmn.shape[0],sigma2_cmn.shape[-1]))
+            for m in range(sigma2_cmn.shape[1]):
+                sigma2_cn += sigma2_cmn[:,m,:] * (e_stick / Hartree)
+            sigma2_cn /= sigma2_cmn.shape[1]
+            sigma2_cn *= 2
             a_c = np.zeros((len(sigma2_cn), len(e)))
 
             if linbroad is None:
