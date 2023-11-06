@@ -57,7 +57,7 @@ I have an ongoing project
   using different versions for different project.
 
 I am a normal user
-  You should load ``GPAW/21.1.0-intel-2020b``.
+  You should load ``GPAW/23.9.1-intel-2023a``.
 
   This will give the newest version of GPAW, as recommended by the
   developers.  It has new features and is significantly faster, in
@@ -80,8 +80,8 @@ Loading GPAW pulls all that stuff in, in versions consistent with the
 chosen GPAW version.
 
 If you want to generate Wannier functions with the Wannier90 module,
-you need to explicitly load ``Wannier90/3.1.0-foss-2020b`` or
-``Wannier90/3.1.0-intel-2020b``.
+you need to explicitly load ``Wannier90/3.1.0-foss-2023a`` or
+``Wannier90/3.1.0-intel-2023a``.
 
 
 Intel or foss versions?
@@ -112,60 +112,74 @@ load should belong to the same toolchain.**
 
 Use ``module list`` to list your modules. Check for consistency:
 
-     
-==============   ==================================
-foss/2020b       foss-2020b
+==================  ==================================
+Toolchain           Module suffixes
+==================  ==================================
+foss/2023a          foss-2023a
 
-                 gompi-2020b
-		 
-                 GCCcore-10.2.0
---------------   ----------------------------------
-intel/2020b      intel-2020b
+                    gfbf-2023a
 
-                 iccifort-2020.4.304
-		 
-                 iimpi-2020b
-		 
-                 GCCcore-10.2.0
---------------   ----------------------------------
-foss/2019b       foss-2019b
+                    gompi-2023a
 
-                 foss-2019b-[ASE-3.20.1]Python-3.7.4
-		 
-		 gompi-2019b
-		 
-		 GCC-8.3.0
---------------   ----------------------------------
-intel/2019b      intel-2019b
+                    GCC-12.3.0
 
-                 intel-2019b-[ASE-3.20.1]Python-3.7.4
-		 
-		 iccifort-2019.5.281
-		 
-		 iimpi-2019b
-		 
-		 GCCcore-8.3.0
---------------   ----------------------------------
-foss/2018b       foss-2018b
+                    GCCcore-12.3.0
+------------------  ----------------------------------
+intel/2023a         intel-2023a
 
-                 foss-2018b-Python-3.6.6
-		 
-                 gompi-2018b
-		 
-                 GCCcore-7.3.0
---------------   ----------------------------------
-intel/2018b      intel-2018b
+                    iimkl-2023a
 
-                 intel-2018b-Python-3.6.6
-		 
-                 iimpi-2018b
-		 
-		 iccifort-2018.3.222-GCC-7.3.0-2.30
-		 
-                 GCCcore-7.3.0
-		 
-		 *and a few variations thereof*
-==============   ==================================
+                    iimpi-2023a
+
+                    intel-compilers-2023.1.0
+
+                    GCCcore-12.3.0
+------------------  ----------------------------------
+foss/2022a          foss-2022a
+
+                    gompi-2022a
+
+                    GCC-11.3.0
+
+                    GCCcore-11.3.0
+------------------  ----------------------------------
+intel/2022a         intel-2022a
+
+                    iimpi-2022a
+
+                    intel-compilers-2022.1.0
+
+                    GCCcore-11.3.0
+------------------  ----------------------------------
+foss/2020b          foss-2020b
+
+                    gompi-2020b
+
+                    GCC-10.2.0
+
+                    GCCcore-10.2.0
+------------------  ----------------------------------
+intel/2020b         intel-2020b
+
+                    iimpi-2020b
+
+                    iccifort-2020.4.304
+
+                    GCCcore-10.2.0
+------------------  ----------------------------------
+fosscuda-2020b (*)  fosscuda-2020b
+
+                    gompic-2020b
+
+                    gcccuda-2020b
+
+                    GCC-10.2.0
+
+                    GCCcore-10.2.0
+==================  ==================================
+
+(*) For use on the GPU nodes, so only available on the sm3090 and xeon40 
+partitions.  Newer toolchains do not use a special toolchain for this.
 
 If your ``module load XXX`` commands give warnings about reloaded
 modules, you are almost certainly mixing incompatible toolchains.
