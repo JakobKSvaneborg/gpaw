@@ -1,6 +1,6 @@
 import pickle
 from math import log, pi, sqrt
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 from gpaw.overlap import Overlap
@@ -257,12 +257,18 @@ class XAS:
             emax = max(eps_n) + 2 * fwhm
             e = emin + np.arange(N + 1) * ((emax - emin) / N) + shift
 
-        a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
-
         if linbroad is None:
-            return self.constant_broadening_fwhm(
+            return self.constant_broadening(
                 fwhm, eps_start, shift,
                 eps_n[eps_start:eps_end], sigma2_cmn, e)
+
+        return self.variable_broadening(
+            fwhm, linbroad, shift, eps_n, sigma2_cmn, e)
+
+    def variable_broadening(
+            self, fwhm: float, linbroad: List[float], shift: float,
+            eps_n: Array1D, sigma2_cmn: Array3D, e: Array1D):
+        a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
 
         # constant broadening fwhm until linbroad[1] and a
         # constant broadening over linbroad[2] with fwhm2=
@@ -323,7 +329,7 @@ class XAS:
 
         return e, a_c
 
-    def constant_broadening_fwhm(
+    def constant_broadening(
             self, fwhm: float, eps_start: int, shift: float,
             eps_n: Array1D, sigma2_cmn: Array3D,
             e: Array1D) -> Tuple[Array1D, Array2D]:

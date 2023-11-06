@@ -34,6 +34,9 @@ def test_corehole_h2o(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
     assert de1 == de2
 
+    xnl, ynl = xas.get_spectra(linbroad=[0.5, 540, 550])
+    assert len(xnl) == len(x)
+
     if 0:
         import matplotlib.pyplot as plt
         plt.plot(x, y[0])
