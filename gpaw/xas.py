@@ -268,6 +268,14 @@ class XAS:
     def variable_broadening(
             self, fwhm: float, linbroad: List[float], shift: float,
             eps_n: Array1D, sigma2_cmn: Array3D, e: Array1D):
+        """
+        fwhm:
+          the full width half maximum in eV for gaussian broadening
+        linbroad:
+          a list of three numbers, the first fwhm2, the second the value
+          where the linear increase starts and the third the value where
+          the broadening has reached fwhm2. example [0.5, 540, 550]
+        """
         a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
 
         # constant broadening fwhm until linbroad[1] and a
@@ -333,6 +341,10 @@ class XAS:
             self, fwhm: float, eps_start: int, shift: float,
             eps_n: Array1D, sigma2_cmn: Array3D,
             e: Array1D) -> Tuple[Array1D, Array2D]:
+        """
+        fwhm:
+          the full width half maximum in eV for gaussian broadening
+        """
         a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
 
         # constant broadening fwhm
