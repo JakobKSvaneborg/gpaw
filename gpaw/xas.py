@@ -361,11 +361,11 @@ class XAS:
                 fwhm, energy_n, f_cmn, energy_i)
 
         return self.variable_broadening(
-            fwhm, linbroad, shift, eps_n, sigma2_cmn, energy_i)
+            fwhm, linbroad, energy_n, f_cmn, energy_i)
 
     def variable_broadening(
-            self, fwhm: float, linbroad: List[float], shift: float,
-            eps_n: Array1D, sigma2_cmn: Array3D, e: Array1D):
+            self, fwhm: float, linbroad: List[float],
+            eps_n: Array1D, f_cmn: Array3D, e: Array1D):
         """
         fwhm:
           the full width half maximum in eV for gaussian broadening
@@ -374,7 +374,7 @@ class XAS:
           where the linear increase starts and the third the value where
           the broadening has reached fwhm2. example [0.5, 540, 550]
         """
-        a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
+        a_c = np.zeros((f_cmn.shape[0], len(e)))
 
         # constant broadening fwhm until linbroad[1] and a
         # constant broadening over linbroad[2] with fwhm2=
@@ -384,67 +384,21 @@ class XAS:
         lin_e2 = linbroad[2]
         print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
 
-        e_j = np.zeros((len(eps_n)))
-        a_cj = np.zeros((sigma2_cmn.shape[0], len(eps_n)))
-
-        sigma2_cn = np.zeros((sigma2_cmn.shape[0],
-                              sigma2_cmn.shape[-1]))
-
-        for m in range(sigma2_cmn.shape[1]):
-            sigma2_cn += sigma2_cmn[:, m, :]
-
-        sigma2_cn /= sigma2_cmn.shape[1]
-
-        i = 0
-
-        # avrage over each state with the same energy
+        f_cn = f_cmn.sum(axis=1)
         for n, eps in enumerate(eps_n):
-            if n == 0:
-                e_j[i] = eps
-                a_cj[:, i] = sigma2_cn[:, n]
-                j = 1
-            elif round(eps, 5) == round(e_j[i], 5):
-                a_cj[:, i] += sigma2_cn[:, n]
-                j += 1
-            else:
-                emin = min(eps_n) - 2 * fwhm
-                emax = max(eps_n) + 2 * fwhm
-                e = emin + np.arange(N + 1) * ((emax - emin) / N)
-
-            a_c = np.zeros((len(sigma2_cn), len(e)))
-
-            if linbroad is None:
-                # constant broadening fwhm
+            if eps < lin_e1:
                 alpha = 4 * log(2) / fwhm**2
+            elif eps <= lin_e2:
+                fwhm_lin = (fwhm + (eps - lin_e1) *
+                            (fwhm2 - fwhm) / (lin_e2 - lin_e1))
+                alpha = 4 * log(2) / fwhm_lin**2
+            elif eps >= lin_e2:
+                alpha = 4 * log(2) / fwhm2**2
 
-                for n, eps in enumerate(eps_n[eps_start:eps_end]):
-                    x = -alpha * (e - eps)**2
-                    x = np.clip(x, -100.0, 100.0)
-                    a_c += np.outer(sigma2_cn[:, n + eps_start],
-                                    (alpha / pi)**0.5 * np.exp(x))
-            else:
-
-                # constant broadening fwhm until linbroad[1] and a
-                # constant broadening over linbroad[2] with fwhm2=
-                # linbroad[0]
-                fwhm2 = linbroad[0]
-                lin_e1 = linbroad[1]
-                lin_e2 = linbroad[2]
-                print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
-                for n, eps in enumerate(eps_n):
-                    if eps < lin_e1:
-                        alpha = 4 * log(2) / fwhm**2
-                    elif eps <= lin_e2:
-                        fwhm_lin = (fwhm + (eps - lin_e1) *
-                                    (fwhm2 - fwhm) / (lin_e2 - lin_e1))
-                        alpha = 4 * log(2) / fwhm_lin**2
-                    elif eps >= lin_e2:
-                        alpha = 4 * log(2) / fwhm2**2
-
-                    x = -alpha * (e - eps)**2
-                    x = np.clip(x, -100.0, 100.0)
-                    a_c += np.outer(sigma2_cn[:, n],
-                                    (alpha / pi)**0.5 * np.exp(x))
+            x = -alpha * (e - eps)**2
+            x = np.clip(x, -100.0, 100.0)
+            a_c += np.outer(f_cn[:, n],
+                            (alpha / pi)**0.5 * np.exp(x))
 
         return e, a_c
 
