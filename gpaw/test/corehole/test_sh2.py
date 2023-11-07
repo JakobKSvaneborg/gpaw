@@ -13,6 +13,7 @@ def folding_is_normalized(xas: XAS, rel: float = 1e-5) -> bool:
     assert dxf == pytest.approx(dxf[0])
     yf_summed_c = yf_cn.sum(axis=1) * dxf[0]
 
+    print('#############', yf_summed_c, ys_summed_c)
     return yf_summed_c == pytest.approx(ys_summed_c, rel=rel)
 
 
@@ -47,6 +48,4 @@ def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths):
     atoms.get_potential_energy()
 
     xas = XAS(atoms.calc)
-    x, y = xas.get_spectra()
-
-    # TODO we need some assert here to test validity
+    assert folding_is_normalized(xas)

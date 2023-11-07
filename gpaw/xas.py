@@ -457,14 +457,12 @@ class XAS:
         a_cj = np.zeros((sigma2_cmn.shape[0],
                          len(eps_n)))
 
-        # Avrage over all initial states
+        # Sum over all initial states
         sigma2_cn = np.zeros((sigma2_cmn.shape[0],
                               sigma2_cmn.shape[-1]))
 
         for m in range(sigma2_cmn.shape[1]):
             sigma2_cn += sigma2_cmn[:, m, :]
-
-        sigma2_cn /= sigma2_cmn.shape[1]
 
         i = 0
 
