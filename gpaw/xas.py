@@ -295,7 +295,8 @@ class XAS:
 
     def variable_broadening(
             self, fwhm: float, linbroad: List[float],
-            eps_n: Array1D, f_cmn: Array3D, e: Array1D):
+            eps_n: Array1D, f_cmn: Array3D,
+            e: Array1D) -> Tuple[Array1D, Array2D]:
         """
         fwhm:
           the full width half maximum in eV for gaussian broadening
