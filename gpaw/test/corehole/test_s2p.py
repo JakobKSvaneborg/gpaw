@@ -1,7 +1,19 @@
+import pytest
 from ase.build import molecule
 from gpaw import GPAW
 from gpaw.test import gen
 from gpaw.xas import XAS
+
+
+def folding_is_normalized(xas: XAS, rel: float = 1e-5) -> bool:
+    xs, ys_cmn = xas.stick()
+    ys_summed_c = ys_cmn.sum(axis=1).sum(axis=1)
+    xf, yf_cn = xas.get_spectra(fwhm=0.5)
+    dxf = xf[1:] - xf[:-1]
+    assert dxf == pytest.approx(dxf[0])
+    yf_summed_c = yf_cn.sum(axis=1) * dxf[0]
+
+    return yf_summed_c == pytest.approx(ys_summed_c, rel=rel)
 
 
 def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths):
@@ -18,10 +30,10 @@ def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths):
     atoms.get_potential_energy()
 
     xas = XAS(atoms.calc)
-    x, y = xas.get_spectra(stick=True, proj_xyz=True)
-    print('############## x=', x)
-    print('############## y=', y)
-    assert y.shape == (3, 1, nbands - nocc)  # why this shape ?
+    x, y_cmn = xas.stick(proj_xyz=True)
+    assert y_cmn.shape == (3, 1, nbands - nocc)
+
+    assert folding_is_normalized(xas)
 
 
 def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths):
