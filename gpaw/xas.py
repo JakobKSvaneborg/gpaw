@@ -274,74 +274,6 @@ class XAS:
             energies: 1D array
             oscillator strengths: 3D array
         """
-
-        # eps_n = self.eps_n[k_in*self.n: (k_in+1)*self.n -1]
-
-        # proj keyword, check normalization of incoming vectors
-        if proj_xyz:
-            proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
-        else:
-            proj_3 = np.array([], float)
-
-        if proj is not None:
-            assert self.orthogonal
-            proj_2 = np.array(proj, float)
-            if len(proj_2.shape) == 1:
-                proj_2 = np.array([proj], float)
-
-            for i, p in enumerate(proj_2):
-                if sum(p ** 2) ** 0.5 != 1.0:
-                    print('proj_2 %s not normalized' % i)
-                    proj_2[i] /= sum(p ** 2) ** 0.5
-
-            proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
-
-            for i, p in enumerate(proj_3):
-                proj_tmp[i, :] = proj_3[i, :]
-
-            for i, p in enumerate(proj_2):
-                proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
-
-            proj_3 = proj_tmp.copy()
-
-        # now symmetrize
-        sigma2_cmn = np.zeros((proj_3.shape[0],
-                               self.sigma_cmn.shape[1],
-                               self.sigma_cmn.shape[2]),
-                              float)
-
-        if self.symmetry is not None:
-            for i, p in enumerate(proj_3):
-                for op_cc in self.symmetry.op_scc:
-                    op_vv = np.dot(np.linalg.inv(self.cell_cv),
-                                   np.dot(op_cc, self.cell_cv))
-                    for m in range((self.sigma_cmn.shape[1])):
-                        s_tmp = np.dot(p, np.dot(op_vv,
-                                                 self.sigma_cmn[:, m, :]))
-                        sigma2_cmn[i, m, :] += (s_tmp *
-                                                np.conjugate(s_tmp)).real
-
-            sigma2_cmn /= len(self.symmetry.op_scc)
-
-        else:
-            for i, p in enumerate(proj_3):
-                for m in range(self.sigma_cmn.shape[1]):
-                    s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
-                    sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
-
-        eps_n = self.eps_n[:]
-
-        if kpoint is not None:
-            eps_start = kpoint * self.n
-            eps_end = (kpoint + 1) * self.n
-        else:
-            eps_start = 0
-            eps_end = len(self.eps_n)
-
-        shift = dks - eps_n[eps_start]
-
-        # return stick spectrum if stick=True
-
         energy_n, f_cmn = self.stick(kpoint, proj, proj_xyz, dks)
 
         if stick:
@@ -352,9 +284,9 @@ class XAS:
         if E_in is not None:
             energy_i = np.array(E_in)
         else:
-            emin = min(eps_n) - 2 * fwhm
-            emax = max(eps_n) + 2 * fwhm
-            energy_i = emin + np.arange(N + 1) * ((emax - emin) / N) + shift
+            emin = min(energy_n) - 2 * fwhm
+            emax = max(energy_n) + 2 * fwhm
+            energy_i = emin + np.arange(N + 1) * ((emax - emin) / N)
 
         if linbroad is None:
             return self.constant_broadening(
