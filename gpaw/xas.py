@@ -65,7 +65,7 @@ class XAS:
                     break
 
         A_j = setup.A_j  # radial part if the oscillator strength
-        # Set up A_ci with Gaunt coeffitions
+        # Set up A_ci with Gaunt coefficients
 
         G_LLL = gaunt(setup.lmax)
 
@@ -128,12 +128,110 @@ class XAS:
             P_ni = kpt.P_ani[a][n_start:n_end]
             a_cn = np.inner(A_cmi, P_ni)
             weight = kpt.weight * wfs.nspins / 2
-            print('weight', weight)
-            print(a_cn.shape, self.sigma_cmn.shape)
+            # print('weight', weight)
+            # print(a_cn.shape, self.sigma_cmn.shape)
             self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cn  # .real
             n1 = n2
 
         self.symmetry = wfs.kd.symmetry
+
+    def stick(self, kpoint=None, proj=None,
+              proj_xyz: bool = True,
+              dks: float = 0) -> Tuple[Array1D, Array3D]:
+        """Calculate stick spectra.
+
+        Parameters:
+
+        kpoint:
+          select a specific k-point to calculate spectrum for
+        proj:
+          a list of vectors to project the transition dipole on. Default
+          is None then only x,y,z components are calculated.  a_stick and
+          a_c squares of the transition moments in resp. direction
+        proj_xyz:
+          if True keep projections in x, y and z. a_stck and a_c will have
+          length 3 + len(proj). if False only those projections
+          defined by proj keyword, a_stick and a_c will have length len(proj)
+
+        Symmtrization has been moved inside get_spectra because we want to
+        symmtrice squares of transition dipoles.
+
+        Returns:
+            energies: 1D array [n]
+            oscillator strengths: 3D array [c, m, n]
+        """
+        # proj keyword, check normalization of incoming vectors
+        if proj_xyz:
+            proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
+        else:
+            proj_3 = np.array([], float)
+
+        if proj is not None:
+            assert self.orthogonal
+            proj_2 = np.array(proj, float)
+            if len(proj_2.shape) == 1:
+                proj_2 = np.array([proj], float)
+
+            for i, p in enumerate(proj_2):
+                if sum(p**2)**0.5 != 1.0:
+                    print('proj_2 %s not normalized' % i)
+                    proj_2[i] /= sum(p**2)**0.5
+
+            proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
+
+            for i, p in enumerate(proj_3):
+                proj_tmp[i, :] = proj_3[i, :]
+
+            for i, p in enumerate(proj_2):
+                proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
+
+            proj_3 = proj_tmp.copy()
+
+        # now symmetrize
+        sigma2_cmn = np.zeros((proj_3.shape[0],
+                               self.sigma_cmn.shape[1],
+                               self.sigma_cmn.shape[2]),
+                              float)
+
+        if self.symmetry is not None:
+            for i, p in enumerate(proj_3):
+                for op_cc in self.symmetry.op_scc:
+                    op_vv = np.dot(np.linalg.inv(self.cell_cv),
+                                   np.dot(op_cc, self.cell_cv))
+                    for m in range((self.sigma_cmn.shape[1])):
+                        s_tmp = np.dot(p, np.dot(op_vv,
+                                                 self.sigma_cmn[:, m, :]))
+                        sigma2_cmn[i, m, :] += (s_tmp *
+                                                np.conjugate(s_tmp)).real
+
+            sigma2_cmn /= len(self.symmetry.op_scc)
+
+        else:
+            for i, p in enumerate(proj_3):
+                for m in range(self.sigma_cmn.shape[1]):
+                    s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
+                    sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
+
+        eps_n = self.eps_n[:]
+
+        if kpoint is not None:
+            eps_start = kpoint * self.n
+            eps_end = (kpoint + 1) * self.n
+        else:
+            eps_start = 0
+            eps_end = len(self.eps_n)
+
+        shift = dks - eps_n[eps_start]
+
+        e_stick = eps_n[eps_start:eps_end] + shift
+        a_stick = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
+        for c in range(sigma2_cmn.shape[0]):
+            for m in range(sigma2_cmn.shape[1]):
+                a_stick[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
+                                    (e_stick / Hartree))
+        a_stick *= 2
+
+        return e_stick, a_stick
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None,
@@ -169,7 +267,12 @@ class XAS:
           if False return broadened spectrum, if True return stick spectrum
 
         Symmtrization has been moved inside get_spectra because we want to
-        symmtrice squares of transition dipoles."""
+        symmtrice squares of transition dipoles.
+
+        Returns:
+            energies: 1D array
+            oscillator strengths: 3D array
+        """
 
         # eps_n = self.eps_n[k_in*self.n: (k_in+1)*self.n -1]
 
@@ -237,15 +340,16 @@ class XAS:
         shift = dks - eps_n[eps_start]
 
         # return stick spectrum if stick=True
-        if stick:
-            e_stick = eps_n[eps_start:eps_end] + shift
-            a_stick = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
-            for c in range(sigma2_cmn.shape[0]):
-                for m in range(sigma2_cmn.shape[1]):
-                    a_stick[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
-                                        (e_stick / Hartree))
-            a_stick *= 2
 
+        e_stick = eps_n[eps_start:eps_end] + shift
+        a_stick = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
+        for c in range(sigma2_cmn.shape[0]):
+            for m in range(sigma2_cmn.shape[1]):
+                a_stick[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
+                                    (e_stick / Hartree))
+        a_stick *= 2
+
+        if stick:
             return e_stick, a_stick
 
         # else return broadened spectrum
