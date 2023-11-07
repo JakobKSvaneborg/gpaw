@@ -5,7 +5,18 @@ from gpaw.test import gen
 from gpaw.xas import XAS
 
 
-@pytest.mark.skip(reason='redo the pre-calculated values')
+def folding_is_normalized(xas: XAS, rel: float = 1e-5) -> bool:
+    xs, ys_cmn = xas.stick()
+    ys_summed_c = ys_cmn.sum(axis=1).sum(axis=1)
+    xf, yf_cn = xas.get_spectra(fwhm=0.5)
+    dxf = xf[1:] - xf[:-1]
+    assert dxf == pytest.approx(dxf[0])
+    yf_summed_c = yf_cn.sum(axis=1) * dxf[0]
+
+    print('#############', yf_summed_c, ys_summed_c)
+    return yf_summed_c == pytest.approx(ys_summed_c, rel=rel)
+
+
 def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths):
     atoms = molecule('SH2')
     atoms.center(3)
@@ -13,22 +24,17 @@ def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths):
     setupname = 'S1s1ch'
     gen('S', name=setupname, corehole=(1, 0, 1), gpernode=30, write_xml=True)
 
-    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': setupname}, txt=None)
+    nbands = 6
+    nocc = 4  # for SH2
+    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
+                      setups={'S': setupname}, txt=None)
     atoms.get_potential_energy()
 
     xas = XAS(atoms.calc)
-    x, y = xas.get_spectra(stick=True, proj_xyz=True)
-    print('############## x=', x)
-    print('############## y=', y)
+    x, y_cmn = xas.stick(proj_xyz=True)
+    assert y_cmn.shape == (3, 1, nbands - nocc)
 
-    # pre-calculated values, only two contributions due to symmetry
-    #          direction value
-    pre_calc = [[1, 1.14321522e-04],
-                [2, 7.88607898e-05]]
-    for i, peak in enumerate(pre_calc):
-        assert y[peak[0], i] == pytest.approx(peak[1])
-        y[peak[0], i] = 0
-    assert y == pytest.approx(0, abs=1e-20)
+    assert folding_is_normalized(xas)
 
 
 def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths):
@@ -42,6 +48,4 @@ def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths):
     atoms.get_potential_energy()
 
     xas = XAS(atoms.calc)
-    x, y = xas.get_spectra()
-
-    # TODO we need some assert here to test validity
+    assert folding_is_normalized(xas)

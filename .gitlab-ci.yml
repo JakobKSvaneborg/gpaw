@@ -22,7 +22,7 @@ stages:
   stage: build
   before_script:
     - !reference [default, before_script]
-    - pip install --user --no-deps git+https://gitlab.com/ase/ase.git@master
+    - pip install --user --no-deps git+https://gitlab.com/ase/ase.git@f283d1e7350a5136dc80fc983b649bf2a7f20135
     - |
       cat << EOF > siteconfig.py
       parallel_python_interpreter = True

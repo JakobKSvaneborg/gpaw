@@ -33,7 +33,7 @@ atoms.calc.write(gs_name, mode='all')
 # GSEnd
 
 # Calculate momentum matrix elements:
-nlodata = make_nlodata(calc, comm=world)
+nlodata = make_nlodata(gs_name, comm=world)
 nlodata.write('mml.npz')
 # MMECalcEnd
 
