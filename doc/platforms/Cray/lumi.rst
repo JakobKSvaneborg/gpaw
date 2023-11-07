@@ -50,6 +50,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   # TODO: use correct project_...
   cat << EOF >> venv/bin/activate
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
+  export GPAW_SETUP_PATH=/projappl/project_.../gpaw-setups-0.9.20000
   module load LUMI/22.12 partition/G
   module load cpeGNU/22.12
   module load rocm/5.2.3
@@ -68,6 +69,10 @@ Then, the following steps build GPAW in a Python virtual environment:
   cd gpaw
   rm -rf build _gpaw.*.so gpaw.egg-info
   pip install -v --log build.log -e .
+
+  # Install gpaw setups
+  # TODO: use correct project_...
+  gpaw install-data --no-register /projappl/project_...
 
 Note that above the siteconfig file is taken from the git clone.
 If you are not using installation through git, use the siteconfig file from here:
