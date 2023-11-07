@@ -625,58 +625,6 @@ class GPWFiles:
         return calc
 
     @gpwfile
-    def Mg_2s_xas(self):
-        setupname = 'Mg_xas_hch2s'
-        setup = self.generate3_setup('Mg',
-                                     core='[Ne]',
-                                     xcname='PBE',
-                                     corehole=(2, 0, 1))
-
-        a = 5.0
-        Mg = Atoms('Mg')
-        Mg.center(vacuum=a)
-        Mg.pbc = False
-
-        calc = GPAW(
-            txt=self.path / 'Mg_2s_xas.txt',
-            mode="fd",
-            nbands=20,
-            h=0.2,
-            xc='PBE',
-            setups={"Mg": setup},
-            #experimental={"niter_fixdensity": 2},
-            #poissonsolver=FDPoissonSolver(use_charge_center=True),
-        )
-        Mg.calc = calc
-        _ = Mg.get_potential_energy()
-        return calc
-
-    @gpwfile
-    def Mg_2p_xas(self):
-        
-        setup = self.generate3_setup('Mg',
-                                     core='[Ne]',
-                                     xcname='PBE',
-                                     corehole=(2, 1, 1))
-
-        a = 5.0
-        Mg = Atoms('Mg')
-        Mg.center(vacuum=a)
-        calc = GPAW(
-            txt=self.path / 'Mg_2p_xas.txt',
-            mode="fd",
-            nbands=20,
-            h=0.2,
-            xc='PBE',
-            setups={"Mg": setup},
-            experimental={"niter_fixdensity": 2},
-            poissonsolver=FDPoissonSolver(use_charge_center=True),
-        )
-        Mg.calc = calc
-        _ = Mg.get_potential_energy()
-        return calc
-
-    @gpwfile
     def si_fd_ibz(self):
         si = bulk('Si', 'diamond', a=5.43)
         k = 4
@@ -733,16 +681,6 @@ class GPWFiles:
         from gpaw.atom.generator2 import generate
         gen = generate(*args, **kwargs)
         setup = gen.make_paw_setup(name)
-        self.save_setup(setup)
-        return setup
-
-    def generate3_setup(self, symbol, core='', *args, **kwargs):
-        from gpaw.atom.generator import Generator
-        from gpaw.atom.configurations import parameters
-        gen = Generator(symbol,*args, **kwargs)
-        p = parameters.get(symbol, {})
-        p['core'] = core
-        setup = gen.run(**p, write_xml=False)
         self.save_setup(setup)
         return setup
             

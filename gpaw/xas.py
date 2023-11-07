@@ -409,18 +409,18 @@ class XAS:
                 a_cj[:, i] += sigma2_cn[:, n]
                 j += 1
             else:
-                a_cj[:,i] /= j
-                j =1
+                a_cj[:, i] /= j
+                j = 1
                 i += 1
                 e_j[i] += eps
-                a_cj[:,i] += sigma2_cn[:, n]
+                a_cj[:, i] += sigma2_cn[:, n]
 
         e_j = np.trim_zeros(e_j, 'b') + shift
-        a_cj = a_cj[:,:len(e_j)]
-            
+        a_cj = a_cj[:, :len(e_j)]
+
         for c in range(a_cj.shape[0]):
             a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
-                
+
         a_c = np.zeros((a_cj.shape[0], len(e)))
 
         # constant broadening fwhm until linbroad[1] and a
