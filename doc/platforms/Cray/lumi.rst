@@ -82,9 +82,19 @@ Interactive jobs can be run like this::
 
   srun -A project_... -p small-g --nodes=1 --ntasks-per-node=2 --gpus-per-node=1 -t 0:30:00 --pty bash
 
-To use Omnitrace, source this file???::
+Omnitrace
+---------
 
-  source /scratch/project_465000538/GPAW/omnitrace-1.10.2-opensuse-15.4-ROCm-50200-PAPI-OMPT-Python3/share/omnitrace/setup-env.sh
+To install `Omnitrace <https://github.com/AMDResearch/omnitrace>`_
+(if using custon ROCm, use the correct ROCm version of the installer)::
+
+  cd /projappl/project_...
+  wget https://github.com/AMDResearch/omnitrace/releases/download/v1.10.4/omnitrace-1.10.4-opensuse-15.4-ROCm-50200-PAPI-OMPT-Python3.sh
+  bash omnitrace-1.10.4-opensuse-15.4-ROCm-50200-PAPI-OMPT-Python3.sh
+
+To activate Omnitrace, source the env file (after activating GPAW venv)::
+
+  source /projappl/project_.../omnitrace-1.10.4-opensuse-15.4-ROCm-50200-PAPI-OMPT-Python3/share/omnitrace/setup-env.sh
 
 
 Configuring MyQueue
