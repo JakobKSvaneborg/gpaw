@@ -683,7 +683,7 @@ class GPWFiles:
         setup = gen.make_paw_setup(name)
         self.save_setup(setup)
         return setup
-            
+
     @gpwfile
     def si_corehole_pw(self):
         # Generate setup for oxygen with half a core-hole:

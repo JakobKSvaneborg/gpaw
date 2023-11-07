@@ -49,4 +49,3 @@ def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths):
 
     xas = XAS(atoms.calc)
     assert folding_is_normalized(xas)
-    
