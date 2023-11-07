@@ -353,9 +353,6 @@ class XAS:
             return e_stick, a_stick
 
         # else return broadened spectrum
-
-        if E_in is not None:
-            e = np.array(E_in)
         else:
             emin = min(eps_n) - 2 * fwhm
             emax = max(eps_n) + 2 * fwhm
@@ -413,31 +410,44 @@ class XAS:
                 a_cj[:, i] += sigma2_cn[:, n]
                 j += 1
             else:
-                a_cj[:, i] /= j
-                j = 1
-                i += 1
-                e_j[i] += eps
-                a_cj[:, i] += sigma2_cn[:, n]
+                emin = min(eps_n) - 2 * fwhm
+                emax = max(eps_n) + 2 * fwhm
+                e = emin + np.arange(N + 1) * ((emax - emin) / N)
 
-        e_j = np.trim_zeros(e_j, 'b') + shift
-        a_cj = a_cj[:, :len(e_j)]
-        for c in range(a_cj.shape[0]):
-            a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
+            a_c = np.zeros((len(sigma2_cn), len(e)))
 
-        for n, eps in enumerate(e_j):
-            if eps < lin_e1:
+            if linbroad is None:
+                # constant broadening fwhm
                 alpha = 4 * log(2) / fwhm**2
-            elif eps <= lin_e2:
-                fwhm_lin = (fwhm + (eps - lin_e1) *
-                            (fwhm2 - fwhm) / (lin_e2 - lin_e1))
-                alpha = 4 * log(2) / fwhm_lin**2
-            elif eps >= lin_e2:
-                alpha = 4 * log(2) / fwhm2**2
 
-            x = -alpha * (e - eps)**2
-            x = np.clip(x, -100.0, 100.0)
-            a_c += np.outer(a_cj[:, n],
-                            (alpha / pi)**0.5 * np.exp(x))
+                for n, eps in enumerate(eps_n[eps_start:eps_end]):
+                    x = -alpha * (e - eps)**2
+                    x = np.clip(x, -100.0, 100.0)
+                    a_c += np.outer(sigma2_cn[:, n + eps_start],
+                                    (alpha / pi)**0.5 * np.exp(x))
+            else:
+
+                # constant broadening fwhm until linbroad[1] and a
+                # constant broadening over linbroad[2] with fwhm2=
+                # linbroad[0]
+                fwhm2 = linbroad[0]
+                lin_e1 = linbroad[1]
+                lin_e2 = linbroad[2]
+                print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
+                for n, eps in enumerate(eps_n):
+                    if eps < lin_e1:
+                        alpha = 4 * log(2) / fwhm**2
+                    elif eps <= lin_e2:
+                        fwhm_lin = (fwhm + (eps - lin_e1) *
+                                    (fwhm2 - fwhm) / (lin_e2 - lin_e1))
+                        alpha = 4 * log(2) / fwhm_lin**2
+                    elif eps >= lin_e2:
+                        alpha = 4 * log(2) / fwhm2**2
+
+                    x = -alpha * (e - eps)**2
+                    x = np.clip(x, -100.0, 100.0)
+                    a_c += np.outer(sigma2_cn[:, n],
+                                    (alpha / pi)**0.5 * np.exp(x))
 
         return e, a_c
 
