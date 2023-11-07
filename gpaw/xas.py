@@ -223,15 +223,16 @@ class XAS:
 
         shift = dks - eps_n[eps_start]
 
-        e_stick = eps_n[eps_start:eps_end] + shift
+        energy_n = eps_n[eps_start:eps_end] + shift
         f_cmn = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
         for c in range(sigma2_cmn.shape[0]):
             for m in range(sigma2_cmn.shape[1]):
-                f_cmn[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
-                                    (e_stick / Hartree))
+                f_cmn[c, m, :] = (
+                    sigma2_cmn[c, m, eps_start:eps_end] *
+                    energy_n / Hartree)
         f_cmn *= 2
 
-        return e_stick, f_cmn
+        return energy_n, f_cmn
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None,
@@ -341,30 +342,26 @@ class XAS:
 
         # return stick spectrum if stick=True
 
-        e_stick = eps_n[eps_start:eps_end] + shift
-        a_stick = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
-        for c in range(sigma2_cmn.shape[0]):
-            for m in range(sigma2_cmn.shape[1]):
-                a_stick[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
-                                    (e_stick / Hartree))
-        a_stick *= 2
+        energy_n, f_cmn = self.stick(kpoint, proj, proj_xyz, dks)
 
         if stick:
-            return e_stick, a_stick
+            return energy_n, f_cmn
 
         # else return broadened spectrum
+
+        if E_in is not None:
+            energy_i = np.array(E_in)
         else:
             emin = min(eps_n) - 2 * fwhm
             emax = max(eps_n) + 2 * fwhm
-            e = emin + np.arange(N + 1) * ((emax - emin) / N) + shift
+            energy_i = emin + np.arange(N + 1) * ((emax - emin) / N) + shift
 
         if linbroad is None:
             return self.constant_broadening(
-                fwhm, eps_start, shift,
-                eps_n[eps_start:eps_end], sigma2_cmn, e)
+                fwhm, energy_n, f_cmn, energy_i)
 
         return self.variable_broadening(
-            fwhm, linbroad, shift, eps_n, sigma2_cmn, e)
+            fwhm, linbroad, shift, eps_n, sigma2_cmn, energy_i)
 
     def variable_broadening(
             self, fwhm: float, linbroad: List[float], shift: float,
@@ -452,55 +449,26 @@ class XAS:
         return e, a_c
 
     def constant_broadening(
-            self, fwhm: float, eps_start: int, shift: float,
-            eps_n: Array1D, sigma2_cmn: Array3D,
-            e: Array1D) -> Tuple[Array1D, Array2D]:
+            self, fwhm: float, eps_n: Array1D, f_cmn,
+            energy_i: Array1D) -> Tuple[Array1D, Array2D]:
         """
         fwhm:
           the full width half maximum in eV for gaussian broadening
         """
-        a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
 
         # constant broadening fwhm
         alpha = 4 * log(2) / fwhm ** 2
-        e_j = np.zeros((len(eps_n)))
-        a_cj = np.zeros((sigma2_cmn.shape[0],
-                         len(eps_n)))
-
-        # Sum over all initial states
-        sigma2_cn = sigma2_cmn.sum(axis=1)
-
-        i = 0
-
-        # avrage over each state with the same energy
-        for n, eps in enumerate(eps_n):
-            if n == 0:
-                e_j[i] = eps
-                a_cj[:, i] = sigma2_cn[:, n + eps_start]
-                j = 1
-            elif round(eps, 5) == round(e_j[i], 5):
-                a_cj[:, i] += sigma2_cn[:, n + eps_start]
-                j += 1
-            else:
-                a_cj[:, i] /= j
-                j = 1
-                i += 1
-                e_j[i] += eps
-                a_cj[:, i] += sigma2_cn[:, n + eps_start]
-
-        e_j = np.trim_zeros(e_j, 'b') + shift
-        a_cj = a_cj[:, :len(e_j)]
-        for c in range(a_cj.shape[0]):
-            a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
+        a_cn = f_cmn.sum(axis=1)
 
         # Fold
-        for n, eps in enumerate(e_j):
-            x = -alpha * (e - eps) ** 2
+        a_ci = np.zeros((3, len(energy_i)))
+        for n, eps in enumerate(eps_n):
+            x = -alpha * (energy_i - eps) ** 2
             x = np.clip(x, -100.0, 100.0)
-            a_c += np.outer(a_cj[:, n],
-                            (alpha / pi) ** 0.5 * np.exp(x))
+            a_ci += np.outer(
+                a_cn[:, n], (alpha / pi) ** 0.5 * np.exp(x))
 
-        return e, a_c
+        return energy_i, a_ci
 
 
 class RecursionMethod:
