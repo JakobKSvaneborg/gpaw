@@ -224,14 +224,14 @@ class XAS:
         shift = dks - eps_n[eps_start]
 
         e_stick = eps_n[eps_start:eps_end] + shift
-        a_stick = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
+        f_cmn = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
         for c in range(sigma2_cmn.shape[0]):
             for m in range(sigma2_cmn.shape[1]):
-                a_stick[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
+                f_cmn[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
                                     (e_stick / Hartree))
-        a_stick *= 2
+        f_cmn *= 2
 
-        return e_stick, a_stick
+        return e_stick, f_cmn
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None,
@@ -468,11 +468,7 @@ class XAS:
                          len(eps_n)))
 
         # Sum over all initial states
-        sigma2_cn = np.zeros((sigma2_cmn.shape[0],
-                              sigma2_cmn.shape[-1]))
-
-        for m in range(sigma2_cmn.shape[1]):
-            sigma2_cn += sigma2_cmn[:, m, :]
+        sigma2_cn = sigma2_cmn.sum(axis=1)
 
         i = 0
 
