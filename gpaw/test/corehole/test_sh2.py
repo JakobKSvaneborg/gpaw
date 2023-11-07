@@ -13,7 +13,6 @@ def folding_is_normalized(xas: XAS, rel: float = 1e-5) -> bool:
     assert dxf == pytest.approx(dxf[0])
     yf_summed_c = yf_cn.sum(axis=1) * dxf[0]
 
-    print('#############', yf_summed_c, ys_summed_c)
     return yf_summed_c == pytest.approx(ys_summed_c, rel=rel)
 
 
