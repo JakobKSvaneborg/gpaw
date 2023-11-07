@@ -8,7 +8,6 @@ import pytest
 from ase import Atoms, Atom
 from ase.build import bulk
 from ase.lattice.hexagonal import Graphene
-from ase.io import read
 from gpaw import GPAW, PW, Davidson, FermiDirac, setup_paths
 from gpaw.poisson import FDPoissonSolver
 from gpaw.cli.info import info
@@ -546,8 +545,7 @@ class GPWFiles:
         co.get_potential_energy()
         return co.calc
 
-    @gpwfile
-    def c2h4_pw_nosym(self):
+    def _c2h4(self):
         d = 1.54
         h = 1.1
         x = d * (2 / 3)**0.5
@@ -562,6 +560,10 @@ class GPWFiles:
                    cell=[2 * x, 0, 0],
                    pbc=(1, 0, 0))
         pe.center(vacuum=2.0, axis=(1, 2))
+        return pe
+
+    def c2h4_pw_nosym(self):
+        pe = self._c2h4()
         pe.calc = GPAW(mode='pw',
                        kpts=(3, 1, 1),
                        symmetry='off',
@@ -571,7 +573,7 @@ class GPWFiles:
 
     @gpwfile
     def c6h12_pw(self):
-        pe = read(self['c2h4_pw_nosym'])
+        pe = self._c2h4()
         pe = pe.repeat((3, 1, 1))
         pe.calc = GPAW(mode='pw', txt=self.path / 'c6h12_pw.txt')
         pe.get_potential_energy()
