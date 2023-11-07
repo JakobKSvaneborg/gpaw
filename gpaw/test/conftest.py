@@ -642,8 +642,8 @@ class GPWFiles:
             h=0.2,
             xc='PBE',
             setups={"Mg": setup},
-            experimental={"niter_fixdensity": 2},
-            poissonsolver=FDPoissonSolver(use_charge_center=True),
+            #experimental={"niter_fixdensity": 2},
+            #poissonsolver=FDPoissonSolver(use_charge_center=True),
         )
         Mg.calc = calc
         _ = Mg.get_potential_energy()

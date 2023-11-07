@@ -254,23 +254,50 @@ class XAS:
             else:
                 emin = min(eps_n) - 2 * fwhm
                 emax = max(eps_n) + 2 * fwhm
-                e = emin + np.arange(N + 1) * ((emax - emin) / N)
+                e = emin + np.arange(N + 1) * ((emax - emin) / N) + shift
 
             sigma2_cn = np.zeros((sigma2_cmn.shape[0],sigma2_cmn.shape[-1]))
             for m in range(sigma2_cmn.shape[1]):
-                sigma2_cn += sigma2_cmn[:,m,:] * (e_stick / Hartree)
+                sigma2_cn += sigma2_cmn[:,m,:]
             sigma2_cn /= sigma2_cmn.shape[1]
-            sigma2_cn *= 2
+            
+            e_j = np.zeros((len(eps_n)))
+            a_cj = np.zeros((sigma2_cmn.shape[0],len(eps_n)))
+            
+            i = 0
+                
+            # avrage over each state with the same energy
+            for n, eps in enumerate(eps_n):
+                if n == 0:
+                    e_j[i]= eps
+                    a_cj[:,i] = sigma2_cn[:, n]#
+                    j = 1
+                elif round(eps,5) == round( e_j[i],5):
+                    a_cj[:,i] += sigma2_cn[:, n]
+                    j += 1
+                else:
+                    a_cj[:,i] /= j
+                    j =1
+                    i += 1
+                    e_j[i] += eps
+                    a_cj[:,i] += sigma2_cn[:, n]
+            
+            e_j = np.trim_zeros(e_j, 'b') + shift
+            a_cj = a_cj[:,:len(e_j)]
+            
+            for c in range(a_cj.shape[0]):
+                a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
+                
             a_c = np.zeros((len(sigma2_cn), len(e)))
 
             if linbroad is None:
                 # constant broadening fwhm
                 alpha = 4 * log(2) / fwhm**2
 
-                for n, eps in enumerate(eps_n[eps_start:eps_end]):
+                for n, eps in enumerate(e_j):
                     x = -alpha * (e - eps)**2
                     x = np.clip(x, -100.0, 100.0)
-                    a_c += np.outer(sigma2_cn[:, n + eps_start],
+                    a_c += np.outer(a_cj[:, n],
                                     (alpha / pi)**0.5 * np.exp(x))
             else:
 
@@ -281,7 +308,7 @@ class XAS:
                 lin_e1 = linbroad[1]
                 lin_e2 = linbroad[2]
                 print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
-                for n, eps in enumerate(eps_n):
+                for n, eps in enumerate(e_j):
                     if eps < lin_e1:
                         alpha = 4 * log(2) / fwhm**2
                     elif eps <= lin_e2:
@@ -293,7 +320,7 @@ class XAS:
 
                     x = -alpha * (e - eps)**2
                     x = np.clip(x, -100.0, 100.0)
-                    a_c += np.outer(sigma2_cn[:, n],
+                    a_c += np.outer(a_cj[:, n],
                                     (alpha / pi)**0.5 * np.exp(x))
 
         return e, a_c
