@@ -279,8 +279,6 @@ class XAS:
         if stick:
             return energy_n, f_cmn
 
-        # else return broadened spectrum
-
         if E_in is not None:
             energy_i = np.array(E_in)
         else:
