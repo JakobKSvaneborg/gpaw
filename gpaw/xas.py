@@ -35,7 +35,7 @@ def radial_dipole_matrix_elements(setup):
     return A_j
 
 
-def multiply_angular_overlaps(setup):
+def dipole_matrix_elements(setup):
     """Add angular overlaps to the radial parts in the setup"""
     A_j = radial_dipole_matrix_elements(setup)
 
@@ -124,7 +124,7 @@ class XAS:
                 if setup.phicorehole_g is not None:
                     break
 
-        A_cmi = multiply_angular_overlaps(setup)
+        A_cmi = dipole_matrix_elements(setup)
 
         # xas, xes or all modes
         if mode == 'xas':
@@ -542,7 +542,7 @@ class RecursionMethod:
             if setup.phicorehole_g is not None:
                 break
 
-        A_cmi = multiply_angular_overlaps(setup)
+        A_cmi = dipole_matrix_elements(setup)
         A_ci = A_cmi[:, 0, :]
 
         #
