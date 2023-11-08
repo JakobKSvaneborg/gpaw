@@ -46,14 +46,15 @@ def multiply_angular_overlaps(setup):
 
     return A_cmi
 
+
 def avrage_over_same_energy(e: Array1D, a: Array2D):
     e_j = np.zeros((len(e)))
-    a_cj = np.zeros((3,len(e)))
+    a_cj = np.zeros((3, len(e)))
 
     i = 0
     for n, eps in enumerate(e):
         if n == 0:
-            e_j[i]= eps
+            e_j[i] = eps
             a_cj[:, i] = a[:, n]
             j = 1
         elif round(eps, 5) == round(e_j[i], 5):
@@ -70,6 +71,7 @@ def avrage_over_same_energy(e: Array1D, a: Array2D):
     a_cj = a_cj[:, :len(e_j)]
 
     return e_j, a_cj
+
 
 class XAS:
     def __init__(self, paw, mode='xas', center=None, spin=0):
