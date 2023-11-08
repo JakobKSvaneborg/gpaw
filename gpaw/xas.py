@@ -46,6 +46,30 @@ def multiply_angular_overlaps(setup):
 
     return A_cmi
 
+def avrage_over_same_energy(e: Array1D, a: Array2D):
+    e_j = np.zeros((len(e)))
+    a_cj = np.zeros((3,len(e)))
+
+    i = 0
+    for n, eps in enumerate(e):
+        if n == 0:
+            e_j[i]= eps
+            a_cj[:, i] = a[:, n]
+            j = 1
+        elif round(eps, 5) == round(e_j[i], 5):
+            a_cj[:, i] += a[:, n]
+            j += 1
+        else:
+            a_cj[:, i] /= j
+            j = 1
+            i += 1
+            e_j[i] += eps
+            a_cj[:, i] += a[:, n]
+
+    e_j = np.trim_zeros(e_j, 'b')
+    a_cj = a_cj[:, :len(e_j)]
+
+    return e_j, a_cj
 
 class XAS:
     def __init__(self, paw, mode='xas', center=None, spin=0):
@@ -312,7 +336,7 @@ class XAS:
           where the linear increase starts and the third the value where
           the broadening has reached fwhm2. example [0.5, 540, 550]
         """
-        a_c = np.zeros((f_cmn.shape[0], len(e)))
+        f_c = np.zeros((f_cmn.shape[0], len(e)))
 
         # constant broadening fwhm until linbroad[1] and a
         # constant broadening over linbroad[2] with fwhm2=
@@ -322,8 +346,12 @@ class XAS:
         lin_e2 = linbroad[2]
         print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
 
-        f_cn = f_cmn.sum(axis=1)
-        for n, eps in enumerate(eps_n):
+        f_cn = f_cmn.sum(axis=1) / f_cmn.shape[1]
+
+        eps_j, f_cj = avrage_over_same_energy(eps_n, f_cn)
+
+        # Fold
+        for n, eps in enumerate(eps_j):
             if eps < lin_e1:
                 alpha = 4 * log(2) / fwhm**2
             elif eps <= lin_e2:
@@ -335,10 +363,10 @@ class XAS:
 
             x = -alpha * (e - eps)**2
             x = np.clip(x, -100.0, 100.0)
-            a_c += np.outer(f_cn[:, n],
+            f_c += np.outer(f_cj[:, n],
                             (alpha / pi)**0.5 * np.exp(x))
 
-        return e, a_c
+        return e, f_c
 
     def constant_broadening(
             self, fwhm: float, eps_n: Array1D, f_cmn,
@@ -350,17 +378,20 @@ class XAS:
 
         # constant broadening fwhm
         alpha = 4 * log(2) / fwhm ** 2
-        a_cn = f_cmn.sum(axis=1)
+
+        f_cn = f_cmn.sum(axis=1) / f_cmn.shape[1]
+
+        eps_j, f_cj = avrage_over_same_energy(eps_n, f_cn)
 
         # Fold
-        a_ci = np.zeros((3, len(energy_i)))
-        for n, eps in enumerate(eps_n):
+        f_c = np.zeros((3, len(energy_i)))
+        for n, eps in enumerate(eps_j):
             x = -alpha * (energy_i - eps) ** 2
             x = np.clip(x, -100.0, 100.0)
-            a_ci += np.outer(
-                a_cn[:, n], (alpha / pi) ** 0.5 * np.exp(x))
+            f_c += np.outer(
+                f_cj[:, n], (alpha / pi) ** 0.5 * np.exp(x))
 
-        return energy_i, a_ci
+        return energy_i, f_c
 
 
 class RecursionMethod:
