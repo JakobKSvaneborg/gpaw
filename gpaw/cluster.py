@@ -69,74 +69,25 @@ class Cluster(Atoms):
             extr[0][c] -= b[c]
             extr[1][c] += b[c] - extr[0][c]  # shifted already
 
-        pbc = self.pbc
-        old_cell = self.cell
-
-        if True in pbc:
-
-            extr2 = np.zeros((3, 3))
-
-            for ip, p in enumerate(pbc):
-
-                if p:
-                    extr[0][ip] = 0
-                    extr2[ip][:] = old_cell[ip]
-
-                else:
-                    e = np.zeros(3)
-                    e[ip] = extr[1][ip]
-                    extr2[ip][:] = e
-
         # check for multiple of 4
         if h is not None:
-
             if not hasattr(h, '__len__'):
                 h = np.array([h, h, h])
-
-            elif h == 'periodic':
-
-                if True in pbc:
-                    h1 = 0
-                    i = 0
-
-                    for ip, p in enumerate(pbc):
-                        if p:
-                            h1 += extr2[ip, ip] / 12
-                            i += 1
-
-                    h = [h1 / i, h1 / i, h1 / i]
-
             for c in range(3):
-
-                if True in pbc:
-                    L = extr2[c, c]
-
-                    N = np.ceil(L / h[c] / multiple) * multiple
-
-                    # correct L
-                    dL = N * h[c] - L
-                    extr2[c, c] += dL
-                    extr[0][c] -= dL / 2
-
-                else:
-                    # apply the same as in paw.py
-                    L = extr[1][c]  # shifted already
-                    N = np.ceil(L / h[c] / multiple) * multiple
-                    # correct L
-                    dL = N * h[c] - L
-                    # move accordingly
-                    extr[1][c] += dL  # shifted already
-                    extr[0][c] -= dL / 2.
+                # apply the same as in paw.py
+                L = extr[1][c]  # shifted already
+                N = np.ceil(L / h[c] / multiple) * multiple
+                # correct L
+                dL = N * h[c] - L
+                # move accordingly
+                extr[1][c] += dL  # shifted already
+                extr[0][c] -= dL / 2.
 
         # move lower corner to (0, 0, 0)
         shift = tuple(-1. * np.array(extr[0]))
         self.translate(shift)
+        self.set_cell(tuple(extr[1]))
 
-        if True in pbc:
-            self.set_cell(tuple(extr2))
-        else:
-
-            self.set_cell(tuple(extr[1]))
         return shift
 
     def read(self, filename, format=None):

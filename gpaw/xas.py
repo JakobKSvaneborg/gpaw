@@ -11,6 +11,42 @@ from gpaw.typing import Array1D, Array2D, Array3D
 import gpaw.mpi as mpi
 
 
+def multiply_angular_overlaps(setup):
+    """Add angular overlaps to the radial parts in the setup"""
+    A_j = setup.A_j  # radial part if the oscillator strength
+
+    G_LLL = gaunt(setup.lmax)
+
+    # The m quantum numbers
+    M = {0: [0]}
+    for l in range(1, setup.lmax + 1):
+        M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
+
+    nj = len(setup.data.phi_jg)
+    l_core = setup.data.lcorehole
+    A_cmi = np.zeros((3, len(M[l_core]), setup.ni))
+
+    i = 0
+    for j in range(nj):
+        l = setup.l_j[j]
+
+        for L2 in M[l]:
+            for L0 in M[1]:
+                for m, L1 in enumerate(M[l_core]):
+                    G = (G_LLL[L0, L1, L2])
+
+                    G = sqrt(4 * pi / 3) * G
+
+                    c = L0 % 3
+                    A_cmi[c, m, i] = G * A_j[i]
+
+            i += 1
+
+    assert i == len(A_j)
+
+    return A_cmi
+
+
 class XAS:
     def __init__(self, paw, mode='xas', center=None, spin=0):
         wfs = paw.wfs
@@ -64,36 +100,7 @@ class XAS:
                 if setup.phicorehole_g is not None:
                     break
 
-        A_j = setup.A_j  # radial part if the oscillator strength
-
-        G_LLL = gaunt(setup.lmax)
-
-        # The m quantum numbers
-        M = {0: [0]}
-        for l in range(1, setup.lmax + 1):
-            M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
-
-        nj = len(setup.data.phi_jg)
-        l_core = setup.data.lcorehole
-        A_cmi = np.zeros((3, len(M[l_core]), setup.ni))
-
-        i = 0
-        for j in range(nj):
-            l = setup.l_j[j]
-
-            for L2 in M[l]:
-                for L0 in M[1]:
-                    for m, L1 in enumerate(M[l_core]):
-                        G = (G_LLL[L0, L1, L2])
-
-                        G = sqrt(4 * pi / 3) * G
-
-                        c = L0 % 3
-                        A_cmi[c, m, i] = G * A_j[i]
-
-                i += 1
-
-        assert i == len(A_j)
+        A_cmi = multiply_angular_overlaps(setup)
 
         # xas, xes or all modes
         if mode == 'xas':
@@ -114,6 +121,7 @@ class XAS:
 
         self.n = n
 
+        l_core = setup.data.lcorehole
         self.eps_n = np.empty(nkpts * n)
         self.sigma_cmn = np.empty((3, l_core * 2 + 1, nkpts * n), complex)
         n1 = 0
@@ -222,15 +230,16 @@ class XAS:
 
         shift = dks - eps_n[eps_start]
 
-        e_stick = eps_n[eps_start:eps_end] + shift
-        a_stick = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
+        energy_n = eps_n[eps_start:eps_end] + shift
+        f_cmn = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
         for c in range(sigma2_cmn.shape[0]):
             for m in range(sigma2_cmn.shape[1]):
-                a_stick[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
-                                    (e_stick / Hartree))
-        a_stick *= 2
+                f_cmn[c, m, :] = (
+                    sigma2_cmn[c, m, eps_start:eps_end] *
+                    energy_n / Hartree)
+        f_cmn *= 2
 
-        return e_stick, a_stick
+        return energy_n, f_cmn
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None,
@@ -272,102 +281,29 @@ class XAS:
             energies: 1D array
             oscillator strengths: 3D array
         """
-
-        # eps_n = self.eps_n[k_in*self.n: (k_in+1)*self.n -1]
-
-        # proj keyword, check normalization of incoming vectors
-        if proj_xyz:
-            proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
-        else:
-            proj_3 = np.array([], float)
-
-        if proj is not None:
-            assert self.orthogonal
-            proj_2 = np.array(proj, float)
-            if len(proj_2.shape) == 1:
-                proj_2 = np.array([proj], float)
-
-            for i, p in enumerate(proj_2):
-                if sum(p ** 2) ** 0.5 != 1.0:
-                    print('proj_2 %s not normalized' % i)
-                    proj_2[i] /= sum(p ** 2) ** 0.5
-
-            proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
-
-            for i, p in enumerate(proj_3):
-                proj_tmp[i, :] = proj_3[i, :]
-
-            for i, p in enumerate(proj_2):
-                proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
-
-            proj_3 = proj_tmp.copy()
-
-        # now symmetrize
-        sigma2_cmn = np.zeros((proj_3.shape[0],
-                               self.sigma_cmn.shape[1],
-                               self.sigma_cmn.shape[2]),
-                              float)
-
-        if self.symmetry is not None:
-            for i, p in enumerate(proj_3):
-                for op_cc in self.symmetry.op_scc:
-                    op_vv = np.dot(np.linalg.inv(self.cell_cv),
-                                   np.dot(op_cc, self.cell_cv))
-                    for m in range((self.sigma_cmn.shape[1])):
-                        s_tmp = np.dot(p, np.dot(op_vv,
-                                                 self.sigma_cmn[:, m, :]))
-                        sigma2_cmn[i, m, :] += (s_tmp *
-                                                np.conjugate(s_tmp)).real
-
-            sigma2_cmn /= len(self.symmetry.op_scc)
-
-        else:
-            for i, p in enumerate(proj_3):
-                for m in range(self.sigma_cmn.shape[1]):
-                    s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
-                    sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
-
-        eps_n = self.eps_n[:]
-
-        if kpoint is not None:
-            eps_start = kpoint * self.n
-            eps_end = (kpoint + 1) * self.n
-        else:
-            eps_start = 0
-            eps_end = len(self.eps_n)
-
-        shift = dks - eps_n[eps_start]
-
-        # return stick spectrum if stick=True
-
-        e_stick = eps_n[eps_start:eps_end] + shift
-        a_stick = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
-        for c in range(sigma2_cmn.shape[0]):
-            for m in range(sigma2_cmn.shape[1]):
-                a_stick[c, m, :] = (sigma2_cmn[c, m, eps_start:eps_end] *
-                                    (e_stick / Hartree))
-        a_stick *= 2
+        energy_n, f_cmn = self.stick(kpoint, proj, proj_xyz, dks)
 
         if stick:
-            return e_stick, a_stick
+            return energy_n, f_cmn
 
-        # else return broadened spectrum
+        if E_in is not None:
+            energy_i = np.array(E_in)
         else:
-            emin = min(eps_n) - 2 * fwhm
-            emax = max(eps_n) + 2 * fwhm
-            e = emin + np.arange(N + 1) * ((emax - emin) / N) + shift
+            emin = min(energy_n) - 2 * fwhm
+            emax = max(energy_n) + 2 * fwhm
+            energy_i = emin + np.arange(N + 1) * ((emax - emin) / N)
 
         if linbroad is None:
             return self.constant_broadening(
-                fwhm, eps_start, shift,
-                eps_n[eps_start:eps_end], sigma2_cmn, e)
+                fwhm, energy_n, f_cmn, energy_i)
 
         return self.variable_broadening(
-            fwhm, linbroad, shift, eps_n, sigma2_cmn, e)
+            fwhm, linbroad, energy_n, f_cmn, energy_i)
 
     def variable_broadening(
-            self, fwhm: float, linbroad: List[float], shift: float,
-            eps_n: Array1D, sigma2_cmn: Array3D, e: Array1D):
+            self, fwhm: float, linbroad: List[float],
+            eps_n: Array1D, f_cmn: Array3D,
+            e: Array1D) -> Tuple[Array1D, Array2D]:
         """
         fwhm:
           the full width half maximum in eV for gaussian broadening
@@ -376,7 +312,7 @@ class XAS:
           where the linear increase starts and the third the value where
           the broadening has reached fwhm2. example [0.5, 540, 550]
         """
-        a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
+        a_c = np.zeros((f_cmn.shape[0], len(e)))
 
         # constant broadening fwhm until linbroad[1] and a
         # constant broadening over linbroad[2] with fwhm2=
@@ -386,51 +322,8 @@ class XAS:
         lin_e2 = linbroad[2]
         print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
 
-        e_j = np.zeros((len(eps_n)))
-        a_cj = np.zeros((sigma2_cmn.shape[0], len(eps_n)))
-
-        sigma2_cn = np.zeros((sigma2_cmn.shape[0],
-                              sigma2_cmn.shape[-1]))
-
-        for m in range(sigma2_cmn.shape[1]):
-            sigma2_cn += sigma2_cmn[:, m, :]
-
-        sigma2_cn /= sigma2_cmn.shape[1]
-
-        i = 0
-
-        # avrage over each state with the same energy
+        f_cn = f_cmn.sum(axis=1)
         for n, eps in enumerate(eps_n):
-            if n == 0:
-                e_j[i] = eps
-                a_cj[:, i] = sigma2_cn[:, n]
-                j = 1
-            elif round(eps, 5) == round(e_j[i], 5):
-                a_cj[:, i] += sigma2_cn[:, n]
-                j += 1
-            else:
-                a_cj[:, i] /= j
-                j = 1
-                i += 1
-                e_j[i] += eps
-                a_cj[:, i] += sigma2_cn[:, n]
-
-        e_j = np.trim_zeros(e_j, 'b') + shift
-        a_cj = a_cj[:, :len(e_j)]
-
-        for c in range(a_cj.shape[0]):
-            a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
-
-        a_c = np.zeros((a_cj.shape[0], len(e)))
-
-        # constant broadening fwhm until linbroad[1] and a
-        # constant broadening over linbroad[2] with fwhm2=
-        # linbroad[0]
-        fwhm2 = linbroad[0]
-        lin_e1 = linbroad[1]
-        lin_e2 = linbroad[2]
-        print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
-        for n, eps in enumerate(e_j):
             if eps < lin_e1:
                 alpha = 4 * log(2) / fwhm**2
             elif eps <= lin_e2:
@@ -442,68 +335,32 @@ class XAS:
 
             x = -alpha * (e - eps)**2
             x = np.clip(x, -100.0, 100.0)
-            a_c += np.outer(a_cj[:, n],
+            a_c += np.outer(f_cn[:, n],
                             (alpha / pi)**0.5 * np.exp(x))
 
         return e, a_c
 
     def constant_broadening(
-            self, fwhm: float, eps_start: int, shift: float,
-            eps_n: Array1D, sigma2_cmn: Array3D,
-            e: Array1D) -> Tuple[Array1D, Array2D]:
+            self, fwhm: float, eps_n: Array1D, f_cmn,
+            energy_i: Array1D) -> Tuple[Array1D, Array2D]:
         """
         fwhm:
           the full width half maximum in eV for gaussian broadening
         """
-        a_c = np.zeros((sigma2_cmn.shape[0], len(e)))
 
         # constant broadening fwhm
         alpha = 4 * log(2) / fwhm ** 2
-        e_j = np.zeros((len(eps_n)))
-        a_cj = np.zeros((sigma2_cmn.shape[0],
-                         len(eps_n)))
-
-        # Avrage over all initial states
-        sigma2_cn = np.zeros((sigma2_cmn.shape[0],
-                              sigma2_cmn.shape[-1]))
-
-        for m in range(sigma2_cmn.shape[1]):
-            sigma2_cn += sigma2_cmn[:, m, :]
-
-        sigma2_cn /= sigma2_cmn.shape[1]
-
-        i = 0
-
-        # avrage over each state with the same energy
-        for n, eps in enumerate(eps_n):
-            if n == 0:
-                e_j[i] = eps
-                a_cj[:, i] = sigma2_cn[:, n + eps_start]
-                j = 1
-            elif round(eps, 5) == round(e_j[i], 5):
-                a_cj[:, i] += sigma2_cn[:, n + eps_start]
-                j += 1
-            else:
-                a_cj[:, i] /= j
-                j = 1
-                i += 1
-                e_j[i] += eps
-                a_cj[:, i] += sigma2_cn[:, n + eps_start]
-
-        e_j = np.trim_zeros(e_j, 'b') + shift
-        a_cj = a_cj[:, :len(e_j)]
-
-        for c in range(a_cj.shape[0]):
-            a_cj[c, :] = 2 * a_cj[c, :] * (e_j / Hartree)
+        a_cn = f_cmn.sum(axis=1)
 
         # Fold
-        for n, eps in enumerate(e_j):
-            x = -alpha * (e - eps) ** 2
+        a_ci = np.zeros((3, len(energy_i)))
+        for n, eps in enumerate(eps_n):
+            x = -alpha * (energy_i - eps) ** 2
             x = np.clip(x, -100.0, 100.0)
-            a_c += np.outer(a_cj[:, n],
-                            (alpha / pi) ** 0.5 * np.exp(x))
+            a_ci += np.outer(
+                a_cn[:, n], (alpha / pi) ** 0.5 * np.exp(x))
 
-        return e, a_c
+        return energy_i, a_ci
 
 
 class RecursionMethod:
@@ -660,7 +517,9 @@ class RecursionMethod:
         for a, setup in enumerate(self.wfs.setups):
             if setup.phicorehole_g is not None:
                 break
-        A_ci = setup.A_ci
+
+        A_cmi = multiply_angular_overlaps(setup)
+        A_ci = A_cmi[:, 0, :]
 
         #
         # proj keyword

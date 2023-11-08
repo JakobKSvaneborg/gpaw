@@ -622,7 +622,6 @@ class LeanSetup(BaseSetup):
         # XAS stuff
         self.phicorehole_g = s.phicorehole_g  # should be optional
         if s.phicorehole_g is not None:
-            self.A_ci = s.A_ci  # oscillator strengths
             self.A_j = s.A_j
 
         # Required to get all electron density
@@ -847,7 +846,7 @@ class Setup(BaseSetup):
         self.fcorehole = data.fcorehole
         self.lcorehole = data.lcorehole
         if data.phicorehole_g is not None:
-            self.calculate_oscillator_strengths(phi_jg)
+            self.radial_dipole_matrix_elements(phi_jg)
 
         # Construct splines:
         self.vbar = rgd.spline(vbar_g, rcutfilter)
@@ -1245,34 +1244,8 @@ class Setup(BaseSetup):
         basis = PartialWaveBasis(self.symbol, basis_functions_J)
         return basis
 
-    def calculate_oscillator_strengths(self, phi_jg):
-        # XXX implement oscillator strengths for lcorehole != 0
-
-        nj = len(phi_jg)
-
-        if self.lcorehole == 0:
-
-            self.A_ci = np.zeros((3, self.ni))
-            nj = len(phi_jg)
-            i = 0
-            for j in range(nj):
-                l = self.l_j[j]
-
-                if l == 1:
-                    a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                                           n=1) / (4 * pi)
-
-                    for m in range(3):
-                        c = (m + 1) % 3
-                        self.A_ci[c, i] = a
-                        i += 1
-                else:
-                    i += 2 * l + 1
-            assert i == self.ni
-        else:
-            self.A_ci = None
-
-        # Setup radial oscillator strengths for
+    def radial_dipole_matrix_elements(self, phi_jg):
+        """Calculate the radial part of the dipole matrix elements"""
         self.A_j = np.zeros((self.ni))
 
         nj = len(phi_jg)
