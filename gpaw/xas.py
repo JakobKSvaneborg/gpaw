@@ -36,7 +36,6 @@ def radial_dipole_matrix_elements(setup):
 
 
 def dipole_matrix_elements(setup):
-    """Add angular overlaps to the radial parts in the setup"""
     A_j = radial_dipole_matrix_elements(setup)
 
     G_LLL = gaunt(setup.lmax)
