@@ -11,6 +11,42 @@ from gpaw.typing import Array1D, Array2D, Array3D
 import gpaw.mpi as mpi
 
 
+def multiply_angular_overlaps(setup):
+    """Add angular overlaps to the radial parts in the setup"""
+    A_j = setup.A_j  # radial part if the oscillator strength
+
+    G_LLL = gaunt(setup.lmax)
+
+    # The m quantum numbers
+    M = {0: [0]}
+    for l in range(1, setup.lmax + 1):
+        M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
+
+    nj = len(setup.data.phi_jg)
+    l_core = setup.data.lcorehole
+    A_cmi = np.zeros((3, len(M[l_core]), setup.ni))
+
+    i = 0
+    for j in range(nj):
+        l = setup.l_j[j]
+
+        for L2 in M[l]:
+            for L0 in M[1]:
+                for m, L1 in enumerate(M[l_core]):
+                    G = (G_LLL[L0, L1, L2])
+
+                    G = sqrt(4 * pi / 3) * G
+
+                    c = L0 % 3
+                    A_cmi[c, m, i] = G * A_j[i]
+
+            i += 1
+
+    assert i == len(A_j)
+
+    return A_cmi
+
+
 class XAS:
     def __init__(self, paw, mode='xas', center=None, spin=0):
         wfs = paw.wfs
@@ -64,37 +100,7 @@ class XAS:
                 if setup.phicorehole_g is not None:
                     break
 
-        A_j = setup.A_j  # radial part if the oscillator strength
-        # Set up A_ci with Gaunt coefficients
-
-        G_LLL = gaunt(setup.lmax)
-
-        # The m quantum numbers
-        M = {0: [0]}
-        for l in range(1, setup.lmax + 1):
-            M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
-
-        nj = len(setup.data.phi_jg)
-        l_core = setup.data.lcorehole
-        A_cmi = np.zeros((3, len(M[l_core]), setup.ni))
-
-        i = 0
-        for j in range(nj):
-            l = setup.l_j[j]
-
-            for L2 in M[l]:
-                for L0 in M[1]:
-                    for m, L1 in enumerate(M[l_core]):
-                        G = (G_LLL[L0, L1, L2])
-
-                        G = sqrt(4 * pi / 3) * G
-
-                        c = L0 % 3
-                        A_cmi[c, m, i] = G * A_j[i]
-
-                i += 1
-
-        assert i == len(A_j)
+        A_cmi = multiply_angular_overlaps(setup)
 
         # xas, xes or all modes
         if mode == 'xas':
@@ -115,6 +121,7 @@ class XAS:
 
         self.n = n
 
+        l_core = setup.data.lcorehole
         self.eps_n = np.empty(nkpts * n)
         self.sigma_cmn = np.empty((3, l_core * 2 + 1, nkpts * n), complex)
         n1 = 0
@@ -510,7 +517,9 @@ class RecursionMethod:
         for a, setup in enumerate(self.wfs.setups):
             if setup.phicorehole_g is not None:
                 break
-        A_ci = setup.A_ci
+
+        A_cmi = multiply_angular_overlaps(setup)
+        A_ci = A_cmi[:, 0, :]
 
         #
         # proj keyword
