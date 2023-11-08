@@ -621,8 +621,6 @@ class LeanSetup(BaseSetup):
 
         # XAS stuff
         self.phicorehole_g = s.phicorehole_g  # should be optional
-        if s.phicorehole_g is not None:
-            self.A_j = s.A_j
 
         # Required to get all electron density
         self.rgd = s.rgd
@@ -845,8 +843,6 @@ class Setup(BaseSetup):
 
         self.fcorehole = data.fcorehole
         self.lcorehole = data.lcorehole
-        if data.phicorehole_g is not None:
-            self.radial_dipole_matrix_elements(phi_jg)
 
         # Construct splines:
         self.vbar = rgd.spline(vbar_g, rcutfilter)
@@ -1243,25 +1239,6 @@ class Setup(BaseSetup):
                 basis_functions_J.append(basis_function)
         basis = PartialWaveBasis(self.symbol, basis_functions_J)
         return basis
-
-    def radial_dipole_matrix_elements(self, phi_jg):
-        """Calculate the radial part of the dipole matrix elements"""
-        self.A_j = np.zeros((self.ni))
-
-        nj = len(phi_jg)
-        i = 0
-
-        for j in range(nj):
-            l = self.l_j[j]
-
-            a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                                   n=1) / (4 * pi)
-
-            for _ in range((l * 2) + 1):
-                self.A_j[i] = a
-                i += 1
-
-        assert i == self.ni
 
 
 class Setups(list):

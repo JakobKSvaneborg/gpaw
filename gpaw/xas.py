@@ -11,9 +11,32 @@ from gpaw.typing import Array1D, Array2D, Array3D
 import gpaw.mpi as mpi
 
 
-def multiply_angular_overlaps(setup):
-    """Add angular overlaps to the radial parts in the setup"""
-    A_j = setup.A_j  # radial part if the oscillator strength
+def radial_dipole_matrix_elements(setup):
+    """Calculate the radial part of the dipole matrix elements"""
+    phi_jg = setup.data.phi_jg
+
+    A_j = np.zeros((setup.ni))
+
+    nj = len(phi_jg)
+    i = 0
+
+    for j in range(nj):
+        l = setup.l_j[j]
+
+        a = setup.rgd.integrate(phi_jg[j] * setup.data.phicorehole_g,
+                                n=1) / (4 * pi)
+
+        for _ in range((l * 2) + 1):
+            A_j[i] = a
+            i += 1
+
+    assert i == setup.ni
+
+    return A_j
+
+
+def dipole_matrix_elements(setup):
+    A_j = radial_dipole_matrix_elements(setup)
 
     G_LLL = gaunt(setup.lmax)
 
@@ -126,7 +149,7 @@ class XAS:
                 if setup.phicorehole_g is not None:
                     break
 
-        A_cmi = multiply_angular_overlaps(setup)
+        A_cmi = dipole_matrix_elements(setup)
 
         # xas, xes or all modes
         if mode == 'xas':
@@ -551,7 +574,7 @@ class RecursionMethod:
             if setup.phicorehole_g is not None:
                 break
 
-        A_cmi = multiply_angular_overlaps(setup)
+        A_cmi = dipole_matrix_elements(setup)
         A_ci = A_cmi[:, 0, :]
 
         #
