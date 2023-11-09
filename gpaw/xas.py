@@ -223,24 +223,10 @@ class XAS:
                                self.sigma_cmn.shape[2]),
                               float)
 
-        if self.symmetry is not None:
-            for i, p in enumerate(proj_3):
-                for op_cc in self.symmetry.op_scc:
-                    op_vv = np.dot(np.linalg.inv(self.cell_cv),
-                                   np.dot(op_cc, self.cell_cv))
-                    for m in range((self.sigma_cmn.shape[1])):
-                        s_tmp = np.dot(p, np.dot(op_vv,
-                                                 self.sigma_cmn[:, m, :]))
-                        sigma2_cmn[i, m, :] += (s_tmp *
-                                                np.conjugate(s_tmp)).real
-
-            sigma2_cmn /= len(self.symmetry.op_scc)
-
-        else:
-            for i, p in enumerate(proj_3):
-                for m in range(self.sigma_cmn.shape[1]):
-                    s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
-                    sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
+        for i, p in enumerate(proj_3):
+            for m in range(self.sigma_cmn.shape[1]):
+                s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
+                sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
 
         eps_n = self.eps_n[:]
 
@@ -335,7 +321,7 @@ class XAS:
           where the linear increase starts and the third the value where
           the broadening has reached fwhm2. example [0.5, 540, 550]
         """
-        a_c = np.zeros((f_cmn.shape[0], len(e)))
+        f_c = np.zeros((f_cmn.shape[0], len(e)))
 
         # constant broadening fwhm until linbroad[1] and a
         # constant broadening over linbroad[2] with fwhm2=
@@ -346,6 +332,8 @@ class XAS:
         print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
 
         f_cn = f_cmn.sum(axis=1)
+
+        # Fold
         for n, eps in enumerate(eps_n):
             if eps < lin_e1:
                 alpha = 4 * log(2) / fwhm**2
@@ -358,10 +346,10 @@ class XAS:
 
             x = -alpha * (e - eps)**2
             x = np.clip(x, -100.0, 100.0)
-            a_c += np.outer(f_cn[:, n],
+            f_c += np.outer(f_cn[:, n],
                             (alpha / pi)**0.5 * np.exp(x))
 
-        return e, a_c
+        return e, f_c
 
     def constant_broadening(
             self, fwhm: float, eps_n: Array1D, f_cmn,
@@ -372,18 +360,18 @@ class XAS:
         """
 
         # constant broadening fwhm
-        alpha = 4 * log(2) / fwhm ** 2
-        a_cn = f_cmn.sum(axis=1)
+        alpha = 4 * log(2) / fwhm**2
+
+        f_cn = f_cmn.sum(axis=1)
 
         # Fold
-        a_ci = np.zeros((3, len(energy_i)))
+        f_ci = np.zeros((3, len(energy_i)))
         for n, eps in enumerate(eps_n):
             x = -alpha * (energy_i - eps) ** 2
             x = np.clip(x, -100.0, 100.0)
-            a_ci += np.outer(
-                a_cn[:, n], (alpha / pi) ** 0.5 * np.exp(x))
+            f_ci += np.outer(f_cn[:, n], (alpha / pi)**0.5 * np.exp(x))
 
-        return energy_i, a_ci
+        return energy_i, f_ci
 
 
 class RecursionMethod:
