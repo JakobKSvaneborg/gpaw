@@ -156,7 +156,7 @@ class Density:
             # XXX This doesn't always work, HGH, SIC, ...
             sc = self.get_spin_contamination(atoms, int(magmom < 0))
             log('Spin contamination: %f electrons' % sc)
-        except (TypeError, AttributeError):
+        except (TypeError, AttributeError, AssertionError):
             pass
 
     def initialize(self, setups, timer, magmom_av, hund):
