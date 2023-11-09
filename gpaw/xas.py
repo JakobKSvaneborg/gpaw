@@ -70,32 +70,6 @@ def dipole_matrix_elements(setup):
     return A_cmi
 
 
-def avrage_over_same_energy(e: Array1D, a: Array2D):
-    e_j = np.zeros((len(e)))
-    a_cj = np.zeros((3, len(e)))
-
-    i = 0
-    for n, eps in enumerate(e):
-        if n == 0:
-            e_j[i] = eps
-            a_cj[:, i] = a[:, n]
-            j = 1
-        elif round(eps, 5) == round(e_j[i], 5):
-            a_cj[:, i] += a[:, n]
-            j += 1
-        else:
-            a_cj[:, i] /= j
-            j = 1
-            i += 1
-            e_j[i] += eps
-            a_cj[:, i] += a[:, n]
-
-    e_j = np.trim_zeros(e_j, 'b')
-    a_cj = a_cj[:, :len(e_j)]
-
-    return e_j, a_cj
-
-
 class XAS:
     def __init__(self, paw, mode='xas', center=None, spin=0):
         wfs = paw.wfs
@@ -249,24 +223,12 @@ class XAS:
                                self.sigma_cmn.shape[2]),
                               float)
 
-        if self.symmetry is not None:
-            for i, p in enumerate(proj_3):
-                for op_cc in self.symmetry.op_scc:
-                    op_vv = np.dot(np.linalg.inv(self.cell_cv),
-                                   np.dot(op_cc, self.cell_cv))
-                    for m in range((self.sigma_cmn.shape[1])):
-                        s_tmp = np.dot(p, np.dot(op_vv,
-                                                 self.sigma_cmn[:, m, :]))
-                        sigma2_cmn[i, m, :] += (s_tmp *
-                                                np.conjugate(s_tmp)).real
+        for i, p in enumerate(proj_3):
+            for m in range(self.sigma_cmn.shape[1]):
+                s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
+                sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
 
-            sigma2_cmn /= len(self.symmetry.op_scc)
-
-        else:
-            for i, p in enumerate(proj_3):
-                for m in range(self.sigma_cmn.shape[1]):
-                    s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
-                    sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
+        self.sigma2_cmn = sigma2_cmn
 
         eps_n = self.eps_n[:]
 
@@ -371,12 +333,10 @@ class XAS:
         lin_e2 = linbroad[2]
         print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
 
-        f_cn = f_cmn.sum(axis=1) / f_cmn.shape[1]
-
-        eps_j, f_cj = avrage_over_same_energy(eps_n, f_cn)
+        f_cn = f_cmn.sum(axis=1)
 
         # Fold
-        for n, eps in enumerate(eps_j):
+        for n, eps in enumerate(eps_n):
             if eps < lin_e1:
                 alpha = 4 * log(2) / fwhm**2
             elif eps <= lin_e2:
@@ -388,7 +348,7 @@ class XAS:
 
             x = -alpha * (e - eps)**2
             x = np.clip(x, -100.0, 100.0)
-            f_c += np.outer(f_cj[:, n],
+            f_c += np.outer(f_cn[:, n],
                             (alpha / pi)**0.5 * np.exp(x))
 
         return e, f_c
@@ -402,19 +362,17 @@ class XAS:
         """
 
         # constant broadening fwhm
-        alpha = 4 * log(2) / fwhm ** 2
+        alpha = 4 * log(2) / fwhm**2
 
-        f_cn = f_cmn.sum(axis=1) / f_cmn.shape[1]
-
-        eps_j, f_cj = avrage_over_same_energy(eps_n, f_cn)
+        f_cn = f_cmn.sum(axis=1)
 
         # Fold
         f_c = np.zeros((3, len(energy_i)))
-        for n, eps in enumerate(eps_j):
+        for n, eps in enumerate(eps_n):
             x = -alpha * (energy_i - eps) ** 2
             x = np.clip(x, -100.0, 100.0)
-            f_c += np.outer(
-                f_cj[:, n], (alpha / pi) ** 0.5 * np.exp(x))
+            f_c += np.outer(f_cn[:, n],
+                            (alpha / pi) ** 0.5 * np.exp(x))
 
         return energy_i, f_c
 

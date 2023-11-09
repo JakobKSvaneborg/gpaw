@@ -7,7 +7,7 @@ from gpaw.xas import XAS
 
 def folding_is_normalized(xas: XAS, rel: float = 1e-5) -> bool:
     xs, ys_cmn = xas.stick()
-    ys_summed_c = ys_cmn.sum(axis=1).sum(axis=1) / ys_cmn.shape[1]
+    ys_summed_c = ys_cmn.sum(axis=1).sum(axis=1)
     xf, yf_cn = xas.get_spectra(fwhm=0.5)
     dxf = xf[1:] - xf[:-1]
     assert dxf == pytest.approx(dxf[0])
