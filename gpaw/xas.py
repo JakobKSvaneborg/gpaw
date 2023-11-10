@@ -283,7 +283,7 @@ class XAS:
         energy_n, f_cmn = self.stick(kpoint, proj, proj_xyz, dks)
 
         if stick:
-            return energy_n, f_cmn
+            return energy_n, f_cmn.sum(axis=1)
 
         if E_in is not None:
             energy_i = np.array(E_in)
