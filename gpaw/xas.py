@@ -104,7 +104,6 @@ class XAS:
             for i, kpt in enumerate(wfs.kpt_u):
                 if kpt.s == spin:
                     self.list_kpts.append(i)
-                print(self.list_kpts)
             assert len(self.list_kpts) == nkpts
 
             # find number of occupied orbitals, if no fermi smearing
@@ -112,7 +111,6 @@ class XAS:
             for i in self.list_kpts:
                 nocc += sum(wfs.kpt_u[i].f_n)
             nocc = int(nocc + 0.5)
-            print('nocc', nocc)
 
         # look for the center with the corehole
         if center is not None:
@@ -156,11 +154,9 @@ class XAS:
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
 
             P_ni = kpt.P_ani[a][n_start:n_end]
-            a_cn = np.inner(A_cmi, P_ni)
+            a_cmn = np.inner(A_cmi, P_ni)
             weight = kpt.weight * wfs.nspins / 2
-            # print('weight', weight)
-            # print(a_cn.shape, self.sigma_cmn.shape)
-            self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cn  # .real
+            self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cmn  # .real
             n1 = n2
 
         self.symmetry = wfs.kd.symmetry
@@ -238,15 +234,9 @@ class XAS:
             eps_end = len(self.eps_n)
 
         shift = dks - eps_n[eps_start]
-
         energy_n = eps_n[eps_start:eps_end] + shift
-        f_cmn = np.zeros(sigma2_cmn[:, :, eps_start:eps_end].shape)
-        for c in range(sigma2_cmn.shape[0]):
-            for m in range(sigma2_cmn.shape[1]):
-                f_cmn[c, m, :] = (
-                    sigma2_cmn[c, m, eps_start:eps_end] *
-                    energy_n / Hartree)
-        f_cmn *= 2
+
+        f_cmn = 2 * sigma2_cmn[:, :, eps_start:eps_end] * energy_n / Hartree
 
         return energy_n, f_cmn
 
