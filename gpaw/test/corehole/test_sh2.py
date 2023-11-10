@@ -16,6 +16,27 @@ def folding_is_normalized(xas: XAS, rel: float = 1e-5) -> bool:
     return yf_summed_c == pytest.approx(ys_summed_c, rel=rel)
 
 
+@pytest.fixture
+def s_2p1ch_name():
+    setupname = 'S2p1ch'
+    gen('S', name=setupname, corehole=(2, 1, 1), gpernode=30, write_xml=True)
+    return setupname
+
+
+def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s_2p1ch_name):
+    """Make sure this calculation does not fail
+    because of get_spin_contamination"""
+    atoms = molecule('SH2')
+    atoms.center(3)
+
+    atoms.set_initial_magnetic_moments([1, 0, 0])
+    atoms.calc = GPAW(mode='fd', h=0.3, spinpol=True,
+                      setups={'S': s_2p1ch_name}, txt=None,
+                      convergence={
+                          'energy': 0.1, 'density': 0.1, 'eigenstates': 0.1})
+    atoms.get_potential_energy()
+
+
 def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths):
     atoms = molecule('SH2')
     atoms.center(3)
@@ -29,21 +50,20 @@ def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths):
                       setups={'S': setupname}, txt=None)
     atoms.get_potential_energy()
 
+    dks = 20
     xas = XAS(atoms.calc)
-    x, y_cmn = xas.stick(proj_xyz=True)
+    x, y_cmn = xas.stick(dks=dks)
     assert y_cmn.shape == (3, 1, nbands - nocc)
+    assert x[0] == dks
 
     assert folding_is_normalized(xas)
 
 
-def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths):
+def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, s_2p1ch_name):
     atoms = molecule('SH2')
     atoms.center(3)
 
-    setupname = 'S2p1ch'
-    gen('S', name=setupname, corehole=(2, 1, 1), gpernode=30, write_xml=True)
-
-    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': setupname}, txt=None)
+    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s_2p1ch_name}, txt=None)
     atoms.get_potential_energy()
 
     xas = XAS(atoms.calc)

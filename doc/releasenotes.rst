@@ -10,6 +10,9 @@ Git master branch
 
 :git:`master <>`.
 
+* XAS spectra are now available also for l>0 core-holes. Oscillator strengths
+  are returned, which required a slight API change.
+
 * Functionality has been added to calculate various local properties of the
   magnetic sites of a crystal, see :ref:`sites`.
 
