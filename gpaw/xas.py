@@ -12,8 +12,8 @@ import gpaw.mpi as mpi
 
 
 def dipole_matrix_elements(setup):
-    phi_jg = setup.data.phi_jg
-
+    """calculate dipole matrix elements of setup-states
+    with the core-state"""
     G_LLL = gaunt(setup.lmax)
 
     # map m, l quantum numbers to L
@@ -21,7 +21,8 @@ def dipole_matrix_elements(setup):
     for l in range(1, setup.lmax + 1):
         M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
 
-    nj = len(setup.data.phi_jg)
+    phi_jg = setup.data.phi_jg
+    nj = len(phi_jg)
     l_core = setup.data.lcorehole
     A_cmi = np.zeros((3, len(M[l_core]), setup.ni))
 
