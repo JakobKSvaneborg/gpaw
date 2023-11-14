@@ -11,36 +11,12 @@ from gpaw.typing import Array1D, Array2D, Array3D
 import gpaw.mpi as mpi
 
 
-def radial_dipole_matrix_elements(setup):
-    """Calculate the radial part of the dipole matrix elements"""
-    phi_jg = setup.data.phi_jg
-
-    A_j = np.zeros((setup.ni))
-
-    nj = len(phi_jg)
-    i = 0
-
-    for j in range(nj):
-        l = setup.l_j[j]
-
-        a = setup.rgd.integrate(phi_jg[j] * setup.data.phicorehole_g,
-                                n=1) / (4 * pi)
-
-        for _ in range((l * 2) + 1):
-            A_j[i] = a
-            i += 1
-
-    assert i == setup.ni
-
-    return A_j
-
-
 def dipole_matrix_elements(setup):
-    A_j = radial_dipole_matrix_elements(setup)
+    phi_jg = setup.data.phi_jg
 
     G_LLL = gaunt(setup.lmax)
 
-    # The m quantum numbers
+    # map m, l quantum numbers to L
     M = {0: [0]}
     for l in range(1, setup.lmax + 1):
         M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
@@ -52,6 +28,8 @@ def dipole_matrix_elements(setup):
     i = 0
     for j in range(nj):
         l = setup.l_j[j]
+        a = setup.rgd.integrate(phi_jg[j] * setup.data.phicorehole_g,
+                                n=1) / (4 * pi)
 
         for L2 in M[l]:
             for L0 in M[1]:
@@ -61,11 +39,9 @@ def dipole_matrix_elements(setup):
                     G = sqrt(4 * pi / 3) * G
 
                     c = L0 % 3
-                    A_cmi[c, m, i] = G * A_j[i]
+                    A_cmi[c, m, i] = G * a
 
             i += 1
-
-    assert i == len(A_j)
 
     return A_cmi
 
@@ -350,6 +326,7 @@ class XAS:
         """
 
         # constant broadening fwhm
+        # alpha = 1 / (2 sigma^2) with fwhm = 2 sqrt{2 log 2} sigma
         alpha = 4 * log(2) / fwhm**2
 
         f_cn = f_cmn.sum(axis=1)
