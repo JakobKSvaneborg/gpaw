@@ -34,14 +34,13 @@ def dipole_matrix_elements(setup):
         for L2 in M[l]:
             for L0 in M[1]:
                 for m, L1 in enumerate(M[l_core]):
-                    G = (G_LLL[L0, L1, L2])
-
-                    G = sqrt(4 * pi / 3) * G
+                    G = sqrt(4 * pi / 3) * G_LLL[L2, L0, L1]
 
                     c = L0 % 3
                     A_cmi[c, m, i] = G * a
 
             i += 1
+    assert i == setup.ni
 
     return A_cmi
 
