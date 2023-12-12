@@ -46,32 +46,6 @@ def dipole_matrix_elements(setup):
     return A_cmi
 
 
-def avrage_over_same_energy(e: Array1D, a: Array2D):
-    e_j = np.zeros((len(e)))
-    a_cj = np.zeros((3,len(e)))
-
-    i = 0
-    for n, eps in enumerate(e):
-        if n == 0:
-            e_j[i]= eps
-            a_cj[:, i] = a[:, n]
-            j = 1
-        elif round(eps, 5) == round(e_j[i], 5):
-            a_cj[:, i] += a[:, n]
-            j += 1
-        else:
-            a_cj[:, i] /= j
-            j = 1
-            i += 1
-            e_j[i] += eps
-            a_cj[:, i] += a[:, n]
-
-    e_j = np.trim_zeros(e_j, 'b')
-    a_cj = a_cj[:, :len(e_j)]
-
-    return e_j, a_cj
-
-
 class XAS:
     def __init__(self, paw, mode='xas', center=None, spin=0):
         wfs = paw.wfs
