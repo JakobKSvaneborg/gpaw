@@ -1,60 +1,53 @@
-
-from math import sqrt
-
 import numpy as np
-from ase import Atoms
-
 from gpaw import GPAW, restart
-from gpaw.test import equal
+import pytest
 
 
-def test_fileio_restart_density(in_tmp_dir):
-    d = 3.0
-    atoms = Atoms('Na3',
-                  positions=[(0, 0, 0),
-                             (0, 0, d),
-                             (0, d * sqrt(3 / 4), d / 2)],
-                  magmoms=[1.0, 1.0, 1.0],
-                  cell=(3.5, 3.5, 4 + 2 / 3),
-                  pbc=True)
+def get_restart_test_values(calc):
+    # XXX the forces must be evaluated first because a force evaluation
+    # somehow affects (changes) both the energy and the wf when restarting
+    # from a gpw file. An issue was created (#1051) documenting this unexpected
+    # and rather bizarre behavior.
 
-    # Only a short, non-converged calculation
-    conv = {'eigenstates': 1.e-3, 'energy': 1e-2, 'density': 1e-1}
-    calc = GPAW(mode='fd', h=0.30, nbands=3,
-                setups={'Na': '1'},
-                convergence=conv)
-    atoms.calc = calc
-    e0 = atoms.get_potential_energy()
-    f0 = atoms.get_forces()
-    m0 = atoms.get_magnetic_moments()
-    eig00 = calc.get_eigenvalues(spin=0)
-    eig01 = calc.get_eigenvalues(spin=1)
+    atoms = calc.get_atoms()
+    f = atoms.get_forces()
+    e = atoms.get_potential_energy()
+    m = atoms.get_magnetic_moments()
+
+    eig0 = calc.get_eigenvalues(spin=0)
+    eig1 = calc.get_eigenvalues(spin=1)
+
+    return e, f, m, eig0, eig1
+
+
+def test_fileio_restart_density(in_tmp_dir, gpw_files):
+    calc = GPAW(gpw_files['na3_fd_density_restart'])
+
+    e0, f0, m0, eig00, eig01 = get_restart_test_values(calc=calc)
+
     # Write the restart file
     calc.write('tmp.gpw')
 
     # Try restarting from all the files
     atoms, calc = restart('tmp.gpw')
-    e1 = atoms.get_potential_energy()
-    f1 = atoms.get_forces()
-    m1 = atoms.get_magnetic_moments()
-    eig10 = calc.get_eigenvalues(spin=0)
-    eig11 = calc.get_eigenvalues(spin=1)
+    e1, f1, m1, eig10, eig11 = get_restart_test_values(calc=calc)
+
     print(e0, e1)
-    equal(e0, e1, 2e-3)
+    assert e0 == pytest.approx(e1, abs=2e-3)
     print(f0, f1)
     for ff0, ff1 in zip(f0, f1):
         err = np.linalg.norm(ff0 - ff1)
-        # for forces we use larger tolerance
-        equal(err, 0.0, 4e-2)
+        # for forces, we use larger tolerance
+        assert err == pytest.approx(0.0, abs=4e-2)
     print(m0, m1)
     for mm0, mm1 in zip(m0, m1):
-        equal(mm0, mm1, 2e-3)
+        assert mm0 == pytest.approx(mm1, abs=2e-3)
     print('A', eig00, eig10)
     for eig0, eig1 in zip(eig00, eig10):
-        equal(eig0, eig1, 5e-3)
+        assert eig0 == pytest.approx(eig1, abs=5e-3)
     print('B', eig01, eig11)
     for eig0, eig1 in zip(eig01, eig11):
-        equal(eig0, eig1, 2e-2)
+        assert eig0 == pytest.approx(eig1, abs=2e-2)
 
-    # Check that after restart everythnig is writable
+    # Check that after restart, everything is writable
     calc.write('tmp2.gpw')

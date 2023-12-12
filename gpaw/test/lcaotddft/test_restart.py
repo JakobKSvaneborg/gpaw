@@ -10,7 +10,6 @@ from gpaw.lcaotddft.densitymatrix import DensityMatrix
 from gpaw.lcaotddft.frequencydensitymatrix import FrequencyDensityMatrix
 from gpaw.mpi import world
 from gpaw.tddft.folding import frequencies
-from gpaw.test import equal
 
 
 @pytest.mark.gllb
@@ -66,14 +65,15 @@ def test_lcaotddft_restart(in_tmp_dir):
     data_i = data_tj[8:].ravel()
 
     tol = 1e-10
-    equal(data_i, ref_i, tol)
+    assert data_i == pytest.approx(ref_i, abs=tol)
 
     tol = 1e-8
     # Check frequency density matrix file
     with ulm.open('fdm_final_ref.ulm') as fdm_ref:
         with ulm.open('fdm_final_check.ulm') as fdm_check:
             for key in ['FReDrho_wuMM', 'FImDrho_wuMM', 'rho0_uMM', 'time']:
-                equal(fdm_ref.get(key), fdm_check.get(key), tol)
+                assert fdm_ref.get(key) == pytest.approx(fdm_check.get(key),
+                                                         abs=tol)
 
     # Test the absolute values
     data = np.loadtxt('dm.dat')[:8].ravel()
@@ -126,4 +126,4 @@ def test_lcaotddft_restart(in_tmp_dir):
     print(data.tolist())
 
     tol = 1e-9
-    equal(data, ref, tol)
+    assert data == pytest.approx(ref, abs=tol)

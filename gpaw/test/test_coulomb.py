@@ -4,7 +4,7 @@ from gpaw.coulomb import Coulomb
 from gpaw.grid_descriptor import GridDescriptor
 from gpaw.mpi import world
 from gpaw.utilities.gauss import coordinates
-from gpaw.test import equal
+import pytest
 import time
 
 
@@ -51,9 +51,10 @@ def test_coulomb():
         for method, et in res.items():
             print('%12s %2.6f %1.7f' % ((method,) + et))
 
-        equal(res['real'][0], analytic, 6e-3)
-        equal(res['recip_gauss'][0], analytic, 6e-3)
-        equal(res['recip_ewald'][0], analytic, 2e-2)
-        equal(res['dual density'][0], res['recip_gauss'][0], 1e-9)
+        assert res['real'][0] == pytest.approx(analytic, abs=6e-3)
+        assert res['recip_gauss'][0] == pytest.approx(analytic, abs=6e-3)
+        assert res['recip_ewald'][0] == pytest.approx(analytic, abs=2e-2)
+        assert res['dual density'][0] == pytest.approx(res['recip_gauss'][0],
+                                                       abs=1e-9)
 
     # mpirun -np 2 python coulomb.py --gpaw-parallel --gpaw-debug

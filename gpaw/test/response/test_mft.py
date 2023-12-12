@@ -25,7 +25,7 @@ from gpaw.response.site_kernels import (SphericalSiteKernels,
                                         ParallelepipedicSiteKernels)
 from gpaw.response.heisenberg import (calculate_single_site_magnon_energies,
                                       calculate_fm_magnon_energies)
-from gpaw.test.conftest import response_band_cutoff
+from gpaw.test.gpwfile import response_band_cutoff
 from gpaw.test.response.test_chiks import generate_qrel_q, get_q_c
 
 

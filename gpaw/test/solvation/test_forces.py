@@ -1,5 +1,5 @@
 # flake8: noqa
-from gpaw.test import equal
+import pytest
 from ase import Atoms
 from ase.units import Pascal, m
 from ase.data.vdw import vdw_radii
@@ -202,13 +202,13 @@ def test_solvation_forces():
 
 
     # test for orthogonal forces equal zero:
-    equal(F[..., :2], .0, 1e-7)
+    assert F[..., :2] == pytest.approx(.0, abs=1e-7)
 
     stencil = 2  # 1 is too rough, 3 does not change compared to 2
     FNa, FCl = F[..., 2].T
     FNa *= -1.
     # test symmetry
-    equal(FNa, FCl, F_max_err)
+    assert FNa == pytest.approx(FCl, abs=F_max_err)
     dd = np.diff(d)[0]
     kernel = {
         1: np.array((0.5, 0, -0.5)),
@@ -225,7 +225,7 @@ def test_solvation_forces():
 
     # test forces against -dE / dd finite difference
     print(err)
-    equal(err, .0, F_max_err)
+    assert err == pytest.approx(.0, abs=F_max_err)
 
     if SKIP_ENERGY_CALCULATION:
         # check only selected points:
@@ -233,16 +233,16 @@ def test_solvation_forces():
         def check(index):
             atoms.positions[0][2] = 6.8 - index * step
             F_check = atoms.get_forces()
-            equal(F_check[..., :2], .0, 1e-7)
+            assert F_check[..., :2] == pytest.approx(.0, abs=1e-7)
             FNa_check, FCl_check = F_check[..., 2].T
             FNa_check *= -1.
-            equal(FNa_check, FCl_check, F_max_err)
+            assert FNa_check == pytest.approx(FCl_check, abs=F_max_err)
             err = np.maximum(
                 np.abs(-dEdz[index - stencil] - FNa_check),
                 np.abs(-dEdz[index - stencil] - FCl_check)
             )
             print(err)
-            equal(err, .0, F_max_err)
+            assert err == pytest.approx(.0, abs=F_max_err)
 
         l = len(FNa)
         # check(stencil)

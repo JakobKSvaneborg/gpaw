@@ -4,7 +4,7 @@ from ase import Atoms
 from ase.parallel import parprint
 
 from gpaw import GPAW
-from gpaw.test import equal
+import pytest
 from gpaw.analyse.expandyl import AngularIntegral, ExpandYl
 
 
@@ -47,9 +47,9 @@ def test_radial_ylexpand(in_tmp_dir):
     for V, average, integral, R, Rm in zip(ai.V_R, average_R, integral_R,
                                            ai.radii(), ai.radii('mean')):
         if V > 0:
-            equal(average, 1, 1.e-9)
-            equal(integral / (4 * pi * Rm**2), 1, 0.61)
-            equal(Rm / R, 1, 0.61)
+            assert average == pytest.approx(1, abs=1.e-9)
+            assert integral / (4 * pi * Rm**2) == pytest.approx(1, abs=0.61)
+            assert Rm / R == pytest.approx(1, abs=0.61)
 
     # ExpandYl
 

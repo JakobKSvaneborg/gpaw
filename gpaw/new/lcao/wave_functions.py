@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Callable
 
 import numpy as np
@@ -7,7 +8,6 @@ from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
 from gpaw.core.matrix import Matrix
 from gpaw.mpi import MPIComm, receive, send, serial_comm
-from gpaw.new import cached_property
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions

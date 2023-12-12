@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 
 from gpaw.response.chi0 import Chi0
-from gpaw.test.conftest import response_band_cutoff
+from gpaw.test.gpwfile import response_band_cutoff
 
 
 @pytest.mark.response

@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from gpaw.test import equal
 from gpaw.grid_descriptor import GridDescriptor
 from gpaw.spline import Spline
 import gpaw.mpi as mpi
@@ -46,7 +45,7 @@ def test_pw_reallfc():
 
         a = pd.ifft(b[0])
         ar = pdr.ifft(br[0])
-        equal(abs(a - ar).max(), 0, 1e-14)
+        assert abs(a - ar).max() == pytest.approx(0, abs=1e-14)
 
         if l == 0:
             a = a[:, ::-1].copy()

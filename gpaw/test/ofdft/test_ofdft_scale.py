@@ -2,7 +2,6 @@ import pytest
 from ase import Atoms
 from gpaw import GPAW
 from gpaw.mixer import Mixer
-from gpaw.test import equal
 from gpaw.test import gen
 from gpaw.eigensolvers import CG
 
@@ -48,5 +47,5 @@ def test_ofdft_ofdft_scale(in_tmp_dir):
         dv = atom.get_volume() / calc.get_number_of_grid_points().prod()
         I = n.sum() * dv / 2**3
 
-        equal(I, e, 1.0e-6)
-        equal(result, E, 1.0e-3)
+        assert I == pytest.approx(e, abs=1.0e-6)
+        assert result == pytest.approx(E, abs=1.0e-3)

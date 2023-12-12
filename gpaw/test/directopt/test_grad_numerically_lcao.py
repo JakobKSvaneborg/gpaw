@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 
 from gpaw import GPAW, LCAO
 from gpaw.directmin.derivatives import Derivatives
@@ -32,8 +33,7 @@ def test_gradient_numerically_lcao(in_tmp_dir):
                 mixer={'backend': 'no-mixing'},
                 nbands='nao',
                 symmetry='off',
-                txt=None
-                )
+                txt=None)
     atoms.calc = calc
 
     params = [{'name': 'etdm-lcao',
@@ -53,8 +53,7 @@ def test_gradient_numerically_lcao(in_tmp_dir):
                'matrix_exp': 'egdecomp'},
               {'name': 'etdm-lcao',
                'representation': 'u-invar',
-               'matrix_exp': 'egdecomp-u-invar'}
-              ]
+               'matrix_exp': 'egdecomp-u-invar'}]
 
     for eigsolver in params:
         print('IN PROGRESS: ', eigsolver)
@@ -71,14 +70,23 @@ def test_gradient_numerically_lcao(in_tmp_dir):
         wfs = calc.wfs
         dens = calc.density
 
-        numder = Derivatives(
-            wfs.eigensolver, wfs, random_amat=True, update_c_ref=True)
+        # Do we get consistent results regardless of randomization?
+        rngs = [False,
+                np.random.default_rng(123456)]
+        num_ders = [Derivatives(wfs.eigensolver,
+                                wfs,
+                                random_amat=rng,
+                                update_c_ref=True)
+                    for rng in rngs]
 
-        g_a = numder.get_analytical_derivatives(
-            wfs.eigensolver, ham, wfs, dens)
-        g_n = numder.get_numerical_derivatives(
-            wfs.eigensolver, ham, wfs, dens)
-
-        for x, y in zip(g_a[0], g_n[0]):
-            assert x.real == pytest.approx(y.real, abs=1.0e-2)
-            assert x.imag == pytest.approx(y.imag, abs=1.0e-2)
+        analytical_results = [
+            der.get_analytical_derivatives(
+                wfs.eigensolver, ham, wfs, dens)[0]
+            for der in num_ders]
+        numerical_results = [
+            der.get_numerical_derivatives(
+                wfs.eigensolver, ham, wfs, dens)[0]
+            for der in num_ders]
+        for x, *ys in zip(*analytical_results, *numerical_results):
+            assert np.array(ys).real == pytest.approx(x.real, abs=1.0e-2)
+            assert np.array(ys).imag == pytest.approx(x.imag, abs=1.0e-2)

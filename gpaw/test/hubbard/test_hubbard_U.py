@@ -4,7 +4,7 @@ from ase import Atoms
 from ase.dft.bandgap import bandgap
 
 from gpaw import GPAW, FermiDirac
-from gpaw.test import equal
+import pytest
 
 
 def test_Hubbard_U(in_tmp_dir):
@@ -43,7 +43,7 @@ def test_Hubbard_U(in_tmp_dir):
         gap, _, _ = bandgap(calc)
         print(name, gap)
         if name == 'ni2o2':
-            equal(gap, 0.8, 0.1)
+            assert gap == pytest.approx(0.8, abs=0.1)
         else:
-            equal(gap, 4.7, 0.2)
+            assert gap == pytest.approx(4.7, abs=0.2)
         name += '+U'

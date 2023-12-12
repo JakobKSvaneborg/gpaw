@@ -570,6 +570,7 @@ class AERadialGridDescriptor(RadialGridDescriptor):
         r_g = self.a * g / (1 - self.b * g)
         dr_g = (self.b * r_g + self.a)**2 / self.a
         RadialGridDescriptor.__init__(self, r_g, dr_g, default_spline_points)
+        self._d2gdr2 = -2 * self.a * self.b / (self.b * self.r_g + self.a)**3
 
     def r2g(self, r):
         # return r / (r * self.b + self.a)
@@ -591,7 +592,7 @@ class AERadialGridDescriptor(RadialGridDescriptor):
                 (self.a, self.b, self.N, self.N - 1, id))
 
     def d2gdr2(self):
-        return -2 * self.a * self.b / (self.b * self.r_g + self.a)**3
+        return self._d2gdr2
 
 
 class AbinitRadialGridDescriptor(RadialGridDescriptor):

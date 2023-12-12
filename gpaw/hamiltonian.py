@@ -11,7 +11,7 @@ from gpaw.lfc import LFC
 from gpaw.poisson import PoissonSolver
 from gpaw.spinorbit import soc
 from gpaw.transformers import Transformer
-from gpaw.utilities import (pack2, pack_atomic_matrices, unpack,
+from gpaw.utilities import (pack2, pack_atomic_matrices, unpack, unpack2,
                             unpack_atomic_matrices)
 from gpaw.utilities.partition import AtomPartition
 
@@ -316,9 +316,9 @@ class Hamiltonian:
                 dH_sp = np.zeros_like(D_sp)
 
             if setup.hubbard_u is not None:
-                eU, dHU_sp = setup.hubbard_u.calculate(setup, D_sp)
+                eU, dHU_sii = setup.hubbard_u.calculate(setup, unpack2(D_sp))
                 e_xc += eU
-                dH_sp += dHU_sp
+                dH_sp += pack2(dHU_sii)
 
             dH_sp[:self.nspins] += dH_p
 

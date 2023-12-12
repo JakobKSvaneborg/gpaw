@@ -5,7 +5,6 @@ extension-pkg-allow-list=_gpaw
 argument-rgx=[_a-z]+[_0-9a-z]*(_[a-zA-Z]+)?|[A-Z](_[a-zA-Z]+)?
 variable-rgx=[_a-z]+[_0-9a-z]*(_([a-z][A-Z])+)?|[A-Z](_[a-zA-Z]+)?
 attr-rgx=[_a-z]+[_0-9a-z]*(_([a-z][A-Z])+)?|[A-Z](_[a-zA-Z]+)?
-property-classes=gpaw.new.cached_property
 bad-names=
 
 [DESIGN]

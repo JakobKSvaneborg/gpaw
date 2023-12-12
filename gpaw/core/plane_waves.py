@@ -306,6 +306,15 @@ class PWArray(DistributedArrays[PWDesc]):
         a.data[:] = self.data
         return a
 
+    def sanity_check(self) -> None:
+        """Sanity check for real-valed PW expansions.
+
+        Make sure the G=(0,0,0) coefficient doesn't have an imaginary part.
+        """
+        if self.desc.dtype == float and self.desc.comm.rank == 0:
+            if (self.data[..., 0].imag != 0.0).any():
+                raise ValueError
+
     def _arrays(self):
         shape = self.data.shape
         return self.data.reshape((prod(shape[:-1]), shape[-1]))

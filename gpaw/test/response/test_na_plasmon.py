@@ -4,7 +4,7 @@ import numpy as np
 from ase import Atoms
 from gpaw import GPAW, PW
 from gpaw.mpi import world
-from gpaw.test import equal, findpeak
+from gpaw.test import findpeak
 from gpaw.utilities import compiled_with_sl
 from gpaw.response.df import DielectricFunction
 
@@ -114,27 +114,27 @@ def test_response_na_plasmon(in_tmp_dir):
         w2, I2 = findpeak(w_w, -(1. / df2LFCx).imag)
         I_diff = abs(I1 - I2)
         # test that the frequency for 2 settings are aprx equal
-        equal(w1, w2, 1e-2)
+        assert w1 == pytest.approx(w2, abs=1e-2)
         # test that the intensity difference is within some tol
         assert I_diff == pytest.approx(I_diffs['x'][idx], abs=5e-3)
         # test that the intensities are aprx equal
-        equal(I1, I2, 1e-2)
+        assert I1 == pytest.approx(I2, abs=1e-2)
 
         # y values
         w1, I1 = findpeak(w_w, -(1. / df1LFCy).imag)
         w2, I2 = findpeak(w_w, -(1. / df2LFCy).imag)
         I_diff = abs(I1 - I2)
-        equal(w1, w2, 1e-2)
+        assert w1 == pytest.approx(w2, abs=1e-2)
         assert I_diff == pytest.approx(I_diffs['y'][idx], abs=5e-3)
-        equal(I1, I2, 1e-2)
+        assert I1 == pytest.approx(I2, abs=1e-2)
 
         # z values
         w1, I1 = findpeak(w_w, -(1. / df1LFCz).imag)
         w2, I2 = findpeak(w_w, -(1. / df2LFCz).imag)
         I_diff = abs(I1 - I2)
-        equal(w1, w2, 1e-2)
+        assert w1 == pytest.approx(w2, abs=1e-2)
         assert I_diff == pytest.approx(I_diffs['z'][idx], abs=5e-3)
-        equal(I1, I2, 1e-2)
+        assert I1 == pytest.approx(I2, abs=1e-2)
 
     # Check for self-consistency
     for i, dfs in enumerate([dfs0, dfs1, dfs2, dfs3, dfs4, dfs5]):

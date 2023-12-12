@@ -41,7 +41,7 @@ qsfdtd = QSFDTD(classical_material=classical_material,
                 remove_moments=(4, 1))
 
 # Run ground state
-energy = qsfdtd.ground_state('gs.gpw', nbands=-1, symmetry='off')
+energy = qsfdtd.ground_state('gs.gpw', mode='fd', nbands=-1, symmetry='off')
 
 # Run time evolution
 qsfdtd.time_propagation('gs.gpw',

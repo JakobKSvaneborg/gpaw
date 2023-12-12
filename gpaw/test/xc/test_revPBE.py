@@ -1,6 +1,6 @@
 from ase import Atoms
 from gpaw import GPAW, PoissonSolver
-from gpaw.test import equal
+import pytest
 from ase.units import Bohr, Hartree
 
 
@@ -21,10 +21,10 @@ def test_xc_revPBE():
     e2 = atoms.get_potential_energy()
     e2a = atoms.calc.get_reference_energy()
 
-    equal(e1a, -2.893 * Hartree, 8e-3)
-    equal(e2a, -2.908 * Hartree, 9e-3)
-    equal(e1, e2, 4e-3)
+    assert e1a == pytest.approx(-2.893 * Hartree, abs=8e-3)
+    assert e2a == pytest.approx(-2.908 * Hartree, abs=9e-3)
+    assert e1 == pytest.approx(e2, abs=4e-3)
 
     energy_tolerance = 0.0005
-    equal(e1, -0.0790449962, energy_tolerance)
-    equal(e2, -0.08147563, energy_tolerance)
+    assert e1 == pytest.approx(-0.0790449962, abs=energy_tolerance)
+    assert e2 == pytest.approx(-0.08147563, abs=energy_tolerance)

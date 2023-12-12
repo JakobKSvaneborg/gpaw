@@ -12,7 +12,7 @@ def test_ase_features_wannierk(in_tmp_dir, gpw_files):
     from gpaw.mpi import world
 
     si = bulk('Si', 'diamond', a=5.43)
-    k = 4
+    k = 3
 
     def wan(calc):
         centers = [([0.125, 0.125, 0.125], 0, 1.5),
@@ -48,6 +48,6 @@ def test_ase_features_wannierk(in_tmp_dir, gpw_files):
     if world.rank == 0:
         print((x1, x2))
     assert abs(x1 - x2) < 0.001
-    assert abs(x1 - 9.71) < 0.01
+    assert abs(x1 - 8.817) < 0.01
 
     world.barrier()

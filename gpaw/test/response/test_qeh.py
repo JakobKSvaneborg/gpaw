@@ -73,6 +73,8 @@ def test_basics(in_tmp_dir, gpw_files):
     data2 = np.load('mos2_rs-chi.npz')
     assert np.allclose(data['chiM_qw'], data2['chiM_qw'])
 
+    assert np.array_equal(data['chiMD_qw'], np.zeros(data['chiMD_qw'].shape))
+    assert np.array_equal(data['chiDM_qw'], np.zeros(data['chiDM_qw'].shape))
     # Test building blocks are on different grids
     are_equal = check_building_blocks(['mos2', 'graphene'])
     assert not are_equal
@@ -128,7 +130,41 @@ def test_basics(in_tmp_dir, gpw_files):
     assert np.allclose(data['chiD_qw'], dipole)
 
 
+def test_off_diagonal_chi(in_tmp_dir, gpw_files):
+    df = dielectric(gpw_files['IBiTe_pw_monolayer'], 0.1, 0.5)
+    bb = BuildingBlock('IBiTe', df)
+    bb.calculate_building_block()
+    can_load = bb.load_chi_file()
+    assert can_load
+    chiDM_qw = bb.chiDM_qw
+    chiMD_qw = bb.chiMD_qw
+    assert np.allclose(chiDM_qw[7, 4],
+                       (2.5777773675441436e-07 + 1.781539139774827e-05j))
+    assert np.allclose(chiDM_qw[0, 0],
+                       (-1.6543612251060553e-24 + 8.878999940492681e-09j))
+    assert np.allclose(chiMD_qw[0, 0],
+                       (-4.756288522179909e-24 - 8.878999940492663e-09j))
+    assert np.allclose(chiMD_qw[10, 8],
+                       (-0.0013460322867027315 - 0.013654438136419339j))
+    assert np.allclose(chiMD_qw[9, 9],
+                       (-2.02536793708031e-05 - 4.2061568393935735e-05j))
+    q_grid_s = np.linspace(0, 0.5, 6)
+    w_grid_w = bb.wd.omega_w
+    bb.interpolate_to_grid(q_grid_s, w_grid_w)
+    data = np.load('IBiTe_int-chi.npz')
+    assert np.allclose(data['omega_w'], w_grid_w)
+    assert np.allclose(data['chiMD_qw'][-1, 0],
+                       (-0.01828975765460967 - 0.05522009764695865j))
+    assert np.allclose(data['chiMD_qw'][0, 0].real,
+                       -5.055812485865182e-24)
+    assert np.allclose(data['chiMD_qw'][0, 0].imag,
+                       -8.878999940492832e-09)
+    assert np.allclose(data['chiDM_qw'][1, 2],
+                       (1.5400690020024133e-07 + 2.052790098516586e-05j))
+
 # test limited features that should work in parallel
+
+
 @pytest.mark.skipif(size == 1, reason='Features already tested '
                     'in serial in test_basics')
 @pytest.mark.skipif(size > 6, reason='Parallelization for '

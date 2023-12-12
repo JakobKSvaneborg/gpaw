@@ -1,4 +1,4 @@
-from gpaw.test import equal
+import pytest
 from gpaw.grid_descriptor import GridDescriptor
 from gpaw.spline import Spline
 import gpaw.mpi as mpi
@@ -22,4 +22,4 @@ def test_lfc_lf():
     b = gd.zeros()
     c.add(b)
     y = gd.integrate(b)
-    equal(x, y, 1e-13)
+    assert x == pytest.approx(y, abs=1e-13)

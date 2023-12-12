@@ -13,7 +13,6 @@ used with the utmost care."""
 import pytest
 from ase import Atoms
 from gpaw import GPAW, Mixer
-from gpaw.test import equal
 
 
 @pytest.mark.libxc
@@ -66,7 +65,7 @@ def test_pathological_nonlocalset():
 
     a = GLLBSC_fail()
     b = GLLBSC_work()
-    equal(a, b, 1e-5)
+    assert a == pytest.approx(b, abs=1e-5)
     c = MGGA_fail()
     d = MGGA_work()
-    equal(c, d, 1e-5)
+    assert c == pytest.approx(d, abs=1e-5)

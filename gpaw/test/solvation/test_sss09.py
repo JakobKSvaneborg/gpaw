@@ -8,7 +8,7 @@ The Journal of Chemical Physics, vol. 131, no. 17, p. 174108, 2009
 
 from gpaw import GPAW
 from gpaw.cluster import Cluster
-from gpaw.test import equal
+import pytest
 from ase import Atoms
 from ase.units import mol, kcal, Pascal, m, Bohr
 from gpaw.solvation import (
@@ -71,4 +71,4 @@ def test_solvation_sss09():
     DGSol = (Ewater - Evac) / (kcal / mol)
     print('Delta Gsol: %s kcal / mol' % DGSol)
 
-    equal(DGSol, -75., 10.)
+    assert DGSol == pytest.approx(-75., abs=10.)

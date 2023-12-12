@@ -4,13 +4,16 @@ from gpaw.directmin.tools import get_n_occ, get_indices, random_a, \
 from ase.units import Hartree
 from gpaw.mpi import world
 from gpaw.io.logger import GPAWLogger
+from gpaw.typing import RNG
 from copy import deepcopy
+from typing import Any, Dict, Union
 
 
 class Derivatives:
 
     def __init__(self, etdm, wfs, c_ref=None, a=None,
-                 update_c_ref=False, eps=1.0e-7, random_amat=False):
+                 update_c_ref=False, eps=1.0e-7,
+                 random_amat: Union[RNG, bool] = False):
         """
         :param etdm:
         :param wfs:
@@ -18,7 +21,9 @@ class Derivatives:
         :param a: skew-Hermitian matrix A
         :param update_c_ref: if True update reference orbitals
         :param eps: finite difference displacement
-        :param random_amat: if True, use random matrix A
+        :param random_amat:
+            if True, use random matrix A with the `numpy.random` global RNG
+            if an RNG, use random matrix A with said RNG
         """
 
         self.eps = eps
@@ -33,12 +38,16 @@ class Derivatives:
                           for u, v in etdm.U_k.items()}
 
         if random_amat:
+            extra_kwargs: Dict[str, Any] = {}
+            if random_amat not in (True, ):  # Explicitly specified RNG
+                extra_kwargs.update(rng=random_amat)
             for kpt in wfs.kpt_u:
                 u = etdm.kpointval(kpt)
                 if wfs.mode == 'lcao':
-                    a = random_a(etdm.a_vec_u[u].shape, wfs.dtype)
+                    shape = etdm.a_vec_u[u].shape
                 else:
-                    a = random_a(etdm.U_k[u].shape, wfs.dtype)
+                    shape = etdm.U_k[u].shape
+                a = random_a(shape, wfs.dtype, **extra_kwargs)
                 wfs.gd.comm.broadcast(a, 0)
                 self.a[u] = a
 

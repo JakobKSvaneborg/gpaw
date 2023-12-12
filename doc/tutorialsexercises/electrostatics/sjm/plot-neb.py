@@ -1,7 +1,7 @@
 # web-page: band.png
 
 import ase.io
-from ase.neb import NEBTools
+from ase.mep import NEBTools
 
 images = ase.io.read('neb.traj', index='-7:')
 nebtools = NEBTools(images)

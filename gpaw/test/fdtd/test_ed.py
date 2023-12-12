@@ -1,7 +1,6 @@
 import pytest
 from gpaw import GPAW
 from gpaw.tddft import TDDFT, DipoleMomentWriter
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -14,11 +13,14 @@ def test_fdtd_ed(in_tmp_dir, gpw_files):
     energy = gs_calc.get_potential_energy()
 
     # Test ground state
-    equal(energy, -0.631881, energy_eps * gs_calc.get_number_of_electrons())
+    assert energy == pytest.approx(
+        -0.631881, abs=energy_eps * gs_calc.get_number_of_electrons())
 
     # Test floating point arithmetic errors
-    equal(gs_calc.hamiltonian.poisson.shift_indices_1, [4, 4, 10], 0)
-    equal(gs_calc.hamiltonian.poisson.shift_indices_2, [8, 8, 16], 0)
+    assert gs_calc.hamiltonian.poisson.shift_indices_1 == pytest.approx(
+        [4, 4, 10], abs=0)
+    assert gs_calc.hamiltonian.poisson.shift_indices_2 == pytest.approx(
+        [8, 8, 16], abs=0)
 
     # Initialize TDDFT and FDTD
     kick = [0.0, 0.0, 1.0e-3]
@@ -42,7 +44,7 @@ def test_fdtd_ed(in_tmp_dir, gpw_files):
     ref_qm_dipole_moment = [1.78620337e-11, -1.57782578e-11, 5.21368300e-01]
 
     tol = 1e-4
-    equal(td_calc2.hamiltonian.poisson.get_classical_dipole_moment(),
-          ref_cl_dipole_moment, tol)
-    equal(td_calc2.hamiltonian.poisson.get_quantum_dipole_moment(),
-          ref_qm_dipole_moment, tol)
+    assert td_calc2.hamiltonian.poisson.get_classical_dipole_moment() == (
+        pytest.approx(ref_cl_dipole_moment, abs=tol))
+    assert td_calc2.hamiltonian.poisson.get_quantum_dipole_moment() == (
+        pytest.approx(ref_qm_dipole_moment, abs=tol))

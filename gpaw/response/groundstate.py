@@ -1,18 +1,24 @@
 from __future__ import annotations
 from pathlib import Path
+from functools import cached_property
 from types import SimpleNamespace
-
+from typing import TYPE_CHECKING
 import numpy as np
 
 from ase.units import Ha, Bohr
-from ase.utils import lazyproperty
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
 
+if TYPE_CHECKING:
+    from gpaw.new.ase_interface import ASECalculator
+    from gpaw.calculator import GPAW
+    from gpaw.setup import Setups, LeanSetup
+    from gpaw.response.context import ResponseContext
+
 
 class PAWDatasetCollection:
-    def __init__(self, setups):
+    def __init__(self, setups: Setups):
         by_species = {}
         by_atom = []
         id_by_atom = []
@@ -30,25 +36,30 @@ class PAWDatasetCollection:
 
 
 class ResponseGroundStateAdapter:
-    def __init__(self, calc):
-        wfs = calc.wfs
+    def __init__(self, calc: ASECalculator | GPAW):
+        wfs = calc.wfs  # wavefunction object from gpaw.wavefunctions
 
         self.atoms = calc.atoms
-        self.kd = wfs.kd
-        self.world = calc.world
+        self.kd = wfs.kd  # KPointDescriptor object from gpaw.kpt_descriptor.
+        self.world = calc.world  # _Communicator object from gpaw.mpi
+
+        # GridDescriptor from gpaw.grid_descriptor.
+        # Describes a grid in real space
         self.gd = wfs.gd
+
+        # Also a GridDescriptor, with a finer grid...
         self.finegd = calc.density.finegd
-        self.bd = wfs.bd
-        self.nspins = wfs.nspins
-        self.dtype = wfs.dtype
+        self.bd = wfs.bd  # BandDescriptor from gpaw.band_descriptor
+        self.nspins = wfs.nspins  # number of spins: int
+        self.dtype = wfs.dtype  # data type of wavefunctions, real or complex
 
-        self.spos_ac = calc.spos_ac
+        self.spos_ac = calc.spos_ac  # scaled position vector: np.ndarray
 
-        self.kpt_u = wfs.kpt_u
-        self.kpt_qs = wfs.kpt_qs
+        self.kpt_u = wfs.kpt_u  # kpoints: list of Kpoint from gpaw.kpoint
+        self.kpt_qs = wfs.kpt_qs  # kpoints: list of Kpoint from gpaw.kpoint
 
-        self.fermi_level = wfs.fermi_level
-        self.atoms = calc.atoms
+        self.fermi_level = wfs.fermi_level  # float
+        self.atoms = calc.atoms  # ASE Atoms object
         self.pawdatasets = PAWDatasetCollection(calc.setups)
 
         self.pbc = self.atoms.pbc
@@ -65,7 +76,8 @@ class ResponseGroundStateAdapter:
         self._calc = calc
 
     @classmethod
-    def from_gpw_file(cls, gpw, context) -> ResponseGroundStateAdapter:
+    def from_gpw_file(cls, gpw: Path | str,
+                      context: ResponseContext) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
         from gpaw import GPAW, disable_dry_run
         assert Path(gpw).is_file()
@@ -85,7 +97,7 @@ class ResponseGroundStateAdapter:
         # code, and that includes places that are also compatible with FD.
         return self._wfs.pd
 
-    @lazyproperty
+    @cached_property
     def global_pd(self):
         """Get a PWDescriptor that includes all k-points.
 
@@ -133,12 +145,12 @@ class ResponseGroundStateAdapter:
             self._density.interpolate_pseudo_density()
         return self._density.nt_sg
 
-    @lazyproperty
+    @cached_property
     def n_sR(self):
         return self._density.get_all_electron_density(
             atoms=self.atoms, gridrefinement=1)[0]
 
-    @lazyproperty
+    @cached_property
     def n_sr(self):
         return self._density.get_all_electron_density(
             atoms=self.atoms, gridrefinement=2)[0]
@@ -265,14 +277,14 @@ class ResponseGroundStateAdapter:
         from gpaw.bztools import get_bz
         # NB: We are ignoring the pbc_c keyword to get_bz() in order to mimic
         # find_high_symmetry_monkhorst_pack() in gpaw.bztools. XXX
-        _, ibz_vertices_kc = get_bz(self._calc)
+        _, ibz_vertices_kc, _ = get_bz(self._calc)
         return ibz_vertices_kc
 
     def get_aug_radii(self):
         return np.array([max(pawdata.rcut_j)
                          for pawdata in self.pawdatasets.by_atom])
 
-    @lazyproperty
+    @cached_property
     def micro_setups(self):
         from gpaw.response.localft import extract_micro_setup
         micro_setups = []
@@ -284,7 +296,7 @@ class ResponseGroundStateAdapter:
     def atomrotations(self):
         return self._wfs.setups.atomrotations
 
-    @lazyproperty
+    @cached_property
     def kpoints(self):
         from gpaw.response.kpoints import ResponseKPointGrid
         return ResponseKPointGrid(self.kd, self.gd.icell_cv, self.kd.bzk_kc)
@@ -293,7 +305,7 @@ class ResponseGroundStateAdapter:
 # Contains all the relevant information
 # from Setups class for response calculators
 class ResponsePAWDataset:
-    def __init__(self, setup):
+    def __init__(self, setup: LeanSetup):
         self.ni = setup.ni
         self.rgd = setup.rgd
         self.rcut_j = setup.rcut_j
@@ -302,10 +314,17 @@ class ResponsePAWDataset:
         self.nabla_iiv = setup.nabla_iiv
         self.data = SimpleNamespace(phi_jg=setup.data.phi_jg,
                                     phit_jg=setup.data.phit_jg)
-        self.xc_correction = SimpleNamespace(
-            rgd=setup.xc_correction.rgd, Y_nL=setup.xc_correction.Y_nL,
-            n_qg=setup.xc_correction.n_qg, nt_qg=setup.xc_correction.nt_qg,
-            nc_g=setup.xc_correction.nc_g, nct_g=setup.xc_correction.nct_g,
-            nc_corehole_g=setup.xc_correction.nc_corehole_g,
-            B_pqL=setup.xc_correction.B_pqL, e_xc0=setup.xc_correction.e_xc0)
+        self.xc_correction: SimpleNamespace | None
+        if setup.xc_correction is not None:
+            self.xc_correction = SimpleNamespace(
+                rgd=setup.xc_correction.rgd, Y_nL=setup.xc_correction.Y_nL,
+                n_qg=setup.xc_correction.n_qg, nt_qg=setup.xc_correction.nt_qg,
+                nc_g=setup.xc_correction.nc_g, nct_g=setup.xc_correction.nct_g,
+                nc_corehole_g=setup.xc_correction.nc_corehole_g,
+                B_pqL=setup.xc_correction.B_pqL,
+                e_xc0=setup.xc_correction.e_xc0)
+            self.is_pseudo = False
+        else:
+            self.xc_correction = None
+            self.is_pseudo = True
         self.hubbard_u = setup.hubbard_u

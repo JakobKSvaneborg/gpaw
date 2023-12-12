@@ -524,7 +524,8 @@ class FDPoissonSolver(BasePoissonSolver):
             self.operators[level].apply(self.phis[level], residual)
             residual -= self.rhos[level]
             error = self.gd.comm.sum_scalar(
-                float(np.dot(residual.ravel(), residual.ravel()))) * self.gd.dv
+                float(self.xp.dot(residual.ravel(),
+                                  residual.ravel()))) * self.gd.dv
 
             # How about this instead:
             # error = self.gd.comm.max(abs(residual).max())
@@ -599,6 +600,7 @@ class FFTPoissonSolver(BasePoissonSolver):
             N_c[c] = 1  # Will be serial in that direction
             parsize_c = decompose_domain(N_c, gd.comm.size)
             self.grids.append(gd.new_descriptor(parsize_c=parsize_c))
+        self._initialized = False
 
     def _init(self):
         if self._initialized:

@@ -6,12 +6,12 @@ from gpaw.xc import XC
 
 @pytest.mark.ci
 def test_radial_integral4():
-    ra.seed(8)
+    rng = ra.default_rng(8)
     xc = XC('LDA')
     s = create_setup('H', xc)
     ni = s.ni
     nii = ni * (ni + 1) // 2
-    D_p = 0.1 * ra.random((1, nii)) + 0.2
+    D_p = 0.1 * rng.random((1, nii)) + 0.2
 
     def f(x):
         return x

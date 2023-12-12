@@ -15,7 +15,6 @@ from scipy.fft import fftn, ifftn, irfftn, rfftn
 import warnings
 
 import _gpaw
-from gpaw import SCIPY_VERSION
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 
 ESTIMATE = 64
@@ -173,8 +172,11 @@ class FFTWPlans(FFTPlans):
         _gpaw.FFTWExecute(self._ifftplan)
 
     def __del__(self):
-        _gpaw.FFTWDestroy(self._fftplan)
-        _gpaw.FFTWDestroy(self._ifftplan)
+        # Attributes will not exist if execution stops during FFTW planning
+        if hasattr(self, '_fftplan'):
+            _gpaw.FFTWDestroy(self._fftplan)
+        if hasattr(self, '_ifftplan'):
+            _gpaw.FFTWDestroy(self._ifftplan)
 
 
 class NumpyFFTPlans(FFTPlans):
@@ -260,7 +262,6 @@ class CuPyFFTPlans(FFTPlans):
         Q_G = self.indices(pw)
         array_Q.ravel()[Q_G] = coef_G
 
-        assert SCIPY_VERSION >= [1, 6]
         if self.dtype == complex:
             array_R[:] = cupyx.scipy.fft.ifftn(
                 array_Q, array_Q.shape,

@@ -74,6 +74,12 @@ class DebugTimer(Timer):
         Timer.stop(self, name)
 
 
+def ranktxt(comm, rank=None):
+    rank = comm.rank if rank is None else rank
+    ndigits = len(str(comm.size - 1))
+    return '%0*d' % (ndigits, rank)
+
+
 class ParallelTimer(DebugTimer):
     """Like DebugTimer but writes timings from all ranks.
 
@@ -84,9 +90,7 @@ class ParallelTimer(DebugTimer):
 
     See the tool gpaw-plot-parallel-timings."""
     def __init__(self, prefix='timings', flush=False):
-        ndigits = len(str(mpi.world.size - 1))
-        ranktxt = '%0*d' % (ndigits, mpi.world.rank)
-        fname = f'{prefix}.{ranktxt}.txt'
+        fname = f'{prefix}.{ranktxt(mpi.world)}.txt'
         txt = open(fname, 'w', buffering=1 if flush else -1)
         DebugTimer.__init__(self, comm=mpi.world, txt=txt)
         self.prefix = prefix
@@ -108,6 +112,60 @@ class ParallelTimer(DebugTimer):
             for itsranks in allranks.reshape(-1, 4):
                 fd.write('r=%d k=%d b=%d d=%d\n' % tuple(itsranks))
         fd.close()
+
+
+class Profiler(Timer):
+    def __init__(self, prefix, comm=mpi.world):
+        import atexit
+
+        self.prefix = prefix
+        self.comm = comm
+        self.ranktxt = ranktxt(comm)
+        fname = f'{prefix}.{self.ranktxt}.json'
+        self.txt = open(fname, 'w', buffering=-1)
+        self.pid = 0  # os.getpid() creates more confusing output
+        atexit.register(Profiler.finish_trace, self)
+        # legacy json format for perfetto always assumes microseconds
+        self.u = 1_000_000
+
+        # Synchronize in order to have same time reference
+        ref = np.zeros(1)
+        if comm.rank == 0:
+            ref[0] = time.time()
+        comm.broadcast(ref, 0)
+        self.ref = ref[0]
+        Timer.__init__(self, 1000)
+
+    def finish_trace(self):
+        self.txt.close()
+        self.comm.barrier()
+        if self.comm.rank == 0:
+            out = open(self.prefix + '.json', 'w')
+            out.write("""{
+    "traceEvents":
+    [ """)
+            for i in range(self.comm.size):
+                fname = f'{self.prefix}.{ranktxt(self.comm, rank=i)}.json'
+                print('Processing', fname)
+                with open(fname, 'r') as f:
+                    out.writelines(f.readlines())
+            out.write("] }\n")
+            out.close()
+        self.comm.barrier()
+
+    def start(self, name):
+        Timer.start(self, name)
+        self.txt.write(f"""{{"name": "{name}", "cat": "PERF", "ph": "B","""
+                       f""" "pid": {self.pid}, "tid": {self.ranktxt}, """
+                       f""""ts": {int((time.time()-self.ref)*self.u)} }},\n""")
+
+    def stop(self, name=None):
+        if name is None:
+            name = self.running[-1]
+        self.txt.write(f"""{{"name": "{name}", "cat": "PERF", "ph": "E", """
+                       f""""pid": {self.pid}, "tid": {self.ranktxt}, """
+                       f""""ts": {int((time.time()-self.ref)*self.u)}}},\n""")
+        Timer.stop(self, name)
 
 
 class HPMTimer(Timer):

@@ -4,7 +4,7 @@ from ase.build import bulk
 from gpaw import GPAW, FermiDirac
 from gpaw.response.bse import BSE, read_bse_eigenvalues
 from gpaw.response.df import read_response_function
-from gpaw.test import findpeak, equal
+from gpaw.test import findpeak
 
 
 @pytest.mark.response
@@ -44,8 +44,8 @@ def test_response_bse_silicon(in_tmp_dir, scalapack):
         w_ = 2.552
         I_ = 421.15
         w, I = findpeak(w_w, epsimag_w)
-        equal(w, w_, 0.01)
-        equal(I, I_, 0.1)
+        assert w == pytest.approx(w_, abs=0.01)
+        assert I == pytest.approx(I_, abs=0.1)
 
     if GS and nosym:
         atoms = bulk('Si', 'diamond', a=a)
@@ -74,8 +74,8 @@ def test_response_bse_silicon(in_tmp_dir, scalapack):
 
     if check and nosym:
         w, I = findpeak(w_w, eps_w.imag)
-        equal(w, w_, 0.01)
-        equal(I, I_, 0.1)
+        assert w == pytest.approx(w_, abs=0.01)
+        assert I == pytest.approx(I_, abs=0.1)
 
         # Read eigenvalues file and test first 3 weights:
         _, C_w = read_bse_eigenvalues('eig.dat')

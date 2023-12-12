@@ -1,9 +1,9 @@
 import pytest
 from gpaw.atom.aeatom import AllElectronAtom, c
-from gpaw.test import equal
 
 
 @pytest.mark.ci
+@pytest.mark.serial
 def test_aeatom():
     Z = 79  # gold atom
     kwargs = dict(ngpts=5000, alpha2=1000 * Z**2, ngauss=200)
@@ -14,13 +14,22 @@ def test_aeatom():
 
     errors = []
     for channel in aea.channels:
+        # Basis set of Gaussians:
         channel.solve(-Z)
         for n in range(7):
             e = channel.e_n[n]
             e0 = -0.5 * Z**2 / (n + channel.l + 1)**2
             errors.append(abs(e / e0 - 1))
+
+        # Finite-difference:
+        channel.solve2(-Z)
+        for n in range(7):
+            e = channel.e_n[n]
+            e0 = -0.5 * Z**2 / (n + channel.l + 1)**2
+            errors.append(abs(e / e0 - 1))
+
     print(max(errors))
-    equal(max(errors), 0, 2.0e-5)
+    assert max(errors) == pytest.approx(0, abs=2.0e-5)
 
     # Test Dirac equation:
     aea = AllElectronAtom(Z, dirac=True, log=None)
@@ -38,5 +47,6 @@ def test_aeatom():
                   ((channel.k**2 - (Z / c)**2)**0.5 + n)**2)**-0.5 - 1
             e0 *= c**2
             errors.append(abs(e / e0 - 1))
+
     print(max(errors))
-    equal(max(errors), 0, 4.0e-5)
+    assert max(errors) == pytest.approx(0, abs=4.0e-5)

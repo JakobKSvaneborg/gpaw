@@ -1,7 +1,7 @@
 import numpy as np
+from functools import cached_property
 from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.gamma_int import GammaIntegrator
-from ase.utils import lazyproperty
 
 
 class DielectricFunctionCalculator:
@@ -24,15 +24,15 @@ class DielectricFunctionCalculator:
         else:
             self.gamma_int = None
 
-    @lazyproperty
+    @cached_property
     def sqrtV_G(self):
         return self.coulomb.sqrtV(qpd=self.qpd, q_v=None)
 
-    @lazyproperty
+    @cached_property
     def I_GG(self):
         return np.eye(self.qpd.ngmax)
 
-    @lazyproperty
+    @cached_property
     def fxc_GG(self):
         if self.mode == 'GW':
             return self.I_GG

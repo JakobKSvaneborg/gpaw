@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from time import ctime
-from typing import Union
+from typing import Union, TYPE_CHECKING
 
 import numpy as np
 from ase.units import Ha
@@ -25,11 +25,20 @@ from gpaw.response.integrators import (
     HilbertOpticalLimitTetrahedron,
     Hermitian, Hilbert, HilbertTetrahedron, GenericUpdate)
 
+if TYPE_CHECKING:
+    from gpaw.response.context import ResponseContext
+    from gpaw.response.groundstate import ResponseGroundStateAdapter
+    from gpaw.response.pair import ActualPairDensityCalculator
 
-def find_maximum_frequency(kpt_u, context, nbands=0):
+
+def find_maximum_frequency(kpt_u: list,
+                           context: ResponseContext,
+                           nbands=0) -> float:
     """Determine the maximum electron-hole pair transition energy."""
     epsmin = 10000.0
     epsmax = -10000.0
+
+    # kpt_u: list of KPoint from gpaw.kpoint
     for kpt in kpt_u:
         epsmin = min(epsmin, kpt.eps_n[0])
         epsmax = max(epsmax, kpt.eps_n[nbands - 1])
@@ -42,14 +51,18 @@ def find_maximum_frequency(kpt_u, context, nbands=0):
 
 
 class Chi0Calculator:
-    def __init__(self, kptpair_factory,
-                 context=None,
+    def __init__(self, kptpair_factory: KPointPairFactory,
+                 context: ResponseContext | None = None,
                  eshift=0.0,
                  intraband=True,
                  rate=0.0,
                  **kwargs):
         self.kptpair_factory = kptpair_factory
+
+        # gs: ResponseGroundStateAdapter from gpaw.response.groundstate
         self.gs = kptpair_factory.gs
+
+        # context: ResponseContext from gpaw.response.context
         if context is None:
             context = kptpair_factory.context
         self.context = context
@@ -62,17 +75,23 @@ class Chi0Calculator:
             intraband=intraband, rate=rate, **kwargs)
 
     @property
-    def pair_calc(self):
+    def pair_calc(self) -> ActualPairDensityCalculator:
         # In a future refactor, we should find better ways to access the pair
         # density calculator (and the pair density paw corrections) XXX
+
+        # pair_calc: ActualPairDensityCalculator from gpaw.response.pair
         return self.chi0_body_calc.pair_calc
 
-    def create_chi0(self, q_c):
+    def create_chi0(self, q_c: list | np.ndarray) -> Chi0Data:
+
+        # chi0_body: Chi0BodyData from gpaw.response.chi0_data
         chi0_body = self.chi0_body_calc.create_chi0_body(q_c)
+
+        # chi0: Chi0Data from gpaw.response.chi0_data
         chi0 = Chi0Data.from_chi0_body_data(chi0_body)
         return chi0
 
-    def calculate(self, q_c):
+    def calculate(self, q_c: list | np.ndarray) -> Chi0Data:
         """Calculate chi0 (possibly with optical extensions).
 
         Parameters
@@ -87,7 +106,10 @@ class Chi0Calculator:
             representation descriptors and blocks distribution
         """
         # Calculate body
+
+        # chi0_body: Chi0BodyData from gpaw.response.chi0_data
         chi0_body = self.chi0_body_calc.calculate(q_c)
+        # SingleQPWDescriptor from gpaw.response.pair_functions
         qpd = chi0_body.qpd
 
         # Calculate optical extension
@@ -105,7 +127,7 @@ class Chi0Calculator:
     @timer('Calculate CHI_0')
     def update_chi0(self,
                     chi0: Chi0Data,
-                    m1, m2, spins):
+                    m1: int, m2: int, spins: list) -> Chi0Data:
         """In-place calculation of chi0 (with optical extension).
 
         Parameters
@@ -141,25 +163,29 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         self.eshift = eshift / Ha
         super().__init__(*args, **kwargs)
 
+        # gs: ResponseGroundStateAdapter from gpaw.response.groundstate
         if self.gs.metallic:
             assert abs(self.eshift) < 1e-8, \
                 'A rigid energy shift cannot be applied to the conduction '\
                 'bands if there is no band gap'
 
-    def create_chi0_body(self, q_c):
+    def create_chi0_body(self, q_c: list | np.ndarray) -> Chi0BodyData:
+        # qpd: SingleQPWDescriptor from gpaw.response.pair_functions
         qpd = self.get_pw_descriptor(q_c)
         return self._create_chi0_body(qpd)
 
-    def _create_chi0_body(self, qpd):
+    def _create_chi0_body(self, qpd: SingleQPWDescriptor) -> Chi0BodyData:
         return Chi0BodyData(self.wd, qpd, self.get_blockdist())
 
-    def get_blockdist(self):
+    def get_blockdist(self) -> PlaneWaveBlockDistributor:
+        # integrator: Integrator from gpaw.response.integrators
+        #    (or a child of this class)
         return PlaneWaveBlockDistributor(
-            self.context.comm,
-            self.integrator.blockcomm,
-            self.integrator.kncomm)
+            self.context.comm,  # _Communicator object from gpaw.mpi
+            self.integrator.blockcomm,  # _Communicator object from gpaw.mpi
+            self.integrator.kncomm)  # _Communicator object from gpaw.mpi
 
-    def calculate(self, q_c) -> Chi0BodyData:
+    def calculate(self, q_c: list | np.ndarray) -> Chi0BodyData:
         """Calculate the chi0 body.
 
         Parameters
@@ -168,8 +194,10 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
             Momentum vector.
         """
         # Construct the output data structure
+        # qpd: SingleQPWDescriptor from gpaw.response.pair_functions
         qpd = self.get_pw_descriptor(q_c)
         self.print_info(qpd)
+        # chi0_body: Chi0BodyData from gpaw.response.chi0_data
         chi0_body = self._create_chi0_body(qpd)
 
         # Integrate all transitions into partially filled and empty bands
@@ -180,7 +208,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
 
     def update_chi0_body(self,
                          chi0_body: Chi0BodyData,
-                         m1, m2, spins):
+                         m1: int, m2: int, spins: list | range):
         """In-place calculation of the body.
 
         Parameters
@@ -200,6 +228,8 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
 
         self.context.print('Integrating chi0 body.')
 
+        # domain: Domain from from gpaw.response.integrators
+        # analyzer: PWSymmetryAnalyzer from gpaw.response.symmetry
         domain, analyzer, prefactor = self.get_integration_domain(qpd, spins)
         integrand = Chi0Integrand(self, qpd=qpd, analyzer=analyzer,
                                   optical=False, m1=m1, m2=m2)
@@ -248,7 +278,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         return GenericUpdate(
             self.eta, self.integrator.blockcomm, eshift=self.eshift)
 
-    def print_info(self, qpd):
+    def print_info(self, qpd: SingleQPWDescriptor):
 
         if gpaw.dry_run:
             from gpaw.mpi import SerialCommunicator
@@ -314,7 +344,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
             self.rate = None
 
     @property
-    def nblocks(self):
+    def nblocks(self) -> int:
         # The optical extensions are not distributed in memory, hence we
         # overwrite nblocks.
         # NB: There can be a mismatch with self.kptpair_factory.nblocks, which
@@ -322,11 +352,14 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         return 1
 
     def calculate(self,
-                  qpd: SingleQPWDescriptor | None = None):
+                  qpd: SingleQPWDescriptor | None = None
+                  ) -> Chi0OpticalExtensionData:
         """Calculate the chi0 head and wings."""
         # Create data object
         if qpd is None:
             qpd = self.get_pw_descriptor(q_c=[0., 0., 0.])
+
+        # wd: FrequencyDescriptor from gpaw.response.frequencies
         chi0_opt_ext = Chi0OpticalExtensionData(self.wd, qpd)
 
         self.print_info(qpd)
@@ -340,6 +373,8 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 
         if self.drude_calc is not None:
             # Add intraband contribution
+            # drude_calc: Chi0DrudeCalculator from gpaw.response.chi0_drude
+            # chi0_drude: Chi0DrudeData from gpaw.response.chi0_data
             chi0_drude = self.drude_calc.calculate(self.wd, self.rate)
             chi0_opt_ext.head_Wvv[:] += chi0_drude.chi_Zvv
 
@@ -348,7 +383,8 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
     def update_chi0_optical_extension(
             self,
             chi0_optical_extension: Chi0OpticalExtensionData,
-            m1, m2, spins):
+            m1: int, m2: int,
+            spins: list | range):
         """In-place calculation of the chi0 head and wings.
 
         Parameters
@@ -406,7 +442,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
     def construct_literal_task(self):
         return OpticalLimit(eta=self.eta)
 
-    def print_info(self, qpd):
+    def print_info(self, qpd: SingleQPWDescriptor):
         """Print information about optical extension calculation."""
         isl = ['',
                f'{ctime()}',
@@ -423,16 +459,16 @@ class Chi0(Chi0Calculator):
     Tries to be backwards compatible, for now. """
 
     def __init__(self,
-                 calc,
+                 calc: str,
                  *,
-                 frequencies: Union[dict, Array1D] = None,
+                 frequencies: Union[dict, Array1D] | None = None,
                  ecut=50,
                  world=mpi.world, txt='-', timer=None,
                  nblocks=1,
-                 nbands=None,
-                 domega0=None,  # deprecated
-                 omega2=None,  # deprecated
-                 omegamax=None,  # deprecated
+                 nbands: int | None = None,
+                 domega0: float | None = None,  # deprecated
+                 omega2: float | None = None,  # deprecated
+                 omegamax: float | None = None,  # deprecated
                  **kwargs):
         """Construct Chi0 object.
 
@@ -496,9 +532,15 @@ class Chi0(Chi0Calculator):
 
         """
         from gpaw.response.pair import get_gs_and_context
+
+        # gs: ResponseGroundStateAdapter from gpaw.response.groundstate
+        # context: ResponseContext from gpaw.response.context
         gs, context = get_gs_and_context(calc, txt, world, timer)
+
+        # bd: BandDescriptor from gpaw.band_descriptor
         nbands = nbands or gs.bd.nbands
 
+        # wd: FrequencyDescriptor from gpaw.response.frequencies
         wd = new_frequency_descriptor(
             gs, context, nbands, frequencies,
             domega0=domega0,
@@ -510,8 +552,15 @@ class Chi0(Chi0Calculator):
                          nbands=nbands, ecut=ecut, **kwargs)
 
 
-def new_frequency_descriptor(gs, context, nbands, frequencies=None, *,
-                             domega0=None, omega2=None, omegamax=None):
+def new_frequency_descriptor(gs: ResponseGroundStateAdapter,
+                             context: ResponseContext,
+                             nbands: int,
+                             frequencies: None | dict | np.ndarray = None,
+                             *, domega0: float | None = None,
+                             omega2: float | None = None,
+                             omegamax: float | None = None)\
+        -> FrequencyDescriptor:
+
     if domega0 is not None or omega2 is not None or omegamax is not None:
         assert frequencies is None
         frequencies = {'type': 'nonlinear',

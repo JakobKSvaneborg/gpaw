@@ -15,7 +15,7 @@ from gpaw.response.symmetry import PWSymmetryAnalyzer
 
 from gpaw.test.response.test_chiks import (generate_system_s, generate_qrel_q,
                                            get_q_c, generate_nblocks_n)
-from gpaw.test.conftest import response_band_cutoff
+from gpaw.test.gpwfile import response_band_cutoff
 
 pytestmark = pytest.mark.skipif(world.size == 1, reason='world.size == 1')
 

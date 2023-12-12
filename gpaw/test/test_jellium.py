@@ -4,7 +4,6 @@ from ase import Atoms
 from ase.units import Bohr, Hartree
 from gpaw.jellium import JelliumSlab
 from gpaw import GPAW, Mixer
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -49,7 +48,7 @@ def test_jellium(in_tmp_dir):
     # Get the work function
     phi1 = v[-1] - efermi
 
-    equal(phi1, 2.715, 1e-3)
+    assert phi1 == pytest.approx(2.715, abs=1e-3)
     # Reference value: Lang and Kohn, 1971, Theory of Metal Surfaces:
     # Work function
     # DOI 10.1103/PhysRevB.3.1215

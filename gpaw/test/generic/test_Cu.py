@@ -1,7 +1,8 @@
 from ase import Atoms
 from ase.units import Hartree
 from gpaw import GPAW
-from gpaw.test import equal, gen
+from gpaw.test import gen
+import pytest
 import gpaw.mpi as mpi
 
 # Generate non-scalar-relativistic setup for Cu:
@@ -37,4 +38,4 @@ def test_generic_Cu(in_tmp_dir):
 
         print(e, niter)
         energy_tolerance = 0.0005
-        equal(e, -0.271504, energy_tolerance)
+        assert e == pytest.approx(-0.271504, abs=energy_tolerance)

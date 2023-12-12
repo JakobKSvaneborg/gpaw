@@ -3,7 +3,6 @@ import pytest
 from ase.build import molecule
 from gpaw import GPAW, restart
 from gpaw.mom import prepare_mom_calculation
-from gpaw.test import equal
 
 
 @pytest.mark.mom
@@ -55,7 +54,7 @@ def test_mom_fd_energy(in_tmp_dir):
 
         dE = E_es - E_gs
         print(dE)
-        equal(dE, dE_ref[s], 0.01)
+        assert dE == pytest.approx(dE_ref[s], abs=0.015)
 
     calc = GPAW(mode='fd',
                 nbands=6,
@@ -80,4 +79,4 @@ def test_mom_fd_energy(in_tmp_dir):
 
     dE = E_es - E_gs
     print(dE)
-    equal(dE, 8.4695551944, 0.01)
+    assert dE == pytest.approx(8.4695551944, abs=0.01)

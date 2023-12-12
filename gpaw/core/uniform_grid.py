@@ -1,18 +1,18 @@
 from __future__ import annotations
 
+from functools import cached_property
 from math import pi
-from typing import Sequence
-
+from typing import Sequence, Literal
 import numpy as np
 
 import gpaw.fftw as fftw
 from gpaw.core.arrays import DistributedArrays
 from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
 from gpaw.core.domain import Domain
-from gpaw.gpu import as_np, as_xp, cupy_is_fake
+from gpaw.gpu import as_np, cupy_is_fake
 from gpaw.grid_descriptor import GridDescriptor
 from gpaw.mpi import MPIComm, serial_comm
-from gpaw.new import cached_property, zips
+from gpaw.new import zips
 from gpaw.typing import (Array1D, Array2D, Array3D, Array4D, ArrayLike1D,
                          ArrayLike2D, Vector)
 from gpaw.new.c import add_to_density, add_to_density_gpu, symmetrize_ft
@@ -106,12 +106,13 @@ class UGDesc(Domain):
                       self.kpt_c[:, np.newaxis])
 
     def new(self,
+            *,
+            kpt=None,
+            dtype=None,
+            comm: MPIComm | Literal['inherit'] | None = 'inherit',
             size=None,
             pbc=None,
-            kpt=None,
-            comm='inherit',
-            decomp=None,
-            dtype=None) -> UGDesc:
+            decomp=None) -> UGDesc:
         """Create new uniform grid description."""
         if decomp is None and comm == 'inherit':
             if size is None and pbc is None:
@@ -188,20 +189,7 @@ class UGDesc(Domain):
         """
         from gpaw.transformers import Transformer
 
-        if stencil_range != 1 and xp is not np:
-            # XXX GPU kernel doesn't support large stencils at the moment
-            # See c/gpu/kernels/interpolate.cpp:156
-            transformer = Transformer(self._gd, other._gd,
-                                      nn=stencil_range, xp=np)
-
-            def apply(input, output):
-                input_work = as_np(input)
-                output_work = np.empty(output.shape, dtype=output.dtype)
-                transformer.apply(input_work, output_work)
-                output[:] = as_xp(output_work, xp)
-        else:
-            apply = Transformer(self._gd, other._gd,
-                                nn=stencil_range, xp=xp).apply
+        apply = Transformer(self._gd, other._gd, nn=stencil_range, xp=xp).apply
 
         def transform(functions, out=None):
             if out is None:

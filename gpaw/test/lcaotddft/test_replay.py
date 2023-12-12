@@ -7,7 +7,6 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.wfwriter import WaveFunctionWriter
 from gpaw.mpi import world
 from gpaw.tddft.spectrum import photoabsorption_spectrum
-from gpaw.test import equal
 
 
 @pytest.mark.rttddft
@@ -63,4 +62,4 @@ def test_lcaotddft_replay(in_tmp_dir):
         data_i = np.loadtxt('spec_rep%s.dat' % tag).ravel()
 
         tol = 1e-10
-        equal(data_i, ref_i, tol)
+        assert data_i == pytest.approx(ref_i, abs=tol)

@@ -11,6 +11,7 @@ from gpaw.mpi import have_mpi, rank
 from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED
 from gpaw.utilities import compiled_with_libvdwxc, compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
+from gpaw.gpu import cupy
 
 
 def info():
@@ -31,7 +32,9 @@ def info():
             results.append((name + '-' + module.__version__ + githash,
                             module.__file__.rsplit('/', 1)[0] + '/'))
 
-    libxc = gpaw.libraries['libxc']
+    libs = gpaw.get_libraries()
+
+    libxc = libs['libxc']
     if libxc:
         results.append((f'libxc-{libxc}', True))
     else:
@@ -53,6 +56,7 @@ def info():
     results.append(('OpenMP enabled', _gpaw.have_openmp))
     results.append(('GPU enabled', GPU_ENABLED))
     results.append(('GPU-aware MPI', GPU_AWARE_MPI))
+    results.append(('CUPY', cupy.__file__))
     if have_mpi:
         have_sl = compiled_with_sl()
         have_elpa = LibElpa.have_elpa()

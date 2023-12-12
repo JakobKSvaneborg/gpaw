@@ -1,7 +1,7 @@
 import numpy as np
 from ase.build import mx2
 
-from gpaw import GPAW, FermiDirac
+from gpaw import GPAW, PW, FermiDirac
 from gpaw.mpi import world
 from gpaw.nlopt.matrixel import make_nlodata
 from gpaw.nlopt.shg import get_shg
@@ -13,7 +13,7 @@ atoms.center(vacuum=15, axis=2)
 # GPAW parameters:
 nk = 40
 params_gs = {
-    'mode': 'lcao',
+    'mode': PW(800),
     'symmetry': {'point_group': False, 'time_reversal': True},
     'nbands': 'nao',
     'convergence': {'bands': -10},

@@ -4,7 +4,6 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -34,4 +33,4 @@ def test_fileio_refine(in_tmp_dir):
 
     print(Edirect, Erestart)
     # Note: the different density mixing introduces small differences
-    equal(Edirect, Erestart, 4e-5)
+    assert Edirect == pytest.approx(Erestart, abs=4e-5)

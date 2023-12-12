@@ -7,7 +7,6 @@ from ase.units import Hartree
 
 from gpaw import GPAW
 from gpaw.mpi import world
-from gpaw.test import equal
 from gpaw.gauss import Gauss
 from gpaw.lrtddft import LrTDDFT, photoabsorption_spectrum
 from gpaw.lrtddft.kssingle import KSSingles
@@ -92,17 +91,18 @@ def test_lrtddft_3(in_tmp_dir):
     Eanalyse = float(match[0][0])
     oszanalyse = float(match[0][1])
     print('From analyse           :', Eanalyse, oszanalyse)
-    equal(E, Eanalyse, 1e-3)            # Written precision in analyse
-    equal(osz[0], oszanalyse, 1e-3)
+    assert E == pytest.approx(Eanalyse,
+                              abs=1e-3)  # Written precision in analyse
+    assert osz[0] == pytest.approx(oszanalyse, abs=1e-3)
 
     E2 = lr2[n].get_energy() * Hartree
     osz2 = lr2[n].get_oscillator_strength()
     print('Written and read object:', E2, osz2[0])
 
     # Compare values of original and written/read objects
-    equal(E, E2, 1e-4)
+    assert E == pytest.approx(E2, abs=1e-4)
     for i in range(len(osz)):
-        equal(osz[i], osz2[i], 1.7e-4)
+        assert osz[i] == pytest.approx(osz2[i], abs=1.7e-4)
 
     width = 0.05
     photoabsorption_spectrum(lr,
@@ -119,5 +119,6 @@ def test_lrtddft_3(in_tmp_dir):
 
     print('Values from spectrum   :', Espec, oszspec)
     # Compare calculated values with values written to file
-    equal(E, Espec, 1e-2)           # The spectrum has a low sampling
-    equal(osz[0], oszspec, 1e-2)
+    assert E == pytest.approx(Espec,
+                              abs=1e-2)  # The spectrum has a low sampling
+    assert osz[0] == pytest.approx(oszspec, abs=1e-2)

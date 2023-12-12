@@ -1,10 +1,10 @@
+from functools import cached_property
 from ase.units import Ha
 from gpaw.core import PWDesc, UGDesc
-from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
-from gpaw.new import cached_property, zips
+from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.poisson import make_poisson_solver
@@ -13,6 +13,7 @@ from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 # from gpaw.new.spinors import SpinorWaveFunctionDescriptor
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D
+from gpaw.new.external_potential import create_external_potential
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -25,15 +26,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         self._nct_ag = None
         self._tauct_ag = None
 
-    @cached_property
-    def atomdist(self) -> AtomDistribution:
         # We should just distribute the atom evenly, but that is not compatible
         # with LCAO initialization!
         # return AtomDistribution.from_number_of_atoms(len(self.fracpos_ac),
         #                                              self.communicators['d'])
-        return AtomDistribution(
-            self.grid.ranks_from_fractional_positions(self.fracpos_ac),
-            self.grid.comm)
 
     def create_uniform_grids(self):
         grid = create_uniform_grid(
@@ -105,6 +101,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.setups,
             self.xc,
             poisson_solver,
+            external_potential=create_external_potential(self.params.external),
             fracpos_ac=self.fracpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,

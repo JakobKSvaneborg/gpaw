@@ -8,8 +8,8 @@ def test_fd_ops_non_periodic():
     n = 20
     gd1 = GridDescriptor((n, n, n), (8.0, 8.0, 8.0), pbc_c=p)
     a1 = gd1.zeros()
-    ra.seed(8)
-    a1[:] = ra.random(a1.shape)
+    rng = ra.default_rng(8)
+    a1[:] = rng.random(a1.shape)
     gd2 = gd1.refine()
     a2 = gd2.zeros()
     i = Transformer(gd1, gd2).apply

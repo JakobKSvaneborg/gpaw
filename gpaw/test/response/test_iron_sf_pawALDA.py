@@ -13,7 +13,7 @@ from gpaw.response.susceptibility import (spectral_decomposition,
 from gpaw.response.pair_functions import read_pair_function
 
 from gpaw.test import findpeak
-from gpaw.test.conftest import response_band_cutoff
+from gpaw.test.gpwfile import response_band_cutoff
 
 
 @pytest.mark.kspair

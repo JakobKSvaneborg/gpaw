@@ -10,19 +10,30 @@ def get_chi_tensor(
         ftol=1e-4, Etol=1e-6, eshift=0.0,
         band_n=None, out_name=None):
     """
-    Calculate full linear susceptibility tensor for nonmagnetic semiconductors.
+    Calculate full linear susceptibility tensor for nonmagnetic semiconductors;
+    array will be saved to disk if out_name is given.
 
-    Input:
-        nlodata         Data object of type NLOData.
-        freqs           Excitation frequency array (a numpy array or list).
-        eta             Broadening, a number or an array (default 0.05 eV).
-        Etol, ftol      Tolerance in energy and fermi to consider degeneracy.
-        eshift          Bandgap correction.
-        band_n          List of bands in the sum (default 0 to nb).
-        out_name        If it is given: output filename.
-    Output:
-        chi_vvl         The output tensor (3, 3, nw).
-        chi.npy         If specified: array containing the spectrum and freqs.
+    Parameters
+    ----------
+    nlodata
+        Data object of type NLOData.
+    freqs
+        Excitation frequency array (a numpy array or list).
+    eta
+        Broadening, a number or an array (default 0.05 eV).
+    Etol, ftol
+        Tolerance in energy and occupancy to consider degeneracy.
+    eshift
+        Bandgap correction.
+    band_n
+        List of bands in the sum (default 0 to nb).
+    out_name
+        If it is given: output filename.
+
+    Returns
+    -------
+    np.ndarray:
+        Full linear susceptibility tensor (3, 3, nw).
 
     """
 

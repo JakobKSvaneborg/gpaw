@@ -5,6 +5,8 @@ Tools for directmin
 import numpy as np
 import scipy.linalg as lalg
 from copy import deepcopy
+from typing import Callable, cast
+from gpaw.typing import ArrayND, IntVector, RNG
 
 
 def expm_ed(a_mat, evalevec=False):
@@ -556,10 +558,11 @@ def get_indices(dimens):
     return np.tril_indices(dimens, -1)
 
 
-def random_a(shape, dtype):
-    a = np.random.random_sample(shape)
+def random_a(shape, dtype, rng: RNG = cast(RNG, np.random)):
+    sample_unit_interval: Callable[[IntVector], ArrayND] = rng.random
+    a = sample_unit_interval(shape)
     if dtype == complex:
         a = a.astype(complex)
-        a += 1.0j * np.random.random_sample(shape)
+        a += 1.0j * sample_unit_interval(shape)
 
     return a

@@ -3,7 +3,6 @@ import numpy as np
 
 from gpaw.tddft import TDDFT, DipoleMomentWriter
 from gpaw.mpi import world
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -58,4 +57,4 @@ def test_tddft_fxc_linearize(in_tmp_dir, gpw_files):
            1.423890659304e-04]
 
     tol = 1e-7
-    equal(data, ref, tol)
+    assert data == pytest.approx(ref, abs=tol)

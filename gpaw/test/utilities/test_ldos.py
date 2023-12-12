@@ -3,7 +3,7 @@ from ase import Atom, Atoms
 
 import gpaw.mpi as mpi
 from gpaw import GPAW, FermiDirac, PoissonSolver
-from gpaw.test import equal
+import pytest
 from gpaw.utilities.dos import RawLDOS, raw_orbital_LDOS, raw_wignerseitz_LDOS
 
 
@@ -55,17 +55,17 @@ def test_utilities_ldos(in_tmp_dir, gpaw_new):
     if not gpaw_new:
         n_a = calc.get_wigner_seitz_densities(spin=0)
         print(n_a)
-        equal(n_a.sum(), 0.0, 1e-5)
-        equal(n_a[1], 0.737, 0.001)
+        assert n_a.sum() == pytest.approx(0.0, abs=1e-5)
+        assert n_a[1] == pytest.approx(0.737, abs=0.001)
 
     print(sweight, pdfweight)
     print(sweight_spin)
     print(Li_wzweight)
     print(H_wzweight)
 
-    equal(sweight[0], 1.0, 0.06)
-    equal(pdfweight[0], 0.0, 0.0001)
-    equal(sweight_spin[0], 1.14, 0.06)
+    assert sweight[0] == pytest.approx(1.0, abs=0.06)
+    assert pdfweight[0] == pytest.approx(0.0, abs=0.0001)
+    assert sweight_spin[0] == pytest.approx(1.14, abs=0.06)
     assert ((Li_wzweight - [.13, 0.93]).round(2) == 0).all()
     assert ((H_wzweight - [0.87, 0.07]).round(2) == 0).all()
     assert ((Li_wzweight + H_wzweight).round(5) == 1).all()
@@ -94,6 +94,6 @@ def test_utilities_ldos(in_tmp_dir, gpaw_new):
                 np.loadtxt(fname + '.dat').shape[1])
 
     energy_tolerance = 0.001
-    equal(e_Hnospin, 0.153991, energy_tolerance)
-    equal(e_Hspin, -0.782309, energy_tolerance)
-    equal(e_LiH, -3.74582, energy_tolerance)
+    assert e_Hnospin == pytest.approx(0.153991, abs=energy_tolerance)
+    assert e_Hspin == pytest.approx(-0.782309, abs=energy_tolerance)
+    assert e_LiH == pytest.approx(-3.74582, abs=energy_tolerance)

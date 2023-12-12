@@ -3,7 +3,7 @@ from ase.build import molecule
 from ase.data.vdw import vdw_radii
 from gpaw import GPAW
 from gpaw.cluster import Cluster
-from gpaw.test import equal
+import pytest
 from gpaw.solvation import (SolvationGPAW, EffectivePotentialCavity,
                             Power12Potential, LinearDielectric)
 
@@ -63,6 +63,7 @@ def test_solvation_vacuum():
     Etest = atoms.get_potential_energy()
     Eeltest = atoms.calc.get_electrostatic_energy()
     Ftest = atoms.get_forces()
-    equal(Etest, Eref, energy_eps * atoms.calc.get_number_of_electrons())
-    equal(Ftest, Fref, forces_eps)
-    equal(Eeltest, Etest)
+    assert Etest == pytest.approx(
+        Eref, abs=energy_eps * atoms.calc.get_number_of_electrons())
+    assert Ftest == pytest.approx(Fref, abs=forces_eps)
+    assert Eeltest == pytest.approx(Etest, abs=0.0)

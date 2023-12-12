@@ -16,6 +16,7 @@ class Setuplet:
         self.l_j = l_j
         self.ni = np.sum([2 * l + 1 for l in l_j])
         self.rcut_j = rcut_j
+        self.is_pseudo = False
 
 
 # Important note: The test suite monkeypatches this value to 2**10 so
@@ -88,6 +89,8 @@ def calculate_pair_density_correction(qG_Gv, *, pawdata, radial_points=None):
     # Initialize correction tensor
     npw = qG_Gv.shape[0]
     Qbar_Gii = np.zeros((npw, ni, ni), dtype=complex)
+    if pawdata.is_pseudo:
+        return Qbar_Gii
 
     # K-vector norm
     k_G = np.linalg.norm(qG_Gv, axis=1)

@@ -4,7 +4,6 @@ from gpaw.fdtd.polarizable_material import PermittivityPlus, PolarizableMaterial
     PolarizableSphere, PolarizableBox, \
     PolarizableEllipsoid, PolarizableRod, \
     PolarizableTetrahedron
-from gpaw.test import equal
 import pytest
 
 
@@ -61,4 +60,4 @@ def test_fdtd_ed_shapes(in_tmp_dir):
     # Test
     ref_cl_dipole_moment = [ -1.01218549e-04,  -3.03603883e-05,   1.86063875e-01]
     tol = 1e-6
-    equal(qsfdtd.td_calc.hamiltonian.poisson.get_classical_dipole_moment(), ref_cl_dipole_moment, tol)
+    assert qsfdtd.td_calc.hamiltonian.poisson.get_classical_dipole_moment() == pytest.approx(ref_cl_dipole_moment, abs=tol)

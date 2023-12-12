@@ -1,7 +1,7 @@
 from ase.spacegroup import crystal
 from gpaw import GPAW
 from gpaw import PW
-from gpaw.test import equal
+import pytest
 
 
 def test_symmetry_fractional_translations_med():
@@ -44,4 +44,4 @@ def test_symmetry_fractional_translations_med():
     assert len(calc.wfs.kd.ibzk_kc) == 10
     assert len(calc.wfs.kd.symmetry.op_scc) == 2
 
-    equal(energy_fractrans, energy_no_fractrans, 1e-3)
+    assert energy_fractrans == pytest.approx(energy_no_fractrans, abs=1e-3)

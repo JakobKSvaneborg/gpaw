@@ -2,7 +2,6 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW, restart
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -27,11 +26,11 @@ def test_sic_scfsic_h2(in_tmp_dir):
     e2 = molecule.get_potential_energy()
     molecule.get_forces()
     # de = 2 * e1 - e2
-    # equal(de, 4.5, 0.1)
+    # assert de == pytest.approx(4.5, abs=0.1)
 
     # Test forces ...
 
     calc.write('H2.gpw', mode='all')
     atoms, calc = restart('H2.gpw')
     e2b = atoms.get_potential_energy()
-    equal(e2, e2b, 0.0001)
+    assert e2 == pytest.approx(e2b, abs=0.0001)

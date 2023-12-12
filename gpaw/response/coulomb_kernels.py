@@ -40,7 +40,8 @@ class CoulombKernel:
             truncation=self.truncation, reduced=reduced)
 
 
-def get_coulomb_kernel(qpd, N_c, q_v=None, truncation=None, *, pbc_c):
+def get_coulomb_kernel(qpd, N_c, q_v=None, truncation=None, *, pbc_c)\
+        -> np.ndarray:
     """Factory function that calls the specified flavour
     of the Coulomb interaction"""
 
@@ -116,7 +117,8 @@ def calculate_2D_truncated_coulomb(qpd, q_v=None, *, pbc_c):
 
 def get_integrated_kernel(qpd, N_c, truncation=None,
                           N=100, reduced=False, *, pbc_c):
-    from scipy.special import j1, k0, j0, k1
+    from scipy.special import j1, k0, j0, k1  # type: ignore
+    # ignore type hints for the above import
     B_cv = 2 * np.pi * qpd.gd.icell_cv
     Nf_c = np.array([N, N, N])
     if reduced:

@@ -18,6 +18,7 @@ from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.pair import KPointPairFactory, get_gs_and_context
 from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.context import timer
 
 
 class BSEBackend:
@@ -32,10 +33,14 @@ class BSEBackend:
                  truncation=None,
                  integrate_gamma=1,
                  mode='BSE',
+                 q_c=[0.0, 0.0, 0.0],
+                 direction=0,
                  wfile=None,
                  write_h=False,
                  write_v=False):
         self.gs = gs
+        self.q_c = q_c
+        self.direction = direction
         self.context = context
 
         self.spinors = spinors
@@ -174,6 +179,7 @@ class BSEBackend:
         bands_sn = np.atleast_2d(bands_sn)
         return bands_sn
 
+    @timer('BSE calculate')
     def calculate(self, optical=True):
 
         if self.spinors:
@@ -202,7 +208,7 @@ class BSEBackend:
 
         self.kptpair_factory = KPointPairFactory(
             gs=self.gs,
-            context=ResponseContext(txt='pair.txt', timer=None,
+            context=ResponseContext(txt='pair.txt', timer=self.context.timer,
                                     comm=serial_comm))
 
         # Calculate direct (screened) interaction and PAW corrections
@@ -220,6 +226,7 @@ class BSEBackend:
                 pawcorr = pairden_paw_corr(qpd0)
 
         # Calculate pair densities, eigenvalues and occupations
+        self.context.timer.start('Pair densities')
         so = self.spinors + 1
         Nv, Nc = so * self.nv, so * self.nc
         Ns = self.spins
@@ -258,7 +265,7 @@ class BSEBackend:
                     iKq = self.gs.kd.find_k_plus_q(self.q_c, [iK])[0]
                     epsv_m = self.gw_skn[s, iK, :self.nv]
                     epsc_n = self.gw_skn[s, iKq, self.nv:]
-                    deps_ksmn[ik] = -(epsv_m[:, np.newaxis] - epsc_n)
+                    deps_ksmn[ik, s] = -(epsv_m[:, np.newaxis] - epsc_n)
                 elif self.spinors:
                     iKq = self.gs.kd.find_k_plus_q(self.q_c, [iK])[0]
                     epsv_m = e_mk[mvi:mvf, iK]
@@ -308,11 +315,13 @@ class BSEBackend:
         world.sum(rhoex_KsmnG)
 
         self.rhoG0_S = np.reshape(rhoex_KsmnG[:, :, :, :, 0], -1)
+        self.context.timer.stop('Pair densities')
 
         if hasattr(self, 'H_sS'):
             return
 
         # Calculate Hamiltonian
+        self.context.timer.start('Calculate Hamiltonian')
         t0 = time()
         self.context.print('Calculating {} matrix elements at q_c = {}'.format(
             self.mode, self.q_c))
@@ -331,10 +340,11 @@ class BSEBackend:
                     for Q_c in self.qd.bzk_kc:
                         iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
                         rho2_mnG = rhoex_KsmnG[iK2, s2]
-
+                        self.context.timer.start('Coulomb')
                         H_ksmnKsmn[ik1, s1, :, :, iK2, s2, :, :] += np.einsum(
                             'ijk,mnk->ijmn', rho1ccV_mnG, rho2_mnG,
                             optimize='optimal')
+                        self.context.timer.stop('Coulomb')
 
                         if not self.mode == 'RPA' and s1 == s2:
                             ikq = ikq_k[iK2]
@@ -366,6 +376,7 @@ class BSEBackend:
                                                   np.dot(vec3_mn, rho4_nnG))
                                 rho4_nnG = rho_0mnG + rho_1mnG
 
+                            self.context.timer.start('Screened exchange')
                             W_mnmn = np.einsum('ijk,km,pqm->ipjq',
                                                rho3_mmG.conj(),
                                                self.W_qGG[iq],
@@ -373,6 +384,7 @@ class BSEBackend:
                                                optimize='optimal')
                             W_mnmn *= Ns * so
                             H_ksmnKsmn[ik1, s1, :, :, iK2, s1] -= 0.5 * W_mnmn
+                            self.context.timer.stop('Screened exchange')
             if iK1 % (myKsize // 5 + 1) == 0:
                 dt = time() - t0
                 tleft = dt * myKsize / (iK1 + 1) - dt
@@ -385,6 +397,7 @@ class BSEBackend:
         #     del self.Q_qaGii, self.W_qGG, self.qpd_q
 
         H_ksmnKsmn /= self.gs.volume
+        self.context.timer.stop('Calculate Hamiltonian')
 
         mySsize = myKsize * Nv * Nc * Ns
         if myKsize > 0:
@@ -410,21 +423,25 @@ class BSEBackend:
         if self.write_h:
             self.par_save('H_SS.ulm', 'H_SS', self.H_sS)
 
+    @timer('get_density_matrix')
     def get_density_matrix(self, kpt1, kpt2):
+        self.context.timer.start('Symop')
         from gpaw.response.g0w0 import QSymmetryOp, get_nmG
         symop, iq = QSymmetryOp.get_symop_from_kpair(self.kd, self.qd,
                                                      kpt1, kpt2)
         qpd = self.qpd_q[iq]
         nG = qpd.ngmax
         pawcorr, I_G = symop.apply_symop_q(qpd, self.pawcorr_q[iq], kpt1, kpt2)
+        self.context.timer.stop('Symop')
 
         rho_mnG = np.zeros((len(kpt1.eps_n), len(kpt2.eps_n), nG),
                            complex)
         for m in range(len(rho_mnG)):
             rho_mnG[m] = get_nmG(kpt1, kpt2, pawcorr, m, qpd, I_G,
-                                 self.pair_calc)
+                                 self.pair_calc, timer=self.context.timer)
         return rho_mnG, iq
 
+    @timer('get_screened_potential')
     def get_screened_potential(self):
 
         if hasattr(self, 'W_qGG'):
@@ -477,6 +494,7 @@ class BSEBackend:
 
         self.blockcomm = self._chi0calc.chi0_body_calc.integrator.blockcomm
 
+    @timer('calculate_screened_potential')
     def calculate_screened_potential(self):
         """Calculate W_GG(q)"""
 
@@ -514,6 +532,7 @@ class BSEBackend:
                         iq + 1, timedelta(seconds=round(dt)), timedelta(
                             seconds=round(tleft))))
 
+    @timer('diagonalize')
     def diagonalize(self):
 
         self.context.print('Diagonalizing Hamiltonian')
@@ -571,12 +590,9 @@ class BSEBackend:
 
         return
 
-    def get_bse_matrix(self, q_c=[0.0, 0.0, 0.0], direction=0,
-                       readfile=None, optical=True):
+    @timer('get_bse_matrix')
+    def get_bse_matrix(self, readfile=None, optical=True):
         """Calculate and diagonalize BSE matrix"""
-
-        self.q_c = q_c
-        self.direction = direction
 
         if readfile is None:
             self.calculate(optical=optical)
@@ -595,13 +611,13 @@ class BSEBackend:
 
         return
 
-    def get_vchi(self, w_w=None, eta=0.1, q_c=[0.0, 0.0, 0.0],
-                 direction=0, readfile=None, optical=True,
+    @timer('get_vchi')
+    def get_vchi(self, w_w=None, eta=0.1,
+                 readfile=None, optical=True,
                  write_eig=None):
         """Returns v * chi where v is the bare Coulomb interaction"""
 
-        self.get_bse_matrix(q_c=q_c, direction=direction,
-                            readfile=readfile, optical=optical)
+        self.get_bse_matrix(readfile=readfile, optical=optical)
 
         w_T = self.w_T
         rhoG0_S = self.rhoG0_S
@@ -649,7 +665,7 @@ class BSEBackend:
         if not np.allclose(self.q_c, 0.0):
             cell_cv = self.gs.gd.cell_cv
             B_cv = 2 * np.pi * np.linalg.inv(cell_cv).T
-            q_v = np.dot(q_c, B_cv)
+            q_v = np.dot(self.q_c, B_cv)
             vchi_w /= np.dot(q_v, q_v)
 
         """Check f-sum rule."""
@@ -672,7 +688,6 @@ class BSEBackend:
         return vchi_w
 
     def get_dielectric_function(self, w_w=None, eta=0.1,
-                                q_c=[0.0, 0.0, 0.0], direction=0,
                                 filename='df_bse.csv', readfile=None,
                                 write_eig='eig.dat'):
         """Returns and writes real and imaginary part of the dielectric
@@ -682,11 +697,6 @@ class BSEBackend:
             Dielectric function is calculated at these frequencies
         eta: float
             Lorentzian broadening of the spectrum (eV)
-        q_c: list of three floats
-            Wavevector in reduced units on which the response is calculated
-        direction: int
-            if q_c = [0, 0, 0] this gives the direction in cartesian
-            coordinates - 0=x, 1=y, 2=z
         filename: str
             data file on which frequencies, real and imaginary part of
             dielectric function is written
@@ -698,8 +708,7 @@ class BSEBackend:
             File on which the BSE eigenvalues are written
         """
 
-        epsilon_w = -self.get_vchi(w_w=w_w, eta=eta, q_c=q_c,
-                                   direction=direction,
+        epsilon_w = -self.get_vchi(w_w=w_w, eta=eta,
                                    readfile=readfile, optical=True,
                                    write_eig=write_eig)
         epsilon_w += 1.0
@@ -715,7 +724,6 @@ class BSEBackend:
         return w_w, epsilon_w
 
     def get_eels_spectrum(self, w_w=None, eta=0.1,
-                          q_c=[0.0, 0.0, 0.0], direction=0,
                           filename='df_bse.csv', readfile=None,
                           write_eig='eig.dat'):
         """Returns and writes real and imaginary part of the dielectric
@@ -725,11 +733,6 @@ class BSEBackend:
             Dielectric function is calculated at these frequencies
         eta: float
             Lorentzian broadening of the spectrum (eV)
-        q_c: list of three floats
-            Wavevector in reduced units on which the response is calculated
-        direction: int
-            if q_c = [0, 0, 0] this gives the direction in cartesian
-            coordinates - 0=x, 1=y, 2=z
         filename: str
             data file on which frequencies, real and imaginary part of
             dielectric function is written
@@ -741,7 +744,7 @@ class BSEBackend:
             File on which the BSE eigenvalues are written
         """
 
-        eels_w = -self.get_vchi(w_w=w_w, eta=eta, q_c=q_c, direction=direction,
+        eels_w = -self.get_vchi(w_w=w_w, eta=eta,
                                 readfile=readfile, optical=False,
                                 write_eig=write_eig).imag
 
@@ -755,7 +758,6 @@ class BSEBackend:
         return w_w, eels_w
 
     def get_polarizability(self, w_w=None, eta=0.1,
-                           q_c=[0.0, 0.0, 0.0], direction=0,
                            filename='pol_bse.csv', readfile=None,
                            write_eig='eig.dat'):
         r"""Calculate the polarizability alpha.
@@ -776,9 +778,20 @@ class BSEBackend:
 
         V = self.gs.nonpbc_cell_product()
 
-        optical = (self.coulomb.truncation is None)
+        # Previously it was
+        # optical = (self.coulomb.truncation is None)
+        # I.e. if a truncated kernel is used optical = False.
+        # The reason it was set to False with Coulomb
+        # truncation is that for q=0 V(G=0) is already
+        # set to zero with the truncated coulomb Kernel.
+        # However for finite q V(G=0) is different from zero.
+        # Therefore the absorption spectra for 2D materials
+        # calculated with the previous code was only correct for q=0.
+        # See Issue #1055, the related MR and comments therein
+        # For simplicity we set it to true for all cases here.
+        optical = True
 
-        vchi_w = self.get_vchi(w_w=w_w, eta=eta, q_c=q_c, direction=direction,
+        vchi_w = self.get_vchi(w_w=w_w, eta=eta,
                                readfile=readfile, optical=optical,
                                write_eig=write_eig)
         alpha_w = -V * vchi_w / (4 * np.pi)
@@ -950,7 +963,7 @@ class BSEBackend:
 
 
 class BSE(BSEBackend):
-    def __init__(self, calc=None, txt='-', **kwargs):
+    def __init__(self, calc=None, timer=None, txt='-', **kwargs):
         """Creates the BSE object
 
         calc: str or calculator object
@@ -965,6 +978,11 @@ class BSE(BSEBackend):
             Conduction bands used in the BSE Hamiltonian
         eshift: float
             Scissors operator opening the gap (eV)
+         q_c: list of three floats
+-            Wavevector in reduced units on which the response is calculated
+        direction: int
+            if q_c = [0, 0, 0] this gives the direction in cartesian
+            coordinates - 0=x, 1=y, 2=z
         gw_skn: list / array
             List or array defining the gw quasiparticle energies used in
             the BSE Hamiltonian. Should match spin, k-points and
@@ -990,7 +1008,7 @@ class BSE(BSEBackend):
             If True, write eigenvalues and eigenstates to v_TS.ulm
         """
         gs, context = get_gs_and_context(
-            calc, txt, world=world, timer=None)
+            calc, txt, world=world, timer=timer)
 
         super().__init__(gs=gs, context=context, **kwargs)
 

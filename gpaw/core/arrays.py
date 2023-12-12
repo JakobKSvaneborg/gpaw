@@ -78,6 +78,10 @@ class DistributedArrays(Generic[DomainType]):
     def copy(self):
         return self.new(data=self.data.copy())
 
+    def sanity_check(self) -> None:
+        """Sanity check."""
+        pass
+
     def __getitem__(self, index):
         raise NotImplementedError
 

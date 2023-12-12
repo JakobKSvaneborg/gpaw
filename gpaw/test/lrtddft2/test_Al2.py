@@ -3,7 +3,6 @@ from gpaw import GPAW, FermiDirac
 from gpaw.mpi import world, size, rank
 from gpaw.lrtddft2 import LrTDDFT2
 from gpaw.lrtddft2.lr_communicators import LrCommunicators
-from gpaw.test import equal
 from ase.atoms import Atoms
 
 
@@ -76,10 +75,10 @@ def test_lrtddft2_Al2(in_tmp_dir):
         print(e0_3, e1_3)
 
     tol = 5.0e-8
-    equal(e0_1, e0_2, tol)
-    equal(e0_1, e0_3, tol)
+    assert e0_1 == pytest.approx(e0_2, abs=tol)
+    assert e0_1 == pytest.approx(e0_3, abs=tol)
     tol = 1.0e-3
-    equal(e0_1, 0.00105074187176, tol)
-    equal(e1_1, 0.183188157301, tol)
-    equal(e1_2, 0.194973135812, tol)
-    equal(e1_3, 0.120681529342, tol)
+    assert e0_1 == pytest.approx(0.00105074187176, abs=tol)
+    assert e1_1 == pytest.approx(0.183188157301, abs=tol)
+    assert e1_2 == pytest.approx(0.194973135812, abs=tol)
+    assert e1_3 == pytest.approx(0.120681529342, abs=tol)

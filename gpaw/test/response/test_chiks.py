@@ -13,7 +13,7 @@ from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
 from gpaw.response.chi0 import Chi0
 from gpaw.response.pair_functions import (get_inverted_pw_mapping,
                                           get_pw_coordinates)
-from gpaw.test.conftest import response_band_cutoff
+from gpaw.test.gpwfile import response_band_cutoff
 
 # ---------- chiks parametrization ---------- #
 

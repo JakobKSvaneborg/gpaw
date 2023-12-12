@@ -1,21 +1,25 @@
 import pytest
-from ase.units import Bohr
 
-from gpaw.mpi import serial_comm
+from gpaw.mpi import serial_comm, world
 from gpaw.new.ase_interface import GPAW
-from gpaw.nlopt.matrixel import WaveFunctionAdapter
-from gpaw.mpi import world
+from gpaw.nlopt.adapters import CollinearGSInfo
 
 
 @pytest.mark.skipif(world.size > 1, reason='Serial only')
 def test_adapter_pseudo_wfs(gpw_files):
+    # Indices
+    k = 2
+    s = 0
+    bands = slice(3, 4)
 
     calc = GPAW(gpw_files['sic_pw'], communicator=serial_comm)
 
-    u_R_fromcalc = calc.get_pseudo_wave_function(3, 2, 0, periodic=True)
-    u_R_fromcalc *= Bohr**1.5
+    wfs_fromcalc = calc.calculation.state.ibzwfs.wfs_qs[k][s]
+    u_G_fromcalc = wfs_fromcalc.psit_nX[bands].data
 
-    gs = WaveFunctionAdapter(calc, world)
-    u_R = gs.get_pseudo_wave_function(ni=3, nf=4, k_ind=2, spin=0)[0]
+    gs = CollinearGSInfo(calc, world)
+    wfs = gs.get_wfs(k, s)
+    _, u_G = gs.get_plane_wave_coefficients(wfs, bands=bands, spin=s)
 
-    assert u_R == pytest.approx(u_R_fromcalc, 1e-10)
+    # Test that adapter outputs expected pseudo-wf coefficients
+    assert u_G == pytest.approx(u_G_fromcalc, 1e-10)

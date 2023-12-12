@@ -18,7 +18,7 @@ from gpaw.response.jdos import JDOSCalculator
 from gpaw.response.symmetry import KPointFinder
 from gpaw.test.response.test_chiks import (generate_system_s,
                                            generate_qrel_q, get_q_c)
-from gpaw.test.conftest import response_band_cutoff
+from gpaw.test.gpwfile import response_band_cutoff
 
 
 @pytest.mark.response

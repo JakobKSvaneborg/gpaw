@@ -6,6 +6,7 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import create_setup
 from gpaw.core import UGDesc
 from gpaw.xc import XC
+from gpaw.new.external_potential import ExternalPotential
 
 
 @pytest.mark.soc
@@ -32,8 +33,12 @@ def test_energy_from_complex_densmat():
                           -1j * (D_ssmm[0, 1] - D_ssmm[1, 0]),
                           D_ssmm[0, 0] - D_ssmm[1, 1]]
 
-    _, energies1 = calculate_non_local_potential1(setup, xc, D_sii,
-                                                  np.zeros(1), soc)
+    def calc_energies(D_sii):
+        _, energies = calculate_non_local_potential1(
+            setup, xc, ExternalPotential(), D_sii, np.zeros(1), soc)
+        return energies
+
+    energies1 = calc_energies(D_sii)
 
     assert energies1['kinetic'] == pytest.approx(0.04340694003, abs=err)
     assert energies1['coulomb'] == pytest.approx(-5.5575386716, abs=err)
@@ -54,8 +59,7 @@ def test_energy_from_complex_densmat():
                           -1j * (D_ssmm[0, 1] - D_ssmm[1, 0]),
                           D_ssmm[0, 0] - D_ssmm[1, 1]]
 
-    _, energies2 = calculate_non_local_potential1(setup, xc, D_sii,
-                                                  np.zeros(1), soc)
+    energies2 = calc_energies(D_sii)
 
     assert energies2['kinetic'] == pytest.approx(energies1['kinetic'], abs=err)
     assert energies2['coulomb'] == pytest.approx(energies1['coulomb'], abs=err)
@@ -65,8 +69,7 @@ def test_energy_from_complex_densmat():
     # Assert that only the kinetic energy changes when the density
     # matrix is forced to be real
 
-    _, energies3 = calculate_non_local_potential1(setup, xc, D_sii.real,
-                                                  np.zeros(1), soc)
+    energies3 = calc_energies(D_sii.real)
 
     assert energies3['kinetic'] == pytest.approx(0.0446930609623, abs=err)
     assert energies3['coulomb'] == pytest.approx(energies1['coulomb'], abs=err)

@@ -3,7 +3,6 @@ from ase import Atoms
 
 from gpaw import GPAW, LCAO
 from gpaw.poisson import FDPoissonSolver
-from gpaw.test import equal
 
 
 @pytest.mark.later  # basis set cutoff??
@@ -23,8 +22,8 @@ def test_lcao_h2o():
     e = mol.get_potential_energy()
     niter = calc.get_number_of_iterations()
 
-    equal(e, -10.271, 2e-3)
-    equal(niter, 8, 1)
+    assert e == pytest.approx(-10.271, abs=2e-3)
+    assert niter == pytest.approx(8, abs=1)
 
     # Check that complex wave functions are allowed with
     # gamma point calculations
@@ -34,4 +33,4 @@ def test_lcao_h2o():
                 poissonsolver=FDPoissonSolver())
     mol.calc = calc
     ec = mol.get_potential_energy()
-    equal(e, ec, 1e-5)
+    assert e == pytest.approx(ec, abs=1e-5)

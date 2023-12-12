@@ -3,7 +3,6 @@ import pytest
 from math import pi
 from gpaw.grid_descriptor import GridDescriptor
 import numpy as np
-from gpaw.test import equal
 from gpaw.xc import XC
 from gpaw.mpi import world
 
@@ -29,7 +28,7 @@ def test_vdw_potential():
         E2 -= xc.calculate(gd, n2, v)
         x2 = E2 / 0.00004
         print(i, x, x2, x - x2, x / x2)
-        equal(x, x2, 2e-11)
+        assert x == pytest.approx(x2, abs=2e-11)
 
     def polarized():
         xc = XC('vdW-DF')
@@ -48,7 +47,7 @@ def test_vdw_potential():
         E2 -= xc.calculate(gd, n2, v)
         x2 = E2 / 0.00004
         print(i, x, x2, x - x2, x / x2)
-        equal(x, x2, 2e-10)
+        assert x == pytest.approx(x2, abs=2e-10)
 
     if world.size == 1:
         polarized()

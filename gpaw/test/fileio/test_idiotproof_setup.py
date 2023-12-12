@@ -1,8 +1,7 @@
 import warnings
-
 import pytest
-from ase.build import molecule
 
+from ase.build import molecule
 from gpaw import GPAW
 
 # Silence those warnings.

@@ -59,12 +59,13 @@ def frequency_distribution(npoles: int,
         return w_grid
 
     ws = wrange[1] - wrange[0]
-    w_grid = semi_homogenous_partition(npoles)**alpha * ws + wrange[0]
+    w_grid = wrange[0] + ws * semi_homogenous_partition(npoles)**alpha
     return w_grid
 
 
 def mpa_frequency_sampling(npoles: int,
-                           w0: tuple[complex, complex],
+                           wrange: tuple[float, float],
+                           varpi: float,
                            eta0: float,
                            eta_rest: float,
                            parallel_lines: int = 2,
@@ -80,10 +81,11 @@ def mpa_frequency_sampling(npoles: int,
     Parameters
     ----------
     npoles : numper of poles (half the number of frequency points)
-    w0   : [w_start, w_end]. An array of two complex numbers defining the
-          sampling range
-    eta0 : damping factor for the first point
-    eta_rest : damping factor for the rest of the points
+    wrange : [w_start, w_end]. An array of two complex numbers defining
+             the sampling range
+    varpi : immaginary part of the second branch
+    eta0 : damping factor for the first point of the first branch
+    eta_rest : damping for the rest of the points of the first branch
     parallel_lines : Either 1 or 2, how many lines there are parallel
                      to the real axis.
     alpha : exponent of the distribution of points along the real axis
@@ -92,24 +94,25 @@ def mpa_frequency_sampling(npoles: int,
     ----------------------------------------------------------------------
                             complex frequency plane
     ----------------------------------------------------------------------
-    |(w0[0].real, w0[0].imag) .. . . . . . .   . (w0[1].real, w0[1].imag)|
+    |     (wrange[0], varpi) ... . . . . .   . (wrange[1], varpi)        |
     |                                                                    |
-    |     (w0[0].real, eta0)  .. . . . . . .   . (w0[1].real, eta_rest)  |
+    |                         .. . . . . .   . (wrange[1], eta_rest)     |
+    |      (wrange[0], eta0) .                                           |
     |____________________________________________________________________|
     """
-    _w0 = np.array(w0)
-    grid_p = frequency_distribution(npoles, _w0.real, alpha)
+    _wrange = np.array(wrange)
+    grid_p = frequency_distribution(npoles, _wrange, alpha)
     grid_w = sampling_branches(grid_p, parallel_lines=parallel_lines,
-                               varpi=w0[0].imag, eta0=eta0, eta_rest=eta_rest)
+                               varpi=varpi, eta0=eta0, eta_rest=eta_rest)
     return grid_w
 
 
 def semi_homogenous_partition(npoles: int) -> Array1D:
     """
     Returns a semi-homogenous partition with n-poles between 0 and 1
-    according to
-       DA Leon, C Cardoso, T Chiarotti, D Varsano, E Molinari, A Ferretti
-       Physical Review B 104 (11), 115157
+    according to Eq. (18) of Ref. [1], and Eq. (11) of Ref. [2]
+    [1] DA. Leon et al, PRB 104, 115157 (2021)
+    [2] DA. Leon et al, PRB 107, 155130 (2023)
     """
     small_cases = {1: np.array([0.0]),
                    2: np.array([0.0, 1.0]),

@@ -3,7 +3,7 @@ from gpaw.mpi import world
 from ase import Atoms
 from gpaw import GPAW, PW
 from gpaw.response.df import DielectricFunction
-from gpaw.test import equal, findpeak
+from gpaw.test import findpeak
 
 # Comparing the EELS spectrum of sodium for different block
 # parallelizations. Intended to be run with 8 cores.
@@ -52,5 +52,5 @@ def test_response_na_plasmons(in_tmp_dir, scalapack):
     w_w = df1.wd.omega_w
     w1, I1 = findpeak(w_w, -(1. / df1LFCx).imag)
     w2, I2 = findpeak(w_w, -(1. / df2LFCx).imag)
-    equal(w1, w2, 1e-2)
-    equal(I1, I2, 1e-3)
+    assert w1 == pytest.approx(w2, abs=1e-2)
+    assert I1 == pytest.approx(I2, abs=1e-3)

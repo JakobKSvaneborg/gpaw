@@ -6,7 +6,7 @@ from ase.build import fcc111
 
 from gpaw.cluster import Cluster
 from gpaw.mpi import world
-from gpaw.test import equal
+import pytest
 
 
 def test_cluster():
@@ -14,21 +14,21 @@ def test_cluster():
     CO = Atoms('CO', [(1, 0, 0), (1, 0, R)])
 
     CO.rotate(90, 'y')
-    equal(CO.positions[1, 0], R, 1e-10)
+    assert CO.positions[1, 0] == pytest.approx(R, abs=1e-10)
 
     # translate
     CO.translate(-CO.get_center_of_mass())
     p = CO.positions.copy()
     for i in range(2):
-        equal(p[i, 1], 0, 1e-10)
-        equal(p[i, 2], 0, 1e-10)
+        assert p[i, 1] == pytest.approx(0, abs=1e-10)
+        assert p[i, 2] == pytest.approx(0, abs=1e-10)
 
     # rotate the nuclear axis to the direction (1,1,1)
     CO.rotate(p[1] - p[0], (1, 1, 1))
     q = CO.positions.copy()
     for c in range(3):
-        equal(q[0, c], p[0, 0] / sqrt(3), 1e-10)
-        equal(q[1, c], p[1, 0] / sqrt(3), 1e-10)
+        assert q[0, c] == pytest.approx(p[0, 0] / sqrt(3), abs=1e-10)
+        assert q[1, c] == pytest.approx(p[1, 0] / sqrt(3), abs=1e-10)
 
     # minimal box
     b = 4.0
@@ -39,7 +39,7 @@ def test_cluster():
         width = 2 * b
         if c == 2:
             width += R
-        equal(cc[c, c], width, 1e-10)
+        assert cc[c, c] == pytest.approx(width, abs=1e-10)
 
     # minimal box, ensure multiple of 4
     h = .13
@@ -51,7 +51,7 @@ def test_cluster():
         for a in CO:
             print(a.symbol, b[c], a.position[c], cc[c, c] - a.position[c])
             assert a.position[c] > b[c]
-        equal(cc[c, c] / h % 4, 0.0, 1e-10)
+        assert cc[c, c] / h % 4 == pytest.approx(0.0, abs=1e-10)
 
     # I/O
     fxyz = 'CO.xyz'

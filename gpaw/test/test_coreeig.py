@@ -2,7 +2,6 @@ import pytest
 from gpaw.mpi import world
 from ase import Atoms
 from gpaw import GPAW, restart
-from gpaw.test import equal
 from gpaw.utilities.kspot import CoreEigenvalues
 
 pytestmark = pytest.mark.skipif(world.size > 1,
@@ -27,4 +26,4 @@ def test_coreeig(in_tmp_dir):
         27.21 < 0.1  # Error smaller than 0.1 eV
 
     energy_tolerance = 0.002
-    equal(e0, -0.0107707223, energy_tolerance)
+    assert e0 == pytest.approx(-0.0107707223, abs=energy_tolerance)

@@ -16,29 +16,31 @@ def get_shift(
         ftol=1e-4, Etol=1e-6,
         band_n=None,
         out_name='shift.npy'):
-    """Calculate RPA shift current for nonmagnetic semiconductors.
+    """
+    Calculate RPA shift current for nonmagnetic semiconductors.
 
     Parameters
-    ==========
-    nlodata:
+    ----------
+    nlodata
         Data object of class NLOData.
-    freqs:
+    freqs
         Excitation frequency array (a numpy array or list).
-    eta:
+    eta
         Broadening, a number or an array (default 0.05 eV).
-    pol:
+    pol
         Tensor element (default 'yyy').
-    Etol, ftol:
+    Etol, ftol
         Tolerance in energy and fermi to consider degeneracy.
-    band_n:
+    band_n
         List of bands in the sum (default 0 to nb).
-    out_name:
+    out_name
         Output filename (default 'shift.npy').
 
     Returns
-    =======
+    -------
     np.ndarray
         Numpy array containing the spectrum and frequencies.
+
     """
 
     # Start a timer

@@ -10,7 +10,6 @@ from ase import Atoms
 
 from gpaw import GPAW
 from gpaw.atom.basis import BasisMaker
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -60,7 +59,7 @@ def test_generic_guc_force():
     # ASE uses dx = [+|-] 0.001 by default,
     # error should be around 2e-3.  In fact 4e-3 would probably be acceptable
 
-    equal(err, 0, 6e-3)
+    assert err == pytest.approx(0, abs=6e-3)
 
     # Set boolean to run new FD check
     fd = False

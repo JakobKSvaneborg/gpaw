@@ -8,10 +8,10 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from sys import version_info, exit
+from sys import version_info
 
-if version_info < (3, 7):
-    raise ValueError('Please use Python-3.7 or later')
+if version_info < (3, 8):
+    raise ValueError('Please use Python-3.8 or later')
 
 # Python version in the venv that we are creating
 version = '3.11'
@@ -26,7 +26,8 @@ nifllogin = ['thul', 'sylg', 'svol', 'surt']
 #  mathchain: Chain with math libraries but no MPI
 #  compchain: Chain with full compiler suite (but no fancy libs)
 #  corechain: Core compiler
-# The subchain complementary to 'mathchain', with MPI but no math libs, is not used here.
+# The subchain complementary to 'mathchain', with MPI but no math libs, is
+# not used here.
 
 _gcccore = 'GCCcore-12.3.0'
 toolchains = {
@@ -89,9 +90,10 @@ cd {venv}/DFTD3
 URL=https://www.chemiebn.uni-bonn.de/pctc/mulliken-center/software/dft-d3
 wget $URL/dftd3.tgz
 tar -xf dftd3.tgz
-ssh {nifllogin[0]} ". {venv}/bin/activate && cd {venv}/DFTD3 && make"
+ssh {nifllogin[0]} ". {venv}/bin/activate && cd {venv}/DFTD3 && make >& d3.log"
 ln -s {venv}/DFTD3/dftd3 {venv}/bin
 """
+
 
 def run(cmd: str, **kwargs) -> subprocess.CompletedProcess:
     print(cmd)
@@ -114,7 +116,10 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path) -> None:
     for path in gpaw.glob('build/temp.linux-x86_64-*'):
         shutil.rmtree(path)
 
-def fix_installed_scripts(venvdir: Path, rootdir: str, pythonroot: str) -> None:
+
+def fix_installed_scripts(venvdir: Path,
+                          rootdir: str,
+                          pythonroot: str) -> None:
     """Fix command line tools so they work in the virtual environment.
 
     Command line tools (pytest, sphinx-build etc) fail in virtual
@@ -137,9 +142,9 @@ def fix_installed_scripts(venvdir: Path, rootdir: str, pythonroot: str) -> None:
     assert pythonroot is not None
     bindir = rootdir / Path('bin')
     print(f'Patching executable scripts from {bindir} to {venvdir}/bin')
-    assert '+' not in str(pythonroot) and '+' not in str(venvdir), 'Script will fail with "+" in folder names!'
+    assert '+' not in str(pythonroot) and '+' not in str(venvdir), (
+        'Script will fail with "+" in folder names!')
     sedscript = f's+{pythonroot}+{venvdir}+g'
-    #print('sed script:', sedscript)
 
     # Loop over potential executables
     for exe in bindir.iterdir():
@@ -161,8 +166,8 @@ def fix_installed_scripts(venvdir: Path, rootdir: str, pythonroot: str) -> None:
                     subprocess.run(
                         f"sed -e '{sedscript}' --in-place '{target}'",
                         shell=True,
-                        check=True
-                    )
+                        check=True)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -180,8 +185,8 @@ def main():
                         'install from pip (may affect performance).')
     args = parser.parse_args()
 
-    #if args.toolchain == 'intel':
-    #    raise ValueError('See: https://gitlab.com/gpaw/gpaw/-/issues/241')
+    # if args.toolchain == 'intel':
+    #     raise ValueError('See: https://gitlab.com/gpaw/gpaw/-/issues/241')
 
     venv = Path(args.venv).absolute()
     activate = venv / 'bin/activate'
@@ -197,8 +202,10 @@ def main():
 
     module_cmds = module_cmds_all.format(**toolchains[args.toolchain])
     if not args.piponly:
-        module_cmds += module_cmds_easybuild.format(**toolchains[args.toolchain])
-    module_cmds += module_cmds_tc[args.toolchain].format(**toolchains[args.toolchain])
+        module_cmds += module_cmds_easybuild.format(
+            **toolchains[args.toolchain])
+    module_cmds += module_cmds_tc[args.toolchain].format(
+        **toolchains[args.toolchain])
 
     cmds = (' && '.join(module_cmds.splitlines()) +
             f' && python3 -m venv --system-site-packages {args.venv}')
@@ -214,14 +221,18 @@ def main():
     # Fix venv so pytest etc work
     pythonroot = None
     for ebrootvar in ('EBROOTPYTHON', 'EBROOTPYTHONMINBUNDLEMINPYPI'):
-        # Note that we need the environment variable from the newly created venv, NOT from this process!
-        comm = run(f'. {activate} && echo ${ebrootvar}', capture_output=True, text=True)
+        # Note that we need the environment variable from the newly
+        # created venv, NOT from this process!
+        comm = run(f'. {activate} && echo ${ebrootvar}',
+                   capture_output=True, text=True)
         ebrootdir = comm.stdout.strip()
         if pythonroot is None:
             # The first module is the actual Python module.
             pythonroot = ebrootdir
-        assert ebrootdir, f'Environment variable {ebrootvar} appears to be unset.'
-        fix_installed_scripts(venvdir=venv, rootdir=ebrootdir, pythonroot=pythonroot)
+        assert ebrootdir, f'Env variable {ebrootvar} appears to be unset.'
+        fix_installed_scripts(venvdir=venv,
+                              rootdir=ebrootdir,
+                              pythonroot=pythonroot)
 
     packages = ['myqueue',
                 'graphviz',
@@ -268,10 +279,11 @@ def main():
         f.symlink_to(t)
 
     # Create .pth file to load correct .so file:
-    pth = ('import sys, os; '
-           'arch = os.environ["CPU_ARCH"]; '
-           f"path = f'{venv}/gpaw/build/lib.linux-x86_64-{{arch}}-{fversion}'; "
-           'sys.path.append(path)\n')
+    pth = (
+        'import sys, os; '
+        'arch = os.environ["CPU_ARCH"]; '
+        f"path = f'{venv}/gpaw/build/lib.linux-x86_64-{{arch}}-{fversion}'; "
+        'sys.path.append(path)\n')
     Path(f'lib/python{version}/site-packages/niflheim.pth').write_text(pth)
 
     # Install extra basis-functions:

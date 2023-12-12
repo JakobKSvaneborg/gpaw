@@ -5,6 +5,7 @@ from scipy.optimize import leastsq
 
 from ase.units import Ha
 import gpaw.mpi as mpi
+from gpaw.response.integrators import Domain
 from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.pair import KPointPairFactory, get_gs_and_context
 
@@ -25,7 +26,6 @@ def check_degenerate_bands(filename, etol):
             if (f_kn[k, n - 1] - f_kn[k, n] > 1e-5)\
                and (np.abs(e_kn[k, n] - e_kn[k, n - 1]) < etol):
                 print(k, n, e_kn[k, n], e_kn[k, n - 1])
-    return
 
 
 def get_orbitals(calc):
@@ -68,32 +68,25 @@ def get_bz_transitions(filename, q_c, bzk_kc,
         for spin in spins:
             assert spin in range(kptpair_factory.gs.nspins)
 
-    domain_dl = (bzk_kv, spins)
-    domainsize_d = [len(domain_l) for domain_l in domain_dl]
-    nterms = np.prod(domainsize_d)
-    domainarg_td = []
-    for t in range(nterms):
-        unravelled_d = np.unravel_index(t, domainsize_d)
-        arg = []
-        for domain_l, index in zip(domain_dl, unravelled_d):
-            arg.append(domain_l[index])
-        domainarg_td.append(tuple(arg))
-
-    return kptpair_factory, qpd, domainarg_td
+    domain = Domain(bzk_kv, spins)
+    return kptpair_factory, qpd, domain
 
 
-def get_chi0_integrand(kptpair_factory, qpd, n_n, m_m, k_v, s):
+def get_chi0_integrand(kptpair_factory, qpd, n_n, m_m, point):
     """
     Calculates the pair densities, occupational differences
     and energy differences of transitions from certain kpoint
     and spin.
     """
+
+    k_v = point.kpt_c
     optical_limit = qpd.optical_limit
     k_c = np.dot(qpd.gd.cell_cv, k_v) / (2 * np.pi)
+    K = kptpair_factory.gs.kpoints.kptfinder.find(k_c)
 
     pair_calc = kptpair_factory.pair_calculator()
     kptpair = kptpair_factory.get_kpoint_pair(
-        qpd, s, k_c, n_n[0], n_n[-1] + 1,
+        qpd, point.spin, K, n_n[0], n_n[-1] + 1,
         m_m[0], m_m[-1] + 1)
 
     pairden_paw_corr = pair_calc.gs.pair_density_paw_corrections

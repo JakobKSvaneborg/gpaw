@@ -2,7 +2,6 @@ import pytest
 from ase import Atoms
 from gpaw import GPAW, PW
 from gpaw.mpi import serial_comm
-from gpaw.test import equal
 
 
 @pytest.mark.response
@@ -25,5 +24,5 @@ def test_rpa_C6_He():
     C6_rpa, C6_0 = rpa.get_C6_coefficient(ecut=ecut,
                                           direction=2)
 
-    equal(C6_0, 1.772, 0.01)
-    equal(C6_rpa, 1.387, 0.01)
+    assert C6_0 == pytest.approx(1.772, abs=0.01)
+    assert C6_rpa == pytest.approx(1.387, abs=0.01)

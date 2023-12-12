@@ -142,10 +142,12 @@ def build_gpu(gpu_compiler, gpu_compile_args, gpu_include_dirs,
 
     # Glob all kernel files, but remove those included by other kernels
     kernels = sorted(kernels_dpath.glob('*.cpp'))
-    for name in ['lfc-reduce.cpp',
+    for name in ['interpolate-stencil.cpp',
+                 'lfc-reduce.cpp',
                  'lfc-reduce-kernel.cpp',
                  'reduce.cpp',
-                 'reduce-kernel.cpp']:
+                 'reduce-kernel.cpp',
+                 'restrict-stencil.cpp']:
         kernels.remove(kernels_dpath / name)
 
     # Compile GPU kernels

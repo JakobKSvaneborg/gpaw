@@ -1,7 +1,6 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW, Mixer, Davidson
-from gpaw.test import equal
 
 # ??? g = Generator('H', 'TPSS', scalarrel=True, nofiles=True)
 
@@ -41,9 +40,9 @@ def test_mgga_nsc_MGGA(in_tmp_dir):
     print('revtpss = ', e1 + de12r)
     print('================')
 
-    equal(e1 + de12t, -1.11723235592, 0.005)
-    equal(e1 + de12m, -1.18207312133, 0.005)
-    equal(e1 + de12r, -1.10093196353, 0.005)
+    assert e1 + de12t == pytest.approx(-1.11723235592, abs=0.005)
+    assert e1 + de12m == pytest.approx(-1.18207312133, abs=0.005)
+    assert e1 + de12r == pytest.approx(-1.10093196353, abs=0.005)
 
     # ??? g = Generator('He', 'TPSS', scalarrel=True, nofiles=True)
 
@@ -67,10 +66,10 @@ def test_mgga_nsc_MGGA(in_tmp_dir):
     print('revtpss = ', e1He + de12rHe)
     print('================')
 
-    equal(e1He + de12tHe, -0.409972893501, 0.005)
-    equal(e1He + de12mHe, -0.487249688866, 0.005)
-    equal(e1He + de12rHe, -0.447232286813, 0.005)
+    assert e1He + de12tHe == pytest.approx(-0.409972893501, abs=0.005)
+    assert e1He + de12mHe == pytest.approx(-0.487249688866, abs=0.005)
+    assert e1He + de12rHe == pytest.approx(-0.447232286813, abs=0.005)
 
     energy_tolerance = 0.001
-    equal(e1, -1.124, energy_tolerance)
-    equal(e1He, 0.0100192, energy_tolerance)
+    assert e1 == pytest.approx(-1.124, abs=energy_tolerance)
+    assert e1He == pytest.approx(0.0100192, abs=energy_tolerance)

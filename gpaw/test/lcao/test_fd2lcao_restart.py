@@ -5,7 +5,6 @@ import pytest
 from ase import Atom, Atoms
 
 from gpaw import GPAW, FermiDirac, restart
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -35,7 +34,7 @@ def test_lcao_fd2lcao_restart(in_tmp_dir):
         calc.write('Na4_fd.gpw')
         del atoms, calc
 
-        equal(etot_fd, -1.99055, energy_tolerance)
+        assert etot_fd == pytest.approx(-1.99055, abs=energy_tolerance)
 
     if os.path.isfile('Na4_fd.gpw'):
         # LCAO calculation based on grid kpts calculation
@@ -48,4 +47,4 @@ def test_lcao_fd2lcao_restart(in_tmp_dir):
         calc.write('Na4_lcao.gpw')
         del atoms, calc
 
-        equal(etot_lcao, -1.9616, energy_tolerance)
+        assert etot_lcao == pytest.approx(-1.9616, abs=energy_tolerance)

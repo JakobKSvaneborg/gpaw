@@ -315,8 +315,8 @@ class PAWSetupGenerator:
 
         self.fd = fd or sys.stdout
         self.yukawa_gamma = yukawa_gamma
-        self.exxcc_w: dict[float, float] = {}
-        self.exxcv_wii: dict[float, Array2D] = {}
+        self.exxcc_w: Dict[float, float] = {}
+        self.exxcv_wii: Dict[float, Array2D] = {}
         self.omega = omega
         self.ecut = ecut
 
@@ -647,7 +647,10 @@ class PAWSetupGenerator:
             waves.calculate_kinetic_energy_correction(self.aea.vr_sg[0],
                                                       self.vtr_g)
 
-    def check_all(self):
+    def check_all(self,
+                  tol: float = 0.05  # eV
+                  ) -> bool:
+        tol /= Ha
         self.log(('Checking eigenvalues of %s pseudo atom using ' +
                   'a Gaussian basis set:') % self.aea.symbol)
         self.log('                 AE [eV]        PS [eV]      error [eV]')
@@ -684,13 +687,13 @@ class PAWSetupGenerator:
                         self.log()
 
                 errors = abs(e_b[:nae - n0] - e0_b[n0:nae])
-                if (errors > 2e-3).any():
+                if (errors > tol).any():
                     self.log('Error in bound %s-states!' % 'spdf'[l])
                     ok = False
                 errors = abs(e_b[nae - n0:nae - n0 + extra] -
                              e0_b[nae:nae + extra])
                 if (not self.aea.scalar_relativistic and
-                    (errors > 2e-2).any()):
+                    (errors > 10 * tol).any()):
                     self.log('Error in %s-states!' % 'spdf'[l])
                     ok = False
 

@@ -25,8 +25,8 @@ def test_gpu(dtype, gpu, mode):
         h = None
     dft = DFTCalculation.from_parameters(
         atoms,
-        dict(mode={'name': mode},
-             dtype=dtype,
+        dict(mode={'name': mode,
+                   'force_complex_dtype': dtype == complex},
              poissonsolver=poisson,
              h=h,
              convergence={'density': 1e-8},
@@ -58,6 +58,9 @@ def test_gpu_k(gpu, par, mode, xc):
             pytest.skip('???')
         if mode == 'pw' and par in ['kpt', 'band'] and xc == 'PBE':
             pytest.skip('???')
+
+    if size == 1 and par in ['kpt', 'band']:
+        pytest.skip('Not testing parallelization on single core')
 
     atoms = Atoms('H', pbc=True, cell=[1, 1.1, 1.1])
     if mode == 'fd':

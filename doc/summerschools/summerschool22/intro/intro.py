@@ -220,8 +220,10 @@ print(d)
 
 # %%
 # Random Hermitian matrix
-rand = np.random.rand
-H = rand(6, 6) + 1j * rand(6, 6)  # 1j = sqrt(-1)
+seed = 12345678
+rng = np.random.default_rng(seed)
+rand = rng.random
+H = rand((6, 6)) + 1j * rand((6, 6))  # 1j = sqrt(-1)
 H = H + H.T.conj()
 
 # Eigenvalues and eigenvectors

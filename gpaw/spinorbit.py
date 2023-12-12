@@ -226,8 +226,8 @@ class BZWaveFunctions:
             e_band = 0.0
 
         if self.domain_comm.rank == 0:
-            e_band = self.bcomm.sum(e_band)
-        e_band = self.domain_comm.sum(e_band)
+            e_band = self.bcomm.sum_scalar(e_band)
+        e_band = self.domain_comm.sum_scalar(e_band)
         return e_band
 
     def __iter__(self):

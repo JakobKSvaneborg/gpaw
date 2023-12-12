@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-
-from ase.utils import lazyproperty
+from functools import cached_property
 
 from gpaw.projections import Projections, serial_comm
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
@@ -25,7 +24,7 @@ class IrreducibleKPoint:
         self.psit_hG = psit_hG   # Pseudo wave function plane-wave components
         self.h_myt = h_myt       # myt -> h index mapping
 
-    @lazyproperty
+    @cached_property
     def nh(self):
         nh = len(self.eps_h)
         assert len(self.f_h) == nh

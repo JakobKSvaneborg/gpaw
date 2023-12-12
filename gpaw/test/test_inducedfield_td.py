@@ -7,18 +7,6 @@ from gpaw.tddft import TDDFT, DipoleMomentWriter
 from gpaw.inducedfield.inducedfield_base import BaseInducedField
 from gpaw.inducedfield.inducedfield_tddft import TDDFTInducedField
 from gpaw.poisson import PoissonSolver
-from gpaw.test import equal
-
-
-do_print_values = False  # Use this for printing the reference values
-
-if do_print_values:
-    i = 1
-
-    def equal(x, y, tol):  # noqa
-        global i
-        print("equal(val%d, %20.12f, tol)" % (i, x))
-        i += 1
 
 
 @pytest.mark.later
@@ -106,8 +94,7 @@ def test_inducedfield_td(in_tmp_dir):
     tol = (iterations * ind.fieldgd.integrate(ind.fieldgd.zeros() + 1.0) *
            max(density_eps, np.sqrt(poisson_eps)))
     # tol = 0.038905993684
-    if do_print_values:
-        print('tol = %.12f' % tol)
+    # print('tol = %.12f' % tol)
 
     # Test
     val1 = ind.fieldgd.integrate(ind.Ffe_wg[0])
@@ -119,11 +106,11 @@ def test_inducedfield_td(in_tmp_dir):
     val7 = ind.fieldgd.integrate(np.abs(ind.Fef_wvg[1][1]))
     val8 = ind.fieldgd.integrate(np.abs(ind.Fef_wvg[1][2]))
 
-    equal(val1, 1926.232999117403, tol)
-    equal(val2, 0.427606450419, tol)
-    equal(val3, 0.565823985683, tol)
-    equal(val4, 0.372493489423, tol)
-    equal(val5, 1945.618902611449, tol)
-    equal(val6, 0.423899965987, tol)
-    equal(val7, 0.560882533828, tol)
-    equal(val8, 0.369203021329, tol)
+    assert val1 == pytest.approx(1926.232999117403, abs=tol)
+    assert val2 == pytest.approx(0.427606450419, abs=tol)
+    assert val3 == pytest.approx(0.565823985683, abs=tol)
+    assert val4 == pytest.approx(0.372493489423, abs=tol)
+    assert val5 == pytest.approx(1945.618902611449, abs=tol)
+    assert val6 == pytest.approx(0.423899965987, abs=tol)
+    assert val7 == pytest.approx(0.560882533828, abs=tol)
+    assert val8 == pytest.approx(0.369203021329, abs=tol)

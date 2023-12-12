@@ -2,7 +2,6 @@
 # teacher
 import ase.visualize as viz
 viz.view = lambda atoms, repeat=None: None
-
 # %%
 """
 # Battery Project
@@ -30,7 +29,7 @@ from ase import Atom
 from ase.visualize import view
 import matplotlib.pyplot as plt
 from ase.io import read, write
-from ase.neb import NEB
+from ase.mep import NEB
 from ase.optimize import BFGS
 from ase.parallel import paropen
 from gpaw import GPAW, FermiDirac, Mixer, PW
@@ -40,7 +39,6 @@ from ase.constraints import FixAtoms
 """
 ## Transport barrier of Li in graphite
 """
-
 # %%
 """
 You will now calculate the energy barrier for Li diffusion in the graphite anode. You will do this using the [Nudged Elastic Band (NEB) method](https://wiki.fysik.dtu.dk/ase/ase/neb.html#module-ase.neb)
@@ -161,7 +159,7 @@ Submit the calculation to the HPC cluster. Do this by first building a complete 
 
 # %%
 #from ase.io import read, write
-#from ase.neb import NEB
+#from ase.mep import NEB
 #from ase.optimize import BFGS
 #from ase.parallel import paropen
 #from gpaw import GPAW, FermiDirac, Mixer, PW
@@ -178,7 +176,7 @@ Submit the calculation to the HPC cluster. Do this by first building a complete 
 
 # teacher
 from ase.io import read, write
-from ase.neb import NEB
+from ase.mep import NEB
 from ase.optimize import BFGS
 from ase.parallel import paropen
 from gpaw import GPAW, FermiDirac, Mixer, PW

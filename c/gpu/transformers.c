@@ -13,6 +13,7 @@
 #include "gpu.h"
 
 static double *transformer_buf_gpu = NULL;
+static double *transformer_buf16_gpu = NULL;
 static int transformer_buf_size = 0;
 static int transformer_init_count = 0;
 
@@ -38,6 +39,9 @@ void transformer_init_buffers(TransformerObject *self, int blocks)
         gpuFree(transformer_buf_gpu);
         gpuCheckLastError();
         gpuMalloc(&transformer_buf_gpu, sizeof(double) * ng2);
+        gpuFree(transformer_buf16_gpu);
+        gpuCheckLastError();
+        gpuMalloc(&transformer_buf16_gpu, sizeof(double) * ng2 * 16);
         transformer_buf_size = ng2;
     }
 }
@@ -48,6 +52,7 @@ void transformer_init_buffers(TransformerObject *self, int blocks)
 void transformer_init_buffers_gpu()
 {
     transformer_buf_gpu = NULL;
+    transformer_buf16_gpu = NULL;
     transformer_buf_size = 0;
     transformer_init_count = 0;
 }
@@ -80,7 +85,7 @@ void transformer_dealloc_gpu(int force)
 static void _transformer_apply_gpu(TransformerObject* self,
                                    const double *in, double *out,
                                    int nin, int blocks, bool real,
-                                   const double_complex *ph)
+                                   const double_complex *ph, bool stencil)
 {
     boundary_conditions* bc = self->bc;
     const int* size1 = bc->size1;
@@ -98,6 +103,12 @@ static void _transformer_apply_gpu(TransformerObject* self,
     transformer_init_buffers(self, blocks);
 
     double* buf = transformer_buf_gpu;
+    double* buf16 = transformer_buf16_gpu;
+
+    /* use stencil version, if no optimised kernel available */
+    if (self->k != 2) {
+        stencil = 1;
+    }
 
     for (int n = 0; n < nin; n += blocks) {
         const double* in2 = in + n * ng;
@@ -110,27 +121,60 @@ static void _transformer_apply_gpu(TransformerObject* self,
                           ph + 2 * i, 0, myblocks);
         }
         if (self->interpolate) {
-            if (real) {
-                bmgs_interpolate_gpu(self->k, self->skip, buf,
-                                     bc->size2, out2, self->size_out,
-                                     myblocks);
+            if (stencil) {
+                if (real) {
+                    bmgs_interpolate_stencil_gpu(self->k, self->skip, buf,
+                                                 bc->size2, out2,
+                                                 self->size_out, buf16,
+                                                 myblocks);
+                } else {
+                    bmgs_interpolate_stencil_gpuz(self->k, self->skip,
+                                                  (gpuDoubleComplex*) (buf),
+                                                  bc->size2,
+                                                  (gpuDoubleComplex*) (out2),
+                                                  self->size_out,
+                                                  (gpuDoubleComplex*) (buf16),
+                                                  myblocks);
+                }
             } else {
-                bmgs_interpolate_gpuz(self->k, self->skip,
-                                      (gpuDoubleComplex*) (buf),
-                                      bc->size2,
-                                      (gpuDoubleComplex*) (out2),
-                                      self->size_out, myblocks);
+                if (real) {
+                    bmgs_interpolate_gpu(self->k, self->skip, buf,
+                                         bc->size2, out2, self->size_out,
+                                         myblocks);
+                } else {
+                    bmgs_interpolate_gpuz(self->k, self->skip,
+                                          (gpuDoubleComplex*) (buf),
+                                          bc->size2,
+                                          (gpuDoubleComplex*) (out2),
+                                          self->size_out, myblocks);
+                }
             }
         } else {
-            if (real) {
-                bmgs_restrict_gpu(self->k, buf, bc->size2,
-                                       out2, self->size_out, myblocks);
+            if (stencil) {
+                if (real) {
+                    bmgs_restrict_stencil_gpu(self->k, buf, bc->size2,
+                                              out2, self->size_out, buf16,
+                                              myblocks);
+                } else {
+                    bmgs_restrict_stencil_gpuz(self->k,
+                                               (gpuDoubleComplex*) (buf),
+                                               bc->size2,
+                                               (gpuDoubleComplex*) (out2),
+                                               self->size_out,
+                                               (gpuDoubleComplex*) (buf16),
+                                               myblocks);
+                }
             } else {
-                bmgs_restrict_gpuz(self->k,
-                                   (gpuDoubleComplex*) (buf),
-                                   bc->size2,
-                                   (gpuDoubleComplex*) (out2),
-                                   self->size_out, myblocks);
+                if (real) {
+                    bmgs_restrict_gpu(self->k, buf, bc->size2,
+                                      out2, self->size_out, myblocks);
+                } else {
+                    bmgs_restrict_gpuz(self->k,
+                                       (gpuDoubleComplex*) (buf),
+                                       bc->size2,
+                                       (gpuDoubleComplex*) (out2),
+                                       self->size_out, myblocks);
+                }
             }
         }
     }
@@ -146,6 +190,7 @@ static void _transformer_apply_gpu(TransformerObject* self,
  *   shape      -- shape of the array (tuple)
  *   type       -- datatype of array elements
  *   phases     -- phase (complex) (ignored if type is NPY_DOUBLE)
+ *   stencil    -- use stencil version of interpolate functions
  */
 PyObject* Transformer_apply_gpu(TransformerObject *self, PyObject *args)
 {
@@ -154,9 +199,10 @@ PyObject* Transformer_apply_gpu(TransformerObject *self, PyObject *args)
     void *output_gpu;
     PyObject *shape;
     PyArray_Descr *type;
+    int stencil = 0;
 
-    if (!PyArg_ParseTuple(args, "nnOO|O", &input_gpu, &output_gpu, &shape,
-                          &type, &phases))
+    if (!PyArg_ParseTuple(args, "nnOO|Oi", &input_gpu, &output_gpu, &shape,
+                          &type, &phases, &stencil))
         return NULL;
 
     int nin = 1;
@@ -177,7 +223,7 @@ PyObject* Transformer_apply_gpu(TransformerObject *self, PyObject *args)
     int blocks = MAX(1, MIN(nin, MIN((GPU_BLOCKS_MIN) * mpi_size,
                                      (GPU_BLOCKS_MAX) / bc->ndouble)));
 
-    _transformer_apply_gpu(self, in, out, nin, blocks, real, ph);
+    _transformer_apply_gpu(self, in, out, nin, blocks, real, ph, stencil);
 
     if (PyErr_Occurred())
         return NULL;

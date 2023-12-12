@@ -4,7 +4,7 @@ import pytest
 from ase import Atom, Atoms
 
 from gpaw import GPAW, Davidson, Mixer, PoissonSolver
-from gpaw.test import equal, gen
+from gpaw.test import gen
 
 
 @pytest.mark.later
@@ -40,4 +40,4 @@ def test_corehole_h2o_recursion(in_tmp_dir):
 
     print(e, niter)
     energy_tolerance = 0.002
-    equal(e, -17.980, energy_tolerance)
+    assert e == pytest.approx(-17.980, abs=energy_tolerance)

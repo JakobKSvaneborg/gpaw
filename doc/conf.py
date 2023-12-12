@@ -9,7 +9,7 @@ try:
 except ImportError:
     sphinxcontrib = None
 
-assert sys.version_info >= (3, 6)
+assert sys.version_info >= (3, 8)
 
 sys.path.append('.')
 
@@ -71,6 +71,7 @@ nitpick_ignore = [('py:class', 'gpaw.calculator.GPAW'),
                   ('py:class', 'Array2D'),
                   ('py:class', 'Array3D'),
                   ('py:class', 'MPIComm'),
+                  ('py:class', 'NLOData'),
                   ('py:class', 'numpy._typing._dtype_like._SupportsDType'),
                   ('py:class', 'numpy._typing._dtype_like._DTypeDict'),
                   ('py:class', 'DTypeLike'),

@@ -1,4 +1,4 @@
-from gpaw.test import equal
+import pytest
 from gpaw.cluster import Cluster
 from ase.build import molecule
 from ase.units import Pascal, m
@@ -65,8 +65,8 @@ def test_solvation_spinpol():
 
     # compare to expected difference of a gas phase calc
     print('difference E: ', Es[0] - Es[1])
-    equal(Es[0], Es[1], 0.0002)
+    assert Es[0] == pytest.approx(Es[1], abs=0.0002)
     print('difference F: ', np.abs(Fs[0] - Fs[1]).max())
-    equal(Fs[0], Fs[1], 0.003)
+    assert Fs[0] == pytest.approx(Fs[1], abs=0.003)
 
     # XXX add test case where spin matters, e.g. charge=0 for CN?

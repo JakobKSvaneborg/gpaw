@@ -3,7 +3,7 @@ import pytest
 from ase import Atoms
 from gpaw import GPAW, PW
 from gpaw.response.df import DielectricFunction
-from gpaw.test import findpeak, equal
+from gpaw.test import findpeak
 import numpy as np
 
 
@@ -46,7 +46,7 @@ def test_hyd_chain_response(in_tmp_dir):
 
         # Test for consistency
         if not np.isnan(opeak_old):
-            equal(opeak, opeak_old, tolerance=1e-3)
-            equal(peak, peak_old, tolerance=1e-3)
+            assert opeak == pytest.approx(opeak_old, abs=1e-3)
+            assert peak == pytest.approx(peak_old, abs=1e-3)
         opeak_old = opeak
         peak_old = peak

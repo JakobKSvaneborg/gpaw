@@ -8,7 +8,6 @@ from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.pw.descriptor import PWDescriptor
 from gpaw.pw.lfc import PWLFC
 from gpaw.spline import Spline
-from gpaw.test import equal
 
 
 @pytest.mark.ci
@@ -50,7 +49,7 @@ def test_pw_lfc():
             lfc.add(b, c_axi, 0)
 
         b2 = pd.ifft(b2[0]) * eikr
-        equal(abs(b2 - b1[0]).max(), 0, 0.001)
+        assert abs(b2 - b1[0]).max() == pytest.approx(0, abs=0.001)
 
         b1 = eikr[None]
         b2 = pd.fft(b1[0] * 0 + 1).reshape((1, -1))
@@ -62,5 +61,5 @@ def test_pw_lfc():
             results.append(c_axi[0][0].copy())
             lfc.derivative(b, c_axiv, 0)
             results2.append(c_axiv[0][0].copy())
-        equal(abs(np.ptp(results2, 0)).max(), 0, 1e-7)
-        equal(abs(np.ptp(results, 0)).max(), 0, 3e-8)
+        assert abs(np.ptp(results2, 0)).max() == pytest.approx(0, abs=1e-7)
+        assert abs(np.ptp(results, 0)).max() == pytest.approx(0, abs=3e-8)

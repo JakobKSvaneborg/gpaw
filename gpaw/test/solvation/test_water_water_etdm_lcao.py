@@ -1,6 +1,6 @@
 from gpaw import GPAW
 from gpaw.cluster import Cluster
-from gpaw.test import equal
+import pytest
 from ase.build import molecule
 from ase.units import mol, kcal
 from gpaw.directmin.etdm_lcao import LCAOETDM
@@ -48,5 +48,5 @@ def test_solvation_water_water_etdm_lcao():
     DGSol = (Ewater - Evac) / (kcal / mol)
     print('Delta Gsol: %s kcal / mol' % DGSol)
 
-    equal(DGSol, -6.3, 2.)
-    equal(Ewater, Eelwater + Esurfwater, 1e-14)
+    assert DGSol == pytest.approx(-6.3, abs=2.)
+    assert Ewater == pytest.approx(Eelwater + Esurfwater, abs=1e-14)

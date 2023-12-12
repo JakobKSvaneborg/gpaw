@@ -1,5 +1,5 @@
 import pytest
-from gpaw.broadcast_imports import broadcast_imports
+from gpaw._broadcast_imports import broadcast_imports
 
 # These tests would be better if we could find a way to call them
 # without first executing gpaw.__init__ (e.g. with pytest-forked or

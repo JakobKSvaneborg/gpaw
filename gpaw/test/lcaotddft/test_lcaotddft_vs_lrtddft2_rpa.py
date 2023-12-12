@@ -7,7 +7,6 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lrtddft2 import LrTDDFT2
 from gpaw.mpi import world
 from gpaw.tddft.spectrum import photoabsorption_spectrum
-from gpaw.test import equal
 
 
 @pytest.mark.rttddft
@@ -52,4 +51,4 @@ def test_lcaotddft_lcaotddft_vs_lrtddft2_rpa(in_tmp_dir):
 
     # One can decrease the tolerance by decreasing the time step
     # and other parameters
-    equal(data1_e, data2_e, 0.01)
+    assert data1_e == pytest.approx(data2_e, abs=0.01)

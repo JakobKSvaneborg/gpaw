@@ -1,7 +1,6 @@
 import pytest
 from ase import Atom, Atoms
 from gpaw import GPAW, Davidson, Mixer
-from gpaw.test import equal
 from gpaw.xc.hybrid import HybridXC
 
 
@@ -63,12 +62,12 @@ def test_xc_atomize(in_tmp_dir, gpaw_new):
     # TPSS value is from JCP 120 (15) 6898, 2004
     # e.g. Table VII: DE(PBE - TPSS) = (104.6-112.9)*kcal/mol
     # EXX value is from PRL 77, 3865 (1996)
-    equal(PBETPSSdifference, -0.3599, 0.04)
-    equal(PBEM06Ldifference, -0.169, 0.01)
+    assert PBETPSSdifference == pytest.approx(-0.3599, abs=0.04)
+    assert PBEM06Ldifference == pytest.approx(-0.169, abs=0.01)
 
     energy_tolerance = 0.002
-    equal(e1, -1.081638, energy_tolerance)
-    equal(e2, -6.726356, energy_tolerance)
+    assert e1 == pytest.approx(-1.081638, abs=energy_tolerance)
+    assert e2 == pytest.approx(-6.726356, abs=energy_tolerance)
 
     if not gpaw_new:
         de2x = molecule.calc.get_xc_difference(
@@ -84,5 +83,5 @@ def test_xc_atomize(in_tmp_dir, gpaw_new):
         PBEEXXbdifference = (2 * e1 - e2) - (2 * (e1 + de1xb) - (e2 + de2xb))
         print(PBEEXXdifference)
         print(PBEEXXbdifference)
-        equal(PBEEXXdifference, 0.91, 0.005)
-        equal(PBEEXXbdifference, 0.91, 0.005)
+        assert PBEEXXdifference == pytest.approx(0.91, abs=0.005)
+        assert PBEEXXbdifference == pytest.approx(0.91, abs=0.005)

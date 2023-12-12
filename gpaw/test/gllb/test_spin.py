@@ -2,7 +2,6 @@ import pytest
 from ase.build import bulk
 
 from gpaw import GPAW, FermiDirac
-from gpaw.test import equal
 
 
 @pytest.mark.gllb
@@ -39,5 +38,5 @@ def test_gllb_spin():
             Gap = Eks + Dxc
             print("GAP", spin, Gap)
 
-    equal(Gapa, Gapb, 1e-4)
-    equal(Gapa, Gap, 1e-4)
+    assert Gapa == pytest.approx(Gapb, abs=1e-4)
+    assert Gapa == pytest.approx(Gap, abs=1e-4)

@@ -77,8 +77,10 @@ def test_indices():
     #       stuff.
 
     # case 2: gives some random indices
-    indices = np.random.randint(0, len(atoms),
-                                np.random.randint(0, len(atoms) - 1))
+    seed = 123456
+    rng = np.random.default_rng(seed)
+    indices = rng.integers(0, len(atoms),
+                           rng.integers(0, len(atoms) - 1))
     _supercell_indices(atoms, indices)
     _gmatrix_indices(atoms, indices)
     # TODO: Supercell.calculate_gradient()? Would need fake cache.

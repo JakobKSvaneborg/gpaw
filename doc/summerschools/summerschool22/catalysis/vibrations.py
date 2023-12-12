@@ -224,7 +224,7 @@ e) To make sure that your NEB is converged you should also calculate the
 # %%
 # teacher:
 from ase.optimize import BFGS
-from ase.neb import NEB
+from ase.mep import NEB
 from ase.io import Trajectory
 
 initial = read('N2Ru.traj')

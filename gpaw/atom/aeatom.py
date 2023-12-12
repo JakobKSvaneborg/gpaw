@@ -5,11 +5,11 @@ from math import pi
 import numpy as np
 from numpy.linalg import eigh
 from scipy.special import gamma
-# from scipy.linalg import solve_banded
 import ase.units as units
 from ase.data import atomic_numbers, atomic_names, chemical_symbols
 from ase.utils import seterr
 
+import _gpaw
 from gpaw.xc import XC
 from gpaw.gaunt import gaunt
 from gpaw.atom.configurations import configurations
@@ -257,18 +257,26 @@ class Channel:
                 a0 = pt_g[1] / r_g[1]**l / (vr_g[1] / r_g[1] - e)
             a1 = a0
 
-        u_g[0] = 0.0
-        g = 1
-        agm1 = a0
-        ag = a1
-        while True:
-            u_g[g] = ag * r_g[g]**(l + x)
-            agp1 = -(agm1 * cm1_g[g] + ag * c0_g[g] + b_g[g]) / cp1_g[g]
-            if g == g0:
-                break
-            g += 1
-            agm1 = ag
-            ag = agp1
+        if 0:
+            u_g[0] = 0.0
+            g = 1
+            agm1 = a0
+            ag = a1
+            while True:
+                u_g[g] = ag * r_g[g]**(l + x)
+                agp1 = -(agm1 * cm1_g[g] + ag * c0_g[g] + b_g[g]) / cp1_g[g]
+                if g == g0:
+                    break
+                g += 1
+                agm1 = ag
+                ag = agp1
+        else:
+            a_g = np.zeros_like(u_g)
+            a_g[:2] = (a0, a1)
+            _gpaw.integrate_outwards(g0, cm1_g, c0_g, cp1_g, b_g, a_g)
+            u_g[:g0 + 1] = a_g[:g0 + 1] * r_g[:g0 + 1]**(l + x)
+            g = g0
+            agm1, ag, agp1 = a_g[g - 1:g + 2]
 
         r = r_g[g0]
         dr = rgd.dr_g[g0]
@@ -305,19 +313,28 @@ class Channel:
             except FloatingPointError:
                 ag = 2e50
 
-        while True:
-            u_g[g] = ag * r_g[g]**(l + x)
-            if ag > 1e50:
-                u_g[g:] /= 1e50
-                ag = ag / 1e50
-                agp1 = agp1 / 1e50
-            agm1 = agp1 * cp1_g[g] + ag * c0_g[g]
-            if g == g0:
-                break
-            g -= 1
-            agp1 = ag
-            ag = agm1
+        if 0:
+            while True:
+                u_g[g] = ag * r_g[g]**(l + x)
+                if ag > 1e50:
+                    u_g[g:] /= 1e50
+                    ag = ag / 1e50
+                    agp1 = agp1 / 1e50
+                agm1 = agp1 * cp1_g[g] + ag * c0_g[g]
+                if g == g0:
+                    break
+                g -= 1
+                agp1 = ag
+                ag = agm1
+        else:
+            a_g = np.zeros_like(u_g)
+            a_g[g:g + 2] = (ag, agp1)
+            _gpaw.integrate_inwards(g, g0, c0_g, cp1_g, a_g)
+            u_g[g0:g + 2] = a_g[g0:g + 2] * r_g[g0:g + 2]**(l + x)
+            g = g0
+            agm1, ag, agp1 = a_g[g - 1:g + 2]
 
+        # print(agm1, ag, agp1, u_g[g - 1:]);asdfg
         r = r_g[g]
         dr = rgd.dr_g[g]
         da = 0.5 * (agp1 - agm1)
@@ -683,9 +700,10 @@ class AllElectronAtom:
                          self.ekin + self.eH + self.eZ + self.exc)]:
             self.log(f' {text} {e:+13.6f}  {units.Hartree * e:+13.5f}')
 
-        self.calculate_exx()
-        self.log('\nExact exchange energy: %.6f Hartree, %.5f eV' %
-                 (self.exx, self.exx * units.Hartree))
+        if not self.dirac:
+            self.calculate_exx()
+            self.log(f'\nExact exchange energy: {self.exx:.6f} Hartree, '
+                     f'{self.exx * units.Hartree:.5f} eV')
 
     def get_channel(self, l=None, s=0, k=None):
         if self.dirac:

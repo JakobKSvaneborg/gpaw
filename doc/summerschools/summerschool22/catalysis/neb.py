@@ -26,7 +26,7 @@ from ase.constraints import FixAtoms
 from ase.calculators.emt import EMT
 from ase.optimize import BFGS
 from ase.visualize import view
-from ase.neb import NEB
+from ase.mep import NEB
 from ase.io import read
 
 # %%
@@ -126,7 +126,7 @@ e.g.:
 """
 
 # %%
-from ase.neb import NEBTools
+from ase.mep import NEBTools
 
 images = read('neb.traj@-5:')
 

@@ -1,7 +1,7 @@
 from ase import Atom, Atoms
 from ase.units import Bohr
 from gpaw import GPAW
-from gpaw.test import equal
+import pytest
 
 
 def test_xc_nonselfconsistentLDA(in_tmp_dir):
@@ -22,15 +22,15 @@ def test_xc_nonselfconsistentLDA(in_tmp_dir):
     print(e1ref + e1 + de12, e2ref + e2)
     print(e1ref + e1, e2ref + e2 + de21)
     print(de12, de21)
-    equal(e1ref + e1 + de12, e2ref + e2, 0.02)
-    equal(e1ref + e1, e2ref + e2 + de21, 0.025)
+    assert e1ref + e1 + de12 == pytest.approx(e2ref + e2, abs=0.02)
+    assert e1ref + e1 == pytest.approx(e2ref + e2 + de21, abs=0.025)
 
     calc.write('PBE.gpw')
 
     de21b = GPAW('PBE.gpw').get_xc_difference('LDA')
     print(de21, de21b)
-    equal(de21, de21b, 9e-8)
+    assert de21 == pytest.approx(de21b, abs=9e-8)
 
     energy_tolerance = 0.0007
-    equal(e1, -0.0961003634812, energy_tolerance)  # svnversion 5252
-    equal(e2, -0.0790249564625, energy_tolerance)  # svnversion 5252
+    assert e1 == pytest.approx(-0.0961003634812, abs=energy_tolerance)
+    assert e2 == pytest.approx(-0.0790249564625, abs=energy_tolerance)

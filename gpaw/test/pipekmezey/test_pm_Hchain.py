@@ -3,7 +3,6 @@ from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
 from gpaw import GPAW, PW, mpi
 from gpaw.pipekmezey.pipek_mezey_wannier import PipekMezey
-from gpaw.test import equal
 
 
 @pytest.mark.pipekmezey
@@ -37,4 +36,4 @@ def test_pipekmezey_chain(in_tmp_dir):
 
     P = PM.get_function_value()
 
-    equal(P, 0.6803, 0.0001)
+    assert P == pytest.approx(0.6803, abs=0.0001)

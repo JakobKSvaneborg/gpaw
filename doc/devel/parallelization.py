@@ -90,8 +90,8 @@ aux = np.empty(N, dtype=float)
 
 # Only master knows the data right now
 if world.rank == 0:
-    np.random.seed(1234567)
-    aux[:] = np.random.uniform(0, 1, size=N).round(2)
+    rng = np.random.default_rng(1234567)
+    aux[:] = rng.uniform(0, 1, size=N).round(2)
     print(f'MASTER aux: {aux}, mean={aux.mean():f}')
 
 # Allocate space for my part of the auxiliary data

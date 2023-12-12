@@ -9,7 +9,6 @@ from gpaw import GPAW
 from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 from gpaw.analyse.vdwradii import vdWradii
 from gpaw.cluster import Cluster
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -21,7 +20,7 @@ def test_vdw_ts09(in_tmp_dir):
     def print_charge_and_check(hp, q=0, label='unpolarized'):
         q_a = np.array(hp.get_charges())
         parprint('Charges ({0})='.format(label), q_a, ', sum=', q_a.sum())
-        equal(q_a.sum(), q, 0.03)
+        assert q_a.sum() == pytest.approx(q, abs=0.03)
         return q_a
 
     # spin unpolarized
@@ -50,9 +49,10 @@ def test_vdw_ts09(in_tmp_dir):
         accuracy = 1.e-5
         for fname in [out_traj, out_txt]:
             s_out = ase.io.read(fname)
-            equal(s_out.get_potential_energy(), E, accuracy)
+            assert s_out.get_potential_energy() == pytest.approx(E,
+                                                                 abs=accuracy)
             for fi, fo in zip(F_ac, s_out.get_forces()):
-                equal(fi, fo, accuracy)
+                assert fi == pytest.approx(fo, abs=accuracy)
 
     # spin polarized
 
@@ -67,9 +67,9 @@ def test_vdw_ts09(in_tmp_dir):
 
         qs_a = print_charge_and_check(hps, label='spin')
 
-        equal(q_a, qs_a, 1.e-6)
-        equal(E, Es, 1.e-4)
-        equal(F_ac, Fs_ac, 1.e-4)
+        assert q_a == pytest.approx(qs_a, abs=1.e-6)
+        assert E == pytest.approx(Es, abs=1.e-4)
+        assert F_ac == pytest.approx(Fs_ac, abs=1.e-4)
 
     # charged
 

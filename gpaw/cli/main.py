@@ -4,11 +4,6 @@ import subprocess
 import sys
 
 
-from ase.cli.main import main as ase_main
-
-from gpaw import __version__
-
-
 commands = [
     ('run', 'gpaw.cli.run'),
     ('info', 'gpaw.cli.info'),
@@ -72,5 +67,13 @@ def hook(parser, args):
 
 
 def main(args=None):
+    from gpaw import all_lazy_imports, broadcast_imports, __getattr__
+    with broadcast_imports:
+        for attr in all_lazy_imports:
+            __getattr__(attr)
+
+        from ase.cli.main import main as ase_main
+        from gpaw import __version__
+
     ase_main('gpaw', 'GPAW command-line tool', __version__,
              commands, hook, args)

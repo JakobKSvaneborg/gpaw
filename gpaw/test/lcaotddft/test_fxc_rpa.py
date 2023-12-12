@@ -6,7 +6,6 @@ from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.mpi import world
 from gpaw.poisson import PoissonSolver
-from gpaw.test import equal
 
 
 @pytest.mark.rttddft
@@ -55,4 +54,4 @@ def test_lcaotddft_fxc_rpa(in_tmp_dir):
            5.366663490365e-05]
 
     tol = 1e-9
-    equal(data, ref, tol)
+    assert data == pytest.approx(ref, abs=tol)

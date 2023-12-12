@@ -6,7 +6,6 @@ from gpaw import GPAW
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.mpi import world
-from gpaw.test import equal
 
 
 @pytest.mark.rttddft
@@ -51,4 +50,4 @@ def test_lcaotddft_fxc_is_xc(in_tmp_dir):
     data = np.loadtxt('dm_fxc.dat')[[0, 1, 2, 4, 5, 6]].ravel()
 
     tol = 1e-9
-    equal(data, ref, tol)
+    assert data == pytest.approx(ref, abs=tol)

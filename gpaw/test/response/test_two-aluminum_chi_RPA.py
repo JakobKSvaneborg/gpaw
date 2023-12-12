@@ -6,7 +6,7 @@ from ase.build import bulk
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW
-from gpaw.test import findpeak, equal
+from gpaw.test import findpeak
 from gpaw.mpi import size, world
 
 from gpaw.response import ResponseGroundStateAdapter
@@ -80,20 +80,21 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
     w22_w, G22_Gc, chi22_wGG = read_susceptibility_array('Al2_chiGG_q2.pckl')
 
     # Check that reciprocal lattice vectors remain as assumed in check below
-    equal(np.linalg.norm(G11_Gc[0]), 0., 1e-6)
-    equal(np.linalg.norm(G21_Gc[0]), 0., 1e-6)
-    equal(np.linalg.norm(G12_Gc[0]), 0., 1e-6)
-    equal(np.linalg.norm(G22_Gc[1] - np.array([1, 0, 0])), 0., 1e-6)
+    assert np.linalg.norm(G11_Gc[0]) == pytest.approx(0., abs=1e-6)
+    assert np.linalg.norm(G21_Gc[0]) == pytest.approx(0., abs=1e-6)
+    assert np.linalg.norm(G12_Gc[0]) == pytest.approx(0., abs=1e-6)
+    assert np.linalg.norm(G22_Gc[1] - np.array([1, 0, 0])) == pytest.approx(
+        0., abs=1e-6)
 
     # Check plasmon peaks remain the same
     wpeak11, Ipeak11 = findpeak(w11_w, -chi11_wGG[:, 0, 0].imag)
     wpeak21, Ipeak21 = findpeak(w21_w, -chi21_wGG[:, 0, 0].imag)
-    equal(wpeak11, wpeak21, 0.02)
-    equal(Ipeak11, Ipeak21, 1.0)
+    assert wpeak11 == pytest.approx(wpeak21, abs=0.02)
+    assert Ipeak11 == pytest.approx(Ipeak21, abs=1.0)
     wpeak12, Ipeak12 = findpeak(w12_w, -chi12_wGG[:, 0, 0].imag)
     wpeak22, Ipeak22 = findpeak(w22_w, -chi22_wGG[:, 1, 1].imag)
-    equal(wpeak12, wpeak22, 0.05)
-    equal(Ipeak12, Ipeak22, 1.0)
+    assert wpeak12 == pytest.approx(wpeak22, abs=0.05)
+    assert Ipeak12 == pytest.approx(Ipeak22, abs=1.0)
 
 
 def calculate_chi(calc, q_qc, w,

@@ -2,7 +2,7 @@ from ase import Atom, Atoms
 from gpaw import GPAW
 from gpaw.eigensolvers.davidson import Davidson
 from gpaw.mpi import size
-from gpaw.test import equal
+import pytest
 
 
 def test_eigen_davidson():
@@ -26,11 +26,11 @@ def test_eigen_davidson():
                 eigensolver='dav')
     bulk.calc = calc
     e1 = bulk.get_potential_energy()
-    equal(e0, e1, 5.0e-5)
+    assert e0 == pytest.approx(e1, abs=5.0e-5)
 
     energy_tolerance = 0.0004
-    equal(e0, -6.97626, energy_tolerance)
-    equal(e1, -6.976265, energy_tolerance)
+    assert e0 == pytest.approx(-6.97626, abs=energy_tolerance)
+    assert e1 == pytest.approx(-6.976265, abs=energy_tolerance)
 
     # band parallelization
     if size % 2 == 0:
@@ -40,4 +40,4 @@ def test_eigen_davidson():
                     eigensolver=Davidson(niter=3))
         bulk.calc = calc
         e3 = bulk.get_potential_energy()
-        equal(e0, e3, 5.0e-5)
+        assert e0 == pytest.approx(e3, abs=5.0e-5)

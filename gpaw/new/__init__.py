@@ -22,18 +22,6 @@ def prod(iterable: Iterable[int]) -> int:
     return result
 
 
-def cached_property(method):
-    """Quick'n'dirty implementation of cached_property coming in Python 3.8."""
-    name = f'__{method.__name__}'
-
-    def new_method(self):
-        if not hasattr(self, name):
-            setattr(self, name, method(self))
-        return getattr(self, name)
-
-    return property(new_method)
-
-
 def zips(*iterables, strict=True):
     """From PEP 618."""
     if not iterables:

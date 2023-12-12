@@ -16,7 +16,7 @@ import numpy as np
 from ase.build import molecule
 
 from gpaw import GPAW, PoissonSolver
-from gpaw.test import equal
+import pytest
 
 
 def test_pseudopotential_hgh_h2o():
@@ -112,4 +112,4 @@ def test_pseudopotential_hgh_h2o():
         assert abs(1 - norm) < 1e-10, 'Not normconserving'
 
     energy_tolerance = 0.0003
-    equal(e, eref, energy_tolerance)
+    assert e == pytest.approx(eref, abs=energy_tolerance)

@@ -1,5 +1,4 @@
 import pytest
-from gpaw.test import equal
 from gpaw.grid_descriptor import GridDescriptor
 from gpaw.pw.descriptor import PWDescriptor
 from gpaw.mpi import world
@@ -17,7 +16,7 @@ def test_pw_interpol(rng):
         a2[R2] = 1
         y = pd2.restrict(a2, pd1)[0][R1] * a2.size / a1.size
 
-        equal(x, y, 1e-9)
+        assert x == pytest.approx(y, abs=1e-9)
         return x
 
     if world.size == 1:
@@ -41,21 +40,23 @@ def test_pw_interpol(rng):
                            [(0, 0, 0), (0, 0, 1)]]:
                 x = test(gd1, gd2, pd1, pd2, R1, R2)
                 y = test(gd1, gd2, pd1r, pd2r, R1, R2)
-                equal(x, y, 1e-9)
+                assert x == pytest.approx(y, abs=1e-9)
 
             a1 = rng.random(size1)
             a2 = pd1r.interpolate(a1, pd2r)[0]
             c2 = pd1.interpolate(a1 + 0.0j, pd2)[0]
             d2 = pd1.interpolate(a1 * 1.0j, pd2)[0]
-            equal(abs(c2.imag).max(), 0, 1e-14)
-            equal(abs(d2.real).max(), 0, 1e-14)
-            equal(gd1.integrate(a1), gd2.integrate(a2), 1e-13)
-            equal(abs(c2 - a2).max(), 0, 1e-14)
-            equal(abs(d2 - a2 * 1.0j).max(), 0, 1e-14)
+            assert abs(c2.imag).max() == pytest.approx(0, abs=1e-14)
+            assert abs(d2.real).max() == pytest.approx(0, abs=1e-14)
+            assert gd1.integrate(a1) == pytest.approx(gd2.integrate(a2),
+                                                      abs=1e-13)
+            assert abs(c2 - a2).max() == pytest.approx(0, abs=1e-14)
+            assert abs(d2 - a2 * 1.0j).max() == pytest.approx(0, abs=1e-14)
 
             a1 = pd2r.restrict(a2, pd1r)[0]
             c1 = pd2.restrict(a2 + 0.0j, pd1)[0]
             d1 = pd2.restrict(a2 * 1.0j, pd1)[0]
-            equal(gd1.integrate(a1), gd2.integrate(a2), 1e-13)
-            equal(abs(c1 - a1).max(), 0, 1e-14)
-            equal(abs(d1 - a1 * 1.0j).max(), 0, 1e-14)
+            assert gd1.integrate(a1) == pytest.approx(gd2.integrate(a2),
+                                                      abs=1e-13)
+            assert abs(c1 - a1).max() == pytest.approx(0, abs=1e-14)
+            assert abs(d1 - a1 * 1.0j).max() == pytest.approx(0, abs=1e-14)

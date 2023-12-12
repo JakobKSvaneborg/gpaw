@@ -4,7 +4,7 @@ from gpaw import GPAW, setup_paths
 from gpaw.poisson import PoissonSolver
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.occupations import FermiDirac
-from gpaw.test import equal, gen
+from gpaw.test import gen
 
 # IP for CO using LCY-PBE with gamma=0.81 after
 # dx.doi.org/10.1021/acs.jctc.8b00238
@@ -31,4 +31,4 @@ calc = GPAW(mode='fd', txt='CO.txt', xc='LCY-PBE:omega=0.81', convergence=c,
 co.calc = calc
 co.get_potential_energy()
 (eps_homo, eps_lumo) = calc.get_homo_lumo()
-equal(eps_homo, -IP, 0.15)
+assert abs(eps_homo - -IP) < 0.15

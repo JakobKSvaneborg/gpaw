@@ -1,6 +1,6 @@
 # listserv.fysik.dtu.dk/pipermail/gpaw-developers/2014-February/004374.html
 from gpaw import GPAW
-from gpaw.test import equal
+import pytest
 from ase.build import molecule
 
 
@@ -17,4 +17,4 @@ def test_pathological_LDA_unstable():
             eref = e
         if calc.wfs.world.rank == 0:
             print(repr(e))
-        equal(e - eref, 0, 1.e-12)
+        assert e - eref == pytest.approx(0, abs=1.e-12)

@@ -12,7 +12,7 @@ from gpaw.solvation.dielectric import Dielectric
 from gpaw.grid_descriptor import GridDescriptor
 from gpaw.utilities.gauss import Gaussian
 from gpaw.fd_operators import Gradient
-from gpaw.test import equal
+import pytest
 
 nn = 3
 accuracy = 2e-10
@@ -86,7 +86,7 @@ def test_solvation_poisson():
     for ps in psolvers:
         phi = solve(ps, eps, rho)
         parprint(ps, np.abs(phi - phi_expected).max())
-        equal(phi, phi_expected, 1e-3)
+        assert phi == pytest.approx(phi_expected, abs=1e-3)
 
     # test charged system with constant permittivity
     parprint('charged, constant permittivity')
@@ -103,7 +103,7 @@ def test_solvation_poisson():
     for ps in psolvers:
         phi = solve(ps, eps, rho_gauss)
         parprint(ps, np.abs(phi - phi_expected).max())
-        equal(phi, phi_expected, 1e-3)
+        assert phi == pytest.approx(phi_expected, abs=1e-3)
 
     # test non-constant permittivity
     msgs = ('neutral, non-constant permittivity',
@@ -144,4 +144,4 @@ def test_solvation_poisson():
         for ps in psolvers:
             phi = solve(ps, eps, rho)
             parprint(ps, np.abs(phi - phi_expected).max())
-            equal(phi, phi_expected, 1e-3)
+            assert phi == pytest.approx(phi_expected, abs=1e-3)

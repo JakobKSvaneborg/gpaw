@@ -3,7 +3,7 @@ import pytest
 from ase import Atoms
 from gpaw import PW, FermiDirac
 from gpaw.new.ase_interface import GPAW as NewGPAW
-from gpaw import GPAW as AnyGPAW, SCIPY_VERSION
+from gpaw import GPAW as AnyGPAW
 from gpaw.mpi import world
 
 # Domain and k-point parallelization:
@@ -21,9 +21,7 @@ for d in [1, 2, 4, 8]:
     'gpu', [False,
             pytest.param(
                 True,
-                marks=[pytest.mark.gpu,
-                       pytest.mark.skipif(SCIPY_VERSION < [1, 6],
-                                          reason='Too old scipy')])])
+                marks=[pytest.mark.gpu])])
 def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
     if (gpu or gpaw_new) and d > 1:
         pytest.skip()

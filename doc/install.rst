@@ -53,7 +53,7 @@ There are several ways to install GPAW:
 Requirements
 ============
 
-* Python_ 3.7 or later
+* Python_ 3.8 or later
 * ASE_
 * NumPy_
 * SciPy_

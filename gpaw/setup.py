@@ -139,6 +139,7 @@ class BaseSetup:
 
     orbital_free = False
     hubbard_u = None  # XXX remove me
+    is_pseudo = False
 
     def print_info(self, text):
         self.data.print_info(text, self)

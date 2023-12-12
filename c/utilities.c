@@ -349,7 +349,7 @@ PyObject* add_to_density(PyObject *self, PyObject *args)
         #else
         PyErr_SetString(PyExc_RuntimeError, "Unknown array type to add_to_density.");
         return NULL;
-        #endif        
+        #endif
     }
     Py_RETURN_NONE;
 }
@@ -750,4 +750,63 @@ PyObject* spherical_harmonics(PyObject *self, PyObject *args)
         }
     }
   Py_RETURN_NONE;
+}
+
+
+PyObject* integrate_outwards(PyObject *self, PyObject *args)
+{
+    int g0;
+    PyArrayObject* cm1_g_obj;
+    PyArrayObject* c0_g_obj;
+    PyArrayObject* cp1_g_obj;
+    PyArrayObject* b_g_obj;
+    PyArrayObject* a_g_obj;
+
+    if (!PyArg_ParseTuple(args,
+                          "iOOOOO",
+                          &g0, &cm1_g_obj, &c0_g_obj, &cp1_g_obj,
+                          &b_g_obj, &a_g_obj))
+        return NULL;
+
+    const double* cm1_g = DOUBLEP(cm1_g_obj);
+    const double* c0_g = DOUBLEP(c0_g_obj);
+    const double* cp1_g = DOUBLEP(cp1_g_obj);
+    const double* b_g = DOUBLEP(b_g_obj);
+    double* a_g = DOUBLEP(a_g_obj);
+
+    for (int g = 1; g <= g0; g++)
+        a_g[g + 1] = -(a_g[g - 1] * cm1_g[g] +
+                       a_g[g] * c0_g[g] + b_g[g]) / cp1_g[g];
+
+    Py_RETURN_NONE;
+}
+
+
+PyObject* integrate_inwards(PyObject *self, PyObject *args)
+{
+    int g1, g0;
+    PyArrayObject* c0_g_obj;
+    PyArrayObject* cp1_g_obj;
+    PyArrayObject* a_g_obj;
+
+    if (!PyArg_ParseTuple(args,
+                          "iiOOO",
+                          &g1, &g0, &c0_g_obj, &cp1_g_obj, &a_g_obj))
+        return NULL;
+
+    const double* c0_g = DOUBLEP(c0_g_obj);
+    const double* cp1_g = DOUBLEP(cp1_g_obj);
+    double* a_g = DOUBLEP(a_g_obj);
+    const int ng = PyArray_DIM(a_g_obj, 0);
+
+    for (int g = g1; g >= g0; g--) {
+        double ag = a_g[g];
+        if (ag > 1e50) {
+            for (int gg = g; gg < ng; gg++)
+                a_g[gg] = a_g[gg] / 1e50;
+            ag = ag / 1e50;
+        }
+        a_g[g - 1] = a_g[g + 1] * cp1_g[g] + ag * c0_g[g];
+    }
+    Py_RETURN_NONE;
 }

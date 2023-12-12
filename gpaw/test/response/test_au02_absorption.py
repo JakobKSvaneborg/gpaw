@@ -3,7 +3,7 @@ import numpy as np
 from ase import Atoms
 from gpaw import GPAW, FermiDirac, PW
 from gpaw.response.df import DielectricFunction
-from gpaw.test import equal, findpeak
+from gpaw.test import findpeak
 
 
 @pytest.fixture
@@ -49,14 +49,14 @@ def test_response_au02_absorption(scalapack, in_tmp_dir, gpwfile):
     I_ = 184.4086028397282
 
     w, I = findpeak(frequencies, b0.imag)
-    equal(w, w0_, 0.05)
-    equal(6**3 * I / (4 * np.pi), I0_, 0.5)
+    assert w == pytest.approx(w0_, abs=0.05)
+    assert 6**3 * I / (4 * np.pi) == pytest.approx(I0_, abs=0.5)
     w, I = findpeak(frequencies, a0.imag)
-    equal(w, w0_, 0.05)
-    equal(I, I0_, 0.5)
+    assert w == pytest.approx(w0_, abs=0.05)
+    assert I == pytest.approx(I0_, abs=0.5)
     w, I = findpeak(frequencies, b.imag)
-    equal(w, w_, 0.05)
-    equal(6**3 * I / (4 * np.pi), I_, 0.5)
+    assert w == pytest.approx(w_, abs=0.05)
+    assert 6**3 * I / (4 * np.pi) == pytest.approx(I_, abs=0.5)
     w, I = findpeak(frequencies, a.imag)
-    equal(w, w_, 0.05)
-    equal(I, I_, 0.5)
+    assert w == pytest.approx(w_, abs=0.05)
+    assert I == pytest.approx(I_, abs=0.5)

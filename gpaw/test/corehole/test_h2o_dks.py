@@ -2,7 +2,7 @@ import pytest
 from ase.build import molecule
 
 from gpaw import GPAW, FermiDirac, PoissonSolver
-from gpaw.test import equal, gen
+from gpaw.test import gen
 
 
 @pytest.mark.later
@@ -51,6 +51,6 @@ def test_corehole_h2o_dks():
     print(e1)
     print(e2)
     print(e3)
-    equal(e1, -2080.3651, energy_tolerance)
-    equal(e2, -1547.2944, energy_tolerance)
-    equal(e3, -1541.8152, energy_tolerance)
+    assert e1 == pytest.approx(-2080.3651, abs=energy_tolerance)
+    assert e2 == pytest.approx(-1547.2944, abs=energy_tolerance)
+    assert e3 == pytest.approx(-1541.8152, abs=energy_tolerance)

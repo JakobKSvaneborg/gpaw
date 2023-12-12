@@ -1,6 +1,9 @@
 variables:
   PYTHONUSERBASE: ".local"
   IMAGE_PATH: "registry.gitlab.com/gpaw/gpaw-ci-containers"
+  IMAGE_MAIN_OLDEST: "$IMAGE_PATH/main:oldest"
+  IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
+  IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
 
 default:
@@ -22,7 +25,7 @@ stages:
   stage: build
   before_script:
     - !reference [default, before_script]
-    - pip install --user --no-deps git+https://gitlab.com/ase/ase.git@f283d1e7350a5136dc80fc983b649bf2a7f20135
+    - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
     - |
       cat << EOF > siteconfig.py
       parallel_python_interpreter = True
@@ -73,7 +76,7 @@ stages:
 
 
 build:
-  image: $IMAGE_PATH/main:oldest
+  image: $IMAGE_MAIN_OLDEST
   extends: .build
   tags:
     - linux
@@ -85,7 +88,7 @@ build:
 
 
 build-latest:
-  image: $IMAGE_PATH/main:latest
+  image: $IMAGE_MAIN_LATEST
   extends: .build
   tags:
     - linux
@@ -126,7 +129,7 @@ build-latest:
 
 
 build-cuda:
-  image: $IMAGE_PATH/cuda:11
+  image: $IMAGE_CUDA
   extends:
     - .build
     - .gpu-job
@@ -148,7 +151,7 @@ build-cuda:
 
 
 build-hip-cuda:
-  image: $IMAGE_PATH/cuda:11
+  image: $IMAGE_CUDA
   extends:
     - .build
     - .gpu-job
@@ -175,7 +178,7 @@ build-hip-cuda:
 
 
 build-minimal:
-  image: $IMAGE_PATH/main:oldest
+  image: $IMAGE_MAIN_OLDEST
   extends: .build
   tags:
     - linux
@@ -192,7 +195,7 @@ build-minimal:
 
 
 prepare-libxc:
-  image: $IMAGE_PATH/main:oldest
+  image: $IMAGE_MAIN_OLDEST
   stage: build
   tags:
     - linux
@@ -220,7 +223,7 @@ prepare-libxc:
 
 
 build-libxc:
-  image: $IMAGE_PATH/main:oldest
+  image: $IMAGE_MAIN_OLDEST
   extends:
     - .build
   needs:
@@ -240,8 +243,8 @@ build-libxc:
     - gpaw -P 1 info
 
 
-test:
-  image: $IMAGE_PATH/main:oldest
+test-oldest:
+  image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
   needs:
@@ -251,8 +254,7 @@ test:
   script:
     - gpaw info
     - >
-      OMP_NUM_THREADS=2 pytest -v -m ci -We -Wi::ImportWarning
-      -Wi:'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header, got 216 from PyObject':RuntimeWarning
+      OMP_NUM_THREADS=2 pytest -v -m ci -We
 
     # This is the only test which uses OpenMP.
     # We may want to identify a limited set of tests that must work
@@ -260,13 +262,12 @@ test:
 
     - gpaw-python -m gpaw info
     - >
-      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -m ci
-      -We -Wi::ImportWarning
-      -Wi:'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header, got 216 from PyObject':RuntimeWarning
+      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-pw
+      gpaw/test/test_fuzz.py
 
 
 test-latest:
-  image: $IMAGE_PATH/main:latest
+  image: $IMAGE_MAIN_LATEST
   extends:
     - .test
   needs:
@@ -285,14 +286,7 @@ test-latest:
 
     - >
       pytest -v -m ci -m gpu
-      -We -Wi::ImportWarning
       --cov=gpaw --cov-report=html --cov-report=term
-
-    - gpaw-python -m gpaw info
-    - >
-      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -m ci
-      -We -Wi::ImportWarning
-      -Wi:'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header, got 216 from PyObject':RuntimeWarning
 
   artifacts:
     paths:
@@ -302,7 +296,7 @@ test-latest:
 
 
 test-latest-new:
-  image: $IMAGE_PATH/main:latest
+  image: $IMAGE_MAIN_LATEST
   extends:
     - .test
   needs:
@@ -315,7 +309,7 @@ test-latest-new:
 
 
 test-minimal:
-  image: $IMAGE_PATH/main:oldest
+  image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
   needs:
@@ -325,11 +319,10 @@ test-minimal:
   script:
     - gpaw info
     - >
-      pytest -v -m ci -We -Wi::ImportWarning
-      -Wi:'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header, got 216 from PyObject':RuntimeWarning
+      pytest -v -m ci -We
 
 test-cuda:
-  image: $IMAGE_PATH/cuda:11
+  image: $IMAGE_CUDA
   extends:
     - .test
     - .gpu-job
@@ -346,7 +339,7 @@ test-cuda:
     - gpaw-python -m pytest -v -m gpu
 
 test-cuda-mpi:
-  image: $IMAGE_PATH/cuda:11
+  image: $IMAGE_CUDA
   extends:
     - .test
     - .gpu-job
@@ -362,7 +355,7 @@ test-cuda-mpi:
 
 
 test-hip-cuda:
-  image: $IMAGE_PATH/cuda:11
+  image: $IMAGE_CUDA
   extends:
     - .test
     - .gpu-job
@@ -377,7 +370,7 @@ test-hip-cuda:
 
 
 test-libxc:
-  image: $IMAGE_PATH/main:oldest
+  image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
   needs:
@@ -389,7 +382,7 @@ test-libxc:
     - pytest -v -m libxc
 
 check-agts:
-  image: $IMAGE_PATH/main:oldest
+  image: $IMAGE_MAIN_OLDEST
   stage: test
   needs:
     - build
@@ -397,7 +390,7 @@ check-agts:
     - linux
   script:
     # - pip install --user git+https://gitlab.com/myqueue/myqueue.git@master
-    - pip install --user myqueue==23.4  # supports Python 3.7
+    - pip install --user myqueue
     - mq config --in-place
     - mq init
     - mq workflow -p agts.py -zT | tail -1 | tee task_count
@@ -406,7 +399,7 @@ check-agts:
 
 
 lint:
-  image: $IMAGE_PATH/main:latest
+  image: $IMAGE_MAIN_LATEST
   stage: build
   tags:
     - linux
@@ -432,6 +425,7 @@ lint:
       --doctests
       --extend-ignore E402,E501
       doc/summerschools/summerschool22/catalysis
+      doc/platforms/Linux/Niflheim
     - echo "interrogate"
     - pip install interrogate
     - interrogate --version
@@ -444,7 +438,7 @@ lint:
 
 
 typecheck:
-  image: $IMAGE_PATH/main:latest
+  image: $IMAGE_MAIN_LATEST
   stage: build
   tags:
     - linux
@@ -456,7 +450,7 @@ typecheck:
 
 
 docs:
-  image: $IMAGE_PATH/main:oldest
+  image: $IMAGE_MAIN_OLDEST
   stage: test
   needs:
     - build
@@ -476,7 +470,7 @@ docs:
 
 
 gpwfiles:
-  image: $IMAGE_PATH/main:latest
+  image: $IMAGE_MAIN_LATEST
   extends:
     - .test
   needs:
@@ -487,17 +481,20 @@ gpwfiles:
   before_script:
     - !reference [default, before_script]
   script:
-    - pytest -n 16 -m generate_gpw_files
+    - pytest -n 16 -m generate_gpw_files --durations 30 -v
   artifacts:
     paths:
       - .pytest_cache/
     expire_in: 30 mins
   rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: manual
+      allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
 .nightly:
-  image: $IMAGE_PATH/main:latest
+  image: $IMAGE_MAIN_LATEST
   variables:
     GPAW_MPI_NPROCS: "1"
   extends:
@@ -516,6 +513,9 @@ gpwfiles:
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30
   rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: manual
+      allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
   #  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
@@ -595,7 +595,7 @@ nightly-mpi-8:
 
 
 pages:
-  image: $IMAGE_PATH/main:latest  # (Any image present on the runner will do)
+  image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)
   stage: deploy
   dependencies:
     - nightly-mpi-1

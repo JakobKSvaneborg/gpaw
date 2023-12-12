@@ -5,7 +5,7 @@ needed around GPAW for doing HEG things.  Please move appropriate
 code here whenever relevant."""
 
 import numpy as np
-from ase.utils import lazyproperty
+from functools import cached_property
 
 
 class HEG:
@@ -16,6 +16,6 @@ class HEG:
     def rs(self):
         return self._rs
 
-    @lazyproperty
+    @cached_property
     def qF(self):
         return (9.0 * np.pi / 4.0)**(1.0 / 3.0) / self.rs

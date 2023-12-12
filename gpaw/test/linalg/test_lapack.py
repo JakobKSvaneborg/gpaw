@@ -1,6 +1,6 @@
 import numpy as np
 
-from gpaw.test import equal
+import pytest
 from gpaw.lrtddft.apmb import sqrt_matrix
 
 # check sqrt of a matrix
@@ -14,4 +14,4 @@ def test_linalg_lapack():
     a = np.array(a)
     b = sqrt_matrix(A)
     print('sqrt(A)=', b)
-    equal(((a - b)**2).sum(), 0, 1.0e-12)
+    assert ((a - b)**2).sum() == pytest.approx(0, abs=1.0e-12)

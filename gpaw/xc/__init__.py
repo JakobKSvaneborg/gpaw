@@ -1,11 +1,14 @@
 import numpy as np
-from gpaw import libraries
+from gpaw import get_libraries
 from gpaw.xc.functional import XCFunctional
 from gpaw.xc.gga import GGA
 from gpaw.xc.lda import LDA
 from gpaw.xc.libxc import LibXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.noncollinear import NonCollinearLDAKernel
+
+
+libraries = get_libraries()
 
 
 def xc_string_to_dict(string):

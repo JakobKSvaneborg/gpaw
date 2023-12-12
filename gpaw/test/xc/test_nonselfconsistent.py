@@ -1,7 +1,7 @@
 from ase import Atoms
 from ase.units import Bohr
 from gpaw import GPAW
-from gpaw.test import equal
+import pytest
 
 
 def xc(name):
@@ -24,14 +24,14 @@ def test_xc_nonselfconsistent(in_tmp_dir):
     print(e1ref + e1 + de12 - (e2ref + e2))
     print(e1ref + e1 - (e2ref + e2 + de21))
     print(de12, de21)
-    equal(e1ref + e1 + de12, e2ref + e2, 8e-4)
-    equal(e1ref + e1, e2ref + e2 + de21, 3e-3)
+    assert e1ref + e1 + de12 == pytest.approx(e2ref + e2, abs=8e-4)
+    assert e1ref + e1 == pytest.approx(e2ref + e2 + de21, abs=3e-3)
 
     atoms.calc.write('revPBE.gpw')
 
     de21b = GPAW('revPBE.gpw').get_xc_difference(xc('PBE'))
-    equal(de21, de21b, 9e-8)
+    assert de21 == pytest.approx(de21b, abs=9e-8)
 
     energy_tolerance = 0.0005
-    equal(e1, -0.07904951, energy_tolerance)
-    equal(e2, -0.08147563, energy_tolerance)
+    assert e1 == pytest.approx(-0.07904951, abs=energy_tolerance)
+    assert e2 == pytest.approx(-0.08147563, abs=energy_tolerance)

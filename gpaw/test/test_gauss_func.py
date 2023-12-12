@@ -3,7 +3,7 @@ import numpy as np
 from gpaw.utilities.tools import coordinates
 from gpaw.utilities.gauss import Gaussian
 from gpaw.grid_descriptor import GridDescriptor
-from gpaw.test import equal
+import pytest
 from gpaw.poisson import PoissonSolver
 
 
@@ -34,20 +34,20 @@ def test_gauss_func():
         for mL in range(9):
             m = gauss.get_moment(g, mL)  # the mL'th moment of g
             print(f'  {mL}\'th moment = {m:2.6f}')
-            equal(m, gL == mL, 1e-4)
+            assert m == pytest.approx(gL == mL, abs=1e-4)
 
     # Check the moments of the constructed 1s density
     print('\nDensity of Hydrogen atom')
     for L in range(4):
         m = gauss.get_moment(nH, L)
         print(f'  {L}\'th moment = {m:2.6f}')
-        equal(m, (L == 0) / sqrt(4 * pi), 1.5e-3)
+        assert m == pytest.approx((L == 0) / sqrt(4 * pi), abs=1.5e-3)
 
     # Check that it is removed correctly
     gauss.remove_moment(nH, 0)
     m = gauss.get_moment(nH, 0)
     print('\nZero\'th moment of compensated Hydrogen density =', m)
-    equal(m, 0., 1e-7)
+    assert m == pytest.approx(0., abs=1e-7)
 
     # /-------------------------------------------------\
     # | Check if Gaussian potentials are made correctly |

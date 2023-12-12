@@ -75,9 +75,20 @@ class BuildingBlock:
         nw = len(self.wd)
         self.chiM_qw = np.zeros([0, nw])
         self.chiD_qw = np.zeros([0, nw])
+        self.chiMD_qw = np.zeros([0, nw])
+        self.chiDM_qw = np.zeros([0, nw])
         self.drhoM_qz = np.zeros([0, self.z.shape[0]])
         self.drhoD_qz = np.zeros([0, self.z.shape[0]])
 
+        point_group_symmetries_scc = list(kd.symmetry.op_scc)
+        z_inversion_matrix = np.diag([1, 1, -1])
+
+        # If the material has z inversion symmetry, the off-diagonal elements
+        # chiMD and chiDM are necessarily zero. In this case, it is not
+        # necessary to calculate them.
+        self.has_z_inversion_symmetry =\
+            any(np.array_equal(z_inversion_matrix, sym)
+                for sym in point_group_symmetries_scc)
         # First: choose all ibzq in 2D BZ
         from ase.dft.kpoints import monkhorst_pack
         from gpaw.kpt_descriptor import KPointDescriptor
@@ -177,15 +188,19 @@ class BuildingBlock:
             comm = self.context.comm
             w1 = min(self.df.blocks1d.blocksize * comm.rank, nw)
 
-            chiM_w, chiD_w, drhoM_z, drhoD_z = \
+            chiM_w, chiD_w, chiDM_w, chiMD_w, drhoM_z, drhoD_z = \
                 self.get_chi_2D(qpd, chi_wGG)
             chiM_w = self.collect(chiM_w)
             chiD_w = self.collect(chiD_w)
+            chiDM_w = self.collect(chiDM_w)
+            chiMD_w = self.collect(chiMD_w)
 
             if self.context.comm.rank == 0:
                 assert w1 == 0  # drhoM and drhoD in static limit
                 self.update_building_block(chiM_w[np.newaxis, :],
                                            chiD_w[np.newaxis, :],
+                                           chiDM_w[np.newaxis, :],
+                                           chiMD_w[np.newaxis, :],
                                            drhoM_z[np.newaxis, :],
                                            drhoD_z[np.newaxis, :])
 
@@ -202,11 +217,13 @@ class BuildingBlock:
 
         return
 
-    def update_building_block(self, chiM_qw, chiD_qw, drhoM_qz,
-                              drhoD_qz):
+    def update_building_block(self, chiM_qw, chiD_qw, chiDM_qw, chiMD_qw,
+                              drhoM_qz, drhoD_qz):
 
         self.chiM_qw = np.append(self.chiM_qw, chiM_qw, axis=0)
         self.chiD_qw = np.append(self.chiD_qw, chiD_qw, axis=0)
+        self.chiDM_qw = np.append(self.chiDM_qw, chiDM_qw, axis=0)
+        self.chiMD_qw = np.append(self.chiMD_qw, chiMD_qw, axis=0)
         self.drhoM_qz = np.append(self.drhoM_qz, drhoM_qz, axis=0)
         self.drhoD_qz = np.append(self.drhoD_qz, drhoD_qz, axis=0)
 
@@ -219,9 +236,13 @@ class BuildingBlock:
           \chi^M_2D(q, \omega) = \int\int dr dr' \chi(q, \omega, r,r') \\
                               = L \chi_{G=G'=0}(q, \omega)
           \chi^D_2D(q, \omega) = \int\int dr dr' z \chi(q, \omega, r,r') z'
-                               = 1/L sum_{G_z,G_z'} z_factor(G_z)
+                               = 1/L sum_{G_z!=0, G_z'!=0} z_factor(G_z)
                                chi_{G_z,G_z'} z_factor(G_z'),
-          Where z_factor(G_z) =  +/- i e^{+/- i*G_z*z0}
+          \chi^DM_2D(q, \omega) = \int\int dr dr' z \chi(q, \omega,r,r')
+                                = sum_{G_z != 0} z_factor(G_z) chi_{G_z,G'=0}
+          \chi^MD_2D(q, \omega) = \int\int dr dr' \chi(q, \omega,r,r') z'
+                            = sum_{G_z' != 0} chi_{0, G_z'} z_factor(G_z')^*
+          Where z_factor(G_z) =  - i e^{i*G_z*z0}
           (L G_z cos(G_z L/2)-2 sin(G_z L/2))/G_z^2
 
         qpd: Single q-point descriptor
@@ -236,6 +257,8 @@ class BuildingBlock:
         z0 = L / 2.  # position of layer
         chiM_w = np.zeros([nw], dtype=complex)
         chiD_w = np.zeros([nw], dtype=complex)
+        chiDM_w = np.zeros([nw], dtype=complex)
+        chiMD_w = np.zeros([nw], dtype=complex)
         drhoM_z = np.zeros([len(z)], dtype=complex)  # induced density
         drhoD_z = np.zeros([len(z)], dtype=complex)  # induced dipole density
 
@@ -250,18 +273,23 @@ class BuildingBlock:
         # If node lacks frequency points due to block parallelization then
         # return empty arrays
         if nw == 0:
-            return chiM_w, chiD_w, drhoM_z, drhoD_z
+            return chiM_w, chiD_w, chiDM_w, chiMD_w, drhoM_z, drhoD_z
         chiM_w = L * chi_wGG[:, 0, 0]
         drhoM_z += chi_wGG[0, 0, 0]
         for iG in Glist[1:]:
             G_z = G_Gv[iG, 2]
             qGr_R = np.inner(G_z, z.T).T
+            factor = z_factor(z0, L, G_z)
+            if not self.has_z_inversion_symmetry:
+                # off-diagonal elements are non-zero only if
+                # the material does not have z --> -z symmetry
+                chiDM_w += factor * chi_wGG[:, iG, 0]
+                chiMD_w += chi_wGG[:, 0, iG] * np.conjugate(factor)
             # Fourier transform to get induced density at \omega=0
             drhoM_z += np.exp(1j * qGr_R) * chi_wGG[0, iG, 0]
             for iG1 in Glist[1:]:
                 G_z1 = G_Gv[iG1, 2]
                 # integrate with z along both coordinates
-                factor = z_factor(z0, L, G_z)
                 factor1 = z_factor(z0, L, G_z1, sign=-1)
                 chiD_w[:] += 1. / L * factor * chi_wGG[:, iG, iG1] * \
                     factor1
@@ -276,7 +304,7 @@ class BuildingBlock:
         """ Returns chi2D monopole and dipole, induced
         densities and z array (all in Bohr)
         """
-        return chiM_w, chiD_w, drhoM_z, drhoD_z
+        return chiM_w, chiD_w, chiDM_w, chiMD_w, drhoM_z, drhoD_z
 
     def save_chi_file(self, filename=None, q_idx=None):
         if q_idx is None:
@@ -292,6 +320,8 @@ class BuildingBlock:
                 'omega_w': self.wd.omega_w,
                 'chiM_qw': self.chiM_qw,
                 'chiD_qw': self.chiD_qw,
+                'chiDM_qw': self.chiDM_qw,
+                'chiMD_qw': self.chiMD_qw,
                 'z': self.z,
                 'drhoM_qz': self.drhoM_qz,
                 'drhoD_qz': self.drhoD_qz}
@@ -315,12 +345,20 @@ class BuildingBlock:
             self.chiD_qw = data['chiD_qw']
             self.drhoM_qz = data['drhoM_qz']
             self.drhoD_qz = data['drhoD_qz']
+            if 'chiDM_qw' in data:
+                self.chiDM_qw = data['chiDM_qw']
+            else:
+                self.chiDM_qw = np.zeros(self.chiM_qw.shape)
+            if 'chiMD_qw' in data:
+                self.chiMD_qw = data['chiMD_qw']
+            else:
+                self.chiMD_qw = np.zeros(self.chiM_qw.shape)
+
             return True
         else:
             return False
 
     def interpolate_to_grid(self, q_grid, w_grid):
-
         """
         Parameters
         q_grid: in Ang. should start at q=0
@@ -330,6 +368,7 @@ class BuildingBlock:
         from scipy.interpolate import RectBivariateSpline
         from scipy.interpolate import interp1d
         from gpaw.response.frequencies import FrequencyGridDescriptor
+
         if not self.complete:
             self.calculate_building_block()
         q_grid *= Bohr
@@ -343,63 +382,71 @@ class BuildingBlock:
 
         sort = np.argsort(self.q_abs)
         q_abs = self.q_abs[sort]
+        omega_w = self.wd.omega_w
+
+        def spline(array, x_in, y_in, x_out, y_out):
+            # interpolates a function from the regular grid (x_in, y_in)
+            # to (x_out, y_out)
+            # The shape of 'array' must be (len(x_in), len(y_in)).
+            interpolator = RectBivariateSpline(x_in, y_in, array, s=0)
+            return interpolator(x_out, y_out)
+
+        def complex_spline(array, x_in, y_in, x_out, y_out):
+            return spline(array.real, x_in, y_in, x_out, y_out)\
+                + 1j * spline(array.imag, x_in, y_in, x_out, y_out)
 
         # chi monopole
-        self.chiM_qw = self.chiM_qw[sort]
+        chiM_qw = self.chiM_qw[sort]
 
         omit_q0 = False
-        if np.isclose(q_abs[0], 0) and not np.isclose(self.chiM_qw[0, 0], 0):
+        if np.isclose(q_abs[0], 0) and not np.isclose(chiM_qw[0, 0], 0):
             omit_q0 = True  # omit q=0 from interpolation
             q0_abs = q_abs[0].copy()
             q_abs[0] = 0.
-            chi0_w = self.chiM_qw[0].copy()
-            self.chiM_qw[0] = np.zeros_like(chi0_w)
+            chi0_w = chiM_qw[0].copy()
+            chiM_qw[0] = np.zeros_like(chi0_w)
 
-        yr = RectBivariateSpline(q_abs, self.wd.omega_w,
-                                 self.chiM_qw.real,
-                                 s=0)
-
-        yi = RectBivariateSpline(q_abs, self.wd.omega_w,
-                                 self.chiM_qw.imag, s=0)
-
-        self.chiM_qw = yr(q_grid, w_grid) + 1j * yi(q_grid, w_grid)
+        chiM_qw = complex_spline(chiM_qw, q_abs, omega_w, q_grid, w_grid)
         if omit_q0:
-            yr = interp1d(self.wd.omega_w, chi0_w.real)
-            yi = interp1d(self.wd.omega_w, chi0_w.imag)
-            chi0_w = yr(w_grid) + 1j * yi(w_grid)
             q_abs[0] = q0_abs
             if np.isclose(q_grid[0], 0):
-                self.chiM_qw[0] = chi0_w
+                yr = interp1d(omega_w, chi0_w.real)
+                yi = interp1d(omega_w, chi0_w.imag)
+                chi0_w = yr(w_grid) + 1j * yi(w_grid)
+                chiM_qw[0] = chi0_w
 
         # chi dipole
-        yr = RectBivariateSpline(q_abs, self.wd.omega_w,
-                                 self.chiD_qw[sort].real,
-                                 s=0)
-        yi = RectBivariateSpline(q_abs, self.wd.omega_w,
-                                 self.chiD_qw[sort].imag,
-                                 s=0)
+        chiD_qw = complex_spline(self.chiD_qw[sort], q_abs, omega_w,
+                                 q_grid, w_grid)
 
-        self.chiD_qw = yr(q_grid, w_grid) + 1j * yi(q_grid, w_grid)
+        # chi off-diagonal
+        if not self.has_z_inversion_symmetry:
+            chiDM_qw = complex_spline(self.chiDM_qw[sort], q_abs, omega_w,
+                                      q_grid, w_grid)
+            chiMD_qw = complex_spline(self.chiMD_qw[sort], q_abs, omega_w,
+                                      q_grid, w_grid)
+        else:
+            chiDM_qw = np.zeros((len(q_grid), len(w_grid)))
+            chiMD_qw = np.zeros((len(q_grid), len(w_grid)))
 
         # drho monopole
 
-        yr = RectBivariateSpline(q_abs, self.z,
-                                 self.drhoM_qz[sort].real, s=0)
-        yi = RectBivariateSpline(q_abs, self.z,
-                                 self.drhoM_qz[sort].imag, s=0)
-
-        self.drhoM_qz = yr(q_grid, self.z) + 1j * yi(q_grid, self.z)
+        drhoM_qz = complex_spline(self.drhoM_qz[sort], q_abs, self.z,
+                                  q_grid, self.z)
 
         # drho dipole
-        yr = RectBivariateSpline(q_abs, self.z,
-                                 self.drhoD_qz[sort].real, s=0)
-        yi = RectBivariateSpline(q_abs, self.z,
-                                 self.drhoD_qz[sort].imag, s=0)
-
-        self.drhoD_qz = yr(q_grid, self.z) + 1j * yi(q_grid, self.z)
+        drhoD_qz = complex_spline(self.drhoD_qz[sort], q_abs, self.z,
+                                  q_grid, self.z)
 
         self.q_abs = q_grid
         self.wd = FrequencyGridDescriptor(w_grid)
+        self.chiM_qw = chiM_qw
+        self.chiD_qw = chiD_qw
+        self.chiDM_qw = chiDM_qw
+        self.chiMD_qw = chiMD_qw
+        self.drhoM_qz = drhoM_qz
+        self.drhoD_qz = drhoD_qz
+
         self.save_chi_file(filename=self.filename + '_int')
 
     def collect(self, a_w):

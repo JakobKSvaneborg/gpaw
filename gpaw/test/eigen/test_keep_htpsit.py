@@ -1,7 +1,7 @@
 from gpaw import GPAW
 from gpaw.eigensolvers.rmmdiis import RMMDIIS
 from ase import Atoms
-from gpaw.test import equal
+import pytest
 
 
 def test_eigen_keep_htpsit():
@@ -24,4 +24,4 @@ def test_eigen_keep_htpsit():
     atoms.calc = calc
     e1 = atoms.get_potential_energy()
 
-    equal(e0, e1, 1e-12)
+    assert e0 == pytest.approx(e1, abs=1e-12)

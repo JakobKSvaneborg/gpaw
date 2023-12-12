@@ -26,5 +26,6 @@ Theory in order of abstraction.
    elph/elph
    elph/raman
    sjm/sjm
+   qeh/qeh
 
 

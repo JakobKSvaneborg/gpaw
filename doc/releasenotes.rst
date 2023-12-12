@@ -10,11 +10,10 @@ Git master branch
 
 :git:`master <>`.
 
-* XAS spectra are now available also for l>0 core-holes. Oscillator strengths
-  are returned, which required a slight API change.
-
 * Functionality has been added to calculate various local properties of the
   magnetic sites of a crystal, see :ref:`sites`.
+
+* Python 3.8 or later is required now.
 
 * Minimum version requirements: Python 3.7, ASE 3.23.0b1, NumPy 1.17.0,
   SciPy 1.6.0
@@ -47,6 +46,9 @@ Git master branch
   For excited state calculations, use direct optimization together with
   :ref:`MOM <mom>` (available for all modes) or with
   :ref:`generalized mode following <do-gmf>` (available only for LCAO).
+
+* A bug in spin polarized (ferromagnetic) GW+BSE calculations was fixed:
+  :issue:`828`.
 
 
 Version 23.9.1

@@ -35,3 +35,5 @@ Array4D = ArrayND
 # Used for sequences of three numbers:
 Vector = Union[Sequence[float], Array1D]
 IntVector = Union[Sequence[int], Array1D]
+
+RNG = np.random.Generator

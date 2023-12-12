@@ -8,11 +8,6 @@ from gpaw.atom.generator import Generator
 from gpaw.typing import Array1D
 
 
-def equal(x, y, tolerance=0):
-    import pytest
-    assert x == pytest.approx(y, abs=tolerance)
-
-
 def print_reference(data_i, name='ref_i', fmt='%.12le'):
     if mpi.world.rank == 0:
         print('%s = [' % name, end='')

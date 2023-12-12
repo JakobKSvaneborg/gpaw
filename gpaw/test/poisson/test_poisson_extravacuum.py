@@ -17,13 +17,6 @@ def test_poisson_poisson_extravacuum():
     do_plot = False
     poissoneps = 1e-16
 
-    if do_output:
-        def equal(x, y, tol=0):
-            res = {True: 'ok', False: 'not ok'}[abs(x - y) < tol]
-            print('%.10e vs %.10e at %.10e is %s' % (x, y, tol, res))
-    else:
-        from gpaw.test import equal
-
     # Model grid
     N = 16
     N_c = np.array((1, 1, 3)) * N
@@ -96,7 +89,7 @@ def test_poisson_poisson_extravacuum():
             diff = 0.0
         diff = np.array([diff])
         gd.comm.broadcast(diff, 0)
-        equal(diff[0], val, eps)
+        assert diff[0] == pytest.approx(val, abs=eps)
 
     # Get reference from default poissonsolver
     poisson = PoissonSolver('fd', eps=poissoneps)

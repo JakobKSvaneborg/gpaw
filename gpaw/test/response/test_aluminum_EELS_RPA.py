@@ -15,6 +15,7 @@ from gpaw.mpi import size, world
 # Affected by https://gitlab.com/gpaw/gpaw/-/issues/840
 # We are disabling assertions below as necessary, should be reenabled
 # after fixing 840.
+@pytest.mark.tetrahedron
 @pytest.mark.response
 def test_response_aluminum_EELS_RPA(in_tmp_dir):
     assert size <= 4**3

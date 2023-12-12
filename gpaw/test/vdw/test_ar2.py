@@ -2,7 +2,6 @@ from math import sqrt
 import pytest
 from ase import Atoms
 from gpaw import GPAW, Mixer, Davidson
-from gpaw.test import equal
 from gpaw.xc.vdw import VDWFunctional
 
 
@@ -38,7 +37,7 @@ def test_vdw_ar2(in_tmp_dir):
         assert abs(Evdw - +0.0223) < 3e-3, abs(Evdw)
 
         print(e2, e)
-        equal(e2, -0.005, energy_tolerance)
-        equal(e, -0.005, energy_tolerance)
+        assert e2 == pytest.approx(-0.005, abs=energy_tolerance)
+        assert e == pytest.approx(-0.005, abs=energy_tolerance)
 
     test()

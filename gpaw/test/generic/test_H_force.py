@@ -1,7 +1,7 @@
 from ase import Atoms
 from ase.calculators.test import numeric_force
 from gpaw import GPAW, Mixer, FermiDirac, Davidson
-from gpaw.test import equal
+import pytest
 
 
 def test_generic_H_force():
@@ -25,11 +25,11 @@ def test_generic_H_force():
     for i in range(3):
         f2i = numeric_force(atoms, 0, i)
         print(f1[i], f2i)
-        equal(f1[i], f2i, 0.00025)
+        assert f1[i] == pytest.approx(f2i, abs=0.00025)
 
     energy_tolerance = 0.001
     force_tolerance = 0.004
-    equal(e1, -0.5318, energy_tolerance)
+    assert e1 == pytest.approx(-0.5318, abs=energy_tolerance)
     f1_ref = [-0.29138, -0.3060, -0.3583]
     for i in range(3):
-        equal(f1[i], f1_ref[i], force_tolerance)
+        assert f1[i] == pytest.approx(f1_ref[i], abs=force_tolerance)

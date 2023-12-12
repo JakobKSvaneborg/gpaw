@@ -20,6 +20,7 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities.blas import axpy
 from gpaw.yml import obj2yaml as o2y
+from gpaw import debug
 
 
 class Davidson(Eigensolver):
@@ -239,6 +240,9 @@ class Davidson(Eigensolver):
                 Ht(psit_nX)
                 calculate_residuals(
                     residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
+
+        if debug:
+            psit_nX.sanity_check()
 
         return error
 

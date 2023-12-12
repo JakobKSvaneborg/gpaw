@@ -8,7 +8,6 @@ from ase.units import Ha
 
 from gpaw import GPAW
 from gpaw.mpi import world
-from gpaw.test import equal
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft.excited_state import ExcitedState
 
@@ -83,9 +82,9 @@ def test_lrtddft_excited_state():
     forces = exst.get_forces(H2)
     parprint("time used:", time.time() - t0)
     for c in range(2):
-        equal(forces[0, c], 0.0, accuracy)
-        equal(forces[1, c], 0.0, accuracy)
-    equal(forces[0, 2] + forces[1, 2], 0.0, accuracy)
+        assert forces[0, c] == pytest.approx(0.0, abs=accuracy)
+        assert forces[1, c] == pytest.approx(0.0, abs=accuracy)
+    assert forces[0, 2] + forces[1, 2] == pytest.approx(0.0, abs=accuracy)
 
     parprint("########### second call to potential energy --> just return")
     t0 = time.time()

@@ -2,7 +2,7 @@ from ase import Atoms
 from gpaw import GPAW
 from gpaw.mixer import FFTMixer
 from gpaw import PW
-from gpaw.test import equal
+import pytest
 
 
 def test_pw_fftmixer():
@@ -14,4 +14,4 @@ def test_pw_fftmixer():
                      mixer=FFTMixer(),
                      eigensolver='rmm-diis')
     e = bulk.get_potential_energy()
-    equal(e, -1.98481281259, 1.0e-4)
+    assert e == pytest.approx(-1.98481281259, abs=1.0e-4)

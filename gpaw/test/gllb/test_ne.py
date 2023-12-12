@@ -3,7 +3,6 @@ from ase import Atoms, Atom
 from gpaw import GPAW
 from gpaw.atom.generator import Generator
 from gpaw.atom.configurations import parameters
-from gpaw.test import equal
 from gpaw.mpi import world
 
 
@@ -37,7 +36,7 @@ def test_gllb_ne(in_tmp_dir, add_cwd_to_setup_paths):
 
         eps3d = calc.wfs.kpt_u[0].eps_n[3]
         # if world.rank == 0:
-        equal(eps, eps3d, 1e-3)
+        assert eps == pytest.approx(eps3d, abs=1e-3)
         # Correct for small cell +0.14eV (since the test needs to be fast
         # in test suite)
-        equal(e + 0.147106041, 0, 5e-2)
+        assert e + 0.147106041 == pytest.approx(0, abs=5e-2)

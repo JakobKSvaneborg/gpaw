@@ -2,7 +2,6 @@ import pytest
 import numpy as np
 from gpaw.xc.libxc import LibXC, short_names
 from gpaw.xc.kernel import XCKernel, codes
-from gpaw.test import equal
 
 
 @pytest.mark.ci
@@ -91,7 +90,7 @@ def test_xc_xc():
                  abs(ds_xg[:2] - d0_xg[0]).max() +
                  abs(ds_xg[2:5].sum(0) / 4 - d0_xg[1]).max() +
                  abs(ds_xg[5:] - d0_xg[2]).max())
-        equal(error, 0, 6e-9)
+        assert error == pytest.approx(0, abs=6e-9)
         del xc
 
     # Numbers from old lxc_xc.py test:
@@ -126,5 +125,5 @@ def test_xc_xc():
             d_xg[x] = 0.5 * f2(m_xg, xc)[0] / eps
             m_xg[x] -= 2 * eps
             d_xg[x] -= 0.5 * f2(m_xg, xc)[0] / eps
-        equal(abs(d0_xg - d_xg).max(), 0, 2e-8)
+        assert abs(d0_xg - d_xg).max() == pytest.approx(0, abs=2e-8)
         del xc

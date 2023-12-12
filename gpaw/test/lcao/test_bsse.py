@@ -4,7 +4,6 @@ from ase.build import molecule
 from gpaw import GPAW
 from gpaw.atom.basis import BasisMaker
 from gpaw.poisson import FDPoissonSolver as PoissonSolver
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -55,7 +54,7 @@ def test_lcao_bsse():
 
     energy_tolerance = 0.002
     niter_tolerance = 3
-    equal(e_bsse, 0.02914, energy_tolerance)  # svnversion 5252
-    equal(niter_bsse, 7, niter_tolerance)  # svnversion 5252
-    equal(e0, 0.03038, energy_tolerance)  # svnversion 5252
-    equal(niter0, 6, niter_tolerance)  # svnversion 5252
+    assert e_bsse == pytest.approx(0.02914, abs=energy_tolerance)
+    assert niter_bsse == pytest.approx(7, abs=niter_tolerance)
+    assert e0 == pytest.approx(0.03038, abs=energy_tolerance)
+    assert niter0 == pytest.approx(6, abs=niter_tolerance)

@@ -8,7 +8,7 @@ import numpy as np
 import scipy.linalg as sla
 
 import gpaw.utilities.blas as blas
-from gpaw import debug, SCIPY_VERSION
+from gpaw import debug, get_scipy_version
 from gpaw.gpu import cupy as cp, cupy_eigh
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
@@ -457,7 +457,7 @@ class Matrix:
                 blas.mmm(1.0, L_MM, 'N', H.data, 'N', 0.0, tmp_MM)
                 blas.r2k(0.5, tmp_MM, L_MM, 0.0, H.data)
                 # Ht_MM = L_MM @ H.data @ L_MM.conj().T
-                if SCIPY_VERSION >= [1, 9]:
+                if get_scipy_version() >= [1, 9]:
                     driver = 'evx' if M == 1 else 'evd'
                 else:
                     driver = None

@@ -1,7 +1,6 @@
 import pytest
 from ase.build import molecule
 from gpaw import GPAW, restart
-from gpaw.test import equal
 
 
 @pytest.mark.mom
@@ -50,5 +49,5 @@ def test_mom_lcao_smearing(in_tmp_dir):
         dE = E_es - E_gs
         dne0 = ne0_es - ne0_gs
         print(dE)
-        equal(dE, 9.8445603513, 0.01)
-        equal(dne0, 0.0, 1e-16)
+        assert dE == pytest.approx(9.8445603513, abs=0.01)
+        assert dne0 == pytest.approx(0.0, abs=1e-16)

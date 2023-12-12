@@ -203,3 +203,5 @@ def dos(filename: Union[Path, str],
         ax.set_ylabel(ylabel)
         import matplotlib.pyplot as plt
         plt.show()
+
+    return dosobjs

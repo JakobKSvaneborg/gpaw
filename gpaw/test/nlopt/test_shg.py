@@ -1,11 +1,11 @@
-import pytest
-import numpy as np
 from ase import Atoms
+import numpy as np
+import pytest
 
-from gpaw import GPAW, PW
-from gpaw.nlopt.shg import get_shg
+from gpaw.mpi import serial_comm, world
+from gpaw.new.ase_interface import GPAW
 from gpaw.nlopt.matrixel import make_nlodata
-from gpaw.mpi import world
+from gpaw.nlopt.shg import get_shg
 
 
 @pytest.mark.skipif(world.size > 4, reason='System too small')
@@ -14,15 +14,17 @@ def test_shg(in_tmp_dir):
     atoms = Atoms('H', cell=(3 * np.eye(3)), pbc=True)
 
     # Do a GS and save it
-    calc = GPAW(
-        mode=PW(600), symmetry={'point_group': False},
-        kpts={'size': (2, 2, 2)}, nbands=5, txt=None)
+    calc = GPAW(mode={'name': 'pw', 'ecut': 600},
+                communicator=serial_comm,
+                symmetry={'point_group': False},
+                kpts={'size': (2, 2, 2)},
+                nbands=5,
+                txt=None)
     atoms.calc = calc
     atoms.get_potential_energy()
-    calc.write('gs.gpw', 'all')
 
     # Get the mml
-    nlodata = make_nlodata('gs.gpw', comm=world)
+    nlodata = make_nlodata(calc, comm=world)
 
     # Do a SHG
     freqs = np.linspace(0, 5, 101)
@@ -61,8 +63,8 @@ def test_shg_spinpol(gpw_files, in_tmp_dir):
         tag = '_spinpol' if spinpol == 'spinpol' else ''
 
         # Get nlodata from pre-calculated SiC fixtures
-        calc = gpw_files[f'sic_pw{tag}']
-        nlodata = make_nlodata(calc, ni=0, nf=8, comm=world)
+        nlodata = make_nlodata(gpw_files[f'sic_pw{tag}'],
+                               ni=0, nf=8, comm=world)
 
         # Calculate 'xyz' tensor element of SHG spectra
         get_shg(nlodata, freqs=freqs, eta=0.025, pol='xyz',
@@ -84,14 +86,14 @@ def test_shg_spinpol(gpw_files, in_tmp_dir):
 
     # Absolute error
     shg_xyz_diff = shg_xyz['spinpaired'] - shg_xyz['spinpol']
-    assert shg_xyz_diff.real == pytest.approx(0, abs=1e-3)
-    assert shg_xyz_diff.imag == pytest.approx(0, abs=1e-3)
+    assert shg_xyz_diff.real == pytest.approx(0, abs=5e-4)
+    assert shg_xyz_diff.imag == pytest.approx(0, abs=5e-4)
 
     # Relative error
     shg_xyz_avg = (shg_xyz['spinpaired'] + shg_xyz['spinpol']) / 2
     shg_xyz_rerr_real = shg_xyz_diff.real / shg_xyz_avg.real
     shg_xyz_rerr_imag = shg_xyz_diff.imag / shg_xyz_avg.imag
-    assert shg_xyz_rerr_real == pytest.approx(0, abs=1e-2), \
+    assert shg_xyz_rerr_real == pytest.approx(0, abs=2e-3), \
         np.max(np.abs(shg_xyz_rerr_real))
-    assert shg_xyz_rerr_imag == pytest.approx(0, abs=1e-2), \
+    assert shg_xyz_rerr_imag == pytest.approx(0, abs=2e-3), \
         np.max(np.abs(shg_xyz_rerr_imag))

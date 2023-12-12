@@ -10,7 +10,7 @@ from gpaw.eigensolvers import RMMDIIS
 from gpaw.lrtddft import LrTDDFT
 from gpaw.mpi import world
 from gpaw.occupations import FermiDirac
-from gpaw.test import equal, gen
+from gpaw.test import gen
 
 
 @pytest.mark.hybrids
@@ -38,7 +38,7 @@ def test_rsf_yukawa_rsf_ivo_sing_mg(in_tmp_dir, add_cwd_to_setup_paths):
     na2.get_potential_energy()
     (eps_homo, eps_lumo) = calc.get_homo_lumo()
     e_ex = eps_lumo - eps_homo
-    equal(e_singlet, e_ex, 0.15)
+    assert e_singlet == pytest.approx(e_ex, abs=0.15)
     calc.write('mg.gpw')
 
     c2 = GPAW('mg.gpw')
@@ -51,4 +51,4 @@ def test_rsf_yukawa_rsf_ivo_sing_mg(in_tmp_dir, add_cwd_to_setup_paths):
         lr2 = LrTDDFT.read('LCY_TDDFT_Mg.ex.gz')
         lr2.diagonalize()
         ex_lr = lr2[1].get_energy() * Hartree
-        equal(e_singlet_lr, ex_lr, 0.15)
+        assert e_singlet_lr == pytest.approx(ex_lr, abs=0.15)

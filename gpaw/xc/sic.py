@@ -34,6 +34,7 @@ functionals (Perdew-Zunger).
 """
 
 from math import pi
+from typing import Callable, cast
 
 import numpy as np
 from ase.units import Bohr, Hartree
@@ -44,6 +45,7 @@ from gpaw.xc import XC
 from gpaw.xc.functional import XCFunctional
 from gpaw.poisson import PoissonSolver
 from gpaw.transformers import Transformer
+from gpaw.typing import ArrayND, IntVector, RNG
 from gpaw.utilities import pack, unpack
 from gpaw.lfc import LFC
 import _gpaw
@@ -118,7 +120,7 @@ def ortho(W_nn, maxerr=1E-10):
     return O_nn
 
 
-def random_unitary_matrix(delta, n):
+def random_unitary_matrix(delta, n, rng: RNG = cast(RNG, np.random)):
     """ Initializaes a (random) unitary matrix
 
     delta: float
@@ -128,6 +130,9 @@ def random_unitary_matrix(delta, n):
 
     n: int
         dimensionality of matrix.
+
+    rng: numpy.random.Generator
+        optional RNG
     """
 
     assert n > 0
@@ -148,7 +153,8 @@ def random_unitary_matrix(delta, n):
 
     # random unitary matrix
     elif delta > 0:
-        W_nn = np.random.rand(n, n)
+        sample_unit_interval: Callable[[IntVector], ArrayND] = rng.random
+        W_nn = sample_unit_interval((n, n))
         W_nn = (W_nn - W_nn.T)
 
         return matrix_exponential(W_nn, delta)
@@ -412,7 +418,8 @@ class SICSpin:
                  rattle=-0.1,
                  stabpot=0.0,
                  maxuoiter=10,
-                 logging=2):
+                 logging=2,
+                 rng: RNG = cast(RNG, np.random)):
         """Single spin SIC object.
 
 
@@ -438,6 +445,8 @@ class SICSpin:
 
         rattle:
             perturbation to the initial states
+        rng:
+            optional numpy.random.Generator instance
         """
 
         self.wfs = wfs
@@ -488,6 +497,8 @@ class SICSpin:
         self.basiserror = 1E+20
         self.logging = logging
 
+        self.rng = rng
+
     def initialize_orbitals(self, rattle=-0.1, localize=True):
         if self.initial_W_mn is not None:
             self.nocc = self.initial_W_mn.shape[0]
@@ -524,7 +535,7 @@ class SICSpin:
 
         if (rattle != 0.0 and self.W_mn is not None and
                 self.initial_W_mn is None):
-            U_mm = random_unitary_matrix(rattle, self.nocc)
+            U_mm = random_unitary_matrix(rattle, self.nocc, rng=self.rng)
             self.W_mn = np.dot(U_mm, self.W_mn)
 
         if self.W_mn is not None:
@@ -571,7 +582,7 @@ class SICSpin:
 
         # setup a "random" unitary matrix
         nocc = self.W_mn.shape[0]
-        U_mm = random_unitary_matrix(rattle, nocc)
+        U_mm = random_unitary_matrix(rattle, nocc, rng=self.rng)
 
         # apply unitary transformation
         self.W_mn = np.dot(U_mm, self.W_mn)

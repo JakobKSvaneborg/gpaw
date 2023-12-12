@@ -2,7 +2,7 @@ import numpy as np
 from ase import Atoms
 from gpaw import GPAW
 from gpaw import PW
-from gpaw.test import equal
+import pytest
 
 
 def test_pw_bulk():
@@ -21,4 +21,4 @@ def test_pw_bulk():
 
     a = np.roots(np.polyder(np.polyfit(A, e, 2), 1))[0]
     print('a =', a)
-    equal(a, 2.65247379609, 0.001)
+    assert a == pytest.approx(2.65247379609, abs=0.001)

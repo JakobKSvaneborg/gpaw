@@ -1,8 +1,7 @@
 import ase.io
 from ase.units import Pascal, m
 from ase.optimize import BFGS
-from ase.neb import interpolate
-from ase.mep import DyNEB
+from ase.mep import interpolate, DyNEB
 
 from gpaw.solvation.sjm import SJM, SJMPower12Potential
 from gpaw.solvation import (

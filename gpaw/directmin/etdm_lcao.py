@@ -62,7 +62,7 @@ class LCAOETDM:
                  functional='ks',
                  need_init_orbs=None,
                  orthonormalization='gramschmidt',
-                 randomizeorbitals=False,
+                 randomizeorbitals=None,
                  checkgraderror=False,
                  need_localization=True,
                  localizationtype=None,
@@ -162,9 +162,9 @@ class LCAOETDM:
             (Gram-Schmidt orthonormalization, default), 'loewdin' (Loewdin
             orthonormalization) or 'diag' (eigendecomposition of the
             Hamiltonian matrix).
-        randomizeorbitals: bool
-            If True, add random noise to the initial guess orbitals. Default
-            is False.
+        randomizeorbitals: numpy.random.Generator
+            Optional RNG to add random noise to the initial guess orbitals,
+            default is to not add noise to them
         checkgraderror: bool
             If True, can be used to check the error in the estimation of the
             gradient (only with representation 'full'). Default is False.
@@ -408,10 +408,10 @@ class LCAOETDM:
         self.need_init_orbs = self.dm_helper.need_init_orbs
 
         # randomize orbitals?
-        if self.randomizeorbitals:
+        if self.randomizeorbitals is not None:
             for kpt in wfs.kpt_u:
                 self.randomize_orbitals_kpt(wfs, kpt)
-            self.randomizeorbitals = False
+            self.randomizeorbitals = None
 
         wfs.calculate_occupation_numbers(dens.fixed)
 
@@ -1043,7 +1043,9 @@ class LCAOETDM:
         """
         nst = self.nbands
         wt = kpt.weight * 0.01
-        arand = wt * random_a((nst, nst), wfs.dtype)
+        arand = wt * random_a((nst, nst),
+                              wfs.dtype,
+                              rng=self.randomizeorbitals)
         arand = arand - arand.T.conj()
         wfs.gd.comm.broadcast(arand, 0)
         self.dm_helper.appy_transformation_kpt(wfs, expm(arand), kpt)

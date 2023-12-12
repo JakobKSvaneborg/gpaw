@@ -7,7 +7,6 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.mpi import world
 from gpaw.poisson import PoissonSolver
 from gpaw.tddft.spectrum import photoabsorption_spectrum
-from gpaw.test import equal
 
 
 @pytest.mark.rttddft
@@ -57,7 +56,7 @@ def test_lcaotddft_simple(in_tmp_dir):
              5.385046706407e-05]
 
     tol = 1e-10
-    equal(data_i, ref_i, tol)
+    assert data_i == pytest.approx(ref_i, abs=tol)
 
     # Test spectrum
     data_i = np.loadtxt('spec.dat').ravel()
@@ -95,7 +94,7 @@ def test_lcaotddft_simple(in_tmp_dir):
              5.008661764300e-02]
 
     tol = 1e-7
-    equal(data_i, ref_i, tol)
+    assert data_i == pytest.approx(ref_i, abs=tol)
 
 
 @pytest.mark.rttddft

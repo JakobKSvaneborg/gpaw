@@ -1,10 +1,10 @@
+from functools import cached_property
 from math import pi
 
 import numpy as np
 from ase.units import Bohr, Ha
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.plane_waves import PWArray
-from gpaw.new import cached_property
 from gpaw.new.poisson import PoissonSolver
 from scipy.special import erf
 

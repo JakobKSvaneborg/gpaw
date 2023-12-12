@@ -1,6 +1,6 @@
 from ase import Atoms
 from ase.data.vdw import vdw_radii
-from gpaw.test import equal
+import pytest
 from ase.units import Pascal, m
 from gpaw.solvation import (
     SolvationGPAW,
@@ -57,7 +57,7 @@ def test_solvation_forces_symmetry():
 
     difference = F[0][2] + F[1][2]
     print(difference)
-    equal(difference, .0, .02)  # gas phase is ~.007 eV / Ang
+    assert difference == pytest.approx(.0, abs=.02)
     F[0][2] = F[1][2] = .0
     print(np.abs(F))
-    equal(np.abs(F), .0, 1e-10)  # gas phase is ~1e-11 eV / Ang
+    assert np.abs(F) == pytest.approx(.0, abs=1e-10)

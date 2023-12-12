@@ -6,7 +6,6 @@ from ase.parallel import parprint
 from gpaw import GPAW
 from gpaw.analyse.multipole import Multipole
 from gpaw.cluster import Cluster
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -30,6 +29,6 @@ def test_multipoleH2O(in_tmp_dir):
     parprint('Multipole', q_L)
 
     # The dipole moment is independent of the center
-    equal(dipole_c[2], q_L[2], 1e-10)
+    assert dipole_c[2] == pytest.approx(q_L[2], abs=1e-10)
 
     mp.to_file(s.calc, mode='w')

@@ -310,7 +310,7 @@ class Symmetry:
                 sym_k, time_reversal_k, bz2ibz_k, ibz2bz_k, bz2bz_ks)
 
     def check_grid(self, N_c) -> bool:
-        """Check that symmetries are comensurate with grid."""
+        """Check that symmetries are commensurate with grid."""
         for s, (U_cc, ft_c) in enumerate(zip(self.op_scc, self.ft_sc)):
             t_c = ft_c * N_c
             # Make sure all grid-points map onto another grid-point:

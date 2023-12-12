@@ -5,7 +5,6 @@ from gpaw import GPAW
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.mpi import world
-from gpaw.test import equal
 
 
 @pytest.mark.gllb
@@ -46,7 +45,7 @@ def test_lcaotddft_fxc_vs_linearize(in_tmp_dir):
     data = np.loadtxt('dm_lin.dat').ravel()
 
     tol = 1e-9
-    equal(data, ref, tol)
+    assert data == pytest.approx(ref, abs=tol)
 
     # Test the absolute values
     if 0:
@@ -73,4 +72,4 @@ def test_lcaotddft_fxc_vs_linearize(in_tmp_dir):
     print(data.tolist())
 
     tol = 1e-12
-    equal(data, ref, tol)
+    assert data == pytest.approx(ref, abs=tol)

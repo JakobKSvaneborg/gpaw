@@ -1,10 +1,11 @@
 import numpy as np
+from functools import cached_property
 from ase import Atoms
 from ase.units import Bohr
 
 from gpaw.band_descriptor import BandDescriptor
 from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.new import cached_property, prod, zips
+from gpaw.new import prod, zips
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.projections import Projections

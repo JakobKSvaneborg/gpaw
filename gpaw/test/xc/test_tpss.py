@@ -2,7 +2,6 @@ import pytest
 from ase.build import molecule
 from gpaw import GPAW, Davidson, Mixer, PoissonSolver
 from gpaw.utilities.tools import split_formula
-from gpaw.test import equal
 
 
 @pytest.mark.mgga
@@ -80,4 +79,4 @@ def test_tpss(in_tmp_dir):
 
         # comparison to gpaw revision 5450 version value
         # in kcal/mol (note the grid:0.3 Ang)
-        equal(de_tpss, tpss_old[formula], 0.15)
+        assert de_tpss == pytest.approx(tpss_old[formula], abs=0.15)

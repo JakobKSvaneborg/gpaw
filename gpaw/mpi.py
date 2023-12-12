@@ -18,7 +18,7 @@ from ase.parallel import world as aseworld
 
 import gpaw
 
-from .broadcast_imports import world as _world
+from ._broadcast_imports import world as _world
 
 MASTER = 0
 
@@ -251,8 +251,10 @@ class _Communicator:
         Example::
 
           # The master has all the interesting data. Distribute it.
+          seed = 123456
+          rng = np.random.default_rng(seed)
           if comm.rank == 0:
-              data = np.random.normal(size=N*comm.size)
+              data = rng.normal(size=N*comm.size)
           else:
               data = None
           mydata = np.empty(N, dtype=float)
@@ -338,7 +340,9 @@ class _Communicator:
         Example::
 
           # All ranks have parts of interesting data. Gather on all ranks.
-          mydata = np.random.normal(size=N)
+          seed = 123456
+          rng = np.random.default_rng(seed)
+          mydata = rng.normal(size=N)
           data = np.empty(N*comm.size, dtype=float)
           comm.all_gather(mydata, data)
 
@@ -385,7 +389,9 @@ class _Communicator:
         Example::
 
           # All ranks have parts of interesting data. Gather it on master.
-          mydata = np.random.normal(size=N)
+          seed = 123456
+          rng = np.random.default_rng(seed)
+          mydata = rng.normal(size=N)
           if comm.rank == 0:
               data = np.empty(N*comm.size, dtype=float)
           else:
@@ -432,7 +438,9 @@ class _Communicator:
         Example::
 
           # All ranks have parts of interesting data. Take a given index.
-          mydata[:] = np.random.normal(size=N)
+          seed = 123456
+          rng = np.random.default_rng(seed)
+          mydata[:] = rng.normal(size=N)
 
           # Who has the element at global index 13? Everybody needs it!
           index = 13

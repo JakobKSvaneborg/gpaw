@@ -44,10 +44,10 @@ To compute the SHG spectrum of given structure, 3 steps are performed:
   .. literalinclude:: shg_MoS2.py
     :end-before: GSEnd
 
-  In this script a normal ground state calculation is performed with coarse
-  k-point grid. Note that LCAO basis is used here, but the PW basis set can
-  also be used. For a smoother spectrum, a finer mesh should be employed.
-
+  In this script a normal ground state calculation is performed with a coarse
+  k-point grid. For a smoother spectrum, a finer mesh should be employed.
+  Please note that the current implementation of the nonlinear optics module
+  only supports the plane-wave basis set.
 
 2. Get the required matrix elements from the ground state
 
@@ -102,7 +102,7 @@ the computed SHG susceptibilities, obtained from two gauges are shown. The
 gauge invariance is confirmed from the calculation.
 
 Note that the bulk susceptibility (with SI units of m/V) is ill-defined for 2D
-materials, since the volume cannot be defined without ambiguity in 2D systems.
+materials, since the crystal volume cannot be defined without ambiguity.
 Instead, the sheet susceptibility, expressed in unit of m\ `^2`/V, is an
 unambiguous quantity for 2D materials. Hence, the bulk susceptibility is
 transformed to the unambiguous sheet susceptibility by multiplying with the
@@ -113,7 +113,7 @@ width of the unit cell in the `z`-direction.
 
 The figure shown here is generated from scripts:
 :download:`shg_MoS2.py` and :download:`shg_plot.py`.
-It takes 30 minutes with 16 cpus on Intel Xeon X5570 2.93GHz.
+It takes roughly 15 minutes with 16 CPUs on Intel Xeon X5570 2.93GHz.
 
 .. image:: shg.png
     :height: 300 px

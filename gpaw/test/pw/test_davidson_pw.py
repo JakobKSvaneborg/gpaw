@@ -2,7 +2,6 @@ import pytest
 from gpaw.mpi import world
 from ase import Atom, Atoms
 from gpaw import GPAW
-from gpaw.test import equal
 
 pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')
@@ -31,10 +30,10 @@ def test_pw_davidson_pw():
     bulk.calc = calc
     e1 = bulk.get_potential_energy()
     niter1 = calc.get_number_of_iterations()
-    equal(e0, e1, 5.0e-6)
+    assert e0 == pytest.approx(e1, abs=5.0e-6)
 
     energy_tolerance = 0.0004
-    equal(e0, -6.97798, energy_tolerance)
+    assert e0 == pytest.approx(-6.97798, abs=energy_tolerance)
     assert 8 <= niter0 <= 12, niter0
-    equal(e1, -6.97798, energy_tolerance)
+    assert e1 == pytest.approx(-6.97798, abs=energy_tolerance)
     assert 8 <= niter1 <= 22, niter1

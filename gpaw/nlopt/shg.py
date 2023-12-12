@@ -24,25 +24,26 @@ def get_shg(
     Output: shg.npy file with numpy array containing the spectrum and
     frequencies.
 
-    Parameters:
-
-    nlodata:
+    Parameters
+    ----------
+    nlodata
         Data object of class NLOData. Contains energies, occupancies and
         momentum matrix elements.
-    freqs:
+    freqs
         Excitation frequency array (a numpy array or list).
-    eta:
+    eta
         Broadening, a number or an array (default 0.05 eV).
-    pol:
+    pol
         Tensor element (default 'yyy').
-    gauge:
+    gauge
         Choose the gauge ('lg' or 'vg').
-    Etol, ftol:
+    Etol, ftol
         Tol. in energy and fermi to consider degeneracy.
-    band_n:
+    band_n
         List of bands in the sum (default 0 to nb).
-    out_name:
+    out_name
         Output filename (default 'shg.npy').
+
     """
 
     # Start a timer

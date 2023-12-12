@@ -4,7 +4,7 @@ from ase.units import Bohr
 from ase.build import bulk
 from gpaw import GPAW, FermiDirac
 from gpaw.response.df import DielectricFunction
-from gpaw.test import equal, findpeak
+from gpaw.test import findpeak
 
 
 @pytest.mark.response
@@ -33,8 +33,8 @@ def test_response_diamond_absorption(in_tmp_dir):
     df = DielectricFunction('C.gpw', frequencies=(0.,), eta=0.001, ecut=50,
                             hilbert=False)
     eM1, eM2 = df.get_macroscopic_dielectric_constant()
-    equal(eM1, eM1_, 0.01)
-    equal(eM2, eM2_, 0.01)
+    assert eM1 == pytest.approx(eM1_, abs=0.01)
+    assert eM2 == pytest.approx(eM2_, abs=0.01)
 
     # Absorption spectrum calculation RPA
     df = DielectricFunction('C.gpw',
@@ -45,23 +45,23 @@ def test_response_diamond_absorption(in_tmp_dir):
     a0, a = df.get_dielectric_function(filename=None)
     df.check_sum_rule(a.imag)
 
-    equal(a0[0].real, eM1_, 0.01)
-    equal(a[0].real, eM2_, 0.01)
+    assert a0[0].real == pytest.approx(eM1_, abs=0.01)
+    assert a[0].real == pytest.approx(eM2_, abs=0.01)
     w, I = findpeak(np.linspace(0, 24., 241), a0.imag)
-    equal(w, w0_, 0.01)
-    equal(I / (4 * np.pi), I0_, 0.1)
+    assert w == pytest.approx(w0_, abs=0.01)
+    assert I / (4 * np.pi) == pytest.approx(I0_, abs=0.1)
     w, I = findpeak(np.linspace(0, 24., 241), a.imag)
-    equal(w, w_, 0.01)
-    equal(I / (4 * np.pi), I_, 0.1)
+    assert w == pytest.approx(w_, abs=0.01)
+    assert I / (4 * np.pi) == pytest.approx(I_, abs=0.1)
 
     a0, a = df.get_polarizability(filename=None)
 
     w, I = findpeak(np.linspace(0, 24., 241), a0.imag)
-    equal(w, w0_, 0.01)
-    equal(I, I0_, 0.01)
+    assert w == pytest.approx(w0_, abs=0.01)
+    assert I == pytest.approx(I0_, abs=0.01)
     w, I = findpeak(np.linspace(0, 24., 241), a.imag)
-    equal(w, w_, 0.01)
-    equal(I, I_, 0.01)
+    assert w == pytest.approx(w_, abs=0.01)
+    assert I == pytest.approx(I_, abs=0.01)
 
     # Absorption spectrum calculation ALDA
     w0_ = 10.7931
@@ -75,11 +75,11 @@ def test_response_diamond_absorption(in_tmp_dir):
     d = np.loadtxt('ALDA_pol.csv', delimiter=',')
 
     w, I = findpeak(d[:, 0], d[:, 2])
-    equal(w, w0_, 0.01)
-    equal(I, I0_, 0.1)
+    assert w == pytest.approx(w0_, abs=0.01)
+    assert I == pytest.approx(I0_, abs=0.1)
     w, I = findpeak(d[:, 0], d[:, 4])
-    equal(w, w_, 0.01)
-    equal(I, I_, 0.1)
+    assert w == pytest.approx(w_, abs=0.01)
+    assert I == pytest.approx(I_, abs=0.1)
 
     # Absorption spectrum calculation long-range kernel
     w0_ = 10.2189
@@ -90,11 +90,11 @@ def test_response_diamond_absorption(in_tmp_dir):
     a0, a = df.get_polarizability(filename=None, xc='LR0.25')
 
     w, I = findpeak(np.linspace(0, 24., 241), a0.imag)
-    equal(w, w0_, 0.01)
-    equal(I, I0_, 0.1)
+    assert w == pytest.approx(w0_, abs=0.01)
+    assert I == pytest.approx(I0_, abs=0.1)
     w, I = findpeak(np.linspace(0, 24., 241), a.imag)
-    equal(w, w_, 0.01)
-    equal(I, I_, 0.1)
+    assert w == pytest.approx(w_, abs=0.01)
+    assert I == pytest.approx(I_, abs=0.1)
 
     # Absorption spectrum calculation Bootstrap
     w0_ = 10.37
@@ -105,8 +105,8 @@ def test_response_diamond_absorption(in_tmp_dir):
     a0, a = df.get_polarizability(filename=None, xc='Bootstrap')
 
     w, I = findpeak(np.linspace(0, 24., 241), a0.imag)
-    equal(w, w0_, 0.02)
-    equal(I, I0_, 0.2)
+    assert w == pytest.approx(w0_, abs=0.02)
+    assert I == pytest.approx(I0_, abs=0.2)
     w, I = findpeak(np.linspace(0, 24., 241), a.imag)
-    equal(w, w_, 0.02)
-    equal(I, I_, 0.2)
+    assert w == pytest.approx(w_, abs=0.02)
+    assert I == pytest.approx(I_, abs=0.2)

@@ -67,7 +67,7 @@ def find_high_symmetry_monkhorst_pack(calc, density):
     # NB: get_bz() wants a pbc_c, but never gets it. This means that the
     # pbc always will fall back to True along all dimensions. XXX
     # NB: Why return latibzk_kc, if we never use it? XXX
-    bzk_kc, ibzk_kc, latibzk_kc = get_bz(calc, returnlatticeibz=True)
+    bzk_kc, ibzk_kc, latibzk_kc = get_bz(calc)
 
     maxsize = minsize + 10
     minsize[~pbc] = 1
@@ -197,7 +197,7 @@ def get_smallest_Gvecs(cell_cv, n=5):
     """
     B_cv = 2.0 * np.pi * np.linalg.inv(cell_cv).T
     N_xc = np.indices((n, n, n)).reshape((3, n**3)).T - n // 2
-    G_xv = np.dot(N_xc, B_cv)
+    G_xv = N_xc @ B_cv
 
     return G_xv, N_xc
 
@@ -292,7 +292,7 @@ def get_ibz_vertices(cell_cv, U_scc=None, time_reversal=None,
     return ibzk_kc
 
 
-def get_bz(calc, returnlatticeibz=False, pbc_c=np.ones(3, bool)):
+def get_bz(calc, pbc_c=np.ones(3, bool)):
     """Return the BZ and IBZ vertices.
 
     Parameters
@@ -317,11 +317,10 @@ def get_bz(calc, returnlatticeibz=False, pbc_c=np.ones(3, bool)):
     cU_scc = get_symmetry_operations(symmetry.op_scc,
                                      symmetry.time_reversal)
 
-    return get_reduced_bz(cell_cv, cU_scc, False, returnlatticeibz,
-                          pbc_c=pbc_c)
+    return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
 
 
-def get_reduced_bz(cell_cv, cU_scc, time_reversal, returnlatticeibz=False,
+def get_reduced_bz(cell_cv, cU_scc, time_reversal,
                    pbc_c=np.ones(3, bool), tolerance=1e-7):
 
     """Reduce the BZ using the crystal symmetries to obtain the IBZ.
@@ -362,10 +361,7 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal, returnlatticeibz=False,
     bzk_kc = unique_rows(np.concatenate(np.dot(ibzk_kc,
                                                cU_scc.transpose(0, 2, 1))))
 
-    if returnlatticeibz:
-        return bzk_kc, ibzk_kc, latibzk_kc
-    else:
-        return bzk_kc, ibzk_kc
+    return bzk_kc, ibzk_kc, latibzk_kc
 
 
 def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):

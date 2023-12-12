@@ -65,10 +65,10 @@ The above equation also applies for the non interacting density response functio
       \frac{1}{| \mathbf{r}_5 -  \mathbf{r}_7|}
        \chi(\mathbf{r}_7, \mathbf{r}^{\prime}; \omega) \\
      &+ \int d \mathbf{r}_5 d \mathbf{r}_6 d \mathbf{r}^{\prime \prime}
-      \chi^0(\mathbf{r}, \mathbf{r}_5,  \mathbf{r}_6; \omega)
+      \chi^0(\mathbf{r},\mathbf{r}, \mathbf{r}_5,  \mathbf{r}_6; \omega)
         \frac{\epsilon^{-1}( \mathbf{r}_5,  \mathbf{r}^{\prime \prime}; \omega )}
       {| \mathbf{r}^{\prime \prime} -  \mathbf{r}_6|}
-      \chi(\mathbf{r}_5, \mathbf{r}_6, \mathbf{r}^{\prime}; \omega)
+      \chi(\mathbf{r}_5, \mathbf{r}_6, \mathbf{r}^{\prime}, \mathbf{r}^{\prime}; \omega)
 
 Transform using electron-hole pair basis
 ========================================
@@ -296,7 +296,7 @@ Employing Fourier transform
    \int d \mathbf{r}^{\prime \prime}\frac{\epsilon^{-1}(\mathbf{r},\mathbf{r}^{\prime \prime}) }{| \mathbf{r}^{\prime \prime}-\mathbf{r}^{\prime} |}
    = \frac{1}{\Omega} \sum_{\mathbf{q} \mathbf{G} \mathbf{G}^{\prime} }
       e^{i ( \mathbf{q} + \mathbf{G}) \cdot   \mathbf{r} }
-     \frac{4\pi  \epsilon^{-1}_{\mathbf{G}  \mathbf{G}^{\prime}} (\mathbf{q}) }{ | \mathbf{q} + \mathbf{G}|^2 }
+     \frac{4\pi  \epsilon^{-1}_{\mathbf{G}  \mathbf{G}^{\prime}} (\mathbf{q}) }{ | \mathbf{q} + \mathbf{G}^{\prime}|^2 }
      e^{-i ( \mathbf{q} + \mathbf{G}^{\prime}) \cdot \mathbf{r}^{\prime}   }
 
 where `\Omega` is the volume of the unit cell,
@@ -319,7 +319,7 @@ where `\Omega` is the volume of the unit cell,
    = \sum_{\mathbf{G}  \mathbf{G}^{\prime}}
     \rho^{\ast}_{\begin{array}{l} n_1 \mathbf{k}_1 \\
          n_5 \mathbf{k}_5 \end{array}} (\mathbf{G})
-    \ \frac{4\pi \epsilon^{-1}_{\mathbf{G}  \mathbf{G}^{\prime}} (\mathbf{q}; \omega=0) }{| \mathbf{q} + \mathbf{G}|^2}
+    \ \frac{4\pi \epsilon^{-1}_{\mathbf{G}  \mathbf{G}^{\prime}} (\mathbf{k}_5-\mathbf{k}_1; \omega=0) }{| \mathbf{k}_5-\mathbf{k}_1 + \mathbf{G}|^2}
     \ \rho_{\begin{array}{l} n_2 \mathbf{k}_1 + \mathbf{q} \\
          n_6 \mathbf{k}_5 + \mathbf{q}  \end{array}} (\mathbf{G}^{\prime})
 
@@ -426,7 +426,7 @@ The screened interaction kernel `W` is given by
          n_3 \mathbf{k}_3 \end{array}} (\mathbf{G})
     \ \frac{4\pi \epsilon^{-1}_{\mathbf{G}  \mathbf{G}^{\prime}} (\mathbf{k}_3 - \mathbf{k}_1; \omega=0) }{| \mathbf{k}_3 - \mathbf{k}_1 + \mathbf{G}|^2}
     \ \rho_{\begin{array}{l} n_2 \mathbf{k}_1 + \mathbf{q} \\
-         n_4 \mathbf{k}_4 + \mathbf{q}  \end{array}} (\mathbf{G}^{\prime})
+         n_4 \mathbf{k}_3 + \mathbf{q}  \end{array}} (\mathbf{G}^{\prime})
 
 
 2. Diagonalize `\mathcal{H}_{SS^{\prime}}` with the eigenvalues `E_{\lambda}` and eigenvectors `A_{\lambda}` given by

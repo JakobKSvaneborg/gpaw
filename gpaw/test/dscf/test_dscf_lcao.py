@@ -2,7 +2,6 @@ import pytest
 from ase.build import molecule
 from gpaw import GPAW
 import gpaw.dscf as dscf
-from gpaw.test import equal
 
 # Ground state calculation
 
@@ -46,4 +45,4 @@ def test_dscf_dscf_lcao():
     E_es = CO.get_potential_energy()
     dE = E_es - E_gs
     print(dE)
-    equal(dE, 5.7595110076, 0.011)
+    assert dE == pytest.approx(5.7595110076, abs=0.011)

@@ -19,7 +19,7 @@ from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.susceptibility import ChiFactory
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 from gpaw.response.pair_functions import read_pair_function
-from gpaw.test.conftest import response_band_cutoff
+from gpaw.test.gpwfile import response_band_cutoff
 
 pytestmark = pytest.mark.skipif(world.size < 4, reason='world.size < 4')
 

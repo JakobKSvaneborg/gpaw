@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 
 from ase.io.ulm import ulmopen
-from gpaw.test.conftest import response_band_cutoff
+from gpaw.test.gpwfile import response_band_cutoff
 
 
 @pytest.mark.response

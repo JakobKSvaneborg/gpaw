@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import cached_property
 import numpy as np
 from gpaw.response import timer
 from scipy.spatial import Delaunay
@@ -12,11 +13,11 @@ from gpaw.response.pw_parallelization import Blocks1D, block_partition
 
 class Integrand(ABC):
     @abstractmethod
-    def matrix_element(self, k_v, s):
+    def matrix_element(self, point):
         ...
 
     @abstractmethod
-    def eigenvalues(self, k_v, s):
+    def eigenvalues(self, point):
         ...
 
 
@@ -48,33 +49,14 @@ class Integrator:
         self.blockcomm, self.kncomm = block_partition(self.context.comm,
                                                       nblocks)
 
-    def distribute_domain(self, domain_dl):
-        """Distribute integration domain. """
-        domainsize = [len(domain_l) for domain_l in domain_dl]
-        nterms = np.prod(domainsize)
-        size = self.kncomm.size
-        rank = self.kncomm.rank
-
-        n = (nterms + size - 1) // size
-        i1 = min(rank * n, nterms)
-        i2 = min(i1 + n, nterms)
-        assert i1 <= i2
-        mydomain = []
-        for i in range(i1, i2):
-            unravelled_d = np.unravel_index(i, domainsize)
-            arguments = []
-            for domain_l, index in zip(domain_dl, unravelled_d):
-                arguments.append(domain_l[index])
-            mydomain.append(tuple(arguments))
-
-        self.context.print(f'Distributing domain {domainsize}',
-                           'over %d process%s' %
-                           (self.kncomm.size,
-                            ['es', ''][self.kncomm.size == 1]),
-                           flush=False)
-        self.context.print('Number of blocks:', self.blockcomm.size)
-
-        return mydomain
+    def mydomain(self, domain):
+        from gpaw.response.pw_parallelization import Blocks1D
+        # This function does the same as distribute_domain
+        # but on a flat list and without all the fluff.
+        #
+        # In progress: Getting rid of distribute_domain(),
+        blocks = Blocks1D(self.kncomm, len(domain))
+        return [domain[i] for i in range(blocks.a, blocks.b)]
 
     def integrate(self, **kwargs):
         raise NotImplementedError
@@ -92,20 +74,19 @@ class PointIntegrator(Integrator):
 
         self.context.print('Integral kind:', task.kind)
 
-        mydomain_t = self.distribute_domain(domain)
-        nbz = len(domain[0])
+        mydomain = self.mydomain(domain)
 
-        prefactor = (2 * np.pi)**3 / self.vol / nbz
+        prefactor = (2 * np.pi)**3 / self.vol / domain.nkpts
         out_wxx /= prefactor
 
         # Sum kpoints
         # Calculate integrations weight
         pb = ProgressBar(self.context.fd)
-        for _, arguments in pb.enumerate(mydomain_t):
-            n_MG = integrand.matrix_element(*arguments)
+        for _, point in pb.enumerate(mydomain):
+            n_MG = integrand.matrix_element(point)
             if n_MG is None:
                 continue
-            deps_M = integrand.eigenvalues(*arguments)
+            deps_M = integrand.eigenvalues(point)
 
             task.run(wd, n_MG, deps_M, out_wxx)
 
@@ -356,35 +337,101 @@ class HilbertOpticalLimit(IntegralTask):
             chi0_wxvG[w + 1, 1, :, :] += p2 * x_vG.conj()
 
 
+class Point:
+    def __init__(self, kpt_c, K, spin):
+        self.kpt_c = kpt_c
+        self.K = K
+        self.spin = spin
+
+
+class Domain:
+    def __init__(self, kpts_kc, spins):
+        self.kpts_kc = kpts_kc
+        self.spins = spins
+
+    @property
+    def nkpts(self):
+        return len(self.kpts_kc)
+
+    @property
+    def nspins(self):
+        return len(self.spins)
+
+    def __len__(self):
+        return self.nkpts * self.nspins
+
+    def __getitem__(self, num) -> Point:
+        K = num // self.nspins
+        return Point(self.kpts_kc[K], K,
+                     self.spins[num % self.nspins])
+
+    def tesselation(self):
+        tesselation = KPointTesselation(self.kpts_kc)
+        tesselated_domains = Domain(tesselation.bzk_kc, self.spins)
+        return tesselation, tesselated_domains
+
+
+class KPointTesselation:
+    def __init__(self, kpts):
+        self._td = Delaunay(kpts)
+
+    @property
+    def bzk_kc(self):
+        return self._td.points
+
+    @cached_property
+    def simplex_volumes(self):
+        volumes_s = np.zeros(self._td.nsimplex, float)
+        for s in range(self._td.nsimplex):
+            K_k = self._td.simplices[s]
+            k_kc = self._td.points[K_k]
+            volume = np.abs(np.linalg.det(k_kc[1:] - k_kc[0])) / 6.
+            volumes_s[s] = volume
+        return volumes_s
+
+    def tetrahedron_weight(self, K, deps_k, omega_w):
+        simplices_s = self.pts_k[K]
+        W_w = np.zeros(len(omega_w), float)
+        vol_s = self.simplex_volumes[simplices_s]
+        _gpaw.tetrahedron_weight(
+            deps_k, self._td.simplices, K, simplices_s, W_w, omega_w, vol_s)
+        return W_w
+
+    @cached_property
+    def pts_k(self):
+        pts_k = [[] for n in range(self.nkpts)]
+        for s, K_k in enumerate(self._td.simplices):
+            A_kv = np.append(self._td.points[K_k],
+                             np.ones(4)[:, np.newaxis], axis=1)
+
+            D_kv = np.append((A_kv[:, :-1]**2).sum(1)[:, np.newaxis],
+                             A_kv, axis=1)
+            a = np.linalg.det(D_kv[:, np.arange(5) != 0])
+
+            if np.abs(a) < 1e-10:
+                continue
+
+            for K in K_k:
+                pts_k[K].append(s)
+
+        return [np.array(pts_k[k], int) for k in range(self.nkpts)]
+
+    @property
+    def nkpts(self):
+        return self._td.npoints
+
+    @cached_property
+    def neighbours_k(self):
+        return [np.unique(self._td.simplices[self.pts_k[k]])
+                for k in range(self.nkpts)]
+
+
 class TetrahedronIntegrator(Integrator):
     """Integrate brillouin zone using tetrahedron integration.
 
     Tetrahedron integration uses linear interpolation of
     the eigenenergies and of the matrix elements
     between the vertices of the tetrahedron."""
-
-    @timer('Tesselate')
-    def tesselate(self, vertices):
-        """Get tesselation descriptor."""
-        td = Delaunay(vertices)
-
-        td.volumes_s = None
-        return td
-
-    def get_simplex_volume(self, td, S):
-        """Get volume of simplex S"""
-
-        if td.volumes_s is not None:
-            return td.volumes_s[S]
-
-        td.volumes_s = np.zeros(td.nsimplex, float)
-        for s in range(td.nsimplex):
-            K_k = td.simplices[s]
-            k_kc = td.points[K_k]
-            volume = np.abs(np.linalg.det(k_kc[1:] - k_kc[0])) / 6.
-            td.volumes_s[s] = volume
-
-        return self.get_simplex_volume(td, S)
 
     @timer('Spectral function integration')
     def integrate(self, *, domain, integrand, wd, out_wxx, task):
@@ -395,88 +442,34 @@ class TetrahedronIntegrator(Integrator):
         method it is possible calculate frequency dependent weights
         and do a point summation using these weights."""
 
-        # Input domain
-        td = self.tesselate(domain[0])
-        args = domain[1:]
-
-        # Relevant quantities
-        bzk_kc = td.points
-        nk = len(bzk_kc)
-
-        with self.context.timer('pts'):
-            # Point to simplex
-            pts_k = [[] for n in range(nk)]
-            for s, K_k in enumerate(td.simplices):
-                A_kv = np.append(td.points[K_k],
-                                 np.ones(4)[:, np.newaxis], axis=1)
-
-                D_kv = np.append((A_kv[:, :-1]**2).sum(1)[:, np.newaxis],
-                                 A_kv, axis=1)
-                a = np.linalg.det(D_kv[:, np.arange(5) != 0])
-
-                if np.abs(a) < 1e-10:
-                    continue
-
-                for K in K_k:
-                    pts_k[K].append(s)
-
-            # Change to numpy arrays:
-            for k in range(nk):
-                pts_k[k] = np.array(pts_k[k], int)
-
-        with self.context.timer('neighbours'):
-            # Nearest neighbours
-            neighbours_k = [None for n in range(nk)]
-
-            for k in range(nk):
-                neighbours_k[k] = np.unique(td.simplices[pts_k[k]])
-
-        # Distribute everything
-        myterms_t = self.distribute_domain(list(args) +
-                                           [list(range(nk))])
+        tesselation, alldomains = domain.tesselation()
+        mydomain = self.mydomain(alldomains)
 
         with self.context.timer('eigenvalues'):
-            # Store eigenvalues
             deps_tMk = None  # t for term
-            shape = [len(domain_l) for domain_l in args]
-            nterms = int(np.prod(shape))
 
-            for t in range(nterms):
-                if len(shape) == 0:
-                    arguments = ()
-                else:
-                    arguments = np.unravel_index(t, shape)
-                for K in range(nk):
-                    k_c = bzk_kc[K]
-                    deps_M = -integrand.eigenvalues(k_c, *arguments)
-                    if deps_tMk is None:
-                        deps_tMk = np.zeros([nterms] +
-                                            list(deps_M.shape) +
-                                            [nk], float)
-                    deps_tMk[t, :, K] = deps_M
+            for point in alldomains:
+                deps_M = -integrand.eigenvalues(point)
+                if deps_tMk is None:
+                    deps_tMk = np.zeros([alldomains.nspins, *deps_M.shape,
+                                         tesselation.nkpts], float)
+                deps_tMk[point.spin, :, point.K] = deps_M
 
         # Calculate integrations weight
         pb = ProgressBar(self.context.fd)
-        for _, arguments in pb.enumerate(myterms_t):
-            K = arguments[-1]
-            if len(shape) == 0:
-                t = 0
-            else:
-                t = np.ravel_multi_index(arguments[:-1], shape)
-            deps_Mk = deps_tMk[t]
-            teteps_Mk = deps_Mk[:, neighbours_k[K]]
-            n_MG = integrand.matrix_element(bzk_kc[K],
-                                            *arguments[:-1])
+        for _, point in pb.enumerate(mydomain):
+            deps_Mk = deps_tMk[point.spin]
+            teteps_Mk = deps_Mk[:, tesselation.neighbours_k[point.K]]
+            n_MG = integrand.matrix_element(point)
 
             # Generate frequency weights
-            i0_M, i1_M = wd.get_index_range(
-                teteps_Mk.min(1), teteps_Mk.max(1))
-            W_Mw = []
-            for deps_k, i0, i1 in zip(deps_Mk, i0_M, i1_M):
-                W_w = self.get_kpoint_weight(K, deps_k,
-                                             pts_k, wd.omega_w[i0:i1],
-                                             td)
-                W_Mw.append(W_w)
+            i0_M, i1_M = wd.get_index_range(teteps_Mk.min(1), teteps_Mk.max(1))
+            with self.context.timer('tetrahedron weight'):
+                W_Mw = []
+                for deps_k, i0, i1 in zip(deps_Mk, i0_M, i1_M):
+                    W_w = tesselation.tetrahedron_weight(
+                        point.K, deps_k, wd.omega_w[i0:i1])
+                    W_Mw.append(W_w)
 
             task.run(n_MG, deps_Mk, W_Mw, i0_M, i1_M, out_wxx)
 
@@ -489,20 +482,6 @@ class TetrahedronIntegrator(Integrator):
             iu = il[::-1]
             for out_xx in out_wxx:
                 out_xx[il] = out_xx[iu].conj()
-
-    @timer('Get kpoint weight')
-    def get_kpoint_weight(self, K, deps_k, pts_k,
-                          omega_w, td):
-        # Find appropriate index range
-        simplices_s = pts_k[K]
-        W_w = np.zeros(len(omega_w), float)
-        vol_s = self.get_simplex_volume(td, simplices_s)
-        with self.context.timer('Tetrahedron weight'):
-            _gpaw.tetrahedron_weight(deps_k, td.simplices, K,
-                                     simplices_s,
-                                     W_w, omega_w, vol_s)
-
-        return W_w
 
 
 class HilbertTetrahedron:

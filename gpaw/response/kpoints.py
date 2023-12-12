@@ -1,5 +1,5 @@
 import numpy as np
-from ase.utils import lazyproperty
+from functools import cached_property
 
 
 class ResponseKPointGrid:
@@ -17,7 +17,7 @@ class ResponseKPointGrid:
         # XXX May or may not be consistent with bzk_kc!
         self.kd = kd
 
-    @lazyproperty
+    @cached_property
     def kptfinder(self):
         from gpaw.response.symmetry import KPointFinder
         return KPointFinder(self.bzk_kc)

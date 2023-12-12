@@ -849,6 +849,8 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
             weight_G = 1.0 / (1.0 + self.pd.G2_qG[kpt.q])
             array.real = rs.uniform(-1, 1, array.shape) * weight_G
             array.imag = rs.uniform(-1, 1, array.shape) * weight_G
+            if self.gd.comm.rank == 0:
+                array[:, 0].imag = 0.0
 
     def estimate_memory(self, mem):
         FDPWWaveFunctions.estimate_memory(self, mem)

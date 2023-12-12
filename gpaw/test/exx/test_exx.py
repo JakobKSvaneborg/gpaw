@@ -2,7 +2,6 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW
-from gpaw.test import equal
 from gpaw.xc import XC
 from gpaw.xc.hybrid import HybridXC
 
@@ -50,11 +49,11 @@ def test_exx_exx(in_tmp_dir):
 
         if xc.name in current:
             for first, second in zip(current[xc.name], res):
-                equal(first, second, 2.5e-3)
+                assert first == pytest.approx(second, abs=2.5e-3)
         else:
             current[xc.name] = res
 
     for name in current:
         for ref, cur in zip(ref_1871[name], current[name]):
             print(ref, cur, ref - cur)
-            equal(ref, cur, 2.9e-3)
+            assert ref == pytest.approx(cur, abs=2.9e-3)

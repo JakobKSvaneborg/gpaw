@@ -2,7 +2,6 @@ import pytest
 from ase.build import bulk
 from gpaw import GPAW, FermiDirac
 from gpaw.mpi import serial_comm
-from gpaw.test import equal
 from gpaw.xc.rpa import RPACorrelation
 from gpaw.xc.fxc import FXCCorrelation
 
@@ -29,5 +28,5 @@ def test_rpa_rpa_energy_Ni(in_tmp_dir):
                          ecut=[50])
     E_fxc = fxc.calculate()
 
-    equal(E_rpa, -7.826, 0.01)
-    equal(E_fxc, -7.826, 0.01)
+    assert E_rpa == pytest.approx(-7.826, abs=0.01)
+    assert E_fxc == pytest.approx(-7.826, abs=0.01)

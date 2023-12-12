@@ -3,7 +3,6 @@ import pytest
 
 import gpaw.mpi as mpi
 from gpaw import GPAW
-from gpaw.test import equal
 from gpaw.xas import XAS
 
 
@@ -30,8 +29,8 @@ def test_corehole_h2o(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
         w_n = np.sum(xas.sigma_cmn[:, 0, :].real**2, axis=0)
         de2 = e2_n[1] - e2_n[0]
 
-    equal(de2, 2.064, 0.005)
-    equal(w_n[1] / w_n[0], 2.22, 0.01)
+    assert de2 == pytest.approx(2.064, abs=0.005)
+    assert w_n[1] / w_n[0] == pytest.approx(2.22, abs=0.01)
 
     assert de1 == de2
 

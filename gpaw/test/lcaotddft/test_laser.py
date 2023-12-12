@@ -9,7 +9,6 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.laser import GaussianPulse
 from gpaw.mpi import world
 from gpaw.tddft.units import as_to_au
-from gpaw.test import equal
 
 # Settings
 dt = 20.0
@@ -70,4 +69,4 @@ def test_laser(in_tmp_dir):
         pulsedmconv_t = np.convolve(
             dm_tv[:, v], pulse_t)[:(N + 1)] * dt * as_to_au
         np.savetxt('dmpulseconv%d.dat' % v, pulsedmconv_t)
-        equal(pulsedm_tv[:, v], pulsedmconv_t, tol)
+        assert pulsedm_tv[:, v] == pytest.approx(pulsedmconv_t, abs=tol)

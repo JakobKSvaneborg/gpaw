@@ -1,7 +1,7 @@
 from ase import Atom, Atoms
 
 from gpaw import GPAW, Mixer, RMMDIIS
-from gpaw.test import equal
+import pytest
 
 
 def test_eigen_blocked_rmm_diis(in_tmp_dir):
@@ -30,5 +30,5 @@ def test_eigen_blocked_rmm_diis(in_tmp_dir):
     atoms.calc = calc
     e1 = atoms.get_potential_energy()
     niter1 = calc.get_number_of_iterations()
-    equal(e0, e1, 0.000001)
-    equal(niter0, niter1, 0)
+    assert e0 == pytest.approx(e1, abs=0.000001)
+    assert niter0 == pytest.approx(niter1, abs=0)

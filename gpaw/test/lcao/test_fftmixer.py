@@ -3,7 +3,6 @@ from ase import Atoms
 
 from gpaw import GPAW, LCAO
 from gpaw.mixer import FFTMixer
-from gpaw.test import equal
 
 
 @pytest.mark.later
@@ -15,4 +14,4 @@ def test_lcao_fftmixer():
                      kpts=(k, k, k),
                      mixer=FFTMixer())
     e = bulk.get_potential_energy()
-    equal(e, -1.710364, 1e-4)
+    assert e == pytest.approx(-1.710364, abs=1e-4)

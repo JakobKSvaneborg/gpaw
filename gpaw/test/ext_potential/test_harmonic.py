@@ -6,7 +6,6 @@ from ase.units import Bohr, Ha
 from gpaw import GPAW
 from gpaw.external import ExternalPotential, known_potentials
 from gpaw.poisson import NoInteractionPoissonSolver
-from gpaw.test import equal
 
 
 class HarmonicPotential(ExternalPotential):
@@ -38,8 +37,8 @@ def test_ext_potential_harmonic(in_tmp_dir):
     x.get_potential_energy()
 
     eigs = calc.get_eigenvalues()
-    equal(eigs[0], 1.5 * Ha, 0.002)
-    equal(abs(eigs[1:] - 2.5 * Ha).max(), 0, 0.003)
+    assert eigs[0] == pytest.approx(1.5 * Ha, abs=0.002)
+    assert abs(eigs[1:] - 2.5 * Ha).max() == pytest.approx(0, abs=0.003)
 
     # Check write + read:
     calc.write('harmonic.gpw')
