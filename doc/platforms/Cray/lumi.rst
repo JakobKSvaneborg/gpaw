@@ -84,6 +84,11 @@ Interactive jobs can be run like this::
 
   srun -A project_... -p small-g --nodes=1 --ntasks-per-node=1 --gpus-per-node=1 -t 0:30:00 --pty bash
 
+One-liner to run GPU tests::
+
+  n=1; sbatch -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:30:00 -J pytest-gpu-$n -o %x.out --wrap="srun gpaw python -m pytest --pyargs gpaw -v -m gpu"
+
+
 Omnitrace
 ---------
 
@@ -163,6 +168,10 @@ If you are not using installation through git, use the siteconfig file from here
 Interactive jobs can be run like this::
 
   srun -A project_... -p small --nodes=1 --ntasks-per-node=2 -t 0:30:00 --pty bash
+
+One-liner to run tests::
+
+  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun gpaw python -m pytest --pyargs gpaw -v"; done
 
 
 Configuring MyQueue
