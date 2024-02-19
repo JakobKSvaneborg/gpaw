@@ -9,13 +9,14 @@ libraries = []
 library_dirs = []
 include_dirs = []
 extra_compile_args = [
+    '-g',
     '-O3',
     '-fopenmp',
     '-fPIC',
     '-Wall',
     '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
     '-Werror',
-    '-g']
+    ]
 extra_link_args = ['-fopenmp']
 
 # FFTW

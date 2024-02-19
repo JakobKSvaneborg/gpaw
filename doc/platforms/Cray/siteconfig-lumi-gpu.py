@@ -9,13 +9,14 @@ libraries = []
 library_dirs = []
 include_dirs = []
 extra_compile_args = [
+    '-g',
     '-O3',
     '-fopenmp',
     '-fPIC',
     '-Wall',
     '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
     '-Werror',
-    '-g']
+    ]
 extra_link_args = ['-fopenmp']
 
 # FFTW
@@ -36,5 +37,9 @@ gpu = True
 gpu_target = 'hip-amd'
 gpu_compiler = 'hipcc'
 gpu_include_dirs = []
-gpu_compile_args = ['--offload-arch=gfx90a', '-O3', '-g']
+gpu_compile_args = [
+    '-g',
+    '-O3',
+    '--offload-arch=gfx90a',
+    ]
 libraries += ['amdhip64', 'hipblas']
