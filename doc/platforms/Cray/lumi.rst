@@ -46,9 +46,10 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load cray-python/3.9.13.1
   python3 -m venv --system-site-packages venv
 
-  # The following will insert environment setup to the end of venv/bin/activate
+  # The following will insert environment setup to the beginning of venv/bin/activate
   # TODO: use correct project_...
-  cat << EOF >> venv/bin/activate
+  cp venv/bin/activate venv/bin/activate.old
+  cat << EOF > venv/bin/activate
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
   export GPAW_SETUP_PATH=/projappl/project_.../gpaw-setups-0.9.20000
   module load LUMI/22.12 partition/G
@@ -59,6 +60,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load CuPy/12.2.0-cpeGNU-22.12  # from EBU_USER_PREFIX
   module load libxc/6.2.2-cpeGNU-22.12  # from EBU_USER_PREFIX
   EOF
+  cat venv/bin/activate.old >> venv/bin/activate
 
   # Activate venv
   source venv/bin/activate
