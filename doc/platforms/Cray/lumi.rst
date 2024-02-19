@@ -70,7 +70,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   export GPAW_CONFIG=$(readlink -f gpaw/doc/platforms/Cray/siteconfig-lumi-gpu.py)
   cd gpaw
   rm -rf build _gpaw.*.so gpaw.egg-info
-  pip install -v --log build.log -e .
+  pip install -v --log build-gpu.log .
 
   # Install gpaw setups
   # TODO: use correct project_...
