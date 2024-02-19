@@ -5,7 +5,7 @@ The ``lumi.csc.fi`` supercomputer
 =================================
 
 .. note::
-   These instructions are up-to-date as of November 2023.
+   These instructions are up-to-date as of February 2024.
 
 It is recommended to perform the installations under
 the ``/projappl/project_...`` directory
