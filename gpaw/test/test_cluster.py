@@ -1,4 +1,5 @@
 from math import sqrt
+import pytest
 
 from ase import Atoms
 
