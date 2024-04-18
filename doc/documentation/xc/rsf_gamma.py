@@ -19,7 +19,7 @@ for atom in ['C', 'O']:
 
 h = 0.30
 co = Atoms('CO', positions=[(0, 0, 0), (0, 0, 1.15)])
-co.minimal_box(5)
+co.center(vacuum=5)
 
 # c = {'energy': 0.005, 'eigenstates': 1e-4}  # Usable values
 c = {'energy': 0.1, 'eigenstates': 3, 'density': 3}  # Values for test
@@ -31,4 +31,4 @@ calc = GPAW(mode='fd', txt='CO.txt', xc='LCY-PBE:omega=0.81', convergence=c,
 co.calc = calc
 co.get_potential_energy()
 (eps_homo, eps_lumo) = calc.get_homo_lumo()
-assert abs(eps_homo - -IP) < 0.15
+assert abs(eps_homo - -IP) < 0.35

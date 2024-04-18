@@ -5,15 +5,15 @@ from ase.parallel import parprint
 
 from gpaw import GPAW
 from gpaw.analyse.multipole import Multipole
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.later
 def test_multipoleH2O(in_tmp_dir):
     h = 0.3
 
-    s = Cluster(molecule('H2O'))
-    s.minimal_box(3., h)
+    s = molecule('H2O')
+    adjust_cell(s, 3., h)
 
     gpwname = 'H2O_h' + str(h) + '.gpw'
     s.calc = GPAW(mode='fd', h=h, charge=0, txt=None)

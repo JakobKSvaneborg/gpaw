@@ -5,7 +5,7 @@ from ase.units import Hartree
 
 import gpaw.cgpaw as cgpaw
 from gpaw import GPAW
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.lrtddft import LrTDDFT
 from gpaw.mpi import world
@@ -19,9 +19,9 @@ def test_rsf_yukawa_lrtddft_short(in_tmp_dir):
         from unittest import SkipTest
         raise SkipTest
 
-    o_plus = Cluster(Atoms('Be', positions=[[0, 0, 0]]))
+    o_plus = Atoms('Be', positions=[[0, 0, 0]])
     o_plus.set_initial_magnetic_moments([1.0])
-    o_plus.minimal_box(2.5, h=0.35)
+    adjust_cell(o_plus, 2.5, h=0.35)
 
     def get_paw(**kwargs):
         """Return calculator object."""

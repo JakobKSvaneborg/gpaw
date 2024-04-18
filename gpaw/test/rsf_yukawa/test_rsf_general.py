@@ -2,7 +2,7 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.xc.hybrid import HybridXC
 from gpaw.occupations import FermiDirac
@@ -22,8 +22,8 @@ def test_rsf_yukawa_rsf_general(in_tmp_dir, add_cwd_to_setup_paths):
             yukawa_gamma=0.83, gpernode=149)
 
     h = 0.35
-    be = Cluster(Atoms('Be', positions=[[0, 0, 0]]))
-    be.minimal_box(3.0, h=h)
+    be = Atoms('Be', positions=[[0, 0, 0]])
+    adjust_cell(be, 3.0, h=h)
 
     c = {'energy': 0.05, 'eigenstates': 0.05, 'density': 0.05}
 

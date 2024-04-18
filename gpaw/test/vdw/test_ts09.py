@@ -8,14 +8,14 @@ from ase.parallel import barrier, parprint
 from gpaw import GPAW
 from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 from gpaw.analyse.vdwradii import vdWradii
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.later
 def test_vdw_ts09(in_tmp_dir, needs_ase_master):
     h = 0.4
-    s = Cluster(molecule('LiH'))
-    s.minimal_box(3., h=h)
+    s = molecule('LiH')
+    adjust_cell(s, 3., h=h)
 
     def print_charge_and_check(hp, q=0, label='unpolarized'):
         q_a = np.array(hp.get_charges())

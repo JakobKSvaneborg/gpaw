@@ -1,7 +1,6 @@
 import pytest
-from ase import Atom
+from ase import Atom, Atoms
 from gpaw import GPAW
-from gpaw.cluster import Cluster
 
 
 @pytest.mark.mgga
@@ -11,8 +10,8 @@ def test_mgga_mgga_restart(in_tmp_dir):
     txt = None
     txt = '-'
 
-    s = Cluster([Atom('H'), Atom('H', [0, 0, 1])])
-    s.minimal_box(3.)
+    s = Atoms([Atom('H'), Atom('H', [0, 0, 1])])
+    s.center(vacuum=3.)
     s.calc = GPAW(xc={'name': 'PBE', 'stencil': 1},
                   mode='fd',
                   h=.3,

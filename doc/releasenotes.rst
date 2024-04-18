@@ -10,6 +10,12 @@ Git master branch
 
 :git:`master <>`.
 
+* A new ``adjust_cell()`` function is added to replace the 
+  ``Cluster.minimal_box()``, and the Cluster object will be 
+  discontinued. he new  ``adjust_cell()`` function expands the ``minimal_box()`` 
+  unction but considers the ``pbc`` for periodic calculations and 
+  only adjusts the cell in the non-periodic directions.
+
 * Fixed a bug in the electron-phonon module which constructed the PAW
   corrections to the Hamiltonian with incorrect off-diagonal elements. Our
   testing has not revealed any critical changes in results; however, if you've

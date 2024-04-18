@@ -1,7 +1,7 @@
 import pytest
-from ase import Atom
+from ase import Atoms
 from gpaw import GPAW
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 
 h = 0.25
 box = 3.0
@@ -10,8 +10,8 @@ box = 3.0
 @pytest.mark.later
 def test_spin_spin_contamination_B():
     # B should not have spin contamination
-    s = Cluster([Atom('B')])
-    s.minimal_box(box, h=h)
+    s = Atoms('B')
+    adjust_cell(s, box, h=h)
     s.set_initial_magnetic_moments([-1])
 
     c = GPAW(mode='fd', xc='LDA', nbands=-3,
@@ -33,8 +33,8 @@ def test_spin_spin_contamination_B():
 @pytest.mark.later
 def test_spin_spin_contamination_H2():
     # setup H2 at large distance with different spins for the atoms
-    s = Cluster([Atom('H'), Atom('H', [0, 0, 3.0])])
-    s.minimal_box(box, h=h)
+    s = Atoms('H2', positions=[[0, 0, 0], [0, 0, 3.0]])
+    adjust_cell(s, box, h=h)
     s.set_initial_magnetic_moments([-1, 1])
 
     c = GPAW(mode='fd', xc='LDA',

@@ -177,12 +177,9 @@ A specific tag can be loaded by::
  git checkout 1.2.0
 
 To build the current trunk version of GPAW we need to create
-a file :file:`siteconfig.py` that reads::
+a file :file:`siteconfig.py` that reads
 
- # necessary MKL libs
- libraries += ['mkl_def', 'mkl_avx512', 'mkl_intel_lp64', 'mkl_sequential', 'mkl_core', 'svml']
- # Now add a EasyBuild "cover-all-bases" library_dirs
- library_dirs = os.getenv('LD_LIBRARY_PATH').split(':')
+.. literalinclude:: nemo_siteconfig.py
 
 To build GPAW use::
 
@@ -191,7 +188,6 @@ To build GPAW use::
  module load ase
  module load compiler/intel
  module load mpi/impi
- module load numlib/mkl
 
  cd $GPAW_SOURCE/trunk
  CC=mpicc; python3 setup.py build

@@ -1,5 +1,5 @@
 import pytest
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from ase.build import molecule
 from ase.units import Pascal, m
 from ase.data.vdw import vdw_radii
@@ -29,8 +29,8 @@ def test_solvation_spinpol():
     def atomic_radii(atoms):
         return [vdw_radii[n] for n in atoms.numbers]
 
-    atoms = Cluster(molecule('CN'))
-    atoms.minimal_box(vac, h)
+    atoms = molecule('CN')
+    adjust_cell(atoms, vac, h)
     atoms2 = atoms.copy()
     atoms2.set_initial_magnetic_moments(None)
 

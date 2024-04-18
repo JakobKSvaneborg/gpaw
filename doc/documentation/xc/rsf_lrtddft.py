@@ -3,17 +3,17 @@ from ase.structure import molecule
 from ase.units import Hartree
 from gpaw import GPAW
 from gpaw.mpi import world
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.occupations import FermiDirac
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.lrtddft import LrTDDFT
 
-h2o = Cluster(molecule('H2O'))
+h2o = molecule('H2O')
 h2o.set_initial_magnetic_moments([2, -1, -1])
-h2o.minimal_box(3.0, h=0.3)
-h2o_plus = Cluster(molecule('H2O'))
+adjust_cell(h2o, 3.0, h=0.3)
+h2o_plus = molecule('H2O')
 h2o_plus.set_initial_magnetic_moments([2, -0.5, -0.5])
-h2o_plus.minimal_box(3.0, h=0.3)
+adjust_cell(h2o_plus, 3.0, h=0.3)
 
 
 def get_paw():
