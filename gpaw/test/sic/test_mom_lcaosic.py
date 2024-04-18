@@ -10,7 +10,7 @@ from gpaw.mom import prepare_mom_calculation
 
 @pytest.mark.later
 @pytest.mark.sic
-def test_mom_lcaosic(in_tmp_dir):
+def test_mom_lcaosic(in_tmp_dir, needs_ase_master):
     # Water molecule:
     d = 0.9575
     t = np.pi / 180 * 104.51

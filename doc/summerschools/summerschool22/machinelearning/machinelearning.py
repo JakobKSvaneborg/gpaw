@@ -790,7 +790,7 @@ Hopefully, you should see that the structure looks as expected! Unfortunately, t
 from gpaw import GPAW, FermiDirac, PW
 from ase.io import read
 from ase.optimize.bfgs import BFGS
-from ase.constraints import UnitCellFilter
+from ase.filters import UnitCellFilter
 
 atoms = read('chosen_material.xyz')
 name = atoms.get_chemical_formula()

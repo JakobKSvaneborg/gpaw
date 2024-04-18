@@ -25,7 +25,7 @@ def test_pw_reallfc():
 
     for l in range(4):
         print(l)
-        s = Spline(l, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
+        s = Spline.from_data(l, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
 
         lfc = PWLFC([[s]], pd)
         lfcr = PWLFC([[s]], pdr)

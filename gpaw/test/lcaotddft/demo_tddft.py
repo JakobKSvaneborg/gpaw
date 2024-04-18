@@ -59,12 +59,12 @@ def main():
         new_restart_calc = new_GPAW('new_gs.gpw')
 
         assert_equal(
-            new_calc.calculation.state.ibzwfs.wfs_qs[0][0].P_ain,
-            new_restart_calc.calculation.state.ibzwfs.wfs_qs[0][0].P_ain)
+            new_calc.dft.state.ibzwfs.wfs_qs[0][0].P_ain,
+            new_restart_calc.dft.state.ibzwfs.wfs_qs[0][0].P_ain)
 
         assert_equal(
-            new_calc.calculation.state.ibzwfs.wfs_qs[0][0].C_nM,
-            new_restart_calc.calculation.state.ibzwfs.wfs_qs[0][0].C_nM)
+            new_calc.dft.state.ibzwfs.wfs_qs[0][0].C_nM,
+            new_restart_calc.dft.state.ibzwfs.wfs_qs[0][0].C_nM)
 
     if run_old_td:
         old_tddft = LCAOTDDFT('old_gs.gpw', propagator='ecn', txt='/dev/null')

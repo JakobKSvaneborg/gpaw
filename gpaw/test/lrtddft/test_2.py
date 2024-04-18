@@ -7,7 +7,6 @@ from gpaw.lrtddft.spectrum import spectrum
 
 @pytest.mark.lrtddft
 def test_lrtddft_2(in_tmp_dir):
-    txt = '-'
     txt = None
     xc = 'LDA'
 
@@ -38,7 +37,7 @@ def test_lrtddft_2(in_tmp_dir):
     gs = GPAW('H2saved_wfs.gpw', txt=txt)
 
     lr1 = LrTDDFT(gs, xc=xc, txt='-')
-    # check the oscillator strrength
+    # check the oscillator strength
     assert (abs(lr1[0].get_oscillator_strength()[0] /
                 lr[0].get_oscillator_strength()[0] - 1) < 1e-7)
 

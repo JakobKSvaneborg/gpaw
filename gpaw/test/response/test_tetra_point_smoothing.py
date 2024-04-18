@@ -1,13 +1,18 @@
 from ase import Atoms
+from scipy.ndimage import gaussian_filter1d
+import numpy as np
+import pytest
+
 from gpaw import GPAW, FermiDirac
 from gpaw import PW
 from gpaw.bztools import find_high_symmetry_monkhorst_pack
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
-import numpy as np
-from scipy.ndimage import gaussian_filter1d
 
 
+@pytest.mark.tetrahedron
+@pytest.mark.dielectricfunction
+@pytest.mark.response
 def test_point_tetra_match(in_tmp_dir):
 
     gs_file = 'gs.gpw'

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 
-import pickle
 import numpy as np
 
 from ase.units import Hartree
@@ -508,23 +508,19 @@ def read_pair_function(filename):
 
 
 def write_susceptibility_array(filename, zd, qpd, chi_zx):
-    """Write the dynamic susceptibility as a pickle file."""
+    """Write dynamic susceptibility array to a .npz file."""
+    assert Path(filename).suffix == '.npz', filename
     # For now, we assume that the complex frequencies lie on a horizontal
     # contour
     assert zd.horizontal_contour
     omega_w = zd.omega_w * Hartree  # Ha -> eV
     G_Gc = get_pw_coordinates(qpd)
     chi_wx = chi_zx
-
-    # Write pickle file
-    with open(filename, 'wb') as fd:
-        pickle.dump((omega_w, G_Gc, chi_wx), fd)
+    np.savez(filename, omega_w=omega_w, G_Gc=G_Gc, chi_wx=chi_wx)
 
 
 def read_susceptibility_array(filename):
-    """Read a stored susceptibility component file"""
-    assert isinstance(filename, str)
-    with open(filename, 'rb') as fd:
-        omega_w, G_Gc, chi_wx = pickle.load(fd)
-
-    return omega_w, G_Gc, chi_wx
+    """Read a stored dynamic susceptibility array file."""
+    assert Path(filename).suffix == '.npz', filename
+    npzfile = np.load(filename)
+    return npzfile['omega_w'], npzfile['G_Gc'], npzfile['chi_wx']

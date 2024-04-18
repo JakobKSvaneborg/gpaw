@@ -1,6 +1,6 @@
 # web-page: ag-ddos.png
 import numpy as np
-import pylab as plt
+import matplotlib.pyplot as plt
 from gpaw import GPAW
 
 calc = GPAW('au.gpw', txt=None)

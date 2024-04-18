@@ -11,7 +11,7 @@ hli.calc = GPAW(txt='hli.txt', mode='fd')
 hli.get_potential_energy()
 
 for n in range(2):
-    ae = hli.calc.calculation.state.ibzwfs.get_all_electron_wave_function(
+    ae = hli.calc.dft.state.ibzwfs.get_all_electron_wave_function(
         n, grid_spacing=0.05)
     norm_squared = ae.norm2()
     print('Norm:', norm_squared)
@@ -25,7 +25,7 @@ for n in range(2):
     plt.plot(x, y, '-', color=f'C{n}', label=rf'$\psi_{n}$')
 
     # Raw PS wfs:
-    ps = hli.calc.calculation.state.ibzwfs.wfs_qs[0][0].psit_nX[n]
+    ps = hli.calc.dft.state.ibzwfs.wfs_qs[0][0].psit_nX[n]
     i0, i1 = ps.desc.size[:2] // 2 - 1
     x, y = ps.xy(i0, i1, ...)
     x *= Bohr

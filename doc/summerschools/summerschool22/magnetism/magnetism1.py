@@ -36,7 +36,7 @@ from gpaw import GPAW, PW
 from ase import Atoms
 from ase.visualize import view
 from ase.optimize import BFGS
-from ase.constraints import UnitCellFilter
+from ase.filters import UnitCellFilter
 
 a = 7.0
 c = 10.0
@@ -254,7 +254,7 @@ Now that we have calculated the anisotropy constant $A$, we are finally in a pos
 
 $$T_c=T_c^{\mathrm{Ising}}\tanh^{1/4}\Big[\frac{6}{N}\log\Big(1-0.033\frac{A}{J}\Big)\Big],$$
 
-where $T_c^{\mathrm{Ising}}=1.52\cdot S^2J/k_B$ is the critical temperature of the ferromagnetic Ising model on a honeycomb lattice. 
+where $T_c^{\mathrm{Ising}}=1.52\cdot S^2J/k_B$ is the critical temperature of the ferromagnetic Ising model on a honeycomb lattice.
 
 4.   Fill in the Monte-Carlo formula for `T_c` in the cell below and calculate the Curie temperature using the values of $A$ and $J$ found above.
 

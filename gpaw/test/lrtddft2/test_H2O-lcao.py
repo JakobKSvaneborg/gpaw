@@ -1,28 +1,15 @@
 import pytest
 import numpy as np
 
-from ase.build import molecule
-
 from gpaw import GPAW
 from gpaw.lrtddft2 import LrTDDFT2
 
 
 @pytest.mark.lrtddft
-def test_lrtddft2_H2O_lcao(in_tmp_dir):
+def test_lrtddft2_H2O_lcao(gpw_files, in_tmp_dir):
     name = 'H2O-lcao'
-    atoms = molecule('H2O')
-    atoms.center(vacuum=4)
-
-    # Ground state
-    calc = GPAW(h=0.4, mode='lcao', basis='dzp', txt='%s-gs.out' % name,
-                poissonsolver={'name': 'fd'},
-                nbands=8, xc='LDA')
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    calc.write('%s.gpw' % name, mode='all')
-
     # LrTDDFT2
-    calc = GPAW('%s.gpw' % name, txt='%s-lr.out' % name)
+    calc = GPAW(gpw_files['h20_lr2_nbands8'], txt='%s-lr.out' % name)
     lr = LrTDDFT2(name, calc, fxc='LDA')
     lr.calculate()
     results = lr.get_transitions()[0:2]

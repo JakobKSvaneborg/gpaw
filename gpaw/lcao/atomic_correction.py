@@ -1,7 +1,7 @@
 import numpy as np
 
 from gpaw.utilities.blas import mmm
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 
 
 class BaseAtomicCorrection:
@@ -26,7 +26,7 @@ class BaseAtomicCorrection:
                                             dtype=dH_asp.dtype)
 
         for a in dH_asp:
-            dH_aii[a] = yy * unpack(dH_asp[a][kpt.s])
+            dH_aii[a] = yy * unpack_hermitian(dH_asp[a][kpt.s])
 
         self.calculate(kpt.q, dH_aii, H_MM, self.Mstart, self.Mstop)
 

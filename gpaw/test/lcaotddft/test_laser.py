@@ -1,12 +1,11 @@
 import numpy as np
 import pytest
-from ase.build import molecule
+
 from ase.units import Bohr, Hartree
-from gpaw import GPAW
 from gpaw.external import ConstantElectricField
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.lcaotddft.laser import GaussianPulse
+from gpaw.lcaotddft.laser import create_laser, register_custom_laser, Laser
 from gpaw.mpi import world
 from gpaw.tddft.units import as_to_au
 
@@ -18,23 +17,15 @@ kick_v = np.ones(3) * 1e-5
 
 
 @pytest.mark.rttddft
-def test_laser(in_tmp_dir):
-    # Atoms
-    atoms = molecule('Na2')
-    atoms.center(vacuum=4.0)
-
-    # Ground-state calculation
-    calc = GPAW(nbands=2, h=0.4, setups=dict(Na='1'),
-                basis='dzp', mode='lcao',
-                convergence={'density': 1e-8},
-                symmetry={'point_group': False},
-                txt='gs.out')
-    atoms.calc = calc
-    _ = atoms.get_potential_energy()
-    calc.write('gs.gpw', mode='all')
-
+@pytest.mark.parametrize('pulse', [
+    {'name': 'GaussianPulse', 'strength': 1e-5, 'time0': 0, 'frequency': 8.6,
+     'sigma': 0.5, 'sincos': 'sin'},
+    {'name': 'SincPulse', 'strength': 1e-6, 'time0': 0, 'cutoff_freq': 15,
+     'relative_t0': False},
+])
+def test_laser(gpw_files, in_tmp_dir, pulse):
     # Time-propagation calculation
-    td_calc = LCAOTDDFT('gs.gpw', txt='td.out')
+    td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'], txt='td.out')
     DipoleMomentWriter(td_calc, 'dm.dat')
     td_calc.absorption_kick(kick_v)
     td_calc.propagate(dt, N)
@@ -42,10 +33,11 @@ def test_laser(in_tmp_dir):
     # Pulse
     direction = kick_v
     ext = ConstantElectricField(Hartree / Bohr, direction)
-    pulse = GaussianPulse(1e-5, 0e3, 8.6, 0.5, 'sin')
 
     # Time-propagation calculation with pulse
-    td_calc = LCAOTDDFT('gs.gpw', td_potential={'ext': ext, 'laser': pulse},
+    pulse = create_laser(pulse)
+    td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'],
+                        td_potential={'ext': ext, 'laser': pulse},
                         txt='tdpulse.out')
     DipoleMomentWriter(td_calc, 'dmpulse.dat')
     td_calc.propagate(dt, N1)
@@ -70,3 +62,43 @@ def test_laser(in_tmp_dir):
             dm_tv[:, v], pulse_t)[:(N + 1)] * dt * as_to_au
         np.savetxt('dmpulseconv%d.dat' % v, pulsedmconv_t)
         assert pulsedm_tv[:, v] == pytest.approx(pulsedmconv_t, abs=tol)
+
+
+@pytest.mark.rttddft
+def test_custom(gpw_files):
+    gpw_fname = gpw_files['na2_tddft_dzp']
+
+    class RandomPulse(Laser):
+        def __init__(self, strength):
+            self.rng = np.random.default_rng(42)
+            self.dict = dict(name='RandomPulse', strength=strength)
+            self.s0 = strength
+
+        def strength(self, t):
+            return self.s0 * self.rng.uniform(size=np.shape(t))
+
+        def todict(self):
+            return self.dict
+
+    # We should be able to run and restart using custom pulses
+    register_custom_laser('RandomPulse', RandomPulse)
+
+    # Pulse
+    direction = kick_v
+    ext = ConstantElectricField(Hartree / Bohr, direction)
+
+    # Time-propagation calculation with pulse
+    pulse = RandomPulse(1e-5)
+    td_calc = LCAOTDDFT(gpw_fname, td_potential={'ext': ext, 'laser': pulse},
+                        txt='tdpulse.out')
+    td_calc.propagate(dt, 1)
+
+    td_calc.write('td.gpw', mode='all')
+
+    # Restart
+    td_calc = LCAOTDDFT('td.gpw', txt='tdpulse2.out')
+
+    restart_pulse = td_calc.td_hamiltonian.td_potential.laser_i[0]
+
+    assert isinstance(restart_pulse, RandomPulse)
+    np.testing.assert_equal(restart_pulse.todict(), pulse.todict())

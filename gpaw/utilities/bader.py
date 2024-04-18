@@ -22,7 +22,7 @@ def read_bader_charges(filename: str | Path = 'ACF.dat') -> np.ndarray:
 
 def main(gpw_file_name: str):
     calc = GPAW(gpw_file_name)
-    dens = calc.calculation.densities()
+    dens = calc.dft.densities()
     n_sR = dens.all_electron_densities(grid_spacing=0.05)
     # NOTE: Ignoring ASE's hint for **kwargs in write() because it is wrong:
     write('density.cube',

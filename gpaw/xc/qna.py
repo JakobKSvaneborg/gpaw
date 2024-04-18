@@ -157,7 +157,7 @@ class QNA(GGA):
         # Values too close to zero can cause numerical problems especially with
         # forces (some parts of the mu and beta field can become negative)
         g_g[np.where(g_g < l_lim)] = l_lim
-        spline = Spline(l=0, rmax=rcut, f_g=g_g)
+        spline = Spline.from_data(l=0, rmax=rcut, f_g=g_g)
         spline_j = [[spline]] * len(self.atoms)
         self.Pa = LFC(gd, spline_j)
 

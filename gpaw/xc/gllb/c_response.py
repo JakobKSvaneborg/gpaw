@@ -7,7 +7,8 @@ from gpaw import BadParallelization
 from gpaw.mpi import world
 from gpaw.density import redistribute_array, redistribute_atomic_matrices
 from gpaw.sphere.lebedev import weight_n
-from gpaw.utilities import pack, pack_atomic_matrices, unpack_atomic_matrices
+from gpaw.utilities import (pack_atomic_matrices, pack_density,
+                            unpack_atomic_matrices)
 from gpaw.xc.gllb import safe_sqr
 from gpaw.xc.gllb.contribution import Contribution
 
@@ -483,8 +484,8 @@ class C_Response(Contribution):
                     D_sp = dxc_pot.D_asp[a]
                     Dresp_sp = dxc_pot.Dresp_asp[a]
                     P_ni = kpt.P_ani[a]
-                    Dwf_p = pack(np.outer(P_ni[lumo_n].T.conj(),
-                                          P_ni[lumo_n]).real)
+                    Dwf_p = pack_density(
+                        np.outer(P_ni[lumo_n].T.conj(), P_ni[lumo_n]).real)
                     E += self.integrate_sphere(a, Dresp_sp, D_sp, Dwf_p,
                                                spin=spin)
                 E = self.gd.comm.sum_scalar(E)
@@ -580,34 +581,6 @@ class C_Response(Contribution):
         x_g[0] = x_g[1]
         extra_data['core_response'] = x_g
 
-        # For debugging purposes
-        w_j = self.coefficients.get_coefficients_1d()
-        u2_j = safe_sqr(self.ae.u_j)
-        v_g = self.weight * np.dot(w_j, u2_j) / (
-            np.dot(self.ae.f_j, u2_j) + self.damp)
-        v_g[0] = v_g[1]
-        extra_data['all_electron_response'] = v_g
-
-        # Calculate Hardness of spherical atom, for debugging purposes
-        l = [np.where(f < 1e-3, e, 1000)
-             for f, e in zip(self.ae.f_j, self.ae.e_j)]
-        h = [np.where(f > 1e-3, e, -1000)
-             for f, e in zip(self.ae.f_j, self.ae.e_j)]
-        lumo_e = min(l)
-        homo_e = max(h)
-        if lumo_e < 999:  # If there is unoccpied orbital
-            w_j = self.coefficients.get_coefficients_1d_for_lumo_perturbation()
-            v_g = self.weight * np.dot(w_j, u2_j) / (
-                np.dot(self.ae.f_j, u2_j) + self.damp)
-            e2 = [e + np.dot(u2 * v_g, self.ae.dr)
-                  for u2, e in zip(u2_j, self.ae.e_j)]
-            lumo_2 = min([np.where(f < 1e-3, e, 1000)
-                          for f, e in zip(self.ae.f_j, e2)])
-            # print('New lumo eigenvalue:', lumo_2 * 27.2107)
-            self.hardness = lumo_2 - homo_e
-            # print('Hardness predicted: %10.3f eV' %
-            #       (self.hardness * 27.2107))
-
     def write(self, writer):
         """Writes response specific data."""
         wfs = self.wfs
@@ -621,17 +594,10 @@ class C_Response(Contribution):
             for vt_G in self.vt_sG:
                 writer.fill(gd.collect(vt_G) * Ha)
 
-        def pack(X0_asp):
-            X_asp = wfs.setups.empty_atomic_matrix(
-                wfs.nspins, wfs.atom_partition)
-            # XXX some of the provided X0_asp contain strangely duplicated
-            # elements.  Take only the minimal set:
-            for a in X_asp:
-                X_asp[a][:] = X0_asp[a]
-            return pack_atomic_matrices(X_asp)
-
-        writer.write(gllb_atomic_density_matrices=pack(self.D_asp))
-        writer.write(gllb_atomic_response_matrices=pack(self.Dresp_asp))
+        writer.write('gllb_atomic_density_matrices',
+                     pack_atomic_matrices(self.D_asp))
+        writer.write('gllb_atomic_response_matrices',
+                     pack_atomic_matrices(self.Dresp_asp))
 
         writer.write(eref_s=self.eref_s)
         writer.write(eref_source_s=self.eref_source_s)
@@ -650,12 +616,12 @@ class C_Response(Contribution):
                            self.vt_sG)
         self.density.distribute_and_interpolate(self.vt_sG, self.vt_sg)
 
-        def unpack(D_sP):
+        def unpack_density(D_sP):
             return unpack_atomic_matrices(D_sP, wfs.setups)
 
         # Read atomic density matrices and non-local part of hamiltonian:
-        D_asp = unpack(r.gllb_atomic_density_matrices)
-        Dresp_asp = unpack(r.gllb_atomic_response_matrices)
+        D_asp = unpack_density(r.gllb_atomic_density_matrices)
+        Dresp_asp = unpack_density(r.gllb_atomic_response_matrices)
 
         # All density matrices are loaded to all cores
         # First distribute them to match density.D_asp

@@ -116,7 +116,7 @@ class ModelInteraction:
         ibz2bz = ibz2bz_map(self.gs.kd)
 
         # Create pair_factory with nblocks = 1
-        pair_factory = KPointPairFactory(self.gs, self.context, nblocks=1)
+        pair_factory = KPointPairFactory(self.gs, self.context)
         pair_calc = pair_factory.pair_calculator()
 
         if isinstance(Uwan_mnk, str):

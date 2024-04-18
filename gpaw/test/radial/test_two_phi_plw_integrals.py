@@ -8,7 +8,8 @@ def test_pair_density_paw_correction():
     from gpaw.grid_descriptor import GridDescriptor
     from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
     from gpaw.spline import Spline
-    from gpaw.response.paw import calculate_pair_density_correction, Setuplet
+    from gpaw.response.paw import (calculate_pair_density_correction,
+                                   LeanPAWDataset)
     # Initialize s, p, d (9 in total) wave and put them on grid
     rc = 2.0
     a = 2.5 * rc
@@ -19,7 +20,7 @@ def test_pair_density_paw_correction():
     gd = GridDescriptor([n, n, n], [a, a, a])
     r = np.linspace(0, rc, 200)
     g = np.exp(-(r / rc * b)**2)
-    splines = [Spline(l=l, rmax=rc, f_g=g) for l in range(lmax + 1)]
+    splines = [Spline.from_data(l=l, rmax=rc, f_g=g) for l in range(lmax + 1)]
     c = LFC(gd, [splines])
     c.set_positions([(0.5, 0.5, 0.5)])
     psi = gd.zeros(m)
@@ -52,7 +53,7 @@ def test_pair_density_paw_correction():
     g = [np.exp(-(r / rc * b)**2) * r**l for l in range(lmax + 1)]
     l_j = range(lmax + 1)
     rcut_j = [rc] * (lmax + 1)
-    d1 = calculate_pair_density_correction(k_G, pawdata=Setuplet(
+    d1 = calculate_pair_density_correction(k_G, pawdata=LeanPAWDataset(
         rgd=rgd, phi_jg=g, phit_jg=np.zeros_like(g), l_j=l_j, rcut_j=rcut_j))
 
     assert d0 == pytest.approx(d1, abs=1e-8)

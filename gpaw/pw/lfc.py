@@ -1,6 +1,6 @@
 from math import pi
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 import numpy as np
 from gpaw.lfc import BaseLFC
 from gpaw.spherical_harmonics import Y, nablarlYL
@@ -190,7 +190,7 @@ class PWLFC(BaseLFC):
 
         if True:
             # Fast C-code:
-            _gpaw.pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
+            cgpaw.pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
                                self.l_s, self.a_J, self.s_J,
                                cc, f_GI)
             return f_GI

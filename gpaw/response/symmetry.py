@@ -3,7 +3,7 @@ from scipy.spatial import Delaunay, cKDTree
 
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.bztools import get_reduced_bz, unique_rows
-from _gpaw import GG_shuffle
+from gpaw.cgpaw import GG_shuffle
 
 from gpaw.response import timer
 

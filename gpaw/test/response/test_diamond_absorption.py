@@ -7,6 +7,7 @@ from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.libxc
 def test_response_diamond_absorption(in_tmp_dir):
@@ -43,7 +44,6 @@ def test_response_diamond_absorption(in_tmp_dir):
                             frequencies=np.linspace(0, 24., 241),
                             hilbert=False)
     a0, a = df.get_dielectric_function(filename=None)
-    df.check_sum_rule(a.imag)
 
     assert a0[0].real == pytest.approx(eM1_, abs=0.01)
     assert a[0].real == pytest.approx(eM2_, abs=0.01)

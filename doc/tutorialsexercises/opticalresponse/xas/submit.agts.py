@@ -13,6 +13,6 @@ def workflow():
         r1 = run(script='run.py', cores=8, tmax='25m')
         r2 = run(script='dks.py', cores=8, tmax='25m')
         r3 = run(script='h2o_xas_box1.py', cores=8, tmax='25m')
+        with run(script='diamond1.py', cores=8):
+            run(script='diamond2.py', cores=8, tmax='1d')
     run(function=check, deps=[r1, r2, r3])
-    with run(script='diamond1.py', cores=8):
-        run(script='diamond2.py', cores=8, tmax='1d')

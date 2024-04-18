@@ -154,7 +154,7 @@ class ResonantRamanCalculator:
             # Raman contribution of this k-point
             raman_l += self.resonant_term(
                 f_vc, E_vc, mom_dnn, g_lnn, nc, nv, w_in, self.w_ph
-            )
+            ) * kpt.weight
         # Collect parallel contributions
         self.kd.comm.sum(raman_l)
 

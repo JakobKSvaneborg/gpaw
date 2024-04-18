@@ -13,7 +13,7 @@ from gpaw.utilities.blas import axpy
 from gpaw.wavefunctions.arrays import UniformGridWaveFunctions
 from gpaw.wavefunctions.fdpw import FDPWWaveFunctions
 from gpaw.wavefunctions.mode import Mode
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 class FD(Mode):
@@ -97,7 +97,7 @@ class FDWaveFunctions(FDPWWaveFunctions):
         nt_G = nt_sG[kpt.s]
         for f, psit_G in zip(f_n, kpt.psit_nG):
             # Same as nt_G += f * abs(psit_G)**2, but much faster:
-            _gpaw.add_to_density(f, psit_G, nt_G)
+            cgpaw.add_to_density(f, psit_G, nt_G)
 
         # Hack used in delta-scf calculations:
         if hasattr(kpt, 'c_on'):

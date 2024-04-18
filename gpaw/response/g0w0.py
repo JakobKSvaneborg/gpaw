@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pickle
 import warnings
 from math import pi
@@ -14,9 +15,9 @@ from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 from gpaw.pw.descriptor import (count_reciprocal_vectors, PWMapping)
 from gpaw.utilities.progressbar import ProgressBar
 
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
-from gpaw.response.chi0 import Chi0Calculator
-from gpaw.response.pair import KPointPairFactory, phase_shifted_fft_indices
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
+from gpaw.response.pair import phase_shifted_fft_indices
 from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.screened_interaction import initialize_w_calculator
@@ -321,7 +322,8 @@ def get_max_nblocks(world, calc, ecut):
     return nblocks
 
 
-def get_frequencies(frequencies, domega0, omega2):
+def get_frequencies(frequencies: dict | None,
+                    domega0: float | None, omega2: float | None):
     if domega0 is not None or omega2 is not None:
         assert frequencies is None
         frequencies = {'type': 'nonlinear',
@@ -345,6 +347,9 @@ def choose_ecut_things(ecut, ecut_extrapolation):
                          (necuts - 1))**(-2 / 3)
     elif isinstance(ecut_extrapolation, (list, np.ndarray)):
         ecut_e = np.array(np.sort(ecut_extrapolation))
+        if not np.allclose(ecut, ecut_e[-1]):
+            raise ValueError('ecut parameter must be the largest value'
+                             'of ecut_extrapolation, when it is a list.')
         ecut = ecut_e[-1]
     else:
         ecut_e = np.array([ecut])
@@ -376,6 +381,71 @@ def select_kpts(kpts, kd):
         k = kd.bz2ibz_k[K]
         indices.append(k)
     return indices
+
+
+class PairDistribution:
+    def __init__(self, kptpair_factory, blockcomm, mysKn1n2):
+        self.get_k_point = kptpair_factory.get_k_point
+        self.kd = kptpair_factory.gs.kd
+        self.blockcomm = blockcomm
+        self.mysKn1n2 = mysKn1n2
+        self.mykpts = [self.get_k_point(s, K, n1, n2)
+                       for s, K, n1, n2 in self.mysKn1n2]
+
+    def kpt_pairs_by_q(self, q_c, m1, m2):
+        mykpts = self.mykpts
+        for u, kpt1 in enumerate(mykpts):
+            progress = u / len(mykpts)
+            K2 = self.kd.find_k_plus_q(q_c, [kpt1.K])[0]
+            kpt2 = self.get_k_point(kpt1.s, K2, m1, m2,
+                                    blockcomm=self.blockcomm)
+
+            yield progress, kpt1, kpt2
+
+
+def distribute_k_points_and_bands(chi0_body_calc, band1, band2, kpts=None):
+    """Distribute spins, k-points and bands.
+
+    The attribute self.mysKn1n2 will be set to a list of (s, K, n1, n2)
+    tuples that this process handles.
+    """
+    gs = chi0_body_calc.gs
+    blockcomm = chi0_body_calc.blockcomm
+    kncomm = chi0_body_calc.kncomm
+
+    if kpts is None:
+        kpts = np.arange(gs.kd.nbzkpts)
+
+    # nbands is the number of bands for each spin/k-point combination.
+    nbands = band2 - band1
+    size = kncomm.size
+    rank = kncomm.rank
+    ns = gs.nspins
+    nk = len(kpts)
+    n = (ns * nk * nbands + size - 1) // size
+    i1 = min(rank * n, ns * nk * nbands)
+    i2 = min(i1 + n, ns * nk * nbands)
+
+    mysKn1n2 = []
+    i = 0
+    for s in range(ns):
+        for K in kpts:
+            n1 = min(max(0, i1 - i), nbands)
+            n2 = min(max(0, i2 - i), nbands)
+            if n1 != n2:
+                mysKn1n2.append((s, K, n1 + band1, n2 + band1))
+            i += nbands
+
+    p = chi0_body_calc.context.print
+    p('BZ k-points:', gs.kd, flush=False)
+    p('Distributing spins, k-points and bands (%d x %d x %d)' %
+      (ns, nk, nbands), 'over %d process%s' %
+      (kncomm.size, ['es', ''][kncomm.size == 1]),
+      flush=False)
+    p('Number of blocks:', blockcomm.size)
+
+    return PairDistribution(
+        chi0_body_calc.kptpair_factory, blockcomm, mysKn1n2)
 
 
 class G0W0Calculator:
@@ -485,9 +555,9 @@ class G0W0Calculator:
                                        f'systems. Invalid fxc_mode {fxc_mode}.'
                                        )
 
-        self.pair_distribution = \
-            self.chi0calc.kptpair_factory.distribute_k_points_and_bands(
-                b1, b2, self.chi0calc.gs.kd.ibz2bz_k[self.kpts])
+        self.pair_distribution = distribute_k_points_and_bands(
+            self.chi0calc.chi0_body_calc, b1, b2,
+            self.chi0calc.gs.kd.ibz2bz_k[self.kpts])
 
         self.print_parameters(kpts, b1, b2)
 
@@ -1000,10 +1070,7 @@ class G0W0(G0W0Calculator):
             number of occupied bands.
             E.g. (-1, 1) will use HOMO+LUMO.
         frequencies:
-            Input parameters for frequency_grid.
-            Can be an array of frequencies to evaluate the response function at
-            or dictionary of parameters for build-in nonlinear grid
-            (see :ref:`frequency grid`).
+            Input parameters for the nonlinear frequency descriptor.
         ecut: float
             Plane wave cut-off energy in eV.
         ecut_extrapolation: bool or list
@@ -1065,23 +1132,20 @@ class G0W0(G0W0Calculator):
             qcache.strip_empties()
         mode = 'a' if qcache.filecount() > 1 else 'w'
 
-        frequencies = get_frequencies(frequencies, domega0, omega2)
-
         # (calc can not actually be a calculator at all.)
         gpwfile = Path(calc)
 
         context = ResponseContext(txt=filename + '.txt',
                                   comm=world, timer=timer)
-        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile,
-                                                      context=context)
+        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
 
         # Check if nblocks is compatible, adjust if not
         if nblocksmax:
             nblocks = get_max_nblocks(context.comm, gpwfile, ecut)
 
-        kptpair_factory = KPointPairFactory(gs, context, nblocks=nblocks)
-
         kpts = list(select_kpts(kpts, gs.kd))
+
+        ecut, ecut_e = choose_ecut_things(ecut, ecut_extrapolation)
 
         if nbands is None:
             nbands = int(gs.volume * (ecut / Ha)**1.5 * 2**0.5 / 3 / pi**2)
@@ -1089,8 +1153,6 @@ class G0W0(G0W0Calculator):
             if ecut_extrapolation:
                 raise RuntimeError(
                     'nbands cannot be supplied with ecut-extrapolation.')
-
-        ecut, ecut_e = choose_ecut_things(ecut, ecut_extrapolation)
 
         if ppa:
             # use small imaginary frequency to avoid dividing by zero:
@@ -1100,21 +1162,21 @@ class G0W0(G0W0Calculator):
                           'hilbert': False,
                           'timeordered': False}
         else:
-            # frequencies = self.frequencies
+            # use nonlinear frequency grid
+            frequencies = get_frequencies(frequencies, domega0, omega2)
+
             parameters = {'eta': eta,
                           'hilbert': True,
                           'timeordered': True}
+        wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
 
-        from gpaw.response.chi0 import new_frequency_descriptor
         wcontext = context.with_txt(filename + '.w.txt', mode=mode)
-        wd = new_frequency_descriptor(gs, wcontext, nbands, frequencies)
-
         chi0calc = Chi0Calculator(
-            wd=wd, kptpair_factory=kptpair_factory,
+            gs, wcontext, nblocks=nblocks,
+            wd=wd,
             nbands=nbands,
             ecut=ecut,
             intraband=False,
-            context=wcontext,
             **parameters)
 
         bands = choose_bands(bands, relbands, gs.nvalence, chi0calc.gs.nocc2)

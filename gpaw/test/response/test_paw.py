@@ -5,8 +5,9 @@ from functools import partial
 from ase.units import Ha
 from ase.data import chemical_symbols
 
-from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.groundstate import ResponsePAWDataset
 from gpaw.response.paw import (calculate_pair_density_correction,
                                calculate_matrix_element_correction)
 from gpaw.response.site_paw import calculate_site_matrix_element_correction
@@ -16,7 +17,7 @@ from gpaw.setup import create_setup
 from gpaw.sphere.rshe import calculate_reduced_rshe
 
 
-def pawdata():
+def setups():
     for symbol in chemical_symbols:
         try:
             setup = create_setup(symbol)
@@ -28,26 +29,24 @@ def pawdata():
 
 @pytest.mark.response
 @pytest.mark.serial
-@pytest.mark.parametrize('pawdata', pawdata())
-def test_paw_corrections(pawdata):
+@pytest.mark.parametrize('setup', setups())
+def test_paw_corrections(setup):
     radial_points = 2**10
-    if pawdata.symbol in {'I', 'Hg', 'Pb'}:
+    if setup.symbol in {'I', 'Hg', 'Pb'}:
         # More points where needed, for performance.
         # https://gitlab.com/gpaw/gpaw/-/issues/984
         radial_points *= 4
 
     G_Gv = np.zeros((5, 3))
     G_Gv[:, 0] = np.linspace(0, 20, 5)
-    calculate_pair_density_correction(G_Gv, pawdata=pawdata,
-                                      radial_points=radial_points)
+    pawdata = ResponsePAWDataset(setup, radial_points=radial_points)
+    calculate_pair_density_correction(G_Gv, pawdata=pawdata)
 
 
 @pytest.mark.response
 def test_paw_correction_consistency(gpw_files):
     """Test consistency of the pair density PAW corrections."""
-    context = ResponseContext()
-    gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'],
-                                                  context=context)
+    gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
 
     # Set up plane-wave basis
     ecut = 50  # eV
@@ -75,9 +74,7 @@ def test_paw_correction_consistency(gpw_files):
 @pytest.mark.serial
 def test_site_paw_correction_consistency(gpw_files):
     """Test consistency of generalized matrix elements."""
-    context = ResponseContext()
-    gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'],
-                                                  context=context)
+    gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
 
     # Expand the LDA fxc kernel in real spherical harmonics
     pawdata = gs.pawdatasets.by_atom[0]

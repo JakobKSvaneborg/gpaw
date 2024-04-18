@@ -1,4 +1,4 @@
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.xc.kernel import XCKernel
 from gpaw import debug
 
@@ -23,7 +23,7 @@ short_names = {
 class LibXC(XCKernel):
     """Functionals from libxc."""
     def __init__(self, name):
-        if not hasattr(_gpaw, 'lxcXCFuncNum'):
+        if not hasattr(cgpaw, 'lxcXCFuncNum'):
             raise NameError(
                 f'Unable to use {name}: GPAW not compiled with LibXC!')
         self.name = name
@@ -33,7 +33,7 @@ class LibXC(XCKernel):
     def initialize(self, nspins):
         self.nspins = nspins
         name = short_names.get(self.name, self.name)
-        number = _gpaw.lxcXCFuncNum(name)
+        number = cgpaw.lxcXCFuncNum(name)
         if number is not None:
             f = number
             xc = -1
@@ -51,12 +51,12 @@ class LibXC(XCKernel):
             except ValueError:
                 raise NameError('Unknown functional: "%s".' % name)
             xc = -1
-            x = _gpaw.lxcXCFuncNum(x)
-            c = _gpaw.lxcXCFuncNum(c)
+            x = cgpaw.lxcXCFuncNum(x)
+            c = cgpaw.lxcXCFuncNum(c)
             if x is None or c is None:
                 raise NameError('Unknown functional: "%s".' % name)
 
-        self.xc = _gpaw.lxcXCFunctional(xc, x, c, nspins)
+        self.xc = cgpaw.lxcXCFunctional(xc, x, c, nspins)
         self.set_omega()
 
         if self.xc.is_mgga():

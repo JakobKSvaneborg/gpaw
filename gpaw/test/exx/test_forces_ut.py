@@ -82,7 +82,7 @@ class WFS:
         data[1] = pd.fft(np.exp(-R2 * (10 / L**2))) + 0.5
         psit = PlaneWaveExpansionWaveFunctions(nb, pd, data=data)
         proj = Projections(nb, [1], AP(), world, dtype=complex)
-        self.pt = PWLFC([[Spline(0, 2.0, np.exp(-r2 * 10))]], pd)
+        self.pt = PWLFC([[Spline.from_data(0, 2.0, np.exp(-r2 * 10))]], pd)
         self.pt.set_positions(self.spos_ac)
         psit.matrix_elements(self.pt, out=proj)
         f_n = np.array([1.0, 0.5])
@@ -127,7 +127,7 @@ class Setup:
     Delta_iiL = np.zeros((1, 1, 1)) + 0.1
     X_p = np.zeros(1) + 0.3
     ExxC = -10.0
-    ghat_l = [Spline(0, 2.0, np.exp(-r2 * 10))]
+    ghat_l = [Spline.from_data(0, 2.0, np.exp(-r2 * 10))]
     xc_correction = None
     M_pp = np.zeros((1, 1)) + 0.3
 

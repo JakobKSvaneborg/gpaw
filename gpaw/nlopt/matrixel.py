@@ -7,14 +7,12 @@ from ase.utils.timing import Timer
 from pathlib import Path
 import numpy as np
 
-from gpaw.mpi import serial_comm
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.nlopt.basic import NLOData
 from gpaw.utilities.progressbar import ProgressBar
 
 if TYPE_CHECKING:
     from gpaw.nlopt.adapters import CollinearGSInfo, NoncollinearGSInfo
-    from gpaw.mpi import MPIComm
     from gpaw.typing import ArrayND
 
 
@@ -39,15 +37,14 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
 
     Returns
     -------
-    p_kvnn2
+    p_kvnn
         Momentum matrix elements in atomic units gathered on master.
-
     """
 
     # Start the timer
     if timer is None:
         timer = Timer()
-    parprint('Calculating momentum matrix elements...')
+    parprint(f'Calculating momentum matrix elements for spin channel {spin}.')
 
     # Specify desired range and number of bands in calculation
     bands = slice(ni, nf)
@@ -57,27 +54,27 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     assert spin < gs.ns, 'Wrong spin input'
 
     # Parallelisation and memory estimate
-    comm = gs.comm
-    rank = comm.rank
-    size = comm.size
-    nk = len(gs.ibzwfs.ibz)
-    nkcore = int(np.ceil(nk / size))  # Number of k-points pr. core
+    ibzwfs = gs.ibzwfs
+    kpt_comm = ibzwfs.kpt_comm
+    rank = kpt_comm.rank
+    master = (rank == 0)
+
+    nk = len(ibzwfs.rank_k)  # Total number of k-points
+    k_q = np.array(list(ibzwfs.q_k.keys()), int)  # k-index for each q-index
+    nq = len(k_q)  # Number of k-points (q-indices) for each core
     est_mem = 2 * 3 * nk * nb**2 * 16 / 2**20
     parprint(f'At least {est_mem:.2f} MB of memory is required on master.')
 
     # Allocate the matrix elements
-    p_kvnn = np.zeros((nkcore, 3, nb, nb), dtype=complex)
+    p_qvnn = np.empty((nq, 3, nb, nb), dtype=complex)
 
     # Initial call to print 0 % progress
-    if rank == 0:
+    if master:
         pb = ProgressBar()
 
     # Calculate matrix elements in loop over k-points
-    for ik in range(nkcore):
-        k_ind = rank + size * ik
-        if k_ind >= nk:
-            break
-        wfs = gs.get_wfs(k_ind, spin)
+    for wfs_s in ibzwfs.wfs_qs:
+        wfs = gs.get_wfs(wfs_s, spin)
 
         with timer('Contribution from pseudo wave functions'):
             G_plus_k_Gv, u_nG = gs.get_plane_wave_coefficients(
@@ -92,38 +89,45 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
                 p_vnn -= 1j * np.einsum('mi,nj,ijv->vmn',
                                         P_ni.conj(), P_ni, nabla_iiv)
 
-        p_kvnn[ik] = p_vnn
+        p_qvnn[wfs.q] = p_vnn
 
-        if rank == 0:
-            pb.update(ik / nkcore)
+        if master:
+            pb.update(wfs.q / nq)
 
-    if rank == 0:
+    if master:
         pb.finish()
 
     with timer('Gather the data to master'):
-        if not rank == 0:
-            recv_buf = None
-            gs.comm.gather(p_kvnn, 0, recv_buf)
+        if not master:
+            kpt_comm.send(np.array(nq, int), 0)
+            kpt_comm.send(k_q, 0)
+            kpt_comm.send(p_qvnn, 0)
         else:
-            recv_buf = np.empty((size, nkcore, 3, nb, nb), dtype=complex)
-            gs.comm.gather(p_kvnn, 0, recv_buf)
-            p_kvnn2 = np.zeros((nk, 3, nb, nb), dtype=complex)
-            for ii in range(size):
-                k_inds = range(ii, nk, size)
-                p_kvnn2[k_inds] = recv_buf[ii, :len(k_inds)]
+            p_kvnn = np.empty((nk, 3, nb, nb), complex)
+            p_kvnn[k_q] = p_qvnn
+            for gather_rank in range(1, kpt_comm.size):
+                _nq = np.empty(1, int)  # We can only communicate numpy arrays
+                kpt_comm.receive(_nq, gather_rank)
+                nq = _nq[0]
+
+                k_q = np.empty(nq, int)
+                kpt_comm.receive(k_q, gather_rank)
+
+                p_qvnn = np.empty((nq, 3, nb, nb), complex)
+                kpt_comm.receive(p_qvnn, gather_rank)
+                p_kvnn[k_q] = p_qvnn
 
     # Print the timing
-    if rank == 0:
+    if master:
         timer.write()
 
     if rank == 0:
-        return p_kvnn2
+        return p_kvnn
     else:
         return np.array([], dtype=complex)
 
 
 def make_nlodata(calc: ASECalculator | str | Path,
-                 comm: MPIComm,
                  spin_string: str = 'all',
                  ni: int | None = None,
                  nf: int | None = None) -> NLOData:
@@ -135,8 +139,6 @@ def make_nlodata(calc: ASECalculator | str | Path,
     ----------
     calc
         Calculator or string/path pointing to a .gpw file.
-    comm
-        Communicator for parallelisation.
     spin_string
         String denoting which spin channels to include ('all', 's0' , 's1').
     ni
@@ -156,17 +158,17 @@ def make_nlodata(calc: ASECalculator | str | Path,
             raise TypeError('Input must be a calculator or a string / path'
                             'pointing to a calculator.')
         from gpaw.new.ase_interface import GPAW
-        calc = GPAW(calc, txt=None, communicator=serial_comm)
+        calc = GPAW(calc, txt=None, parallel={'domain': 1, 'band': 1})
     assert not calc.symmetry.point_group, \
         'Point group symmetry should be off.'
 
     gs: CollinearGSInfo | NoncollinearGSInfo
-    if calc.calculation.state.density.collinear:
+    if calc.dft.state.density.collinear:
         from gpaw.nlopt.adapters import CollinearGSInfo
-        gs = CollinearGSInfo(calc, comm)
+        gs = CollinearGSInfo(calc)
     else:
         from gpaw.nlopt.adapters import NoncollinearGSInfo
-        gs = NoncollinearGSInfo(calc, comm)
+        gs = NoncollinearGSInfo(calc)
 
     # Parse spin string
     ns = gs.ns
@@ -181,7 +183,8 @@ def make_nlodata(calc: ASECalculator | str | Path,
         raise NotImplementedError
 
     # Parse band input
-    nb_full = gs.ibzwfs.nbands
+    ibzwfs = gs.ibzwfs
+    nb_full = ibzwfs.nbands
     ni = int(ni) if ni is not None else 0
     nf = int(nf) if nf is not None else nb_full
     nf = nb_full + nf if (nf <= 0) else nf
@@ -189,11 +192,9 @@ def make_nlodata(calc: ASECalculator | str | Path,
     # Start the timer
     timer = Timer()
 
-    # Get the energy and fermi levels (data is only in master)
+    # Get the energy and Fermi-Dirac occupations (data is only in master)
     with timer('Get energies and fermi levels'):
-        ibzwfs = gs.ibzwfs
 
-        # Get the data
         E_skn, f_skn = ibzwfs.get_all_eigs_and_occs()
         # Energy is returned in Ha. For now we will change
         # it to eV avoid altering the module too much.
@@ -217,7 +218,7 @@ def make_nlodata(calc: ASECalculator | str | Path,
                    f_skn=f_skn[:, :, ni:nf],
                    E_skn=E_skn[:, :, ni:nf],
                    p_skvnn=np.array(p_skvnn, complex),
-                   comm=gs.comm)
+                   comm=ibzwfs.kpt_comm)
 
 
 def get_rml(E_n, p_vnn, pol_v, Etol=1e-6):

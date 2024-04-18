@@ -3,7 +3,7 @@ import pytest
 from ase import Atoms
 from ase.units import Hartree
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw import GPAW
 from gpaw.cluster import Cluster
 from gpaw.eigensolvers import RMMDIIS
@@ -14,7 +14,7 @@ from gpaw.occupations import FermiDirac
 
 @pytest.mark.hybrids
 def test_rsf_yukawa_lrtddft_short(in_tmp_dir):
-    libxc_version = getattr(_gpaw, 'libxc_version', '2.x.y')
+    libxc_version = getattr(cgpaw, 'libxc_version', '2.x.y')
     if int(libxc_version.split('.')[0]) < 3:
         from unittest import SkipTest
         raise SkipTest

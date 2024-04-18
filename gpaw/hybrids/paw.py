@@ -5,7 +5,7 @@ import numpy as np
 
 from gpaw.mpi import broadcast
 from gpaw.utilities import (pack_atomic_matrices, unpack_atomic_matrices,
-                            unpack2, unpack, packed_index)
+                            unpack_density, unpack_hermitian, packed_index)
 
 
 class PAWThings(NamedTuple):
@@ -30,7 +30,7 @@ def calculate_paw_stuff(wfs, dens) -> List[PAWThings]:
     for a, D_sp in D_asp.items():
         data = wfs.setups[a]
         for VV_aii, D_p in zip(VV_saii, D_sp):
-            D_ii = unpack2(D_p) * (dens.nspins / 2)
+            D_ii = unpack_density(D_p) * (dens.nspins / 2)
             VV_ii = pawexxvv(data.M_pp, D_ii)
             VV_aii[a] = VV_ii
 
@@ -41,7 +41,7 @@ def calculate_paw_stuff(wfs, dens) -> List[PAWThings]:
         if data.X_p is None:
             VC_aii[a] = None
         else:
-            VC_aii[a] = unpack(data.X_p)
+            VC_aii[a] = unpack_hermitian(data.X_p)
 
     return [PAWThings(VC_aii, VV_aii, Delta_aiiL)
             for VV_aii in VV_saii]

@@ -1,7 +1,7 @@
 import pytest
-from ase.build import molecule
+
 from ase.parallel import paropen
-from gpaw import GPAW
+
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.qed import RRemission
@@ -10,17 +10,10 @@ from . import check_txt_data
 
 
 @pytest.mark.rttddft
-def test_rremission(in_tmp_dir):
-    atoms = molecule('Na2')
-    atoms.center(vacuum=4.0)
-    calc = GPAW(mode='lcao', h=0.4, basis='dzp',
-                setups={'Na': '1'},
-                symmetry={'point_group': False},
-                convergence={'density': 1e-12})
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    calc.write('gs.gpw', mode='all')
-    td_calc = LCAOTDDFT('gs.gpw', rremission=RRemission(0.5, [0, 0, 1]))
+def test_rremission(gpw_files, in_tmp_dir):
+    # XXX convergence={'density': 1e-8} originally 1e-12
+    td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'],
+                        rremission=RRemission(0.5, [0, 0, 1]))
     DipoleMomentWriter(td_calc, 'dm.dat')
     td_calc.absorption_kick([0.0, 0.0, 1e-5])
     td_calc.propagate(40, 20)

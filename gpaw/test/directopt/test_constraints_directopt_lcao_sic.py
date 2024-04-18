@@ -6,7 +6,7 @@ import numpy as np
 
 
 @pytest.mark.do
-def test_constraints_directopt_lcao_sic(in_tmp_dir):
+def test_constraints_directopt_lcao_sic(in_tmp_dir, needs_ase_master):
     """
     test Perdew-Zunger Self-Interaction
     Correction  in LCAO mode using DirectMin

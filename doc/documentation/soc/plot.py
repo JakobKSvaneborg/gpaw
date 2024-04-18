@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 calc = GPAW('VCl2_gs.gpw')
-dens = calc.calculation.densities()
+dens = calc.dft.densities()
 grid_spacing = calc.atoms.cell[2, 2] / 200
 nt = dens.pseudo_densities(grid_spacing)
 n = dens.all_electron_densities(grid_spacing=grid_spacing)

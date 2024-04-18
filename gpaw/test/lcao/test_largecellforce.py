@@ -43,7 +43,7 @@ def test_lcao_largecellforce(gpaw_new):
     from gpaw.mpi import rank, size
     if rank == 0 and size > 1:
         if gpaw_new:
-            basis = calc.calculation.scf_loop.hamiltonian.basis
+            basis = calc.dft.scf_loop.hamiltonian.basis
         else:
             basis = calc.wfs.basis_functions
         assert len(basis.atom_indices) < len(system)

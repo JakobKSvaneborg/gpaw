@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
 from gpaw import GPAW
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.modelinteraction import initialize_w_model
-from gpaw.response.chi0 import Chi0
+from gpaw.response.chi0 import Chi0Calculator
 from gpaw.wannier90 import Wannier90
 import os
 from gpaw.mpi import world, serial_comm
@@ -54,8 +56,11 @@ def test_w(in_tmp_dir, gpw_files, symm):
     world.barrier()
 
     omega = np.array([0])
-    chi0calc = Chi0(gpwfile, frequencies=omega, hilbert=False, ecut=30,
-                    txt='test.log', intraband=False)
+    kwargs = dict(hilbert=False, ecut=30, intraband=False)
+    gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
+    context = ResponseContext('test.log')
+    wd = FrequencyDescriptor.from_array_or_dict(omega)
+    chi0calc = Chi0Calculator(gs, context, wd=wd, **kwargs)
     Wm = initialize_w_model(chi0calc)
     w, Wwann = Wm.calc_in_Wannier(chi0calc, Uwan_mnk=seed, bandrange=[0, 4])
     check_W(Wwann)
@@ -64,8 +69,8 @@ def test_w(in_tmp_dir, gpw_files, symm):
     # test block parallelization
     if world.size % 2 == 0 and symm:
         omega = np.array([0, 1])
-        chi0calc = Chi0(gpwfile, frequencies=omega, hilbert=False, ecut=30,
-                        txt='test.log', intraband=False, nblocks=2)
+        wd = FrequencyDescriptor.from_array_or_dict(omega)
+        chi0calc = Chi0Calculator(gs, context, wd=wd, nblocks=2, **kwargs)
         Wm = initialize_w_model(chi0calc)
         w, Wwann = Wm.calc_in_Wannier(chi0calc, Uwan_mnk=seed,
                                       bandrange=[0, 4])

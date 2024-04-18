@@ -3,6 +3,7 @@
 
 """Utility functions and classes."""
 
+import atexit
 import os
 import re
 import sys
@@ -17,7 +18,7 @@ from ase import Atoms
 from ase.data import covalent_radii
 from ase.neighborlist import neighbor_list
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
 from gpaw import debug
 
@@ -156,7 +157,7 @@ def hartree(l: int, nrdr: np.ndarray, r: np.ndarray, vr: np.ndarray) -> None:
     assert nrdr.shape == vr.shape and len(vr.shape) == 1
     assert len(r.shape) == 1
     assert len(r) >= len(vr)
-    return _gpaw.hartree(l, nrdr, r, vr)
+    return cgpaw.hartree(l, nrdr, r, vr)
 
 
 def packed_index(i1, i2, ni):
@@ -175,39 +176,17 @@ def unpacked_indices(p, ni):
 
 
 packing_conventions = """\n
-In the code, the convention is that density matrices are constructed using
-pack / unpack2, and anything that should be multiplied onto such, e.g.
-corrections to the Hamiltonian, are constructed according to pack2 / unpack.
+The convention is that density matrices are constructed using (un)pack_density
+and anything that should be multiplied onto such, e.g. corrections to the
+Hamiltonian, are constructed according to (un)pack_hermitian.
 """
 
 
-def unpack(M):
-    """Unpack 1D array to 2D, assuming a packing as in ``pack2``."""
-    if M.ndim == 2:
-        return np.array([unpack(m) for m in M])
-    assert is_contiguous(M)
-    assert M.ndim == 1
-    n = int(sqrt(0.25 + 2.0 * len(M)))
-    M2 = np.zeros((n, n), M.dtype.char)
-    if M.dtype == complex:
-        _gpaw.unpack_complex(M, M2)
-    else:
-        _gpaw.unpack(M, M2)
-    return M2
+def pack_hermitian(M2, tolerance=1e-10):
+    r"""Pack Hermitian
 
-
-def unpack2(M):
-    """Unpack 1D array to 2D, assuming a packing as in ``pack``."""
-    if M.ndim == 2:
-        return np.array([unpack2(m) for m in M])
-    M2 = unpack(M)
-    M2 *= 0.5  # divide all by 2
-    M2.flat[0::len(M2) + 1] *= 2  # rescale diagonal to original size
-    return M2
-
-
-def pack(A: np.ndarray) -> np.ndarray:
-    r"""Pack a 2D array to 1D, adding offdiagonal terms.
+    This functions packs a Hermitian 2D array to a
+    1D array, averaging off-diagonal terms with complex conjugation.
 
     The matrix::
 
@@ -217,29 +196,10 @@ def pack(A: np.ndarray) -> np.ndarray:
 
     is transformed to the vector::
 
-      (a00, a01 + a10, a02 + a20, a11, a12 + a21, a22)
-    """
-    assert A.ndim == 2
-    assert A.shape[0] == A.shape[1]
-    assert A.dtype in [float, complex]
-    return _gpaw.pack(A)
-
-
-def pack2(M2, tolerance=1e-10):
-    r"""Pack a 2D array to 1D, averaging offdiagonal terms.
-
-    The matrix::
-
-           / a00 a01 a02 \
-       A = | a10 a11 a12 |
-           \ a20 a21 a22 /
-
-    is transformed to the vector::
-
-      (a00, [a01 + a10]/2, [a02 + a20]/2, a11, [a12 + a21]/2, a22)
+       (a00, [a01 + a10*]/2, [a02 + a20*]/2, a11, [a12 + a21*]/2, a22)
     """
     if M2.ndim == 3:
-        return np.array([pack2(m2) for m2 in M2])
+        return np.array([pack_hermitian(m2) for m2 in M2])
     n = len(M2)
     M = np.zeros(n * (n + 1) // 2, M2.dtype)
     p = 0
@@ -255,7 +215,61 @@ def pack2(M2, tolerance=1e-10):
     return M
 
 
-for method in (unpack, unpack2, pack, pack2):
+def unpack_hermitian(M):
+    """Unpack 1D array to Hermitian 2D array,
+    assuming a packing as in ``pack_hermitian``."""
+
+    if M.ndim == 2:
+        return np.array([unpack_hermitian(m) for m in M])
+    assert is_contiguous(M)
+    assert M.ndim == 1
+    n = int(sqrt(0.25 + 2.0 * len(M)))
+    M2 = np.zeros((n, n), M.dtype.char)
+    if M.dtype == complex:
+        cgpaw.unpack_complex(M, M2)
+    else:
+        cgpaw.unpack(M, M2)
+    return M2
+
+
+def pack_density(A: np.ndarray) -> np.ndarray:
+    r"""Pack off-diagonal sum
+
+    This function packs a 2D Hermitian array to 1D, adding off-diagonal terms.
+
+    The matrix::
+
+           / a00 a01 a02 \
+       A = | a10 a11 a12 |
+           \ a20 a21 a22 /
+
+    is transformed to the vector::
+
+       (a00, a01 + a10, a02 + a20, a11, a12 + a21, a22)"""
+
+    assert A.ndim == 2
+    assert A.shape[0] == A.shape[1]
+    assert A.dtype in [float, complex]
+    return cgpaw.pack(A)
+
+
+# We cannot recover the complex part of the off-diag elements from a
+# pack_density array since they are summed to zero (we only pack Hermitian
+# arrays). We should consider if "unpack_density" even makes sense to have.
+
+
+def unpack_density(M):
+    """Unpack 1D array to 2D Hermitian array,
+    assuming a packing as in ``pack_density``."""
+    if M.ndim == 2:
+        return np.array([unpack_density(m) for m in M])
+    M2 = unpack_hermitian(M)
+    M2 *= 0.5  # divide all by 2
+    M2.flat[0::len(M2) + 1] *= 2  # rescale diagonal to original size
+    return M2
+
+
+for method in (pack_hermitian, unpack_hermitian, pack_density, pack_density):
     method.__doc__ += packing_conventions  # type: ignore
 
 
@@ -310,11 +324,11 @@ def divrl(a_g, l, r_g):
 
 
 def compiled_with_sl():
-    return hasattr(_gpaw, 'new_blacs_context')
+    return hasattr(cgpaw, 'new_blacs_context')
 
 
 def compiled_with_libvdwxc():
-    return hasattr(_gpaw, 'libvdwxc_create')
+    return hasattr(cgpaw, 'libvdwxc_create')
 
 
 def load_balance(paw, atoms):
@@ -341,8 +355,8 @@ def load_balance(paw, atoms):
 
 
 if not debug:
-    hartree = _gpaw.hartree  # noqa
-    pack = _gpaw.pack
+    hartree = cgpaw.hartree  # noqa
+    pack_density = cgpaw.pack
 
 
 def unlink(path: Union[str, Path], world=None):
@@ -395,6 +409,7 @@ def file_barrier(path: Union[str, Path], world=None):
 
 
 devnull = open(os.devnull, 'w')
+atexit.register(devnull.close)
 
 
 def convert_string_to_fd(name, world=None):

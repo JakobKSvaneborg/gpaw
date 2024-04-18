@@ -46,9 +46,9 @@ from gpaw.xc.functional import XCFunctional
 from gpaw.poisson import PoissonSolver
 from gpaw.transformers import Transformer
 from gpaw.typing import ArrayND, IntVector, RNG
-from gpaw.utilities import pack, unpack
+from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.lfc import LFC
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 def matrix_exponential(G_nn, dlt):
@@ -524,7 +524,7 @@ class SICSpin:
             W_nm = np.identity(self.nocc)
             localization = 0.0
             for iter in range(30):
-                loc = _gpaw.localize(Z_mmv, W_nm)
+                loc = cgpaw.localize(Z_mmv, W_nm)
                 if loc - localization < 1e-6:
                     break
                 localization = loc
@@ -563,7 +563,7 @@ class SICSpin:
         # localize the orbitals
         localization = 0.0
         for iter in range(30):
-            loc = _gpaw.localize(Z_mmv, W_nm)
+            loc = cgpaw.localize(Z_mmv, W_nm)
             if loc - localization < 1e-6:
                 break
             localization = loc
@@ -620,7 +620,7 @@ class SICSpin:
         # PAW
         for a, P_mi in self.P_ami.items():
             for m, dH_p in enumerate(self.dH_amp[a]):
-                dH_ii = unpack(dH_p)
+                dH_ii = unpack_hermitian(dH_p)
                 V_mm[m, :] += np.dot(P_mi[m], np.dot(dH_ii, P_mi.T))
 
         # accumulate over grid-domains
@@ -666,7 +666,7 @@ class SICSpin:
         for a, P_mi in self.P_ami.items():
             P_i = P_mi[m]
             D_ii = np.outer(P_i, P_i.conj()).real
-            D_ap[a] = D_p = pack(D_ii)
+            D_ap[a] = D_p = pack_density(D_ii)
             Q_aL[a] = np.dot(D_p, self.setups[a].Delta_pL)
 
         return nt_g, Q_aL, D_ap
@@ -859,7 +859,7 @@ class SICSpin:
                 P_ni = P_ani[a]
 
                 for m, dH_p in enumerate(self.dH_amp[a]):
-                    dH_ii = unpack(dH_p)
+                    dH_ii = unpack_hermitian(dH_p)
                     R_mk[m] += np.dot(P_mi[m], np.dot(dH_ii, P_ni[nocc:].T))
 
             self.finegd.comm.sum(R_mk)
@@ -893,7 +893,7 @@ class SICSpin:
             c_ni[nocc:] += np.dot(R_mk.T, np.dot(P_mi, dO_ii))
             #
             for m, dH_p in enumerate(self.dH_amp[a]):
-                dH_ii = unpack(dH_p)
+                dH_ii = unpack_hermitian(dH_p)
                 ct_mi[m] = np.dot(P_mi[m], dH_ii)
             c_ni[:nocc] += np.dot(W_mn.T, ct_mi)
             c_ni[nocc:] += self.stabpot * np.dot(P_ani[a][nocc:], dO_ii)
@@ -921,7 +921,7 @@ class SICSpin:
             w_mx += np.dot(P_mi, np.dot(dO_ii, P_xi.T))
 
             for m, dH_p in enumerate(self.dH_amp[a]):
-                dH_ii = unpack(dH_p)
+                dH_ii = unpack_hermitian(dH_p)
                 v_mx[m] += np.dot(P_mi[m], np.dot(dH_ii, P_xi.T))
 
         # sum over grid-domains
@@ -946,7 +946,7 @@ class SICSpin:
             c_xi += np.dot(q_mx.T, np.dot(P_mi, dO_ii))
 
             for m, dH_p in enumerate(self.dH_amp[a]):
-                dH_ii = unpack(dH_p)
+                dH_ii = unpack_hermitian(dH_p)
                 ct_mi[m] = np.dot(P_mi[m], dH_ii)
             c_xi += np.dot(w_mx.T, ct_mi)
 
@@ -993,7 +993,7 @@ class SICSpin:
             # Force from projectors
             for a, F_miv in F_amiv.items():
                 F_vi = F_miv[m].T.conj()
-                dH_ii = unpack(self.dH_amp[a][m])
+                dH_ii = unpack_hermitian(self.dH_amp[a][m])
                 P_i = self.P_ami[a][m]
                 F_v = np.dot(np.dot(F_vi, dH_ii), P_i)
                 F_av[a] += deg * 2 * F_v.real

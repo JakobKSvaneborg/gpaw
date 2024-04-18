@@ -20,18 +20,7 @@ Next we calculate the dynamical dielectric function using the Bethe-Salpeter equ
 .. image:: bse_Si.png
     :height: 400 px
 
-The ``write_v`` keyword ensures that the eigenstates and eigenvalues are stored in ``v_TS.gpw``. These are easily read by the get_dielectric_function method, such that if you want to calculate the spectrum at a different energy range or broadening you can simply do::
-
-    bse.get_dielectric_function(filename='bse_0.1.csv',
-                                readfile='v_TS.gpw',
-                                eta=0.1,
-                                w_w=np.linspace(0, 20, 10001))
-
-This should finish almost instantaneously.
-
-The parameters that needs to be converged in the calculation are the k-points in the initial ground state calculation. In addition the following keywords in the BSE object should be converged: the plane wave cutoff ``ecut``, the numbers of bands used to calculate the screened interaction ``nbands``, the list of valence bands ``valence_bands`` and the list of conduction bands ``conduction_bands`` included in the Hamiltonian. It is also possible to provide an array ``gw_skn``, with GW eigenvalues to be used in the non-interacting part of th Hamiltonian. Here, the indices denote spin, k-points and bands, which has to match the spin, k-point sampling and the number of specified valence and conduction bands in the ground state calculation.
-
-For large calculations, it may be useful to write the screened interaction, which is the first quantity that is calculated and may be restarted in a subsequent calculation. This may be done with the keyword ``wfile='W_qGG.pckl'``, where the .pckl file contains the screened interaction matrices at all q-points and a few other variables. It may also be useful to set ``write_h=False`` and ``write_v=False``, since these files may become quite large for big calculations.
+The parameters that need to be converged in the calculation are the k-points in the initial ground state calculation. In addition the following keywords in the BSE object should be converged: the plane wave cutoff ``ecut``, the numbers of bands used to calculate the screened interaction ``nbands``, the list of valence bands ``valence_bands`` and the list of conduction bands ``conduction_bands`` included in the Hamiltonian. It is also possible to provide an array ``gw_skn``, with GW eigenvalues to be used in the non-interacting part of th Hamiltonian. Here, the indices denote spin, k-points and bands, which has to match the spin, k-point sampling and the number of specified valence and conduction bands in the ground state calculation.
 
 Excitons in monolayer MoS2 with Spin-orbit Coupling
 ===================================================

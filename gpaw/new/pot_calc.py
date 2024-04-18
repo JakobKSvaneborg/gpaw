@@ -25,7 +25,7 @@ from gpaw.new.xc import Functional
 from gpaw.setup import Setup
 from gpaw.spinorbit import soc as soc_terms
 from gpaw.typing import Array1D, Array2D, Array3D
-from gpaw.utilities import pack, pack2, unpack
+from gpaw.utilities import pack_hermitian, pack_density, unpack_hermitian
 from gpaw.yml import indent
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new.external_potential import ExternalPotential
@@ -166,7 +166,7 @@ def calculate_non_local_potential1(setup: Setup,
                                                        dict[str, float]]:
     ncomponents = len(D_sii)
     ndensities = 2 if ncomponents == 2 else 1
-    D_sp = np.array([pack(D_ii.real) for D_ii in D_sii])
+    D_sp = np.array([pack_density(D_ii.real) for D_ii in D_sii])
 
     D_p = D_sp[:ndensities].sum(0)
 
@@ -183,14 +183,14 @@ def calculate_non_local_potential1(setup: Setup,
     if soc:
         dHsoc_sii = soc_terms(setup, xc.xc, D_sp)
         e_soc += (D_sii[1:4] * dHsoc_sii).sum().real
-        dH_sp[1:4] = pack2(dHsoc_sii)
+        dH_sp[1:4] = pack_hermitian(dHsoc_sii)
 
     dH_sp[:ndensities] = dH_p
     e_xc = xc.calculate_paw_correction(setup, D_sp, dH_sp)
 
     e_external = ext_pot.add_paw_correction(setup.Delta_pL[:, 0], dH_sp)
 
-    dH_sii = unpack(dH_sp)
+    dH_sii = unpack_hermitian(dH_sp)
 
     if setup.hubbard_u is not None:
         eU, dHU_sii = setup.hubbard_u.calculate(setup, D_sii)

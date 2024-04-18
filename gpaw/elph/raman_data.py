@@ -75,7 +75,7 @@ class RamanData:
         for l in range(len(self.wph_w)):
             occ = 1.0 / (np.exp(self.wph_w[l] / (KtoeV * T)) - 1.0) + 1.0
             delta_w = gaussian((self.gridev_w - self.wph_w[l]), sigmaev)
-            R2_w = np.abs(R_lw[l]).real
+            R2_w = np.abs(R_lw[l])**2
             R2d_w = R2_w * delta_w
             int_bare += R2d_w
             int_occ += occ / self.wph_w[l] * R2d_w

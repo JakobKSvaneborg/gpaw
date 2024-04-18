@@ -14,7 +14,7 @@ def test_bader(gpw_files, in_tmp_dir, gpaw_new):
     """Test bader analysis on interpolated density."""
     calc = GPAW(gpw_files['c2h4_pw_nosym'])
     if gpaw_new:
-        nt_sR = calc.calculation.densities().pseudo_densities()
+        nt_sR = calc.dft.densities().pseudo_densities()
         ne = nt_sR.integrate().sum()
         density = nt_sR.data.sum(0)
     else:

@@ -44,6 +44,12 @@ stages:
                             ]
       extra_link_args = ['-fopenmp']
 
+      # TODO: PySys_SetArgv() etc deprecated in Python 3.11
+      import sys
+      if sys.version_info >= (3, 11):
+          extra_compile_args += ['-Wno-deprecated-declarations']
+      # end TODO
+
       libraries += ['blas']
 
       fftw = True
@@ -69,10 +75,36 @@ stages:
   before_script:
     - !reference [default, before_script]
 
+
 .gpu-job:
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
     - if: $CI_COMMIT_BRANCH =~ "/^gpu-.*/"
+
+
+.lumi-job:
+  tags:
+    - lumi
+  rules:
+    - if: ($GITLAB_USER_LOGIN == "jensj" || $GITLAB_USER_LOGIN == "mikaelkuisma" || $GITLAB_USER_LOGIN == "trossi") && ($CI_PIPELINE_SOURCE == "push")
+      allow_failure: true
+
+
+.lumi-g-job:
+  extends: .lumi-job
+  variables:
+    LUMI_PROJECT: "project_465000939"
+    SCHEDULER_PARAMETERS: "-A $LUMI_PROJECT -N 1 --ntasks-per-node=1 --gpus-per-node=1 --mem=4G -t 00:10:00 -p small-g"
+  before_script:
+    - export EBU_USER_PREFIX=/projappl/$LUMI_PROJECT/EasyBuild
+    - module load LUMI/22.12 partition/G
+    - module load cpeGNU/22.12
+    - module load cray-fftw/3.3.10.1
+    - module load cray-python/3.9.13.1
+    - module load CuPy/12.2.0-cpeGNU-22.12  # from EBU_USER_PREFIX
+    - module load libxc/6.2.2-cpeGNU-22.12  # from EBU_USER_PREFIX
+    - export GPAW_SETUP_PATH=/projappl/$LUMI_PROJECT/gpaw-setups-0.9.20000
+    - !reference [default, before_script]
 
 
 build:
@@ -97,8 +129,6 @@ build-latest:
       cat << EOF >> siteconfig.py
       define_macros += [('NDEBUG', None)]
       undef_macros = []
-      # TODO: PySys_SetArgv() etc deprecated in Python 3.11
-      extra_compile_args += ['-Wno-deprecated-declarations']
 
       from pathlib import Path
       libvdwxc = True
@@ -144,10 +174,9 @@ build-cuda:
       gpu_compile_args = ['-O3',
                           '-g']
       libraries += ['cudart', 'cublas']
-      undef_macros += ['GPAW_GPU_AWARE_MPI']
       EOF
     - cat siteconfig.py
-    - pip install --user --log build.log --editable .
+    - pip install -v --user --log build.log --editable .
 
 
 build-hip-cuda:
@@ -174,7 +203,7 @@ build-hip-cuda:
       undef_macros += ['GPAW_GPU_AWARE_MPI']
       EOF
     - cat siteconfig.py
-    - pip install --user --log build.log --editable .
+    - pip install -v --user --log build.log --editable .
 
 
 build-minimal:
@@ -191,6 +220,57 @@ build-minimal:
       EOF
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
+    - gpaw info
+
+
+build-lumi-g:
+  extends:
+    - .build
+    - .lumi-g-job
+  script:
+    - |
+      cat << EOF > siteconfig.py
+      parallel_python_interpreter = True
+      mpi = True
+      compiler = 'cc'
+      compiler_args = []
+      libraries = []
+      library_dirs = []
+      include_dirs = []
+      extra_compile_args = [
+          '-g',
+          '-O3',
+          '-fopenmp',
+          '-fPIC',
+          '-Wall',
+          '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
+          '-Werror',
+          ]
+      extra_link_args = ['-fopenmp']
+
+      fftw = True
+      libraries += ['fftw3']
+
+      scalapack = True
+
+      libraries += ['xc']
+
+      define_macros += [('GPAW_ASYNC', None)]
+
+      gpu = True
+      gpu_target = 'hip-amd'
+      gpu_compiler = 'hipcc'
+      gpu_include_dirs = []
+      gpu_compile_args = [
+          '-g',
+          '-O3',
+          '--offload-arch=gfx90a',
+          ]
+      libraries += ['amdhip64', 'hipblas']
+      EOF
+    - cat siteconfig.py
+    - pip install --user --no-deps git+https://gitlab.com/ase/ase.git@master
+    - pip install --user --no-deps --log build.log --editable .
     - gpaw info
 
 
@@ -333,6 +413,7 @@ test-cuda:
   script:
     - nvidia-smi
     - gpaw info
+    - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
     - pytest -v -m gpu
 
     - gpaw-python -m gpaw info
@@ -350,9 +431,10 @@ test-cuda-mpi:
   script:
     - nvidia-smi
     - gpaw info
-    - mpirun -np 2 gpaw-python -m pytest -v -m gpu
-    - mpirun -np 4 gpaw-python -m pytest -v -m gpu
-
+    - mpirun -np 2 pytest -v -m gpu
+    - mpirun -np 4 pytest -v -m gpu
+    # mpirun -np 2 gpaw-python doesn't work, see #1052
+    # - mpirun -np 2 gpaw-python -m pytest -v -m gpu
 
 test-hip-cuda:
   image: $IMAGE_CUDA
@@ -365,6 +447,18 @@ test-hip-cuda:
     - cuda
   script:
     - nvidia-smi
+    - gpaw info
+    - pytest -v -m gpu
+
+
+test-lumi-g:
+  extends:
+    - .test
+    - .lumi-g-job
+  needs:
+    - build-lumi-g
+  script:
+    - rocm-smi || true  # rocm-smi yields non-zero return code
     - gpaw info
     - pytest -v -m gpu
 
@@ -534,44 +628,6 @@ nightly-mpi-1:
       - htmlcov/
     expire_in: 1 day
 
-nightly-mpi-1-new:
-  variables:
-    GPAW_NEW: "1"
-  extends:
-    - .nightly
-  script:
-    - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
-    - >
-      pytest -n 4 --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
-
-nightly-mpi-2-new:
-  variables:
-    GPAW_NEW: "1"
-    GPAW_MPI_NPROCS: "2"
-  extends:
-    - .nightly
-  script:
-    - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
-
-nightly-mpi-4-new:
-  variables:
-    GPAW_NEW: "1"
-    GPAW_MPI_NPROCS: "4"
-  extends:
-    - .nightly
-  script:
-    - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30 -m "ci and not later"
 
 nightly-mpi-2:
   variables:
@@ -592,6 +648,52 @@ nightly-mpi-8:
     GPAW_MPI_NPROCS: "8"
   extends:
     - .nightly
+
+
+.nightly-mpi-new:
+  variables:
+    GPAW_NEW: "1"
+  extends:
+    - .nightly
+  script:
+    - gpaw info
+    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m
+      pytest --instafail -r s --durations 30 -m
+      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
+
+
+nightly-mpi-1-new:
+  extends:
+    - .nightly-mpi-new
+  script:
+    - gpaw info
+    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - >
+      pytest -n 4 --instafail -r s --durations 30 -m
+      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
+
+
+nightly-mpi-2-new:
+  extends:
+    - .nightly-mpi-new
+  variables:
+    GPAW_MPI_NPROCS: "2"
+
+
+nightly-mpi-4-new:
+  extends:
+    - .nightly-mpi-new
+  variables:
+    GPAW_MPI_NPROCS: "4"
+
+
+nightly-mpi-8-new:
+  extends:
+    - .nightly-mpi-new
+  variables:
+    GPAW_MPI_NPROCS: "8"
 
 
 pages:

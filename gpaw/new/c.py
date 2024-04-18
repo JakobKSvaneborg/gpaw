@@ -2,12 +2,12 @@ from typing import TYPE_CHECKING
 
 from gpaw.typing import Array1D, ArrayND
 from gpaw.gpu import cupy as cp
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 __all__ = ['GPU_AWARE_MPI']
 
-GPU_AWARE_MPI = getattr(_gpaw, 'gpu_aware_mpi', False)
-GPU_ENABLED = getattr(_gpaw, 'GPU_ENABLED', False)
+GPU_AWARE_MPI = getattr(cgpaw, 'gpu_aware_mpi', False)
+GPU_ENABLED = getattr(cgpaw, 'GPU_ENABLED', False)
 
 
 def add_to_density(f: float,
@@ -111,12 +111,12 @@ def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
 
 
 if not TYPE_CHECKING:
-    from _gpaw import (  # noqa
+    from gpaw.cgpaw import (  # noqa
         add_to_density, pw_precond, pw_insert,
         pwlfc_expand, symmetrize_ft)
 
     if GPU_ENABLED:
-        from _gpaw import (  # noqa
+        from gpaw.cgpaw import (  # noqa
             pwlfc_expand_gpu, add_to_density_gpu, pw_insert_gpu,
             dH_aii_times_P_ani_gpu, evaluate_lda_gpu, evaluate_pbe_gpu,
             calculate_residuals_gpu)

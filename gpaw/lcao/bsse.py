@@ -13,13 +13,15 @@ from gpaw.utilities import min_locfun_radius
 
 # Some splines are mandatory,
 # but should then be zero to avoid affecting things
-zero_function = Spline(0, min_locfun_radius, [0.0, 0.0, 0.0])
+zero_function = Spline.from_data(0, min_locfun_radius, [0.0, 0.0, 0.0])
 
 # Some operations fail horribly if the splines are zero, due to weird
 # divisions and assumptions that various quantities are nonzero
 #
 # We'll use a function which is almost zero for these things
-nonzero_function = Spline(0, min_locfun_radius, [0.0, 1.0e-12, 0.0])  # XXX
+nonzero_function = Spline.from_data(
+    0, min_locfun_radius, [0.0, 1.0e-12, 0.0],  # XXX
+)
 
 
 class GhostSetup(BaseSetup):
@@ -71,7 +73,8 @@ class GhostSetup(BaseSetup):
         self.l_j = [0]
         self.l_orb_J = [0]
         self.nj = 1
-        self.lq = None  # XXXX
+        self.nq = 1
+        self.N0_q = None  # XXXX
 
         self.rcutfilter = None
         self.rcore = None
@@ -90,13 +93,10 @@ class GhostSetup(BaseSetup):
         self.X_pg = None
         self.ExxC = None
         self.ExxC_w = {}
-        self.X_gamma = None
         self.dEH0 = 0.0
         self.dEH_p = np.zeros(1)
         self.extra_xc_data = {}
         self.local_corr = LocalCorrectionVar(None)
-        self._Mg_pp = None
-        self._gamma = None
 
 
 class GhostSetupData:

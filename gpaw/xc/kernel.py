@@ -1,6 +1,6 @@
 """Python wrapper for GPAW's native XC functionals."""
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 
 codes = {
@@ -33,7 +33,7 @@ class XCKernel:
             self.type = 'MGGA'
         else:
             self.type = 'GGA'
-        self.xc = _gpaw.XCFunctional(codes[name])
+        self.xc = cgpaw.XCFunctional(codes[name])
 
     def calculate(self, e_g, n_sg, dedn_sg,
                   sigma_xg=None, dedsigma_xg=None,

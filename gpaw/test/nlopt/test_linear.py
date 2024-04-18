@@ -22,7 +22,7 @@ def test_shift(in_tmp_dir):
     calc.write('gs.gpw', 'all')
 
     # Get the mml
-    nlodata = make_nlodata('gs.gpw', world)
+    nlodata = make_nlodata('gs.gpw')
 
     # Do a linear response caclulation
     freqs = np.linspace(0, 5, 101)

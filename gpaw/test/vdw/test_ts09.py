@@ -12,7 +12,7 @@ from gpaw.cluster import Cluster
 
 
 @pytest.mark.later
-def test_vdw_ts09(in_tmp_dir):
+def test_vdw_ts09(in_tmp_dir, needs_ase_master):
     h = 0.4
     s = Cluster(molecule('LiH'))
     s.minimal_box(3., h=h)

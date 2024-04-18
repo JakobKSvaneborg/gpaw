@@ -9,8 +9,8 @@ def test_lfc_derivatives():
     gd = GridDescriptor(N_c=[16, 20, 20], cell_cv=[a, a + 1, a + 2],
                         pbc_c=(0, 1, 1))
     spos_ac = np.array([[0.25, 0.15, 0.35], [0.5, 0.5, 0.5]])
-    s = Spline(l=0, rmax=2.0, f_g=np.array([1, 0.9, 0.1, 0.0]))
-    p = Spline(l=1, rmax=2.0, f_g=np.array([1, 0.9, 0.1, 0.0]))
+    s = Spline.from_data(l=0, rmax=2.0, f_g=np.array([1, 0.9, 0.1, 0.0]))
+    p = Spline.from_data(l=1, rmax=2.0, f_g=np.array([1, 0.9, 0.1, 0.0]))
     spline_aj = [[s], [s, p]]
     c = LFC(gd, spline_aj, cut=True, forces=True)
     c.set_positions(spos_ac)

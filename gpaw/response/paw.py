@@ -1,27 +1,21 @@
+from __future__ import annotations
+
 import numpy as np
 from scipy.special import spherical_jn
+from dataclasses import dataclass
 
+from gpaw.spline import Spline
 from gpaw.ffbt import rescaled_fourier_bessel_transform
 from gpaw.gaunt import gaunt, super_gaunt
 from gpaw.spherical_harmonics import Y
+from gpaw.atom.radialgd import RadialGridDescriptor
 from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
 from gpaw.response.pw_parallelization import Blocks1D
-from types import SimpleNamespace
-
-
-class Setuplet:
-    def __init__(self, *, phit_jg, phi_jg, rgd, l_j, rcut_j):
-        self.rgd = rgd
-        self.data = SimpleNamespace(phit_jg=phit_jg, phi_jg=phi_jg)
-        self.l_j = l_j
-        self.ni = np.sum([2 * l + 1 for l in l_j])
-        self.rcut_j = rcut_j
-        self.is_pseudo = False
 
 
 # Important note: The test suite monkeypatches this value to 2**10 so
 # you may get different results in tests and production until we
-# implementa a better solution.
+# implement a better solution (e.g. generating setup-dependent radial_points).
 #
 # The motivation for lowering to 2**10 in tests is that many tests
 # take 3-4 times longer if we do not.
@@ -30,7 +24,141 @@ class Setuplet:
 DEFAULT_RADIAL_POINTS = 2**12
 
 
-def calculate_pair_density_correction(qG_Gv, *, pawdata, radial_points=None):
+@dataclass
+class LeanPAWDataset:
+    rgd: RadialGridDescriptor
+    l_j: np.ndarray
+    rcut_j: np.ndarray
+    phit_jg: np.ndarray
+    phi_jg: np.ndarray
+    # Number of radial points in spline interpolation
+    radial_points: int | None = None
+
+    def __post_init__(self):
+        if self.radial_points is None:
+            # We assign this late due to monkeypatch in testing
+            self.radial_points = DEFAULT_RADIAL_POINTS
+
+        # Number of basis functions
+        self.ni = np.sum([2 * l + 1 for l in self.l_j])
+        # Maximum angular momentum index l
+        self.lmax = np.max(self.l_j)
+        # Grid cutoff to create spline representation
+        self.gcut2 = self.rgd.ceil(2 * max(self.rcut_j))
+
+        # Set up cache
+        self.dn_g_cache = {}
+        self.dn_kspline_cache = {}
+
+    def dn_kspline(self, j1: int, j2: int, l: int):
+        """Get spline representation of Δn_jj'l(k)."""
+        if (j1, j2, l) not in self.dn_kspline_cache:
+            dn_g = self.get_pair_density_correction(j1, j2)
+            self.dn_kspline_cache[j1, j2, l] = \
+                self.rescaled_fourier_bessel_transform(dn_g, l)
+        return self.dn_kspline_cache[j1, j2, l]
+
+    def get_pair_density_correction(self, j1: int, j2: int):
+        """Get Δn_jj'(r), while keeping the newest correction cached."""
+        if (j1, j2) not in self.dn_g_cache:
+            self.dn_g_cache = {}  # keep only one density in cache
+            self.dn_g_cache[j1, j2] = self.calculate_pair_density_correction(
+                j1, j2)
+        return self.dn_g_cache[j1, j2]
+
+    def calculate_pair_density_correction(self, j1, j2):
+        """Calculate the pair density PAW correction for two partial waves.
+                               ˷     ˷
+        Δn (r) = φ (r) φ (r) - φ (r) φ (r)
+          jj'     j     j'      j     j'
+        """
+        # (Real) radial functions for the partial waves
+        phi_jg = self.phi_jg
+        phit_jg = self.phit_jg
+        return phi_jg[j1] * phi_jg[j2] - phit_jg[j1] * phit_jg[j2]
+
+    def rescaled_fourier_bessel_transform(self, f_g, l):
+        """Calculate the rescaled Fourier Bessel transform f_l(k)
+
+                    rc
+                4π  ⌠  2
+        f (k) = ‾‾‾ ⎪ r dr j (kr) f(r)
+         l      k^l ⌡       l
+                    0
+        """
+        # First, we make a spline representation of the radial function f(r),
+        # which is rescaled by a factor of r^-l by the radial grid descriptor:
+        spline = self.rgd.spline(
+            f_g[:self.gcut2], l=l, points=self.radial_points)
+        # Once rescaled by r^-l, we can use the gpaw.ffbt module to Fast
+        # Fourier Bessel Transform the radial spline r^-l f(r) and obtain
+        # f_l(k) in a reciprocal spline representation
+        kspline = rescaled_fourier_bessel_transform(
+            spline, N=4 * self.radial_points)
+        # Since this procedures hinges on a series of hardcoded parameters, we
+        # return a self-testing version of the spline. If someone wants to run
+        # calculations without dynamic testing of the FFBT methodology (i.e.
+        # in an "unprotected" mode), simply return the bare `kspline` here.
+        return SelfTestingKSpline(self.rgd, f_g, kspline)
+
+
+class SelfTestingKSpline(Spline):
+    """Self-testing reciprocal spline representation, f_l(k)."""
+
+    def __init__(self, rgd, f_g, spline: Spline):
+        # Store original real-space representation of the radial function f(r)
+        self.rgd = rgd
+        self.f_g = f_g
+        super().__init__(spline.spline)
+
+    def map(self, k_G):
+        self.test_spline_representation(k_G)
+        return super().map(k_G)
+
+    def test_spline_representation(self, k_G):
+        """Test validity of the FFBT implementation on input domain.
+
+        At present, LeanPAWDataset's FFBT implementation relies on a range of
+        hardcoded parameters, which are not guaranteed to work for all cases.
+
+        In particular, the uniform radial grid used for the FFBT is defined
+        through the `rcut` and `N` parameters in
+        `rescaled_fourier_bessel_transform()`
+        where the former is hardcoded inside the function itself.
+
+        Furthermore, the `points` parameter to `rgd.spline()` controls the
+        fidelity of the interpolation between nonlinear and equidistant radial
+        grids needed to make use of the FFBT algorithm.
+
+        To make a generally reliable implementation, one would need to control
+        all of these parameters based on the setup, e.g. the nonlinear radial
+        grid spacing. In doing so, one should be mindful that the `rcut`
+        parameter defines the reciprocal grid spacing of the kspline and that
+        `N` controls the range of the reciprocal space domain.
+
+        For now, we simply check that the requested plane waves are within the
+        computed k-range of the FFBT and check that the resulting transforms
+        match a manual calculation at a few selected K-vectors.
+        """
+        kmax = np.max(k_G)
+        assert kmax <= self.get_cutoff()
+
+        # Manual calculation at finite k
+        k_k = np.array([kmax, np.average(k_G)])
+        f_k = 4 * np.pi * fourier_bessel_transform(
+            np.array(k_k), self.l, self.rgd, self.f_g)
+        # Manual calculation at k=0
+        if self.l == 0:  # Vanishes for l>0
+            k_k = np.append(k_k, [0.])
+            f_k = np.append(f_k, [self.rgd.integrate(self.f_g)])
+        # FFBT calculation
+        myf_k = k_k**self.l * super().map(k_k)
+        assert np.allclose(myf_k, f_k, rtol=1e-2, atol=1e-3), \
+            f'FFBT mismatch: {myf_k}, {f_k}'
+
+
+def calculate_pair_density_correction(qG_Gv: np.ndarray, *,
+                                      pawdata: LeanPAWDataset):
     r"""Calculate the atom-centered PAW correction to the pair density.
                                                       ˍ
     The atom-centered pair density correction tensor, Q_aii', is defined as the
@@ -71,26 +199,13 @@ def calculate_pair_density_correction(qG_Gv, *, pawdata, radial_points=None):
     φ (r) = Y   (r) φ (r)
      i       l_i     j_i
     """
-    rgd = pawdata.rgd
     ni = pawdata.ni  # Number of partial waves
     l_j = pawdata.l_j  # l-index for each radial function index j
-    G_LLL = gaunt(max(l_j))
-    # (Real) radial functions for the partial waves
-    phi_jg = pawdata.data.phi_jg
-    phit_jg = pawdata.data.phit_jg
-
-    if radial_points is None:
-        # We assign this late due to monkeypatch in testing
-        radial_points = DEFAULT_RADIAL_POINTS
-
-    # Grid cutoff to create spline representation
-    gcut2 = rgd.ceil(2 * max(pawdata.rcut_j))
+    G_LLL = gaunt(pawdata.lmax)
 
     # Initialize correction tensor
     npw = qG_Gv.shape[0]
     Qbar_Gii = np.zeros((npw, ni, ni), dtype=complex)
-    if pawdata.is_pseudo:
-        return Qbar_Gii
 
     # K-vector norm
     k_G = np.linalg.norm(qG_Gv, axis=1)
@@ -100,88 +215,41 @@ def calculate_pair_density_correction(qG_Gv, *, pawdata, radial_points=None):
     for j1, l1 in enumerate(l_j):
         i2_counter = 0
         for j2, l2 in enumerate(l_j):
-            # Calculate the radial partial wave correction
-            #                              ˷      ˷
-            # Δn_jj'(r) = φ_j(r) φ_j'(r) - φ_j(r) φ_j'(r)
-            dn_g = phi_jg[j1] * phi_jg[j2] - phit_jg[j1] * phit_jg[j2]
-
             # Sample l according to the Gaunt coefficient selection rules, see
             # e.g. gpaw.test.test_gaunt
             for l in range(abs(l1 - l2), l1 + l2 + 1, 2):
+                # Calculate the spherical Fourier-Bessel transform
+                #                  rc
+                #              4π  /
+                # Δn_jj'l(k) = ‾‾‾ | r^2 dr j_l(kr) Δn_jj'(r)
+                #              k^l /
+                #                  0
                 # To evaluate the radial integral efficiently, we rely on the
                 # Fast Fourier Bessel Transform (FFBT) algorithm, see gpaw.ffbt
-                # In order to do so, we make a spline representation of the
-                # radial partial wave correction rescaled with a factor of r^-l
-                spline = rgd.spline(dn_g[:gcut2], l=l, points=radial_points)
-                # This allows us to calculate a spline representation of the
-                # spherical Fourier-Bessel transform
-                #                 rc
-                #             4π  /
-                # Δn_jj'(k) = ‾‾‾ | r^2 dr j_l(kr) Δn_jj'(r)
-                #             k^l /
-                #                 0
-                kspline = rescaled_fourier_bessel_transform(
-                    spline, N=4 * radial_points)
-
-                # Now, this implementation relies on a range of hardcoded
-                # values, which are not guaranteed to work for all cases.
-                # In particular, the uniform radial grid used for the FFBT is
-                # defined through the `rcut` and `N` parameters in the
-                # `rescaled_fourier_bessel_transform()` function (the former is
-                # currently hardcoded), and the `points` parameter to
-                # `rgd.spline()` controls an intermediate interpolation step.
-                # To make a generally reliable implementation, one would need
-                # to control these parameters based on the setup, e.g. the
-                # nonlinear radial grid spacing. In doing so, one should be
-                # mindful that the rcut parameter defines the reciprocal grid
-                # spacing of the kspline representation and that N controls
-                # the k-range (which might need to depend on input qG_Gv).
-
-                # For now, we simply check that the requested plane waves are
-                # within the computed k-range of the FFBT and check that the
-                # resulting transforms match a manual calculation at a few
-                # selected K-vectors.
-                kmax = np.max(k_G)
-                assert kmax <= kspline.get_cutoff()
-                # Manual calculation at kmax
-                dnmax = rgd.integrate(spherical_jn(l, kmax * rgd.r_g) * dn_g)
-                # Manual calculation at average k
-                kavg = np.average(k_G)
-                dnavg = rgd.integrate(spherical_jn(l, kavg * rgd.r_g) * dn_g)
-                k_k = [kmax, kavg]
-                dn_k = [dnmax, dnavg]
-                if l == 0:
-                    # Manual calculation at k=0
-                    k_k.append(0.)
-                    dn_k.append(rgd.integrate(dn_g))
-                k_k = np.array(k_k)
-                dn_k = np.array(dn_k)
-                assert np.allclose(k_k**l * kspline.map(k_k), dn_k,
-                                   rtol=1e-2, atol=1e-3), \
-                    f'FFBT mismatch: {k_k**l * kspline.map(k_k)}, {dn_k}'
-
-                # Finally, we can map the Fourier-Bessel transform onto the
-                # the requested k-vectors of the input plane wave basis
-                dn_G = kspline.map(k_G)
+                # The FFBT produces a radial spline representation of
+                # Δn_jj'l(k), which we map to the K-vector norms in question:
+                dn_G = pawdata.dn_kspline(j1, j2, l).map(k_G)
 
                 # Angular part of the integral
                 f_G = (-1j)**l * dn_G
-                # Generate m-indices for each radial function
-                for m1 in range(2 * l1 + 1):
-                    for m2 in range(2 * l2 + 1):
-                        # Set up the i=(l,m) index for each partial wave
-                        i1 = i1_counter + m1
-                        i2 = i2_counter + m2
-                        # Extract Gaunt coefficients
-                        G_m = G_LLL[l1**2 + m1, l2**2 + m2, l**2:(l + 1)**2]
-                        for m, gaunt_coeff in enumerate(G_m):
-                            if gaunt_coeff == 0:
+                for m in range(l**2, (l + 1)**2):
+                    # Calculate the solid harmonic
+                    #        m ˰
+                    # |K|^l Y (K)
+                    #        l
+                    klY_G = Y(m, *qG_Gv.T)
+
+                    # Generate m-indices for each radial function
+                    for m1 in range(2 * l1 + 1):
+                        for m2 in range(2 * l2 + 1):
+                            # Set up the i=(l,m) index for each partial wave
+                            i1 = i1_counter + m1
+                            i2 = i2_counter + m2
+                            # Extract Gaunt coefficients
+                            gaunt_coeff = G_LLL[l1**2 + m1, l2**2 + m2, m]
+                            if (gaunt_coeff == 0):
                                 continue
-                            # Calculate the solid harmonic
-                            #        m ˰
-                            # |K|^l Y (K)
-                            #        l
-                            klY_G = Y(l**2 + m, *qG_Gv.T)
+
                             # Add contribution to the PAW correction
                             Qbar_Gii[:, i1, i2] += gaunt_coeff * klY_G * f_G
 
@@ -245,8 +313,8 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
     assert max(rshe.l_M) <= 2 * lmax
     G_LLLL = super_gaunt(lmax)
     # (Real) radial functions for the partial waves
-    phi_jg = pawdata.data.phi_jg
-    phit_jg = pawdata.data.phit_jg
+    phi_jg = pawdata.phi_jg
+    phit_jg = pawdata.phit_jg
     # Truncate the radial functions to span only the radial grid coordinates
     # which need correction
     assert np.allclose(rgd.r_g, pawdata.rgd.r_g[:rgd.N])

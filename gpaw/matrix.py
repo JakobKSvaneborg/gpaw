@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 import numpy as np
 import scipy.linalg as linalg
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.mpi import serial_comm, _Communicator
 import gpaw.utilities.blas as blas
@@ -304,7 +304,7 @@ class Matrix:
             if slcomm.rank < rows * columns:
                 assert cc
                 array = H.array.copy()
-                info = _gpaw.scalapack_diagonalize_dc(array, H.dist.desc, 'U',
+                info = cgpaw.scalapack_diagonalize_dc(array, H.dist.desc, 'U',
                                                       H.array, eps)
                 assert info == 0, info
 
@@ -381,7 +381,7 @@ class BLACSDistribution:
         context = _global_blacs_context_store.get(key)
         if context is None:
             try:
-                context = _gpaw.new_blacs_context(comm.get_c_object(),
+                context = cgpaw.new_blacs_context(comm.get_c_object(),
                                                   c, r, 'R')
             except AttributeError:
                 pass
@@ -406,7 +406,7 @@ class BLACSDistribution:
             n = N
             m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
         else:
-            n, m = _gpaw.get_blacs_local_shape(context, N, M, bc, br, 0, 0)
+            n, m = cgpaw.get_blacs_local_shape(context, N, M, bc, br, 0, 0)
         if n < 0 or m < 0:
             n = m = 0
         self.shape = (m, n)
@@ -431,12 +431,12 @@ class BLACSDistribution:
             assert opb == 'C' or opb == 'T' and a.dtype == float
             N, K = a.shape
             if a is b:
-                _gpaw.pblas_rk(N, K, alpha, a.array,
+                cgpaw.pblas_rk(N, K, alpha, a.array,
                                beta, c.array,
                                a.dist.desc, c.dist.desc,
                                'U')
             else:
-                _gpaw.pblas_r2k(N, K, 0.5 * alpha, b.array, a.array,
+                cgpaw.pblas_r2k(N, K, 0.5 * alpha, b.array, a.array,
                                 beta, c.array,
                                 b.dist.desc, a.dist.desc, c.dist.desc,
                                 'U')
@@ -447,14 +447,14 @@ class BLACSDistribution:
                 Ka, M = M, Ka
             if opb == 'N':
                 N, Kb = Kb, N
-            _gpaw.pblas_gemm(N, M, Ka, alpha, b.array, a.array,
+            cgpaw.pblas_gemm(N, M, Ka, alpha, b.array, a.array,
                              beta, c.array,
                              b.dist.desc, a.dist.desc, c.dist.desc,
                              opb, opa)
 
 
 def redist(dist1, M1, dist2, M2, context):
-    _gpaw.scalapack_redist(dist1.desc, dist2.desc,
+    cgpaw.scalapack_redist(dist1.desc, dist2.desc,
                            M1, M2,
                            dist1.desc[2], dist1.desc[3],
                            1, 1, 1, 1,  # 1-indexing

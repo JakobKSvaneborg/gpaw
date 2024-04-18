@@ -7,7 +7,6 @@ from ase.dft.wannier import Wannier
 from gpaw.mpi import world
 from gpaw import GPAW
 
-
 pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')
 
@@ -53,3 +52,20 @@ def test_ase_features_asewannier(in_tmp_dir):
 
     energy_tolerance = 0.002
     assert e == pytest.approx(-6.652, abs=energy_tolerance)
+
+
+@pytest.mark.wannier
+def test_wannier_pw(in_tmp_dir, gpw_files):
+    calc = GPAW(gpw_files['fancy_si_pw_nosym'])
+    wan = Wannier(nwannier=4, calc=calc, fixedstates=4,
+                  initialwannier='orbitals')
+    wan.localize()
+    wan.translate_all_to_cell(cell=(0, 0, 0))
+    assert wan.get_functional_value() == pytest.approx(9.853, abs=2e-3)
+
+    # test that one of the Wannier functions is localized between the
+    # two Si atoms in the unit cell, as it should be
+    center = calc.atoms.positions.mean(axis=0)
+    min_dist_to_center = np.min(np.linalg.norm(wan.get_centers()
+                                               - center, axis=1))
+    assert min_dist_to_center < 1e-3

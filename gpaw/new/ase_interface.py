@@ -16,6 +16,7 @@ from gpaw.mpi import world, synchronize_atoms, broadcast as bcast
 from gpaw.new import Timer
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (DFTCalculation, DFTState,
+                                  CalculationModeError,
                                   ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import read_gpw, write_gpw
 from gpaw.new.input_parameters import (DeprecatedParameterWarning,
@@ -24,7 +25,7 @@ from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
 
 
@@ -51,11 +52,11 @@ def GPAW(filename: Union[str, Path, IO[str]] = None,
             illegal = set(kwargs) - {'parallel'}
             raise ValueError('Illegal arguments when reading from a file: '
                              f'{illegal}')
-        atoms, calculation, params, _ = read_gpw(filename,
-                                                 log=log,
-                                                 parallel=parallel)
+        atoms, dft, params, _ = read_gpw(filename,
+                                         log=log,
+                                         parallel=parallel)
         return ASECalculator(params,
-                             log=log, calculation=calculation, atoms=atoms)
+                             log=log, dft=dft, atoms=atoms)
 
     params = InputParameters(kwargs)
     write_header(log, params)
@@ -99,15 +100,26 @@ class ASECalculator:
                  params: InputParameters,
                  *,
                  log: Logger,
-                 calculation=None,
-                 atoms=None):
+                 dft: DFTCalculation | None = None,
+                 atoms: Atoms | None = None):
         self.params = params
         self.log = log
         self.comm = log.comm
-        self.calculation = calculation
-
-        self.atoms = atoms
+        self._dft = dft
+        self._atoms = atoms
         self.timer = Timer()
+
+    @property
+    def dft(self) -> DFTCalculation:
+        if self._dft is None:
+            raise AttributeError
+        return self._dft
+
+    @property
+    def atoms(self) -> Atoms:
+        if self._atoms is None:
+            raise AttributeError
+        return self._atoms
 
     def __repr__(self):
         params = []
@@ -137,33 +149,31 @@ class ASECalculator:
             atoms = self.atoms
         else:
             synchronize_atoms(atoms, self.comm)
-        assert atoms is not None
 
-        if self.calculation is not None:
+        if self._dft is not None:
             changes = compare_atoms(self.atoms, atoms)
             if changes & {'numbers', 'pbc', 'cell'}:
                 if 'numbers' not in changes:
                     # Remember magmoms if there are any:
-                    magmom_a = self.calculation.results.get('magmoms')
+                    magmom_a = self.dft.results.get('magmoms')
                     if magmom_a is not None and magmom_a.any():
                         atoms = atoms.copy()
                         assert atoms is not None  # MYPY: why is this needed?
                         atoms.set_initial_magnetic_moments(magmom_a)
 
                 if changes & {'numbers', 'pbc'}:
-                    self.calculation = None  # start from scratch
+                    self._dft = None  # start from scratch
                 else:
                     try:
                         self.create_new_calculation_from_old(atoms)
                     except ReuseWaveFunctionsError:
-                        self.calculation = None  # start from scratch
+                        self._dft = None  # start from scratch
                     else:
                         self.converge()
                         changes = set()
 
-        if self.calculation is None:
+        if self._dft is None:
             self.create_new_calculation(atoms)
-            assert self.calculation is not None
             self.converge()
         elif changes:
             self.move_atoms(atoms)
@@ -171,22 +181,22 @@ class ASECalculator:
 
         if prop == 'forces':
             with self.timer('Forces'):
-                self.calculation.forces()
+                self.dft.forces()
         elif prop == 'stress':
             with self.timer('Stress'):
-                self.calculation.stress()
+                self.dft.stress()
         elif prop == 'dipole':
-            self.calculation.dipole()
-        elif prop not in self.calculation.results:
+            self.dft.dipole()
+        elif prop not in self.dft.results:
             raise KeyError('Unknown property:', prop)
 
-        return self.calculation.results[prop] * units[prop]
+        return self.dft.results[prop] * units[prop]
 
     def get_property(self,
                      name: str,
                      atoms: Atoms | None = None,
                      allow_calculation: bool = True) -> Any:
-        if not allow_calculation and name not in self.calculation.results:
+        if not allow_calculation and name not in self.dft.results:
             return None
         if atoms is None:
             atoms = self.atoms
@@ -194,27 +204,27 @@ class ASECalculator:
 
     @property
     def results(self):
-        if self.calculation is None:
+        if self._dft is None:
             return {}
         return {name: value * units[name]
-                for name, value in self.calculation.results.items()}
+                for name, value in self.dft.results.items()}
 
     def create_new_calculation(self, atoms: Atoms) -> None:
         with self.timer('Init'):
-            self.calculation = DFTCalculation.from_parameters(
+            self._dft = DFTCalculation.from_parameters(
                 atoms, self.params, self.comm, self.log)
-        self.atoms = atoms.copy()
+        self._atoms = atoms.copy()
 
     def create_new_calculation_from_old(self, atoms: Atoms) -> None:
         with self.timer('Morph'):
-            self.calculation = self.calculation.new(
+            self._dft = self.dft.new(
                 atoms, self.params, self.log)
-        self.atoms = atoms.copy()
+        self._atoms = atoms.copy()
 
     def move_atoms(self, atoms):
         with self.timer('Move'):
-            self.calculation = self.calculation.move_atoms(atoms)
-        self.atoms = atoms.copy()
+            self._dft = self.dft.move_atoms(atoms)
+        self._atoms = atoms.copy()
 
     def converge(self):
         """Iterate to self-consistent solution.
@@ -223,20 +233,20 @@ class ASECalculator:
         and dipole moment.
         """
         with self.timer('SCF'):
-            self.calculation.converge(calculate_forces=self._calculate_forces)
+            self.dft.converge(calculate_forces=self._calculate_forces)
 
         # Calculate all the cheap things:
-        self.calculation.energies()
-        self.calculation.dipole()
-        self.calculation.magmoms()
+        self.dft.energies()
+        self.dft.dipole()
+        self.dft.magmoms()
 
-        self.calculation.write_converged()
+        self.dft.write_converged()
 
     def _calculate_forces(self) -> Array2D:  # units: Ha/Bohr
         """Helper method for force-convergence criterium."""
         with self.timer('Forces'):
-            self.calculation.forces(silent=True)
-        return self.calculation.results['forces'].copy()
+            self.dft.forces(silent=True)
+        return self.dft.results['forces'].copy()
 
     def __del__(self):
         self.log('---')
@@ -293,7 +303,7 @@ class ASECalculator:
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
         write_gpw(filename, self.atoms, self.params,
-                  self.calculation, skip_wfs=mode != 'all')
+                  self.dft, skip_wfs=mode != 'all')
 
     # Old API:
 
@@ -308,7 +318,7 @@ class ASECalculator:
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
                                  broadcast=True) -> Array3D:
-        state = self.calculation.state
+        state = self.dft.state
         collinear = state.ibzwfs.collinear
         if collinear:
             if spin is None:
@@ -319,7 +329,7 @@ class ASECalculator:
                                    kpt=kpt,
                                    n1=band, n2=band + 1)
         if wfs is not None:
-            basis = getattr(self.calculation.scf_loop.hamiltonian,
+            basis = getattr(self.dft.scf_loop.hamiltonian,
                             'basis', None)
             grid = state.density.nt_sR.desc.new(comm=None)
             if collinear:
@@ -338,7 +348,7 @@ class ASECalculator:
         else:
             array_R = None
         if broadcast:
-            array_R = bcast(array_R, 0, self.calculation.comm)
+            array_R = bcast(array_R, 0, self.dft.comm)
         return array_R
 
     def get_atoms(self):
@@ -347,59 +357,59 @@ class ASECalculator:
         return atoms
 
     def get_fermi_level(self) -> float:
-        state = self.calculation.state
+        state = self.dft.state
         fl = state.ibzwfs.fermi_levels * Ha
         assert len(fl) == 1
         return fl[0]
 
     def get_fermi_levels(self) -> float:
-        state = self.calculation.state
+        state = self.dft.state
         fl = state.ibzwfs.fermi_levels * Ha
         assert len(fl) == 2
         return fl
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
-        state = self.calculation.state
+        state = self.dft.state
         return state.ibzwfs.get_homo_lumo(spin) * Ha
 
     def get_number_of_electrons(self):
-        state = self.calculation.state
+        state = self.dft.state
         return state.ibzwfs.nelectrons
 
     def get_number_of_bands(self):
-        state = self.calculation.state
+        state = self.dft.state
         return state.ibzwfs.nbands
 
     def get_number_of_grid_points(self):
-        return self.calculation.state.density.nt_sR.desc.size
+        return self.dft.state.density.nt_sR.desc.size
 
     def get_effective_potential(self, spin=0):
         assert spin == 0
-        vt_R = self.calculation.state.potential.vt_sR[spin]
+        vt_R = self.dft.state.potential.vt_sR[spin]
         return vt_R.to_pbc_grid().gather(broadcast=True).data * Ha
 
     def get_electrostatic_potential(self):
-        density = self.calculation.state.density
-        potential, _ = self.calculation.pot_calc.calculate(density)
+        density = self.dft.state.density
+        potential, _ = self.dft.pot_calc.calculate(density)
         vHt_x = potential.vHt_x
         if isinstance(vHt_x, UGArray):
             return vHt_x.gather(broadcast=True).to_pbc_grid().data * Ha
 
-        grid = self.calculation.pot_calc.fine_grid
+        grid = self.dft.pot_calc.fine_grid
         return vHt_x.ifft(grid=grid).gather(broadcast=True).data * Ha
 
     def get_atomic_electrostatic_potentials(self):
-        return self.calculation.electrostatic_potential().atomic_potentials()
+        return self.dft.electrostatic_potential().atomic_potentials()
 
     def get_electrostatic_corrections(self):
-        return self.calculation.electrostatic_potential().atomic_corrections()
+        return self.dft.electrostatic_potential().atomic_corrections()
 
     def get_pseudo_density(self,
                            spin=None,
                            gridrefinement=1,
                            broadcast=True) -> Array3D:
         assert spin is None
-        nt_sr = self.calculation.densities().pseudo_densities(
+        nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
         return nt_sr.gather(broadcast=broadcast).data.sum(0)
 
@@ -409,13 +419,13 @@ class ASECalculator:
                                  broadcast=True,
                                  skip_core=False):
         assert spin is None
-        n_sr = self.calculation.densities().all_electron_densities(
+        n_sr = self.dft.densities().all_electron_densities(
             grid_refinement=gridrefinement,
             skip_core=skip_core)
         return n_sr.gather(broadcast=broadcast).data.sum(0)
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
-        state = self.calculation.state
+        state = self.dft.state
         eig_n = state.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
         if broadcast:
             if self.comm.rank != 0:
@@ -424,7 +434,7 @@ class ASECalculator:
         return eig_n
 
     def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True):
-        state = self.calculation.state
+        state = self.dft.state
         weight = state.ibzwfs.ibz.weight_k[kpt] * state.ibzwfs.spin_degeneracy
         occ_n = state.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1] * weight
         if broadcast:
@@ -434,23 +444,32 @@ class ASECalculator:
         return occ_n
 
     def get_reference_energy(self):
-        return self.calculation.setups.Eref * Ha
+        return self.dft.setups.Eref * Ha
 
     def get_number_of_iterations(self):
-        return self.calculation.scf_loop.niter
+        return self.dft.scf_loop.niter
 
     def get_bz_k_points(self):
-        state = self.calculation.state
+        state = self.dft.state
         return state.ibzwfs.ibz.bz.kpt_Kc.copy()
 
     def get_ibz_k_points(self):
-        state = self.calculation.state
+        state = self.dft.state
         return state.ibzwfs.ibz.kpt_kc.copy()
 
     def get_orbital_magnetic_moments(self):
         """Return the orbital magnetic moment vector for each atom."""
-        from gpaw.new.orbmag import get_orbmag_from_calc
-        return get_orbmag_from_calc(self)
+        state = self.dft.state
+        if state.density.collinear:
+            raise CalculationModeError(
+                'Calculator is in collinear mode. '
+                'Collinear calculations require spin–orbit '
+                'coupling for nonzero orbital magnetic moments.')
+        if not self.params.soc:
+            warnings.warn('Non-collinear calculation was performed '
+                          'without spin–orbit coupling. Orbital '
+                          'magnetic moments may not be accurate.')
+        return state.density.calculate_orbital_magnetic_moments()
 
     def calculate(self, atoms, properties=None, system_changes=None):
         if properties is None:
@@ -463,17 +482,17 @@ class ASECalculator:
     @cached_property
     def wfs(self):
         from gpaw.new.backwards_compatibility import FakeWFS
-        return FakeWFS(self.calculation, self.atoms)
+        return FakeWFS(self.dft, self.atoms)
 
     @property
     def density(self):
         from gpaw.new.backwards_compatibility import FakeDensity
-        return FakeDensity(self.calculation)
+        return FakeDensity(self.dft)
 
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
-        return FakeHamiltonian(self.calculation)
+        return FakeHamiltonian(self.dft)
 
     @property
     def spos_ac(self):
@@ -485,18 +504,18 @@ class ASECalculator:
 
     @property
     def setups(self):
-        return self.calculation.setups
+        return self.dft.setups
 
     @property
     def initialized(self):
-        return self.calculation is not None
+        return self._dft is not None
 
     def get_xc_functional(self):
-        return self.calculation.pot_calc.xc.name
+        return self.dft.pot_calc.xc.name
 
     def get_xc_difference(self, xcparams):
         """Calculate non-selfconsistent XC-energy difference."""
-        dft = self.calculation
+        dft = self.dft
         pot_calc = dft.pot_calc
         state = dft.state
         density = dft.state.density
@@ -520,27 +539,34 @@ class ASECalculator:
         for a, D_sii in state.density.D_asii.items():
             setup = self.setups[a]
             dexc += xc.calculate_paw_correction(
-                setup,
-                np.array([pack(D_ii) for D_ii in D_sii.real]))
+                setup, np.array([pack_density(D_ii) for D_ii in D_sii.real]))
         dexc = state.ibzwfs.domain_comm.sum_scalar(dexc)
         return (exct + dexc - state.potential.energies['xc']) * Ha
 
     def diagonalize_full_hamiltonian(self,
-                                     nbands: int = None,
+                                     nbands: int | None = None,
                                      scalapack=None,
-                                     expert: bool = None) -> None:
+                                     expert: bool | None = None) -> None:
         if expert is not None:
             warnings.warn('Ignoring deprecated "expert" argument',
                           DeprecationWarning)
-        state = self.calculation.state
+        state = self.dft.state
+
+        if nbands is None:
+            nbands = min(wfs.array_shape(global_shape=True)[0]
+                         for wfs in self.dft.state.ibzwfs)
+            nbands = self.dft.state.ibzwfs.kpt_comm.min_scalar(nbands)
+            assert isinstance(nbands, int)
+
+        self.dft.scf_loop.occ_calc._set_nbands(nbands)
         ibzwfs = diagonalize(state.potential,
                              state.ibzwfs,
-                             self.calculation.scf_loop.occ_calc,
+                             self.dft.scf_loop.occ_calc,
                              nbands,
-                             self.calculation.pot_calc.xc)
-        self.calculation.state = DFTState(ibzwfs,
-                                          state.density,
-                                          state.potential)
+                             self.dft.pot_calc.xc)
+        self.dft.state = DFTState(ibzwfs,
+                                  state.density,
+                                  state.potential)
         nbands = ibzwfs.nbands
         self.params.nbands = nbands
         self.params.keys.append('nbands')
@@ -555,7 +581,7 @@ class ASECalculator:
         log = Logger(txt, self.comm)
         builder = create_builder(self.atoms, params, self.comm)
         basis_set = builder.create_basis_set()
-        state = self.calculation.state
+        state = self.dft.state
         comm1 = state.ibzwfs.kpt_band_comm
         comm2 = builder.communicators['D']
         potential = state.potential.redist(
@@ -574,29 +600,29 @@ class ASECalculator:
         scf_loop = builder.create_scf_loop()
         scf_loop.update_density_and_potential = False
 
-        calculation = DFTCalculation(
+        dft = DFTCalculation(
             state,
             builder.setups,
             scf_loop,
-            SimpleNamespace(fracpos_ac=self.calculation.fracpos_ac,
+            SimpleNamespace(fracpos_ac=self.dft.fracpos_ac,
                             poisson_solver=None),
             log)
 
-        calculation.converge()
+        dft.converge()
 
         return ASECalculator(params,
                              log=log,
-                             calculation=calculation,
+                             dft=dft,
                              atoms=self.atoms)
 
     def initialize(self, atoms):
         self.create_new_calculation(atoms)
 
     def converge_wave_functions(self):
-        self.calculation.state.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+        self.dft.state.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
 
     def get_number_of_spins(self):
-        return self.calculation.state.density.ndensities
+        return self.dft.state.density.ndensities
 
     @property
     def parameters(self):
@@ -624,4 +650,4 @@ class ASECalculator:
 
     @property
     def symmetry(self):
-        return self.calculation.state.ibzwfs.ibz.symmetries.symmetry
+        return self.dft.state.ibzwfs.ibz.symmetries.symmetry

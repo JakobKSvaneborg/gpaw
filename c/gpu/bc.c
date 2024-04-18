@@ -67,19 +67,19 @@ void bc_init_buffers_gpu()
     bc_init_count = 0;
 }
 
-static void _reallocate_buffer_host(double **buffer, const int size) {
+static inline void _reallocate_buffer_host(double **buffer, const int size) {
     gpuFreeHost(*buffer);
     gpuCheckLastError();
     gpuHostAlloc(buffer, sizeof(double) * size);
 }
 
-static void _reallocate_buffer_device(double **buffer, const int size) {
+static inline void _reallocate_buffer_device(double **buffer, const int size) {
     gpuFree(*buffer);
     gpuCheckLastError();
     gpuMalloc(buffer, sizeof(double) * size);
 }
 
-static void _create_stream_events() {
+static inline void _create_stream_events() {
     if (!bc_streams) {
         gpuStreamCreate(&bc_recv_stream);
         bc_streams = 1;
@@ -156,7 +156,7 @@ void bc_dealloc_gpu(int force)
         bc_init_count--;
 }
 
-static void _check_msg_size(boundary_conditions* bc, int nin)
+static inline void _check_msg_size(boundary_conditions* bc, int nin)
 {
     int maxrecv, maxsend;
 
@@ -188,7 +188,7 @@ static void _check_msg_size(boundary_conditions* bc, int nin)
     }
 }
 
-static void _prepare_buffers_host(boundary_conditions* bc, int nin)
+static inline void _prepare_buffers_host(boundary_conditions* bc, int nin)
 {
     int recvp=0;
     int sendp=0;
@@ -215,7 +215,7 @@ static void _prepare_buffers_host(boundary_conditions* bc, int nin)
     }
 }
 
-static void _prepare_buffers_gpu(boundary_conditions* bc, int nin)
+static inline void _prepare_buffers_gpu(boundary_conditions* bc, int nin)
 {
     int recvp=0;
     int sendp=0;
@@ -398,7 +398,7 @@ void bc_unpack_gpu_sync(const boundary_conditions* bc,
 #endif
 }
 
-static void _bc_unpack_gpu_async(const boundary_conditions* bc,
+static inline void _bc_unpack_gpu_async(const boundary_conditions* bc,
         double* aa2, int i,
         MPI_Request recvreq[3][2],
         MPI_Request sendreq[2],

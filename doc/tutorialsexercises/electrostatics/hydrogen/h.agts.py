@@ -7,7 +7,7 @@ def workflow():
 
 def plot():
     import numpy as np
-    import pylab as plt
+    import matplotlib.pyplot as plt
     from ase.io import read
     with open('h.py') as fd:
         code = fd.read().replace('ae', 'paw')

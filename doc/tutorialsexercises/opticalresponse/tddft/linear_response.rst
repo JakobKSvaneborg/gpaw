@@ -43,7 +43,7 @@ a file:
 The spectrum may be also extracted and plotted in energy or
 wavelength directly::
 
-  import pylab as plt
+  import matplotlib.pyplot as plt
   from gpaw.lrtddft import LrTDDFT
   from gpaw.lrtddft.spectrum import get_folded_spectrum
 

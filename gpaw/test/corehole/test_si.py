@@ -31,11 +31,11 @@ def test_corehole_si(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
         z = r.get_spectra(x)
 
     if 0:
-        import pylab as p
-        p.plot(x, y[0])
-        p.plot(x, sum(y))
-        p.plot(x, z[0])
-        p.show()
+        import matplotlib.pyplot as plt
+        plt.plot(x, y[0])
+        plt.plot(x, sum(y))
+        plt.plot(x, z[0])
+        plt.show()
 
     # 2p corehole
     s = gen('Si', name='hch2p', corehole=(2, 1, 0.5), gpernode=30)

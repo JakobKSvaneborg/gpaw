@@ -9,8 +9,9 @@ from .mpa_interpolation_scalar import mpa_RE_solver, mpa_R_fit, Xeval
 
 def test_pole_reduction(in_tmp_dir):
     npols, npol_fit = 1, 2
-    Omega_p = np.random.rand(npols) * 0.05 + 5.5 - 0.01j
-    residues_p = np.random.rand(npols)
+    rng = np.random.default_rng(seed=42)
+    Omega_p = rng.random(npols) * 0.05 + 5.5 - 0.01j
+    residues_p = rng.random(npols)
 
     omega_w = mpa_frequency_sampling(
         npoles=npol_fit,
@@ -92,8 +93,9 @@ def test_residue_fit(in_tmp_dir):
 
 def test_ppa(in_tmp_dir):
     nG = 120
-    X_wGG = (2 * (np.random.rand(2, nG, nG) - 0.5) + 1j *
-             (np.random.rand(2, nG, nG) - 0.5) * 2)
+    rng = np.random.default_rng(seed=42)
+    X_wGG = (2 * (rng.random((2, nG, nG)) - 0.5) + 1j *
+             (rng.random((2, nG, nG)) - 0.5) * 2)
     omega_w = np.array([0, 2j])
 
     start = time()
@@ -125,8 +127,9 @@ def test_mpa(in_tmp_dir):
     nG = 8
     omega_w = np.array([0, 1j, 2. + 0.01j, 2. + 1j])
     nw = len(omega_w)
-    X_wGG = (2 * (np.random.rand(nw, nG, nG) - 0.5) + 1j *
-             (np.random.rand(nw, nG, nG) - 0.5) * 2)
+    rng = np.random.default_rng(seed=42)
+    X_wGG = (2 * (rng.random((nw, nG, nG)) - 0.5) + 1j *
+             (rng.random((nw, nG, nG)) - 0.5) * 2)
 
     E_pGG, R_pGG = RESolver(omega_w).solve(X_wGG)
     E_GGp = E_pGG.transpose(1, 2, 0)

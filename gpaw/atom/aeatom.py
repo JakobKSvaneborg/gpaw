@@ -9,7 +9,7 @@ import ase.units as units
 from ase.data import atomic_numbers, atomic_names, chemical_symbols
 from ase.utils import seterr
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.xc import XC
 from gpaw.gaunt import gaunt
 from gpaw.atom.configurations import configurations
@@ -273,7 +273,7 @@ class Channel:
         else:
             a_g = np.zeros_like(u_g)
             a_g[:2] = (a0, a1)
-            _gpaw.integrate_outwards(g0, cm1_g, c0_g, cp1_g, b_g, a_g)
+            cgpaw.integrate_outwards(g0, cm1_g, c0_g, cp1_g, b_g, a_g)
             u_g[:g0 + 1] = a_g[:g0 + 1] * r_g[:g0 + 1]**(l + x)
             g = g0
             agm1, ag, agp1 = a_g[g - 1:g + 2]
@@ -329,7 +329,7 @@ class Channel:
         else:
             a_g = np.zeros_like(u_g)
             a_g[g:g + 2] = (ag, agp1)
-            _gpaw.integrate_inwards(g, g0, c0_g, cp1_g, a_g)
+            cgpaw.integrate_inwards(g, g0, c0_g, cp1_g, a_g)
             u_g[g0:g + 2] = a_g[g0:g + 2] * r_g[g0:g + 2]**(l + x)
             g = g0
             agm1, ag, agp1 = a_g[g - 1:g + 2]

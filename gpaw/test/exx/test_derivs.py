@@ -28,10 +28,10 @@ class Setup:
     Delta_iiL = np.zeros((1, 1, 1)) + 0.1
     X_p = np.zeros(1) + 0.3
     ExxC = -10.0
-    ghat_l = [Spline(0, 1.0, 1 - r2 * (1 - 2 * r2))]
+    ghat_l = [Spline.from_data(0, 1.0, 1 - r2 * (1 - 2 * r2))]
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail  # XXX: reason=...
 def test_exx_derivs():
     if world.size > 1:
         from unittest import SkipTest
@@ -56,7 +56,7 @@ def test_exx_derivs():
 
     proj = Projections(nb, [1], AP(), world, dtype=complex)
 
-    pt = PWLFC([[Spline(0, 1.0, 1 - r2 * (1 - 2 * r2))]], pd)
+    pt = PWLFC([[Spline.from_data(0, 1.0, 1 - r2 * (1 - 2 * r2))]], pd)
     pt.set_positions(spos_ac)
 
     f_n = np.array([1.0, 0.5])

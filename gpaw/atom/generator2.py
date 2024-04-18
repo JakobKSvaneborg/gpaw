@@ -12,7 +12,7 @@ from gpaw.atom.aeatom import (AllElectronAtom, Channel, GaussianBasis, colors,
 from gpaw.basis_data import Basis, BasisFunction, BasisPlotter
 from gpaw.gaunt import gaunt
 from gpaw.typing import Array2D
-from gpaw.utilities import pack2
+from gpaw.utilities import pack_hermitian
 from gpaw.xc.ri.ribasis import generate_ri_basis
 from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
 from scipy.linalg import eigh
@@ -1121,13 +1121,13 @@ class PAWSetupGenerator:
         self.calculate_exx_integrals()
         setup.ExxC = self.exxcc
         setup.ExxC_w = self.exxcc_w  # erfc screened core contributions
-        setup.X_p = pack2(self.exxcv_ii[I][:, I])
-        setup.X_wp = {omega: pack2(self.exxcv_wii[omega][I][:, I])
+        setup.X_p = pack_hermitian(self.exxcv_ii[I][:, I])
+        setup.X_wp = {omega: pack_hermitian(self.exxcv_wii[omega][I][:, I])
                       for omega in self.exxcv_wii}
 
         if self.yukawa_gamma > 0.0:
             self.calculate_yukawa_integrals()
-            setup.X_pg = pack2(self.exxgcv_ii[I][:, I])
+            setup.X_pg = pack_hermitian(self.exxgcv_ii[I][:, I])
 
         setup.tauc_g = self.tauc_g * (4 * pi)**0.5
         setup.tauct_g = self.tauct_g * (4 * pi)**0.5

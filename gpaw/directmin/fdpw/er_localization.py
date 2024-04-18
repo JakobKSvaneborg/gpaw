@@ -3,12 +3,12 @@ Potentials for orbital density dependent energy functionals
 """
 
 import numpy as np
-from gpaw.utilities import pack, unpack
+from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.lfc import LFC
 from gpaw.transformers import Transformer
 from gpaw.directmin.tools import d_matrix, get_n_occ
 from gpaw.poisson import PoissonSolver
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 class ERLocalization:
@@ -77,7 +77,7 @@ class ERLocalization:
             if psit_G is not None:
                 psit_R = wfs.pd.ifft(psit_G, kpt.q,
                                      local=True, safe=False)
-                _gpaw.add_to_density(1.0, psit_R, nt_G)
+                cgpaw.add_to_density(1.0, psit_R, nt_G)
             wfs.pd.gd.comm.sum(nt_G)
             nt_G = wfs.pd.gd.distribute(nt_G)
         else:
@@ -89,7 +89,7 @@ class ERLocalization:
         for a, P_ni in kpt.P_ani.items():
             P_i = P_ni[n]
             D_ii = np.outer(P_i, P_i.conj()).real
-            D_ap[a] = D_p = pack(D_ii)
+            D_ap[a] = D_p = pack_density(D_ii)
             Q_aL[a] = np.dot(D_p, self.setups[a].Delta_pL)
 
         return nt_G, Q_aL, D_ap
@@ -135,7 +135,7 @@ class ERLocalization:
             e_sic += e_sic_paw_m
             c_axi = {}
             for a in kpt.P_ani.keys():
-                dH_ii = unpack(dH_ap[a])
+                dH_ii = unpack_hermitian(dH_ap[a])
                 c_xi = np.dot(kpt.P_ani[a][i], dH_ii)
                 c_axi[a] = c_xi * kpt.f_n[i]
             # add projectors to

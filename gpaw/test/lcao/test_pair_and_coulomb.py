@@ -1,9 +1,9 @@
 import pytest
 import numpy as np
 import pickle
-from ase.build import molecule
+
 from gpaw.lcao.tools import makeU, makeV
-from gpaw import GPAW, FermiDirac, restart
+from gpaw import restart
 from gpaw.lcao.pwf2 import LCAOwrap
 from gpaw.mpi import world, rank, serial_comm
 
@@ -12,18 +12,9 @@ pytestmark = pytest.mark.skipif(world.size > 1,
 
 
 @pytest.mark.later
-def test_lcao_pair_and_coulomb(in_tmp_dir):
-    atoms = molecule('H2')
-    atoms.set_cell([6.4, 6.4, 6.4])
-    atoms.center()
-    calc = GPAW(mode='lcao', occupations=FermiDirac(0.1),
-                poissonsolver={'name': 'fd'})
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    calc.write('lcao_pair.gpw')
-
+def test_lcao_pair_and_coulomb(gpw_files, in_tmp_dir):
     if rank == 0:
-        atoms, calc = restart('lcao_pair.gpw',
+        atoms, calc = restart(gpw_files['h2_lcao_pair'],
                               txt=None, communicator=serial_comm)
         lcao = LCAOwrap(calc)
         H = lcao.get_hamiltonian()
@@ -40,14 +31,14 @@ def test_lcao_pair_and_coulomb(in_tmp_dir):
             pickle.dump((w_wG, P_awi), fd, 2)
 
     world.barrier()
-    makeU('lcao_pair.gpw',
+    makeU(gpw_files['h2_lcao_pair'],
           'lcao_pair_w_wG__P_awi.pckl',
           'lcao_pair_eps_q__U_pq.pckl',
           1.0e-5,
           dppname='lcao_pair_D_pp.pckl')
 
     world.barrier()
-    makeV('lcao_pair.gpw',
+    makeV(gpw_files['h2_lcao_pair'],
           'lcao_pair_w_wG__P_awi.pckl',
           'lcao_pair_eps_q__U_pq.pckl',
           'lcao_pair_V_qq.pckl',

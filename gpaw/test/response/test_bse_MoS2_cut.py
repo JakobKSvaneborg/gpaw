@@ -16,9 +16,6 @@ def create_bse(gpwfile, q_c=(0, 0, 0)):
               conduction_bands=[9],
               eshift=0.8,
               nbands=15,
-              write_h=False,
-              write_v=False,
-              wfile=None,
               mode='BSE',
               truncation='2D')
     return bse

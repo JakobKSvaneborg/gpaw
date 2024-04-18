@@ -12,7 +12,8 @@ read the guide :ref:`Using a pre-installed GPAW on Niflheim <load on niflheim>`.
 
     * :mod:`Creation of Python virtual environments <venv>`.
     * Information about the Niflheim cluster can be found at
-      `<https://wiki.fysik.dtu.dk/niflheim>`_.
+      `<https://niflheim-users.readthedocs.io/>`_ and
+      `<https://niflheim-system.readthedocs.io/>`_.
     * `MyQueue <https://myqueue.readthedocs.io/>`__.
 
 .. contents::

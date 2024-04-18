@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from ase.units import Hartree
@@ -9,9 +11,10 @@ from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.pair_functions import (SingleQPWDescriptor, Chi,
                                           get_pw_coordinates)
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.coulomb_kernels import get_coulomb_kernel
+from gpaw.response.coulomb_kernels import NewCoulombKernel
 from gpaw.response.fxc_kernels import FXCKernel, AdiabaticFXCCalculator
-from gpaw.response.dyson import DysonSolver, HXCKernel
+from gpaw.response.dyson import (DysonSolver, HXCKernel, HXCScaling, PWKernel,
+                                 NoKernel)
 
 
 class ChiFactory:
@@ -40,7 +43,8 @@ class ChiFactory:
         self.fxc_kernel_cache: dict[str, FXCKernel] = {}
 
     def __call__(self, spincomponent, q_c, complex_frequencies,
-                 fxc=None, hxc_scaling=None, txt=None) -> tuple[Chi, Chi]:
+                 fxc: str | None = None, hxc_scaling: HXCScaling | None = None,
+                 txt=None) -> tuple[Chi, Chi]:
         r"""Calculate a given element (spincomponent) of the four-component
         Kohn-Sham susceptibility tensor and construct a corresponding many-body
         susceptibility object within a given approximation to the
@@ -56,19 +60,16 @@ class ChiFactory:
         complex_frequencies : np.array or ComplexFrequencyDescriptor
             Array of complex frequencies to evaluate the response function at
             or a descriptor of those frequencies.
-        fxc : str (None defaults to ALDA)
-            Approximation to the (local) xc kernel.
-            Choices: RPA, ALDA, ALDA_X, ALDA_x
-        hxc_scaling : None or HXCScaling
+        fxc : str or None
+            Approximation to the (local) xc kernel. If left as None, xc-effects
+            are neglected from the Dyson equation (RPA).
+            Other choices: ALDA, ALDA_X, ALDA_x
+        hxc_scaling : HXCScaling (or None, if irrelevant)
             Supply an HXCScaling object to scale the hxc kernel.
         txt : str
             Save output of the calculation of this specific component into
             a file with the filename of the given input.
         """
-        # Fall back to ALDA per default
-        if fxc is None:
-            fxc = 'ALDA'
-
         # Initiate new output file, if supplied
         if txt is not None:
             self.context.new_txt_and_timer(txt)
@@ -81,33 +82,34 @@ class ChiFactory:
 
         # Calculate chiks
         chiks = self.calculate_chiks(spincomponent, q_c, complex_frequencies)
-
         # Construct the hxc kernel
-        hartree_kernel = self.get_hartree_kernel(spincomponent, chiks.qpd)
-        xc_kernel = self.get_xc_kernel(fxc, spincomponent, chiks.qpd)
-        hxc_kernel = HXCKernel(hartree_kernel, xc_kernel, scaling=hxc_scaling)
-
+        hxc_kernel = self.get_hxc_kernel(fxc, spincomponent, chiks.qpd)
         # Solve dyson equation
-        chi = self.dyson_solver(chiks, hxc_kernel)
+        chi = self.dyson_solver(chiks, hxc_kernel, hxc_scaling=hxc_scaling)
 
         return chiks, chi
 
-    def get_hartree_kernel(self, spincomponent, qpd):
+    def get_hxc_kernel(self, fxc: str | None, spincomponent: str,
+                       qpd: SingleQPWDescriptor) -> HXCKernel:
+        return HXCKernel(
+            hartree_kernel=self.get_hartree_kernel(spincomponent, qpd),
+            xc_kernel=self.get_xc_kernel(fxc, spincomponent, qpd))
+
+    def get_hartree_kernel(self, spincomponent: str,
+                           qpd: SingleQPWDescriptor) -> PWKernel:
         if spincomponent in ['+-', '-+']:
             # No Hartree term in Dyson equation
-            return None
+            return NoKernel.from_qpd(qpd)
         else:
-            return get_coulomb_kernel(qpd, self.gs.kd.N_c,
-                                      pbc_c=self.gs.atoms.get_pbc())
+            return NewCoulombKernel.from_qpd(
+                qpd, N_c=self.gs.kd.N_c, pbc_c=self.gs.atoms.get_pbc())
 
-    def get_xc_kernel(self,
-                      fxc: str,
-                      spincomponent: str,
-                      qpd: SingleQPWDescriptor):
+    def get_xc_kernel(self, fxc: str | None, spincomponent: str,
+                      qpd: SingleQPWDescriptor) -> PWKernel:
         """Get the requested xc-kernel object."""
-        if fxc == 'RPA':
+        if fxc is None:
             # No xc-kernel
-            return None
+            return NoKernel.from_qpd(qpd)
 
         if qpd.gammacentered:
             # When using a gamma-centered plane-wave basis, we can reuse the
@@ -242,17 +244,15 @@ class EigendecomposedSpectrum:
 
     @classmethod
     def from_file(cls, filename):
-        """Construct the eigendecomposed spectrum from a .pckl file."""
-        import pickle
-        assert isinstance(filename, str) and filename[-5:] == '.pckl'
-        with open(filename, 'rb') as fd:
-            omega_w, G_Gc, s_we, v_wGe, A_w = pickle.load(fd)
-        return cls(omega_w, G_Gc, s_we, v_wGe, A_w=A_w)
+        """Construct the eigendecomposed spectrum from a .npz file."""
+        assert Path(filename).suffix == '.npz', filename
+        npz = np.load(filename)
+        return cls(npz['omega_w'], npz['G_Gc'],
+                   npz['s_we'], npz['v_wGe'], A_w=npz['A_w'])
 
     def write(self, filename):
-        """Write the eigendecomposed spectrum as a .pckl file."""
-        import pickle
-        assert isinstance(filename, str) and filename[-5:] == '.pckl'
+        """Write the eigendecomposed spectrum as a .npz file."""
+        assert Path(filename).suffix == '.npz', filename
 
         # Gather data from the different blocks of frequencies to root
         s_we = self.wblocks.gather(self.s_we)
@@ -261,8 +261,8 @@ class EigendecomposedSpectrum:
 
         # Let root write the spectrum to a pickle file
         if self.wblocks.blockcomm.rank == 0:
-            with open(filename, 'wb') as fd:
-                pickle.dump((self.omega_w, self.G_Gc, s_we, v_wGe, A_w), fd)
+            np.savez(filename, omega_w=self.omega_w, G_Gc=self.G_Gc,
+                     s_we=s_we, v_wGe=v_wGe, A_w=A_w)
 
     @property
     def nG(self):
@@ -392,11 +392,10 @@ class EigendecomposedSpectrum:
                                        A_w=self.A_w,
                                        wblocks=self.wblocks)
 
-    def get_eigenmode_lineshapes(self, nmodes=1):
+    def get_eigenmode_lineshapes(self, nmodes=1, wmask=None):
         """Extract the spectral lineshapes of the eigenmodes.
 
         The spectral lineshape is calculated as the inner product
-
 
         a^μν_n(q,ω) = <v^μν_n(q)| A^μν(q,ω) |v^μν_n(q)>
 
@@ -405,11 +404,10 @@ class EigendecomposedSpectrum:
 
         S^μν(q,ω_m) |v^μν_n(q)> = s^μν_n(q,ω_m) |v^μν_n(q)>
         """
-        wm = self.get_eigenmode_frequency(nmodes=nmodes)
-        v_Gm = self.get_eigenvectors_at_frequency(wm, nmodes=nmodes)
-        return self._get_eigenmode_lineshapes(v_Gm)
+        wm = self.get_eigenmode_frequency(nmodes=nmodes, wmask=wmask)
+        return self.get_eigenmodes_at_frequency(wm, nmodes=nmodes)
 
-    def get_eigenmode_frequency(self, nmodes=1):
+    def get_eigenmode_frequency(self, nmodes=1, wmask=None):
         """Get the frequency at which to extract the eigenmodes.
 
         Generally, we chose the frequency ω_m to maximize the minimum
@@ -424,11 +422,14 @@ class EigendecomposedSpectrum:
         frequency at which the eigenvalue is maximal.
         """
         assert nmodes <= self.neigs
+        # Use wmask to specify valid eigenmode frequencies
         wblocks = self.wblocks
+        if wmask is None:
+            wmask = np.ones(self.wblocks.N, dtype=bool)
         if nmodes == 1:
             # Find frequency where the eigenvalue is maximal
             s_w = wblocks.all_gather(self.s_we[:, 0])
-            wm = np.nanargmax(s_w)  # skip np.nan padding
+            wm = np.nanargmax(s_w * wmask)  # skip np.nan padding
         else:
             # Find frequency with maximum minimal difference between size of
             # eigenvalues
@@ -436,12 +437,17 @@ class EigendecomposedSpectrum:
                               for e in range(nmodes - 1)]).T
             dsmin_w = np.min(ds_we, axis=1)
             dsmin_w = wblocks.all_gather(dsmin_w)
-            wm = np.nanargmax(dsmin_w)  # skip np.nan padding
+            wm = np.nanargmax(dsmin_w * wmask)  # skip np.nan padding
 
         return wm
 
+    def get_eigenmodes_at_frequency(self, wm, nmodes=1):
+        """Extract the eigenmodes at a specific frequency index wm."""
+        v_Gm = self.get_eigenvectors_at_frequency(wm, nmodes=nmodes)
+        return self._get_eigenmode_lineshapes(v_Gm)
+
     def get_eigenvectors_at_frequency(self, wm, nmodes=1):
-        """Extract the eigenvectors a specific frequency index."""
+        """Extract the eigenvectors at a specific frequency index wm."""
         wblocks = self.wblocks
         root, wmlocal = wblocks.find_global_index(wm)
         if wblocks.blockcomm.rank == root:
@@ -471,8 +477,8 @@ class EigendecomposedSpectrum:
         if self.wblocks.blockcomm.rank == 0:
             write_full_spectral_weight(filename, self.omega_w, A_w)
 
-    def write_eigenmode_lineshapes(self, filename, nmodes=1):
-        a_wm = self.get_eigenmode_lineshapes(nmodes=nmodes)
+    def write_eigenmode_lineshapes(self, filename, **kwargs):
+        a_wm = self.get_eigenmode_lineshapes(**kwargs)
         if self.wblocks.blockcomm.rank == 0:
             write_eigenmode_lineshapes(filename, self.omega_w, a_wm)
 

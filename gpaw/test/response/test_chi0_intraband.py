@@ -53,6 +53,7 @@ class Helper:
             self._compare_peak(calc, axis)
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.tetrahedron
 @pytest.mark.response
 def test_chi0_intraband(in_tmp_dir, gpw_files):

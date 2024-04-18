@@ -14,7 +14,7 @@ import numpy as np
 from scipy.fft import fftn, ifftn, irfftn, rfftn
 import warnings
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 
 ESTIMATE = 64
@@ -27,7 +27,7 @@ _plan_cache: dict[tuple, weakref.ReferenceType] = {}
 
 def have_fftw() -> bool:
     """Did we compile with FFTW?"""
-    return hasattr(_gpaw, 'FFTWPlan')
+    return hasattr(cgpaw, 'FFTWPlan')
 
 
 def check_fft_size(n: int, factors=[2, 3, 5, 7]) -> bool:
@@ -162,21 +162,21 @@ class FFTWPlans(FFTPlans):
         if not have_fftw():
             raise ImportError('Not compiled with FFTW.')
         super().__init__(size_c, dtype)
-        self._fftplan = _gpaw.FFTWPlan(self.tmp_R, self.tmp_Q, -1, flags)
-        self._ifftplan = _gpaw.FFTWPlan(self.tmp_Q, self.tmp_R, 1, flags)
+        self._fftplan = cgpaw.FFTWPlan(self.tmp_R, self.tmp_Q, -1, flags)
+        self._ifftplan = cgpaw.FFTWPlan(self.tmp_Q, self.tmp_R, 1, flags)
 
     def fft(self):
-        _gpaw.FFTWExecute(self._fftplan)
+        cgpaw.FFTWExecute(self._fftplan)
 
     def ifft(self):
-        _gpaw.FFTWExecute(self._ifftplan)
+        cgpaw.FFTWExecute(self._ifftplan)
 
     def __del__(self):
         # Attributes will not exist if execution stops during FFTW planning
         if hasattr(self, '_fftplan'):
-            _gpaw.FFTWDestroy(self._fftplan)
+            cgpaw.FFTWDestroy(self._fftplan)
         if hasattr(self, '_ifftplan'):
-            _gpaw.FFTWDestroy(self._ifftplan)
+            cgpaw.FFTWDestroy(self._ifftplan)
 
 
 class NumpyFFTPlans(FFTPlans):
@@ -336,15 +336,15 @@ class FFTWPlan(FFTPlan):
     def __init__(self, in_R, out_R, sign, flags=MEASURE):
         if not have_fftw():
             raise ImportError('Not compiled with FFTW.')
-        self._ptr = _gpaw.FFTWPlan(in_R, out_R, sign, flags)
+        self._ptr = cgpaw.FFTWPlan(in_R, out_R, sign, flags)
         FFTPlan.__init__(self, in_R, out_R, sign, flags)
 
     def execute(self):
-        _gpaw.FFTWExecute(self._ptr)
+        cgpaw.FFTWExecute(self._ptr)
 
     def __del__(self):
-        if getattr(self, '_ptr', None) and _gpaw is not None:
-            _gpaw.FFTWDestroy(self._ptr)
+        if getattr(self, '_ptr', None):
+            cgpaw.FFTWDestroy(self._ptr)
         self._ptr = None
 
 

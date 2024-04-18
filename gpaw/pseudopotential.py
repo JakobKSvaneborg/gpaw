@@ -9,7 +9,7 @@ from gpaw.spline import Spline
 from gpaw.utilities import divrl, hartree as hartree_solve
 
 
-null_spline = Spline(0, 1.0, [0., 0., 0.])
+null_spline = Spline.from_data(0, 1.0, [0., 0., 0.])
 
 
 # XXX Not used at the moment; see comment below about rgd splines.
@@ -37,7 +37,7 @@ def local_potential_to_spline(rgd, vbar_g, filter=None):
     rcut = rgd.r_g[len(vbar_g) - 1]
     if filter is not None:
         filter(rgd, rcut, vbar_g, l=0)
-    # vbar = Spline(0, rcut, vbar_g)
+    # vbar = Spline.from_data(0, rcut, vbar_g)
     vbar = rgd.spline(vbar_g, rgd.r_g[len(vbar_g) - 1], l=0)
     return vbar
 
@@ -217,7 +217,7 @@ class PseudoPotential(BaseSetup):
     def __init__(self, data, basis=None, filter=None):
         self.data = data
 
-        self.lq = None
+        self.N0_q = None
 
         self.filename = None
         self.fingerprint = None
@@ -233,6 +233,7 @@ class PseudoPotential(BaseSetup):
         self.l_j = data.l_j
         self.l_orb_J = data.l_orb_J
         self.nj = len(data.l_j)
+        self.nq = self.nj * (self.nj + 1) // 2
 
         self.ni = sum([2 * l + 1 for l in data.l_j])
         # self.pt_j = projectors_to_splines(data.rgd, data.l_j, data.pt_jg,
@@ -268,7 +269,9 @@ class PseudoPotential(BaseSetup):
 
         r, l_comp, g_comp = data.get_compensation_charge_functions()
         assert l_comp == [0]  # Presumably only spherical charges
-        self.ghat_l = [Spline(l, r[-1], g) for l, g in zip(l_comp, g_comp)]
+        self.ghat_l = [
+            Spline.from_data(l, r[-1], g) for l, g in zip(l_comp, g_comp)
+        ]
         self.rcgauss = data.rcgauss
 
         # accuracy is rather sensitive to this
@@ -319,7 +322,6 @@ class PseudoPotential(BaseSetup):
         self.X_pg = None
         self.ExxC = None
         self.ExxC_w = {}
-        self.X_gamma = None
         self.dEH0 = 0.0
         self.dEH_p = np.zeros(_np)
         self.extra_xc_data = {}
@@ -327,5 +329,3 @@ class PseudoPotential(BaseSetup):
         self.wg_lg = None
         self.g_lg = None
         self.local_corr = LocalCorrectionVar(None)
-        self._Mg_pp = None
-        self._gamma = None

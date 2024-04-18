@@ -189,7 +189,7 @@ def calculate_raman(calc, w_ph, w_in, d_i, d_o, resonant_only=False,
         if (calc.symmetry.time_reversal and not
             np.allclose(kd.ibzk_kc[kpt.k], [0., 0., 0.])):
             add_time_reversed = True
-            # Currently broken
+            # Currently broken.
             raise NotImplementedError
         else:
             add_time_reversed = False
@@ -263,9 +263,9 @@ def calculate_raman(calc, w_ph, w_in, d_i, d_o, resonant_only=False,
         # weight, or time_reversal only. In the later case r -> 2*Re(r)
         # because gdd-> (gdd)^* for k-> -k
         if add_time_reversed:
-            raman_lw += 2. * this_lw.real
+            raman_lw += 2. * this_lw.real * kpt.weight
         else:
-            raman_lw += this_lw
+            raman_lw += this_lw * kpt.weight
 
     # Collect parallel contributions
     kd.comm.sum(raman_lw)

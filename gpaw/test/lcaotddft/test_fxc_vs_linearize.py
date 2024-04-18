@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
-from ase.build import molecule
-from gpaw import GPAW
+
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.mpi import world
@@ -10,30 +9,17 @@ from gpaw.mpi import world
 @pytest.mark.gllb
 @pytest.mark.libxc
 @pytest.mark.rttddft
-def test_lcaotddft_fxc_vs_linearize(in_tmp_dir):
-    atoms = molecule('SiH4')
-    atoms.center(vacuum=4.0)
-
-    # Ground-state calculation
-    calc = GPAW(nbands=7, h=0.4,
-                basis='dzp', mode='lcao',
-                convergence={'density': 1e-8},
-                xc='GLLBSC',
-                symmetry={'point_group': False},
-                txt='gs.out')
-    atoms.calc = calc
-    _ = atoms.get_potential_energy()
-    calc.write('gs.gpw', mode='all')
-
+def test_lcaotddft_fxc_vs_linearize(gpw_files, in_tmp_dir):
     fxc = 'LDA'
     # Time-propagation calculation with fxc
-    td_calc = LCAOTDDFT('gs.gpw', fxc=fxc, txt='td_fxc.out')
+    td_calc = LCAOTDDFT(gpw_files['sih4_xc_gllbsc_lcao'],
+                        fxc=fxc, txt='td_fxc.out')
     DipoleMomentWriter(td_calc, 'dm_fxc.dat')
     td_calc.absorption_kick(np.ones(3) * 1e-5)
     td_calc.propagate(20, 4)
 
     # Time-propagation calculation with linearize_to_fxc()
-    td_calc = LCAOTDDFT('gs.gpw', txt='td_lin.out')
+    td_calc = LCAOTDDFT(gpw_files['sih4_xc_gllbsc_lcao'], txt='td_lin.out')
     td_calc.linearize_to_xc(fxc)
     DipoleMomentWriter(td_calc, 'dm_lin.dat')
     td_calc.absorption_kick(np.ones(3) * 1e-5)

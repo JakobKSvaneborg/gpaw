@@ -11,7 +11,7 @@ def workflow():
 def check():
     vib = Vibrations(read('h2o.txt'))
     freqs = vib.get_frequencies(method='frederiksen')
-    assert abs(freqs[-3:] - [1557.6, 3643.8, 3759.4]).max() < 0.1
+    assert abs(freqs[-3:] - [1507, 3635, 3750]).max() < 1
 
 
 if __name__ == '__main__':

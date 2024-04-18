@@ -34,7 +34,7 @@ e0_bulk_pbe = bulk_crystal.get_potential_energy()
 bulk_calc.write('bulk.gpw', mode='all')
 
 # Now the exact exchange
-e0_bulk_exx = nsc_energy('bulk.gpw', 'EXX')
+e0_bulk_exx = nsc_energy('bulk.gpw', 'EXX').sum()
 
 s = str(alat)
 s += ' '

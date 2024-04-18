@@ -59,7 +59,7 @@ class Grid:
             cut = L / 9
         else:
             cut = L / 4
-        spline = Spline(l=0, rmax=cut, f_g=np.array([1, 0.5, 0.0]))
+        spline = Spline.from_data(l=0, rmax=cut, f_g=np.array([1, 0.5, 0.0]))
         c = LFC(gd, [[spline]] * 2, kd=kd, dtype=complex)
 
         if truncation == '0D':

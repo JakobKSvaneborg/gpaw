@@ -14,11 +14,12 @@ def test_adapter_pseudo_wfs(gpw_files):
 
     calc = GPAW(gpw_files['sic_pw'], communicator=serial_comm)
 
-    wfs_fromcalc = calc.calculation.state.ibzwfs.wfs_qs[k][s]
+    wfs_fromcalc = calc.dft.state.ibzwfs.wfs_qs[k][s]
     u_G_fromcalc = wfs_fromcalc.psit_nX[bands].data
 
-    gs = CollinearGSInfo(calc, world)
-    wfs = gs.get_wfs(k, s)
+    gs = CollinearGSInfo(calc)
+    wfs_s = gs.ibzwfs.wfs_qs[k]
+    wfs = gs.get_wfs(wfs_s, s)
     _, u_G = gs.get_plane_wave_coefficients(wfs, bands=bands, spin=s)
 
     # Test that adapter outputs expected pseudo-wf coefficients

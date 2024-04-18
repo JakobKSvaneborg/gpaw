@@ -273,6 +273,80 @@ Features:
     for calculating the stress-tensor and for response function calculations.
 
 
+Features in FD, LCAO and PW modes
+`````````````````````````````````
+
+Some features are not available in all modes.  Here is a
+(possibly incomplete) table of the features:
+
+.. list-table::
+
+  * - mode
+    - FD
+    - LCAO
+    - PW
+  * - GPU ground state calculations
+    - (experimental)
+    -
+    - +
+  * - Time-propergation TDDFT
+    - +
+    - +
+    -
+  * - Dielectric function
+    -
+    -
+    - +
+  * - Casida equation
+    - +
+    -
+    -
+  * - Hybrid functionals
+    - (no forces, no **k**-points)
+    -
+    - +
+  * - Stress tensor
+    -
+    -
+    - +
+  * - GW
+    -
+    -
+    - +
+  * - BSE
+    -
+    -
+    - +
+  * - Direct orbital optimization (generalized mode following)
+    -
+    - +
+    -
+  * - Non-collinear spin
+    -
+    -
+    - +
+  * - Solvent models
+    - +
+    -
+    -
+  * - MGGA
+    - +
+    -
+    - +
+  * - Constrained DFT
+    - +
+    -
+    -
+  * - Ehrenfest
+    - +
+    -
+    -
+  * - Spin-spirals
+    -
+    -
+    - +
+
+
 .. _manual_nbands:
 
 Number of electronic bands
@@ -572,7 +646,8 @@ the initial value using::
 
 .. figure:: occupation_numbers.png
 
-    Occupation numbers for ``width=0.05``
+   Occupation numbers for different distribution functions
+   (value of ``width`` parameter in parenthesis)
 
 For fixed occupations numbers use the
 :class:`gpaw.occupations.FixedOccupationNumbers` class like this::
@@ -909,7 +984,7 @@ The last argument, ``eps``, is the convergence criterion.
 
 .. _manual_dipole_correction:
 
-The ``poissonsolver`` keyword can also be used to specify that a dipole
+The ``poissonsolver`` keyword can also be used to specify that a dipole-layer
 correction should be applied along a given axis.  The system should be
 non-periodic in that direction but periodic in the two other
 directions.

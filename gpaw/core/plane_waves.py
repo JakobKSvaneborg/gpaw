@@ -250,7 +250,7 @@ class PWArray(DistributedArrays[PWDesc]):
         dims:
             Extra dimensions.
         comm:
-            Distribute plane-waves along this communicator.
+            Distribute extra dimensions along this communicator.
         data:
             Data array for storage.
         """

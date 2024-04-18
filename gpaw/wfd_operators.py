@@ -1,4 +1,4 @@
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.fd_operators import FDOperator
 import numpy as np
 
@@ -72,7 +72,7 @@ class WeightedFDOperator(FDOperator):
             assert weight.dtype == float
             assert weight.flags.c_contiguous
         self.weights = weights
-        self.operator = _gpaw.WOperator(
+        self.operator = cgpaw.WOperator(
             self.nweights, self.weights,
             self.coef_ps, self.offset_ps, self.gd.n_c, self.mp,
             self.gd.neighbor_cd, self.dtype == float, self.comm, self.cfd

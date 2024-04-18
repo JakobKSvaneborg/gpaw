@@ -11,7 +11,7 @@ import numpy as np
 
 @pytest.mark.later
 @pytest.mark.sic
-def test_gmf_lcaosic(in_tmp_dir):
+def test_gmf_lcaosic(in_tmp_dir, needs_ase_master):
     """
     test Perdew-Zunger Self-Interaction
     Correction  in LCAO mode using DirectMin

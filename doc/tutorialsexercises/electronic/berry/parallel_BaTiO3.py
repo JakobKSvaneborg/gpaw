@@ -21,7 +21,7 @@ for i in range(8):
     phi_km[np.where(phi_km < 0.0)] += 2 * np.pi
     phi_i.append(np.sum(phi_km) / len(phi_km))
 #    if world.rank == 0:
-#        import pylab as plt
+#        import matplotlib.pyplot as plt
 #        for phi_k in phi_km.T:
 #            plt.plot(range(8), phi_k, 'o', c='C0')
 #        plt.show()
