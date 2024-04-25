@@ -408,7 +408,7 @@ class SJM(SolvationGPAW):
         previous_electrons = []
         previous_potentials = []
 
-        rerun = False
+        rerun = 0
         while iteration <= p.max_iters:
             self.log('Attempt {:d} to equilibrate potential to {:.3f} +/-'
                      ' {:.3f} V'
@@ -449,15 +449,15 @@ class SJM(SolvationGPAW):
                              ' target potential by a dangerous amount.\n'
                              ' The step is rejected and the change in'
                              ' excess_electrons will be halved.')
+                    rerun +=1
                     p.excess_electrons = (previous_electrons[-1] +
                                           (p.excess_electrons -
-                                           previous_electrons[-1]) * 0.5)
-                    rerun = True
+                                           previous_electrons[-1])/2**rerun)
                     continue  # back to while
 
             # Increase iteration count.
             iteration += 1
-            rerun = False
+            rerun = 0
 
             # Store attempt and calculate slope.
             previous_electrons.append(float(p.excess_electrons))
