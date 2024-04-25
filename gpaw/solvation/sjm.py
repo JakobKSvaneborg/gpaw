@@ -449,7 +449,7 @@ class SJM(SolvationGPAW):
                              ' target potential by a dangerous amount.\n'
                              ' The step is rejected and the change in'
                              ' excess_electrons will be halved.')
-                    rerun +=1
+                    rerun += 1
                     p.excess_electrons = (previous_electrons[-1] +
                                           (p.excess_electrons -
                                            previous_electrons[-1])/2**rerun)
