@@ -182,10 +182,12 @@ class SJM(SolvationGPAW):
          'tol': 0.01,
          'always_adjust': False,
          'grand_output': True,
-         'max_iters': 10,
-         'max_step': 2.,
+         'max_iters': 20,
+         'max_step': 1.,
          'slope': None,
-         'mixer': 0.5})
+         'mixer': 0.5,
+         'slope_regression_depth':1})
+
     default_parameters = copy.deepcopy(SolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
     default_parameters['convergence'].update({'work function': 0.001})
@@ -434,15 +436,21 @@ class SJM(SolvationGPAW):
             msg += ' rerun).' if rerun else ').'
             self.log(msg, flush=True)
 
-            # Check if we took too big of a step.
-            try:
+            # Some checks to improve stability
+            if len(previous_potentials):
+                # 1) Check if we took too big of a step, which could lead to reaching
+                #    non-linear charge potential curves
                 stepsize = abs(true_potential - previous_potentials[-1])
-            except IndexError:
-                pass
-            else:
-                diff_ratio = (true_potential - p.target_potential) /\
-                    (previous_potentials[-1] - p.target_potential)
-                if stepsize > p.max_step and diff_ratio < -0.5:
+
+
+                #diff_ratio = (true_potential - p.target_potential) /\
+                #    (previous_potentials[-1] - p.target_potential)
+#                rel_distance_from_target = true_potential+previous_potentials[-1] -\
+#                    2*p.target_potential
+
+                    # diff_ratio < 0 and\
+                if (stepsize > p.max_step and
+                   abs(previous_potentials[-1] - p.target_potential) < abs(true_potential-p.target_potential)):
                     self.log('Step resulted in a potential change of '
                              f'{stepsize:.2f} V, larger than max_step '
                              f'({p.max_step:.2f} V) and\n surpassed the'
@@ -455,6 +463,13 @@ class SJM(SolvationGPAW):
                                            previous_electrons[-1])/2**rerun)
                     continue  # back to while
 
+                # 2) Check if the slope went crazy
+                #if p.slope is not None:
+                #    slope = _calculate_slope(previous_electrons,
+                #                         previous_potentials)
+                    #slope =
+
+
             # Increase iteration count.
             iteration += 1
             rerun = 0
@@ -464,10 +479,10 @@ class SJM(SolvationGPAW):
             previous_potentials.append(float(true_potential))
             if len(previous_electrons) > 1:
                 slope = _calculate_slope(previous_electrons,
-                                         previous_potentials)
+                                         previous_potentials,p.slope_regression_depth)
                 self.log('Slope regressed from last {:d} attempts is '
                          '{:.4f} V/electron,'
-                         .format(len(previous_electrons[-4:]), slope))
+                         .format(len(previous_electrons[-(p.slope_regression_depth+1):]), slope))
                 area = np.prod(np.diag(atoms.cell[:2, :2]))
                 capacitance = -1.6022 * 1e3 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
@@ -766,19 +781,18 @@ def _write_property_on_grid(grid, property, atoms, name, dir):
     ase.io.write(os.path.join(dir, name), atoms, data=property)
 
 
-def _calculate_slope(previous_electrons, previous_potentials):
+def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
     """Calculates the slope of potential versus number of electrons;
     regresses based on (up to) last four data points to smooth noise."""
-    npoints = 4
-    ans = linregress(previous_electrons[-npoints:],
-                     previous_potentials[-npoints:])
+    ans = linregress(previous_electrons[-(n_prev_pot+1):],
+                     previous_potentials[-(n_prev_pot+1):])
     return ans[0]
 
 
 class SJMPower12Potential(Power12Potential):
     r"""Inverse power-law potential.
     Inverse power law potential for SJM, inherited from the
-    Power12Potential of gpaw.solvation. This is a 1/r^{12} repulive
+    Power12Potential of gpaw.solvation. This is a 1/r^{12} repulsive
     potential taking the value u0 at the atomic radius. In SJM one also has the
     option of removing the solvent from the electrode backside and adding
     ghost plane/atoms to remove the solvent from the electrode-water interface.
