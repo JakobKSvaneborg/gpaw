@@ -186,7 +186,7 @@ class SJM(SolvationGPAW):
          'max_step': 1.,
          'slope': None,
          'mixer': 0.5,
-         'slope_regression_depth':1})
+         'slope_regression_depth': 1})
 
     default_parameters = copy.deepcopy(SolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
@@ -438,19 +438,18 @@ class SJM(SolvationGPAW):
 
             # Some checks to improve stability
             if len(previous_potentials):
-                # 1) Check if we took too big of a step, which could lead to reaching
-                #    non-linear charge potential curves
+                # 1) Check if we took a big of a step, that moved us further
+                #    further from the target rather than closer. This can
+                #    happen when large geometric changes happened in the
+                #    last step, the slope is noisy or, at very low
+                #    workfunctions,the electron density starts to spill out
+                #    into the vacuum and the slope is unreliable.
+
                 stepsize = abs(true_potential - previous_potentials[-1])
 
-
-                #diff_ratio = (true_potential - p.target_potential) /\
-                #    (previous_potentials[-1] - p.target_potential)
-#                rel_distance_from_target = true_potential+previous_potentials[-1] -\
-#                    2*p.target_potential
-
-                    # diff_ratio < 0 and\
                 if (stepsize > p.max_step and
-                   abs(previous_potentials[-1] - p.target_potential) < abs(true_potential-p.target_potential)):
+                   abs(previous_potentials[-1] - p.target_potential) <
+                   abs(true_potential - p.target_potential)):
                     self.log('Step resulted in a potential change of '
                              f'{stepsize:.2f} V, larger than max_step '
                              f'({p.max_step:.2f} V) and\n surpassed the'
@@ -460,15 +459,8 @@ class SJM(SolvationGPAW):
                     rerun += 1
                     p.excess_electrons = (previous_electrons[-1] +
                                           (p.excess_electrons -
-                                           previous_electrons[-1])/2**rerun)
+                                           previous_electrons[-1]) / 2**rerun)
                     continue  # back to while
-
-                # 2) Check if the slope went crazy
-                #if p.slope is not None:
-                #    slope = _calculate_slope(previous_electrons,
-                #                         previous_potentials)
-                    #slope =
-
 
             # Increase iteration count.
             iteration += 1
@@ -479,10 +471,11 @@ class SJM(SolvationGPAW):
             previous_potentials.append(float(true_potential))
             if len(previous_electrons) > 1:
                 slope = _calculate_slope(previous_electrons,
-                                         previous_potentials,p.slope_regression_depth)
-                self.log('Slope regressed from last {:d} attempts is '
-                         '{:.4f} V/electron,'
-                         .format(len(previous_electrons[-(p.slope_regression_depth+1):]), slope))
+                                         previous_potentials,
+                                         p.slope_regression_depth)
+                nre = len(previous_electrons[-(p.slope_regression_depth + 1):])
+                self.log(f'Slope regressed from last {nre:d} attempts is '
+                         '{slope:.4f} V/electron,')
                 area = np.prod(np.diag(atoms.cell[:2, :2]))
                 capacitance = -1.6022 * 1e3 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
@@ -784,8 +777,8 @@ def _write_property_on_grid(grid, property, atoms, name, dir):
 def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
     """Calculates the slope of potential versus number of electrons;
     regresses based on (up to) last four data points to smooth noise."""
-    ans = linregress(previous_electrons[-(n_prev_pot+1):],
-                     previous_potentials[-(n_prev_pot+1):])
+    ans = linregress(previous_electrons[-(n_prev_pot + 1):],
+                     previous_potentials[-(n_prev_pot + 1):])
     return ans[0]
 
 
