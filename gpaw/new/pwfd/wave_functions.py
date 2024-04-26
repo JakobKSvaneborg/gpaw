@@ -403,8 +403,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                                  ncomponents=self.ncomponents,
                                  qspiral_v=self.qspiral_v)
 
-    def dipole_matrix_elements(self,
-                               center_v: Vector = None) -> Array3D:
+    def dipole_matrix_elements(self) -> Array3D:
         """Calculate dipole matrix-elements.
 
         :::
@@ -414,11 +413,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             mn  /     m n    ---  im jn  ij
                              aij
 
-        Parameters
-        ----------
-        center_v:
-            Center of molecule.  Defaults to center of cell.
-
         Returns
         -------
         Array3D:
@@ -426,17 +420,9 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         """
         cell_cv = self.psit_nX.desc.cell_cv
 
-        if center_v is None:
-            center_v = cell_cv.sum(0) * 0.5
-
         dipole_nnv = np.zeros((self.nbands, self.nbands, 3))
 
-        scenter_c = np.linalg.solve(cell_cv.T, center_v)
-        spos_ac = self.fracpos_ac.copy()
-        spos_ac -= scenter_c - 0.5
-        spos_ac %= 1.0
-        spos_ac += scenter_c - 0.5
-        position_av = spos_ac @ cell_cv
+        position_av = self.fracpos_ac @ cell_cv
 
         R_aiiv = []
         for setup, position_v in zips(self.setups, position_av):
@@ -469,7 +455,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         for na, psita_R in enumerate(psit_nR):
             for nb, psitb_R in enumerate(psit_nR[:na + 1]):
-                d_v = (psita_R * psitb_R).moment(center_v)
+                d_v = (psita_R * psitb_R).moment()
                 dipole_nnv[na, nb] += d_v
                 if na != nb:
                     dipole_nnv[nb, na] += d_v
