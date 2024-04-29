@@ -91,7 +91,11 @@ class DummyFunctions(DistributedArrays[NoGrid]):
         return self
 
     def __getitem__(self, index):
-        return DummyFunctions(self.desc, comm=self.comm)
+        if isinstance(index, int):
+            dims = self.dims[1:]
+        else:
+            dims = self.dims
+        return DummyFunctions(self.desc, dims, comm=self.comm)
 
     def moment(self):
         return np.zeros(3)
@@ -161,6 +165,7 @@ class TBPotentialCalculator(PotentialCalculator):
 class DummyXC:
     no_forces = False
     xc = None
+    exx_fraction = 0.0
 
     def calculate_paw_correction(self, setup, D_sp, dH_sp):
         return 0.0

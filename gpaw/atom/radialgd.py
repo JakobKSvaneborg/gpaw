@@ -542,7 +542,7 @@ class EquidistantRadialGridDescriptor(RadialGridDescriptor):
 
     def xml(self, id='grid1'):
         assert self.r_g[0] == 0.0
-        return ('<radial_grid eq="r=d*i" d="{!r}" '
+        return ('<radial_grid eq="r=d*i" d="{}" '
                 'istart="0" iend="{}" id="{}"/>\n'
                 .format(self.r_g[1], len(self.r_g) - 1, id))
 

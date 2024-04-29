@@ -461,8 +461,10 @@ def create_uniform_grid(mode: str,
         h /= Bohr
 
     realspace = (mode != 'pw' and interpolation != 'fft')
-    if not realspace:
-        pbc = (True, True, True)
+    if realspace:
+        zerobc = [not periodic for periodic in pbc]
+    else:
+        zerobc = [False] * 3
 
     if gpts is not None:
         size = gpts
@@ -470,4 +472,4 @@ def create_uniform_grid(mode: str,
         modeobj = SimpleNamespace(name=mode, ecut=ecut)
         size = get_number_of_grid_points(cell, h, modeobj, realspace,
                                          symmetry.symmetry)
-    return UGDesc(cell=cell, pbc=pbc, size=size, comm=comm)
+    return UGDesc(cell=cell, pbc=pbc, zerobc=zerobc, size=size, comm=comm)

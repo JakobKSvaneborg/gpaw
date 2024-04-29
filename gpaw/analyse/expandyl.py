@@ -7,6 +7,7 @@ from ase.utils import IOContext
 
 from gpaw.spherical_harmonics import Y
 from gpaw.utilities.tools import coordinates
+from gpaw.mpi import serial_comm
 
 
 class AngularIntegral:
@@ -179,7 +180,7 @@ class ExpandYl(AngularIntegral):
         """Expand a range of wave functions and write the result
         to a file"""
         with IOContext() as io:
-            fd = io.openfile(filename)
+            fd = io.openfile(filename, comm=serial_comm)
 
             if not spins:
                 srange = range(calculator.wfs.nspins)

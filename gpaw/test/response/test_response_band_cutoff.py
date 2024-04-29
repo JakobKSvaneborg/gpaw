@@ -44,4 +44,4 @@ def get_nbands_cutoff_list(eps_skn, nconv, atol=1e-3):
             # find minimum cutoff that works for all k
             allset = thisset & allset
 
-    return allset
+    return {int(n) for n in allset}

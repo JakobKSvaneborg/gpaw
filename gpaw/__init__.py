@@ -261,7 +261,7 @@ if debug:
 
 
 def GPAW(*args, **kwargs) -> Any:
-    if os.environ.get('GPAW_NEW'):
+    if int(os.environ.get('GPAW_NEW', '0')):
         from gpaw.new.ase_interface import GPAW as NewGPAW
         return NewGPAW(*args, **kwargs)
 

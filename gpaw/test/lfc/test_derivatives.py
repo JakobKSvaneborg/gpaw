@@ -22,7 +22,7 @@ def test_lfc_derivatives():
     c.integrate(psi, C_ani)
     if 1 in C_ani:
         d = C_ani[1][:, 1:].diagonal()
-        assert d.ptp() < 4e-6
+        assert np.ptp(d) < 4e-6
         C_ani[1][:, 1:] -= np.diag(d)
         assert abs(C_ani[1]).max() < 5e-17
     d_aniv = c.dict(3, derivative=True)

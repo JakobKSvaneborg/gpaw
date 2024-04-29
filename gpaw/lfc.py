@@ -7,6 +7,7 @@ import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.grid_descriptor import GridDescriptor, GridBoundsError
 from gpaw.gpu import cupy_is_fake
+from gpaw.new import trace
 from gpaw.utilities import smallest_safe_grid_spacing
 
 """
@@ -957,6 +958,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
         self.Mstart = None
         self.Mstop = None
 
+    @trace
     def set_positions(self, spos_ac):
         LocalizedFunctionsCollection.set_positions(self, spos_ac)
         self.Mstart = 0

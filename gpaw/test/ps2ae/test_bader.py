@@ -1,5 +1,6 @@
 import subprocess
 
+import numpy as np
 import pytest
 from ase.io import write
 from ase.units import Bohr
@@ -31,6 +32,6 @@ def test_bader(gpw_files, in_tmp_dir, gpaw_new):
         return
 
     charges = read_bader_charges()
-    assert charges[:2].ptp() == 0.0
-    assert charges[2:].ptp() < 0.001
+    assert np.ptp(charges[:2]) == 0.0
+    assert np.ptp(charges[2:]) < 0.001
     assert charges.sum() == pytest.approx(12.0, abs=0.0001)

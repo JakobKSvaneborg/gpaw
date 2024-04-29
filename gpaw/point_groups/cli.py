@@ -62,7 +62,9 @@ def main(argv: List[str] = None) -> None:
         n2 = 1
     else:
         from ase.io import read
-        atoms = read(args.file)
+        atoms_maybe = read(args.file)
+        assert isinstance(atoms_maybe, Atoms)
+        atoms = atoms_maybe
         calc = None
 
     if args.center:

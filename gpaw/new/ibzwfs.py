@@ -189,10 +189,10 @@ class IBZWaveFunctions(Generic[WFT]):
             e_band += wfs.occ_n @ wfs.eig_n * wfs.weight * degeneracy
         e_band = self.kpt_comm.sum_scalar(float(e_band))  # XXX CPU float?
 
-        self.energies = {
-            'band': e_band,
-            'entropy': e_entropy,
-            'extrapolation': e_entropy * occ_calc.extrapolate_factor}
+        self.energies.update(
+            band=e_band,
+            entropy=e_entropy,
+            extrapolation=e_entropy * occ_calc.extrapolate_factor)
 
     def add_to_density(self, nt_sR, D_asii) -> None:
         """Compute density and add to ``nt_sR`` and ``D_asii``."""

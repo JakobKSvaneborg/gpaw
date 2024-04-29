@@ -12,7 +12,7 @@ from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_float, world
-from gpaw.new import zips
+from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
@@ -127,10 +127,14 @@ class DFTCalculation:
         scf_loop = builder.create_scf_loop()
 
         pot_calc = builder.create_potential_calculator()
-        potential, _ = pot_calc.calculate(
+        potential, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential, log=log)
+
+        if ibzwfs.wfs_qs[0][0]._eig_n is not None:
+            ibzwfs.calculate_occs(scf_loop.occ_calc)
+
         state = DFTState(ibzwfs, density, potential)
 
         write_atoms(atoms, builder.initial_magmom_av, log)
@@ -171,6 +175,7 @@ class DFTCalculation:
                                          calculate_forces,
                                          log=self.log)
 
+    @trace
     def converge(self,
                  convergence=None,
                  maxiter=None,
@@ -296,6 +301,7 @@ class DFTCalculation:
 
     def write_converged(self):
         self.state.ibzwfs.write_summary(self.log)
+
         self.log.fd.flush()
 
     def electrostatic_potential(self) -> ElectrostaticPotential:
@@ -394,6 +400,10 @@ def combine_energies(potential: Potential,
     energies = potential.energies.copy()
     energies.pop('stress', 0.0)
     energies['kinetic'] += ibzwfs.energies['band']
+    energies['kinetic'] += ibzwfs.energies.get('exx_kinetic', 0.0)
+    energies['xc'] += (ibzwfs.energies.get('exx_vv', 0.0) +
+                       ibzwfs.energies.get('exx_vc', 0.0) +
+                       ibzwfs.energies.get('exx_cc', 0.0))
     energies['entropy'] = ibzwfs.energies['entropy']
     energies['total_free'] = sum(energies.values())
     energies['total_extrapolated'] = (energies['total_free'] +

@@ -6,7 +6,7 @@ import numpy as np
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.uniform_grid import UGArray
 from gpaw.mpi import MPIComm, serial_comm
-from gpaw.new import zips
+from gpaw.new import trace, zips
 from gpaw.new.potential import Potential
 from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D, ArrayND
@@ -127,6 +127,7 @@ class WaveFunctions:
         assert self._P_ani is not None
         return self._P_ani
 
+    @trace
     def add_to_atomic_density_matrices(self,
                                        occ_n,
                                        D_asii: AtomArrays) -> None:

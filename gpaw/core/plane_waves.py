@@ -150,6 +150,9 @@ class PWDesc(Domain):
         """Return indices into FFT-grid."""
         Q_G = self._indices_cache.get(shape)
         if Q_G is None:
+            # We should do this here instead of everywhere calling this: !!!!
+            # if self..dtype == float:
+            #     shape = (shape[0], shape[1], shape[2] // 2 + 1)
             Q_G = np.ravel_multi_index(self.indices_cG, shape,  # type: ignore
                                        mode='wrap').astype(np.int32)
             self._indices_cache[shape] = Q_G
@@ -197,7 +200,7 @@ class PWDesc(Domain):
 
            [1], [[0, 1, 2, 3], [4]]
         """
-        size_c = tuple(self.indices_cG.ptp(axis=1) + 1)  # type: ignore
+        size_c = tuple(np.ptp(self.indices_cG, axis=1) + 1)  # type: ignore
         Q_G = self.indices(size_c)
         G_Q = np.empty(prod(size_c), int)
         G_Q[Q_G] = np.arange(len(Q_G))
@@ -354,7 +357,7 @@ class PWArray(DistributedArrays[PWDesc]):
         if out is None:
             out = grid.empty(self.dims, xp=xp)
         assert self.desc.dtype == out.desc.dtype, (self.desc, out.desc)
-        assert out.desc.pbc_c.all()
+        assert not out.desc.zerobc_c.any()
         assert comm.size == out.desc.comm.size, (comm, out.desc.comm)
 
         plan = plan or out.desc.fft_plans(xp=xp)
