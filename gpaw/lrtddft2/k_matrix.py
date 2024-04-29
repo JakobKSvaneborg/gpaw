@@ -168,7 +168,7 @@ class Kmatrix:
 
         # Matrix build
         K_matrix = np.zeros((nlrow, nlcol))
-        K_matrix[:, :] = np.NAN  # fill with NaNs to detect problems
+        K_matrix[:, :] = np.nan  # fill with NaNs to detect problems
         # Read ALL K_matrix files
         for line in local_elem_list.splitlines():
             line = line.split()

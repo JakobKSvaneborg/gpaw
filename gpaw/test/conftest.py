@@ -185,7 +185,7 @@ def all_gpw_files(request, gpw_files, pytestconfig):
     # the @gpwfile decorator.
 
     import os
-    gpaw_new = os.environ.get('GPAW_NEW')
+    gpaw_new = int(os.environ.get('GPAW_NEW', '0'))
 
     # TODO This xfail-information should probably live closer to the
     # gpwfile definitions and not here in the fixture.
@@ -317,4 +317,4 @@ def rng():
 @pytest.fixture
 def gpaw_new() -> bool:
     """Are we testing the new code?"""
-    return os.environ.get('GPAW_NEW')
+    return bool(int(os.environ.get('GPAW_NEW', '0')))

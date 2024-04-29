@@ -283,7 +283,9 @@ class AtomArrays:
         if isinstance(a, numbers.Integral):
             return self._arrays[a]
         if len(self.dims) == 1:
-            a_ai = AtomArrays(self.layout, data=self.data[a[1]].copy())
+            a0, a1 = a
+            assert a0 == slice(None)
+            a_ai = AtomArrays(self.layout, data=self.data[a1].copy())
             return a_ai
         1 / 0
 

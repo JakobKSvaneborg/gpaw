@@ -7,7 +7,7 @@ from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.domain import Domain as XDesc
 from gpaw.core.uniform_grid import UGArray, UGDesc
-from gpaw.mpi import MPIComm
+from gpaw.mpi import MPIComm, broadcast_float
 from gpaw.new import zips
 
 
@@ -90,3 +90,9 @@ class Potential:
             **{f'e_{name}': val * Ha for name, val in energies.items()})
         if self.dedtaut_sR is not None:
             writer.write(mgga_potential=dedtaut_sR.data * Bohr**3)
+
+    def get_vacuum_level(self) -> float:
+        grid = self.vt_sR.desc
+        if grid.pbc_c.all():
+            return np.nan
+        return broadcast_float(self.vt_sR[:, 0, 0, 0].mean(), grid.comm) * Ha

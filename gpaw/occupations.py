@@ -8,18 +8,15 @@ from scipy.special import erf
 from ase.units import Ha
 
 from gpaw.band_descriptor import BandDescriptor
-from gpaw.mpi import serial_comm, broadcast_float
+from gpaw.mpi import serial_comm, broadcast_float, MPIComm
 from gpaw.typing import Array1D, Array2D
-
-# typehints:
-MPICommunicator = Any
 
 
 class ParallelLayout(NamedTuple):
     """Collection of parallel stuff."""
     bd: BandDescriptor
-    kpt_comm: MPICommunicator
-    domain_comm: MPICommunicator
+    kpt_comm: MPIComm
+    domain_comm: MPIComm
 
 
 def fermi_dirac(eig: np.ndarray,
@@ -27,9 +24,10 @@ def fermi_dirac(eig: np.ndarray,
                 width: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Fermi-Dirac distribution function.
 
-    >>> f, _, _ = fermi_dirac(0.0, 0.0, 0.1)
-    >>> f
-    0.5
+    >>> f, _, _ = fermi_dirac(np.array([-1.0, 0.0, 1.0]), 0.0, 0.01)
+    >>> f.round(5)
+    array([1. , 0.5, 0. ])
+
     """
     x = (eig - fermi_level) / width
     x = np.clip(x, -100, 100)
@@ -184,7 +182,7 @@ class OccupationNumberCalculator:
         self.domain_comm.broadcast(f_qn, 0)
 
         fermi_level, e_entropy = result
-        return f_qn, [fermi_level], e_entropy
+        return f_qn, [float(fermi_level)], float(e_entropy)
 
     def _calculate(self,
                    nelectrons: float,
@@ -428,9 +426,9 @@ def findroot(func: Callable[[float], Tuple[float, float]],
 def collect_eigelvalues(eig_qn: np.ndarray,
                         weight_q: np.ndarray,
                         bd: BandDescriptor,
-                        kpt_comm: MPICommunicator) -> Tuple[np.ndarray,
-                                                            np.ndarray,
-                                                            np.ndarray]:
+                        kpt_comm: MPIComm) -> Tuple[np.ndarray,
+                                                    np.ndarray,
+                                                    np.ndarray]:
     """Collect eigenvalues from bd.comm and kpt_comm."""
     nkpts_r = np.zeros(kpt_comm.size, int)
     nkpts_r[kpt_comm.rank] = len(weight_q)
@@ -467,7 +465,7 @@ def distribute_occupation_numbers(f_kn: np.ndarray,  # input
                                   f_qn: np.ndarray,  # output
                                   nkpts_r: np.ndarray,
                                   bd: BandDescriptor,
-                                  kpt_comm: MPICommunicator) -> None:
+                                  kpt_comm: MPIComm) -> None:
     """Distribute occupation numbers over bd.comm and kpt_comm."""
     k = 0
     for rank, nkpts in enumerate(nkpts_r):

@@ -48,7 +48,7 @@ News
 ====
 
 * `Psi-k highlight of the month
-  <https://psi-k.net/psi-k-highlight-april-2024/>`__ (Apr 1, 2024)
+  <https://psi-k.net/download/highlights/Highlight_157.pdf>`__ (Apr 1, 2024)
 
 * New publication:
   :doi:`GPAW: An open Python package for electronic structure calculations

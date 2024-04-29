@@ -326,7 +326,7 @@ class ApmB(OmegaMatrix):
         if mpi.rank == 0:
             with IOContext() as io:
                 if fh is None:
-                    fd = io.openfile(filename, 'r')
+                    fd = io.openfile(filename, 'r', comm=self.paw.world)
                 else:
                     fd = fh
                 fd.readline()
@@ -358,7 +358,7 @@ class ApmB(OmegaMatrix):
         if mpi.rank == 0:
             with IOContext() as io:
                 if fh is None:
-                    fd = io.openfile(filename, 'r')
+                    fd = io.openfile(filename, 'r', comm=self.paw.world)
                 else:
                     fd = fh
                 fd.write('# A+B\n')

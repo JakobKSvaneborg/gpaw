@@ -254,7 +254,7 @@ class SetupData:
         print('  <!--', comment1, '-->', file=xml)
         print('  <!--', comment2, '-->', file=xml)
 
-        print(('  <atom symbol="%s" Z="%r" core="%r" valence="%r"/>' %
+        print(('  <atom symbol="%s" Z="%r" core="%s" valence="%s"/>' %
                (self.symbol, self.Z, self.Nc, self.Nv)), file=xml)
         if self.orbital_free:
             type = 'OFDFT'
@@ -272,15 +272,15 @@ class SetupData:
         print(f'  <generator {gen_attrs}>', file=xml)
         print(f'    {self.generatordata}', file=xml)
         print('  </generator>', file=xml)
-        print(f'  <ae_energy kinetic="{self.e_kinetic!r}" xc="{self.e_xc!r}"',
+        print(f'  <ae_energy kinetic="{self.e_kinetic}" xc="{self.e_xc}"',
               file=xml)
-        print('             electrostatic="%r" total="%r"/>' %
+        print('             electrostatic="%s" total="%s"/>' %
               (self.e_electrostatic, self.e_total), file=xml)
 
-        print(f'  <core_energy kinetic="{self.e_kinetic_core!r}"/>', file=xml)
+        print(f'  <core_energy kinetic="{self.e_kinetic_core}"/>', file=xml)
         print('  <valence_states>', file=xml)
-        line1 = '    <state n="%d" l="%d" f="%r" rc="%r" e="%r" id="%s"/>'
-        line2 = '    <state       l="%d"        rc="%r" e="%r" id="%s"/>'
+        line1 = '    <state n="%d" l="%d" f="%s" rc="%s" e="%s" id="%s"/>'
+        line2 = '    <state       l="%d"        rc="%s" e="%s" id="%s"/>'
 
         for id, l, n, f, e, rc in zip(self.id_j, l_j, self.n_j, self.f_j,
                                       self.eps_j, self.rcut_j):
@@ -308,17 +308,17 @@ class SetupData:
                       ('spdfg'[self.l0], self.e0, self.nderiv0, self.r0))
 
         for x in self.vbar_g:
-            print(f'{x!r}', end=' ', file=xml)
+            print(x, end=' ', file=xml)
         print('\n  </zero_potential>', file=xml)
 
         if self.has_corehole:
             print((('  <core_hole_state state="%d%s" ' +
-                    'removed="%r" eig="%r" ekin="%r">') %
+                    'removed="%s" eig="%s" ekin="%s">') %
                    (self.ncorehole, 'spdf'[self.lcorehole],
                     self.fcorehole,
                     self.core_hole_e, self.core_hole_e_kin)), file=xml)
             for x in self.phicorehole_g:
-                print(f'{x!r}', end=' ', file=xml)
+                print(x, end=' ', file=xml)
             print('\n  </core_hole_state>', file=xml)
 
         for name, a in [('ae_core_density', self.nc_g),
@@ -327,7 +327,7 @@ class SetupData:
                         ('pseudo_core_kinetic_energy_density', self.tauct_g)]:
             print(f'  <{name} grid="g1">\n    ', end=' ', file=xml)
             for x in a:
-                print(f'{x!r}', end=' ', file=xml)
+                print(x, end=' ', file=xml)
             print(f'\n  </{name}>', file=xml)
 
         # Print xc-specific data to setup file (used so for KLI and GLLB)
@@ -335,7 +335,7 @@ class SetupData:
             newname = 'GLLB_' + name
             print(f'  <{newname} grid="g1">\n    ', end=' ', file=xml)
             for x in a:
-                print(f'{x!r}', end=' ', file=xml)
+                print(x, end=' ', file=xml)
             print(f'\n  </{newname}>', file=xml)
 
         for id, l, u, s, q, in zip(self.id_j, l_j, self.phi_jg, self.phit_jg,
@@ -346,13 +346,13 @@ class SetupData:
                 print(f'  <{name} state="{id}" grid="g1">\n    ',
                       end=' ', file=xml)
                 for x in a:
-                    print(f'{x!r}', end=' ', file=xml)
+                    print(x, end=' ', file=xml)
                 print(f'\n  </{name}>', file=xml)
 
         if self.vt_g is not None:
             xml.write('  <pseudo_potential grid="g1">\n')
             for x in self.vt_g:
-                print(f'{x!r}', end=' ', file=xml)
+                print(x, end=' ', file=xml)
             print('\n  </pseudo_potential>', file=xml)
 
         print('  <kinetic_energy_differences>', end=' ', file=xml)
@@ -360,31 +360,31 @@ class SetupData:
         for j1 in range(nj):
             print('\n    ', end=' ', file=xml)
             for j2 in range(nj):
-                print(f'{self.e_kin_jj[j1, j2]!r}', end=' ', file=xml)
+                print(self.e_kin_jj[j1, j2], end=' ', file=xml)
         print('\n  </kinetic_energy_differences>', file=xml)
 
         if self.X_p is not None:
             print('  <exact_exchange_X_matrix>\n    ', end=' ', file=xml)
             for x in self.X_p:
-                print(f'{x!r}', end=' ', file=xml)
+                print(x, end=' ', file=xml)
             print('\n  </exact_exchange_X_matrix>', file=xml)
 
-            print(f'  <exact_exchange core-core="{self.ExxC!r}"/>', file=xml)
+            print(f'  <exact_exchange core-core="{self.ExxC}"/>', file=xml)
             for omega, Ecc in self.ExxC_w.items():
                 print(f'  <erfc_exchange omega="{omega}" core-core="{Ecc}"/>',
                       file=xml)
                 print(f'  <erfc_exchange_X_matrix omega="{omega}" X_p="',
                       end=' ', file=xml)
                 for x in self.X_wp[omega]:
-                    print(f'{x!r}', end=' ', file=xml)
+                    print(x, end=' ', file=xml)
                 print('"/>', file=xml)
 
         if self.X_pg is not None:
             print('  <yukawa_exchange_X_matrix>\n    ', end=' ', file=xml)
             for x in self.X_pg:
-                print(f'{x!r}', end=' ', file=xml)
+                print(x, end=' ', file=xml)
             print('\n  </yukawa_exchange_X_matrix>', file=xml)
-            print(f'  <yukawa_exchange gamma="{self.X_gamma!r}"/>', file=xml)
+            print(f'  <yukawa_exchange gamma="{self.X_gamma}"/>', file=xml)
         print('</paw_dataset>', file=xml)
 
     def build(self, xcfunc, lmax, basis, filter=None):

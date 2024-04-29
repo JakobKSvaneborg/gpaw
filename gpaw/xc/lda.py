@@ -2,8 +2,9 @@ from math import sqrt, pi
 
 import numpy as np
 
-from gpaw.xc.functional import XCFunctional
+from gpaw.new import trace
 from gpaw.sphere.lebedev import Y_nL, weight_n
+from gpaw.xc.functional import XCFunctional
 
 
 class LDARadialExpansion:
@@ -32,6 +33,7 @@ class LDARadialExpansion:
         return E, dEdD_sqL
 
 
+@trace
 def calculate_paw_correction(expansion,
                              setup, D_sp, dEdD_sp=None,
                              addcoredensity=True, a=None):

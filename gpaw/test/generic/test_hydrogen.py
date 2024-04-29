@@ -1,5 +1,6 @@
 from math import log
 
+import numpy as np
 import pytest
 from ase import Atoms
 from ase.db import connect
@@ -64,4 +65,4 @@ def test_generic_hydrogen(in_tmp_dir, needs_ase_master):
 
     # Test get_electrostatic_potential() method
     v = hydrogen.calc.get_electrostatic_potential()
-    print(v.shape, v.ptp())
+    print(v.shape, np.ptp(v))

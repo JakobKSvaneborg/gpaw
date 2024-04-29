@@ -173,13 +173,8 @@ def calculate_exx_for_pair(k1,
             {a: Q_nnL[n1, n2a:n2b]
              for a, Q_nnL in enumerate(Q_annL)},
             f_GI)
-
         for n2, rho_G in enumerate(rho_nG[:n2b - n2a], n2a):
             vrho_G = v_G * rho_G
-            if F_av:
-                for a, v_xL in ghat.derivative(vrho_G).items():
-                    print(a, v_xL.shape)
-                1 / 0
             e = ghat.pd.integrate(rho_G, vrho_G).real
             e_nn[n1, n2] = e
             if k1 is k2:

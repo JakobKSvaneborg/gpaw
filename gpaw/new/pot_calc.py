@@ -19,7 +19,7 @@ import numpy as np
 from gpaw.core.arrays import DistributedArrays
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.uniform_grid import UGArray
-from gpaw.new import zips
+from gpaw.new import trace, zips
 from gpaw.new.potential import Potential
 from gpaw.new.xc import Functional
 from gpaw.setup import Setup
@@ -67,6 +67,21 @@ class PotentialCalculator:
     def restrict(self, a_r, a_R=None):
         raise NotImplementedError
 
+    def calculate_without_orbitals(self,
+                                   density,
+                                   ibzwfs=None,
+                                   vHt_x: DistributedArrays | None = None,
+                                   kpt_band_comm: MPIComm | None = None
+                                   ) -> tuple[Potential, AtomArrays]:
+        xc = self.xc
+        if xc.exx_fraction != 0.0:
+            from gpaw.new.xc import create_functional
+            self.xc = create_functional('PBE', xc.grid)
+        potential, Q_al = self.calculate(density, ibzwfs, vHt_x, kpt_band_comm)
+        if xc.exx_fraction != 0.0:
+            self.xc = xc
+        return potential, Q_al
+
     def calculate(self,
                   density,
                   ibzwfs=None,
@@ -108,7 +123,7 @@ class PotentialCalculator:
             self.soc,
             kpt_band_comm)
 
-        energies['spinorbit'] = 0
+        energies['spinorbit'] = 0.0
         for key, e in corrections.items():
             if 0:
                 print(f'{key:10} {energies[key]:15.9f} {e:15.9f}')
@@ -117,6 +132,7 @@ class PotentialCalculator:
         return Potential(vt_sR, dH_asii, dedtaut_sR, energies, vHt_x), Q_aL
 
 
+@trace
 def calculate_non_local_potential(setups,
                                   density,
                                   xc,

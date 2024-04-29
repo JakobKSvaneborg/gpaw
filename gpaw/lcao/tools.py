@@ -540,7 +540,7 @@ def makeV(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
           log='V_qq.log', fft=False):
 
     with IOContext() as io:
-        log = io.openfile(log)
+        log = io.openfile(log, comm=serial_comm)
         _makeV(gpwfile=gpwfile, orbitalfile=orbitalfile,
                rotationfile=rotationfile, coulombfile=coulombfile,
                log=log, fft=fft)

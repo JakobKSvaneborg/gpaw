@@ -11,7 +11,7 @@ from gpaw.core.plane_waves import PWDesc
 from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.gpu import as_np
 from gpaw.mpi import MPIComm
-from gpaw.new import zips
+from gpaw.new import trace, zips
 from gpaw.typing import Array3D, Vector
 from gpaw.utilities import unpack_hermitian, unpack_density
 from gpaw.new.symmetry import SymmetrizationPlan
@@ -176,6 +176,7 @@ class Density:
             self.nct_aX,
             self.tauct_aX)
 
+    @trace
     def calculate_compensation_charge_coefficients(self) -> AtomArrays:
         xp = self.D_asii.layout.xp
         ccc_aL = AtomArraysLayout(
@@ -305,7 +306,7 @@ class Density:
                 y, z, x = ccc_L[1:4]
                 dip_v -= np.array([x, y, z]) * (4 * pi / 3)**0.5
         self.nt_sR.desc.comm.sum(dip_v)
-        for nt_R in self.nt_sR:
+        for nt_R in self.nt_sR[:self.ndensities]:
             dip_v -= as_np(nt_R.moment())
         return dip_v
 
