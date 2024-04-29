@@ -10,8 +10,7 @@ from gpaw.mpi import world
 def test_mme_Ni(gpw_files):
 
     # Collinear calculation
-    nlodata = make_nlodata(gpw_files['fcc_Ni_col'],
-                           ni=0, nf=3, comm=world).distribute()
+    nlodata = make_nlodata(gpw_files['fcc_Ni_col'], ni=0, nf=3).distribute()
 
     data1 = nlodata[34]  # k = (0.5, 0.5, 0.25), s = 0
     E1_col_n = data1[2]
@@ -22,12 +21,12 @@ def test_mme_Ni(gpw_files):
     p2_col_vnn = np.abs(data2[3])
 
     # Noncollinear calculation
-    nlodata = make_nlodata(gpw_files['fcc_Ni_ncol'],
-                           ni=0, nf=6, comm=world).distribute()
+    nlodata = make_nlodata(gpw_files['fcc_Ni_ncol'], ni=0, nf=6).distribute()
 
     data = nlodata[62]  # k = (0.5, 0.5, 0.25), s = 0
     E_ncol_n = data[2]
     p_ncol_vnn = np.abs(data[3])
+
     # print(np.abs(p1_col_vnn[0]))
     # print(' ')
     # print(np.abs(p2_col_vnn[0]))

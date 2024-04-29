@@ -1,12 +1,12 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 """Main gpaw module."""
+from __future__ import annotations
 import os
 import sys
 import contextlib
 from pathlib import Path
-from typing import List, Dict, Union, Any, TYPE_CHECKING
-
+from typing import List, Union, Any, TYPE_CHECKING
 
 __version__ = '24.1.0'
 __ase_version_required__ = '3.22.1'
@@ -75,11 +75,11 @@ class BadParallelization(Exception):
     pass
 
 
-def get_libraries():
-    import _gpaw
-    libraries: Dict[str, str] = {}
-    if hasattr(_gpaw, 'lxcXCFunctional'):
-        libraries['libxc'] = getattr(_gpaw, 'libxc_version', '2.x.y')
+def get_libraries() -> dict[str, str]:
+    import gpaw.cgpaw as cgpaw
+    libraries: dict[str, str] = {}
+    if hasattr(cgpaw, 'lxcXCFunctional'):
+        libraries['libxc'] = getattr(cgpaw, 'libxc_version', '2.x.y')
     else:
         libraries['libxc'] = ''
     return libraries
@@ -98,11 +98,6 @@ def parse_arguments(argv):
 
     if is_gpaw_python:
         sys.setdlopenflags(old_dlopen_flags)
-
-    import _gpaw
-
-    if getattr(_gpaw, 'version', 0) != 4:
-        raise ImportError('Please recompile GPAW''s C-extensions!')
 
     version = sys.version.replace('\n', '')
     p = ArgumentParser(usage='%(prog)s [OPTION ...] [-c | -m] SCRIPT'

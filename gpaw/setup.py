@@ -7,12 +7,12 @@ import numpy as np
 from ase.data import chemical_symbols
 
 from gpaw import debug
-from gpaw.basis_data import Basis
+from gpaw.basis_data import Basis, BasisFunction
 from gpaw.gaunt import gaunt, nabla
 from gpaw.overlap import OverlapCorrections
 from gpaw.setup_data import SetupData, search_for_file
 from gpaw.spline import Spline
-from gpaw.utilities import pack, unpack
+from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.xc import XC
 from gpaw.new import zips
 from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
@@ -297,7 +297,7 @@ class BaseSetup:
         j = 0
         i = 0
         ib = 0
-        for phit in self.basis_functions_J:
+        for J, phit in enumerate(self.basis_functions_J):
             l = phit.get_angular_momentum_number()
             # Skip functions not in basis set:
             while j < nj and self.l_j[j] != l:
@@ -306,13 +306,21 @@ class BaseSetup:
             if j == nj:
                 break
 
+            n = self.n_j[j]
+            if n > 0:
+                nb = self.basis.bf_j[J].n
+                if nb is not None and nb != n:
+                    raise ValueError('Basis not compatible with PAW potential')
+            else:
+                assert (f_si[:, ib:ib + 2 * l + 1] == 0).all()
+
             for m in range(2 * l + 1):
                 D_sii[:, i + m, i + m] = f_si[:, ib + m]
             j += 1
             i += 2 * l + 1
             ib += 2 * l + 1
         for s in range(nspins):
-            D_sp[s] = pack(D_sii[s])
+            D_sp[s] = pack_density(D_sii[s])
         return D_sp
 
     def get_partial_waves(self):
@@ -423,10 +431,10 @@ class BaseSetup:
                 p1 += 1
 
         # To unpack into I4_iip do:
-        # from gpaw.utilities import unpack
+        # from gpaw.utilities import unpack_hermitian
         # I4_iip = np.empty((ni, ni, _np)):
         # for p in range(_np):
-        #     I4_iip[..., p] = unpack(I4_pp[:, p])
+        #     I4_iip[..., p] = unpack_hermitian(I4_pp[:, p])
 
         return self.I4_pp
 
@@ -489,41 +497,36 @@ class BaseSetup:
 
     def calculate_integral_potentials(self, func):
         """Calculates a set of potentials using func."""
-        wg_lg = [func(self, self.g_lg[l], l)
+        wg_lg = [func(self.g_lg[l], l)
                  for l in range(self.lmax + 1)]
-        wn_lqg = [np.array([func(self, self.local_corr.n_qg[q], l)
-                            for q in range(self.local_corr.nq)])
+        wn_lqg = [np.array([func(self.local_corr.n_qg[q], l)
+                            for q in range(self.nq)])
                   for l in range(2 * self.local_corr.lcut + 1)]
-        wnt_lqg = [np.array([func(self, self.local_corr.nt_qg[q], l)
-                             for q in range(self.local_corr.nq)])
+        wnt_lqg = [np.array([func(self.local_corr.nt_qg[q], l)
+                             for q in range(self.nq)])
                    for l in range(2 * self.local_corr.lcut + 1)]
-        wnc_g = func(self, self.local_corr.nc_g, l=0)
-        wnct_g = func(self, self.local_corr.nct_g, l=0)
+        wnc_g = func(self.local_corr.nc_g, l=0)
+        wnct_g = func(self.local_corr.nct_g, l=0)
         wmct_g = wnct_g + self.Delta0 * wg_lg[0]
         return wg_lg, wn_lqg, wnt_lqg, wnc_g, wnct_g, wmct_g
 
     def calculate_yukawa_interaction(self, gamma):
         """Calculate and return the Yukawa based interaction."""
-        if self._Mg_pp is not None and gamma == self._gamma:
-            return self._Mg_pp  # Cached
 
         # Solves the radial screened poisson equation for density n_g
-        def Yuk(self, n_g, l):
+        def Yuk(n_g, l):
             """Solve radial screened poisson for density n_g."""
-            gamma = self._gamma
             return self.local_corr.rgd2.yukawa(n_g, l, gamma) * \
                 self.local_corr.rgd2.r_g * self.local_corr.rgd2.dr_g
 
-        self._gamma = gamma
-        self._Mg_pp = self.calculate_vvx_interactions(Yuk)
-        return self._Mg_pp
+        return self.calculate_vvx_interactions(Yuk)
 
     def calculate_erfc_interaction(self, omega):
         """Calculate and return erfc based valence valence
            exchange interactions."""
         hse = RadialHSE(self.local_corr.rgd2, omega).screened_coulomb_dv
 
-        def erfc_interaction(_, n_g, l):
+        def erfc_interaction(n_g, l):
             return hse(n_g, l)
         return self.calculate_vvx_interactions(erfc_interaction)
 
@@ -532,9 +535,8 @@ class BaseSetup:
            interaction."""
         (wg_lg, wn_lqg, wnt_lqg, wnc_g, wnct_g, wmct_g) = \
             self.calculate_integral_potentials(interaction)
-        self._Mg_pp = self.calculate_coulomb_corrections(
+        return self.calculate_coulomb_corrections(
             wn_lqg, wnt_lqg, wg_lg, wnc_g, wmct_g)[1]
-        return self._Mg_pp
 
 
 class LeanSetup(BaseSetup):
@@ -548,7 +550,7 @@ class LeanSetup(BaseSetup):
         # This needs cleaning.
         self.hubbard_u = hubbard_u
 
-        self.lq = s.lq  # Required for LDA+U I think.
+        self.N0_q = s.N0_q  # Required for LDA+U.
         self.type = s.type  # required for writing to file
         self.fingerprint = s.fingerprint  # also req. for writing
         self.filename = s.filename
@@ -597,6 +599,7 @@ class LeanSetup(BaseSetup):
         self.l_j = s.l_j
         self.l_orb_J = s.l_orb_J
         self.nj = len(s.l_j)
+        self.nq = s.nq
 
         self.data = s.data
 
@@ -622,8 +625,6 @@ class LeanSetup(BaseSetup):
 
         # XAS stuff
         self.phicorehole_g = s.phicorehole_g  # should be optional
-        if s.phicorehole_g is not None:
-            self.A_ci = s.A_ci  # oscillator strengths
 
         # Required to get all electron density
         self.rgd = s.rgd
@@ -644,7 +645,6 @@ class LeanSetup(BaseSetup):
 
         # Required by yukawa rsf
         self.X_pg = s.X_pg
-        self.X_gamma = s.X_gamma
 
         # Required by electrostatic correction
         self.dEH0 = s.dEH0
@@ -664,8 +664,6 @@ class LeanSetup(BaseSetup):
             self.local_corr = s.local_corr
         else:
             self.local_corr = LocalCorrectionVar(s)
-        self._Mg_pp = None
-        self._gamma = 0
 
 
 class Setup(BaseSetup):
@@ -751,6 +749,7 @@ class Setup(BaseSetup):
         self.f_j = data.f_j
         self.eps_j = data.eps_j
         nj = self.nj = len(l_j)
+        self.nq = nj * (nj + 1) // 2
         rcut_j = self.rcut_j = data.rcut_j
 
         self.ExxC = data.ExxC
@@ -758,7 +757,6 @@ class Setup(BaseSetup):
         self.X_p = data.X_p
         self.X_wp = data.X_wp
 
-        self.X_gamma = data.X_gamma
         self.X_pg = data.X_pg
 
         self.orbital_free = data.orbital_free
@@ -776,22 +774,17 @@ class Setup(BaseSetup):
 
         self.lmax = lmax
 
-        self._Mg_pp = None  # Yukawa based corrections
-        self._gamma = 0
         # Attributes for run-time calculation of _Mg_pp
         self.local_corr = LocalCorrectionVar(data)
 
         rcutmax = max(rcut_j)
         rcut2 = 2 * rcutmax
-        gcut2 = rgd.ceil(rcut2)
-        self.gcut2 = gcut2
-
-        self.gcutmin = rgd.ceil(min(rcut_j))
+        gcut2 = self.gcut2 = rgd.ceil(rcut2)
 
         vbar_g = data.vbar_g
 
         if float(data.version) < 0.7 and data.generator_version < 2:
-            # Old-style Fourier-filtered datatsets.
+            # Old-style Fourier-filtered datasets.
             # Find Fourier-filter cutoff radius:
             gcutfilter = rgd.get_cutoff(pt_jg[0])
 
@@ -835,7 +828,6 @@ class Setup(BaseSetup):
         self.ni = ni
 
         _np = ni * (ni + 1) // 2
-        self.local_corr.nq = nj * (nj + 1) // 2
 
         lcut = max(l_j)
         if 2 * lcut < lmax:
@@ -846,11 +838,6 @@ class Setup(BaseSetup):
 
         self.fcorehole = data.fcorehole
         self.lcorehole = data.lcorehole
-        if data.phicorehole_g is not None:
-            if self.lcorehole == 0:
-                self.calculate_oscillator_strengths(phi_jg)
-            else:
-                self.A_ci = None
 
         # Construct splines:
         self.vbar = rgd.spline(vbar_g, rcutfilter)
@@ -913,7 +900,7 @@ class Setup(BaseSetup):
                                                     self.local_corr.T_Lqp)
 
         # Solves the radial poisson equation for density n_g
-        def H(self, n_g, l):
+        def H(n_g, l):
             return rgd2.poisson(n_g, l) * r_g * dr_g
 
         (wg_lg, wn_lqg, wnt_lqg, wnc_g, wnct_g, wmct_g) = \
@@ -952,31 +939,19 @@ class Setup(BaseSetup):
         for omega in self.ExxC_w:
             self.M_wpp[omega] = self.calculate_erfc_interaction(omega)
 
-        if xc.type == 'GLLB':
-            if 'core_f' in self.extra_xc_data:
-                self.wnt_lqg = wnt_lqg
-                self.wn_lqg = wn_lqg
-                self.fc_j = self.extra_xc_data['core_f']
-                self.lc_j = self.extra_xc_data['core_l']
-                self.njcore = len(self.lc_j)
-                if self.njcore > 0:
-                    self.uc_jg = self.extra_xc_data['core_states'].reshape(
-                        (self.njcore, -1))
-                    self.uc_jg = self.uc_jg[:, :gcut2]
-                self.phi_jg = phi_jg
-
         self.Kc = data.e_kinetic_core - data.e_kinetic
         self.M -= data.e_electrostatic
         self.E = data.e_total
 
-        Delta0_ii = unpack(self.Delta_pL[:, 0].copy())
+        Delta0_ii = unpack_hermitian(self.Delta_pL[:, 0].copy())
         self.dO_ii = data.get_overlap_correction(Delta0_ii)
         self.dC_ii = self.get_inverse_overlap_coefficients(self.B_ii,
                                                            self.dO_ii)
 
         self.Delta_iiL = np.zeros((ni, ni, self.Lmax))
         for L in range(self.Lmax):
-            self.Delta_iiL[:, :, L] = unpack(self.Delta_pL[:, L].copy())
+            self.Delta_iiL[:, :, L] = unpack_hermitian(
+                self.Delta_pL[:, L].copy())
 
         self.Nct = data.get_smooth_core_density_integral(self.Delta0)
         self.K_p = data.get_linear_kinetic_correction(self.local_corr.T_Lqp[0])
@@ -1004,7 +979,7 @@ class Setup(BaseSetup):
         Lcut = (2 * lcut + 1)**2
         G_LLL = gaunt(max(self.l_j))[:, :, :Lcut]
         LGcut = G_LLL.shape[2]
-        T_Lqp = np.zeros((Lcut, self.local_corr.nq, _np))
+        T_Lqp = np.zeros((Lcut, self.nq, _np))
         p = 0
         i1 = 0
         for j1, l1, L1 in jlL_i:
@@ -1041,23 +1016,33 @@ class Setup(BaseSetup):
     def get_compensation_charges(self, phi_jg, phit_jg, _np, T_Lqp):
         lmax = self.lmax
         gcut2 = self.gcut2
-        nq = self.local_corr.nq
+        rcut_j = self.rcut_j
+        nq = self.nq
+
+        rgd = self.local_corr.rgd2
+        r_g = rgd.r_g
+        dr_g = rgd.dr_g
 
         g_lg = self.data.create_compensation_charge_functions(lmax)
 
         n_qg = np.zeros((nq, gcut2))
         nt_qg = np.zeros((nq, gcut2))
+        gcut_q = np.zeros(nq, dtype=int)
+        N0_q = np.zeros(nq)
         q = 0  # q: common index for j1, j2
         for j1 in range(self.nj):
             for j2 in range(j1, self.nj):
                 n_qg[q] = phi_jg[j1] * phi_jg[j2]
                 nt_qg[q] = phit_jg[j1] * phit_jg[j2]
+
+                gcut = rgd.ceil(min(rcut_j[j1], rcut_j[j2]))
+                N0_q[q] = sum(n_qg[q, :gcut] * r_g[:gcut]**2 * dr_g[:gcut])
+                gcut_q[q] = gcut
+
                 q += 1
 
-        gcutmin = self.gcutmin
-        r_g = self.local_corr.rgd2.r_g
-        dr_g = self.local_corr.rgd2.dr_g
-        self.lq = np.dot(n_qg[:, :gcutmin], r_g[:gcutmin]**2 * dr_g[:gcutmin])
+        self.gcut_q = gcut_q
+        self.N0_q = N0_q
 
         Delta_lq = np.zeros((lmax + 1, nq))
         for l in range(lmax + 1):
@@ -1076,10 +1061,7 @@ class Setup(BaseSetup):
 
         # Electron density inside augmentation sphere.  Used for estimating
         # atomic magnetic moment:
-        rcutmax = max(self.rcut_j)
-        gcutmax = self.rgd.round(rcutmax)
-        N0_q = np.dot(n_qg[:, :gcutmax], (r_g**2 * dr_g)[:gcutmax])
-        N0_p = np.dot(N0_q, T_Lqp[0]) * sqrt(4 * pi)
+        N0_p = N0_q @ T_Lqp[0] * sqrt(4 * pi)
 
         return (g_lg[:, :gcut2].copy(), n_qg, nt_qg,
                 Delta_lq, Lmax, Delta_pL, Delta0, N0_p)
@@ -1220,22 +1202,12 @@ class Setup(BaseSetup):
         a_g = 4 * x**3 * (1 - 0.75 * x)
         b_g = x**3 * (x - 1) * (rcut3 - rcut2)
 
-        class PartialWaveBasis(Basis):  # yuckkk
-            def __init__(self, symbol, phit_J):
-                Basis.__init__(self, symbol, 'partial-waves', readxml=False)
-                self._basis_functions_J = phit_J
-
-            def tosplines(self):
-                return self._basis_functions_J
-
-            def get_description(self):
-                template = 'Using partial waves for %s as LCAO basis'
-                string = template % self.symbol
-                return string
-
         basis_functions_J = []
+        n_J = []
         for j, phit_g in enumerate(phit_jg):
-            if self.n_j[j] > 0:
+            n = self.n_j[j]
+            if n > 0:
+                n_J.append(n)
                 l = self.l_j[j]
                 phit_g = phit_g.copy()
                 phit = phit_g[gcut3]
@@ -1245,28 +1217,24 @@ class Setup(BaseSetup):
                 phit_g[gcut3:] = 0.0
                 basis_function = self.rgd.spline(phit_g, rcut3, l, points=100)
                 basis_functions_J.append(basis_function)
-        basis = PartialWaveBasis(self.symbol, basis_functions_J)
+        basis = PartialWaveBasis(self.symbol, basis_functions_J, n_J)
         return basis
 
-    def calculate_oscillator_strengths(self, phi_jg):
-        # XXX implement oscillator strengths for lcorehole != 0
-        assert self.lcorehole == 0
-        self.A_ci = np.zeros((3, self.ni))
-        nj = len(phi_jg)
-        i = 0
-        for j in range(nj):
-            l = self.l_j[j]
-            if l == 1:
-                a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                                       n=1) / (4 * pi)
 
-                for m in range(3):
-                    c = (m + 1) % 3
-                    self.A_ci[c, i] = a
-                    i += 1
-            else:
-                i += 2 * l + 1
-        assert i == self.ni
+class PartialWaveBasis(Basis):  # yuckkk
+    def __init__(self, symbol, phit_J, n_J):
+        Basis.__init__(self, symbol, 'partial-waves', readxml=False)
+        self._basis_functions_J = phit_J
+        self.bf_j = [BasisFunction(n, phit.get_angular_momentum_number())
+                     for n, phit in zip(n_J, phit_J)]
+
+    def tosplines(self):
+        return self._basis_functions_J
+
+    def get_description(self):
+        template = 'Using partial waves for %s as LCAO basis'
+        string = template % self.symbol
+        return string
 
 
 class Setups(list):
@@ -1503,6 +1471,18 @@ class FunctionIndices:
 
     def __getitem__(self, a):
         return self.M_a[a], self.M_a[a + 1]
+
+
+class CachedYukawaInteractions:
+    def __init__(self, omega):
+        self.omega = omega
+        self._cache = {}
+
+    def get_Mg_pp(self, setup):
+        if setup not in self._cache:
+            Mg_pp = setup.calculate_yukawa_interaction(self.omega)
+            self._cache[setup] = Mg_pp
+        return self._cache[setup]
 
 
 def types2atomtypes(symbols, types, default):

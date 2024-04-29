@@ -8,6 +8,7 @@ from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.mpi import world
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.tetrahedron
 @pytest.mark.response
 def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):

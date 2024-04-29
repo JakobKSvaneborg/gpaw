@@ -3,9 +3,9 @@ import pytest
 from ase import Atoms
 from ase.units import Hartree
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw import GPAW
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.lrtddft import LrTDDFT
 from gpaw.mpi import world
@@ -15,7 +15,7 @@ from gpaw.test import gen
 
 @pytest.mark.hybrids
 def test_rsf_yukawa_rsf_ivo_sing_mg(in_tmp_dir, add_cwd_to_setup_paths):
-    libxc_version = getattr(_gpaw, 'libxc_version', '2.x.y')
+    libxc_version = getattr(cgpaw, 'libxc_version', '2.x.y')
     if int(libxc_version.split('.')[0]) < 3:
         from unittest import SkipTest
         raise SkipTest
@@ -27,8 +27,8 @@ def test_rsf_yukawa_rsf_ivo_sing_mg(in_tmp_dir, add_cwd_to_setup_paths):
     gen('Mg', xcname='PBE', scalarrel=True, exx=True, yukawa_gamma=0.38)
 
     c = {'energy': 0.05, 'eigenstates': 3, 'density': 3}
-    na2 = Cluster(Atoms('Mg', positions=[[0, 0, 0]]))
-    na2.minimal_box(2.5, h=h)
+    na2 = Atoms('Mg', positions=[[0, 0, 0]])
+    adjust_cell(na2, 2.5, h=h)
     calc = GPAW(mode='fd',
                 txt='mg_ivo.txt',
                 xc='LCY-PBE:omega=0.38:excitation=singlet',

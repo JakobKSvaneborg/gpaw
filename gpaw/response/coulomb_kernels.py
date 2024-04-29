@@ -4,6 +4,22 @@
 import numpy as np
 from ase.dft import monkhorst_pack
 from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.dyson import PWKernel
+
+
+class NewCoulombKernel(PWKernel):
+    def __init__(self, Vbare_G):
+        self.Vbare_G = Vbare_G
+
+    @classmethod
+    def from_qpd(cls, qpd, **kwargs):
+        return cls(get_coulomb_kernel(qpd, **kwargs))
+
+    def get_number_of_plane_waves(self):
+        return len(self.Vbare_G)
+
+    def _add_to(self, x_GG):
+        x_GG.flat[::self.nG + 1] += self.Vbare_G
 
 
 class CoulombKernel:

@@ -1,7 +1,7 @@
 import pytest
 from ase import Atoms
 from ase.optimize import BFGS
-from ase.constraints import ExpCellFilter
+from ase.filters import ExpCellFilter
 from gpaw.new.ase_interface import GPAW
 # from gpaw import GPAW
 

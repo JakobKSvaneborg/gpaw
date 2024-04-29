@@ -8,7 +8,7 @@ from ase import __version__ as ase_version
 from ase.utils import search_current_git_hash, IOContext
 
 import gpaw
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.utilities.memory import maxrss
 
 
@@ -129,12 +129,12 @@ def write_header(log, world):
     log('gpaw:  ', line)
 
     # Find C-code:
-    c = getattr(_gpaw, '__file__', None)
+    c = getattr(cgpaw._gpaw, '__file__', None)
     if not c:
         c = sys.executable
     line = os.path.normpath(c)
-    if hasattr(_gpaw, 'githash'):
-        line += f' ({_gpaw.githash():.10})'
+    if hasattr(cgpaw, 'githash'):
+        line += f' ({cgpaw.githash():.10})'
     log('_gpaw: ', cut(line))
 
     # ASE
@@ -153,10 +153,10 @@ def write_header(log, world):
     # Explicitly deleting SciPy seems to remove garbage collection
     # problem of unknown cause
     del sp
-    log('libxc: ', getattr(_gpaw, 'libxc_version', '2.x.y'))
+    log('libxc: ', getattr(cgpaw, 'libxc_version', '2.x.y'))
     log('units:  Angstrom and eV')
     log('cores:', world.size)
-    log('OpenMP:', _gpaw.have_openmp)
+    log('OpenMP:', cgpaw.have_openmp)
     log('OMP_NUM_THREADS:', os.environ['OMP_NUM_THREADS'])
 
     if gpaw.debug:

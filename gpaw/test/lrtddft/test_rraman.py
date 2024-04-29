@@ -2,7 +2,7 @@ import pytest
 from ase.build import molecule
 
 from gpaw import GPAW, FermiDirac
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.lrtddft import LrTDDFT
 
 
@@ -10,8 +10,8 @@ from gpaw.lrtddft import LrTDDFT
 def test_lrtddft(in_tmp_dir):
     from ase.vibrations.resonant_raman import ResonantRamanCalculator
     h = 0.25
-    H2 = Cluster(molecule('H2'))
-    H2.minimal_box(3., h=h)
+    H2 = molecule('H2')
+    adjust_cell(H2, 3., h=h)
     H2.calc = GPAW(mode='fd', h=h, occupations=FermiDirac(width=0.2),
                    symmetry='off')
 

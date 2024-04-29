@@ -1,6 +1,6 @@
 # web-page: hybrid.png
 import numpy as np
-import pylab as plt
+import matplotlib.pyplot as plt
 
 # Plot spectrum with r=0nm and r=5nm
 spec0 = np.loadtxt('spec.1.dat')  # AuNP

@@ -14,7 +14,7 @@ from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_float, world
 from gpaw.new import zips
 from gpaw.new.density import Density
-from gpaw.new.ibzwfs import IBZWaveFunctions, create_ibz_wave_functions
+from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
@@ -28,9 +28,17 @@ from gpaw.utilities.partition import AtomPartition
 
 
 class ReuseWaveFunctionsError(Exception):
-    """Reusing the old wave functions after cell change failed.
+    """Reusing the old wave functions after cell-change failed.
 
     Most likekly, the number of k-points changed.
+    """
+
+
+class CalculationModeError(Exception):
+    """Calculation mode does not match what is expected from a given method.
+
+    For example, if a method only works in collinear mode and receives a
+    calculator in non-collinear mode, this exception should be raised.
     """
 
 
@@ -65,6 +73,7 @@ class DFTState:
     def move(self, fracpos_ac, atomdist):
         self.ibzwfs.move(fracpos_ac, atomdist)
         self.density.move(fracpos_ac, atomdist)
+        self.potential.move(atomdist)
 
 
 class DFTCalculation:
@@ -227,7 +236,8 @@ class DFTCalculation:
         if 'forces' not in self.results or silent:
             self._calculate_forces()
 
-        if not silent:
+            if silent:
+                return
             self.log('\nforces: [  # eV/Ang')
             F_av = self.results['forces'] * (Ha / Bohr)
             for a, setup in enumerate(self.setups):
@@ -357,7 +367,7 @@ class DFTCalculation:
                 builder.fracpos_ac,
                 builder.atomdist)
 
-        ibzwfs = create_ibz_wave_functions(
+        ibzwfs = ibzwfs.create(
             ibz=builder.ibz,
             nelectrons=old_ibzwfs.nelectrons,
             ncomponents=old_ibzwfs.ncomponents,

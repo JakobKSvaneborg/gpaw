@@ -74,10 +74,10 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
     # Check that results are consistent, when structure is simply repeated
 
     # Read results
-    w11_w, G11_Gc, chi11_wGG = read_susceptibility_array('Al1_chiGG_q1.pckl')
-    w21_w, G21_Gc, chi21_wGG = read_susceptibility_array('Al2_chiGG_q1.pckl')
-    w12_w, G12_Gc, chi12_wGG = read_susceptibility_array('Al1_chiGG_q2.pckl')
-    w22_w, G22_Gc, chi22_wGG = read_susceptibility_array('Al2_chiGG_q2.pckl')
+    w11_w, G11_Gc, chi11_wGG = read_susceptibility_array('Al1_chiGG_q1.npz')
+    w21_w, G21_Gc, chi21_wGG = read_susceptibility_array('Al2_chiGG_q1.npz')
+    w12_w, G12_Gc, chi12_wGG = read_susceptibility_array('Al1_chiGG_q2.npz')
+    w22_w, G22_Gc, chi22_wGG = read_susceptibility_array('Al2_chiGG_q2.npz')
 
     # Check that reciprocal lattice vectors remain as assumed in check below
     assert np.linalg.norm(G11_Gc[0]) == pytest.approx(0., abs=1e-6)
@@ -99,16 +99,16 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
 
 def calculate_chi(calc, q_qc, w,
                   eta=0.2, ecut=50,
-                  spincomponent='00', fxc='RPA',
+                  spincomponent='00', fxc=None,
                   filename_prefix=None, reduced_ecut=25):
     gs = ResponseGroundStateAdapter(calc)
     chiks_calc = ChiKSCalculator(gs, ecut=ecut)
     chi_factory = ChiFactory(chiks_calc)
 
     if filename_prefix is None:
-        filename = 'chiGG_qXXX.pckl'
+        filename = 'chiGG_qXXX.npz'
     else:
-        filename = filename_prefix + '_chiGG_qXXX.pckl'
+        filename = filename_prefix + '_chiGG_qXXX.npz'
 
     for q, q_c in enumerate(q_qc):
         fname = filename.replace('XXX', str(q + 1))

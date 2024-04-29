@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Union
 from pathlib import Path
 from functools import cached_property
 from types import SimpleNamespace
@@ -9,12 +10,12 @@ from ase.units import Ha, Bohr
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
+from gpaw.response.paw import LeanPAWDataset
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
     from gpaw.calculator import GPAW
     from gpaw.setup import Setups, LeanSetup
-    from gpaw.response.context import ResponseContext
 
 
 class PAWDatasetCollection:
@@ -33,6 +34,9 @@ class PAWDatasetCollection:
         self.by_species = by_species
         self.by_atom = by_atom
         self.id_by_atom = id_by_atom
+
+
+GPWFilename = Union[Path, str]
 
 
 class ResponseGroundStateAdapter:
@@ -76,18 +80,12 @@ class ResponseGroundStateAdapter:
         self._calc = calc
 
     @classmethod
-    def from_gpw_file(cls, gpw: Path | str,
-                      context: ResponseContext) -> ResponseGroundStateAdapter:
+    def from_gpw_file(cls, gpw: GPWFilename) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
         from gpaw import GPAW, disable_dry_run
         assert Path(gpw).is_file()
-
-        context.print('Reading ground state calculation:\n  %s' % gpw)
-
-        with context.timer('Read ground state'):
-            with disable_dry_run():
-                calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
-
+        with disable_dry_run():
+            calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
         return cls(calc)
 
     @property
@@ -257,6 +255,19 @@ class ResponseGroundStateAdapter:
             nocc2 = max((f_n > ftol).sum(), nocc2)
         return nocc1, nocc2
 
+    def get_eigenvalue_range(self, nbands: int | None = None):
+        """Get smallest and largest Kohn-Sham eigenvalues."""
+        if nbands is None:
+            nbands = self.bd.nbands
+        assert 1 <= nbands <= self.bd.nbands
+
+        epsmin = np.inf
+        epsmax = -np.inf
+        for kpt in self.kpt_u:
+            epsmin = min(epsmin, kpt.eps_n[0])  # the eigenvalues are ordered
+            epsmax = max(epsmax, kpt.eps_n[nbands - 1])
+        return epsmin, epsmax
+
     @property
     def metallic(self):
         # Does the number of filled bands equal the number of non-empty bands?
@@ -304,16 +315,16 @@ class ResponseGroundStateAdapter:
 
 # Contains all the relevant information
 # from Setups class for response calculators
-class ResponsePAWDataset:
-    def __init__(self, setup: LeanSetup):
-        self.ni = setup.ni
-        self.rgd = setup.rgd
-        self.rcut_j = setup.rcut_j
-        self.l_j = setup.l_j
-        self.lq = setup.lq
+class ResponsePAWDataset(LeanPAWDataset):
+    def __init__(self, setup: LeanSetup, **kwargs):
+        super().__init__(
+            rgd=setup.rgd, l_j=setup.l_j, rcut_j=setup.rcut_j,
+            phit_jg=setup.data.phit_jg, phi_jg=setup.data.phi_jg, **kwargs)
+        assert setup.ni == self.ni
+
+        self.n_j = setup.n_j
+        self.N0_q = setup.N0_q
         self.nabla_iiv = setup.nabla_iiv
-        self.data = SimpleNamespace(phi_jg=setup.data.phi_jg,
-                                    phit_jg=setup.data.phit_jg)
         self.xc_correction: SimpleNamespace | None
         if setup.xc_correction is not None:
             self.xc_correction = SimpleNamespace(
@@ -323,8 +334,15 @@ class ResponsePAWDataset:
                 nc_corehole_g=setup.xc_correction.nc_corehole_g,
                 B_pqL=setup.xc_correction.B_pqL,
                 e_xc0=setup.xc_correction.e_xc0)
-            self.is_pseudo = False
         else:
+            # If there is no `xc_correction` in the setup, we assume to be
+            # using pseudo potentials.
             self.xc_correction = None
-            self.is_pseudo = True
+            # In this case, we set l_j to an empty list in order to bypass the
+            # calculation of PAW corrections to pair densities etc.
+            # This is quite an ugly hack...
+            # If we want to support pseudo potential calculations for real, we
+            # should skip the PAW corrections at the matrix element calculator
+            # level, not by an odd hack.
+            self.l_j = np.array([], dtype=float)
         self.hubbard_u = setup.hubbard_u

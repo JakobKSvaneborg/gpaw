@@ -14,17 +14,18 @@ from gpaw.lfc import LFC
 from gpaw.poisson import PoissonSolver
 from gpaw.helmholtz import HelmholtzSolver
 from gpaw.transformers import Transformer
-from gpaw.utilities import hartree, pack, pack2, unpack, unpack2, packed_index
+from gpaw.utilities import (hartree, pack_density, pack_hermitian,
+                            packed_index, unpack_density, unpack_hermitian)
 from gpaw.utilities.blas import mmm
 from gpaw.utilities.tools import symmetrize
 from gpaw.xc import XC
 from gpaw.xc.functional import XCFunctional
 from gpaw.xc.kernel import XCNull
+from gpaw.setup import CachedYukawaInteractions
 
 
 class HybridXCBase(XCFunctional):
     orbital_dependent = True
-    omega = None
 
     def __init__(self, name, stencil=2, hybrid=None, xc=None, omega=None):
         """Mix standard functionals with exact exchange.
@@ -162,6 +163,9 @@ class HybridXC(HybridXCBase):
         self.excited = excited
         HybridXCBase.__init__(self, name, hybrid=hybrid, xc=xc, omega=omega,
                               stencil=stencil)
+
+        # Note: self.omega may not be identical to omega!
+        self.yukawa_interactions = CachedYukawaInteractions(self.omega)
 
     def calculate_paw_correction(self, setup, D_sp, dEdD_sp=None,
                                  addcoredensity=True, a=None):
@@ -343,7 +347,8 @@ class HybridXC(HybridXCBase):
                     v_aL = self.ghat.dict()
                     self.ghat.integrate(vt_g, v_aL)
                     for a, v_L in v_aL.items():
-                        v_ii = unpack(np.dot(setups[a].Delta_pL, v_L))
+                        v_ii = unpack_hermitian(
+                            np.dot(setups[a].Delta_pL, v_L))
                         v_ni = kpt.vxx_ani[a]
                         v_nii = kpt.vxx_anii[a]
                         P_ni = P_ani[a]
@@ -402,7 +407,7 @@ class HybridXC(HybridXCBase):
 
             # Get atomic density and Hamiltonian matrices
             D_p = self.density.D_asp[a][kpt.s]
-            D_ii = unpack2(D_p)
+            D_ii = unpack_density(D_p)
             ni = len(D_ii)
 
             # Add atomic corrections to the valence-valence exchange energy
@@ -412,8 +417,9 @@ class HybridXC(HybridXCBase):
             (dexx, dekin) = calculate_vv(ni, D_ii, setup.M_pp, hybrid)
             ekin += dekin
             exx += dexx
+
             if self.rsf is not None:
-                Mg_pp = setup.calculate_yukawa_interaction(self.omega)
+                Mg_pp = self.yukawa_interactions.get_Mg_pp(setup)
                 if is_cam:
                     (dexx, dekin) = calculate_vv(
                         ni, D_ii, Mg_pp, self.cam_beta, addme=True)
@@ -486,7 +492,7 @@ class HybridXC(HybridXCBase):
             P1_i = P_ni[n1]
             P2_i = P_ni[n2]
             D_ii = np.outer(P1_i, P2_i.conj()).real
-            D_p = pack(D_ii)
+            D_p = pack_density(D_ii)
             Q_aL[a] = np.dot(D_p, self.setups[a].Delta_pL)
 
         nt_G = psit_nG[n1] * psit_nG[n2]
@@ -692,7 +698,7 @@ def constructX(gen, gamma=0):
             i1 += 2 * lv1 + 1
 
     # pack X_ii matrix
-    X_p = pack2(X_ii)
+    X_p = pack_hermitian(X_ii)
     return X_p
 
 
@@ -710,7 +716,7 @@ def H_coulomb_val_core(paw, u=0):
     H_nn = np.zeros((paw.wfs.bd.nbands, paw.wfs.bd.nbands),
                     dtype=paw.wfs.dtype)
     for a, P_ni in paw.wfs.kpt_u[u].P_ani.items():
-        X_ii = unpack(paw.wfs.setups[a].X_p)
+        X_ii = unpack_hermitian(paw.wfs.setups[a].X_p)
         H_nn += np.dot(P_ni.conj(), np.dot(X_ii, P_ni.T))
     paw.wfs.gd.comm.sum(H_nn)
     from ase.units import Hartree

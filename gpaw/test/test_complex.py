@@ -25,9 +25,9 @@ def test_complex(in_tmp_dir, gpaw_new):
     mol, calc = restart('N2_complex.gpw')
 
     if gpaw_new:
-        calc.calculation.converge({'eigenstates': 3.5e-9,
-                                   'energy': energy_eps})
-        assert calc.calculation.state.ibzwfs.dtype == complex
+        calc.dft.converge({'eigenstates': 3.5e-9,
+                           'energy': energy_eps})
+        assert calc.dft.state.ibzwfs.dtype == complex
     else:
         assert calc.wfs.dtype == complex
         assert calc.wfs.kpt_u[0].psit_nG.dtype == complex

@@ -13,7 +13,7 @@ from gpaw.solvation import (
 )
 
 
-def write_everything(label):
+def write_everything(calc, label):
     """Writes out all the useful data after the SJM calculation."""
     atoms.write(f'atoms{label}.traj')
     esp = atoms.calc.get_electrostatic_potential()
@@ -24,7 +24,7 @@ def write_everything(label):
         pickle.dump(n, f)
 
 
-def log_potential():
+def log_potential(calc):
     """Saves charge and potential in simple text file for subsequent
     plot."""
     with paropen('potential.txt', 'a') as f:
@@ -99,26 +99,24 @@ cavity = EffectivePotentialCavity(
 dielectric = LinearDielectric(epsinf=epsinf)
 interactions = [SurfaceInteraction(surface_tension=gamma)]
 
-calc = SJM(mode='fd',
-           txt='gpaw-charge.txt',
-           kpts=(4, 4, 1),
-           gpts=(48, 48, 192),
-           xc='PBE',
-           occupations=FermiDirac(0.1),
-           convergence={'work function': 0.001},
-           # Solvated jellium parameters.
-           sj=sj,
-           # Implicit solvent parameters.
-           cavity=cavity,
-           dielectric=dielectric,
-           interactions=interactions)
-
-
-atoms.set_calculator(calc)
+atoms.calc = SJM(
+    mode='fd',
+    txt='gpaw-charge.txt',
+    kpts=(4, 4, 1),
+    gpts=(48, 48, 192),
+    xc='PBE',
+    occupations=FermiDirac(0.1),
+    convergence={'work function': 0.001},
+    # Solvated jellium parameters.
+    sj=sj,
+    # Implicit solvent parameters.
+    cavity=cavity,
+    dielectric=dielectric,
+    interactions=interactions)
 
 for excess_electrons in [-0.2, -0.1, 0., .1, .2]:
     sj['excess_electrons'] = excess_electrons
-    calc.set(sj=sj)
+    atoms.calc.set(sj=sj)
     atoms.get_potential_energy()
-    log_potential()
-    write_everything(label='{:.4f}'.format(excess_electrons))
+    log_potential(atoms.calc)
+    write_everything(atoms.calc, label='{:.4f}'.format(excess_electrons))

@@ -8,15 +8,16 @@ from typing import TYPE_CHECKING
 from ase.units import Ha
 from gpaw.bztools import convex_hull_volume
 from gpaw.response import timer
+from gpaw.response.pair import KPointPairFactory
 from gpaw.response.frequencies import NonLinearFrequencyDescriptor
 from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.integrators import (
     Integrand, PointIntegrator, TetrahedronIntegrator, Domain)
 from gpaw.response.symmetry import PWSymmetryAnalyzer
 
 if TYPE_CHECKING:
-    from gpaw.response.pair import KPointPairFactory, \
-        ActualPairDensityCalculator
+    from gpaw.response.pair import ActualPairDensityCalculator
     from gpaw.response.context import ResponseContext
     from gpaw.response.groundstate import ResponseGroundStateAdapter
 
@@ -48,6 +49,7 @@ class Chi0Integrand(Integrand):
         self.analyzer = analyzer
         self.integrationmode = chi0calc.integrationmode
         self.optical = optical
+        self.blockcomm = chi0calc.blockcomm
 
     @timer('Get matrix element')
     def matrix_element(self, point):
@@ -88,11 +90,10 @@ class Chi0Integrand(Integrand):
             out_ngmax = self.qpd.ngmax
 
         return self._get_any_matrix_element(
-            point, block=not self.optical,
-            target_method=target_method,
+            point, target_method=target_method,
         ).reshape(-1, out_ngmax)
 
-    def _get_any_matrix_element(self, point, block, target_method):
+    def _get_any_matrix_element(self, point, target_method):
         qpd = self.qpd
 
         k_v = point.kpt_c  # XXX c/v discrepancy
@@ -111,13 +112,13 @@ class Chi0Integrand(Integrand):
 
         kptpair = self.kptpair_factory.get_kpoint_pair(
             qpd, point.spin, K, self.n1, self.n2,
-            self.m1, self.m2, block=block)
+            self.m1, self.m2, blockcomm=self.blockcomm)
 
         m_m = np.arange(self.m1, self.m2)
         n_n = np.arange(self.n1, self.n2)
         n_nmG = target_method(qpd, kptpair, n_n, m_m,
                               pawcorr=self._chi0calc.pawcorr,
-                              block=block)
+                              block=True)
 
         if self.integrationmode is None:
             n_nmG *= weight
@@ -161,19 +162,33 @@ class Chi0Integrand(Integrand):
 class Chi0ComponentCalculator:
     """Base class for the Chi0XXXCalculator suite."""
 
-    def __init__(self, kptpair_factory,
-                 context=None,
+    def __init__(self, gs, context, *, nblocks,
                  disable_point_group=False,
                  disable_time_reversal=False,
                  integrationmode=None):
-        """Set up attributes common to all chi0 related calculators."""
-        self.kptpair_factory = kptpair_factory
-        self.gs = kptpair_factory.gs
+        """Set up attributes common to all chi0 related calculators.
 
-        if context is None:
-            context = kptpair_factory.context
-        assert kptpair_factory.context.comm is context.comm
+        Parameters
+        ----------
+        nblocks : int
+            Divide response function memory allocation in nblocks.
+        disable_point_group : bool
+            Disable point group symmetry in k-integration and symmetrization.
+        disable_time_reversal : bool
+            Disable time reversal symmetry k-integration and symmetrization.
+        integrationmode : str or None
+            Integrator for the k-point integration.
+            If == 'tetrahedron integration' then the kpoint integral is
+            performed using the linear tetrahedron method. If None, point
+            integration is used.
+        """
+        self.gs = gs
         self.context = context
+        self.kptpair_factory = KPointPairFactory(gs, context)
+
+        self.nblocks = nblocks
+        self.blockcomm, self.kncomm = block_partition(
+            self.context.comm, self.nblocks)
 
         self.disable_point_group = disable_point_group
         self.disable_time_reversal = disable_time_reversal
@@ -181,10 +196,6 @@ class Chi0ComponentCalculator:
         # Set up integrator
         self.integrationmode = integrationmode
         self.integrator = self.construct_integrator()
-
-    @property
-    def nblocks(self):
-        return self.kptpair_factory.nblocks
 
     @property
     def pbc(self):
@@ -196,7 +207,8 @@ class Chi0ComponentCalculator:
         return cls(
             cell_cv=self.gs.gd.cell_cv,
             context=self.context,
-            nblocks=self.nblocks)
+            blockcomm=self.blockcomm,
+            kncomm=self.kncomm)
 
     def get_integrator_cls(self):  # -> Integrator or child of Integrator
         """Get the appointed k-point integrator class."""
@@ -324,23 +336,39 @@ class Chi0ComponentCalculator:
 class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
     """Base class for Chi0XXXCalculators, which utilize a plane-wave basis."""
 
-    def __init__(self, kptpair_factory: KPointPairFactory,
+    def __init__(self, gs, context,
                  *,
                  wd,
                  hilbert=True,
                  nbands=None,
                  timeordered=False,
-                 ecut=None,
+                 ecut=50.0,
                  eta=0.2,
                  **kwargs):
         """Set up attributes to calculate the chi0 body and optical extensions.
-        """
-        super().__init__(kptpair_factory, **kwargs)
 
-        if ecut is None:
-            ecut = 50.0
-        ecut /= Ha
-        self.ecut = ecut
+        Parameters
+        ----------
+        wd : FrequencyDescriptor
+            Frequencies for which the chi0 component is evaluated.
+        hilbert : bool
+            Hilbert transform flag. If True, the dissipative part of the chi0
+            component is evaluated, and the reactive part is calculated via a
+            hilbert transform. Only works for frequencies on the real axis and
+            requires a nonlinear frequency grid.
+        nbands : int
+            Number of bands to include.
+        timeordered : bool
+            Flag for calculating the time ordered chi0 component. Used for
+            G0W0, which performs its own hilbert transform.
+        ecut : float
+            Plane-wave energy cutoff in eV.
+        eta : float
+            Artificial broadening of the chi0 component in eV.
+        """
+        super().__init__(gs, context, **kwargs)
+
+        self.ecut = ecut / Ha
         self.nbands = nbands or self.gs.bd.nbands
 
         self.wd = wd
@@ -362,7 +390,7 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
 
     @property
     def pair_calc(self) -> ActualPairDensityCalculator:
-        return self.kptpair_factory.pair_calculator()
+        return self.kptpair_factory.pair_calculator(self.blockcomm)
 
     def construct_integral_task(self):
         if self.eta == 0:

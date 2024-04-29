@@ -2,7 +2,7 @@ from ase.build import molecule
 from ase.parallel import parprint
 
 from gpaw import GPAW
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.analyse.hirshfeld import HirshfeldDensity, HirshfeldPartitioning
 from gpaw.analyse.wignerseitz import WignerSeitz
 import pytest
@@ -65,8 +65,8 @@ def test_utilities_partitioning(in_tmp_dir):
 
         return results
 
-    mol = Cluster(molecule('H2O'))
-    mol.minimal_box(2.5, h=h)
+    mol = molecule('H2O')
+    adjust_cell(mol, 2.5, h=h)
 
     # calculate
     if 1:

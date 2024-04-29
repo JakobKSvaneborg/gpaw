@@ -63,7 +63,7 @@ def test_diamond(in_tmp_dir, add_cwd_to_setup_paths):
 
     # NOTE: HSE06 does not yet work. This is just a placeholder for
     # integration test.
-    assert np.allclose(atoms.get_potential_energy(), 3.291392, atol=4e-5)
+    assert np.allclose(atoms.get_potential_energy(), 3.291175, atol=4e-5)
 
     calc = atoms.calc
 

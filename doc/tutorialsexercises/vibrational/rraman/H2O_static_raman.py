@@ -1,13 +1,15 @@
 from ase.vibrations.raman import StaticRamanCalculator
+from ase.io import read
+
 from gpaw import GPAW, FermiDirac
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.external import static_polarizability
 
 
 h = 0.2
 xc = 'PBE'
-atoms = Cluster('relaxed.traj')
-atoms.minimal_box(4., h=h)
+atoms = read('relaxed.traj')
+adjust_cell(atoms, 4., h=h)
 
 atoms.calc = GPAW(mode='fd', xc=xc, h=h,
                   occupations=FermiDirac(width=0.1),

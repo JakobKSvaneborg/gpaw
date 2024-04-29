@@ -2,9 +2,9 @@ import numpy as np
 
 from ase.units import Hartree, Bohr
 
-from gpaw.xc.hybrid import HybridXCBase
-from gpaw.utilities import unpack
 from gpaw.directmin.tools import get_n_occ
+from gpaw.utilities import unpack_hermitian
+from gpaw.xc.hybrid import HybridXCBase
 
 
 def calculate_forces(wfs, dens, ham, log=None):
@@ -102,7 +102,7 @@ def calculate_forces_using_non_diag_lagr_matrix(wfs, dens, ham, log=None):
                 (dS_nkv + np.transpose(dS_nkv, (1, 0, 2)).conj())
             # '-' becuase there is extra minus in 'pt derivative'
             F_wfs_av[a] -= np.einsum('kn,nkv->v', lamb, dS_nkv).real
-            dH_ii = unpack(dH_asp[a][kpt.s])
+            dH_ii = unpack_hermitian(dH_asp[a][kpt.s])
             dh_nv = np.einsum('niv,ij,nj->nv', dP_niv, dH_ii, P_ni)
             # '+' becuase there is extra minus in 'pt derivative'
             F_wfs_av[a] += np.einsum('n,nv->v', kpt.f_n[:n_occ],

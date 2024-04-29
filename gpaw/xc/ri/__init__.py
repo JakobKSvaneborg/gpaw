@@ -1,5 +1,5 @@
 from gpaw.xc import XC
-from gpaw.utilities import unpack2, pack
+from gpaw.utilities import pack_hermitian, unpack_density
 from gpaw.hybrids.paw import pawexxvv
 import numpy as np
 
@@ -69,9 +69,9 @@ class RIXC:
         E = self.localxc.calculate_paw_correction(setup, D_sp, dH_sp, a=a)
 
         for s, (dH_p, D_p) in enumerate(zip(dH_sp, D_sp)):
-            D_ii = unpack2(D_p)
+            D_ii = unpack_density(D_p)
             V_ii = pawexxvv(setup.M_wpp[self.omega], D_ii)  # *(dens.nspins/2)
-            dH_p += pack(V_ii)
+            dH_p += pack_hermitian(V_ii)
 
             E += np.sum(V_ii.ravel() * D_ii.ravel())  # * prefactor
 

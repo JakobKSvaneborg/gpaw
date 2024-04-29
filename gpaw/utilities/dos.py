@@ -1,7 +1,7 @@
 from math import pi, sqrt
 import numpy as np
 from ase.parallel import paropen
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 from gpaw.analyse.wignerseitz import wignerseitz
 from gpaw.setup_data import SetupData
 from gpaw.gauss import Gauss
@@ -299,7 +299,7 @@ def raw_wignerseitz_LDOS(paw, a, spin):
         energies[x:x + nb] = wfs.collect_eigenvalues(k=k, s=spin)
         for n, psit_G in enumerate(wfs.kpt_u[u].psit_nG):
             P_i = wfs.kpt_u[u].P_ani[a][n]
-            P_p = pack(np.outer(P_i, P_i))
+            P_p = pack_density(np.outer(P_i, P_i))
             Delta_p = sqrt(4 * pi) * wfs.setups[a].Delta_pL[:, 0]
             weights[x + n] = w * (
                 gd.integrate(abs(np.where(atom_index == a, psit_G, 0.0))**2) +

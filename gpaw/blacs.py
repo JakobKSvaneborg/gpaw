@@ -97,7 +97,7 @@ from gpaw.utilities.scalapack import scalapack_inverse_cholesky, \
     scalapack_diagonalize_ex, scalapack_general_diagonalize_ex, \
     scalapack_diagonalize_dc, scalapack_general_diagonalize_dc, \
     scalapack_diagonalize_mr3, scalapack_general_diagonalize_mr3
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 INACTIVE = -1
@@ -172,7 +172,7 @@ class BlacsGrid:
                     % (nprow, npcol, comm.size))
 
             try:
-                new = _gpaw.new_blacs_context
+                new = cgpaw.new_blacs_context
             except AttributeError as e:
                 raise AttributeError(
                     'BLACS is unavailable.  '
@@ -183,7 +183,7 @@ class BlacsGrid:
             self.context = new(comm.get_c_object(), npcol, nprow, order)
             assert (self.context != INACTIVE) == (comm.rank < nprow * npcol)
 
-        self.mycol, self.myrow = _gpaw.get_blacs_gridinfo(self.context,
+        self.mycol, self.myrow = cgpaw.get_blacs_gridinfo(self.context,
                                                           nprow,
                                                           npcol)
 
@@ -224,7 +224,7 @@ class BlacsGrid:
 
     def __del__(self):
         if self.is_active():
-            _gpaw.blacs_destroy(self.context)
+            cgpaw.blacs_destroy(self.context)
 
 
 class DryRunBlacsGrid00000000(BlacsGrid):
@@ -337,7 +337,7 @@ class BlacsDescriptor(MatrixDescriptor):
         self.csrc = csrc
 
         if blacsgrid.is_active():
-            locN, locM = _gpaw.get_blacs_local_shape(self.blacsgrid.context,
+            locN, locM = cgpaw.get_blacs_local_shape(self.blacsgrid.context,
                                                      self.N, self.M,
                                                      self.nb, self.mb,
                                                      self.csrc, self.rsrc)
@@ -561,7 +561,7 @@ class Redistributor:
 
         # Switch to Fortran conventions
         uplo = {'U': 'L', 'L': 'U', 'G': 'G'}[uplo]
-        _gpaw.scalapack_redist(srcdescriptor.asarray(),
+        cgpaw.scalapack_redist(srcdescriptor.asarray(),
                                dstdescriptor.asarray(),
                                src_mn, dst_mn,
                                subN, subM,

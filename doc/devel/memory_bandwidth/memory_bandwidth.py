@@ -3,6 +3,7 @@
 import numpy as np
 import os
 from optparse import OptionParser
+import matplotlib.pyplot as plt
 
 parser = OptionParser(usage='%prog [options]', version='%prog 0.1')
 parser.add_option('--dir', dest="dir", default='.', help='Results directory')
@@ -26,28 +27,26 @@ colors = [
 
 def plot(xdata, ydata, std, title, xlabel, ylabel, label, color, num=1):
     # matplotlib.use('Agg')
-    import pylab
 
     # all goes to figure num
-    pylab.figure(num=num, figsize=(7, 5.5))
-    pylab.gca().set_position([0.10, 0.20, 0.85, 0.60])
+    plt.figure(num=num, figsize=(7, 5.5))
+    plt.gca().set_position([0.10, 0.20, 0.85, 0.60])
     # let the plot have fixed y-axis scale
     miny = min(ydata)
     maxy = max(ydata)
     ywindow = maxy - miny
-    pylab.gca().set_ylim(miny - ywindow / 4.0, maxy + ywindow / 3.0)
-    pylab.bar(xdata, ydata, 0.3, yerr=std, label=label, color=color)
-    pylab.title(title)
-    pylab.xlabel(xlabel)
-    pylab.ylabel(ylabel)
+    plt.gca().set_ylim(miny - ywindow / 4.0, maxy + ywindow / 3.0)
+    plt.bar(xdata, ydata, 0.3, yerr=std, label=label, color=color)
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
 
 
 def plot_save(directory_name, out_prefix):
     from os.path import exists
     assert exists(directory_name)
-    import pylab
 
-    pylab.savefig(directory_name + os.path.sep + out_prefix + '.png')
+    plt.savefig(directory_name + os.path.sep + out_prefix + '.png')
 
 
 def analyse_benchmark(ncores=8, startcores=1, machine='TEST', runs=7):
@@ -220,7 +219,6 @@ def analyse_benchmark(ncores=8, startcores=1, machine='TEST', runs=7):
     #    q.append(np.std(pre_results[p]))
     import matplotlib
     matplotlib.use('Agg')
-    from matplotlib import pylab
     # from matplotlib.sourceforge.net/examples/dashtick.py
     DASHBASE = 5
     DASHLEN = 25
@@ -232,8 +230,8 @@ def analyse_benchmark(ncores=8, startcores=1, machine='TEST', runs=7):
     # print scaling results
     parameters = processes
     zero = [0.0 for i in range(len(parameters))]
-    pylab.plot(parameters, zero, 'k-', label='_nolegend_')
-    ay1 = pylab.gca()
+    plt.plot(parameters, zero, 'k-', label='_nolegend_')
+    ay1 = plt.gca()
     ay1.xaxis.set_ticks(parameters)
     ay1.xaxis.set_ticklabels([str(x) for x in parameters])
     for p in processes:
@@ -262,7 +260,7 @@ def analyse_benchmark(ncores=8, startcores=1, machine='TEST', runs=7):
              num=1)
     # from two_scales.py
     plot_save(".", 'memory_bandwidth_' + system)
-    pylab.close(1)
+    plt.close(1)
 
 
 #

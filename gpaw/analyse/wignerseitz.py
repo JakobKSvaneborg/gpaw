@@ -3,7 +3,7 @@ from math import sqrt, pi
 import numpy as np
 from ase.units import Bohr
 
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 from gpaw.analyse.hirshfeld import HirshfeldDensity
 from gpaw.utilities.tools import coordinates
 
@@ -71,7 +71,7 @@ class WignerSeitz:
         # add augmentation sphere corrections
         for a, nucleus in enumerate(self.atoms):
             P_i = nucleus.P_uni[u, n]
-            P_p = pack(np.outer(P_i, P_i))
+            P_p = pack_density(np.outer(P_i, P_i))
             Delta_p = sqrt(4 * pi) * nucleus.setup.Delta_pL[:, 0]
             weigths[a] += np.dot(Delta_p, P_p)
 

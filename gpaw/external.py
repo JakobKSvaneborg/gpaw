@@ -6,7 +6,7 @@ from typing import Callable, Dict, Optional
 import numpy as np
 from ase.units import Bohr, Ha
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.typing import Array3D
 
 __all__ = ['ConstantPotential', 'ConstantElectricField', 'CDFTPotential',
@@ -267,7 +267,7 @@ class PointChargePotential(ExternalPotential):
 
         dcom_pv = self._molecule_distances(gd)
 
-        _gpaw.pc_potential(gd.beg_c, gd.h_cv.diagonal().copy(),
+        cgpaw.pc_potential(gd.beg_c, gd.h_cv.diagonal().copy(),
                            self.q_p, self.R_pv,
                            self.rc, self.rc2, self.width,
                            self.vext_g, dcom_pv)
@@ -279,7 +279,7 @@ class PointChargePotential(ExternalPotential):
         gd = dens.finegd
         dcom_pv = self._molecule_distances(gd)
 
-        _gpaw.pc_potential(gd.beg_c, gd.h_cv.diagonal().copy(),
+        cgpaw.pc_potential(gd.beg_c, gd.h_cv.diagonal().copy(),
                            self.q_p, self.R_pv,
                            self.rc, self.rc2, self.width,
                            self.vext_g, dcom_pv, dens.rhot_g, F_pv)

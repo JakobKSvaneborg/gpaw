@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from functools import cached_property
-from typing import Callable
-
 import numpy as np
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
@@ -12,7 +9,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
-from gpaw.typing import Array2D, Array3D
+from gpaw.typing import Array2D
 
 
 class LCAOWaveFunctions(WaveFunctions):
@@ -21,7 +18,6 @@ class LCAOWaveFunctions(WaveFunctions):
     def __init__(self,
                  *,
                  setups: Setups,
-                 density_adder: Callable[[Array2D, Array3D], None],
                  tci_derivatives,
                  basis,
                  C_nM: Matrix,
@@ -50,7 +46,6 @@ class LCAOWaveFunctions(WaveFunctions):
                          dtype=C_nM.dtype,
                          domain_comm=domain_comm,
                          band_comm=C_nM.dist.comm)
-        self.density_adder = density_adder
         self.tci_derivatives = tci_derivatives
         self.basis = basis
         self.C_nM = C_nM
@@ -64,18 +59,29 @@ class LCAOWaveFunctions(WaveFunctions):
         # This is for TB-mode (and MYPY):
         self.V_MM: Matrix
 
-    @cached_property
+        self._L_MM = None
+
+    def move(self,
+             fracpos_ac: Array2D,
+             atomdist: AtomDistribution) -> None:
+        super().move(fracpos_ac, atomdist)
+        self._L_MM = None
+
+    @property
     def L_MM(self):
-        S_MM = self.S_MM.copy()
-        S_MM.invcholesky()
-        if self.ncomponents < 4:
-            return S_MM
-        M, M = S_MM.shape
-        L_sMsM = Matrix(2 * M, 2 * M, dtype=complex)
-        L_sMsM.data[:] = 0.0
-        L_sMsM.data[:M, :M] = S_MM.data
-        L_sMsM.data[M:, M:] = S_MM.data
-        return L_sMsM
+        if self._L_MM is None:
+            S_MM = self.S_MM.copy()
+            S_MM.invcholesky()
+            if self.ncomponents < 4:
+                self._L_MM = S_MM
+            else:
+                M, M = S_MM.shape
+                L_sMsM = Matrix(2 * M, 2 * M, dtype=complex)
+                L_sMsM.data[:] = 0.0
+                L_sMsM.data[:M, :M] = S_MM.data
+                L_sMsM.data[M:, M:] = S_MM.data
+                self._L_MM = L_sMsM
+        return self._L_MM
 
     def _short_string(self, global_shape):
         return f'basis functions: {global_shape[0]}'
@@ -110,7 +116,7 @@ class LCAOWaveFunctions(WaveFunctions):
         Adds to ``nt_sR`` and ``D_asii``.
         """
         rho_MM = self.calculate_density_matrix()
-        self.density_adder(rho_MM, nt_sR.data[self.spin])
+        self.basis.construct_density(rho_MM, nt_sR.data[self.spin], q=self.q)
         f_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.add_to_atomic_density_matrices(f_n, D_asii)
 
@@ -162,11 +168,9 @@ class LCAOWaveFunctions(WaveFunctions):
         # Quick'n'dirty implementation
         # We should generalize the PW+FD method
         assert self.band_comm.size == 1
-        assert self.domain_comm.size == 1
         n2 = n2 or self.nbands + n2
         return LCAOWaveFunctions(
             setups=self.setups,
-            density_adder=self.density_adder,
             tci_derivatives=self.tci_derivatives,
             basis=self.basis,
             C_nM=Matrix(n2 - n1,
@@ -176,18 +180,13 @@ class LCAOWaveFunctions(WaveFunctions):
             T_MM=self.T_MM,
             P_aMi=self.P_aMi,
             fracpos_ac=self.fracpos_ac,
-            atomdist=self.atomdist,
+            atomdist=self.atomdist.gather(),
             kpt_c=self.kpt_c,
             spin=self.spin,
             q=self.q,
             k=self.k,
             weight=self.weight,
             ncomponents=self.ncomponents)
-
-    def move(self,
-             fracpos_ac: Array2D,
-             atomdist: AtomDistribution) -> None:
-        1 / 0
 
     def force_contribution(self, potential: Potential, F_av: Array2D):
         from gpaw.new.lcao.forces import add_force_contributions
@@ -207,7 +206,6 @@ class LCAOWaveFunctions(WaveFunctions):
     def receive(self, rank, comm):
         kpt_c, data, spin, q, k, weight, ncomponents = receive(rank, comm)
         return LCAOWaveFunctions(setups=self.setups,
-                                 density_adder=self.density_adder,
                                  tci_derivatives=self.tci_derivatives,
                                  basis=self.basis,
                                  C_nM=Matrix(*data.shape, data=data),
@@ -215,7 +213,7 @@ class LCAOWaveFunctions(WaveFunctions):
                                  T_MM=None,
                                  P_aMi=None,
                                  fracpos_ac=self.fracpos_ac,
-                                 atomdist=self.atomdist,
+                                 atomdist=self.atomdist.gather(),
                                  kpt_c=kpt_c,
                                  spin=spin,
                                  q=q,

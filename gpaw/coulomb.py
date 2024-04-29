@@ -7,7 +7,7 @@ from numpy.fft import fftn
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.pair_density import PairDensity2 as PairDensity
 from gpaw.poisson import PoissonSolver, FFTPoissonSolver
-from gpaw.utilities import unpack, packed_index, unpack2
+from gpaw.utilities import packed_index, unpack_hermitian, unpack_density
 from gpaw.utilities.ewald import madelung
 from gpaw.utilities.tools import construct_reciprocal, tri2full, symmetrize
 from gpaw.utilities.gauss import Gaussian
@@ -44,7 +44,7 @@ def get_vxc(paw, spin=0, U=None):
         H_sp = np.zeros_like(D_sp)
         paw.wfs.setups[a].xc_correction.calculate_energy_and_derivatives(
             D_sp, H_sp)
-        H_ii = unpack(H_sp[spin])
+        H_ii = unpack_hermitian(H_sp[spin])
         Vxc_nn += np.dot(P_ni, np.dot(H_ii, P_ni.T))
     return Vxc_nn * Hartree
 
@@ -278,7 +278,8 @@ class HF:
                 v_aL = paw.density.ghat.dict()
                 paw.density.ghat.integrate(self.vt_g, v_aL)
                 for a, v_L in v_aL.items():
-                    v_ii = unpack(np.dot(paw.wfs.setups[a].Delta_pL, v_L))
+                    v_ii = unpack_hermitian(
+                        np.dot(paw.wfs.setups[a].Delta_pL, v_L))
                     P_ni = kpt.P_ani[a]
                     h_nn[:, n1] += f2 * np.dot(P_ni, np.dot(v_ii, P_ni[n2]))
                     if n1 != n2:
@@ -304,7 +305,7 @@ class HF:
             setup = paw.wfs.setups[a]
             D_p = paw.density.D_asp[a][kpt.s]
             H_p = np.zeros_like(D_p)
-            D_ii = unpack2(D_p)
+            D_ii = unpack_density(D_p)
             ni = len(D_ii)
             for i1 in range(ni):
                 for i2 in range(ni):
@@ -316,10 +317,10 @@ class HF:
                             A += setup.M_pp[p13, p24] * D_ii[i3, i4]
                     p12 = packed_index(i1, i2, ni)
                     H_p[p12] -= 2 / deg * A / ((i1 != i2) + 1)
-            H_nn += np.dot(P_ni, np.inner(unpack(H_p), P_ni.conj()))
+            H_nn += np.dot(P_ni, np.inner(unpack_hermitian(H_p), P_ni.conj()))
 
     def atomic_val_core(self, paw, H_nn, u=0):
         kpt = paw.wfs.kpt_u[u]
         for a, P_ni in kpt.P_ani.items():
-            dH_ii = unpack(-paw.wfs.setups[a].X_p)
+            dH_ii = unpack_hermitian(-paw.wfs.setups[a].X_p)
             H_nn += np.dot(P_ni, np.inner(dH_ii, P_ni.conj()))

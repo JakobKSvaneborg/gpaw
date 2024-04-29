@@ -424,7 +424,7 @@ static PyObject * mpi_ssend(MPIObject *self, PyObject *args, PyObject *kwargs)
 }
 
 
-static PyObject * mpi_name(MPIObject *self, PyObject *noargs)
+static PyObject * mpi_name(MPIObject *self, PyObject* Py_UNUSED(noargs))
 {
   char name[MPI_MAX_PROCESSOR_NAME];
   int resultlen;
@@ -442,7 +442,7 @@ static PyObject * mpi_abort(MPIObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
-static PyObject * mpi_barrier(MPIObject *self)
+static PyObject * mpi_barrier(MPIObject *self, PyObject* noargs)
 {
   MPI_Barrier(self->comm);
   Py_RETURN_NONE;
@@ -1123,7 +1123,7 @@ static PyMethodDef mpi_methods[] = {
      "abort(errcode) aborts all MPI tasks."},
     {"name",             (PyCFunction)mpi_name,         METH_NOARGS,
      "name() returns the name of the processor node."},
-    {"barrier",          (PyCFunction)mpi_barrier,      METH_VARARGS,
+    {"barrier",          (PyCFunction)mpi_barrier,      METH_NOARGS,
      "barrier() synchronizes all MPI tasks"},
     {"test",             (PyCFunction)mpi_test,         METH_VARARGS,
      "test(request) tests if a nonblocking communication is complete."},

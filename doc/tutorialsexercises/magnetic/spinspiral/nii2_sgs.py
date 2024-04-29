@@ -36,7 +36,7 @@ for i, q_c in enumerate(path):
     atoms.calc = calc
     energy = atoms.get_potential_energy()
     calc.write(f'gsq-{i:02}.gpw')
-    magmom = atoms.calc.calculation.magmoms()[0]
+    magmom = atoms.calc.dft.magmoms()[0]
     energies_q.append(energy)
     magmoms_q.append(np.linalg.norm(magmom))
 

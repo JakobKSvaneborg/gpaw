@@ -2,6 +2,7 @@ from __future__ import annotations
 import contextlib
 from time import time
 from typing import TYPE_CHECKING
+from types import ModuleType
 
 import numpy as np
 
@@ -41,8 +42,8 @@ def setup():
         device_id = rank % cupy.cuda.runtime.getDeviceCount()
         cupy.cuda.runtime.setDevice(device_id)
         # initialise C parameters and memory buffers
-        import _gpaw
-        _gpaw.gpaw_gpu_init()
+        import gpaw.cgpaw as cgpaw
+        cgpaw.gpaw_gpu_init()
 
 
 def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
@@ -97,6 +98,26 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
                        lower=(UPLO == 'L'),
                        check_finite=False)
     return cupy.asarray(eigs), cupy.asarray(evals)
+
+
+class XP:
+    """Class for adding xp attribute (numpy or cupy).
+
+    Also implements pickling which will not work out of the box
+    because a module can't be pickled.
+    """
+    def __init__(self, xp: ModuleType):
+        self.xp = xp
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        assert self.xp is np
+        del state['xp']
+        return state
+
+    def __setstate__(self, state):
+        state['xp'] = np
+        self.__dict__.update(state)
 
 
 @contextlib.contextmanager

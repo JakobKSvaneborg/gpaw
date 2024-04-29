@@ -4,6 +4,8 @@ import numpy as np
 from ase.units import Bohr
 from gpaw.new.ase_interface import ASECalculator, GPAW
 from gpaw.typing import Array3D, Vector
+from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 def dipole_matrix_elements(*args, **kwargs):
@@ -30,7 +32,7 @@ def dipole_matrix_elements_from_calc(calc: ASECalculator,
     center:
         Center of molecule in Å.  Defaults to center of cell.
     """
-    ibzwfs = calc.calculation.state.ibzwfs
+    ibzwfs = calc.dft.state.ibzwfs
 
     assert ibzwfs.ibz.bz.gamma_only
 
@@ -41,13 +43,14 @@ def dipole_matrix_elements_from_calc(calc: ASECalculator,
 
     d_snnv = []
     for wfs in wfs_s:
-        if calc.params.mode['name'] == 'lcao':
-            basis = calc.calculation.scf_loop.hamiltonian.basis
-            grid = calc.calculation.state.density.nt_sR.desc
+        if isinstance(wfs, LCAOWaveFunctions):
+            basis = calc.dft.scf_loop.hamiltonian.basis
+            grid = calc.dft.state.density.nt_sR.desc
             wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
-        wfs = wfs.collect(n1, n2)
-        if wfs is not None:
-            d_nnv = wfs.dipole_matrix_elements(center) * Bohr
+        wfs12 = wfs.collect(n1, n2)
+        if wfs12 is not None:
+            assert isinstance(wfs12, PWFDWaveFunctions)
+            d_nnv = wfs12.dipole_matrix_elements(center) * Bohr
         else:
             d_nnv = np.empty((n2 - n1, n2 - n1, 3))
         calc.comm.broadcast(d_nnv, 0)

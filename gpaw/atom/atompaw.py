@@ -7,7 +7,7 @@ from scipy.linalg import eigh
 from gpaw.calculator import GPAW
 from gpaw.wavefunctions.base import WaveFunctions
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.occupations import OccupationNumberCalculator
 import gpaw.mpi as mpi
 
@@ -129,7 +129,7 @@ class AtomEigensolver:
         e_n = np.zeros(N)
 
         for s in range(wfs.nspins):
-            dH_ii = unpack(hamiltonian.dH_asp[0][s])
+            dH_ii = unpack_hermitian(hamiltonian.dH_asp[0][s])
             kpt = wfs.kpt_u[s]
             N1 = 0
             for l in range(lmax + 1):
@@ -349,7 +349,7 @@ class AtomPAW(GPAW):
             # We'll make an ugly hack
             if abs(bf_g[1]) > 3.0 * abs(bf_g[2] - bf_g[1]):
                 bf_g[0] = bf_g[1]
-            bf = BasisFunction(n, l, self.wfs.gd.r_g[-1], bf_g,
+            bf = BasisFunction(None, l, self.wfs.gd.r_g[-1], bf_g,
                                '%s%d e=%.3f f=%.3f' % ('spdfgh'[l], n, eps, f))
             bf_j.append(bf)
         return basis

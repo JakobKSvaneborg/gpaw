@@ -6,9 +6,9 @@ import numpy as np
 from numpy import dot
 from ase.units import Hartree
 
-from gpaw.utilities.blas import axpy
-from gpaw.utilities import unpack
 from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.blas import axpy
 
 
 class CG(Eigensolver):
@@ -166,7 +166,7 @@ class CG(Eigensolver):
                 c = wfs.integrate(phi_G, Htphi_G, global_integral=False)
                 for a, P2_i in P2_ai.items():
                     P_i = kpt.P_ani[a][n]
-                    dH_ii = unpack(ham.dH_asp[a][kpt.s])
+                    dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
                     b += dot(P2_i, dot(dH_ii, P_i.conj()))
                     c += dot(P2_i, dot(dH_ii, P2_i.conj()))
                 b = comm.sum_scalar(float(np.real(b)))
@@ -203,7 +203,7 @@ class CG(Eigensolver):
                     for a, coef_i in coef_ai.items():
                         P_i = kpt.P_ani[a][n]
                         dO_ii = wfs.setups[a].dO_ii
-                        dH_ii = unpack(ham.dH_asp[a][kpt.s])
+                        dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
                         coef_i[:] = (dot(P_i, dH_ii) -
                                      dot(P_i * kpt.eps_n[n], dO_ii))
                     wfs.pt.add(R_G, coef_ai, kpt.q)

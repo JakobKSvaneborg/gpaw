@@ -270,13 +270,11 @@ class DFTComponentsBuilder:
         """
         ha = reader.ha
 
+        domain_comm = self.communicators['d']
+        band_comm = self.communicators['b']
+
         eig_skn = reader.wave_functions.eigenvalues
         occ_skn = reader.wave_functions.occupations
-        if self.communicators['d'].rank == 0:
-            P_sknI = reader.wave_functions.projections
-            P_sknI = P_sknI.astype(ibzwfs.dtype)
-        else:
-            P_sknI = None
 
         for wfs in ibzwfs:
             wfs._eig_n = eig_skn[wfs.spin, wfs.k] / ha
@@ -284,16 +282,24 @@ class DFTComponentsBuilder:
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,
                                       dtype=self.dtype)
-            data = None
             if self.ncomponents < 4:
-                wfs._P_ani = AtomArrays(layout, dims=(self.nbands,))
-                if P_sknI is not None:
-                    data = P_sknI[wfs.spin, wfs.k]
+                dims = [self.nbands]
+                index = [wfs.spin, wfs.k]
             else:
-                wfs._P_ani = AtomArrays(layout, dims=(self.nbands, 2))
-                if P_sknI is not None:
-                    data = P_sknI[wfs.k]
-            wfs._P_ani.scatter_from(data)
+                dims = [self.nbands, 2]
+                index = [wfs.k]
+
+            P_ani = AtomArrays(layout, dims=dims, comm=band_comm)
+
+            if domain_comm.rank == 0:
+                P_nI = reader.wave_functions.proxy('projections', *index)
+                b1, b2 = P_ani.my_slice()  # my bands
+                data = P_nI[b1:b2].astype(ibzwfs.dtype)  # read from file
+            else:
+                data = None
+
+            P_ani.scatter_from(data)  # distribute over atoms
+            wfs._P_ani = P_ani
 
         try:
             ibzwfs.fermi_levels = reader.wave_functions.fermi_levels / ha
@@ -383,6 +389,9 @@ def create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     if 'kpts' in kpts:
         assert len(kpts) == 1, kpts
         return BZPoints(kpts['kpts'])
+    if 'path' in kpts:
+        path = atoms.cell.bandpath(pbc=atoms.pbc, **kpts)
+        return BZPoints(path.kpts)
     size, offset = kpts2sizeandoffsets(**kpts, atoms=atoms)
     return MonkhorstPackKPoints(size, offset)
 

@@ -30,5 +30,5 @@ def check():
     ri = np.load('raman_spectrum.npy')
     x0, y0 = findpeak(ri[0], ri[1])
     print(x0, y0)
-    assert np.isclose(x0, 0.0460681347226064, rtol=1e-4)
-    assert np.isclose(y0, 59676.22244090502, rtol=1e-3)
+    assert np.isclose(x0, 0.04991788107682117, rtol=1e-4)
+    assert np.isclose(y0, 382.06950375079964, rtol=1e-3)

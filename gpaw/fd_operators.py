@@ -11,7 +11,7 @@ from math import pi, factorial as fact
 import numpy as np
 from numpy.fft import fftn, ifftn
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.gpu import cupy_is_fake
 
@@ -82,7 +82,7 @@ class FDOperator:
 
         self.xp = xp
         gpu = xp is not np and not cupy_is_fake
-        self.operator = _gpaw.Operator(coef_p, offset_p, n_c, mp,
+        self.operator = cgpaw.Operator(coef_p, offset_p, n_c, mp,
                                        neighbor_cd, dtype == float,
                                        comm, cfd, gpu)
 

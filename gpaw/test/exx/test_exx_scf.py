@@ -8,7 +8,7 @@ from gpaw.poisson import PoissonSolver
 from gpaw.occupations import FermiDirac
 from gpaw.test import gen
 from gpaw.eigensolvers import RMMDIIS
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 
 pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
@@ -23,8 +23,8 @@ def test_exx_exx_scf(in_tmp_dir, add_cwd_to_setup_paths):
     # for atom in ['F', 'Cl', 'Br', 'Cu', 'Ag']:
     for atom in ['Ti']:
         gen(atom, xcname='PBE', scalarrel=False, exx=True)
-        work_atom = Cluster(Atoms(atom, [(0, 0, 0)]))
-        work_atom.minimal_box(4, h=h)
+        work_atom = Atoms(atom, [(0, 0, 0)])
+        adjust_cell(work_atom, 4, h=h)
         work_atom.translate([0.01, 0.02, 0.03])
         work_atom.set_initial_magnetic_moments([2.0])
         calculator = GPAW(mode='fd',

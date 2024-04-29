@@ -10,7 +10,7 @@ import gpaw.mpi
 
 from gpaw.utilities.tools import coordinates
 from gpaw.utilities.tools import pick
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 
 from gpaw.fd_operators import Gradient
 
@@ -422,10 +422,10 @@ class LRiPairDensity:
             P1_i = P_ni[self.n1]
             P2_i = P_ni[self.n2]
             D_ii = np.outer(P1_i.conj(), P2_i)
-            # allowed to pack as used in the scalar product with
+            # Pack with pack_density as it is used in the scalar product with
             # the symmetric array Delta_pL
-            D_p = pack(D_ii)
-            # FIXME: CHECK THIS D_p  = pack(D_ii, tolerance=1e30)
+            D_p = pack_density(D_ii)
+            # FIXME: CHECK THIS D_p  = pack_density(D_ii, tolerance=1e30)
 
             # Determine compensation charge coefficients:
             Q_aL[a] = np.dot(D_p, self.density.setups[a].Delta_pL)

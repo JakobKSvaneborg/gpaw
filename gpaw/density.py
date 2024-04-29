@@ -13,7 +13,7 @@ from gpaw.mixer import get_mixer_from_keywords, MixerWrapper
 from gpaw.transformers import Transformer
 from gpaw.lfc import LFC, BasisFunctions
 from gpaw.wavefunctions.lcao import LCAOWaveFunctions
-from gpaw.utilities import (unpack2, unpack_atomic_matrices,
+from gpaw.utilities import (unpack_density, unpack_atomic_matrices,
                             pack_atomic_matrices)
 from gpaw.utilities.partition import AtomPartition
 from gpaw.utilities.timing import nulltimer
@@ -156,7 +156,7 @@ class Density:
             # XXX This doesn't always work, HGH, SIC, ...
             sc = self.get_spin_contamination(atoms, int(magmom < 0))
             log('Spin contamination: %f electrons' % sc)
-        except (TypeError, AttributeError):
+        except (TypeError, AttributeError, AssertionError):
             pass
 
     def initialize(self, setups, timer, magmom_av, hund):
@@ -549,7 +549,7 @@ class Density:
                 rank = D_asp.partition.rank_a[a]
                 D_asp.partition.comm.broadcast(D_sp, rank)
                 M2 = M1 + ni
-                rho_MM[M1:M2, M1:M2] = unpack2(D_sp[s])
+                rho_MM[M1:M2, M1:M2] = unpack_density(D_sp[s])
                 M1 = M2
 
             assert np.all(n_sg[s].shape == phi.gd.n_c)

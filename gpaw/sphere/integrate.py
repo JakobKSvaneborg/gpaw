@@ -277,11 +277,13 @@ def radial_truncation_function_spline(rcut, drcut, lambd=None):
     # Lay out truncation function on a radial grid and generate spline
     r_g = _uniform_radial_grid(rcut, drcut)
     theta_g = radial_truncation_function(r_g, rcut, drcut, lambd)
-    spline = Spline(l=0, rmax=max(r_g),
-                    # The input f_g is the expansion coefficient of the
-                    # requested spherical harmonic for the function in
-                    # question. For l=0, Y = 1/sqrt(4π):
-                    f_g=np.sqrt(4 * np.pi) * theta_g)
+    spline = Spline.from_data(
+        l=0, rmax=max(r_g),
+        # The input f_g is the expansion coefficient of the requested
+        # spherical harmonic for the function in question.
+        # For l=0, Y = 1/sqrt(4π):
+        f_g=np.sqrt(4 * np.pi) * theta_g,
+    )
     return spline
 
 

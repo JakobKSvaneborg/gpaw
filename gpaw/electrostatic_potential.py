@@ -12,7 +12,7 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.uniform_grid import UGArray
 from gpaw.setup import Setups
 from gpaw.typing import Array1D, ArrayLike2D
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 
 if TYPE_CHECKING:
     from gpaw.new.calculation import DFTCalculation
@@ -58,7 +58,7 @@ class ElectrostaticPotential:
         dEH_a = np.zeros(len(self.setups))
         for a, D_sii in self.D_asii.items():
             setup = self.setups[a]
-            D_p = pack(D_sii.sum(0))
+            D_p = pack_density(D_sii.sum(0))
             dEH_a[a] = setup.dEH0 + setup.dEH_p @ D_p
         self.D_asii.layout.atomdist.comm.sum(dEH_a)
         return dEH_a * Ha * Bohr**3
@@ -108,7 +108,7 @@ class ElectrostaticPotential:
             params['lmax'] = 0
             ghat_g = shape_functions(rgd, **params)[0]
             Z_g = shape_functions(rgd, 'gauss', rcgauss, lmax=0)[0] * setup.Z
-            D_p = pack(D_sii.sum(axis=0))
+            D_p = pack_density(D_sii.sum(axis=0))
             D_q = D_p @ c.B_pqL[:, :, 0]
             dn_g = D_q @ (c.n_qg - c.nt_qg) * sqrt(4 * pi)
             dn_g += 4 * pi * (c.nc_g - c.nct_g)

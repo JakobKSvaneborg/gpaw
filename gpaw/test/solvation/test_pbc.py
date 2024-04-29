@@ -1,4 +1,4 @@
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from ase.build import molecule
 from ase.data.vdw import vdw_radii
 from gpaw.solvation import (
@@ -30,8 +30,8 @@ convergence = {
 
 
 def test_solvation_pbc():
-    atoms = Cluster(molecule('H2O'))
-    atoms.minimal_box(vac, h)
+    atoms = molecule('H2O')
+    adjust_cell(atoms, vac, h)
     atoms.pbc = True
 
     with warnings.catch_warnings():

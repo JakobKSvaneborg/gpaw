@@ -4,7 +4,7 @@ from ase.utils.timing import timer
 from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.lfc import BasisFunctions
 from gpaw.matrix import Matrix, matrix_matrix_multiply as mmm
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.timing import nulltimer
 from gpaw.wavefunctions.base import WaveFunctions
 from gpaw.wavefunctions.lcao import LCAOWaveFunctions, update_phases
@@ -438,8 +438,8 @@ class FDPWWaveFunctions(WaveFunctions):
                     F_nsiv = F_nsiv.reshape((self.bd.mynbands,
                                              2, -1, 3)).conj()
                     F_nsiv *= kpt.f_n[:, np.newaxis, np.newaxis, np.newaxis]
-                    dH_ii = unpack(dH_axp[a][0])
-                    dH_vii = [unpack(dH_p) for dH_p in dH_axp[a][1:]]
+                    dH_ii = unpack_hermitian(dH_axp[a][0])
+                    dH_vii = [unpack_hermitian(dH_p) for dH_p in dH_axp[a][1:]]
                     dH_ssii = np.array(
                         [[dH_ii + dH_vii[2], dH_vii[0] - 1j * dH_vii[1]],
                          [dH_vii[0] + 1j * dH_vii[1], dH_ii - dH_vii[2]]])
@@ -463,7 +463,7 @@ class FDPWWaveFunctions(WaveFunctions):
             for a, F_niv in F_aniv.items():
                 F_niv = F_niv.conj()
                 F_niv *= kpt.f_n[:, np.newaxis, np.newaxis]
-                dH_ii = unpack(dH_asp[a][kpt.s])
+                dH_ii = unpack_hermitian(dH_asp[a][kpt.s])
                 P_ni = kpt.P_ani[a]
                 F_vii = np.dot(np.dot(F_niv.transpose(), P_ni), dH_ii)
                 F_niv *= kpt.eps_n[:, np.newaxis, np.newaxis]
@@ -481,7 +481,7 @@ class FDPWWaveFunctions(WaveFunctions):
                     d_nn += ne * np.outer(c_n.conj(), c_n)
                 for a, F_niv in F_aniv.items():
                     F_niv = F_niv.conj()
-                    dH_ii = unpack(dH_asp[a][kpt.s])
+                    dH_ii = unpack_hermitian(dH_asp[a][kpt.s])
                     Q_ni = np.dot(d_nn, kpt.P_ani[a])
                     F_vii = np.dot(np.dot(F_niv.transpose(), Q_ni), dH_ii)
                     F_niv *= kpt.eps_n[:, np.newaxis, np.newaxis]

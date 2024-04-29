@@ -122,7 +122,7 @@ This very simple case is highly symmetric. To better illustrate how the NEB meth
 # %%
 for image in images[0:7]:
     calc = GPAW(mode=PW(500), kpts=(5, 5, 6), xc='LDA', txt=None, symmetry={'point_group': False})
-    image.set_calculator(calc)
+    image.calc = calc
     image.set_constraint(FixAtoms(mask=[atom.symbol == 'C' for atom in image]))
 
 images[3].rattle(stdev=0.05, seed=42)
@@ -720,7 +720,7 @@ from ase.dft.bee import BEEFEnsemble
 from gpaw import GPAW, FermiDirac, Mixer, PW
 
 # Read in the structure you made and wrote to file above
-lifepo4_vac=read('lifepo4_vac.traj')
+lifepo4_vac = read('lifepo4_vac.traj')
 
 params_GPAW = {}
 params_GPAW['mode']        = PW(500)                     #The used plane wave energy cutoff

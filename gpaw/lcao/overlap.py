@@ -50,7 +50,7 @@ from ase.neighborlist import PrimitiveNeighborList
 from ase.data import covalent_radii
 from ase.units import Bohr
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.ffbt import ffbt, FourierBesselTransformer
 from gpaw.gaunt import gaunt
 from gpaw.spherical_harmonics import Yl, nablarlYL
@@ -83,14 +83,14 @@ class OverlapExpansion(BaseOverlapExpansionSet):
         self.cspline_l = [spline.spline for spline in self.spline_l]
 
     def evaluate(self, r, rlY_lm, G_LLL, x_mi, _nil=np.empty(0)):
-        _gpaw.tci_overlap(self.la, self.lb, G_LLL, self.cspline_l,
+        cgpaw.tci_overlap(self.la, self.lb, G_LLL, self.cspline_l,
                           r, rlY_lm, x_mi,
                           False, _nil, _nil, _nil)
 
     def derivative(self, r, Rhat_c, rlY_L, G_LLL, drlYdR_Lc, dxdR_cmi,
                    _nil=np.empty(0)):
         # timer.start('deriv')
-        _gpaw.tci_overlap(self.la, self.lb, G_LLL, self.cspline_l,
+        cgpaw.tci_overlap(self.la, self.lb, G_LLL, self.cspline_l,
                           r, rlY_L, _nil,
                           True, Rhat_c, drlYdR_Lc, dxdR_cmi)
         # timer.stop('deriv')
@@ -343,7 +343,9 @@ class FourierTransformer(FourierBesselTransformer):
                 a_g[0] = a_g[1]  # XXXX
             a_g *= (-1)**((l1 - l2 - l) // 2)
             n = len(a_g) // 256
-            s = Spline(l, 2 * self.rcut, np.concatenate((a_g[::n], [0.0])))
+            s = Spline.from_data(
+                l, 2 * self.rcut, np.concatenate((a_g[::n], [0.0])),
+            )
             splines.append(s)
         return OverlapExpansion(l1, l2, splines)
 

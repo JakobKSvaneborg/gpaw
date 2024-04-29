@@ -1,31 +1,16 @@
 import numpy as np
 import pytest
-from ase.build import molecule
-from gpaw import GPAW
+
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.mpi import world
-from gpaw.poisson import PoissonSolver
 
 
 @pytest.mark.rttddft
-def test_lcaotddft_fxc_rpa(in_tmp_dir):
-    atoms = molecule('Na2')
-    atoms.center(vacuum=4.0)
-
-    # Ground-state calculation
-    calc = GPAW(nbands=2, h=0.4, setups=dict(Na='1'),
-                basis='dzp', mode='lcao',
-                poissonsolver=PoissonSolver('fd', eps=1e-16),
-                convergence={'density': 1e-8},
-                symmetry={'point_group': False},
-                txt='gs.out')
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    calc.write('gs.gpw', mode='all')
-
+def test_lcaotddft_fxc_rpa(gpw_files, in_tmp_dir):
     # Time-propagation calculation with fxc
-    td_calc = LCAOTDDFT('gs.gpw', fxc='RPA', txt='td.out')
+    td_calc = LCAOTDDFT(gpw_files['na2_tddft_poisson'], fxc='RPA',
+                        txt='td.out')
     DipoleMomentWriter(td_calc, 'dm.dat')
     td_calc.absorption_kick(np.ones(3) * 1e-5)
     td_calc.propagate(20, 3)

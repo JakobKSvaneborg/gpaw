@@ -93,16 +93,17 @@ stages:
 .lumi-g-job:
   extends: .lumi-job
   variables:
-    SCHEDULER_PARAMETERS: "-A project_465000483 -N 1 --ntasks-per-node=1 --gpus-per-node=1 --mem=4G -t 00:10:00 -p small-g"
+    LUMI_PROJECT: "project_465000939"
+    SCHEDULER_PARAMETERS: "-A $LUMI_PROJECT -N 1 --ntasks-per-node=1 --gpus-per-node=1 --mem=4G -t 00:10:00 -p small-g"
   before_script:
-    - export EBU_USER_PREFIX=/scratch/project_465000483/EasyBuild
+    - export EBU_USER_PREFIX=/projappl/$LUMI_PROJECT/EasyBuild
     - module load LUMI/22.12 partition/G
     - module load cpeGNU/22.12
     - module load cray-fftw/3.3.10.1
     - module load cray-python/3.9.13.1
     - module load CuPy/12.2.0-cpeGNU-22.12  # from EBU_USER_PREFIX
-    - module load libxc/6.1.0-cpeGNU-22.12  # from EBU_USER_PREFIX
-    - export GPAW_SETUP_PATH=/projappl/project_465000483/gpaw-setups-0.9.20000
+    - module load libxc/6.2.2-cpeGNU-22.12  # from EBU_USER_PREFIX
+    - export GPAW_SETUP_PATH=/projappl/$LUMI_PROJECT/gpaw-setups-0.9.20000
     - !reference [default, before_script]
 
 
@@ -237,13 +238,13 @@ build-lumi-g:
       library_dirs = []
       include_dirs = []
       extra_compile_args = [
+          '-g',
           '-O3',
           '-fopenmp',
           '-fPIC',
           '-Wall',
           '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
           '-Werror',
-          '-g',
           ]
       extra_link_args = ['-fopenmp']
 
@@ -260,7 +261,11 @@ build-lumi-g:
       gpu_target = 'hip-amd'
       gpu_compiler = 'hipcc'
       gpu_include_dirs = []
-      gpu_compile_args = ['--offload-arch=gfx90a', '-O3', '-g']
+      gpu_compile_args = [
+          '-g',
+          '-O3',
+          '--offload-arch=gfx90a',
+          ]
       libraries += ['amdhip64', 'hipblas']
       EOF
     - cat siteconfig.py
@@ -623,44 +628,6 @@ nightly-mpi-1:
       - htmlcov/
     expire_in: 1 day
 
-nightly-mpi-1-new:
-  variables:
-    GPAW_NEW: "1"
-  extends:
-    - .nightly
-  script:
-    - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
-    - >
-      pytest -n 4 --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
-
-nightly-mpi-2-new:
-  variables:
-    GPAW_NEW: "1"
-    GPAW_MPI_NPROCS: "2"
-  extends:
-    - .nightly
-  script:
-    - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
-
-nightly-mpi-4-new:
-  variables:
-    GPAW_NEW: "1"
-    GPAW_MPI_NPROCS: "4"
-  extends:
-    - .nightly
-  script:
-    - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30 -m "ci and not later"
 
 nightly-mpi-2:
   variables:
@@ -681,6 +648,52 @@ nightly-mpi-8:
     GPAW_MPI_NPROCS: "8"
   extends:
     - .nightly
+
+
+.nightly-mpi-new:
+  variables:
+    GPAW_NEW: "1"
+  extends:
+    - .nightly
+  script:
+    - gpaw info
+    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m
+      pytest --instafail -r s --durations 30 -m
+      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
+
+
+nightly-mpi-1-new:
+  extends:
+    - .nightly-mpi-new
+  script:
+    - gpaw info
+    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - >
+      pytest -n 4 --instafail -r s --durations 30 -m
+      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
+
+
+nightly-mpi-2-new:
+  extends:
+    - .nightly-mpi-new
+  variables:
+    GPAW_MPI_NPROCS: "2"
+
+
+nightly-mpi-4-new:
+  extends:
+    - .nightly-mpi-new
+  variables:
+    GPAW_MPI_NPROCS: "4"
+
+
+nightly-mpi-8-new:
+  extends:
+    - .nightly-mpi-new
+  variables:
+    GPAW_MPI_NPROCS: "8"
 
 
 pages:

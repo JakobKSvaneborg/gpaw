@@ -1,6 +1,6 @@
 # web-page: Fe_bands.png
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as plt
 from gpaw import GPAW
 from gpaw.spinorbit import soc_eigenstates
 
@@ -16,9 +16,9 @@ e_snk = np.swapaxes(e_skn, 1, 2)
 ef = GPAW('Fe_gs.gpw').get_fermi_level()
 e_snk -= ef
 for e_k in e_snk[0]:
-    pl.plot(x, e_k, '--', c='0.5')
+    plt.plot(x, e_k, '--', c='0.5')
 for e_k in e_snk[1]:
-    pl.plot(x, e_k, '--', c='0.5')
+    plt.plot(x, e_k, '--', c='0.5')
 
 soc = soc_eigenstates(calc)
 e_nk = soc.eigenvalues().T
@@ -27,19 +27,19 @@ s_knv = soc.spin_projections()
 e_nk -= soc.fermi_level
 s_nk = (s_knv[:, :, 2].T + 1.0) / 2.0
 
-pl.xticks(X, [r'$\Gamma$', '(010)   H   (001)', r'$\Gamma$'], size=20)
-pl.yticks(size=20)
+plt.xticks(X, [r'$\Gamma$', '(010)   H   (001)', r'$\Gamma$'], size=20)
+plt.yticks(size=20)
 for i in range(len(X))[1:-1]:
-    pl.plot(2 * [X[i]], [1.1 * np.min(e_nk), 1.1 * np.max(e_nk)],
-            c='0.5', linewidth=0.5)
+    plt.plot(2 * [X[i]], [1.1 * np.min(e_nk), 1.1 * np.max(e_nk)],
+             c='0.5', linewidth=0.5)
 
-pl.scatter(np.tile(x, len(e_nk)), e_nk.reshape(-1),
-           c=s_nk.reshape(-1),
-           s=5,
-           marker='+')
-pl.plot([0, x[-1]], 2 * [0.0], '-', c='0.5')
+plt.scatter(np.tile(x, len(e_nk)), e_nk.reshape(-1),
+            c=s_nk.reshape(-1),
+            s=5,
+            marker='+')
+plt.plot([0, x[-1]], 2 * [0.0], '-', c='0.5')
 
-pl.ylabel(r'$\varepsilon_n(k)$ [eV]', size=24)
-pl.axis([0, x[-1], -0.5, 0.5])
+plt.ylabel(r'$\varepsilon_n(k)$ [eV]', size=24)
+plt.axis([0, x[-1], -0.5, 0.5])
 # pl.show()
-pl.savefig('Fe_bands.png')
+plt.savefig('Fe_bands.png')

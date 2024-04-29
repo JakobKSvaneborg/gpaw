@@ -233,14 +233,14 @@ class RTTDDFT:
                              propagator: TDAlgorithm | None = None):
 
         if isinstance(calc, DFTCalculation):
-            calculation = calc
+            dft = calc
         else:
-            assert calc.calculation is not None
-            calculation = calc.calculation
+            assert calc.dft is not None
+            dft = calc.dft
 
-        state = calculation.state
-        pot_calc = calculation.pot_calc
-        hamiltonian = calculation.scf_loop.hamiltonian
+        state = dft.state
+        pot_calc = dft.pot_calc
+        hamiltonian = dft.scf_loop.hamiltonian
         history = RTTDDFTHistory()
 
         return cls(state, pot_calc, hamiltonian, propagator=propagator,
@@ -250,13 +250,13 @@ class RTTDDFT:
     def from_dft_file(cls,
                       filepath: str,
                       propagator: TDAlgorithm | None = None):
-        _, calculation, params, builder = read_gpw(filepath,
-                                                   log='-',
-                                                   comm=world,
-                                                   dtype=complex)
+        _, dft, params, builder = read_gpw(filepath,
+                                           log='-',
+                                           comm=world,
+                                           dtype=complex)
 
-        state = calculation.state
-        pot_calc = calculation.pot_calc
+        state = dft.state
+        pot_calc = dft.pot_calc
         hamiltonian = builder.create_hamiltonian_operator()
         history = RTTDDFTHistory()
 

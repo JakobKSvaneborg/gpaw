@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from ase.build import molecule
 from ase.utils import workdir
 
 from gpaw import GPAW
@@ -20,33 +19,12 @@ pytestmark = pytest.mark.usefixtures('module_tmp_path')
 parallel_i = parallel_options(fix_sl_auto=True)
 
 
-def calculate_ground_state(*, communicator=world,
-                           spinpol=False):
-    atoms = molecule('NaCl')
-    atoms.center(vacuum=4.0)
-    calc = GPAW(nbands=6,
-                h=0.4,
-                setups=dict(Na='1'),
-                basis='dzp',
-                mode='lcao',
-                convergence={'density': 1e-8},
-                spinpol=spinpol,
-                communicator=communicator,
-                symmetry={'point_group': False},
-                txt='gs.out')
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    calc.write('gs.gpw', mode='all')
-    return calc
-
-
 @pytest.fixture(scope='module')
 @only_on_master(world)
-def initialize_system():
+def initialize_system(gpw_files):
     comm = serial_comm
-
-    calc = calculate_ground_state(communicator=comm)
-    fdm = calculate_time_propagation('gs.gpw',
+    calc = GPAW(gpw_files['nacl_nospin'], communicator=comm)
+    fdm = calculate_time_propagation(gpw_files['nacl_nospin'],
                                      kick=np.ones(3) * 1e-5,
                                      communicator=comm,
                                      do_fdm=True)
@@ -83,8 +61,9 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
 
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
-def test_propagation(initialize_system, module_tmp_path, parallel, in_tmp_dir):
-    calculate_time_propagation(module_tmp_path / 'gs.gpw',
+def test_propagation(initialize_system, module_tmp_path, parallel,
+                     gpw_files, in_tmp_dir):
+    calculate_time_propagation(gpw_files['nacl_nospin'],
                                kick=np.ones(3) * 1e-5,
                                parallel=parallel)
     check_wfs(module_tmp_path / 'wf.ulm', 'wf.ulm', atol=1e-12)
@@ -280,13 +259,31 @@ def test_dipole_moment_from_density(kind, density, load_ksd,
     assert err < atol
 
 
+@pytest.mark.rttddft
+@only_on_master(world)
+def test_read_ksd(ksd_reference):
+    # Build a KohnShamDecomposition object from the calculator
+    ksd, _ = ksd_reference
+
+    # Now save it and read it without the calculator
+    ksd.write('ksd_save.ulm')
+    ksd_read = KohnShamDecomposition(filename='ksd_save.ulm')
+
+    np.testing.assert_equal(ksd.atoms, ksd_read.atoms)
+
+    for attr in ['S_uMM', 'C0_unM', 'eig_un', 'occ_un', 'C0S_unM']:
+        ref = getattr(ksd, attr)
+        test = getattr(ksd_read, attr)
+
+        np.testing.assert_almost_equal(ref, test)
+
+
 @pytest.fixture(scope='module')
 @only_on_master(world)
 @workdir('spinpol', mkdir=True)
-def initialize_system_spinpol():
+def initialize_system_spinpol(gpw_files):
     comm = serial_comm
-    calculate_ground_state(communicator=comm, spinpol=True)
-    calculate_time_propagation('gs.gpw',
+    calculate_time_propagation(gpw_files['nacl_spin'],
                                kick=np.ones(3) * 1e-5,
                                communicator=comm,
                                do_fdm=True)
@@ -305,9 +302,9 @@ def test_spinpol_dipole_moment(initialize_system, initialize_system_spinpol,
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_spinpol_propagation(initialize_system_spinpol, module_tmp_path,
-                             parallel, in_tmp_dir):
+                             parallel, in_tmp_dir, gpw_files):
     ref_path = module_tmp_path / 'spinpol'
-    calculate_time_propagation(ref_path / 'gs.gpw',
+    calculate_time_propagation(gpw_files['nacl_spin'],
                                kick=np.ones(3) * 1e-5,
                                parallel=parallel)
     check_wfs(ref_path / 'wf.ulm', 'wf.ulm', atol=1e-12)

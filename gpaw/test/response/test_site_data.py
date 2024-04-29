@@ -51,7 +51,7 @@ def test_Fe_site_magnetization(gpw_files):
     # Test that a cutoff at the augmentation sphere radius reproduces
     # the local magnetic moment of the GPAW calculation
     magmom_at_augr = calc.get_atoms().get_magnetic_moments()[0]
-    assert abs(magmom_r[-1] - magmom_at_augr) < 1e-2
+    assert abs(magmom_r[-1] - magmom_at_augr) < 4e-2
 
     # Do a manual calculation of the magnetic moment using the
     # all-electron partial waves

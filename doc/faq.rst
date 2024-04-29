@@ -15,19 +15,23 @@ General
 Citation: How should I cite GPAW?
 ---------------------------------
 
-If you find GPAW useful in your research please cite the original reference:
+If you find GPAW useful in your research please cite this GPAW review:
+
+   | Jens Jørgen Mortensen, Ask Hjorth Larsen, Mikael Kuisma et al.
+   | :doi:`GPAW: An open Python package for electronic structure calculations featured <10.1063/5.0182685>`
+   | J. Chem. Phys. 160, 092503 (2024)
+
+together with the ASE review (see :ref:`ase:cite`).
+
+You are welcome to cite also the original GPAW reference and an earlier GPAW review:
 
    | J. J. Mortensen, L. B. Hansen, and K. W. Jacobsen
    | :doi:`Real-space grid implementation of the projector augmented wave method <10.1103/PhysRevB.71.035109>`
    | Phys. Rev. B **71**, 035109 (2005)
 
-and the major GPAW review:
-
    | J. Enkovaara, C. Rostgaard, J. J. Mortensen et al.
    | :doi:`Electronic structure calculations with GPAW: a real-space implementation of the projector augmented-wave method <10.1088/0953-8984/22/25/253202>`
    | J. Phys.: Condens. Matter **22**, 253202 (2010)
-
-together with the ASE review (see :ref:`ase:cite`).
 
 Please also cite those of the following that are relevant to you work:
 

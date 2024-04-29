@@ -7,7 +7,7 @@ from typing import Tuple
 from ase.utils import gcd
 import numpy as np
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
 
 
@@ -367,16 +367,16 @@ class Symmetry:
             return a_g.conj()
         # General point group symmetry
         else:
-            import _gpaw
+            import gpaw.cgpaw as cgpaw
             b_g = np.zeros_like(a_g)
             if time_reversal:
                 # assert abs(np.dot(op_cc, kibz_c) - -kbz_c) < tol
-                _gpaw.symmetrize_wavefunction(a_g, b_g, op_cc.T.copy(),
+                cgpaw.symmetrize_wavefunction(a_g, b_g, op_cc.T.copy(),
                                               kibz_c, -kbz_c)
                 return b_g.conj()
             else:
                 # assert abs(np.dot(op_cc, kibz_c) - kbz_c) < tol
-                _gpaw.symmetrize_wavefunction(a_g, b_g, op_cc.T.copy(),
+                cgpaw.symmetrize_wavefunction(a_g, b_g, op_cc.T.copy(),
                                               kibz_c, kbz_c)
                 return b_g
 
@@ -457,7 +457,7 @@ def map_k_points(bzk_kc, U_scc, time_reversal, comm=None, tol=1e-11):
 
     bz2bz_ks = np.zeros((nbzkpts, len(U_scc)), int)
     bz2bz_ks[ka:kb] = -1
-    _gpaw.map_k_points(np.ascontiguousarray(bzk_kc),
+    cgpaw.map_k_points(np.ascontiguousarray(bzk_kc),
                        np.ascontiguousarray(U_scc), tol, bz2bz_ks, ka, kb)
     comm.sum(bz2bz_ks)
     return bz2bz_ks

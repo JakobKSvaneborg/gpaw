@@ -14,7 +14,7 @@ http://www.netlib.org/scalapack
 """
 import numpy as np
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 switch_lu = {'U': 'L', 'L': 'U'}
 switch_lr = {'L': 'R', 'R': 'L'}
@@ -65,7 +65,7 @@ def scalapack_set(desca, a, alpha, beta, uplo, m=None, n=None, ia=1, ja=1):
         n = desca.gshape[1]
     if not desca.blacsgrid.is_active():
         return
-    _gpaw.scalapack_set(a, desca.asarray(), alpha, beta,
+    cgpaw.scalapack_set(a, desca.asarray(), alpha, beta,
                         switch_lu[uplo], n, m, ja, ia)
 
 
@@ -94,7 +94,7 @@ def scalapack_diagonalize_dc(desca, a, z, w, uplo):
     if not desca.blacsgrid.is_active():
         return
     assert desca.gshape[0] == len(w)
-    info = _gpaw.scalapack_diagonalize_dc(a, desca.asarray(),
+    info = cgpaw.scalapack_diagonalize_dc(a, desca.asarray(),
                                           switch_lu[uplo], z, w)
     if info != 0:
         raise RuntimeError('scalapack_diagonalize_dc error: %d' % info)
@@ -134,7 +134,7 @@ def scalapack_diagonalize_ex(desca, a, z, w, uplo, iu=None):
     if not desca.blacsgrid.is_active():
         return
     assert desca.gshape[0] == len(w)
-    info = _gpaw.scalapack_diagonalize_ex(a, desca.asarray(),
+    info = cgpaw.scalapack_diagonalize_ex(a, desca.asarray(),
                                           switch_lu[uplo],
                                           iu, z, w)
     if info != 0:
@@ -172,7 +172,7 @@ def scalapack_diagonalize_mr3(desca, a, z, w, uplo, iu=None):
     if not desca.blacsgrid.is_active():
         return
     assert desca.gshape[0] == len(w)
-    info = _gpaw.scalapack_diagonalize_mr3(a, desca.asarray(),
+    info = cgpaw.scalapack_diagonalize_mr3(a, desca.asarray(),
                                            switch_lu[uplo],
                                            iu, z, w)
     if info != 0:
@@ -205,7 +205,7 @@ def scalapack_general_diagonalize_dc(desca, a, b, z, w, uplo):
     if not desca.blacsgrid.is_active():
         return
     assert desca.gshape[0] == len(w)
-    info = _gpaw.scalapack_general_diagonalize_dc(a, desca.asarray(),
+    info = cgpaw.scalapack_general_diagonalize_dc(a, desca.asarray(),
                                                   switch_lu[uplo], b, z, w)
     if info != 0:
         raise RuntimeError('scalapack_general_diagonalize_dc error: %d' % info)
@@ -246,7 +246,7 @@ def scalapack_general_diagonalize_ex(desca, a, b, z, w, uplo, iu=None):
     if not desca.blacsgrid.is_active():
         return
     assert desca.gshape[0] == len(w)
-    info = _gpaw.scalapack_general_diagonalize_ex(a, desca.asarray(),
+    info = cgpaw.scalapack_general_diagonalize_ex(a, desca.asarray(),
                                                   switch_lu[uplo],
                                                   iu, b, z, w)
     if info != 0:
@@ -285,7 +285,7 @@ def scalapack_general_diagonalize_mr3(desca, a, b, z, w, uplo, iu=None):
     if not desca.blacsgrid.is_active():
         return
     assert desca.gshape[0] == len(w)
-    info = _gpaw.scalapack_general_diagonalize_mr3(a, desca.asarray(),
+    info = cgpaw.scalapack_general_diagonalize_mr3(a, desca.asarray(),
                                                    switch_lu[uplo],
                                                    iu, b, z, w)
     if info != 0:
@@ -309,7 +309,7 @@ def scalapack_inverse_cholesky(desca, a, uplo):
     assert uplo in ['L', 'U']
     if not desca.blacsgrid.is_active():
         return
-    info = _gpaw.scalapack_inverse_cholesky(a, desca.asarray(),
+    info = cgpaw.scalapack_inverse_cholesky(a, desca.asarray(),
                                             switch_lu[uplo])
     if info != 0:
         raise RuntimeError('scalapack_inverse_cholesky error: %d' % info)
@@ -325,7 +325,7 @@ def scalapack_inverse(desca, a, uplo):
     assert uplo in ['L', 'U']
     if not desca.blacsgrid.is_active():
         return
-    info = _gpaw.scalapack_inverse(a, desca.asarray(), switch_lu[uplo])
+    info = cgpaw.scalapack_inverse(a, desca.asarray(), switch_lu[uplo])
     if info != 0:
         raise RuntimeError('scalapack_inverse error: %d' % info)
 
@@ -351,7 +351,7 @@ def scalapack_solve(desca, descb, a, b):
 
     if not desca.blacsgrid.is_active():
         return
-    info = _gpaw.scalapack_solve(a, desca.asarray(), b, descb.asarray())
+    info = cgpaw.scalapack_solve(a, desca.asarray(), b, descb.asarray())
     if info != 0:
         raise RuntimeError('scalapack_solve error: %d' % info)
 
@@ -371,7 +371,7 @@ def pblas_tran(alpha, a_MN, beta, c_NM, desca, descc, conj=True):
     descc.checkassert(c_NM)
     M, N = desca.gshape
     assert N, M == descc.gshape
-    _gpaw.pblas_tran(N, M, alpha, a_MN, beta, c_NM,
+    cgpaw.pblas_tran(N, M, alpha, a_MN, beta, c_NM,
                      desca.asarray(), descc.asarray(),
                      conj)
 
@@ -411,7 +411,7 @@ def _pblas_hemm_symm(alpha, a_MM, b_MN, beta, c_MN, desca, descb, descc,
 
     if not desca.blacsgrid.is_active():
         return
-    _gpaw.pblas_hemm_symm(switch_lr[side], switch_lu[uplo],
+    cgpaw.pblas_hemm_symm(switch_lr[side], switch_lu[uplo],
                           N, M, alpha, a_MM, b_MN, beta, c_MN,
                           desca.asarray(), descb.asarray(), descc.asarray(),
                           hemm)
@@ -482,7 +482,7 @@ def pblas_gemm(alpha, a_MK, b_KN, beta, c_MN, desca, descb, descc,
 
     if not desca.blacsgrid.is_active():
         return
-    _gpaw.pblas_gemm(N, M, Ka, alpha, b_KN, a_MK, beta, c_MN,
+    cgpaw.pblas_gemm(N, M, Ka, alpha, b_KN, a_MK, beta, c_MN,
                      descb.asarray(), desca.asarray(), descc.asarray(),
                      transb, transa)
 
@@ -542,7 +542,7 @@ def pblas_gemv(alpha, a_MN, x_N, beta, y_M, desca, descx, descy,
 
     if not desca.blacsgrid.is_active():
         return
-    _gpaw.pblas_gemv(N, M, alpha,
+    cgpaw.pblas_gemv(N, M, alpha,
                      a_MN, x_N, beta, y_M,
                      desca.asarray(),
                      descx.asarray(),
@@ -569,7 +569,7 @@ def pblas_r2k(alpha, a_NK, b_NK, beta, c_NN, desca, descb, descc,
     N = descc.gshape[0]  # order of C
     # K must take into account implicit tranpose due to C ordering
     K = desca.gshape[1]  # number of columns of A and B
-    _gpaw.pblas_r2k(N, K, alpha, a_NK, b_NK, beta, c_NN,
+    cgpaw.pblas_r2k(N, K, alpha, a_NK, b_NK, beta, c_NN,
                     desca.asarray(),
                     descb.asarray(),
                     descc.asarray(),
@@ -594,7 +594,7 @@ def pblas_rk(alpha, a_NK, beta, c_NN, desca, descc,
     N = descc.gshape[0]  # order of C
     # K must take into account implicit tranpose due to C ordering
     K = desca.gshape[1]  # number of columns of A
-    _gpaw.pblas_rk(N, K, alpha, a_NK, beta, c_NN,
+    cgpaw.pblas_rk(N, K, alpha, a_NK, beta, c_NN,
                    desca.asarray(),
                    descc.asarray(),
                    uplo)

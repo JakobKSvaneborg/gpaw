@@ -5,7 +5,7 @@ from ase.dft.bee import BEEFEnsemble, readbee
 from gpaw import GPAW, Mixer, PW
 from gpaw.test import gen
 from gpaw.mpi import world
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 @pytest.mark.later
@@ -15,7 +15,7 @@ import _gpaw
 @pytest.mark.parametrize('xc', ['mBEEF', 'BEEF-vdW', 'mBEEF-vdW'])
 def test_beef(in_tmp_dir, xc):
     if xc[0] == 'm':
-        assert _gpaw.lxcXCFuncNum('MGGA_X_MBEEF') is not None
+        assert cgpaw.lxcXCFuncNum('MGGA_X_MBEEF') is not None
 
     results = {'mBEEF': (5.449, 0.056),
                'BEEF-vdW': (5.484, 0.071),

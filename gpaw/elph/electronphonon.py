@@ -8,7 +8,7 @@ from ase.utils.filecache import MultiFileJSONCache
 from gpaw.calculator import GPAW
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.lcao.tightbinding import TightBinding
-from gpaw.utilities import unpack2
+from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.tools import tri2full
 
 
@@ -179,7 +179,7 @@ class ElectronPhononCoupling(Displacement):
                 # Matrix elements
                 gp_MM = np.zeros((nao, nao), dtype)
                 for a_, dH1_sp in dH1_asp.items():
-                    dH1_ii = unpack2(dH1_sp[kpt.s])
+                    dH1_ii = unpack_hermitian(dH1_sp[kpt.s])
                     P_Mi = P_aqMi[a_][kpt.q]
                     gp_MM += np.dot(P_Mi, np.dot(dH1_ii, P_Mi.T.conjugate()))
                 g_sqMM[kpt.s, kpt.q] += gp_MM
@@ -187,7 +187,7 @@ class ElectronPhononCoupling(Displacement):
 
             # parprint("Starting gradient of projectors")
             # 2b) dP^a part has only contributions from the same atoms
-            dH_ii = unpack2(dH_asp[a][kpt.s])
+            dH_ii = unpack_hermitian(dH_asp[a][kpt.s])
             for kpt in kpt_u:
                 # XXX Sort out the sign here; conclusion -> sign = +1 !
                 P1HP_MM = +1 * np.dot(dP_qvMi[kpt.q][v], np.dot(dH_ii,

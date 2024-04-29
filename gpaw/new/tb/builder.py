@@ -246,7 +246,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         assert self.communicators['w'].size == 1
 
         ibzwfs, tciexpansions = create_lcao_ibzwfs(
-            basis, potential,
+            basis,
             self.ibz, self.communicators, self.setups,
             self.fracpos_ac, self.grid, self.dtype,
             self.nbands, self.ncomponents, self.atomdist, self.nelectrons)
@@ -267,7 +267,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                 r_g = np.linspace(0, rc, 150)
                 vt_g = vt.map(r_g) / (4 * pi)**0.5
                 phit_g = phit.map(r_g)
-                vtphit_j.append(Spline(phit.l, rc, vt_g * phit_g))
+                vtphit_j.append(Spline.from_data(phit.l, rc, vt_g * phit_g))
             vtphit[setup] = vtphit_j
 
         vtciexpansions = TCIExpansions([s.basis_functions_J

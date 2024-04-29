@@ -1,11 +1,9 @@
-from functools import partial
-
 import numpy as np
 from gpaw.core.matrix import Matrix
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
 from gpaw.new.fd.builder import FDDFTComponentsBuilder
-from gpaw.new.ibzwfs import create_ibz_wave_functions as create_ibzwfs
+from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunction
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
@@ -74,7 +72,7 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                                   log=None,
                                   coefficients=None):
         ibzwfs, _ = create_lcao_ibzwfs(
-            basis, potential,
+            basis,
             self.ibz, self.communicators, self.setups,
             self.fracpos_ac, self.grid, self.dtype,
             self.nbands, self.ncomponents, self.atomdist, self.nelectrons,
@@ -82,7 +80,7 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
         return ibzwfs
 
 
-def create_lcao_ibzwfs(basis, potential,
+def create_lcao_ibzwfs(basis,
                        ibz, communicators, setups,
                        fracpos_ac, grid, dtype,
                        nbands, ncomponents, atomdist, nelectrons,
@@ -92,6 +90,56 @@ def create_lcao_ibzwfs(basis, potential,
     band_comm = communicators['b']
     domain_comm = communicators['d']
 
+    S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives = tci_helper(
+        basis, ibz, domain_comm, band_comm, kpt_comm,
+        fracpos_ac, atomdist,
+        grid, dtype, setups)
+
+    nao = setups.nao
+
+    def create_wfs(spin, q, k, kpt_c, weight):
+        C_nM = Matrix(nbands, 2 * nao if ncomponents == 4 else nao,
+                      dtype,
+                      dist=(band_comm, band_comm.size, 1))
+        if coefficients is not None:
+            C_nM.data[:] = coefficients.proxy(spin, k)
+        return LCAOWaveFunctions(
+            setups=setups,
+            tci_derivatives=tci_derivatives,
+            basis=basis,
+            C_nM=C_nM,
+            S_MM=S_qMM[q],
+            T_MM=T_qMM[q],
+            P_aMi=P_qaMi[q],
+            kpt_c=kpt_c,
+            fracpos_ac=fracpos_ac,
+            atomdist=atomdist,
+            domain_comm=domain_comm,
+            spin=spin,
+            q=q,
+            k=k,
+            weight=weight,
+            ncomponents=ncomponents)
+
+    ibzwfs = LCAOIBZWaveFunction.create(
+        ibz=ibz,
+        nelectrons=nelectrons,
+        ncomponents=ncomponents,
+        create_wfs_func=create_wfs,
+        kpt_comm=kpt_comm,
+        kpt_band_comm=kpt_band_comm,
+        comm=communicators['w'])
+    ibzwfs.grid = grid  # The TCI-stuff needs cell and pbc from somwhere ...
+    return ibzwfs, tciexpansions
+
+
+def tci_helper(basis,
+               ibz,
+               domain_comm, band_comm, kpt_comm,
+               fracpos_ac, atomdist,
+               grid,
+               dtype,
+               setups):
     rank_k = ibz.ranks(kpt_comm)
     here_k = rank_k == kpt_comm.rank
     kpt_qc = ibz.kpt_kc[here_k]
@@ -136,36 +184,4 @@ def create_lcao_ibzwfs(basis, potential,
 
     tci_derivatives = TCIDerivatives(manytci, atomdist, nao)
 
-    def create_wfs(spin, q, k, kpt_c, weight):
-        C_nM = Matrix(nbands, 2 * nao if ncomponents == 4 else nao,
-                      dtype,
-                      dist=(band_comm, band_comm.size, 1))
-        if coefficients is not None:
-            C_nM.data[:] = coefficients.proxy(spin, k)
-        return LCAOWaveFunctions(
-            setups=setups,
-            density_adder=partial(basis.construct_density, q=q),
-            tci_derivatives=tci_derivatives,
-            basis=basis,
-            C_nM=C_nM,
-            S_MM=S_qMM[q],
-            T_MM=T_qMM[q],
-            P_aMi=P_qaMi[q],
-            kpt_c=kpt_c,
-            fracpos_ac=fracpos_ac,
-            atomdist=atomdist,
-            domain_comm=domain_comm,
-            spin=spin,
-            q=q,
-            k=k,
-            weight=weight,
-            ncomponents=ncomponents)
-
-    ibzwfs = create_ibzwfs(ibz=ibz,
-                           nelectrons=nelectrons,
-                           ncomponents=ncomponents,
-                           create_wfs_func=create_wfs,
-                           kpt_comm=kpt_comm,
-                           kpt_band_comm=kpt_band_comm,
-                           comm=communicators['w'])
-    return ibzwfs, tciexpansions
+    return S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives

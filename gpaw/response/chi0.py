@@ -1,23 +1,20 @@
 from __future__ import annotations
 
-import warnings
 from time import ctime
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.units import Ha
 
 import gpaw
-import gpaw.mpi as mpi
+from gpaw.response import ResponseContext
 from gpaw.response.chi0_data import (Chi0Data, Chi0BodyData,
                                      Chi0OpticalExtensionData)
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.hilbert import HilbertTransform
 from gpaw.response import timer
-from gpaw.response.pair import KPointPairFactory
 from gpaw.response.pw_parallelization import PlaneWaveBlockDistributor
-from gpaw.typing import Array1D
 from gpaw.utilities.memory import maxrss
 from gpaw.response.chi0_base import Chi0ComponentPWCalculator, Chi0Integrand
 from gpaw.response.integrators import (
@@ -26,52 +23,29 @@ from gpaw.response.integrators import (
     Hermitian, Hilbert, HilbertTetrahedron, GenericUpdate)
 
 if TYPE_CHECKING:
-    from gpaw.response.context import ResponseContext
+    from typing import Any
+    from gpaw.typing import ArrayLike1D
     from gpaw.response.groundstate import ResponseGroundStateAdapter
     from gpaw.response.pair import ActualPairDensityCalculator
 
 
-def find_maximum_frequency(kpt_u: list,
-                           context: ResponseContext,
-                           nbands=0) -> float:
-    """Determine the maximum electron-hole pair transition energy."""
-    epsmin = 10000.0
-    epsmax = -10000.0
-
-    # kpt_u: list of KPoint from gpaw.kpoint
-    for kpt in kpt_u:
-        epsmin = min(epsmin, kpt.eps_n[0])
-        epsmax = max(epsmax, kpt.eps_n[nbands - 1])
-
-    context.print('Minimum eigenvalue: %10.3f eV' % (epsmin * Ha),
-                  flush=False)
-    context.print('Maximum eigenvalue: %10.3f eV' % (epsmax * Ha))
-
-    return epsmax - epsmin
-
-
 class Chi0Calculator:
-    def __init__(self, kptpair_factory: KPointPairFactory,
+    def __init__(self,
+                 gs: ResponseGroundStateAdapter,
                  context: ResponseContext | None = None,
+                 nblocks=1,
                  eshift=0.0,
                  intraband=True,
                  rate=0.0,
                  **kwargs):
-        self.kptpair_factory = kptpair_factory
-
-        # gs: ResponseGroundStateAdapter from gpaw.response.groundstate
-        self.gs = kptpair_factory.gs
-
-        # context: ResponseContext from gpaw.response.context
-        if context is None:
-            context = kptpair_factory.context
-        self.context = context
+        self.gs = gs
+        self.context = context or ResponseContext()
 
         self.chi0_body_calc = Chi0BodyCalculator(
-            kptpair_factory, context=context,
-            eshift=eshift, **kwargs)
+            self.gs, self.context,
+            nblocks=nblocks, eshift=eshift, **kwargs)
         self.chi0_opt_ext_calc = Chi0OpticalExtensionCalculator(
-            kptpair_factory, context=context,
+            self.gs, self.context,
             intraband=intraband, rate=rate, **kwargs)
 
     @property
@@ -160,6 +134,13 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
     def __init__(self, *args,
                  eshift=0.0,
                  **kwargs):
+        """Construct the Chi0BodyCalculator.
+
+        Parameters
+        ----------
+        eshift : float
+            Energy shift of the conduction bands in eV.
+        """
         self.eshift = eshift / Ha
         super().__init__(*args, **kwargs)
 
@@ -323,33 +304,39 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
                  intraband=True,
                  rate=0.0,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        """Contruct the Chi0OpticalExtensionCalculator.
+
+        Parameters
+        ----------
+        intraband : bool
+            Flag for including the intraband contribution to the chi0 head.
+        rate : float, str
+            Phenomenological scattering rate to use in optical limit Drude term
+            (in eV). If rate='eta', it uses input artificial broadening eta as
+            rate. Please note that for consistency the rate is implemented as
+            omegap^2 / (omega + 1j * rate)^2, which differs from some
+            literature by a factor of 2.
+        """
+        # Serial block distribution
+        super().__init__(*args, nblocks=1, **kwargs)
 
         # In the optical limit of metals, one must add the Drude dielectric
         # response from the free-space plasma frequency of the intraband
-        # transitions to the head of the chi0 wings. This is handled by a
-        # separate calculator, provided that intraband is set to True.
+        # transitions to the head of chi0. This is handled by a separate
+        # calculator, provided that intraband is set to True.
         if self.gs.metallic and intraband:
             from gpaw.response.chi0_drude import Chi0DrudeCalculator
             if rate == 'eta':
                 rate = self.eta * Ha  # external units
             self.rate = rate
             self.drude_calc = Chi0DrudeCalculator(
-                self.kptpair_factory,
+                self.gs, self.context,
                 disable_point_group=self.disable_point_group,
                 disable_time_reversal=self.disable_time_reversal,
                 integrationmode=self.integrationmode)
         else:
             self.drude_calc = None
             self.rate = None
-
-    @property
-    def nblocks(self) -> int:
-        # The optical extensions are not distributed in memory, hence we
-        # overwrite nblocks.
-        # NB: There can be a mismatch with self.kptpair_factory.nblocks, which
-        # seems a bit dangerous XXX
-        return 1
 
     def calculate(self,
                   qpd: SingleQPWDescriptor | None = None
@@ -454,129 +441,27 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         self.context.print('\n'.join(isl))
 
 
-class Chi0(Chi0Calculator):
-    """Class for calculating non-interacting response functions.
-    Tries to be backwards compatible, for now. """
+def get_frequency_descriptor(
+        frequencies: ArrayLike1D | dict[str, Any] | None = None, *,
+        gs: ResponseGroundStateAdapter | None = None,
+        nbands: int | None = None):
+    """Helper function to generate frequency descriptors.
 
-    def __init__(self,
-                 calc: str,
-                 *,
-                 frequencies: Union[dict, Array1D] | None = None,
-                 ecut=50,
-                 world=mpi.world, txt='-', timer=None,
-                 nblocks=1,
-                 nbands: int | None = None,
-                 domega0: float | None = None,  # deprecated
-                 omega2: float | None = None,  # deprecated
-                 omegamax: float | None = None,  # deprecated
-                 **kwargs):
-        """Construct Chi0 object.
-
-        Parameters
-        ----------
-        calc : str
-            The groundstate calculation file that the linear response
-            calculation is based on.
-        frequencies :
-            Input parameters for frequency_grid.
-            Can be array of frequencies to evaluate the response function at
-            or dictionary of paramaters for build-in nonlinear grid
-            (see :ref:`frequency grid`).
-        ecut : float
-            Energy cutoff.
-        hilbert : bool
-            Switch for hilbert transform. If True, the full density response
-            is determined from a hilbert transform of its spectral function.
-            This is typically much faster, but does not work for imaginary
-            frequencies.
-        nbands : int
-            Maximum band index to include.
-        timeordered : bool
-            Switch for calculating the time ordered density response function.
-            In this case the hilbert transform cannot be used.
-        eta : float
-            Artificial broadening of spectra.
-        intraband : bool
-            Switch for including the intraband contribution to the density
-            response function.
-        world : MPI comm instance
-            MPI communicator.
-        txt : str
-            Output file.
-        timer : gpaw.utilities.timing.timer instance
-        nblocks : int
-            Divide the response function into nblocks. Useful when the response
-            function is large.
-        disable_point_group : bool
-            Do not use the point group symmetry operators.
-        disable_time_reversal : bool
-            Do not use time reversal symmetry.
-        integrationmode : str
-            Integrator for the kpoint integration.
-            If == 'tetrahedron integration' then the kpoint integral is
-            performed using the linear tetrahedron method.
-        eshift : float
-            Shift unoccupied bands
-        rate : float,str
-            Phenomenological scattering rate to use in optical limit Drude term
-            (in eV). If rate='eta', then use input artificial broadening eta as
-            rate. Note, for consistency with the formalism the rate is
-            implemented as omegap^2 / (omega + 1j * rate)^2 which differ from
-            some literature by a factor of 2.
+    In most cases, the `frequencies` input can be processed directly via
+    wd = FrequencyDescriptor.from_array_or_dict(frequencies),
+    but in cases where `frequencies` does not specify omegamax, it is
+    calculated from the input ground state adapter.
+    """
+    if frequencies is None:
+        frequencies = {'type': 'nonlinear'}  # default frequency grid
+    if isinstance(frequencies, dict) and frequencies.get('omegamax') is None:
+        assert gs is not None
+        frequencies['omegamax'] = get_omegamax(gs, nbands)
+    return FrequencyDescriptor.from_array_or_dict(frequencies)
 
 
-        Attributes
-        ----------
-        kptpair_factory : gpaw.response.pair.KPointPairFactory instance
-            Class for calculating matrix elements of pairs of wavefunctions.
-
-        """
-        from gpaw.response.pair import get_gs_and_context
-
-        # gs: ResponseGroundStateAdapter from gpaw.response.groundstate
-        # context: ResponseContext from gpaw.response.context
-        gs, context = get_gs_and_context(calc, txt, world, timer)
-
-        # bd: BandDescriptor from gpaw.band_descriptor
-        nbands = nbands or gs.bd.nbands
-
-        # wd: FrequencyDescriptor from gpaw.response.frequencies
-        wd = new_frequency_descriptor(
-            gs, context, nbands, frequencies,
-            domega0=domega0,
-            omega2=omega2, omegamax=omegamax)
-
-        kptpair_factory = KPointPairFactory(gs, context, nblocks=nblocks)
-
-        super().__init__(wd=wd, kptpair_factory=kptpair_factory,
-                         nbands=nbands, ecut=ecut, **kwargs)
-
-
-def new_frequency_descriptor(gs: ResponseGroundStateAdapter,
-                             context: ResponseContext,
-                             nbands: int,
-                             frequencies: None | dict | np.ndarray = None,
-                             *, domega0: float | None = None,
-                             omega2: float | None = None,
-                             omegamax: float | None = None)\
-        -> FrequencyDescriptor:
-
-    if domega0 is not None or omega2 is not None or omegamax is not None:
-        assert frequencies is None
-        frequencies = {'type': 'nonlinear',
-                       'domega0': domega0,
-                       'omega2': omega2,
-                       'omegamax': omegamax}
-        warnings.warn(f'Please use frequencies={frequencies}')
-
-    elif frequencies is None:
-        frequencies = {'type': 'nonlinear'}
-
-    if (isinstance(frequencies, dict) and
-        frequencies.get('omegamax') is None):
-        omegamax = find_maximum_frequency(gs.kpt_u, context,
-                                          nbands=nbands)
-        frequencies['omegamax'] = omegamax * Ha
-
-    wd = FrequencyDescriptor.from_array_or_dict(frequencies)
-    return wd
+def get_omegamax(gs: ResponseGroundStateAdapter,
+                 nbands: int | None = None):
+    """Get the maxmimum eigenvalue difference including nbands, in eV."""
+    epsmin, epsmax = gs.get_eigenvalue_range(nbands=nbands)
+    return (epsmax - epsmin) * Ha

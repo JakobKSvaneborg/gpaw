@@ -9,15 +9,15 @@ from gpaw.xc.gga import GGA, gga_vars, add_gradient_correction
 from gpaw.xc.libxc import LibXC
 from gpaw.xc.mgga import MGGA
 import gpaw
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 def libvdwxc_has_mpi():
-    return have_mpi and _gpaw.libvdwxc_has('mpi')
+    return have_mpi and cgpaw.libvdwxc_has('mpi')
 
 
 def libvdwxc_has_pfft():
-    return have_mpi and _gpaw.libvdwxc_has('pfft')
+    return have_mpi and cgpaw.libvdwxc_has('pfft')
 
 
 def check_grid_descriptor(gd):
@@ -69,7 +69,7 @@ class LibVDWXC:
         code = _VDW_NUMERICAL_CODES[funcname]
         self.shape = tuple(N_c)
         ptr = np.empty(1, np.intp)
-        _gpaw.libvdwxc_create(ptr, code, nspins, self.shape,
+        cgpaw.libvdwxc_create(ptr, code, nspins, self.shape,
                               tuple(np.ravel(cell_cv)))
         # assign ptr only now that it is initialized (so __del__ always works)
         self._ptr = ptr
@@ -109,17 +109,17 @@ class LibVDWXC:
         if mode == 'serial':
             assert comm.size == 1, ('You cannot run in serial with %d cores'
                                     % comm.size)
-            _gpaw.libvdwxc_init_serial(self._ptr)
+            cgpaw.libvdwxc_init_serial(self._ptr)
         elif gpaw.dry_run:
             pass
             # XXXXXX liable to cause really nasty errors.
         elif mode == 'mpi':
             if not libvdwxc_has_mpi():
                 raise ImportError('libvdwxc not compiled with MPI')
-            _gpaw.libvdwxc_init_mpi(self._ptr, comm.get_c_object())
+            cgpaw.libvdwxc_init_mpi(self._ptr, comm.get_c_object())
         elif mode == 'pfft':
             nx, ny = self.pfft_grid
-            _gpaw.libvdwxc_init_pfft(self._ptr, comm.get_c_object(), nx, ny)
+            cgpaw.libvdwxc_init_pfft(self._ptr, comm.get_c_object(), nx, ny)
 
         self.initialized = True
 
@@ -133,7 +133,7 @@ class LibVDWXC:
             assert arr.dtype == float
             # XXX We cannot actually ask libvdwxc about its expected shape
             # assert arr.shape == self.shape, [arr.shape, self.shape]
-        energy = _gpaw.libvdwxc_calculate(self._ptr, n_sg, sigma_xg,
+        energy = cgpaw.libvdwxc_calculate(self._ptr, n_sg, sigma_xg,
                                           dedn_sg, dedsigma_xg)
         return energy
 
@@ -150,11 +150,11 @@ class LibVDWXC:
         return f'{self.vdw_functional_name} [libvdwxc/{pardesc}]'
 
     def tostring(self):
-        return _gpaw.libvdwxc_tostring(self._ptr)
+        return cgpaw.libvdwxc_tostring(self._ptr)
 
     def __del__(self):
         if hasattr(self, '_ptr'):
-            _gpaw.libvdwxc_free(self._ptr)
+            cgpaw.libvdwxc_free(self._ptr)
 
 
 class RedistWrapper:

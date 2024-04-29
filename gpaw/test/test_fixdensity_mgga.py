@@ -2,6 +2,7 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
+from gpaw.calculator import DeprecatedParameterWarning
 
 
 @pytest.mark.ci
@@ -54,7 +55,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new):
                     kpts=kpts,
                     symmetry='off')
         try:
-            with pytest.warns(DeprecationWarning):
+            with pytest.warns(DeprecatedParameterWarning):
                 calc.get_potential_energy()
         except ValueError:
             pass

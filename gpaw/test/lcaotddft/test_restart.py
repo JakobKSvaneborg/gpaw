@@ -1,9 +1,7 @@
 import pytest
 import numpy as np
 import ase.io.ulm as ulm
-from ase.build import molecule
 
-from gpaw import GPAW
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
@@ -15,23 +13,9 @@ from gpaw.tddft.folding import frequencies
 @pytest.mark.gllb
 @pytest.mark.libxc
 @pytest.mark.rttddft
-def test_lcaotddft_restart(in_tmp_dir):
-    atoms = molecule('SiH4')
-    atoms.center(vacuum=4.0)
-
-    # Ground-state calculation
-    calc = GPAW(nbands=7, h=0.4,
-                basis='dzp', mode='lcao',
-                convergence={'density': 1e-8},
-                xc='GLLBSC',
-                symmetry={'point_group': False},
-                txt='gs.out')
-    atoms.calc = calc
-    _ = atoms.get_potential_energy()
-    calc.write('gs.gpw', mode='all')
-
+def test_lcaotddft_restart(gpw_files, in_tmp_dir):
     # Time-propagation calculation
-    td_calc = LCAOTDDFT('gs.gpw', txt='td.out')
+    td_calc = LCAOTDDFT(gpw_files['sih4_xc_gllbsc_lcao'], txt='td.out')
     DipoleMomentWriter(td_calc, 'dm.dat')
     dmat = DensityMatrix(td_calc)
     freqs = frequencies(np.arange(0.05, 6.01, 1.0), None, None)

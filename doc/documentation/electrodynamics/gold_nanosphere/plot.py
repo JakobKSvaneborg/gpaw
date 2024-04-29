@@ -1,6 +1,6 @@
 # web-page: qsfdtd_vs_mie.png
 import numpy as np
-import pylab as plt
+import matplotlib.pyplot as plt
 from ase.units import Hartree, Bohr
 from gpaw.fdtd.polarizable_material import PermittivityPlus, _eps0_au
 

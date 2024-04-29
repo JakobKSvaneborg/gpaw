@@ -10,7 +10,7 @@ import traceback
 from contextlib import contextmanager
 from typing import Any
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 import numpy as np
 import warnings
 from ase.parallel import MPI as ASE_MPI
@@ -631,7 +631,7 @@ class _Communicator:
         comm.get_c_object() and pass the resulting object to the C code.
         """
         c_obj = self.comm.get_c_object()
-        if isinstance(c_obj, _gpaw.Communicator):
+        if isinstance(c_obj, cgpaw.Communicator):
             return c_obj
         return c_obj.get_c_object()
 
@@ -1234,7 +1234,7 @@ def exit(error='Manual exit'):
     else:
         cleanup(error)
     world.barrier()  # sync up before exiting
-    sys.exit()  # quit for serial case, return to _gpaw.c for parallel case
+    sys.exit()  # quit for serial case, return to cgpaw.c for parallel case
 
 
 atexit.register(cleanup)

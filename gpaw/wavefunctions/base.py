@@ -2,7 +2,7 @@ import numpy as np
 from ase.units import Ha
 
 from gpaw.projections import Projections
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 from gpaw.utilities.blas import axpy, mmm
 from gpaw.utilities.partition import AtomPartition
 
@@ -141,7 +141,7 @@ class WaveFunctions:
         D_sii = np.zeros((self.nspins, ni, ni))
         P_i = kpt.P_ani[a][n]
         D_sii[kpt.s] += np.outer(P_i.conj(), P_i).real
-        D_sp = [pack(D_ii) for D_ii in D_sii]
+        D_sp = [pack_density(D_ii) for D_ii in D_sii]
         return D_sp
 
     def calculate_atomic_density_matrices_k_point(self, D_sii, kpt, a, f_n):
@@ -189,7 +189,7 @@ class WaveFunctions:
             for f_n, kpt in zip(f_un, self.kpt_u):
                 self.calculate_atomic_density_matrices_k_point(D_sii, kpt, a,
                                                                f_n)
-            D_sp[:] = [pack(D_ii) for D_ii in D_sii]
+            D_sp[:] = [pack_density(D_ii) for D_ii in D_sii]
             self.kptband_comm.sum(D_sp)
 
         self.symmetrize_atomic_density_matrices(D_asp)

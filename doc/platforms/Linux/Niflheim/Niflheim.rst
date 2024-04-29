@@ -5,7 +5,8 @@ Niflheim
 ========
 
 Information about the Niflheim cluster can be found at
-`<https://wiki.fysik.dtu.dk/niflheim>`_.
+`<https://niflheim-users.readthedocs.io/>`_ and
+`<https://niflheim-system.readthedocs.io/>`_.
 
 There are two ways to use GPAW on Niflheim.  You can use a preinstalled GPAW,
 or you can compile it yourself (the latter is mainly for GPAW developpers).

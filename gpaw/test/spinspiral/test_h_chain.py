@@ -10,7 +10,7 @@ def test_afm_h_chain(in_tmp_dir, gpw_files):
     e1 = h.get_potential_energy()
     h1, l1 = h.calc.get_homo_lumo()
     # print(e1, h.get_magnetic_moment())
-    # print(a1.get_potential_energy(), a1.calc.calculation.magmoms())
+    # print(a1.get_potential_energy(), a1.calc.dft.magmoms())
 
     h2_calc = GPAW(gpw_files['h2_chain'])
     h2 = h2_calc.atoms

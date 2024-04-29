@@ -11,7 +11,7 @@ from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.plane_waves import PWArray
 from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.gpu import as_np
+from gpaw.gpu import as_np, XP
 from gpaw.mpi import receive, send
 from gpaw.new import prod, zips
 from gpaw.new.potential import Potential
@@ -20,7 +20,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array2D, Array3D, ArrayND, Vector
 
 
-class PWFDWaveFunctions(WaveFunctions):
+class PWFDWaveFunctions(WaveFunctions, XP):
     def __init__(self,
                  psit_nX: XArray,
                  *,
@@ -54,7 +54,7 @@ class PWFDWaveFunctions(WaveFunctions):
         self.orthonormalized = False
         self.bytes_per_band = (prod(self.array_shape(global_shape=True)) *
                                psit_nX.desc.itemsize)
-        self.xp = self.psit_nX.xp
+        XP.__init__(self, self.psit_nX.xp)
 
     @classmethod
     def from_wfs(cls,
@@ -130,12 +130,10 @@ class PWFDWaveFunctions(WaveFunctions):
     def move(self,
              fracpos_ac: Array2D,
              atomdist: AtomDistribution) -> None:
-        self._P_ani = None
+        super().move(fracpos_ac, atomdist)
         self.orthonormalized = False
         assert self.pt_aiX is not None
         self.pt_aiX.move(fracpos_ac, atomdist)
-        self._eig_n = None
-        self._occ_n = None
 
     def add_to_density(self,
                        nt_sR: UGArray,

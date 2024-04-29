@@ -9,7 +9,7 @@ def test_dipole_me(gpw_files):
 
     # Method 1: evaluate all-electron wave functions on fine grid:
     psi0, psi1 = (
-        calc.calculation.state.ibzwfs.get_all_electron_wave_function(n)
+        calc.dft.state.ibzwfs.get_all_electron_wave_function(n)
         for n in [0, 1])
     if psi0 is not None:
         d1_v = (psi0 * psi1).moment() * Bohr

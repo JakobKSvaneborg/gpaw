@@ -1,21 +1,375 @@
 from __future__ import annotations
-import sys
+from dataclasses import dataclass
 from math import pi
+import sys
 
 import numpy as np
 from ase.units import Hartree, Bohr
 
 import gpaw.mpi as mpi
 
+from gpaw.response.context import ResponseContext
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response.density_kernels import get_density_xc_kernel
-from gpaw.response.chi0 import Chi0Calculator, new_frequency_descriptor
-from gpaw.response.pair import get_gs_and_context, KPointPairFactory
+from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
+from gpaw.response.chi0_data import Chi0Data
+from gpaw.response.pair import get_gs_and_context
+from gpaw.response.pair_functions import SingleQPWDescriptor
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from gpaw.response.frequencies import FrequencyDescriptor
+
+
+@dataclass
+class Chi0DysonEquation:
+    chi0: Chi0Data
+    df: 'DielectricFunctionCalculator'
+
+    def __post_init__(self):
+        self.gs = self.df.gs
+        self.context = self.df.context
+        self.coulomb = self.df.coulomb
+        self.blocks1d = self.df.blocks1d
+
+    def chi(self, xc='RPA', direction='x', return_VchiV=True, q_v=None,
+            rshelmax=-1, rshewmin=None):
+        """Returns qpd, chi0 and chi0, possibly in v^1/2 chi v^1/2 format.
+
+        The truncated Coulomb interaction is included as
+        v^-1/2 v_t v^-1/2. This is in order to conform with
+        the head and wings of chi0, which is treated specially for q=0.
+
+        Parameters
+        ----------
+        rshelmax : int or None
+            Expand kernel in real spherical harmonics inside augmentation
+            spheres. If None, the kernel will be calculated without
+            augmentation. The value of rshelmax indicates the maximum index l
+            to perform the expansion in (l < 6).
+        rshewmin : float or None
+            If None, the kernel correction will be fully expanded up to the
+            chosen lmax. Given as a float, (0 < rshewmin < 1) indicates what
+            coefficients to use in the expansion. If any coefficient
+            contributes with less than a fraction of rshewmin on average,
+            it will not be included.
+        """
+        chi0 = self.chi0
+        qpd = chi0.qpd
+        chi0_wGG = chi0.body.get_distributed_frequencies_array().copy()
+
+        coulomb_bare = CoulombKernel.from_gs(self.gs, truncation=None)
+        Kbare_G = coulomb_bare.V(qpd=qpd, q_v=q_v)  # np.ndarray
+        sqrtV_G = Kbare_G**0.5
+
+        nG = len(sqrtV_G)
+
+        Ktrunc_G = self.coulomb.V(qpd=qpd, q_v=q_v)
+
+        if self.coulomb.truncation is None:
+            K_GG = np.eye(nG, dtype=complex)
+        else:
+            K_GG = np.diag(Ktrunc_G / Kbare_G)
+
+        # kd: KPointDescriptor object from gpaw.kpt_descriptor
+        if qpd.kd.gamma:
+            if isinstance(direction, str):
+                d_v = {'x': [1, 0, 0],
+                       'y': [0, 1, 0],
+                       'z': [0, 0, 1]}[direction]
+            else:
+                d_v = direction
+            d_v = np.asarray(d_v) / np.linalg.norm(d_v)
+            W = self.blocks1d.myslice  # slice object for this process.
+            #  used to distribute the calculation when run in parallel.
+            chi0_wGG[:, 0] = np.dot(d_v, chi0.chi0_WxvG[W, 0])
+            chi0_wGG[:, :, 0] = np.dot(d_v, chi0.chi0_WxvG[W, 1])
+            chi0_wGG[:, 0, 0] = np.dot(d_v, np.dot(chi0.chi0_Wvv[W], d_v).T)
+
+        if xc != 'RPA':
+            Kxc_GG = get_density_xc_kernel(qpd,
+                                           self.gs, self.context,
+                                           functional=xc,
+                                           chi0_wGG=chi0_wGG)
+            K_GG += Kxc_GG / sqrtV_G / sqrtV_G[:, np.newaxis]
+
+        # Invert Dyson eq.
+        chi_wGG = []
+        for chi0_GG in chi0_wGG:
+            """v^1/2 chi0 V^1/2"""
+            chi0_GG[:] = chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
+            chi_GG = np.dot(np.linalg.inv(np.eye(nG) -
+                                          np.dot(chi0_GG, K_GG)),
+                            chi0_GG)
+            if not return_VchiV:
+                chi0_GG /= sqrtV_G * sqrtV_G[:, np.newaxis]
+                chi_GG /= sqrtV_G * sqrtV_G[:, np.newaxis]
+            chi_wGG.append(chi_GG)
+
+        if len(chi_wGG):
+            chi_wGG = np.array(chi_wGG)
+        else:
+            chi_wGG = np.zeros((0, nG, nG), complex)
+
+        return ChiData(self, qpd, chi0_wGG, np.array(chi_wGG))
+
+    def dielectric_matrix(self, xc='RPA', direction='x', symmetric=True,
+                          calculate_chi=False, q_v=None):
+        r"""Returns the symmetrized dielectric matrix.
+
+        ::
+
+            \tilde\epsilon_GG' = v^{-1/2}_G \epsilon_GG' v^{1/2}_G',
+
+        where::
+
+            epsilon_GG' = 1 - v_G * P_GG' and P_GG'
+
+        is the polarization.
+
+        ::
+
+            In RPA:   P = chi^0
+            In TDDFT: P = (1 - chi^0 * f_xc)^{-1} chi^0
+
+        in addition to RPA one can use the kernels, ALDA, Bootstrap and
+        LRalpha (long-range kerne), where alpha is a user specified parameter
+        (for example xc='LR0.25')
+
+        The head of the inverse symmetrized dielectric matrix is equal
+        to the head of the inverse dielectric matrix (inverse dielectric
+        function)"""
+
+        chi0 = self.chi0
+        qpd = chi0.qpd
+        chi0_wGG = chi0.body.get_distributed_frequencies_array().copy()
+
+        K_G = self.coulomb.sqrtV(qpd=qpd, q_v=q_v)
+        nG = len(K_G)
+
+        if qpd.kd.gamma:
+            if isinstance(direction, str):
+                d_v = {'x': [1, 0, 0],
+                       'y': [0, 1, 0],
+                       'z': [0, 0, 1]}[direction]
+            else:
+                d_v = direction
+
+            d_v = np.asarray(d_v) / np.linalg.norm(d_v)
+            W = self.blocks1d.myslice
+            chi0_wGG[:, 0] = np.dot(d_v, chi0.chi0_WxvG[W, 0])
+            chi0_wGG[:, :, 0] = np.dot(d_v, chi0.chi0_WxvG[W, 1])
+            chi0_wGG[:, 0, 0] = np.dot(d_v, np.dot(chi0.chi0_Wvv[W], d_v).T)
+            if q_v is not None:
+                print('Restoring q dependence of head and wings of chi0')
+                chi0_wGG[:, 1:, 0] *= np.dot(q_v, d_v)
+                chi0_wGG[:, 0, 1:] *= np.dot(q_v, d_v)
+                chi0_wGG[:, 0, 0] *= np.dot(q_v, d_v)**2
+
+        if xc != 'RPA':
+            Kxc_GG = get_density_xc_kernel(qpd,
+                                           self.gs, self.context,
+                                           functional=xc,
+                                           chi0_wGG=chi0_wGG)
+
+        if calculate_chi:
+            chi_wGG = []
+
+        for chi0_GG in chi0_wGG:
+            if xc == 'RPA':
+                P_GG = chi0_GG
+            else:
+                P_GG = np.dot(np.linalg.inv(np.eye(nG) -
+                                            np.dot(chi0_GG, Kxc_GG)),
+                              chi0_GG)
+            if symmetric:
+                e_GG = np.eye(nG) - P_GG * K_G * K_G[:, np.newaxis]
+            else:
+                K_GG = (K_G**2 * np.ones([nG, nG])).T
+                e_GG = np.eye(nG) - P_GG * K_GG
+
+            if calculate_chi:
+                K_GG = np.diag(K_G**2)
+                if xc != 'RPA':
+                    K_GG += Kxc_GG
+                chi_wGG.append(np.dot(np.linalg.inv(np.eye(nG) -
+                                                    np.dot(chi0_GG, K_GG)),
+                                      chi0_GG))
+            chi0_GG[:] = e_GG
+
+        # chi0_wGG is now the dielectric matrix
+        if calculate_chi:
+            if len(chi_wGG):
+                chi_wGG = np.array(chi_wGG)
+            else:
+                chi_wGG = np.zeros((0, nG, nG), complex)
+
+        if not calculate_chi:
+            return DielectricMatrixData(self, chi0_wGG=chi0_wGG)
+        else:
+            # chi_wGG is the full density response function..
+            return DielectricMatrixData(self, qpd=qpd, chi0_wGG=chi0_wGG,
+                                        chi_wGG=chi_wGG)
+
+
+@dataclass
+class ChiData:
+    dyson: Chi0DysonEquation
+    qpd: object
+    chi0_wGG: np.ndarray
+    chi_wGG: np.ndarray
+
+    def unpack(self):
+        return (self.qpd, self.chi0_wGG, self.chi_wGG)
+
+    def dynamic_susceptibility(self):
+        """Calculate the dynamic susceptibility.
+
+        Returns macroscopic(could be generalized?) dynamic susceptibility:
+        chiM0_w, chiM_w = DielectricFunction.get_dynamic_susceptibility()
+        """
+        rf0_w = np.zeros(len(self.chi_wGG), dtype=complex)
+        rf_w = np.zeros(len(self.chi_wGG), dtype=complex)
+
+        for w, (chi0_GG, chi_GG) in enumerate(zip(self.chi0_wGG,
+                                                  self.chi_wGG)):
+            rf0_w[w] = chi0_GG[0, 0]
+            rf_w[w] = chi_GG[0, 0]
+
+        rf0_w = self.dyson.df.collect(rf0_w)
+        rf_w = self.dyson.df.collect(rf_w)
+
+        return DynamicSusceptibility(self.wd, rf0_w, rf_w)
+
+    @property
+    def wd(self):
+        return self.dyson.df.wd
+
+    def eels_spectrum(self):
+        r"""Calculate EELS spectrum. By default, generate a file 'eels.csv'.
+
+        EELS spectrum is obtained from the imaginary part of the
+        density response function as, EELS(\omega) = - 4 * \pi / q^2 Im \chi.
+        Returns EELS spectrum without and with local field corrections:
+
+        df_NLFC_w, df_LFC_w = DielectricFunction.get_eels_spectrum()"""
+
+        # Calculate V^1/2 \chi V^1/2
+        Vchi0_wGG = self.chi0_wGG  # askhl: so what's with the V^1/2?
+        Vchi_wGG = self.chi_wGG
+
+        # Calculate eels = -Im 4 \pi / q^2  \chi
+        eels_NLFC_w = -(1. / (1. - Vchi0_wGG[:, 0, 0])).imag
+        eels_LFC_w = -Vchi_wGG[:, 0, 0].imag
+
+        eels_NLFC_w = self.dyson.df.collect(eels_NLFC_w)
+        eels_LFC_w = self.dyson.df.collect(eels_LFC_w)
+        return EELSSpectrum(self.dyson.context, self.wd,
+                            eels_NLFC_w, eels_LFC_w)
+
+
+@dataclass
+class DynamicSusceptibility:
+    wd: FrequencyDescriptor
+    rf0_w: np.ndarray
+    rf_w: np.ndarray
+
+    def unpack(self):
+        return self.rf0_w, self.rf_w
+
+    def write(self, filename):
+        if filename is not None and mpi.rank == 0:
+            write_response_function(
+                filename, self.wd.omega_w * Hartree, self.rf0_w, self.rf_w)
+
+
+@dataclass
+class EELSSpectrum:
+    context: ResponseContext
+    wd: FrequencyDescriptor
+    eels_NLFC_w: np.ndarray
+    eels_LFC_w: np.ndarray
+
+    def unpack(self):
+        return self.eels_NLFC_w, self.eels_LFC_w
+
+    def write(self, filename):
+        if filename is not None and self.context.comm.rank == 0:
+            write_response_function(filename, self.wd.omega_w * Hartree,
+                                    self.eels_NLFC_w, self.eels_LFC_w)
+
+
+@dataclass
+class DielectricMatrixData:
+    dyson: Chi0DysonEquation
+    qpd: SingleQPWDescriptor | None = None
+    chi0_wGG: np.ndarray | None = None
+    chi_wGG: np.ndarray | None = None
+
+    def unpack(self):
+        # (This has the (inconsistent) return types of the old API.)
+        if self.qpd is None:
+            return self.chi0_wGG
+        return (self.qpd, self.chi0_wGG, self.chi_wGG)
+
+    def dielectric_function(self):
+        """Calculate the dielectric function.
+
+        Returns dielectric function without and with local field correction:
+        df_NLFC_w, df_LFC_w = DielectricFunction.get_dielectric_function()
+        """
+        e_wGG = self.chi0_wGG  # XXX what's with the names here?
+        df_NLFC_w = np.zeros(len(e_wGG), dtype=complex)
+        df_LFC_w = np.zeros(len(e_wGG), dtype=complex)
+
+        for w, e_GG in enumerate(e_wGG):
+            df_NLFC_w[w] = e_GG[0, 0]
+            df_LFC_w[w] = 1 / np.linalg.inv(e_GG)[0, 0]
+
+        df_NLFC_w = self.dyson.df.collect(df_NLFC_w)
+        df_LFC_w = self.dyson.df.collect(df_LFC_w)
+
+        return DielectricFunctionData(self.dyson.df.wd, df_NLFC_w, df_LFC_w)
+
+
+@dataclass
+class Polarizability:
+    context: ResponseContext
+    wd: FrequencyDescriptor
+    alpha0_w: np.ndarray
+    alpha_w: np.ndarray
+
+    def unpack(self):
+        return self.alpha0_w, self.alpha_w
+
+    def write(self, filename):
+        if filename is not None and self.context.comm.rank == 0:
+            write_response_function(filename, self.wd.omega_w * Hartree,
+                                    self.alpha0_w, self.alpha_w)
+
+
+@dataclass
+class DielectricFunctionData:
+    wd: FrequencyDescriptor
+    df_NLFC_w: np.ndarray
+    df_LFC_w: np.ndarray
+
+    def unpack(self):
+        return self.df_NLFC_w, self.df_LFC_w
+
+    def write(self, filename):
+        if filename is not None and mpi.rank == 0:
+            write_response_function(filename, self.wd.omega_w * Hartree,
+                                    self.df_NLFC_w, self.df_LFC_w)
+
+    @property
+    def eps0(self):
+        return self.df_NLFC_w[0].real
+
+    @property
+    def eps(self):
+        return self.df_LFC_w[0].real
 
 
 class DielectricFunctionCalculator:
@@ -75,20 +429,12 @@ class DielectricFunctionCalculator:
             # In conclusion, delete the cache now:
             self._chi0cache.clear()
 
-            # chi0: Chi0Data from gpaw.response.chi0_data
-            chi0 = self.chi0calc.calculate(q_c)
-
-            # chi0.body: Chi0BodyData from from gpaw.response.chi0_data
-            # chi0_wGG: np.ndarray
-            chi0_wGG = chi0.body.get_distributed_frequencies_array()
+            # cache Chi0Data from gpaw.response.chi0_data
+            self._chi0cache[key] = Chi0DysonEquation(
+                self.chi0calc.calculate(q_c), self)
             self.context.write_timer()
-            things = chi0.qpd, chi0_wGG, chi0.chi0_WxvG, chi0.chi0_Wvv
-            self._chi0cache[key] = things
 
-        # qpd: SingleQPWDescriptor from gpaw.response.pair_functions
-        qpd, *more_things = self._chi0cache[key]
-        return (qpd, *[thing.copy() if thing is not None else thing
-                       for thing in more_things])
+        return self._chi0cache[key]
 
     def collect(self, a_w: np.ndarray) -> np.ndarray:
         # combines array from sub-processes into one.
@@ -98,240 +444,39 @@ class DielectricFunctionCalculator:
         """ Return frequencies that Chi is evaluated on"""
         return self.wd.omega_w * Hartree
 
-    def get_chi(self, xc='RPA', q_c=[0, 0, 0],
-                direction='x', return_VchiV=True, q_v=None,
-                rshelmax=-1, rshewmin=None):
-        """Returns qpd, chi0 and chi0, possibly in v^1/2 chi v^1/2 format.
+    def _new_chi(self, xc='RPA', q_c=[0, 0, 0], **kwargs):
+        return self.calculate_chi0(q_c).chi(xc=xc, **kwargs)
 
-        The truncated Coulomb interaction is included as
-        v^-1/2 v_t v^-1/2. This is in order to conform with
-        the head and wings of chi0, which is treated specially for q=0.
+    def get_chi(self, *args, **kwargs):
+        return self._new_chi(*args, **kwargs).unpack()
 
-        Parameters
-        ----------
-        rshelmax : int or None
-            Expand kernel in real spherical harmonics inside augmentation
-            spheres. If None, the kernel will be calculated without
-            augmentation. The value of rshelmax indicates the maximum index l
-            to perform the expansion in (l < 6).
-        rshewmin : float or None
-            If None, the kernel correction will be fully expanded up to the
-            chosen lmax. Given as a float, (0 < rshewmin < 1) indicates what
-            coefficients to use in the expansion. If any coefficient
-            contributes with less than a fraction of rshewmin on average,
-            it will not be included.
-        """
-        qpd, chi0_wGG, chi0_WxvG, chi0_Wvv = self.calculate_chi0(q_c)
+    def _new_dynamic_susceptibility(self, xc='ALDA', q_c=[0, 0, 0], *,
+                                    filename='chiM_w.csv', **kwargs):
+        chi0 = self.calculate_chi0(q_c)
+        chi = chi0.chi(xc=xc, return_VchiV=False, **kwargs)
+        dynsus = chi.dynamic_susceptibility()
+        dynsus.write(filename)
+        return dynsus
 
-        coulomb_bare = CoulombKernel.from_gs(self.gs, truncation=None)
-        Kbare_G = coulomb_bare.V(qpd=qpd, q_v=q_v)  # np.ndarray
-        sqrtV_G = Kbare_G**0.5
+    def _new_dielectric_function(self, *args, filename='df.csv', **kwargs):
+        dm = self._new_dielectric_matrix(*args, **kwargs)
+        df = dm.dielectric_function()
+        df.write(filename)
+        return df
 
-        nG = len(sqrtV_G)
+    def _new_dielectric_matrix(self, xc='RPA', q_c=[0, 0, 0], **kwargs):
+        chi0 = self.calculate_chi0(q_c)
+        return chi0.dielectric_matrix(xc=xc, **kwargs)
 
-        Ktrunc_G = self.coulomb.V(qpd=qpd, q_v=q_v)
+    def get_dynamic_susceptibility(self, *args, **kwargs):
+        return self._new_dynamic_susceptibility(*args, **kwargs).unpack()
 
-        if self.coulomb.truncation is None:
-            K_GG = np.eye(nG, dtype=complex)
-        else:
-            K_GG = np.diag(Ktrunc_G / Kbare_G)
+    def get_dielectric_matrix(self, *args, **kwargs):
+        return self._new_dielectric_matrix(*args, **kwargs).unpack()
 
-        # kd: KPointDescriptor object from gpaw.kpt_descriptor
-        if qpd.kd.gamma:
-            if isinstance(direction, str):
-                d_v = {'x': [1, 0, 0],
-                       'y': [0, 1, 0],
-                       'z': [0, 0, 1]}[direction]
-            else:
-                d_v = direction
-            d_v = np.asarray(d_v) / np.linalg.norm(d_v)
-            W = self.blocks1d.myslice  # slice object for this process.
-            #  used to distribute the calculation when run in parallel.
-            chi0_wGG[:, 0] = np.dot(d_v, chi0_WxvG[W, 0])
-            chi0_wGG[:, :, 0] = np.dot(d_v, chi0_WxvG[W, 1])
-            chi0_wGG[:, 0, 0] = np.dot(d_v, np.dot(chi0_Wvv[W], d_v).T)
-
-        if xc != 'RPA':
-            Kxc_GG = get_density_xc_kernel(qpd,
-                                           self.gs, self.context,
-                                           functional=xc,
-                                           chi0_wGG=chi0_wGG)
-            K_GG += Kxc_GG / sqrtV_G / sqrtV_G[:, np.newaxis]
-
-        # Invert Dyson eq.
-        chi_wGG = []
-        for chi0_GG in chi0_wGG:
-            """v^1/2 chi0 V^1/2"""
-            chi0_GG[:] = chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
-            chi_GG = np.dot(np.linalg.inv(np.eye(nG) -
-                                          np.dot(chi0_GG, K_GG)),
-                            chi0_GG)
-            if not return_VchiV:
-                chi0_GG /= sqrtV_G * sqrtV_G[:, np.newaxis]
-                chi_GG /= sqrtV_G * sqrtV_G[:, np.newaxis]
-            chi_wGG.append(chi_GG)
-
-        if len(chi_wGG):
-            chi_wGG = np.array(chi_wGG)
-        else:
-            chi_wGG = np.zeros((0, nG, nG), complex)
-
-        return qpd, chi0_wGG, np.array(chi_wGG)
-
-    def get_dynamic_susceptibility(self, xc='ALDA', q_c=[0, 0, 0],
-                                   q_v=None,
-                                   rshelmax=-1, rshewmin=None,
-                                   filename='chiM_w.csv'):
-        """Calculate the dynamic susceptibility.
-
-        Returns macroscopic(could be generalized?) dynamic susceptibility:
-        chiM0_w, chiM_w = DielectricFunction.get_dynamic_susceptibility()
-        """
-
-        qpd, chi0_wGG, chi_wGG = self.get_chi(xc=xc, q_c=q_c,
-                                              rshelmax=rshelmax,
-                                              rshewmin=rshewmin,
-                                              return_VchiV=False)
-
-        rf0_w = np.zeros(len(chi_wGG), dtype=complex)
-        rf_w = np.zeros(len(chi_wGG), dtype=complex)
-
-        for w, (chi0_GG, chi_GG) in enumerate(zip(chi0_wGG, chi_wGG)):
-            rf0_w[w] = chi0_GG[0, 0]
-            rf_w[w] = chi_GG[0, 0]
-
-        rf0_w = self.collect(rf0_w)
-        rf_w = self.collect(rf_w)
-
-        if filename is not None and mpi.rank == 0:
-            write_response_function(filename, self.wd.omega_w * Hartree,
-                                    rf0_w, rf_w)
-
-        return rf0_w, rf_w
-
-    def get_dielectric_matrix(self, xc='RPA', q_c=[0, 0, 0],
-                              direction='x', symmetric=True,
-                              calculate_chi=False, q_v=None,
-                              add_intraband=False):
-        r"""Returns the symmetrized dielectric matrix.
-
-        ::
-
-            \tilde\epsilon_GG' = v^{-1/2}_G \epsilon_GG' v^{1/2}_G',
-
-        where::
-
-            epsilon_GG' = 1 - v_G * P_GG' and P_GG'
-
-        is the polarization.
-
-        ::
-
-            In RPA:   P = chi^0
-            In TDDFT: P = (1 - chi^0 * f_xc)^{-1} chi^0
-
-        in addition to RPA one can use the kernels, ALDA, Bootstrap and
-        LRalpha (long-range kerne), where alpha is a user specified parameter
-        (for example xc='LR0.25')
-
-        The head of the inverse symmetrized dielectric matrix is equal
-        to the head of the inverse dielectric matrix (inverse dielectric
-        function)"""
-
-        qpd, chi0_wGG, chi0_WxvG, chi0_Wvv = self.calculate_chi0(q_c)
-
-        if add_intraband:
-            print('add_intraband=True is not supported at this time')
-            raise NotImplementedError
-
-        K_G = self.coulomb.sqrtV(qpd=qpd, q_v=q_v)
-        nG = len(K_G)
-
-        if qpd.kd.gamma:
-            if isinstance(direction, str):
-                d_v = {'x': [1, 0, 0],
-                       'y': [0, 1, 0],
-                       'z': [0, 0, 1]}[direction]
-            else:
-                d_v = direction
-
-            d_v = np.asarray(d_v) / np.linalg.norm(d_v)
-            W = self.blocks1d.myslice
-            chi0_wGG[:, 0] = np.dot(d_v, chi0_WxvG[W, 0])
-            chi0_wGG[:, :, 0] = np.dot(d_v, chi0_WxvG[W, 1])
-            chi0_wGG[:, 0, 0] = np.dot(d_v, np.dot(chi0_Wvv[W], d_v).T)
-            if q_v is not None:
-                print('Restoring q dependence of head and wings of chi0')
-                chi0_wGG[:, 1:, 0] *= np.dot(q_v, d_v)
-                chi0_wGG[:, 0, 1:] *= np.dot(q_v, d_v)
-                chi0_wGG[:, 0, 0] *= np.dot(q_v, d_v)**2
-
-        if xc != 'RPA':
-            Kxc_GG = get_density_xc_kernel(qpd,
-                                           self.gs, self.context,
-                                           functional=xc,
-                                           chi0_wGG=chi0_wGG)
-
-        if calculate_chi:
-            chi_wGG = []
-
-        for chi0_GG in chi0_wGG:
-            if xc == 'RPA':
-                P_GG = chi0_GG
-            else:
-                P_GG = np.dot(np.linalg.inv(np.eye(nG) -
-                                            np.dot(chi0_GG, Kxc_GG)),
-                              chi0_GG)
-            if symmetric:
-                e_GG = np.eye(nG) - P_GG * K_G * K_G[:, np.newaxis]
-            else:
-                K_GG = (K_G**2 * np.ones([nG, nG])).T
-                e_GG = np.eye(nG) - P_GG * K_GG
-            if calculate_chi:
-                K_GG = np.diag(K_G**2)
-                if xc != 'RPA':
-                    K_GG += Kxc_GG
-                chi_wGG.append(np.dot(np.linalg.inv(np.eye(nG) -
-                                                    np.dot(chi0_GG, K_GG)),
-                                      chi0_GG))
-            chi0_GG[:] = e_GG
-
-        # chi0_wGG is now the dielectric matrix
-        if calculate_chi:
-            if len(chi_wGG):
-                chi_wGG = np.array(chi_wGG)
-            else:
-                chi_wGG = np.zeros((0, nG, nG), complex)
-
-        if not calculate_chi:
-            return chi0_wGG
-        else:
-            # chi_wGG is the full density response function..
-            return qpd, chi0_wGG, chi_wGG
-
-    def get_dielectric_function(self, xc='RPA', q_c=[0, 0, 0], q_v=None,
-                                direction='x', filename='df.csv'):
-        """Calculate the dielectric function.
-
-        Returns dielectric function without and with local field correction:
-        df_NLFC_w, df_LFC_w = DielectricFunction.get_dielectric_function()
-        """
-        e_wGG = self.get_dielectric_matrix(xc, q_c, direction, q_v=q_v)
-        df_NLFC_w = np.zeros(len(e_wGG), dtype=complex)
-        df_LFC_w = np.zeros(len(e_wGG), dtype=complex)
-
-        for w, e_GG in enumerate(e_wGG):
-            df_NLFC_w[w] = e_GG[0, 0]
-            df_LFC_w[w] = 1 / np.linalg.inv(e_GG)[0, 0]
-
-        df_NLFC_w = self.collect(df_NLFC_w)
-        df_LFC_w = self.collect(df_LFC_w)
-
-        if filename is not None and mpi.rank == 0:
-            write_response_function(filename, self.wd.omega_w * Hartree,
-                                    df_NLFC_w, df_LFC_w)
-
-        return df_NLFC_w, df_LFC_w
+    def get_dielectric_function(self, *args, **kwargs):
+        """..."""
+        return self._new_dielectric_function(*args, **kwargs).unpack()
 
     def get_macroscopic_dielectric_constant(self, xc='RPA',
                                             direction='x', q_v=None):
@@ -349,56 +494,31 @@ class DielectricFunctionCalculator:
         eM2_NLFC: float
             Dielectric constant with local field correction.
         """
+        df = self._new_dielectric_function(xc=xc, q_v=q_v, filename=None,
+                                           direction=direction)
 
         self.context.print('', flush=False)
         self.context.print('%s Macroscopic Dielectric Constant:' % xc)
-
-        df_NLFC_w, df_LFC_w = self.get_dielectric_function(
-            xc=xc,
-            filename=None,
-            direction=direction,
-            q_v=q_v)
-        eps0 = np.real(df_NLFC_w[0])
-        eps = np.real(df_LFC_w[0])
         self.context.print('  %s direction' % direction, flush=False)
-        self.context.print('    Without local field: %f' % eps0, flush=False)
-        self.context.print('    Include local field: %f' % eps)
+        self.context.print('    Without local field: %f' % df.eps0,
+                           flush=False)
+        self.context.print('    Include local field: %f' % df.eps)
 
-        return eps0, eps
+        return df.eps0, df.eps
 
-    def get_eels_spectrum(self, xc='RPA', q_c=[0, 0, 0],
-                          direction='x', filename='eels.csv'):
-        r"""Calculate EELS spectrum. By default, generate a file 'eels.csv'.
+    def _new_eels_spectrum(self, xc='RPA', q_c=[0, 0, 0],
+                           direction='x', filename='eels.csv'):
+        chi = self._new_chi(xc=xc, q_c=q_c, direction=direction)
+        eels = chi.eels_spectrum()
+        eels.write(filename)
+        return eels
 
-        EELS spectrum is obtained from the imaginary part of the
-        density response function as, EELS(\omega) = - 4 * \pi / q^2 Im \chi.
-        Returns EELS spectrum without and with local field corrections:
+    def get_eels_spectrum(self, *args, **kwargs):
+        """..."""
+        return self._new_eels_spectrum(*args, **kwargs).unpack()
 
-        df_NLFC_w, df_LFC_w = DielectricFunction.get_eels_spectrum()
-        """
-
-        # Calculate V^1/2 \chi V^1/2
-        qpd, Vchi0_wGG, Vchi_wGG = self.get_chi(xc=xc, q_c=q_c,
-                                                direction=direction)
-
-        # Calculate eels = -Im 4 \pi / q^2  \chi
-        eels_NLFC_w = -(1. / (1. - Vchi0_wGG[:, 0, 0])).imag
-        eels_LFC_w = - (Vchi_wGG[:, 0, 0]).imag
-
-        # Collect frequencies
-        eels_NLFC_w = self.collect(eels_NLFC_w)
-        eels_LFC_w = self.collect(eels_LFC_w)
-
-        # Write to file
-        if filename is not None and self.context.comm.rank == 0:
-            omega_w = self.wd.omega_w
-            write_response_function(filename, omega_w * Hartree,
-                                    eels_NLFC_w, eels_LFC_w)
-
-        return eels_NLFC_w, eels_LFC_w
-
-    def get_polarizability(self, xc='RPA', direction='x', q_c=[0, 0, 0],
-                           filename='polarizability.csv'):
+    def _new_polarizability(self, xc='RPA', direction='x', q_c=[0, 0, 0],
+                            filename='polarizability.csv'):
         r"""Calculate the polarizability alpha.
         In 3D the imaginary part of the polarizability is related to the
         dielectric function by Im(eps_M) = 4 pi * Im(alpha). In systems
@@ -427,10 +547,12 @@ class DielectricFunctionCalculator:
 
         if not self.coulomb.truncation:
             """Standard expression for the polarizability"""
-            df0_w, df_w = self.get_dielectric_function(xc=xc,
-                                                       q_c=q_c,
-                                                       filename=None,
-                                                       direction=direction)
+            df = self._new_dielectric_function(xc=xc, q_c=q_c,
+                                               filename=None,
+                                               direction=direction)
+
+            df0_w = df.df_NLFC_w
+            df_w = df.df_LFC_w
             alpha_w = V * (df_w - 1.0) / (4 * pi)
             alpha0_w = V * (df0_w - 1.0) / (4 * pi)
         else:
@@ -447,54 +569,25 @@ class DielectricFunctionCalculator:
             # truncated Coulomb potential and eps_M = 1.0
 
             self.context.print('Using truncated Coulomb interaction')
+            chi = self._new_chi(xc=xc, q_c=q_c, direction=direction)
 
-            qpd, chi0_wGG, chi_wGG = self.get_chi(xc=xc,
-                                                  q_c=q_c,
-                                                  direction=direction)
-            alpha_w = -V * (chi_wGG[:, 0, 0]) / (4 * pi)
-            alpha0_w = -V * (chi0_wGG[:, 0, 0]) / (4 * pi)
+            alpha_w = -V / (4 * pi) * chi.chi_wGG[:, 0, 0]
+            alpha0_w = -V / (4 * pi) * chi.chi0_wGG[:, 0, 0]
 
             alpha_w = self.collect(alpha_w)
             alpha0_w = self.collect(alpha0_w)
 
         # Convert to external units
-        hypervol = Bohr**(sum(~pbc_c))
+        hypervol = Bohr**sum(~pbc_c)
         alpha0_w *= hypervol
         alpha_w *= hypervol
 
-        # Write results file
-        if filename is not None and self.context.comm.rank == 0:
-            omega_w = self.wd.omega_w
-            write_response_function(filename, omega_w * Hartree,
-                                    alpha0_w, alpha_w)
+        pol = Polarizability(self.context, self.wd, alpha0_w, alpha_w)
+        pol.write(filename)
+        return pol
 
-        return alpha0_w, alpha_w
-
-    def check_sum_rule(self, spectrum=None):
-        """Check f-sum rule.
-
-        It takes the y of a spectrum as an entry and it checks its integral.
-
-        spectrum: np.ndarray
-            Input spectrum
-        """
-
-        assert (self.wd.omega_w[1:] - self.wd.omega_w[:-1]).ptp() < 1e-10
-
-        if spectrum is None:
-            raise ValueError('No spectrum input ')
-        dw = self.wd.omega_w[1] - self.wd.omega_w[0]
-        N1 = 0
-        for iw in range(len(spectrum)):
-            w = iw * dw
-            N1 += spectrum[iw] * w
-        N1 *= dw * self.gs.volume / (2 * pi**2)
-
-        self.context.print('', flush=False)
-        self.context.print('Sum rule:', flush=False)
-        nv = self.gs.nvalence
-        self.context.print('N1 = %f, %f  %% error' %
-                           (N1, (N1 - nv) / nv * 100))
+    def get_polarizability(self, *args, **kwargs):
+        return self._new_polarizability(*args, **kwargs).unpack()
 
 
 class DielectricFunction(DielectricFunctionCalculator):
@@ -502,9 +595,6 @@ class DielectricFunction(DielectricFunctionCalculator):
 
     def __init__(self, calc, *,
                  frequencies=None,
-                 domega0=None,  # deprecated
-                 omega2=None,  # deprecated
-                 omegamax=None,  # deprecated
                  ecut=50,
                  hilbert=True,
                  nbands=None, eta=0.2,
@@ -547,20 +637,12 @@ class DielectricFunction(DielectricFunctionCalculator):
         eshift: float
             Shift unoccupied bands
         """
-
         gs, context = get_gs_and_context(calc, txt, world, timer=None)
-        nbands = nbands or gs.bd.nbands
-
-        wd = new_frequency_descriptor(gs, context, nbands, frequencies,
-                                      domega0=domega0,
-                                      omega2=omega2, omegamax=omegamax)
-
-        kptpair_factory = KPointPairFactory(
-            gs=gs, context=context, nblocks=nblocks)
+        wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
 
         chi0calc = Chi0Calculator(
+            gs, context, nblocks=nblocks,
             wd=wd,
-            kptpair_factory=kptpair_factory,
             ecut=ecut, nbands=nbands, eta=eta,
             hilbert=hilbert,
             intraband=intraband,

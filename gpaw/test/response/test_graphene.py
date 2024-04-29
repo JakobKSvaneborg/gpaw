@@ -11,6 +11,7 @@ from gpaw.mpi import world
 # should be equal, are.
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.slow
 def test_response_graphene(in_tmp_dir):

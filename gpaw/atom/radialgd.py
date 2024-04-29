@@ -508,7 +508,7 @@ class RadialGridDescriptor(ABC):
         b3_i = b_g[g_i + 1]
         b_i = b1_i * x1_i + b2_i * x2_i + b3_i * x3_i
 
-        return Spline(l, rcut, b_i)
+        return Spline.from_data(l, rcut, b_i)
 
     def get_cutoff(self, f_g):
         g = self.N - 1
@@ -550,7 +550,7 @@ class EquidistantRadialGridDescriptor(RadialGridDescriptor):
         b_g = a_g.copy()
         if l > 0:
             b_g = divrl(b_g, l, self.r_g[:len(a_g)])
-        return Spline(l, self.r_g[len(a_g) - 1], b_g)
+        return Spline.from_data(l, self.r_g[len(a_g) - 1], b_g)
 
 
 class AERadialGridDescriptor(RadialGridDescriptor):

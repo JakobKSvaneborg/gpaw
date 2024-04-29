@@ -166,7 +166,7 @@ class SetupData:
              f'                         lmax: {setup.lmax}}}')
         text(f'  cutoffs: {{filter: {setup.rcutfilter * Bohr:.2f},\n'
              f'            core: {setup.rcore * Bohr:.2f}}}')
-        text('  valence states:')
+        text('  projectors:')
         text('    #              energy  rcut')
         j = 0
         for n, l, f, eps in zip(self.n_j, self.l_j, self.f_j, self.eps_j):

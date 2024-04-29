@@ -11,6 +11,7 @@ from gpaw.test import findpeak
 pytestmark = pytest.mark.skipif(world.size < 4, reason='world.size < 4')
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.slow
 @pytest.mark.xfail(reason='https://gitlab.com/gpaw/gpaw/-/jobs/5215834173')

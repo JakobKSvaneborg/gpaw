@@ -22,19 +22,12 @@ class Chi0DrudeCalculator(Chi0ComponentCalculator):
     model."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        # Serial block distribution
+        super().__init__(*args, nblocks=1, **kwargs)
 
         # task: IntegralTask from gpaw.response.integrators
         # wd: FrequencyDescriptor from gpaw.response.frequencies
         self.task, self.wd = self.construct_integral_task_and_wd()
-
-    @property
-    def nblocks(self):
-        # The plasma frequencies aren't distributed in memory, hence we
-        # overwrite nblocks.
-        # NB: There can be a mismatch with self.kptpair_factory.nblocks, which
-        # seems a bit dangerous XXX
-        return 1
 
     def calculate(self, wd, rate) -> Chi0DrudeData:
         """Calculate the Drude dielectric response.
@@ -161,8 +154,9 @@ class PlasmaFrequencyIntegrand(Integrand):
         kpt1 = kptpair_factory.get_k_point(point.spin, K0, n1, n2)
         n_n = range(n1, n2)
 
-        vel_nv = kptpair_factory.pair_calculator().intraband_pair_density(
-            kpt1, n_n)
+        pair_calc = kptpair_factory.pair_calculator(
+            blockcomm=self._drude.blockcomm)
+        vel_nv = pair_calc.intraband_pair_density(kpt1, n_n)
 
         if self._drude.integrationmode is None:
             f_n = kpt1.f_n

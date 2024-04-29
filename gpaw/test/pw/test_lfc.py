@@ -32,7 +32,7 @@ def test_pw_lfc():
 
     for l in range(3):
         print(l)
-        s = Spline(l, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
+        s = Spline.from_data(l, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
 
         lfc1 = LFC(gd, [[s]], kd, dtype=complex)
         lfc2 = PWLFC([[s]], pd)

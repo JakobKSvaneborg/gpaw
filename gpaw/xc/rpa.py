@@ -12,7 +12,7 @@ from gpaw.response import timer
 from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response.frequencies import FrequencyDescriptor
-from gpaw.response.pair import get_gs_and_context, KPointPairFactory
+from gpaw.response.pair import get_gs_and_context
 
 
 def default_ecut_extrapolation(ecut, extrapolate):
@@ -194,21 +194,16 @@ class RPACalculator:
 
             self.context.comm.barrier()
 
-        wd = FrequencyDescriptor(1j * self.omega_w)
+        chi0calc = Chi0Calculator(
+            self.gs, self.context.with_txt('chi0.txt'),
+            nblocks=self.nblocks,
+            wd=FrequencyDescriptor(1j * self.omega_w),
+            eta=0.0,
+            intraband=False,
+            hilbert=False,
+            ecut=ecutmax * Hartree)
 
-        kptpair_factory = KPointPairFactory(
-            self.gs,
-            context=self.context.with_txt('chi0.txt'),
-            nblocks=self.nblocks)
-
-        chi0calc = Chi0Calculator(wd=wd,
-                                  kptpair_factory=kptpair_factory,
-                                  eta=0.0,
-                                  intraband=False,
-                                  hilbert=False,
-                                  ecut=ecutmax * Hartree)
-
-        self.blockcomm = chi0calc.chi0_body_calc.integrator.blockcomm
+        self.blockcomm = chi0calc.chi0_body_calc.blockcomm
 
         energy_qi = []
         nq = len(energy_qi)

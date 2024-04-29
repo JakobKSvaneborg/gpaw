@@ -26,6 +26,7 @@ def gpwfile(in_tmp_dir):
     return gpwname
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.slow
 def test_response_au02_absorption(scalapack, in_tmp_dir, gpwfile):

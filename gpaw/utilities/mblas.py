@@ -1,6 +1,6 @@
 import numpy as np
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.utilities.blas import axpy
 from gpaw import gpu
 
@@ -21,7 +21,7 @@ def multi_axpy(a, x, y):
                 a_gpu = a
             else:
                 a_gpu = gpu.copy_to_device(a)
-            _gpaw.multi_axpy_gpu(gpu.get_pointer(a_gpu),
+            cgpaw.multi_axpy_gpu(gpu.get_pointer(a_gpu),
                                  a.dtype,
                                  gpu.get_pointer(x),
                                  x.shape,

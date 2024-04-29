@@ -3,11 +3,12 @@ Potentials for orbital density dependent energy functionals
 """
 from ase.units import Hartree
 import numpy as np
-from gpaw.utilities import pack, unpack
-from gpaw.lfc import LFC
-from gpaw.transformers import Transformer
-from gpaw.poisson import PoissonSolver
+
 from gpaw.directmin.tools import d_matrix
+from gpaw.lfc import LFC
+from gpaw.poisson import PoissonSolver
+from gpaw.transformers import Transformer
+from gpaw.utilities import pack_density, unpack_hermitian
 
 
 class PZSICLCAO:
@@ -249,7 +250,7 @@ class PZSICLCAO:
         timer.start('Potential matrix - PAW')
         for a, dH_p in dH_ap.items():
             P_Mj = wfs.P_aqMi[a][kpt.q]
-            dH_ij = unpack(dH_p)
+            dH_ij = unpack_hermitian(dH_p)
 
             if self.dtype is complex:
                 F_MM += P_Mj @ dH_ij @ P_Mj.T.conj()
@@ -294,9 +295,9 @@ class PZSICLCAO:
             rhoP_Mi = rho_MM @ P_Mi
             D_ii = P_Mi.T.conj() @ rhoP_Mi
             if self.dtype is complex:
-                D_ap[a] = D_p = pack(D_ii.real)
+                D_ap[a] = D_p = pack_density(D_ii.real)
             else:
-                D_ap[a] = D_p = pack(D_ii)
+                D_ap[a] = D_p = pack_density(D_ii)
 
             Q_aL[a] = np.dot(D_p, setup[a].Delta_pL)
 
@@ -593,7 +594,7 @@ class PZSICLCAO:
                 #           ij
                 #
                 for b in my_atom_indices:
-                    H_ii = np.asarray(unpack(dH_ap[b]),
+                    H_ii = np.asarray(unpack_hermitian(dH_ap[b]),
                                       dtype)
                     HP_iM = H_ii @ wfs.P_aqMi[b][kpt.q].T.conj()
                     for v in range(3):

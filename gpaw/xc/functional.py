@@ -5,7 +5,7 @@ from gpaw.xc.kernel import XCKernel
 class XCFunctional:
     orbital_dependent = False
 
-    def __init__(self, name, type):
+    def __init__(self, name: str, type: str):
         self.name = name
         self.gd = None
         self.ekin = 0.0
