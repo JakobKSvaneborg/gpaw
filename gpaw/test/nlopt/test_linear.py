@@ -1,28 +1,14 @@
 import pytest
 import numpy as np
-from gpaw import GPAW, PW
-from ase import Atoms
 from gpaw.nlopt.linear import get_chi_tensor
 from gpaw.nlopt.matrixel import make_nlodata
 from gpaw.mpi import world
 
 
 @pytest.mark.skipif(world.size > 4, reason='System too small')
-def test_shift(in_tmp_dir):
-
-    # Check for Hydrogen atom
-    atoms = Atoms('H', cell=(3 * np.eye(3)), pbc=True)
-
-    # Do a GS and save it
-    calc = GPAW(
-        mode=PW(600), symmetry={'point_group': False},
-        kpts={'size': (2, 2, 2)}, nbands=5, txt=None)
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    calc.write('gs.gpw', 'all')
-
+def test_shift(in_tmp_dir, gpw_files):
     # Get the mml
-    nlodata = make_nlodata('gs.gpw')
+    nlodata = make_nlodata(gpw_files['h_shift'])
 
     # Do a linear response caclulation
     freqs = np.linspace(0, 5, 101)

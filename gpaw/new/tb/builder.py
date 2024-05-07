@@ -91,7 +91,11 @@ class DummyFunctions(DistributedArrays[NoGrid]):
         return self
 
     def __getitem__(self, index):
-        return DummyFunctions(self.desc, comm=self.comm)
+        if isinstance(index, int):
+            dims = self.dims[1:]
+        else:
+            dims = self.dims
+        return DummyFunctions(self.desc, dims, comm=self.comm)
 
     def moment(self):
         return np.zeros(3)

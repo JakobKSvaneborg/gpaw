@@ -39,7 +39,7 @@ def obtain_gpts_suggestion(cell_cv, ecut, h, print_suggestions=False):
         if np.all(Npw_c == Nlcao_c):
             print('  Both sets of gpts the same. No action needed.')
         if np.any(Npw_c < Nopt_c):
-            print(f'  Add "gpts={list(Nopt_c)}" to PW mode calculator.')
+            print(f'  Add "gpts={Nopt_c.tolist()}" to PW mode calculator.')
         if np.any(Nlcao_c < Nopt_c):
             print(f'  Use "gpts={list(Nopt_c)}" instead of "h={h:1.3f}" ' +
                   'in LCAO calculator.')

@@ -146,17 +146,11 @@ class SCFContext:
         self.poisson_solver = pot_calc.poisson_solver
 
     def _get_workfunctions(self, _):
-        """
-        vHt_g = self.state.vHt_x
-        axes = (c, (c + 1) % 3, (c + 2) % 3)
-        potential.vt_sRself.pd3.ifft(v_q, local=True).transpose(axes)
-        vacuum = v_g[0].mean()
-        vacuum_level =
+        vacuum_level = self.state.potential.get_vacuum_level()
         (fermi_level,) = self.state.ibzwfs.fermi_levels
         wf = vacuum_level - fermi_level
         delta = self.poisson_solver.correction
         return np.array([wf + 0.5 * delta, wf - 0.5 * delta])
-        """
 
 
 def create_convergence_criteria(criteria: dict[str, Any]

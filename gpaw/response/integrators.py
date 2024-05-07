@@ -134,10 +134,10 @@ class GenericUpdate(IntegralTask):
     kind = 'response function'
     symmetrizable_unless_blocked = False
 
-    def __init__(self, eta, blockcomm, eshift=0.0):
+    def __init__(self, eta, blockcomm, eshift=None):
         self.eta = eta
         self.blockcomm = blockcomm
-        self.eshift = eshift
+        self.eshift = eshift or 0.0
 
     # @timer('CHI_0 update')
     def run(self, wd, n_mG, deps_m, chi0_wGG):
@@ -164,9 +164,9 @@ class Hermitian(IntegralTask):
     kind = 'hermitian response function'
     symmetrizable_unless_blocked = True
 
-    def __init__(self, blockcomm, eshift=0.0):
+    def __init__(self, blockcomm, eshift=None):
         self.blockcomm = blockcomm
-        self.eshift = eshift
+        self.eshift = eshift or 0.0
 
     # @timer('CHI_0 hermetian update')
     def run(self, wd, n_mG, deps_m, chi0_wGG):
@@ -190,9 +190,9 @@ class Hilbert(IntegralTask):
     kind = 'spectral function'
     symmetrizable_unless_blocked = True
 
-    def __init__(self, blockcomm, eshift=0.0):
+    def __init__(self, blockcomm, eshift=None):
         self.blockcomm = blockcomm
-        self.eshift = eshift
+        self.eshift = eshift or 0.0
 
     # @timer('CHI_0 spectral function update (new)')
     def run(self, wd, n_mG, deps_m, chi0_wGG):

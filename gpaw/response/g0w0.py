@@ -23,7 +23,7 @@ from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.screened_interaction import initialize_w_calculator
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response import timer
-
+from gpaw.mpi import broadcast_exception
 
 from ase.utils.filecache import MultiFileJSONCache as FileCache
 from contextlib import ExitStack
@@ -92,8 +92,8 @@ class Sigma:
         return self
 
     def validate_inputs(self, inputs):
-        equals = compare_dicts(inputs, self.inputs, rel_tol=1e-14,
-                               abs_tol=1e-14)
+        equals = compare_dicts(inputs, self.inputs, rel_tol=1e-12,
+                               abs_tol=1e-12)
         if not equals:
             raise RuntimeError('There exists a cache with mismatching input '
                                f'parameters: {inputs} != {self.inputs}.')
@@ -823,14 +823,14 @@ class G0W0Calculator:
 
         # Need to pause the timer in between iterations
         self.context.timer.stop('W')
-        if self.context.comm.rank == 0:
-            for key, sigmas in self.qcache.items():
-                sigmas = {fxc_mode: Sigma.fromdict(sigma)
-                          for fxc_mode, sigma in sigmas.items()}
-                for fxc_mode, sigma in sigmas.items():
-                    sigma.validate_inputs(self.get_validation_inputs())
+        with broadcast_exception(self.context.comm):
+            if self.context.comm.rank == 0:
+                for key, sigmas in self.qcache.items():
+                    sigmas = {fxc_mode: Sigma.fromdict(sigma)
+                              for fxc_mode, sigma in sigmas.items()}
+                    for fxc_mode, sigma in sigmas.items():
+                        sigma.validate_inputs(self.get_validation_inputs())
 
-        self.context.comm.barrier()
         for iq, q_c in enumerate(self.wcalc.qd.ibzk_kc):
             with ExitStack() as stack:
                 if self.context.comm.rank == 0:

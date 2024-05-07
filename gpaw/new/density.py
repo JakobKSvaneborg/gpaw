@@ -306,7 +306,7 @@ class Density:
                 y, z, x = ccc_L[1:4]
                 dip_v -= np.array([x, y, z]) * (4 * pi / 3)**0.5
         self.nt_sR.desc.comm.sum(dip_v)
-        for nt_R in self.nt_sR:
+        for nt_R in self.nt_sR[:self.ndensities]:
             dip_v -= as_np(nt_R.moment())
         return dip_v
 

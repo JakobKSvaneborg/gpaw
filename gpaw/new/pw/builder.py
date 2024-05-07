@@ -84,7 +84,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def create_poisson_solver(self, fine_pw, params):
         return make_poisson_solver(fine_pw,
                                    self.fine_grid,
-                                   self.atoms.pbc,
                                    self.params.charge,
                                    **params)
 

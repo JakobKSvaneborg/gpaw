@@ -301,6 +301,7 @@ class DFTCalculation:
 
     def write_converged(self):
         self.state.ibzwfs.write_summary(self.log)
+
         self.log.fd.flush()
 
     def electrostatic_potential(self) -> ElectrostaticPotential:

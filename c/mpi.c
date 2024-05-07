@@ -1381,7 +1381,6 @@ PyObject* globally_broadcast_bytes(PyObject *self, PyObject *args)
         char *src = PyBytes_AsString(pybytes);  // Read-only
         memcpy(dst, src, size);
     }
-    maybeSynchronize(pybytes);
     MPI_Bcast(dst, size, MPI_BYTE, 0, comm);
 
     PyObject *value = PyBytes_FromStringAndSize(dst, size);

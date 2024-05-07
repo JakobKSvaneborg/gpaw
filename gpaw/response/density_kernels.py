@@ -7,8 +7,7 @@ from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 
 
 def get_density_xc_kernel(qpd, gs, context, functional='ALDA',
-                          rshelmax=-1, rshewmin=None,
-                          chi0_wGG=None):
+                          chi0_wGG=None, **xckwargs):
     """Density-density xc kernels.
     Factory function that calls the relevant functions below."""
 
@@ -20,7 +19,7 @@ def get_density_xc_kernel(qpd, gs, context, functional='ALDA',
         # Standard adiabatic kernel
         p('Calculating %s kernel' % functional)
         localft_calc = LocalFTCalculator.from_rshe_parameters(
-            gs, context, rshelmax=rshelmax, rshewmin=rshewmin)
+            gs, context, **xckwargs)
         fxc_calculator = AdiabaticFXCCalculator(localft_calc)
         fxc_kernel = fxc_calculator(functional, '00', qpd)
         Kxc_GG = fxc_kernel.get_Kxc_GG()

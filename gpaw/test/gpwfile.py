@@ -247,6 +247,20 @@ class GPWFiles(CachedFilesHandler):
         return h.calc
 
     @gpwfile
+    def h_shift(self):
+        # Check for Hydrogen atom
+        atoms = Atoms('H', cell=(3 * np.eye(3)), pbc=True)
+
+        # Do a GS and save it
+        calc = GPAW(
+            mode=PW(600), symmetry={'point_group': False},
+            kpts={'size': (2, 2, 2)}, nbands=5, txt=None)
+        atoms.calc = calc
+        atoms.get_potential_energy()
+
+        return atoms.calc
+
+    @gpwfile
     def h2_chain(self):
         a = 2.5
         k = 4
@@ -363,6 +377,26 @@ class GPWFiles(CachedFilesHandler):
                     kpts=kpts,
                     txt=self.folder / 'Cu3Au_qna.txt')
         atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+
+    @gpwfile
+    def co_mom(self):
+        atoms = molecule('CO')
+        atoms.center(vacuum=2)
+
+        calc = GPAW(mode='lcao',
+                    basis='dzp',
+                    nbands=7,
+                    h=0.24,
+                    xc='PBE',
+                    spinpol=True,
+                    symmetry='off',
+                    convergence={'energy': 100,
+                                 'density': 1e-3})
+
+        atoms.calc = calc
+        # Ground-state calculation
         atoms.get_potential_energy()
         return atoms.calc
 

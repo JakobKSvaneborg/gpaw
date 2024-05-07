@@ -34,7 +34,7 @@ class Chi0Calculator:
                  gs: ResponseGroundStateAdapter,
                  context: ResponseContext | None = None,
                  nblocks=1,
-                 eshift=0.0,
+                 eshift=None,
                  intraband=True,
                  rate=0.0,
                  **kwargs):
@@ -88,7 +88,7 @@ class Chi0Calculator:
 
         # Calculate optical extension
         if qpd.optical_limit:
-            if not abs(self.chi0_body_calc.eshift) < 1e-8:
+            if self.chi0_body_calc.eshift is not None:
                 raise NotImplementedError("No wings eshift available")
             chi0_opt_ext = self.chi0_opt_ext_calc.calculate(qpd=qpd)
         else:
@@ -121,7 +121,7 @@ class Chi0Calculator:
         """
         self.chi0_body_calc.update_chi0_body(chi0.body, m1, m2, spins)
         if chi0.optical_limit:
-            if not abs(self.chi0_body_calc.eshift) < 1e-8:
+            if self.chi0_body_calc.eshift is not None:
                 raise NotImplementedError("No wings eshift available")
             assert chi0.optical_extension is not None
             # Update the head and wings
@@ -132,21 +132,21 @@ class Chi0Calculator:
 
 class Chi0BodyCalculator(Chi0ComponentPWCalculator):
     def __init__(self, *args,
-                 eshift=0.0,
+                 eshift: float | None = None,
                  **kwargs):
         """Construct the Chi0BodyCalculator.
 
         Parameters
         ----------
-        eshift : float
+        eshift : float or None
             Energy shift of the conduction bands in eV.
         """
-        self.eshift = eshift / Ha
+        self.eshift = eshift / Ha if eshift else eshift
+
         super().__init__(*args, **kwargs)
 
-        # gs: ResponseGroundStateAdapter from gpaw.response.groundstate
         if self.gs.metallic:
-            assert abs(self.eshift) < 1e-8, \
+            assert self.eshift is None, \
                 'A rigid energy shift cannot be applied to the conduction '\
                 'bands if there is no band gap'
 
