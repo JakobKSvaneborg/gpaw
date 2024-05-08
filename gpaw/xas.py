@@ -46,6 +46,36 @@ def dipole_matrix_elements(setup):
     return A_cmi
 
 
+def projection(proj_xyz, proj, orthogonal: bool):
+    if proj_xyz:
+        proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
+    else:
+        proj_3 = np.array([], float)
+
+    if proj is not None:
+        assert orthogonal
+        proj_2 = np.array(proj, float)
+        if len(proj_2.shape) == 1:
+            proj_2 = np.array([proj], float)
+
+        for i, p in enumerate(proj_2):
+            if sum(p**2)**0.5 != 1.0:
+                print('proj_2 %s not normalized' % i)
+                proj_2[i] /= sum(p**2)**0.5
+
+        proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
+
+        for i, p in enumerate(proj_3):
+            proj_tmp[i, :] = proj_3[i, :]
+
+        for i, p in enumerate(proj_2):
+            proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
+
+        proj_3 = proj_tmp.copy()
+
+    return proj_3
+
+
 class XAS:
     def __init__(self, paw, mode='xas', center=None, spin=0):
         wfs = paw.wfs
@@ -137,9 +167,41 @@ class XAS:
 
         self.symmetry = wfs.kd.symmetry
 
-    def stick(self, kpoint=None, proj=None,
-              proj_xyz: bool = True,
-              dks: float = 0) -> Tuple[Array1D, Array3D]:
+    def get_matrix_ellement(self, kpoint=None, proj=None,
+                            proj_xyz: bool = True, raw: bool = False):
+
+        proj_3 = projection(proj_xyz, proj, self.orthogonal)
+
+        sigma2_cmn = np.zeros((proj_3.shape[0],
+                               self.sigma_cmn.shape[1],
+                               self.sigma_cmn.shape[2]),
+                              float)
+        for i, p in enumerate(proj_3):
+            for m in range(self.sigma_cmn.shape[1]):
+                s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
+                sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
+
+        eps_n = self.eps_n[:]
+
+        if kpoint is not None:
+            eps_start = kpoint * self.n
+            eps_end = (kpoint + 1) * self.n
+        else:
+            eps_start = 0
+            eps_end = len(self.eps_n)
+
+        energy_n = eps_n[eps_start:eps_end]
+
+        sigma2_cmn = sigma2_cmn[:, :, eps_start:eps_end]
+
+        if raw:
+            return energy_n, sigma2_cmn
+        else:
+            return energy_n, sigma2_cmn.sum(axis=1)
+
+    def get_oscillator_strength(self, kpoint=None, proj=None,
+                                proj_xyz: bool = True,
+                                dks: float = 0, raw: bool = False):
         """Calculate stick spectra.
 
         Parameters:
@@ -162,59 +224,19 @@ class XAS:
             energies: 1D array [n]
             oscillator strengths: 3D array [c, m, n]
         """
-        # proj keyword, check normalization of incoming vectors
-        if proj_xyz:
-            proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
+
+        eps_n, sigma2_cmn = self.get_matrix_ellement(kpoint, proj, proj_xyz,
+                                                     raw=True)
+
+        shift = dks - eps_n[0]
+        energy_n = eps_n + shift
+
+        f_cmn = 2 * sigma2_cmn[:, :, :] * energy_n / Hartree
+
+        if raw:
+            return energy_n, f_cmn
         else:
-            proj_3 = np.array([], float)
-
-        if proj is not None:
-            assert self.orthogonal
-            proj_2 = np.array(proj, float)
-            if len(proj_2.shape) == 1:
-                proj_2 = np.array([proj], float)
-
-            for i, p in enumerate(proj_2):
-                if sum(p**2)**0.5 != 1.0:
-                    print('proj_2 %s not normalized' % i)
-                    proj_2[i] /= sum(p**2)**0.5
-
-            proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
-
-            for i, p in enumerate(proj_3):
-                proj_tmp[i, :] = proj_3[i, :]
-
-            for i, p in enumerate(proj_2):
-                proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
-
-            proj_3 = proj_tmp.copy()
-
-        # now symmetrize
-        sigma2_cmn = np.zeros((proj_3.shape[0],
-                               self.sigma_cmn.shape[1],
-                               self.sigma_cmn.shape[2]),
-                              float)
-
-        for i, p in enumerate(proj_3):
-            for m in range(self.sigma_cmn.shape[1]):
-                s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
-                sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
-
-        eps_n = self.eps_n[:]
-
-        if kpoint is not None:
-            eps_start = kpoint * self.n
-            eps_end = (kpoint + 1) * self.n
-        else:
-            eps_start = 0
-            eps_end = len(self.eps_n)
-
-        shift = dks - eps_n[eps_start]
-        energy_n = eps_n[eps_start:eps_end] + shift
-
-        f_cmn = 2 * sigma2_cmn[:, :, eps_start:eps_end] * energy_n / Hartree
-
-        return energy_n, f_cmn
+            return energy_n, f_cmn.sum(axis=1)
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None,
@@ -256,7 +278,9 @@ class XAS:
             energies: 1D array
             oscillator strengths: 3D array
         """
-        energy_n, f_cmn = self.stick(kpoint, proj, proj_xyz, dks)
+        energy_n, f_cmn = self.get_oscillator_strength(kpoint, proj,
+                                                       proj_xyz,
+                                                       dks, raw=True)
 
         if stick:
             return energy_n, f_cmn.sum(axis=1)
