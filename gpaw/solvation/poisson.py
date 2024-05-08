@@ -127,16 +127,21 @@ class PolarizationPoissonSolver(BasePoissonSolver):
     with polarization charges.
     """
 
-    def __init__(self, nn=3, relax='J', eps=2e-10, maxiter=1000,
+    def __init__(self, nn=3, relax='J', eps: float = 2e-10,
+                 maxiter: int = 1000,
                  remove_moment=None, use_charge_center=False,
-                 gas_phase_poisson='fast'):
+                 gas_phase_poisson='fast', eta: float = 0.6):
+        """
+        eta: mixing weight for the polarization charge
+        """
         self.nn = nn
         self.eps = eps
         self.maxiter = maxiter
         self.phi_tilde = None
+        self.eta = eta
 
         self.gas_phase_poisson = PoissonSolver(
-            name=gas_phase_poisson, nn=nn, eps=eps,
+            name=gas_phase_poisson, nn=nn,
             remove_moment=remove_moment,
             use_charge_center=use_charge_center)
 
@@ -159,6 +164,9 @@ class PolarizationPoissonSolver(BasePoissonSolver):
     def solve(self, phi, rho, charge=None,
               maxcharge=1e-6,
               zero_initial_phi=False, timer=NullTimer()):
+        """Solve according to algorithm 1 from
+        http://dx.doi.org/10.1063/1.4939125
+        """
         # get initial meaningful phi -> only do this if necessary
         if zero_initial_phi:
             niter = self.gas_phase_poisson.solve(
@@ -168,8 +176,10 @@ class PolarizationPoissonSolver(BasePoissonSolver):
             niter = 0
 
         phi_old = phi.copy()
+        epsr, _, _, _ = self.dielectric.eps_gradeps
+        rho_pol = self.polarization_charge(phi)
         while niter < self.maxiter:
-            rho_mod = self.rho_with_polarization_charge(phi, rho)
+            rho_mod = rho / epsr + rho_pol
             niter += self.gas_phase_poisson.solve(
                 phi, rho_mod, charge=None, maxcharge=maxcharge,
                 zero_initial_phi=zero_initial_phi, timer=timer)
@@ -178,13 +188,15 @@ class PolarizationPoissonSolver(BasePoissonSolver):
                 np.dot(residual.ravel(), residual.ravel())) * self.gd.dv
             if error < self.eps:
                 return niter
+            rho_pol = ((1 - self.eta) * rho_pol +
+                       self.eta * self.polarization_charge(phi))
             phi_old = phi.copy()
 
         raise PoissonConvergenceError(
             'PolarizationPoisson solver did not converge in '
             + f'{niter} iterations!')
 
-    def rho_with_polarization_charge(self, phi, rho):
+    def polarization_charge(self, phi):
         epsr, dx_epsr, dy_epsr, dz_epsr = self.dielectric.eps_gradeps
         dx_phi = self.gd.empty()
         dy_phi = self.gd.empty()
@@ -198,7 +210,7 @@ class PolarizationPoissonSolver(BasePoissonSolver):
             dy_epsr * dy_phi +
             dz_epsr * dz_phi)
 
-        return (rho + scalar_product / (4. * np.pi)) / epsr
+        return scalar_product / (4. * np.pi) / epsr
 
     def estimate_memory(self, mem):
         # XXX estimate your own contribution
