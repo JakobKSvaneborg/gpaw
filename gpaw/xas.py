@@ -174,8 +174,8 @@ class XAS:
 
         sigma2_cmn = np.zeros((proj_3.shape[0],
                                self.sigma_cmn.shape[1],
-                               self.sigma_cmn.shape[2]),
-                              float)
+                               self.sigma_cmn.shape[2]), float)
+
         for i, p in enumerate(proj_3):
             for m in range(self.sigma_cmn.shape[1]):
                 s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
