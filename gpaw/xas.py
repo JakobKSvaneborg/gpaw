@@ -1,6 +1,6 @@
 import pickle
 from math import log, pi, sqrt
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import numpy as np
 from gpaw.overlap import Overlap
@@ -139,7 +139,7 @@ class XAS:
 
     def stick(self, kpoint=None, proj=None,
               proj_xyz: bool = True,
-              dks: float = 0) -> Tuple[Array1D, Array3D]:
+              dks: Optional[float] = None) -> Tuple[Array1D, Array3D]:
         """Calculate stick spectra.
 
         Parameters:
@@ -209,7 +209,9 @@ class XAS:
             eps_start = 0
             eps_end = len(self.eps_n)
 
-        shift = dks - eps_n[eps_start]
+        shift = 0
+        if dks is not None:
+            shift = dks - eps_n[eps_start]
         energy_n = eps_n[eps_start:eps_end] + shift
 
         f_cmn = 2 * sigma2_cmn[:, :, eps_start:eps_end] * energy_n / Hartree
@@ -218,7 +220,8 @@ class XAS:
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None,
-                    proj=None, proj_xyz=True, stick=False, dks=0):
+                    proj=None, proj_xyz=True, stick=False,
+                    dks: Optional[float] = None):
         """Calculate spectra.
 
         Parameters:
