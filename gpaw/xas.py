@@ -200,8 +200,8 @@ class XAS:
             return energy_n, sigma2_cmn.sum(axis=1)
 
     def get_oscillator_strength(self, kpoint=None, proj=None,
-                                proj_xyz: bool = True,
-                                dks: float = 0, raw: bool = False):
+                                proj_xyz: bool = True, dks: Array1D = Array1D,
+                                w: Array1D = None, raw: bool = False):
         """Calculate stick spectra.
 
         Parameters:
@@ -227,11 +227,27 @@ class XAS:
 
         eps_n, sigma2_cmn = self.get_matrix_ellement(kpoint, proj, proj_xyz,
                                                      raw=True)
+        n = len(eps_n)
 
-        shift = dks - eps_n[0]
-        energy_n = eps_n + shift
+        if isinstance(dks, float) or isinstance(dks, int):
+            dks = [dks]
 
-        f_cmn = 2 * sigma2_cmn[:, :, :] * energy_n / Hartree
+        energy_n = np.zeros((n * len(dks)))
+        f_cmn = np.zeros((sigma2_cmn.shape[0],
+                          sigma2_cmn.shape[1],
+                          n * len(dks)))
+
+        if w is None:
+            w = np.ones(len(dks))
+
+        for i in range(len(dks)):
+            shift = dks[i] - eps_n[0]
+            ienergy_n = eps_n + shift
+
+            if_cmn = w[i] * 2 * sigma2_cmn[:, :, :] * ienergy_n / Hartree
+
+            energy_n[i * n:(1 + i) * n] = ienergy_n
+            f_cmn[:, :, i * n:(1 + i) * n] = if_cmn
 
         if raw:
             return energy_n, f_cmn
@@ -239,8 +255,8 @@ class XAS:
             return energy_n, f_cmn.sum(axis=1)
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
-                    N=1000, kpoint=None,
-                    proj=None, proj_xyz=True, stick=False, dks=0):
+                    N=1000, kpoint=None, proj=None, proj_xyz=True,
+                    stick=False, dks: Array1D = Array1D, w: Array1D = None):
         """Calculate spectra.
 
         Parameters:
@@ -279,8 +295,8 @@ class XAS:
             oscillator strengths: 3D array
         """
         energy_n, f_cmn = self.get_oscillator_strength(kpoint, proj,
-                                                       proj_xyz,
-                                                       dks, raw=True)
+                                                       proj_xyz, dks,
+                                                       w, raw=True)
 
         if stick:
             return energy_n, f_cmn.sum(axis=1)
