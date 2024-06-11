@@ -1,4 +1,4 @@
-"""check is libxc is compiled with --disable-fhc (needed for mggas)"""
+"""check if fhc can be disabled for libxc >= 7.x.x (needed for mggas)"""
 import pytest
 import gpaw.cgpaw as cgpaw
 from ase.build import molecule
