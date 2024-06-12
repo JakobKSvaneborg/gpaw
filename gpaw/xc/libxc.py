@@ -73,7 +73,7 @@ class LibXC(XCKernel):
                 warnings.warn('libxc should compiled with --disable-fhc' +
                               ' otherwise SCF won\'t converge.')
             if self.xc.needs_laplacian():
-                msg = 'Functional "%s" needs laplacian' % name
+                msg = f'Functional "{name}" needs laplacian'
                 msg += ' (unsupported)'
                 raise FunctionalNeedsLaplacianError(msg, self.xc)
         elif self.xc.is_gga():
