@@ -69,8 +69,10 @@ lxcXCFunctional_disable_fhc(lxcXCFunctionalObject *self, PyObject *args)
 {
   int success = 1; /* assume disable fhc is present */
 #if XC_MAJOR_VERSION >= 7
-  self->functional[0]->info->flags = self->functional[0]->info->flags ^ XC_FLAGS_ENFORCE_FHC;
-  self->functional[1]->info->flags = self->functional[1]->info->flags ^ XC_FLAGS_ENFORCE_FHC;
+  short j;
+  for (j = 0; j < 2; j++) {
+    self->functional[j]->info->flags = self->functional[j]->info->flags & (~XC_FLAGS_ENFORCE_FHC);
+  }
 #else
   success = 0; /* XC_FLAGS_ENFORCE_FHC can't be used */
 #endif
