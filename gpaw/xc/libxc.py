@@ -29,15 +29,15 @@ short_names = {
 
 class LibXC(XCKernel):
     """Functionals from libxc."""
-    def __init__(self, name):
+    def __init__(self, name, provides_laplacian=False):
         if not hasattr(cgpaw, 'lxcXCFuncNum'):
             raise NameError(
                 f'Unable to use {name}: GPAW not compiled with LibXC!')
         self.name = name
         self.omega = None
-        self.initialize(nspins=1)
+        self.initialize(nspins=1, provides_laplacian=provides_laplacian)
 
-    def initialize(self, nspins):
+    def initialize(self, nspins, provides_laplacian):
         self.nspins = nspins
         name = short_names.get(self.name, self.name)
         number = cgpaw.lxcXCFuncNum(name)
@@ -71,7 +71,7 @@ class LibXC(XCKernel):
             if not self.xc.disable_fhc():
                 print('Info: libxc should be compiled with --disable-fhc' +
                       ' otherwise SCF calculations won\'t converge.')
-            if self.xc.needs_laplacian():
+            if self.xc.needs_laplacian() and not provides_laplacian:
                 msg = f'Functional "{name}" needs laplacian'
                 msg += ' (unsupported)'
                 raise FunctionalNeedsLaplacianError(msg, self.xc)
