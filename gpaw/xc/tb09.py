@@ -16,7 +16,7 @@ import numpy as np
 from ase.utils import seterr
 
 from gpaw.xc.mgga import MGGA, weight_n
-from gpaw.xc.libxc import LibXC, FunctionalNeedsLaplacianError
+from gpaw.xc.libxc import LibXC
 from gpaw.fd_operators import Laplace
 
 
@@ -27,8 +27,7 @@ class TB09Kernel:
     beta = 1.023
 
     def __init__(self, c=None):
-        try:
-            self.tb09 = LibXC('MGGA_X_TB09', provides_laplacian=True).xc.tb09
+        self.tb09 = LibXC('MGGA_X_TB09', provides_laplacian=True).xc.tb09
         self.ldac = LibXC('LDA_C_PW')
 
         self.fixedc = c is not None  # calculate c or use fixed value
