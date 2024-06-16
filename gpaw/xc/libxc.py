@@ -1,5 +1,4 @@
 import gpaw.cgpaw as cgpaw
-import warnings
 from gpaw.xc.kernel import XCKernel
 from gpaw import debug
 
