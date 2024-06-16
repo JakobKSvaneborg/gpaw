@@ -37,7 +37,7 @@ class LibXC(XCKernel):
         self.omega = None
         self.initialize(nspins=1, provides_laplacian=provides_laplacian)
 
-    def initialize(self, nspins, provides_laplacian):
+    def initialize(self, nspins, provides_laplacian=False):
         self.nspins = nspins
         name = short_names.get(self.name, self.name)
         number = cgpaw.lxcXCFuncNum(name)
