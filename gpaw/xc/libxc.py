@@ -57,12 +57,12 @@ class LibXC(XCKernel):
             try:
                 x, c = name.split('+')
             except ValueError:
-                raise NameError('Unknown functional: "%s".' % name)
+                raise NameError(f'Unknown functional: {name}.')
             xc = -1
             x = cgpaw.lxcXCFuncNum(x)
             c = cgpaw.lxcXCFuncNum(c)
             if x is None or c is None:
-                raise NameError('Unknown functional: "%s".' % name)
+                raise NameError(f'Unknown functional: {name}.')
 
         self.xc = cgpaw.lxcXCFunctional(xc, x, c, nspins)
         self.set_omega()
@@ -70,8 +70,8 @@ class LibXC(XCKernel):
         if self.xc.is_mgga():
             self.type = 'MGGA'
             if not self.xc.disable_fhc():
-                warnings.warn('libxc should compiled with --disable-fhc' +
-                              ' otherwise SCF won\'t converge.')
+                print('Info: libxc should be compiled with --disable-fhc' +
+                      ' otherwise SCF calculations won\'t converge.')
             if self.xc.needs_laplacian():
                 msg = f'Functional "{name}" needs laplacian'
                 msg += ' (unsupported)'
@@ -101,4 +101,4 @@ class LibXC(XCKernel):
             self.omega = omega
         if self.omega is not None:
             if not self.xc.set_omega(self.omega):
-                raise ValueError('Tried setting omega on non RSF hybrid.')
+                raise ValueError('Tried setting omega on a non RSF hybrid.')
