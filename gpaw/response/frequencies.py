@@ -17,14 +17,18 @@ class FrequencyDescriptor:
         omega_w:
             Frequency grid in Hartree units.
         """
+        print('asd', omega_w, omega_w.shape)
         self.omega_w = np.asarray(omega_w).copy()
 
     def __len__(self):
         return len(self.omega_w)
 
     def __repr__(self):
+        print(self.omega_w)
+        print(type(self.omega_w))
         emin = self.omega_w[0] * Ha
         emax = self.omega_w[-1] * Ha
+        print(emin, emax)
         return (f'{self.__class__.__name__}'
                 f'(from {emin:.3f} to {emax:.3f} eV, {len(self)} points)')
 
