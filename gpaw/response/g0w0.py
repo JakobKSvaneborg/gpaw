@@ -1284,8 +1284,7 @@ class G0W0(G0W0Calculator):
                                                  varpi=mpa['varpi'],
                                                  eta0=mpa['eta0'],
                                                  eta_rest=mpa['eta_rest'],
-                                                 parallel_lines=2 if
-                                                 mpa['npoles'] > 1 else 1,
+                                                 parallel_lines=2,
                                                  alpha=mpa['alpha'])
 
             parameters = {'eta': 0.000001,
