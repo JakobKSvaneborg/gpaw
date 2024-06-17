@@ -52,14 +52,3 @@ def test_mpa(in_tmp_dir, gpw_files, scalapack):
 
     results = gw.calculate()
     np.testing.assert_allclose(results['qp'], ref_result, rtol=1e-03)
-
-"""
-def test_mpa_conditions():
-    c = mpa_cond1(0, complex(4.0, 0.1))[0]
-    assert np.allclose(c, complex(2.0001562194924314, -1e-8), atol=1e-10)
-    E = [complex(1, -0.11), complex(1.05, 0.1), complex(2, 0.2),
-         complex(5, 1)]
-    bools = [False, True, False, True]
-    for i in range(len(E)):
-        assert pole_is_out(i, 3., 0.1, E) == bools[i]
-        """

@@ -1187,7 +1187,7 @@ class G0W0(G0W0Calculator):
         ppa: bool
             Sets whether the Godby-Needs plasmon-pole approximation for the
             dielectric function should be used.
-         mpa: bool
+         mpa: dict
             Sets whether the multipole approximation for the
             dielectric function should be used.
         xc: str
