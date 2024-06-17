@@ -10,21 +10,6 @@ from gpaw.response.mpa_interpolation import RESolver
 from _gpaw import evaluate_mpa_poly
 
 
-def get_XXX(qpd, N_c, N=100):
-    B_cv = 2 * np.pi * qpd.gd.icell_cv
-    Nf_c = np.array([N, N, N])
-    q_qc = monkhorst_pack(Nf_c) 
-
-    from gpaw.kpt_descriptor import to1bz
-    q_qc = to1bz(q_qc, qpd.gd.cell_cv)
-    q_qc /= N_c
-    q_qv = np.dot(q_qc, B_cv)
-
-    V_q = 4 * np.pi / np.sum(q_qv**2, axis=1)
-
-    return np.sum(V_q) / (N**3) 
-
-
 class QPointDescriptor(KPointDescriptor):
 
     @staticmethod
@@ -503,9 +488,9 @@ class MPACalculator(WBaseCalculator):
         E_pGG -= 0.1j / 27.21
 
         R_pGG = chi0.body.blockdist.distribute_as(R_pGG, self.mpa['npoles'], 'wGG')
+        
         E_pGG = chi0.body.blockdist.distribute_as(E_pGG,
                                                   self.mpa['npoles'], 'wGG')
-
         if self.integrate_gamma == 'WS':
             from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
             wstc = WignerSeitzTruncatedCoulomb(chi0.qpd.gd.cell_cv,
