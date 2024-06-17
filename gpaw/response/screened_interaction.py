@@ -145,7 +145,6 @@ class WBaseCalculator():
         Coulomb interaction.
         XXX: Understand and document exact expressions
         """
-        print(W_GG.shape, einv_GG.shape)
         W_GG[0, 0] = einv_GG[0, 0] * V0
         W_GG[0, 1:] = einv_GG[0, 1:] * sqrtV_G[1:] * sqrtV0
         W_GG[1:, 0] = einv_GG[1:, 0] * sqrtV0 * sqrtV_G[1:]
@@ -472,30 +471,14 @@ class MPACalculator(WBaseCalculator):
         einv_wGG = dfc.get_epsinv_wGG(only_correlation=True)
         einv_WgG = chi0.body.blockdist.distribute_as(einv_wGG, chi0.nw, 'WgG')
 
-        #nG1 = einv_WgG.shape[1]
-        #nG2 = einv_WgG.shape[2]
-        #R_nGG = np.zeros((self.mpa['npoles'], nG1, nG2), dtype=complex)
-        #omegat_nGG = np.ones((self.mpa['npoles'], nG1, nG2), dtype=complex)
-        #for i in range(nG1):
-        #    for j in range(nG2):
-        #        R_n, omegat_n, MPred, PPcond_rate =
         solver = RESolver(chi0.wd.omega_w)
-        print(einv_WgG.shape,'1')
         E_pGG, R_pGG = solver.solve(einv_WgG)
-        print(E_pGG.shape,'2')
-        print(R_pGG.shape, '3')
-        #            self.mpa['npoles'], chi0.wd.omega_w, einv_WgG[:, i, j])
-        #omegat_n -= (0.1j / 27.21)   # XXX
-        #    omegat_nGG[:, i, j] = omegat_n
-        #        R_nGG[:, i, j] = R_n
-        E_pGG -= 0.1j / 27.21
-
-        print(R_pGG.shape, 'asdadsd before')
+        E_pGG -= 0.1j / 27.21 # XXX
 
         R_pGG = chi0.body.blockdist.distribute_as(R_pGG, self.mpa['npoles'], 'wGG')
-        print(R_pGG.shape, 'asdadsd')
         E_pGG = chi0.body.blockdist.distribute_as(E_pGG,
                                                   self.mpa['npoles'], 'wGG')
+        
         if self.integrate_gamma == 'WS':
             from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
             wstc = WignerSeitzTruncatedCoulomb(chi0.qpd.gd.cell_cv,
