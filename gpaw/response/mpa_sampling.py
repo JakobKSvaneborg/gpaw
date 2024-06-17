@@ -24,8 +24,7 @@ def sampling_branches(w_dist: Array1D,
     if len(w_dist) == 1:
         assert eta0 >= 0
         assert parallel_lines == 2
-        w_grid = np.array([w_dist + 1j * eta0, w_dist + 1j * varpi],
-                          dtype=complex)
+        w_grid = np.concatenate([w_dist + 1j * eta0, w_dist + 1j * varpi])
         return w_grid
 
     if parallel_lines == 1:  # only one branch

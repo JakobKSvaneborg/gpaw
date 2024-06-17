@@ -116,7 +116,7 @@ class SinglePoleSolver(Solver):
             X_wGG=X_wGG,
             E_pGG=E_GG.reshape((1, *E_GG.shape)))[0, :, :]
 
-        return E_GG, R_GG
+        return E_GG.reshape((1,*E_GG.shape)), R_GG.reshape((1,*R_GG.shape))
 
 
 class MultipoleSolver(Solver):

@@ -31,8 +31,8 @@ def test_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
                                      [5.346694, 16.06346],
                                      [8.7589, 22.461506]]])}[mpa]
     mpa_dict = {'npoles': 1, 'wrange': [0, 0],
-                'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 0.1 * Ha,
-                'alpha': 1}
+                'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 10000 * Ha,
+                'alpha': 1, 'asd':0}
 
     gw = G0W0(gpw_files['bn_pw'],
               bands=(3, 5),
