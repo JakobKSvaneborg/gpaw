@@ -39,6 +39,7 @@ def sampling_branches(w_dist: Array1D,
     assert varpi > eta0 and varpi > eta_rest
     w_grid = np.concatenate((np.array([w_dist[0] + 1j * eta0]),
                             w_dist[1:] + 1j * eta_rest, w_dist + 1j * varpi))
+    assert len(w_grid.shape) == 1
     return w_grid
 
 
