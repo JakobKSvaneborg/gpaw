@@ -2,14 +2,13 @@ import pytest
 import numpy as np
 from gpaw.response.g0w0 import G0W0
 from ase.units import Hartree as Ha
-#from gpaw.response.mpa_interpolation import mpa_cond1, pole_is_out
+
 
 @pytest.mark.response
 def test_mpa_WS(in_tmp_dir, gpw_files, scalapack):
-    ref_result = np.asarray([[[12.76123 , 22.792165],
-                   [17.048709, 15.868951],
-                   [10.285714, 21.945546]]])
-
+    ref_result = np.asarray([[[12.76123, 22.792165],
+                              [17.048709, 15.868951],
+                              [10.285714, 21.945546]]])
 
     mpa_dict = {'npoles': 4, 'wrange': [0 * Ha, 2 * Ha],
                 'varpi': Ha,
@@ -30,11 +29,12 @@ def test_mpa_WS(in_tmp_dir, gpw_files, scalapack):
     print(results)
     np.testing.assert_allclose(results['qp'], ref_result, rtol=1e-03)
 
+
 @pytest.mark.response
 def test_mpa(in_tmp_dir, gpw_files, scalapack):
     ref_result = np.asarray([[[11.283458, 21.601906],
-                              [ 5.326717, 16.066114],
-                              [ 8.73869 , 22.457025]]])
+                              [5.326717, 16.066114],
+                              [8.73869, 22.457025]]])
 
     mpa_dict = {'npoles': 4, 'wrange': [0 * Ha, 2 * Ha],
                 'varpi': Ha,

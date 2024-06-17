@@ -30,7 +30,7 @@ def test_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
                   True: np.asarray([[[11.303942, 21.624428],
                                      [5.346694, 16.06346],
                                      [8.7589, 22.461506]]])}[mpa]
-    mpa_dict = {'npoles': 1, 'wrange': [0, 0], 'parallel_lines':1,
+    mpa_dict = {'npoles': 1, 'wrange': [0, 0], 'parallel_lines': 1,
                 'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 0.1 * Ha,
                 'alpha': 1}
 
