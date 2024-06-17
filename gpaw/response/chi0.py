@@ -228,7 +228,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         else:
             # Use the preallocated array for direct updates
             out_WgG = chi0_body.zeros()
-            #out_WgG = chi0_body.data_WgG
+
         self.integrator.integrate(domain=domain,  # Integration domain
                                   integrand=integrand,
                                   task=self.task,

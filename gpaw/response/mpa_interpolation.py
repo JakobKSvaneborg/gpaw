@@ -116,7 +116,7 @@ class SinglePoleSolver(Solver):
             X_wGG=X_wGG,
             E_pGG=E_GG.reshape((1, *E_GG.shape)))[0, :, :]
 
-        return E_GG.reshape((1,*E_GG.shape)), R_GG.reshape((1,*R_GG.shape))
+        return E_GG.reshape((1, *E_GG.shape)), R_GG.reshape((1, *R_GG.shape))
 
 
 class MultipoleSolver(Solver):
@@ -224,4 +224,3 @@ def pade_solve(X_wGG: Array3D, z_w: Array1D) -> Tuple[Array3D, Array2D]:
     E_GGp = eigvals(companion_GGpp)
     E_GGp, npr_GG = mpa_cond_vectorized(npols=npols, z_w=z_w, E_GGp=E_GGp)
     return E_GGp, npr_GG
-
