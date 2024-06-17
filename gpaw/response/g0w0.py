@@ -102,7 +102,7 @@ class Sigma:
 
     def validate_inputs(self, inputs):
         equals = compare_inputs(inputs, self.inputs, rel_tol=1e-10,
-                               abs_tol=1e-10)
+                                abs_tol=1e-10)
         if not equals:
             raise RuntimeError('There exists a cache with mismatching input '
                                f'parameters: {inputs} != {self.inputs}.')
@@ -700,7 +700,7 @@ class G0W0Calculator:
         else:
             qpt_str = ' '.join(map(str, self.qpoints))
             self.context.print(f'Calculating following q-points: {qpt_str}')
-        
+
         self.calculate_all_q_points()
         if self.qpoints is not None:
             return f'A partial result of q-points: {qpt_str}'
@@ -773,7 +773,7 @@ class G0W0Calculator:
         # Do not return paths to caller before we know they all exist:
         self.context.comm.barrier()
         return paths
-    
+
     @timer('evaluate sigma')
     def calculate_q(self, ie, k, kpt1, kpt2, qpd, Wdict,
                     *, symop, sigmas, blocks1d, pawcorr):
@@ -903,7 +903,7 @@ class G0W0Calculator:
 
         # Need to pause the timer in between iterations
         self.context.timer.stop('W')
-        
+
         with broadcast_exception(self.context.comm):
             if self.context.comm.rank == 0:
                 for key, sigmas in self.qcache.items():
@@ -1020,7 +1020,6 @@ class G0W0Calculator:
                 assert not self.ppa, """In previous master, PPA with ecut
                 extrapolation was not working. Now it would work, but
                 disabling it here still for sake of it is not tested."""
-                #assert not self.mpa
 
                 pw_map = PWMapping(rqpd, chi0.qpd)
                 # This is extremely bad behaviour! G0W0Calculator
@@ -1038,8 +1037,9 @@ class G0W0Calculator:
     def calculate_fxc(self):
         if self.wcalc.xckernel is None:
             return
-        qpd = SingleQPWDescriptor.from_q(np.array([0.0, 0.0, 0.0]), self.ecut_e[-1], self.chi0calc.gs.gd)
-        self.wcalc.xckernel.calculate(qpd) 
+        qpd = SingleQPWDescriptor.from_q(np.array([0.0, 0.0, 0.0]),
+                                         self.ecut_e[-1], self.chi0calc.gs.gd)
+        self.wcalc.xckernel.calculate(qpd)
 
     @timer('calculate_vxc_and_exx')
     def calculate_vxc_and_exx(self):
@@ -1241,13 +1241,13 @@ class G0W0(G0W0Calculator):
                 'File cache requires ASE master '
                 'from September 20 2022 or newer.  '
                 'You may need to pull newest ASE.') from err
-        #if world.rank == 0 and qpoints is None:
+        # if world.rank == 0 and qpoints is None:
         #    qcache.strip_empties()
         mode = 'a' if qcache.filecount() > 1 else 'w'
 
         # (calc can not actually be a calculator at all.)
         gpwfile = Path(calc)
-        
+
         qpt_str = f'-{qpoints[0]}-{qpoints[-1]}' if qpoints else ''
         context = ResponseContext(txt=filename + qpt_str + '.txt',
                                   comm=world, timer=timer)
@@ -1279,12 +1279,13 @@ class G0W0(G0W0Calculator):
         elif mpa:
             assert not ppa
 
-            frequencies = mpa_frequency_sampling(npoles=mpa['npoles'], 
+            frequencies = mpa_frequency_sampling(npoles=mpa['npoles'],
                                                  wrange=mpa['wrange'],
                                                  varpi=mpa['varpi'],
                                                  eta0=mpa['eta0'],
                                                  eta_rest=mpa['eta_rest'],
-                                                 parallel_lines=2 if mpa['npoles']>1 else 1,
+                                                 parallel_lines=2 if
+                                                 mpa['npoles'] > 1 else 1,
                                                  alpha=mpa['alpha'])
 
             parameters = {'eta': 0.000001,
