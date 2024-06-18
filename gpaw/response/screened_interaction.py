@@ -365,47 +365,12 @@ class MPAHWModel(HWModel):
         self.factor = factor
 
     def get_HW(self, omega, f, derivative=True):
-        # n_G HW(w)_GG n_G'
-        #from time import time
-        #start = time() 
-
-        #omegat_nGG = self.omegat_nGG
-        #W_nGG = self.W_nGG
-        #x1_nGG = f / (omega + omegat_nGG - 1j * self.eta)
-        #x2_nGG = (1.0 - f) / (omega - omegat_nGG + 1j * self.eta)
-
-        #x_GG = (2 * self.factor) * np.sum(W_nGG * (x1_nGG + x2_nGG),
-        #                                  axis=0)  # Why 2 here
-
-        #eps = 0.0001 / Ha
-        #xp_nGG = f / (omega + eps + omegat_nGG - 1j * self.eta)
-        #xp_nGG += (1.0 - f) / (omega + eps - omegat_nGG + 1j * self.eta)
-        #xm_nGG = f / (omega - eps + omegat_nGG - 1j * self.eta)
-        #xm_nGG += (1.0 - f) / (omega - eps - omegat_nGG + 1j * self.eta)
-        #dx_GG = 2 * self.factor * np.sum(W_nGG * (xp_nGG - xm_nGG) / (2 * eps),
-        #                                 axis=0)  # Why 2 here
-        #stop = time()
-        #took = stop - start
-        #x2_GG = x_GG.copy()
-        #x2_GG[:] = 1.0
-        #dx2_GG = x_GG.copy()
-        #omegat_nGG = omegat_nGG.copy()
-        #W_nGG =W_nGG.copy()
-        #start = time()
         x_GG = np.empty(self.omegat_nGG.shape[1:], dtype=complex)
         dx_GG = np.empty(self.omegat_nGG.shape[1:], dtype=complex)
         evaluate_mpa_poly(x_GG, dx_GG, omega, f, self.omegat_nGG, self.W_nGG, self.eta, self.factor)
-        #stop = time()
-        #took2 = stop-start
-        #print('python', took)
-        #print('C', took2)
-        #print('Speedup', took / took2)
-        #assert np.allclose(x_GG, x2_GG)
 
         if not derivative:
             return x_GG.conj()
-
-        #assert np.allclose(dx_GG, dx2_GG)
 
         return x_GG.conj(), dx_GG.conj()  # Why do we have to do a conjugate
 
@@ -416,7 +381,7 @@ class PPACalculator(WBaseCalculator):
         """Calculate the PPA parametrization of screened interaction.
         """
         assert len(chi0.wd.omega_w) == 2
-        # E0 directly related to frequency mesh for chi0
+        # E0 directly related to imaginary frequency mesh for chi0
         E0 = chi0.wd.omega_w[1].imag
 
         dfc = DielectricFunctionCalculator(chi0,
@@ -456,11 +421,8 @@ class MPACalculator(WBaseCalculator):
 
     def get_HW_model(self, chi0,
                      fxc_mode='GW'):
-        """Calculate the PPA parametrization of screened interaction.
+        """Calculate the MPA parametrization of screened interaction.
         """
-        # assert len(chi0.wd.omega_w) == 2
-        # E0 directly related to frequency mesh for chi0
-        # E0 = chi0.wd.omega_w[1].imag  # DALV: we are not using this line
 
         dfc = DielectricFunctionCalculator(chi0,
                                            self.coulomb,
@@ -473,7 +435,7 @@ class MPACalculator(WBaseCalculator):
 
         solver = RESolver(chi0.wd.omega_w)
         E_pGG, R_pGG = solver.solve(einv_WgG)
-        E_pGG -= 0.1j / 27.21 # XXX
+        E_pGG -= 1j * eta
 
         R_pGG = chi0.body.blockdist.distribute_as(R_pGG, self.mpa['npoles'], 'wGG')
         E_pGG = chi0.body.blockdist.distribute_as(E_pGG,
