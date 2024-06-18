@@ -6,9 +6,10 @@ from ase.units import Hartree as Ha
 
 @pytest.mark.response
 def test_mpa_WS(in_tmp_dir, gpw_files, scalapack):
-    ref_result = np.asarray([[[12.76123, 22.792165],
-                              [17.048709, 15.868951],
-                              [10.285714, 21.945546]]])
+    ref_result = np.array([[[10.78461 , 19.40037 ],
+                            [ 5.073862, 14.350858],
+                            [ 8.343733, 20.716798]]])
+
 
     mpa_dict = {'npoles': 4, 'wrange': [0 * Ha, 2 * Ha],
                 'varpi': Ha,
@@ -18,8 +19,8 @@ def test_mpa_WS(in_tmp_dir, gpw_files, scalapack):
 
     gw = G0W0(gpw_files['bn_pw'],
               bands=(3, 5),
-              nblocks=1,
-              ecut=40,
+              nblocks=2,
+              ecut=60,
               ecut_extrapolation=True,
               integrate_gamma='WS',
               ppa=False,
