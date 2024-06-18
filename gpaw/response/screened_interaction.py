@@ -424,8 +424,7 @@ class MPACalculator(WBaseCalculator):
         """Calculate the PPA parametrization of screened interaction.
         """
         # assert len(chi0.wd.omega_w) == 2
-        # E0 directly related to frequency mesh for chi0
-        # E0 = chi0.wd.omega_w[1].imag  # DALV: we are not using this line
+        # E0 directly related to imagginary frequency mesh for chi0
 
         dfc = DielectricFunctionCalculator(chi0,
                                            self.coulomb,
@@ -438,7 +437,7 @@ class MPACalculator(WBaseCalculator):
 
         solver = RESolver(chi0.wd.omega_w)
         E_pGG, R_pGG = solver.solve(einv_WgG)
-        E_pGG -= 0.1j / 27.21 # XXX
+        E_pGG -= 1j * eta
 
         R_pGG = chi0.body.blockdist.distribute_as(R_pGG, self.mpa['npoles'], 'wGG')
         E_pGG = chi0.body.blockdist.distribute_as(E_pGG,
