@@ -227,8 +227,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
             out_WgG = chi0_body.zeros()
         else:
             # Use the preallocated array for direct updates
-            out_WgG = chi0_body.zeros()
-
+            out_WgG = chi0_body.data_WgG
         self.integrator.integrate(domain=domain,  # Integration domain
                                   integrand=integrand,
                                   task=self.task,
@@ -245,7 +244,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
                                       timeordered=self.timeordered)
                 ht(out_WgG)
             # Update the actual chi0 array
-        chi0_body.data_WgG[:] += out_WgG
+            chi0_body.data_WgG[:] += out_WgG
         chi0_body.data_WgG[:] *= prefactor
 
         tmp_chi0_wGG = chi0_body.copy_array_with_distribution('wGG')
