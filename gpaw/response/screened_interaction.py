@@ -381,7 +381,7 @@ class PPACalculator(WBaseCalculator):
         """Calculate the PPA parametrization of screened interaction.
         """
         assert len(chi0.wd.omega_w) == 2
-        # E0 directly related to frequency mesh for chi0
+        # E0 directly related to imaginary frequency mesh for chi0
         E0 = chi0.wd.omega_w[1].imag
 
         dfc = DielectricFunctionCalculator(chi0,
@@ -421,10 +421,8 @@ class MPACalculator(WBaseCalculator):
 
     def get_HW_model(self, chi0,
                      fxc_mode='GW'):
-        """Calculate the PPA parametrization of screened interaction.
+        """Calculate the MPA parametrization of screened interaction.
         """
-        # assert len(chi0.wd.omega_w) == 2
-        # E0 directly related to imagginary frequency mesh for chi0
 
         dfc = DielectricFunctionCalculator(chi0,
                                            self.coulomb,
