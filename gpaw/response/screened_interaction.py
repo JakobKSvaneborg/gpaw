@@ -47,7 +47,7 @@ def initialize_w_calculator(chi0calc, context, *,
     xckernel = G0W0Kernel(xc=xc, ecut=chi0calc.chi0_body_calc.ecut,
                           gs=gs, qd=qd,
                           context=context)
-  
+
     kwargs = dict()
     if ppa:
         wcalc_cls = PPACalculator
@@ -367,7 +367,8 @@ class MPAHWModel(HWModel):
     def get_HW(self, omega, f, derivative=True):
         x_GG = np.empty(self.omegat_nGG.shape[1:], dtype=complex)
         dx_GG = np.empty(self.omegat_nGG.shape[1:], dtype=complex)
-        evaluate_mpa_poly(x_GG, dx_GG, omega, f, self.omegat_nGG, self.W_nGG, self.eta, self.factor)
+        evaluate_mpa_poly(x_GG, dx_GG, omega, f, self.omegat_nGG, self.W_nGG,
+                          self.eta, self.factor)
 
         if not derivative:
             return x_GG.conj()
@@ -435,12 +436,13 @@ class MPACalculator(WBaseCalculator):
 
         solver = RESolver(chi0.wd.omega_w)
         E_pGG, R_pGG = solver.solve(einv_WgG)
-        E_pGG -= 1j * eta
+        E_pGG -= 1j * self.eta  # DALV: This is just to match the FF results
 
-        R_pGG = chi0.body.blockdist.distribute_as(R_pGG, self.mpa['npoles'], 'wGG')
+        R_pGG = chi0.body.blockdist.distribute_as(R_pGG, self.mpa['npoles'],
+                                                  'wGG')
         E_pGG = chi0.body.blockdist.distribute_as(E_pGG,
                                                   self.mpa['npoles'], 'wGG')
-        
+
         if self.integrate_gamma == 'WS':
             from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
             wstc = WignerSeitzTruncatedCoulomb(chi0.qpd.gd.cell_cv,
@@ -452,7 +454,7 @@ class MPACalculator(WBaseCalculator):
         W_pGG = pi * R_pGG * sqrtV_G[np.newaxis, :, np.newaxis] \
             * sqrtV_G[np.newaxis, np.newaxis, :]
 
-        assert self.q0_corrector is None        
+        assert self.q0_corrector is None
         if (self.integrate_gamma == 0 and chi0.optical_limit) or\
                 self.integrate_gamma in {1, 2}:
             V0, sqrtV0 = self.get_V0sqrtV0(chi0)
@@ -464,7 +466,8 @@ class MPACalculator(WBaseCalculator):
         W_pGG = np.transpose(W_pGG, axes=(0, 2, 1))  # Why the transpose
         E_pGG = np.transpose(E_pGG, axes=(0, 2, 1))
 
-        W_pGG = chi0.body.blockdist.distribute_as(W_pGG, self.mpa['npoles'], 'WgG')
+        W_pGG = chi0.body.blockdist.distribute_as(W_pGG, self.mpa['npoles'],
+                                                  'WgG')
         E_pGG = chi0.body.blockdist.distribute_as(E_pGG,
                                                   self.mpa['npoles'], 'WgG')
 
