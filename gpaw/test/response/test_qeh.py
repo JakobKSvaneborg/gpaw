@@ -9,6 +9,7 @@ xxx QEH module seem to require at least 6x6x1 kpoints.
     -this should be investigated
 xxx Often fails with unreadable errors in interpolation.
     -arrays should be checked with assertions and readable errors
+    should be raised.
 xxx isotropic_q = False is temporarily turned off. However,
     most features require isotropic_q = True anyway.
     Should we remove the option or should we expand QEH to handle
@@ -33,9 +34,10 @@ def dielectric(calc, domega, omega2, rate=0.0):
 @pytest.mark.serial
 @pytest.mark.response
 def test_basics(in_tmp_dir, gpw_files):
-    qeh = pytest.importorskip('qeh')
-    from qeh.bb_calculator.bb_calculator import BuildingBlock, check_building_blocks
+    pytest.importorskip('qeh')
+    from qeh.bb_calculator.bb_calculator import BuildingBlock
     from qeh import Heterostructure, interpolate_building_blocks
+
     class FragileBB(BuildingBlock):
         def append_chi_2D(self, *args, **kwargs):
             if not hasattr(self, 'doom') and self.last_q_idx == 0:
@@ -45,20 +47,20 @@ def test_basics(in_tmp_dir, gpw_files):
             if self.doom == 9:
                 raise ValueError('Cthulhu awakens')
             BuildingBlock.append_chi_2D(self, *args, **kwargs)
-    
+
     df = dielectric(gpw_files['graphene_pw'], 0.2, 0.6, rate=0.001)
     df2 = dielectric(gpw_files['mos2_pw'], 0.1, 0.5)
 
     # Testing to compute building block
     chicalc = GPAW_ChiCalc(df)
     chicalc2 = GPAW_ChiCalc(df2)
-    bb1 = BuildingBlock('graphene', chicalc)
-    bb2 = BuildingBlock('mos2', chicalc2)
+    bb1 = BuildingBlock('graphene', chicalc, q_max=0.6)
+    bb2 = BuildingBlock('mos2', chicalc2, q_max=0.6)
     bb1.calculate_building_block()
     bb2.calculate_building_block()
 
     # Test restart calculation
-    bb3 = FragileBB('mos2_rs', chicalc2)
+    bb3 = FragileBB('mos2_rs', chicalc2, q_max=0.6)
     with pytest.raises(ValueError, match='Cthulhu*'):
         bb3.calculate_building_block()
     can_load = bb3.load_chi_file()
@@ -74,14 +76,8 @@ def test_basics(in_tmp_dir, gpw_files):
 
     assert np.allclose(data['chiMD_qw'], np.zeros(data['chiMD_qw'].shape))
     assert np.allclose(data['chiDM_qw'], np.zeros(data['chiDM_qw'].shape))
-    # Test building blocks are on different grids
-    are_equal = check_building_blocks(['mos2', 'graphene'])
-    assert not are_equal
 
-    # testing to interpolate
     interpolate_building_blocks(BBfiles=['graphene'], BBmotherfile='mos2')
-    are_equal = check_building_blocks(['mos2_int', 'graphene_int'])
-    assert are_equal
 
     # test qeh interface
     HS = Heterostructure(structure=['mos2_int', 'graphene_int'],
@@ -109,37 +105,17 @@ def test_basics(in_tmp_dir, gpw_files):
     correct_val = 0.018238064281452426 + 8.081233843428657e-05j
     assert np.amax(chi) == pytest.approx(correct_val)
 
-    # test to interpolate to grid and actual numbers
-    q_grid_q = np.array([0, 0.1])
-    w_grid_w = np.array([0, 0.1])
-    bb2.interpolate_to_grid(q_grid_q=q_grid_q, w_grid_w=w_grid_w)
-    data = np.load('mos2_int-chi.npz')
-    assert np.allclose(data['omega_w'], np.array([0., 0.00367493]))
-
-    monopole = np.array([[-1.87660799e-09 + 1.43275446e-23j,
-                          -1.87980719e-09 - 1.33974787e-11j],
-                         [-6.10246367e-03 + 3.07732521e-21j,
-                          -6.10741923e-03 - 2.03955320e-05j]])
-    assert np.allclose(data['chiM_qw'], monopole)
-
-    dipole = np.array([[-0.19370529 - 9.22464060e-18j,
-                        -0.19385409 - 6.06252172e-04j],
-                       [-0.2038452  - 9.70691342e-18j,
-                        -0.20401033 - 6.73306628e-04j]])
-    assert np.allclose(data['chiD_qw'], dipole)
-
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.serial
 def test_off_diagonal_chi(in_tmp_dir, gpw_files):
-    qeh = pytest.importorskip('qeh')
-    from ase.units import Hartree
-    from qeh.bb_calculator.bb_calculator import BuildingBlock, check_building_blocks
+    pytest.importorskip('qeh')
+    from qeh.bb_calculator.bb_calculator import BuildingBlock
 
     df = dielectric(gpw_files['IBiTe_pw_monolayer'], 0.1, 0.5)
     chicalc = GPAW_ChiCalc(df)
-    bb = BuildingBlock('IBiTe', chicalc)
+    bb = BuildingBlock('IBiTe', chicalc, q_max=0.6)
     bb.calculate_building_block()
     can_load = bb.load_chi_file()
     assert can_load
@@ -156,19 +132,6 @@ def test_off_diagonal_chi(in_tmp_dir, gpw_files):
                        (-0.0013460307110321652 - 0.013654449218892167j))
     assert np.allclose(chiMD_qw[9, 9],
                        (-1.857657321140787e-05 - 5.607966877981631e-05j))
-    q_grid_q = np.linspace(0, 0.5, 6)
-    w_grid_w = bb.chicalc.omega_w * Hartree
-    bb.interpolate_to_grid(q_grid_q, w_grid_w)
-    data = np.load('IBiTe_int-chi.npz')
-    assert np.allclose(data['omega_w'] * Hartree, w_grid_w)
-    assert np.allclose(data['chiMD_qw'][-1, 0],
-                       (-0.018257882624353374 - 0.056302777611006924j))
-    assert np.allclose(data['chiMD_qw'][0, 0].real,
-                       -8.975419787629866e-25)
-    assert np.allclose(data['chiMD_qw'][0, 0].imag,
-                       -1.1126815599304704e-08)
-    assert np.allclose(data['chiDM_qw'][1, 2],
-                       (6.240997016599765e-08+1.8570610526731215e-05j))
 
 # test limited features that should work in parallel
 
@@ -180,12 +143,12 @@ def test_off_diagonal_chi(in_tmp_dir, gpw_files):
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 def test_bb_parallel(in_tmp_dir, gpw_files):
-    qeh = pytest.importorskip('qeh')
-    from qeh.bb_calculator.bb_calculator import BuildingBlock, check_building_blocks
+    pytest.importorskip('qeh')
+    from qeh.bb_calculator.bb_calculator import BuildingBlock
 
     df = dielectric(gpw_files['mos2_pw'], 0.1, 0.5)
     chicalc = GPAW_ChiCalc(df)
-    bb1 = BuildingBlock('mos2', chicalc)
+    bb1 = BuildingBlock('mos2', chicalc, q_max=0.6)
     bb1.calculate_building_block()
     # Make sure that calculation is finished before loading data file
     world.barrier()

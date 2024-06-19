@@ -1,15 +1,16 @@
 import numpy as np
-from ase.units import pi, Bohr
+from ase.units import pi
 from qeh.bb_calculator.chicalc import ChiCalc, QPoint
 from gpaw.response.df import DielectricFunction
 
+
 class GPAW_ChiCalc(ChiCalc):
     def __init__(self,
-                 df : DielectricFunction,
-                 qinf_min : float = 1e-4,  
-                 qinf_max : float = 0.5,
-                 nq_inf : int = 10,
-                 direction : str = 'x'):
+                 df: DielectricFunction,
+                 qinf_min: float = 1e-4,
+                 qinf_max: float = 0.5,
+                 nq_inf: int = 10,
+                 direction: str = 'x'):
 
         ''' GPAW superclass for interfacing with QEH
         building block calculatotions.
@@ -30,7 +31,7 @@ class GPAW_ChiCalc(ChiCalc):
             the direction of the q-grid
         '''
 
-        self.df = df # DielectricFunctionCalculator
+        self.df = df  # DielectricFunctionCalculator
         self.L = df.gs.gd.cell_cv[2, 2]
         self.omega_w = self.df.chi0calc.wd.omega_w
         self.direction = direction
@@ -38,10 +39,10 @@ class GPAW_ChiCalc(ChiCalc):
         self.qinf_min = qinf_min
         self.qinf_max = qinf_max
         self.nq_inf = nq_inf
-        
+
         super().__init__()
-        
-    def get_q_grid(self, q_max : float | None = None):
+
+    def get_q_grid(self, q_max: float | None = None):
         # First get q-points on the grid
         qdim = {'x': 0, 'y': 1}
         qdir = qdim[self.direction]
@@ -49,10 +50,10 @@ class GPAW_ChiCalc(ChiCalc):
         Nk = kd.N_c[qdir]
         gd = self.df.gs.gd
         icell_cv = gd.icell_cv
-        
-        q_qc=np.zeros([Nk//2+1, 3], dtype=float)
-        q_qc[:, qdir] = np.linspace(0, 0.5, Nk//2+1)
-        q_qc = q_qc[1:-1] # exclude gamma
+
+        q_qc = np.zeros([Nk + 1, 3], dtype=float)
+        q_qc[:, qdir] = np.linspace(0, 1, Nk + 1)
+        q_qc = q_qc[1:-1]  # exclude gamma
         q_qv = q_qc @ icell_cv * 2 * pi
 
         if q_max is not None:
@@ -62,24 +63,23 @@ class GPAW_ChiCalc(ChiCalc):
 
         # get additional q-points around gamma
         qinf_qc = np.zeros([self.nq_inf, 3], dtype=float)
-        qinf_qc[:, qdir] = np.linspace(self.qinf_min*q_qc[0, qdir],
-                                       self.qinf_max*q_qc[0, qdir],
+        qinf_qc[:, qdir] = np.linspace(self.qinf_min * q_qc[0, qdir],
+                                       self.qinf_max * q_qc[0, qdir],
                                        self.nq_inf)
-        qinf_qv  = qinf_qc @ icell_cv * 2 * pi
+        qinf_qv = qinf_qc @ icell_cv * 2 * pi
 
         # make list of QPoints for calculation
         Q_q = [QPoint(q_c=q_c, q_v=q_v, interpolate_from_gamma=True)
                for q_c, q_v in zip(qinf_qc, qinf_qv)]
         Q_q.extend([QPoint(q_c=q_c, q_v=q_v) for q_c, q_v
                     in zip(q_qc, q_qv)])
-
         return Q_q
 
     def get_z_grid(self):
         r = self.df.gs.gd.get_grid_point_coordinates()
         return r[2, 0, 0, :]
-        
-    def get_chi_wGG(self, qpoint : QPoint):
+
+    def get_chi_wGG(self, qpoint: QPoint):
         if qpoint.interpolate_from_gamma:
             chi0_dyson_eqs = self.df.get_chi0_dyson_eqs([0, 0, 0],
                                                         truncation='2D')
