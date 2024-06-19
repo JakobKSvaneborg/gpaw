@@ -444,7 +444,7 @@ class MPACalculator(WBaseCalculator):
         E_pGG = chi0.body.blockdist.distribute_as(E_pGG,
                                                   self.mpa['npoles'], 'wGG')
 
-        if self.integrate_gamma == 'WS':
+        if self.integrate_gamma['type'] == 'WS':
             from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
             wstc = WignerSeitzTruncatedCoulomb(chi0.qpd.gd.cell_cv,
                                                dfc.coulomb.N_c)
@@ -456,7 +456,7 @@ class MPACalculator(WBaseCalculator):
             * sqrtV_G[np.newaxis, np.newaxis, :]
 
         assert self.q0_corrector is None
-        if (self.integrate_gamma == 0 and chi0.optical_limit) or\
+        if (self.integrate_gamma['type'] == 'sphere' and chi0.optical_limit) or\
                 self.integrate_gamma['type'] in {'reciprocal', '1BZ'}:
             V0, sqrtV0 = self.get_V0sqrtV0(chi0)
             for W_GG, R_GG in zip(W_pGG, R_pGG):
