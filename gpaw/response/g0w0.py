@@ -32,6 +32,28 @@ from contextlib import ExitStack
 from ase.parallel import broadcast
 
 
+def validate_integrate_gamma(gamma_integration):
+    defaults = {'sphere': {'type': 'sphere'},
+                'reciprocal': {'type': 'reciprocal'},
+                'reciprocal2D': {'type': 'reciprocal', 'reduced': True},
+                '1BZ': {'type': '1BZ'},
+                '1BZ2D': {'type': '1BZ', 'reduced': True},
+                'WS': {'type': 'WS'}}
+
+    if isinstance(gamma_integration, int):
+        raise ValueError("gamma_integration=INT is deprecated. Please start"
+                         "using the new notations, as is given in the"
+                         "documentation of gpaw/response/g0w0.py class "
+                         "G0W0.__init__.")
+
+    if isinstance(gamma_integration, str):
+        gamma_integration = defaults[gamma_integration]
+    assert gamma_integration['type'] in {'sphere', 'reciprocal', '1BZ', 'WS'}
+    if gamma_integration['type'] not in {'reciprocal', '1BZ'}:
+        assert not gamma_integration.get('reduced', False)
+    return gamma_integration
+
+
 def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):
     """
     Compares nested structures of dictionarys, lists, etc. and
@@ -1140,7 +1162,7 @@ class G0W0(G0W0Calculator):
                  fxc_mode='GW',
                  fxc_modes=None,
                  truncation=None,
-                 integrate_gamma=0,
+                 integrate_gamma='sphere',
                  q0_correction=False,
                  do_GW_too=False,
                  qpoints=None,
@@ -1200,14 +1222,49 @@ class G0W0(G0W0Calculator):
             (almost for free).
         truncation: str
             Coulomb truncation scheme. Can be either 2D, 1D, or 0D.
-        integrate_gamma: int or string
-            Method to integrate the Coulomb interaction. 1 is a numerical
-            integration at all q-points with G=[0,0,0] - this breaks the
-            symmetry slightly. 0 is analytical integration at q=[0,0,0] only -
-            this conserves the symmetry. integrate_gamma=2 is the same as 1,
-            but the average is only carried out in the non-periodic directions.
-            'WS' is Wigner-Seitz truncated Coulomb interaction from
-            R. Sundararaman and T. A. Arias: Phys. Rev. B 87, 165122 (2013)
+        integrate_gamma: string or dict
+            Method to integrate the Coulomb interaction.
+
+            The default is 'sphere'. If 'reduced' key is not given,
+            it defaults to False.
+
+            {'type': 'sphere'} or 'sphere':
+                Analytical integration of q=0, G=0 1/q^2 integrand in a sphere
+                matching the volume of a single q-point.
+                Used to be integrate_gamma=0.
+
+            {'type': 'reciprocal'} or 'reciprocal':
+                Numerical integration of q=0, G=0 1/q^2 integral in a volume
+                resembling the reciprocal cell (parallelpiped).
+                Used to be integrate_gamma=1.
+
+            {'type': 'reciprocal', 'reduced':True} or 'reciprocal2D':
+                Numerical integration of q=0, G=0 1/q^2 integral in a area
+                resembling the reciprocal 2D cell (parallelogram) to be used
+                to be usedwith 2D systems.
+                Used to be integrate_gamma=2.
+
+            {'type': '1BZ'} or '1BZ':
+                Numerical integration of q=0, G=0 1/q^2 integral in a volume
+                resembling the Wigner-Seitz cell of the reciprocal lattice
+                (voronoi). More accurate than 'reciprocal'.
+
+            {'type': '1BZ', 'reduced': True} or '1BZ2D':
+                Same as above, but everything is done in 2D (for 2D systems).
+
+            {'type': 'WS'} or 'WS':
+                The most accurate method to use for bulk systems.
+                Instead of numerically integrating only q=0, G=0, all (q,G)-
+                pairs participate to the truncation, which is done in real
+                space utilizing the Wigner-Seitz truncation in the
+                Born-von-Karmann supercell of the system.
+
+                Numerical integration of q=0, G=0 1/q^2 integral in a volume
+                resembling the Wigner-Seitz cell of the reciprocal lattice
+                (Voronoi). More accurate than 'reciprocal'.
+
+                R. Sundararaman and T. A. Arias: Phys. Rev. B 87, 165122 (2013)
+
         E0: float
             Energy (in eV) used for fitting in the plasmon-pole approximation.
         q0_correction: bool
@@ -1233,6 +1290,9 @@ class G0W0(G0W0Calculator):
             assert fxc_mode is None
 
         frequencies = get_frequencies(frequencies, domega0, omega2)
+
+        integrate_gamma = validate_integrate_gamma(integrate_gamma)
+
         # We pass a serial communicator because the parallel handling
         # is somewhat wonky, we'd rather do that ourselves:
         try:
@@ -1272,7 +1332,7 @@ class G0W0(G0W0Calculator):
 
         if ppa:
             assert not mpa
-            assert integrate_gamma != 'WS', "TODO"
+            assert integrate_gamma['type'] != 'WS', "TODO"
             # use small imaginary frequency to avoid dividing by zero:
             frequencies = [1e-10j, 1j * E0]
 
