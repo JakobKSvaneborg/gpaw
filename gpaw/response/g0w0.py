@@ -487,7 +487,8 @@ class G0W0Calculator:
                  frequencies=None,
                  exx_vxc_calculator,
                  qcache,
-                 ppa=False):
+                 ppa=False,
+                 qpoints=None):
         """G0W0 calculator, initialized through G0W0 object.
 
         The G0W0 calculator is used to calculate the quasi
@@ -525,12 +526,15 @@ class G0W0Calculator:
         ppa: bool
             Use Godby-Needs plasmon-pole approximation for screened interaction
             and self-energy
+        qpoints: list of int
+            List of qpoint to evaluate during the calculations.
         """
         self.chi0calc = chi0calc
         self.wcalc = wcalc
         self.context = self.wcalc.context
         self.ppa = ppa
         self.qcache = qcache
+        self.qpoints = qpoints
 
         # Note: self.wd should be our only representation of the frequencies.
         # We should therefore get rid of self.frequencies.
@@ -667,9 +671,14 @@ class G0W0Calculator:
         All the values are ``ndarray``'s of shape
         (spins, IBZ k-points, bands)."""
 
-        # Loop over q in the IBZ:
-        self.context.print('Summing all q:')
+        if self.qpoints is None:
+            self.context.print('Summing all q:')
+        else:
+            qpt_str = ' '.join(map(str, self.qpoints))
+            self.context.print(f'Calculating following q-points: {qpt_str}')
         self.calculate_all_q_points()
+        if self.qpoints is not None:
+            return f'A partial result of q-points: {qpt_str}'
         sigmas = self.read_sigmas()
         self.all_results = self.postprocess(sigmas)
         # Note: self.results is a pointer pointing to one of the results,
@@ -853,12 +862,18 @@ class G0W0Calculator:
         with broadcast_exception(self.context.comm):
             if self.context.comm.rank == 0:
                 for key, sigmas in self.qcache.items():
+                    if self.qpoints and int(key) not in self.qpoints:
+                        continue
                     sigmas = {fxc_mode: Sigma.fromdict(sigma)
                               for fxc_mode, sigma in sigmas.items()}
                     for fxc_mode, sigma in sigmas.items():
                         sigma.validate_inputs(self.get_validation_inputs())
 
         for iq, q_c in enumerate(self.wcalc.qd.ibzk_kc):
+            # If a list of q-points is specified,
+            # skip the q-points not in the list
+            if self.qpoints and (iq not in self.qpoints):
+                continue
             with ExitStack() as stack:
                 if self.context.comm.rank == 0:
                     qhandle = stack.enter_context(self.qcache.lock(str(iq)))

@@ -17,25 +17,30 @@ def generate_si_systems():
     return [si1, si2]
 
 
-def run(gpw_filename, nblocks, integrate_gamma):
+def run(gpw_filename, nblocks, integrate_gamma, qpt=False):
     # This tests checks the actual numerical accuracy which is asserted below
     calc = GPAW(gpw_filename)
     e = calc.get_potential_energy()
 
-    gw = G0W0(gpw_filename, 'gw_None',
-              nbands=8, integrate_gamma=integrate_gamma,
-              kpts=[(0, 0, 0), (0.5, 0.5, 0)],  # Gamma, X
-              ecut=40, nblocks=nblocks,
-              frequencies={'type': 'nonlinear',
-                           'domega0': 0.1, 'omegamax': None},
-              eta=0.2, relbands=(-1, 2))
+    kwargs = dict(nbands=8, integrate_gamma=integrate_gamma,
+                  kpts=[(0, 0, 0), (0.5, 0.5, 0)],  # Gamma, X
+                  ecut=40, nblocks=nblocks,
+                  frequencies={'type': 'nonlinear',
+                               'domega0': 0.1, 'omegamax': None},
+                  eta=0.2, relbands=(-1, 2))
+
+    if qpt:
+        for q in range(len(calc.wfs.kd.ibzk_qc)):
+            gw = G0W0(gpw_filename, 'gw_None', **kwargs, qpoints=[q])
+            gw.calculate()
+
+    gw = G0W0(gpw_filename, 'gw_None', **kwargs)
     results = gw.calculate()
 
     G, X = results['eps'][0]
     output = [e, G[0], G[1] - G[0], X[1] - G[0], X[2] - X[1]]
     G, X = results['qp'][0]
     output += [G[0], G[1] - G[0], X[1] - G[0], X[2] - X[1]]
-    print(output)
     return output
 
 
@@ -79,7 +84,7 @@ def test_integrate_gamma_modes(in_tmp_dir, integrate_gamma, gpw_files,
                                gpaw_new):
     if gpaw_new and world.size > 1:
         pytest.skip('Hybrids not working in parallel with GPAW_NEW=1')
-    assert run(gpw_files['si_gw_a0_all'], 1, integrate_gamma) == \
+    assert run(gpw_files['si_gw_a0_all'], 1, integrate_gamma, qpt=True) == \
            reference[integrate_gamma]
 
 
