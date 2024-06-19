@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
-            bands: range,
+            bands: slice,
             spin: int,
             timer: Timer | None = None) -> ArrayND:
     """
