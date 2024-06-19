@@ -456,8 +456,8 @@ class MPACalculator(WBaseCalculator):
             * sqrtV_G[np.newaxis, np.newaxis, :]
 
         assert self.q0_corrector is None
-        if (self.integrate_gamma['type'] == 'sphere' and chi0.optical_limit) or\
-                self.integrate_gamma['type'] in {'reciprocal', '1BZ'}:
+        if (self.integrate_gamma['type'] == 'sphere' and chi0.optical_limit)\
+                or self.integrate_gamma['type'] in {'reciprocal', '1BZ'}:
             V0, sqrtV0 = self.get_V0sqrtV0(chi0)
             for W_GG, R_GG in zip(W_pGG, R_pGG):
                 self.apply_gamma_correction(W_GG, pi * R_GG,
