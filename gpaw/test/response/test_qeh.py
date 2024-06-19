@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
 from gpaw.response.df import DielectricFunction
-from gpaw.response.qeh import BuildingBlock, check_building_blocks
-from gpaw.mpi import world, size
+from gpaw.response.qeh import GPAW_ChiCalc
+from ase.parallel import world
 
 """
 xxx QEH module seem to require at least 6x6x1 kpoints.
@@ -14,17 +14,6 @@ xxx isotropic_q = False is temporarily turned off. However,
     Should we remove the option or should we expand QEH to handle
     non-isotropic q?
 """
-
-
-class FragileBB(BuildingBlock):
-    def update_building_block(self, *args, **kwargs):
-        if not hasattr(self, 'doom') and self.last_q_idx == 0:
-            self.doom = 0
-        self.doom += 1  # Advance doom
-        print('doom', self.doom)
-        if self.doom == 9:
-            raise ValueError('Cthulhu awakens')
-        BuildingBlock.update_building_block(self, *args, **kwargs)
 
 
 def dielectric(calc, domega, omega2, rate=0.0):
@@ -45,20 +34,31 @@ def dielectric(calc, domega, omega2, rate=0.0):
 @pytest.mark.response
 def test_basics(in_tmp_dir, gpw_files):
     qeh = pytest.importorskip('qeh')
-    interpolate_building_blocks = qeh.interpolate_building_blocks
-    Heterostructure = qeh.Heterostructure
-
+    from qeh.bb_calculator.bb_calculator import BuildingBlock, check_building_blocks
+    from qeh import Heterostructure, interpolate_building_blocks
+    class FragileBB(BuildingBlock):
+        def append_chi_2D(self, *args, **kwargs):
+            if not hasattr(self, 'doom') and self.last_q_idx == 0:
+                self.doom = 0
+            self.doom += 1  # Advance doom
+            print('doom', self.doom)
+            if self.doom == 9:
+                raise ValueError('Cthulhu awakens')
+            BuildingBlock.append_chi_2D(self, *args, **kwargs)
+    
     df = dielectric(gpw_files['graphene_pw'], 0.2, 0.6, rate=0.001)
     df2 = dielectric(gpw_files['mos2_pw'], 0.1, 0.5)
 
     # Testing to compute building block
-    bb1 = BuildingBlock('graphene', df)
-    bb2 = BuildingBlock('mos2', df2)
+    chicalc = GPAW_ChiCalc(df)
+    chicalc2 = GPAW_ChiCalc(df2)
+    bb1 = BuildingBlock('graphene', chicalc)
+    bb2 = BuildingBlock('mos2', chicalc2)
     bb1.calculate_building_block()
     bb2.calculate_building_block()
 
     # Test restart calculation
-    bb3 = FragileBB('mos2_rs', df2)
+    bb3 = FragileBB('mos2_rs', chicalc2)
     with pytest.raises(ValueError, match='Cthulhu*'):
         bb3.calculate_building_block()
     can_load = bb3.load_chi_file()
@@ -72,8 +72,8 @@ def test_basics(in_tmp_dir, gpw_files):
     data2 = np.load('mos2_rs-chi.npz')
     assert np.allclose(data['chiM_qw'], data2['chiM_qw'])
 
-    assert np.array_equal(data['chiMD_qw'], np.zeros(data['chiMD_qw'].shape))
-    assert np.array_equal(data['chiDM_qw'], np.zeros(data['chiDM_qw'].shape))
+    assert np.allclose(data['chiMD_qw'], np.zeros(data['chiMD_qw'].shape))
+    assert np.allclose(data['chiDM_qw'], np.zeros(data['chiDM_qw'].shape))
     # Test building blocks are on different grids
     are_equal = check_building_blocks(['mos2', 'graphene'])
     assert not are_equal
@@ -89,7 +89,8 @@ def test_basics(in_tmp_dir, gpw_files):
                          wmax=0,
                          d0=5)
     chi = HS.get_chi_matrix()
-    correct_val = 0.018928388759896875 - 0.00018260820184429004j
+    correct_val = 0.018863784898982505 + 0.00019467687211225916j
+
     assert np.amax(chi) == pytest.approx(correct_val)
 
     # test equal building blocks
@@ -105,7 +106,7 @@ def test_basics(in_tmp_dir, gpw_files):
                          d0=5)
     chi_new = HS.get_chi_matrix()
     assert np.allclose(chi, chi_new)
-    correct_val = 0.018238059045975367 + 8.08142659593134e-05j
+    correct_val = 0.018238064281452426 + 8.081233843428657e-05j
     assert np.amax(chi) == pytest.approx(correct_val)
 
     # test to interpolate to grid and actual numbers
@@ -113,74 +114,84 @@ def test_basics(in_tmp_dir, gpw_files):
     w_grid_w = np.array([0, 0.1])
     bb2.interpolate_to_grid(q_grid_q=q_grid_q, w_grid_w=w_grid_w)
     data = np.load('mos2_int-chi.npz')
-
     assert np.allclose(data['omega_w'], np.array([0., 0.00367493]))
 
-    monopole = np.array([[-6.19649236e-10 + 8.40185236e-24j,
-                          -6.20705802e-10 - 4.42467607e-12j],
-                         [-6.91213385e-03 + 4.81426465e-21j,
-                          -6.91691201e-03 - 1.96203657e-05j]])
+    monopole = np.array([[-1.87660799e-09 + 1.43275446e-23j,
+                          -1.87980719e-09 - 1.33974787e-11j],
+                         [-6.10246367e-03 + 3.07732521e-21j,
+                          -6.10741923e-03 - 2.03955320e-05j]])
     assert np.allclose(data['chiM_qw'], monopole)
 
-    dipole = np.array([[-0.19370323 + 6.04520088e-18j,
-                        -0.19385203 - 6.06238802e-04j],
-                       [-0.20384696 + 6.32211737e-18j,
-                        -0.2040121 - 6.73309535e-04j]])
+    dipole = np.array([[-0.19370529 - 9.22464060e-18j,
+                        -0.19385409 - 6.06252172e-04j],
+                       [-0.2038452  - 9.70691342e-18j,
+                        -0.20401033 - 6.73306628e-04j]])
     assert np.allclose(data['chiD_qw'], dipole)
 
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
+@pytest.mark.serial
 def test_off_diagonal_chi(in_tmp_dir, gpw_files):
+    qeh = pytest.importorskip('qeh')
     from ase.units import Hartree
+    from qeh.bb_calculator.bb_calculator import BuildingBlock, check_building_blocks
+
     df = dielectric(gpw_files['IBiTe_pw_monolayer'], 0.1, 0.5)
-    bb = BuildingBlock('IBiTe', df)
+    chicalc = GPAW_ChiCalc(df)
+    bb = BuildingBlock('IBiTe', chicalc)
     bb.calculate_building_block()
     can_load = bb.load_chi_file()
     assert can_load
     chiDM_qw = bb.chiDM_qw
     chiMD_qw = bb.chiMD_qw
+
     assert np.allclose(chiDM_qw[7, 4],
-                       (2.5777773675441436e-07 + 1.781539139774827e-05j))
+                       (2.3932924219802144e-07 + 2.05357322173625e-05j))
     assert np.allclose(chiDM_qw[0, 0],
-                       (-1.6543612251060553e-24 + 8.878999940492681e-09j))
+                       (-5.169878828456423e-24 + 1.1126815599304747e-08j))
     assert np.allclose(chiMD_qw[0, 0],
-                       (-4.756288522179909e-24 - 8.878999940492663e-09j))
+                       (-8.271806125530277e-25 - 1.1126815599304756e-08j))
     assert np.allclose(chiMD_qw[10, 8],
-                       (-0.0013460322867027315 - 0.013654438136419339j))
+                       (-0.0013460307110321652 - 0.013654449218892167j))
     assert np.allclose(chiMD_qw[9, 9],
-                       (-2.02536793708031e-05 - 4.2061568393935735e-05j))
+                       (-1.857657321140787e-05 - 5.607966877981631e-05j))
     q_grid_q = np.linspace(0, 0.5, 6)
-    w_grid_w = bb.wd.omega_w * Hartree
+    w_grid_w = bb.chicalc.omega_w * Hartree
     bb.interpolate_to_grid(q_grid_q, w_grid_w)
     data = np.load('IBiTe_int-chi.npz')
     assert np.allclose(data['omega_w'] * Hartree, w_grid_w)
     assert np.allclose(data['chiMD_qw'][-1, 0],
-                       (-0.01828975765460967 - 0.05522009764695865j))
+                       (-0.018257882624353374 - 0.056302777611006924j))
     assert np.allclose(data['chiMD_qw'][0, 0].real,
-                       -5.055812485865182e-24)
+                       -8.975419787629866e-25)
     assert np.allclose(data['chiMD_qw'][0, 0].imag,
-                       -8.878999940492832e-09)
+                       -1.1126815599304704e-08)
     assert np.allclose(data['chiDM_qw'][1, 2],
-                       (1.5400690020024133e-07 + 2.052790098516586e-05j))
+                       (6.240997016599765e-08+1.8570610526731215e-05j))
 
 # test limited features that should work in parallel
 
 
-@pytest.mark.skipif(size == 1, reason='Features already tested '
+@pytest.mark.skipif(world.size == 1, reason='Features already tested '
                     'in serial in test_basics')
-@pytest.mark.skipif(size > 6, reason='Parallelization for '
+@pytest.mark.skipif(world.size > 6, reason='Parallelization for '
                     'small test-system broken for many cores')
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 def test_bb_parallel(in_tmp_dir, gpw_files):
+    qeh = pytest.importorskip('qeh')
+    from qeh.bb_calculator.bb_calculator import BuildingBlock, check_building_blocks
+
     df = dielectric(gpw_files['mos2_pw'], 0.1, 0.5)
-    bb1 = BuildingBlock('mos2', df)
+    chicalc = GPAW_ChiCalc(df)
+    bb1 = BuildingBlock('mos2', chicalc)
     bb1.calculate_building_block()
     # Make sure that calculation is finished before loading data file
     world.barrier()
     data = np.load('mos2-chi.npz')
+
     maxM = np.amax(abs(data['chiM_qw']))
-    assert maxM == pytest.approx(0.25076046486693826)
+    assert maxM == pytest.approx(0.25076046494995663)
     maxD = np.amax(abs(data['chiD_qw']))
-    assert maxD == pytest.approx(0.844873415471949)
+    assert maxD == pytest.approx(0.8448734155764457)
