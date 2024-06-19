@@ -21,7 +21,8 @@ from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.pair import phase_shifted_fft_indices
 from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import Blocks1D
-from gpaw.response.screened_interaction import initialize_w_calculator
+from gpaw.response.screened_interaction import (initialize_w_calculator,
+                                                GammaIntegrationMode)
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response import timer
 from gpaw.mpi import broadcast_exception
@@ -29,28 +30,6 @@ from gpaw.mpi import broadcast_exception
 from ase.utils.filecache import MultiFileJSONCache as FileCache
 from contextlib import ExitStack
 from ase.parallel import broadcast
-
-
-def validate_integrate_gamma(gamma_integration):
-    defaults = {'sphere': {'type': 'sphere'},
-                'reciprocal': {'type': 'reciprocal'},
-                'reciprocal2D': {'type': 'reciprocal', 'reduced': True},
-                '1BZ': {'type': '1BZ'},
-                '1BZ2D': {'type': '1BZ', 'reduced': True},
-                'WS': {'type': 'WS'}}
-
-    if isinstance(gamma_integration, int):
-        raise ValueError("gamma_integration=INT is deprecated. Please start"
-                         "using the new notations, as is given in the"
-                         "documentation of gpaw/response/g0w0.py class "
-                         "G0W0.__init__.")
-
-    if isinstance(gamma_integration, str):
-        gamma_integration = defaults[gamma_integration]
-    assert gamma_integration['type'] in {'sphere', 'reciprocal', '1BZ', 'WS'}
-    if gamma_integration['type'] not in {'reciprocal', '1BZ'}:
-        assert not gamma_integration.get('reduced', False)
-    return gamma_integration
 
 
 def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):
@@ -952,7 +931,7 @@ class G0W0Calculator:
                 'ecut_e': list(self.ecut_e),
                 'frequencies': self.frequencies,
                 'fxc_modes': self.fxc_modes,
-                'integrate_gamma': self.wcalc.integrate_gamma}
+                'integrate_gamma': repr(self.wcalc.integrate_gamma)}
 
     @timer('calculate_w')
     def calculate_w(self, chi0calc, q_c, chi0,
@@ -1167,6 +1146,9 @@ class G0W0(G0W0Calculator):
                 resembling the Wigner-Seitz cell of the reciprocal lattice
                 (voronoi). More accurate than 'reciprocal'.
 
+                A. Guandalini, P. D’Amico, A. Ferretti and D. Varsano:
+                npj Computational Materials volume 9, Article number: 44 (2023)
+
             {'type': '1BZ', 'reduced': True} or '1BZ2D':
                 Same as above, but everything is done in 2D (for 2D systems).
 
@@ -1198,7 +1180,7 @@ class G0W0(G0W0Calculator):
             requirements as much as possible.
         """
 
-        integrate_gamma = validate_integrate_gamma(integrate_gamma)
+        integrate_gamma = GammaIntegrationMode(integrate_gamma)
 
         # We pass a serial communicator because the parallel handling
         # is somewhat wonky, we'd rather do that ourselves:
@@ -1237,7 +1219,7 @@ class G0W0(G0W0Calculator):
                     'nbands cannot be supplied with ecut-extrapolation.')
 
         if ppa:
-            assert integrate_gamma['type'] != 'WS', "TODO"
+            assert not integrate_gamma.is_Wigner_Seitz, "TODO"
             # use small imaginary frequency to avoid dividing by zero:
             frequencies = [1e-10j, 1j * E0]
 
