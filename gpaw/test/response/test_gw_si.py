@@ -31,8 +31,8 @@ def run(gpw_filename, nblocks, integrate_gamma, qpt=False):
 
     if qpt:
         for q in range(len(calc.wfs.kd.ibzk_qc)):
-            gw = G0W0(gpw_filename, 'gw_None', **kwargs, qpoints=[q])
-            gw.calculate()
+            gw = G0W0(gpw_filename, 'gw_None', **kwargs)
+            gw.calculate(qpoints=[q])
 
     gw = G0W0(gpw_filename, 'gw_None', **kwargs)
     results = gw.calculate()
