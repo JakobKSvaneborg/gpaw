@@ -20,8 +20,8 @@ from gpaw.response.df import write_response_function
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.pair import KPointPairFactory, get_gs_and_context
 from gpaw.response.pair_functions import SingleQPWDescriptor
-from gpaw.response.screened_interaction import initialize_w_calculator
-from gpaw.response.g0w0 import validate_integrate_gamma
+from gpaw.response.screened_interaction import (initialize_w_calculator,
+                                                GammaIntegrationMode)
 
 
 def decide_whether_tammdancoff(val_sn, con_sn):
@@ -90,7 +90,7 @@ class BSEMatrix:
             assert ns == (
                 -(-bse.kd.nbzkpts // world.size) * (
                     bse.nv * bse.nc *
-                    bse.spins *
+                    bse.nspins *
                     (bse.spinors + 1)**2))
 
             # XXX We don't need to create new BLACS grids all the time
@@ -196,7 +196,7 @@ class BSEBackend:
                  q_c=[0.0, 0.0, 0.0],
                  direction=0):
 
-        integrate_gamma = validate_integrate_gamma(integrate_gamma)
+        integrate_gamma = GammaIntegrationMode(integrate_gamma)
 
         self.gs = gs
         self.q_c = q_c
@@ -212,7 +212,7 @@ class BSEBackend:
         self.nbands = nbands
         self.mode = mode
 
-        if integrate_gamma['type'] == 'sphere' and truncation is not None:
+        if integrate_gamma.is_analytical and truncation is not None:
             self.context.print('***WARNING*** Analytical Coulomb integration' +
                                ' is not expected to work with Coulomb ' +
                                'truncation. ' +
@@ -815,15 +815,8 @@ class BSEBackend:
             f'Number of pair orbitals        : {self.nS}',
             '',
             f'Truncation of Coulomb kernel   : {self.coulomb.truncation}'])
-        if self.integrate_gamma['type'] == 'sphere':
-            isl.append(
-                'Coulomb integration scheme     : Analytical - gamma only')
-        elif self.integrate_gamma['type'] == 'reciprocal':
-            isl.append(
-                'Coulomb integration scheme     : Numerical - all q-points')
-        else:
-            isl.append(
-                f'Coulomb integration scheme     : {self.integrate_gamma}')
+        isl.append(
+            'Coulomb integration scheme     : {self.integrate_gamma}')
         isl.extend([
             '',
             '----------------------------------------------------------',
