@@ -5,6 +5,8 @@ from gpaw.response.df import DielectricFunction
 
 
 class GPAW_ChiCalc(ChiCalc):
+    qdim = {'x': 0, 'y': 1}
+
     def __init__(self,
                  df: DielectricFunction,
                  qinf_min: float = 1e-4,
@@ -44,8 +46,7 @@ class GPAW_ChiCalc(ChiCalc):
 
     def get_q_grid(self, q_max: float | None = None):
         # First get q-points on the grid
-        qdim = {'x': 0, 'y': 1}
-        qdir = qdim[self.direction]
+        qdir = self.qdim[self.direction]
         kd = self.df.gs.kd
         Nk = kd.N_c[qdir]
         gd = self.df.gs.gd
@@ -53,7 +54,7 @@ class GPAW_ChiCalc(ChiCalc):
 
         q_qc = np.zeros([Nk + 1, 3], dtype=float)
         q_qc[:, qdir] = np.linspace(0, 1, Nk + 1)
-        q_qc = q_qc[1:-1]  # exclude gamma
+        q_qc = q_qc[:-1]
         q_qv = q_qc @ icell_cv * 2 * pi
 
         if q_max is not None:
@@ -61,33 +62,56 @@ class GPAW_ChiCalc(ChiCalc):
             q_qc = q_qc[q_mask]
             q_qv = q_qv[q_mask]
 
-        # get additional q-points around gamma
-        qinf_qc = np.zeros([self.nq_inf, 3], dtype=float)
-        qinf_qc[:, qdir] = np.linspace(self.qinf_min * q_qc[0, qdir],
-                                       self.qinf_max * q_qc[0, qdir],
-                                       self.nq_inf)
-        qinf_qv = qinf_qc @ icell_cv * 2 * pi
-
         # make list of QPoints for calculation
-        Q_q = [QPoint(q_c=q_c, q_v=q_v, interpolate_from_gamma=True)
-               for q_c, q_v in zip(qinf_qc, qinf_qv)]
-        Q_q.extend([QPoint(q_c=q_c, q_v=q_v) for q_c, q_v
-                    in zip(q_qc, q_qv)])
+        Q_q = [QPoint(q_c=q_c, q_v=q_v,
+                      P_rv=self.determine_P_rv(q_c, q_max))
+               for q_c, q_v in zip(q_qc, q_qv)]
+
         return Q_q
+
+    def determine_P_rv(self, q_c: np.ndarray, q_max: float | None):
+        """
+        Determine the reciprocal space vectors P_rv that correspond
+        to unfold the given q-point out of the 1st BZ 
+        given a q-point and the maximum q-value.
+
+        Parameters:
+            q_c (np.ndarray): The q-point in reciprocal space.
+            q_max (float | None): The maximum q-value.
+
+        Returns:
+            list: A list of reciprocal space vectors P_rv.
+        """
+        if q_max is not None:
+            icell_cv = self.df.gs.gd.icell_cv
+            qdir = self.qdim[self.direction]
+            qc_max = q_max / np.linalg.norm(icell_cv[qdir] * 2 * pi)
+            P_rv = [icell_cv[qdir] * 2 * pi * i 
+                for i in range(0, int(qc_max - q_c[qdir]) + 1)]
+            return P_rv
+        else:
+            return [np.array([0, 0, 0])]
 
     def get_z_grid(self):
         r = self.df.gs.gd.get_grid_point_coordinates()
         return r[2, 0, 0, :]
 
     def get_chi_wGG(self, qpoint: QPoint):
-        if qpoint.interpolate_from_gamma:
-            chi0_dyson_eqs = self.df.get_chi0_dyson_eqs([0, 0, 0],
-                                                        truncation='2D')
+        chi0_dyson_eqs = self.df.get_chi0_dyson_eqs(qpoint.q_c,
+                                                    truncation='2D')
+        if np.linalg.norm(qpoint.q_c) < 1e-6:
+            # XXX Messy way of calculating derivatives for q_c = 0
+            G_v = self.df.gs.gd.icell_cv[self.qdim[self.direction]]
+            direction = G_v / np.linalg.norm(G_v)
+            q_inf_v = direction*1e-6
+
             qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response(
-                qinf_v=qpoint.q_v, direction=self.direction)
+                qinf_v=q_inf_v, direction=q_inf_v)
+
+            chi_wGG[:, 0, 0] /= np.dot(q_inf_v, direction)**2
+            chi_wGG[:, 1:, 0] /= np.dot(q_inf_v, direction)
+            chi_wGG[:, 0, 1:] /= np.dot(q_inf_v, direction)
         else:
-            chi0_dyson_eqs = self.df.get_chi0_dyson_eqs(qpoint.q_c,
-                                                        truncation='2D')
             qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response()
 
         chi_wGG = wblocks.gather(chi_wGG, root=0)
