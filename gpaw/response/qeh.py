@@ -72,7 +72,7 @@ class GPAW_ChiCalc(ChiCalc):
     def determine_P_rv(self, q_c: np.ndarray, q_max: float | None):
         """
         Determine the reciprocal space vectors P_rv that correspond
-        to unfold the given q-point out of the 1st BZ 
+        to unfold the given q-point out of the 1st BZ
         given a q-point and the maximum q-value.
 
         Parameters:
@@ -86,8 +86,8 @@ class GPAW_ChiCalc(ChiCalc):
             icell_cv = self.df.gs.gd.icell_cv
             qdir = self.qdim[self.direction]
             qc_max = q_max / np.linalg.norm(icell_cv[qdir] * 2 * pi)
-            P_rv = [icell_cv[qdir] * 2 * pi * i 
-                for i in range(0, int(qc_max - q_c[qdir]) + 1)]
+            P_rv = [icell_cv[qdir] * 2 * pi * i
+                    for i in range(0, int(qc_max - q_c[qdir]) + 1)]
             return P_rv
         else:
             return [np.array([0, 0, 0])]
@@ -99,18 +99,13 @@ class GPAW_ChiCalc(ChiCalc):
     def get_chi_wGG(self, qpoint: QPoint):
         chi0_dyson_eqs = self.df.get_chi0_dyson_eqs(qpoint.q_c,
                                                     truncation='2D')
-        if np.linalg.norm(qpoint.q_c) < 1e-6:
-            # XXX Messy way of calculating derivatives for q_c = 0
+        if np.linalg.norm(qpoint.q_c) < 1e-8:
             G_v = self.df.gs.gd.icell_cv[self.qdim[self.direction]]
             direction = G_v / np.linalg.norm(G_v)
-            q_inf_v = direction*1e-6
+            q_inf_v = direction * 1e-8
 
             qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response(
                 qinf_v=q_inf_v, direction=q_inf_v)
-
-            chi_wGG[:, 0, 0] /= np.dot(q_inf_v, direction)**2
-            chi_wGG[:, 1:, 0] /= np.dot(q_inf_v, direction)
-            chi_wGG[:, 0, 1:] /= np.dot(q_inf_v, direction)
         else:
             qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response()
 
