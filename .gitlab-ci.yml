@@ -5,6 +5,16 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
+  DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"  # For Gitlab instance runners
+
+workflow:
+  rules:
+    # XXX: someone from the core devs please verify if this works on CAMD runners too,
+    # I'm just spit-balling here
+    - if: $CI_SERVER_HOST =~ /dtu/i || $CI_SERVER_HOST =~ /camd/i
+      variables:
+        DEFAULT_RUNNER_TAG: "linux"  # For CAMD on-premise runners
+    - when: always
 
 default:
   before_script:
@@ -111,7 +121,7 @@ build:
   image: $IMAGE_MAIN_OLDEST
   extends: .build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
@@ -123,7 +133,7 @@ build-latest:
   image: $IMAGE_MAIN_LATEST
   extends: .build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -164,7 +174,7 @@ build-cuda:
     - .build
     - .gpu-job
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -185,7 +195,7 @@ build-hip-cuda:
     - .build
     - .gpu-job
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -210,7 +220,7 @@ build-minimal:
   image: $IMAGE_MAIN_OLDEST
   extends: .build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - |
       cat << EOF > siteconfig.py
@@ -278,7 +288,7 @@ prepare-libxc:
   image: $IMAGE_MAIN_OLDEST
   stage: build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   variables:
     PREFIX: $PYTHONUSERBASE
   before_script:
@@ -309,7 +319,7 @@ build-libxc:
   needs:
     - prepare-libxc
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -330,7 +340,7 @@ test-oldest:
   needs:
     - build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
     - >
@@ -353,7 +363,7 @@ test-latest:
   needs:
     - build-latest
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
 
@@ -382,7 +392,7 @@ test-latest-new:
   needs:
     - build-latest
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
     - GPAW_NEW=1 pytest -v -m "ci and not later"
@@ -395,7 +405,7 @@ test-minimal:
   needs:
     - build-minimal
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
     - >
@@ -470,7 +480,7 @@ test-libxc:
   needs:
     - build-libxc
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
     - pytest -v -m libxc
@@ -481,7 +491,7 @@ check-agts:
   needs:
     - build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     # - pip install --user git+https://gitlab.com/myqueue/myqueue.git@master
     - pip install --user myqueue
@@ -496,7 +506,7 @@ lint:
   image: $IMAGE_MAIN_LATEST
   stage: build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - echo "png check"
     - >
@@ -535,7 +545,7 @@ typecheck:
   image: $IMAGE_MAIN_LATEST
   stage: build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - pip install mypy
     - python --version
@@ -549,7 +559,7 @@ docs:
   needs:
     - build
   tags:
-    - linux
+    - $DEFAULT_RUNNER_TAG
   script:
     - cd doc
     - make
