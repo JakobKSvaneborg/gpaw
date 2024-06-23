@@ -5,16 +5,7 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
-  DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"  # For Gitlab instance runners
 
-workflow:
-  rules:
-    # XXX: someone from the core devs please verify if this works on CAMD runners too,
-    # I'm just spit-balling here
-    - if: $CI_SERVER_HOST =~ /dtu/i || $CI_SERVER_HOST =~ /camd/i
-      variables:
-        DEFAULT_RUNNER_TAG: "linux"  # For CAMD on-premise runners
-    - when: always
 
 default:
   before_script:
@@ -30,6 +21,18 @@ stages:
   - precalculate
   - test
   - deploy
+
+
+.generic_linux_job:
+  # Note: since the "predefined" CI/CD variables (e.g. ${CI_SERVER_HOST}) only exist when
+  # the runner is already chosen based on the tags, we can't switch between the default
+  # "linux" (on CAMD runners) and "saas-linux-small-amd64" (on Gitlab hosted runners) tags
+  # based on those.
+  # Instead, use a base job spec for the selection after the (default) runner has already
+  # been assigned only as a verification.
+  rules:
+    - if: $CI_RUNNER_TAGS =~ /linux/
+
 
 .build:
   stage: build
@@ -119,9 +122,9 @@ stages:
 
 build:
   image: $IMAGE_MAIN_OLDEST
-  extends: .build
-  tags:
-    - $DEFAULT_RUNNER_TAG
+  extends:
+    - .build
+    - .generic_linux_job
   script:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
@@ -131,9 +134,9 @@ build:
 
 build-latest:
   image: $IMAGE_MAIN_LATEST
-  extends: .build
-  tags:
-    - $DEFAULT_RUNNER_TAG
+  extends:
+    - .build
+    - .generic_linux_job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -173,8 +176,7 @@ build-cuda:
   extends:
     - .build
     - .gpu-job
-  tags:
-    - $DEFAULT_RUNNER_TAG
+    - .generic_linux_job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -194,8 +196,7 @@ build-hip-cuda:
   extends:
     - .build
     - .gpu-job
-  tags:
-    - $DEFAULT_RUNNER_TAG
+    - .generic_linux_job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -218,9 +219,9 @@ build-hip-cuda:
 
 build-minimal:
   image: $IMAGE_MAIN_OLDEST
-  extends: .build
-  tags:
-    - $DEFAULT_RUNNER_TAG
+  extends:
+    - .build
+    - .generic_linux_job
   script:
     - |
       cat << EOF > siteconfig.py
@@ -286,9 +287,9 @@ build-lumi-g:
 
 prepare-libxc:
   image: $IMAGE_MAIN_OLDEST
+  extends:
+    - .generic_linux_job
   stage: build
-  tags:
-    - $DEFAULT_RUNNER_TAG
   variables:
     PREFIX: $PYTHONUSERBASE
   before_script:
@@ -316,10 +317,9 @@ build-libxc:
   image: $IMAGE_MAIN_OLDEST
   extends:
     - .build
+    - .generic_linux_job
   needs:
     - prepare-libxc
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -337,10 +337,9 @@ test-oldest:
   image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
+    - .generic_linux_job
   needs:
     - build
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
     - >
@@ -360,10 +359,9 @@ test-latest:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
+    - .generic_linux_job
   needs:
     - build-latest
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
 
@@ -389,10 +387,9 @@ test-latest-new:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
+    - .generic_linux_job
   needs:
     - build-latest
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
     - GPAW_NEW=1 pytest -v -m "ci and not later"
@@ -402,10 +399,9 @@ test-minimal:
   image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
+    - .generic_linux_job
   needs:
     - build-minimal
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
     - >
@@ -477,21 +473,20 @@ test-libxc:
   image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
+    - .generic_linux_job
   needs:
     - build-libxc
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - gpaw info
     - pytest -v -m libxc
 
 check-agts:
   image: $IMAGE_MAIN_OLDEST
+  extends:
+    - .generic_linux_job
   stage: test
   needs:
     - build
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     # - pip install --user git+https://gitlab.com/myqueue/myqueue.git@master
     - pip install --user myqueue
@@ -504,9 +499,9 @@ check-agts:
 
 lint:
   image: $IMAGE_MAIN_LATEST
+  extends:
+    - .generic_linux_job
   stage: build
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - echo "png check"
     - >
@@ -543,9 +538,9 @@ lint:
 
 typecheck:
   image: $IMAGE_MAIN_LATEST
+  extends:
+    - .generic_linux_job
   stage: build
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - pip install mypy
     - python --version
@@ -555,11 +550,11 @@ typecheck:
 
 docs:
   image: $IMAGE_MAIN_OLDEST
+  extends:
+    - .generic_linux_job
   stage: test
   needs:
     - build
-  tags:
-    - $DEFAULT_RUNNER_TAG
   script:
     - cd doc
     - make
