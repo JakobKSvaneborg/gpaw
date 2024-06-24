@@ -5,6 +5,8 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
+  DEFAULT_LINUX_TAG: "linux"
+  # RUN_PIPELINES_ON_FORKS: "true"  # Uncomment to run pipelines on forks
 
 
 default:
@@ -15,23 +17,35 @@ default:
     - export PYTEST_ADDOPTS="--color=yes"
   interruptible: true
 
+workflow:
+  # Note: it is not intended for users to run CI tests on Gitlab shared runners (see discussion
+  # under issue #1189), hence the disabling of automatic pipelines for users not under the GPAW
+  # namespace;
+  # GPAW devs can branch directly from gpaw/gpaw> and tests will run there, and non-GPAW devs can
+  # nonetheless trigger pipelines on their forks manually.
+  rules:
+    # By default, only run pipelines within the GPAW namespace
+    - if: $CI_PROJECT_ROOT_NAMESPACE == "gpaw"
+    # Allow override by:
+    # - Setting the ${RUN_PIPELINES_ON_FORKS} above, or
+    # - Triggering the pipeline manually via "api", "chat", "schedule", "web", or "webide"
+    #   (note: `worklow:rules:when:manual` not supported)
+    - if: $CI_PROJECT_ROOT_NAMESPACE != "gpaw" && (
+             $CI_PIPELINE_SOURCE == "api"
+          || $CI_PIPELINE_SOURCE == "chat"
+          || $CI_PIPELINE_SOURCE == "schedule"
+          || $CI_PIPELINE_SOURCE == "web"
+          || $CI_PIPELINE_SOURCE == "webide"
+          || $RUN_PIPELINES_ON_FORKS)
+      variables:
+        DEFAULT_LINUX_TAG: "saas-linux-small-amd64"  # Default Gitlab shared runner
+
 
 stages:
   - build
   - precalculate
   - test
   - deploy
-
-
-.generic_linux_job:
-  # Note: since the "predefined" CI/CD variables (e.g. ${CI_SERVER_HOST}) only exist when
-  # the runner is already chosen based on the tags, we can't switch between the default
-  # "linux" (on CAMD runners) and "saas-linux-small-amd64" (on Gitlab hosted runners) tags
-  # based on those.
-  # Instead, use a base job spec for the selection after the (default) runner has already
-  # been assigned only as a verification.
-  rules:
-    - if: $CI_RUNNER_TAGS =~ /linux/
 
 
 .build:
@@ -122,9 +136,10 @@ stages:
 
 build:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
-    - .generic_linux_job
   script:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
@@ -134,9 +149,10 @@ build:
 
 build-latest:
   image: $IMAGE_MAIN_LATEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
-    - .generic_linux_job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -173,10 +189,11 @@ build-latest:
 
 build-cuda:
   image: $IMAGE_CUDA
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
     - .gpu-job
-    - .generic_linux_job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -193,10 +210,11 @@ build-cuda:
 
 build-hip-cuda:
   image: $IMAGE_CUDA
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
     - .gpu-job
-    - .generic_linux_job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -219,9 +237,10 @@ build-hip-cuda:
 
 build-minimal:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
-    - .generic_linux_job
   script:
     - |
       cat << EOF > siteconfig.py
@@ -287,8 +306,8 @@ build-lumi-g:
 
 prepare-libxc:
   image: $IMAGE_MAIN_OLDEST
-  extends:
-    - .generic_linux_job
+  tags:
+    - $DEFAULT_LINUX_TAG
   stage: build
   variables:
     PREFIX: $PYTHONUSERBASE
@@ -315,9 +334,10 @@ prepare-libxc:
 
 build-libxc:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
-    - .generic_linux_job
   needs:
     - prepare-libxc
   script:
@@ -335,9 +355,10 @@ build-libxc:
 
 test-oldest:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
-    - .generic_linux_job
   needs:
     - build
   script:
@@ -357,9 +378,10 @@ test-oldest:
 
 test-latest:
   image: $IMAGE_MAIN_LATEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
-    - .generic_linux_job
   needs:
     - build-latest
   script:
@@ -385,9 +407,10 @@ test-latest:
 
 test-latest-new:
   image: $IMAGE_MAIN_LATEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
-    - .generic_linux_job
   needs:
     - build-latest
   script:
@@ -397,9 +420,10 @@ test-latest-new:
 
 test-minimal:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
-    - .generic_linux_job
   needs:
     - build-minimal
   script:
@@ -471,9 +495,10 @@ test-lumi-g:
 
 test-libxc:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
-    - .generic_linux_job
   needs:
     - build-libxc
   script:
@@ -482,8 +507,8 @@ test-libxc:
 
 check-agts:
   image: $IMAGE_MAIN_OLDEST
-  extends:
-    - .generic_linux_job
+  tags:
+    - $DEFAULT_LINUX_TAG
   stage: test
   needs:
     - build
@@ -499,8 +524,8 @@ check-agts:
 
 lint:
   image: $IMAGE_MAIN_LATEST
-  extends:
-    - .generic_linux_job
+  tags:
+    - $DEFAULT_LINUX_TAG
   stage: build
   script:
     - echo "png check"
@@ -538,8 +563,8 @@ lint:
 
 typecheck:
   image: $IMAGE_MAIN_LATEST
-  extends:
-    - .generic_linux_job
+  tags:
+    - $DEFAULT_LINUX_TAG
   stage: build
   script:
     - pip install mypy
@@ -550,8 +575,8 @@ typecheck:
 
 docs:
   image: $IMAGE_MAIN_OLDEST
-  extends:
-    - .generic_linux_job
+  tags:
+    - $DEFAULT_LINUX_TAG
   stage: test
   needs:
     - build
