@@ -504,8 +504,6 @@ class G0W0Calculator:
         ppa: bool
             Use Godby-Needs plasmon-pole approximation for screened interaction
             and self-energy
-        qpoints: list of int
-            List of qpoint to evaluate during the calculations.
         """
         self.chi0calc = chi0calc
         self.wcalc = wcalc
@@ -627,7 +625,7 @@ class G0W0Calculator:
         """Starts the G0W0 calculation.
 
         qpoints:
-            Set of q-points to calculate
+            Set of q-points to calculate.
 
         Returns a dict with the results with the following key/value pairs:
 
