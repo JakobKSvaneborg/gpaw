@@ -112,7 +112,7 @@ def gather_to_master(p_qvnn, ibzwfs):
     if master:
         return p_kvnn
     else:
-        return np.array([], dtype=complex)
+        return None
 
 
 def make_nlodata(calc: ASECalculator | str | Path,
