@@ -27,7 +27,7 @@ Since we will need to do LDA calculations later on, we will start of this part o
 from ase.io import read
 from ase.visualize import view
 from ase.optimize import BFGS
-from ase.constraints import UnitCellFilter
+from ase.filters import UnitCellFilter
 from gpaw import GPAW, PW
 
 S = 3 / 2  # student: S = ???

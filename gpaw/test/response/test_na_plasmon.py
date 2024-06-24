@@ -7,12 +7,14 @@ from gpaw.mpi import world
 from gpaw.test import findpeak
 from gpaw.utilities import compiled_with_sl
 from gpaw.response.df import DielectricFunction
+from gpaw.response.symmetry import QSymmetryAnalyzer
 
 # Comparing the plasmon peaks found in bulk sodium for two different
 # atomic structures. Testing for identical plasmon peaks. Not using
 # physical sodium cell.
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.response
 def test_response_na_plasmon(in_tmp_dir):
     a = 4.23 / 2.0
@@ -56,16 +58,14 @@ def test_response_na_plasmon(in_tmp_dir):
     a2.calc.write('gs_Na_large.gpw', 'all')
 
     # Settings that should yield the same result
-    settings = [{'disable_point_group': True, 'disable_time_reversal': True},
-                {'disable_point_group': False, 'disable_time_reversal': True},
-                {'disable_point_group': True, 'disable_time_reversal': False},
-                {'disable_point_group': False, 'disable_time_reversal': False}]
+    settings = [
+        {'qsymmetry': QSymmetryAnalyzer(pointgroup, timerev)}
+        for pointgroup in [False, True]
+        for timerev in [False, True]]
 
     # Test block parallelization (needs scalapack)
     if world.size > 1 and compiled_with_sl():
-        settings.append({'disable_point_group': False,
-                         'disable_time_reversal': False,
-                         'nblocks': 2})
+        settings.append({'qsymmetry': True, 'nblocks': 2})
 
     # Calculate the dielectric functions
     dfs0 = []  # Arrays to check for self-consistency
@@ -109,7 +109,7 @@ def test_response_na_plasmon(in_tmp_dir):
 
         # Compare plasmon frequencies and intensities: x, y, z
         # x values
-        w_w = df1.wd.omega_w
+        w_w = df1.chi0calc.wd.omega_w
         w1, I1 = findpeak(w_w, -(1. / df1LFCx).imag)
         w2, I2 = findpeak(w_w, -(1. / df2LFCx).imag)
         I_diff = abs(I1 - I2)
@@ -141,8 +141,4 @@ def test_response_na_plasmon(in_tmp_dir):
         while len(dfs):
             df = dfs.pop()
             for df2 in dfs:
-                try:
-                    assert np.max(np.abs((df - df2) / df)) < 2e-3
-                except AssertionError:
-                    print(np.max(np.abs((df - df2) / df)))
-                    raise AssertionError
+                assert np.max(np.abs((df - df2) / df)) < 2e-3

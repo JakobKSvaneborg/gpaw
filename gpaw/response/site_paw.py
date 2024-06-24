@@ -36,8 +36,8 @@ def calculate_site_matrix_element_correction(
     G_LLL = gaunt(lmax)
     assert max(rshe.l_M) <= lmax * 2
     # (Real) radial functions for the partial waves
-    phi_jg = pawdata.data.phi_jg
-    phit_jg = pawdata.data.phit_jg
+    phi_jg = pawdata.phi_jg
+    phit_jg = pawdata.phit_jg
     # Truncate the radial functions to span only the radial grid coordinates
     # which need correction
     assert np.allclose(rgd.r_g - pawdata.rgd.r_g[:rgd.N], 0.)

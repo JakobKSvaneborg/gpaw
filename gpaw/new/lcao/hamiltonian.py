@@ -148,7 +148,7 @@ class LCAOHamiltonian(Hamiltonian):
                                       ext: ExternalPotential,
                                       pot_calc: FDPotentialCalculator
                                       ) -> HamiltonianMatrixCalculator:
-        from gpaw.utilities import unpack
+        from gpaw.utilities import unpack_hermitian
         vext_r = pot_calc.vbar_r.new()
         finegd = vext_r.desc._gd
 
@@ -165,7 +165,7 @@ class LCAOHamiltonian(Hamiltonian):
         assert state.ibzwfs.ibz.bz.gamma_only
         setups_a = state.ibzwfs.wfs_qs[0][0].setups
 
-        dH_saii = [{a: unpack(setups_a[a].Delta_pL @ W_L)
+        dH_saii = [{a: unpack_hermitian(setups_a[a].Delta_pL @ W_L)
                     for (a, W_L) in W_aL.items()}
                    for s in range(nspins)]
 

@@ -219,9 +219,9 @@ def find_directions(icell: Array2D,
     directions: List[Tuple[int, ...]] = []
     for i1, i2 in voro.ridge_points:
         if i1 == 13 and i2 > 13:
-            directions.append(tuple(d_ic[i2]))
+            directions.append(tuple(d_ic[i2].tolist()))
         elif i2 == 13 and i1 > 13:
-            directions.append(tuple(d_ic[i1]))
+            directions.append(tuple(d_ic[i1].tolist()))
     return directions
 
 

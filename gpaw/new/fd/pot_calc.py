@@ -3,7 +3,7 @@ from math import pi
 import numpy as np
 
 from gpaw.core import UGDesc
-from gpaw.new import zips, spinsum
+from gpaw.new import zips, spinsum, trace
 from gpaw.new.pot_calc import PotentialCalculator
 
 
@@ -78,6 +78,7 @@ class FDPotentialCalculator(PotentialCalculator):
                     nt_r.data *= Nt1 / Nt2
         return nt_sr, None, None
 
+    @trace
     def calculate_pseudo_potential(self, density, ibzwfs, vHt_r):
         nt_sr, _, _ = self._interpolate_density(density.nt_sR)
         grid2 = nt_sr.desc

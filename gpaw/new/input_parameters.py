@@ -121,6 +121,9 @@ class InputParameters:
         for key in self.keys:
             yield key, getattr(self, key)
 
+    def __contains__(self, key):
+        return key in self.keys
+
 
 @input_parameter
 def basis(value=None):

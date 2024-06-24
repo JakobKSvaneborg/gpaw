@@ -8,7 +8,7 @@ import gpaw.mpi as mpi
 from gpaw.lrtddft.kssingle import KSSingles, KSSRestrictor
 from gpaw.setup import CachedYukawaInteractions
 from gpaw.transformers import Transformer
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 from gpaw.xc import XC
 
 """This module defines a Omega Matrix class."""
@@ -210,7 +210,7 @@ class OmegaMatrix:
                 # We use the numerical two point formula for calculating
                 # the integral over fxc*n_ij. The results are
                 # vvt_s        smooth integral
-                # nucleus.I_sp atom based correction matrices (pack2)
+                # nucleus.I_sp atom based correction matrices (pack_hermitian)
                 #              stored on each nucleus
                 timer2.start('init v grids')
                 vp_s = np.zeros(nt_s.shape, nt_s.dtype.char)
@@ -239,7 +239,7 @@ class OmegaMatrix:
                     Pj_i = P_ni[kss[ij].j]
                     P_ii = np.outer(Pi_i, Pj_i)
                     # we need the symmetric form, hence we can pack
-                    P_p = pack(P_ii)
+                    P_p = pack_density(P_ii)
                     D_sp = D_asp[a].copy()
                     D_sp[kss[ij].pspin] -= ns * P_p
                     setup = wfs.setups[a]
@@ -323,8 +323,8 @@ class OmegaMatrix:
                         Pq_i = P_ni[kss[kq].j]
                         P_ii = np.outer(Pk_i, Pq_i)
                         # we need the symmetric form, hence we can pack
-                        # use pack as I_sp used pack2
-                        P_p = pack(P_ii)
+                        # use pack_density as I_sp used pack_hermitian
+                        P_p = pack_density(P_ii)
                         Exc += np.dot(I_asp[a][kss[kq].pspin], P_p)
                     Om_xc[ij, kq] += weight * self.gd.comm.sum_scalar(Exc)
                     timer2.stop()
@@ -351,8 +351,8 @@ class OmegaMatrix:
                         Pq_i = P_ni[kss[kq].j]
                         P_ii = np.outer(Pk_i, Pq_i)
                         # we need the symmetric form, hence we can pack
-                        # use pack as I_sp used pack2
-                        P_p = pack(P_ii)
+                        # use pack_density as I_sp used pack_hermitian
+                        P_p = pack_density(P_ii)
                         Exc += np.dot(I_asp[a][kss[kq].pspin], P_p)
                     Om_xc[ij, kq] += weight * self.gd.comm.sum(Exc)
                     timer2.stop()
@@ -386,11 +386,11 @@ class OmegaMatrix:
             Pi_i = Pij_ni[kss_ij.i]
             Pj_i = Pij_ni[kss_ij.j]
             Dij_ii = np.outer(Pi_i, Pj_i)
-            Dij_p = pack(Dij_ii)
+            Dij_p = pack_density(Dij_ii)
             Pk_i = Pkq_ani[a][kss_kq.i]
             Pq_i = Pkq_ani[a][kss_kq.j]
             Dkq_ii = np.outer(Pk_i, Pq_i)
-            Dkq_p = pack(Dkq_ii)
+            Dkq_p = pack_density(Dkq_ii)
             if yukawa:
                 assert abs(
                     self.yukawa_interactions.omega - self.xc.omega) < 1e-14

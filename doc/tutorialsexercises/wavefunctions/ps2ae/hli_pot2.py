@@ -3,7 +3,7 @@ from ase.units import Bohr
 from gpaw.new.ase_interface import GPAW
 
 calc = GPAW('hli.gpw', txt=None)
-elpot = calc.calculation.electrostatic_potential()
+elpot = calc.dft.electrostatic_potential()
 
 # Avarage PS potentials:
 vh, vli = elpot.atomic_potentials()

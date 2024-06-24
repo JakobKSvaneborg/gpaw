@@ -10,7 +10,7 @@ import numpy as np
 from ase.calculators.calculator import kptdensity2monkhorstpack
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset, monkhorst_pack
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
 from gpaw import KPointError
 from gpaw.typing import Array1D
@@ -344,9 +344,9 @@ class KPointDescriptor:
             kbz_c = np.dot(self.symmetry.op_scc[s], kibz_c)
             if index_G is not None:
                 assert index_G.shape == psit_G.shape == phase_G.shape
-                _gpaw.symmetrize_with_index(psit_G, b_g, index_G, phase_G)
+                cgpaw.symmetrize_with_index(psit_G, b_g, index_G, phase_G)
             else:
-                _gpaw.symmetrize_wavefunction(psit_G, b_g, op_cc.copy(),
+                cgpaw.symmetrize_wavefunction(psit_G, b_g, op_cc.copy(),
                                               np.ascontiguousarray(kibz_c),
                                               kbz_c)
 
@@ -381,7 +381,7 @@ class KPointDescriptor:
             phase_G = np.zeros(nG, dtype=complex)
 
             kbz_c = np.dot(self.symmetry.op_scc[s], kibz_c)
-            _gpaw.symmetrize_return_index(index_G, phase_G, op_cc.copy(),
+            cgpaw.symmetrize_return_index(index_G, phase_G, op_cc.copy(),
                                           np.ascontiguousarray(kibz_c),
                                           kbz_c)
         return index_G, phase_G

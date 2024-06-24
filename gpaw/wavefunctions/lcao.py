@@ -1,20 +1,20 @@
 import numpy as np
 from ase.units import Bohr
 from ase.utils.timing import timer
-from gpaw.directmin.tools import loewdin_lcao, gramschmidt_lcao
 
-from gpaw.lfc import BasisFunctions
-from gpaw.utilities import unpack
-from gpaw.utilities.tools import tri2full
 # from gpaw import debug
-# from gpaw.lcao.overlap import NewTwoCenterIntegrals as NewTCI
-from gpaw.lcao.tci import TCIExpansions
-from gpaw.utilities.blas import mmm, gemmdot
-from gpaw.wavefunctions.base import WaveFunctions
+from gpaw.directmin.etdm_lcao import LCAOETDM
+from gpaw.directmin.tools import loewdin_lcao, gramschmidt_lcao
 from gpaw.lcao.atomic_correction import (DenseAtomicCorrection,
                                          SparseAtomicCorrection)
+# from gpaw.lcao.overlap import NewTwoCenterIntegrals as NewTCI
+from gpaw.lcao.tci import TCIExpansions
+from gpaw.lfc import BasisFunctions
+from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.blas import mmm, gemmdot
+from gpaw.utilities.tools import tri2full
+from gpaw.wavefunctions.base import WaveFunctions
 from gpaw.wavefunctions.mode import Mode
-from gpaw.directmin.etdm_lcao import LCAOETDM
 
 
 class LCAO(Mode):
@@ -71,7 +71,7 @@ def get_r_and_offsets(nl, spos_ac, cell_cv):
     r_and_offset_aao = {}
 
     def add(a1, a2, R_c, offset):
-        if not (a1, a2) in r_and_offset_aao:
+        if (a1, a2) not in r_and_offset_aao:
             r_and_offset_aao[(a1, a2)] = []
         r_and_offset_aao[(a1, a2)].append((R_c, offset))
 
@@ -439,6 +439,7 @@ class LCAOWaveFunctions(WaveFunctions):
             self.read_wave_functions(r)
 
     def read_wave_functions(self, reader):
+        c = 1.0 if getattr(reader, 'version', 3) >= 4 else Bohr**1.5
         for kpt in self.kpt_u:
             C_nM = reader.proxy('coefficients', kpt.s, kpt.k)
             kpt.C_nM = self.bd.empty(self.setups.nao, dtype=self.dtype)
@@ -447,7 +448,7 @@ class LCAOWaveFunctions(WaveFunctions):
                 # XXX number of bands could have been rounded up!
                 if n >= len(C_nM):
                     break
-                C_M[:] = C_nM[n] * Bohr**1.5
+                C_M[:] = C_nM[n] * c
 
         self.coefficients_read_from_file = True
 
@@ -801,7 +802,8 @@ class LCAOforces:
         Fatom_av = np.zeros_like(Fatom_av)
         for u, kpt in enumerate(self.kpt_u):
             for b in self.my_atom_indices:
-                H_ii = np.asarray(unpack(self.dH_asp[b][kpt.s]), self.dtype)
+                H_ii = np.asarray(unpack_hermitian(self.dH_asp[b][kpt.s]),
+                                  self.dtype)
                 if len(H_ii) == 0:
                     # gemmdot does not like empty matrices!
                     # (has been fixed in the new code)
@@ -1016,7 +1018,7 @@ class LCAOforces:
                     dHP_uim = []
                     dSP_uim = []
                     for u, kpt in enumerate(self.kpt_u):
-                        dH_ii = unpack(dH_sp[kpt.s])
+                        dH_ii = unpack_hermitian(dH_sp[kpt.s])
                         dHP_im = np.dot(P_qmi[kpt.q], dH_ii).T.conj()
                         # XXX only need nq of these,
                         # but the looping is over all u

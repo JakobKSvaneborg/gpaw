@@ -11,6 +11,7 @@ from gpaw.test import findpeak
 pytestmark = pytest.mark.skipif(world.size < 4, reason='world.size < 4')
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.slow
 @pytest.mark.xfail(reason='https://gitlab.com/gpaw/gpaw/-/jobs/5215834173')
@@ -68,7 +69,7 @@ def test_response_na_plasmons_tetrahedron(in_tmp_dir, scalapack):
     df4NLFCx, df4LFCx = df4.get_dielectric_function(direction='x')
 
     # Compare plasmon frequencies and intensities
-    w_w = df1.wd.omega_w
+    w_w = df1.chi0calc.wd.omega_w
 
     w1, I1 = findpeak(w_w, -(1. / df1LFCx).imag)
     w2, I2 = findpeak(w_w, -(1. / df2LFCx).imag)

@@ -2,7 +2,7 @@ import pytest
 from ase.build import molecule
 
 from gpaw import GPAW
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.analyse.overlap import Overlap
 import gpaw.solvation as solv
 from gpaw.lrtddft import LrTDDFT
@@ -17,8 +17,8 @@ def test_solvation_overlap():
     box = 2
     nbands = 2
 
-    H2 = Cluster(molecule('H2'))
-    H2.minimal_box(box, h)
+    H2 = molecule('H2')
+    adjust_cell(H2, box, h)
 
     c1 = GPAW(mode='fd', h=h, txt=None, nbands=nbands)
     c1.calculate(H2)

@@ -5,14 +5,14 @@ from typing import Sequence, overload
 
 import numpy as np
 from gpaw.core.matrix import Matrix
-from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy as cp, XP
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
 from gpaw.typing import Array1D, ArrayLike1D, Literal
 from gpaw.new.c import dH_aii_times_P_ani_gpu
 
 
-class AtomArraysLayout:
+class AtomArraysLayout(XP):
     def __init__(self,
                  shapes: Sequence[int | tuple[int, ...]],
                  atomdist: AtomDistribution | MPIComm = serial_comm,
@@ -35,7 +35,7 @@ class AtomArraysLayout:
             atomdist = AtomDistribution(np.zeros(len(shapes), int), atomdist)
         self.atomdist = atomdist
         self.dtype = np.dtype(dtype)
-        self.xp = xp or np
+        XP.__init__(self, xp or np)
 
         self.size = sum(prod(shape) for shape in self.shape_a)
 
@@ -161,7 +161,7 @@ class AtomDistribution:
 class AtomArrays:
     def __init__(self,
                  layout: AtomArraysLayout,
-                 dims: int | tuple[int, ...] = (),
+                 dims: int | Sequence[int] = (),
                  comm: MPIComm = serial_comm,
                  data: np.ndarray | None = None):
         """AtomArrays object.
@@ -186,12 +186,10 @@ class AtomArrays:
         self.domain_comm = domain_comm
 
         # convert int to tuple:
-        self.dims = dims if isinstance(dims, tuple) else (dims,)
+        self.dims = tuple(dims) if not isinstance(dims, int) else (dims,)
 
         if self.dims:
-            mydims0 = (self.dims[0] + comm.size - 1) // comm.size
-            d1 = min(comm.rank * mydims0, self.dims[0])
-            d2 = min((comm.rank + 1) * mydims0, self.dims[0])
+            d1, d2 = self.my_slice()
             mydims0 = d2 - d1
             self.mydims = (mydims0,) + self.dims[1:]
         else:
@@ -218,6 +216,12 @@ class AtomArrays:
             self._arrays[a] = self.data[..., I1:I2].reshape(
                 self.mydims + layout.shape_a[a])
         self.natoms: int = len(layout.shape_a)
+
+    def my_slice(self) -> tuple[int, int]:
+        mydims0 = (self.dims[0] + self.comm.size - 1) // self.comm.size
+        d1 = min(self.comm.rank * mydims0, self.dims[0])
+        d2 = min((self.comm.rank + 1) * mydims0, self.dims[0])
+        return d1, d2
 
     def __repr__(self):
         txt = f'AtomArrays({self.layout}, dims={self.dims}'
@@ -279,7 +283,9 @@ class AtomArrays:
         if isinstance(a, numbers.Integral):
             return self._arrays[a]
         if len(self.dims) == 1:
-            a_ai = AtomArrays(self.layout, data=self.data[a[1]].copy())
+            a0, a1 = a
+            assert a0 == slice(None)
+            a_ai = AtomArrays(self.layout, data=self.data[a1].copy())
             return a_ai
         1 / 0
 
@@ -352,6 +358,7 @@ class AtomArrays:
 
     def scatter_from(self,
                      data: np.ndarray | AtomArrays | None = None) -> None:
+        """Scatter atoms."""
         if isinstance(data, AtomArrays):
             data = data.data
         comm = self.layout.atomdist.comm
@@ -455,12 +462,16 @@ class AtomArrays:
             if r == comm.rank:
                 new[a][:] = self[a]
             else:
-                requests.append(comm.send(self[a], r, block=False))
+                requests.append(comm.send(np.ascontiguousarray(self[a]),
+                                          r, block=False))
 
         for a, I1, I2 in layout.myindices:
             r = self.layout.atomdist.rank_a[a]
             if r != comm.rank:
-                comm.receive(new[a], r)
+                target = new[a]
+                buf = np.empty_like(target)
+                comm.receive(buf, r)
+                target[:] = buf
 
         comm.waitall(requests)
         return new

@@ -2,7 +2,7 @@ from ase.constraints import FixBondLengths
 from ase.calculators.tip3p import TIP3P
 from ase.calculators.tip3p import qH, sigma0, epsilon0
 
-from _gpaw import adjust_positions, adjust_momenta, calculate_forces_H2O
+from gpaw.cgpaw import adjust_positions, adjust_momenta, calculate_forces_H2O
 from ase.calculators.calculator import Calculator, all_changes
 
 import numpy as np

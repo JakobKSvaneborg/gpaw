@@ -1,7 +1,7 @@
 import numpy as np
 from ase.units import Hartree
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.xc import XC
 from gpaw.xc.kernel import XCKernel
 from gpaw.xc.libxc import LibXC
@@ -43,7 +43,7 @@ class BEE2(XCKernel):
             assert parameters[1] == 0.0
 
         parameters = np.array(parameters, dtype=float).ravel()
-        self.xc = _gpaw.XCFunctional(17, parameters)
+        self.xc = cgpaw.XCFunctional(17, parameters)
         self.type = 'GGA'
         self.name = 'BEE2'
 

@@ -9,7 +9,7 @@ from gpaw.spline import Spline
 def test_lfc_second_derivative():
     gd = GridDescriptor([20, 16, 16], [(4, 2, 0), (0, 4, 0), (0, 0, 4)])
     spos_ac = np.array([[0.252, 0.15, 0.35], [0.503, 0.5, 0.5]])
-    s = Spline(l=0, rmax=2.0, f_g=np.array([1, 0.9, 0.1, 0.0]))
+    s = Spline.from_data(l=0, rmax=2.0, f_g=np.array([1, 0.9, 0.1, 0.0]))
     spline_aj = [[s], [s]]
     c = LFC(gd, spline_aj)
     c.set_positions(spos_ac)

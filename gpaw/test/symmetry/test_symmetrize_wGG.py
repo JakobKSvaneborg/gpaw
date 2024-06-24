@@ -1,4 +1,4 @@
-from _gpaw import GG_shuffle
+from gpaw.cgpaw import GG_shuffle
 import numpy as np
 import time
 

@@ -11,7 +11,6 @@ import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import Calculator, kpts2ndarray
-from ase.dft.bandgap import bandgap
 from ase.units import Bohr, Ha
 from ase.utils import plural
 from ase.utils.timing import Timer
@@ -343,7 +342,7 @@ class GPAW(Calculator):
         self.log(f'Reading from {filename}')
 
         self.reader = reader = Reader(filename)
-        assert reader.version <= 3, 'Can\'t read new GPW-files'
+        # assert reader.version <= 3, 'Can\'t read new GPW-files'
 
         atoms = read_atoms(reader.atoms)
         self._set_atoms(atoms)
@@ -508,18 +507,29 @@ class GPAW(Calculator):
                 else:
                     self.results['stress'] = stress * (Ha / Bohr**3)
 
+    def _print_gapinfo(self):
+        try:
+            from ase.dft.bandgap import GapInfo
+        except ImportError:
+            print('No gapinfo -- requires new ASE', file=self.log.fd)
+            return
+
+        if len(self.wfs.fermi_levels) == 1:
+            try:
+                gaptext = GapInfo.fromcalc(self).description(
+                    ibz_kpoints=self.get_ibz_k_points())
+            except ValueError:
+                gaptext = 'Could not find a gap'
+
+            print(gaptext, file=self.log.fd)
+
     def summary(self):
         self.hamiltonian.summary(self.wfs, self.log)
         self.density.summary(self.atoms, self.results.get('magmom', 0.0),
                              self.log)
         self.wfs.summary(self.log)
-        if len(self.wfs.fermi_levels) == 1:
-            try:
-                bandgap(self,
-                        output=self.log.fd,
-                        efermi=self.wfs.fermi_level * Ha)
-            except ValueError:
-                pass
+        self._print_gapinfo()
+
         self.log.fd.flush()
 
     def set(self, **kwargs):
@@ -1945,6 +1955,7 @@ class GPAW(Calculator):
         Use initial guess for wannier orbitals to determine rotation
         matrices U and C.
         """
+
         from ase.dft.wannier import rotation_from_projection
         proj_knw = self.get_projections(initialwannier, spin)
         U_kww = []
@@ -1978,7 +1989,6 @@ class GPAW(Calculator):
                              len(self.wfs.kpt_u))
         kpt_rank1, u1 = divmod(k1 + len(self.wfs.kd.ibzk_kc) * s,
                                len(self.wfs.kpt_u))
-        kpt_u = self.wfs.kpt_u
 
         # XXX not for the kpoint/spin parallel case
         assert self.wfs.kd.comm.size == 1
@@ -1992,9 +2002,9 @@ class GPAW(Calculator):
             self.wfs.initialize_wave_functions_from_restart_file()
 
         # Get pseudo part
-        Z_nn = self.wfs.gd.wannier_matrix(kpt_u[u].psit_nG,
-                                          kpt_u[u1].psit_nG, G_c, nbands)
-
+        psit_nR = self.get_realspace_wfs(u)
+        psit1_nR = self.get_realspace_wfs(u1)
+        Z_nn = self.wfs.gd.wannier_matrix(psit_nR, psit1_nR, G_c, nbands)
         # Add corrections
         self.add_wannier_correction(Z_nn, G_c, u, u1, nbands)
 
@@ -2058,7 +2068,6 @@ class GPAW(Calculator):
         As a special case, locfun can be the string 'projectors', in which
         case the bound state projectors are used as localized functions.
         """
-
         wfs = self.wfs
 
         if locfun == 'projectors':
@@ -2098,26 +2107,37 @@ class GPAW(Calculator):
             f_g = (fac(l) * (4 * alpha)**(l + 3 / 2.) *
                    np.exp(-alpha * r**2) /
                    (np.sqrt(4 * np.pi) * fac(2 * l + 1)))
-            splines_x.append([Spline(l, rmax=r[-1], f_g=f_g)])
+            splines_x.append([Spline.from_data(l, rmax=r[-1], f_g=f_g)])
 
         lf = LFC(wfs.gd, splines_x, wfs.kd, dtype=wfs.dtype, cut=True)
         lf.set_positions(spos_xc)
-
         assert wfs.gd.comm.size == 1
         k = 0
         f_ani = lf.dict(wfs.bd.nbands)
-        for kpt in wfs.kpt_u:
+        for u, kpt in enumerate(wfs.kpt_u):
             if kpt.s != spin:
                 continue
-            lf.integrate(kpt.psit_nG[:], f_ani, kpt.q)
+            psit_nR = self.get_realspace_wfs(u)
+            lf.integrate(psit_nR, f_ani, kpt.q)
             i1 = 0
             for x, f_ni in f_ani.items():
                 i2 = i1 + f_ni.shape[1]
                 f_kni[k, :, i1:i2] = f_ni
                 i1 = i2
             k += 1
-
         return f_kni.conj()
+
+    def get_realspace_wfs(self, u):
+        if self.wfs.mode == 'pw':
+            nbands = self.wfs.bd.nbands
+            psit_nR = np.zeros(np.insert(self.wfs.gd.N_c, 0, nbands),
+                               self.wfs.dtype)
+            for n in range(nbands):
+                psit_nR[n] = self.wfs._get_wave_function_array(u, n)
+        else:
+            psit_nR = self.wfs.kpt_u[u].psit_nG[:]
+
+        return psit_nR
 
     def get_number_of_grid_points(self):
         return self.wfs.gd.N_c

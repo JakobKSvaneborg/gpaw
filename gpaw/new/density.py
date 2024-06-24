@@ -11,10 +11,11 @@ from gpaw.core.plane_waves import PWDesc
 from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.gpu import as_np
 from gpaw.mpi import MPIComm
-from gpaw.new import zips
+from gpaw.new import trace, zips
 from gpaw.typing import Array3D, Vector
-from gpaw.utilities import unpack, unpack2
+from gpaw.utilities import unpack_hermitian, unpack_density
 from gpaw.new.symmetry import SymmetrizationPlan
+from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class Density:
@@ -34,7 +35,8 @@ class Density:
                    charge,
                    [xp.asarray(setup.Delta_iiL) for setup in setups],
                    [setup.Delta0 for setup in setups],
-                   [unpack(setup.N0_p) for setup in setups],
+                   [unpack_hermitian(setup.N0_p) for setup in setups],
+                   [setup.n_j for setup in setups],
                    [setup.l_j for setup in setups],
                    nct_aX,
                    tauct_aX)
@@ -67,7 +69,8 @@ class Density:
                  in enumerate(zips(setups, magmom_av))}
         basis_set.add_to_density(nt_sR.data, f_asi)
         for a, D_sii in D_asii.items():
-            D_sii[:] = unpack2(setups[a].initialize_density_matrix(f_asi[a]))
+            D_sii[:] = unpack_density(
+                setups[a].initialize_density_matrix(f_asi[a]))
 
         xp = nct_aX.xp
         nt_sR = nt_sR.to_xp(xp)
@@ -93,6 +96,7 @@ class Density:
                  delta_aiiL: list[Array3D],
                  delta0_a: list[float],
                  N0_aii,
+                 n_aj: list[list[int]],
                  l_aj: list[list[int]],
                  nct_aX: AtomCenteredFunctions,
                  tauct_aX: AtomCenteredFunctions):
@@ -102,6 +106,7 @@ class Density:
         self.delta_aiiL = delta_aiiL
         self.delta0_a = delta0_a
         self.N0_aii = N0_aii
+        self.n_aj = n_aj
         self.l_aj = l_aj
         self.charge = charge
         self.nct_aX = nct_aX
@@ -167,10 +172,12 @@ class Density:
             self.delta_aiiL,
             self.delta0_a,
             self.N0_aii,
+            self.n_aj,
             self.l_aj,
             self.nct_aX,
             self.tauct_aX)
 
+    @trace
     def calculate_compensation_charge_coefficients(self) -> AtomArrays:
         xp = self.D_asii.layout.xp
         ccc_aL = AtomArraysLayout(
@@ -203,11 +210,14 @@ class Density:
             x = -charge / pseudo_charge
             self.nt_sR.data *= x
 
-    def update(self, ibzwfs, ked=False):
+    def update(self, ibzwfs: IBZWaveFunctions, ked=False):
         self.nt_sR.data[:] = 0.0
         self.D_asii.data[:] = 0.0
         ibzwfs.add_to_density(self.nt_sR, self.D_asii)
         self.nt_sR.data[:self.ndensities] += self.nct_R.data
+
+        # LCAO ...:
+        ibzwfs.normalize_density(self)
 
         if ked:
             self.update_ked(ibzwfs, symmetrize=False)
@@ -283,6 +293,7 @@ class Density:
             self.delta_aiiL,
             self.delta0_a,
             self.N0_aii,
+            self.n_aj,
             self.l_aj,
             nct_aX=self.nct_aX.new(xdesc, atomdist),
             tauct_aX=self.tauct_aX.new(xdesc, atomdist))
@@ -299,9 +310,26 @@ class Density:
                 y, z, x = ccc_L[1:4]
                 dip_v -= np.array([x, y, z]) * (4 * pi / 3)**0.5
         self.nt_sR.desc.comm.sum(dip_v)
-        for nt_R in self.nt_sR:
+        for nt_R in self.nt_sR[:self.ndensities]:
             dip_v -= as_np(nt_R.moment())
         return dip_v
+
+    def calculate_orbital_magnetic_moments(self):
+        if self.collinear:
+            from gpaw.new.calculation import CalculationModeError
+            raise CalculationModeError(
+                'Calculator is in collinear mode. '
+                'Collinear calculations require spin–orbit '
+                'coupling for nonzero orbital magnetic moments.')
+
+        D_asii = self.D_asii
+        if D_asii.layout.size != D_asii.layout.mysize:
+            raise ValueError(
+                'Atomic density matrices should be collected on all '
+                'ranks when calculating orbital magnetic moments.')
+
+        from gpaw.new.orbmag import calculate_orbmag_from_density
+        return calculate_orbmag_from_density(D_asii, self.n_aj, self.l_aj)
 
     def calculate_magnetic_moments(self):
         magmom_av = np.zeros((self.natoms, 3))

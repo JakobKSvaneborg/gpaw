@@ -23,7 +23,7 @@ import numpy as np
 
 from math import pi
 from collections import defaultdict
-from _gpaw import spherical_harmonics as Yl
+from gpaw.cgpaw import spherical_harmonics as Yl
 
 __all__ = ['Y', 'YL', 'nablarlYL', 'Yl']
 

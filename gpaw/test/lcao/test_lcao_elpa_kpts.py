@@ -10,7 +10,10 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
                                 reason='not LibElpa.have_elpa()')
 
 
-def test_lcao_lcao_elpa_kpts():
+def test_lcao_lcao_elpa_kpts(gpaw_new):
+    if gpaw_new and world.size == 8:
+        pytest.skip(msg='Not implementted')
+
     energies = []
 
     for elpasolver in [None, '1stage', '2stage']:

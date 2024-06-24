@@ -1,15 +1,16 @@
 from math import sqrt
+import pytest
 
 from ase import Atoms
 
 from gpaw.cluster import Cluster
-from gpaw.mpi import world
-import pytest
 
 
-def test_cluster(in_tmp_dir):
+def test_CO(recwarn):
     R = 2.0
-    CO = Atoms('CO', [(1, 0, 0), (1, 0, R)])
+    box = 4.
+    h = 0.2
+    CO = Cluster(Atoms('CO', [(1, 0, 0), (1, 0, R)]))
 
     CO.rotate(90, 'y')
     assert CO.positions[1, 0] == pytest.approx(R, abs=1e-10)
@@ -21,64 +22,20 @@ def test_cluster(in_tmp_dir):
         assert p[i, 1] == pytest.approx(0, abs=1e-10)
         assert p[i, 2] == pytest.approx(0, abs=1e-10)
 
-    # rotate the nuclear axis to the direction (1,1,1)
     CO.rotate(p[1] - p[0], (1, 1, 1))
     q = CO.positions.copy()
     for c in range(3):
         assert q[0, c] == pytest.approx(p[0, 0] / sqrt(3), abs=1e-10)
         assert q[1, c] == pytest.approx(p[1, 0] / sqrt(3), abs=1e-10)
 
-    # minimal box
-    b = 4.0
-    CO = Cluster(['C', 'O'], [(1, 0, 0), (1, 0, R)])
-    CO.minimal_box(b)
-    cc = CO.get_cell()
-    for c in range(3):
-        width = 2 * b
-        if c == 2:
-            width += R
-        assert cc[c, c] == pytest.approx(width, abs=1e-10)
+    CO.minimal_box(box, h)
+    w = recwarn.pop(FutureWarning)
 
-    # minimal box, ensure multiple of 4
-    h = .13
-    b = [2, 3, 4]
-    CO.minimal_box(b, h=h)
-    cc = CO.get_cell()
-    for c in range(3):
-        # print "cc[c,c], cc[c,c] / h % 4 =", cc[c, c], cc[c, c] / h % 4
-        for a in CO:
-            print(a.symbol, b[c], a.position[c], cc[c, c] - a.position[c])
-            assert a.position[c] > b[c]
-        assert cc[c, c] / h % 4 == pytest.approx(0.0, abs=1e-10)
+    assert (str(w.message) ==
+            'Please use adjust_cell from gpaw.utilities.adjust_cell instead.')
 
-    # I/O
-    fxyz = 'CO.xyz'
-    fpdb = 'CO.pdb'
+    CO.find_connected(0)
+    w = recwarn.pop(FutureWarning)
 
-    cell = [2., 3., R + 2.]
-    CO.set_cell(cell, scale_atoms=True)
-    world.barrier()
-    CO.write(fxyz)
-    world.barrier()
-    CO_b = Cluster(filename=fxyz)
-    assert len(CO) == len(CO_b)
-    offdiagonal = CO_b.get_cell().sum() - CO_b.get_cell().diagonal().sum()
-    assert offdiagonal == 0.0
-
-    world.barrier()
-    CO.write(fpdb)
-
-    # read xyz files with additional info
-    read_with_additional = True
-    if read_with_additional:
-        if world.rank == 0:
-            f = open(fxyz, 'w')
-            print("""2
-
-    C 0 0 0. 1 2 3
-    O 0 0 1. 6. 7. 8.""", file=f)
-            f.close()
-
-        world.barrier()
-
-        CO = Cluster(filename=fxyz)
+    assert (str(w.message) ==
+            'Please use connected_indices from ase.build.connected instead.')

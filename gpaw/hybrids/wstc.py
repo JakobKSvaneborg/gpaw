@@ -19,6 +19,8 @@ from ase.utils import seterr
 import gpaw.mpi as mpi
 from gpaw.fftw import get_efficient_fft_size
 from gpaw.grid_descriptor import GridDescriptor
+from gpaw.core import PWDesc, UGDesc, PWArray
+from gpaw.typing import Array1D
 
 
 class WignerSeitzTruncatedCoulomb:
@@ -64,14 +66,35 @@ class WignerSeitzTruncatedCoulomb:
 
         return '\n'.join(descriptors)
 
-    def get_potential(self, pd, q_v=None):
-        q_c = pd.kd.bzk_kc[0]
+    def get_potential_new(self, pw: PWDesc, grid: UGDesc) -> PWArray:
+        K_G = pw.zeros()
+        assert isinstance(K_G, PWArray)  # !!!
+        size = tuple(grid.size)
+        if pw.dtype == float:
+            size = (size[0], size[1], size[2] // 2 + 1)
+        self._get_potential(pw.indices(size)[pw.ng1:pw.ng2],
+                            pw.kpt_c,
+                            grid.size_c,
+                            pw.dtype,
+                            pw.reciprocal_vectors(),
+                            K_G.data)
+        return K_G
+
+    def get_potential(self, pd) -> Array1D:
+        K_G = pd.zeros()
+        self._get_potential(pd.Q_qG[0],
+                            pd.kd.bzk_kc[0],
+                            pd.gd.N_c,
+                            pd.dtype,
+                            pd.get_reciprocal_vectors(add_q=True),
+                            K_G)
+        return K_G
+
+    def _get_potential(self, Q_G, q_c, N_c, dtype, qG_Gv, K_G) -> None:
         shift_c = (q_c * self.nk_c).round().astype(int)
         max_c = self.gd.N_c // 2
-        K_G = pd.zeros()
-        N_c = pd.gd.N_c
-        if pd.dtype == complex:
-            for G, Q in enumerate(pd.Q_qG[0]):
+        if dtype == complex:
+            for G, Q in enumerate(Q_G):
                 Q_c = (np.unravel_index(Q, N_c) + N_c // 2) % N_c - N_c // 2
                 Q_c = Q_c * self.nk_c + shift_c
                 if (abs(Q_c) < max_c).all():
@@ -79,7 +102,7 @@ class WignerSeitzTruncatedCoulomb:
         else:
             Nr_c = N_c.copy()
             Nr_c[2] = N_c[2] // 2 + 1
-            for G, Q in enumerate(pd.Q_qG[0]):
+            for G, Q in enumerate(Q_G):
                 Q_c = np.array(np.unravel_index(Q, Nr_c))
                 Q_c[:2] += N_c[:2] // 2
                 Q_c[:2] %= N_c[:2]
@@ -87,9 +110,6 @@ class WignerSeitzTruncatedCoulomb:
                 if (abs(Q_c) < max_c).all():
                     K_G[G] = self.K_Q[tuple(Q_c)]
 
-        qG_Gv = pd.get_reciprocal_vectors(add_q=True)
-        if q_v is not None:
-            qG_Gv += q_v
         G2_G = np.sum(qG_Gv**2, axis=1)
         # G2_G = pd.G2_qG[0]
         a = self.a
@@ -100,4 +120,3 @@ class WignerSeitzTruncatedCoulomb:
             K_G += 4 * pi * (1 - np.exp(-G2_G / (4 * a**2))) / G2_G
         if G2_G[G0] < 1e-11:
             K_G[G0] = K0
-        return K_G

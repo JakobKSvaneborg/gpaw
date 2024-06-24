@@ -3,10 +3,11 @@ from math import pi
 import numpy as np
 from ase.units import Bohr
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.grid_descriptor import GridDescriptor, GridBoundsError
 from gpaw.gpu import cupy_is_fake
+from gpaw.new import trace
 from gpaw.utilities import smallest_safe_grid_spacing
 
 """
@@ -89,7 +90,7 @@ class Sphere:
             l = spline.get_angular_momentum_number()
             for beg_c, end_c, sdisp_c in gd.get_boxes(spos_c, rcut, cut):
                 pos_v = np.dot(spos_c - sdisp_c, gd.cell_cv)
-                A_gm, G_b = _gpaw.spline_to_grid(
+                A_gm, G_b = cgpaw.spline_to_grid(
                     spline.spline,
                     beg_c, end_c, pos_v,
                     np.ascontiguousarray(gd.h_cv),
@@ -367,7 +368,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                 for iterator in iterators:
                     next(iterator)
 
-        self.lfc = _gpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
+        self.lfc = cgpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
                              self.gd.dv, self.phase_qW, self.xp is not np)
 
         return sdisp_Wc
@@ -957,6 +958,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
         self.Mstart = None
         self.Mstop = None
 
+    @trace
     def set_positions(self, spos_ac):
         LocalizedFunctionsCollection.set_positions(self, spos_ac)
         self.Mstart = 0
@@ -1245,7 +1247,7 @@ def test():
 
     from gpaw.spline import Spline
     a = np.array([1, 0.9, 0.8, 0.0])
-    s = Spline(0, 0.2, a)
+    s = Spline.from_data(0, 0.2, a)
     x = LocalizedFunctionsCollection(gd, [[s], [s]])
     x.set_positions([(0.5, 0.45, 0.5), (0.5, 0.55, 0.5)])
     n_G = gd.zeros()

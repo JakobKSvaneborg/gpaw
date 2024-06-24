@@ -57,7 +57,7 @@ The electron-phonon matrix can be used to calculate acoustic and optical deforma
     D_{ODP} =  \langle m \vert \nabla_u V_{eff} \cdot \mathbf e_l \vert n \rangle .
 
 
-For the silicon VBM at Gamma, for the LO phonons at Gamma, we expect a deformation potential of about `\vert M \vert \approx 3.6` eV/Angstrom.
+For the silicon VBM at Gamma, for the LO phonons at Gamma, we expect a deformation potential of about `\vert M \vert \approx 3.6` eV/Angstrom. As the optical phonons are degenerate, as well as the three highest valence bands, we need to sum over all 27 contributions here.
 
 Converge the deformation potential of Si with respect to the supercell size, k-points, grid spacing and SCF convergence parameters.
 

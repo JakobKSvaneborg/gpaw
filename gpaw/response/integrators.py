@@ -5,10 +5,10 @@ from gpaw.response import timer
 from scipy.spatial import Delaunay
 from scipy.linalg.blas import zher
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.utilities.blas import rk, mmm
 from gpaw.utilities.progressbar import ProgressBar
-from gpaw.response.pw_parallelization import Blocks1D, block_partition
+from gpaw.response.pw_parallelization import Blocks1D
 
 
 class Integrand(ABC):
@@ -33,21 +33,18 @@ def czher(alpha: float, x, A) -> None:
 
 
 class Integrator:
-    def __init__(self, cell_cv, context, *, nblocks):
+    def __init__(self, cell_cv, context, blockcomm, kncomm):
         """Baseclass for Brillouin zone integration and band summation.
 
         Simple class to calculate integrals over Brilloun zones
         and summation of bands.
 
         context: ResponseContext
-        nblocks: block parallelization
         """
-
-        self.context = context
         self.vol = abs(np.linalg.det(cell_cv))
-
-        self.blockcomm, self.kncomm = block_partition(self.context.comm,
-                                                      nblocks)
+        self.context = context
+        self.blockcomm = blockcomm
+        self.kncomm = kncomm
 
     def mydomain(self, domain):
         from gpaw.response.pw_parallelization import Blocks1D
@@ -77,7 +74,7 @@ class PointIntegrator(Integrator):
         mydomain = self.mydomain(domain)
 
         prefactor = (2 * np.pi)**3 / self.vol / domain.nkpts
-        out_wxx /= prefactor
+        out_wxx /= prefactor * self.kncomm.size
 
         # Sum kpoints
         # Calculate integrations weight
@@ -90,10 +87,9 @@ class PointIntegrator(Integrator):
 
             task.run(wd, n_MG, deps_M, out_wxx)
 
-        # Sum over
-        # Can this really be valid, if the original input out_wxx is nonzero?
-        # This smells and should be investigated XXX
-        # There could also be similar errors elsewhere... XXX
+        # We have divided the broadcasted sum from previous update by
+        # kncomm.size, and thus here is will be back to its original value.
+        # This is to prevent allocating an extra large array.
         self.kncomm.sum(out_wxx)
 
         if self.blockcomm.size == 1 and task.symmetrizable_unless_blocked:
@@ -137,10 +133,10 @@ class GenericUpdate(IntegralTask):
     kind = 'response function'
     symmetrizable_unless_blocked = False
 
-    def __init__(self, eta, blockcomm, eshift=0.0):
+    def __init__(self, eta, blockcomm, eshift=None):
         self.eta = eta
         self.blockcomm = blockcomm
-        self.eshift = eshift
+        self.eshift = eshift or 0.0
 
     # @timer('CHI_0 update')
     def run(self, wd, n_mG, deps_m, chi0_wGG):
@@ -167,9 +163,9 @@ class Hermitian(IntegralTask):
     kind = 'hermitian response function'
     symmetrizable_unless_blocked = True
 
-    def __init__(self, blockcomm, eshift=0.0):
+    def __init__(self, blockcomm, eshift=None):
         self.blockcomm = blockcomm
-        self.eshift = eshift
+        self.eshift = eshift or 0.0
 
     # @timer('CHI_0 hermetian update')
     def run(self, wd, n_mG, deps_m, chi0_wGG):
@@ -193,9 +189,9 @@ class Hilbert(IntegralTask):
     kind = 'spectral function'
     symmetrizable_unless_blocked = True
 
-    def __init__(self, blockcomm, eshift=0.0):
+    def __init__(self, blockcomm, eshift=None):
         self.blockcomm = blockcomm
-        self.eshift = eshift
+        self.eshift = eshift or 0.0
 
     # @timer('CHI_0 spectral function update (new)')
     def run(self, wd, n_mG, deps_m, chi0_wGG):
@@ -393,7 +389,7 @@ class KPointTesselation:
         simplices_s = self.pts_k[K]
         W_w = np.zeros(len(omega_w), float)
         vol_s = self.simplex_volumes[simplices_s]
-        _gpaw.tetrahedron_weight(
+        cgpaw.tetrahedron_weight(
             deps_k, self._td.simplices, K, simplices_s, W_w, omega_w, vol_s)
         return W_w
 

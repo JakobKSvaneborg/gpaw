@@ -12,7 +12,7 @@ http://www.netlib.org/lapack/lug/node145.html
 """
 from typing import TypeVar
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 import numpy as np
 import scipy.linalg.blas as blas
 from gpaw import debug
@@ -77,7 +77,7 @@ def mmm(alpha: T,
     else:
         assert a.dtype == complex
 
-    _gpaw.mmm(alpha, a, opa, b, opb, beta, c)
+    cgpaw.mmm(alpha, a, opa, b, opb, beta, c)
 
 
 def gpu_mmm(alpha, a, opa, b, opb, beta, c):
@@ -88,7 +88,7 @@ def gpu_mmm(alpha, a, opa, b, opb, beta, c):
     lda = a.strides[0] // a.itemsize
     ldb = b.strides[0] // b.itemsize
     ldc = c.strides[0] // c.itemsize
-    _gpaw.mmm_gpu(alpha, a.data.ptr, lda, opa,
+    cgpaw.mmm_gpu(alpha, a.data.ptr, lda, opa,
                   b.data.ptr, ldb, opb, beta,
                   c.data.ptr, ldc, c.itemsize,
                   m, n, k)
@@ -109,7 +109,7 @@ def gpu_scal(alpha, x):
             assert isinstance(alpha, float)
             assert x.dtype in [float, complex]
             assert x.flags.c_contiguous
-    _gpaw.scal_gpu(alpha, x.data.ptr, x.shape, x.dtype)
+    cgpaw.scal_gpu(alpha, x.data.ptr, x.shape, x.dtype)
 
 
 def to2d(array: ArrayND) -> Array2D:
@@ -183,7 +183,7 @@ def gpu_gemm(alpha, a, b, beta, c, transa='n'):
             assert a.shape[1:] == b.shape[1:]
             assert c.shape == (b.shape[0], a.shape[0])
 
-    _gpaw.gemm_gpu(alpha, a.data.ptr, a.shape,
+    cgpaw.gemm_gpu(alpha, a.data.ptr, a.shape,
                    b.data.ptr, b.shape, beta,
                    c.data.ptr, c.shape,
                    a.dtype, transa)
@@ -220,7 +220,7 @@ def gpu_gemv(alpha, a, x, beta, y, trans='t'):
             assert a.shape[-1] == x.shape[0]
             assert a.shape[:-1] == y.shape
 
-    _gpaw.gemv_gpu(alpha, a.data.ptr, a.shape,
+    cgpaw.gemv_gpu(alpha, a.data.ptr, a.shape,
                    x.data.ptr, x.shape, beta,
                    y.data.ptr, a.dtype,
                    trans)
@@ -265,7 +265,7 @@ def gpu_axpy(alpha, x, y):
             assert x.flags.c_contiguous and y.flags.c_contiguous
         assert x.shape == y.shape
 
-    _gpaw.axpy_gpu(alpha, x.data.ptr, x.shape,
+    cgpaw.axpy_gpu(alpha, x.data.ptr, x.shape,
                    y.data.ptr, y.shape,
                    x.dtype)
 
@@ -301,12 +301,12 @@ def rk(alpha, a, beta, c, trans='c'):
             assert c.shape == (a.shape[0], a.shape[0])
         assert c.strides[1] == c.itemsize or c.size == 0
 
-    _gpaw.rk(alpha, a, beta, c, trans)
+    cgpaw.rk(alpha, a, beta, c, trans)
 
 
 def gpu_rk(alpha, a, beta, c, trans='c'):
     """Launch CPU or GPU version of rk()."""
-    _gpaw.rk_gpu(alpha, a.data.ptr, a.shape,
+    cgpaw.rk_gpu(alpha, a.data.ptr, a.shape,
                  beta, c.data.ptr, c.shape,
                  a.dtype)
 
@@ -352,12 +352,12 @@ def r2k(alpha, a, b, beta, c, trans='c'):
             assert c.shape == (a.shape[1], a.shape[1])
         assert c.strides[1] == c.itemsize or c.size == 0
 
-    _gpaw.r2k(alpha, a, b, beta, c, trans)
+    cgpaw.r2k(alpha, a, b, beta, c, trans)
 
 
 def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     """Launch CPU or GPU version of r2k()."""
-    _gpaw.r2k_gpu(alpha, a.data.ptr, a.shape,
+    cgpaw.r2k_gpu(alpha, a.data.ptr, a.shape,
                   b.data.ptr, b.shape, beta,
                   c.data.ptr, c.shape,
                   a.dtype)
@@ -381,7 +381,7 @@ def gpu_dotc(a, b):
                 (is_contiguous(a, complex) and is_contiguous(b, complex)))
         assert a.shape == b.shape
 
-    return _gpaw.dotc_gpu(a.data.ptr, a.shape,
+    return cgpaw.dotc_gpu(a.data.ptr, a.shape,
                           b.data.ptr, a.dtype)
 
 
@@ -403,7 +403,7 @@ def gpu_dotu(a, b):
                 (is_contiguous(a, complex) and is_contiguous(b, complex)))
         assert a.shape == b.shape
 
-    return _gpaw.dotu_gpu(a.data.ptr, a.shape,
+    return cgpaw.dotu_gpu(a.data.ptr, a.shape,
                           b.data.ptr, a.dtype)
 
 
@@ -460,7 +460,7 @@ def _gemmdot(a, b, alpha=1.0, beta=1.0, out=None, trans='n'):
     return out.reshape(outshape)
 
 
-if not hasattr(_gpaw, 'mmm'):
+if not hasattr(cgpaw, 'mmm'):
     # These are the functions used with noblas=True
     # TODO: move these functions elsewhere so that
     # they can be used for unit tests
@@ -514,9 +514,9 @@ if not hasattr(_gpaw, 'mmm'):
     gemmdot = _gemmdot
 
 elif not debug:
-    mmm = _gpaw.mmm  # noqa
-    rk = _gpaw.rk  # noqa
-    r2k = _gpaw.r2k  # noqa
+    mmm = cgpaw.mmm  # noqa
+    rk = cgpaw.rk  # noqa
+    r2k = cgpaw.r2k  # noqa
     gemmdot = _gemmdot
 
 else:

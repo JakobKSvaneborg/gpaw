@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 from ase.data import atomic_numbers
 
-from gpaw.utilities import pack2
+from gpaw.utilities import pack_hermitian
 from gpaw.atom.radialgd import AERadialGridDescriptor
 from gpaw.atom.configurations import configurations
 from gpaw.pseudopotential import PseudoPotential, get_radial_hartree_energy
@@ -206,7 +206,7 @@ class HGHSetupData:
                     H_ii[M1start:M1end, M2start:M2end] += H_mm
                 M2start = M2end
             M1start = M1end
-        K_p = pack2(H_ii)
+        K_p = pack_hermitian(H_ii)
         return K_p
 
     def __str__(self):

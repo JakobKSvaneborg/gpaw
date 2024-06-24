@@ -6,11 +6,11 @@ This leads to the equation (presented in SI units):
 
 ::
 
-                 ===  ===
-   a         e   \    \         / a   \*  a      a
-  m      = - --  /    /    f   | P     | P      L
-   orb,v     2m  ===  ===   kn  \ knsi/   knsi'  vii'
-                 kn   sii'
+                 ===
+   a         e   \     a    a
+  m      = - --  /    D    L
+   orb,v     2m  ===   ii'  vii'
+                 ii'
 
 with L^a_vii' containing the matrix elements of the angular momentum operator
 between two partial waves centred at atom a.
@@ -26,59 +26,21 @@ from gpaw.spinorbit import get_L_vlmm
 L_vlmm = get_L_vlmm()
 
 
-def get_orbmag_from_calc(calc):
-    "Return orbital magnetic moment vectors calculated from scf spinors."
-    if not calc.density.ncomponents == 4:
-        raise AssertionError('Collinear calculations require spin-orbit '
-                             'coupling for nonzero orbital magnetic moments.')
-    if not calc.params.soc:
-        import warnings
-        warnings.warn('Non-collinear calculation was performed without spin'
-                      '-orbit coupling. Orbital magnetic moments may not be '
-                      'accurate.')
-    assert calc.wfs.bd.comm.size == 1 and calc.wfs.gd.comm.size == 1
+def calculate_orbmag_from_density(D_asii, n_aj, l_aj):
+    """Returns orbital magnetic moment vectors for each atom a
+    calculated from its respective atomic density matrix.
 
-    orbmag_av = np.zeros([len(calc.atoms), 3])
-    for wfs in calc.wfs.kpt_u:
-        f_n = wfs.f_n
-        for (a, P_nsi), setup in zips(wfs.P_ani.items(), calc.setups):
-            orbmag_av[a] += calculate_orbmag_1k(f_n,
-                                                P_nsi,
-                                                zips(setup.n_j, setup.l_j))
-
-    calc.wfs.kd.comm.sum(orbmag_av)
-
-    return orbmag_av
-
-
-def get_orbmag_from_soc_eigs(soc):
-    "Return orbital magnetic moment vectors calculated from nscf spinors."
-    assert soc.bcomm.size == 1 and soc.domain_comm.size == 1
-
-    orbmag_av = np.zeros([len(soc.nl_aj), 3])
-    for wfs, weight in zips(soc.wfs.values(), soc.weights()):
-        f_n = wfs.f_m * weight
-        for a, nl_j in soc.nl_aj.items():
-            orbmag_av[a] += calculate_orbmag_1k(f_n, wfs.projections[a], nl_j)
-
-    soc.kpt_comm.sum(orbmag_av)
-
-    return orbmag_av
-
-
-def calculate_orbmag_1k(f_n, P_nsi, nl_j):
-    """Calculate contribution to orbital magnetic moment for a single k-point.
+    This method assumes that D_asii is on every rank and not parallelised.
 
     Parameters
     ----------
-    f_n : list or ndarray
-        Occupations for each state n
-        (Fermi-Dirac occupation multiplied by k-point weight)
-    P_nsi : ndarray
-        Projector overlaps for each state n, spin s, and partial wave i
-    nl_j : sequence of tuples
-        Principal quantum number and angular momentum quantum number
-        for each radial function j
+    D_asii : AtomArrays or dictionary
+        Atomic density matrix for each atom a. The i-index refers to the
+        partial waves of an atom and the s-index refers to 0, x, y, and z.
+    n_aj : List of lists of integers
+        Principal quantum number for each radial partial wave j
+    l_aj : List of lists of integers
+        Angular momentum quantum number for each radial partial wave j
 
     NB: i is an index for all partial waves for one atom and j is an index for
     only the radial wave function which is used to build all of the partial
@@ -86,24 +48,26 @@ def calculate_orbmag_1k(f_n, P_nsi, nl_j):
 
     Only pairs of partial waves with the same radial function may yield
     nonzero contributions. The sum can therefore be limited to diagonal blocks
-    of shape [2 * l_j + 1, 2 * l_j +1] where l_j is the angular momentum
+    of shape [2 * l_j + 1, 2 * l_j + 1] where l_j is the angular momentum
     quantum number of the j'th radial function.
 
     Partials with unbounded radial functions (negative n_j) are skipped.
     """
 
-    orbmag_v = np.zeros(3)
-    Ni = 0
-    for n, l in nl_j:
-        Nm = 2 * l + 1
-        if n < 0:
-            Ni += Nm
-            continue
-        for v in range(3):
-            orbmag_v[v] += np.einsum('nsi,nsj,n,ij->',
-                                     P_nsi[:, :, Ni:Ni + Nm].conj(),
-                                     P_nsi[:, :, Ni:Ni + Nm],
-                                     f_n, L_vlmm[v][l]).real
-        Ni += Nm
+    orbmag_av = np.zeros([len(n_aj), 3])
+    for (a, D_sii), n_j, l_j in zips(D_asii.items(), n_aj, l_aj):
+        assert D_sii.shape[0] == 4
+        D_ii = D_sii[0]  # Only the electron density
 
-    return orbmag_v
+        Ni = 0
+        for n, l in zips(n_j, l_j):
+            Nm = 2 * l + 1
+            if n < 0:
+                Ni += Nm
+                continue
+            for v in range(3):
+                orbmag_av[a, v] += np.einsum('ij,ij->',
+                                             D_ii[Ni:Ni + Nm, Ni:Ni + Nm],
+                                             L_vlmm[v][l]).real
+            Ni += Nm
+    return orbmag_av

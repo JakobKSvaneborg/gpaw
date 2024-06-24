@@ -93,7 +93,7 @@ We are going to relax the atomic positions and the unit cell at the same time. T
 """
 
 # %%
-from ase.constraints import UnitCellFilter
+from ase.filters import UnitCellFilter
 from ase.optimize import BFGS
 
 filt = UnitCellFilter(atoms, mask=[1,1,1,0,0,0]) # student: filt = ???

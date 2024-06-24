@@ -2,7 +2,7 @@ import numpy as np
 from ase.units import Ha
 
 from gpaw.projections import Projections
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 from gpaw.utilities.blas import axpy, mmm
 from gpaw.utilities.partition import AtomPartition
 
@@ -141,7 +141,7 @@ class WaveFunctions:
         D_sii = np.zeros((self.nspins, ni, ni))
         P_i = kpt.P_ani[a][n]
         D_sii[kpt.s] += np.outer(P_i.conj(), P_i).real
-        D_sp = [pack(D_ii) for D_ii in D_sii]
+        D_sp = [pack_density(D_ii) for D_ii in D_sii]
         return D_sp
 
     def calculate_atomic_density_matrices_k_point(self, D_sii, kpt, a, f_n):
@@ -189,7 +189,7 @@ class WaveFunctions:
             for f_n, kpt in zip(f_un, self.kpt_u):
                 self.calculate_atomic_density_matrices_k_point(D_sii, kpt, a,
                                                                f_n)
-            D_sp[:] = [pack(D_ii) for D_ii in D_sii]
+            D_sp[:] = [pack_density(D_ii) for D_ii in D_sii]
             self.kptband_comm.sum(D_sp)
 
         self.symmetrize_atomic_density_matrices(D_asp)
@@ -605,24 +605,14 @@ class WaveFunctions:
             u = kpt.s * self.kd.nibzkpts + kpt.q
             f_sn[u] = kpt.f_n
 
-        log("For SIC calculations there are\n"
-            "diagonal elements of Lagrange matrix and "
-            "its eigenvalues.\n"
-            "Eigenvalues are printed above. \n"
-            "Labeling here corresponds "
-            "to how optimal orbitals are sorted "
-            "in array\n")
+        log("Diagonal elements of Lagrange matrix:")
         if self.nspins == 1:
             header = " Band         L_ii  " \
                      "Occupancy"
             log(header)
 
-            lagr_labeled = {}
-            for c, x in enumerate(pot.lagr_diag_s[0]):
-                lagr_labeled[str(round(x, 12))] = c
-            lagr = sorted(pot.lagr_diag_s[0])
-            for x in lagr:
-                i = lagr_labeled[str(round(x, 12))]
+            lagr = pot.lagr_diag_s[0]
+            for i, x in enumerate(lagr):
                 log('%5d  %11.5f  %9.5f' % (
                     i, Ha * x, f_sn[0][i]))
 
@@ -691,7 +681,6 @@ class WaveFunctions:
                          Ha * y,
                          f_sn[1][i1]))
 
-        log("\n")
         log(flush=True)
 
         sic_n = pot.e_sic_by_orbitals
@@ -727,11 +716,16 @@ class WaveFunctions:
 
         if self.kd.comm.rank == 0:
             for s in range(self.nspins):
-                log('Spin: %3d ' % (s))
+                if self.nspins == 2:
+                    log('Spin: %3d ' % (s))
                 header = """\
             Self-Har.  Self-XC   Hartree + XC  Scaling
             energy:    energy:   energy:       Factors:"""
                 log(header)
+
+                occupied = f_sn[s] > 1.0e-10
+                f_sn_occ = f_sn[s][occupied]
+                occupied_indices = np.where(occupied)[0]
                 u_s = 0.0
                 xc_s = 0.0
                 for i in range(len(sic_n[s])):
@@ -744,16 +738,16 @@ class WaveFunctions:
                         f = (pot.beta_c, pot.beta_x)
 
                     log('band: %3d ' %
-                        (i), end='')
+                        (occupied_indices[i]), end='')
                     log('%11.6f%11.6f%11.6f %8.3f%7.3f' %
-                        (-Ha * u / (f[0] * f_sn[s][i]),
-                         -Ha * xc / (f[1] * f_sn[s][i]),
-                         -Ha * (u / (f[0] * f_sn[s][i]) +
-                                xc / (f[1] * f_sn[s][i])),
+                        (-Ha * u / (f[0] * f_sn_occ[i]),
+                         -Ha * xc / (f[1] * f_sn_occ[i]),
+                         -Ha * (u / (f[0] * f_sn_occ[i]) +
+                                xc / (f[1] * f_sn_occ[i])),
                          f[0], f[1]), end='')
                     log(flush=True)
-                    u_s += u / (f[0] * f_sn[s][i])
-                    xc_s += xc / (f[1] * f_sn[s][i])
+                    u_s += u / (f[0] * f_sn_occ[i])
+                    xc_s += xc / (f[1] * f_sn_occ[i])
                 log('--------------------------------'
                     '-------------------------')
                 log('Total     ', end='')

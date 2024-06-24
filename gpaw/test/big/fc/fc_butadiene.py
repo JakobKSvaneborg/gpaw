@@ -10,7 +10,7 @@ from ase.vibrations.franck_condon import FranckCondon
 
 from gpaw import GPAW
 from gpaw.mpi import world
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.utilities.folder import Folder
 
 butadiene = u"""10
@@ -28,8 +28,8 @@ H       7.580803493981530      5.034479218283977      4.877211530909463
 """
 
 h = 0.3
-atoms = Cluster(read(io.StringIO(butadiene), format='xyz'))
-atoms.minimal_box(3.0, h)
+atoms = read(io.StringIO(butadiene), format='xyz')
+adjust_cell(atoms, 3.0, h)
 atoms.calc = GPAW(mode='fd', h=h)
 if 0:
     dyn = FIRE(atoms)

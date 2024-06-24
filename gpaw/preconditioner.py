@@ -1,4 +1,4 @@
-import _gpaw
+import gpaw.cgpaw as cgpaw
 import numpy as np
 
 from gpaw import debug
@@ -65,7 +65,7 @@ class Preconditioner:
                 # Unwrap wrapper:
                 transformers = [getattr(t, 'transformer', t)
                                 for t in transformers]
-            _gpaw.fd_precond(*transformers,
+            cgpaw.fd_precond(*transformers,
                              self.kin0.operator, self.kin1.operator,
                              self.kin2.operator,
                              d0, q0, r1, d1, q1, r2, d2, q2,

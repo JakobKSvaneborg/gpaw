@@ -9,7 +9,7 @@ from gpaw.spline import Spline
 from gpaw.utilities import divrl, hartree as hartree_solve
 
 
-null_spline = Spline(0, 1.0, [0., 0., 0.])
+null_spline = Spline.from_data(0, 1.0, [0., 0., 0.])
 
 
 # XXX Not used at the moment; see comment below about rgd splines.
@@ -37,7 +37,7 @@ def local_potential_to_spline(rgd, vbar_g, filter=None):
     rcut = rgd.r_g[len(vbar_g) - 1]
     if filter is not None:
         filter(rgd, rcut, vbar_g, l=0)
-    # vbar = Spline(0, rcut, vbar_g)
+    # vbar = Spline.from_data(0, rcut, vbar_g)
     vbar = rgd.spline(vbar_g, rgd.r_g[len(vbar_g) - 1], l=0)
     return vbar
 
@@ -146,27 +146,27 @@ def figure_out_valence_states(ppdata):
 
 def generate_basis_functions(ppdata):
     class SimpleBasis(Basis):
-        def __init__(self, symbol, l_j):
+        def __init__(self, symbol, l_j, n_j):
             rgd = EquidistantRadialGridDescriptor(0.02, 160)
             Basis.__init__(self, symbol, 'simple', readxml=False, rgd=rgd)
             self.generatordata = 'simple'
             bf_j = self.bf_j
             rcgauss = rgd.r_g[-1] / 3.0
             gauss_g = np.exp(-(rgd.r_g / rcgauss)**2.0)
-            for l in l_j:
+            for l, n in zip(l_j, n_j):
                 phit_g = rgd.r_g**l * gauss_g
                 norm = (rgd.integrate(phit_g**2) / (4 * np.pi))**0.5
                 phit_g /= norm
-                bf = BasisFunction(None, l, rgd.r_g[-1], phit_g, 'gaussian')
+                bf = BasisFunction(n, l, rgd.r_g[-1], phit_g, 'gaussian')
                 bf_j.append(bf)
     # l_orb_J = [state.l for state in self.data['states']]
-    b1 = SimpleBasis(ppdata.symbol, ppdata.l_orb_J)
+    b1 = SimpleBasis(ppdata.symbol, ppdata.l_orb_J, ppdata.n_j)
     apaw = AtomPAW(ppdata.symbol, [ppdata.f_ln], h=0.05, rcut=9.0,
                    basis={ppdata.symbol: b1},
                    setups={ppdata.symbol: ppdata},
                    maxiter=60,
                    txt=None)
-    basis = apaw.extract_basis_functions()
+    basis = apaw.extract_basis_functions(ppdata.n_j, ppdata.l_j)
     return basis
 
 
@@ -269,7 +269,9 @@ class PseudoPotential(BaseSetup):
 
         r, l_comp, g_comp = data.get_compensation_charge_functions()
         assert l_comp == [0]  # Presumably only spherical charges
-        self.ghat_l = [Spline(l, r[-1], g) for l, g in zip(l_comp, g_comp)]
+        self.ghat_l = [
+            Spline.from_data(l, r[-1], g) for l, g in zip(l_comp, g_comp)
+        ]
         self.rcgauss = data.rcgauss
 
         # accuracy is rather sensitive to this

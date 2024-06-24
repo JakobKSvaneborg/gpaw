@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Union
+from pathlib import Path
 from time import ctime
 from sys import stdout
 
@@ -10,8 +13,12 @@ from ase.utils.timing import Timer
 import gpaw.mpi as mpi
 
 
+TXTFilename = Union[Path, str]
+
+
 class ResponseContext:
-    def __init__(self, txt='-', timer=None, comm=mpi.world, mode='w'):
+    def __init__(self, txt: TXTFilename = '-',
+                 timer=None, comm=mpi.world, mode='w'):
         self.comm = comm
         self.iocontext = IOContext()
         self.open(txt, mode)

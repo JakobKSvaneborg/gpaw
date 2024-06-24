@@ -1,5 +1,5 @@
 import numpy as np
-from _gpaw import get_num_threads
+from gpaw.cgpaw import get_num_threads
 from ase import Atoms
 from ase.data import chemical_symbols
 from ase.geometry import cell_to_cellpar

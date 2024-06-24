@@ -4,7 +4,7 @@ from ase.units import Hartree
 
 from gpaw.lcao.overlap import NewTwoCenterIntegrals as TwoCenterIntegrals
 from gpaw.lfc import BasisFunctions
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.tools import dagger, lowdin, tri2full
 from gpaw.lcao.tools import basis_subset2
 
@@ -144,7 +144,7 @@ def get_lcao_projections_HSP(calc, bfs=None, spin=0, projectionsonly=True):
     # Make Hamiltonian as sum of kinetic (T) and potential (V) matrices
     # and add atomic corrections
     for a, P_qMi in P_aqMi.items():
-        dH_ii = unpack(calc.hamiltonian.dH_asp[a][spin])
+        dH_ii = unpack_hermitian(calc.hamiltonian.dH_asp[a][spin])
         for P_Mi, H_MM in zip(P_qMi, H_qMM):
             H_MM += np.dot(P_Mi, np.inner(dH_ii, P_Mi).conj())
     comm.sum(H_qMM)

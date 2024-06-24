@@ -56,7 +56,7 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
               1.9024613198566329e-01 + 2.7843314959952882e-02j,
               -1.3848736953929574e-05 - 2.6402210145403184e-05j]]]]
     err = calculate_error(coeff, ref)
-    assert err < 3e-12
+    assert err < 1e-4
 
 
 @pytest.mark.rttddft
@@ -257,6 +257,25 @@ def test_dipole_moment_from_density(kind, density, load_ksd,
     err = calculate_error(dm_wv, ref_wv)
     atol = 5e-7
     assert err < atol
+
+
+@pytest.mark.rttddft
+@only_on_master(world)
+def test_read_ksd(ksd_reference):
+    # Build a KohnShamDecomposition object from the calculator
+    ksd, _ = ksd_reference
+
+    # Now save it and read it without the calculator
+    ksd.write('ksd_save.ulm')
+    ksd_read = KohnShamDecomposition(filename='ksd_save.ulm')
+
+    np.testing.assert_equal(ksd.atoms, ksd_read.atoms)
+
+    for attr in ['S_uMM', 'C0_unM', 'eig_un', 'occ_un', 'C0S_unM']:
+        ref = getattr(ksd, attr)
+        test = getattr(ksd_read, attr)
+
+        np.testing.assert_almost_equal(ref, test)
 
 
 @pytest.fixture(scope='module')

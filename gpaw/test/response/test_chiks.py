@@ -8,9 +8,10 @@ import pytest
 from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.frequencies import (ComplexFrequencyDescriptor,
+                                       FrequencyDescriptor)
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
-from gpaw.response.chi0 import Chi0
+from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.pair_functions import (get_inverted_pw_mapping,
                                           get_pw_coordinates)
 from gpaw.test.gpwfile import response_band_cutoff
@@ -158,7 +159,6 @@ def test_chiks(in_tmp_dir, gpw_files, system, qrel, gammacentered):
 
     Furthermore, we test the symmetries of the calculated susceptibilities.
     """
-    # ---------- Inputs ---------- #
 
     # Part 1: Set up ChiKSTestingFactory
     wfs, spincomponent = system
@@ -280,32 +280,29 @@ def test_chiks_vs_chi0(in_tmp_dir, gpw_files, system, qrel):
     # Part 1: chiks calculation
 
     # Initialize ground state adapter
-    context = ResponseContext()
-    gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files[wfs], context)
+    gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files[wfs])
     nbands = response_band_cutoff[wfs]
 
-    # Set up complex frequency descriptor
+    # Set up frequency descriptors
+    wd = FrequencyDescriptor.from_array_or_dict(frequencies)
     zd = ComplexFrequencyDescriptor.from_array(complex_frequencies)
 
     # Calculate chiks
-    chiks_calc = ChiKSCalculator(gs, context=context,
-                                 ecut=ecut, nbands=nbands)
+    chiks_calc = ChiKSCalculator(gs, ecut=ecut, nbands=nbands)
     chiks = chiks_calc.calculate(spincomponent, q_c, zd)
     chiks = chiks.copy_with_global_frequency_distribution()
+    chiks_calc.context.write_timer()
 
     # Part 2: chi0 calculation
-    chi0_calc = Chi0(gpw_files[wfs],
-                     frequencies=frequencies, eta=eta,
-                     ecut=ecut, nbands=nbands,
-                     hilbert=False, intraband=False)
+    chi0_calc = Chi0Calculator(gs, wd=wd, eta=eta,
+                               ecut=ecut, nbands=nbands,
+                               hilbert=False, intraband=False)
     chi0 = chi0_calc.calculate(q_c)
     chi0_wGG = chi0.body.get_distributed_frequencies_array()
+    chi0_calc.context.write_timer()
 
     # Part 3: Check chiks vs. chi0
     assert chiks.array == pytest.approx(chi0_wGG, rel=1e-3, abs=1e-5)
-
-    # Make it possible to check timings for the test
-    context.write_timer()
 
 
 @pytest.mark.response
@@ -340,7 +337,7 @@ def test_xi(gpw_files, system, qrel, gammacentered):
                         nblocks=nblocks)
 
     # Parameters to cross-tabulate
-    disable_sym_s = [True, False]
+    qsymmetry_s = [True, False]
     bandsummation_b = ['double', 'pairwise']
 
     # ---------- Script ---------- #
@@ -349,11 +346,11 @@ def test_xi(gpw_files, system, qrel, gammacentered):
     gs = ResponseGroundStateAdapter(calc)
 
     xi_mzGG = []
-    for disable_sym in disable_sym_s:
+    for qsymmetry in qsymmetry_s:
         for bandsummation in bandsummation_b:
             xi_calc = SelfEnhancementCalculator(
                 gs,
-                disable_point_group=disable_sym,
+                qsymmetry=qsymmetry,
                 bandsummation=bandsummation,
                 **fixed_kwargs)
             xi = xi_calc.calculate(spincomponent, q_c, zd)
@@ -403,8 +400,7 @@ class ChiKSTestingFactory:
             self.gs, context=self.context,
             ecut=self.ecut, nbands=self.nbands,
             gammacentered=self.gammacentered,
-            disable_time_reversal=disable_syms,
-            disable_point_group=disable_syms,
+            qsymmetry=not disable_syms,
             bandsummation=bandsummation,
             nblocks=nblocks)
 

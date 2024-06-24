@@ -252,4 +252,4 @@ def rescaled_fourier_bessel_transform(spline, N=2**10):
     # Return spline representation of the transform
     l = spline.get_angular_momentum_number()
     kmax = transformer.k_q[-1]
-    return Spline(l, kmax, f_q)
+    return Spline.from_data(l, kmax, f_q)

@@ -10,6 +10,7 @@ from ase.units import Bohr, Ha, alpha
 
 from gpaw.band_descriptor import BandDescriptor
 from gpaw.grid_descriptor import GridDescriptor
+from gpaw.ibz2bz import IBZ2BZMaps
 from gpaw.kpoint import KPoint
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import broadcast_array, serial_comm
@@ -17,7 +18,6 @@ from gpaw.occupations import OccupationNumberCalculator, ParallelLayout
 from gpaw.projections import Projections
 from gpaw.setup import Setup
 from gpaw.typing import Array1D, Array2D, Array3D, Array4D, ArrayND
-from gpaw.ibz2bz import IBZ2BZMaps
 from gpaw.utilities.partition import AtomPartition
 
 if TYPE_CHECKING:
@@ -166,11 +166,13 @@ class BZWaveFunctions:
                  wfs: Dict[int, WaveFunction],
                  occ: Optional[OccupationNumberCalculator],
                  nelectrons: float,
-                 nl_aj: Dict[int, List[Tuple[int, int]]]):
+                 n_aj: List[List[int]],
+                 l_aj: List[List[int]]):
         self.wfs = wfs
         self.occ = occ
         self.nelectrons = nelectrons
-        self.nl_aj = nl_aj
+        self.n_aj = n_aj
+        self.l_aj = l_aj
 
         self.nbzkpts = kd.nbzkpts
 
@@ -221,7 +223,7 @@ class BZWaveFunctions:
         if self.domain_comm.rank == 0 and self.bcomm.rank == 0:
             weight = 1.0 / self.nbzkpts
             e_band = sum(wf.eig_m.dot(wf.f_m) for wf in self) * weight
-            e_band = self.kpt_comm.sum(e_band)
+            e_band = self.kpt_comm.sum_scalar(e_band)
         else:
             e_band = 0.0
 
@@ -268,10 +270,31 @@ class BZWaveFunctions:
         return self._collect(attrgetter('spin_projection_mv'), (3,),
                              broadcast=broadcast)
 
+    def get_atomic_density_matrices(self):
+        """Returns atomic density matrices for each atom."""
+        from gpaw.new.wave_functions import add_to_4component_density_matrix
+
+        assert self.domain_comm.size == 1
+        assert self.bcomm.size == 1
+
+        D_asii = {}  # Could also be an AtomArrays object?
+        for a, l_j in enumerate(self.l_aj):
+            ni = (2 * np.array(l_j) + 1).sum()
+            D_sii = np.zeros([4, ni, ni], dtype=complex)
+            for wfs, weight in zip(self.wfs.values(), self.weights()):
+                add_to_4component_density_matrix(D_sii, wfs.projections[a],
+                                                 wfs.f_m * weight, np)
+            self.kpt_comm.sum(D_sii)
+            D_asii[a] = D_sii
+
+        return D_asii
+
     def get_orbital_magnetic_moments(self):
-        """Return the orbital magnetic moment vector for each atom."""
-        from gpaw.new.orbmag import get_orbmag_from_soc_eigs
-        return get_orbmag_from_soc_eigs(self)
+        """Returns the orbital magnetic moment vector for each atom a."""
+        D_asii = self.get_atomic_density_matrices()
+
+        from gpaw.new.orbmag import calculate_orbmag_from_density
+        return calculate_orbmag_from_density(D_asii, self.n_aj, self.l_aj)
 
     def pdos_weights(self,
                      a: int,
@@ -533,16 +556,15 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
     else:
         occcalc = None
 
-    nl_aj = {}
-    for a, setup in enumerate(calc.wfs.setups):
-        nl_aj[a] = list(zip(setup.n_j, setup.l_j))
+    n_aj = [setup.n_j for setup in calc.wfs.setups]
+    l_aj = [setup.l_j for setup in calc.wfs.setups]
 
-    return BZWaveFunctions(kd, bzwfs, occcalc, calc.wfs.nvalence, nl_aj)
+    return BZWaveFunctions(kd, bzwfs, occcalc, calc.wfs.nvalence, n_aj, l_aj)
 
 
 def soc(a: Setup, xc, D_sp: Array2D) -> Array3D:
-    """<phi_i|dV_adr / r * L_v|phi_j>"""
-    v_g = get_radial_potential(a, xc, D_sp)
+    """<phi_i|dU^a/dr / r * L_v|phi_j>"""
+    v_g = get_radial_potential_derivative(a, xc, D_sp)
     Ng = len(v_g)
     phi_jg = a.data.phi_jg
 
@@ -556,7 +578,7 @@ def soc(a: Setup, xc, D_sp: Array2D) -> Array3D:
         for j2, l2 in enumerate(a.l_j):
             if l1 == l2:
                 f_g = phi_jg[j1][:Ng] * v_g * phi_jg[j2][:Ng]
-                c = a.xc_correction.rgd.integrate(f_g) / (4 * np.pi)
+                c = a.xc_correction.rgd.integrate(f_g, n=-1) / (4 * np.pi)
                 dVL_vii[0, N1:N1 + Nm, N2:N2 + Nm] = c * Lx_lmm[l1]
                 dVL_vii[1, N1:N1 + Nm, N2:N2 + Nm] = c * Ly_lmm[l1]
                 dVL_vii[2, N1:N1 + Nm, N2:N2 + Nm] = c * Lz_lmm[l1]
@@ -584,9 +606,9 @@ def projected_soc(dVL_vii: Array3D,
     return dVL_vii
 
 
-def get_radial_potential(a: Setup, xc, D_sp: Array2D) -> Array1D:
-    """Calculates (dV/dr)/r for the effective potential.
-    Below, f_g denotes dV/dr = minus the radial force"""
+def get_radial_potential_derivative(a: Setup, xc, D_sp: Array2D) -> Array1D:
+    """Calculates (dU/dr) for the effective potential.
+    Below, f_g denotes dU/dr which is also the negative of the radial force"""
 
     rgd = a.xc_correction.rgd
     r_g = rgd.r_g.copy()
@@ -619,7 +641,7 @@ def get_radial_potential(a: Setup, xc, D_sp: Array2D) -> Array1D:
                         axis=0)
         f_g += fxc_g
 
-    return f_g / r_g
+    return f_g
 
 
 def get_anisotropy(calc, theta=0.0, phi=0.0, nbands=0, width=None):
@@ -639,7 +661,7 @@ def get_magnetic_moments(calc, theta=0.0, phi=0.0, nbands=None, width=None):
         'This function has no tests.  It is very likely that it no longer '
         'works correctly after merging !677.')
 
-    from gpaw.utilities import unpack
+    from gpaw.utilities import unpack_hermitian
 
     if nbands is None:
         nbands = calc.get_number_of_bands()
@@ -703,12 +725,12 @@ def get_magnetic_moments(calc, theta=0.0, phi=0.0, nbands=None, width=None):
     m_av = []
     for a in range(len(calc.atoms)):
         N0_p = calc.density.setups[a].N0_p.copy()
-        N0_ij = unpack(N0_p)
+        N0_ij = unpack_hermitian(N0_p)
         Dx_ij = np.zeros_like(N0_ij, complex)
         Dy_ij = np.zeros_like(N0_ij, complex)
         Dz_ij = np.zeros_like(N0_ij, complex)
         Delta_p = calc.density.setups[a].Delta_pL[:, 0].copy()
-        Delta_ij = unpack(Delta_p)
+        Delta_ij = unpack_hermitian(Delta_p)
         for ik in range(Nk):
             P_ami = ...  # get_spinorbit_projections(calc, ik, v_knm[ik])
             P_smi = np.array([P_ami[a][:, ::2], P_ami[a][:, 1::2]])
@@ -849,7 +871,18 @@ def get_L_vlmm():
     d[2, 1] = 3**0.5 * 1.0j
     d[1, 4] = -1.0j
     d[4, 1] = 1.0j
-    _L_vlmm.append([s, p, d])
+    f = np.zeros((7, 7), complex)
+    f[0, 5] = -0.5 * 6**0.5 * 1.0j
+    f[5, 0] = 0.5 * 6**0.5 * 1.0j
+    f[1, 4] = -0.5 * 10**0.5 * 1.0j
+    f[4, 1] = 0.5 * 10**0.5 * 1.0j
+    f[1, 6] = -0.5 * 6**0.5 * 1.0j
+    f[6, 1] = 0.5 * 6**0.5 * 1.0j
+    f[2, 3] = -6**0.5 * 1.0j
+    f[3, 2] = 6**0.5 * 1.0j
+    f[2, 5] = -0.5 * 10**0.5 * 1.0j
+    f[5, 2] = 0.5 * 10**0.5 * 1.0j
+    _L_vlmm.append([s, p, d, f])
 
     p = np.zeros((3, 3), complex)  # y, z, x
     p[1, 2] = -1.0j
@@ -861,7 +894,18 @@ def get_L_vlmm():
     d[3, 2] = 3**0.5 * 1.0j
     d[3, 4] = -1.0j
     d[4, 3] = 1.0j
-    _L_vlmm.append([s, p, d])
+    f = np.zeros((7, 7), complex)
+    f[0, 1] = 0.5 * 6**0.5 * 1.0j
+    f[1, 0] = -0.5 * 6**0.5 * 1.0j
+    f[1, 2] = 0.5 * 10**0.5 * 1.0j
+    f[2, 1] = -0.5 * 10**0.5 * 1.0j
+    f[3, 4] = -6**0.5 * 1.0j
+    f[4, 3] = 6**0.5 * 1.0j
+    f[4, 5] = -0.5 * 10**0.5 * 1.0j
+    f[5, 4] = 0.5 * 10**0.5 * 1.0j
+    f[5, 6] = -0.5 * 6**0.5 * 1.0j
+    f[6, 5] = 0.5 * 6**0.5 * 1.0j
+    _L_vlmm.append([s, p, d, f])
 
     p = np.zeros((3, 3), complex)  # y, z, x
     p[0, 2] = 1.0j
@@ -871,6 +915,12 @@ def get_L_vlmm():
     d[4, 0] = -2.0j
     d[1, 3] = 1.0j
     d[3, 1] = -1.0j
-    _L_vlmm.append([s, p, d])
-
+    f = np.zeros((7, 7), complex)
+    f[0, 6] = 3.0j
+    f[6, 0] = -3.0j
+    f[1, 5] = 2.0j
+    f[5, 1] = -2.0j
+    f[2, 4] = 1.0j
+    f[4, 2] = -1.0j
+    _L_vlmm.append([s, p, d, f])
     return _L_vlmm

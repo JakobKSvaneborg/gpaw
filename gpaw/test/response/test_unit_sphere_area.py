@@ -3,6 +3,7 @@ from itertools import product
 import pytest
 import numpy as np
 
+from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.integrators import (TetrahedronIntegrator, Integrand,
                                        HilbertTetrahedron, Domain)
 from gpaw.response.frequencies import FrequencyGridDescriptor
@@ -23,7 +24,8 @@ class MyIntegrand(Integrand):
 def test_tetrahedron_integrator():
     cell_cv = np.eye(3)
     context = ResponseContext()
-    integrator = TetrahedronIntegrator(cell_cv, context, nblocks=1)
+    integrator = TetrahedronIntegrator(
+        cell_cv, context, *block_partition(context.comm, nblocks=1))
     x_g = np.linspace(-1, 1, 30)
     x_gc = np.array([comb for comb in product(*([x_g] * 3))])
 

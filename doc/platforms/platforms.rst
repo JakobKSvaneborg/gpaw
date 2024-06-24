@@ -109,7 +109,7 @@ Cray:
    :maxdepth: 1
 
    Cray/lumi
-   Cray/nersc_cori
+   Cray/nersc_perlmutter
    Cray/louhi
    Cray/jaguar
    Cray/sisu

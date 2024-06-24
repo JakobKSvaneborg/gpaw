@@ -1,7 +1,7 @@
 import numpy as np
 import ase.units as units
 
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.wavefunctions.pw import PWWaveFunctions
 
 
@@ -55,7 +55,7 @@ def calculate_stress(calc):
         a_ani = {}
         for a, P_ni in kpt.P_ani.items():
             Pf_ni = P_ni * kpt.f_n[:, None]
-            dH_ii = unpack(ham.dH_asp[a][kpt.s])
+            dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
             dS_ii = ham.setups[a].dO_ii
             a_ni = (np.dot(Pf_ni, dH_ii) -
                     np.dot(Pf_ni * kpt.eps_n[:, None], dS_ii))

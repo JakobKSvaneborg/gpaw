@@ -1,6 +1,6 @@
 # for n > 4 (?)
 # when run with gpaw-python built with MKL matrices b and c have ~zero elements
-# running with python (uses _gpaw.so) gives right (non-zero) results!
+# running with python (uses cgpaw.so) gives right (non-zero) results!
 
 import numpy as np
 from gpaw.utilities.blas import mmm

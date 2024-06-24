@@ -11,7 +11,7 @@
 #include <mpi.h>
 #endif
 #ifndef GPAW_WITHOUT_LIBXC
-#include <xc.h>
+#include <xc.h> // If this file is not found, install libxc https://wiki.fysik.dtu.dk/gpaw/install.html#libxc-installation
 #endif
 
 #ifdef GPAW_HPM
@@ -447,7 +447,7 @@ static PyObject* moduleinit(void)
     PyObject_SetAttrString(m, "have_openmp", Py_False);
 #endif
     // Version number of C-code.  Keep in sync with gpaw/__init__.py
-    PyObject_SetAttrString(m, "version", PyLong_FromLong(4));
+    PyObject_SetAttrString(m, "version", PyLong_FromLong(6));
 
     Py_INCREF(&LFCType);
     Py_INCREF(&OperatorType);

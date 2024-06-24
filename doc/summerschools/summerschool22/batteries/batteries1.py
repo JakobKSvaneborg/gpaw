@@ -261,7 +261,7 @@ Then we optimize the unit cell of the structure. We will take advantage of the [
 """
 
 # %%
-from ase.constraints import StrainFilter
+from ase.filters import StrainFilter
 from ase.optimize.bfgs import BFGS
 from ase.io import Trajectory
 
@@ -319,7 +319,7 @@ You need to make a full working script in a cell that does not depend on variabl
 import numpy as np
 from ase.lattice.hexagonal import Graphite
 from ase.calculators.dftd3 import DFTD3
-from ase.constraints import StrainFilter
+from ase.filters import StrainFilter
 from ase.optimize.bfgs import BFGS
 from ase.io import Trajectory
 
@@ -430,7 +430,7 @@ from gpaw import GPAW, FermiDirac, PW
 from ase.optimize import QuasiNewton
 from ase.build import bulk
 from ase.calculators.dftd3 import DFTD3
-from ase.constraints import StrainFilter
+from ase.filters import StrainFilter
 from ase.optimize.bfgs import BFGS
 
 # This script will optimize lattice constant of metallic lithium
@@ -513,7 +513,7 @@ from ase import Atom
 from ase.optimize.bfgs import BFGS
 import numpy as np
 from ase.lattice.hexagonal import Graphene
-from ase.constraints import StrainFilter
+from ase.filters import StrainFilter
 
 for xc in ['LDA', 'PBE', 'DFTD3']:
     ccdist = 1.40

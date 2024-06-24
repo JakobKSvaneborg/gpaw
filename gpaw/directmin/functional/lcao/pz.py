@@ -3,11 +3,12 @@ Potentials for orbital density dependent energy functionals
 """
 from ase.units import Hartree
 import numpy as np
-from gpaw.utilities import pack, unpack
-from gpaw.lfc import LFC
-from gpaw.transformers import Transformer
-from gpaw.poisson import PoissonSolver
+
 from gpaw.directmin.tools import d_matrix
+from gpaw.lfc import LFC
+from gpaw.poisson import PoissonSolver
+from gpaw.transformers import Transformer
+from gpaw.utilities import pack_density, unpack_hermitian
 
 
 class PZSICLCAO:
@@ -249,7 +250,7 @@ class PZSICLCAO:
         timer.start('Potential matrix - PAW')
         for a, dH_p in dH_ap.items():
             P_Mj = wfs.P_aqMi[a][kpt.q]
-            dH_ij = unpack(dH_p)
+            dH_ij = unpack_hermitian(dH_p)
 
             if self.dtype is complex:
                 F_MM += P_Mj @ dH_ij @ P_Mj.T.conj()
@@ -294,9 +295,9 @@ class PZSICLCAO:
             rhoP_Mi = rho_MM @ P_Mi
             D_ii = P_Mi.T.conj() @ rhoP_Mi
             if self.dtype is complex:
-                D_ap[a] = D_p = pack(D_ii.real)
+                D_ap[a] = D_p = pack_density(D_ii.real)
             else:
-                D_ap[a] = D_p = pack(D_ii)
+                D_ap[a] = D_p = pack_density(D_ii)
 
             Q_aL[a] = np.dot(D_p, setup[a].Delta_pL)
 
@@ -593,7 +594,7 @@ class PZSICLCAO:
                 #           ij
                 #
                 for b in my_atom_indices:
-                    H_ii = np.asarray(unpack(dH_ap[b]),
+                    H_ii = np.asarray(unpack_hermitian(dH_ap[b]),
                                       dtype)
                     HP_iM = H_ii @ wfs.P_aqMi[b][kpt.q].T.conj()
                     for v in range(3):
@@ -638,8 +639,7 @@ class PZSICLCAO:
 
     def get_lagrange_matrices(self, h_mm, c_nm, f_n, kpt,
                               wfs, occupied_only=False,
-                              update_eigenvalues=False,
-                              update_wfs=False):
+                              update_eigenvalues=False):
         n_occ = 0
         nbands = len(f_n)
         while n_occ < nbands and f_n[n_occ] > 1e-10:
@@ -666,7 +666,7 @@ class PZSICLCAO:
             e_total_sic = np.append(e_total_sic, sic_energy_n, axis=0)
         l_odd = np.dot(c_nm[:nbs].conj(), b_mn)
 
-        k = self.n_kps * kpt.s + kpt.q
+        k = wfs.eigensolver.kpointval(kpt)
 
         fullham = h_mm + 0.5 * (l_odd + l_odd.T.conj())
         fullham[:n_occ, n_occ:] = 0.0
@@ -674,16 +674,11 @@ class PZSICLCAO:
 
         self.lagr_diag_s[k] = np.diagonal(fullham).real
 
-        def updatecan(a, b):
-            eigval, eigvec = np.linalg.eigh(fullham[a:b, a:b])
-            if update_eigenvalues:
-                kpt.eps_n[a:b] = eigval
-            if update_wfs:
-                kpt.C_nM[a:b] = eigvec.T @ c_nm[a:b]
-
-        if update_wfs or update_eigenvalues:
-            updatecan(0, n_occ)
-            updatecan(n_occ, nbs)
+        if update_eigenvalues:
+            eigval, eigvec = np.linalg.eigh(fullham[0:n_occ, 0:n_occ])
+            kpt.eps_n[0:n_occ] = eigval
+            eigval, eigvec = np.linalg.eigh(fullham[n_occ:nbs, n_occ:nbs])
+            kpt.eps_n[n_occ:nbs] = eigval
 
         return h_mm, l_odd
 

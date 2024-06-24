@@ -2,12 +2,12 @@ from ase import optimize
 from ase.build import molecule
 from ase.vibrations.infrared import Infrared
 from gpaw import GPAW, FermiDirac
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 
 h = 0.20
 
-atoms = Cluster(molecule('H2O'))
-atoms.minimal_box(4, h=h)
+atoms = molecule('H2O')
+adjust_cell(atoms, 4, h=h)
 
 # relax the molecule
 calc = GPAW(mode='fd', xc='PBE', h=h, occupations=FermiDirac(width=0.1))

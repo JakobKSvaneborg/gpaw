@@ -10,6 +10,8 @@ from ase.units import Hartree
 from gpaw.utilities.blas import mmmx
 
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
+from gpaw.response.symmetry import (
+    QSymmetryAnalyzer, ensure_qsymmetry, QSymmetryInput)
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.pw_parallelization import PlaneWaveBlockDistributor
 from gpaw.response.matrix_elements import (PlaneWaveMatrixElementCalculator,
@@ -85,7 +87,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
         self.matrix_element_calc1 = mecalc1
         self.matrix_element_calc2 = mecalc2
         if mecalc2 is not mecalc1:
-            assert self.disable_time_reversal, \
+            assert not self.qsymmetry.time_reversal, \
                 'Cannot make use of time-reversal symmetry for generalized ' \
                 'susceptibilities with two different matrix elements'
 
@@ -139,10 +141,10 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             self.matrix_element_calc2.initialize_paw_corrections(chiks.qpd)
 
         # Perform the actual integration
-        analyzer = self._integrate(chiks, transitions)
+        symmetrizer = self._integrate(chiks, transitions)
 
         # Symmetrize chiks according to the symmetries of the ground state
-        self.symmetrize(chiks, analyzer)
+        self.symmetrize(chiks, symmetrizer)
 
         # Map to standard output format
         chiks = self.post_process(chiks)
@@ -167,7 +169,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
         gd = self.gs.gd
 
         # Update to internal basis, if needed
-        if internal and self.gammacentered and not self.disable_symmetries:
+        if internal and self.gammacentered and not self.qsymmetry.disabled:
             # In order to make use of the symmetries of the system to reduce
             # the k-point integration, the internal code assumes a plane wave
             # basis which is centered at q in reciprocal space.
@@ -352,14 +354,14 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             mmmx(1.0, gcc_Gt, 'N', xf_tZg, 'N', 1.0, chiks_GZg)  # slow step
 
     @timer('Symmetrizing chiks')
-    def symmetrize(self, chiks, analyzer):
+    def symmetrize(self, chiks, symmetrizer):
         """Symmetrize chiks_zGG."""
         chiks_ZgG = chiks.array_with_view('ZgG')
 
         # Distribute over frequencies
         nz = len(chiks.zd)
         tmp_zGG = chiks.blockdist.distribute_as(chiks_ZgG, nz, 'zGG')
-        analyzer.symmetrize_zGG(tmp_zGG)
+        symmetrizer.symmetrize_zGG(tmp_zGG)
         # Distribute over plane waves
         chiks_ZgG[:] = chiks.blockdist.distribute_as(tmp_zGG, nz, 'ZgG')
 
@@ -370,7 +372,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             # Always output chiks with distribution 'ZgG'
             chiks = chiks.copy_with_distribution('ZgG')
 
-        if self.gammacentered and not self.disable_symmetries:
+        if self.gammacentered and not self.qsymmetry.disabled:
             # Reduce the q-centered plane-wave basis used internally to the
             # gammacentered basis
             assert not chiks.qpd.gammacentered  # Internal qpd
@@ -465,6 +467,7 @@ class SelfEnhancementCalculator(GeneralizedSuscetibilityCalculator):
     def __init__(self, gs: ResponseGroundStateAdapter, context=None,
                  rshelmax: int = -1,
                  rshewmin: float | None = None,
+                 qsymmetry: QSymmetryInput = True,
                  **kwargs):
         """Construct the SelfEnhancementCalculator.
 
@@ -484,9 +487,12 @@ class SelfEnhancementCalculator(GeneralizedSuscetibilityCalculator):
         self.rshelmax = rshelmax
         self.rshewmin = rshewmin
 
-        assert 'disable_time_reversal' not in kwargs
+        qsymmetry = ensure_qsymmetry(qsymmetry)
+
         super().__init__(gs, context=context,
-                         disable_time_reversal=True,
+                         qsymmetry=QSymmetryAnalyzer(
+                             point_group=qsymmetry.point_group,
+                             time_reversal=False),
                          **kwargs)
 
     def create_matrix_element_calculators(self):

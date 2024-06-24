@@ -4,7 +4,7 @@ import os
 import subprocess
 
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as plt
 
 
 def count(dir, pattern):
@@ -20,16 +20,16 @@ def count(dir, pattern):
 
 
 def polygon(x, y1, y2, *args, **kwargs):
-    x = pl.concatenate((x, x[::-1]))
-    y = pl.concatenate((y1, y2[::-1]))
-    pl.fill(x, y, *args, **kwargs)
+    x = np.concatenate((x, x[::-1]))
+    y = np.concatenate((y1, y2[::-1]))
+    plt.fill(x, y, *args, **kwargs)
 
 
 def plot_count(dpi=70):
     year, month, f, c, py, test, doc, rst = np.loadtxt('lines.data').T
     date = year + (month - 1) / 12
 
-    fig = pl.figure(1, figsize=(10, 5), dpi=dpi)
+    fig = plt.figure(1, figsize=(10, 5), dpi=dpi)
     fig.add_subplot(111)
     polygon(date, c + py + test + doc, c + py + test + doc + rst,
             facecolor='m', label='Documentation (.rst)')
@@ -44,10 +44,10 @@ def plot_count(dpi=70):
     polygon(date, f, f,
             facecolor='b', label='Fortran-code')
 
-    pl.axis('tight')
-    pl.legend(loc='upper left')
-    pl.title('Number of lines')
-    pl.savefig('lines.png', dpi=dpi)
+    plt.axis('tight')
+    plt.legend(loc='upper left')
+    plt.title('Number of lines')
+    plt.savefig('lines.png', dpi=dpi)
 
 
 def count_lines():

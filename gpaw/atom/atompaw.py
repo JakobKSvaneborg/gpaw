@@ -7,7 +7,7 @@ from scipy.linalg import eigh
 from gpaw.calculator import GPAW
 from gpaw.wavefunctions.base import WaveFunctions
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.occupations import OccupationNumberCalculator
 import gpaw.mpi as mpi
 
@@ -129,7 +129,7 @@ class AtomEigensolver:
         e_n = np.zeros(N)
 
         for s in range(wfs.nspins):
-            dH_ii = unpack(hamiltonian.dH_asp[0][s])
+            dH_ii = unpack_hermitian(hamiltonian.dH_asp[0][s])
             kpt = wfs.kpt_u[s]
             N1 = 0
             for l in range(lmax + 1):
@@ -326,7 +326,7 @@ class AtomPAW(GPAW):
                 yield l, n, f, eps, psit_G
                 band += 2 * l + 1
 
-    def extract_basis_functions(self, basis_name='atompaw.sz'):
+    def extract_basis_functions(self, n_j, l_j, basis_name='atompaw.sz'):
         """Create BasisFunctions object with pseudo wave functions."""
         from gpaw.basis_data import Basis, BasisFunction
         assert self.wfs.nspins == 1
@@ -340,6 +340,7 @@ class AtomPAW(GPAW):
 
         bf_j = basis.bf_j
         for l, n, f, eps, psit_G in self.state_iter():
+            n = [N for N, L in zip(n_j, l_j) if L == l][n]
             bf_g = rgd.empty()
             bf_g[0] = 0.0
             bf_g[1:] = psit_G
@@ -350,6 +351,6 @@ class AtomPAW(GPAW):
             if abs(bf_g[1]) > 3.0 * abs(bf_g[2] - bf_g[1]):
                 bf_g[0] = bf_g[1]
             bf = BasisFunction(n, l, self.wfs.gd.r_g[-1], bf_g,
-                               '%s%d e=%.3f f=%.3f' % ('spdfgh'[l], n, eps, f))
+                               f'{n}{"spdfgh"[l]} e={eps:.3f} f={f:.3f}')
             bf_j.append(bf)
         return basis

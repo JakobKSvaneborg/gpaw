@@ -1,12 +1,13 @@
 from ase import Atoms
-from ase.data.s22 import data
+from ase.build.connected import connected_indices
 from ase.calculators.vdwcorrection import vdWTkatchenko09prl
+from ase.data.s22 import data
 from ase.parallel import parprint
 
 from gpaw import GPAW, FermiDirac
-from gpaw.cluster import Cluster
 from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 from gpaw.analyse.vdwradii import vdWradii
+from gpaw.utilities.adjust_cell import adjust_cell
 
 h = 0.25
 box = 3.0
@@ -19,14 +20,13 @@ Energy = {
     'TS09': []}
 
 for molecule in ['Adenine-thymine_complex_stack']:
-    ss = Cluster(Atoms(data[molecule]['symbols'],
-                       data[molecule]['positions']))
+    ss = Atoms(data[molecule]['symbols'],
+               data[molecule]['positions'])
 
     # split the structures
-    s1 = ss.find_connected(0)
-    s2 = ss.find_connected(-1)
+    s1 = ss[connected_indices(ss, 0)]
+    s2 = ss[connected_indices(ss, -1)]
     assert len(ss) == len(s1) + len(s2)
-
     calc_params = dict(mode='fd', h=h, nbands=-6,
                        occupations=FermiDirac(width=0.1), txt=None)
     c = GPAW(**calc_params, xc='PBE')
@@ -34,7 +34,7 @@ for molecule in ['Adenine-thymine_complex_stack']:
 
     for s in [s1, s2, ss]:
         s.calc = c
-        s.minimal_box(box, h=h)
+        adjust_cell(s, box, h=h)
         Energy['PBE'].append(s.get_potential_energy())
         cc = vdWTkatchenko09prl(HirshfeldPartitioning(c),
                                 vdWradii(s.get_chemical_symbols(), 'PBE'))

@@ -1,6 +1,6 @@
 # web-page: phases.png
 import numpy as np
-import pylab as plt
+import matplotlib.pyplot as plt
 
 a = np.load('phases_7x200.npz')
 phit_km = a['phi_km']

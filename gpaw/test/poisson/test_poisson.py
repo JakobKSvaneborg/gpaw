@@ -18,7 +18,7 @@ def test_poisson_poisson():
         # p = PoissonSolver(nn=1, relax=relax)
         p.set_grid_descriptor(gd)
         cut = N / 2.0 * 0.9
-        s = Spline(l=0, rmax=cut, f_g=np.array([1, 0.5, 0.0]))
+        s = Spline.from_data(l=0, rmax=cut, f_g=np.array([1, 0.5, 0.0]))
         c = LFC(gd, [[s], [s]])
         c.set_positions([(0, 0, 0), (0.5, 0.5, 0.5)])
         c.add(a)

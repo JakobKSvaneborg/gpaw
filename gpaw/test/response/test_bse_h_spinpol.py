@@ -30,5 +30,6 @@ def test_bse_spinpol(in_tmp_dir):
               valence_bands=[[0], [0]],
               conduction_bands=[[1], [1]])
 
-    bse.get_bse_matrix()
-    assert bse.w_T[0] == pytest.approx(0.013, abs=0.001)
+    bsematrix = bse.get_bse_matrix()
+    w_T, _ = bse.diagonalize_bse_matrix(bsematrix)
+    assert w_T[0] == pytest.approx(0.013, abs=0.001)

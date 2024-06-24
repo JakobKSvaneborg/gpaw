@@ -3,7 +3,7 @@ import numpy as np
 from gpaw import debug
 from gpaw.mpi import world
 from gpaw.overlap import Overlap
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 
 
@@ -383,7 +383,7 @@ class ProjectorPairOverlap(Overlap, GridPairOverlap):
 
         for a, dI_sp in dI_asp.items():
             dI_p = dI_sp[kpt.s]
-            dI_ii = unpack(dI_p)
+            dI_ii = unpack_hermitian(dI_p)
             self.assign_atomic_pair_matrix(dI_aa, a, a, dI_ii)
         self.gd.comm.sum(dI_aa)  # TODO too heavy?
 

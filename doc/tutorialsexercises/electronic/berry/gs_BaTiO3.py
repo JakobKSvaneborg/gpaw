@@ -1,7 +1,7 @@
 from ase import Atoms
 from ase.optimize import BFGS
 from gpaw import GPAW, PW
-from ase.constraints import ExpCellFilter
+from ase.filters import ExpCellFilter
 
 a = Atoms('BaTiO3',
           cell=[4.00, 4.00, 4.00 * 1.054],

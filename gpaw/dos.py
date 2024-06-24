@@ -157,7 +157,7 @@ class DOSCalculator:
     def from_calculator(cls,
                         filename: ASECalculator | GPAW | Path | str,
                         soc=False, theta=0.0, phi=0.0,
-                        shift_fermi_level=True):
+                        shift_fermi_level=True) -> DOSCalculator:
         """Create DOSCalculator from a GPAW calculation.
 
         filename: str

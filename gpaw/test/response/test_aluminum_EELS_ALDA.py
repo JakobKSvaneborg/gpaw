@@ -11,6 +11,7 @@ from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.mpi import size, world
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.libxc
 def test_response_aluminum_EELS_ALDA(in_tmp_dir):
@@ -41,8 +42,6 @@ def test_response_aluminum_EELS_ALDA(in_tmp_dir):
     df = DielectricFunction(calc='Al', frequencies=w, eta=0.2, ecut=50,
                             hilbert=False)
     df.get_eels_spectrum(xc='ALDA', filename='EELS_Al_ALDA.csv', q_c=q)
-    # df.check_sum_rule()
-    # df.write('Al.pckl')
 
     t3 = time.time()
 

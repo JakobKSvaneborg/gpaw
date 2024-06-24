@@ -10,14 +10,14 @@ from gpaw.new.calculation import DFTCalculation
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.projections import Projections
 from gpaw.pw.descriptor import PWDescriptor
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
 
 
 class FakeWFS:
-    def __init__(self, calculation: DFTCalculation, atoms: Atoms):
-        self.setups = calculation.setups
-        self.state = calculation.state
+    def __init__(self, dft: DFTCalculation, atoms: Atoms):
+        self.setups = dft.setups
+        self.state = dft.state
         ibzwfs = self.state.ibzwfs
         self.kd = KPointDescriptor(ibzwfs.ibz.bz.kpt_Kc,
                                    ibzwfs.nspins)
@@ -27,12 +27,12 @@ class FakeWFS:
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
         grid = self.state.density.nt_sR.desc
         self.gd = grid._gd
-        self.atom_partition = calculation._atom_partition
+        self.atom_partition = dft._atom_partition
         self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
-        self.occupations = calculation.scf_loop.occ_calc.occ
+        self.occupations = dft.scf_loop.occ_calc.occ
         self.nvalence = int(round(ibzwfs.nelectrons))
         assert self.nvalence == ibzwfs.nelectrons
-        self.world = calculation.comm
+        self.world = dft.comm
         if ibzwfs.fermi_levels is not None:
             self.fermi_levels = ibzwfs.fermi_levels
             if len(self.fermi_levels) == 1:
@@ -54,17 +54,22 @@ class FakeWFS:
             self.mode = 'lcao'
         self.collinear = wfs.ncomponents < 4
 
-    def _get_wave_function_array(self, u, n, realspace):
+    def _get_wave_function_array(self, u, n, realspace=True, periodic=False):
+        assert realspace and not periodic
         psit_X = self.kpt_u[u].wfs.psit_nX[n]
         if hasattr(psit_X, 'ifft'):
-            return psit_X.ifft(grid=self.pwgrid).data
+            psit_R = psit_X.ifft(grid=self.pwgrid, periodic=True)
+            psit_R.multiply_by_eikr(psit_X.desc.kpt_c)
+            return psit_R.data
         return psit_X.data
 
     def get_wave_function_array(self, n, k, s, realspace=True, periodic=False):
         assert realspace
         psit_X = self.kpt_qs[k][s].wfs.psit_nX[n]
         if self.mode == 'pw':
-            psit_R = psit_X.ifft(grid=self.pwgrid, periodic=periodic)
+            psit_R = psit_X.ifft(grid=self.pwgrid, periodic=True)
+            if not periodic:
+                psit_R.multiply_by_eikr(psit_X.desc.kpt_c)
         else:
             psit_R = psit_X
             if periodic:
@@ -112,12 +117,12 @@ class KPT:
             wfs.ncomponents < 4,
             wfs.spin,
             data=wfs.P_ani.data)
-        self.eps_n = wfs.eig_n
+        self.eps_n = wfs.myeig_n
         self.s = wfs.spin if wfs.ncomponents < 4 else None
         self.k = wfs.k
         self.q = wfs.q
         self.weight = wfs.spin_degeneracy * wfs.weight
-        self.f_n = wfs.occ_n * self.weight
+        self.f_n = wfs.myocc_n * self.weight
         self.P_ani = wfs.P_ani
         if isinstance(wfs, PWFDWaveFunctions):
             self.psit_nX = wfs.psit_nX
@@ -131,27 +136,28 @@ class KPT:
 
     @cached_property
     def psit(self):
+        band_comm = self.psit_nX.comm
         return PlaneWaveExpansionWaveFunctions(
             self.wfs.nbands, self.pd, self.wfs.dtype,
             self.psit_nX.data * self.ngpts,
             kpt=self.q,
-            dist=(),  # self.bd.comm, self.bd.comm.size),
+            dist=(band_comm, band_comm.size),
             spin=self.s,
             collinear=self.wfs.ncomponents != 4)
 
 
 class FakeDensity:
-    def __init__(self, calculation: DFTCalculation):
-        self.setups = calculation.setups
-        self.state = calculation.state
+    def __init__(self, dft: DFTCalculation):
+        self.setups = dft.setups
+        self.state = dft.state
         self.D_asii = self.state.density.D_asii
-        self.atom_partition = calculation._atom_partition
-        self.interpolate = calculation.pot_calc._interpolate_density
+        self.atom_partition = dft._atom_partition
+        self.interpolate = dft.pot_calc._interpolate_density
         self.nt_sR = self.state.density.nt_sR
         self.nt_sG = self.nt_sR.data
         self.gd = self.nt_sR.desc._gd
-        self.finegd = calculation.pot_calc.fine_grid._gd
-        self._densities = calculation.densities()
+        self.finegd = dft.pot_calc.fine_grid._gd
+        self._densities = dft.densities()
         self.ncomponents = len(self.nt_sG)
         self.nspins = self.ncomponents % 3
         self.collinear = self.ncomponents < 4
@@ -160,7 +166,7 @@ class FakeDensity:
     def D_asp(self):
         D_asp = self.setups.empty_atomic_matrix(self.ncomponents,
                                                 self.atom_partition)
-        D_asp.update({a: np.array([pack(D_ii) for D_ii in D_sii.real])
+        D_asp.update({a: np.array([pack_density(D_ii) for D_ii in D_sii.real])
                       for a, D_sii in self.D_asii.items()})
         return D_asp
 
@@ -178,12 +184,12 @@ class FakeDensity:
 
 
 class FakeHamiltonian:
-    def __init__(self, calculation: DFTCalculation):
-        self.pot_calc = calculation.pot_calc
+    def __init__(self, dft: DFTCalculation):
+        self.pot_calc = dft.pot_calc
         self.finegd = self.pot_calc.fine_grid._gd
-        self.grid = calculation.state.potential.vt_sR.desc
-        self.e_total_free = calculation.results.get('free_energy')
-        self.e_xc = calculation.state.potential.energies['xc']
+        self.grid = dft.state.potential.vt_sR.desc
+        self.e_total_free = dft.results.get('free_energy')
+        self.e_xc = dft.state.potential.energies['xc']
 
     def restrict_and_collect(self, vxct_sg):
         fine_grid = self.pot_calc.fine_grid

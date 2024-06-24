@@ -10,7 +10,7 @@ import numpy.fft as fft
 
 from gpaw import debug
 from gpaw.mpi import serial_comm
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 
 
 class DynamicalMatrix:
@@ -373,7 +373,7 @@ class DynamicalMatrix:
 
             for a in self.indices:
 
-                H_ii = unpack(dH_asp[a][0])
+                H_ii = unpack_hermitian(dH_asp[a][0])
                 P_ni = P_ani[a]
                 dP_niv = -1 * dP_aniv[a]
                 d2P_nivv = d2P_anivv[a]
@@ -494,7 +494,7 @@ class DynamicalMatrix:
                 Pdpsi_ni = Pdpsi_ani[a]
                 dPdpsi_niv = -1 * dPdpsi_aniv[a]
                 # Coefficients from atom a_
-                H_ii = unpack(dH_asp[a_][0])
+                H_ii = unpack_hermitian(dH_asp[a_][0])
                 P_ni = P_ani[a_]
                 dP_niv = -1 * dP_aniv[a_]
 

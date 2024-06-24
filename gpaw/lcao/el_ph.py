@@ -6,7 +6,7 @@ from ase.parallel import parprint
 from ase.units import Bohr, Ha
 
 from gpaw.mpi import world
-from gpaw.utilities import unpack2
+from gpaw.utilities import unpack_hermitian
 from gpaw.lcao.projected_wannier import dots
 from gpaw.utilities.tools import tri2full
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
@@ -16,7 +16,7 @@ from gpaw.lfc import LocalizedFunctionsCollection as LFC
     expressed in terms of GPAW LCAO orbitals.
 
     This module is not maintained and possibly broken.
-    Use gpaw/elph/electronphonon instead.
+    Use gpaw/elph/* instead.
     """
 
 
@@ -274,7 +274,7 @@ class ElectronPhononCouplingMatrix:
 
             for a, ddH_spx in ddH_aspx.items():
                 ddHdP_sp = np.dot(ddH_spx, mode)
-                ddHdP_ii = unpack2(ddHdP_sp[spin])
+                ddHdP_ii = unpack_hermitian(ddHdP_sp[spin])
                 Ma_lii[f] += dots(P_aqMi[a][q], ddHdP_ii, P_aqMi[a][q].T)
         parprint('Finished gradient of dH^a part')
 
@@ -291,7 +291,7 @@ class ElectronPhononCouplingMatrix:
         for f, mode in modes.items():
             for a, dP_Mix in dP_aMix.items():
                 dPdP_Mi = np.dot(dP_Mix, mode[a])
-                dH_ii = unpack2(dH_asp[a][spin])
+                dH_ii = unpack_hermitian(dH_asp[a][spin])
                 dPdP_MM = dots(dPdP_Mi, dH_ii, P_aqMi[a][q].T)
                 Mb_lii[f] -= dPdP_MM + dPdP_MM.T
                 # XXX The minus sign here is quite subtle.

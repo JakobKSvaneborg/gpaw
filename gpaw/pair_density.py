@@ -1,7 +1,7 @@
 from math import sqrt, pi
 import numpy as np
 
-from gpaw.utilities import pack, unpack2
+from gpaw.utilities import pack_density, unpack_density
 from gpaw.utilities.tools import pick
 from gpaw.lfc import LocalizedFunctionsCollection as LFC, BasisFunctions
 
@@ -56,7 +56,7 @@ class PairDensity2:
             D_ii = np.outer(P1_i.conj(), P2_i)
             # allowed to pack as used in the scalar product with
             # the symmetric array Delta_pL
-            D_p = pack(D_ii, tolerance=1e30)
+            D_p = pack_density(D_ii, tolerance=1e30)
 
             # Determine compensation charge coefficients:
             Q_aL[a] = np.dot(D_p, self.density.setups[a].Delta_pL)
@@ -153,7 +153,7 @@ class PairDensity:
             D_ii = np.outer(Pi_i, Pj_i)
             # allowed to pack as used in the scalar product with
             # the symmetric array Delta_pL
-            D_p = pack(D_ii)
+            D_p = pack_density(D_ii)
 
             # Determine compensation charge coefficients:
             Q_aL[a] = np.dot(D_p, self.setups[a].Delta_pL)
@@ -185,7 +185,7 @@ class PairDensity:
             D_ii = np.outer(Pi_i.conj(), Pj_i)
             # Note: D_ii is not symmetric but the products of partial waves are
             # so that we can pack
-            D_ap[a] = pack(D_ii)
+            D_ap[a] = pack_density(D_ii)
 #            D_aii[a] = D_ii
 
         # Load partial waves if needed
@@ -239,7 +239,7 @@ class PairDensity:
                 D_p = np.empty(ni * (ni + 1) // 2)
             if gd.comm.size > 1:
                 gd.comm.broadcast(D_p, self.wfs.partition.rank_a[a])
-            D_ii = unpack2(D_p)
+            D_ii = unpack_density(D_p)
 #            D_ii = D_aii.get(a)
 #            if D_ii is None:
 #                D_ii = np.empty((ni, ni))

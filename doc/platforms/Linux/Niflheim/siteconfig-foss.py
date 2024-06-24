@@ -38,3 +38,15 @@ if elpa:
 
 # Now add a EasyBuild "cover-all-bases" library_dirs
 library_dirs = os.getenv('LD_LIBRARY_PATH').split(':')
+
+if os.getenv('CPU_ARCH') == 'icelake':
+    gpu = True
+    gpu_target = 'cuda'
+    gpu_compiler = 'nvcc'
+    gpu_compile_args = ['-O3',
+                        '-g',
+                        '-gencode', 'arch=compute_80,code=sm_80']
+
+    libraries += ['cudart', 'cublas']
+else:
+    gpu = False

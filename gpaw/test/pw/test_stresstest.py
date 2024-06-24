@@ -26,9 +26,9 @@ def test_stress():
     pd = PWDescriptor(45, gd)
     a_G = pd.fft(a_R)
 
-    s = Spline(0, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
-    p = Spline(1, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
-    d = Spline(2, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
+    s = Spline.from_data(0, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
+    p = Spline.from_data(1, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
+    d = Spline.from_data(2, rc, 2 * x**1.5 / np.pi * np.exp(-x * r**2))
 
     lfc = PWLFC([[s, p, d]], pd)
     lfc.set_positions(spos_ac)

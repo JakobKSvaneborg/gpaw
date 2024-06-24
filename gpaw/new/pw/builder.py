@@ -1,4 +1,5 @@
 from functools import cached_property
+
 from ase.units import Ha
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
@@ -6,14 +7,15 @@ from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
+from gpaw.new.external_potential import create_external_potential
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
+from gpaw.new.pw.hybrids import PWHybridHamiltonian
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 # from gpaw.new.spinors import SpinorWaveFunctionDescriptor
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D
-from gpaw.new.external_potential import create_external_potential
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -53,8 +55,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                       dtype=self.dtype)
 
     def create_xc_functional(self):
-        if self.params.xc['name'] in ['HSE06', 'PBE0', 'EXX']:
-            return ...
         return create_functional(self._xc,
                                  self.fine_grid, self.xp)
 
@@ -84,7 +84,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def create_poisson_solver(self, fine_pw, params):
         return make_poisson_solver(fine_pw,
                                    self.fine_grid,
-                                   self.atoms.pbc,
                                    self.params.charge,
                                    **params)
 
@@ -109,7 +108,11 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:
-            return PWHamiltonian(self.grid, self.wf_desc, self.xp)
+            if self.xc.exx_fraction == 0.0:
+                return PWHamiltonian(self.grid, self.wf_desc, self.xp)
+            return PWHybridHamiltonian(
+                self.grid, self.wf_desc, self.xc, self.setups,
+                self.fracpos_ac, self.atomdist)
         return SpinorPWHamiltonian(self.qspiral_v)
 
     def convert_wave_functions_from_uniform_grid(self,
