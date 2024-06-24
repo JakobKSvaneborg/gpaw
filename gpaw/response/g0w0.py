@@ -649,15 +649,15 @@ class G0W0Calculator:
         All the values are ``ndarray``'s of shape
         (spins, IBZ k-points, bands)."""
 
-        self.qpoints = set(qpoints) if qpoints else None
+        qpoints = set(qpoints) if qpoints else None
 
-        if self.qpoints is None:
+        if qpoints is None:
             self.context.print('Summing all q:')
         else:
-            qpt_str = ' '.join(map(str, self.qpoints))
+            qpt_str = ' '.join(map(str, qpoints))
             self.context.print(f'Calculating following q-points: {qpt_str}')
         self.calculate_all_q_points(qpoints=qpoints)
-        if self.qpoints is not None:
+        if qpoints is not None:
             return f'A partial result of q-points: {qpt_str}'
         sigmas = self.read_sigmas()
         self.all_results = self.postprocess(sigmas)
