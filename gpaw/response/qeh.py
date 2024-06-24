@@ -9,8 +9,7 @@ class GPAW_ChiCalc(ChiCalc):
 
     def __init__(self,
                  df: DielectricFunction,
-                 qinf_min: float = 1e-4,
-                 qinf_max: float = 0.5,
+                 qinf_rel: float = 1e-6,
                  nq_inf: int = 10,
                  direction: str = 'x'):
 
@@ -21,12 +20,11 @@ class GPAW_ChiCalc(ChiCalc):
         ----------
         df : DielectricFunction
             the dielectric function calculator
-        qinf_min : float
-            the lower limit of the qinf grid as a fraction
-            of the lowest non inf q-point
-        qinf_max : float
-            the upper limit of the qinf grid as a fraction
-            of the highest non inf q-point
+        qinf_rel : float
+            the position of the gamma q-point,
+            relative to the first non-gamma q-point,
+            necessary due to the undefined nature of
+            chi_wGG in the gamma q-point.
         nq_inf : int
             the number of qinf grid points
         direction : str (either 'x' or 'y')
@@ -38,9 +36,12 @@ class GPAW_ChiCalc(ChiCalc):
         self.omega_w = self.df.chi0calc.wd.omega_w
         self.direction = direction
         self.context = self.df.context
-        self.qinf_min = qinf_min
-        self.qinf_max = qinf_max
+        self.qinf_rel = qinf_rel
         self.nq_inf = nq_inf
+
+        if not (self.df.gs.kd.ibzk_kc == [0, 0, 0]).any():
+            raise ValueError("Only Gamma-centered \
+                k-point grids are supported")
 
         super().__init__()
 
@@ -52,17 +53,23 @@ class GPAW_ChiCalc(ChiCalc):
         gd = self.df.gs.gd
         icell_cv = gd.icell_cv
 
+        # Make q-grid
         q_qc = np.zeros([Nk + 1, 3], dtype=float)
         q_qc[:, qdir] = np.linspace(0, 1, Nk + 1)
         q_qc = q_qc[:-1]
+
+        # Avoid Gamma-point
+        q_qc[0] = q_qc[1] * self.qinf_rel
+
         q_qv = q_qc @ icell_cv * 2 * pi
 
+        # Filter the q-points with q_max
         if q_max is not None:
             q_mask = np.linalg.norm(q_qv, axis=1) <= q_max
             q_qc = q_qc[q_mask]
             q_qv = q_qv[q_mask]
 
-        # make list of QPoints for calculation
+        # Make list of QPoints for calculation
         Q_q = [QPoint(q_c=q_c, q_v=q_v,
                       P_rv=self.determine_P_rv(q_c, q_max))
                for q_c, q_v in zip(q_qc, q_qv)]
@@ -97,16 +104,14 @@ class GPAW_ChiCalc(ChiCalc):
         return r[2, 0, 0, :]
 
     def get_chi_wGG(self, qpoint: QPoint):
-        chi0_dyson_eqs = self.df.get_chi0_dyson_eqs(qpoint.q_c,
-                                                    truncation='2D')
-        if np.linalg.norm(qpoint.q_c) < 1e-8:
-            G_v = self.df.gs.gd.icell_cv[self.qdim[self.direction]]
-            direction = G_v / np.linalg.norm(G_v)
-            q_inf_v = direction * 1e-8
-
+        if np.linalg.norm(qpoint.q_c) <= self.qinf_rel:
+            chi0_dyson_eqs = self.df.get_chi0_dyson_eqs([0, 0, 0],
+                                                        truncation='2D')
             qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response(
-                qinf_v=q_inf_v, direction=q_inf_v)
+                qinf_v=qpoint.q_v, direction=qpoint.q_v)
         else:
+            chi0_dyson_eqs = self.df.get_chi0_dyson_eqs(qpoint.q_c,
+                                                        truncation='2D')
             qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response()
 
         chi_wGG = wblocks.gather(chi_wGG, root=0)
