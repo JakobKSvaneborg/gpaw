@@ -37,8 +37,8 @@ def run(gpw_filename, nblocks, integrate_gamma, qpt=False):
     if qpt:
         # This part of the code is testing for separate calculation of qpoints
         # which would help in trivial parallelization of GW
-        for q in range(calc.wfs.kd.nibzkpts):
-            gw = G0W0(gpw_filename, 'gw_None', **kwargs)
+        gw = G0W0(gpw_filename, 'gw_None', **kwargs)
+        for q in range(gw.nqpts):
             gw.calculate(qpoints=[q])
 
     gw = G0W0(gpw_filename, 'gw_None', **kwargs)

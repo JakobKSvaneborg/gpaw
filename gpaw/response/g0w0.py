@@ -731,6 +731,11 @@ class G0W0Calculator:
         self.context.comm.barrier()
         return paths
 
+    @property
+    def nqpts(self):
+        """Returns the number of q-points in the system."""
+        return self.wcalc.gs.kd.nibzkpts
+
     def calculate_q(self, ie, k, kpt1, kpt2, qpd, Wdict,
                     *, symop, sigmas, blocks1d, pawcorr):
         """Calculates the contribution to the self-energy and its derivative
