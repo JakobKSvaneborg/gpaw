@@ -734,7 +734,7 @@ class G0W0Calculator:
     @property
     def nqpts(self):
         """Returns the number of q-points in the system."""
-        return self.wcalc.gs.kd.nibzkpts
+        return len(self.wcalc.qd.ibzk_kc)
 
     def calculate_q(self, ie, k, kpt1, kpt2, qpd, Wdict,
                     *, symop, sigmas, blocks1d, pawcorr):
