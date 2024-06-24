@@ -35,7 +35,9 @@ def run(gpw_filename, nblocks, integrate_gamma, qpt=False):
                   eta=0.2, relbands=(-1, 2))
 
     if qpt:
-        for q in range(len(calc.wfs.kd.ibzk_qc)):
+        # This part of the code is testing for separate calculation of qpoints
+        # which would help in trivial parallelization of GW
+        for q in range(calc.wfs.kd.nibzkpts):
             gw = G0W0(gpw_filename, 'gw_None', **kwargs)
             gw.calculate(qpoints=[q])
 
@@ -90,6 +92,8 @@ def test_integrate_gamma_modes(in_tmp_dir, integrate_gamma, gpw_files,
                                gpaw_new):
     if gpaw_new and world.size > 1:
         pytest.skip('Hybrids not working in parallel with GPAW_NEW=1')
+    # We want only some tests to check for the q-point parallelization hook
+    # so here we set it to true.
     assert run(gpw_files['si_gw_a0_all'], 1, integrate_gamma, qpt=True) == \
            reference[integrate_gamma]
 
