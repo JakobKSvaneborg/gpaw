@@ -476,7 +476,6 @@ class G0W0Calculator:
                  exx_vxc_calculator,
                  qcache,
                  ppa=False,
-                 qpoints=None,
                  mpa=False,
                  evaluate_sigma=None):
         """G0W0 calculator, initialized through G0W0 object.
@@ -545,7 +544,6 @@ class G0W0Calculator:
             evaluate_sigma = np.array([])
         self.evaluate_sigma = evaluate_sigma
         self.qcache = qcache
-        self.qpoints = qpoints
 
         # Note: self.wd should be our only representation of the frequencies.
         # We should therefore get rid of self.frequencies.
@@ -671,8 +669,11 @@ class G0W0Calculator:
         return eps_skn, f_skn
 
     @timer('G0W0')
-    def calculate(self):
+    def calculate(self, qpoints=None):
         """Starts the G0W0 calculation.
+
+        qpoints:
+            Set of q-points to calculate.
 
         Returns a dict with the results with the following key/value pairs:
 
@@ -696,14 +697,15 @@ class G0W0Calculator:
         All the values are ``ndarray``'s of shape
         (spins, IBZ k-points, bands)."""
 
-        if self.qpoints is None:
+        qpoints = set(qpoints) if qpoints else None
+
+        if qpoints is None:
             self.context.print('Summing all q:')
         else:
-            qpt_str = ' '.join(map(str, self.qpoints))
+            qpt_str = ' '.join(map(str, qpoints))
             self.context.print(f'Calculating following q-points: {qpt_str}')
-
-        self.calculate_all_q_points()
-        if self.qpoints is not None:
+        self.calculate_all_q_points(qpoints=qpoints)
+        if qpoints is not None:
             return f'A partial result of q-points: {qpt_str}'
         sigmas = self.read_sigmas()
         self.all_results = self.postprocess(sigmas)
@@ -774,6 +776,11 @@ class G0W0Calculator:
         # Do not return paths to caller before we know they all exist:
         self.context.comm.barrier()
         return paths
+
+    @property
+    def nqpts(self):
+        """Returns the number of q-points in the system."""
+        return len(self.wcalc.qd.ibzk_kc)
 
     @timer('evaluate sigma')
     def calculate_q(self, ie, k, kpt1, kpt2, qpd, Wdict,
@@ -868,7 +875,7 @@ class G0W0Calculator:
         pawcorr_wcalc1 = pairden_paw_corr(qpd)
         assert pawcorr.almost_equal(pawcorr_wcalc1, G_G)
 
-    def calculate_all_q_points(self):
+    def calculate_all_q_points(self, qpoints):
         """Main loop over irreducible Brillouin zone points.
         Handles restarts of individual qpoints using FileCache from ASE,
         and subsequently calls calculate_q."""
@@ -902,13 +909,19 @@ class G0W0Calculator:
                 '  memory estimate for chi0: local=%.2f MB, global=%.2f MB'
                 % (siz / 1024**2, sizA / 1024**2))
 
+        if self.context.comm.rank == 0 and qpoints is None:
+            self.context.print('Removing empty qpoint cache files...')
+            self.qcache.strip_empties()
+
+        self.context.comm.barrier()
+
         # Need to pause the timer in between iterations
         self.context.timer.stop('W')
 
         with broadcast_exception(self.context.comm):
             if self.context.comm.rank == 0:
                 for key, sigmas in self.qcache.items():
-                    if sigmas is None:
+                    if qpoints and int(key) not in qpoints:
                         continue
                     sigmas = {fxc_mode: Sigma.fromdict(sigma)
                               for fxc_mode, sigma in sigmas.items()}
@@ -918,7 +931,7 @@ class G0W0Calculator:
         for iq, q_c in enumerate(self.wcalc.qd.ibzk_kc):
             # If a list of q-points is specified,
             # skip the q-points not in the list
-            if (self.qpoints is not None) and (iq not in self.qpoints):
+            if qpoints and (iq not in qpoints):
                 continue
             with ExitStack() as stack:
                 if self.context.comm.rank == 0:
@@ -1136,7 +1149,6 @@ class G0W0(G0W0Calculator):
                  integrate_gamma='sphere',
                  q0_correction=False,
                  do_GW_too=False,
-                 qpoints=None,
                  **kwargs):
         """G0W0 calculator wrapper.
 
@@ -1251,11 +1263,6 @@ class G0W0(G0W0Calculator):
         nblocksmax: bool
             Cuts chi0 into as many blocks as possible to reduce memory
             requirements as much as possible.
-        qpoints: list[int] or None
-            Select which IBZ q-points to calculate from the full BZ-integral.
-            Since full integration is not performed in this calculation,
-            results are not provided, but only the q-point wise result
-            will be cached for future use.
         """
         if fxc_mode:
             assert fxc_modes is None
@@ -1276,8 +1283,8 @@ class G0W0(G0W0Calculator):
                 'File cache requires ASE master '
                 'from September 20 2022 or newer.  '
                 'You may need to pull newest ASE.') from err
-        # if world.rank == 0 and qpoints is None:
-        #    qcache.strip_empties()
+        
+
         mode = 'a' if qcache.filecount() > 1 else 'w'
 
         # (calc can not actually be a calculator at all.)
