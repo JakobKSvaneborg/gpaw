@@ -1149,6 +1149,7 @@ class G0W0(G0W0Calculator):
                  integrate_gamma='sphere',
                  q0_correction=False,
                  do_GW_too=False,
+                 qpt_str=None,
                  **kwargs):
         """G0W0 calculator wrapper.
 
@@ -1283,14 +1284,13 @@ class G0W0(G0W0Calculator):
                 'File cache requires ASE master '
                 'from September 20 2022 or newer.  '
                 'You may need to pull newest ASE.') from err
-        
 
         mode = 'a' if qcache.filecount() > 1 else 'w'
 
         # (calc can not actually be a calculator at all.)
         gpwfile = Path(calc)
 
-        qpt_str = f'-{qpoints[0]}-{qpoints[-1]}' if qpoints else ''
+        qpt_str = qpt_str or ''
         context = ResponseContext(txt=filename + qpt_str + '.txt',
                                   comm=world, timer=timer)
         gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
@@ -1385,7 +1385,6 @@ class G0W0(G0W0Calculator):
                          qcache=qcache,
                          ppa=ppa,
                          mpa=mpa,
-                         qpoints=qpoints,
                          **kwargs)
 
     @property
