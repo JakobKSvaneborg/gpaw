@@ -40,13 +40,16 @@ class GPAW_ChiCalc(ChiCalc):
             raise ValueError("Only Gamma-centered \
                 k-point grids are supported")
 
+        qdir = self.qdim[self.direction]
+        kd = self.df.gs.kd
+        self.Nk = kd.N_c[qdir]
+
         super().__init__()
 
     def get_q_grid(self, q_max: float | None = None):
         # First get q-points on the grid
         qdir = self.qdim[self.direction]
-        kd = self.df.gs.kd
-        self.Nk = kd.N_c[qdir]
+
         gd = self.df.gs.gd
         icell_cv = gd.icell_cv
 
