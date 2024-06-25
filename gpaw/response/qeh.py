@@ -10,7 +10,6 @@ class GPAW_ChiCalc(ChiCalc):
     def __init__(self,
                  df: DielectricFunction,
                  qinf_rel: float = 1e-6,
-                 nq_inf: int = 10,
                  direction: str = 'x'):
 
         ''' GPAW superclass for interfacing with QEH
@@ -25,10 +24,9 @@ class GPAW_ChiCalc(ChiCalc):
             relative to the first non-gamma q-point,
             necessary due to the undefined nature of
             chi_wGG in the gamma q-point.
-        nq_inf : int
-            the number of qinf grid points
         direction : str (either 'x' or 'y')
-            the direction of the q-grid
+            the direction of the q-grid in terms of
+            the reciprocal lattice vectors.
         '''
 
         self.df = df  # DielectricFunctionCalculator
@@ -37,7 +35,6 @@ class GPAW_ChiCalc(ChiCalc):
         self.direction = direction
         self.context = self.df.context
         self.qinf_rel = qinf_rel
-        self.nq_inf = nq_inf
 
         if not (self.df.gs.kd.ibzk_kc == [0, 0, 0]).any():
             raise ValueError("Only Gamma-centered \
