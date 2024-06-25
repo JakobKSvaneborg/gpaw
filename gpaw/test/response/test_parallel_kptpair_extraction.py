@@ -8,10 +8,9 @@ from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.kspair import KohnShamKPointPairExtractor
-from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.pair_transitions import PairTransitions
 from gpaw.response.pair_integrator import KPointPairPointIntegral
-from gpaw.response.symmetry import PWSymmetryAnalyzer
+from gpaw.response.symmetry import QSymmetryAnalyzer
 
 from gpaw.test.response.test_chiks import (generate_system_s, generate_qrel_q,
                                            get_q_c, generate_nblocks_n)
@@ -108,12 +107,9 @@ def initialize_extractor(gs, context, tcomm, kcomm):
 
 
 def initialize_integral(extractor, context, q_c):
-    # Initialize symmetry analyzer
-    gs = extractor.gs
-    qpd = SingleQPWDescriptor.from_q(q_c, 1e-3, gs.gd)
-    analyzer = PWSymmetryAnalyzer(gs.kpoints, qpd, context)
-
-    return KPointPairPointIntegral(extractor, analyzer)
+    _, generator = QSymmetryAnalyzer().analyze(
+        np.asarray(q_c), extractor.gs.kpoints, context)
+    return KPointPairPointIntegral(extractor, generator)
 
 
 def initialize_transitions(extractor, spincomponent, nbands):
