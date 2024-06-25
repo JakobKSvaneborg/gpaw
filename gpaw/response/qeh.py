@@ -46,14 +46,14 @@ class GPAW_ChiCalc(ChiCalc):
         # First get q-points on the grid
         qdir = self.qdim[self.direction]
         kd = self.df.gs.kd
-        Nk = kd.N_c[qdir]
+        self.Nk = kd.N_c[qdir]
         gd = self.df.gs.gd
         icell_cv = gd.icell_cv
 
         # Make q-grid
-        q_qc = np.zeros([Nk + 1, 3], dtype=float)
-        q_qc[:, qdir] = np.linspace(0, 1, Nk + 1)
-        q_qc = q_qc[:-1]
+        q_qc = np.zeros([self.Nk, 3], dtype=float)
+        q_qc[:, qdir] = np.linspace(0, 1, self.Nk,
+                                    endpoint=False)
 
         # Avoid Gamma-point
         q_qc[0] = q_qc[1] * self.qinf_rel
@@ -101,7 +101,7 @@ class GPAW_ChiCalc(ChiCalc):
         return r[2, 0, 0, :]
 
     def get_chi_wGG(self, qpoint: QPoint):
-        if np.linalg.norm(qpoint.q_c) <= self.qinf_rel:
+        if np.linalg.norm(qpoint.q_c) <= (2 * self.qinf_rel / self.Nk):
             chi0_dyson_eqs = self.df.get_chi0_dyson_eqs([0, 0, 0],
                                                         truncation='2D')
             qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response(
