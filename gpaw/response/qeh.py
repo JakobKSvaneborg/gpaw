@@ -4,8 +4,13 @@ from gpaw.response.df import DielectricFunction
 try:
     from qeh.bb_calculator.chicalc import ChiCalc, QPoint
 except ImportError:
-    ChiCalc = None
-    QPoint = None
+    class ChiCalc():
+        def __init__(self, *args, **kwargs):
+            return None
+    
+    class QPoint():
+        def __init__(self, *args, **kwargs):
+            return None
 
 
 class GPAW_ChiCalc(ChiCalc):
