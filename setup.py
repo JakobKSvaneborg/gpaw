@@ -393,7 +393,7 @@ setup(name='gpaw',
       package_data={'gpaw': ['py.typed']},
       entry_points={
           'console_scripts': ['gpaw = gpaw.cli.main:main']},
-      setup_requires=['numpy<2'],
+      setup_requires=['numpy'],
       python_requires=python_requires,
       install_requires=[f'ase>={ase_version_required}',
                         'numpy<2',
