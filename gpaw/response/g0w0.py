@@ -515,7 +515,7 @@ class G0W0Calculator:
         ppa: bool
             Use Godby-Needs plasmon-pole approximation for screened interaction
             and self-energy
-        mpa: dictionary
+        mpa: dict
             Use multipole approximation for screened interaction
             and self-energy [PRB 104, 115157 (2021)]
             This method uses a sampling along two lines in the complex
