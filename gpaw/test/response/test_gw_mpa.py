@@ -8,8 +8,8 @@ from gpaw.mpi import world
 @pytest.mark.response
 def test_mpa_WS(in_tmp_dir, gpw_files, scalapack):
     ref_result = np.array([[[10.989471, 20.627495],
-                            [ 5.095711, 15.25836 ],
-                            [ 8.465492, 21.623946]]])
+                            [5.095711, 15.25836],
+                            [8.465492, 21.623946]]])
 
     mpa_dict = {'npoles': 4, 'wrange': [0 * Ha, 2 * Ha],
                 'varpi': Ha,
