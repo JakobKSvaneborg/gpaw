@@ -1,7 +1,11 @@
 import numpy as np
 from ase.units import pi
-from qeh.bb_calculator.chicalc import ChiCalc, QPoint
 from gpaw.response.df import DielectricFunction
+try:
+    from qeh.bb_calculator.chicalc import ChiCalc, QPoint
+except ImportError:
+    ChiCalc = None
+    QPoint = None
 
 
 class GPAW_ChiCalc(ChiCalc):

@@ -19,18 +19,8 @@ def dielectric(calc, domega, omega2, rate=0.0, ecut=10, nblocks=1):
 @pytest.mark.dielectricfunction
 @pytest.mark.serial
 @pytest.mark.response
-@pytest.mark.skip
 def test_basics(in_tmp_dir, gpw_files):
     pytest.importorskip('qeh')
-
-    import qeh
-    print(qeh)
-    print(qeh.__dict__)
-    try:
-        print(qeh.bb_calculator)
-    except ModuleNotFoundError:
-        raise pytest.skip('qeh not installed')
-
     from gpaw.response.qeh import GPAW_ChiCalc
 
     df = dielectric(gpw_files['graphene_pw'], 0.1, 0.5, rate=0.01)
