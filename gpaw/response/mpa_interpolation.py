@@ -45,7 +45,16 @@ def fit_residue(
     else:
         try:
             R_GGp = np.linalg.solve(XTX_GGpp, temp_GGp)
-        except np.linalg.LinAlgError:
+        except (np.linalg.LinAlgError, ValueError):
+            # XXX What is with the value error?
+            # This happens in numpy2, apparently instead of the linalg error.
+            #
+            # Error is:
+            #   ValueError: solve: Input operand 1 has a mismatch in its
+            #   core dimension 0, with gufunc signature
+            #   (m,m),(m,n)->(m,n) (size 25 is different from 6)
+            #
+            # Produced by test_mpa_vectorization.py
             XTX_GGpp = np.linalg.pinv(XTX_GGpp)
             R_GGp = np.einsum('GHpo,GHo->GHp',
                               XTX_GGpp, temp_GGp)
