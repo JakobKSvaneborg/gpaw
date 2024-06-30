@@ -117,6 +117,7 @@ class ASECalculator:
         self._dft = dft
         self._atoms = atoms
         self.timer = Timer()
+        self.hooks = {}
 
     @property
     def dft(self) -> DFTCalculation:
@@ -198,6 +199,8 @@ class ASECalculator:
         self.dft.magmoms()
 
         self.dft.write_converged()
+
+        self.hooks.get('converged', lambda: None)()
 
     def calculate_property(self,
                            atoms: Atoms | None,
