@@ -186,10 +186,13 @@ class ASECalculator:
         if converged:
             return
 
+        assert self.hooks <= {'scf_step', 'converged'}
+
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
                     calculate_forces=self._calculate_forces):
                 yield ctx
+                self.hooks.get('scf_step', lambda: None)()
 
         self.log(f'Converged in {ctx.niter} steps')
 
