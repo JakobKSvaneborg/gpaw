@@ -1,6 +1,5 @@
 import os
 import pytest
-import numpy as np
 from gpaw.new.ase_interface import GPAW
 from gpaw.unfold import Unfold, find_K_from_k
 
@@ -12,7 +11,7 @@ def test_unfold_Ni(gpw_files):
     gpw = 'fcc_Ni_col'
     calc_col = GPAW(gpw_files[gpw],
                     parallel={'domain': 1, 'band': 1})
-     
+
     pc = calc_col.atoms.get_cell(complete=True)
     bp = pc.get_bravais_lattice().bandpath('GX', npoints=3)
 
@@ -23,7 +22,7 @@ def test_unfold_Ni(gpw_files):
         K = find_K_from_k(k, M)[0]
         Kpts.append(K)
 
-    # Spin 0 
+    # Spin 0
     unfold = Unfold(name='Ni_defect_s0',
                     calc=gpw_files[gpw],
                     M=M,
@@ -53,7 +52,6 @@ def test_unfold_Ni(gpw_files):
     assert P_mk == pytest.approx(1, abs=1.0e-6)
     assert Nm == N0 + N1
 
-    
     # Non-collinear calculation with self-consistent spin–orbit
     gpw = 'fcc_Ni_ncolsoc'
     calc_ncol = GPAW(gpw_files[gpw],
