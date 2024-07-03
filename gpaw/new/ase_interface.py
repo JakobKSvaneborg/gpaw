@@ -4,7 +4,7 @@ import warnings
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import IO, Any, Union
+from typing import IO, Any, Union, Callable
 
 import numpy as np
 from ase import Atoms
@@ -117,7 +117,7 @@ class ASECalculator:
         self._dft = dft
         self._atoms = atoms
         self.timer = Timer()
-        self.hooks = {}
+        self.hooks: dict[str, Callable[[], None]] = {}
 
     @property
     def dft(self) -> DFTCalculation:
