@@ -186,7 +186,7 @@ class ASECalculator:
         if converged:
             return
 
-        assert self.hooks <= {'scf_step', 'converged'}
+        assert self.hooks.keys() <= {'scf_step', 'converged'}
 
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
