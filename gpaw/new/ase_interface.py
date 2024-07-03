@@ -117,7 +117,7 @@ class ASECalculator:
         self._dft = dft
         self._atoms = atoms
         self.timer = Timer()
-        self.hooks: dict[str, Callable[[], None]] = {}
+        self.hooks: dict[str, Callable] = {}
 
     @property
     def dft(self) -> DFTCalculation:
@@ -192,7 +192,7 @@ class ASECalculator:
             for ctx in self.dft.iconverge(
                     calculate_forces=self._calculate_forces):
                 yield ctx
-                self.hooks.get('scf_step', lambda: None)()
+                self.hooks.get('scf_step', lambda ctx: None)(ctx)
 
         self.log(f'Converged in {ctx.niter} steps')
 
