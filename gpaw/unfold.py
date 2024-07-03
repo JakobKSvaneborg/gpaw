@@ -5,7 +5,6 @@ from ase.units import Hartree
 
 from gpaw.kpt_descriptor import to1bz
 from gpaw.new.ase_interface import GPAW
-#from gpaw import GPAW
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.pw.descriptor import PWDescriptor
 import gpaw.mpi as mpi
@@ -308,8 +307,6 @@ def get_rs_wavefunctions_k(calc, iK, spinorbit=False, v_Kmn=None, spin=0):
         u1_ngrid = np.array(
             [calc.wfs.get_wave_function_array(n, iK, (Ns - 1)) * eikr_R
              for n in range(Nb)])
-        #print(np.shape(u0_ngrid), np.shape(u1_ngrid))
-        #print(np.shape(np.swapaxes(u0_ngrid, 0, 2)))
         u0_mG = np.swapaxes(np.dot(v0_mn, np.swapaxes(u0_ngrid, 0, 2)), 1, 2)
         u1_mG = np.swapaxes(np.dot(v1_mn, np.swapaxes(u1_ngrid, 0, 2)), 1, 2)
         ut_mgrid = np.zeros((len(u0_mG),
