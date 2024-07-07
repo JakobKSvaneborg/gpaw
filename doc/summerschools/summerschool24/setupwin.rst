@@ -26,9 +26,36 @@ Edition" and an "Installer Edition".  The Installer Edition is
 installed like any other Windows program; the Portable Edition comes
 as a ZIP file that you need to unpack.  The program is then in a
 folder together with a data file, and you can run it from this
-folder.  We have no reason to recommend one version over the other, it
-is a matter of personal taste.
+folder.  We have tested the installer version, but assume that both
+work.
 
+You must unpack the downloaded ZIP file before you run the installer,
+running it from inside the ZIP does not work!
+
+
+
+Configuring your secret key
+===========================
+
+For security reasons, all access to DTU computers require two-factor
+authentification.  In the case of the HPC installation, the two
+factors are your password and an encryption key (*SSH key*).  You get
+your secret SSH key as described in the document with your username
+and password.  Save it on your laptop.
+
+Start MobaXterm.  You will see a window with a row of buttons at the
+top.  Click on the Settings button (one of the last ones).  On the
+configuration window that opens (shown below) you select the SSH tab.
+The last box is labelled "SSH agents", select "Use internal SSH agent
+MobAgent".
+
+Click the Plus sign next to the box labelled "Load the following keys
+at MobAgent startup" and then select the key with your private SSH key
+(i.e. **not** the file with file type .pub).  Then press OK; MobaXterm
+will then need to restart.
+
+.. image:: MobaXtermKeyConfiguration.png
+   :width: 66%
 
 Connecting the first time
 =========================
@@ -56,12 +83,12 @@ below.
    :width: 66%
 
 The two last lines are the command prompt.  The first line indicates
-your current working directory, here your home folder symbolized by
+your current working directory, in this case your home folder symbolized by
 the ~ (tilde) character.  The lower line gives the name of the
 computer (``gbarlogin``) and the user name (``jasc`` in the figure)
 followed by a dollar sign.
 
-This computer (``gbarlogin``) may not be used to calculations, as it
+This computer (``gbarlogin``) may not be used for calculations, as it
 would be overloaded.  You therefore need to log in to the least loaded
 interactive computer by writing the command::
 
@@ -74,28 +101,18 @@ wrong, but the ASE graphical user interface will not work).
 Get access to the software
 ==========================
 
-To give access to the software you need for this course, please run
+To get access to the software you need for this course, please run
 the command::
 
-  source ~jasc/setup2022
+  source ~jasc/setup2024
 
 Note the tilde in the beginning of the second word.
 
-The script give you access to ASE, GPAW and related software.  It will
-install Jupyter Notebook in your own account (necessary as the
-visualization will otherwise not work).
-
-The script will ask you to **set a Jupyter Notebook password.** This
-will be used to access the notebooks from the browser on your laptop.
-It is a bad idea to type your DTU password into untrusted programs, so
-you should probably choose a different password - *this is
-particularly important if you are a DTU student/employee, the security
-of your DTU password is critical!*
-
+The script will install ASE, GPAW and related software.
 The script will also copy a selection of draft notebooks to a folder
-called CAMD2018 in your DTU databar account.
+called CAMD2024 in your DTU databar account.
 
-	   
+
 Carrying on
 ===========
 

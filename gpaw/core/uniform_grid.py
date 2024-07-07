@@ -275,9 +275,14 @@ class UGDesc(Domain):
             raise ValueError('Positions outside cell!')
         return np.ravel_multi_index(rank_ac.T, self.parsize_c)  # type: ignore
 
-    def ecut_max(self):
-        dv_cv = self.cell_cv / self.size_c[:, np.newaxis]
-        return 0.5 * np.pi**2 / (dv_cv**2).sum(1).max()  # or min ??????
+    def ekin_max(self) -> float:
+        """Maximum value of ekin so that all 0.5 * G^2 < ekin.
+
+        In 1D, this will be 0.5*(pi/h)^2 where h is the grid-spacing.
+        """
+        # Height of reciprocal cell (squared):
+        b2_c = np.pi**2 / (self.cell_cv**2).sum(1)
+        return 0.5 * (self.size_c**2 * b2_c).min()
 
 
 class UGArray(DistributedArrays[UGDesc]):
@@ -374,6 +379,12 @@ class UGArray(DistributedArrays[UGDesc]):
         x = np.arange(grid.start_c[c], grid.end_c[c]) * dx
         return x, as_np(y)
 
+    def to_complex(self) -> UGArray:
+        """Return a copy with dtype=complex."""
+        c = self.desc.new(dtype=complex).empty()
+        c.data[:] = self.data
+        return c
+
     def scatter_from(self, data=None):
         """Scatter data from rank-0 to all ranks."""
         if isinstance(data, UGArray):
@@ -453,6 +464,9 @@ class UGArray(DistributedArrays[UGDesc]):
             out = pw.empty(xp=self.xp)
         if pw is None:
             pw = out.desc
+        if pw.dtype != self.desc.dtype:
+            raise TypeError(
+                f'Type mismatch: {self.desc.dtype} -> {pw.dtype}')
         input = self
         if self.desc.comm.size > 1:
             input = input.gather()
