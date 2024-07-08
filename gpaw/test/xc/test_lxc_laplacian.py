@@ -16,5 +16,16 @@ def test_mgga_lxc_laplacian():
     assert laplacian_test
 
 
+def test_mgga_lxc_suppressed_laplacian():
+    """Check for suppressed error."""
+    laplacian_test = True
+    try:
+        LibXC('MGGA_X_BR89+MGGA_C_TPSS', provides_laplacian=True)
+    except FunctionalNeedsLaplacianError:
+        laplacian_test = False
+    assert laplacian_test
+
+
 if __name__ == '__main__':
     test_mgga_lxc_laplacian()
+    test_mgga_lxc_suppressed_laplacian()
