@@ -76,18 +76,33 @@ def calculate_site_zeeman_energy(
 
 def get_site_radii_range(gs):
     """Get the range of valid site radii for the atoms of a given ground state.
+
+    Returns
+    -------
+    rmin_A : np.ndarray
+        Minimum cutoff radius in Å for each atom A.
+    rmax_A : np.ndarray
+        Maximum cutoff radius in Å for each atom A.
     """
     rmin_A, rmax_A = AtomicSiteData.valid_site_radii_range(gs)
     return rmin_A * Bohr, rmax_A * Bohr  # Bohr -> Å
 
 
-# XXX To do XXX
-# * doc strings
-# * doc strings in tutorial
-
-
 def maximize_site_magnetization(gs, indices=None):
-    """Find the allowed site radii which maximize the site magnetization."""
+    """Find the allowed site radii which maximize the site magnetization.
+
+    Assumes that m(rc) is maximized for some rc beloning to the interior of the
+    allowed cutoff radii for each atom. Physically, m(rc) has such a maximum
+    only if the spin-polarization of the interstitial region is anti-parallel
+    to the site in its near vicinity.
+
+    Returns
+    -------
+    rmax_a : np.ndarray
+        Cutoff radius in Å, maximizing the site magnetization for each site a.
+    mmax_a : np.ndarray
+        Site magnetization in μB at its maximum for each site a.
+    """
     # Calculate the site magnetization as a function of radius
     rmin_A, rmax_A = get_site_radii_range(gs)
     if indices is None:
