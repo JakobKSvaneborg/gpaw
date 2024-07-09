@@ -12,6 +12,9 @@ Git master branch
 
 * ...
 
+* Extended ``restrict`` keyword and random phase approximation emabled
+  in :ref:`lrtddft`
+
 
 Version 24.6.0
 ==============
