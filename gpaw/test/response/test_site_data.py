@@ -9,7 +9,8 @@ from gpaw.sphere.integrate import integrate_lebedev
 
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.site_data import (AtomicSites, AtomicSiteData,
-                                     get_site_radii_range)
+                                     get_site_radii_range,
+                                     maximize_site_magnetization)
 from gpaw.response.localft import add_spin_polarization
 
 
@@ -130,6 +131,16 @@ def test_Co_site_data(gpw_files):
     assert magmom_ar[1, nr:2 * nr] == pytest.approx([magmom_ar[1, -1]] * nr)
     assert magmom_ar[1, 2 * nr:] == pytest.approx(magmom_ar[1, :nr])
 
+    # Calculate the maximized site magnetization
+    rm_a, mm_a = maximize_site_magnetization(gs)
+    # Test radius consistency
+    assert rm_a[0] == pytest.approx(rm_a[1])  # Co site symmetry
+    assert np.average(rm_a) == pytest.approx(1.133357)  # reference value
+    # Test moment consistency
+    assert mm_a[0] == pytest.approx(mm_a[1])  # Co site symmetry
+    assert np.average(mm_a) == pytest.approx(1.6362)  # reference value
+    assert np.max(magmom_ar) < np.average(mm_a) < np.max(magmom_ar) * 1.01
+
     # Calculate the atomic Zeeman energy
     rc_r = rc_r[:-1]
     sites = AtomicSites(indices=[0, 1], radii=[rc_r, rc_r])
@@ -147,11 +158,13 @@ def test_Co_site_data(gpw_files):
     # import matplotlib.pyplot as plt
     # plt.subplot(1, 2, 1)
     # plt.plot(rc_r, magmom_ar[0, :nr - 1])
+    # plt.axvline(np.average(rm_a), linestyle=':')
     # plt.axvline(augr * Bohr, c='0.5', linestyle='--')
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
     # plt.ylabel(r'$m$ [$\mu_\mathrm{B}$]')
     # plt.subplot(1, 2, 2)
     # plt.plot(rc_r, EZ_ar[0] * Ha)  # Hartree -> eV
+    # plt.axvline(np.average(rm_a), linestyle=':')
     # plt.axvline(augr * Bohr, c='0.5', linestyle='--')
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
     # plt.ylabel(r'$E_\mathrm{Z}$ [eV]')

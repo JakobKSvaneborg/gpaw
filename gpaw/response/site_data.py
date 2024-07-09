@@ -52,6 +52,40 @@ def get_site_radii_range(gs):
     return rmin_A * Bohr, rmax_A * Bohr  # Bohr -> Å
 
 
+def maximize_site_magnetization(gs, indices=None):
+    """Find the allowed site radii which maximize the site magnetization."""
+    # XXX To do XXX
+    # * doc string
+    # * doc string in tutorial
+    # * move calculate_site_magnetization and calculate_site_zeeman_energy here
+    # Calculate the site magnetization as a function of radius
+    rmin_A, rmax_A = get_site_radii_range(gs)
+    if indices is None:
+        indices = range(len(rmin_A))
+    rc_ar = [np.linspace(rmin_A[A], rmax_A[A], 201) for A in indices]
+    sites = AtomicSites(indices, rc_ar)
+    magmom_ar = AtomicSiteData(gs, sites).calculate_magnetic_moments()  # use public interface?
+    # Maximize the site magnetization
+    rmax_a = np.empty(len(indices), dtype=float)
+    mmax_a = np.empty(len(indices), dtype=float)
+    for a, (rc_r, magmom_r) in enumerate(zip(rc_ar, magmom_ar)):
+        rmax_a[a], mmax_a[a] = maximize(rc_r, magmom_r)
+    return rmax_a, mmax_a
+
+
+def maximize(x_x, f_x):
+    """Maximize f(x) on the given interval (returning xmax and f(xmax)).
+
+    If there is no local maximum on the interior of the interval,
+    we return np.nan.
+    """
+    from gpaw.test import findpeak
+    xmax = f_x.argmax()
+    if xmax == 0 or xmax == len(x_x) - 1:
+        return np.nan, np.nan
+    return findpeak(x_x, f_x)
+
+
 class AtomicSiteData:
     r"""Data object for a set of spherical atomic sites."""
 
