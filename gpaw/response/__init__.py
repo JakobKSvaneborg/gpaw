@@ -19,7 +19,7 @@ ResponseGroundStateAdaptable = Union[ResponseGroundStateAdapter,
 def ensure_gs_and_context(gs: ResponseGroundStateAdaptable,
                           context: ResponseContext | TXTFilename = '-')\
         -> tuple[ResponseGroundStateAdapter, ResponseContext]:
-    return ensure_gs(gs), ensure_context(context)
+    return ensure_gs(gs), ResponseContext.from_input(context)
 
 
 def ensure_gs(gs: ResponseGroundStateAdaptable) -> ResponseGroundStateAdapter:
@@ -29,9 +29,3 @@ def ensure_gs(gs: ResponseGroundStateAdaptable) -> ResponseGroundStateAdapter:
         else:  # gs is a GPWFilename
             gs = ResponseGroundStateAdapter.from_gpw_file(gpw=gs)
     return gs
-
-
-def ensure_context(context: ResponseContext | TXTFilename) -> ResponseContext:
-    if not isinstance(context, ResponseContext):
-        context = ResponseContext(txt=context)
-    return context
