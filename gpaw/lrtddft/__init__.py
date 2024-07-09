@@ -153,18 +153,15 @@ class LrTDDFT(ExcitationList):
 
     def forced_update(self):
         """Recalc yourself."""
-        if not self.force_ApmB:
-            Om = OmegaMatrix
-            name = 'LrTDDFT'
-            if self.xc:
-                if isinstance(self.xc, str):
-                    xc = XC(self.xc)
-                else:
-                    xc = self.xc
-                if hasattr(xc, 'hybrid') and xc.hybrid > 0.0:
-                    Om = ApmB
-                    name = 'LrTDDFThyb'
-        else:
+        Om = OmegaMatrix
+        name = 'LrTDDFT'
+
+        hybrid = self.force_ApmB
+        if self.xc and self.xc != 'RPA' and isinstance(self.xc, str):
+            xc = XC(self.xc)
+            hybrid &= hasattr(xc, 'hybrid') and xc.hybrid > 0.0
+
+        if hybrid:
             Om = ApmB
             name = 'LrTDDFThyb'
 
