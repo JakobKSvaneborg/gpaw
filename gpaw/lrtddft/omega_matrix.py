@@ -5,7 +5,8 @@ from ase.units import Hartree
 from ase.utils.timing import Timer
 
 import gpaw.mpi as mpi
-from gpaw.lrtddft.kssingle import KSSingles, KSSRestrictor
+from .kssingle import KSSingles
+from .kssrestrictor import KSSRestrictor
 from gpaw.setup import CachedYukawaInteractions
 from gpaw.transformers import Transformer
 from gpaw.utilities import pack_density

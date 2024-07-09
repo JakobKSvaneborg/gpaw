@@ -14,6 +14,7 @@ from gpaw.lrtddft.excitation import Excitation, ExcitationList, get_filehandle
 from gpaw.pair_density import PairDensity
 from gpaw.fd_operators import Gradient
 from gpaw.utilities.tools import coordinates
+from .kssrestrictor import KSSRestrictor
 
 
 class KSSingles(ExcitationList):
@@ -347,61 +348,6 @@ class KSSingles(ExcitationList):
         for p0, ex0 in enumerate(self):
             ov_pp[p0, :] = ov_nn[ex0.i, i1_p].conj() * ov_nn[ex0.j, j1_p]
         return ov_pp
-
-
-class KSSRestrictor:
-    """Object to handle KSSingles restrictions"""
-    defaults = {'eps': 0.01,
-                'istart': 0,
-                'jend': sys.maxsize,
-                'energy_range': None}
-
-    def __init__(self, dictionary={}):
-        self._vals = {}
-        self.update(dictionary)
-
-    def __getitem__(self, index):
-        assert index in self.defaults
-        return self._vals.get(index, self.defaults[index])
-
-    def __setitem__(self, index, value):
-        assert index in self.defaults
-        self._vals[index] = value
-
-    def update(self, dictionary):
-        for key, value in dictionary.items():
-            self[key] = value
-
-    def emin_emax(self):
-        emin = -sys.float_info.max
-        emax = sys.float_info.max
-        if self['energy_range'] is not None:
-            try:
-                emin, emax = self['energy_range']
-                emin /= Hartree
-                emax /= Hartree
-            except TypeError:
-                emax = self['energy_range'] / Hartree
-        return emin, emax
-
-    def __ge__(self, other):
-        """am I less or equal restricting than the other?"""
-        emin, emax = self.emin_emax()
-        omin, omax = other.emin_emax()
-        res = (emin <= omin) & (emax >= omax)
-
-        res &= self['istart'] <= other['istart']
-        res &= self['jend'] >= other['jend']
-        res &= self['eps'] < other['eps']
-
-        return res
-
-    @property
-    def values(self):
-        return dict(self._vals)
-
-    def __str__(self):
-        return str(self.values)
 
 
 class KSSingle(Excitation, PairDensity):

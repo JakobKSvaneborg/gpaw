@@ -1,0 +1,61 @@
+import sys
+from ase.units import Hartree
+
+
+class KSSRestrictor:
+    """Object to handle KSSingles restrictions"""
+    defaults = {'eps': 0.01,
+                'istart': 0,
+                'jend': sys.maxsize,
+                'energy_range': None,
+                'from': None,
+                'to': None}
+
+    def __init__(self, dictionary=None):
+        if dictionary is None:
+            dictionary = {}
+        self._vals = {}
+        self.update(dictionary)
+
+    def __getitem__(self, index):
+        assert index in self.defaults
+        return self._vals.get(index, self.defaults[index])
+
+    def __setitem__(self, index, value):
+        assert index in self.defaults
+        self._vals[index] = value
+
+    def update(self, dictionary):
+        for key, value in dictionary.items():
+            self[key] = value
+
+    def emin_emax(self):
+        emin = -sys.float_info.max
+        emax = sys.float_info.max
+        if self['energy_range'] is not None:
+            try:
+                emin, emax = self['energy_range']
+                emin /= Hartree
+                emax /= Hartree
+            except TypeError:
+                emax = self['energy_range'] / Hartree
+        return emin, emax
+
+    def __ge__(self, other):
+        """am I less or equal restricting than the other?"""
+        emin, emax = self.emin_emax()
+        omin, omax = other.emin_emax()
+        res = (emin <= omin) & (emax >= omax)
+
+        res &= self['istart'] <= other['istart']
+        res &= self['jend'] >= other['jend']
+        res &= self['eps'] < other['eps']
+
+        return res
+
+    @property
+    def values(self):
+        return dict(self._vals)
+
+    def __str__(self):
+        return str(self.values)
