@@ -6,7 +6,6 @@ from ase.utils.timing import Timer
 
 import gpaw.mpi as mpi
 from .kssingle import KSSingles
-from .kssrestrictor import KSSRestrictor
 from gpaw.setup import CachedYukawaInteractions
 from gpaw.transformers import Transformer
 from gpaw.utilities import pack_density
@@ -549,18 +548,14 @@ class OmegaMatrix:
         map - list of original indices
         kss - reduced KSSingles object
         """
-        rst = KSSRestrictor(restrict)
-        if rst >= self.fullkss.restrict:
-            return None, self.fullkss
-
         self.log('# diagonalize: %d transitions original'
                  % len(self.fullkss))
 
         map = []
-        kss = KSSingles()
+        kss = KSSingles(restrict=restrict)
         kss.dtype = self.fullkss.dtype
         for ij, k in zip(range(len(self.fullkss)), self.fullkss):
-            if rst.is_good(k):
+            if kss.restrict.is_good(k):
                 kss.append(k)
                 map.append(ij)
         kss.update()
