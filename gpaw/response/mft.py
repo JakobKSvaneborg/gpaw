@@ -5,9 +5,7 @@ from abc import abstractmethod
 import numpy as np
 
 from gpaw.typing import Vector
-from gpaw.response import (ResponseGroundStateAdapter, ResponseContext,
-                           ResponseGroundStateAdaptable, ResponseContextInput,
-                           ensure_gs_and_context)
+from gpaw.response import ResponseGroundStateAdaptable, ResponseContextInput
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.chiks import ChiKSCalculator, smat
 from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
@@ -276,7 +274,6 @@ def calculate_pair_site_magnetization(
         Pair magnetization in μB of site a and b under partitioning p,
         calculated based on a two-particle sum rule.
     """
-    gs, context = ensure_gs_and_context(gs, context=context)
     two_particle_calc = TwoParticleSiteMagnetizationCalculator(
         gs, sites, context=context, nbands=nbands)
     pair_site_magnetization = two_particle_calc(q_c)
@@ -305,7 +302,6 @@ def calculate_pair_site_zeeman_energy(
         Local pair Zeeman energy in eV of site a and b under partitioning p,
         calculated based on a two-particle sum rule.
     """
-    gs, context = ensure_gs_and_context(gs, context=context)
     two_particle_calc = TwoParticleSiteZeemanEnergyCalculator(
         gs, sites, context=context, nbands=nbands)
     pair_site_zeeman_energy = two_particle_calc(q_c)
@@ -473,13 +469,11 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     """
 
     def __init__(self,
-                 gs: ResponseGroundStateAdapter,
+                 gs: ResponseGroundStateAdaptable,
                  sites: AtomicSites,
-                 context: ResponseContext | None = None,
+                 context: ResponseContextInput = '-',
                  nbands: int | None = None):
         """Construct the two-particle site sum rule calculator."""
-        if context is None:
-            context = ResponseContext()
         super().__init__(gs, context, qsymmetry=False)
         self.nbands = nbands
 

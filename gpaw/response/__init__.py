@@ -6,10 +6,3 @@ from .context import ResponseContext, ResponseContextInput, timer  # noqa
 
 __all__ = ['ResponseGroundStateAdapter', 'ResponseGroundStateAdaptable',
            'ResponseContext', 'ResponseContextInput', 'timer']
-
-
-def ensure_gs_and_context(gs: ResponseGroundStateAdaptable,
-                          context: ResponseContextInput)\
-        -> tuple[ResponseGroundStateAdapter, ResponseContext]:
-    return (ResponseGroundStateAdapter.from_input(gs),
-            ResponseContext.from_input(context))
