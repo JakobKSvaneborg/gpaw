@@ -562,7 +562,7 @@ class OmegaMatrix:
 
         return map, kss
 
-    def diagonalize(self, restrict={}):
+    def diagonalize(self, restrict=None):
         """Evaluate Eigenvectors and Eigenvalues:"""
         map, kss = self.get_map(restrict)
 
