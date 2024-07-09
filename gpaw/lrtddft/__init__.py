@@ -159,7 +159,7 @@ class LrTDDFT(ExcitationList):
         hybrid = self.force_ApmB
         if self.xc and self.xc != 'RPA' and isinstance(self.xc, str):
             xc = XC(self.xc)
-            hybrid &= hasattr(xc, 'hybrid') and xc.hybrid > 0.0
+            hybrid = hybrid or (hasattr(xc, 'hybrid') and xc.hybrid > 0.0)
 
         if hybrid:
             Om = ApmB
