@@ -106,9 +106,7 @@ class KSSingles(ExcitationList):
         if not hasattr(self, 'calculator'):  # I'm read from a file
             # throw away all not needed entries
             for i, ks in reversed(list(enumerate(self))):
-                if ((ks.fij / ks.weight) <= eps or
-                   ks.i < istart or ks.j > jend or
-                   ks.energy < emin or ks.energy > emax):
+                if not self.restrict.is_good(ks):
                     del self[i]
             return None
 
