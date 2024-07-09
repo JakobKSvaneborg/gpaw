@@ -2,7 +2,7 @@ import pytest
 
 import numpy as np
 
-from ase.units import Bohr, Ha
+from ase.units import Bohr
 
 from gpaw import GPAW
 from gpaw.sphere.integrate import integrate_lebedev
