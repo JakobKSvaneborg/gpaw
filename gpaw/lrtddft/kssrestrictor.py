@@ -59,3 +59,12 @@ class KSSRestrictor:
 
     def __str__(self):
         return str(self.values)
+
+    def is_good(self, ks) -> bool:
+        """Check if Kohn-Sham single fulfills the criterion"""
+        emin, emax = self.emin_emax()
+
+        ok = (ks.fij / ks.weight) > self['eps']
+        ok = ok and ks.i >= self['istart'] and ks.j <= self['jend']
+        ok = ok and ks.energy >= emin and ks.energy <= emax
+        return ok
