@@ -216,7 +216,11 @@ class LrTDDFT(ExcitationList):
         s = f.readline().strip()
         lr.name = s.split()[1]
 
-        lr.xc = XC(f.readline().strip().split()[0])
+        xc = f.readline().strip().split()[0]
+        if xc == 'RPA':
+            lr.xc = xc
+        else:
+            lr.xc = XC(xc)
         values = f.readline().split()
         eps = float(values[0])
         if len(values) > 1:
