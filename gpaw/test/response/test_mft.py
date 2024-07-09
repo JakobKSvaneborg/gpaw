@@ -12,12 +12,12 @@ from gpaw import GPAW
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext
 from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.localft import LocalFTCalculator, LocalPAWFTCalculator
-from gpaw.response.site_data import AtomicSites, AtomicSiteData
+from gpaw.response.site_data import (AtomicSites,
+                                     calculate_site_magnetization,
+                                     calculate_site_zeeman_energy)
 from gpaw.response.mft import (IsotropicExchangeCalculator,
-                               calculate_site_magnetization,
                                calculate_single_particle_site_magnetization,
                                calculate_pair_site_magnetization,
-                               calculate_site_zeeman_energy,
                                calculate_single_particle_site_zeeman_energy,
                                calculate_pair_site_zeeman_energy)
 from gpaw.response.site_kernels import (SphericalSiteKernels,

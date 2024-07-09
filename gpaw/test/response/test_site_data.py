@@ -9,6 +9,8 @@ from gpaw.sphere.integrate import integrate_lebedev
 
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.site_data import (AtomicSites, AtomicSiteData,
+                                     calculate_site_magnetization,
+                                     calculate_site_zeeman_energy,
                                      get_site_radii_range,
                                      maximize_site_magnetization)
 from gpaw.response.localft import add_spin_polarization
@@ -114,10 +116,9 @@ def test_Co_site_data(gpw_files):
     rc1_r = list(rc_r) + list(rc_r) + [augr * Bohr] * nr
     rc2_r = list(rc_r) + [augr * Bohr] * nr + list(rc_r)
     sites = AtomicSites(indices=[0, 1], radii=[rc1_r, rc2_r])
-    site_data = AtomicSiteData(gs, sites)
 
     # Calculate site magnetization
-    magmom_ar = site_data.calculate_magnetic_moments()
+    magmom_ar = calculate_site_magnetization(gs, sites)
 
     # Test that the magnetization inside the augmentation sphere matches
     # the local magnetic moment of the GPAW calculation
@@ -144,16 +145,15 @@ def test_Co_site_data(gpw_files):
     # Calculate the atomic Zeeman energy
     rc_r = rc_r[:-1]
     sites = AtomicSites(indices=[0, 1], radii=[rc_r, rc_r])
-    site_data = AtomicSiteData(gs, sites)
-    EZ_ar = site_data.calculate_zeeman_energies()
+    EZ_ar = calculate_site_zeeman_energy(gs, sites)
     print(EZ_ar[0, ::20])
 
     # Test that the Zeeman energy comes out as expected
     assert EZ_ar[0] == pytest.approx(EZ_ar[1])
-    assert EZ_ar[0, ::20] * 2 * Ha == pytest.approx([0.02638351, 1.41476112,
-                                                     2.49540004, 2.79727200,
-                                                     2.82727948, 2.83670767],
-                                                    rel=1e-3)
+    assert EZ_ar[0, ::20] * 2 == pytest.approx([0.02638351, 1.41476112,
+                                                2.49540004, 2.79727200,
+                                                2.82727948, 2.83670767],
+                                               rel=1e-3)
 
     # import matplotlib.pyplot as plt
     # plt.subplot(1, 2, 1)
@@ -163,7 +163,7 @@ def test_Co_site_data(gpw_files):
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
     # plt.ylabel(r'$m$ [$\mu_\mathrm{B}$]')
     # plt.subplot(1, 2, 2)
-    # plt.plot(rc_r, EZ_ar[0] * Ha)  # Hartree -> eV
+    # plt.plot(rc_r, EZ_ar[0])
     # plt.axvline(np.average(rm_a), linestyle=':')
     # plt.axvline(augr * Bohr, c='0.5', linestyle='--')
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')

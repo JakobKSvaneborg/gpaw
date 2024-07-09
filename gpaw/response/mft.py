@@ -10,7 +10,7 @@ from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.chiks import ChiKSCalculator, smat
 from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
 from gpaw.response.site_kernels import SiteKernels
-from gpaw.response.site_data import AtomicSites, AtomicSiteData
+from gpaw.response.site_data import AtomicSites
 from gpaw.response.pair_integrator import PairFunction, PairFunctionIntegrator
 from gpaw.response.pair_transitions import PairTransitions
 from gpaw.response.matrix_elements import (SitePairDensityCalculator,
@@ -185,35 +185,6 @@ class IsotropicExchangeCalculator:
         chiksr = chiks.copy_reactive_part()
 
         return chiksr
-
-
-def calculate_site_magnetization(
-        gs: ResponseGroundStateAdaptable,
-        sites: AtomicSites):
-    """Calculate the site magnetization.
-
-    Returns
-    -------
-    magmom_ap : np.ndarray
-        Magnetic moment in μB of site a under partitioning p, calculated
-        directly from the ground state density.
-    """
-    return AtomicSiteData(gs, sites).calculate_magnetic_moments()
-
-
-def calculate_site_zeeman_energy(
-        gs: ResponseGroundStateAdaptable,
-        sites: AtomicSites):
-    """Calculate the site Zeeman energy.
-
-    Returns
-    -------
-    EZ_ap : np.ndarray
-        Local Zeeman energy in eV of site a under partitioning p, calculated
-        directly from the ground state density.
-    """
-    site_data = AtomicSiteData(gs, sites)
-    return site_data.calculate_zeeman_energies() * Hartree  # Ha -> eV
 
 
 def calculate_single_particle_site_magnetization(

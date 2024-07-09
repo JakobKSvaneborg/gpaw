@@ -1,6 +1,6 @@
 import numpy as np
 
-from ase.units import Bohr
+from ase.units import Bohr, Hartree
 from ase.neighborlist import natural_cutoffs, build_neighbor_list
 
 from gpaw.sphere.integrate import (integrate_lebedev,
@@ -45,6 +45,35 @@ class AtomicSites:
         return len(self.A_a)
 
 
+def calculate_site_magnetization(
+        gs: ResponseGroundStateAdaptable,
+        sites: AtomicSites):
+    """Calculate the site magnetization.
+
+    Returns
+    -------
+    magmom_ap : np.ndarray
+        Magnetic moment in μB of site a under partitioning p, calculated
+        directly from the ground state density.
+    """
+    return AtomicSiteData(gs, sites).calculate_magnetic_moments()
+
+
+def calculate_site_zeeman_energy(
+        gs: ResponseGroundStateAdaptable,
+        sites: AtomicSites):
+    """Calculate the site Zeeman energy.
+
+    Returns
+    -------
+    EZ_ap : np.ndarray
+        Local Zeeman energy in eV of site a under partitioning p, calculated
+        directly from the ground state density.
+    """
+    site_data = AtomicSiteData(gs, sites)
+    return site_data.calculate_zeeman_energies() * Hartree  # Ha -> eV
+
+
 def get_site_radii_range(gs):
     """Get the range of valid site radii for the atoms of a given ground state.
     """
@@ -52,19 +81,19 @@ def get_site_radii_range(gs):
     return rmin_A * Bohr, rmax_A * Bohr  # Bohr -> Å
 
 
+# XXX To do XXX
+# * doc strings
+# * doc strings in tutorial
+
+
 def maximize_site_magnetization(gs, indices=None):
     """Find the allowed site radii which maximize the site magnetization."""
-    # XXX To do XXX
-    # * doc string
-    # * doc string in tutorial
-    # * move calculate_site_magnetization and calculate_site_zeeman_energy here
     # Calculate the site magnetization as a function of radius
     rmin_A, rmax_A = get_site_radii_range(gs)
     if indices is None:
         indices = range(len(rmin_A))
     rc_ar = [np.linspace(rmin_A[A], rmax_A[A], 201) for A in indices]
-    sites = AtomicSites(indices, rc_ar)
-    magmom_ar = AtomicSiteData(gs, sites).calculate_magnetic_moments()  # use public interface?
+    magmom_ar = calculate_site_magnetization(gs, AtomicSites(indices, rc_ar))
     # Maximize the site magnetization
     rmax_a = np.empty(len(indices), dtype=float)
     mmax_a = np.empty(len(indices), dtype=float)
