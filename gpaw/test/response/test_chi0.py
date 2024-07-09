@@ -4,7 +4,7 @@ from ase.dft.kpoints import monkhorst_pack
 # from ase.units import Bohr
 
 from gpaw import GPAW, FermiDirac, PW
-from gpaw.response import ensure_gs_and_context
+from gpaw.response import ResponseGroundStateAdapter, ResponseContext
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.chi0 import Chi0Calculator
 from gpaw.mpi import serial_comm
@@ -42,7 +42,8 @@ def test_response_chi0(in_tmp_dir):
         calc = GPAW(name, txt=None, communicator=serial_comm)
 
         chi0_calc = Chi0Calculator(
-            *ensure_gs_and_context(calc, name + '.log'),
+            ResponseGroundStateAdapter(calc=calc),
+            ResponseContext(txt=name + '.log'),
             wd=FrequencyDescriptor.from_array_or_dict([0, 1.0, 2.0]),
             hilbert=False, ecut=100)
         chi0 = chi0_calc.calculate(q_c)
