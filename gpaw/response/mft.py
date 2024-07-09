@@ -200,9 +200,7 @@ def calculate_site_magnetization(
         Magnetic moment in μB of site a under partitioning p, calculated
         directly from the ground state density.
     """
-    gs = ResponseGroundStateAdapter.from_input(gs)
-    site_data = AtomicSiteData(gs, sites)
-    return site_data.calculate_magnetic_moments()
+    return AtomicSiteData(gs, sites).calculate_magnetic_moments()
 
 
 def calculate_site_zeeman_energy(
@@ -216,7 +214,6 @@ def calculate_site_zeeman_energy(
         Local Zeeman energy in eV of site a under partitioning p, calculated
         directly from the ground state density.
     """
-    gs = ResponseGroundStateAdapter.from_input(gs)
     site_data = AtomicSiteData(gs, sites)
     return site_data.calculate_zeeman_energies() * Hartree  # Ha -> eV
 
