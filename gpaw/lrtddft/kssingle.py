@@ -49,6 +49,13 @@ class KSSingles(ExcitationList):
         self.restrict = KSSRestrictor()
         self.restrict.update(restrict)
 
+    def append(self, ks) -> bool:
+        """Append KSSingle if fits to restrictions"""
+        if self.restrict.is_good(ks):
+            super().append(ks)
+            return True
+        return False
+
     def calculate(self, atoms, nspins=None):
         calculator = atoms.calc
         self.calculator = calculator

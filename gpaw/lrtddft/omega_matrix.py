@@ -555,8 +555,7 @@ class OmegaMatrix:
         kss = KSSingles(restrict=restrict)
         kss.dtype = self.fullkss.dtype
         for ij, k in zip(range(len(self.fullkss)), self.fullkss):
-            if kss.restrict.is_good(k):
-                kss.append(k)
+            if kss.append(k):
                 map.append(ij)
         kss.update()
         self.log('# diagonalize: %d transitions now' % len(kss))
