@@ -1,21 +1,10 @@
 import pytest
-from ase import Atom, Atoms
 from ase.units import Bohr
 from ase.parallel import parprint
-from gpaw import GPAW
 from gpaw.lrtddft import LrTDDFT
 from gpaw.mpi import world
 from gpaw.lrtddft.excited_state import ExcitedState
-
-
-@pytest.fixture
-def H2struct():
-    R = 0.7  # approx. experimental bond length
-    a = 3.0
-    c = 4.0
-    return Atoms([Atom('H', (a / 2, a / 2, (c - R) / 2)),
-                  Atom('H', (a / 2, a / 2, (c + R) / 2))],
-                 cell=(a, a, c))
+from gpaw import GPAW
 
 
 @pytest.fixture
