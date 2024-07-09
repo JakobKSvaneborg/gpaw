@@ -2,11 +2,10 @@
 from __future__ import annotations
 from .groundstate import (ResponseGroundStateAdapter,
                           ResponseGroundStateAdaptable)  # noqa
-from .context import (ResponseContext,
-                      ResponseContextInput, TXTFilename, timer)  # noqa
+from .context import ResponseContext, ResponseContextInput, timer  # noqa
 
 __all__ = ['ResponseGroundStateAdapter', 'ResponseGroundStateAdaptable',
-           'ResponseContext', 'ResponseContextInput', 'TXTFilename', 'timer']
+           'ResponseContext', 'ResponseContextInput', 'timer']
 
 
 def ensure_gs_and_context(gs: ResponseGroundStateAdaptable,
