@@ -42,8 +42,7 @@ def test_response_chi0(in_tmp_dir):
         calc = GPAW(name, txt=None, communicator=serial_comm)
 
         chi0_calc = Chi0Calculator(
-            ResponseGroundStateAdapter(calc=calc),
-            ResponseContext(txt=name + '.log'),
+            gs=calc, context=name + '.log',
             wd=FrequencyDescriptor.from_array_or_dict([0, 1.0, 2.0]),
             hilbert=False, ecut=100)
         chi0 = chi0_calc.calculate(q_c)
