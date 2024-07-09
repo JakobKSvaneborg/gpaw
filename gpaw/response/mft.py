@@ -230,7 +230,6 @@ def calculate_single_particle_site_magnetization(
         Magnetic moment in μB of site a under partitioning p, calculated based
         on a single-particle sum rule.
     """
-    gs, context = ensure_gs_and_context(gs, context=context)
     single_particle_calc = SingleParticleSiteMagnetizationCalculator(
         gs, sites, context=context)
     site_magnetization = single_particle_calc()
@@ -249,7 +248,6 @@ def calculate_single_particle_site_zeeman_energy(
         Local Zeeman energy in eV of site a under partitioning p, calculated
         based on a single-particle sum rule.
     """
-    gs, context = ensure_gs_and_context(gs, context=context)
     single_particle_calc = SingleParticleSiteZeemanEnergyCalculator(
         gs, sites, context=context)
     site_zeeman_energy = single_particle_calc()
@@ -343,7 +341,7 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     where μ∊{0,z}.
     """
 
-    def __init__(self, gs, sites, context):
+    def __init__(self, gs, sites, context='-'):
         super().__init__(gs, context, qsymmetry=False)
 
         # Set up calculator for the f^a matrix element
