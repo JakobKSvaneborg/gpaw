@@ -28,8 +28,11 @@ def test_digonalize():
     lr.diagonalize(restrict={'jend': 1})
     assert len(lr) == 1
 
-    lr.diagonalize(restrict={'eps': 1.5})
+    lr.diagonalize(restrict={'eps': 0.75})
     assert len(lr) == 2
 
     lr.diagonalize(restrict={'energy_range': 1})
     assert len(lr) == 3
+
+    lr.diagonalize(restrict={'from': [0], 'to': [3, 4]})
+    assert len(lr) == 2
