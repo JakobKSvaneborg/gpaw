@@ -31,8 +31,9 @@ class ResponseContext:
             return context
         elif isinstance(context, dict):
             return ResponseContext(**context)
-        else:  # context is a TXTFilename
+        elif isinstance(context, (Path, str)):  # TXTFilename
             return ResponseContext(txt=context)
+        raise ValueError('Expected ResponseContextInput, got', context)
 
     def open(self, txt, mode):
         if txt is stdout and self.comm.rank != 0:

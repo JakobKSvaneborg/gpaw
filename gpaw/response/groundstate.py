@@ -11,11 +11,11 @@ from ase.units import Ha, Bohr
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
+from gpaw.calculator import GPAW as OldGPAW
+from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
 
 if TYPE_CHECKING:
-    from gpaw.new.ase_interface import ASECalculator
-    from gpaw.calculator import GPAW
     from gpaw.setup import Setups, LeanSetup
 
 
@@ -37,11 +37,15 @@ class PAWDatasetCollection:
         self.id_by_atom = id_by_atom
 
 
+GPAWCalculator = Union[OldGPAW, NewGPAW]
 GPWFilename = Union[Path, str]
+ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
+                                     GPAWCalculator,
+                                     GPWFilename]
 
 
 class ResponseGroundStateAdapter:
-    def __init__(self, calc: ASECalculator | GPAW):
+    def __init__(self, calc: GPAWCalculator):
         wfs = calc.wfs  # wavefunction object from gpaw.wavefunctions
 
         self.atoms = calc.atoms
@@ -79,6 +83,17 @@ class ResponseGroundStateAdapter:
         self._density = calc.density
         self._hamiltonian = calc.hamiltonian
         self._calc = calc
+
+    @staticmethod
+    def from_input(
+            gs: ResponseGroundStateAdaptable) -> ResponseGroundStateAdapter:
+        if isinstance(gs, ResponseGroundStateAdapter):
+            return gs
+        elif isinstance(gs, (OldGPAW, NewGPAW)):
+            return ResponseGroundStateAdapter(calc=gs)
+        elif isinstance(gs, (Path, str)):  # GPWFilename
+            return ResponseGroundStateAdapter.from_gpw_file(gpw=gs)
+        raise ValueError('Expected ResponseGroundStateAdaptable, got', gs)
 
     @classmethod
     def from_gpw_file(cls, gpw: GPWFilename) -> ResponseGroundStateAdapter:

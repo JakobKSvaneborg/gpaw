@@ -6,8 +6,8 @@ import numpy as np
 
 from gpaw.typing import Vector
 from gpaw.response import (ResponseGroundStateAdapter, ResponseContext,
-                           GPWFilename, TXTFilename,
-                           ensure_gs, ensure_gs_and_context)
+                           ResponseGroundStateAdaptable, ResponseContextInput,
+                           ensure_gs_and_context)
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.chiks import ChiKSCalculator, smat
 from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
@@ -190,7 +190,7 @@ class IsotropicExchangeCalculator:
 
 
 def calculate_site_magnetization(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites):
     """Calculate the site magnetization.
 
@@ -200,13 +200,13 @@ def calculate_site_magnetization(
         Magnetic moment in μB of site a under partitioning p, calculated
         directly from the ground state density.
     """
-    gs = ensure_gs(gs)
+    gs = ResponseGroundStateAdapter.from_input(gs)
     site_data = AtomicSiteData(gs, sites)
     return site_data.calculate_magnetic_moments()
 
 
 def calculate_site_zeeman_energy(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites):
     """Calculate the site Zeeman energy.
 
@@ -216,15 +216,15 @@ def calculate_site_zeeman_energy(
         Local Zeeman energy in eV of site a under partitioning p, calculated
         directly from the ground state density.
     """
-    gs = ensure_gs(gs)
+    gs = ResponseGroundStateAdapter.from_input(gs)
     site_data = AtomicSiteData(gs, sites)
     return site_data.calculate_zeeman_energies() * Hartree  # Ha -> eV
 
 
 def calculate_single_particle_site_magnetization(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites,
-        context: ResponseContext | TXTFilename = '-'):
+        context: ResponseContextInput = '-'):
     """Calculate the single-particle site magnetization.
 
     Returns
@@ -241,9 +241,9 @@ def calculate_single_particle_site_magnetization(
 
 
 def calculate_single_particle_site_zeeman_energy(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites,
-        context: ResponseContext | TXTFilename = '-'):
+        context: ResponseContextInput = '-'):
     """Calculate the single-particle site Zeeman energy.
 
     Returns
@@ -260,9 +260,9 @@ def calculate_single_particle_site_zeeman_energy(
 
 
 def calculate_pair_site_magnetization(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites,
-        context: ResponseContext | TXTFilename = '-',
+        context: ResponseContextInput = '-',
         q_c=[0., 0., 0.],
         nbands: int | None = None):
     """Calculate the pair site magnetization.
@@ -289,9 +289,9 @@ def calculate_pair_site_magnetization(
 
 
 def calculate_pair_site_zeeman_energy(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites,
-        context: ResponseContext | TXTFilename = '-',
+        context: ResponseContextInput = '-',
         q_c=[0., 0., 0.],
         nbands: int | None = None):
     """Calculate the pair site Zeeman energy.

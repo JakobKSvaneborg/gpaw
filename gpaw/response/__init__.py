@@ -1,31 +1,16 @@
 """GPAW Response core functionality."""
 from __future__ import annotations
-from typing import Union
-from gpaw.calculator import GPAW as OldGPAW
-from gpaw.new.ase_interface import ASECalculator as NewGPAW
-from .groundstate import ResponseGroundStateAdapter, GPWFilename  # noqa
-from .context import ResponseContext, TXTFilename, timer  # noqa
+from .groundstate import (ResponseGroundStateAdapter,
+                          ResponseGroundStateAdaptable)  # noqa
+from .context import (ResponseContext,
+                      ResponseContextInput, TXTFilename, timer)  # noqa
 
-__all__ = ['ResponseGroundStateAdapter', 'GPWFilename',
-           'ResponseContext', 'TXTFilename', 'timer']
-
-
-GPAWCalculator = Union[OldGPAW, NewGPAW]
-ResponseGroundStateAdaptable = Union[ResponseGroundStateAdapter,
-                                     GPAWCalculator,
-                                     GPWFilename]
+__all__ = ['ResponseGroundStateAdapter', 'ResponseGroundStateAdaptable',
+           'ResponseContext', 'ResponseContextInput', 'TXTFilename', 'timer']
 
 
 def ensure_gs_and_context(gs: ResponseGroundStateAdaptable,
-                          context: ResponseContext | TXTFilename = '-')\
+                          context: ResponseContextInput)\
         -> tuple[ResponseGroundStateAdapter, ResponseContext]:
-    return ensure_gs(gs), ResponseContext.from_input(context)
-
-
-def ensure_gs(gs: ResponseGroundStateAdaptable) -> ResponseGroundStateAdapter:
-    if not isinstance(gs, ResponseGroundStateAdapter):
-        if isinstance(gs, (OldGPAW, NewGPAW)):
-            gs = ResponseGroundStateAdapter(calc=gs)
-        else:  # gs is a GPWFilename
-            gs = ResponseGroundStateAdapter.from_gpw_file(gpw=gs)
-    return gs
+    return (ResponseGroundStateAdapter.from_input(gs),
+            ResponseContext.from_input(context))
