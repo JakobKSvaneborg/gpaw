@@ -8,7 +8,8 @@ from gpaw import GPAW
 from gpaw.sphere.integrate import integrate_lebedev
 
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.site_data import AtomicSites, AtomicSiteData
+from gpaw.response.site_data import (AtomicSites, AtomicSiteData,
+                                     get_site_radii_range)
 from gpaw.response.localft import add_spin_polarization
 
 
@@ -19,7 +20,7 @@ def test_Fe_site_magnetization(gpw_files):
     gs = ResponseGroundStateAdapter(calc)
 
     # Extract valid site radii range
-    rmin_a, rmax_a = AtomicSiteData.valid_site_radii_range(gs)
+    rmin_a, rmax_a = get_site_radii_range(gs)
     rmin = rmin_a[0]  # Only one magnetic atom in the unit cell
     rmax = rmax_a[0]
     # We expect rmax to be equal to the nearest neighbour distance
@@ -87,7 +88,7 @@ def test_Co_site_data(gpw_files):
     gs = ResponseGroundStateAdapter(calc)
 
     # Extract valid site radii range
-    rmin_a, rmax_a = AtomicSiteData.valid_site_radii_range(gs)
+    rmin_a, rmax_a = get_site_radii_range(gs)
     # The valid ranges should be equal due to symmetry
     assert abs(rmin_a[1] - rmin_a[0]) < 1e-8
     assert abs(rmax_a[1] - rmax_a[0]) < 1e-8

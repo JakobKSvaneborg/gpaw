@@ -45,15 +45,22 @@ class AtomicSites:
         return len(self.A_a)
 
 
+def get_site_radii_range(gs):
+    """Get the range of valid site radii for the atoms of a given ground state.
+    """
+    rmin_A, rmax_A = AtomicSiteData.valid_site_radii_range(gs)
+    return rmin_A * Bohr, rmax_A * Bohr  # Bohr -> Å
+
+
 class AtomicSiteData:
     r"""Data object for a set of spherical atomic sites."""
 
     def __init__(self, gs: ResponseGroundStateAdaptable, sites: AtomicSites):
         """Extract atomic site data from a given ground state."""
         gs = ResponseGroundStateAdapter.from_input(gs)
-        assert self._in_valid_site_radii_range(gs, sites), \
+        assert self.in_valid_site_radii_range(gs, sites), \
             'Please provide site radii in the valid range, see '\
-            'AtomicSiteData.valid_site_radii_range()'
+            'gpaw.response.site_data.get_site_radii_range()'
         self.sites = sites
 
         # Extract the scaled positions and micro_setups for each atomic site
@@ -75,7 +82,7 @@ class AtomicSiteData:
             self.finegd, self.spos_ac, sites.rc_ap, self.drcut, self.lambd_ap)
 
     @staticmethod
-    def _valid_site_radii_range(gs):
+    def valid_site_radii_range(gs):
         """For each atom in gs, determine the valid site radii range in Bohr.
 
         The lower bound is determined by the spherical truncation width, when
@@ -114,15 +121,8 @@ class AtomicSiteData:
         return rmin_A, rmax_A
 
     @staticmethod
-    def valid_site_radii_range(gs):
-        """Get the valid site radii for all atoms in a given ground state."""
-        rmin_A, rmax_A = AtomicSiteData._valid_site_radii_range(gs)
-        # Convert to external units (Bohr to Å)
-        return rmin_A * Bohr, rmax_A * Bohr
-
-    @staticmethod
-    def _in_valid_site_radii_range(gs, sites):
-        rmin_A, rmax_A = AtomicSiteData._valid_site_radii_range(gs)
+    def in_valid_site_radii_range(gs, sites):
+        rmin_A, rmax_A = AtomicSiteData.valid_site_radii_range(gs)
         for a, A in enumerate(sites.A_a):
             if not np.all(
                     np.logical_and(

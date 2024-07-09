@@ -7,7 +7,7 @@ from ase.build import bulk
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.mpi import rank
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.site_data import AtomicSites, AtomicSiteData
+from gpaw.response.site_data import AtomicSites, get_site_radii_range
 from gpaw.response.mft import (calculate_site_magnetization,
                                calculate_site_zeeman_energy)
 
@@ -39,7 +39,7 @@ calc.write('Fe.gpw')
 # and does not overlap with neighbouring augmentation spheres). This range can
 # be easily extracted from a given ground state:
 gs = ResponseGroundStateAdapter(calc)
-rmin_a, rmax_a = AtomicSiteData.valid_site_radii_range(gs)
+rmin_a, rmax_a = get_site_radii_range(gs)
 # We can then define a range of site configurations to investigate
 rc_r = np.linspace(rmin_a[0], rmax_a[0], 51)
 sites = AtomicSites(
