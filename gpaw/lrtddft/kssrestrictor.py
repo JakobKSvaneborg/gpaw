@@ -65,6 +65,6 @@ class KSSRestrictor:
         emin, emax = self.emin_emax()
 
         ok = (ks.fij / ks.weight) > self['eps']
-        ok = ok and ks.i >= self['istart'] and ks.j <= self['jend']
-        ok = ok and ks.energy >= emin and ks.energy <= emax
+        ok &= ks.i >= self['istart'] and ks.j <= self['jend']
+        ok &= ks.energy >= emin and ks.energy <= emax
         return ok
