@@ -41,21 +41,11 @@ class KSSRestrictor:
                 emax = self['energy_range'] / Hartree
         return emin, emax
 
-    def __ge__(self, other):
-        """am I less or equal restricting than the other?"""
-        emin, emax = self.emin_emax()
-        omin, omax = other.emin_emax()
-        res = (emin <= omin) & (emax >= omax)
-
-        res &= self['istart'] <= other['istart']
-        res &= self['jend'] >= other['jend']
-        res &= self['eps'] < other['eps']
-
-        return res
-
     @property
     def values(self):
-        return dict(self._vals)
+        dct = {}
+        dct.update(self._vals)
+        return dct
 
     def __str__(self):
         return str(self.values)
@@ -67,4 +57,8 @@ class KSSRestrictor:
         ok = (ks.fij / ks.weight) > self['eps']
         ok &= ks.i >= self['istart'] and ks.j <= self['jend']
         ok &= ks.energy >= emin and ks.energy <= emax
+        if self['from'] is not None:
+            ok &= ks.i in self['from']
+        if self['to'] is not None:
+            ok &= ks.j in self['to']
         return ok

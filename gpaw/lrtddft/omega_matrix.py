@@ -540,7 +540,7 @@ class OmegaMatrix:
         t = .5 * t * (nij - ij)  # estimated time for n*(n+1)/2, n=nij-(ij+1)
         return self.timestring(t0 * (nij - ij - 1) + t)
 
-    def get_map(self, restrict={}):
+    def get_map(self, restrict=None):
         """Return the reduction map for the given requirements
 
         Returns
@@ -552,8 +552,13 @@ class OmegaMatrix:
                  % len(self.fullkss))
 
         map = []
-        kss = KSSingles(restrict=restrict)
+
+        rst_dict = self.fullkss.restrict.values
+        if restrict is not None:
+            rst_dict.update(restrict)
+        kss = KSSingles(restrict=rst_dict)
         kss.dtype = self.fullkss.dtype
+
         for ij, k in zip(range(len(self.fullkss)), self.fullkss):
             if kss.append(k):
                 map.append(ij)
