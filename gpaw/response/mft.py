@@ -280,10 +280,21 @@ def calculate_pair_site_zeeman_energy(
 
 
 class SiteFunction(PairFunction):
-    """Data object for single-particle site functions f_a."""
+    r"""Data object for single-particle site functions f_a.
+
+    Here, a single-particle site function is understood as any function which
+    can be decomposed in individual contributions from each of the eigenstates
+          __
+          \   a
+    f_a = /  f
+          ‾‾  α
+          α
+
+    with f^a_α ∝ <α|Θ(r∊Ω_a)f(r)|α>, characterizing the properties of site "a".
+    """
     def __init__(self, sites: AtomicSites):
         self.sites = sites
-        super().__init__(q_c=[0., 0., 0.])
+        super().__init__(q_c=[0., 0., 0.])  # no crystal momentum transfer
 
     @property
     def shape(self):
