@@ -338,6 +338,12 @@ def test_Co_site_zeeman_energy_sum_rule(in_tmp_dir, gpw_files, qrel):
         np.array([3.68344584e-04, 3.13780575e-01, 1.35409600e+00,
                   2.14237563e+00, 2.52032513e+00, 2.61406726e+00]), rel=5e-2)
 
+    # Test ability to distribute band and spin transitions
+    if context.comm.size > 1:
+        assert calculate_pair_site_zeeman_energy(
+            gs, sites, context=context,
+            q_c=q_c, nbands=nbands, nblocks='max') == pytest.approx(EZ_abr)
+
     # import matplotlib.pyplot as plt
     # from ase.units import Bohr
     # rc_r = sites.rc_ap[0] * Bohr

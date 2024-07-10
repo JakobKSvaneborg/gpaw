@@ -228,7 +228,8 @@ def calculate_pair_site_magnetization(
         sites: AtomicSites,
         context: ResponseContextInput = '-',
         q_c=[0., 0., 0.],
-        nbands: int | None = None):
+        nbands: int | None = None,
+        nblocks: int | str = 1):
     """Calculate the pair site magnetization.
 
     Parameters
@@ -238,6 +239,10 @@ def calculate_pair_site_magnetization(
     nbands : int or None
         Number of bands to include in the band summation of the pair site
         magnetization. If nbands is None, it includes all bands.
+    nblocks : int or str
+        The workload is parallelized over k-points and band+spin transitions.
+        The latter is divided into nblocks, integrating nprocessors / nblocks
+        k-points at a time.
 
     Returns
     -------
@@ -246,7 +251,7 @@ def calculate_pair_site_magnetization(
         calculated based on a two-particle sum rule.
     """
     two_particle_calc = TwoParticleSiteMagnetizationCalculator(
-        gs, sites, context=context, nbands=nbands)
+        gs, sites, context=context, nbands=nbands, nblocks=nblocks)
     pair_site_magnetization = two_particle_calc(q_c)
     return pair_site_magnetization.array
 
@@ -256,7 +261,8 @@ def calculate_pair_site_zeeman_energy(
         sites: AtomicSites,
         context: ResponseContextInput = '-',
         q_c=[0., 0., 0.],
-        nbands: int | None = None):
+        nbands: int | None = None,
+        nblocks: int | str = 1):
     """Calculate the pair site Zeeman energy.
 
     Parameters
@@ -266,6 +272,10 @@ def calculate_pair_site_zeeman_energy(
     nbands : int or None
         Number of bands to include in the band summation of the pair site
         Zeeman energy. If nbands is None, it includes all bands.
+    nblocks : int or str
+        The workload is parallelized over k-points and band+spin transitions.
+        The latter is divided into nblocks, integrating nprocessors / nblocks
+        k-points at a time.
 
     Returns
     -------
@@ -274,7 +284,7 @@ def calculate_pair_site_zeeman_energy(
         calculated based on a two-particle sum rule.
     """
     two_particle_calc = TwoParticleSiteZeemanEnergyCalculator(
-        gs, sites, context=context, nbands=nbands)
+        gs, sites, context=context, nbands=nbands, nblocks=nblocks)
     pair_site_zeeman_energy = two_particle_calc(q_c)
     return pair_site_zeeman_energy.array * Hartree  # Ha -> eV
 
@@ -482,9 +492,14 @@ class SitePairFunctionCalculator(PairFunctionIntegrator):
                  gs: ResponseGroundStateAdaptable,
                  sites: AtomicSites,
                  context: ResponseContextInput = '-',
-                 nbands: int | None = None):
+                 nbands: int | None = None,
+                 nblocks: int | str = 1):
         """Construct the two-particle site sum rule calculator."""
-        super().__init__(gs, context, qsymmetry=False)
+        super().__init__(gs, context,
+                         # Disable q-symmetry for now. To enable it, we need
+                         # to implement site pair function symmetrization.
+                         qsymmetry=False,
+                         nblocks=nblocks)
         self.nbands = nbands
         self.bandsummation = 'double'
         self.transitions = self.get_band_and_spin_transitions()
