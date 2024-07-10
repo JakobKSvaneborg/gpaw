@@ -516,20 +516,22 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
         g_mytap = matrix_element2.local_array_view
         fgcc_mytabp = f_mytap[:, :, np.newaxis] * g_mytap.conj()[:, np.newaxis]
 
-        # Sum over local transitions, weighted by the temporal part
-        x_myt = self.calculate_temporal_part(kptpair)
+        # Sum over local transitions, weighted by the spin matrices and
+        # eigenvalue-dependent weights
+        scomps_myt = get_smat_components(
+            self.get_spincomponent(), *kptpair.get_local_spin_indices())
+        weps_myt = self.calculate_eigenvalue_dependent_weights(kptpair)
+        x_myt = scomps_myt * weps_myt  # σ^μ_ss' σ^ν_s's w_(ε_nks,ε_n'k's')
         integrand_abp = np.einsum('t, tabp -> abp', x_myt, fgcc_mytabp)
         # Sum over distributed transitions
         kptpair.tblocks.blockcomm.sum(integrand_abp)
         # Add integrand to output array
         site_pair_function.array[:] += self.gs.volume * weight * integrand_abp
 
-    def calculate_temporal_part(self, kptpair):
-        """Calculate σ^μ_ss' σ^ν_s's (f_nks - f_n'k's') for transitions t."""
-        scomps_myt = get_smat_components(  # σ^μ_ss' σ^ν_s's
-            self.get_spincomponent(), *kptpair.get_local_spin_indices())
-        df_myt = kptpair.ikpt1.f_myt - kptpair.ikpt2.f_myt  # f_nks - f_n'k's'
-        return scomps_myt * df_myt
+    @staticmethod
+    def calculate_eigenvalue_dependent_weights(kptpair):
+        """Calculate (f_nks - f_n'k's') for local transitions myt."""
+        return kptpair.ikpt1.f_myt - kptpair.ikpt2.f_myt  # df_myt
 
     def get_info_string(self, q_c):
         """Get information about the calculation"""
