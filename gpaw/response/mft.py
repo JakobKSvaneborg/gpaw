@@ -425,7 +425,19 @@ class SingleParticleSiteZeemanEnergyCalculator(
 
 
 class SitePairFunction(PairFunction):
-    """Data object for site pair functions."""
+    r"""Data object for site pair functions.
+
+    A site pair function is understood as any function of a pair of sites "a"
+    and "b", which can be written on the form of a pair function,
+                __
+                \    ab
+    pf_ab(q) =  /  pf    δ_{q,q_{α',α}}
+                ‾‾   αα'
+                α,α'
+
+    where the site-dependent pair function weights pf^(ab)_{αα'} characterize
+    the sites' contributions to a specific eigenstate transition.
+    """
     def __init__(self, q_c: Vector, sites: AtomicSites):
         self.sites = sites
         super().__init__(q_c)
