@@ -321,7 +321,7 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
 
     def __init__(self, gs, sites, context='-'):
         super().__init__(gs, context, qsymmetry=False)
-
+        self.transitions = self.get_band_and_spin_transitions()
         # Set up calculator for the f^a matrix element
         self.sites = sites
         self.matrix_element_calc = self.create_matrix_element_calculator()
@@ -334,35 +334,23 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     def get_pauli_matrix(self):
         """Get the desired Pauli matrix σ^μ."""
 
-    def __call__(self):
-        # Set up transitions
-        # Loop over bands, which are fully or partially occupied
-        # To do: take to constructor XXX
+    def get_band_and_spin_transitions(self):
+        """Set up all intraband transitions (n,s)->(n,s)."""
         nocc2 = self.kptpair_extractor.nocc2
         n_n = list(range(nocc2))
         n_t = np.array(n_n + n_n)
         s_t = np.array([0] * nocc2 + [1] * nocc2)
-        transitions = PairTransitions(n1_t=n_t, n2_t=n_t, s1_t=s_t, s2_t=s_t)
+        return PairTransitions(n1_t=n_t, n2_t=n_t, s1_t=s_t, s2_t=s_t)
 
-        # Set up data object with q=0
+    def __call__(self):
         site_function = SiteFunction(sites=self.sites)
-
-        # Perform actual calculation
-        self._integrate(site_function, transitions)
-
+        self._integrate(site_function, self.transitions)
         return site_function
 
     def add_integrand(self, kptpair, weight, site_function):
         r"""Add the integrand of the outer k-point integral.
 
-        With  # to do: remove XXX
-                   __
-                1  \
-        f_a^μ = ‾  /  (...)_k
-                V  ‾‾
-                   k
-
-        the integrand has to be multiplied with the cell volume V0:
+        The integrand is given by (see gpaw.response.pair_integrator)
                      __
                      \
         (...)_k = V0 /  σ^μ_ss f_nks f^a_(nks,nks)
