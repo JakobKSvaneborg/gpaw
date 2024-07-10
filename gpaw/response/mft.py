@@ -279,11 +279,11 @@ def calculate_pair_site_zeeman_energy(
     return pair_site_zeeman_energy.array * Hartree  # Ha -> eV
 
 
-class StaticSiteFunction(PairFunction):
-    """Data object for static single-particle site functions."""
-    def __init__(self, q_c: Vector, sites: AtomicSites):
+class SiteFunction(PairFunction):
+    """Data object for single-particle site functions f_a."""
+    def __init__(self, sites: AtomicSites):
         self.sites = sites
-        super().__init__(q_c)
+        super().__init__(q_c=[0., 0., 0.])
 
     @property
     def shape(self):
@@ -329,7 +329,7 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
         transitions = PairTransitions(n1_t=n_t, n2_t=n_t, s1_t=s_t, s2_t=s_t)
 
         # Set up data object with q=0
-        site_function = StaticSiteFunction(q_c=[0., 0., 0.], sites=self.sites)
+        site_function = SiteFunction(sites=self.sites)
 
         # Perform actual calculation
         self._integrate(site_function, transitions)
@@ -413,8 +413,12 @@ class SingleParticleSiteZeemanEnergyCalculator(
             self.gs, self.context, self.sites, rshewmin=1e-8)
 
 
-class StaticSitePairFunction(StaticSiteFunction):
-    """Data object for static pair site functions."""
+class SitePairFunction(PairFunction):
+    """Data object for site pair functions."""
+    def __init__(self, q_c: Vector, sites: AtomicSites):
+        self.sites = sites
+        super().__init__(q_c)
+
     @property
     def shape(self):
         nsites = len(self.sites)
@@ -460,23 +464,22 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
 
     def __call__(self, q_c):
         """Calculate the site sum rule for a given wave vector q_c."""
+        # To do: transitions on self XXX (they do not depend on input q)
         spincomponent = self.get_spincomponent()
         transitions = self.get_band_and_spin_transitions(
             spincomponent, nbands=self.nbands, bandsummation='double')
         self.context.print(self.get_info_string(
             q_c, self.nbands, len(transitions)))
-
-        # Set up data object
-        site_pair_function = StaticSitePairFunction(q_c, self.sites)
-
-        # Perform actual calculation
+        # Set up data object and integrate
+        site_pair_function = SitePairFunction(q_c, self.sites)
         self._integrate(site_pair_function, transitions)
-
         return site_pair_function
 
     @abstractmethod
     def get_spincomponent(self):
         """Define how to rotate the spins via the spin component (μν)."""
+        # To do: couple automatically to pauli matrix XXX
+        # To do: redefine sum to include two pauli matrices XXX
 
     def add_integrand(self, kptpair, weight, site_pair_function):
         r"""Add the site sum rule integrand of the outer k-point integral.
