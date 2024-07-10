@@ -457,13 +457,13 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
 
     For any set of site matrix elements f^a and g^b, one may define a two-
     particle site sum rule based on the lattice Fourier transformed quantity:
-                     __  __   __
-                 1   \   \    \   /
-    ̄x_ab^z(q) = ‾‾‾  /   /    /   | σ^j_ss' (f_nks - f_n'k+qs')
-                N_k  ‾‾  ‾‾   ‾‾  \                                       \
-                     k  n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
-                                                                          /
-    where σ^j is a Pauli matrix with j∊{0,+,-,z}.
+                   __  __   __
+               1   \   \    \   /
+    ̄x_ab(q) = ‾‾‾  /   /    /   | σ^μ_ss' σ^ν_s's (f_nks - f_n'k+qs')
+              N_k  ‾‾  ‾‾   ‾‾  \                                       \
+                   k  n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
+                                                                        /
+    where σ^μ and σ^ν are Pauli-like 2x2 spin-matrices.
     """
 
     def __init__(self,
@@ -474,6 +474,8 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
         """Construct the two-particle site sum rule calculator."""
         super().__init__(gs, context, qsymmetry=False)
         self.nbands = nbands
+        self.bandsummation = 'double'
+        self.transitions = self.get_band_and_spin_transitions()
 
         # Set up calculators for the f^a and g^b matrix elements
         self.sites = sites
@@ -485,39 +487,29 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     def create_matrix_element_calculators(self):
         """Create the desired site matrix element calculators."""
 
-    def __call__(self, q_c):
-        """Calculate the site sum rule for a given wave vector q_c."""
-        # To do: transitions on self XXX (they do not depend on input q)
-        spincomponent = self.get_spincomponent()
-        transitions = self.get_band_and_spin_transitions(
-            spincomponent, nbands=self.nbands, bandsummation='double')
-        self.context.print(self.get_info_string(
-            q_c, self.nbands, len(transitions)))
-        # Set up data object and integrate
-        site_pair_function = SitePairFunction(q_c, self.sites)
-        self._integrate(site_pair_function, transitions)
-        return site_pair_function
-
     @abstractmethod
     def get_spincomponent(self):
         """Define how to rotate the spins via the spin component (μν)."""
-        # To do: couple automatically to pauli matrix XXX
-        # To do: redefine sum to include two pauli matrices XXX
+
+    def get_band_and_spin_transitions(self):
+        return super().get_band_and_spin_transitions(
+            self.get_spincomponent(),
+            nbands=self.nbands, bandsummation=self.bandsummation)
+
+    def __call__(self, q_c):
+        """Calculate the site sum rule for a given wave vector q_c."""
+        self.context.print(self.get_info_string(q_c))
+        site_pair_function = SitePairFunction(q_c, self.sites)
+        self._integrate(site_pair_function, self.transitions)
+        return site_pair_function
 
     def add_integrand(self, kptpair, weight, site_pair_function):
         r"""Add the site sum rule integrand of the outer k-point integral.
 
-        With
-                       __
-                    1  \
-        ̄x_ab^z(q) = ‾  /  (...)_k
-                    V  ‾‾
-                       k
-
-        the integrand is given by
+        The integrand is given by (see gpaw.response.pair_integrator)
                      __   __
                      \    \   /
-        (...)_k = V0 /    /   | σ^j_ss' (f_nks - f_n'k+qs')
+        (...)_k = V0 /    /   | σ^μ_ss' σ^ν_s's (f_nks - f_n'k+qs')
                      ‾‾   ‾‾  \                                       \
                     n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
                                                                       /
@@ -534,6 +526,7 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
 
         # Calculate the product between the Pauli matrix and the occupational
         # differences
+        # To do: separate out the temporal part XXX
         sigma = self.get_pauli_matrix()
         s1_myt, s2_myt = kptpair.get_local_spin_indices()
         sigma_myt = sigma[s1_myt, s2_myt]
@@ -556,12 +549,13 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     def get_pauli_matrix(self):
         """Get the desired Pauli matrix σ^j_ss'."""
 
-    def get_info_string(self, q_c, nbands, nt):
+    def get_info_string(self, q_c):
         """Get information about the calculation"""
         info_list = ['',
                      'Calculating two-particle site sum rule with:'
                      f'    q_c: [{q_c[0]}, {q_c[1]}, {q_c[2]}]',
-                     self.get_band_and_transitions_info_string(nbands, nt),
+                     self.get_band_and_transitions_info_string(
+                         self.nbands, len(self.transitions)),
                      '',
                      self.get_basic_info_string()]
         return '\n'.join(info_list)
