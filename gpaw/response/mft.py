@@ -462,20 +462,22 @@ class SitePairFunction(PairFunction):
         return np.zeros(self.shape, dtype=complex)
 
 
-class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
-    r"""Calculator for two-particle site sum rules.
+class SitePairFunctionCalculator(PairFunctionIntegrator):
+    r"""Calculator for site-projected pair functions.
 
-    For any set of site matrix elements f^a and g^b, one may define a two-
-    particle site sum rule based on the lattice Fourier transformed quantity:
-                   __  __   __
-               1   \   \    \   /
-    ̄x_ab(q) = ‾‾‾  /   /    /   | σ^μ_ss' σ^ν_s's (f_nks - f_n'k+qs')
-              N_k  ‾‾  ‾‾   ‾‾  \                                       \
-                   k  n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
-                                                                        /
-    where σ^μ and σ^ν are Pauli-like 2x2 spin-matrices.
+    In the Kohn-Sham system, site-projected pair functions are constructed
+    straight-forwardly as a sum over Kohn-Sham eigenstate transitions,
+                    __  __   __
+                1   \   \    \   /
+    pf_ab(q) = ‾‾‾  /   /    /   | σ^μ_ss' σ^ν_s's w_(ε_nks,ε_n'k+qs')
+               N_k  ‾‾  ‾‾   ‾‾  \                                       \
+                    k  n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
+                                                                         /
+
+    summing up the site-projected matrix elements f^a and f^b, weighted by
+    Pauli-like 2x2 spin-matrices σ^μ and σ^ν and some function
+    w_(ε_nks,ε_n'k+qs') of the Kohn-Sham eigenvalues.
     """
-
     def __init__(self,
                  gs: ResponseGroundStateAdaptable,
                  sites: AtomicSites,
@@ -501,25 +503,29 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     def get_spincomponent(self):
         """Define how to rotate the spins via the spin component (μν)."""
 
+    @abstractmethod
+    def calculate_eigenvalue_dependent_weights(self, kptpair):
+        """Calculate w_(ε_nks,ε_n'k+qs') for band and spin transitions myt."""
+
     def get_band_and_spin_transitions(self):
         return super().get_band_and_spin_transitions(
             self.get_spincomponent(),
             nbands=self.nbands, bandsummation=self.bandsummation)
 
     def __call__(self, q_c):
-        """Calculate the site sum rule for a given wave vector q_c."""
+        """Calculate the site pair function for a given wave vector q_c."""
         self.context.print(self.get_info_string(q_c))
         site_pair_function = SitePairFunction(q_c, self.sites)
         self._integrate(site_pair_function, self.transitions)
         return site_pair_function
 
     def add_integrand(self, kptpair, weight, site_pair_function):
-        r"""Add the site sum rule integrand of the outer k-point integral.
+        r"""Add the site pair function integrand of the outer k-point integral.
 
         The integrand is given by (see gpaw.response.pair_integrator)
                      __   __
                      \    \   /
-        (...)_k = V0 /    /   | σ^μ_ss' σ^ν_s's (f_nks - f_n'k+qs')
+        (...)_k = V0 /    /   | σ^μ_ss' σ^ν_s's w_(ε_nks,ε_n'k+qs')
                      ‾‾   ‾‾  \                                       \
                     n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
                                                                       /
@@ -542,28 +548,44 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
         scomps_myt = get_smat_components(
             self.get_spincomponent(), *kptpair.get_local_spin_indices())
         weps_myt = self.calculate_eigenvalue_dependent_weights(kptpair)
-        x_myt = scomps_myt * weps_myt  # σ^μ_ss' σ^ν_s's w_(ε_nks,ε_n'k's')
+        x_myt = scomps_myt * weps_myt  # σ^μ_ss' σ^ν_s's w_(ε_nks,ε_n'k+qs')
         integrand_abp = np.einsum('t, tabp -> abp', x_myt, fgcc_mytabp)
         # Sum over distributed transitions
         kptpair.tblocks.blockcomm.sum(integrand_abp)
         # Add integrand to output array
         site_pair_function.array[:] += self.gs.volume * weight * integrand_abp
 
-    @staticmethod
-    def calculate_eigenvalue_dependent_weights(kptpair):
-        """Calculate (f_nks - f_n'k's') for local transitions myt."""
-        return kptpair.ikpt1.f_myt - kptpair.ikpt2.f_myt  # df_myt
-
     def get_info_string(self, q_c):
         """Get information about the calculation"""
         info_list = ['',
-                     'Calculating two-particle site sum rule with:'
+                     'Calculating site pair function with:'
                      f'    q_c: [{q_c[0]}, {q_c[1]}, {q_c[2]}]',
                      self.get_band_and_transitions_info_string(
                          self.nbands, len(self.transitions)),
                      '',
                      self.get_basic_info_string()]
         return '\n'.join(info_list)
+
+
+class TwoParticleSiteSumRuleCalculator(SitePairFunctionCalculator):
+    r"""Calculator for two-particle site sum rules.
+
+    For any set of site matrix elements f^a and g^b, one may define a two-
+    particle site sum rule,
+                   __  __   __
+               1   \   \    \   /
+    ̄x_ab(q) = ‾‾‾  /   /    /   | σ^μ_ss' σ^ν_s's (f_nks - f_n'k+qs')
+              N_k  ‾‾  ‾‾   ‾‾  \                                       \
+                   k  n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
+                                                                        /
+
+    that is, with eigenvalue-dependent weights
+
+    w_(ε_nks,ε_n'k+qs') = f_nks - f_n'k+qs'
+    """
+    @staticmethod
+    def calculate_eigenvalue_dependent_weights(kptpair):
+        return kptpair.ikpt1.f_myt - kptpair.ikpt2.f_myt  # df_myt
 
 
 class TwoParticleSiteMagnetizationCalculator(TwoParticleSiteSumRuleCalculator):
