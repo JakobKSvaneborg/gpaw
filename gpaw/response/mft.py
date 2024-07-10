@@ -7,7 +7,7 @@ import numpy as np
 from gpaw.typing import Vector
 from gpaw.response import ResponseGroundStateAdaptable, ResponseContextInput
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
-from gpaw.response.chiks import ChiKSCalculator, smat
+from gpaw.response.chiks import ChiKSCalculator, get_smat_components, smat
 from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
 from gpaw.response.site_kernels import SiteKernels
 from gpaw.response.site_data import AtomicSites
@@ -330,9 +330,14 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     def create_matrix_element_calculator(self):
         """Create the desired site matrix element calculator."""
 
+    @abstractmethod
+    def get_pauli_matrix(self):
+        """Get the desired Pauli matrix σ^μ."""
+
     def __call__(self):
         # Set up transitions
         # Loop over bands, which are fully or partially occupied
+        # To do: take to constructor XXX
         nocc2 = self.kptpair_extractor.nocc2
         n_n = list(range(nocc2))
         n_t = np.array(n_n + n_n)
@@ -350,7 +355,7 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     def add_integrand(self, kptpair, weight, site_function):
         r"""Add the integrand of the outer k-point integral.
 
-        With
+        With  # to do: remove XXX
                    __
                 1  \
         f_a^μ = ‾  /  (...)_k
@@ -386,10 +391,6 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
         # Calculate and add integrand
         site_function.array[:] += self.gs.volume * weight * np.einsum(
             't, tap -> ap', sigmaf_t, f_tap)
-
-    @abstractmethod
-    def get_pauli_matrix(self):
-        """Get the desired Pauli matrix σ^μ_ss."""
 
 
 class SingleParticleSiteMagnetizationCalculator(
@@ -516,38 +517,31 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
 
         where V0 is the cell volume.
         """
-        # Calculate site matrix elements
+        # Calculate the product of site matrix elements
         q_c = site_pair_function.q_c
         matrix_element1 = self.matrix_element_calc1(kptpair, q_c)
         if self.matrix_element_calc2 is self.matrix_element_calc1:
             matrix_element2 = matrix_element1
         else:
             matrix_element2 = self.matrix_element_calc2(kptpair, q_c)
-
-        # Calculate the product between the Pauli matrix and the occupational
-        # differences
-        # To do: separate out the temporal part XXX
-        sigma = self.get_pauli_matrix()
-        s1_myt, s2_myt = kptpair.get_local_spin_indices()
-        sigma_myt = sigma[s1_myt, s2_myt]
-        df_myt = kptpair.ikpt1.f_myt - kptpair.ikpt2.f_myt
-        sigmadf_myt = sigma_myt * df_myt
-
-        # Calculate integrand
         f_mytap = matrix_element1.local_array_view
         g_mytap = matrix_element2.local_array_view
         fgcc_mytabp = f_mytap[:, :, np.newaxis] * g_mytap.conj()[:, np.newaxis]
-        # Sum over local transitions
-        integrand_abp = np.einsum('t, tabp -> abp', sigmadf_myt, fgcc_mytabp)
+
+        # Sum over local transitions, weighted by the temporal part
+        x_myt = self.calculate_temporal_part(kptpair)
+        integrand_abp = np.einsum('t, tabp -> abp', x_myt, fgcc_mytabp)
         # Sum over distributed transitions
         kptpair.tblocks.blockcomm.sum(integrand_abp)
-
         # Add integrand to output array
         site_pair_function.array[:] += self.gs.volume * weight * integrand_abp
 
-    @abstractmethod
-    def get_pauli_matrix(self):
-        """Get the desired Pauli matrix σ^j_ss'."""
+    def calculate_temporal_part(self, kptpair):
+        """Calculate σ^μ_ss' σ^ν_s's (f_nks - f_n'k's') for transitions t."""
+        scomps_myt = get_smat_components(  # σ^μ_ss' σ^ν_s's
+            self.get_spincomponent(), *kptpair.get_local_spin_indices())
+        df_myt = kptpair.ikpt1.f_myt - kptpair.ikpt2.f_myt  # f_nks - f_n'k's'
+        return scomps_myt * df_myt
 
     def get_info_string(self, q_c):
         """Get information about the calculation"""
@@ -584,9 +578,6 @@ class TwoParticleSiteMagnetizationCalculator(TwoParticleSiteSumRuleCalculator):
 
     def get_spincomponent(self):
         return '+-'
-
-    def get_pauli_matrix(self):
-        return smat('+')
 
 
 class TwoParticleSiteZeemanEnergyCalculator(
