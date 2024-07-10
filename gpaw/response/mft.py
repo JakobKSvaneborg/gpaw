@@ -282,15 +282,16 @@ def calculate_pair_site_zeeman_energy(
 class SiteFunction(PairFunction):
     r"""Data object for single-particle site functions f_a.
 
-    Here, a single-particle site function is understood as any function which
-    can be decomposed in individual contributions from each of the eigenstates
+    A single-particle site function is understood as any function that can be
+    constructed as a sum over the system eigenstates
           __
           \   a
     f_a = /  f
           ‾‾  α
           α
 
-    with f^a_α ∝ <α|Θ(r∊Ω_a)f(r)|α>, characterizing the properties of site "a".
+    with site dependent weights f^a_α representing some projection onto a local
+    (atomic) site.
     """
     def __init__(self, sites: AtomicSites):
         self.sites = sites
@@ -307,9 +308,8 @@ class SiteFunction(PairFunction):
 class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     r"""Calculator for single-particle site sum rules.
 
-    For any site matrix element f^a_(nks,n'k's'), one may define a single-
-    particle site sum rule by considering only the diagonal of the matrix
-    element:
+    For any site matrix element f^a_(nks,n'k's') of the Kohn-Sham system, one
+    may define a single-particle site sum rule by its weighted trace
                  __  __
              1   \   \
     f_a^μ = ‾‾‾  /   /  σ^μ_ss f_nks f^a_(nks,nks)
@@ -416,16 +416,37 @@ class SingleParticleSiteZeemanEnergyCalculator(
 class SitePairFunction(PairFunction):
     r"""Data object for site pair functions.
 
-    A site pair function is understood as any function of a pair of sites "a"
-    and "b", which can be written on the form of a pair function,
+    A site pair function is understood as any function that can be written on
+    the form of a pair function,
                 __
                 \    ab
     pf_ab(q) =  /  pf    δ_{q,q_{α',α}}
                 ‾‾   αα'
                 α,α'
 
-    where the site-dependent pair function weights pf^(ab)_{αα'} characterize
-    the sites' contributions to a specific eigenstate transition.
+    with site-dependent pair function weights pf^(ab)_{αα'}.
+
+    Typically, the site pair function will be related to a more general lattice
+    periodic pair function pf(r,r') = pf(r+R,r'+R), which can be written in
+    terms of its lattice Fourier transform
+
+                 V0    /
+    pf(r,r') = ‾‾‾‾‾‾  | dq pf(r,r',q)
+               (2π)^D  /
+                        BZ
+    where
+                 __
+                 \    iq⋅R
+    pf(r,r',q) = /   e     pf(r,r'+R)
+                 ‾‾
+                 R
+
+    The site-projected lattice Fourier transform then constitutes a site pair
+    function:
+
+               //
+    pf_ab(q) = || drdr' Θ(r∊Ω_a) pf(r,r',q) Θ(r'∊Ω_b)
+               //
     """
     def __init__(self, q_c: Vector, sites: AtomicSites):
         self.sites = sites
