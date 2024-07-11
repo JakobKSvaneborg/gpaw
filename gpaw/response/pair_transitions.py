@@ -38,6 +38,9 @@ class PairTransitions:
     def __len__(self):
         return len(self.n1_t)
 
+    def get_band_indices(self):
+        return self.n1_t, self.n2_t
+
     def get_spin_indices(self):
         return self.s1_t, self.s2_t
 

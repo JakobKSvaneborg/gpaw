@@ -538,15 +538,17 @@ def get_double_temporal_part(spincomponent, hz_z, kptpair):
     x_t^μν(ħz) = ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
                       ħz - (ε_n'k's' - ε_nks)
     """
-    # Get the right spin components
-    s1_t, s2_t = kptpair.transitions.get_spin_indices()
-    scomps_t = get_smat_components(spincomponent, s1_t, s2_t)
+    # Calculate σ^μ_ss' σ^ν_s's
+    s1_myt, s2_myt = kptpair.get_local_spin_indices()
+    scomps_myt = get_smat_components(spincomponent, s1_myt, s2_myt)
     # Calculate nominator
-    nom_t = - scomps_t * kptpair.df_t  # df = (f_n'k's' - f_nks)
+    nom_myt = - scomps_myt * kptpair.df_myt  # df = (f_n'k's' - f_nks)
+    nom_t = kptpair.get_all(nom_myt)  # tmp XXX
     # Calculate denominator
-    deps_t = kptpair.deps_t  # dε = (ε_n'k's' - ε_nks)
-    denom_wt = hz_z[:, np.newaxis] - deps_t[np.newaxis, :]
-    regularize_intraband_transitions(denom_wt, kptpair.transitions, deps_t)
+    deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
+    denom_mytw = hz_z[np.newaxis] - deps_myt[:, np.newaxis]
+    denom_wt = kptpair.get_all(denom_mytw).T  # tmp XXX
+    regularize_intraband_transitions(denom_wt, kptpair.transitions, kptpair.deps_t)
 
     return nom_t[np.newaxis, :] / denom_wt
 
@@ -603,12 +605,9 @@ def regularize_intraband_transitions(denom_wt, transitions, deps_t):
 
 
 def get_smat_components(spincomponent, s1_t, s2_t):
-    """For s1=s and s2=s', get:
-    smu_ss' snu_s's
-    """
+    """Calculate σ^μ_ss' σ^ν_s's for spincomponent (μν)."""
     smatmu = smat(spincomponent[0])
     smatnu = smat(spincomponent[1])
-
     return smatmu[s1_t, s2_t] * smatnu[s2_t, s1_t]
 
 
