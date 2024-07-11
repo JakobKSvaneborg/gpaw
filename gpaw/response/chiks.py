@@ -546,7 +546,7 @@ def get_double_temporal_part(spincomponent, hz_z, kptpair):
     nom_myt = - scomps_myt * kptpair.df_myt  # df = (f_n'k's' - f_nks)
     # Calculate denominator
     deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
-    denom_mytz = hz_z[np.newaxis] - deps_myt[..., np.newaxis]
+    denom_mytz = hz_z[np.newaxis] - deps_myt[:, np.newaxis]
     regularize_intraband_transitions(denom_mytz, kptpair)
 
     return nom_myt[:, np.newaxis] / denom_mytz
@@ -580,8 +580,8 @@ def get_pairwise_temporal_part(spincomponent, hz_z, kptpair):
     nom2_myt = - delta_myt * scomps2_myt * df_myt
     # Calculate denominators
     deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
-    denom1_mytz = hz_z[np.newaxis] - deps_myt[..., np.newaxis]
-    denom2_mytz = hz_z[np.newaxis] + deps_myt[..., np.newaxis]
+    denom1_mytz = hz_z[np.newaxis] - deps_myt[:, np.newaxis]
+    denom2_mytz = hz_z[np.newaxis] + deps_myt[:, np.newaxis]
     regularize_intraband_transitions(denom1_mytz, kptpair)
     regularize_intraband_transitions(denom2_mytz, kptpair)
 
