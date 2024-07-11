@@ -19,7 +19,8 @@ from gpaw.response.mft import (IsotropicExchangeCalculator,
                                calculate_single_particle_site_magnetization,
                                calculate_pair_site_magnetization,
                                calculate_single_particle_site_zeeman_energy,
-                               calculate_pair_site_zeeman_energy)
+                               calculate_pair_site_zeeman_energy,
+                               calculate_exchange_parameters)
 from gpaw.response.site_kernels import (SphericalSiteKernels,
                                         CylindricalSiteKernels,
                                         ParallelepipedicSiteKernels)
@@ -343,6 +344,60 @@ def test_Co_site_zeeman_energy_sum_rule(in_tmp_dir, gpw_files, qrel):
         assert calculate_pair_site_zeeman_energy(
             gs, sites, context=context,
             q_c=q_c, nbands=nbands, nblocks='max') == pytest.approx(EZ_abr)
+
+    # import matplotlib.pyplot as plt
+    # from ase.units import Bohr
+    # rc_r = sites.rc_ap[0] * Bohr
+    # plt.plot(rc_r, EZ_ar[0], '-o', mec='k')
+    # plt.plot(rc_r, sp_EZ_ar[0], '-o', mec='k', zorder=0)
+    # plt.plot(rc_r, tp_EZ_ar[0], '-o', mec='k', zorder=1)
+    # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
+    # plt.ylabel(r'$E_\mathrm{Z}$ [eV]')
+    # plt.title(str(q_c))
+    # plt.show()
+
+
+def get_Co_exchange_reference(qrel):
+    if qrel == 0.:
+        return np.array([0.186, 0.731, 1.048, 1.14, 1.145])
+    elif qrel == 0.25:
+        return np.array([0.166, 0.656, 0.943, 1.029, 1.035])
+    elif qrel == 0.5:
+        return np.array([0.151, 0.594, 0.856, 0.936, 0.943])
+    raise ValueError(qrel)
+
+
+@pytest.mark.response
+@pytest.mark.parametrize('qrel', generate_qrel_q())
+def test_Co_exchange(in_tmp_dir, gpw_files, qrel):
+    # Set up ground state adapter and atomic site data
+    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    gs = ResponseGroundStateAdapter(calc)
+    context = ResponseContext('Co_exchange.txt')
+    sites = get_co_sites(gs)
+    nbands = response_band_cutoff['co_pw']
+
+    # Get wave vector to test
+    q_c = get_q_c('co_pw', qrel)
+
+    # Calculate the exchange parameters
+    J_abr = calculate_exchange_parameters(
+        gs, sites, q_c, context=context, nbands=nbands, nblocks=1)
+
+    # Test that J is hermitian in (a,b)
+    assert np.transpose(J_abr, (1, 0, 2)).conj() == pytest.approx(J_abr)
+    # Test the Co site symmetry
+    J_ar = J_abr.diagonal().T
+    assert J_ar[0] == pytest.approx(J_ar[1], rel=1e-4)
+    # Test against reference values
+    Jref_r = get_Co_exchange_reference(qrel)
+    assert J_ar[0, 2::2] == pytest.approx(Jref_r, abs=2e-3)
+
+    # Test ability to distribute band and spin transitions
+    if context.comm.size > 1:
+        assert calculate_exchange_parameters(
+            gs, sites, q_c, context=context, nbands=nbands,
+            nblocks='max') == pytest.approx(J_abr)
 
     # import matplotlib.pyplot as plt
     # from ase.units import Bohr
