@@ -109,24 +109,16 @@ class JDOSCalculator(PairFunctionIntegrator):
         is equal to the imaginary part (up to a factor of π) of the full
         integrand.
         """
-        # Specify notation
-        jdos_z = jdos.array
-
-        # Extract the temporal ingredients from the KohnShamKPointPair
-        transitions = kptpair.transitions  # transition indices (n,s)->(n',s')
-        df_t = kptpair.df_t  # (f_n'k's' - f_nks)
-        deps_t = kptpair.deps_t  # (ε_n'k's' - ε_nks)
-
         # Construct jdos integrand via the imaginary part of the frequency
         # dependence in χ_KS^μν(q,z)
         if jdos.spincomponent == '00' and self.gs.nspins == 1:
             weight = 2 * weight
         x_zt = get_temporal_part(jdos.spincomponent, jdos.zd.hz_z,
-                                 transitions, df_t, deps_t,
-                                 self.bandsummation)
+                                 kptpair, self.bandsummation)
         integrand_zt = -x_zt.imag / np.pi
 
         with self.context.timer('Perform sum over t-transitions'):
+            jdos_z = jdos.array  # specify notation
             jdos_z += weight * np.sum(integrand_zt, axis=1)
 
     def get_info_string(self, q_c, nz, spincomponent, nbands, nt):

@@ -248,18 +248,11 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             matrix_element2 = matrix_element1
         else:
             matrix_element2 = self.matrix_element_calc2(kptpair, chiks.qpd)
-
-        # Extract the temporal ingredients from the KohnShamKPointPair
-        transitions = kptpair.transitions  # transition indices (n,s)->(n',s')
-        df_t = kptpair.df_t  # (f_n'k's' - f_nks)
-        deps_t = kptpair.deps_t  # (ε_n'k's' - ε_nks)
-
         # Calculate the temporal part of the integrand
         if chiks.spincomponent == '00' and self.gs.nspins == 1:
             weight = 2 * weight
         x_Zt = get_temporal_part(chiks.spincomponent, chiks.zd.hz_z,
-                                 transitions, df_t, deps_t,
-                                 self.bandsummation)
+                                 kptpair, self.bandsummation)
 
         self._add_integrand(
             matrix_element1, matrix_element2, x_Zt, weight, chiks)
@@ -522,14 +515,11 @@ def get_ecut_to_encompass_centered_sphere(q_v, ecut):
     return ecut
 
 
-def get_temporal_part(spincomponent, hz_z,
-                      transitions, df_t, deps_t,
-                      bandsummation):
+def get_temporal_part(spincomponent, hz_z, kptpair, bandsummation):
     """Get the temporal part of a (causal linear) susceptibility, x_t^μν(ħz).
     """
     _get_temporal_part = create_get_temporal_part(bandsummation)
-    return _get_temporal_part(spincomponent, hz_z,
-                              transitions, df_t, deps_t)
+    return _get_temporal_part(spincomponent, hz_z, kptpair)
 
 
 def create_get_temporal_part(bandsummation):
@@ -541,8 +531,7 @@ def create_get_temporal_part(bandsummation):
     raise ValueError(bandsummation)
 
 
-def get_double_temporal_part(spincomponent, hz_z,
-                             transitions, df_t, deps_t):
+def get_double_temporal_part(spincomponent, hz_z, kptpair):
     r"""Get:
 
                  σ^μ_ss' σ^ν_s's (f_nks - f_n'k's')
@@ -550,20 +539,19 @@ def get_double_temporal_part(spincomponent, hz_z,
                       ħz - (ε_n'k's' - ε_nks)
     """
     # Get the right spin components
-    s1_t, s2_t = transitions.get_spin_indices()
+    s1_t, s2_t = kptpair.transitions.get_spin_indices()
     scomps_t = get_smat_components(spincomponent, s1_t, s2_t)
     # Calculate nominator
-    nom_t = - scomps_t * df_t  # df = f2 - f1
+    nom_t = - scomps_t * kptpair.df_t  # df = (f_n'k's' - f_nks)
     # Calculate denominator
-    denom_wt = hz_z[:, np.newaxis] - deps_t[np.newaxis, :]  # de = e2 - e1
-
-    regularize_intraband_transitions(denom_wt, transitions, deps_t)
+    deps_t = kptpair.deps_t  # dε = (ε_n'k's' - ε_nks)
+    denom_wt = hz_z[:, np.newaxis] - deps_t[np.newaxis, :]
+    regularize_intraband_transitions(denom_wt, kptpair.transitions, deps_t)
 
     return nom_t[np.newaxis, :] / denom_wt
 
 
-def get_pairwise_temporal_part(spincomponent, hz_z,
-                               transitions, df_t, deps_t):
+def get_pairwise_temporal_part(spincomponent, hz_z, kptpair):
     r"""Get:
 
                  /
@@ -577,6 +565,7 @@ def get_pairwise_temporal_part(spincomponent, hz_z,
                                  ħz + (ε_n'k's' - ε_nks)       |
                                                                /
     """
+    transitions = kptpair.transitions
     n1_t, n2_t, s1_t, s2_t = transitions.get_band_and_spin_indices()
     # Kroenecker delta
     delta_t = np.ones(len(n1_t))
@@ -585,12 +574,13 @@ def get_pairwise_temporal_part(spincomponent, hz_z,
     scomps1_t = get_smat_components(spincomponent, s1_t, s2_t)
     scomps2_t = get_smat_components(spincomponent, s2_t, s1_t)
     # Calculate nominators
-    nom1_t = - scomps1_t * df_t  # df = f2 - f1
+    df_t = kptpair.df_t  # df = (f_n'k's' - f_nks)
+    nom1_t = - scomps1_t * df_t
     nom2_t = - delta_t * scomps2_t * df_t
     # Calculate denominators
-    denom1_wt = hz_z[:, np.newaxis] - deps_t[np.newaxis, :]  # de = e2 - e1
+    deps_t = kptpair.deps_t  # dε = (ε_n'k's' - ε_nks)
+    denom1_wt = hz_z[:, np.newaxis] - deps_t[np.newaxis, :]
     denom2_wt = hz_z[:, np.newaxis] + deps_t[np.newaxis, :]
-
     regularize_intraband_transitions(denom1_wt, transitions, deps_t)
     regularize_intraband_transitions(denom2_wt, transitions, deps_t)
 
