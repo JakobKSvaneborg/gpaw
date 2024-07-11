@@ -546,7 +546,7 @@ def get_double_temporal_part(spincomponent, hz_z, kptpair):
     nom_t = kptpair.get_all(nom_myt)  # tmp XXX
     # Calculate denominator
     deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
-    denom_mytw = hz_z[np.newaxis] - deps_myt[:, np.newaxis]
+    denom_mytw = hz_z[np.newaxis] - deps_myt[..., np.newaxis]
     denom_wt = kptpair.get_all(denom_mytw).T  # tmp XXX
     regularize_intraband_transitions(denom_wt, kptpair.transitions, kptpair.deps_t)
 
@@ -567,24 +567,28 @@ def get_pairwise_temporal_part(spincomponent, hz_z, kptpair):
                                  ħz + (ε_n'k's' - ε_nks)       |
                                                                /
     """
-    transitions = kptpair.transitions
-    n1_t, n2_t, s1_t, s2_t = transitions.get_band_and_spin_indices()
     # Kroenecker delta
-    delta_t = np.ones(len(n1_t))
-    delta_t[n2_t <= n1_t] = 0
-    # Get the right spin components
-    scomps1_t = get_smat_components(spincomponent, s1_t, s2_t)
-    scomps2_t = get_smat_components(spincomponent, s2_t, s1_t)
+    n1_myt, n2_myt = kptpair.get_local_band_indices()
+    delta_myt = np.ones(len(n1_myt))
+    delta_myt[n2_myt <= n1_myt] = 0
+    # Calculate σ^μ_ss' σ^ν_s's and σ^μ_s's σ^ν_ss'
+    s1_myt, s2_myt = kptpair.get_local_spin_indices()
+    scomps1_myt = get_smat_components(spincomponent, s1_myt, s2_myt)
+    scomps2_myt = get_smat_components(spincomponent, s2_myt, s1_myt)
     # Calculate nominators
-    df_t = kptpair.df_t  # df = (f_n'k's' - f_nks)
-    nom1_t = - scomps1_t * df_t
-    nom2_t = - delta_t * scomps2_t * df_t
+    df_myt = kptpair.df_myt  # df = (f_n'k's' - f_nks)
+    nom1_myt = - scomps1_myt * df_myt
+    nom2_myt = - delta_myt * scomps2_myt * df_myt
+    nom1_t = kptpair.get_all(nom1_myt)  # tmp XXX
+    nom2_t = kptpair.get_all(nom2_myt)  # tmp XXX
     # Calculate denominators
-    deps_t = kptpair.deps_t  # dε = (ε_n'k's' - ε_nks)
-    denom1_wt = hz_z[:, np.newaxis] - deps_t[np.newaxis, :]
-    denom2_wt = hz_z[:, np.newaxis] + deps_t[np.newaxis, :]
-    regularize_intraband_transitions(denom1_wt, transitions, deps_t)
-    regularize_intraband_transitions(denom2_wt, transitions, deps_t)
+    deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
+    denom1_mytw = hz_z[np.newaxis] - deps_myt[..., np.newaxis]
+    denom2_mytw = hz_z[np.newaxis] + deps_myt[..., np.newaxis]
+    denom1_wt = kptpair.get_all(denom1_mytw).T  # tmp XXX
+    denom2_wt = kptpair.get_all(denom2_mytw).T  # tmp XXX
+    regularize_intraband_transitions(denom1_wt, kptpair.transitions, kptpair.deps_t)
+    regularize_intraband_transitions(denom2_wt, kptpair.transitions, kptpair.deps_t)
 
     return nom1_t[np.newaxis, :] / denom1_wt\
         - nom2_t[np.newaxis, :] / denom2_wt
