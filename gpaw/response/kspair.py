@@ -79,16 +79,6 @@ class KohnShamKPointPair:
     def df_myt(self):
         return self.ikpt2.f_myt - self.ikpt1.f_myt
 
-    @property
-    def deps_t(self):
-        return self.get_all(self.ikpt2.eps_myt) \
-            - self.get_all(self.ikpt1.eps_myt)
-
-    @property
-    def df_t(self):
-        return self.get_all(self.ikpt2.f_myt) \
-            - self.get_all(self.ikpt1.f_myt)
-
     def get_local_band_indices(self):
         n1_t, n2_t = self.transitions.get_band_indices()
         n1_myt = n1_t[self.tblocks.myslice]

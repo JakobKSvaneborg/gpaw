@@ -44,9 +44,6 @@ class PairTransitions:
     def get_spin_indices(self):
         return self.s1_t, self.s2_t
 
-    def get_band_and_spin_indices(self):
-        return self.n1_t, self.n2_t, self.s1_t, self.s2_t
-
     def get_intraband_mask(self):
         """Get mask for selecting intraband transitions."""
         intraband_t = (self.n1_t == self.n2_t) & (self.s1_t == self.s2_t)
