@@ -7,7 +7,8 @@ import numpy as np
 from ase.units import Ha
 
 import gpaw
-from gpaw.response import ResponseContext
+from gpaw.response import (ResponseGroundStateAdapter, ResponseContext,
+                           ResponseGroundStateAdaptable, ResponseContextInput)
 from gpaw.response.symmetrize import (BodySymmetryOperators,
                                       WingSymmetryOperators)
 from gpaw.response.chi0_data import (Chi0Data, Chi0BodyData,
@@ -27,21 +28,20 @@ from gpaw.response.integrators import (
 if TYPE_CHECKING:
     from typing import Any
     from gpaw.typing import ArrayLike1D
-    from gpaw.response.groundstate import ResponseGroundStateAdapter
     from gpaw.response.pair import ActualPairDensityCalculator
 
 
 class Chi0Calculator:
     def __init__(self,
-                 gs: ResponseGroundStateAdapter,
-                 context: ResponseContext | None = None,
+                 gs: ResponseGroundStateAdaptable,
+                 context: ResponseContextInput = '-',
                  nblocks=1,
                  eshift=None,
                  intraband=True,
                  rate=0.0,
                  **kwargs):
-        self.gs = gs
-        self.context = context or ResponseContext()
+        self.gs = ResponseGroundStateAdapter.from_input(gs)
+        self.context = ResponseContext.from_input(context)
 
         self.chi0_body_calc = Chi0BodyCalculator(
             self.gs, self.context,

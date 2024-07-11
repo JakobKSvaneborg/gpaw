@@ -5,14 +5,12 @@ from abc import abstractmethod
 import numpy as np
 
 from gpaw.typing import Vector
-from gpaw.response import (ResponseGroundStateAdapter, ResponseContext,
-                           GPWFilename, TXTFilename,
-                           ensure_gs, ensure_gs_and_context)
+from gpaw.response import ResponseGroundStateAdaptable, ResponseContextInput
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
-from gpaw.response.chiks import ChiKSCalculator, smat
+from gpaw.response.chiks import ChiKSCalculator, get_smat_components, smat
 from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
 from gpaw.response.site_kernels import SiteKernels
-from gpaw.response.site_data import AtomicSites, AtomicSiteData
+from gpaw.response.site_data import AtomicSites
 from gpaw.response.pair_integrator import PairFunction, PairFunctionIntegrator
 from gpaw.response.pair_transitions import PairTransitions
 from gpaw.response.matrix_elements import (SitePairDensityCalculator,
@@ -189,42 +187,10 @@ class IsotropicExchangeCalculator:
         return chiksr
 
 
-def calculate_site_magnetization(
-        gs: ResponseGroundStateAdapter | GPWFilename,
-        sites: AtomicSites):
-    """Calculate the site magnetization.
-
-    Returns
-    -------
-    magmom_ap : np.ndarray
-        Magnetic moment in μB of site a under partitioning p, calculated
-        directly from the ground state density.
-    """
-    gs = ensure_gs(gs)
-    site_data = AtomicSiteData(gs, sites)
-    return site_data.calculate_magnetic_moments()
-
-
-def calculate_site_zeeman_energy(
-        gs: ResponseGroundStateAdapter | GPWFilename,
-        sites: AtomicSites):
-    """Calculate the site Zeeman energy.
-
-    Returns
-    -------
-    EZ_ap : np.ndarray
-        Local Zeeman energy in eV of site a under partitioning p, calculated
-        directly from the ground state density.
-    """
-    gs = ensure_gs(gs)
-    site_data = AtomicSiteData(gs, sites)
-    return site_data.calculate_zeeman_energies() * Hartree  # Ha -> eV
-
-
 def calculate_single_particle_site_magnetization(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites,
-        context: ResponseContext | TXTFilename = '-'):
+        context: ResponseContextInput = '-'):
     """Calculate the single-particle site magnetization.
 
     Returns
@@ -233,7 +199,6 @@ def calculate_single_particle_site_magnetization(
         Magnetic moment in μB of site a under partitioning p, calculated based
         on a single-particle sum rule.
     """
-    gs, context = ensure_gs_and_context(gs, context=context)
     single_particle_calc = SingleParticleSiteMagnetizationCalculator(
         gs, sites, context=context)
     site_magnetization = single_particle_calc()
@@ -241,9 +206,9 @@ def calculate_single_particle_site_magnetization(
 
 
 def calculate_single_particle_site_zeeman_energy(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites,
-        context: ResponseContext | TXTFilename = '-'):
+        context: ResponseContextInput = '-'):
     """Calculate the single-particle site Zeeman energy.
 
     Returns
@@ -252,7 +217,6 @@ def calculate_single_particle_site_zeeman_energy(
         Local Zeeman energy in eV of site a under partitioning p, calculated
         based on a single-particle sum rule.
     """
-    gs, context = ensure_gs_and_context(gs, context=context)
     single_particle_calc = SingleParticleSiteZeemanEnergyCalculator(
         gs, sites, context=context)
     site_zeeman_energy = single_particle_calc()
@@ -260,11 +224,12 @@ def calculate_single_particle_site_zeeman_energy(
 
 
 def calculate_pair_site_magnetization(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites,
-        context: ResponseContext | TXTFilename = '-',
+        context: ResponseContextInput = '-',
         q_c=[0., 0., 0.],
-        nbands: int | None = None):
+        nbands: int | None = None,
+        nblocks: int | str = 1):
     """Calculate the pair site magnetization.
 
     Parameters
@@ -274,6 +239,10 @@ def calculate_pair_site_magnetization(
     nbands : int or None
         Number of bands to include in the band summation of the pair site
         magnetization. If nbands is None, it includes all bands.
+    nblocks : int or str
+        The workload is parallelized over k-points and band+spin transitions.
+        The latter is divided into nblocks, integrating nprocessors / nblocks
+        k-points at a time.
 
     Returns
     -------
@@ -281,19 +250,19 @@ def calculate_pair_site_magnetization(
         Pair magnetization in μB of site a and b under partitioning p,
         calculated based on a two-particle sum rule.
     """
-    gs, context = ensure_gs_and_context(gs, context=context)
     two_particle_calc = TwoParticleSiteMagnetizationCalculator(
-        gs, sites, context=context, nbands=nbands)
+        gs, sites, context=context, nbands=nbands, nblocks=nblocks)
     pair_site_magnetization = two_particle_calc(q_c)
     return pair_site_magnetization.array
 
 
 def calculate_pair_site_zeeman_energy(
-        gs: ResponseGroundStateAdapter | GPWFilename,
+        gs: ResponseGroundStateAdaptable,
         sites: AtomicSites,
-        context: ResponseContext | TXTFilename = '-',
+        context: ResponseContextInput = '-',
         q_c=[0., 0., 0.],
-        nbands: int | None = None):
+        nbands: int | None = None,
+        nblocks: int | str = 1):
     """Calculate the pair site Zeeman energy.
 
     Parameters
@@ -303,6 +272,10 @@ def calculate_pair_site_zeeman_energy(
     nbands : int or None
         Number of bands to include in the band summation of the pair site
         Zeeman energy. If nbands is None, it includes all bands.
+    nblocks : int or str
+        The workload is parallelized over k-points and band+spin transitions.
+        The latter is divided into nblocks, integrating nprocessors / nblocks
+        k-points at a time.
 
     Returns
     -------
@@ -310,18 +283,29 @@ def calculate_pair_site_zeeman_energy(
         Local pair Zeeman energy in eV of site a and b under partitioning p,
         calculated based on a two-particle sum rule.
     """
-    gs, context = ensure_gs_and_context(gs, context=context)
     two_particle_calc = TwoParticleSiteZeemanEnergyCalculator(
-        gs, sites, context=context, nbands=nbands)
+        gs, sites, context=context, nbands=nbands, nblocks=nblocks)
     pair_site_zeeman_energy = two_particle_calc(q_c)
     return pair_site_zeeman_energy.array * Hartree  # Ha -> eV
 
 
-class StaticSiteFunction(PairFunction):
-    """Data object for static single-particle site functions."""
-    def __init__(self, q_c: Vector, sites: AtomicSites):
+class SiteFunction(PairFunction):
+    r"""Data object for single-particle site functions f_a.
+
+    A single-particle site function is understood as any function that can be
+    constructed as a sum over the system eigenstates
+          __
+          \   a
+    f_a = /  f
+          ‾‾  α
+          α
+
+    with site dependent weights f^a_α representing some projection onto a local
+    (atomic) site.
+    """
+    def __init__(self, sites: AtomicSites):
         self.sites = sites
-        super().__init__(q_c)
+        super().__init__(q_c=[0., 0., 0.])  # no crystal momentum transfer
 
     @property
     def shape(self):
@@ -334,9 +318,8 @@ class StaticSiteFunction(PairFunction):
 class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     r"""Calculator for single-particle site sum rules.
 
-    For any site matrix element f^a_(nks,n'k's'), one may define a single-
-    particle site sum rule by considering only the diagonal of the matrix
-    element:
+    For any site matrix element f^a_(nks,n'k's') of the Kohn-Sham system, one
+    may define a single-particle site sum rule by its weighted trace
                  __  __
              1   \   \
     f_a^μ = ‾‾‾  /   /  σ^μ_ss f_nks f^a_(nks,nks)
@@ -346,9 +329,9 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     where μ∊{0,z}.
     """
 
-    def __init__(self, gs, sites, context):
+    def __init__(self, gs, sites, context='-'):
         super().__init__(gs, context, qsymmetry=False)
-
+        self.transitions = self.get_band_and_spin_transitions()
         # Set up calculator for the f^a matrix element
         self.sites = sites
         self.matrix_element_calc = self.create_matrix_element_calculator()
@@ -357,34 +340,27 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     def create_matrix_element_calculator(self):
         """Create the desired site matrix element calculator."""
 
-    def __call__(self):
-        # Set up transitions
-        # Loop over bands, which are fully or partially occupied
+    @abstractmethod
+    def get_pauli_matrix(self):
+        """Get the desired Pauli matrix σ^μ."""
+
+    def get_band_and_spin_transitions(self):
+        """Set up all intraband transitions (n,s)->(n,s)."""
         nocc2 = self.kptpair_extractor.nocc2
         n_n = list(range(nocc2))
         n_t = np.array(n_n + n_n)
         s_t = np.array([0] * nocc2 + [1] * nocc2)
-        transitions = PairTransitions(n1_t=n_t, n2_t=n_t, s1_t=s_t, s2_t=s_t)
+        return PairTransitions(n1_t=n_t, n2_t=n_t, s1_t=s_t, s2_t=s_t)
 
-        # Set up data object with q=0
-        site_function = StaticSiteFunction(q_c=[0., 0., 0.], sites=self.sites)
-
-        # Perform actual calculation
-        self._integrate(site_function, transitions)
-
+    def __call__(self):
+        site_function = SiteFunction(sites=self.sites)
+        self._integrate(site_function, self.transitions)
         return site_function
 
     def add_integrand(self, kptpair, weight, site_function):
         r"""Add the integrand of the outer k-point integral.
 
-        With
-                   __
-                1  \
-        f_a^μ = ‾  /  (...)_k
-                V  ‾‾
-                   k
-
-        the integrand has to be multiplied with the cell volume V0:
+        The integrand is given by (see gpaw.response.pair_integrator)
                      __
                      \
         (...)_k = V0 /  σ^μ_ss f_nks f^a_(nks,nks)
@@ -413,10 +389,6 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
         # Calculate and add integrand
         site_function.array[:] += self.gs.volume * weight * np.einsum(
             't, tap -> ap', sigmaf_t, f_tap)
-
-    @abstractmethod
-    def get_pauli_matrix(self):
-        """Get the desired Pauli matrix σ^μ_ss."""
 
 
 class SingleParticleSiteMagnetizationCalculator(
@@ -451,8 +423,45 @@ class SingleParticleSiteZeemanEnergyCalculator(
             self.gs, self.context, self.sites, rshewmin=1e-8)
 
 
-class StaticSitePairFunction(StaticSiteFunction):
-    """Data object for static pair site functions."""
+class SitePairFunction(PairFunction):
+    r"""Data object for site pair functions.
+
+    A site pair function is understood as any function that can be written on
+    the form of a pair function,
+                __
+                \    ab
+    pf_ab(q) =  /  pf    δ_{q,q_{α',α}}
+                ‾‾   αα'
+                α,α'
+
+    with site-dependent pair function weights pf^(ab)_{αα'}.
+
+    Typically, the site pair function will be related to a more general lattice
+    periodic pair function pf(r,r') = pf(r+R,r'+R), which can be written in
+    terms of its lattice Fourier transform
+
+                 V0    /
+    pf(r,r') = ‾‾‾‾‾‾  | dq pf(r,r',q)
+               (2π)^D  /
+                        BZ
+    where
+                 __
+                 \    iq⋅R
+    pf(r,r',q) = /   e     pf(r,r'+R)
+                 ‾‾
+                 R
+
+    The site-projected lattice Fourier transform then constitutes a site pair
+    function:
+
+               //
+    pf_ab(q) = || drdr' Θ(r∊Ω_a) pf(r,r',q) Θ(r'∊Ω_b)
+               //
+    """
+    def __init__(self, q_c: Vector, sites: AtomicSites):
+        self.sites = sites
+        super().__init__(q_c)
+
     @property
     def shape(self):
         nsites = len(self.sites)
@@ -463,30 +472,37 @@ class StaticSitePairFunction(StaticSiteFunction):
         return np.zeros(self.shape, dtype=complex)
 
 
-class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
-    r"""Calculator for two-particle site sum rules.
+class SitePairFunctionCalculator(PairFunctionIntegrator):
+    r"""Calculator for site-projected pair functions.
 
-    For any set of site matrix elements f^a and g^b, one may define a two-
-    particle site sum rule based on the lattice Fourier transformed quantity:
-                     __  __   __
-                 1   \   \    \   /
-    ̄x_ab^z(q) = ‾‾‾  /   /    /   | σ^j_ss' (f_nks - f_n'k+qs')
-                N_k  ‾‾  ‾‾   ‾‾  \                                       \
-                     k  n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
-                                                                          /
-    where σ^j is a Pauli matrix with j∊{0,+,-,z}.
+    In the Kohn-Sham system, site-projected pair functions are constructed
+    straight-forwardly as a sum over Kohn-Sham eigenstate transitions,
+                    __  __   __
+                1   \   \    \   /
+    pf_ab(q) = ‾‾‾  /   /    /   | σ^μ_ss' σ^ν_s's w_(ε_nks,ε_n'k+qs')
+               N_k  ‾‾  ‾‾   ‾‾  \                                       \
+                    k  n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
+                                                                         /
+
+    summing up the site-projected matrix elements f^a and f^b, weighted by
+    Pauli-like 2x2 spin-matrices σ^μ and σ^ν and some function
+    w_(ε_nks,ε_n'k+qs') of the Kohn-Sham eigenvalues.
     """
-
     def __init__(self,
-                 gs: ResponseGroundStateAdapter,
+                 gs: ResponseGroundStateAdaptable,
                  sites: AtomicSites,
-                 context: ResponseContext | None = None,
-                 nbands: int | None = None):
+                 context: ResponseContextInput = '-',
+                 nbands: int | None = None,
+                 nblocks: int | str = 1):
         """Construct the two-particle site sum rule calculator."""
-        if context is None:
-            context = ResponseContext()
-        super().__init__(gs, context, qsymmetry=False)
+        super().__init__(gs, context,
+                         # Disable q-symmetry for now. To enable it, we need
+                         # to implement site pair function symmetrization.
+                         qsymmetry=False,
+                         nblocks=nblocks)
         self.nbands = nbands
+        self.bandsummation = 'double'
+        self.transitions = self.get_band_and_spin_transitions()
 
         # Set up calculators for the f^a and g^b matrix elements
         self.sites = sites
@@ -498,87 +514,93 @@ class TwoParticleSiteSumRuleCalculator(PairFunctionIntegrator):
     def create_matrix_element_calculators(self):
         """Create the desired site matrix element calculators."""
 
-    def __call__(self, q_c):
-        """Calculate the site sum rule for a given wave vector q_c."""
-        spincomponent = self.get_spincomponent()
-        transitions = self.get_band_and_spin_transitions(
-            spincomponent, nbands=self.nbands, bandsummation='double')
-        self.context.print(self.get_info_string(
-            q_c, self.nbands, len(transitions)))
-
-        # Set up data object
-        site_pair_function = StaticSitePairFunction(q_c, self.sites)
-
-        # Perform actual calculation
-        self._integrate(site_pair_function, transitions)
-
-        return site_pair_function
-
     @abstractmethod
     def get_spincomponent(self):
         """Define how to rotate the spins via the spin component (μν)."""
 
+    @abstractmethod
+    def calculate_eigenvalue_dependent_weights(self, kptpair):
+        """Calculate w_(ε_nks,ε_n'k+qs') for band and spin transitions myt."""
+
+    def get_band_and_spin_transitions(self):
+        return super().get_band_and_spin_transitions(
+            self.get_spincomponent(),
+            nbands=self.nbands, bandsummation=self.bandsummation)
+
+    def __call__(self, q_c):
+        """Calculate the site pair function for a given wave vector q_c."""
+        self.context.print(self.get_info_string(q_c))
+        site_pair_function = SitePairFunction(q_c, self.sites)
+        self._integrate(site_pair_function, self.transitions)
+        return site_pair_function
+
     def add_integrand(self, kptpair, weight, site_pair_function):
-        r"""Add the site sum rule integrand of the outer k-point integral.
+        r"""Add the site pair function integrand of the outer k-point integral.
 
-        With
-                       __
-                    1  \
-        ̄x_ab^z(q) = ‾  /  (...)_k
-                    V  ‾‾
-                       k
-
-        the integrand is given by
+        The integrand is given by (see gpaw.response.pair_integrator)
                      __   __
                      \    \   /
-        (...)_k = V0 /    /   | σ^j_ss' (f_nks - f_n'k+qs')
+        (...)_k = V0 /    /   | σ^μ_ss' σ^ν_s's w_(ε_nks,ε_n'k+qs')
                      ‾‾   ‾‾  \                                       \
                     n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
                                                                       /
 
         where V0 is the cell volume.
         """
-        # Calculate site matrix elements
+        # Calculate the product of site matrix elements
         q_c = site_pair_function.q_c
         matrix_element1 = self.matrix_element_calc1(kptpair, q_c)
         if self.matrix_element_calc2 is self.matrix_element_calc1:
             matrix_element2 = matrix_element1
         else:
             matrix_element2 = self.matrix_element_calc2(kptpair, q_c)
-
-        # Calculate the product between the Pauli matrix and the occupational
-        # differences
-        sigma = self.get_pauli_matrix()
-        s1_myt, s2_myt = kptpair.get_local_spin_indices()
-        sigma_myt = sigma[s1_myt, s2_myt]
-        df_myt = kptpair.ikpt1.f_myt - kptpair.ikpt2.f_myt
-        sigmadf_myt = sigma_myt * df_myt
-
-        # Calculate integrand
         f_mytap = matrix_element1.local_array_view
         g_mytap = matrix_element2.local_array_view
         fgcc_mytabp = f_mytap[:, :, np.newaxis] * g_mytap.conj()[:, np.newaxis]
-        # Sum over local transitions
-        integrand_abp = np.einsum('t, tabp -> abp', sigmadf_myt, fgcc_mytabp)
+
+        # Sum over local transitions, weighted by the spin matrices and
+        # eigenvalue-dependent weights
+        scomps_myt = get_smat_components(
+            self.get_spincomponent(), *kptpair.get_local_spin_indices())
+        weps_myt = self.calculate_eigenvalue_dependent_weights(kptpair)
+        x_myt = scomps_myt * weps_myt  # σ^μ_ss' σ^ν_s's w_(ε_nks,ε_n'k+qs')
+        integrand_abp = np.einsum('t, tabp -> abp', x_myt, fgcc_mytabp)
         # Sum over distributed transitions
         kptpair.tblocks.blockcomm.sum(integrand_abp)
-
         # Add integrand to output array
         site_pair_function.array[:] += self.gs.volume * weight * integrand_abp
 
-    @abstractmethod
-    def get_pauli_matrix(self):
-        """Get the desired Pauli matrix σ^j_ss'."""
-
-    def get_info_string(self, q_c, nbands, nt):
+    def get_info_string(self, q_c):
         """Get information about the calculation"""
         info_list = ['',
-                     'Calculating two-particle site sum rule with:'
+                     'Calculating site pair function with:'
                      f'    q_c: [{q_c[0]}, {q_c[1]}, {q_c[2]}]',
-                     self.get_band_and_transitions_info_string(nbands, nt),
+                     self.get_band_and_transitions_info_string(
+                         self.nbands, len(self.transitions)),
                      '',
                      self.get_basic_info_string()]
         return '\n'.join(info_list)
+
+
+class TwoParticleSiteSumRuleCalculator(SitePairFunctionCalculator):
+    r"""Calculator for two-particle site sum rules.
+
+    For any set of site matrix elements f^a and g^b, one may define a two-
+    particle site sum rule,
+                   __  __   __
+               1   \   \    \   /
+    ̄x_ab(q) = ‾‾‾  /   /    /   | σ^μ_ss' σ^ν_s's (f_nks - f_n'k+qs')
+              N_k  ‾‾  ‾‾   ‾‾  \                                       \
+                   k  n,n' s,s'   × f^a_(nks,n'k+qs') g^b_(n'k+qs',nks) |
+                                                                        /
+
+    that is, with eigenvalue-dependent weights
+
+    w_(ε_nks,ε_n'k+qs') = f_nks - f_n'k+qs'
+    """
+    @staticmethod
+    def calculate_eigenvalue_dependent_weights(kptpair):
+        return kptpair.ikpt1.f_myt - kptpair.ikpt2.f_myt  # df_myt
 
 
 class TwoParticleSiteMagnetizationCalculator(TwoParticleSiteSumRuleCalculator):
@@ -604,9 +626,6 @@ class TwoParticleSiteMagnetizationCalculator(TwoParticleSiteSumRuleCalculator):
 
     def get_spincomponent(self):
         return '+-'
-
-    def get_pauli_matrix(self):
-        return smat('+')
 
 
 class TwoParticleSiteZeemanEnergyCalculator(

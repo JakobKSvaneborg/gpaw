@@ -4,8 +4,6 @@
 Local properties of individual magnetic sites
 =============================================
 
-.. module:: gpaw.response.mft
-
 It is almost always very useful to analyze magnetic systems in terms of the
 individual magnetic sites of the crystal. In this tutorial, we illustrate how
 to calculate individual site properties for the magnetic atoms in GPAW.
@@ -19,6 +17,8 @@ radius `r_\mathrm{c}` around the given magnetic atom `a`.
 
 Local functionals of the spin-density
 =====================================
+
+.. module:: gpaw.response.site_data
 
 For any functional of the (spin-)density `f[n, \mathbf{m}](\mathbf{r})`,
 one may define a corresponding site quantity,
@@ -67,15 +67,21 @@ property of the system in its own right.
 However, the same cannot be said for the site magnetization, which continues to
 varry as a function of the cutoff radius. This is due to the fact that the
 interstitial region between the Fe atoms is slightly spin-polarized
-anti-parallely to the local magnetic moments, resulting in a radius
-`r_\mathrm{c}^\mathrm{max}` which maximizes the site magnetization. If one wants
-to employ a rigid spin approximation for the magnetic site, i.e. to assume that
-the direction of magnetization is constant within the site volume, it would be a
-natural choice to use `r_\mathrm{c}^\mathrm{max}` to define the sites.
+anti-parallel to the local magnetic moments, resulting in a radius
+`r_\mathrm{c}^\mathrm{max}` which maximizes the site magnetization (marked with
+a dotted line). If one wants to employ a rigid spin approximation for the
+magnetic site, i.e. to assume that the direction of magnetization is constant
+within the site volume, it is natural to choose `r_\mathrm{c}^\mathrm{max}` to
+define the sites. In practice, `r_\mathrm{c}^\mathrm{max}` can be calculated
+(along with the maximized magnetic moment) via the function
+:func:`maximize_site_magnetization` and in general, the allowed ranges of atomic
+cutoff radii can be inspected via the :func:`get_site_radii_range` function.
 
 
 Site-based sum rules
 ====================
+
+.. module:: gpaw.response.mft
 
 In addition to site quantities, one may also introduce the concept of site
 matrix elements, that is, expectation values of functionals
@@ -217,8 +223,12 @@ excercises to get you started:
 API
 ===
 
+.. module:: gpaw.response.site_data
 .. autofunction:: calculate_site_magnetization
 .. autofunction:: calculate_site_zeeman_energy
+.. autofunction:: maximize_site_magnetization
+.. autofunction:: get_site_radii_range
+.. module:: gpaw.response.mft
 .. autofunction:: calculate_single_particle_site_magnetization
 .. autofunction:: calculate_single_particle_site_zeeman_energy
 .. autofunction:: calculate_pair_site_magnetization
