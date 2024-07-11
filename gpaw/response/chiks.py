@@ -519,7 +519,8 @@ def get_temporal_part(spincomponent, hz_z, kptpair, bandsummation):
     """Get the temporal part of a (causal linear) susceptibility, x_t^μν(ħz).
     """
     _get_temporal_part = create_get_temporal_part(bandsummation)
-    return _get_temporal_part(spincomponent, hz_z, kptpair)
+    x_mytz = _get_temporal_part(spincomponent, hz_z, kptpair)
+    return kptpair.get_all(x_mytz).T  # tmp XXX
 
 
 def create_get_temporal_part(bandsummation):
@@ -543,14 +544,12 @@ def get_double_temporal_part(spincomponent, hz_z, kptpair):
     scomps_myt = get_smat_components(spincomponent, s1_myt, s2_myt)
     # Calculate nominator
     nom_myt = - scomps_myt * kptpair.df_myt  # df = (f_n'k's' - f_nks)
-    nom_t = kptpair.get_all(nom_myt)  # tmp XXX
     # Calculate denominator
     deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
-    denom_mytw = hz_z[np.newaxis] - deps_myt[..., np.newaxis]
-    denom_wt = kptpair.get_all(denom_mytw).T  # tmp XXX
-    regularize_intraband_transitions(denom_wt, kptpair.transitions, kptpair.deps_t)
+    denom_mytz = hz_z[np.newaxis] - deps_myt[..., np.newaxis]
+    regularize_intraband_transitions(denom_mytz, kptpair)
 
-    return nom_t[np.newaxis, :] / denom_wt
+    return nom_myt[:, np.newaxis] / denom_mytz
 
 
 def get_pairwise_temporal_part(spincomponent, hz_z, kptpair):
@@ -579,22 +578,18 @@ def get_pairwise_temporal_part(spincomponent, hz_z, kptpair):
     df_myt = kptpair.df_myt  # df = (f_n'k's' - f_nks)
     nom1_myt = - scomps1_myt * df_myt
     nom2_myt = - delta_myt * scomps2_myt * df_myt
-    nom1_t = kptpair.get_all(nom1_myt)  # tmp XXX
-    nom2_t = kptpair.get_all(nom2_myt)  # tmp XXX
     # Calculate denominators
     deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
-    denom1_mytw = hz_z[np.newaxis] - deps_myt[..., np.newaxis]
-    denom2_mytw = hz_z[np.newaxis] + deps_myt[..., np.newaxis]
-    denom1_wt = kptpair.get_all(denom1_mytw).T  # tmp XXX
-    denom2_wt = kptpair.get_all(denom2_mytw).T  # tmp XXX
-    regularize_intraband_transitions(denom1_wt, kptpair.transitions, kptpair.deps_t)
-    regularize_intraband_transitions(denom2_wt, kptpair.transitions, kptpair.deps_t)
+    denom1_mytz = hz_z[np.newaxis] - deps_myt[..., np.newaxis]
+    denom2_mytz = hz_z[np.newaxis] + deps_myt[..., np.newaxis]
+    regularize_intraband_transitions(denom1_mytz, kptpair)
+    regularize_intraband_transitions(denom2_mytz, kptpair)
 
-    return nom1_t[np.newaxis, :] / denom1_wt\
-        - nom2_t[np.newaxis, :] / denom2_wt
+    return nom1_myt[:, np.newaxis] / denom1_mytz\
+        - nom2_myt[:, np.newaxis] / denom2_mytz
 
 
-def regularize_intraband_transitions(denom_wt, transitions, deps_t):
+def regularize_intraband_transitions(denom_mytx, kptpair):
     """Regularize the denominator of the temporal part in case of degeneracy.
 
     If the q-vector connects two symmetrically equivalent k-points inside a
@@ -602,10 +597,9 @@ def regularize_intraband_transitions(denom_wt, transitions, deps_t):
 
     NB: In principle there *should* be a contribution from the intraband
     transitions, but this is left for future work for now."""
-    intraband_t = transitions.get_intraband_mask()
-    degenerate_t = np.abs(deps_t) < 1e-8
-
-    denom_wt[:, intraband_t & degenerate_t] = 1.
+    intraband_myt = kptpair.get_local_intraband_mask()
+    degenerate_myt = np.abs(kptpair.deps_myt) < 1e-8
+    denom_mytx[intraband_myt & degenerate_myt, ...] = 1.
 
 
 def get_smat_components(spincomponent, s1_t, s2_t):

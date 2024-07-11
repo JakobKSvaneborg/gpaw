@@ -101,6 +101,10 @@ class KohnShamKPointPair:
         s2_myt = s2_t[self.tblocks.myslice]
         return s1_myt, s2_myt
 
+    def get_local_intraband_mask(self):
+        intraband_t = self.transitions.get_intraband_mask()
+        return intraband_t[self.tblocks.myslice]
+
 
 class KohnShamKPointPairExtractor:
     """Functionality to extract KohnShamKPointPairs from a
