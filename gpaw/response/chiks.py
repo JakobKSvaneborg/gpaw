@@ -520,7 +520,7 @@ def get_temporal_part(spincomponent, hz_z, kptpair, bandsummation):
     """
     _get_temporal_part = create_get_temporal_part(bandsummation)
     x_mytz = _get_temporal_part(spincomponent, hz_z, kptpair)
-    return kptpair.get_all(x_mytz).T  # tmp XXX
+    return np.ascontiguousarray(kptpair.get_all(x_mytz).T)  # tmp XXX
 
 
 def create_get_temporal_part(bandsummation):
