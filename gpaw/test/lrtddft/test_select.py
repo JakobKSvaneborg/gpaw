@@ -4,9 +4,8 @@ from gpaw import GPAW, FermiDirac
 from gpaw.lrtddft import LrTDDFT
 
 
-@pytest.mark.lrtddft
-def test_digonalize():
-    """Test selection at diagonalization stage"""
+@pytest.fixture
+def oxygen():
     atoms = Atoms('O')
     atoms.cell = [3, 4, 5]
     atoms.center()
@@ -15,8 +14,13 @@ def test_digonalize():
                       occupations=FermiDirac(width=0.1),
                       nbands=5)
     atoms.get_potential_energy()
+    return atoms
 
-    lr = LrTDDFT(atoms.calc)
+
+@pytest.mark.lrtddft
+def test_digonalize(oxygen):
+    """Test selection at diagonalization stage"""
+    lr = LrTDDFT(oxygen.calc)
 
     # all
     lr.diagonalize()
@@ -36,3 +40,15 @@ def test_digonalize():
 
     lr.diagonalize(restrict={'from': [0], 'to': [3, 4]})
     assert len(lr) == 2
+
+
+@pytest.mark.lrtddft
+def test_window(oxygen):
+    """Test window selection at calculation step"""
+    froml = [0, 1]
+    tol = [4]
+    lr = LrTDDFT(oxygen.calc, restrict={'from': froml, 'to': tol})
+    assert len(lr) == len(froml) * len(tol)
+    for ks in lr.kss:
+        assert ks.i in froml
+        assert ks.j in tol
