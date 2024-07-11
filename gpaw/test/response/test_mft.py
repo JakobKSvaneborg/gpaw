@@ -399,16 +399,28 @@ def test_Co_exchange(in_tmp_dir, gpw_files, qrel):
             gs, sites, q_c, context=context, nbands=nbands,
             nblocks='max') == pytest.approx(J_abr)
 
-    # import matplotlib.pyplot as plt
-    # from ase.units import Bohr
-    # rc_r = sites.rc_ap[0] * Bohr
-    # plt.plot(rc_r, EZ_ar[0], '-o', mec='k')
-    # plt.plot(rc_r, sp_EZ_ar[0], '-o', mec='k', zorder=0)
-    # plt.plot(rc_r, tp_EZ_ar[0], '-o', mec='k', zorder=1)
-    # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
-    # plt.ylabel(r'$E_\mathrm{Z}$ [eV]')
-    # plt.title(str(q_c))
-    # plt.show()
+    # Calculate the magnon energy at the Gamma-point
+    if qrel == 0.:
+        mom = calc.get_atoms().get_magnetic_moment()
+        mm_ar = mom / 2. * np.ones(J_ar.shape)
+        mw_nr = calculate_fm_magnon_energies(
+            np.array([J_abr]), np.array([q_c]), mm_ar)[0]
+        mw_nr = np.sort(mw_nr, axis=0)  # Make sure the eigenvalues are sorted
+
+        assert mw_nr[0] == pytest.approx(0.)  # Goldstone theorem
+        assert mw_nr[1, 2::2] == pytest.approx(np.array(
+            [0.092, 0.358, 0.504, 0.539, 0.539]), abs=1e-3)
+
+        # import matplotlib.pyplot as plt
+        # from ase.units import Bohr
+        # rc_r = sites.rc_ap[0] * Bohr
+        # for n, mw_r in enumerate(mw_nr):
+        #     plt.plot(rc_r, mw_r, '-o', mec='k', label=str(n))
+        # plt.legend()
+        # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
+        # plt.ylabel(r'$\hbar\omega$ [eV]')
+        # plt.title(str(q_c))
+        # plt.show()
 
 
 # ---------- Test functionality ---------- #
