@@ -113,13 +113,16 @@ class JDOSCalculator(PairFunctionIntegrator):
         # dependence in χ_KS^μν(q,z)
         if jdos.spincomponent == '00' and self.gs.nspins == 1:
             weight = 2 * weight
-        x_zt = get_temporal_part(jdos.spincomponent, jdos.zd.hz_z,
-                                 kptpair, self.bandsummation)
-        integrand_zt = -x_zt.imag / np.pi
+        x_mytz = get_temporal_part(jdos.spincomponent, jdos.zd.hz_z,
+                                   kptpair, self.bandsummation)
+        integrand_mytz = -x_mytz.imag / np.pi
 
         with self.context.timer('Perform sum over t-transitions'):
-            jdos_z = jdos.array  # specify notation
-            jdos_z += weight * np.sum(integrand_zt, axis=1)
+            # Sum over local transitions
+            integrand_z = np.sum(integrand_mytz, axis=0)
+            # Sum over distributed transitions
+            kptpair.tblocks.blockcomm.sum(integrand_z)
+        jdos.array[:] += weight * integrand_z
 
     def get_info_string(self, q_c, nz, spincomponent, nbands, nt):
         """Get information about the joint density of states calculation"""

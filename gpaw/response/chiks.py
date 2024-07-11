@@ -251,13 +251,14 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
         # Calculate the temporal part of the integrand
         if chiks.spincomponent == '00' and self.gs.nspins == 1:
             weight = 2 * weight
-        x_Zt = get_temporal_part(chiks.spincomponent, chiks.zd.hz_z,
-                                 kptpair, self.bandsummation)
+        x_mytZ = get_temporal_part(chiks.spincomponent, chiks.zd.hz_z,
+                                   kptpair, self.bandsummation)
+        x_tZ = kptpair.tblocks.all_gather(x_mytZ)
 
         self._add_integrand(
-            matrix_element1, matrix_element2, x_Zt, weight, chiks)
+            matrix_element1, matrix_element2, x_tZ, weight, chiks)
 
-    def _add_integrand(self, matrix_element1, matrix_element2, x_Zt,
+    def _add_integrand(self, matrix_element1, matrix_element2, x_tZ,
                        weight, chiks):
         r"""Add the generalized susceptibility integrand based on distribution.
 
@@ -272,7 +273,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
         where x_t^μν(ħz) is the temporal part of ̄x_KS,GG'^μν(q,ω+iη).
         """
         _add_integrand = self.get_add_integrand_method(chiks.distribution)
-        _add_integrand(matrix_element1, matrix_element2, x_Zt, weight, chiks)
+        _add_integrand(matrix_element1, matrix_element2, x_tZ, weight, chiks)
 
     def get_add_integrand_method(self, distribution):
         """_add_integrand seletor."""
@@ -284,7 +285,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             raise ValueError(f'Invalid distribution {distribution}')
         return _add_integrand
 
-    def _add_integrand_ZgG(self, matrix_element1, matrix_element2, x_Zt,
+    def _add_integrand_ZgG(self, matrix_element1, matrix_element2, x_tZ,
                            weight, chiks):
         """Add integrand in ZgG distribution.
 
@@ -297,7 +298,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
 
         with self.context.timer('Set up gcc and xf'):
             # Multiply the temporal part with the k-point integration weight
-            x_Zt *= weight
+            x_Zt = np.ascontiguousarray(weight * x_tZ.T)
 
             # Set up f_kt(G+q) and g_kt^*(G'+q)
             f_tG = matrix_element1.get_global_array()
@@ -315,7 +316,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             for xf_gt, chiks_gG in zip(xf_Zgt, chiks_ZgG):
                 mmmx(1.0, xf_gt, 'N', gcc_tG, 'N', 1.0, chiks_gG)  # slow step
 
-    def _add_integrand_GZg(self, matrix_element1, matrix_element2, x_Zt,
+    def _add_integrand_GZg(self, matrix_element1, matrix_element2, x_tZ,
                            weight, chiks):
         """Add integrand in GZg distribution.
 
@@ -328,7 +329,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
 
         with self.context.timer('Set up gcc and xf'):
             # Multiply the temporal part with the k-point integration weight
-            x_tZ = np.ascontiguousarray(weight * x_Zt.T)
+            x_tZ *= weight
 
             # Set up f_kt(G+q) and g_kt^*(G'+q)
             f_tG = matrix_element1.get_global_array()
@@ -519,8 +520,7 @@ def get_temporal_part(spincomponent, hz_z, kptpair, bandsummation):
     """Get the temporal part of a (causal linear) susceptibility, x_t^μν(ħz).
     """
     _get_temporal_part = create_get_temporal_part(bandsummation)
-    x_mytz = _get_temporal_part(spincomponent, hz_z, kptpair)
-    return np.ascontiguousarray(kptpair.get_all(x_mytz).T)  # tmp XXX
+    return _get_temporal_part(spincomponent, hz_z, kptpair)
 
 
 def create_get_temporal_part(bandsummation):
