@@ -8,11 +8,13 @@ try:
 except ImportError:
     class ChiCalc():  # type: ignore
         def __init__(self, *args, **kwargs):
-            raise ImportError('qeh not installed')
+            raise ImportError('qeh not installed, \
+                               or is too old.')
 
     class QPoint():  # type: ignore
         def __init__(self, *args, **kwargs):
-            raise ImportError('qeh not installed')
+            raise ImportError('qeh not installed, \
+                               or is too old.')
 
 
 class GPAW_ChiCalc(ChiCalc):
