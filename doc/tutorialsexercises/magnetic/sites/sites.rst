@@ -167,7 +167,6 @@ about related completeness issues of more complicated pair functions. In GPAW,
 they can be calculated using the :func:`calculate_pair_site_magnetization` and
 :func:`calculate_pair_site_zeeman_energy` functions.
 
-
 Example: Iron
 -------------
 
@@ -197,10 +196,61 @@ out the entire augmentation sphere.
 In the figure, we have left out the imaginary part of the pair site Zeeman
 energy. You can check yourself that it vanishes more or less identically.
 
+
 Exchange parameters
 ===================
 
-Bla bla bla, see also :ref:`mft`
+Although site-based sum rules can be enlightening in terms of PAW completeness
+and internal consistency of the code, the site matrix elements only bring real
+novelty when used for calculation of properties which can't be obtained as
+simple functionals of the local (spin-)density. The Heisenberg exchange
+constants constitute exactly such physical quantities. In the rigid spin
+approximation, the lattice Fourier transformed exchange constants are given by
+(see e.g. [#Skovhus]_)
+
+.. math::
+   \bar{J}^{ab}(\mathbf{q}) = \iint d\mathbf{r}d\mathbf{r}'\:
+   \Theta(\mathbf{r}\in\Omega_{a}) J(\mathbf{r}, \mathbf{r}', \mathbf{q})
+   \Theta(\mathbf{r}'\in\Omega_{b}),
+
+where `J(\mathbf{r}, \mathbf{r}', \mathbf{q})` is the lattice Fourier transform
+of the exchange field `J(\mathbf{r}, \mathbf{r}')`:
+
+.. math::
+   J(\mathbf{r}, \mathbf{r}', \mathbf{q}) = \sum_\mathbf{R}
+   e^{i\mathbf{q}\cdot\mathbf{R}} J(\mathbf{r}, \mathbf{r}' + \mathbf{R}).
+
+In the linear response formulation of the magnetic force theorem, the exchange
+field can by approximated within the LDA as [#Durhuus]_
+
+.. math::
+   J(\mathbf{r}, \mathbf{r}') = -2 B^\mathrm{xc}(\mathbf{r})
+   \chi_\mathrm{KS}^{'+-}(\mathbf{q}) B^\mathrm{xc}(\mathbf{r}'),
+
+where `B^\mathrm{xc}(\mathbf{r})=-\left|W_\mathrm{xc}^z(\mathbf{r})\right|`
+crucially is a local functional of the spin-density, see also :ref:`mft`.
+Consequently, the exchange constants can be written on the form of a site pair
+function
+
+.. math::
+   \bar{J}^{ab}(\mathbf{q}) = -\frac{2}{N_k} \sum_{\mathbf{k}} \sum_{n,m}
+   \frac{f_{n\mathbf{k}\uparrow} - f_{m\mathbf{k}+\mathbf{q}\downarrow}}{
+   \epsilon_{n\mathbf{k}\uparrow} - \epsilon_{m\mathbf{k}+\mathbf{q}\downarrow}}
+   d^{\mathrm{xc},a}_{n\mathbf{k}\uparrow,m\mathbf{k}+\mathbf{q}\downarrow}
+   d^{\mathrm{xc},b}_{m\mathbf{k}+\mathbf{q}\downarrow,n\mathbf{k}\uparrow},
+
+where the spin pair energy site matrix elements,
+
+.. math::
+   d^{\mathrm{xc},a}_{n\mathbf{k}s,m\mathbf{k}+\mathbf{q}s'} =
+   \langle \psi_{n\mathbf{k}s}|
+   \Theta(\mathbf{r}\in\Omega_{a}) B^\mathrm{xc}(\mathbf{r})
+   |\psi_{m\mathbf{k}+\mathbf{q}s'} \rangle,
+
+are intimately related to the site Zeeman pair energy. To calculate Heisenberg
+exchange constants in this way, you can use the GPAW function
+:func:`calculate_exchange_parameters`. If you do so, please reference both of
+the works [#Skovhus]_ and [#Durhuus]_.
 
 Example: Cobalt
 ---------------
@@ -272,6 +322,7 @@ API
 .. autofunction:: calculate_single_particle_site_zeeman_energy
 .. autofunction:: calculate_pair_site_magnetization
 .. autofunction:: calculate_pair_site_zeeman_energy
+.. autofunction:: calculate_exchange_parameters
 
 
 References
@@ -279,3 +330,6 @@ References
 
 .. [#Skovhus] T. Skovhus and T. Olsen,
 	   *publication in preparation*, (2024)
+
+.. [#Durhuus] F. L. Durhuus, T. Skovhus and T. Olsen,
+	   *J. Phys.: Condens. Matter* **35**, 105802 (2023)
