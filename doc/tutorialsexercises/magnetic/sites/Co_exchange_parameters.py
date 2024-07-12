@@ -37,17 +37,11 @@ atoms.calc = calc
 atoms.get_potential_energy()
 gs = ResponseGroundStateAdapter(calc)
 
-# ----- Site properties as a function of rc ----- #
-
-# Find ideal cutoff radii
-rc_a, magmom_a = maximize_site_magnetization(gs)
-# which should be the same for the two Co atoms due to symmetry
-assert abs(rc_a[1] - rc_a[0]) < 1e-6
-assert abs(magmom_a[1] - magmom_a[0]) < 1e-6
+# ----- Magnon energies as a function of rc ----- #
 
 # Get the valid site radii range
 rmin_a, rmax_a = get_site_radii_range(gs)
-# which again should be identical for the two Co atoms
+# which should be identical for the two Co atoms
 assert abs(rmin_a[1] - rmin_a[0]) < 1e-6
 assert abs(rmax_a[1] - rmax_a[0]) < 1e-6
 rc_r = np.linspace(rmin_a[0], rmax_a[0], 51)  # partitionings
@@ -66,11 +60,44 @@ J_pabr = np.array(
         gs, sites, q_c, context=context, nbands=nbands)
      for q_c in q_pc])
 
+# ----- Magnon dispersion at ideal rc ----- #
+
+# Find ideal cutoff radii
+rc_a, magmom_a = maximize_site_magnetization(gs)
+# which again should be the same for the two Co atoms due to symmetry
+assert abs(rc_a[1] - rc_a[0]) < 1e-6
+assert abs(magmom_a[1] - magmom_a[0]) < 1e-6
+rc, magmom = rc_a[0], magmom_a[0]
+
+# Define the commensurate q-vectors to calculate (in this case a
+# G-M-K-G-A high-symmetry path)
+qGM_qc = np.array([[x / kpts, 0., 0.]
+                   for x in range(kpts // 2 + 1)])
+qMK_qc = np.array([[1 / 2. - x / kpts, 2 * x / kpts, 0.]
+                   for x in range(kpts // 6 + 1)])
+qKG_qc = np.array([[x / kpts, x / kpts, 0.]
+                   for x in reversed(range(kpts // 3 + 1))])
+qGA_qc = np.array([[0., 0., x / kpts]
+                   for x in range(kpts // 2 + 1)])
+q_qc = np.vstack([qGM_qc, qMK_qc[1:], qKG_qc[1:], qGA_qc[1:]])
+
+# Set up magnetic site and calculate J_ab(q)
+context.new_txt_and_timer('Co_dispersion.txt')
+sites = AtomicSites(indices=[0, 1], radii=[[rc], [rc]])
+J_qab = np.array(
+    [calculate_exchange_parameters(  # dimension: J_abp
+        gs, sites, q_c, context=context, nbands=nbands)[..., 0]
+     for q_c in q_qc])
+context.write_timer()
+
 # ----- Save results ----- #
 
 if context.comm.rank == 0:
-    np.save('rc.npy', rc_a[0])
-    np.save('magmom.npy', magmom_a[0])
+    atoms.write('Co.json')
     np.save('rc_r.npy', rc_r)
     np.save('q_pc.npy', q_pc)
     np.save('J_pabr.npy', J_pabr)
+    np.save('rc.npy', rc)
+    np.save('magmom.npy', magmom)
+    np.save('q_qc.npy', q_qc)
+    np.save('J_qab.npy', J_qab)
