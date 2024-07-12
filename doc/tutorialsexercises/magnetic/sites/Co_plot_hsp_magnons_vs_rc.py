@@ -24,7 +24,8 @@ J_pabr = np.load('J_pabr.npy')
 
 # ----- Calculate magnon energies ----- #
 
-# We distribute the unit cell magnetization evenly between the sites
+# Here, we keep the magnetic moment of the sites constant to see only the
+# effect of J vs rc
 mm_ar = magmom * np.ones(J_pabr.shape[2:], dtype=float)
 E_pnr = calculate_fm_magnon_energies(J_pabr, q_pc, mm_ar)
 
@@ -44,13 +45,16 @@ for p, (sp, E_nr) in enumerate(zip(sp_p, E_pnr)):
             continue  # Do not plot the acoustic mode Gamma point
         axes[n].plot(rc_r, E_r * 1e3,  # eV -> meV
                      '-x', color=colors[p], label=sp)
+# Plot ideal cutoff radius
+for ax in axes:
+    ax.axvline(rc, color='0.5', linestyle=':')
 
 # Labels and limits
 for n, (ax, mode) in enumerate(zip(axes, ['Acoustic', 'Optical'])):
     ax.set_title(mode)
     ax.set_xlabel(r'$r_{\mathrm{c}}\: [\mathrm{\AA}]$')
     ax.set_ylabel(r'$\hbar\omega$ [meV]')
-    ax.set_xlim((0.4, 1.85))
+    ax.set_xlim((0.4, 1.5))
     ax.set_ylim((200., 600.))
     ax.legend()
 
