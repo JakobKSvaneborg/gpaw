@@ -79,6 +79,7 @@ def projection(proj_xyz, proj, orthogonal: bool):
 class XAS:
     def __init__(self, paw, mode='xas', center=None, spin=0):
         wfs = paw.wfs
+        self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
         self.cell_cv = np.array(wfs.gd.cell_cv)
         assert wfs.world.size == 1  # assert not mpi.parallel
@@ -149,22 +150,27 @@ class XAS:
         self.n = n
 
         l_core = setup.data.lcorehole
-        self.eps_n = np.empty(nkpts * n)
-        self.sigma_cmn = np.empty((3, l_core * 2 + 1, nkpts * n), complex)
+        self.eps_n = np.zeros(nkpts * n)
+        self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
         n1 = 0
-
+        k = 0
+        eps_n0_k = np.zeros((len(self.list_kpts))) 
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
                 continue
             n2 = n1 + n
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
 
+            eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
             P_ni = kpt.P_ani[a][n_start:n_end]
             a_cmn = np.inner(A_cmi, P_ni)
             weight = kpt.weight * wfs.nspins / 2
             self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cmn  # .real
             n1 = n2
 
+            k += 1
+
+        self.eps_n0_k = eps_n0_k
         self.symmetry = wfs.kd.symmetry
 
     def get_matrix_ellement(self, kpoint=None, proj=None,
@@ -186,16 +192,18 @@ class XAS:
         if kpoint is not None:
             eps_start = kpoint * self.n
             eps_end = (kpoint + 1) * self.n
+            eps_n0_k = self.eps_n0_k[kpoint]
         else:
             eps_start = 0
             eps_end = len(self.eps_n)
-
+            eps_n0_k = min(self.eps_n0_k)
+        print(eps_n0_k)
         energy_n = eps_n[eps_start:eps_end]
 
         sigma2_cmn = sigma2_cmn[:, :, eps_start:eps_end]
 
         if raw:
-            return energy_n, sigma2_cmn
+            return energy_n, sigma2_cmn, eps_n0_k
         else:
             return energy_n, sigma2_cmn.sum(axis=1)
 
@@ -225,8 +233,10 @@ class XAS:
             oscillator strengths: 3D array [c, m, n]
         """
 
-        eps_n, sigma2_cmn = self.get_matrix_ellement(kpoint, proj, proj_xyz,
-                                                     raw=True)
+        eps_n, sigma2_cmn, eps_n0_k = self.get_matrix_ellement(kpoint,
+                                                               proj,
+                                                               proj_xyz,
+                                                               raw=True)
         n = len(eps_n)
 
         if isinstance(dks, float) or isinstance(dks, int):
@@ -239,9 +249,13 @@ class XAS:
 
         if w is None:
             w = np.ones(len(dks))
+        elif isinstance(w, float) or isinstance(w, int):
+            w = [w]
 
+        index_shift = np.where(eps_n0_k == self.eps_n0_k)[0][0]
+        self.index_shift  = index_shift
         for i in range(len(dks)):
-            shift = dks[i] - eps_n[0]
+            shift = dks[i] - eps_n0_k
             ienergy_n = eps_n + shift
 
             if_cmn = w[i] * 2 * sigma2_cmn[:, :, :] * ienergy_n / Hartree
