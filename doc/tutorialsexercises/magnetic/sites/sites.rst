@@ -258,11 +258,11 @@ Example: Cobalt
 In the
 :download:`Co_exchange_parameters.py`
 script, we calculate the Co exchange parameters `\bar{J}^{ab}(\mathbf{q})` as
-a function of the cutoff radius `r_\mathrm{c}` for the `\Gamma`, M, K and A
-high-symmetry points as well as the exchange parameters at the ideal rigid spin
-approximation cutoff `r_\mathrm{c}^\mathrm{max}` for all commensurate q-points
-along the corresponding `\Gamma`-M-K-`\Gamma`-A high-symmetry path. It should
-take less than an hour on a 40 core node to run.
+a function of the spherical site cutoff radius `r_\mathrm{c}` for the `\Gamma`,
+M, K and A high-symmetry points. Furthermore we calculate exchange constants at
+the ideal rigid spin approximation cutoff `r_\mathrm{c}^\mathrm{max}` for all
+commensurate q-points along the corresponding `\Gamma`-M-K-`\Gamma`-A
+high-symmetry path. It should take less than an hour on a 40 core node to run.
 You can then excecute
 :download:`Co_plot_hsp_magnons_vs_rc.py`
 to examine the `r_\mathrm{c}`-dependence of the exchange parameters via the
@@ -271,12 +271,14 @@ resulting high-symmetry point magnon energies.
 .. image:: Co_hsp_magnons_vs_rc.png
 	   :align: center
 
-Once again, there is a region of cutoff radii `r_\mathrm{c}` in which the magnon
-dispersion (site magnetization is held constant) is more or less independent of
-`r_\mathrm{c}`. Thus, although there does not exist an *a priori* concept of a
-Co magnetic site, we see that the isotropic exchange couplings
+Once again, there exists a range of cutoff radii `r_\mathrm{c}` where key
+magnetic quantities are not sensitive to `r_\mathrm{c}`'s actual value, in this
+case the magnon energies calculated with the site magnetization held constant.
+Thus, despite the lack of an *a priori* definition for the extension of the Co
+magnetic sites, one may nevertheless take the isotropic exchange
 `\bar{J}^{ab}(\mathbf{q})` resulting from a projection of the exchange field
-onto spherical sites itself is well-defined.
+onto atom-centered spherical sites to be a well-defined physical property of the
+hcp-Co system.
 
 Excecuting
 :download:`Co_plot_dispersion.py`,
@@ -299,7 +301,7 @@ excercises to get you started:
 2) Investigate the sensitivity of the site pair functions as a function of the
    wave vector `\mathbf{q}`.
 
-3) Calculate the site magnetization and spin splitting for a ferromagnetic
+3) Calculate the site magnetization and Zeeman energy for a ferromagnetic
    material with inequivalent magnetic sublattices.
 
    a) Are you still able to find ranges of radii, where the site Zeeman energy
@@ -307,6 +309,14 @@ excercises to get you started:
    b) What happens to the band convergence of the pair functions?
    c) How does the off-diagonal elements of the pair functions converge as a
       function of the number of bands?
+
+4) Calculate and plot the `r_\mathrm{c}`-dependence of the full magnon
+   dispersion in hcp-Co. Does the conclusion that the LR-MFT magnon dispersion
+   is a well-defined quantity hold also in this more general case?
+
+5) Calculate and plot the band-convergence of the Co magnon energies. Is there
+   a similar interplay between the number of bands and its
+   `r_\mathrm{c}`-sensitivity as shown for the pair site Zeeman energy of Fe?
 
 
 API
