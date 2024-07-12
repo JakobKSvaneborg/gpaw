@@ -197,6 +197,45 @@ out the entire augmentation sphere.
 In the figure, we have left out the imaginary part of the pair site Zeeman
 energy. You can check yourself that it vanishes more or less identically.
 
+Exchange parameters
+===================
+
+Bla bla bla, see also :ref:`mft`
+
+Example: Cobalt
+---------------
+
+In the
+:download:`Co_exchange_parameters.py`
+script, we calculate the Co exchange parameters `\bar{J}^{ab}(\mathbf{q})` as
+a function of the cutoff radius `r_\mathrm{c}` for the `\Gamma`, M, K and A
+high-symmetry points as well as the exchange parameters at the ideal rigid spin
+approximation cutoff `r_\mathrm{c}^\mathrm{max}` for all commensurate q-points
+along the corresponding `\Gamma`-M-K-`\Gamma`-A high-symmetry path. It should
+take less than an hour on a 40 core node to run.
+You can then excecute
+:download:`Co_plot_hsp_magnons_vs_rc.py`
+to examine the `r_\mathrm{c}`-dependence of the exchange parameters via the
+resulting high-symmetry point magnon energies.
+
+.. image:: Co_hsp_magnons_vs_rc.png
+	   :align: center
+
+Once again, there is a region of cutoff radii `r_\mathrm{c}` in which the magnon
+dispersion (site magnetization is held constant) is more or less independent of
+`r_\mathrm{c}`. Thus, although there does not exist an *a priori* concept of a
+Co magnetic site, we see that the isotropic exchange couplings
+`\bar{J}^{ab}(\mathbf{q})` resulting from a projection of the exchange field
+onto spherical sites itself is well-defined.
+
+Excecuting
+:download:`Co_plot_dispersion.py`,
+you can explore the full magnon dispersion of hcp-Co as calculated within LDA in
+the LR-MFT method.
+
+.. image:: Co_dispersion.png
+	   :align: center
+
 
 Excercises
 ==========
