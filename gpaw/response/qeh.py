@@ -127,7 +127,6 @@ class GPAW_ChiCalc(ChiCalc):
                                                         truncation='2D')
             qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response()
 
-        chi_wGG = wblocks.gather(chi_wGG, root=0)
         G_Gv = qpd.get_reciprocal_vectors(add_q=False)
 
-        return chi_wGG, G_Gv
+        return chi_wGG, G_Gv, wblocks
