@@ -321,7 +321,7 @@ def calculate_exchange_parameters(
     heisenberg_calc = HeisenbergExchangeCalculator(
         gs, sites, context=context, nbands=nbands, nblocks=nblocks)
     heisenberg_exchange = heisenberg_calc(q_c)
-    return heisenberg_exchange.array * Hartree  # Ha -> eV
+    return heisenberg_exchange.array
 
 
 class SiteFunction(PairFunction):
@@ -708,6 +708,7 @@ class HeisenbergExchangeCalculator(SitePairFunctionCalculator):
             # Symmetrize reciprocity [J^ab(q)]^*=J^ab(-q)
             J_abp = out.array
             out.array[:] = (J_abp + J_abp.conj()) / 2.
+        out.array *= Hartree  # Ha -> eV
         return out
 
     def create_matrix_element_calculators(self):

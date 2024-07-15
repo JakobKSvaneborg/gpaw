@@ -7,7 +7,8 @@ from gpaw import GPAW, PW, FermiDirac
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext
 from gpaw.response.site_data import (AtomicSites, get_site_radii_range,
                                      maximize_site_magnetization)
-from gpaw.response.mft import calculate_exchange_parameters
+from gpaw.response.mft import (calculate_exchange_parameters,
+                               HeisenbergExchangeCalculator)
 
 # ----- Ground state calculation ----- #
 
@@ -84,10 +85,13 @@ q_qc = np.vstack([qGM_qc, qMK_qc[1:], qKG_qc[1:], qGA_qc[1:]])
 # Set up magnetic site and calculate J_ab(q)
 context.new_txt_and_timer('Co_dispersion.txt')
 sites = AtomicSites(indices=[0, 1], radii=[[rc], [rc]])
-J_qab = np.array(
-    [calculate_exchange_parameters(  # dimension: J_abp
-        gs, sites, q_c, context=context, nbands=nbands)[..., 0]
-     for q_c in q_qc])
+# When calculating the Heisenberg exchange for many values of q_c, it
+# is beneficial to utilize underlying HeisenbergExchangeCalculator, to
+# which calculate_exchange_parameters() is a single-use interface.
+jcalc = HeisenbergExchangeCalculator(
+    gs, sites, context=context, nbands=nbands)
+J_qab = np.array([jcalc(q_c).array[..., 0]  # dimension: J_abp
+                  for q_c in q_qc])
 context.write_timer()
 
 # ----- Save results ----- #
