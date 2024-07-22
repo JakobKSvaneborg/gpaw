@@ -1,17 +1,19 @@
 """check is libxc is compiled with --disable-fhc (needed for mggas)"""
 from ase.build import molecule
 from gpaw import GPAW, KohnShamConvergenceError
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 
 vacuum = 4.0
 h = 0.3
 
 
 def test_mgga_lxc_fhc():
-    cluster = Cluster(molecule('CO'))
-    cluster.minimal_box(border=vacuum, h=h)
-    calc = GPAW(xc='MGGA_X_TPSS+MGGA_C_TPSS', mode='fd',
-                h=h, maxiter=14,
+    cluster = molecule('CO')
+    adjust_cell(cluster, border=vacuum, h=h)
+    calc = GPAW(xc='MGGA_X_TPSS+MGGA_C_TPSS',
+                mode='fd',
+                h=h,
+                maxiter=14,
                 convergence={
                     'energy': 0.5,
                     'density': 1.0e-1,
