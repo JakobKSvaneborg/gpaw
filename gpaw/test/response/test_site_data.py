@@ -2,13 +2,17 @@ import pytest
 
 import numpy as np
 
-from ase.units import Bohr, Ha
+from ase.units import Bohr
 
 from gpaw import GPAW
 from gpaw.sphere.integrate import integrate_lebedev
 
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.site_data import AtomicSites, AtomicSiteData
+from gpaw.response.site_data import (AtomicSites, AtomicSiteData,
+                                     calculate_site_magnetization,
+                                     calculate_site_zeeman_energy,
+                                     get_site_radii_range,
+                                     maximize_site_magnetization)
 from gpaw.response.localft import add_spin_polarization
 
 
@@ -19,7 +23,7 @@ def test_Fe_site_magnetization(gpw_files):
     gs = ResponseGroundStateAdapter(calc)
 
     # Extract valid site radii range
-    rmin_a, rmax_a = AtomicSiteData.valid_site_radii_range(gs)
+    rmin_a, rmax_a = get_site_radii_range(gs)
     rmin = rmin_a[0]  # Only one magnetic atom in the unit cell
     rmax = rmax_a[0]
     # We expect rmax to be equal to the nearest neighbour distance
@@ -87,7 +91,7 @@ def test_Co_site_data(gpw_files):
     gs = ResponseGroundStateAdapter(calc)
 
     # Extract valid site radii range
-    rmin_a, rmax_a = AtomicSiteData.valid_site_radii_range(gs)
+    rmin_a, rmax_a = get_site_radii_range(gs)
     # The valid ranges should be equal due to symmetry
     assert abs(rmin_a[1] - rmin_a[0]) < 1e-8
     assert abs(rmax_a[1] - rmax_a[0]) < 1e-8
@@ -112,10 +116,9 @@ def test_Co_site_data(gpw_files):
     rc1_r = list(rc_r) + list(rc_r) + [augr * Bohr] * nr
     rc2_r = list(rc_r) + [augr * Bohr] * nr + list(rc_r)
     sites = AtomicSites(indices=[0, 1], radii=[rc1_r, rc2_r])
-    site_data = AtomicSiteData(gs, sites)
 
     # Calculate site magnetization
-    magmom_ar = site_data.calculate_magnetic_moments()
+    magmom_ar = calculate_site_magnetization(gs, sites)
 
     # Test that the magnetization inside the augmentation sphere matches
     # the local magnetic moment of the GPAW calculation
@@ -129,28 +132,39 @@ def test_Co_site_data(gpw_files):
     assert magmom_ar[1, nr:2 * nr] == pytest.approx([magmom_ar[1, -1]] * nr)
     assert magmom_ar[1, 2 * nr:] == pytest.approx(magmom_ar[1, :nr])
 
+    # Calculate the maximized site magnetization
+    rm_a, mm_a = maximize_site_magnetization(gs)
+    # Test radius consistency
+    assert rm_a[0] == pytest.approx(rm_a[1])  # Co site symmetry
+    assert np.average(rm_a) == pytest.approx(1.133357)  # reference value
+    # Test moment consistency
+    assert mm_a[0] == pytest.approx(mm_a[1])  # Co site symmetry
+    assert np.average(mm_a) == pytest.approx(1.6362)  # reference value
+    assert np.max(magmom_ar) < np.average(mm_a) < np.max(magmom_ar) * 1.01
+
     # Calculate the atomic Zeeman energy
     rc_r = rc_r[:-1]
     sites = AtomicSites(indices=[0, 1], radii=[rc_r, rc_r])
-    site_data = AtomicSiteData(gs, sites)
-    EZ_ar = site_data.calculate_zeeman_energies()
+    EZ_ar = calculate_site_zeeman_energy(gs, sites)
     print(EZ_ar[0, ::20])
 
     # Test that the Zeeman energy comes out as expected
     assert EZ_ar[0] == pytest.approx(EZ_ar[1])
-    assert EZ_ar[0, ::20] * 2 * Ha == pytest.approx([0.02638351, 1.41476112,
-                                                     2.49540004, 2.79727200,
-                                                     2.82727948, 2.83670767],
-                                                    rel=1e-3)
+    assert EZ_ar[0, ::20] * 2 == pytest.approx([0.02638351, 1.41476112,
+                                                2.49540004, 2.79727200,
+                                                2.82727948, 2.83670767],
+                                               rel=1e-3)
 
     # import matplotlib.pyplot as plt
     # plt.subplot(1, 2, 1)
     # plt.plot(rc_r, magmom_ar[0, :nr - 1])
+    # plt.axvline(np.average(rm_a), linestyle=':')
     # plt.axvline(augr * Bohr, c='0.5', linestyle='--')
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
     # plt.ylabel(r'$m$ [$\mu_\mathrm{B}$]')
     # plt.subplot(1, 2, 2)
-    # plt.plot(rc_r, EZ_ar[0] * Ha)  # Hartree -> eV
+    # plt.plot(rc_r, EZ_ar[0])
+    # plt.axvline(np.average(rm_a), linestyle=':')
     # plt.axvline(augr * Bohr, c='0.5', linestyle='--')
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
     # plt.ylabel(r'$E_\mathrm{Z}$ [eV]')

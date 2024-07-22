@@ -12,12 +12,12 @@ from gpaw import GPAW
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext
 from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.localft import LocalFTCalculator, LocalPAWFTCalculator
-from gpaw.response.site_data import AtomicSites, AtomicSiteData
+from gpaw.response.site_data import (AtomicSites,
+                                     calculate_site_magnetization,
+                                     calculate_site_zeeman_energy)
 from gpaw.response.mft import (IsotropicExchangeCalculator,
-                               calculate_site_magnetization,
                                calculate_single_particle_site_magnetization,
                                calculate_pair_site_magnetization,
-                               calculate_site_zeeman_energy,
                                calculate_single_particle_site_zeeman_energy,
                                calculate_pair_site_zeeman_energy)
 from gpaw.response.site_kernels import (SphericalSiteKernels,
@@ -354,8 +354,9 @@ def test_Co_site_zeeman_energy_sum_rule(in_tmp_dir, gpw_files, qrel):
 
 
 def get_co_sites(gs):
+    from gpaw.response.site_data import get_site_radii_range
     # Set up site radii
-    rmin_a, _ = AtomicSiteData.valid_site_radii_range(gs)
+    rmin_a, _ = get_site_radii_range(gs)
     # Make sure that the two sites do not overlap
     nn_dist = min(2.5071, np.sqrt(2.5071**2 / 3 + 4.0695**2 / 4))
     rc_r = np.linspace(rmin_a[0], nn_dist / 2, 11)
