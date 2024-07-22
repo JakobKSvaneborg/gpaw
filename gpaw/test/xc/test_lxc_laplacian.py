@@ -9,7 +9,7 @@ from gpaw.xc.libxc import FunctionalNeedsLaplacianError
 def test_mgga_lxc_laplacian():
     """Check for raised error."""
     with pytest.raises(FunctionalNeedsLaplacianError):
-        LibXC('MGGA_X_BR89+MGGA_C_TPSS')
+        LibXC('MGGA_X_BR89+MGGA_C_TPSS', disable_fhc=False)
 
 
 def test_mgga_lxc_suppressed_laplacian():
