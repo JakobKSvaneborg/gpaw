@@ -8,7 +8,8 @@ from gpaw.sphere.integrate import (integrate_lebedev,
                                    spherical_truncation_function_collection,
                                    default_spherical_drcut,
                                    find_volume_conserving_lambd)
-from gpaw.response import ResponseGroundStateAdapter
+from gpaw.response import (ResponseGroundStateAdapter,
+                           ResponseGroundStateAdaptable)
 from gpaw.response.localft import (add_spin_polarization,
                                    add_LSDA_zeeman_energy)
 
@@ -47,8 +48,9 @@ class AtomicSites:
 class AtomicSiteData:
     r"""Data object for a set of spherical atomic sites."""
 
-    def __init__(self, gs: ResponseGroundStateAdapter, sites: AtomicSites):
-        """Extract atomic site data from a ground state adapter."""
+    def __init__(self, gs: ResponseGroundStateAdaptable, sites: AtomicSites):
+        """Extract atomic site data from a given ground state."""
+        gs = ResponseGroundStateAdapter.from_input(gs)
         assert self._in_valid_site_radii_range(gs, sites), \
             'Please provide site radii in the valid range, see '\
             'AtomicSiteData.valid_site_radii_range()'

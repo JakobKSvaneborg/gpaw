@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from gpaw.utilities.progressbar import ProgressBar
 from gpaw.typing import Vector
 
-from gpaw.response import timer
+from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.symmetry import QSymmetryAnalyzer
 from gpaw.response.kspair import (KohnShamKPointPair,
@@ -137,15 +137,15 @@ class PairFunctionIntegrator(ABC):
 
         Parameters
         ----------
-        gs : ResponseGroundStateAdapter
-        context : ResponseContext
+        gs : ResponseGroundStateAdaptable
+        context : ResponseContextInput
         qsymmetry : QSymmetryInput
         nblocks : int
             Distribute the pair function into nblocks. Useful when the pair
             function itself becomes a large array (read: memory limiting).
         """
-        self.gs = gs
-        self.context = context
+        self.gs = ResponseGroundStateAdapter.from_input(gs)
+        self.context = ResponseContext.from_input(context)
         self.qsymmetry = QSymmetryAnalyzer.from_input(qsymmetry)
 
         # Communicators for distribution of memory and work
