@@ -161,4 +161,6 @@ class ReciprocalSpaceHamiltonian(Hamiltonian):
 
     def get_electrostatic_potential(self, dens: Density) -> Array3D:
         self.poisson.solve(self.vHt_q, dens)
-        return self.pd3.ifft(self.vHt_q, distribute=False)
+        vHt_R = self.pd3.ifft(self.vHt_q, distribute=False)
+        self.pd3.comm.broadcast(vHt_R, 0)
+        return vHt_R
