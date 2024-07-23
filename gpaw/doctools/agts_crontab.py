@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+import numpy as np
+
 
 def send_email(tasks):
     import smtplib
@@ -29,9 +31,9 @@ def send_email(tasks):
     s.quit()
 
 
-def find_created_files():
+def find_created_files(root: Path = Path()):
     names = set()
-    for path in Path().glob('**/*.py'):
+    for path in root.glob('**/*.py'):
         if path.parts[0] == 'build':
             continue
         filenames = []
@@ -56,4 +58,39 @@ def collect_files_for_web_page():
     for path in find_created_files():
         print(path)
         (folder / path.name).write_bytes(path.read_bytes())
-    # os.environ['WEB_PAGE_FOLDER']
+
+
+def compare_all_files(references: Path,
+                      root: Path):
+    for path in find_created_files(root):
+        if not path.is_file():
+            continue
+        ok = compare_files(path, references / path.name)
+        if not ok:
+            print(path, references / path.name)
+
+
+def compare_files(p1, p2):
+    if p1.suffix == '.png':
+        return compare_images(p1, p2)
+    if p1.suffix == '.db':
+        return True
+    return p1.read_text() == p2.read_text()
+
+
+def compare_images(p1, p2):
+    import PIL.Image as pil
+    a1, a2 = (np.asarray(pil.open(p)) for p in [p1, p2])
+    if a1.shape != a2.shape:
+        print(a1.shape, a2.shape)
+        return False
+    error = abs(a1 - a2).mean() / 255 / 3
+    if error > 1e-3:
+        print(error)
+        return False
+    return True
+
+
+if __name__ == '__main__':
+    import sys
+    compare_all_files(Path(sys.argv[1]), Path(sys.argv[2]))
