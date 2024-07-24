@@ -18,8 +18,6 @@ radius `r_\mathrm{c}` around the given magnetic atom `a`.
 Local functionals of the spin-density
 =====================================
 
-.. module:: gpaw.response.site_data
-
 For any functional of the (spin-)density `f[n, \mathbf{m}](\mathbf{r})`,
 one may define a corresponding site quantity,
 
@@ -37,9 +35,12 @@ In particular, the site magnetization,
 .. math::
    m_a = \int d\mathbf{r}\: \Theta(\mathbf{r}\in\Omega_{a}) n^z(\mathbf{r}),
 
-can be calculated via the function :func:`calculate_site_magnetization`, whereas
-the function :func:`calculate_site_zeeman_energy` computes the LSDA site Zeeman
-energy,
+can be calculated via the function
+:func:`calculate_site_magnetization()
+<gpaw.response.site_data.calculate_site_magnetization>`, whereas the function
+:func:`calculate_site_zeeman_energy()
+<gpaw.response.site_data.calculate_site_zeeman_energy>` computes the LSDA site
+Zeeman energy,
 
 .. math::
    E_a^\mathrm{Z} = - \int d\mathbf{r}\: \Theta(\mathbf{r}\in\Omega_{a})
@@ -74,14 +75,15 @@ magnetic site, i.e. to assume that the direction of magnetization is constant
 within the site volume, it is natural to choose `r_\mathrm{c}^\mathrm{max}` to
 define the sites. In practice, `r_\mathrm{c}^\mathrm{max}` can be calculated
 (along with the maximized magnetic moment) via the function
-:func:`maximize_site_magnetization` and in general, the allowed ranges of atomic
-cutoff radii can be inspected via the :func:`get_site_radii_range` function.
+:func:`maximize_site_magnetization()
+<gpaw.response.site_data.maximize_site_magnetization>` and in general, the
+allowed ranges of atomic cutoff radii can be inspected via the
+:func:`get_site_radii_range()
+<gpaw.response.site_data.get_site_radii_range>` function.
 
 
 Site-based sum rules
 ====================
-
-.. module:: gpaw.response.mft
 
 In addition to site quantities, one may also introduce the concept of site
 matrix elements, that is, expectation values of functionals
@@ -134,9 +136,10 @@ states, weighted by the Pauli matrix `\sigma^z`,
 
 Although trivial, these sum rules can be used as a consistency tests for the
 implementation and can be accessed via the functions
-:func:`calculate_single_particle_site_magnetization`
-and
-:func:`calculate_single_particle_site_zeeman_energy`.
+:func:`calculate_single_particle_site_magnetization()
+<gpaw.response.mft.calculate_single_particle_site_magnetization>` and
+:func:`calculate_single_particle_site_zeeman_energy()
+<gpaw.response.mft.calculate_single_particle_site_zeeman_energy>`.
 
 In addition to the single-particle sum rules, one may also introduce actual
 pair functions that characterize the band transitions of the system.
@@ -164,8 +167,11 @@ completeness of the Kohn-Sham eigenstates, it breaks down when using only a
 finite number of bands. Hence, it can be useful to study the band convergence of
 `m_{ab}(\mathbf{q})` and `E^{\mathrm{Z}}_{ab}(\mathbf{q})` to gain insight
 about related completeness issues of more complicated pair functions. In GPAW,
-they can be calculated using the :func:`calculate_pair_site_magnetization` and
-:func:`calculate_pair_site_zeeman_energy` functions.
+they can be calculated using the
+:func:`calculate_pair_site_magnetization()
+<gpaw.response.mft.calculate_pair_site_magnetization>` and
+:func:`calculate_pair_site_zeeman_energy()
+<gpaw.response.mft.calculate_pair_site_zeeman_energy>` functions.
 
 Example: Iron
 -------------

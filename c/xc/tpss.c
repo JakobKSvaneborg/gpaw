@@ -8,6 +8,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include <xc.h>
+#if XC_MAJOR_VERSION >= 7
+  #include <xc_funcs.h>
+  #include <xc_funcs_removed.h>
+#endif
 #include "xc_mgga.h"
 
 typedef struct tpss_params {
