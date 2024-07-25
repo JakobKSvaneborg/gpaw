@@ -255,8 +255,9 @@ where the spin pair energy site matrix elements,
 
 are intimately related to the site Zeeman pair energy. To calculate Heisenberg
 exchange constants in this way, you can use the GPAW function
-:func:`calculate_exchange_parameters`. If you do so, please reference both of
-the works [#Skovhus]_ and [#Durhuus]_.
+:func:`calculate_exchange_parameters()
+<gpaw.response.mft.calculate_exchange_parameters>`.
+If you do so, please reference both of the works [#Skovhus]_ and [#Durhuus]_.
 
 Example: Cobalt
 ---------------
