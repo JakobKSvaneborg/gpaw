@@ -77,7 +77,6 @@ def compare_all_files(references: Path,
 
 def compare_files(p1, p2):
     if p1.suffix in {'.png', '.svg'}:
-        return True
         return compare_images(p1, p2)
     if p1.suffix == '.db':
         return True
