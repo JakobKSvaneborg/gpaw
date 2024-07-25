@@ -1,4 +1,4 @@
-# web-page: W_r.ngg
+# web-page: W_r.png
 import numpy as np
 import matplotlib.pyplot as plt
 from qeh import Heterostructure
