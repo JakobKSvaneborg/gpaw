@@ -680,3 +680,9 @@ class ASECalculator:
     @property
     def symmetry(self):
         return self.dft.state.ibzwfs.ibz.symmetries.symmetry
+
+    def get_wannier_localization_matrix(self, nbands, dirG, kpoint,
+                                        nextkpoint, G_I, spin):
+        from gpaw.new.wannier import get_wannier_localization_matrix
+        return get_wannier_localization_matrix(self, nbands, dirG, kpoint,
+                                               nextkpoint, G_I, spin)
