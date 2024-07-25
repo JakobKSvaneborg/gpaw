@@ -7,14 +7,16 @@ import numpy as np
 from gpaw.typing import Vector
 from gpaw.response import ResponseGroundStateAdaptable, ResponseContextInput
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
-from gpaw.response.chiks import ChiKSCalculator, get_smat_components, smat
+from gpaw.response.chiks import (ChiKSCalculator, get_smat_components, smat,
+                                 regularize_intraband_transitions)
 from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
 from gpaw.response.site_kernels import SiteKernels
 from gpaw.response.site_data import AtomicSites
 from gpaw.response.pair_integrator import PairFunction, PairFunctionIntegrator
 from gpaw.response.pair_transitions import PairTransitions
 from gpaw.response.matrix_elements import (SitePairDensityCalculator,
-                                           SiteZeemanPairEnergyCalculator)
+                                           SiteZeemanPairEnergyCalculator,
+                                           SiteSpinPairEnergyCalculator)
 
 from ase.units import Hartree
 
@@ -287,6 +289,39 @@ def calculate_pair_site_zeeman_energy(
         gs, sites, context=context, nbands=nbands, nblocks=nblocks)
     pair_site_zeeman_energy = two_particle_calc(q_c)
     return pair_site_zeeman_energy.array * Hartree  # Ha -> eV
+
+
+def calculate_exchange_parameters(
+        gs: ResponseGroundStateAdaptable,
+        sites: AtomicSites,
+        q_c: Vector,
+        context: ResponseContextInput = '-',
+        nbands: int | None = None,
+        nblocks: int | str = 1):
+    """Calculate the Heisenberg exchange parameters.
+
+    Parameters
+    ----------
+    q_c : Vector
+        q-vector to evaluate the pair site Zeeman energy for.
+    nbands : int or None
+        Number of bands to include in the band summation of the pair site
+        Zeeman energy. If nbands is None, it includes all bands.
+    nblocks : int or str
+        The workload is parallelized over k-points and band+spin transitions.
+        The latter is divided into nblocks, integrating nprocessors / nblocks
+        k-points at a time.
+
+    Returns
+    -------
+    J_abp : np.ndarray
+        Heisenberg exchange parameters in eV of sites a and b under
+        partitioning p.
+    """
+    heisenberg_calc = HeisenbergExchangeCalculator(
+        gs, sites, context=context, nbands=nbands, nblocks=nblocks)
+    heisenberg_exchange = heisenberg_calc(q_c)
+    return heisenberg_exchange.array
 
 
 class SiteFunction(PairFunction):
@@ -649,3 +684,54 @@ class TwoParticleSiteZeemanEnergyCalculator(
         site_pair_density_calc = SitePairDensityCalculator(
             self.gs, self.context, self.sites)
         return site_zeeman_pair_energy_calc, site_pair_density_calc
+
+
+class HeisenbergExchangeCalculator(SitePairFunctionCalculator):
+    r"""Calculator for the site-projected Heisenberg exchange.
+
+    The Heisenberg exchange parameters can be calculated as a function of the
+    wave vector q, by projecting the exchange field J(r,r') onto a series of
+    magnetic sites. The site pair function which follows is given by
+                     __  __ /
+    _            2   \   \  | f_nk↑ - f_mk+q↓
+    J_ab(q) = - ‾‾‾  /   /  | ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+                N_k  ‾‾  ‾‾ \ ε_nk↑ - ε_mk+q↓                             \
+                     k   n,m                                              |
+                              × d^(xc,a)_(nk↑,mk+q↓) d^(xc,b)_(mk+q↓,nk↑) |
+                                                                          /
+    where d^(xc,a) is the site spin pair energy, see [publication in
+    preparation] and [J. Phys.: Condens. Matter 35 (2023) 105802].
+    """
+    def __call__(self, q_c):
+        out = super().__call__(q_c)
+        if np.allclose(q_c, 0.):
+            # Symmetrize reciprocity [J^ab(q)]^*=J^ab(-q)
+            J_abp = out.array
+            out.array[:] = (J_abp + J_abp.conj()) / 2.
+        out.array *= Hartree  # Ha -> eV
+        return out
+
+    def create_matrix_element_calculators(self):
+        mcalc = SiteSpinPairEnergyCalculator(
+            self.gs, self.context, self.sites, rshewmin=1e-8)
+        return mcalc, mcalc
+
+    def get_spincomponent(self):
+        return '+-'
+
+    @staticmethod
+    def calculate_eigenvalue_dependent_weights(kptpair):
+        """Calculate the eigenvalue-dependent weights.
+
+        Calculates
+
+        f_nks - f_mk+qs'   f_mk+qs' - f_nks
+        ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾ = ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+        ε_nks - ε_mk+qs'   ε_mk+qs' - ε_nks
+
+        weighted by a prefactor of -2.
+        """
+        nom_myt = kptpair.df_myt  # df = (f_n'k's' - f_nks)
+        denom_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
+        regularize_intraband_transitions(denom_myt, kptpair)
+        return -2 * nom_myt / denom_myt
