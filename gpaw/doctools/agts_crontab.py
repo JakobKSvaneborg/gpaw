@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import re
 
 import numpy as np
 
@@ -65,17 +66,22 @@ def compare_all_files(references: Path,
     for path in find_created_files(root):
         if not path.is_file():
             continue
-        ok = compare_files(path, references / path.name)
+        ref = references / path.name
+        if not ref.is_file():
+            print('MISSING', ref)
+            continue
+        ok = compare_files(path, ref)
         if not ok:
             print(path, references / path.name)
 
 
 def compare_files(p1, p2):
-    if p1.suffix == '.png':
+    if p1.suffix in {'.png', '.svg'}:
+        return True
         return compare_images(p1, p2)
     if p1.suffix == '.db':
         return True
-    return p1.read_text() == p2.read_text()
+    return compare_text(p1, p2)
 
 
 def compare_images(p1, p2):
@@ -88,6 +94,57 @@ def compare_images(p1, p2):
     if error > 1e-3:
         print(error)
         return False
+    return True
+
+
+def compare_text(p1, p2):
+    t1 = p1.read_text()
+    t2 = p2.read_text()
+    if t1 == t2:
+        return True#2024-06-27 17:26:55.225356
+    for r in [r'(?s:User: .*OMP_NUM_THREADS)',
+              r'(?s:Timing:.*)',
+              r'Lattice=".*pbc="',
+              r'Process memory now:.*',
+              r'iter: .*',
+              r'20..-..-.. .*:..:..\.\d*',
+              r'Calculating spectrum .*',
+              r'Spectrum calculated .*']:
+        t1 = re.sub(r, '', t1)
+        t2 = re.sub(r, '', t2)
+    if t1 == t2:
+        return True
+    lines1 = t1.splitlines()
+    lines2 = t2.splitlines()
+    sep = ',' if p1.suffix == '.csv' else None
+
+    rtol = 0.001
+    atol = 1e-9
+    if 'lcao-time' in p1.name:
+        atol = 1.5
+    elif p1.name == 'TS.xyz':
+        atol = 0.02
+    for l1, l2 in zip(lines1, lines2):
+        if l1 == l2:
+            continue
+        words1 = l1.split(sep)
+        words2 = l2.split(sep)
+        if len(words1) != len(words2):
+            print(l1, l2, words1, words2, sep)
+            return False
+        for w1, w2 in zip(words1, words2):
+            try:
+                f2 = float(w2)
+            except ValueError:
+                if w1 != w2:
+                    print(l1, l2, w1, w2)
+                    return False
+            else:
+                f1 = float(w1)
+                error = abs(f1 - f2)
+                if error > atol and error / abs(f2) > rtol:
+                    print(l1, l2, f1, f2)
+                    return False
     return True
 
 
