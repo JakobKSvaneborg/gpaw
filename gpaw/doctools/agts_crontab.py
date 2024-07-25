@@ -100,7 +100,7 @@ def compare_text(p1, p2):
     t1 = p1.read_text()
     t2 = p2.read_text()
     if t1 == t2:
-        return True#2024-06-27 17:26:55.225356
+        return True
     for r in [r'(?s:User: .*OMP_NUM_THREADS)',
               r'(?s:Timing:.*)',
               r'Lattice=".*pbc="',
