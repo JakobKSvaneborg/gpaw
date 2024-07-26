@@ -5,7 +5,7 @@ from gpaw.unfold import Unfold, find_K_from_k
 
 
 @pytest.mark.soc
-def test_unfold_Ni(gpw_files):
+def test_unfold_Ni(gpw_files, in_tmp_dir):
 
     # Collinear calculation
     gpw = 'fcc_Ni_col'
@@ -72,5 +72,3 @@ def test_unfold_Ni(gpw_files):
                     M=M)
     e_mk, P_mk = unfold.get_spectral_weights(bp.kpts)
     assert P_mk == pytest.approx(1, abs=1.0e-6)
-
-    os.system('rm weights_Ni_defect_*pckl')
