@@ -580,3 +580,15 @@ class SiteZeemanPairEnergyCalculator(SiteMatrixElementCalculator):
     """
     def add_f(self, gd, n_sx, f_x):
         f_x[:] += - calculate_LSDA_Wxc(gd, n_sx)
+
+
+class SiteSpinPairEnergyCalculator(SiteMatrixElementCalculator):
+    """Class for calculating site spin pair energies.
+
+    The site spin pair energy is defined as the site matrix element with
+    f(r) = B^xc(r) = - |W_xc^z(r)|:
+
+    d^(xc,ap)_(nks,n'k+qs') = - <ψ_nks|Θ(r∊Ω_ap)|W_xc^z(r)||ψ_n'k+qs'>
+    """
+    def add_f(self, gd, n_sx, f_x):
+        f_x[:] += - np.abs(calculate_LSDA_Wxc(gd, n_sx))
