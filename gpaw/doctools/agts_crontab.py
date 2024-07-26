@@ -6,7 +6,6 @@ import numpy as np
 
 
 def find_created_files(root: Path = Path()) -> Generator[Path, None, None]:
-    names = set()
     for path in root.glob('**/*.py'):
         if path.parts[0] == 'build':
             continue
@@ -17,10 +16,6 @@ def find_created_files(root: Path = Path()) -> Generator[Path, None, None]:
             filenames += line.split(':')[1].split(',')
         for name in filenames:
             name = name.strip()
-            if name in names:
-                raise RuntimeError(
-                    f'The name {name!r} is used in more than one place!')
-            names.add(name)
             yield path.with_name(name)
 
 
@@ -133,5 +128,5 @@ def compare_text(p1: Path, p2: Path) -> float:
 
 if __name__ == '__main__':
     import sys
-    # compare_all_files(Path(sys.argv[1]), Path(sys.argv[2]))
-    collect_files_for_web_page(Path(sys.argv[1]), Path(sys.argv[2]))
+    compare_all_files(Path(sys.argv[1]), Path(sys.argv[2]))
+    # collect_files_for_web_page(Path(sys.argv[1]), Path(sys.argv[2]))
