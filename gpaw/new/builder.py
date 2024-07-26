@@ -104,13 +104,21 @@ class DFTComponentsBuilder:
                                               self.setups.id_a,
                                               self.initial_magmom_av,
                                               params.symmetry)
-        assert not (self.ncomponents == 4 and len(symmetries) > 1)
+        if self.ncomponents == 4:
+            assert (len(symmetries) == 1 and not
+                    symmetries.symmetry.time_reversal)
+
         bz = create_kpts(params.kpts, atoms)
         self.ibz = symmetries.reduce(bz, strict=False)
 
         d = parallel.get('domain', None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
+        if self.gpu:  # only parallelization over k-points:
+            assert d is None or d == 1
+            assert b is None or b == 1
+            d = 1
+            b = 1
         self.communicators = create_communicators(comm, len(self.ibz),
                                                   d, k, b, self.xp)
 
@@ -175,11 +183,19 @@ class DFTComponentsBuilder:
         return self.create_wf_description()
 
     @cached_property
+    def gpu(self) -> bool:
+        """Are we running on a GPU?."""
+        if self.params.parallel['gpu']:
+            from gpaw.gpu import cupy_is_fake
+            assert not cupy_is_fake or os.environ.get('GPAW_CPUPY')
+            return True
+        return False
+
+    @cached_property
     def xp(self) -> ModuleType:
         """Array module: Numpy or Cupy."""
-        if self.params.parallel['gpu']:
-            from gpaw.gpu import cupy, cupy_is_fake
-            assert not cupy_is_fake or os.environ.get('GPAW_CPUPY')
+        if self.gpu:
+            from gpaw.gpu import cupy
             return cupy
         return np
 

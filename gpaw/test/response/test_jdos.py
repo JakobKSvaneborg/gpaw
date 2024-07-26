@@ -15,9 +15,10 @@ import gpaw.mpi as mpi
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.jdos import JDOSCalculator
-from gpaw.response.symmetry import KPointFinder
+from gpaw.response.kpoints import KPointFinder
 from gpaw.test.response.test_chiks import (generate_system_s,
-                                           generate_qrel_q, get_q_c)
+                                           generate_qrel_q, get_q_c,
+                                           generate_nblocks_n)
 from gpaw.test.gpwfile import response_band_cutoff
 
 
@@ -38,8 +39,9 @@ def test_jdos(in_tmp_dir, gpw_files, system, qrel):
     zd = ComplexFrequencyDescriptor.from_array(omega_w + 1.j * eta)
 
     # Calculation parameters (which should not affect the result)
-    disable_syms_s = [True, False]
+    qsymmetry_s = [True, False]
     bandsummation_b = ['double', 'pairwise']
+    nblocks_n = generate_nblocks_n()
 
     # ---------- Script ---------- #
 
@@ -57,16 +59,17 @@ def test_jdos(in_tmp_dir, gpw_files, system, qrel):
                                        nbands=nbands)
 
     # Calculate the jdos using the PairFunctionIntegrator module
-    for disable_syms in disable_syms_s:
+    for qsymmetry in qsymmetry_s:
         for bandsummation in bandsummation_b:
-            jdos_calc = JDOSCalculator(gs,
-                                       nbands=nbands,
-                                       disable_time_reversal=disable_syms,
-                                       disable_point_group=disable_syms,
-                                       bandsummation=bandsummation)
-            jdos = jdos_calc.calculate(spincomponent, q_c, zd)
-            jdos_w = jdos.array
-            assert jdos_w == pytest.approx(jdosref_w)
+            for nblocks in nblocks_n:
+                jdos_calc = JDOSCalculator(gs,
+                                           nbands=nbands,
+                                           qsymmetry=qsymmetry,
+                                           bandsummation=bandsummation,
+                                           nblocks=nblocks)
+                jdos = jdos_calc.calculate(spincomponent, q_c, zd)
+                jdos_w = jdos.array
+                assert jdos_w == pytest.approx(jdosref_w)
 
         # plt.subplot()
         # plt.plot(wd.omega_w * Hartree, jdos_w)

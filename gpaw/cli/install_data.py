@@ -14,6 +14,9 @@ sources = [('gpaw', 'official GPAW setups releases [default]'),
 
 names = [r for r, d in sources]
 
+
+# (We would like to use https always, but quantum-simulation.org does not
+# support that as of 2024-06-24)
 baseurls = {
     'gpaw': 'https://wiki.fysik.dtu.dk/gpaw/_sources/setups/setups.rst.txt',
     'sg15': 'http://www.quantum-simulation.org/potentials/sg15_oncv/',
@@ -237,6 +240,11 @@ def main(args, parser):
         print('following line to %s:' % rcfilepath)
         print()
         print(rcline)
+        print()
+        print('Or if you prefer to use environment variables, you can')
+        print('set GPAW_SETUP_PATH. For example:')
+        print()
+        print(f'export GPAW_SETUP_PATH={setup_path}')
         print()
     print('Installation complete.')
 

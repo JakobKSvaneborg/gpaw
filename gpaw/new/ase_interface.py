@@ -4,7 +4,7 @@ import warnings
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import IO, Any, Union
+from typing import IO, Any, Union, Callable
 
 import numpy as np
 from ase import Atoms
@@ -63,9 +63,18 @@ def GPAW(filename: Union[str, Path, IO[str]] = None,
     return ASECalculator(params, log=log)
 
 
+LOGO = """\
+  ___ ___ ___ _ _ _
+ |   |   |_  | | | |
+ | | | | | . | | | |
+ |__ |  _|___|_____| - {version}
+ |___|_|
+"""
+
+
 def write_header(log, params):
     from gpaw.io.logger import write_header as header
-    log(f'#  __  _  _\n# | _ |_)|_||  |\n# |__||  | ||/\\| - {__version__}\n')
+    log(LOGO.format(version=__version__))
     header(log, log.comm)
     log('---')
     with log.indent('input parameters:'):
@@ -108,6 +117,7 @@ class ASECalculator:
         self._dft = dft
         self._atoms = atoms
         self.timer = Timer()
+        self.hooks: dict[str, Callable] = {}
 
     @property
     def dft(self) -> DFTCalculation:
@@ -131,24 +141,18 @@ class ASECalculator:
         p = ', '.join(f'{key}: {val}' for key, val in params)
         return f'ASECalculator({p})'
 
-    def calculate_property(self,
-                           atoms: Atoms | None,
-                           prop: str) -> Any:
-        """Calculate (if not already calculated) a property.
+    def iconverge(self, atoms: Atoms | None):
+        """Iterate to self-consistent solution.
 
-        The ``prop`` string must be one of
-
-        * energy
-        * forces
-        * stress
-        * magmom
-        * magmoms
-        * dipole
+        Will also calculate "cheap" properties: energy, magnetic moments
+        and dipole moment.
         """
         if atoms is None:
             atoms = self.atoms
         else:
             synchronize_atoms(atoms, self.comm)
+
+        converged = True
 
         if self._dft is not None:
             changes = compare_atoms(self.atoms, atoms)
@@ -169,15 +173,54 @@ class ASECalculator:
                     except ReuseWaveFunctionsError:
                         self._dft = None  # start from scratch
                     else:
-                        self.converge()
+                        converged = False
                         changes = set()
 
         if self._dft is None:
             self.create_new_calculation(atoms)
-            self.converge()
+            converged = False
         elif changes:
             self.move_atoms(atoms)
-            self.converge()
+            converged = False
+
+        if converged:
+            return
+
+        assert self.hooks.keys() <= {'scf_step', 'converged'}
+
+        with self.timer('SCF'):
+            for ctx in self.dft.iconverge(
+                    calculate_forces=self._calculate_forces):
+                yield ctx
+                self.hooks.get('scf_step', lambda ctx: None)(ctx)
+
+        self.log(f'Converged in {ctx.niter} steps')
+
+        # Calculate all the cheap things:
+        self.dft.energies()
+        self.dft.dipole()
+        self.dft.magmoms()
+
+        self.dft.write_converged()
+
+        self.hooks.get('converged', lambda: None)()
+
+    def calculate_property(self,
+                           atoms: Atoms | None,
+                           prop: str) -> Any:
+        """Calculate (if not already calculated) a property.
+
+        The ``prop`` string must be one of
+
+        * energy
+        * forces
+        * stress
+        * magmom
+        * magmoms
+        * dipole
+        """
+        for _ in self.iconverge(atoms):
+            pass
 
         if prop == 'forces':
             with self.timer('Forces'):
@@ -185,8 +228,6 @@ class ASECalculator:
         elif prop == 'stress':
             with self.timer('Stress'):
                 self.dft.stress()
-        elif prop == 'dipole':
-            self.dft.dipole()
         elif prop not in self.dft.results:
             raise KeyError('Unknown property:', prop)
 
@@ -226,23 +267,6 @@ class ASECalculator:
         with self.timer('Move'):
             self._dft = self.dft.move_atoms(atoms)
         self._atoms = atoms.copy()
-
-    @trace
-    def converge(self):
-        """Iterate to self-consistent solution.
-
-        Will also calculate "cheap" properties: energy, magnetic moments
-        and dipole moment.
-        """
-        with self.timer('SCF'):
-            self.dft.converge(calculate_forces=self._calculate_forces)
-
-        # Calculate all the cheap things:
-        self.dft.energies()
-        self.dft.dipole()
-        self.dft.magmoms()
-
-        self.dft.write_converged()
 
     def _calculate_forces(self) -> Array2D:  # units: Ha/Bohr
         """Helper method for force-convergence criterium."""
@@ -315,6 +339,9 @@ class ASECalculator:
                               'forces', 'stress',
                               'dipole', 'magmom', 'magmoms']
 
+    def icalculate(self, atoms, system_changes=None):
+        yield from self.iconverge(atoms)
+
     def new(self, **kwargs) -> ASECalculator:
         kwargs = {**dict(self.params.items()), **kwargs}
         return GPAW(**kwargs)
@@ -361,10 +388,7 @@ class ASECalculator:
         return atoms
 
     def get_fermi_level(self) -> float:
-        state = self.dft.state
-        fl = state.ibzwfs.fermi_levels
-        assert fl is not None and len(fl) == 1
-        return fl[0] * Ha
+        return self.dft.state.ibzwfs.fermi_level * Ha
 
     def get_fermi_levels(self) -> Array1D:
         state = self.dft.state
@@ -422,11 +446,12 @@ class ASECalculator:
                                  gridrefinement=1,
                                  broadcast=True,
                                  skip_core=False):
-        assert spin is None
         n_sr = self.dft.densities().all_electron_densities(
             grid_refinement=gridrefinement,
             skip_core=skip_core)
-        return n_sr.gather(broadcast=broadcast).data.sum(0)
+        if spin is None:
+            return n_sr.gather(broadcast=broadcast).data.sum(0)
+        return n_sr[spin].gather(broadcast=broadcast).data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
         state = self.dft.state
