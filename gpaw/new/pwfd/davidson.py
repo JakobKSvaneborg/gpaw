@@ -322,8 +322,6 @@ def calculate_weights(converge_bands: int | str,
             weight_un.append(weight_n)
         return weight_un
 
-    assert ibzwfs.band_comm.size == 1, 'not implemented!'
-
     # Converge states with energy up to CBM + delta:
     assert converge_bands.startswith('CBM+')
     delta = float(converge_bands[4:]) / Ha
@@ -354,7 +352,7 @@ def calculate_weights(converge_bands: int | str,
     ecut = cbm + delta
 
     for wfs in ibzwfs:
-        weight_n = (wfs.eig_n < ecut).astype(float)
+        weight_n = (wfs.myeig_n < ecut).astype(float)
         if wfs.eig_n[-1] < ecut:
             # We don't have enough bands!
             weight_n[:] = np.inf
