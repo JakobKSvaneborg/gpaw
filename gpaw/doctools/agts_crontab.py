@@ -1,11 +1,11 @@
-import os
+from typing import Generator
 from pathlib import Path
 import re
 
 import numpy as np
 
 
-def find_created_files(root: Path = Path()) -> None:
+def find_created_files(root: Path = Path()) -> Generator[Path, None, None]:
     names = set()
     for path in root.glob('**/*.py'):
         if path.parts[0] == 'build':
@@ -24,14 +24,12 @@ def find_created_files(root: Path = Path()) -> None:
             yield path.with_name(name)
 
 
-def collect_files_for_web_page() -> None:
-    os.chdir('gpaw/doc')
-    folder = Path('agts-files')
-    if not folder.is_dir():
-        folder.mkdir()
-    for path in find_created_files():
-        print(path)
-        (folder / path.name).write_bytes(path.read_bytes())
+def collect_files_for_web_page(fro: Path, to: Path) -> None:
+    for path in find_created_files(fro):
+        p = to / path.relative_to(fro)
+        print(path, p)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(path.read_bytes())
 
 
 def compare_all_files(references: Path,
@@ -66,8 +64,14 @@ def compare_images(p1: Path, p2: Path) -> float:
     if a1.shape != a2.shape:
         print(a1.shape, a2.shape)
         return 10.0
-    error = abs(a1 - a2).mean() / 255 / 3
-    if error > 0.012:
+    d = a1 - a2
+    N = 4
+    n1, n2, _ = d.shape
+    d = d[:n1 // N * N, :n2 // N * N]
+    d = d.reshape((n1 // N, N, n2 // N, N, -1))
+    d = d.mean(axis=(1, 3))
+    error = abs(d).mean() / 255 / 4
+    if error > 0.00012:
         print(error)
         return error
     return 0.0
@@ -129,4 +133,5 @@ def compare_text(p1: Path, p2: Path) -> float:
 
 if __name__ == '__main__':
     import sys
-    compare_all_files(Path(sys.argv[1]), Path(sys.argv[2]))
+    # compare_all_files(Path(sys.argv[1]), Path(sys.argv[2]))
+    collect_files_for_web_page(Path(sys.argv[1]), Path(sys.argv[2]))
