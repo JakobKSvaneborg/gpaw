@@ -10,17 +10,14 @@ This must (probably) be done *after* compilation because otherwise dirs
 may not exist.
 
 """
-try:
-    from urllib2 import urlopen, HTTPError
-except ImportError:
-    from urllib.request import urlopen
-    from urllib.error import HTTPError
-    import ssl
 import os
-
+import ssl
+import subprocess
+from pathlib import Path
+from urllib.error import HTTPError
+from urllib.request import urlopen
 
 srcpath = 'https://wiki.fysik.dtu.dk/gpaw-files'
-agtspath = 'https://wiki.fysik.dtu.dk'
 
 
 def get(path, names, target=None, source=None):
@@ -172,10 +169,17 @@ def setup(app):
     # every weekend:
     from gpaw.doctools.agts_crontab import find_created_files
 
-    for path in find_created_files():
-        # the files are saved by the weekly tests under agtspath/agts-files
-        # now we are copying them back to their original run directories
+    data = Path('/tmp/gpaw-web-page-data')
+    if data.is_dir():
+        subprocess.run(f'cd {data} && git pull', shell=True)
+    else:
+        repo = 'https://gitlab.com/gpaw/gpaw-web-page-data'
+        subprocess.run(f'cd /tmp && git clone {repo}', shell=True)
+
+    doc = Path()
+    for path in find_created_files(doc):
         if path.is_file():
             continue
-        print(path, 'copied from', agtspath)
-        get('agts-files', [path.name], str(path.parent), source=agtspath)
+        to = data / 'doc' / path.relative_to(doc)
+        print(path, '->', to)
+        path.symlink_to(to)
