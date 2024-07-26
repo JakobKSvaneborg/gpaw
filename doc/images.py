@@ -76,13 +76,7 @@ get('tutorials/xas', ['h2o_xas_3.png', 'h2o_xas_4.png'],
 get('tutorials/xas',
     ['xas_illustration.png'], target='documentation/xas')
 
-# This files is not used anymore?
-# get('tutorialsexercises/opticalresponse/xas', ['xas_h2o_convergence.png'])
-# ----
-
 get('documentation/xc', 'g2test_pbe0.png  g2test_pbe.png  results.png'.split())
-get('performance', 'dacapoperf.png  goldwire.png  gridperf.png'.split(),
-    'static')
 
 get('bgp', ['bgp_mapping_intranode.png',
             'bgp_mapping1.png',
@@ -91,53 +85,6 @@ get('bgp', ['bgp_mapping_intranode.png',
 # workshop 2013 and 2016 photos:
 get('workshop13', ['workshop13_01_33-1.jpg'], 'static')
 get('workshop16', ['gpaw2016-photo.jpg'], 'static')
-
-
-# files from https://wiki.fysik.dtu.dk/gpaw-files/things/
-
-# Warning: for the moment dcdft runs are not run (files are static)!
-dcdft_pbe_aims_stuff = """
-dcdft_aims.tight.01.16.db.csv
-dcdft_aims.tight.01.16.db_raw.csv
-dcdft_aims.tight.01.16.db_Delta.txt
-""".split()
-
-get('things', dcdft_pbe_aims_stuff, target='setups')
-
-# Warning: for the moment dcdft runs are not run (files are static)!
-dcdft_pbe_gpaw_pw_stuff = """
-dcdft_pbe_gpaw_pw.csv
-dcdft_pbe_gpaw_pw_raw.csv
-dcdft_pbe_gpaw_pw_Delta.txt
-""".split()
-
-get('things', dcdft_pbe_gpaw_pw_stuff, target='setups')
-
-# Warning: for the moment dcdft runs are not run (files are static)!
-dcdft_pbe_jacapo_stuff = """
-dcdft_pbe_jacapo.csv
-dcdft_pbe_jacapo_raw.csv
-dcdft_pbe_jacapo_Delta.txt
-""".split()
-
-get('things', dcdft_pbe_jacapo_stuff, target='setups')
-
-# Warning: for the moment dcdft runs are not run (files are static)!
-dcdft_pbe_abinit_fhi_stuff = """
-dcdft_pbe_abinit_fhi.csv
-dcdft_pbe_abinit_fhi_raw.csv
-dcdft_pbe_abinit_fhi_Delta.txt
-""".split()
-
-get('things', dcdft_pbe_abinit_fhi_stuff, target='setups')
-
-g2_1_stuff = """
-pbe_gpaw_nrel_ea_vs.csv pbe_gpaw_nrel_ea_vs.png
-pbe_gpaw_nrel_opt_ea_vs.csv pbe_gpaw_nrel_opt_distance_vs.csv
-pbe_nwchem_def2_qzvppd_opt_ea_vs.csv pbe_nwchem_def2_qzvppd_opt_distance_vs.csv
-""".split()
-
-get('things', g2_1_stuff, target='setups')
 
 get('things', ['datasets.json'], 'setups')
 
