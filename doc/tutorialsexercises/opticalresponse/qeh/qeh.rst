@@ -97,7 +97,7 @@ blocks created above:
 
 Here is the generated plot:
 
-.. image:: W_r.svg
+.. image:: W_r.png
 
 As expected the interaction does not diverge.
 

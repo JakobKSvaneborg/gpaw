@@ -659,6 +659,7 @@ class FFTVDWFunctional(VDWFunctionalBase):
                 else:
                     assert n >= gd.N_c[c]
 
+        assert self.shape.shape == (3,)
         self.gd = gd
 
     def calculate_6d_integral(self, n_g, q0_g,
@@ -702,7 +703,9 @@ class FFTVDWFunctional(VDWFunctionalBase):
             self.timer.stop('hmm2')
             del C_pg
             self.timer.start('FFT')
-            theta_ak[a] = rfftn(n_g * pa_g, self.shape).copy()
+            theta_ak[a] = rfftn(n_g * pa_g,
+                                self.shape,
+                                [0, 1, 2]).copy()
             self.timer.stop()
 
             if not self.energy_only:
