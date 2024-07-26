@@ -120,7 +120,7 @@ def setup(app):
     if data.is_dir():
         subprocess.run(f'cd {data} && git pull', shell=True)
     else:
-        repo = 'https://gitlab.com/gpaw/gpaw-web-page-data'
+        repo = 'https://gitlab.com/gpaw/gpaw-web-page-data.git/'
         subprocess.run(f'cd /tmp && git clone {repo}', shell=True)
 
     doc = Path()
