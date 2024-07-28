@@ -405,10 +405,9 @@ class SJM(SolvationGPAW):
         """Adjusts the number of electrons until the potential reaches the
         desired value."""
         p = self.parameters['sj']
-        iteration, rerun = 0, 0
+        iteration, rerun = 0, False
         previous_electrons, previous_potentials = [], []
 
-        rerun = 0
         while iteration <= p.max_iters:
             self.log('Attempt {:d} to equilibrate potential to {:.3f} +/-'
                      ' {:.3f} V'
@@ -455,15 +454,14 @@ class SJM(SolvationGPAW):
                              ' target potential by a dangerous amount.\n'
                              ' The step is rejected and the change in'
                              ' excess_electrons will be halved.')
-                    rerun += 1
-                    de = ((p.excess_electrons - previous_electrons[-1])
-                          / 2 ** rerun)
-                    p.excess_electrons = previous_electrons[-1] + de
+                    p.excess_electrons = (previous_electrons[-1] +
+                                          p.excess_electrons) / 2.
+                    rerun = True
                     continue  # back to while
 
             # Increase iteration count.
             iteration += 1
-            rerun = 0
+            rerun = False
 
             # Store attempt and calculate slope.
             previous_electrons.append(float(p.excess_electrons))
@@ -472,8 +470,8 @@ class SJM(SolvationGPAW):
                 slope = _calculate_slope(previous_electrons,
                                          previous_potentials,
                                          p.slope_regression_depth)
-                nre = len(previous_electrons[-(p.slope_regression_depth + 1):])
-                self.log(f'Slope regressed from last {nre:d} attempts is '
+                nreg = len(previous_electrons[-p.slope_regression_depth:])
+                self.log(f'Slope regressed from last {nreg:d} attempts is '
                          '{slope:.4f} V/electron,')
                 area = np.prod(np.diag(atoms.cell[:2, :2]))
                 capacitance = -1.6022 * 1e3 / (area * slope)
@@ -1187,7 +1185,7 @@ class SJMDipoleCorrection(DipoleCorrection):
 
     def sjm_sawtooth(self):
         """Creates a linear function normalized between -0.5 and 0.5 whose
-           slope is scaled based on the mean dielectric constant vs z"""
+           slope is scaled based on the xy-averaged dielectric constant vs z"""
         gd = self.poissonsolver.gd
         c = self.c
         L = gd.cell_cv[c, c]
