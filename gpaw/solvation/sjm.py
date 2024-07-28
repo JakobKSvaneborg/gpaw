@@ -181,11 +181,11 @@ class SJM(SolvationGPAW):
          'tol': 0.01,
          'always_adjust': False,
          'grand_output': True,
-         'max_iters': 20,
-         'max_step': 1.,
+         'max_iters': 10,
+         'max_step': 2.,
          'slope': None,
          'mixer': 0.5,
-         'slope_regression_depth': 1})
+         'slope_regression_depth': 4})
 
     default_parameters = copy.deepcopy(SolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
@@ -405,9 +405,8 @@ class SJM(SolvationGPAW):
         """Adjusts the number of electrons until the potential reaches the
         desired value."""
         p = self.parameters['sj']
-        iteration = 0
-        previous_electrons = []
-        previous_potentials = []
+        iteration, rerun = 0, 0
+        previous_electrons, previous_potentials = [], []
 
         rerun = 0
         while iteration <= p.max_iters:
@@ -435,14 +434,15 @@ class SJM(SolvationGPAW):
             msg += ' rerun).' if rerun else ').'
             self.log(msg, flush=True)
 
-            # Some checks to improve stability
+            # Check if we took too big of a step, that moved us further
+            # from the target potential rather than closer. This can
+            # happen when large geometric changes happened in the
+            # last step, the slope is noisy or, at very low
+            # workfunctions, where the electron density starts to spill out
+            # into the vacuum and the slope is unreliable.
+            # The rerun can happen multiple times if needed and the stepsize
+            # will be reduced by factor of 2 every time.
             if len(previous_potentials):
-                # 1) Check if we took a big of a step, that moved us further
-                #    further from the target rather than closer. This can
-                #    happen when large geometric changes happened in the
-                #    last step, the slope is noisy or, at very low
-                #    workfunctions,the electron density starts to spill out
-                #    into the vacuum and the slope is unreliable.
 
                 stepsize = abs(true_potential - previous_potentials[-1])
 
@@ -456,9 +456,9 @@ class SJM(SolvationGPAW):
                              ' The step is rejected and the change in'
                              ' excess_electrons will be halved.')
                     rerun += 1
-                    p.excess_electrons = (previous_electrons[-1] +
-                                          (p.excess_electrons -
-                                           previous_electrons[-1]) / 2**rerun)
+                    de = ((p.excess_electrons - previous_electrons[-1])
+                          / 2 ** rerun)
+                    p.excess_electrons = previous_electrons[-1] + de
                     continue  # back to while
 
             # Increase iteration count.
@@ -770,8 +770,8 @@ def _write_property_on_grid(grid, property, atoms, name, dir):
 def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
     """Calculates the slope of potential versus number of electrons;
     regresses based on (up to) last four data points to smooth noise."""
-    ans = linregress(previous_electrons[-(n_prev_pot + 1):],
-                     previous_potentials[-(n_prev_pot + 1):])
+    ans = linregress(previous_electrons[-n_prev_pot:],
+                     previous_potentials[-n_prev_pot:])
     return ans[0]
 
 
@@ -1010,7 +1010,10 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
             psolver = WeightedFDPoissonSolver()
             self.dipcorr = False
         elif isinstance(psolver, dict):
-            psolver = SJMDipoleCorrection(WeightedFDPoissonSolver(),
+            # Sadly the 'dipolelayer' cannot be pop'd because
+            # CavityShapedJellium calls this twice.
+            poi_par = {a: b for a, b in psolver.items() if a != 'dipolelayer'}
+            psolver = SJMDipoleCorrection(WeightedFDPoissonSolver(**poi_par),
                                           psolver['dipolelayer'])
             self.dipcorr = True
 
@@ -1183,6 +1186,8 @@ class SJMDipoleCorrection(DipoleCorrection):
         return iters2
 
     def sjm_sawtooth(self):
+        """Creates a linear function normalized between -0.5 and 0.5 whose
+           slope is scaled based on the mean dielectric constant vs z"""
         gd = self.poissonsolver.gd
         c = self.c
         L = gd.cell_cv[c, c]
