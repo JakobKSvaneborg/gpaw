@@ -1,4 +1,4 @@
-def get_wannier_localization_matrix(self, nbands, dirG, kpoint,
+def get_wannier_localization_matrix(dft, nbands, dirG, kpoint,
                                     nextkpoint, G_I, spin):
     """Calculate integrals for maximally localized Wannier functions."""
 

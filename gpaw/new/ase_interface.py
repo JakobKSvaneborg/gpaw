@@ -684,5 +684,6 @@ class ASECalculator:
     def get_wannier_localization_matrix(self, nbands, dirG, kpoint,
                                         nextkpoint, G_I, spin):
         from gpaw.new.wannier import get_wannier_localization_matrix
-        return get_wannier_localization_matrix(self, nbands, dirG, kpoint,
-                                               nextkpoint, G_I, spin)
+        return get_wannier_localization_matrix(
+            self.dft, nbands, dirG, kpoint,
+            nextkpoint, G_I, spin)
