@@ -293,7 +293,8 @@ def get_rs_wavefunctions_k(calc, iK, spinorbit=False, v_Kmn=None, spin=0):
         calc.initialize_positions()
 
     if not spinorbit:
-        does not work for LCAO: use calc.get_pseudo_wave_function ...
+        print(calc);sadgsad
+        # does not work for LCAO: use calc.get_pseudo_wave_function ...
         psit_mgrid = np.array([calc.wfs.get_wave_function_array(m, iK, spin) *
                                eikr_R for m in range(Nb)])
         return psit_mgrid
