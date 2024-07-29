@@ -71,9 +71,12 @@ class InputParameters:
                 raise ValueError(
                     f'Unknown parameter {key!r}.  Must be one of: ' +
                     ', '.join(parameter_functions))
+        self.non_defaults = set()
         for key, func in parameter_functions.items():
             if key in params:
                 param = params[key]
+                if param is not None:
+                    self.non_defaults.add(key)
                 if hasattr(param, 'todict'):
                     param = param.todict()
                 value = func(param)

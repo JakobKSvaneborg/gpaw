@@ -4,7 +4,7 @@ import warnings
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import IO, Any, Union, Callable
+from typing import IO, Any, Union, Callable, Protocol, Sequence
 
 import numpy as np
 from ase import Atoms
@@ -29,36 +29,78 @@ from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
 
 
-def GPAW(filename: Union[str, Path, IO[str]] = None,
-         txt: str | Path | IO[str] | None = '?',
-         communicator=None,
-         **kwargs) -> ASECalculator:
+class Dictable(Protocol):
+    def todict(self) -> dict[str, Any]:
+        ...
+
+
+def GPAW(
+    filename: Union[str, Path, IO[str]] = None,
+    *,
+    txt: str | Path | IO[str] | None = '?',
+    communicator=None,
+    basis: str | dict[str | int | None, str] | None = None,
+    charge: float | None = None,
+    convergence: dict[str, Any] | None = None,
+    eigensolver: dict[str, Any] | None = None,
+    experimental: dict[str, Any] | None = None,
+    external: dict[str, Any] | None = None,
+    gpts: None | Sequence[int] | None = None,
+    h: float | None = None,
+    hund: bool | None = None,
+    kpts: dict[str, Any] | None = None,
+    magmoms: Any | None = None,
+    mode: str | dict[str, Any] | None = None,
+    nbands: None | int | str | None = None,
+    parallel: dict[str, Any] | None = None,
+    poissonsolver: dict[str, Any] | None = None,
+    setups: Any | None = None,
+    soc: bool | None = None,
+    spinpol: bool | None = None,
+    symmetry: str | dict[str, Any] | None = None,
+    xc: str | dict[str, Any] | Dictable = None
+) -> ASECalculator:
     """Create ASE-compatible GPAW calculator."""
     if txt == '?':
         txt = '-' if filename is None else None
 
-    parallel = kwargs.get('parallel', {})
-    comm = parallel.pop('world', None)
-    if comm is None:
-        comm = communicator or world
-    else:
-        warnings.warn(('Please use communicator=... '
-                       'instead of parallel={''world'': ...}'),
-                      DeprecatedParameterWarning)
+    comm = communicator or world
+
     log = Logger(txt, comm)
 
+    params = InputParameters(
+        dict(basis=basis,
+        charge=charge,
+        convergence=convergence,
+        eigensolver=eigensolver,
+        experimental=experimental,
+        external=external,
+        gpts=gpts,
+        h=h,
+        hund=hund,
+        kpts=kpts,
+        magmoms=magmoms,
+        mode=mode,
+        nbands=nbands,
+        parallel=parallel,
+        poissonsolver=poissonsolver,
+        setups=setups,
+        soc=soc,
+        spinpol=spinpol,
+        symmetry=symmetry,
+        xc=xc))
+
     if filename is not None:
-        if not {'parallel'}.issuperset(kwargs):
-            illegal = set(kwargs) - {'parallel'}
+        if params.non_defaults > {'parallel'}:
+            illegal = '...'#?
             raise ValueError('Illegal arguments when reading from a file: '
                              f'{illegal}')
         atoms, dft, params, _ = read_gpw(filename,
                                          log=log,
-                                         parallel=parallel)
+                                         parallel=params.parallel)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
-    params = InputParameters(kwargs)
     write_header(log, params)
     return ASECalculator(params, log=log)
 
