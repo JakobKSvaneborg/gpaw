@@ -15,7 +15,7 @@ def test_strange_cell():
     grid = UGDesc(
         cell=[8.7, 5.7, 7.7, 28, 120, 95],
         size=(60, 40, 54))
-    grad = Gradient(grid._gd, v=0)
+    grad = Gradient(grid._gd, v=0, _allow_bad_cells=True)
     a, b = grid.empty(2)
     a.data[:] = grid.xyz()[:, :, :, 0]
     grad.apply(a.data, b.data)

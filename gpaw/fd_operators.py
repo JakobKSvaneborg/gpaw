@@ -278,7 +278,14 @@ def find_neighbors(h_cv: ArrayLike2D) -> Array2D:
 
 
 class Gradient(FDOperator):
-    def __init__(self, gd, v, scale=1.0, n=1, dtype=float, xp=np):
+    def __init__(self,
+                 gd,
+                 v: int,
+                 scale=1.0,
+                 n=1,
+                 dtype=float,
+                 xp=np,
+                 _allow_bad_cells=False):
         """Symmetric gradient for general non orthorhombic grid.
 
         gd: GridDescriptor
@@ -294,6 +301,8 @@ class Gradient(FDOperator):
         """
 
         M_dc = find_neighbors(gd.h_cv)
+        if not _allow_bad_cells and abs(M_dc).max() > 1:
+            raise ValueError(f'Bad unit cell: {gd.cell_cv}')
         h_dv = M_dc @ gd.h_cv  # vectors pointing at neighbor grid-points
         D = len(h_dv)  # number of neighbors (3, 4, 5, 6 or 7)
 
