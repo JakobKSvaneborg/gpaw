@@ -50,7 +50,8 @@ def GPAW(
     kpts: dict[str, Any] | None = None,
     magmoms: Any | None = None,
     mode: str | dict[str, Any] | None = None,
-    nbands: None | int | str | None = None,
+    nbands: int | str | None = None,
+    occupations: dict[str, Any] | None = None,
     parallel: dict[str, Any] | None = None,
     poissonsolver: dict[str, Any] | None = None,
     setups: Any | None = None,
@@ -91,7 +92,8 @@ def GPAW(
 
     if filename is not None:
         if params.non_defaults > {'parallel'}:
-            illegal = '...'#?
+            illegal = ', '.join(key for key in
+                                (params.non_defaults - {'parallel'}))
             raise ValueError('Illegal arguments when reading from a file: '
                              f'{illegal}')
         atoms, dft, params, _ = read_gpw(filename,
