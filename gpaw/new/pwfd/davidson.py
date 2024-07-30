@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from functools import partial
+from pprint import pformat
 from typing import Callable
 
 import numpy as np
 from ase.units import Ha
+
+from gpaw import debug
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
-from gpaw.mpi import broadcast_float, broadcast_exception
+from gpaw.mpi import broadcast_exception, broadcast_float
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.calculation import DFTState
@@ -19,8 +22,6 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities.blas import axpy
-from gpaw.new.logger import obj2str
-from gpaw import debug
 
 
 class Davidson(Eigensolver):
@@ -46,7 +47,7 @@ class Davidson(Eigensolver):
         self.blocksize = blocksize
 
     def __str__(self):
-        return obj2str(dict(name='Davidson',
+        return pformat(dict(name='Davidson',
                             niter=self.niter,
                             converge_bands=self.converge_bands))
 
