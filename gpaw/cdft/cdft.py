@@ -239,7 +239,7 @@ class CDFT(Calculator):
                                  constraints=self.constraints,
                                  n_charge_regions=self.n_charge_regions,
                                  difference=self.difference,
-                                 txt=self.log,
+                                 log=self.log,
                                  vi=self.v_i,
                                  Rc=self.Rc,
                                  mu=self.mu)
@@ -424,7 +424,8 @@ class CDFT(Calculator):
                               difference=self.difference,
                               vi=self.v_i,
                               Rc=self.Rc,
-                              mu=self.mu)
+                              mu=self.mu,
+                              log=self.log)
 
             w_g = c.initialize_partitioning(self.gd,
                                             construct=True,
@@ -574,7 +575,8 @@ class CDFT(Calculator):
                           constraints=self.constraints,
                           n_charge_regions=self.n_charge_regions,
                           difference=self.difference,
-                          vi=self.v_i)
+                          vi=self.v_i,
+                          log=self.log)
 
         w_G = c.initialize_partitioning(gd, construct=True)
 
@@ -639,14 +641,14 @@ class CDFTPotential(ExternalPotential):
                  n_charge_regions,
                  difference,
                  vi,
-                 txt='-',
+                 log,
                  Rc={},
                  mu={}):
 
         self.indices_i = regions
         self.gd = gd
         self.iocontext = IOContext()
-        self.log = self.iocontext.openfile(txt)
+        self.log = log
         self.atoms = atoms
         self.pos_av = None
         self.Z_a = None
@@ -658,9 +660,6 @@ class CDFTPotential(ExternalPotential):
         self.Rc = Rc
         self.mu = mu
         self.name = 'CDFTPotential'
-
-    def __del__(self):
-        self.iocontext.close()
 
     def __str__(self):
         self.name = 'CDFTPotential'

@@ -1,6 +1,6 @@
-from ase import Atom, io, optimize
+from ase import Atoms, io, optimize
 from gpaw import GPAW, FermiDirac
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft.excited_state import ExcitedState
 
@@ -15,8 +15,8 @@ d = 0.01      # step for numerical force evaluation
 exc = 'LDA'   # xc for the linear response TDDFT kernel
 parallel = 4  # number of independent parrallel workers for force evaluation
 
-s = Cluster([Atom('Na'), Atom('Na', [0, 0, R])])
-s.minimal_box(box, h=h)
+s = Atoms('Na2', [[0, 0, 0], [0, 0, R]])
+adjust_cell(s, box, h=h)
 
 c = GPAW(mode='fd', h=h, nbands=nbands, eigensolver='cg',
          occupations=FermiDirac(width=width),

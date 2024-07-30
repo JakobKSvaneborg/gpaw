@@ -1,7 +1,9 @@
+from __future__ import annotations
 import pickle
 import warnings
-from math import pi
+from math import pi, isclose
 from pathlib import Path
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -14,56 +16,61 @@ from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 from gpaw.pw.descriptor import (count_reciprocal_vectors, PWMapping)
 from gpaw.utilities.progressbar import ProgressBar
 
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
-from gpaw.response.chi0 import Chi0Calculator
-from gpaw.response.pair import KPointPairFactory, phase_shifted_fft_indices
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
+from gpaw.response.pair import phase_shifted_fft_indices
 from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import Blocks1D
-from gpaw.response.screened_interaction import initialize_w_calculator
+from gpaw.response.screened_interaction import (initialize_w_calculator,
+                                                GammaIntegrationMode)
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response import timer
-
+from gpaw.mpi import broadcast_exception
 
 from ase.utils.filecache import MultiFileJSONCache as FileCache
 from contextlib import ExitStack
 from ase.parallel import broadcast
 
 
-def compare_dicts(dict1, dict2, rel_tol=1e-14, abs_tol=1e-14):
+def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):
     """
-    Compare each key-value pair within dictionaries that contain nested data
-    structures of arbitrary depth. If a kvp contains floats, you may specify
-    the tolerance (abs or rel) to which the floats are compared. Individual
-    elements within lists are not compared to floating point precision.
+    Compares nested structures of dictionarys, lists, etc. and
+    makes sure the nested structure is the same, and also that all
+    floating points match within the given tolerances.
 
-    :params dict1: Dictionary containing kvp to compare with other dictionary.
-    :params dict2: Second dictionary.
+    :params inp1: Structure 1 to compare.
+    :params inp2: Structure 2 to compare.
     :params rel_tol: Maximum difference for being considered "close",
     relative to the magnitude of the input values as defined by math.isclose().
     :params abs_tol: Maximum difference for being considered "close",
     regardless of the magnitude of the input values as defined by
     math.isclose().
 
-    :returns: bool indicating kvp's don't match (False) or do match (True)
+    :returns: bool indicating if structures don't match (False) or do match
+    (True)
     """
-    from math import isclose
-    if dict1.keys() != dict2.keys():
-        return False
-
-    for key in dict1.keys():
-        val1 = dict1[key]
-        val2 = dict2[key]
-
-        if isinstance(val1, dict) and isinstance(val2, dict):
-            # recursive func call to ensure nested structures are also compared
-            if not compare_dicts(val1, val2, rel_tol, abs_tol):
+    if isinstance(inp1, dict):
+        if inp1.keys() != inp2.keys():
+            return False
+        for key in inp1.keys() & inp2.keys():
+            val1 = inp1[key]
+            val2 = inp2[key]
+            if not compare_inputs(val1, val2,
+                                  rel_tol=rel_tol, abs_tol=abs_tol):
                 return False
-        elif isinstance(val1, float) and isinstance(val2, float):
-            if not isclose(val1, val2, rel_tol=rel_tol, abs_tol=abs_tol):
+    elif isinstance(inp1, float):
+        if not isclose(inp1, inp2, rel_tol=rel_tol, abs_tol=abs_tol):
+            return False
+    elif not isinstance(inp1, str) and isinstance(inp1, Iterable):
+        if len(inp1) != len(inp2):
+            return False
+        for val1, val2 in zip(inp1, inp2):
+            if not compare_inputs(val1, val2,
+                                  rel_tol=rel_tol, abs_tol=abs_tol):
                 return False
-        else:
-            if val1 != val2:
-                return False
+    else:
+        if inp1 != inp2:
+            return False
 
     return True
 
@@ -91,8 +98,8 @@ class Sigma:
         return self
 
     def validate_inputs(self, inputs):
-        equals = compare_dicts(inputs, self.inputs, rel_tol=1e-14,
-                               abs_tol=1e-14)
+        equals = compare_inputs(inputs, self.inputs, rel_tol=1e-12,
+                                abs_tol=1e-12)
         if not equals:
             raise RuntimeError('There exists a cache with mismatching input '
                                f'parameters: {inputs} != {self.inputs}.')
@@ -321,7 +328,8 @@ def get_max_nblocks(world, calc, ecut):
     return nblocks
 
 
-def get_frequencies(frequencies, domega0, omega2):
+def get_frequencies(frequencies: dict | None,
+                    domega0: float | None, omega2: float | None):
     if domega0 is not None or omega2 is not None:
         assert frequencies is None
         frequencies = {'type': 'nonlinear',
@@ -379,6 +387,71 @@ def select_kpts(kpts, kd):
         k = kd.bz2ibz_k[K]
         indices.append(k)
     return indices
+
+
+class PairDistribution:
+    def __init__(self, kptpair_factory, blockcomm, mysKn1n2):
+        self.get_k_point = kptpair_factory.get_k_point
+        self.kd = kptpair_factory.gs.kd
+        self.blockcomm = blockcomm
+        self.mysKn1n2 = mysKn1n2
+        self.mykpts = [self.get_k_point(s, K, n1, n2)
+                       for s, K, n1, n2 in self.mysKn1n2]
+
+    def kpt_pairs_by_q(self, q_c, m1, m2):
+        mykpts = self.mykpts
+        for u, kpt1 in enumerate(mykpts):
+            progress = u / len(mykpts)
+            K2 = self.kd.find_k_plus_q(q_c, [kpt1.K])[0]
+            kpt2 = self.get_k_point(kpt1.s, K2, m1, m2,
+                                    blockcomm=self.blockcomm)
+
+            yield progress, kpt1, kpt2
+
+
+def distribute_k_points_and_bands(chi0_body_calc, band1, band2, kpts=None):
+    """Distribute spins, k-points and bands.
+
+    The attribute self.mysKn1n2 will be set to a list of (s, K, n1, n2)
+    tuples that this process handles.
+    """
+    gs = chi0_body_calc.gs
+    blockcomm = chi0_body_calc.blockcomm
+    kncomm = chi0_body_calc.kncomm
+
+    if kpts is None:
+        kpts = np.arange(gs.kd.nbzkpts)
+
+    # nbands is the number of bands for each spin/k-point combination.
+    nbands = band2 - band1
+    size = kncomm.size
+    rank = kncomm.rank
+    ns = gs.nspins
+    nk = len(kpts)
+    n = (ns * nk * nbands + size - 1) // size
+    i1 = min(rank * n, ns * nk * nbands)
+    i2 = min(i1 + n, ns * nk * nbands)
+
+    mysKn1n2 = []
+    i = 0
+    for s in range(ns):
+        for K in kpts:
+            n1 = min(max(0, i1 - i), nbands)
+            n2 = min(max(0, i2 - i), nbands)
+            if n1 != n2:
+                mysKn1n2.append((s, K, n1 + band1, n2 + band1))
+            i += nbands
+
+    p = chi0_body_calc.context.print
+    p('BZ k-points:', gs.kd, flush=False)
+    p('Distributing spins, k-points and bands (%d x %d x %d)' %
+      (ns, nk, nbands), 'over %d process%s' %
+      (kncomm.size, ['es', ''][kncomm.size == 1]),
+      flush=False)
+    p('Number of blocks:', blockcomm.size)
+
+    return PairDistribution(
+        chi0_body_calc.kptpair_factory, blockcomm, mysKn1n2)
 
 
 class G0W0Calculator:
@@ -488,9 +561,9 @@ class G0W0Calculator:
                                        f'systems. Invalid fxc_mode {fxc_mode}.'
                                        )
 
-        self.pair_distribution = \
-            self.chi0calc.kptpair_factory.distribute_k_points_and_bands(
-                b1, b2, self.chi0calc.gs.kd.ibz2bz_k[self.kpts])
+        self.pair_distribution = distribute_k_points_and_bands(
+            self.chi0calc.chi0_body_calc, b1, b2,
+            self.chi0calc.gs.kd.ibz2bz_k[self.kpts])
 
         self.print_parameters(kpts, b1, b2)
 
@@ -756,14 +829,14 @@ class G0W0Calculator:
 
         # Need to pause the timer in between iterations
         self.context.timer.stop('W')
-        if self.context.comm.rank == 0:
-            for key, sigmas in self.qcache.items():
-                sigmas = {fxc_mode: Sigma.fromdict(sigma)
-                          for fxc_mode, sigma in sigmas.items()}
-                for fxc_mode, sigma in sigmas.items():
-                    sigma.validate_inputs(self.get_validation_inputs())
+        with broadcast_exception(self.context.comm):
+            if self.context.comm.rank == 0:
+                for key, sigmas in self.qcache.items():
+                    sigmas = {fxc_mode: Sigma.fromdict(sigma)
+                              for fxc_mode, sigma in sigmas.items()}
+                    for fxc_mode, sigma in sigmas.items():
+                        sigma.validate_inputs(self.get_validation_inputs())
 
-        self.context.comm.barrier()
         for iq, q_c in enumerate(self.wcalc.qd.ibzk_kc):
             with ExitStack() as stack:
                 if self.context.comm.rank == 0:
@@ -843,7 +916,7 @@ class G0W0Calculator:
                 'ecut_e': list(self.ecut_e),
                 'frequencies': self.frequencies,
                 'fxc_modes': self.fxc_modes,
-                'integrate_gamma': self.wcalc.integrate_gamma}
+                'integrate_gamma': repr(self.wcalc.integrate_gamma)}
 
     @timer('calculate_w')
     def calculate_w(self, chi0calc, q_c, chi0,
@@ -975,7 +1048,7 @@ class G0W0(G0W0Calculator):
                  timer=None,
                  fxc_mode='GW',
                  truncation=None,
-                 integrate_gamma=0,
+                 integrate_gamma='sphere',
                  q0_correction=False,
                  do_GW_too=False,
                  **kwargs):
@@ -1003,10 +1076,7 @@ class G0W0(G0W0Calculator):
             number of occupied bands.
             E.g. (-1, 1) will use HOMO+LUMO.
         frequencies:
-            Input parameters for frequency_grid.
-            Can be an array of frequencies to evaluate the response function at
-            or dictionary of parameters for build-in nonlinear grid
-            (see :ref:`frequency grid`).
+            Input parameters for the nonlinear frequency descriptor.
         ecut: float
             Plane wave cut-off energy in eV.
         ecut_extrapolation: bool or list
@@ -1034,12 +1104,51 @@ class G0W0(G0W0Calculator):
             (almost for free).
         truncation: str
             Coulomb truncation scheme. Can be either 2D, 1D, or 0D.
-        integrate_gamma: int
-            Method to integrate the Coulomb interaction. 1 is a numerical
-            integration at all q-points with G=[0,0,0] - this breaks the
-            symmetry slightly. 0 is analytical integration at q=[0,0,0] only -
-            this conserves the symmetry. integrate_gamma=2 is the same as 1,
-            but the average is only carried out in the non-periodic directions.
+        integrate_gamma: str or dict
+            Method to integrate the Coulomb interaction.
+
+            The default is 'sphere'. If 'reduced' key is not given,
+            it defaults to False.
+
+            {'type': 'sphere'} or 'sphere':
+                Analytical integration of q=0, G=0 1/q^2 integrand in a sphere
+                matching the volume of a single q-point.
+                Used to be integrate_gamma=0.
+
+            {'type': 'reciprocal'} or 'reciprocal':
+                Numerical integration of q=0, G=0 1/q^2 integral in a volume
+                resembling the reciprocal cell (parallelpiped).
+                Used to be integrate_gamma=1.
+
+            {'type': 'reciprocal', 'reduced':True} or 'reciprocal2D':
+                Numerical integration of q=0, G=0 1/q^2 integral in a area
+                resembling the reciprocal 2D cell (parallelogram) to be used
+                to be usedwith 2D systems.
+                Used to be integrate_gamma=2.
+
+            {'type': '1BZ'} or '1BZ':
+                Numerical integration of q=0, G=0 1/q^2 integral in a volume
+                resembling the Wigner-Seitz cell of the reciprocal lattice
+                (voronoi). More accurate than 'reciprocal'.
+
+                A. Guandalini, P. D’Amico, A. Ferretti and D. Varsano:
+                npj Computational Materials volume 9, Article number: 44 (2023)
+
+            {'type': '1BZ', 'reduced': True} or '1BZ2D':
+                Same as above, but everything is done in 2D (for 2D systems).
+
+            {'type': 'WS'} or 'WS':
+                The most accurate method to use for bulk systems.
+                Instead of numerically integrating only q=0, G=0, all (q,G)-
+                pairs participate to the truncation, which is done in real
+                space utilizing the Wigner-Seitz truncation in the
+                Born-von-Karmann supercell of the system.
+
+                Numerical integration of q=0, G=0 1/q^2 integral in a volume
+                resembling the Wigner-Seitz cell of the reciprocal lattice
+                (Voronoi). More accurate than 'reciprocal'.
+
+                R. Sundararaman and T. A. Arias: Phys. Rev. B 87, 165122 (2013)
         E0: float
             Energy (in eV) used for fitting in the plasmon-pole approximation.
         q0_correction: bool
@@ -1054,6 +1163,9 @@ class G0W0(G0W0Calculator):
             Cuts chi0 into as many blocks as possible to reduce memory
             requirements as much as possible.
         """
+
+        integrate_gamma = GammaIntegrationMode(integrate_gamma)
+
         # We pass a serial communicator because the parallel handling
         # is somewhat wonky, we'd rather do that ourselves:
         try:
@@ -1068,21 +1180,16 @@ class G0W0(G0W0Calculator):
             qcache.strip_empties()
         mode = 'a' if qcache.filecount() > 1 else 'w'
 
-        frequencies = get_frequencies(frequencies, domega0, omega2)
-
         # (calc can not actually be a calculator at all.)
         gpwfile = Path(calc)
 
         context = ResponseContext(txt=filename + '.txt',
                                   comm=world, timer=timer)
-        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile,
-                                                      context=context)
+        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
 
         # Check if nblocks is compatible, adjust if not
         if nblocksmax:
             nblocks = get_max_nblocks(context.comm, gpwfile, ecut)
-
-        kptpair_factory = KPointPairFactory(gs, context, nblocks=nblocks)
 
         kpts = list(select_kpts(kpts, gs.kd))
 
@@ -1096,6 +1203,7 @@ class G0W0(G0W0Calculator):
                     'nbands cannot be supplied with ecut-extrapolation.')
 
         if ppa:
+            assert not integrate_gamma.is_Wigner_Seitz, "TODO"
             # use small imaginary frequency to avoid dividing by zero:
             frequencies = [1e-10j, 1j * E0]
 
@@ -1103,21 +1211,21 @@ class G0W0(G0W0Calculator):
                           'hilbert': False,
                           'timeordered': False}
         else:
-            # frequencies = self.frequencies
+            # use nonlinear frequency grid
+            frequencies = get_frequencies(frequencies, domega0, omega2)
+
             parameters = {'eta': eta,
                           'hilbert': True,
                           'timeordered': True}
+        wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
 
-        from gpaw.response.chi0 import new_frequency_descriptor
         wcontext = context.with_txt(filename + '.w.txt', mode=mode)
-        wd = new_frequency_descriptor(gs, wcontext, nbands, frequencies)
-
         chi0calc = Chi0Calculator(
-            wd=wd, kptpair_factory=kptpair_factory,
+            gs, wcontext, nblocks=nblocks,
+            wd=wd,
             nbands=nbands,
             ecut=ecut,
             intraband=False,
-            context=wcontext,
             **parameters)
 
         bands = choose_bands(bands, relbands, gs.nvalence, chi0calc.gs.nocc2)

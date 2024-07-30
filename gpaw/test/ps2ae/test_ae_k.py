@@ -18,7 +18,7 @@ def test_ae_k(gpw_files, name, tol, gpaw_new):
         if size > 1:
             return
         calc = GPAW2(gpw_files[name])
-        ae = calc.calculation.state.ibzwfs.get_all_electron_wave_function(
+        ae = calc.dft.state.ibzwfs.get_all_electron_wave_function(
             0, kpt=1, grid_spacing=0.1)
         assert ae.norm2() == pytest.approx(1.0, abs=tol)
         return

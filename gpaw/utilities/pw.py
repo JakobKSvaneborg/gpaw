@@ -1,5 +1,5 @@
 import numpy as np
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 
 
 def kinetic_energies(psit, projections, setups):
@@ -12,7 +12,7 @@ def kinetic_energies(psit, projections, setups):
     ekincore = 0.0
     ekin_n = np.array(ekin_n)
     for a, setup in enumerate(setups):
-        K_ii = unpack(setup.K_p)
+        K_ii = unpack_hermitian(setup.K_p)
         P_ni = projections[a]
         ekin_n += np.einsum('ni, ij, nj -> n', P_ni.conj(), K_ii, P_ni).real
         ekincore += setup.Kc

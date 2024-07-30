@@ -30,6 +30,7 @@ def get_hydrogen_chain_dielectric_function(NH, NK):
     return omega_w, eps_LF
 
 
+@pytest.mark.dielectricfunction
 @pytest.mark.serial
 @pytest.mark.response
 def test_hyd_chain_response(in_tmp_dir):

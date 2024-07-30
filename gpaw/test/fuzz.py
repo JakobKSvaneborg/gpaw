@@ -220,13 +220,13 @@ def run2(atoms: Atoms,
     gpw_file = result_file.with_suffix('.gpw')
     calc.write(gpw_file, mode='all')
 
-    calculation = NewGPAW(gpw_file).calculation
+    dft = NewGPAW(gpw_file).dft
 
-    energy2 = calculation.results['energy'] * Ha
+    energy2 = dft.results['energy'] * Ha
     assert abs(energy2 - energy) < 1e-13, (energy2, energy)
 
     if forces is not None:
-        forces2 = calculation.results['forces'] * Ha / Bohr
+        forces2 = dft.results['forces'] * Ha / Bohr
         assert abs(forces2 - forces).max() < 1e-14
 
     # ibz_index = atoms.calc.wfs.kd.bz2ibz_k[p.kpt]

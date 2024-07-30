@@ -1,10 +1,10 @@
-from ase import Atom
+from ase import Atoms
 from ase.units import Ha
 from ase.parallel import parprint
 
 from gpaw import GPAW
 
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.pes.state import BoundState, H1s
 from gpaw.pes.ds_beta import CrossSectionBeta
 
@@ -18,8 +18,8 @@ def test_ds_beta(in_tmp_dir):
     gpwname = 'H1s.gpw'
     if 1:
         c = GPAW(mode='fd', xc='PBE', nbands=-1, h=h)
-        s = Cluster([Atom('H')])
-        s.minimal_box(box, h=h)
+        s = Atoms('H')
+        adjust_cell(s, box, h=h)
         c.calculate(s)
         c.write(gpwname, 'all')
     else:

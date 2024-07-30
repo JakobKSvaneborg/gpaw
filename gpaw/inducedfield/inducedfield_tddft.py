@@ -4,7 +4,7 @@ from gpaw import debug
 from gpaw.transformers import Transformer
 from gpaw.lfc import BasisFunctions
 from gpaw.lcaotddft.observer import TDDFTObserver
-from gpaw.utilities import unpack2, is_contiguous
+from gpaw.utilities import unpack_density, is_contiguous
 
 from gpaw.inducedfield.inducedfield_base import BaseInducedField, \
     sendreceive_dict
@@ -289,7 +289,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
                         FD_p = FD_wsp[w][s]
                     if gd.comm.size > 1:
                         gd.comm.broadcast(FD_p, self.rank_a[a])
-                    D_ij = unpack2(FD_p)
+                    D_ij = unpack_density(FD_p)
                     # unpack does complex conjugation that we don't want so
                     # remove conjugation
                     D_ij = np.triu(D_ij, 1) + np.conj(np.tril(D_ij))
@@ -300,7 +300,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
 #                                          dtype=self.dtype)
 #                    if gd.comm.size > 1:
 #                        gd.comm.broadcast(FD_wsp, self.rank_a[a])
-#                    D_ij = unpack2(FD_wsp[w][s])
+#                    D_ij = unpack_density(FD_wsp[w][s])
 #                    D_ij = np.triu(D_ij, 1) + np.conj(np.tril(D_ij))
 
                     M2 = M1 + ni

@@ -12,7 +12,7 @@ from gpaw.response.susceptibility import (ChiFactory, spectral_decomposition,
                                           read_full_spectral_weight,
                                           read_eigenmode_lineshapes)
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
-from gpaw.response.dyson import HXCScaling
+from gpaw.response.goldstone import FMGoldstoneScaling
 from gpaw.response.pair_functions import read_susceptibility_array
 from gpaw.test.gpwfile import response_band_cutoff
 
@@ -30,7 +30,7 @@ def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files):
     eta = 0.2
 
     rshelmax = 0
-    hxc_scaling = HXCScaling('fm')
+    hxc_scaling = FMGoldstoneScaling()
     ecut = 250
     reduced_ecut = 100  # ecut for eigenmode analysis
     pos_eigs = 2  # majority modes
@@ -82,12 +82,12 @@ def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files):
         # susceptibility in a reduced plane-wave basis and write the decomposed
         # spectrum to a file
         chi = chi.copy_with_reduced_ecut(reduced_ecut)
-        chi.write_diagonal(f'chiwG_q{q}.pckl')
+        chi.write_diagonal(f'chiwG_q{q}.npz')
         Amaj, Amin = spectral_decomposition(chi,
                                             pos_eigs=pos_eigs,
                                             neg_eigs=neg_eigs)
-        Amaj.write(f'Amaj_q{q}.pckl')
-        Amin.write(f'Amin_q{q}.pckl')
+        Amaj.write(f'Amaj_q{q}.npz')
+        Amin.write(f'Amin_q{q}.npz')
         assert f'{fxc},+-' in chi_factory.fxc_kernel_cache
 
     context.write_timer()
@@ -104,10 +104,10 @@ def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files):
     wmin1_w, Amin1_w = read_full_spectral_weight('Amin_q1.dat')
     wa0_w, a0_wm = read_eigenmode_lineshapes('Amaj_modes_q0.dat')
     wa1_w, a1_wm = read_eigenmode_lineshapes('Amaj_modes_q1.dat')
-    w0_w, _, chi0_wG = read_susceptibility_array('chiwG_q0.pckl')
-    w1_w, _, chi1_wG = read_susceptibility_array('chiwG_q1.pckl')
-    Amaj0 = EigendecomposedSpectrum.from_file('Amaj_q0.pckl')
-    Amaj1 = EigendecomposedSpectrum.from_file('Amaj_q1.pckl')
+    w0_w, _, chi0_wG = read_susceptibility_array('chiwG_q0.npz')
+    w1_w, _, chi1_wG = read_susceptibility_array('chiwG_q1.npz')
+    Amaj0 = EigendecomposedSpectrum.from_file('Amaj_q0.npz')
+    Amaj1 = EigendecomposedSpectrum.from_file('Amaj_q1.npz')
 
     # Find acoustic magnon mode
     wpeak00, Ipeak00 = findpeak(w0_w, -chi0_wG[:, 0].imag)

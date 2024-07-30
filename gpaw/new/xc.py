@@ -19,20 +19,36 @@ from gpaw.xc.functional import XCFunctional as OldXCFunctional
 from gpaw.xc.gga import add_gradient_correction
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.vdw import VDWFunctionalBase
+from gpaw.hybrids import HybridXC
 
 
 def create_functional(xc: OldXCFunctional | str | dict,
                       grid: UGDesc,
                       xp=np) -> Functional:
+    exx_fraction = 0.0
+    exx_omega = 0.0
     if isinstance(xc, (str, dict)):
         xc = XC(xc, xp=xp)
+
+    if xc.type == 'HYB':
+        assert isinstance(xc, HybridXC)
+        exx_fraction = xc.exx_fraction
+        exx_omega = xc.omega
+        xc = xc.xc
+
     if xc.type == 'LDA':
-        return LDAFunctional(xc, grid, xp)
-    if xc.type == 'GGA':
-        return GGAFunctional(xc, grid, xp)
-    if xc.type == 'MGGA':
-        return MGGAFunctional(xc, grid)
-    raise ValueError(f'{xc.type} not supported')
+        functional = LDAFunctional(xc, grid, xp)
+    elif xc.type == 'GGA':
+        functional = GGAFunctional(xc, grid, xp)
+    elif xc.type == 'MGGA':
+        functional = MGGAFunctional(xc, grid)
+    else:
+        raise ValueError(f'{xc.type} not supported')
+
+    functional.exx_fraction = exx_fraction
+    functional.exx_omega = exx_omega
+
+    return functional
 
 
 class Functional:
@@ -47,6 +63,8 @@ class Functional:
         self.name = self.xc.name
         self.type = self.xc.type
         self.xc.set_grid_descriptor(grid._gd)
+        self.exx_fraction = 0.0
+        self.exx_omega = 0.0
 
     def __str__(self):
         return f'name: {self.xc.get_description()}'

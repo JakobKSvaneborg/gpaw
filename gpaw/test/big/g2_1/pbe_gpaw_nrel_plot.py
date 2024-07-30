@@ -1,5 +1,5 @@
 import matplotlib
-from matplotlib import pylab
+import matplotlib.pyplot as plt
 from gpaw.test.big.g2_1.pbe_gpaw_nrel_analyse import tag
 from gpaw.test.big.g2_1.pbe_gpaw_nrel_analyse import ref as calc
 from gpaw.test.big.g2_1.pbe_nwchem_def2_qzvppd_analyse import ref
@@ -143,35 +143,33 @@ def plot(xdata, ydata, std,
          ):
     import matplotlib
     # matplotlib.use('Agg')
-    import pylab
     import matplotlib.font_manager
 
     # all goes to figure num
-    pylab.figure(num=num, figsize=(9.5, 9))
-    pylab.gca().set_position([0.10, 0.20, 0.85, 0.60])
+    plt.figure(num=num, figsize=(9.5, 9))
+    plt.gca().set_position([0.10, 0.20, 0.85, 0.60])
     # let the plot have fixed y-axis scale
     # ywindow = maxy - miny
-    # pylab.gca().set_ylim(miny, maxy+ywindow/5.0)
-    pylab.gca().set_ylim(miny, maxy)
-    # pylab.plot(xdata, ydata, 'b.', label=label, color=color)
-    # pylab.plot(xdata, ydata, 'b-', label='_nolegend_', color=color)
-    pylab.bar(xdata, ydata, 0.9, label=label, color=color, alpha=alpha)
-    t = pylab.title(title)
+    # plt.gca().set_ylim(miny, maxy+ywindow/5.0)
+    plt.gca().set_ylim(miny, maxy)
+    # plt.plot(xdata, ydata, 'b.', label=label, color=color)
+    # plt.plot(xdata, ydata, 'b-', label='_nolegend_', color=color)
+    plt.bar(xdata, ydata, 0.9, label=label, color=color, alpha=alpha)
+    t = plt.title(title)
     t.set_y(1.05)
-    pylab.xlabel(xlabel)
-    pylab.ylabel(ylabel)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     prop = matplotlib.font_manager.FontProperties(size=12)
-    leg = pylab.legend(loc='upper right', fancybox=True, prop=prop)
+    leg = plt.legend(loc='upper right', fancybox=True, prop=prop)
     leg.get_frame().set_alpha(0.5)
 
 
 def plot_save(directory_name, out_prefix):
     from os.path import exists
     assert exists(directory_name)
-    import pylab
 
-    pylab.savefig(directory_name + os.path.sep + out_prefix + '.png',
-                  bbox_inches='tight')
+    plt.savefig(directory_name + os.path.sep + out_prefix + '.png',
+                bbox_inches='tight')
 
 
 matplotlib.use('Agg')
@@ -202,8 +200,8 @@ plot(
     miny, maxy,
     num=1)
 zero = [0.0 for i in range(len(no))]
-pylab.plot(no, zero, 'k-', label='_nolegend_')
-ay1 = pylab.gca()
+plt.plot(no, zero, 'k-', label='_nolegend_')
+ay1 = plt.gca()
 ay1.xaxis.set_ticks([n + 0.5 for n in no])
 ay1.xaxis.set_ticklabels(labels)
 ay1.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
@@ -232,12 +230,12 @@ for n in range(len(no)):
             'absaverage': absaverage,
             'std': std}[v]
         label += l + ' ' + str(round(value[n], 3)) + '\n'
-    pylab.annotate(label,
-                   xy=(n + 0.0, 0.0),
-                   xytext=errorslocation(n, n1),
-                   arrowprops=None,
-                   horizontalalignment='left', verticalalignment='center',
-                   fontsize=ann_fontsize)
+    plt.annotate(label,
+                 xy=(n + 0.0, 0.0),
+                 xytext=errorslocation(n, n1),
+                 arrowprops=None,
+                 horizontalalignment='left', verticalalignment='center',
+                 fontsize=ann_fontsize)
 
 # plot compounds with largest errors
 for n, l in enumerate(largest):
@@ -247,13 +245,13 @@ for n, l in enumerate(largest):
         # $\rm{SiH}2_\rm{s}3\rm{B}1\rm{d}$ (at char 0), (line:1, col:1)
         name = name.replace('\\rm', '')
         label = name + ' ' + str(round(e, 2))
-        pylab.annotate(label,
-                       xy=(n + 0.05, e),
-                       xytext=formulaslocation(n, n1),
-                       arrowprops=dict(width=0.05, headwidth=5.0,
-                                       facecolor='black', shrink=1.00),
-                       horizontalalignment='left', verticalalignment='center',
-                       fontsize=ann_fontsize)
-# pylab.show()
+        plt.annotate(label,
+                     xy=(n + 0.05, e),
+                     xytext=formulaslocation(n, n1),
+                     arrowprops=dict(width=0.05, headwidth=5.0,
+                                     facecolor='black', shrink=1.00),
+                     horizontalalignment='left', verticalalignment='center',
+                     fontsize=ann_fontsize)
+# plt.show()
 plot_save(".", tag + '_ea_vs')
-# pylab.close(1)
+# plt.close(1)

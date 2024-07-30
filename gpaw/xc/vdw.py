@@ -26,7 +26,7 @@ from gpaw.grid_descriptor import GridDescriptor
 from gpaw.utilities.tools import construct_reciprocal
 from gpaw import setup_paths
 import gpaw.mpi as mpi
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 def T(w, x, y, z):
@@ -466,7 +466,7 @@ class RealSpaceVDWFunctional(VDWFunctionalBase):
         dD = 0.05
         if self.verbose:
             start = time.time()
-        E_vdwnl = _gpaw.vdw(n_i, q0_i, R_ic, gd.cell_cv.diagonal().copy(),
+        E_vdwnl = cgpaw.vdw(n_i, q0_i, R_ic, gd.cell_cv.diagonal().copy(),
                             gd.pbc_c,
                             repeat_c,
                             self.phi_ij, self.delta_i[1], self.D_j[1],
@@ -576,7 +576,7 @@ class FFTVDWFunctional(VDWFunctionalBase):
 
         The recipe is from
 
-          http://en.wikipedia.org/wiki/Spline_(mathematics) """
+          https://en.wikipedia.org/wiki/Spline_(mathematics) """
 
         n = self.Nalpha
         lambd = self.lambd
@@ -659,6 +659,7 @@ class FFTVDWFunctional(VDWFunctionalBase):
                 else:
                     assert n >= gd.N_c[c]
 
+        assert self.shape.shape == (3,)
         self.gd = gd
 
     def calculate_6d_integral(self, n_g, q0_g,
@@ -702,7 +703,9 @@ class FFTVDWFunctional(VDWFunctionalBase):
             self.timer.stop('hmm2')
             del C_pg
             self.timer.start('FFT')
-            theta_ak[a] = rfftn(n_g * pa_g, self.shape).copy()
+            theta_ak[a] = rfftn(n_g * pa_g,
+                                self.shape,
+                                [0, 1, 2]).copy()
             self.timer.stop()
 
             if not self.energy_only:
@@ -731,7 +734,7 @@ class FFTVDWFunctional(VDWFunctionalBase):
                                 self.shape[2] // 2 + 1), complex)
             self.timer.start('Convolution')
             for b in self.alphas:
-                _gpaw.vdw2(self.phi_aajp[a, b], self.j_k, dj_k,
+                cgpaw.vdw2(self.phi_aajp[a, b], self.j_k, dj_k,
                            theta_ak[b], F_k)
             self.timer.stop()
 

@@ -2,7 +2,6 @@ import numpy as np
 from ase.build import mx2
 
 from gpaw import GPAW, PW, FermiDirac
-from gpaw.mpi import world
 from gpaw.nlopt.matrixel import make_nlodata
 from gpaw.nlopt.shg import get_shg
 
@@ -33,7 +32,7 @@ atoms.calc.write(gs_name, mode='all')
 # GSEnd
 
 # Calculate momentum matrix elements:
-nlodata = make_nlodata(gs_name, comm=world)
+nlodata = make_nlodata(gs_name)
 nlodata.write('mml.npz')
 # MMECalcEnd
 

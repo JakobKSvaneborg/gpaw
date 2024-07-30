@@ -6,7 +6,7 @@ from gpaw.lfc import LocalizedFunctionsCollection as LFC
 
 
 def test_lfc_lf():
-    s = Spline(0, 1.0, [1.0, 0.5, 0.0])
+    s = Spline.from_data(0, 1.0, [1.0, 0.5, 0.0])
     n = 40
     a = 8.0
     gd = GridDescriptor((n, n, n), (a, a, a), comm=mpi.serial_comm)

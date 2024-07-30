@@ -1,11 +1,12 @@
 import pytest
 import numpy as np
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.pair import get_gs_and_context
 from gpaw import GPAW, PW, FermiDirac
-from gpaw.mpi import world
-from gpaw.response.chi0 import Chi0
-from gpaw.response.screened_interaction import initialize_w_calculator
+from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.frequencies import FrequencyDescriptor
+from gpaw.response.screened_interaction import (initialize_w_calculator,
+                                                GammaIntegrationMode)
 from ase.build import bulk
 from ase import Atoms
 
@@ -41,24 +42,22 @@ def test_Wsymm(in_tmp_dir, scalapack):
         return qclist
 
     def calc_W(seed, q_c_list):
-        omega = np.array([0])
-        chi0calc = Chi0(seed + '.gpw',
-                        frequencies=omega,
-                        hilbert=False,
-                        ecut=100,
-                        txt='test.log',
-                        intraband=False)
-        txt = 'out.txt'
-        gs, wcontext = get_gs_and_context(
-            seed + '.gpw',
-            txt, world=world,
-            timer=None)
+        gs = ResponseGroundStateAdapter.from_gpw_file(seed + '.gpw')
+        context = ResponseContext('test.log')
+        chi0calc = Chi0Calculator(
+            gs, context,
+            wd=FrequencyDescriptor(np.array([0.])),
+            hilbert=False,
+            ecut=100,
+            intraband=False)
+        wcontext = ResponseContext('out.txt')
         truncation = None
         coulomb = CoulombKernel.from_gs(gs, truncation=truncation)
+        gimode = GammaIntegrationMode('sphere')
         wcalc = initialize_w_calculator(chi0calc,
                                         wcontext,
                                         coulomb=coulomb,
-                                        integrate_gamma=0)
+                                        integrate_gamma=gimode)
         Wlist = []
         qlist = []
         for iq, q_c in enumerate(q_c_list):

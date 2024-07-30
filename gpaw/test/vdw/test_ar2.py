@@ -26,7 +26,13 @@ def test_vdw_ar2(in_tmp_dir):
         e2vdwb = GPAW('Ar2.gpw').get_xc_difference(vdw)
         print(e2vdwb - e2vdw)
         assert abs(e2vdwb - e2vdw) < 1e-9
-        del dimer[1]
+        if 0:
+            # See ASE issue !1466
+            del dimer[1]
+        else:
+            dimer.calc = None
+            del dimer[1]
+            dimer.calc = calc
         e = dimer.get_potential_energy()
         evdw = calc.get_xc_difference(vdw)
 

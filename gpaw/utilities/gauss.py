@@ -2,7 +2,7 @@ import numpy as np
 from numpy import sqrt, pi, exp, abs
 from scipy.special import erf
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.utilities.tools import coordinates
 from gpaw.utilities import is_contiguous
@@ -225,5 +225,5 @@ def gaussian_wave(r_vG, r0_v, sigma, k_v=None, A=None, dtype=float,
     # gw = lambda r_vG, r0_v, sigma, k_v, A=1/(sigma*np.pi**0.5)**1.5: \
     #    * np.exp(-np.sum((r_vG-r0_v[slice_v2vG])**2, axis=0)/(2*sigma**2)) \
     #    * np.exp(1j*np.sum(np.r_vG*k_v[slice_v2vG], axis=0)) * A
-    _gpaw.utilities_gaussian_wave(A, r_vG, r0_v, sigma, k_v, out_G)
+    cgpaw.utilities_gaussian_wave(A, r_vG, r0_v, sigma, k_v, out_G)
     return out_G

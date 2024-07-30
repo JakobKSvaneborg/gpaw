@@ -1,6 +1,6 @@
 import numpy as np
 
-from gpaw.utilities import pack
+from gpaw.utilities import pack_density
 
 
 def get_density(rho_MM, wfs, density, density_type='comp', u=0):
@@ -35,7 +35,7 @@ def get_density(rho_MM, wfs, density, density_type='comp', u=0):
             P_Mi = P_Mi.real
             assert P_Mi.dtype == float
             D_ii = np.dot(np.dot(P_Mi.T.conj(), rho_MM), P_Mi)
-            D_sp[:] = pack(D_ii)[np.newaxis, :]
+            D_sp[:] = pack_density(D_ii)[np.newaxis, :]
             Q_aL[a] = np.dot(D_sp.sum(axis=0), wfs.setups[a].Delta_pL)
         density.ghat.add(rho_g, Q_aL)
         return rho_g

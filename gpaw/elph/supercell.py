@@ -5,14 +5,14 @@ from typing import Tuple
 
 from ase import Atoms
 from ase.parallel import parprint
-import ase.units as units
+from ase.units import Bohr
 from ase.utils.filecache import MultiFileJSONCache
 
 from gpaw.calculator import GPAW
 from gpaw.lcao.tightbinding import TightBinding
-from gpaw.utilities import unpack2
-from gpaw.utilities.tools import tri2full
 from gpaw.typing import ArrayND
+from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.tools import tri2full
 
 from .filter import fourier_filter
 
@@ -85,7 +85,7 @@ class Supercell:
             for a_, dH1_sp in dH1_asp.items():
                 if a_ not in bfs.my_atom_indices:
                     continue
-                dH1_ii = unpack2(dH1_sp[kpt.s])
+                dH1_ii = unpack_hermitian(dH1_sp[kpt.s])
                 P_Mi = P_aqMi[a_][kpt.q]
                 gp_MM += P_Mi.conj() @ dH1_ii @ P_Mi.T
             # wfs.gd.comm.sum(gp_MM)
@@ -94,7 +94,7 @@ class Supercell:
         # 2b) dP^a part has only contributions from the same atoms
         # For the contribution from the derivative of the projectors
         dPdR_aqvMi = wfs.manytci.P_aqMi(bfs.my_atom_indices, derivative=True)
-        dH_ii = unpack2(dH_asp[a][kpt.s])
+        dH_ii = unpack_hermitian(dH_asp[a][kpt.s])
         for kpt in kpt_u:
             gp_MM = np.zeros((nao, nao), dtype)
             if a in bfs.my_atom_indices:
@@ -308,13 +308,13 @@ class Supercell:
                 dHp_asp = cache[name + "+"]["dH_all_asp"]
 
                 # FD derivatives in Hartree / Bohr
-                V1t_sG = (Vtp_sG - Vtm_sG) / (2 * delta / units.Bohr)
+                V1t_sG = (Vtp_sG - Vtm_sG) / (2 * delta / Bohr)
                 V1t_xsG.append(V1t_sG)
 
                 dH1_asp = {}
                 for atom in dHm_asp.keys():
                     dH1_asp[atom] = (dHp_asp[atom] - dHm_asp[atom]) / (
-                        2 * delta / units.Bohr
+                        2 * delta / Bohr
                     )
                 dH1_xasp.append(dH1_asp)
                 x += 1

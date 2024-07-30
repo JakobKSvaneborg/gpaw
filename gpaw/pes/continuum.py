@@ -2,7 +2,7 @@ from math import pi, sin, cos
 import numpy as np
 
 from ase.units import Bohr
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.poisson import PoissonSolver
 from gpaw.pes.state import State
 from gpaw.analyse.expandyl import AngularIntegral
@@ -33,7 +33,7 @@ class PlaneWave(State):
                         pw_G[i, j, k] = cos(phase) + 1j * sin(phase)
         else:
             gd = self.gd
-            _gpaw.plane_wave_grid(gd.beg_c, gd.end_c,
+            cgpaw.plane_wave_grid(gd.beg_c, gd.end_c,
                                   gd.h_cv.diagonal().copy(),
                                   k_c, r0_c, pw_G)
         pw_G /= (2 * pi) ** (3. / 2.)

@@ -1,7 +1,10 @@
 """Test Tran Blaha potential."""
+import warnings
+
 import pytest
-from ase.dft.bandgap import bandgap
 from ase.build import bulk
+from ase.dft.bandgap import bandgap
+
 from gpaw import GPAW, PW, Mixer
 
 
@@ -20,7 +23,9 @@ def test_xc_tb09(in_tmp_dir):
                       xc=xc('TB09'),
                       convergence={'bands': -3},
                       txt='si.txt')
-    atoms.get_potential_energy()
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', module='gpaw.xc.libxc')
+        atoms.get_potential_energy()
     gap, (sv, kv, nv), (sc, kc, nc) = bandgap(atoms.calc)
     c = atoms.calc.hamiltonian.xc.c
     print(gap, kv, kc)

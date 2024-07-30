@@ -2,14 +2,14 @@
 from ase import Atoms
 from ase.parallel import parprint
 from gpaw import GPAW, PoissonSolver
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 import pytest
 
 
 def test_generic_asym_box(in_tmp_dir):
     h = 0.2
-    s = Cluster(Atoms('He'))
-    s.minimal_box(3, h=h)
+    s = Atoms('He')
+    adjust_cell(s, 3, h=h)
 
     c = GPAW(mode='fd', charge=1, txt='He_plus.txt',
              poissonsolver=PoissonSolver(use_charge_center=True),

@@ -2,10 +2,11 @@
 # fermi-levels when using fixmagmom:
 #
 # yes, fermi-level-splitting sounds a little bit strange
-
-from ase import Atoms
-from gpaw import GPAW, FermiDirac, MixerSum
+import numpy as np
 import pytest
+from ase import Atoms
+
+from gpaw import GPAW, FermiDirac, MixerSum
 
 
 def test_fermisplit(in_tmp_dir):
@@ -23,7 +24,7 @@ def test_fermisplit(in_tmp_dir):
     atoms.get_potential_energy()
 
     ef1 = calc.get_fermi_levels().mean()
-    efsplit1 = calc.get_fermi_levels().ptp()
+    efsplit1 = np.ptp(calc.get_fermi_levels())
 
     ef3 = calc.get_fermi_levels()
     calc.write('test.gpw')
@@ -31,7 +32,7 @@ def test_fermisplit(in_tmp_dir):
     # check number one: is the splitting value saved?
     readtest = GPAW('test.gpw')
     ef2 = readtest.get_fermi_levels().mean()
-    efsplit2 = readtest.get_fermi_levels().ptp()
+    efsplit2 = np.ptp(readtest.get_fermi_levels())
 
     # numpy arrays
     ef4 = readtest.get_fermi_levels()

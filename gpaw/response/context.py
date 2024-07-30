@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Union
+from pathlib import Path
 from time import ctime
 from sys import stdout
 
@@ -10,12 +13,27 @@ from ase.utils.timing import Timer
 import gpaw.mpi as mpi
 
 
+TXTFilename = Union[Path, str]
+ResponseContextInput = Union['ResponseContext', dict, TXTFilename]
+
+
 class ResponseContext:
-    def __init__(self, txt='-', timer=None, comm=mpi.world, mode='w'):
+    def __init__(self, txt: TXTFilename = '-',
+                 timer=None, comm=mpi.world, mode='w'):
         self.comm = comm
         self.iocontext = IOContext()
         self.open(txt, mode)
         self.set_timer(timer)
+
+    @staticmethod
+    def from_input(context: ResponseContextInput) -> ResponseContext:
+        if isinstance(context, ResponseContext):
+            return context
+        elif isinstance(context, dict):
+            return ResponseContext(**context)
+        elif isinstance(context, (Path, str)):  # TXTFilename
+            return ResponseContext(txt=context)
+        raise ValueError('Expected ResponseContextInput, got', context)
 
     def open(self, txt, mode):
         if txt is stdout and self.comm.rank != 0:

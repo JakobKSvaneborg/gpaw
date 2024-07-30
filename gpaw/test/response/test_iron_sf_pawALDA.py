@@ -7,7 +7,7 @@ from gpaw.mpi import world
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
-from gpaw.response.dyson import DysonEnhancer
+from gpaw.response.dyson import DysonSolver
 from gpaw.response.susceptibility import (spectral_decomposition,
                                           read_eigenmode_lineshapes)
 from gpaw.response.pair_functions import read_pair_function
@@ -51,7 +51,7 @@ def test_response_iron_sf_pawALDA(in_tmp_dir, gpw_files, scalapack):
     xi_calc = SelfEnhancementCalculator(*calc_args,
                                         rshewmin=rshewmin,
                                         **calc_kwargs)
-    dyson_enhancer = DysonEnhancer(context)
+    dyson_solver = DysonSolver(context)
 
     for q, q_c in enumerate(q_qc):
         # Calculate χ_KS^+- and Ξ^++
@@ -62,7 +62,7 @@ def test_response_iron_sf_pawALDA(in_tmp_dir, gpw_files, scalapack):
         # Distribute frequencies and invert dyson equation
         chiks = chiks.copy_with_global_frequency_distribution()
         xi = xi.copy_with_global_frequency_distribution()
-        chi = dyson_enhancer(chiks, xi)
+        chi = dyson_solver(chiks, xi)
 
         # plot_inverse_enhancement(xi)
 

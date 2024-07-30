@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 from ase.units import Ha
 
+from gpaw.response.symmetrize import HeadSymmetryOperators
 from gpaw.response.integrators import Integrand, HilbertTetrahedron, Intraband
 from gpaw.response.chi0_base import Chi0ComponentCalculator
-from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.chi0_data import Chi0DrudeData
 from gpaw.response.frequencies import FrequencyGridDescriptor
 
 if TYPE_CHECKING:
-    from gpaw.response.symmetry import PWSymmetryAnalyzer
+    from gpaw.response.kpoints import KPointDomainGenerator
 
 
 class Chi0DrudeCalculator(Chi0ComponentCalculator):
@@ -22,19 +22,12 @@ class Chi0DrudeCalculator(Chi0ComponentCalculator):
     model."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        # Serial block distribution
+        super().__init__(*args, nblocks=1, **kwargs)
 
         # task: IntegralTask from gpaw.response.integrators
         # wd: FrequencyDescriptor from gpaw.response.frequencies
         self.task, self.wd = self.construct_integral_task_and_wd()
-
-    @property
-    def nblocks(self):
-        # The plasma frequencies aren't distributed in memory, hence we
-        # overwrite nblocks.
-        # NB: There can be a mismatch with self.kptpair_factory.nblocks, which
-        # seems a bit dangerous XXX
-        return 1
 
     def calculate(self, wd, rate) -> Chi0DrudeData:
         """Calculate the Drude dielectric response.
@@ -58,22 +51,17 @@ class Chi0DrudeCalculator(Chi0ComponentCalculator):
         """In-place calculation of the Drude dielectric response function,
         based on the free-space plasma frequency of the intraband transitions.
         """
-        # Create a dummy plane-wave descriptor. We need this for the symmetry
-        # analysis -> see discussion in gpaw.response.jdos
-
-        # gs: ResponseGroundStateAdapter from gpaw.response.groundstate
-        # gd: GridDescriptor from gpaw.grid_descriptor
-        qpd = SingleQPWDescriptor.from_q([0., 0., 0.],
-                                         ecut=1e-3, gd=self.gs.gd)
-
+        q_c = [0., 0., 0.]
+        # symmetries: QSymmetries from gpaw.response.symmetry
+        # generator: KPointDomainGenerator from gpaw.response.kpoints
         # domain: Domain from from gpaw.response.integrators
-        # analyzer: PWSymmetryAnalyzer from gpaw.response.symmetry
-        domain, analyzer, prefactor = self.get_integration_domain(
-            qpd, spins=range(self.gs.nspins))
+        symmetries, generator, domain, prefactor = self.get_integration_domain(
+            q_c=q_c, spins=range(self.gs.nspins))
 
         # The plasma frequency integral is special in the way that only
         # the spectral part is needed
-        integrand = PlasmaFrequencyIntegrand(self, qpd, analyzer)
+        integrand = PlasmaFrequencyIntegrand(
+            self, generator, self.gs.gd.cell_cv)
 
         # Integrate using temporary array
         tmp_plasmafreq_wvv = np.zeros((1,) + chi0_drude.vv_shape, complex)
@@ -86,9 +74,12 @@ class Chi0DrudeCalculator(Chi0ComponentCalculator):
                                   out_wxx=tmp_plasmafreq_wvv)  # Output array
         tmp_plasmafreq_wvv *= prefactor
 
-        # Store the plasma frequency itself and print it for anyone to use
+        # Symmetrize the plasma frequency
+        operators = HeadSymmetryOperators(symmetries, self.gs.gd)
         plasmafreq_vv = tmp_plasmafreq_wvv[0].copy()
-        analyzer.symmetrize_wvv(plasmafreq_vv[np.newaxis])
+        operators.symmetrize_wvv(plasmafreq_vv[np.newaxis])
+
+        # Store and print the plasma frequency
         chi0_drude.plasmafreq_vv += 4 * np.pi * plasmafreq_vv
         self.context.print('Plasma frequency:', flush=False)
         self.context.print((chi0_drude.plasmafreq_vv**0.5 * Ha).round(2))
@@ -136,11 +127,11 @@ class Chi0DrudeCalculator(Chi0ComponentCalculator):
 
 class PlasmaFrequencyIntegrand(Integrand):
     def __init__(self, chi0drudecalc: Chi0DrudeCalculator,
-                 qpd: SingleQPWDescriptor,
-                 analyzer: PWSymmetryAnalyzer):
+                 generator: KPointDomainGenerator,
+                 cell_cv: np.ndarray):
         self._drude = chi0drudecalc
-        self.qpd = qpd
-        self.analyzer = analyzer
+        self.generator = generator
+        self.cell_cv = cell_cv
 
     def _band_summation(self):
         # Intraband response needs only integrate partially unoccupied bands.
@@ -151,7 +142,7 @@ class PlasmaFrequencyIntegrand(Integrand):
         """NB: In dire need of documentation! XXX."""
         k_v = point.kpt_c  # XXX _v vs _c discrepancy
         n1, n2 = self._band_summation()
-        k_c = np.dot(self.qpd.gd.cell_cv, k_v) / (2 * np.pi)
+        k_c = np.dot(self.cell_cv, k_v) / (2 * np.pi)
 
         # kptpair_factory: KPointPairFactory from gpaw.response.pair
         kptpair_factory = self._drude.kptpair_factory
@@ -161,8 +152,9 @@ class PlasmaFrequencyIntegrand(Integrand):
         kpt1 = kptpair_factory.get_k_point(point.spin, K0, n1, n2)
         n_n = range(n1, n2)
 
-        vel_nv = kptpair_factory.pair_calculator().intraband_pair_density(
-            kpt1, n_n)
+        pair_calc = kptpair_factory.pair_calculator(
+            blockcomm=self._drude.blockcomm)
+        vel_nv = pair_calc.intraband_pair_density(kpt1, n_n)
 
         if self._drude.integrationmode is None:
             f_n = kpt1.f_n
@@ -172,8 +164,8 @@ class PlasmaFrequencyIntegrand(Integrand):
             else:
                 dfde_n = np.zeros_like(f_n)
             vel_nv *= np.sqrt(-dfde_n[:, np.newaxis])
-            weight = np.sqrt(self.analyzer.get_kpoint_weight(k_c) /
-                             self.analyzer.how_many_symmetries())
+            weight = np.sqrt(self.generator.get_kpoint_weight(k_c) /
+                             self.generator.how_many_symmetries())
             vel_nv *= weight
 
         return vel_nv
@@ -192,7 +184,7 @@ class PlasmaFrequencyIntegrand(Integrand):
         kd = gs.kd
         k_v = point.kpt_c  # XXX v/c discrepancy
         # gd: GridDescriptor from gpaw.grid_descriptor
-        k_c = np.dot(self.qpd.gd.cell_cv, k_v) / (2 * np.pi)
+        k_c = np.dot(self.cell_cv, k_v) / (2 * np.pi)
         K1 = gs.kpoints.kptfinder.find(k_c)
         ik = kd.bz2ibz_k[K1]
         kpt1 = gs.kpt_qs[ik][point.spin]

@@ -14,7 +14,7 @@ k+q are needed.
 
 import numpy as np
 
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import mmmx
 from gpaw.fd_operators import Laplace
 
@@ -131,7 +131,7 @@ class SternheimerOperator:
         self.pt.integrate(x_nG, P_ani, q=kplusqpt.k)
 
         for a, P_ni in P_ani.items():
-            dH_ii = unpack(self.hamiltonian.dH_asp[a][kpt.s])
+            dH_ii = unpack_hermitian(self.hamiltonian.dH_asp[a][kpt.s])
             P_ani[a] = np.dot(P_ni, dH_ii)
         # k+q
         self.pt.add(y_nG, P_ani, q=kplusqpt.k)

@@ -13,6 +13,7 @@ from gpaw.atom.configurations import configurations
 from gpaw.atom.radialgd import AERadialGridDescriptor
 from gpaw.utilities import hartree
 from gpaw.xc import XC
+from gpaw.mpi import serial_comm
 
 # fine-structure constant
 alpha = 1 / 137.036
@@ -32,7 +33,7 @@ class AllElectron(IOContext):
           a.run()
         """
 
-        self.txt = self.openfile(txt)
+        self.txt = self.openfile(txt, comm=serial_comm)
 
         self.symbol = symbol
         self.xcname = xcname

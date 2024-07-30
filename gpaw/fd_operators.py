@@ -14,7 +14,7 @@ from ase.geometry.minkowski_reduction import reduction_full
 from numpy.fft import fftn, ifftn
 from scipy.spatial import Voronoi
 
-import _gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.gpu import cupy_is_fake
 from gpaw.typing import Array2D, ArrayLike2D
@@ -85,7 +85,7 @@ class FDOperator:
 
         self.xp = xp
         gpu = xp is not np and not cupy_is_fake
-        self.operator = _gpaw.Operator(coef_p, offset_p, n_c, mp,
+        self.operator = cgpaw.Operator(coef_p, offset_p, n_c, mp,
                                        neighbor_cd, dtype == float,
                                        comm, cfd, gpu)
 

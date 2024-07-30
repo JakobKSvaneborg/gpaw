@@ -15,23 +15,27 @@ General
 Citation: How should I cite GPAW?
 ---------------------------------
 
-If you find GPAW useful in your research please cite the original reference:
+If you find GPAW useful in your research please cite this GPAW review:
+
+   | Jens Jørgen Mortensen, Ask Hjorth Larsen, Mikael Kuisma et al.
+   | :doi:`GPAW: An open Python package for electronic structure calculations featured <10.1063/5.0182685>`
+   | J. Chem. Phys. 160, 092503 (2024)
+
+together with the ASE review (see :ref:`ase:cite`).
+
+You are welcome to cite also the original GPAW reference and an earlier GPAW review:
 
    | J. J. Mortensen, L. B. Hansen, and K. W. Jacobsen
    | :doi:`Real-space grid implementation of the projector augmented wave method <10.1103/PhysRevB.71.035109>`
    | Phys. Rev. B **71**, 035109 (2005)
 
-and the major GPAW review:
-
    | J. Enkovaara, C. Rostgaard, J. J. Mortensen et al.
    | :doi:`Electronic structure calculations with GPAW: a real-space implementation of the projector augmented-wave method <10.1088/0953-8984/22/25/253202>`
    | J. Phys.: Condens. Matter **22**, 253202 (2010)
 
-together with the ASE review (see :ref:`ase:cite`).
-
 Please also cite those of the following that are relevant to you work:
 
-* `Libxc <http://libxc.gitlab.io>`_ for XC-functionals other
+* `Libxc <https://libxc.gitlab.io>`_ for XC-functionals other
   than LDA, PBE, revPBE, RPBE and PW91:
 
     *S. Lehtola, C. Steigemann, M. J. T. Oliveira and M. A. L. Marques.*,
@@ -129,7 +133,7 @@ In Danish: Først bogstavet "g", derefter "pav": "g-pav".
 
 In Finnish: supisuomalaisittain "kee-pav".
 
-In Polish: "gyeh" jak `"Gie"rek <http://en.wikipedia.org/wiki/Edward_Gierek>`_, "pav" jak `paw <http://pl.wikipedia.org/wiki/Paw_indyjski>`_: "gyeh-pav".
+In Polish: "gyeh" jak `"Gie"rek <https://en.wikipedia.org/wiki/Edward_Gierek>`_, "pav" jak `paw <https://pl.wikipedia.org/wiki/Paw_indyjski>`_: "gyeh-pav".
 
 
 Compiling the C-code

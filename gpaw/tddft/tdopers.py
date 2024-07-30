@@ -4,7 +4,7 @@ operators."""
 
 import numpy as np
 
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.fd_operators import Laplace, Gradient
 from gpaw.overlap import Overlap
 from gpaw.wavefunctions.fd import FDWaveFunctions
@@ -164,7 +164,7 @@ class TimeDependentHamiltonian:
                 P_axi[a][:] = P_ni
 
         for a, P_xi in P_axi.items():
-            dH_ii = unpack(self.dH_asp[a][kpt.s])
+            dH_ii = unpack_hermitian(self.dH_asp[a][kpt.s])
             P_axi[a][:] = np.dot(P_xi, dH_ii)
         self.wfs.pt.add(hpsit, P_axi, kpt.q)
 
@@ -690,7 +690,7 @@ class TimeDependentWaveFunctions(FDWaveFunctions):
                 F_niv = F_niv.conj()
                 F_niv *= kpt.f_n[:, np.newaxis, np.newaxis]
                 FdH1_niv = F_niv.copy()
-                dH_ii = unpack(hamiltonian.dH_asp[a][kpt.s])
+                dH_ii = unpack_hermitian(hamiltonian.dH_asp[a][kpt.s])
                 P_ni = kpt.P_ani[a]
                 dO_ii = hamiltonian.setups[a].dO_ii
                 F_vii = np.dot(np.dot(F_niv.transpose(), P_ni), dH_ii)
@@ -719,7 +719,7 @@ class TimeDependentWaveFunctions(FDWaveFunctions):
                     d_nn += ne * np.outer(c_n.conj(), c_n)
                 for a, F_niv in F_aniv.items():
                     F_niv = F_niv.conj()
-                    dH_ii = unpack(hamiltonian.dH_asp[a][kpt.s])
+                    dH_ii = unpack_hermitian(hamiltonian.dH_asp[a][kpt.s])
                     Q_ni = np.dot(d_nn, kpt.P_ani[a])
                     F_vii = np.dot(np.dot(F_niv.transpose(), Q_ni), dH_ii)
                     F_niv *= kpt.eps_n[:, np.newaxis, np.newaxis]

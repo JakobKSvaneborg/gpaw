@@ -1,6 +1,6 @@
 import pytest
 from gpaw import GPAW, restart
-from gpaw.cluster import Cluster
+from gpaw.utilities.adjust_cell import adjust_cell
 from ase.build import molecule
 from ase.units import mol, kcal
 from gpaw.solvation import SolvationGPAW, get_HW14_water_kwargs
@@ -23,8 +23,8 @@ def parameters():
 def H2O(parameters):
     vac = 4.0
 
-    atoms = Cluster(molecule('H2O'))
-    atoms.minimal_box(vac, parameters['h'])
+    atoms = molecule('H2O')
+    adjust_cell(atoms, vac, parameters['h'])
 
     kwargs = get_HW14_water_kwargs()
     kwargs.update(parameters)

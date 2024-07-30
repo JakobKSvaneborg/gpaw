@@ -13,7 +13,7 @@ from gpaw.utilities.blas import axpy
 from gpaw.wavefunctions.arrays import UniformGridWaveFunctions
 from gpaw.wavefunctions.fdpw import FDPWWaveFunctions
 from gpaw.wavefunctions.mode import Mode
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 class FD(Mode):
@@ -97,7 +97,7 @@ class FDWaveFunctions(FDPWWaveFunctions):
         nt_G = nt_sG[kpt.s]
         for f, psit_G in zip(f_n, kpt.psit_nG):
             # Same as nt_G += f * abs(psit_G)**2, but much faster:
-            _gpaw.add_to_density(f, psit_G, nt_G)
+            cgpaw.add_to_density(f, psit_G, nt_G)
 
         # Hack used in delta-scf calculations:
         if hasattr(kpt, 'c_on'):
@@ -239,7 +239,11 @@ class FDWaveFunctions(FDPWWaveFunctions):
     def read(self, reader):
         FDPWWaveFunctions.read(self, reader)
 
-        if 'values' not in reader.wave_functions:
+        if 'values' in reader.wave_functions:
+            name = 'values'
+        elif 'coefficients' in reader.wave_functions:
+            name = 'coefficients'
+        else:
             return
 
         c = reader.bohr**1.5
@@ -250,7 +254,7 @@ class FDWaveFunctions(FDPWWaveFunctions):
             # We may not be able to keep all the wave
             # functions in memory - so psit_nG will be a special type of
             # array that is really just a reference to a file:
-            psit_nG = reader.wave_functions.proxy('values', kpt.s, kpt.k)
+            psit_nG = reader.wave_functions.proxy(name, kpt.s, kpt.k)
             psit_nG.scale = c
 
             kpt.psit = UniformGridWaveFunctions(

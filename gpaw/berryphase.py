@@ -234,7 +234,8 @@ def parallel_transport(calc,
                        scale=1.0,
                        bands=None,
                        theta=0.0,
-                       phi=0.0):
+                       phi=0.0,
+                       comm=None):
     """
     Parallel transport.
     The parallel transport algorithm corresponds to the construction
@@ -249,6 +250,8 @@ def parallel_transport(calc,
     Output:
     phi_km, S_km (see above)
     """
+    comm = comm or world
+
     if isinstance(calc, str):
         calc = GPAW(calc, txt=None, communicator=serial_comm)
 
@@ -273,7 +276,7 @@ def parallel_transport(calc,
     Npar = Nk // Nloc
 
     # Parallelization stuff
-    myKsize = -(-Npar // (world.size))
+    myKsize = -(-Npar // (comm.size))
     myKrange = range(rank * myKsize,
                      min((rank + 1) * myKsize, Npar))
     myKsize = len(myKrange)
@@ -422,14 +425,16 @@ def parallel_transport(calc,
         A_mm /= Nloc
         S_km[k] = np.diag(l_mm.T.conj().dot(A_mm).dot(l_mm)).real
 
-    world.sum(phi_km)
-    world.sum(S_km)
+    comm.sum(phi_km)
+    comm.sum(S_km)
 
     if not calc.density.collinear:
         warnings.warn('WARNING: Spin projections are not meaningful ' +
                       'for non-collinear calculations')
 
     if name is not None:
-        np.savez(f'phases_{name}.npz', phi_km=phi_km, S_km=S_km)
+        if comm.rank == 0:
+            np.savez(f'phases_{name}.npz', phi_km=phi_km, S_km=S_km)
+        comm.barrier()
 
     return phi_km, S_km

@@ -6,7 +6,7 @@ from math import pi
 import numpy as np
 import numpy.linalg as la
 
-from gpaw.utilities import unpack
+from gpaw.utilities import unpack_hermitian
 from gpaw.transformers import Transformer
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.dfpt.perturbation import Perturbation
@@ -325,7 +325,7 @@ class PhononPerturbation(Perturbation):
         dP_ni = -1 * dP_aniv[a][..., v]
 
         # Expansion coefficients for the projectors on atom a
-        dH_ii = unpack(self.dH_asp[a][0])
+        dH_ii = unpack_hermitian(self.dH_asp[a][0])
 
         # The derivative of the non-local PAW potential has two contributions
         # 1) Sum over projectors

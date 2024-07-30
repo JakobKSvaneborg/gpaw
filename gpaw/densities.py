@@ -105,7 +105,7 @@ class Densities:
             if setup not in splines:
                 phi_j, phit_j, nc, nct = setup.get_partial_waves()[:4]
                 if skip_core:
-                    nc = Spline(0, 10.0, [0.0, 0.0])
+                    nc = Spline.from_data(0, 10.0, [0.0, 0.0])
                 rcut = max(setup.rcut_j)
                 splines[setup] = (rcut, phi_j, phit_j, nc, nct)
             rcut, phi_j, phit_j, nc, nct = splines[setup]

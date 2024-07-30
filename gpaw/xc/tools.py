@@ -2,7 +2,7 @@ import numpy as np
 from ase.units import Ha
 
 from gpaw.xc import XC
-from gpaw.utilities import pack2, unpack, unpack2
+from gpaw.utilities import pack_hermitian, unpack_density, unpack_hermitian
 
 
 def vxc(gs, xc=None, coredensity=True, n1=0, n2=0):
@@ -41,12 +41,13 @@ def vxc(gs, xc=None, coredensity=True, n1=0, n2=0):
 
         pawdata = gs.pawdatasets.by_atom[a]
         if pawdata.hubbard_u is not None:
-            _, dHU_sii = pawdata.hubbard_u.calculate(pawdata, unpack2(D_sp))
-            dvxc_sp += pack2(dHU_sii)
+            _, dHU_sii = pawdata.hubbard_u.calculate(pawdata,
+                                                     unpack_density(D_sp))
+            dvxc_sp += pack_hermitian(dHU_sii)
         xc.calculate_paw_correction(pawdata, D_sp, dvxc_sp, a=a,
                                     addcoredensity=coredensity)
 
-        dvxc_asii[a] = [unpack(dvxc_p) for dvxc_p in dvxc_sp]
+        dvxc_asii[a] = [unpack_hermitian(dvxc_p) for dvxc_p in dvxc_sp]
         if thisisatest:
             dvxc_asii[a] = [pawdata.dO_ii]
 

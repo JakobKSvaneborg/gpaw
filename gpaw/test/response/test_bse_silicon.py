@@ -34,9 +34,7 @@ def test_response_bse_silicon(in_tmp_dir, scalapack):
                   valence_bands=range(4),
                   conduction_bands=range(4, 8),
                   eshift=eshift,
-                  nbands=8,
-                  write_h=False,
-                  write_v=False)
+                  nbands=8)
         bse.get_dielectric_function(eta=0.2,
                                     w_w=np.linspace(0, 10, 2001))
         w_w, epsreal_w, epsimag_w = read_response_function('df_bse.csv')
@@ -65,9 +63,7 @@ def test_response_bse_silicon(in_tmp_dir, scalapack):
                   valence_bands=range(4),
                   conduction_bands=range(4, 8),
                   eshift=eshift,
-                  nbands=8,
-                  write_h=False,
-                  write_v=False)
+                  nbands=8)
         w_w, eps_w = bse.get_dielectric_function(filename=None,
                                                  eta=0.2,
                                                  w_w=np.linspace(0, 10, 2001))

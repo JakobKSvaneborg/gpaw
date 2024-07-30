@@ -12,7 +12,7 @@ import numpy as np
 from gpaw import debug
 from gpaw.gpu import cupy_is_fake
 from gpaw.utilities import is_contiguous
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 class _Transformer:
@@ -68,7 +68,7 @@ class _Transformer:
         else:
             comm = None
 
-        self.transformer = _gpaw.Transformer(gdin.n_c, gdout.n_c,
+        self.transformer = cgpaw.Transformer(gdin.n_c, gdout.n_c,
                                              2 * nn, pad_cd,
                                              neighborpad_cd, skip_cd,
                                              gdin.neighbor_cd,
@@ -135,7 +135,7 @@ def Transformer(gdin, gdout, nn=1, dtype=float, xp=np):
 
 
 def multiple_transform_apply(transformerlist, inputs, outputs, phases=None):
-    return _gpaw.multiple_transform_apply(transformerlist, inputs, outputs,
+    return cgpaw.multiple_transform_apply(transformerlist, inputs, outputs,
                                           phases)
 
 

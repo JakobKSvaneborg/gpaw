@@ -7,6 +7,7 @@ from gpaw import setup_paths
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
+from gpaw.test.mmefile import MMEFiles
 from gpaw.utilities import devnull
 
 
@@ -184,7 +185,7 @@ def all_gpw_files(request, gpw_files, pytestconfig):
     # the @gpwfile decorator.
 
     import os
-    gpaw_new = os.environ.get('GPAW_NEW')
+    gpaw_new = int(os.environ.get('GPAW_NEW', '0'))
 
     # TODO This xfail-information should probably live closer to the
     # gpwfile definitions and not here in the fixture.
@@ -192,12 +193,21 @@ def all_gpw_files(request, gpw_files, pytestconfig):
                    'nicl2_pw', 'nicl2_pw_evac',
                    'v2br4_pw', 'v2br4_pw_nosym',
                    'sih4_xc_gllbsc_fd', 'sih4_xc_gllbsc_lcao',
-                   'na2_isolated'}
+                   'na2_isolated', 'h2o_xas'}
     if gpaw_new and request.param in skip_if_new:
         pytest.xfail(f'{request.param} gpwfile not yet working with GPAW_NEW')
 
     # Accessing each file via __getitem__ executes the calculation:
     return gpw_files[request.param]
+
+
+@pytest.fixture(scope='session')
+def mme_files(request, gpw_files):
+    """Reuse mme files"""
+    cache = request.config.cache
+    mme_cachedir = cache.mkdir('gpaw_test_mmefiles')
+
+    return MMEFiles(mme_cachedir, gpw_files)
 
 
 class GPAWPlugin:
@@ -283,7 +293,7 @@ def needs_ase_master():
         pytest.skip('ASE is too old')
 
 
-def pytest_report_header(config, startdir):
+def pytest_report_header(config, start_path):
     # Use this to add custom information to the pytest printout.
     yield f'GPAW MPI rank={world.rank}, size={world.size}'
 
@@ -307,4 +317,4 @@ def rng():
 @pytest.fixture
 def gpaw_new() -> bool:
     """Are we testing the new code?"""
-    return os.environ.get('GPAW_NEW')
+    return bool(int(os.environ.get('GPAW_NEW', '0')))

@@ -17,7 +17,7 @@ from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.susceptibility import ChiFactory
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
-from gpaw.response.dyson import HXCScaling
+from gpaw.response.goldstone import AFMGoldstoneScaling
 from gpaw.response.pair_functions import read_pair_function
 
 
@@ -45,7 +45,7 @@ def test_response_afm_hchain_gssALDA(in_tmp_dir):
             [1. / 6., 0., 0.],
             [1. / 3., 0., 0.]]
     fxc = 'ALDA'
-    hxc_scaling = HXCScaling('afm')
+    hxc_scaling = AFMGoldstoneScaling()
     rshelmax = -1
     rshewmin = 1e-8
     ecut = 120

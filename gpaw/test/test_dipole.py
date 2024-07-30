@@ -94,7 +94,7 @@ def test_dipole():
         try:
             correction = calc1.hamiltonian.poisson.correction
         except AttributeError:
-            correction = (calc1.calculation.pot_calc.poisson_solver.
+            correction = (calc1.dft.pot_calc.poisson_solver.
                           solver.correction)
 
         correction_err = abs(2.0 * correction * Hartree + dvz1)

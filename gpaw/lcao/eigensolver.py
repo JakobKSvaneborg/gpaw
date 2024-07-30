@@ -89,15 +89,17 @@ class DirectLCAO:
     def iterate(self, hamiltonian, wfs, occ=None):
         wfs.timer.start('LCAO eigensolver')
 
-        s = -1
-        for kpt in wfs.kpt_u:
-            if kpt.s != s:
-                s = kpt.s
-                wfs.timer.start('Potential matrix')
-                Vt_xMM = wfs.basis_functions.calculate_potential_matrices(
-                    hamiltonian.vt_sG[s])
-                wfs.timer.stop('Potential matrix')
-            self.iterate_one_k_point(hamiltonian, wfs, kpt, Vt_xMM)
+        for s in set([kpt.s for kpt in wfs.kpt_u]):
+            wfs.timer.start('Potential matrix')
+            Vt_xMM = wfs.basis_functions.calculate_potential_matrices(
+                hamiltonian.vt_sG[s])
+            wfs.timer.stop('Potential matrix')
+
+            for kpt in wfs.kpt_u:
+                if kpt.s != s:
+                    continue
+                self.iterate_one_k_point(hamiltonian, wfs, kpt, Vt_xMM)
+
         wfs.set_orthonormalized(True)
         wfs.timer.stop('LCAO eigensolver')
 

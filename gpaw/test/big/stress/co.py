@@ -3,7 +3,7 @@ import numpy as np
 from ase.build import bulk
 from ase.optimize import BFGS
 from ase.io import Trajectory
-from ase.constraints import StrainFilter
+from ase.filters import StrainFilter
 
 from gpaw import GPAW, PW
 

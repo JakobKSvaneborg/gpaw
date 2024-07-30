@@ -20,7 +20,7 @@ from gpaw.pseudopotential import (PseudoPotential, screen_potential,
                                   figure_out_valence_states,
                                   get_radial_hartree_energy)
 from gpaw.spline import Spline
-from gpaw.utilities import pack2, divrl
+from gpaw.utilities import pack_hermitian, divrl
 
 
 class UPFStateSpec:
@@ -429,7 +429,7 @@ class UPFSetupData:
 
         H_ii = np.zeros((ni, ni))
         if len(self.data['DIJ']) == 0:
-            return pack2(H_ii)
+            return pack_hermitian(H_ii)
 
         # Multiply by 4.
         # I think the factor of 4 compensates for the fact that the projectors
@@ -452,10 +452,12 @@ class UPFSetupData:
                     assert H_jj[j1, j2] == 0.0
                 m2start = m2stop
             m1start = m1stop
-        return pack2(H_ii)
+        return pack_hermitian(H_ii)
 
     def get_local_potential(self):
-        vbar = Spline(0, self.rgd.r_g[len(self.vbar_g) - 1], self.vbar_g)
+        vbar = Spline.from_data(
+            0, self.rgd.r_g[len(self.vbar_g) - 1], self.vbar_g,
+        )
         return vbar
 
     # XXXXXXXXXXXXXXXXX stolen from hghsetupdataf
@@ -466,7 +468,7 @@ class UPFSetupData:
         for l, pt1_g in zip(self.l_j, self.pt_jg):
             pt2_g = self.rgd.zeros()[:maxlen]
             pt2_g[:len(pt1_g)] = divrl(pt1_g, l, self.rgd.r_g[:len(pt1_g)])
-            spline = Spline(l, self.rgd.r_g[maxlen - 1], pt2_g)
+            spline = Spline.from_data(l, self.rgd.r_g[maxlen - 1], pt2_g)
             pt_j.append(spline)
         return pt_j
 
@@ -486,7 +488,7 @@ class UPFSetupData:
         rcutcc = self.rgd.r_g[ng - 1]  # correct or not?
         r = np.linspace(0.0, rcutcc, 50)
         ghat_g[-1] = 0.0
-        ghatnew_g = Spline(0, rcutcc, ghat_g).map(r)
+        ghatnew_g = Spline.from_data(0, rcutcc, ghat_g).map(r)
         return r, [0], [ghatnew_g]
 
     def create_basis_functions(self):
@@ -515,7 +517,8 @@ class UPFSetupData:
             phit_g = divrl(phit_g, 1, rgd.r_g)
             icut = len(phit_g) - 1  # XXX correct or off-by-one?
             rcut = rgd.r_g[icut]
-            bf = BasisFunction(None, state.l, rcut, phit_g, 'pregenerated')
+            bf = BasisFunction(self.n_j[j], state.l, rcut, phit_g,
+                               'pregenerated')
             b.bf_j.append(bf)
         return b
 

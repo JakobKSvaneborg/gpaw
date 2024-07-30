@@ -5,21 +5,21 @@ from typing import Any, Union
 
 import numpy as np
 from ase import Atoms
-from ase.geometry import cell_to_cellpar
 from ase.units import Bohr, Ha
+
+from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_float, world
-from gpaw.new import zips
+from gpaw.new import trace, zips
 from gpaw.new.density import Density
-from gpaw.new.ibzwfs import IBZWaveFunctions, create_ibz_wave_functions
+from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
-from gpaw.output import plot
 from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
@@ -28,9 +28,21 @@ from gpaw.utilities.partition import AtomPartition
 
 
 class ReuseWaveFunctionsError(Exception):
-    """Reusing the old wave functions after cell change failed.
+    """Reusing the old wave functions after cell-change failed.
 
     Most likekly, the number of k-points changed.
+    """
+
+
+class NonsenseError(Exception):
+    """Operation doesn't make sense."""
+
+
+class CalculationModeError(Exception):
+    """Calculation mode does not match what is expected from a given method.
+
+    For example, if a method only works in collinear mode and receives a
+    calculator in non-collinear mode, this exception should be raised.
     """
 
 
@@ -65,6 +77,7 @@ class DFTState:
     def move(self, fracpos_ac, atomdist):
         self.ibzwfs.move(fracpos_ac, atomdist)
         self.density.move(fracpos_ac, atomdist)
+        self.potential.move(atomdist)
 
 
 class DFTCalculation:
@@ -118,13 +131,17 @@ class DFTCalculation:
         scf_loop = builder.create_scf_loop()
 
         pot_calc = builder.create_potential_calculator()
-        potential, _ = pot_calc.calculate(
+        potential, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential, log=log)
+
+        if ibzwfs.wfs_qs[0][0]._eig_n is not None:
+            ibzwfs.calculate_occs(scf_loop.occ_calc)
+
         state = DFTState(ibzwfs, density, potential)
 
-        write_atoms(atoms, builder.initial_magmom_av, log)
+        write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
         log(state)
         log(builder.setups)
         log(scf_loop)
@@ -147,7 +164,7 @@ class DFTCalculation:
         self.state.move(self.fracpos_ac, atomdist)
 
         mm_av = self.results['non_collinear_magmoms']
-        write_atoms(atoms, mm_av, self.log)
+        write_atoms(atoms, mm_av, self.state.density.nt_sR.desc, self.log)
 
         self.results = {}
 
@@ -162,6 +179,7 @@ class DFTCalculation:
                                          calculate_forces,
                                          log=self.log)
 
+    @trace
     def converge(self,
                  convergence=None,
                  maxiter=None,
@@ -180,14 +198,17 @@ class DFTCalculation:
     def energies(self):
         energies = combine_energies(self.state.potential, self.state.ibzwfs)
 
-        self.log('energies:  # eV')
+        self.log('Energy contributions relative to reference atoms:',
+                 f'(reference = {self.setups.Eref * Ha:.6f})\n')
+
         for name, e in energies.items():
             if not name.startswith('total') and name != 'stress':
-                self.log(f'  {name + ":":10}   {e * Ha:14.6f}')
+                self.log(f'{name + ":":10}   {e * Ha:14.6f}')
         total_free = energies['total_free']
         total_extrapolated = energies['total_extrapolated']
-        self.log(f'  total:       {total_free * Ha:14.6f}')
-        self.log(f'  extrapolated:{total_extrapolated * Ha:14.6f}\n')
+        self.log('----------------------------')
+        self.log(f'Free energy: {total_free * Ha:14.6f}')
+        self.log(f'Extrapolated:{total_extrapolated * Ha:14.6f}\n')
 
         total_free = broadcast_float(total_free, self.comm)
         total_extrapolated = broadcast_float(total_extrapolated, self.comm)
@@ -227,7 +248,8 @@ class DFTCalculation:
         if 'forces' not in self.results or silent:
             self._calculate_forces()
 
-        if not silent:
+            if silent:
+                return
             self.log('\nforces: [  # eV/Ang')
             F_av = self.results['forces'] * (Ha / Bohr)
             for a, setup in enumerate(self.setups):
@@ -275,7 +297,7 @@ class DFTCalculation:
         self.comm.broadcast(F_av, 0)
         self.results['forces'] = F_av
 
-    def stress(self):
+    def stress(self) -> None:
         if 'stress' in self.results:
             return
         stress_vv = self.pot_calc.stress(self.state)
@@ -284,9 +306,35 @@ class DFTCalculation:
             self.log(f'  [{x:13.6f}, {y:13.6f}, {z:13.6f}]{c}')
         self.results['stress'] = stress_vv.flat[[0, 4, 8, 5, 2, 1]]
 
-    def write_converged(self):
+    def write_converged(self) -> None:
         self.state.ibzwfs.write_summary(self.log)
+        vacuum_level = self.state.potential.get_vacuum_level()
+        if not np.isnan(vacuum_level):
+            self.log(f'vacuum-level: {vacuum_level:.3f}  # V')
+            try:
+                wf1, wf2 = self.workfunctions(vacuum_level=vacuum_level)
+            except NonsenseError:
+                pass
+            else:
+                self.log(f'Workfunctions: {wf1:.3f}, {wf2:.3f}  # eV')
         self.log.fd.flush()
+
+    def workfunctions(self,
+                      *,
+                      vacuum_level: float | None = None
+                      ) -> tuple[float, float]:
+        if vacuum_level is None:
+            vacuum_level = self.state.potential.get_vacuum_level()
+        if np.isnan(vacuum_level):
+            raise NonsenseError('No vacuum')
+        try:
+            correction = self.pot_calc.poisson_solver.dipole_layer_correction()
+        except NotImplementedError:
+            raise NonsenseError('No dipole layer')
+        correction *= Ha
+        fermi_level = self.state.ibzwfs.fermi_level * Ha
+        wf = vacuum_level - fermi_level
+        return wf - correction, wf + correction
 
     def electrostatic_potential(self) -> ElectrostaticPotential:
         return ElectrostaticPotential.from_calculation(self)
@@ -357,7 +405,7 @@ class DFTCalculation:
                 builder.fracpos_ac,
                 builder.atomdist)
 
-        ibzwfs = create_ibz_wave_functions(
+        ibzwfs = ibzwfs.create(
             ibz=builder.ibz,
             nelectrons=old_ibzwfs.nelectrons,
             ncomponents=old_ibzwfs.ncomponents,
@@ -368,7 +416,7 @@ class DFTCalculation:
 
         state = DFTState(ibzwfs, density, potential)
 
-        write_atoms(atoms, builder.initial_magmom_av, log)
+        write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
         log(state)
         log(builder.setups)
         log(scf_loop)
@@ -384,6 +432,10 @@ def combine_energies(potential: Potential,
     energies = potential.energies.copy()
     energies.pop('stress', 0.0)
     energies['kinetic'] += ibzwfs.energies['band']
+    energies['kinetic'] += ibzwfs.energies.get('exx_kinetic', 0.0)
+    energies['xc'] += (ibzwfs.energies.get('exx_vv', 0.0) +
+                       ibzwfs.energies.get('exx_vc', 0.0) +
+                       ibzwfs.energies.get('exx_cc', 0.0))
     energies['entropy'] = ibzwfs.energies['entropy']
     energies['total_free'] = sum(energies.values())
     energies['total_extrapolated'] = (energies['total_free'] +
@@ -393,27 +445,8 @@ def combine_energies(potential: Potential,
 
 def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
+                grid: UGDesc,
                 log) -> None:
-    log()
-    with log.comment():
-        log(plot(atoms))
-
-    log('\natoms: [  # symbols, positions [Ang] and initial magnetic moments')
-    symbols = atoms.get_chemical_symbols()
-    for a, ((x, y, z), (mx, my, mz)) in enumerate(zips(atoms.positions,
-                                                       magmom_av)):
-        symbol = symbols[a]
-        c = ']' if a == len(atoms) - 1 else ','
-        log(f'  [{symbol:>3}, [{x:11.6f}, {y:11.6f}, {z:11.6f}],'
-            f' [{mx:6.3f}, {my:6.3f}, {mz:6.3f}]]{c} # {a}')
-
-    log('\ncell: [  # Ang')
-    log('#     x            y            z')
-    for (x, y, z), c in zips(atoms.cell, ',,]'):
-        log(f'  [{x:11.6f}, {y:11.6f}, {z:11.6f}]{c}')
-
-    log()
-    log(f'periodic: [{", ".join(f"{str(p):10}" for p in atoms.pbc)}]')
-    a, b, c, A, B, C = cell_to_cellpar(atoms.cell)
-    log(f'lengths:  [{a:10.6f}, {b:10.6f}, {c:10.6f}]  # Ang')
-    log(f'angles:   [{A:10.6f}, {B:10.6f}, {C:10.6f}]\n')
+    from gpaw.output import print_cell, print_positions
+    print_positions(atoms, log, magmom_av)
+    print_cell(grid._gd, grid.pbc, log)

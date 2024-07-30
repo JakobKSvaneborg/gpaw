@@ -26,9 +26,9 @@ def test_psp_upf_h2o():
                     setups={'H': s}
                     )
 
-        import pylab as pl
-        pl.plot(c.wfs.gd.r_g, c.hamiltonian.vt_sg[0])
-        pl.show()
+        import matplotlib.pyplot as plt
+        plt.plot(c.wfs.gd.r_g, c.hamiltonian.vt_sg[0])
+        plt.show()
         raise SystemExit
 
     # print 'test v201 Au.pz-d-hgh.UPF'

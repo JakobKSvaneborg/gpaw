@@ -1,7 +1,7 @@
 import numpy as np
 
 from gpaw.blacs import BlacsGrid, Redistributor
-import _gpaw
+import gpaw.cgpaw as cgpaw
 
 
 class LrDiagonalizeLayout:
@@ -175,7 +175,7 @@ class LrTDDFPTSolveLayout:
 
         info = 0
         if self.solve_matrix_descr.blacsgrid.is_active():
-            _gpaw.scalapack_solve(A_solve, self.solve_matrix_descr.asarray(),
+            cgpaw.scalapack_solve(A_solve, self.solve_matrix_descr.asarray(),
                                   b_solve, self.solve_vector_descr.asarray())
             if info != 0:
                 raise RuntimeError('scalapack_solve error: %d' % info)
@@ -353,7 +353,7 @@ class LrTDDFTLayouts:
 
         info = 0
         if self.solve_descr2a.blacsgrid.is_active():
-            _gpaw.scalapack_solve(A_nn, self.solve_descr2a.asarray(), b_n,
+            cgpaw.scalapack_solve(A_nn, self.solve_descr2a.asarray(), b_n,
                                   self.solve_descr2b.asarray())
             if info != 0:
                 raise RuntimeError('scalapack_solve error: %d' % info)

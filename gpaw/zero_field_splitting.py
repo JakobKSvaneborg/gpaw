@@ -211,7 +211,7 @@ def convert_tensor(D_vv: Array2D,
         E = 0.5 * (e2 - e1)
         axis = U[:, 2]
 
-    return D, E, axis, D_vv * scale
+    return float(D), float(E), axis, D_vv * scale
 
 
 def main(argv: List[str] = None) -> Array2D:

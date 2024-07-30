@@ -7,11 +7,12 @@ import numpy as np
 
 from gpaw.response import timer
 from gpaw.response.pw_parallelization import Blocks1D
+from gpaw.response.dyson import PWKernel
 from gpaw.response.localft import (LocalFTCalculator,
                                    add_LDA_dens_fxc, add_LSDA_trans_fxc)
 
 
-class FXCKernel:
+class FXCKernel(PWKernel):
     r"""Adiabatic local exchange-correlation kernel in a plane-wave basis.
 
     In real-space, the adiabatic local xc-kernel matrix is given by:
@@ -47,6 +48,14 @@ class FXCKernel:
         self._dG_K = dG_K
         self.GG_shape = GG_shape
         self.volume = volume
+
+    def get_number_of_plane_waves(self):
+        assert self.GG_shape[0] == self.GG_shape[1]
+        return self.GG_shape[0]
+
+    def _add_to(self, x_GG):
+        """Add Kxc_GG to input array."""
+        x_GG[:] += self.get_Kxc_GG()
 
     def get_Kxc_GG(self):
         """Unfold the fxc(G-G') kernel into the Kxc_GG' kernel matrix."""
@@ -192,7 +201,7 @@ class AdiabaticFXCCalculator:
         return Q_dG
 
 
-def create_add_fxc(fxc, spincomponent):
+def create_add_fxc(fxc: str, spincomponent: str):
     """Create an add_fxc function according to the requested functional and
     spin component."""
     assert fxc in ['ALDA_x', 'ALDA_X', 'ALDA']

@@ -72,20 +72,28 @@ class KohnShamKPointPair:
         return self.tblocks.all_gather(in_mytx)
 
     @property
-    def deps_t(self):
-        return self.get_all(self.ikpt2.eps_myt) \
-            - self.get_all(self.ikpt1.eps_myt)
+    def deps_myt(self):
+        return self.ikpt2.eps_myt - self.ikpt1.eps_myt
 
     @property
-    def df_t(self):
-        return self.get_all(self.ikpt2.f_myt) \
-            - self.get_all(self.ikpt1.f_myt)
+    def df_myt(self):
+        return self.ikpt2.f_myt - self.ikpt1.f_myt
+
+    def get_local_band_indices(self):
+        n1_t, n2_t = self.transitions.get_band_indices()
+        n1_myt = n1_t[self.tblocks.myslice]
+        n2_myt = n2_t[self.tblocks.myslice]
+        return n1_myt, n2_myt
 
     def get_local_spin_indices(self):
         s1_t, s2_t = self.transitions.get_spin_indices()
         s1_myt = s1_t[self.tblocks.myslice]
         s2_myt = s2_t[self.tblocks.myslice]
         return s1_myt, s2_myt
+
+    def get_local_intraband_mask(self):
+        intraband_t = self.transitions.get_intraband_mask()
+        return intraband_t[self.tblocks.myslice]
 
 
 class KohnShamKPointPairExtractor:

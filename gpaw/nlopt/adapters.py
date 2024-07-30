@@ -7,7 +7,6 @@ import numpy as np
 if TYPE_CHECKING:
     from gpaw.core.atom_arrays import AtomArrays
     from gpaw.core.plane_waves import PWArray
-    from gpaw.mpi import MPIComm
     from gpaw.new.ase_interface import ASECalculator
     from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
     from gpaw.typing import ArrayND
@@ -25,21 +24,18 @@ class GSInfo:
     index is handled in collinear and noncollinear ground state calculations.
     """
     def __init__(self,
-                 calc: ASECalculator,
-                 comm: MPIComm):
-        self.comm = comm  # This will eventually just become kptcomm from calc
+                 calc: ASECalculator):
         assert calc.params.mode['name'] == 'pw', \
             'Calculator must be in plane wave mode.'
 
-        calculation = calc.calculation
-        self.nabla_aiiv = [setup.nabla_iiv for setup in calculation.setups]
+        dft = calc.dft
+        self.nabla_aiiv = [setup.nabla_iiv for setup in dft.setups]
 
-        state = calculation.state
-        ibzwfs = state.ibzwfs
-        self.ibzwfs = ibzwfs
-        if not ibzwfs.comm.size == 1:
+        state = dft.state
+        ibzwfs = self.ibzwfs = state.ibzwfs
+        if not (ibzwfs.domain_comm.size == 1 and ibzwfs.band_comm.size == 1):
             raise ValueError('Calculator must be initialised with '
-                             '"communicator = serial_comm".')
+                             'only k-point parallelisation.')
         if isinstance(ibzwfs.wfs_qs[0][0].psit_nX, SimpleNamespace):
             raise ValueError('Calculator is missing wfs data. If loading from '
                              'a .gpw file, please recalculate wave functions.')
@@ -78,7 +74,7 @@ class GSInfo:
         return self._proj_data(wfs.P_ani, bands, spin)
 
     def get_wfs(self,
-                k_ind: int,
+                wfs_s: list[PWFDWaveFunctions],
                 spin: int) -> PWFDWaveFunctions:
         raise NotImplementedError
 
@@ -96,15 +92,14 @@ class GSInfo:
 
 class CollinearGSInfo(GSInfo):
     def __init__(self,
-                 calc: ASECalculator,
-                 comm: MPIComm):
-        super().__init__(calc, comm)
+                 calc: ASECalculator):
+        super().__init__(calc)
         self.ns = self.ndensities
 
     def get_wfs(self,
-                k_ind: int,
+                wfs_s: list[PWFDWaveFunctions],
                 spin: int) -> PWFDWaveFunctions:
-        return self.ibzwfs.wfs_qs[k_ind][spin]
+        return wfs_s[spin]
 
     @staticmethod
     def _pw_data(psit_nG: PWArray,
@@ -120,15 +115,14 @@ class CollinearGSInfo(GSInfo):
 
 class NoncollinearGSInfo(GSInfo):
     def __init__(self,
-                 calc: ASECalculator,
-                 comm: MPIComm):
-        super().__init__(calc, comm)
+                 calc: ASECalculator):
+        super().__init__(calc)
         self.ns = 2
 
     def get_wfs(self,
-                k_ind: int,
+                wfs_s: list[PWFDWaveFunctions],
                 _: int | None = None) -> PWFDWaveFunctions:
-        return self.ibzwfs.wfs_qs[k_ind][0]
+        return wfs_s[0]
 
     @staticmethod
     def _pw_data(psit_nsG: PWArray,

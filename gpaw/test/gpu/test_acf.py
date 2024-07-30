@@ -12,7 +12,7 @@ from gpaw.new.c import GPU_AWARE_MPI
 def test_acf(dtype):
     if world.size > 1 and not GPU_AWARE_MPI:
         pytest.skip('MPI not GPU-aware')
-    s = Spline(0, 1.0, [1.0, 0.5, 0.0])
+    s = Spline.from_data(0, 1.0, [1.0, 0.5, 0.0])
     n = 40
     a = 8.0
     fracpos_ac = [(0.5, 0.5, 0.25 + 0.25 * i) for i in [0, 1, 2]]

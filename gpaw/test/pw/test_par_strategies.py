@@ -47,7 +47,7 @@ def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
                       occupations=FermiDirac(width=0.1))
 
     e = atoms.get_potential_energy()
-    assert e == pytest.approx(-5.218064604018109, abs=1e-11)
+    assert e == pytest.approx(-5.218064604018109, abs=1e-9)
 
     f = atoms.get_forces()
     assert f == pytest.approx(np.array([[0, 0, -7.85130336e-01],

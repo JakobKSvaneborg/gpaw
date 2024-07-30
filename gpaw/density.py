@@ -13,7 +13,7 @@ from gpaw.mixer import get_mixer_from_keywords, MixerWrapper
 from gpaw.transformers import Transformer
 from gpaw.lfc import LFC, BasisFunctions
 from gpaw.wavefunctions.lcao import LCAOWaveFunctions
-from gpaw.utilities import (unpack2, unpack_atomic_matrices,
+from gpaw.utilities import (unpack_density, unpack_atomic_matrices,
                             pack_atomic_matrices)
 from gpaw.utilities.partition import AtomPartition
 from gpaw.utilities.timing import nulltimer
@@ -484,7 +484,6 @@ class Density:
             nct_a.append([nct])
             if self.setups[a].data.has_corehole and not skip_core and \
                     self.nspins > 1:
-                assert self.setups[a].data.lcorehole == 0
                 work_setup = self.setups[a].data
                 rmax = nc.get_cutoff()
                 # work_setup.phicorehole_g
@@ -549,7 +548,7 @@ class Density:
                 rank = D_asp.partition.rank_a[a]
                 D_asp.partition.comm.broadcast(D_sp, rank)
                 M2 = M1 + ni
-                rho_MM[M1:M2, M1:M2] = unpack2(D_sp[s])
+                rho_MM[M1:M2, M1:M2] = unpack_density(D_sp[s])
                 M1 = M2
 
             assert np.all(n_sg[s].shape == phi.gd.n_c)
@@ -651,7 +650,9 @@ class Density:
 
         D_sP = reader.density.atomic_density_matrices
         if self.gd.comm.rank == 0:
-            D_asp.update(unpack_atomic_matrices(D_sP, self.setups))
+            D_asp.update(unpack_atomic_matrices(D_sP, self.setups,
+                                                new=reader.version >= 4,
+                                                density=True))
             D_asp.check_consistency()
 
         if self.collinear:

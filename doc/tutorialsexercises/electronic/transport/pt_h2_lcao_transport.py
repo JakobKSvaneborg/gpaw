@@ -1,7 +1,7 @@
 from ase.transport.calculators import TransportCalculator
 import numpy as np
 import pickle
-import pylab
+import matplotlib.pyplot as plt
 
 # Principal layer size
 # Uncomment this line if going back to gpawtransport again
@@ -39,27 +39,27 @@ tcalc.set(h=h_rot, s=s_rot)
 # plot the transmission function
 tcalc.set(energies=np.arange(-8, 4, 0.1))
 T = tcalc.get_transmission()
-pylab.plot(tcalc.energies, T)
-pylab.title('Transmission function')
-pylab.show()
+plt.plot(tcalc.energies, T)
+plt.title('Transmission function')
+plt.show()
 
 # ... and the projected density of states (pdos) of the H2 molecular orbitals
 tcalc.set(pdos=bfs)
 pdos_ne = tcalc.get_pdos()
-pylab.plot(tcalc.energies, pdos_ne[0], label='bonding')
-pylab.plot(tcalc.energies, pdos_ne[1], label='anti-bonding')
-pylab.title('Projected density of states')
-pylab.legend()
-pylab.show()
+plt.plot(tcalc.energies, pdos_ne[0], label='bonding')
+plt.plot(tcalc.energies, pdos_ne[1], label='anti-bonding')
+plt.title('Projected density of states')
+plt.legend()
+plt.show()
 
 # Cut the coupling to the anti-bonding orbital.
 print('Cutting the coupling to the renormalized molecular state at %.2f eV' % (
     eps_n[1]))
 h_rot_cut, s_rot_cut = tcalc.cutcoupling_bfs([bfs[1]])
 tcalc.set(h=h_rot_cut, s=s_rot_cut)
-pylab.plot(tcalc.energies, tcalc.get_transmission())
-pylab.title('Transmission without anti-bonding orbital')
-pylab.show()
+plt.plot(tcalc.energies, tcalc.get_transmission())
+plt.title('Transmission without anti-bonding orbital')
+plt.show()
 
 # Cut the coupling to the bonding-orbital.
 print('Cutting the coupling to the renormalized molecular state at %.2f eV' % (
@@ -67,6 +67,6 @@ print('Cutting the coupling to the renormalized molecular state at %.2f eV' % (
 tcalc.set(h=h_rot, s=s_rot)
 h_rot_cut, s_rot_cut = tcalc.cutcoupling_bfs([bfs[0]])
 tcalc.set(h=h_rot_cut, s=s_rot_cut)
-pylab.plot(tcalc.energies, tcalc.get_transmission())
-pylab.title('Transmission without bonding orbital')
-pylab.show()
+plt.plot(tcalc.energies, tcalc.get_transmission())
+plt.title('Transmission without bonding orbital')
+plt.show()

@@ -1,16 +1,76 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-from ase.units import Hartree
-
 from gpaw.utilities.progressbar import ProgressBar
+from gpaw.typing import Vector
 
-from gpaw.response import timer
+from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.symmetry import QSymmetryAnalyzer
 from gpaw.response.kspair import (KohnShamKPointPair,
                                   KohnShamKPointPairExtractor)
 from gpaw.response.pw_parallelization import block_partition
-from gpaw.response.pair_functions import SingleQPWDescriptor, PairFunction
 from gpaw.response.pair_transitions import PairTransitions
+
+
+class PairFunction(ABC):
+    r"""Pair function data object.
+
+    In the GPAW response module, a pair function is understood as any function
+    which can be written as a sum over the eigenstate transitions with a given
+    crystal momentum difference q,
+             __
+             \
+    pf(q) =  /  pf_αα' δ_{q,q_{α',α}}
+             ‾‾
+             α,α'
+
+    where pf_αα' is an arbitrary matrix element.
+    """
+
+    def __init__(self, q_c: Vector):
+        self.q_c = np.asarray(q_c)
+        self.array = self.zeros()
+
+    @abstractmethod
+    def zeros(self):
+        """Generate an array of zeros, representing the pair function."""
+
+
+class DynamicPairFunction(PairFunction):
+    r"""Dynamic pair function data object.
+
+    A dynamic pair function is not only a function of the crystal momentum q,
+    but also of the complex frequency z = ω + iη:
+               __
+               \
+    pf(q,z) =  /  pf_αα'(z) δ_{q,q_{α',α}}
+               ‾‾
+               α,α'
+
+    Typically, this will be some generalized (linear) susceptibility, which is
+    defined by the Kubo formula,
+
+                   i           ˰          ˰
+    χ_BA(t-t') = - ‾ θ(t-t') <[B_0(t-t'), A]>_0
+                   ħ
+
+    and can be written in its Lehmann representation as a function of frequency
+    in the upper half complex frequency plane,
+
+               __      ˰        ˰
+               \    <α|B|α'><α'|A|α>
+    χ_BA(z) =  /   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾ (n_α - n_α')
+               ‾‾   ħz - (E_α' - E_α)
+               α,α'
+
+    where E_α and n_α are the eigenstate energies and occupations respectively.
+
+    For more information, please refer to [Skovhus T., PhD. Thesis, 2021]."""
+
+    def __init__(self, q_c: Vector, zd: ComplexFrequencyDescriptor):
+        self.zd = zd
+        super().__init__(q_c)
 
 
 class PairFunctionIntegrator(ABC):
@@ -19,14 +79,14 @@ class PairFunctionIntegrator(ABC):
     The implementation is currently restricted collinear periodic crystals in
     absence of spin-orbit coupling.
 
-    In the Kohn-Sham system, pair functions (see the PairFunciton class for
-    further descriptions) can be constructed straight-forwardly as a sum over
-    transitions between Kohn-Sham eigenstates at k and k + q,
-                  __  __  __                            __
-               1  \   \   \                          1  \
-    pf(q,z) =  ‾  /   /   /   pf_nks,n'k+qs'(q,z) =  ‾  /  pf_T(q,z)
-               V  ‾‾  ‾‾  ‾‾                         V  ‾‾
-                  k  n,n' s,s'                          T
+    In the Kohn-Sham system, pair functions can be constructed
+    straight-forwardly as a sum over transitions between Kohn-Sham eigenstates
+    at k and k + q,
+                __  __  __                          __
+             1  \   \   \                        1  \
+    pf(q) =  ‾  /   /   /   pf_nks,n'k+qs'(q) =  ‾  /  pf_T(q)
+             V  ‾‾  ‾‾  ‾‾                       V  ‾‾
+                k  n,n' s,s'                        T
 
     where V is the crystal volume and T is a composite index encoding all
     relevant transitions:
@@ -38,11 +98,11 @@ class PairFunctionIntegrator(ABC):
     transitions t:
 
     t (composite transition index): (n, s) -> (n', s')
-                  __                 __  __                  __
-               1  \               1  \   \                1  \
-    pf(q,z) =  ‾  /  pf_T(q,z) =  ‾  /   /  pf_kt(q,z) =  ‾  /  (...)_k
-               V  ‾‾              V  ‾‾  ‾‾               V  ‾‾
-                  T                  k   t                   k
+                __               __  __                __
+             1  \             1  \   \              1  \
+    pf(q) =  ‾  /  pf_T(q) =  ‾  /   /  pf_kt(q) =  ‾  /  (...)_k
+             V  ‾‾            V  ‾‾  ‾‾             V  ‾‾
+                T                k   t                 k
 
     In the code, the k-point integral is handled by a KPointPairIntegral
     object, while the sum over band and spin transitions t is carried out in
@@ -57,11 +117,11 @@ class PairFunctionIntegrator(ABC):
        k
 
     self.add_integrand():
-                __                __   __
-                \                 \    \
-    (...)_k  =  /  pf_kt(q,z)  =  /    /   pf_nks,n'k+qs'(q,z)
-                ‾‾                ‾‾   ‾‾
-                t                 n,n' s,s'
+                __              __   __
+                \               \    \
+    (...)_k  =  /  pf_kt(q)  =  /    /   pf_nks,n'k+qs'(q)
+                ‾‾              ‾‾   ‾‾
+                t               n,n' s,s'
 
     In practise, the integration is carried out by letting the
     KPointPairIntegral extract individual KohnShamKPointPair objects, which
@@ -70,33 +130,23 @@ class PairFunctionIntegrator(ABC):
     KPointPairIntegral.weighted_kpoint_pairs() generates these kptpairs along
     with their integral weights such that self._integrate() can construct the
     pair functions in a flexible, yet general manner.
-
-    NB: Although it is not a fundamental limitation to pair functions as
-    described above, the current implementation is based on a plane-wave
-    represenation of spatial coordinates. This means that symmetries are
-    analyzed with a plane-wave basis in mind, leaving room for further
-    generalization in the future.
     """
 
-    def __init__(self, gs, context, nblocks=1,
-                 disable_point_group=False,
-                 disable_time_reversal=False):
+    def __init__(self, gs, context, qsymmetry=True, nblocks=1):
         """Construct the PairFunctionIntegrator
 
         Parameters
         ----------
-        gs : ResponseGroundStateAdapter
-        context : ResponseContext
+        gs : ResponseGroundStateAdaptable
+        context : ResponseContextInput
+        qsymmetry : QSymmetryInput
         nblocks : int
             Distribute the pair function into nblocks. Useful when the pair
             function itself becomes a large array (read: memory limiting).
-        disable_point_group : bool
-            Do not use the point group symmetry operators.
-        disable_time_reversal : bool
-            Do not use time reversal symmetry.
         """
-        self.gs = gs
-        self.context = context
+        self.gs = ResponseGroundStateAdapter.from_input(gs)
+        self.context = ResponseContext.from_input(context)
+        self.qsymmetry = QSymmetryAnalyzer.from_input(qsymmetry)
 
         # Communicators for distribution of memory and work
         (self.blockcomm,
@@ -113,14 +163,6 @@ class PairFunctionIntegrator(ABC):
             transitions_blockcomm=self.blockcomm,
             kpts_blockcomm=self.intrablockcomm)
 
-        # Symmetry flags
-        self.disable_point_group = disable_point_group
-        self.disable_time_reversal = disable_time_reversal
-        if disable_time_reversal and disable_point_group:
-            self.disable_symmetries = True
-        else:
-            self.disable_symmetries = False
-
     @timer('Integrate pair function')
     def _integrate(self, out: PairFunction, transitions: PairTransitions):
         """In-place pair function integration
@@ -134,13 +176,13 @@ class PairFunctionIntegrator(ABC):
 
         Returns
         -------
-        analyzer : PWSymmetryAnalyzer
+        symmetries : QSymmetries
         """
-        # Initialize the plane-wave symmetry analyzer
-        analyzer = self.get_pw_symmetry_analyzer(out.qpd)
+        symmetries, generator = self.qsymmetry.analyze(
+            out.q_c, self.gs.kpoints, self.context)
 
         # Perform the actual integral as a point integral over k-point pairs
-        integral = KPointPairPointIntegral(self.kptpair_extractor, analyzer)
+        integral = KPointPairPointIntegral(self.kptpair_extractor, generator)
         weighted_kptpairs = integral.weighted_kpoint_pairs(transitions)
         pb = ProgressBar(self.context.fd)  # pb with a generator is awkward
         for _, _ in pb.enumerate([None] * integral.ni):
@@ -153,12 +195,7 @@ class PairFunctionIntegrator(ABC):
         with self.context.timer('Sum over distributed k-points'):
             self.intrablockcomm.sum(out.array)
 
-        # Because the symmetry analyzer is used both to generate the k-point
-        # integral domain *and* to symmetrize pair functions after the
-        # integration, we have to return it. It would be good to split up these
-        # two tasks, so that we don't need to pass the analyzer object around
-        # in the code like this...
-        return analyzer
+        return symmetries
 
     @abstractmethod
     def add_integrand(self, kptpair: KohnShamKPointPair, weight,
@@ -201,24 +238,6 @@ class PairFunctionIntegrator(ABC):
         blockcomm, intrablockcomm = block_partition(comm, nblocks)
 
         return blockcomm, intrablockcomm
-
-    def get_pw_descriptor(self, q_c, ecut=50, gammacentered=False):
-        q_c = np.asarray(q_c, dtype=float)
-        ecut = None if ecut is None else ecut / Hartree  # eV to Hartree
-        gd = self.gs.gd
-
-        qpd = SingleQPWDescriptor.from_q(q_c, ecut, gd,
-                                         gammacentered=gammacentered)
-
-        return qpd
-
-    def get_pw_symmetry_analyzer(self, qpd):
-        from gpaw.response.symmetry import PWSymmetryAnalyzer
-
-        return PWSymmetryAnalyzer(
-            self.gs.kpoints, qpd, self.context,
-            disable_point_group=self.disable_point_group,
-            disable_time_reversal=self.disable_time_reversal)
 
     def get_band_and_spin_transitions(self, spincomponent, nbands=None,
                                       bandsummation='pairwise'):
@@ -302,13 +321,9 @@ class KPointPairIntegral(ABC):
     four-component Kohn-Sham susceptibility tensor), and in most circumstances
     a change in dimensionality can be accomplished simply by adding an extra
     prefactor to the integral elsewhere.
-    NB: The current implementation is running on backbone functionality to
-    analyze symmetries within a plane wave representation of real-space
-    coordinates. This could be generalized further in the future. See the
-    PWSymmetryAnalyzer in gpaw.response.symmetry.
     """
 
-    def __init__(self, kptpair_extractor, analyzer):
+    def __init__(self, kptpair_extractor, generator):
         """Construct a KPointPairIntegral corresponding to a given q-point.
 
         Parameters
@@ -316,16 +331,16 @@ class KPointPairIntegral(ABC):
         kptpair_extractor : KohnShamKPointPairExtractor
             Object responsible for extracting all relevant information about
             the k-point pairs from the underlying ground state calculation.
-        analyzer : PWSymmetryAnalyzer
-            Object responsible for analyzing the symmetries of the q-point in
-            question, for which the k-point pair integral is constructed.
+        generator : KPointDomainGenerator
+            Object responsible for generating the k-point integration domain
+            based on the symmetries of the q-point in question.
         """
         self.gs = kptpair_extractor.gs
         self.kptpair_extractor = kptpair_extractor
-        self.q_c = analyzer.qpd.q_c
+        self.q_c = generator.symmetries.q_c
 
         # Prepare the k-point pair integral
-        bzk_kc, weight_k = self.get_kpoint_domain(analyzer)
+        bzk_kc, weight_k = self.get_kpoint_domain(generator)
         bzk_ipc, weight_i = self.slice_kpoint_domain(bzk_kc, weight_k)
         self._domain = (bzk_ipc, weight_i)
         self.ni = len(weight_i)
@@ -389,8 +404,8 @@ class KPointPairIntegral(ABC):
             yield kptpair, integral_weight
 
     @abstractmethod
-    def get_kpoint_domain(self, analyzer):
-        """Use the PWSymmetryAnalyzer to define and weight the k-point domain.
+    def get_kpoint_domain(self, generator):
+        """Use the KPointDomainGenerator to define and weight the k-integral.
 
         Returns
         -------
@@ -445,14 +460,12 @@ class KPointPairPointIntegral(KPointPairIntegral):
 
     """
 
-    def get_kpoint_domain(self, analyzer):
+    def get_kpoint_domain(self, generator):
         # Generate k-point domain in relative coordinates
-        K_gK = analyzer.group_kpoints()  # What is g? XXX
+        K_gK = generator.group_kpoints()
         bzk_kc = np.array([self.gs.kd.bzk_kc[K_K[0]] for
-                           K_K in K_gK])  # Why only K=0? XXX
-
-        # Get the k-point weights from the symmetry analyzer
-        weight_k = np.array([analyzer.get_kpoint_weight(k_c)
+                           K_K in K_gK])
+        # Generate k-point weights
+        weight_k = np.array([generator.get_kpoint_weight(k_c)
                              for k_c in bzk_kc])
-
         return bzk_kc, weight_k

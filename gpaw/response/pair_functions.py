@@ -1,6 +1,4 @@
-from abc import ABC, abstractmethod
-
-import pickle
+from pathlib import Path
 import numpy as np
 
 from ase.units import Hartree
@@ -9,6 +7,7 @@ from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.pw.descriptor import PWDescriptor
 
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.pair_integrator import DynamicPairFunction
 from gpaw.response.pw_parallelization import (Blocks1D,
                                               PlaneWaveBlockDistributor)
 
@@ -45,56 +44,7 @@ class SingleQPWDescriptor(PWDescriptor):
             self.q_c, ecut, gd, gammacentered=gammacentered)
 
 
-class PairFunction(ABC):
-    r"""Pair function data object.
-
-    In the GPAW response module, a pair function is understood as any function
-    which can be written as a sum over the eigenstate transitions with a given
-    crystal momentum difference q
-               __
-               \
-    pf(q,z) =  /  pf_αα'(z) δ_{q,q_{α',α}}
-               ‾‾
-               α,α'
-
-    where z = ω + iη is a complex frequency.
-
-    Typically, this will be some generalized (linear) susceptibility, which is
-    defined by the Kubo formula,
-
-                   i           ˰          ˰
-    χ_BA(t-t') = - ‾ θ(t-t') <[B_0(t-t'), A]>_0
-                   ħ
-
-    and can be written in its Lehmann representation as a function of frequency
-    in the upper half complex frequency plane,
-
-               __      ˰        ˰
-               \    <α|B|α'><α'|A|α>
-    χ_BA(z) =  /   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾ (n_α - n_α')
-               ‾‾   ħz - (E_α' - E_α)
-               α,α'
-
-    where E_α and n_α are the eigenstate energies and occupations respectively.
-
-    For more information, please refer to [Skovhus T., PhD. Thesis, 2021]."""
-
-    def __init__(self,
-                 qpd: SingleQPWDescriptor,
-                 zd: ComplexFrequencyDescriptor):
-        """Construct a pair function."""
-        self.qpd = qpd
-        self.q_c = qpd.q_c
-        self.zd = zd
-
-        self.array = self.zeros()
-
-    @abstractmethod
-    def zeros(self):
-        """Generate an array of zeros, representing the pair function."""
-
-
-class LatticePeriodicPairFunction(PairFunction):
+class LatticePeriodicPairFunction(DynamicPairFunction):
     r"""Data object for lattice periodic pair functions.
 
     Any spatial dependent pair function is considered to be lattice periodic,
@@ -123,7 +73,9 @@ class LatticePeriodicPairFunction(PairFunction):
     which are encoded in the SingleQPWDescriptor along with the wave vector q.
     """
 
-    def __init__(self, qpd, zd,
+    def __init__(self,
+                 qpd: SingleQPWDescriptor,
+                 zd: ComplexFrequencyDescriptor,
                  blockdist: PlaneWaveBlockDistributor,
                  distribution='ZgG'):
         """Contruct the LatticePeriodicPairFunction.
@@ -134,12 +86,13 @@ class LatticePeriodicPairFunction(PairFunction):
             Memory distribution of the pair function array.
             Choices: 'ZgG', 'GZg' and 'zGG'.
         """
+        self.qpd = qpd
         self.blockdist = blockdist
         self.distribution = distribution
 
         self.blocks1d = None
         self.shape = None
-        super().__init__(qpd, zd)
+        super().__init__(qpd.q_c, zd)
 
     def zeros(self):
         if self.shape is None:
@@ -508,23 +461,19 @@ def read_pair_function(filename):
 
 
 def write_susceptibility_array(filename, zd, qpd, chi_zx):
-    """Write the dynamic susceptibility as a pickle file."""
+    """Write dynamic susceptibility array to a .npz file."""
+    assert Path(filename).suffix == '.npz', filename
     # For now, we assume that the complex frequencies lie on a horizontal
     # contour
     assert zd.horizontal_contour
     omega_w = zd.omega_w * Hartree  # Ha -> eV
     G_Gc = get_pw_coordinates(qpd)
     chi_wx = chi_zx
-
-    # Write pickle file
-    with open(filename, 'wb') as fd:
-        pickle.dump((omega_w, G_Gc, chi_wx), fd)
+    np.savez(filename, omega_w=omega_w, G_Gc=G_Gc, chi_wx=chi_wx)
 
 
 def read_susceptibility_array(filename):
-    """Read a stored susceptibility component file"""
-    assert isinstance(filename, str)
-    with open(filename, 'rb') as fd:
-        omega_w, G_Gc, chi_wx = pickle.load(fd)
-
-    return omega_w, G_Gc, chi_wx
+    """Read a stored dynamic susceptibility array file."""
+    assert Path(filename).suffix == '.npz', filename
+    npzfile = np.load(filename)
+    return npzfile['omega_w'], npzfile['G_Gc'], npzfile['chi_wx']

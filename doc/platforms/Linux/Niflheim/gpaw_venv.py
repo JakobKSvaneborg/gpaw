@@ -18,7 +18,11 @@ version = '3.11'
 fversion = 'cpython-311'
 
 # Niflheim login hosts, with the oldest architecture as the first
-nifllogin = ['sylg', 'svol', 'surt']
+nifllogin = ['slid2',  # broadwell_el8 (xeon24el8)
+             'thul',  # skylake_el8 (xeon40el8)
+             'surt',  # icelake (xeon56)
+             'fjorm']  # epyc9004 (epyc96)
+
 
 # Easybuild uses a hierarchy of toolchains for the main foss and intel
 # chains.  The order in the tuples before are
@@ -49,7 +53,7 @@ toolchains = {
 module_cmds_all = """\
 module purge
 unset PYTHONPATH
-module load GPAW-setups/0.9.20000
+module load GPAW-setups/24.1.0
 module load ELPA/2023.05.001-{fullchain}
 module load Wannier90/3.1.0-{fullchain}
 module load Python-bundle-PyPI/2023.06-{corechain}
@@ -72,6 +76,12 @@ module load libvdwxc/0.4.0-{fullchain}
     'intel': ""
 }
 
+module_cmds_arch_dependent = """\
+if [ "$CPU_ARCH" == "icelake" ];\
+then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
+"""
+
+
 activate_extra = """
 export GPAW_SETUP_PATH=$GPAW_SETUP_PATH:{venv}/gpaw-basis-pvalence-0.9.20000
 
@@ -87,7 +97,7 @@ fi
 dftd3 = """\
 mkdir {venv}/DFTD3
 cd {venv}/DFTD3
-URL=https://www.chemiebn.uni-bonn.de/pctc/mulliken-center/software/dft-d3
+URL=https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3
 wget $URL/dftd3.tgz
 tar -xf dftd3.tgz
 ssh {nifllogin[0]} ". {venv}/bin/activate && cd {venv}/DFTD3 && make >& d3.log"
@@ -206,7 +216,8 @@ def main():
             **toolchains[args.toolchain])
     module_cmds += module_cmds_tc[args.toolchain].format(
         **toolchains[args.toolchain])
-
+    module_cmds += module_cmds_arch_dependent.format(
+        **toolchains[args.toolchain])
     cmds = (' && '.join(module_cmds.splitlines()) +
             f' && python3 -m venv --system-site-packages {args.venv}')
     run(cmds)
@@ -294,10 +305,20 @@ def main():
 
     # Tab completion:
     for cmd in ['ase', 'gpaw', 'mq', 'pip']:
+        if cmd == 'gpaw':
+            # Currently, running the "gpaw" command writes warning message
+            # to stdout, so "gpaw completion" does not work!
+            continue
         txt = run(f'. {activate} && {cmd} completion' +
                   (' --bash' if cmd == 'pip' else ''),
                   capture_output=True).stdout.decode()
         extra += txt
+
+    # gpaw-hack:
+    python = venv / 'bin/python3'
+    complete = venv / 'gpaw/gpaw/cli/complete.py'
+    extra += f'complete -o default -C "{python} {complete}" gpaw\n'
+
     activate.write_text(activate.read_text() + extra)
 
     # Run tests:

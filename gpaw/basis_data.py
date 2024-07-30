@@ -193,14 +193,14 @@ class BasisFunction:
         txt = '<basis_function '
         if self.n is not None:
             txt += 'n="%d" ' % self.n
-        txt += (f'l="{self.l!r}" rc="{self.rc!r}" type="{self.type}"')
+        txt += (f'l="{self.l}" rc="{self.rc}" type="{self.type}"')
         if gridid is not None:
             txt += ' grid="%s"' % gridid
         return txt + '>'
 
     def xml(self, gridid='grid1', indentation=''):
         txt = indentation + self.__repr__(gridid) + '\n'
-        txt += indentation + '  ' + ' '.join(repr(x) for x in self.phit_g)
+        txt += indentation + '  ' + ' '.join(str(x) for x in self.phit_g)
         txt += '\n' + indentation + '</basis_function>\n'
         return txt
 

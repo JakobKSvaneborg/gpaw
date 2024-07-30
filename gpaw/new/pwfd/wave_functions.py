@@ -11,16 +11,16 @@ from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.plane_waves import PWArray
 from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.gpu import as_np
+from gpaw.gpu import as_np, XP
 from gpaw.mpi import receive, send
-from gpaw.new import prod, zips
+from gpaw.new import prod, trace, zips
 from gpaw.new.potential import Potential
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, Array3D, ArrayND, Vector
 
 
-class PWFDWaveFunctions(WaveFunctions):
+class PWFDWaveFunctions(WaveFunctions, XP):
     def __init__(self,
                  psit_nX: XArray,
                  *,
@@ -54,7 +54,7 @@ class PWFDWaveFunctions(WaveFunctions):
         self.orthonormalized = False
         self.bytes_per_band = (prod(self.array_shape(global_shape=True)) *
                                psit_nX.desc.itemsize)
-        self.xp = self.psit_nX.xp
+        XP.__init__(self, self.psit_nX.xp)
 
     @classmethod
     def from_wfs(cls,
@@ -130,12 +130,10 @@ class PWFDWaveFunctions(WaveFunctions):
     def move(self,
              fracpos_ac: Array2D,
              atomdist: AtomDistribution) -> None:
-        self._P_ani = None
+        super().move(fracpos_ac, atomdist)
         self.orthonormalized = False
         assert self.pt_aiX is not None
         self.pt_aiX.move(fracpos_ac, atomdist)
-        self._eig_n = None
-        self._occ_n = None
 
     def add_to_density(self,
                        nt_sR: UGArray,
@@ -225,6 +223,7 @@ class PWFDWaveFunctions(WaveFunctions):
 
         self.orthonormalized = True
 
+    @trace
     def subspace_diagonalize(self,
                              Ht,
                              dH,
@@ -240,9 +239,9 @@ class PWFDWaveFunctions(WaveFunctions):
 
         dH:::
 
-           ~ ~    a  ~  ~
-          <𝜓|p> ΔH  <p |𝜓>
-            m i   ij  j  n
+           ~  ~    a  ~  ~
+          <𝜓 |p> ΔH  <p |𝜓>
+            m  i   ij  j  n
         """
         self.orthonormalize(work_array)
         psit_nX = self.psit_nX
@@ -404,8 +403,7 @@ class PWFDWaveFunctions(WaveFunctions):
                                  ncomponents=self.ncomponents,
                                  qspiral_v=self.qspiral_v)
 
-    def dipole_matrix_elements(self,
-                               center_v: Vector = None) -> Array3D:
+    def dipole_matrix_elements(self) -> Array3D:
         """Calculate dipole matrix-elements.
 
         :::
@@ -415,11 +413,6 @@ class PWFDWaveFunctions(WaveFunctions):
             mn  /     m n    ---  im jn  ij
                              aij
 
-        Parameters
-        ----------
-        center_v:
-            Center of molecule.  Defaults to center of cell.
-
         Returns
         -------
         Array3D:
@@ -427,17 +420,9 @@ class PWFDWaveFunctions(WaveFunctions):
         """
         cell_cv = self.psit_nX.desc.cell_cv
 
-        if center_v is None:
-            center_v = cell_cv.sum(0) * 0.5
-
         dipole_nnv = np.zeros((self.nbands, self.nbands, 3))
 
-        scenter_c = np.linalg.solve(cell_cv.T, center_v)
-        spos_ac = self.fracpos_ac.copy()
-        spos_ac -= scenter_c - 0.5
-        spos_ac %= 1.0
-        spos_ac += scenter_c - 0.5
-        position_av = spos_ac @ cell_cv
+        position_av = self.fracpos_ac @ cell_cv
 
         R_aiiv = []
         for setup, position_v in zips(self.setups, position_av):
@@ -458,7 +443,7 @@ class PWFDWaveFunctions(WaveFunctions):
             assert isinstance(self.psit_nX, PWArray)
             # Find size of fft grid large enough to store square of wfs.
             pw = self.psit_nX.desc
-            s1, s2, s3 = pw.indices_cG.ptp(axis=1)  # type: ignore
+            s1, s2, s3 = np.ptp(pw.indices_cG, axis=1)  # type: ignore
             assert pw.dtype == float
             # Last dimension is special because dtype=float:
             size_c = [2 * s1 + 2,
@@ -470,7 +455,7 @@ class PWFDWaveFunctions(WaveFunctions):
 
         for na, psita_R in enumerate(psit_nR):
             for nb, psitb_R in enumerate(psit_nR[:na + 1]):
-                d_v = (psita_R * psitb_R).moment(center_v)
+                d_v = (psita_R * psitb_R).moment()
                 dipole_nnv[na, nb] += d_v
                 if na != nb:
                     dipole_nnv[nb, na] += d_v

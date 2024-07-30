@@ -11,8 +11,9 @@ from gpaw.lfc import LFC
 from gpaw.poisson import PoissonSolver
 from gpaw.spinorbit import soc
 from gpaw.transformers import Transformer
-from gpaw.utilities import (pack2, pack_atomic_matrices, unpack, unpack2,
-                            unpack_atomic_matrices)
+from gpaw.utilities import (pack_atomic_matrices, pack_hermitian,
+                            unpack_atomic_matrices, unpack_density,
+                            unpack_hermitian)
 from gpaw.utilities.partition import AtomPartition
 
 ENERGY_NAMES = ['e_kinetic', 'e_coulomb', 'e_zero', 'e_external', 'e_xc',
@@ -24,14 +25,14 @@ def apply_non_local_hamilton(dH_asp, collinear, P, out=None):
         out = P.new()
     for a, I1, I2 in P.indices:
         if collinear:
-            dH_ii = unpack(dH_asp[a][P.spin])
+            dH_ii = unpack_hermitian(dH_asp[a][P.spin])
             out.array[:, I1:I2] = np.dot(P.array[:, I1:I2], dH_ii)
         else:
             dH_xp = dH_asp[a]
             # We need the transpose because
             # we are dotting from the left
-            dH_ii = unpack(dH_xp[0]).T
-            dH_vii = [unpack(dH_p).T for dH_p in dH_xp[1:]]
+            dH_ii = unpack_hermitian(dH_xp[0]).T
+            dH_vii = [unpack_hermitian(dH_p).T for dH_p in dH_xp[1:]]
             out.array[:, 0, I1:I2] = (np.dot(P.array[:, 0, I1:I2],
                                              dH_ii + dH_vii[2]) +
                                       np.dot(P.array[:, 1, I1:I2],
@@ -185,6 +186,7 @@ class Hamiltonian:
                 vacuum = np.nan
 
         fermilevel = wfs.fermi_level
+
         wf1 = vacuum - fermilevel + dipole_correction
         wf2 = vacuum - fermilevel - dipole_correction
         return np.array([wf1, wf2])
@@ -253,11 +255,11 @@ class Hamiltonian:
         # (careful with array orderings/contents)
 
         if 0:
-            print('kinetic', atomic_energies[0], coarsegrid_e_kinetic)
-            print('coulomb', atomic_energies[1], finegrid_energies[0])
-            print('zero', atomic_energies[2], finegrid_energies[1])
-            print('xc', atomic_energies[4], finegrid_energies[3])
-            print('external', atomic_energies[3], finegrid_energies[2])
+            print('kinetic', coarsegrid_e_kinetic, atomic_energies[0])
+            print('coulomb', finegrid_energies[0], atomic_energies[1])
+            print('zero', finegrid_energies[1], atomic_energies[2])
+            print('xc', finegrid_energies[3], atomic_energies[4])
+            print('external', finegrid_energies[2], atomic_energies[3])
 
         energies = atomic_energies  # kinetic, coulomb, zero, external, xc
         energies[1:] += finegrid_energies  # coulomb, zero, external, xc
@@ -311,14 +313,15 @@ class Hamiltonian:
             if self.soc:
                 dH_vii = soc(setup, self.xc, D_sp)
                 dH_sp = np.zeros_like(D_sp, dtype=complex)
-                dH_sp[1:] = pack2(dH_vii)
+                dH_sp[1:] = pack_hermitian(dH_vii)
             else:
                 dH_sp = np.zeros_like(D_sp)
 
             if setup.hubbard_u is not None:
-                eU, dHU_sii = setup.hubbard_u.calculate(setup, unpack2(D_sp))
+                eU, dHU_sii = setup.hubbard_u.calculate(setup,
+                                                        unpack_density(D_sp))
                 e_xc += eU
-                dH_sp += pack2(dHU_sii)
+                dH_sp += pack_hermitian(dHU_sii)
 
             dH_sp[:self.nspins] += dH_p
 
@@ -471,7 +474,7 @@ class Hamiltonian:
                 P_axi[a][:] = P_ni
 
         for a, P_xi in P_axi.items():
-            dH_ii = unpack(self.dH_asp[a][kpt.s])
+            dH_ii = unpack_hermitian(self.dH_asp[a][kpt.s])
             P_axi[a] = np.dot(P_xi, dH_ii)
         wfs.pt.add(b_xG, P_axi, kpt.q)
 
@@ -544,7 +547,8 @@ class Hamiltonian:
 
         if self.gd.comm.rank == 0:
             self.update_atomic_hamiltonians(
-                unpack_atomic_matrices(dH_sP, self.setups))
+                unpack_atomic_matrices(dH_sP, self.setups,
+                                       new=reader.version >= 4))
 
         if hasattr(self.poisson, 'read'):
             self.poisson.read(reader)
