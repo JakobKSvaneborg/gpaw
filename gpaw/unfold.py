@@ -1,7 +1,7 @@
 import numpy as np
 import pickle
 
-from ase.units import Hartree
+from ase.units import Hartree, Bohr
 
 from gpaw.kpt_descriptor import to1bz
 from gpaw.new.ase_interface import GPAW
@@ -293,10 +293,9 @@ def get_rs_wavefunctions_k(calc, iK, spinorbit=False, v_Kmn=None, spin=0):
         calc.initialize_positions()
 
     if not spinorbit:
-        print(calc);sadgsad
-        # does not work for LCAO: use calc.get_pseudo_wave_function ...
-        psit_mgrid = np.array([calc.wfs.get_wave_function_array(m, iK, spin) *
-                               eikr_R for m in range(Nb)])
+        psit_mgrid = np.array(
+            [calc.get_pseudo_wave_function(m, iK, spin, periodic=True)
+             for m in range(Nb)]) * Bohr**1.5
         return psit_mgrid
     else:
         v_mn = v_Kmn[iK]

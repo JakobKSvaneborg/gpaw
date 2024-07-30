@@ -86,7 +86,7 @@ def test_lcao():
 
     M = [[1, 0, 0], [0, 1, 0], [0, 0, 2]]
 
-    kpts = [[0, 0, 0], [0, 0, 0.5]]
+    kpts = [[0, 0, 0], [0, 0, 0.25]]
     Kpts = []
     for k in kpts:
         K = find_K_from_k(k, M)[0]

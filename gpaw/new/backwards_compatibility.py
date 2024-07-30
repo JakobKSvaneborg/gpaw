@@ -53,6 +53,7 @@ class FakeWFS:
         else:
             self.mode = 'lcao'
         self.collinear = wfs.ncomponents < 4
+        self.positions_set = True
 
     def _get_wave_function_array(self, u, n, realspace=True, periodic=False):
         assert realspace and not periodic
