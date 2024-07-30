@@ -405,9 +405,11 @@ class SJM(SolvationGPAW):
         """Adjusts the number of electrons until the potential reaches the
         desired value."""
         p = self.parameters['sj']
-        iteration, rerun = 0, False
-        previous_electrons, previous_potentials = [], []
+        iteration = 0
+        previous_electrons = []
+        previous_potentials = []
 
+        rerun = False
         while iteration <= p.max_iters:
             self.log('Attempt {:d} to equilibrate potential to {:.3f} +/-'
                      ' {:.3f} V'
