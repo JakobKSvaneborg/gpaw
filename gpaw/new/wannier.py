@@ -1,8 +1,10 @@
+import numpy as np
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.typing import Array2D
 
 
 def get_wannier_integrals(ibzwfs: IBZWaveFunctions,
+                          grid,
                           s: int,
                           k: int,
                           k1: int,
@@ -10,35 +12,21 @@ def get_wannier_integrals(ibzwfs: IBZWaveFunctions,
                           nbands=None) -> Array2D:
     """Calculate integrals for maximally localized Wannier functions."""
     assert s <= ibzwfs.nspins
-    kpt_rank, u = divmod(k + len(self.wfs.kd.ibzk_kc) * s,
-                         len(self.wfs.kpt_u))
-    kpt_rank1, u1 = divmod(k1 + len(self.wfs.kd.ibzk_kc) * s,
-                           len(self.wfs.kpt_u))
-
     # XXX not for the kpoint/spin parallel case
     assert ibzwfs.comm.size == 1
-
-    # If calc is a save file, read in tar references to memory
-    # For lcao mode just initialize the wavefunctions from the
-    # calculated lcao coefficients
-    if self.wfs.mode == 'lcao':
-        self.wfs.initialize_wave_functions_from_lcao()
-    else:
-        self.wfs.initialize_wave_functions_from_restart_file()
-
+    wfs = ibzwfs.wfs_qs[k][s].to_uniform_grid_wave_functions(grid, None)
+    wfs1 = ibzwfs.wfs_qs[k1][s].to_uniform_grid_wave_functions(grid, None)
     # Get pseudo part
-    psit_nR = self.get_realspace_wfs(u)
-    psit1_nR = self.get_realspace_wfs(u1)
-    Z_nn = self.wfs.gd.wannier_matrix(psit_nR, psit1_nR, G_c, nbands)
+    psit_nR = wfs.psit_nX.data
+    psit1_nR = wfs1.psit_nX.data
+    Z_nn = grid._gd.wannier_matrix(psit_nR, psit1_nR, G_c, nbands)
     # Add corrections
-    self.add_wannier_correction(Z_nn, G_c, u, u1, nbands)
-
-    self.wfs.gd.comm.sum(Z_nn)
-
+    add_wannier_correction(Z_nn, G_c, wfs, wfs1, nbands)
+    grid.comm.sum(Z_nn)
     return Z_nn
 
 
-def add_wannier_correction(self, Z_nn, G_c, u, u1, nbands=None):
+def add_wannier_correction(Z_nn, G_c, wfs, wfs1, nbands):
     r"""Calculate the correction to the wannier integrals.
 
     See: (Eq. 27 ref1)::
@@ -59,15 +47,11 @@ def add_wannier_correction(self, Z_nn, G_c, u, u1, nbands=None):
 
     ref1: Thygesen et al, Phys. Rev. B 72, 125119 (2005)
     """
-
-    if nbands is None:
-        nbands = self.wfs.bd.nbands
-
-    P_ani = self.wfs.kpt_u[u].P_ani
-    P1_ani = self.wfs.kpt_u[u1].P_ani
+    P_ani = wfs.P_ani
+    P1_ani = wfs1.P_ani
     for a, P_ni in P_ani.items():
         P_ni = P_ani[a][:nbands]
         P1_ni = P1_ani[a][:nbands]
-        dO_ii = self.wfs.setups[a].dO_ii
-        e = np.exp(-2.j * np.pi * np.dot(G_c, self.spos_ac[a]))
-        Z_nn += e * np.dot(np.dot(P_ni.conj(), dO_ii), P1_ni.T)
+        dO_ii = wfs.setups[a].dO_ii
+        e = np.exp(-2.j * np.pi * np.dot(G_c, wfs.fracpos_ac[a]))
+        Z_nn += e * P_ni.conj() @ dO_ii @ P1_ni.T

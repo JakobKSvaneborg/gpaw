@@ -685,10 +685,10 @@ class ASECalculator:
                                         nextkpoint, G_I, spin):
         """Calculate integrals for maximally localized Wannier functions."""
         from gpaw.new.wannier import get_wannier_integrals
-        # Due to orthorhombic cells, only one component of dirG is non-zero.
-        assert self.dft.state.density.nt_sR.desc.orthogonal
+        grid = self.dft.state.density.nt_sR.desc
         k_kc = self.dft.state.ibzwfs.ibz.bz.kpt_Kc
         G_c = k_kc[nextkpoint] - k_kc[kpoint] - G_I
 
         return get_wannier_integrals(self.dft.state.ibzwfs,
+                                     grid,
                                      spin, kpoint, nextkpoint, G_c, nbands)
