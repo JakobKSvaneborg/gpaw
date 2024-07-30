@@ -193,7 +193,7 @@ class DFTCalculation:
             if step == steps:
                 break
         else:  # no break
-            self.log(scf_steps=step)
+            self.log('SCF steps:', step)
 
     def energies(self):
         energies = combine_energies(self.state.potential, self.state.ibzwfs)
