@@ -6,7 +6,6 @@ from gpaw.unfold import Unfold, find_K_from_k
 
 @pytest.mark.soc
 def test_unfold_Ni(gpw_files, in_tmp_dir):
-
     # Collinear calculation
     gpw = 'fcc_Ni_col'
     calc_col = GPAW(gpw_files[gpw],
@@ -16,11 +15,6 @@ def test_unfold_Ni(gpw_files, in_tmp_dir):
     bp = pc.get_bravais_lattice().bandpath('GX', npoints=3)
 
     M = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-
-    Kpts = []
-    for k in bp.kpts:
-        K = find_K_from_k(k, M)[0]
-        Kpts.append(K)
 
     # Spin 0
     unfold = Unfold(name='Ni_defect_s0',
@@ -62,11 +56,6 @@ def test_unfold_Ni(gpw_files, in_tmp_dir):
 
     M = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
-    Kpts = []
-    for k in bp.kpts:
-        K = find_K_from_k(k, M)[0]
-        Kpts.append(K)
-
     unfold = Unfold(name='Ni_defect_nc',
                     calc=gpw_files[gpw],
                     M=M)
@@ -74,7 +63,7 @@ def test_unfold_Ni(gpw_files, in_tmp_dir):
     assert P_mk == pytest.approx(1, abs=1.0e-6)
 
 
-def test_lcao():
+def test_lcao(in_tmp_dir):
     atoms = Atoms('H', [[2.0, 2.0, 0.0]], cell=[4.0, 4.0, 0.9], pbc=True)
     atoms *= (1, 1, 2)
     atoms.calc = GPAW(mode='lcao',
