@@ -1,26 +1,22 @@
-def get_wannier_localization_matrix(dft, nbands, dirG, kpoint,
-                                    nextkpoint, G_I, spin):
+from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.typing import Array2D
+
+
+def get_wannier_integrals(ibzwfs: IBZWaveFunctions,
+                          s: int,
+                          k: int,
+                          k1: int,
+                          G_c,
+                          nbands=None) -> Array2D:
     """Calculate integrals for maximally localized Wannier functions."""
-
-    # Due to orthorhombic cells, only one component of dirG is non-zero.
-    k_kc = self.wfs.kd.bzk_kc
-    G_c = k_kc[nextkpoint] - k_kc[kpoint] - G_I
-
-    return self.get_wannier_integrals(spin, kpoint,
-                                      nextkpoint, G_c, nbands)
-
-
-def get_wannier_integrals(self, s, k, k1, G_c, nbands=None):
-    """Calculate integrals for maximally localized Wannier functions."""
-
-    assert s <= self.wfs.nspins
+    assert s <= ibzwfs.nspins
     kpt_rank, u = divmod(k + len(self.wfs.kd.ibzk_kc) * s,
                          len(self.wfs.kpt_u))
     kpt_rank1, u1 = divmod(k1 + len(self.wfs.kd.ibzk_kc) * s,
                            len(self.wfs.kpt_u))
 
     # XXX not for the kpoint/spin parallel case
-    assert self.wfs.kd.comm.size == 1
+    assert ibzwfs.comm.size == 1
 
     # If calc is a save file, read in tar references to memory
     # For lcao mode just initialize the wavefunctions from the
