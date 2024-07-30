@@ -9,7 +9,7 @@ from typing import IO, Any
 from gpaw.mpi import MPIComm, world
 
 
-def obj2str(obj: Any, indentation: str = '') -> str:
+def _____obj2str(obj: Any, indentation: str = '') -> str:
     """Convert Python object to string.
 
     >>> print(obj2str({'a': {'b': 42}}))
@@ -71,22 +71,10 @@ class Logger:
         yield
         self.indentation = self.indentation[2:]
 
-    @contextlib.contextmanager
-    def comment(self):
-        self.indentation += '# '
-        yield
-        self.indentation = self.indentation[2:]
-
-    def __call__(self, *args, **kwargs) -> None:
+    def __call__(self, *args) -> None:
         if not self.fd.closed:
             i = self.indentation
-            if kwargs:
-                for kw, arg in kwargs.items():
-                    assert kw not in ['end', 'sep', 'flush', 'file'], kw
-                    print(f'{i}{kw}: {obj2str(arg, i + "  ")}',
-                          file=self.fd)
-            else:
-                text = ' '.join(str(arg) for arg in args)
-                if i:
-                    text = i + text.replace('\n', '\n' + i)
-                print(text, file=self.fd)
+            text = ' '.join(str(arg) for arg in args)
+            if i:
+                text = i + text.replace('\n', '\n' + i)
+            print(text, file=self.fd)

@@ -162,7 +162,7 @@ def experimental(value=None):
 
 @input_parameter
 def external(value=None):
-    return value
+    return value or {}
 
 
 @input_parameter

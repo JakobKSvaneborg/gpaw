@@ -52,7 +52,8 @@ def write_gpw(filename: str,
                    for key, value in dft.results.items()}
         writer.child('results').write(**results)
 
-        p = {k: v for k, v in params.items() if k not in ['txt', 'parallel']}
+        p = {k: v for k, v in params.items()
+             if k not in ['parallel'] and k in params.non_defaults}
         # ULM does not know about numpy dtypes:
         if 'dtype' in p:
             p['dtype'] = np.dtype(p['dtype']).name

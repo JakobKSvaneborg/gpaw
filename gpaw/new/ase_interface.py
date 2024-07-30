@@ -3,8 +3,9 @@ from __future__ import annotations
 import warnings
 from functools import cached_property
 from pathlib import Path
+from pprint import pformat
 from types import SimpleNamespace
-from typing import IO, Any, Union, Callable, Protocol, Sequence
+from typing import IO, Any, Callable, Protocol, Sequence, Union
 
 import numpy as np
 from ase import Atoms
@@ -12,12 +13,12 @@ from ase.units import Bohr, Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
-from gpaw.mpi import world, synchronize_atoms, broadcast as bcast
+from gpaw.mpi import broadcast as bcast
+from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
-from gpaw.new.calculation import (DFTCalculation, DFTState,
-                                  CalculationModeError,
-                                  ReuseWaveFunctionsError, units)
+from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
+                                  DFTState, ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import read_gpw, write_gpw
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
@@ -119,9 +120,9 @@ def write_header(log, params):
     from gpaw.io.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
-    log('---')
     with log.indent('input parameters:'):
-        log(**dict(params.items()))
+        log(pformat({key: getattr(params, key)
+                     for key in params.non_defaults}))
 
 
 def compare_atoms(a1: Atoms, a2: Atoms) -> set[str]:
