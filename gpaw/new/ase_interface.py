@@ -19,8 +19,7 @@ from gpaw.new.calculation import (DFTCalculation, DFTState,
                                   CalculationModeError,
                                   ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import read_gpw, write_gpw
-from gpaw.new.input_parameters import (DeprecatedParameterWarning,
-                                       InputParameters)
+from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
 from gpaw.new.xc import create_functional
@@ -58,7 +57,7 @@ def GPAW(
     soc: bool | None = None,
     spinpol: bool | None = None,
     symmetry: str | dict[str, Any] | None = None,
-    xc: str | dict[str, Any] | Dictable = None
+    xc: str | dict[str, Any] | Dictable | None = None
 ) -> ASECalculator:
     """Create ASE-compatible GPAW calculator."""
     if txt == '?':
@@ -70,25 +69,25 @@ def GPAW(
 
     params = InputParameters(
         dict(basis=basis,
-        charge=charge,
-        convergence=convergence,
-        eigensolver=eigensolver,
-        experimental=experimental,
-        external=external,
-        gpts=gpts,
-        h=h,
-        hund=hund,
-        kpts=kpts,
-        magmoms=magmoms,
-        mode=mode,
-        nbands=nbands,
-        parallel=parallel,
-        poissonsolver=poissonsolver,
-        setups=setups,
-        soc=soc,
-        spinpol=spinpol,
-        symmetry=symmetry,
-        xc=xc))
+             charge=charge,
+             convergence=convergence,
+             eigensolver=eigensolver,
+             experimental=experimental,
+             external=external,
+             gpts=gpts,
+             h=h,
+             hund=hund,
+             kpts=kpts,
+             magmoms=magmoms,
+             mode=mode,
+             nbands=nbands,
+             parallel=parallel,
+             poissonsolver=poissonsolver,
+             setups=setups,
+             soc=soc,
+             spinpol=spinpol,
+             symmetry=symmetry,
+             xc=xc))
 
     if filename is not None:
         if params.non_defaults > {'parallel'}:
@@ -722,3 +721,6 @@ class ASECalculator:
     @property
     def symmetry(self):
         return self.dft.state.ibzwfs.ibz.symmetries.symmetry
+
+    def initialize_positions(self):
+        1 / 0
