@@ -10,7 +10,8 @@ Git master branch
 
 :git:`master <>`.
 
-* ...
+* Added functionality to compute LDA exchange constants based on the local site
+  properties methodology, see :ref:`sites`.
 
 
 Version 24.6.0

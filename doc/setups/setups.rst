@@ -124,16 +124,6 @@ See also `NIST Atomic Reference Data`_.
 .. _NIST Atomic Reference Data: https://physics.nist.gov/PhysRefData/DFTdata/Tables/ptable.html
 
 
-Tests
-=====
-
-.. toctree::
-   :titlesonly:
-
-   g2_1
-   dcdft
-
-
 Advanced topics
 ===============
 

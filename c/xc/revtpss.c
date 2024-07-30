@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <xc.h>
+#if XC_MAJOR_VERSION >= 7
+  #include <xc_funcs.h>
+  #include <xc_funcs_removed.h>
+#endif
 #include "xc_mgga.h"
 
 typedef struct revtpss_params {

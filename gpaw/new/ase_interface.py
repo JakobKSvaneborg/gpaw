@@ -4,7 +4,7 @@ import warnings
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import IO, Any, Union
+from typing import IO, Any, Union, Callable
 
 import numpy as np
 from ase import Atoms
@@ -117,6 +117,7 @@ class ASECalculator:
         self._dft = dft
         self._atoms = atoms
         self.timer = Timer()
+        self.hooks: dict[str, Callable] = {}
 
     @property
     def dft(self) -> DFTCalculation:
@@ -185,10 +186,13 @@ class ASECalculator:
         if converged:
             return
 
+        assert self.hooks.keys() <= {'scf_step', 'converged'}
+
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
                     calculate_forces=self._calculate_forces):
                 yield ctx
+                self.hooks.get('scf_step', lambda ctx: None)(ctx)
 
         self.log(f'Converged in {ctx.niter} steps')
 
@@ -198,6 +202,8 @@ class ASECalculator:
         self.dft.magmoms()
 
         self.dft.write_converged()
+
+        self.hooks.get('converged', lambda: None)()
 
     def calculate_property(self,
                            atoms: Atoms | None,

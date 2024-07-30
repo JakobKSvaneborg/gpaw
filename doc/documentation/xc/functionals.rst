@@ -10,12 +10,36 @@ Exchange and correlation functionals
 Libxc
 =====
 
-We used the functionals from libxc_.  ...
+GPAW offers access to the functionals from libxc_.  ...
+
+
+Known Problems
+==============
+
+MGGAs: Some MGGAs (e.g. a functional utilizing the exchange from
+Becke-Roussel 89, 'MGGA_X_BR89+MGGA_C_TPSS') need the laplacian
+which we don't provide at the time of this writing. Therefore the
+utilization of these functionals will raise an exception.
+
+MGGAs: The libxc enforces the Fermi hole curvature by default, which
+leads to errornous results and convergence problems in codes using
+pseudopotentials. In versions of libxc > 7.0 this behaviour
+can and will be switched of during runtime. In versions below 7.0 this
+must be switch off during compile time by using '--disable-fhc'
+during installtion of libxc.
+
+You can check this running the following code snippet:
+
+.. literalinclude:: check_fhc_disabled.py
+
+
+Technical details
+=================
 
 
 
 Calculation of GGA potential
-============================
+----------------------------
 
 
 In libxc_ we have (see also "Standard subroutine calls" on ccg_dft_design_)
@@ -34,7 +58,7 @@ In libxc_ we have (see also "Standard subroutine calls" on ccg_dft_design_)
 
 
 Uniform 3D grid
-===============
+---------------
 
 We use a finite-difference stencil to calculate the gradients:
 
@@ -96,7 +120,7 @@ and
 
 
 PAW correction
-==============
+--------------
 
 Spin-paired case:
 
