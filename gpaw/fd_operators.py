@@ -331,7 +331,7 @@ class Gradient(FDOperator):
 
         # Create stencil:
         offsets = []
-        coefs = []
+        coefs: list[float] = []
         stencil = np.array(derivatives[n - 1])
         for d, c in enumerate(coef_d):
             if abs(c) < 1e-10:
