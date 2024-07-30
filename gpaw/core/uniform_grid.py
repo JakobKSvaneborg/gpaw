@@ -451,12 +451,24 @@ class UGArray(DistributedArrays[UGDesc]):
     def fft(self, plan=None, pw=None, out=None):
         """Do FFT.
 
+        Returns:
+            PWArray with values
         :::
+                          _ _
+           _    1  / _  -iG.r   _
+         C(G) = -  |dr e      f(r)
+                V  /
+                _
+        Where C(G) are the plane wave coefficients and V is the cell volume.
 
-                _ _
-          / _  iG.r  _
-          |dr e    f(r)
-          /
+        Parameters
+        ----------
+        plan:
+            Plan for FFT.
+        pw:
+            Target PW description.
+        out:
+            Target PWArray object.
         """
         assert self.dims == ()
         if out is None:
