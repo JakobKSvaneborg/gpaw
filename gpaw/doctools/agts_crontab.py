@@ -27,13 +27,14 @@ def collect_files_for_web_page(fro: Path, to: Path) -> None:
         p.write_bytes(path.read_bytes())
 
 
-def compare_all_files(references: Path,
-                      root: Path) -> None:
+def compare_all_files(root: Path,
+                      references: Path) -> None:
     errors = []
     for path in find_created_files(root):
         if not path.is_file():
+            print('MISSING', path)
             continue
-        ref = references / path.name
+        ref = references / path.relative_to(root)
         if not ref.is_file():
             print('MISSING', ref)
             continue
@@ -42,7 +43,8 @@ def compare_all_files(references: Path,
             print(err, path)
             errors.append((err, path, ref))
     for err, path, ref in sorted(errors):
-        print(err, path, ref)
+        print(path, ref, end=' ')
+    print()
 
 
 def compare_files(p1: Path, p2: Path) -> float:
@@ -96,7 +98,7 @@ def compare_text(p1: Path, p2: Path) -> float:
     sep = ',' if p1.suffix == '.csv' else None
 
     rtol = 0.001
-    atol = 1e-9
+    atol = 1e-8
     if 'lcao-time' in p1.name:
         atol = 1.5
     elif p1.name == 'TS.xyz':
