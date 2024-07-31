@@ -127,8 +127,12 @@ def write_header(log, params):
     log(LOGO.format(version=__version__))
     header(log, log.comm)
     with log.indent('input parameters:'):
-        log(pformat({key: getattr(params, key)
-                     for key in params.non_defaults}))
+        parts = []
+        for key in params.non_defaults:
+            txt = pformat(getattr(params, key))
+            txt = txt.replace('\n', '\n ' + ' ' * len(key))
+            parts.append(f'{key}={txt}')
+        log(',\n'.join(parts))
 
 
 def compare_atoms(a1: Atoms, a2: Atoms) -> set[str]:

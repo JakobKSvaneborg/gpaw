@@ -173,7 +173,6 @@ def __dir__() -> List[str]:
 
 
 all_lazy_imports = dict(
-    OldGPAW='gpaw.calculator.GPAW',
     Mixer='gpaw.mixer.Mixer',
     MixerSum='gpaw.mixer.MixerSum',
     MixerDif='gpaw.mixer.MixerDif',

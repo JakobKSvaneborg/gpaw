@@ -1758,4 +1758,6 @@ for name, method in si_gpwfiles().items():
 
 if __name__ == '__main__':
     import sys
-    getattr(GPWFiles(Path()), sys.argv[1])()
+    name = sys.argv[1]
+    calc = getattr(GPWFiles(Path()), name)()
+    calc.write(name + '.gpw', mode='all')
