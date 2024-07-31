@@ -10,6 +10,7 @@ from typing import IO, Any, Callable, Protocol, Sequence, Union
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
+
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
@@ -21,6 +22,7 @@ from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   DFTState, ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import read_gpw, write_gpw
 from gpaw.new.input_parameters import InputParameters
+from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
 from gpaw.new.xc import create_functional
@@ -62,9 +64,11 @@ def GPAW(
     soc: bool | None = None,
     spinpol: bool | None = None,
     symmetry: str | dict[str, Any] | None = None,
-    xc: str | dict[str, Any] | Dictable | None = None
-) -> ASECalculator:
-    """Create ASE-compatible GPAW calculator."""
+    xc: str | dict[str, Any] | Dictable | None = None) -> ASECalculator:
+
+    """Create ASE-compatible GPAW calculator.
+
+    """
     if txt == '?':
         txt = '-' if filename is None else None
 
@@ -72,43 +76,21 @@ def GPAW(
 
     log = Logger(txt, comm)
 
-    params_dict = dict(
-        basis=basis,
-        charge=charge,
-        convergence=convergence,
-        eigensolver=eigensolver,
-        experimental=experimental,
-        external=external,
-        gpts=gpts,
-        h=h,
-        hund=hund,
-        kpts=kpts,
-        magmoms=magmoms,
-        mixer=mixer,
-        mode=mode,
-        nbands=nbands,
-        occupations=occupations,
-        parallel=parallel,
-        poissonsolver=poissonsolver,
-        setups=setups,
-        soc=soc,
-        spinpol=spinpol,
-        symmetry=symmetry,
-        xc=xc)
-    params = InputParameters(params_dict, warn=filename is None)
+    params_dict = {key: value for key, value in locals().items()
+                   if key in parameter_names}
 
     if filename is not None:
-        if params.non_defaults > {'parallel'}:
-            illegal = ', '.join(key for key in
-                                (params.non_defaults - {'parallel'}))
-            raise ValueError('Illegal arguments when reading from a file: '
-                             f'{illegal}')
+        for key, value in params_dict.items():
+            if key != 'parallel' and value is not None:
+                raise ValueError(
+                    f'Illegal argument when reading from a file: {key}')
         atoms, dft, params, _ = read_gpw(filename,
                                          log=log,
-                                         parallel=params.parallel)
+                                         parallel=parallel)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
+    params = InputParameters(params_dict)
     write_header(log, params)
     return ASECalculator(params, log=log)
 
@@ -128,9 +110,8 @@ def write_header(log, params):
     header(log, log.comm)
     with log.indent('input parameters:'):
         parts = []
-        for key in params.non_defaults:
-            txt = pformat(getattr(params, key))
-            txt = txt.replace('\n', '\n ' + ' ' * len(key))
+        for key, val in params.items():
+            txt = pformat(val).replace('\n', '\n ' + ' ' * len(key))
             parts.append(f'{key}={txt}')
         log(',\n'.join(parts))
 
@@ -650,9 +631,7 @@ class ASECalculator:
         self.dft.state = DFTState(ibzwfs,
                                   state.density,
                                   state.potential)
-        nbands = ibzwfs.nbands
-        self.params.nbands = nbands
-        self.params.keys.append('nbands')
+        self.params._add('nbands', ibzwfs.nbands)
 
     def gs_adapter(self):
         from gpaw.response.groundstate import ResponseGroundStateAdapter
