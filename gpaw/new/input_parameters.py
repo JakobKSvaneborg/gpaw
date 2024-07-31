@@ -53,10 +53,14 @@ class InputParameters:
     hund: bool
     kpts: dict[str, Any]
     magmoms: Any
+    # maxiter ???
+    # mixer
     mode: dict[str, Any]
     nbands: None | int | str
+    # occupations
     parallel: dict[str, Any]
     poissonsolver: dict[str, Any]
+    # random
     setups: Any
     soc: bool
     spinpol: bool
