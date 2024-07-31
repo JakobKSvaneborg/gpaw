@@ -1,5 +1,5 @@
+from __future__ import annotations
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 from ase.units import Ha

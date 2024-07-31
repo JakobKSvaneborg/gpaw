@@ -69,27 +69,29 @@ def GPAW(
 
     log = Logger(txt, comm)
 
-    params = InputParameters(
-        dict(basis=basis,
-             charge=charge,
-             convergence=convergence,
-             eigensolver=eigensolver,
-             experimental=experimental,
-             external=external,
-             gpts=gpts,
-             h=h,
-             hund=hund,
-             kpts=kpts,
-             magmoms=magmoms,
-             mode=mode,
-             nbands=nbands,
-             parallel=parallel,
-             poissonsolver=poissonsolver,
-             setups=setups,
-             soc=soc,
-             spinpol=spinpol,
-             symmetry=symmetry,
-             xc=xc))
+    params_dict = dict(
+        basis=basis,
+        charge=charge,
+        convergence=convergence,
+        eigensolver=eigensolver,
+        experimental=experimental,
+        external=external,
+        gpts=gpts,
+        h=h,
+        hund=hund,
+        kpts=kpts,
+        magmoms=magmoms,
+        mode=mode,
+        nbands=nbands,
+        occupations=occupations,
+        parallel=parallel,
+        poissonsolver=poissonsolver,
+        setups=setups,
+        soc=soc,
+        spinpol=spinpol,
+        symmetry=symmetry,
+        xc=xc)
+    params = InputParameters(params_dict, warn=filename is None)
 
     if filename is not None:
         if params.non_defaults > {'parallel'}:

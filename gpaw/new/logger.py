@@ -9,23 +9,6 @@ from typing import IO, Any
 from gpaw.mpi import MPIComm, world
 
 
-def _____obj2str(obj: Any, indentation: str = '') -> str:
-    """Convert Python object to string.
-
-    >>> print(obj2str({'a': {'b': 42}}))
-    a:
-      b: 42
-    """
-    if isinstance(obj, dict):
-        i = indentation
-        txt = f'\n{i}'.join(f'{k}: {obj2str(v, i + "  ")}'
-                            for k, v in obj.items())
-        if i:
-            return '\n' + i + txt
-        return txt.replace(': \n', ':\n')
-    return repr(obj)
-
-
 def indent(text: Any, indentation='  ') -> str:
     r"""Indent text blob.
 
