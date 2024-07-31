@@ -343,6 +343,15 @@ class PWArray(DistributedArrays[PWDesc]):
     def ifft(self, *, plan=None, grid=None, out=None, periodic=False):
         """Do inverse FFT(s) to uniform grid(s).
 
+        Returns:
+            UGArray with values
+        :::
+                               _ _
+              _     --        iG.R
+            f(r) =  >  c(G) e
+                    --
+                     G
+
         Parameters
         ----------
         plan:

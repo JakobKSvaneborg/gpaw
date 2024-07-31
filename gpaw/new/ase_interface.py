@@ -409,7 +409,7 @@ class ASECalculator:
             if spin is None:
                 spin = 0
         else:
-            assert spin is None
+            assert spin is None or spin == 0
         wfs = state.ibzwfs.get_wfs(spin=spin if collinear else 0,
                                    kpt=kpt,
                                    n1=band, n2=band + 1)

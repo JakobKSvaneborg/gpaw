@@ -114,9 +114,6 @@ class DFTComponentsBuilder:
         d = parallel.get('domain', None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
-        if self.gpu:  # only parallelization over k-points and bands:
-            assert d is None or d == 1
-            d = 1
         self.communicators = create_communicators(comm, len(self.ibz),
                                                   d, k, b, self.xp)
 
