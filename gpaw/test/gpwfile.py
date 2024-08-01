@@ -1754,3 +1754,10 @@ class GPWFiles(CachedFilesHandler):
 # We add Si fixtures with various symmetries to the GPWFiles namespace
 for name, method in si_gpwfiles().items():
     setattr(GPWFiles, name, method)
+
+
+if __name__ == '__main__':
+    import sys
+    name = sys.argv[1]
+    calc = getattr(GPWFiles(Path()), name)()
+    calc.write(name + '.gpw', mode='all')

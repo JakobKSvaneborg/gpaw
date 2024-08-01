@@ -173,7 +173,6 @@ def __dir__() -> List[str]:
 
 
 all_lazy_imports = dict(
-    OldGPAW='gpaw.calculator.GPAW',
     Mixer='gpaw.mixer.Mixer',
     MixerSum='gpaw.mixer.MixerSum',
     MixerDif='gpaw.mixer.MixerDif',
@@ -191,8 +190,7 @@ all_lazy_imports = dict(
     MarzariVanderbilt='gpaw.occupations.MarzariVanderbilt',
     FD='gpaw.wavefunctions.fd.FD',
     LCAO='gpaw.wavefunctions.lcao.LCAO',
-    PW='gpaw.wavefunctions.pw.PW',
-)
+    PW='gpaw.wavefunctions.pw.PW')
 
 
 class BroadcastImports:
@@ -259,14 +257,12 @@ if debug:
     np.empty = empty
     np.empty_like = empty_like
 
-
-def GPAW(*args, **kwargs) -> Any:
-    if int(os.environ.get('GPAW_NEW', '0')):
-        from gpaw.new.ase_interface import GPAW as NewGPAW
-        return NewGPAW(*args, **kwargs)
-
-    from gpaw.calculator import GPAW as OldGPAW
-    return OldGPAW(*args, **kwargs)
+if TYPE_CHECKING:
+    from gpaw.new.ase_interface import GPAW
+elif int(os.environ.get('GPAW_NEW', '0')):
+    all_lazy_imports['GPAW'] = 'gpaw.new.ase_interface.GPAW'
+else:
+    all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
 
 
 def restart(filename, Class=None, **kwargs):

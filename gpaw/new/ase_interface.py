@@ -3,24 +3,26 @@ from __future__ import annotations
 import warnings
 from functools import cached_property
 from pathlib import Path
+from pprint import pformat
 from types import SimpleNamespace
-from typing import IO, Any, Union, Callable
+from typing import IO, Any, Callable, Protocol, Sequence, Union
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
+
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
-from gpaw.mpi import world, synchronize_atoms, broadcast as bcast
+from gpaw.mpi import broadcast as bcast
+from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
-from gpaw.new.calculation import (DFTCalculation, DFTState,
-                                  CalculationModeError,
-                                  ReuseWaveFunctionsError, units)
+from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
+                                  DFTState, ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import read_gpw, write_gpw
-from gpaw.new.input_parameters import (DeprecatedParameterWarning,
-                                       InputParameters)
+from gpaw.new.input_parameters import InputParameters
+from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
 from gpaw.new.xc import create_functional
@@ -29,36 +31,66 @@ from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
 
 
-def GPAW(filename: Union[str, Path, IO[str]] = None,
-         txt: str | Path | IO[str] | None = '?',
-         communicator=None,
-         **kwargs) -> ASECalculator:
-    """Create ASE-compatible GPAW calculator."""
+class Dictable(Protocol):
+    def todict(self) -> dict[str, Any]:
+        ...
+
+
+def GPAW(
+    filename: Union[str, Path, IO[str]] = None,
+    *,
+    txt: str | Path | IO[str] | None = '?',
+    communicator=None,
+    basis: str | dict[str | int | None, str] | None = None,
+    charge: float | None = None,
+    convergence: dict[str, Any] | None = None,
+    eigensolver: dict[str, Any] | None = None,
+    experimental: dict[str, Any] | None = None,
+    external: dict[str, Any] | None = None,
+    gpts: None | Sequence[int] | None = None,
+    h: float | None = None,
+    hund: bool | None = None,
+    kpts: dict[str, Any] | None = None,
+    magmoms: Any | None = None,
+    maxiter: int | None = None,
+    mixer: dict[str, Any] | None = None,
+    mode: str | dict[str, Any] | None = None,
+    nbands: int | str | None = None,
+    occupations: dict[str, Any] | None = None,
+    parallel: dict[str, Any] | None = None,
+    poissonsolver: dict[str, Any] | None = None,
+    random: bool | None = None,
+    setups: Any | None = None,
+    soc: bool | None = None,
+    spinpol: bool | None = None,
+    symmetry: str | dict[str, Any] | None = None,
+    xc: str | dict[str, Any] | Dictable | None = None) -> ASECalculator:
+
+    """Create ASE-compatible GPAW calculator.
+
+    """
     if txt == '?':
         txt = '-' if filename is None else None
 
-    parallel = kwargs.get('parallel', {})
-    comm = parallel.pop('world', None)
-    if comm is None:
-        comm = communicator or world
-    else:
-        warnings.warn(('Please use communicator=... '
-                       'instead of parallel={''world'': ...}'),
-                      DeprecatedParameterWarning)
+    comm = communicator or world
+
     log = Logger(txt, comm)
 
+    params_dict = {key: value for key, value in locals().items()
+                   if key in parameter_names}
+
     if filename is not None:
-        if not {'parallel'}.issuperset(kwargs):
-            illegal = set(kwargs) - {'parallel'}
-            raise ValueError('Illegal arguments when reading from a file: '
-                             f'{illegal}')
+        for key, value in params_dict.items():
+            if key != 'parallel' and value is not None:
+                raise ValueError(
+                    f'Illegal argument when reading from a file: {key}')
         atoms, dft, params, _ = read_gpw(filename,
                                          log=log,
                                          parallel=parallel)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
-    params = InputParameters(kwargs)
+    params = InputParameters(params_dict)
     write_header(log, params)
     return ASECalculator(params, log=log)
 
@@ -76,9 +108,12 @@ def write_header(log, params):
     from gpaw.io.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
-    log('---')
     with log.indent('input parameters:'):
-        log(**dict(params.items()))
+        parts = []
+        for key, val in params.items():
+            txt = pformat(val).replace('\n', '\n ' + ' ' * len(key))
+            parts.append(f'{key}={txt}')
+        log(',\n'.join(parts))
 
 
 def compare_atoms(a1: Atoms, a2: Atoms) -> set[str]:
@@ -355,7 +390,7 @@ class ASECalculator:
             if spin is None:
                 spin = 0
         else:
-            assert spin is None
+            assert spin is None or spin == 0
         wfs = state.ibzwfs.get_wfs(spin=spin if collinear else 0,
                                    kpt=kpt,
                                    n1=band, n2=band + 1)
@@ -596,9 +631,7 @@ class ASECalculator:
         self.dft.state = DFTState(ibzwfs,
                                   state.density,
                                   state.potential)
-        nbands = ibzwfs.nbands
-        self.params.nbands = nbands
-        self.params.keys.append('nbands')
+        self.params._add('nbands', ibzwfs.nbands)
 
     def gs_adapter(self):
         from gpaw.response.groundstate import ResponseGroundStateAdapter
@@ -692,3 +725,6 @@ class ASECalculator:
         return get_wannier_integrals(self.dft.state.ibzwfs,
                                      grid,
                                      spin, kpoint, nextkpoint, G_c, nbands)
+
+    def initialize_positions(self):
+        1 / 0
