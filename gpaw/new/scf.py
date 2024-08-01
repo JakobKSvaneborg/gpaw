@@ -94,8 +94,7 @@ class SCFLoop:
             assert nconverged in [0, self.comm.size], converged_items
 
             if log:
-                with log.comment():
-                    write_iteration(cc, converged_items, entries, ctx, log)
+                write_iteration(cc, converged_items, entries, ctx, log)
             if converged:
                 break
             if self.niter == maxiter:
