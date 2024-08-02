@@ -111,7 +111,8 @@ def write_header(log, params):
     with log.indent('input parameters:'):
         parts = []
         for key, val in params.items():
-            txt = pformat(val).replace('\n', '\n ' + ' ' * len(key))
+            n = len(key)
+            txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
             parts.append(f'{key}={txt}')
         log(',\n'.join(parts))
 
@@ -216,6 +217,9 @@ class ASECalculator:
             converged = False
         elif changes:
             self.move_atoms(atoms)
+            converged = False
+        elif not self._dft.results:
+            # Something cleared the results dict
             converged = False
 
         if converged:
