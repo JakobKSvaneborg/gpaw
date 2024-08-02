@@ -18,7 +18,7 @@ def test_mom_fd_energy(in_tmp_dir):
                 xc='PBE',
                 spinpol=True,
                 convergence={'energy': 100,
-                             'density': 1e-3,
+                             'density': 1e-4,
                              'eigenstates': 100,
                              'bands': -1})
 
@@ -53,7 +53,7 @@ def test_mom_fd_energy(in_tmp_dir):
             assert (np.allclose(P, f_sn))
 
         dE = E_es - E_gs
-        print(dE)
+        print(s, dE)
         assert dE == pytest.approx(dE_ref[s], abs=0.015)
 
     calc = GPAW(mode='fd',

@@ -169,7 +169,6 @@ class OccupationsMOM:
                                                            eigenvalues,
                                                            weights,
                                                            fermi_levels_guess)
-
         return f_qn, fermi_levels, e_entropy
 
     def initialize_reference_orbitals(self):
@@ -285,8 +284,8 @@ class OccupationsMOM:
             O += O_corr
 
         if self.use_projections:
-            P = np.sum(abs(O) ** 2, axis=0)
-            P = P ** 0.5
+            P = np.sum(abs(O)**2, axis=0)
+            P = P**0.5
         else:
             P = np.amax(abs(O), axis=0)
 
