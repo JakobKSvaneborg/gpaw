@@ -163,7 +163,7 @@ class GPAW(Calculator):
 
         self.reader = None
 
-        Calculator.__init__(self, restart, label=label, **kwargs)
+        Calculator.__init__(self, restart, label=label, _set_ok=True, **kwargs)
 
     def new(self,
             timer=None,
@@ -532,7 +532,7 @@ class GPAW(Calculator):
 
         self.log.fd.flush()
 
-    def set(self, **kwargs):
+    def set(self, _set_ok=False, **kwargs):
         """Change parameters for calculator.
 
         Examples::
@@ -540,7 +540,11 @@ class GPAW(Calculator):
             calc.set(xc='PBE')
             calc.set(nbands=20, kpts=(4, 1, 1))
         """
-
+        if not _set_ok:
+            if not kwargs.keys() <= {'eigensolver', 'external',
+                                     'convergence', 'xc', 'txt'}:
+                print(list(kwargs))
+                1 / 0
         # Verify that keys are consistent with default ones.
         for key in kwargs:
             if key != 'txt' and key not in self.default_parameters:
