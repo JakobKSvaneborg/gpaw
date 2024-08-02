@@ -541,6 +541,7 @@ class GPAW(Calculator):
             calc.set(nbands=20, kpts=(4, 1, 1))
         """
         if not _set_ok:
+            warnings.warn(f'Bad: {",".join(kwargs)}')
             if not kwargs.keys() <= {'eigensolver', 'external',
                                      'convergence', 'xc', 'txt'}:
                 print(list(kwargs))

@@ -10,7 +10,7 @@ from gpaw.mpi import rank
 @pytest.mark.mgga
 def test_utilities_elf(gpw_files, gpaw_new):
     if gpaw_new:
-        pytest.skip('Not implemented'))
+        pytest.skip('Not implemented')
     # Real wave functions
     atoms, calc = restart(gpw_files['h2_fd'])
 
