@@ -65,9 +65,13 @@ def prepare_mom_calculation(calc,
         function.
     """
 
-    if calc.wfs is None:
-        # We need the wfs object to initialize OccupationsMOM
-        calc.initialize(atoms)
+    if hasattr(calc, 'set'):
+        if calc.wfs is None:
+            # We need the wfs object to initialize OccupationsMOM
+            calc.initialize(atoms)
+    else:
+        if calc._dft is None:
+            calc.create_new_calculation(atoms)
 
     occ_mom = OccupationsMOM(calc.wfs,
                              numbers,
@@ -167,7 +171,11 @@ class OccupationsMOM:
         return f_qn, fermi_levels, e_entropy
 
     def initialize_reference_orbitals(self):
-        if self.wfs.kpt_u[0].f_n is None:
+        try:
+            f_n = self.wfs.kpt_u[0].f_n
+        except ValueError:  # new gpaw
+            return
+        if f_n is None:  # old gpaw
             # If the occupation numbers are not already available
             # (e.g. when the calculation is initialized from atomic
             # densities) we first need to take a step of eigensolver

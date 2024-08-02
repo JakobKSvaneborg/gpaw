@@ -129,6 +129,7 @@ class KPT:
             self.psit_nX = wfs.psit_nX
         else:
             self.C_nM = wfs.C_nM.data
+            self.S_MM = wfs.S_MM.data
 
     @property
     def psit_nG(self):
