@@ -25,8 +25,8 @@ class FakeWFS:
                              ibzwfs.ibz.symmetries.symmetry)
         self.kd.set_communicator(ibzwfs.kpt_comm)
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
-        grid = self.state.density.nt_sR.desc
-        self.gd = grid._gd
+        self.grid = self.state.density.nt_sR.desc
+        self.gd = self.grid._gd
         self.atom_partition = dft._atom_partition
         self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
         self.occupations = dft.scf_loop.occ_calc.occ
@@ -47,7 +47,7 @@ class FakeWFS:
                 self.ecut = wfs.psit_nX.desc.ecut
                 self.pd = PWDescriptor(self.ecut,
                                        self.gd, self.dtype, self.kd)
-                self.pwgrid = grid.new(dtype=self.dtype)
+                self.pwgrid = self.grid.new(dtype=self.dtype)
             else:
                 self.mode = 'fd'
         else:
@@ -95,6 +95,12 @@ class FakeWFS:
         return [[KPT(wfs, self.atom_partition, ngpts, self.pd)
                  for wfs in wfs_s]
                 for wfs_s in self.state.ibzwfs.wfs_qs]
+
+    def integrate(self, a_nX, b_nX, gi):
+        assert gi
+        A_nX = self.grid.from_data(a_nX)
+        B_nX = self.grid.from_data(b_nX)
+        return A_nX.matrix_elements(B_nX).data
 
 
 class KPT:

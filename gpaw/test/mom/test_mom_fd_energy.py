@@ -40,16 +40,16 @@ def test_mom_fd_energy(in_tmp_dir):
         f_sn[0][3] -= 1.
         f_sn[s][4] += 1.
 
-        prepare_mom_calculation(calc, atoms, f_sn)
+        occ = prepare_mom_calculation(calc, atoms, f_sn)
 
         E_es = atoms.get_potential_energy()
 
         # Test overlaps
-        calc.wfs.occupations.initialize_reference_orbitals()
+        occ.initialize_reference_orbitals()
         for kpt in calc.wfs.kpt_u:
             f_sn = calc.get_occupation_numbers(spin=kpt.s)
             unoccupied = [True for i in range(len(f_sn))]
-            P = calc.wfs.occupations.calculate_weights(kpt, 1.0, unoccupied)
+            P = occ.calculate_weights(kpt, 1.0, unoccupied)
             assert (np.allclose(P, f_sn))
 
         dE = E_es - E_gs

@@ -89,6 +89,8 @@ def prepare_mom_calculation(calc,
 
     calc.log(occ_mom)
 
+    return occ_mom
+
 
 class OccupationsMOM:
     """MOM occupation class.
