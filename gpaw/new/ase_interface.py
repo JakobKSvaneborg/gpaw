@@ -217,6 +217,9 @@ class ASECalculator:
         elif changes:
             self.move_atoms(atoms)
             converged = False
+        elif not self._dft.results:
+            # Something cleared the results dict
+            converged = False
 
         if converged:
             return

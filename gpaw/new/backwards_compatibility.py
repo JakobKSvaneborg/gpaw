@@ -127,6 +127,8 @@ class KPT:
         self.P_ani = wfs.P_ani
         if isinstance(wfs, PWFDWaveFunctions):
             self.psit_nX = wfs.psit_nX
+        else:
+            self.C_nM = wfs.C_nM.data
 
     @property
     def psit_nG(self):

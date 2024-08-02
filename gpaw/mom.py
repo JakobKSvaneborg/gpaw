@@ -77,7 +77,11 @@ def prepare_mom_calculation(calc,
                              width,
                              niter_width_update,
                              width_increment)
-    calc.set(occupations=occ_mom)
+    try:
+        calc.set(occupations=occ_mom)
+    except AttributeError:
+        calc.dft.scf_loop.occ_calc.occ = occ_mom
+        calc.dft.results = {}
 
     calc.log(occ_mom)
 
