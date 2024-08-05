@@ -52,6 +52,7 @@ class FakeWFS:
                 self.mode = 'fd'
         else:
             self.mode = 'lcao'
+            self.manytci = wfs.tci_derivatives.manytci
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
         self.basis_functions = getattr(dft.scf_loop.hamiltonian,
@@ -67,6 +68,9 @@ class FakeWFS:
         return psit_X.data
 
     def get_wave_function_array(self, n, k, s, realspace=True, periodic=False):
+        if self.mode == 'lcao':
+            assert not realspace
+            return self.kpt_qs[k][s].C_nM[n]
         assert realspace
         psit_X = self.kpt_qs[k][s].wfs.psit_nX[n]
         if self.mode == 'pw':
@@ -138,6 +142,7 @@ class KPT:
         else:
             self.C_nM = wfs.C_nM.data
             self.S_MM = wfs.S_MM.data
+            self.P_aMi = wfs.P_aMi
 
     @property
     def psit_nG(self):
