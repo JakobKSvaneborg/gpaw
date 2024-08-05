@@ -46,6 +46,7 @@ from ase.phonons import Displacement
 
 from gpaw.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator
+from gpaw.utilities import pack_hermitian
 
 dr_version = 1
 # v1: saves natom, supercell, delta
@@ -115,27 +116,29 @@ class DisplacementRunner(Displacement):
 
         # Effective potential (in Hartree) and projector coefficients
         # Note: Need to use coarse grid, because we project onto basis later
-        if isinstance(calc, OldGPAW):
+        if isinstance(calc, ASECalculator):
+            potential = calc.dft.state.potential
+            Vt_sG = potential.vt_sR.gather(broadcast=True).data
+            dH_all_asp = {a: pack_hermitian(dH_ii)
+                          for a, dH_ii
+                          in potential.dH_asii.gather(broadcast=True).items()}
+        else:
             Vt_sG = calc.hamiltonian.vt_sG
             Vt_sG = calc.wfs.gd.collect(Vt_sG, broadcast=True)
             dH_asp = calc.hamiltonian.dH_asp
-        else:
-            potential = calc.dft.state.potential
-            Vt_sG = potential.vt_sR.gather(broadcast=True).data
-            dH_asp = potential.dH_asp
 
-        setups = calc.wfs.setups
-        nspins = calc.wfs.nspins
+            setups = calc.wfs.setups
+            nspins = calc.wfs.nspins
 
-        dH_all_asp = {}
-        for a, setup in enumerate(setups):
-            ni = setup.ni
-            nii = ni * (ni + 1) // 2
-            dH_tmp_sp = np.zeros((nspins, nii))
-            if a in dH_asp:
-                dH_tmp_sp[:] = dH_asp[a]
-            calc.wfs.gd.comm.sum(dH_tmp_sp)
-            dH_all_asp[a] = dH_tmp_sp
+            dH_all_asp = {}
+            for a, setup in enumerate(setups):
+                ni = setup.ni
+                nii = ni * (ni + 1) // 2
+                dH_tmp_sp = np.zeros((nspins, nii))
+                if a in dH_asp:
+                    dH_tmp_sp[:] = dH_asp[a]
+                calc.wfs.gd.comm.sum(dH_tmp_sp)
+                dH_all_asp[a] = dH_tmp_sp
 
         output = {'Vt_sG': Vt_sG, 'dH_all_asp': dH_all_asp}
         if forces is not None:
