@@ -535,17 +535,19 @@ class GPAW(Calculator):
     def set(self, _set_ok=False, **kwargs):
         """Change parameters for calculator.
 
-        Examples::
+        Example::
 
-            calc.set(xc='PBE')
-            calc.set(nbands=20, kpts=(4, 1, 1))
+            calc.set(eigensolver=...)
         """
         if not _set_ok:
-            warnings.warn(f'Bad: {",".join(kwargs)}')
+            # We want to get rid of cal.set(...), but these are still in use,
+            # so we allow them for now
             if not kwargs.keys() <= {'eigensolver', 'external',
-                                     'convergence', 'xc', 'txt'}:
-                print(list(kwargs))
-                1 / 0
+                                     'convergence', 'txt',
+                                     'occupations'}:
+                raise ValueError(
+                    'Please use new(...) instead of set(...)')
+
         # Verify that keys are consistent with default ones.
         for key in kwargs:
             if key != 'txt' and key not in self.default_parameters:

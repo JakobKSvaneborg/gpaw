@@ -234,7 +234,7 @@ class SJM(SolvationGPAW):
         p.update(sj_changes)
         background_charge = kwargs.pop('background_charge', None)
 
-        SolvationGPAW.set(self, **kwargs)
+        SolvationGPAW.set(self, _set_ok=True, **kwargs)
 
         # parent_changed checks if GPAW needs to be reinitialized
         # The following key do not need reinitialization
@@ -308,7 +308,7 @@ class SJM(SolvationGPAW):
             # conflict, but we know of no such use cases.
             if self.wfs is None:
                 kwargs.update({'background_charge': background_charge})
-                SolvationGPAW.set(self, **kwargs)
+                SolvationGPAW.set(self, _set_ok=True, **kwargs)
             else:
                 if parent_changed:
                     self.density = None
