@@ -44,7 +44,8 @@ import numpy as np
 from ase import Atoms
 from ase.phonons import Displacement
 
-from gpaw.calculator import GPAW
+from gpaw.calculator import GPAW as OldGPAW
+from gpaw.new.ase_interface import ASECalculator
 
 dr_version = 1
 # v1: saves natom, supercell, delta
@@ -60,8 +61,12 @@ class DisplacementRunner(Displacement):
     function.
     """
 
-    def __init__(self, atoms: Atoms, calc: GPAW, supercell: tuple = (1, 1, 1),
-                 name: str = "elph", delta: float = 0.01,
+    def __init__(self,
+                 atoms: Atoms,
+                 calc: OldGPAW | ASECalculator,
+                 supercell: tuple = (1, 1, 1),
+                 name: str = 'elph',
+                 delta: float = 0.01,
                  calculate_forces: bool = True) -> None:
         """Initialize with base class args and kwargs.
 
@@ -105,14 +110,19 @@ class DisplacementRunner(Displacement):
 
         # Get calculator
         calc = atoms_N.calc
-        if not isinstance(calc, GPAW):
+        if not isinstance(calc, (OldGPAW, ASECalculator)):
             calc = calc.dft  # unwrap DFTD3 wrapper
 
         # Effective potential (in Hartree) and projector coefficients
         # Note: Need to use coarse grid, because we project onto basis later
-        Vt_sG = calc.hamiltonian.vt_sG
-        Vt_sG = calc.wfs.gd.collect(Vt_sG, broadcast=True)
-        dH_asp = calc.hamiltonian.dH_asp
+        if isinstance(calc, OldGPAW):
+            Vt_sG = calc.hamiltonian.vt_sG
+            Vt_sG = calc.wfs.gd.collect(Vt_sG, broadcast=True)
+            dH_asp = calc.hamiltonian.dH_asp
+        else:
+            potential = calc.dft.state.potential
+            Vt_sG = potential.vt_sR.gather(broadcast=True).data
+            dH_asp = potential.dH_asp
 
         setups = calc.wfs.setups
         nspins = calc.wfs.nspins
@@ -127,16 +137,16 @@ class DisplacementRunner(Displacement):
             calc.wfs.gd.comm.sum(dH_tmp_sp)
             dH_all_asp[a] = dH_tmp_sp
 
-        output = {"Vt_sG": Vt_sG, "dH_all_asp": dH_all_asp}
+        output = {'Vt_sG': Vt_sG, 'dH_all_asp': dH_all_asp}
         if forces is not None:
-            output["forces"] = forces
+            output['forces'] = forces
         return output
 
     def save_info(self) -> None:
-        with self.cache.lock("info") as handle:
+        with self.cache.lock('info') as handle:
             if handle is not None:
-                info = {"natom": len(self.atoms), "supercell": self.supercell,
-                        "delta": self.delta, "dr_version": dr_version}
+                info = {'natom': len(self.atoms), 'supercell': self.supercell,
+                        'delta': self.delta, 'dr_version': dr_version}
                 handle.save(info)
 
     def run(self) -> None:
