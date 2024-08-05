@@ -54,6 +54,8 @@ class FakeWFS:
             self.mode = 'lcao'
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
+        self.basis_functions = getattr(dft.scf_loop.hamiltonian,
+                                       'basis', None)
 
     def _get_wave_function_array(self, u, n, realspace=True, periodic=False):
         assert realspace and not periodic

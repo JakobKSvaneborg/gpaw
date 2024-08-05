@@ -110,7 +110,8 @@ class AtomDistribution:
         """
         self.comm = comm
         self.rank_a = np.array(ranks)
-        self.indices = np.where(self.rank_a == comm.rank)[0] -> int ...
+        # convert from np.int64 -> int:
+        self.indices = [int(a) for a in np.where(self.rank_a == comm.rank)[0]]
 
     @classmethod
     def from_number_of_atoms(cls,

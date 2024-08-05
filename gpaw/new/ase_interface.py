@@ -730,5 +730,5 @@ class ASECalculator:
                                      grid,
                                      spin, kpoint, nextkpoint, G_c, nbands)
 
-    def initialize_positions(self):
-        1 / 0
+    def initialize_positions(self, atoms):
+        pass
