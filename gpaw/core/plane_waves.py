@@ -200,7 +200,7 @@ class PWDesc(Domain):
 
            [1], [[0, 1, 2, 3], [4]]
         """
-        size_c = tuple(self.indices_cG.ptp(axis=1) + 1)  # type: ignore
+        size_c = tuple(np.ptp(self.indices_cG, axis=1) + 1)  # type: ignore
         Q_G = self.indices(size_c)
         G_Q = np.empty(prod(size_c), int)
         G_Q[Q_G] = np.arange(len(Q_G))
@@ -343,6 +343,15 @@ class PWArray(DistributedArrays[PWDesc]):
     def ifft(self, *, plan=None, grid=None, out=None, periodic=False):
         """Do inverse FFT(s) to uniform grid(s).
 
+        Returns:
+            UGArray with values
+        :::
+                               _ _
+              _     --        iG.R
+            f(r) =  >  c(G) e
+                    --
+                     G
+
         Parameters
         ----------
         plan:
@@ -357,7 +366,7 @@ class PWArray(DistributedArrays[PWDesc]):
         if out is None:
             out = grid.empty(self.dims, xp=xp)
         assert self.desc.dtype == out.desc.dtype, (self.desc, out.desc)
-        assert out.desc.pbc_c.all()
+        assert not out.desc.zerobc_c.any()
         assert comm.size == out.desc.comm.size, (comm, out.desc.comm)
 
         plan = plan or out.desc.fft_plans(xp=xp)

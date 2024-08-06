@@ -25,8 +25,8 @@ class FakeWFS:
                              ibzwfs.ibz.symmetries.symmetry)
         self.kd.set_communicator(ibzwfs.kpt_comm)
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
-        grid = self.state.density.nt_sR.desc
-        self.gd = grid._gd
+        self.grid = self.state.density.nt_sR.desc
+        self.gd = self.grid._gd
         self.atom_partition = dft._atom_partition
         self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
         self.occupations = dft.scf_loop.occ_calc.occ
@@ -47,24 +47,30 @@ class FakeWFS:
                 self.ecut = wfs.psit_nX.desc.ecut
                 self.pd = PWDescriptor(self.ecut,
                                        self.gd, self.dtype, self.kd)
-                self.pwgrid = grid.new(dtype=self.dtype)
+                self.pwgrid = self.grid.new(dtype=self.dtype)
             else:
                 self.mode = 'fd'
         else:
             self.mode = 'lcao'
         self.collinear = wfs.ncomponents < 4
+        self.positions_set = True
 
-    def _get_wave_function_array(self, u, n, realspace):
+    def _get_wave_function_array(self, u, n, realspace=True, periodic=False):
+        assert realspace and not periodic
         psit_X = self.kpt_u[u].wfs.psit_nX[n]
         if hasattr(psit_X, 'ifft'):
-            return psit_X.ifft(grid=self.pwgrid).data
+            psit_R = psit_X.ifft(grid=self.pwgrid, periodic=True)
+            psit_R.multiply_by_eikr(psit_X.desc.kpt_c)
+            return psit_R.data
         return psit_X.data
 
     def get_wave_function_array(self, n, k, s, realspace=True, periodic=False):
         assert realspace
         psit_X = self.kpt_qs[k][s].wfs.psit_nX[n]
         if self.mode == 'pw':
-            psit_R = psit_X.ifft(grid=self.pwgrid, periodic=periodic)
+            psit_R = psit_X.ifft(grid=self.pwgrid, periodic=True)
+            if not periodic:
+                psit_R.multiply_by_eikr(psit_X.desc.kpt_c)
         else:
             psit_R = psit_X
             if periodic:
@@ -89,6 +95,12 @@ class FakeWFS:
         return [[KPT(wfs, self.atom_partition, ngpts, self.pd)
                  for wfs in wfs_s]
                 for wfs_s in self.state.ibzwfs.wfs_qs]
+
+    def integrate(self, a_nX, b_nX, gi):
+        assert gi
+        A_nX = self.grid.from_data(a_nX)
+        B_nX = self.grid.from_data(b_nX)
+        return A_nX.matrix_elements(B_nX).data
 
 
 class KPT:
@@ -121,6 +133,9 @@ class KPT:
         self.P_ani = wfs.P_ani
         if isinstance(wfs, PWFDWaveFunctions):
             self.psit_nX = wfs.psit_nX
+        else:
+            self.C_nM = wfs.C_nM.data
+            self.S_MM = wfs.S_MM.data
 
     @property
     def psit_nG(self):

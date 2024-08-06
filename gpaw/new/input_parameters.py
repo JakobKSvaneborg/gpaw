@@ -53,10 +53,14 @@ class InputParameters:
     hund: bool
     kpts: dict[str, Any]
     magmoms: Any
+    # maxiter ???
+    # mixer
     mode: dict[str, Any]
     nbands: None | int | str
+    # occupations
     parallel: dict[str, Any]
     poissonsolver: dict[str, Any]
+    # random
     setups: Any
     soc: bool
     spinpol: bool
@@ -64,16 +68,16 @@ class InputParameters:
     xc: dict[str, Any]
 
     def __init__(self, params: dict[str, Any], warn: bool = True):
-        self.keys = sorted(params)
-
         for key in params:
             if key not in parameter_functions:
                 raise ValueError(
                     f'Unknown parameter {key!r}.  Must be one of: ' +
                     ', '.join(parameter_functions))
+        self.non_defaults = []
         for key, func in parameter_functions.items():
-            if key in params:
-                param = params[key]
+            param = params.get(key)
+            if param is not None:
+                self.non_defaults.append(key)
                 if hasattr(param, 'todict'):
                     param = param.todict()
                 value = func(param)
@@ -92,16 +96,13 @@ class InputParameters:
             if 'soc' in self.experimental:
                 warnings.warn('Please use new "soc" parameter.',
                               DeprecatedParameterWarning)
-                self.soc = self.experimental.pop('soc')
+                self._add('soc', self.experimental.pop('soc'))
             if 'magmoms' in self.experimental:
                 warnings.warn('Please use new "magmoms" parameter.',
                               DeprecatedParameterWarning)
-                self.magmoms = self.experimental.pop('magmoms')
-                self.keys.append('magmoms')
-                self.keys.sort()
+                self._add('magmoms', self.experimental.pop('magmoms'))
             assert not self.experimental
-            self.keys.remove('experimental')
-            self.__dict__.pop('experimental')
+            self._remove('experimental')
 
         if self.mode.get('name') is None:
             if warn:
@@ -117,11 +118,20 @@ class InputParameters:
                       for key, value in self.items())
         return f'InputParameters({p})'
 
+    def _add(self, key, value):
+        self.__dict__[key] = value
+        if key not in self.non_defaults:
+            self.non_defaults.append(key)
+
+    def _remove(self, key):
+        del self.__dict__[key]
+        self.non_defaults.remove(key)
+
     def items(self):
-        for key in self.keys:
+        for key in self.non_defaults:
             yield key, getattr(self, key)
 
-    def __contains__(self, key):
+    def asdsa__contains__(self, key):
         return key in self.keys
 
 
@@ -160,7 +170,7 @@ def experimental(value=None):
 
 @input_parameter
 def external(value=None):
-    return value
+    return value or {}
 
 
 @input_parameter

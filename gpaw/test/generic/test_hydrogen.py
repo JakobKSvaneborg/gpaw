@@ -1,5 +1,6 @@
 from math import log
 
+import numpy as np
 import pytest
 from ase import Atoms
 from ase.db import connect
@@ -10,7 +11,7 @@ from gpaw import GPAW, FermiDirac
 
 
 @pytest.mark.later
-def test_generic_hydrogen(in_tmp_dir, needs_ase_master):
+def test_generic_hydrogen(in_tmp_dir):
     a = 4.0
     h = 0.2
     hydrogen = Atoms('H',
@@ -64,4 +65,4 @@ def test_generic_hydrogen(in_tmp_dir, needs_ase_master):
 
     # Test get_electrostatic_potential() method
     v = hydrogen.calc.get_electrostatic_potential()
-    print(v.shape, v.ptp())
+    print(v.shape, np.ptp(v))

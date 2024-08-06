@@ -56,7 +56,7 @@ def localize(overlaps: WannierOverlaps,
 if __name__ == '__main__':
     import sys
     from gpaw import GPAW
-    from .overlaps import calculate_overlaps
+    from gpaw.wannier.overlaps import calculate_overlaps
 
     calc = GPAW(sys.argv[1])
     nwannier = int(sys.argv[2])

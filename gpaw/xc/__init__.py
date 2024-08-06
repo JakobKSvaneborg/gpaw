@@ -49,7 +49,10 @@ def XC(kernel,
     GLLBSC.  One can also use equivalent libxc names, for example
     GGA_X_PBE+GGA_C_PBE is equivalent to PBE, and LDA_X to the LDA exchange.
     In this way one has access to all the functionals defined in libxc.
-    See xc_funcs.h for the complete list.  """
+    See xc_funcs.h for the complete list.
+
+    Warning - if an MGGA from libxc is used, libxc should be compiled
+    with --disable-fhc. Otherwise the calcualtions won't converge"""
 
     if isinstance(kernel, str):
         kernel = xc_string_to_dict(kernel)

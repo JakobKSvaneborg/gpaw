@@ -6,8 +6,8 @@ from ase.units import Bohr, Ha
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.domain import Domain as XDesc
-from gpaw.core.uniform_grid import UGArray, UGDesc
-from gpaw.mpi import MPIComm
+from gpaw.core import PWArray, UGArray, UGDesc
+from gpaw.mpi import MPIComm, broadcast_float
 from gpaw.new import zips
 
 
@@ -90,3 +90,30 @@ class Potential:
             **{f'e_{name}': val * Ha for name, val in energies.items()})
         if self.dedtaut_sR is not None:
             writer.write(mgga_potential=dedtaut_sR.data * Bohr**3)
+
+    def get_vacuum_level(self) -> float:
+        grid = self.vt_sR.desc
+        if grid.pbc_c.all():
+            return np.nan
+        if grid.zerobc_c.any():
+            return 0.0
+        if self.vHt_x is None:
+            raise ValueError('No electrostatic potential')
+        if isinstance(self.vHt_x, UGArray):
+            vHt_r = self.vHt_x.gather()
+        elif isinstance(self.vHt_x, PWArray):
+            vHt_g = self.vHt_x.gather()
+            if vHt_g is not None:
+                vHt_r = vHt_g.ifft(grid=grid.new(comm=None,
+                                                 size=grid.size_c * 2))
+            else:
+                vHt_r = None
+        else:
+            return np.nan  # TB-mode
+        vacuum_level = 0.0
+        if vHt_r is not None:
+            for c, periodic in enumerate(grid.pbc_c):
+                if not periodic:
+                    vacuum_level += np.moveaxis(vHt_r.data, c, 0)[0].mean()
+            vacuum_level /= (3 - grid.pbc_c.sum())
+        return broadcast_float(vacuum_level, grid.comm) * Ha

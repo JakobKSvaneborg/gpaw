@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 from ase import Atoms
 
-from gpaw.calculator import GPAW
+from gpaw.new.ase_interface import ASECalculator as GPAW
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.projections import Projections
 from gpaw.setup import Setup
@@ -219,9 +219,9 @@ def find_directions(icell: Array2D,
     directions: List[Tuple[int, ...]] = []
     for i1, i2 in voro.ridge_points:
         if i1 == 13 and i2 > 13:
-            directions.append(tuple(d_ic[i2]))
+            directions.append(tuple(d_ic[i2].tolist()))
         elif i2 == 13 and i1 > 13:
-            directions.append(tuple(d_ic[i1]))
+            directions.append(tuple(d_ic[i1].tolist()))
     return directions
 
 

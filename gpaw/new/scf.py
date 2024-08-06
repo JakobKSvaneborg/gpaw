@@ -11,7 +11,7 @@ from gpaw.convergence_criteria import (Criterion, check_convergence,
                                        dict2criterion)
 from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
-from gpaw.yml import indent
+from gpaw.new.logger import indent
 from gpaw import KohnShamConvergenceError
 
 if TYPE_CHECKING:
@@ -94,8 +94,7 @@ class SCFLoop:
             assert nconverged in [0, self.comm.size], converged_items
 
             if log:
-                with log.comment():
-                    write_iteration(cc, converged_items, entries, ctx, log)
+                write_iteration(cc, converged_items, entries, ctx, log)
             if converged:
                 break
             if self.niter == maxiter:
@@ -146,17 +145,11 @@ class SCFContext:
         self.poisson_solver = pot_calc.poisson_solver
 
     def _get_workfunctions(self, _):
-        """
-        vHt_g = self.state.vHt_x
-        axes = (c, (c + 1) % 3, (c + 2) % 3)
-        potential.vt_sRself.pd3.ifft(v_q, local=True).transpose(axes)
-        vacuum = v_g[0].mean()
-        vacuum_level =
+        vacuum_level = self.state.potential.get_vacuum_level()
         (fermi_level,) = self.state.ibzwfs.fermi_levels
         wf = vacuum_level - fermi_level
-        delta = self.poisson_solver.correction
-        return np.array([wf + 0.5 * delta, wf - 0.5 * delta])
-        """
+        delta = self.poisson_solver.dipole_layer_correction()
+        return np.array([wf + delta, wf - delta])
 
 
 def create_convergence_criteria(criteria: dict[str, Any]

@@ -18,7 +18,11 @@ version = '3.11'
 fversion = 'cpython-311'
 
 # Niflheim login hosts, with the oldest architecture as the first
-nifllogin = ['sylg', 'svol', 'surt', 'fjorm']
+nifllogin = ['slid2',  # broadwell_el8 (xeon24el8)
+             'thul',  # skylake_el8 (xeon40el8)
+             'surt',  # icelake (xeon56)
+             'fjorm']  # epyc9004 (epyc96)
+
 
 # Easybuild uses a hierarchy of toolchains for the main foss and intel
 # chains.  The order in the tuples before are
@@ -49,7 +53,7 @@ toolchains = {
 module_cmds_all = """\
 module purge
 unset PYTHONPATH
-module load GPAW-setups/0.9.20000
+module load GPAW-setups/24.1.0
 module load ELPA/2023.05.001-{fullchain}
 module load Wannier90/3.1.0-{fullchain}
 module load Python-bundle-PyPI/2023.06-{corechain}
@@ -301,10 +305,20 @@ def main():
 
     # Tab completion:
     for cmd in ['ase', 'gpaw', 'mq', 'pip']:
+        if cmd == 'gpaw':
+            # Currently, running the "gpaw" command writes warning message
+            # to stdout, so "gpaw completion" does not work!
+            continue
         txt = run(f'. {activate} && {cmd} completion' +
                   (' --bash' if cmd == 'pip' else ''),
                   capture_output=True).stdout.decode()
         extra += txt
+
+    # gpaw-hack:
+    python = venv / 'bin/python3'
+    complete = venv / 'gpaw/gpaw/cli/complete.py'
+    extra += f'complete -o default -C "{python} {complete}" gpaw\n'
+
     activate.write_text(activate.read_text() + extra)
 
     # Run tests:

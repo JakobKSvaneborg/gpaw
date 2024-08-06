@@ -88,5 +88,5 @@ def test_pt_potential():
     e5 = -0.5
     assert eigs[0] == pytest.approx(e0, abs=0.0002)
     assert eigs[1] == pytest.approx(e1234, abs=0.001)
-    assert eigs[1:5].ptp() == pytest.approx(0)
+    assert np.ptp(eigs[1:5]) == pytest.approx(0)
     assert eigs[5] == pytest.approx(e5, abs=0.001)

@@ -15,6 +15,7 @@ from gpaw.new import trace, zips
 from gpaw.typing import Array3D, Vector
 from gpaw.utilities import unpack_hermitian, unpack_density
 from gpaw.new.symmetry import SymmetrizationPlan
+from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class Density:
@@ -149,11 +150,11 @@ class Density:
 
     def new(self, new_grid, pw, fracpos_ac, atomdist):
         self.move(fracpos_ac, atomdist)
-        new_pw = PWDesc(ecut=0.99 * new_grid.ecut_max(),
+        new_pw = PWDesc(ecut=0.99 * new_grid.ekin_max(),
                         cell=new_grid.cell,
                         comm=new_grid.comm)
         old_grid = self.nt_sR.desc
-        old_pw = PWDesc(ecut=0.99 * old_grid.ecut_max(),
+        old_pw = PWDesc(ecut=0.99 * old_grid.ekin_max(),
                         cell=old_grid.cell,
                         comm=new_grid.comm)
         new_nt_sR = new_grid.empty(self.ncomponents, xp=self.nt_sR.xp)
@@ -209,11 +210,14 @@ class Density:
             x = -charge / pseudo_charge
             self.nt_sR.data *= x
 
-    def update(self, ibzwfs, ked=False):
+    def update(self, ibzwfs: IBZWaveFunctions, ked=False):
         self.nt_sR.data[:] = 0.0
         self.D_asii.data[:] = 0.0
         ibzwfs.add_to_density(self.nt_sR, self.D_asii)
         self.nt_sR.data[:self.ndensities] += self.nct_R.data
+
+        # LCAO ...:
+        ibzwfs.normalize_density(self)
 
         if ked:
             self.update_ked(ibzwfs, symmetrize=False)
@@ -306,7 +310,7 @@ class Density:
                 y, z, x = ccc_L[1:4]
                 dip_v -= np.array([x, y, z]) * (4 * pi / 3)**0.5
         self.nt_sR.desc.comm.sum(dip_v)
-        for nt_R in self.nt_sR:
+        for nt_R in self.nt_sR[:self.ndensities]:
             dip_v -= as_np(nt_R.moment())
         return dip_v
 

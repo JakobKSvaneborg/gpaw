@@ -63,7 +63,7 @@ for name in ['h2_osc', 'n2_osc', 'na2_md', 'na2_osc']:
 
     # Verify that energy was conserved
     dEstd = np.std(Ekin_i + e_coulomb_i)
-    dEmax = np.maximum(Ekin_i.ptp(), e_coulomb_i.ptp())
+    dEmax = np.maximum(np.ptp(Ekin_i), np.ptp(e_coulomb_i))
     assert dEstd < 1e-2 * dEmax + 1e-6, (dEstd, dEmax)
 
     # Compare position, velocity and force time series using Velocity Verlet
@@ -72,7 +72,7 @@ for name in ['h2_osc', 'n2_osc', 'na2_md', 'na2_osc']:
     Vn_iav = V_iav[:-1] + 0.5 * (A_iav[:-1] + A_iav[1:]) * dt
     dRstd_av = (np.sum((Rn_iav - R_iav[1:])**2, axis=0) / len(Rn_iav))**0.5
     dVstd_av = (np.sum((Vn_iav - V_iav[1:])**2, axis=0) / len(Vn_iav))**0.5
-    dRmax_av, dVmax_av = R_iav.ptp(axis=0), V_iav.ptp(axis=0)
+    dRmax_av, dVmax_av = np.ptp(R_iav, axis=0), np.ptp(V_iav, axis=0)
     assert np.all(dRstd_av < 1e-4 * dRmax_av + 1e-12), (dRstd_av, dRmax_av)
     assert np.all(dVstd_av < 1e-4 * dVmax_av + 1e-12), (dVstd_av, dVmax_av)
 

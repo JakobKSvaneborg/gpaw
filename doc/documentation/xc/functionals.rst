@@ -10,12 +10,36 @@ Exchange and correlation functionals
 Libxc
 =====
 
-We used the functionals from libxc_.  ...
+GPAW offers access to the functionals from libxc_.  ...
+
+
+Known Problems
+==============
+
+MGGAs: Some MGGAs (e.g. a functional utilizing the exchange from
+Becke-Roussel 89, 'MGGA_X_BR89+MGGA_C_TPSS') need the laplacian
+which we don't provide at the time of this writing. Therefore the
+utilization of these functionals will raise an exception.
+
+MGGAs: The libxc enforces the Fermi hole curvature by default, which
+leads to errornous results and convergence problems in codes using
+pseudopotentials. In versions of libxc > 7.0 this behaviour
+can and will be switched of during runtime. In versions below 7.0 this
+must be switch off during compile time by using '--disable-fhc'
+during installtion of libxc.
+
+You can check this running the following code snippet:
+
+.. literalinclude:: check_fhc_disabled.py
+
+
+Technical details
+=================
 
 
 
 Calculation of GGA potential
-============================
+----------------------------
 
 
 In libxc_ we have (see also "Standard subroutine calls" on ccg_dft_design_)
@@ -28,13 +52,13 @@ In libxc_ we have (see also "Standard subroutine calls" on ccg_dft_design_)
   \sigma_{ij} = \mathbf{\nabla}n_i \cdot \mathbf{\nabla}n_j
 
 
-.. _libxc: http://www.tddft.org/programs/octopus/wiki/index.php/Libxc
+.. _libxc: https://libxc/gitlab.io/
 
-.. _ccg_dft_design: http://www.cse.scitech.ac.uk/ccg/dft/design.html
+.. _ccg_dft_design: https://www.cse.scitech.ac.uk/ccg/dft/design.html
 
 
 Uniform 3D grid
-===============
+---------------
 
 We use a finite-difference stencil to calculate the gradients:
 
@@ -54,7 +78,7 @@ Let's look at the spin-`k` XC potential from the energy expression
 .. math::
 
   v_{kg} = \sum_{g'} \frac{\partial \epsilon(\sigma_{ijg'})}{\partial n_{kg}}
-  = \sum_{g'} 
+  = \sum_{g'}
   \frac{\partial \epsilon(\sigma_{ijg'})}{\partial \sigma_{ijg'}}
   \frac{\partial \sigma_{ijg'}}{\partial n_{kg}}
 
@@ -96,7 +120,7 @@ and
 
 
 PAW correction
-==============
+--------------
 
 Spin-paired case:
 
@@ -124,7 +148,7 @@ where
     n_{Lg} =
     \sum_q D_{Lq} n_{qg} + \delta_{L,0} \sqrt{4 \pi} n_c(r_g)
 
-and 
+and
 
 .. math::
 

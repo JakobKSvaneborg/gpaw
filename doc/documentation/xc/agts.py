@@ -16,6 +16,11 @@ def workflow():
         if libvdwxc_has_pfft():
             run(script='libvdwxc-pfft-example.py', cores=8)
     run(script='rsf_gamma.py', cores=8)
+    run(script='ivo_hft.py')
+    run(script='rsf_ivo_nacl.py')
+    run(script='rsf_lrtddft.py')
+    run(script='rsf_setup_poisson.py')
+    run(script='rsf_simple.py')
 
 
 def check_s26():

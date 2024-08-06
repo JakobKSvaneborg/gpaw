@@ -563,8 +563,8 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
 
 
 def soc(a: Setup, xc, D_sp: Array2D) -> Array3D:
-    """<phi_i|dV_adr / r * L_v|phi_j>"""
-    v_g = get_radial_potential(a, xc, D_sp)
+    """<phi_i|dU^a/dr / r * L_v|phi_j>"""
+    v_g = get_radial_potential_derivative(a, xc, D_sp)
     Ng = len(v_g)
     phi_jg = a.data.phi_jg
 
@@ -578,7 +578,7 @@ def soc(a: Setup, xc, D_sp: Array2D) -> Array3D:
         for j2, l2 in enumerate(a.l_j):
             if l1 == l2:
                 f_g = phi_jg[j1][:Ng] * v_g * phi_jg[j2][:Ng]
-                c = a.xc_correction.rgd.integrate(f_g) / (4 * np.pi)
+                c = a.xc_correction.rgd.integrate(f_g, n=-1) / (4 * np.pi)
                 dVL_vii[0, N1:N1 + Nm, N2:N2 + Nm] = c * Lx_lmm[l1]
                 dVL_vii[1, N1:N1 + Nm, N2:N2 + Nm] = c * Ly_lmm[l1]
                 dVL_vii[2, N1:N1 + Nm, N2:N2 + Nm] = c * Lz_lmm[l1]
@@ -606,9 +606,9 @@ def projected_soc(dVL_vii: Array3D,
     return dVL_vii
 
 
-def get_radial_potential(a: Setup, xc, D_sp: Array2D) -> Array1D:
-    """Calculates (dV/dr)/r for the effective potential.
-    Below, f_g denotes dV/dr = minus the radial force"""
+def get_radial_potential_derivative(a: Setup, xc, D_sp: Array2D) -> Array1D:
+    """Calculates (dU/dr) for the effective potential.
+    Below, f_g denotes dU/dr which is also the negative of the radial force"""
 
     rgd = a.xc_correction.rgd
     r_g = rgd.r_g.copy()
@@ -641,7 +641,7 @@ def get_radial_potential(a: Setup, xc, D_sp: Array2D) -> Array1D:
                         axis=0)
         f_g += fxc_g
 
-    return f_g / r_g
+    return f_g
 
 
 def get_anisotropy(calc, theta=0.0, phi=0.0, nbands=0, width=None):
@@ -871,7 +871,18 @@ def get_L_vlmm():
     d[2, 1] = 3**0.5 * 1.0j
     d[1, 4] = -1.0j
     d[4, 1] = 1.0j
-    _L_vlmm.append([s, p, d])
+    f = np.zeros((7, 7), complex)
+    f[0, 5] = -0.5 * 6**0.5 * 1.0j
+    f[5, 0] = 0.5 * 6**0.5 * 1.0j
+    f[1, 4] = -0.5 * 10**0.5 * 1.0j
+    f[4, 1] = 0.5 * 10**0.5 * 1.0j
+    f[1, 6] = -0.5 * 6**0.5 * 1.0j
+    f[6, 1] = 0.5 * 6**0.5 * 1.0j
+    f[2, 3] = -6**0.5 * 1.0j
+    f[3, 2] = 6**0.5 * 1.0j
+    f[2, 5] = -0.5 * 10**0.5 * 1.0j
+    f[5, 2] = 0.5 * 10**0.5 * 1.0j
+    _L_vlmm.append([s, p, d, f])
 
     p = np.zeros((3, 3), complex)  # y, z, x
     p[1, 2] = -1.0j
@@ -883,7 +894,18 @@ def get_L_vlmm():
     d[3, 2] = 3**0.5 * 1.0j
     d[3, 4] = -1.0j
     d[4, 3] = 1.0j
-    _L_vlmm.append([s, p, d])
+    f = np.zeros((7, 7), complex)
+    f[0, 1] = 0.5 * 6**0.5 * 1.0j
+    f[1, 0] = -0.5 * 6**0.5 * 1.0j
+    f[1, 2] = 0.5 * 10**0.5 * 1.0j
+    f[2, 1] = -0.5 * 10**0.5 * 1.0j
+    f[3, 4] = -6**0.5 * 1.0j
+    f[4, 3] = 6**0.5 * 1.0j
+    f[4, 5] = -0.5 * 10**0.5 * 1.0j
+    f[5, 4] = 0.5 * 10**0.5 * 1.0j
+    f[5, 6] = -0.5 * 6**0.5 * 1.0j
+    f[6, 5] = 0.5 * 6**0.5 * 1.0j
+    _L_vlmm.append([s, p, d, f])
 
     p = np.zeros((3, 3), complex)  # y, z, x
     p[0, 2] = 1.0j
@@ -893,6 +915,12 @@ def get_L_vlmm():
     d[4, 0] = -2.0j
     d[1, 3] = 1.0j
     d[3, 1] = -1.0j
-    _L_vlmm.append([s, p, d])
-
+    f = np.zeros((7, 7), complex)
+    f[0, 6] = 3.0j
+    f[6, 0] = -3.0j
+    f[1, 5] = 2.0j
+    f[5, 1] = -2.0j
+    f[2, 4] = 1.0j
+    f[4, 2] = -1.0j
+    _L_vlmm.append([s, p, d, f])
     return _L_vlmm

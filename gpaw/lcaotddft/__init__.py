@@ -16,7 +16,7 @@ from gpaw.typing import Any, Vector
 
 
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
-    if os.environ.get('GPAW_NEW'):
+    if int(os.environ.get('GPAW_NEW', '0')):
         from gpaw.new.rttddft import RTTDDFT
         assert kwargs.get('propagator', None) in [None, 'ecn'], \
             'Not implemented yet'

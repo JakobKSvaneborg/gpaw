@@ -523,7 +523,7 @@ PyObject* construct_density(LFCObject *lfc, PyObject *args)
 
   if (!lfc->bloch_boundary_conditions) {
 
-    if (!(PyArray_DESCR(rho_MM_obj)->kind == 'f' && PyArray_DESCR(rho_MM_obj)->elsize == 8))
+    if (!(PyArray_DESCR(rho_MM_obj)->kind == 'f' && PyArray_DESCR(rho_MM_obj)->type_num == NPY_DOUBLE))
     {
         PyErr_SetString(PyExc_ValueError ,"Expected float64 dtype for rho_MM array.");
         return NULL;
@@ -578,10 +578,10 @@ PyObject* construct_density(LFCObject *lfc, PyObject *args)
   }
   else {
 
-    if (!(PyArray_DESCR(rho_MM_obj)->kind == 'c' && PyArray_DESCR(rho_MM_obj)->elsize == 16))
+    if (!(PyArray_DESCR(rho_MM_obj)->kind == 'c' && PyArray_DESCR(rho_MM_obj)->type_num == NPY_COMPLEX128))
     {
         PyErr_SetString(PyExc_ValueError, "Expected complex128 dtype for rho_MM array.");
-        return NULL;    
+        return NULL;
     }
 
     const double complex* rho_MM = (const double complex*)PyArray_DATA(rho_MM_obj);
