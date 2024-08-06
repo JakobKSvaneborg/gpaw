@@ -1,5 +1,4 @@
 from __future__ import annotations
-import numpy as np
 import contextlib
 from time import time
 from typing import TYPE_CHECKING
@@ -20,7 +19,11 @@ if TYPE_CHECKING:
 else:
     try:
         import cupy
-        from cupy import cublas
+
+        # This import is to preload cublas
+        # Fixes cp.cublas.gemm attribute not found error introduced by v13.
+        from cupy import cublas  # noqa: F401
+
         import cupyx
         from cupy.cuda import runtime
         numpy2 = np.__version__.split('.')[0] == '2'
