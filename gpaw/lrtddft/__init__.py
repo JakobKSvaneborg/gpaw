@@ -156,12 +156,14 @@ class LrTDDFT(ExcitationList):
         Om = OmegaMatrix
         name = 'LrTDDFT'
 
-        hybrid = self.force_ApmB
-        if self.xc and self.xc != 'RPA' and isinstance(self.xc, str):
-            xc = XC(self.xc)
-            hybrid = hybrid or (hasattr(xc, 'hybrid') and xc.hybrid > 0.0)
+        hybrid = False
+        if self.xc and self.xc != 'RPA':
+            xc = self.xc
+            if isinstance(self.xc, str):
+                xc = XC(self.xc)
+            hybrid = hasattr(xc, 'hybrid') and xc.hybrid > 0.0
 
-        if hybrid:
+        if hybrid or self.force_ApmB:
             Om = ApmB
             name = 'LrTDDFThyb'
 
