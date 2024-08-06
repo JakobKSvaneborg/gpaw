@@ -182,7 +182,11 @@ class DFTComponentsBuilder:
         """Are we running on a GPU?."""
         if self.params.parallel['gpu']:
             from gpaw.gpu import cupy_is_fake
-            assert not cupy_is_fake or os.environ.get('GPAW_CPUPY')
+            if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
+                raise ValueError(
+                    'Please set GPAW_CPUPY=1 if you really want to do GPU '
+                    'calculations with GPAW''s fake cupy library '
+                    '(gpaw.gpu.cpupy)')
             return True
         return False
 
