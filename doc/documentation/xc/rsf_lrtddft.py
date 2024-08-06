@@ -1,5 +1,5 @@
 """Check TDDFT ionizations with Yukawa potential."""
-from ase.structure import molecule
+from ase.build import molecule
 from ase.units import Hartree
 from gpaw import GPAW
 from gpaw.mpi import world
