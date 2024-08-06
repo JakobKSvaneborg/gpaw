@@ -242,7 +242,7 @@ class SJM(SolvationGPAW):
         for key in kwargs:
             if key not in ['mixer', 'verbose', 'txt', 'hund', 'random',
                            'eigensolver', 'convergence', 'fixdensity',
-                           'maxiter']:
+                           'maxiter', '_set_ok']:
                 parent_changed = True
 
         if len(sj_changes):
