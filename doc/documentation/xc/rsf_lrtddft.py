@@ -15,30 +15,29 @@ h2o_plus = molecule('H2O')
 h2o_plus.set_initial_magnetic_moments([2, -0.5, -0.5])
 adjust_cell(h2o_plus, 3.0, h=0.3)
 
+params = dict(
+    mode='fd',
+    convergence={'energy': 0.001,
+                 'eigenstates': 0.001,
+                 'density': 0.001},
+    eigensolver=RMMDIIS(),
+    xc='LCY-PBE:omega=0.83:unocc=True',
+    parallel={'domain': world.size}, h=0.3,
+    occupations=FermiDirac(width=0.0, fixmagmom=True))
 
-def get_paw():
-    """Return calculator object."""
-    c = {'energy': 0.001, 'eigenstates': 0.001, 'density': 0.001}
-    return GPAW(mode='fd', convergence=c, eigensolver=RMMDIIS(),
-                xc='LCY-PBE:omega=0.83:unocc=True',
-                parallel={'domain': world.size}, h=0.3,
-                occupations=FermiDirac(width=0.0, fixmagmom=True))
 
-
-calc = get_paw()
-calc.set(txt='H2O_LCY_PBE_083.log')
-calc_plus = get_paw()
-calc_plus.set(txt='H2O_plus_LCY_PBE_083.log', charge=1)
-
-h2o.calc = calc
+h2o.calc = GPAW(txt='H2O_LCY_PBE_083.log',
+                **params)
 e_h2o = h2o.get_potential_energy()
-h2o_plus.calc = calc_plus
+h2o_plus.calc = GPAW(txt='H2O_plus_LCY_PBE_083.log',
+                     charge=1,
+                     **params)
 e_h2o_plus = h2o_plus.get_potential_energy()
 e_ion = e_h2o_plus - e_h2o
 
 print(e_ion, 12.62)
 assert abs(e_ion - 12.62) < 0.1
-lr = LrTDDFT(calc_plus, txt='LCY_TDDFT_H2O.log', jend=4)
+lr = LrTDDFT(h2o_plus.calc, txt='LCY_TDDFT_H2O.log', jend=4)
 assert lr.xc.omega == 0.83
 lr.write('LCY_TDDFT_H2O.ex.gz')
 # reading is problematic with EXX on more than one core
