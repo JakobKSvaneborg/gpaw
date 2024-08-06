@@ -161,16 +161,16 @@ As it turn out, the optimal spin structure on a trigonal lattice with antiferrom
 2.   What is the minimal number of magnetic atoms required in the magnetic unit cell to represent such a state?
 3.   Verrify that the Heisenberg model with classical spins gives a lower energy with this configuration than in the antialigned structure calculated above.
 
-You should obtain the following energy for the 120$^\circ$ noncolinnear configuration:
+You should obtain the following energy for the 120$^\circ$ noncollinear configuration:
 
 $$E_{\mathrm{NC}}=E_0+\frac{3}{2}JS^2.$$
 
 We will now check if we can verify this prediction within the LSDA. To do that we need to perform a noncollinear DFT calculation, which is done in the cell below.
 
-4.   Read and try to understand the code to perform a noncollinear LSDA calculation in the 120$^\circ$ noncolinnear configuration.
-5.   Replace the `...` with code to make a noncolinnear LSDA calculation for the ferromagnetic state as well (we will need this for a late comparison).
+4.   Read and try to understand the code to perform a noncollinear LSDA calculation in the 120$^\circ$ noncollinear configuration.
+5.   Replace the `...` with code to make a noncollinear LSDA calculation for the ferromagnetic state as well (we will need this for a late comparison).
 
-Run the cell and verify that the energy per magnetic atom is lower in the 120$^\circ$ noncolinnear configuration compared to both of the previous calculated states.
+Run the cell and verify that the energy per magnetic atom is lower in the 120$^\circ$ noncollinear configuration compared to both of the previous calculated states.
 """
 
 # %%
@@ -229,7 +229,7 @@ In the cell above we could have included spin-orbit coupling in a self-consisten
 
 1.   Fill in the cell below with code to compute the nearest neighbour exchange coupling $J$ based on the noncollinear calculations performed above.
 2.   Fill in code that computes the spin-orbit coupling corrected energies of the ferromagnetic state from the noncollinear calculation with spins directed along the $x$, $y$ and $z$ directions (Hint: the anisotropy is calculated by rotating the entire initial spin configuration first by $\theta$ and then by $\varphi$).
-3.   Repeat point 2, but for the 120$^\circ$ noncolinnear configuration. In this case, you cannot align all spins to one direction, but takes as a reference the first V atom.
+3.   Repeat point 2, but for the 120$^\circ$ noncollinear configuration. In this case, you cannot align all spins to one direction, but takes as a reference the first V atom.
 
 With the above code in place, please evaluate the cell. You should obtain a nearest neighbour exchange coupling of about -1.9 meV.
 
@@ -280,12 +280,13 @@ Based on the noncollinear calculations above:
 1.   What is the easy axis of the system?
 2.   Does the easy axis agree with your initial findings for the simple ferromagnetic state?
 
-You should find that the energy of the 120$^\circ$ noncolinnear configuration does not depend strongly on whether the first V atom is aligned to the $x$ or the $y$ direction.
+You should find that the energy of the 120$^\circ$ noncollinear configuration does not depend strongly on whether the first V atom is aligned to the $x$ or the $y$ direction.
 
 3.   If we assume full in-plane isotropy is there any rotational freedom left in the noncollinear ground state?
 4.   What implications does this have for the critical temperature of the monolayer?
 
-You might be able to convince yourself that some degree of in-plane anisotropy is required to obtain a finite critical temperature for the 120$^\circ$ noncolinnear magnetic order. Again, bear in mind that all the calculations in the present notebook ought to be properly converged with respect to $k$-points, plane wave cutoff etc. to achieve an accurate estimate of e.g. the in-plane anisotropy.
+You might be able to convince yourself that some degree of in-plane anisotropy is required to obtain a finite critical temperature for the
+120$^\circ$ noncollinear magnetic order. Again, bear in mind that all the calculations in the present notebook ought to be properly converged with respect to $k$-points, plane wave cutoff etc. to achieve an accurate estimate of e.g. the in-plane anisotropy.
 
 Clearly the noncollinear spin state of VI$_2$ is more difficult to describe than the ferromagnetic state in CrI$_3$ and we do not yet have a simple theoretical expression for the critical temperature as a function of anisotropy and exchange coupling constants. However, with the rapid development of experimental techniques to synthesize and characterize 2D materials it does seem plausible that such a noncollinear 2D material may be observed in the future.
 """
