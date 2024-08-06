@@ -544,7 +544,7 @@ class GPAW(Calculator):
             # so we allow them for now
             if not kwargs.keys() <= {'eigensolver', 'external',
                                      'convergence', 'txt',
-                                     'occupations'}:
+                                     'xc', 'occupations'}:
                 raise ValueError(
                     'Please use new(...) instead of set(...)')
 
