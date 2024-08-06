@@ -39,6 +39,7 @@ is supposed to be handled. Here we just handle the spin channels separately.
 Use with care.
 
 """
+from __future__ import annotations
 import numpy as np
 
 from ase import Atoms
