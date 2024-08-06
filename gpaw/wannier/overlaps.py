@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 from ase import Atoms
 
-from gpaw.calculator import GPAW
+from gpaw.new.ase_interface import ASECalculator as GPAW
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.projections import Projections
 from gpaw.setup import Setup

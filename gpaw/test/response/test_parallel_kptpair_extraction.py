@@ -86,8 +86,8 @@ def compare_kptpairs(kptpair1, kptpair2):
         return
     assert kptpair1.K1 == kptpair2.K1
     assert kptpair1.K2 == kptpair2.K2
-    assert np.allclose(kptpair1.deps_t, kptpair2.deps_t)
-    assert np.allclose(kptpair1.df_t, kptpair2.df_t)
+    assert np.allclose(kptpair1.deps_myt, kptpair2.deps_myt)
+    assert np.allclose(kptpair1.df_myt, kptpair2.df_myt)
 
     compare_ikpts(kptpair1.ikpt1, kptpair2.ikpt1)
     compare_ikpts(kptpair1.ikpt2, kptpair2.ikpt2)

@@ -1,5 +1,6 @@
 import pytest
 from gpaw import GPAW, restart
+from gpaw.mom import prepare_mom_calculation
 
 
 @pytest.mark.mom
@@ -22,8 +23,10 @@ def test_mom_lcao_smearing(in_tmp_dir, gpw_files):
 
         # Excited-state calculation with Gaussian
         # smearing of the occupation numbers
-        calc.set(occupations={'name': 'mom', 'numbers': f_sn,
-                              'width': 0.01, 'use_fixed_occupations': i})
+        prepare_mom_calculation(calc, atoms,
+                                numbers=f_sn,
+                                width=0.01,
+                                use_fixed_occupations=i)
         E_es = atoms.get_potential_energy()
 
         f_n0 = calc.get_occupation_numbers(spin=0)

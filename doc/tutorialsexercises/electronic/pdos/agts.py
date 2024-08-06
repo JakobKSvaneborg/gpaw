@@ -8,5 +8,6 @@ def workflow():
             run(script='p2.py')
     with run(script='atomic_orbital_gs.py', cores=8, tmax='15m'):
         run(script='atomic_orbital_pdos.py')
+        run(script='atomic_orbital_pdos2.py')
     with run(script='lcaodos_gs.py', cores=8, tmax='15m'):
         run(script='lcaodos_plt.py')
