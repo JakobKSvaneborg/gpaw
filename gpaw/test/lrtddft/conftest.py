@@ -16,8 +16,10 @@ def H2struct():
 @pytest.fixture
 def H2(H2struct):
     H2 = H2struct.copy()
-    H2.calc = GPAW(mode='fd', xc='PBE',
+    H2.calc = GPAW(mode='fd',
+                   xc='PBE',
                    poissonsolver={'name': 'fd'},
-                   nbands=3, spinpol=False)
+                   nbands=3,
+                   spinpol=False)
     H2.get_potential_energy()
     return H2
