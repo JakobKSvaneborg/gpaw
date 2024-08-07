@@ -235,8 +235,8 @@ translating by the second and third lattice vectors leaves the spins unchanged.
 
 1.   For VI$_2$, the spins should rotate by 120$^\circ$ when translating by the first and second lattice vector. Write down the $\mathbf{q}$
      vector that represents these boundary conditions.
-2.   A.
-3.   A.
+2.   Consider the block of code below. Verify that you can get the same potential energy pr. atom using a single unit cell with the
+     generalized Bloch theorem as you can using the usual Bloch theorem and a supercell.
 
 """
 
@@ -247,33 +247,28 @@ from gpaw.new.ase_interface import GPAW
 
 atoms = layer.copy()
 magmoms = np.zeros((3, 3), float)
+m = 3
 magmoms[0] = [m, 0, 0]
 
-calc = GPAW(mode=PW(400),
-            xc='LDA',
-            mixer=MixerDif(),
-            symmetry='off',
-            experimental={'magmoms': magmoms, 'soc': False},
-            parallel={'domain': 1, 'band': 1},
-            kpts=(2, 2, 1))
-layer_nc.calc = calc
-layer_nc.get_potential_energy()
-calc.write('nc_nosoc.gpw')
+q_c = [1 / 3, 1 / 3, 0]  # student: q_c = [?, ?, ?]
 
-...
-# teacher:
-magmoms = np.zeros((len(layer_nc), 3), float)
-magmoms[0] = [m, 0, 0]
-calc = GPAW(mode=PW(400),
+calc = GPAW(mode={'name': 'pw',
+                  'ecut': 400,
+                  'qspiral': q_c},
             xc='LDA',
-            mixer=MixerDif(),
+            mixer={'backend': 'pulay',
+                   'method': 'difference',
+                   'beta': 0.05,
+                   'nmaxold': 5,
+                   'weight': 50},
             symmetry='off',
-            experimental={'magmoms': magmoms, 'soc': False},
             parallel={'domain': 1, 'band': 1},
-            kpts=(2, 2, 1))
-layer_nc.calc = calc
-layer_nc.get_potential_energy()
-calc.write('fm_nosoc.gpw')
+            magmoms=magmoms,
+            soc=False,
+            kpts={'size': (2, 2, 1), 'gamma': True})
+atoms.calc = calc
+energy = atoms.get_potential_energy()
+print(energy)
 
 # %%
 """
