@@ -197,14 +197,11 @@ class PWHybridHamiltonian(PWHamiltonian):
     def apply_other(self,
                     D_aii,
                     pt_aiG,
-                    psit1_nG: PWArray,
-                    P1_ani: AtomArrays,
-                    f1_n: Array1D,
-                    psit2_nG: PWArray,
-                    P2_ani: AtomArrays,
+                    psi1: Psi,
+                    psi2: Psi,
                     Htpsit2_nG: PWArray) -> None:
-        n1 = len(psit1_nG)
-        n2 = len(psit1_nG)
+        # n1 = len(psit1_nG)
+        # n2 = len(psit1_nG)
 
         # psit1_R = self.tmp1_nR[:n1]...grid.empty()
         psit1_R = self.grid.empty()
@@ -216,18 +213,19 @@ class PWHybridHamiltonian(PWHamiltonian):
         for a, D_ii in D_aii.items():
             VV_ii = pawexxvv(self.VV_app[a], D_ii)
             VC_ii = self.VC_aii[a]
-            B_ni = P2_ani[a] @ (-VC_ii - 2 * VV_ii)
+            B_ni = psi2.P_ani[a] @ (-VC_ii - 2 * VV_ii)
             B_ani[a] = B_ni
 
-        for n2, (psit2_G, out_G) in enumerate(zips(psit2_nG, Htpsit2_nG)):
+        for n2, (psit2_G, out_G) in enumerate(zips(psi2.psit_nG, Htpsit2_nG)):
             psit2_G.ifft(out=psit2_R, plan=self.plan)
 
-            for n1, (psit1_G, f1) in enumerate(zips(psit1_nG, f1_n)):
+            for n1, (psit1_G, f1) in enumerate(zips(psi1.psit_nG, psi1.f_n)):
                 psit1_G.ifft(out=psit1_R, plan=self.plan)
                 rhot_R.data[:] = psit1_R.data * psit2_R.data
                 rhot_R.fft(out=rhot_G, plan=self.plan)
                 Q_aL = {a: np.einsum('i, ijL, j -> L',
-                                     P1_ani[a][n1], delta_iiL, P2_ani[a][n2])
+                                     psi1.P_ani[a][n1], delta_iiL,
+                                     psi2.P_ani[a][n2])
                         for a, delta_iiL in enumerate(self.delta_aiiL)}
                 self.ghat_aLG.add_to(rhot_G, Q_aL)
                 rhot_G.data *= self.v_G.data
@@ -240,7 +238,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 for a, A_L in A_aL.items():
                     B_ani[a][n2] -= np.einsum(
                         'L, ijL, j -> i',
-                        f1 * A_L, self.delta_aiiL[a], P1_ani[a][n1])
+                        f1 * A_L, self.delta_aiiL[a], psi1.P_ani[a][n1])
 
         pt_aiG.add_to(Htpsit2_nG, B_ani)
 
