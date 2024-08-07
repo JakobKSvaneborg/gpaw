@@ -153,13 +153,13 @@ print(f'J = {J * 1000:1.2f} meV')
 
 # %%
 """
-## Noncollinear configuration
+## Noncollinear configuration using a supercell
 
 As it turn out, the optimal spin structure on a trigonal lattice with antiferromagntice exchange coupling is to place all spins at 120$^\circ$ angles with respect its neighbors.
 
 1.   Draw this structure and convince yourself that it is indeed possible to put every spin at a 120$^\circ$ angle with respect to its neighbors.
 2.   What is the minimal number of magnetic atoms required in the magnetic unit cell to represent such a state?
-3.   Verrify that the Heisenberg model with classical spins gives a lower energy with this configuration than in the antialigned structure calculated above.
+3.   Verify that the Heisenberg model with classical spins gives a lower energy with this configuration than in the antialigned structure calculated above.
 
 You should obtain the following energy for the 120$^\circ$ noncollinear configuration:
 
@@ -210,6 +210,60 @@ magmoms = np.zeros((len(layer_nc), 3), float)
 magmoms[0] = [m, 0, 0]
 magmoms[3] = [m, 0, 0]
 magmoms[6] = [m, 0, 0]
+calc = GPAW(mode=PW(400),
+            xc='LDA',
+            mixer=MixerDif(),
+            symmetry='off',
+            experimental={'magmoms': magmoms, 'soc': False},
+            parallel={'domain': 1, 'band': 1},
+            kpts=(2, 2, 1))
+layer_nc.calc = calc
+layer_nc.get_potential_energy()
+calc.write('fm_nosoc.gpw')
+
+# %%
+"""
+## Noncollinear configuration using spin spirals
+
+The noncollinear spin configuration can also be represented in a single unit cell using the generalized Bloch's theorem. While the usual
+boundary conditions from Bloch's theorem yields that translation by a lattice vector simply results in the multiplication of a phase factor
+onto the wave function, the boundary conditions from the generalized Bloch's theorem yields that translation by a lattice vector can
+additionally result in the rotation of spins. The rotation can be characterized by the vector $\mathbf{q}$ where, for example,
+$\mathbf{q}=[1/2, 0, 0]$ represents that translating by the first lattice vector rotates the spins by $1/2 * 360^\circ=180^\circ$ whereas
+translating by the second and third lattice vectors leaves the spins unchanged.
+(See `this page <https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/magnetic/spinspiral/spinspiral.html>`_ for further information.)
+
+1.   For VI$_2$, the spins should rotate by 120$^\circ$ when translating by the first and second lattice vector. Write down the $\mathbf{q}$
+     vector that represents these boundary conditions.
+2.   A.
+3.   A.
+
+"""
+
+# %%
+import numpy as np
+from ase.io import read
+from gpaw.new.ase_interface import GPAW
+
+atoms = layer.copy()
+magmoms = np.zeros((3, 3), float)
+magmoms[0] = [m, 0, 0]
+
+calc = GPAW(mode=PW(400),
+            xc='LDA',
+            mixer=MixerDif(),
+            symmetry='off',
+            experimental={'magmoms': magmoms, 'soc': False},
+            parallel={'domain': 1, 'band': 1},
+            kpts=(2, 2, 1))
+layer_nc.calc = calc
+layer_nc.get_potential_energy()
+calc.write('nc_nosoc.gpw')
+
+...
+# teacher:
+magmoms = np.zeros((len(layer_nc), 3), float)
+magmoms[0] = [m, 0, 0]
 calc = GPAW(mode=PW(400),
             xc='LDA',
             mixer=MixerDif(),
