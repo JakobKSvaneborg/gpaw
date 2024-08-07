@@ -4,7 +4,7 @@ from gpaw.xc import XC
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('nspins', [1, 2])
-def test_gpu_pbe(nspins, gpu):
+def test_gpu_pbe(nspins):
     import cupy as cp
     from gpaw.cgpaw import evaluate_pbe_gpu
     ng = 10000
@@ -48,7 +48,7 @@ def test_gpu_pbe(nspins, gpu):
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('nspins', [1, 2])
-def test_gpu_lda(nspins, gpu):
+def test_gpu_lda(nspins):
     import cupy as cp
     from gpaw.cgpaw import evaluate_lda_gpu
     ng = 10000

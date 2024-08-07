@@ -9,7 +9,7 @@ from gpaw.utilities.blas import (gpu_axpy, gpu_dotc, gpu_dotu, gpu_gemm,
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_blas(gpu, dtype):
+def test_blas(dtype):
     N = 100
     rng = np.random.default_rng(seed=42)
     a = np.zeros((N, N), dtype=dtype)

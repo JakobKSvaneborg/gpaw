@@ -9,7 +9,7 @@ from gpaw.gpu import cupy as cp
 @pytest.mark.gpu
 @pytest.mark.parametrize('pbc', [True, False])
 @pytest.mark.parametrize('nn', [1, 2, 3, 4])
-def test_fd_transformers(gpu, pbc, nn):
+def test_fd_transformers(pbc, nn):
     if world.size > 4:
         # Grid is so small that domain decomposition cannot exceed 4 domains
         assert world.size % 4 == 0

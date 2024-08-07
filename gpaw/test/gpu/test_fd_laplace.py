@@ -9,7 +9,7 @@ from gpaw.mpi import world
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('pbc', [True, False])
-def test_fd_laplace(gpu, pbc):
+def test_fd_laplace(pbc):
     if world.size > 4:
         # Grid is so small that domain decomposition cannot exceed 4 domains
         assert world.size % 4 == 0
