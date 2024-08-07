@@ -170,7 +170,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                     A2 = A1 + 9
                     Q_nA[:, A1:A2] = P2_ani[a][n2] @ Q_niL
                 # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
-                mmm(1.0, Q_nA, 'N', self.ghat_GA, 'T',
+                mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
                     1.0, rhot_nG.data.view(float))
                 for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
                                                                rhot_nG,
