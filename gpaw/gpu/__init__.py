@@ -50,6 +50,17 @@ else:
 
         is_hip = runtime.is_hip
         cupy_is_fake = False
+
+        # select GPU device (round-robin based on MPI rank)
+        # if not set, all MPI ranks will use the same default device
+        from gpaw.mpi import rank
+        device_id = rank % cupy.cuda.runtime.getDeviceCount()
+        cupy.cuda.runtime.setDevice(device_id)
+
+        # initialise C parameters and memory buffers
+        import gpaw.cgpaw as cgpaw
+        cgpaw.gpaw_gpu_init()
+
     except ImportError:
         import gpaw.gpu.cpupy as cupy
         import gpaw.gpu.cpupyx as cupyx
@@ -60,18 +71,6 @@ __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']
 def synchronize():
     if not cupy_is_fake:
         cupy.cuda.get_current_stream().synchronize()
-
-
-def setup():
-    if not cupy_is_fake:
-        # select GPU device (round-robin based on MPI rank)
-        # if not set, all MPI ranks will use the same default device
-        from gpaw.mpi import rank
-        device_id = rank % cupy.cuda.runtime.getDeviceCount()
-        cupy.cuda.runtime.setDevice(device_id)
-        # initialise C parameters and memory buffers
-        import gpaw.cgpaw as cgpaw
-        cgpaw.gpaw_gpu_init()
 
 
 def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
