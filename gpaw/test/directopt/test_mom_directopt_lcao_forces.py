@@ -8,6 +8,7 @@ from gpaw.directmin.tools import excite
 
 
 @pytest.mark.mom
+@pytest.mark.do
 def test_mom_directopt_lcao_forces(in_tmp_dir):
     L = 4.0
     d = 1.13

@@ -3,6 +3,7 @@ import contextlib
 from time import time
 from typing import TYPE_CHECKING
 from types import ModuleType
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -18,8 +19,35 @@ if TYPE_CHECKING:
 else:
     try:
         import cupy
+
+        # This import is to preload cublas
+        # Fixes cp.cublas.gemm attribute not found error introduced by v13.
+        from cupy import cublas  # noqa: F401
+
         import cupyx
         from cupy.cuda import runtime
+        numpy2 = np.__version__.split('.')[0] == '2'
+
+        def fftshift_patch(x, axes=None):
+            x = cupy.asarray(x)
+            if axes is None:
+                axes = list(range(x.ndim))
+            elif not isinstance(axes, Iterable):
+                axes = (axes,)
+            return cupy.roll(x, [x.shape[axis] // 2 for axis in axes], axes)
+
+        def ifftshift_patch(x, axes=None):
+            x = cupy.asarray(x)
+            if axes is None:
+                axes = list(range(x.ndim))
+            elif not isinstance(axes, Iterable):
+                axes = (axes,)
+            return cupy.roll(x, [-(x.shape[axis] // 2) for axis in axes], axes)
+
+        if numpy2:
+            cupy.fft.fftshift = fftshift_patch
+            cupy.fft.ifftshift = ifftshift_patch
+
         is_hip = runtime.is_hip
         cupy_is_fake = False
     except ImportError:

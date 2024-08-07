@@ -111,7 +111,8 @@ def write_header(log, params):
     with log.indent('input parameters:'):
         parts = []
         for key, val in params.items():
-            txt = pformat(val).replace('\n', '\n ' + ' ' * len(key))
+            n = len(key)
+            txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
             parts.append(f'{key}={txt}')
         log(',\n'.join(parts))
 
@@ -216,6 +217,9 @@ class ASECalculator:
             converged = False
         elif changes:
             self.move_atoms(atoms)
+            converged = False
+        elif not self._dft.results:
+            # Something cleared the results dict
             converged = False
 
         if converged:
@@ -713,6 +717,18 @@ class ASECalculator:
     @property
     def symmetry(self):
         return self.dft.state.ibzwfs.ibz.symmetries.symmetry
+
+    def get_wannier_localization_matrix(self, nbands, dirG, kpoint,
+                                        nextkpoint, G_I, spin):
+        """Calculate integrals for maximally localized Wannier functions."""
+        from gpaw.new.wannier import get_wannier_integrals
+        grid = self.dft.state.density.nt_sR.desc
+        k_kc = self.dft.state.ibzwfs.ibz.bz.kpt_Kc
+        G_c = k_kc[nextkpoint] - k_kc[kpoint] - G_I
+
+        return get_wannier_integrals(self.dft.state.ibzwfs,
+                                     grid,
+                                     spin, kpoint, nextkpoint, G_c, nbands)
 
     def initialize_positions(self):
         1 / 0

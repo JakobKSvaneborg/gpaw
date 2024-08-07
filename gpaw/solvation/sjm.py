@@ -233,7 +233,7 @@ class SJM(SolvationGPAW):
                         ', '.join(self.default_parameters['sj'])))
         p.update(sj_changes)
         background_charge = kwargs.pop('background_charge', None)
-
+        kwargs['_set_ok'] = True
         SolvationGPAW.set(self, **kwargs)
 
         # parent_changed checks if GPAW needs to be reinitialized
@@ -242,7 +242,7 @@ class SJM(SolvationGPAW):
         for key in kwargs:
             if key not in ['mixer', 'verbose', 'txt', 'hund', 'random',
                            'eigensolver', 'convergence', 'fixdensity',
-                           'maxiter']:
+                           'maxiter', '_set_ok']:
                 parent_changed = True
 
         if len(sj_changes):
@@ -307,7 +307,8 @@ class SJM(SolvationGPAW):
             # specify an *additional* background charge this will probably
             # conflict, but we know of no such use cases.
             if self.wfs is None:
-                kwargs.update({'background_charge': background_charge})
+                kwargs.update({'background_charge': background_charge,
+                               '_set_ok': True})
                 SolvationGPAW.set(self, **kwargs)
             else:
                 if parent_changed:

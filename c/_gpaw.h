@@ -421,6 +421,10 @@ static PyObject* moduleinit(void)
     if (m == NULL)
         return NULL;
 
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
+
 #ifdef PARALLEL
     Py_INCREF(&MPIType);
     Py_INCREF(&GPAW_MPI_Request_type);
