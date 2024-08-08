@@ -1,22 +1,21 @@
 import optparse
 import traceback
 from pathlib import Path
+from typing import Any
 
-import numpy as np
 import ase.db
+import numpy as np
 from ase import Atoms
-from ase.data import covalent_radii, atomic_numbers
+from ase.data import atomic_numbers, covalent_radii
 from ase.optimize import BFGS
-
 from gpaw import GPAW, PW, KohnShamConvergenceError
-
 
 cutoffs = [200, 250, 300, 400, 500, 600, 700, 800, 1500]
 
 
 def check(con, name: str, lcao=True):
-    params = dict(xc='PBE',
-                  symmetry='off')
+    params: dict[str, Any] = dict(xc='PBE',
+                                  symmetry='off')
 
     if '.' in name:
         symbol, _, setup = name.partition('.')
@@ -27,7 +26,8 @@ def check(con, name: str, lcao=True):
     for h in [0.16, 0.18, 0.2]:
         a = 16 * h
         atoms = Atoms(symbol, cell=(a, a, 2 * a), pbc=True)
-        atoms.calc = GPAW(h=h,
+        atoms.calc = GPAW(mode='fd',
+                          h=h,
                           txt=f'{name}-eggbox-{h:.2f}.txt',
                           **params)
         energies = []
@@ -54,7 +54,8 @@ def check(con, name: str, lcao=True):
         con.write(atoms, name=name, test='pw1', ecut=ecut)
 
     for g in [20, 24, 28]:
-        atoms.calc = GPAW(gpts=(g, g, g),
+        atoms.calc = GPAW(mode='fd',
+                          gpts=(g, g, g),
                           txt=f'{name}-fd-{g}.txt',
                           **params)
         try:
@@ -101,7 +102,8 @@ def check(con, name: str, lcao=True):
             del con[id]
 
     for g in [20, 24, 28]:
-        atoms.calc = GPAW(gpts=(g, g, 2 * g),
+        atoms.calc = GPAW(mode='fd',
+                          gpts=(g, g, 2 * g),
                           txt=f'{name}2-fd-{g}.txt',
                           **params)
         try:

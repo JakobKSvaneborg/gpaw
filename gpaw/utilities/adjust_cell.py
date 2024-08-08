@@ -6,8 +6,10 @@ from gpaw.utilities import h2gpts
 from gpaw.grid_descriptor import GridDescriptor
 
 
-def adjust_cell(atoms: Atoms, border: float,
-                h: float = 0.2, idiv: int = 4) -> None:
+def adjust_cell(atoms: Atoms,
+                border: float,
+                h: float = 0.2,
+                idiv: int = 4) -> None:
     """Adjust the cell such that
     1. The vacuum around all atoms is at least border
        in non-periodic directions

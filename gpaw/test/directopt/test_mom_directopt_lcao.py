@@ -11,6 +11,7 @@ import numpy as np
 
 
 @pytest.mark.mom
+@pytest.mark.do
 def test_mom_directopt_lcao(in_tmp_dir):
     # Water molecule:
     d = 0.9575
