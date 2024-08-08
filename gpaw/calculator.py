@@ -11,7 +11,6 @@ import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import Calculator, kpts2ndarray
-from ase.dft.bandgap import bandgap
 from ase.units import Bohr, Ha
 from ase.utils import plural
 from ase.utils.timing import Timer
@@ -164,7 +163,7 @@ class GPAW(Calculator):
 
         self.reader = None
 
-        Calculator.__init__(self, restart, label=label, **kwargs)
+        Calculator.__init__(self, restart, label=label, _set_ok=True, **kwargs)
 
     def new(self,
             timer=None,
@@ -343,7 +342,7 @@ class GPAW(Calculator):
         self.log(f'Reading from {filename}')
 
         self.reader = reader = Reader(filename)
-        assert reader.version <= 3, 'Can\'t read new GPW-files'
+        # assert reader.version <= 3, 'Can\'t read new GPW-files'
 
         atoms = read_atoms(reader.atoms)
         self._set_atoms(atoms)
@@ -508,28 +507,46 @@ class GPAW(Calculator):
                 else:
                     self.results['stress'] = stress * (Ha / Bohr**3)
 
+    def _print_gapinfo(self):
+        try:
+            from ase.dft.bandgap import GapInfo
+        except ImportError:
+            print('No gapinfo -- requires new ASE', file=self.log.fd)
+            return
+
+        if len(self.wfs.fermi_levels) == 1:
+            try:
+                gaptext = GapInfo.fromcalc(self).description(
+                    ibz_kpoints=self.get_ibz_k_points())
+            except ValueError:
+                gaptext = 'Could not find a gap'
+
+            print(gaptext, file=self.log.fd)
+
     def summary(self):
         self.hamiltonian.summary(self.wfs, self.log)
         self.density.summary(self.atoms, self.results.get('magmom', 0.0),
                              self.log)
         self.wfs.summary(self.log)
-        if len(self.wfs.fermi_levels) == 1:
-            try:
-                bandgap(self,
-                        output=self.log.fd,
-                        efermi=self.wfs.fermi_level * Ha)
-            except ValueError:
-                pass
+        self._print_gapinfo()
+
         self.log.fd.flush()
 
-    def set(self, **kwargs):
+    def set(self, _set_ok=False, **kwargs):
         """Change parameters for calculator.
 
-        Examples::
+        Example::
 
-            calc.set(xc='PBE')
-            calc.set(nbands=20, kpts=(4, 1, 1))
+            calc.set(eigensolver=...)
         """
+        if not _set_ok:
+            # We want to get rid of cal.set(...), but these are still in use,
+            # so we allow them for now
+            if not kwargs.keys() <= {'eigensolver', 'external',
+                                     'convergence', 'txt',
+                                     'xc', 'occupations'}:
+                raise ValueError(
+                    'Please use new(...) instead of set(...)')
 
         # Verify that keys are consistent with default ones.
         for key in kwargs:

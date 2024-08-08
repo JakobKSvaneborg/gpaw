@@ -178,11 +178,19 @@ class DFTComponentsBuilder:
         return self.create_wf_description()
 
     @cached_property
+    def gpu(self) -> bool:
+        """Are we running on a GPU?."""
+        if self.params.parallel['gpu']:
+            from gpaw.gpu import cupy_is_fake
+            assert not cupy_is_fake or os.environ.get('GPAW_CPUPY')
+            return True
+        return False
+
+    @cached_property
     def xp(self) -> ModuleType:
         """Array module: Numpy or Cupy."""
-        if self.params.parallel['gpu']:
-            from gpaw.gpu import cupy, cupy_is_fake
-            assert not cupy_is_fake or os.environ.get('GPAW_CPUPY')
+        if self.gpu:
+            from gpaw.gpu import cupy
             return cupy
         return np
 

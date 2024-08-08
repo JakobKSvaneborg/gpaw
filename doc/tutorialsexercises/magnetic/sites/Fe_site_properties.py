@@ -7,9 +7,10 @@ from ase.build import bulk
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.mpi import rank
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.site_data import AtomicSites, AtomicSiteData
-from gpaw.response.mft import (calculate_site_magnetization,
-                               calculate_site_zeeman_energy)
+from gpaw.response.site_data import (AtomicSites, get_site_radii_range,
+                                     calculate_site_magnetization,
+                                     calculate_site_zeeman_energy,
+                                     maximize_site_magnetization)
 
 # ----- Ground state calculation ----- #
 
@@ -39,7 +40,7 @@ calc.write('Fe.gpw')
 # and does not overlap with neighbouring augmentation spheres). This range can
 # be easily extracted from a given ground state:
 gs = ResponseGroundStateAdapter(calc)
-rmin_a, rmax_a = AtomicSiteData.valid_site_radii_range(gs)
+rmin_a, rmax_a = get_site_radii_range(gs)
 # We can then define a range of site configurations to investigate
 rc_r = np.linspace(rmin_a[0], rmax_a[0], 51)
 sites = AtomicSites(
@@ -50,8 +51,14 @@ sites = AtomicSites(
 m_ar = calculate_site_magnetization(gs, sites)
 EZ_ar = calculate_site_zeeman_energy(gs, sites)
 
+# Similarly, we may also seek to identify the cutoff radius, which maximizes
+# the site magnetization
+rc_a, magmom_a = maximize_site_magnetization(gs)
+
 # Save site data
 if rank == 0:
     np.save('rc_r.npy', rc_r)
     np.save('m_r.npy', m_ar[0])
     np.save('EZ_r.npy', EZ_ar[0])
+    np.save('rc.npy', rc_a[0])
+    np.save('magmom.npy', magmom_a[0])

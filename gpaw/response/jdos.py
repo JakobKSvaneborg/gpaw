@@ -1,17 +1,17 @@
 import numpy as np
 
 from gpaw.response import ResponseContext
-from gpaw.response.pair_integrator import PairFunctionIntegrator
-from gpaw.response.pair_functions import PairFunction
-from gpaw.response.chiks import get_temporal_part
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.pair_integrator import (PairFunctionIntegrator,
+                                           DynamicPairFunction)
+from gpaw.response.chiks import get_temporal_part
 
 
-class JDOS(PairFunction):
+class JDOS(DynamicPairFunction):
 
-    def __init__(self, spincomponent, qpd, zd):
+    def __init__(self, spincomponent, q_c, zd):
         self.spincomponent = spincomponent
-        super().__init__(qpd, zd)
+        super().__init__(q_c, zd)
 
     def zeros(self):
         nz = len(self.zd)
@@ -89,11 +89,7 @@ class JDOSCalculator(PairFunctionIntegrator):
             q_c, len(zd), spincomponent, self.nbands, len(transitions)))
 
         # Set up output data structure
-        # We need a dummy plane-wave descriptor (without plane-waves, hence the
-        # vanishing ecut) for the PairFunctionIntegrator to be able to analyze
-        # the symmetries of the system and reduce the k-point integration
-        qpd = self.get_pw_descriptor(q_c, ecut=1e-3)
-        jdos = JDOS(spincomponent, qpd, zd)
+        jdos = JDOS(spincomponent, q_c, zd)
 
         # Perform actual in-place integration
         self.context.print('Integrating the joint density of states:')
@@ -113,25 +109,20 @@ class JDOSCalculator(PairFunctionIntegrator):
         is equal to the imaginary part (up to a factor of π) of the full
         integrand.
         """
-        # Specify notation
-        jdos_z = jdos.array
-
-        # Extract the temporal ingredients from the KohnShamKPointPair
-        transitions = kptpair.transitions  # transition indices (n,s)->(n',s')
-        df_t = kptpair.df_t  # (f_n'k's' - f_nks)
-        deps_t = kptpair.deps_t  # (ε_n'k's' - ε_nks)
-
         # Construct jdos integrand via the imaginary part of the frequency
         # dependence in χ_KS^μν(q,z)
         if jdos.spincomponent == '00' and self.gs.nspins == 1:
             weight = 2 * weight
-        x_zt = get_temporal_part(jdos.spincomponent, jdos.zd.hz_z,
-                                 transitions, df_t, deps_t,
-                                 self.bandsummation)
-        integrand_zt = -x_zt.imag / np.pi
+        x_mytz = get_temporal_part(jdos.spincomponent, jdos.zd.hz_z,
+                                   kptpair, self.bandsummation)
+        integrand_mytz = -x_mytz.imag / np.pi
 
         with self.context.timer('Perform sum over t-transitions'):
-            jdos_z += weight * np.sum(integrand_zt, axis=1)
+            # Sum over local transitions
+            integrand_z = np.sum(integrand_mytz, axis=0)
+            # Sum over distributed transitions
+            kptpair.tblocks.blockcomm.sum(integrand_z)
+        jdos.array[:] += weight * integrand_z
 
     def get_info_string(self, q_c, nz, spincomponent, nbands, nt):
         """Get information about the joint density of states calculation"""

@@ -14,7 +14,8 @@ from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.integrators import (
     Integrand, PointIntegrator, TetrahedronIntegrator, Domain)
-from gpaw.response.symmetry import PWSymmetryAnalyzer
+from gpaw.response.symmetry import QSymmetryInput, QSymmetryAnalyzer
+from gpaw.response.kpoints import KPointDomain, KPointDomainGenerator
 
 if TYPE_CHECKING:
     from gpaw.response.pair import ActualPairDensityCalculator
@@ -26,7 +27,7 @@ class Chi0Integrand(Integrand):
     def __init__(self, chi0calc: Chi0ComponentPWCalculator,
                  optical: bool,
                  qpd: SingleQPWDescriptor,
-                 analyzer: PWSymmetryAnalyzer,
+                 generator: KPointDomainGenerator,
                  m1: int,
                  m2: int):
 
@@ -46,7 +47,7 @@ class Chi0Integrand(Integrand):
         self.kptpair_factory: KPointPairFactory = chi0calc.kptpair_factory
 
         self.qpd = qpd
-        self.analyzer = analyzer
+        self.generator = generator
         self.integrationmode = chi0calc.integrationmode
         self.optical = optical
         self.blockcomm = chi0calc.blockcomm
@@ -102,8 +103,8 @@ class Chi0Integrand(Integrand):
         K = self.gs.kpoints.kptfinder.find(k_c)
         # assert point.K == K, (point.K, K)
 
-        weight = np.sqrt(self.analyzer.get_kpoint_weight(k_c) /
-                         self.analyzer.how_many_symmetries())
+        weight = np.sqrt(self.generator.get_kpoint_weight(k_c) /
+                         self.generator.how_many_symmetries())
 
         # Here we're again setting pawcorr willy-nilly
         if self._chi0calc.pawcorr is None:
@@ -123,7 +124,7 @@ class Chi0Integrand(Integrand):
         if self.integrationmode is None:
             n_nmG *= weight
 
-        df_nm = kptpair.get_occupation_differences(n_n, m_m)
+        df_nm = kptpair.get_occupation_differences()
         df_nm[df_nm <= 1e-20] = 0.0
         n_nmG *= df_nm[..., np.newaxis]**0.5
 
@@ -163,8 +164,7 @@ class Chi0ComponentCalculator:
     """Base class for the Chi0XXXCalculator suite."""
 
     def __init__(self, gs, context, *, nblocks,
-                 disable_point_group=False,
-                 disable_time_reversal=False,
+                 qsymmetry: QSymmetryInput = True,
                  integrationmode=None):
         """Set up attributes common to all chi0 related calculators.
 
@@ -172,10 +172,10 @@ class Chi0ComponentCalculator:
         ----------
         nblocks : int
             Divide response function memory allocation in nblocks.
-        disable_point_group : bool
-            Disable point group symmetry in k-integration and symmetrization.
-        disable_time_reversal : bool
-            Disable time reversal symmetry k-integration and symmetrization.
+        qsymmetry: bool, dict, or QSymmetryAnalyzer
+            QSymmetryAnalyzer, or bool to enable all/no symmetries,
+            or dict with which to create QSymmetryAnalyzer.
+            Disabling symmetries may be useful for debugging.
         integrationmode : str or None
             Integrator for the k-point integration.
             If == 'tetrahedron integration' then the kpoint integral is
@@ -190,8 +190,7 @@ class Chi0ComponentCalculator:
         self.blockcomm, self.kncomm = block_partition(
             self.context.comm, self.nblocks)
 
-        self.disable_point_group = disable_point_group
-        self.disable_time_reversal = disable_time_reversal
+        self.qsymmetry = QSymmetryAnalyzer.from_input(qsymmetry)
 
         # Set up integrator
         self.integrationmode = integrationmode
@@ -218,8 +217,7 @@ class Chi0ComponentCalculator:
         elif self.integrationmode == 'tetrahedron integration':
             self.context.print('Using integrator: TetrahedronIntegrator')
             cls = TetrahedronIntegrator
-            if not all([self.disable_point_group,
-                        self.disable_time_reversal]):
+            if not self.qsymmetry.disabled:
                 self.check_high_symmetry_ibz_kpts()
         else:
             raise ValueError(f'Integration mode "{self.integrationmode}"'
@@ -248,17 +246,17 @@ class Chi0ComponentCalculator:
                     'Please use find_high_symmetry_monkhorst_pack() from '
                     'gpaw.bztools to generate your k-point grid.')
 
-    def get_integration_domain(self, qpd, spins):
+    def get_integration_domain(self, q_c, spins):
         """Get integrator domain and prefactor for the integral."""
         for spin in spins:
             assert spin in range(self.gs.nspins)
         # The integration domain is determined by the following function
         # that reduces the integration domain to the irreducible zone
         # of the little group of q.
-        kpoints, analyzer = self.get_kpoints(
-            qpd, integrationmode=self.integrationmode)
+        symmetries, generator, kpoints = self.get_kpoints(
+            q_c, integrationmode=self.integrationmode)
 
-        domain = Domain(kpoints.bzk_kv, spins)
+        domain = Domain(kpoints.k_kv, spins)
 
         if self.integrationmode == 'tetrahedron integration':
             # If there are non-periodic directions it is possible that the
@@ -267,47 +265,38 @@ class Chi0ComponentCalculator:
             # integrated. We normalize by vol(BZ) / vol(domain) to make
             # sure that to fix this.
             domainvol = convex_hull_volume(
-                kpoints.bzk_kv) * analyzer.how_many_symmetries()
+                kpoints.k_kv) * generator.how_many_symmetries()
             bzvol = (2 * np.pi)**3 / self.gs.volume
             factor = bzvol / domainvol
         else:
             factor = 1
 
-        prefactor = (2 * factor * analyzer.how_many_symmetries() /
+        prefactor = (2 * factor * generator.how_many_symmetries() /
                      (self.gs.nspins * (2 * np.pi)**3))  # Remember prefactor
 
         if self.integrationmode is None:
             nbzkpts = self.gs.kd.nbzkpts
-            prefactor *= len(kpoints.bzk_kv) / nbzkpts
+            prefactor *= len(kpoints) / nbzkpts
 
-        return domain, analyzer, prefactor
+        return symmetries, generator, domain, prefactor
 
     @timer('Get kpoints')
-    def get_kpoints(self, qpd, integrationmode):
+    def get_kpoints(self, q_c, integrationmode):
         """Get the integration domain."""
-        analyzer = PWSymmetryAnalyzer(
-            self.gs.kpoints, qpd, self.context,
-            disable_point_group=self.disable_point_group,
-            disable_time_reversal=self.disable_time_reversal)
+        symmetries, generator = self.qsymmetry.analyze(
+            np.asarray(q_c), self.gs.kpoints, self.context)
 
         if integrationmode is None:
-            K_gK = analyzer.group_kpoints()
-            bzk_kc = np.array([self.gs.kd.bzk_kc[K_K[0]] for
-                               K_K in K_gK])
+            k_kc = generator.get_kpt_domain()
         elif integrationmode == 'tetrahedron integration':
-            bzk_kc = analyzer.get_reduced_kd(pbc_c=self.pbc).bzk_kc
-            if (~self.pbc).any():
-                bzk_kc = np.append(bzk_kc,
-                                   bzk_kc + (~self.pbc).astype(int),
-                                   axis=0)
+            k_kc = generator.get_tetrahedron_kpt_domain(
+                pbc_c=self.pbc, cell_cv=self.gs.gd.cell_cv)
+        kpoints = KPointDomain(k_kc, self.gs.gd.icell_cv)
 
-        from gpaw.response.kpoints import ResponseKPointGrid
-        kpoints = ResponseKPointGrid(self.gs.kd, qpd.gd.icell_cv, bzk_kc)
-        # Two illogical things here:
-        #  * Analyzer is for original kpoints, not those we just reduced
-        #  * The kpoints object has another bzk_kc array than self.gs.kd.
-        #    We could make a new kd, but I am not sure about ramifications.
-        return kpoints, analyzer
+        # In the future, we probably want to put enough functionality on the
+        # KPointDomain such that we don't need to also return the
+        # KPointDomainGenerator XXX
+        return symmetries, generator, kpoints
 
     def get_gs_info_string(self, tab=''):
         gs = self.gs

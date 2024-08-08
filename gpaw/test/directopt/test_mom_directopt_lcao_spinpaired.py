@@ -8,6 +8,7 @@ from gpaw.directmin.tools import excite
 
 
 @pytest.mark.mom
+@pytest.mark.do
 def test_mom_directopt_lcao_spinpaired(in_tmp_dir):
     atoms = Atoms('C2H4',
                   [[6.68748500e-01, 2.00680000e-04, 5.55800000e-05],
