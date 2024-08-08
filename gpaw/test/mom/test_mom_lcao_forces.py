@@ -54,6 +54,6 @@ def test_mom_lcao_forces(in_tmp_dir):
     f = np.sqrt(((F[1, :] - F[0, :])**2).sum()) * 0.5
     fnum = (E[0] - E[1]) / (2. * delta)  # central difference
 
-    print(fnum)
+    print(fnum, f)
     assert fnum == pytest.approx(11.52, abs=0.016)
     assert f == pytest.approx(fnum, abs=0.1)
