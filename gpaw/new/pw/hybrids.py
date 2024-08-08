@@ -162,37 +162,43 @@ class PWHybridHamiltonian(PWHamiltonian):
                 psit2_nR = psit1_nR
                 P2_ani = psi.P_ani
                 f2_n = psi.f_n
-            for n2, (psit2_R, out_G) in enumerate(zips(psit2_nR, Htpsit_nG)):
-                rhot_nR.data[:] = psit1_nR.data * psit2_R.data
-                fft(rhot_nR, rhot_nG, plan=self.plan)
-                A1 = 0
-                for a, Q_niL in Q_aniL.items():
-                    A2 = A1 + 9
-                    Q_nA[:, A1:A2] = P2_ani[a][n2] @ Q_niL
-                # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
-                mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
-                    1.0, rhot_nG.data.view(float))
-                for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
-                                                               rhot_nG,
-                                                               psi.f_n)):
-                    vrhot_G.data = rhot_G.data * self.v_G.data
-                    A_aL = self.ghat_aLG.integrate(vrhot_G)
-                    for a, A_L in A_aL.items():
-                        B_ani[a][n2] -= np.einsum(
-                            'L, ijL, j -> i',
-                            f1 * A_L, self.delta_aiiL[a], psi.P_ani[a][n1])
-                    e = f1 * f2_n[n2] * rhot_G.integrate(vrhot_G)
-                    evv -= 0.5 * e
-                    ekin += e
-                    rhot_G.data[:] = vrhot_G.data
-                ifft(rhot_nG, rhot_nR, plan=self.plan)
-                rhot_nR.data *= psit1_nR.data
-                fft(rhot_nR, rhot_nG, self.plan)
-                out_G.data -= rhot_nG.data.sum(0) * f1
+            inner()
+            if:
+                send Htpsit
+                receive Htpsit
 
         pt_aiG.add_to(Htpsit_nG, B_ani)
 
         return evv, evc, ekin
+
+    def inner(self):
+        for n2, (psit2_R, out_G) in enumerate(zips(psit2_nR, Htpsit_nG)):
+            rhot_nR.data[:] = psit1_nR.data * psit2_R.data
+            fft(rhot_nR, rhot_nG, plan=self.plan)
+            A1 = 0
+            for a, Q_niL in Q_aniL.items():
+                A2 = A1 + 9
+                Q_nA[:, A1:A2] = P2_ani[a][n2] @ Q_niL
+            # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
+            mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
+                1.0, rhot_nG.data.view(float))
+            for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
+                                                           rhot_nG,
+                                                           psi.f_n)):
+                vrhot_G.data = rhot_G.data * self.v_G.data
+                A_aL = self.ghat_aLG.integrate(vrhot_G)
+                for a, A_L in A_aL.items():
+                    B_ani[a][n2] -= np.einsum(
+                        'L, ijL, j -> i',
+                        f1 * A_L, self.delta_aiiL[a], psi.P_ani[a][n1])
+                e = f1 * f2_n[n2] * rhot_G.integrate(vrhot_G)
+                evv -= 0.5 * e
+                ekin += e
+                rhot_G.data[:] = vrhot_G.data
+            ifft(rhot_nG, rhot_nR, plan=self.plan)
+            rhot_nR.data *= psit1_nR.data
+            fft(rhot_nR, rhot_nG, self.plan)
+            out_G.data -= rhot_nG.data.sum(0) * f1
 
     def apply_other(self,
                     D_aii,
