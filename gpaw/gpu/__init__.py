@@ -69,8 +69,7 @@ else:
             # select GPU device (round-robin based on MPI rank)
             # if not set, all MPI ranks will use the same default device
             from gpaw.mpi import rank
-            device_id = rank % device_count
-            runtime.setDevice(device_id)
+            runtime.setDevice(rank % device_count)
 
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
