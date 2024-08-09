@@ -281,10 +281,10 @@ Interactive jobs can be run like this::
 
 Two-liner to run tests::
 
-  # Generate gpw files
-  srun -p small --nodes=1 --ntasks-per-node=1 -t 01:00:00 gpaw python -m pytest venv-gpaw-cpu/lib/python3.10/site-packages/gpaw/test/test_generate_gpwfiles.py -v --disable-pytest-warnings
+  # Generate gpw files to cache
+  srun -p small --nodes=1 --ntasks-per-node=1 --mem-per-cpu=4G -t 01:00:00 gpaw python -m pytest venv-gpaw-cpu/lib/python3.10/site-packages/gpaw/test/test_generate_gpwfiles.py -v -o cache_dir=$PWD/pytest_cache --disable-pytest-warnings
   # Wait and then submit tests
-  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun gpaw python -m pytest venv-gpaw-cpu/lib/python3.10/site-packages/gpaw/test/ -v --basetemp=$PWD/tmp/pytest-cpu-$n --disable-pytest-warnings"; done
+  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n --mem-per-cpu=4G -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun gpaw python -m pytest venv-gpaw-cpu/lib/python3.10/site-packages/gpaw/test/ -v -o cache_dir=$PWD/pytest_cache --basetemp=$PWD/tmp/pytest-cpu-$n --disable-pytest-warnings"; done
 
 
 Configuring MyQueue
