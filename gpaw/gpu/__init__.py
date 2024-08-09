@@ -51,24 +51,27 @@ else:
         is_hip = runtime.is_hip
         cupy_is_fake = False
 
+        # Check the number of devices
+        # Do not fail when calling `gpaw info` on a login node without GPUs
         try:
+            device_count = runtime.getDeviceCount()
+        except runtime.CUDARuntimeError as e:
+            # Likely no device present
+            if 'ErrorNoDevice' not in str(e):
+                # Raise error in case of some other error
+                raise e
+            device_count = 0
+
+        if device_count > 0:
             # select GPU device (round-robin based on MPI rank)
             # if not set, all MPI ranks will use the same default device
             from gpaw.mpi import rank
-            device_id = rank % cupy.cuda.runtime.getDeviceCount()
-            cupy.cuda.runtime.setDevice(device_id)
+            device_id = rank % device_count
+            runtime.setDevice(device_id)
 
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
             cgpaw.gpaw_gpu_init()
-
-        except runtime.CUDARuntimeError as e:
-            # Likely no device present
-            # This can happen when calling `gpaw info` on
-            # a login node without GPUs
-            if 'ErrorNoDevice' not in str(e):
-                # Raise error in case of some other error
-                raise e
 
     except ImportError:
         import gpaw.gpu.cpupy as cupy
