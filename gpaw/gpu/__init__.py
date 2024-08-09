@@ -13,6 +13,9 @@ cupy_is_fake = True
 is_hip = False
 """True if we are using HIP"""
 
+device_id = None
+"""Device id"""
+
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
     import gpaw.gpu.cpupyx as cupyx
@@ -72,6 +75,12 @@ else:
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
             cgpaw.gpaw_gpu_init()
+
+            # Generate a device id
+            import os
+            nodename = os.uname()[1]
+            bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
+            device_id = f'{nodename}:{bus_id}'
 
     except ImportError:
         import gpaw.gpu.cpupy as cupy
