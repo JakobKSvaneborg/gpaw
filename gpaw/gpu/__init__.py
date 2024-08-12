@@ -18,6 +18,10 @@ if TYPE_CHECKING:
     import gpaw.gpu.cpupyx as cupyx
 else:
     try:
+        import gpaw.cgpaw as cgpaw
+        if not hasattr(cgpaw, 'gpaw_gpu_init'):
+            raise ImportError
+
         import cupy
 
         # This import is to preload cublas
@@ -58,7 +62,6 @@ else:
         cupy.cuda.runtime.setDevice(device_id)
 
         # initialise C parameters and memory buffers
-        import gpaw.cgpaw as cgpaw
         cgpaw.gpaw_gpu_init()
 
     except ImportError:
