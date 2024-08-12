@@ -18,6 +18,7 @@ def test_mom_lcao_forces(in_tmp_dir):
                   [[0.5 * L, 0.5 * L, 0.5 * L - 0.5 * d],
                    [0.5 * L, 0.5 * L, 0.5 * L + 0.5 * d]])
     atoms.set_cell([L, L, L])
+    atoms.rotate(1, 'x', center=[0.5 * L, 0.5 * L, 0.5 * L])
 
     calc = GPAW(mode='lcao',
                 basis='dzp',
