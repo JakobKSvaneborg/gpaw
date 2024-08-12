@@ -142,9 +142,9 @@ def add_den_mat_term(erhoT_MM, dThetadR_vMM, F_av, indices, mya):
     #
     for a, M1, M2 in indices:
         if a in mya:
-            F_av[a, :] -= 2 * np.einsum('vmM, Mm -> v',
+            F_av[a, :] -= 2 * np.einsum('vmM, mM -> v',
                                         dThetadR_vMM[:, M1:M2],
-                                        erhoT_MM[:, M1:M2]).real
+                                        erhoT_MM[M1:M2]).real
 
 
 def add_den_mat_paw_term(b, dO_ii, P_Mi, dPdR_vMi, erhoT_MM, indices, F_av):
