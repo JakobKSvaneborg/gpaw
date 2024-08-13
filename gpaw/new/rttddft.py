@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
+from functools import partial
 from typing import Generator, NamedTuple
 
 import numpy as np
@@ -8,14 +9,14 @@ from numpy.linalg import solve
 
 from ase.units import Bohr, Hartree
 
-from gpaw.core.uniform_grid import UniformGridFunctions
+from gpaw.core.uniform_grid import UGArray
 from gpaw.external import ExternalPotential, ConstantElectricField
 from gpaw.typing import Vector
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.calculation import DFTState, DFTCalculation
 from gpaw.new.fd.builder import FDHamiltonian
-from gpaw.new.fd.pot_calc import UniformGridPotentialCalculator
+from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.lcao.hamiltonian import (HamiltonianMatrixCalculator,
@@ -72,7 +73,7 @@ class WaveFunctionKicker(ABC):
                  hamiltonian: Hamiltonian,
                  state: DFTState,
                  ext: ExternalPotential,
-                 pot_calc: UniformGridPotentialCalculator):
+                 pot_calc: FDPotentialCalculator):
         # XXX Maybe there is no point that this is separate
         # from WaveFunctionPropagator?
         raise NotImplementedError
@@ -108,7 +109,7 @@ class LCAONumpyKicker(WaveFunctionKicker):
                  hamiltonian: Hamiltonian,
                  state: DFTState,
                  ext: ExternalPotential,
-                 pot_calc: UniformGridPotentialCalculator):
+                 pot_calc: FDPotentialCalculator):
         assert isinstance(hamiltonian, LCAOHamiltonian)
         dm_operator_calc = hamiltonian.create_kick_matrix_calculator(
             state, ext, pot_calc)
@@ -155,8 +156,8 @@ class FDNumpyKicker(WaveFunctionKicker):
                  hamiltonian: Hamiltonian,
                  state: DFTState,
                  ext: ExternalPotential,
-                 pot_calc: UniformGridPotentialCalculator):
-        from gpaw.utilities import unpack
+                 pot_calc: FDPotentialCalculator):
+        from gpaw.utilities import unpack_hermitian
 
         assert isinstance(hamiltonian, FDHamiltonian)
         vext_r = pot_calc.vbar_r.new()
@@ -172,7 +173,7 @@ class FDNumpyKicker(WaveFunctionKicker):
         assert state.ibzwfs.ibz.bz.gamma_only
         setups_a = state.ibzwfs.wfs_qs[0][0].setups
 
-        dH_saii = [{a: unpack(setups_a[a].Delta_pL @ W_L)
+        dH_saii = [{a: unpack_hermitian(setups_a[a].Delta_pL @ W_L)
                     for (a, W_L) in W_aL.items()}
                    for s in range(nspins)]
 
@@ -183,7 +184,7 @@ class FDNumpyKicker(WaveFunctionKicker):
              wfs: WaveFunctions,
              nkicks: int):
         assert isinstance(wfs, PWFDWaveFunctions)
-        assert isinstance(wfs.psit_nX, UniformGridFunctions)
+        assert isinstance(wfs.psit_nX, UGArray)
 
         wfs.psit_nX.data += wfs.psit_nX.data * self.vext_R.data[None, ...]
         # TODO PAW stuff
@@ -205,7 +206,10 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         self.preconditioner = None
 
         self.hamiltonian = hamiltonian
-        self.vt_sR = state.potential.vt_sR
+        self.Ht = partial(hamiltonian.apply,
+                          state.potential.vt_sR,
+                          state.potential.dedtaut_sR,
+                          state.ibzwfs, state.density.D_asii)
 
         # XXX Ugly hack due to having reused the CG solver
         self._wfs: PWFDWaveFunctions | None = None
@@ -233,7 +237,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
                   wfs: WaveFunctions,
                   time_step: float):
         assert isinstance(wfs, PWFDWaveFunctions)
-        assert isinstance(wfs.psit_nX, UniformGridFunctions)
+        assert isinstance(wfs.psit_nX, UGArray)
         psit_nR = wfs.psit_nX
 
         self._time_step = time_step
@@ -289,7 +293,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
             the result ( S + i H dt/2 ) psi
 
         """
-        assert isinstance(self.wfs.psit_nX, UniformGridFunctions)
+        assert isinstance(self.wfs.psit_nX, UGArray)
 
         self.timer.start('Apply time-dependent operators')
         # Update the projector function overlap integrals
@@ -324,7 +328,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
     def apply_hamiltonian(self,
                           wfs: PWFDWaveFunctions,
-                          out_nR: UniformGridFunctions | None = None):
+                          out_nR: UGArray | None = None):
         """
         Apply the hamiltonian on wave functions
 
@@ -337,21 +341,20 @@ class FDNumpyPropagator(WaveFunctionPropagator):
             If None then the wave functions are overwritten (result
             is written into wfs.psit_nX)
         """
-        assert isinstance(wfs.psit_nX, UniformGridFunctions)
+        assert isinstance(wfs.psit_nX, UGArray)
 
         if out_nR is None:
             out_nR = wfs.psit_nX
         else:
             out_nR.data[:] = wfs.psit_nX.data
 
-        self.hamiltonian.apply(
-            self.vt_sR, wfs.psit_nX, out_nR, wfs.spin)
+        self.Ht(psit_nG=wfs.psit_nX, out=out_nR, spin=wfs.spin)
         self._wfs = wfs  # XXX temporary hack
 
     @staticmethod
     def apply_overlap_operator(
             wfs: PWFDWaveFunctions,
-            out_nR: UniformGridFunctions | None = None):
+            out_nR: UGArray | None = None):
         """
         Apply the overlap operator wave functions on the wave functions:
 
@@ -368,7 +371,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
             If None then the wave functions are overwritten (result
             is written into wfs.psit_nX)
         """
-        assert isinstance(wfs.psit_nX, UniformGridFunctions)
+        assert isinstance(wfs.psit_nX, UGArray)
 
         if out_nR is None:
             out_nR = wfs.psit_nX
@@ -376,14 +379,15 @@ class FDNumpyPropagator(WaveFunctionPropagator):
             out_nR.data[:] = wfs.psit_nX.data
 
         P2_ani = wfs.P_ani.new()
-        dS = wfs.setups.overlap_correction
-        dS(wfs.P_ani, out_ani=P2_ani)  # P2 is ΔO_ij @ P_nj
+        dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
+                                                    wfs.xp)
+        wfs.P_ani.block_diag_multiply(dS_aii, P2_ani)
         wfs.pt_aiX.add_to(out_nR, P2_ani)
 
     @staticmethod
     def apply_inverse_overlap_operator(
             wfs: PWFDWaveFunctions,
-            out_nR: UniformGridFunctions | None = None):
+            out_nR: UGArray | None = None):
         """
         Apply the approximate inverse overlap operator on the wave functions:
 
@@ -400,7 +404,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
             If None then the wave functions are overwritten (result
             is written into wfs.psit_nX)
         """
-        assert isinstance(wfs.psit_nX, UniformGridFunctions)
+        assert isinstance(wfs.psit_nX, UGArray)
 
         if out_nR is None:
             out_nR = wfs.psit_nX
@@ -451,7 +455,7 @@ class ECNAlgorithm(TDAlgorithm):
 
         # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
         state.potential, _ = pot_calc.calculate(
-            state.density, state.potential.vHt_x)
+            state.density, vHt_x=state.potential.vHt_x)
 
     def propagate(self,
                   time_step: float,
@@ -472,7 +476,7 @@ class ECNAlgorithm(TDAlgorithm):
 
         # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
         state.potential, _ = pot_calc.calculate(
-            state.density, state.potential.vHt_x)
+            state.density, vHt_x=state.potential.vHt_x)
 
 
 class RTTDDFTHistory:
@@ -590,7 +594,7 @@ class RTTDDFT:
         elif isinstance(hamiltonian, PWHamiltonian):
             raise NotImplementedError('PW TDDFT is not implemented')
         else:
-            raise ValueError(f'I don\'t know {hamiltonian} '
+            raise ValueError(f"I don\'t know {hamiltonian} "
                              f'({type(hamiltonian)})')
         # Dipole moment operators in each Cartesian direction
         # Only usable for LCAO
@@ -688,7 +692,7 @@ class RTTDDFT:
             else:
                 raise RuntimeError(f'Mode {self.mode} is unexpected')
 
-            assert isinstance(self.pot_calc, UniformGridPotentialCalculator)
+            assert isinstance(self.pot_calc, FDPotentialCalculator)
             wf_kicker = cls(self.hamiltonian, self.state, ext, self.pot_calc)
             self.kick_ext = ext
 
