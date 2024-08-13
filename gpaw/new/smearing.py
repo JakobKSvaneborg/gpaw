@@ -13,6 +13,7 @@ class OccupationNumberCalculator:
                  comms,
                  magmom_v,
                  ncomponents,
+                 nelectrons,
                  rcell):
         if dct is None:
             if pbc.any():
@@ -39,6 +40,10 @@ class OccupationNumberCalculator:
             parallel_layout=ParallelLayout(bd,
                                            comms['k'],
                                            comms['K']),
+            nbands=nbands,
+            nkpts=len(ibz),
+            nelectrons=nelectrons,
+            nspins=ncomponents % 3,
             fixed_magmom_value=magmom_v[2],
             rcell=rcell,
             monkhorst_pack_size=getattr(ibz.bz, 'size_c', None),

@@ -242,6 +242,7 @@ class DFTComponentsBuilder:
             self.communicators,
             self.initial_magmom_av.sum(0),
             self.ncomponents,
+            self.nelectrons,
             np.linalg.inv(self.atoms.cell.complete()).T)
 
     def create_hamiltonian_operator(self):
