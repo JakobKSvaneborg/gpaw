@@ -203,7 +203,8 @@ class PWHybridHamiltonian(PWHamiltonian):
             ifft(rhot_nG, rhot_nR, plan=self.plan)
             rhot_nR.data *= psi1.psit_nR.data
             fft(rhot_nR, rhot_nG, self.plan)
-            out_G.data -= rhot_nG.data.sum(0) * f1
+            # out_G.data -= rhot_nG.data.sum(0) * f1
+            out_G.data -= psi1.f_n @ rhot_nG.data
         return e
 
     def apply_other(self,
