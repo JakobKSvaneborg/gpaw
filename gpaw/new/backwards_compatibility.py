@@ -2,6 +2,7 @@ import numpy as np
 from functools import cached_property
 from ase import Atoms
 from ase.units import Bohr
+from types import SimpleNamespace
 
 from gpaw.band_descriptor import BandDescriptor
 from gpaw.kpt_descriptor import KPointDescriptor
@@ -41,6 +42,8 @@ class FakeWFS:
         self.dtype = ibzwfs.dtype
         wfs = ibzwfs.wfs_qs[0][0]
         self.pd = None
+        self.basis_functions = getattr(dft.scf_loop.hamiltonian,
+                                       'basis', None)
         if isinstance(wfs, PWFDWaveFunctions):
             if hasattr(wfs.psit_nX.desc, 'ecut'):
                 self.mode = 'pw'
@@ -52,6 +55,10 @@ class FakeWFS:
                 self.mode = 'fd'
         else:
             self.mode = 'lcao'
+            self.manytci = wfs.tci_derivatives.manytci
+            if self.basis_functions is not None:
+                self.ksl = SimpleNamespace(Mstart=self.basis_functions.Mstart,
+                                           Mstop=self.basis_functions.Mstop)
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
 
@@ -65,6 +72,9 @@ class FakeWFS:
         return psit_X.data
 
     def get_wave_function_array(self, n, k, s, realspace=True, periodic=False):
+        if self.mode == 'lcao':
+            assert not realspace
+            return self.kpt_qs[k][s].C_nM[n]
         assert realspace
         psit_X = self.kpt_qs[k][s].wfs.psit_nX[n]
         if self.mode == 'pw':
@@ -136,6 +146,7 @@ class KPT:
         else:
             self.C_nM = wfs.C_nM.data
             self.S_MM = wfs.S_MM.data
+            self.P_aMi = wfs.P_aMi
 
     @property
     def psit_nG(self):

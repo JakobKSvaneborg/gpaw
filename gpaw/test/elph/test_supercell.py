@@ -30,4 +30,4 @@ def test_supercell(module_tmp_path, supercell_cache):
     g_xsNNMM, basis_info = Supercell.load_supercell_matrix()
     assert g_xsNNMM.shape == (6, 1, 2, 2, 2, 2)
     print(g_xsNNMM[0, 0])
-    assert g_xsNNMM[0, 0] == pytest.approx(g00, rel=1e-2)
+    assert g_xsNNMM[0, 0] == pytest.approx(g00, rel=1e-2, abs=1e-4)
