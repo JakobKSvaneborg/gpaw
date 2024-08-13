@@ -5,7 +5,7 @@ from math import pi
 
 import numpy as np
 
-from gpaw.core import PWArray, PWDesc, UGDesc
+from gpaw.core import PWArray, PWDesc, UGDesc, UGArray
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.hybrids.paw import pawexxvv
@@ -43,6 +43,7 @@ class Psi:
     psit_nG: PWArray
     P_ani: AtomArrays
     f_n: Array1D | None = None
+    psit_nR: UGArray | None = None
 
     def empty(self, nbands):
         return Psi(self.psit_nG.desc.empty(dims=nbands),
@@ -157,7 +158,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             if p < comm.size // 2:
                 psi.send((comm.rank + p + 1) % comm.size)
                 psi2.receive((comm.rank - p - 1) % comm.size)
-            psit1_nR = ifft(psi.psit_nG, tmp1_nR, self.plan)
+            psi.psit_nR = ifft(psi.psit_nG, tmp1_nR, self.plan)
             if p == 0:
                 psi2 = psi
             e = self.inner(psi, psi2,
@@ -186,6 +187,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             for a, Q_niL in Q_aniL.items():
                 A2 = A1 + 9
                 Q_nA[:, A1:A2] = psi2.P_ani[a][n2] @ Q_niL
+                A1 = A2
             # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
             mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
                 1.0, rhot_nG.data.view(float))
