@@ -70,6 +70,10 @@ def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):
                                   rel_tol=rel_tol, abs_tol=abs_tol):
                 return False
     else:
+        if isinstance(inp1, str):
+            special = {'WS', 'type: WS reduced: False'}
+            if inp1 in special and inp2 in special:
+                return True
         if inp1 != inp2:
             return False
 
