@@ -64,7 +64,7 @@ def test_laser(gpw_files, in_tmp_dir, pulse):
 
 
 @pytest.mark.rttddft
-def test_custom(gpw_files):
+def test_custom(gpw_files, in_tmp_dir):
     gpw_fname = gpw_files['na2_tddft_dzp']
 
     class RandomPulse(Laser):

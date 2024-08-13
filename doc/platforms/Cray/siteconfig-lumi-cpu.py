@@ -1,4 +1,4 @@
-"""Custom GPAW siteconfig for LUMI-G."""
+"""Custom GPAW siteconfig for LUMI-C."""
 
 parallel_python_interpreter = True
 
@@ -31,15 +31,3 @@ scalapack = True
 libraries += ['xc']
 
 define_macros += [('GPAW_ASYNC', 1)]
-
-# hip
-gpu = True
-gpu_target = 'hip-amd'
-gpu_compiler = 'hipcc'
-gpu_include_dirs = []
-gpu_compile_args = [
-    '-g',
-    '-O3',
-    '--offload-arch=gfx90a',
-    ]
-libraries += ['amdhip64', 'hipblas']

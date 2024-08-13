@@ -11,13 +11,14 @@ include_dirs = []
 extra_compile_args = [
     '-g',
     '-O3',
-    '-fopenmp',
+    # '-fopenmp',  # disable openmp; see https://github.com/Lumi-supercomputer/LUMI-EasyBuild-contrib/pull/180
     '-fPIC',
     '-Wall',
     '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
+    '-Wno-unknown-pragmas',  # suppress warnings from disabled openmp
     '-Werror',
     ]
-extra_link_args = ['-fopenmp']
+# extra_link_args = ['-fopenmp']
 
 # FFTW
 fftw = True
@@ -31,6 +32,10 @@ scalapack = True
 libraries += ['xc']
 
 define_macros += [('GPAW_ASYNC', 1)]
+
+# ELPA
+elpa = True
+libraries += ['elpa']
 
 # hip
 gpu = True
