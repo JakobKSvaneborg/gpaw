@@ -57,8 +57,11 @@ Configuring your secret key
 For security reasons, all access to DTU computers require two-factor
 authentification.  In the case of the HPC installation, the two
 factors are your password and an encryption key (*SSH key*).  You get
-your secret SSH key as described in the document with your username
-and password.  Save it on your laptop.
+your secret SSH key by connecting to
+https://www.student.dtu.dk/~dccidmgr/CAMD24 then add your user name to
+the end of the URL and press enter.  You will now be asked to
+authenticate with username and password, when you have done that
+right-click on the link to save the file.  Save it on your laptop.
 
 You now need to install the key so it is used automatically.  This unfortunately
 involves editing a configuration file in a hidden folder, which
@@ -88,16 +91,15 @@ into this hidden folder.  Then, right-click on the file named
 stuff or it may be empty.  Add the following to the end of the file
 (after a blank line, if there is already stuff in the file)::
 
-  Host *.gbar.dtu.dk
+  Host *.gbar.dtu.dk *.hpc.dtu.dk
       User XXXXXXXX
       IdentityFile ~/.ssh/YYYYYYY
       ForwardX11 yes
       ForwardX11Timeout 36000
 
 where XXXXXXX should be replaced with your DTU user name, and YYYYYYY
-with the name of the file containing your secret SSH key (there are
-two files, you should give the name of the one that does **NOT**  end
-in .pub).  Save the config file.
+with the name of the file containing your secret SSH key (they may be
+the same).  Save the config file.
 
 Finally, you need to make sure your key file is not readable by other
 users on your computer - even if you are the only user, the SSH
