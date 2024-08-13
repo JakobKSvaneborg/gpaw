@@ -56,8 +56,9 @@ class FakeWFS:
         else:
             self.mode = 'lcao'
             self.manytci = wfs.tci_derivatives.manytci
-            self.ksl = SimpleNamespace(Mstart=self.basis_functions.Mstart,
-                                       Mstop=self.basis_functions.Mstop)
+            if self.basis_functions is not None:
+                self.ksl = SimpleNamespace(Mstart=self.basis_functions.Mstart,
+                                           Mstop=self.basis_functions.Mstop)
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
 
