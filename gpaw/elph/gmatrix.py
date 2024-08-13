@@ -23,15 +23,15 @@ displacements. The implementation supports calculations of the el-ph coupling
 in both finite and periodic systems, i.e. expressed in a basis of molecular
 orbitals or Bloch states.
 """
-import numpy as np
+import sys
 from typing import Optional
 
+import ase.units as units
+import numpy as np
 from ase import Atoms
 from ase.phonons import Phonons
-import ase.units as units
 from ase.utils.filecache import MultiFileJSONCache
-from ase.utils.timing import timer, Timer
-
+from ase.utils.timing import Timer, timer
 from gpaw.calculator import GPAW
 from gpaw.mpi import world
 from gpaw.typing import ArrayND
@@ -330,7 +330,11 @@ class ElectronPhononMatrix:
 
     def __del__(self):
         if world.rank == 0:
-            self.timer.write()
+            try:
+                self.timer.write()
+            except ValueError:
+                pass
+
 
 #   def lcao_matrix(self, u_l, omega_l):
 #         """Calculate the el-ph coupling in the electronic LCAO basis.

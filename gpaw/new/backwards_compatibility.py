@@ -2,6 +2,7 @@ import numpy as np
 from functools import cached_property
 from ase import Atoms
 from ase.units import Bohr
+from types import SimpleNamespace
 
 from gpaw.band_descriptor import BandDescriptor
 from gpaw.kpt_descriptor import KPointDescriptor
@@ -41,6 +42,8 @@ class FakeWFS:
         self.dtype = ibzwfs.dtype
         wfs = ibzwfs.wfs_qs[0][0]
         self.pd = None
+        self.basis_functions = getattr(dft.scf_loop.hamiltonian,
+                                       'basis', None)
         if isinstance(wfs, PWFDWaveFunctions):
             if hasattr(wfs.psit_nX.desc, 'ecut'):
                 self.mode = 'pw'
@@ -53,10 +56,10 @@ class FakeWFS:
         else:
             self.mode = 'lcao'
             self.manytci = wfs.tci_derivatives.manytci
+            self.ksl = SimpleNamespace(Mstart=self.basis_functions.Mstart,
+                                       Mstop=self.basis_functions.Mstop)
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
-        self.basis_functions = getattr(dft.scf_loop.hamiltonian,
-                                       'basis', None)
 
     def _get_wave_function_array(self, u, n, realspace=True, periodic=False):
         assert realspace and not periodic
