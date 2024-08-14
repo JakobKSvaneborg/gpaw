@@ -53,7 +53,7 @@ The last box is labelled "SSH agents", select "Use internal SSH agent
 MobAgent".
 
 Click the Plus sign next to the box labelled "Load the following keys
-at MobAgent startup" and then select the key with your private SSH
+at MobAgent startup" and then select the file with your private SSH
 key.  You have to select "All files" in the file type menu to see it.
 The file name will be your user name, perhaps with ``.txt`` added.
 Then press OK; MobaXterm will then need to restart.
