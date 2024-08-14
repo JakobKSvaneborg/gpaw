@@ -267,8 +267,6 @@ from ase.io import Trajectory
 
 sf = StrainFilter(gra, mask=[1, 1, 1, 0, 0, 0])
 opt = BFGS(sf, trajectory=calcname + '.traj')
-# traj = Trajectory(calcname + '.traj', 'w', gra)
-# opt.attach(traj)
 opt.run(fmax=0.01)
 
 
@@ -346,8 +344,6 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
 
     sf = StrainFilter(gra, mask=[1, 1, 1, 0, 0, 0])
     opt = BFGS(sf, trajectory=f'graphite-{xc}.traj')
-    # traj = Trajectory(f'graphite-{xc}.traj', 'w', gra)
-    # opt.attach(traj)
     opt.run(fmax=0.01)
 
 
