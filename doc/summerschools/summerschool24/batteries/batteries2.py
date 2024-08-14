@@ -142,7 +142,6 @@ For better convergence of calculations you should specify initial magnetic momen
 """
 
 # %%
-# Teacher:
 for atom in fepo4:
     if atom.symbol == 'Fe':
         atom.magmom = 5.0  # student: atom.magmom = ?
@@ -166,7 +165,9 @@ write('fepo4.traj', fepo4)
 
 # %%
 """
-For this calculation you will use the BEEF-vdW functional developed by [Wellendorff et al.](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.85.235149) Although there are better alternatives for calculating the energy of bulk systems, the BEEF-vdW has a build-in ensemble for error estimation of calculated energies. In the set-up of this calculator you will append relevant keyword values into a dictionary, which is inputted the calculator object.
+For this calculation you will use the BEEF-vdW functional developed by [Wellendorff et al.](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.85.235149) Although there are better alternatives for calculating the energy of bulk systems, the BEEF-vdW has a build-in ensemble for error estimation of calculated energies using a statistical approach. An ensemble is essentially a collection of different functionals that are used to sample the space of possible solutions. By considering this collection one can obtain an assessment of the uncertainty associated with the functional. This is particularly useful in DFT calculations where the exact functional form is not known, and different approximations can lead to varying results.
+
+In the set-up of this calculator you will append relevant keyword values into a dictionary, which is fed to the calculator object.
 """
 
 # %%
@@ -194,7 +195,7 @@ params_GPAW['mixer']       = Mixer(0.1, 5, weight=100.0)  # The mixer used durin
 
 # %%
 """
-DFT suffers from a so-called self-interaction error. An electron interacts with the system electron density, to which it contributes itself. The error is most pronounced for highly localized orbitals. [Hubbard U correction](https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/energetics/hubbardu/hubbardu.html) is used to mitigate the self-interaction error of the highly localized *3d*-electrons of Fe. This is done in GPAW using the `setups` keyword.
+DFT suffers from the self-interaction error. An electron interacts with the system electron density, to which it contributes itself. The error is most pronounced for highly localized orbitals. [Hubbard U correction](https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/energetics/hubbardu/hubbardu.html) is used to mitigate the self-interaction error of the highly localized *3d*-electrons of Fe. This is done in GPAW using the `setups` keyword.
 """
 
 # %%
