@@ -45,10 +45,26 @@ class Psi:
     f_n: Array1D | None = None
     psit_nR: UGArray | None = None
 
-    def empty(self, nbands):
-        return Psi(self.psit_nG.desc.empty(dims=nbands),
-                   self.P_ani.layout.empty(dims=nbands),
-                   np.empty(nbands))
+    def empty(self):
+        return Psi(self.psit_nG.new(),
+                   self.P_ani.new(),
+                   np.empty_like(self.f_n))
+
+    def send(self, rank):
+        comm = self.psit_nG.comm
+        self.requests = [comm.send(self.psit_nG.data, rank, block=False),
+                         comm.send(self.P_ani.data, rank, block=False),
+                         comm.send(self.f_n, rank, block=False)]
+
+    def receive(self, rank):
+        comm = self.psit_nG.comm
+        self.requests = [comm.receive(self.psit_nG.data, rank, block=False),
+                         comm.receive(self.P_ani.data, rank, block=False),
+                         comm.receive(self.f_n, rank, block=False)]
+
+    def wait(self):
+        comm = self.psit_nG.comm
+        comm.waitall(self.requests)
 
 
 class PWHybridHamiltonian(PWHamiltonian):
@@ -116,7 +132,8 @@ class PWHybridHamiltonian(PWHamiltonian):
         # P1_ani, f1_n and D_aii) to another set of wave functions
         # (psit2_nG):
         psi2 = Psi(psit2_nG, pt_aiG.integrate(psit2_nG))
-        self.apply2(D_aii, pt_aiG, psi1, psi2, Htpsit2_nG)
+        # self.apply2(D_aii, pt_aiG, psi1, psi2, Htpsit2_nG)
+        self.apply1(D_aii, pt_aiG, psi1, psi2, Htpsit2_nG)
 
     def apply1(self,
                D_aii,
@@ -125,18 +142,17 @@ class PWHybridHamiltonian(PWHamiltonian):
                psi2: Psi,
                Htpsit_nG: PWArray) -> tuple[float, float, float]:
         comm = Htpsit_nG.comm
-        mynbands = len(Htpsit_nG)
+        mynbands = Htpsit_nG.mydims[0]
         same = psi1 is psi2
 
         evv = 0.0
         evc = 0.0
         ekin = 0.0
-        B2_ani = {}
+        V_aii = {}
         for a, D_ii in D_aii.items():
             VV_ii = pawexxvv(self.VV_app[a], D_ii)
             VC_ii = self.VC_aii[a]
-            B2_ni = psi2.P_ani[a] @ (-VC_ii - 2 * VV_ii)
-            B2_ani[a] = B2_ni
+            V_aii[a] = -VC_ii - 2 * VV_ii
             if same:
                 ec = (D_ii * VC_ii).sum()
                 ev = (D_ii * VV_ii).sum()
@@ -149,38 +165,56 @@ class PWHybridHamiltonian(PWHamiltonian):
                                 delta_iiL, psi1.P_ani[a])
                    for a, delta_iiL in enumerate(self.delta_aiiL)}
 
-        tmp1_nR = self.grid.empty(mynbands)
+        psi1.psit_nR = self.grid.empty(mynbands)
         rhot_nR = self.grid.empty(mynbands)
         rhot_nG = self.pw.empty(mynbands)
         vrhot_G = self.pw.empty()
 
-        if same:
-            psi = psi1.empty(nbands=self.pw.maxmysize)
-            for p in range(comm.size // 2 + 1):
-                if p < comm.size // 2:
-                    psi.send((comm.rank + p + 1) % comm.size)
-                    psi2.receive((comm.rank - p - 1) % comm.size)
-                psi1.psit_nR = ifft(psi1.psit_nG, tmp1_nR, self.plan)
-                e = self.inner(psi1, psi2,
-                               Q1_aniL, Q_nA,
-                               rhot_nG, rhot_nR, vrhot_G,
-                               Htpsit_nG, B2_ani)
-                evv -= 0.5 * e
-                ekin += e
-                if 0:
-                    Htpsit_nG.send
-                    # receive Htpsit
+        if 1:  # same:
+            for p in range(comm.size):  # (comm.size // 2 + 1):
+                if p < comm.size - 1:
+                    # print(comm.rank, '->', (comm.rank + p + 1) % comm.size)
+                    psi1.send((comm.rank + p + 1) % comm.size)
+                    if p == 0:
+                        psi = psi1.empty()
+                    # print(comm.rank, '<-', (comm.rank + p - 1) % comm.size)
+                    psi.receive((comm.rank - p - 1) % comm.size)
+                if p == 0:
+                    ifft(psi1.psit_nG, psi1.psit_nR, self.plan)
+                e, B_ani = self.inner(psi1, psi2,
+                                      Q1_aniL, Q_nA,
+                                      rhot_nG, rhot_nR, vrhot_G,
+                                      Htpsit_nG, V_aii)
+                if same:
+                    evv -= 0.5 * e
+                    ekin += e
+                print(comm.rank, B_ani)
+                pt_aiG.add_to(Htpsit_nG, B_ani)
+                if p < comm.size - 1:
+                    psi.wait()
+                    psi1.wait()
+                    psi2 = psi
 
-        pt_aiG.add_to(Htpsit_nG, B2_ani)
-
+        1 / 0
         return evv, evc, ekin
 
     def inner(self, psi1, psi2,
               Q1_aniL, Q_nA,
               rhot_nG, rhot_nR, vrhot_G,
-              Htpsit_nG, B2_ani):
+              Htpsit_nG, V_aii):
         e = 0.0
-        for n2, (psit2_R, out_G) in enumerate(zips(psi2.psit_nR, Htpsit_nG)):
+        B_ani = {}
+        for a, V_ii in V_aii.items():
+            B_ni = psi2.P_ani[a] @ V_ii
+            B_ani[a] = B_ni
+
+        if psi2.psit_nR is None:
+            psit2_R = rhot_nR.desc.empty()
+        for n2, out_G in enumerate(Htpsit_nG):
+            if psi2.psit_nR is None:
+                psi2.psit_nG[n2].ifft(out=psit2_R)
+            else:
+                psit2_R = psi2.psit_nR[n2]
             rhot_nR.data[:] = psi1.psit_nR.data * psit2_R.data
             fft(rhot_nR, rhot_nG, plan=self.plan)
             A1 = 0
@@ -197,62 +231,15 @@ class PWHybridHamiltonian(PWHamiltonian):
                 vrhot_G.data = rhot_G.data * self.v_G.data
                 A1_aL = self.ghat_aLG.integrate(vrhot_G)
                 for a, A1_L in A1_aL.items():
-                    B2_ani[a][n2] -= Q1_aniL[a][n1] @ (f1 * A1_L)
-                e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G)
+                    B_ani[a][n2] -= Q1_aniL[a][n1] @ (f1 * A1_L)
+                if psi2.f_n is not None:
+                    e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G)
                 rhot_G.data[:] = vrhot_G.data
             ifft(rhot_nG, rhot_nR, plan=self.plan)
             rhot_nR.data *= psi1.psit_nR.data
             fft(rhot_nR, rhot_nG, self.plan)
             out_G.data -= psi1.f_n @ rhot_nG.data
-        return e
-
-    def apply2(self,
-               D_aii,
-               pt_aiG,
-               psi1: Psi,
-               psi2: Psi,
-               Htpsit2_nG: PWArray) -> None:
-        # n1 = len(psit1_nG)
-        # n2 = len(psit1_nG)
-
-        # psit1_R = self.tmp1_nR[:n1]...grid.empty()
-        psit1_R = self.grid.empty()
-        psit2_R = self.grid.empty()
-        rhot_R = self.grid.empty()
-        rhot_G = self.pw.empty()
-
-        B_ani = {}
-        for a, D_ii in D_aii.items():
-            VV_ii = pawexxvv(self.VV_app[a], D_ii)
-            VC_ii = self.VC_aii[a]
-            B_ni = psi2.P_ani[a] @ (-VC_ii - 2 * VV_ii)
-            B_ani[a] = B_ni
-
-        for n2, (psit2_G, out_G) in enumerate(zips(psi2.psit_nG, Htpsit2_nG)):
-            psit2_G.ifft(out=psit2_R, plan=self.plan)
-
-            for n1, (psit1_G, f1) in enumerate(zips(psi1.psit_nG, psi1.f_n)):
-                psit1_G.ifft(out=psit1_R, plan=self.plan)
-                rhot_R.data[:] = psit1_R.data * psit2_R.data
-                rhot_R.fft(out=rhot_G, plan=self.plan)
-                Q_aL = {a: np.einsum('i, ijL, j -> L',
-                                     psi1.P_ani[a][n1], delta_iiL,
-                                     psi2.P_ani[a][n2])
-                        for a, delta_iiL in enumerate(self.delta_aiiL)}
-                self.ghat_aLG.add_to(rhot_G, Q_aL)
-                rhot_G.data *= self.v_G.data
-                A_aL = self.ghat_aLG.integrate(rhot_G)
-                rhot_G.ifft(out=rhot_R, plan=self.plan)
-                rhot_R.data *= psit1_R.data
-                rhot_R.fft(out=rhot_G, plan=self.plan)
-                out_G.data -= rhot_G.data * f1
-
-                for a, A_L in A_aL.items():
-                    B_ani[a][n2] -= np.einsum(
-                        'L, ijL, j -> i',
-                        f1 * A_L, self.delta_aiiL[a], psi1.P_ani[a][n1])
-
-        pt_aiG.add_to(Htpsit2_nG, B_ani)
+        return e, B_ani
 
 
 def ifft(psit_nG, out_nR, plan):
