@@ -263,7 +263,6 @@ Then we optimize the unit cell of the structure. We will take advantage of the [
 # %%
 from ase.filters import StrainFilter
 from ase.optimize.bfgs import BFGS
-from ase.io import Trajectory
 
 sf = StrainFilter(gra, mask=[1, 1, 1, 0, 0, 0])
 opt = BFGS(sf, trajectory=calcname + '.traj')
@@ -321,7 +320,6 @@ from ase.lattice.hexagonal import Graphite
 from ase.calculators.dftd3 import DFTD3
 from ase.filters import StrainFilter
 from ase.optimize.bfgs import BFGS
-from ase.io import Trajectory
 
 ccdist = 1.41
 layerdist = 3.21
@@ -608,9 +606,7 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
     Li_gra.calc = calc  # Connect system and calculator
 
     sf = StrainFilter(Li_gra, mask=[1, 1, 1, 0, 0, 0])
-    # traj = Trajectory(calcname + '.traj', 'w', Li_gra)
     opt = BFGS(sf, trajectory=calcname + '.traj')
-    # opt.attach(traj)
     opt.run(fmax=0.01)
 
 # %%
