@@ -306,9 +306,9 @@ B. Stay in the notebook and submit the calculations using some commands we will 
 
 # %%
 """
-You need to make a full working script in a cell *that does not depend on variables defined in any other cells*. Do that in the cell below. Once you are done, run it for a few seconds to make sure there is no error, then stop it by `interrupt the kernel`. This will give you an error message, ignore that and move on, we will submit the calculation in the next cell.
+You need to make a full working script in a cell **that does not depend on variables defined in any other cells**. Do that in the cell below. Once you are done, run it for a few seconds to make sure there is no error, then stop it by `interrupt the kernel`. This will give you an error message, ignore that and move on, we will submit the calculation in the next cell.
 
-*Note* the line `#%%writefile graphite_LDA.py` in the next cell.  If you remove the `#` symbol and execute the cell the script will not execute, instead the contents of the cell will be written to a file that you can use submit to the queue, see the following cell on how to submit.
+**Note** the line `#%%writefile graphite_LDA.py` in the next cell.  If you remove the `#` symbol and execute the cell the script will not execute, instead the contents of the cell will be written to a file that you can use submit to the queue, see the following cell on how to submit.
 """
 
 # %%
