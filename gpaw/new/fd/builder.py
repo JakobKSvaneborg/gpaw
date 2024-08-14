@@ -4,6 +4,7 @@ import numpy as np
 from gpaw.core import UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.uniform_grid import UGArray
+from gpaw.external import ExternalPotential
 from gpaw.fd_operators import Gradient, Laplace
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
@@ -175,3 +176,32 @@ class FDHamiltonian(Hamiltonian):
             pc(residuals.data, kpt, out=out.data)
 
         return apply
+
+
+class FDKickHamiltonian(FDHamiltonian):
+
+    def __init__(self,
+                 grid,
+                 ext: ExternalPotential,
+                 pot_calc: FDPotentialCalculator,
+                 **kwargs):
+        """ Factory class for creating a Hamiltonian-like object
+        representing a potential kick """
+        self.vext_R = grid.empty()
+        if ext.name != 'ConstantElectricField':
+            raise NotImplementedError
+
+        r_Rv = grid.xyz()
+        self.vext_R.data[:] = np.einsum('xyzv,v->xyz', r_Rv, ext.field_v)
+
+    def apply_local_potential(self,
+                              vt_R: UGArray,
+                              psit_nR: XArray,
+                              out: XArray,
+                              ) -> None:
+        assert isinstance(psit_nR, UGArray)
+        assert isinstance(out, UGArray)
+        # The supplied potential is ignored.
+        # We are kicking with the potential stored by the init
+        for p, o in zips(psit_nR.data, out.data):
+            o += p * self.vext_R.data

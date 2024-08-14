@@ -15,11 +15,12 @@ from gpaw.typing import Vector
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.calculation import DFTState, DFTCalculation
-from gpaw.new.fd.builder import FDHamiltonian
-from gpaw.new.fd.pot_calc import FDPotentialCalculator
+from gpaw.new.fd.builder import FDHamiltonian, FDKickHamiltonian
+# from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.lcao.hamiltonian import (HamiltonianMatrixCalculator,
+                                       LCAOKickHamiltonian,
                                        LCAOHamiltonian)
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
@@ -33,17 +34,45 @@ from gpaw.utilities.timing import nulltimer
 
 class TDAlgorithm:
 
-    def kick(self,
-             state: DFTState,
-             pot_calc: PotentialCalculator,
-             wf_kicker: WaveFunctionKicker):
-        raise NotImplementedError()
-
     def propagate(self,
                   time_step: float,
                   state: DFTState,
                   pot_calc: PotentialCalculator,
                   wf_propagator: WaveFunctionPropagator):
+        """ One propagation step, i.e.
+
+        ::
+
+                                 0+
+                     ^        -1 /                  ^        -1
+          U(0+, 0) = T exp[-iS   | δ(τ) H(r) dτ ] = T exp[-iS  H(r)]
+                                 /
+                                 0
+
+        (1) Calculate propagator U[H(t)]
+        (2) Update wavefunctions ψ_n(t+dt) ← U[H(t)] ψ_n(t)
+        (3) Update density and hamiltonian H(t+dt)
+        """
+        self.propagate_wfs(time_step, state, pot_calc, wf_propagator)
+        self.update_time_dependent_operators(state, pot_calc)
+
+    def update_time_dependent_operators(self,
+                                        state: DFTState,
+                                        pot_calc: PotentialCalculator):
+
+        # Update density
+        state.density.update(state.ibzwfs)
+
+        # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
+        state.potential, _ = pot_calc.calculate(
+            state.density, state.ibzwfs, vHt_x=state.potential.vHt_x)
+        print('potential:', state.potential.vHt_x.data[50:55, 45, 45])
+
+    def propagate_wfs(self,
+                      time_step: float,
+                      state: DFTState,
+                      pot_calc: PotentialCalculator,
+                      wf_propagator: WaveFunctionPropagator):
         raise NotImplementedError()
 
     def get_description(self):
@@ -58,30 +87,6 @@ def propagate_wave_functions_numpy(source_C_nM: np.ndarray,
     SjH_MM = S_MM + (0.5j * dt) * H_MM
     target_C_nM[:] = source_C_nM @ SjH_MM.conj().T
     target_C_nM[:] = solve(SjH_MM.T, target_C_nM.T).T
-
-
-class WaveFunctionKicker(ABC):
-    """
-    Takes care about applying delta-kick to wave functions
-
-    Implementations are specific to parallelization scheme (Numpy) and
-    type of wave functions (LCAO/FD)
-
-    """
-
-    def __init__(self,
-                 hamiltonian: Hamiltonian,
-                 state: DFTState,
-                 ext: ExternalPotential,
-                 pot_calc: FDPotentialCalculator):
-        # XXX Maybe there is no point that this is separate
-        # from WaveFunctionPropagator?
-        raise NotImplementedError
-
-    def kick(self,
-             wfs: WaveFunctions,
-             nkicks: int):
-        raise NotImplementedError
 
 
 class WaveFunctionPropagator(ABC):
@@ -103,32 +108,6 @@ class WaveFunctionPropagator(ABC):
         raise NotImplementedError
 
 
-class LCAONumpyKicker(WaveFunctionKicker):
-
-    def __init__(self,
-                 hamiltonian: Hamiltonian,
-                 state: DFTState,
-                 ext: ExternalPotential,
-                 pot_calc: FDPotentialCalculator):
-        assert isinstance(hamiltonian, LCAOHamiltonian)
-        dm_operator_calc = hamiltonian.create_kick_matrix_calculator(
-            state, ext, pot_calc)
-        self.dm_calc = dm_operator_calc
-
-    def kick(self,
-             wfs: WaveFunctions,
-             nkicks: int):
-        assert isinstance(wfs, LCAOWaveFunctions)
-        V_MM = self.dm_calc.calculate_matrix(wfs)
-
-        # Phi_n <- U(0+, 0) Phi_n
-        nkicks = 10
-        for i in range(nkicks):
-            propagate_wave_functions_numpy(wfs.C_nM.data, wfs.C_nM.data,
-                                           wfs.S_MM.data,
-                                           V_MM.data, 1 / nkicks)
-
-
 class LCAONumpyPropagator(WaveFunctionPropagator):
 
     def __init__(self,
@@ -148,46 +127,6 @@ class LCAONumpyPropagator(WaveFunctionPropagator):
         propagate_wave_functions_numpy(wfs.C_nM.data, wfs.C_nM.data,
                                        wfs.S_MM.data,
                                        H_MM.data, time_step)
-
-
-class FDNumpyKicker(WaveFunctionKicker):
-
-    def __init__(self,
-                 hamiltonian: Hamiltonian,
-                 state: DFTState,
-                 ext: ExternalPotential,
-                 pot_calc: FDPotentialCalculator):
-        from gpaw.utilities import unpack_hermitian
-
-        assert isinstance(hamiltonian, FDHamiltonian)
-        vext_r = pot_calc.vbar_r.new()
-        finegd = vext_r.desc._gd
-
-        vext_r.data = ext.get_potential(finegd)
-        vext_R = pot_calc.restrict(vext_r)
-
-        nspins = state.ibzwfs.nspins
-
-        W_aL = pot_calc.ghat_aLr.integrate(vext_r)
-
-        assert state.ibzwfs.ibz.bz.gamma_only
-        setups_a = state.ibzwfs.wfs_qs[0][0].setups
-
-        dH_saii = [{a: unpack_hermitian(setups_a[a].Delta_pL @ W_L)
-                    for (a, W_L) in W_aL.items()}
-                   for s in range(nspins)]
-
-        self.vext_R = vext_R
-        self.dH_saii = dH_saii
-
-    def kick(self,
-             wfs: WaveFunctions,
-             nkicks: int):
-        assert isinstance(wfs, PWFDWaveFunctions)
-        assert isinstance(wfs.psit_nX, UGArray)
-
-        wfs.psit_nX.data += wfs.psit_nX.data * self.vext_R.data[None, ...]
-        # TODO PAW stuff
 
 
 class FDNumpyPropagator(WaveFunctionPropagator):
@@ -419,64 +358,13 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
 class ECNAlgorithm(TDAlgorithm):
 
-    def kick(self,
-             state: DFTState,
-             pot_calc: PotentialCalculator,
-             wf_kicker: WaveFunctionKicker):
-        """Propagate wavefunctions by delta-kick.
-
-        ::
-
-                                 0+
-                     ^        -1 /                     ^        -1
-          U(0+, 0) = T exp[-iS   | δ(τ) V   (r) dτ ] = T exp[-iS  V   (r)]
-                                 /       ext                       ext
-                                 0
-
-        (1) Calculate propagator U(0+, 0)
-        (2) Update wavefunctions ψ_n(0+) ← U(0+, 0) ψ_n(0)
-        (3) Update density and hamiltonian H(0+)
-
-        Parameters
-        ----------
-        state
-            Current state of the wave functions, that is to be updated
-        pot_calc
-            The potential calculator
-        wf_kicker
-            Object that describes how to kick. Contains the dipole moment
-            operator and a field strength
-        """
-        for wfs in state.ibzwfs:
-            wf_kicker.kick(wfs, 10)
-
-        # Update density
-        state.density.update(state.ibzwfs)
-
-        # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
-        state.potential, _ = pot_calc.calculate(
-            state.density, vHt_x=state.potential.vHt_x)
-
-    def propagate(self,
-                  time_step: float,
-                  state: DFTState,
-                  pot_calc: PotentialCalculator,
-                  wf_propagator: WaveFunctionPropagator):
-        """ One explicit Crank-Nicolson propagation step, i.e.
-
-        (1) Calculate propagator U[H(t)]
-        (2) Update wavefunctions ψ_n(t+dt) ← U[H(t)] ψ_n(t)
-        (3) Update density and hamiltonian H(t+dt)
-        """
+    def propagate_wfs(self,
+                      time_step: float,
+                      state: DFTState,
+                      pot_calc: PotentialCalculator,
+                      wf_propagator: WaveFunctionPropagator):
         for wfs in state.ibzwfs:
             wf_propagator.propagate(wfs, time_step)
-
-        # Update density
-        state.density.update(state.ibzwfs)
-
-        # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
-        state.potential, _ = pot_calc.calculate(
-            state.density, state.ibzwfs, vHt_x=state.potential.vHt_x)
 
 
 class RTTDDFTHistory:
@@ -685,23 +573,22 @@ class RTTDDFT:
         with self.timer('Kick'):
             self.log('----  Applying kick')
             self.log(f'----  {ext}')
-
-            cls: type[WaveFunctionKicker]
-            if self.mode == 'lcao':
-                cls = LCAONumpyKicker
-            elif self.mode == 'fd':
-                cls = FDNumpyKicker
-            else:
-                raise RuntimeError(f'Mode {self.mode} is unexpected')
-
-            assert isinstance(self.pot_calc, FDPotentialCalculator)
-            wf_kicker = cls(self.hamiltonian, self.state, ext, self.pot_calc)
             self.kick_ext = ext
 
-            # Propagate kick
-            self.td_algorithm.kick(state=self.state,
-                                   pot_calc=self.pot_calc,
-                                   wf_kicker=wf_kicker)
+            # For the kick, the propagator is always ECN
+            td_algorithm = ECNAlgorithm()
+            wf_propagator = self.kick_propagator(ext)
+
+            # assert isinstance(self.pot_calc, FDPotentialCalculator)
+            nkicks = 10
+            for l in range(nkicks):
+                td_algorithm.propagate_wfs(1 / nkicks,
+                                           state=self.state,
+                                           pot_calc=self.pot_calc,
+                                           wf_propagator=wf_propagator)
+            td_algorithm.update_time_dependent_operators(self.state,
+                                                         self.pot_calc)
+
             dipolemoment_xv = [
                 self.calculate_dipole_moment(wfs)  # type: ignore
                 for wfs in self.state.ibzwfs]
@@ -711,6 +598,49 @@ class RTTDDFT:
                                    dipolemoment=dipolemoment_v,
                                    norm=norm)
             return result
+
+    @property
+    def _wf_propagator_class(self) -> type[WaveFunctionPropagator]:
+        cls: type[WaveFunctionPropagator]
+        if self.mode == 'lcao':
+            cls = LCAONumpyPropagator
+        elif self.mode == 'fd':
+            cls = FDNumpyPropagator
+        else:
+            raise RuntimeError(f'Mode {self.mode} is unexpected')
+        return cls
+
+    def wf_propagator(self) -> WaveFunctionPropagator:
+        """ Wave function propagator
+
+        Corresponding to the mode and type of parallelization
+        """
+        return self._wf_propagator_class(self.hamiltonian, self.state)
+
+    def kick_propagator(self,
+                        ext: ExternalPotential) -> WaveFunctionPropagator:
+        """ Wave function propagator
+
+        Corresponding to the mode and type of parallelization
+        """
+        kick_hamiltonian: type[Hamiltonian]
+        if self.mode == 'lcao':
+            kick_hamiltonian = LCAOKickHamiltonian(self.hamiltonian.basis,
+                                                   self.state.ibzwfs,
+                                                   ext,
+                                                   self.pot_calc)
+        elif self.mode == 'fd':
+            kwargs = dict(kin_stencil=len(self.hamiltonian.kin.coef_p),
+                          blocksize=self.hamiltonian.blocksize,
+                          xp=self.hamiltonian.kin.xp)
+            kick_hamiltonian = FDKickHamiltonian(self.hamiltonian.grid,
+                                                 ext,
+                                                 self.pot_calc,
+                                                 **kwargs)
+
+        else:
+            raise RuntimeError(f'Mode {self.mode} is unexpected')
+        return self._wf_propagator_class(kick_hamiltonian, self.state)
 
     def ipropagate(self,
                    time_step: float = 10.0,
@@ -729,20 +659,10 @@ class RTTDDFT:
         time_step = time_step * asetime_to_autime
 
         for iteration in range(maxiter):
-            cls: type[WaveFunctionPropagator]
-            if self.mode == 'lcao':
-                cls = LCAONumpyPropagator
-            elif self.mode == 'fd':
-                cls = FDNumpyPropagator
-            else:
-                raise RuntimeError(f'Mode {self.mode} is unexpected')
-
-            wf_propagator = cls(self.hamiltonian, self.state)
-
             self.td_algorithm.propagate(time_step,
                                         state=self.state,
                                         pot_calc=self.pot_calc,
-                                        wf_propagator=wf_propagator)
+                                        wf_propagator=self.wf_propagator())
             time = self.history.propagate(time_step)
             dipolemoment_xv = [
                 self.calculate_dipole_moment(wfs)  # type: ignore
