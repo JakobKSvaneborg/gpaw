@@ -109,9 +109,9 @@ in a direct band gap of 7.42 eV. The extrapolation is shown in the figure below
 
 
 We can also do the ecut extrapolation automatically (this is the preferred way).
-Setting `ecut_extrapolation=True` will select 3 frequencies close by, and evalutate
+Setting `ecut_extrapolation=True` will select 3 frequencies close by, and evaluate
 GW results on all of those frequencies, and automatically extrapolate (so one doesn't need the
-explicit extrapolation script above.
+explicit extrapolation script above).
 
 For extrapolation to work, one has to be on the asymptotic `E^{-3/2}` regime however.
 To illustrate this, let's calculate with `ecut_extrapolation=True` but using 4 different highest frequency.
@@ -122,11 +122,11 @@ regime.
 .. literalinclude:: C_ecut_extrapolate.py
 
 We can plot the automatically extrapolated results together with the previous non-extrapolated
-results, and we see that already on 300eV ecut, we are on pretty good.
+results, and we see that already on 300eV ecut, we are very accurate.
 Thus, retrospectively, we know that `kpts=(8,8,8)`, `ecut=300` and `ecut_extrapolation=True`
 results into accurate band gap numbers. However, we did not know that when we started, and thus
 to that end, we encourage users to play with k-point convergence, ecut and ecut_extrapolation,
-especially if the system type is new.
+especially if the system type is new (new element/setup for the element, new dimensionality 2D/3D, new type of material).
 
 .. literalinclude:: C_ecut_automatic_extrapolate_plot.py
 
