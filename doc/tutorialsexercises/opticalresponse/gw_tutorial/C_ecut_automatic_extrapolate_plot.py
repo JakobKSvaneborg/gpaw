@@ -11,15 +11,19 @@ color = ['ro-', 'bo-', 'go-', 'ko-', 'co-', 'mo-', 'yo-']
 direct_gap = np.zeros(4)
 extrapolated_direct_gap = np.zeros(4)
 
+
+def get_gamma_gap(fname):
+    data = pickle.load(paropen(fname, 'rb'))
+    return data['qp'][0, 0, 1] - data['qp'][0, 0, 0]
+
+
 k = 8
 for i, ecut in enumerate([100, 200, 300, 400]):
-    data = pickle.load(paropen(f'C-g0w0_k{k}_ecut{ecut}_results_GW.pckl',
-                               'rb'))
-    direct_gap[i] = data['qp'][0, 0, 1] - data['qp'][0, 0, 0]
+    fname = f'C-g0w0_k{k}_ecut{ecut}_results_GW.pckl'
+    direct_gap[i] = get_gamma_gap(fname)
 
-    data = pickle.load(paropen(f'C-g0w0_k{k}_ecut_{ecut}_automatic_extrapolate_results_GW.pckl',
-                               'rb'))
-    extrapolated_direct_gap[i] = data['qp'][0, 0, 1] - data['qp'][0, 0, 0]
+    fname = f'C-g0w0_k{k}_ecut_{ecut}_automatic_extrapolate_results_GW.pckl'
+    extrapolated_direct_gap[i] = get_gamma_gap(fname)
 
 plt.plot(1 / (ecuts**(3. / 2.)), direct_gap, 'ko-',
          label=f'({k}x{k}x{k}) non-extrapolated')
