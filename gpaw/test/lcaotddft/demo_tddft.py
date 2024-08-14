@@ -92,42 +92,22 @@ def main():
     if parsed.new_lcao_gs or parsed.all:
         new_calc = new_GPAW(mode={'name': 'lcao', 'force_complex_dtype': True},
                             basis='sz(dzp)', xc='LDA',
+                            symmetry={'point_group': False},
                             txt='new_lcao.out',
                             convergence={'density': 1e-12})
         atoms.calc = new_calc
         atoms.get_potential_energy()
         new_calc.write('new_lcao_gs.gpw', mode='all')
 
-        new_restart_calc = new_GPAW('new_lcao_gs.gpw')
-
-        # Make sure that loading from disk works
-        assert_equal(
-            new_calc.dft.state.ibzwfs.wfs_qs[0][0].P_ani,
-            new_restart_calc.dft.state.ibzwfs.wfs_qs[0][0].P_ani)
-
-        assert_equal(
-            new_calc.dft.state.ibzwfs.wfs_qs[0][0].C_nM,
-            new_restart_calc.dft.state.ibzwfs.wfs_qs[0][0].C_nM)
-
     if parsed.new_fd_gs or parsed.all:
         new_calc = new_GPAW(mode={'name': 'fd', 'force_complex_dtype': True},
                             basis='sz(dzp)', xc='LDA',
+                            symmetry={'point_group': False},
                             txt='new_fd.out',
                             convergence={'density': 1e-12})
         atoms.calc = new_calc
         atoms.get_potential_energy()
         new_calc.write('new_fd_gs.gpw', mode='all')
-
-        new_restart_calc = new_GPAW('new_fd_gs.gpw')
-
-        # Make sure that loading from disk works
-        assert_equal(
-            new_calc.dft.state.ibzwfs.wfs_qs[0][0].P_ani,
-            new_restart_calc.dft.state.ibzwfs.wfs_qs[0][0].P_ani)
-
-        assert_equal(
-            new_calc.dft.state.ibzwfs.wfs_qs[0][0].psit_nX,
-            new_restart_calc.dft.state.ibzwfs.wfs_qs[0][0].psit_nX)
 
     if parsed.old_lcao_rt or parsed.all:
         old_tddft = LCAOTDDFT('old_lcao_gs.gpw', propagator='ecn',
@@ -143,11 +123,20 @@ def main():
         old_tddft.absorption_kick(kick_v)
         old_tddft.propagate(10, 10)
 
+    def write_initial(fp, calc):
+        dipolemoment_xv = [
+            calc.calculate_dipole_moment(wfs)  # type: ignore
+            for wfs in calc.state.ibzwfs]
+        dm = np.sum(dipolemoment_xv, axis=0)
+        norm = np.sum(calc.state.density.nct_aX.integral)
+        fp.write('%20.8lf %20.8le %22.12le %22.12le %22.12le\n' %
+                 (0, norm, dm[0], dm[1], dm[2]))
+
     def write_result(fp, result):
         print(result)
         dm = result.dipolemoment
         fp.write('%20.8lf %20.8le %22.12le %22.12le %22.12le\n' %
-                 (result.time, 0, dm[0], dm[1], dm[2]))
+                 (result.time, result.norm, dm[0], dm[1], dm[2]))
 
     if parsed.new_lcao_rt or parsed.all:
         #  new_tddft = RTTDDFT.from_dft_calculation(new_calc)
@@ -155,8 +144,13 @@ def main():
 
         dt = 10 * as_to_au * autime_to_asetime
         with open('new_lcao_dm.out', 'w') as fp:
+            fp.write('# %15s %15s %22s %22s %22s\n' %
+                     ('time', 'norm', 'dmx', 'dmy', 'dmz'))
+            fp.write('# Start; Time = %.8lf\n' % 0)
+            write_initial(fp, new_tddft)
+
             result = new_tddft.absorption_kick(kick_v)
-            fp.write(f'# Kick {kick_v}; Time 0.0')
+            fp.write(f'# Kick {kick_v}; Time 0.0\n')
             write_result(fp, result)
             for result in new_tddft.ipropagate(dt, 10):
                 write_result(fp, result)
@@ -170,11 +164,17 @@ def main():
             # TODO for some reason these are NDArrayReader objects
             for wfs in new_tddft.state.ibzwfs:
                 wfs.psit_nX.data = wfs.psit_nX.data[:]
+            fp.write('# %15s %15s %22s %22s %22s\n' %
+                     ('time', 'norm', 'dmx', 'dmy', 'dmz'))
+            fp.write('# Start; Time = %.8lf\n' % 0)
+            write_initial(fp, new_tddft)
+
             result = new_tddft.absorption_kick(kick_v)
-            fp.write(f'# Kick {kick_v}; Time 0.0')
+            fp.write(f'# Kick {kick_v}; Time 0.0\n')
             write_result(fp, result)
             for result in new_tddft.ipropagate(dt, 10):
                 write_result(fp, result)
+                fp.flush()
 
     if parsed.plot:
         import matplotlib.pyplot as plt

@@ -476,7 +476,7 @@ class ECNAlgorithm(TDAlgorithm):
 
         # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
         state.potential, _ = pot_calc.calculate(
-            state.density, vHt_x=state.potential.vHt_x)
+            state.density, state.ibzwfs, vHt_x=state.potential.vHt_x)
 
 
 class RTTDDFTHistory:
@@ -546,6 +546,7 @@ class RTTDDFTResult(NamedTuple):
 
     time: float  # Time in atomic units
     dipolemoment: Vector  # Dipole moment in atomic units
+    norm: float  # Integral of density
 
     def __repr__(self):
         timestr = f'{self.time * autime_to_asetime:.3f} Å√(u/eV)'
@@ -586,7 +587,8 @@ class RTTDDFT:
         self.kick_ext: ExternalPotential | None = None
 
         if isinstance(hamiltonian, LCAOHamiltonian):
-            self.calculate_dipole_moment = self._calculate_dipole_moment_lcao
+            # self.calculate_dipole_moment = self._calculate_dipole_moment_lcao
+            self.calculate_dipole_moment = self._calculate_dipole_moment
             self.mode = 'lcao'
         elif isinstance(hamiltonian, FDHamiltonian):
             self.calculate_dipole_moment = self._calculate_dipole_moment
@@ -704,7 +706,10 @@ class RTTDDFT:
                 self.calculate_dipole_moment(wfs)  # type: ignore
                 for wfs in self.state.ibzwfs]
             dipolemoment_v = np.sum(dipolemoment_xv, axis=0)
-            result = RTTDDFTResult(time=0, dipolemoment=dipolemoment_v)
+            norm = np.sum(self.state.density.nct_aX.integral)
+            result = RTTDDFTResult(time=0,
+                                   dipolemoment=dipolemoment_v,
+                                   norm=norm)
             return result
 
     def ipropagate(self,
@@ -743,7 +748,10 @@ class RTTDDFT:
                 self.calculate_dipole_moment(wfs)  # type: ignore
                 for wfs in self.state.ibzwfs]
             dipolemoment_v = np.sum(dipolemoment_xv, axis=0)
-            result = RTTDDFTResult(time=time, dipolemoment=dipolemoment_v)
+            norm = np.sum(self.state.density.nct_aX.integral)
+            result = RTTDDFTResult(time=time,
+                                   dipolemoment=dipolemoment_v,
+                                   norm=norm)
             yield result
 
     def _calculate_dipole_moment(self, wfs: WaveFunctions) -> np.ndarray:
