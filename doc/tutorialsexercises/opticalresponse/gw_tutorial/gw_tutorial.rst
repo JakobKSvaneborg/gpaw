@@ -119,7 +119,7 @@ This script will infact calculate GW for 3 different cut offs, for each of the 4
 thus this is not the recommended way of converging GW. It is just to illustrate the need to be in the asymptotic
 regime.
 
-.. literalinclude:: C_ecut_extra.py
+.. literalinclude:: C_ecut_extrap.py
 
 We can plot the automatically extrapolated results together with the previous non-extrapolated
 results, and we see that already on 300eV ecut, we are very accurate.
