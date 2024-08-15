@@ -53,6 +53,10 @@ void calculate_residual_launch_kernel(int nG,
 				      double* wf_nG,
 				      int is_complex)
 {
+    if ((nG == 0) || (nn == 0))
+    {
+        return;
+    }
     if (is_complex)
     {
 	gpuLaunchKernel(calculate_residual_kernel_complex,
@@ -487,6 +491,7 @@ void add_to_density_gpu_launch_kernel(int nb,
 				      int wfs_is_complex)
 {
     if (wfs_is_complex)
+    {
     gpuLaunchKernel(add_to_density_16,
 		    dim3((nR+255)/256),
 		    dim3(256),
@@ -495,7 +500,9 @@ void add_to_density_gpu_launch_kernel(int nb,
 		    f_n,
 		    psit_nR,
 		    rho_R);
+    }
     else
+    {
     gpuLaunchKernel(add_to_density_8,
 		    dim3((nR+255)/256),
 		    dim3(256),
@@ -504,6 +511,7 @@ void add_to_density_gpu_launch_kernel(int nb,
 		    f_n,
 		    (double*) psit_nR,
 		    rho_R);
+    }
 }
 
 extern "C"
@@ -705,19 +713,23 @@ void dH_aii_times_P_ani_launch_kernel(int nA, int nn,
 				      int is_complex)
 {
     if (is_complex)
+    {
     gpuLaunchKernel(dH_aii_times_P_ani_16,
 		    dim3((nn+255)/256),
 		    dim3(256),
 		    0, 0,
 		    nA, nn, nI, ni_a, dH_aii_dev,
 		    P_ani_dev, outP_ani_dev);
+    }
     else
+    {
     gpuLaunchKernel(dH_aii_times_P_ani_8,
 		    dim3((nn+255)/256),
 		    dim3(256),
 		    0, 0,
 		    nA, nn, nI, ni_a, dH_aii_dev,
 		    (double*) P_ani_dev, (double*) outP_ani_dev);
+    }
 
 }
 
