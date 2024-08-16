@@ -127,7 +127,8 @@ results into accurate band gap numbers. However, we did not know that when we st
 to that end, we encourage users to play with k-point convergence, ecut and ecut_extrapolation,
 especially if the system type is new (new element/setup for the element, new dimensionality 2D/3D, new type of material).
 
-The in this script :download:`C_ecut_automatic_extrapolate_plot.py` results into following plot.
+This script :download:`C_ecut_automatic_extrapolate_plot.py` will gather all the results into a single plot,
+the ones calculated without extrapolation, and the automatically extrapolated ones.
 
 .. image:: C_GW_k8_extrap_automatic.png
      :height: 400px
