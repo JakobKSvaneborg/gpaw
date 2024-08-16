@@ -7,8 +7,8 @@
 # creates: magnetism/magnetism1.ipynb, magnetism/magnetism2.ipynb
 # creates: magnetism/magnetism3.ipynb,
 # creates: machinelearning/machinelearning.ipynb
-# creates: photovoltaics/pv1.ipynb, photovoltaics/pv2.ipynb
-# creates: photovoltaics/pv3.ipynb
+# creates: excitedstates/es1.ipynb, excitedstates/es2.ipynb
+# creates: excitedstates/es3.ipynb, excitedstates/es4.ipynb
 from pathlib import Path
 from gpaw.utilities.nbrun import py2ipynb
 import sys
