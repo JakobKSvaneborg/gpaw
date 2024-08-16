@@ -100,7 +100,7 @@ A k-point sampling of (8x8x8) seems to give results converged to within 0.005 eV
 The plane wave cutoff is usually converged by employing a `1/E^{3/2}_{\text{cut}}` extrapolation.
 This can be done automatically by giving the ``ecut_extrapolation=True``.
 
-For demonstration purposes, we do it here manually for the first time 
+For demonstration purposes, we do it here manually for the first time
 with the following script: :download:`C_ecut_extrap.py` resulting
 in a direct band gap of 7.42 eV. The extrapolation is shown in the figure below
 
