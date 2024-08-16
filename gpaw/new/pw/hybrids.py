@@ -164,46 +164,56 @@ class PWHybridHamiltonian(PWHamiltonian):
                 evc -= ec
 
         Q_nA = np.empty((mynbands, 9 * D_aii.natoms))
-        Q1_aniL = {a: np.einsum('ijL, nj -> niL',
-                                delta_iiL, psi1.P_ani[a])
+        Q2_aniL = {a: np.einsum('ijL, nj -> niL',
+                                delta_iiL, psi2.P_ani[a])
                    for a, delta_iiL in enumerate(self.delta_aiiL)}
         B_ani = {a: np.zeros((mynbands, len(delta_iiL)))
                  for a, delta_iiL in enumerate(self.delta_aiiL)}
 
-        psi1.psit_nR = self.grid.empty(mynbands)
         rhot_nR = self.grid.empty(mynbands)
         rhot_nG = self.pw.empty(mynbands)
         vrhot_G = self.pw.empty()
 
-        if 1:  # same:
-            for p in range(comm.size):  # (comm.size // 2 + 1):
-                if p < comm.size - 1:
-                    # print(comm.rank, '->', (comm.rank + p + 1) % comm.size)
-                    psi1.send((comm.rank + p + 1) % comm.size)
-                    if p == 0:
-                        psi = psi1.empty()
-                    # print(comm.rank, '<-', (comm.rank + p - 1) % comm.size)
-                    psi.receive((comm.rank - p - 1) % comm.size)
+        if psi1 is not psi2 or comm.size > 1:
+            psit1_nR = self.grid.empty(mynbands)
+        else:
+            psit1_nR = None
+
+        for p in range(comm.size):  # (comm.size // 2 + 1):
+            if p < comm.size - 1:
+                # print(comm.rank, '->', (comm.rank + p + 1) % comm.size)
+                psi1.send((comm.rank + p + 1) % comm.size)
                 if p == 0:
-                    ifft(psi1.psit_nG, psi1.psit_nR, self.plan)
-                e = self.inner(psi1, psi2,
-                               Q1_aniL, Q_nA,
-                               rhot_nG, rhot_nR, vrhot_G,
-                               Htpsit_nG, V_aii, B_ani)
-                if same:
-                    evv -= 0.5 * e
-                    ekin += e
-                # print(comm.rank, p, B_ani[0][:, 0])
-                if p < comm.size - 1:
-                    psi.wait()
-                    psi1.wait()
+                    psi = psi1.empty()
+                # print(comm.rank, '<-', (comm.rank + p - 1) % comm.size)
+                psi.receive((comm.rank - p - 1) % comm.size)
+            if p == 0:
+                psi2.psit_nR = self.grid.empty(mynbands)
+                ifft(psi2.psit_nG, psi2.psit_nR, self.plan)
+            e = self.inner(psi1, psi2,
+                           Q2_aniL, Q_nA,
+                           psit1_nR,
+                           rhot_nG, rhot_nR, vrhot_G,
+                           Htpsit_nG, V_aii, B_ani)
+            if same:
+                evv -= 0.5 * e
+                ekin += e
+            # print(comm.rank, p, B_ani[0][:, 0])
+            if p < comm.size - 1:
+                psi.wait()
+                psi1.wait()
+                if psi1 is psi2:
+                    psi1 = psi
+                    psi = psi1.empty()
+                else:
                     psi1, psi = psi, psi1
-            pt_aiG.add_to(Htpsit_nG, B_ani)
+        pt_aiG.add_to(Htpsit_nG, B_ani)
 
         return evv, evc, ekin
 
     def inner(self, psi1, psi2,
-              Q1_aniL, Q_nA,
+              Q2_aniL, Q_nA,
+              psit1_nR,
               rhot_nG, rhot_nR, vrhot_G,
               Htpsit_nG, V_aii, B_ani):
         e = 0.0
@@ -211,19 +221,18 @@ class PWHybridHamiltonian(PWHamiltonian):
             B_ni = psi2.P_ani[a] @ V_ii
             B_ani[a] += B_ni
 
-        if psi2.psit_nR is None:
-            psit2_R = rhot_nR.desc.empty()
-        for n2, out_G in enumerate(Htpsit_nG):
-            if psi2.psit_nR is None:
-                psi2.psit_nG[n2].ifft(out=psit2_R)
-            else:
-                psit2_R = psi2.psit_nR[n2]
-            rhot_nR.data[:] = psi1.psit_nR.data * psit2_R.data
+        if psi1 is psi2:
+            psit1_nR = psi2.psit_nR
+        else:
+            ifft(psi1.psit_nG, psit1_nR, self.plan)
+
+        for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
+            rhot_nR.data[:] = psit1_nR.data * psit2_R.data
             fft(rhot_nR, rhot_nG, plan=self.plan)
             A1 = 0
-            for a, Q1_niL in Q1_aniL.items():
+            for a, Q2_niL in Q2_aniL.items():
                 A2 = A1 + 9
-                Q_nA[:, A1:A2] = psi2.P_ani[a][n2] @ Q1_niL
+                Q_nA[:, A1:A2] = psi1.P_ani[a] @ Q2_niL[n2]
                 A1 = A2
             # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
             mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
@@ -234,12 +243,12 @@ class PWHybridHamiltonian(PWHamiltonian):
                 vrhot_G.data = rhot_G.data * self.v_G.data
                 A1_aL = self.ghat_aLG.integrate(vrhot_G)
                 for a, A1_L in A1_aL.items():
-                    B_ani[a][n2] -= Q1_aniL[a][n1] @ (f1 * A1_L)
+                    B_ani[a][n2] -= Q2_aniL[a][n2] @ (f1 * A1_L)
                 if psi2.f_n is not None:
                     e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G)
                 rhot_G.data[:] = vrhot_G.data
             ifft(rhot_nG, rhot_nR, plan=self.plan)
-            rhot_nR.data *= psi1.psit_nR.data
+            rhot_nR.data *= psit1_nR.data
             fft(rhot_nR, rhot_nG, self.plan)
             out_G.data -= psi1.f_n @ rhot_nG.data
         return e
@@ -248,7 +257,6 @@ class PWHybridHamiltonian(PWHamiltonian):
 def ifft(psit_nG, out_nR, plan):
     for psit_G, out_R in zips(psit_nG, out_nR):
         psit_G.ifft(out=out_R, plan=plan)
-    return out_nR
 
 
 def fft(rhot_nR, rhot_nG, plan):
