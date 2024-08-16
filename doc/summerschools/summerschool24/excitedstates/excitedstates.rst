@@ -1,8 +1,8 @@
 .. _excited states:
 
-=============
+==============
 Excited States
-=============
+==============
 
 
 This exercise investigates the properties and usability of
@@ -17,7 +17,7 @@ In the second part you will learn to calculate the quasiparticle
 band gap. The third part involves learning how to calculate
 an absorption spectrum within the random phase approximation.
 Finally, you will calculate the absorption spectrum including
-excitonic effects and compare different materials in the 
+excitonic effects and compare different materials in the
 fourth part.
 
 
@@ -69,7 +69,7 @@ Part 4: Excitonic effects and Discussion
 ========================================
 
 In the last notebook :download:`es4.ipynb` the results for different
-materials are plotted and discussed. Next the absorption spectra 
+materials are plotted and discussed. Next the absorption spectra
 is calculated including the excitonic effects (Bethe-Salpeter formalism).
 
 * Understanding the excitonic effects and Bethe-Salpeter formalism.
