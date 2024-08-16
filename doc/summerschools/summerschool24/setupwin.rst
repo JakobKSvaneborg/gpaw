@@ -42,7 +42,8 @@ authentification.  In the case of the HPC installation, the two
 factors are your password and an encryption key (*SSH key*).  You get
 your secret SSH key by connecting to
 https://www.student.dtu.dk/~dccidmgr/CAMD24/ then add your user name to
-the end of the URL and press enter. You will now be asked to
+the end of the URL and press enter (Guest accounts only, DTU users
+please :ref:`do this instead <keypair>`). You will now be asked to
 authenticate with username and password, when you have done that
 right-click on the link to save the file. Save it on your laptop.
 

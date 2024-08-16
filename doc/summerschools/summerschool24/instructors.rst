@@ -28,6 +28,7 @@ the command::
 
 Creating an SSH key pair (while at DTU!)
 ----------------------------------------
+.. _keypair:
 
 When you are on the DTU network (or use a VPN) logging in requires
 authentification with *either* a password *or* a cryptographic key.
