@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 from math import pi
 
 import numpy as np
-
-from gpaw.core import PWArray, PWDesc, UGDesc, UGArray
+from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.hybrids.paw import pawexxvv
@@ -50,17 +50,20 @@ class Psi:
                    self.P_ani.new(),
                    np.empty_like(self.f_n))
 
+    @cached_property
+    def comm(self):
+        return self.psit_nG.comm
+
     def send(self, rank):
-        comm = self.psit_nG.comm
-        self.requests = [comm.send(self.psit_nG.data, rank, block=False),
-                         comm.send(self.P_ani.data, rank, block=False),
-                         comm.send(self.f_n, rank, block=False)]
+        self.requests = [self.comm.send(self.psit_nG.data, rank, block=False),
+                         self.comm.send(self.P_ani.data, rank, block=False),
+                         self.comm.send(self.f_n, rank, block=False)]
 
     def receive(self, rank):
-        comm = self.psit_nG.comm
-        self.requests = [comm.receive(self.psit_nG.data, rank, block=False),
-                         comm.receive(self.P_ani.data, rank, block=False),
-                         comm.receive(self.f_n, rank, block=False)]
+        self.requests = [
+            self.comm.receive(self.psit_nG.data, rank, block=False),
+            self.comm.receive(self.P_ani.data, rank, block=False),
+            self.comm.receive(self.f_n, rank, block=False)]
 
     def wait(self):
         comm = self.psit_nG.comm
@@ -164,6 +167,8 @@ class PWHybridHamiltonian(PWHamiltonian):
         Q1_aniL = {a: np.einsum('ijL, nj -> niL',
                                 delta_iiL, psi1.P_ani[a])
                    for a, delta_iiL in enumerate(self.delta_aiiL)}
+        B_ani = {a: np.zeros((mynbands, len(delta_iiL)))
+                 for a, delta_iiL in enumerate(self.delta_aiiL)}
 
         psi1.psit_nR = self.grid.empty(mynbands)
         rhot_nR = self.grid.empty(mynbands)
@@ -181,32 +186,30 @@ class PWHybridHamiltonian(PWHamiltonian):
                     psi.receive((comm.rank - p - 1) % comm.size)
                 if p == 0:
                     ifft(psi1.psit_nG, psi1.psit_nR, self.plan)
-                e, B_ani = self.inner(psi1, psi2,
-                                      Q1_aniL, Q_nA,
-                                      rhot_nG, rhot_nR, vrhot_G,
-                                      Htpsit_nG, V_aii)
+                e = self.inner(psi1, psi2,
+                               Q1_aniL, Q_nA,
+                               rhot_nG, rhot_nR, vrhot_G,
+                               Htpsit_nG, V_aii, B_ani)
                 if same:
                     evv -= 0.5 * e
                     ekin += e
-                print(comm.rank, B_ani)
-                pt_aiG.add_to(Htpsit_nG, B_ani)
+                # print(comm.rank, p, B_ani[0][:, 0])
                 if p < comm.size - 1:
                     psi.wait()
                     psi1.wait()
-                    psi2 = psi
+                    psi1, psi = psi, psi1
+            pt_aiG.add_to(Htpsit_nG, B_ani)
 
-        1 / 0
         return evv, evc, ekin
 
     def inner(self, psi1, psi2,
               Q1_aniL, Q_nA,
               rhot_nG, rhot_nR, vrhot_G,
-              Htpsit_nG, V_aii):
+              Htpsit_nG, V_aii, B_ani):
         e = 0.0
-        B_ani = {}
         for a, V_ii in V_aii.items():
             B_ni = psi2.P_ani[a] @ V_ii
-            B_ani[a] = B_ni
+            B_ani[a] += B_ni
 
         if psi2.psit_nR is None:
             psit2_R = rhot_nR.desc.empty()
@@ -239,7 +242,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             rhot_nR.data *= psi1.psit_nR.data
             fft(rhot_nR, rhot_nG, self.plan)
             out_G.data -= psi1.f_n @ rhot_nG.data
-        return e, B_ani
+        return e
 
 
 def ifft(psit_nG, out_nR, plan):
