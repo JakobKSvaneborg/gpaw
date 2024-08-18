@@ -106,9 +106,9 @@ get('summerschool',
     ['C144Li18.png', 'C64.png', 'final.png', 'initial.png',
      'Li2.png', 'lifepo4_wo_li.traj', 'NEB_init.traj'],
     target='summerschools/summerschool24/batteries')
-get('summerschool',
-    ['Intro_projects_CAMD2022.pdf'],
-    target='summerschools/summerschool24')
+# get('summerschool',
+#     ['Intro_projects_CAMD2022.pdf'],
+#     target='summerschools/summerschool24')
 
 
 def setup(app):
@@ -123,8 +123,9 @@ def setup(app):
         repo = 'https://gitlab.com/gpaw/gpaw-web-page-data.git/'
         subprocess.run(f'cd /tmp && git clone {repo}', shell=True)
 
+    extra = [Path('summerschools/summerschool24/Intro_ASE_Databar.pdf')]
     doc = Path()
-    for path in find_created_files(doc):
+    for path in list(find_created_files(doc)) + extra:
         if path.is_file():
             continue
         to = data / 'doc' / path.relative_to(doc)
