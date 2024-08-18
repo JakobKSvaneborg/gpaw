@@ -9,7 +9,7 @@ The basic unit of computation in TaskBlaster is a *task*.  A task is a Python
 function along with a specification of the inputs to that function.
 The inputs can be either concrete values like lists, strings, or numbers,
 or references to the outputs of other tasks.
-Tasks that depend on one another and form a graph.  An
+Tasks that depend on one another and form a graph.  A
 TaskBlaster workflow is a Python class which defines such a graph, along with
 metadata about how the tasks should run and be stored.  Workflows can
 then be parametrized so they run on a collection of materials,
@@ -21,8 +21,9 @@ tools.  Therefore, for this exercise we will be using the terminal
 rather than the usual notebooks.  Basic knowledge of shell commands
 is an advantage.
 
-This exercise consists of three parts.  Specifically, we will:
+This exercise consists of multiple parts:
 
+ * Introductory tutorials to TaskBlaster
  * Write a workflow which defines a structure optimization task
    and phonon computation using the simple EMT force field
  * Parametrize the workflow to comprise multiple materials
@@ -34,9 +35,29 @@ When actually using ASR, many tasks and workflows are already written.
 Thus, we would be able to import and use those features directly.
 But in this tutorial we write everything from scratch.
 
+Part 0: The TaskBlaster tutorials and documentation
+===================================================
+
+TaskBlaster comes with its own documentation and tutorials.
+These are not related to physics or materials, but provide a generic
+introduction to the framework:
+
+ * To get started, go through the basic
+   `TaskBlaster tutorials <https://taskblaster.readthedocs.io/en/latest/tutorial/module.html>`_,
+   specifically
+   `“Hello world” <https://taskblaster.readthedocs.io/en/latest/tutorial/hello_world/hello_world.html>`_ and
+   `“My first workflow” <https://taskblaster.readthedocs.io/en/latest/tutorial/my_first_workflow/my_first_workflow.html>`_.
+   Make sure you can run the examples and feel free to explore
+   the command-line interface.
+
+ * It may be illustrating to read the explanation page on
+   `Basic Concepts <https://taskblaster.readthedocs.io/en/latest/explanation/basic_concepts/basic_concepts.html>`_.
+
 
 Part 1: Create a repository and define a workflow
 =================================================
+
+.. warning:: The exercise text for parts 1-3 are due to be updated on Monday.
 
 First, go to a clean directory and create an ASR repository::
 
