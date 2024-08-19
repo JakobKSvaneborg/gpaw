@@ -847,11 +847,11 @@ class UGArray(DistributedArrays[UGDesc]):
         if values.dtype == complex:
             values = abs(values)
         x, y, z = (c.T.flatten() for c in self.desc.xyz().T)
-        isomin = values.min()
-        isomax = values.max()
+        vmin = values.min()
+        vmax = values.max()
         kwargs = {
-            'isomin': isomin * 0.5,
-            'isomax': isomax * 0.5,
+            'isomin': vmin + (vmax - vmin) * 0.1,
+            'isomax': vmax - (vmax - vmin) * 0.1,
             'caps': dict(x_show=False,
                          y_show=False,
                          z_show=False)} | kwargs
