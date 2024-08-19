@@ -1,35 +1,11 @@
 import taskblaster as tb
+from pathlib import Path
+import runpy
 
+# "Import" stuff from the tasks module:
+tasks_path = Path(__file__).parent / 'tasks.py'
+globals().update(runpy.run_path(tasks_path))
 
-@tb.workflow
-class MaterialsWorkflow:
-    atoms = tb.var()
-    calculator = tb.var()
-
-    @tb.task
-    def relax(self):
-        return tb.node(
-            'optimize_cell',
-            atoms=self.atoms,
-            calculator=self.calculator)
-
-    @tb.task
-    def groundstate(self):
-        return tb.node(
-            'groundstate',
-            atoms=self.relax,
-            calculator=self.calculator)
-
-    @tb.task
-    def bandpath(self):
-        return tb.node('bandpath', atoms=self.relax)
-
-    @tb.task
-    def bandstructure(self):
-        return tb.node(
-            'bandstructure',
-            gpw=self.groundstate,
-            bandpath=self.bandpath)
 
 
 def workflow(runner):

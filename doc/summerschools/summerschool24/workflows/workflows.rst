@@ -97,17 +97,14 @@ Write a workflow class called ``MaterialsWorkflow`` which:
  * defines a ``relax`` task which performs a structure optimization
    that includes optimising the unit cell.
 
-The wise scientist first writes a relax task which only prints the atoms.
-That is enough to verify that the workflow works, and that the atoms
-are passed and encoded correctly.  After that, unrun, edit, rerun, and fix it
-until it works.
-
-The workflow should function correctly when called on a bulk silicon system
-like this:
+The wise scientist first writes a relax task which only prints the
+atoms.  That is enough to verify that the workflow works, and that the
+atoms are passed and encoded correctly.  After that, unrun, edit,
+rerun, and fix it until it works. The workflow should function
+correctly when called on a bulk silicon system like this:
 
 .. literalinclude:: workflow.py
-   :start-at: def workflow
-   :end-before: end-workflow-function-snippet
+   :pyobject: def workflow
 
 Here we have chosen some generic GPAW parameters that will be fine
 for testing, but not for production.
@@ -115,8 +112,7 @@ for testing, but not for production.
 The relaxation task can be implemented like this:
 
 .. literalinclude:: tasks.py
-   :start-at: def optimize_cell
-   :end-before: end-optimize-cell-snippet
+   :pyobject: optimize_cell
 
 Users unfamiliar with ASE may want to take a while to look up
 ASE concepts like atoms and calculators.  What the function does is:
@@ -161,7 +157,7 @@ where the tasks run.
 
 Next, add a ``groundstate()`` task to the workflow which calls the groundstate
 function just added to ``tasks.py``.
-By calling ``tb.node(..., atoms=self.relax)``, we are specifying
+By calling ``tb.node(..., atoms=self.relax)``, we can specify
 that the atoms should be taken as the *output* of the ``relax`` task,
 creating a dependency.
 
@@ -203,7 +199,6 @@ ASE tools::
    ase band-structure tree/bandstructure/output.json
 
 
-
 You can delete all the tasks with ``tb remove tree/`` and run them from
 scratch by ``tb run tree/``, ``tb run tree/*``, or simply ``tb run
 tree/bandstructure``.
@@ -233,12 +228,30 @@ or by telling TaskBlaster to consider it “resolved”, which we
 have seen in a previous tutorial.
 
 
-TODO and old stuff
-------------------
+Part 3: Parametrize workflow over multiple materials
+====================================================
+
+We next want to run the workflow to generate all the tasks for later
+submission using myqueue or slurm.
+
+We need to write a new workflow file which specifies .... WIP
+
+Running the task with ``tb run`` right now would start executing
+all the computational tasks right away, which we probably do not want.
+To run the workflow and generate its tasks *without* running them yet, use::
+
+    tb run tree/systems/init
+
+We will probably find a more natural way to achieve this in the future.
+
+Once the tasks are generated, you can run a few of the materials
+or you can look into how to submit workers and use myqueue.
 
 
 Phonon computation
 ------------------
+
+.. warning:: This part is not done yet.
 
 Now that we have the optimized structure, we can perform a phonon
 calculation on top.  We will use the ASE phonons module for this.
@@ -380,81 +393,6 @@ directory tree::
 Be sure to open the trajectory file in (e.g. in ASE GUI) to check
 that the optimization ran as expected.  Also the logfiles
 ``gpaw.txt`` and ``opt.log`` are there.
-
-
-
-
-Part 3: Run workflow on multiple materials
-==========================================
-
-The current workflow creates directories right under the repository root.
-For a proper materials workflow, it will be helpful to work
-with a structure that nests the tasks by material.
-
-ASR contains a feature called ``totree`` which deploys a dataset
-to the tree, such as defining initial structures for materials.
-One then parametrizes a workflow (such as the one we just wrote)
-on the materials.
-
-The following workflow defines a function which returns a set of materials,
-then specifies to ASR that those must be added to the tree.
-
-.. literalinclude:: totree.py
-
-Add this to a new file, named e.g. ``totree.py``, and execute the workflow::
-
- human@computer:~/myworkflow$ asr workflow totree.py
-       Add: 889575c5 new      tree/Al/material               define(obj=…)
-       Add: 5e39fb8e new      tree/Si/material               define(obj=…)
-       Add: 9612a07a new      tree/Ti/material               define(obj=…)
-       Add: 7153df81 new      tree/Cu/material               define(obj=…)
-       Add: 155d59ee new      tree/Ag/material               define(obj=…)
-       Add: e9b41657 new      tree/Au/material               define(obj=…)
-
-The totree command created some tasks for us.
-Actually they are not really tasks — they are just static pieces of data.
-But now that they exist, we can run other tasks that depend on them.
-
-In the old workflow file (``workflow.py``),
-replace the ``workflow()`` function with the following function which
-tells ASR to parametrize the workflow by "globbing" over the materials:
-
-
-.. literalinclude:: materials.py
-   :pyobject: workflow
-
-The workflow will now be called once for each material.
-Run the workflow and it will create our three well-known tasks
-for each material, now nested by material.
-
-As before, we can inspect the newly created tasks, e.g.::
-
- human@computer:~/myworkflow$ asr ls tree/Au/bandstructure/ --parents
- e9b41657 new      tree/Au/material               define(obj=…)
- 5306d226 new      tree/Au/relax                  relax(atoms=<e9b41657>, calculator=…)
- a54f98a7 new      tree/Au/groundstate            groundstate(atoms=<5306d226>, calculator=…)
- 7fbfa099 new      tree/Au/bandstructure          bandstructure(gpw=<a54f98a7>)
-
-
-Since it may take a while to run on the front-end node,
-we can tell ASR to submit one or more tasks using MyQueue_::
-
-  asr submit tree/Au
-
-The submit command works much like the run command, only it calls
-myqueue which will then talk to the scheduler (slurm, torque, ...).
-After submitting, we can use standard myqueue commands to monitor
-the jobs, such as ``mq ls`` or ``mq rm``.  See the `myqueue documentation
-<https://myqueue.readthedocs.io/en/latest/cli.html>`_.
-
-If everything works well, we can submit the whole tree::
-
-  asr submit tree/
-
-Note: In the current version, myqueue and ASR do not perfectly
-share the state of a task.  This can lead to
-mild misbehaviours if using both ``asr run`` and ``asr submit``,
-such as a job executing twice.
 
 
 .. _MyQueue: https://myqueue.readthedocs.io/
