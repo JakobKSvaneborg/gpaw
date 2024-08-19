@@ -25,10 +25,9 @@ This exercise consists of multiple parts:
 
  * Introductory tutorials to TaskBlaster
  * Write a workflow which defines a structure optimization task
-   and phonon computation using the simple EMT force field
+   followed by electronic ground-state and band structure computation
+   using GPAW
  * Parametrize the workflow to comprise multiple materials
- * Adapt the workflow to run with GPAW, adding tasks for ground-state
-   and electronic band structure
  * Submit multiple workers to execute the computational tasks at scale
 
 When actually using ASR, many tasks and workflows are already written.
@@ -104,7 +103,7 @@ rerun, and fix it until it works. The workflow should function
 correctly when called on a bulk silicon system like this:
 
 .. literalinclude:: workflow.py
-   :pyobject: def workflow
+   :pyobject: workflow
 
 Here we have chosen some generic GPAW parameters that will be fine
 for testing, but not for production.
