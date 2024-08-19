@@ -163,10 +163,9 @@ class PWHybridHamiltonian(PWHamiltonian):
                 evv -= ev
                 evc -= ec
 
-        Q_nA = np.empty((mynbands, 9 * D_aii.natoms))
-        Q2_aniL = {a: np.einsum('ijL, nj -> niL',
-                                delta_iiL, psi2.P_ani[a])
-                   for a, delta_iiL in enumerate(self.delta_aiiL)}
+        Q_nA = np.empty((mynbands,
+                         sum(delta_iiL.shape[2]
+                             for delta_iiL in self.delta_aiiL)))
         B_ani = {a: np.zeros((mynbands, len(delta_iiL)))
                  for a, delta_iiL in enumerate(self.delta_aiiL)}
 
@@ -191,7 +190,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 psi2.psit_nR = self.grid.empty(mynbands)
                 ifft(psi2.psit_nG, psi2.psit_nR, self.plan)
             e = self.inner(psi1, psi2,
-                           Q2_aniL, Q_nA,
+                           Q_nA,
                            psit1_nR,
                            rhot_nG, rhot_nR, vrhot_G,
                            Htpsit_nG, V_aii, B_ani)
@@ -212,10 +211,13 @@ class PWHybridHamiltonian(PWHamiltonian):
         return evv, evc, ekin
 
     def inner(self, psi1, psi2,
-              Q2_aniL, Q_nA,
+              Q_nA,
               psit1_nR,
               rhot_nG, rhot_nR, vrhot_G,
               Htpsit_nG, V_aii, B_ani):
+        Q1_aniL = {a: np.einsum('ijL, nj -> niL',
+                                delta_iiL, psi1.P_ani[a])
+                   for a, delta_iiL in enumerate(self.delta_aiiL)}
         e = 0.0
         for a, V_ii in V_aii.items():
             B_ni = psi2.P_ani[a] @ V_ii
@@ -230,9 +232,10 @@ class PWHybridHamiltonian(PWHamiltonian):
             rhot_nR.data[:] = psit1_nR.data * psit2_R.data
             fft(rhot_nR, rhot_nG, plan=self.plan)
             A1 = 0
-            for a, Q2_niL in Q2_aniL.items():
-                A2 = A1 + 9
-                Q_nA[:, A1:A2] = psi1.P_ani[a] @ Q2_niL[n2]
+            for a, Q1_niL in Q1_aniL.items():
+                P2_i = psi2.P_ani[a][n2]
+                A2 = A1 + Q1_niL.shape[2]
+                Q_nA[:, A1:A2] = P2_i @ Q1_niL
                 A1 = A2
             # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
             mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
@@ -243,7 +246,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 vrhot_G.data = rhot_G.data * self.v_G.data
                 A1_aL = self.ghat_aLG.integrate(vrhot_G)
                 for a, A1_L in A1_aL.items():
-                    B_ani[a][n2] -= Q2_aniL[a][n2] @ (f1 * A1_L)
+                    B_ani[a][n2] -= Q1_aniL[a][n1] @ (f1 * A1_L)
                 if psi2.f_n is not None:
                     e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G)
                 rhot_G.data[:] = vrhot_G.data
