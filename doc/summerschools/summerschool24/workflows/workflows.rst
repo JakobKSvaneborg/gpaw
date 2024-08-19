@@ -53,28 +53,87 @@ introduction to the framework:
  * It may be illustrating to read the explanation page on
    `Basic Concepts <https://taskblaster.readthedocs.io/en/latest/explanation/basic_concepts/basic_concepts.html>`_.
 
+We have now acquired a basic familiarity with TaskBlaster commands,
+although we may still not see the full picture of how one runs
+scientific high-throughput projects in practice.  We will deal with this
+over the course of the next exercises.
 
-Part 1: Create a repository and define a workflow
-=================================================
 
-.. warning:: The exercise text for parts 1-3 are due to be updated on Monday.
+Part 1: Simple materials workflow with EMT force field and phonons
+==================================================================
 
-First, go to a clean directory and create an ASR repository::
+In this exercise we will develop a first materials workflow.
+We will use the EMT force field from ASE, and later adapt and use
+the GPAW electronic structure code.
+This exercise will be more open-ended.
+Be sure to make good use of the different command-line tools'
+:option:`--help` pages as well as TaskBlaster's online documentation.
 
- human@computer:~$ mkdir myworkflow
- human@computer:~$ cd myworkflow
- human@computer:~/myworkflow$ asr init
- Created repository in /home/askhl/myworkflow
+TaskBlaster itself does not know anything about force fields,
+materials, atoms, or ASE.
+However we will want tasks to have ASE objects as input
+and output, and that requires being able to save those objects.
+TaskBlaster can be extended with the ability to encode and decode arbitrary
+objects, and doing so requires a plugin.
+Such a plugin is provided by asr-lib, the `Atomic Simulation Recipes <https://gitlab.com/asr-dev/asr-lib>` library.
+We will create a project using asr-lib as a plugin and so facilitate
+our work with ASE objects.
 
-The repository will store calculations under the newly created,
-currently empty folder named ``tree/``.  The ``asr info`` command
-will tell us a few basic things about the repository::
+Go to a clean directory and create repository using the ``asrlib`` plugin::
 
- human@computer:~/myworkflow$ asr info
- Root:     /home/askhl/myworkflow
- Tree:     /home/askhl/myworkflow/tree
- db-file:  /home/askhl/myworkflow/registry.dat (0 entries)
- Tasks:    /home/askhl/myworkflow/tasks.py (not created)
+  $ tb init asrlib
+
+You can use the ``tb info`` command to see global information about
+the repository and verify that it uses ``asrlib``.
+
+Set up structure optimization
+-----------------------------
+
+Write a workflow class called ``EMTWorkflow`` which:
+
+ * takes ``atoms`` as an input variable
+ * defines a ``relax`` task which performs a structure optimization
+   that includes optimising the unit cell.
+
+The wise scientist first writes a relax task which only prints the atoms.
+That is enough to verify that the workflow works, and that the atoms
+are passed and encoded correctly.  After that, unrun, edit, rerun, and fix it
+until it works.
+
+The workflow should function correctly when called on a bulk gold system
+like this:
+
+.. literalinclude:: workflow.py
+   :start-at: def workflow
+   :end-before: end-workflow-function
+
+The relaxation task can be implemented like this:
+
+.. literalinclude:: emt-phonons/tasks.py
+   :start-at: def optimize_cell
+   :end-before: optimize-cell-end
+
+Users unfamiliar with ASE may want to take a while to look up
+ASE concepts like atoms and calculators.  What the function does is:
+
+ * Attach an `EMT force field calculator <https://wiki.fysik.dtu.dk/ase/ase/calculators/emt.html>`_
+   to the atoms
+ * Create a
+   `Frechet cell filter
+   <https://wiki.fysik.dtu.dk/ase/ase/filters.html#the-frechetcellfilter-class>`_
+   which exposes the cell degrees
+   of freedom and stresses to an optimizer
+ * Run a `BFGS <https://wiki.fysik.dtu.dk/ase/ase/optimize.html#bfgs>`_
+   optimization algorithm on the Frechet cell filter.
+
+It also tells the optimizer to write a trajectory file, ``opt.traj``.
+
+Once everything works and you run the relaxation task,
+go to the task directory and use the ASE GUI (``ase gui <filename>``)
+to visualize the trajectory.
+
+old stuff
+---------
 
 Let's perform a structure optimization of bulk Si.
 We write a function which performs such an optimization:
@@ -201,6 +260,8 @@ that the optimization ran as expected.  Also the logfiles
 
 Part 2: Add ground state and band structure tasks
 =================================================
+
+.. warning:: The exercise text for parts 1-3 are due to be updated on Monday.
 
 After the relaxation, we want to run a ground state
 calculation to save a ``.gpw`` file, which we subsequently want
