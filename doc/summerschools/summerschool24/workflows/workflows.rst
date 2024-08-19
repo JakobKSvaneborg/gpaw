@@ -172,26 +172,35 @@ in the ``tree/groundstate`` directory.
 Run the ground state task and check that the ``.gpw`` file was created as
 expected.
 
-Finally, we write a band structure task in ``tasks.py``:
+In order to compute a band structure, we need to define a high-symmetry
+band path in the Brillouin zone.
+That can be done using the ``ase.cell.bandpath()`` method.  It is useful
+to do this as a standalone task, so we can visualize it independently:
+
+.. literalinclude:: tasks.py
+   :pyobject: bandpath
+
+Run the workflow and the resulting task.  Go to the directory.  The
+band path object was saved in ASE's JSON format, so it can be viualized
+using ASE's reciprocal cell tool::
+
+  ase reciprocal tree/bandstructure/output.json
+
+
+Finally, we write a band structure task in ``tasks.py`` which takes the
+ground state (gpw file) and band path as an input:
 
 .. literalinclude:: tasks.py
    :pyobject: bandstructure
 
-A corresponding method should be added on the workflow:
-
-.. literalinclude:: workflow.py
-   :pyobject: MaterialsWorkflow.bandstructure
+Add the corresponding tasks to the workflow such that these computations
+are composed and can run.
 
 Now run the workflow and the resulting tasks.
-The code saves the Brillouin zone path and band structure separately to
-ASE JSON files.  Once it runs, we can go to the directory and check
-that it looks correct::
+The band structure object can again be visualized using one of the
+ASE tools::
 
-  ase reciprocal tree/bandstructure/bandpath.json
-
-::
-
-   ase band-structure tree/bandstructure/bs.json
+   ase band-structure tree/bandstructure/output.json
 
 
 
@@ -211,10 +220,11 @@ order following the dependency graph::
   ───────────────────────────────────────────────────────────────────────────────
   done     0/0               N/A-0/1       00:00:04 tree/relax
   done     1/1               N/A-0/1       00:00:01 tree/groundstate
-  done     1/1               N/A-0/1       00:00:04 tree/bandstructure
+  done     1/1               N/A-0/1       00:00:00 tree/bandpath
+  done     2/2               N/A-0/1       00:00:05 tree/bandstructure
 
-
-This way, we can comfortably work with larger numbers of tasks.
+This way, we can comfortably work with larger numbers of tasks and we do
+not have to care about running or changing them in the right order.
 
 If we edit the workflow such that tasks receive different inputs,
 TaskBlaster will mark the affected tasks with a conflict.

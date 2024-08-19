@@ -23,13 +23,14 @@ def groundstate(atoms, calculator):
 
 # --- literalinclude-divider-2 ---
 
-def bandstructure(gpw):
+def bandpath(atoms):
+    return atoms.cell.bandpath(npoints=100)
+
+
+def bandstructure(gpw, bandpath):
     gscalc = GPAW(gpw)
     atoms = gscalc.get_atoms()
-    bandpath = atoms.cell.bandpath(npoints=100)
-    bandpath.write('bandpath.json')
     calc = gscalc.fixed_density(
-        kpts=bandpath.kpts, symmetry='off', txt='bs.txt')
+        kpts=bandpath, symmetry='off', txt='bs.txt')
     bs = calc.band_structure()
-    bs.write('bs.json')
     return bs

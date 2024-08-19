@@ -16,12 +16,20 @@ class MaterialsWorkflow:
     @tb.task
     def groundstate(self):
         return tb.node(
-            'groundstate', atoms=self.relax,
+            'groundstate',
+            atoms=self.relax,
             calculator=self.calculator)
 
     @tb.task
+    def bandpath(self):
+        return tb.node('bandpath', atoms=self.relax)
+
+    @tb.task
     def bandstructure(self):
-        return tb.node('bandstructure', gpw=self.groundstate)
+        return tb.node(
+            'bandstructure',
+            gpw=self.groundstate,
+            bandpath=self.bandpath)
 
 
 def workflow(runner):
