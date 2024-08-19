@@ -35,11 +35,6 @@ def bandstructure(gpw, bandpath):
     return bs
 
 
-material_symbols = [
-    'Al', 'Si', 'Ti', 'Cu', 'Ag', 'Au', 'Pd', 'Pt',
-]
-
-
 @tb.workflow
 class MaterialsWorkflow:
     atoms = tb.var()
@@ -93,6 +88,11 @@ class ParametrizableMaterialsWorkflow:
 @tb.dynamical_workflow_generator_task
 def parametrize_materials_workflow(calculator):
     from ase.build import bulk
+
+    material_symbols = [
+        'Al', 'Si', 'Ti', 'Cu', 'Ag', 'Au', 'Pd', 'Pt',
+    ]
+
     for symbol in material_symbols:
         yield f'mat-{symbol}', ParametrizableMaterialsWorkflow(
             symbol=symbol, calculator=calculator)
