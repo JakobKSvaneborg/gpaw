@@ -59,23 +59,23 @@ scientific high-throughput projects in practice.  We will deal with this
 over the course of the next exercises.
 
 
-Part 1: Simple materials workflow with EMT force field and phonons
-==================================================================
+Part 1: Simple materials workflow
+=================================
 
-In this exercise we will develop a first materials workflow.
-We will use the EMT force field from ASE, and later adapt and use
-the GPAW electronic structure code.
+In this exercise we will develop a first materials workflow using the
+GPAW electronic structure code.
 This exercise will be more open-ended.
 Be sure to make good use of the different command-line tools'
 :option:`--help` pages as well as TaskBlaster's online documentation.
 
-TaskBlaster itself does not know anything about force fields,
+TaskBlaster itself does not know anything about electronic structure,
 materials, atoms, or ASE.
 However we will want tasks to have ASE objects as input
 and output, and that requires being able to save those objects.
 TaskBlaster can be extended with the ability to encode and decode arbitrary
 objects, and doing so requires a plugin.
-Such a plugin is provided by asr-lib, the `Atomic Simulation Recipes <https://gitlab.com/asr-dev/asr-lib>` library.
+Such a plugin is provided by asr-lib, the
+`Atomic Simulation Recipes <https://gitlab.com/asr-dev/asr-lib>` library.
 We will create a project using asr-lib as a plugin and so facilitate
 our work with ASE objects.
 
@@ -89,9 +89,11 @@ the repository and verify that it uses ``asrlib``.
 Set up structure optimization
 -----------------------------
 
-Write a workflow class called ``EMTWorkflow`` which:
+Write a workflow class called ``MaterialsWorkflow`` which:
 
  * takes ``atoms`` as an input variable
+ * takes ``calculator`` as an input variable, which is a dictionary
+   of keyword arguments that will be passed to GPAW
  * defines a ``relax`` task which performs a structure optimization
    that includes optimising the unit cell.
 
@@ -100,24 +102,26 @@ That is enough to verify that the workflow works, and that the atoms
 are passed and encoded correctly.  After that, unrun, edit, rerun, and fix it
 until it works.
 
-The workflow should function correctly when called on a bulk gold system
+The workflow should function correctly when called on a bulk silicon system
 like this:
 
 .. literalinclude:: workflow.py
    :start-at: def workflow
-   :end-before: end-workflow-function
+   :end-before: end-workflow-function-snippet
+
+Here we have chosen some generic GPAW parameters that will be fine
+for testing, but not for production.
 
 The relaxation task can be implemented like this:
 
-.. literalinclude:: emt-phonons/tasks.py
+.. literalinclude:: tasks.py
    :start-at: def optimize_cell
-   :end-before: optimize-cell-end
+   :end-before: end-optimize-cell-snippet
 
 Users unfamiliar with ASE may want to take a while to look up
 ASE concepts like atoms and calculators.  What the function does is:
 
- * Attach an `EMT force field calculator <https://wiki.fysik.dtu.dk/ase/ase/calculators/emt.html>`_
-   to the atoms
+ * Attach a GPAW calculator to the atoms
  * Create a
    `Frechet cell filter
    <https://wiki.fysik.dtu.dk/ase/ase/filters.html#the-frechetcellfilter-class>`_
@@ -129,16 +133,125 @@ ASE concepts like atoms and calculators.  What the function does is:
 It also tells the optimizer to write a trajectory file, ``opt.traj``.
 
 Once everything works and you run the relaxation task,
-go to the task directory and use the ASE GUI (``ase gui <filename>``)
+go to the task directory and use the ASE GUI (e.g. ``ase gui opt.traj``)
 to visualize the trajectory.
 
-old stuff
----------
+GPAW also writes a log file to ``gpaw.txt``.
+It is wise to have a brief look and observe that
+the calculation used the parameters we expect.
+
+
+Part 2: Add ground state and band structure tasks
+=================================================
+
+After the relaxation, we want to run a ground state
+calculation to save a ``.gpw`` file, which we subsequently want
+to pass to a non self-consistent calculation to get the band structure.
+
+Add a ``groundstate()`` function to ``tasks.py``:
+
+.. literalinclude:: tasks.py
+   :pyobject: groundstate
+
+In order to "return" the gpw file, we actually return a ``Path`` object
+pointing to it.  When passing the path to another task, TaskBlaster
+resolves it with respect to the task's own directory such
+that the human will not need to remember or care about the actual directories
+where the tasks run.
+
+Next, add a ``groundstate()`` task to the workflow which calls the groundstate
+function just added to ``tasks.py``.
+By calling ``tb.node(..., atoms=self.relax)``, we are specifying
+that the atoms should be taken as the *output* of the ``relax`` task,
+creating a dependency.
+
+We can now run the workflow again.  The old task still exists and
+will remain unchanged, whereas the new task should now appear
+in the ``tree/groundstate`` directory.
+
+Run the ground state task and check that the ``.gpw`` file was created as
+expected.
+
+Finally, we write a band structure task in ``tasks.py``:
+
+.. literalinclude:: tasks.py
+   :pyobject: bandstructure
+
+A corresponding method should be added on the workflow:
+
+.. literalinclude:: workflow.py
+   :pyobject: MaterialsWorkflow.bandstructure
+
+Now run the workflow and the resulting tasks.
+The code saves the Brillouin zone path and band structure separately to
+ASE JSON files.  Once it runs, we can go to the directory and check
+that it looks correct::
+
+  ase reciprocal tree/bandstructure/bandpath.json
+
+::
+
+   ase band-structure tree/bandstructure/bs.json
+
+
+
+You can delete all the tasks with ``tb remove tree/`` and run them from
+scratch by ``tb run tree/``, ``tb run tree/*``, or simply ``tb run
+tree/bandstructure``.
+The run command always executes tasks in
+topological order, i.e., each task runs only when its dependencies
+are done.
+
+The ``tb ls`` command can also be used to list tasks in topological
+order following the dependency graph::
+
+  human@computer:~/myworkflow$ tb ls --parents tree/bandstructure/
+
+  state    deps  tags        worker        time     folder
+  ───────────────────────────────────────────────────────────────────────────────
+  done     0/0               N/A-0/1       00:00:04 tree/relax
+  done     1/1               N/A-0/1       00:00:01 tree/groundstate
+  done     1/1               N/A-0/1       00:00:04 tree/bandstructure
+
+
+This way, we can comfortably work with larger numbers of tasks.
+
+If we edit the workflow such that tasks receive different inputs,
+TaskBlaster will mark the affected tasks with a conflict.
+Such a conflict can be solved by removing the old calculations
+or by telling TaskBlaster to consider it “resolved”, which we
+have seen in a previous tutorial.
+
+
+TODO and old stuff
+------------------
+
+
+Phonon computation
+------------------
+
+Now that we have the optimized structure, we can perform a phonon
+calculation on top.  We will use the ASE phonons module for this.
+Getting this to work with the EMT force field is a nice first step
+that can later be used to make a workflow that uses a real electronic
+structure code such as GPAW.
+
+It is generally desirable to separate computations into distinct chunks:
+For example the phonon computation involves force calculations
+on displaced atoms, which would be expensive, and those should go
+in one task.  Postprocessing on top of that via the dynamical matrix,
+including computation of phonon band structure, should go on top of that.
+
+Unfortunately, the ASE phonon implementation makes such a separation
+difficult, so we provide snippets with hacks that make it work.
+
+
 
 Let's perform a structure optimization of bulk Si.
 We write a function which performs such an optimization:
 
-.. literalinclude:: tasks.py
+..
+   literalinclude:: tasks.py
    :end-before: end-snippet-1
 
 This function uses a cell filter to expose the cell degrees of freedom
@@ -154,7 +267,8 @@ Create that file and save the above function to it.
 
 Next, we write a workflow with a task that will call the function:
 
-.. literalinclude:: workflow.py
+..
+   literalinclude:: workflow.py
    :end-before: end-snippet-1
 
 Explanation:
@@ -258,92 +372,6 @@ that the optimization ran as expected.  Also the logfiles
 ``gpaw.txt`` and ``opt.log`` are there.
 
 
-Part 2: Add ground state and band structure tasks
-=================================================
-
-.. warning:: The exercise text for parts 1-3 are due to be updated on Monday.
-
-After the relaxation, we want to run a ground state
-calculation to save a ``.gpw`` file, which we subsequently want
-to pass to a non self-consistent calculation to get the band structure.
-
-Add a ``groundstate()`` function to ``tasks.py``:
-
-.. literalinclude:: tasks.py
-   :pyobject: groundstate
-
-In order to "return" the gpw file, we actually return a ``Path`` object
-pointing to it.  When passing the path to another task, ASR
-resolves it with respect to the task's own directory such
-that the human will not need to remember or care about the actual directories
-where the tasks run.
-
-Let's add a corresponding groundstate method to the workflow:
-
-.. literalinclude:: workflow.py
-   :pyobject: MyWorkflow.groundstate
-
-
-By calling ``asr.node(..., atoms=self.relax)``, we are specifying
-that the atoms should be taken as the *output* of the ``relax`` task,
-creating a dependency.
-
-We can now run the workflow again.  The old task still exists and
-will remain unchanged, whereas the new task should now appear
-in the ``tree/groundstate`` directory.
-
-Run the ground state task and check that the ``.gpw`` file was created as
-expected.
-
-Finally, we write a band structure task in ``tasks.py``:
-
-.. literalinclude:: tasks.py
-   :pyobject: bandstructure
-
-A corresponding method should be added on the workflow:
-
-.. literalinclude:: workflow.py
-   :pyobject: MyWorkflow.bandstructure
-
-Now run the workflow and the resulting tasks.
-The code saves the Brillouin zone path and band structure separately to
-ASE JSON files.  Once it runs, we can go to the directory and check
-that it looks correct::
-
-  ase reciprocal tree/bandstructure/bandpath.json
-
-::
-
-   ase band-structure tree/bandstructure/bs.json
-
-Note that here we are using the ``ase`` tool, *not* the ``asr`` tool.
-
-You can delete all the tasks with ``asr remove tree/`` and run them from
-scratch by ``asr run tree/``, ``asr run tree/*``, or simply ``asr run
-tree/bandstructure``.
-The run command always executes tasks in
-topological order, i.e., each task runs only when its dependencies
-are done.
-
-The ``asr ls`` command can also be used to list tasks in topological
-order following the dependency graph::
-
-  human@computer:~/myworkflow$ asr ls --parents tree/bandstructure/
-  541d427c done     tree/relax                     relax(atoms=…, calculator=…)
-  5ca14caa done     tree/groundstate               groundstate(atoms=<541d427c>, calculator=…)
-  b5875ebd done     tree/bandstructure             bandstructure(gpw=<5ca14caa>)
-
-
-This way, we can comfortably work with larger numbers of tasks.
-Note how the hash values are consistent:
-The band structure's input includes the hash value of the
-ground state, and the ground state's input includes the hash value of the
-relaxation.
-
-If we edit the workflow such that tasks receive different inputs,
-then the hash values will change, and ASR will raise an error
-because the new hash is inconsistent with the old one in that directory.
-Such a conflict can be solved by removing the old calculations.
 
 
 Part 3: Run workflow on multiple materials

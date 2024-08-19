@@ -1,33 +1,35 @@
-import asr
+import taskblaster as tb
 
 
-@asr.workflow
-class MyWorkflow:
-    atoms = asr.var()
-    calculator = asr.var()
+@tb.workflow
+class MaterialsWorkflow:
+    atoms = tb.var()
+    calculator = tb.var()
 
-    @asr.task
+    @tb.task
     def relax(self):
-        return asr.node('relax',
-                        atoms=self.atoms,
-                        calculator=self.calculator)
-    # --- end-snippet-1 ---
+        return tb.node(
+            'optimize_cell',
+            atoms=self.atoms,
+            calculator=self.calculator)
 
-    @asr.task
+    @tb.task
     def groundstate(self):
-        return asr.node('groundstate', atoms=self.relax,
-                        calculator=self.calculator)
+        return tb.node(
+            'groundstate', atoms=self.relax,
+            calculator=self.calculator)
 
-    @asr.task
+    @tb.task
     def bandstructure(self):
-        return asr.node('bandstructure', gpw=self.groundstate)
+        return tb.node('bandstructure', gpw=self.groundstate)
 
 
 def workflow(runner):
     from ase.build import bulk
-    wf = MyWorkflow(
+    wf = MaterialsWorkflow(
         atoms=bulk('Si'),
         calculator={'mode': 'pw',
                     'kpts': (4, 4, 4),
                     'txt': 'gpaw.txt'})
     runner.run_workflow(wf)
+# end-workflow-function-snippet

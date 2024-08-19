@@ -1,19 +1,17 @@
-from ase.constraints import ExpCellFilter
-from ase.optimize import BFGS
 from gpaw import GPAW
 
 
-def relax(atoms, calculator):
+def optimize_cell(atoms, calculator):
+    from ase.filters import FrechetCellFilter
+    from ase.optimize import BFGS
+
     atoms.calc = GPAW(**calculator)
-    opt = BFGS(ExpCellFilter(atoms), trajectory='opt.traj',
+    opt = BFGS(FrechetCellFilter(atoms), trajectory='opt.traj',
                logfile='opt.log')
     opt.run(fmax=0.01)
-    # Remove the calculator before returning the atoms,
-    # because the calculator object as such cannot be saved:
-    atoms.calc = None
     return atoms
 
-# --- end-snippet-1 ---
+# end-optimize-cell-snippet
 
 def groundstate(atoms, calculator):
     from pathlib import Path
