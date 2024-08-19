@@ -237,7 +237,7 @@ Note that the syntax for some of these features is still being worked
 on, and is a little bit convoluted.  This will be simplified in the
 future, but for now we need some slightly verbose and specific
 modifications.  First, create a workflow file which specifies
-a parametrization::
+a parametrization:
 
 .. literalinclude:: materials.py
 
@@ -263,6 +263,8 @@ run e.g. the initializer explicitly::
 
     tb run tree/systems/init
 
+This generates all the tasks, applying our previously developed
+materials workflow to each material as a subworkflow.
 Once the tasks are generated, we can run a few of the materials to
 make sure everything works.  We can then look into how to submit
 workers and use myqueue to execute the rest of them at larger scale.
