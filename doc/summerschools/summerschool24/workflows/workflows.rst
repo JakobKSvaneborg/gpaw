@@ -74,7 +74,7 @@ and output, and that requires being able to save those objects.
 TaskBlaster can be extended with the ability to encode and decode arbitrary
 objects, and doing so requires a plugin.
 Such a plugin is provided by asr-lib, the
-`Atomic Simulation Recipes <https://gitlab.com/asr-dev/asr-lib>` library.
+`Atomic Simulation Recipes <https://gitlab.com/asr-dev/asr-lib>`_ library.
 We will create a project using asr-lib as a plugin and so facilitate
 our work with ASE objects.
 
