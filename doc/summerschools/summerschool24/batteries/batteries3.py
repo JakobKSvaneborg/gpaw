@@ -38,9 +38,7 @@ from ase.constraints import FixAtoms
 # %%
 """
 ## Transport barrier of Li in graphite
-"""
-# %%
-"""
+
 You will now calculate the energy barrier for Li diffusion in the graphite anode. You will do this using the [Nudged Elastic Band (NEB) method](https://wiki.fysik.dtu.dk/ase/ase/neb.html#module-ase.neb)
 
 You can use your work from Day 2, but for simplicity you are advised to load in the initial atomic configuration from file.
@@ -593,7 +591,7 @@ except FileNotFoundError:
 
 # %%
 """
-You are now ready to calculate the energy gained by intercalating a single Li ion into the cathode. Start by loading in the relevant reference structures and obtain the potential energies. This should not require any DFT calculations.
+You are now ready to calculate the energy gained by intercalating a single Li ion into the cathode. Start by loading in the relevant reference structures and obtain the potential energies. This should not require any new DFT calculations.
 """
 
 # %%

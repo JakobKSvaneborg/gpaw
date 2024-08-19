@@ -2,9 +2,12 @@ from myqueue.workflow import run
 
 
 def workflow():
-    with run(script='C_ecut_k_conv_GW.py', cores=24, tmax='1d') as r:
+    with run(script='C_ecut_k_conv_GW.py', cores=24, tmax='10h') as r:
         run(script='C_ecut_k_conv_plot_GW.py')
         run(script='C_ecut_extrap.py')
+        with run(script='C_ecut_automatic_extrapolate.py',
+                 cores=24, tmax='3h'):
+            run(script='C_ecut_automatic_extrapolate_plot.py')
 
     with run(script='C_frequency_conv.py', tmax='30m'):
         with run(script='C_frequency_conv_plot.py'):

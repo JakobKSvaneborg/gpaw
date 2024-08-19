@@ -77,9 +77,7 @@ Introductory slides
 -------------------
 
 The slides from the introduction to the exercises (Sunday) can be
-found here: TBA.
-
-.. :download:`Intro_projects_CAMD2022.pdf`
+found here: :download:`Intro_ASE_Databar.pdf`
 
 
 Projects

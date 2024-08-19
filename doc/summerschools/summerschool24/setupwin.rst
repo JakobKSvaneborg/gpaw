@@ -40,8 +40,12 @@ Configuring your secret key
 For security reasons, all access to DTU computers require two-factor
 authentification.  In the case of the HPC installation, the two
 factors are your password and an encryption key (*SSH key*).  You get
-your secret SSH key as described in the document with your username
-and password.  Save it on your laptop.
+your secret SSH key by connecting to
+https://www.student.dtu.dk/~dccidmgr/CAMD24/ then add your user name to
+the end of the URL and press enter (Guest accounts only, DTU users
+please :ref:`do this instead <keypair>`). You will now be asked to
+authenticate with username and password, when you have done that
+right-click on the link to save the file. Save it on your laptop.
 
 Start MobaXterm.  You will see a window with a row of buttons at the
 top.  Click on the Settings button (one of the last ones).  On the
@@ -50,9 +54,10 @@ The last box is labelled "SSH agents", select "Use internal SSH agent
 MobAgent".
 
 Click the Plus sign next to the box labelled "Load the following keys
-at MobAgent startup" and then select the key with your private SSH key
-(i.e. **not** the file with file type .pub).  Then press OK; MobaXterm
-will then need to restart.
+at MobAgent startup" and then select the file with your private SSH
+key.  You have to select "All files" in the file type menu to see it.
+The file name will be your user name, perhaps with ``.txt`` added.
+Then press OK; MobaXterm will then need to restart.
 
 .. image:: MobaXtermKeyConfiguration.png
    :width: 66%
@@ -68,11 +73,11 @@ shown below.
    :width: 66%
 
 In the tab *Basic SSH settings* you should choose *Remote host* to be
-``login.gbar.dtu.dk``.  The user name is your DTU user name (external
-participants got it in the registration material).  The port number
-must remain 22.  Click *OK*  and give your DTU password in the text
-window when prompted.  **NOTE** Nothing is written when you type the
-password, not even stars.
+``login.gbar.dtu.dk``.  Click the "specify user name" checkbox.  The
+user name is your DTU user name (external participants got it in the
+registration material).  The port number must remain 22.  Click *OK*
+and give your DTU password in the text window when prompted.  **NOTE**
+Nothing is written when you type the password, not even stars.
 
 **We do not recommend allowing MobaXterm to remember your password!**
 

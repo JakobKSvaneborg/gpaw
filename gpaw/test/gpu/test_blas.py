@@ -1,15 +1,16 @@
 import numpy as np
 import pytest
 
-from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.utilities.blas import (gpu_axpy, gpu_dotc, gpu_dotu, gpu_gemm,
                                  gpu_gemv, gpu_mmm, gpu_r2k, gpu_rk, gpu_scal,
                                  mmm, r2k, rk)
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_blas(gpu, dtype):
+def test_blas(dtype):
     N = 100
     rng = np.random.default_rng(seed=42)
     a = np.zeros((N, N), dtype=dtype)
