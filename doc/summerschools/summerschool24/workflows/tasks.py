@@ -1,19 +1,18 @@
-from ase.constraints import ExpCellFilter
-from ase.optimize import BFGS
+from pathlib import Path
 from gpaw import GPAW
+import taskblaster as tb
 
 
-def relax(atoms, calculator):
+def optimize_cell(atoms, calculator):
+    from ase.filters import FrechetCellFilter
+    from ase.optimize import BFGS
+    from gpaw import GPAW
+
     atoms.calc = GPAW(**calculator)
-    opt = BFGS(ExpCellFilter(atoms), trajectory='opt.traj',
+    opt = BFGS(FrechetCellFilter(atoms), trajectory='opt.traj',
                logfile='opt.log')
     opt.run(fmax=0.01)
-    # Remove the calculator before returning the atoms,
-    # because the calculator object as such cannot be saved:
-    atoms.calc = None
     return atoms
-
-# --- end-snippet-1 ---
 
 def groundstate(atoms, calculator):
     from pathlib import Path
@@ -23,15 +22,77 @@ def groundstate(atoms, calculator):
     atoms.calc.write(path)
     return path
 
-# --- literalinclude-divider-2 ---
+def bandpath(atoms):
+    return atoms.cell.bandpath(npoints=100)
 
-def bandstructure(gpw):
+
+def bandstructure(gpw, bandpath):
     gscalc = GPAW(gpw)
     atoms = gscalc.get_atoms()
-    bandpath = atoms.cell.bandpath(npoints=100)
-    bandpath.write('bandpath.json')
     calc = gscalc.fixed_density(
-        kpts=bandpath.kpts, symmetry='off', txt='bs.txt')
+        kpts=bandpath, symmetry='off', txt='bs.txt')
     bs = calc.band_structure()
-    bs.write('bs.json')
     return bs
+
+
+@tb.workflow
+class MaterialsWorkflow:
+    atoms = tb.var()
+    calculator = tb.var()
+
+    @tb.task
+    def relax(self):
+        return tb.node(
+            'optimize_cell',
+            atoms=self.atoms,
+            calculator=self.calculator)
+
+    @tb.task
+    def groundstate(self):
+        return tb.node(
+            'groundstate',
+            atoms=self.relax,
+            calculator=self.calculator)
+
+    @tb.task
+    def bandpath(self):
+        return tb.node('bandpath', atoms=self.relax)
+
+    @tb.task
+    def bandstructure(self):
+        return tb.node(
+            'bandstructure',
+            gpw=self.groundstate,
+            bandpath=self.bandpath)
+
+
+def asebulk(symbol):
+    from ase.build import bulk
+    return bulk(symbol)
+
+
+@tb.workflow
+class ParametrizableMaterialsWorkflow:
+    symbol = tb.var()
+    calculator = tb.var()
+
+    @tb.task
+    def atoms(self):
+        return tb.node('asebulk', symbol=self.symbol)
+
+    @tb.subworkflow
+    def compute(self):
+        return MaterialsWorkflow(atoms=self.atoms, calculator=self.calculator)
+
+
+@tb.dynamical_workflow_generator_task
+def parametrize_materials_workflow(calculator):
+    from ase.build import bulk
+
+    material_symbols = [
+        'Al', 'Si', 'Ti', 'Cu', 'Ag', 'Au', 'Pd', 'Pt',
+    ]
+
+    for symbol in material_symbols:
+        yield f'mat-{symbol}', ParametrizableMaterialsWorkflow(
+            symbol=symbol, calculator=calculator)
