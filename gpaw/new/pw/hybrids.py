@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from math import pi
+from math import pi, nan
 
 import numpy as np
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
@@ -135,7 +135,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         # P1_ani, f1_n and D_aii) to another set of wave functions
         # (psit2_nG):
         psi2 = Psi(psit2_nG, pt_aiG.integrate(psit2_nG))
-        # self.apply2(D_aii, pt_aiG, psi1, psi2, Htpsit2_nG)
         self.apply1(D_aii, pt_aiG, psi1, psi2, Htpsit2_nG)
 
     def apply1(self,
@@ -151,11 +150,12 @@ class PWHybridHamiltonian(PWHamiltonian):
         evv = 0.0
         evc = 0.0
         ekin = 0.0
-        V_aii = {}
+        B_ani = {}
         for a, D_ii in D_aii.items():
             VV_ii = pawexxvv(self.VV_app[a], D_ii)
             VC_ii = self.VC_aii[a]
-            V_aii[a] = -VC_ii - 2 * VV_ii
+            V_ii = -VC_ii - 2 * VV_ii
+            B_ani[a] = psi2.P_ani[a] @ V_ii
             if same:
                 ec = (D_ii * VC_ii).sum()
                 ev = (D_ii * VV_ii).sum()
@@ -166,9 +166,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         Q_nA = np.empty((mynbands,
                          sum(delta_iiL.shape[2]
                              for delta_iiL in self.delta_aiiL)))
-        B_ani = {a: np.zeros((mynbands, len(delta_iiL)))
-                 for a, delta_iiL in enumerate(self.delta_aiiL)}
-
         rhot_nR = self.grid.empty(mynbands)
         rhot_nG = self.pw.empty(mynbands)
         vrhot_G = self.pw.empty()
@@ -178,56 +175,55 @@ class PWHybridHamiltonian(PWHamiltonian):
         else:
             psit1_nR = None
 
-        for p in range(comm.size):  # (comm.size // 2 + 1):
+        e = 0.0
+        for p in range(comm.size):
             if p < comm.size - 1:
-                # print(comm.rank, '->', (comm.rank + p + 1) % comm.size)
-                psi1.send((comm.rank + p + 1) % comm.size)
+                psi1.send((comm.rank + 1) % comm.size)
                 if p == 0:
                     psi = psi1.empty()
-                # print(comm.rank, '<-', (comm.rank + p - 1) % comm.size)
-                psi.receive((comm.rank - p - 1) % comm.size)
+                psi.receive((comm.rank - 1) % comm.size)
             if p == 0:
                 psi2.psit_nR = self.grid.empty(mynbands)
                 ifft(psi2.psit_nG, psi2.psit_nR, self.plan)
-            e = self.inner(psi1, psi2,
-                           Q_nA,
-                           psit1_nR,
-                           rhot_nG, rhot_nR, vrhot_G,
-                           Htpsit_nG, V_aii, B_ani)
-            if same:
-                evv -= 0.5 * e
-                ekin += e
-            # print(comm.rank, p, B_ani[0][:, 0])
+            e += self.inner(psi1, psi2,
+                            Q_nA,
+                            psit1_nR,
+                            rhot_nG, rhot_nR, vrhot_G,
+                            Htpsit_nG, B_ani)
             if p < comm.size - 1:
                 psi.wait()
                 psi1.wait()
-                if psi1 is psi2:
+                if p == 0:
                     psi1 = psi
                     psi = psi1.empty()
                 else:
                     psi1, psi = psi, psi1
+
         pt_aiG.add_to(Htpsit_nG, B_ani)
 
-        return evv, evc, ekin
+        if same:
+            e = comm.sum_scalar(e)
+            evv -= 0.5 * e
+            ekin += e
+            return evv, evc, ekin
+
+        return nan, nan, nan
 
     def inner(self, psi1, psi2,
               Q_nA,
               psit1_nR,
               rhot_nG, rhot_nR, vrhot_G,
-              Htpsit_nG, V_aii, B_ani):
+              Htpsit_nG, B_ani):
         Q1_aniL = {a: np.einsum('ijL, nj -> niL',
                                 delta_iiL, psi1.P_ani[a])
                    for a, delta_iiL in enumerate(self.delta_aiiL)}
-        e = 0.0
-        for a, V_ii in V_aii.items():
-            B_ni = psi2.P_ani[a] @ V_ii
-            B_ani[a] += B_ni
 
         if psi1 is psi2:
             psit1_nR = psi2.psit_nR
         else:
             ifft(psi1.psit_nG, psit1_nR, self.plan)
 
+        e = 0.0
         for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
             rhot_nR.data[:] = psit1_nR.data * psit2_R.data
             fft(rhot_nR, rhot_nG, plan=self.plan)
