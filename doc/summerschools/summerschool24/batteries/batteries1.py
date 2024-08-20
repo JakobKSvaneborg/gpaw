@@ -263,12 +263,9 @@ Then we optimize the unit cell of the structure. We will take advantage of the [
 # %%
 from ase.filters import StrainFilter
 from ase.optimize.bfgs import BFGS
-from ase.io import Trajectory
 
 sf = StrainFilter(gra, mask=[1, 1, 1, 0, 0, 0])
 opt = BFGS(sf, trajectory=calcname + '.traj')
-# traj = Trajectory(calcname + '.traj', 'w', gra)
-# opt.attach(traj)
 opt.run(fmax=0.01)
 
 
@@ -306,7 +303,9 @@ B. Stay in the notebook and submit the calculations using some commands we will 
 
 # %%
 """
-You need to make a full working script in a cell that does not depend on variables defined in any other cells. Do that in the cell below. Once you are done, run it for a few seconds to make sure there is no error, then stop it by `interrupt the kernel`. This will give you an error message, ignore that and move on, we will submit the calculation in the next cell.
+You need to make a full working script in a cell **that does not depend on variables defined in any other cells**. Do that in the cell below. Once you are done, run it for a few seconds to make sure there is no error, then stop it by `interrupt the kernel`. This will give you an error message, ignore that and move on, we will submit the calculation in the next cell.
+
+**Note** the line `#%%writefile graphite_LDA.py` in the next cell.  If you remove the `#` symbol and execute the cell the script will not execute, instead the contents of the cell will be written to a file that you can use submit to the queue, see the following cell on how to submit.
 """
 
 # %%
@@ -321,7 +320,6 @@ from ase.lattice.hexagonal import Graphite
 from ase.calculators.dftd3 import DFTD3
 from ase.filters import StrainFilter
 from ase.optimize.bfgs import BFGS
-from ase.io import Trajectory
 
 ccdist = 1.41
 layerdist = 3.21
@@ -344,8 +342,6 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
 
     sf = StrainFilter(gra, mask=[1, 1, 1, 0, 0, 0])
     opt = BFGS(sf, trajectory=f'graphite-{xc}.traj')
-    # traj = Trajectory(f'graphite-{xc}.traj', 'w', gra)
-    # opt.attach(traj)
     opt.run(fmax=0.01)
 
 
@@ -353,7 +349,6 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
 """
 The following cell submits a calculation using [`myqueue`](https://myqueue.readthedocs.io/en/latest/).
 
-Note the line `#%%writefile graphite_LDA.py` in the previous cell.  Remove the `#` symbol and execute the cell again.  This will write the cell to a file that you can use submit to the queue:
 """
 
 # %%
@@ -611,9 +606,7 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
     Li_gra.calc = calc  # Connect system and calculator
 
     sf = StrainFilter(Li_gra, mask=[1, 1, 1, 0, 0, 0])
-    # traj = Trajectory(calcname + '.traj', 'w', Li_gra)
     opt = BFGS(sf, trajectory=calcname + '.traj')
-    # opt.attach(traj)
     opt.run(fmax=0.01)
 
 # %%

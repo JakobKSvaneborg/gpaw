@@ -574,7 +574,7 @@ class PZSICLCAO:
 
                 Fpot_av += \
                     self.bfs.calculate_force_contribution(
-                        vt_mG, rho_xMM.T, kpt.q)
+                        vt_mG, rho_xMM, kpt.q)
 
                 # Atomic density contribution
                 #            -----                         -----

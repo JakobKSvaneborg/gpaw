@@ -290,7 +290,7 @@ calc = GPAW(mode={'name': 'pw',
             parallel={'domain': 1, 'band': 1},
             magmoms=magmoms,
             soc=False,
-            kpts={'size': (3, 3, 1))
+            kpts={'size': (3, 3, 1)})
 atoms.calc = calc
 energy = atoms.get_potential_energy()
 print(energy)

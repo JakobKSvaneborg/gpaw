@@ -111,7 +111,7 @@ class DFTComponentsBuilder:
         bz = create_kpts(params.kpts, atoms)
         self.ibz = symmetries.reduce(bz, strict=False)
 
-        d = parallel.get('domain', None)
+        d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
         self.communicators = create_communicators(comm, len(self.ibz),
@@ -180,7 +180,7 @@ class DFTComponentsBuilder:
     @cached_property
     def gpu(self) -> bool:
         """Are we running on a GPU?."""
-        if self.params.parallel['gpu']:
+        if self.params.parallel.get('gpu', False):
             from gpaw.gpu import cupy_is_fake
             if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
                 raise ValueError(
