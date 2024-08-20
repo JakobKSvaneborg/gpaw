@@ -146,7 +146,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         comm = Htpsit_nG.comm
         mynbands = Htpsit_nG.mydims[0]
         same = psi1 is psi2
-
         evv = 0.0
         evc = 0.0
         ekin = 0.0
@@ -240,12 +239,16 @@ class PWHybridHamiltonian(PWHamiltonian):
                                                            rhot_nG,
                                                            psi1.f_n)):
                 vrhot_G.data = rhot_G.data * self.v_G.data
-                A1_aL = self.ghat_aLG.integrate(vrhot_G)
-                for a, A1_L in A1_aL.items():
-                    B_ani[a][n2] -= Q1_aniL[a][n1] @ (f1 * A1_L)
                 if psi2.f_n is not None:
                     e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G)
                 rhot_G.data[:] = vrhot_G.data
+                vrhot_G.data[0] *= 0.5
+                A1_A = vrhot_G.data.view(float) @ self.ghat_GA * 2.0
+                A1 = 0
+                for a, Q1_niL in Q1_aniL.items():
+                    A2 = A1 + Q1_niL.shape[2]
+                    B_ani[a][n2] -= Q1_niL[n1] @ (f1 * A1_A[A1:A2])
+                    A1 = A2
             ifft(rhot_nG, rhot_nR, plan=self.plan)
             rhot_nR.data *= psit1_nR.data
             fft(rhot_nR, rhot_nG, self.plan)
