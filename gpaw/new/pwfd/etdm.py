@@ -1,5 +1,4 @@
-from gpaw.new.backwards_compatibility import (FakeDensity, FakeHamiltonian,
-                                              FakeWFS)
+from gpaw.new.backwards_compatibility import FakeHamiltonian, FakeWFS
 from gpaw.new.calculation import DFTState
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
@@ -12,20 +11,31 @@ class ETDMPWFD(Eigensolver):
         self.setups = setups
         self.comm = comm
         self.atoms = atoms
+        self.pot_calc = None
+        self.occ_calc = None
 
     def iterate(self, state: DFTState,
-                hamiltonian: Hamiltonian,
-                pot_calc) -> float:
-        wfs = FakeWFS(state, self.setups, self.comm, None, hamiltonian,
+                hamiltonian: Hamiltonian) -> float:
+        wfs = FakeWFS(state, self.setups, self.comm, self.occ_calc,
+                      hamiltonian,
                       self.atoms)
-        ham = FakeHamiltonian(state, pot_calc)
-        dens = None  # FakeDensity(state)
+        ham = FakeHamiltonian(state, self.pot_calc)
+        dens = Density(state)
         if not self.eigensolver.initialized:
             self.eigensolver.initialize_dm_helper(wfs, ham, dens, print)
-        wfs.eigensolver.iterate(ham, wfs, dens, print)
-        assert not wfs.eigensolver.check_restart(wfs)
-        e_entropy = 0.0
-        kin_en_using_band = False
-
+        self.eigensolver.iterate(ham, wfs, dens, print)
+        assert not self.eigensolver.check_restart(wfs)
+        # e_entropy = 0.0
+        # kin_en_using_band = False
         # ham.get_energy(
         #     e_entropy, wfs, kin_en_using_band=kin_en_using_band, e_sic=e_sic)
+        return self.eigensolver.error
+
+
+class Density:
+    def __init__(self, state):
+        self.fixed = False
+        self.state = state
+
+    def update(self, wfs):
+        self.state.density.update(self.state.ibzwfs)

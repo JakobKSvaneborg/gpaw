@@ -60,6 +60,10 @@ class SCFLoop:
         cc = create_convergence_criteria(convergence or self.convergence)
         maxiter = maxiter or self.maxiter
 
+        # ETDM: ???
+        self.eigensolver.pot_calc = pot_calc
+        self.eigensolver.occ_calc = self.occ_calc
+
         if log:
             log('convergence criteria:')
             for criterion in cc.values():
@@ -75,9 +79,7 @@ class SCFLoop:
             dens_error = 0.0
 
         for self.niter in itertools.count(start=1):
-            wfs_error = self.eigensolver.iterate(state,
-                                                 self.hamiltonian,
-                                                 pot_calc)
+            wfs_error = self.eigensolver.iterate(state, self.hamiltonian)
             state.ibzwfs.calculate_occs(
                 self.occ_calc,
                 fixed_fermi_level=not self.update_density_and_potential)

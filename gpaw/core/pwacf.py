@@ -277,7 +277,7 @@ class PWLFC(BaseLFC):
         else:
             yield 0, nG
 
-    def add(self, a_xG, c_axi=1.0, q=None):
+    def add(self, a_xG, c_axi=1.0, q=None, _scale= 1.0):
         if self.nI == 0:
             return
         c_xI = self.xp.empty(a_xG.shape[:-1] + (self.nI,), self.dtype)
@@ -308,7 +308,7 @@ class PWLFC(BaseLFC):
                 G2 *= 2
 
             if self.xp is np:
-                mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
+                mmm(_scale / self.pw.dv, c_xI, 'N', f_GI, 'T',
                     1.0, a_xG[:, G1:G2])
             else:
                 self.xp.cublas.gemm('N', 'T',

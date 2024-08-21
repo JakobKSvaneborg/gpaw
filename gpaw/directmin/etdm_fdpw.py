@@ -683,10 +683,18 @@ class FDPWETDM:
         wfs.apply_pseudo_hamiltonian(kpt, ham, kpt.psit_nG, Hpsi_nG)
 
         c_axi = {}
-        for a, P_xi in kpt.P_ani.items():
-            dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
-            c_xi = np.dot(P_xi, dH_ii)
-            c_axi[a] = c_xi
+        try:
+            dH_asii = ham.state.potential.dH_asii
+        except AttributeError:
+            for a, P_xi in kpt.P_ani.items():
+                dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
+                c_xi = np.dot(P_xi, dH_ii)
+                c_axi[a] = c_xi
+        else:
+            for a, P_xi in kpt.P_ani.items():
+                dH_ii = dH_asii[a][kpt.s]
+                c_xi = np.dot(P_xi, dH_ii)
+                c_axi[a] = c_xi
 
         # not sure about this:
         ham.xc.add_correction(

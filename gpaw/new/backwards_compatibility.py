@@ -25,13 +25,17 @@ class PT:
         self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.integrate(psit_nG, P_ani, q=0,
                                                        _scale=self.scale)
 
+    def add(self, psit_nG, c_axi, q):
+        self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.add(psit_nG, c_axi, q=0,
+                                                 _scale=1 / self.scale)
+
 
 class FakeWFS:
     def __init__(self,
                  state,
                  setups,
                  comm,
-                 occ,
+                 occ_calc,
                  hamiltonian,
                  atoms: Atoms):
         from gpaw.utilities.partition import AtomPartition
@@ -51,7 +55,8 @@ class FakeWFS:
         atomdist = self.state.density.D_asii.layout.atomdist
         self.atom_partition = AtomPartition(atomdist.comm, atomdist.rank_a)
         self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
-        self.occupations = occ
+        self.occ_calc = occ_calc
+        self.occupations = occ_calc.occ
         self.nvalence = int(round(ibzwfs.nelectrons))
         assert self.nvalence == ibzwfs.nelectrons
         self.world = comm
@@ -84,6 +89,7 @@ class FakeWFS:
         self.positions_set = True
         self.read_from_file_init_wfs_dm = False
         self.pt = PT(ibzwfs, self.gd)
+        self.scalapack_parameters = (None, 1, 1, 128)
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
         a_nX = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX
@@ -91,6 +97,16 @@ class FakeWFS:
             self.state.potential.vt_sR[kpt.s],
             a_nX.new(data=a1),
             a_nX.new(data=a2))
+
+    def calculate_occupation_numbers(self, fixed):
+        self.state.ibzwfs.calculate_occs(
+            self.occ_calc,
+            fixed_fermi_level=fixed)
+
+    def empty(self, n, q):
+        return np.empty((n,) +
+                        self.state.ibzwfs.wfs_qs[q][0].psit_nX.data.shape[1:],
+                        complex)
 
     @cached_property
     def work_array(self):
@@ -106,8 +122,19 @@ class FakeWFS:
             self.dtype,
             dist=(self.bd.comm, self.bd.comm.size))
 
+    @property
+    def orthonormalized(self):
+        return self.state.ibzwfs.wfs_qs[0][0].orthonormalized
+
+    def orthonormalize(self, kpt=None):
+        if kpt is None:
+            self.state.ibzwfs.orthonormalize()
+            return
+        self.state.ibzwfs.wfs_qs[kpt.q][kpt.s].orthonormalize()
+
     def make_preconditioner(self, blocksize):
-        return self.hamiltonian.create_preconditioner(blocksize)
+        from gpaw.wavefunctions.pw import Preconditioner
+        return Preconditioner(self.pd.G2_qG, self.pd)
 
     def _get_wave_function_array(self, u, n, realspace=True, periodic=False):
         assert realspace and not periodic
@@ -153,11 +180,13 @@ class FakeWFS:
                  for wfs in wfs_s]
                 for wfs_s in self.state.ibzwfs.wfs_qs]
 
-    def integrate(self, a_nX, b_nX, gi):
-        assert gi
-        A_nX = self.grid.from_data(a_nX)
-        B_nX = self.grid.from_data(b_nX)
-        return A_nX.matrix_elements(B_nX).data
+    def integrate(self, a_nX, b_nX, global_integral):
+        if a_nX.ndim == 4:
+            assert global_integral
+            A_nX = self.grid.from_data(a_nX)
+            B_nX = self.grid.from_data(b_nX)
+            return A_nX.matrix_elements(B_nX).data
+        return self.pd.integrate(a_nX, b_nX, global_integral)
 
 
 class KPT:
@@ -254,10 +283,18 @@ class FakeDensity:
 class FakeHamiltonian:
     def __init__(self, state, pot_calc):
         self.pot_calc = pot_calc
+        self.state = state
         self.finegd = pot_calc.fine_grid._gd
         self.grid = state.potential.vt_sR.desc
         # self.e_total_free = dft.results.get('free_energy')
         self.e_xc = state.potential.energies['xc']
+
+    def update(self, dens, wfs, _):
+        self.state.potential, _ = self.pot_calc.calculate(
+            self.state.density, self.state.ibzwfs, self.state.potential.vHt_x)
+
+    def get_energy(self, _, wfs, x):
+        return 0.0
 
     def restrict_and_collect(self, vxct_sg):
         fine_grid = self.pot_calc.fine_grid
@@ -271,3 +308,8 @@ class FakeHamiltonian:
     @property
     def xc(self):
         return self.pot_calc.xc.xc
+
+    def dH(self, P, out):
+        for a, I1, I2 in P.indices:
+            dH_ii = self.state.potential.dH_asii[a][P.spin]
+            out.array[:, I1:I2] = np.dot(P.array[:, I1:I2], dH_ii)
