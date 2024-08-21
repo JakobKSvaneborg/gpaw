@@ -315,7 +315,7 @@ class PWLFC(BaseLFC):
                                     c_xI, f_GI, a_xG[:, G1:G2],
                                     1.0 / self.pw.dv, 1.0)
 
-    def integrate(self, a_xG, c_axi=None, q=-1):
+    def integrate(self, a_xG, c_axi=None, q=-1, _scale=1.0):
         xp = self.xp
         if self.nI == 0:
             return c_axi
@@ -327,7 +327,7 @@ class PWLFC(BaseLFC):
         b_xI = c_xI.reshape((nx, self.nI))
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
-        alpha = 1.0  # / self.pd.gd.N_c.prod()
+        alpha = _scale  # / self.pd.gd.N_c.prod()
         if self.dtype == float:
             alpha *= 2
             a_xG = a_xG.view(float)

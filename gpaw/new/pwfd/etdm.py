@@ -6,16 +6,21 @@ from gpaw.new.hamiltonian import Hamiltonian
 
 
 class ETDMPWFD(Eigensolver):
-    def __init__(self, atoms, params):
+    def __init__(self, setups, comm, atoms, params):
         from gpaw.directmin.etdm_fdpw import FDPWETDM
         self.eigensolver = FDPWETDM(**params)
+        self.setups = setups
+        self.comm = comm
         self.atoms = atoms
 
-    def iterate(self, state: DFTState, hamiltonian: Hamiltonian) -> float:
-        wfs = FakeWFS(state, self.atoms)
-        ham = FakeHamiltonian(state)
-        dens = FakeDensity(state)
-        if not self.eistgensolver.initialized:
+    def iterate(self, state: DFTState,
+                hamiltonian: Hamiltonian,
+                pot_calc) -> float:
+        wfs = FakeWFS(state, self.setups, self.comm, None, hamiltonian,
+                      self.atoms)
+        ham = FakeHamiltonian(state, pot_calc)
+        dens = None  # FakeDensity(state)
+        if not self.eigensolver.initialized:
             self.eigensolver.initialize_dm_helper(wfs, ham, dens, print)
         wfs.eigensolver.iterate(ham, wfs, dens, print)
         assert not wfs.eigensolver.check_restart(wfs)

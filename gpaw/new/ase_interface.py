@@ -550,7 +550,11 @@ class ASECalculator:
     @cached_property
     def wfs(self):
         from gpaw.new.backwards_compatibility import FakeWFS
-        return FakeWFS(self.dft, self.atoms)
+        return FakeWFS(self.dft.state,
+                       self.dft.setups,
+                       self.comm,
+                       self.dft.scf_loop.occ_calc.occ,
+                       self.atoms)
 
     @property
     def density(self):

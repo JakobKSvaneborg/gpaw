@@ -13,12 +13,32 @@ from gpaw.projections import Projections
 from gpaw.pw.descriptor import PWDescriptor
 from gpaw.utilities import pack_density
 from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.utilities.timing import nulltimer
+
+
+class PT:
+    def __init__(self, ibzwfs, gd):
+        self.ibzwfs = ibzwfs
+        self.scale = 1 / gd.N_c.prod()
+
+    def integrate(self, psit_nG, P_ani, q):
+        self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.integrate(psit_nG, P_ani, q=0,
+                                                       _scale=self.scale)
 
 
 class FakeWFS:
-    def __init__(self, dft: DFTCalculation, atoms: Atoms):
-        self.setups = dft.setups
-        self.state = dft.state
+    def __init__(self,
+                 state,
+                 setups,
+                 comm,
+                 occ,
+                 hamiltonian,
+                 atoms: Atoms):
+        from gpaw.utilities.partition import AtomPartition
+        self.timer = nulltimer
+        self.setups = setups
+        self.state = state
+        self.hamiltonian = hamiltonian
         ibzwfs = self.state.ibzwfs
         self.kd = KPointDescriptor(ibzwfs.ibz.bz.kpt_Kc,
                                    ibzwfs.nspins)
@@ -28,12 +48,13 @@ class FakeWFS:
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
         self.grid = self.state.density.nt_sR.desc
         self.gd = self.grid._gd
-        self.atom_partition = dft._atom_partition
+        atomdist = self.state.density.D_asii.layout.atomdist
+        self.atom_partition = AtomPartition(atomdist.comm, atomdist.rank_a)
         self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
-        self.occupations = dft.scf_loop.occ_calc.occ
+        self.occupations = occ
         self.nvalence = int(round(ibzwfs.nelectrons))
         assert self.nvalence == ibzwfs.nelectrons
-        self.world = dft.comm
+        self.world = comm
         if ibzwfs.fermi_levels is not None:
             self.fermi_levels = ibzwfs.fermi_levels
             if len(self.fermi_levels) == 1:
@@ -42,7 +63,7 @@ class FakeWFS:
         self.dtype = ibzwfs.dtype
         wfs = ibzwfs.wfs_qs[0][0]
         self.pd = None
-        self.basis_functions = getattr(dft.scf_loop.hamiltonian,
+        self.basis_functions = getattr(wfs,  # dft.scf_loop.hamiltonian,
                                        'basis', None)
         if isinstance(wfs, PWFDWaveFunctions):
             if hasattr(wfs.psit_nX.desc, 'ecut'):
@@ -61,6 +82,32 @@ class FakeWFS:
                                            Mstop=self.basis_functions.Mstop)
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
+        self.read_from_file_init_wfs_dm = False
+        self.pt = PT(ibzwfs, self.gd)
+
+    def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
+        a_nX = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX
+        self.hamiltonian.apply_local_potential(
+            self.state.potential.vt_sR[kpt.s],
+            a_nX.new(data=a1),
+            a_nX.new(data=a2))
+
+    @cached_property
+    def work_array(self):
+        return np.empty(
+            (self.bd.mynbands,) + self.state.ibzwfs.get_max_shape(),
+            complex)
+
+    @cached_property
+    def work_matrix_nn(self):
+        from gpaw.matrix import Matrix
+        return Matrix(
+            self.bd.nbands, self.bd.nbands,
+            self.dtype,
+            dist=(self.bd.comm, self.bd.comm.size))
+
+    def make_preconditioner(self, blocksize):
+        return self.hamiltonian.create_preconditioner(blocksize)
 
     def _get_wave_function_array(self, u, n, realspace=True, periodic=False):
         assert realspace and not periodic
@@ -205,12 +252,12 @@ class FakeDensity:
 
 
 class FakeHamiltonian:
-    def __init__(self, dft: DFTCalculation):
-        self.pot_calc = dft.pot_calc
-        self.finegd = self.pot_calc.fine_grid._gd
-        self.grid = dft.state.potential.vt_sR.desc
-        self.e_total_free = dft.results.get('free_energy')
-        self.e_xc = dft.state.potential.energies['xc']
+    def __init__(self, state, pot_calc):
+        self.pot_calc = pot_calc
+        self.finegd = pot_calc.fine_grid._gd
+        self.grid = state.potential.vt_sR.desc
+        # self.e_total_free = dft.results.get('free_energy')
+        self.e_xc = state.potential.energies['xc']
 
     def restrict_and_collect(self, vxct_sg):
         fine_grid = self.pot_calc.fine_grid
