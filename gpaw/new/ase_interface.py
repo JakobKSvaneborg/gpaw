@@ -553,7 +553,8 @@ class ASECalculator:
         return FakeWFS(self.dft.state,
                        self.dft.setups,
                        self.comm,
-                       self.dft.scf_loop.occ_calc.occ,
+                       self.dft.scf_loop.occ_calc,
+                       self.dft.scf_loop.hamiltonian,
                        self.atoms)
 
     @property
@@ -564,7 +565,7 @@ class ASECalculator:
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
-        return FakeHamiltonian(self.dft)
+        return FakeHamiltonian(self.dft.state, self.dft.pot_calc)
 
     @property
     def spos_ac(self):

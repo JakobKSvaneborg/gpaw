@@ -277,7 +277,7 @@ class PWLFC(BaseLFC):
         else:
             yield 0, nG
 
-    def add(self, a_xG, c_axi=1.0, q=None, _scale= 1.0):
+    def add(self, a_xG, c_axi=1.0, q=None, _scale=1.0):
         if self.nI == 0:
             return
         c_xI = self.xp.empty(a_xG.shape[:-1] + (self.nI,), self.dtype)
