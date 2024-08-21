@@ -1,9 +1,9 @@
-import numpy as np
 from functools import cached_property
-from ase import Atoms
-from ase.units import Bohr
 from types import SimpleNamespace
 
+import numpy as np
+from ase import Atoms
+from ase.units import Bohr
 from gpaw.band_descriptor import BandDescriptor
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
@@ -12,8 +12,9 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.projections import Projections
 from gpaw.pw.descriptor import PWDescriptor
 from gpaw.utilities import pack_density
-from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
 from gpaw.utilities.timing import nulltimer
+from gpaw.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
+                                       UniformGridWaveFunctions)
 
 
 class PT:
@@ -106,13 +107,13 @@ class FakeWFS:
     def empty(self, n, q):
         return np.empty((n,) +
                         self.state.ibzwfs.wfs_qs[q][0].psit_nX.data.shape[1:],
-                        complex)
+                        complex if self.mode == 'pw' else self.dtype)
 
     @cached_property
     def work_array(self):
         return np.empty(
             (self.bd.mynbands,) + self.state.ibzwfs.get_max_shape(),
-            complex)
+            complex if self.mode == 'pw' else self.dtype)
 
     @cached_property
     def work_matrix_nn(self):
@@ -133,8 +134,12 @@ class FakeWFS:
         self.state.ibzwfs.wfs_qs[kpt.q][kpt.s].orthonormalize()
 
     def make_preconditioner(self, blocksize):
-        from gpaw.wavefunctions.pw import Preconditioner
-        return Preconditioner(self.pd.G2_qG, self.pd)
+        if self.mode == 'pw':
+            from gpaw.wavefunctions.pw import Preconditioner
+            return Preconditioner(self.pd.G2_qG, self.pd)
+        from gpaw.preconditioner import Preconditioner
+        return Preconditioner(self.gd, self.hamiltonian.kin, self.dtype,
+                              blocksize)
 
     def _get_wave_function_array(self, u, n, realspace=True, periodic=False):
         assert realspace and not periodic
@@ -176,24 +181,24 @@ class FakeWFS:
     @cached_property
     def kpt_qs(self):
         ngpts = prod(self.gd.N_c)
-        return [[KPT(wfs, self.atom_partition, ngpts, self.pd)
+        return [[KPT(self.mode, wfs, self.atom_partition, ngpts,
+                     self.pd, self.gd)
                  for wfs in wfs_s]
                 for wfs_s in self.state.ibzwfs.wfs_qs]
 
     def integrate(self, a_nX, b_nX, global_integral):
-        if a_nX.ndim == 4:
-            assert global_integral
-            A_nX = self.grid.from_data(a_nX)
-            B_nX = self.grid.from_data(b_nX)
-            return A_nX.matrix_elements(B_nX).data
+        if self.mode == 'fd':
+            return self.gd.integrate(a_nX, b_nX, global_integral)
         return self.pd.integrate(a_nX, b_nX, global_integral)
 
 
 class KPT:
-    def __init__(self, wfs, atom_partition, ngpts, pd):
+    def __init__(self, mode, wfs, atom_partition, ngpts, pd, gd):
+        self.mode = mode
         self.ngpts = ngpts
         self.wfs = wfs
         self.pd = pd
+        self.gd = gd
 
         I1 = 0
         nproj_a = []
@@ -223,20 +228,30 @@ class KPT:
             self.C_nM = wfs.C_nM.data
             self.S_MM = wfs.S_MM.data
             self.P_aMi = wfs.P_aMi
+        if mode == 'fd':
+            self.phase_cd = wfs.psit_nX.desc.phase_factor_cd
 
     @property
     def psit_nG(self):
         a_nG = self.psit_nX.data
         if a_nG.ndim == 4:
             return a_nG
-        return a_nG * self.ngpts
+        return a_nG * self.ngpts  # read-only!!
 
     @cached_property
     def psit(self):
         band_comm = self.psit_nX.comm
-        return PlaneWaveExpansionWaveFunctions(
-            self.wfs.nbands, self.pd, self.wfs.dtype,
-            self.psit_nX.data * self.ngpts,
+        if self.mode == 'pw':
+            return PlaneWaveExpansionWaveFunctions(
+                self.wfs.nbands, self.pd, self.wfs.dtype,
+                self.psit_nX.data * self.ngpts,  # read-only!!
+                kpt=self.q,
+                dist=(band_comm, band_comm.size),
+                spin=self.s,
+                collinear=self.wfs.ncomponents != 4)
+        return UniformGridWaveFunctions(
+            self.wfs.nbands, self.gd, self.wfs.dtype,
+            self.psit_nX.data,
             kpt=self.q,
             dist=(band_comm, band_comm.size),
             spin=self.s,
