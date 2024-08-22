@@ -16,6 +16,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.typing import Array1D, Array2D, Self
+from gpaw.utilities import pack_density
 
 if TYPE_CHECKING:
     from gpaw.new.density import Density
@@ -501,3 +502,21 @@ class IBZWaveFunctions(Generic[WFT]):
                                             for wfs_s in self.wfs_qs))
 
         return np.array([homo, lumo])
+
+    def calculate_kinetic_energy(self,
+                                 hamiltonian,
+                                 density: Density) -> float:
+        e_kin = 0.0
+        for wfs in self:
+            e_kin += hamiltonian.calculate_kinetic_energy(wfs, skip_sum=True)
+        e_kin = self.comm.sum_scalar(e_kin)
+
+        # PAW corrections:
+        e_kin_paw = 0.0
+        for a, D_sii in density.D_asii.items():
+            setup = wfs.setups[a]
+            D_p = pack_density(D_sii.real[:density.ndensities].sum(0))
+            e_kin_paw += setup.K_p @ D_p + setup.Kc
+        e_kin_paw = density.grid.comm.sum_scalar(e_kin_paw)
+
+        return e_kin + e_kin_paw

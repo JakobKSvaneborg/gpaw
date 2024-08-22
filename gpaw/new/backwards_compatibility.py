@@ -215,12 +215,10 @@ class KPT:
             wfs.ncomponents < 4,
             wfs.spin,
             data=wfs.P_ani.data)
-        self.eps_n = wfs.myeig_n
         self.s = wfs.spin if wfs.ncomponents < 4 else None
         self.k = wfs.k
         self.q = wfs.q
         self.weight = wfs.spin_degeneracy * wfs.weight
-        self.f_n = wfs.myocc_n * self.weight
         self.P_ani = wfs.P_ani
         if isinstance(wfs, PWFDWaveFunctions):
             self.psit_nX = wfs.psit_nX
@@ -232,23 +230,37 @@ class KPT:
             self.phase_cd = wfs.psit_nX.desc.phase_factor_cd
 
     @property
+    def eps_n(self):
+        return self.wfs.myeig_n
+
+    @property
+    def f_n(self):
+        f_n = self.wfs.myocc_n * self.weight
+        f_n.flags.writeable = False
+        return f_n
+
+    @property
     def psit_nG(self):
         a_nG = self.psit_nX.data
         if a_nG.ndim == 4:
             return a_nG
-        return a_nG * self.ngpts  # read-only!!
+        a_nG = a_nG * self.ngpts
+        a_nG.flags.writeable = False
+        return a_nG
 
     @cached_property
     def psit(self):
         band_comm = self.psit_nX.comm
         if self.mode == 'pw':
-            return PlaneWaveExpansionWaveFunctions(
+            x = PlaneWaveExpansionWaveFunctions(
                 self.wfs.nbands, self.pd, self.wfs.dtype,
                 self.psit_nX.data * self.ngpts,  # read-only!!
                 kpt=self.q,
                 dist=(band_comm, band_comm.size),
                 spin=self.s,
                 collinear=self.wfs.ncomponents != 4)
+            x.matrix.array.flags.writeable = False
+            return x
         return UniformGridWaveFunctions(
             self.wfs.nbands, self.gd, self.wfs.dtype,
             self.psit_nX.data,
@@ -296,20 +308,61 @@ class FakeDensity:
 
 
 class FakeHamiltonian:
-    def __init__(self, state, pot_calc):
+    def __init__(self, state, pot_calc, e_total_free=np.nan):
         self.pot_calc = pot_calc
         self.state = state
         self.finegd = pot_calc.fine_grid._gd
         self.grid = state.potential.vt_sR.desc
-        # self.e_total_free = dft.results.get('free_energy')
+        self.e_total_free = e_total_free
         self.e_xc = state.potential.energies['xc']
 
-    def update(self, dens, wfs, _):
+    def update(self, dens, wfs, kin_en_using_band=True):
         self.state.potential, _ = self.pot_calc.calculate(
             self.state.density, self.state.ibzwfs, self.state.potential.vHt_x)
 
-    def get_energy(self, _, wfs, x):
-        return 0.0
+        energies = self.state.potential.energies
+        self.e_xc = energies['xc']
+        self.e_kinetic0 = energies['kinetic']
+        self.e_coulomb = energies['coulomb']
+        self.e_zero = energies['zero']
+        self.e_external = energies['external']
+
+        if kin_en_using_band:
+            self.e_kinetic0 = energies['kinetic']
+        else:
+            self.e_kinetic0 = self.state.ibzwfs.calculate_kinetic_energy(
+                wfs.hamiltonian, self.state.density)
+
+    def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
+        """Sum up all eigenvalues weighted with occupation numbers"""
+        self.e_band = self.state.ibzwfs.energies['band']
+        if kin_en_using_band:
+            self.e_kinetic = self.e_kinetic0 + self.e_band
+        else:
+            self.e_kinetic = self.e_kinetic0
+        self.e_entropy = e_entropy
+        if 0:
+            print(self.e_kinetic0,
+                  self.e_band,
+                  self.e_coulomb,
+                  self.e_external,
+                  self.e_zero,
+                  self.e_xc,
+                  self.e_entropy)
+
+        self.e_total_free = (self.e_kinetic + self.e_coulomb +
+                             self.e_external + self.e_zero + self.e_xc +
+                             self.e_entropy)
+
+        if e_sic is not None:
+            self.e_sic = e_sic
+            self.e_total_free += e_sic
+
+        self.e_total_extrapolated = (
+            self.e_total_free +
+            self.state.ibzwfs.energies['extrapolation'])
+
+        return self.e_total_free
 
     def restrict_and_collect(self, vxct_sg):
         fine_grid = self.pot_calc.fine_grid

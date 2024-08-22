@@ -565,7 +565,8 @@ class ASECalculator:
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
-        return FakeHamiltonian(self.dft.state, self.dft.pot_calc)
+        return FakeHamiltonian(self.dft.state, self.dft.pot_calc,
+                               self.dft.results.get('free_energy'))
 
     @property
     def spos_ac(self):

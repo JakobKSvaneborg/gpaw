@@ -25,10 +25,11 @@ class ETDMPWFD(Eigensolver):
             self.eigensolver.initialize_dm_helper(wfs, ham, dens, print)
         self.eigensolver.iterate(ham, wfs, dens, print)
         assert not self.eigensolver.check_restart(wfs)
-        # e_entropy = 0.0
-        # kin_en_using_band = False
-        # ham.get_energy(
-        #     e_entropy, wfs, kin_en_using_band=kin_en_using_band, e_sic=e_sic)
+        e_entropy = 0.0
+        kin_en_using_band = False
+        e_sic = 0.0
+        ham.get_energy(
+            e_entropy, wfs, kin_en_using_band=kin_en_using_band, e_sic=e_sic)
         return self.eigensolver.error
 
 

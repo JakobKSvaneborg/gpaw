@@ -1201,8 +1201,11 @@ class FDPWETDM:
         if self.need_init_orbs and not wfs.read_from_file_init_wfs_dm:
             for kpt in wfs.kpt_u:
                 wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
+                print(kpt.P_ani[1][:, 0])
+                print(kpt.psit_nG[0, :, 16, 16])
                 self.eigensolver.subspace_diagonalize(
                     ham, wfs, kpt, True)
+                print(kpt.psit_nG[0, :, 16, 16]);dsag
                 wfs.gd.comm.broadcast(kpt.eps_n, 0)
             self.need_init_orbs = False
         if wfs.read_from_file_init_wfs_dm:

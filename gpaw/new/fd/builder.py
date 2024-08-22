@@ -175,3 +175,13 @@ class FDHamiltonian(Hamiltonian):
             pc(residuals.data, kpt, out=out.data)
 
         return apply
+
+    def calculate_kinetic_energy(self, wfs, skip_sum=False):
+        e_kin = 0.0
+        for f, psit_R in zip(wfs.myocc_n, wfs.psit_nX):
+            if f > 1.0e-10:
+                e_kin += f * psit_R.integrate(self.kin(psit_R), skip_sum).real
+        if not skip_sum:
+            e_kin = psit_R.desc.comm.sum_scalar(e_kin)
+            e_kin = wfs.band_comm.sum_scalar(e_kin)
+        return e_kin
