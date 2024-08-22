@@ -8,6 +8,7 @@ class ETDMPWFD(Eigensolver):
     def __init__(self, setups, comm, atoms, params):
         from gpaw.directmin.etdm_fdpw import FDPWETDM
         self.eigensolver = FDPWETDM(**params)
+        self.eigensolver.gpaw_new = True
         self.setups = setups
         self.comm = comm
         self.atoms = atoms

@@ -232,6 +232,8 @@ class FDPWETDM:
         self.need_init_odd = True
         self.initialized = False
 
+        self.gpaw_new = False
+
     def check_inputs_and_init_search_algo(self):
         defaults = self.set_defaults()
         if self.need_init_orbs is None:
@@ -623,7 +625,6 @@ class FDPWETDM:
                 wfs.orthonormalize(kpt)
         elif not wfs.orthonormalized:
             wfs.orthonormalize()
-
         if not self.excited_state:
             energy = self.update_ks_energy(
                 ham, wfs, dens, updateproj=updateproj)
@@ -1193,19 +1194,14 @@ class FDPWETDM:
         return counter, True
 
     def initialize_orbitals(self, wfs, ham):
-        """
-        :param wfs:
-        :param ham:
-        :return:
-        """
         if self.need_init_orbs and not wfs.read_from_file_init_wfs_dm:
             for kpt in wfs.kpt_u:
                 wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
-                print(kpt.P_ani[1][:, 0])
-                print(kpt.psit_nG[0, :, 16, 16])
                 self.eigensolver.subspace_diagonalize(
                     ham, wfs, kpt, True)
-                print(kpt.psit_nG[0, :, 16, 16]);dsag
+                if self.gpaw_new:
+                    # Update wrapper:
+                    kpt.P_ani.data[:] = kpt.projections.matrix.array
                 wfs.gd.comm.broadcast(kpt.eps_n, 0)
             self.need_init_orbs = False
         if wfs.read_from_file_init_wfs_dm:

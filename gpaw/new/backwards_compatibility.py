@@ -129,9 +129,13 @@ class FakeWFS:
 
     def orthonormalize(self, kpt=None):
         if kpt is None:
-            self.state.ibzwfs.orthonormalize()
-            return
-        self.state.ibzwfs.wfs_qs[kpt.q][kpt.s].orthonormalize()
+            kpts = list(self.state.ibzwfs)
+        else:
+            kpts = [self.state.ibzwfs.wfs_qs[kpt.q][kpt.s]]
+        for wfs in kpts:
+            wfs._P_ani = None
+            wfs.orthonormalized = False
+            wfs.orthonormalize()
 
     def make_preconditioner(self, blocksize):
         if self.mode == 'pw':
@@ -219,7 +223,6 @@ class KPT:
         self.k = wfs.k
         self.q = wfs.q
         self.weight = wfs.spin_degeneracy * wfs.weight
-        self.P_ani = wfs.P_ani
         if isinstance(wfs, PWFDWaveFunctions):
             self.psit_nX = wfs.psit_nX
         else:
@@ -228,6 +231,10 @@ class KPT:
             self.P_aMi = wfs.P_aMi
         if mode == 'fd':
             self.phase_cd = wfs.psit_nX.desc.phase_factor_cd
+
+    @property
+    def P_ani(self):
+        return self.wfs.P_ani
 
     @property
     def eps_n(self):
