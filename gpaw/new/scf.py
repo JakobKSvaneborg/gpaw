@@ -60,9 +60,8 @@ class SCFLoop:
         cc = create_convergence_criteria(convergence or self.convergence)
         maxiter = maxiter or self.maxiter
 
-        # ETDM: ???
-        self.eigensolver.pot_calc = pot_calc
-        self.eigensolver.occ_calc = self.occ_calc
+        self.eigensolver.initialize(state, pot_calc, self.occ_calc,
+                                    self.hamiltonian, self.mixer, log)
 
         if log:
             log('convergence criteria:')
@@ -83,6 +82,8 @@ class SCFLoop:
             state.ibzwfs.calculate_occs(
                 self.occ_calc,
                 fixed_fermi_level=not self.update_density_and_potential)
+            if self.eigensolver.direct:
+                state.ibzwfs.energies['band'] = 0.0
 
             ctx = SCFContext(
                 log, self.niter,
@@ -100,6 +101,7 @@ class SCFLoop:
             if log:
                 write_iteration(cc, converged_items, entries, ctx, log)
             if converged:
+                self.eigensolver.postprocess(state, self.hamiltonian)
                 break
             if self.niter == maxiter:
                 if wfs_error < inf:
@@ -112,6 +114,10 @@ class SCFLoop:
                 dens_error = self.mixer.mix(state.density)
                 state.potential, _ = pot_calc.calculate(
                     state.density, state.ibzwfs, state.potential.vHt_x)
+                if self.eigensolver.direct:
+                    ekin = state.ibzwfs.calculate_kinetic_energy(
+                        self.hamiltonian, state.density)
+                    state.potential.energies['kinetic'] = ekin
 
 
 class SCFContext:

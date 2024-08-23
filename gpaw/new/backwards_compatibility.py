@@ -30,6 +30,10 @@ class PT:
         self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.add(psit_nG, c_axi, q=0,
                                                  _scale=1 / self.scale)
 
+    def dict(self, shape):
+        return self.ibzwfs.wfs_qs[0][0].pt_aiX.empty(shape,
+                                                     self.ibzwfs.band_comm)
+
 
 class FakeWFS:
     def __init__(self,
@@ -93,11 +97,11 @@ class FakeWFS:
         self.scalapack_parameters = (None, 1, 1, 128)
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
-        a_nX = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX
+        desc = self.state.ibzwfs.desc
         self.hamiltonian.apply_local_potential(
             self.state.potential.vt_sR[kpt.s],
-            a_nX.new(data=a1),
-            a_nX.new(data=a2))
+            desc.from_data(data=a1),
+            desc.from_data(data=a2))
 
     def calculate_occupation_numbers(self, fixed):
         self.state.ibzwfs.calculate_occs(
@@ -329,7 +333,6 @@ class FakeHamiltonian:
 
         energies = self.state.potential.energies
         self.e_xc = energies['xc']
-        self.e_kinetic0 = energies['kinetic']
         self.e_coulomb = energies['coulomb']
         self.e_zero = energies['zero']
         self.e_external = energies['external']
@@ -339,9 +342,9 @@ class FakeHamiltonian:
         else:
             self.e_kinetic0 = self.state.ibzwfs.calculate_kinetic_energy(
                 wfs.hamiltonian, self.state.density)
+            energies['kinetic'] = self.e_kinetic0
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
-        """Sum up all eigenvalues weighted with occupation numbers"""
         self.e_band = self.state.ibzwfs.energies['band']
         if kin_en_using_band:
             self.e_kinetic = self.e_kinetic0 + self.e_band
@@ -356,7 +359,6 @@ class FakeHamiltonian:
                   self.e_zero,
                   self.e_xc,
                   self.e_entropy)
-
         self.e_total_free = (self.e_kinetic + self.e_coulomb +
                              self.e_external + self.e_zero + self.e_xc +
                              self.e_entropy)
