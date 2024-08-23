@@ -100,7 +100,7 @@ class FakeWFS:
             self.ngpts = 1.0
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
-        desc = self.state.ibzwfs.desc
+        desc = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
         self.hamiltonian.apply_local_potential(
             self.state.potential.vt_sR[kpt.s],
             desc.from_data(data=a1),

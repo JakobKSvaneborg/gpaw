@@ -277,7 +277,7 @@ class PWLFC(BaseLFC):
         else:
             yield 0, nG
 
-    def add(self, a_xG, c_axi=1.0, q=None, _scale=1.0):
+    def add(self, a_xG, c_axi=1.0, q=None):
         if self.nI == 0:
             return
         c_xI = self.xp.empty(a_xG.shape[:-1] + (self.nI,), self.dtype)
@@ -308,14 +308,14 @@ class PWLFC(BaseLFC):
                 G2 *= 2
 
             if self.xp is np:
-                mmm(_scale / self.pw.dv, c_xI, 'N', f_GI, 'T',
+                mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
                     1.0, a_xG[:, G1:G2])
             else:
                 self.xp.cublas.gemm('N', 'T',
                                     c_xI, f_GI, a_xG[:, G1:G2],
                                     1.0 / self.pw.dv, 1.0)
 
-    def integrate(self, a_xG, c_axi=None, q=-1, _scale=1.0):
+    def integrate(self, a_xG, c_axi=None, q=-1):
         xp = self.xp
         if self.nI == 0:
             return c_axi
@@ -327,7 +327,7 @@ class PWLFC(BaseLFC):
         b_xI = c_xI.reshape((nx, self.nI))
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
-        alpha = _scale  # / self.pd.gd.N_c.prod()
+        alpha = 1.0
         if self.dtype == float:
             alpha *= 2
             a_xG = a_xG.view(float)

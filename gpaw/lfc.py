@@ -389,7 +389,7 @@ class LocalizedFunctionsCollection(BaseLFC):
             M2 = M1 + self.sphere_a[a].Mmax
             dst_xM[:, M1:M2] = src_axi[a]
 
-    def add(self, a_xG, c_axi=1.0, q=-1, _scale=None):
+    def add(self, a_xG, c_axi=1.0, q=-1):
         """Add localized functions to extended arrays.
 
         ::
@@ -549,7 +549,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                                 gd.n_c, cspline_M,
                                 gd.beg_c, self.pos_Wv, a, v, q)
 
-    def integrate(self, a_xG, c_axi, q=-1, _scale=None):
+    def integrate(self, a_xG, c_axi, q=-1):
         """Calculate integrals of arrays times localized functions.
 
         ::
