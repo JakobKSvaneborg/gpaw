@@ -30,7 +30,8 @@ class ETDMPWFD(Eigensolver):
         dens = Density(state)
         return wfs, ham, dens
 
-    def initialize(self, state, pot_calc, occ_calc, hamiltonian, mixer, log):
+    def initialize_etdm(self, state, pot_calc, occ_calc, hamiltonian, mixer,
+                        log):
         self.pot_calc = pot_calc
         self.occ_calc = occ_calc
         self.log = log

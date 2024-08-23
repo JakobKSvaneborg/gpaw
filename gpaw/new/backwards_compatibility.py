@@ -18,17 +18,14 @@ from gpaw.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
 
 
 class PT:
-    def __init__(self, ibzwfs, gd):
+    def __init__(self, ibzwfs):
         self.ibzwfs = ibzwfs
-        self.scale = 1 / gd.N_c.prod()
 
     def integrate(self, psit_nG, P_ani, q):
-        self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.integrate(psit_nG, P_ani, q=0,
-                                                       _scale=self.scale)
+        self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.integrate(psit_nG, P_ani, q=0)
 
     def add(self, psit_nG, c_axi, q):
-        self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.add(psit_nG, c_axi, q=0,
-                                                 _scale=1 / self.scale)
+        self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.add(psit_nG, c_axi, q=0)
 
     def dict(self, shape):
         return self.ibzwfs.wfs_qs[0][0].pt_aiX.empty(shape,
@@ -92,8 +89,9 @@ class FakeWFS:
                                            Mstop=self.basis_functions.Mstop)
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
-        self.read_from_file_init_wfs_dm = False
-        self.pt = PT(ibzwfs, self.gd)
+        self.read_from_file_init_wfs_dm = ibzwfs.read_from_file_init_wfs_dm
+
+        self.pt = PT(ibzwfs)
         self.scalapack_parameters = (None, 1, 1, 128)
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
@@ -252,12 +250,7 @@ class KPT:
 
     @property
     def psit_nG(self):
-        a_nG = self.psit_nX.data
-        if a_nG.ndim == 4:
-            return a_nG
-        a_nG = a_nG * self.ngpts
-        a_nG.flags.writeable = False
-        return a_nG
+        return self.psit_nX.data
 
     @cached_property
     def psit(self):
@@ -265,12 +258,12 @@ class KPT:
         if self.mode == 'pw':
             x = PlaneWaveExpansionWaveFunctions(
                 self.wfs.nbands, self.pd, self.wfs.dtype,
-                self.psit_nX.data * self.ngpts,  # read-only!!
+                self.psit_nX.data,  # * self.ngpts,  # read-only!!
                 kpt=self.q,
                 dist=(band_comm, band_comm.size),
                 spin=self.s,
                 collinear=self.wfs.ncomponents != 4)
-            x.matrix.array.flags.writeable = False
+            # x.matrix.array.flags.writeable = False
             return x
         return UniformGridWaveFunctions(
             self.wfs.nbands, self.gd, self.wfs.dtype,

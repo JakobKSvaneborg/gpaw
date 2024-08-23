@@ -60,8 +60,9 @@ class SCFLoop:
         cc = create_convergence_criteria(convergence or self.convergence)
         maxiter = maxiter or self.maxiter
 
-        self.eigensolver.initialize(state, pot_calc, self.occ_calc,
-                                    self.hamiltonian, self.mixer, log)
+        self.eigensolver.initialize_etdm(
+            state, pot_calc, self.occ_calc,
+            self.hamiltonian, self.mixer, log)
 
         if log:
             log('convergence criteria:')

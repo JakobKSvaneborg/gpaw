@@ -67,6 +67,8 @@ class IBZWaveFunctions(Generic[WFT]):
             if not GPU_AWARE_MPI:
                 self.kpt_comm = CuPyMPI(self.kpt_comm)  # type: ignore
 
+        self.read_from_file_init_wfs_dm = False
+
     @classmethod
     def create(cls,
                *,
@@ -475,6 +477,7 @@ class IBZWaveFunctions(Generic[WFT]):
             if psit_nX is None:
                 return
             if hasattr(psit_nX.data, 'fd'):  # fd=file-descriptor
+                self.read_from_file_init_wfs_dm = True
                 psit_nX.data = psit_nX.data[:]  # read
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:

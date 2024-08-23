@@ -1104,13 +1104,6 @@ class FDPWETDM:
         """
         calculate optimal orbitals among occupied subspace
         which minimizes SIC.
-
-        :param ham:
-        :param wfs:
-        :param dens:
-        :param grad_knG:
-        :param niter:
-        :return:
         """
 
         if self.iloop is None and self.outer_iloop is None:

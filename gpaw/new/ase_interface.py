@@ -545,7 +545,6 @@ class ASECalculator:
 
         for name in properties:
             self.calculate_property(atoms, name)
-        # self.get_potential_energy(atoms)
 
     @cached_property
     def wfs(self):
