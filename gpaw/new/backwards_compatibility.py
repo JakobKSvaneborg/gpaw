@@ -39,7 +39,8 @@ class FakeWFS:
                  comm,
                  occ_calc,
                  hamiltonian,
-                 atoms: Atoms):
+                 atoms: Atoms,
+                 scale_pw_coefs=False):
         from gpaw.utilities.partition import AtomPartition
         self.timer = nulltimer
         self.setups = setups
@@ -93,6 +94,10 @@ class FakeWFS:
 
         self.pt = PT(ibzwfs)
         self.scalapack_parameters = (None, 1, 1, 128)
+        if self.mode == 'pw' and scale_pw_coefs:
+            self.ngpts = prod(self.gd.N_c)
+        else:
+            self.ngpts = 1.0
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
         desc = self.state.ibzwfs.desc
@@ -186,8 +191,7 @@ class FakeWFS:
 
     @cached_property
     def kpt_qs(self):
-        ngpts = prod(self.gd.N_c)
-        return [[KPT(self.mode, wfs, self.atom_partition, ngpts,
+        return [[KPT(self.mode, wfs, self.atom_partition, self.ngpts,
                      self.pd, self.gd)
                  for wfs in wfs_s]
                 for wfs_s in self.state.ibzwfs.wfs_qs]
@@ -195,7 +199,8 @@ class FakeWFS:
     def integrate(self, a_nX, b_nX, global_integral):
         if self.mode == 'fd':
             return self.gd.integrate(a_nX, b_nX, global_integral)
-        return self.pd.integrate(a_nX, b_nX, global_integral)
+        x = self.pd.integrate(a_nX, b_nX, global_integral)
+        return self.ngpts**2 * x
 
 
 class KPT:
@@ -250,21 +255,23 @@ class KPT:
 
     @property
     def psit_nG(self):
-        return self.psit_nX.data
+        if self.ngpts == 1.0:
+            return self.psit_nX.data
+        psit_nG = self.psit_nX.data * self.ngpts
+        psit_nG.flags.writeable = False
+        return psit_nG
 
     @cached_property
     def psit(self):
         band_comm = self.psit_nX.comm
         if self.mode == 'pw':
-            x = PlaneWaveExpansionWaveFunctions(
+            return PlaneWaveExpansionWaveFunctions(
                 self.wfs.nbands, self.pd, self.wfs.dtype,
-                self.psit_nX.data,  # * self.ngpts,  # read-only!!
+                self.psit_nG,
                 kpt=self.q,
                 dist=(band_comm, band_comm.size),
                 spin=self.s,
                 collinear=self.wfs.ncomponents != 4)
-            # x.matrix.array.flags.writeable = False
-            return x
         return UniformGridWaveFunctions(
             self.wfs.nbands, self.gd, self.wfs.dtype,
             self.psit_nX.data,

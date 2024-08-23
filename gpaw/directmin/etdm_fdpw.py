@@ -1190,13 +1190,26 @@ class FDPWETDM:
 
     def initialize_orbitals(self, wfs, ham):
         if self.need_init_orbs and not wfs.read_from_file_init_wfs_dm:
-            for kpt in wfs.kpt_u:
-                wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
-                self.eigensolver.subspace_diagonalize(
-                    ham, wfs, kpt, True)
-                if self.gpaw_new:
-                    # Update wrapper:
-                    kpt.P_ani.data[:] = kpt.projections.matrix.array
+            if self.gpaw_new:
+                state = wfs.state
+
+                def Ht(psit_nG, out, spin):
+                    return wfs.hamiltonian.apply(
+                        state.potential.vt_sR,
+                        state.potential.dedtaut_sR,
+                        state.ibzwfs,
+                        state.density.D_asii,
+                        psit_nG,
+                        out,
+                        spin)
+
+                for w in state.ibzwfs:
+                    w.subspace_diagonalize(Ht, state.potential.dH)
+            else:
+                for kpt in wfs.kpt_u:
+                    wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
+                    self.eigensolver.subspace_diagonalize(
+                        ham, wfs, kpt, True)
                 wfs.gd.comm.broadcast(kpt.eps_n, 0)
             self.need_init_orbs = False
         if wfs.read_from_file_init_wfs_dm:

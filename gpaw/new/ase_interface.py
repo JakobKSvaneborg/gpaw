@@ -554,7 +554,8 @@ class ASECalculator:
                        self.comm,
                        self.dft.scf_loop.occ_calc,
                        self.dft.scf_loop.hamiltonian,
-                       self.atoms)
+                       self.atoms,
+                       scale_pw_coefs=True)
 
     @property
     def density(self):
