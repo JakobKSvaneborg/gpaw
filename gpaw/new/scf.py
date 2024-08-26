@@ -73,6 +73,8 @@ class SCFLoop:
 
         self.mixer.reset()
 
+        self.occ_calc.initialize_reference_orbitals()
+
         if self.update_density_and_potential:
             dens_error = self.mixer.mix(state.density)
         else:

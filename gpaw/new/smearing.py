@@ -68,3 +68,9 @@ class OccupationNumberCalculator:
         occs, fls, e = self.occ.calculate(nelectrons, eigenvalues, weights,
                                           fermi_levels_guess)
         return occs, fls, e
+
+    def initialize_reference_orbitals(self):
+        try:
+            self.occ.initialize_reference_orbitals()
+        except AttributeError:
+            pass
