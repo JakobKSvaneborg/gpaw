@@ -78,8 +78,9 @@ def test_response_iron_sf_pawALDA(in_tmp_dir, gpw_files, scalapack):
     refs_q = [
         # (wpeak, Ipeak, Apeak)
         (0.001, 0.476, 3.104),
-        (0.165, 0.428, 2.816),
-    ]
+        (0.165, 0.428, 2.816)]
+
+    world.barrier()  # wait for csv-file written above ...
     for q, refs in enumerate(refs_q):
         w_w, chiM_w, a_w = extract_data(q)
         wpeak1, Ipeak = findpeak(w_w, -chiM_w.imag / np.pi)
