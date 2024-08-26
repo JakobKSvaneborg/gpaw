@@ -97,7 +97,7 @@ class FakeWFS:
         if self.mode == 'pw' and scale_pw_coefs:
             self.ngpts = prod(self.gd.N_c)
         else:
-            self.ngpts = 1.0
+            self.ngpts = 1
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
         desc = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
@@ -255,7 +255,7 @@ class KPT:
 
     @property
     def psit_nG(self):
-        if self.ngpts == 1.0:
+        if self.ngpts == 1:
             return self.psit_nX.data
         psit_nG = self.psit_nX.data * self.ngpts
         psit_nG.flags.writeable = False
