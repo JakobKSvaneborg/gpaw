@@ -20,7 +20,7 @@ __all__ = ['GPAW',
            'PW', 'LCAO', 'FD',
            'restart']
 
-GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or '0'))
+GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
 setup_paths: List[Union[str, Path]] = []
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
