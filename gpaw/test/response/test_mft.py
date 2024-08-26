@@ -16,6 +16,7 @@ from gpaw.response.site_data import (AtomicSites,
                                      calculate_site_magnetization,
                                      calculate_site_zeeman_energy)
 from gpaw.response.mft import (IsotropicExchangeCalculator,
+                               HeisenbergExchangeCalculator,
                                calculate_single_particle_site_magnetization,
                                calculate_pair_site_magnetization,
                                calculate_single_particle_site_zeeman_energy,
@@ -421,6 +422,31 @@ def test_Co_exchange(in_tmp_dir, gpw_files, qrel):
         # plt.ylabel(r'$\hbar\omega$ [eV]')
         # plt.title(str(q_c))
         # plt.show()
+
+
+@pytest.mark.response
+@pytest.mark.parallel
+def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files):
+    # Set up ground state adapter and atomic site data
+    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    gs = ResponseGroundStateAdapter(calc)
+    sites = get_co_sites(gs)
+
+    # To properly test the distributions over transitions, we need a value of
+    # nbands, which produces a number of band and spin transitions, which isn't
+    # divisible by the number of blocks.
+    nbands = response_band_cutoff['co_pw'] - 3
+    context = ResponseContext('distributed.txt')
+    calc = HeisenbergExchangeCalculator(
+        gs, sites, context=context, nbands=nbands, nblocks='max')
+    assert len(calc.transitions) % context.comm.size > 0
+    J_abr = calc(q_c=[0, 0, 0]).array
+
+    # Test that the result doesn't depend on nblocks
+    context.new_txt_and_timer('undistributed.txt')
+    ref_calc = HeisenbergExchangeCalculator(
+        gs, sites, context=context, nbands=nbands, nblocks=1)
+    assert J_abr == pytest.approx(ref_calc(q_c=[0, 0, 0]).array)
 
 
 # ---------- Test functionality ---------- #
