@@ -257,9 +257,7 @@ class KPT:
     def psit_nG(self):
         if self.ngpts == 1:
             return self.psit_nX.data
-        psit_nG = self.psit_nX.data * self.ngpts
-        psit_nG.flags.writeable = False
-        return psit_nG
+        return self.psit_nX.data * self.ngpts
 
     @cached_property
     def psit(self):
