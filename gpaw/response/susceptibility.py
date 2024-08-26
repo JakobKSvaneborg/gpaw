@@ -476,13 +476,11 @@ class EigendecomposedSpectrum:
         A_w = self.wblocks.gather(self.A_w)
         if self.wblocks.blockcomm.rank == 0:
             write_full_spectral_weight(filename, self.omega_w, A_w)
-        self.wblocks.blockcomm.barrier()
 
     def write_eigenmode_lineshapes(self, filename, **kwargs):
         a_wm = self.get_eigenmode_lineshapes(**kwargs)
         if self.wblocks.blockcomm.rank == 0:
             write_eigenmode_lineshapes(filename, self.omega_w, a_wm)
-        self.wblocks.blockcomm.barrier()
 
 
 def write_full_spectral_weight(filename, omega_w, A_w):
