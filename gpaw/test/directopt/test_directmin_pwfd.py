@@ -6,7 +6,7 @@ from ase import Atoms
 
 
 @pytest.mark.do
-@pytest.parameterize('mode', ['pw', 'fd'])
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_directmin_pw(in_tmp_dir, mode):
 
     atoms = Atoms('CCHHHH',
