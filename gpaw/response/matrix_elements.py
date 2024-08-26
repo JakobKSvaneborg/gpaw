@@ -518,7 +518,7 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
         stfc.integrate(nt_mytR * f_R[np.newaxis], ft_amytp, q=0)
 
         # Add integral to output array
-        f_mytap = matrix_element.array
+        f_mytap = matrix_element.local_array_view
         for a in range(len(self.sites)):
             f_mytap[:, a] += ft_amytp[a]
 
@@ -536,7 +536,7 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
 
         where F_apii' is the site matrix element correction tensor.
         """
-        f_mytap = matrix_element.array
+        f_mytap = matrix_element.local_array_view
         F_apii = self.get_paw_correction_tensor()
         for a, (A, F_pii) in enumerate(zip(
                 self.sites.A_a, F_apii)):
