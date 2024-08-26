@@ -76,6 +76,8 @@ Cs_ Ba_ La  Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
 
    [A-Z]*
 
+:xkcd:`Old PAW-potentials <2975>` (no longer in use).
+
 
 .. _installation of paw datasets:
 
