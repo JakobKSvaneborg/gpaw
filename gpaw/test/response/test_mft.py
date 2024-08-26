@@ -439,7 +439,8 @@ def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files):
     context = ResponseContext('distributed.txt')
     calc = HeisenbergExchangeCalculator(
         gs, sites, context=context, nbands=nbands, nblocks='max')
-    assert len(calc.transitions) % context.comm.size > 0
+    assert context.comm.size % 2 == 0
+    assert len(calc.transitions) % 2 > 0
     J_abr = calc(q_c=[0, 0, 0]).array
 
     # Test that the result doesn't depend on nblocks
@@ -447,6 +448,7 @@ def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files):
     ref_calc = HeisenbergExchangeCalculator(
         gs, sites, context=context, nbands=nbands, nblocks=1)
     assert J_abr == pytest.approx(ref_calc(q_c=[0, 0, 0]).array)
+    assert np.all(np.abs(J_abr) > 1e-10)  # check that some actual work is done
 
 
 # ---------- Test functionality ---------- #
