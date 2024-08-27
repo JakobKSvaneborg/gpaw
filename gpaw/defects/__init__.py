@@ -1,7 +1,7 @@
 import numpy as np
 import numbers
 from scipy.optimize import minimize
-from scipy.integrate import simpson
+from scipy.integrate import simps
 from gpaw import GPAW, PW
 from ase.parallel import parprint
 import scipy.integrate as integrate
@@ -44,7 +44,7 @@ class ElectrostaticCorrections():
             self.r0 = np.array([0, 0, self.L / 2])
         else:
             self.r0 = np.array([0, 0, 0])
-        self.z0 = self.r0[2]
+        self.z0 = self.r0[2]*-1.0
         self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
         self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
         self.rho_G = self.calculate_gaussian_density()
@@ -146,7 +146,7 @@ class ElectrostaticCorrections():
         z = self.z_g
         L = self.L
         density_1d = self.density_1d
-        N = simpson(density_1d, z)
+        N = simps(density_1d, z)
         epsilons_z = np.zeros((2,) + np.shape(density_1d))
         epsilons_z += density_1d
 
@@ -156,7 +156,7 @@ class ElectrostaticCorrections():
         # Out-of-plane
         def objective_function(k):
             k = k[0]
-            integral = simpson(1 / (k * density_1d + eb[1]), z) / L
+            integral = simps(1 / (k * density_1d + eb[1]), z) / L
             return np.abs(integral - 1 / epsilons[1])
 
         test = minimize(objective_function, [1], method='Nelder-Mead')
@@ -317,7 +317,7 @@ class ElectrostaticCorrections():
     def average(self, V, z):
         N = len(V)
         if self.dimensionality == '3d':
-            middle = np.argmin(np.abs(z - self.z0)) + N // 2
+            middle = np.argmin(np.abs(z + self.z0)) + N // 2
             middle = middle % len(z)
             points = range(middle - N // 8, middle + N // 8 + 1)
             restricted = V[points]
