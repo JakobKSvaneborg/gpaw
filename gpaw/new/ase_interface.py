@@ -545,12 +545,17 @@ class ASECalculator:
 
         for name in properties:
             self.calculate_property(atoms, name)
-        # self.get_potential_energy(atoms)
 
     @cached_property
     def wfs(self):
         from gpaw.new.backwards_compatibility import FakeWFS
-        return FakeWFS(self.dft, self.atoms)
+        return FakeWFS(self.dft.state,
+                       self.dft.setups,
+                       self.comm,
+                       self.dft.scf_loop.occ_calc,
+                       self.dft.scf_loop.hamiltonian,
+                       self.atoms,
+                       scale_pw_coefs=True)
 
     @property
     def density(self):
@@ -560,7 +565,8 @@ class ASECalculator:
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
-        return FakeHamiltonian(self.dft)
+        return FakeHamiltonian(self.dft.state, self.dft.pot_calc,
+                               self.dft.results.get('free_energy'))
 
     @property
     def spos_ac(self):

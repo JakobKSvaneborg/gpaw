@@ -273,7 +273,6 @@ class Hamiltonian:
                 energies[0] = \
                     self.calculate_kinetic_energy_directly(density,
                                                            wfs)
-
         (self.e_kinetic0, self.e_coulomb, self.e_zero,
          self.e_external, self.e_xc) = energies
 
@@ -376,7 +375,6 @@ class Hamiltonian:
                   self.e_zero,
                   self.e_xc,
                   self.e_entropy)
-
         self.e_total_free = (self.e_kinetic + self.e_coulomb +
                              self.e_external + self.e_zero + self.e_xc +
                              self.e_entropy)
