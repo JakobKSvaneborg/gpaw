@@ -44,7 +44,7 @@ class ElectrostaticCorrections():
             self.r0 = np.array([0, 0, self.L / 2])
         else:
             self.r0 = np.array([0, 0, 0])
-        self.z0 = self.r0[2]*-1.0
+        self.z0 = self.r0[2] * -1.0
         self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
         self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
         self.rho_G = self.calculate_gaussian_density()
