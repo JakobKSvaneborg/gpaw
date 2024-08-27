@@ -6,6 +6,8 @@ from gpaw.mpi import serial_comm
 from gpaw.xc.fxc import FXCCorrelation
 from gpaw.xc.rpa import RPACorrelation
 
+pytestmark = pytest.mark.usefixtures('module_tmp_path')
+
 
 @pytest.fixture(scope='module')
 def calc():

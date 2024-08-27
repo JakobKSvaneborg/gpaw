@@ -1,10 +1,10 @@
 import numpy as np
 import pickle
 
-from ase.units import Hartree
+from ase.units import Hartree, Bohr
 
-from gpaw import GPAW
 from gpaw.kpt_descriptor import to1bz
+from gpaw.new.ase_interface import GPAW
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.pw.descriptor import PWDescriptor
 import gpaw.mpi as mpi
@@ -20,12 +20,17 @@ class Unfold:
                  name=None,
                  calc=None,
                  M=None,
-                 spinorbit=None):
+                 spin=0,
+                 spinorbit=None,
+                 theta=90,
+                 scale=1.0,
+                 phi=90):
 
         self.name = name
         self.calc = GPAW(calc, txt=None, communicator=mpi.serial_comm)
         self.M = np.array(M, dtype=float)
         self.spinorbit = spinorbit
+        self.spin = spin
 
         self.gd = self.calc.wfs.gd.new_descriptor()
 
@@ -41,14 +46,16 @@ class Unfold:
 
         self.nb = self.calc.get_number_of_bands()
 
-        self.v_Kmsn = None
+        self.v_Kmn = None
         if spinorbit:
+            assert self.calc.density.collinear
+            self.nb *= 2
             if mpi.world.rank == 0:
                 print('Calculating spinorbit Corrections')
-            self.nb = 2 * self.calc.get_number_of_bands()
-            soc = soc_eigenstates(self.calc)
+            soc = soc_eigenstates(self.calc,
+                                  scale=scale, theta=theta, phi=phi)
             self.e_mK = soc.eigenvalues().T
-            self.v_Kmsn = soc.eigenvectors()
+            self.v_Kmn = soc.eigenvectors()
             if mpi.world.rank == 0:
                 print('Done with the spinorbit Corrections')
 
@@ -57,7 +64,7 @@ class Unfold:
 
         K = np.array([K])
         bzKG = to1bz(K, self.acell_cv)[0]
-        iK = self.kd.where_is_q(bzKG, self.kd.bzk_kc)
+        iK = self.kd.where_is_q(bzKG, self.kd.ibzk_kc)
         return iK
 
     def get_g(self, iK):
@@ -92,10 +99,10 @@ class Unfold:
         """Get the list of eigenvalues for a given iK."""
 
         if not self.spinorbit:
-            e_m = self.calc.get_eigenvalues(kpt=iK, spin=0) / Hartree
+            e_m = self.calc.get_eigenvalues(kpt=iK, spin=self.spin)
         else:
-            e_m = self.e_mK[:, iK] / Hartree
-        return np.array(e_m)
+            e_m = self.e_mK[:, iK]
+        return np.array(e_m) / Hartree
 
     def get_pw_wavefunctions_k(self, iK):
         """Get the list of Fourier coefficients of the WaveFunction for a
@@ -103,8 +110,8 @@ class Unfold:
         dimension is added."""
 
         psi_mgrid = get_rs_wavefunctions_k(self.calc, iK, self.spinorbit,
-                                           self.v_Kmsn)
-        if not self.spinorbit:
+                                           self.v_Kmn, spin=self.spin)
+        if not self.spinorbit and self.calc.density.collinear:
             psi_list_mG = []
             for i in range(len(psi_mgrid)):
                 psi_list_mG.append(self.pd.fft(psi_mgrid[i], iK))
@@ -124,9 +131,9 @@ class Unfold:
             u_mG = np.zeros((len(u0_mG),
                              2,
                              u0_mG.shape[1]), complex)
-
             u_mG[:, 0] = u0_mG
             u_mG[:, 1] = u1_mG
+
             return u_mG
 
     def get_spectral_weights_k(self, k_t):
@@ -153,7 +160,7 @@ class Unfold:
 
         C_mG = self.get_pw_wavefunctions_k(iK)
         P_m = []
-        if not self.spinorbit:
+        if not self.spinorbit and self.calc.density.collinear:
             for m in range(self.nb):
                 P = 0.
                 norm = np.sum(np.linalg.norm(C_mG[m, :])**2)
@@ -271,7 +278,7 @@ def find_K_from_k(k, M):
     return KG, G
 
 
-def get_rs_wavefunctions_k(calc, iK, spinorbit=False, v_Kmsn=None):
+def get_rs_wavefunctions_k(calc, iK, spinorbit=False, v_Kmn=None, spin=0):
     """Get the list of WaveFunction for a given iK. For spinors the number of
     bands is doubled and a spin dimension is added."""
 
@@ -286,13 +293,14 @@ def get_rs_wavefunctions_k(calc, iK, spinorbit=False, v_Kmsn=None):
         calc.initialize_positions()
 
     if not spinorbit:
-        psit_mgrid = np.array([calc.wfs.get_wave_function_array(m, iK, 0) *
-                               eikr_R for m in range(Nb)])
+        psit_mgrid = np.array(
+            [calc.get_pseudo_wave_function(m, iK, spin, periodic=True)
+             for m in range(Nb)]) * Bohr**1.5
         return psit_mgrid
     else:
-        v_msn = v_Kmsn[iK]
-        v0_mn = v_msn[:, 0]
-        v1_mn = v_msn[:, 1]
+        v_mn = v_Kmn[iK]
+        v0_mn = v_mn[:, ::2]
+        v1_mn = v_mn[:, 1::2]
 
         u0_ngrid = np.array(
             [calc.wfs.get_wave_function_array(n, iK, 0) * eikr_R
@@ -300,7 +308,6 @@ def get_rs_wavefunctions_k(calc, iK, spinorbit=False, v_Kmsn=None):
         u1_ngrid = np.array(
             [calc.wfs.get_wave_function_array(n, iK, (Ns - 1)) * eikr_R
              for n in range(Nb)])
-
         u0_mG = np.swapaxes(np.dot(v0_mn, np.swapaxes(u0_ngrid, 0, 2)), 1, 2)
         u1_mG = np.swapaxes(np.dot(v1_mn, np.swapaxes(u1_ngrid, 0, 2)), 1, 2)
         ut_mgrid = np.zeros((len(u0_mG),
@@ -314,7 +321,7 @@ def get_rs_wavefunctions_k(calc, iK, spinorbit=False, v_Kmsn=None):
 
 
 def plot_spectral_function(filename, color='blue', eref=None,
-                           emin=None, emax=None):
+                           emin=None, emax=None, scale=1):
     """Function to plot spectral function corresponding to the bandstructure
     along the kpoints path."""
 
@@ -336,7 +343,7 @@ def plot_spectral_function(filename, color='blue', eref=None,
         emax = e.max()
 
     A_ke /= np.max(A_ke)
-    A_ek = A_ke.T
+    A_ek = A_ke.T * scale
     A_ekc = np.reshape(A_ek, (A_ek.shape[0], A_ek.shape[1]))
 
     mycmap = make_colormap(color)

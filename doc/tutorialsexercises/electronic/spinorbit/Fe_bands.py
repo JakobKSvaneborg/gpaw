@@ -1,18 +1,8 @@
-from ase.dft.kpoints import ibz_points, bandpath
 from ase.parallel import paropen
 from gpaw import GPAW
 
 layer = GPAW('Fe_gs.gpw', txt=None).atoms
-
-points = ibz_points['bcc']
-G = points['Gamma']
-H = points['H']
-P = points['P']
-N = points['N']
-H_z = [H[0], -H[1], -H[2]]
-G_yz = [2 * H[0], 0.0, 0.0]
-
-path = bandpath([G, H, G_yz], layer.cell, npoints=1000)
+path = layer.cell.bandpath(['G', 'H', (1, 0, 0)], npoints=1000)
 kpts = path.kpts
 (x, X, labels) = path.get_linear_kpoint_axis()
 

@@ -5,5 +5,13 @@ if TYPE_CHECKING:
 
 
 class Eigensolver:
+    direct = False
+
     def iterate(self, state: DFTState, hamiltonian) -> float:
         raise NotImplementedError
+
+    def initialize_etdm(self, *args, **kwargs):
+        pass
+
+    def postprocess(self, state, hamiltonian):
+        pass

@@ -7,7 +7,9 @@ import gpaw.gpu.cpupy.fft as fft
 import gpaw.gpu.cpupy.linalg as linalg
 import gpaw.gpu.cpupy.random as random
 
-__all__ = ['linalg', 'cublas', 'fft', 'random']
+__version__ = 'fake'
+
+__all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
 
 
 def empty(*args, **kwargs):

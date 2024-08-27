@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 import numpy as np
 from ase.units import Bohr, Hartree
 
+from gpaw import GPAW_NEW
 from gpaw.calculator import GPAW
 from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.lcaotddft.hamiltonian import TimeDependentHamiltonian
@@ -16,7 +16,7 @@ from gpaw.typing import Any, Vector
 
 
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
-    if int(os.environ.get('GPAW_NEW', '0')):
+    if GPAW_NEW:
         from gpaw.new.rttddft import RTTDDFT
         assert kwargs.get('propagator', None) in [None, 'ecn'], \
             'Not implemented yet'

@@ -163,7 +163,7 @@ class GPAW(Calculator):
 
         self.reader = None
 
-        Calculator.__init__(self, restart, label=label, **kwargs)
+        Calculator.__init__(self, restart, label=label, _set_ok=True, **kwargs)
 
     def new(self,
             timer=None,
@@ -532,14 +532,21 @@ class GPAW(Calculator):
 
         self.log.fd.flush()
 
-    def set(self, **kwargs):
+    def set(self, _set_ok=False, **kwargs):
         """Change parameters for calculator.
 
-        Examples::
+        Example::
 
-            calc.set(xc='PBE')
-            calc.set(nbands=20, kpts=(4, 1, 1))
+            calc.set(eigensolver=...)
         """
+        if not _set_ok:
+            # We want to get rid of cal.set(...), but these are still in use,
+            # so we allow them for now
+            if not kwargs.keys() <= {'eigensolver', 'external',
+                                     'convergence', 'txt',
+                                     'xc', 'occupations'}:
+                raise ValueError(
+                    'Please use new(...) instead of set(...)')
 
         # Verify that keys are consistent with default ones.
         for key in kwargs:

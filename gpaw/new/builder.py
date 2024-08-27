@@ -111,7 +111,7 @@ class DFTComponentsBuilder:
         bz = create_kpts(params.kpts, atoms)
         self.ibz = symmetries.reduce(bz, strict=False)
 
-        d = parallel.get('domain', None)
+        d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
         self.communicators = create_communicators(comm, len(self.ibz),
@@ -178,11 +178,23 @@ class DFTComponentsBuilder:
         return self.create_wf_description()
 
     @cached_property
+    def gpu(self) -> bool:
+        """Are we running on a GPU?."""
+        if self.params.parallel.get('gpu', False):
+            from gpaw.gpu import cupy_is_fake
+            if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
+                raise ValueError(
+                    'Please set GPAW_CPUPY=1 if you really want to do GPU '
+                    'calculations with GPAW''s fake cupy library '
+                    '(gpaw.gpu.cpupy)')
+            return True
+        return False
+
+    @cached_property
     def xp(self) -> ModuleType:
         """Array module: Numpy or Cupy."""
-        if self.params.parallel['gpu']:
-            from gpaw.gpu import cupy, cupy_is_fake
-            assert not cupy_is_fake or os.environ.get('GPAW_CPUPY')
+        if self.gpu:
+            from gpaw.gpu import cupy
             return cupy
         return np
 
@@ -230,6 +242,7 @@ class DFTComponentsBuilder:
             self.communicators,
             self.initial_magmom_av.sum(0),
             self.ncomponents,
+            self.nelectrons,
             np.linalg.inv(self.atoms.cell.complete()).T)
 
     def create_hamiltonian_operator(self):
