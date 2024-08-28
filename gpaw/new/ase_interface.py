@@ -387,7 +387,9 @@ class ASECalculator:
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
-                                 broadcast=True) -> Array3D:
+                                 broadcast=True,
+                                 pad=True) -> Array3D:
+        assert pad
         state = self.dft.state
         collinear = state.ibzwfs.collinear
         if collinear:
