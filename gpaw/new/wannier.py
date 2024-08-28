@@ -1,3 +1,4 @@
+from __future__ import annotations
 from math import factorial as fac
 
 import numpy as np
@@ -83,8 +84,7 @@ def initial_wannier(ibzwfs: IBZWaveFunctions,
         U_kww.append(U_ww)
         C_kul.append(C_ul)
 
-    U_kww = np.asarray(U_kww)
-    return C_kul, U_kww
+    return C_kul, np.asarray(U_kww)
 
 
 def get_projections(ibzwfs: IBZWaveFunctions,
@@ -111,7 +111,8 @@ def get_projections(ibzwfs: IBZWaveFunctions,
     As a special case, locfun can be the string 'projectors', in which
     case the bound state projectors are used as localized functions.
     """
-    if locfun == 'projectors':
+    if isinstance(locfun, str):
+        assert locfun == 'projectors'
         f_kin = []
         for wfs in ibzwfs:
             if wfs.spin == spin:
