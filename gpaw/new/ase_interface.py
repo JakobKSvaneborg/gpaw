@@ -736,5 +736,12 @@ class ASECalculator:
                                      grid,
                                      spin, kpoint, nextkpoint, G_c, nbands)
 
+    def initial_wannier(self, initialwannier, kpointgrid, fixedstates,
+                        edf, spin, nbands):
+        from gpaw.new.wannier import initial_wannier
+        return initial_wannier(self.dft.state.ibzwfs,
+                               initialwannier, kpointgrid, fixedstates,
+                               edf, spin, nbands)
+
     def initialize_positions(self, atoms=None):
         pass
