@@ -295,13 +295,13 @@ class DFTComponentsBuilder:
         for wfs in ibzwfs:
             if self.ncomponents < 4:
                 dims = [self.nbands]
-                index = [wfs.spin, wfs.k]
+                index = (wfs.spin, wfs.k)
             else:
                 dims = [self.nbands, 2]
-                index = [wfs.k]
+                index = (wfs.k,)
 
-            wfs._eig_n = eig_skn[*index] / ha
-            wfs._occ_n = occ_skn[*index]
+            wfs._eig_n = eig_skn[index] / ha
+            wfs._occ_n = occ_skn[index]
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,
                                       dtype=self.dtype)
