@@ -94,10 +94,11 @@ class FakeWFS:
 
         self.pt = PT(ibzwfs)
         self.scalapack_parameters = (None, 1, 1, 128)
+        self.ngpts = prod(self.gd.N_c)
         if self.mode == 'pw' and scale_pw_coefs:
-            self.ngpts = prod(self.gd.N_c)
+            self.scale = self.ngpts
         else:
-            self.ngpts = 1
+            self.scale = 1
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
         desc = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
@@ -147,7 +148,8 @@ class FakeWFS:
     def make_preconditioner(self, blocksize):
         if self.mode == 'pw':
             from gpaw.wavefunctions.pw import Preconditioner
-            return Preconditioner(self.pd.G2_qG, self.pd)
+            return Preconditioner(self.pd.G2_qG, self.pd,
+                                  _scale=self.ngpts**2)
         from gpaw.preconditioner import Preconditioner
         return Preconditioner(self.gd, self.hamiltonian.kin, self.dtype,
                               blocksize)
@@ -191,7 +193,7 @@ class FakeWFS:
 
     @cached_property
     def kpt_qs(self):
-        return [[KPT(self.mode, wfs, self.atom_partition, self.ngpts,
+        return [[KPT(self.mode, wfs, self.atom_partition, self.scale,
                      self.pd, self.gd)
                  for wfs in wfs_s]
                 for wfs_s in self.state.ibzwfs.wfs_qs]
@@ -204,9 +206,9 @@ class FakeWFS:
 
 
 class KPT:
-    def __init__(self, mode, wfs, atom_partition, ngpts, pd, gd):
+    def __init__(self, mode, wfs, atom_partition, scale, pd, gd):
         self.mode = mode
-        self.ngpts = ngpts
+        self.scale = scale
         self.wfs = wfs
         self.pd = pd
         self.gd = gd
@@ -255,9 +257,9 @@ class KPT:
 
     @property
     def psit_nG(self):
-        if self.ngpts == 1:
+        if self.scale == 1:
             return self.psit_nX.data
-        return self.psit_nX.data * self.ngpts
+        return self.psit_nX.data * self.scale
 
     @cached_property
     def psit(self):

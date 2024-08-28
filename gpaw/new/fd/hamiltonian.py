@@ -66,4 +66,4 @@ class FDHamiltonian(Hamiltonian):
         if not skip_sum:
             e_kin = psit_R.desc.comm.sum_scalar(e_kin)
             e_kin = wfs.band_comm.sum_scalar(e_kin)
-        return e_kin
+        return e_kin * wfs.spin_degeneracy
