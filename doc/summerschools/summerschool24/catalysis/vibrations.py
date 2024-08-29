@@ -236,6 +236,7 @@ ts = images[1]
 ts.set_constraint(constraint)
 calc = GPAW(xc='PBE',
             mode=PW(800),
+            convergence={'forces': 0.001},
             txt='ts.txt',
             kpts={'size': (6, 6, 1), 'gamma': True})
 ts.calc = calc
