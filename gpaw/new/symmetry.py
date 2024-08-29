@@ -186,13 +186,11 @@ class Symmetries:
         (_, weight_k, sym_k, time_reversal_k, bz2ibz_K, ibz2bz_k,
          bz2bz_Ks) = self.symmetry.reduce(bz.kpt_Kc, comm)
 
-        if -1 in bz2bz_Ks:
-            msg = 'Note: your k-points are not as symmetric as your crystal!'
-            if strict:
-                raise ValueError(msg)
-            warnings.warn(msg)
+        if strict and -1 in bz2bz_Ks:
+            raise ValueError(
+                'Your k-points are not as symmetric as your crystal!')
 
-        return IBZ(self, bz, ibz2bz_k, bz2ibz_K, weight_k)
+        return IBZ(self, bz, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks)
 
     def check_positions(self, fracpos_ac):
         self.symmetry.check(fracpos_ac)
