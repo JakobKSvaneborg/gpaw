@@ -288,7 +288,8 @@ class BZRealSpaceWaveFunctions:
                 u_nR[n - n1] = calc.get_pseudo_wave_function(band=n,
                                                              kpt=ibz_index,
                                                              spin=spin,
-                                                             periodic=True)
+                                                             periodic=True,
+                                                             pad=False)
             P_nI = wfs.collect_projections(ibz_index, spin)
             if P_nI is not None:
                 P_nI = P_nI[n1:n2]

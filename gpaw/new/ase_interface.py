@@ -389,7 +389,6 @@ class ASECalculator:
                                  periodic=False,
                                  broadcast=True,
                                  pad=True) -> Array3D:
-        assert pad
         state = self.dft.state
         collinear = state.ibzwfs.collinear
         if collinear:
@@ -412,7 +411,7 @@ class ASECalculator:
                 grid = grid.new(kpt=psit_sG.desc.kpt_c,
                                 dtype=psit_sG.desc.dtype)
                 psit_R = psit_sG.ifft(grid=grid)
-            if not psit_R.desc.pbc.all():
+            if not psit_R.desc.pbc.all() and pad:
                 psit_R = psit_R.to_pbc_grid()
             if periodic:
                 psit_R.multiply_by_eikr(-psit_R.desc.kpt_c)
