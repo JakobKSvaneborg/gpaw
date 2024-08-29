@@ -293,8 +293,8 @@ class IBZWaveFunctions(Generic[WFT]):
             eig_skn = np.empty((self.nspins, nkpts, self.nbands))
             occ_skn = np.empty((self.nspins, nkpts, self.nbands))
         else:
-            eig_skn = np.empty((0, 0, 0))
-            occ_skn = np.empty((0, 0, 0))
+            eig_skn = np.empty((self.nspins, nkpts, 0))
+            occ_skn = np.empty((self.nspins, nkpts, 0))
         for k in range(nkpts):
             for s in range(self.nspins):
                 eig_n, occ_n = self.get_eigs_and_occs(k, s)
