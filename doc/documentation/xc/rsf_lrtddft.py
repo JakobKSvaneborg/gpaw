@@ -35,14 +35,16 @@ h2o_plus.calc = GPAW(txt='H2O_plus_LCY_PBE_083.log',
 e_h2o_plus = h2o_plus.get_potential_energy()
 e_ion = e_h2o_plus - e_h2o
 
-print(e_ion, 12.62)
-assert abs(e_ion - 12.62) < 0.1
-lr = LrTDDFT(h2o_plus.calc, txt='LCY_TDDFT_H2O.log', jend=4)
+assert abs(e_ion - 12.62) < 0.1, \
+    f'e_ion={e_ion} should be 12.62'
+lr = LrTDDFT(h2o_plus.calc, txt='LCY_TDDFT_H2O.log',
+             restrict={'jend': 4})
 assert lr.xc.omega == 0.83
 lr.write('LCY_TDDFT_H2O.ex.gz')
+
 # reading is problematic with EXX on more than one core
 if world.rank == 0:
-    lr2 = LrTDDFT('LCY_TDDFT_H2O.ex.gz')
+    lr2 = LrTDDFT.read('LCY_TDDFT_H2O.ex.gz')
     lr2.diagonalize()
     assert lr2.xc.omega == 0.83
 
