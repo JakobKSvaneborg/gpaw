@@ -322,6 +322,9 @@ class IBZWaveFunctions(Generic[WFT]):
         also the wave functions.
         """
         eig_skn, occ_skn = self.get_all_eigs_and_occs()
+        if not self.collinear:
+            eig_skn = eig_skn[0]
+            occ_skn = occ_skn[0]
         assert self.fermi_levels is not None
         writer.write(fermi_levels=self.fermi_levels * Ha,
                      eigenvalues=eig_skn * Ha,
