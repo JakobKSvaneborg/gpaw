@@ -282,18 +282,12 @@ class BZRealSpaceWaveFunctions:
         bzwfs = {}
         for ibz_index in range(kd.nibzkpts):
             for n in range(n1, n2):
-                if 0:
-                    u_nR[n - n1] = wfs.get_wave_function_array(n=n,
-                                                               k=ibz_index,
-                                                               s=spin,
-                                                               periodic=True)
-                else:
-                    u_nR[n - n1] = calc.get_pseudo_wave_function(
-                        band=n,
-                        kpt=ibz_index,
-                        spin=spin,
-                        periodic=True,
-                        pad=False) * Bohr**1.5
+                u_nR[n - n1] = calc.get_pseudo_wave_function(
+                    band=n,
+                    kpt=ibz_index,
+                    spin=spin,
+                    periodic=True,
+                    pad=False) * Bohr**1.5
             P_nI = wfs.collect_projections(ibz_index, spin)
             if P_nI is not None:
                 P_nI = P_nI[n1:n2]
