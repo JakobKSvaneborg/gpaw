@@ -10,17 +10,14 @@ This must (probably) be done *after* compilation because otherwise dirs
 may not exist.
 
 """
-try:
-    from urllib2 import urlopen, HTTPError
-except ImportError:
-    from urllib.request import urlopen
-    from urllib.error import HTTPError
-    import ssl
 import os
-
+import ssl
+import subprocess
+from pathlib import Path
+from urllib.error import HTTPError
+from urllib.request import urlopen
 
 srcpath = 'https://wiki.fysik.dtu.dk/gpaw-files'
-agtspath = 'https://wiki.fysik.dtu.dk'
 
 
 def get(path, names, target=None, source=None):
@@ -79,13 +76,7 @@ get('tutorials/xas', ['h2o_xas_3.png', 'h2o_xas_4.png'],
 get('tutorials/xas',
     ['xas_illustration.png'], target='documentation/xas')
 
-# This files is not used anymore?
-# get('tutorialsexercises/opticalresponse/xas', ['xas_h2o_convergence.png'])
-# ----
-
 get('documentation/xc', 'g2test_pbe0.png  g2test_pbe.png  results.png'.split())
-get('performance', 'dacapoperf.png  goldwire.png  gridperf.png'.split(),
-    'static')
 
 get('bgp', ['bgp_mapping_intranode.png',
             'bgp_mapping1.png',
@@ -94,53 +85,6 @@ get('bgp', ['bgp_mapping_intranode.png',
 # workshop 2013 and 2016 photos:
 get('workshop13', ['workshop13_01_33-1.jpg'], 'static')
 get('workshop16', ['gpaw2016-photo.jpg'], 'static')
-
-
-# files from https://wiki.fysik.dtu.dk/gpaw-files/things/
-
-# Warning: for the moment dcdft runs are not run (files are static)!
-dcdft_pbe_aims_stuff = """
-dcdft_aims.tight.01.16.db.csv
-dcdft_aims.tight.01.16.db_raw.csv
-dcdft_aims.tight.01.16.db_Delta.txt
-""".split()
-
-get('things', dcdft_pbe_aims_stuff, target='setups')
-
-# Warning: for the moment dcdft runs are not run (files are static)!
-dcdft_pbe_gpaw_pw_stuff = """
-dcdft_pbe_gpaw_pw.csv
-dcdft_pbe_gpaw_pw_raw.csv
-dcdft_pbe_gpaw_pw_Delta.txt
-""".split()
-
-get('things', dcdft_pbe_gpaw_pw_stuff, target='setups')
-
-# Warning: for the moment dcdft runs are not run (files are static)!
-dcdft_pbe_jacapo_stuff = """
-dcdft_pbe_jacapo.csv
-dcdft_pbe_jacapo_raw.csv
-dcdft_pbe_jacapo_Delta.txt
-""".split()
-
-get('things', dcdft_pbe_jacapo_stuff, target='setups')
-
-# Warning: for the moment dcdft runs are not run (files are static)!
-dcdft_pbe_abinit_fhi_stuff = """
-dcdft_pbe_abinit_fhi.csv
-dcdft_pbe_abinit_fhi_raw.csv
-dcdft_pbe_abinit_fhi_Delta.txt
-""".split()
-
-get('things', dcdft_pbe_abinit_fhi_stuff, target='setups')
-
-g2_1_stuff = """
-pbe_gpaw_nrel_ea_vs.csv pbe_gpaw_nrel_ea_vs.png
-pbe_gpaw_nrel_opt_ea_vs.csv pbe_gpaw_nrel_opt_distance_vs.csv
-pbe_nwchem_def2_qzvppd_opt_ea_vs.csv pbe_nwchem_def2_qzvppd_opt_distance_vs.csv
-""".split()
-
-get('things', g2_1_stuff, target='setups')
 
 get('things', ['datasets.json'], 'setups')
 
@@ -162,9 +106,9 @@ get('summerschool',
     ['C144Li18.png', 'C64.png', 'final.png', 'initial.png',
      'Li2.png', 'lifepo4_wo_li.traj', 'NEB_init.traj'],
     target='summerschools/summerschool24/batteries')
-get('summerschool',
-    ['Intro_projects_CAMD2022.pdf'],
-    target='summerschools/summerschool24')
+# get('summerschool',
+#     ['Intro_projects_CAMD2022.pdf'],
+#     target='summerschools/summerschool24')
 
 
 def setup(app):
@@ -172,10 +116,18 @@ def setup(app):
     # every weekend:
     from gpaw.doctools.agts_crontab import find_created_files
 
-    for path in find_created_files():
-        # the files are saved by the weekly tests under agtspath/agts-files
-        # now we are copying them back to their original run directories
+    data = Path('/tmp/gpaw-web-page-data')
+    if data.is_dir():
+        subprocess.run(f'cd {data} && git pull', shell=True)
+    else:
+        repo = 'https://gitlab.com/gpaw/gpaw-web-page-data.git/'
+        subprocess.run(f'cd /tmp && git clone {repo}', shell=True)
+
+    extra = [Path('summerschools/summerschool24/Intro_ASE_Databar.pdf')]
+    doc = Path()
+    for path in list(find_created_files(doc)) + extra:
         if path.is_file():
             continue
-        print(path, 'copied from', agtspath)
-        get('agts-files', [path.name], str(path.parent), source=agtspath)
+        to = data / 'doc' / path.relative_to(doc)
+        print(path, '->', to)
+        path.symlink_to(to)

@@ -1,3 +1,4 @@
+import warnings
 import pytest
 import numpy as np
 from ase.build import bulk
@@ -35,7 +36,9 @@ def test_beef(in_tmp_dir, xc):
                        kpts=[2, 2, 2],
                        mode=PW(200),
                        **kwargs)
-        E.append(si.get_potential_energy())
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', module='gpaw.xc.libxc')
+            E.append(si.get_potential_energy())
         ens = BEEFEnsemble(si.calc, verbose=False)
         ens.get_ensemble_energies(200)
         ens.write('Si-{}-{:.3f}'.format(xc, a))

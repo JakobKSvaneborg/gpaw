@@ -104,7 +104,7 @@ Bash completion
 
 You can enable bash completion like this::
 
-    $ gpaw completions
+    $ gpaw completion
 
 This will append a line like this::
 

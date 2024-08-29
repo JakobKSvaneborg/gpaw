@@ -1,22 +1,21 @@
 import optparse
 import traceback
 from pathlib import Path
+from typing import Any
 
-import numpy as np
 import ase.db
+import numpy as np
 from ase import Atoms
-from ase.data import covalent_radii, atomic_numbers
+from ase.data import atomic_numbers, covalent_radii
 from ase.optimize import BFGS
-
 from gpaw import GPAW, PW, KohnShamConvergenceError
-
 
 cutoffs = [200, 250, 300, 400, 500, 600, 700, 800, 1500]
 
 
 def check(con, name: str, lcao=True):
-    params = dict(xc='PBE',
-                  symmetry='off')
+    params: dict[str, Any] = dict(xc='PBE',
+                                  symmetry='off')
 
     if '.' in name:
         symbol, _, setup = name.partition('.')

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from math import pi
-from typing import Sequence, Literal
+from typing import Sequence, Literal, TYPE_CHECKING
 import numpy as np
 
 import gpaw.fftw as fftw
@@ -17,6 +17,9 @@ from gpaw.typing import (Array1D, Array2D, Array3D, Array4D, ArrayLike1D,
                          ArrayLike2D, Vector)
 from gpaw.new.c import add_to_density, add_to_density_gpu, symmetrize_ft
 from gpaw.fd_operators import Gradient
+
+if TYPE_CHECKING:
+    import plotly.graph_objects as go
 
 
 class UGDesc(Domain):
@@ -449,14 +452,27 @@ class UGArray(DistributedArrays[UGDesc]):
         return out
 
     def fft(self, plan=None, pw=None, out=None):
-        """Do FFT.
+        r"""Do FFT.
 
+        Returns:
+            PWArray with values
         :::
+                          _ _
+           _    1  / _  -iG.r   _
+         C(G) = -- |dr e      f(r),
+                V  /
 
-                _ _
-          / _  iG.r  _
-          |dr e    f(r)
-          /
+        where `C(\bG)` are the plane wave coefficients and V is the cell
+        volume.
+
+        Parameters
+        ----------
+        plan:
+            Plan for FFT.
+        pw:
+            Target PW description.
+        out:
+            Target PWArray object.
         """
         assert self.dims == ()
         if out is None:
@@ -823,3 +839,24 @@ class UGArray(DistributedArrays[UGDesc]):
         a = super().redist(domain, comm1, comm2)
         assert isinstance(a, UGArray)
         return a
+
+    def isosurface(self, show=True, **kwargs) -> go.Isosurface:
+        import plotly.graph_objects as go
+        values = self.data
+        assert values.ndim == 3
+        if values.dtype == complex:
+            values = abs(values)
+        x, y, z = (c.T.flatten() for c in self.desc.xyz().T)
+        vmin = values.min()
+        vmax = values.max()
+        kwargs = {
+            'isomin': vmin + (vmax - vmin) * 0.1,
+            'isomax': vmax - (vmax - vmin) * 0.1,
+            'caps': dict(x_show=False,
+                         y_show=False,
+                         z_show=False)} | kwargs
+        surf = go.Isosurface(x=x, y=y, z=z, value=values.flatten(),
+                             **kwargs)
+        if show:
+            go.Figure(data=[surf]).show()
+        return surf

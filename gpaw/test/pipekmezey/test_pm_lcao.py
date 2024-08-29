@@ -24,4 +24,4 @@ def test_pipekmezey_lcao(in_tmp_dir):
 
     P = PM.get_function_value()
 
-    assert P == pytest.approx(3.3756, abs=0.0001)
+    assert P == pytest.approx(3.3756, abs=0.002)

@@ -55,8 +55,8 @@ CdTe = bulk('CdTe', 'zincblende', 6.5) # student:
 GaAs = bulk('GaAs','zincblende',a = 5.6) # student:
 BN = Atoms('BN', pbc=[True, True, False], positions=[[0., 0., 7.],[0., 2.5/np.sqrt(3), 7.]], cell=[[2.50, 0., 0.],[-2.5/2., 2.5*np.sqrt(3.)/2., 0.],[0., 0., 14.]]) # student:
 
-atoms = CdTe # student: atoms = ???
-label = 'CdTe' # student: label = '???'
+atoms = Si # student: atoms = ???
+label = 'Si' # student: label = '???'
 
 #view(atoms) # check your initial structure # student: view(atoms)
 

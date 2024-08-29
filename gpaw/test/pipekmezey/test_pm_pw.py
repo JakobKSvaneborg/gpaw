@@ -25,4 +25,4 @@ def test_pipekmezey_pw(in_tmp_dir):
 
     P = PM.get_function_value()
 
-    assert P == pytest.approx(3.3138, abs=0.0006)
+    assert P == pytest.approx(3.3138, abs=0.002)

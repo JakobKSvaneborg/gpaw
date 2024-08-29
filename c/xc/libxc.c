@@ -8,6 +8,10 @@
 #include <numpy/arrayobject.h>
 #include <assert.h>
 #include <xc.h>
+#if XC_MAJOR_VERSION >= 7
+  #include <xc_funcs.h>
+  #include <xc_funcs_removed.h>
+#endif
 #include "xc_gpaw.h"
 #include "../extensions.h"
 
@@ -48,6 +52,30 @@ lxcXCFunctional_is_mgga(lxcXCFunctionalObject *self, PyObject *args)
   int success = 0; /* assume functional is not MGGA */
   // check family of most-complex functional
   if (self->functional[0]->info->family == XC_FAMILY_MGGA) success = XC_FAMILY_MGGA;
+  return Py_BuildValue("i", success);
+}
+
+static PyObject*
+lxcXCFunctional_needs_laplacian(lxcXCFunctionalObject *self, PyObject *args)
+{
+  int success = 0; /* assume functional doesn't need laplacian */
+  // check family of most-complex functional
+  if (self->functional[0]->info->flags & XC_FLAGS_NEEDS_LAPLACIAN) success = XC_FLAGS_NEEDS_LAPLACIAN;
+  return Py_BuildValue("i", success);
+}
+
+static PyObject*
+lxcXCFunctional_disable_fhc(lxcXCFunctionalObject *self, PyObject *args)
+{
+  int success = 1; /* assume disable fhc is present */
+#if XC_MAJOR_VERSION >= 7
+  short j;
+  for (j = 0; j < 2; j++) {
+    self->functional[j]->info->flags = self->functional[j]->info->flags & (~XC_FLAGS_ENFORCE_FHC);
+  }
+#else
+  success = 0; /* XC_FLAGS_ENFORCE_FHC can't be used */
+#endif
   return Py_BuildValue("i", success);
 }
 
@@ -586,6 +614,10 @@ static PyMethodDef lxcXCFunctional_Methods[] = {
    (PyCFunction)lxcXCFunctional_is_gga, METH_VARARGS, 0},
   {"is_mgga",
    (PyCFunction)lxcXCFunctional_is_mgga, METH_VARARGS, 0},
+  {"needs_laplacian",
+   (PyCFunction)lxcXCFunctional_needs_laplacian, METH_VARARGS, 0},
+  {"disable_fhc",
+   (PyCFunction)lxcXCFunctional_disable_fhc, METH_VARARGS, 0},
   {"set_omega",
    (PyCFunction)lxcXCFunctional_set_omega, METH_VARARGS, 0},
   {"calculate",
