@@ -387,7 +387,8 @@ class ASECalculator:
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
-                                 broadcast=True) -> Array3D:
+                                 broadcast=True,
+                                 pad=True) -> Array3D:
         state = self.dft.state
         collinear = state.ibzwfs.collinear
         if collinear:
@@ -410,7 +411,7 @@ class ASECalculator:
                 grid = grid.new(kpt=psit_sG.desc.kpt_c,
                                 dtype=psit_sG.desc.dtype)
                 psit_R = psit_sG.ifft(grid=grid)
-            if not psit_R.desc.pbc.all():
+            if not psit_R.desc.pbc.all() and pad:
                 psit_R = psit_R.to_pbc_grid()
             if periodic:
                 psit_R.multiply_by_eikr(-psit_R.desc.kpt_c)
@@ -735,6 +736,13 @@ class ASECalculator:
         return get_wannier_integrals(self.dft.state.ibzwfs,
                                      grid,
                                      spin, kpoint, nextkpoint, G_c, nbands)
+
+    def initial_wannier(self, initialwannier, kpointgrid, fixedstates,
+                        edf, spin, nbands):
+        from gpaw.new.wannier import initial_wannier
+        return initial_wannier(self.dft.state.ibzwfs,
+                               initialwannier, kpointgrid, fixedstates,
+                               edf, spin, nbands)
 
     def initialize_positions(self, atoms=None):
         pass
