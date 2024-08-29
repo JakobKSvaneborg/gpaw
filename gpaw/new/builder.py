@@ -293,6 +293,7 @@ class DFTComponentsBuilder:
         occ_skn = reader.wave_functions.occupations
 
         for wfs in ibzwfs:
+            index: tuple[int, ...]
             if self.ncomponents < 4:
                 dims = [self.nbands]
                 index = (wfs.spin, wfs.k)
