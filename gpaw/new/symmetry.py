@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 from gpaw.mpi import MPIComm
 from gpaw.new import zips
