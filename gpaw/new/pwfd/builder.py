@@ -31,8 +31,11 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 converge_bands=self.params.convergence.get('bands',
                                                            'occupied'),
                 **eigsolv_params)
-        return ETDMPWFD(self.setups, self.communicators['w'],
-                        self.atoms, eigsolv_params)
+        from gpaw.directmin.etdm_fdpw import FDPWETDM
+        return ETDMPWFD(self.setups,
+                        self.communicators['w'],
+                        self.atoms,
+                        FDPWETDM(**eigsolv_params))
 
     def read_ibz_wave_functions(self, reader):
         kpt_comm, band_comm, domain_comm = (self.communicators[x]

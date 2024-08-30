@@ -746,3 +746,10 @@ class ASECalculator:
 
     def initialize_positions(self, atoms=None):
         pass
+
+    def set(self, eigensolver):
+        from gpaw.new.pwfd.etdm import ETDMPWFD
+        self.dft.scf_loop.eigensolver = ETDMPWFD(self.setups,
+                                                 self.comm,
+                                                 self.atoms,
+                                                 eigensolver)

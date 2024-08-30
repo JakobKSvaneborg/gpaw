@@ -338,7 +338,7 @@ class ETDMInnerLoop:
                 for kpt in wfs.kpt_u:
                     k = self.kpointval(kpt)
                     hess = get_approx_analytical_hessian(kpt, self.dtype)
-                    if self.dtype is float:
+                    if self.dtype == float:
                         self.precond[k] = np.zeros_like(hess)
                         for i in range(hess.shape[0]):
                             if abs(hess[i]) < 1.0e-4:
@@ -349,6 +349,7 @@ class ETDMInnerLoop:
                         self.precond[k] = np.zeros_like(hess)
                         for i in range(hess.shape[0]):
                             if abs(hess[i]) < 1.0e-4:
+                                print(self.dtype, hess.shape, hess.dtype)
                                 self.precond[k][i] = 1.0 + 1.0j
                             else:
                                 self.precond[k][i] = \

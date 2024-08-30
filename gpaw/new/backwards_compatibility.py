@@ -22,7 +22,9 @@ class PT:
         self.ibzwfs = ibzwfs
 
     def integrate(self, psit_nG, P_ani, q):
-        self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.integrate(psit_nG, P_ani, q=0)
+        pt_aiX = self.ibzwfs.wfs_qs[q][0].pt_aiX
+        pt_aiX._lazy_init()
+        pt_aiX._lfc.integrate(psit_nG, P_ani, q=0)
 
     def add(self, psit_nG, c_axi, q):
         self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.add(psit_nG, c_axi, q=0)
@@ -232,6 +234,7 @@ class KPT:
         self.k = wfs.k
         self.q = wfs.q
         self.weight = wfs.spin_degeneracy * wfs.weight
+        self.weightk = wfs.weight
         if isinstance(wfs, PWFDWaveFunctions):
             self.psit_nX = wfs.psit_nX
         else:
@@ -254,6 +257,10 @@ class KPT:
         f_n = self.wfs.myocc_n * self.weight
         f_n.flags.writeable = False
         return f_n
+
+    @f_n.setter
+    def f_n(self, val):
+        self.wfs.myocc_n[:] = val / self.weight
 
     @property
     def psit_nG(self):

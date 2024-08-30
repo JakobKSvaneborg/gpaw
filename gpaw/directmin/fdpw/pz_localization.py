@@ -166,7 +166,7 @@ class PZLocalization:
         for kpt in wfs.kpt_u:
             k = self.n_kps * kpt.s + kpt.q
             d = self.Unew_k[k].shape[0]
-            if self.run_count == 1 and self.dtype is complex\
+            if self.run_count == 1 and self.dtype == complex \
                     and small_random:
                 a = randvalue * rng.random((d, d)) * 1.0j
                 a = a - a.T.conj()
