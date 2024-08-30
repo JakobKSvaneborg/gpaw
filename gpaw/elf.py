@@ -4,6 +4,7 @@ from numpy import pi
 
 from gpaw.fd_operators import Gradient
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
+from gpaw.new.calculation import DFTCalculation
 
 
 def _elf(nt_sg, nt_grad2_sg, taut_sg, ncut, spinpol):
@@ -46,6 +47,23 @@ def _elf(nt_sg, nt_grad2_sg, taut_sg, ncut, spinpol):
         elf_g[nt < ncut] = 0.0
 
     return elf_g
+
+
+def elf_from_dft(dft: DFTCalculation, ncut=1e-6):
+    density = dft.state.density
+    density.update_ked(dft.state.ibzwfs)
+    taut_sR = density.taut_sR
+    nt_sR = density.nt_sR
+    grad_v = [Gradient(nt_sR.desc._gd, v, n=2) for v in range(3)]
+    gradnt2_sR = nt_sR.new(zeroed=True)
+    for gradnt2_R, nt_R in zip(gradnt2_sR, nt_sR):
+        for grad in grad_v:
+            gradnt_R = grad(nt_R)
+            gradnt2_R.data += gradnt_R.data**2
+    elf_R = nt_sR.desc.empty()
+    elf_R.data[:] = _elf(nt_sR.data, gradnt2_sR.data, taut_sR.data,
+                         ncut, spinpol=len(nt_sR) == 2)
+    return elf_R
 
 
 class ELF:
@@ -159,3 +177,9 @@ class ELF:
             return elf_g
         else:
             raise NotImplementedError('Arbitrary refinement not implemented')
+
+
+if __name__ == '__main__':
+    import sys
+    from gpaw.new.ase_interface import GPAW
+    elf_from_dft_calculation(GPAW(sys.argv[1]).dft).isosurface()

@@ -3,16 +3,16 @@ import pytest
 from ase.parallel import parprint
 
 from gpaw import GPAW, restart
-from gpaw.elf import ELF
+from gpaw.elf import ELF, elf_from_dft_calculation
 from gpaw.mpi import rank
 
 
 @pytest.mark.mgga
 def test_utilities_elf(gpw_files, gpaw_new):
-    if gpaw_new:
-        pytest.skip('Not implemented')
     # Real wave functions
-    atoms, calc = restart(gpw_files['h2_fd'])
+    calc = GPAW(gpw_files['h2_fd'])
+    if gpaw_new:
+        elf_from_dft_calculation(calc.dft)
 
     elf = ELF(calc)
     elf.update()
