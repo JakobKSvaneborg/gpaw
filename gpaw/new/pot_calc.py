@@ -144,29 +144,35 @@ def calculate_non_local_potential(setups,
                                              dict[str, float]]:
     dtype = float if density.ncomponents < 4 else complex
     D_asii = density.D_asii.to_xp(np)
-    dH_asii = D_asii.layout.new(dtype=dtype).empty(density.ncomponents)
+    dH_asii = D_asii.layout.new(dtype=dtype).zeros(density.ncomponents)
     Q_aL = Q_aL.to_xp(np)
     energy_corrections: DefaultDict[str, float] = defaultdict(float)
-    rank = 0
-    for a, D_sii in D_asii.items():
-        if rank % kpt_band_comm.size == kpt_band_comm.rank:
-            Q_L = Q_aL[a]
-            setup = setups[a]
-            dH_sii, corrections = calculate_non_local_potential1(
-                setup, xc, ext_pot, D_sii, Q_L, soc)
-            dH_asii[a][:] = dH_sii
-            for key, e in corrections.items():
-                energy_corrections[key] += e
-        else:
-            dH_asii[a][:] = 0.0
-        rank += 1
+    mya = [a for rank, a in enumerate(D_asii)
+           if rank % kpt_band_comm.size == kpt_band_comm.rank]
+    domain_comm = density.D_asii.layout.atomdist.comm
+    N = os.cpu_count()
+    nworkers = min(N // (domain_comm.size * kpt_band_comm.size),
+                   len(mya))
+    if nworkers > 1:
+        pool = ...
+    else:
+        pool = ...
+
+    def target(a):
+        return calculate_non_local_potential1(
+            setups[a], xc, ext_pot, D_asii[a], Q_sL[a], soc)
+
+    for a, (dH_sii, corrections) in pool.map(target, mya):
+        dH_asii[a][:] = dH_sii
+        for key, e in corrections.items():
+            energy_corrections[key] += e
 
     kpt_band_comm.sum(dH_asii.data)
 
     # Sum over domain:
     names = ['kinetic', 'coulomb', 'zero', 'xc', 'external', 'spinorbit']
     energies = np.array([energy_corrections[name] for name in names])
-    density.D_asii.layout.atomdist.comm.sum(energies)
+    domain_comm.sum(energies)
     kpt_band_comm.sum(energies)
 
     return (dH_asii.to_xp(density.D_asii.layout.xp),
