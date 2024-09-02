@@ -100,7 +100,8 @@ class LibElpa:
         self.desc.checkassert(S)
         self.desc.checkassert(C)
         cgpaw.pyelpa_general_diagonalize(self._ptr, A, S, C, eps,
-                                         is_already_decomposed)
+                                         is_already_decomposed,
+                                         self._is_complex(A))
 
     def elpa_set(self, **kwargs):
         for key, value in kwargs.items():
