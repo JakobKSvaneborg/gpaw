@@ -8,6 +8,7 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
                                 reason='not LibElpa.have_elpa()')
 
 
+@pytest.mark.ci
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_libelpa(dtype):
     rng = np.random.RandomState(87878787)
