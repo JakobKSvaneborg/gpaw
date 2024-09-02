@@ -1,5 +1,8 @@
 sphinx
 sphinx-rtd-theme
+sphinxcontrib-jquery
 pillow
 graphviz
 pytest
+plotly
+kaleido
