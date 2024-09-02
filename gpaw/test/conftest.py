@@ -258,6 +258,10 @@ def pytest_runtest_setup(item):
         for mark in item.iter_markers():
             if mark.name == 'serial':
                 pytest.skip('Only run in serial')
+    else:
+        for mark in item.iter_markers():
+            if mark.name == 'parallel':
+                pytest.skip('Only run in parallel')
 
     if item.location[0] <= os.environ.get('PYTEST_START_AFTER', ''):
         pytest.skip('Not after $PYTEST_START_AFTER')

@@ -323,7 +323,7 @@ def sort_orbitals_according_to_occ_kpt(
 
         kpt.f_n = kpt.f_n[ind]
         if update_eps:
-            kpt.eps_n = kpt.eps_n[ind]
+            kpt.eps_n[:] = kpt.eps_n[ind]
 
         if update_mom:
             # OccupationsMOM.numbers needs
@@ -377,7 +377,9 @@ def sort_orbitals_according_to_energies(
             else:
                 sort_orbitals_kpt(wfs, kpt, ind, update_proj=True)
 
-            kpt.f_n[np.arange(len(ind))] = kpt.f_n[ind]
+            assert len(ind) == len(kpt.f_n)
+            # kpt.f_n[np.arange(len(ind))] = kpt.f_n[ind]
+            kpt.f_n = kpt.f_n[ind]
 
             if use_eps:
                 kpt.eps_n[np.arange(len(ind))] = orb_energies[ind]

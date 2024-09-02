@@ -230,6 +230,7 @@ News
    tutorialsexercises/tutorialsexercises
    setups/setups
    releasenotes
+   gallery/gallery
    contact
    faq
    devel/devel

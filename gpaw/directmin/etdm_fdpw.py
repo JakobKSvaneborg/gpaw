@@ -678,7 +678,6 @@ class FDPWETDM:
         calculate gradient dE/dpsi for one k-point
         :return: H |psi_i>
         """
-
         nbands = wfs.bd.mynbands
         Hpsi_nG = wfs.empty(nbands, q=kpt.q)
         wfs.apply_pseudo_hamiltonian(kpt, ham, kpt.psit_nG, Hpsi_nG)
@@ -823,7 +822,7 @@ class FDPWETDM:
         wfs.pt.integrate(psi_1, P1_ai, kpt.q)
         wfs.pt.integrate(psi_2, P2_ai, kpt.q)
         if ndim == 1:
-            if self.dtype is complex:
+            if self.dtype == complex:
                 paw_dot_prod = np.array([[0.0 + 0.0j]])
             else:
                 paw_dot_prod = np.array([[0.0]])
@@ -1207,7 +1206,7 @@ class FDPWETDM:
                     w.subspace_diagonalize(Ht, state.potential.dH)
             else:
                 for kpt in wfs.kpt_u:
-                    wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
+                    wfs.orthonormalize(kpt)
                     self.eigensolver.subspace_diagonalize(
                         ham, wfs, kpt, True)
                 wfs.gd.comm.broadcast(kpt.eps_n, 0)

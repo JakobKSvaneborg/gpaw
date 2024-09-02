@@ -4,15 +4,14 @@ from gpaw.new.backwards_compatibility import FakeHamiltonian, FakeWFS
 from gpaw.new.calculation import DFTState
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.scf_helper import check_eigensolver_state, do_if_converged
 
 
 class ETDMPWFD(Eigensolver):
     direct = True
 
-    def __init__(self, setups, comm, atoms, params):
-        self.eigensolver = FDPWETDM(**params)
+    def __init__(self, setups, comm, atoms, eigensolver):
+        self.eigensolver = eigensolver
         self.eigensolver.gpaw_new = True
         self.setups = setups
         self.comm = comm

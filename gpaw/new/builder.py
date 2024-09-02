@@ -293,18 +293,19 @@ class DFTComponentsBuilder:
         occ_skn = reader.wave_functions.occupations
 
         for wfs in ibzwfs:
-            wfs._eig_n = eig_skn[wfs.spin, wfs.k] / ha
-            wfs._occ_n = occ_skn[wfs.spin, wfs.k]
+            index: tuple[int, ...]
+            if self.ncomponents < 4:
+                dims = [self.nbands]
+                index = (wfs.spin, wfs.k)
+            else:
+                dims = [self.nbands, 2]
+                index = (wfs.k,)
+
+            wfs._eig_n = eig_skn[index] / ha
+            wfs._occ_n = occ_skn[index]
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,
                                       dtype=self.dtype)
-            if self.ncomponents < 4:
-                dims = [self.nbands]
-                index = [wfs.spin, wfs.k]
-            else:
-                dims = [self.nbands, 2]
-                index = [wfs.k]
-
             P_ani = AtomArrays(layout, dims=dims, comm=band_comm)
 
             if domain_comm.rank == 0:
