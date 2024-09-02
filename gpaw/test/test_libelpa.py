@@ -8,7 +8,8 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
                                 reason='not LibElpa.have_elpa()')
 
 
-def test_libelpa():
+@pytest.mark.parametrize('dtype', [float, complex])
+def test_libelpa(dtype):
     rng = np.random.RandomState(87878787)
 
     if world.size == 1:
@@ -23,18 +24,19 @@ def test_libelpa():
     desc = bg.new_descriptor(M, M, blocksize, blocksize)
     sdesc = desc.as_serial()
 
-    Aserial = sdesc.zeros()
+    Aserial = sdesc.zeros(dtype=dtype)
     if world.rank == 0:
         Aserial[:] = rng.rand(*Aserial.shape)
-        Aserial += Aserial.T.copy()
+        if dtype == complex:
+            Aserial.imag += rng.rand(*Aserial.shape)
+        Aserial += Aserial.T.copy().conj()
     A = desc.distribute_from_master(Aserial)
-    C1 = desc.zeros()
-    C2 = desc.zeros()
+    C1 = desc.zeros(dtype=dtype)
+    C2 = desc.zeros(dtype=dtype)
     eps1 = np.zeros(M)
     eps2 = np.zeros(M)
 
     elpa = LibElpa(desc)
-    print(elpa)
 
     desc.diagonalize_dc(A.copy(), C1, eps1),
 
