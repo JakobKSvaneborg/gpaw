@@ -15,8 +15,8 @@ Utilities
 .. autofunction:: gpaw.utilities.ekin.ekin
 
 
-ELF
-===
+Electron localisation function (ELF)
+====================================
 
 .. module:: gpaw.elf
 .. autofunction:: elf

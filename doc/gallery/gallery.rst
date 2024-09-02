@@ -2,8 +2,8 @@
 Gallery
 =======
 
-ELF
-===
+Electron localisation function (ELF)
+====================================
 
 .. image:: h2o-elf.png
 
