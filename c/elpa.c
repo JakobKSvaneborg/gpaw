@@ -148,13 +148,15 @@ PyObject* pyelpa_diagonalize(PyObject *self, PyObject *args)
 {
     PyObject *handle_obj;
     PyArrayObject *A_obj, *C_obj, *eps_obj;
+    PyObject *is_complex_obj;
 
     if (!PyArg_ParseTuple(args,
-                          "OOOO",
+                          "OOOOO",
                           &handle_obj,
                           &A_obj,
                           &C_obj,
-                          &eps_obj))
+                          &eps_obj,
+                          &is_complex_obj))
         return NULL;
 
     elpa_t handle = unpack_handle(handle_obj);
@@ -164,7 +166,11 @@ PyObject* pyelpa_diagonalize(PyObject *self, PyObject *args)
     double *q = (double*)PyArray_DATA(C_obj);
 
     int err;
-    elpa_eigenvectors(handle, a, ev, q, &err);
+    if (PyObject_IsTrue(is_complex_obj)) {
+        elpa_eigenvectors_double_complex(handle, a, ev, q, &err);
+    } else {
+        elpa_eigenvectors_double(handle, a, ev, q, &err);
+    }
     return checkerr(err);
 }
 

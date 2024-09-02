@@ -80,11 +80,19 @@ class LibElpa:
     def nev(self):
         return self._parameters['nev']
 
+    def _is_complex(self, array):
+        if array.dtype == np.complex128:
+            return True
+        if array.dtype == np.float64:
+            return False
+
+        raise TypeError(f'Unsupported dtype {array.dtype} for Elpa interface')
+
     def diagonalize(self, A, C, eps):
         assert self.nev == len(eps)
         self.desc.checkassert(A)
         self.desc.checkassert(C)
-        cgpaw.pyelpa_diagonalize(self._ptr, A, C, eps)
+        cgpaw.pyelpa_diagonalize(self._ptr, A, C, eps, self._is_complex(A))
 
     def general_diagonalize(self, A, S, C, eps, is_already_decomposed=0):
         assert self.nev == len(eps)
