@@ -9,6 +9,7 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
                                 reason='not LibElpa.have_elpa()')
 
 
+@pytest.mark.ci
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['elpa', 'scalapack'])
 @pytest.mark.parametrize('eigentype', ['normal', 'general'])
