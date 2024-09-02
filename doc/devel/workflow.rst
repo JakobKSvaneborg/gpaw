@@ -167,7 +167,8 @@ For MRs with code changes:
 For MRs with documentation changes,
 build the HTML-pages and make sure everything looks OK::
 
- $ pip install sphinx-rtd-theme
- $ cd gpaw/doc
+ $ cd gpaw
+ $ pip install -e .[docs]
+ $ cd doc
  $ make
  $ make browse

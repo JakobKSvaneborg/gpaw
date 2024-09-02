@@ -11,13 +11,10 @@ cmds = """\
 python3 -m venv venv
 . venv/bin/activate
 pip install -U pip wheel -qq
-# search broken in sphinx-6.0:
-pip install "sphinx<6.0"
-pip install sphinx-rtd-theme pillow graphviz
 pip install -q git+https://gitlab.com/ase/ase.git
 git clone https://gitlab.com/gpaw/gpaw.git
 cd gpaw
-pip install -e .
+pip install -e .[docs]
 python setup.py sdist
 cd doc
 make
