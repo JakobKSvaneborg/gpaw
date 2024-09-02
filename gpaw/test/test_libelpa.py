@@ -36,7 +36,7 @@ def test_libelpa(dtype, eigensolver, eigentype):
     A = desc.distribute_from_master(Aserial)
     C2 = desc.zeros(dtype=dtype)
     eps2 = np.zeros(M)
-    
+
     if eigentype == 'normal':
         if world.rank == 0:
             eps1, C1 = np.linalg.eigh(Aserial)
@@ -54,7 +54,7 @@ def test_libelpa(dtype, eigensolver, eigentype):
             if dtype == complex:
                 Sserial[2, 4] += 0.2j
         S = desc.distribute_from_master(Sserial)
-        
+
         if world.rank == 0:
             eps1, C1 = sp.linalg.eigh(Aserial, Sserial)
 
