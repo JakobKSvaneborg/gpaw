@@ -1,4 +1,5 @@
 """This module defines an ELF function."""
+from __future__ import annotations
 
 import sys
 
@@ -22,17 +23,24 @@ def elf(nt_sR: np.ndarray,
     More comprehensive definition in
     M. Kohout and A. Savin, Int. J. Quantum Chem., vol 60 (1996) 875-882
 
-    Arguments:
-    =============== =====================================================
-    ``nt_sR``       Pseudo valence density.
-    ``nt_grad2_sR`` Squared norm of the density gradient.
-    ``tau_sR``      Kinetic energy density.
-    ``ncut``        Minimum density cutoff parameter.
-    =============== =====================================================
+    Parameters
+    ==========
+    nt_sR:
+        Pseudo valence density.
+    nt_grad2_sR:
+        Squared norm of the density gradient.
+    tau_sR:
+        Kinetic energy density.
+    ncut:
+        Minimum density cutoff parameter.
     """
 
     # Fermi constant
     cF = 3.0 / 10 * (3 * np.pi**2)**(2 / 3)
+
+    eps = 1e-11
+    nt_sR = nt_sR.copy()
+    nt_sR[nt_sR < eps] = eps
 
     if nt_sR.shape[0] == 2:
         # Kouhut eq. (9)
