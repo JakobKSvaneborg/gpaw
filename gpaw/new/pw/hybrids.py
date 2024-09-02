@@ -79,7 +79,6 @@ class PWHybridHamiltonian(PWHamiltonian):
                  fracpos_ac,
                  atomdist):
         super().__init__(grid, pw)
-        self.grid = grid
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
@@ -98,8 +97,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             pw, fracpos_ac, atomdist)
         self.ghat_aLG._lazy_init()
         self.ghat_GA = self.ghat_aLG._lfc.expand()
-
-        self.plan = grid.fft_plans()
+        # self.plan = grid.fft_plans()
 
     def apply_orbital_dependent(self,
                                 ibzwfs: IBZWaveFunctions,
@@ -143,6 +141,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                psi1: Psi,
                psi2: Psi,
                Htpsit_nG: PWArray) -> tuple[float, float, float]:
+        print(pt_aiG)
         comm = Htpsit_nG.comm
         mynbands = Htpsit_nG.mydims[0]
         same = psi1 is psi2
@@ -165,12 +164,12 @@ class PWHybridHamiltonian(PWHamiltonian):
         Q_nA = np.empty((mynbands,
                          sum(delta_iiL.shape[2]
                              for delta_iiL in self.delta_aiiL)))
-        rhot_nR = self.grid.empty(mynbands)
+        rhot_nR = self.grid_local.empty(mynbands)
         rhot_nG = self.pw.empty(mynbands)
         vrhot_G = self.pw.empty()
 
         if psi1 is not psi2 or comm.size > 1:
-            psit1_nR = self.grid.empty(mynbands)
+            psit1_nR = self.grid_local.empty(mynbands)
         else:
             psit1_nR = None
 
@@ -182,7 +181,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                     psi = psi1.empty()
                 psi.receive((comm.rank - 1) % comm.size)
             if p == 0:
-                psi2.psit_nR = self.grid.empty(mynbands)
+                psi2.psit_nR = self.grid_local.empty(mynbands)
                 ifft(psi2.psit_nG, psi2.psit_nR, self.plan)
             e += self.inner(psi1, psi2,
                             Q_nA,
