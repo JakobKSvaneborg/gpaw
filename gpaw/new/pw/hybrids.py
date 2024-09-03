@@ -223,7 +223,7 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         e = 0.0
         for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
-            rhot_nR.data[:] = psit1_nR.data * psit2_R.data
+            rhot_nR.data[:] = psit1_nR.data * psit2_R.data.conj()
             fft(rhot_nR, rhot_nG, plan=self.plan)
             A1 = 0
             for a, Q1_niL in Q1_aniL.items():
