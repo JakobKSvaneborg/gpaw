@@ -472,7 +472,7 @@ class LocalOrbitals(TightBinding):
 
     def groupby(self,
                 method: str = 'energy',
-                decimals: int = 0,
+                decimals: int = 1,
                 cutoff: float = 0.9):
         """Group local orbitals by symmetry.
 
