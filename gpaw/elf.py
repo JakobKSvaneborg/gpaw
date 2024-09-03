@@ -29,10 +29,15 @@ def elf(nt_sR: np.ndarray,
         Pseudo valence density.
     nt_grad2_sR:
         Squared norm of the density gradient.
-    tau_sR:
+    taut_sR:
         Kinetic energy density.
     ncut:
         Minimum density cutoff parameter.
+
+    Returns
+    =======
+    np.ndarray:
+        Array of ELF values.
     """
 
     # Fermi constant
@@ -68,7 +73,17 @@ def elf_from_dft_calculation(dft: DFTCalculation | ASECalculator,
                              ncut: float = 1e-6) -> UGArray:
     """Calculate the electronic localization function.
 
-    ``ncut``: density cutoff below which the ELF is zero.
+    Parameters
+    ==========
+    dft:
+        DFT-calculation object.
+    ncut:
+        Density cutoff below which the ELF is zero.
+
+    Returns
+    =======
+    UGArray:
+        ELF values.
     """
     if isinstance(dft, ASECalculator):
         dft = dft.dft
