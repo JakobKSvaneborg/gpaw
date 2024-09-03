@@ -113,6 +113,9 @@ class IBZWaveFunctions(Generic[WFT]):
             return 'fd'
         return 'lcao'
 
+    def has_wave_functions(self):
+        return True
+
     def get_max_shape(self, global_shape: bool = False) -> tuple[int, ...]:
         """Find the largest wave function array shape.
 

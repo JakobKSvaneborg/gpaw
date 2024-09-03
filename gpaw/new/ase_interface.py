@@ -225,6 +225,9 @@ class ASECalculator:
         if converged:
             return
 
+        if not self.dft.state.ibzwfs.has_wave_functions():
+            self.create_new_calculation(atoms)
+
         assert self.hooks.keys() <= {'scf_step', 'converged'}
 
         with self.timer('SCF'):
