@@ -78,10 +78,6 @@ get('tutorials/xas',
 
 get('documentation/xc', 'g2test_pbe0.png  g2test_pbe.png  results.png'.split())
 
-get('bgp', ['bgp_mapping_intranode.png',
-            'bgp_mapping1.png',
-            'bgp_mapping2.png'], 'platforms/BGP')
-
 # workshop 2013 and 2016 photos:
 get('workshop13', ['workshop13_01_33-1.jpg'], 'static')
 get('workshop16', ['gpaw2016-photo.jpg'], 'static')
