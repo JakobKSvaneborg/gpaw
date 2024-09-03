@@ -16,20 +16,7 @@ build:
         nolibxc = True
         EOF
     pre_build:
-      - gpaw-setup H
-      - gpaw-basis H
-      - gpaw-setup Li
-      - gpaw-setup C
-      - gpaw-basis C
-      - gpaw-setup O
-      - gpaw-setup Pt -f PBE
-      - echo $PWD
-      - echo $HOME
-      - mkdir $HOME/.gpaw
-      - |
-        cat << EOF > $HOME/.gpaw/rc.py
-        setup_paths[:] = ["/home/docs/checkouts/readthedocs.org/user_builds/gpaw/checkouts/latest"]
-        EOF
+      - gpaw install-data --register .
 
 sphinx:
   configuration: doc/conf.py
