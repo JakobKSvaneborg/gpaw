@@ -244,7 +244,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                                                            psi1.f_n)):
                 vrhot_G.data = rhot_G.data * self.v_G.data
                 if psi2.f_n is not None:
-                    e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G)
+                    e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
                 rhot_G.data[:] = vrhot_G.data
                 if self.pw.dtype == float:
                     vrhot_G.data[0] *= 0.5
