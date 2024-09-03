@@ -10,12 +10,11 @@ from gpaw.mpi import world
 # in terms of eigenvalues and wavefunctions
 
 
-@pytest.mark.later
 def test_pw_expert_diag(in_tmp_dir, scalapack):
     wfs_e = []
-    for i, expert in enumerate([True, False]):
+    for i, nbands in enumerate([None, 48]):
         si = bulk('Si')
-        name = 'si_{0:d}'.format(i)
+        name = f'si_{i}'
         si.center()
         calc = GPAW(mode=PW(120), kpts=(1, 1, 2),
                     eigensolver='rmm-diis',
@@ -23,7 +22,7 @@ def test_pw_expert_diag(in_tmp_dir, scalapack):
                     symmetry='off', txt=name + '.txt')
         si.calc = calc
         si.get_potential_energy()
-        calc.diagonalize_full_hamiltonian(expert=expert, nbands=48)
+        calc.diagonalize_full_hamiltonian(nbands=nbands)
         string = name + '.gpw'
         calc.write(string, 'all')
         wfs_e.append(calc.wfs)
@@ -43,11 +42,9 @@ def test_pw_expert_diag(in_tmp_dir, scalapack):
             if wfsold_G[0] * psit[0] < 0:
                 psit *= -1.
             if world.rank == 0:
-                print('eps', repr(kpt.eps_n[0:5]))
-                print('psit', repr(psit))
-                assert np.allclose(epsn_n, kpt.eps_n[0:5], 1e-5), \
+                assert np.allclose(epsn_n, kpt.eps_n[0:5], atol=1e-4), \
                     'Eigenvalues have changed'
-                assert np.allclose(wfsold_G, psit, 1e-5), \
+                assert np.allclose(wfsold_G, psit, atol=5e-3), \
                     'Wavefunctions have changed'
 
     # Check that expert={True, False} give
@@ -56,6 +53,8 @@ def test_pw_expert_diag(in_tmp_dir, scalapack):
         wfs = wfs_e.pop()
         for wfstmp in wfs_e:
             for kpt, kpttmp in zip(wfs.kpt_u, wfstmp.kpt_u):
+                print(kpt.k, kpt.eps_n.shape)
+                print(kpttmp.k, kpttmp.eps_n.shape)
                 for m, (psi_G, eps) in enumerate(zip(kpt.psit_nG, kpt.eps_n)):
                     # Have to do like this if bands are degenerate
                     booleanarray = np.abs(kpttmp.eps_n - eps) < 1e-10

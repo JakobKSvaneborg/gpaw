@@ -29,7 +29,6 @@ class FourIterations(Criterion):
         self.iters = 0
 
 
-@pytest.mark.later
 def test_scf_criterion(in_tmp_dir, gpaw_new):
     """Tests different ways of setting SCF convergence criteria,
     and that it behaves consistenly with regard to the work function."""
@@ -106,7 +105,6 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
         assert atoms.calc.scf.criteria['energy'].n_old == 4
 
 
-@pytest.mark.later
 def test_scf_custom_criterion(in_tmp_dir):
     """Simulate a user creating their own custom convergence criterion,
     saving the .gpw file, and re-loading it. It will warn the user at two
@@ -137,9 +135,9 @@ def test_scf_custom_criterion(in_tmp_dir):
     with pytest.warns(UserWarning):
         # Warns the user that their criterion did not load.
         calc = GPAW('four.gpw', txt='out2.txt')
-    atoms[1].x += 0.1
-    atoms.calc = calc
-    atoms.get_potential_energy()
+        atoms[1].x += 0.1
+        atoms.calc = calc
+        atoms.get_potential_energy()
 
 
 if __name__ == '__main__':
