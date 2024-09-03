@@ -84,7 +84,7 @@ los.subdiagonalize('C', groupby='energy')
 # Groups of LOs are stored in a dictionary >>> los.groups
 
 # Dump pz-type LOs in cube format
-fig = los.plot_group(-7.0)
+fig = los.plot_group(-6.9)
 fig.savefig('C6H6_pzLOs.png', dpi=300, bbox_inches='tight')
 
 # Take minimal model
@@ -94,7 +94,7 @@ los.take_model(minimal=True)
 # dimensions >> los.get_hamiltonian().shape
 
 # Assert model indeed conicides with pz-type LOs
-assert los.indices == los.groups[-7.0]
+assert los.indices == los.groups[-6.9]
 
 # Compare eigenvalues with LCAO
 compare_eigvals(lcao, los, 'C6H6_minimal.png', 'minimal=True')
@@ -104,7 +104,7 @@ los.take_model(minimal=False)
 # Get the size of the model >>> len(los.model)
 
 # Assert model is extended with other groups.
-assert los.indices == (los.groups[-7.0] + los.groups[21.0] + los.groups[22.0])
+assert los.indices == (los.groups[-6.9] + los.groups[20.2] + los.groups[21.6])
 
 # Compare eigenvalues with LCAO
 compare_eigvals(lcao, los, 'C6H6_extended.png', 'minimal=False')
