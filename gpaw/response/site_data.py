@@ -174,8 +174,8 @@ class AtomicSiteData:
 
         # Find neighbours based on covalent radii
         cutoffs = natural_cutoffs(atoms, mult=2)
-        neighbourlist = build_neighbor_list(atoms, cutoffs,
-                                            self_interaction=False)
+        neighbourlist = build_neighbor_list(
+            atoms, cutoffs, self_interaction=False, bothways=True)
         # Determine rmax for each atom
         augr_A = gs.get_aug_radii()
         rmax_A = []
