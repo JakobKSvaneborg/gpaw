@@ -43,6 +43,10 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
             return HybridLCAOEigensolver(self.basis,
                                          self.fracpos_ac,
                                          self.grid.cell_cv)
+        if self.params.eigensolver['name'] == 'scissors':
+            from gpaw.lcao.scissors import ScissorsLCAOEigensolver
+            return ScissorsLCAOEigensolver(self.basis,
+                                           self.params.eigensolver['shifts'])
         return LCAOEigensolver(self.basis)
 
     def read_ibz_wave_functions(self, reader):

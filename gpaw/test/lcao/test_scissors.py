@@ -12,7 +12,8 @@ def test_scissors():
     d = 1.0
     h2.calc = GPAW(mode='lcao',
                    basis='sz(dzp)',
-                   eigensolver=Scissors([(-d, d, 2)]),
+                   eigensolver={'name': 'scissors',
+                                'shifts': [(-d, d, 2)]},
                    txt=None)
     h2.get_potential_energy()
     e1, e2, e3, e4 = h2.calc.get_eigenvalues()
