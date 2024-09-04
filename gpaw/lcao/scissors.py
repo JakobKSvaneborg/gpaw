@@ -118,7 +118,7 @@ class ScissorsLCAOEigensolver(LCAOEigensolver):
             self.shifts.append((homo / Ha, lumo / Ha, natoms))
 
     def iterate1(self, wfs, matrix_calculator):
-        super().iterate1(wfs, MyMatCalc(matrix_calculator))
+        super().iterate1(wfs, MyMatCalc(matrix_calculator, self.shifts))
 
     def __repr__(self):
         txt = DirectLCAO.__repr__(self)
@@ -134,16 +134,21 @@ class ScissorsLCAOEigensolver(LCAOEigensolver):
 
 
 class MyMatCalc:
-    def __init__(self, matcalc):
+    def __init__(self, matcalc, shifts):
         self.matcalc = matcalc
+        self.shifts = shifts
 
     def calculate_matrix(self, wfs):
         H_MM = self.matcalc.calculate_matrix(wfs)
 
-        S_MM = wfs.S_MM
-        assert abs(S_MM.data - S_MM.data.T.conj()).max() < 1e-10
+        try:
+            nocc = int(round(wfs.occ_n.sum()))
+        except ValueError:
+            return H_MM
 
-        nocc = int(round(wfs.occ_n.sum()))
+        S_MM = wfs.S_MM.data
+        assert abs(S_MM - S_MM.T.conj()).max() < 1e-10
+
         C_nM = wfs.C_nM.data
         iC_Mn = np.linalg.inv(C_nM)
         Co_nM = C_nM.copy()
@@ -155,12 +160,12 @@ class MyMatCalc:
         a1 = 0
         for homo, lumo, natoms in self.shifts:
             a2 = a1 + natoms
-            M2 = M1 + sum(setup.nao for setup in ham.setups[a1:a2])
+            M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
 
             D_MM = np.zeros_like(S_MM)
             D_MM[M1:M2, M1:M2] = S_MM[M1:M2, M1:M2]
 
-            H_MM += iC_Mn @ (
+            H_MM.data += iC_Mn @ (
                 Co_nM @ D_MM @ Co_nM.T.conj() * homo +
                 Cu_nM @ D_MM @ Cu_nM.T.conj() * lumo) @ iC_Mn.T.conj()
 
