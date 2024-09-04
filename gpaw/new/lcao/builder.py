@@ -43,7 +43,7 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
             return HybridLCAOEigensolver(self.basis,
                                          self.fracpos_ac,
                                          self.grid.cell_cv)
-        if self.params.eigensolver['name'] == 'scissors':
+        if self.params.eigensolver.get('name') == 'scissors':
             from gpaw.lcao.scissors import ScissorsLCAOEigensolver
             return ScissorsLCAOEigensolver(self.basis,
                                            self.params.eigensolver['shifts'])

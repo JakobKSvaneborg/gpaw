@@ -27,12 +27,10 @@ def system2():
     return bulk('Cu', orthorhombic=True) * (2, 1, 2)
 
 
-@pytest.mark.later
-@pytest.mark.parametrize('atoms, kpts', [
-    (system1(), [1, 1, 1]),
-    (system2(), [2, 3, 4]),
-])
-def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts):
+@pytest.mark.parametrize('atoms, kpts, eref', [
+    (system1(), [1, 1, 1], -58.845),
+    (system2(), [2, 3, 4], -22.691)])
+def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts, eref):
     # Use a cell large enough that some overlaps are zero.
     # Thus the matrices will have at least some sparsity.
 
@@ -63,10 +61,11 @@ def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts):
     if master:
         print('energies', energies)
 
-    eref = energies[0]
+    e0 = energies[0]
     errs = []
     for energy, c in zip(energies, corrections):
-        err = abs(energy - eref)
+        assert energy == pytest.approx(eref, abs=0.001)
+        err = abs(energy - e0)
         errs.append(err)
         if master:
             print('err=%e :: name=%s' % (err, correction))
