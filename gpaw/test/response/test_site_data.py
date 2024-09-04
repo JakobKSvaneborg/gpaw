@@ -185,8 +185,8 @@ def test_valid_site_radii_symmetry():
                     basis=spos_ac,
                     primitive_cell=True,
                     pbc=True)
-    from ase.visualize import view
-    view(atoms)
+    # from ase.visualize import view
+    # view(atoms)
 
     # Set up calculator with a specific grid spacing and generate adapter
     spacing = 0.1
