@@ -36,6 +36,6 @@ def test_davidson_scalapack_eigenvalues(scalapack, kpoint_gamma):
         eigvals1 = atoms1.calc.get_eigenvalues(kpt=n, spin=0)
         eigvals2 = atoms2.calc.get_eigenvalues(kpt=n, spin=0)
 
-        assert eigvals1 == pytest.approx(eigvals2, rel=1e-8)
+        assert eigvals1 == pytest.approx(eigvals2, rel=1e-11)
 
     assert e1 == pytest.approx(e2, rel=1e-11)

@@ -8,6 +8,7 @@ from scipy.linalg import eigh
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import broadcast_exception, MPIComm
 from gpaw.utilities.elpa import LibElpa
+from gpaw.utilities.tools import tri2full
 
 class ScipyDiagonalizer:
     """Diagonalizer class that uses scipy.linalg.eigh.
@@ -198,6 +199,8 @@ class ElpaDiagonalizer(DistributedBlacsDiagonalizer):
         temporary_eps = np.zeros([self.arraysize])
         if self.scalapack_communicator.rank == 0:
             assert self.blacsgrid.comm.rank == 0
+            tri2full(A)
+            tri2full(B)
             Asc_MM[:, :] = A
             Bsc_MM[:, :] = B
 
