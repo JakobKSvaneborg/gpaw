@@ -66,7 +66,6 @@ class TDAlgorithm:
         # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
         state.potential, _ = pot_calc.calculate(
             state.density, state.ibzwfs, vHt_x=state.potential.vHt_x)
-        print('potential:', state.potential.vHt_x.data[50:55, 45, 45])
 
     def propagate_wfs(self,
                       time_step: float,
@@ -179,7 +178,6 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         assert isinstance(wfs.psit_nX, UGArray)
         psit_nR = wfs.psit_nX
 
-        self._time_step = time_step
         copy_psit_nR = psit_nR.new()
         copy_psit_nR.data[:] = psit_nR.data
 
@@ -187,25 +185,27 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         wfs.pt_aiX.integrate(psit_nR, wfs.P_ani)
 
         # Empty arrays
-        rhs_nR = psit_nR.new()
-        init_guess_nR = psit_nR.new()
-        hpsit_nR = psit_nR.new()
-        spsit_nR = psit_nR.new()
-        sinvhpsit_nR = psit_nR.new()
+        rhs_nR = psit_nR.new(zeroed=True)
+        init_guess_nR = psit_nR.new(zeroed=True)
+        hpsit_nR = psit_nR.new(zeroed=True)
+        spsit_nR = psit_nR.new(zeroed=True)
+        sinvhpsit_nR = psit_nR.new(zeroed=True)
 
         # Calculate right-hand side of equation
         # ( S + i H dt/2 ) psit(t+dt) = ( S - i H dt/2 ) psit(t)
-        self.apply_hamiltonian(wfs, hpsit_nR)
-        self.apply_overlap_operator(wfs, spsit_nR)
+        self.apply_hamiltonian(wfs, hpsit_nR)  # hpsit_nR <- H psit(t)
+        self.apply_overlap_operator(wfs, spsit_nR)  # spsit_nR <- S psit(t)
 
         rhs_nR.data[:] = spsit_nR.data - 0.5j * time_step * hpsit_nR.data
 
         # Calculate (1 - i S^(-1) H dt) psit(t), which is an
         # initial guess for the conjugate gradient solver
+        wfs.pt_aiX.integrate(hpsit_nR, wfs.P_ani)
         wfs.psit_nX.data[:] = hpsit_nR.data
         self.apply_inverse_overlap_operator(wfs, sinvhpsit_nR)
         init_guess_nR.data[:] = (copy_psit_nR.data -
                                  1j * time_step * sinvhpsit_nR.data)
+        wfs.pt_aiX.integrate(init_guess_nR, wfs.P_ani)
 
         from gpaw.tddft.solvers.cscg import CSCG
         solver = CSCG()
@@ -214,8 +214,12 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         # A needs to implement the function dot, which operates
         # on wave functions
         psit_nR.data[:] = init_guess_nR.data
-        solver.solve(self, copy_psit_nR.data, rhs_nR.data)
-        wfs.psit_nX.data[:] = copy_psit_nR.data
+        self._wfs = wfs  # The solver needs wfs and time_step
+        self._time_step = time_step
+        solver.solve(self, init_guess_nR.data, rhs_nR.data)
+        self._wfs = None
+        self._time_step = None
+        wfs.psit_nX.data[:] = init_guess_nR.data
 
         wfs.pt_aiX.integrate(wfs.psit_nX, wfs.P_ani)
 
@@ -233,10 +237,11 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
         """
         assert isinstance(self.wfs.psit_nX, UGArray)
+        _psit_nX = self.wfs.psit_nX.data
+        self.wfs.psit_nX.data = psit_nR
 
         self.timer.start('Apply time-dependent operators')
         # Update the projector function overlap integrals
-        self.wfs.psit_nX.data[:] = psit_nR  # XXX very ugly hack
         self.wfs.pt_aiX.integrate(self.wfs.psit_nX, self.wfs.P_ani)
         hpsit_nR = self.wfs.psit_nX.new()
         spsit_nR = self.wfs.psit_nX.new()
@@ -246,6 +251,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         self.timer.stop('Apply time-dependent operators')
 
         out_nR[:] = spsit_nR.data + 0.5j * self.time_step * hpsit_nR.data
+        self.wfs.psit_nX.data = _psit_nX
 
     def apply_preconditioner(self, psi, psin):
         """Solves preconditioner equation.
@@ -287,8 +293,8 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         else:
             out_nR.data[:] = wfs.psit_nX.data
 
+        out_nR.data[:] = 0
         self.Ht(psit_nG=wfs.psit_nX, out=out_nR, spin=wfs.spin)
-        self._wfs = wfs  # XXX temporary hack
 
     @staticmethod
     def apply_overlap_operator(
@@ -478,9 +484,11 @@ class RTTDDFT:
             # self.calculate_dipole_moment = self._calculate_dipole_moment_lcao
             self.calculate_dipole_moment = self._calculate_dipole_moment
             self.mode = 'lcao'
+            self.nkicks = 10
         elif isinstance(hamiltonian, FDHamiltonian):
             self.calculate_dipole_moment = self._calculate_dipole_moment
             self.mode = 'fd'
+            self.nkicks = None
         elif isinstance(hamiltonian, PWHamiltonian):
             raise NotImplementedError('PW TDDFT is not implemented')
         else:
@@ -555,6 +563,11 @@ class RTTDDFT:
             # Create Hamiltonian object for absorption kick
             cef = ConstantElectricField(magnitude * Hartree / Bohr, direction)
 
+            if self.mode == 'fd':
+                self.nkicks = int(round(magnitude / 1.0e-4))
+                if self.nkicks < 1:
+                    self.nkicks = 1
+
             # Propagate kick
             return self.kick(cef)
 
@@ -580,9 +593,8 @@ class RTTDDFT:
             wf_propagator = self.kick_propagator(ext)
 
             # assert isinstance(self.pot_calc, FDPotentialCalculator)
-            nkicks = 10
-            for l in range(nkicks):
-                td_algorithm.propagate_wfs(1 / nkicks,
+            for l in range(self.nkicks):
+                td_algorithm.propagate_wfs(1 / self.nkicks,
                                            state=self.state,
                                            pot_calc=self.pot_calc,
                                            wf_propagator=wf_propagator)
@@ -635,6 +647,7 @@ class RTTDDFT:
                           xp=self.hamiltonian.kin.xp)
             kick_hamiltonian = FDKickHamiltonian(self.hamiltonian.grid,
                                                  ext,
+                                                 self.state.ibzwfs,
                                                  self.pot_calc,
                                                  **kwargs)
 
