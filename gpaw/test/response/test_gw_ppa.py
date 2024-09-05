@@ -5,9 +5,7 @@ from gpaw.mpi import world
 
 
 @pytest.mark.response
-def test_ppa(in_tmp_dir, gpw_files, scalapack, gpaw_new):
-    if gpaw_new and world.size > 1:
-        pytest.skip('Hybrids not working in parallel with GPAW_NEW=1')
+def test_ppa(in_tmp_dir, gpw_files, scalapack):
     ref_result = np.asarray([[[11.30094393, 21.62842077],
                               [5.33751513, 16.06905725],
                               [8.75269938, 22.46579489]]])
@@ -24,4 +22,4 @@ def test_ppa(in_tmp_dir, gpw_files, scalapack, gpaw_new):
 
 if __name__ == '__main__':
     import sys
-    test_ppa(1, {'bn_pw': sys.argv[1]}, 1, 1)
+    test_ppa(1, {'bn_pw': sys.argv[1]}, 1)
