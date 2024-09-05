@@ -114,9 +114,6 @@ class InputParameters:
         for key in self.non_defaults:
             yield key, getattr(self, key)
 
-    def asdsa__contains__(self, key):
-        return key in self.keys
-
 
 @input_parameter
 def basis(value=None):

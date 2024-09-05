@@ -20,3 +20,8 @@ def test_ppa(in_tmp_dir, gpw_files, scalapack, gpaw_new):
 
     results = gw.calculate()
     np.testing.assert_allclose(results['qp'], ref_result, rtol=1e-03)
+
+
+if __name__ == '__main__':
+    import sys
+    test_ppa(1, {'bn_pw': sys.argv[1]}, 1, 1)

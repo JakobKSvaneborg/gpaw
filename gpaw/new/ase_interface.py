@@ -752,3 +752,6 @@ class ASECalculator:
                                                  self.comm,
                                                  self.atoms,
                                                  eigensolver)
+
+    def todict(self):
+        return dict(self.params.items())
