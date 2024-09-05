@@ -1,10 +1,8 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW
-from gpaw.lcao.scissors import Scissors
 
 
-@pytest.mark.later
 def test_scissors():
     h2 = Atoms('2H2', [[0, 0, 0], [0, 0, 0.74],
                        [4, 0, 0], [4, 0, 0.74]])
