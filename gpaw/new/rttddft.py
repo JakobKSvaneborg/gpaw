@@ -59,7 +59,6 @@ class TDAlgorithm:
     def update_time_dependent_operators(self,
                                         state: DFTState,
                                         pot_calc: PotentialCalculator):
-
         # Update density
         state.density.update(state.ibzwfs)
 
@@ -148,6 +147,10 @@ class FDNumpyPropagator(WaveFunctionPropagator):
                           state.potential.vt_sR,
                           state.potential.dedtaut_sR,
                           state.ibzwfs, state.density.D_asii)
+        if isinstance(hamiltonian, FDKickHamiltonian):
+            self.dH = hamiltonian.dH
+        else:
+            self.dH = state.potential.dH
 
         # XXX Ugly hack due to having reused the CG solver
         self._wfs: PWFDWaveFunctions | None = None
@@ -214,6 +217,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         # A needs to implement the function dot, which operates
         # on wave functions
         psit_nR.data[:] = init_guess_nR.data
+        # psit_nR.data[:] = copy_psit_nR.data
         self._wfs = wfs  # The solver needs wfs and time_step
         self._time_step = time_step
         solver.solve(self, init_guess_nR.data, rhs_nR.data)
@@ -295,6 +299,15 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
         out_nR.data[:] = 0
         self.Ht(psit_nG=wfs.psit_nX, out=out_nR, spin=wfs.spin)
+
+        # apply the non-local part for each nucleus
+        P_ani = wfs.P_ani.new()
+        P2_ani = wfs.P_ani.new()
+        wfs.pt_aiX.integrate(wfs.psit_nX, P_ani)
+        self.dH(P_ani, P2_ani, wfs.spin)
+
+        # add partial wave pt_nG to psit_nG with proper coefficient
+        wfs.pt_aiX.add_to(out_nR, P2_ani)
 
     @staticmethod
     def apply_overlap_operator(
@@ -645,10 +658,12 @@ class RTTDDFT:
             kwargs = dict(kin_stencil=len(self.hamiltonian.kin.coef_p),
                           blocksize=self.hamiltonian.blocksize,
                           xp=self.hamiltonian.kin.xp)
+            layout = self.state.potential.dH_asii.layout
             kick_hamiltonian = FDKickHamiltonian(self.hamiltonian.grid,
                                                  ext,
                                                  self.state.ibzwfs,
                                                  self.pot_calc,
+                                                 layout,
                                                  **kwargs)
 
         else:

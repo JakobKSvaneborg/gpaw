@@ -3,6 +3,7 @@ import numpy as np
 
 from gpaw.core import UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.core.uniform_grid import UGArray
 from gpaw.external import ExternalPotential
 from gpaw.fd_operators import Gradient, Laplace
@@ -186,6 +187,7 @@ class FDKickHamiltonian(FDHamiltonian):
                  ext: ExternalPotential,
                  ibzwfs: PWFDIBZWaveFunction,
                  pot_calc: FDPotentialCalculator,
+                 layout: AtomArraysLayout,
                  **kwargs):
         """ Factory class for creating a Hamiltonian-like object
         representing a potential kick """
@@ -195,10 +197,52 @@ class FDKickHamiltonian(FDHamiltonian):
 
         r_Rv = grid.xyz()
         self.vext_R.data[:] = np.einsum('xyzv,v->xyz', r_Rv, ext.field_v)
-        self.wfs = ibzwfs.wfs_qs[0][0]
-        positions_av = self.wfs.fracpos_ac @ grid.cell_cv
-        self.potential_a = positions_av @ ext.field_v
-        self.cxyz = ext.field_v
+        wfs = ibzwfs.wfs_qs[0][0]
+        positions_av = wfs.fracpos_ac @ grid.cell_cv
+        potential_a = positions_av @ ext.field_v
+
+        # calculate coefficient
+        # ---------------------
+        #
+        # coeffs_ni =
+        #   P_nj * c0 * 1_ij
+        #   + P_nj * cx * x_ij
+        #
+        # where (see spherical_harmonics.py)
+        #
+        #   1_ij = sqrt(4pi) Delta_0ij
+        #   y_ij = sqrt(4pi/3) Delta_1ij
+        #   z_ij = sqrt(4pi/3) Delta_2ij
+        #   x_ij = sqrt(4pi/3) Delta_3ij
+        # ...
+
+        #   1_ij = sqrt(4pi) Delta_0ij
+        #   y_ij = sqrt(4pi/3) Delta_1ij
+        #   z_ij = sqrt(4pi/3) Delta_2ij
+        #   x_ij = sqrt(4pi/3) Delta_3ij
+
+        # coefficients
+        # coefs_ni = sum_j ( <phi_i| f(x,y,z) | phi_j>
+        #                    - <phit_i| f(x,y,z) | phit_j> ) P_nj
+
+        assert wfs.nspins == 1
+        self.dH_asii = layout.empty(wfs.nspins)
+        for a, c0 in enumerate(potential_a):
+            Delta_iiL = wfs.setups[a].Delta_iiL
+            coef_ii = np.sqrt(4 * np.pi) * c0 * Delta_iiL[..., 0]
+            coef_ii += np.sqrt(4 * np.pi / 3) \
+                * ext.field_v[0] * Delta_iiL[..., 3]  # x
+            coef_ii += np.sqrt(4 * np.pi / 3) \
+                * ext.field_v[1] * Delta_iiL[..., 1]  # y
+            coef_ii += np.sqrt(4 * np.pi / 3) \
+                * ext.field_v[2] * Delta_iiL[..., 2]  # z
+            self.dH_asii[a][0] = coef_ii
+
+    def dH(self, P_ani, out_ani, spin):
+        assert spin == 0
+        assert len(P_ani.dims) == 1, 'only collinear wave functions'
+
+        P_ani.block_diag_multiply(self.dH_asii, out_ani, spin)
 
     def apply_local_potential(self,
                               vt_R: UGArray,
@@ -211,53 +255,3 @@ class FDKickHamiltonian(FDHamiltonian):
         # We are kicking with the potential stored by the init
         for p, o in zips(psit_nR.data, out.data):
             o += p * self.vext_R.data
-
-        # apply the non-local part for each nucleus
-
-        # number of wavefunctions, psit_nG
-        n = len(psit_nR)
-        P_ani = self.wfs.P_ani.new()
-        self.wfs.pt_aiX.integrate(psit_nR, P_ani)
-
-        coef_ani = {}
-        for a, P_ni in P_ani.items():
-            c0 = self.potential_a[a]
-            cxyz = self.cxyz
-            # calculate coefficient
-            # ---------------------
-            #
-            # coeffs_ni =
-            #   P_nj * c0 * 1_ij
-            #   + P_nj * cx * x_ij
-            #
-            # where (see spherical_harmonics.py)
-            #
-            #   1_ij = sqrt(4pi) Delta_0ij
-            #   y_ij = sqrt(4pi/3) Delta_1ij
-            #   z_ij = sqrt(4pi/3) Delta_2ij
-            #   x_ij = sqrt(4pi/3) Delta_3ij
-            # ...
-
-            Delta_iiL = self.wfs.setups[a].Delta_iiL
-
-            #   1_ij = sqrt(4pi) Delta_0ij
-            #   y_ij = sqrt(4pi/3) Delta_1ij
-            #   z_ij = sqrt(4pi/3) Delta_2ij
-            #   x_ij = sqrt(4pi/3) Delta_3ij
-            oneij = np.sqrt(4 * np.pi) \
-                * np.dot(P_ni, Delta_iiL[:, :, 0])
-            yij = np.sqrt(4 * np.pi / 3) \
-                * np.dot(P_ni, Delta_iiL[:, :, 1])
-            zij = np.sqrt(4 * np.pi / 3) \
-                * np.dot(P_ni, Delta_iiL[:, :, 2])
-            xij = np.sqrt(4 * np.pi / 3) \
-                * np.dot(P_ni, Delta_iiL[:, :, 3])
-
-            # coefficients
-            # coefs_ni = sum_j ( <phi_i| f(x,y,z) | phi_j>
-            #                    - <phit_i| f(x,y,z) | phit_j> ) P_nj
-            coef_ani[a] = (c0 * oneij + cxyz[0] * xij + cxyz[1] * yij +
-                           cxyz[2] * zij)
-
-        # add partial wave pt_nG to psit_nG with proper coefficient
-        self.wfs.pt_aiX.add_to(out, coef_ani)
