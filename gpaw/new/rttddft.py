@@ -9,25 +9,29 @@ from numpy.linalg import solve
 
 from ase.units import Bohr, Hartree
 
-from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomArrays
+from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
+from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.external import ExternalPotential, ConstantElectricField
 from gpaw.typing import Vector
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.calculation import DFTState, DFTCalculation
 from gpaw.new.fd.builder import FDHamiltonian, FDKickHamiltonian
+from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.lcao.hamiltonian import (HamiltonianMatrixCalculator,
                                        LCAOKickHamiltonian,
                                        LCAOHamiltonian)
+from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.new.gpw import read_gpw
 from gpaw.new.symmetry import Symmetries
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.builder import PWHamiltonian
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
 from gpaw.tddft.solvers.cscg import CSCG
 from gpaw.tddft.units import asetime_to_autime, autime_to_asetime, au_to_eA
 from gpaw.utilities.timing import nulltimer
@@ -288,7 +292,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
     def apply_overlap_operator(self,
                                psit_nR: UGArray,
-                               out_nR: UGArray | None = None):
+                               out_nR: UGArray):
         """
         Apply the overlap operator wave functions on the wave functions:
 
@@ -314,7 +318,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
     def apply_inverse_overlap_operator(self,
                                        psit_nR: UGArray,
-                                       out_nR: UGArray | None = None):
+                                       out_nR: UGArray):
         """
         Apply the approximate inverse overlap operator on the wave functions:
 
@@ -350,7 +354,12 @@ class CSCGAdapter:
         self.solver.initialize(desc._gd, nulltimer)
         self.desc = desc
         self.propagator = propagator
-        self._time_step = None
+        self._time_step: float | None = None
+
+    @property
+    def time_step(self) -> float:
+        assert self._time_step is not None
+        return self._time_step
 
     def solve(self,
               init_guess_nR: UGArray,
@@ -375,10 +384,9 @@ class CSCGAdapter:
             the result ( S + i H dt/2 ) psi
 
         """
-        assert self._time_step is not None
         _psit_nR = self.desc.from_data(psit_nR)
         _out_nR = self.desc.from_data(out_nR)
-        self.propagator.dot(_psit_nR, _out_nR, self._time_step)
+        self.propagator.dot(_psit_nR, _out_nR, self.time_step)
 
     def apply_preconditioner(self, psi, psin):
         self.propagator.apply_preconditioner(psi, psin)
@@ -506,11 +514,9 @@ class RTTDDFT:
             # self.calculate_dipole_moment = self._calculate_dipole_moment_lcao
             self.calculate_dipole_moment = self._calculate_dipole_moment
             self.mode = 'lcao'
-            self.nkicks = 10
         elif isinstance(hamiltonian, FDHamiltonian):
             self.calculate_dipole_moment = self._calculate_dipole_moment
             self.mode = 'fd'
-            self.nkicks = None
         elif isinstance(hamiltonian, PWHamiltonian):
             raise NotImplementedError('PW TDDFT is not implemented')
         else:
@@ -585,16 +591,18 @@ class RTTDDFT:
             # Create Hamiltonian object for absorption kick
             cef = ConstantElectricField(magnitude * Hartree / Bohr, direction)
 
+            kw = dict()
             if self.mode == 'fd':
-                self.nkicks = int(round(magnitude / 1.0e-4))
-                if self.nkicks < 1:
-                    self.nkicks = 1
+                kw['nkicks'] = int(round(magnitude / 1.0e-4))
+                if kw['nkicks'] < 1:
+                    kw['nkicks'] = 1
 
             # Propagate kick
-            return self.kick(cef)
+            return self.kick(cef, **kw)
 
     def kick(self,
-             ext: ExternalPotential):
+             ext: ExternalPotential,
+             nkicks: int = 10):
         """Kick with any external potential.
 
         Note that unless this function is called by absorption_kick, the kick
@@ -606,6 +614,7 @@ class RTTDDFT:
             External potential
         """
         with self.timer('Kick'):
+            assert isinstance(self.state.density.nct_aX, UGAtomCenteredFunctions)
             self.log('----  Applying kick')
             self.log(f'----  {ext}')
             self.kick_ext = ext
@@ -614,9 +623,9 @@ class RTTDDFT:
             td_algorithm = ECNAlgorithm()
             wf_propagator = self.kick_propagator(ext)
 
-            # assert isinstance(self.pot_calc, FDPotentialCalculator)
-            for l in range(self.nkicks):
-                td_algorithm.propagate_wfs(1 / self.nkicks,
+            assert isinstance(self.pot_calc, FDPotentialCalculator)
+            for l in range(nkicks):
+                td_algorithm.propagate_wfs(1 / nkicks,
                                            state=self.state,
                                            pot_calc=self.pot_calc,
                                            wf_propagator=wf_propagator)
@@ -657,13 +666,16 @@ class RTTDDFT:
 
         Corresponding to the mode and type of parallelization
         """
-        kick_hamiltonian: type[Hamiltonian]
+        kick_hamiltonian: Hamiltonian
+        assert isinstance(self.pot_calc, FDPotentialCalculator)
         if self.mode == 'lcao':
+            assert isinstance(self.state.ibzwfs, LCAOIBZWaveFunctions)
             kick_hamiltonian = LCAOKickHamiltonian(self.hamiltonian.basis,
                                                    self.state.ibzwfs,
                                                    ext,
                                                    self.pot_calc)
         elif self.mode == 'fd':
+            assert isinstance(self.state.ibzwfs, PWFDIBZWaveFunction)
             kwargs = dict(kin_stencil=len(self.hamiltonian.kin.coef_p),
                           blocksize=self.hamiltonian.blocksize,
                           xp=self.hamiltonian.kin.xp)
@@ -693,6 +705,7 @@ class RTTDDFT:
             Number of propagation steps
         """
 
+        assert isinstance(self.state.density.nct_aX, UGAtomCenteredFunctions)
         time_step = time_step * asetime_to_autime
 
         for iteration in range(maxiter):

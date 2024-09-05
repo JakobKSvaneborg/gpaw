@@ -5,7 +5,7 @@ from gpaw.core import UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.core.uniform_grid import UGArray
-from gpaw.external import ExternalPotential
+from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.fd_operators import Gradient, Laplace
 from gpaw.new import zips
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
@@ -192,10 +192,11 @@ class FDKickHamiltonian(FDHamiltonian):
         """ Factory class for creating a Hamiltonian-like object
         representing a potential kick """
         self.vext_R = grid.empty()
-        if ext.name != 'ConstantElectricField':
+        if not isinstance(ext, ConstantElectricField):
             raise NotImplementedError
 
         r_Rv = grid.xyz()
+        # This is a shifted grid, compared to ext.calculate_potential
         self.vext_R.data[:] = np.einsum('xyzv,v->xyz', r_Rv, ext.field_v)
         wfs = ibzwfs.wfs_qs[0][0]
         positions_av = wfs.fracpos_ac @ grid.cell_cv
