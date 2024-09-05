@@ -48,7 +48,12 @@ class Davidson(Eigensolver):
     def todict(self):
         return {'name': 'dav', 'niter': self.niter}
 
-    def initialize(self, wfs):
+    def initialize(self, wfs, dist_backend='scalapack'):
+        dist_diagonalizers = {
+            'scalapack': ScalapackDiagonalizer,
+            'elpa': ElpaDiagonalizer
+        }
+        
         Eigensolver.initialize(self, wfs)
         slcomm, nrows, ncols, slsize = wfs.scalapack_parameters
 
@@ -60,7 +65,7 @@ class Davidson(Eigensolver):
             self.eps_N = np.zeros(2 * B)
 
         if slsize is not None:
-            self.diagonalizer_backend = ScalapackDiagonalizer(
+            self.diagonalizer_backend = dist_diagonalizers[dist_backend](
                 arraysize=self.nbands * 2,
                 grid_nrows=nrows,
                 grid_ncols=ncols,
