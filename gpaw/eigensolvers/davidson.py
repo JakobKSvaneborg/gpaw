@@ -4,6 +4,7 @@ import numpy as np
 from ase.utils.timing import timer
 from gpaw import debug
 from gpaw.eigensolvers.diagonalizerbackend import (ScalapackDiagonalizer,
+                                                   ElpaDiagonalizer,
                                                    ScipyDiagonalizer)
 from gpaw.eigensolvers.eigensolver import Eigensolver
 from gpaw.hybrids import HybridXC
@@ -59,7 +60,7 @@ class Davidson(Eigensolver):
             self.eps_N = np.zeros(2 * B)
 
         if slsize is not None:
-            self.diagonalizer_backend = ScalapackDiagonalizer(
+            self.diagonalizer_backend = ElpaDiagonalizer(
                 arraysize=self.nbands * 2,
                 grid_nrows=nrows,
                 grid_ncols=ncols,

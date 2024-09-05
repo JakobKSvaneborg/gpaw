@@ -1,10 +1,13 @@
 """Module for Numpy array diagonalization with Scipy/Scalapack."""
+from abc import ABC, abstractmethod
+from functools import cached_property
+
 import numpy as np
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import broadcast_exception, MPIComm
-
+from gpaw.utilities.elpa import LibElpa
 
 class ScipyDiagonalizer:
     """Diagonalizer class that uses scipy.linalg.eigh.
@@ -45,13 +48,7 @@ class ScipyDiagonalizer:
                     A, B, lower=True, check_finite=debug, overwrite_b=True)
 
 
-class ScalapackDiagonalizer:
-    """Diagonalizer class that uses general_diagonalize_dc.
-
-    The ScalapackDiagonalizer wraps general_diagonalize_dc to solve a
-    (generalized) eigenproblem on one core???
-    """
-
+class DistributedBlacsDiagonalizer:
     def __init__(
         self,
         arraysize,
@@ -100,6 +97,18 @@ class ScalapackDiagonalizer:
             self.blacsgrid.comm,
             self.distributed_descriptor,
             self.head_rank_descriptor)
+    
+    @abstractmethod
+    def diagonalize(self, A, B, eps, debug):
+        raise NotImplementedError()
+    
+
+class ScalapackDiagonalizer(DistributedBlacsDiagonalizer):
+    """Diagonalizer class that uses general_diagonalize_dc.
+
+    The ScalapackDiagonalizer wraps general_diagonalize_dc to solve a
+    (generalized) eigenproblem on one core???
+    """
 
     def diagonalize(self, A, B, eps, debug):
         """Solves the eigenproblem A @ x = eps [B] @ x.
@@ -140,6 +149,62 @@ class ScalapackDiagonalizer:
         self.head_to_all_redistributor.redistribute(Bsc_MM, Bsc_mm)
 
         self.distributed_descriptor.general_diagonalize_dc(
+            Asc_mm, Bsc_mm, vec_mm, temporary_eps)
+
+        # vec_MM contains the eigenvectors in 'Fortran form'. They need to be
+        # transpose-conjugated before they are consistent with Scipy behaviour
+        self.all_to_head_redistributor.redistribute(vec_mm, vec_MM, uplo="G")
+
+        if self.scalapack_communicator.rank == 0:
+            # Conjugate-transpose here since general_diagonalize_dc gives us
+            # Fortran-convention eigenvectors.
+            A[:, :] = vec_MM.conj().T
+            eps[:] = temporary_eps
+            
+class ElpaDiagonalizer(DistributedBlacsDiagonalizer):
+    @cached_property
+    def elpa(self):
+        return LibElpa(self.distributed_descriptor)
+    
+    def diagonalize(self, A, B, eps, debug):
+        """Solves the eigenproblem A @ x = eps [B] @ x.
+
+        The problem is solved inplace, so when done, A has the eigenvectors
+        as columns and eps has the eigenvalues.
+
+        Parameters
+        ----------
+        A : Numpy array
+            Left-hand matrix of the eigenproblem. After running, the
+            eigenvectors are the column vectors of this array.
+        B : Numpy array
+            Right-hand overlap matrix of the eigenproblem.
+        eps : Numpy array
+            1D vector containing the eigenvalues of the solved eigenproblem.
+        is_master : bool
+            A boolean to mark which rank to perform the diagonalization on.
+            Used to know which ranks to redistribute the Numpy arrays to/from.
+        debug : bool
+            Flag to check for finiteness when running in debug mode.
+        """
+        Asc_MM = self.head_rank_descriptor.zeros(dtype=self.dtype)
+        Bsc_MM = self.head_rank_descriptor.zeros(dtype=self.dtype)
+        vec_MM = self.head_rank_descriptor.zeros(dtype=self.dtype)
+
+        Asc_mm = self.distributed_descriptor.zeros(dtype=self.dtype)
+        Bsc_mm = self.distributed_descriptor.zeros(dtype=self.dtype)
+        vec_mm = self.distributed_descriptor.zeros(dtype=self.dtype)
+
+        temporary_eps = np.zeros([self.arraysize])
+        if self.scalapack_communicator.rank == 0:
+            assert self.blacsgrid.comm.rank == 0
+            Asc_MM[:, :] = A
+            Bsc_MM[:, :] = B
+
+        self.head_to_all_redistributor.redistribute(Asc_MM, Asc_mm)
+        self.head_to_all_redistributor.redistribute(Bsc_MM, Bsc_mm)
+        
+        self.elpa.general_diagonalize(
             Asc_mm, Bsc_mm, vec_mm, temporary_eps)
 
         # vec_MM contains the eigenvectors in 'Fortran form'. They need to be
