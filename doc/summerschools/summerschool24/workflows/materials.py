@@ -1,8 +1,21 @@
-import runpy
-globals().update(runpy.run_path('workflow.py'))
+import taskblaster as tb
 
 
-@asr.parametrize_glob('*/material')
-def workflow(material):
-    calculator = {'mode': 'pw', 'kpts': {'density': 1.0}, 'txt': 'gpaw.txt'}
-    return MyWorkflow(atoms=material, calculator=calculator)
+@tb.workflow
+class ParametrizedMaterialsWorkflow:
+    calculator = tb.var()
+
+    @tb.dynamical_workflow_generator({'symbols': '*/atoms'})
+    def systems(self):
+        return tb.node('parametrize_materials_workflow',
+                       calculator=self.calculator)
+
+
+def workflow(rn):
+    calculator = {
+        'mode': 'pw',
+        'kpts': {'density': 1.0},
+        'txt': 'gpaw.txt'
+    }
+    wf = ParametrizedMaterialsWorkflow(calculator=calculator)
+    rn.run_workflow(wf)

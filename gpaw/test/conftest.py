@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import numpy as np
 import pytest
-from gpaw import setup_paths
+from gpaw import setup_paths, GPAW_NEW
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -184,9 +184,6 @@ def all_gpw_files(request, gpw_files, pytestconfig):
     # it is populated, i.e., further down in the file than
     # the @gpwfile decorator.
 
-    import os
-    gpaw_new = int(os.environ.get('GPAW_NEW', '0'))
-
     # TODO This xfail-information should probably live closer to the
     # gpwfile definitions and not here in the fixture.
     skip_if_new = {'Cu3Au_qna',
@@ -194,7 +191,7 @@ def all_gpw_files(request, gpw_files, pytestconfig):
                    'v2br4_pw', 'v2br4_pw_nosym',
                    'sih4_xc_gllbsc_fd', 'sih4_xc_gllbsc_lcao',
                    'na2_isolated', 'h2o_xas'}
-    if gpaw_new and request.param in skip_if_new:
+    if GPAW_NEW and request.param in skip_if_new:
         pytest.xfail(f'{request.param} gpwfile not yet working with GPAW_NEW')
 
     # Accessing each file via __getitem__ executes the calculation:
@@ -261,6 +258,10 @@ def pytest_runtest_setup(item):
         for mark in item.iter_markers():
             if mark.name == 'serial':
                 pytest.skip('Only run in serial')
+    else:
+        for mark in item.iter_markers():
+            if mark.name == 'parallel':
+                pytest.skip('Only run in parallel')
 
     if item.location[0] <= os.environ.get('PYTEST_START_AFTER', ''):
         pytest.skip('Not after $PYTEST_START_AFTER')
@@ -317,4 +318,4 @@ def rng():
 @pytest.fixture
 def gpaw_new() -> bool:
     """Are we testing the new code?"""
-    return bool(int(os.environ.get('GPAW_NEW', '0')))
+    return GPAW_NEW

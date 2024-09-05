@@ -54,10 +54,10 @@ class Logger:
         yield
         self.indentation = self.indentation[2:]
 
-    def __call__(self, *args) -> None:
+    def __call__(self, *args, end=None, flush=False) -> None:
         if not self.fd.closed:
             i = self.indentation
             text = ' '.join(str(arg) for arg in args)
             if i:
                 text = i + text.replace('\n', '\n' + i)
-            print(text, file=self.fd)
+            print(text, file=self.fd, end=end, flush=flush)

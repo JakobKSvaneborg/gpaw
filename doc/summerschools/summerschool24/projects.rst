@@ -10,6 +10,6 @@ Projects
     catalysis/catalysis
     magnetism/magnetism
     machinelearning/machinelearning
-    photovoltaics/photovoltaics
+    excitedstates/excitedstates
     batteries/batteries
     workflows/workflows

@@ -17,7 +17,7 @@ from gpaw.typing import Vector
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.calculation import DFTState, DFTCalculation
-from gpaw.new.fd.builder import FDHamiltonian, FDKickHamiltonian
+from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
@@ -30,7 +30,7 @@ from gpaw.new.wave_functions import WaveFunctions
 from gpaw.new.gpw import read_gpw
 from gpaw.new.symmetry import Symmetries
 from gpaw.new.pot_calc import PotentialCalculator
-from gpaw.new.pw.builder import PWHamiltonian
+from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
 from gpaw.tddft.solvers.cscg import CSCG
 from gpaw.tddft.units import asetime_to_autime, autime_to_asetime, au_to_eA
@@ -614,7 +614,8 @@ class RTTDDFT:
             External potential
         """
         with self.timer('Kick'):
-            assert isinstance(self.state.density.nct_aX, UGAtomCenteredFunctions)
+            assert isinstance(self.state.density.nct_aX,
+                              UGAtomCenteredFunctions)
             self.log('----  Applying kick')
             self.log(f'----  {ext}')
             self.kick_ext = ext

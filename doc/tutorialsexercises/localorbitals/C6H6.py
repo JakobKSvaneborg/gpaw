@@ -97,7 +97,7 @@ los.take_model(minimal=True)
 assert los.indices == los.groups[-6.9]
 
 # Compare eigenvalues with LCAO
-compare_eigvals(lcao, los, "C6H6_minimal.png", "minimal=True")
+compare_eigvals(lcao, los, 'C6H6_minimal.png', 'minimal=True')
 
 # Extend with groups of LOs that overlap with the minimal model
 los.take_model(minimal=False)
@@ -107,4 +107,4 @@ los.take_model(minimal=False)
 assert los.indices == (los.groups[-6.9] + los.groups[20.2] + los.groups[21.6])
 
 # Compare eigenvalues with LCAO
-compare_eigvals(lcao, los, "C6H6_extended.png", "minimal=False")
+compare_eigvals(lcao, los, 'C6H6_extended.png', 'minimal=False')
