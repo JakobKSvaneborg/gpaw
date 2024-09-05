@@ -9,14 +9,14 @@ from numpy.linalg import solve
 
 from ase.units import Bohr, Hartree
 
-from gpaw.core.uniform_grid import UGArray
+from gpaw.core.uniform_grid import UGArray, UGDesc
+from gpaw.core.atom_arrays import AtomArrays
 from gpaw.external import ExternalPotential, ConstantElectricField
 from gpaw.typing import Vector
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.calculation import DFTState, DFTCalculation
 from gpaw.new.fd.builder import FDHamiltonian, FDKickHamiltonian
-# from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.lcao.hamiltonian import (HamiltonianMatrixCalculator,
@@ -28,6 +28,7 @@ from gpaw.new.gpw import read_gpw
 from gpaw.new.symmetry import Symmetries
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.builder import PWHamiltonian
+from gpaw.tddft.solvers.cscg import CSCG
 from gpaw.tddft.units import asetime_to_autime, autime_to_asetime, au_to_eA
 from gpaw.utilities.timing import nulltimer
 
@@ -152,27 +153,36 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         else:
             self.dH = state.potential.dH
 
-        # XXX Ugly hack due to having reused the CG solver
-        self._wfs: PWFDWaveFunctions | None = None
-        self._time_step: float | None = None
+        wfs = state.ibzwfs.wfs_qs[0][0]
+        self.dS = partial(wfs.setups.get_overlap_corrections,
+                          wfs.P_ani.layout.atomdist,
+                          wfs.xp)
 
-    @property
-    def time_step(self) -> float:
-        # XXX This is an ugly hack that I will remove after rewriting the
-        # conjugate gradient solver
-        if self._time_step is None:
-            raise RuntimeError('One needs to run propagate before something '
-                               'that uses time step')
-        return self._time_step
+        self.dSinv = wfs.setups.inverse_overlap_correction
+        self.layout = wfs.P_ani.layout
+        self.pt_aiX = wfs.pt_aiX
 
-    @property
-    def wfs(self) -> PWFDWaveFunctions:
-        # XXX This is an ugly hack that I will remove after rewriting the
-        # conjugate gradient solver
-        if self._wfs is None:
-            raise RuntimeError('One needs to run propagate before something '
-                               'that uses wfs')
-        return self._wfs
+    def calculate_projections(self,
+                              psit_nR: UGArray,
+                              P_ani: AtomArrays | None = None) -> AtomArrays:
+        """ Calculate the PAW projections
+
+        Parameters
+        ----------
+        psit_nR
+            Wave functions
+        P_ani
+            Write the PAW projections here. If None, a new object is allocated
+
+        Returns
+        -------
+        The projections P_ani
+        """
+        if P_ani is None:
+            P_ani = self.layout.empty(len(psit_nR))
+        self.pt_aiX.integrate(psit_nR, P_ani)
+
+        return P_ani
 
     def propagate(self,
                   wfs: WaveFunctions,
@@ -180,12 +190,6 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         assert isinstance(wfs, PWFDWaveFunctions)
         assert isinstance(wfs.psit_nX, UGArray)
         psit_nR = wfs.psit_nX
-
-        copy_psit_nR = psit_nR.new()
-        copy_psit_nR.data[:] = psit_nR.data
-
-        # Update the projector function overlap integrals
-        wfs.pt_aiX.integrate(psit_nR, wfs.P_ani)
 
         # Empty arrays
         rhs_nR = psit_nR.new(zeroed=True)
@@ -196,66 +200,46 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
         # Calculate right-hand side of equation
         # ( S + i H dt/2 ) psit(t+dt) = ( S - i H dt/2 ) psit(t)
-        self.apply_hamiltonian(wfs, hpsit_nR)  # hpsit_nR <- H psit(t)
-        self.apply_overlap_operator(wfs, spsit_nR)  # spsit_nR <- S psit(t)
+        self.apply_hamiltonian(psit_nR, hpsit_nR)  # hpsit_nR <- H psit(t)
+        self.apply_overlap_operator(psit_nR, spsit_nR)  # spsit_nR <- S psit(t)
 
         rhs_nR.data[:] = spsit_nR.data - 0.5j * time_step * hpsit_nR.data
 
         # Calculate (1 - i S^(-1) H dt) psit(t), which is an
         # initial guess for the conjugate gradient solver
-        wfs.pt_aiX.integrate(hpsit_nR, wfs.P_ani)
-        wfs.psit_nX.data[:] = hpsit_nR.data
-        self.apply_inverse_overlap_operator(wfs, sinvhpsit_nR)
-        init_guess_nR.data[:] = (copy_psit_nR.data -
+        self.apply_inverse_overlap_operator(hpsit_nR, sinvhpsit_nR)
+        init_guess_nR.data[:] = (psit_nR.data -
                                  1j * time_step * sinvhpsit_nR.data)
-        wfs.pt_aiX.integrate(init_guess_nR, wfs.P_ani)
 
-        from gpaw.tddft.solvers.cscg import CSCG
-        solver = CSCG()
-        solver.initialize(psit_nR.desc._gd, nulltimer)
         # Solve A x = b where A is (S + i H dt/2) and b = rhs_kpt.psit_nG
-        # A needs to implement the function dot, which operates
-        # on wave functions
-        psit_nR.data[:] = init_guess_nR.data
-        # psit_nR.data[:] = copy_psit_nR.data
-        self._wfs = wfs  # The solver needs wfs and time_step
-        self._time_step = time_step
-        solver.solve(self, init_guess_nR.data, rhs_nR.data)
-        self._wfs = None
-        self._time_step = None
-        wfs.psit_nX.data[:] = init_guess_nR.data
+        solver = CSCGAdapter(psit_nR.desc, self)
+        solver.solve(init_guess_nR, rhs_nR, psit_nR, time_step)
 
-        wfs.pt_aiX.integrate(wfs.psit_nX, wfs.P_ani)
+        self.calculate_projections(psit_nR, wfs.P_ani)
 
-    def dot(self, psit_nR: np.ndarray, out_nR: np.ndarray):
+    def dot(self, psit_nR: UGArray, out_nR: UGArray, time_step: float):
         """Applies the propagator matrix to the given wavefunctions.
 
-        (S + i H dt/2 ) psi
+        (S + i H dt/2 ) psit_nR
 
         Parameters
         ----------
-        psi: List of coarse grids
-            the known wavefunctions
-        psin: List of coarse grids
-            the result ( S + i H dt/2 ) psi
+        psit_nR
+            The known wavefunctions
+        out_nR
+            The result ( S + i H dt/2 ) psit_nR
 
         """
-        assert isinstance(self.wfs.psit_nX, UGArray)
-        _psit_nX = self.wfs.psit_nX.data
-        self.wfs.psit_nX.data = psit_nR
-
         self.timer.start('Apply time-dependent operators')
-        # Update the projector function overlap integrals
-        self.wfs.pt_aiX.integrate(self.wfs.psit_nX, self.wfs.P_ani)
-        hpsit_nR = self.wfs.psit_nX.new()
-        spsit_nR = self.wfs.psit_nX.new()
 
-        self.apply_hamiltonian(self.wfs, hpsit_nR)
-        self.apply_overlap_operator(self.wfs, spsit_nR)
+        hpsit_nR = psit_nR.new()
+        spsit_nR = psit_nR.new()
+
+        self.apply_hamiltonian(psit_nR, hpsit_nR)
+        self.apply_overlap_operator(psit_nR, spsit_nR)
         self.timer.stop('Apply time-dependent operators')
 
-        out_nR[:] = spsit_nR.data + 0.5j * self.time_step * hpsit_nR.data
-        self.wfs.psit_nX.data = _psit_nX
+        out_nR.data[:] = spsit_nR.data + 0.5j * time_step * hpsit_nR.data
 
     def apply_preconditioner(self, psi, psin):
         """Solves preconditioner equation.
@@ -276,43 +260,35 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         self.timer.stop('Solve TDDFT preconditioner')
 
     def apply_hamiltonian(self,
-                          wfs: PWFDWaveFunctions,
-                          out_nR: UGArray | None = None):
+                          psit_nR: UGArray,
+                          out_nR: UGArray,
+                          spin: int = 0):
         """
         Apply the hamiltonian on wave functions
 
         Parameters
         ----------
-        wfs
+        psit_nR
             Wave functions
         out_nR
             Result, i.e. hamiltonian acting on wavefunctions
-            If None then the wave functions are overwritten (result
-            is written into wfs.psit_nX)
+        spin
+            Spin
         """
-        assert isinstance(wfs.psit_nX, UGArray)
-
-        if out_nR is None:
-            out_nR = wfs.psit_nX
-        else:
-            out_nR.data[:] = wfs.psit_nX.data
-
         out_nR.data[:] = 0
-        self.Ht(psit_nG=wfs.psit_nX, out=out_nR, spin=wfs.spin)
+        self.Ht(psit_nG=psit_nR, out=out_nR, spin=spin)
 
         # apply the non-local part for each nucleus
-        P_ani = wfs.P_ani.new()
-        P2_ani = wfs.P_ani.new()
-        wfs.pt_aiX.integrate(wfs.psit_nX, P_ani)
-        self.dH(P_ani, P2_ani, wfs.spin)
+        P_ani = self.calculate_projections(psit_nR)
+        P2_ani = P_ani.new()
+        self.dH(P_ani, P2_ani, spin)
 
         # add partial wave pt_nG to psit_nG with proper coefficient
-        wfs.pt_aiX.add_to(out_nR, P2_ani)
+        self.pt_aiX.add_to(out_nR, P2_ani)
 
-    @staticmethod
-    def apply_overlap_operator(
-            wfs: PWFDWaveFunctions,
-            out_nR: UGArray | None = None):
+    def apply_overlap_operator(self,
+                               psit_nR: UGArray,
+                               out_nR: UGArray | None = None):
         """
         Apply the overlap operator wave functions on the wave functions:
 
@@ -322,30 +298,23 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
         Parameters
         ----------
-        wfs
+        psit_nR
             Wave functions
         out_nR
             Result, i.e. overlap operator acting on wavefunctions
-            If None then the wave functions are overwritten (result
-            is written into wfs.psit_nX)
         """
-        assert isinstance(wfs.psit_nX, UGArray)
 
-        if out_nR is None:
-            out_nR = wfs.psit_nX
-        else:
-            out_nR.data[:] = wfs.psit_nX.data
+        out_nR.data[:] = psit_nR.data
 
-        P2_ani = wfs.P_ani.new()
-        dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
-                                                    wfs.xp)
-        wfs.P_ani.block_diag_multiply(dS_aii, P2_ani)
-        wfs.pt_aiX.add_to(out_nR, P2_ani)
+        P_ani = self.calculate_projections(psit_nR)
+        P2_ani = P_ani.new()
+        dS_aii = self.dS()
+        P_ani.block_diag_multiply(dS_aii, P2_ani)
+        self.pt_aiX.add_to(out_nR, P2_ani)
 
-    @staticmethod
-    def apply_inverse_overlap_operator(
-            wfs: PWFDWaveFunctions,
-            out_nR: UGArray | None = None):
+    def apply_inverse_overlap_operator(self,
+                                       psit_nR: UGArray,
+                                       out_nR: UGArray | None = None):
         """
         Apply the approximate inverse overlap operator on the wave functions:
 
@@ -355,24 +324,64 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
         Parameters
         ----------
-        wfs
+        psit_nR
             Wave functions
         out_nR
             Result, i.e. inverse overlap operator acting on wavefunctions
-            If None then the wave functions are overwritten (result
-            is written into wfs.psit_nX)
         """
-        assert isinstance(wfs.psit_nX, UGArray)
+        out_nR.data[:] = psit_nR.data
 
-        if out_nR is None:
-            out_nR = wfs.psit_nX
-        else:
-            out_nR.data[:] = wfs.psit_nX.data
+        P_ani = self.calculate_projections(psit_nR)
+        P2_ani = P_ani.new()
+        self.dSinv(P_ani, out_ani=P2_ani)  # P2 is ΔC_ij @ P_nj
+        self.pt_aiX.add_to(out_nR, P2_ani)
 
-        P2_ani = wfs.P_ani.new()
-        dSinv = wfs.setups.inverse_overlap_correction
-        dSinv(wfs.P_ani, out_ani=P2_ani)  # P2 is ΔC_ij @ P_nj
-        wfs.pt_aiX.add_to(out_nR, P2_ani)
+
+class CSCGAdapter:
+
+    """ Adapter in order to reuse the CSCG solver from the old code
+
+    """
+
+    def __init__(self,
+                 desc: UGDesc,
+                 propagator: FDNumpyPropagator):
+        self.solver = CSCG()
+        self.solver.initialize(desc._gd, nulltimer)
+        self.desc = desc
+        self.propagator = propagator
+        self._time_step = None
+
+    def solve(self,
+              init_guess_nR: UGArray,
+              rhs_nR: UGArray,
+              out_nR: UGArray,
+              time_step: float):
+        self._time_step = time_step
+        out_nR.data[:] = init_guess_nR.data
+        self.solver.solve(self, out_nR.data, rhs_nR.data)
+        self._time_step = None
+
+    def dot(self, psit_nR: np.ndarray, out_nR: np.ndarray):
+        """Applies the propagator matrix to the given wavefunctions.
+
+        (S + i H dt/2 ) psi
+
+        Parameters
+        ----------
+        psi: List of coarse grids
+            the known wavefunctions
+        psin: List of coarse grids
+            the result ( S + i H dt/2 ) psi
+
+        """
+        assert self._time_step is not None
+        _psit_nR = self.desc.from_data(psit_nR)
+        _out_nR = self.desc.from_data(out_nR)
+        self.propagator.dot(_psit_nR, _out_nR, self._time_step)
+
+    def apply_preconditioner(self, psi, psin):
+        self.propagator.apply_preconditioner(psi, psin)
 
 
 class ECNAlgorithm(TDAlgorithm):
