@@ -608,8 +608,7 @@ class ASECalculator:
                 dft.scf_loop.update_density_and_potential = False
                 dft.converge()
             density.update_ked(state.ibzwfs)
-        exct = pot_calc.calculate_non_selfconsistent_exc(
-            xc, density.nt_sR, density.taut_sR)
+        exct = pot_calc.calculate_non_selfconsistent_exc(xc, density)
         dexc = 0.0
         for a, D_sii in state.density.D_asii.items():
             setup = self.setups[a]
