@@ -323,7 +323,7 @@ Same example as above using the :class:`gpaw.dos.DOSCalculator` and its
 
 .. literalinclude:: atomic_orbital_pdos2.py
 
-One can also do this from the cpommand line::
+One can also do this from the :ref:`command line <cli>`::
 
     $ gpaw dos au.gpw -a 0-d -p
 
