@@ -9,7 +9,7 @@ def test_hse06(gpaw_new):
         pytest.skip('Only band-parallelization!')
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
-    atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=True),
+    atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not True),
                       xc='HSE06',
                       nbands=4)
     e = atoms.get_potential_energy()

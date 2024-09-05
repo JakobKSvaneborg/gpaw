@@ -18,8 +18,10 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                  params,
                  *,
                  comm,
-                 distribution=None):
+                 distribution=None,
+                 interpolation=3):
         super().__init__(atoms, params, comm=comm)
+        assert interpolation == 3
         self.distribution = distribution
         self.basis = None
 

@@ -517,7 +517,7 @@ class PWArray(DistributedArrays[PWDesc]):
                 result = self.data[..., 0]
             else:
                 result = self.xp.empty(self.mydims, complex)
-            self.desc.comm.broadcast(np.ascontiguousarray(result), 0)
+            self.desc.comm.broadcast(self.xp.ascontiguousarray(result), 0)
         if self.desc.dtype == float:
             result = result.real
         if result.ndim == 0:
