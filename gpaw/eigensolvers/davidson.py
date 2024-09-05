@@ -60,7 +60,7 @@ class Davidson(Eigensolver):
             self.eps_N = np.zeros(2 * B)
 
         if slsize is not None:
-            self.diagonalizer_backend = ElpaDiagonalizer(
+            self.diagonalizer_backend = ScalapackDiagonalizer(
                 arraysize=self.nbands * 2,
                 grid_nrows=nrows,
                 grid_ncols=ncols,

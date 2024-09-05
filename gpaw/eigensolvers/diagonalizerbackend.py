@@ -199,8 +199,7 @@ class ElpaDiagonalizer(DistributedBlacsDiagonalizer):
         temporary_eps = np.zeros([self.arraysize])
         if self.scalapack_communicator.rank == 0:
             assert self.blacsgrid.comm.rank == 0
-            tri2full(A)
-            tri2full(B)
+            tri2full(A)  # ELPA requires full matrix
             Asc_MM[:, :] = A
             Bsc_MM[:, :] = B
 
