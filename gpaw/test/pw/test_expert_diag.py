@@ -47,27 +47,26 @@ def test_pw_expert_diag(in_tmp_dir, scalapack):
                 assert np.allclose(wfsold_G, psit, atol=5e-3), \
                     'Wavefunctions have changed'
 
-    # Check that expert={True, False} give
-    # same result
-    while len(wfs_e) > 1:
-        wfs = wfs_e.pop()
-        for wfstmp in wfs_e:
-            for kpt, kpttmp in zip(wfs.kpt_u, wfstmp.kpt_u):
-                print(kpt.k, kpt.eps_n.shape)
-                print(kpttmp.k, kpttmp.eps_n.shape)
-                for m, (psi_G, eps) in enumerate(zip(kpt.psit_nG, kpt.eps_n)):
-                    # Have to do like this if bands are degenerate
-                    booleanarray = np.abs(kpttmp.eps_n - eps) < 1e-10
-                    inds = np.argwhere(booleanarray)
-                    count = len(inds)
-                    assert count > 0, 'Difference between eigenvalues!'
+    wfstmp, wfs = wfs_e
+    for kpt, kpttmp in zip(wfs.kpt_u, wfstmp.kpt_u):
+        if wfs.bd.comm.rank == 0:
+            for m, (psi_G, eps) in enumerate(zip(kpt.psit_nG, kpt.eps_n)):
+                # Have to do like this if bands are degenerate
+                booleanarray = np.abs(kpttmp.eps_n - eps) < 1e-10
+                inds = np.argwhere(booleanarray)
+                count = len(inds)
+                assert count > 0, 'Difference between eigenvalues!'
 
-                    psitmp_nG = kpttmp.psit_nG[inds][:, 0, :]
-                    fidelity = 0
-                    for psitmp_G in psitmp_nG:
-                        fidelity += (
-                            np.abs(np.dot(psitmp_G.conj(), psi_G))**2 /
-                            np.dot(psitmp_G.conj(), psitmp_G) /
-                            np.dot(psi_G.conj(), psi_G))
+                psitmp_nG = kpttmp.psit_nG[inds][:, 0, :]
+                fidelity = 0
+                for psitmp_G in psitmp_nG:
+                    fidelity += (
+                        np.abs(np.dot(psitmp_G.conj(), psi_G))**2 /
+                        np.dot(psitmp_G.conj(), psitmp_G) /
+                        np.dot(psi_G.conj(), psi_G))
 
-                    assert fidelity == pytest.approx(1, abs=1e-10)
+                assert fidelity == pytest.approx(1, abs=1e-10)
+
+
+if __name__ == '__main__':
+    test_pw_expert_diag(1, 1)
