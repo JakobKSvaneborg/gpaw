@@ -6,3 +6,6 @@ class PWFDIBZWaveFunction(IBZWaveFunctions):
         super().move(fracpos_ac, atomdist)
         for wfs in self:
             wfs.move(fracpos_ac, atomdist)
+
+    def has_wave_functions(self):
+        return self.wfs_qs[0][0].psit_nX.data is not None

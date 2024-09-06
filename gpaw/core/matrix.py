@@ -352,6 +352,9 @@ class Matrix(XP):
             assert self.dist.comm.size == slcomm.size
             H = self
 
+        if limit == H.shape[0]:
+            limit = None
+
         if limit:
             eps = self.xp.empty(limit)
         else:

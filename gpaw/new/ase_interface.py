@@ -225,6 +225,9 @@ class ASECalculator:
         if converged:
             return
 
+        if not self.dft.state.ibzwfs.has_wave_functions():
+            self.create_new_calculation(atoms)
+
         assert self.hooks.keys() <= {'scf_step', 'converged'}
 
         with self.timer('SCF'):
@@ -433,7 +436,9 @@ class ASECalculator:
     def get_fermi_levels(self) -> Array1D:
         state = self.dft.state
         fl = state.ibzwfs.fermi_levels
-        assert fl is not None and len(fl) == 2
+        assert fl is not None
+        if len(fl) == 1:
+            raise ValueError('Only one Fermi-level.')
         return fl * Ha
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:

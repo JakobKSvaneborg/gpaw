@@ -854,7 +854,8 @@ class UGArray(DistributedArrays[UGDesc]):
             'isomax': vmax - (vmax - vmin) * 0.1,
             'caps': dict(x_show=False,
                          y_show=False,
-                         z_show=False)} | kwargs
+                         z_show=False),
+            **kwargs}
         surf = go.Isosurface(x=x, y=y, z=z, value=values.flatten(),
                              **kwargs)
         if show:

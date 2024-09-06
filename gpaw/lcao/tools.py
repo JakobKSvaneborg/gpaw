@@ -45,19 +45,6 @@ def get_bfi(calc, a_list):
     return bfs_list
 
 
-def get_bfi2(symbols, basis, a_list):
-    """Same as get_bfi, but does not require an LCAO calc"""
-    basis = types2atomtypes(symbols, basis, default='dzp')
-    bfs_list = []
-    i = 0
-    for a, symbol in enumerate(symbols):
-        nao = Basis(symbol, basis[a]).nao
-        if a in a_list:
-            bfs_list += range(i, i + nao)
-        i += nao
-    return bfs_list
-
-
 def get_mulliken(calc, a_list):
     """Mulliken charges from a list of atom indices (a_list)."""
     Q_a = {}
@@ -276,6 +263,31 @@ def dump_hamiltonian_and_overlap(filename, atoms, direction=None):
 
 def get_lcao_hamiltonian(calc):
     """Return H_skMM, S_kMM on master, (None, None) on slaves. H is in eV."""
+    from gpaw.new.ase_interface import ASECalculator
+    if not isinstance(calc, ASECalculator):
+        return old_get_lcao_hamiltonian(calc)
+    state = calc.dft.state
+    ibzwfs = state.ibzwfs
+    ham = calc.dft.scf_loop.hamiltonian
+    matcalc = ham.create_hamiltonian_matrix_calculator(state)
+    nM = ham.basis.Mmax
+    nK = len(ibzwfs.ibz)
+    H_skMM = np.zeros((ibzwfs.nspins, nK, nM, nM), ibzwfs.dtype)
+    S_kMM = np.zeros((nK, nM, nM), ibzwfs.dtype)
+    for wfs in ibzwfs:
+        H_MM = matcalc.calculate_matrix(wfs)
+        H_skMM[wfs.spin, wfs.k] = H_MM.data * Ha
+        S_MM = wfs.S_MM
+        if wfs.spin == 0:
+            S_kMM[wfs.k] = S_MM.data
+    ibzwfs.kpt_comm.sum(H_skMM)
+    ibzwfs.kpt_comm.sum(S_kMM)
+    if rank == 0:
+        return H_skMM, S_kMM
+    return None, None
+
+
+def old_get_lcao_hamiltonian(calc):
     if calc.wfs.S_qMM is None:
         calc.wfs.set_positions(calc.spos_ac)
     dtype = calc.wfs.dtype
