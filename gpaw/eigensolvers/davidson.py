@@ -53,7 +53,7 @@ class Davidson(Eigensolver):
             'scalapack': ScalapackDiagonalizer,
             'elpa': ElpaDiagonalizer
         }
-        
+
         Eigensolver.initialize(self, wfs)
         slcomm, nrows, ncols, slsize = wfs.scalapack_parameters
 

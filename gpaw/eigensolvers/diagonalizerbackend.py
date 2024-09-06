@@ -10,6 +10,7 @@ from gpaw.mpi import broadcast_exception, MPIComm
 from gpaw.utilities.elpa import LibElpa
 from gpaw.utilities.tools import tri2full
 
+
 class ScipyDiagonalizer:
     """Diagonalizer class that uses scipy.linalg.eigh.
 
@@ -49,7 +50,7 @@ class ScipyDiagonalizer:
                     A, B, lower=True, check_finite=debug, overwrite_b=True)
 
 
-class DistributedBlacsDiagonalizer:
+class DistributedBlacsDiagonalizer(ABC):
     def __init__(
         self,
         arraysize,
@@ -98,11 +99,11 @@ class DistributedBlacsDiagonalizer:
             self.blacsgrid.comm,
             self.distributed_descriptor,
             self.head_rank_descriptor)
-    
+
     @abstractmethod
     def diagonalize(self, A, B, eps, debug):
         raise NotImplementedError()
-    
+
 
 class ScalapackDiagonalizer(DistributedBlacsDiagonalizer):
     """Diagonalizer class that uses general_diagonalize_dc.
@@ -161,12 +162,13 @@ class ScalapackDiagonalizer(DistributedBlacsDiagonalizer):
             # Fortran-convention eigenvectors.
             A[:, :] = vec_MM.conj().T
             eps[:] = temporary_eps
-            
+
+
 class ElpaDiagonalizer(DistributedBlacsDiagonalizer):
     @cached_property
     def elpa(self):
         return LibElpa(self.distributed_descriptor)
-    
+
     def diagonalize(self, A, B, eps, debug):
         """Solves the eigenproblem A @ x = eps [B] @ x.
 
@@ -205,7 +207,7 @@ class ElpaDiagonalizer(DistributedBlacsDiagonalizer):
 
         self.head_to_all_redistributor.redistribute(Asc_MM, Asc_mm)
         self.head_to_all_redistributor.redistribute(Bsc_MM, Bsc_mm)
-        
+
         self.elpa.general_diagonalize(
             Asc_mm, Bsc_mm, vec_mm, temporary_eps)
 
