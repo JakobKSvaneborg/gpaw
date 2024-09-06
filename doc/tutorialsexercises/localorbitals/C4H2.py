@@ -62,8 +62,8 @@ calc = GPAW(mode='lcao',
                   'gamma': True},
             symmetry={'point_group': False,
                       'time_reversal': True})
-calc.atoms = gnr
-calc.get_potential_energy()
+gnr.calc = calc
+gnr.get_potential_energy()
 
 # Start post-process
 tb = TightBinding(calc.atoms, calc)

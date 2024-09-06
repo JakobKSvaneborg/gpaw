@@ -134,6 +134,23 @@ class Densities:
 
         return n_sR.scaled(Bohr, Bohr**-3)
 
+    def spin_contamination(self, majority_spin=None):
+        """Calculate the spin contamination.
+
+        Spin contamination is defined as the integral over the
+        spin density difference, where it is negative (i.e. the
+        minority spin density is larger than the majority spin density.
+        """
+        n_sR = self.all_electron_densities()
+        m0, m1 = n_sR.integrate()
+        if majority_spin is None:
+            majority_spin = int(m1 > m0)
+        d_R = n_sR[0].data - n_sR[1].data
+        if majority_spin == 0:
+            d_R *= -1.0
+        d_R = np.where(d_R > 0, d_R, 0.0)
+        return n_sR.desc.from_data(d_R).integrate()
+
 
 def add(R_v: Vector,
         a_sR: UGArray,

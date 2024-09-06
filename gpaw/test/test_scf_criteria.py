@@ -29,7 +29,6 @@ class FourIterations(Criterion):
         self.iters = 0
 
 
-@pytest.mark.later
 def test_scf_criterion(in_tmp_dir, gpaw_new):
     """Tests different ways of setting SCF convergence criteria,
     and that it behaves consistenly with regard to the work function."""
@@ -70,7 +69,10 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
 
     assert workfunctions1[0] == pytest.approx(workfunctions2[1])
     assert workfunctions1[1] == pytest.approx(workfunctions2[0])
-    assert atoms.calc.scf.criteria['work function'].tol == pytest.approx(1.0)
+    if gpaw_new:
+        assert atoms.calc.dft.scf_loop.convergence['work function'].tol == 1.0
+    else:
+        assert atoms.calc.scf.criteria['work function'].tol == 1.0
 
     # Try import syntax, and verify it creates a new instance internally.
     workfunction = WorkFunction(0.5)
@@ -80,8 +82,12 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
                    'work function': workfunction}
     atoms.calc = atoms.calc.new(convergence=convergence)
     atoms.get_potential_energy()
-    assert atoms.calc.scf.criteria['work function'] is not workfunction
-    assert atoms.calc.scf.criteria['work function'].tol == pytest.approx(0.5)
+    if gpaw_new:
+        cc = atoms.calc.dft.scf_loop.convergence
+    else:
+        cc = atoms.calc.scf.criteria
+    assert cc['work function'] is not workfunction
+    assert cc['work function'].tol == pytest.approx(0.5)
 
     # Switch to H2 for faster calcs.
     for atom in atoms:
@@ -93,10 +99,12 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
                    'eigenstates': np.inf}
     atoms.calc = atoms.calc.new(convergence=convergence)
     atoms.get_potential_energy()
-    assert atoms.calc.scf.criteria['energy'].n_old == 4
+    if gpaw_new:
+        assert atoms.calc.dft.scf_loop.convergence['energy'].n_old == 4
+    else:
+        assert atoms.calc.scf.criteria['energy'].n_old == 4
 
 
-@pytest.mark.later
 def test_scf_custom_criterion(in_tmp_dir):
     """Simulate a user creating their own custom convergence criterion,
     saving the .gpw file, and re-loading it. It will warn the user at two
@@ -127,6 +135,10 @@ def test_scf_custom_criterion(in_tmp_dir):
     with pytest.warns(UserWarning):
         # Warns the user that their criterion did not load.
         calc = GPAW('four.gpw', txt='out2.txt')
-    atoms[1].x += 0.1
-    atoms.calc = calc
-    atoms.get_potential_energy()
+        atoms[1].x += 0.1
+        atoms.calc = calc
+        atoms.get_potential_energy()
+
+
+if __name__ == '__main__':
+    test_scf_criterion(1, 1)
