@@ -264,9 +264,13 @@ class KPT:
 
     @property
     def psit_nG(self):
+        data = self.psit_nX.data
         if self.scale == 1:
-            return self.psit_nX.data
-        return self.psit_nX.data * self.scale
+            return data
+        if isinstance(data, np.ndarray):
+            return data * self.scale
+        data.scale *= self.scale
+        return data
 
     @cached_property
     def psit(self):

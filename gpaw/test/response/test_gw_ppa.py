@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 from gpaw.response.g0w0 import G0W0
-from gpaw.mpi import world
 
 
 @pytest.mark.response
