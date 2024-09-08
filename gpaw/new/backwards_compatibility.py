@@ -80,7 +80,7 @@ class FakeWFS:
                 self.mode = 'pw'
                 self.ecut = wfs.psit_nX.desc.ecut
                 self.pd = PWDescriptor(self.ecut,
-                                       self.gd, self.dtype, self.kd)
+                                       self.gd, self.dtype, self.kd, _new=True)
                 self.pwgrid = self.grid.new(dtype=self.dtype)
             else:
                 self.mode = 'fd'

@@ -19,11 +19,11 @@ from gpaw.xc import XC
 from gpaw.xc.kernel import XCNull
 from gpaw.xc.tools import vxc
 
-from . import parse_name
-from .coulomb import coulomb_interaction
-from .kpts import RSKPoint, get_kpt, to_real_space
-from .paw import calculate_paw_stuff
-from .symmetry import Symmetry
+from gpaw.hybrids import parse_name
+from gpaw.hybrids.coulomb import coulomb_interaction
+from gpaw.hybrids.kpts import RSKPoint, get_kpt, to_real_space
+from gpaw.hybrids.paw import calculate_paw_stuff
+from gpaw.hybrids.symmetry import Symmetry
 
 
 def non_self_consistent_eigenvalues(

@@ -12,7 +12,8 @@ class PWDescriptor:
     ndim = 1  # all 3d G-vectors are stored in a 1d ndarray
 
     def __init__(self, ecut, gd, dtype=None, kd=None,
-                 fftwflags=fftw.MEASURE, gammacentered=False):
+                 fftwflags=fftw.MEASURE, gammacentered=False,
+                 _new=False):
 
         assert gd.pbc_c.all()
 
@@ -111,6 +112,10 @@ class PWDescriptor:
         self.myQ_qG = []
         self.myng_q = []
         for q, G2_G in enumerate(G2_qG):
+            if _new:
+                x = (self.ng_q[q] + S - 1) // S
+                ng1 = gd.comm.rank * x
+                ng2 = ng1 + x
             G2_G = G2_G[ng1:ng2].copy()
             G2_G.flags.writeable = False
             self.G2_qG.append(G2_G)
@@ -122,6 +127,8 @@ class PWDescriptor:
             self.tmp_G = np.empty(self.maxmyng * S, complex)
         else:
             self.tmp_G = None
+
+        self._new = _new
 
     def get_reciprocal_vectors(self, q=0, add_q=True):
         """Returns reciprocal lattice vectors plus q, G + q,
@@ -292,7 +299,8 @@ class PWDescriptor:
         ssize_r[:N] = self.myng_q[q]
         soffset_r = np.arange(comm.size) * self.myng_q[q]
         soffset_r[N:] = 0
-        roffset_r = (np.arange(comm.size) * self.maxmyng).clip(max=ng)
+        myng = self.myng_q[q] if self._new else self.maxmyng
+        roffset_r = (np.arange(comm.size) * myng).clip(max=ng)
         rsize_r = np.zeros(comm.size, int)
         if comm.rank < N:
             rsize_r[:-1] = roffset_r[1:] - roffset_r[:-1]
