@@ -111,9 +111,11 @@ class PWDescriptor:
         self.G2_qG = []
         self.myQ_qG = []
         self.myng_q = []
+        self.maxmyng_q = []
         for q, G2_G in enumerate(G2_qG):
             if _new:
                 x = (self.ng_q[q] + S - 1) // S
+                self.maxmyng_q.append(x)
                 ng1 = gd.comm.rank * x
                 ng2 = ng1 + x
             G2_G = G2_G[ng1:ng2].copy()
@@ -299,7 +301,7 @@ class PWDescriptor:
         ssize_r[:N] = self.myng_q[q]
         soffset_r = np.arange(comm.size) * self.myng_q[q]
         soffset_r[N:] = 0
-        myng = self.myng_q[q] if self._new else self.maxmyng
+        myng = self.maxmyng_q[q] if self._new else self.maxmyng
         roffset_r = (np.arange(comm.size) * myng).clip(max=ng)
         rsize_r = np.zeros(comm.size, int)
         if comm.rank < N:
@@ -322,7 +324,8 @@ class PWDescriptor:
         rsize_r[:N] = self.myng_q[q]
         roffset_r = np.arange(comm.size) * self.myng_q[q]
         roffset_r[N:] = 0
-        soffset_r = (np.arange(comm.size) * self.maxmyng).clip(max=ng)
+        myng = self.maxmyng_q[q] if self._new else self.maxmyng
+        soffset_r = (np.arange(comm.size) * myng).clip(max=ng)
         ssize_r = np.zeros(comm.size, int)
         if comm.rank < N:
             ssize_r[:-1] = soffset_r[1:] - soffset_r[:-1]
