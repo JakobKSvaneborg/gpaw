@@ -17,10 +17,12 @@ Wave-function isosurfaces for water
 
 HOMO-3, HOMO-2, HOMO-1 and HOMO:
 
-=============  =============  =============  =============
-.. image::     .. image::     .. image::     .. image::
-   homo-3.png     homo-2.png     homo-1.png     homo-0.png
-=============  =============  =============  =============
+.. list-table::
+
+   * - .. image:: homo-3.png
+     - .. image:: homo-2.png
+     - .. image:: homo-1.png
+     - .. image:: homo-0.png
 
 LUMO and LUMO+1:
 
