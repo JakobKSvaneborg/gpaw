@@ -267,7 +267,7 @@ class KPT:
         data = self.psit_nX.data
         if self.scale == 1:
             return data
-        if isinstance(data, np.ndarray):
+        if 1:  # isinstance(data, np.ndarray):
             return data * self.scale
         data.scale *= self.scale
         return data
