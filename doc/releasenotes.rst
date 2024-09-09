@@ -13,7 +13,7 @@ Git master branch
 * Added functionality to compute LDA exchange constants based on the local site
   properties methodology, see :ref:`sites`.
 
-* Extended ``restrict`` keyword and random phase approximation emabled
+* Extended ``restrict`` keyword and random phase approximation enabled
   in :ref:`lrtddft`
 
 
