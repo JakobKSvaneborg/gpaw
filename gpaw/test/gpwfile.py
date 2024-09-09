@@ -844,7 +844,7 @@ class GPWFiles(CachedFilesHandler):
     def na2_isolated(self):
         # Permittivity file
         if world.rank == 0:
-            fo = open('ed.txt', 'w')
+            fo = open(self.folder / 'ed.txt', 'w')
             fo.writelines(['1.20 0.20 25.0'])
             fo.close()
         world.barrier()
@@ -869,7 +869,7 @@ class GPWFiles(CachedFilesHandler):
         sphere_center = np.array([10.0, 10.0, 10.0])
         classical_material.add_component(
             PolarizableSphere(
-                permittivity=PermittivityPlus('ed.txt'),
+                permittivity=PermittivityPlus(self.folder / 'ed.txt'),
                 center=sphere_center,
                 radius=5.0
             )
@@ -998,7 +998,7 @@ class GPWFiles(CachedFilesHandler):
                     spinpol=spinpol,
                     communicator=world,
                     symmetry={'point_group': False},
-                    txt='gs.out')
+                    txt=self.folder / 'gs.out')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc

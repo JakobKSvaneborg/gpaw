@@ -858,7 +858,7 @@ Jan 11, 2019: :git:`1.5.0 <../1.5.0>`
 
 * New Jupyter notebooks added for teaching DFT and many-body methods.  Topics
   cover: :ref:`catalysis`, :ref:`magnetism`, :ref:`machinelearning`,
-  :ref:`photovoltaics`, :ref:`batteries` and :ref:`intro`.
+  :ref:`excited states`, :ref:`batteries` and :ref:`intro`.
 
 * New experimental local **k**-point refinement feature:
   :git:`gpaw/test/test_kpt_refine.py`.

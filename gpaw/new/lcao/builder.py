@@ -18,8 +18,10 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                  params,
                  *,
                  comm,
-                 distribution=None):
+                 distribution=None,
+                 interpolation=3):
         super().__init__(atoms, params, comm=comm)
+        assert interpolation == 3
         self.distribution = distribution
         self.basis = None
 
@@ -43,6 +45,10 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
             return HybridLCAOEigensolver(self.basis,
                                          self.fracpos_ac,
                                          self.grid.cell_cv)
+        if self.params.eigensolver.get('name') == 'scissors':
+            from gpaw.lcao.scissors import ScissorsLCAOEigensolver
+            return ScissorsLCAOEigensolver(self.basis,
+                                           self.params.eigensolver['shifts'])
         return LCAOEigensolver(self.basis)
 
     def read_ibz_wave_functions(self, reader):

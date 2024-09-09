@@ -18,6 +18,7 @@ def test_mom_lcao_forces(in_tmp_dir):
                   [[0.5 * L, 0.5 * L, 0.5 * L - 0.5 * d],
                    [0.5 * L, 0.5 * L, 0.5 * L + 0.5 * d]])
     atoms.set_cell([L, L, L])
+    atoms.rotate(1, 'x', center=[0.5 * L, 0.5 * L, 0.5 * L])
 
     calc = GPAW(mode='lcao',
                 basis='dzp',
@@ -54,6 +55,6 @@ def test_mom_lcao_forces(in_tmp_dir):
     f = np.sqrt(((F[1, :] - F[0, :])**2).sum()) * 0.5
     fnum = (E[0] - E[1]) / (2. * delta)  # central difference
 
-    print(fnum)
+    print(fnum, f)
     assert fnum == pytest.approx(11.52, abs=0.016)
     assert f == pytest.approx(fnum, abs=0.1)

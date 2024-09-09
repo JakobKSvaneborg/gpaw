@@ -66,9 +66,8 @@ def add_force_contributions(wfs: LCAOWaveFunctions,
 
     setups = wfs.setups
 
-    rhoT_MM = wfs.calculate_density_matrix().T
-    erhoT_MM = wfs.calculate_density_matrix(eigs=True).T
-
+    rhoT_MM = wfs.calculate_density_matrix(transposed=True)
+    erhoT_MM = wfs.calculate_density_matrix(transposed=True, eigs=True)
     add_kinetic_term(rhoT_MM, dTdR_vMM, F_av, indices, wfs.atomdist.indices)
     add_pot_term(potential.vt_sR[wfs.spin], wfs.basis, wfs.q, rhoT_MM, F_av)
     add_den_mat_term(erhoT_MM, dThetadR_vMM, F_av, indices,
@@ -105,9 +104,9 @@ def add_kinetic_term(rhoT_MM, dTdR_vMM, F_av, indices, mya):
 
     for a, M1, M2 in indices:
         if a in mya:
-            F_av[a, :] += 2 * np.einsum('vmM, Mm -> v',
+            F_av[a, :] += 2 * np.einsum('vmM, mM -> v',
                                         dTdR_vMM[:, M1:M2],
-                                        rhoT_MM[:, M1:M2]).real
+                                        rhoT_MM[M1:M2]).real
 
 
 def add_pot_term(vt_R: UGArray,
@@ -143,9 +142,9 @@ def add_den_mat_term(erhoT_MM, dThetadR_vMM, F_av, indices, mya):
     #
     for a, M1, M2 in indices:
         if a in mya:
-            F_av[a, :] -= 2 * np.einsum('vmM, Mm -> v',
+            F_av[a, :] -= 2 * np.einsum('vmM, mM -> v',
                                         dThetadR_vMM[:, M1:M2],
-                                        erhoT_MM[:, M1:M2]).real
+                                        erhoT_MM[M1:M2]).real
 
 
 def add_den_mat_paw_term(b, dO_ii, P_Mi, dPdR_vMi, erhoT_MM, indices, F_av):

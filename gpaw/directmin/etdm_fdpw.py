@@ -232,6 +232,8 @@ class FDPWETDM:
         self.need_init_odd = True
         self.initialized = False
 
+        self.gpaw_new = False
+
     def check_inputs_and_init_search_algo(self):
         defaults = self.set_defaults()
         if self.need_init_orbs is None:
@@ -623,7 +625,6 @@ class FDPWETDM:
                 wfs.orthonormalize(kpt)
         elif not wfs.orthonormalized:
             wfs.orthonormalize()
-
         if not self.excited_state:
             energy = self.update_ks_energy(
                 ham, wfs, dens, updateproj=updateproj)
@@ -677,16 +678,22 @@ class FDPWETDM:
         calculate gradient dE/dpsi for one k-point
         :return: H |psi_i>
         """
-
         nbands = wfs.bd.mynbands
         Hpsi_nG = wfs.empty(nbands, q=kpt.q)
         wfs.apply_pseudo_hamiltonian(kpt, ham, kpt.psit_nG, Hpsi_nG)
 
         c_axi = {}
-        for a, P_xi in kpt.P_ani.items():
-            dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
-            c_xi = np.dot(P_xi, dH_ii)
-            c_axi[a] = c_xi
+        if self.gpaw_new:
+            dH_asii = ham.state.potential.dH_asii
+            for a, P_xi in kpt.P_ani.items():
+                dH_ii = dH_asii[a][kpt.s]
+                c_xi = np.dot(P_xi, dH_ii)
+                c_axi[a] = c_xi
+        else:
+            for a, P_xi in kpt.P_ani.items():
+                dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
+                c_xi = np.dot(P_xi, dH_ii)
+                c_axi[a] = c_xi
 
         # not sure about this:
         ham.xc.add_correction(
@@ -815,7 +822,7 @@ class FDPWETDM:
         wfs.pt.integrate(psi_1, P1_ai, kpt.q)
         wfs.pt.integrate(psi_2, P2_ai, kpt.q)
         if ndim == 1:
-            if self.dtype is complex:
+            if self.dtype == complex:
                 paw_dot_prod = np.array([[0.0 + 0.0j]])
             else:
                 paw_dot_prod = np.array([[0.0]])
@@ -978,7 +985,10 @@ class FDPWETDM:
         wfs.apply_pseudo_hamiltonian(kpt, ham, psi, Hpsi_nG)
         c_axi = {}
         for a, P_xi in P1_ai.items():
-            dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
+            if self.gpaw_new:
+                dH_ii = ham.state.potential.dH_asii[a][kpt.s]
+            else:
+                dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
             c_xi = np.dot(P_xi, dH_ii)
             c_axi[a] = c_xi
         # not sure about this:
@@ -1093,13 +1103,6 @@ class FDPWETDM:
         """
         calculate optimal orbitals among occupied subspace
         which minimizes SIC.
-
-        :param ham:
-        :param wfs:
-        :param dens:
-        :param grad_knG:
-        :param niter:
-        :return:
         """
 
         if self.iloop is None and self.outer_iloop is None:
@@ -1185,16 +1188,27 @@ class FDPWETDM:
         return counter, True
 
     def initialize_orbitals(self, wfs, ham):
-        """
-        :param wfs:
-        :param ham:
-        :return:
-        """
         if self.need_init_orbs and not wfs.read_from_file_init_wfs_dm:
-            for kpt in wfs.kpt_u:
-                wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
-                self.eigensolver.subspace_diagonalize(
-                    ham, wfs, kpt, True)
+            if self.gpaw_new:
+                state = wfs.state
+
+                def Ht(psit_nG, out, spin):
+                    return wfs.hamiltonian.apply(
+                        state.potential.vt_sR,
+                        state.potential.dedtaut_sR,
+                        state.ibzwfs,
+                        state.density.D_asii,
+                        psit_nG,
+                        out,
+                        spin)
+
+                for w in state.ibzwfs:
+                    w.subspace_diagonalize(Ht, state.potential.dH)
+            else:
+                for kpt in wfs.kpt_u:
+                    wfs.orthonormalize(kpt)
+                    self.eigensolver.subspace_diagonalize(
+                        ham, wfs, kpt, True)
                 wfs.gd.comm.broadcast(kpt.eps_n, 0)
             self.need_init_orbs = False
         if wfs.read_from_file_init_wfs_dm:

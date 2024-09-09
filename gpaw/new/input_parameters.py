@@ -14,31 +14,14 @@ reuse_wfs_method
 """
 
 
+class DeprecatedParameterWarning(FutureWarning):
+    """Warning class for when a parameter or its value is deprecated."""
+
+
 def input_parameter(func):
     """Decorator for input-parameter normalization functions."""
     parameter_functions[func.__name__] = func
     return func
-
-
-def update_dict(default: dict, value: dict | None) -> dict[str, Any]:
-    """Create dict with defaults + updates.
-
-    >>> update_dict({'a': 1, 'b': 'hello'}, {'a': 2})
-    {'a': 2, 'b': 'hello'}
-    >>> update_dict({'a': 1, 'b': 'hello'}, None)
-    {'a': 1, 'b': 'hello'}
-    >>> update_dict({'a': 1, 'b': 'hello'}, {'c': 2})
-    Traceback (most recent call last):
-    ValueError: Unknown key: 'c'. Must be one of a, b
-    """
-    dct = default.copy()
-    if value is not None:
-        if not value.keys() <= default.keys():
-            key = (value.keys() - default.keys()).pop()
-            raise ValueError(
-                f'Unknown key: {key!r}. Must be one of {", ".join(default)}')
-        dct.update(value)
-    return dct
 
 
 class InputParameters:
@@ -157,7 +140,7 @@ def eigensolver(value=None) -> dict:
     """Eigensolver."""
     if isinstance(value, str):
         value = {'name': value}
-    if value and value['name'] != 'dav':
+    if value and value['name'] not in {'dav', 'etdm-fdpw', 'scissors'}:
         warnings.warn(f'{value["name"]} not implemented.  Using dav instead')
         return {'name': 'dav'}
     return value or {}
@@ -245,24 +228,27 @@ def occupations(value=None):
 
 @input_parameter
 def parallel(value: dict[str, Any] | None = None) -> dict[str, Any]:
-    dct = update_dict({'kpt': None,
-                       'domain': None,
-                       'band': None,
-                       'order': 'kdb',
-                       'stridebands': False,
-                       'augment_grids': False,
-                       'sl_auto': False,
-                       'sl_default': None,
-                       'sl_diagonalize': None,
-                       'sl_inverse_cholesky': None,
-                       'sl_lcao': None,
-                       'sl_lrtddft': None,
-                       'use_elpa': False,
-                       'elpasolver': '2stage',
-                       'buffer_size': None,
-                       'gpu': False},
-                      value)
-    return dct
+    known = {'kpt', 'domain', 'band',
+             'order',
+             'stridebands',
+             'augment_grids',
+             'sl_auto',
+             'sl_default',
+             'sl_diagonalize',
+             'sl_inverse_cholesky',
+             'sl_lcao',
+             'sl_lrtddft',
+             'use_elpa',
+             'elpasolver',
+             'buffer_size',
+             'gpu'}
+    if value is not None:
+        if not value.keys() <= known:
+            key = (value.keys() - known).pop()
+            raise ValueError(
+                f'Unknown key: {key!r}. Must be one of {", ".join(known)}')
+        return value
+    return {}
 
 
 @input_parameter
@@ -308,7 +294,3 @@ def xc(value='LDA'):
     if isinstance(value, str):
         return {'name': value}
     return value
-
-
-class DeprecatedParameterWarning(FutureWarning):
-    """Warning class for when a parameter or its value is deprecated."""

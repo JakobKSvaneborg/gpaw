@@ -225,6 +225,9 @@ class ASECalculator:
         if converged:
             return
 
+        if not self.dft.state.ibzwfs.has_wave_functions():
+            self.create_new_calculation(atoms)
+
         assert self.hooks.keys() <= {'scf_step', 'converged'}
 
         with self.timer('SCF'):
@@ -387,7 +390,8 @@ class ASECalculator:
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
-                                 broadcast=True) -> Array3D:
+                                 broadcast=True,
+                                 pad=True) -> Array3D:
         state = self.dft.state
         collinear = state.ibzwfs.collinear
         if collinear:
@@ -410,7 +414,7 @@ class ASECalculator:
                 grid = grid.new(kpt=psit_sG.desc.kpt_c,
                                 dtype=psit_sG.desc.dtype)
                 psit_R = psit_sG.ifft(grid=grid)
-            if not psit_R.desc.pbc.all():
+            if not psit_R.desc.pbc.all() and pad:
                 psit_R = psit_R.to_pbc_grid()
             if periodic:
                 psit_R.multiply_by_eikr(-psit_R.desc.kpt_c)
@@ -432,7 +436,9 @@ class ASECalculator:
     def get_fermi_levels(self) -> Array1D:
         state = self.dft.state
         fl = state.ibzwfs.fermi_levels
-        assert fl is not None and len(fl) == 2
+        assert fl is not None
+        if len(fl) == 1:
+            raise ValueError('Only one Fermi-level.')
         return fl * Ha
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
@@ -545,12 +551,17 @@ class ASECalculator:
 
         for name in properties:
             self.calculate_property(atoms, name)
-        # self.get_potential_energy(atoms)
 
     @cached_property
     def wfs(self):
         from gpaw.new.backwards_compatibility import FakeWFS
-        return FakeWFS(self.dft, self.atoms)
+        return FakeWFS(self.dft.state,
+                       self.dft.setups,
+                       self.comm,
+                       self.dft.scf_loop.occ_calc,
+                       self.dft.scf_loop.hamiltonian,
+                       self.atoms,
+                       scale_pw_coefs=True)
 
     @property
     def density(self):
@@ -560,7 +571,8 @@ class ASECalculator:
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
-        return FakeHamiltonian(self.dft)
+        return FakeHamiltonian(self.dft.state, self.dft.pot_calc,
+                               self.dft.results.get('free_energy'))
 
     @property
     def spos_ac(self):
@@ -730,5 +742,19 @@ class ASECalculator:
                                      grid,
                                      spin, kpoint, nextkpoint, G_c, nbands)
 
-    def initialize_positions(self):
-        1 / 0
+    def initial_wannier(self, initialwannier, kpointgrid, fixedstates,
+                        edf, spin, nbands):
+        from gpaw.new.wannier import initial_wannier
+        return initial_wannier(self.dft.state.ibzwfs,
+                               initialwannier, kpointgrid, fixedstates,
+                               edf, spin, nbands)
+
+    def initialize_positions(self, atoms=None):
+        pass
+
+    def set(self, eigensolver):
+        from gpaw.new.pwfd.etdm import ETDMPWFD
+        self.dft.scf_loop.eigensolver = ETDMPWFD(self.setups,
+                                                 self.comm,
+                                                 self.atoms,
+                                                 eigensolver)

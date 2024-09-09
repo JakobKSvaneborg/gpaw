@@ -13,3 +13,11 @@ Utilities
 
 .. module:: gpaw.utilities.ekin
 .. autofunction:: gpaw.utilities.ekin.ekin
+
+
+Electron localisation function (ELF)
+====================================
+
+.. module:: gpaw.elf
+.. autofunction:: elf
+.. autofunction:: elf_from_dft_calculation

@@ -19,7 +19,7 @@ def test_mom_lcao_smearing(in_tmp_dir, gpw_files):
 
     # Test both MOM and fixed occupations with Gaussian smearing
     for i in [True, False]:
-        atoms, calc = restart(gpw_files['co_mom'], txt='-')
+        atoms, calc = restart(gpw_files['co_mom'])
 
         # Excited-state calculation with Gaussian
         # smearing of the occupation numbers

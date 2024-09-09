@@ -1,0 +1,28 @@
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.12"
+  apt_packages:
+    - graphviz
+    - povray
+  jobs:
+    pre_install:
+      - |
+        cat << EOF > siteconfig.py
+        mpi = False
+        noblas = True
+        nolibxc = True
+        EOF
+    pre_build:
+      - gpaw install-data --register .
+
+sphinx:
+  configuration: doc/conf.py
+
+python:
+  install:
+    - requirements: doc/requirements.txt
+    - method: pip
+      path: .

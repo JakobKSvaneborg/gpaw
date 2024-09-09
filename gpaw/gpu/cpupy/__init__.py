@@ -45,6 +45,10 @@ def array(a, dtype=None):
     return ndarray(np.array(a, dtype))
 
 
+def ascontiguousarray(a):
+    return ndarray(np.ascontiguousarray(a._data))
+
+
 def dot(a, b):
     return ndarray(np.dot(a._data, b._data))
 

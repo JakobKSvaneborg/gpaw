@@ -251,12 +251,12 @@ class PZSICLCAO:
             P_Mj = wfs.P_aqMi[a][kpt.q]
             dH_ij = unpack_hermitian(dH_p)
 
-            if self.dtype is complex:
+            if self.dtype == complex:
                 F_MM += P_Mj @ dH_ij @ P_Mj.T.conj()
             else:
                 F_MM += P_Mj @ dH_ij @ P_Mj.T
 
-        if self.dtype is complex:
+        if self.dtype == complex:
             F_MM += Vt_MM.astype(complex)
         else:
             F_MM += Vt_MM
@@ -293,7 +293,7 @@ class PZSICLCAO:
                             dtype=self.dtype)
             rhoP_Mi = rho_MM @ P_Mi
             D_ii = P_Mi.T.conj() @ rhoP_Mi
-            if self.dtype is complex:
+            if self.dtype == complex:
                 D_ap[a] = D_p = pack_density(D_ii.real)
             else:
                 D_ap[a] = D_p = pack_density(D_ii)
@@ -574,7 +574,7 @@ class PZSICLCAO:
 
                 Fpot_av += \
                     self.bfs.calculate_force_contribution(
-                        vt_mG, rho_xMM.T, kpt.q)
+                        vt_mG, rho_xMM, kpt.q)
 
                 # Atomic density contribution
                 #            -----                         -----

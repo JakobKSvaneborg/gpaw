@@ -16,6 +16,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.typing import Array1D, Array2D, Self
+from gpaw.utilities import pack_density
 
 if TYPE_CHECKING:
     from gpaw.new.density import Density
@@ -66,6 +67,8 @@ class IBZWaveFunctions(Generic[WFT]):
             if not GPU_AWARE_MPI:
                 self.kpt_comm = CuPyMPI(self.kpt_comm)  # type: ignore
 
+        self.read_from_file_init_wfs_dm = False
+
     @classmethod
     def create(cls,
                *,
@@ -109,6 +112,9 @@ class IBZWaveFunctions(Generic[WFT]):
                 return 'pw'
             return 'fd'
         return 'lcao'
+
+    def has_wave_functions(self):
+        return True
 
     def get_max_shape(self, global_shape: bool = False) -> tuple[int, ...]:
         """Find the largest wave function array shape.
@@ -290,8 +296,8 @@ class IBZWaveFunctions(Generic[WFT]):
             eig_skn = np.empty((self.nspins, nkpts, self.nbands))
             occ_skn = np.empty((self.nspins, nkpts, self.nbands))
         else:
-            eig_skn = np.empty((0, 0, 0))
-            occ_skn = np.empty((0, 0, 0))
+            eig_skn = np.empty((self.nspins, nkpts, 0))
+            occ_skn = np.empty((self.nspins, nkpts, 0))
         for k in range(nkpts):
             for s in range(self.nspins):
                 eig_n, occ_n = self.get_eigs_and_occs(k, s)
@@ -319,6 +325,9 @@ class IBZWaveFunctions(Generic[WFT]):
         also the wave functions.
         """
         eig_skn, occ_skn = self.get_all_eigs_and_occs()
+        if not self.collinear:
+            eig_skn = eig_skn[0]
+            occ_skn = occ_skn[0]
         assert self.fermi_levels is not None
         writer.write(fermi_levels=self.fermi_levels * Ha,
                      eigenvalues=eig_skn * Ha,
@@ -474,6 +483,7 @@ class IBZWaveFunctions(Generic[WFT]):
             if psit_nX is None:
                 return
             if hasattr(psit_nX.data, 'fd'):  # fd=file-descriptor
+                self.read_from_file_init_wfs_dm = True
                 psit_nX.data = psit_nX.data[:]  # read
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
@@ -501,3 +511,21 @@ class IBZWaveFunctions(Generic[WFT]):
                                             for wfs_s in self.wfs_qs))
 
         return np.array([homo, lumo])
+
+    def calculate_kinetic_energy(self,
+                                 hamiltonian,
+                                 density: Density) -> float:
+        e_kin = 0.0
+        for wfs in self:
+            e_kin += hamiltonian.calculate_kinetic_energy(wfs, skip_sum=True)
+        e_kin = self.comm.sum_scalar(e_kin)
+
+        # PAW corrections:
+        e_kin_paw = 0.0
+        for a, D_sii in density.D_asii.items():
+            setup = wfs.setups[a]
+            D_p = pack_density(D_sii.real[:density.ndensities].sum(0))
+            e_kin_paw += setup.K_p @ D_p + setup.Kc
+        e_kin_paw = density.grid.comm.sum_scalar(e_kin_paw)
+
+        return e_kin + e_kin_paw
