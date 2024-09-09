@@ -55,7 +55,7 @@ def calc_me(atoms, nbands):
 
 
 loa = molecule('NaCl')
-adjust_cell(loa, border=6.0, h=0.25, multiple=16)
+adjust_cell(loa, border=6.0, h=0.25, idiv=16)
 loa.center()
 loa.translate([0.001, 0.002, 0.003])
 nbands = 25

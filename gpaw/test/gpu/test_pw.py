@@ -13,7 +13,8 @@ from gpaw.new.c import GPU_AWARE_MPI
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('gpu', [False, True])
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_gpu(dtype, gpu, mode):
+@pytest.mark.parametrize('random', [False, True])
+def test_gpu(dtype, gpu, mode, random):
     atoms = Atoms('H2')
     atoms.positions[1, 0] = 0.75
     atoms.center(vacuum=1.0)
@@ -28,6 +29,7 @@ def test_gpu(dtype, gpu, mode):
         dict(mode={'name': mode,
                    'force_complex_dtype': dtype == complex},
              poissonsolver=poisson,
+             random=random,
              h=h,
              convergence={'density': 1e-8},
              parallel={'gpu': gpu},

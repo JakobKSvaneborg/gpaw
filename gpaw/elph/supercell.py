@@ -77,7 +77,7 @@ class Supercell:
             #       "\n", geff_MM)
 
         # 2) Gradient of non-local part (projectors)
-        P_aqMi = wfs.P_aqMi
+        P_aqMi = getattr(wfs, 'P_aqMi', None)
         # 2a) dH^a part has contributions from all atoms
         for kpt in kpt_u:
             # Matrix elements
@@ -86,19 +86,26 @@ class Supercell:
                 if a_ not in bfs.my_atom_indices:
                     continue
                 dH1_ii = unpack_hermitian(dH1_sp[kpt.s])
-                P_Mi = P_aqMi[a_][kpt.q]
+                if P_aqMi is None:
+                    P_Mi = kpt.P_aMi[a_]
+                else:
+                    P_Mi = P_aqMi[a_][kpt.q]
                 gp_MM += P_Mi.conj() @ dH1_ii @ P_Mi.T
             # wfs.gd.comm.sum(gp_MM)
             g_sqMM[kpt.s, kpt.q] += gp_MM
 
         # 2b) dP^a part has only contributions from the same atoms
         # For the contribution from the derivative of the projectors
-        dPdR_aqvMi = wfs.manytci.P_aqMi(bfs.my_atom_indices, derivative=True)
+        manytci = wfs.manytci
+        dPdR_aqvMi = manytci.P_aqMi(bfs.my_atom_indices, derivative=True)
         dH_ii = unpack_hermitian(dH_asp[a][kpt.s])
         for kpt in kpt_u:
             gp_MM = np.zeros((nao, nao), dtype)
             if a in bfs.my_atom_indices:
-                P_Mi = P_aqMi[a][kpt.q]
+                if P_aqMi is None:
+                    P_Mi = kpt.P_aMi[a]
+                else:
+                    P_Mi = P_aqMi[a][kpt.q]
                 dP_Mi = dPdR_aqvMi[a][kpt.q][v]
                 P1HP_MM = dP_Mi.conj() @ dH_ii @ P_Mi.T
                 # Matrix elements

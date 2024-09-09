@@ -222,6 +222,8 @@ LCAO projections are not determined in a standard grid
 calculation. The projections onto the projector functions are always
 present, hence using these takes no extra computational effort.
 
+See also the new API for calculating a PDOS: :ref:`dos_calculator_api`.
+
 
 -----------------
 Wigner-Seitz LDOS
@@ -308,9 +310,22 @@ Last part of :git:`~doc/tutorialsexercises/electronic/pdos/lcaodos_plt.py` scrip
    :start-after: things
 
 
----
-WIP
----
+.. _dos_calculator_api:
+
+------------------
+DOS-calculator API
+------------------
+
+.. module:: gpaw.dos
+
+Same example as above using the :class:`gpaw.dos.DOSCalculator` and its
+:meth:`~gpaw.dos.DOSCalculator.raw_pdos` method:
+
+.. literalinclude:: atomic_orbital_pdos2.py
+
+One can also do this from the cpommand line::
+
+    $ gpaw dos au.gpw -a 0-d -p
 
 .. autoclass:: gpaw.dos.DOSCalculator
     :members:

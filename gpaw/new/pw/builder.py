@@ -13,7 +13,6 @@ from gpaw.new.pw.hybrids import PWHybridHamiltonian
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
-# from gpaw.new.spinors import SpinorWaveFunctionDescriptor
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D
 
@@ -21,7 +20,14 @@ from gpaw.typing import Array1D
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     interpolation = 'fft'
 
-    def __init__(self, atoms, params, *, comm, ecut=340, qspiral=None):
+    def __init__(self,
+                 atoms,
+                 params,
+                 *,
+                 comm,
+                 ecut=340,
+                 qspiral=None,
+                 dedecut=None):
         self.ecut = ecut / Ha
         super().__init__(atoms, params, comm=comm, qspiral=qspiral)
 
@@ -115,6 +121,9 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if self.ncomponents < 4:
             if self.xc.exx_fraction == 0.0:
                 return PWHamiltonian(self.grid, self.wf_desc, self.xp)
+            assert self.communicators['d'].size == 1
+            assert self.communicators['k'].size == 1
+            assert self.nbands % self.communicators['b'].size == 0
             return PWHybridHamiltonian(
                 self.grid, self.wf_desc, self.xc, self.setups,
                 self.fracpos_ac, self.atomdist)

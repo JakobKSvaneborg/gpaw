@@ -5,8 +5,6 @@
 #
 # This is done by invoking GPAW once for each type of calculation.
 
-from itertools import count
-
 import pytest
 from ase.build import molecule, bulk
 
@@ -27,20 +25,23 @@ def system2():
     return bulk('Cu', orthorhombic=True) * (2, 1, 2)
 
 
-@pytest.mark.later
-@pytest.mark.parametrize('atoms, kpts', [
-    (system1(), [1, 1, 1]),
-    (system2(), [2, 3, 4]),
-])
-def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts):
+@pytest.mark.parametrize('atoms, kpts, eref', [
+    (system1(), [1, 1, 1], -58.845),
+    (system2(), [2, 3, 4], -22.691)])
+def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts, eref,
+                                 gpaw_new):
     # Use a cell large enough that some overlaps are zero.
     # Thus the matrices will have at least some sparsity.
 
-    corrections = ['dense', 'sparse']
+    if gpaw_new:
+        if world.size >= 4:
+            pytest.skip('Not implemented')
+        corrections = ['ignored for now']
+    else:
+        corrections = ['dense', 'sparse']
 
-    counter = count()
     energies = []
-    for correction in corrections:
+    for i, correction in enumerate(corrections):
         parallel = {}
         if world.size >= 4:
             parallel['band'] = 2
@@ -50,7 +51,7 @@ def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts):
                     basis='sz(dzp)',
                     # spinpol=True,
                     parallel=parallel,
-                    txt='gpaw.{}.txt'.format(next(counter)),
+                    txt=f'gpaw.{i}.txt',
                     h=0.35, kpts=kpts,
                     convergence={'maximum iterations': 2})
         atoms.calc = calc
@@ -63,10 +64,11 @@ def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts):
     if master:
         print('energies', energies)
 
-    eref = energies[0]
+    e0 = energies[0]
     errs = []
     for energy, c in zip(energies, corrections):
-        err = abs(energy - eref)
+        assert energy == pytest.approx(eref, abs=0.001)
+        err = abs(energy - e0)
         errs.append(err)
         if master:
             print('err=%e :: name=%s' % (err, correction))

@@ -52,7 +52,7 @@ def info():
     results.append(('OpenMP enabled', cgpaw.have_openmp))
     results.append(('GPU enabled', GPU_ENABLED))
     results.append(('GPU-aware MPI', GPU_AWARE_MPI))
-    results.append(('CUPY', cupy.__file__))
+    results.append(('cupy-' + cupy.__version__, cupy.__file__))
     if have_mpi:
         have_sl = compiled_with_sl()
         have_elpa = LibElpa.have_elpa()

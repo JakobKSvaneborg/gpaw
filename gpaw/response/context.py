@@ -14,6 +14,7 @@ import gpaw.mpi as mpi
 
 
 TXTFilename = Union[Path, str]
+ResponseContextInput = Union['ResponseContext', dict, TXTFilename]
 
 
 class ResponseContext:
@@ -23,6 +24,16 @@ class ResponseContext:
         self.iocontext = IOContext()
         self.open(txt, mode)
         self.set_timer(timer)
+
+    @staticmethod
+    def from_input(context: ResponseContextInput) -> ResponseContext:
+        if isinstance(context, ResponseContext):
+            return context
+        elif isinstance(context, dict):
+            return ResponseContext(**context)
+        elif isinstance(context, (Path, str)):  # TXTFilename
+            return ResponseContext(txt=context)
+        raise ValueError('Expected ResponseContextInput, got', context)
 
     def open(self, txt, mode):
         if txt is stdout and self.comm.rank != 0:

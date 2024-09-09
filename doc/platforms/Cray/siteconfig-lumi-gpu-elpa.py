@@ -1,0 +1,50 @@
+"""Custom GPAW siteconfig for LUMI-G."""
+
+parallel_python_interpreter = True
+
+mpi = True
+compiler = 'cc'
+compiler_args = []  # remove all default args
+libraries = []
+library_dirs = []
+include_dirs = []
+extra_compile_args = [
+    '-g',
+    '-O3',
+    # '-fopenmp',  # disable openmp; see https://github.com/Lumi-supercomputer/LUMI-EasyBuild-contrib/pull/180
+    '-fPIC',
+    '-Wall',
+    '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
+    '-Wno-unknown-pragmas',  # suppress warnings from disabled openmp
+    '-Werror',
+    ]
+# extra_link_args = ['-fopenmp']
+
+# FFTW
+fftw = True
+libraries += ['fftw3']
+
+# ScaLAPACK
+# Note: required libraries are linked by compiler wrappers
+scalapack = True
+
+# Libxc
+libraries += ['xc']
+
+define_macros += [('GPAW_ASYNC', 1)]
+
+# ELPA
+elpa = True
+libraries += ['elpa']
+
+# hip
+gpu = True
+gpu_target = 'hip-amd'
+gpu_compiler = 'hipcc'
+gpu_include_dirs = []
+gpu_compile_args = [
+    '-g',
+    '-O3',
+    '--offload-arch=gfx90a',
+    ]
+libraries += ['amdhip64', 'hipblas']

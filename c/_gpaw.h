@@ -421,6 +421,10 @@ static PyObject* moduleinit(void)
     if (m == NULL)
         return NULL;
 
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
+
 #ifdef PARALLEL
     Py_INCREF(&MPIType);
     Py_INCREF(&GPAW_MPI_Request_type);
@@ -449,8 +453,8 @@ static PyObject* moduleinit(void)
 #else
     PyObject_SetAttrString(m, "have_openmp", Py_False);
 #endif
-    // Version number of C-code.  Keep in sync with gpaw/__init__.py
-    PyObject_SetAttrString(m, "version", PyLong_FromLong(7));
+    // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
+    PyObject_SetAttrString(m, "version", PyLong_FromLong(9));
 
     Py_INCREF(&LFCType);
     Py_INCREF(&OperatorType);
