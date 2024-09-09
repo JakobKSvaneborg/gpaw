@@ -760,3 +760,18 @@ class ASECalculator:
 
     def todict(self):
         return dict(self.params.items())
+
+    def get_nonselfconsistent_energies(self, type='beefvdw'):
+        from gpaw.xc.bee import BEEFEnsemble
+        if type not in ['beefvdw', 'mbeef', 'mbeefvdw']:
+            raise NotImplementedError('Not implemented for type = %s' % type)
+        # assert self.scf.converged
+        bee = BEEFEnsemble(self)
+        x = bee.create_xc_contributions('exch')
+        c = bee.create_xc_contributions('corr')
+        if type == 'beefvdw':
+            return np.append(x, c)
+        elif type == 'mbeef':
+            return x.flatten()
+        elif type == 'mbeefvdw':
+            return np.append(x.flatten(), c)

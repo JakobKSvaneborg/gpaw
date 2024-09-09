@@ -94,7 +94,6 @@ class DFTComponentsBuilder:
                              params.basis,
                              self._xc.get_setup_name(),
                              world=comm)
-
         if params.hund:
             c = params.charge / len(atoms)
             for a, setup in enumerate(self.setups):
