@@ -806,20 +806,20 @@ class UGArray(DistributedArrays[UGDesc]):
         self.desc.comm.sum(d_v)
         return d_v
 
-    def scaled(self, s: float, v: float = 1.0):
+    def scaled(self, cell: float, values: float = 1.0) -> UGArray:
         """Create new scaled UGArray object.
 
-        Unit cell axes are multiplied by `s` and data by `v`.
+        Unit cell axes are multiplied by `cell` and data by `values`.
         """
         grid = self.desc
-        grid = UGDesc(cell=grid.cell_cv * s,
+        grid = UGDesc(cell=grid.cell_cv * cell,
                       size=grid.size_c,
                       pbc=grid.pbc_c,
                       zerobc=grid.zerobc_c,
                       kpt=(grid.kpt_c if grid.kpt_c.any() else None),
                       dtype=grid.dtype,
                       comm=grid.comm)
-        return UGArray(grid, self.dims, self.comm, self.data * v)
+        return UGArray(grid, self.dims, self.comm, self.data * values)
 
     def add_ked(self,
                 occ_n: Array1D,
