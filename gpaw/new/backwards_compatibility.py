@@ -4,7 +4,9 @@ from types import SimpleNamespace
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
+
 from gpaw.band_descriptor import BandDescriptor
+from gpaw.fftw import MEASURE
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
 from gpaw.new.calculation import DFTCalculation
@@ -101,6 +103,7 @@ class FakeWFS:
             self.scale = self.ngpts
         else:
             self.scale = 1
+        self.fftwflags = MEASURE
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
         desc = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc

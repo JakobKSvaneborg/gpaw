@@ -359,6 +359,9 @@ class ASECalculator:
                                            ) -> Array2D:
         return self.calculate_property(atoms, 'non_collinear_magmoms')
 
+    def check_state(self, atoms, tol=1e-12):
+        return list(compare_atoms(self.atoms, atoms))
+
     def write(self, filename, mode=''):
         """Write calculator object to a file.
 
