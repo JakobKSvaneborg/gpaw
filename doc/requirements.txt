@@ -6,3 +6,4 @@ graphviz
 pytest
 plotly
 kaleido
+scikit-image

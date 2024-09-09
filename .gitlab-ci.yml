@@ -551,6 +551,7 @@ docs:
   tags:
     - linux
   script:
+    - pip install scikit-image
     - cd doc
     - make
     - make doctest
