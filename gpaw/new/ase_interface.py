@@ -5,15 +5,15 @@ from functools import cached_property
 from pathlib import Path
 from pprint import pformat
 from types import SimpleNamespace
-from typing import IO, Any, Callable, Protocol, Sequence, Union
+from typing import IO, Any, Callable, Protocol, Sequence, Union, Iterable
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
-
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
+from gpaw.mpi import MPIComm
 from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
@@ -40,7 +40,7 @@ def GPAW(
     filename: Union[str, Path, IO[str]] = None,
     *,
     txt: str | Path | IO[str] | None = '?',
-    communicator=None,
+    communicator: MPIComm | Iterable[int] | None = None,
     basis: str | dict[str | int | None, str] | None = None,
     charge: float | None = None,
     convergence: dict[str, Any] | None = None,
@@ -72,9 +72,12 @@ def GPAW(
     if txt == '?':
         txt = '-' if filename is None else None
 
-    comm = communicator or world
-    if not hasattr(comm, 'rank'):
-        comm = world.new_communicator(list(comm))
+    if communicator is None:
+        comm = world
+    elif not hasattr(communicator, 'rank'):
+        comm = world.new_communicator(list(communicator))
+    else:
+        comm = communicator  # type: ignore
 
     log = Logger(txt, comm)
 

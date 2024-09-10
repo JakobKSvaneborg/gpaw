@@ -3,7 +3,7 @@ from ase.build import molecule
 from ase.optimize.bfgs import BFGS
 from ase.data.g2_1 import molecule_names, atom_names
 
-from gpaw import GPAW, PW, Mixer, FermiDirac
+from gpaw import GPAW, PW, Mixer
 
 
 c = ase.db.connect('g2-1.db')
