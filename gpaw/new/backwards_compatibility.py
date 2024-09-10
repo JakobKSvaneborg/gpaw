@@ -61,7 +61,7 @@ class FakeWFS:
         self.gd = self.grid._gd
         atomdist = self.state.density.D_asii.layout.atomdist
         self.atom_partition = AtomPartition(atomdist.comm, atomdist.rank_a)
-        self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
+        # self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
         self.occ_calc = occ_calc
         self.occupations = occ_calc.occ
         self.nvalence = int(round(ibzwfs.nelectrons))
@@ -168,7 +168,11 @@ class FakeWFS:
             return psit_R.data
         return psit_X.data
 
-    def get_wave_function_array(self, n, k, s, realspace=True, periodic=False):
+    def get_wave_function_array(self, n, k, s,
+                                realspace=True,
+                                periodic=False,
+                                cut=False):
+        assert not cut
         if self.mode == 'lcao':
             assert not realspace
             return self.kpt_qs[k][s].C_nM[n]

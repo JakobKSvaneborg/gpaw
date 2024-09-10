@@ -115,6 +115,8 @@ class GPAW(Calculator):
         'elpasolver': '2stage',
         'buffer_size': None}
 
+    old = True
+
     def __init__(self,
                  restart=None,
                  *,

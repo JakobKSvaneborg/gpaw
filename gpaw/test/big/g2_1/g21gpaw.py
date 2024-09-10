@@ -17,7 +17,6 @@ for name in molecule_names + atom_names:
     atoms.center()
     atoms.calc = GPAW(mode=PW(800),
                       xc='PBE',
-                      occupations=FermiDirac(0.0, fixmagmom=True),
                       txt=name + '.txt')
     if name in ['Na2', 'NaCl', 'NO', 'ClO', 'Cl', 'Si']:
         atoms.calc = atoms.calc.new(eigensolver='dav',
