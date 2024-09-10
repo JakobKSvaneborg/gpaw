@@ -73,6 +73,8 @@ def GPAW(
         txt = '-' if filename is None else None
 
     comm = communicator or world
+    if not hasattr(comm, 'rank'):
+        comm = world.new_communicator(list(comm))
 
     log = Logger(txt, comm)
 
@@ -648,8 +650,7 @@ class ASECalculator:
         ibzwfs = diagonalize(state.potential,
                              state.ibzwfs,
                              self.dft.scf_loop.occ_calc,
-                             nbands,
-                             self.dft.pot_calc.xc)
+                             nbands)
         self.dft.state = DFTState(ibzwfs,
                                   state.density,
                                   state.potential)
