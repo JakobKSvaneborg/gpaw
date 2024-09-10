@@ -279,7 +279,11 @@ class ASECalculator:
                      name: str,
                      atoms: Atoms | None = None,
                      allow_calculation: bool = True) -> Any:
-        if not allow_calculation and name not in self.dft.results:
+        if not allow_calculation:
+            if name not in self.dft.results:
+                return None
+            if atoms is None or len(self.check_state(atoms)) == 0:
+                return self.dft.results[name] * units[name]
             return None
         if atoms is None:
             atoms = self.atoms
