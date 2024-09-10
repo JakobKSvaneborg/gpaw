@@ -90,7 +90,6 @@ class PotentialCalculator:
                   ) -> tuple[Potential, AtomArrays]:
         energies, vt_sR, dedtaut_sr, vHt_x = self.calculate_pseudo_potential(
             density, ibzwfs, vHt_x)
-
         e_kinetic = 0.0
         for spin, (vt_R, nt_R) in enumerate(zips(vt_sR, density.nt_sR)):
             e_kinetic -= vt_R.integrate(nt_R)
@@ -177,7 +176,7 @@ def calculate_non_local_potential1(setup: Setup,
                                    xc: Functional,
                                    ext_pot,
                                    D_sii: Array3D,
-                                   Q_L: Array1D,
+                                   V_L: Array1D,
                                    soc: bool) -> tuple[Array3D,
                                                        dict[str, float]]:
     ncomponents = len(D_sii)
@@ -188,7 +187,7 @@ def calculate_non_local_potential1(setup: Setup,
 
     dH_p = (setup.K_p + setup.M_p +
             setup.MB_p + 2.0 * setup.M_pp @ D_p +
-            setup.Delta_pL @ Q_L)
+            setup.Delta_pL @ V_L)
     e_kinetic = setup.K_p @ D_p + setup.Kc
     e_zero = setup.MB + setup.MB_p @ D_p
     e_coulomb = setup.M + D_p @ (setup.M_p + setup.M_pp @ D_p)
