@@ -103,6 +103,8 @@ class DFTComponentsBuilder:
                                               self.setups.id_a,
                                               self.initial_magmom_av,
                                               params.symmetry)
+        self.setups.set_symmetry(symmetries.symmetry)
+
         if self.ncomponents == 4:
             assert (len(symmetries) == 1 and not
                     symmetries.symmetry.time_reversal)

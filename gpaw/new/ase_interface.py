@@ -140,7 +140,7 @@ class ASECalculator:
     """This is the ASE-calculator frontend for doing a GPAW calculation."""
 
     name = 'gpaw'
-
+    old = False
     def __init__(self,
                  params: InputParameters,
                  *,
