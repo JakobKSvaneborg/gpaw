@@ -143,6 +143,7 @@ class ASECalculator:
 
     name = 'gpaw'
     old = False
+
     def __init__(self,
                  params: InputParameters,
                  *,
@@ -290,6 +291,11 @@ class ASECalculator:
         if atoms is None:
             atoms = self.atoms
         return self.calculate_property(atoms, name)
+
+    def calculation_required(self, atoms, properties):
+        if any(prop not in self.dft.results for prop in properties):
+            return True
+        return len(self.check_state(atoms)) > 0
 
     @property
     def results(self):
@@ -539,6 +545,10 @@ class ASECalculator:
     def get_ibz_k_points(self):
         state = self.dft.state
         return state.ibzwfs.ibz.kpt_kc.copy()
+
+    def get_k_point_weights(self):
+        state = self.dft.state
+        return state.ibzwfs.ibz.weight_k
 
     def get_orbital_magnetic_moments(self):
         """Return the orbital magnetic moment vector for each atom."""
