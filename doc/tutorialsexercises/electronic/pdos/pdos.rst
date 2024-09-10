@@ -210,7 +210,7 @@ is shown below (see :download:`atomic_orbital_gs.py` and
 .. literalinclude:: atomic_orbital_pdos.py
    :start-after: web-page
 
-.. image:: ag-ddos.png
+.. image:: au-ddos.png
 
 Warning: You should always plot the PDOS before using the calculated
 center and width to check that it is sensible. The very localized
