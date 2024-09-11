@@ -109,11 +109,13 @@ def test_2d():
 
     dft = DFTCalculation.from_parameters(
         atoms,
-        dict(mode={'name': 'pw'}, spinpol=True, xc='LDA',
-            convergence={"density": 1e-8},
-            kpts=(2, 2, 1), parallel={"gpu": True}),
-        log='-',
-    )
+        dict(mode={'name': 'pw'},
+             spinpol=True,
+             xc='LDA',
+             convergence={'density': 1e-8},
+             kpts=(2, 2, 1),
+             parallel={'gpu': True}),
+        log='-')
     dft.converge()
     assert dft.state.potential.get_vacuum_level() == \
            pytest.approx(2.9436, 1e-2)
