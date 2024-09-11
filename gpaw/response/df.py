@@ -674,8 +674,9 @@ class DielectricFunction(DielectricFunctionCalculator):
             Can be an array of frequencies to evaluate the response function at
             or dictionary of parameters for build-in nonlinear grid
             (see :ref:`frequency grid`).
-        ecut: float
-            Plane-wave cut-off.
+        ecut: float | dict
+            Plane-wave cut-off or dictionary for anoptional planewave
+            descriptor. See response/qpd.py for details.
         hilbert: bool
             Use hilbert transform.
         nbands: int

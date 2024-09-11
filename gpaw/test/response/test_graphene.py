@@ -73,4 +73,4 @@ def test_response_graphene(in_tmp_dir):
         while len(dfs):
             df = dfs.pop()
             for DFkwargs, df2 in zip(DFsettings[-len(dfs):], dfs):
-                assert np.allclose(df, df2)
+                assert df == pytest.approx(df2)

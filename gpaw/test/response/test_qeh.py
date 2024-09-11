@@ -1,9 +1,18 @@
 import pytest
 from gpaw.response.df import DielectricFunction
 from ase.parallel import world
+from ase.units import Hartree
 
 
-def dielectric(calc, domega, omega2, rate=0.0, ecut=10, nblocks=1):
+def dielectric(calc, domega, omega2, rate=0.0,
+               ecut=10, nblocks=1, cyl_pw=False):
+    if cyl_pw:
+        from gpaw.response.qpd import SingleCylQPWDescriptor
+        ecut = {
+            'class': SingleCylQPWDescriptor,
+            'kwargs': {'ecut_xy': ecut * 2 / Hartree,
+                       'ecut_z': ecut / Hartree}
+        }
     diel = DielectricFunction(calc=calc,
                               frequencies={'type': 'nonlinear',
                                            'omegamax': 10,
@@ -23,7 +32,8 @@ def test_basics(in_tmp_dir, gpw_files):
     pytest.importorskip('qeh')
     from gpaw.response.qeh import GPAW_ChiCalc
 
-    df = dielectric(gpw_files['graphene_pw'], 0.1, 0.5, rate=0.01)
+    df = dielectric(gpw_files['graphene_pw'], 0.1, 0.5,
+                    rate=0.01, cyl_pw=False)
 
     chicalc = GPAW_ChiCalc(df)
 
@@ -33,7 +43,7 @@ def test_basics(in_tmp_dir, gpw_files):
     assert len(chicalc.get_z_grid()) == 30
 
     q_q = chicalc.get_q_grid(q_max=0.6)
-    chi_wGG, G_Gv = chicalc.get_chi_wGG(qpoint=q_q[2])
+    chi_wGG, G_Gv, wblocks = chicalc.get_chi_wGG(qpoint=q_q[2])
 
     assert chi_wGG[0, 0, 0] == pytest.approx(-3.134762463291029e-10
                                              + 3.407232927207498e-27j)
@@ -52,11 +62,13 @@ def test_qeh_parallel(in_tmp_dir, gpw_files):
     pytest.importorskip('qeh')
     from gpaw.response.qeh import GPAW_ChiCalc
 
-    df = dielectric(gpw_files['mos2_pw'], 0.05, 0.5, nblocks=world.size)
+    df = dielectric(gpw_files['mos2_pw'], 0.05, 0.5, nblocks=world.size,
+                    cyl_pw=False)
     chicalc = GPAW_ChiCalc(df)
 
     q_q = chicalc.get_q_grid(q_max=0.6)
-    chi_wGG, G_Gv = chicalc.get_chi_wGG(qpoint=q_q[2])
+    chi_wGG, G_Gv, wblocks = chicalc.get_chi_wGG(qpoint=q_q[2])
+    chi_wGG = wblocks.all_gather(chi_wGG)
     if world.rank == 0:
         assert chi_wGG.shape[0] == 23
         assert chi_wGG[0, 0, 0] == pytest.approx(-0.0050287263466402875
