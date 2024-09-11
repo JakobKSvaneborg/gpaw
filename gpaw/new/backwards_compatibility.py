@@ -4,7 +4,9 @@ from types import SimpleNamespace
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
+
 from gpaw.band_descriptor import BandDescriptor
+from gpaw.fftw import MEASURE
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
 from gpaw.new.calculation import DFTCalculation
@@ -59,7 +61,7 @@ class FakeWFS:
         self.gd = self.grid._gd
         atomdist = self.state.density.D_asii.layout.atomdist
         self.atom_partition = AtomPartition(atomdist.comm, atomdist.rank_a)
-        self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
+        # self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
         self.occ_calc = occ_calc
         self.occupations = occ_calc.occ
         self.nvalence = int(round(ibzwfs.nelectrons))
@@ -80,7 +82,7 @@ class FakeWFS:
                 self.mode = 'pw'
                 self.ecut = wfs.psit_nX.desc.ecut
                 self.pd = PWDescriptor(self.ecut,
-                                       self.gd, self.dtype, self.kd)
+                                       self.gd, self.dtype, self.kd, _new=True)
                 self.pwgrid = self.grid.new(dtype=self.dtype)
             else:
                 self.mode = 'fd'
@@ -101,6 +103,7 @@ class FakeWFS:
             self.scale = self.ngpts
         else:
             self.scale = 1
+        self.fftwflags = MEASURE
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
         desc = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
@@ -165,7 +168,11 @@ class FakeWFS:
             return psit_R.data
         return psit_X.data
 
-    def get_wave_function_array(self, n, k, s, realspace=True, periodic=False):
+    def get_wave_function_array(self, n, k, s,
+                                realspace=True,
+                                periodic=False,
+                                cut=False):
+        assert not cut
         if self.mode == 'lcao':
             assert not realspace
             return self.kpt_qs[k][s].C_nM[n]
@@ -264,9 +271,13 @@ class KPT:
 
     @property
     def psit_nG(self):
+        data = self.psit_nX.data
         if self.scale == 1:
-            return self.psit_nX.data
-        return self.psit_nX.data * self.scale
+            return data
+        if 1:  # isinstance(data, np.ndarray):
+            return data * self.scale
+        data.scale *= self.scale
+        return data
 
     @cached_property
     def psit(self):

@@ -1,17 +1,13 @@
 import matplotlib.pyplot as plt
-from gpaw import GPAW
+from gpaw.dos import DOSCalculator
 
-calc = GPAW('ferro.gpw', txt=None)
-
-ef = calc.get_fermi_level()
-
+dos = DOSCalculator.from_calculator('ferro.gpw')
+energies = dos.get_energies(emax=5.0)
 # Plot s, p, d projected LDOS:
-for c in 'spd':
-    energies, ldos = calc.get_orbital_ldos(a=0, spin=0, angular=c, width=0.4)
-    plt.plot(energies - ef, ldos, label=c + '-up')
-
-    energies, ldos = calc.get_orbital_ldos(a=0, spin=1, angular=c, width=0.4)
-    plt.plot(energies - ef, ldos, label=c + '-down')
-
+width = 0.4
+for l, c in enumerate('spd'):
+    for spin in [0, 1]:
+        d = dos.raw_pdos(energies, a=0, l=l, spin=spin, width=width)
+        plt.plot(energies, d, label=c + ('-up' if spin == 0 else '-down'))
 plt.legend()
 plt.show()
