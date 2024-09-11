@@ -97,6 +97,21 @@ From the band structure of MoS2 it is straigtforward to obtain `\mu=0.27` and al
 
 which is in good agreement with the BSE computation above
 
+
+Magnons in 2D from the Bethe-Salpeter equation
+==============================================
+
+If the Bethe-Salpeter equation is set up in a basis of spinors it can be used to generate the magnetic susceptibility in the (screened) ladder approximation. Here we will focus on the transverse magnetic susceptibility `\chi^{+-}`, which has poles at the magnon energies at low frequencies. In particular, the magnon eigenvalues can be obtained as the lowest eigenenergies of the BSE Hamiltonian. As an example, we take the hypothetical two-dimensional material `RhCl_2`, which is stable in the 1T' phase containing two formula units in the unit cell. We start by performing a ground state calculation using the script :download:`gs_RhCl2.py`. From the txt output we observe that the band gap is roughly 0.44 eV and the magnetic moment is two Bohr magnetons corresponding to each of the Rh atoms carrying spin 1/2. 
+
+The transverse susceptibility for `q=0` is obtained with the script :download:`magnons_RhCl2.py`, which can be run in 1 hour on 16 CPUs. The function ``get_magnetic_susceptibility`` returns `\chi^{+-}`, but for the present purpose we will just inspect the output file ``chi+-_300.dat``. The keyword ``modes_Gc`` specifies which (diagonal) plane waves components of the susceptibility that are written to the file. The first column of the file is just a counter whereas the second column is the eigenvalues of the BSE Hamiltonian in eV. The remaining four columns are the weights of the four plane wave components specified in the script. First we note that the two lowest eigenvalues are separated from the remaining spectrum by roughly 1 eV. We identify these as the acoustic and optical magnons. To see this more clearly, one can look at the weights of the transverse susceptibility. The lowest eigenvalue has weights at `G=(0,0,0)` and `G=(1,1,0)` signifying an acoustic magnon. Note that the reciprocal lattice vector corresponds to two wavelengths transversing the diagonal of the rectangular unit cell and thus one wavelength between the two Rh atoms. In contrast, the second eigenvalue has weights at `G=(1,0,0)` and `G=(0,1,0)`, which both corresponds to a phase difference between the two Rh atoms of half a wavelength - the hallmark of an optical magnon. Finally, it should be noted that the Goldstone theorem implies that the acoustic magnons should be located exactly at zero energy in the absence of spinorbit coupling. The present calculation does include spinorbit coupling but the acoustic magnon gap is still expected to be less than a meV. This is not exactly what we find - in fact the BSE eigenvalues are shifted upward by the ``eshift`` keyword in the script, which is chosen here to fix the acoustic magnon energy at approximately zero energy. This is in line with previous studies, which show that the Goldstone criterion does not come out right in such calculations. However, the magnon band width (gap between acoustic and optical modes) is a property that we may try to predict from BSE calculations.
+
+We may also try to compute the entire magnon dispersion. This can be accomplished by finite `q` BSE calculations exemplified by the script `magnons_q.py`. Note that instead of writing the data file with all the weights for each `q` we simply extract the BSE eigenvalues from ``bse.w_T`` and collect it in a data file. The results can be plottet with `plot_magnons.py` and is shown below. It should be emphasized that these calculations are far from converged. One needs to worry about `k`-points, plane wave cutoff, screening bands and the valence and conduction bands entering the BSE Hamiltonian. Compared to excitons, magnons need much less `k`-points (for insulators), but much higher plane wave cutoff and it is typically rather difficult to converge with respect to the states included in the BSE Hamiltonian [#Olsen_cri3]_.
+
+
+.. image:: magnons.png
+    :height: 400 px
+
+
 .. [#Huser] F. Huser, T. Olsen and K. S. Thygesen
             *Phys. Rev. B* **88**, 245309 (2013)
 
@@ -106,3 +121,5 @@ which is in good agreement with the BSE computation above
 .. [#Olsen] T. Olsen, S. Latini, F. Rasmussen and K. S. Thygesen
             *Phys. Rev. Lett.* **116**, 056401 (2016)
 
+.. [#Olsen_cri3] T. Olsen
+            *Phys. Rev. Lett.* **127**, 166402 (2021)

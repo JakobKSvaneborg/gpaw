@@ -113,7 +113,8 @@ class KPointPairFactory:
                       ut_nR, eps_n, f_n, P_ani, k_c)
 
     @timer('Get kpoint pair')
-    def get_kpoint_pair(self, qpd, s, K, n1, n2, m1, m2, blockcomm=None):
+    def get_kpoint_pair(self, qpd, s, K, n1, n2, m1, m2,
+                        blockcomm=None, flipspin=False):
         assert m1 <= m2
         assert n1 <= n2
 
@@ -122,10 +123,12 @@ class KPointPairFactory:
         k_c = self.gs.kd.bzk_kc[K]
         K1 = kptfinder.find(k_c)
         K2 = kptfinder.find(k_c + qpd.q_c)
+        s1 = s
+        s2 = (s + flipspin) % 2
 
         with self.context.timer('get k-points'):
-            kpt1 = self.get_k_point(s, K1, n1, n2)
-            kpt2 = self.get_k_point(s, K2, m1, m2, blockcomm=blockcomm)
+            kpt1 = self.get_k_point(s1, K1, n1, n2)
+            kpt2 = self.get_k_point(s2, K2, m1, m2, blockcomm=blockcomm)
 
         with self.context.timer('fft indices'):
             Q_G = phase_shifted_fft_indices(kpt1.k_c, kpt2.k_c, qpd)
