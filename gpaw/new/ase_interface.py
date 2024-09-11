@@ -9,12 +9,11 @@ from typing import IO, Any, Callable, Protocol, Sequence, Union, Iterable
 
 import numpy as np
 from ase import Atoms
-from ase.units import Bohr, Ha
+from ase.units import Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import MPIComm
-from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
@@ -410,38 +409,13 @@ class ASECalculator:
                                  periodic=False,
                                  broadcast=True,
                                  pad=True) -> Array3D:
-        state = self.dft.state
-        collinear = state.ibzwfs.collinear
-        if collinear:
-            if spin is None:
-                spin = 0
-        else:
-            assert spin is None or spin == 0
-        wfs = state.ibzwfs.get_wfs(spin=spin if collinear else 0,
-                                   kpt=kpt,
-                                   n1=band, n2=band + 1)
-        if wfs is not None:
-            basis = getattr(self.dft.scf_loop.hamiltonian,
-                            'basis', None)
-            grid = state.density.nt_sR.desc.new(comm=None)
-            if collinear:
-                wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
-                psit_R = wfs.psit_nX[0]
-            else:
-                psit_sG = wfs.psit_nX[0]
-                grid = grid.new(kpt=psit_sG.desc.kpt_c,
-                                dtype=psit_sG.desc.dtype)
-                psit_R = psit_sG.ifft(grid=grid)
-            if not psit_R.desc.pbc.all() and pad:
-                psit_R = psit_R.to_pbc_grid()
-            if periodic:
-                psit_R.multiply_by_eikr(-psit_R.desc.kpt_c)
-            array_R = psit_R.data * Bohr**-1.5
-        else:
-            array_R = None
-        if broadcast:
-            array_R = bcast(array_R, 0, self.dft.comm)
-        return array_R
+        psit_R = self.dft.wave_functions(n1=band, n2=band + 1,
+                                         kpt=kpt, spin=spin,
+                                         periodic=periodic,
+                                         broadcast=broadcast,
+                                         _pad=pad)[0]
+        if psit_R is not None:
+            return psit_R.data
 
     def get_atoms(self):
         atoms = self.atoms.copy()

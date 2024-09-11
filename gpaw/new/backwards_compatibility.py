@@ -173,11 +173,14 @@ class FakeWFS:
                                 periodic=False,
                                 cut=False):
         assert not cut
+        assert self.state.ibzwfs.band_comm.size == 1
+        assert self.state.ibzwfs.kpt_comm.size == 1
         if self.mode == 'lcao':
             assert not realspace
             return self.kpt_qs[k][s].C_nM[n]
-        assert realspace
         psit_X = self.kpt_qs[k][s].wfs.psit_nX[n]
+        if not realspace:
+            return psit_X.data
         if self.mode == 'pw':
             psit_R = psit_X.ifft(grid=self.pwgrid, periodic=True)
             if not periodic:
