@@ -88,7 +88,7 @@ class PotentialCalculator:
                   vHt_x: DistributedArrays | None = None,
                   kpt_band_comm: MPIComm | None = None
                   ) -> tuple[Potential, AtomArrays]:
-        energies, vt_sR, dedtaut_sr, vHt_x = self.calculate_pseudo_potential(
+        energies, vt_sR, dedtaut_sr, vHt_x, V_aL = self.calculate_pseudo_potential(
             density, ibzwfs, vHt_x)
         e_kinetic = 0.0
         for spin, (vt_R, nt_R) in enumerate(zips(vt_sR, density.nt_sR)):
@@ -112,13 +112,12 @@ class PotentialCalculator:
                 kpt_band_comm = serial_comm
             else:
                 kpt_band_comm = ibzwfs.kpt_band_comm
-        Q_aL = self.calculate_charges(vHt_x)
         dH_asii, corrections = calculate_non_local_potential(
             self.setups,
             density,
             self.xc,
             self.external_potential,
-            Q_aL,
+            V_aL,
             self.soc,
             kpt_band_comm)
 
@@ -128,7 +127,7 @@ class PotentialCalculator:
                 print(f'{key:10} {energies[key]:15.9f} {e:15.9f}')
             energies[key] += e
 
-        return Potential(vt_sR, dH_asii, dedtaut_sR, energies, vHt_x), Q_aL
+        return Potential(vt_sR, dH_asii, dedtaut_sR, energies, vHt_x), V_aL
 
 
 @trace

@@ -5,7 +5,7 @@ from gpaw.gpu import cupy as cp
 from gpaw.setup import Setups
 
 
-class PAWPosissonSolver:
+class PAWPoissonSolver:
     def __init__(self,
                  pwg: PWDesc,
                  pwg0: PWDesc,
@@ -15,16 +15,19 @@ class PAWPosissonSolver:
                  atomdist: AtomDistribution,
                  xp=np):
         self.xp = xp
-        pwh = poisson_solver.pw
+        self.pwg = pwg
+        self.pwg0 = pwg0
+        self.pwh = poisson_solver.pw
+        self.poisson_solver = poisson_solver
         self.ghat_aLh = setups.create_compensation_charges(
-            pwh, fracpos_ac, atomdist, xp)
-        self.h_g, self.g_r = pwh.map_indices(self.pw0)
+            self.pwh, fracpos_ac, atomdist, xp)
+        self.h_g, self.g_r = self.pwh.map_indices(pwg0)
         if xp is cp:
             self.h_g = cp.asarray(self.h_g)
             self.g_r = [cp.asarray(g) for g in self.g_r]
 
-    def solve(self, nt_g, Q_aL, vHt_h):
-        charge_h = vHt_h.desc.zeros(xp=self.xp)
+    def solve(self, nt_g, Q_aL, vt0_g, vHt_h):
+        charge_h = self.pwh.zeros(xp=self.xp)
         self.ghat_aLh.add_to(charge_h, Q_aL)
         pwg = self.pwg
 
@@ -39,10 +42,12 @@ class PAWPosissonSolver:
             pwg.comm.receive(data, 0)
             charge_h.data[self.h_g] += data
 
+        if vHt_h is None:
+            vHt_h = self.pwh.zeros(xp=self.xp)
+
         e_coulomb = self.poisson_solver.solve(vHt_h, charge_h)
 
         if pwg.comm.rank == 0:
-            vt0_g = self.vbar0_g.copy()
             for rank, g in enumerate(self.g_r):
                 if rank == 0:
                     vt0_g.data[g] += vHt_h.data[self.h_g]
@@ -53,4 +58,7 @@ class PAWPosissonSolver:
         else:
             pwg.comm.send(vHt_h.data[self.h_g], 0)
 
-        return e_coulomb
+        V_aL = self.ghat_aLh.integrate(vHt_h)
+
+        return e_coulomb, vHt_h, V_aL
+

@@ -15,6 +15,7 @@ from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D
+from gpaw.new.pw.paw_poisson import PAWPoissonSolver
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -92,25 +93,32 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.interpolation_desc, self.fracpos_ac, self.atomdist)
         return self._tauct_ag
 
-    def create_poisson_solver(self, fine_pw, params):
-        return make_poisson_solver(fine_pw,
-                                   self.fine_grid,
-                                   self.params.charge,
-                                   **params)
+    def create_poisson_solver(self):
+        psparams = self.params.poissonsolver or {'strength': 1.0}
+        if psparams.pop('fast', False):
+            ps = make_poisson_solver(self.interpolation_desc,
+                                     self.grid,
+                                     self.params.charge,
+                                     **psparams)
+        else:
+            ps = make_poisson_solver(self.electrostatic_potential_desc,
+                                     self.fine_grid,
+                                     self.params.charge,
+                                     **psparams)
+            pw = self.interpolation_desc
+            return PAWPoissonSolver(
+                pw,
+                pw.new(comm=None),  # not distributed,
+                self.setups, ps,
+                self.fracpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self):
-        nct_ag = self.get_pseudo_core_densities()
-        pw = nct_ag.pw
-        fine_pw = self.electrostatic_potential_desc
-        poisson_solver = self.create_poisson_solver(
-            fine_pw,
-            self.params.poissonsolver or {'strength': 1.0})
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
-            pw,
+            self.interpolation_desc,
             self.setups,
             self.xc,
-            poisson_solver,
+            self.create_poisson_solver(),
             external_potential=create_external_potential(self.params.external),
             fracpos_ac=self.fracpos_ac,
             atomdist=self.atomdist,

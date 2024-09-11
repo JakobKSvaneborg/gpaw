@@ -6,14 +6,13 @@ from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.stress import calculate_stress
 from gpaw.setup import Setups
 from gpaw.new.calculation import DFTState
-from gpaw.new.pw.paw_poisson import PAWPosissonSolver
 
 
 class PlaneWavePotentialCalculator(PotentialCalculator):
     def __init__(self,
                  grid,
                  fine_grid,
-                 pwg: PWDesc,
+                 pw: PWDesc,
                  setups: Setups,
                  xc,
                  poisson_solver,
@@ -24,17 +23,14 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  soc=False,
                  xp=np):
         self.xp = xp
-        self.pwg = pwg
-        self.pwg0 = pwg.new(comm=None)  # not distributed
-
-        pps = PAWPosissonSolver(poisson_solver, setups, pwg, self.pwg0)
-        super().__init__(xc, pps, setups,
+        self.pw = pw
+        super().__init__(xc, poisson_solver, setups,
                          external_potential=external_potential,
                          fracpos_ac=fracpos_ac,
                          soc=soc)
 
         self.vbar_ag = setups.create_local_potentials(
-            pwg, fracpos_ac, atomdist, xp)
+            pw, fracpos_ac, atomdist, xp)
 
         self.fftplan = grid.fft_plans(xp=xp)
         self.fftplan2 = fine_grid.fft_plans(xp=xp)
@@ -42,7 +38,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self.grid = grid
         self.fine_grid = fine_grid
 
-        self.vbar_g = pwg.zeros(xp=xp)
+        self.vbar_g = pw.zeros(xp=xp)
         self.vbar_ag.add_to(self.vbar_g)
         self.vbar0_g = self.vbar_g.gather()
 
@@ -59,7 +55,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         return a_r.fft_restrict(self.fftplan2, self.fftplan,
                                 grid=self.grid, out=a_R)
 
-    def calculate_charges(self, vHt_h):
+    def ____calculate_charges(self, vHt_h):
         return self.ghat_aLh.integrate(vHt_h)
 
     def _interpolate_density(self, nt_sR):
@@ -67,8 +63,9 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         pw = self.vbar_g.desc
 
         if pw.comm.rank == 0:
-            indices = self.xp.asarray(self.pw0.indices(self.fftplan.shape))
-            nt0_g = self.pw0.zeros(xp=self.xp)
+            pw0 = self.poisson_solver.pwg0
+            indices = self.xp.asarray(pw0.indices(self.fftplan.shape))
+            nt0_g = pw0.zeros(xp=self.xp)
         else:
             nt0_g = None
 
@@ -106,11 +103,12 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             e_zero = 0.0
         e_zero = broadcast_float(float(e_zero), pw.comm)
 
-        if vHt_h is None:
-            vHt_h = self.ghat_aLh.pw.zeros(xp=self.xp)
+        if pw.comm.rank == 0:
+            vt0_g = self.vbar0_g.copy()
 
         Q_aL = density.calculate_compensation_charge_coefficients()
-        e_coulomb = self.poisson_solver.solve(nt0_g, Q_aL, vHt_h)
+        e_coulomb, vHt_h, V_aL = self.poisson_solver.solve(
+            nt0_g, Q_aL, vt0_g, vHt_h)
 
         if pw.comm.rank == 0:
             vt0_R = vt0_g.ifft(
@@ -136,7 +134,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                 'zero': e_zero,
                 'xc': e_xc,
                 'stress': e_coulomb + e_zero,
-                'external': e_external}, vt_sR, dedtaut_sr, vHt_h
+                'external': e_external}, vt_sR, dedtaut_sr, vHt_h, V_aL
 
     def move(self, fracpos_ac, atomdist):
         self.ghat_aLh.move(fracpos_ac, atomdist)
@@ -179,7 +177,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         else:
             Ftauct_av = state.density.tauct_aX.derivative(dedtaut_g)
 
-        return (self.ghat_aLh.derivative(state.potential.vHt_x),
+        return (self.poisson_solver.ghat_aLh.derivative(state.potential.vHt_x),
                 state.density.nct_aX.derivative(vt_g),
                 Ftauct_av,
                 self.vbar_ag.derivative(nt_g))
