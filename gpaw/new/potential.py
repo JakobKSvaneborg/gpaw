@@ -121,5 +121,5 @@ class Potential:
                     vacuum_level += contribution.mean()
 
             vacuum_level /= (3 - grid.pbc_c.sum())
-            
+
         return broadcast_float(vacuum_level, grid.comm) * Ha
