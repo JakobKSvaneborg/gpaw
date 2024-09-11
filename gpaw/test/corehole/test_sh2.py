@@ -63,7 +63,20 @@ def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, s_2p1ch_name):
     atoms = molecule('SH2')
     atoms.center(3)
 
-    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s_2p1ch_name}, txt=None)
+    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s_2p1ch_name})#, txt=None)
+    atoms.get_potential_energy()
+
+    xas = XAS(atoms.calc)
+    assert folding_is_normalized(xas)
+
+
+def test_sulphur_2p_xas_hch(in_tmp_dir, add_cwd_to_setup_paths, s_2p1ch_name):
+    atoms = molecule('SH2')
+    atoms.center(3)
+    atoms.set_initial_magnetic_moments([1, 0, 0])
+
+    atoms.calc = GPAW(mode='fd', h=0.3, charge=-1,
+                      setups={'S': s_2p1ch_name})#, txt=None)
     atoms.get_potential_energy()
 
     xas = XAS(atoms.calc)
