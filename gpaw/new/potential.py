@@ -114,6 +114,12 @@ class Potential:
         if vHt_r is not None:
             for c, periodic in enumerate(grid.pbc_c):
                 if not periodic:
-                    vacuum_level += np.moveaxis(vHt_r.data, c, 0)[0].mean()
+                    xp = vHt_r.xp
+                    contribution = xp.moveaxis(vHt_r.data, c, 0)[0]
+                    if xp is not np:
+                        contribution = xp.asnumpy(contribution)
+                    vacuum_level += contribution.mean()
+
             vacuum_level /= (3 - grid.pbc_c.sum())
+            
         return broadcast_float(vacuum_level, grid.comm) * Ha
