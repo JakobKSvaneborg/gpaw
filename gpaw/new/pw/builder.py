@@ -107,7 +107,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.params.poissonsolver or {'strength': 1.0})
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
-            pw, fine_pw,
+            pw,
             self.setups,
             self.xc,
             poisson_solver,

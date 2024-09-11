@@ -1,20 +1,19 @@
 import numpy as np
 from gpaw.core import PWDesc
-from gpaw.gpu import cupy as cp
 from gpaw.mpi import broadcast_float
 from gpaw.new import zips, spinsum
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.stress import calculate_stress
 from gpaw.setup import Setups
 from gpaw.new.calculation import DFTState
+from gpaw.new.pw.paw_poisson import PAWPosissonSolver
 
 
 class PlaneWavePotentialCalculator(PotentialCalculator):
     def __init__(self,
                  grid,
                  fine_grid,
-                 pw: PWDesc,
-                 fine_pw: PWDesc,
+                 pwg: PWDesc,
                  setups: Setups,
                  xc,
                  poisson_solver,
@@ -25,24 +24,17 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  soc=False,
                  xp=np):
         self.xp = xp
-        super().__init__(xc, poisson_solver, setups,
+        self.pwg = pwg
+        self.pwg0 = pwg.new(comm=None)  # not distributed
+
+        pps = PAWPosissonSolver(poisson_solver, setups, pwg, self.pwg0)
+        super().__init__(xc, pps, setups,
                          external_potential=external_potential,
                          fracpos_ac=fracpos_ac,
                          soc=soc)
 
         self.vbar_ag = setups.create_local_potentials(
-            pw, fracpos_ac, atomdist, xp)
-        self.ghat_aLh = setups.create_compensation_charges(
-            fine_pw, fracpos_ac, atomdist, xp)
-
-        self.pw = pw
-        self.fine_pw = fine_pw
-        self.pw0 = pw.new(comm=None)  # not distributed
-
-        self.h_g, self.g_r = fine_pw.map_indices(self.pw0)
-        if xp is cp:
-            self.h_g = cp.asarray(self.h_g)
-            self.g_r = [cp.asarray(g) for g in self.g_r]
+            pwg, fracpos_ac, atomdist, xp)
 
         self.fftplan = grid.fft_plans(xp=xp)
         self.fftplan2 = fine_grid.fft_plans(xp=xp)
@@ -50,7 +42,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self.grid = grid
         self.fine_grid = fine_grid
 
-        self.vbar_g = pw.zeros(xp=xp)
+        self.vbar_g = pwg.zeros(xp=xp)
         self.vbar_ag.add_to(self.vbar_g)
         self.vbar0_g = self.vbar_g.gather()
 
@@ -117,39 +109,13 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         if vHt_h is None:
             vHt_h = self.ghat_aLh.pw.zeros(xp=self.xp)
 
-        charge_h = vHt_h.desc.zeros(xp=self.xp)
-        coef_aL = density.calculate_compensation_charge_coefficients()
-        self.ghat_aLh.add_to(charge_h, coef_aL)
+        Q_aL = density.calculate_compensation_charge_coefficients()
+        e_coulomb = self.poisson_solver.solve(nt0_g, Q_aL, vHt_h)
 
         if pw.comm.rank == 0:
-            for rank, g in enumerate(self.g_r):
-                if rank == 0:
-                    charge_h.data[self.h_g] += nt0_g.data[g]
-                else:
-                    pw.comm.send(nt0_g.data[g], rank)
-        else:
-            data = self.xp.empty(len(self.h_g), complex)
-            pw.comm.receive(data, 0)
-            charge_h.data[self.h_g] += data
-
-        # background charge ???
-
-        e_coulomb = self.poisson_solver.solve(vHt_h, charge_h)
-
-        if pw.comm.rank == 0:
-            vt0_g = self.vbar0_g.copy()
-            for rank, g in enumerate(self.g_r):
-                if rank == 0:
-                    vt0_g.data[g] += vHt_h.data[self.h_g]
-                else:
-                    data = self.xp.empty(len(g), complex)
-                    pw.comm.receive(data, rank)
-                    vt0_g.data[g] += data
             vt0_R = vt0_g.ifft(
                 plan=self.fftplan,
                 grid=density.nt_sR.desc.new(comm=None))
-        else:
-            pw.comm.send(vHt_h.data[self.h_g], 0)
 
         vt_sR = density.nt_sR.new()
         vt_sR[0].scatter_from(vt0_R if pw.comm.rank == 0 else None)
@@ -186,7 +152,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self._dedtaut_g = None
 
     def _force_stress_helper(self, state: DFTState):
-        """Only do the work once - in case both forces and stress is needed"""
+        # Only do the work once - in case both forces and stresses are needed:
         if self._vt_g is not None:
             return self._vt_g, self._nt_g, self._dedtaut_g
 
