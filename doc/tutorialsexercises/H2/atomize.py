@@ -2,7 +2,7 @@
 
 from ase import Atoms
 from ase.parallel import paropen as open
-from gpaw import GPAW, PW, FermiDirac
+from gpaw import GPAW, PW
 
 a = 10.  # Size of unit cell (Angstrom)
 c = a / 2
@@ -17,8 +17,6 @@ atom = Atoms('H',
 calc = GPAW(mode=PW(),
             xc='PBE',
             hund=True,
-            # eigensolver='rmm-diis',  # This solver can parallelize over bands
-            # occupations=FermiDirac(0.0, fixmagmom=True),
             txt='H.out')
 atom.calc = calc
 
