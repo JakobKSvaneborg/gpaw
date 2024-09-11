@@ -174,6 +174,9 @@ class ndarray:
             else:
                 yield ndarray(data)
 
+    def mean(self):
+        return ndarray(self._data.mean())
+
     def __setitem__(self, index, value):
         if isinstance(index, tuple):
             def convert(a):
