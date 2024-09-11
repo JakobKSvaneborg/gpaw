@@ -104,20 +104,15 @@ def test_gpu_k(gpu, par, mode, xc):
 
 @pytest.mark.gpu
 def test_2d():
-    atoms = Atoms("H", pbc=[True, True, False], cell=[1, 1, 5])
+    atoms = Atoms('H', pbc=[True, True, False], cell=[1, 1, 5])
     atoms.center(axis=2)
 
     dft = DFTCalculation.from_parameters(
         atoms,
-        dict(
-            mode={"name": "pw"},
-            spinpol=True,
-            xc="LDA",
+        dict(mode={'name': 'pw'}, spinpol=True, xc='LDA',
             convergence={"density": 1e-8},
-            kpts=(2, 2, 1),
-            parallel={"gpu": True},
-        ),
-        log="-",
+            kpts=(2, 2, 1), parallel={"gpu": True}),
+        log='-',
     )
     dft.converge()
     assert dft.state.potential.get_vacuum_level() == \
@@ -125,9 +120,9 @@ def test_2d():
     dft.energies()
     dft.forces()
     dft.stress()
-    E = dft.results["energy"]
-    F = dft.results["forces"]
-    S = dft.results["stress"]
+    E = dft.results['energy']
+    F = dft.results['forces']
+    S = dft.results['stress']
     assert E == pytest.approx(0.1769, 1e-2)
     assert F[0] == pytest.approx([0, 0, 0], 1e-6)
     assert S == pytest.approx([-0.0110, -0.0110, 0.0002,
