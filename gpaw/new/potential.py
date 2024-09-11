@@ -115,7 +115,8 @@ class Potential:
             for c, periodic in enumerate(grid.pbc_c):
                 if not periodic:
                     xp = vHt_r.xp
-                    vacuum_level += float(xp.moveaxis(vHt_r.data, c, 0)[0].mean())
+                    vacuum_level += float(xp.moveaxis(vHt_r.data,
+                                                      c, 0)[0].mean())
 
             vacuum_level /= (3 - grid.pbc_c.sum())
 
