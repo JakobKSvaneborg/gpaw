@@ -14,6 +14,6 @@ def workflow():
             run(script='test_2d_eps.py')
         run(script='alpha_MoS2.py')
 
-    with run(script='gs_RhCl2.py', cores=4, tmax='5h'):
-        with run(script='magnons_q.py', cores=56, tmax='2h'):
+    with run(script='gs_RhCl2.py', cores=4, tmax='10m'):
+        with run(script='magnons_q.py', cores=56, tmax='35m'):
             run(script='plot_magnons.py')
