@@ -44,7 +44,6 @@ def test_basics(in_tmp_dir, gpw_files):
 
     q_q = chicalc.get_q_grid(q_max=0.6)
     chi_wGG, G_Gv, wblocks = chicalc.get_chi_wGG(qpoint=q_q[2])
-    chi_wGG, G_Gv, wblocks = chicalc.get_chi_wGG(qpoint=q_q[2])
 
     assert chi_wGG[0, 0, 0] == pytest.approx(-3.134762463291029e-10
                                              + 3.407232927207498e-27j)
