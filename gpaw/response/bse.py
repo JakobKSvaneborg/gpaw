@@ -253,7 +253,7 @@ class BSEBackend:
         self.print_initialization(self.use_tammdancoff, self.eshift,
                                   self.gw_kn)
 
-        # Treat spinpolarized states as spinors without soc
+        # Treat spin-polarized states as spinors without soc
         if self.nspins == 2 and not self.add_soc:
             self.add_soc = True
             self.scale = 0.0
@@ -305,15 +305,15 @@ class BSEBackend:
             n_fully_occupied_bands *= 2
 
         if band_type == 'valence':
-            bands_n = range(n_fully_occupied_bands - bands,
+            bands_m = range(n_fully_occupied_bands - bands,
                             n_fully_occupied_bands)
         elif band_type == 'conduction':
-            bands_n = range(n_fully_occupied_bands,
+            bands_m = range(n_fully_occupied_bands,
                             n_fully_occupied_bands + bands)
         else:
             raise ValueError(f'Invalid band type: {band_type}')
 
-        return bands_n
+        return bands_m
 
     def _spinordata(self, soc_tol):
         self.context.print('Diagonalizing spin-orbit Hamiltonian')
@@ -913,10 +913,24 @@ class BSE(BSEBackend):
             Plane wave cutoff energy (eV)
         nbands: int
             Number of bands used for the screened interaction
-        valence_bands: list
+        valence_bands: list or integer
             Valence bands used in the BSE Hamiltonian
-        conduction_bands: list
+        conduction_bands: list or integer
             Conduction bands used in the BSE Hamiltonian
+        add_soc: bool
+            If True the calculation will included non-selfconsitent SOC.
+            All band indices m refers to spinors, while n indices refer to
+            states without SOC.
+        scale: float
+            Scaling of the SOC. A value of scale=1.0 yields a proper SOC
+            calculation (id add_soc=True), whereas soc_scale=0 is equivalent
+            to having add_soc=False.
+        soc_tol: float
+            Tolerance for how many non-SOC states are included when the SOC
+            states are constructed (if add_soc=True). The SOC pair densities
+            are constructed as linear combinations of pair densities without
+            SOC. We include all states that contribute by more than soc_tol
+            to the corresponding soc eigenstates.
         eshift: float
             Scissors operator opening the gap (eV)
         q_c: list of three floats
@@ -924,10 +938,10 @@ class BSE(BSEBackend):
         direction: int
             if q_c = [0, 0, 0] this gives the direction in cartesian
             coordinates - 0=x, 1=y, 2=z
-        gw_skn: list / array
+        gw_kn: list / array
             List or array defining the gw quasiparticle energies in eV
-            used in the BSE Hamiltonian. Should match spin, k-points and
-            valence/conduction bands
+            used in the BSE Hamiltonian. Should match k-points and
+            valence + conduction bands
         truncation: str or None
             Coulomb truncation scheme. Can be None or 2D.
         integrate_gamma: dict

@@ -23,10 +23,10 @@ for i, q_c in enumerate(qs_qc):
               nbands=40,
               truncation='2D',
               q_c=q_c,
-              txt='bse_RhCl2_q%s.txt' % i)
+              txt=f'bse_RhCl2_q{i}.txt')
 
     bse.get_magnetic_susceptibility(eta=0.1,
-                                    write_eig='eig_q%s_' % i,
+                                    write_eig=f'eig_q{i}_',
                                     susc_component='+-',
                                     w_w=np.linspace(0, 1, 100))
 
@@ -35,6 +35,6 @@ for i, q_c in enumerate(qs_qc):
         q = -2 * np.pi * np.dot(q_c, q_c)**0.5 / 3.5006
     else:
         q = 2 * np.pi * np.dot(q_c, q_c)**0.5 / 6.8529
-    w_T, C_T = read_bse_eigenvalues('eig_q%s_000.dat' % i)
+    w_T, C_T = read_bse_eigenvalues(f'eig_q{i}_000.dat')
     print(q, w_T[0], w_T[1], file=fd)
     fd.close()

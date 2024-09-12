@@ -39,10 +39,8 @@ def test_response_bse_parse_bands(in_tmp_dir, gpw_files):
 
     with pytest.raises(ValueError,
                        match='The bands must be specified as a single *'):
-        bse2 = BSE(gpw_files['bse_al'],
-                   valence_bands=[range(4), range(4)],
-                   conduction_bands=5,
-                   nbands=4,
-                   ecut=10,
-                   )
-        bse2  # does nothing; this is just here to avoid a linting error
+        BSE(gpw_files['bse_al'],
+            valence_bands=[range(4), range(4)],
+            conduction_bands=5,
+            nbands=4,
+            ecut=10)
