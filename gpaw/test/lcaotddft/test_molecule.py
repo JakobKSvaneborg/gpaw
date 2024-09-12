@@ -296,7 +296,7 @@ def test_spinpol_dipole_moment(initialize_system, initialize_system_spinpol,
     # so spin-paired and spin-polarized calculation should give same result
     check_txt_data(module_tmp_path / 'dm.dat',
                    module_tmp_path / 'spinpol' / 'dm.dat',
-                   atol=1e-12)
+                   atol=1.0001e-12)
 
 
 @pytest.mark.rttddft

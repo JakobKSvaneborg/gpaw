@@ -220,7 +220,7 @@ class Eigensolver:
             eps_n = H.eigh(cc=True, scalapack=(slcomm, r, c, b))
             # H.array[n, :] now contains the n'th eigenvector and eps_n[n]
             # the n'th eigenvalue
-            kpt.eps_n = eps_n[wfs.bd.get_slice()]
+            kpt.eps_n[:] = eps_n[wfs.bd.get_slice()]
 
         with self.timer('rotate_psi'):
             if not rotate_psi:

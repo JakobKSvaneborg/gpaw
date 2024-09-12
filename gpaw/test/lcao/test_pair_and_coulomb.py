@@ -11,7 +11,7 @@ pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')
 
 
-@pytest.mark.later
+@pytest.mark.legacy
 def test_lcao_pair_and_coulomb(gpw_files, in_tmp_dir):
     if rank == 0:
         atoms, calc = restart(gpw_files['h2_lcao_pair'],

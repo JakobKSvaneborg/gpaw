@@ -7,6 +7,7 @@ from gpaw.eigensolvers.direct import DirectPW
 from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.etdm_lcao import LCAOETDM
+from gpaw.lcao.scissors import Scissors
 
 
 def get_eigensolver(eigensolver, mode, convergence=None):
@@ -33,6 +34,7 @@ def get_eigensolver(eigensolver, mode, convergence=None):
                        'direct': DirectPW,
                        'etdm-lcao': LCAOETDM,
                        'etdm-fdpw': FDPWETDM,
+                       'scissors': Scissors,
                        }[name](**eigensolver)
 
     if isinstance(eigensolver, CG):

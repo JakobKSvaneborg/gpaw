@@ -327,7 +327,7 @@ class PWLFC(BaseLFC):
         b_xI = c_xI.reshape((nx, self.nI))
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
-        alpha = 1.0  # / self.pd.gd.N_c.prod()
+        alpha = 1.0
         if self.dtype == float:
             alpha *= 2
             a_xG = a_xG.view(float)

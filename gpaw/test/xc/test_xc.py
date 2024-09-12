@@ -9,9 +9,14 @@ from gpaw.xc.kernel import XCKernel, codes
 def test_xc_xc():
     funcs = []
     modes = []
-    for name in short_names:
+    for name, value in short_names.items():
         try:
-            LibXC(name)
+            if 'MGGA' in value:
+                with pytest.warns(UserWarning,
+                                  match='should be compiled with'):
+                    LibXC(name)
+            else:
+                LibXC(name)
         except NameError:
             continue
         if name == 'SCAN':
@@ -24,7 +29,7 @@ def test_xc_xc():
 
     def create_xc(func, mode):
         if mode == 0:
-            xc = LibXC(func)
+            xc = LibXC(func, disable_fhc=False)
         else:
             xc = XCKernel(func)
         return xc

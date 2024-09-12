@@ -1203,6 +1203,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
         F_vM = np.zeros((3, Mstop - Mstart))
         assert self.Mmax == rhoT_MM.shape[1]
         assert Mstop - Mstart == rhoT_MM.shape[0]
+        assert rhoT_MM.flags.c_contiguous
         for v in range(3):
             self.lfc.calculate_potential_matrix_force_contribution(
                 vt_G, rhoT_MM, F_vM[v],

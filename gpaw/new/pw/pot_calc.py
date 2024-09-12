@@ -87,26 +87,29 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                 nt0_g.data += self.xp.asarray(
                     self.fftplan.tmp_Q.ravel()[indices])
 
-        return nt_sr, pw, nt0_g
+        return nt_sr, nt0_g
 
-    def _interpolate_and_calculate_xc(self, xc, nt_sR, ibzwfs):
-        ...
-
-    def calculate_non_selfconsistent_exc(self, xc, nt_sR, ibzwfs):
-        _, _, _, _, e_xc, _ = self._interpolate_and_calculate_xc(
-            xc, nt_sR, ibzwfs)
-        return e_xc
-
-    def calculate_pseudo_potential(self, density, ibzwfs, vHt_h=None):
-        nt_sr, pw, nt0_g = self._interpolate_density(density.nt_sR)
+    def _interpolate_and_calculate_xc(self, xc, density):
+        nt_sr, nt0_g = self._interpolate_density(density.nt_sR)
 
         if density.taut_sR is not None:
             taut_sr = self.interpolate(density.taut_sR)
         else:
             taut_sr = None
 
-        e_xc, vxct_sr, dedtaut_sr = self.xc.calculate(nt_sr, taut_sr)
+        e_xc, vxct_sr, dedtaut_sr = xc.calculate(nt_sr, taut_sr)
 
+        return nt_sr, nt0_g, taut_sr, e_xc, vxct_sr, dedtaut_sr
+
+    def calculate_non_selfconsistent_exc(self, xc, density):
+        _, _, _, e_xc, _, _ = self._interpolate_and_calculate_xc(xc, density)
+        return e_xc
+
+    def calculate_pseudo_potential(self, density, ibzwfs, vHt_h=None):
+        nt_sr, nt0_g, taut_sr, e_xc, vxct_sr, dedtaut_sr = (
+            self._interpolate_and_calculate_xc(self.xc, density))
+
+        pw = self.vbar_g.desc
         if pw.comm.rank == 0:
             nt0_g.data *= 1 / np.prod(density.nt_sR.desc.size_c)
             e_zero = self.vbar0_g.integrate(nt0_g)

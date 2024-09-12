@@ -3,8 +3,9 @@ from __future__ import annotations
 import warnings
 from functools import cached_property
 from pathlib import Path
+from pprint import pformat
 from types import SimpleNamespace
-from typing import IO, Any, Union
+from typing import IO, Any, Callable, Protocol, Sequence, Union, Iterable
 
 import numpy as np
 from ase import Atoms
@@ -12,15 +13,16 @@ from ase.units import Bohr, Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
-from gpaw.mpi import world, synchronize_atoms, broadcast as bcast
+from gpaw.mpi import MPIComm
+from gpaw.mpi import broadcast as bcast
+from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
-from gpaw.new.calculation import (DFTCalculation, DFTState,
-                                  CalculationModeError,
-                                  ReuseWaveFunctionsError, units)
+from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
+                                  DFTState, ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import read_gpw, write_gpw
-from gpaw.new.input_parameters import (DeprecatedParameterWarning,
-                                       InputParameters)
+from gpaw.new.input_parameters import InputParameters
+from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
 from gpaw.new.xc import create_functional
@@ -29,36 +31,71 @@ from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
 
 
-def GPAW(filename: Union[str, Path, IO[str]] = None,
-         txt: str | Path | IO[str] | None = '?',
-         communicator=None,
-         **kwargs) -> ASECalculator:
-    """Create ASE-compatible GPAW calculator."""
+class Dictable(Protocol):
+    def todict(self) -> dict[str, Any]:
+        ...
+
+
+def GPAW(
+    filename: Union[str, Path, IO[str]] = None,
+    *,
+    txt: str | Path | IO[str] | None = '?',
+    communicator: MPIComm | Iterable[int] | None = None,
+    basis: str | dict[str | int | None, str] | None = None,
+    charge: float | None = None,
+    convergence: dict[str, Any] | None = None,
+    eigensolver: dict[str, Any] | None = None,
+    experimental: dict[str, Any] | None = None,
+    external: dict[str, Any] | None = None,
+    gpts: None | Sequence[int] | None = None,
+    h: float | None = None,
+    hund: bool | None = None,
+    kpts: dict[str, Any] | None = None,
+    magmoms: Any | None = None,
+    maxiter: int | None = None,
+    mixer: dict[str, Any] | None = None,
+    mode: str | dict[str, Any] | None = None,
+    nbands: int | str | None = None,
+    occupations: dict[str, Any] | None = None,
+    parallel: dict[str, Any] | None = None,
+    poissonsolver: dict[str, Any] | None = None,
+    random: bool | None = None,
+    setups: Any | None = None,
+    soc: bool | None = None,
+    spinpol: bool | None = None,
+    symmetry: str | dict[str, Any] | None = None,
+    xc: str | dict[str, Any] | Dictable | None = None) -> ASECalculator:
+
+    """Create ASE-compatible GPAW calculator.
+
+    """
     if txt == '?':
         txt = '-' if filename is None else None
 
-    parallel = kwargs.get('parallel', {})
-    comm = parallel.pop('world', None)
-    if comm is None:
-        comm = communicator or world
+    if communicator is None:
+        comm = world
+    elif not hasattr(communicator, 'rank'):
+        comm = world.new_communicator(list(communicator))
     else:
-        warnings.warn(('Please use communicator=... '
-                       'instead of parallel={''world'': ...}'),
-                      DeprecatedParameterWarning)
+        comm = communicator  # type: ignore
+
     log = Logger(txt, comm)
 
+    params_dict = {key: value for key, value in locals().items()
+                   if key in parameter_names}
+
     if filename is not None:
-        if not {'parallel'}.issuperset(kwargs):
-            illegal = set(kwargs) - {'parallel'}
-            raise ValueError('Illegal arguments when reading from a file: '
-                             f'{illegal}')
+        for key, value in params_dict.items():
+            if key != 'parallel' and value is not None:
+                raise ValueError(
+                    f'Illegal argument when reading from a file: {key}')
         atoms, dft, params, _ = read_gpw(filename,
                                          log=log,
                                          parallel=parallel)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
-    params = InputParameters(kwargs)
+    params = InputParameters(params_dict)
     write_header(log, params)
     return ASECalculator(params, log=log)
 
@@ -76,9 +113,13 @@ def write_header(log, params):
     from gpaw.io.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
-    log('---')
     with log.indent('input parameters:'):
-        log(**dict(params.items()))
+        parts = []
+        for key, val in params.items():
+            n = len(key)
+            txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
+            parts.append(f'{key}={txt}')
+        log(',\n'.join(parts))
 
 
 def compare_atoms(a1: Atoms, a2: Atoms) -> set[str]:
@@ -104,6 +145,7 @@ class ASECalculator:
     """This is the ASE-calculator frontend for doing a GPAW calculation."""
 
     name = 'gpaw'
+    old = False
 
     def __init__(self,
                  params: InputParameters,
@@ -117,6 +159,7 @@ class ASECalculator:
         self._dft = dft
         self._atoms = atoms
         self.timer = Timer()
+        self.hooks: dict[str, Callable] = {}
 
     @property
     def dft(self) -> DFTCalculation:
@@ -181,14 +224,23 @@ class ASECalculator:
         elif changes:
             self.move_atoms(atoms)
             converged = False
+        elif not self._dft.results:
+            # Something cleared the results dict
+            converged = False
 
         if converged:
             return
+
+        if not self.dft.state.ibzwfs.has_wave_functions():
+            self.create_new_calculation(atoms)
+
+        assert self.hooks.keys() <= {'scf_step', 'converged'}
 
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
                     calculate_forces=self._calculate_forces):
                 yield ctx
+                self.hooks.get('scf_step', lambda ctx: None)(ctx)
 
         self.log(f'Converged in {ctx.niter} steps')
 
@@ -198,6 +250,8 @@ class ASECalculator:
         self.dft.magmoms()
 
         self.dft.write_converged()
+
+        self.hooks.get('converged', lambda: None)()
 
     def calculate_property(self,
                            atoms: Atoms | None,
@@ -231,11 +285,20 @@ class ASECalculator:
                      name: str,
                      atoms: Atoms | None = None,
                      allow_calculation: bool = True) -> Any:
-        if not allow_calculation and name not in self.dft.results:
+        if not allow_calculation:
+            if name not in self.dft.results:
+                return None
+            if atoms is None or len(self.check_state(atoms)) == 0:
+                return self.dft.results[name] * units[name]
             return None
         if atoms is None:
             atoms = self.atoms
         return self.calculate_property(atoms, name)
+
+    def calculation_required(self, atoms, properties):
+        if any(prop not in self.dft.results for prop in properties):
+            return True
+        return len(self.check_state(atoms)) > 0
 
     @property
     def results(self):
@@ -311,6 +374,9 @@ class ASECalculator:
                                            ) -> Array2D:
         return self.calculate_property(atoms, 'non_collinear_magmoms')
 
+    def check_state(self, atoms, tol=1e-12):
+        return list(compare_atoms(self.atoms, atoms))
+
     def write(self, filename, mode=''):
         """Write calculator object to a file.
 
@@ -342,14 +408,15 @@ class ASECalculator:
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
-                                 broadcast=True) -> Array3D:
+                                 broadcast=True,
+                                 pad=True) -> Array3D:
         state = self.dft.state
         collinear = state.ibzwfs.collinear
         if collinear:
             if spin is None:
                 spin = 0
         else:
-            assert spin is None
+            assert spin is None or spin == 0
         wfs = state.ibzwfs.get_wfs(spin=spin if collinear else 0,
                                    kpt=kpt,
                                    n1=band, n2=band + 1)
@@ -365,7 +432,7 @@ class ASECalculator:
                 grid = grid.new(kpt=psit_sG.desc.kpt_c,
                                 dtype=psit_sG.desc.dtype)
                 psit_R = psit_sG.ifft(grid=grid)
-            if not psit_R.desc.pbc.all():
+            if not psit_R.desc.pbc.all() and pad:
                 psit_R = psit_R.to_pbc_grid()
             if periodic:
                 psit_R.multiply_by_eikr(-psit_R.desc.kpt_c)
@@ -387,7 +454,9 @@ class ASECalculator:
     def get_fermi_levels(self) -> Array1D:
         state = self.dft.state
         fl = state.ibzwfs.fermi_levels
-        assert fl is not None and len(fl) == 2
+        assert fl is not None
+        if len(fl) == 1:
+            raise ValueError('Only one Fermi-level.')
         return fl * Ha
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
@@ -480,6 +549,10 @@ class ASECalculator:
         state = self.dft.state
         return state.ibzwfs.ibz.kpt_kc.copy()
 
+    def get_k_point_weights(self):
+        state = self.dft.state
+        return state.ibzwfs.ibz.weight_k
+
     def get_orbital_magnetic_moments(self):
         """Return the orbital magnetic moment vector for each atom."""
         state = self.dft.state
@@ -500,12 +573,17 @@ class ASECalculator:
 
         for name in properties:
             self.calculate_property(atoms, name)
-        # self.get_potential_energy(atoms)
 
     @cached_property
     def wfs(self):
         from gpaw.new.backwards_compatibility import FakeWFS
-        return FakeWFS(self.dft, self.atoms)
+        return FakeWFS(self.dft.state,
+                       self.dft.setups,
+                       self.comm,
+                       self.dft.scf_loop.occ_calc,
+                       self.dft.scf_loop.hamiltonian,
+                       self.atoms,
+                       scale_pw_coefs=True)
 
     @property
     def density(self):
@@ -515,7 +593,8 @@ class ASECalculator:
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
-        return FakeHamiltonian(self.dft)
+        return FakeHamiltonian(self.dft.state, self.dft.pot_calc,
+                               self.dft.results.get('free_energy'))
 
     @property
     def spos_ac(self):
@@ -556,8 +635,7 @@ class ASECalculator:
                 dft.scf_loop.update_density_and_potential = False
                 dft.converge()
             density.update_ked(state.ibzwfs)
-        exct = pot_calc.calculate_non_selfconsistent_exc(
-            xc, density.nt_sR, density.taut_sR)
+        exct = pot_calc.calculate_non_selfconsistent_exc(xc, density)
         dexc = 0.0
         for a, D_sii in state.density.D_asii.items():
             setup = self.setups[a]
@@ -585,14 +663,11 @@ class ASECalculator:
         ibzwfs = diagonalize(state.potential,
                              state.ibzwfs,
                              self.dft.scf_loop.occ_calc,
-                             nbands,
-                             self.dft.pot_calc.xc)
+                             nbands)
         self.dft.state = DFTState(ibzwfs,
                                   state.density,
                                   state.potential)
-        nbands = ibzwfs.nbands
-        self.params.nbands = nbands
-        self.params.keys.append('nbands')
+        self.params._add('nbands', ibzwfs.nbands)
 
     def gs_adapter(self):
         from gpaw.response.groundstate import ResponseGroundStateAdapter
@@ -674,3 +749,50 @@ class ASECalculator:
     @property
     def symmetry(self):
         return self.dft.state.ibzwfs.ibz.symmetries.symmetry
+
+    def get_wannier_localization_matrix(self, nbands, dirG, kpoint,
+                                        nextkpoint, G_I, spin):
+        """Calculate integrals for maximally localized Wannier functions."""
+        from gpaw.new.wannier import get_wannier_integrals
+        grid = self.dft.state.density.nt_sR.desc
+        k_kc = self.dft.state.ibzwfs.ibz.bz.kpt_Kc
+        G_c = k_kc[nextkpoint] - k_kc[kpoint] - G_I
+
+        return get_wannier_integrals(self.dft.state.ibzwfs,
+                                     grid,
+                                     spin, kpoint, nextkpoint, G_c, nbands)
+
+    def initial_wannier(self, initialwannier, kpointgrid, fixedstates,
+                        edf, spin, nbands):
+        from gpaw.new.wannier import initial_wannier
+        return initial_wannier(self.dft.state.ibzwfs,
+                               initialwannier, kpointgrid, fixedstates,
+                               edf, spin, nbands)
+
+    def initialize_positions(self, atoms=None):
+        pass
+
+    def set(self, eigensolver):
+        from gpaw.new.pwfd.etdm import ETDMPWFD
+        self.dft.scf_loop.eigensolver = ETDMPWFD(self.setups,
+                                                 self.comm,
+                                                 self.atoms,
+                                                 eigensolver)
+
+    def todict(self):
+        return dict(self.params.items())
+
+    def get_nonselfconsistent_energies(self, type='beefvdw'):
+        from gpaw.xc.bee import BEEFEnsemble
+        if type not in ['beefvdw', 'mbeef', 'mbeefvdw']:
+            raise NotImplementedError('Not implemented for type = %s' % type)
+        # assert self.scf.converged
+        bee = BEEFEnsemble(self)
+        x = bee.create_xc_contributions('exch')
+        c = bee.create_xc_contributions('corr')
+        if type == 'beefvdw':
+            return np.append(x, c)
+        elif type == 'mbeef':
+            return x.flatten()
+        elif type == 'mbeefvdw':
+            return np.append(x.flatten(), c)

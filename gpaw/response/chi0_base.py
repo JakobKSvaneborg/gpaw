@@ -14,10 +14,8 @@ from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.integrators import (
     Integrand, PointIntegrator, TetrahedronIntegrator, Domain)
-from gpaw.response.symmetry import (KPointDomainGenerator,
-                                    QSymmetryInput,
-                                    ensure_qsymmetry)
-from gpaw.response.kpoints import KPointDomain
+from gpaw.response.symmetry import QSymmetryInput, QSymmetryAnalyzer
+from gpaw.response.kpoints import KPointDomain, KPointDomainGenerator
 
 if TYPE_CHECKING:
     from gpaw.response.pair import ActualPairDensityCalculator
@@ -192,7 +190,7 @@ class Chi0ComponentCalculator:
         self.blockcomm, self.kncomm = block_partition(
             self.context.comm, self.nblocks)
 
-        self.qsymmetry = ensure_qsymmetry(qsymmetry)
+        self.qsymmetry = QSymmetryAnalyzer.from_input(qsymmetry)
 
         # Set up integrator
         self.integrationmode = integrationmode

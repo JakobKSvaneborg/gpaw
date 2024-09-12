@@ -7,7 +7,7 @@ from gpaw.lcao.projected_wannier import get_lcao_projections_HSP
 from gpaw.poisson import FDPoissonSolver
 
 
-@pytest.mark.later
+@pytest.mark.legacy
 def test_lcao_lcao_projections():
     atoms = molecule('C2H2')
     atoms.center(vacuum=3.0)

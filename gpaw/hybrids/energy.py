@@ -1,11 +1,11 @@
+from __future__ import annotations
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 from ase.units import Ha
 
 from gpaw import GPAW
-from gpaw.calculator import GPAW as Calculator
+from gpaw.new.ase_interface import ASECalculator
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import serial_comm
 from gpaw.pw.descriptor import PWDescriptor
@@ -19,7 +19,7 @@ from .symmetry import Symmetry
 from gpaw.typing import Array1D
 
 
-def non_self_consistent_energy(calc: Union[Calculator, str, Path],
+def non_self_consistent_energy(calc: ASECalculator | str | Path,
                                xcname: str,
                                ftol=1e-9) -> Array1D:
     """Calculate non self-consistent energy for Hybrid functional.
