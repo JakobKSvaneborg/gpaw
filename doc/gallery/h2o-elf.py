@@ -18,7 +18,7 @@ elf_R = elf_from_dft_calculation(h2o.calc.dft, ncut=0.001)
 elf_R = elf_R.scaled(cell=Bohr)  # convert unit-cell to Å units
 
 # Interpolate:
-finegrid = elf_R.uniform_grid_from_grid_spacing(0.1)
+finegrid = elf_R.desc.uniform_grid_with_grid_spacing(0.1)
 elf_R = elf_R.interpolate(grid=finegrid)
 
 # Plot:

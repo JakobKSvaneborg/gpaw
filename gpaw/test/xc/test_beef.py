@@ -9,12 +9,13 @@ from gpaw.mpi import world
 import gpaw.cgpaw as cgpaw
 
 
-@pytest.mark.later
 @pytest.mark.mgga
 @pytest.mark.libxc
 @pytest.mark.slow
 @pytest.mark.parametrize('xc', ['mBEEF', 'BEEF-vdW', 'mBEEF-vdW'])
-def test_beef(in_tmp_dir, xc):
+def test_beef(in_tmp_dir, xc, gpaw_new):
+    if xc == 'mBEEF-vdW' and gpaw_new:
+        pytest.skip('mBEEF-vdW not implemented')
     if xc[0] == 'm':
         assert cgpaw.lxcXCFuncNum('MGGA_X_MBEEF') is not None
 
@@ -43,7 +44,6 @@ def test_beef(in_tmp_dir, xc):
         ens.get_ensemble_energies(200)
         ens.write('Si-{}-{:.3f}'.format(xc, a))
         V.append(si.get_volume())
-
     p = np.polyfit(V, E, 2)
     v0 = np.roots(np.polyder(p))[0]
     a = (v0 * 4)**(1 / 3)
