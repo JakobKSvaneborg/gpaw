@@ -408,7 +408,7 @@ class ASECalculator:
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
                                  broadcast=True,
-                                 pad=True) -> Array3D:
+                                 pad=True) -> Array3D | None:
         psit_R = self.dft.wave_functions(n1=band, n2=band + 1,
                                          kpt=kpt, spin=spin,
                                          periodic=periodic,
@@ -416,6 +416,7 @@ class ASECalculator:
                                          _pad=pad)[0]
         if psit_R is not None:
             return psit_R.data
+        return None
 
     def get_atoms(self):
         atoms = self.atoms.copy()
