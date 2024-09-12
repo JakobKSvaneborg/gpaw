@@ -73,14 +73,6 @@ AIX:
    AIX/jump
    AIX/seaborg
 
-BGP:
-
-.. toctree::
-   :maxdepth: 2
-
-   BGP/jugene
-   BGP/performance
-
 BGQ:
 
 .. toctree::

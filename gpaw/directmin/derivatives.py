@@ -199,7 +199,7 @@ class Derivatives:
         Gr_n_x = {}
         Gr_n_y = {}
 
-        if dtype is complex:
+        if dtype == complex:
             for kpt in wfs.kpt_u:
                 k = etdm.n_kps * kpt.s + kpt.q
                 dim = A_s[k].shape[0]
@@ -943,7 +943,7 @@ class Davidson:
             calc.wfs, self.etdm.constraints, update_mom=method == 'full-hess')
         appr_hess, appr_sp_order = self.estimate_spo_and_update_appr_hess(
             calc.wfs)
-        if calc.wfs.dtype is complex:
+        if calc.wfs.dtype == complex:
             appr_sp_order *= 2
         if method == 'full-hess':
             constraints_copy = deepcopy(self.etdm.constraints)

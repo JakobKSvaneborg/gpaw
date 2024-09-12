@@ -5,15 +5,15 @@ from functools import cached_property
 from pathlib import Path
 from pprint import pformat
 from types import SimpleNamespace
-from typing import IO, Any, Callable, Protocol, Sequence, Union
+from typing import IO, Any, Callable, Protocol, Sequence, Union, Iterable
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
-
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
+from gpaw.mpi import MPIComm
 from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
@@ -40,7 +40,7 @@ def GPAW(
     filename: Union[str, Path, IO[str]] = None,
     *,
     txt: str | Path | IO[str] | None = '?',
-    communicator=None,
+    communicator: MPIComm | Iterable[int] | None = None,
     basis: str | dict[str | int | None, str] | None = None,
     charge: float | None = None,
     convergence: dict[str, Any] | None = None,
@@ -72,7 +72,12 @@ def GPAW(
     if txt == '?':
         txt = '-' if filename is None else None
 
-    comm = communicator or world
+    if communicator is None:
+        comm = world
+    elif not hasattr(communicator, 'rank'):
+        comm = world.new_communicator(list(communicator))
+    else:
+        comm = communicator  # type: ignore
 
     log = Logger(txt, comm)
 
@@ -140,6 +145,7 @@ class ASECalculator:
     """This is the ASE-calculator frontend for doing a GPAW calculation."""
 
     name = 'gpaw'
+    old = False
 
     def __init__(self,
                  params: InputParameters,
@@ -225,6 +231,9 @@ class ASECalculator:
         if converged:
             return
 
+        if not self.dft.state.ibzwfs.has_wave_functions():
+            self.create_new_calculation(atoms)
+
         assert self.hooks.keys() <= {'scf_step', 'converged'}
 
         with self.timer('SCF'):
@@ -276,11 +285,20 @@ class ASECalculator:
                      name: str,
                      atoms: Atoms | None = None,
                      allow_calculation: bool = True) -> Any:
-        if not allow_calculation and name not in self.dft.results:
+        if not allow_calculation:
+            if name not in self.dft.results:
+                return None
+            if atoms is None or len(self.check_state(atoms)) == 0:
+                return self.dft.results[name] * units[name]
             return None
         if atoms is None:
             atoms = self.atoms
         return self.calculate_property(atoms, name)
+
+    def calculation_required(self, atoms, properties):
+        if any(prop not in self.dft.results for prop in properties):
+            return True
+        return len(self.check_state(atoms)) > 0
 
     @property
     def results(self):
@@ -356,6 +374,9 @@ class ASECalculator:
                                            ) -> Array2D:
         return self.calculate_property(atoms, 'non_collinear_magmoms')
 
+    def check_state(self, atoms, tol=1e-12):
+        return list(compare_atoms(self.atoms, atoms))
+
     def write(self, filename, mode=''):
         """Write calculator object to a file.
 
@@ -387,7 +408,8 @@ class ASECalculator:
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
-                                 broadcast=True) -> Array3D:
+                                 broadcast=True,
+                                 pad=True) -> Array3D:
         state = self.dft.state
         collinear = state.ibzwfs.collinear
         if collinear:
@@ -410,7 +432,7 @@ class ASECalculator:
                 grid = grid.new(kpt=psit_sG.desc.kpt_c,
                                 dtype=psit_sG.desc.dtype)
                 psit_R = psit_sG.ifft(grid=grid)
-            if not psit_R.desc.pbc.all():
+            if not psit_R.desc.pbc.all() and pad:
                 psit_R = psit_R.to_pbc_grid()
             if periodic:
                 psit_R.multiply_by_eikr(-psit_R.desc.kpt_c)
@@ -432,7 +454,9 @@ class ASECalculator:
     def get_fermi_levels(self) -> Array1D:
         state = self.dft.state
         fl = state.ibzwfs.fermi_levels
-        assert fl is not None and len(fl) == 2
+        assert fl is not None
+        if len(fl) == 1:
+            raise ValueError('Only one Fermi-level.')
         return fl * Ha
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
@@ -525,6 +549,10 @@ class ASECalculator:
         state = self.dft.state
         return state.ibzwfs.ibz.kpt_kc.copy()
 
+    def get_k_point_weights(self):
+        state = self.dft.state
+        return state.ibzwfs.ibz.weight_k
+
     def get_orbital_magnetic_moments(self):
         """Return the orbital magnetic moment vector for each atom."""
         state = self.dft.state
@@ -607,8 +635,7 @@ class ASECalculator:
                 dft.scf_loop.update_density_and_potential = False
                 dft.converge()
             density.update_ked(state.ibzwfs)
-        exct = pot_calc.calculate_non_selfconsistent_exc(
-            xc, density.nt_sR, density.taut_sR)
+        exct = pot_calc.calculate_non_selfconsistent_exc(xc, density)
         dexc = 0.0
         for a, D_sii in state.density.D_asii.items():
             setup = self.setups[a]
@@ -636,8 +663,7 @@ class ASECalculator:
         ibzwfs = diagonalize(state.potential,
                              state.ibzwfs,
                              self.dft.scf_loop.occ_calc,
-                             nbands,
-                             self.dft.pot_calc.xc)
+                             nbands)
         self.dft.state = DFTState(ibzwfs,
                                   state.density,
                                   state.potential)
@@ -736,5 +762,37 @@ class ASECalculator:
                                      grid,
                                      spin, kpoint, nextkpoint, G_c, nbands)
 
+    def initial_wannier(self, initialwannier, kpointgrid, fixedstates,
+                        edf, spin, nbands):
+        from gpaw.new.wannier import initial_wannier
+        return initial_wannier(self.dft.state.ibzwfs,
+                               initialwannier, kpointgrid, fixedstates,
+                               edf, spin, nbands)
+
     def initialize_positions(self, atoms=None):
         pass
+
+    def set(self, eigensolver):
+        from gpaw.new.pwfd.etdm import ETDMPWFD
+        self.dft.scf_loop.eigensolver = ETDMPWFD(self.setups,
+                                                 self.comm,
+                                                 self.atoms,
+                                                 eigensolver)
+
+    def todict(self):
+        return dict(self.params.items())
+
+    def get_nonselfconsistent_energies(self, type='beefvdw'):
+        from gpaw.xc.bee import BEEFEnsemble
+        if type not in ['beefvdw', 'mbeef', 'mbeefvdw']:
+            raise NotImplementedError('Not implemented for type = %s' % type)
+        # assert self.scf.converged
+        bee = BEEFEnsemble(self)
+        x = bee.create_xc_contributions('exch')
+        c = bee.create_xc_contributions('corr')
+        if type == 'beefvdw':
+            return np.append(x, c)
+        elif type == 'mbeef':
+            return x.flatten()
+        elif type == 'mbeefvdw':
+            return np.append(x.flatten(), c)

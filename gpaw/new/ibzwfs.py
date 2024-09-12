@@ -113,6 +113,9 @@ class IBZWaveFunctions(Generic[WFT]):
             return 'fd'
         return 'lcao'
 
+    def has_wave_functions(self):
+        return True
+
     def get_max_shape(self, global_shape: bool = False) -> tuple[int, ...]:
         """Find the largest wave function array shape.
 
@@ -293,8 +296,8 @@ class IBZWaveFunctions(Generic[WFT]):
             eig_skn = np.empty((self.nspins, nkpts, self.nbands))
             occ_skn = np.empty((self.nspins, nkpts, self.nbands))
         else:
-            eig_skn = np.empty((0, 0, 0))
-            occ_skn = np.empty((0, 0, 0))
+            eig_skn = np.empty((self.nspins, nkpts, 0))
+            occ_skn = np.empty((self.nspins, nkpts, 0))
         for k in range(nkpts):
             for s in range(self.nspins):
                 eig_n, occ_n = self.get_eigs_and_occs(k, s)
@@ -322,6 +325,9 @@ class IBZWaveFunctions(Generic[WFT]):
         also the wave functions.
         """
         eig_skn, occ_skn = self.get_all_eigs_and_occs()
+        if not self.collinear:
+            eig_skn = eig_skn[0]
+            occ_skn = occ_skn[0]
         assert self.fermi_levels is not None
         writer.write(fermi_levels=self.fermi_levels * Ha,
                      eigenvalues=eig_skn * Ha,

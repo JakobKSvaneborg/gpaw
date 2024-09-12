@@ -822,7 +822,7 @@ class FDPWETDM:
         wfs.pt.integrate(psi_1, P1_ai, kpt.q)
         wfs.pt.integrate(psi_2, P2_ai, kpt.q)
         if ndim == 1:
-            if self.dtype is complex:
+            if self.dtype == complex:
                 paw_dot_prod = np.array([[0.0 + 0.0j]])
             else:
                 paw_dot_prod = np.array([[0.0]])

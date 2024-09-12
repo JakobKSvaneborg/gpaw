@@ -79,7 +79,6 @@ class PWHybridHamiltonian(PWHamiltonian):
                  fracpos_ac,
                  atomdist):
         super().__init__(grid, pw)
-        self.grid = grid
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
@@ -98,8 +97,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             pw, fracpos_ac, atomdist)
         self.ghat_aLG._lazy_init()
         self.ghat_GA = self.ghat_aLG._lfc.expand()
-
-        self.plan = grid.fft_plans()
+        # self.plan = grid.fft_plans()
 
     def apply_orbital_dependent(self,
                                 ibzwfs: IBZWaveFunctions,
@@ -164,13 +162,14 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         Q_nA = np.empty((mynbands,
                          sum(delta_iiL.shape[2]
-                             for delta_iiL in self.delta_aiiL)))
-        rhot_nR = self.grid.empty(mynbands)
+                             for delta_iiL in self.delta_aiiL)),
+                        dtype=self.pw.dtype)
+        rhot_nR = self.grid_local.empty(mynbands)
         rhot_nG = self.pw.empty(mynbands)
         vrhot_G = self.pw.empty()
 
         if psi1 is not psi2 or comm.size > 1:
-            psit1_nR = self.grid.empty(mynbands)
+            psit1_nR = self.grid_local.empty(mynbands)
         else:
             psit1_nR = None
 
@@ -182,7 +181,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                     psi = psi1.empty()
                 psi.receive((comm.rank - 1) % comm.size)
             if p == 0:
-                psi2.psit_nR = self.grid.empty(mynbands)
+                psi2.psit_nR = self.grid_local.empty(mynbands)
                 ifft(psi2.psit_nG, psi2.psit_nR, self.plan)
             e += self.inner(psi1, psi2,
                             Q_nA,
@@ -224,26 +223,34 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         e = 0.0
         for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
-            rhot_nR.data[:] = psit1_nR.data * psit2_R.data
+            rhot_nR.data[:] = psit1_nR.data * psit2_R.data.conj()
             fft(rhot_nR, rhot_nG, plan=self.plan)
             A1 = 0
             for a, Q1_niL in Q1_aniL.items():
                 P2_i = psi2.P_ani[a][n2]
                 A2 = A1 + Q1_niL.shape[2]
-                Q_nA[:, A1:A2] = P2_i @ Q1_niL
+                Q_nA[:, A1:A2] = P2_i.conj() @ Q1_niL
                 A1 = A2
-            # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
-            mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
-                1.0, rhot_nG.data.view(float))
+
+            if self.pw.dtype == float:
+                # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
+                mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
+                    1.0, rhot_nG.data.view(float))
+            else:
+                mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
+                    1.0, rhot_nG.data)
             for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
                                                            rhot_nG,
                                                            psi1.f_n)):
                 vrhot_G.data = rhot_G.data * self.v_G.data
                 if psi2.f_n is not None:
-                    e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G)
+                    e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
                 rhot_G.data[:] = vrhot_G.data
-                vrhot_G.data[0] *= 0.5
-                A1_A = vrhot_G.data.view(float) @ self.ghat_GA * 2.0
+                if self.pw.dtype == float:
+                    vrhot_G.data[0] *= 0.5
+                    A1_A = vrhot_G.data.view(float) @ self.ghat_GA * 2.0
+                else:
+                    A1_A = vrhot_G.data @ self.ghat_GA
                 A1 = 0
                 for a, Q1_niL in Q1_aniL.items():
                     A2 = A1 + Q1_niL.shape[2]

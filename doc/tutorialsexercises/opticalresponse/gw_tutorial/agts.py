@@ -9,7 +9,7 @@ def workflow():
                  cores=24, tmax='3h'):
             run(script='C_ecut_automatic_extrapolate_plot.py')
 
-    with run(script='C_frequency_conv.py', tmax='30m'):
+    with run(script='C_frequency_conv.py', tmax='30h'):
         with run(script='C_frequency_conv_plot.py'):
             run(script='C_equal_test.py', deps=[r])
 

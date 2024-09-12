@@ -148,23 +148,29 @@ PyObject* pyelpa_diagonalize(PyObject *self, PyObject *args)
 {
     PyObject *handle_obj;
     PyArrayObject *A_obj, *C_obj, *eps_obj;
+    PyObject *is_complex_obj;
 
     if (!PyArg_ParseTuple(args,
-                          "OOOO",
+                          "OOOOO",
                           &handle_obj,
                           &A_obj,
                           &C_obj,
-                          &eps_obj))
+                          &eps_obj,
+                          &is_complex_obj))
         return NULL;
 
     elpa_t handle = unpack_handle(handle_obj);
 
-    double *a = (double*)PyArray_DATA(A_obj);
+    void *a = (void*)PyArray_DATA(A_obj);
     double *ev = (double*)PyArray_DATA(eps_obj);
-    double *q = (double*)PyArray_DATA(C_obj);
+    void *q = (void*)PyArray_DATA(C_obj);
 
     int err;
-    elpa_eigenvectors(handle, a, ev, q, &err);
+    if (PyObject_IsTrue(is_complex_obj)) {
+        elpa_eigenvectors_double_complex(handle, a, ev, q, &err);
+    } else {
+        elpa_eigenvectors_double(handle, a, ev, q, &err);
+    }
     return checkerr(err);
 }
 
@@ -172,37 +178,35 @@ PyObject* pyelpa_general_diagonalize(PyObject *self, PyObject *args)
 {
     PyObject *handle_obj;
     PyArrayObject *A_obj, *S_obj, *C_obj, *eps_obj;
+    PyObject *is_complex_obj;
     int is_already_decomposed;
 
     if (!PyArg_ParseTuple(args,
-                          "OOOOOi",
+                          "OOOOOiO",
                           &handle_obj,
                           &A_obj,
                           &S_obj,
                           &C_obj,
                           &eps_obj,
-                          &is_already_decomposed))
+                          &is_already_decomposed,
+                          &is_complex_obj))
         return NULL;
 
     elpa_t handle = unpack_handle(handle_obj);
 
     int err;
     double *ev = (double *)PyArray_DATA(eps_obj);
-    double *a = (double *)PyArray_DATA(A_obj);
-    double *b = (double *)PyArray_DATA(S_obj);
-    double *q = (double *)PyArray_DATA(C_obj);
+    void *a = (void *)PyArray_DATA(A_obj);
+    void *b = (void *)PyArray_DATA(S_obj);
+    void *q = (void *)PyArray_DATA(C_obj);
 
-    if(PyArray_DESCR(A_obj)->type_num == NPY_DOUBLE) {
-        elpa_generalized_eigenvectors(handle, a, b, ev, q,
-                                      is_already_decomposed, &err);
+    if (PyObject_IsTrue(is_complex_obj)) {
+        elpa_generalized_eigenvectors_dc(handle, a, b, ev, q,
+                                         is_already_decomposed, &err);
 
     } else {
-        elpa_generalized_eigenvectors(handle,
-                                      (double complex *)a,
-                                      (double complex *)b,
-                                      ev,
-                                      (double complex *)q,
-                                      is_already_decomposed, &err);
+        elpa_generalized_eigenvectors_d(handle, a, b, ev, q,
+                                        is_already_decomposed, &err);
     }
     return checkerr(err);
 }

@@ -2,6 +2,7 @@ import pytest
 
 import numpy as np
 
+from ase.spacegroup import crystal
 from ase.units import Bohr
 
 from gpaw import GPAW
@@ -169,3 +170,50 @@ def test_Co_site_data(gpw_files):
     # plt.xlabel(r'$r_\mathrm{c}$ [$\mathrm{\AA}$]')
     # plt.ylabel(r'$E_\mathrm{Z}$ [eV]')
     # plt.show()
+
+
+@pytest.mark.response
+def test_valid_site_radii_symmetry():
+    # Set up Cr2O3 crystal
+    cellpar = [4.95721, 4.95721, 13.59170, 90, 90, 120]
+    Cr_c = [0, 0, 0.34734]
+    O_c = [0.30569, 0.0, 0.25]
+    spos_ac = [Cr_c, O_c]
+    atoms = crystal('CrO',
+                    spacegroup=167,
+                    cellpar=cellpar,
+                    basis=spos_ac,
+                    primitive_cell=True,
+                    pbc=True)
+    # from ase.visualize import view
+    # view(atoms)
+
+    # Set up calculator with a specific grid spacing and generate adapter
+    spacing = 0.1
+    calc = GPAW(mode='fd', h=spacing)
+    calc.initialize(atoms)
+    gs = DummyAdapter(calc)
+
+    # Generate valid site radii range
+    rmin_A, rmax_A = get_site_radii_range(gs)
+    # Test that the minimum radius corresponds loosely to the specified
+    # spacing. The correspondance would be exact for a cubic cell.
+    assert rmin_A == pytest.approx(np.ones(len(atoms)) * spacing / 2, rel=0.2)
+    # Test that all Cr and O atoms result in symmetrically equivalent maximum
+    # cutoff radii
+    CrO_dist = 1.966
+    Cr_aug_radius = 2.3 * Bohr
+    O_aug_radius = 1.3 * Bohr
+    is_Cr = np.array([c == 'Cr' for c in atoms.get_chemical_symbols()])
+    refmax_A = np.empty(len(atoms))
+    refmax_A[is_Cr] = CrO_dist - O_aug_radius
+    refmax_A[~is_Cr] = CrO_dist - Cr_aug_radius
+    assert rmax_A == pytest.approx(refmax_A, abs=0.001)
+
+
+class DummyAdapter(ResponseGroundStateAdapter):
+    def __init__(self, calc):
+        from gpaw.response.groundstate import PAWDatasetCollection
+        self.atoms = calc.atoms
+        self.gd = calc.wfs.gd
+        self.pawdatasets = PAWDatasetCollection(calc.setups)

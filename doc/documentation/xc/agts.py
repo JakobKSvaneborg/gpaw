@@ -17,7 +17,7 @@ def workflow():
             run(script='libvdwxc-pfft-example.py', cores=8)
     run(script='rsf_gamma.py', cores=8)
     run(script='ivo_hft.py', tmax='1h')
-    run(script='rsf_ivo_nacl.py', tmax='1h')
+    run(script='rsf_ivo_nacl.py', tmax='10h')
     run(script='rsf_lrtddft.py', cores=24, tmax='20m')
     run(script='rsf_setup_poisson.py')
     run(script='rsf_simple.py')
