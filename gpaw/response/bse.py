@@ -239,7 +239,6 @@ class BSEBackend:
         self.eshift = eshift
 
         self.coulomb = CoulombKernel.from_gs(self.gs, truncation=truncation)
-        self.context.print(self.coulomb.description())
 
         # Distribution of kpoints
         self.myKrange, self.myKsize = self.parallelisation_kpoints()
@@ -318,7 +317,10 @@ class BSEBackend:
 
     def _spinordata(self, soc_tol):
         self.context.print('Diagonalizing spin-orbit Hamiltonian')
-        soc = self.gs.soc_eigenstates(scale=self.scale)
+        # We dont need ALL the screening bands to mix in the SOC here.
+        # This will give us bands up to two times the highest conduction band.
+        n2 = np.min([self.con_m[-1], self.nbands])
+        soc = self.gs.soc_eigenstates(n2=n2, scale=self.scale)
         f_km = np.array([wf.f_m for wf in soc])
         e_km = soc.eigenvalues()
         e_km /= Hartree
@@ -334,7 +336,7 @@ class BSEBackend:
 
         The indices are indicative such that all capital letters imply
         global indices and lower case letters imply local ("my CPU")
-        indices. For example, K, S and k, s are global and local k-points
+        indices. For example, K, S and k, s are global and local k-point
         and pair state indices respectively.
 
         In addition the KS state indices are used such that n represents
@@ -759,15 +761,17 @@ class BSEBackend:
             q_v = np.dot(self.q_c, B_cv)
             vchi_w /= np.dot(q_v, q_v)
 
-        """Check f-sum rule."""
+        # Check f-sum rule
         nv = self.gs.nvalence
         dw_w = (w_w[1:] - w_w[:-1]) / Hartree
         wvchi_w = (w_w[1:] * vchi_w[1:] + w_w[:-1] * vchi_w[:-1]) / Hartree / 2
         N = -np.dot(dw_w, wvchi_w.imag) * self.gs.volume / (2 * np.pi**2)
-
+        Nt = 2 * np.dot(w_T, C_T).real
         self.context.print('', flush=False)
-        self.context.print('Checking f-sum rule:', flush=False)
-        self.context.print(f'  Valence = {nv}, N = {N:f}', flush=False)
+        self.context.print('Checking f-sum rule', flush=False)
+        self.context.print(f'  Valence electrons : {nv}', flush=False)
+        self.context.print(f'  Frequency integral: {N:f}', flush=False)
+        self.context.print(f'  Sum of weights    : {Nt:f}', flush=False)
         self.context.print('')
 
         return vchi_w
@@ -881,8 +885,11 @@ class BSEBackend:
             f'Number of pair orbitals        : {self.nS}',
             '',
             f'Truncation of Coulomb kernel   : {self.coulomb.truncation}'])
+        integrate_gamma = self.integrate_gamma.type
+        if self.integrate_gamma.reduced:
+            integrate_gamma += '2D'
         isl.append(
-            'Coulomb integration scheme     : {self.integrate_gamma}')
+            f'Coulomb integration scheme     : {integrate_gamma}')
         isl.extend([
             '',
             '----------------------------------------------------------',
