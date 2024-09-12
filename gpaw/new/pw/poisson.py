@@ -3,8 +3,7 @@ from math import pi
 
 import numpy as np
 from ase.units import Bohr, Ha
-from gpaw.core import PWDesc, UGDesc
-from gpaw.core.plane_waves import PWArray
+from gpaw.core import PWDesc, UGDesc, PWArray
 from gpaw.new.poisson import PoissonSolver
 from scipy.special import erf
 

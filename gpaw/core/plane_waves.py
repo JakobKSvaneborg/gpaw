@@ -30,7 +30,8 @@ class PWDesc(Domain):
 
     def __init__(self,
                  *,
-                 ecut: float,  # hartree
+                 ecut: float | None = None,
+                 gcut: float | None = None,
                  cell: ArrayLike1D | ArrayLike2D,  # bohr
                  kpt: Vector | None = None,  # in units of reciprocal cell
                  comm: MPIComm = serial_comm,
@@ -53,6 +54,12 @@ class PWDesc(Domain):
         dtype:
             Data-type (float or complex).
         """
+        if ecut is None:
+            assert gcut is not None
+            ecut = 0.5 * gcut**2
+        else:
+            assert gcut is None
+            gcut = (2.0 * ecut)**0.5
         self.ecut = ecut
         Domain.__init__(self, cell, (True, True, True), kpt, comm, dtype)
 
