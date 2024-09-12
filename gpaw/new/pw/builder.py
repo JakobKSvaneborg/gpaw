@@ -15,7 +15,7 @@ from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D
-from gpaw.new.pw.paw_poisson import PAWPoissonSolver
+from gpaw.new.pw.paw_poisson import OldPAWPoissonSolver, PAWPoissonSolver
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -96,19 +96,23 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def create_poisson_solver(self):
         psparams = self.params.poissonsolver or {'strength': 1.0}
         if psparams.pop('fast', False):
-            ps = make_poisson_solver(self.interpolation_desc,
+            pw = self.interpolation_desc
+            ps = make_poisson_solver(pw,
                                      self.grid,
                                      self.params.charge,
                                      **psparams)
+            return PAWPoissonSolver(
+                pw,
+                self.setups, ps,
+                self.fracpos_ac, self.atomdist, self.xp)
         else:
             ps = make_poisson_solver(self.electrostatic_potential_desc,
                                      self.fine_grid,
                                      self.params.charge,
                                      **psparams)
             pw = self.interpolation_desc
-            return PAWPoissonSolver(
+            return OldPAWPoissonSolver(
                 pw,
-                pw.new(comm=None),  # not distributed,
                 self.setups, ps,
                 self.fracpos_ac, self.atomdist, self.xp)
 

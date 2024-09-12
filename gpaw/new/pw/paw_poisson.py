@@ -1,6 +1,6 @@
 import numpy as np
-from gpaw.core import PWDesc
-from gpaw.core.atom_arrays import AtomDistribution
+from gpaw.core import PWDesc, PWArray
+from gpaw.core.atom_arrays import AtomDistribution, AtomArrays
 from gpaw.gpu import cupy as cp
 from gpaw.setup import Setups
 
@@ -8,7 +8,6 @@ from gpaw.setup import Setups
 class PAWPoissonSolver:
     def __init__(self,
                  pwg: PWDesc,
-                 pwg0: PWDesc,
                  setups: Setups,
                  poisson_solver,
                  fracpos_ac: np.ndarray,
@@ -16,12 +15,53 @@ class PAWPoissonSolver:
                  xp=np):
         self.xp = xp
         self.pwg = pwg
-        self.pwg0 = pwg0
+        self.pwg0 = pwg.new(comm=None)  # not distributed
+        self.poisson_solver = poisson_solver
+        self.ghat_aLg = setups.create_compensation_charges(
+            pwg, fracpos_ac, atomdist, xp)
+
+    def dipole_layer_correction(self):
+        return self.poisson_solver.dipole_layer_correction()
+
+    def solve(self,
+              nt_g: PWArray,
+              Q_aL: AtomArrays,
+              vt0_g: PWArray,
+              vHt_g: PWArray):
+        charge_g = nt_g.copy()
+        self.ghat_aLg.add_to(charge_g, Q_aL)
+        pwg = self.pwg
+
+        if vHt_g is None:
+            vHt_g = pwg.zeros(xp=self.xp)
+
+        e_coulomb = self.poisson_solver.solve(vHt_g, charge_g)
+
+        vHt0_g = vHt_g.gather()
+        if pwg.comm.rank == 0:
+            vt0_g.data += vHt0_g.data
+
+        V_aL = self.ghat_aLg.integrate(vHt_g)
+
+        return e_coulomb, vHt_g, V_aL
+
+
+class OldPAWPoissonSolver:
+    def __init__(self,
+                 pwg: PWDesc,
+                 setups: Setups,
+                 poisson_solver,
+                 fracpos_ac: np.ndarray,
+                 atomdist: AtomDistribution,
+                 xp=np):
+        self.xp = xp
+        self.pwg = pwg
+        self.pwg0 = pwg.new(comm=None)  # not distributed
         self.pwh = poisson_solver.pw
         self.poisson_solver = poisson_solver
         self.ghat_aLh = setups.create_compensation_charges(
             self.pwh, fracpos_ac, atomdist, xp)
-        self.h_g, self.g_r = self.pwh.map_indices(pwg0)
+        self.h_g, self.g_r = self.pwh.map_indices(self.pwg0)
         if xp is cp:
             self.h_g = cp.asarray(self.h_g)
             self.g_r = [cp.asarray(g) for g in self.g_r]
