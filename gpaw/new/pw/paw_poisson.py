@@ -3,12 +3,14 @@ from gpaw.core import PWDesc, PWArray
 from gpaw.core.atom_arrays import AtomDistribution, AtomArrays
 from gpaw.gpu import cupy as cp
 from gpaw.setup import Setups
+from gpaw.atom.shapefunc import shape_functions
+from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 
 
 class PAWPoissonSolver:
     def __init__(self,
                  pwg: PWDesc,
-                 setups: Setups,
+                 cutoff_a: np.ndarray,
                  poisson_solver,
                  fracpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
@@ -17,8 +19,18 @@ class PAWPoissonSolver:
         self.pwg = pwg
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.poisson_solver = poisson_solver
-        self.ghat_aLg = setups.create_compensation_charges(
-            pwg, fracpos_ac, atomdist, xp)
+
+        cutoff_a = np.asarray(cutoff_a)
+        rc = cutoff_a.max() * 2
+        d = 0.01
+        rgd = RGD(d, int(rc * 5 / d))
+        g_lg = shape_functions(rgd, 'gauss', rc, lmax=2)
+        ghat_l = [rgd.spline(g_g, l=1) for l, g_g in enumerate(g_lg)]
+
+        self.ghat_aLg = pwg.atom_centered_functions(
+            [ghat_l] * len(cutoff_a), fracpos_ac,
+            atomdist=atomdist,
+            xp=xp)
 
     def dipole_layer_correction(self):
         return self.poisson_solver.dipole_layer_correction()
