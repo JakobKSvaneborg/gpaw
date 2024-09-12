@@ -55,9 +55,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         return a_r.fft_restrict(self.fftplan2, self.fftplan,
                                 grid=self.grid, out=a_R)
 
-    def ____calculate_charges(self, vHt_h):
-        return self.ghat_aLh.integrate(vHt_h)
-
     def _interpolate_density(self, nt_sR):
         nt_sr = self.fine_grid.empty(nt_sR.dims, xp=self.xp)
         pw = self.vbar_g.desc
@@ -137,7 +134,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                 'external': e_external}, vt_sR, dedtaut_sr, vHt_h, V_aL
 
     def move(self, fracpos_ac, atomdist):
-        self.ghat_aLh.move(fracpos_ac, atomdist)
+        self.poisson_solver.ghat_aLh.move(fracpos_ac, atomdist)
         self.vbar_ag.move(fracpos_ac, atomdist)
         self.vbar_g.data[:] = 0.0
         self.vbar_ag.add_to(self.vbar_g)

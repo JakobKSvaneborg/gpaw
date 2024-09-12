@@ -56,9 +56,6 @@ class FDPotentialCalculator(PotentialCalculator):
     def restrict(self, a_xr, a_xR=None):
         return self._restrict(a_xr, a_xR)
 
-    def calculate_charges(self, vHt_r):
-        return self.ghat_aLr.integrate(vHt_r)
-
     def calculate_non_selfconsistent_exc(self, xc, nt_sR, taut_sR):
         nt_sr, _, _ = self._interpolate_density(nt_sR)
         if taut_sR is not None:
@@ -116,10 +113,12 @@ class FDPotentialCalculator(PotentialCalculator):
 
         e_external = 0.0
 
+        V_aL = self.ghat_aLr.integrate(vHt_r)
+
         return {'coulomb': e_coulomb,
                 'zero': e_zero,
                 'xc': e_xc,
-                'external': e_external}, vt_sR, dedtaut_sr, vHt_r
+                'external': e_external}, vt_sR, dedtaut_sr, vHt_r, V_aL
 
     def move(self, fracpos_ac, atomdist):
         self.ghat_aLr.move(fracpos_ac, atomdist)

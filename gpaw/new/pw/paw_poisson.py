@@ -26,6 +26,9 @@ class PAWPoissonSolver:
             self.h_g = cp.asarray(self.h_g)
             self.g_r = [cp.asarray(g) for g in self.g_r]
 
+    def dipole_layer_correction(self):
+        return self.poisson_solver.dipole_layer_correction()
+
     def solve(self, nt_g, Q_aL, vt0_g, vHt_h):
         charge_h = self.pwh.zeros(xp=self.xp)
         self.ghat_aLh.add_to(charge_h, Q_aL)
@@ -61,4 +64,3 @@ class PAWPoissonSolver:
         V_aL = self.ghat_aLh.integrate(vHt_h)
 
         return e_coulomb, vHt_h, V_aL
-
