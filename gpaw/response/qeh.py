@@ -17,7 +17,7 @@ except ImportError:
                                or is too old.')
 
 
-class GPAW_ChiCalc(ChiCalc):
+class QEHChiCalc(ChiCalc):
     qdim = {'x': 0, 'y': 1}
 
     def __init__(self,
