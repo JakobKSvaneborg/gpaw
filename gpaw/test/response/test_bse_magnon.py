@@ -3,7 +3,6 @@ from gpaw.mpi import world
 from gpaw.utilities import compiled_with_sl
 import numpy as np
 from ase import Atoms
-from ase.lattice.hexagonal import Hexagonal
 from gpaw import GPAW, FermiDirac
 from gpaw.test import findpeak
 from gpaw.response.bse import BSE
@@ -24,18 +23,15 @@ def test_response_bse_magnon(in_tmp_dir):
 
     a = 3.945
     c = 8.0
-
-    cell = Hexagonal(symbol='Sc',
-                     latticeconstant={'a': a, 'c': c}).get_cell()
-    layer = Atoms(symbols='ScSe2', cell=cell, pbc=(1, 1, 0),
+    layer = Atoms(symbols='ScSe2',
+                  cell=[a, a, c, 90, 90, 120],
+                  pbc=(1, 1, 0),
                   scaled_positions=[(0, 0, 0),
-                                    (2 / 3, 1 / 3, 0.3),
-                                    (2 / 3, 1 / 3, -0.3)])
-
-    pos = layer.get_positions()
-    pos[1][2] = pos[0][2] + 1.466
-    pos[2][2] = pos[0][2] - 1.466
-    layer.set_positions(pos)
+                                    (2 / 3, 1 / 3, 0.0),
+                                    (2 / 3, 1 / 3, 0.0)])
+    layer.positions[1, 2] += 1.466
+    layer.positions[2, 2] -= 1.466
+    layer.center(axis=2)
     layer.set_initial_magnetic_moments([1.0, 0, 0])
     layer.calc = calc
     layer.get_potential_energy()
