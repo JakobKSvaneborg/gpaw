@@ -16,7 +16,7 @@ relative to the Fermilevel).
   the magnetization like this:
 
   .. literalinclude:: magnetization.py
-    
+
   and :ref:`look at it <iso>`.
 
 * Calculate the DOS for bulk Aluminum and compare it
@@ -42,3 +42,5 @@ We will get a feel for the local density of states by plotting the
 PDOS for the ferro-magnetic Fe crystal.  Look at
 :git:`~doc/tutorialsexercises/electronic/dos/pdos.py`. Use it to plot the s, p,
 and d-states on one of the Fe atoms.
+
+Alternatively, you can also use the :ref:`cli` DOS tool: ``gpaw dos``.

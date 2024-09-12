@@ -210,7 +210,7 @@ is shown below (see :download:`atomic_orbital_gs.py` and
 .. literalinclude:: atomic_orbital_pdos.py
    :start-after: web-page
 
-.. image:: ag-ddos.png
+.. image:: au-ddos.png
 
 Warning: You should always plot the PDOS before using the calculated
 center and width to check that it is sensible. The very localized
@@ -323,7 +323,7 @@ Same example as above using the :class:`gpaw.dos.DOSCalculator` and its
 
 .. literalinclude:: atomic_orbital_pdos2.py
 
-One can also do this from the cpommand line::
+One can also do this from the :ref:`command line <cli>`::
 
     $ gpaw dos au.gpw -a 0-d -p
 

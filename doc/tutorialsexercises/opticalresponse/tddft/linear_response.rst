@@ -138,12 +138,26 @@ keyword           type            default value        description
                                                        calculated with ``nspins=2``. Effective
                                                        only if ground state is spin-compensated
 ``xc``            ``string``      xc of calculator     Exchange-correlation for LrTDDFT, can 
-                                                       differ from ground state value
-``restrict``	  ``dict``        {}		       Restrictions ``eps``, ``istart``, ``jend``
-                                                       and ``energy_range`` collected as dict.		       
-``eps``           ``float``       0.001                Minimal occupation difference for a transition
+                                                       differ from ground state value. Use
+                                                       "RPA" for the random phase approximation.
+``restrict``	  ``dict``        {}		           Restrictions collected as dict, see below
+================  ==============  ===================  ========================================
+
+The keyword ``restrict`` can also be used to restrict the already pre-calculated
+linear response TDDFT object as:
+
+.. literalinclude:: diagonalize.py
+
+The parameters of ``restrict`` are:
+
+================  ==============  ===================  ========================================
+keyword           type            default value        description
+================  ==============  ===================  ========================================
+```eps``           ``float``       0.001                Minimal occupation difference for a transition
 ``istart``        ``int``         0                    first occupied state to consider
 ``jend``          ``int``         number of bands      last unoccupied state to consider
 ``energy_range``  ``float``       None                 Energy range to consider in the involved
-                                                       Kohn-Sham orbitals (replaces [istart,jend])
+                                                       Kohn-Sham orbitals (replaces ``[istart,jend]``)
+``from``          ``List[int]``   None                 List of indices allowed for occupied Kohn-Sham orbitals
+``to``            ``List[int]``   None                 List of indices allowed for unoccupied Kohn-Sham orbitals
 ================  ==============  ===================  ========================================

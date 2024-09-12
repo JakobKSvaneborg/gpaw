@@ -56,10 +56,10 @@ class FDPotentialCalculator(PotentialCalculator):
     def restrict(self, a_xr, a_xR=None):
         return self._restrict(a_xr, a_xR)
 
-    def calculate_non_selfconsistent_exc(self, xc, nt_sR, taut_sR):
-        nt_sr, _, _ = self._interpolate_density(nt_sR)
-        if taut_sR is not None:
-            taut_sr = self.interpolate(taut_sR)
+    def calculate_non_selfconsistent_exc(self, xc, density):
+        nt_sr, _, _ = self._interpolate_density(density.nt_sR)
+        if density.taut_sR is not None:
+            taut_sr = self.interpolate(density.taut_sR)
         else:
             taut_sr = None
         e_xc, _, _ = xc.calculate(nt_sr, taut_sr)
