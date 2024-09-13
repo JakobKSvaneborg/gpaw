@@ -27,8 +27,14 @@ def c(r, rc1, rc2):
     a1 = 1 / rc1**2
     a2 = 1 / rc2**2
     f = 2 * (pi**5 / (a1 + a2))**0.5 / (a1 * a2)
+    f *= 16 / pi / rc1**3 / rc2**3
     T = a1 * a2 / (a1 + a2) * r**2
     return 0.5 * f * erf(T**0.5) * (pi / T)**0.5
+
+
+def c0(rc):
+    a = 1 / rc**2
+    return 2 * (pi / a)**2.5 / 2**0.5 * 16 / pi / rc**6
 
 
 class PAWPoissonSolver:
@@ -43,20 +49,21 @@ class PAWPoissonSolver:
         self.pwg = pwg
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.poisson_solver = poisson_solver
-        cutoff_a = np.asarray(cutoff_a)
-        rcut = cutoff_a.max() * 2
+        self.fracpos_ac = fracpos_ac
+        self.cutoff_a = np.asarray(cutoff_a)
+        self.rcut = self.cutoff_a.max() * 2
         d = 0.01
-        rgd = RGD(d, int(rcut * 5 / d))
-        g_lg = shape_functions(rgd, 'gauss', rcut, lmax=2)
+        rgd = RGD(d, int(self.rcut * 5 / d))
+        g_lg = shape_functions(rgd, 'gauss', self.rcut, lmax=2)
         ghat_l = [rgd.spline(g_g, l=1) for l, g_g in enumerate(g_lg)]
-        ghat_al = [ghat_l] * len(cutoff_a)
+        ghat_al = [ghat_l] * len(self.cutoff_a)
         cache = {}
         vhat_al = []
         for rc in cutoff_a:
             if rc in cache:
                 vhat_l = cache[rc]
             else:
-                v_lg = dvl(rgd, rc, rcut, lmax=2)
+                v_lg = dvl(rgd, rc, self.rcut, lmax=2)
                 vhat_l = [rgd.spline(v_g, l=1)
                           for l, v_g in enumerate(v_lg)]
                 cache[rc] = vhat_l
@@ -71,8 +78,10 @@ class PAWPoissonSolver:
 
     def get_neighbors(self):
         if self._neighbors is None:
+            pw = self.pwg
             self._neighbors = primitive_neighbor_list(
-                'ijdD', )
+                'ijdD', pw.pbc, pw.cell, self.fracpos_ac, self.rcut,
+                use_scaled_positions=True)
         return self._neighbors
 
     def dipole_layer_correction(self):
@@ -98,8 +107,12 @@ class PAWPoissonSolver:
         e_coulomb2 = vhat_g.integrate(nt_g)
 
         e_coulomb3 = 0.0
-        for i, j, d, D in self.get_neighbors():
-            print(i, j, d, D)
+        for a, rc in enumerate(self.cutoff_a):
+            e_coulomb3 += Q_aL[a]**2 * c0(rc)
+        for a1, a2, d, d_v in zip(*self.get_neighbors()):
+            e_coulomb3 += Q_aL[a1][0] * Q_aL[a2][0] * (
+                c(d, self.rcut, self.rcut) -
+                c(d, self.cutoff_a[a1], self.cutoff_a[a2]))
 
         vHt0_g = vHt_g.gather()
         if pwg.comm.rank == 0:
@@ -204,3 +217,11 @@ class OldPAWPoissonSolver:
         V_aL = self.ghat_aLh.integrate(vHt_h)
 
         return e_coulomb, vHt_h, V_aL
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    r = np.linspace(0.01, 10, 101)
+    plt.plot(r, c(r, 1, 1) - c(r, 0.5, 0.5))
+    print(c0(1.0) - c0(0.5))
+    plt.show()
