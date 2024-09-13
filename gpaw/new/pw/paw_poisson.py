@@ -28,13 +28,10 @@ def c(r, rc1, rc2):
     a2 = 1 / rc2**2
     f = 2 * (pi**5 / (a1 + a2))**0.5 / (a1 * a2)
     f *= 16 / pi / rc1**3 / rc2**3
+    if r == 0.0:
+        return f
     T = a1 * a2 / (a1 + a2) * r**2
     return 0.5 * f * erf(T**0.5) * (pi / T)**0.5
-
-
-def c0(rc):
-    a = 1 / rc**2
-    return 2 * (pi / a)**2.5 / 2**0.5 * 16 / pi / rc**6
 
 
 class PAWPoissonSolver:
@@ -64,7 +61,7 @@ class PAWPoissonSolver:
                 vhat_l = cache[rc]
             else:
                 v_lg = dvl(rgd, rc, self.rcut, lmax=2)
-                vhat_l = [rgd.spline(v_g, l=1)
+                vhat_l = [rgd.spline(v_g, l=l)
                           for l, v_g in enumerate(v_lg)]
                 cache[rc] = vhat_l
             vhat_al.append(vhat_l)
@@ -126,7 +123,7 @@ class PAWPoissonSolver:
 class SimplePAWPoissonSolver:
     def __init__(self,
                  pwg: PWDesc,
-                 setups: Setups,
+                 cutoff_a,
                  poisson_solver,
                  fracpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
@@ -135,8 +132,21 @@ class SimplePAWPoissonSolver:
         self.pwg = pwg
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.poisson_solver = poisson_solver
-        self.ghat_aLg = setups.create_compensation_charges(
-            pwg, fracpos_ac, atomdist, xp)
+        d = 0.01
+        rgd = RGD(d, int(6.0 / d))
+        cache = {}
+        ghat_al = []
+        for rc in cutoff_a:
+            if rc in cache:
+                ghat_l = cache[rc]
+            else:
+                g_lg = shape_functions(rgd, 'gauss', rc, lmax=2)
+                ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g_lg)]
+                cache[rc] = ghat_l
+            ghat_al.append(ghat_l)
+
+        self.ghat_aLg = pwg.atom_centered_functions(
+            ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
 
     def dipole_layer_correction(self):
         return self.poisson_solver.dipole_layer_correction()
@@ -147,7 +157,10 @@ class SimplePAWPoissonSolver:
               vt0_g: PWArray,
               vHt_g: PWArray | None = None):
         charge_g = nt_g.copy()
+        print(charge_g.integrate())
+        print(Q_aL.data)
         self.ghat_aLg.add_to(charge_g, Q_aL)
+        print(charge_g.integrate())
         pwg = self.pwg
         if vHt_g is None:
             vHt_g = pwg.zeros(xp=self.xp)
