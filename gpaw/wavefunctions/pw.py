@@ -137,16 +137,17 @@ class Preconditioner:
       Kresse and Furthmüller, Phys. Rev. B 54, 11169 (1996)
     """
 
-    def __init__(self, G2_qG, pd):
+    def __init__(self, G2_qG, pd, _scale=1.0):
         self.G2_qG = G2_qG
         self.pd = pd
+        self._scale = _scale
 
     def calculate_kinetic_energy(self, psit_xG, kpt):
         if psit_xG.ndim == 1:
             return self.calculate_kinetic_energy(psit_xG[np.newaxis], kpt)[0]
         G2_G = self.G2_qG[kpt.q]
         return np.array([self.pd.integrate(0.5 * G2_G * psit_G, psit_G).real
-                         for psit_G in psit_xG])
+                         for psit_G in psit_xG]) * self._scale
 
     def __call__(self, R_xG, kpt, ekin_x, out=None):
         if out is None:
@@ -590,6 +591,8 @@ class PWWaveFunctions(FDPWWaveFunctions):
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # old gpw file
+        elif reader.version >= 4:
+            c *= self.gd.N_c.prod()
         for kpt in self.kpt_u:
             ng = self.ng_k[kpt.k]
             index = (kpt.s, kpt.k) if self.collinear else (kpt.k,)

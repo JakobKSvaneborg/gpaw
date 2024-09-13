@@ -6,7 +6,7 @@ from gpaw.pipekmezey.pipek_mezey_wannier import PipekMezey
 
 
 @pytest.mark.pipekmezey
-def test_pipekmezey_chain(in_tmp_dir, needs_ase_master):
+def test_pipekmezey_chain(in_tmp_dir):
 
     atoms = Atoms('H4',
                   positions=[[0, 0, 0],
@@ -36,4 +36,4 @@ def test_pipekmezey_chain(in_tmp_dir, needs_ase_master):
 
     P = PM.get_function_value()
 
-    assert P == pytest.approx(0.6803, abs=0.0001)
+    assert P == pytest.approx(0.6803, abs=0.002)

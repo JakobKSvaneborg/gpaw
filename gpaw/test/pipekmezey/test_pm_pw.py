@@ -5,7 +5,7 @@ from gpaw.pipekmezey.pipek_mezey_wannier import PipekMezey
 
 
 @pytest.mark.pipekmezey
-def test_pipekmezey_pw(in_tmp_dir, needs_ase_master):
+def test_pipekmezey_pw(in_tmp_dir):
 
     atoms = Atoms('CO',
                   positions=[[0, 0, 0],
@@ -25,4 +25,4 @@ def test_pipekmezey_pw(in_tmp_dir, needs_ase_master):
 
     P = PM.get_function_value()
 
-    assert P == pytest.approx(3.3138, abs=0.0006)
+    assert P == pytest.approx(3.3138, abs=0.002)

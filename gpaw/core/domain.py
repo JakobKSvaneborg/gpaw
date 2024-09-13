@@ -48,6 +48,8 @@ class Domain:
         self.comm = comm
 
         self.volume = abs(np.linalg.det(self.cell_cv))
+        self.orthogonal = not (self.cell_cv -
+                               np.diag(self.cell_cv.diagonal())).any()
 
         assert dtype in [None, float, complex]
 

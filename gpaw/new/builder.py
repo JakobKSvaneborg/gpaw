@@ -94,7 +94,6 @@ class DFTComponentsBuilder:
                              params.basis,
                              self._xc.get_setup_name(),
                              world=comm)
-
         if params.hund:
             c = params.charge / len(atoms)
             for a, setup in enumerate(self.setups):
@@ -104,11 +103,16 @@ class DFTComponentsBuilder:
                                               self.setups.id_a,
                                               self.initial_magmom_av,
                                               params.symmetry)
-        assert not (self.ncomponents == 4 and len(symmetries) > 1)
+        self.setups.set_symmetry(symmetries.symmetry)
+
+        if self.ncomponents == 4:
+            assert (len(symmetries) == 1 and not
+                    symmetries.symmetry.time_reversal)
+
         bz = create_kpts(params.kpts, atoms)
         self.ibz = symmetries.reduce(bz, strict=False)
 
-        d = parallel.get('domain', None)
+        d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
         self.communicators = create_communicators(comm, len(self.ibz),
@@ -175,11 +179,23 @@ class DFTComponentsBuilder:
         return self.create_wf_description()
 
     @cached_property
+    def gpu(self) -> bool:
+        """Are we running on a GPU?."""
+        if self.params.parallel.get('gpu', False):
+            from gpaw.gpu import cupy_is_fake
+            if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
+                raise ValueError(
+                    'Please set GPAW_CPUPY=1 if you really want to do GPU '
+                    'calculations with GPAW''s fake cupy library '
+                    '(gpaw.gpu.cpupy)')
+            return True
+        return False
+
+    @cached_property
     def xp(self) -> ModuleType:
         """Array module: Numpy or Cupy."""
-        if self.params.parallel['gpu']:
-            from gpaw.gpu import cupy, cupy_is_fake
-            assert not cupy_is_fake or os.environ.get('GPAW_CPUPY')
+        if self.gpu:
+            from gpaw.gpu import cupy
             return cupy
         return np
 
@@ -227,6 +243,7 @@ class DFTComponentsBuilder:
             self.communicators,
             self.initial_magmom_av.sum(0),
             self.ncomponents,
+            self.nelectrons,
             np.linalg.inv(self.atoms.cell.complete()).T)
 
     def create_hamiltonian_operator(self):
@@ -277,18 +294,19 @@ class DFTComponentsBuilder:
         occ_skn = reader.wave_functions.occupations
 
         for wfs in ibzwfs:
-            wfs._eig_n = eig_skn[wfs.spin, wfs.k] / ha
-            wfs._occ_n = occ_skn[wfs.spin, wfs.k]
+            index: tuple[int, ...]
+            if self.ncomponents < 4:
+                dims = [self.nbands]
+                index = (wfs.spin, wfs.k)
+            else:
+                dims = [self.nbands, 2]
+                index = (wfs.k,)
+
+            wfs._eig_n = eig_skn[index] / ha
+            wfs._occ_n = occ_skn[index]
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,
                                       dtype=self.dtype)
-            if self.ncomponents < 4:
-                dims = [self.nbands]
-                index = [wfs.spin, wfs.k]
-            else:
-                dims = [self.nbands, 2]
-                index = [wfs.k]
-
             P_ani = AtomArrays(layout, dims=dims, comm=band_comm)
 
             if domain_comm.rank == 0:

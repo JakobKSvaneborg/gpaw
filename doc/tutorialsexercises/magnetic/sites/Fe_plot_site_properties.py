@@ -8,18 +8,23 @@ import matplotlib.pyplot as plt
 rc_r = np.load('rc_r.npy')
 m_r = np.load('m_r.npy')
 EZ_r = np.load('EZ_r.npy')
+rc = np.load('rc.npy')
+magmom = np.load('magmom.npy')
 
 # Plot data
 rlabel = r'$r_\mathrm{c}$ [$\mathrm{\AA}$]'
 rlim = (0., 1.5)
 plt.subplot(1, 2, 1)
 plt.plot(rc_r, m_r)
+plt.scatter([rc], [magmom], ec='k')
+plt.axvline(rc, linestyle=':')
 plt.xlabel(rlabel)
 plt.xlim(rlim)
 plt.ylabel(r'Site magnetization [$\mu_\mathrm{B}$]')
 plt.ylim((0., None))
 plt.subplot(1, 2, 2)
 plt.plot(rc_r, EZ_r)
+plt.axvline(rc, linestyle=':')
 plt.xlabel(rlabel)
 plt.xlim(rlim)
 plt.ylabel('Site Zeeman energy [eV]')

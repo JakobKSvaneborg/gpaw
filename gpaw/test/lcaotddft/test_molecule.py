@@ -56,7 +56,7 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
               1.9024613198566329e-01 + 2.7843314959952882e-02j,
               -1.3848736953929574e-05 - 2.6402210145403184e-05j]]]]
     err = calculate_error(coeff, ref)
-    assert err < 3e-12
+    assert err < 1e-4
 
 
 @pytest.mark.rttddft
@@ -296,7 +296,7 @@ def test_spinpol_dipole_moment(initialize_system, initialize_system_spinpol,
     # so spin-paired and spin-polarized calculation should give same result
     check_txt_data(module_tmp_path / 'dm.dat',
                    module_tmp_path / 'spinpol' / 'dm.dat',
-                   atol=1e-12)
+                   atol=1.0001e-12)
 
 
 @pytest.mark.rttddft

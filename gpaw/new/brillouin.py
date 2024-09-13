@@ -46,15 +46,14 @@ class IBZ:
     def __init__(self,
                  symmetries: Symmetries,
                  bz: BZPoints,
-                 ibz2bz, bz2ibz, weights):
+                 ibz2bz, bz2ibz, weights, bz2bz_Ks=None):
         self.symmetries = symmetries
         self.bz = bz
         self.weight_k = weights
         self.kpt_kc = bz.kpt_Kc[ibz2bz]
         self.ibz2bz_k = ibz2bz
         self.bz2ibz_K = bz2ibz
-
-        # self.bz2bz_Ks = []  # later ...
+        self.bz2bz_Ks = bz2bz_Ks
 
     def __len__(self):
         """Number of k-points in the IBZ."""
@@ -69,6 +68,9 @@ class IBZ:
         txt = ('bz sampling:\n'
                f'  number of bz points: {len(self.bz)}\n'
                f'  number of ibz points: {N}\n')
+
+        if self.bz2bz_Ks is not None and -1 in self.bz2bz_Ks:
+            txt += '  your k-points are not as symmetric as your crystal!\n'
 
         if isinstance(self.bz, MonkhorstPackKPoints):
             txt += '  ' + str(self.bz).replace('\n', '\n  ', 1)

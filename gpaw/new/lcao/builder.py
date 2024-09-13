@@ -3,7 +3,7 @@ from gpaw.core.matrix import Matrix
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
 from gpaw.new.fd.builder import FDDFTComponentsBuilder
-from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunction
+from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
@@ -18,8 +18,10 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                  params,
                  *,
                  comm,
-                 distribution=None):
+                 distribution=None,
+                 interpolation=3):
         super().__init__(atoms, params, comm=comm)
+        assert interpolation == 3
         self.distribution = distribution
         self.basis = None
 
@@ -43,6 +45,10 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
             return HybridLCAOEigensolver(self.basis,
                                          self.fracpos_ac,
                                          self.grid.cell_cv)
+        if self.params.eigensolver.get('name') == 'scissors':
+            from gpaw.lcao.scissors import ScissorsLCAOEigensolver
+            return ScissorsLCAOEigensolver(self.basis,
+                                           self.params.eigensolver['shifts'])
         return LCAOEigensolver(self.basis)
 
     def read_ibz_wave_functions(self, reader):
@@ -121,7 +127,7 @@ def create_lcao_ibzwfs(basis,
             weight=weight,
             ncomponents=ncomponents)
 
-    ibzwfs = LCAOIBZWaveFunction.create(
+    ibzwfs = LCAOIBZWaveFunctions.create(
         ibz=ibz,
         nelectrons=nelectrons,
         ncomponents=ncomponents,
@@ -129,7 +135,7 @@ def create_lcao_ibzwfs(basis,
         kpt_comm=kpt_comm,
         kpt_band_comm=kpt_band_comm,
         comm=communicators['w'])
-    ibzwfs.grid = grid  # The TCI-stuff needs cell and pbc from somwhere ...
+    ibzwfs.grid = grid  # The TCI-stuff needs cell and pbc from somewhere ...
     return ibzwfs, tciexpansions
 
 

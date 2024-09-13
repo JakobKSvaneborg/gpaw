@@ -343,6 +343,15 @@ class PWArray(DistributedArrays[PWDesc]):
     def ifft(self, *, plan=None, grid=None, out=None, periodic=False):
         """Do inverse FFT(s) to uniform grid(s).
 
+        Returns:
+            UGArray with values
+        :::
+                               _ _
+              _     --        iG.R
+            f(r) =  >  c(G) e
+                    --
+                     G
+
         Parameters
         ----------
         plan:
@@ -508,7 +517,7 @@ class PWArray(DistributedArrays[PWDesc]):
                 result = self.data[..., 0]
             else:
                 result = self.xp.empty(self.mydims, complex)
-            self.desc.comm.broadcast(result, 0)
+            self.desc.comm.broadcast(self.xp.ascontiguousarray(result), 0)
         if self.desc.dtype == float:
             result = result.real
         if result.ndim == 0:
@@ -532,7 +541,7 @@ class PWArray(DistributedArrays[PWDesc]):
                     correction *= self.dv
                     out.data -= correction
 
-    def norm2(self, kind: str = 'normal') -> np.ndarray:
+    def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
         r"""Calculate integral over cell.
 
         For kind='normal' we calculate:::
@@ -568,7 +577,8 @@ class PWArray(DistributedArrays[PWDesc]):
             result_x *= 2
             if self.desc.comm.rank == 0 and kind == 'normal':
                 result_x -= a_xG[:, 0]**2
-        self.desc.comm.sum(result_x)
+        if not skip_sum:
+            self.desc.comm.sum(result_x)
         return result_x.reshape(self.mydims) * self.dv
 
     def abs_square(self,

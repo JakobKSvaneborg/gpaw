@@ -3,11 +3,13 @@ from gpaw.poisson import FDPoissonSolver
 import pytest
 import numpy as np
 from gpaw.mpi import size
+from gpaw.gpu import cupy_is_fake
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.skipif(size == 8, reason='Fails at the moment for size=8')
-def test_poisson(gpu):
+def test_poisson():
     import cupy
     phis = []
     for xp in [np, cupy]:
