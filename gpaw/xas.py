@@ -77,7 +77,19 @@ def projection(proj_xyz, proj, orthogonal: bool):
 
 
 class XAS:
-    def __init__(self, paw, mode='xas', center=None, spin=0):
+    def __init__(self, paw, mode='xas', center=None,
+                 spin=0, nocc_cor=0):
+        """_summary_
+
+        Args:
+            paw (_type_): GPAW calculator object, with core-hole
+            mode (str, optional): xas, xes or all . Defaults to 'xas'.
+            center (int, optional): index of atome with corehole.
+            Defaults to None.
+            spin (int, optional): spinprogjection. Defaults to 0.
+            nocc_cor (int, optional): correction for number of occupied states
+            used in e.g. XCH XAS simulations. Defaults to 0.
+        """
         wfs = paw.wfs
         self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
@@ -119,6 +131,9 @@ class XAS:
                 nocc += sum(wfs.kpt_u[i].f_n)
             nocc = int(nocc + 0.5)
 
+        nocc += nocc_cor
+        self.nocc = nocc
+
         # look for the center with the corehole
         if center is not None:
             setup = wfs.setups[center]
@@ -127,6 +142,8 @@ class XAS:
             for a, setup in enumerate(wfs.setups):
                 if setup.phicorehole_g is not None:
                     break
+
+        assert setup.phicorehole_g is not None, 'There is no corehole'
 
         A_cmi = dipole_matrix_elements(setup)
 
@@ -154,7 +171,7 @@ class XAS:
         self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
         n1 = 0
         k = 0
-        eps_n0_k = np.zeros((len(self.list_kpts))) 
+        eps_n0_k = np.zeros((len(self.list_kpts)))
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
                 continue
@@ -197,7 +214,7 @@ class XAS:
             eps_start = 0
             eps_end = len(self.eps_n)
             eps_n0_k = min(self.eps_n0_k)
-        print(eps_n0_k)
+
         energy_n = eps_n[eps_start:eps_end]
 
         sigma2_cmn = sigma2_cmn[:, :, eps_start:eps_end]
@@ -208,7 +225,7 @@ class XAS:
             return energy_n, sigma2_cmn.sum(axis=1)
 
     def get_oscillator_strength(self, kpoint=None, proj=None,
-                                proj_xyz: bool = True, dks: Array1D = Array1D,
+                                proj_xyz: bool = True, dks: Array1D = [0],
                                 w: Array1D = None, raw: bool = False):
         """Calculate stick spectra.
 
@@ -253,7 +270,7 @@ class XAS:
             w = [w]
 
         index_shift = np.where(eps_n0_k == self.eps_n0_k)[0][0]
-        self.index_shift  = index_shift
+        self.index_shift = index_shift
         for i in range(len(dks)):
             shift = dks[i] - eps_n0_k
             ienergy_n = eps_n + shift
@@ -270,7 +287,7 @@ class XAS:
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None, proj=None, proj_xyz=True,
-                    stick=False, dks: Array1D = Array1D, w: Array1D = None):
+                    stick=False, dks: Array1D = [0], w: Array1D = None):
         """Calculate spectra.
 
         Parameters:
