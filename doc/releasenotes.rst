@@ -50,6 +50,9 @@ May 31, 2024: :git:`24.6.0 <../24.6.0>`
   function but considers the ``pbc`` for periodic calculations and
   only adjusts the cell in the non-periodic directions.
 
+* Updated the BSE module such that SOC can be included for magnetic
+  systems. A new function has also been added such that one can obtain
+  the transverse magnetic susceptibility and magnons from the BSE code.
 
 .. _bug0:
 
