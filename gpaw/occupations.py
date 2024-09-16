@@ -134,11 +134,12 @@ class OccupationNumberCalculator:
 
     def calculate(self,
                   nelectrons: float,
-                  eigenvalues: List[List[float]],
-                  weights: List[float],
-                  fermi_levels_guess: List[float] = None) -> Tuple[Array2D,
-                                                                   List[float],
-                                                                   float]:
+                  eigenvalues: list[list[float]],
+                  weights: list[float],
+                  fermi_levels_guess: list[float] = None,
+                  fix_fermi_level: bool = False) -> tuple[Array2D,
+                                                          list[float],
+                                                          float]:
         """Calculate occupation numbers and fermi level(s) from eigenvalues.
 
         nelectrons:
@@ -176,7 +177,8 @@ class OccupationNumberCalculator:
         if self.domain_comm.rank == 0:
             # Let the master domain do the work and broadcast results:
             result[:] = self._calculate(
-                nelectrons, eig_qn, weight_q, f_qn, fermi_levels_guess[0])
+                nelectrons, eig_qn, weight_q, f_qn,
+                fermi_levels_guess[0], fix_fermi_level)
 
         self.domain_comm.broadcast(result, 0)
         self.domain_comm.broadcast(f_qn, 0)
@@ -189,7 +191,8 @@ class OccupationNumberCalculator:
                    eig_qn: List[Array1D],
                    weight_q: Array1D,
                    f_qn: Array2D,
-                   fermi_level_guess: float) -> Tuple[float, float]:
+                   fermi_level_guess: float,
+                   fix_fermi_level: bool = False) -> tuple[float, float]:
         raise NotImplementedError
 
 
@@ -222,10 +225,10 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
                   nelectrons: float,
                   eigenvalues: List[List[float]],
                   weights: List[float],
-                  fermi_levels_guess: List[float] = None
-                  ) -> Tuple[Array2D,
-                             List[float],
-                             float]:
+                  fermi_levels_guess: List[float] = None,
+                  fix_fermi_level: bool = False) -> tuple[Array2D,
+                                                          List[float],
+                                                          float]:
 
         magmom = self.fixed_magmom_value
 
@@ -236,13 +239,15 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
             (nelectrons + magmom) / 2,
             eigenvalues[::2],
             weights[::2],
-            fermi_levels_guess[:1])
+            fermi_levels_guess[:1],
+            fix_fermi_level)
 
         f2_qn, fermi_levels2, e_entropy2 = self.occ.calculate(
             (nelectrons - magmom) / 2,
             eigenvalues[1::2],
             weights[1::2],
-            fermi_levels_guess[1:])
+            fermi_levels_guess[1:],
+            fix_fermi_level)
 
         f_qn = []
         for f1_n, f2_n in zip(f1_qn, f2_qn):
@@ -276,7 +281,8 @@ class SmoothDistribution(OccupationNumberCalculator):
                    eig_qn,
                    weight_q,
                    f_qn,
-                   fermi_level_guess):
+                   fermi_level_guess,
+                   fix_fermi_level):
         # Guess can be nan or inf:
         if not np.isfinite(fermi_level_guess) or self._width == 0.0:
             zero = ZeroWidth(self.parallel_layout)
@@ -301,7 +307,11 @@ class SmoothDistribution(OccupationNumberCalculator):
             df = f - nelectrons
             return df, dfde
 
-        fermi_level, niter = findroot(func, x)
+        if fix_fermi_level:
+            func(x)
+            fermi_level = x
+        else:
+            fermi_level, niter = findroot(func, x)
 
         e_entropy = data[2]
 

@@ -186,13 +186,14 @@ class IBZWaveFunctions(Generic[WFT]):
             weights=[wfs.weight for wfs in self],
             fermi_levels_guess=(None
                                 if self.fermi_levels is None else
-                                self.fermi_levels * Ha))
+                                self.fermi_levels * Ha),
+            fix_fermi_level=fixed_fermi_level)
 
         if not fixed_fermi_level:
             self.fermi_levels = np.array(fermi_levels) / Ha
         else:
             assert self.fermi_levels is not None
-
+        print(fixed_fermi_level, self.fermi_levels, fermi_levels)
         for occ_n, wfs in zips(occ_un, self):
             wfs._occ_n = occ_n
 
