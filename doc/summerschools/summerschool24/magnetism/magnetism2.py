@@ -23,7 +23,7 @@ perform the relaxation in the ferromagnetic state, which has a smaller unit cell
 
 1.   First you should download the relaxed PBE crystal structure. Either, browse the C2DB at https://cmrdb.fysik.dtu.dk/c2db and download
      the `.xyz` file for VI$_2$ or dowload it directly from the summer school tutorial website
-     [here](https://wiki.fysik.dtu.dk/gpaw/summerschools/summerschool24/magnetism/magnetism.html)
+     [here](https://gpaw.readthedocs.io/summerschools/summerschool24/magnetism/magnetism.html)
 2.   Fill in the expected ionic value for the V spins `S` below and run the cell to relax the crystal structure. The calculation takes about
      17 minutes. (Hint: V has the electronic configuration [Ar]3d$^3$4s$^2$)
 
@@ -255,7 +255,7 @@ onto the wave function, the boundary conditions from the generalized Bloch's the
 additionally result in the rotation of spins. The rotation can be characterized by the spin spiral vector $\mathbf{q}$ where, for example,
 $\mathbf{q}=[1/2, 0, 0]$ represents that translating by the first lattice vector rotates the spins by $1/2 * 360^\circ=180^\circ$ whereas
 translating by the second and third lattice vectors leaves the spins unchanged.
-(See [this page](https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/magnetic/spinspiral/spinspiral.html) for further information.)
+(See [this page](https://gpaw.readthedocs.io/tutorialsexercises/magnetic/spinspiral/spinspiral.html) for further information.)
 
 1.   For VI$_2$, the spins should rotate by 120$^\circ$ when translating by the first and second lattice vector. Write down the $\mathbf{q}$
      vector that represents these boundary conditions.

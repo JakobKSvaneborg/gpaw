@@ -114,7 +114,7 @@ The installation of user's packages on neolith described below uses
 
   .. literalinclude:: customize_neolith.py
 
-  to build `gpaw <https://wiki.fysik.dtu.dk/gpaw/>`_::
+  to build `gpaw <https://gpaw.readthedocs.io/>`_::
 
    cd ~/apps
    svn co https://svn.fysik.dtu.dk/projects/gpaw/trunk gpaw
