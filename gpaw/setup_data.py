@@ -434,7 +434,7 @@ def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
         helpful_message = """
 You need to set the GPAW_SETUP_PATH environment variable to point to
 the directories where PAW dataset and basis files are stored.  See
-https://wiki.fysik.dtu.dk/gpaw/install.html#install-paw-datasets
+https://gpaw.readthedocs.io/install.html#install-paw-datasets
 for details."""
         raise FileNotFoundError(f'{err}\n{helpful_message}\n')
 

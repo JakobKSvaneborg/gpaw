@@ -50,7 +50,7 @@ def encode(text: str) -> str:
     return ''.join(d.get(c, c) for c in text)
 
 
-dev = 'https://wiki.fysik.dtu.dk/gpaw/devel'
+dev = 'https://gpaw.readthedocs.io/devel'
 
 questions = [
     Question(text='What, ... is your name?'),
