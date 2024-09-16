@@ -648,7 +648,11 @@ class ASECalculator:
         from gpaw.response.groundstate import ResponseGroundStateAdapter
         return ResponseGroundStateAdapter(self)
 
-    def fixed_density(self, txt='-', **kwargs):
+    def fixed_density(self,
+                      *,
+                      txt='-',
+                      update_fermi_level: bool = False,
+                      **kwargs):
         kwargs = {**dict(self.params.items()), **kwargs}
         params = InputParameters(kwargs)
         log = Logger(txt, self.comm)
