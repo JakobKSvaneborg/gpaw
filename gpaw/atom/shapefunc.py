@@ -33,6 +33,7 @@ def shape_functions(rgd: RadialGridDescriptor,
         1 / 0
 
     for l in range(lmax + 1):
+        print(l, rgd.integrate(g_lg[l], l) / (4 * np.pi))
         g_lg[l] /= rgd.integrate(g_lg[l], l) / (4 * np.pi)
 
     return g_lg

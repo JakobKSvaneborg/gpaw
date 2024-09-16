@@ -132,8 +132,8 @@ class SimplePAWPoissonSolver:
         self.pwg = pwg
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.poisson_solver = poisson_solver
-        d = 0.01
-        rgd = RGD(d, int(6.0 / d))
+        d = 0.005
+        rgd = RGD(d, int(10.0 / d))
         cache = {}
         ghat_al = []
         for rc in cutoff_a:

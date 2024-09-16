@@ -11,13 +11,13 @@ def g(rc, rgd):
 
 
 def test_psolve():
-    rgd = RGD(0.02, 500)
+    rgd = RGD(0.01, 500)
     rc1 = 0.6
     rc2 = 0.7
     d12 = 3.6
     g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
-    v = 5.5
-    pw = PWDesc(gcut=15.0, cell=[2 * v, 2 * v, 2 * v + d12])
+    v = 7.5
+    pw = PWDesc(gcut=21.0, cell=[2 * v, 2 * v, 2 * v + d12])
     fracpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
                            [0.5, 0.5, (v + d12) / (2 * v + d12)]])
     g_aig = pw.atom_centered_functions(g_ai, positions=fracpos_ac)
@@ -38,24 +38,31 @@ def test_psolve():
     grid = pw.uniform_grid_with_grid_spacing(grid_spacing=0.1)
     v_R = vHt_g.ifft(grid=grid)
     nt_R = nt_g.ifft(grid=grid)
-    print(grid)
-    import matplotlib.pyplot as plt
-    n = grid.size[0] // 2
-    print(n)
-    plt.plot(v_R.data[n,n])
-    plt.plot(nt_R.data[n,n])
-    plt.show()
+
+    if 0:
+        print(grid)
+        import matplotlib.pyplot as plt
+        n = grid.size[0] // 2
+        print(n)
+        plt.plot(v_R.data[n,n])
+        plt.plot(nt_R.data[n,n])
+        plt.show()
     charges = [(0.9, rc1, 0.0),
                (-0.9, 0.3, 0.0),
                (0.7, rc2, d12),
                (-0.7, 0.4, d12)]
+    charges = [(0.9, rc1, 0.0),
+               (-0.9, rc2, d12)]
     e0 = 0.0
     for q1, rc1, p1 in charges:
         for q2, rc2, p2 in charges:
             d = abs(p1 - p2)
-            e0 += q1 * q2 * c(d, rc1, rc2)
-    print(e0)
-    print(0.9**2 / d12)
+            e12 = 0.5 * q1 * q2 * c(d, rc1, rc2) / (4 * np.pi)**2
+            print(q1, q2, rc1, rc2, d, e12)
+            e0 += e12
+    e0
+    print(e)
+    print(e0, e - e0)
 
 
 if __name__ == '__main__':
