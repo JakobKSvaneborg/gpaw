@@ -17,52 +17,64 @@ def test_psolve():
     d12 = 3.6
     g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
     v = 7.5
-    pw = PWDesc(gcut=21.0, cell=[2 * v, 2 * v, 2 * v + d12])
+    pw = PWDesc(gcut=18.0, cell=[2 * v, 2 * v, 2 * v + d12])
     fracpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
                            [0.5, 0.5, (v + d12) / (2 * v + d12)]])
     g_aig = pw.atom_centered_functions(g_ai, positions=fracpos_ac)
     nt_g = pw.zeros()
-    Q_ai = g_aig.empty()
-    Q_ai.data[:] = [0.9, -0.9]
-    Q_ai.data *= 1.0 / (4.0 * np.pi)**0.5
-    g_aig.add_to(nt_g, Q_ai)
+    C_ai = g_aig.empty()
+    C_ai.data[:] = [0.9, 0.7]
+    C_ai.data *= 1.0 / (4.0 * np.pi)**0.5
+    g_aig.add_to(nt_g, C_ai)
     print(nt_g.integrate())
-    if 1:
-        ps = PWPoissonSolver(pw)
-        spps = SimplePAWPoissonSolver(
-            pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
-        Q_ai.data *= 0
-        vt_g = pw.zeros()
-        e, vHt_g, V_aL = spps.solve(nt_g, Q_ai, vt_g)
-        print(e, V_aL)
-    grid = pw.uniform_grid_with_grid_spacing(grid_spacing=0.1)
-    v_R = vHt_g.ifft(grid=grid)
-    nt_R = nt_g.ifft(grid=grid)
 
-    if 0:
-        print(grid)
-        import matplotlib.pyplot as plt
-        n = grid.size[0] // 2
-        print(n)
-        plt.plot(v_R.data[n,n])
-        plt.plot(nt_R.data[n,n])
-        plt.show()
+    ps = PWPoissonSolver(pw)
+    spps = SimplePAWPoissonSolver(
+        pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
+    Q_aL = spps.ghat_aLg.empty()
+    Q_aL.data[:] = 0.0
+    for a, C_i in C_ai.items():
+        Q_aL[a][0] = -C_i[0]
+    vt_g = pw.zeros()
+    e, vHt_g, V_aL = spps.solve(nt_g, Q_aL, vt_g)
+    print(e)
+
     charges = [(0.9, rc1, 0.0),
-               (-0.9, 0.3, 0.0),
                (0.7, rc2, d12),
+               (-0.9, 0.3, 0.0),
                (-0.7, 0.4, d12)]
-    charges = [(0.9, rc1, 0.0),
-               (-0.9, rc2, d12)]
     e0 = 0.0
-    for q1, rc1, p1 in charges:
-        for q2, rc2, p2 in charges:
+    for q1, r1, p1 in charges:
+        for q2, r2, p2 in charges:
             d = abs(p1 - p2)
-            e12 = 0.5 * q1 * q2 * c(d, rc1, rc2) / (4 * np.pi)**2
-            print(q1, q2, rc1, rc2, d, e12)
+            e12 = 0.5 * q1 * q2 * c(d, r1, r2) / (4 * np.pi)**2
+            # print(q1, q2, rc1, rc2, d, e12)
             e0 += e12
     e0
     print(e)
     print(e0, e - e0)
+
+    pps = PAWPoissonSolver(
+        pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
+    vt_g = pw.zeros()
+    e2, vHt_g, V_aL = pps.solve(nt_g, Q_aL, vt_g)
+    print(e2)
+    charges = [(0.9, rc1, 0.0),
+               (0.7, rc2, d12),
+               (-0.9, 0.8, 0.0),
+               (-0.7, 0.8, d12)]
+    e20 = 0.0
+    for q1, r1, p1 in charges:
+        for q2, r2, p2 in charges:
+            d = abs(p1 - p2)
+            e12 = 0.5 * q1 * q2 * c(d, r1, r2) / (4 * np.pi)**2
+            # print(q1, q2, rc1, rc2, d, e12)
+            e20 += e12
+    print(e20)
+    print(0.5 * 0.9**2 * c(0.0, 0.8, 0.8) / (4 * np.pi)**2 -
+          0.5 * 0.9**2 * c(0.0, 0.3, 0.3) / (4 * np.pi)**2 +
+          0.5 * 0.7**2 * c(0.0, 0.8, 0.8) / (4 * np.pi)**2 -
+          0.5 * 0.7**2 * c(0.0, 0.4, 0.4) / (4 * np.pi)**2)
 
 
 if __name__ == '__main__':

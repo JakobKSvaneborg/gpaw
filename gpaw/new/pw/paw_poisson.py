@@ -52,7 +52,7 @@ class PAWPoissonSolver:
         d = 0.01
         rgd = RGD(d, int(self.rcut * 5 / d))
         g_lg = shape_functions(rgd, 'gauss', self.rcut, lmax=2)
-        ghat_l = [rgd.spline(g_g, l=1) for l, g_g in enumerate(g_lg)]
+        ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g_lg)]
         ghat_al = [ghat_l] * len(self.cutoff_a)
         cache = {}
         vhat_al = []
@@ -61,7 +61,7 @@ class PAWPoissonSolver:
                 vhat_l = cache[rc]
             else:
                 v_lg = dvl(rgd, rc, self.rcut, lmax=2)
-                vhat_l = [rgd.spline(v_g, l=l)
+                vhat_l = [rgd.spline(v_g * (4 * pi), l=l)
                           for l, v_g in enumerate(v_lg)]
                 cache[rc] = vhat_l
             vhat_al.append(vhat_l)
@@ -79,6 +79,7 @@ class PAWPoissonSolver:
             self._neighbors = primitive_neighbor_list(
                 'ijdD', pw.pbc, pw.cell, self.fracpos_ac, self.rcut,
                 use_scaled_positions=True)
+            print(self.rcut, self._neighbors)
         return self._neighbors
 
     def dipole_layer_correction(self):
@@ -90,13 +91,26 @@ class PAWPoissonSolver:
               vt0_g: PWArray,
               vHt_g: PWArray | None = None):
         charge_g = nt_g.copy()
+        print(charge_g.integrate())
         self.ghat_aLg.add_to(charge_g, Q_aL)
+        print(Q_aL.data)
+        print(charge_g.integrate())
         pwg = self.pwg
 
         if vHt_g is None:
             vHt_g = pwg.zeros(xp=self.xp)
 
         e_coulomb1 = self.poisson_solver.solve(vHt_g, charge_g)
+        if 0:
+            v=vHt_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
+            n0=nt_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
+            n=charge_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
+            print(n)
+            import matplotlib.pyplot as plt
+            plt.plot(v.data[75,75])
+            plt.plot(n.data[75,75])
+            plt.plot(n0.data[75,75])
+            plt.show()
 
         vhat_g = pwg.zeros()
         self.vhat_aLg.add_to(vhat_g, Q_aL)
@@ -105,11 +119,14 @@ class PAWPoissonSolver:
 
         e_coulomb3 = 0.0
         for a, rc in enumerate(self.cutoff_a):
-            e_coulomb3 += Q_aL[a]**2 * c0(rc)
+            e_coulomb3 += Q_aL[a][0]**2 * (c(0.0, self.rcut, self.rcut) -
+                                           c(0.0, rc, rc))
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
+            print(a1, a2, d)
             e_coulomb3 += Q_aL[a1][0] * Q_aL[a2][0] * (
                 c(d, self.rcut, self.rcut) -
                 c(d, self.cutoff_a[a1], self.cutoff_a[a2]))
+        e_coulomb3 *= -0.5 / 4 / pi
 
         vHt0_g = vHt_g.gather()
         if pwg.comm.rank == 0:
@@ -117,6 +134,7 @@ class PAWPoissonSolver:
 
         V_aL = self.ghat_aLg.integrate(vHt_g)
 
+        print(e_coulomb1, e_coulomb2, e_coulomb3)
         return e_coulomb1 + e_coulomb2 + e_coulomb3, vHt_g, V_aL
 
 
@@ -165,6 +183,13 @@ class SimplePAWPoissonSolver:
         if vHt_g is None:
             vHt_g = pwg.zeros(xp=self.xp)
         e_coulomb = self.poisson_solver.solve(vHt_g, charge_g)
+        if 0:
+            v=vHt_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
+            n=charge_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
+            import matplotlib.pyplot as plt
+            plt.plot(v.data[75,75])
+            plt.plot(n.data[75,75])
+            plt.show()
         vHt0_g = vHt_g.gather()
         if pwg.comm.rank == 0:
             vt0_g.data += vHt0_g.data
