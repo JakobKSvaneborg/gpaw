@@ -109,6 +109,9 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         Q_aL = density.calculate_compensation_charge_coefficients()
         e_coulomb, vHt_h, V_aL = self.poisson_solver.solve(
             nt0_g, Q_aL, vt0_g, vHt_h)
+        print(e_coulomb)
+        print(V_aL[0])
+        print(vt0_g.data[:5]);sadgf
 
         if pw.comm.rank == 0:
             vt0_R = vt0_g.ifft(
@@ -137,7 +140,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                 'external': e_external}, vt_sR, dedtaut_sr, vHt_h, V_aL
 
     def move(self, fracpos_ac, atomdist):
-        self.poisson_solver.ghat_aLh.move(fracpos_ac, atomdist)
+        self.poisson_solver.move(fracpos_ac, atomdist)
         self.vbar_ag.move(fracpos_ac, atomdist)
         self.vbar_g.data[:] = 0.0
         self.vbar_ag.add_to(self.vbar_g)

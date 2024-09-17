@@ -94,7 +94,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return self._tauct_ag
 
     def create_poisson_solver(self):
-        psparams = self.params.poissonsolver or {'strength': 1.0}
+        psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
         if psparams.pop('fast', False):
             pw = self.interpolation_desc
             ps = make_poisson_solver(pw,
@@ -112,9 +112,16 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                      self.fine_grid,
                                      self.params.charge,
                                      **psparams)
+            cutoff_a = []
+            for s in self.setups:
+                assert s.data.shape_function['type'] == 'gauss'
+                cutoff_a.append(s.data.shape_function['rc'])
             pw = self.interpolation_desc
             return OldPAWPoissonSolver(
-                pw, self.setups, ps, self.fracpos_ac, self.atomdist, self.xp)
+                pw,
+                # self.setups,
+                cutoff_a,
+                ps, self.fracpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self):
         return PlaneWavePotentialCalculator(
