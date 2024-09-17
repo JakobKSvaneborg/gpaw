@@ -69,6 +69,10 @@ Program
 
    - **Thought on a better API for DFT calculation with ASE and GPAW**
 
+ * - CSC
+
+   - **Compiling for AMD and NVIDIA**
+
  * - DTU-energy
 
    - **To be announced**
