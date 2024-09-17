@@ -18,7 +18,6 @@ def test_fixdensity(in_tmp_dir, gpaw_new):
     # Gamma point:
     e1 = slab.calc.get_eigenvalues(kpt=0)[0]
     f1 = slab.calc.get_fermi_level()
-    print(slab.calc.get_occupation_numbers(kpt=0))
 
     kpts = [(0, 0, 0)]
 
@@ -38,11 +37,12 @@ def test_fixdensity(in_tmp_dir, gpaw_new):
         kpts=kpts)
     e3 = calc.get_eigenvalues(kpt=0)[0]
     f3 = calc.get_fermi_level()
-    print(calc.get_occupation_numbers(kpt=0))
     assert f2 == pytest.approx(f1, abs=1e-10)
     assert f3 == pytest.approx(f1, abs=1e-10)
     assert e2 == pytest.approx(e1, abs=3e-5)
     assert e3 == pytest.approx(e1, abs=3e-5)
+    o3 = calc.get_occupation_numbers(kpt=0, raw=True)[0]
+    assert o3 == pytest.approx(1.0)
 
     if gpaw_new:
         return

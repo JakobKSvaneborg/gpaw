@@ -1938,9 +1938,13 @@ class GPAW(Calculator):
             self.wfs.world.broadcast(eps_n, 0)
         return eps_n * Ha
 
-    def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True):
+    def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True,
+                               raw=False):
         """Return occupation array."""
         f_n = self.wfs.collect_occupations(kpt, spin)
+        if raw:
+            weight = self.wfs.kd.weight_k[kpt] * 2 / self.wfs.nspins
+            f_n /= weight
         if broadcast:
             if self.wfs.world.rank != 0:
                 f_n = np.empty(self.wfs.bd.nbands)
