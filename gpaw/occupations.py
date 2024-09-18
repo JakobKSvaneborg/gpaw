@@ -1,14 +1,16 @@
 """Smearing functions and occupation number calculators."""
+from __future__ import annotations
 
 import warnings
-from math import pi, nan, inf
-from typing import List, Tuple, NamedTuple, Any, Callable, Dict, cast
+from math import inf, nan, pi
+from typing import Any, Callable, Dict, List, NamedTuple, Tuple, cast
+
 import numpy as np
-from scipy.special import erf
 from ase.units import Ha
+from scipy.special import erf
 
 from gpaw.band_descriptor import BandDescriptor
-from gpaw.mpi import serial_comm, broadcast_float, MPIComm
+from gpaw.mpi import MPIComm, broadcast_float, serial_comm
 from gpaw.typing import Array1D, Array2D
 
 
