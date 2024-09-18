@@ -38,7 +38,7 @@ Program
 
  * - Marko Melander
 
-   - **CIP-DFT method (extension of SJM)**
+   - **Constant inner potential (CIP) DFT method (extension of SJM)**
 
      CIP-DFT and its further development as well as working towards
      integrating Poisson-Boltzmann models in the main GPAW version.
@@ -62,15 +62,11 @@ Program
      The current status of the implementation, what is missing and what
      are the new features that I'd like to implement next.
 
- * - Coffee break
-
-   -
-
  * - Gianluca Levi
 
    -  **Self-interaction correction**
 
- * - CSC
+ * - Tuomas Rossi
 
    - **Compiling for AMD and NVIDIA**
 
@@ -85,3 +81,7 @@ Program
  * - Toma Susi?
 
    - **LCAO Ehrenfest**
+
+ * -
+
+   - **CIDER**
