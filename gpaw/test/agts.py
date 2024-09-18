@@ -1,5 +1,3 @@
-from myqueue.workflow import run
-
-
 def workflow():
-    run(module='pytest', args=['-mslow'], cores=2)
+    from myqueue.workflow import run
+    run(module='pytest', args=['-m', 'slow'], cores=2)
