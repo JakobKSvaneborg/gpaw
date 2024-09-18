@@ -203,7 +203,7 @@ class WaveFunctions:
             D_asp, a_sa=self.kd.symmetry.a_sa)
         D_asp.redistribute(self.atom_partition)
 
-    def calculate_occupation_numbers(self, fixed_fermi_level=False):
+    def calculate_occupation_numbers(self, fix_fermi_level=False):
         if self.collinear and self.nspins == 1:
             degeneracy = 2
         else:
@@ -216,7 +216,7 @@ class WaveFunctions:
             fermi_levels_guess=self.fermi_levels * Ha
             if self.fermi_levels is not None else None)
 
-        if not fixed_fermi_level or self.fermi_levels is None:
+        if not fix_fermi_level or self.fermi_levels is None:
             self.fermi_levels = np.array(fermi_levels) / Ha
 
         for f_n, kpt in zip(f_qn, self.kpt_u):

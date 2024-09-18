@@ -115,7 +115,7 @@ class FakeWFS:
     def calculate_occupation_numbers(self, fixed):
         self.state.ibzwfs.calculate_occs(
             self.occ_calc,
-            fixed_fermi_level=fixed)
+            fix_fermi_level=fixed)
 
     def empty(self, n, q):
         return np.empty((n,) +

@@ -523,7 +523,8 @@ class ZeroWidth(OccupationNumberCalculator):
                    eig_qn,
                    weight_q,
                    f_qn,
-                   fermi_level_guess=nan):
+                   fermi_level_guess=nan,
+                   fix_fermi_level=False):
         eig_kn, weight_k, nkpts_r = collect_eigelvalues(eig_qn, weight_q,
                                                         self.bd, self.kpt_comm)
 
@@ -543,6 +544,8 @@ class ZeroWidth(OccupationNumberCalculator):
             eig_m = eig_kn.ravel()
             w_m = w_kn.ravel()
             m_i = eig_m.argsort()
+            if fix_fermi_level:
+                1 / 0
             w_i = w_m[m_i]
             sum_i = np.add.accumulate(w_i)
             filled_i = (sum_i <= nelectrons * N)

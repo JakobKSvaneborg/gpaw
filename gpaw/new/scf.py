@@ -84,7 +84,7 @@ class SCFLoop:
             wfs_error = self.eigensolver.iterate(state, self.hamiltonian)
             state.ibzwfs.calculate_occs(
                 self.occ_calc,
-                fixed_fermi_level=not self.update_density_and_potential)
+                fix_fermi_level=not self.update_density_and_potential)
             if self.eigensolver.direct:
                 state.ibzwfs.energies['band'] = 0.0
 
