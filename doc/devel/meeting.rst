@@ -11,7 +11,7 @@ Program
 -------
 
 .. list-table::
-   :widths: 1 2
+ :widths: 1 2
 
  * - Jens Jørgen Mortensen
 
