@@ -36,14 +36,14 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
 
     atoms.calc = calc
     atoms.get_potential_energy()
-    calc.write('Al_gs')
+    calc.write('Al_gs.gpw')
 
     # Generate grid compatible with tetrahedron integration
-    kpts = find_high_symmetry_monkhorst_pack('Al_gs', 2.0)
+    kpts = find_high_symmetry_monkhorst_pack('Al_gs.gpw', 2.0)
 
     # Calculate the wave functions on the new kpts grid
-    calc = GPAW('Al_gs').fixed_density(kpts=kpts)
-    calc.write('Al', 'all')
+    calc = GPAW('Al_gs.gpw').fixed_density(kpts=kpts, update_fermi_level=True)
+    calc.write('Al.gpw', 'all')
 
     t2 = time.time()
 
@@ -53,7 +53,7 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     w_w = np.linspace(0, 24, 241)
 
     # Calculate the eels spectrum using point integration at both q-points
-    df1 = DielectricFunction(calc='Al', frequencies=w_w, eta=0.2, ecut=50,
+    df1 = DielectricFunction(calc='Al.gpw', frequencies=w_w, eta=0.2, ecut=50,
                              hilbert=False, rate=0.2)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Al-PI_q0', q_c=q0_c)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Al-PI_q1', q_c=q1_c)
@@ -63,7 +63,7 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     # Calculate the eels spectrum using tetrahedron integration at q=0
     # NB: We skip the finite q-point, because the underlying symmetry
     # exploration runs excruciatingly slowly at finite q...
-    df2 = DielectricFunction(calc='Al', eta=0.2, ecut=50,
+    df2 = DielectricFunction(calc='Al.gpw', eta=0.2, ecut=50,
                              integrationmode='tetrahedron integration',
                              hilbert=True, rate=0.2)
     df2.get_eels_spectrum(xc='RPA', filename='EELS_Al-TI_q0', q_c=q0_c)
@@ -96,16 +96,16 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     # tetra and point integrators should produce similar results; however,
     # Al converges very slowly w.r.t. kpts so we just make sure the
     # values don't change and tests consistency elsewhere
-    assert wpeak1P0 == pytest.approx(15.7111, abs=0.02)
-    assert wpeak2P0 == pytest.approx(15.7096, abs=0.02)
-    assert wpeak1P1 == pytest.approx(15.8402, abs=0.02)
-    assert wpeak2P1 == pytest.approx(15.8645, abs=0.02)
+    assert wpeak1P0 == pytest.approx(19.43810511992558, abs=0.02)
+    assert wpeak2P0 == pytest.approx(19.449779116996687, abs=0.02)
+    assert wpeak1P1 == pytest.approx(15.969166997758691, abs=0.02)
+    assert wpeak2P1 == pytest.approx(15.982669098884001, abs=0.02)
     # assert wpeak1T0 == pytest.approx(20.2119, abs=0.02)  # XXX #840
     # assert wpeak2T0 == pytest.approx(20.2179, abs=0.02)  # XXX #840
 
-    assert Ipeak1P0 == pytest.approx(29.40, abs=1.)
-    assert Ipeak2P0 == pytest.approx(27.70, abs=1.)
-    assert Ipeak1P1 == pytest.approx(28.39, abs=1.)
-    assert Ipeak2P1 == pytest.approx(26.89, abs=1.)
+    assert Ipeak1P0 == pytest.approx(46.20885143260104, abs=1.)
+    assert Ipeak2P0 == pytest.approx(45.50590054232128, abs=1.)
+    assert Ipeak1P1 == pytest.approx(28.40074420002366, abs=1.)
+    assert Ipeak2P1 == pytest.approx(26.839867052240855, abs=1.)
     # assert Ipeak1T0 == pytest.approx(46.24, abs=1.)  # XXX #840
     # assert Ipeak2T0 == pytest.approx(44.27, abs=1.)  # XXX #840

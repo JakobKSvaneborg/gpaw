@@ -223,7 +223,6 @@ class GPAW(Calculator):
                                             symmetry='off')
             bs = bs_calc.get_band_structure()
         """
-        assert not update_fermi_level  # for now ...
 
         for key in kwargs:
             if key not in {'nbands', 'occupations', 'poissonsolver', 'kpts',
@@ -248,6 +247,7 @@ class GPAW(Calculator):
                                                    calc.wfs.kptband_comm)
         calc.density.fixed = True
         calc.wfs.fermi_levels = self.wfs.fermi_levels
+        calc.scf.fix_fermi_level = not update_fermi_level
         if calc.hamiltonian.xc.type == 'GLLB':
             new_response = calc.hamiltonian.xc.response
             old_response = self.hamiltonian.xc.response

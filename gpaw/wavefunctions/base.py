@@ -213,8 +213,9 @@ class WaveFunctions:
             nelectrons=self.nvalence / degeneracy,
             eigenvalues=[kpt.eps_n * Ha for kpt in self.kpt_u],
             weights=[kpt.weightk for kpt in self.kpt_u],
-            fermi_levels_guess=self.fermi_levels * Ha
-            if self.fermi_levels is not None else None)
+            fermi_levels_guess=(self.fermi_levels * Ha
+                                if self.fermi_levels is not None else None),
+            fix_fermi_level=fix_fermi_level)
 
         if not fix_fermi_level or self.fermi_levels is None:
             self.fermi_levels = np.array(fermi_levels) / Ha

@@ -679,6 +679,7 @@ class ASECalculator:
         state = DFTState(ibzwfs, density, potential)
         scf_loop = builder.create_scf_loop()
         scf_loop.update_density_and_potential = False
+        scf_loop.fix_fermi_level = not update_fermi_level
 
         dft = DFTCalculation(
             state,
