@@ -545,22 +545,25 @@ class ZeroWidth(OccupationNumberCalculator):
             w_m = w_kn.ravel()
             m_i = eig_m.argsort()
             if fix_fermi_level:
-                1 / 0
-            w_i = w_m[m_i]
-            sum_i = np.add.accumulate(w_i)
-            filled_i = (sum_i <= nelectrons * N)
-            i = sum(filled_i)
-            f_m[m_i[:i]] = 1.0
-            if i == len(m_i):
-                fermi_level = inf
+                fermi_level = fermi_level_guess
+                f_m[eig_m < fermi_level] = 1.0
+                f_m[eig_m == fermi_level] = 0.5
             else:
-                extra = nelectrons * N - (sum_i[i - 1] if i > 0 else 0.0)
-                if extra > 0:
-                    assert extra <= w_i[i]
-                    f_m[m_i[i]] = extra / w_i[i]
-                    fermi_level = eig_m[m_i[i]]
+                w_i = w_m[m_i]
+                sum_i = np.add.accumulate(w_i)
+                filled_i = (sum_i <= nelectrons * N)
+                i = sum(filled_i)
+                f_m[m_i[:i]] = 1.0
+                if i == len(m_i):
+                    fermi_level = inf
                 else:
-                    fermi_level = (eig_m[m_i[i]] + eig_m[m_i[i - 1]]) / 2
+                    extra = nelectrons * N - (sum_i[i - 1] if i > 0 else 0.0)
+                    if extra > 0:
+                        assert extra <= w_i[i]
+                        f_m[m_i[i]] = extra / w_i[i]
+                        fermi_level = eig_m[m_i[i]]
+                    else:
+                        fermi_level = (eig_m[m_i[i]] + eig_m[m_i[i - 1]]) / 2
         else:
             f_kn = None
             fermi_level = nan
@@ -598,7 +601,8 @@ class FixedOccupationNumbers(OccupationNumberCalculator):
                    eig_qn,
                    weight_q,
                    f_qn,
-                   fermi_level_guess=nan):
+                   fermi_level_guess=nan,
+                   fix_fermi_level=False):
 
         calc_fixed(self.bd, self.f_sn, f_qn)
 
@@ -659,7 +663,9 @@ class FixedOccupationNumbersUniform(OccupationNumberCalculator):
                    eig_qn,
                    weight_q,
                    f_qn,
-                   fermi_level_guess=nan):
+                   fermi_level_guess=nan,
+                   fix_fermi_level=False):
+        assert not fix_fermi_level
 
         calc_fixed(self.bd, self.f_sn, f_qn)
 
@@ -733,7 +739,8 @@ class ThomasFermiOccupations(OccupationNumberCalculator):
                    eig_qn,
                    weight_q,
                    f_qn,
-                   fermi_level_guess=nan):
+                   fermi_level_guess=nan,
+                   fix_fermi_level=False):
         assert len(f_qn) == 1
         f_qn[0][:] = [nelectrons]
         return inf, 0.0
