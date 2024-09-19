@@ -92,6 +92,14 @@ Program
 
    - **LCAO Ehrenfest**
 
- * -
+ * - Kyle Bystrom
 
-   - **CIDER**
+   - PAW Implementation of Nonlocal, Machine-Learned Density
+     Functionals in GPAW
+
+     Description: I will discuss an approach for efficiently evaluating
+     nonlocal density functionals within the PAW formalism and the
+     application of this approach to machine learning-based functionals.
+     I will also mention work in progress to further optimize this
+     algorithm and plans to extend it to van der Waals functionals and
+     orbital-dependent features.
