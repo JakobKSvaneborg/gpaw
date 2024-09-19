@@ -2,7 +2,7 @@ October-2024 online developer meeting
 =====================================
 
 When:
-  October 8, afternoon (Danish time)
+  October 8 and 9 afternoons (Danish time)
 Announcement:
   https://listserv.fysik.dtu.dk/pipermail/gpaw-users/2024-September/007312.html
 
@@ -11,7 +11,12 @@ Program
 -------
 
 .. list-table::
- :widths: 1 2
+ :widths: 10 20
+ :header-rows: 1
+
+ * - Speaker
+
+   - Title
 
  * - Jens Jørgen Mortensen
 
@@ -19,6 +24,14 @@ Program
 
      Discussion of changes taking place in the code at the moment and how
      that will affect all of us in the future.
+
+ * - Mikael Kuisma
+
+   - **GPAW on GPUs**
+
+ * - Tuomas Rossi
+
+   - **Compiling for AMD and NVIDIA**
 
  * - Aleksei Ivanov
 
@@ -43,13 +56,9 @@ Program
      CIP-DFT and its further development as well as working towards
      integrating Poisson-Boltzmann models in the main GPAW version.
 
- * - Mikael Kuisma
-
-   - **GPAW on GPUs**
-
  * - Ask Hjorth Larsen
 
-   - **To be announced**
+   - **ASR-LIB**
 
  * - Andrew Peterson
 
@@ -66,17 +75,18 @@ Program
 
    -  **Self-interaction correction**
 
- * - Tuomas Rossi
+ * - Pooria Dabbaghi
 
-   - **Compiling for AMD and NVIDIA**
+   - **Implementing an inverse Kohn-Sham scheme within
+     the PAW formalism in GPAW**
 
- * - DTU-energy
+ * - *To be announced*
 
-   - **To be announced**
+   - **Improved basis sets for LCAO**
 
  * - Jakub Fojt?
 
-   -
+   - **RTTDDFT?**
 
  * - Toma Susi?
 
