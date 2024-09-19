@@ -8,23 +8,19 @@ To get started, make sure you have
 used the virtual environment script ``gpaw_venv.py`` on this page :ref:`Compiling GPAW on Niflheim <build on niflheim>`.
 This will automatically build the latest GPU version of GPAW.
 
-1. Update to latest myqueue release::
-
-   pip install --upgrade myqueue
-
-2. Add A100 nodes to myqueue config.
+1. Add A100 nodes to myqueue config.
 
    * Type ``mq info`` to locate the myqueue root, and the config.py file in
      there, and add following items to the list of nodes::
 
-        ('a100G1', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=1']}), 
-        ('a100G2', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=2']}), 
+        ('a100G1', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=1']}),
+        ('a100G2', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=2']}),
         ('a100G4', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=4']}),
 
    * This will allow you to run calculations with 1, 2 or 4 GPUs (4 GPUs equals a full node).
 
 
-3. Prepare your script for GPUs. One needs to use the NEW gpaw, when running with GPUs,
+2. Prepare your script for GPUs. One needs to use the NEW gpaw, when running with GPUs,
    so either you need to add ``export GPAW_NEW=1`` to your virtual environment,
    or import the calculator from new GPAW directly. In addition you need to add
    ``parallel={'gpu': True, ...}`` to your input of GPAW. Here is an example script
@@ -32,7 +28,7 @@ This will automatically build the latest GPU version of GPAW.
 
     def gpaw_test(atoms, gpu=False):
         kpts = {'density': 4}
-        params = {'convergence': {'density': 1e-06}, 
+        params = {'convergence': {'density': 1e-06},
                   'kpts': kpts,
                   'random': True,
                   'mode': {'ecut': 800, 'name': 'pw', 'force_complex_dtype': True},
@@ -53,20 +49,20 @@ This will automatically build the latest GPU version of GPAW.
     import sys
     gpaw_test(atoms, gpu=eval(sys.argv[1]))
 
-4. Submit with myqueue. We will submit two calculations, one with a full A100 node (4 GPUs), and one
+3. Submit with myqueue. We will submit two calculations, one with a full A100 node (4 GPUs), and one
    with the fastest CPU node (epyc96). Always select the number of cores equal to the number of total GPUs::
 
        mq submit -R 4:a100G4:1h 'gpaw python gpu_example.py True'
        mq submit -R 96:epyc96:1h 'gpaw python gpu_example.py False'
 
-5. The system is a 256 atom bilayer. The expected runtime for this system is 5 minutes with A100 node, and 20 minutes with full epyc96 node::
+4. The system is a 256 atom bilayer. The expected runtime for this system is 5 minutes with A100 node, and 20 minutes with full epyc96 node::
 
-   mq ls
+     mq ls
 
-      id      folder name args                           info res.           age state    time
-    ─────── ────── ──── ────────────────────────────── ──── ──────────── ───── ─────── ─────
-    7839868 ./     gpaw python gpu_example.py False    +3   96:epyc96:1h 21:05 done    19:41
-    7839870 ./     gpaw python gpu_example.py True     +3   4:a100G4:1h  20:56 done     4:59
+        id      folder name args                           info res.           age state    time
+      ─────── ────── ──── ────────────────────────────── ──── ──────────── ───── ─────── ─────
+      7839868 ./     gpaw python gpu_example.py False    +3   96:epyc96:1h 21:05 done    19:41
+      7839870 ./     gpaw python gpu_example.py True     +3   4:a100G4:1h  20:56 done     4:59
 
 
 For reference, the runtime is 40 minutes with second fastest node Xeon56, so the current master version
@@ -78,4 +74,4 @@ speed up further by 20-60% depending on the system, when certain merge requests 
 
        sdiff /home/niflheim/kuisma/benchmarks/relax_gpu_True.txt /home/niflheim/kuisma/benchmarks/relax_gpu_False.txt|less
 
-   
+
