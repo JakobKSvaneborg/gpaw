@@ -10,21 +10,24 @@ import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from ase.units import Bohr
-
 from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
 from gpaw.core.domain import Domain
 from gpaw.gpu.mpi import CuPyMPI
+from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
 from gpaw.mpi import (MPIComm, Parallelization, serial_comm, synchronize_atoms,
                       world)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
+from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
+from gpaw.new.logger import Logger
+from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
 from gpaw.new.smearing import OccupationNumberCalculator
 from gpaw.new.symmetry import create_symmetries_object
@@ -33,7 +36,6 @@ from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
-from gpaw.new.c import GPU_AWARE_MPI
 
 
 def builder(atoms: Atoms,
@@ -82,7 +84,6 @@ class DFTComponentsBuilder:
         self.soc = params.soc
         self.nspins = self.ncomponents % 3
         self.spin_degeneracy = self.ncomponents % 2 + 1
-
         if isinstance(params.xc, (dict, str)):
             self._xc = XC(params.xc, collinear=(self.ncomponents < 4),
                           xp=self.xp)
@@ -245,6 +246,13 @@ class DFTComponentsBuilder:
             self.ncomponents,
             self.nelectrons,
             np.linalg.inv(self.atoms.cell.complete()).T)
+
+    def create_ibz_wave_functions(self,
+                                  basis: BasisFunctions,
+                                  potential: Potential,
+                                  *,
+                                  log: Logger) -> IBZWaveFunctions:
+        raise NotImplementedError
 
     def create_hamiltonian_operator(self):
         raise NotImplementedError
