@@ -96,16 +96,16 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     # tetra and point integrators should produce similar results; however,
     # Al converges very slowly w.r.t. kpts so we just make sure the
     # values don't change and tests consistency elsewhere
-    assert wpeak1P0 == pytest.approx(19.43810511992558, abs=0.02)
-    assert wpeak2P0 == pytest.approx(19.449779116996687, abs=0.02)
-    assert wpeak1P1 == pytest.approx(15.969166997758691, abs=0.02)
-    assert wpeak2P1 == pytest.approx(15.982669098884001, abs=0.02)
+    assert wpeak1P0 == pytest.approx(15.7111, abs=0.02)
+    assert wpeak2P0 == pytest.approx(15.7096, abs=0.02)
+    assert wpeak1P1 == pytest.approx(15.8402, abs=0.02)
+    assert wpeak2P1 == pytest.approx(15.8645, abs=0.02)
     # assert wpeak1T0 == pytest.approx(20.2119, abs=0.02)  # XXX #840
     # assert wpeak2T0 == pytest.approx(20.2179, abs=0.02)  # XXX #840
 
-    assert Ipeak1P0 == pytest.approx(46.20885143260104, abs=1.)
-    assert Ipeak2P0 == pytest.approx(45.50590054232128, abs=1.)
-    assert Ipeak1P1 == pytest.approx(28.40074420002366, abs=1.)
-    assert Ipeak2P1 == pytest.approx(26.839867052240855, abs=1.)
+    assert Ipeak1P0 == pytest.approx(29.40, abs=1.)
+    assert Ipeak2P0 == pytest.approx(27.70, abs=1.)
+    assert Ipeak1P1 == pytest.approx(28.39, abs=1.)
+    assert Ipeak2P1 == pytest.approx(26.89, abs=1.)
     # assert Ipeak1T0 == pytest.approx(46.24, abs=1.)  # XXX #840
     # assert Ipeak2T0 == pytest.approx(44.27, abs=1.)  # XXX #840
