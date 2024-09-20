@@ -154,7 +154,9 @@ class OccupationsMOM:
                   nelectrons,
                   eigenvalues,
                   weights,
-                  fermi_levels_guess):
+                  fermi_levels_guess,
+                  fix_fermi_level=False):
+        assert not fix_fermi_level
 
         if not self.initialized:
             # If MOM reference orbitals are not initialized yet (e.g. when
