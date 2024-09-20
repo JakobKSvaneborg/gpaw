@@ -10,96 +10,86 @@ Announcement:
 Program
 -------
 
-.. list-table::
- :widths: 10 20
- :header-rows: 1
+:Jens Jørgen Mortensen:
 
- * - Speaker
+  *Old to new GPAW transition*
 
-   - Title
+  Discussion of changes taking place in the code at the moment and how
+  that will affect all of us in the future.
 
- * - Jens Jørgen Mortensen
+:Mikael Kuisma:
 
-   - **Old to new GPAW transition**
+  *GPAW on GPUs*
 
-     Discussion of changes taking place in the code at the moment and how
-     that will affect all of us in the future.
+:Tuomas Rossi:
 
- * - Mikael Kuisma
+  *Compiling for AMD and NVIDIA*
 
-   - **GPAW on GPUs**
+:Aleksei Ivanov:
 
- * - Tuomas Rossi
+  *UPAW method, wavefunction theories and quantum computing prospects*
 
-   - **Compiling for AMD and NVIDIA**
+  In this presentation, I will introduce the unitary projector
+  augmented-wave method (UPAW) and its generalization on many-body wave
+  functions.  Then I will discuss the benefits UPAW brings in the
+  development of the electronic structure algorithms with focus on
+  many-body theories and quantum computation.  I will show a few
+  examples on how one can calculate the MP2 energy with GPAW and the
+  interface with other electronic structure software such as PySCF to
+  carry out more complicated wavefunction calculations using, for
+  example, coupled cluster theories.  I will finish the talk with
+  prospects on using GPAW for quantum embedding theories such as the
+  density matrix embedding theory.
 
- * - Aleksei Ivanov
+:Marko Melander:
 
-   - **UPAW method, wavefunction theories and quantum computing prospects**
+  *Constant inner potential (CIP) DFT method (extension of SJM)*
 
-     In this presentation, I will introduce the unitary projector
-     augmented-wave method (UPAW) and its generalization on many-body wave
-     functions.  Then I will discuss the benefits UPAW brings in the
-     development of the electronic structure algorithms with focus on
-     many-body theories and quantum computation.  I will show a few
-     examples on how one can calculate the MP2 energy with GPAW and the
-     interface with other electronic structure software such as PySCF to
-     carry out more complicated wavefunction calculations using, for
-     example, coupled cluster theories.  I will finish the talk with
-     prospects on using GPAW for quantum embedding theories such as the
-     density matrix embedding theory.
+  CIP-DFT and its further development as well as working towards
+  integrating Poisson-Boltzmann models in the main GPAW version.
 
- * - Marko Melander
+:Ask Hjorth Larsen:
 
-   - **Constant inner potential (CIP) DFT method (extension of SJM)**
+  *ASR-LIB*
 
-     CIP-DFT and its further development as well as working towards
-     integrating Poisson-Boltzmann models in the main GPAW version.
+:Andrew Peterson:
 
- * - Ask Hjorth Larsen
+  *Porting SJM into planewave mode*
 
-   - **ASR-LIB**
+:Gianluca Levi:
 
- * - Andrew Peterson
+  *Direct optimization methods for excited state calculations*
 
-   - **Porting SJM into planewave mode**
+  The current status of the implementation, what is missing and what
+  are the new features that I'd like to implement next.
 
- * - Gianluca Levi
+:Gianluca Levi:
 
-   - **Direct optimization methods for excited state calculations**
+  *Self-interaction correction*
 
-     The current status of the implementation, what is missing and what
-     are the new features that I'd like to implement next.
+:Pooria Dabbaghi:
 
- * - Gianluca Levi
+  *Implementing an inverse Kohn-Sham scheme within the PAW formalism in GPAW*
 
-   -  **Self-interaction correction**
+:To be announced:
 
- * - Pooria Dabbaghi
+  *Improved basis sets for LCAO*
 
-   - **Implementing an inverse Kohn-Sham scheme within
-     the PAW formalism in GPAW**
+:To be announced:
 
- * - *To be announced*
+  *RTTDDFT*
 
-   - **Improved basis sets for LCAO**
+:To be announced:
 
- * - Jakub Fojt?
+  *LCAO Ehrenfest*
 
-   - **RTTDDFT?**
+:Kyle Bystrom:
 
- * - Toma Susi?
+  *PAW Implementation of Nonlocal, Machine-Learned Density Functionals in GPAW*
 
-   - **LCAO Ehrenfest**
-
- * - Kyle Bystrom
-
-   - PAW Implementation of Nonlocal, Machine-Learned Density
-     Functionals in GPAW
-
-     Description: I will discuss an approach for efficiently evaluating
-     nonlocal density functionals within the PAW formalism and the
-     application of this approach to machine learning-based functionals.
-     I will also mention work in progress to further optimize this
-     algorithm and plans to extend it to van der Waals functionals and
-     orbital-dependent features.
+  Description: I will discuss an approach for efficiently evaluating
+  nonlocal density functionals within the PAW formalism and the
+  application of this approach to machine learning-based functionals.
+  I will also mention work in progress to further optimize this
+  algorithm and plans to extend it to van der Waals functionals and
+  orbital-dependent features.
