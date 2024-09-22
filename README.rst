@@ -38,7 +38,7 @@ Installation
 Create a virtual environment, activate it, install::
 
     $ python3 -m venv venv
-    $ source venv/bin/activare
+    $ source venv/bin/activate
     $ python3 -m pip install gpaw
 
 For more details, please see:
