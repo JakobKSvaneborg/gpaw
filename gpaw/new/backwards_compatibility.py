@@ -38,7 +38,7 @@ class PT:
 
 class FakeWFS:
     def __init__(self,
-                 state,
+                 ibzwfs,
                  setups,
                  comm,
                  occ_calc,
@@ -48,9 +48,8 @@ class FakeWFS:
         from gpaw.utilities.partition import AtomPartition
         self.timer = nulltimer
         self.setups = setups
-        self.state = state
+        self.ibzwfs = ibzwfs
         self.hamiltonian = hamiltonian
-        ibzwfs = self.state.ibzwfs
         self.kd = KPointDescriptor(ibzwfs.ibz.bz.kpt_Kc,
                                    ibzwfs.nspins)
         self.kd.set_symmetry(atoms,
@@ -340,19 +339,19 @@ class FakeDensity:
 
 
 class FakeHamiltonian:
-    def __init__(self, state, pot_calc, e_total_free=np.nan):
-        self.pot_calc = pot_calc
-        self.state = state
-        self.finegd = pot_calc.fine_grid._gd
-        self.grid = state.potential.vt_sR.desc
+    def __init__(self, dft, e_total_free=np.nan):
+        self.pot_calc = dft.pot_calc
+        self.dft = dft
+        self.finegd = self.pot_calc.fine_grid._gd
+        self.grid = dft.potential.vt_sR.desc
         self.e_total_free = e_total_free
-        self.e_xc = state.potential.energies['xc']
+        self.e_xc = dft.potential.energies['xc']
 
     def update(self, dens, wfs, kin_en_using_band=True):
-        self.state.potential, _ = self.pot_calc.calculate(
-            self.state.density, self.state.ibzwfs, self.state.potential.vHt_x)
+        self.dft.potential, _ = self.pot_calc.calculate(
+            self.dft.ibzwfs, self.dft.density, self.dft.potential.vHt_x)
 
-        energies = self.state.potential.energies
+        energies = self.dft.potential.energies
         self.e_xc = energies['xc']
         self.e_coulomb = energies['coulomb']
         self.e_zero = energies['zero']
@@ -361,12 +360,12 @@ class FakeHamiltonian:
         if kin_en_using_band:
             self.e_kinetic0 = energies['kinetic']
         else:
-            self.e_kinetic0 = self.state.ibzwfs.calculate_kinetic_energy(
-                wfs.hamiltonian, self.state.density)
+            self.e_kinetic0 = self.dft.ibzwfs.calculate_kinetic_energy(
+                wfs.hamiltonian, self.dft.density)
             energies['kinetic'] = self.e_kinetic0
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
-        self.e_band = self.state.ibzwfs.energies['band']
+        self.e_band = self.dft.ibzwfs.energies['band']
         if kin_en_using_band:
             self.e_kinetic = self.e_kinetic0 + self.e_band
         else:
@@ -409,5 +408,5 @@ class FakeHamiltonian:
 
     def dH(self, P, out):
         for a, I1, I2 in P.indices:
-            dH_ii = self.state.potential.dH_asii[a][P.spin]
+            dH_ii = self.dft.potential.dH_asii[a][P.spin]
             out.array[:, I1:I2] = np.dot(P.array[:, I1:I2], dH_ii)

@@ -18,7 +18,7 @@ from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
-                                  DFTState, ReuseWaveFunctionsError, units)
+                                  ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import read_gpw, write_gpw
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.input_parameters import parameter_functions as parameter_names
@@ -230,7 +230,7 @@ class ASECalculator:
         if converged:
             return
 
-        if not self.dft.state.ibzwfs.has_wave_functions():
+        if not self.dft.ibzwfs.has_wave_functions():
             self.create_new_calculation(atoms)
 
         assert self.hooks.keys() <= {'scf_step', 'converged'}
@@ -424,38 +424,34 @@ class ASECalculator:
         return atoms
 
     def get_fermi_level(self) -> float:
-        return self.dft.state.ibzwfs.fermi_level * Ha
+        return self.dft.ibzwfs.fermi_level * Ha
 
     def get_fermi_levels(self) -> Array1D:
-        state = self.dft.state
-        fl = state.ibzwfs.fermi_levels
+        fl = self.dft.ibzwfs.fermi_levels
         assert fl is not None
         if len(fl) == 1:
             raise ValueError('Only one Fermi-level.')
         return fl * Ha
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
-        state = self.dft.state
-        return state.ibzwfs.get_homo_lumo(spin) * Ha
+        return self.dft.ibzwfs.get_homo_lumo(spin) * Ha
 
     def get_number_of_electrons(self):
-        state = self.dft.state
-        return state.ibzwfs.nelectrons
+        return self.dft.ibzwfs.nelectrons
 
     def get_number_of_bands(self):
-        state = self.dft.state
-        return state.ibzwfs.nbands
+        return self.dft.ibzwfs.nbands
 
     def get_number_of_grid_points(self):
-        return self.dft.state.density.nt_sR.desc.size
+        return self.dft.density.nt_sR.desc.size
 
     def get_effective_potential(self, spin=0):
         assert spin == 0
-        vt_R = self.dft.state.potential.vt_sR[spin]
+        vt_R = self.dft.potential.vt_sR[spin]
         return vt_R.to_pbc_grid().gather(broadcast=True).data * Ha
 
     def get_electrostatic_potential(self):
-        density = self.dft.state.density
+        density = self.dft.density
         potential, _ = self.dft.pot_calc.calculate(density)
         vHt_x = potential.vHt_x
         if isinstance(vHt_x, UGArray):
@@ -492,21 +488,20 @@ class ASECalculator:
         return n_sr[spin].gather(broadcast=broadcast).data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
-        state = self.dft.state
-        eig_n = state.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
+        eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
         if broadcast:
             if self.comm.rank != 0:
-                eig_n = np.empty(state.ibzwfs.nbands)
+                eig_n = np.empty(self.dft.ibzwfs.nbands)
             self.comm.broadcast(eig_n, 0)
         return eig_n
 
     def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True):
-        state = self.dft.state
-        weight = state.ibzwfs.ibz.weight_k[kpt] * state.ibzwfs.spin_degeneracy
-        occ_n = state.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1] * weight
+        ibzwfs = self.dft.ibzwfs
+        weight = ibzwfs.ibz.weight_k[kpt] * ibzwfs.spin_degeneracy
+        occ_n = ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1] * weight
         if broadcast:
             if self.comm.rank != 0:
-                occ_n = np.empty(state.ibzwfs.nbands)
+                occ_n = np.empty(ibzwfs.nbands)
             self.comm.broadcast(occ_n, 0)
         return occ_n
 
@@ -517,21 +512,18 @@ class ASECalculator:
         return self.dft.scf_loop.niter
 
     def get_bz_k_points(self):
-        state = self.dft.state
-        return state.ibzwfs.ibz.bz.kpt_Kc.copy()
+        return self.dft.ibzwfs.ibz.bz.kpt_Kc.copy()
 
     def get_ibz_k_points(self):
-        state = self.dft.state
-        return state.ibzwfs.ibz.kpt_kc.copy()
+        return self.dft.ibzwfs.ibz.kpt_kc.copy()
 
     def get_k_point_weights(self):
-        state = self.dft.state
-        return state.ibzwfs.ibz.weight_k
+        return self.dft.ibzwfs.ibz.weight_k
 
     def get_orbital_magnetic_moments(self):
         """Return the orbital magnetic moment vector for each atom."""
-        state = self.dft.state
-        if state.density.collinear:
+        density = self.dft.density
+        if density.collinear:
             raise CalculationModeError(
                 'Calculator is in collinear mode. '
                 'Collinear calculations require spin–orbit '
@@ -540,7 +532,7 @@ class ASECalculator:
             warnings.warn('Non-collinear calculation was performed '
                           'without spin–orbit coupling. Orbital '
                           'magnetic moments may not be accurate.')
-        return state.density.calculate_orbital_magnetic_moments()
+        return density.calculate_orbital_magnetic_moments()
 
     def calculate(self, atoms, properties=None, system_changes=None):
         if properties is None:
@@ -552,7 +544,7 @@ class ASECalculator:
     @cached_property
     def wfs(self):
         from gpaw.new.backwards_compatibility import FakeWFS
-        return FakeWFS(self.dft.state,
+        return FakeWFS(self.dft.ibzwfs,
                        self.dft.setups,
                        self.comm,
                        self.dft.scf_loop.occ_calc,
@@ -568,8 +560,7 @@ class ASECalculator:
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
-        return FakeHamiltonian(self.dft.state, self.dft.pot_calc,
-                               self.dft.results.get('free_energy'))
+        return FakeHamiltonian(self.dft, self.dft.results.get('free_energy'))
 
     @property
     def spos_ac(self):

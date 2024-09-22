@@ -255,7 +255,7 @@ class RTTDDFT:
                                            comm=world,
                                            dtype=complex)
 
-        state = dft.state
+        state = dft.state()
         pot_calc = dft.pot_calc
         hamiltonian = builder.create_hamiltonian_operator()
         history = RTTDDFTHistory()
