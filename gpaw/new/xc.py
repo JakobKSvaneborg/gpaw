@@ -10,7 +10,6 @@ from gpaw.gpu import einsum
 from gpaw.new import zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, evaluate_lda_gpu,
                         evaluate_pbe_gpu)
-from gpaw.new.calculation import DFTState
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
@@ -80,7 +79,7 @@ class Functional:
                             interpolate: Callable[[UGArray], UGArray]
                             ) -> Array2D:
         args, kwargs = self._args(ibzwfs, density, interpolate)
-        if state.ibzwfs.kpt_band_comm.rank == 0:
+        if ibzwfs.kpt_band_comm.rank == 0:
             if self.xp is np:
                 self.xc.kernel.calculate(*[array.data for array in args])
             # Special GPU cases:
@@ -97,7 +96,8 @@ class Functional:
         return self.xp.zeros((3, 3))
 
     def _args(self,
-              state: DFTState,
+              ibzwfs,
+              density,
               interpolate: Callable[[UGArray], UGArray]
               ) -> tuple[tuple[UGArray, ...], dict]:
         raise NotImplementedError
@@ -185,7 +185,8 @@ class GGAFunctional(LDAFunctional):
         return exc, vxct_sr, None
 
     def _args(self,
-              ibzwfs, density,,
+              ibzwfs,
+              density,
               interpolate: Callable[[UGArray], UGArray]
               ) -> tuple[tuple[UGArray, ...], dict]:
         args, kwargs = LDAFunctional._args(self, ibzwfs, density, interpolate)

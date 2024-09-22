@@ -171,7 +171,7 @@ class DFTCalculation:
     def iconverge(self, convergence=None, maxiter=None, calculate_forces=None):
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         yield from self.scf_loop.iterate(self.ibzwfs,
-                                         self.densitiy,
+                                         self.density,
                                          self.potential,
                                          self.pot_calc,
                                          convergence,
