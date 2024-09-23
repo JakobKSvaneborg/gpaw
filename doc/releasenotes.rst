@@ -10,11 +10,21 @@ Git master branch
 
 :git:`master <>`.
 
-* Added functionality to compute LDA exchange constants based on the local site
-  properties methodology, see :ref:`sites`.
+* Added functionality to compute LDA exchange constants based on the
+  local site properties methodology, see :ref:`sites`.
 
 * Extended ``restrict`` keyword and random phase approximation enabled
   in :ref:`lrtddft`
+
+* The :meth:`gpaw.calculator.GPAW.fixed_density` method now respects the
+  ``update_fermi_level`` argument.  Previously, the Fermi-level would not
+  be updated, but the occupation numers would be calculated with an
+  updated Fermi-level.  Now, the Fermi-level and the occupation numbers
+  always in sync.
+
+* The :meth:`gpaw.calculator.GPAW.get_occupation_numbers` method can now
+  return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
+  or **k**-point weights (use ``raw=True``).
 
 
 Version 24.6.0
