@@ -1,3 +1,4 @@
+=====================================
 October-2024 online developer meeting
 =====================================
 
@@ -6,24 +7,24 @@ When:
 Announcement:
   https://listserv.fysik.dtu.dk/pipermail/gpaw-users/2024-September/007312.html
 
+.. note::
+
+   Please try to focus your talks on the equations and algorithms you need
+   to solve and the challenges implementing those in the code.
+
 
 Program
+=======
+
+Tuesday
 -------
 
 :Jens Jørgen Mortensen:
 
-  *Old to new GPAW transition*
+  *Modernizing the code-base*
 
   Discussion of changes taking place in the code at the moment and how
   that will affect all of us in the future.
-
-:Mikael Kuisma:
-
-  *GPAW on GPUs*
-
-:Tuomas Rossi:
-
-  *Compiling for AMD and NVIDIA*
 
 :Aleksei Ivanov:
 
@@ -48,13 +49,37 @@ Program
   CIP-DFT and its further development as well as working towards
   integrating Poisson-Boltzmann models in the main GPAW version.
 
+:Colin Baker:
+
+  *Porting SJM into planewave mode*
+
+:Kyle Bystrom:
+
+  *PAW Implementation of Nonlocal, Machine-Learned Density Functionals*
+
+  Description: I will discuss an approach for efficiently evaluating
+  nonlocal density functionals within the PAW formalism and the
+  application of this approach to machine learning-based functionals.
+  I will also mention work in progress to further optimize this
+  algorithm and plans to extend it to van der Waals functionals and
+  orbital-dependent features.
+
+
+Wednesday
+---------
+
+:Mikael Kuisma:
+
+  *Running calculations on GPUs*
+
+:Tuomas Rossi:
+
+  *Compiling for AMD and NVIDIA*
+
+
 :Ask Hjorth Larsen:
 
   *ASR-LIB*
-
-:Andrew Peterson:
-
-  *Porting SJM into planewave mode*
 
 :Gianluca Levi:
 
@@ -69,7 +94,7 @@ Program
 
 :Pooria Dabbaghi:
 
-  *Implementing an inverse Kohn-Sham scheme within the PAW formalism in GPAW*
+  *Implementing an inverse Kohn-Sham scheme within the PAW formalism*
 
 :To be announced:
 
@@ -82,14 +107,3 @@ Program
 :To be announced:
 
   *LCAO Ehrenfest*
-
-:Kyle Bystrom:
-
-  *PAW Implementation of Nonlocal, Machine-Learned Density Functionals in GPAW*
-
-  Description: I will discuss an approach for efficiently evaluating
-  nonlocal density functionals within the PAW formalism and the
-  application of this approach to machine learning-based functionals.
-  I will also mention work in progress to further optimize this
-  algorithm and plans to extend it to van der Waals functionals and
-  orbital-dependent features.
