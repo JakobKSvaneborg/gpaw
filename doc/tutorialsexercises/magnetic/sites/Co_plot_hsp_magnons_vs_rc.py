@@ -15,7 +15,7 @@ rc = np.load('Co_rc.npy')
 magmom = np.load('Co_magmom.npy')
 
 # High-symmetry points
-q_pc = np.load('q_pc.npy')
+q_pc = np.load('Co_q_pc.npy')
 sp_p = [r'$\Gamma$', 'M', 'K', 'A']
 
 # Exchange constants calculated as a function of rc
