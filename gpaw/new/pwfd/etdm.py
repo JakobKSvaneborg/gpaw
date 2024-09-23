@@ -1,7 +1,6 @@
 import numpy as np
 
 from gpaw.new.backwards_compatibility import FakeHamiltonian, FakeWFS
-from gpaw.new.calculation import DFTState
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.directmin.scf_helper import check_eigensolver_state, do_if_converged
@@ -20,13 +19,14 @@ class ETDMPWFD(Eigensolver):
         self.occ_calc = None
         self.log = None
 
-    def whd(self, state, hamiltonian):
-        wfs = FakeWFS(state, self.setups, self.comm, self.occ_calc,
+    def whd(self, ibzwfs, density, potential, hamiltonian):
+        wfs = FakeWFS(ibzwfs, density, potential,
+                      self.setups, self.comm, self.occ_calc,
                       hamiltonian,
                       self.atoms)
         wfs.eigensolver = self.eigensolver
-        ham = FakeHamiltonian(state, self.pot_calc)
-        dens = Density(state)
+        ham = FakeHamiltonian(ibzwfs, density, potential, self.pot_calc)
+        dens = Density(ibzwfs, density)
         return wfs, ham, dens
 
     def initialize_etdm(self, state, pot_calc, occ_calc, hamiltonian, mixer,
@@ -41,9 +41,12 @@ class ETDMPWFD(Eigensolver):
                 wfs._eig_n = np.empty(wfs.nbands)
         check_eigensolver_state('etdm-fdpw', oldwfs, ham, dens, log=log)
 
-    def iterate(self, state: DFTState,
+    def iterate(self,
+                ibzwfs,
+                density,
+                potential,
                 hamiltonian: Hamiltonian) -> float:
-        wfs, ham, dens = self.whd(state, hamiltonian)
+        wfs, ham, dens = self.whd(ibzwfs, density, potential, hamiltonian)
         if not self.eigensolver.initialized:
             self.eigensolver.initialize_dm_helper(wfs, ham, dens, self.log)
         self.eigensolver.iterate(ham, wfs, dens, self.log)
@@ -62,9 +65,9 @@ class ETDMPWFD(Eigensolver):
 
 
 class Density:
-    def __init__(self, state):
+    def __init__(self, ibzwfs, density):
         self.fixed = False
-        self.state = state
+        self.density = density
 
     def update(self, wfs):
-        self.state.density.update(self.state.ibzwfs)
+        self.density.update(self.ibzwfs)

@@ -39,6 +39,8 @@ class PT:
 class FakeWFS:
     def __init__(self,
                  ibzwfs,
+                 density,
+                 potential,
                  setups,
                  comm,
                  occ_calc,
@@ -49,6 +51,7 @@ class FakeWFS:
         self.timer = nulltimer
         self.setups = setups
         self.ibzwfs = ibzwfs
+        self.potential = potential
         self.hamiltonian = hamiltonian
         self.kd = KPointDescriptor(ibzwfs.ibz.bz.kpt_Kc,
                                    ibzwfs.nspins)
@@ -56,9 +59,9 @@ class FakeWFS:
                              ibzwfs.ibz.symmetries.symmetry)
         self.kd.set_communicator(ibzwfs.kpt_comm)
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
-        self.grid = self.state.density.nt_sR.desc
+        self.grid = density.nt_sR.desc
         self.gd = self.grid._gd
-        atomdist = self.state.density.D_asii.layout.atomdist
+        atomdist = density.D_asii.layout.atomdist
         self.atom_partition = AtomPartition(atomdist.comm, atomdist.rank_a)
         # self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
         self.occ_calc = occ_calc
@@ -105,26 +108,26 @@ class FakeWFS:
         self.fftwflags = MEASURE
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
-        desc = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
+        desc = self.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
         self.hamiltonian.apply_local_potential(
-            self.state.potential.vt_sR[kpt.s],
+            self.potential.vt_sR[kpt.s],
             desc.from_data(data=a1),
             desc.from_data(data=a2))
 
     def calculate_occupation_numbers(self, fixed):
-        self.state.ibzwfs.calculate_occs(
+        self.ibzwfs.calculate_occs(
             self.occ_calc,
             fixed_fermi_level=fixed)
 
     def empty(self, n, q):
         return np.empty((n,) +
-                        self.state.ibzwfs.wfs_qs[q][0].psit_nX.data.shape[1:],
+                        self.ibzwfs.wfs_qs[q][0].psit_nX.data.shape[1:],
                         complex if self.mode == 'pw' else self.dtype)
 
     @cached_property
     def work_array(self):
         return np.empty(
-            (self.bd.mynbands,) + self.state.ibzwfs.get_max_shape(),
+            (self.bd.mynbands,) + self.ibzwfs.get_max_shape(),
             complex if self.mode == 'pw' else self.dtype)
 
     @cached_property
@@ -137,13 +140,13 @@ class FakeWFS:
 
     @property
     def orthonormalized(self):
-        return self.state.ibzwfs.wfs_qs[0][0].orthonormalized
+        return self.ibzwfs.wfs_qs[0][0].orthonormalized
 
     def orthonormalize(self, kpt=None):
         if kpt is None:
-            kpts = list(self.state.ibzwfs)
+            kpts = list(self.ibzwfs)
         else:
-            kpts = [self.state.ibzwfs.wfs_qs[kpt.q][kpt.s]]
+            kpts = [self.ibzwfs.wfs_qs[kpt.q][kpt.s]]
         for wfs in kpts:
             wfs._P_ani = None
             wfs.orthonormalized = False
@@ -172,8 +175,8 @@ class FakeWFS:
                                 periodic=False,
                                 cut=False):
         assert not cut
-        assert self.state.ibzwfs.band_comm.size == 1
-        assert self.state.ibzwfs.kpt_comm.size == 1
+        assert self.ibzwfs.band_comm.size == 1
+        assert self.ibzwfs.kpt_comm.size == 1
         if self.mode == 'lcao':
             assert not realspace
             return self.kpt_qs[k][s].C_nM[n]
@@ -194,7 +197,7 @@ class FakeWFS:
         return self.kpt_qs[k][s].projections.collect()
 
     def collect_eigenvalues(self, k, s):
-        return self.state.ibzwfs.wfs_qs[k][s].eig_n.copy()
+        return self.ibzwfs.wfs_qs[k][s].eig_n.copy()
 
     @cached_property
     def kpt_u(self):
@@ -207,7 +210,7 @@ class FakeWFS:
         return [[KPT(self.mode, wfs, self.atom_partition, self.scale,
                      self.pd, self.gd)
                  for wfs in wfs_s]
-                for wfs_s in self.state.ibzwfs.wfs_qs]
+                for wfs_s in self.ibzwfs.wfs_qs]
 
     def integrate(self, a_nX, b_nX, global_integral):
         if self.mode == 'fd':
@@ -304,11 +307,10 @@ class KPT:
 class FakeDensity:
     def __init__(self, dft: DFTCalculation):
         self.setups = dft.setups
-        self.state = dft.state
-        self.D_asii = self.state.density.D_asii
+        self.D_asii = dft.density.D_asii
         self.atom_partition = dft._atom_partition
         self.interpolate = dft.pot_calc._interpolate_density
-        self.nt_sR = self.state.density.nt_sR
+        self.nt_sR = dft.density.nt_sR
         self.nt_sG = self.nt_sR.data
         self.gd = self.nt_sR.desc._gd
         self.finegd = dft.pot_calc.fine_grid._gd
@@ -339,19 +341,23 @@ class FakeDensity:
 
 
 class FakeHamiltonian:
-    def __init__(self, dft, e_total_free=np.nan):
-        self.pot_calc = dft.pot_calc
-        self.dft = dft
+    def __init__(self, ibzwfs, density, potential, pot_calc,
+                 e_total_free=np.nan):
+        self.pot_calc = pot_calc
+        self.ibzewfs = ibzwfs
+        self.density = density
+        self.potential = potential
         self.finegd = self.pot_calc.fine_grid._gd
-        self.grid = dft.potential.vt_sR.desc
+        self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
-        self.e_xc = dft.potential.energies['xc']
+        self.e_xc = potential.energies['xc']
 
     def update(self, dens, wfs, kin_en_using_band=True):
-        self.dft.potential, _ = self.pot_calc.calculate(
-            self.dft.ibzwfs, self.dft.density, self.dft.potential.vHt_x)
+        potential, _ = self.pot_calc.calculate(
+            self.ibzwfs, self.density, self.potential.vHt_x)
+        self.potential.update_from(potential)
 
-        energies = self.dft.potential.energies
+        energies = self.potential.energies
         self.e_xc = energies['xc']
         self.e_coulomb = energies['coulomb']
         self.e_zero = energies['zero']
@@ -360,12 +366,12 @@ class FakeHamiltonian:
         if kin_en_using_band:
             self.e_kinetic0 = energies['kinetic']
         else:
-            self.e_kinetic0 = self.dft.ibzwfs.calculate_kinetic_energy(
-                wfs.hamiltonian, self.dft.density)
+            self.e_kinetic0 = self.ibzwfs.calculate_kinetic_energy(
+                wfs.hamiltonian, self.density)
             energies['kinetic'] = self.e_kinetic0
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
-        self.e_band = self.dft.ibzwfs.energies['band']
+        self.e_band = self.ibzwfs.energies['band']
         if kin_en_using_band:
             self.e_kinetic = self.e_kinetic0 + self.e_band
         else:
@@ -389,7 +395,7 @@ class FakeHamiltonian:
 
         self.e_total_extrapolated = (
             self.e_total_free +
-            self.state.ibzwfs.energies['extrapolation'])
+            self.ibzwfs.energies['extrapolation'])
 
         return self.e_total_free
 
@@ -408,5 +414,5 @@ class FakeHamiltonian:
 
     def dH(self, P, out):
         for a, I1, I2 in P.indices:
-            dH_ii = self.dft.potential.dH_asii[a][P.spin]
+            dH_ii = self.potential.dH_asii[a][P.spin]
             out.array[:, I1:I2] = np.dot(P.array[:, I1:I2], dH_ii)

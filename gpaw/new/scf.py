@@ -114,8 +114,9 @@ class SCFLoop:
             if self.update_density_and_potential:
                 density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
                 dens_error = self.mixer.mix(density)
-                potential, _ = pot_calc.calculate(
+                new_potential, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
+                potential.update_from(new_potential)
                 if self.eigensolver.direct:
                     ekin = ibzwfs.calculate_kinetic_energy(
                         self.hamiltonian, density)
