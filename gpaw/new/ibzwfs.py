@@ -176,7 +176,7 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.orthonormalize(work_array_nX)
 
-    def calculate_occs(self, occ_calc, fixed_fermi_level=False):
+    def calculate_occs(self, occ_calc, fix_fermi_level=False):
         degeneracy = self.spin_degeneracy
 
         # u index is q and s combined
@@ -186,9 +186,10 @@ class IBZWaveFunctions(Generic[WFT]):
             weights=[wfs.weight for wfs in self],
             fermi_levels_guess=(None
                                 if self.fermi_levels is None else
-                                self.fermi_levels * Ha))
+                                self.fermi_levels * Ha),
+            fix_fermi_level=fix_fermi_level)
 
-        if not fixed_fermi_level:
+        if not fix_fermi_level:
             self.fermi_levels = np.array(fermi_levels) / Ha
         else:
             assert self.fermi_levels is not None

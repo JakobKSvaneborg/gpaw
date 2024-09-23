@@ -40,6 +40,7 @@ class SCFLoop:
         self.maxiter = maxiter
         self.niter = 0
         self.update_density_and_potential = True
+        self.fix_fermi_level = False
 
     def __repr__(self):
         return 'SCFLoop(...)'
@@ -84,7 +85,7 @@ class SCFLoop:
             wfs_error = self.eigensolver.iterate(state, self.hamiltonian)
             state.ibzwfs.calculate_occs(
                 self.occ_calc,
-                fixed_fermi_level=not self.update_density_and_potential)
+                fix_fermi_level=self.fix_fermi_level)
             if self.eigensolver.direct:
                 state.ibzwfs.energies['band'] = 0.0
 
