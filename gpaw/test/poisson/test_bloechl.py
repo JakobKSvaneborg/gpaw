@@ -16,7 +16,7 @@ def test_psolve():
     rgd = RGD(0.01, 500)
     rc1 = 0.6
     rc2 = 0.7
-    d12 = 3.6
+    d12 = 1.3
     g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
     v = 7.5
     pw = PWDesc(gcut=18.0, cell=[2 * v, 2 * v, 2 * v + d12])
@@ -77,10 +77,10 @@ def test_psolve():
             e20 += e12
 
     ps = PWPoissonSolver(pw.new(gcut=36))
-    spps = OldPAWPoissonSolver(
+    opps = OldPAWPoissonSolver(
         pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
     vt_g = pw.zeros()
-    e3, vHt_h, V_aL = pps.solve(nt_g, Q_aL, vt_g)
+    e3, vHt_h, V_aL = opps.solve(nt_g, Q_aL, vt_g)
     print('old   ', e3, e3 - e0)
     print(V_aL.data[::9])
     print(vt_g.data[:5])

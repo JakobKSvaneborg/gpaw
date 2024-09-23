@@ -50,12 +50,13 @@ class PAWPoissonSolver:
         self.cutoff_a = np.asarray(cutoff_a)
         self.rcut = self.cutoff_a.max() * 2
         d = 0.01
-        rgd = RGD(d, int(self.rcut * 6 / d))
+        rgd = RGD(d, int(self.rcut * 8 / d))
         g_lg = shape_functions(rgd, 'gauss', self.rcut, lmax=2)
         ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g_lg)]
         ghat_al = [ghat_l] * len(self.cutoff_a)
         cache = {}
         vhat_al = []
+        import matplotlib.pyplot as plt
         for rc in cutoff_a:
             if rc in cache:
                 vhat_l = cache[rc]
@@ -64,7 +65,9 @@ class PAWPoissonSolver:
                 vhat_l = [rgd.spline(v_g * (4 * pi), l=l)
                           for l, v_g in enumerate(v_lg)]
                 cache[rc] = vhat_l
+                plt.plot(rgd.r_g, v_lg[0])
             vhat_al.append(vhat_l)
+        plt.show()
 
         self.ghat_aLg = pwg.atom_centered_functions(
             ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
@@ -77,10 +80,11 @@ class PAWPoissonSolver:
         if self._neighbors is None:
             pw = self.pwg
             self._neighbors = primitive_neighbor_list(
-                'ijdD', pw.pbc, pw.cell, self.fracpos_ac, self.rcut,
+                'ijdD', pw.pbc, pw.cell, self.fracpos_ac,
+                2 * self.rcut * 5,
                 use_scaled_positions=True,
                 self_interaction=True)
-            # print(self._neighbors, self.rcut);sadg
+            # print(self._neighbors, self.rcut)
         return self._neighbors
 
     def dipole_layer_correction(self):
@@ -118,30 +122,30 @@ class PAWPoissonSolver:
 
         vhat_g = pwg.zeros()
         self.vhat_aLg.add_to(vhat_g, Q_aL)
-        vHt_g.data += vhat_g.data
+        # vHt_g.data += vhat_g.data
+        vt0_g.data += vhat_g.data
+        # print('XXX', vt0_g.data[:2])
         e_coulomb2 = vhat_g.integrate(nt_g)
 
         V_aL = self.ghat_aLg.integrate(vHt_g)
-        print(V_aL.data[0])
+        # print(V_aL.data[0])
         self.vhat_aLg.integrate(nt_g, V_aL, add_to=True)
-        print(V_aL.data[0])
+        # print(V_aL.data[0])
 
         e_coulomb3 = 0.0
-        # for a, rc in enumerate(self.cutoff_a):
-        #     e_coulomb3 += Q_aL[a][0]**2 * (c(0.0, self.rcut, self.rcut) -
-        #                                    c(0.0, rc, rc))
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             v = Q_aL[a2][0] * (
                 c(d, self.rcut, self.rcut) -
-                c(d, self.cutoff_a[a1], self.cutoff_a[a2]))
-            print(a1, a2, d, v)
-            V_aL[a1][0] += v
+                c(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
+            # print(a1, a2, d, v)
+            V_aL[a1][0] -= v
             e_coulomb3 += Q_aL[a1][0] * v
-        e_coulomb3 *= -0.5 / 4 / pi
+        e_coulomb3 *= -0.5
 
         vHt0_g = vHt_g.gather()
         if pwg.comm.rank == 0:
             vt0_g.data += vHt0_g.data
+        # print('XXX', vt0_g.data[:2])
 
         if 0:
             print(e_coulomb1, e_coulomb2, e_coulomb3)
@@ -191,6 +195,9 @@ class SimplePAWPoissonSolver:
         if vHt_g is None:
             vHt_g = pwg.zeros(xp=self.xp)
         e_coulomb = self.poisson_solver.solve(vHt_g, charge_g)
+        print(e_coulomb)
+        print(charge_g.data[:5])
+        print(vHt_g.data[:5])
         if 0:
             v=vHt_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
             n=charge_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
@@ -250,7 +257,7 @@ class OldPAWPoissonSolver:
     def move(self, fracpos_ac, atomdist):
         self.ghat_aLh.move(fracpos_ac, atomdist)
 
-    def solve(self, nt_g, Q_aL, vt0_g, vHt_h):
+    def solve(self, nt_g, Q_aL, vt0_g, vHt_h=None):
         charge_h = self.pwh.zeros(xp=self.xp)
         self.ghat_aLh.add_to(charge_h, Q_aL)
         pwg = self.pwg
@@ -270,6 +277,9 @@ class OldPAWPoissonSolver:
             vHt_h = self.pwh.zeros(xp=self.xp)
 
         e_coulomb = self.poisson_solver.solve(vHt_h, charge_h)
+        # print('OLD', e_coulomb)
+        # print(charge_h.data[:5])
+        # print(vHt_h.data[:5])
 
         if pwg.comm.rank == 0:
             for rank, g in enumerate(self.g_r):

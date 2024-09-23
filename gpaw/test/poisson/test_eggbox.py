@@ -9,7 +9,7 @@ def test_eggbox():
                       poissonsolver={'fast': True},
                       convergence={'energy': 1e-6},
                       symmetry='off',
-                      txt='0b')
+                      txt='1b')
     E = []
     X = np.linspace(0, 0.9, 30)
     # X = [0, 0.03, 0]
