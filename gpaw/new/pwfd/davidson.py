@@ -15,7 +15,6 @@ from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_exception, broadcast_float
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
-from gpaw.new.calculation import DFTState
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -79,7 +78,11 @@ class Davidson(Eigensolver):
                            xp=xp)
 
     @trace
-    def iterate(self, state: DFTState, hamiltonian: Hamiltonian) -> float:
+    def iterate(self,
+                ibzwfs,
+                density,
+                potential,
+                hamiltonian: Hamiltonian) -> float:
         """Iterate on state given fixed hamiltonian.
 
         Returns
@@ -93,19 +96,18 @@ class Davidson(Eigensolver):
         """
 
         if self.work_arrays is None:
-            self._initialize(state.ibzwfs)
+            self._initialize(ibzwfs)
 
         assert self.M_nn is not None
 
-        wfs = state.ibzwfs.wfs_qs[0][0]
+        wfs = ibzwfs.wfs_qs[0][0]
         dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
                                                     wfs.xp)
-        ibzwfs = state.ibzwfs
-        dH = state.potential.dH
+        dH = potential.dH
         Ht = partial(hamiltonian.apply,
-                     state.potential.vt_sR,
-                     state.potential.dedtaut_sR,
-                     ibzwfs, state.density.D_asii)  # used by hybrids
+                     potential.vt_sR,
+                     potential.dedtaut_sR,
+                     ibzwfs, density.D_asii)  # used by hybrids
 
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
