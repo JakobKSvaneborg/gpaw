@@ -6,7 +6,7 @@ from ase.neighborlist import primitive_neighbor_list
 from gpaw.core import PWDesc, PWArray
 from gpaw.core.atom_arrays import AtomDistribution, AtomArrays
 from gpaw.gpu import cupy as cp
-# from gpaw.setup import Setups
+from gpaw.setup import Setups
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 
@@ -56,7 +56,6 @@ class PAWPoissonSolver:
         ghat_al = [ghat_l] * len(self.cutoff_a)
         cache = {}
         vhat_al = []
-        import matplotlib.pyplot as plt
         for rc in cutoff_a:
             if rc in cache:
                 vhat_l = cache[rc]
@@ -65,9 +64,7 @@ class PAWPoissonSolver:
                 vhat_l = [rgd.spline(v_g * (4 * pi), l=l)
                           for l, v_g in enumerate(v_lg)]
                 cache[rc] = vhat_l
-                plt.plot(rgd.r_g, v_lg[0])
             vhat_al.append(vhat_l)
-        plt.show()
 
         self.ghat_aLg = pwg.atom_centered_functions(
             ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
@@ -195,16 +192,6 @@ class SimplePAWPoissonSolver:
         if vHt_g is None:
             vHt_g = pwg.zeros(xp=self.xp)
         e_coulomb = self.poisson_solver.solve(vHt_g, charge_g)
-        print(e_coulomb)
-        print(charge_g.data[:5])
-        print(vHt_g.data[:5])
-        if 0:
-            v=vHt_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
-            n=charge_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
-            import matplotlib.pyplot as plt
-            plt.plot(v.data[75,75])
-            plt.plot(n.data[75,75])
-            plt.show()
         vHt0_g = vHt_g.gather()
         if pwg.comm.rank == 0:
             vt0_g.data += vHt0_g.data
@@ -215,8 +202,8 @@ class SimplePAWPoissonSolver:
 class OldPAWPoissonSolver:
     def __init__(self,
                  pwg: PWDesc,
-                 cutoff_a,
-                 # setups: Setups,
+                 # cutoff_a,
+                 setups: Setups,
                  poisson_solver,
                  fracpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
@@ -226,7 +213,7 @@ class OldPAWPoissonSolver:
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.pwh = poisson_solver.pw
         self.poisson_solver = poisson_solver
-        if 1:
+        if 0:
             d = 0.005
             rgd = RGD(d, int(10.0 / d))
             cache = {}

@@ -549,7 +549,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                                 gd.n_c, cspline_M,
                                 gd.beg_c, self.pos_Wv, a, v, q)
 
-    def integrate(self, a_xG, c_axi, q=-1):
+    def integrate(self, a_xG, c_axi, q=-1, add_to=False):
         """Calculate integrals of arrays times localized functions.
 
         ::
@@ -559,6 +559,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                    /     x       i
 
         """
+        assert not add_to
         assert not self.use_global_indices
         if q == -1:
             assert self.dtype == float

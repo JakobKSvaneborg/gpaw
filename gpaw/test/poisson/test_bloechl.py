@@ -76,14 +76,16 @@ def test_psolve():
             # print(q1, q2, rc1, rc2, d, e12)
             e20 += e12
 
-    ps = PWPoissonSolver(pw.new(gcut=36))
-    opps = OldPAWPoissonSolver(
-        pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
-    vt_g = pw.zeros()
-    e3, vHt_h, V_aL = opps.solve(nt_g, Q_aL, vt_g)
-    print('old   ', e3, e3 - e0)
-    print(V_aL.data[::9])
-    print(vt_g.data[:5])
+    if 0:
+        ps = PWPoissonSolver(pw.new(gcut=36))
+        opps = OldPAWPoissonSolver(
+            pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
+        vt_g = pw.zeros()
+        e3, vHt_h, V_aL = opps.solve(nt_g, Q_aL, vt_g)
+        print('old   ', e3, e3 - e0)
+        print(V_aL.data[::9])
+        print(vt_g.data[:5])
+
 
 if __name__ == '__main__':
     rc1 = 0.1

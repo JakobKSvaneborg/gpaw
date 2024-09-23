@@ -3,7 +3,7 @@ from gpaw import GPAW
 import numpy as np
 
 
-def test_eggbox():
+def _test_eggbox():
     atoms = Atoms('H', cell=[3, 3, 3], pbc=True)
     atoms.calc = GPAW(mode='pw',
                       poissonsolver={'fast': True},
@@ -24,6 +24,3 @@ def test_eggbox():
         import matplotlib.pyplot as plt
         plt.plot(X, E)
         plt.show()
-
-
-test_eggbox()

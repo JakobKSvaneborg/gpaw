@@ -112,15 +112,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                      self.fine_grid,
                                      self.params.charge,
                                      **psparams)
-            cutoff_a = []
-            for s in self.setups:
-                assert s.data.shape_function['type'] == 'gauss'
-                cutoff_a.append(s.data.shape_function['rc'])
             pw = self.interpolation_desc
             return OldPAWPoissonSolver(
                 pw,
-                # self.setups,
-                cutoff_a,
+                self.setups,
                 ps, self.fracpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self):
