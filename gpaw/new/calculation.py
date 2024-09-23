@@ -6,12 +6,12 @@ from typing import Any, Union
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
-
-from gpaw.core import UGDesc
+from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
+from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, world
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
@@ -341,6 +341,49 @@ class DFTCalculation:
 
     def densities(self) -> Densities:
         return Densities.from_calculation(self)
+
+    def wave_function(self, band: int, kpt=0, spin=None,
+                      periodic=False,
+                      broadcast=True) -> UGArray:
+        psit_nR = self.wave_functions(n1=band, n2=band + 1, kpt=kpt, spin=spin,
+                                      periodic=periodic, broadcast=broadcast)
+        if psit_nR is not None:
+            return psit_nR[0]
+
+    def wave_functions(self, n1=0, n2=None, kpt=0, spin=None,
+                       periodic=False,
+                       broadcast=True,
+                       _pad=True) -> UGArray:
+        state = self.state
+        collinear = state.ibzwfs.collinear
+        if collinear:
+            if spin is None:
+                spin = 0
+        else:
+            assert spin is None or spin == 0
+        wfs = state.ibzwfs.get_wfs(spin=spin if collinear else 0,
+                                   kpt=kpt,
+                                   n1=n1, n2=n2)
+        if wfs is not None:
+            basis = getattr(self.scf_loop.hamiltonian, 'basis', None)
+            grid = state.density.nt_sR.desc.new(comm=None)
+            if collinear:
+                wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
+                psit_nR = wfs.psit_nX
+            else:
+                psit_nsG = wfs.psit_nX
+                grid = grid.new(kpt=psit_nsG.desc.kpt_c,
+                                dtype=psit_nsG.desc.dtype)
+                psit_nR = psit_nsG.ifft(grid=grid)
+            if not psit_nR.desc.pbc.all() and _pad:
+                psit_nR = psit_nR.to_pbc_grid()
+            if periodic:
+                psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
+        else:
+            psit_nR = None
+        if broadcast:
+            psit_nR = bcast(psit_nR, 0, self.comm)
+        return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
     @cached_property
     def _atom_partition(self):

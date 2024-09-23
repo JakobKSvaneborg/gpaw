@@ -8,10 +8,10 @@
 In this exercise we are going to calculate the absorption spectra of the material you have considered so far.
 In general, the absorption spectrum is given by the imaginary part of the macroscopic dielectric function. This means that our computational task is to calculate the macroscopic dielectric function for our material, and then plot the imaginary part. For more information about the dielectric function please consult:
 
-https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/opticalresponse/dielectric_response/dielectric_response.html
+https://gpaw.readthedocs.io/tutorialsexercises/opticalresponse/dielectric_response/dielectric_response.html
 
 To calculate the dielectric function, we will use the Random Phase Approximation (RPA) correlation energy (so we say we calculate the absorption spectrum within the random phase approximation).
-(Details about RPA to calculate the total energy can be found here: https://wiki.fysik.dtu.dk/gpaw/documentation/xc/rpa.html#rpa)
+(Details about RPA to calculate the total energy can be found here: https://gpaw.readthedocs.io/documentation/xc/rpa.html#rpa)
 
 As discussed earlier, it is of greatest importance to make sure our calculations are converged. Since the convergence parameters is not necessarily the same for band gaps and RPA absorption spectra (and any other material property) with respect to for instance plane-wave cut-off or k-points, we need to do do a new ground state calculation with parameters. For RPA absorption spectra we will here look at the number of bands included in the calculation and the k-point mesh. We will therefore restart from the previous ground state file, and update some of the parameters. First we will look at a too rough k-point mesh and then do more calculations with a finer k-point mesh. In this way we can see the importance of converging the calculations.
 

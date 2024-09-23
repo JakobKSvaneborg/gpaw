@@ -257,6 +257,6 @@ Here are some tips:
 
 See details here:
 
-    https://wiki.fysik.dtu.dk/gpaw/documentation/convergence.html
+    https://gpaw.readthedocs.io/documentation/convergence.html
 
 """

@@ -223,6 +223,7 @@ News
 
 
 .. toctree::
+   :maxdepth: 2
 
    algorithms
    install

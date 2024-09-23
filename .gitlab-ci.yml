@@ -642,6 +642,10 @@ nightly-mpi-2:
     GPAW_MPI_NPROCS: "2"
   extends:
     - .nightly
+  script:
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m
+      pytest --instafail -r s --durations 30 -m "not slow"
 
 
 nightly-mpi-4:
