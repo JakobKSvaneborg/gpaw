@@ -9,6 +9,7 @@ Announcement:
 
 .. note::
 
+   Talks are approximately 15 + 10 minutes.
    Please try to focus your talks on the equations and algorithms you need
    to solve and the challenges implementing those in the code.
 
@@ -19,14 +20,18 @@ Program
 Tuesday
 -------
 
-:Jens Jørgen Mortensen:
+:14:00:
+
+  **Jens Jørgen Mortensen**
 
   *Modernizing the code-base*
 
   Discussion of changes taking place in the code at the moment and how
   that will affect all of us in the future.
 
-:Aleksei Ivanov:
+:14:25:
+
+  **Aleksei Ivanov**
 
   *UPAW method, wavefunction theories and quantum computing prospects*
 
@@ -42,18 +47,24 @@ Tuesday
   prospects on using GPAW for quantum embedding theories such as the
   density matrix embedding theory.
 
-:Marko Melander:
+:14:50:
+
+  **Marko Melander**
 
   *Constant inner potential (CIP) DFT method (extension of SJM)*
 
   CIP-DFT and its further development as well as working towards
   integrating Poisson-Boltzmann models in the main GPAW version.
 
-:Colin Baker:
+:15:15:
+
+  **Colin Baker**
 
   *Porting SJM into planewave mode*
 
-:Kyle Bystrom:
+:15:40:
+
+  **Kyle Bystrom**
 
   *PAW Implementation of Nonlocal, Machine-Learned Density Functionals*
 
@@ -64,46 +75,63 @@ Tuesday
   algorithm and plans to extend it to van der Waals functionals and
   orbital-dependent features.
 
+:16:05:
+
+  **Pooria Dabbaghi**
+
+  *Implementing an inverse Kohn-Sham scheme within the PAW formalism*
+
+:16:30:
+
+  **To be announced**
+
+  *Improved basis sets for LCAO*
+
 
 Wednesday
 ---------
 
-:Mikael Kuisma:
+:14:00:
+
+  **Mikael Kuisma**
 
   *Running calculations on GPUs*
 
-:Tuomas Rossi:
+:14:25:
+
+  **Tuomas Rossi**
 
   *Compiling for AMD and NVIDIA*
 
+:14:50:
 
-:Ask Hjorth Larsen:
+  **Ask Hjorth Larsen**
 
   *ASR-LIB*
 
-:Gianluca Levi:
+:15:15:
+
+  **Gianluca Levi**
 
   *Direct optimization methods for excited state calculations*
 
   The current status of the implementation, what is missing and what
   are the new features that I'd like to implement next.
 
-:Gianluca Levi:
+:15:40:
+
+  **Gianluca Levi**
 
   *Self-interaction correction*
 
-:Pooria Dabbaghi:
+:16:05:
 
-  *Implementing an inverse Kohn-Sham scheme within the PAW formalism*
-
-:To be announced:
-
-  *Improved basis sets for LCAO*
-
-:To be announced:
+  **To be announced**
 
   *RTTDDFT*
 
-:To be announced:
+:16:30:
 
-  *LCAO Ehrenfest*
+  **Vladimír Zobač**
+
+  *Ehrenfest molecular dynamics with LCAO basis*
