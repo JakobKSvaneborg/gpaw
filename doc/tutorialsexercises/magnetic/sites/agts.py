@@ -10,4 +10,4 @@ def workflow():
     with run(script='Co_exchange_parameters.py', cores=40, tmax='1h'):
         run(script='Co_plot_hsp_magnons_vs_rc.py')
         run(script='Co_plot_dispersion.py')
-        run(script='Fe_test_hsp_magnons.py')
+        run(script='Co_test_hsp_magnons.py')
