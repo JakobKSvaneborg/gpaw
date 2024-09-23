@@ -5,10 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Load data
-rc_r = np.load('rc_r.npy')
-m_r = np.load('m_r.npy')
-EZ_r = np.load('EZ_r.npy')
-rc = np.load('rc.npy')
+rc_r = np.load('Fe_rc_r.npy')
+m_r = np.load('Fe_m_r.npy')
+EZ_r = np.load('Fe_EZ_r.npy')
+rc = np.load('Fe_rc.npy')
 magmom = np.load('magmom.npy')
 
 # Plot data

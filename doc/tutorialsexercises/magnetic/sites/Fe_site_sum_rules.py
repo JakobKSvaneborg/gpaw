@@ -24,7 +24,7 @@ calc = calc.fixed_density(nbands=nocc + nunocc + 6,
 # ----- Site sum rules ----- #
 
 # Reuse the radius grid
-rc_r = np.load('rc_r.npy')
+rc_r = np.load('Fe_rc_r.npy')
 sites = AtomicSites(indices=[0], radii=[rc_r])
 # Calculate the single-particle sum rule
 gs = ResponseGroundStateAdapter(calc)
@@ -45,5 +45,5 @@ for n, unocc in enumerate(unocc_n):
 
 # Save site sum rule data
 if rank == 0:
-    np.save('sp_EZ_r.npy', sp_EZ_ar[0])
-    np.save('EZ_nr.npy', EZ_nr)
+    np.save('Fe_sp_EZ_r.npy', sp_EZ_ar[0])
+    np.save('Fe_EZ_nr.npy', EZ_nr)
