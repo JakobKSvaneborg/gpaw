@@ -13,6 +13,7 @@ def g(rc, rgd):
 
 
 def test_psolve():
+    """Unit-test for Blöchl's fast Poisson-solver (WIP)."""
     rgd = RGD(0.01, 500)
     rc1 = 0.6
     rc2 = 0.7
@@ -88,7 +89,4 @@ def test_psolve():
 
 
 if __name__ == '__main__':
-    rc1 = 0.1
-    rc2 = 0.2
-    print(c(8.0, rc1, rc2) / (4 * np.pi)**2)
     test_psolve()

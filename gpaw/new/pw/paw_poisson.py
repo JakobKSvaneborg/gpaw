@@ -1,3 +1,8 @@
+"""PAW Poisson-solvers.
+
+See equations (25-28) in
+P. E. Blöchl: https://sci-hub.st/10.1103/PhysRevB.50.17953
+"""
 from __future__ import annotations
 
 from math import pi
@@ -35,7 +40,21 @@ def c(r, rc1, rc2):
     if r == 0.0:
         return f
     T = a1 * a2 / (a1 + a2) * r**2
-    return 0.5 * f * erf(T**0.5) * (pi / T)**0.5
+    y = 0.5 * f * erf(T**0.5) * (pi / T)**0.5
+    return y
+
+
+def dcdr(r, rc1, rc2):
+    if r == 0.0:
+        return 0.0
+    a1 = 1 / rc1**2
+    a2 = 1 / rc2**2
+    f = 2 * (pi**5 / (a1 + a2))**0.5 / (a1 * a2)
+    f *= 16 / pi / rc1**3 / rc2**3
+    T = a1 * a2 / (a1 + a2) * r**2
+    y = 0.5 * f * erf(T**0.5) * (pi / T)**0.5
+    dydr = (2 / pi**0.5 * np.exp(-T) - y) / r
+    return dydr
 
 
 class PAWPoissonSolver:
@@ -76,6 +95,7 @@ class PAWPoissonSolver:
             vhat_al, fracpos_ac, atomdist=atomdist, xp=xp)
 
         self._neighbors = None
+        self.ghat_aLh = self.ghat_aLg  # old name
 
     def get_neighbors(self):
         if self._neighbors is None:
@@ -134,6 +154,17 @@ class PAWPoissonSolver:
             vt0_g.data += vHt0_g.data
 
         return e_coulomb1 + e_coulomb2 + e_coulomb3, vHt_g, V_aL
+
+    def force_contribution(self, Q_aL):
+        force_av = np.zeros((len(Q_aL), 3))
+        for a1, a2, d, d_v in zip(*self.get_neighbors()):
+            v = Q_aL[a1][0] * Q_aL[a2][0] * (
+                dcdr(d, self.rcut, self.rcut) -
+                dcdr(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
+            if d > 0:
+                f_v = v * d_v / d
+                force_av[a1] += f_v
+                force_av[a2] -= f_v
 
 
 class SimplePAWPoissonSolver:
