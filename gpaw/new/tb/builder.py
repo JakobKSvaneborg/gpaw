@@ -184,24 +184,27 @@ class TBSCFLoop:
         self.comm = comm
 
     def iterate(self,
-                state,
+                ibzwfs,
+                density,
+                potential,
                 pot_calc,
                 convergence=None,
                 maxiter=None,
                 calculate_forces=None,
                 log=None):
-        self.eigensolver.iterate(state, self.hamiltonian)
-        state.ibzwfs.calculate_occs(self.occ_calc)
+        self.eigensolver.iterate(ibzwfs, density, potential, self.hamiltonian)
+        ibzwfs.calculate_occs(self.occ_calc)
         yield SCFContext(
             log,
             1,
-            state,
+            ibzwfs, density, potential,
             0.0, 0.0,
             self.comm, calculate_forces,
             pot_calc)
 
-        state.potential, _ = pot_calc.calculate(
-            state.density, None, state.potential.vHt_x)
+        new_potential, _ = pot_calc.calculate(
+            density, None, potential.vHt_x)
+        potential.update_from(new_potential)
 
 
 class DummyBasis:

@@ -132,7 +132,7 @@ class FDPotentialCalculator(PotentialCalculator):
         dedtaut_sR = potential.dedtaut_sR
         if dedtaut_sR is not None:
             dedtaut_R = spinsum(dedtaut_sR, mean=True)
-            Ftauct_av = state.density.tauct_aX.derivative(dedtaut_R)
+            Ftauct_av = density.tauct_aX.derivative(dedtaut_R)
         else:
             Ftauct_av = None
 
