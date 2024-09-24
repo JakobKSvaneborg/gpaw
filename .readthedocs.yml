@@ -16,7 +16,7 @@ build:
         nolibxc = True
         EOF
     pre_build:
-      - gpaw install-data --register .
+      - gpaw -T install-data --register .
 
 sphinx:
   configuration: doc/conf.py

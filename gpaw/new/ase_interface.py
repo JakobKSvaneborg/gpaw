@@ -495,10 +495,13 @@ class ASECalculator:
             self.comm.broadcast(eig_n, 0)
         return eig_n
 
-    def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True):
+    def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True,
+                               raw=False):
         ibzwfs = self.dft.ibzwfs
-        weight = ibzwfs.ibz.weight_k[kpt] * ibzwfs.spin_degeneracy
-        occ_n = ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1] * weight
+        occ_n = ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1]
+        if not raw:
+            weight = ibzwfs.ibz.weight_k[kpt] * ibzwfs.spin_degeneracy
+            occ_n *= weight
         if broadcast:
             if self.comm.rank != 0:
                 occ_n = np.empty(ibzwfs.nbands)
@@ -635,7 +638,11 @@ class ASECalculator:
         from gpaw.response.groundstate import ResponseGroundStateAdapter
         return ResponseGroundStateAdapter(self)
 
-    def fixed_density(self, txt='-', **kwargs):
+    def fixed_density(self,
+                      *,
+                      txt='-',
+                      update_fermi_level: bool = False,
+                      **kwargs):
         kwargs = {**dict(self.params.items()), **kwargs}
         params = InputParameters(kwargs)
         log = Logger(txt, self.comm)
@@ -659,6 +666,7 @@ class ASECalculator:
 
         scf_loop = builder.create_scf_loop()
         scf_loop.update_density_and_potential = False
+        scf_loop.fix_fermi_level = not update_fermi_level
 
         dft = DFTCalculation(
             ibzwfs, density, potential,

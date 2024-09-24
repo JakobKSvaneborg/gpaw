@@ -11,16 +11,16 @@ from gpaw.response.heisenberg import calculate_fm_magnon_energies
 # ----- Load data ----- #
 
 # Magnetic moment and ideal rc
-rc = np.load('rc.npy')
-magmom = np.load('magmom.npy')
+rc = np.load('Co_rc.npy')
+magmom = np.load('Co_magmom.npy')
 
 # High-symmetry points
-q_pc = np.load('q_pc.npy')
+q_pc = np.load('Co_q_pc.npy')
 sp_p = [r'$\Gamma$', 'M', 'K', 'A']
 
 # Exchange constants calculated as a function of rc
-rc_r = np.load('rc_r.npy')
-J_pabr = np.load('J_pabr.npy')
+rc_r = np.load('Co_rc_r.npy')
+J_pabr = np.load('Co_J_pabr.npy')
 
 # ----- Calculate magnon energies ----- #
 

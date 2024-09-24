@@ -8,10 +8,10 @@ from gpaw.response.heisenberg import calculate_fm_magnon_energies
 
 def test():
     # Load data
-    magmom = np.load('magmom.npy')
-    q_pc = np.load('q_pc.npy')
-    rc_r = np.load('rc_r.npy')
-    J_pabr = np.load('J_pabr.npy')
+    magmom = np.load('Co_magmom.npy')
+    q_pc = np.load('Co_q_pc.npy')
+    rc_r = np.load('Co_rc_r.npy')
+    J_pabr = np.load('Co_J_pabr.npy')
 
     # Calculate the magnon energies
     mm_ar = magmom * np.ones(J_pabr.shape[2:], dtype=float)
