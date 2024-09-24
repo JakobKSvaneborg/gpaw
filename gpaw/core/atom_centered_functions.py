@@ -86,14 +86,15 @@ class AtomCenteredFunctions(XP):
         else:
             self._lfc.add(functions.data, coefs, q=0)
 
-    def integrate(self, functions, out=None):
+    def integrate(self, functions, out=None, add_to=False):
         """Calculate integrals of atom-centered functions multiplied by
         *functions*.
         """
         self._lazy_init()
         if out is None:
+            assert not add_to
             out = self.layout.empty(functions.dims, functions.comm)
-        self._lfc.integrate(functions.data, out, q=0)
+        self._lfc.integrate(functions.data, out, q=0, add_to=add_to)
         return out
 
     def derivative(self, functions, out=None):

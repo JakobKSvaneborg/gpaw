@@ -30,7 +30,8 @@ class PWDesc(Domain):
 
     def __init__(self,
                  *,
-                 ecut: float,  # hartree
+                 ecut: float | None = None,
+                 gcut: float | None = None,
                  cell: ArrayLike1D | ArrayLike2D,  # bohr
                  kpt: Vector | None = None,  # in units of reciprocal cell
                  comm: MPIComm = serial_comm,
@@ -53,6 +54,13 @@ class PWDesc(Domain):
         dtype:
             Data-type (float or complex).
         """
+        if ecut is None:
+            assert gcut is not None
+            ecut = 0.5 * gcut**2
+        else:
+            assert gcut is None
+            gcut = (2.0 * ecut)**0.5
+        self.gcut = gcut
         self.ecut = ecut
         Domain.__init__(self, cell, (True, True, True), kpt, comm, dtype)
 
@@ -134,13 +142,17 @@ class PWDesc(Domain):
     def new(self,
             *,
             ecut: float | None = None,
+            gcut: float | None = None,
             kpt=None,
             dtype=None,
             comm: MPIComm | Literal['inherit'] | None = 'inherit'
             ) -> PWDesc:
         """Create new plane-wave expansion description."""
         comm = self.comm if comm == 'inherit' else comm or serial_comm
-        return PWDesc(ecut=ecut or self.ecut,
+        if ecut is None and gcut is None:
+            gcut = self.gcut
+        return PWDesc(gcut=gcut,
+                      ecut=ecut,
                       cell=self.cell_cv,
                       kpt=self.kpt_c if kpt is None else kpt,
                       dtype=dtype or self.dtype,
