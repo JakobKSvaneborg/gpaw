@@ -45,10 +45,12 @@ def urlopen_nocertcheck(src):
     Some data is read from a DTU server with a self-signed
     certificate.  That causes trouble on some machines.
     """
-
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+    if 0:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    else:
+        ctx = None
     return urlopen(src, context=ctx)
 
 
