@@ -1,3 +1,5 @@
+.. _dev-meeting:
+
 =====================================
 October-2024 online developer meeting
 =====================================
@@ -124,14 +126,14 @@ Wednesday
 
   *Self-interaction correction*
 
-:16:05:
-
-  **To be announced**
-
-  *RTTDDFT*
-
 :16:30:
 
   **Vladimír Zobač**
 
   *Ehrenfest molecular dynamics with LCAO basis*
+
+:16:05:
+
+  **To be announced**
+
+  *RTTDDFT*
