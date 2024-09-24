@@ -18,7 +18,7 @@ names = [r for r, d in sources]
 # (We would like to use https always, but quantum-simulation.org does not
 # support that as of 2024-06-24)
 baseurls = {
-    'gpaw': 'https://gpaw.readthedocs.io/_sources/setups/setups.rst.txt',
+    'gpaw': 'https://gitlab.com/gpaw/gpaw/-/raw/master/doc/setups/setups.rst',
     'sg15': 'http://www.quantum-simulation.org/potentials/sg15_oncv/',
     'basis': 'https://wiki.fysik.dtu.dk/gpaw-files/',
     'test': 'https://wiki.fysik.dtu.dk/gpaw-files/'}
@@ -45,12 +45,10 @@ def urlopen_nocertcheck(src):
     Some data is read from a DTU server with a self-signed
     certificate.  That causes trouble on some machines.
     """
-    if 0:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-    else:
-        ctx = None
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
     return urlopen(src, context=ctx)
 
 

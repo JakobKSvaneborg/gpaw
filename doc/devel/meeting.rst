@@ -16,8 +16,8 @@ Announcement:
    to solve and the challenges implementing those in the code.
 
 
-Program
-=======
+Preliminary program
+===================
 
 Tuesday
 -------
@@ -109,7 +109,7 @@ Wednesday
 
   **Ask Hjorth Larsen**
 
-  *ASR-LIB*
+  *Testing the code on our new CI-runner + response-code refactoring*
 
 :15:15:
 
