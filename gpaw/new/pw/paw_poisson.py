@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 from math import pi
 
 import numpy as np
-from scipy.special import erf
 from ase.neighborlist import primitive_neighbor_list
-from gpaw.core import PWDesc, PWArray
-from gpaw.core.atom_arrays import AtomDistribution, AtomArrays
+from scipy.special import erf
+
+from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
+from gpaw.atom.shapefunc import shape_functions
+from gpaw.core import PWArray, PWDesc
+from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.gpu import cupy as cp
 from gpaw.setup import Setups
-from gpaw.atom.shapefunc import shape_functions
-from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
+from gpaw.spline import Spline
 
 
 def dv(r, rc, rcut):
@@ -54,7 +58,7 @@ class PAWPoissonSolver:
         g_lg = shape_functions(rgd, 'gauss', self.rcut, lmax=2)
         ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g_lg)]
         ghat_al = [ghat_l] * len(self.cutoff_a)
-        cache = {}
+        cache: dict[float, list[Spline]] = {}
         vhat_al = []
         for rc in cutoff_a:
             if rc in cache:
@@ -81,7 +85,6 @@ class PAWPoissonSolver:
                 2 * self.rcut * 5,
                 use_scaled_positions=True,
                 self_interaction=True)
-            # print(self._neighbors, self.rcut)
         return self._neighbors
 
     def dipole_layer_correction(self):
@@ -103,38 +106,25 @@ class PAWPoissonSolver:
         pwg = self.pwg
 
         if vHt_g is None:
-            vHt_g = pwg.zeros(xp=self.xp)
+            vHt_g = pwg.empty(xp=self.xp)
 
         e_coulomb1 = self.poisson_solver.solve(vHt_g, charge_g)
-        if 0:
-            v=vHt_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
-            n0=nt_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
-            n=charge_g.ifft(grid=vHt_g.desc.uniform_grid_with_grid_spacing(grid_spacing=0.1))
-            print(n)
-            import matplotlib.pyplot as plt
-            plt.plot(v.data[75,75])
-            plt.plot(n.data[75,75])
-            plt.plot(n0.data[75,75])
-            plt.show()
 
-        vhat_g = pwg.zeros()
+        vhat_g = pwg.empty()  # MYPY
+        vhat_g.data[:] = 0.0  # MYPY
+
         self.vhat_aLg.add_to(vhat_g, Q_aL)
-        # vHt_g.data += vhat_g.data
         vt0_g.data += vhat_g.data
-        # print('XXX', vt0_g.data[:2])
         e_coulomb2 = vhat_g.integrate(nt_g)
 
         V_aL = self.ghat_aLg.integrate(vHt_g)
-        # print(V_aL.data[0])
         self.vhat_aLg.integrate(nt_g, V_aL, add_to=True)
-        # print(V_aL.data[0])
 
         e_coulomb3 = 0.0
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             v = Q_aL[a2][0] * (
                 c(d, self.rcut, self.rcut) -
                 c(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
-            # print(a1, a2, d, v)
             V_aL[a1][0] -= v
             e_coulomb3 += Q_aL[a1][0] * v
         e_coulomb3 *= -0.5
@@ -142,11 +132,7 @@ class PAWPoissonSolver:
         vHt0_g = vHt_g.gather()
         if pwg.comm.rank == 0:
             vt0_g.data += vHt0_g.data
-        # print('XXX', vt0_g.data[:2])
 
-        if 0:
-            print(e_coulomb1, e_coulomb2, e_coulomb3)
-            print(V_aL[0])
         return e_coulomb1 + e_coulomb2 + e_coulomb3, vHt_g, V_aL
 
 
@@ -164,7 +150,7 @@ class SimplePAWPoissonSolver:
         self.poisson_solver = poisson_solver
         d = 0.005
         rgd = RGD(d, int(10.0 / d))
-        cache = {}
+        cache: dict[float, list[Spline]] = {}
         ghat_al = []
         for rc in cutoff_a:
             if rc in cache:
@@ -190,7 +176,7 @@ class SimplePAWPoissonSolver:
         self.ghat_aLg.add_to(charge_g, Q_aL)
         pwg = self.pwg
         if vHt_g is None:
-            vHt_g = pwg.zeros(xp=self.xp)
+            vHt_g = pwg.empty(xp=self.xp)
         e_coulomb = self.poisson_solver.solve(vHt_g, charge_g)
         vHt0_g = vHt_g.gather()
         if pwg.comm.rank == 0:
@@ -213,26 +199,8 @@ class OldPAWPoissonSolver:
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.pwh = poisson_solver.pw
         self.poisson_solver = poisson_solver
-        if 0:
-            d = 0.005
-            rgd = RGD(d, int(10.0 / d))
-            cache = {}
-            ghat_al = []
-            for rc in cutoff_a:
-                if rc in cache:
-                    ghat_l = cache[rc]
-                else:
-                    g_lg = shape_functions(rgd, 'gauss', rc, lmax=2)
-                    ghat_l = [rgd.spline(g_g, l=l)
-                              for l, g_g in enumerate(g_lg)]
-                    cache[rc] = ghat_l
-                ghat_al.append(ghat_l)
-
-            self.ghat_aLh = self.pwh.atom_centered_functions(
-                ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
-        else:
-            self.ghat_aLh = setups.create_compensation_charges(
-                self.pwh, fracpos_ac, atomdist, xp)
+        self.ghat_aLh = setups.create_compensation_charges(
+            self.pwh, fracpos_ac, atomdist, xp)
         self.h_g, self.g_r = self.pwh.map_indices(self.pwg0)
         if xp is cp:
             self.h_g = cp.asarray(self.h_g)
@@ -288,5 +256,4 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     r = np.linspace(0.01, 10, 101)
     plt.plot(r, c(r, 1, 1) - c(r, 0.5, 0.5))
-    print(c0(1.0) - c0(0.5))
     plt.show()

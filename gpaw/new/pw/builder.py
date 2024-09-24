@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from functools import cached_property
 
 from ase.units import Ha
+
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
@@ -10,12 +13,12 @@ from gpaw.new.builder import create_uniform_grid
 from gpaw.new.external_potential import create_external_potential
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
+from gpaw.new.pw.paw_poisson import OldPAWPoissonSolver, PAWPoissonSolver
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D
-from gpaw.new.pw.paw_poisson import OldPAWPoissonSolver, PAWPoissonSolver
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):

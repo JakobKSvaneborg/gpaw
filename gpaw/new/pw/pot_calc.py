@@ -105,6 +105,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
 
         if pw.comm.rank == 0:
             vt0_g = self.vbar0_g.copy()
+        else:
+            vt0_g = None
 
         Q_aL = density.calculate_compensation_charge_coefficients()
         e_coulomb, vHt_h, V_aL = self.poisson_solver.solve(
