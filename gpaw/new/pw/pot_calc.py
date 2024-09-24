@@ -220,4 +220,5 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
 
     def stress(self, ibzwfs, density, potential):
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
-        return calculate_stress(self, ibzwfs, density, vt_g, nt_g, dedtaut_g)
+        return calculate_stress(self, ibzwfs, density, potential,
+                                vt_g, nt_g, dedtaut_g)

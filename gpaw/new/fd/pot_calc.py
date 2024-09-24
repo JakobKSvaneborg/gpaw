@@ -126,9 +126,7 @@ class FDPotentialCalculator(PotentialCalculator):
         self.vbar_ar.move(fracpos_ac, atomdist)
         self.vbar_ar.to_uniform_grid(out=self.vbar_r)
 
-    def force_contributions(self, state):
-        density = state.density
-        potential = state.potential
+    def force_contributions(self, density, potential):
         nt_R = spinsum(density.nt_sR)
         vt_R = spinsum(potential.vt_sR, mean=True)
         dedtaut_sR = potential.dedtaut_sR
@@ -143,7 +141,7 @@ class FDPotentialCalculator(PotentialCalculator):
             scale = nt_R.integrate() / nt_r.integrate()
             nt_r.data *= scale
 
-        return (self.ghat_aLr.derivative(state.potential.vHt_x),
-                state.density.nct_aX.derivative(vt_R),
+        return (self.ghat_aLr.derivative(potential.vHt_x),
+                density.nct_aX.derivative(vt_R),
                 Ftauct_av,
                 self.vbar_ar.derivative(nt_r))

@@ -89,7 +89,7 @@ class DFTCalculation:
         self.results: dict[str, Any] = {}
         self.fracpos_ac = self.pot_calc.fracpos_ac
 
-    def state(self):
+    def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
 
     @classmethod
@@ -267,7 +267,7 @@ class DFTCalculation:
 
         pot_calc = self.pot_calc
         Fcc_avL, Fnct_av, Ftauct_av, Fvbar_av = pot_calc.force_contributions(
-            self.ibzwfs, self.density)
+            self.density, self.potential)
 
         # Force from compensation charges:
         ccc_aL = self.density.calculate_compensation_charge_coefficients()
