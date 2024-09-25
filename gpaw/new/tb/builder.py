@@ -16,7 +16,6 @@ from gpaw.lcao.tci import TCIExpansions
 from gpaw.lfc import BasisFunctions
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
-from gpaw.new.calculation import DFTState
 from gpaw.new.lcao.builder import LCAODFTComponentsBuilder, create_lcao_ibzwfs
 from gpaw.new.lcao.hamiltonian import CollinearHamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
@@ -45,12 +44,13 @@ class TBHamiltonian:
 
     def create_hamiltonian_matrix_calculator(
             self,
-            state: DFTState) -> TBHamiltonianMatrixCalculator:
+            potential) -> TBHamiltonianMatrixCalculator:
+        ncomponents = potential.dH_asii.dims[0]
         dH_saii = [{a: dH_sii[s]
-                    for a, dH_sii in state.potential.dH_asii.items()}
-                   for s in range(state.density.ncomponents)]
+                    for a, dH_sii in potential.dH_asii.items()}
+                   for s in range(ncomponents)]
 
-        V_sxMM = [np.zeros(0) for _ in range(state.density.ncomponents)]
+        V_sxMM = [np.zeros(0) for _ in range(ncomponents)]
 
         return TBHamiltonianMatrixCalculator(V_sxMM, dH_saii, self.basis)
 
@@ -158,11 +158,11 @@ class TBPotentialCalculator(PotentialCalculator):
         self.force_av = None
         self.stress_vv = None
 
-    def force_contributions(self, state):
+    def force_contributions(self, density, potential):
         return {}, {}, {a: self.force_av[a:a + 1]
-                        for a in state.density.D_asii.keys()}
+                        for a in density.D_asii.keys()}
 
-    def stress_contribution(self, state):
+    def stress_contribution(self, ibzwfs, density, potential):
         return self.stress_vv
 
 

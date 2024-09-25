@@ -51,6 +51,7 @@ class FakeWFS:
         self.timer = nulltimer
         self.setups = setups
         self.ibzwfs = ibzwfs
+        self.density = density
         self.potential = potential
         self.hamiltonian = hamiltonian
         self.kd = KPointDescriptor(ibzwfs.ibz.bz.kpt_Kc,
@@ -344,7 +345,7 @@ class FakeHamiltonian:
     def __init__(self, ibzwfs, density, potential, pot_calc,
                  e_total_free=np.nan):
         self.pot_calc = pot_calc
-        self.ibzewfs = ibzwfs
+        self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
         self.finegd = self.pot_calc.fine_grid._gd
@@ -354,7 +355,7 @@ class FakeHamiltonian:
 
     def update(self, dens, wfs, kin_en_using_band=True):
         potential, _ = self.pot_calc.calculate(
-            self.ibzwfs, self.density, self.potential.vHt_x)
+            self.density, self.ibzwfs, self.potential.vHt_x)
         self.potential.update_from(potential)
 
         energies = self.potential.energies

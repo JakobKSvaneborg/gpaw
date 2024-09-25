@@ -5,6 +5,7 @@ from gpaw import GPAW, PW, FD
 from ase import Atoms
 
 
+@pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_directmin_pw(in_tmp_dir, mode):

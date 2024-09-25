@@ -29,14 +29,16 @@ class ETDMPWFD(Eigensolver):
         dens = Density(ibzwfs, density)
         return wfs, ham, dens
 
-    def initialize_etdm(self, state, pot_calc, occ_calc, hamiltonian, mixer,
+    def initialize_etdm(self,
+                        ibzwfs, density, potential,
+                        pot_calc, occ_calc, hamiltonian, mixer,
                         log):
         self.pot_calc = pot_calc
         self.occ_calc = occ_calc
         self.log = log
-        oldwfs, ham, dens = self.whd(state, hamiltonian)
+        oldwfs, ham, dens = self.whd(ibzwfs, density, potential, hamiltonian)
         dens.mixer = mixer
-        for wfs in state.ibzwfs:
+        for wfs in ibzwfs:
             if wfs._eig_n is None:
                 wfs._eig_n = np.empty(wfs.nbands)
         check_eigensolver_state('etdm-fdpw', oldwfs, ham, dens, log=log)
@@ -58,8 +60,8 @@ class ETDMPWFD(Eigensolver):
             e_entropy, wfs, kin_en_using_band=kin_en_using_band, e_sic=e_sic)
         return self.eigensolver.error
 
-    def postprocess(self, state, hamiltonian):
-        wfs, ham, dens = self.whd(state, hamiltonian)
+    def postprocess(self, ibzwfs, density, potential, hamiltonian):
+        wfs, ham, dens = self.whd(ibzwfs, density, potential, hamiltonian)
         do_if_converged(
             'etdm-fdpw', wfs, ham, dens, self.log)
 
@@ -67,6 +69,7 @@ class ETDMPWFD(Eigensolver):
 class Density:
     def __init__(self, ibzwfs, density):
         self.fixed = False
+        self.ibzwfs = ibzwfs
         self.density = density
 
     def update(self, wfs):

@@ -61,6 +61,7 @@ class SCFLoop:
         maxiter = maxiter or self.maxiter
 
         self.eigensolver.initialize_etdm(
+            ibzwfs, density, potential,
             pot_calc, self.occ_calc,
             self.hamiltonian, self.mixer, log)
 
@@ -105,7 +106,6 @@ class SCFLoop:
             if log:
                 write_iteration(cc, converged_items, entries, ctx, log)
             if converged:
-                self.eigensolver.postprocess(..., self.hamiltonian)
                 break
             if self.niter == maxiter:
                 if wfs_error < inf:
@@ -122,6 +122,9 @@ class SCFLoop:
                     ekin = ibzwfs.calculate_kinetic_energy(
                         self.hamiltonian, density)
                     potential.energies['kinetic'] = ekin
+
+        self.eigensolver.postprocess(
+            ibzwfs, density, potential, self.hamiltonian)
 
 
 class SCFContext:

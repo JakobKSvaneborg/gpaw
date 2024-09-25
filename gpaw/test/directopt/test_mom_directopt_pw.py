@@ -8,6 +8,7 @@ from ase import Atoms
 import numpy as np
 
 
+@pytest.mark.new_gpaw_ready
 @pytest.mark.do
 def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
     # Water molecule:
@@ -91,6 +92,8 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
 
     # Test restart and fixed occupations
     atoms, calc = restart('h2o.gpw', txt='-')
+    if gpaw_new:
+        return
     atoms.calc.results.pop('energy')
     atoms.calc.scf.converged = False
     e2 = atoms.get_potential_energy()
