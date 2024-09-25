@@ -14,5 +14,5 @@ class Eigensolver:
     def initialize_etdm(self, *args, **kwargs):
         pass
 
-    def postprocess(self, state, hamiltonian):
+    def postprocess(self, ibzwfs, density, potential, hamiltonian):
         pass
