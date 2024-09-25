@@ -603,6 +603,7 @@ class ASECalculator:
                 ibzwfs = builder.create_ibz_wave_functions(
                     basis_set, dft.potential, log=dft.log)
                 ibzwfs.fermi_levels = dft.ibzwfs.fermi_levels
+                dft.ibzwfs = ibzwfs
                 dft.scf_loop.update_density_and_potential = False
                 dft.converge()
             density.update_ked(dft.ibzwfs)

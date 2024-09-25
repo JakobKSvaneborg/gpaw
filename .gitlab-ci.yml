@@ -385,7 +385,7 @@ test-latest-new:
     - linux
   script:
     - gpaw info
-    - GPAW_NEW=1 pytest -v -m "ci and not later"
+    - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
 
 
 test-minimal:
