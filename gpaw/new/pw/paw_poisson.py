@@ -59,20 +59,8 @@ def dcdr(r, rc1, rc2):
     return dydr
 
 
-def tci(rcut, dghat_al, vhat_al):
-    I_a = []
-    seen = {}
-    dghat_Il = []
-    vhat_Il = []
-    for dghat_l, vhat_l in zip(dghat_al, vhat_al):
-        I = seen.get(dghat_l)
-        if I is None:
-            I = len(seen)
-            seen[dghat_l] = I
-            dghat_Il.append(dghat_l)
-            vhat_Il.append(vhat_l)
-        I_a.append(I)
-    transformer = FourierTransformer(rcut=rcut)
+def tci(rcut, I_a, dghat_Il, vhat_Il):
+    transformer = FourierTransformer(rcut=rcut, N=2**8)
     tsoc = TwoSiteOverlapCalculator(transformer)
     msoc = ManySiteOverlapCalculator(tsoc, I_a, I_a)
     dghat_Ilq = msoc.transform(dghat_Il)
@@ -97,27 +85,33 @@ class PAWPoissonSolver:
         self.poisson_solver = poisson_solver
         self.fracpos_ac = fracpos_ac
         self.cutoff_a = np.asarray(cutoff_a)
-        self.rcut = self.cutoff_a.max() * 2
+        self.r2 = self.cutoff_a.max() * 2
+        self.rcut = 5 * self.r2
         d = 0.01
-        rgd = RGD(d, int(self.rcut * 8 / d))
-        g0_lg = shape_functions(rgd, 'gauss', self.rcut, lmax=2)
+        rgd = RGD(d, int(self.rcut / d))
+        g0_lg = shape_functions(rgd, 'gauss', self.r2, lmax=2)
         ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g0_lg)]
         ghat_al = [ghat_l] * len(self.cutoff_a)
         cache: dict[float, list[Spline]] = {}
-        dghat_al = []
+        dghat_Il = []
+        vhat_Il = []
         vhat_al = []
-        for rc in cutoff_a:
-            if rc in cache:
-                dghat_l, vhat_l = cache[rc]
+        I_a = []
+        for r1 in cutoff_a:
+            if r1 in cache:
+                I, dghat_l, vhat_l = cache[r1]
             else:
-                g_lg = shape_functions(rgd, 'gauss', rc, lmax=2)
+                g_lg = shape_functions(rgd, 'gauss', r1, lmax=2)
                 dghat_l = [rgd.spline(g_g - g0_lg[l], l=l)
                            for l, g_g in enumerate(g_lg)]
-                v_lg = dvl(rgd, rc, self.rcut, lmax=2)
+                v_lg = dvl(rgd, r1, self.r2, lmax=2)
                 vhat_l = [rgd.spline(v_g * (4 * pi), l=l)
                           for l, v_g in enumerate(v_lg)]
-                cache[rc] = dghat_l, vhat_l
-            dghat_al.append(dghat_l)
+                I = len(cache)
+                cache[r1] = I, dghat_l, vhat_l
+                dghat_Il.append(dghat_l)
+                vhat_Il.append(vhat_l)
+            I_a.append(I)
             vhat_al.append(vhat_l)
 
         self.ghat_aLg = pwg.atom_centered_functions(
@@ -125,7 +119,8 @@ class PAWPoissonSolver:
         self.vhat_aLg = pwg.atom_centered_functions(
             vhat_al, fracpos_ac, atomdist=atomdist, xp=xp)
 
-        self.expansion = tci(dghat_al, vhat_al)
+        self.expansion = tci(self.rcut, I_a, dghat_Il, vhat_Il)
+        print(self.expansion)
 
         self._neighbors = None
         self.ghat_aLh = self.ghat_aLg  # old name
@@ -135,7 +130,7 @@ class PAWPoissonSolver:
             pw = self.pwg
             self._neighbors = primitive_neighbor_list(
                 'ijdD', pw.pbc, pw.cell, self.fracpos_ac,
-                2 * self.rcut * 5,
+                2 * self.rcut,
                 use_scaled_positions=True,
                 self_interaction=True)
         return self._neighbors
@@ -176,7 +171,7 @@ class PAWPoissonSolver:
         e_coulomb3 = 0.0
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             v = Q_aL[a2][0] * (
-                c(d, self.rcut, self.rcut) -
+                c(d, self.r2, self.r2) -
                 c(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
             V_aL[a1][0] -= v
             e_coulomb3 += Q_aL[a1][0] * v
@@ -192,7 +187,7 @@ class PAWPoissonSolver:
         force_av = np.zeros((len(Q_aL), 3))
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             v = Q_aL[a1][0] * Q_aL[a2][0] * (
-                dcdr(d, self.rcut, self.rcut) -
+                dcdr(d, self.r2, self.r2) -
                 dcdr(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
             if d > 0:
                 f_v = v * d_v / d
