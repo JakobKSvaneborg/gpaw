@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import warnings
 from functools import cached_property
 from typing import Any, Union
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
+
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
@@ -91,6 +93,12 @@ class DFTCalculation:
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
+
+    @property
+    def state(self):
+        warnings.warn('Use of deprecated DFTCalculation.state attribute. '
+                      'Use ibzwfs, density and potential attributes instead.')
+        return self.get_state()
 
     @classmethod
     def from_parameters(cls,
