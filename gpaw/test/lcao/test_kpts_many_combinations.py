@@ -30,7 +30,7 @@ def ikwargs():
                 yield dict(parallel=parallel)
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_lcao_kpts_many_combinations(in_tmp_dir):
     counter = count()
 

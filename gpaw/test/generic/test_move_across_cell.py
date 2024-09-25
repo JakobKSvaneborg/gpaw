@@ -8,7 +8,7 @@ from gpaw import GPAW, Davidson, MixerSum
 # which compensates for discontinuity of phases is probably broken.
 
 
-# @pytest.mark.later
+# @pytest.mark.old_gpaw_only
 @pytest.mark.parametrize(
     'params',
     [dict(mode='pw', eigensolver=Davidson(3),

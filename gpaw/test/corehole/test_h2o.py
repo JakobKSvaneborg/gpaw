@@ -6,7 +6,7 @@ from gpaw import GPAW
 from gpaw.xas import XAS
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_corehole_h2o(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # Generate setup for oxygen with half a core-hole:
     calc = GPAW(gpw_files['h2o_xas'])

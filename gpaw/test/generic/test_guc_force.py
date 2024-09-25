@@ -12,7 +12,7 @@ from gpaw import GPAW
 from gpaw.atom.basis import BasisMaker
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_generic_guc_force():
     sibasis = BasisMaker('Si').generate(
         2, 1, energysplit=0.3, tailnorm=0.03**.5)

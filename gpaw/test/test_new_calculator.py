@@ -6,7 +6,7 @@ import pytest
 from gpaw import GPAW, PW
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 @pytest.mark.ci
 def test_new_calculator(in_tmp_dir):
     """Test the GPAW.new() method."""
