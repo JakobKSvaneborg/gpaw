@@ -18,6 +18,8 @@ from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.gpu import cupy as cp
 from gpaw.setup import Setups
 from gpaw.spline import Spline
+from gpaw.lcao.overlap import (FourierTransformer, TwoSiteOverlapCalculator,
+                               ManySiteOverlapCalculator)
 
 
 def dv(r, rc, rcut):
@@ -57,6 +59,30 @@ def dcdr(r, rc1, rc2):
     return dydr
 
 
+def tci(rcut, dghat_al, vhat_al):
+    I_a = []
+    seen = {}
+    dghat_Il = []
+    vhat_Il = []
+    for dghat_l, vhat_l in zip(dghat_al, vhat_al):
+        I = seen.get(dghat_l)
+        if I is None:
+            I = len(seen)
+            seen[dghat_l] = I
+            dghat_Il.append(dghat_l)
+            vhat_Il.append(vhat_l)
+        I_a.append(I)
+    transformer = FourierTransformer(rcut=rcut)
+    tsoc = TwoSiteOverlapCalculator(transformer)
+    msoc = ManySiteOverlapCalculator(tsoc, I_a, I_a)
+    dghat_Ilq = msoc.transform(dghat_Il)
+    vhat_Ilq = msoc.transform(vhat_Il)
+    l_Il = [[dghat.l for dghat in dghat_l] for dghat_l in dghat_Il]
+    expansions = msoc.calculate_expansions(l_Il, dghat_Ilq,
+                                           l_Il, vhat_Ilq)
+    return expansions
+
+
 class PAWPoissonSolver:
     def __init__(self,
                  pwg: PWDesc,
@@ -74,25 +100,32 @@ class PAWPoissonSolver:
         self.rcut = self.cutoff_a.max() * 2
         d = 0.01
         rgd = RGD(d, int(self.rcut * 8 / d))
-        g_lg = shape_functions(rgd, 'gauss', self.rcut, lmax=2)
-        ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g_lg)]
+        g0_lg = shape_functions(rgd, 'gauss', self.rcut, lmax=2)
+        ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g0_lg)]
         ghat_al = [ghat_l] * len(self.cutoff_a)
         cache: dict[float, list[Spline]] = {}
+        dghat_al = []
         vhat_al = []
         for rc in cutoff_a:
             if rc in cache:
-                vhat_l = cache[rc]
+                dghat_l, vhat_l = cache[rc]
             else:
+                g_lg = shape_functions(rgd, 'gauss', rc, lmax=2)
+                dghat_l = [rgd.spline(g_g - g0_lg[l], l=l)
+                           for l, g_g in enumerate(g_lg)]
                 v_lg = dvl(rgd, rc, self.rcut, lmax=2)
                 vhat_l = [rgd.spline(v_g * (4 * pi), l=l)
                           for l, v_g in enumerate(v_lg)]
-                cache[rc] = vhat_l
+                cache[rc] = dghat_l, vhat_l
+            dghat_al.append(dghat_l)
             vhat_al.append(vhat_l)
 
         self.ghat_aLg = pwg.atom_centered_functions(
             ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
         self.vhat_aLg = pwg.atom_centered_functions(
             vhat_al, fracpos_ac, atomdist=atomdist, xp=xp)
+
+        self.expansion = tci(dghat_al, vhat_al)
 
         self._neighbors = None
         self.ghat_aLh = self.ghat_aLg  # old name
