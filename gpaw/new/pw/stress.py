@@ -38,7 +38,8 @@ def calculate_stress(pot_calc: PlaneWavePotentialCalculator,
         s_vv += (xp.einsum('Gz, Gv, Gw -> vw', vHt2_hz, G_Gv, G_Gv) *
                  pw.dv / (2 * np.pi))
         Q_aL = density.calculate_compensation_charge_coefficients()
-        s_vv += pot_calc.ghat_aLh.stress_contribution(vHt_h, Q_aL)
+        s_vv += pot_calc.poisson_solver.ghat_aLh.stress_contribution(
+            vHt_h, Q_aL)
         if ibzwfs.domain_comm.rank == 0:
             s_vv -= xp.eye(3) * potential.energies['stress']
         s_vv += pot_calc.vbar_ag.stress_contribution(nt_g)

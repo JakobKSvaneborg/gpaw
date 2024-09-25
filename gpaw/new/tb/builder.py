@@ -130,10 +130,6 @@ class TBPotentialCalculator(PotentialCalculator):
         self.force_av = None
         self.stress_vv = None
 
-    def calculate_charges(self, vHt_r):
-        return AtomArraysLayout([9] * len(self.atoms),
-                                self.domain_comm).zeros()
-
     def calculate_pseudo_potential(self, density, ibzwfs, vHt_r):
         vt_sR = density.nt_sR
 
@@ -145,6 +141,8 @@ class TBPotentialCalculator(PotentialCalculator):
         vol = abs(np.linalg.det(atoms.cell[atoms.pbc][:, atoms.pbc]))
         self.stress_vv = stress_vv / vol * Bohr**atoms.pbc.sum() / Ha
 
+        V_aL = AtomArraysLayout([9] * len(self.atoms),
+                                self.domain_comm).zeros()
         return ({'kinetic': 0.0,
                  'coulomb': 0.0,
                  'zero': 0.0,
@@ -152,7 +150,8 @@ class TBPotentialCalculator(PotentialCalculator):
                  'external': 0.0},
                 vt_sR,
                 None,
-                DummyFunctions(density.nt_sR.desc))
+                DummyFunctions(density.nt_sR.desc),
+                V_aL)
 
     def _move(self, fracpos_ac, ndensities):
         self.atoms.set_scaled_positions(fracpos_ac)
