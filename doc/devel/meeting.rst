@@ -126,13 +126,13 @@ Wednesday
 
   *Self-interaction correction*
 
-:16:30:
+:16:05:
 
   **Vladimír Zobač**
 
   *Ehrenfest molecular dynamics with LCAO basis*
 
-:16:05:
+:16:30:
 
   **To be announced**
 
