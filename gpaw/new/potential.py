@@ -32,6 +32,13 @@ class Potential:
         return (f'potential:\n'
                 f'  grid points: {self.vt_sR.desc.size}\n')
 
+    def update_from(self, potential):
+        self.vt_sR = potential.vt_sR
+        self.dH_asii = potential.dH_asii
+        self.dedtaut_sR = potential.dedtaut_sR
+        self.energies = potential.energies
+        self.vHt_x = potential.vHt_x
+
     def dH(self, P_ani, out_ani, spin):
         if len(P_ani.dims) == 1:  # collinear wave functions
             P_ani.block_diag_multiply(self.dH_asii, out_ani, spin)

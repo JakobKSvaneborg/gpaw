@@ -4,7 +4,6 @@ from math import pi
 import numpy as np
 
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.calculation import DFTState
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
@@ -93,9 +92,9 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             self.fracpos_ac, self.grid, self.dtype,
             lcaonbands, self.ncomponents, self.atomdist, self.nelectrons)
 
-        state = DFTState(lcao_ibzwfs, None, potential)
         hamiltonian = LCAOHamiltonian(basis)
-        LCAOEigensolver(basis).iterate(state, hamiltonian)
+        LCAOEigensolver(basis).iterate(
+            lcao_ibzwfs, None, potential, hamiltonian)
 
         def create_wfs(spin, q, k, kpt_c, weight):
             lcaowfs = lcao_ibzwfs.wfs_qs[q][spin]

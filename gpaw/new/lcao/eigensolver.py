@@ -9,11 +9,11 @@ class LCAOEigensolver(Eigensolver):
     def __init__(self, basis):
         self.basis = basis
 
-    def iterate(self, state, hamiltonian) -> float:
+    def iterate(self, ibzwfs, density, potential, hamiltonian) -> float:
         matrix_calculator = hamiltonian.create_hamiltonian_matrix_calculator(
-            state)
+            potential)
 
-        for wfs in state.ibzwfs:
+        for wfs in ibzwfs:
             self.iterate1(wfs, matrix_calculator)
         return 0.0
 

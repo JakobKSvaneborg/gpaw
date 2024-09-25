@@ -266,10 +266,10 @@ def get_lcao_hamiltonian(calc):
     from gpaw.new.ase_interface import ASECalculator
     if not isinstance(calc, ASECalculator):
         return old_get_lcao_hamiltonian(calc)
-    state = calc.dft.state
-    ibzwfs = state.ibzwfs
-    ham = calc.dft.scf_loop.hamiltonian
-    matcalc = ham.create_hamiltonian_matrix_calculator(state)
+    dft = calc.dft
+    ibzwfs = dft.ibzwfs
+    ham = dft.scf_loop.hamiltonian
+    matcalc = ham.create_hamiltonian_matrix_calculator(dft.potential)
     nM = ham.basis.Mmax
     nK = len(ibzwfs.ibz)
     H_skMM = np.zeros((ibzwfs.nspins, nK, nM, nM), ibzwfs.dtype)

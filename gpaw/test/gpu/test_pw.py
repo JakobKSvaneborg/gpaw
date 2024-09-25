@@ -117,8 +117,7 @@ def test_2d():
              parallel={'gpu': True}),
         log='-')
     dft.converge()
-    assert dft.state.potential.get_vacuum_level() == \
-           pytest.approx(2.9436, 1e-2)
+    assert dft.potential.get_vacuum_level() == pytest.approx(2.9436, 1e-2)
     dft.energies()
     dft.forces()
     dft.stress()

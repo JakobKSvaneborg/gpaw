@@ -5,7 +5,6 @@ from gpaw.new import zips, spinsum
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.stress import calculate_stress
 from gpaw.setup import Setups
-from gpaw.new.calculation import DFTState
 
 
 class PlaneWavePotentialCalculator(PotentialCalculator):
@@ -151,13 +150,11 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self._nt_g = None
         self._dedtaut_g = None
 
-    def _force_stress_helper(self, state: DFTState):
+    def _force_stress_helper(self, density, potential):
         # Only do the work once - in case both forces and stresses are needed:
         if self._vt_g is not None:
             return self._vt_g, self._nt_g, self._dedtaut_g
 
-        density = state.density
-        potential = state.potential
         nt_R = spinsum(density.nt_sR)
         vt_R = spinsum(potential.vt_sR, mean=True)
         self._vt_g = vt_R.fft(self.fftplan, pw=self.pw)
@@ -172,18 +169,19 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
 
         return self._vt_g, self._nt_g, self._dedtaut_g
 
-    def force_contributions(self, state):
-        vt_g, nt_g, dedtaut_g = self._force_stress_helper(state)
+    def force_contributions(self, density, potential):
+        vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
         if dedtaut_g is None:
             Ftauct_av = None
         else:
-            Ftauct_av = state.density.tauct_aX.derivative(dedtaut_g)
+            Ftauct_av = density.tauct_aX.derivative(dedtaut_g)
 
-        return (self.poisson_solver.ghat_aLh.derivative(state.potential.vHt_x),
-                state.density.nct_aX.derivative(vt_g),
+        return (self.poisson_solver.ghat_aLh.derivative(potential.vHt_x),
+                density.nct_aX.derivative(vt_g),
                 Ftauct_av,
                 self.vbar_ag.derivative(nt_g))
 
-    def stress(self, state):
-        vt_g, nt_g, dedtaut_g = self._force_stress_helper(state)
-        return calculate_stress(self, state, vt_g, nt_g, dedtaut_g)
+    def stress(self, ibzwfs, density, potential):
+        vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
+        return calculate_stress(self, ibzwfs, density, potential,
+                                vt_g, nt_g, dedtaut_g)

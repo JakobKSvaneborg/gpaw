@@ -31,7 +31,7 @@ class Densities:
 
     @classmethod
     def from_calculation(cls, calculation: DFTCalculation):
-        density = calculation.state.density
+        density = calculation.density
         return cls(density.nt_sR,
                    density.D_asii,
                    calculation.fracpos_ac,

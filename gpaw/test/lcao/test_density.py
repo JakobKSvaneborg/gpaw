@@ -17,7 +17,7 @@ from gpaw import GPAW, ConvergenceError
 from gpaw.utilities.blas import axpy
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_lcao_density():
     system = molecule('H2O')
     system.center(vacuum=2.5)

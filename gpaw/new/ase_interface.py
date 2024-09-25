@@ -18,7 +18,7 @@ from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
-                                  DFTState, ReuseWaveFunctionsError, units)
+                                  ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import read_gpw, write_gpw
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.input_parameters import parameter_functions as parameter_names
@@ -230,7 +230,7 @@ class ASECalculator:
         if converged:
             return
 
-        if not self.dft.state.ibzwfs.has_wave_functions():
+        if not self.dft.ibzwfs.has_wave_functions():
             self.create_new_calculation(atoms)
 
         assert self.hooks.keys() <= {'scf_step', 'converged'}
@@ -424,38 +424,34 @@ class ASECalculator:
         return atoms
 
     def get_fermi_level(self) -> float:
-        return self.dft.state.ibzwfs.fermi_level * Ha
+        return self.dft.ibzwfs.fermi_level * Ha
 
     def get_fermi_levels(self) -> Array1D:
-        state = self.dft.state
-        fl = state.ibzwfs.fermi_levels
+        fl = self.dft.ibzwfs.fermi_levels
         assert fl is not None
         if len(fl) == 1:
             raise ValueError('Only one Fermi-level.')
         return fl * Ha
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
-        state = self.dft.state
-        return state.ibzwfs.get_homo_lumo(spin) * Ha
+        return self.dft.ibzwfs.get_homo_lumo(spin) * Ha
 
     def get_number_of_electrons(self):
-        state = self.dft.state
-        return state.ibzwfs.nelectrons
+        return self.dft.ibzwfs.nelectrons
 
     def get_number_of_bands(self):
-        state = self.dft.state
-        return state.ibzwfs.nbands
+        return self.dft.ibzwfs.nbands
 
     def get_number_of_grid_points(self):
-        return self.dft.state.density.nt_sR.desc.size
+        return self.dft.density.nt_sR.desc.size
 
     def get_effective_potential(self, spin=0):
         assert spin == 0
-        vt_R = self.dft.state.potential.vt_sR[spin]
+        vt_R = self.dft.potential.vt_sR[spin]
         return vt_R.to_pbc_grid().gather(broadcast=True).data * Ha
 
     def get_electrostatic_potential(self):
-        density = self.dft.state.density
+        density = self.dft.density
         potential, _ = self.dft.pot_calc.calculate(density)
         vHt_x = potential.vHt_x
         if isinstance(vHt_x, UGArray):
@@ -492,17 +488,16 @@ class ASECalculator:
         return n_sr[spin].gather(broadcast=broadcast).data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
-        state = self.dft.state
-        eig_n = state.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
+        eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
         if broadcast:
             if self.comm.rank != 0:
-                eig_n = np.empty(state.ibzwfs.nbands)
+                eig_n = np.empty(self.dft.ibzwfs.nbands)
             self.comm.broadcast(eig_n, 0)
         return eig_n
 
     def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True,
                                raw=False):
-        ibzwfs = self.dft.state.ibzwfs
+        ibzwfs = self.dft.ibzwfs
         occ_n = ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1]
         if not raw:
             weight = ibzwfs.ibz.weight_k[kpt] * ibzwfs.spin_degeneracy
@@ -520,21 +515,18 @@ class ASECalculator:
         return self.dft.scf_loop.niter
 
     def get_bz_k_points(self):
-        state = self.dft.state
-        return state.ibzwfs.ibz.bz.kpt_Kc.copy()
+        return self.dft.ibzwfs.ibz.bz.kpt_Kc.copy()
 
     def get_ibz_k_points(self):
-        state = self.dft.state
-        return state.ibzwfs.ibz.kpt_kc.copy()
+        return self.dft.ibzwfs.ibz.kpt_kc.copy()
 
     def get_k_point_weights(self):
-        state = self.dft.state
-        return state.ibzwfs.ibz.weight_k
+        return self.dft.ibzwfs.ibz.weight_k
 
     def get_orbital_magnetic_moments(self):
         """Return the orbital magnetic moment vector for each atom."""
-        state = self.dft.state
-        if state.density.collinear:
+        density = self.dft.density
+        if density.collinear:
             raise CalculationModeError(
                 'Calculator is in collinear mode. '
                 'Collinear calculations require spin–orbit '
@@ -543,7 +535,7 @@ class ASECalculator:
             warnings.warn('Non-collinear calculation was performed '
                           'without spin–orbit coupling. Orbital '
                           'magnetic moments may not be accurate.')
-        return state.density.calculate_orbital_magnetic_moments()
+        return density.calculate_orbital_magnetic_moments()
 
     def calculate(self, atoms, properties=None, system_changes=None):
         if properties is None:
@@ -555,7 +547,9 @@ class ASECalculator:
     @cached_property
     def wfs(self):
         from gpaw.new.backwards_compatibility import FakeWFS
-        return FakeWFS(self.dft.state,
+        return FakeWFS(self.dft.ibzwfs,
+                       self.dft.density,
+                       self.dft.potential,
                        self.dft.setups,
                        self.comm,
                        self.dft.scf_loop.occ_calc,
@@ -571,8 +565,9 @@ class ASECalculator:
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
-        return FakeHamiltonian(self.dft.state, self.dft.pot_calc,
-                               self.dft.results.get('free_energy'))
+        return FakeHamiltonian(
+            self.dft.ibzwfs, self.dft.density, self.dft.potential,
+            self.dft.pot_calc, self.dft.results.get('free_energy'))
 
     @property
     def spos_ac(self):
@@ -597,30 +592,29 @@ class ASECalculator:
         """Calculate non-selfconsistent XC-energy difference."""
         dft = self.dft
         pot_calc = dft.pot_calc
-        state = dft.state
-        density = dft.state.density
+        density = dft.density
         xc = create_functional(xcparams, pot_calc.fine_grid)
         if xc.type == 'MGGA' and density.taut_sR is None:
-            state.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-            if isinstance(state.ibzwfs.wfs_qs[0][0].psit_nX, SimpleNamespace):
+            dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+            if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, SimpleNamespace):
                 params = InputParameters(dict(self.params.items()))
                 builder = create_builder(self.atoms, params, self.comm)
                 basis_set = builder.create_basis_set()
                 ibzwfs = builder.create_ibz_wave_functions(
-                    basis_set, state.potential, log=dft.log)
-                ibzwfs.fermi_levels = state.ibzwfs.fermi_levels
-                state.ibzwfs = ibzwfs
+                    basis_set, dft.potential, log=dft.log)
+                ibzwfs.fermi_levels = dft.ibzwfs.fermi_levels
+                dft.ibzwfs = ibzwfs
                 dft.scf_loop.update_density_and_potential = False
                 dft.converge()
-            density.update_ked(state.ibzwfs)
+            density.update_ked(dft.ibzwfs)
         exct = pot_calc.calculate_non_selfconsistent_exc(xc, density)
         dexc = 0.0
-        for a, D_sii in state.density.D_asii.items():
+        for a, D_sii in density.D_asii.items():
             setup = self.setups[a]
             dexc += xc.calculate_paw_correction(
                 setup, np.array([pack_density(D_ii) for D_ii in D_sii.real]))
-        dexc = state.ibzwfs.domain_comm.sum_scalar(dexc)
-        return (exct + dexc - state.potential.energies['xc']) * Ha
+        dexc = dft.ibzwfs.domain_comm.sum_scalar(dexc)
+        return (exct + dexc - dft.potential.energies['xc']) * Ha
 
     def diagonalize_full_hamiltonian(self,
                                      nbands: int | None = None,
@@ -629,22 +623,20 @@ class ASECalculator:
         if expert is not None:
             warnings.warn('Ignoring deprecated "expert" argument',
                           DeprecationWarning)
-        state = self.dft.state
+        dft = self.dft
 
         if nbands is None:
             nbands = min(wfs.array_shape(global_shape=True)[0]
-                         for wfs in self.dft.state.ibzwfs)
-            nbands = self.dft.state.ibzwfs.kpt_comm.min_scalar(nbands)
+                         for wfs in dft.ibzwfs)
+            nbands = dft.ibzwfs.kpt_comm.min_scalar(nbands)
             assert isinstance(nbands, int)
 
-        self.dft.scf_loop.occ_calc._set_nbands(nbands)
-        ibzwfs = diagonalize(state.potential,
-                             state.ibzwfs,
-                             self.dft.scf_loop.occ_calc,
+        dft.scf_loop.occ_calc._set_nbands(nbands)
+        ibzwfs = diagonalize(dft.potential,
+                             dft.ibzwfs,
+                             dft.scf_loop.occ_calc,
                              nbands)
-        self.dft.state = DFTState(ibzwfs,
-                                  state.density,
-                                  state.potential)
+        dft.ibzwfs = ibzwfs
         self.params._add('nbands', ibzwfs.nbands)
 
     def gs_adapter(self):
@@ -661,28 +653,28 @@ class ASECalculator:
         log = Logger(txt, self.comm)
         builder = create_builder(self.atoms, params, self.comm)
         basis_set = builder.create_basis_set()
-        state = self.dft.state
-        comm1 = state.ibzwfs.kpt_band_comm
+        dft = self.dft
+        comm1 = dft.ibzwfs.kpt_band_comm
         comm2 = builder.communicators['D']
-        potential = state.potential.redist(
+        potential = dft.potential.redist(
             builder.grid,
             builder.electrostatic_potential_desc,
             builder.atomdist,
             comm1, comm2)
-        density = state.density.redist(builder.grid,
-                                       builder.interpolation_desc,
-                                       builder.atomdist,
-                                       comm1, comm2)
+        density = dft.density.redist(builder.grid,
+                                     builder.interpolation_desc,
+                                     builder.atomdist,
+                                     comm1, comm2)
         ibzwfs = builder.create_ibz_wave_functions(basis_set, potential,
                                                    log=log)
-        ibzwfs.fermi_levels = state.ibzwfs.fermi_levels
-        state = DFTState(ibzwfs, density, potential)
+        ibzwfs.fermi_levels = dft.ibzwfs.fermi_levels
+
         scf_loop = builder.create_scf_loop()
         scf_loop.update_density_and_potential = False
         scf_loop.fix_fermi_level = not update_fermi_level
 
         dft = DFTCalculation(
-            state,
+            ibzwfs, density, potential,
             builder.setups,
             scf_loop,
             SimpleNamespace(fracpos_ac=self.dft.fracpos_ac,
@@ -700,10 +692,10 @@ class ASECalculator:
         self.create_new_calculation(atoms)
 
     def converge_wave_functions(self):
-        self.dft.state.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+        self.dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
 
     def get_number_of_spins(self):
-        return self.dft.state.density.ndensities
+        return self.dft.density.ndensities
 
     @property
     def parameters(self):
@@ -731,24 +723,24 @@ class ASECalculator:
 
     @property
     def symmetry(self):
-        return self.dft.state.ibzwfs.ibz.symmetries.symmetry
+        return self.dft.ibzwfs.ibz.symmetries.symmetry
 
     def get_wannier_localization_matrix(self, nbands, dirG, kpoint,
                                         nextkpoint, G_I, spin):
         """Calculate integrals for maximally localized Wannier functions."""
         from gpaw.new.wannier import get_wannier_integrals
-        grid = self.dft.state.density.nt_sR.desc
-        k_kc = self.dft.state.ibzwfs.ibz.bz.kpt_Kc
+        grid = self.dft.density.nt_sR.desc
+        k_kc = self.dft.ibzwfs.ibz.bz.kpt_Kc
         G_c = k_kc[nextkpoint] - k_kc[kpoint] - G_I
 
-        return get_wannier_integrals(self.dft.state.ibzwfs,
+        return get_wannier_integrals(self.dft.ibzwfs,
                                      grid,
                                      spin, kpoint, nextkpoint, G_c, nbands)
 
     def initial_wannier(self, initialwannier, kpointgrid, fixedstates,
                         edf, spin, nbands):
         from gpaw.new.wannier import initial_wannier
-        return initial_wannier(self.dft.state.ibzwfs,
+        return initial_wannier(self.dft.ibzwfs,
                                initialwannier, kpointgrid, fixedstates,
                                edf, spin, nbands)
 

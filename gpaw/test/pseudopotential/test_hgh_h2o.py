@@ -80,7 +80,7 @@ def test_pseudopotential_hgh_h2o():
         dH_asp = calc.hamiltonian.dH_asp
     except AttributeError:
         from gpaw.utilities import pack_hermitian
-        dH_asii = calc.dft.state.potential.dH_asii
+        dH_asii = calc.dft.potential.dH_asii
         dH_asp = {a: pack_hermitian(dH_sii) for a, dH_sii in dH_asii.items()}
 
     assert eerr < 1e-3, 'energy changed from reference'

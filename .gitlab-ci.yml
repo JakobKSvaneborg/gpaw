@@ -385,7 +385,7 @@ test-latest-new:
     - linux
   script:
     - gpaw info
-    - GPAW_NEW=1 pytest -v -m "ci and not later"
+    - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
 
 
 test-minimal:
@@ -673,7 +673,7 @@ nightly-mpi-8:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey)"
+      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-1-new:
@@ -684,7 +684,7 @@ nightly-mpi-1-new:
     - pytest -n 4 --cache-clear -m generate_gpw_files
     - >
       pytest -n 4 --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey)"
+      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-2-new:
