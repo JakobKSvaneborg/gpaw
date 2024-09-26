@@ -2,8 +2,9 @@ import numpy as np
 
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 from gpaw.core import PWDesc
-from gpaw.new.pw.paw_poisson import (OldPAWPoissonSolver, PAWPoissonSolver,
-                                     SimplePAWPoissonSolver, c)
+from gpaw.new.pw.paw_poisson import SlowPAWPoissonSolver, SimplePAWPoissonSolver
+from gpaw.new.pw.bloechl_poisson import FastPAWPoissonSolver,
+
 from gpaw.new.pw.poisson import PWPoissonSolver
 
 

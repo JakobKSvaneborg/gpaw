@@ -13,7 +13,8 @@ from gpaw.new.builder import create_uniform_grid
 from gpaw.new.external_potential import create_external_potential
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
-from gpaw.new.pw.paw_poisson import OldPAWPoissonSolver, PAWPoissonSolver
+from gpaw.new.pw.paw_poisson import SlowPAWPoissonSolver
+from gpaw.new.pw.bloechl_poisson import FastPAWPoissonSolver
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
@@ -108,7 +109,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             for s in self.setups:
                 assert s.data.shape_function['type'] == 'gauss'
                 cutoff_a.append(s.data.shape_function['rc'])
-            return PAWPoissonSolver(
+            return FastPAWPoissonSolver(
                 pw, cutoff_a, ps, self.fracpos_ac, self.atomdist, self.xp)
         else:
             ps = make_poisson_solver(self.electrostatic_potential_desc,
@@ -116,7 +117,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                      self.params.charge,
                                      **psparams)
             pw = self.interpolation_desc
-            return OldPAWPoissonSolver(
+            return SlowPAWPoissonSolver(
                 pw,
                 self.setups,
                 ps, self.fracpos_ac, self.atomdist, self.xp)
