@@ -9,21 +9,40 @@ from math import pi
 
 import numpy as np
 from ase.neighborlist import primitive_neighbor_list
-from scipy.special import erf
-
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.core import PWArray, PWDesc
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.gpu import cupy as cp
+from gpaw.lcao.overlap import (FourierTransformer, LazySphericalHarmonics,
+                               ManySiteOverlapCalculator,
+                               TwoSiteOverlapCalculator)
 from gpaw.setup import Setups
 from gpaw.spline import Spline
-from gpaw.lcao.overlap import (FourierTransformer, TwoSiteOverlapCalculator,
-                               ManySiteOverlapCalculator)
+from scipy.special import erf
 
 
 def dv(r, rc, rcut):
     return erf(r / rc) / r - erf(r / rcut) / r
+
+
+def vg(r_r: np.ndarray, rc: float) -> np.ndarray:
+    v_lr = np.empty((3, len(r_r)))
+    x_r = r_r / rc
+    v_lr[0] = 4 * pi * erf(x_r)
+    v_lr[0, 0] = 8 * pi**0.5 / rc
+    v_lr[0, 1:] /= r_r[1:]
+
+    v_lr[1] = v_lr[0] / 3 - 8 * pi**0.5 / 3 * np.exp(-x_r**2) / rc
+    v_lr[1, 0] = 16 * pi**0.5 / 9 / rc**3
+    v_lr[1, 1:] /= r_r[1:]**2
+
+    v_lr[2] = (v_lr[0] / 5 -
+               8 * pi**0.5 / 5 * (1 + 2 * x_r**2 / 3) * np.exp(-x_r**2) / rc)
+    v_lr[2, 0] = 32 * pi**0.5 / 75 / rc**5
+    v_lr[2, 1:] /= r_r[1:]**4
+
+    return v_lr
 
 
 def dvl(rgd, rc, rcut, lmax=2):
@@ -104,8 +123,8 @@ class PAWPoissonSolver:
                 g_lg = shape_functions(rgd, 'gauss', r1, lmax=2)
                 dghat_l = [rgd.spline(g_g - g0_lg[l], l=l)
                            for l, g_g in enumerate(g_lg)]
-                v_lg = dvl(rgd, r1, self.r2, lmax=2)
-                vhat_l = [rgd.spline(v_g * (4 * pi), l=l)
+                v_lg = vg(rgd.r_g, r1) - vg(rgd.r_g, self.r2)
+                vhat_l = [rgd.spline(v_g, l=l)
                           for l, v_g in enumerate(v_lg)]
                 I = len(cache)
                 cache[r1] = I, dghat_l, vhat_l
@@ -120,7 +139,6 @@ class PAWPoissonSolver:
             vhat_al, fracpos_ac, atomdist=atomdist, xp=xp)
 
         self.expansion = tci(self.rcut, I_a, dghat_Il, vhat_Il)
-        print(self.expansion)
 
         self._neighbors = None
         self.ghat_aLh = self.ghat_aLg  # old name
@@ -173,6 +191,13 @@ class PAWPoissonSolver:
             v = Q_aL[a2][0] * (
                 c(d, self.r2, self.r2) -
                 c(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
+            if d:
+                n_v = d_v / d
+            else:
+                n_v = np.array([0.0, 1.0, 0.0])
+            rlY_lm = LazySphericalHarmonics(n_v)
+            _ = self.expansion.tsoe_II[0, 0].evaluate(0.005, rlY_lm)
+            # print(a1,a2,d,self.r2, self.rcut, v_LL)
             V_aL[a1][0] -= v
             e_coulomb3 += Q_aL[a1][0] * v
         e_coulomb3 *= -0.5
