@@ -15,7 +15,7 @@ from scipy.fft import fftn, ifftn, irfftn, rfftn
 import warnings
 
 import gpaw.cgpaw as cgpaw
-from gpaw.new.c import pw_insert_gpu
+from gpaw.new.c import pw_insert_gpu, pw_amend_insert_realwf_gpu
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 
 ESTIMATE = 64
@@ -277,15 +277,10 @@ class CuPyFFTPlans(FFTPlans):
                 array_Q, array_Q.shape,
                 norm='forward', overwrite_x=True)
         else:
-            # We need a GPU kernel for this stuff:
-            if 1:
-                t = array_Q[:, :, 0]
-                n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
+            t = array_Q[:, :, 0]
+            n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
+            pw_amend_insert_realwf_gpu(array_Q, n, m)
 
-                t[0, -m:] = t[0, m:0:-1].conj()
-                t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
-                t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
-                t[-n:, 0] = t[n:0:-1, 0].conj()
             array_R[:] = cupyx.scipy.fft.irfftn(
                 array_Q, out_R.desc.global_shape(),
                 norm='forward', overwrite_x=True)
