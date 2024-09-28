@@ -89,15 +89,16 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
 def gather_to_master(p_qvnn, ibzwfs):
     kpt_comm = ibzwfs.kpt_comm
     master = (kpt_comm.rank == 0)
+    shape = p_qvnn.shape[1:4]
 
     if not master:
         kpt_comm.send(p_qvnn, 0)
+        return np.empty((0,) + shape, complex)
     else:
         rank_k = ibzwfs.rank_k
         nk = len(rank_k)
-        nb = p_qvnn.shape[-1]
 
-        p_kvnn = np.empty([nk, 3, nb, nb], complex)
+        p_kvnn = np.zeros((nk,) + shape, complex)
 
         k_q = np.where(rank_k == 0)[0]
         p_kvnn[k_q] = p_qvnn
@@ -105,14 +106,10 @@ def gather_to_master(p_qvnn, ibzwfs):
             k_q = np.where(rank_k == gather_rank)[0]
             nq = len(k_q)
 
-            p_qvnn = np.empty([nq, 3, nb, nb], complex)
+            p_qvnn = np.zeros((nq,) + shape, complex)
             kpt_comm.receive(p_qvnn, gather_rank)
             p_kvnn[k_q] = p_qvnn
-
-    if master:
         return p_kvnn
-    else:
-        return None
 
 
 def make_nlodata(calc: ASECalculator | str | Path,
