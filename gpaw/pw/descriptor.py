@@ -245,14 +245,14 @@ class PWDescriptor:
             Q_G = self.Q_qG[q]
             assert len(c_G) == len(Q_G)
             cgpaw.pw_insert(c_G, Q_G, scale, self.tmp_Q)
-
-            if self.dtype == float:
-                t = self.tmp_Q[:, :, 0]
-                n, m = self.gd.N_c[:2] // 2 - 1
-                t[0, -m:] = t[0, m:0:-1].conj()
-                t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
-                t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
-                t[-n:, 0] = t[n:0:-1, 0].conj()
+            if 1:
+                if self.dtype == float:
+                    t = self.tmp_Q[:, :, 0]
+                    n, m = self.gd.N_c[:2] // 2 - 1
+                    t[0, -m:] = t[0, m:0:-1].conj()
+                    t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
+                    t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
+                    t[-n:, 0] = t[n:0:-1, 0].conj()
             self.ifftplan.execute()
         if comm.size == 1 or local or not distribute:
             if safe:
