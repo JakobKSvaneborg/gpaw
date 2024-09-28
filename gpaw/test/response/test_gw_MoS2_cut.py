@@ -3,7 +3,6 @@ from ase import Atoms
 from ase.lattice.hexagonal import Hexagonal
 from gpaw import GPAW, FermiDirac
 from gpaw.response.g0w0 import G0W0
-from gpaw.mpi import world
 
 
 @pytest.fixture
@@ -39,15 +38,16 @@ def gpwfile(in_tmp_dir):
 
 
 @pytest.mark.response
-def test_response_gw_MoS2_cut(scalapack, gpwfile, gpaw_new):
-    if gpaw_new and world.size > 1:
-        pytest.skip('Hybrids not working in parallel with GPAW_NEW=1')
+@pytest.mark.parametrize('integrate_gamma', ['sphere', 'reciprocal2D',
+                                             '1BZ2D'])
+def test_response_gw_MoS2_cut(scalapack, gpwfile, integrate_gamma):
     gw = G0W0(gpwfile,
               'gw-test',
               nbands=15,
               ecut=10,
               eta=0.2,
               frequencies={'type': 'nonlinear', 'domega0': 0.1},
+              integrate_gamma=integrate_gamma,
               truncation='2D',
               kpts=[((1 / 3, 1 / 3, 0))],
               bands=(8, 10))
@@ -58,7 +58,9 @@ def test_response_gw_MoS2_cut(scalapack, gpwfile, gpaw_new):
     for path in paths.values():
         assert path.exists()
 
-    ev = 2.392
-    ec = 7.337
+    results = {'sphere': (2.392, 7.337),
+               '1BZ2D': (2.400, 7.311),
+               'reciprocal2D': (2.406, 7.297)}
+    ev, ec = results[integrate_gamma]
     assert e_qp[0] == pytest.approx(ev, abs=0.01)
     assert e_qp[1] == pytest.approx(ec, abs=0.01)

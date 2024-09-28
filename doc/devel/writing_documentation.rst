@@ -13,8 +13,8 @@ reStructuredText_.  Also, read carefully the
 :ref:`Writing documentation for ASE <ase:writing_documentation_ase>`
 page.
 
-.. _reStructuredText: http://docutils.sf.net/rst.html
-.. _Sphinx: http://www.sphinx-doc.org
+.. _reStructuredText: https://docutils.sf.net/rst.html
+.. _Sphinx: https://www.sphinx-doc.org
 
 **Structure**
 
@@ -44,7 +44,7 @@ between theory, implementation and example sections.
 **Getting started**
 
 If you don't already have your own copy of the GPAW package, then
-see :ref:`development workflow` for how to set up your invironment.
+see :ref:`development workflow` for how to set up your environment.
 You will also need to ``pip install sphinx-rtd-theme``.
 
 Then :command:`cd` to the :file:`doc` directory and build the html-pages::

@@ -5,8 +5,8 @@ Development workflow
 ====================
 
 .. _ASE: https://wiki.fysik.dtu.dk/ase/
-.. _NumPy: http://docs.scipy.org/doc/numpy/reference/
-.. _SciPy: http://docs.scipy.org/doc/scipy/reference/
+.. _NumPy: https://docs.scipy.org/doc/numpy/reference/
+.. _SciPy: https://docs.scipy.org/doc/scipy/reference/
 .. _venv: https://docs.python.org/3/library/venv.html#module-venv
 .. _pip: https://pip.pypa.io/
 .. _git: https://git-scm.com/
@@ -167,7 +167,8 @@ For MRs with code changes:
 For MRs with documentation changes,
 build the HTML-pages and make sure everything looks OK::
 
- $ pip install sphinx-rtd-theme
- $ cd gpaw/doc
+ $ cd gpaw
+ $ pip install -e .[docs]
+ $ cd doc
  $ make
  $ make browse

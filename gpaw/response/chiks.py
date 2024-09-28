@@ -10,8 +10,8 @@ from ase.units import Hartree
 from gpaw.utilities.blas import mmmx
 
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
-from gpaw.response.symmetry import (
-    QSymmetryAnalyzer, ensure_qsymmetry, QSymmetryInput)
+from gpaw.response.symmetry import QSymmetryAnalyzer, QSymmetryInput
+from gpaw.response.symmetrize import BodySymmetryOperators
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.pw_parallelization import PlaneWaveBlockDistributor
 from gpaw.response.matrix_elements import (PlaneWaveMatrixElementCalculator,
@@ -141,10 +141,10 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             self.matrix_element_calc2.initialize_paw_corrections(chiks.qpd)
 
         # Perform the actual integration
-        analyzer = self._integrate(chiks, transitions)
+        symmetries = self._integrate(chiks, transitions)
 
         # Symmetrize chiks according to the symmetries of the ground state
-        self.symmetrize(chiks, analyzer)
+        self.symmetrize(chiks, symmetries)
 
         # Map to standard output format
         chiks = self.post_process(chiks)
@@ -248,23 +248,17 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             matrix_element2 = matrix_element1
         else:
             matrix_element2 = self.matrix_element_calc2(kptpair, chiks.qpd)
-
-        # Extract the temporal ingredients from the KohnShamKPointPair
-        transitions = kptpair.transitions  # transition indices (n,s)->(n',s')
-        df_t = kptpair.df_t  # (f_n'k's' - f_nks)
-        deps_t = kptpair.deps_t  # (ε_n'k's' - ε_nks)
-
         # Calculate the temporal part of the integrand
         if chiks.spincomponent == '00' and self.gs.nspins == 1:
             weight = 2 * weight
-        x_Zt = get_temporal_part(chiks.spincomponent, chiks.zd.hz_z,
-                                 transitions, df_t, deps_t,
-                                 self.bandsummation)
+        x_mytZ = get_temporal_part(chiks.spincomponent, chiks.zd.hz_z,
+                                   kptpair, self.bandsummation)
+        x_tZ = kptpair.tblocks.all_gather(x_mytZ)
 
         self._add_integrand(
-            matrix_element1, matrix_element2, x_Zt, weight, chiks)
+            matrix_element1, matrix_element2, x_tZ, weight, chiks)
 
-    def _add_integrand(self, matrix_element1, matrix_element2, x_Zt,
+    def _add_integrand(self, matrix_element1, matrix_element2, x_tZ,
                        weight, chiks):
         r"""Add the generalized susceptibility integrand based on distribution.
 
@@ -279,7 +273,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
         where x_t^μν(ħz) is the temporal part of ̄x_KS,GG'^μν(q,ω+iη).
         """
         _add_integrand = self.get_add_integrand_method(chiks.distribution)
-        _add_integrand(matrix_element1, matrix_element2, x_Zt, weight, chiks)
+        _add_integrand(matrix_element1, matrix_element2, x_tZ, weight, chiks)
 
     def get_add_integrand_method(self, distribution):
         """_add_integrand seletor."""
@@ -291,7 +285,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             raise ValueError(f'Invalid distribution {distribution}')
         return _add_integrand
 
-    def _add_integrand_ZgG(self, matrix_element1, matrix_element2, x_Zt,
+    def _add_integrand_ZgG(self, matrix_element1, matrix_element2, x_tZ,
                            weight, chiks):
         """Add integrand in ZgG distribution.
 
@@ -304,7 +298,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
 
         with self.context.timer('Set up gcc and xf'):
             # Multiply the temporal part with the k-point integration weight
-            x_Zt *= weight
+            x_Zt = np.ascontiguousarray(weight * x_tZ.T)
 
             # Set up f_kt(G+q) and g_kt^*(G'+q)
             f_tG = matrix_element1.get_global_array()
@@ -322,7 +316,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             for xf_gt, chiks_gG in zip(xf_Zgt, chiks_ZgG):
                 mmmx(1.0, xf_gt, 'N', gcc_tG, 'N', 1.0, chiks_gG)  # slow step
 
-    def _add_integrand_GZg(self, matrix_element1, matrix_element2, x_Zt,
+    def _add_integrand_GZg(self, matrix_element1, matrix_element2, x_tZ,
                            weight, chiks):
         """Add integrand in GZg distribution.
 
@@ -335,7 +329,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
 
         with self.context.timer('Set up gcc and xf'):
             # Multiply the temporal part with the k-point integration weight
-            x_tZ = np.ascontiguousarray(weight * x_Zt.T)
+            x_tZ *= weight
 
             # Set up f_kt(G+q) and g_kt^*(G'+q)
             f_tG = matrix_element1.get_global_array()
@@ -354,14 +348,14 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
             mmmx(1.0, gcc_Gt, 'N', xf_tZg, 'N', 1.0, chiks_GZg)  # slow step
 
     @timer('Symmetrizing chiks')
-    def symmetrize(self, chiks, analyzer):
+    def symmetrize(self, chiks, symmetries):
         """Symmetrize chiks_zGG."""
-        chiks_ZgG = chiks.array_with_view('ZgG')
-
-        # Distribute over frequencies
+        operators = BodySymmetryOperators(symmetries, chiks.qpd)
+        # Distribute over frequencies and symmetrize
         nz = len(chiks.zd)
+        chiks_ZgG = chiks.array_with_view('ZgG')
         tmp_zGG = chiks.blockdist.distribute_as(chiks_ZgG, nz, 'zGG')
-        analyzer.symmetrize_zGG(tmp_zGG)
+        operators.symmetrize_zGG(tmp_zGG)
         # Distribute over plane waves
         chiks_ZgG[:] = chiks.blockdist.distribute_as(tmp_zGG, nz, 'ZgG')
 
@@ -487,8 +481,7 @@ class SelfEnhancementCalculator(GeneralizedSuscetibilityCalculator):
         self.rshelmax = rshelmax
         self.rshewmin = rshewmin
 
-        qsymmetry = ensure_qsymmetry(qsymmetry)
-
+        qsymmetry = QSymmetryAnalyzer.from_input(qsymmetry)
         super().__init__(gs, context=context,
                          qsymmetry=QSymmetryAnalyzer(
                              point_group=qsymmetry.point_group,
@@ -523,14 +516,11 @@ def get_ecut_to_encompass_centered_sphere(q_v, ecut):
     return ecut
 
 
-def get_temporal_part(spincomponent, hz_z,
-                      transitions, df_t, deps_t,
-                      bandsummation):
+def get_temporal_part(spincomponent, hz_z, kptpair, bandsummation):
     """Get the temporal part of a (causal linear) susceptibility, x_t^μν(ħz).
     """
     _get_temporal_part = create_get_temporal_part(bandsummation)
-    return _get_temporal_part(spincomponent, hz_z,
-                              transitions, df_t, deps_t)
+    return _get_temporal_part(spincomponent, hz_z, kptpair)
 
 
 def create_get_temporal_part(bandsummation):
@@ -542,29 +532,27 @@ def create_get_temporal_part(bandsummation):
     raise ValueError(bandsummation)
 
 
-def get_double_temporal_part(spincomponent, hz_z,
-                             transitions, df_t, deps_t):
+def get_double_temporal_part(spincomponent, hz_z, kptpair):
     r"""Get:
 
                  σ^μ_ss' σ^ν_s's (f_nks - f_n'k's')
     x_t^μν(ħz) = ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
                       ħz - (ε_n'k's' - ε_nks)
     """
-    # Get the right spin components
-    s1_t, s2_t = transitions.get_spin_indices()
-    scomps_t = get_smat_components(spincomponent, s1_t, s2_t)
+    # Calculate σ^μ_ss' σ^ν_s's
+    s1_myt, s2_myt = kptpair.get_local_spin_indices()
+    scomps_myt = get_smat_components(spincomponent, s1_myt, s2_myt)
     # Calculate nominator
-    nom_t = - scomps_t * df_t  # df = f2 - f1
+    nom_myt = - scomps_myt * kptpair.df_myt  # df = (f_n'k's' - f_nks)
     # Calculate denominator
-    denom_wt = hz_z[:, np.newaxis] - deps_t[np.newaxis, :]  # de = e2 - e1
+    deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
+    denom_mytz = hz_z[np.newaxis] - deps_myt[:, np.newaxis]
+    regularize_intraband_transitions(denom_mytz, kptpair)
 
-    regularize_intraband_transitions(denom_wt, transitions, deps_t)
-
-    return nom_t[np.newaxis, :] / denom_wt
+    return nom_myt[:, np.newaxis] / denom_mytz
 
 
-def get_pairwise_temporal_part(spincomponent, hz_z,
-                               transitions, df_t, deps_t):
+def get_pairwise_temporal_part(spincomponent, hz_z, kptpair):
     r"""Get:
 
                  /
@@ -578,28 +566,30 @@ def get_pairwise_temporal_part(spincomponent, hz_z,
                                  ħz + (ε_n'k's' - ε_nks)       |
                                                                /
     """
-    n1_t, n2_t, s1_t, s2_t = transitions.get_band_and_spin_indices()
     # Kroenecker delta
-    delta_t = np.ones(len(n1_t))
-    delta_t[n2_t <= n1_t] = 0
-    # Get the right spin components
-    scomps1_t = get_smat_components(spincomponent, s1_t, s2_t)
-    scomps2_t = get_smat_components(spincomponent, s2_t, s1_t)
+    n1_myt, n2_myt = kptpair.get_local_band_indices()
+    delta_myt = np.ones(len(n1_myt))
+    delta_myt[n2_myt <= n1_myt] = 0
+    # Calculate σ^μ_ss' σ^ν_s's and σ^μ_s's σ^ν_ss'
+    s1_myt, s2_myt = kptpair.get_local_spin_indices()
+    scomps1_myt = get_smat_components(spincomponent, s1_myt, s2_myt)
+    scomps2_myt = get_smat_components(spincomponent, s2_myt, s1_myt)
     # Calculate nominators
-    nom1_t = - scomps1_t * df_t  # df = f2 - f1
-    nom2_t = - delta_t * scomps2_t * df_t
+    df_myt = kptpair.df_myt  # df = (f_n'k's' - f_nks)
+    nom1_myt = - scomps1_myt * df_myt
+    nom2_myt = - delta_myt * scomps2_myt * df_myt
     # Calculate denominators
-    denom1_wt = hz_z[:, np.newaxis] - deps_t[np.newaxis, :]  # de = e2 - e1
-    denom2_wt = hz_z[:, np.newaxis] + deps_t[np.newaxis, :]
+    deps_myt = kptpair.deps_myt  # dε = (ε_n'k's' - ε_nks)
+    denom1_mytz = hz_z[np.newaxis] - deps_myt[:, np.newaxis]
+    denom2_mytz = hz_z[np.newaxis] + deps_myt[:, np.newaxis]
+    regularize_intraband_transitions(denom1_mytz, kptpair)
+    regularize_intraband_transitions(denom2_mytz, kptpair)
 
-    regularize_intraband_transitions(denom1_wt, transitions, deps_t)
-    regularize_intraband_transitions(denom2_wt, transitions, deps_t)
-
-    return nom1_t[np.newaxis, :] / denom1_wt\
-        - nom2_t[np.newaxis, :] / denom2_wt
+    return nom1_myt[:, np.newaxis] / denom1_mytz\
+        - nom2_myt[:, np.newaxis] / denom2_mytz
 
 
-def regularize_intraband_transitions(denom_wt, transitions, deps_t):
+def regularize_intraband_transitions(denom_mytx, kptpair):
     """Regularize the denominator of the temporal part in case of degeneracy.
 
     If the q-vector connects two symmetrically equivalent k-points inside a
@@ -607,19 +597,15 @@ def regularize_intraband_transitions(denom_wt, transitions, deps_t):
 
     NB: In principle there *should* be a contribution from the intraband
     transitions, but this is left for future work for now."""
-    intraband_t = transitions.get_intraband_mask()
-    degenerate_t = np.abs(deps_t) < 1e-8
-
-    denom_wt[:, intraband_t & degenerate_t] = 1.
+    intraband_myt = kptpair.get_local_intraband_mask()
+    degenerate_myt = np.abs(kptpair.deps_myt) < 1e-8
+    denom_mytx[intraband_myt & degenerate_myt, ...] = 1.
 
 
 def get_smat_components(spincomponent, s1_t, s2_t):
-    """For s1=s and s2=s', get:
-    smu_ss' snu_s's
-    """
+    """Calculate σ^μ_ss' σ^ν_s's for spincomponent (μν)."""
     smatmu = smat(spincomponent[0])
     smatnu = smat(spincomponent[1])
-
     return smatmu[s1_t, s2_t] * smatnu[s2_t, s1_t]
 
 

@@ -232,7 +232,7 @@ class BaseSetup:
 
         for j, (n1, l1, f, f_s) in enumerate(zip(self.n_j, self.l_j,
                                                  f_j, f_sj.T)):
-            if not f_s.any():
+            if not f_s.any() or n1 < 0:
                 continue
             I = 0
             for bf in self.basis.bf_j:
@@ -386,7 +386,7 @@ class BaseSetup:
         ni = len(L_i)
         # j_i is the list of j values
         # L_i is the list of L (=l**2+m for 0<=m<2*l+1) values
-        # https://wiki.fysik.dtu.dk/gpaw/devel/overview.html
+        # https://gpaw.readthedocs.io/devel/overview.html
 
         G_LLL = gaunt(max(self.l_j))
 

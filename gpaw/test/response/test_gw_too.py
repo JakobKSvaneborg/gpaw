@@ -6,9 +6,7 @@ import pickle
 
 
 @pytest.mark.response
-def test_do_GW_too(in_tmp_dir, gpw_files, scalapack, gpaw_new):
-    if gpaw_new and world.size > 1:
-        pytest.skip('Hybrids not working in parallel with GPAW_NEW=1')
+def test_do_GW_too(in_tmp_dir, gpw_files, scalapack):
     gw0 = G0W0(gpw_files['c_pw'], 'gw0',
                bands=(3, 5),
                nblocks=1,

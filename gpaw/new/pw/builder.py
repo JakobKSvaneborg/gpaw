@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from functools import cached_property
 
 from ase.units import Ha
+
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
@@ -10,10 +13,10 @@ from gpaw.new.builder import create_uniform_grid
 from gpaw.new.external_potential import create_external_potential
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
+from gpaw.new.pw.paw_poisson import OldPAWPoissonSolver, PAWPoissonSolver
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
-# from gpaw.new.spinors import SpinorWaveFunctionDescriptor
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D
 
@@ -21,7 +24,14 @@ from gpaw.typing import Array1D
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     interpolation = 'fft'
 
-    def __init__(self, atoms, params, *, comm, ecut=340, qspiral=None):
+    def __init__(self,
+                 atoms,
+                 params,
+                 *,
+                 comm,
+                 ecut=340,
+                 qspiral=None,
+                 dedecut=None):
         self.ecut = ecut / Ha
         super().__init__(atoms, params, comm=comm, qspiral=qspiral)
 
@@ -60,7 +70,12 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     @cached_property
     def interpolation_desc(self):
-        return PWDesc(ecut=2 * self.ecut,
+        """Plane-wave set used for interpolating from corse to fine grid."""
+        # By default, the size of the grid used for the FFT's (self.grid)
+        # will acommodate G-vectors up to 2 * self.ecut, but the grid-size
+        # could have been set using h=... or gpts=...
+        ecut = min(2 * self.ecut, self.grid.ekin_max())
+        return PWDesc(ecut=ecut,
                       cell=self.grid.cell,
                       comm=self.grid.comm)
 
@@ -81,25 +96,38 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.interpolation_desc, self.fracpos_ac, self.atomdist)
         return self._tauct_ag
 
-    def create_poisson_solver(self, fine_pw, params):
-        return make_poisson_solver(fine_pw,
-                                   self.fine_grid,
-                                   self.params.charge,
-                                   **params)
+    def create_poisson_solver(self):
+        psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
+        if psparams.pop('fast', False):
+            pw = self.interpolation_desc
+            ps = make_poisson_solver(pw,
+                                     self.grid,
+                                     self.params.charge,
+                                     **psparams)
+            cutoff_a = []
+            for s in self.setups:
+                assert s.data.shape_function['type'] == 'gauss'
+                cutoff_a.append(s.data.shape_function['rc'])
+            return PAWPoissonSolver(
+                pw, cutoff_a, ps, self.fracpos_ac, self.atomdist, self.xp)
+        else:
+            ps = make_poisson_solver(self.electrostatic_potential_desc,
+                                     self.fine_grid,
+                                     self.params.charge,
+                                     **psparams)
+            pw = self.interpolation_desc
+            return OldPAWPoissonSolver(
+                pw,
+                self.setups,
+                ps, self.fracpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self):
-        nct_ag = self.get_pseudo_core_densities()
-        pw = nct_ag.pw
-        fine_pw = self.electrostatic_potential_desc
-        poisson_solver = self.create_poisson_solver(
-            fine_pw,
-            self.params.poissonsolver or {'strength': 1.0})
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
-            pw, fine_pw,
+            self.interpolation_desc,
             self.setups,
             self.xc,
-            poisson_solver,
+            self.create_poisson_solver(),
             external_potential=create_external_potential(self.params.external),
             fracpos_ac=self.fracpos_ac,
             atomdist=self.atomdist,
@@ -110,6 +138,9 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if self.ncomponents < 4:
             if self.xc.exx_fraction == 0.0:
                 return PWHamiltonian(self.grid, self.wf_desc, self.xp)
+            assert self.communicators['d'].size == 1
+            assert self.communicators['k'].size == 1
+            assert self.nbands % self.communicators['b'].size == 0
             return PWHybridHamiltonian(
                 self.grid, self.wf_desc, self.xc, self.setups,
                 self.fracpos_ac, self.atomdist)

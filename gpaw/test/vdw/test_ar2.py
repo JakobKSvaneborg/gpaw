@@ -5,6 +5,7 @@ from gpaw import GPAW, Mixer, Davidson
 from gpaw.xc.vdw import VDWFunctional
 
 
+@pytest.mark.slow
 @pytest.mark.libxc
 def test_vdw_ar2(in_tmp_dir):
     energy_tolerance = 0.002

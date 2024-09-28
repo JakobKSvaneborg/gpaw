@@ -1,17 +1,13 @@
 import pytest
+from ase.dft.wannier import Wannier
+
+from gpaw import GPAW
 
 
 @pytest.mark.serial
 @pytest.mark.wannier
-def test_ase_features_wannierk(in_tmp_dir, gpw_files):
+def test_ase_features_wannierk(in_tmp_dir, gpw_files, gpaw_new):
     'Test ase.dft.wannier module with k-points.'
-    from ase.build import bulk
-    from ase.dft.wannier import Wannier
-
-    from gpaw import GPAW
-    from gpaw.mpi import world
-
-    si = bulk('Si', 'diamond', a=5.43)
     k = 3
 
     def wan(calc):
@@ -32,8 +28,8 @@ def test_ase_features_wannierk(in_tmp_dir, gpw_files):
         c = sorted(c.round().astype(int).tolist())
         assert c == [[0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0]]
         if 0:
-            from ase.visualize import view
             from ase import Atoms
+            from ase.visualize import view
             watoms = calc.atoms + Atoms(symbols='X4',
                                         scaled_positions=centers,
                                         cell=calc.atoms.cell)
@@ -42,12 +38,11 @@ def test_ase_features_wannierk(in_tmp_dir, gpw_files):
 
     calc1 = GPAW(gpw_files['si_fd_bz'])
     x1 = wan(calc1)
-    calc2 = GPAW(gpw_files['si_fd_ibz'])
-    calc2.wfs.ibz2bz(si)
-    x2 = wan(calc2)
-    if world.rank == 0:
-        print((x1, x2))
-    assert abs(x1 - x2) < 0.001
     assert abs(x1 - 8.817) < 0.01
+    if gpaw_new:
+        return
 
-    world.barrier()
+    calc2 = GPAW(gpw_files['si_fd_ibz'])
+    calc2.wfs.ibz2bz(calc2.atoms)
+    x2 = wan(calc2)
+    assert abs(x1 - x2) < 0.001

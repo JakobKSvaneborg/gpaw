@@ -18,6 +18,7 @@ Linux:
    Linux/Niflheim/Niflheim
    Linux/Niflheim/load
    Linux/Niflheim/build
+   Linux/Niflheim/gpu
    Linux/SUNCAT/SUNCAT
    Linux/akka
    Linux/armageddon
@@ -72,14 +73,6 @@ AIX:
    AIX/ibmsc
    AIX/jump
    AIX/seaborg
-
-BGP:
-
-.. toctree::
-   :maxdepth: 2
-
-   BGP/jugene
-   BGP/performance
 
 BGQ:
 

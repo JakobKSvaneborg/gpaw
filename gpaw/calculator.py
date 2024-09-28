@@ -115,6 +115,8 @@ class GPAW(Calculator):
         'elpasolver': '2stage',
         'buffer_size': None}
 
+    old = True
+
     def __init__(self,
                  restart=None,
                  *,
@@ -163,7 +165,7 @@ class GPAW(Calculator):
 
         self.reader = None
 
-        Calculator.__init__(self, restart, label=label, **kwargs)
+        Calculator.__init__(self, restart, label=label, _set_ok=True, **kwargs)
 
     def new(self,
             timer=None,
@@ -220,8 +222,12 @@ class GPAW(Calculator):
             bs_calc = gs_calc.fixed_density(kpts=<path>,
                                             symmetry='off')
             bs = bs_calc.get_band_structure()
+
+        Parameters
+        ==========
+        update_fermi_level:
+            Update or keep the old Fermi-level.
         """
-        assert not update_fermi_level  # for now ...
 
         for key in kwargs:
             if key not in {'nbands', 'occupations', 'poissonsolver', 'kpts',
@@ -246,6 +252,7 @@ class GPAW(Calculator):
                                                    calc.wfs.kptband_comm)
         calc.density.fixed = True
         calc.wfs.fermi_levels = self.wfs.fermi_levels
+        calc.scf.fix_fermi_level = not update_fermi_level
         if calc.hamiltonian.xc.type == 'GLLB':
             new_response = calc.hamiltonian.xc.response
             old_response = self.hamiltonian.xc.response
@@ -532,14 +539,21 @@ class GPAW(Calculator):
 
         self.log.fd.flush()
 
-    def set(self, **kwargs):
+    def set(self, _set_ok=False, **kwargs):
         """Change parameters for calculator.
 
-        Examples::
+        Example::
 
-            calc.set(xc='PBE')
-            calc.set(nbands=20, kpts=(4, 1, 1))
+            calc.set(eigensolver=...)
         """
+        if not _set_ok:
+            # We want to get rid of cal.set(...), but these are still in use,
+            # so we allow them for now
+            if not kwargs.keys() <= {'eigensolver', 'external',
+                                     'convergence', 'txt',
+                                     'xc', 'occupations'}:
+                raise ValueError(
+                    'Please use new(...) instead of set(...)')
 
         # Verify that keys are consistent with default ones.
         for key in kwargs:
@@ -1929,9 +1943,29 @@ class GPAW(Calculator):
             self.wfs.world.broadcast(eps_n, 0)
         return eps_n * Ha
 
-    def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True):
-        """Return occupation array."""
+    def get_occupation_numbers(self,
+                               kpt: int = 0,
+                               spin: int = 0,
+                               broadcast: bool = True,
+                               raw: bool = False) -> np.ndarray:
+        """Return occupation array.
+
+        Parameters
+        ==========
+        kpt:
+            Index of IBZ k-point.
+        spin:
+            Spin-channel index.
+        broadcast:
+            Broadcast result to all MPI-ranks.
+        raw:
+            Return numbers in the [0,1] range without spin-degeneracy
+            or k-point weights.
+        """
         f_n = self.wfs.collect_occupations(kpt, spin)
+        if raw:
+            weight = self.wfs.kd.weight_k[kpt] * 2 / self.wfs.nspins
+            f_n /= weight
         if broadcast:
             if self.wfs.world.rank != 0:
                 f_n = np.empty(self.wfs.bd.nbands)

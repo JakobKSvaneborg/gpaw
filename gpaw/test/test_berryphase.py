@@ -1,10 +1,10 @@
 import numpy as np
-from gpaw import GPAW
-from gpaw.berryphase import get_polarization_phase, parallel_transport
-from gpaw.berryphase import get_berry_phases
-import gpaw.mpi as mpi
 import pytest
 
+import gpaw.mpi as mpi
+from gpaw import GPAW
+from gpaw.berryphase import (get_berry_phases, get_polarization_phase,
+                             parallel_transport)
 
 # Values from an earlier test
 ref_phi_mos2_km = np.array(

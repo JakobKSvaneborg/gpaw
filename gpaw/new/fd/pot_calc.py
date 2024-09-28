@@ -56,13 +56,10 @@ class FDPotentialCalculator(PotentialCalculator):
     def restrict(self, a_xr, a_xR=None):
         return self._restrict(a_xr, a_xR)
 
-    def calculate_charges(self, vHt_r):
-        return self.ghat_aLr.integrate(vHt_r)
-
-    def calculate_non_selfconsistent_exc(self, xc, nt_sR, taut_sR):
-        nt_sr, _, _ = self._interpolate_density(nt_sR)
-        if taut_sR is not None:
-            taut_sr = self.interpolate(taut_sR)
+    def calculate_non_selfconsistent_exc(self, xc, density):
+        nt_sr, _, _ = self._interpolate_density(density.nt_sR)
+        if density.taut_sR is not None:
+            taut_sr = self.interpolate(density.taut_sR)
         else:
             taut_sr = None
         e_xc, _, _ = xc.calculate(nt_sr, taut_sr)
@@ -116,25 +113,25 @@ class FDPotentialCalculator(PotentialCalculator):
 
         e_external = 0.0
 
+        V_aL = self.ghat_aLr.integrate(vHt_r)
+
         return {'coulomb': e_coulomb,
                 'zero': e_zero,
                 'xc': e_xc,
-                'external': e_external}, vt_sR, dedtaut_sr, vHt_r
+                'external': e_external}, vt_sR, dedtaut_sr, vHt_r, V_aL
 
     def move(self, fracpos_ac, atomdist):
         self.ghat_aLr.move(fracpos_ac, atomdist)
         self.vbar_ar.move(fracpos_ac, atomdist)
         self.vbar_ar.to_uniform_grid(out=self.vbar_r)
 
-    def force_contributions(self, state):
-        density = state.density
-        potential = state.potential
+    def force_contributions(self, density, potential):
         nt_R = spinsum(density.nt_sR)
         vt_R = spinsum(potential.vt_sR, mean=True)
         dedtaut_sR = potential.dedtaut_sR
         if dedtaut_sR is not None:
             dedtaut_R = spinsum(dedtaut_sR, mean=True)
-            Ftauct_av = state.density.tauct_aX.derivative(dedtaut_R)
+            Ftauct_av = density.tauct_aX.derivative(dedtaut_R)
         else:
             Ftauct_av = None
 
@@ -143,7 +140,7 @@ class FDPotentialCalculator(PotentialCalculator):
             scale = nt_R.integrate() / nt_r.integrate()
             nt_r.data *= scale
 
-        return (self.ghat_aLr.derivative(state.potential.vHt_x),
-                state.density.nct_aX.derivative(vt_R),
+        return (self.ghat_aLr.derivative(potential.vHt_x),
+                density.nct_aX.derivative(vt_R),
                 Ftauct_av,
                 self.vbar_ar.derivative(nt_r))

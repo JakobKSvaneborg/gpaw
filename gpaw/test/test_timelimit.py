@@ -7,8 +7,9 @@ from gpaw.tddft import TDDFT
 from gpaw.utilities.timelimit import TimeLimiter
 
 
-@pytest.mark.legacy  # rewrite later using calc.callbacks['scf_step']
-def test_timelimit(in_tmp_dir):
+def test_timelimit(in_tmp_dir, gpaw_new):
+    if gpaw_new:
+        pytest.skip('rewrite later using calc.callbacks')
     # Atoms
     atoms = molecule('Na2')
     atoms.center(vacuum=4.0)

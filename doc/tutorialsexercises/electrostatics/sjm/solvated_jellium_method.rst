@@ -73,6 +73,8 @@ If you see solvent in the metal region, you could increase the atomic radii as d
            :width: 600 px
            :align: center
 
+(The script used to generate this plot is here: :download:`plot-traces.py`.)
+
 Relaxing the slab and adsorbate
 ===============================
 
@@ -110,6 +112,8 @@ At the end of the sequential mode, we switched back to simultaneous mode to ensu
            :width: 600 px
            :align: center
 
+(Plot script: :download:`plot-seq-sim.py`.)
+
 Finding a barrier (NEB/DyNEB)
 =============================
 
@@ -121,11 +125,15 @@ The SJM method allows one to calculate a reaction barrier in a manner where all 
 The discrepancy between a canonical and grand-canonical simulation is most pronounced in reactions involving the creation or destruction of an ion, as the ion collides with the constant-potential surface.
 Unfortunately, simulating even a simple reaction like the Volmer reaction---where a proton in the solution reacts to form an adsorbed hydrogen atom---is not possible in this tutorial, as a relatively large water layer---that is, larger than the one molecule we are using!---is needed in order to stabilize the solvated proton in the initial state.
 Therefore, in this tutorial, we'll do a much simpler reaction: the diffusion of our adsorbed H atom from one type of surface site to another.
-Note that we should expect very little difference in the number of excess electrons in order to equilibrate the initial, transition, and final state; nevertheless, it allows us to demonstrate the use of the NEB method with SJM.
+Note that we should expect very little difference in the number of excess electrons in order to equilibrate the initial, transition, and final state; nevertheless, it allows us to demonstrate the use of the nudged elastic band (NEB) method with SJM.
+
+You will need to create the final state before you run the NEB; you can go through the exercise of creating this yourself, or you can use our script (:download:`run-Au111-H-hollow.py`).
+After you have created the final state, you can run the NEB as below; note here we use the DyNEB method which tends to save a large amount of computational time for these sorts of barriers.
 
 .. literalinclude:: run-neb.py
 
 After a few iterations, the band completes and we can make a plot of the barrier, using :literal:`NEBTools`.
+(Plot script: :download:`plot-neb.py`.)
 
 .. image:: band.png
            :width: 600 px

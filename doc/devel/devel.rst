@@ -49,10 +49,11 @@ version to become the next release.
    bugs
    newrelease
    technology
+   meeting
 
 * Details about supported :ref:`platforms and architectures`.
 
-.. _PyLint: http://www.logilab.org/857
+.. _PyLint: https://www.logilab.org/857
 
 
 .. _the_big_picture:

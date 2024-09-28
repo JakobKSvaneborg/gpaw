@@ -26,7 +26,7 @@ from gpaw.setup import Setup
 from gpaw.spinorbit import soc as soc_terms
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_hermitian, pack_density, unpack_hermitian
-from gpaw.yml import indent
+from gpaw.new.logger import indent
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new.external_potential import ExternalPotential
 
@@ -58,7 +58,8 @@ class PotentialCalculator:
                                    ) -> tuple[dict[str, float],
                                               UGArray,
                                               UGArray,
-                                              DistributedArrays]:
+                                              DistributedArrays,
+                                              AtomArrays]:
         raise NotImplementedError
 
     def calculate_charges(self, vHt_x):
@@ -88,9 +89,8 @@ class PotentialCalculator:
                   vHt_x: DistributedArrays | None = None,
                   kpt_band_comm: MPIComm | None = None
                   ) -> tuple[Potential, AtomArrays]:
-        energies, vt_sR, dedtaut_sr, vHt_x = self.calculate_pseudo_potential(
-            density, ibzwfs, vHt_x)
-
+        energies, vt_sR, dedtaut_sr, vHt_x, V_aL = (
+            self.calculate_pseudo_potential(density, ibzwfs, vHt_x))
         e_kinetic = 0.0
         for spin, (vt_R, nt_R) in enumerate(zips(vt_sR, density.nt_sR)):
             e_kinetic -= vt_R.integrate(nt_R)
@@ -113,13 +113,12 @@ class PotentialCalculator:
                 kpt_band_comm = serial_comm
             else:
                 kpt_band_comm = ibzwfs.kpt_band_comm
-        Q_aL = self.calculate_charges(vHt_x)
         dH_asii, corrections = calculate_non_local_potential(
             self.setups,
             density,
             self.xc,
             self.external_potential,
-            Q_aL,
+            V_aL,
             self.soc,
             kpt_band_comm)
 
@@ -129,7 +128,7 @@ class PotentialCalculator:
                 print(f'{key:10} {energies[key]:15.9f} {e:15.9f}')
             energies[key] += e
 
-        return Potential(vt_sR, dH_asii, dedtaut_sR, energies, vHt_x), Q_aL
+        return Potential(vt_sR, dH_asii, dedtaut_sR, energies, vHt_x), V_aL
 
 
 @trace
@@ -177,7 +176,7 @@ def calculate_non_local_potential1(setup: Setup,
                                    xc: Functional,
                                    ext_pot,
                                    D_sii: Array3D,
-                                   Q_L: Array1D,
+                                   V_L: Array1D,
                                    soc: bool) -> tuple[Array3D,
                                                        dict[str, float]]:
     ncomponents = len(D_sii)
@@ -188,7 +187,7 @@ def calculate_non_local_potential1(setup: Setup,
 
     dH_p = (setup.K_p + setup.M_p +
             setup.MB_p + 2.0 * setup.M_pp @ D_p +
-            setup.Delta_pL @ Q_L)
+            setup.Delta_pL @ V_L)
     e_kinetic = setup.K_p @ D_p + setup.Kc
     e_zero = setup.MB + setup.MB_p @ D_p
     e_coulomb = setup.M + D_p @ (setup.M_p + setup.M_pp @ D_p)
