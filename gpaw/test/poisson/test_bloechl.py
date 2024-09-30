@@ -1,17 +1,33 @@
+from math import pi
+
 import numpy as np
+from ase import Atoms
+from scipy.special import erf
+
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 from gpaw.core import PWDesc
-from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver, c
+from gpaw.new.ase_interface import GPAW
+from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.paw_poisson import (SimplePAWPoissonSolver,
                                      SlowPAWPoissonSolver)
 from gpaw.new.pw.poisson import PWPoissonSolver
-from gpaw.new.ase_interface import GPAW
-from ase import Atoms
 
 
 def g(rc, rgd):
     return rgd.spline(4 / rc**3 / np.pi**0.5 * np.exp(-(rgd.r_g / rc)**2),
                       l=0)
+
+
+def c(r, rc1, rc2):
+    a1 = 1 / rc1**2
+    a2 = 1 / rc2**2
+    f = 2 * (pi**5 / (a1 + a2))**0.5 / (a1 * a2)
+    f *= 16 / pi / rc1**3 / rc2**3
+    if r == 0.0:
+        return f
+    T = a1 * a2 / (a1 + a2) * r**2
+    y = 0.5 * f * erf(T**0.5) * (pi / T)**0.5
+    return y
 
 
 def test_psolve():
@@ -22,7 +38,7 @@ def test_psolve():
     d12 = 1.35
     g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
     v = 7.5
-    gcut=25
+    gcut = 25.0
     pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12])
     fracpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
                            [0.5, 0.5, (v + d12) / (2 * v + d12)]])
@@ -97,9 +113,10 @@ def test_fast_slow(fast):
     atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 800},
                       poissonsolver={'fast': fast})
     atoms.get_potential_energy()
+    atoms.get_forces()
 
 
 if __name__ == '__main__':
-    test_psolve()
+    # test_psolve()
     import sys
-    # test_fast_slow(int(sys.argv[1]))
+    test_fast_slow(int(sys.argv[1]))

@@ -97,6 +97,15 @@ class SlowPAWPoissonSolver(PAWPoissonSolver):
 
         return e_coulomb, vHt_h, V_aL
 
+    def force_contribution(self, Q_aL, vHt_h, nt_g):
+        force_av = np.zeros((len(Q_aL), 3))
+
+        F_avL = self.ghat_aLh.derivative(vHt_h)
+        for a, dF_vL in F_avL.items():
+            force_av[a] += dF_vL @ Q_aL[a]
+
+        return force_av
+
 
 class SimplePAWPoissonSolver(PAWPoissonSolver):
     """For testing only!"""

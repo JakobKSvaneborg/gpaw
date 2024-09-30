@@ -14,14 +14,11 @@ from gpaw.atom.shapefunc import shape_functions
 from gpaw.core import PWArray, PWDesc
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.lcao.overlap import (FourierTransformer, LazySphericalHarmonics,
+                               LazySphericalHarmonicsDerivative,
                                ManySiteOverlapCalculator,
                                TwoSiteOverlapCalculator)
 from gpaw.spline import Spline
 from scipy.special import erf
-
-
-def dv(r, rc, rcut):
-    return erf(r / rc) / r - erf(r / rcut) / r
 
 
 def vg(r_r: np.ndarray, rc: float) -> np.ndarray:
@@ -43,39 +40,6 @@ def vg(r_r: np.ndarray, rc: float) -> np.ndarray:
     return v_lr
 
 
-def dvl(rgd, rc, rcut, lmax=2):
-    r_g = rgd.r_g.copy()
-    r_g[0] = 1.0
-    v_g = dv(r_g, rc, rcut)
-    v_g[0] = (4.0 / np.pi)**0.5 * (1.0 / rc - 1.0 / rcut)
-    return [v_g, v_g * 0.0, v_g * 0.0]
-
-
-def c(r, rc1, rc2):
-    a1 = 1 / rc1**2
-    a2 = 1 / rc2**2
-    f = 2 * (pi**5 / (a1 + a2))**0.5 / (a1 * a2)
-    f *= 16 / pi / rc1**3 / rc2**3
-    if r == 0.0:
-        return f
-    T = a1 * a2 / (a1 + a2) * r**2
-    y = 0.5 * f * erf(T**0.5) * (pi / T)**0.5
-    return y
-
-
-def dcdr(r, rc1, rc2):
-    if r == 0.0:
-        return 0.0
-    a1 = 1 / rc1**2
-    a2 = 1 / rc2**2
-    f = 2 * (pi**5 / (a1 + a2))**0.5 / (a1 * a2)
-    f *= 16 / pi / rc1**3 / rc2**3
-    T = a1 * a2 / (a1 + a2) * r**2
-    y = 0.5 * f * erf(T**0.5) * (pi / T)**0.5
-    dydr = (2 / pi**0.5 * np.exp(-T) - y) / r
-    return dydr
-
-
 def tci(rcut, I_a, gtilde_Il, vhat_Il, ghat_Il):
     transformer = FourierTransformer(rcut=rcut, N=2**10)
     tsoc = TwoSiteOverlapCalculator(transformer)
@@ -87,8 +51,8 @@ def tci(rcut, I_a, gtilde_Il, vhat_Il, ghat_Il):
     l_Il = [[gtilde.l for gtilde in gtilde_l] for gtilde_l in gtilde_Il]
     expansions1 = msoc.calculate_expansions(l_Il, gtilde_Ilq,
                                             l_Il, vhat_Ilq)
-    expansions2 = msoc.calculate_expansions(l_Il, ghat_Ilq,
-                                            l_Il, vhat_Ilq)
+    expansions2 = msoc.calculate_expansions(l_Il, vhat_Ilq,
+                                            l_Il, ghat_Ilq)
     return expansions1, expansions2
 
 
@@ -145,7 +109,6 @@ class BloechlPAWPoissonSolver:
         self.expansions = tci(self.rcut, self.I_a, gtilde_Il, vhat_Il, ghat_Il)
 
         self._neighbors = None
-        self.ghat_aLh = self.ghat_aLg  # old name
 
     def get_neighbors(self):
         if self._neighbors is None:
@@ -193,9 +156,6 @@ class BloechlPAWPoissonSolver:
 
         e_coulomb3 = 0.0
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
-            v = (
-                c(d, self.r2, self.r2) -
-                c(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
             if d:
                 n_v = d_v / d
             else:
@@ -206,12 +166,10 @@ class BloechlPAWPoissonSolver:
             I2 = self.I_a[a2]
             v_LL = (ex1.tsoe_II[I1, I2].evaluate(d, rlY_lm) +
                     ex2.tsoe_II[I1, I2].evaluate(d, rlY_lm))
-            print(a1,a2,d,self.r2, self.rcut, self.I_a)
-            print(v_LL[0,0], v)
-
-            V_aL[a1][0] -= Q_aL[a2][0] * v / 2
-            V_aL[a2][0] -= Q_aL[a1][0] * v / 2
-            e_coulomb3 += Q_aL[a1][0] * Q_aL[a2][0] * v
+            vQ2_L = v_LL @ Q_aL[a2]
+            V_aL[a1] += vQ2_L / 2
+            V_aL[a2] += Q_aL[a1] @ v_LL / 2
+            e_coulomb3 -= Q_aL[a1] @ vQ2_L
         e_coulomb3 *= -0.5
 
         vHt0_g = vHt_g.gather()
@@ -220,22 +178,27 @@ class BloechlPAWPoissonSolver:
 
         return e_coulomb1 + e_coulomb2 + e_coulomb3, vHt_g, V_aL
 
-    def force_contribution(self, Q_aL):
+    def force_contribution(self, Q_aL, vHt_g, nt_g):
         force_av = np.zeros((len(Q_aL), 3))
+
+        F_avL = self.ghat_aLg.derivative(vHt_g)
+        Fhat_avL = self.vhat_aLg.derivative(nt_g)
+        for a, dF_vL in F_avL.items():
+            force_av[a] += (dF_vL - Fhat_avL[a]) @ Q_aL[a]
+
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
-            v = Q_aL[a1][0] * Q_aL[a2][0] * (
-                dcdr(d, self.r2, self.r2) -
-                dcdr(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
-            if d > 0:
-                f_v = v * d_v / d
-                force_av[a1] += f_v
-                force_av[a2] -= f_v
+            if d > 0.0:
+                n_v = d_v / d
+            rlY_lm = LazySphericalHarmonics(n_v)
+            drlYdR_lmv = LazySphericalHarmonicsDerivative(n_v)
+            ex1, ex2 = self.expansions
+            I1 = self.I_a[a1]
+            I2 = self.I_a[a2]
+            v_vLL = (
+                ex1.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv) +
+                ex2.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv))
+            f_v = (v_vLL @ Q_aL[a2]) @ Q_aL[a1]
+            force_av[a1] -= f_v
+            force_av[a2] += f_v
 
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    r_r = np.linspace(0.01, 10, 101)
-    v_lr = vg(r_r, 1.5)
-    for v_r in v_lr:
-        plt.plot(r_r, v_r)
-    plt.show()
+        return force_av
