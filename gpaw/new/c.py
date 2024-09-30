@@ -85,12 +85,13 @@ def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
         J1 = J2
 
 
-def pw_amend_insert_realwf_gpu(array_Q, n, m):
-    t = array_Q[:, :, 0]
-    t[0, -m:] = t[0, m:0:-1].conj()
-    t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
-    t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
-    t[-n:, 0] = t[n:0:-1, 0].conj()
+def pw_amend_insert_realwf_gpu(array_nQ, n, m):
+    for array_Q in array_nQ:
+        t = array_Q[:, :, 0]
+        t[0, -m:] = t[0, m:0:-1].conj()
+        t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
+        t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
+        t[-n:, 0] = t[n:0:-1, 0].conj()
 
 
 def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
