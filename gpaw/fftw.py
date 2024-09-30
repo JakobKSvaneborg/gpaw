@@ -140,14 +140,13 @@ class FFTPlans:
             out_R.scatter_from(None)
             return
         pw.paste(coef_G, self.tmp_Q)
-        if 1:
-            if pw.dtype == float:
-                t = self.tmp_Q[:, :, 0]
-                n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
-                t[0, -m:] = t[0, m:0:-1].conj()
-                t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
-                t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
-                t[-n:, 0] = t[n:0:-1, 0].conj()
+        if pw.dtype == float:
+            t = self.tmp_Q[:, :, 0]
+            n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
+            t[0, -m:] = t[0, m:0:-1].conj()
+            t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
+            t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
+            t[-n:, 0] = t[n:0:-1, 0].conj()
         self.ifft()
         out_R.scatter_from(self.tmp_R)
 

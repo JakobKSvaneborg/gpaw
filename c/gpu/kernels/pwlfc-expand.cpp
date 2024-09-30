@@ -47,7 +47,6 @@ __global__ void calculate_residual_kernel_real(int nG, int nn,
 
 // This is the [i,j,0] slice of contiguous array
 #define MAT(array, nx, ny, nz, b, i, j) (array[(b) * (nx) * (ny) * (nz) + (i) * (ny) * (nz) + (j) * (nz)])
-#define DISP(array, nx, ny, nz, b, i, j) printf("%d\n", (b) * (nx) * (ny) * (nz) + (i) * (ny) * (nz) + (j) * (nz));
 
 __global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, int m, gpuDoubleComplex* array_nQ)
 {
@@ -59,12 +58,8 @@ __global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, in
         if (i < m)
         {
             gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, 0, m - i);
-            //printf("From\n");
-            //DISP(array_nQ, nx, ny, nz, b, 0, m - i);
-            //printf("To\n");
             value.y = -value.y;
             MAT(array_nQ, nx, ny, nz, b, 0, ny - m + i) = value;
-            //DISP(array_nQ, nx, ny, nz, b, 0, ny - m + i);
         }
         
         if (i < n)

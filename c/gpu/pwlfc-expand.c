@@ -315,9 +315,6 @@ PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
     int nx = Array_DIM(array_nQ_obj, 1);
     int ny = Array_DIM(array_nQ_obj, 2);
     int nz = Array_DIM(array_nQ_obj, 3);
-    printf("nb nx ny nz %d %d %d %d\n", nb, nx, ny, nz);
-    printf("n m %d %d\n", n,m);
-    fflush(stdout);
     if (PyErr_Occurred())
     {
         return NULL;
