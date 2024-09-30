@@ -88,7 +88,7 @@ def tci(rcut, I_a, dghat_Il, vhat_Il):
     return expansions
 
 
-class PAWPoissonSolver:
+class BloechlPAWPoissonSolver:
     def __init__(self,
                  pwg: PWDesc,
                  cutoff_a: np.ndarray,
@@ -103,8 +103,8 @@ class PAWPoissonSolver:
         self.fracpos_ac = fracpos_ac
         self.cutoff_a = np.asarray(cutoff_a)
         self.r2 = self.cutoff_a.max() * 2
-        self.rcut = 5 * self.r2
-        d = 0.01
+        self.rcut = 7 * self.r2
+        d = 0.0051
         rgd = RGD(d, int(self.rcut / d))
         g0_lg = shape_functions(rgd, 'gauss', self.r2, lmax=2)
         ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g0_lg)]
@@ -181,12 +181,13 @@ class PAWPoissonSolver:
         vt0_g.data += vhat_g.data
         e_coulomb2 = vhat_g.integrate(nt_g)
 
+        vHt_g.data[0] = -vhat_g.data[0]
         V_aL = self.ghat_aLg.integrate(vHt_g)
         self.vhat_aLg.integrate(nt_g, V_aL, add_to=True)
 
         e_coulomb3 = 0.0
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
-            v = Q_aL[a2][0] * (
+            v = (
                 c(d, self.r2, self.r2) -
                 c(d, self.cutoff_a[a1], self.cutoff_a[a2])) / 4 / pi
             if d:
@@ -195,9 +196,10 @@ class PAWPoissonSolver:
                 n_v = np.array([0.0, 1.0, 0.0])
             rlY_lm = LazySphericalHarmonics(n_v)
             _ = self.expansion.tsoe_II[0, 0].evaluate(0.005, rlY_lm)
-            # print(a1,a2,d,self.r2, self.rcut, v_LL)
-            V_aL[a1][0] -= v
-            e_coulomb3 += Q_aL[a1][0] * v
+            # print(a1,a2,d,self.r2, self.rcut, v)
+            V_aL[a1][0] -= Q_aL[a2][0] * v / 2
+            V_aL[a2][0] -= Q_aL[a1][0] * v / 2
+            e_coulomb3 += Q_aL[a1][0] * Q_aL[a2][0] * v
         e_coulomb3 *= -0.5
 
         vHt0_g = vHt_g.gather()
@@ -216,8 +218,6 @@ class PAWPoissonSolver:
                 f_v = v * d_v / d
                 force_av[a1] += f_v
                 force_av[a2] -= f_v
-
-
 
 
 if __name__ == '__main__':

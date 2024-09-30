@@ -1,11 +1,12 @@
 import numpy as np
-
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 from gpaw.core import PWDesc
-from gpaw.new.pw.paw_poisson import SlowPAWPoissonSolver, SimplePAWPoissonSolver
-from gpaw.new.pw.bloechl_poisson import FastPAWPoissonSolver,
-
+from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver, c
+from gpaw.new.pw.paw_poisson import (SimplePAWPoissonSolver,
+                                     SlowPAWPoissonSolver)
 from gpaw.new.pw.poisson import PWPoissonSolver
+from gpaw.new.ase_interface import GPAW
+from ase import Atoms
 
 
 def g(rc, rgd):
@@ -21,7 +22,8 @@ def test_psolve():
     d12 = 1.3
     g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
     v = 7.5
-    pw = PWDesc(gcut=18.0, cell=[2 * v, 2 * v, 2 * v + d12])
+    gcut=25
+    pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12])
     fracpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
                            [0.5, 0.5, (v + d12) / (2 * v + d12)]])
     g_aig = pw.atom_centered_functions(g_ai, positions=fracpos_ac)
@@ -58,7 +60,7 @@ def test_psolve():
     print(V_aL.data[::9])
     print(vt_g.data[:5])
 
-    pps = PAWPoissonSolver(
+    pps = BloechlPAWPoissonSolver(
         pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
     vt_g = pw.zeros()
     e2, vHt_g, V_aL = pps.solve(nt_g, Q_aL, vt_g)
@@ -79,8 +81,8 @@ def test_psolve():
             e20 += e12
 
     if 0:
-        ps = PWPoissonSolver(pw.new(gcut=36))
-        opps = OldPAWPoissonSolver(
+        ps = PWPoissonSolver(pw.new(gcut=2 * gcut))
+        opps = SlowPAWPoissonSolver(
             pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
         vt_g = pw.zeros()
         e3, vHt_h, V_aL = opps.solve(nt_g, Q_aL, vt_g)
@@ -89,5 +91,15 @@ def test_psolve():
         print(vt_g.data[:5])
 
 
+def test_fast_slow(fast):
+    atoms = Atoms('H2', [[0, 0, 0], [0.1, 0.2, 0.7]], pbc=True)
+    atoms.center(vacuum=3.5)
+    atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 800},
+                      poissonsolver={'fast': fast})
+    atoms.get_potential_energy()
+
+
 if __name__ == '__main__':
-    test_psolve()
+    # test_psolve()
+    import sys
+    test_fast_slow(int(sys.argv[1]))
