@@ -187,6 +187,8 @@ class PWDesc(Domain):
             assert Q_G.flags.c_contiguous
             assert array_Q.flags.c_contiguous
 
+        assert isinstance(coef_G, np.ndarray)
+        assert isinstance(array_Q, np.ndarray) 
         pw_insert(coef_G, Q_G, 1.0, array_Q)
 
     def map_indices(self, other: PWDesc) -> tuple[Array1D, list[Array1D]]:

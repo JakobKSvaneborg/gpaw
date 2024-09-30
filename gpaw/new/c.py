@@ -127,4 +127,4 @@ if not TYPE_CHECKING:
         from gpaw.cgpaw import (  # noqa
             pwlfc_expand_gpu, add_to_density_gpu, pw_insert_gpu,
             dH_aii_times_P_ani_gpu, evaluate_lda_gpu, evaluate_pbe_gpu,
-            calculate_residuals_gpu)
+            calculate_residuals_gpu, pw_amend_insert_realwf_gpu)

@@ -45,6 +45,50 @@ __global__ void calculate_residual_kernel_real(int nG, int nn,
     }
 }
 
+// This is the [i,j,0] slice of contiguous array
+#define MAT(array, nx, ny, nz, b, i, j) (array[(b) * (nx) * (ny) * (nz) + (i) * (ny) * (nz) + (j) * (nz)])
+#define DISP(array, nx, ny, nz, b, i, j) printf("%d\n", (b) * (nx) * (ny) * (nz) + (i) * (ny) * (nz) + (j) * (nz));
+
+__global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, int m, gpuDoubleComplex* array_nQ)
+{
+    int b = threadIdx.x + blockIdx.x * blockDim.x;
+    int i = threadIdx.y + blockIdx.y * blockDim.y;
+    if (b < nb)
+    {
+        // t[0, -m:] = t[0, m:0:-1].conj()
+        if (i < m)
+        {
+            gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, 0, m - i);
+            //printf("From\n");
+            //DISP(array_nQ, nx, ny, nz, b, 0, m - i);
+            //printf("To\n");
+            value.y = -value.y;
+            MAT(array_nQ, nx, ny, nz, b, 0, ny - m + i) = value;
+            //DISP(array_nQ, nx, ny, nz, b, 0, ny - m + i);
+        }
+        
+        if (i < n)
+        {
+            for (int j=0; j<m; j++)
+            {
+                // t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
+                gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, nx - n + i, m - j);
+                value.y = -value.y;
+                MAT(array_nQ, nx, ny, nz, b, n - i, ny - m + j) = value; 
+
+                // t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
+                value = MAT(array_nQ, nx, ny, nz, b, n - i, m - j);
+                value.y = -value.y;
+                MAT(array_nQ, nx, ny, nz, b, nx - n + i, ny - m + j) = value; 
+            }
+            gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, n - i, 0);
+            value.y = -value.y;
+            MAT(array_nQ, nx, ny, nz, b, nx - n + i, 0) = value; 
+            }
+        }
+}
+
+
 extern "C"
 void calculate_residual_launch_kernel(int nG,
 				      int nn,
@@ -512,6 +556,22 @@ void add_to_density_gpu_launch_kernel(int nb,
 		    (double*) psit_nR,
 		    rho_R);
     }
+}
+
+extern "C"
+void pw_amend_insert_realwf_gpu_launch_kernel(int nb,
+                                              int nx,
+                                              int ny,
+                                              int nz, 
+                                              int n, 
+                                              int m, 
+                                              double* array_nQ)
+{
+    gpuLaunchKernel(pw_amend_insert_realwf,
+                    dim3((nb+15)/16, (max(n,m)+15)/16),
+                    dim3(16, 16),
+                    0, 0,
+                    nb, nx, ny, nz, n, m, (gpuDoubleComplex*) array_nQ);
 }
 
 extern "C"

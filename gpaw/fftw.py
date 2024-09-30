@@ -277,9 +277,10 @@ class CuPyFFTPlans(FFTPlans):
                 array_Q, array_Q.shape,
                 norm='forward', overwrite_x=True)
         else:
-            t = array_Q[:, :, 0]
             n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
-            pw_amend_insert_realwf_gpu(array_Q, n, m)
+            assert array_Q.flags.c_contiguous
+
+            pw_amend_insert_realwf_gpu(array_Q.reshape((1,*array_Q.shape)), n, m)
 
             array_R[:] = cupyx.scipy.fft.irfftn(
                 array_Q, out_R.desc.global_shape(),
