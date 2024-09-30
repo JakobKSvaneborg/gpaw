@@ -12,7 +12,7 @@ from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.fd_operators import Gradient
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.pw.descriptor import PWDescriptor
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.utilities.blas import axpy, gemmdot
 from gpaw.xc.rpa import RPACorrelation
 from gpaw.heg import HEG

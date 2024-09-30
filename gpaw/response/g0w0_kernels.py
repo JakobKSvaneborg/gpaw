@@ -3,7 +3,7 @@ import numpy as np
 from gpaw.xc.fxc import KernelWave, XCFlags, FXCCache
 from gpaw.xc.rpa import GCut
 
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.pw.descriptor import PWMapping
 
 

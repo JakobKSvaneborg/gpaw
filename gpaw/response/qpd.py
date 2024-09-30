@@ -163,3 +163,15 @@ class SingleCylQPWDescriptor(SingleQPWDescriptor):
             self.tmp_G = np.empty(self.maxmyng * S, complex)
         else:
             self.tmp_G = None
+
+    def copy_with(self, ecut=None, gd=None, gammacentered=None):
+        if ecut is None:
+            ecut = self.ecut_xy
+        if gd is None:
+            gd = self.gd
+        if gammacentered is None:
+            gammacentered = self.gammacentered
+
+        return SingleCylQPWDescriptor.from_q(
+            self.q_c, ecut_xy=ecut, ecut_z=self.ecut_z,
+            gd=gd, gammacentered=gammacentered)

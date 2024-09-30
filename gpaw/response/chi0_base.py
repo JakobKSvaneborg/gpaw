@@ -10,7 +10,7 @@ from gpaw.bztools import convex_hull_volume
 from gpaw.response import timer
 from gpaw.response.pair import KPointPairFactory
 from gpaw.response.frequencies import NonLinearFrequencyDescriptor
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.integrators import (
     Integrand, PointIntegrator, TetrahedronIntegrator, Domain)

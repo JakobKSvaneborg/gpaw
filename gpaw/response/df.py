@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from gpaw.response.groundstate import CellDescriptor
     from gpaw.response.frequencies import FrequencyDescriptor
-    from gpaw.response.pair_functions import SingleQPWDescriptor
+    from gpaw.response.qpd import SingleQPWDescriptor
 
 
 """
