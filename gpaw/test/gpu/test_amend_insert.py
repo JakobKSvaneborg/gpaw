@@ -1,4 +1,5 @@
 from gpaw.new.c import pw_amend_insert_realwf_gpu
+from gpaw.gpu import cupy_is_fake
 import pytest
 
 
@@ -13,6 +14,7 @@ def reference_pw_amend_insert_realwf_gpu(array_nQ, n, m):
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 def test_pw_amend_insert():
     import cupy as cp
     Band, Ax, Ay, Az = cp.indices((10, 6, 8, 10))
