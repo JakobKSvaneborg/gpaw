@@ -262,8 +262,6 @@ class CuPyFFTPlans(FFTPlans):
         array_Q[:] = 0.0
         Q_G = self.indices(pw)
 
-        #array_Q.ravel()[Q_G] = coef_G
-
         assert array_Q.dtype == complex
         assert coef_G.dtype == complex
         pw_insert_gpu(coef_G,
@@ -279,7 +277,8 @@ class CuPyFFTPlans(FFTPlans):
             n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
             assert array_Q.flags.c_contiguous
 
-            pw_amend_insert_realwf_gpu(array_Q.reshape((1,*array_Q.shape)), n, m)
+            pw_amend_insert_realwf_gpu(array_Q.reshape((1, *array_Q.shape)),
+                                       n, m)
 
             array_R[:] = cupyx.scipy.fft.irfftn(
                 array_Q, out_R.desc.global_shape(),
