@@ -76,16 +76,20 @@ def dcdr(r, rc1, rc2):
     return dydr
 
 
-def tci(rcut, I_a, dghat_Il, vhat_Il):
-    transformer = FourierTransformer(rcut=rcut, N=2**8)
+def tci(rcut, I_a, gtilde_Il, vhat_Il, ghat_Il):
+    transformer = FourierTransformer(rcut=rcut, N=2**10)
     tsoc = TwoSiteOverlapCalculator(transformer)
+
     msoc = ManySiteOverlapCalculator(tsoc, I_a, I_a)
-    dghat_Ilq = msoc.transform(dghat_Il)
+    gtilde_Ilq = msoc.transform(gtilde_Il)
     vhat_Ilq = msoc.transform(vhat_Il)
-    l_Il = [[dghat.l for dghat in dghat_l] for dghat_l in dghat_Il]
-    expansions = msoc.calculate_expansions(l_Il, dghat_Ilq,
-                                           l_Il, vhat_Ilq)
-    return expansions
+    ghat_Ilq = msoc.transform(ghat_Il)
+    l_Il = [[gtilde.l for gtilde in gtilde_l] for gtilde_l in gtilde_Il]
+    expansions1 = msoc.calculate_expansions(l_Il, gtilde_Ilq,
+                                            l_Il, vhat_Ilq)
+    expansions2 = msoc.calculate_expansions(l_Il, ghat_Ilq,
+                                            l_Il, vhat_Ilq)
+    return expansions1, expansions2
 
 
 class BloechlPAWPoissonSolver:
@@ -110,25 +114,27 @@ class BloechlPAWPoissonSolver:
         ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g0_lg)]
         ghat_al = [ghat_l] * len(self.cutoff_a)
         cache: dict[float, list[Spline]] = {}
-        dghat_Il = []
+        gtilde_Il = []
+        ghat_Il = []
         vhat_Il = []
         vhat_al = []
-        I_a = []
+        self.I_a = []
         for r1 in cutoff_a:
             if r1 in cache:
-                I, dghat_l, vhat_l = cache[r1]
+                I, gtilde_l, vhat_l = cache[r1]
             else:
                 g_lg = shape_functions(rgd, 'gauss', r1, lmax=2)
-                dghat_l = [rgd.spline(g_g - g0_lg[l], l=l)
-                           for l, g_g in enumerate(g_lg)]
+                gtilde_l = [rgd.spline(g_g, l=l)
+                            for l, g_g in enumerate(g_lg)]
                 v_lg = vg(rgd.r_g, r1) - vg(rgd.r_g, self.r2)
                 vhat_l = [rgd.spline(v_g, l=l)
                           for l, v_g in enumerate(v_lg)]
                 I = len(cache)
-                cache[r1] = I, dghat_l, vhat_l
-                dghat_Il.append(dghat_l)
+                cache[r1] = I, gtilde_l, vhat_l
+                gtilde_Il.append(gtilde_l)
                 vhat_Il.append(vhat_l)
-            I_a.append(I)
+                ghat_Il.append(ghat_l)
+            self.I_a.append(I)
             vhat_al.append(vhat_l)
 
         self.ghat_aLg = pwg.atom_centered_functions(
@@ -136,7 +142,7 @@ class BloechlPAWPoissonSolver:
         self.vhat_aLg = pwg.atom_centered_functions(
             vhat_al, fracpos_ac, atomdist=atomdist, xp=xp)
 
-        self.expansion = tci(self.rcut, I_a, dghat_Il, vhat_Il)
+        self.expansions = tci(self.rcut, self.I_a, gtilde_Il, vhat_Il, ghat_Il)
 
         self._neighbors = None
         self.ghat_aLh = self.ghat_aLg  # old name
@@ -195,8 +201,14 @@ class BloechlPAWPoissonSolver:
             else:
                 n_v = np.array([0.0, 1.0, 0.0])
             rlY_lm = LazySphericalHarmonics(n_v)
-            _ = self.expansion.tsoe_II[0, 0].evaluate(0.005, rlY_lm)
-            # print(a1,a2,d,self.r2, self.rcut, v)
+            ex1, ex2 = self.expansions
+            I1 = self.I_a[a1]
+            I2 = self.I_a[a2]
+            v_LL = (ex1.tsoe_II[I1, I2].evaluate(d, rlY_lm) +
+                    ex2.tsoe_II[I1, I2].evaluate(d, rlY_lm))
+            print(a1,a2,d,self.r2, self.rcut, self.I_a)
+            print(v_LL[0,0], v)
+
             V_aL[a1][0] -= Q_aL[a2][0] * v / 2
             V_aL[a2][0] -= Q_aL[a1][0] * v / 2
             e_coulomb3 += Q_aL[a1][0] * Q_aL[a2][0] * v

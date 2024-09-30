@@ -19,7 +19,7 @@ def test_psolve():
     rgd = RGD(0.01, 500)
     rc1 = 0.6
     rc2 = 0.7
-    d12 = 1.3
+    d12 = 1.35
     g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
     v = 7.5
     gcut=25
@@ -100,6 +100,6 @@ def test_fast_slow(fast):
 
 
 if __name__ == '__main__':
-    # test_psolve()
+    test_psolve()
     import sys
-    test_fast_slow(int(sys.argv[1]))
+    # test_fast_slow(int(sys.argv[1]))
