@@ -19,6 +19,7 @@ from gpaw.lcao.overlap import (FourierTransformer, LazySphericalHarmonics,
                                TwoSiteOverlapCalculator)
 from gpaw.spline import Spline
 from scipy.special import erf
+from gpaw.new.pw.paw_poisson import PAWPoissonSolver
 
 
 def vg(r_r: np.ndarray, rc: float) -> np.ndarray:
@@ -56,7 +57,7 @@ def tci(rcut, I_a, gtilde_Il, vhat_Il, ghat_Il):
     return expansions1, expansions2
 
 
-class BloechlPAWPoissonSolver:
+class BloechlPAWPoissonSolver(PAWPoissonSolver):
     def __init__(self,
                  pwg: PWDesc,
                  cutoff_a: np.ndarray,
@@ -64,10 +65,10 @@ class BloechlPAWPoissonSolver:
                  fracpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
                  xp=np):
+        super().__init__(poisson_solver)
         self.xp = xp
         self.pwg = pwg
         self.pwg0 = pwg.new(comm=None)  # not distributed
-        self.poisson_solver = poisson_solver
         self.fracpos_ac = fracpos_ac
         self.cutoff_a = np.asarray(cutoff_a)
         self.r2 = self.cutoff_a.max() * 2
@@ -77,7 +78,7 @@ class BloechlPAWPoissonSolver:
         g0_lg = shape_functions(rgd, 'gauss', self.r2, lmax=2)
         ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g0_lg)]
         ghat_al = [ghat_l] * len(self.cutoff_a)
-        cache: dict[float, list[Spline]] = {}
+        cache: dict[float, tuple[int, list[Spline], list[Spline]]] = {}
         gtilde_Il = []
         ghat_Il = []
         vhat_Il = []

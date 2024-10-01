@@ -15,13 +15,17 @@ from gpaw.spline import Spline
 
 
 class PAWPoissonSolver:
+    def __init__(self,
+                 poisson_solver):
+        self.poisson_solver = poisson_solver
+
     def dipole_layer_correction(self) -> None:
         return self.poisson_solver.dipole_layer_correction()
 
     def move(self,
              fracpos_ac: np.ndarray,
              atomdist: AtomDistribution) -> None:
-        self.ghat_aLh.move(fracpos_ac, atomdist)
+        raise NotImplementedError
 
     def solve(self,
               nt_g: PWArray,
@@ -43,17 +47,22 @@ class SlowPAWPoissonSolver(PAWPoissonSolver):
                  fracpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
                  xp=np):
+        super().__init__(poisson_solver)
         self.xp = xp
         self.pwg = pwg
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.pwh = poisson_solver.pw
-        self.poisson_solver = poisson_solver
         self.ghat_aLh = setups.create_compensation_charges(
             self.pwh, fracpos_ac, atomdist, xp)
         self.h_g, self.g_r = self.pwh.map_indices(self.pwg0)
         if xp is cp:
             self.h_g = cp.asarray(self.h_g)
             self.g_r = [cp.asarray(g) for g in self.g_r]
+
+    def move(self,
+             fracpos_ac: np.ndarray,
+             atomdist: AtomDistribution) -> None:
+        self.ghat_aLh.move(fracpos_ac, atomdist)
 
     def solve(self,
               nt_g: PWArray,
