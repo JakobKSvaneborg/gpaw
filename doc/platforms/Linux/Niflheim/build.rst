@@ -51,7 +51,7 @@ The ``gpaw_venv.py`` script does the following:
 * enable tab-completion for command-line tools:
   `ase <https://wiki.fysik.dtu.dk/ase/cmdline.html>`__,
   `gpaw <https://gpaw.readthedocs.io/documentation/cmdline.html>`__,
-  `mq <https://myqueue.readthedocs.io/en/latest/cli.html>`__
+  `mq <https://myqueue.readthedocs.io/cli.html>`__
 
 
 Using the venv

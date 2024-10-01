@@ -298,7 +298,7 @@ and submit jobs like this::
 
   mq submit job.py -R 128:standard:2h
 
-.. _MyQueue: https://myqueue.readthedocs.io/en/latest/
+.. _MyQueue: https://myqueue.readthedocs.io/
 .. _LUMI storage documentation: https://docs.lumi-supercomputer.eu/storage/
 .. _LUMI EasyBuild documentation: https://docs.lumi-supercomputer.eu/software/installing/easybuild/
 .. _LUMI software library: https://lumi-supercomputer.github.io/LUMI-EasyBuild-docs/
