@@ -95,7 +95,7 @@ class SCFLoop:
                 ibzwfs, density, potential,
                 wfs_error, dens_error,
                 self.comm, calculate_forces,
-                pot_calc)
+                pot_calc, self.update_density_and_potential)
 
             yield ctx
 
@@ -138,7 +138,8 @@ class SCFContext:
                  dens_error: float,
                  comm,
                  calculate_forces: Callable[[], Array2D],
-                 pot_calc):
+                 pot_calc,
+                 update_density_and_potential):
         self.log = log
         self.niter = niter
         self.ibzwfs = ibzwfs
@@ -159,7 +160,7 @@ class SCFContext:
                                    collinear=density.collinear)
         self.dens = SimpleNamespace(
             calculate_magnetic_moments=density.calculate_magnetic_moments,
-            fixed=False,
+            fixed=not update_density_and_potential,
             error=dens_error)
         self.calculate_forces = calculate_forces
         self.poisson_solver = pot_calc.poisson_solver

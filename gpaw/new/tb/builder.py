@@ -199,7 +199,7 @@ class TBSCFLoop:
             ibzwfs, density, potential,
             0.0, 0.0,
             self.comm, calculate_forces,
-            pot_calc)
+            pot_calc, False)
 
         new_potential, _ = pot_calc.calculate(
             density, None, potential.vHt_x)
