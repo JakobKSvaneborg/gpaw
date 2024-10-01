@@ -1,4 +1,4 @@
-from typing import Any, Union, Sequence, Literal
+from typing import Any, Union, Sequence
 import numpy as np
 
 try:
