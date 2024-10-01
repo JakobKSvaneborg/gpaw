@@ -37,9 +37,14 @@ def pw_insert(coef_G: Array1D,
 def pw_insert_gpu(psit_nG,
                   Q_G,
                   scale,
-                  psit_bQ):
+                  psit_bQ,
+                  nx, ny, nz):
     assert scale == 1.0
     psit_bQ[..., Q_G] = psit_nG
+    if nx * ny * nz != psit_bQ.shape[-1]:
+        n, m = nx // 2 - 1, ny // 2 - 1
+        pw_amend_insert_realwf_gpu(psit_bQ.reshape((-1, nx, ny, nz // 2 + 1)),
+                                   n, m)
 
 
 def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,

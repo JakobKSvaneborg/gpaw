@@ -577,7 +577,8 @@ void pw_insert_gpu_launch_kernel(
 			     double* c_nG,
 			     npy_int32* Q_G,
 			     double scale,
-			     double* tmp_nQ)
+			     double* tmp_nQ,
+                 int rx, int ry, int rz)
 {
     if (nb == 1)
     {
@@ -601,6 +602,22 @@ void pw_insert_gpu_launch_kernel(
 		       Q_G,
 		       scale,
 		       (gpuDoubleComplex*) tmp_nQ);
+    }
+
+    // We identify real wave functions by noting that number of cartesian planewaves
+    // does not equal to real space grid size (because z_Q <- z_R // 2 + 1)
+    if (rx * ry * rz != nQ)
+    {
+        int n = rx / 2 - 1;
+        int m = ry / 2 - 1;
+        // The rx, ry, rz are the sizes of the 3D version of Q array. Since
+        // we are dealing with real wave functions, the convention is that
+        // the last axis is actually z_R // 2 + 1.
+        gpuLaunchKernel(pw_amend_insert_realwf,
+                        dim3((nb+15)/16, (max(n,m)+15)/16),
+                        dim3(16, 16),
+                        0, 0,
+                        nb, rx, ry, rz / 2 + 1, n, m, (gpuDoubleComplex*) tmp_nQ);
     }
 }
 
