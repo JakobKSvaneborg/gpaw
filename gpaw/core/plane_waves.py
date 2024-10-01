@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import pi
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 from ase.units import Ha
@@ -19,7 +19,7 @@ from gpaw.new.c import (add_to_density, add_to_density_gpu, pw_insert,
                         pw_insert_gpu)
 from gpaw.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
-                         Literal, Vector)
+                         Vector)
 
 if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
@@ -187,6 +187,8 @@ class PWDesc(Domain):
             assert Q_G.flags.c_contiguous
             assert array_Q.flags.c_contiguous
 
+        assert isinstance(coef_G, np.ndarray)
+        assert isinstance(array_Q, np.ndarray)
         pw_insert(coef_G, Q_G, 1.0, array_Q)
 
     def map_indices(self, other: PWDesc) -> tuple[Array1D, list[Array1D]]:

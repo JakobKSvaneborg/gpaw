@@ -39,7 +39,7 @@ def pw_insert_gpu(psit_nG,
                   scale,
                   psit_bQ):
     assert scale == 1.0
-    psit_bQ[:, Q_G] = psit_nG
+    psit_bQ[..., Q_G] = psit_nG
 
 
 def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
@@ -85,6 +85,15 @@ def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
         J1 = J2
 
 
+def pw_amend_insert_realwf_gpu(array_nQ, n, m):
+    for array_Q in array_nQ:
+        t = array_Q[:, :, 0]
+        t[0, -m:] = t[0, m:0:-1].conj()
+        t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
+        t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
+        t[-n:, 0] = t[n:0:-1, 0].conj()
+
+
 def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
     for residual_G, eps, wfs_G in zip(residual_nG, eps_n, wfs_nG):
         residual_G -= eps * wfs_G
@@ -119,4 +128,4 @@ if not TYPE_CHECKING:
         from gpaw.cgpaw import (  # noqa
             pwlfc_expand_gpu, add_to_density_gpu, pw_insert_gpu,
             dH_aii_times_P_ani_gpu, evaluate_lda_gpu, evaluate_pbe_gpu,
-            calculate_residuals_gpu)
+            calculate_residuals_gpu, pw_amend_insert_realwf_gpu)
