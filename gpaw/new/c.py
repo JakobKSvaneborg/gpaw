@@ -39,7 +39,7 @@ def pw_insert_gpu(psit_nG,
                   scale,
                   psit_bQ):
     assert scale == 1.0
-    psit_bQ[..., Q_G] = psit_nG[..., :]
+    psit_bQ[..., Q_G] = psit_nG
 
 
 def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
