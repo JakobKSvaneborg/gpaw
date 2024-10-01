@@ -98,7 +98,7 @@ def gather_to_master(p_qvnn, ibzwfs):
         rank_k = ibzwfs.rank_k
         nk = len(rank_k)
 
-        p_kvnn = np.zeros((nk,) + shape, complex)
+        p_kvnn = np.empty((nk,) + shape, complex)
 
         k_q = np.where(rank_k == 0)[0]
         p_kvnn[k_q] = p_qvnn
