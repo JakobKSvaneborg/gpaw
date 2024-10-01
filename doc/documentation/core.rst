@@ -245,11 +245,11 @@ PWArray(pw=PWDesc(ecut=100 <coefs=1536/1536>, cell=[4.0, 4.0, 4.0], pbc=[True, T
 >>> G[0]
 array([0., 0., 0.])
 >>> func_G.data[0]
-(1+0j)
+np.complex128(1+0j)
 >>> func_G.ifft(out=func_R)
 UGArray(grid=UGDesc(size=[20, 20, 20], cell=[4.0, 4.0, 4.0], pbc=[True, True, True], comm=0/1, dtype=float64), dims=())
 >>> round(func_R.data[0, 0, 0], 15)
-1.0
+np.float64(1.0)
 
 Here are the methods of the :class:`~PWDesc` class:
 
