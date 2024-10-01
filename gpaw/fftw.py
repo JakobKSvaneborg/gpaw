@@ -15,7 +15,7 @@ from scipy.fft import fftn, ifftn, irfftn, rfftn
 import warnings
 
 import gpaw.cgpaw as cgpaw
-from gpaw.new.c import pw_insert_gpu, pw_amend_insert_realwf_gpu
+from gpaw.new.c import pw_insert_gpu
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 
 ESTIMATE = 64
@@ -275,11 +275,6 @@ class CuPyFFTPlans(FFTPlans):
                 array_Q, array_Q.shape,
                 norm='forward', overwrite_x=True)
         else:
-            #n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
-            #assert array_Q.flags.c_contiguous
-            #pw_amend_insert_realwf_gpu(array_Q.reshape((1, *array_Q.shape)),
-            #                           n, m)
-
             array_R[:] = cupyx.scipy.fft.irfftn(
                 array_Q, out_R.desc.global_shape(),
                 norm='forward', overwrite_x=True)
