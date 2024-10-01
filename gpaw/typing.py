@@ -1,4 +1,4 @@
-from typing import Any, Union, Sequence
+from typing import Any, Union, Sequence, Literal
 import numpy as np
 
 try:
@@ -6,15 +6,6 @@ try:
     from typing_extension import Self
 except ImportError:
     Self = Any  # type: ignore
-
-try:
-    # New in Python-3.8
-    from typing import Literal
-except ImportError:
-    class _Literal:
-        def __getitem__(self, index):
-            return Any
-    Literal = _Literal()  # type: ignore
 
 try:
     # Needs numpy-1.20:
