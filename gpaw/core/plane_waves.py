@@ -864,10 +864,13 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
         elif nb < B:
             psit_bR = psit_bR[:nb]
         psit_bR[:] = 0.0
+        # TODO: Remember to give real space size instead of 
+        # reciprocal space size when doing real wave functions
+        # (now psit_bR is shared between real and reciprocal space)
         pw_insert_gpu(psit_nG.data[b1:b2],
                       Q_G,
                       1.0,
-                      psit_bR.reshape((nb, -1)))
+                      psit_bR.reshape((nb, -1)), *psit_bR.shape[1:])
         psit_bR[:] = cupyx.scipy.fft.ifftn(
             psit_bR,
             shape,
