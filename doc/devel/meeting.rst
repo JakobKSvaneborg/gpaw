@@ -91,7 +91,7 @@ Tuesday
 
 :16:40:
 
-  **To be announced**
+  **Anubhab Haldar**
 
   *Improved basis sets for LCAO*
 
