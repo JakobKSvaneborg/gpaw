@@ -40,7 +40,8 @@ void pw_insert_gpu_launch_kernel(
                              double* c_nG,
                              npy_int32* Q_G,
                              double scale,
-                             double* tmp_nQ);
+                             double* tmp_nQ,
+                             int rx, int ry, int rz);
 
 void pw_amend_insert_realwf_gpu_launch_kernel(int nb,
                                               int nx,
@@ -255,8 +256,11 @@ PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
 {
     PyObject *c_nG_obj, *Q_G_obj, *tmp_nQ_obj;
     double scale;
-    if (!PyArg_ParseTuple(args, "OOdO",
-                          &c_nG_obj, &Q_G_obj, &scale, &tmp_nQ_obj))
+    int rx;
+    int ry;
+    int rz;
+    if (!PyArg_ParseTuple(args, "OOdOiii",
+                          &c_nG_obj, &Q_G_obj, &scale, &tmp_nQ_obj, &rx, &ry, &rz))
         return NULL;
     npy_int32 *Q_G = Array_DATA(Q_G_obj);
     double complex *c_nG = Array_DATA(c_nG_obj);
@@ -288,7 +292,7 @@ PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
                                 (double*)c_nG,
                                 Q_G,
                                 scale,
-                                (double*)tmp_nQ);
+                                (double*)tmp_nQ, rx, ry, rz);
     Py_RETURN_NONE;
 }
 
