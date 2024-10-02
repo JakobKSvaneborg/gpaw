@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 from typing import NamedTuple, Dict, List
 
 import numpy as np
@@ -63,9 +64,10 @@ def pawexxvv(M_pp, D_ii):
     return V_ii
 
 
-try:
-    from _gpaw import pawexxvv  # noqa: F811
-except ImportError:
-    import warnings
-    warnings.warn('Please recompile GPAW binary. Using python '
-                  'version of pawexxvv instead of faster c version.')
+if not TYPE_CHECKING:
+    try:
+        from _gpaw import pawexxvv  # noqa: F811
+    except ImportError:
+        import warnings
+        warnings.warn('Please recompile GPAW binary. Using python '
+                      'version of pawexxvv instead of faster c version.')
