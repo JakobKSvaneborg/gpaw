@@ -64,7 +64,7 @@ def pawexxvv(M_pp, D_ii):
 
 
 try:
-    from _gpaw import pawexxvv
+    from _gpaw import pawexxvv  # noqa: F811
 except ImportError:
     import warnings
     warnings.warn('Please recompile GPAW binary. Using python '
