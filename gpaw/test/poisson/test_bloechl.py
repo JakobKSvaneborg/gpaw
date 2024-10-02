@@ -111,9 +111,20 @@ def test_fast_slow(fast):
     atoms = Atoms('H2', [[0, 0, 0], [0.1, 0.2, 0.7]], pbc=True)
     atoms.center(vacuum=3.5)
     atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 800},
-                      poissonsolver={'fast': fast})
+                      poissonsolver={'fast': fast},
+                      txt=None,
+                      symmetry='off')
     atoms.get_potential_energy()
-    atoms.get_forces()
+    f = atoms.get_forces()
+    eps = 0.01
+    atoms.positions[1, 2] += eps
+    ep = atoms.get_potential_energy()
+    ep0 = atoms.calc.dft.pot_calc.poisson_solver.e
+    atoms.positions[1, 2] -= 2 * eps
+    em = atoms.get_potential_energy()
+    em0 = atoms.calc.dft.pot_calc.poisson_solver.e
+    print((em0 - ep0) / (2 * eps))
+    print(f[1, 2], (em - ep) / (2 * eps))
 
 
 if __name__ == '__main__':
