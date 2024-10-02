@@ -107,27 +107,25 @@ def test_psolve():
         print(vt_g.data[:5])
 
 
-def test_fast_slow(fast):
-    atoms = Atoms('H2', [[0, 0, 0], [0.1, 0.2, 0.7]], pbc=True)
+def fast_slow(fast):
+    atoms = Atoms('H2', [[0, 0, 0], [0.1, 0.2, 0.8]], pbc=True)
     atoms.center(vacuum=3.5)
-    atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 800},
+    atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 600},
                       poissonsolver={'fast': fast},
+                      convergence={'forces': 1e-3},
                       txt=None,
                       symmetry='off')
     atoms.get_potential_energy()
     f = atoms.get_forces()
-    eps = 0.01
+    eps = 0.001 / 2
     atoms.positions[1, 2] += eps
     ep = atoms.get_potential_energy()
-    ep0 = atoms.calc.dft.pot_calc.poisson_solver.e
     atoms.positions[1, 2] -= 2 * eps
     em = atoms.get_potential_energy()
-    em0 = atoms.calc.dft.pot_calc.poisson_solver.e
-    print((em0 - ep0) / (2 * eps))
     print(f[1, 2], (em - ep) / (2 * eps))
 
 
 if __name__ == '__main__':
     # test_psolve()
     import sys
-    test_fast_slow(int(sys.argv[1]))
+    fast_slow(int(sys.argv[1]))

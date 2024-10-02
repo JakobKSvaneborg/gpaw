@@ -157,11 +157,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
         e_coulomb3 = 0.0
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
-            if d:
-                n_v = d_v / d
-            else:
-                n_v = np.array([0.0, 1.0, 0.0])
-            rlY_lm = LazySphericalHarmonics(n_v)
+            rlY_lm = LazySphericalHarmonics(d_v)
             ex1, ex2 = self.expansions
             I1 = self.I_a[a1]
             I2 = self.I_a[a2]
@@ -188,17 +184,18 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             force_av[a] += (dF_vL - Fhat_avL[a]) @ Q_aL[a]
 
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
-            if d > 0.0:
-                n_v = d_v / d
-            rlY_lm = LazySphericalHarmonics(n_v)
-            drlYdR_lmv = LazySphericalHarmonicsDerivative(n_v)
+            if d == 0.0:
+                continue
+            rlY_lm = LazySphericalHarmonics(d_v)
+            drlYdR_lmv = LazySphericalHarmonicsDerivative(d_v)
             ex1, ex2 = self.expansions
             I1 = self.I_a[a1]
             I2 = self.I_a[a2]
+            n_v = d_v / d
             v_vLL = (
                 ex1.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv) +
                 ex2.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv))
-            f_v = (v_vLL @ Q_aL[a2]) @ Q_aL[a1]
+            f_v = (v_vLL @ Q_aL[a2]) @ Q_aL[a1] / 2
             force_av[a1] -= f_v
             force_av[a2] += f_v
 
