@@ -9,7 +9,7 @@ from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.gpu import cupy as cp
 from gpaw.new import trace, zips
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.c import pw_precond
+from gpaw.new.c import pw_precond, pw_insert_gpu
 
 
 class PWHamiltonian(Hamiltonian):
@@ -200,35 +200,36 @@ def apply_local_potential_gpu(vt_R,
     pw = psit_nG.desc
     e_kin_G = cp.asarray(pw.ekin_G)
     mynbands = psit_nG.mydims[0]
-    plan = vt_R.desc.fft_plans(xp=cp, dtype=psit_nG.dtype)
-    Q_G = plan.indices(pw)
-    shape = tuple(vt_R.desc.size_c)
-    psit_bR = None
+    size_c = vt_R.desc.size_c
+    if pw.dtype == float:
+        shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
+    else:
+        shape = tuple(size_c)
+    Q_G = pw.indices(shape)
+    psit_bQ = None
     for b1 in range(0, mynbands, blocksize):
         b2 = min(b1 + blocksize, mynbands)
         nb = b2 - b1
-        if psit_bR is None:
-            psit_bR = cp.empty((nb,) + shape, complex)
+        if psit_bQ is None:
+            psit_bQ = cp.empty((nb,) + shape, complex)
         elif nb < blocksize:
-            psit_bR = psit_bR[:nb]
-        psit_bR[:] = 0.0
+            psit_bQ = psit_bQ[:nb]
         pw_insert_gpu(psit_nG.data[b1:b2],
                       Q_G,
                       1.0,
-                      psit_bR,
-                      nx, ny, nz)
-        # psit_bR.reshape((nb, -1))[:, Q_G] = psit_nG.data[b1:b2]
-        psit_bR[:] = cupyx.scipy.fft.ifftn(
-            psit_bR,
+                      psit_bQ,
+                      *shape)
+        psit_bR = cupyx.scipy.fft.ifftn(
+            psit_bQ,
             shape,
             norm='forward',
             overwrite_x=True)
         psit_bR *= vt_R.data
-        psit_bR[:] = cupyx.scipy.fft.fftn(
+        vtpsit_bQ = cupyx.scipy.fft.fftn(
             psit_bR,
             shape,
             norm='forward',
             overwrite_x=True)
         out_nG.data[b1:b2] = psit_nG.data[b1:b2]
         out_nG.data[b1:b2] *= e_kin_G
-        out_nG.data[b1:b2] += psit_bR.reshape((nb, -1))[:, Q_G]
+        out_nG.data[b1:b2] += vtpsit_bQ.reshape((nb, -1))[:, Q_G]
