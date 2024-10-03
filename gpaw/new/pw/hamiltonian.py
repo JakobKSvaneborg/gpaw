@@ -31,7 +31,7 @@ class PWHamiltonian(Hamiltonian):
         out_nG = out
         xp = psit_nG.xp
         pw = psit_nG.desc
-        if xp is not np and pw.comm.size == 1 and pw.dtype == complex:
+        if xp is not np and pw.comm.size == 1:
             return apply_local_potential_gpu(vt_R, psit_nG, out_nG)
         vt_R = vt_R.gather(broadcast=True)
         tmp_R = self.grid_local.empty(xp=xp)
@@ -192,15 +192,17 @@ class SpinorPWHamiltonian(Hamiltonian):
         return spinor_precondition
 
 
-def apply_local_potential_gpu(vt_R, psit_nG, out_nG):
+def apply_local_potential_gpu(vt_R,
+                              psit_nG,
+                              out_nG,
+                              blocksize=10):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
     e_kin_G = cp.asarray(pw.ekin_G)
     mynbands = psit_nG.mydims[0]
-    plan = vt_R.desc.fft_plans(xp=cp, dtype=complex)
+    plan = vt_R.desc.fft_plans(xp=cp, dtype=psit_nG.dtype)
     Q_G = plan.indices(pw)
     shape = tuple(vt_R.desc.size_c)
-    blocksize = 10
     psit_bR = None
     for b1 in range(0, mynbands, blocksize):
         b2 = min(b1 + blocksize, mynbands)
@@ -210,7 +212,12 @@ def apply_local_potential_gpu(vt_R, psit_nG, out_nG):
         elif nb < blocksize:
             psit_bR = psit_bR[:nb]
         psit_bR[:] = 0.0
-        psit_bR.reshape((nb, -1))[:, Q_G] = psit_nG.data[b1:b2]
+        pw_insert_gpu(psit_nG.data[b1:b2],
+                      Q_G,
+                      1.0,
+                      psit_bR,
+                      nx, ny, nz)
+        # psit_bR.reshape((nb, -1))[:, Q_G] = psit_nG.data[b1:b2]
         psit_bR[:] = cupyx.scipy.fft.ifftn(
             psit_bR,
             shape,
