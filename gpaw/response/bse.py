@@ -35,27 +35,31 @@ def decide_whether_tammdancoff(val_m, con_m):
 class BSEMatrix:
     df_S: np.ndarray
     H_sS: np.ndarray
+    deps_S: np.ndarray
+    deps_max: float
 
     def diagonalize_nontammdancoff(self, bse):
         df_S = self.df_S
         H_sS = self.H_sS
 
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
+        excludedeps_S = np.where(self.deps_S < self.deps_max)[0]
+        exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
         bse.context.print('  Using numpy.linalg.eig...')
         bse.context.print('  Eliminated %s pair orbitals' % len(
-            excludef_S))
+            exclude_S))
 
         H_SS = bse.collect_A_SS(H_sS)
-        w_T = np.zeros(bse.nS - len(excludef_S), complex)
+        w_T = np.zeros(bse.nS - len(exclude_S), complex)
         v_ST = None
         if world.rank == 0:
-            H_SS = np.delete(H_SS, excludef_S, axis=0)
-            H_SS = np.delete(H_SS, excludef_S, axis=1)
+            H_SS = np.delete(H_SS, exclude_S, axis=0)
+            H_SS = np.delete(H_SS, exclude_S, axis=1)
             w_T, v_ST = np.linalg.eig(H_SS)
         else:
             v_ST = None
         world.broadcast(w_T, 0)
-        return w_T, v_ST, excludef_S
+        return w_T, v_ST, exclude_S
 
     def diagonalize_tammdancoff(self, bse):
         H_sS = self.H_sS
@@ -328,7 +332,7 @@ class BSEBackend:
         return SpinorData(self.con_m, self.val_m, e_km, f_km, v_kmn, soc_tol)
 
     @timer('BSE calculate')
-    def calculate(self, optical):
+    def calculate(self, optical, deps_max=0.1):
         """Calculate the BSE Hamiltonian. This inlcudes setting up all
         machinery for pair densities, KS eignevalues and occupation factors.
         At the end the direct and indirect interaction are included through
@@ -375,7 +379,7 @@ class BSEBackend:
                            self.nc), float)  # -(ev - ec)
         deps_kmm = np.zeros((self.myKsize, self.nv,
                              self.nc), float)  # -(fv - fc)
-
+        deps_Kmm = np.zeros((self.nK, self.nv, self.nc), float)  # -(fv - fc)
         optical_limit = np.allclose(self.q_c, 0.0)
 
         get_pair = kptpair_factory.get_kpoint_pair
@@ -460,7 +464,9 @@ class BSEBackend:
         if self.eshift is not None:
             deps_kmm[np.where(df_Kmm[self.myKrange] > 1e-3)] += self.eshift
             deps_kmm[np.where(df_Kmm[self.myKrange] < -1e-3)] -= self.eshift
+        deps_Kmm[self.myKrange] = deps_kmm
 
+        world.sum(deps_Kmm)
         world.sum(df_Kmm)
         world.sum(rhoex_KmmG)
 
@@ -511,6 +517,7 @@ class BSEBackend:
         df_S = np.reshape(df_Kmm, -1)
         self.df_S = df_S
 
+        deps_S = np.reshape(deps_Kmm, -1)
         deps_s = np.reshape(deps_kmm, -1)
 
         mySsize = self.myKsize * self.nv * self.nc
@@ -521,7 +528,7 @@ class BSEBackend:
             # add bare transition energies
             H_sS[iS, iS0 + iS] += deps_s[iS]
 
-        return BSEMatrix(df_S, H_sS)
+        return BSEMatrix(df_S, H_sS, deps_S, deps_max)
 
     @timer('add_direct_kernel')
     def add_direct_kernel(self, kptpair_factory, pair_calc, screened_potential,
