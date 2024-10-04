@@ -8,21 +8,7 @@ Introduction to GPAW internals
     from gpaw.core.matrix import *
     from gpaw.core.atom_arrays import *
 
-This guide will contain graphs showing the relationship between objects
-that build up a DFT calculation engine.
-
-.. hint::
-
-   Here is a simple graph showing the relations between the classes ``A``,
-   ``B`` and ``C``:
-
-   .. image:: abc.svg
-
-   Here, the object of type ``A`` has an attribute ``a`` of type ``int`` and an
-   attribute ``b`` of type ``B`` or ``C``, where ``C`` inherits from ``B``.
-
 .. contents::
-
 
 DFT components
 ==============
@@ -37,9 +23,7 @@ can be made with the :func:`~gpaw.new.builder.builder` function, an ASE
 >>> params = {'mode': 'pw', 'kpts': (5, 5, 5)}
 >>> b = builder(atoms, params)
 
-.. image:: builder.svg
-
-As seen in the figure above, there are builders for each of the modes: PW, FD and LCAO (builders for TB and ATOM modes are not shown).
+There are builders for each of the modes: PW, FD and LCAO.
 
 The :class:`~gpaw.new.input_parameters.InputParameters` object takes care of
 user parameters:
@@ -91,8 +75,6 @@ and the following will happen:
 * calculate energy
 * store a copy of the atoms
 
-.. image:: code.svg
-
 
 DFT-calculation object
 ======================
@@ -114,6 +96,41 @@ the following attributes:
     - :class:`gpaw.new.scf.SCFLoop`
   * - ``pot_calc``
     - :class:`gpaw.new.pot_calc.PotentialCalculator`
+
+Overview:
+
+* ``atoms.calc``:
+
+  * ``dft``:
+
+    * ``density``: ``nt_sR``, ``D_asii``, ...
+    * ``potential``: ``vt_sR``, ``dH_asii``, ...
+    * ``pot_calc``:
+
+      * ``xc``
+      * ``poisson_solver``
+
+    * ``scf_loop``:
+
+      * ``eigensolver``
+      * ``hamiltonian``
+      * ``occ_calc``
+      * ``mixer``
+
+    * ``ibzwfs``:
+
+      * ``ibz``:
+
+        * ``symmetries``
+        * ``bz``
+
+      * ``wfs_qs[q][s]``:
+
+        * ``psit_nX``
+        * ``occ_n``
+        * ...
+
+See also: :download:`code.svg`.
 
 
 Naming convention for arrays
@@ -184,8 +201,6 @@ in a unit cell (wave functions, electron densities, ...):
 
 * :class:`~PWArray`
 * :class:`UGArray`
-
-.. image:: da.svg
 
 
 Uniform grids
@@ -258,13 +273,21 @@ and the :class:`~PWArray` class:
 Atoms-arrays
 ============
 
-.. image:: aa.svg
+As an example, here is how to store the PAW atomic density-matrices for
+a water molcule
+(:math:`D_{\sigma,i_1,i_2}^a`):
 
+.. code-block:: python
 
-Block boundary conditions
-=========================
-
-...
+   >>> nspins = 2
+   >>> D_asii = AtomArraysLayout(
+   ...     [(5, 5), (5, 5), (13, 13)],
+   ...     # dtype=float,
+   ...     # xp=np,
+   ...     # atomdist=...
+   ...     ).zeros(nspins)
+   >>> D_asii.data.shape
+   (2, 219)
 
 
 Matrix elements
@@ -289,8 +312,6 @@ but faster.
 
 Atom-centered functions
 =======================
-
-.. image:: acf.svg
 
 .. literalinclude:: acf_example.py
 
