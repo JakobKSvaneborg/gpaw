@@ -226,13 +226,13 @@ def apply_local_potential_gpu(vt_R,
                       *size_c)
         psit_bR = ifftn(
             psit_bQ,
-            size_c,
+            tuple(size_c),
             norm='forward',
             overwrite_x=True)
         psit_bR *= vt_R.data
         vtpsit_bQ = fftn(
             psit_bR,
-            size_c,
+            tuple(size_c),
             norm='forward',
             overwrite_x=True)
         out_nG.data[b1:b2] = psit_nG.data[b1:b2]
