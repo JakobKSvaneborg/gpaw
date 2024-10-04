@@ -61,14 +61,12 @@ class BSEMatrix:
         return w_T, v_ST, exclude_S, exclude_S
 
     def diagonalize_tammdancoff(self, bse):
-        import warnings
         H_sS = self.H_sS
         exclude_S = np.where(self.deps_S > self.deps_max)[0]
         exclude_s = np.where(self.deps_s > self.deps_max)[0]
         H_sS = np.delete(H_sS, exclude_s, axis=0)
         H_sS = np.delete(H_sS, exclude_S, axis=1)
 
-        warnings.warn('using Tamm-Dancoff')
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
 
