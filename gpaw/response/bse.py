@@ -70,12 +70,14 @@ class BSEMatrix:
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
 
-        ns, nS = H_sS.shape
+        nS = H_sS.shape[-1]
+        ns = - ((-nS) // world.size)
 
         if world.size == 1:
             bse.context.print('  Using lapack...')
             w_T, v_St = eigh(H_sS)
         else:
+            H_sS = np.ascontiguousarray(H_sS)  # make contiguous
             # Here the eigenvectors are complex conjugated rows
             bse.context.print('  Using scalapack...')
 
