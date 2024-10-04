@@ -28,7 +28,7 @@ PyObject* craypat_region_end(PyObject *self, PyObject *args);
 #endif
 
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args);
-
+PyObject* pawexxvv(PyObject* self, PyObject* args);
 PyObject* symmetrize(PyObject *self, PyObject *args);
 PyObject* symmetrize_ft(PyObject *self, PyObject *args);
 PyObject* symmetrize_wavefunction(PyObject *self, PyObject *args);
@@ -198,6 +198,7 @@ PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 #endif
 
 static PyMethodDef functions[] = {
+    {"pawexxvv", pawexxvv, METH_VARARGS, 0},
     {"evaluate_mpa_poly", evaluate_mpa_poly, METH_VARARGS, 0},
     {"symmetrize", symmetrize, METH_VARARGS, 0},
     {"symmetrize_ft", symmetrize_ft, METH_VARARGS, 0},
