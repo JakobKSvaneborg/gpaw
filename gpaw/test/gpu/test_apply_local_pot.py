@@ -35,4 +35,4 @@ def test_apply_loc_pot(dtype, nbands):
 
 
 if __name__ == '__main__':
-    test_apply_loc_pot(float, 3)
+    test_apply_loc_pot(float, 1)

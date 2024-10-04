@@ -203,9 +203,13 @@ def apply_local_potential_gpu(vt_R,
     size_c = vt_R.desc.size_c
     if pw.dtype == float:
         shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
+        ifftn = cupyx.scipy.fft.irfftn
+        fftn = cupyx.scipy.fft.rfftn
     else:
         shape = tuple(size_c)
-    Q_G = pw.indices(shape)
+        ifftn = cupyx.scipy.fft.ifftn
+        fftn = cupyx.scipy.fft.fftn
+    Q_G = cp.asarray(pw.indices(shape))
     psit_bQ = None
     for b1 in range(0, mynbands, blocksize):
         b2 = min(b1 + blocksize, mynbands)
@@ -220,33 +224,17 @@ def apply_local_potential_gpu(vt_R,
                       1.0,
                       psit_bQ.reshape((nb, -1)),
                       *size_c)
-        if pw.dtype == complex:
-            psit_bR = cupyx.scipy.fft.ifftn(
-                psit_bQ,
-                shape,
-                norm='forward',
-                overwrite_x=True)
-        else:
-            psit_bR = cupyx.scipy.fft.irfftn(
-                psit_bQ,
-                size_c,
-                norm='forward',
-                overwrite_x=True)
-
+        psit_bR = ifftn(
+            psit_bQ,
+            size_c,
+            norm='forward',
+            overwrite_x=True)
         psit_bR *= vt_R.data
-
-        if pw.dtype == complex:
-            vtpsit_bQ = cupyx.scipy.fft.fftn(
-                psit_bR,
-                shape,
-                norm='forward',
-                overwrite_x=True)
-        else:
-            vtpsit_bQ = cupyx.scipy.fft.rfftn(
-                psit_bR,
-                size_c,
-                norm='forward',
-                overwrite_x=True)
+        vtpsit_bQ = fftn(
+            psit_bR,
+            size_c,
+            norm='forward',
+            overwrite_x=True)
         out_nG.data[b1:b2] = psit_nG.data[b1:b2]
         out_nG.data[b1:b2] *= e_kin_G
         out_nG.data[b1:b2] += vtpsit_bQ.reshape((nb, -1))[:, Q_G]
