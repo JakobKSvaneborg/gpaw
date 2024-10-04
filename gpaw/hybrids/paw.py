@@ -64,6 +64,9 @@ def python_pawexxvv(M_pp, D_ii):
     return V_ii
 
 
+pawexxvv = python_pawexxvv
+
+
 if not TYPE_CHECKING:
     try:
         from _gpaw import pawexxvv  # noqa: F811
@@ -71,4 +74,3 @@ if not TYPE_CHECKING:
         import warnings
         warnings.warn('Please recompile GPAW binary. Using python '
                       'version of pawexxvv instead of faster c version.')
-        pawexxvv = python_pawexxvv

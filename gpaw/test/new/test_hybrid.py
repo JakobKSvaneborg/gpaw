@@ -16,6 +16,7 @@ def test_pawexxvv():
         V2_ii = pawexxvv(M_pp, D_ii)
         assert np.allclose(V_ii, V2_ii)
 
+
 def test_hse06(gpaw_new):
     if gpaw_new and size > 4:
         pytest.skip('Only band-parallelization!')
