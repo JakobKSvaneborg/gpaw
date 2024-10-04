@@ -104,23 +104,16 @@ the following attributes:
 
 .. list-table::
 
-  * - ``state``
-    - :class:`gpaw.new.calculation.DFTState`
-  * - ``scf_loop``
-    - :class:`gpaw.new.scf.SCFLoop`
-  * - ``pot_calc``
-    - :class:`gpaw.new.pot_calc.PotentialCalculator`
-
-and a the :class:`gpaw.new.calculation.DFTState` object has these attributes:
-
-.. list-table::
-
   * - ``density``
     - :class:`gpaw.new.density.Density`
   * - ``ibzwfs``
     - :class:`gpaw.new.ibzwfs.IBZWaveFunctions`
   * - ``potential``
     - :class:`gpaw.new.potential.Potential`
+  * - ``scf_loop``
+    - :class:`gpaw.new.scf.SCFLoop`
+  * - ``pot_calc``
+    - :class:`gpaw.new.pot_calc.PotentialCalculator`
 
 
 Naming convention for arrays
