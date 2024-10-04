@@ -4,6 +4,7 @@ from gpaw.new.pw.hamiltonian import apply_local_potential_gpu
 from gpaw.gpu import cupy as cp
 
 
+@pytest.mark.gpu
 @pytest.mark.serial
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('nbands', [1, 2, 3, 5])
@@ -28,13 +29,9 @@ def test_apply_loc_pot(dtype, nbands):
                               psit_nG,
                               out_nG,
                               blocksize=3)
-    print(type(pw.ekin_G))
-    print(cp.asnumpy(out_nG.data))
-    print(cp.asnumpy(psit_nG.data))
     error_nG = (cp.asnumpy(out_nG.data) -
                 (v0 + pw.ekin_G) * cp.asnumpy(psit_nG.data))
-    print(abs(error_nG).max())
-    print(pw.ekin_G)
+    assert abs(error_nG).max() == pytest.approx(0.0)
 
 
 if __name__ == '__main__':
