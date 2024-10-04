@@ -36,19 +36,18 @@ class BSEMatrix:
     df_S: np.ndarray
     H_sS: np.ndarray
     deps_S: np.ndarray
+    deps_s: np.ndarray
     deps_max: float
 
     def diagonalize_nontammdancoff(self, bse):
         df_S = self.df_S
         H_sS = self.H_sS
-
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
-        excludedeps_S = np.where(self.deps_S < self.deps_max)[0]
+        excludedeps_S = np.where(self.deps_S > self.deps_max)[0]
         exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
         bse.context.print('  Using numpy.linalg.eig...')
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
-
         H_SS = bse.collect_A_SS(H_sS)
         w_T = np.zeros(bse.nS - len(exclude_S), complex)
         v_ST = None
@@ -59,13 +58,21 @@ class BSEMatrix:
         else:
             v_ST = None
         world.broadcast(w_T, 0)
-        return w_T, v_ST, exclude_S
+        return w_T, v_ST, exclude_S, exclude_S
 
     def diagonalize_tammdancoff(self, bse):
+        import warnings
         H_sS = self.H_sS
+        exclude_S = np.where(self.deps_S > self.deps_max)[0]
+        exclude_s = np.where(self.deps_s > self.deps_max)[0]
+        H_sS = np.delete(H_sS, exclude_s, axis=0)
+        H_sS = np.delete(H_sS, exclude_S, axis=1)
 
-        nS = bse.nS
-        ns = bse.ns
+        warnings.warn('using Tamm-Dancoff')
+        bse.context.print('  Eliminated %s pair orbitals' % len(
+            exclude_S))
+
+        ns, nS = H_sS.shape
 
         if world.size == 1:
             bse.context.print('  Using lapack...')
@@ -91,7 +98,7 @@ class BSEMatrix:
             v_St = desc.zeros(dtype=complex)
             r.redistribute(v_tmp, v_St)
             v_St = v_St.conj().T
-        return w_T, v_St
+        return w_T, v_St, exclude_S, exclude_s
 
 
 @dataclass
@@ -170,6 +177,7 @@ class BSEBackend:
     def __init__(self, *, gs, context,
                  valence_bands,
                  conduction_bands,
+                 deps_max=None,
                  add_soc=False,
                  soc_tol=0.0001,
                  ecut=10.,
@@ -189,12 +197,15 @@ class BSEBackend:
         self.q_c = q_c
         self.direction = direction
         self.context = context
-
         self.add_soc = add_soc
         self.scale = scale
 
         assert mode in ['RPA', 'BSE']
 
+        if deps_max is None:
+            self.deps_max = np.inf
+        else:
+            self.deps_max = deps_max / Hartree
         self.ecut = ecut / Hartree
         self.nbands = nbands
         self.mode = mode
@@ -332,7 +343,7 @@ class BSEBackend:
         return SpinorData(self.con_m, self.val_m, e_km, f_km, v_kmn, soc_tol)
 
     @timer('BSE calculate')
-    def calculate(self, optical, deps_max=0.1):
+    def calculate(self, optical):
         """Calculate the BSE Hamiltonian. This inlcudes setting up all
         machinery for pair densities, KS eignevalues and occupation factors.
         At the end the direct and indirect interaction are included through
@@ -528,7 +539,7 @@ class BSEBackend:
             # add bare transition energies
             H_sS[iS, iS0 + iS] += deps_s[iS]
 
-        return BSEMatrix(df_S, H_sS, deps_S, deps_max)
+        return BSEMatrix(df_S, H_sS, deps_S, deps_s, self.deps_max)
 
     @timer('add_direct_kernel')
     def add_direct_kernel(self, kptpair_factory, pair_calc, screened_potential,
@@ -700,27 +711,29 @@ class BSEBackend:
             rho_S = self.rhomag_SG[:, index]
 
         w_T, v_St = eig_data[0], eig_data[1]
-
+        exclude_S = eig_data[2]
+        exclude_s = eig_data[3]
+        nS = self.nS - len(exclude_S)
+        ns = self.ns - len(exclude_s)
+        dft_S = np.delete(df_S, exclude_S)
+        rhot_S = np.delete(rho_S, exclude_S)
+        C_T = np.zeros(nS, complex)
         # Calculate the spectral weights C_T
         if self.use_tammdancoff:
-            A_t = np.dot(rho_S, v_St)
-            B_t = np.dot(rho_S * df_S, v_St)
+            A_t = np.dot(rhot_S, v_St)
+            B_t = np.dot(rhot_S * dft_S, v_St)
             if world.size == 1:
                 C_T = B_t.conj() * A_t
             else:
                 grid = BlacsGrid(world, world.size, 1)
-                desc = grid.new_descriptor(self.nS, 1, self.ns, 1)
+                desc = grid.new_descriptor(nS, 1, ns, 1)
                 C_t = desc.empty(dtype=complex)
                 C_t[:, 0] = B_t.conj() * A_t
                 C_T = desc.collect_on_master(C_t)[:, 0]
                 if world.rank != 0:
-                    C_T = np.empty(self.nS, dtype=complex)
+                    C_T = np.empty(nS, dtype=complex)
                 world.broadcast(C_T, 0)
         else:
-            excludef_S = eig_data[2]
-            dft_S = np.delete(df_S, excludef_S)
-            rhot_S = np.delete(rho_S, excludef_S)
-            C_T = np.zeros(self.nS - len(excludef_S), complex)
             if world.rank == 0:
                 A_T = np.dot(rhot_S, v_St)
                 B_T = np.dot(rhot_S * dft_S, v_St)
@@ -924,6 +937,9 @@ class BSE(BSEBackend):
             Valence bands used in the BSE Hamiltonian
         conduction_bands: list or integer
             Conduction bands used in the BSE Hamiltonian
+        deps_max: float or None
+            Maximum transition energy for pair to be included
+            in the BSE Hamiltonian
         add_soc: bool
             If True the calculation will included non-selfconsitent SOC.
             All band indices m refers to spinors, while n indices refer to
