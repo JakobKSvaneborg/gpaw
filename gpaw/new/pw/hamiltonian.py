@@ -214,22 +214,39 @@ def apply_local_potential_gpu(vt_R,
             psit_bQ = cp.empty((nb,) + shape, complex)
         elif nb < blocksize:
             psit_bQ = psit_bQ[:nb]
+        psit_bQ[:] = 0.0
         pw_insert_gpu(psit_nG.data[b1:b2],
                       Q_G,
                       1.0,
-                      psit_bQ,
-                      *shape)
-        psit_bR = cupyx.scipy.fft.ifftn(
-            psit_bQ,
-            shape,
-            norm='forward',
-            overwrite_x=True)
+                      psit_bQ.reshape((nb, -1)),
+                      *size_c)
+        if pw.dtype == complex:
+            psit_bR = cupyx.scipy.fft.ifftn(
+                psit_bQ,
+                shape,
+                norm='forward',
+                overwrite_x=True)
+        else:
+            psit_bR = cupyx.scipy.fft.irfftn(
+                psit_bQ,
+                size_c,
+                norm='forward',
+                overwrite_x=True)
+
         psit_bR *= vt_R.data
-        vtpsit_bQ = cupyx.scipy.fft.fftn(
-            psit_bR,
-            shape,
-            norm='forward',
-            overwrite_x=True)
+
+        if pw.dtype == complex:
+            vtpsit_bQ = cupyx.scipy.fft.fftn(
+                psit_bR,
+                shape,
+                norm='forward',
+                overwrite_x=True)
+        else:
+            vtpsit_bQ = cupyx.scipy.fft.rfftn(
+                psit_bR,
+                size_c,
+                norm='forward',
+                overwrite_x=True)
         out_nG.data[b1:b2] = psit_nG.data[b1:b2]
         out_nG.data[b1:b2] *= e_kin_G
         out_nG.data[b1:b2] += vtpsit_bQ.reshape((nb, -1))[:, Q_G]
