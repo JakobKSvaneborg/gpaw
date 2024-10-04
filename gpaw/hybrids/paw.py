@@ -71,5 +71,4 @@ if not TYPE_CHECKING:
         import warnings
         warnings.warn('Please recompile GPAW binary. Using python '
                       'version of pawexxvv instead of faster c version.')
-    else:
         pawexxvv = python_pawexxvv
