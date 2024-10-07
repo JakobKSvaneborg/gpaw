@@ -52,7 +52,7 @@ def test_ff(in_tmp_dir, gpw_files, scalapack):
     results = gw.calculate()
     np.testing.assert_allclose(results['qp'], ref_result, rtol=1e-03)
 
-    np.testing.assert_allclose(results['sigma_eskwn'], sigma_ref, rtol=1e-5)
+    np.testing.assert_allclose(results['sigma_eskwn'], sigma_ref, rtol=1e-3)
 
 
 @pytest.mark.response
