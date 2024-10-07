@@ -7,9 +7,9 @@ from gpaw.mpi import world
 
 @pytest.mark.response
 def test_mpa_WS(in_tmp_dir, gpw_files, scalapack):
-    ref_result = np.array([[[10.989471, 20.627495],
-                            [5.095711, 15.25836],
-                            [8.465492, 21.623946]]])
+    ref_result = np.array([[[11.37680608, 21.56391991],
+                            [ 5.40811023, 16.11600678],
+                            [ 8.83575046, 22.42880098]]])
 
     mpa_dict = {'npoles': 4, 'wrange': [0 * Ha, 2 * Ha],
                 'varpi': Ha,
@@ -21,7 +21,7 @@ def test_mpa_WS(in_tmp_dir, gpw_files, scalapack):
               bands=(3, 5),
               nblocks=min(2, world.size),
               ecut=60,
-              nbands=20,
+              nbands=9,
               integrate_gamma='WS',
               ppa=False,
               mpa=mpa_dict)
