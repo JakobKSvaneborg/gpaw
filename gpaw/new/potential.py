@@ -86,6 +86,8 @@ class Potential:
         vt_sR = self.vt_sR.to_xp(np).gather()
         if self.dedtaut_sR is not None:
             dedtaut_sR = self.dedtaut_sR.to_xp(np).gather()
+        if self.vHt_x is not None:
+            vHt_x = self.vHt_x.to_xp(np).gather()
         if dH_asp is None:
             return
         writer.write(
@@ -93,7 +95,6 @@ class Potential:
             atomic_hamiltonian_matrices=dH_asp.data * Ha,
             **{f'e_{name}': val * Ha for name, val in energies.items()})
         if self.vHt_x is not None:
-            vHt_x = self.vHt_x.to_xp(np).gather()
             writer.write(electrostatic_potential=vHt_x.data * Ha)
         if self.dedtaut_sR is not None:
             writer.write(mgga_potential=dedtaut_sR.data * Bohr**3)
