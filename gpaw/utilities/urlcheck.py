@@ -17,7 +17,7 @@ OK = {'https://doi.org/%s',
       'https://wiki.fysik.dtu.dk/gpaw-files',
       'https://wiki.fysik.dtu.dk/gpaw-files/',
       'https://wiki.fysik.dtu.dk/gpaw-files/things/',
-      'https://wiki.fysik.dtu.dk/gpaw/devel'}
+      'https://gpaw.readthedocs.io/devel'}
 
 USERAGENT = 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11'
 

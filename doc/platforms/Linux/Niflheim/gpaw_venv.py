@@ -10,8 +10,8 @@ import subprocess
 from pathlib import Path
 from sys import version_info
 
-if version_info < (3, 8):
-    raise ValueError('Please use Python-3.8 or later')
+if version_info < (3, 9):
+    raise ValueError('Please use Python-3.9 or later')
 
 # Python version in the venv that we are creating
 version = '3.11'
@@ -248,7 +248,8 @@ def main():
     packages = ['myqueue',
                 'graphviz',
                 'qeh',
-                'sphinx_rtd_theme']
+                'sphinx_rtd_theme',
+                'sphinxcontrib-jquery']
     if args.piponly:
         packages += ['matplotlib',
                      'scipy',

@@ -385,7 +385,7 @@ test-latest-new:
     - linux
   script:
     - gpaw info
-    - GPAW_NEW=1 pytest -v -m "ci and not later"
+    - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
 
 
 test-minimal:
@@ -511,14 +511,14 @@ lint:
     - >
       flake8
       --doctests
-      --exclude "doc/platforms/*,doc/*/summerschool22/*/"
+      --exclude "doc/platforms/*,doc/*/summerschool24/*/"
       --extend-ignore E402
       doc
     - >
       flake8
       --doctests
       --extend-ignore E402,E501
-      doc/summerschools/summerschool22/catalysis
+      doc/summerschools/summerschool24/catalysis
       doc/platforms/Linux/Niflheim
     - echo "interrogate"
     - pip install interrogate
@@ -544,13 +544,14 @@ typecheck:
 
 
 docs:
-  image: $IMAGE_MAIN_OLDEST
+  image: $IMAGE_MAIN_LATEST
   stage: test
   needs:
-    - build
+    - build-latest
   tags:
     - linux
   script:
+    - pip install scikit-image
     - cd doc
     - make
     - make doctest
@@ -641,6 +642,10 @@ nightly-mpi-2:
     GPAW_MPI_NPROCS: "2"
   extends:
     - .nightly
+  script:
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m
+      pytest --instafail -r s --durations 30 -m "not slow"
 
 
 nightly-mpi-4:
@@ -668,7 +673,7 @@ nightly-mpi-8:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
+      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-1-new:
@@ -679,7 +684,7 @@ nightly-mpi-1-new:
     - pytest -n 4 --cache-clear -m generate_gpw_files
     - >
       pytest -n 4 --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or elph or wannier or legacy or ofdft or mom or do or lrtddft or rttddft or hybrids or pipekmezey)"
+      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-2-new:

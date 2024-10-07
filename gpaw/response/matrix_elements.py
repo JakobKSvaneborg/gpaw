@@ -518,7 +518,7 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
         stfc.integrate(nt_mytR * f_R[np.newaxis], ft_amytp, q=0)
 
         # Add integral to output array
-        f_mytap = matrix_element.array
+        f_mytap = matrix_element.local_array_view
         for a in range(len(self.sites)):
             f_mytap[:, a] += ft_amytp[a]
 
@@ -536,7 +536,7 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
 
         where F_apii' is the site matrix element correction tensor.
         """
-        f_mytap = matrix_element.array
+        f_mytap = matrix_element.local_array_view
         F_apii = self.get_paw_correction_tensor()
         for a, (A, F_pii) in enumerate(zip(
                 self.sites.A_a, F_apii)):
@@ -580,3 +580,15 @@ class SiteZeemanPairEnergyCalculator(SiteMatrixElementCalculator):
     """
     def add_f(self, gd, n_sx, f_x):
         f_x[:] += - calculate_LSDA_Wxc(gd, n_sx)
+
+
+class SiteSpinPairEnergyCalculator(SiteMatrixElementCalculator):
+    """Class for calculating site spin pair energies.
+
+    The site spin pair energy is defined as the site matrix element with
+    f(r) = B^xc(r) = - |W_xc^z(r)|:
+
+    d^(xc,ap)_(nks,n'k+qs') = - <ψ_nks|Θ(r∊Ω_ap)|W_xc^z(r)||ψ_n'k+qs'>
+    """
+    def add_f(self, gd, n_sx, f_x):
+        f_x[:] += - np.abs(calculate_LSDA_Wxc(gd, n_sx))

@@ -651,6 +651,7 @@ class LCAOforces:
             for a, M1, M2 in self.my_slices():
                 Ftheta_av[a, :] += \
                     -2.0 * dThetadRE_vMM[:, M1:M2].sum(-1).sum(-1)
+
         return Ftheta_av
 
     def get_pot_term(self):

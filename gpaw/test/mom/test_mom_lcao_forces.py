@@ -18,6 +18,7 @@ def test_mom_lcao_forces(in_tmp_dir):
                   [[0.5 * L, 0.5 * L, 0.5 * L - 0.5 * d],
                    [0.5 * L, 0.5 * L, 0.5 * L + 0.5 * d]])
     atoms.set_cell([L, L, L])
+    atoms.rotate(1, 'x', center=[0.5 * L, 0.5 * L, 0.5 * L])
 
     calc = GPAW(mode='lcao',
                 basis='dzp',
@@ -30,15 +31,15 @@ def test_mom_lcao_forces(in_tmp_dir):
                              'density': 1e-4})
 
     atoms.calc = calc
-    prepare_mom_calculation(calc, atoms, f_sn)
+    occ = prepare_mom_calculation(calc, atoms, f_sn)
     F = atoms.get_forces()
 
     # Test overlaps
-    calc.wfs.occupations.initialize_reference_orbitals()
+    occ.initialize_reference_orbitals()
     for kpt in calc.wfs.kpt_u:
         f_n = calc.get_occupation_numbers(spin=kpt.s)
         unoccupied = [True for i in range(len(f_n))]
-        P = calc.wfs.occupations.calculate_weights(kpt, 1.0, unoccupied)
+        P = occ.calculate_weights(kpt, 1.0, unoccupied)
         assert (np.allclose(P, f_n))
 
     E = []
@@ -54,6 +55,6 @@ def test_mom_lcao_forces(in_tmp_dir):
     f = np.sqrt(((F[1, :] - F[0, :])**2).sum()) * 0.5
     fnum = (E[0] - E[1]) / (2. * delta)  # central difference
 
-    print(fnum)
+    print(fnum, f)
     assert fnum == pytest.approx(11.52, abs=0.016)
     assert f == pytest.approx(fnum, abs=0.1)

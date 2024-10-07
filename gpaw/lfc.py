@@ -549,7 +549,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                                 gd.n_c, cspline_M,
                                 gd.beg_c, self.pos_Wv, a, v, q)
 
-    def integrate(self, a_xG, c_axi, q=-1):
+    def integrate(self, a_xG, c_axi, q=-1, add_to=False):
         """Calculate integrals of arrays times localized functions.
 
         ::
@@ -559,6 +559,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                    /     x       i
 
         """
+        assert not add_to
         assert not self.use_global_indices
         if q == -1:
             assert self.dtype == float
@@ -1203,6 +1204,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
         F_vM = np.zeros((3, Mstop - Mstart))
         assert self.Mmax == rhoT_MM.shape[1]
         assert Mstop - Mstart == rhoT_MM.shape[0]
+        assert rhoT_MM.flags.c_contiguous
         for v in range(3):
             self.lfc.calculate_potential_matrix_force_contribution(
                 vt_G, rhoT_MM, F_vM[v],

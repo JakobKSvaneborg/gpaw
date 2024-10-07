@@ -11,7 +11,7 @@ from gpaw.analyse.vdwradii import vdWradii
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_vdw_ts09(in_tmp_dir):
     h = 0.4
     s = molecule('LiH')

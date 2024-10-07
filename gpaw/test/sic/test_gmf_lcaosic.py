@@ -9,7 +9,7 @@ from ase import Atoms
 import numpy as np
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_gmf_lcaosic(in_tmp_dir):
     """

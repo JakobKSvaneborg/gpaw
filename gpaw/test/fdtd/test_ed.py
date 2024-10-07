@@ -3,7 +3,7 @@ from gpaw import GPAW
 from gpaw.tddft import TDDFT, DipoleMomentWriter
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_fdtd_ed(in_tmp_dir, gpw_files):
     # Accuracy
     energy_eps = 0.0005

@@ -5,7 +5,7 @@ from ase.units import Hartree
 from ase.utils.timing import Timer
 
 import gpaw.mpi as mpi
-from gpaw.lrtddft.kssingle import KSSingles, KSSRestrictor
+from .kssingle import KSSingles
 from gpaw.setup import CachedYukawaInteractions
 from gpaw.transformers import Transformer
 from gpaw.utilities import pack_density
@@ -540,7 +540,7 @@ class OmegaMatrix:
         t = .5 * t * (nij - ij)  # estimated time for n*(n+1)/2, n=nij-(ij+1)
         return self.timestring(t0 * (nij - ij - 1) + t)
 
-    def get_map(self, restrict={}):
+    def get_map(self, restrict=None):
         """Return the reduction map for the given requirements
 
         Returns
@@ -548,36 +548,27 @@ class OmegaMatrix:
         map - list of original indices
         kss - reduced KSSingles object
         """
-        rst = KSSRestrictor(restrict)
-        if rst >= self.fullkss.restrict:
-            return None, self.fullkss
-
         self.log('# diagonalize: %d transitions original'
                  % len(self.fullkss))
 
         map = []
-        kss = KSSingles()
+
+        rst_dict = self.fullkss.restrict.values
+        if restrict is not None:
+            rst_dict.update(restrict)
+        kss = KSSingles(restrict=rst_dict)
         kss.dtype = self.fullkss.dtype
-        energy_range = rst['energy_range']
-        emin, emax = rst.emin_emax()
-        istart = rst['istart']
-        jend = rst['jend']
-        eps = rst['eps']
+
         for ij, k in zip(range(len(self.fullkss)), self.fullkss):
-            if energy_range is None:
-                if k.i >= istart and k.j <= jend and k.fij >= eps:
-                    kss.append(k)
-                    map.append(ij)
-            else:
-                if k.energy >= emin and k.energy < emax and k.fij >= eps:
-                    kss.append(k)
-                    map.append(ij)
+            if kss.restrict.is_good(k):
+                kss.append(k)
+                map.append(ij)
         kss.update()
         self.log('# diagonalize: %d transitions now' % len(kss))
 
         return map, kss
 
-    def diagonalize(self, restrict={}):
+    def diagonalize(self, restrict=None):
         """Evaluate Eigenvectors and Eigenvalues:"""
         map, kss = self.get_map(restrict)
 

@@ -45,6 +45,45 @@ __global__ void calculate_residual_kernel_real(int nG, int nn,
     }
 }
 
+// This is the [i,j,0] slice of contiguous array
+#define MAT(array, nx, ny, nz, b, i, j) (array[(b) * (nx) * (ny) * (nz) + (i) * (ny) * (nz) + (j) * (nz)])
+
+__global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, int m, gpuDoubleComplex* array_nQ)
+{
+    int b = threadIdx.x + blockIdx.x * blockDim.x;
+    int i = threadIdx.y + blockIdx.y * blockDim.y;
+    if (b < nb)
+    {
+        // t[0, -m:] = t[0, m:0:-1].conj()
+        if (i < m)
+        {
+            gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, 0, m - i);
+            value.y = -value.y;
+            MAT(array_nQ, nx, ny, nz, b, 0, ny - m + i) = value;
+        }
+        
+        if (i < n)
+        {
+            for (int j=0; j<m; j++)
+            {
+                // t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
+                gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, nx - n + i, m - j);
+                value.y = -value.y;
+                MAT(array_nQ, nx, ny, nz, b, n - i, ny - m + j) = value; 
+
+                // t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
+                value = MAT(array_nQ, nx, ny, nz, b, n - i, m - j);
+                value.y = -value.y;
+                MAT(array_nQ, nx, ny, nz, b, nx - n + i, ny - m + j) = value; 
+            }
+            gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, n - i, 0);
+            value.y = -value.y;
+            MAT(array_nQ, nx, ny, nz, b, nx - n + i, 0) = value; 
+            }
+        }
+}
+
+
 extern "C"
 void calculate_residual_launch_kernel(int nG,
 				      int nn,
@@ -53,6 +92,10 @@ void calculate_residual_launch_kernel(int nG,
 				      double* wf_nG,
 				      int is_complex)
 {
+    if ((nG == 0) || (nn == 0))
+    {
+        return;
+    }
     if (is_complex)
     {
 	gpuLaunchKernel(calculate_residual_kernel_complex,
@@ -487,6 +530,7 @@ void add_to_density_gpu_launch_kernel(int nb,
 				      int wfs_is_complex)
 {
     if (wfs_is_complex)
+    {
     gpuLaunchKernel(add_to_density_16,
 		    dim3((nR+255)/256),
 		    dim3(256),
@@ -495,7 +539,9 @@ void add_to_density_gpu_launch_kernel(int nb,
 		    f_n,
 		    psit_nR,
 		    rho_R);
+    }
     else
+    {
     gpuLaunchKernel(add_to_density_8,
 		    dim3((nR+255)/256),
 		    dim3(256),
@@ -504,6 +550,23 @@ void add_to_density_gpu_launch_kernel(int nb,
 		    f_n,
 		    (double*) psit_nR,
 		    rho_R);
+    }
+}
+
+extern "C"
+void pw_amend_insert_realwf_gpu_launch_kernel(int nb,
+                                              int nx,
+                                              int ny,
+                                              int nz, 
+                                              int n, 
+                                              int m, 
+                                              double* array_nQ)
+{
+    gpuLaunchKernel(pw_amend_insert_realwf,
+                    dim3((nb+15)/16, (max(n,m)+15)/16),
+                    dim3(16, 16),
+                    0, 0,
+                    nb, nx, ny, nz, n, m, (gpuDoubleComplex*) array_nQ);
 }
 
 extern "C"
@@ -514,7 +577,8 @@ void pw_insert_gpu_launch_kernel(
 			     double* c_nG,
 			     npy_int32* Q_G,
 			     double scale,
-			     double* tmp_nQ)
+			     double* tmp_nQ,
+                 int rx, int ry, int rz)
 {
     if (nb == 1)
     {
@@ -538,6 +602,22 @@ void pw_insert_gpu_launch_kernel(
 		       Q_G,
 		       scale,
 		       (gpuDoubleComplex*) tmp_nQ);
+    }
+
+    // We identify real wave functions by noting that number of cartesian planewaves
+    // does not equal to real space grid size (because z_Q <- z_R // 2 + 1)
+    if (rx * ry * rz != nQ)
+    {
+        int n = rx / 2 - 1;
+        int m = ry / 2 - 1;
+        // The rx, ry, rz are the sizes of the 3D version of Q array. Since
+        // we are dealing with real wave functions, the convention is that
+        // the last axis is actually z_R // 2 + 1.
+        gpuLaunchKernel(pw_amend_insert_realwf,
+                        dim3((nb+15)/16, (max(n,m)+15)/16),
+                        dim3(16, 16),
+                        0, 0,
+                        nb, rx, ry, rz / 2 + 1, n, m, (gpuDoubleComplex*) tmp_nQ);
     }
 }
 
@@ -705,19 +785,23 @@ void dH_aii_times_P_ani_launch_kernel(int nA, int nn,
 				      int is_complex)
 {
     if (is_complex)
+    {
     gpuLaunchKernel(dH_aii_times_P_ani_16,
 		    dim3((nn+255)/256),
 		    dim3(256),
 		    0, 0,
 		    nA, nn, nI, ni_a, dH_aii_dev,
 		    P_ani_dev, outP_ani_dev);
+    }
     else
+    {
     gpuLaunchKernel(dH_aii_times_P_ani_8,
 		    dim3((nn+255)/256),
 		    dim3(256),
 		    0, 0,
 		    nA, nn, nI, ni_a, dH_aii_dev,
 		    (double*) P_ani_dev, (double*) outP_ani_dev);
+    }
 
 }
 

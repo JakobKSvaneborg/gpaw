@@ -9,7 +9,7 @@ pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_vdw_libvdwxc_h2(in_tmp_dir):
     system = molecule('H2')
     system.center(vacuum=1.0)

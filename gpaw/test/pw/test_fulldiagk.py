@@ -58,6 +58,7 @@ def test_pw_fulldiagk(in_tmp_dir, scalapack):
         assert err < 1e-10, err
 
     a.calc = GPAW(mode='pw',
+                  parallel={'band': min(2, world.size)},
                   h=0.15,
                   kpts=(4, 1, 1),
                   convergence={'bands': 'CBM+10'},

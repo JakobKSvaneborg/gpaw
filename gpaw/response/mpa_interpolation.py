@@ -44,7 +44,12 @@ def fit_residue(
                           XTX_GGpp, temp_GGp)
     else:
         try:
-            R_GGp = np.linalg.solve(XTX_GGpp, temp_GGp)
+            # Note: Numpy 2.0 changed the broadcasting rules of
+            # `solve()`;
+            # temporarily pad the array shape with an extra dimension to
+            # emulate the old behavior
+            R_GGp = np.linalg.solve(
+                XTX_GGpp, temp_GGp.reshape(temp_GGp.shape + (1,)))[..., 0]
         except np.linalg.LinAlgError:
             XTX_GGpp = np.linalg.pinv(XTX_GGpp)
             R_GGp = np.einsum('GHpo,GHo->GHp',

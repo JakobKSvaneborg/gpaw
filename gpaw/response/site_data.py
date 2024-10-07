@@ -1,6 +1,6 @@
 import numpy as np
 
-from ase.units import Bohr
+from ase.units import Bohr, Hartree
 from ase.neighborlist import natural_cutoffs, build_neighbor_list
 
 from gpaw.sphere.integrate import (integrate_lebedev,
@@ -8,7 +8,8 @@ from gpaw.sphere.integrate import (integrate_lebedev,
                                    spherical_truncation_function_collection,
                                    default_spherical_drcut,
                                    find_volume_conserving_lambd)
-from gpaw.response import ResponseGroundStateAdapter
+from gpaw.response import (ResponseGroundStateAdapter,
+                           ResponseGroundStateAdaptable)
 from gpaw.response.localft import (add_spin_polarization,
                                    add_LSDA_zeeman_energy)
 
@@ -44,14 +45,100 @@ class AtomicSites:
         return len(self.A_a)
 
 
+def calculate_site_magnetization(
+        gs: ResponseGroundStateAdaptable,
+        sites: AtomicSites):
+    """Calculate the site magnetization.
+
+    Returns
+    -------
+    magmom_ap : np.ndarray
+        Magnetic moment in μB of site a under partitioning p, calculated
+        directly from the ground state density.
+    """
+    return AtomicSiteData(gs, sites).calculate_magnetic_moments()
+
+
+def calculate_site_zeeman_energy(
+        gs: ResponseGroundStateAdaptable,
+        sites: AtomicSites):
+    """Calculate the site Zeeman energy.
+
+    Returns
+    -------
+    EZ_ap : np.ndarray
+        Local Zeeman energy in eV of site a under partitioning p, calculated
+        directly from the ground state density.
+    """
+    site_data = AtomicSiteData(gs, sites)
+    return site_data.calculate_zeeman_energies() * Hartree  # Ha -> eV
+
+
+def get_site_radii_range(gs):
+    """Get the range of valid site radii for the atoms of a given ground state.
+
+    Returns
+    -------
+    rmin_A : np.ndarray
+        Minimum cutoff radius in Å for each atom A.
+    rmax_A : np.ndarray
+        Maximum cutoff radius in Å for each atom A.
+    """
+    rmin_A, rmax_A = AtomicSiteData.valid_site_radii_range(gs)
+    return rmin_A * Bohr, rmax_A * Bohr  # Bohr -> Å
+
+
+def maximize_site_magnetization(gs, indices=None):
+    """Find the allowed site radii which maximize the site magnetization.
+
+    Assumes that m(rc) is maximized for some rc beloning to the interior of the
+    allowed cutoff radii for each atom. Physically, m(rc) has such a maximum
+    only if the spin-polarization of the interstitial region is anti-parallel
+    to the site in its near vicinity.
+
+    Returns
+    -------
+    rmax_a : np.ndarray
+        Cutoff radius in Å, maximizing the site magnetization for each site a.
+    mmax_a : np.ndarray
+        Site magnetization in μB at its maximum for each site a.
+    """
+    # Calculate the site magnetization as a function of radius
+    rmin_A, rmax_A = get_site_radii_range(gs)
+    if indices is None:
+        indices = range(len(rmin_A))
+    rc_ar = [np.linspace(rmin_A[A], rmax_A[A], 201) for A in indices]
+    magmom_ar = calculate_site_magnetization(gs, AtomicSites(indices, rc_ar))
+    # Maximize the site magnetization
+    rmax_a = np.empty(len(indices), dtype=float)
+    mmax_a = np.empty(len(indices), dtype=float)
+    for a, (rc_r, magmom_r) in enumerate(zip(rc_ar, magmom_ar)):
+        rmax_a[a], mmax_a[a] = maximize(rc_r, magmom_r)
+    return rmax_a, mmax_a
+
+
+def maximize(x_x, f_x):
+    """Maximize f(x) on the given interval (returning xmax and f(xmax)).
+
+    If there is no local maximum on the interior of the interval,
+    we return np.nan.
+    """
+    from gpaw.test import findpeak
+    xmax = f_x.argmax()
+    if xmax == 0 or xmax == len(x_x) - 1:
+        return np.nan, np.nan
+    return findpeak(x_x, f_x)
+
+
 class AtomicSiteData:
     r"""Data object for a set of spherical atomic sites."""
 
-    def __init__(self, gs: ResponseGroundStateAdapter, sites: AtomicSites):
-        """Extract atomic site data from a ground state adapter."""
-        assert self._in_valid_site_radii_range(gs, sites), \
+    def __init__(self, gs: ResponseGroundStateAdaptable, sites: AtomicSites):
+        """Extract atomic site data from a given ground state."""
+        gs = ResponseGroundStateAdapter.from_input(gs)
+        assert self.in_valid_site_radii_range(gs, sites), \
             'Please provide site radii in the valid range, see '\
-            'AtomicSiteData.valid_site_radii_range()'
+            'gpaw.response.site_data.get_site_radii_range()'
         self.sites = sites
 
         # Extract the scaled positions and micro_setups for each atomic site
@@ -73,7 +160,7 @@ class AtomicSiteData:
             self.finegd, self.spos_ac, sites.rc_ap, self.drcut, self.lambd_ap)
 
     @staticmethod
-    def _valid_site_radii_range(gs):
+    def valid_site_radii_range(gs):
         """For each atom in gs, determine the valid site radii range in Bohr.
 
         The lower bound is determined by the spherical truncation width, when
@@ -87,8 +174,8 @@ class AtomicSiteData:
 
         # Find neighbours based on covalent radii
         cutoffs = natural_cutoffs(atoms, mult=2)
-        neighbourlist = build_neighbor_list(atoms, cutoffs,
-                                            self_interaction=False)
+        neighbourlist = build_neighbor_list(
+            atoms, cutoffs, self_interaction=False, bothways=True)
         # Determine rmax for each atom
         augr_A = gs.get_aug_radii()
         rmax_A = []
@@ -112,15 +199,8 @@ class AtomicSiteData:
         return rmin_A, rmax_A
 
     @staticmethod
-    def valid_site_radii_range(gs):
-        """Get the valid site radii for all atoms in a given ground state."""
-        rmin_A, rmax_A = AtomicSiteData._valid_site_radii_range(gs)
-        # Convert to external units (Bohr to Å)
-        return rmin_A * Bohr, rmax_A * Bohr
-
-    @staticmethod
-    def _in_valid_site_radii_range(gs, sites):
-        rmin_A, rmax_A = AtomicSiteData._valid_site_radii_range(gs)
+    def in_valid_site_radii_range(gs, sites):
+        rmin_A, rmax_A = AtomicSiteData.valid_site_radii_range(gs)
         for a, A in enumerate(sites.A_a):
             if not np.all(
                     np.logical_and(

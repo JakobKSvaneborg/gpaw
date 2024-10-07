@@ -27,7 +27,6 @@ nbands = 2 * 6
 
 # Convergence criteria of Kohn-Sham orbitals
 conv = {'bands': nbands,
-        'forces': 1.e-8,
         'eigenstates': 1.e-14}
 
 # We choose the plane wave energy cutoff of the mft response calculation

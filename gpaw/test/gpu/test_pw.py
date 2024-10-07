@@ -13,7 +13,8 @@ from gpaw.new.c import GPU_AWARE_MPI
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('gpu', [False, True])
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_gpu(dtype, gpu, mode):
+@pytest.mark.parametrize('random', [False, True])
+def test_gpu(dtype, gpu, mode, random):
     atoms = Atoms('H2')
     atoms.positions[1, 0] = 0.75
     atoms.center(vacuum=1.0)
@@ -28,6 +29,7 @@ def test_gpu(dtype, gpu, mode):
         dict(mode={'name': mode,
                    'force_complex_dtype': dtype == complex},
              poissonsolver=poisson,
+             random=random,
              h=h,
              convergence={'density': 1e-8},
              parallel={'gpu': gpu},
@@ -98,3 +100,31 @@ def test_gpu_k(gpu, par, mode, xc):
            'PBEpw': -17.304186,
            'LDApw': -17.653433}[xc + mode]
     assert energy == pytest.approx(ref, abs=1e-6)
+
+
+@pytest.mark.gpu
+def test_2d():
+    atoms = Atoms('H', pbc=[True, True, False], cell=[1, 1, 5])
+    atoms.center(axis=2)
+
+    dft = DFTCalculation.from_parameters(
+        atoms,
+        dict(mode={'name': 'pw'},
+             spinpol=True,
+             xc='LDA',
+             convergence={'density': 1e-8},
+             kpts=(2, 2, 1),
+             parallel={'gpu': True}),
+        log='-')
+    dft.converge()
+    assert dft.potential.get_vacuum_level() == pytest.approx(2.9436, 1e-2)
+    dft.energies()
+    dft.forces()
+    dft.stress()
+    E = dft.results['energy']
+    F = dft.results['forces']
+    S = dft.results['stress']
+    assert E == pytest.approx(0.1769, 1e-2)
+    assert F[0] == pytest.approx([0, 0, 0], 1e-6)
+    assert S == pytest.approx([-0.0110, -0.0110, 0.0002,
+                               0.0, 0.0, 0.0], abs=0.001)

@@ -7,8 +7,9 @@ pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')
 
 
-@pytest.mark.legacy
-def test_potential():
+def test_potential(gpaw_new):
+    if gpaw_new:
+        pytest.skip('Not implemented')
     for mode in ['fd', 'pw']:
         print(mode)
         hydrogen = Atoms('H',

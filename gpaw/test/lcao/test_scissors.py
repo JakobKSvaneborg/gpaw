@@ -1,10 +1,8 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW
-from gpaw.lcao.scissors import Scissors
 
 
-@pytest.mark.later
 def test_scissors():
     h2 = Atoms('2H2', [[0, 0, 0], [0, 0, 0.74],
                        [4, 0, 0], [4, 0, 0.74]])
@@ -12,7 +10,8 @@ def test_scissors():
     d = 1.0
     h2.calc = GPAW(mode='lcao',
                    basis='sz(dzp)',
-                   eigensolver=Scissors([(-d, d, 2)]),
+                   eigensolver={'name': 'scissors',
+                                'shifts': [(-d, d, 2)]},
                    txt=None)
     h2.get_potential_energy()
     e1, e2, e3, e4 = h2.calc.get_eigenvalues()

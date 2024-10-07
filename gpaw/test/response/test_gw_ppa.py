@@ -20,10 +20,12 @@ def test_ff(in_tmp_dir, gpw_files, scalapack):
     results = gw.calculate()
     np.testing.assert_allclose(results['qp'], ref_result, rtol=1e-03)
 
+    # TODO: Check for sigma as well
+
 
 @pytest.mark.response
 @pytest.mark.parametrize("mpa", [True, False])
-def test_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
+def test_mpa_and_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
     ref_result = {False: np.asarray([[[11.30094393, 21.62842077],
                                       [5.33751513, 16.06905725],
                                       [8.75269938, 22.46579489]]]),

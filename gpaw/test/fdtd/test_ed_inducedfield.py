@@ -8,7 +8,7 @@ from gpaw.inducedfield.inducedfield_tddft import TDDFTInducedField
 from gpaw.tddft import TDDFT, DipoleMomentWriter
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_fdtd_ed_inducedfield(in_tmp_dir, gpw_files):
     do_print_values = 0  # Use this for printing the reference values
 

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import numbers
-from typing import Sequence, overload
+from typing import Sequence, overload, Literal
 
 import numpy as np
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp, XP
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
-from gpaw.typing import Array1D, ArrayLike1D, Literal
+from gpaw.typing import Array1D, ArrayLike1D
 from gpaw.new.c import dH_aii_times_P_ani_gpu
 
 
@@ -110,7 +110,8 @@ class AtomDistribution:
         """
         self.comm = comm
         self.rank_a = np.array(ranks)
-        self.indices = np.where(self.rank_a == comm.rank)[0]
+        # convert from np.int64 -> int:
+        self.indices = [int(a) for a in np.where(self.rank_a == comm.rank)[0]]
 
     @classmethod
     def from_number_of_atoms(cls,

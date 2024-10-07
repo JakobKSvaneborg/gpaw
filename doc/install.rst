@@ -53,7 +53,7 @@ There are several ways to install GPAW:
 Requirements
 ============
 
-* Python_ 3.8 or later
+* Python_ 3.9 or later
 * ASE_
 * NumPy_
 * SciPy_
@@ -151,9 +151,8 @@ You can get the source from a tar-file or from Git:
 
 :Tar-file:
 
-    You can get the source as a tar-file for the
-    latest stable release (gpaw-24.6.0.tar.gz_) or the latest
-    development snapshot (`<snapshot.tar.gz>`_).
+    Get the source for the latest stable release as a tar-file:
+    gpaw-24.6.0.tar.gz_.
 
     Unpack and make a soft link::
 

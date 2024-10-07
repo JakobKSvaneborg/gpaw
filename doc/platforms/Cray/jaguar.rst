@@ -228,7 +228,7 @@ Install ase/gpaw-setups (**Note**: use the latest releases)::
 Install gpaw (**Note**: instructions valid from the **5232** release)::
 
   cd ${sw_home}
-  wget --no-check-certificate https://wiki.fysik.dtu.dk/gpaw/gpaw-0.7.5232.tar.gz
+  wget --no-check-certificate https://gpaw.readthedocs.io/gpaw-0.7.5232.tar.gz
   tar zxf gpaw-0.7.5232.tar.gz
   cd gpaw-0.7.5232
   wget --no-check-certificate https://svn.fysik.dtu.dk/projects/gpaw/trunk/doc/platforms/Cray/customize_jaguar.py -O customize.py
