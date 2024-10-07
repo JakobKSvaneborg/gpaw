@@ -36,7 +36,6 @@ class BSEMatrix:
     df_S: np.ndarray
     H_sS: np.ndarray
     deps_S: np.ndarray
-    deps_s: np.ndarray
     deps_max: float
 
     def diagonalize_nontammdancoff(self, bse):
@@ -61,44 +60,70 @@ class BSEMatrix:
         return w_T, v_ST, exclude_S, exclude_S
 
     def diagonalize_tammdancoff(self, bse):
-        H_sS = self.H_sS
-        exclude_S = np.where(self.deps_S > self.deps_max)[0]
-        exclude_s = np.where(self.deps_s > self.deps_max)[0]
-        H_sS = np.delete(H_sS, exclude_s, axis=0)
-        H_sS = np.delete(H_sS, exclude_S, axis=1)
-
-        bse.context.print('  Eliminated %s pair orbitals' % len(
-            exclude_S))
-
-        nS = H_sS.shape[-1]
-        ns = - ((-nS) // world.size)
-
+        from gpaw.matrix import suggest_blocking
+        H_Rr, exclude_S = self.exclude_states_tamm_dancoff(bse)
+        print('H_Rr shape:', H_Rr.shape)
         if world.size == 1:
             bse.context.print('  Using lapack...')
-            w_T, v_St = eigh(H_sS)
+            w_T, v_Rt = eigh(H_Rr)
         else:
-            H_sS = np.ascontiguousarray(H_sS)  # make contiguous
-            # Here the eigenvectors are complex conjugated rows
+            nR = H_Rr.shape[0]
+            nr = -((-nR) // world.size)
+            # XXX We don't need to create new BLACS grids all the time
+            grid = BlacsGrid(world, 1, world.size)
+            desc_H_Rr = grid.new_descriptor(nR, nR, nR, nr)
+            grid2 = BlacsGrid(world, world.size, 1)
+            desc_H_rR = grid2.new_descriptor(nR, nR, nr, nR)
+            nrows, ncols, blocksize = suggest_blocking(nR, world.size)
+            print(f'nrows: {nrows}, ncols: {ncols}, blocksize: {blocksize}')
+            grid_tmp = BlacsGrid(world, nrows, ncols)  # desc2
+            desc_tmp = grid_tmp.new_descriptor(nR, nR, blocksize, blocksize)
+            H_tmp = desc_tmp.zeros(dtype=complex)
+            Redistributor(grid_tmp.comm, desc_H_Rr,
+                          desc_tmp).redistribute(H_Rr, H_tmp)
             bse.context.print('  Using scalapack...')
 
-            # XXX We don't need to create new BLACS grids all the time
+            w_T = np.empty(nR)
+            v_tmp = desc_tmp.empty(dtype=complex)
+            desc_tmp.diagonalize_dc(H_tmp, v_tmp, w_T)
+
+            v_tR = desc_H_rR.zeros(dtype=complex)
+            Redistributor(grid2.comm, desc_tmp,
+                          desc_H_rR).redistribute(v_tmp, v_tR)
+            v_Rt = v_tR.conj().T
+        return w_T, v_Rt, exclude_S
+
+    def exclude_states_tamm_dancoff(self, bse):
+        H_sS = self.H_sS
+        nS = bse.nS
+        ns = bse.ns
+        exclude_S = np.where(self.deps_S > self.deps_max)[0]
+        H_sR = np.delete(H_sS, exclude_S, axis=1)
+        H_sR = np.ascontiguousarray(H_sR)
+        nR = nS - len(exclude_S)
+        nr = -((-nR) // world.size)
+        print(f'nS={nS}, ns={ns}, nR={nR}, nr={nr}')
+        if world.size == 1:
+            H_Rr = np.delete(H_sR, exclude_S, axis=0)
+            H_Rr = np.ascontiguousarray(H_Rr)
+        else:
             grid = BlacsGrid(world, world.size, 1)
-            desc = grid.new_descriptor(nS, nS, ns, nS)
-
-            desc2 = grid.new_descriptor(nS, nS, 2, 2)
-            H_tmp = desc2.zeros(dtype=complex)
-            r = Redistributor(world, desc, desc2)
-            r.redistribute(H_sS, H_tmp)
-
-            w_T = np.empty(nS)
-            v_tmp = desc2.empty(dtype=complex)
-            desc2.diagonalize_dc(H_tmp, v_tmp, w_T)
-
-            r = Redistributor(grid.comm, desc2, desc)
-            v_St = desc.zeros(dtype=complex)
-            r.redistribute(v_tmp, v_St)
-            v_St = v_St.conj().T
-        return w_T, v_St, exclude_S, exclude_s
+            grid2 = BlacsGrid(world, 1, world.size)
+            desc_H_sR = grid.new_descriptor(nS, nR, ns, nR)
+            desc_H_Sr = grid2.new_descriptor(nS, nR, nS, nr)
+            H_Sr = desc_H_Sr.zeros(dtype=complex)
+            print('grid comm size', grid.comm.size)
+            Redistributor(world, desc_H_sR,
+                          desc_H_Sr).redistribute(H_sR, H_Sr)
+            H_Rr = np.delete(H_Sr, exclude_S, axis=0)
+            H_Rr = np.ascontiguousarray(H_Rr)
+        print('H_sS shape:', H_sS.shape, 'rank', world.rank)
+        print('H_sR shape:', H_sR.shape, 'rank', world.rank)
+        print('H_Sr shape:', H_Sr.shape, 'rank', world.rank)
+        print('H_Rr shape:', H_Rr.shape, 'rank', world.rank)
+        bse.context.print('  Eliminated %s pair orbitals' % len(
+            exclude_S))
+        return H_Rr, exclude_S
 
 
 @dataclass
@@ -539,7 +564,7 @@ class BSEBackend:
             # add bare transition energies
             H_sS[iS, iS0 + iS] += deps_s[iS]
 
-        return BSEMatrix(df_S, H_sS, deps_S, deps_s, self.deps_max)
+        return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
     @timer('add_direct_kernel')
     def add_direct_kernel(self, kptpair_factory, pair_calc, screened_potential,
@@ -712,9 +737,8 @@ class BSEBackend:
 
         w_T, v_St = eig_data[0], eig_data[1]
         exclude_S = eig_data[2]
-        exclude_s = eig_data[3]
         nS = self.nS - len(exclude_S)
-        ns = self.ns - len(exclude_s)
+        ns = -(-nS // world.size)
         dft_S = np.delete(df_S, exclude_S)
         rhot_S = np.delete(rho_S, exclude_S)
         C_T = np.zeros(nS, complex)
