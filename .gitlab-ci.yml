@@ -279,7 +279,7 @@ build-lumi-g:
       EOF
     - cat siteconfig.py
     - pip install --user --no-deps ase==3.23.0
-    - pip install --user --no-deps --log build.log --editable .
+    - pip install --user --no-deps -v --log build.log --editable .
     - gpaw info
 
 
