@@ -137,6 +137,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load cpeGNU/24.03
   module load rocm/6.0.3
   module load cray-fftw/3.3.10.7
+  module load buildtools-python/24.03-cray-python3.11
   module load CuPy/13.2.0-cpeGNU-24.03-rocm             # from EBU_USER_PREFIX
   module load ELPA/2024.05.001-cpeGNU-24.03-rocm        # from EBU_USER_PREFIX
   module load libxc/6.2.2-cpeGNU-24.03                  # from EBU_USER_PREFIX
@@ -244,6 +245,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load partition/C
   module load cpeGNU/24.03
   module load cray-fftw/3.3.10.7
+  module load buildtools-python/24.03-cray-python3.11
   module load libxc/6.2.2-cpeGNU-24.03                  # from EBU_USER_PREFIX
   EOF
   cat venv-gpaw-cpu/bin/activate.old >> venv-gpaw-cpu/bin/activate
