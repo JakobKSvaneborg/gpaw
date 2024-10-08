@@ -97,13 +97,17 @@ stages:
     SCHEDULER_PARAMETERS: "-A $LUMI_PROJECT -N 1 --ntasks-per-node=1 --gpus-per-node=1 --mem=4G -t 00:10:00 -p small-g"
   before_script:
     - export EBU_USER_PREFIX=/projappl/$LUMI_PROJECT/EasyBuild
-    - module load LUMI/22.12 partition/G
-    - module load cpeGNU/22.12
-    - module load cray-fftw/3.3.10.1
-    - module load cray-python/3.9.13.1
-    - module load CuPy/12.2.0-cpeGNU-22.12  # from EBU_USER_PREFIX
-    - module load libxc/6.2.2-cpeGNU-22.12  # from EBU_USER_PREFIX
-    - export GPAW_SETUP_PATH=/projappl/$LUMI_PROJECT/gpaw-setups-0.9.20000
+    - module load cray-python/3.11.7
+    - module load LUMI/24.03
+    - module load partition/G
+    - module load cpeGNU/24.03
+    - module load rocm/6.0.3
+    - module load cray-fftw/3.3.10.7
+    - module load CuPy/13.2.0-cpeGNU-24.03-rocm             # from EBU_USER_PREFIX
+    - module load ELPA/2024.05.001-cpeGNU-24.03-rocm        # from EBU_USER_PREFIX
+    - module load libxc/6.2.2-cpeGNU-24.03                  # from EBU_USER_PREFIX
+    - export GPAW_SETUP_PATH=/projappl/$LUMI_PROJECT/gpaw-setups-24.1.0
+    - export MPICH_GPU_SUPPORT_ENABLED=1
     - !reference [default, before_script]
 
 
@@ -244,6 +248,7 @@ build-lumi-g:
           '-fPIC',
           '-Wall',
           '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
+          '-Wno-deprecated-declarations',  # PySys_SetArgv() etc deprecated in Python 3.11
           '-Werror',
           ]
       extra_link_args = ['-fopenmp']
@@ -269,7 +274,7 @@ build-lumi-g:
       libraries += ['amdhip64', 'hipblas']
       EOF
     - cat siteconfig.py
-    - pip install --user --no-deps git+https://gitlab.com/ase/ase.git@master
+    - pip install --user --no-deps ase==3.23.0
     - pip install --user --no-deps --log build.log --editable .
     - gpaw info
 
