@@ -235,6 +235,7 @@ build-lumi-g:
     - .build
     - .lumi-g-job
   script:
+    - module load buildtools-python/24.03-cray-python3.11
     - |
       cat << EOF > siteconfig.py
       parallel_python_interpreter = True
