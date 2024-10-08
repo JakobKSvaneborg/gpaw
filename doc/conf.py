@@ -1,7 +1,7 @@
 import datetime
 import sys
 
-import sphinx_rtd_theme
+# import sphinx_rtd_theme
 from gpaw import __version__
 from gpaw.doctools.aamath import autodoc_process_docstring
 try:
