@@ -29,6 +29,7 @@ Tuesday
   **Jens Jørgen Mortensen**
 
   *Modernizing the code-base*
+  (`slides <https://jensj.gitlab.io/talks/dev24/talk.html>`__)
 
   Discussion of changes taking place in the code at the moment and how
   that will affect all of us in the future.
