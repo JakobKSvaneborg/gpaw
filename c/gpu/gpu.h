@@ -72,8 +72,8 @@ typedef struct
 } bmgsstencil;
 #endif
 
-static inline gpuError_t __gpuSafeCall(gpuError_t err,
-                                       const char *file, int line)
+static inline int __gpuSafeCall(gpuError_t err,
+                                const char *file, int line)
 {
     if (gpuSuccess != err) {
         char str[100];
