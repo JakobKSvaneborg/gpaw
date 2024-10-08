@@ -13,7 +13,7 @@ def test_diamond_mpa(in_tmp_dir):
 
     k = 2
 
-    calc = GPAW(mode=PW(600),
+    calc = GPAW(mode=PW(400),
                 parallel={'domain': 1},
                 kpts={'size': (k, k, k), 'gamma': True},
                 xc='LDA',
@@ -34,15 +34,15 @@ def test_diamond_mpa(in_tmp_dir):
                 'alpha': 1}
 
     calc_dict = {1: mp1_dict, 8: mp8_dict}
-    ref_results_mp1 = np.array([[[11.433, 18.620]]])
-    ref_results_mp8 = np.array([[[11.188, 18.422]]])
+    ref_results_mp1 = np.array([[[13.254813, 18.994554]]])
+    ref_results_mp8 = np.array([[[13.246057, 18.83362]]])
     ref_results = {1: ref_results_mp1, 8: ref_results_mp8}
 
     for npols in [1, 8]:
         gw = G0W0(calc='C_converged_mpa.gpw',
                   kpts=[0],
                   bands=(3, 5),
-                  ecut=400,
+                  ecut=50,
                   ecut_extrapolation=True,
                   integrate_gamma='WS',
                   mpa=calc_dict[npols],
