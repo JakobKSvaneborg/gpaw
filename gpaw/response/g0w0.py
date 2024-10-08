@@ -476,7 +476,7 @@ class G0W0Calculator:
                  exx_vxc_calculator,
                  qcache,
                  ppa=False,
-                 mpa=False,
+                 mpa=None,
                  evaluate_sigma=None):
         """G0W0 calculator, initialized through G0W0 object.
 
