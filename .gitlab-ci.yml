@@ -544,10 +544,10 @@ typecheck:
 
 
 docs:
-  image: $IMAGE_MAIN_OLDEST
+  image: $IMAGE_MAIN_LATEST
   stage: test
   needs:
-    - build
+    - build-latest
   tags:
     - linux
   script:

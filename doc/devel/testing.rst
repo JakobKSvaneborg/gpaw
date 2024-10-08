@@ -173,5 +173,5 @@ GPAW web-pages should start with a special ``# web-page:`` comment like this::
     # code that creates fig1.png and table1.csv
     ...
 
-.. _workflow: https://myqueue.readthedocs.io/en/latest/
+.. _workflow: https://myqueue.readthedocs.io/
     workflows.html
