@@ -535,10 +535,11 @@ class G0W0Calculator:
             alpha: exponent of the power distribution of points along the real
                    frequency axis [PRB 107, 155130 (2023)]
         evaluate_sigma: array(float)
-            List of frequencies (in eV), where to evaluate the frequency dependent
-            self energy for each k-point and band involved in the sigma-evaluation.
-            This will be done in addition to evaluating the normal
-            self-energy quasiparticle matrix elements in G0W0 approximation.
+            List of frequencies (in eV), where to evaluate the frequency
+            dependent self energy for each k-point and band involved in the
+            sigma-evaluation. This will be done in addition to evaluating the
+            normal self-energy quasiparticle matrix elements in G0W0
+            approximation.
         """
         self.chi0calc = chi0calc
         self.wcalc = wcalc
@@ -677,7 +678,7 @@ class G0W0Calculator:
     def calculate(self, qpoints=None):
         """Starts the G0W0 calculation.
 
-        qpoints:
+        qpoints: list[int]
             Set of q-points to calculate.
 
         Returns a dict with the results with the following key/value pairs:

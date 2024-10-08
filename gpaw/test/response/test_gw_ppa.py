@@ -6,11 +6,11 @@ from ase.units import Hartree as Ha
 
 @pytest.mark.response
 def test_ff(in_tmp_dir, gpw_files, scalapack):
-    ref_result = np.asarray([[[11.290542, 21.613643],
-                              [5.356609, 16.065227],
-                              [8.751158, 23.156368]]])
+    ref_result = np.array([[[11.290542, 21.613643],
+                            [5.356609, 16.065227],
+                            [8.751158, 23.156368]]])
 
-    sigma_ref = np.asarray([[[[
+    sigma_ref = np.array([[[[
         [-54.28131992 - 1.49405384e+01j, -3.99297594 - 3.34138144e+00j],
         [77.53444946 - 5.26294522e+01j, 0.34158023 - 5.43942159e+00j],
         [21.00968396 - 5.90428409e+00j, 1.79222844 - 5.45107415e-02j],
@@ -58,12 +58,12 @@ def test_ff(in_tmp_dir, gpw_files, scalapack):
 @pytest.mark.response
 @pytest.mark.parametrize("mpa", [True, False])
 def test_mpa_and_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
-    ref_result = {False: np.asarray([[[11.30094393, 21.62842077],
-                                      [5.33751513, 16.06905725],
-                                      [8.75269938, 22.46579489]]]),
-                  True: np.asarray([[[11.303942, 21.624428],
-                                     [5.346694, 16.06346],
-                                     [8.7589, 22.461506]]])}[mpa]
+    ref_result = {False: np.array([[[11.30094393, 21.62842077],
+                                    [5.33751513, 16.06905725],
+                                    [8.75269938, 22.46579489]]]),
+                  True: np.array([[[11.303942, 21.624428],
+                                   [5.346694, 16.06346],
+                                   [8.7589, 22.461506]]])}[mpa]
     mpa_dict = {'npoles': 1, 'wrange': [0, 0],
                 'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 10000 * Ha,
                 'alpha': 1}
