@@ -7,7 +7,7 @@ from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
-from gpaw.new.pwfd.davidson import Davidson
+from gpaw.new.pwfd.eigensolver import create_eigensolver
 from gpaw.new.pwfd.etdm import ETDMPWFD
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
