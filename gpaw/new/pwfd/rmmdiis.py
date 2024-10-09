@@ -1,42 +1,44 @@
+from __future__ import annotations
+
 from functools import partial
+from pprint import pformat
 
 import numpy as np
 
-from gpaw.utilities.blas import axpy
-from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw import debug
+from gpaw.core.matrix import Matrix
+from gpaw.gpu import as_np
+from gpaw.mpi import broadcast_exception
+from gpaw.new import trace, zips
+from gpaw.new.pwfd.eigensolver import PWFDEigensolver
+from gpaw.new.hamiltonian import Hamiltonian
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.typing import Array2D
 
 
-class RMMDIIS(Eigensolver):
-    """RMM-DIIS eigensolver
-
-    It is expected that the trial wave functions are orthonormal
-    and the integrals of projector functions and wave functions
-    ``nucleus.P_uni`` are already calculated
-
-    Solution steps are:
-
-    * Subspace diagonalization
-    * Calculation of residuals
-    * Improvement of wave functions:  psi' = psi + lambda PR + lambda PR'
-    * Orthonormalization"""
-
-    def __init__(self, rtol=1e-16):
-
-        Eigensolver.__init__(self, keep_htpsit, blocksize)
+class RMMDIIS(PWFDEigensolver):
+    def __init__(self,
+                 nbands: int,
+                 wf_grid,
+                 band_comm,
+                 preconditioner_factory,
+                 niter=2,
+                 blocksize=10,
+                 converge_bands='occupied',
+                 scalapack_parameters=None):
         self.niter = niter
-        self.rtol = rtol
-        self.limit_lambda = limit_lambda
-        self.use_rayleigh = use_rayleigh
-        if use_rayleigh:
-            1 / 0
-            self.blocksize = 1
-        self.trial_step = trial_step
-        self.first = True
+        self.converge_bands = converge_bands
 
-    def todict(self):
-        return {'name': 'rmm-diis', 'niter': self.niter}
+        self.H_NN = None
+        self.S_NN = None
+        self.M_nn = None
+        self.work_arrays: np.ndarray | None = None
 
-    def initialize(self, wfs):
+        self.preconditioner = None
+        self.preconditioner_factory = preconditioner_factory
+        self.blocksize = blocksize
+
+        ...
         if self.blocksize is None:
             if wfs.mode == 'pw':
                 S = wfs.pd.comm.size
@@ -44,11 +46,83 @@ class RMMDIIS(Eigensolver):
                 self.blocksize = int(np.ceil(10 / S)) * S
             else:
                 self.blocksize = 10
-        Eigensolver.initialize(self, wfs)
 
-    def iterate_one_k_point(self, ham, wfs, kpt, weights):
-        """Do a single RMM-DIIS iteration for the kpoint"""
+    def __str__(self):
+        return pformat(dict(name='Davidson',
+                            niter=self.niter,
+                            converge_bands=self.converge_bands))
 
+    def _initialize(self, ibzwfs):
+        # First time: allocate work-arrays
+        wfs = ibzwfs.wfs_qs[0][0]
+        assert isinstance(wfs, PWFDWaveFunctions)
+        xp = wfs.psit_nX.xp
+        self.preconditioner = self.preconditioner_factory(self.blocksize,
+                                                          xp=xp)
+        B = ibzwfs.nbands
+        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
+        domain_comm = wfs.psit_nX.desc.comm
+        band_comm = wfs.band_comm
+        shape = ibzwfs.get_max_shape()
+        shape = (2, b) + shape
+        dtype = wfs.psit_nX.data.dtype
+        self.work_arrays = xp.empty(shape, dtype)
+
+        dtype = wfs.psit_nX.desc.dtype
+        if domain_comm.rank == 0 and band_comm.rank == 0:
+            self.H_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
+            self.S_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
+        else:
+            self.H_NN = self.S_NN = Matrix(0, 0)
+
+        self.M_nn = Matrix(B, B, dtype,
+                           dist=(band_comm, band_comm.size),
+                           xp=xp)
+
+    @trace
+    def iterate(self,
+                ibzwfs,
+                density,
+                potential,
+                hamiltonian: Hamiltonian) -> float:
+        """Iterate on state given fixed hamiltonian.
+
+        Returns
+        -------
+        float:
+            Weighted error of residuals:::
+
+                   ~     ~ ~
+              R = (H - ε S)ψ
+               n        n   n
+        """
+
+        if self.work_arrays is None:
+            self._initialize(ibzwfs)
+
+        assert self.M_nn is not None
+
+        wfs = ibzwfs.wfs_qs[0][0]
+        dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
+                                                    wfs.xp)
+        dH = potential.dH
+        Ht = partial(hamiltonian.apply,
+                     potential.vt_sR,
+                     potential.dedtaut_sR,
+                     ibzwfs, density.D_asii)  # used by hybrids
+
+        weight_un = calculate_weights(self.converge_bands, ibzwfs)
+
+        error = 0.0
+        with broadcast_exception(ibzwfs.kpt_comm):
+            for wfs, weight_n in zips(ibzwfs, weight_un):
+                e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
+                error += wfs.weight * e
+        return ibzwfs.kpt_band_comm.sum_scalar(
+            float(error)) * ibzwfs.spin_degeneracy
+
+    @trace
+    def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         self.subspace_diagonalize(ham, wfs, kpt)
 
         psit = kpt.psit
@@ -91,8 +165,7 @@ class RMMDIIS(Eigensolver):
             n_x = np.arange(n1, n2)
             psitb = psit.view(n1, n2)
 
-            with self.timer('Calculate residuals'):
-                Rb = R.view(n1, n2)
+            Rb = R.view(n1, n2)
 
             errors_x[:] = 0.0
             for n in range(n1, n2):
@@ -103,61 +176,38 @@ class RMMDIIS(Eigensolver):
             error += np.sum(errors_x)
 
             # Precondition the residual:
-            with self.timer('precondition'):
-                ekin_x = self.preconditioner.calculate_kinetic_energy(
-                    psitb.array, kpt)
-                self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
+            ekin_x = self.preconditioner.calculate_kinetic_energy(
+                psitb.array, kpt)
+            self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
 
             # Calculate the residual of dpsit_G, dR_G = (H - e S) dpsit_G:
             # self.timer.start('Apply Hamiltonian')
             dpsit.apply(Ht, out=dR)
             # self.timer.stop('Apply Hamiltonian')
-            with self.timer('projections'):
-                dpsit.matrix_elements(wfs.pt, out=P)
+            dpsit.matrix_elements(wfs.pt, out=P)
 
-            with self.timer('Calculate residuals'):
-                self.calculate_residuals(kpt, wfs, ham, dpsit,
-                                         P, kpt.eps_n[n_x], dR, P2, n_x,
-                                         calculate_change=True)
+            self.calculate_residuals(kpt, wfs, ham, dpsit,
+                                     P, kpt.eps_n[n_x], dR, P2, n_x,
+                                     calculate_change=True)
 
             # Find lam that minimizes the norm of R'_G = R_G + lam dR_G
-            with self.timer('Find lambda'):
-                RdR_x = np.array([integrate(dR_G, R_G)
-                                  for R_G, dR_G in zip(Rb.array, dR.array)])
-                dRdR_x = np.array([integrate(dR_G, dR_G) for dR_G in dR.array])
-                comm.sum(RdR_x)
-                comm.sum(dRdR_x)
-                lam_x = -RdR_x / dRdR_x
+            RdR_x = np.array([integrate(dR_G, R_G)
+                              for R_G, dR_G in zip(Rb.array, dR.array)])
+            dRdR_x = np.array([integrate(dR_G, dR_G) for dR_G in dR.array])
+            comm.sum(RdR_x)
+            comm.sum(dRdR_x)
+            lam_x = -RdR_x / dRdR_x
 
             # New trial wavefunction and residual
-            with self.timer('Update psi'):
-                for lam, psit_G, dpsit_G, R_G, dR_G in zip(
-                        lam_x, psitb.array,
-                        dpsit.array, Rb.array,
-                        dR.array):
-                    axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
-                    axpy(lam, dR_G, R_G)  # R_G += lam** dR_G
+            for lam, psit_G, dpsit_G, R_G, dR_G in zip(
+                lam_x, psitb.array,
+                dpsit.array, Rb.array,
+                dR.array):
+            axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
+            axpy(lam, dR_G, R_G)  # R_G += lam** dR_G
 
             # Final trial step
-            with self.timer('precondition'):
-                self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
+            self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
 
-            self.timer.start('Update psi')
-            if self.trial_step is not None:
-                lam_x[:] = self.trial_step
             for lam, psit_G, dpsit_G in zip(lam_x, psitb.array, dpsit.array):
                 axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
-            self.timer.stop('Update psi')
-
-        self.timer.stop('RMM-DIIS')
-        return error
-
-    def __repr__(self):
-        repr_string = 'RMM-DIIS eigensolver\n'
-        repr_string += '       keep_htpsit: %s\n' % self.keep_htpsit
-        repr_string += '       DIIS iterations: %d\n' % self.niter
-        repr_string += '       Threshold for DIIS: %5.1e\n' % self.rtol
-        repr_string += '       Limit lambda: %s\n' % self.limit_lambda
-        repr_string += '       use_rayleigh: %s\n' % self.use_rayleigh
-        repr_string += '       trial_step: %s' % self.trial_step
-        return repr_string
