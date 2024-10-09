@@ -110,7 +110,10 @@ Wednesday
 
   **Tuomas Rossi**
 
-  *Compiling for AMD and NVIDIA*
+  *Building GPAW for AMD and NVIDIA GPUs*
+
+  I will discuss the portability approach in GPAW to support both
+  NVIDIA and AMD GPUs.
 
 :14:50:
 
