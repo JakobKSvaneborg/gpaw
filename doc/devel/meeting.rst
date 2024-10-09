@@ -9,7 +9,7 @@ When:
 Announcement:
   https://listserv.fysik.dtu.dk/pipermail/gpaw-users/2024-September/007312.html
 Zoom:
-    https://dtudk.zoom.us/j/61353636155?pwd=DbeVAklaZKPo3aZAjrUfLrbfbdKJdb.1
+    https://dtudk.zoom.us/j/68759562007?pwd=KbVH4IADa6z9o83SWGvEviRfpZiQas.1
 
 .. note::
 
