@@ -181,9 +181,9 @@ Interactive jobs can be run like this::
 
 One-liners to run GPU tests::
 
-  n=1; srun   -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 gpaw python -m pytest venv-gpaw-gpu/lib/python3.11/site-packages/gpaw/test/ -v -m gpu --basetemp=$PWD/tmp/pytest-gpu-$n --disable-pytest-warnings
+  n=1; srun   -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 gpaw python -m pytest venv-gpaw-gpu/lib/python3.11/site-packages/gpaw/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings
   # or:
-  n=1; sbatch -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 -J pytest-gpu-$n -o %x.out --wrap="srun gpaw python -m pytest venv-gpaw-gpu/lib/python3.11/site-packages/gpaw/test/ -v -m gpu --basetemp=$PWD/tmp/pytest-gpu-$n --disable-pytest-warnings"
+  n=1; sbatch -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 -J pytest-gpu-$n -o %x.out --wrap="srun gpaw python -m pytest venv-gpaw-gpu/lib/python3.11/site-packages/gpaw/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings"
 
 
 Omnitrace
@@ -286,7 +286,7 @@ Two-liner to run tests::
   # Generate gpw files to cache
   srun -p small --nodes=1 --ntasks-per-node=1 --mem-per-cpu=4G -t 01:00:00 gpaw python -m pytest venv-gpaw-cpu/lib/python3.11/site-packages/gpaw/test/test_generate_gpwfiles.py -v -o cache_dir=$PWD/pytest_cache --disable-pytest-warnings
   # Wait and then submit tests
-  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n --mem-per-cpu=4G -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun gpaw python -m pytest venv-gpaw-cpu/lib/python3.11/site-packages/gpaw/test/ -v -o cache_dir=$PWD/pytest_cache --basetemp=$PWD/tmp/pytest-cpu-$n --disable-pytest-warnings"; done
+  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n --mem-per-cpu=4G -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun gpaw python -m pytest venv-gpaw-cpu/lib/python3.11/site-packages/gpaw/test/ -v -o cache_dir=$PWD/pytest_cache --basetemp=$PWD/tmp-pytest-cpu-$n --disable-pytest-warnings"; done
 
 
 Configuring MyQueue
