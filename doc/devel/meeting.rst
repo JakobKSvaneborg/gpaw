@@ -145,3 +145,11 @@ Wednesday
   **Vladimír Zobač**
 
   *Ehrenfest molecular dynamics with LCAO basis*
+
+:16:40:
+
+  *General discussion*
+
+:17:05:
+
+  *The end*
