@@ -24,6 +24,7 @@ e = atoms.get_potential_energy()
 # unoccupied states converge often better with cg
 calc = calc.fixed_density(
     nbands=20,
+    update_fermi_level=True,  # gs has only one filled band: fermi-level is inf
     convergence={'bands': 20},
     eigensolver='cg')
 
