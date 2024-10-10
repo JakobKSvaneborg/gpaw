@@ -4,15 +4,11 @@ from functools import partial
 from pprint import pformat
 
 import numpy as np
+
 from gpaw import debug
-from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_exception
-from gpaw.new import trace, zips
-from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.pwfd.eigensolver import (PWFDEigensolver, calculate_residuals,
-                                       calculate_weights)
-from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.typing import Array2D
 
 
@@ -43,76 +39,6 @@ class Davidson(PWFDEigensolver):
                             niter=self.niter,
                             converge_bands=self.converge_bands))
 
-    def _initialize(self, ibzwfs):
-        # First time: allocate work-arrays
-        wfs = ibzwfs.wfs_qs[0][0]
-        assert isinstance(wfs, PWFDWaveFunctions)
-        xp = wfs.psit_nX.xp
-        self.preconditioner = self.preconditioner_factory(self.blocksize,
-                                                          xp=xp)
-        B = ibzwfs.nbands
-        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
-        domain_comm = wfs.psit_nX.desc.comm
-        band_comm = wfs.band_comm
-        shape = ibzwfs.get_max_shape()
-        shape = (2, b) + shape
-        dtype = wfs.psit_nX.data.dtype
-        self.work_arrays = xp.empty(shape, dtype)
-
-        dtype = wfs.psit_nX.desc.dtype
-        if domain_comm.rank == 0 and band_comm.rank == 0:
-            self.H_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
-            self.S_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
-        else:
-            self.H_NN = self.S_NN = Matrix(0, 0)
-
-        self.M_nn = Matrix(B, B, dtype,
-                           dist=(band_comm, band_comm.size),
-                           xp=xp)
-
-    @trace
-    def iterate(self,
-                ibzwfs,
-                density,
-                potential,
-                hamiltonian: Hamiltonian) -> float:
-        """Iterate on state given fixed hamiltonian.
-
-        Returns
-        -------
-        float:
-            Weighted error of residuals:::
-
-                   ~     ~ ~
-              R = (H - ε S)ψ
-               n        n   n
-        """
-
-        if self.work_arrays is None:
-            self._initialize(ibzwfs)
-
-        assert self.M_nn is not None
-
-        wfs = ibzwfs.wfs_qs[0][0]
-        dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
-                                                    wfs.xp)
-        dH = potential.dH
-        Ht = partial(hamiltonian.apply,
-                     potential.vt_sR,
-                     potential.dedtaut_sR,
-                     ibzwfs, density.D_asii)  # used by hybrids
-
-        weight_un = calculate_weights(self.converge_bands, ibzwfs)
-
-        error = 0.0
-        with broadcast_exception(ibzwfs.kpt_comm):
-            for wfs, weight_n in zips(ibzwfs, weight_un):
-                e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
-                error += wfs.weight * e
-        return ibzwfs.kpt_band_comm.sum_scalar(
-            float(error)) * ibzwfs.spin_degeneracy
-
-    @trace
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN
         S_NN = self.S_NN

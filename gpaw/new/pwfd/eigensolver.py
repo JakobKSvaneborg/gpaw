@@ -17,8 +17,11 @@ from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.typing import Array1D, Array2D
+from gpaw.typing import Array1D
 from gpaw.utilities.blas import axpy
+from gpaw.new.pwfd.davidson import Davidson
+from gpaw.new.pwfd.rmmdiis import RMMDIIS
+from gpaw.new.pwfd.etdm import ETDMPWFD
 
 
 def create_eigensolver(name,
@@ -28,6 +31,8 @@ def create_eigensolver(name,
                        comm,
                        create_preconditioner,
                        converge_bands,
+                       setups,
+                       atoms,
                        **kwargs):
     if name == 'dav':
         return Davidson(
@@ -37,11 +42,20 @@ def create_eigensolver(name,
             create_preconditioner,
             converge_bands,
             **kwargs)
-        from gpaw.directmin.etdm_fdpw import FDPWETDM
-        return ETDMPWFD(self.setups,
-                        self.communicators['w'],
-                        self.atoms,
-                        FDPWETDM(**eigsolv_params))
+    if name == 'rmmdiis':
+        return RMMDIIS(
+            nbands,
+            wf_desc,
+            band_comm,
+            create_preconditioner,
+            converge_bands,
+            **kwargs)
+    from gpaw.directmin.etdm_fdpw import FDPWETDM
+    return ETDMPWFD(setups,
+                    comm,
+                    atoms,
+                    FDPWETDM(**kwargs))
+
 
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
