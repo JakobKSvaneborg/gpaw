@@ -7,7 +7,7 @@ def workflow():
             run(script='plot_Si.py')
 
     with run(script='gs_MoS2.py', cores=4, tmax='1h'):
-        with run(script='pol_MoS2.py', cores=56, tmax='2h'):
+        with run(script='pol_MoS2.py', cores=56, tmax='12h'):
             run(script='plot_MoS2.py')
         with run(script='get_2d_eps.py', tmax='2h'):
             run(script='plot_2d_eps.py')
