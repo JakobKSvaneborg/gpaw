@@ -463,7 +463,7 @@ class AtomArrays:
             if r == comm.rank:
                 new[a][:] = self[a]
             else:
-                requests.append(comm.send(np.ascontiguousarray(self[a]),
+                requests.append(comm.send(self.layout.xp.ascontiguousarray(self[a]),
                                           r, block=False))
 
         for a, I1, I2 in layout.myindices:
