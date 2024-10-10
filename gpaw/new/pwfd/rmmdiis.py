@@ -23,122 +23,37 @@ class RMMDIIS(PWFDEigensolver):
                  band_comm,
                  preconditioner_factory,
                  niter=2,
-                 blocksize=10,
+                 blocksize=None,
                  converge_bands='occupied',
                  scalapack_parameters=None):
-        self.niter = niter
-        self.converge_bands = converge_bands
+        if blocksize is None and isinstance(wf_grid, PWDesc):
+            S = wf_grid.comm.size
+            # Use a multiple of S for maximum efficiency
+            blocksize = int(np.ceil(10 / S)) * S
+        else:
+            blocksize = 10
 
-        self.H_NN = None
-        self.S_NN = None
-        self.M_nn = None
-        self.work_arrays: np.ndarray | None = None
-
-        self.preconditioner = None
-        self.preconditioner_factory = preconditioner_factory
-        self.blocksize = blocksize
-
-        ...
-        if self.blocksize is None:
-            if wfs.mode == 'pw':
-                S = wfs.pd.comm.size
-                # Use a multiple of S for maximum efficiency
-                self.blocksize = int(np.ceil(10 / S)) * S
-            else:
-                self.blocksize = 10
+        super().__init__(
+            preconditioner_factory,
+            niter,
+            blocksize,
+            converge_bands)
 
     def __str__(self):
-        return pformat(dict(name='Davidson',
-                            niter=self.niter,
+        return pformat(dict(name='RMMDIIS',
                             converge_bands=self.converge_bands))
 
     def _initialize(self, ibzwfs):
-        # First time: allocate work-arrays
-        wfs = ibzwfs.wfs_qs[0][0]
-        assert isinstance(wfs, PWFDWaveFunctions)
-        xp = wfs.psit_nX.xp
-        self.preconditioner = self.preconditioner_factory(self.blocksize,
-                                                          xp=xp)
-        B = ibzwfs.nbands
-        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
-        domain_comm = wfs.psit_nX.desc.comm
-        band_comm = wfs.band_comm
-        shape = ibzwfs.get_max_shape()
-        shape = (2, b) + shape
-        dtype = wfs.psit_nX.data.dtype
-        self.work_arrays = xp.empty(shape, dtype)
-
-        dtype = wfs.psit_nX.desc.dtype
-        if domain_comm.rank == 0 and band_comm.rank == 0:
-            self.H_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
-            self.S_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
-        else:
-            self.H_NN = self.S_NN = Matrix(0, 0)
-
-        self.M_nn = Matrix(B, B, dtype,
-                           dist=(band_comm, band_comm.size),
-                           xp=xp)
-
-    @trace
-    def iterate(self,
-                ibzwfs,
-                density,
-                potential,
-                hamiltonian: Hamiltonian) -> float:
-        """Iterate on state given fixed hamiltonian.
-
-        Returns
-        -------
-        float:
-            Weighted error of residuals:::
-
-                   ~     ~ ~
-              R = (H - ε S)ψ
-               n        n   n
-        """
-
-        if self.work_arrays is None:
-            self._initialize(ibzwfs)
-
-        assert self.M_nn is not None
-
-        wfs = ibzwfs.wfs_qs[0][0]
-        dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
-                                                    wfs.xp)
-        dH = potential.dH
-        Ht = partial(hamiltonian.apply,
-                     potential.vt_sR,
-                     potential.dedtaut_sR,
-                     ibzwfs, density.D_asii)  # used by hybrids
-
-        weight_un = calculate_weights(self.converge_bands, ibzwfs)
-
-        error = 0.0
-        with broadcast_exception(ibzwfs.kpt_comm):
-            for wfs, weight_n in zips(ibzwfs, weight_un):
-                e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
-                error += wfs.weight * e
-        return ibzwfs.kpt_band_comm.sum_scalar(
-            float(error)) * ibzwfs.spin_degeneracy
+        super()._initialize(ibzwfs)
+        ...
 
     @trace
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
-        self.subspace_diagonalize(ham, wfs, kpt)
+        wfs.subspace_diagonalize(Ht, dH,
+                                 work_array=psit2_nX.data,
+                                 Htpsit_nX=psit3_nX)
 
-        psit = kpt.psit
-        # psit2 = psit.new(buf=wfs.work_array)
-        P = kpt.projections
-        P2 = P.new()
-        # dMP = P.new()
-        # M_nn = wfs.work_matrix_nn
-        # dS = wfs.setups.dS
-        R = psit.new(buf=self.Htpsit_nG)
-
-        self.calculate_residuals(kpt, wfs, ham, psit, P, kpt.eps_n,
-                                 R, P2)
-
-        def integrate(a_G, b_G):
-            return np.real(wfs.integrate(a_G, b_G, global_integral=False))
+        calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
 
         comm = wfs.gd.comm
 

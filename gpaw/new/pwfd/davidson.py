@@ -10,6 +10,8 @@ from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_exception
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.typing import Array2D
+from gpaw.core.matrix import Matrix
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 class Davidson(PWFDEigensolver):
@@ -18,26 +20,50 @@ class Davidson(PWFDEigensolver):
                  wf_grid,
                  band_comm,
                  preconditioner_factory,
+                 converge_bands='occupied',
                  niter=2,
                  blocksize=10,
-                 converge_bands='occupied',
                  scalapack_parameters=None):
-        self.niter = niter
-        self.converge_bands = converge_bands
+        super().__init__(
+            preconditioner_factory,
+            niter,
+            blocksize,
+            converge_bands)
 
         self.H_NN = None
         self.S_NN = None
         self.M_nn = None
         self.work_arrays: np.ndarray | None = None
 
-        self.preconditioner = None
-        self.preconditioner_factory = preconditioner_factory
-        self.blocksize = blocksize
-
     def __str__(self):
         return pformat(dict(name='Davidson',
                             niter=self.niter,
                             converge_bands=self.converge_bands))
+
+    def _initialize(self, ibzwfs):
+        super()._initialize(ibzwfs)
+        B = ibzwfs.nbands
+        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
+        wfs = ibzwfs.wfs_qs[0][0]
+        assert isinstance(wfs, PWFDWaveFunctions)
+        domain_comm = wfs.psit_nX.desc.comm
+        band_comm = wfs.band_comm
+        shape = ibzwfs.get_max_shape()
+        shape = (2, b) + shape
+        dtype = wfs.psit_nX.data.dtype
+        xp = wfs.psit_nX.xp
+        self.work_arrays = xp.empty(shape, dtype)
+
+        dtype = wfs.psit_nX.desc.dtype
+        if domain_comm.rank == 0 and band_comm.rank == 0:
+            self.H_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
+            self.S_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
+        else:
+            self.H_NN = self.S_NN = Matrix(0, 0)
+
+        self.M_nn = Matrix(B, B, dtype,
+                           dist=(band_comm, band_comm.size),
+                           xp=xp)
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN

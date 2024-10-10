@@ -7,8 +7,7 @@ from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
-from gpaw.new.pwfd.eigensolver import create_eigensolver
-from gpaw.new.pwfd.etdm import ETDMPWFD
+from gpaw.new.pwfd.eigensolver import create_eigensolver as make_eigensolver
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
@@ -19,22 +18,16 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                           qspiral @ self.grid.icell * (2 * pi))
 
     def create_eigensolver(self, hamiltonian):
-        eigsolv_params = self.params.eigensolver.copy()
-        name = eigsolv_params.pop('name', 'dav')
-        if name == 'dav':
-            return Davidson(
-                self.nbands,
-                self.wf_desc,
-                self.communicators['b'],
-                hamiltonian.create_preconditioner,
-                converge_bands=self.params.convergence.get('bands',
-                                                           'occupied'),
-                **eigsolv_params)
-        from gpaw.directmin.etdm_fdpw import FDPWETDM
-        return ETDMPWFD(self.setups,
-                        self.communicators['w'],
-                        self.atoms,
-                        FDPWETDM(**eigsolv_params))
+        return make_eigensolver(
+            self.nbands,
+            self.wf_desc,
+            self.communicators['b'],
+            self.communicators['w'],
+            hamiltonian.create_preconditioner,
+            self.params.convergence.get('bands', 'occupied'),
+            self.setups,
+            self.atoms,
+            **self.params.eigensolver)
 
     def read_ibz_wave_functions(self, reader):
         kpt_comm, band_comm, domain_comm = (self.communicators[x]

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import partial
-from pprint import pformat
 from typing import Callable
 
 import numpy as np
@@ -9,7 +8,6 @@ from ase.units import Ha
 
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_centered_functions import AtomArrays
-from gpaw.core.matrix import Matrix
 from gpaw.mpi import broadcast_exception, broadcast_float
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
@@ -19,13 +17,9 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array1D
 from gpaw.utilities.blas import axpy
-from gpaw.new.pwfd.davidson import Davidson
-from gpaw.new.pwfd.rmmdiis import RMMDIIS
-from gpaw.new.pwfd.etdm import ETDMPWFD
 
 
-def create_eigensolver(name,
-                       nbands,
+def create_eigensolver(nbands,
                        wf_desc,
                        band_comm,
                        comm,
@@ -33,8 +27,10 @@ def create_eigensolver(name,
                        converge_bands,
                        setups,
                        atoms,
+                       name='dav',
                        **kwargs):
     if name == 'dav':
+        from gpaw.new.pwfd.davidson import Davidson
         return Davidson(
             nbands,
             wf_desc,
@@ -43,6 +39,7 @@ def create_eigensolver(name,
             converge_bands,
             **kwargs)
     if name == 'rmmdiis':
+        from gpaw.new.pwfd.rmmdiis import RMMDIIS
         return RMMDIIS(
             nbands,
             wf_desc,
@@ -51,6 +48,7 @@ def create_eigensolver(name,
             converge_bands,
             **kwargs)
     from gpaw.directmin.etdm_fdpw import FDPWETDM
+    from gpaw.new.pwfd.etdm import ETDMPWFD
     return ETDMPWFD(setups,
                     comm,
                     atoms,
@@ -59,30 +57,16 @@ def create_eigensolver(name,
 
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
-                 nbands: int,
-                 wf_grid,
-                 band_comm,
                  preconditioner_factory,
                  niter=2,
                  blocksize=10,
-                 converge_bands='occupied',
-                 scalapack_parameters=None):
+                 converge_bands='occupied'):
         self.niter = niter
         self.converge_bands = converge_bands
-
-        self.H_NN = None
-        self.S_NN = None
-        self.M_nn = None
-        self.work_arrays: np.ndarray | None = None
 
         self.preconditioner = None
         self.preconditioner_factory = preconditioner_factory
         self.blocksize = blocksize
-
-    def __str__(self):
-        return pformat(dict(name='Davidson',
-                            niter=self.niter,
-                            converge_bands=self.converge_bands))
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -91,25 +75,6 @@ class PWFDEigensolver(Eigensolver):
         xp = wfs.psit_nX.xp
         self.preconditioner = self.preconditioner_factory(self.blocksize,
                                                           xp=xp)
-        B = ibzwfs.nbands
-        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
-        domain_comm = wfs.psit_nX.desc.comm
-        band_comm = wfs.band_comm
-        shape = ibzwfs.get_max_shape()
-        shape = (2, b) + shape
-        dtype = wfs.psit_nX.data.dtype
-        self.work_arrays = xp.empty(shape, dtype)
-
-        dtype = wfs.psit_nX.desc.dtype
-        if domain_comm.rank == 0 and band_comm.rank == 0:
-            self.H_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
-            self.S_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
-        else:
-            self.H_NN = self.S_NN = Matrix(0, 0)
-
-        self.M_nn = Matrix(B, B, dtype,
-                           dist=(band_comm, band_comm.size),
-                           xp=xp)
 
     @trace
     def iterate(self,
