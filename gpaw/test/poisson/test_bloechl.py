@@ -1,6 +1,7 @@
 from math import pi
 
 import numpy as np
+import pytest
 from ase import Atoms
 from scipy.special import erf
 
@@ -14,11 +15,13 @@ from gpaw.new.pw.poisson import PWPoissonSolver
 
 
 def g(rc, rgd):
+    """Gaussian."""
     return rgd.spline(4 / rc**3 / np.pi**0.5 * np.exp(-(rgd.r_g / rc)**2),
                       l=0)
 
 
 def c(r, rc1, rc2):
+    """Coulomb interaction between 2 gaussians."""
     a1 = 1 / rc1**2
     a2 = 1 / rc2**2
     f = 2 * (pi**5 / (a1 + a2))**0.5 / (a1 * a2)
@@ -31,7 +34,7 @@ def c(r, rc1, rc2):
 
 
 def test_psolve():
-    """Unit-test for Blöchl's fast Poisson-solver (WIP)."""
+    """Unit-test for Blöchl's fast Poisson-solver."""
     rgd = RGD(0.01, 500)
     rc1 = 0.6
     rc2 = 0.7
@@ -48,7 +51,6 @@ def test_psolve():
     C_ai.data[:] = [0.9, 0.7]
     C_ai.data *= 1.0 / (4.0 * np.pi)**0.5
     g_aig.add_to(nt_g, C_ai)
-    # print(nt_g.integrate())
 
     charges = [(0.9, rc1, 0.0),
                (0.7, rc2, d12),
@@ -70,33 +72,23 @@ def test_psolve():
     Q_aL.data[:] = 0.0
     for a, C_i in C_ai.items():
         Q_aL[a][0] = -C_i[0]
-    vt_g = pw.zeros()
-    e1, vHt_g, V_aL = spps.solve(nt_g, Q_aL, vt_g)
+    vt1_g = pw.zeros()
+    e1, vHt_g, V1_aL = spps.solve(nt_g, Q_aL, vt1_g)
+    F1_av = spps.force_contribution(Q_aL, vHt_g, nt_g)
+    assert e1 == pytest.approx(e0, abs=1e-9)
     print('simple', e1, e1 - e0)
-    print(V_aL.data[::9])
-    print(vt_g.data[:5])
     print(spps.force_contribution(Q_aL, vHt_g, nt_g))
 
     pps = BloechlPAWPoissonSolver(
         pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
-    vt_g = pw.zeros()
-    e2, vHt_g, V_aL = pps.solve(nt_g, Q_aL, vt_g)
+    vt2_g = pw.zeros()
+    e2, vHt_g, V2_aL = pps.solve(nt_g, Q_aL, vt2_g)
+    F2_av = pps.force_contribution(Q_aL, vHt_g, nt_g)
+    assert e2 == pytest.approx(e0, abs=1e-8)
     print('\nfast  ', e2, e2 - e0)
-    print(V_aL.data[::9])
-    print(vt_g.data[:5])
-    print(pps.force_contribution(Q_aL, vHt_g, nt_g))
-
-    charges = [(0.9, rc1, 0.0),
-               (0.7, rc2, d12),
-               (-0.9, 0.8, 0.0),
-               (-0.7, 0.8, d12)]
-    e20 = 0.0
-    for q1, r1, p1 in charges:
-        for q2, r2, p2 in charges:
-            d = abs(p1 - p2)
-            e12 = 0.5 * q1 * q2 * c(d, r1, r2) / (4 * np.pi)**2
-            # print(q1, q2, rc1, rc2, d, e12)
-            e20 += e12
+    assert V2_aL.data[::9] == pytest.approx(V1_aL.data[::9], abs=1e-7)
+    assert vt2_g.data[:5] == pytest.approx(vt1_g.data[:5], abs=1e-10)
+    assert F1_av == pytest.approx(F2_av, abs=3e-6)
 
     if 0:
         ps = PWPoissonSolver(pw.new(gcut=2 * gcut))
@@ -128,6 +120,6 @@ def fast_slow(fast):
 
 
 if __name__ == '__main__':
-    test_psolve()
-    # import sys
-    # fast_slow(int(sys.argv[1]))
+    # test_psolve()
+    import sys
+    fast_slow(int(sys.argv[1]))

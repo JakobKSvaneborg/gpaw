@@ -26,8 +26,8 @@ Git master branch
   return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
   or **k**-point weights (use ``raw=True``).
 
-* Faster and less memory hungy Poisson solver in PW-mode.  For details,
-  ee equations 25-28 in :doi:`P. E. Blöchl: Projector augmented-wave method
+* Faster and less memory hungry Poisson-solver in PW-mode.  For details,
+  see equations 25-28 in :doi:`P. E. Blöchl: Projector augmented-wave method
   Phys. Rev. B 50, 17953 (1994) <0.1103/PhysRevB.50.17953>`.  Use
   ``poissonsolver={'fast': True}`` to try it.
 
