@@ -347,7 +347,7 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
 
 # %%
 """
-The following cell submits a calculation using [`myqueue`](https://myqueue.readthedocs.io/en/latest/).
+The following cell submits a calculation using [`myqueue`](https://myqueue.readthedocs.io/).
 
 """
 

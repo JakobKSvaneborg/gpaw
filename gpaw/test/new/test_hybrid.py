@@ -2,6 +2,19 @@ import pytest
 from ase import Atoms
 from gpaw import GPAW
 from gpaw.mpi import size
+import numpy as np
+
+
+def test_pawexxvv():
+    from gpaw.hybrids.paw import python_pawexxvv
+    from _gpaw import pawexxvv
+    for i in range(20):
+        D_ii = np.random.rand(i, i)
+        p = i * (i + 1) // 2
+        M_pp = np.random.rand(p, p)
+        V_ii = python_pawexxvv(M_pp, D_ii)
+        V2_ii = pawexxvv(M_pp, D_ii)
+        assert np.allclose(V_ii, V2_ii)
 
 
 def test_hse06(gpaw_new):

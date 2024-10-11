@@ -16,8 +16,8 @@ Announcement:
    to solve and the challenges implementing those in the code.
 
 
-Preliminary program
-===================
+Program
+=======
 
 Tuesday
 -------
@@ -27,6 +27,7 @@ Tuesday
   **Jens Jørgen Mortensen**
 
   *Modernizing the code-base*
+  (`slides <https://jensj.gitlab.io/talks/dev24/talk.html>`__)
 
   Discussion of changes taking place in the code at the moment and how
   that will affect all of us in the future.
@@ -60,11 +61,15 @@ Tuesday
 
 :15:15:
 
+  **Break**
+
+:15:25:
+
   **Colin Baker**
 
   *Porting SJM into planewave mode*
 
-:15:40:
+:15:50:
 
   **Kyle Bystrom**
 
@@ -77,15 +82,15 @@ Tuesday
   algorithm and plans to extend it to van der Waals functionals and
   orbital-dependent features.
 
-:16:05:
+:16:15:
 
   **Pooria Dabbaghi**
 
   *Implementing an inverse Kohn-Sham scheme within the PAW formalism*
 
-:16:30:
+:16:40:
 
-  **To be announced**
+  **Anubhab Haldar**
 
   *Improved basis sets for LCAO*
 
@@ -103,7 +108,10 @@ Wednesday
 
   **Tuomas Rossi**
 
-  *Compiling for AMD and NVIDIA*
+  *Building GPAW for AMD and NVIDIA GPUs*
+
+  I will discuss the portability approach in GPAW to support both
+  NVIDIA and AMD GPUs.
 
 :14:50:
 
@@ -113,6 +121,10 @@ Wednesday
 
 :15:15:
 
+  **Break**
+
+:15:25:
+
   **Gianluca Levi**
 
   *Direct optimization methods for excited state calculations*
@@ -120,20 +132,22 @@ Wednesday
   The current status of the implementation, what is missing and what
   are the new features that I'd like to implement next.
 
-:15:40:
+:15:50:
 
   **Gianluca Levi**
 
   *Self-interaction correction*
 
-:16:05:
+:16:15:
 
   **Vladimír Zobač**
 
   *Ehrenfest molecular dynamics with LCAO basis*
 
-:16:30:
+:16:40:
 
-  **To be announced**
+  *General discussion*
 
-  *RTTDDFT*
+:17:05:
+
+  *The end*

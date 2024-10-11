@@ -649,6 +649,7 @@ class ASECalculator:
                       update_fermi_level: bool = False,
                       **kwargs):
         kwargs = {**dict(self.params.items()), **kwargs}
+
         params = InputParameters(kwargs)
         log = Logger(txt, self.comm)
         builder = create_builder(self.atoms, params, self.comm)
