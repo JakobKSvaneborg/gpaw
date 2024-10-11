@@ -17,9 +17,8 @@ df = DielectricFunction(calc='MoS2_gs_fulldiag.gpw',
 
 chicalc = QEHChiCalc(df)
 chihandler = ChiHandler('MoS2', chicalc, qmax=3.0)
-interpolate_chi_to_bb('MoS2')
-
-chihandler.calculate_chi_2d(aN=2)
+chihandler.calculate_chi_2d()
 
 if world.rank == 0:
+    interpolate_chi_to_bb('MoS2', aN=2)
     Path('MoS2_gs_fulldiag.gpw').unlink()
