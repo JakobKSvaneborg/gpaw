@@ -13,6 +13,9 @@ from gpaw import GPAW, Davidson, MixerSum
     'params',
     [dict(mode='pw', eigensolver=Davidson(3),
           experimental={'reuse_wfs_method': 'paw'}),
+     dict(mode='pw',
+          eigensolver=Davidson(3),
+          parallel={'gpu': True}),
      # pw + lcao extrapolation is currently broken (PWLFC lacks integrate2):
      # dict(mode='pw', experimental={'reuse_wfs_method': 'lcao'}),
      dict(mode='fd', h=0.3,
@@ -24,6 +27,8 @@ def test_generic_move_across_cell(gpaw_new, params):
         # make sure MixerSum works for spin-paired system also:
         mixer=MixerSum(0.7),
         kpts=[1, 1, 2])
+    if not gpaw_new and 'parallel' in params:
+        params.pop('parallel')
     calc = GPAW(**params)
     atoms = molecule('H2O', vacuum=2.5)
     atoms.pbc = 1

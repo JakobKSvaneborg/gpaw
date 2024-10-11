@@ -108,7 +108,10 @@ Wednesday
 
   **Tuomas Rossi**
 
-  *Compiling for AMD and NVIDIA*
+  *Building GPAW for AMD and NVIDIA GPUs*
+
+  I will discuss the portability approach in GPAW to support both
+  NVIDIA and AMD GPUs.
 
 :14:50:
 
@@ -140,3 +143,11 @@ Wednesday
   **Vladimír Zobač**
 
   *Ehrenfest molecular dynamics with LCAO basis*
+
+:16:40:
+
+  *General discussion*
+
+:17:05:
+
+  *The end*
