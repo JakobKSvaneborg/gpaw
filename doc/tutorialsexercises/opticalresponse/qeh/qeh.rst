@@ -62,7 +62,7 @@ Next, we need the `z`-dependence of the full response function
 `\chi(q,\omega, G_z, G'_z)`. Essentially, a Dyson equation for the isolated layer
 is solved to obtain the full response function `\chi(q,\omega,G,G')`, and then the
 desired `G_z`-elements are chosen from its basis. This is all handled by the ChiHandler
-object, and saved to the file \*-chi.npz. Then, the method interpolate_chi_to_bb
+object, and saved to the file \*-chi.npz. Subsequently, the method interpolate_chi_to_bb
 will interpolate the full response function onto a dense `q`-grid, and calculate
 the monopole and dipole component of the response function and the corresponding
 induced densities. These quantities are then condensed into the dielectric
@@ -76,7 +76,7 @@ same kpoint and frequency grid. This is done as follows:
 
 .. literalinclude:: interpolate_bb.py
 
-Specifically, this interpolates the both building block to lowest `q`-grid of the two.
+Specifically, this interpolates both building block to lowest `q`-grid of the two.
 
 Finally the building blocks are ready to be combined electrostatically.
 
