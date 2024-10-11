@@ -3,7 +3,7 @@ from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction
 from gpaw.response.qeh import QEHChiCalc
 
-from qeh.bb_calculator.ChiCalc import ChiHandler
+from qeh.bb_calculator.chicalc import ChiHandler
 from qeh.bb_calculator.bb_builder import interpolate_chi_to_bb
 
 df = DielectricFunction(calc='WSe2_gs_fulldiag.gpw',
