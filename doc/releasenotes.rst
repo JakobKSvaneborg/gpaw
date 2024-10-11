@@ -12,6 +12,9 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+* Updated development-workflow documentation:
+  :ref:`a good mr`, :ref:`get your mr merged`.
+
 * Added functionality to compute LDA exchange constants based on the
   local site properties methodology, see :ref:`sites`.
 

@@ -118,7 +118,7 @@ is ready for code review.
 Every time you push your local repository changes upstream to the remote
 repository, you will trigger a continuous integration (CI) runner on the
 GitLab servers.  The script that runs in CI is :git:`.gitlab-ci.yml`.
-Here is a short summary of what happens in CI:
+Here is a very short summary of what happens in CI:
 
 * install the code
 * ``pytest -m ci``: small selection of fast tests
@@ -129,7 +129,8 @@ If CI fails, you will have to fix things and push your changes.
 
 It's a good idea to also run the CI-checks locally::
 
- $ pip install flake8 mypy
+ $ cd gpaw
+ $ pip install -e .[devel]
  $ flake8 ...
  $ mypy ...
  $ pytest ...
@@ -147,6 +148,8 @@ It's a good idea to also run the CI-checks locally::
 .. _flake8: https://flake8.pycqa.org/en/latest/
 
 
+.. _a good mr:
+
 How to write a good MR
 ======================
 
@@ -154,7 +157,6 @@ A good MR
 
 * is short
 * does one thing
-* is not too old
 
 For MRs with code changes:
 
@@ -172,3 +174,19 @@ build the HTML-pages and make sure everything looks OK::
  $ cd doc
  $ make
  $ make browse
+
+
+.. _get your mr merged:
+
+How to get your MR merged
+=========================
+
+* Make sure your branch is in the main gpaw group and not your own fork.
+  This will allow our CI-runner to test your MR.  You will need to be a
+  member of the gpaw group in order to push branches.
+
+* Remove the ``[Draft]`` marker.
+
+* Add a reviewer.
+
+* ...
