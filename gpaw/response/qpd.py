@@ -18,7 +18,7 @@ class SingleQPWDescriptor(PWDescriptor):
             return SingleCylQPWDescriptor(gd=gd, kd=qd, gammacentered=gammacentered,
                                           dtype=complex, **ecut['kwargs'])
         else:
-            raise NotImplementedError(f'Unrecognized QPW class: {ecut['class']}')
+            raise NotImplementedError(f'Unrecognized QPW class: {ecut["class"]}')
 
     @property
     def q_c(self):
