@@ -135,7 +135,7 @@ class PWDescriptor:
             G2_qG.append(G2_Q[Q_G])
             ng = len(Q_G)
             ng_q.append(ng)
-            
+
         return ng_q, Q_qG, G2_qG
 
     def get_reciprocal_vectors(self, q=0, add_q=True):

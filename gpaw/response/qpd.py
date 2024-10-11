@@ -15,10 +15,14 @@ class SingleQPWDescriptor(PWDescriptor):
             return SingleQPWDescriptor(ecut, gd, complex, qd,
                                        gammacentered=gammacentered)
         elif ecut['class'] is SingleCylQPWDescriptor:
-            return SingleCylQPWDescriptor(gd=gd, kd=qd, gammacentered=gammacentered,
-                                          dtype=complex, **ecut['kwargs'])
+            return SingleCylQPWDescriptor(gd=gd,
+                                          kd=qd,
+                                          gammacentered=gammacentered,
+                                          dtype=complex,
+                                          **ecut['kwargs'])
         else:
-            raise NotImplementedError(f'Unrecognized QPW class: {ecut["class"]}')
+            raise NotImplementedError(
+                f'Unrecognized QPW class: {ecut["class"]}')
 
     @property
     def q_c(self):
@@ -60,7 +64,7 @@ class SingleCylQPWDescriptor(SingleQPWDescriptor):
 
         self.ecut_z = ecut_z
         self.ecut_xy = ecut_xy
-        
+
         super().__init__(ecut_xy, gd, dtype, kd,
                          fftwflags, gammacentered)
 
@@ -71,7 +75,8 @@ class SingleCylQPWDescriptor(SingleQPWDescriptor):
         for q, K_v in enumerate(self.K_qv):
             G2_Q = ((self.G_Qv + K_v)**2).sum(axis=1)
             if self.gammacentered:
-                mask_Q = ((self.G_Qv[:, 0:2]**2).sum(axis=1) <= 2 * self.ecut_xy) \
+                mask_Q = ((self.G_Qv[:, 0:2]**2).sum(axis=1)
+                          <= 2 * self.ecut_xy) \
                     & ((self.G_Qv[:, 2]**2) <= 2 * self.ecut_z)
             else:
                 G3_Q = ((self.G_Qv[:, 0:2] + K_v[0:2])**2).sum(axis=1)
@@ -87,7 +92,7 @@ class SingleCylQPWDescriptor(SingleQPWDescriptor):
             G2_qG.append(G2_Q[Q_G])
             ng = len(Q_G)
             ng_q.append(ng)
-            
+
         return ng_q, Q_qG, G2_qG
 
     def copy_with(self, ecut=None, gd=None, gammacentered=None):
