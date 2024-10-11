@@ -12,6 +12,9 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+* Works with
+  `Libxc-7.0.0 <https://gitlab.com/libxc/libxc/-/releases/7.0.0>`__.
+
 * Added functionality to compute LDA exchange constants based on the
   local site properties methodology, see :ref:`sites`.
 
