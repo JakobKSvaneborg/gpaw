@@ -49,6 +49,8 @@ class Davidson(Eigensolver):
         return {'name': 'dav', 'niter': self.niter}
 
     def initialize(self, wfs, dist_backend='scalapack'):
+        # dist_backend keyword can be used to specify other
+        # diagonalizer backends when user specified.
         dist_diagonalizers = {
             'scalapack': ScalapackDiagonalizer,
             'elpa': ElpaDiagonalizer
