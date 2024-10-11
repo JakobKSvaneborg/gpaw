@@ -739,7 +739,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         df_NLFC_w: np.ndarray
             Dielectric function without local field corrections.
         df_LFC_w: np.ndarray
-            Dielectric functio with local field corrections.
+            Dielectric function with local field corrections.
         """
         df = self.get_inverse_dielectric_function(
             *args, truncation=self.truncation,
