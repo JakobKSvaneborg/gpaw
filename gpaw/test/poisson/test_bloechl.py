@@ -75,14 +75,16 @@ def test_psolve():
     print('simple', e1, e1 - e0)
     print(V_aL.data[::9])
     print(vt_g.data[:5])
+    print(spps.force_contribution(Q_aL, vHt_g, nt_g))
 
     pps = BloechlPAWPoissonSolver(
         pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
     vt_g = pw.zeros()
     e2, vHt_g, V_aL = pps.solve(nt_g, Q_aL, vt_g)
-    print('fast  ', e2, e2 - e0)
+    print('\nfast  ', e2, e2 - e0)
     print(V_aL.data[::9])
     print(vt_g.data[:5])
+    print(pps.force_contribution(Q_aL, vHt_g, nt_g))
 
     charges = [(0.9, rc1, 0.0),
                (0.7, rc2, d12),
@@ -126,6 +128,6 @@ def fast_slow(fast):
 
 
 if __name__ == '__main__':
-    # test_psolve()
-    import sys
-    fast_slow(int(sys.argv[1]))
+    test_psolve()
+    # import sys
+    # fast_slow(int(sys.argv[1]))

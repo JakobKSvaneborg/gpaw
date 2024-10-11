@@ -181,7 +181,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         F_avL = self.ghat_aLg.derivative(vHt_g)
         Fhat_avL = self.vhat_aLg.derivative(nt_g)
         for a, dF_vL in F_avL.items():
-            force_av[a] += (dF_vL - Fhat_avL[a]) @ Q_aL[a]
+            force_av[a] += (dF_vL + Fhat_avL[a]) @ Q_aL[a]
 
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             if d == 0.0:
@@ -196,7 +196,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
                 ex1.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv) +
                 ex2.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv))
             f_v = (v_vLL @ Q_aL[a2]) @ Q_aL[a1] / 2
-            force_av[a1] -= f_v
-            force_av[a2] += f_v
+            force_av[a1] += f_v
+            force_av[a2] -= f_v
 
         return force_av
