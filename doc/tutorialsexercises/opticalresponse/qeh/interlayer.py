@@ -10,7 +10,7 @@ thick_WSe2 = 6.718
 d_MoS2_WSe2 = (thick_MoS2 + thick_WSe2) / 2
 inter_mass = 0.244
 
-HS = QEH.heterostructure(BBfiles=['MoS2_int', 'WSe2_int'],
+HS = QEH.heterostructure(BBfiles=['MoS2-int', 'WSe2-int'],
                          layerwidth_n=[thick_MoS2, thick_WSe2],
                          wmax=0,
                          amax=2)

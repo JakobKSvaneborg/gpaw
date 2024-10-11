@@ -16,9 +16,9 @@ df = DielectricFunction(calc='WSe2_gs_fulldiag.gpw',
                         truncation='2D')
 
 chicalc = QEHChiCalc(df)
-chihandler = ChiHandler('WSe2', chicalc, qmax=3.0)
+chihandler = ChiHandler('WSe2', chicalc, q_max=3.0)
 chihandler.calculate_chi_2d()
 
 if world.rank == 0:
-    interpolate_chi_to_bb('WSe', aN=2)
+    interpolate_chi_to_bb('WSe2', aN=2)
     Path('WSe2_gs_fulldiag.gpw').unlink()
