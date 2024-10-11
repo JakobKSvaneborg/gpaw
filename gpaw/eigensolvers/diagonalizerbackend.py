@@ -143,8 +143,7 @@ class DistributedBlacsDiagonalizer(ABC):
         self.head_to_all_redistributor.redistribute(Asc_MM, Asc_mm)
         self.head_to_all_redistributor.redistribute(Bsc_MM, Bsc_mm)
 
-        self._eigh(Asc_MM, Bsc_MM, Asc_mm, Bsc_mm,
-                   vec_mm, temporary_eps)
+        self._eigh(Asc_mm, Bsc_mm, vec_mm, temporary_eps)
 
         # vec_MM contains the eigenvectors in 'Fortran form'. They need to be
         # transpose-conjugated before they are consistent with Scipy behaviour
@@ -157,7 +156,7 @@ class DistributedBlacsDiagonalizer(ABC):
             eps[:] = temporary_eps
 
     @abstractmethod
-    def _eigh(self, Asc_MM, Bsc_MM, Asc_mm, Bsc_mm, vec_mm, eps):
+    def _eigh(self, Asc_mm, Bsc_mm, vec_mm, eps):
         raise NotImplementedError()
 
 
@@ -168,7 +167,7 @@ class ScalapackDiagonalizer(DistributedBlacsDiagonalizer):
     (generalized) eigenproblem on one core???
     """
 
-    def _eigh(self, Asc_MM, Bsc_MM, Asc_mm, Bsc_mm, vec_mm, eps):
+    def _eigh(self, Asc_mm, Bsc_mm, vec_mm, eps):
         self.distributed_descriptor.general_diagonalize_dc(
             Asc_mm, Bsc_mm, vec_mm, eps)
 
@@ -181,6 +180,6 @@ class ElpaDiagonalizer(DistributedBlacsDiagonalizer):
     def elpa(self):
         return LibElpa(self.distributed_descriptor)
 
-    def _eigh(self, Asc_MM, Bsc_MM, Asc_mm, Bsc_mm, vec_mm, eps):
+    def _eigh(self, Asc_mm, Bsc_mm, vec_mm, eps):
         self.elpa.general_diagonalize(
             Asc_mm, Bsc_mm, vec_mm, eps)
