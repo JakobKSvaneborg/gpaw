@@ -6,7 +6,7 @@ import numpy as np
 
 
 @pytest.mark.response
-def test_bse_exclude_states():  # in_tmp_dir, gpw_files):
+def test_bse_exclude_states(in_tmp_dir):
     a = 5.431  # From PRB 73,045112 (2006)
     atoms = bulk('Si', 'diamond', a=a)
     atoms.positions -= a / 8
