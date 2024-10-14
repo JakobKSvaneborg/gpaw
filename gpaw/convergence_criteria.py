@@ -160,6 +160,8 @@ class Energy(Criterion):
         # e_total_extrapolated in the SCF table (logfile). I changed it to
         # use e_total_extrapolated for both. (Should be a miniscule
         # difference, but more consistent.)
+        if context.dens.fixed:
+            return True, ''
         total_energy = context.ham.e_total_extrapolated * Ha
         if context.wfs.nvalence == 0 or not self.relative:
             energy = total_energy

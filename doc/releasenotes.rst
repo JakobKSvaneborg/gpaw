@@ -10,6 +10,8 @@ Git master branch
 
 :git:`master <>`.
 
+* Minimum version requirements: Python 3.9, ASE 3.23.0.
+
 * Added functionality to compute LDA exchange constants based on the
   local site properties methodology, see :ref:`sites`.
 
