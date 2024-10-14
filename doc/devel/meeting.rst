@@ -8,8 +8,6 @@ When:
   October 8 and 9 afternoons (Danish time)
 Announcement:
   https://listserv.fysik.dtu.dk/pipermail/gpaw-users/2024-September/007312.html
-Zoom:
-    https://dtudk.zoom.us/j/61353636155?pwd=DbeVAklaZKPo3aZAjrUfLrbfbdKJdb.1
 
 .. note::
 
@@ -29,6 +27,7 @@ Tuesday
   **Jens Jørgen Mortensen**
 
   *Modernizing the code-base*
+  (`slides <https://jensj.gitlab.io/talks/dev24/talk.html>`__)
 
   Discussion of changes taking place in the code at the moment and how
   that will affect all of us in the future.
@@ -109,7 +108,10 @@ Wednesday
 
   **Tuomas Rossi**
 
-  *Compiling for AMD and NVIDIA*
+  *Building GPAW for AMD and NVIDIA GPUs*
+
+  I will discuss the portability approach in GPAW to support both
+  NVIDIA and AMD GPUs.
 
 :14:50:
 
@@ -141,3 +143,11 @@ Wednesday
   **Vladimír Zobač**
 
   *Ehrenfest molecular dynamics with LCAO basis*
+
+:16:40:
+
+  *General discussion*
+
+:17:05:
+
+  *The end*

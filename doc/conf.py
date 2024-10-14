@@ -1,7 +1,7 @@
 import datetime
 import sys
 
-import sphinx_rtd_theme
+# import sphinx_rtd_theme
 from gpaw import __version__
 from gpaw.doctools.aamath import autodoc_process_docstring
 try:
@@ -80,7 +80,7 @@ nitpick_ignore = [('py:class', 'gpaw.calculator.GPAW'),
                   ('py:class', 'IO'),
                   ('py:class', 'gpaw.gpu.cpupy.ndarray')]
 html_theme = 'sphinx_rtd_theme'
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 html_style = 'gpaw.css'
 html_title = 'GPAW'
 html_favicon = 'static/gpaw_favicon.ico'
