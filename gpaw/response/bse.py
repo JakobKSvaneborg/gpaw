@@ -117,10 +117,10 @@ class BSEMatrix:
                           desc_H_Sr).redistribute(H_sR, H_Sr)
             H_Rr = np.delete(H_Sr, exclude_S, axis=0)
             H_Rr = np.ascontiguousarray(H_Rr)
-        print('H_sS shape:', H_sS.shape, 'rank', world.rank)
-        print('H_sR shape:', H_sR.shape, 'rank', world.rank)
-        print('H_Sr shape:', H_Sr.shape, 'rank', world.rank)
-        print('H_Rr shape:', H_Rr.shape, 'rank', world.rank)
+            print('H_sS shape:', H_sS.shape, 'rank', world.rank)
+            print('H_sR shape:', H_sR.shape, 'rank', world.rank)
+            print('H_Sr shape:', H_Sr.shape, 'rank', world.rank)
+            print('H_Rr shape:', H_Rr.shape, 'rank', world.rank)
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
         return H_Rr, exclude_S
