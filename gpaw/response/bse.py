@@ -57,7 +57,7 @@ class BSEMatrix:
         else:
             v_ST = None
         world.broadcast(w_T, 0)
-        return w_T, v_ST, exclude_S, exclude_S
+        return w_T, v_ST, exclude_S
 
     def diagonalize_tammdancoff(self, bse):
         from gpaw.matrix import suggest_blocking
