@@ -13,7 +13,7 @@ def test_bse_exclude_states(in_tmp_dir):
     calc = GPAW(mode='pw',
                 kpts={'size': (2, 2, 2), 'gamma': True},
                 occupations=FermiDirac(0.001),
-                nbands=12,
+                nbands=14,
                 convergence={'bands': -4})
     atoms.calc = calc
     atoms.get_potential_energy()
