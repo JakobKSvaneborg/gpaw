@@ -62,7 +62,6 @@ class BSEMatrix:
     def diagonalize_tammdancoff(self, bse):
         from gpaw.matrix import suggest_blocking
         H_Rr, exclude_S = self.exclude_states_tamm_dancoff(bse)
-        print('H_Rr shape:', H_Rr.shape)
         if world.size == 1:
             bse.context.print('  Using lapack...')
             w_T, v_Rt = eigh(H_Rr)
@@ -75,7 +74,6 @@ class BSEMatrix:
             grid2 = BlacsGrid(world, world.size, 1)
             desc_H_rR = grid2.new_descriptor(nR, nR, nr, nR)
             nrows, ncols, blocksize = suggest_blocking(nR, world.size)
-            print(f'nrows: {nrows}, ncols: {ncols}, blocksize: {blocksize}')
             grid_tmp = BlacsGrid(world, nrows, ncols)  # desc2
             desc_tmp = grid_tmp.new_descriptor(nR, nR, blocksize, blocksize)
             H_tmp = desc_tmp.zeros(dtype=complex)
@@ -102,7 +100,6 @@ class BSEMatrix:
         H_sR = np.ascontiguousarray(H_sR)
         nR = nS - len(exclude_S)
         nr = -((-nR) // world.size)
-        print(f'nS={nS}, ns={ns}, nR={nR}, nr={nr}')
         if world.size == 1:
             H_Rr = np.delete(H_sR, exclude_S, axis=0)
             H_Rr = np.ascontiguousarray(H_Rr)
@@ -112,15 +109,10 @@ class BSEMatrix:
             desc_H_sR = grid.new_descriptor(nS, nR, ns, nR)
             desc_H_Sr = grid2.new_descriptor(nS, nR, nS, nr)
             H_Sr = desc_H_Sr.zeros(dtype=complex)
-            print('grid comm size', grid.comm.size)
             Redistributor(world, desc_H_sR,
                           desc_H_Sr).redistribute(H_sR, H_Sr)
             H_Rr = np.delete(H_Sr, exclude_S, axis=0)
             H_Rr = np.ascontiguousarray(H_Rr)
-        print('H_sS shape:', H_sS.shape, 'rank', world.rank)
-        print('H_sR shape:', H_sR.shape, 'rank', world.rank)
-        print('H_Sr shape:', H_Sr.shape, 'rank', world.rank)
-        print('H_Rr shape:', H_Rr.shape, 'rank', world.rank)
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
         return H_Rr, exclude_S
