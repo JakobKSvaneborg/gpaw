@@ -222,7 +222,6 @@ class AtomArrays:
         for a, I1, I2 in layout.myindices:
             self._arrays[a] = self.data[..., I1:I2].reshape(
                 self.mydims + layout.shape_a[a])
-        self.natoms: int = len(layout.shape_a)
 
     def __len__(self) -> int:
         return len(self.layout)
