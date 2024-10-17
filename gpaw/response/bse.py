@@ -361,7 +361,7 @@ class BSEBackend:
 
     @timer('BSE calculate')
     def calculate(self, optical):
-        """Calculate the BSE Hamiltonian. This inlcudes setting up all
+        """Calculate the BSE Hamiltonian. This includes setting up all
         machinery for pair densities, KS eignevalues and occupation factors.
         At the end the direct and indirect interaction are included through
         calls to separate functions.
