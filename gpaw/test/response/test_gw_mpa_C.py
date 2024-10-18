@@ -26,14 +26,6 @@ def test_diamond_mpa(in_tmp_dir):
     calc.diagonalize_full_hamiltonian()
     calc.write('C_converged_mpa.gpw', 'all')
 
-    mp1_dict = {'npoles': 1, 'wrange': [0, 0],
-                'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 0.1 * Ha,
-                'alpha': 1}
-    mp8_dict = {'npoles': 8, 'wrange': [0, 200],
-                'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 0.1 * Ha,
-                'alpha': 1}
-
-    calc_dict = {1: mp1_dict, 8: mp8_dict}
     ref_results_mp1 = np.array([[[13.254813, 18.994554]]])
     ref_results_mp8 = np.array([[[13.246057, 18.83362]]])
     ref_results = {1: ref_results_mp1, 8: ref_results_mp8}
@@ -45,7 +37,9 @@ def test_diamond_mpa(in_tmp_dir):
                   ecut=50,
                   ecut_extrapolation=True,
                   integrate_gamma='WS',
-                  mpa=calc_dict[npols],
+                  mpa={'npoles': npols, 'wrange': [0, 200 if npols > 1 else 0],
+                       'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 0.1 * Ha,
+                       'alpha': 1},
                   filename=f'C-g0w0_mp{npols}')
 
         results = gw.calculate()

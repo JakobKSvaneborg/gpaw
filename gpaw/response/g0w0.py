@@ -77,18 +77,23 @@ def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):
 
 
 class Sigma:
-    def __init__(self, iq, q_c, fxc, esknshape, esknwshape, **inputs):
+    def __init__(self, iq, q_c, fxc, esknshape, nw, **inputs):
         """Inputs are used for cache invalidation, and are stored for each
            file.
         """
         self.iq = iq
         self.q_c = q_c
         self.fxc = fxc
+        print('Number of nw', nw)
+        # We might as well allocate both from same array
+        # in order to add and communicate to them faster.
         self._buf = np.zeros((2, *esknshape))
         # self-energies and derivatives:
         self.sigma_eskn, self.dsigma_eskn = self._buf
 
-        self.sigma_eskwn = np.zeros(esknwshape, dtype=complex)
+        eskwnshape = (*esknshape[:3], nw, esknshape[3])
+        print(eskwnshape)
+        self.sigma_eskwn = np.zeros(eskwnshape, dtype=complex)
         self.inputs = inputs
 
     def sum(self, comm):
@@ -102,8 +107,8 @@ class Sigma:
         return self
 
     def validate_inputs(self, inputs):
-        equals = compare_inputs(inputs, self.inputs, rel_tol=1e-10,
-                                abs_tol=1e-10)
+        equals = compare_inputs(inputs, self.inputs, rel_tol=1e-12,
+                                abs_tol=1e-12)
         if not equals:
             raise RuntimeError('There exists a cache with mismatching input '
                                f'parameters: {inputs} != {self.inputs}.')
@@ -111,7 +116,7 @@ class Sigma:
     @classmethod
     def fromdict(cls, dct):
         instance = cls(dct['iq'], dct['q_c'], dct['fxc'],
-                       dct['sigma_eskn'].shape, dct['sigma_eskwn'].shape,
+                       dct['sigma_eskn'].shape, dct['sigma_eskwn'].shape[3],
                        **dct['inputs'])
         instance.sigma_eskn[:] = dct['sigma_eskn']
         instance.dsigma_eskn[:] = dct['dsigma_eskn']
@@ -590,8 +595,6 @@ class G0W0Calculator:
 
         b1, b2 = self.bands
         self.shape = (self.wcalc.gs.nspins, len(self.kpts), b2 - b1)
-        self.wshape = (self.wcalc.gs.nspins, len(self.kpts),
-                       len(self.evaluate_sigma), b2 - b1)
 
         self.nbands = nbands
 
@@ -611,22 +614,20 @@ class G0W0Calculator:
 
         self.exx_vxc_calculator = exx_vxc_calculator
 
+        p = self.context.print
         if self.ppa:
-            self.context.print('Using Godby-Needs plasmon-pole approximation:')
-            self.context.print('  Fitting energy: i*E0, E0 = %.3f Hartee'
-                               % self.wd.omega_w[1].imag)
+            p('Using Godby-Needs plasmon-pole approximation:')
+            p('  Fitting energy: i*E0, E0 = {self.wd.omega_w[1].imag:.3f} Hartree')
         elif self.mpa:
             omega_w = self.chi0calc.wd.omega_w
-            self.context.print('Using multipole approximation:')
-            self.context.print(f'  Number of poles: {len(omega_w) // 2}')
-            self.context.print(
-                f'  Energy range: Re(E[-1]) = {omega_w[-1].real:.3f} Hartee')
-            self.context.print('  Imaginary range: Im(E[-1]) = %.3f Hartee'
-                               % self.wd.omega_w[-1].imag)
-            self.context.print('  Imaginary shift: Im(E[1]) = %.3f Hartee'
-                               % self.wd.omega_w[1].imag)
-            self.context.print('  Origin shift: Im(E[0]) = %.3f Hartee'
-                               % self.wd.omega_w[0].imag)
+            p('Using multipole approximation:')
+            p(f'  Number of poles: {len(omega_w) // 2}')
+            p(f'  Energy range: Re(E[-1]) = {omega_w[-1].real:.3f} Hartree')
+            p('  Imaginary range: Im(E[-1]) = '
+              f'{self.wd.omega_w[-1].imag:.3f} Hartree')
+            p(f'  Imaginary shift: Im(E[1]) = {self.wd.omega_w[1].imag:.3f} Hartree')
+            p('  Imaginary Origin shift: Im(E[0])'
+              f'= {self.wd.omega_w[0].imag:.3f} Hartree')
         else:
             self.context.print('Using full-frequency real axis integration')
 
@@ -710,7 +711,7 @@ class G0W0Calculator:
         else:
             qpt_str = ' '.join(map(str, qpoints))
             self.context.print(f'Calculating following q-points: {qpt_str}')
-        self.calculate_all_q_points(qpoints=qpoints)
+        self.calculate_q_points(qpoints=qpoints)
         if qpoints is not None:
             return f'A partial result of q-points: {qpt_str}'
         sigmas = self.read_sigmas()
@@ -881,7 +882,7 @@ class G0W0Calculator:
         pawcorr_wcalc1 = pairden_paw_corr(qpd)
         assert pawcorr.almost_equal(pawcorr_wcalc1, G_G)
 
-    def calculate_all_q_points(self, qpoints):
+    def calculate_q_points(self, qpoints):
         """Main loop over irreducible Brillouin zone points.
         Handles restarts of individual qpoints using FileCache from ASE,
         and subsequently calls calculate_q."""
@@ -960,8 +961,8 @@ class G0W0Calculator:
     def calculate_q_point(self, iq, q_c, pb, chi0calc):
         # Reset calculation
         sigmashape = (len(self.ecut_e), *self.shape)
-        sigmawshape = (len(self.ecut_e), *self.wshape)
-        sigmas = {fxc_mode: Sigma(iq, q_c, fxc_mode, sigmashape, sigmawshape,
+        sigmas = {fxc_mode: Sigma(iq, q_c, fxc_mode, sigmashape,
+                  len(self.evaluate_sigma),
                   **self.get_validation_inputs())
                   for fxc_mode in self.fxc_modes}
 
@@ -1135,7 +1136,7 @@ class G0W0(G0W0Calculator):
                  ecut_extrapolation=False,
                  xc='RPA',
                  ppa=False,
-                 mpa=False,
+                 mpa=None,
                  E0=Ha,
                  eta=0.1,
                  nbands=None,
@@ -1318,6 +1319,7 @@ class G0W0(G0W0Calculator):
 
         if ppa:
             assert not integrate_gamma.is_Wigner_Seitz, "TODO"
+            assert not mpa
             # use small imaginary frequency to avoid dividing by zero:
             frequencies = [1e-10j, 1j * E0]
 
@@ -1329,7 +1331,7 @@ class G0W0(G0W0Calculator):
 
             frequencies = mpa_frequency_sampling(**mpa)
 
-            parameters = {'eta': 0.000001,
+            parameters = {'eta': 1e-6,
                           'hilbert': False,
                           'timeordered': False}
 

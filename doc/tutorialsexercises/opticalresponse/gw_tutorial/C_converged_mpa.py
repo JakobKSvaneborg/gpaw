@@ -24,15 +24,6 @@ atoms.get_potential_energy()
 calc.diagonalize_full_hamiltonian()
 calc.write('C_converged_mpa.gpw', 'all')
 
-mp1_dict = {'npoles': 1, 'wrange': [0, 0],
-            'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 0.1 * Ha,
-            'alpha': 1}
-mp8_dict = {'npoles': 8, 'wrange': [0, 200],
-            'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 0.1 * Ha,
-            'alpha': 1}
-
-calc_dict = {1: mp1_dict, 8: mp8_dict}
-
 for npols in [1, 8]:
     gw = G0W0(calc='C_converged_mpa.gpw',
               kpts=[0],
@@ -40,7 +31,12 @@ for npols in [1, 8]:
               ecut=400,
               ecut_extrapolation=True,
               integrate_gamma='WS',
-              mpa=calc_dict[npols],
+              mpa={'npoles': npols,
+                   'varpi': Ha,
+                   'eta0': 1e-10,
+                   'eta_rest': 0.1 * Ha,
+                   'wrange': [0, 0 if npols == 1 else 200],
+                   'alpha': 1},
               filename=f'C-g0w0_mp{npols}')
 
     results = gw.calculate()

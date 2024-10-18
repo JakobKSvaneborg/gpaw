@@ -74,7 +74,7 @@ def test_mpa_and_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
               nblocks=1,
               ecut=40,
               ppa=not mpa,
-              mpa=mpa_dict if mpa else False)
+              mpa=mpa_dict if mpa else None)
 
     results = gw.calculate()
     np.testing.assert_allclose(results['qp'], ref_result, rtol=1e-03)

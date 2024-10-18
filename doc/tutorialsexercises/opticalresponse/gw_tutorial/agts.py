@@ -28,12 +28,8 @@ def check_mpa():
     """Check numbers in ReST file."""
     gap_references = [7.19, 7.23]
     for npols in [1, 8]:
-        results = pickle.load(open(f'C-g0w0_mp{npols}_results_GW.pckl', 'rb'),
-                              encoding='bytes')
+        with open(f'C-g0w0_mp{npols}_results_GW.pckl', 'rb') as f:
+            results = pickle.load(f)
         gap = results['qp'][0, 0, 1] - results['qp'][0, 0, 0]
         print(npols, gap)
         assert abs(gap - gap_references.pop(0)) < 0.005
-
-
-if __name__ == '__main__':
-    check_mpa()

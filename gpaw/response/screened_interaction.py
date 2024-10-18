@@ -88,7 +88,7 @@ class QPointDescriptor(KPointDescriptor):
 def initialize_w_calculator(chi0calc, context, *,
                             coulomb,
                             xc='RPA',  # G0W0Kernel arguments
-                            ppa=False, mpa=False, E0=Ha, eta=None,
+                            ppa=False, mpa=None, E0=Ha, eta=None,
                             integrate_gamma=GammaIntegrationMode('sphere'),
                             q0_correction=False):
     """Initialize a WCalculator from a Chi0Calculator.
@@ -115,7 +115,7 @@ def initialize_w_calculator(chi0calc, context, *,
         wcalc_cls = PPACalculator
     elif mpa:
         wcalc_cls = MPACalculator
-        kwargs.update(mpa=mpa)
+        kwargs['mpa'] = mpa
     else:
         wcalc_cls = WCalculator
 
@@ -429,14 +429,11 @@ class MPAHWModel(HWModel):
         self.eta = eta
         self.factor = factor
 
-    def get_HW(self, omega, f, derivative=True):
+    def get_HW(self, omega, f):
         x_GG = np.empty(self.omegat_nGG.shape[1:], dtype=complex)
         dx_GG = np.empty(self.omegat_nGG.shape[1:], dtype=complex)
         evaluate_mpa_poly(x_GG, dx_GG, omega, f, self.omegat_nGG, self.W_nGG,
                           self.eta, self.factor)
-
-        if not derivative:
-            return x_GG.conj()
 
         return x_GG.conj(), dx_GG.conj()  # Why do we have to do a conjugate
 
@@ -475,13 +472,8 @@ class PPACalculator(WBaseCalculator):
 
 
 class MPACalculator(WBaseCalculator):
-    def __init__(self, gs, context, *, qd,
-                 coulomb, xckernel,
-                 integrate_gamma, q0_correction, eta, mpa):
-        super().__init__(gs, context, qd=qd, coulomb=coulomb,
-                         xckernel=xckernel,
-                         integrate_gamma=integrate_gamma,
-                         q0_correction=q0_correction)
+    def __init__(self, gs, context, *, eta, mpa, **kwargs):
+        super().__init__(gs, context, **kwargs)
         self.eta = eta
         self.mpa = mpa
 
