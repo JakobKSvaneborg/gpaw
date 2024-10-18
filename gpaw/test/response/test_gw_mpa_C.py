@@ -17,8 +17,7 @@ def test_diamond_mpa(in_tmp_dir):
                 parallel={'domain': 1},
                 kpts={'size': (k, k, k), 'gamma': True},
                 xc='LDA',
-                occupations=FermiDirac(0.001),
-                txt='C_converged_mpa.txt')
+                occupations=FermiDirac(0.001))
 
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -26,15 +25,15 @@ def test_diamond_mpa(in_tmp_dir):
     calc.diagonalize_full_hamiltonian()
     calc.write('C_converged_mpa.gpw', 'all')
 
-    ref_results_mp1 = np.array([[[13.254813, 18.994554]]])
-    ref_results_mp8 = np.array([[[13.246057, 18.83362]]])
+    ref_results_mp1 = np.array([[[11.48389 , 18.685187]]])
+    ref_results_mp8 = np.array([[[11.239777, 18.591851]]])
     ref_results = {1: ref_results_mp1, 8: ref_results_mp8}
 
     for npols in [1, 8]:
         gw = G0W0(calc='C_converged_mpa.gpw',
                   kpts=[0],
                   bands=(3, 5),
-                  ecut=50,
+                  ecut=200,
                   ecut_extrapolation=True,
                   integrate_gamma='WS',
                   mpa={'npoles': npols, 'wrange': [0, 200 if npols > 1 else 0],
