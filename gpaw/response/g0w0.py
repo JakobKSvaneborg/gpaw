@@ -84,7 +84,6 @@ class Sigma:
         self.iq = iq
         self.q_c = q_c
         self.fxc = fxc
-        print('Number of nw', nw)
         # We might as well allocate both from same array
         # in order to add and communicate to them faster.
         self._buf = np.zeros((2, *esknshape))
@@ -92,7 +91,6 @@ class Sigma:
         self.sigma_eskn, self.dsigma_eskn = self._buf
 
         eskwnshape = (*esknshape[:3], nw, esknshape[3])
-        print(eskwnshape)
         self.sigma_eskwn = np.zeros(eskwnshape, dtype=complex)
         self.inputs = inputs
 
