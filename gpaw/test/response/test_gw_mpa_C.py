@@ -25,7 +25,7 @@ def test_diamond_mpa(in_tmp_dir):
     calc.diagonalize_full_hamiltonian()
     calc.write('C_converged_mpa.gpw', 'all')
 
-    ref_results_mp1 = np.array([[[11.48389 , 18.685187]]])
+    ref_results_mp1 = np.array([[[11.48389, 18.685187]]])
     ref_results_mp8 = np.array([[[11.239777, 18.591851]]])
     ref_results = {1: ref_results_mp1, 8: ref_results_mp8}
 
