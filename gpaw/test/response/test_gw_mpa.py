@@ -31,4 +31,5 @@ def test_mpa_WS(in_tmp_dir, gpw_files, scalapack, wigner_seitz):
               mpa=mpa_dict)
 
     results = gw.calculate()
-    np.testing.assert_allclose(results['qp'], ref_result[wigner_seitz], rtol=1e-03)
+    np.testing.assert_allclose(results['qp'], ref_result[wigner_seitz],
+                               rtol=1e-03)

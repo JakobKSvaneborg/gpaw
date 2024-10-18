@@ -617,7 +617,8 @@ class G0W0Calculator:
         p = self.context.print
         if self.ppa:
             p('Using Godby-Needs plasmon-pole approximation:')
-            p('  Fitting energy: i*E0, E0 = {self.wd.omega_w[1].imag:.3f} Hartree')
+            p('  Fitting energy: i*E0, E0 = '
+              f'{self.wd.omega_w[1].imag:.3f} Hartree')
         elif self.mpa:
             omega_w = self.chi0calc.wd.omega_w
             p('Using multipole approximation:')
@@ -625,7 +626,8 @@ class G0W0Calculator:
             p(f'  Energy range: Re(E[-1]) = {omega_w[-1].real:.3f} Hartree')
             p('  Imaginary range: Im(E[-1]) = '
               f'{self.wd.omega_w[-1].imag:.3f} Hartree')
-            p(f'  Imaginary shift: Im(E[1]) = {self.wd.omega_w[1].imag:.3f} Hartree')
+            p('  Imaginary shift: Im(E[1]) = '
+              f'{self.wd.omega_w[1].imag:.3f} Hartree')
             p('  Imaginary Origin shift: Im(E[0])'
               f'= {self.wd.omega_w[0].imag:.3f} Hartree')
         else:
