@@ -259,6 +259,7 @@ def find_neighbors(h_cv: ArrayLike2D) -> Array2D:
     """
     # Do Minkowski reduction:
     h_bv, U_bc = reduction_full(h_cv)  # h_bv = U_bc @ h_cv
+
     # 27 points: (-1,0,1)x(-1,0,1)x(-1,0,1)
     M_ib = np.indices((3, 3, 3)).reshape((3, -1)).T - 1
     h_iv = M_ib.dot(h_bv)
@@ -285,8 +286,7 @@ class Gradient(FDOperator):
                  scale=1.0,
                  n=1,
                  dtype=float,
-                 xp=np,
-                 allow_bad_cells=False):
+                 xp=np):
         """Symmetric gradient for general non orthorhombic grid.
 
         gd: GridDescriptor
@@ -302,11 +302,6 @@ class Gradient(FDOperator):
         """
 
         M_dc = find_neighbors(gd.h_cv)
-        if not allow_bad_cells and abs(M_dc).max() > 1:
-            a, b, c, A, B, C = cell_to_cellpar(gd.cell_cv)
-            raise ValueError('Bad unit cell.   '
-                             f'Lengths: {a}, {b}, {c}, '
-                             f'angles: {A}, {B}, {C}')
         h_dv = M_dc @ gd.h_cv  # vectors pointing at neighbor grid-points
         D = len(h_dv)  # number of neighbors (3, 4, 5, 6 or 7)
 
