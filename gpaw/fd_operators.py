@@ -10,7 +10,6 @@ from math import factorial as fact
 from math import pi
 
 import numpy as np
-from ase.geometry.cell import cell_to_cellpar
 from ase.geometry.minkowski_reduction import reduction_full
 from numpy.fft import fftn, ifftn
 from scipy.spatial import Voronoi
