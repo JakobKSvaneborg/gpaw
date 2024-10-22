@@ -130,6 +130,13 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def move(self,
              fracpos_ac: Array2D,
              atomdist: AtomDistribution) -> None:
+        from gpaw.new.pwfd.move_wfs import move_wave_functions
+        move_wave_functions(self.fracpos_ac,
+                            fracpos_ac,
+                            self.atomdist,
+                            self.P_ani,
+                            self.psit_nX,
+                            self.setups)
         super().move(fracpos_ac, atomdist)
         self.orthonormalized = False
         assert self.pt_aiX is not None
