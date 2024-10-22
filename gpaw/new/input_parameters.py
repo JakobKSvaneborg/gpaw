@@ -71,11 +71,23 @@ class InputParameters:
         if self.h is not None and self.gpts is not None:
             raise ValueError("""You can't use both "gpts" and "h"!""")
 
+        if self.mode.get('name') is None:
+            if warn:
+                warnings.warn(
+                    ('Finite-difference mode implicitly chosen; '
+                     'it will be an error to not specify a mode '
+                     'in the future'),
+                    DeprecatedParameterWarning)
+            self.mode = dict(self.mode, name='fd')
+
         if self.experimental is not None:
             if self.experimental.pop('niter_fixdensity', None) is not None:
                 warnings.warn('Ignoring "niter_fixdensity".')
-            if self.experimental.pop('reuse_wfs_method', None) is not None:
-                warnings.warn('Ignoring "reuse_wfs_method".')
+            if 'reuse_wfs_method' in self.experimental:
+                method = self.experimental.pop('reuse_wfs_method')
+                self.mode['reuse_wfs_method'] = method
+                warnings.warn(
+                    "Please use mode={..., 'reuse_wfs_method': ...}")
             if 'soc' in self.experimental:
                 warnings.warn('Please use new "soc" parameter.',
                               DeprecatedParameterWarning)
@@ -86,15 +98,6 @@ class InputParameters:
                 self._add('magmoms', self.experimental.pop('magmoms'))
             assert not self.experimental
             self._remove('experimental')
-
-        if self.mode.get('name') is None:
-            if warn:
-                warnings.warn(
-                    ('Finite-difference mode implicitly chosen; '
-                     'it will be an error to not specify a mode '
-                     'in the future'),
-                    DeprecatedParameterWarning)
-            self.mode = dict(self.mode, name='fd')
 
     def __repr__(self) -> str:
         p = ', '.join(f'{key}={value!r}'

@@ -48,13 +48,12 @@ def run(atoms, method, kwargs):
     return niter1, niter2, reuse_error
 
 
-@pytest.mark.old_gpaw_only
+# @pytest.mark.old_gpaw_only
 @pytest.mark.parametrize('mode, reuse_type, max_reuse_error', [
     ('pw', 'paw', 1e-5),
     ('pw', None, 1e-4),
     ('fd', 'paw', 1e-4),
-    ('fd', None, 1e-3),
-])
+    ('fd', None, 1e-3)])
 def test_reuse_wfs(mode, reuse_type, max_reuse_error):
     """Check that wavefunctions are meaningfully reused.
 
@@ -80,7 +79,7 @@ def test_reuse_wfs(mode, reuse_type, max_reuse_error):
     assert reuse_error < max_reuse_error
 
 
-@pytest.mark.old_gpaw_only
+# @pytest.mark.old_gpaw_only
 def test_reuse_sg15(sg15_hydrogen):
     """Test wfs reuse with sg15.
 

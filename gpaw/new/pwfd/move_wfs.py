@@ -14,9 +14,9 @@ def move_wave_functions(oldfracpos_ac,
         atomdist=atomdist,
         xp=psit_nX.xp)
 
-    P_anb = {}
-    for a, B1, B2 in phit_abX.layout.myindices:
-        P_anb[a] = -P_ani[a][:, :B2 - B1]
+    P_anb = phit_abX.empty(psit_nX.dims)
+    for a, P_nb in P_anb.items():
+        P_nb[:] = -P_ani[a][:, :P_nb.shape[1]]
 
     phit_abX.add_to(psit_nX, P_anb)
 

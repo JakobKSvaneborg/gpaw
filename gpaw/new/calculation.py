@@ -167,7 +167,8 @@ class DFTCalculation:
         self.pot_calc.move(self.fracpos_ac, atomdist)
         self.ibzwfs.move(self.fracpos_ac, atomdist)
         self.density.move(self.fracpos_ac, atomdist)
-        self.density.update(self.ibzwfs)
+        if self.ibzwfs.mode != 'lcao':
+            self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
 
         new_potential, _ = self.pot_calc.calculate(

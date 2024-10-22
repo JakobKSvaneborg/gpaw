@@ -13,10 +13,17 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
-    def __init__(self, atoms, params, *, comm, qspiral=None):
+    def __init__(self,
+                 atoms,
+                 params,
+                 *,
+                 comm,
+                 qspiral=None,
+                 reuse_wfs_method='paw'):
         super().__init__(atoms, params, comm=comm)
         self.qspiral_v = (None if qspiral is None else
                           qspiral @ self.grid.icell * (2 * pi))
+        self.reuse_wfs_method = reuse_wfs_method
 
     def create_eigensolver(self, hamiltonian):
         eigsolv_params = self.params.eigensolver.copy()
@@ -57,7 +64,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 fracpos_ac=self.fracpos_ac,
                 atomdist=self.atomdist,
                 ncomponents=self.ncomponents,
-                qspiral_v=self.qspiral_v)
+                qspiral_v=self.qspiral_v,
+                reuse_wfs_method=self.reuse_wfs_method)
 
             return wfs
 
@@ -123,7 +131,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 fracpos_ac=self.fracpos_ac,
                 atomdist=self.atomdist,
                 ncomponents=self.ncomponents,
-                qspiral_v=self.qspiral_v)
+                qspiral_v=self.qspiral_v,
+                reuse_wfs_method=self.reuse_wfs_method)
             wfs._eig_n = eig_n
             return wfs
 

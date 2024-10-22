@@ -32,7 +32,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  atomdist: AtomDistribution,
                  weight: float = 1.0,
                  ncomponents: int = 1,
-                 qspiral_v: Vector | None = None):
+                 qspiral_v: Vector | None = None,
+                 reuse_wfs_method: str | None = 'paw'):
         assert isinstance(atomdist, AtomDistribution)
         self.psit_nX = psit_nX
         nbands = psit_nX.dims[0]
@@ -55,6 +56,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self.bytes_per_band = (prod(self.array_shape(global_shape=True)) *
                                psit_nX.desc.itemsize)
         XP.__init__(self, self.psit_nX.xp)
+        self.reuse_wfs_method = reuse_wfs_method
 
     @classmethod
     def from_wfs(cls,
@@ -130,13 +132,14 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def move(self,
              fracpos_ac: Array2D,
              atomdist: AtomDistribution) -> None:
-        from gpaw.new.pwfd.move_wfs import move_wave_functions
-        move_wave_functions(self.fracpos_ac,
-                            fracpos_ac,
-                            self.atomdist,
-                            self.P_ani,
-                            self.psit_nX,
-                            self.setups)
+        if self.reuse_wfs_method == 'paw':
+            from gpaw.new.pwfd.move_wfs import move_wave_functions
+            move_wave_functions(self.fracpos_ac,
+                                fracpos_ac,
+                                self.atomdist,
+                                self.P_ani,
+                                self.psit_nX,
+                                self.setups)
         super().move(fracpos_ac, atomdist)
         self.orthonormalized = False
         assert self.pt_aiX is not None
