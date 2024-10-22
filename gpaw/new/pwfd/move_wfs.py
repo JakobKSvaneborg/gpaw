@@ -11,12 +11,8 @@ def move_wave_functions(oldfracpos_ac,
     phit_abX = desc.atom_centered_functions(
         [setup.get_partial_waves_for_atomic_orbitals() for setup in setups],
         oldfracpos_ac,
-        atomdist=atomdist)
-
-    if desc.dtype == complex:
-        disp_ac = (newfracpos_ac - oldfracpos_ac).round()
-        print(disp_ac)
-        phase_a = np.exp(2j * np.pi * disp_ac @ desc.kpt_c)
+        atomdist=atomdist,
+        xp=psit_nX.xp)
 
     P_anb = {}
     for a, B1, B2 in phit_abX.layout.myindices:
@@ -24,12 +20,13 @@ def move_wave_functions(oldfracpos_ac,
 
     phit_abX.add_to(psit_nX, P_anb)
 
-    for a, P_nb in P_anb.items():
-        if desc.dtype == complex:
+    if desc.dtype == complex:
+        disp_ac = (newfracpos_ac - oldfracpos_ac).round()
+        phase_a = np.exp(2j * np.pi * disp_ac @ desc.kpt_c)
+        for a, P_nb in P_anb.items():
             P_nb *= -phase_a[a]
-        else:
-            P_nb *= -1.0
+    else:
+        P_anb.data *= -1.0
 
-    print(P_anb)
     phit_abX.move(newfracpos_ac, atomdist)
     phit_abX.add_to(psit_nX, P_anb)

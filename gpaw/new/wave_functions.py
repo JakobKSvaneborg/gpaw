@@ -95,7 +95,7 @@ class WaveFunctions:
         self.atomdist = atomdist
         self._P_ani = None
         self._eig_n = None
-        self._occ_n = None
+        # self._occ_n = None
 
     def collect(self,
                 n1: int = 0,
