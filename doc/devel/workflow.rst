@@ -83,9 +83,13 @@ And with MPI (2, 4 and 8 cores)::
 Creating a merge request
 ========================
 
-Request to become a member of the ``gpaw`` project on GitLab
-`here <https://gitlab.com/gpaw/gpaw/>`__.  This will
-allow you to push branches to the central repository (see below).
+.. _become a member:
+
+.. important::
+
+   Request to become a member of the ``gpaw`` project on GitLab
+   `here <https://gitlab.com/gpaw/gpaw/>`__.  This will
+   allow you to push branches to the central repository (see below).
 
 Create a branch for your changes::
 
@@ -184,33 +188,37 @@ How to get your MR merged
 * Is your MR branch in your own fork?  Close the MR, push your branch to
   the main repository and open a new MR from there.
   This will allow our CI-runner to test your MR.  You will need to be a
-  member of the gpaw group in order to push branches to the main repository.
+  member of the gpaw project in order to push branches to the main repository
+  (see :ref:`here <become a member>`).
 
 * Is it still marked as a draft?
   If so, make sure it is finalized and remove the draft indicator.
+  Or if you want feedback before you feel the MR is finished, please
+  ask explicitly for review and tag one of the maintainers.
 
 * Is the pipeline passing, including all flake and typing tests?
   If not, make sure that pipeline is passing.
 
-* Do you have an approriate description, which described the merge request?
+* Does the MR have an accurate title and a description including motivation
+  for the change?
   If it is a bug fix, or just few lines, less is required.  However, if it
   is a full feature, the reviewer should be able to get a good overview.
 
 * Have you selected a reviewer?
   If not, please select one from the following list:
 
-  * Mikael Kuisma (does most reviewing)
-  * Jens Jørgen Mortensen
-  * Ask Hjorth Larsen
-  * Tuomas Rossi
+  * Jens Jørgen Mortensen (``@jensj``)
+  * Ask Hjorth Larsen (``@askhl``)
+  * Mikael Kuisma (``@mikaelkuisma``)
+  * Tuomas Rossi (``@trossi``)
 
 * Make sure you don't have the ball.
-  Perhaps there are comments by the reviwer in the merge request you have not
+  Perhaps there are comments by the reviewer in the merge request you have not
   answered to.
 
 * Is your merge request more than 50 commits behind from master?
-  f so, merge master, and run the full test suite (including gpw-files and
-  nigthly-mpi-* tests)?
+  If so, merge master, and run the full test suite (including gpw-files and
+  nightly-mpi-* tests)?
 
 * Does the reviewer have the ball?
   We are sometimes busy, and also human, and we might just not simply see
@@ -218,7 +226,7 @@ How to get your MR merged
   answered all the comments, or are waiting for the first review, and it
   has been more than a week: Please send a friendly reminder by tagging in
   git.  Has it been more than two weeks?  Please send an e-mail to the
-  reviwer and ask about the situation.  Be active.
+  reviewer and ask about the situation.  Be active.
 
 * Need help with git or gitlab: Just ask!
 
@@ -226,8 +234,8 @@ Some developments of big projects go on for over a year, and it might get
 increasingly difficult to keep merging master with merge conflicts, or
 even worse, the branch could diverge from master.  It is ok to merge
 incomplete features, provided that it is obvious to the user, that they
-are not ready for production yet.  One may issue warnings, or assert in
-the main function, that user has set ``I_KNOW_WHAT_I_AM_DOING=True``. That
+are not ready for production yet and the code has appropriate warnings
+and assertions. That
 way, you can still add tests, make sure your development keeps track with
 the developments of the other parts of the code.
 
