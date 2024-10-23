@@ -190,8 +190,8 @@ class XAS:
         self.eps_n0_k = eps_n0_k
         self.symmetry = wfs.kd.symmetry
 
-    def get_matrix_ellement(self, kpoint=None, proj=None,
-                            proj_xyz: bool = True, raw: bool = False):
+    def get_matrix_element(self, kpoint=None, proj=None,
+            proj_xyz: bool = True, raw: bool = False):
 
         proj_3 = projection(proj_xyz, proj, self.orthogonal)
 
@@ -250,10 +250,8 @@ class XAS:
             oscillator strengths: 3D array [c, m, n]
         """
 
-        eps_n, sigma2_cmn, eps_n0_k = self.get_matrix_ellement(kpoint,
-                                                               proj,
-                                                               proj_xyz,
-                                                               raw=True)
+        eps_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
+            kpoint, proj, proj_xyz, raw=True)
         n = len(eps_n)
 
         if isinstance(dks, float) or isinstance(dks, int):
