@@ -1,6 +1,21 @@
 import numpy as np
+import copy
 
 from gpaw.gauss import Gauss
+
+
+def x_y_xl(x, y, xl=None):
+    X = np.array(x)
+    assert len(X.shape) == 1
+    Y = np.array(y)
+    assert X.shape[0] == Y.shape[0]
+
+    if xl is None:
+        Xl = np.unique(X)
+    else:
+        Xl = np.array(xl)
+        assert len(Xl.shape) == 1
+    return X, Y, Xl
 
 
 class Lorentz:
@@ -166,16 +181,22 @@ class Folder:
         else:
             raise RuntimeError('unknown folding "' + folding + '"')
 
-    def fold(self, x, y, dx=None, xmin=None, xmax=None):
+    def fold(self, x, y, dx=None, xmin=None, xmax=None,
+             linbroad: list = None):
         X = np.array(x)
         assert len(X.shape) == 1
         Y = np.array(y)
         assert X.shape[0] == Y.shape[0]
 
+        try:
+            w = self.func.width
+        except AttributeError:
+            w = self.width
+
         if xmin is None:
-            xmin = np.min(X) - 4 * self.width
+            xmin = np.min(X) - 4 * w
         if xmax is None:
-            xmax = np.max(X) + 4 * self.width
+            xmax = np.max(X) + 4 * w
         if dx is None:
             try:
                 dx = self.func.width / 4.
@@ -183,25 +204,85 @@ class Folder:
                 dx = self.width / 4.
 
         xl = np.arange(xmin, xmax + 0.5 * dx, dx)
-
-        return self.fold_values(x, y, xl)
+        if linbroad is None:
+            return self.fold_values(x, y, xl)
+        elif type(self.func) is Voigt:
+            return self.fold_valuse_variable_brodening_voigt(x, y, xl,
+                                                             linbroad)
+        else:
+            return self.fold_valuse_variable_brodening(x, y, xl, linbroad)
 
     def fold_values(self, x, y, xl=None):
-        X = np.array(x)
-        assert len(X.shape) == 1
-        Y = np.array(y)
-        assert X.shape[0] == Y.shape[0]
-
-        if xl is None:
-            Xl = np.unique(X)
-        else:
-            Xl = np.array(xl)
-            assert len(Xl.shape) == 1
+        X, Y, Xl = x_y_xl(x, y, xl)
 
         # weight matrix
         weightm = np.empty((Xl.shape[0], X.shape[0]),
                            dtype=self.func.dtype)
         for i, x in enumerate(X):
+            weightm[:, i] = self.func.get(Xl, x)
+
+        yl = np.tensordot(weightm, Y, axes=(1, 0))
+
+        return Xl, yl
+
+    def fold_valuse_variable_brodening(self, x, y, xl, linbroad: list):
+        X, Y, Xl = x_y_xl(x, y, xl)
+
+        widht2 = linbroad[0]
+        lin_x1 = linbroad[1]
+        lin_x2 = linbroad[2]
+
+        func2 = copy.copy(self.func)
+        func2.set_width(widht2)
+
+        func1 = copy.copy(self.func)
+        func1.set_width(self.width)
+
+        fwhm1 = func1._fwhm
+        fwhm2 = func2._fwhm
+
+        weightm = np.empty((Xl.shape[0], X.shape[0]),
+                           dtype=self.func.dtype)
+
+        for i, x in enumerate(X):
+            if x < lin_x1:
+                fwhm_lin = fwhm1
+            elif x <= lin_x2 and lin_x2 != lin_x1:
+                fwhm_lin = (fwhm1 + (x - lin_x1) *
+                            (fwhm2 - fwhm1) / (lin_x2 - lin_x1))
+            elif x >= lin_x2:
+                fwhm_lin = fwhm2
+            self.func.fwhm = fwhm_lin
+
+            weightm[:, i] = self.func.get(Xl, x)
+
+        yl = np.tensordot(weightm, Y, axes=(1, 0))
+
+        return Xl, yl
+
+    def fold_valuse_variable_brodening_voigt(self, x, y, xl, linbroad: list):
+
+        X, Y, Xl = x_y_xl(x, y, xl)
+
+        width2 = np.array(linbroad[0])
+        lin_x1 = linbroad[1]
+        lin_x2 = linbroad[2]
+
+        width1 = self.width
+
+        weightm = np.empty((Xl.shape[0], X.shape[0]),
+                           dtype=self.func.dtype)
+
+        for i, x in enumerate(X):
+            if x < lin_x1:
+                width_line = width1
+            elif x <= lin_x2 and lin_x2 != lin_x1:
+                width_line = (width1 + (x - lin_x1) *
+                              (width2 - width1) / (lin_x2 - lin_x1))
+            elif x >= lin_x2:
+                width_line = width2
+            self.func.set_width(width_line)
+
             weightm[:, i] = self.func.get(Xl, x)
 
         yl = np.tensordot(weightm, Y, axes=(1, 0))
