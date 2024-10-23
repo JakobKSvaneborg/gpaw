@@ -56,7 +56,6 @@ class SCFLoop:
                 maxiter=None,
                 calculate_forces=None,
                 log=None):
-
         cc = create_convergence_criteria(convergence or self.convergence)
         maxiter = maxiter or self.maxiter
 
@@ -175,6 +174,7 @@ class SCFContext:
 
 def create_convergence_criteria(criteria: dict[str, Any]
                                 ) -> dict[str, Criterion]:
+    criteria = criteria.copy()
     for k, v in [('energy', 0.0005),        # eV / electron
                  ('density', 1.0e-4),       # electrons / electron
                  ('eigenstates', 4.0e-8)]:  # eV^2 / electron

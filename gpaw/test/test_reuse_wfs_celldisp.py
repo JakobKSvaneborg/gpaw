@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from ase.build import molecule
 
 from gpaw import GPAW, Mixer
@@ -11,7 +10,6 @@ from gpaw.mpi import world
 # are handled correctly when unprojecting/reprojecting the wavefunctions.
 
 
-# @pytest.mark.old_gpaw_only  # Not implemented yet
 def test_reuse_wfs_celldisp(in_tmp_dir):
     def check(reuse):
         atoms = molecule('H2')
