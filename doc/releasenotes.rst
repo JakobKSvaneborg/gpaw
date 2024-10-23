@@ -12,14 +12,11 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+* Updated development-workflow documentation:
+  :ref:`a good mr`, :ref:`get your mr merged`.
+
 * Works with
   `Libxc-7.0.0 <https://gitlab.com/libxc/libxc/-/releases/7.0.0>`__.
-
-* Added functionality to compute LDA exchange constants based on the
-  local site properties methodology, see :ref:`sites`.
-
-* Extended ``restrict`` keyword and random phase approximation enabled
-  in :ref:`lrtddft`
 
 * The :meth:`gpaw.calculator.GPAW.fixed_density` method now respects the
   ``update_fermi_level`` argument.  Previously, the Fermi-level would not
@@ -30,6 +27,12 @@ Git master branch
 * The :meth:`gpaw.calculator.GPAW.get_occupation_numbers` method can now
   return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
   or **k**-point weights (use ``raw=True``).
+
+* Added functionality to compute LDA exchange constants based on the
+  local site properties methodology, see :ref:`sites`.
+
+* Extended ``restrict`` keyword and random phase approximation enabled
+  in :ref:`lrtddft`
 
 
 Version 24.6.0
