@@ -33,7 +33,7 @@ class SCFLoop:
         self.mixer = mixer
         self.occ_calc = occ_calc
         self.comm = comm
-        self.convergence = convergence
+        self.convergence = create_convergence_criteria(convergence)
         self.maxiter = maxiter
         self.niter = 0
         self.update_density_and_potential = True
@@ -52,11 +52,11 @@ class SCFLoop:
                 density,
                 potential,
                 pot_calc,
-                convergence=None,
+                *,
                 maxiter=None,
                 calculate_forces=None,
                 log=None):
-        cc = create_convergence_criteria(convergence or self.convergence)
+        cc = self.convergence
         maxiter = maxiter or self.maxiter
 
         self.eigensolver.initialize_etdm(

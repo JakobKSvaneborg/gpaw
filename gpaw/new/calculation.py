@@ -182,26 +182,23 @@ class DFTCalculation:
 
         return self
 
-    def iconverge(self, convergence=None, maxiter=None, calculate_forces=None):
+    def iconverge(self, maxiter=None, calculate_forces=None):
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         yield from self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
                                          self.potential,
                                          self.pot_calc,
-                                         convergence,
-                                         maxiter,
-                                         calculate_forces,
+                                         maxiter=maxiter,
+                                         calculate_forces=calculate_forces,
                                          log=self.log)
 
     @trace
     def converge(self,
-                 convergence=None,
                  maxiter=None,
                  steps=99999999999999999,
                  calculate_forces=None):
         """Converge to self-consistent solution of Kohn-Sham equation."""
-        for step, _ in enumerate(self.iconverge(convergence,
-                                                maxiter,
+        for step, _ in enumerate(self.iconverge(maxiter,
                                                 calculate_forces),
                                  start=1):
             if step == steps:
