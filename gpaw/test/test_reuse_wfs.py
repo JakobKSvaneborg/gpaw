@@ -41,8 +41,9 @@ def run(atoms, method, kwargs):
     niter2 = len(conv.history)
     reuse_error = conv.history[0]
 
-    # If the energy is exactly or suspiciously close to zero, it's because
-    # nothing was done at all (something was cached but shouldn't have been)
+    # If the change in energy is exactly or suspiciously close to zero, it's
+    # because nothing was done at all (something was cached but shouldn't
+    # have been)
     delta_e = abs(E2 - E1)
     assert delta_e > 1e-6, delta_e
     return niter1, niter2, reuse_error
