@@ -136,10 +136,10 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             from gpaw.new.pwfd.move_wfs import move_wave_functions
             move_wave_functions(self.fracpos_ac,
                                 fracpos_ac,
-                                self.atomdist,
                                 self.P_ani,
                                 self.psit_nX,
-                                self.setups)
+                                self.setups,
+                                self.atomdist)
         super().move(fracpos_ac, atomdist)
         self.orthonormalized = False
         assert self.pt_aiX is not None
