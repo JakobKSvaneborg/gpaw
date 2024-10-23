@@ -15,7 +15,7 @@ def move_wave_functions(oldfracpos_ac,
         cut=True,
         xp=psit_nX.xp)
 
-    P_anb = phit_abX.empty(psit_nX.dims)
+    P_anb = phit_abX.empty(psit_nX.dims, comm=psit_nX.comm)
     for a, P_nb in P_anb.items():
         P_nb[:] = -P_ani[a][:, :P_nb.shape[1]]
 
