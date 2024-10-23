@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import numpy as np
-from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.atom_arrays import AtomArrays
 from gpaw.setup import Setups
 
 
@@ -8,8 +10,7 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
                         newfracpos_ac: np.ndarray,
                         P_ani: AtomArrays,
                         psit_nX: XArray,
-                        setups: Setups,
-                        atomdist: AtomDistribution | None = None) -> None:
+                        setups: Setups) -> None:
     """Move wavefunctions with atoms according to PAW basis
 
     Wavefunctions are approximated as:::
@@ -22,14 +23,13 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
     This quantity is then subtracted and re-added at the new
     positions.
     """
-    atomdist = atomdist or AtomDistribution.from_number_of_atoms(len(setups))
     desc = psit_nX.desc
 
     # Create partial wave ACF object:
     phit_abX = desc.atom_centered_functions(
         [setup.get_partial_waves_for_atomic_orbitals() for setup in setups],
         oldfracpos_ac,
-        atomdist=atomdist,
+        atomdist=P_ani.layout.atomdist,
         cut=True,
         xp=psit_nX.xp)
 
@@ -37,7 +37,7 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
     for a, P_nb in P_anb.items():
         P_nb[:] = -P_ani[a][:, :P_nb.shape[1]]
 
-    # Subbtract partial wave expansion:
+    # Subtract partial wave expansion:
     phit_abX.add_to(psit_nX, P_anb)
 
     if desc.dtype == complex:
@@ -49,5 +49,5 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
         P_anb.data *= -1.0
 
     # Add partial wave expansion at new positions:
-    phit_abX.move(newfracpos_ac, atomdist)
+    phit_abX.move(newfracpos_ac, P_ani.layout.atomdist)
     phit_abX.add_to(psit_nX, P_anb)
