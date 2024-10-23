@@ -116,6 +116,8 @@ class SCFLoop:
                 dens_error = self.mixer.mix(density)
                 new_potential, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
+                # Because of the way direct-optimization works at the moment,
+                # we need to update the potential in-place!
                 potential.update_from(new_potential)
                 if self.eigensolver.direct:
                     ekin = ibzwfs.calculate_kinetic_energy(
