@@ -169,6 +169,7 @@ class IBZWaveFunctions(Generic[WFT]):
     def move(self, fracpos_ac, atomdist):
         self.ibz.symmetries.check_positions(fracpos_ac)
         self.energies.clear()
+        self.make_sure_wfs_are_read_from_gpw_file()
         for wfs in self:
             wfs.move(fracpos_ac, atomdist)
 

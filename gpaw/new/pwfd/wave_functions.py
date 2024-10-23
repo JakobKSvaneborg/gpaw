@@ -132,7 +132,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def move(self,
              fracpos_ac: Array2D,
              atomdist: AtomDistribution) -> None:
-        if self.reuse_wfs_method == 'paw':
+        if self.reuse_wfs_method == 'paw' and self.psit_nX.data is not None:
             from gpaw.new.pwfd.move_wfs import move_wave_functions
             move_wave_functions(self.fracpos_ac,
                                 fracpos_ac,

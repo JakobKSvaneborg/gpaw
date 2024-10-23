@@ -12,6 +12,7 @@ def move_wave_functions(oldfracpos_ac,
         [setup.get_partial_waves_for_atomic_orbitals() for setup in setups],
         oldfracpos_ac,
         atomdist=atomdist,
+        cut=True,
         xp=psit_nX.xp)
 
     P_anb = phit_abX.empty(psit_nX.dims)
