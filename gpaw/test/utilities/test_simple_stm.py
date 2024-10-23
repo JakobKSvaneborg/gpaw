@@ -6,7 +6,6 @@ from gpaw.analyse.simple_stm import SimpleStm
 from gpaw.mpi import rank, size
 
 
-@pytest.mark.later
 def test_utilities_simple_stm(in_tmp_dir):
     load = False
     txt = '/dev/null'

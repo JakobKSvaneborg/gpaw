@@ -1,4 +1,4 @@
-# web-page: W_r.svg
+# web-page: W_r.png
 import numpy as np
 import matplotlib.pyplot as plt
 from qeh import Heterostructure
@@ -30,7 +30,7 @@ plt.plot(r, W_r, '-g')
 plt.title(r'Screened Interaction Energy')
 plt.xlabel(r'${\bf r}$ (Ang)', fontsize=20)
 plt.ylabel(r'$W({\bf r})$ (Ha)', fontsize=20)
-plt.savefig('W_r.svg')
+plt.savefig('W_r.png')
 plt.show()
 
 ee, ev = HS.get_exciton_binding_energies(eff_mass=inter_mass,

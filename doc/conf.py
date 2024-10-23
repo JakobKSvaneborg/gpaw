@@ -21,7 +21,8 @@ extensions = ['images',
               'sphinx.ext.viewcode',
               'sphinx.ext.napoleon',
               'sphinx.ext.mathjax',
-              'sphinx.ext.intersphinx']
+              'sphinx.ext.intersphinx',
+              'sphinxcontrib.jquery']
 
 if sphinxcontrib:
     extensions.append('sphinxcontrib.spelling')
@@ -51,7 +52,7 @@ intersphinx_mapping = {
     'cupy': ('https://docs.cupy.dev/en/stable', None),
     'scipy': ('https://docs.scipy.org/doc/scipy', None),
     'pytest': ('https://docs.pytest.org/en/stable', None),
-    'mayavi': ('http://docs.enthought.com/mayavi/mayavi', None)}
+    'mayavi': ('https://docs.enthought.com/mayavi/mayavi', None)}
 nitpick_ignore = [('py:class', 'gpaw.calculator.GPAW'),
                   ('py:class', 'gpaw.spinorbit.BZWaveFunctions'),
                   ('py:class', 'GPAW'),

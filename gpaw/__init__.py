@@ -8,8 +8,8 @@ import contextlib
 from pathlib import Path
 from typing import List, Union, Any, TYPE_CHECKING
 
-__version__ = '24.1.0'
-__ase_version_required__ = '3.22.1'
+__version__ = '24.7.0b1'
+__ase_version_required__ = '3.23.0'
 
 __all__ = ['GPAW',
            'Mixer', 'MixerSum', 'MixerDif', 'MixerSum2',
@@ -20,6 +20,7 @@ __all__ = ['GPAW',
            'PW', 'LCAO', 'FD',
            'restart']
 
+GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
 setup_paths: List[Union[str, Path]] = []
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
@@ -173,7 +174,6 @@ def __dir__() -> List[str]:
 
 
 all_lazy_imports = dict(
-    OldGPAW='gpaw.calculator.GPAW',
     Mixer='gpaw.mixer.Mixer',
     MixerSum='gpaw.mixer.MixerSum',
     MixerDif='gpaw.mixer.MixerDif',
@@ -191,8 +191,7 @@ all_lazy_imports = dict(
     MarzariVanderbilt='gpaw.occupations.MarzariVanderbilt',
     FD='gpaw.wavefunctions.fd.FD',
     LCAO='gpaw.wavefunctions.lcao.LCAO',
-    PW='gpaw.wavefunctions.pw.PW',
-)
+    PW='gpaw.wavefunctions.pw.PW')
 
 
 class BroadcastImports:
@@ -259,14 +258,12 @@ if debug:
     np.empty = empty
     np.empty_like = empty_like
 
-
-def GPAW(*args, **kwargs) -> Any:
-    if int(os.environ.get('GPAW_NEW', '0')):
-        from gpaw.new.ase_interface import GPAW as NewGPAW
-        return NewGPAW(*args, **kwargs)
-
-    from gpaw.calculator import GPAW as OldGPAW
-    return OldGPAW(*args, **kwargs)
+if TYPE_CHECKING:
+    from gpaw.new.ase_interface import GPAW
+elif GPAW_NEW:
+    all_lazy_imports['GPAW'] = 'gpaw.new.ase_interface.GPAW'
+else:
+    all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
 
 
 def restart(filename, Class=None, **kwargs):

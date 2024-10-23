@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import numpy as np
 import pytest
-from gpaw import setup_paths
+from gpaw import setup_paths, GPAW_NEW
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -184,17 +184,14 @@ def all_gpw_files(request, gpw_files, pytestconfig):
     # it is populated, i.e., further down in the file than
     # the @gpwfile decorator.
 
-    import os
-    gpaw_new = int(os.environ.get('GPAW_NEW', '0'))
-
     # TODO This xfail-information should probably live closer to the
     # gpwfile definitions and not here in the fixture.
     skip_if_new = {'Cu3Au_qna',
                    'nicl2_pw', 'nicl2_pw_evac',
                    'v2br4_pw', 'v2br4_pw_nosym',
                    'sih4_xc_gllbsc_fd', 'sih4_xc_gllbsc_lcao',
-                   'na2_isolated'}
-    if gpaw_new and request.param in skip_if_new:
+                   'na2_isolated', 'h2o_xas'}
+    if GPAW_NEW and request.param in skip_if_new:
         pytest.xfail(f'{request.param} gpwfile not yet working with GPAW_NEW')
 
     # Accessing each file via __getitem__ executes the calculation:
@@ -203,7 +200,7 @@ def all_gpw_files(request, gpw_files, pytestconfig):
 
 @pytest.fixture(scope='session')
 def mme_files(request, gpw_files):
-    "Reuse mme files"
+    """Reuse mme files"""
     cache = request.config.cache
     mme_cachedir = cache.mkdir('gpaw_test_mmefiles')
 
@@ -261,6 +258,10 @@ def pytest_runtest_setup(item):
         for mark in item.iter_markers():
             if mark.name == 'serial':
                 pytest.skip('Only run in serial')
+    else:
+        for mark in item.iter_markers():
+            if mark.name == 'parallel':
+                pytest.skip('Only run in parallel')
 
     if item.location[0] <= os.environ.get('PYTEST_START_AFTER', ''):
         pytest.skip('Not after $PYTEST_START_AFTER')
@@ -293,7 +294,7 @@ def needs_ase_master():
         pytest.skip('ASE is too old')
 
 
-def pytest_report_header(config, startdir):
+def pytest_report_header(config, start_path):
     # Use this to add custom information to the pytest printout.
     yield f'GPAW MPI rank={world.rank}, size={world.size}'
 
@@ -317,4 +318,4 @@ def rng():
 @pytest.fixture
 def gpaw_new() -> bool:
     """Are we testing the new code?"""
-    return bool(int(os.environ.get('GPAW_NEW', '0')))
+    return GPAW_NEW

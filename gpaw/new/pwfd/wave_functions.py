@@ -220,7 +220,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         S.multiply(P_ani, out=P2_ani)
         psit_nX.data[:] = psit2_nX.data
         P_ani.data[:] = P2_ani.data
-
         self.orthonormalized = True
 
     @trace

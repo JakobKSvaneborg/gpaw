@@ -126,7 +126,10 @@ class LCAOWaveFunctions(WaveFunctions):
             return C_nM.data
         return None
 
-    def calculate_density_matrix(self, eigs=False) -> np.ndarray:
+    def calculate_density_matrix(self,
+                                 *,
+                                 eigs=False,
+                                 transposed=False) -> np.ndarray:
         """Calculate the density matrix.
 
         The density matrix is:::
@@ -145,7 +148,10 @@ class LCAOWaveFunctions(WaveFunctions):
             if eigs:
                 f_n *= self.myeig_n
             C_nM = self.C_nM.data
-            rho_MM = (C_nM.T.conj() * f_n) @ C_nM
+            if transposed:
+                rho_MM = (C_nM.T * f_n) @ C_nM.conj()
+            else:
+                rho_MM = (C_nM.T.conj() * f_n) @ C_nM
             self.band_comm.sum(rho_MM)
         else:
             rho_MM = np.empty_like(self.T_MM.data)

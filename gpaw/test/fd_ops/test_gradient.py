@@ -1,7 +1,27 @@
-from gpaw.fd_operators import Gradient, FDOperator
 import numpy as np
+import pytest
+
+from gpaw.core import UGDesc
+from gpaw.fd_operators import FDOperator, Gradient
 from gpaw.grid_descriptor import GridDescriptor
 from gpaw.mpi import world
+
+
+def test_strange_cell():
+    """Make sure x-derivative is correct even in a strange cell.
+
+    See issue #1102.
+    """
+    grid = UGDesc(
+        cell=[8.7, 5.7, 7.7, 28, 120, 95],
+        size=(60, 40, 54))
+    with pytest.raises(ValueError):
+        grad = Gradient(grid._gd, v=0)
+    grad = Gradient(grid._gd, v=0, allow_bad_cells=True)
+    a, b = grid.empty(2)
+    a.data[:] = grid.xyz()[:, :, :, 0]
+    grad.apply(a.data, b.data)
+    assert b.data[30, 20, 27] == pytest.approx(1.0)
 
 
 def test_fd_ops_gradient():

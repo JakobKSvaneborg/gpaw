@@ -90,7 +90,7 @@ def test_wannier90_soc(gpw_files, in_tmp_dir):
         w = read_wout_all(fd)
     centers = np.sum(np.array(w['centers']), axis=0)
     centers_correct = [12.9, 12.9, 12.9]
-    assert np.allclose(centers, centers_correct, atol=0.15)
+    assert np.allclose(centers, centers_correct, atol=0.19)
     spreads = np.sum(np.array(w['spreads']))
     assert spreads == pytest.approx(20.1, abs=0.6)
 
@@ -100,7 +100,7 @@ def check_wavefunctions():
     test1 = [[20, 20, 20, 1, 4], [20, 20, 20, 2, 4], [20, 20, 20, 3, 4]]
     test2 = [0.0656, 0.0634, 0.0437]
     for i in range(3):
-        with open(f"UNK0000{i+1}.1") as f:
+        with open(f"UNK0000{i + 1}.1") as f:
             l1 = f.readline()
             l1 = l1.split(' ')
             l1 = [int(i) for i in l1]

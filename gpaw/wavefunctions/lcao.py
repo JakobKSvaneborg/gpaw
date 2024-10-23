@@ -439,6 +439,7 @@ class LCAOWaveFunctions(WaveFunctions):
             self.read_wave_functions(r)
 
     def read_wave_functions(self, reader):
+        c = 1.0 if getattr(reader, 'version', 3) >= 4 else Bohr**1.5
         for kpt in self.kpt_u:
             C_nM = reader.proxy('coefficients', kpt.s, kpt.k)
             kpt.C_nM = self.bd.empty(self.setups.nao, dtype=self.dtype)
@@ -447,7 +448,7 @@ class LCAOWaveFunctions(WaveFunctions):
                 # XXX number of bands could have been rounded up!
                 if n >= len(C_nM):
                     break
-                C_M[:] = C_nM[n] * Bohr**1.5
+                C_M[:] = C_nM[n] * c
 
         self.coefficients_read_from_file = True
 
@@ -650,6 +651,7 @@ class LCAOforces:
             for a, M1, M2 in self.my_slices():
                 Ftheta_av[a, :] += \
                     -2.0 * dThetadRE_vMM[:, M1:M2].sum(-1).sum(-1)
+
         return Ftheta_av
 
     def get_pot_term(self):

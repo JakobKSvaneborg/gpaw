@@ -3,6 +3,7 @@ import contextlib
 from time import time
 from typing import TYPE_CHECKING
 from types import ModuleType
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -12,16 +13,78 @@ cupy_is_fake = True
 is_hip = False
 """True if we are using HIP"""
 
+device_id = None
+"""Device id"""
+
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
     import gpaw.gpu.cpupyx as cupyx
 else:
     try:
+        import gpaw.cgpaw as cgpaw
+        if not hasattr(cgpaw, 'gpaw_gpu_init'):
+            raise ImportError
+
         import cupy
+
+        # This import is to preload cublas
+        # Fixes cp.cublas.gemm attribute not found error introduced by v13.
+        from cupy import cublas  # noqa: F401
+
         import cupyx
         from cupy.cuda import runtime
+        numpy2 = np.__version__.split('.')[0] == '2'
+
+        def fftshift_patch(x, axes=None):
+            x = cupy.asarray(x)
+            if axes is None:
+                axes = list(range(x.ndim))
+            elif not isinstance(axes, Iterable):
+                axes = (axes,)
+            return cupy.roll(x, [x.shape[axis] // 2 for axis in axes], axes)
+
+        def ifftshift_patch(x, axes=None):
+            x = cupy.asarray(x)
+            if axes is None:
+                axes = list(range(x.ndim))
+            elif not isinstance(axes, Iterable):
+                axes = (axes,)
+            return cupy.roll(x, [-(x.shape[axis] // 2) for axis in axes], axes)
+
+        if numpy2:
+            cupy.fft.fftshift = fftshift_patch
+            cupy.fft.ifftshift = ifftshift_patch
+
         is_hip = runtime.is_hip
         cupy_is_fake = False
+
+        # Check the number of devices
+        # Do not fail when calling `gpaw info` on a login node without GPUs
+        try:
+            device_count = runtime.getDeviceCount()
+        except runtime.CUDARuntimeError as e:
+            # Likely no device present
+            if 'ErrorNoDevice' not in str(e):
+                # Raise error in case of some other error
+                raise e
+            device_count = 0
+
+        if device_count > 0:
+            # select GPU device (round-robin based on MPI rank)
+            # if not set, all MPI ranks will use the same default device
+            from gpaw.mpi import rank
+            runtime.setDevice(rank % device_count)
+
+            # initialise C parameters and memory buffers
+            import gpaw.cgpaw as cgpaw
+            cgpaw.gpaw_gpu_init()
+
+            # Generate a device id
+            import os
+            nodename = os.uname()[1]
+            bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
+            device_id = f'{nodename}:{bus_id}'
+
     except ImportError:
         import gpaw.gpu.cpupy as cupy
         import gpaw.gpu.cpupyx as cupyx
@@ -32,18 +95,6 @@ __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']
 def synchronize():
     if not cupy_is_fake:
         cupy.cuda.get_current_stream().synchronize()
-
-
-def setup():
-    if not cupy_is_fake:
-        # select GPU device (round-robin based on MPI rank)
-        # if not set, all MPI ranks will use the same default device
-        from gpaw.mpi import rank
-        device_id = rank % cupy.cuda.runtime.getDeviceCount()
-        cupy.cuda.runtime.setDevice(device_id)
-        # initialise C parameters and memory buffers
-        import gpaw.cgpaw as cgpaw
-        cgpaw.gpaw_gpu_init()
 
 
 def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
@@ -97,6 +148,7 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     eigs, evals = eigh(cupy.asnumpy(a),
                        lower=(UPLO == 'L'),
                        check_finite=False)
+
     return cupy.asarray(eigs), cupy.asarray(evals)
 
 

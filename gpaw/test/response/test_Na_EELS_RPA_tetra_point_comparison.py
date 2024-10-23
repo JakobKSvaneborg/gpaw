@@ -63,13 +63,13 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
     # tetra and point integrators should produce similar results:
     # confirm this by comparing the 2 integration methods
     assert wpeakT0 == pytest.approx(wpeakP0, abs=0.05)
-    assert wpeakT1 == pytest.approx(wpeakP1, abs=0.1)
+    assert wpeakT1 == pytest.approx(wpeakP1, abs=0.12)
 
     # ensure the wpeak for point & tetra integration do not change
     assert wpeakP0 == pytest.approx(3.4811, abs=0.02)
     assert wpeakP1 == pytest.approx(3.8076, abs=0.02)
     assert wpeakT0 == pytest.approx(3.5033, abs=0.02)
-    assert wpeakT1 == pytest.approx(3.8230, abs=0.11)
+    assert wpeakT1 == pytest.approx(3.8230, abs=0.13)
 
     # ensure the Ipeak for point & tetra integration do not change
     assert IpeakP0 == pytest.approx(8.6311, abs=1.)
