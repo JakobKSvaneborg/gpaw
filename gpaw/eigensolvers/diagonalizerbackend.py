@@ -1,9 +1,14 @@
 """Module for Numpy array diagonalization with Scipy/Scalapack."""
+from abc import ABC, abstractmethod
+from functools import cached_property
+
 import numpy as np
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import broadcast_exception, MPIComm
+from gpaw.utilities.elpa import LibElpa
+from gpaw.utilities.tools import tri2full
 
 
 class ScipyDiagonalizer:
@@ -45,12 +50,8 @@ class ScipyDiagonalizer:
                     A, B, lower=True, check_finite=debug, overwrite_b=True)
 
 
-class ScalapackDiagonalizer:
-    """Diagonalizer class that uses general_diagonalize_dc.
-
-    The ScalapackDiagonalizer wraps general_diagonalize_dc to solve a
-    (generalized) eigenproblem on one core???
-    """
+class DistributedBlacsDiagonalizer(ABC):
+    do_tri2full = False
 
     def __init__(
         self,
@@ -122,6 +123,7 @@ class ScalapackDiagonalizer:
         debug : bool
             Flag to check for finiteness when running in debug mode.
         """
+
         Asc_MM = self.head_rank_descriptor.zeros(dtype=self.dtype)
         Bsc_MM = self.head_rank_descriptor.zeros(dtype=self.dtype)
         vec_MM = self.head_rank_descriptor.zeros(dtype=self.dtype)
@@ -133,14 +135,15 @@ class ScalapackDiagonalizer:
         temporary_eps = np.zeros([self.arraysize])
         if self.scalapack_communicator.rank == 0:
             assert self.blacsgrid.comm.rank == 0
+            if self.do_tri2full:
+                tri2full(A)  # ELPA requires full matrix
             Asc_MM[:, :] = A
             Bsc_MM[:, :] = B
 
         self.head_to_all_redistributor.redistribute(Asc_MM, Asc_mm)
         self.head_to_all_redistributor.redistribute(Bsc_MM, Bsc_mm)
 
-        self.distributed_descriptor.general_diagonalize_dc(
-            Asc_mm, Bsc_mm, vec_mm, temporary_eps)
+        self._eigh(Asc_mm, Bsc_mm, vec_mm, temporary_eps)
 
         # vec_MM contains the eigenvectors in 'Fortran form'. They need to be
         # transpose-conjugated before they are consistent with Scipy behaviour
@@ -151,3 +154,32 @@ class ScalapackDiagonalizer:
             # Fortran-convention eigenvectors.
             A[:, :] = vec_MM.conj().T
             eps[:] = temporary_eps
+
+    @abstractmethod
+    def _eigh(self, Asc_mm, Bsc_mm, vec_mm, eps):
+        raise NotImplementedError()
+
+
+class ScalapackDiagonalizer(DistributedBlacsDiagonalizer):
+    """Diagonalizer class that uses general_diagonalize_dc.
+
+    The ScalapackDiagonalizer wraps general_diagonalize_dc to solve a
+    (generalized) eigenproblem on one core???
+    """
+
+    def _eigh(self, Asc_mm, Bsc_mm, vec_mm, eps):
+        self.distributed_descriptor.general_diagonalize_dc(
+            Asc_mm, Bsc_mm, vec_mm, eps)
+
+
+class ElpaDiagonalizer(DistributedBlacsDiagonalizer):
+    """Diagonalizer class that uses LibElpa general_diagonalize."""
+    do_tri2full = True
+
+    @cached_property
+    def elpa(self):
+        return LibElpa(self.distributed_descriptor)
+
+    def _eigh(self, Asc_mm, Bsc_mm, vec_mm, eps):
+        self.elpa.general_diagonalize(
+            Asc_mm, Bsc_mm, vec_mm, eps)
