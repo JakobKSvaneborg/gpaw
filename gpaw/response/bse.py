@@ -22,6 +22,7 @@ from gpaw.response.pair import KPointPairFactory, get_gs_and_context
 from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.screened_interaction import (initialize_w_calculator,
                                                 GammaIntegrationMode)
+from gpaw.utilities.elpa import LibElpa
 
 
 def decide_whether_tammdancoff(val_m, con_m):
@@ -79,11 +80,15 @@ class BSEMatrix:
             H_tmp = desc_tmp.zeros(dtype=complex)
             Redistributor(grid_tmp.comm, desc_H_Rr,
                           desc_tmp).redistribute(H_Rr, H_tmp)
-            bse.context.print('  Using scalapack...')
-
             w_T = np.empty(nR)
             v_tmp = desc_tmp.empty(dtype=complex)
-            desc_tmp.diagonalize_dc(H_tmp, v_tmp, w_T)
+            if LibElpa.have_elpa():
+                bse.context.print('  Using elpa...')
+                elpa = LibElpa(desc_tmp)
+                elpa.diagonalize(H_tmp, v_tmp, w_T)
+            else:
+                bse.context.print('  Using scalapack...')
+                desc_tmp.diagonalize_dc(H_tmp, v_tmp, w_T)
 
             v_tR = desc_H_rR.zeros(dtype=complex)
             Redistributor(grid2.comm, desc_tmp,
