@@ -37,6 +37,9 @@ def run(atoms, method, kwargs):
 
     atoms.rattle(stdev=0.0001)
 
+    if method is None and not calc.old:
+        calc.dft.ibzwfs.move_wave_functions = lambda *args: None
+
     E2 = atoms.get_potential_energy()
     niter2 = len(conv.history)
     reuse_error = conv.history[0]
@@ -49,7 +52,6 @@ def run(atoms, method, kwargs):
     return niter1, niter2, reuse_error
 
 
-# @pytest.mark.old_gpaw_only
 @pytest.mark.parametrize('mode, reuse_type, max_reuse_error', [
     ('pw', 'paw', 1e-5),
     ('pw', None, 1e-4),

@@ -31,11 +31,9 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  comm,
                  ecut=340,
                  qspiral=None,
-                 dedecut=None,
-                 reuse_wfs_method='paw'):
+                 dedecut=None):
         self.ecut = ecut / Ha
-        super().__init__(atoms, params, comm=comm, qspiral=qspiral,
-                         reuse_wfs_method=reuse_wfs_method)
+        super().__init__(atoms, params, comm=comm, qspiral=qspiral)
 
         self._nct_ag = None
         self._tauct_ag = None

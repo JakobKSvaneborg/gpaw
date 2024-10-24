@@ -63,8 +63,9 @@ class LCAOWaveFunctions(WaveFunctions):
 
     def move(self,
              fracpos_ac: Array2D,
-             atomdist: AtomDistribution) -> None:
-        super().move(fracpos_ac, atomdist)
+             atomdist: AtomDistribution,
+             move_wave_functions) -> None:
+        super().move(fracpos_ac, atomdist, move_wave_functions)
         self._L_MM = None
 
     @property

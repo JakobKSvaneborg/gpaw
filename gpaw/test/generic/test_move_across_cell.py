@@ -10,8 +10,8 @@ from gpaw import GPAW, Davidson, MixerSum
 
 @pytest.mark.parametrize(
     'params',
-    [dict(mode='pw', eigensolver=Davidson(3),
-          experimental={'reuse_wfs_method': 'paw'}),
+    [dict(mode='pw',
+          eigensolver=Davidson(3)),
      dict(mode='pw',
           eigensolver=Davidson(3),
           parallel={'gpu': True}),

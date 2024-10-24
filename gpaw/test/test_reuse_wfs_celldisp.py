@@ -36,6 +36,9 @@ def test_reuse_wfs_celldisp(in_tmp_dir):
 
         atoms.positions[:, 2] -= 2 * dz
 
+        if not reuse and not calc.old:
+            calc.dft.ibzwfs.move_wave_functions = lambda *args: None
+
         for ctx in calc.icalculate(atoms, system_changes=['positions']):
             if ctx.niter == 2:
                 logerr2 = np.log10(ctx.wfs.eigensolver.error)

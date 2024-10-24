@@ -16,12 +16,10 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  *,
                  comm,
                  nn=3,
-                 interpolation=3,
-                 reuse_wfs_method='paw'):
+                 interpolation=3):
         super().__init__(atoms,
                          params,
-                         comm=comm,
-                         reuse_wfs_method=reuse_wfs_method)
+                         comm=comm)
         assert not self.soc
         self.kin_stencil_range = nn
         self.interpolation_stencil_range = interpolation

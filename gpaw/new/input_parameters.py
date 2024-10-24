@@ -10,7 +10,6 @@ parameter_functions = {}
 """
 background_charge
 external
-reuse_wfs_method
 """
 
 
@@ -84,10 +83,8 @@ class InputParameters:
             if self.experimental.pop('niter_fixdensity', None) is not None:
                 warnings.warn('Ignoring "niter_fixdensity".')
             if 'reuse_wfs_method' in self.experimental:
-                method = self.experimental.pop('reuse_wfs_method')
-                self.mode['reuse_wfs_method'] = method
-                warnings.warn(
-                    "Please use mode={..., 'reuse_wfs_method': ...}")
+                del self.experimental['reuse_wfs_method']
+                warnings.warn('Ignoring "reuse_wfs_method".')
             if 'soc' in self.experimental:
                 warnings.warn('Please use new "soc" parameter.',
                               DeprecatedParameterWarning)

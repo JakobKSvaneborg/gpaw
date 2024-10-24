@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Generator, Generic, TypeVar, TYPE_CHECKING
+from typing import Generator, Generic, TypeVar, TYPE_CHECKING, Callable
 
 import numpy as np
 from ase.io.ulm import Writer
@@ -66,6 +66,8 @@ class IBZWaveFunctions(Generic[WFT]):
         if self.xp is not np:
             if not GPU_AWARE_MPI:
                 self.kpt_comm = CuPyMPI(self.kpt_comm)  # type: ignore
+
+        self.move_wave_functions: Callable[..., None] = lambda *args: None
 
         self.read_from_file_init_wfs_dm = False
 
@@ -171,7 +173,7 @@ class IBZWaveFunctions(Generic[WFT]):
         self.energies.clear()
         self.make_sure_wfs_are_read_from_gpw_file()
         for wfs in self:
-            wfs.move(fracpos_ac, atomdist)
+            wfs.move(fracpos_ac, atomdist, self.move_wave_functions)
 
     def orthonormalize(self, work_array_nX: np.ndarray = None):
         for wfs in self:
