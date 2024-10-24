@@ -22,4 +22,4 @@ def test_scissors():
 
     # Check also fixed-density calculations:
     eigs2 = h2.calc.fixed_density(kpts=[[0, 0, 0]]).get_eigenvalues()
-    assert eigs2 == pytest.appprox(eigs1)
+    assert eigs2 == pytest.approx(eigs1)
