@@ -2,6 +2,8 @@
 Atomic Density Functional Theory
 """
 
+from dataclasses import dataclass
+from functools import cached_property
 from math import log, pi, sqrt
 
 import numpy as np
@@ -528,60 +530,16 @@ class AllElectron(IOContext):
             self.e_j[j] = e
             u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
 
+    @cached_property
+    def valence_data(self):
+        return ValenceData(rgd=self.rgd, vr=self.vr, n_j=self.n_j,
+                           l_j=self.l_j, e_j=self.e_j, u_j=self.u_j,
+                           scalarrel=self.scalarrel,
+                           beta=self.beta,
+                           r2dvdr=self.r2dvdr)
+
     def solve_confined(self, j, rc, vconf=None):
-        """Solve the Schroedinger equation in a confinement potential.
-
-        Solves the Schroedinger equation like the solve method, but with a
-        number of differences.  Before invoking this method, run solve() to
-        get initial guesses.
-
-        Parameters:
-            j: solves only for the state given by j
-            rc: solution cutoff. Solution will be zero outside this.
-            vconf: added to the potential (use this as confinement potential)
-
-        Returns: a tuple containing the solution u and its energy e.
-
-        Unlike the solve method, this method will not alter any attributes of
-        this object.
-        """
-        r = self.r
-        dr = self.dr
-        vr = self.vr.copy()
-        if vconf is not None:
-            vr += vconf * r
-
-        c2 = -(r / dr)**2
-        c10 = -self.d2gdr2 * r**2  # first part of c1 vector
-
-        if j is None:
-            n, l, e, u = 3, 2, -0.15, self.u_j[-1].copy()
-        else:
-            n = self.n_j[j]
-            l = self.l_j[j]
-            e = self.e_j[j]
-            u = self.u_j[j].copy()
-
-        nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
-                               self.scalarrel, rc=rc, beta=self.beta)
-        assert nn == n - l - 1  # run() should have been called already
-
-        # adjust eigenenergy until u is smooth at the turning point
-        de = 1.0
-        while abs(de) > 1e-9:
-            norm = np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr)
-            u *= 1.0 / sqrt(norm)
-            de = 0.5 * A / norm
-            x = abs(de / e)
-            if x > 0.1:
-                de *= 0.1 / x
-            e -= de
-            assert e < 0.0
-
-            nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
-                                   self.scalarrel, rc=rc, beta=self.beta)
-        u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
-        return u, e
+        return self.valence_data.solve_confined(j, rc, vconf)
 
     def kin(self, l, u, e=None):  # XXX move to Generator
         r = self.r[1:]
@@ -835,6 +793,85 @@ guess for the density).
     A = (dudrplus - dudrminus) * utp
 
     return nodes, A
+
+
+@dataclass
+class ValenceData:
+    rgd: AERadialGridDescriptor
+    # r: np.ndarrray
+    # dr: np.ndarray
+    vr: np.ndarray
+    # d2gdr2: np.ndarray
+    n_j: list[np.ndarray]
+    l_j: list[np.ndarray]
+    e_j: list[np.ndarray]
+    u_j: list[np.ndarray]
+    scalarrel: bool
+    beta: float
+    r2dvdr: np.ndarray | None = None
+
+    def __post_init__(self):
+        err = abs(self.beta / len(self.rgd.r_g) - self.rgd.a)
+        assert err < 1e-15, f'Inconsistent rgd spacing, {err=}'
+
+    @cached_property
+    def d2gdr2_g(self):
+        return self.rgd.d2gdr2()
+
+    def solve_confined(self, j, rc, vconf=None):
+        """Solve the Schroedinger equation in a confinement potential.
+
+        Solves the Schroedinger equation like the solve method, but with a
+        number of differences.  Before invoking this method, run solve() to
+        get initial guesses.
+
+        Parameters:
+            j: solves only for the state given by j
+            rc: solution cutoff. Solution will be zero outside this.
+            vconf: added to the potential (use this as confinement potential)
+
+        Returns: a tuple containing the solution u and its energy e.
+
+        Unlike the solve method, this method will not alter any attributes of
+        this object.
+        """
+        r = self.rgd.r_g
+        dr = self.rgd.dr_g
+        vr = self.vr.copy()
+        if vconf is not None:
+            vr += vconf * r
+
+        c2 = -(r / dr)**2
+        c10 = -self.d2gdr2_g * r**2  # first part of c1 vector
+
+        if j is None:
+            n, l, e, u = 3, 2, -0.15, self.u_j[-1].copy()
+        else:
+            n = self.n_j[j]
+            l = self.l_j[j]
+            e = self.e_j[j]
+            u = self.u_j[j].copy()
+
+        nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
+                               self.scalarrel, rc=rc, beta=self.beta)
+        assert nn == n - l - 1  # run() should have been called already
+
+        # adjust eigenenergy until u is smooth at the turning point
+        de = 1.0
+        while abs(de) > 1e-9:
+            norm = np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr)
+            u *= 1.0 / sqrt(norm)
+            de = 0.5 * A / norm
+            x = abs(de / e)
+            if x > 0.1:
+                de *= 0.1 / x
+            e -= de
+            assert e < 0.0
+
+            nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
+                                   self.scalarrel, rc=rc, beta=self.beta)
+        u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
+        return u, e
 
 
 if __name__ == '__main__':
