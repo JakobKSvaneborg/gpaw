@@ -8,7 +8,7 @@ from ase.dft import monkhorst_pack
 import numpy as np
 from scipy.linalg import eigh
 
-from gpaw.blacs import BlacsGrid, Redistributor
+from gpaw.blacs import BlacsGrid, Redistributor, BlacsDescriptor
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import world, serial_comm
 from gpaw.response import ResponseContext
@@ -43,7 +43,7 @@ class BSEMatrix:
         df_S = self.df_S
         H_sS = self.H_sS
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
-        excludedeps_S = np.where(self.deps_S > self.deps_max)[0]
+        excludedeps_S = np.where(np.abs(self.deps_S) > self.deps_max)[0]
         exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
         bse.context.print('  Using numpy.linalg.eig...')
         bse.context.print('  Eliminated %s pair orbitals' % len(
@@ -61,66 +61,111 @@ class BSEMatrix:
         return w_T, v_ST, exclude_S
 
     def diagonalize_tammdancoff(self, bse):
-        from gpaw.matrix import suggest_blocking
-        H_Rr, exclude_S = self.exclude_states_tamm_dancoff(bse)
+        H_rr, new_grid_desc, exclude_S = self.exclude_states_tamm_dancoff(bse)
         if world.size == 1:
             bse.context.print('  Using lapack...')
-            w_T, v_Rt = eigh(H_Rr)
+            w_T, v_Rt = eigh(H_rr)
+            return w_T, v_Rt, exclude_S
+        nR = bse.nS - len(exclude_S)
+        w_T = np.empty(nR)
+        v_rt = new_grid_desc.empty(dtype=complex)
+        if LibElpa.have_elpa():
+            bse.context.print('Using elpa...')
+            elpa = LibElpa(new_grid_desc)
+            elpa.diagonalize(H_rr, v_rt, w_T)
         else:
-            nR = H_Rr.shape[0]
-            nr = -((-nR) // world.size)
-            # XXX We don't need to create new BLACS grids all the time
-            grid = BlacsGrid(world, 1, world.size)
-            desc_H_Rr = grid.new_descriptor(nR, nR, nR, nr)
-            grid2 = BlacsGrid(world, world.size, 1)
-            desc_H_rR = grid2.new_descriptor(nR, nR, nr, nR)
-            nrows, ncols, blocksize = suggest_blocking(nR, world.size)
-            grid_tmp = BlacsGrid(world, nrows, ncols)  # desc2
-            desc_tmp = grid_tmp.new_descriptor(nR, nR, blocksize, blocksize)
-            H_tmp = desc_tmp.zeros(dtype=complex)
-            Redistributor(grid_tmp.comm, desc_H_Rr,
-                          desc_tmp).redistribute(H_Rr, H_tmp)
-            w_T = np.empty(nR)
-            v_tmp = desc_tmp.empty(dtype=complex)
-            if LibElpa.have_elpa():
-                bse.context.print('  Using elpa...')
-                elpa = LibElpa(desc_tmp)
-                elpa.diagonalize(H_tmp, v_tmp, w_T)
-            else:
-                bse.context.print('  Using scalapack...')
-                desc_tmp.diagonalize_dc(H_tmp, v_tmp, w_T)
+            bse.context.print('Using scalapack...')
+            new_grid_desc.diagonalize_dc(H_rr, v_rt, w_T)
 
-            v_tR = desc_H_rR.zeros(dtype=complex)
-            Redistributor(grid2.comm, desc_tmp,
-                          desc_H_rR).redistribute(v_tmp, v_tR)
-            v_Rt = v_tR.conj().T
+        # redistribute eigenvectors
+
+        grid_Rt = BlacsGrid(world, 1, world.size)
+        nt = -((-nR) // world.size)
+        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
+        v_Rt = desc_Rt.zeros(dtype=complex)
+        Redistributor(world, new_grid_desc,
+                      desc_Rt).redistribute(v_rt, v_Rt)
+        # v_Rt = v_tR.conj().T
         return w_T, v_Rt, exclude_S
 
     def exclude_states_tamm_dancoff(self, bse):
         H_sS = self.H_sS
+        exclude_S = np.where(self.deps_S > self.deps_max)[0]
+        grid = BlacsGrid(world, world.size, 1)
         nS = bse.nS
         ns = bse.ns
-        exclude_S = np.where(self.deps_S > self.deps_max)[0]
-        H_sR = np.delete(H_sS, exclude_S, axis=1)
-        H_sR = np.ascontiguousarray(H_sR)
-        nR = nS - len(exclude_S)
-        nr = -((-nR) // world.size)
-        if world.size == 1:
-            H_Rr = np.delete(H_sR, exclude_S, axis=0)
-            H_Rr = np.ascontiguousarray(H_Rr)
-        else:
-            grid = BlacsGrid(world, world.size, 1)
-            grid2 = BlacsGrid(world, 1, world.size)
-            desc_H_sR = grid.new_descriptor(nS, nR, ns, nR)
-            desc_H_Sr = grid2.new_descriptor(nS, nR, nS, nr)
-            H_Sr = desc_H_Sr.zeros(dtype=complex)
-            Redistributor(world, desc_H_sR,
-                          desc_H_Sr).redistribute(H_sR, H_Sr)
-            H_Rr = np.delete(H_Sr, exclude_S, axis=0)
-            H_Rr = np.ascontiguousarray(H_Rr)
+        desc = grid.new_descriptor(nS, nS, ns, nS)
+        H_rr, new_grid, new_grid_desc = parallel_delete(H_sS, exclude_S, desc)
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
-        return H_Rr, exclude_S
+        return H_rr, new_grid_desc, exclude_S
+
+
+def parallel_delete(A_nn: np.ndarray,
+                    deleteN: np.ndarray,
+                    grid_desc: BlacsDescriptor,
+                    new_grid: BlacsGrid | None = None,
+                    new_grid_desc: BlacsDescriptor | None = None):
+    """
+    Removes rows and columns from the distributed square matrix A_nm.
+    --------------
+    Parameters:
+    A_nn: distributed matrix
+    delete_N : list of (global) indices to delete
+    grid_desc: BlacsDescriptor for A_nn
+    new_grid: BlacsGrid on which A_nn will be returned; optional
+    -------------------
+    Returns:
+    A_rs: np.ndarray
+    new_grid: BlacsGrid
+    new_grid_desc: BlacsDescriptor
+
+    A_rs is the (new) distributed matrix after rows and columns
+    have been deleted.
+    new_grid is the grid on which it is distributed.
+    """
+    from gpaw.matrix import suggest_blocking
+    N = grid_desc.N
+    assert N == grid_desc.M, 'Matrix must be square'
+
+    R = N - len(deleteN)  # global matrix dimension after deletion
+
+    # redistribute matrix, so it is distributed over first index only.
+    # then we can safely delete entries from the second index.
+    grid_mN = BlacsGrid(world, world.size, 1)
+    m = -((-N) // world.size)
+    desc_mN = grid_mN.new_descriptor(N, N, m, N)
+    A_mN = desc_mN.zeros(dtype=complex)
+    Redistributor(world, grid_desc,
+                  desc_mN).redistribute(A_nn, A_mN)
+
+    # delete, and ensure that array is still memory-contiguous
+    A_mR = np.delete(A_mN, deleteN, axis=1)
+    A_mR = np.ascontiguousarray(A_mR)
+    desc_mR = grid_mN.new_descriptor(N, R, m, R)
+
+    # now distribute over second index, so we can delete entries from 1st
+    r = -((-R) // world.size)
+    grid_Nr = BlacsGrid(world, 1, world.size)
+    desc_Nr = grid_Nr.new_descriptor(N, R, N, r)
+    A_Nr = desc_Nr.zeros(dtype=complex)
+    Redistributor(world, desc_mR,
+                  desc_Nr).redistribute(A_mR, A_Nr)
+    A_Rr = np.delete(A_Nr, deleteN, axis=0)
+    A_Rr = np.ascontiguousarray(A_Rr)
+    desc_Rr = grid_Nr.new_descriptor(R, R, R, r)
+    if new_grid is None:
+        assert new_grid_desc is None
+        nrows, ncols, blocksize = suggest_blocking(R, world.size)
+        new_grid = BlacsGrid(world, nrows, ncols)
+        new_desc = new_grid.new_descriptor(R, R, blocksize, blocksize)
+    else:
+        assert new_grid_desc is not None
+    A_rr = new_desc.zeros(dtype=complex)
+    Redistributor(world, desc_Rr,
+                  new_desc).redistribute(A_Rr, A_rr)
+
+    return A_rr, new_grid, new_desc
 
 
 @dataclass
@@ -409,10 +454,10 @@ class BSEBackend:
         rhoex_KmmG = np.zeros((self.nK, self.nv,
                                self.nc, len(self.v_G)), complex)
         df_Kmm = np.zeros((self.nK, self.nv,
-                           self.nc), float)  # -(ev - ec)
+                           self.nc), float)  # (fc - fv)
         deps_kmm = np.zeros((self.myKsize, self.nv,
-                             self.nc), float)  # -(fv - fc)
-        deps_Kmm = np.zeros((self.nK, self.nv, self.nc), float)  # -(fv - fc)
+                             self.nc), float)  # (ec - ev)
+        deps_Kmm = np.zeros((self.nK, self.nv, self.nc), float)
         optical_limit = np.allclose(self.q_c, 0.0)
 
         get_pair = kptpair_factory.get_kpoint_pair
@@ -959,8 +1004,8 @@ class BSE(BSEBackend):
         conduction_bands: list or integer
             Conduction bands used in the BSE Hamiltonian
         deps_max: float or None
-            Maximum transition energy for pair to be included
-            in the BSE Hamiltonian
+            Maximum absolute value of transition energy for pair
+            to be included in the BSE Hamiltonian
         add_soc: bool
             If True the calculation will included non-selfconsitent SOC.
             All band indices m refers to spinors, while n indices refer to
