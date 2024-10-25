@@ -448,6 +448,7 @@ DFT
     :members:
     :undoc-members:
 .. autofunction:: gpaw.new.ase_interface.GPAW
+.. autofunction:: gpaw.new.pwfd.move_wfs.move_wave_functions
 
 
 FFTW

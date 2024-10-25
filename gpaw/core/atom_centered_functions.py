@@ -70,13 +70,20 @@ class AtomCenteredFunctions(XP):
         """Create AtomsArray for coefficients."""
         return self.layout.empty(dims, comm)
 
-    def move(self, fracpos_ac, atomdist):
+    def move(self,
+             fracpos_ac: np.ndarray,
+             atomdist: AtomDistribution) -> AtomDistribution:
         """Move atoms to new positions."""
         self.fracpos_ac = np.array(fracpos_ac)
         self._atomdist = atomdist
         if self._lfc is not None:
             self._layout = self._layout.new(atomdist=atomdist)
-            self._lfc.set_positions(fracpos_ac, atomdist)
+            migration = self._lfc.set_positions(fracpos_ac, atomdist)
+            if migration:
+                atomdist = AtomDistribution(
+                    [sphere.rank for sphere in self._lfc.sphere_a],
+                    atomdist.comm)
+        return atomdist
 
     def add_to(self, functions, coefs=1.0):
         """Add atom-centered functions multiplied by *coefs* to *functions*."""
