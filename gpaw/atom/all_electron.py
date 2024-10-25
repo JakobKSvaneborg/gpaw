@@ -569,8 +569,7 @@ class AllElectron(IOContext):
         return kr
 
     def r2g(self, r):
-        """Convert radius to index of the radial grid."""
-        return int(r * self.N / (self.beta + r))
+        return self.valence_data.r2g(r)
 
     def get_confinement_potential(self, alpha, ri, rc):
         r"""Create a smooth confinement potential.
@@ -818,6 +817,14 @@ class ValenceData:
     scalarrel: bool
     beta: float
     r2dvdr: np.ndarray | None = None
+
+    @property
+    def N(self):
+        return len(self.rgd.r_g)
+
+    def r2g(self, r):
+        """Convert radius to index of the radial grid."""
+        return int(r * self.N / (self.beta + r))
 
     def __post_init__(self):
         err = abs(self.beta / len(self.rgd.r_g) - self.rgd.a)

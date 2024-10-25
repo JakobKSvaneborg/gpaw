@@ -139,7 +139,6 @@ class BasisMaker:
         if psi_mg.ndim == 1:
             return self.smoothify(psi_mg[None], l)[0]
 
-        g = self.generator
         valdata = self.valence_data
         u_ng = valdata.u_ln[l]
         q_ng = valdata.q_ln[l]
@@ -151,7 +150,7 @@ class BasisMaker:
         Qt_nm = np.linalg.solve(Pi_nn, Q_nm)
 
         # Weight-function for truncating all-electron parts smoothly near core
-        gmerge = g.r2g(g.rcut_l[l])
+        gmerge = valdata.r2g(valdata.rcut_l[l])
         w_g = np.ones_like(r_g)
         w_g[0:gmerge] = (r_g[0:gmerge] / r_g[gmerge])**2.
         w_g = w_g[None]
