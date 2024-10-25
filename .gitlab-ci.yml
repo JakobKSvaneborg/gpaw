@@ -5,6 +5,9 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
+  DEFAULT_LINUX_TAG: "linux"
+  # RUN_PIPELINES_ON_FORKS: "true"  # Uncomment to run pipelines on forks
+
 
 default:
   before_script:
@@ -14,12 +17,36 @@ default:
     - export PYTEST_ADDOPTS="--color=yes"
   interruptible: true
 
+workflow:
+  # Note: it is not intended for users to run CI tests on Gitlab shared runners (see discussion
+  # under issue #1189), hence the disabling of automatic pipelines for users not under the GPAW
+  # namespace;
+  # GPAW devs can branch directly from gpaw/gpaw> and tests will run there, and non-GPAW devs can
+  # nonetheless trigger pipelines on their forks manually.
+  rules:
+    # By default, only run pipelines within the GPAW namespace
+    - if: $CI_PROJECT_ROOT_NAMESPACE == "gpaw"
+    # Allow override by:
+    # - Setting the ${RUN_PIPELINES_ON_FORKS} above, or
+    # - Triggering the pipeline manually via "api", "chat", "schedule", "web", or "webide"
+    #   (note: `worklow:rules:when:manual` not supported)
+    - if: $CI_PROJECT_ROOT_NAMESPACE != "gpaw" && (
+             $CI_PIPELINE_SOURCE == "api"
+          || $CI_PIPELINE_SOURCE == "chat"
+          || $CI_PIPELINE_SOURCE == "schedule"
+          || $CI_PIPELINE_SOURCE == "web"
+          || $CI_PIPELINE_SOURCE == "webide"
+          || $RUN_PIPELINES_ON_FORKS)
+      variables:
+        DEFAULT_LINUX_TAG: "saas-linux-small-amd64"  # Default Gitlab shared runner
+
 
 stages:
   - build
   - precalculate
   - test
   - deploy
+
 
 .build:
   stage: build
@@ -116,9 +143,10 @@ stages:
 
 build:
   image: $IMAGE_MAIN_OLDEST
-  extends: .build
   tags:
-    - linux
+    - $DEFAULT_LINUX_TAG
+  extends:
+    - .build
   script:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
@@ -128,9 +156,10 @@ build:
 
 build-latest:
   image: $IMAGE_MAIN_LATEST
-  extends: .build
   tags:
-    - linux
+    - $DEFAULT_LINUX_TAG
+  extends:
+    - .build
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -167,11 +196,11 @@ build-latest:
 
 build-cuda:
   image: $IMAGE_CUDA
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
     - .gpu-job
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -188,11 +217,11 @@ build-cuda:
 
 build-hip-cuda:
   image: $IMAGE_CUDA
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
     - .gpu-job
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -215,9 +244,10 @@ build-hip-cuda:
 
 build-minimal:
   image: $IMAGE_MAIN_OLDEST
-  extends: .build
   tags:
-    - linux
+    - $DEFAULT_LINUX_TAG
+  extends:
+    - .build
   script:
     - |
       cat << EOF > siteconfig.py
@@ -285,9 +315,9 @@ build-lumi-g:
 
 prepare-libxc:
   image: $IMAGE_MAIN_OLDEST
-  stage: build
   tags:
-    - linux
+    - $DEFAULT_LINUX_TAG
+  stage: build
   variables:
     PREFIX: $PYTHONUSERBASE
   before_script:
@@ -313,12 +343,12 @@ prepare-libxc:
 
 build-libxc:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .build
   needs:
     - prepare-libxc
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -334,12 +364,12 @@ build-libxc:
 
 test-oldest:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
   needs:
     - build
-  tags:
-    - linux
   script:
     - gpaw info
     - >
@@ -357,12 +387,12 @@ test-oldest:
 
 test-latest:
   image: $IMAGE_MAIN_LATEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
   needs:
     - build-latest
-  tags:
-    - linux
   script:
     - gpaw info
 
@@ -386,12 +416,12 @@ test-latest:
 
 test-latest-new:
   image: $IMAGE_MAIN_LATEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
   needs:
     - build-latest
-  tags:
-    - linux
   script:
     - gpaw info
     - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
@@ -399,12 +429,12 @@ test-latest-new:
 
 test-minimal:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
   needs:
     - build-minimal
-  tags:
-    - linux
   script:
     - gpaw info
     - >
@@ -488,23 +518,23 @@ test-lumi-g-mpi:
 
 test-libxc:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   extends:
     - .test
   needs:
     - build-libxc
-  tags:
-    - linux
   script:
     - gpaw info
     - pytest -v -m libxc
 
 check-agts:
   image: $IMAGE_MAIN_OLDEST
+  tags:
+    - $DEFAULT_LINUX_TAG
   stage: test
   needs:
     - build
-  tags:
-    - linux
   script:
     # - pip install --user git+https://gitlab.com/myqueue/myqueue.git@master
     - pip install --user myqueue
@@ -517,9 +547,9 @@ check-agts:
 
 lint:
   image: $IMAGE_MAIN_LATEST
-  stage: build
   tags:
-    - linux
+    - $DEFAULT_LINUX_TAG
+  stage: build
   script:
     - echo "png check"
     - >
@@ -556,9 +586,9 @@ lint:
 
 typecheck:
   image: $IMAGE_MAIN_LATEST
-  stage: build
   tags:
-    - linux
+    - $DEFAULT_LINUX_TAG
+  stage: build
   script:
     - pip install mypy
     - python --version
@@ -572,7 +602,7 @@ docs:
   needs:
     - build-latest
   tags:
-    - linux
+    - $DEFAULT_LINUX_TAG
   script:
     - pip install scikit-image
     - cd doc
