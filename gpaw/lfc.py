@@ -256,7 +256,7 @@ class LocalizedFunctionsCollection(BaseLFC):
         self.my_atom_indices = None
         self.lfc = None
 
-    def set_positions(self, spos_ac, atom_partition=None):
+    def set_positions(self, spos_ac, atom_partition=None) -> bool:
         assert len(spos_ac) == len(self.sphere_a)
         spos_ac = np.asarray(spos_ac)
         movement = False
@@ -269,6 +269,8 @@ class LocalizedFunctionsCollection(BaseLFC):
 
         if movement or self.my_atom_indices is None:
             self._update(spos_ac)
+            return True
+        return False
 
     def _update(self, spos_ac):
         nB = 0

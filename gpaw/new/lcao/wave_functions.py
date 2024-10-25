@@ -91,9 +91,9 @@ class LCAOWaveFunctions(WaveFunctions):
             return
         phase_a = np.exp(2j * np.pi * diff_ac @ self.kpt_c)
         M1 = 0
-        for a in self.basis.my_atom_indices:
-            M2 = M1 + self.basis.sphere_a[a].Mmax
-            C_nM[:, M1:M2] *= phase_a[a]
+        for phase, sphere in zip(phase_a, self.basis.sphere_a):
+            M2 = M1 + sphere.Mmax
+            C_nM[:, M1:M2] *= phase#_a[a]
             M1 = M2
 
     @property

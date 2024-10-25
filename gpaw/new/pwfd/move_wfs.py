@@ -16,20 +16,22 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
     Wavefunctions are approximated as:::
 
       ~ _    -- ~a _   ~a  ~
-      ψ(r) = >  φ (r) <p | ψ >
+      ψ(r) = >  φ (r) <p | ψ >,
        n     --  i      i   n
              ai
 
+    where i runs over the bound partial-waves only.
     This quantity is then subtracted and re-added at the new
     positions.
     """
     desc = psit_nX.desc
+    atomdist = P_ani.layout.atomdist
 
-    # Create partial wave ACF object:
+    # Create partial-wave ACF object (b denotes bound states):
     phit_abX = desc.atom_centered_functions(
         [setup.get_partial_waves_for_atomic_orbitals() for setup in setups],
         oldfracpos_ac,
-        atomdist=P_ani.layout.atomdist,
+        atomdist=atomdist,
         cut=True,
         xp=psit_nX.xp)
 
@@ -49,5 +51,7 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
         P_anb.data *= -1.0
 
     # Add partial wave expansion at new positions:
-    phit_abX.move(newfracpos_ac, P_ani.layout.atomdist)
+    atomdist2 = phit_abX.move(newfracpos_ac, atomdist)
+    if atomdist2 is not atomdist:
+        P_anb = P_anb.moved(atomdist2)
     phit_abX.add_to(psit_nX, P_anb)
