@@ -169,3 +169,6 @@ class SimplePAWPoissonSolver(PAWPoissonSolver):
         for a, dF_vL in F_avL.items():
             force_av[a] += dF_vL @ Q_aL[a]
         return force_av
+
+    def stress_contribution(self, vHt_h, Q_aL):
+        return self.ghat_aLg.stress_contribution(vHt_h, Q_aL)

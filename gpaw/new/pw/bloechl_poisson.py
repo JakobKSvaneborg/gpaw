@@ -153,9 +153,6 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
         vHt_g.data[0] = -vhat_g.data[0]
         V_aL = self.ghat_aLg.integrate(vHt_g)
-        print(V_aL)
-        print(self.ghat_aLg)
-        print(vHt_g)
         self.vhat_aLg.integrate(nt_g, V_aL, add_to=True)
 
         e_coulomb3 = 0.0
@@ -203,3 +200,6 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             force_av[a2] -= f_v
 
         return force_av
+
+    def stress_contribution(self, vHt_g, Q_aL):
+        return self.ghat_aLg.stress_contribution(vHt_g, Q_aL)
