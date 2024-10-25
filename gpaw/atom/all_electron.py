@@ -572,33 +572,7 @@ class AllElectron(IOContext):
         return self.valence_data.r2g(r)
 
     def get_confinement_potential(self, alpha, ri, rc):
-        r"""Create a smooth confinement potential.
-
-        Returns a (potential) function which is zero inside the radius ri
-        and goes to infinity smoothly at rc, after which point it is nan.
-        The potential is given by::
-
-                   alpha         /   rc - ri \
-          V(r) = --------   exp ( - --------- )   for   ri < r < rc
-                  rc - r         \    r - ri /
-
-        """
-        i_ri = self.r2g(ri)
-        i_rc = self.r2g(rc)
-        if self.r[i_rc] == rc:
-            # Avoid division by zero in the odd case that rc coincides
-            # exactly with a grid point (which actually happens sometimes)
-            i_rc -= 1
-
-        potential = np.zeros(np.shape(self.r))
-        r = self.r[i_ri + 1:i_rc + 1]
-        exponent = - (rc - ri) / (r - ri)
-        denom = rc - r
-        value = np.exp(exponent) / denom
-        potential[i_ri + 1:i_rc + 1] = value
-        potential[i_rc + 1:] = np.inf
-
-        return alpha * potential
+        return self.valence_data.get_confinement_potential(alpha, ri, rc)
 
     def __del__(self):
         self.close()
@@ -888,6 +862,35 @@ class ValenceData:
                                    self.scalarrel, rc=rc, beta=self.beta)
         u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
         return u, e
+
+    def get_confinement_potential(self, alpha, ri, rc):
+        r"""Create a smooth confinement potential.
+
+        Returns a (potential) function which is zero inside the radius ri
+        and goes to infinity smoothly at rc, after which point it is nan.
+        The potential is given by::
+
+                   alpha         /   rc - ri \
+          V(r) = --------   exp ( - --------- )   for   ri < r < rc
+                  rc - r         \    r - ri /
+
+        """
+        i_ri = self.r2g(ri)
+        i_rc = self.r2g(rc)
+        if self.rgd.r_g[i_rc] == rc:
+            # Avoid division by zero in the odd case that rc coincides
+            # exactly with a grid point (which actually happens sometimes)
+            i_rc -= 1
+
+        potential = np.zeros(np.shape(self.rgd.r_g))
+        r = self.rgd.r_g[i_ri + 1:i_rc + 1]
+        exponent = - (rc - ri) / (r - ri)
+        denom = rc - r
+        value = np.exp(exponent) / denom
+        potential[i_ri + 1:i_rc + 1] = value
+        potential[i_rc + 1:] = np.inf
+
+        return alpha * potential
 
 
 if __name__ == '__main__':
