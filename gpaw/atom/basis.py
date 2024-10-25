@@ -71,9 +71,7 @@ class BasisMaker:
                                   xcname=xc, txt=gtxt,
                                   nofiles=True)
             generator.N *= 4
-        self.generator = generator
 
-        self.name = name
 
         if run:
             if non_relativistic_guess:
@@ -96,6 +94,7 @@ class BasisMaker:
                                  'was already generated before basis '
                                  'generation.')
 
+        self.name = name
         self.valence_data = generator.valence_data
         rgd = self.valence_data.rgd
         rgd = AERadialGridDescriptor(rgd.a,
@@ -259,7 +258,6 @@ class BasisMaker:
         if vconf_args is not None:
             amplitude, ri_rel = vconf_args
 
-        g = self.generator
         valdata = self.valence_data
         rgd = self.rgd
 
@@ -291,7 +289,7 @@ class BasisMaker:
         if isinstance(energysplit, float):
             energysplit = [energysplit] * len(jvalues)
 
-        title = f'{g.xcname} Basis functions for {g.symbol}'
+        title = f'{valdata.xcname} Basis functions for {valdata.symbol}'
         print(title, file=txt)
         print('=' * len(title), file=txt)
 
@@ -325,9 +323,9 @@ class BasisMaker:
             if rc > rcutmax:
                 rc = rcutmax  # scale things down
                 if vconf is not None:
-                    vconf = g.get_confinement_potential(amplitude, ri_rel * rc,
-                                                        rc)
-                u, e = g.solve_confined(fullj, rc, vconf)
+                    vconf = valdata.get_confinement_potential(
+                        amplitude, ri_rel * rc, rc)
+                u, e = valdata.solve_confined(fullj, rc, vconf)
                 print('using maximum cutoff', file=txt)
                 print('rc=%.02f Bohr' % rc, file=txt)
             else:
@@ -341,7 +339,7 @@ class BasisMaker:
             phit_g = self.smoothify(u, l)
             bf = BasisFunction(n, l, rc, phit_g,
                                '%s-sz confined orbital' % orbitaltype)
-            norm = np.dot(g.dr, phit_g * phit_g)**.5
+            norm = np.dot(valdata.rgd.dr_g, phit_g * phit_g)**.5
             print('Norm=%.03f' % norm, file=txt)
             singlezetas.append(bf)
 
@@ -351,9 +349,9 @@ class BasisMaker:
                 assert zetacount > 1
                 zeta = next(zetacounter)
                 print('\nZeta %d: %s' % (zeta, derivativedescr), file=txt)
-                vconf2 = g.get_confinement_potential(amplitude,
-                                                     ri_rel * rc * .99, rc)
-                u2, e2 = g.solve_confined(fullj, rc, vconf2)
+                vconf2 = valdata.get_confinement_potential(
+                    amplitude, ri_rel * rc * .99, rc)
+                u2, e2 = valdata.solve_confined(fullj, rc, vconf2)
 
                 phit2_g = self.smoothify(u2, l)
                 dphit_g = phit2_g - phit_g
@@ -499,7 +497,7 @@ class BasisMaker:
         else:
             compound_name = f'{self.name}.{basistype}'
 
-        basis = Basis(g.symbol, compound_name, False,
+        basis = Basis(valdata.symbol, compound_name, False,
                       EquidistantRadialGridDescriptor(d, ng))
         basis.bf_j = bf_j
         basis.generatordata = textbuffer.getvalue().strip()
