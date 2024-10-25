@@ -140,13 +140,13 @@ def parallel_delete(A_nn: np.ndarray,
     assert N == grid_desc.M, 'Matrix must be square'
 
     R = N - len(deleteN)  # global matrix dimension after deletion
-
+    dtype = A_nn.dtype
     # redistribute matrix, so it is distributed over first index only.
     # then we can safely delete entries from the second index.
     grid_mN = BlacsGrid(world, world.size, 1)
     m = -((-N) // world.size)
     desc_mN = grid_mN.new_descriptor(N, N, m, N)
-    A_mN = desc_mN.zeros(dtype=complex)
+    A_mN = desc_mN.zeros(dtype=dtype)
     Redistributor(world, grid_desc,
                   desc_mN).redistribute(A_nn, A_mN)
 
@@ -159,7 +159,7 @@ def parallel_delete(A_nn: np.ndarray,
     r = -((-R) // world.size)
     grid_Nr = BlacsGrid(world, 1, world.size)
     desc_Nr = grid_Nr.new_descriptor(N, R, N, r)
-    A_Nr = desc_Nr.zeros(dtype=complex)
+    A_Nr = desc_Nr.zeros(dtype=dtype)
     Redistributor(world, desc_mR,
                   desc_Nr).redistribute(A_mR, A_Nr)
     A_Rr = np.delete(A_Nr, deleteN, axis=0)
@@ -175,7 +175,7 @@ def parallel_delete(A_nn: np.ndarray,
         new_desc = new_grid.new_descriptor(R, R, blocksize, blocksize)
     else:
         assert new_desc is not None
-    A_rr = new_desc.zeros(dtype=complex)
+    A_rr = new_desc.zeros(dtype=dtype)
     Redistributor(world, desc_Rr,
                   new_desc).redistribute(A_Rr, A_rr)
 
