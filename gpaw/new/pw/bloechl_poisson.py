@@ -144,7 +144,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
         e_coulomb1 = self.poisson_solver.solve(vHt_g, charge_g)
 
-        vhat_g = pwg.empty()  # MYPY
+        vhat_g = pwg.empty(xp=self.xp)  # MYPY
         vhat_g.data[:] = 0.0  # MYPY
 
         self.vhat_aLg.add_to(vhat_g, Q_aL)
@@ -153,6 +153,9 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
         vHt_g.data[0] = -vhat_g.data[0]
         V_aL = self.ghat_aLg.integrate(vHt_g)
+        print(V_aL)
+        print(self.ghat_aLg)
+        print(vHt_g)
         self.vhat_aLg.integrate(nt_g, V_aL, add_to=True)
 
         e_coulomb3 = 0.0
@@ -161,12 +164,12 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             ex1, ex2 = self.expansions
             I1 = self.I_a[a1]
             I2 = self.I_a[a2]
-            v_LL = (ex1.tsoe_II[I1, I2].evaluate(d, rlY_lm) +
-                    ex2.tsoe_II[I1, I2].evaluate(d, rlY_lm))
+            v_LL = self.xp.asarray(ex1.tsoe_II[I1, I2].evaluate(d, rlY_lm) +
+                                   ex2.tsoe_II[I1, I2].evaluate(d, rlY_lm))
             vQ2_L = v_LL @ Q_aL[a2]
             V_aL[a1] += vQ2_L / 2
             V_aL[a2] += Q_aL[a1] @ v_LL / 2
-            e_coulomb3 -= Q_aL[a1] @ vQ2_L
+            e_coulomb3 -= float(Q_aL[a1] @ vQ2_L)
         e_coulomb3 *= -0.5
 
         vHt0_g = vHt_g.gather()
