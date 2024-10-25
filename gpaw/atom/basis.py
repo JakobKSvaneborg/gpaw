@@ -72,9 +72,7 @@ class BasisMaker:
                                   nofiles=True)
             generator.N *= 4
         self.generator = generator
-        self.rgd = AERadialGridDescriptor(generator.beta / generator.N,
-                                          1.0 / generator.N, generator.N,
-                                          default_spline_points=100)
+
         self.name = name
 
         if run:
@@ -97,6 +95,14 @@ class BasisMaker:
                 raise ValueError('cannot save setup here because setup '
                                  'was already generated before basis '
                                  'generation.')
+
+        self.valence_data = generator.valence_data
+        rgd = self.valence_data.rgd
+        rgd = AERadialGridDescriptor(rgd.a,
+                                     rgd.b,
+                                     len(rgd.r_g),
+                                     default_spline_points=100)
+        self.rgd = rgd
 
     def smoothify(self, psi_mg, l):
         r"""Generate pseudo wave functions from all-electron ones.
@@ -134,18 +140,20 @@ class BasisMaker:
             return self.smoothify(psi_mg[None], l)[0]
 
         g = self.generator
-        u_ng = g.u_ln[l]
-        q_ng = g.q_ln[l]
-        s_ng = g.s_ln[l]
+        valdata = self.valence_data
+        u_ng = valdata.u_ln[l]
+        q_ng = valdata.q_ln[l]
+        s_ng = valdata.s_ln[l]
+        r_g = valdata.rgd.r_g
 
-        Pi_nn = np.dot(g.r * q_ng, u_ng.T)
-        Q_nm = np.dot(g.r * q_ng, psi_mg.T)
+        Pi_nn = np.dot(r_g * q_ng, u_ng.T)
+        Q_nm = np.dot(r_g * q_ng, psi_mg.T)
         Qt_nm = np.linalg.solve(Pi_nn, Q_nm)
 
         # Weight-function for truncating all-electron parts smoothly near core
         gmerge = g.r2g(g.rcut_l[l])
-        w_g = np.ones(g.r.shape)
-        w_g[0:gmerge] = (g.r[0:gmerge] / g.r[gmerge])**2.
+        w_g = np.ones_like(r_g)
+        w_g[0:gmerge] = (r_g[0:gmerge] / r_g[gmerge])**2.
         w_g = w_g[None]
 
         psit_mg = psi_mg * w_g + np.dot(Qt_nm.T, s_ng - u_ng * w_g)

@@ -535,6 +535,8 @@ class AllElectron(IOContext):
     def valence_data(self):
         return ValenceData(rgd=self.rgd, vr=self.vr, n_j=self.n_j,
                            l_j=self.l_j, e_j=self.e_j, u_j=self.u_j,
+                           u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
+                           rcut_l=self.rcut_l,
                            scalarrel=self.scalarrel,
                            beta=self.beta,
                            r2dvdr=self.r2dvdr)
@@ -803,10 +805,16 @@ class ValenceData:
     # dr: np.ndarray
     vr: np.ndarray
     # d2gdr2: np.ndarray
-    n_j: list[np.ndarray]
-    l_j: list[np.ndarray]
-    e_j: list[np.ndarray]
+    n_j: list[int]
+    l_j: list[int]
+    e_j: list[float]
     u_j: list[np.ndarray]
+
+    u_ln: list[list[np.ndarray]]
+    q_ln: list[list[np.ndarray]]
+    s_ln: list[list[np.ndarray]]
+
+    rcut_l: list[float]
     scalarrel: bool
     beta: float
     r2dvdr: np.ndarray | None = None
