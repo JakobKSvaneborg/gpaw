@@ -60,43 +60,53 @@ def rsplit_by_norm(rgd, l, u, tailnorm_squared, txt):
     return rsplit, partial_norm_squared, splitwave
 
 
+def get_valence_data(generator, xc, gtxt, run, non_relativistic_guess,
+                     name, save_setup):
+    if isinstance(generator, str):  # treat 'generator' as symbol
+        generator = Generator(generator, scalarrel=True,
+                              xcname=xc, txt=gtxt,
+                              nofiles=True)
+        generator.N *= 4
+
+
+    if run:
+        if non_relativistic_guess:
+            ae0 = AllElectron(generator.symbol, scalarrel=False,
+                              nofiles=False, txt=gtxt, xcname=xc)
+            ae0.N = generator.N
+            ae0.beta = generator.beta
+            ae0.run()
+            # Now files will be stored such that they can
+            # automagically be used by the next run()
+        setup = generator.run(write_xml=False,
+                              name=name,
+                              **parameters[generator.symbol])
+
+        if save_setup:
+            setup.write_xml()
+    else:
+        if save_setup:
+            raise ValueError('cannot save setup here because setup '
+                             'was already generated before basis '
+                             'generation.')
+
+    return generator.valence_data
+
+
 class BasisMaker:
     """Class for creating atomic basis functions."""
-    def __init__(self, generator, name=None, run=True, gtxt='-',
+    def __init__(self, valence_data, name=None, run=True, gtxt='-',
                  non_relativistic_guess=False, xc='PBE',
                  save_setup=False):
 
-        if isinstance(generator, str):  # treat 'generator' as symbol
-            generator = Generator(generator, scalarrel=True,
-                                  xcname=xc, txt=gtxt,
-                                  nofiles=True)
-            generator.N *= 4
-
-
-        if run:
-            if non_relativistic_guess:
-                ae0 = AllElectron(generator.symbol, scalarrel=False,
-                                  nofiles=False, txt=gtxt, xcname=xc)
-                ae0.N = generator.N
-                ae0.beta = generator.beta
-                ae0.run()
-                # Now files will be stored such that they can
-                # automagically be used by the next run()
-            setup = generator.run(write_xml=False,
-                                  name=name,
-                                  **parameters[generator.symbol])
-
-            if save_setup:
-                setup.write_xml()
-        else:
-            if save_setup:
-                raise ValueError('cannot save setup here because setup '
-                                 'was already generated before basis '
-                                 'generation.')
+        if isinstance(valence_data, (str, Generator)):
+            valence_data = get_valence_data(valence_data, xc, gtxt, run,
+                                            non_relativistic_guess, name,
+                                            save_setup)
 
         self.name = name
-        self.valence_data = generator.valence_data
-        rgd = self.valence_data.rgd
+        self.valence_data = valence_data
+        rgd = valence_data.rgd
         rgd = AERadialGridDescriptor(rgd.a,
                                      rgd.b,
                                      len(rgd.r_g),
