@@ -13,7 +13,12 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
-    def __init__(self, atoms, params, *, comm, qspiral=None):
+    def __init__(self,
+                 atoms,
+                 params,
+                 *,
+                 comm,
+                 qspiral=None):
         super().__init__(atoms, params, comm=comm)
         self.qspiral_v = (None if qspiral is None else
                           qspiral @ self.grid.icell * (2 * pi))

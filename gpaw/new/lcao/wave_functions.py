@@ -63,9 +63,38 @@ class LCAOWaveFunctions(WaveFunctions):
 
     def move(self,
              fracpos_ac: Array2D,
-             atomdist: AtomDistribution) -> None:
-        super().move(fracpos_ac, atomdist)
+             atomdist: AtomDistribution,
+             move_wave_functions) -> None:
+        self._update_phases(fracpos_ac)
+        super().move(fracpos_ac, atomdist, move_wave_functions)
         self._L_MM = None
+
+    def _update_phases(self, fracpos_ac):
+        """Complex-rotate coefficients compensating discontinuous phase shift.
+
+        This changes the coefficients to counteract the phase discontinuity
+        of overlaps when atoms move across a cell boundary."""
+
+        # We don't want to apply any phase shift unless we crossed a cell
+        # boundary.  So we round the shift to either 0 or 1.
+        #
+        # Example: spos_ac goes from 0.01 to 0.99 -- this rounds to 1 and
+        # we apply the phase.  If someone moves an atom by half a cell
+        # without crossing a boundary, then we are out of luck.  But they
+        # should have reinitialized from LCAO anyway.
+
+        C_nM = self.C_nM.data
+        if C_nM.dtype == float:
+            return
+        diff_ac = (fracpos_ac - self.fracpos_ac).round()
+        if not diff_ac.any():
+            return
+        phase_a = np.exp(2j * np.pi * diff_ac @ self.kpt_c)
+        M1 = 0
+        for phase, sphere in zip(phase_a, self.basis.sphere_a):
+            M2 = M1 + sphere.Mmax
+            C_nM[:, M1:M2] *= phase
+            M1 = M2
 
     @property
     def L_MM(self):
