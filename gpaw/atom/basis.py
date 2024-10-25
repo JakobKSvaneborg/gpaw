@@ -165,21 +165,22 @@ class BasisMaker:
         Creates a confinement potential for the orbital given by j,
         such that the confined-orbital energy is (emin to emax) eV larger
         than the free-orbital energy."""
-        g = self.generator
-        e_base = g.e_j[j]
+        valdata = self.valence_data
+        e_base = valdata.e_j[j]
         rc = rguess
 
         if vconf_args is None:
             vconf = None
         else:
             amplitude, ri_rel = vconf_args
-            vconf = g.get_confinement_potential(amplitude, ri_rel * rc, rc)
+            vconf = valdata.get_confinement_potential(
+                amplitude, ri_rel * rc, rc)
 
-        psi_g, e = g.solve_confined(j, rc, vconf)
+        psi_g, e = valdata.solve_confined(j, rc, vconf)
         de_min, de_max = esplit / Hartree, (esplit + tolerance) / Hartree
 
         rmin = 0.
-        rmax = g.r[-1]
+        rmax = valdata.rgd.r_g[-1]
 
         de = e - e_base
         while de < de_min or de > de_max:
@@ -190,10 +191,11 @@ class BasisMaker:
                 rmin = rc
                 rc = (rc + rmax) / 2.
             if vconf is not None:
-                vconf = g.get_confinement_potential(amplitude, ri_rel * rc, rc)
-            psi_g, e = g.solve_confined(j, rc, vconf)
+                vconf = valdata.get_confinement_potential(
+                    amplitude, ri_rel * rc, rc)
+            psi_g, e = valdata.solve_confined(j, rc, vconf)
             de = e - e_base
-            if g.r2g(rmax) - g.r2g(rmin) <= 1:  # adjacent points
+            if valdata.r2g(rmax) - valdata.r2g(rmin) <= 1:  # adjacent points
                 break  # cannot meet tolerance due to grid resolution
 
         return psi_g, e, de, vconf, rc
@@ -258,12 +260,15 @@ class BasisMaker:
             amplitude, ri_rel = vconf_args
 
         g = self.generator
+        valdata = self.valence_data
         rgd = self.rgd
 
-        njcore = g.njcore
-        n_j = g.n_j[njcore:]
-        l_j = g.l_j[njcore:]
-        f_j = g.f_j[njcore:]
+        njcore = valdata.njcore
+        # We can probably create valdata with only the [njcore:] subset.
+        # Refactor later.
+        n_j = valdata.n_j[njcore:]
+        l_j = valdata.l_j[njcore:]
+        f_j = valdata.f_j[njcore:]
 
         if jvalues is None:
             jvalues = []

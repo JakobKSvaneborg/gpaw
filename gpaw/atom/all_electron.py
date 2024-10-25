@@ -535,11 +535,15 @@ class AllElectron(IOContext):
     def valence_data(self):
         return ValenceData(rgd=self.rgd, vr=self.vr, n_j=self.n_j,
                            l_j=self.l_j, e_j=self.e_j, u_j=self.u_j,
+                           f_j=self.f_j,
                            u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
                            rcut_l=self.rcut_l,
                            scalarrel=self.scalarrel,
                            beta=self.beta,
-                           r2dvdr=self.r2dvdr)
+                           r2dvdr=self.r2dvdr,
+                           njcore=self.njcore,
+                           xcname=self.xcname,
+                           symbol=self.symbol)
 
     def solve_confined(self, j, rc, vconf=None):
         return self.valence_data.solve_confined(j, rc, vconf)
@@ -782,6 +786,7 @@ class ValenceData:
     l_j: list[int]
     e_j: list[float]
     u_j: list[np.ndarray]
+    f_j: list[float]
 
     u_ln: list[list[np.ndarray]]
     q_ln: list[list[np.ndarray]]
@@ -790,7 +795,12 @@ class ValenceData:
     rcut_l: list[float]
     scalarrel: bool
     beta: float
-    r2dvdr: np.ndarray | None = None
+    r2dvdr: np.ndarray
+
+    # Maybe we don't need these variables:
+    njcore: int
+    symbol: str
+    xcname: str
 
     @property
     def N(self):
