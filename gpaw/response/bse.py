@@ -114,7 +114,7 @@ class BSEMatrix:
 def parallel_delete(A_nn: np.ndarray,
                     deleteN: np.ndarray,
                     grid_desc: BlacsDescriptor,
-                    new_desc: BlacsDescriptor | None = None):
+                    new_desc=None):
     """
     Removes rows and columns from the distributed square matrix A_nn.
     This is done by redistributing the matrix to first make the second index
