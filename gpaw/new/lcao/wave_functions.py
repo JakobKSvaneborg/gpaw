@@ -93,7 +93,7 @@ class LCAOWaveFunctions(WaveFunctions):
         M1 = 0
         for phase, sphere in zip(phase_a, self.basis.sphere_a):
             M2 = M1 + sphere.Mmax
-            C_nM[:, M1:M2] *= phase#_a[a]
+            C_nM[:, M1:M2] *= phase
             M1 = M2
 
     @property
