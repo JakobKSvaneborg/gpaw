@@ -39,11 +39,13 @@ class BSEMatrix:
     deps_S: np.ndarray
     deps_max: float
 
-    def diagonalize_nontammdancoff(self, bse):
+    def diagonalize_nontammdancoff(self, bse, deps_max=None):
         df_S = self.df_S
         H_sS = self.H_sS
+        if deps_max is None:
+            deps_max = self.deps_max
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
-        excludedeps_S = np.where(np.abs(self.deps_S) > self.deps_max)[0]
+        excludedeps_S = np.where(np.abs(self.deps_S) > deps_max)[0]
         exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
         bse.context.print('  Using numpy.linalg.eig...')
         bse.context.print('  Eliminated %s pair orbitals' % len(
@@ -60,8 +62,11 @@ class BSEMatrix:
         world.broadcast(w_T, 0)
         return w_T, v_ST, exclude_S
 
-    def diagonalize_tammdancoff(self, bse):
-        H_rr, new_grid_desc, exclude_S = self.exclude_states_tamm_dancoff(bse)
+    def diagonalize_tammdancoff(self, bse, deps_max=None):
+        if deps_max is None:
+            deps_max = self.deps_max
+        exclude_S = np.where(np.abs(self.deps_S) > deps_max)[0]
+        H_rr, new_grid_desc = self.exclude_states(bse, exclude_S)
         if world.size == 1:
             bse.context.print('  Using lapack...')
             w_T, v_Rt = eigh(H_rr)
@@ -78,47 +83,53 @@ class BSEMatrix:
             new_grid_desc.diagonalize_dc(H_rr, v_rt, w_T)
 
         # redistribute eigenvectors
+        # we want them to be parallelized over the last index only
 
-        grid_Rt = BlacsGrid(world, 1, world.size)
+        grid_tR = BlacsGrid(world, world.size, 1)
         nt = -((-nR) // world.size)
-        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
-        v_Rt = desc_Rt.zeros(dtype=complex)
+        desc_tR = grid_tR.new_descriptor(nR, nR, nt, nR)
+        v_tR = desc_tR.zeros(dtype=complex)
         Redistributor(world, new_grid_desc,
-                      desc_Rt).redistribute(v_rt, v_Rt)
-        # v_Rt = v_tR.conj().T
+                      desc_tR).redistribute(v_rt, v_tR)
+        v_Rt = v_tR.conj().T
         return w_T, v_Rt, exclude_S
 
-    def exclude_states_tamm_dancoff(self, bse):
+    def exclude_states(self, bse, exclude_S):
+        """
+        Removes pairs from the BSE Hamiltonian.
+        A pair is removed if the absolute value of the
+        transition energy eps_c - eps_v is greater than deps_max
+        """
         H_sS = self.H_sS
-        exclude_S = np.where(self.deps_S > self.deps_max)[0]
         grid = BlacsGrid(world, world.size, 1)
         nS = bse.nS
         ns = bse.ns
         desc = grid.new_descriptor(nS, nS, ns, nS)
-        H_rr, new_grid, new_grid_desc = parallel_delete(H_sS, exclude_S, desc)
+        H_rr, new_desc = parallel_delete(H_sS, exclude_S, desc)
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
-        return H_rr, new_grid_desc, exclude_S
+        return H_rr, new_desc
 
 
 def parallel_delete(A_nn: np.ndarray,
                     deleteN: np.ndarray,
                     grid_desc: BlacsDescriptor,
-                    new_grid: BlacsGrid | None = None,
-                    new_grid_desc: BlacsDescriptor | None = None):
+                    new_desc: BlacsDescriptor | None = None):
     """
-    Removes rows and columns from the distributed square matrix A_nm.
+    Removes rows and columns from the distributed square matrix A_nn.
+    This is done by redistributing the matrix to first make the second index
+    global (A_nn -> A_mN), and then deleting along the second (global) index;
+    then repeating the same procedure for the first index.
     --------------
     Parameters:
     A_nn: distributed matrix
-    delete_N : list of (global) indices to delete
+    deleteN : list of (global) indices to delete
     grid_desc: BlacsDescriptor for A_nn
     new_grid: BlacsGrid on which A_nn will be returned; optional
     -------------------
     Returns:
     A_rs: np.ndarray
-    new_grid: BlacsGrid
-    new_grid_desc: BlacsDescriptor
+    new_desc: BlacsDescriptor
 
     A_rs is the (new) distributed matrix after rows and columns
     have been deleted.
@@ -139,7 +150,7 @@ def parallel_delete(A_nn: np.ndarray,
     Redistributor(world, grid_desc,
                   desc_mN).redistribute(A_nn, A_mN)
 
-    # delete, and ensure that array is still memory-contiguous
+    # delete, and ensure that array is still contiguous in memory
     A_mR = np.delete(A_mN, deleteN, axis=1)
     A_mR = np.ascontiguousarray(A_mR)
     desc_mR = grid_mN.new_descriptor(N, R, m, R)
@@ -154,18 +165,21 @@ def parallel_delete(A_nn: np.ndarray,
     A_Rr = np.delete(A_Nr, deleteN, axis=0)
     A_Rr = np.ascontiguousarray(A_Rr)
     desc_Rr = grid_Nr.new_descriptor(R, R, R, r)
-    if new_grid is None:
-        assert new_grid_desc is None
+
+    # Redistribute to final grid.
+    # If this is not specified by the user, we try to find the most
+    # efficient grid using the suggest_blocking function.
+    if new_desc is None:
         nrows, ncols, blocksize = suggest_blocking(R, world.size)
         new_grid = BlacsGrid(world, nrows, ncols)
         new_desc = new_grid.new_descriptor(R, R, blocksize, blocksize)
     else:
-        assert new_grid_desc is not None
+        assert new_desc is not None
     A_rr = new_desc.zeros(dtype=complex)
     Redistributor(world, desc_Rr,
                   new_desc).redistribute(A_Rr, A_rr)
 
-    return A_rr, new_grid, new_desc
+    return A_rr, new_desc
 
 
 @dataclass
