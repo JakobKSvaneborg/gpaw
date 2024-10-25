@@ -1,7 +1,10 @@
 from pathlib import Path
 from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction
-from gpaw.response.qeh import BuildingBlock
+from gpaw.response.qeh import QEHChiCalc
+
+from qeh.bb_calculator.chicalc import ChiHandler
+from qeh.bb_calculator.bb_builder import interpolate_chi_to_bb
 
 df = DielectricFunction(calc='WSe2_gs_fulldiag.gpw',
                         eta=0.001,
@@ -12,9 +15,10 @@ df = DielectricFunction(calc='WSe2_gs_fulldiag.gpw',
                         ecut=150,
                         truncation='2D')
 
-buildingblock = BuildingBlock('WSe2', df, qmax=3.0)
-
-buildingblock.calculate_building_block()
+chicalc = QEHChiCalc(df)
+chihandler = ChiHandler('WSe2', chicalc, q_max=3.0)
+chihandler.calculate_chi_2d()
 
 if world.rank == 0:
+    interpolate_chi_to_bb('WSe2', aN=2)
     Path('WSe2_gs_fulldiag.gpw').unlink()
