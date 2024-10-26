@@ -24,8 +24,8 @@ class HybridLCAOEigensolver(LCAOEigensolver):
         super().__init__(basis)
         print(fracpos_ac, cell_cv)
 
-    def iterate(self, state, hamiltonian) -> float:
-        for wfs in state.ibzwfs:
+    def iterate(self, ibzwfs, density, potential, hamiltonian) -> float:
+        for wfs in ibzwfs:
             rho_MM = wfs.calculate_density_matrix()
             print(rho_MM)
         return -1.0

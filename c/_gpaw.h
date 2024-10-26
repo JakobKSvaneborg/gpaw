@@ -11,7 +11,7 @@
 #include <mpi.h>
 #endif
 #ifndef GPAW_WITHOUT_LIBXC
-#include <xc.h> // If this file is not found, install libxc https://wiki.fysik.dtu.dk/gpaw/install.html#libxc-installation
+#include <xc.h> // If this file is not found, install libxc https://gpaw.readthedocs.io/install.html#libxc-installation
 #endif
 
 #ifdef GPAW_HPM
@@ -28,7 +28,7 @@ PyObject* craypat_region_end(PyObject *self, PyObject *args);
 #endif
 
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args);
-
+PyObject* pawexxvv(PyObject* self, PyObject* args);
 PyObject* symmetrize(PyObject *self, PyObject *args);
 PyObject* symmetrize_ft(PyObject *self, PyObject *args);
 PyObject* symmetrize_wavefunction(PyObject *self, PyObject *args);
@@ -189,6 +189,7 @@ PyObject* axpbz_gpu(PyObject *self, PyObject *args);
 PyObject* fill_gpu(PyObject *self, PyObject *args);
 PyObject* pwlfc_expand_gpu(PyObject *self, PyObject *args);
 PyObject* pw_insert_gpu(PyObject *self, PyObject *args);
+PyObject* pw_amend_insert_realwf_gpu(PyObject *self, PyObject *args);
 PyObject* add_to_density_gpu(PyObject* self, PyObject* args);
 PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args);
 PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
@@ -197,6 +198,7 @@ PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 #endif
 
 static PyMethodDef functions[] = {
+    {"pawexxvv", pawexxvv, METH_VARARGS, 0},
     {"evaluate_mpa_poly", evaluate_mpa_poly, METH_VARARGS, 0},
     {"symmetrize", symmetrize, METH_VARARGS, 0},
     {"symmetrize_ft", symmetrize_ft, METH_VARARGS, 0},
@@ -353,6 +355,7 @@ static PyMethodDef functions[] = {
     {"fill_gpu", fill_gpu, METH_VARARGS, 0},
     {"pwlfc_expand_gpu", pwlfc_expand_gpu, METH_VARARGS, 0},
     {"pw_insert_gpu", pw_insert_gpu, METH_VARARGS, 0},
+    {"pw_amend_insert_realwf_gpu", pw_amend_insert_realwf_gpu, METH_VARARGS, 0},
     {"add_to_density_gpu", add_to_density_gpu, METH_VARARGS, 0},
     {"dH_aii_times_P_ani_gpu", dH_aii_times_P_ani_gpu, METH_VARARGS, 0},
     {"evaluate_lda_gpu", evaluate_lda_gpu, METH_VARARGS, 0},
@@ -453,8 +456,8 @@ static PyObject* moduleinit(void)
 #else
     PyObject_SetAttrString(m, "have_openmp", Py_False);
 #endif
-    // Version number of C-code.  Keep in sync with gpaw/__init__.py
-    PyObject_SetAttrString(m, "version", PyLong_FromLong(8));
+    // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
+    PyObject_SetAttrString(m, "version", PyLong_FromLong(9));
 
     Py_INCREF(&LFCType);
     Py_INCREF(&OperatorType);

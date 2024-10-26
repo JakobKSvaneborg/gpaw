@@ -8,7 +8,7 @@ from ase.dft.bandgap import bandgap
 from ase.units import Ha
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_pwsic(in_tmp_dir):
     """

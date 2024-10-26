@@ -49,6 +49,7 @@ version to become the next release.
    bugs
    newrelease
    technology
+   meeting
 
 * Details about supported :ref:`platforms and architectures`.
 

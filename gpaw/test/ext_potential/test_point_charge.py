@@ -8,7 +8,7 @@ from gpaw import GPAW, Mixer, PoissonSolver
 from gpaw.external import PointChargePotential
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_ext_potential_point_charge(in_tmp_dir):
     # Find coefs for polynomial:
     c = np.linalg.solve([[1, 1, 1, 1],

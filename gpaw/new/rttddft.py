@@ -238,7 +238,7 @@ class RTTDDFT:
             assert calc.dft is not None
             dft = calc.dft
 
-        state = dft.state
+        state = dft.get_state()
         pot_calc = dft.pot_calc
         hamiltonian = dft.scf_loop.hamiltonian
         history = RTTDDFTHistory()
@@ -255,7 +255,7 @@ class RTTDDFT:
                                            comm=world,
                                            dtype=complex)
 
-        state = dft.state
+        state = dft.get_state()
         pot_calc = dft.pot_calc
         hamiltonian = builder.create_hamiltonian_operator()
         history = RTTDDFTHistory()

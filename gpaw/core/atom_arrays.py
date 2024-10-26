@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import numbers
-from typing import Sequence, overload
+from typing import Sequence, overload, Literal
 
 import numpy as np
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp, XP
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
-from gpaw.typing import Array1D, ArrayLike1D, Literal
+from gpaw.typing import Array1D, ArrayLike1D
 from gpaw.new.c import dH_aii_times_P_ani_gpu
 
 
@@ -457,20 +457,21 @@ class AtomArrays:
         layout = self.layout.new(atomdist=atomdist)
         new = layout.empty(self.dims)
         comm = atomdist.comm
+        xp = self.layout.xp
         requests = []
         for a, I1, I2 in self.layout.myindices:
             r = layout.atomdist.rank_a[a]
             if r == comm.rank:
                 new[a][:] = self[a]
             else:
-                requests.append(comm.send(np.ascontiguousarray(self[a]),
+                requests.append(comm.send(xp.ascontiguousarray(self[a]),
                                           r, block=False))
 
         for a, I1, I2 in layout.myindices:
             r = self.layout.atomdist.rank_a[a]
             if r != comm.rank:
                 target = new[a]
-                buf = np.empty_like(target)
+                buf = xp.empty_like(target)
                 comm.receive(buf, r)
                 target[:] = buf
 

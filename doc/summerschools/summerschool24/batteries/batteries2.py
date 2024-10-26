@@ -195,7 +195,7 @@ params_GPAW['mixer']       = Mixer(0.1, 5, weight=100.0)  # The mixer used durin
 
 # %%
 """
-DFT suffers from the self-interaction error. An electron interacts with the system electron density, to which it contributes itself. The error is most pronounced for highly localized orbitals. [Hubbard U correction](https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/energetics/hubbardu/hubbardu.html) is used to mitigate the self-interaction error of the highly localized *3d*-electrons of Fe. This is done in GPAW using the `setups` keyword.
+DFT suffers from the self-interaction error. An electron interacts with the system electron density, to which it contributes itself. The error is most pronounced for highly localized orbitals. [Hubbard U correction](https://gpaw.readthedocs.io/tutorialsexercises/energetics/hubbardu/hubbardu.html) is used to mitigate the self-interaction error of the highly localized *3d*-electrons of Fe. This is done in GPAW using the `setups` keyword.
 """
 
 # %%

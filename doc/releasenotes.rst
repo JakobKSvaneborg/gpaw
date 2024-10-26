@@ -10,8 +10,29 @@ Git master branch
 
 :git:`master <>`.
 
-* Added functionality to compute LDA exchange constants based on the local site
-  properties methodology, see :ref:`sites`.
+* Minimum version requirements: Python 3.9, ASE 3.23.0.
+
+* Updated development-workflow documentation:
+  :ref:`a good mr`, :ref:`get your mr merged`.
+
+* Works with
+  `Libxc-7.0.0 <https://gitlab.com/libxc/libxc/-/releases/7.0.0>`__.
+
+* The :meth:`gpaw.calculator.GPAW.fixed_density` method now respects the
+  ``update_fermi_level`` argument.  Previously, the Fermi-level would not
+  be updated, but the occupation numers would be calculated with an
+  updated Fermi-level.  Now, the Fermi-level and the occupation numbers
+  always in sync.
+
+* The :meth:`gpaw.calculator.GPAW.get_occupation_numbers` method can now
+  return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
+  or **k**-point weights (use ``raw=True``).
+
+* Added functionality to compute LDA exchange constants based on the
+  local site properties methodology, see :ref:`sites`.
+
+* Extended ``restrict`` keyword and random phase approximation enabled
+  in :ref:`lrtddft`
 
 
 Version 24.6.0
@@ -47,6 +68,9 @@ May 31, 2024: :git:`24.6.0 <../24.6.0>`
   function but considers the ``pbc`` for periodic calculations and
   only adjusts the cell in the non-periodic directions.
 
+* Updated the BSE module such that SOC can be included for magnetic
+  systems. A new function has also been added such that one can obtain
+  the transverse magnetic susceptibility and magnons from the BSE code.
 
 .. _bug0:
 
@@ -453,8 +477,8 @@ Jun 24, 2021: :git:`21.6.0 <../21.6.0>`
   of both p and d orbitals on transition metals)
 
 * There used to be two versions of the GPAW web-page which was quite
-  confusing.  The https://wiki.fysik.dtu.dk/gpaw/dev/ web-page has now been
-  dropped.  There is now only https://wiki.fysik.dtu.dk/gpaw/ and it documents
+  confusing.  The https://gpaw.readthedocs.io/dev/ web-page has now been
+  dropped.  There is now only https://gpaw.readthedocs.io/ and it documents
   the use of the in development version of GPAW.
 
 * ``gpaw sbatch`` will now detect an active virtual environment (venv)
@@ -974,7 +998,7 @@ October 2, 2017: :git:`1.3.0 <../1.3.0>`
 * Python 2.6 no longer supported.
 
 * There is now a web-page documenting the use of the in development version
-  of GPAW: https://wiki.fysik.dtu.dk/gpaw/dev/.
+  of GPAW: https://gpaw.readthedocs.io/dev/.
 
 * :ref:`BSE <bse tutorial>` calculations for spin-polarized systems.
 

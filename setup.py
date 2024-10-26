@@ -18,7 +18,7 @@ from setuptools.command.install import install as _install
 from config import (build_gpu, build_interpreter, check_dependencies,
                     write_configuration)
 
-python_min_version = (3, 8)
+python_min_version = (3, 9)
 assert sys.version_info >= python_min_version, sys.version_info
 python_requires = '>=' + '.'.join(str(num) for num in python_min_version)
 
@@ -386,7 +386,7 @@ setup(name='gpaw',
       long_description=long_description,
       maintainer='GPAW-community',
       maintainer_email='gpaw-users@listserv.fysik.dtu.dk',
-      url='https://wiki.fysik.dtu.dk/gpaw',
+      url='https://gpaw.readthedocs.io/',
       license='GPLv3+',
       platforms=['unix'],
       packages=find_packages(),
@@ -399,7 +399,11 @@ setup(name='gpaw',
                         'numpy',
                         'scipy>=1.6.0'],
       extras_require={'docs': ['sphinx-rtd-theme',
-                               'graphviz'],
+                               'sphinxcontrib-jquery',
+                               'plotly',
+                               'kaleido',
+                               'graphviz',
+                               'scikit-image'],
                       'devel': ['flake8',
                                 'mypy',
                                 'pytest>=7.0.0',

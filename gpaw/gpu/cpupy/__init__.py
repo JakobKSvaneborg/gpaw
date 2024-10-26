@@ -45,6 +45,10 @@ def array(a, dtype=None):
     return ndarray(np.array(a, dtype))
 
 
+def ascontiguousarray(a):
+    return ndarray(np.ascontiguousarray(a._data))
+
+
 def dot(a, b):
     return ndarray(np.dot(a._data, b._data))
 
@@ -169,6 +173,9 @@ class ndarray:
                 yield ndarray(data.item())
             else:
                 yield ndarray(data)
+
+    def mean(self):
+        return ndarray(self._data.mean())
 
     def __setitem__(self, index, value):
         if isinstance(index, tuple):

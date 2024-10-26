@@ -1,21 +1,22 @@
 from __future__ import annotations
-import numpy as np
 
-from gpaw.core import UGDesc
-from gpaw.core.arrays import DistributedArrays as XArray
-from gpaw.core.uniform_grid import UGArray
-from gpaw.fd_operators import Gradient, Laplace
-from gpaw.new import zips
+from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
+from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
-from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 from gpaw.poisson import PoissonSolver as make_poisson_solver
 
 
 class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
-    def __init__(self, atoms, params, *, comm, nn=3, interpolation=3):
+    def __init__(self,
+                 atoms,
+                 params,
+                 *,
+                 comm,
+                 nn=3,
+                 interpolation=3):
         super().__init__(atoms,
                          params,
                          comm=comm)
@@ -122,56 +123,3 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 wfs.psit_nX.scatter_from(data)
 
         return ibzwfs
-
-
-class FDHamiltonian(Hamiltonian):
-    def __init__(self, grid, kin_stencil=3, blocksize=10, xp=np):
-        self.grid = grid
-        self.blocksize = blocksize
-        self._gd = grid._gd
-        self.kin = Laplace(self._gd, -0.5, kin_stencil, grid.dtype, xp=xp)
-
-        # For MGGA:
-        self.grad_v = []
-
-    def apply_local_potential(self,
-                              vt_R: UGArray,
-                              psit_nR: XArray,
-                              out: XArray,
-                              ) -> None:
-        assert isinstance(psit_nR, UGArray)
-        assert isinstance(out, UGArray)
-        self.kin(psit_nR, out)
-        for p, o in zips(psit_nR.data, out.data):
-            o += p * vt_R.data
-
-    def apply_mgga(self,
-                   dedtaut_R: UGArray,
-                   psit_nR: XArray,
-                   vt_nR: XArray) -> None:
-        if len(self.grad_v) == 0:
-            grid = psit_nR.desc
-            self.grad_v = [
-                Gradient(grid._gd, v, n=3, dtype=grid.dtype)
-                for v in range(3)]
-
-        tmp_R = psit_nR.desc.empty()
-        for psit_R, out_R in zips(psit_nR, vt_nR):
-            for grad in self.grad_v:
-                grad(psit_R, tmp_R)
-                tmp_R.data *= dedtaut_R.data
-                grad(tmp_R, tmp_R)
-                tmp_R.data *= 0.5
-                out_R.data -= tmp_R.data
-
-    def create_preconditioner(self, blocksize, xp=np):
-        from types import SimpleNamespace
-
-        from gpaw.preconditioner import Preconditioner as PC
-        pc = PC(self._gd, self.kin, self.grid.dtype, self.blocksize, xp=xp)
-
-        def apply(psit, residuals, out):
-            kpt = SimpleNamespace(phase_cd=psit.desc.phase_factor_cd)
-            pc(residuals.data, kpt, out=out.data)
-
-        return apply

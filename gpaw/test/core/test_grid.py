@@ -2,7 +2,7 @@ from math import pi
 
 import numpy as np
 import pytest
-from gpaw.core import UGDesc, PWDesc
+from gpaw.core import UGDesc, PWDesc, UGArray
 from gpaw.fd_operators import Laplace
 from gpaw.mpi import world
 
@@ -58,17 +58,29 @@ def test_complex_laplace():
     assert abs(error).max() == pytest.approx(0.0, abs=1e-6)
 
 
-def test_moment():
+def py(a: float) -> UGArray:
     L = 5
     n = 20
-    grid = UGDesc(cell=[L, L, L], size=(n, n, n), comm=world)
-    f = grid.zeros()
-
-    # P-type Gaussian:
     l = 1
-    a = 4.0
     rcut = 3.0
     p = (l, rcut, lambda r: np.exp(-a * r**2))
+    grid = UGDesc(cell=[L, L, L], size=(n, n, n), comm=world)
+    f = grid.zeros()
+    # Add P-y function to grid:
+    basis = grid.atom_centered_functions(
+        [[p]],
+        positions=[[0.5, 0.5, 0.5]])
+    coefs = basis.layout.empty()
+    if 0 in coefs:
+        coefs[0] = [1.0, 0, 0]  # y, z, x
+    basis.add_to(f, coefs)
+    return f
+
+
+def test_moment():
+    # P-type Gaussian:
+    a = 4.0
+    f = py(a)
 
     if 0:  # Analytic result
         from sympy import integrate, exp, oo, var, Symbol, sqrt, pi
@@ -81,20 +93,21 @@ def test_moment():
 
     moment = 3**0.5 * np.pi / (4 * a**(5 / 2))
 
-    # Add P-y function to grid:
-    basis = grid.atom_centered_functions(
-        [[p]],
-        positions=[[0.5, 0.5, 0.5]])
-    coefs = basis.layout.empty()
-    if 0 in coefs:
-        coefs[0] = [1.0, 0, 0]  # y, z, x
-    basis.add_to(f, coefs)
-
     assert abs(f.integrate()) < 1e-14
     assert f.moment() == pytest.approx([0, moment, 0])
 
-    pw = PWDesc(cell=grid.cell, ecut=700, comm=world)
+    pw = PWDesc(cell=f.desc.cell, ecut=700, comm=world)
     f2 = f.fft(pw=pw)
 
     assert abs(f2.integrate()) < 1e-14
     assert f2.moment() == pytest.approx([0, moment, 0], abs=1e-5)
+
+
+def test_isosurface():
+    pytest.importorskip('plotly')
+    f = py(4.0)
+    f.isosurface(show=False)
+
+
+if __name__ == '__main__':
+    py(4.0).isosurface()

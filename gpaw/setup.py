@@ -161,10 +161,12 @@ class BaseSetup:
         # projectors.  This should be the correct behaviour for all the
         # currently supported PAW/pseudopotentials.
         partial_waves_j = []
-        for n, phit in zips(self.n_j, self.pseudo_partial_waves_j,
-                            strict=False):
+        for n, phit in zip(self.n_j, self.pseudo_partial_waves_j):
             if n > 0:
                 partial_waves_j.append(phit)
+
+        assert all(n > 0 for n in self.n_j[:len(partial_waves_j)])
+
         return partial_waves_j
 
     def calculate_initial_occupation_numbers(self, magmom, hund, charge,
@@ -386,7 +388,7 @@ class BaseSetup:
         ni = len(L_i)
         # j_i is the list of j values
         # L_i is the list of L (=l**2+m for 0<=m<2*l+1) values
-        # https://wiki.fysik.dtu.dk/gpaw/devel/overview.html
+        # https://gpaw.readthedocs.io/devel/overview.html
 
         G_LLL = gaunt(max(self.l_j))
 

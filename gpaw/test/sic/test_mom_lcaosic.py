@@ -8,7 +8,7 @@ from gpaw.directmin.tools import excite
 from gpaw.mom import prepare_mom_calculation
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_mom_lcaosic(in_tmp_dir):
     # Water molecule:

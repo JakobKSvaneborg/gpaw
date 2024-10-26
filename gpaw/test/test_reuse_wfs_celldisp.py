@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from ase.build import molecule
 
 from gpaw import GPAW, Mixer
@@ -11,7 +10,6 @@ from gpaw.mpi import world
 # are handled correctly when unprojecting/reprojecting the wavefunctions.
 
 
-@pytest.mark.later  # Not implemented yet
 def test_reuse_wfs_celldisp(in_tmp_dir):
     def check(reuse):
         atoms = molecule('H2')
@@ -37,6 +35,9 @@ def test_reuse_wfs_celldisp(in_tmp_dir):
                 logerr1 = np.log10(ctx.wfs.eigensolver.error)
 
         atoms.positions[:, 2] -= 2 * dz
+
+        if not reuse and not calc.old:
+            calc.dft.ibzwfs.move_wave_functions = lambda *args: None
 
         for ctx in calc.icalculate(atoms, system_changes=['positions']):
             if ctx.niter == 2:

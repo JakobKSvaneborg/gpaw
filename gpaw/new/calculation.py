@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from functools import cached_property
 from typing import Any, Union
 
@@ -7,11 +8,12 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
 
-from gpaw.core import UGDesc
+from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
+from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, world
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
@@ -67,27 +69,19 @@ class DFTState:
         self.density = density
         self.potential = potential
 
-    def __repr__(self):
-        return (f'DFTState({self.ibzwfs!r}, '
-                f'{self.density!r}, {self.potential!r})')
-
-    def __str__(self):
-        return f'{self.ibzwfs}\n{self.density}\n{self.potential}'
-
-    def move(self, fracpos_ac, atomdist):
-        self.ibzwfs.move(fracpos_ac, atomdist)
-        self.density.move(fracpos_ac, atomdist)
-        self.potential.move(atomdist)
-
 
 class DFTCalculation:
     def __init__(self,
-                 state: DFTState,
+                 ibzwfs: IBZWaveFunctions,
+                 density: Density,
+                 potential: Potential,
                  setups: Setups,
                  scf_loop: SCFLoop,
                  pot_calc,
                  log: Logger):
-        self.state = state
+        self.ibzwfs = ibzwfs
+        self.density = density
+        self.potential = potential
         self.setups = setups
         self.scf_loop = scf_loop
         self.pot_calc = pot_calc
@@ -96,6 +90,15 @@ class DFTCalculation:
 
         self.results: dict[str, Any] = {}
         self.fracpos_ac = self.pot_calc.fracpos_ac
+
+    def get_state(self):
+        return DFTState(self.ibzwfs, self.density, self.potential)
+
+    @property
+    def state(self):
+        warnings.warn('Use of deprecated DFTCalculation.state attribute. '
+                      'Use ibzwfs, density and potential attributes instead.')
+        return self.get_state()
 
     @classmethod
     def from_parameters(cls,
@@ -139,15 +142,16 @@ class DFTCalculation:
         if ibzwfs.wfs_qs[0][0]._eig_n is not None:
             ibzwfs.calculate_occs(scf_loop.occ_calc)
 
-        state = DFTState(ibzwfs, density, potential)
-
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
-        log(state)
+        log(ibzwfs)
+        log(density)
+        log(potential)
         log(builder.setups)
         log(scf_loop)
         log(pot_calc)
 
-        return cls(state, builder.setups, scf_loop, pot_calc, log)
+        return cls(ibzwfs, density, potential,
+                   builder.setups, scf_loop, pot_calc, log)
 
     def move_atoms(self, atoms) -> DFTCalculation:
         check_atoms_too_close(atoms)
@@ -155,39 +159,46 @@ class DFTCalculation:
         self.fracpos_ac = np.ascontiguousarray(atoms.get_scaled_positions())
         self.comm.broadcast(self.fracpos_ac, 0)
 
-        atomdist = self.state.density.D_asii.layout.atomdist
-        grid = self.state.density.nt_sR.desc
+        atomdist = self.density.D_asii.layout.atomdist
+        grid = self.density.nt_sR.desc
         rank_a = grid.ranks_from_fractional_positions(self.fracpos_ac)
         atomdist = AtomDistribution(rank_a, atomdist.comm)
 
         self.pot_calc.move(self.fracpos_ac, atomdist)
-        self.state.move(self.fracpos_ac, atomdist)
+        self.ibzwfs.move(self.fracpos_ac, atomdist)
+        self.density.move(self.fracpos_ac, atomdist)
+        if self.ibzwfs.has_wave_functions():
+            self.density.update(self.ibzwfs)
+        self.potential.move(atomdist)
+
+        new_potential, _ = self.pot_calc.calculate(
+            self.density, self.ibzwfs, self.potential.vHt_x)
+        self.potential.update_from(new_potential)
 
         mm_av = self.results['non_collinear_magmoms']
-        write_atoms(atoms, mm_av, self.state.density.nt_sR.desc, self.log)
+        write_atoms(atoms, mm_av, self.density.nt_sR.desc, self.log)
 
         self.results = {}
 
         return self
 
-    def iconverge(self, convergence=None, maxiter=None, calculate_forces=None):
-        self.state.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-        yield from self.scf_loop.iterate(self.state,
+    def iconverge(self, maxiter=None, calculate_forces=None):
+        self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+        yield from self.scf_loop.iterate(self.ibzwfs,
+                                         self.density,
+                                         self.potential,
                                          self.pot_calc,
-                                         convergence,
-                                         maxiter,
-                                         calculate_forces,
+                                         maxiter=maxiter,
+                                         calculate_forces=calculate_forces,
                                          log=self.log)
 
     @trace
     def converge(self,
-                 convergence=None,
                  maxiter=None,
                  steps=99999999999999999,
                  calculate_forces=None):
         """Converge to self-consistent solution of Kohn-Sham equation."""
-        for step, _ in enumerate(self.iconverge(convergence,
-                                                maxiter,
+        for step, _ in enumerate(self.iconverge(maxiter,
                                                 calculate_forces),
                                  start=1):
             if step == steps:
@@ -196,7 +207,7 @@ class DFTCalculation:
             self.log('SCF steps:', step)
 
     def energies(self):
-        energies = combine_energies(self.state.potential, self.state.ibzwfs)
+        energies = combine_energies(self.potential, self.ibzwfs)
 
         self.log('Energy contributions relative to reference atoms:',
                  f'(reference = {self.setups.Eref * Ha:.6f})\n')
@@ -219,19 +230,19 @@ class DFTCalculation:
     def dipole(self):
         if 'dipole' in self.results:
             return
-        dipole_v = self.state.density.calculate_dipole_moment(self.fracpos_ac)
+        dipole_v = self.density.calculate_dipole_moment(self.fracpos_ac)
         x, y, z = dipole_v * Bohr
         self.log(f'dipole moment: [{x:.6f}, {y:.6f}, {z:.6f}]  # |e|*Ang\n')
         self.results['dipole'] = dipole_v
 
     def magmoms(self) -> tuple[Array1D, Array2D]:
-        mm_v, mm_av = self.state.density.calculate_magnetic_moments()
+        mm_v, mm_av = self.density.calculate_magnetic_moments()
         self.results['magmom'] = mm_v[2]
         self.results['magmoms'] = mm_av[:, 2].copy()
         self.results['non_collinear_magmoms'] = mm_av
         self.results['non_collinear_magmom'] = mm_v
 
-        if self.state.density.ncomponents > 1:
+        if self.density.ncomponents > 1:
             x, y, z = mm_v
             self.log(f'total magnetic moment: [{x:.6f}, {y:.6f}, {z:.6f}]\n')
             self.log('local magnetic moments: [')
@@ -263,15 +274,14 @@ class DFTCalculation:
         assert not hasattr(xc.xc, 'setup_force_corrections')
 
         # Force from projector functions (and basis set):
-        F_av = self.state.ibzwfs.forces(self.state.potential)
+        F_av = self.ibzwfs.forces(self.potential)
 
         pot_calc = self.pot_calc
         Fcc_avL, Fnct_av, Ftauct_av, Fvbar_av = pot_calc.force_contributions(
-            self.state)
+            self.density, self.potential)
 
         # Force from compensation charges:
-        ccc_aL = \
-            self.state.density.calculate_compensation_charge_coefficients()
+        ccc_aL = self.density.calculate_compensation_charge_coefficients()
         for a, dF_vL in Fcc_avL.items():
             F_av[a] += dF_vL @ ccc_aL[a]
 
@@ -293,22 +303,23 @@ class DFTCalculation:
         domain_comm = ccc_aL.layout.atomdist.comm
         domain_comm.sum(F_av)
 
-        F_av = self.state.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
+        F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
         self.comm.broadcast(F_av, 0)
         self.results['forces'] = F_av
 
     def stress(self) -> None:
         if 'stress' in self.results:
             return
-        stress_vv = self.pot_calc.stress(self.state)
+        stress_vv = self.pot_calc.stress(
+            self.ibzwfs, self.density, self.potential)
         self.log('\nstress tensor: [  # eV/Ang^3')
         for (x, y, z), c in zips(stress_vv * (Ha / Bohr**3), ',,]'):
             self.log(f'  [{x:13.6f}, {y:13.6f}, {z:13.6f}]{c}')
         self.results['stress'] = stress_vv.flat[[0, 4, 8, 5, 2, 1]]
 
     def write_converged(self) -> None:
-        self.state.ibzwfs.write_summary(self.log)
-        vacuum_level = self.state.potential.get_vacuum_level()
+        self.ibzwfs.write_summary(self.log)
+        vacuum_level = self.potential.get_vacuum_level()
         if not np.isnan(vacuum_level):
             self.log(f'vacuum-level: {vacuum_level:.3f}  # V')
             try:
@@ -324,7 +335,7 @@ class DFTCalculation:
                       vacuum_level: float | None = None
                       ) -> tuple[float, float]:
         if vacuum_level is None:
-            vacuum_level = self.state.potential.get_vacuum_level()
+            vacuum_level = self.potential.get_vacuum_level()
         if np.isnan(vacuum_level):
             raise NonsenseError('No vacuum')
         try:
@@ -332,7 +343,7 @@ class DFTCalculation:
         except NotImplementedError:
             raise NonsenseError('No dipole layer')
         correction *= Ha
-        fermi_level = self.state.ibzwfs.fermi_level * Ha
+        fermi_level = self.ibzwfs.fermi_level * Ha
         wf = vacuum_level - fermi_level
         return wf - correction, wf + correction
 
@@ -342,10 +353,52 @@ class DFTCalculation:
     def densities(self) -> Densities:
         return Densities.from_calculation(self)
 
+    def wave_function(self, band: int, kpt=0, spin=None,
+                      periodic=False,
+                      broadcast=True) -> UGArray:
+        psit_nR = self.wave_functions(n1=band, n2=band + 1, kpt=kpt, spin=spin,
+                                      periodic=periodic, broadcast=broadcast)
+        if psit_nR is not None:
+            return psit_nR[0]
+
+    def wave_functions(self, n1=0, n2=None, kpt=0, spin=None,
+                       periodic=False,
+                       broadcast=True,
+                       _pad=True) -> UGArray:
+        collinear = self.ibzwfs.collinear
+        if collinear:
+            if spin is None:
+                spin = 0
+        else:
+            assert spin is None or spin == 0
+        wfs = self.ibzwfs.get_wfs(spin=spin if collinear else 0,
+                                  kpt=kpt,
+                                  n1=n1, n2=n2)
+        if wfs is not None:
+            basis = getattr(self.scf_loop.hamiltonian, 'basis', None)
+            grid = self.density.nt_sR.desc.new(comm=None)
+            if collinear:
+                wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
+                psit_nR = wfs.psit_nX
+            else:
+                psit_nsG = wfs.psit_nX
+                grid = grid.new(kpt=psit_nsG.desc.kpt_c,
+                                dtype=psit_nsG.desc.dtype)
+                psit_nR = psit_nsG.ifft(grid=grid)
+            if not psit_nR.desc.pbc.all() and _pad:
+                psit_nR = psit_nR.to_pbc_grid()
+            if periodic:
+                psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
+        else:
+            psit_nR = None
+        if broadcast:
+            psit_nR = bcast(psit_nR, 0, self.comm)
+        return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
+
     @cached_property
     def _atom_partition(self):
         # Backwards compatibility helper
-        atomdist = self.state.density.D_asii.layout.atomdist
+        atomdist = self.density.D_asii.layout.atomdist
         return AtomPartition(atomdist.comm, atomdist.rank_a)
 
     def new(self,
@@ -358,11 +411,11 @@ class DFTCalculation:
         if params.mode['name'] != 'pw':
             raise ReuseWaveFunctionsError
 
-        ibzwfs = self.state.ibzwfs
+        ibzwfs = self.ibzwfs
         if ibzwfs.domain_comm.size != 1:
             raise ReuseWaveFunctionsError
 
-        if not self.state.density.nt_sR.desc.pbc_c.all():
+        if not self.density.nt_sR.desc.pbc_c.all():
             raise ReuseWaveFunctionsError
 
         check_atoms_too_close(atoms)
@@ -379,10 +432,10 @@ class DFTCalculation:
 
         log('# Interpolating wave functions to new cell')
 
-        density = self.state.density.new(builder.grid,
-                                         builder.interpolation_desc,
-                                         builder.fracpos_ac,
-                                         builder.atomdist)
+        density = self.density.new(builder.grid,
+                                   builder.interpolation_desc,
+                                   builder.fracpos_ac,
+                                   builder.atomdist)
         density.normalize()
 
         # Make sure all have exactly the same density.
@@ -414,16 +467,17 @@ class DFTCalculation:
             kpt_band_comm=old_ibzwfs.kpt_band_comm,
             comm=self.comm)
 
-        state = DFTState(ibzwfs, density, potential)
-
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
-        log(state)
+        log(ibzwfs)
+        log(density)
+        log(potential)
         log(builder.setups)
         log(scf_loop)
         log(pot_calc)
 
         return DFTCalculation(
-            state, builder.setups, scf_loop, pot_calc, log)
+            ibzwfs, density, potential,
+            builder.setups, scf_loop, pot_calc, log)
 
 
 def combine_energies(potential: Potential,

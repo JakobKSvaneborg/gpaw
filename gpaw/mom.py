@@ -65,7 +65,8 @@ def prepare_mom_calculation(calc,
         function.
     """
 
-    if hasattr(calc, 'set'):
+    new_gpaw = hasattr(calc, '_dft')
+    if not new_gpaw:
         if calc.wfs is None:
             # We need the wfs object to initialize OccupationsMOM
             calc.initialize(atoms)
@@ -81,9 +82,9 @@ def prepare_mom_calculation(calc,
                              width,
                              niter_width_update,
                              width_increment)
-    try:
+    if not new_gpaw:
         calc.set(occupations=occ_mom, _set_ok=True)
-    except AttributeError:
+    else:
         calc.dft.scf_loop.occ_calc.occ = occ_mom
         calc.dft.results = {}
 
@@ -153,7 +154,9 @@ class OccupationsMOM:
                   nelectrons,
                   eigenvalues,
                   weights,
-                  fermi_levels_guess):
+                  fermi_levels_guess,
+                  fix_fermi_level=False):
+        assert not fix_fermi_level
 
         if not self.initialized:
             # If MOM reference orbitals are not initialized yet (e.g. when

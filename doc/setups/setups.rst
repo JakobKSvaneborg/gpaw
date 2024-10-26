@@ -67,7 +67,7 @@ Li_ Be_                                         B_  C_  N_  O_  F_  Ne_
 Na_ Mg_                                         Al_ Si_ P_  S_  Cl_ Ar_
 K_  Ca_ Sc_ Ti_ V_  Cr_ Mn_ Fe_ Co_ Ni_ Cu_ Zn_ Ga_ Ge_ As_ Se_ Br_ Kr_
 Rb_ Sr_ Y_  Zr_ Nb_ Mo_ Tc  Ru_ Rh_ Pd_ Ag_ Cd_ In_ Sn_ Sb_ Te_ I_  Xe_
-Cs_ Ba_ La_ Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
+Cs_ Ba_ La  Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
 === === === === === === === === === === === === === === === === === ===
 
 .. toctree::
@@ -75,6 +75,8 @@ Cs_ Ba_ La_ Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
    :hidden:
 
    [A-Z]*
+
+:xkcd:`Old PAW-potentials <2975>` (no longer in use).
 
 
 .. _installation of paw datasets:
@@ -204,7 +206,6 @@ Advanced topics
 .. _Xe: Xe.html
 .. _Cs: Cs.html
 .. _Ba: Ba.html
-.. _La: La.html
 .. _Hf: Hf.html
 .. _Ta: Ta.html
 ..  _W:  W.html

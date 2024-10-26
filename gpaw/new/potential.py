@@ -32,6 +32,13 @@ class Potential:
         return (f'potential:\n'
                 f'  grid points: {self.vt_sR.desc.size}\n')
 
+    def update_from(self, potential):
+        self.vt_sR = potential.vt_sR
+        self.dH_asii = potential.dH_asii
+        self.dedtaut_sR = potential.dedtaut_sR
+        self.energies = potential.energies
+        self.vHt_x = potential.vHt_x
+
     def dH(self, P_ani, out_ani, spin):
         if len(P_ani.dims) == 1:  # collinear wave functions
             P_ani.block_diag_multiply(self.dH_asii, out_ani, spin)
@@ -77,17 +84,18 @@ class Potential:
             energies['stress'] = self.energies['stress']
         dH_asp = self.dH_asii.to_cpu().to_lower_triangle().gather()
         vt_sR = self.vt_sR.to_xp(np).gather()
-        assert self.vHt_x is not None
-        vHt_x = self.vHt_x.to_xp(np).gather()
         if self.dedtaut_sR is not None:
             dedtaut_sR = self.dedtaut_sR.to_xp(np).gather()
+        if self.vHt_x is not None:
+            vHt_x = self.vHt_x.to_xp(np).gather()
         if dH_asp is None:
             return
         writer.write(
             potential=vt_sR.data * Ha,
-            electrostatic_potential=vHt_x.data * Ha,
             atomic_hamiltonian_matrices=dH_asp.data * Ha,
             **{f'e_{name}': val * Ha for name, val in energies.items()})
+        if self.vHt_x is not None:
+            writer.write(electrostatic_potential=vHt_x.data * Ha)
         if self.dedtaut_sR is not None:
             writer.write(mgga_potential=dedtaut_sR.data * Bohr**3)
 
@@ -114,6 +122,10 @@ class Potential:
         if vHt_r is not None:
             for c, periodic in enumerate(grid.pbc_c):
                 if not periodic:
-                    vacuum_level += np.moveaxis(vHt_r.data, c, 0)[0].mean()
+                    xp = vHt_r.xp
+                    vacuum_level += float(xp.moveaxis(vHt_r.data,
+                                                      c, 0)[0].mean())
+
             vacuum_level /= (3 - grid.pbc_c.sum())
+
         return broadcast_float(vacuum_level, grid.comm) * Ha

@@ -315,7 +315,7 @@ class PWLFC(BaseLFC):
                                     c_xI, f_GI, a_xG[:, G1:G2],
                                     1.0 / self.pw.dv, 1.0)
 
-    def integrate(self, a_xG, c_axi=None, q=-1):
+    def integrate(self, a_xG, c_axi=None, q=-1, add_to=False):
         xp = self.xp
         if self.nI == 0:
             return c_axi
@@ -327,7 +327,7 @@ class PWLFC(BaseLFC):
         b_xI = c_xI.reshape((nx, self.nI))
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
-        alpha = 1.0  # / self.pd.gd.N_c.prod()
+        alpha = 1.0
         if self.dtype == float:
             alpha *= 2
             a_xG = a_xG.view(float)
@@ -352,8 +352,12 @@ class PWLFC(BaseLFC):
             x = 1.0
 
         self.comm.sum(b_xI)
-        for a, I1, I2 in self.my_indices:
-            c_axi[a][:] = self.eikR_a[a] * c_xI[..., I1:I2]
+        if add_to:
+            for a, I1, I2 in self.my_indices:
+                c_axi[a] += self.eikR_a[a] * c_xI[..., I1:I2]
+        else:
+            for a, I1, I2 in self.my_indices:
+                c_axi[a][:] = self.eikR_a[a] * c_xI[..., I1:I2]
 
         return c_axi
 

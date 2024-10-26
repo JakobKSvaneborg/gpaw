@@ -10,7 +10,6 @@ parameter_functions = {}
 """
 background_charge
 external
-reuse_wfs_method
 """
 
 
@@ -71,10 +70,20 @@ class InputParameters:
         if self.h is not None and self.gpts is not None:
             raise ValueError("""You can't use both "gpts" and "h"!""")
 
+        if self.mode.get('name') is None:
+            if warn:
+                warnings.warn(
+                    ('Finite-difference mode implicitly chosen; '
+                     'it will be an error to not specify a mode '
+                     'in the future'),
+                    DeprecatedParameterWarning)
+            self.mode = dict(self.mode, name='fd')
+
         if self.experimental is not None:
             if self.experimental.pop('niter_fixdensity', None) is not None:
                 warnings.warn('Ignoring "niter_fixdensity".')
-            if self.experimental.pop('reuse_wfs_method', None) is not None:
+            if 'reuse_wfs_method' in self.experimental:
+                del self.experimental['reuse_wfs_method']
                 warnings.warn('Ignoring "reuse_wfs_method".')
             if 'soc' in self.experimental:
                 warnings.warn('Please use new "soc" parameter.',
@@ -86,15 +95,6 @@ class InputParameters:
                 self._add('magmoms', self.experimental.pop('magmoms'))
             assert not self.experimental
             self._remove('experimental')
-
-        if self.mode.get('name') is None:
-            if warn:
-                warnings.warn(
-                    ('Finite-difference mode implicitly chosen; '
-                     'it will be an error to not specify a mode '
-                     'in the future'),
-                    DeprecatedParameterWarning)
-            self.mode = dict(self.mode, name='fd')
 
     def __repr__(self) -> str:
         p = ', '.join(f'{key}={value!r}'
@@ -113,9 +113,6 @@ class InputParameters:
     def items(self):
         for key in self.non_defaults:
             yield key, getattr(self, key)
-
-    def asdsa__contains__(self, key):
-        return key in self.keys
 
 
 @input_parameter
@@ -140,7 +137,7 @@ def eigensolver(value=None) -> dict:
     """Eigensolver."""
     if isinstance(value, str):
         value = {'name': value}
-    if value and value['name'] != 'dav':
+    if value and value['name'] not in {'dav', 'etdm-fdpw', 'scissors'}:
         warnings.warn(f'{value["name"]} not implemented.  Using dav instead')
         return {'name': 'dav'}
     return value or {}

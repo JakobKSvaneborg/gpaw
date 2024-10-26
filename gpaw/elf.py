@@ -1,161 +1,109 @@
-"""This module defines an ELF class."""
+"""This module defines an ELF function."""
+from __future__ import annotations
 
-from numpy import pi
+import sys
 
+import numpy as np
+from gpaw.core import UGArray
 from gpaw.fd_operators import Gradient
-from gpaw.lfc import LocalizedFunctionsCollection as LFC
+from gpaw.new.ase_interface import GPAW, ASECalculator
+from gpaw.new.calculation import DFTCalculation
 
 
-def _elf(nt_sg, nt_grad2_sg, taut_sg, ncut, spinpol):
-    """Pseudo electron localisation function (ELF) as defined in
-    Becke and Edgecombe, J. Chem. Phys., vol 92 (1990) 5397
+def elf(nt_sR: np.ndarray,
+        nt_grad2_sR: np.ndarray,
+        taut_sR: np.ndarray,
+        ncut: float | None = None) -> np.ndarray:
+    """Pseudo electron localisation function (ELF).
+
+    See:
+
+      Becke and Edgecombe, J. Chem. Phys., vol 92 (1990) 5397
 
     More comprehensive definition in
     M. Kohout and A. Savin, Int. J. Quantum Chem., vol 60 (1996) 875-882
 
-    Arguments:
-     =============== =====================================================
-     ``nt_sg``       Pseudo valence density.
-     ``nt_grad2_sg`` Squared norm of the density gradient.
-     ``tau_sg``      Kinetic energy density.
-     ``ncut``        Minimum density cutoff parameter.
-     ``spinpol``     Boolean indicator for spin polarization.
-     =============== =====================================================
+    Parameters
+    ==========
+    nt_sR:
+        Pseudo valence density.
+    nt_grad2_sR:
+        Squared norm of the density gradient.
+    taut_sR:
+        Kinetic energy density.
+    ncut:
+        Minimum density cutoff parameter.
+
+    Returns
+    =======
+    np.ndarray:
+        Array of ELF values.
     """
 
     # Fermi constant
-    cF = 3.0 / 10 * (3 * pi**2)**(2.0 / 3.0)
+    cF = 3.0 / 10 * (3 * np.pi**2)**(2 / 3)
 
-    if spinpol:
+    eps = 1e-11
+    nt_sR = nt_sR.copy()
+    nt_sR[nt_sR < eps] = eps
+
+    if nt_sR.shape[0] == 2:
         # Kouhut eq. (9)
-        D0 = 2**(2.0 / 3.0) * cF * (nt_sg[0]**(5.0 / 3.0) +
-                                    nt_sg[1]**(5.0 / 3.0))
+        D0 = 2**(2 / 3) * cF * (nt_sR[0]**(5 / 3) +
+                                nt_sR[1]**(5 / 3))
 
-        taut = taut_sg.sum(axis=0)
-        D = taut - (nt_grad2_sg[0] / nt_sg[0] + nt_grad2_sg[1] / nt_sg[1]) / 8
+        taut = taut_sR.sum(axis=0)
+        D = taut - (nt_grad2_sR[0] / nt_sR[0] + nt_grad2_sR[1] / nt_sR[1]) / 8
     else:
         # Kouhut eq. (7)
-        D0 = cF * nt_sg[0]**(5.0 / 3.0)
-        taut = taut_sg[0]
-        D = taut - nt_grad2_sg[0] / nt_sg[0] / 8
+        D0 = cF * nt_sR[0]**(5 / 3)
+        taut = taut_sR[0]
+        D = taut - nt_grad2_sR[0] / nt_sR[0] / 8
 
-    elf_g = 1.0 / (1.0 + (D / D0)**2)
+    elf_R = 1.0 / (1.0 + (D / D0)**2)
 
     if ncut is not None:
-        nt = nt_sg.sum(axis=0)
-        elf_g[nt < ncut] = 0.0
+        nt = nt_sR.sum(axis=0)
+        elf_R[nt < ncut] = 0.0
 
-    return elf_g
+    return elf_R
 
 
-class ELF:
-    """ELF object for calculating the electronic localization function.
+def elf_from_dft_calculation(dft: DFTCalculation | ASECalculator,
+                             ncut: float = 1e-6) -> UGArray:
+    """Calculate the electronic localization function.
 
-    Arguments:
-     =============== =====================================================
-     ``paw``         Instance of ``GPAW`` class.
-     ``ncut``        Density cutoff below which the ELF is zero.
-     =============== =====================================================
+    Parameters
+    ==========
+    dft:
+        DFT-calculation object.
+    ncut:
+        Density cutoff below which the ELF is zero.
+
+    Returns
+    =======
+    UGArray:
+        ELF values.
     """
+    if isinstance(dft, ASECalculator):
+        dft = dft.dft
+    density = dft.density
+    density.update_ked(dft.ibzwfs)
+    taut_sR = density.taut_sR
+    assert taut_sR is not None
+    nt_sR = density.nt_sR
+    grad_v = [Gradient(nt_sR.desc._gd, v, n=2) for v in range(3)]
+    gradnt2_sR = nt_sR.new(zeroed=True)
+    for gradnt2_R, nt_R in zip(gradnt2_sR, nt_sR):
+        for grad in grad_v:
+            gradnt_R = grad(nt_R)
+            gradnt2_R.data += gradnt_R.data**2
+    elf_R = nt_sR.desc.empty()
+    elf_R.data[:] = elf(
+        nt_sR.data, gradnt2_sR.data, taut_sR.data, ncut)
+    return elf_R
 
-    def __init__(self, paw=None, ncut=1e-6):
-        """Create the ELF object."""
 
-        if paw.wfs.mode != 'fd':
-            raise NotImplementedError('Only FD mode supported for ELF')
-
-        self.gd = paw.wfs.gd
-        self.paw = paw
-        self.finegd = paw.density.finegd
-        self.nspins = paw.density.nspins
-        self.density = paw.density
-
-        self.ncut = ncut
-        self.spinpol = (self.nspins == 2)
-
-        self.initialize(paw)
-
-    def initialize(self, paw):
-
-        if not paw.initialized:
-            raise RuntimeError('PAW instance is not initialized')
-        paw.converge_wave_functions()
-
-        self.tauct = LFC(self.gd,
-                         [[setup.tauct] for setup in self.density.setups],
-                         forces=True, cut=True)
-        self.tauct.set_positions(paw.spos_ac)
-
-        self.taut_sg = None
-        self.nt_grad2_sG = self.gd.empty(self.nspins)
-        self.nt_grad2_sg = None
-
-    def interpolate(self):
-
-        self.density.interpolate_pseudo_density()
-
-        if self.taut_sg is None:
-            self.taut_sg = self.finegd.empty(self.nspins)
-            self.nt_grad2_sg = self.finegd.empty(self.nspins)
-
-        ddr_v = [Gradient(self.finegd, v, n=3).apply for v in range(3)]
-        self.nt_grad2_sg[:] = 0.0
-        d_g = self.finegd.empty()
-
-        # Transfer the densities from the coarse to the fine grid
-        for s in range(self.nspins):
-            self.density.interpolator.apply(self.taut_sG[s],
-                                            self.taut_sg[s])
-            # self.density.interpolator.apply(self.nt_grad2_sG[s],
-            #                                 self.nt_grad2_sg[s])
-            for v in range(3):
-                ddr_v[v](self.density.nt_sg[s], d_g)
-                self.nt_grad2_sg[s] += d_g**2.0
-
-    def update(self):
-        self.taut_sG = self.paw.wfs.calculate_kinetic_energy_density()
-
-        # Add the pseudo core kinetic array
-        for taut_G in self.taut_sG:
-            self.tauct.add(taut_G, 1.0 / self.paw.wfs.nspins)
-
-        # For periodic boundary conditions
-        if self.paw.wfs.kd.symmetry is not None:
-            self.paw.wfs.kd.symmetry.symmetrize(self.taut_sG[0],
-                                                self.paw.wfs.gd)
-
-        self.nt_grad2_sG[:] = 0.0
-
-        d_G = self.gd.empty()
-
-        for s in range(self.nspins):
-            for v in range(3):
-                Gradient(self.gd, v, n=3).apply(self.density.nt_sG[s], d_G)
-
-                self.nt_grad2_sG[s] += d_G**2.0
-
-        # TODO are nct from setups usable for nt_grad2_sG ?
-
-    def get_electronic_localization_function(self, gridrefinement=1,
-                                             pad=True, broadcast=True):
-
-        # Returns dimensionless electronic localization function
-        if gridrefinement == 1:
-            elf_G = _elf(self.density.nt_sG, self.nt_grad2_sG,
-                         self.taut_sG, self.ncut, self.spinpol)
-            elf_G = self.gd.collect(elf_G, broadcast=broadcast)
-            if pad:
-                elf_G = self.gd.zero_pad(elf_G)
-            return elf_G
-        elif gridrefinement == 2:
-            if self.nt_grad2_sg is None:
-                self.interpolate()
-
-            elf_g = _elf(self.density.nt_sg, self.nt_grad2_sg,
-                         self.taut_sg, self.ncut, self.spinpol)
-            elf_g = self.finegd.collect(elf_g, broadcast=broadcast)
-            if pad:
-                elf_g = self.finegd.zero_pad(elf_g)
-            return elf_g
-        else:
-            raise NotImplementedError('Arbitrary refinement not implemented')
+if __name__ == '__main__':
+    e_R = elf_from_dft_calculation(GPAW(sys.argv[1]).dft, 0.001)
+    e_R.isosurface(isomin=0.8, isomax=0.8)

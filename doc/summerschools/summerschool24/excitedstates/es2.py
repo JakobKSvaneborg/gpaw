@@ -5,7 +5,7 @@
 
 # %%
 """
-In this exercise we will calculate the quasiparticle band gap of the compound using the GW approximation. For a brief introduction to the GW theory and the details of its implementation in GPAW, see https://wiki.fysik.dtu.dk/gpaw/documentation/gw_theory/gw_theory.html
+In this exercise we will calculate the quasiparticle band gap of the compound using the GW approximation. For a brief introduction to the GW theory and the details of its implementation in GPAW, see https://gpaw.readthedocs.io/documentation/gw_theory/gw_theory.html
 
 First, we need to do a regular groundstate calculation. We do this in plane wave mode and choose the LDA exchange-correlation functional. In order to keep the computational efforts small, you should start with reasonable k-points and plane wave basis.
 """
@@ -60,7 +60,7 @@ print('Direct bandgap of Si:', direct_gap) # student: 'Direct bandgap of ???:', 
 """
 Can we trust the calculated value of the direct bandgap? A check for convergence with respect to the plane wave cutoff energy and number of k points is necessary. This is done by changing the respective values in the groundstate calculation and restarting.
 
-For more details on the convergence and other parameters you can look at this tutorial: https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/opticalresponse/gw_tutorial/gw_tutorial.html#gw-tutorial
+For more details on the convergence and other parameters you can look at this tutorial: https://gpaw.readthedocs.io/tutorialsexercises/opticalresponse/gw_tutorial/gw_tutorial.html#gw-tutorial
 
 Typical convergence would require ecut=300 eV, 8x8x8 k-points and ecut_extrapolation=.True. for Carbon.
 

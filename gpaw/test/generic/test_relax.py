@@ -15,7 +15,7 @@ def timer(func, *args, **kwargs):
     return ret, time() - t0
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_generic_relax(in_tmp_dir):
     a = 4.0  # Size of unit cell (Angstrom)
     c = a / 2
