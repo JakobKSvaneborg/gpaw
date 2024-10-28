@@ -110,6 +110,8 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         self.expansions = tci(self.rcut, self.I_a, gtilde_Il, vhat_Il, ghat_Il)
 
         self._neighbors = None
+        self._force_av: np.ndarray | None = None
+        self._stress_vv: np.ndarray | None = None
 
     def get_neighbors(self):
         if self._neighbors is None:
@@ -129,6 +131,8 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         self.ghat_aLg.move(fracpos_ac, atomdist)
         self.vhat_aLg.move(fracpos_ac, atomdist)
         self._neighbors = None
+        self._force_av = None
+        self._stress_vv = None
 
     def solve(self,
               nt_g: PWArray,
@@ -176,13 +180,22 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         return e_coulomb1 + e_coulomb2 + e_coulomb3, vHt_g, V_aL
 
     def force_contribution(self, Q_aL, vHt_g, nt_g):
-        force_av = np.zeros((len(Q_aL), 3))
+        force_av = self.xp.zeros((len(Q_aL), 3))
 
         F_avL = self.ghat_aLg.derivative(vHt_g)
         Fhat_avL = self.vhat_aLg.derivative(nt_g)
         for a, dF_vL in F_avL.items():
             force_av[a] += (dF_vL + Fhat_avL[a]) @ Q_aL[a]
+        pair_pot_force_av, _ = self._force_and_stress(Q_aL)
+        return force_av + pair_pot_force_av
 
+    def _force_and_stress(self,
+                          Q_aL) -> tuple[np.ndarray, np.ndarray]:
+        if self._force_av is not None:
+            return self._force_av, self._stress_vv
+        xp = self.xp
+        self._force_av = xp.zeros((len(Q_aL), 3))
+        self._stress_vv = xp.zeros((3, 3))
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             if d == 0.0:
                 continue
@@ -192,14 +205,15 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             I1 = self.I_a[a1]
             I2 = self.I_a[a2]
             n_v = d_v / d
-            v_vLL = (
+            v_vLL = xp.asarray(
                 ex1.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv) +
                 ex2.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv))
             f_v = (v_vLL @ Q_aL[a2]) @ Q_aL[a1] / 2
-            force_av[a1] += f_v
-            force_av[a2] -= f_v
-
-        return force_av
+            self._force_av[a1] += f_v
+            self._force_av[a2] -= f_v
+            self._stress_vv += xp.outer(xp.asarray(d_v), f_v)
+        return self._force_av, self._stress_vv
 
     def stress_contribution(self, vHt_g, Q_aL):
+        _, pair_pot_stress_vv = self._force_and_stress(Q_aL)
         return self.ghat_aLg.stress_contribution(vHt_g, Q_aL)

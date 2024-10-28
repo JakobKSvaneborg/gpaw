@@ -99,7 +99,19 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     def create_poisson_solver(self):
         psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
-        if 1:#psparams.pop('fast', False):
+        fast = psparams.pop('fast', False)
+        fast = True
+        if fast:
+            fast = False
+            for s in self.setups:
+                if not hasattr(s, 'data'):
+                    break
+                if s.data.shape_function['type'] != 'gauss':
+                    break
+            else:  # no break
+                fast = True
+
+        if fast:
             pw = self.interpolation_desc
             ps = make_poisson_solver(pw,
                                      self.grid,

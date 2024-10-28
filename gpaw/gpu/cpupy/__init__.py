@@ -53,6 +53,10 @@ def dot(a, b):
     return ndarray(np.dot(a._data, b._data))
 
 
+def outer(a, b):
+    return ndarray(np.outer(a._data, b._data))
+
+
 def multiply(a, b, c):
     np.multiply(a._data, b._data, c._data)
 
