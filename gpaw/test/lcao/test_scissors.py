@@ -16,9 +16,9 @@ def test_scissors():
                    txt=None)
     h2.get_potential_energy()
     eigs1 = h2.calc.get_eigenvalues()
-    e1, e2, e3, e4 = eigs1
-    assert e2 - e1 == pytest.approx(d, abs=0.01)
-    assert e4 - e3 == pytest.approx(d, abs=0.01)
+    i, ii, iii, iv = eigs1
+    assert ii - i == pytest.approx(d, abs=0.01)
+    assert iv - iii == pytest.approx(d, abs=0.01)
 
     # Check also fixed-density calculations:
     eigs2 = h2.calc.fixed_density(kpts=[[0, 0, 0]]).get_eigenvalues()
