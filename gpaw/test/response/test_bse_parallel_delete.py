@@ -1,11 +1,9 @@
-import pytest
-from gpaw.mpi import world
+from gpaw.mpi import broadcast_exception, world
 from gpaw.response.bse import parallel_delete
 import numpy as np
 from gpaw.blacs import BlacsGrid, Redistributor
 
 
-@pytest.mark.skipif(world.size < 2, reason='world.size < 2')
 def test_bse_parallel_delete(in_tmp_dir):
     rank = world.rank
     n = 17
@@ -24,7 +22,10 @@ def test_bse_parallel_delete(in_tmp_dir):
 
     grid_nN = BlacsGrid(world, world.size, 1)
     desc_nN = grid_nN.new_descriptor(N, N, n, N)
-    grid_nn = BlacsGrid(world, world.size // 2, 2)
+    if world.size == 1:
+        grid_nn = BlacsGrid(world, 1, 1)
+    else:
+        grid_nn = BlacsGrid(world, world.size // 2, 2)
     desc_nn = grid_nn.new_descriptor(N, N, 2, 2)
 
     serial_desc = grid_nN.new_descriptor(R, R, R, R).as_serial()
@@ -40,6 +41,7 @@ def test_bse_parallel_delete(in_tmp_dir):
 
     Arr_RR = desc_rr.as_serial().zeros(dtype=float)
     desc_rr.collect_on_master(A_rr, Arr_RR)
-    if rank == 0:
-        assert np.allclose(Arr_RR, A_RR)
-        assert np.allclose(ArR_RR, A_RR)
+    with broadcast_exception(world):
+        if rank == 0:
+            assert np.allclose(Arr_RR, A_RR)
+            assert np.allclose(ArR_RR, A_RR)

@@ -125,7 +125,9 @@ def parallel_delete(A_nn: np.ndarray,
     A_nn: distributed matrix
     deleteN : list of (global) indices to delete
     grid_desc: BlacsDescriptor for A_nn
-    new_grid: BlacsGrid on which A_nn will be returned; optional
+    new_grid: BlacsGrid on which A_nn will be returned; optional.
+    If None, the output grid will be determined automatically
+    by the gpaw.matrix.suggest_blocking function.
     -------------------
     Returns:
     A_rs: np.ndarray
@@ -173,8 +175,6 @@ def parallel_delete(A_nn: np.ndarray,
         nrows, ncols, blocksize = suggest_blocking(R, world.size)
         new_grid = BlacsGrid(world, nrows, ncols)
         new_desc = new_grid.new_descriptor(R, R, blocksize, blocksize)
-    else:
-        assert new_desc is not None
     A_rr = new_desc.zeros(dtype=dtype)
     Redistributor(world, desc_Rr,
                   new_desc).redistribute(A_Rr, A_rr)
