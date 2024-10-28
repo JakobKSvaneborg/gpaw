@@ -90,12 +90,13 @@ class WaveFunctions:
 
     def move(self,
              fracpos_ac: Array2D,
-             atomdist: AtomDistribution) -> None:
+             atomdist: AtomDistribution,
+             move_wave_functions) -> None:
         self.fracpos_ac = fracpos_ac
         self.atomdist = atomdist
         self._P_ani = None
         self._eig_n = None
-        self._occ_n = None
+        # self._occ_n = None
 
     def collect(self,
                 n1: int = 0,

@@ -12,11 +12,11 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
-* Added functionality to compute LDA exchange constants based on the
-  local site properties methodology, see :ref:`sites`.
+* Updated development-workflow documentation:
+  :ref:`a good mr`, :ref:`get your mr merged`.
 
-* Extended ``restrict`` keyword and random phase approximation enabled
-  in :ref:`lrtddft`
+* Works with
+  `Libxc-7.0.0 <https://gitlab.com/libxc/libxc/-/releases/7.0.0>`__.
 
 * The :meth:`gpaw.calculator.GPAW.fixed_density` method now respects the
   ``update_fermi_level`` argument.  Previously, the Fermi-level would not
@@ -28,10 +28,17 @@ Git master branch
   return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
   or **k**-point weights (use ``raw=True``).
 
-* Faster and less memory hungy Poisson solver in PW-mode.  For details,
-  ee equations 25-28 in :doi:`P. E. Blöchl: Projector augmented-wave method
+* Experimental:
+  Faster and less memory hungry Poisson-solver in PW-mode.  For details,
+  see equations 25-28 in :doi:`P. E. Blöchl: Projector augmented-wave method
   Phys. Rev. B 50, 17953 (1994) <0.1103/PhysRevB.50.17953>`.  Use
   ``poissonsolver={'fast': True}`` to try it.
+
+* Added functionality to compute LDA exchange constants based on the
+  local site properties methodology, see :ref:`sites`.
+
+* Extended ``restrict`` keyword and random phase approximation enabled
+  in :ref:`lrtddft`.
 
 
 Version 24.6.0

@@ -144,7 +144,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
         e_coulomb1 = self.poisson_solver.solve(vHt_g, charge_g)
 
-        vhat_g = pwg.empty()  # MYPY
+        vhat_g = pwg.empty(xp=self.xp)  # MYPY
         vhat_g.data[:] = 0.0  # MYPY
 
         self.vhat_aLg.add_to(vhat_g, Q_aL)
@@ -161,12 +161,12 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             ex1, ex2 = self.expansions
             I1 = self.I_a[a1]
             I2 = self.I_a[a2]
-            v_LL = (ex1.tsoe_II[I1, I2].evaluate(d, rlY_lm) +
-                    ex2.tsoe_II[I1, I2].evaluate(d, rlY_lm))
+            v_LL = self.xp.asarray(ex1.tsoe_II[I1, I2].evaluate(d, rlY_lm) +
+                                   ex2.tsoe_II[I1, I2].evaluate(d, rlY_lm))
             vQ2_L = v_LL @ Q_aL[a2]
             V_aL[a1] += vQ2_L / 2
             V_aL[a2] += Q_aL[a1] @ v_LL / 2
-            e_coulomb3 -= Q_aL[a1] @ vQ2_L
+            e_coulomb3 -= float(Q_aL[a1] @ vQ2_L)
         e_coulomb3 *= -0.5
 
         vHt0_g = vHt_g.gather()
@@ -181,7 +181,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         F_avL = self.ghat_aLg.derivative(vHt_g)
         Fhat_avL = self.vhat_aLg.derivative(nt_g)
         for a, dF_vL in F_avL.items():
-            force_av[a] += (dF_vL - Fhat_avL[a]) @ Q_aL[a]
+            force_av[a] += (dF_vL + Fhat_avL[a]) @ Q_aL[a]
 
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             if d == 0.0:
@@ -196,7 +196,10 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
                 ex1.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv) +
                 ex2.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv))
             f_v = (v_vLL @ Q_aL[a2]) @ Q_aL[a1] / 2
-            force_av[a1] -= f_v
-            force_av[a2] += f_v
+            force_av[a1] += f_v
+            force_av[a2] -= f_v
 
         return force_av
+
+    def stress_contribution(self, vHt_g, Q_aL):
+        return self.ghat_aLg.stress_contribution(vHt_g, Q_aL)

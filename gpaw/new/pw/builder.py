@@ -82,7 +82,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     @cached_property
     def electrostatic_potential_desc(self):
-        return self.interpolation_desc.new(ecut=8 * self.ecut)
+        return self.interpolation_desc#.new(ecut=8 * self.ecut)
 
     def get_pseudo_core_densities(self):
         if self._nct_ag is None:
@@ -99,7 +99,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     def create_poisson_solver(self):
         psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
-        if psparams.pop('fast', False):
+        if 1:#psparams.pop('fast', False):
             pw = self.interpolation_desc
             ps = make_poisson_solver(pw,
                                      self.grid,

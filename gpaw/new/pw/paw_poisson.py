@@ -161,3 +161,14 @@ class SimplePAWPoissonSolver(PAWPoissonSolver):
             vt0_g.data += vHt0_g.data
         V_aL = self.ghat_aLg.integrate(vHt_g)
         return e_coulomb, vHt_g, V_aL
+
+    def force_contribution(self, Q_aL, vHt_g, nt_g):
+        force_av = np.zeros((len(Q_aL), 3))
+
+        F_avL = self.ghat_aLg.derivative(vHt_g)
+        for a, dF_vL in F_avL.items():
+            force_av[a] += dF_vL @ Q_aL[a]
+        return force_av
+
+    def stress_contribution(self, vHt_h, Q_aL):
+        return self.ghat_aLg.stress_contribution(vHt_h, Q_aL)
