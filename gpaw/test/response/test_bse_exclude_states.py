@@ -5,11 +5,10 @@ from gpaw.response.bse import BSE
 
 
 @pytest.mark.response
-def test_bse_exclude_states(in_tmp_dir):
-    a = 5.431  # From PRB 73,045112 (2006)
+def test_bse_exclude_states(in_tmp_dir, gpw_files):
+    """a = 5.431  # From PRB 73,045112 (2006)
     atoms = bulk('Si', 'diamond', a=a)
     atoms.positions -= a / 8
-    eshift = 0.8
     calc = GPAW(mode='pw',
                 kpts={'size': (2, 2, 2), 'gamma': True},
                 occupations=FermiDirac(0.001),
@@ -18,7 +17,9 @@ def test_bse_exclude_states(in_tmp_dir):
     atoms.calc = calc
     atoms.get_potential_energy()
     calc.write('Si.gpw', 'all')
-    bse = BSE('Si.gpw',
+    """
+    eshift = 0.8
+    bse = BSE(gpw_files['si_gw_a0_all'],
               ecut=50.,
               valence_bands=range(1, 4),
               conduction_bands=range(4, 6),
@@ -28,7 +29,9 @@ def test_bse_exclude_states(in_tmp_dir):
     bse_matrix = bse.get_bse_matrix()
     w_T, v_Rt, exclude_S = bse.diagonalize_bse_matrix(bse_matrix)
 
+    calc = GPAW(gpw_files['si_gw_a0_all'])
     nk = calc.wfs.kd.nbzkpts
+    print('nk',nk)
     nval = 3
     ncond = 2
     n_pairs = nk * nval * ncond
