@@ -64,20 +64,31 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
                  poisson_solver,
                  fracpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
-                 xp=np):
+                 xp=np,
+                 test=0):
         super().__init__(poisson_solver)
         self.xp = xp
         self.pwg = pwg
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.fracpos_ac = fracpos_ac
         self.cutoff_a = np.asarray(cutoff_a)
-        self.r2 = self.cutoff_a.max() * 2
+        self.r2 = self.cutoff_a.max() * 2#*1.5**2
         self.rcut = 7 * self.r2
         d = 0.0051
         rgd = RGD(d, int(self.rcut / d))
         g0_lg = shape_functions(rgd, 'gauss', self.r2, lmax=2)
-        ghat_l = [rgd.spline(g_g, l=l) for l, g_g in enumerate(g0_lg)]
-        ghat_al = [ghat_l] * len(self.cutoff_a)
+        P = 25
+        if test:
+            ghat_al = []
+            for r1 in cutoff_a:
+                g_lg = shape_functions(rgd, 'gauss', r1, lmax=2)
+                ghat_al.append(
+                    [rgd.spline(g_g, l=l, points=P)
+                     for l, g_g in enumerate(g_lg)])
+        else:
+            ghat_l = [rgd.spline(g_g, l=l, points=P)
+                      for l, g_g in enumerate(g0_lg)]
+            ghat_al = [ghat_l] * len(self.cutoff_a)
         cache: dict[float, tuple[int, list[Spline], list[Spline]]] = {}
         gtilde_Il = []
         ghat_Il = []
@@ -89,11 +100,15 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
                 I, gtilde_l, vhat_l = cache[r1]
             else:
                 g_lg = shape_functions(rgd, 'gauss', r1, lmax=2)
-                gtilde_l = [rgd.spline(g_g, l=l)
+                gtilde_l = [rgd.spline(g_g, l=l, points=P)
                             for l, g_g in enumerate(g_lg)]
                 v_lg = vg(rgd.r_g, r1) - vg(rgd.r_g, self.r2)
-                vhat_l = [rgd.spline(v_g, l=l)
-                          for l, v_g in enumerate(v_lg)]
+                if test:
+                    vhat_l = [rgd.spline(v_g * 0, l=l, points=P)
+                              for l, v_g in enumerate(v_lg)]
+                else:
+                    vhat_l = [rgd.spline(v_g, l=l, points=P)
+                              for l, v_g in enumerate(v_lg)]
                 I = len(cache)
                 cache[r1] = I, gtilde_l, vhat_l
                 gtilde_Il.append(gtilde_l)
@@ -104,8 +119,6 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
         self.ghat_aLg = pwg.atom_centered_functions(
             ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
-        self.vhat_aLg = pwg.atom_centered_functions(
-            vhat_al, fracpos_ac, atomdist=atomdist, xp=xp)
 
         self.expansions = tci(self.rcut, self.I_a, gtilde_Il, vhat_Il, ghat_Il)
 
