@@ -6,7 +6,6 @@ from gpaw.response.qpd import SingleCylQPWDescriptor
 
 
 @pytest.mark.response
-@pytest.mark.slow
 def test_response_gw_MoS2_cut(gpw_files):
     ecut_sphere = 50.0
 
