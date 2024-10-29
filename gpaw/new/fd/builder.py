@@ -4,9 +4,7 @@ from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
-from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
-from gpaw.poisson import PoissonSolver as make_poisson_solver
 
 
 class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -59,17 +57,15 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.grid, self.fracpos_ac, atomdist=self.atomdist)
         return self._tauct_aR
 
-    def create_poisson_solver(self) -> PoissonSolver:
-        solver = make_poisson_solver(**self.params.poissonsolver, xp=self.xp)
-        solver.set_grid_descriptor(self.fine_grid._gd)
-        return PoissonSolverWrapper(solver)
-
     def create_potential_calculator(self):
-        poisson_solver = self.create_poisson_solver()
+        env = self.create_environment()
+        poisson_solver = env.create_poisson_solver(
+            self.fine_grid, self.xc, **self.params.poissonsolver)
         return FDPotentialCalculator(
             self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
             fracpos_ac=self.fracpos_ac, atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
+            environment=env,
             xp=self.xp)
 
     def create_hamiltonian_operator(self, blocksize=10):
