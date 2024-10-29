@@ -9,7 +9,7 @@ def test_bse_exclude_states(in_tmp_dir, gpw_files):
     bse = BSE(gpw_files['si_gw_a0_all'],
               ecut=50.,
               valence_bands=range(1, 4),
-              conduction_bands=range(4, 6),
+              conduction_bands=range(4, 7),
               deps_max=6,
               eshift=eshift,
               nbands=8)
@@ -19,10 +19,10 @@ def test_bse_exclude_states(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['si_gw_a0_all'])
     nk = calc.wfs.kd.nbzkpts
     nval = 3
-    ncond = 2
+    ncond = 3
     n_pairs = nk * nval * ncond
-    assert len(exclude_S) == 14
+    assert len(exclude_S) == 27
     assert len(w_T) == n_pairs - len(exclude_S)
-    assert w_T[0] == pytest.approx(0.1020, abs=0.001)
-    assert w_T[11] == pytest.approx(0.1287, abs=0.001)
-    assert w_T[29] == pytest.approx(0.1919, abs=0.001)
+    assert w_T[0] == pytest.approx(0.1008, abs=0.001)
+    assert w_T[11] == pytest.approx(0.1262, abs=0.001)
+    assert w_T[29] == pytest.approx(0.1888, abs=0.001)

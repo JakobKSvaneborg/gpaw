@@ -62,7 +62,7 @@ class BSEMatrix:
         world.broadcast(w_T, 0)
         return w_T, v_ST, exclude_S
 
-    def diagonalize_tammdancoff(self, bse, deps_max=None):
+    def diagonalize_tammdancoff(self, bse, deps_max=None, elpa=False):
         if deps_max is None:
             deps_max = self.deps_max
         exclude_S = np.where(np.abs(self.deps_S) > deps_max)[0]
@@ -74,7 +74,7 @@ class BSEMatrix:
         nR = bse.nS - len(exclude_S)
         w_T = np.empty(nR)
         v_rt = new_grid_desc.empty(dtype=complex)
-        if LibElpa.have_elpa():
+        if elpa:
             bse.context.print('Using elpa...')
             elpa = LibElpa(new_grid_desc)
             elpa.diagonalize(H_rr, v_rt, w_T)
