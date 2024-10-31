@@ -149,27 +149,42 @@ class MyMatCalc:
         S_MM = wfs.S_MM.data
         assert abs(S_MM - S_MM.T.conj()).max() < 1e-10
 
+        new = 1
+
         C_nM = wfs.C_nM.data
-        iC_Mn = np.linalg.inv(C_nM)
-        Co_nM = C_nM.copy()
-        Co_nM[nocc:] = 0.0
-        Cu_nM = C_nM.copy()
-        Cu_nM[:nocc] = 0.0
+        if new:
+            M1 = 0
+            a1 = 0
+            for homo, lumo, natoms in self.shifts:
+                a2 = a1 + natoms
+                M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
+                A_nM = C_nM[:nocc, M1:M2].conj() @ S_MM[M1:M2]
+                H_MM.data += homo * A_nM.T.conj() @ A_nM
+                A_nM = C_nM[nocc:, M1:M2].conj() @ S_MM[M1:M2]
+                H_MM.data += lumo * A_nM.T.conj() @ A_nM
+                a1 = a2
+                M1 = M2
+        else:
+            iC_Mn = np.linalg.inv(C_nM)
+            Co_nM = C_nM.copy()
+            Co_nM[nocc:] = 0.0
+            Cu_nM = C_nM.copy()
+            Cu_nM[:nocc] = 0.0
 
-        M1 = 0
-        a1 = 0
-        for homo, lumo, natoms in self.shifts:
-            a2 = a1 + natoms
-            M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
+            M1 = 0
+            a1 = 0
+            for homo, lumo, natoms in self.shifts:
+                a2 = a1 + natoms
+                M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
 
-            D_MM = np.zeros_like(S_MM)
-            D_MM[M1:M2, M1:M2] = S_MM[M1:M2, M1:M2]
+                D_MM = np.zeros_like(S_MM)
+                D_MM[M1:M2, M1:M2] = S_MM[M1:M2, M1:M2]
 
-            H_MM.data += iC_Mn @ (
-                Co_nM @ D_MM @ Co_nM.T.conj() * homo +
-                Cu_nM @ D_MM @ Cu_nM.T.conj() * lumo) @ iC_Mn.T.conj()
+                H_MM.data += iC_Mn @ (
+                    Co_nM @ D_MM @ Co_nM.T.conj() * homo +
+                    Cu_nM @ D_MM @ Cu_nM.T.conj() * lumo) @ iC_Mn.T.conj()
 
-            a1 = a2
-            M1 = M2
+                a1 = a2
+                M1 = M2
 
         return H_MM
