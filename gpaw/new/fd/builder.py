@@ -58,9 +58,9 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return self._tauct_aR
 
     def create_potential_calculator(self):
-        env = self.create_environment()
+        env = self.create_environment(self.fine_grid)
         poisson_solver = env.create_poisson_solver(
-            self.fine_grid, self.xc, **self.params.poissonsolver)
+            self.fine_grid, xp=self.xp, **self.params.poissonsolver)
         return FDPotentialCalculator(
             self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
             fracpos_ac=self.fracpos_ac, atomdist=self.atomdist,

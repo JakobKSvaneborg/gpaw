@@ -23,7 +23,7 @@ from gpaw.hamiltonian import RealSpaceHamiltonian
 from gpaw.fd_operators import Gradient
 from gpaw.dipole_correction import DipoleCorrection
 from gpaw.solvation.cavity import Power12Potential, get_pbc_positions
-from gpaw.solvation.calculator import SolvationGPAW
+from gpaw.solvation.calculator import OldSolvationGPAW as SolvationGPAW
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from gpaw.io.logger import indent

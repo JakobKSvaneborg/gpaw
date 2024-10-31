@@ -18,9 +18,11 @@ class FDPotentialCalculator(PotentialCalculator):
                  fracpos_ac,
                  atomdist,
                  interpolation_stencil_range=3,
+                 environment=None,
                  xp=np):
         self.fine_grid = fine_grid
         self.grid = wf_grid
+        self.environment = environment
 
         self.vbar_ar = setups.create_local_potentials(fine_grid, fracpos_ac,
                                                       atomdist, xp=xp)

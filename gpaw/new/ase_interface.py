@@ -61,6 +61,7 @@ def GPAW(
     random: bool | None = None,
     setups: Any | None = None,
     soc: bool | None = None,
+    solvation=None,
     spinpol: bool | None = None,
     symmetry: str | dict[str, Any] | None = None,
     xc: str | dict[str, Any] | Dictable | None = None) -> ASECalculator:

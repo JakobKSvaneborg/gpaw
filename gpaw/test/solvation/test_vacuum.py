@@ -14,12 +14,12 @@ def test_solvation_vacuum():
 
     SKIP_REF_CALC = True
 
-    energy_eps = 0.0005 / 8.
+    energy_eps = 0.0005 / 8
     forces_eps = 3e-2
 
     h = 0.3
     vac = 3.0
-    u0 = .180
+    u0 = 0.180
     T = 298.15
     vdw_radii[1] = 1.09
 
@@ -31,10 +31,9 @@ def test_solvation_vacuum():
 
     convergence = {
         'energy': energy_eps,
-        'forces': forces_eps ** 2,  # Force error is squared
-        'density': 10.,
-        'eigenstates': 10.,
-    }
+        'forces': forces_eps**2,  # force error is squared
+        'density': 10.0,
+        'eigenstates': 10.0}
 
     if not SKIP_REF_CALC:
         atoms.calc = GPAW(mode='fd', xc='LDA', h=h, convergence=convergence)
@@ -58,8 +57,7 @@ def test_solvation_vacuum():
                                                  u0=u0),
             temperature=T
         ),
-        dielectric=LinearDielectric(epsinf=1.0),
-    )
+        dielectric=LinearDielectric(epsinf=1.0))
     Etest = atoms.get_potential_energy()
     Eeltest = atoms.calc.get_electrostatic_energy()
     Ftest = atoms.get_forces()

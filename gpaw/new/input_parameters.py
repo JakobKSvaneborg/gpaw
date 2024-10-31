@@ -45,6 +45,7 @@ class InputParameters:
     # random
     setups: Any
     soc: bool
+    solvation: Any
     spinpol: bool
     symmetry: dict[str, Any]
     xc: dict[str, Any]
@@ -267,6 +268,11 @@ def setups(value='paw'):
 
 @input_parameter
 def soc(value=False):
+    return value
+
+
+@input_parameter
+def solvation(value=None):
     return value
 
 
