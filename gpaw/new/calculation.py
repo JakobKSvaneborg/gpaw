@@ -435,7 +435,7 @@ class DFTCalculation:
             self.comm.broadcast(density.nt_sR.data, 0)
 
         scf_loop = builder.create_scf_loop()
-        pot_calc = builder.create_potential_calculator()
+        pot_calc = builder.create_potential_calculator(log)
         potential, _ = pot_calc.calculate(density)
 
         old_ibzwfs = ibzwfs

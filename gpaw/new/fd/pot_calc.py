@@ -93,6 +93,8 @@ class FDPotentialCalculator(PotentialCalculator):
         charge_r.data[:] = nt_sr.data[:density.ndensities].sum(axis=0)
         e_zero = self.vbar_r.integrate(charge_r)
 
+        self.environment.update1(charge_r)
+
         ccc_aL = density.calculate_compensation_charge_coefficients()
 
         # Normalize: (LCAO basis functions may extend outside box)
@@ -111,6 +113,9 @@ class FDPotentialCalculator(PotentialCalculator):
 
         vt_sr = vxct_sr
         vt_sr.data += vHt_r.data + self.vbar_r.data
+
+        self.environment.update2(vHt_r, vt_sr)
+
         vt_sR = self.restrict(vt_sr)
 
         e_external = 0.0

@@ -7,3 +7,9 @@ class Environment:
         solver = make_poisson_solver(**kwargs, xp=xp)
         solver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(solver)
+
+    def update1(self, nt_r):
+        pass
+
+    def update2(self, vHt_r, vt_sr):
+        pass

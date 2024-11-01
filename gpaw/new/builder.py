@@ -279,10 +279,10 @@ class DFTComponentsBuilder:
                         if key != 'bands'},
                        self.params.maxiter)
 
-    def read_ibz_wave_functions(self, reader):
+    def read_ibz_wave_functions(self, reader, log):
         raise NotImplementedError
 
-    def create_potential_calculator(self):
+    def create_potential_calculator(self, log):
         raise NotImplementedError
 
     def read_wavefunction_values(self,
@@ -341,7 +341,9 @@ class DFTComponentsBuilder:
         from gpaw.new.solvation import Solvation
         return Solvation(**self.params.solvation,
                          setups=self.setups,
-                         grid=grid, fracpos_ac=self.fracpos_ac, log=log)
+                         grid=grid, fracpos_ac=self.fracpos_ac, log=log,
+                         comm=self.communicators['w'],
+                         nn=self.params.poissonsolver.get('nn', 3))
 
 
 def create_communicators(comm: MPIComm = None,
