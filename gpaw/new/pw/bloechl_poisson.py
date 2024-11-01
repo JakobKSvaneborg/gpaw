@@ -119,6 +119,8 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
         self.ghat_aLg = pwg.atom_centered_functions(
             ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
+        self.vhat_aLg = pwg.atom_centered_functions(
+            vhat_al, fracpos_ac, atomdist=atomdist, xp=xp)
 
         self.expansions = tci(self.rcut, self.I_a, gtilde_Il, vhat_Il, ghat_Il)
 
@@ -204,11 +206,11 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
     def _force_and_stress(self,
                           Q_aL) -> tuple[np.ndarray, np.ndarray]:
-        if self._force_av is not None:
+        if self._force_av is not None and self._stress_vv is not None:
             return self._force_av, self._stress_vv
         xp = self.xp
-        self._force_av = xp.zeros((len(Q_aL), 3))
-        self._stress_vv = xp.zeros((3, 3))
+        force_av = xp.zeros((len(Q_aL), 3))
+        stress_vv = xp.zeros((3, 3))
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             if d == 0.0:
                 continue
@@ -222,10 +224,12 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
                 ex1.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv) +
                 ex2.tsoe_II[I1, I2].derivative(d, n_v, rlY_lm, drlYdR_lmv))
             f_v = (v_vLL @ Q_aL[a2]) @ Q_aL[a1] / 2
-            self._force_av[a1] += f_v
-            self._force_av[a2] -= f_v
-            self._stress_vv += xp.outer(xp.asarray(d_v), f_v)
-        return self._force_av, self._stress_vv
+            force_av[a1] += f_v
+            force_av[a2] -= f_v
+            stress_vv += xp.outer(xp.asarray(d_v), f_v)
+        self._force_av = force_av
+        self._stress_vv = stress_vv
+        return force_av, stress_vv
 
     def stress_contribution(self, vHt_g, Q_aL):
         _, pair_pot_stress_vv = self._force_and_stress(Q_aL)
