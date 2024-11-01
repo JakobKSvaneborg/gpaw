@@ -312,7 +312,7 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def forces(self, potential: Potential) -> Array2D:
         self.make_sure_wfs_are_read_from_gpw_file()
-        F_av = self.xp.zeros((potential.dH_asii.natoms, 3))
+        F_av = self.xp.zeros((len(potential.dH_asii), 3))
         for wfs in self:
             wfs.force_contribution(potential, F_av)
         if self.xp is not np:

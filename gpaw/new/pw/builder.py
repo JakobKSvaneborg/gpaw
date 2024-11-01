@@ -13,7 +13,8 @@ from gpaw.new.builder import create_uniform_grid
 from gpaw.new.external_potential import create_external_potential
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
-from gpaw.new.pw.paw_poisson import OldPAWPoissonSolver, PAWPoissonSolver
+from gpaw.new.pw.paw_poisson import SlowPAWPoissonSolver
+from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
@@ -81,7 +82,24 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     @cached_property
     def electrostatic_potential_desc(self):
+        if self.fast_poisson_solver:
+            return self.interpolation_desc
         return self.interpolation_desc.new(ecut=8 * self.ecut)
+
+    @cached_property
+    def fast_poisson_solver(self):
+        fast = self.params.poissonsolver.get('fast', False)
+        if fast:
+            # Only works for gaussian compensation charges at the moment:
+            fast = False
+            for s in self.setups:
+                if not hasattr(s, 'data'):
+                    break
+                if s.data.shape_function['type'] != 'gauss':
+                    break
+            else:  # no break
+                fast = True
+        return fast
 
     def get_pseudo_core_densities(self):
         if self._nct_ag is None:
@@ -98,28 +116,28 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     def create_poisson_solver(self):
         psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
-        if psparams.pop('fast', False):
-            pw = self.interpolation_desc
-            ps = make_poisson_solver(pw,
-                                     self.grid,
-                                     self.params.charge,
-                                     **psparams)
-            cutoff_a = []
-            for s in self.setups:
-                assert s.data.shape_function['type'] == 'gauss'
-                cutoff_a.append(s.data.shape_function['rc'])
-            return PAWPoissonSolver(
-                pw, cutoff_a, ps, self.fracpos_ac, self.atomdist, self.xp)
+        psparams.pop('fast', False)
+
+        if self.fast_poisson_solver:
+            grid = self.grid
         else:
-            ps = make_poisson_solver(self.electrostatic_potential_desc,
-                                     self.fine_grid,
-                                     self.params.charge,
-                                     **psparams)
-            pw = self.interpolation_desc
-            return OldPAWPoissonSolver(
-                pw,
-                self.setups,
-                ps, self.fracpos_ac, self.atomdist, self.xp)
+            grid = self.fine_grid
+
+        pw = self.electrostatic_potential_desc
+        ps = make_poisson_solver(pw,
+                                 grid,
+                                 self.params.charge,
+                                 **psparams)
+
+        if self.fast_poisson_solver:
+            cutoff_a = [s.data.shape_function['rc'] for s in self.setups]
+            return BloechlPAWPoissonSolver(
+                pw, cutoff_a, ps, self.fracpos_ac, self.atomdist, self.xp)
+
+        return SlowPAWPoissonSolver(
+            self.interpolation_desc,
+            self.setups,
+            ps, self.fracpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self):
         return PlaneWavePotentialCalculator(
