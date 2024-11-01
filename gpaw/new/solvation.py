@@ -9,7 +9,7 @@ class Solvation(Environment):
                  cavity,
                  dielectric,
                  interactions=None,
-                 grid, fracpos_ac):
+                 setups, grid, fracpos_ac, log):
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions or []
@@ -24,11 +24,11 @@ class Solvation(Environment):
         for ia in self.interactions:
             ia.allocate()
         from ase import Atoms
-        atoms = Atoms('X' * len(fracpos_ac),
+        atoms = Atoms([setup.symbol for setup in setups],
                       scaled_positions=fracpos_ac,
                       cell=grid.cell,
                       pbc=grid.pbc)
-        self.cavity.update_atoms(atoms)
+        self.cavity.update_atoms(atoms, log)
         for ia in self.interactions:
             ia.update_atoms(atoms)
 

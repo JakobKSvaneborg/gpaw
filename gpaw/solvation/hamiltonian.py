@@ -94,7 +94,6 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
             self.timer.stop('Initialize Hamiltonian')
 
         cavity_changed = self.cavity.update(self.new_atoms, density)
-        print(self.new_atoms, cavity_changed, self.cavity);sadgf
         if cavity_changed:
             self.cavity.update_vol_surf()
             self.dielectric.update(self.cavity)

@@ -59,17 +59,6 @@ units = {'energy': Ha,
          'non_collinear_magmoms': 1.0}
 
 
-class DFTState:
-    def __init__(self,
-                 ibzwfs: IBZWaveFunctions,
-                 density: Density,
-                 potential: Potential):
-        """State of a Kohn-Sham calculation."""
-        self.ibzwfs = ibzwfs
-        self.density = density
-        self.potential = potential
-
-
 class DFTCalculation:
     def __init__(self,
                  ibzwfs: IBZWaveFunctions,
@@ -133,7 +122,7 @@ class DFTCalculation:
         # FIX this!
         scf_loop = builder.create_scf_loop()
 
-        pot_calc = builder.create_potential_calculator()
+        pot_calc = builder.create_potential_calculator(log)
         potential, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
@@ -504,3 +493,14 @@ def write_atoms(atoms: Atoms,
     from gpaw.output import print_cell, print_positions
     print_positions(atoms, log, magmom_av)
     print_cell(grid._gd, grid.pbc, log)
+
+
+class DFTState:
+    def __init__(self,
+                 ibzwfs: IBZWaveFunctions,
+                 density: Density,
+                 potential: Potential):
+        """State of a Kohn-Sham calculation."""
+        self.ibzwfs = ibzwfs
+        self.density = density
+        self.potential = potential

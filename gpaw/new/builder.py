@@ -334,13 +334,14 @@ class DFTComponentsBuilder:
             ibzwfs.fermi_levels = np.array(
                 [reader.occupations.fermilevel / ha])
 
-    def create_environment(self, grid):
+    def create_environment(self, grid, log):
         if not self.params.solvation:
             from gpaw.new.environment import Environment
             return Environment()
         from gpaw.new.solvation import Solvation
         return Solvation(**self.params.solvation,
-                         grid=grid, fracpos_ac=self.fracpos_ac)
+                         setups=self.setups,
+                         grid=grid, fracpos_ac=self.fracpos_ac, log=log)
 
 
 def create_communicators(comm: MPIComm = None,
