@@ -41,7 +41,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                         self.atoms,
                         FDPWETDM(**eigsolv_params))
 
-    def read_ibz_wave_functions(self, reader):
+    def read_ibz_wave_functions(self, reader, log):
         kpt_comm, band_comm, domain_comm = (self.communicators[x]
                                             for x in 'kbd')
 

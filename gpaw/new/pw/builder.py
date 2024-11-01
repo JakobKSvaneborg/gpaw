@@ -121,7 +121,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.setups,
                 ps, self.fracpos_ac, self.atomdist, self.xp)
 
-    def create_potential_calculator(self):
+    def create_potential_calculator(self, log):
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
             self.interpolation_desc,
@@ -184,8 +184,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     psit_R.fft(out=psit_G)
             return psit_nsG
 
-    def read_ibz_wave_functions(self, reader):
-        ibzwfs = super().read_ibz_wave_functions(reader)
+    def read_ibz_wave_functions(self, reader, log):
+        ibzwfs = super().read_ibz_wave_functions(reader, log)
 
         if 'coefficients' not in reader.wave_functions:
             return ibzwfs

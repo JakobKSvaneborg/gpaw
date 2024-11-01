@@ -83,8 +83,8 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         basis_set.lcao_to_grid(C_nM.data, psit_nR.data[:mynbands], q)
         return psit_nR.to_xp(self.xp)
 
-    def read_ibz_wave_functions(self, reader):
-        ibzwfs = super().read_ibz_wave_functions(reader)
+    def read_ibz_wave_functions(self, reader, log):
+        ibzwfs = super().read_ibz_wave_functions(reader, log)
 
         if 'coefficients' in reader.wave_functions:
             name = 'coefficients'

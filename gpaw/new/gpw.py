@@ -245,7 +245,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, penergies,
                           vHt_x)
 
-    ibzwfs = builder.read_ibz_wave_functions(reader)
+    ibzwfs = builder.read_ibz_wave_functions(reader, log)
     ibzwfs.energies = {
         'band': e_band,
         'entropy': e_entropy,
@@ -256,7 +256,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         ibzwfs, density, potential,
         builder.setups,
         builder.create_scf_loop(),
-        pot_calc=builder.create_potential_calculator(),
+        pot_calc=builder.create_potential_calculator(log),
         log=log)
 
     results = {key: value / units[key]

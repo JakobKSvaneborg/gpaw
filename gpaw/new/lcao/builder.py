@@ -51,13 +51,13 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                                            self.params.eigensolver['shifts'])
         return LCAOEigensolver(self.basis)
 
-    def read_ibz_wave_functions(self, reader):
+    def read_ibz_wave_functions(self, reader, log):
         c = 1
         if reader.version >= 0 and reader.version < 4:
             c = reader.bohr**1.5
 
         basis = self.create_basis_set()
-        potential = self.create_potential_calculator()
+        potential = self.create_potential_calculator(log)
         if 'coefficients' in reader.wave_functions:
             coefficients = reader.wave_functions.proxy('coefficients')
             coefficients.scale = c
