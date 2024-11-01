@@ -72,7 +72,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.fracpos_ac = fracpos_ac
         self.cutoff_a = np.asarray(cutoff_a)
-        self.r2 = self.cutoff_a.max() * 2#*1.5**2
+        self.r2 = self.cutoff_a.max() * 2.0
         self.rcut = 7 * self.r2
         d = 0.0051
         rgd = RGD(d, int(self.rcut / d))

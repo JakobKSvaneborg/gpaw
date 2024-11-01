@@ -89,8 +89,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     @cached_property
     def fast_poisson_solver(self):
         fast = self.params.poissonsolver.get('fast', False)
-        #fast = True
         if fast:
+            # Only works for gaussian compensation charges at the moment:
             fast = False
             for s in self.setups:
                 if not hasattr(s, 'data'):
