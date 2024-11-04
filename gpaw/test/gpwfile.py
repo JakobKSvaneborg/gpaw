@@ -745,8 +745,8 @@ class GPWFiles(CachedFilesHandler):
         scalapack = atoms.calc.wfs.bd.comm.size
         atoms.calc.diagonalize_full_hamiltonian(nbands=8, scalapack=scalapack)
         return atoms.calc
-   
-    @gpwfile 
+
+    @gpwfile
     def c2_gw_more_bands(self):
         a = 3.567
         atoms = bulk('C', 'diamond', a=a)
@@ -758,7 +758,6 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         atoms.calc.diagonalize_full_hamiltonian(nbands=128)
         return atoms.calc
-
 
     @gpwfile
     def na_pw(self):

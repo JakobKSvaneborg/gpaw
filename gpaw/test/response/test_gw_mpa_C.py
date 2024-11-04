@@ -1,9 +1,6 @@
 import numpy as np
-from ase.build import bulk
 from ase.units import Hartree as Ha
 
-from gpaw import GPAW, FermiDirac
-from gpaw import PW
 from gpaw.response.g0w0 import G0W0
 
 
