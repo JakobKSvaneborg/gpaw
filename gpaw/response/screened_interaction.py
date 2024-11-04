@@ -350,11 +350,11 @@ class HWModel:
         Hilbert Transformed W Model.
     """
 
-    def get_HW(self, omega, f):
+    def get_HW(self, omega, occ):
         """
             Get Hilbert transformed W at frequency omega.
 
-            f: The occupation number for the orbital of the Greens function.
+            occ: The occupation number for the orbital of the Greens function.
         """
         raise NotImplementedError
 
@@ -365,7 +365,7 @@ class FullFrequencyHWModel(HWModel):
         self.HW_swGG = HW_swGG
         self.factor = factor
 
-    def get_HW(self, omega, f):
+    def get_HW(self, omega, occ):
         # For more information about how fsign and wsign works, see
         # https://backend.orbit.dtu.dk/ws/portalfiles/portal/93075765/hueser_PhDthesis.pdf
         # eq. 2.2 endind up to eq. 2.11
@@ -376,7 +376,7 @@ class FullFrequencyHWModel(HWModel):
         # In addition, whether the orbital in question at G is occupied or
         # unoccupied, which then again affects, which Hilbert transform of
         # W is chosen, is kept track with fsign.
-        fsign = np.sign(2 * f - 1)
+        fsign = np.sign(2 * occ - 1)
         o = abs(omega)
         wsign = np.sign(omega + 1e-15)
         wd = self.wd
@@ -407,8 +407,8 @@ class PPAHWModel(HWModel):
         self.eta = eta
         self.factor = factor
 
-    def get_HW(self, omega, f):
-        sign = np.sign(2 * f - 1)
+    def get_HW(self, omega, occ):
+        sign = np.sign(2 * occ - 1)
         omegat_GG = self.omegat_GG
         W_GG = self.W_GG
 
@@ -429,10 +429,10 @@ class MPAHWModel(HWModel):
         self.eta = eta
         self.factor = factor
 
-    def get_HW(self, omega, f):
+    def get_HW(self, omega, occ):
         x_GG = np.empty(self.omegat_nGG.shape[1:], dtype=complex)
         dx_GG = np.empty(self.omegat_nGG.shape[1:], dtype=complex)
-        evaluate_mpa_poly(x_GG, dx_GG, omega, f, self.omegat_nGG, self.W_nGG,
+        evaluate_mpa_poly(x_GG, dx_GG, omega, occ, self.omegat_nGG, self.W_nGG,
                           self.eta, self.factor)
 
         return x_GG.conj(), dx_GG.conj()  # Why do we have to do a conjugate
