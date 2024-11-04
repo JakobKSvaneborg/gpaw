@@ -32,13 +32,11 @@ You should see that in net the routine added only about 0.007 electrons to the s
 
 You'll notice that the output in 'Au.txt' contains additional information, as compared to a charge-neutral simulation::
 
-    Legendre-transformed energies (Omega = E - N mu)
-      (grand-potential energies)
-      N (excess electrons):   +0.006663
-      mu (-workfunction, eV):   -4.194593
-    --------------------------
-    Free energy:    -23.630651
-    Extrapolated:   -23.608083
+    Legendre-transformed energies (grand potential, Omega = E - N mu)
+     N (excess electrons):    +0.006526
+     mu (-workfunction, eV):   -4.208990
+     (Grand) free energy:    -23.628448
+     (Grand) extrapolated:   -23.605878
 
 These Legendre-transformed energies, `\Omega = E - N \mu`, are written into any ASE trajectories created, and are the quantity returned by :literal:`calc.get_potential_energy()` (and therefore :literal:`atoms.get_potential_energy()`).
 As discussed in :ref:`grand-potential-energy`, these grand-potential energies are consistent with the forces in the grand-canonical scheme, and are thus compatible with methods such as saddle-point searches (*e.g.*, NEB) and energy optimizations (*e.g.*, BFGSLineSearch).
