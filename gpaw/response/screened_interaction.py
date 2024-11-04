@@ -7,7 +7,7 @@ from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.response.temp import DielectricFunctionCalculator
 from gpaw.response.hilbert import GWHilbertTransforms
 from gpaw.response.mpa_interpolation import RESolver
-from _gpaw import evaluate_mpa_poly
+from gpaw.cgpaw import evaluate_mpa_poly
 
 
 class GammaIntegrationMode:
