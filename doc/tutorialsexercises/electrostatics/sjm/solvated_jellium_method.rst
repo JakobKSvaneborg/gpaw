@@ -28,14 +28,14 @@ Try running the script below to find the number of electrons necessary to equili
 
 If you examine the output in 'Au111.txt', you'll see that the code varies the number of excess electrons until the target potential is within a tolerance of 4.2 V; the default tolerance is 0.01 V.
 This process usually takes a few steps on the first image, but is faster on subsequent images of a trajectory, since the changes are less dramatic and the potential--vs--charge slope is retained from previous steps.
-You should see that in net the routine removed only about 0.007 electrons from the simulation, as compared to a charge-neutral simulation, in order to achieve the desired work function.
+You should see that in net the routine added only about 0.007 electrons to the simulation cell, as compared to a charge-neutral simulation, in order to achieve the desired work function.
 
 You'll notice that the output in 'Au.txt' contains additional information, as compared to a charge-neutral simulation::
 
     Legendre-transformed energies (Omega = E - N mu)
       (grand-potential energies)
       N (excess electrons):   +0.006663
-      mu (workfunction, eV):   +4.194593
+      mu (-workfunction, eV):   -4.194593
     --------------------------
     Free energy:    -23.630651
     Extrapolated:   -23.608083

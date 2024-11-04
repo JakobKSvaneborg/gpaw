@@ -562,7 +562,7 @@ class SJM(SolvationGPAW):
                  'Omega = E - N mu)')
         self.log(' N (excess electrons):  {:+11.6f}'
                  .format(p.excess_electrons))
-        self.log(' mu (workfunction, eV): {:+11.6f}'
+        self.log(' mu (-workfunction, eV): -{:+11.6f}'
                  .format(self.get_electrode_potential()))
         self.log(' (Grand) free energy:   {:+11.6f}'
                  .format(Ha * self.omega_free))
