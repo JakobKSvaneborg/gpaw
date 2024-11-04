@@ -1156,7 +1156,7 @@ class G0W0(G0W0Calculator):
                  integrate_gamma='sphere',
                  q0_correction=False,
                  do_GW_too=False,
-                 qpt_str=None,
+                 output_prefix=None,
                  **kwargs):
         """G0W0 calculator wrapper.
 
@@ -1169,7 +1169,7 @@ class G0W0(G0W0Calculator):
         calc:
             Filename of saved calculator object.
         filename: str
-            Base filename of output files.
+            Base filename (a prefix) of output files.
         kpts: list
             List of indices of the IBZ k-points to calculate the quasi particle
             energies for.
@@ -1271,6 +1271,12 @@ class G0W0(G0W0Calculator):
         nblocksmax: bool
             Cuts chi0 into as many blocks as possible to reduce memory
             requirements as much as possible.
+        output_prefix: None | str = None
+            Where to direct the txt output. If set to None (default),
+            will be deduced from filename (the default output prefix).
+            This is to allow multiple processes to work on same cache
+            (given by filename-prefix), while writing to different out
+            files.
         """
         if fxc_mode:
             assert fxc_modes is None
@@ -1297,8 +1303,8 @@ class G0W0(G0W0Calculator):
         # (calc can not actually be a calculator at all.)
         gpwfile = Path(calc)
 
-        qpt_str = qpt_str or ''
-        context = ResponseContext(txt=filename + qpt_str + '.txt',
+        output_prefix = filename or output_prefix
+        context = ResponseContext(txt=output_prefix + '.txt',
                                   comm=world, timer=timer)
         gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
 
@@ -1344,7 +1350,7 @@ class G0W0(G0W0Calculator):
                           'timeordered': True}
         wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
 
-        wcontext = context.with_txt(filename + f'{qpt_str}.w.txt', mode=mode)
+        wcontext = context.with_txt(output_prefix + '.w.txt', mode=mode)
 
         chi0calc = Chi0Calculator(
             gs, wcontext, nblocks=nblocks,
