@@ -125,7 +125,8 @@ class WaveFunctions:
 
     @property
     def P_ani(self) -> AtomArrays:
-        assert self._P_ani is not None
+        if self._P_ani is None:
+            raise RuntimeError('Projections P_ani not present')
         return self._P_ani
 
     @trace

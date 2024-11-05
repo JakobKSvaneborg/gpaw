@@ -124,6 +124,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         if self._P_ani is None:
             self._P_ani = self.pt_aiX.empty(self.psit_nX.dims,
                                             self.psit_nX.comm)
+            if self.psit_nX.data is None:
+                raise RuntimeError('There are no projections or wavefunctions')
             self.pt_aiX.integrate(self.psit_nX, self._P_ani)
         return self._P_ani
 

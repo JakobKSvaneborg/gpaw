@@ -132,6 +132,12 @@ class LCAOWaveFunctions(WaveFunctions):
                                       dtype=self.dtype)
             self._P_ani = layout.empty(self.nbands,
                                        comm=self.C_nM.dist.comm)
+            # As a hack, builder.py injects a NaN in the first element of
+            # C_nM.data in order for us to be able to tell that the
+            # data is uninitialized:
+            if np.isnan(self.C_nM.data.flat[0]):
+                raise RuntimeError('There are no projections or wavefunctions')
+
             for a, P_Mi in self.P_aMi.items():
                 self._P_ani[a][:] = self.C_nM.data @ P_Mi
 
