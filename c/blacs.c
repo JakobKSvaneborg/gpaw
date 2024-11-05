@@ -14,6 +14,7 @@
 #include <structmember.h>
 #include "extensions.h"
 #include "mympi.h"
+#include <mkl_scalapack.h>
 
 // BLACS
 #define BLOCK_CYCLIC_2D 1
@@ -679,13 +680,13 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
    a[0].real = 1; a[1].real = 0; a[2].real = 0; a[3].real = 2;
    a[0].imag = 0; a[1].imag = 0; a[2].imag = 0; a[3].imag = 2;
 
-   MKL_INT* desca = (MKL_INT*) PyArray_BYTES(desc_obj);
+   MKL_INT* desca = (MKL_INT*) PyArray_BYTES(desca_obj);
 
    MKL_Complex16* w = (MKL_Complex16*) malloc( sizeof(MKL_Complex16) * n);
    MKL_Complex16* vl = NULL;
    MKL_INT descvl = -1;
    MKL_Complex16* vr = (MKL_Complex16*) malloc( sizeof(MKL_Complex16) * n * n);
-   MKL_INT* desvr = (MKL_INT*) PyArray_BYTES(desc_obj);
+   MKL_INT* descvr = (MKL_INT*) PyArray_BYTES(desca_obj);
    MKL_INT ilo;
    MKL_INT ihi;
    double* scale = (double*) malloc( sizeof(double) * n);
