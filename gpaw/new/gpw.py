@@ -30,9 +30,12 @@ def write_gpw(filename: str,
               atoms,
               params,
               dft: DFTCalculation,
-              skip_wfs: bool = True) -> None:
+              skip_wfs: bool = True,
+              precision: str = 'double') -> None:
 
     comm = dft.comm
+    if precision not in ['single', 'double']:
+        raise ValueError('precision must be "single" or "double"')
 
     writer: ulm.Writer | ulm.DummyWriter
     if comm.rank == 0:
@@ -58,11 +61,11 @@ def write_gpw(filename: str,
             p['dtype'] = np.dtype(p['dtype']).name
         writer.child('parameters').write(**p)
 
-        dft.density.write(writer.child('density'))
+        dft.density.write(writer.child('density'), precision=precision)
         dft.potential._write_gpw(writer.child('hamiltonian'),
-                                 dft.ibzwfs)
+                                 dft.ibzwfs, precision=precision)
         wf_writer = writer.child('wave_functions')
-        dft.ibzwfs.write(wf_writer, skip_wfs)
+        dft.ibzwfs.write(wf_writer, skip_wfs, precision=precision)
 
         if not skip_wfs and params.mode['name'] == 'pw':
             write_wave_function_indices(wf_writer,

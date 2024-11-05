@@ -76,7 +76,7 @@ class Potential:
             None if self.vHt_x is None else self.vHt_x.redist(
                 desc, comm1, comm2))
 
-    def _write_gpw(self, writer, ibzwfs):
+    def _write_gpw(self, writer, ibzwfs, precision='double'):
         from gpaw.new.calculation import combine_energies
         energies = combine_energies(self, ibzwfs)
         energies['band'] = ibzwfs.energies['band']

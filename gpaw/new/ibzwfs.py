@@ -322,7 +322,8 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def write(self,
               writer: Writer,
-              skip_wfs: bool) -> None:
+              skip_wfs: bool,
+              precision: str = 'double') -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
 
         ... k-points, symmetry information, projections and possibly
