@@ -12,7 +12,7 @@ from gpaw.mpi import size, world
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
-@pytest.mark.libxcte
+@pytest.mark.libxc
 def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     assert size <= 4**3
 
