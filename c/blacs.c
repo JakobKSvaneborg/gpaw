@@ -666,35 +666,36 @@ PyObject* blacs_destroy(PyObject *self, PyObject *args)
 PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
 {
   PyArrayObject* a_obj; // matrix;
+  PyArrayObject* U_obj; // matrix;
+  PyArrayObject* eps_obj; // matrix;
   PyArrayObject* desca_obj; // descriptor
 
-  if (!PyArg_ParseTuple(args, "OO", &a_obj, &desca_obj))
+  if (!PyArg_ParseTuple(args, "OOOO", &a_obj, &U_obj, &eps_obj, &desca_obj))
     return NULL;
 
    char balanc = 'N';
    char jobvl = 'N';
    char jobvr = 'V';
    char sense = 'N';
-   MKL_INT n = 2;
-   MKL_Complex16* a = (MKL_Complex16*) malloc( sizeof(MKL_Complex16) * n * n );
-   a[0].real = 1; a[1].real = 0; a[2].real = 0; a[3].real = 2;
-   a[0].imag = 0; a[1].imag = 0; a[2].imag = 0; a[3].imag = 2;
+   MKL_Complex16* a = (MKL_Complex16*) PyArray_BYTES(a_obj);
+   MKL_INT n = PyArray_DIM(a_obj, 0);
 
+   printf("Dimension of matrix %d\n", n);
    MKL_INT* desca = (MKL_INT*) PyArray_BYTES(desca_obj);
 
-   MKL_Complex16* w = (MKL_Complex16*) malloc( sizeof(MKL_Complex16) * n);
+   MKL_Complex16* w = (MKL_Complex16*) PyArray_BYTES(eps_obj); //malloc( sizeof(MKL_Complex16) * n);
    MKL_Complex16* vl = NULL;
-   MKL_INT descvl = -1;
-   MKL_Complex16* vr = (MKL_Complex16*) malloc( sizeof(MKL_Complex16) * n * n);
+   MKL_INT descvl = 0;
+   MKL_Complex16* vr = (MKL_Complex16*) PyArray_BYTES(U_obj); //malloc( sizeof(MKL_Complex16) * n * n);
    MKL_INT* descvr = (MKL_INT*) PyArray_BYTES(desca_obj);
-   MKL_INT ilo;
-   MKL_INT ihi;
+   MKL_INT ilo = 1;
+   MKL_INT ihi = n;
    double* scale = (double*) malloc( sizeof(double) * n);
    double abnrm = 0;
    double* rconde = (double*) malloc(sizeof(double) * n);
    double* rcondv = NULL;
-   MKL_Complex16* work = (MKL_Complex16*) malloc(sizeof(MKL_Complex16) * n * n * 1000);
-   MKL_INT lwork = -1;
+   MKL_Complex16* work = (MKL_Complex16*) malloc(sizeof(MKL_Complex16) * n * n * 10);
+   MKL_INT lwork = n * n * 10;
    MKL_INT info=0;
 
    pzgeevx(&balanc, 
@@ -719,7 +720,7 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
            &lwork,
            &info);
   
-
+  printf("Info %d\n", info);
   Py_RETURN_NONE;
 }
 
