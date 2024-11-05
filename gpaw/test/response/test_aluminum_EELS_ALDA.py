@@ -5,7 +5,6 @@ import numpy as np
 from ase.build import bulk
 from ase.parallel import parprint
 
-from gpaw import GPAW, PW, FermiDirac
 from gpaw.test import findpeak
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.mpi import size, world
@@ -13,7 +12,7 @@ from gpaw.mpi import size, world
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
-@pytest.mark.libxc
+@pytest.mark.libxcte
 def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     assert size <= 4**3
 
@@ -41,14 +40,6 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     # New results are compared with test values
     wpeak1, Ipeak1 = findpeak(omega_w, eels0_w)
     wpeak2, Ipeak2 = findpeak(omega_w, eels_w)
-
-    # if world.rank == 0:
-    #     import matplotlib.pyplot as plt
-    #     plt.plot(omega_w, eels0_w)
-    #     plt.plot(omega_w, eels_w)
-    #     print('Peak 1:', wpeak1, Ipeak1)
-    #     print('Peak 2:', wpeak2, Ipeak2)
-    #     plt.show()
 
     test_wpeak1 = 15.1034604723  # eV
     test_Ipeak1 = 27.3106588260
