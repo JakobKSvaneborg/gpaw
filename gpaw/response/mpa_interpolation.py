@@ -69,11 +69,10 @@ class Solver:
         """
         Parameters
         ----------
-        omega_w : Array of complex frequencies set in
-                  mpa sampling. The length corresponds
-                  to twice the number of poles
-        threshold: threshold for small and too close poles
-        epsilon: precision for positive zero imaginary part
+        omega_w : Array of complex frequencies set in mpa sampling.
+                  The length corresponds to twice the number of poles
+        threshold : Threshold for small and too close poles
+        epsilon : Precision for positive zero imaginary part of the poles
         """
         assert len(omega_w) % 2 == 0
         self.omega_w = omega_w

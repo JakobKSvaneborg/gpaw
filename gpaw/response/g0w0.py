@@ -521,22 +521,22 @@ class G0W0Calculator:
         mpa: dict
             Use multipole approximation for screened interaction
             and self-energy [PRB 104, 115157 (2021)]
-            This method uses a sampling along two lines in the complex
+            This method uses a sampling along one or two lines in the complex
             frequency plane.
 
             MPA parameters
             ----------
-            npoles: number of poles (positive integer generally lower than 15)
-            wrange: real and imaginary intervals defining the range of energy
-                    along each axis of the upper line of the sampling
-                    (array of two complex numbers)
-            wshift: shifts along the imaginary axis of the lower sampling line
-                    close to the real axis (array of two positive real numbers,
-                    the first one for the origin of coordinates, while the
-                    second is common to all the other point with a finite real
-                    component)
+            npoles: Number of poles (positive integer generally lower than 15)
+            parallel_lines: How many (1-2) parallel lines to the real frequency
+                            axis the sampling has.
+            wrange: Real interval defining the range of energy along the real
+                    frequency axis.
             alpha: exponent of the power distribution of points along the real
                    frequency axis [PRB 107, 155130 (2023)]
+            varpi: Distance of the second line to the real axis.
+            eta0:  Imaginary part of the first point of the first line.
+            eta_rest: Imaginary part of the rest of the points of the first
+                      line.
         evaluate_sigma: array(float)
             List of frequencies (in eV), where to evaluate the frequency
             dependent self energy for each k-point and band involved in the

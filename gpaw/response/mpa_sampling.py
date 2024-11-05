@@ -9,13 +9,12 @@ def sampling_branches(w_dist: Array1D,
                       eta0: float = 1e-5,
                       eta_rest: float = 0.1) -> Array1D:
     """
-        w_dist         an array of points in real axis
-        parallel_lines How many lines to parallel to the real frequency axis
+        w_dist         Array of points in the positive real axis.
+        parallel_lines How many (1-2) parallel lines to the real frequency axis
                        the sampling has.
-        varpi          The distance of the second line from the real axis
-        d              [d0, drest], where d0 is the imaginary part of the
-                       first point of the first line, and drest is the
-                       imaginary part of the rest of the points of the first
+        varpi          Distance of the second line to the real axis.
+        eta0           Imaginary part of the first point of the first line.
+        eta_rest       Imaginary part of the rest of the points of the first
                        line.
     """
     if parallel_lines not in [1, 2]:
