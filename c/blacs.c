@@ -662,6 +662,67 @@ PyObject* blacs_destroy(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
+{
+  PyArrayObject* a_obj; // matrix;
+  PyArrayObject* desca_obj; // descriptor
+
+  if (!PyArg_ParseTuple(args, "OO", &a_obj, &desca_obj))
+    return NULL;
+
+   char balanc = 'N';
+   char jobvl = 'N';
+   char jobvr = 'V';
+   char sense = 'N';
+   MKL_INT n = 2;
+   MKL_Complex16* a = (MKL_Complex16*) malloc( sizeof(MKL_Complex16) * n * n );
+   a[0].real = 1; a[1].real = 0; a[2].real = 0; a[3].real = 2;
+   a[0].imag = 0; a[1].imag = 0; a[2].imag = 0; a[3].imag = 2;
+
+   MKL_INT* desca = (MKL_INT*) PyArray_BYTES(desc_obj);
+
+   MKL_Complex16* w = (MKL_Complex16*) malloc( sizeof(MKL_Complex16) * n);
+   MKL_Complex16* vl = NULL;
+   MKL_INT descvl = -1;
+   MKL_Complex16* vr = (MKL_Complex16*) malloc( sizeof(MKL_Complex16) * n * n);
+   MKL_INT* desvr = (MKL_INT*) PyArray_BYTES(desc_obj);
+   MKL_INT ilo;
+   MKL_INT ihi;
+   double* scale = (double*) malloc( sizeof(double) * n);
+   double abnrm = 0;
+   double* rconde = (double*) malloc(sizeof(double) * n);
+   double* rcondv = NULL;
+   MKL_Complex16* work = (MKL_Complex16*) malloc(sizeof(MKL_Complex16) * n * n * 1000);
+   MKL_INT lwork = -1;
+   MKL_INT info=0;
+
+   pzgeevx(&balanc, 
+           &jobvl,
+           &jobvr,
+           &sense,
+           &n,
+           a,
+           desca,
+           w,
+           vl,
+           &descvl,
+           vr,
+           descvr,
+           &ilo,
+           &ihi,
+           scale,
+           &abnrm,
+           rconde,
+           rcondv,
+           work,
+           &lwork,
+           &info);
+  
+
+  Py_RETURN_NONE;
+}
+
+
 PyObject* scalapack_set(PyObject *self, PyObject *args)
 {
   PyArrayObject* a; // matrix;
