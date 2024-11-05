@@ -372,7 +372,7 @@ class KernelIntegrator(ABC):
 
     def calculate_fhxc(self):
         self.context.print(
-            'Calculating {self.xc} kernel at {self.ecut} eV cutoff')
+            f'Calculating {self.xc} kernel at {self.ecut} eV cutoff')
         fhxc_iterator = self._calculate_fhxc()
 
         while True:

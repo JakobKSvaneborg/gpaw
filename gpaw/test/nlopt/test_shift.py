@@ -6,7 +6,7 @@ from gpaw.nlopt.basic import NLOData
 from gpaw.nlopt.shift import get_shift
 
 
-def test_shift_spinpol(mme_files):
+def test_shift_spinpol(mme_files, in_tmp_dir):
     shift_values = np.array([98.0118706 + 0.j,
                              98.89282526 + 0.j,
                              99.78333556 + 0.j,

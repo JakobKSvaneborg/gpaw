@@ -69,11 +69,10 @@ class Solver:
         """
         Parameters
         ----------
-        omega_w : Array of complex frequencies set in
-                  mpa sampling. The length corresponds
-                  to twice the number of poles
-        threshold: threshold for small and too close poles
-        epsilon: precision for positive zero imaginary part
+        omega_w : Array of complex frequencies set in mpa sampling.
+                  The length corresponds to twice the number of poles
+        threshold : Threshold for small and too close poles
+        epsilon : Precision for positive zero imaginary part of the poles
         """
         assert len(omega_w) % 2 == 0
         self.omega_w = omega_w
@@ -121,7 +120,7 @@ class SinglePoleSolver(Solver):
             X_wGG=X_wGG,
             E_pGG=E_GG.reshape((1, *E_GG.shape)))[0, :, :]
 
-        return E_GG, R_GG
+        return E_GG.reshape((1, *E_GG.shape)), R_GG.reshape((1, *R_GG.shape))
 
 
 class MultipoleSolver(Solver):
@@ -190,10 +189,10 @@ def mpa_cond_vectorized(
 
 @no_type_check
 def pade_solve(X_wGG: Array3D, z_w: Array1D) -> Tuple[Array3D, Array2D]:
-    nw, nG, _ = X_wGG.shape
+    nw, nG1, nG2 = X_wGG.shape
     npols = nw // 2
     nm = npols + 1
-    b_GGm = np.zeros((nG, nG, nm), dtype=np.complex128)
+    b_GGm = np.zeros((nG1, nG2, nm), dtype=np.complex128)
     b_GGm[..., 0] = 1.0
     bm1_GGm = b_GGm
     c_GGw = X_wGG.transpose((1, 2, 0)).copy()
@@ -214,7 +213,7 @@ def pade_solve(X_wGG: Array3D, z_w: Array1D) -> Tuple[Array3D, Array2D]:
         bm2_GGm[..., 1:] = c_GGw[..., i, np.newaxis] * bm2_GGm[..., :-1]
         b_GGm[..., 1:] += bm2_GGm[..., 1:]
 
-    companion_GGpp = np.zeros((nG, nG, npols, npols),
+    companion_GGpp = np.zeros((nG1, nG2, npols, npols),
                               dtype=np.complex128)
 
     # Create a poly companion matrix in vectorized form
@@ -223,7 +222,7 @@ def pade_solve(X_wGG: Array3D, z_w: Array1D) -> Tuple[Array3D, Array2D]:
     #     for j in range(nG):
     #         companion_GGpp[i, j] = poly.polycompanion(b_GGm[i, j])
     b_GGm /= b_GGm[:, :, -1][..., None]
-    companion_GGpp.reshape((nG, nG, -1))[:, :, npols::npols + 1] = 1
+    companion_GGpp.reshape((nG1, nG2, -1))[:, :, npols::npols + 1] = 1
     companion_GGpp[:, :, :, -1] = -b_GGm[:, :, :npols]
 
     E_GGp = eigvals(companion_GGpp)

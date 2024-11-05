@@ -63,7 +63,7 @@ Scaling the Hubbard correction
 
 The projection of the orbitals needed to get the atomic orbiatal
 coccupation matrix is truncated at the augmentation sphere radius
-(this is because GPAW atomic setups tipically have a bound state
+(this is beacause GPAW atomic setups typically have a bound state
 projector and an unbound one). Due to this truncation the projection
 of the wavefunctions onto the atomic orbitals is always <1, being at
 the maximum the integral of the projected atomic orbital within the
