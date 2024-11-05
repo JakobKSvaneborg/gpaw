@@ -28,6 +28,8 @@ Git master branch
   return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
   or **k**-point weights (use ``raw=True``).
 
+* Implementation of the multipole approximation (MPA) for the response 
+  function in the GW self-energy [PRB 104, 115157 (2021)]
 
 Version 24.6.0
 ==============
