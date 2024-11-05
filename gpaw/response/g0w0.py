@@ -1363,7 +1363,6 @@ class G0W0(G0W0Calculator):
         # XXX and it is also converted to Hartree at superclass constructor
         # XXX called below. This needs to be cleaned up.
         wcalc = initialize_w_calculator(chi0calc, wcontext,
-                                        #ppa=ppa, #dalv: probably not necessary
                                         mpa=mpa,
                                         xc=xc,
                                         E0=E0, eta=eta / Ha, coulomb=coulomb,
