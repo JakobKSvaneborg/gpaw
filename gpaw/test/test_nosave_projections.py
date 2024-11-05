@@ -3,18 +3,19 @@ from ase.build import bulk
 from gpaw.new.ase_interface import GPAW
 
 
-@pytest.fixture(scope='module')
-def noprojs_gpw(module_tmp_path):
+@pytest.fixture(scope='module', params=['fd', 'lcao', 'pw'])
+def noprojs_gpw(module_tmp_path, request):
+    mode = request.param
     atoms = bulk('Si')
-    atoms.calc = GPAW(mode='pw', kpts=[2, 2, 2], txt=None)
+    atoms.calc = GPAW(mode=mode, kpts=[2, 2, 2], txt=None)
     atoms.get_potential_energy()
-    gpw_path = module_tmp_path / 'gs_noprojs.gpw'
+    gpw_path = module_tmp_path / 'gs_noprojs_{mode}.gpw'
     atoms.calc.write(gpw_path, include_projections=False)
     return gpw_path
 
 
 def test_no_save_projections(noprojs_gpw):
-    calc = GPAW('gs_noprojs.gpw')
+    calc = GPAW(noprojs_gpw)
     ibzwfs = list(calc.dft.ibzwfs)
     assert len(ibzwfs) > 0
     for wfs in ibzwfs:
@@ -34,6 +35,7 @@ def test_nice_error_message(noprojs_gpw):
 
 def test_fixed_density_bandstructure(tmp_path, noprojs_gpw):
     calc = GPAW(noprojs_gpw)
+
     fixed_calc = calc.fixed_density(
         kpts=[[0., 0., 0.], [0., 0., 0.5]], symmetry='off')
 
@@ -48,4 +50,4 @@ def test_fixed_density_bandstructure(tmp_path, noprojs_gpw):
     # We could compare to an "ordinary" (with projections) gpw file
     # to see that the numbers are in fact unaffected by the distinction.
 
-# Also: test lcao, fd, pw
+# Remember to test in parallel, too
