@@ -15,6 +15,7 @@ extra_compile_args = [
     '-fPIC',
     '-Wall',
     '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
+    '-Wno-deprecated-declarations',  # PySys_SetArgv() etc deprecated in Python 3.11
     '-Werror',
     ]
 extra_link_args = ['-fopenmp']

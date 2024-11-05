@@ -169,17 +169,20 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
 
         return self._vt_g, self._nt_g, self._dedtaut_g
 
-    def force_contributions(self, density, potential):
+    def force_contributions(self, Q_aL, density, potential):
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
         if dedtaut_g is None:
             Ftauct_av = None
         else:
             Ftauct_av = density.tauct_aX.derivative(dedtaut_g)
 
-        return (self.poisson_solver.ghat_aLh.derivative(potential.vHt_x),
-                density.nct_aX.derivative(vt_g),
-                Ftauct_av,
-                self.vbar_ag.derivative(nt_g))
+        return (
+            self.poisson_solver.force_contribution(Q_aL,
+                                                   potential.vHt_x,
+                                                   nt_g),
+            density.nct_aX.derivative(vt_g),
+            Ftauct_av,
+            self.vbar_ag.derivative(nt_g))
 
     def stress(self, ibzwfs, density, potential):
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
