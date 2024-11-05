@@ -1506,7 +1506,7 @@ class GPWFiles(CachedFilesHandler):
             symmetry = {}
         xc = 'LDA'
         kpts = 4
-        pw = 200
+        pw = 300
         occw = 0.01
         conv = {'bands': band_cutoff + 1,
                 'density': 1.e-8}
