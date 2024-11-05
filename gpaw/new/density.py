@@ -366,21 +366,22 @@ class Density:
     def write(self, writer, precision='double'):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
+        nt_sR_data = nt_sR.data
         if precision == 'single':
-            assert nt_sR.data.dtype == np.float64
-            nt_sR.data = nt_sR.data.astype(np.float32)
+            from gpaw.new.gpw import as_single_precision
+            nt_sR_data = as_single_precision(nt_sR_data)
         if self.taut_sR is not None:
-            taut_sR = self.taut_sR.to_xp(np).gather()
+            taut_sR_data = self.taut_sR.data
             if precision == 'single':
-                assert taut_sR.dtype == np.float64
-                taut_sR = taut_sR.astype(np.float32)
+                from gpaw.new.gpw import as_single_precision
+                taut_sR_data = as_single_precision(taut_sR_data)
         if D_asp is None:
             return  # let master do the writing
         writer.write(
-            density=nt_sR.data * Bohr**-3,
+            density=nt_sR_data * Bohr**-3,
             atomic_density_matrices=D_asp.data)
         if self.taut_sR is not None:
-            writer.write(ked=taut_sR.data * (Ha * Bohr**-3))
+            writer.write(ked=taut_sR_data * (Ha * Bohr**-3))
 
 
 def atomic_occupation_numbers(setup,

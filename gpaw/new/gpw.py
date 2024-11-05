@@ -26,6 +26,11 @@ ENERGY_NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
                 'band', 'stress', 'spinorbit']
 
 
+def as_single_precision(value):
+    assert value.dtype in [np.float64, np.complex128, np.float32, np.complex64]
+    return value.astype(np.float32 if value.dtype == np.float64 else np.complex64)
+
+
 def write_gpw(filename: str,
               atoms,
               params,
@@ -35,7 +40,7 @@ def write_gpw(filename: str,
 
     comm = dft.comm
     if precision not in ['single', 'double']:
-        raise ValueError('precision must be "single" or "double"')
+        raise ValueError('precision must be either "single" or "double"')
 
     writer: ulm.Writer | ulm.DummyWriter
     if comm.rank == 0:

@@ -90,14 +90,25 @@ class Potential:
             vHt_x = self.vHt_x.to_xp(np).gather()
         if dH_asp is None:
             return
+
+        vt_sR_data = vt_sR.data
+        if precision == 'single':
+            from gpaw.new.gpw import as_single_precision
+            vt_sR_data = as_single_precision(vt_sR_data)
         writer.write(
-            potential=vt_sR.data * Ha,
+            potential=vt_sR_data * Ha,
             atomic_hamiltonian_matrices=dH_asp.data * Ha,
             **{f'e_{name}': val * Ha for name, val in energies.items()})
         if self.vHt_x is not None:
-            writer.write(electrostatic_potential=vHt_x.data * Ha)
+            vHt_x_data = vHt_x.data
+            if precision == 'single':
+                vHt_x_data = as_single_precision(vHt_x_data)
+            writer.write(electrostatic_potential=vHt_x_data * Ha)
         if self.dedtaut_sR is not None:
-            writer.write(mgga_potential=dedtaut_sR.data * Bohr**3)
+            dedtaut_sR_data = dedtaut_sR.data
+            if precision == 'single':
+                dedtaut_sR_data = as_single_precision(dedtaut_sR_data)
+            writer.write(mgga_potential=dedtaut_sR_data * Bohr**3)
 
     def get_vacuum_level(self) -> float:
         grid = self.vt_sR.desc
