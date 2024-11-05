@@ -88,7 +88,7 @@ class QPointDescriptor(KPointDescriptor):
 def initialize_w_calculator(chi0calc, context, *,
                             coulomb,
                             xc='RPA',  # G0W0Kernel arguments
-                            ppa=False, mpa=None, E0=Ha, eta=None,
+                            mpa=None, E0=Ha, eta=None,
                             integrate_gamma=GammaIntegrationMode('sphere'),
                             q0_correction=False):
     """Initialize a WCalculator from a Chi0Calculator.
@@ -111,9 +111,7 @@ def initialize_w_calculator(chi0calc, context, *,
                           context=context)
 
     kwargs = dict()
-    if ppa:
-        wcalc_cls = PPACalculator
-    elif mpa:
+    if mpa:
         wcalc_cls = MPACalculator
         kwargs['mpa'] = mpa
     else:
@@ -292,7 +290,6 @@ class WCalculator(WBaseCalculator):
         return chi0_wGG
 
     def dyson_and_W_new(self, iq, q_c, chi0, ecut, coulomb):
-        # assert not self.ppa
         # assert not self.do_GW_too
         assert ecut == chi0.qpd.ecut
         assert self.fxc_mode == 'GW'
@@ -400,7 +397,7 @@ class FullFrequencyHWModel(HWModel):
         return -1j * p * sigma_GG, -1j * p * dsigma_GG
 
 
-class PPAHWModel(HWModel):
+"""class PPAHWModel(HWModel):
     def __init__(self, W_GG, omegat_GG, eta, factor):
         self.W_GG = W_GG
         self.omegat_GG = omegat_GG
@@ -419,7 +416,7 @@ class PPAHWModel(HWModel):
         x_GG = self.factor * W_GG * (sign * (x1_GG - x2_GG) + x3_GG + x4_GG)
         dx_GG = -self.factor * W_GG * (sign * (x1_GG**2 - x2_GG**2) +
                                        x3_GG**2 + x4_GG**2)
-        return x_GG.T.conj(), dx_GG.T.conj()
+        return x_GG.T.conj(), dx_GG.T.conj()"""
 
 
 class MPAHWModel(HWModel):
@@ -438,12 +435,12 @@ class MPAHWModel(HWModel):
         return x_GG.conj(), dx_GG.conj()  # Why do we have to do a conjugate
 
 
-class PPACalculator(WBaseCalculator):
+"""class PPACalculator(WBaseCalculator):
     def get_HW_model(self, chi0,
-                     fxc_mode='GW'):
+                     fxc_mode='GW'):"""
         """Calculate the PPA parametrization of screened interaction.
         """
-        assert len(chi0.wd.omega_w) == 2
+        """assert len(chi0.wd.omega_w) == 2
         # E0 directly related to imaginary frequency mesh for chi0
         E0 = chi0.wd.omega_w[1].imag
 
@@ -468,7 +465,7 @@ class PPACalculator(WBaseCalculator):
 
         factor = 1.0 / (self.qd.nbzkpts * 2 * pi * self.gs.volume)
 
-        return PPAHWModel(W_GG, omegat_GG, self.eta, factor)
+        return PPAHWModel(W_GG, omegat_GG, self.eta, factor)"""
 
 
 class MPACalculator(WBaseCalculator):
