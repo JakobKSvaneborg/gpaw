@@ -32,5 +32,18 @@ def test_nice_error_message(noprojs_gpw):
         wfs.P_ani
 
 
-# Test that we can do fixed_density()
+def test_fixed_density(tmp_path, noprojs_gpw):
+    calc = GPAW(noprojs_gpw)
+
+    atoms = calc.get_atoms()
+    bandpath = atoms.cell.bandpath(npoints=200)
+
+    fixed_calc = calc.fixed_density(kpts=[[0., 0., 0.], [0., 0., 0.5]],
+                                    symmetry='off')
+    bs = fixed_calc.band_structure()
+    # Can we test something here?
+    # If we calculate a full bandstructure, it looks realistic.
+    # We could compare to an "ordinary" (with projections) gpw file
+    # to see that the numbers are in fact unaffected by the distinction.
+
 # Also: test lcao, fd, pw
