@@ -49,5 +49,3 @@ def test_fixed_density_bandstructure(tmp_path, noprojs_gpw):
     # If we calculate a full bandstructure, it looks realistic.
     # We could compare to an "ordinary" (with projections) gpw file
     # to see that the numbers are in fact unaffected by the distinction.
-
-# Remember to test in parallel, too
