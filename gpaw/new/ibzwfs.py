@@ -422,7 +422,8 @@ class IBZWaveFunctions(Generic[WFT]):
                 elif self.comm.rank == 0:
                     self.kpt_comm.receive(buf_nX, rank)
                     if precision == 'single':
-                        writer.fill(as_np(buf_nX) * c)
+                        from gpaw.new.gpw import as_single_precision
+                        writer.fill(as_single_precision(buf_nX * c))
                     else:
                         writer.fill(buf_nX * c)
 
