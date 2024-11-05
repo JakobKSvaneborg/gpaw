@@ -1040,9 +1040,9 @@ class G0W0Calculator:
                     rqpd.ecut < chi0.qpd.ecut):
                 pw_map = PWMapping(rqpd, chi0.qpd)
 
-                # This is extremely bad behaviour! G0W0Calculator
-                # should not change properties on the
-                # Chi0BodyCalculator! Change in the future! XXX
+                """This is extremely bad behaviour! G0W0Calculator
+                   should not change properties on the
+                   Chi0BodyCalculator! Change in the future! XXX"""
                 chi0calc.chi0_body_calc.pawcorr = \
                     chi0calc.chi0_body_calc.pawcorr.reduce_ecut(pw_map.G2_G1)
 
