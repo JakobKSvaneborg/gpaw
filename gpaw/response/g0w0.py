@@ -1038,11 +1038,6 @@ class G0W0Calculator:
                                                       fxc_mode=fxc_mode)
             if (chi0calc.chi0_body_calc.pawcorr is not None and
                     rqpd.ecut < chi0.qpd.ecut):
-                #assert not self.ppa, 
-                """In previous master, PPA with ecut
-                extrapolation was not working. Now it would work, but
-                disabling it here still for sake of it is not tested."""
-
                 pw_map = PWMapping(rqpd, chi0.qpd)
                 # This is extremely bad behaviour! G0W0Calculator
                 # should not change properties on the
