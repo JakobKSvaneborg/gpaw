@@ -5,7 +5,7 @@ import numpy as np
 from ase.build import bulk
 from ase.parallel import parprint
 
-from gpaw import GPAW, PW
+from gpaw import GPAW, PW, FermiDirac
 from gpaw.test import findpeak
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.mpi import size, world
@@ -17,22 +17,8 @@ from gpaw.mpi import size, world
 def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     assert size <= 4**3
 
-    # Use the al_pw gpwfile fixture
-    calc = gpw_files['al_pw']
-
-    # a = 4.043
-    # atoms = bulk('Al', 'fcc', a=a)
-    # atoms.center()
-    # calc = GPAW(mode=PW(200),
-    #             nbands=4,
-    #             kpts=(4, 4, 4),
-    #             parallel={'band': 1},
-    #             xc='LDA')
-
-    # atoms.calc = calc
-    # atoms.get_potential_energy()
-    # calc.write('Al', 'all')
-
+    # Using bse_al fixture, since it was closest to the previous test
+    calc = gpw_files['bse_al']
 
     t1 = time.time()
 
@@ -40,7 +26,7 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     q = np.array([1 / 4, 0, 0])
     w = np.linspace(0, 24, 241)
 
-    df = DielectricFunction(calc=calc, frequencies=w, nbands=4, eta=0.2, ecut=50,
+    df = DielectricFunction(calc=calc, frequencies=w, eta=0.2, ecut=50,
                             hilbert=False)
     df.get_eels_spectrum(xc='ALDA', filename='EELS_Al_ALDA.csv', q_c=q)
 
@@ -51,19 +37,23 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     world.barrier()
     omega_w, eels0_w, eels_w = read_response_function('EELS_Al_ALDA.csv')
 
-    if world.rank == 0:
-        import matplotlib.pyplot as plt
-        plt.plot(omega_w, eels0_w)
-        plt.show()
 
     # New results are compared with test values
     wpeak1, Ipeak1 = findpeak(omega_w, eels0_w)
     wpeak2, Ipeak2 = findpeak(omega_w, eels_w)
 
-    test_wpeak1 = 15.7002862696  # eV
-    test_Ipeak1 = 28.5590363176
-    test_wpeak2 = 15.5196459206
-    test_Ipeak2 = 26.5680624522
+    # if world.rank == 0:
+    #     import matplotlib.pyplot as plt
+    #     plt.plot(omega_w, eels0_w)
+    #     plt.plot(omega_w, eels_w)
+    #     print('Peak 1:', wpeak1, Ipeak1)
+    #     print('Peak 2:', wpeak2, Ipeak2)
+    #     plt.show()
+
+    test_wpeak1 = 15.1034604723  # eV
+    test_Ipeak1 = 27.3106588260
+    test_wpeak2 = 14.9421103838
+    test_Ipeak2 = 25.1284001349
 
     if abs(test_wpeak1 - wpeak1) > 0.02 or abs(test_wpeak2 - wpeak2) > 0.02:
         print(test_wpeak1 - wpeak1, test_wpeak2 - wpeak2)
