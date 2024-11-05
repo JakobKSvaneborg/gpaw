@@ -363,11 +363,17 @@ class Density:
 
         return magmom_v, magmom_av
 
-    def write(self, writer):
+    def write(self, writer, precision='double'):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
+        if precision == 'single':
+            assert nt_sR.data.dtype == np.float64
+            nt_sR.data = nt_sR.data.astype(np.float32)
         if self.taut_sR is not None:
             taut_sR = self.taut_sR.to_xp(np).gather()
+            if precision == 'single':
+                assert taut_sR.dtype == np.float64
+                taut_sR = taut_sR.astype(np.float32)
         if D_asp is None:
             return  # let master do the writing
         writer.write(
