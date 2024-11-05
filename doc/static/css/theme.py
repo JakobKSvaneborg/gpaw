@@ -3,7 +3,7 @@ import re
 import sphinx_rtd_theme
 
 
-rtd_path = sphinx_rtd_theme.__path__
+rtd_path = sphinx_rtd_theme.__path__[0]
 with open(rtd_path + '/static/css/theme.css') as fd:
     css = fd.read()
 
