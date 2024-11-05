@@ -314,7 +314,8 @@ class IBZWaveFunctions(Generic[WFT]):
         self.kpt_band_comm.sum(F_av)
         return F_av
 
-    def write(self, writer: Writer, skip_wfs: bool, precision: str = "double") -> None:
+    def write(self, writer: Writer, skip_wfs: bool,
+              precision: str = "double") -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
 
         ... k-points, symmetry information, projections and possibly
@@ -381,12 +382,12 @@ class IBZWaveFunctions(Generic[WFT]):
         xshape = self.get_max_shape(global_shape=True)
         shape = spin_k_shape + (self.nbands,) + xshape
         dtype = complex if self.mode == "pw" else self.dtype
+        dtype_write = dtype
         if precision == "single":
-            assert dtype == np.float64 or dtype == complex
-            dtype = np.complex64 if self.mode == "pw" else np.float32
+            dtype_write = np.complex64 if self.mode == "pw" else np.float32
         c = 1.0 if self.mode == "lcao" else Bohr**-1.5
 
-        writer.add_array("coefficients", shape, dtype=dtype)
+        writer.add_array("coefficients", shape, dtype=dtype_write)
         buf_nX = np.empty((self.nbands,) + xshape, dtype=dtype)
 
         for spin in range(self.nspins):

@@ -91,7 +91,7 @@ class Potential:
         if dH_asp is None:
             return
 
-        vt_sR_data = vt_sR.data
+        vt_sR_data = None if vt_sR is None else vt_sR.data
         if precision == 'single':
             from gpaw.new.gpw import as_single_precision
             vt_sR_data = as_single_precision(vt_sR_data)

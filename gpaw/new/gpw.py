@@ -27,8 +27,12 @@ ENERGY_NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
 
 
 def as_single_precision(value):
-    assert value.dtype in [np.float64, np.complex128, np.float32, np.complex64]
-    return value.astype(np.float32 if value.dtype == np.float64 else np.complex64)
+    if value is None:
+        return None
+    assert value.dtype in [np.float64, np.complex128,
+                           np.float32, np.complex64]
+    return value.astype(np.float32 if value.dtype == np.float64
+                        else np.complex64)
 
 
 def write_gpw(filename: str,
