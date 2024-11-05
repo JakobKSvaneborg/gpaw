@@ -70,17 +70,17 @@ and fwhm is the FWHM of the Gaussian broadening.
 ::
 
   sys.setrecursionlimit(10000)
-  
+
   name='diamond333_hch_600_1400a.rec'
   x_start=-20
   x_end=100
   dx=0.01
   x_rec = x_start + npy.arange(0, x_end - x_start ,dx)
-  
+
   r = RecursionMethod(filename=name)
   y = r.get_spectra(x_rec, delta=0.4, fwhm=0.4 )
   y2 = sum(y)
-  
+
   p.plot(x_rec + 273.44,y2)
   p.show()
 
@@ -100,7 +100,7 @@ XES
 To compute XES, first do a ground state calcualtion with an 0.0 core
 hole (an 'xes1s' setup as created above ). The system will not be
 charged so the setups can be placed on all atoms one wants to
-calculte XES for. Since XES probes the occupied states no unoccupied
+calculate XES for. Since XES probes the occupied states no unoccupied
 states need to be determined. Calculate the spectrum with
 
 ::
