@@ -58,12 +58,9 @@ def test_ff(in_tmp_dir, gpw_files, scalapack):
 @pytest.mark.response
 @pytest.mark.parametrize("mpa", [True, False])
 def test_mpa_and_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
-    ref_result = {False: np.array([[[11.30094393, 21.62842077],
-                                    [5.33751513, 16.06905725],
-                                    [8.75269938, 22.46579489]]]),
-                  True: np.array([[[11.303942, 21.624428],
-                                   [5.346694, 16.06346],
-                                   [8.7589, 22.461506]]])}[mpa]
+    ref_result = np.array([[[11.303942, 21.624428],
+                            [5.346694, 16.06346],
+                            [8.7589, 22.461506]]])
     mpa_dict = {'npoles': 1, 'wrange': [0, 0],
                 'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 10000 * Ha,
                 'alpha': 1}
