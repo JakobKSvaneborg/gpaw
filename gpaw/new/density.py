@@ -366,10 +366,6 @@ class Density:
     def write(self, writer, precision='double'):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
-        nt_sR_data = None if nt_sR is None else nt_sR.data
-        if precision == 'single':
-            from gpaw.new.gpw import as_single_precision
-            nt_sR_data = as_single_precision(nt_sR_data)
         if self.taut_sR is not None:
             taut_sR_data = self.taut_sR.data
             if precision == 'single':
@@ -377,6 +373,10 @@ class Density:
                 taut_sR_data = as_single_precision(taut_sR_data)
         if D_asp is None:
             return  # let master do the writing
+        nt_sR_data = nt_sR.data
+        if precision == 'single':
+            from gpaw.new.gpw import as_single_precision
+            nt_sR_data = as_single_precision(nt_sR_data)
         writer.write(
             density=nt_sR_data * Bohr**-3,
             atomic_density_matrices=D_asp.data)

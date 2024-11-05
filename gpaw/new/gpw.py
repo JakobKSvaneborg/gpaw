@@ -26,13 +26,26 @@ ENERGY_NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
                 'band', 'stress', 'spinorbit']
 
 
-def as_single_precision(value):
-    if value is None:
-        return None
-    assert value.dtype in [np.float64, np.complex128,
-                           np.float32, np.complex64]
-    return value.astype(np.float32 if value.dtype == np.float64
+def as_single_precision(array):
+    assert array.dtype in [np.float64, np.complex128]
+    return array.astype(np.float32 if array.dtype == np.float64
                         else np.complex64)
+
+
+def as_double_precision(array):
+    if array is None:
+        return None
+    assert array.dtype in [np.float32, np.complex64]
+    from ase.io.ulm import NDArrayReader
+    if array.dtype == np.float32:
+        dtype = np.float64
+    else:
+        dtype = complex
+    if isinstance(array, NDArrayReader):
+        new_array = np.asarray(array, dtype=dtype)
+        assert new_array.shape == array.shape
+        return new_array
+    return array.astype(dtype)
 
 
 def write_gpw(filename: str,
@@ -57,7 +70,8 @@ def write_gpw(filename: str,
         writer.write(version=4,
                      gpaw_version=gpaw.__version__,
                      ha=Ha,
-                     bohr=Bohr)
+                     bohr=Bohr,
+                     precision=precision)
 
         write_atoms(writer.child('atoms'), atoms)
 
@@ -147,6 +161,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     reader = ulm.Reader(filename)
     bohr = reader.bohr
     ha = reader.ha
+    singlep = reader.precision == 'single'
 
     atoms = read_atoms(reader.atoms)
     kwargs = reader.parameters.asdict()
@@ -166,9 +181,15 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if comm.rank == 0:
         nt_sR_array = reader.density.density * bohr**3
         vt_sR_array = reader.hamiltonian.potential / ha
+        if singlep:
+            nt_sR_array = as_double_precision(nt_sR_array)
+            vt_sR_array = as_double_precision(vt_sR_array)
         if builder.xc.type == 'MGGA':
             taut_sR_array = reader.density.ked * (bohr**3 / ha)
             dedtaut_sR_array = reader.hamiltonian.mgga_potential * bohr**-3
+            if singlep:
+                taut_sR_array = as_double_precision(taut_sR_array)
+                dedtaut_sR_array = as_double_precision(dedtaut_sR_array)
         D_sap_array = reader.density.atomic_density_matrices
         dH_sap_array = reader.hamiltonian.atomic_hamiltonian_matrices / ha
         shape = nt_sR_array.shape[1:]
@@ -234,6 +255,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if reader.version >= 4:
         if comm.rank == 0:
             vHt_x_array = reader.hamiltonian.electrostatic_potential / ha
+            if singlep:
+                vHt_x_array = as_double_precision(vHt_x_array)
         else:
             vHt_x_array = None
         vHt_x = builder.electrostatic_potential_desc.empty()

@@ -77,6 +77,9 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
         # Set eigenvalues, occupations, etc..
         self.read_wavefunction_values(reader, ibzwfs)
+        self.reader_single_precision = False
+        if 'precision' in reader:
+            self.reader_single_precision = reader.precision == 'single'
 
         return ibzwfs
 

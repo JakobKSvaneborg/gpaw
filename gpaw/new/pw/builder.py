@@ -208,6 +208,9 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if 'coefficients' not in reader.wave_functions:
             return ibzwfs
 
+        singlep = self.reader_single_precision
+        if singlep:
+            from gpaw.new.gpw import as_double_precision
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # very old gpw file
@@ -234,7 +237,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             if self.communicators['w'].size == 1:
                 orig_shape = data.shape
                 data.shape = shape + pw.shape
-                wfs.psit_nX = pw.from_data(data)
+                if singlep:
+                    wfs.psit_nX = pw.from_data(as_double_precision(data))
+                else:
+                    wfs.psit_nX = pw.from_data(data)
                 data.shape = orig_shape
             else:
                 band_comm = self.communicators['b']
@@ -249,7 +255,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 else:
                     data = [None] * (n2 - n1)
                 for psit_G, array in zips(wfs.psit_nX, data):
-                    psit_G.scatter_from(array)
+                    if singlep:
+                        psit_G.scatter_from(as_double_precision(array))
+                    else:
+                        psit_G.scatter_from(array)
 
         return ibzwfs
 
