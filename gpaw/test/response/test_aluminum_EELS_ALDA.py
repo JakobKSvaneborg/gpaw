@@ -16,7 +16,7 @@ from gpaw.mpi import size, world
 @pytest.mark.libxc
 def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     assert size <= 4**3
-    
+
     # Use the al_pw gpwfile fixture
     calc = gpw_files['al_pw']
 
@@ -36,6 +36,11 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
 
     world.barrier()
     omega_w, eels0_w, eels_w = read_response_function('EELS_Al_ALDA.csv')
+
+    if world.rank == 0:
+        import matplotlib.pyplot as plt
+        plt.plot(omega_w, eels0_w)
+        plt.show()
 
     # New results are compared with test values
     wpeak1, Ipeak1 = findpeak(omega_w, eels0_w)
