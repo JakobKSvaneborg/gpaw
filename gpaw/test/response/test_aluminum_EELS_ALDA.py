@@ -2,7 +2,6 @@ import time
 
 import pytest
 import numpy as np
-from ase.build import bulk
 from ase.parallel import parprint
 
 from gpaw.test import findpeak
@@ -35,7 +34,6 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
 
     world.barrier()
     omega_w, eels0_w, eels_w = read_response_function('EELS_Al_ALDA.csv')
-
 
     # New results are compared with test values
     wpeak1, Ipeak1 = findpeak(omega_w, eels0_w)
