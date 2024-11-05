@@ -517,7 +517,7 @@ class G0W0Calculator:
             (almost for free).
         ppa: bool
             Use Godby-Needs plasmon-pole approximation for screened interaction
-            and self-energy
+            and self-energy (reformulated as mpa with npoles = 1)
         mpa: dict
             Use multipole approximation for screened interaction
             and self-energy [PRB 104, 115157 (2021)]
@@ -1038,7 +1038,8 @@ class G0W0Calculator:
                                                       fxc_mode=fxc_mode)
             if (chi0calc.chi0_body_calc.pawcorr is not None and
                     rqpd.ecut < chi0.qpd.ecut):
-                assert not self.ppa, """In previous master, PPA with ecut
+                #assert not self.ppa, 
+                """In previous master, PPA with ecut
                 extrapolation was not working. Now it would work, but
                 disabling it here still for sake of it is not tested."""
 
@@ -1199,8 +1200,8 @@ class G0W0(G0W0Calculator):
             Sets whether the Godby-Needs plasmon-pole approximation for the
             dielectric function should be used.
          mpa: dict
-            Sets whether the multipole approximation for the
-            dielectric function should be used.
+            Sets whether the multipole approximation for the response
+            function should be used.
         xc: str
             Kernel to use when including vertex corrections.
         fxc_mode: str
@@ -1324,16 +1325,11 @@ class G0W0(G0W0Calculator):
                     'nbands cannot be supplied with ecut-extrapolation.')
 
         if ppa:
-            assert not integrate_gamma.is_Wigner_Seitz, "TODO"
-            assert not mpa
-            # use small imaginary frequency to avoid dividing by zero:
-            frequencies = [1e-10j, 1j * E0]
+            # ppa reformulated as mpa with one pole
+            mpa = {'npoles': 1, 'wrange': [0, 0], 'varpi': Ha,
+                   'eta0': 1e-6, 'eta_rest': Ha, 'alpha': 1}
 
-            parameters = {'eta': 0,
-                          'hilbert': False,
-                          'timeordered': False}
-        elif mpa:
-            assert not ppa
+        if mpa:
 
             frequencies = mpa_frequency_sampling(**mpa)
 
@@ -1367,7 +1363,7 @@ class G0W0(G0W0Calculator):
         # XXX and it is also converted to Hartree at superclass constructor
         # XXX called below. This needs to be cleaned up.
         wcalc = initialize_w_calculator(chi0calc, wcontext,
-                                        ppa=ppa,
+                                        #ppa=ppa, #dalv: probably not necessary
                                         mpa=mpa,
                                         xc=xc,
                                         E0=E0, eta=eta / Ha, coulomb=coulomb,
