@@ -18,20 +18,20 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     assert size <= 4**3
 
     # Use the al_pw gpwfile fixture
-    # calc = gpw_files['al_pw']
+    calc = gpw_files['al_pw']
 
-    a = 4.043
-    atoms = bulk('Al', 'fcc', a=a)
-    atoms.center()
-    calc = GPAW(mode=PW(200),
-                nbands=4,
-                kpts=(4, 4, 4),
-                parallel={'band': 1},
-                xc='LDA')
+    # a = 4.043
+    # atoms = bulk('Al', 'fcc', a=a)
+    # atoms.center()
+    # calc = GPAW(mode=PW(200),
+    #             nbands=4,
+    #             kpts=(4, 4, 4),
+    #             parallel={'band': 1},
+    #             xc='LDA')
 
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    calc.write('Al', 'all')
+    # atoms.calc = calc
+    # atoms.get_potential_energy()
+    # calc.write('Al', 'all')
 
 
     t1 = time.time()
@@ -40,7 +40,7 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     q = np.array([1 / 4, 0, 0])
     w = np.linspace(0, 24, 241)
 
-    df = DielectricFunction(calc='Al', frequencies=w, eta=0.2, ecut=50,
+    df = DielectricFunction(calc=calc, frequencies=w, nbands=4, eta=0.2, ecut=50,
                             hilbert=False)
     df.get_eels_spectrum(xc='ALDA', filename='EELS_Al_ALDA.csv', q_c=q)
 
