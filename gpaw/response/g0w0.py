@@ -1322,7 +1322,7 @@ class G0W0(G0W0Calculator):
 
         if ppa:
             # ppa reformulated as mpa with one pole
-            mpa = {'npoles': 1, 'wrange': [0, 0], 'varpi': Ha,
+            mpa = {'npoles': 1, 'wrange': [0, 0], 'varpi': E0,
                    'eta0': 1e-6, 'eta_rest': Ha, 'alpha': 1}
 
         if mpa:
