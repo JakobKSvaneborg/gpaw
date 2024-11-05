@@ -6,6 +6,7 @@ from gpaw.mpi import world
 # Prevent grid-dependent crash:
 parallel = dict(band=1 if world.size < 8 else 2)
 
+
 @pytest.fixture(scope='module', params=['fd', 'lcao', 'pw'])
 def noprojs_gpw(module_tmp_path, request):
     mode = request.param
