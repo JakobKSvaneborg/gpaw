@@ -360,7 +360,8 @@ class IBZWaveFunctions(Generic[WFT]):
             proj_shape = (self.nbands, 2, nproj)
 
         if include_projections:
-            writer.add_array('projections', spin_k_shape + proj_shape, self.dtype)
+            writer.add_array('projections', spin_k_shape + proj_shape,
+                             self.dtype)
             for spin in range(self.nspins):
                 for k, rank in enumerate(self.rank_k):
                     if rank == self.kpt_comm.rank:
