@@ -439,23 +439,20 @@ class WaveFunctions:
             h1, l1 = self.get_homo_lumo(1)
             return np.array([max(h0, h1), min(l0, l1)])
 
-        n = self.nvalence // 2
-        band_rank, myn = self.bd.who_has(n - 1)
         homo = -np.inf
-        if self.bd.comm.rank == band_rank:
-            for kpt in self.kpt_u:
-                if kpt.s == spin:
-                    homo = max(kpt.eps_n[myn], homo)
-        homo = self.world.max_scalar(homo)
-
         lumo = np.inf
-        if n < self.bd.nbands:  # there are not enough bands for LUMO
-            band_rank, myn = self.bd.who_has(n)
-            if self.bd.comm.rank == band_rank:
-                for kpt in self.kpt_u:
-                    if kpt.s == spin:
-                        lumo = min(kpt.eps_n[myn], lumo)
-            lumo = self.world.min_scalar(lumo)
+        for kpt in self.kpt_u:
+            if kpt.s == spin:
+                weight = self.kd.weight_k[kpt.k] * 2 / self.nspins
+                f_n = kpt.f_n / weight
+                occupied = kpt.eps_n[f_n > 0.5]
+                if len(occupied) > 0:
+                    homo = max(homo, occupied[-1])
+                unoccupied = kpt.eps_n[f_n < 0.5]
+                if len(unoccupied) > 0:
+                    lumo = min(lumo, unoccupied[0])
+        homo = self.world.max_scalar(homo)
+        lumo = self.world.min_scalar(lumo)
 
         return np.array([homo, lumo])
 
