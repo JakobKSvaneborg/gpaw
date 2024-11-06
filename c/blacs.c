@@ -694,8 +694,8 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
    double abnrm = 0;
    double* rconde = (double*) malloc(sizeof(double) * n);
    double* rcondv = NULL;
-   MKL_Complex16* work = (MKL_Complex16*) malloc(sizeof(MKL_Complex16) * n * n * 10);
-   MKL_INT lwork = n * n * 10;
+   MKL_Complex16* work = (MKL_Complex16*) malloc(sizeof(MKL_Complex16) * n * n * 200);
+   MKL_INT lwork = 200000;
    MKL_INT info=0;
 
    pzgeevx(&balanc, 
