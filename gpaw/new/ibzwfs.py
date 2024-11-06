@@ -495,26 +495,29 @@ class IBZWaveFunctions(Generic[WFT]):
     def get_homo_lumo(self, spin: int = None) -> Array1D:
         """Return HOMO and LUMO eigenvalues."""
         if self.ncomponents == 1:
-            N = 2
             assert spin != 1
             spin = 0
         elif self.ncomponents == 2:
-            N = 2
             if spin is None:
                 h0, l0 = self.get_homo_lumo(0)
                 h1, l1 = self.get_homo_lumo(1)
                 return np.array([max(h0, h1), min(l0, l1)])
         else:
-            N = 1
             assert spin != 1
             spin = 0
 
-        n = int(round(self.nelectrons)) // N
-        assert N * n == self.nelectrons
-        homo = self.kpt_comm.max_scalar(max(wfs_s[spin].eig_n[n - 1]
-                                            for wfs_s in self.wfs_qs))
-        lumo = self.kpt_comm.min_scalar(min(wfs_s[spin].eig_n[n]
-                                            for wfs_s in self.wfs_qs))
+        homo = -np.inf
+        lumo = np.inf
+        for wfs_s in self.wfs_qs:
+            wfs = wfs_s[spin]
+            occupied = wfs.eig_n[wfs.occ_n > 0.5]
+            if len(occupied) > 0:
+                homo = max(homo, occupied[-1])
+            unoccupied = wfs.eig_n[wfs.occ_n < 0.5]
+            if len(unoccupied) > 0:
+                lumo = min(lumo, unoccupied[0])
+        homo = self.kpt_comm.max_scalar(homo)
+        lumo = self.kpt_comm.min_scalar(lumo)
 
         return np.array([homo, lumo])
 
