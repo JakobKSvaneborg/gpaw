@@ -230,7 +230,7 @@ class KPT:
 
         I1 = 0
         nproj_a = []
-        for a, shape in enumerate(wfs.P_ani.layout.shape_a):
+        for a, shape in enumerate(wfs._layout.shape_a):
             I2 = I1 + prod(shape)
             nproj_a.append(I2 - I1)
             I1 = I2
