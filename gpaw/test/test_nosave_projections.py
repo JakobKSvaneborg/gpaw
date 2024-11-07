@@ -4,7 +4,7 @@ from gpaw.new.ase_interface import GPAW
 from gpaw.mpi import world
 
 # Prevent grid-dependent crash:
-parallel = dict(band=1 if world.size < 8 else 2)
+parallel = dict(band=1 if world.size < 8 else 4)
 
 
 @pytest.fixture(scope='module', params=['fd', 'lcao', 'pw'])
