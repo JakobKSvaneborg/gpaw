@@ -35,12 +35,16 @@ nbands = calc.get_number_of_bands()
 occs = calc.get_occupation_numbers()
 homo = (occs > 1.0).sum() - 1
 
+
 for band in range(nbands):
     if band <= homo:
         name = f'homo-{homo - band}'
     else:
         name = f'lumo+{band - homo - 1}'
-    wf = calc.get_pseudo_wave_function(band=band)
+    if calc.old:
+        wf = calc.get_pseudo_wave_function(band=band)
+    else:
+        wf = calc.dft.wave_function(band).data
     isosurface_data = []
     if wf.max() >= isosurface_cutoff:
         isosurface_data.append({

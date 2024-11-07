@@ -20,7 +20,7 @@ def out():
     return result.stdout
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 @pytest.mark.parametrize('symm', [True, False])
 @pytest.mark.response
 @pytest.mark.skipif(': 3.' not in out(),

@@ -6,7 +6,7 @@ from gpaw.atom.basis import BasisMaker
 from gpaw.poisson import FDPoissonSolver as PoissonSolver
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_lcao_bsse():
     """Tests basis set super position error correction.
 

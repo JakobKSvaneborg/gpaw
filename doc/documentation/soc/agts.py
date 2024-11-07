@@ -12,7 +12,7 @@ def workflow():
 
 def check():
     calc = GPAW('VCl2_gs.gpw')
-    M_v, M_av = calc.dft.state.density.calculate_magnetic_moments()
+    M_v, M_av = calc.dft.density.calculate_magnetic_moments()
     print(M_v)
     print(M_av)
     m = 2.405

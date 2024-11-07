@@ -13,7 +13,7 @@ from ase.units import Bohr, Ha
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.builder import builder as create_builder
-from gpaw.new.calculation import DFTCalculation, DFTState, units
+from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
@@ -58,17 +58,16 @@ def write_gpw(filename: str,
             p['dtype'] = np.dtype(p['dtype']).name
         writer.child('parameters').write(**p)
 
-        state = dft.state
-        state.density.write(writer.child('density'))
-        state.potential._write_gpw(writer.child('hamiltonian'),
-                                   dft.state.ibzwfs)
+        dft.density.write(writer.child('density'))
+        dft.potential._write_gpw(writer.child('hamiltonian'),
+                                 dft.ibzwfs)
         wf_writer = writer.child('wave_functions')
-        state.ibzwfs.write(wf_writer, skip_wfs)
+        dft.ibzwfs.write(wf_writer, skip_wfs)
 
         if not skip_wfs and params.mode['name'] == 'pw':
             write_wave_function_indices(wf_writer,
-                                        state.ibzwfs,
-                                        state.density.nt_sR.desc)
+                                        dft.ibzwfs,
+                                        dft.density.nt_sR.desc)
 
     comm.barrier()
 
@@ -254,7 +253,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
                           energies['total_free'])}
 
     dft = DFTCalculation(
-        DFTState(ibzwfs, density, potential),
+        ibzwfs, density, potential,
         builder.setups,
         builder.create_scf_loop(),
         pot_calc=builder.create_potential_calculator(),

@@ -10,7 +10,7 @@ from ase.units import Bohr
 from gpaw import GPAW, FermiDirac
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_generic_hydrogen(in_tmp_dir):
     a = 4.0
     h = 0.2

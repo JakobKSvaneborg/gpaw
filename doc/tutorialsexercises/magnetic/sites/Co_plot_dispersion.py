@@ -14,12 +14,12 @@ from gpaw.response.heisenberg import calculate_fm_magnon_energies
 # ----- Load data ----- #
 
 # Magnetic moment and J(q)
-magmom = np.load('magmom.npy')
-q_qc = np.load('q_qc.npy')
-J_qab = np.load('J_qab.npy')
+magmom = np.load('Co_magmom.npy')
+q_qc = np.load('Co_q_qc.npy')
+J_qab = np.load('Co_J_qab.npy')
 
 # High-symmetry points
-q_pc = np.load('q_pc.npy')
+q_pc = np.load('Co_q_pc.npy')
 sp_p = [r'$\Gamma$', 'M', 'K', 'A']
 
 # ----- Calculate magnon energies ----- #

@@ -70,8 +70,8 @@ Since we are going to relax the unit cell, we need to use the plane wave mode, s
 The materials we are looking at are semiconductors. Thus, the default value for the Fermi-Dirac smearing (i.e. occupations function) is too high (it is set up to 0.1 eV to work with metals). We recommend setting it to 0.01eV
 
 These links might be helpful for you:
-* https://wiki.fysik.dtu.dk/gpaw/documentation/basic.html#manual-mode
-* https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/structureoptimization/lattice_constants/lattice_constants.html
+* https://gpaw.readthedocs.io/documentation/basic.html#manual-mode
+* https://gpaw.readthedocs.io/tutorialsexercises/structureoptimization/lattice_constants/lattice_constants.html
 """
 
 # %%
@@ -233,7 +233,7 @@ In this section, we study the convergence of the results with the parameters tha
 # %%
 """
 Numerical convergence of DFT calculations should always be checked to avoid obtaining spurious results that are caused by a very coarse discretization. In this tutorial you can find an example on how to find a converged lattice constant for aluminum:
-https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/structureoptimization/lattice_constants/lattice_constants.html
+https://gpaw.readthedocs.io/tutorialsexercises/structureoptimization/lattice_constants/lattice_constants.html
 
 The k-point mesh and the plane wave energy cut-off in the previous section were too low.
 

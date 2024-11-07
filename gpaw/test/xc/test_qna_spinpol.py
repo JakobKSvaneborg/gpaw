@@ -4,7 +4,7 @@ from ase.atoms import Atoms
 from gpaw import GPAW, PW
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_xc_qna_spinpol(in_tmp_dir):
     QNA = {'alpha': 2.0,
            'name': 'QNA',

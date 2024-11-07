@@ -40,7 +40,7 @@ Now plot the absorption spectra for the other k-point meshes you calculated and 
 Finally, talk with the other groups and compare your absorption spectra with their absorption spectra. Is the same number of k-points needed to obtain same degree of convergence for the different materials? Is there any difference for the 2D material (Boron-Nitride)?
 
 For a more realistic description one would have to include excitonic effects (i.e. the electron-hole interaction). 
-In the next example, we will calculate the absorption spectrum using the Bethe-Salpeter equation (BSE). For theoretical understanding you can read the brief description provided as in the link below: https://wiki.fysik.dtu.dk/gpaw/documentation/bse/bse.html
+In the next example, we will calculate the absorption spectrum using the Bethe-Salpeter equation (BSE). For theoretical understanding you can read the brief description provided as in the link below: https://gpaw.readthedocs.io/documentation/bse/bse.html
 
 We start by calculating the ground state density and diagonalizing the resulting Hamiltonian. The last line in the script creates a .gpw file which contains all the informations of the system, including the wavefunctions.
 """
@@ -140,5 +140,5 @@ plt.savefig('bse_Si.png') # student: plt.savefig('bse_???.png')
 
 # %%
 """
-Note: The parameters that need to be converged in the calculation are the k-points in the initial ground state calculation. In addition the following keywords in the BSE object should be converged: the plane wave cutoff, the numbers of bands used to calculate the screened interaction, the list of valence bands and the list of conduction bands included in the Hamiltonian. You can find an example calculation for Silicon in the link below: https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/opticalresponse/bse_tutorial/bse_tutorial.html
+Note: The parameters that need to be converged in the calculation are the k-points in the initial ground state calculation. In addition the following keywords in the BSE object should be converged: the plane wave cutoff, the numbers of bands used to calculate the screened interaction, the list of valence bands and the list of conduction bands included in the Hamiltonian. You can find an example calculation for Silicon in the link below: https://gpaw.readthedocs.io/tutorialsexercises/opticalresponse/bse_tutorial/bse_tutorial.html
 """
