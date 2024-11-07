@@ -11,25 +11,45 @@ from gpaw.new.calculation import DFTCalculation
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 
 
+def non_self_consistent_scissors_shift(
+        shifts: Sequence[tuple[float, float, int]],
+        dft: DFTCalculation) -> np.ndarray:
+    """Apply non self-consistent scissors shift.
+
+    The *shifts* are given as a sequence of tuples
+    (energy shifts in eV)::
+
+        [(<shift for occupied states>,
+          <shift for unoccupied states>,
+          <number of atoms>),
+         ...]
+
+    Here we open a gap for states on atoms with indices 3, 4 and 5::
+
+      eig_skM = non_self_consistent_scissors_shift(
+          [(0.0, 0.0, 3),
+           (-0.5, 0.5, 3)],
+          dft)
+    """
+    shifts = [(homo / Ha, lumo / Ha, natoms)
+              for homo, lumo, natoms in shifts]
+    matcalc = dft.scf_loop.hamiltonian.create_hamiltonian_matrix_calculator(
+        dft.potential)
+    matcalc = MyMatCalc(matcalc, shifts)
+    eig_uM = []
+    for wfs in dft.ibzwfs:
+        H_MM = matcalc.calculate_matrix(wfs)
+        eig_M = H_MM.eighg(wfs.L_MM, wfs.domain_comm)
+        eig_uM.append(eig_M)
+    shape = (dft.ibzwfs.nspins, -1, len(eig_M))
+    return np.array(eig_uM).reshape(shape) * Ha
+
+
 class ScissorsLCAOEigensolver(LCAOEigensolver):
     def __init__(self,
                  basis,
                  shifts: Sequence[tuple[float, float, int]]):
-        """Scissors-operator eigensolver.
-
-        The *shifts* are given as a sequence of tuples::
-
-            [(<shift for occupied states>,
-              <shift for unoccupied states>,
-              <number of atoms>),
-             ...]
-
-        Here we open a gap for states on atoms with indices 3, 4 and 5:
-
-        >>> eigensolver = Scissors([(0.0, 0.0, 3),
-        ...                         (-0.5, 0.5, 3)])
-
-        """
+        """Scissors-operator eigensolver."""
         super().__init__(basis)
         self.shifts = []
         for homo, lumo, natoms in shifts:
@@ -80,18 +100,3 @@ class MyMatCalc:
             a1 = a2
             M1 = M2
         return H_MM
-
-
-def one_shot(shifts, dft: DFTCalculation) -> np.ndarray:
-    shifts = [(homo / Ha, lumo / Ha, natoms)
-              for homo, lumo, natoms in shifts]
-    matcalc = dft.scf_loop.hamiltonian.create_hamiltonian_matrix_calculator(
-        dft.potential)
-    matcalc = MyMatCalc(matcalc, shifts)
-    eig_uM = []
-    for wfs in dft.ibzwfs:
-        H_MM = matcalc.calculate_matrix(wfs)
-        eig_M = H_MM.eighg(wfs.L_MM, wfs.domain_comm)
-        eig_uM.append(eig_M)
-    shape = (dft.ibzwfs.nspins, -1, len(eig_M))
-    return np.array(eig_uM).reshape(shape) * Ha
