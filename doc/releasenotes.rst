@@ -34,6 +34,8 @@ Git master branch
 * Extended ``restrict`` keyword and random phase approximation enabled
   in :ref:`lrtddft`
 
+* Updated :ref:`scissors operator`.
+
 
 Version 24.6.0
 ==============
