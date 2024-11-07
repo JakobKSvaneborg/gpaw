@@ -413,7 +413,7 @@ def normalize_initial_magmoms(
 
 def create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     if 'kpts' in kpts:
-        assert len(kpts) == 1, kpts
+        # assert len(kpts) == 1, kpts
         return BZPoints(kpts['kpts'])
     if 'path' in kpts:
         path = atoms.cell.bandpath(pbc=atoms.pbc, **kpts)

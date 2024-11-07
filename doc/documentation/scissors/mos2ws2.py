@@ -12,7 +12,7 @@ k = 6
 a12.calc = GPAW(mode='lcao',
                 basis='dzp',
                 nbands='nao',
-                kpts=(k, k, 1),
+                kpts=dict(size=(k, k, 1), gamma=True),
                 eigensolver={'name': 'scissors',
                              'shifts': ([(-0.5, 0.5, 3),
                                          (-0.3, 0.3, 3)])},

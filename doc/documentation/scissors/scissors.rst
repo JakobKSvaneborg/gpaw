@@ -55,3 +55,6 @@ Example
 =======
 
 .. literalinclude:: mos2ws2.py
+
+You can plot the band-structure with the command:
+``ase band-strucuture 12bs.json``.
