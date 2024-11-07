@@ -678,15 +678,15 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
    char jobvr = 'V';
    char sense = 'N';
    MKL_Complex16* a = (MKL_Complex16*) PyArray_BYTES(a_obj);
-   MKL_INT n = PyArray_DIM(a_obj, 0);
+   MKL_INT* desca = (MKL_INT*) PyArray_BYTES(desca_obj);
+   MKL_INT n = desca[2];
 
    printf("Dimension of matrix %d\n", n);
-   MKL_INT* desca = (MKL_INT*) PyArray_BYTES(desca_obj);
 
-   MKL_Complex16* w = (MKL_Complex16*) PyArray_BYTES(eps_obj); //malloc( sizeof(MKL_Complex16) * n);
+   MKL_Complex16* w = (MKL_Complex16*) PyArray_BYTES(eps_obj);
    MKL_Complex16* vl = NULL;
    MKL_INT descvl = 0;
-   MKL_Complex16* vr = (MKL_Complex16*) PyArray_BYTES(U_obj); //malloc( sizeof(MKL_Complex16) * n * n);
+   MKL_Complex16* vr = (MKL_Complex16*) PyArray_BYTES(U_obj);;
    MKL_INT* descvr = (MKL_INT*) PyArray_BYTES(desca_obj);
    MKL_INT ilo = 1;
    MKL_INT ihi = n;
@@ -694,10 +694,37 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
    double abnrm = 0;
    double* rconde = (double*) malloc(sizeof(double) * n);
    double* rcondv = NULL;
-   MKL_Complex16* work = (MKL_Complex16*) malloc(sizeof(MKL_Complex16) * n * n * 200);
-   MKL_INT lwork = 200000;
-   MKL_INT info=0;
+   double_complex qwork;
+   MKL_INT lwork = -1;
+   MKL_INT info = 0;
 
+   // First we query for optimal work array size
+   pzgeevx(&balanc, 
+           &jobvl,
+           &jobvr,
+           &sense,
+           &n,
+           a,
+           desca,
+           w,
+           vl,
+           &descvl,
+           vr,
+           descvr,
+           &ilo,
+           &ihi,
+           scale,
+           &abnrm,
+           rconde,
+           rcondv,
+           &qwork,
+           &lwork,
+           &info);
+
+   lwork = (int) qwork;
+   MKL_Complex16* work = (MKL_Complex16*) malloc(sizeof(MKL_Complex16) * lwork);
+ 
+   // Then we diagonalize
    pzgeevx(&balanc, 
            &jobvl,
            &jobvr,
@@ -719,9 +746,9 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
            work,
            &lwork,
            &info);
-  
-  printf("Info %d\n", info);
-  Py_RETURN_NONE;
+ 
+  PyObject* returnvalue = Py_BuildValue("i", info);
+  return returnvalue;
 }
 
 
