@@ -1,12 +1,11 @@
 from ase.build import mx2
 from gpaw import GPAW
-from gpaw.lcao.scissors import Scissors
 
 a12 = mx2(formula='MoS2', kind='2H', a=3.184, thickness=3.13,
           size=(1, 1, 1))
 a12 += mx2(formula='WS2', kind='2H', a=3.184, thickness=3.15,
            size=(1, 1, 1))
-a12.positions[3:, 2] += 3.6 + 3.184
+a12.positions[3:, 2] += 3.6 + (3.13 + 3.15) / 2
 a12.center(vacuum=3.0, axis=2)
 
 k = 6
@@ -14,8 +13,9 @@ a12.calc = GPAW(mode='lcao',
                 basis='dzp',
                 nbands='nao',
                 kpts=(k, k, 1),
-                eigensolver=Scissors([(-0.5, 0.5, 3),
-                                      (-0.3, 0.3, 3)]),
+                eigensolver={'name': 'scissors',
+                             'shifts': ([(-0.5, 0.5, 3),
+                                         (-0.3, 0.3, 3)])},
                 txt='12.txt')
 a12.get_potential_energy()
 a12.calc.write('12.gpw')

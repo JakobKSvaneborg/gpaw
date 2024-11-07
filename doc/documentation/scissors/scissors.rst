@@ -7,7 +7,7 @@ Scissors operator for LCAO mode
 .. warning:: **Work in progress**
 
 .. module:: gpaw.lcao.scissors
-.. autoclass:: Scissors
+.. autofunction:: non_self_consistent_scissors_shift
 
 In :ref:`lcao` we solve the following generalized eigenvalue problem:
 
@@ -32,28 +32,26 @@ where
 
     \Delta H_{\mu\nu}^{i,\text{occ}} =
         \Delta_{i,\text{occ}}
-        \sum_{n,n'}^{\text{occ}}
+        \sum_n^{\text{occ}}
         \sum_{\mu',\nu'\in\Omega_i}
-        C_{n\mu}^{-1}
-        C_{\mu'n}
-        S_{\mu'\nu'}
-        C_{\nu'n'}
-        C_{n'\nu}^{-1},
+        S_{\mu\nu'}^*
+        C_{\nu'n}
+        C_{\mu'n}^*
+        S_{\mu'\nu},
 
 .. math::
 
     \Delta H_{\mu\nu}^{i,\text{unocc}} =
         \Delta_{i,\text{unocc}}
-        \sum_{n,n'}^{\text{unocc}}
+        \sum_n^{\text{unocc}}
         \sum_{\mu',\nu'\in\Omega_i}
-        C_{n\mu}^{-1}
-        C_{\mu'n}
-        S_{\mu'\nu'}
-        C_{\nu'n'}
-        C_{n'\nu}^{-1}.
+        S_{\mu\nu'}^*
+        C_{\nu'n}
+        C_{\mu'n}^*
+        S_{\mu'\nu}.
 
 
 Example
 =======
 
-:download:`mos2ws2.py`.
+.. literalinclude:: mos2ws2.py
