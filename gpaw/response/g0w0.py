@@ -1268,7 +1268,7 @@ class G0W0(G0W0Calculator):
         nblocksmax: bool
             Cuts chi0 into as many blocks as possible to reduce memory
             requirements as much as possible.
-        output_prefix: None | str = None
+        output_prefix: None | str
             Where to direct the txt output. If set to None (default),
             will be deduced from filename (the default output prefix).
             This is to allow multiple processes to work on same cache
