@@ -16,7 +16,7 @@ def test_tb_mode_molecule():
         txt='-')  # None)
     atoms.get_potential_energy()
     # f1 = atoms.get_forces()
-    # f2 = numeric_forces(atoms)
+    # f2 = calculate_numerical_forces(atoms)
     # assert abs(f1 - f2).max() < 0.0005
 
 

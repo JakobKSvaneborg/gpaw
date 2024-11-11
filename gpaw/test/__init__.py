@@ -82,15 +82,17 @@ def only_on_master(comm, broadcast=None):
     return wrap
 
 
-def calculate_numeric_forces(atoms, eps=1e-6, iatoms=None, icarts=None):
+def calculate_numerical_forces(atoms, eps=1e-6, iatoms=None, icarts=None):
     try:
-        from ase.callculators.fd import calulate_numerical_forces as cnf
+        from ase.calculators.fd import calulate_numerical_forces as cnf
     except ImportError:
         pass
     else:
         return cnf(atoms, eps, iatoms, icarts)
     from ase.calculators.test import numeric_force
+    if iatoms is None:
+        iatoms = range(len(atoms))
+    if icarts is None:
+        icarts = [0, 1, 2]
     return np.array(
-        [numeric_force(atoms, a, c, eps)
-         for c in [0, 1, 2] if icarts is None else icarts]
-        for a in range(len(atoms)) if iatoms is None else iatoms])
+        [[numeric_force(atoms, a, c, eps) for c in icarts] for a in iatoms])
