@@ -1,6 +1,6 @@
 .. index:: DFT+U, LDA+U, Hubbard
 .. _hubbardu:
-    
+
 ============
 DFT+U theory
 ============
@@ -25,7 +25,7 @@ neglecting thereby any higher multi-polar terms.  The latter is the
 one implemented in GPAW. Thus, the DFT+U totally energy in GPAW is:
 
 .. math::
-    
+
     E_\text{DFT+U} = E_\text{DFT} +
     \sum_a \frac{U_\text{eff}}{2}
     \text{Tr}(\rho^a - \rho^a \rho^a),
@@ -63,7 +63,7 @@ Scaling the Hubbard correction
 
 The projection of the orbitals needed to get the atomic orbiatal
 coccupation matrix is truncated at the augmentation sphere radius
-(this is beacause GPAW atomic setups tipically have a bound state
+(this is beacause GPAW atomic setups typically have a bound state
 projector and an unbound one). Due to this truncation the projection
 of the wavefunctions onto the atomic orbitals is always <1, being at
 the maximum the integral of the projected atomic orbital within the
@@ -103,7 +103,7 @@ this is only true if the +U correction is normalized.
 .. literalinclude:: n.py
 
 Here are the resulting 2p-splitting:
-    
+
 .. csv-table::
    :file: gaps.csv
 
@@ -114,12 +114,12 @@ Here are the resulting 2p-splitting:
 Scaling the Hubbard correction
 ==============================
 
-It is also possible to set multiple U corrections to a single element 
+It is also possible to set multiple U corrections to a single element
 as follows::
 
     setups={'Ni':':d,4.0,0;p,2.0,0'}
 
-This allows for multiple orbitals to be corrected at the same time 
+This allows for multiple orbitals to be corrected at the same time
 which may be useful in some transition metals or lanthanides.
 
 .. warning::
