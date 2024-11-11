@@ -11,7 +11,7 @@ def test_scissors():
     h2.center(vacuum=3.0)
     d = 1.0
     h2.calc = GPAW(mode='lcao',
-                   basis='sz(dzp)',
+                   basis='sz(dzp)',#dzp',#(dzp)',
                    eigensolver={'name': 'scissors',
                                 'shifts': [(-d, d, 2)]},
                    txt=None)
