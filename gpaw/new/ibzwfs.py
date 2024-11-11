@@ -506,17 +506,23 @@ class IBZWaveFunctions(Generic[WFT]):
             assert spin != 1
             spin = 0
 
-        homo = -np.inf
-        lumo = np.inf
+        nocc = 0.0
         for wfs_s in self.wfs_qs:
             wfs = wfs_s[spin]
-            occupied = wfs.eig_n[wfs.occ_n > 0.5]
-            if len(occupied) > 0:
-                homo = max(homo, occupied[-1])
-            unoccupied = wfs.eig_n[wfs.occ_n < 0.5]
-            if len(unoccupied) > 0:
-                lumo = min(lumo, unoccupied[0])
+            nocc += wfs.occ_n.sum() * wfs.weight
+        nocc = self.kpt_comm.sum_scalar(nocc)
+        n = int(round(nocc))
+
+        homo = -np.inf
+        if n > 0:
+            for wfs_s in self.wfs_qs:
+                homo = max(homo, wfs_s[spin].eig_n[n - 1])
         homo = self.kpt_comm.max_scalar(homo)
+
+        lumo = np.inf
+        if n < self.nbands:
+            for wfs_s in self.wfs_qs:
+                lumo = min(lumo, wfs_s[spin].eig_n[n])
         lumo = self.kpt_comm.min_scalar(lumo)
 
         return np.array([homo, lumo])
