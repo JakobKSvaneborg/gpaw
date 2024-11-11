@@ -2,7 +2,7 @@ import pytest
 from ase import Atoms
 from ase.optimize import BFGS
 from gpaw.new.ase_interface import GPAW
-from gpaw.text.xc.test_qna_stress import numeric_stress
+from gpaw.test.xc.test_qna_stress import numeric_stress
 
 
 @pytest.mark.serial
