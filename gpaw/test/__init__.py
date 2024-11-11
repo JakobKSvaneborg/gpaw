@@ -84,7 +84,7 @@ def only_on_master(comm, broadcast=None):
 
 def calculate_numerical_forces(atoms, eps=1e-6, iatoms=None, icarts=None):
     try:
-        from ase.calculators.fd import calulate_numerical_forces as cnf
+        from ase.calculators.fd import calculate_numerical_forces as cnf
     except ImportError:
         pass
     else:

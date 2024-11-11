@@ -60,7 +60,7 @@ def test_pseudopotential_hgh_h2o():
     fdcheck = False
 
     if fdcheck:
-        from gpaw.test import calculate_numerical_forcess
+        from gpaw.test import calculate_numerical_forces
         F_ac_fd = calculate_numerical_forces(mol)
 
         print('Self-consistent forces')

@@ -22,7 +22,7 @@ def test_generic_H_force():
     atoms.calc = calc
     e1 = atoms.get_potential_energy()
     f1 = atoms.get_forces()[0]
-    f2 = calculate_numerical_forces(atoms, 0.001)
+    f2 = calculate_numerical_forces(atoms, 0.001)[0]
     print(f1, f2)
     assert f1 == pytest.approx(f2, abs=0.00025)
 

@@ -63,7 +63,7 @@ def test_fdsic(in_tmp_dir):
     numeric = False
     if numeric:
         from gpaw.test import calculate_numerical_forces
-        f_num = calculate_numerical_force(H2O, 0.001)
+        f_num = calculate_numerical_forces(H2O, 0.001)
         print('Numerical forces')
         print(f_num)
         print(f - f_num, np.abs(f - f_num).max())
