@@ -65,10 +65,9 @@ def test_generic_guc_force():
     fd = False
 
     if fd:
-        from ase.calculators.test import numeric_force
+        from gpaw.test import calculate_numerical_forces
         system.calc = calc.new(symmetry='off')
-        F_ac_fd = [[numeric_force(system, a, i) for i in range(3)]
-                   for a in range(2)]
+        F_ac_fd = calculate_numerical_forces(system, 0.001)
         print('Self-consistent forces')
         print(F_ac)
         print('FD')

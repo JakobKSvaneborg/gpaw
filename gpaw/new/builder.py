@@ -17,8 +17,8 @@ from gpaw.core.domain import Domain
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (MPIComm, Parallelization, serial_comm, synchronize_atoms,
-                      world)
+from gpaw.mpi import (broadcast, MPIComm, Parallelization, serial_comm,
+                      synchronize_atoms, world)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -318,14 +318,25 @@ class DFTComponentsBuilder:
             P_ani = AtomArrays(layout, dims=dims, comm=band_comm)
 
             if domain_comm.rank == 0:
-                P_nI = reader.wave_functions.proxy('projections', *index)
-                b1, b2 = P_ani.my_slice()  # my bands
-                data = P_nI[b1:b2].astype(ibzwfs.dtype)  # read from file
+                try:
+                    P_nI = reader.wave_functions.proxy('projections', *index)
+                except KeyError:
+                    data = None
+                else:
+                    b1, b2 = P_ani.my_slice()  # my bands
+                    data = P_nI[b1:b2].astype(ibzwfs.dtype)  # read from file
             else:
                 data = None
 
-            P_ani.scatter_from(data)  # distribute over atoms
-            wfs._P_ani = P_ani
+            have_projections = broadcast(
+                data is not None if domain_comm.rank == 0 else None,
+                comm=domain_comm)
+
+            if have_projections:
+                P_ani.scatter_from(data)  # distribute over atoms
+                wfs._P_ani = P_ani
+            else:
+                wfs._P_ani = None
 
         try:
             ibzwfs.fermi_levels = reader.wave_functions.fermi_levels / ha

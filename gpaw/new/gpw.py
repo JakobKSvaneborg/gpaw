@@ -30,7 +30,8 @@ def write_gpw(filename: str,
               atoms,
               params,
               dft: DFTCalculation,
-              skip_wfs: bool = True) -> None:
+              skip_wfs: bool = True,
+              include_projections=True) -> None:
 
     comm = dft.comm
 
@@ -62,7 +63,8 @@ def write_gpw(filename: str,
         dft.potential._write_gpw(writer.child('hamiltonian'),
                                  dft.ibzwfs)
         wf_writer = writer.child('wave_functions')
-        dft.ibzwfs.write(wf_writer, skip_wfs)
+        dft.ibzwfs.write(wf_writer, skip_wfs,
+                         include_projections=include_projections)
 
         if not skip_wfs and params.mode['name'] == 'pw':
             write_wave_function_indices(wf_writer,

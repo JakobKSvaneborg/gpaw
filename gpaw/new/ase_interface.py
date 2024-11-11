@@ -376,7 +376,7 @@ class ASECalculator:
     def check_state(self, atoms, tol=1e-12):
         return list(compare_atoms(self.atoms, atoms))
 
-    def write(self, filename, mode=''):
+    def write(self, filename, mode='', include_projections=True):
         """Write calculator object to a file.
 
         Parameters
@@ -390,7 +390,8 @@ class ASECalculator:
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
         write_gpw(filename, self.atoms, self.params,
-                  self.dft, skip_wfs=mode != 'all')
+                  self.dft, skip_wfs=mode != 'all',
+                  include_projections=include_projections)
 
     # Old API:
 

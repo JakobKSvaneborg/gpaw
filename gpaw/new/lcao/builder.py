@@ -109,6 +109,13 @@ def create_lcao_ibzwfs(basis,
                       dist=(band_comm, band_comm.size, 1))
         if coefficients is not None:
             C_nM.data[:] = coefficients.proxy(spin, k)
+        else:
+            # We set the first element to NaN as a hack so that the
+            # code can later tell that the data is not initialized.
+            # We could set /all/ the elements, but what we care about is
+            # only this piece of information.  Maybe we can find a better
+            # solution.
+            pass  # C_nM.data[:1, :1] = np.nan
         return LCAOWaveFunctions(
             setups=setups,
             tci_derivatives=tci_derivatives,

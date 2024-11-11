@@ -80,10 +80,8 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
     numeric = False
     if numeric:
         calc.observers = []
-        from ase.calculators.test import numeric_force
-        f_num = np.array([[numeric_force(atoms, a, i)
-                          for i in range(3)]
-                         for a in range(len(atoms))])
+        from gpaw.test import calculate_numerical_forces
+        f_num = calculate_numerical_forces(atoms, 0.001)
         print('Numerical forces')
         print(f_num)
         print(f - f_num, np.abs(f - f_num).max())
