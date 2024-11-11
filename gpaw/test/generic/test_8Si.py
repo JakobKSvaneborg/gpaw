@@ -1,5 +1,5 @@
 from ase import Atoms
-from ase.calculators.test import numeric_force
+from gpaw.test import calculate_numerical_forces
 from gpaw import GPAW, FermiDirac, PoissonSolver
 import pytest
 from gpaw.xc.tools import vxc
@@ -34,7 +34,7 @@ def test_generic_8Si():
     print(v_xc)
     niter1 = calc.get_number_of_iterations()
 
-    f2 = numeric_force(bulk, 0, 2)
+    f2 = calculate_numerical_forces(bulk, 0.001, [0], [2])[0, 0]
     print((f1, f2, f1 - f2))
     assert f1 == pytest.approx(f2, abs=0.005)
 
