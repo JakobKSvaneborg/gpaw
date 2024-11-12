@@ -28,6 +28,9 @@ Git master branch
   return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
   or **k**-point weights (use ``raw=True``).
 
+* Implementation of the multipole approximation (MPA) for the response
+  function in the GW self-energy [PRB 104, 115157 (2021)]
+
 * Experimental:
   Faster and less memory hungry Poisson-solver in PW-mode.  For details,
   see equations 25-28 in :doi:`P. E. Blöchl: Projector augmented-wave method
