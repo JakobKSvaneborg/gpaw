@@ -293,6 +293,10 @@ def scalapack_general_diagonalize_mr3(desca, a, b, z, w, uplo, iu=None):
                            info)
 
 
+def have_mkl():
+    return hasattr(cgpaw, 'mklscalapack_diagonalize_geev')
+
+
 def mkl_scalapack_diagonalize_non_symmetric(desca, a, z, w, transpose=True):
     """ Diagonalize non symmetric matrix.
 
