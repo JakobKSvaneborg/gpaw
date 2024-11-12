@@ -14,7 +14,6 @@
 #include <structmember.h>
 #include "extensions.h"
 #include "mympi.h"
-#include <mkl_scalapack.h>
 
 // BLACS
 #define BLOCK_CYCLIC_2D 1
@@ -677,24 +676,24 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
    char jobvl = 'N';
    char jobvr = 'V';
    char sense = 'N';
-   MKL_Complex16* a = (MKL_Complex16*) PyArray_BYTES(a_obj);
-   MKL_INT* desca = (MKL_INT*) PyArray_BYTES(desca_obj);
-   MKL_INT n = desca[2];
+   double_complex* a = (double_complex*) PyArray_BYTES(a_obj);
+   int* desca = (int*) PyArray_BYTES(desca_obj);
+   int n = desca[2];
 
-   MKL_Complex16* w = (MKL_Complex16*) PyArray_BYTES(eps_obj);
-   MKL_Complex16* vl = NULL;
-   MKL_INT descvl = 0;
-   MKL_Complex16* vr = (MKL_Complex16*) PyArray_BYTES(U_obj);;
-   MKL_INT* descvr = (MKL_INT*) PyArray_BYTES(desca_obj);
-   MKL_INT ilo = 1;
-   MKL_INT ihi = n;
+   double_complex* w = (double_complex*) PyArray_BYTES(eps_obj);
+   double_complex* vl = NULL;
+   int descvl = 0;
+   double_complex* vr = (double_complex*) PyArray_BYTES(U_obj);;
+   int* descvr = (int*) PyArray_BYTES(desca_obj);
+   int ilo = 1;
+   int ihi = n;
    double* scale = (double*) malloc( sizeof(double) * n);
    double abnrm = 0;
    double* rconde = (double*) malloc(sizeof(double) * n);
    double* rcondv = NULL;
    double_complex qwork;
-   MKL_INT lwork = -1;
-   MKL_INT info = 0;
+   int lwork = -1;
+   int info = 0;
 
    // First we query for optimal work array size
    pzgeevx(&balanc, 
@@ -720,7 +719,7 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
            &info);
 
    lwork = (int) qwork;
-   MKL_Complex16* work = (MKL_Complex16*) malloc(sizeof(MKL_Complex16) * lwork);
+   double_complex* work = (double_complex*) malloc(sizeof(double_complex) * lwork);
  
    // Then we diagonalize
    pzgeevx(&balanc, 
@@ -748,7 +747,6 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
   PyObject* returnvalue = Py_BuildValue("i", info);
   return returnvalue;
 }
-
 
 PyObject* scalapack_set(PyObject *self, PyObject *args)
 {
