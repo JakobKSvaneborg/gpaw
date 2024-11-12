@@ -662,6 +662,7 @@ PyObject* blacs_destroy(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+#ifdef GPAW_WITH_INTEL_MKL
 PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
 {
   PyArrayObject* a_obj; // matrix;
@@ -747,6 +748,7 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
   PyObject* returnvalue = Py_BuildValue("i", info);
   return returnvalue;
 }
+#endif
 
 PyObject* scalapack_set(PyObject *self, PyObject *args)
 {

@@ -85,7 +85,9 @@ PyObject* scalapack_set(PyObject *self, PyObject *args);
 PyObject* scalapack_redist(PyObject *self, PyObject *args);
 PyObject* scalapack_diagonalize_dc(PyObject *self, PyObject *args);
 PyObject* scalapack_diagonalize_ex(PyObject *self, PyObject *args);
+#ifdef GPAW_WITH_INTEL_MKL
 PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args);
+#endif
 #ifdef GPAW_MR3
 PyObject* scalapack_diagonalize_mr3(PyObject *self, PyObject *args);
 #endif
@@ -255,7 +257,9 @@ static PyMethodDef functions[] = {
     {"get_blacs_local_shape", get_blacs_local_shape, METH_VARARGS, NULL},
     {"blacs_destroy", blacs_destroy, METH_VARARGS, 0},
     {"scalapack_set", scalapack_set, METH_VARARGS, 0},
+#ifdef GPAW_WITH_INTEL_MKL
     {"mklscalapack_diagonalize_geev", mklscalapack_diagonalize_geev, METH_VARARGS, 0},
+#endif
     {"scalapack_redist", scalapack_redist, METH_VARARGS, 0},
     {"scalapack_diagonalize_dc", scalapack_diagonalize_dc, METH_VARARGS, 0},
     {"scalapack_diagonalize_ex", scalapack_diagonalize_ex, METH_VARARGS, 0},
