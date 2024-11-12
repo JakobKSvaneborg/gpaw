@@ -156,7 +156,10 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     reader = ulm.Reader(filename)
     bohr = reader.bohr
     ha = reader.ha
-    singlep = reader.precision == 'single'
+    try:
+        singlep = reader.precision == 'single'
+    except AttributeError:
+        singlep = False
 
     atoms = read_atoms(reader.atoms)
     kwargs = reader.parameters.asdict()
