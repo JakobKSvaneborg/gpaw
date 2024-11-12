@@ -292,9 +292,10 @@ def scalapack_general_diagonalize_mr3(desca, a, b, z, w, uplo, iu=None):
         raise RuntimeError('scalapack_general_diagonalize_mr3 error: %d' %
                            info)
 
+
 def mkl_scalapack_diagonalize_non_symmetric(desca, a, z, w, transpose=True):
     """ Diagonalize non symmetric matrix.
-    
+
     Requires mkl scalapack to function.
     Transpose is true by default (in order to match Fortran array ordering)
     Disable this if you want more control and reduced overhead.
@@ -303,7 +304,8 @@ def mkl_scalapack_diagonalize_non_symmetric(desca, a, z, w, transpose=True):
     desca.checkassert(z)
 
     assert desca.gshape[0] == desca.gshape[1]
-    assert all([bsize >= 6 for bsize in desca.bshape]), 'Block size must be >= 6'
+    assert all([bsize >= 6 for bsize in desca.bshape]), \
+        'Block size must be >= 6'
 
     if not desca.blacsgrid.is_active():
         return
@@ -318,8 +320,8 @@ def mkl_scalapack_diagonalize_non_symmetric(desca, a, z, w, transpose=True):
         z[:] = z2
 
     if info != 0:
-        raise RunetimeError('mkl_non_symmetric_diagonalize_geevx error: %d'
-                            % info)
+        raise RuntimeError('mkl_non_symmetric_diagonalize_geevx error: %d'
+                           % info)
 
 
 def scalapack_inverse_cholesky(desca, a, uplo):
