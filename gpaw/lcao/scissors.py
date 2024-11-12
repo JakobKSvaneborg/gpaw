@@ -87,15 +87,16 @@ class MyMatCalc:
         S_MM = wfs.S_MM.data
         assert abs(S_MM - S_MM.T.conj()).max() < 1e-10
 
+        # Find S^(1/2):
         e_N, U_MN = np.linalg.eigh(S_MM)
-        # S_MM U_MN = U_MN diag(e_N)
+        # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
+        Sh_MM = U_MN @ (e_N[np.newaxis]**0.5 * U_MN).T.conj()
 
         C_nM = wfs.C_nM.data
-        Sh_MM = U_MN @ (e_N[np.newaxis]**0.5 * U_MN).T.conj()
         A_nM = C_nM[:nocc].conj() @ Sh_MM
         R_MM = A_nM.conj().T @ A_nM
         l_N, V_MN = np.linalg.eigh(R_MM)
-        print(l_N)
+        #print(l_N)
         V_MN = Sh_MM @ V_MN
 
         M1 = 0

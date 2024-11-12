@@ -11,13 +11,17 @@ def test_scissors():
     h2.center(vacuum=3.0)
     d = 1.0
     h2.calc = GPAW(mode='lcao',
-                   basis='sz(dzp)',#dzp',#(dzp)',
+                   # basis='sz(dzp)'
+                   basis='dzp',
                    eigensolver={'name': 'scissors',
                                 'shifts': [(-d, d, 2)]},
                    txt=None)
     h2.get_potential_energy()
     eigs1 = h2.calc.get_eigenvalues()
+    print(eigs1)
     i, ii, iii, iv = eigs1
+    print(ii - i)
+    print(iv - iii)
     assert ii - i == pytest.approx(d, abs=0.01)
     assert iv - iii == pytest.approx(d, abs=0.01)
 
