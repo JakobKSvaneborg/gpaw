@@ -744,7 +744,8 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
            work,
            &lwork,
            &info);
- 
+
+  free(scale); free(rconde); free(work);
   PyObject* returnvalue = Py_BuildValue("i", info);
   return returnvalue;
 }
