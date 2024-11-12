@@ -681,8 +681,6 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
    MKL_INT* desca = (MKL_INT*) PyArray_BYTES(desca_obj);
    MKL_INT n = desca[2];
 
-   printf("Dimension of matrix %d\n", n);
-
    MKL_Complex16* w = (MKL_Complex16*) PyArray_BYTES(eps_obj);
    MKL_Complex16* vl = NULL;
    MKL_INT descvl = 0;
