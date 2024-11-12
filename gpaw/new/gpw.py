@@ -36,15 +36,10 @@ def as_double_precision(array):
     if array is None:
         return None
     assert array.dtype in [np.float32, np.complex64]
-    from ase.io.ulm import NDArrayReader
     if array.dtype == np.float32:
         dtype = np.float64
     else:
         dtype = complex
-    if isinstance(array, NDArrayReader):
-        new_array = np.asarray(array, dtype=dtype)
-        assert new_array.shape == array.shape
-        return new_array
     return array.astype(dtype)
 
 

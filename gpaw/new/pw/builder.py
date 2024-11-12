@@ -234,13 +234,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             data.scale = c
             data.length_of_last_dimension = pw.shape[-1]
 
-            if self.communicators['w'].size == 1:
+            if self.communicators['w'].size == 1 and not singlep:
                 orig_shape = data.shape
                 data.shape = shape + pw.shape
-                if singlep:
-                    wfs.psit_nX = pw.from_data(as_double_precision(data))
-                else:
-                    wfs.psit_nX = pw.from_data(data)
+                wfs.psit_nX = pw.from_data(data)
                 data.shape = orig_shape
             else:
                 band_comm = self.communicators['b']
