@@ -53,8 +53,10 @@ where the `\mu,\nu\in\Omega_i` blocks of
         S_{\mu'\nu}.
 
 
-Example: WS2 layer on top of MoS2 layer
-=======================================
+.. _scissors band structure:
+
+WS2 layer on top of MoS2 layer
+==============================
 
 Band structures for:
 
