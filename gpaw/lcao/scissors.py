@@ -87,28 +87,45 @@ class MyMatCalc:
         S_MM = wfs.S_MM.data
         assert abs(S_MM - S_MM.T.conj()).max() < 1e-10
 
-        # Find S^(1/2):
-        e_N, U_MN = np.linalg.eigh(S_MM)
-        # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
-        Sh_MM = U_MN @ (e_N[np.newaxis]**0.5 * U_MN).T.conj()
+        if 0:
+            # Find S^(1/2):
+            e_N, U_MN = np.linalg.eigh(S_MM)
+            # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
+            Sh_MM = U_MN @ (e_N[np.newaxis]**0.5 * U_MN).T.conj()
 
-        C_nM = wfs.C_nM.data
-        A_nM = C_nM[:nocc].conj() @ Sh_MM
-        R_MM = A_nM.conj().T @ A_nM
-        l_N, V_MN = np.linalg.eigh(R_MM)
-        #print(l_N)
-        V_MN = Sh_MM @ V_MN
+            C_nM = wfs.C_nM.data
+            A_nM = C_nM[:nocc].conj() @ Sh_MM
+            R_MM = A_nM.conj().T @ A_nM
+            l_N, V_MN = np.linalg.eigh(R_MM)
+            #print(l_N)
+            V_MN = Sh_MM @ V_MN
 
-        M1 = 0
-        a1 = 0
-        for homo, lumo, natoms in self.shifts:
-            a2 = a1 + natoms
-            M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
-            L_1N = (homo - lumo) * l_N[np.newaxis] + lumo
-            V_mN = V_MN[M1:M2]
-            H_MM.data[M1:M2, M1:M2] += V_mN @ (L_1N * V_mN).T.conj()
-            # W_MN = Sh_MM[:, M1:M2] @ V_MN[M1:M2]
-            # H_MM.data += W_MN @ (L_1N * W_MN).T.conj()
-            a1 = a2
-            M1 = M2
+            M1 = 0
+            a1 = 0
+            for homo, lumo, natoms in self.shifts:
+                a2 = a1 + natoms
+                M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
+                L_1N = (homo - lumo) * l_N[np.newaxis] + lumo
+                V_mN = V_MN[M1:M2]
+                H_MM.data[M1:M2, M1:M2] += V_mN @ (L_1N * V_mN).T.conj()
+                # W_MN = Sh_MM[:, M1:M2] @ V_MN[M1:M2]
+                # H_MM.data += W_MN @ (L_1N * W_MN).T.conj()
+                a1 = a2
+                M1 = M2
+        else:
+            C_nM = wfs.C_nM.data
+
+            M1 = 0
+            a1 = 0
+            for homo, lumo, natoms in self.shifts:
+                a2 = a1 + natoms
+                M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
+                V_mN = (S_MM @ C_nM.T)[M1:M2]
+                L_N = np.zeros(len(C_nM))
+                L_N[:nocc] = homo
+                L_N[nocc:] = lumo
+                L_1N = L_N[np.newaxis]
+                H_MM.data[M1:M2, M1:M2] += V_mN @ (L_1N * V_mN).T.conj()
+                a1 = a2
+                M1 = M2
         return H_MM
