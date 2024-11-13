@@ -55,6 +55,7 @@ if __name__ == '__main__':
         bs_calc = GPAW(f'mos2ws2-{i}.gpw')
         bp = bs_calc.atoms.cell.bandpath('GMKG', npoints=50)
         lines = plot(bs_calc.dft.ibzwfs, bp, ax)
-    fig.colorbar(lines)
+    cbar = fig.colorbar(lines)
+    cbar.set_ticks(ticks=[0, 1], labels=['W', 'Mo'])
     # plt.show()
     plt.savefig('mos2ws2.png')
