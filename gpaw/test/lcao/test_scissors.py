@@ -1,10 +1,11 @@
 import pytest
 from ase import Atoms
-from gpaw import GPAW
+from gpaw.new.ase_interface import GPAW
+from gpaw.lcao.scissors import non_self_consistent_scissors_shift as nsc_shift
 
 
 def test_scissors():
-    """Opend gap in one of two isolated H2 moleculs."""
+    """Opens gap in one of two isolated H2 moleculs."""
     h2 = Atoms('2H2', [[0, 0, 0], [0, 0, 0.74],
                        [4, 0, 0], [4, 0, 0.74]])
     h2.center(vacuum=3.0)
@@ -20,6 +21,14 @@ def test_scissors():
     assert ii - i == pytest.approx(d, abs=0.01)
     assert iv - iii == pytest.approx(d, abs=0.01)
 
-    # Check also fixed-density calculations:
-    eigs2 = h2.calc.fixed_density(kpts=[[0, 0, 0]]).get_eigenvalues()
+    # Non self-consistent:
+    eigs2 = nsc_shift([(-d, d, 2)], h2.calc.dft)[0, 0]
     assert eigs2 == pytest.approx(eigs1)
+
+    # Check also fixed-density calculations:
+    eigs3 = h2.calc.fixed_density(kpts=[[0, 0, 0]]).get_eigenvalues()
+    assert eigs3 == pytest.approx(eigs1)
+
+
+if __name__ == '__main__':
+    test_scissors()
