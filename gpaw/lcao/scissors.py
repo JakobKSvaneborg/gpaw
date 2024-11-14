@@ -9,6 +9,7 @@ from ase.units import Ha
 from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
+from gpaw.new.symmetry import Symmetries
 
 
 def non_self_consistent_scissors_shift(
@@ -31,7 +32,7 @@ def non_self_consistent_scissors_shift(
            (-0.5, 0.5, 3)],
           dft)
     """
-    check_symmetries(dft.ibzwfs.ibz.symmetries, shifts):
+    check_symmetries(dft.ibzwfs.ibz.symmetries, shifts)
     shifts = [(homo / Ha, lumo / Ha, natoms)
               for homo, lumo, natoms in shifts]
     matcalc = dft.scf_loop.hamiltonian.create_hamiltonian_matrix_calculator(
@@ -46,14 +47,19 @@ def non_self_consistent_scissors_shift(
     return np.array(eig_uM).reshape(shape) * Ha
 
 
-def check_symmetries(symmetries, shifts):
+def check_symmetries(symmetries: Symmetries,
+                     shifts: Sequence[tuple[float, float, int]]) -> None:
     """Make sure shifts don't break any symmetries.
 
-    >>> from gpaw.new.symmetry import create_symmetries
+    >>> from gpaw.new.symmetry import create_symmetries_object
     >>> from ase import Atoms
     >>> atoms = Atoms('HH', [(0, 0, 1), (0, 0, -1)], cell=[3, 3, 3])
-    >>> sym = create_symmetries(atoms)
+    >>> sym = create_symmetries_object(atoms)
     >>> check_symmetries(sym, [(1.0, 1.0, 1)])
+    Traceback (most recent call last):
+        ...
+    ValueError: A symmetry maps atom 0 onto atom 1,
+    but those atoms have different scissors shifts
     """
     b_sa = symmetries.a_sa
     shift_a = []
@@ -62,7 +68,10 @@ def check_symmetries(symmetries, shifts):
     shift_a += [(0.0, 0.0)] * (b_sa.shape[1] - len(shift_a))
     for b_a in b_sa:
         for a, b in enumerate(b_a):
-            assert shift_a[a] == shift_a[b]
+            if shift_a[a] != shift_a[b]:
+                raise ValueError(f'A symmetry maps atom {a} onto atom {b},\n'
+                                 'but those atoms have different '
+                                 'scissors shifts')
 
 
 class ScissorsLCAOEigensolver(LCAOEigensolver):
