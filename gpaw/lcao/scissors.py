@@ -31,6 +31,7 @@ def non_self_consistent_scissors_shift(
            (-0.5, 0.5, 3)],
           dft)
     """
+    check_symmetries(dft.ibzwfs.ibz.symmetries, shifts):
     shifts = [(homo / Ha, lumo / Ha, natoms)
               for homo, lumo, natoms in shifts]
     matcalc = dft.scf_loop.hamiltonian.create_hamiltonian_matrix_calculator(
@@ -45,10 +46,30 @@ def non_self_consistent_scissors_shift(
     return np.array(eig_uM).reshape(shape) * Ha
 
 
+def check_symmetries(symmetries, shifts):
+    """Make sure shifts don't break any symmetries.
+
+    >>> from gpaw.new.symmetry import create_symmetries
+    >>> from ase import Atoms
+    >>> atoms = Atoms('HH', [(0, 0, 1), (0, 0, -1)], cell=[3, 3, 3])
+    >>> sym = create_symmetries(atoms)
+    >>> check_symmetries(sym, [(1.0, 1.0, 1)])
+    """
+    b_sa = symmetries.a_sa
+    shift_a = []
+    for ho, lu, natoms in shifts:
+        shift_a += [(ho, lu)] * natoms
+    shift_a += [(0.0, 0.0)] * (b_sa.shape[1] - len(shift_a))
+    for b_a in b_sa:
+        for a, b in enumerate(b_a):
+            assert shift_a[a] == shift_a[b]
+
+
 class ScissorsLCAOEigensolver(LCAOEigensolver):
     def __init__(self,
                  basis,
-                 shifts: Sequence[tuple[float, float, int]]):
+                 shifts: Sequence[tuple[float, float, int]],
+                 symmetries):
         """Scissors-operator eigensolver."""
         super().__init__(basis)
         self.shifts = []
