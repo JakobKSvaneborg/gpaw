@@ -14,6 +14,7 @@ from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
+from gpaw.spline import Spline
 
 if TYPE_CHECKING:
     from gpaw.core.plane_waves import PWDesc
@@ -143,7 +144,7 @@ class PWLFC(BaseLFC):
         self.I_J = np.empty(nJ, np.int32)
         # Fourier transform radial functions:
         J = 0
-        done = set()  # Set[Spline]
+        done: set[Spline] = set()
         I = 0
         for a, spline_j in enumerate(self.spline_aj):
             for spline in spline_j:
