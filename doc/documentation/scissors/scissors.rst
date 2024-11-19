@@ -20,37 +20,32 @@ where `\Delta H` is a scissors operator.
 
 Space is divided into regions `\Omega_i` and for each region we define desired
 shifts of the occupied and unoccupied bands: `\Delta_{i,\text{occ}}` and
-`\Delta_{i,\text{unocc}}`.  The scissors operator is given as:
+`\Delta_{i,\text{unocc}}`.
+
+For each region, we diagonalize the density-matrix
 
 .. math::
 
-    \Delta H = \sum_i(\Delta H^{i,\text{occ}}+\Delta H^{i,\text{unocc}}),
+  \rho_{\mu\nu} =
+  \sum_n C_{\mu n} f_n C_{\nu n}^*
 
-where the `\mu,\nu\in\Omega_i` blocks of
-`\Delta H^{i,\text{occ}}_{\mu\nu}` and
-`\Delta H^{i,\text{unocc}}_{\mu\nu}` are given by:
-
-.. math::
-
-    \Delta H_{\mu\nu}^{i,\text{occ}} =
-        \Delta_{i,\text{occ}}
-        \sum_n^{\text{occ}}
-        \sum_{\mu'\nu'}
-        S_{\mu\nu'}^*
-        C_{\nu'n}
-        C_{\mu'n}^*
-        S_{\mu'\nu},
+in the orbitals belonging to `\Omega_i`:
 
 .. math::
 
-    \Delta H_{\mu\nu}^{i,\text{unocc}} =
-        \Delta_{i,\text{unocc}}
-        \sum_n^{\text{unocc}}
-        \sum_{\mu'\nu'}
-        S_{\mu\nu'}^*
-        C_{\nu'n}
-        C_{\mu'n}^*
-        S_{\mu'\nu}.
+   \sum_{\nu\in i}(S^{1/2}\rho S^{1/2})_{\mu\nu} V^i_{\nu\alpha} =
+   \lambda^i_\alpha V^i_{\mu\alpha}.
+
+Here, the eigenvalues `\lambda_\alpha` will be close to either zero or one and
+the scissors operator is now given as:
+
+.. math::
+
+    \Delta H = \sum_i \sum_{\mu'\in i,\nu'\in i} \sum_\alpha
+    S^{1/2}_{\mu\mu'} V^i_{\mu'\alpha}
+    (\lambda^i_\alpha \Delta^i_{\text{occ}} +
+     (1 - \lambda^i_\alpha) \Delta^i_{\text{unocc}})
+    V^{i*}_{\nu'\alpha} S^{1/2*}_{\nu'\nu}.
 
 
 .. _scissors band structure:
