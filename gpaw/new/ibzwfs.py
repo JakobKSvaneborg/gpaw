@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Generator, Generic, TypeVar, TYPE_CHECKING
+from typing import Generator, Generic, TypeVar, TYPE_CHECKING, Callable
 
 import numpy as np
 from ase.io.ulm import Writer
@@ -66,6 +66,8 @@ class IBZWaveFunctions(Generic[WFT]):
         if self.xp is not np:
             if not GPU_AWARE_MPI:
                 self.kpt_comm = CuPyMPI(self.kpt_comm)  # type: ignore
+
+        self.move_wave_functions: Callable[..., None] = lambda *args: None
 
         self.read_from_file_init_wfs_dm = False
 
@@ -169,8 +171,9 @@ class IBZWaveFunctions(Generic[WFT]):
     def move(self, fracpos_ac, atomdist):
         self.ibz.symmetries.check_positions(fracpos_ac)
         self.energies.clear()
+        self.make_sure_wfs_are_read_from_gpw_file()
         for wfs in self:
-            wfs.move(fracpos_ac, atomdist)
+            wfs.move(fracpos_ac, atomdist, self.move_wave_functions)
 
     def orthonormalize(self, work_array_nX: np.ndarray = None):
         for wfs in self:
@@ -309,7 +312,7 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def forces(self, potential: Potential) -> Array2D:
         self.make_sure_wfs_are_read_from_gpw_file()
-        F_av = self.xp.zeros((potential.dH_asii.natoms, 3))
+        F_av = self.xp.zeros((len(potential.dH_asii), 3))
         for wfs in self:
             wfs.force_contribution(potential, F_av)
         if self.xp is not np:
@@ -319,7 +322,8 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def write(self,
               writer: Writer,
-              skip_wfs: bool) -> None:
+              skip_wfs: bool,
+              include_projections=True) -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
 
         ... k-points, symmetry information, projections and possibly
@@ -355,24 +359,25 @@ class IBZWaveFunctions(Generic[WFT]):
             spin_k_shape = (len(ibz),)
             proj_shape = (self.nbands, 2, nproj)
 
-        writer.add_array('projections', spin_k_shape + proj_shape, self.dtype)
-
-        for spin in range(self.nspins):
-            for k, rank in enumerate(self.rank_k):
-                if rank == self.kpt_comm.rank:
-                    wfs = self.wfs_qs[self.q_k[k]][spin]
-                    P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
-                    if P_ani is not None:
-                        P_nI = P_ani.matrix.gather()  # gather bands
-                        if P_nI.dist.comm.rank == 0:
-                            if rank == 0:
-                                writer.fill(P_nI.data.reshape(proj_shape))
-                            else:
-                                self.kpt_comm.send(P_nI.data, 0)
-                elif self.comm.rank == 0:
-                    data = np.empty(proj_shape, self.dtype)
-                    self.kpt_comm.receive(data, rank)
-                    writer.fill(data)
+        if include_projections:
+            writer.add_array('projections', spin_k_shape + proj_shape,
+                             self.dtype)
+            for spin in range(self.nspins):
+                for k, rank in enumerate(self.rank_k):
+                    if rank == self.kpt_comm.rank:
+                        wfs = self.wfs_qs[self.q_k[k]][spin]
+                        P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
+                        if P_ani is not None:
+                            P_nI = P_ani.matrix.gather()  # gather bands
+                            if P_nI.dist.comm.rank == 0:
+                                if rank == 0:
+                                    writer.fill(P_nI.data.reshape(proj_shape))
+                                else:
+                                    self.kpt_comm.send(P_nI.data, 0)
+                    elif self.comm.rank == 0:
+                        data = np.empty(proj_shape, self.dtype)
+                        self.kpt_comm.receive(data, rank)
+                        writer.fill(data)
 
         if not skip_wfs:
             self._write_wave_functions(writer, spin_k_shape)
