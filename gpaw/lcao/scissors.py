@@ -45,7 +45,7 @@ def non_self_consistent_scissors_shift(
     matcalc = dft.scf_loop.hamiltonian.create_hamiltonian_matrix_calculator(
         dft.potential)
     matcalc = MyMatCalc(matcalc, shifts)
-    eig_skn = np.zeros((ibzwfs.nspins, len(ibzwfs), ibzwfs.nbands))
+    eig_skn = np.zeros((ibzwfs.nspins, len(ibzwfs.ibz), ibzwfs.nbands))
     for wfs in ibzwfs:
         H_MM = matcalc.calculate_matrix(wfs)
         eig_M = H_MM.eighg(wfs.L_MM, wfs.domain_comm)

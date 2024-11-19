@@ -310,11 +310,14 @@ class FakeDensity:
         self.setups = dft.setups
         self.D_asii = dft.density.D_asii
         self.atom_partition = dft._atom_partition
-        self.interpolate = dft.pot_calc._interpolate_density
+        try:
+            self.interpolate = dft.pot_calc._interpolate_density
+            self.finegd = dft.pot_calc.fine_grid._gd
+        except AttributeError:
+            pass
         self.nt_sR = dft.density.nt_sR
         self.nt_sG = self.nt_sR.data
         self.gd = self.nt_sR.desc._gd
-        self.finegd = dft.pot_calc.fine_grid._gd
         self._densities = dft.densities()
         self.ncomponents = len(self.nt_sG)
         self.nspins = self.ncomponents % 3
@@ -348,7 +351,10 @@ class FakeHamiltonian:
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
-        self.finegd = self.pot_calc.fine_grid._gd
+        try:
+            self.finegd = self.pot_calc.fine_grid._gd
+        except AttributeError:
+            pass
         self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
         self.e_xc = potential.energies['xc']

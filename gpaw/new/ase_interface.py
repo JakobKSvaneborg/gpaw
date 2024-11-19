@@ -680,7 +680,8 @@ class ASECalculator:
             builder.setups,
             scf_loop,
             SimpleNamespace(fracpos_ac=self.dft.fracpos_ac,
-                            poisson_solver=None),
+                            poisson_solver=None,
+                            xc=self.dft.pot_calc.xc),
             log)
 
         dft.converge()

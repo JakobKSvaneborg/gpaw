@@ -34,14 +34,14 @@ in the orbitals belonging to `\Omega_i`:
 .. math::
 
    \sum_{\nu\in i}(S^{1/2}\rho S^{1/2})_{\mu\nu} V^i_{\nu\alpha} =
-   \lambda^i_\alpha V^i_{\mu\alpha}.
+   \lambda^i_\alpha V^i_{\mu\alpha} \text{for} \mu\in i.
 
 Here, the eigenvalues `\lambda_\alpha` will be close to either zero or one and
 the scissors operator is now given as:
 
 .. math::
 
-    \Delta H = \sum_i \sum_{\mu'\in i,\nu'\in i} \sum_\alpha
+    \Delta H_{\mu\nu} = \sum_i \sum_{\mu'\in i,\nu'\in i} \sum_\alpha
     S^{1/2}_{\mu\mu'} V^i_{\mu'\alpha}
     (\lambda^i_\alpha \Delta^i_{\text{occ}} +
      (1 - \lambda^i_\alpha) \Delta^i_{\text{unocc}})
