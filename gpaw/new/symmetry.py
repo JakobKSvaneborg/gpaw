@@ -4,6 +4,90 @@ from gpaw.new import zips
 from gpaw.new.brillouin import IBZ, BZPoints
 from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
+from gpaw.typing import ArrayLike3D, ArrayLike2D
+
+
+"""
+cell
+pbc
+pos
+tol
+
+ids
+symmorph
+pg
+
+rot
+trans
+amap
+
+    def __init__(self, id_a, cell_cv, pbc_c=np.ones(3, bool), tolerance=1e-7,
+                 point_group=True, time_reversal=True, symmorphic=True,
+                 allow_invert_aperiodic_axes=True):
+"""
+
+
+class NewSymmetries:
+    def __init__(self,
+                 rotations: ArrayLike3D,
+                 translations: ArrayLike2D | None = None,
+                 atommaps: ArrayLike2D | None = None):
+        self.rotation_scc = np.array(rotations, dtype=int)
+        assert (self.rotation_scc == rotation).all()
+        if translations is None:
+            self.tranlation_sc = np.zeros(len(rotations), 3)
+        else:
+            self.tranlation_sc = np.array(translations)
+        if atommaps is None:
+            self.atommap_sa = np.empty((len(rotations), 0), int)
+        else:
+            self.atommap_sa = np.array(atommaps)
+            assert self.atommap_sa.dtype == int
+
+    @classmethod
+    def from_cell(cls,
+                  cell,
+                  *,
+                  pbc: ArrayLike1D = (True, True, True),
+                  tolerance: float = 1e-7):
+        ...
+
+    def new_with_positions(self,
+                           positions: ArrayLike2D | None = None,
+                           *,
+                           ids: ArrayLike1D | None = None,
+                           symmorphic: bool = True,
+                           tolerance: float = 1e-7):
+        ...
+
+    def from_atoms(atoms,
+                   *,
+                   ids: ArrayLike1D | None = None,
+                   symmorphic: bool = True,
+                   tolerance: float = 1e-7):
+        sym = Symmetries.from_cell(atoms.cell,
+                                   pbc=atoms.pbc,
+                                   tolerance=tolerance)
+        if ids is None:
+            ids = atoms.numbers
+        else:
+            ids = [...]
+        return sym.with_positions(atoms.positions,
+                                  ids=ids,
+                                  symmorphic=symmorphic,
+                                  tolerance=tolerance)
+
+
+def create_symmetries_object(atoms, ids=None, magmoms=None, parameters=None):
+    ids = ids or [()] * len(atoms)
+    if magmoms is not None:
+        ids = [id + (m,) for id, m in zips(ids, safe_id(magmoms))]
+    symmetry = OldSymmetry(ids,
+                           atoms.cell.complete(),
+                           atoms.pbc,
+                           **(parameters or {}))
+    symmetry.analyze(atoms.get_scaled_positions())
+    return Symmetries(symmetry)
 
 
 def safe_id(magmom_av, tolerance=1e-3):
@@ -103,18 +187,6 @@ class SymmetrizationPlan:
                 total += len(ind)
                 target[spin, ind] = self.S_aZZ[a] @ source[spin, ind]
         assert total / len(source) == source.shape[1]
-
-
-def create_symmetries_object(atoms, ids=None, magmoms=None, parameters=None):
-    ids = ids or [()] * len(atoms)
-    if magmoms is not None:
-        ids = [id + (m,) for id, m in zips(ids, safe_id(magmoms))]
-    symmetry = OldSymmetry(ids,
-                           atoms.cell.complete(),
-                           atoms.pbc,
-                           **(parameters or {}))
-    symmetry.analyze(atoms.get_scaled_positions())
-    return Symmetries(symmetry)
 
 
 def mat(rot_cc) -> str:
