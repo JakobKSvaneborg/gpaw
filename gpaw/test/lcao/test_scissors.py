@@ -22,8 +22,6 @@ def test_scissors():
     i, ii, iii, iv = eigs1
     assert ii - i == pytest.approx(d, abs=0.01)
     assert iv - iii == pytest.approx(d, abs=0.01)
-    e = soc_eigenstates(h2.calc).eigenvalues()
-    print(e)
 
     # Non self-consistent:
     eigs2 = nsc_shift([(-d, d, 2)], h2.calc.dft)[0, 0]
@@ -34,8 +32,10 @@ def test_scissors():
     eigs3 = calc.get_eigenvalues()
     assert eigs3 == pytest.approx(eigs1)
 
-    e = soc_eigenstates(calc).eigenvalues()
-    print(e)
+    # SOC corrections:
+    eigs4 = soc_eigenstates(calc).eigenvalues()[0]
+    assert eigs4[::2] == pytest.approx(eigs1)
+    assert eigs4[1::2] == pytest.approx(eigs1)
 
 
 if __name__ == '__main__':

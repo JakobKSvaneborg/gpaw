@@ -19,8 +19,8 @@ In :ref:`lcao` we solve the following generalized eigenvalue problem:
 where `\Delta H` is a scissors operator.
 
 Space is divided into regions `\Omega_i` and for each region we define desired
-shifts of the occupied and unoccupied bands: `\Delta_{i,\text{occ}}` and
-`\Delta_{i,\text{unocc}}`.
+shifts of the occupied and unoccupied bands: `\Delta^i_{\text{occ}}` and
+`\Delta^i_{\text{unocc}}`.
 
 For each region, we diagonalize the density-matrix
 
@@ -34,9 +34,9 @@ in the orbitals belonging to `\Omega_i`:
 .. math::
 
    \sum_{\nu\in i}(S^{1/2}\rho S^{1/2})_{\mu\nu} V^i_{\nu\alpha} =
-   \lambda^i_\alpha V^i_{\mu\alpha} \text{for} \mu\in i.
+   \lambda^i_\alpha V^i_{\mu\alpha}.
 
-Here, the eigenvalues `\lambda_\alpha` will be close to either zero or one and
+Here, the eigenvalues `\lambda^i_\alpha` will be close to either zero or one and
 the scissors operator is now given as:
 
 .. math::
