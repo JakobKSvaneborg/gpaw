@@ -70,7 +70,7 @@ def expm_ed_unit_inv(a_upp_r, oo_vo_blockonly=False):
         u_ov = psin @ a_upp_r
         dim_v = a_upp_r.shape[1]
 
-        pcos = matrix_function((np.cos(sqrt_eval) - 1)/ eigval, evec)
+        pcos = matrix_function((np.cos(sqrt_eval) - 1) / eigval, evec)
         u_vv = np.eye(dim_v) + a_upp_r.T.conj() @ pcos @ a_upp_r
         u = np.vstack([
             np.hstack([u_oo, u_ov]),
