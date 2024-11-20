@@ -8,11 +8,10 @@ from gpaw import GPAW, Davidson, MixerSum
 # which compensates for discontinuity of phases is probably broken.
 
 
-# @pytest.mark.old_gpaw_only
 @pytest.mark.parametrize(
     'params',
-    [dict(mode='pw', eigensolver=Davidson(3),
-          experimental={'reuse_wfs_method': 'paw'}),
+    [dict(mode='pw',
+          eigensolver=Davidson(3)),
      dict(mode='pw',
           eigensolver=Davidson(3),
           parallel={'gpu': True}),
@@ -49,6 +48,6 @@ def test_generic_move_across_cell(gpaw_new, params):
     # We should be within the convergence criterion.
     # It runs a minimum of three iterations:
     if gpaw_new:
-        assert calc.dft.scf_loop.niter == 3
+        assert calc.dft.scf_loop.niter == 2
     else:
         assert calc.scf.niter == 3

@@ -55,7 +55,7 @@ keyword             type               default value       description
 =================== ================== =================== ==================================================================
 
 In addition to the usual kpoint and plane wave cutoff, the RPA correlation energy needs to be converged with respect to a plane wave cutoff in the response function (set by ecut) and the frequency integration. As it turns out, the integrand is usually  rather smooth and one can perform the integration with 8-16 (special!) Gauss-Legendre frequency points, but see the tutorial :ref:`rpa_tut` for an example of converging the frequency integration.
-        
+
 Convergence
 ===========
 
@@ -68,7 +68,7 @@ A major complication with the RPA correlation energy is that it converges very s
 where `E^{\chi}_{cut}` is cutoff energy used in the evaluation of `\chi^0`. With an external potential, the number of unoccupied bands is an additional convergence parameter, but for reproducing the scaling of the Lindhard function, it is natural to set the total number of bands equal to the number of plane waves used. Thus, to obtain a converged RPA correlation energy one should proceed in three steps.
 
 * Perform a ground state calculation with a lot of converged unoccupied bands.
-  
+
 * Define a list of cutoff energies - typically something like [200, 225, 250, 275, 300] (eV). For each cutoff energy perform an RPA correlation energy calculation with the number bands `n` set equal to the number of plane waves defined by that cutoff energy.
 
 * Fit the list of obtained correlation energies to `E_c^{RPA}(E) = E_c^{\infty}+A/E^{3/2}` to obtain `E_c^{\infty}=E_c^{RPA}`.
@@ -77,6 +77,3 @@ Per default, the rpa module defines a list of five cutoff energies up to the spe
 
 .. [#Harl1] J. Harl and G. Kresse,
             *Phys. Rev. B* **77**, 045136 (2008)
-
-.. [#Harl2] J. Harl and L. Schimka and G. Kresse,
-            *Phys. Rev. B* **81**, 115126 (2010)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import partial
 from math import pi
-from typing import Optional
+from typing import Optional, Callable
 
 import numpy as np
 from gpaw.core.arrays import DistributedArrays as XArray
@@ -124,13 +124,23 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         if self._P_ani is None:
             self._P_ani = self.pt_aiX.empty(self.psit_nX.dims,
                                             self.psit_nX.comm)
+            if self.psit_nX.data is None:
+                raise RuntimeError('There are no projections or wavefunctions')
             self.pt_aiX.integrate(self.psit_nX, self._P_ani)
         return self._P_ani
 
     def move(self,
              fracpos_ac: Array2D,
-             atomdist: AtomDistribution) -> None:
-        super().move(fracpos_ac, atomdist)
+             atomdist: AtomDistribution,
+             move_wave_functions: Callable[..., None]) -> None:
+        if self.psit_nX.data is not None:
+            move_wave_functions(
+                self.fracpos_ac,
+                fracpos_ac,
+                self.P_ani,
+                self.psit_nX,
+                self.setups)
+        super().move(fracpos_ac, atomdist, move_wave_functions)
         self.orthonormalized = False
         assert self.pt_aiX is not None
         self.pt_aiX.move(fracpos_ac, atomdist)

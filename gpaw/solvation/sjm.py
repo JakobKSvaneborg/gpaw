@@ -475,7 +475,7 @@ class SJM(SolvationGPAW):
                                          p.slope_regression_depth)
                 nreg = len(previous_electrons[-p.slope_regression_depth:])
                 self.log(f'Slope regressed from last {nreg:d} attempts is '
-                         '{slope:.4f} V/electron,')
+                         f'{slope:.4f} V/electron,')
                 area = np.prod(np.diag(atoms.cell[:2, :2]))
                 capacitance = -1.6022 * 1e3 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
