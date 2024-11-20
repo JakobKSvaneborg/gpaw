@@ -61,11 +61,8 @@ def expm_ed_unit_inv(a_upp_r, oo_vo_blockonly=False):
     eigval[eigval.real < 1.0e-13] = 1.0e-13
     sqrt_eval = np.sqrt(eigval)
 
-    sin_sqrt_p = matrix_function(sqrt_eval, evec, np.sin)
     cos_sqrt_p = matrix_function(sqrt_eval, evec, np.cos)
-    sqrt_inv_p = matrix_function(1.0 / sqrt_eval, evec)
-
-    psin = sqrt_inv_p @ sin_sqrt_p
+    psin = matrix_function(sqrt_eval / np.pi, evec, np.sinc)
     u_oo = cos_sqrt_p
     u_vo = - a_upp_r.T.conj() @ psin
 
