@@ -97,7 +97,7 @@ class ElectrostaticPotential:
             Width of gaussian (in Angstrom) used to represent the nuclear
             charge.
         """
-        vHt_R = self._pseudo_potential(grid_spacing / Bohr)
+        vHt_R = self._pseudo_potential(grid_spacing / Bohr).copy()
 
         dv_a = []
         for a, D_sii in self.D_asii.items():
