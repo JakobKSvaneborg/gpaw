@@ -1412,7 +1412,9 @@ class Setups(list):
         return domain.atom_centered_functions(
             spline_aj, positions,
             atomdist=atomdist,
-            integrals=[setup.Nct for setup in self],
+            # 0.0 will skip normalization:
+            integrals=[setup.Nct if abs(setup.Nct) > 1e-12 else 0.0
+                       for setup in self],
             cut=True, xp=xp)
 
     def create_pseudo_core_ked(self,

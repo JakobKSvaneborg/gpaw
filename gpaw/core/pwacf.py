@@ -105,13 +105,14 @@ class PWLFC:  # (BaseLFC)
         self.initialized = False
 
         # These will be filled in later:
-        self.Y_GL = None
+        self.Y_GL = np.zeros((0, 0))
         self.emiGR_Ga = None
-        self.f_Gs = None
+        self.f_Gs: np.ndarray = np.zeros((0, 0))
         self.l_s: np.ndarray | None = None
-        self.a_J = None
-        self.s_J = None
-        self.lmax = None
+        self.a_J: np.ndarray | None = None
+        self.s_J: np.ndarray | None = None
+        self.I_J: np.ndarray | None = None
+        self.lmax = -1
 
         if blocksize is not None:
             if pw.maxmysize <= blocksize:
