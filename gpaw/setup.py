@@ -1452,10 +1452,14 @@ class Setups(list):
 
     def create_compensation_charges(self, domain, positions, atomdist,
                                     xp=np):
+        if self.backwards_compatible and hasattr(domain, 'ecut'):
+            integral = None
+        else:
+            integral = sqrt(4 * pi)
         return domain.atom_centered_functions(
             [setup.ghat_l for setup in self], positions,
             atomdist=atomdist,
-            integrals=sqrt(4 * pi),
+            integrals=integral,
             xp=xp)
 
     def get_overlap_corrections(self, atomdist, xp):
