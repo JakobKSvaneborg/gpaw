@@ -474,7 +474,8 @@ class RadialGridDescriptor(ABC):
     def ceil(self, r):
         return np.ceil(self.r2g(r)).astype(int)
 
-    def spline(self, a_g, rcut=None, l=0, points=None, normalize=False):
+    def spline(self, a_g, rcut=None, l=0, points=None,
+               backwards_compatible=True):
         """Create spline representation of a radial function f(r).
 
         The spline represents a rescaled version of the function, f(r) / r^l.
@@ -496,7 +497,7 @@ class RadialGridDescriptor(ABC):
 
         # Interpolate to a uniform radial grid (for the spline representation)
         r_i = np.linspace(0, rcut, points + 1)
-        if 1:
+        if not backwards_compatible:
             from scipy.interpolate import CubicSpline
             b_i = CubicSpline(self.r_g[:N], b_g, bc_type='clamped')(r_i)
         else:
@@ -511,11 +512,6 @@ class RadialGridDescriptor(ABC):
             b2_i = b_g[g_i]
             b3_i = b_g[g_i + 1]
             b_i = b1_i * x1_i + b2_i * x2_i + b3_i * x3_i
-
-        if normalize:
-            I = self.integrate(a_g)
-            if I:
-                b_i *= I / (r_i**2 @ b_i * r_i[1] * 4 * pi)
 
         return Spline.from_data(l, rcut, b_i)
 
