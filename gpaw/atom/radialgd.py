@@ -498,7 +498,7 @@ class RadialGridDescriptor(ABC):
         r_i = np.linspace(0, rcut, points + 1)
         if 1:
             from scipy.interpolate import CubicSpline
-            b_i = CubicSpline(self.r_g, b_g, bc_type='clamped')(r_i)
+            b_i = CubicSpline(self.r_g[:N], b_g, bc_type='clamped')(r_i)
         else:
             g_i = np.clip((self.r2g(r_i) + 0.5).astype(int), 1, N - 2)
             r1_i = self.r_g[g_i - 1]

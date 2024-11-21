@@ -1166,9 +1166,7 @@ class Setup(BaseSetup):
 
     def construct_core_densities(self, setupdata):
         rcore = self.data.find_core_density_cutoff(setupdata.nc_g)
-        nct = self.rgd.spline(setupdata.nct_g, rcore,
-                              # points=2**10,
-                              )#normalize=True)
+        nct = self.rgd.spline(setupdata.nct_g, rcore, points=256)
         return rcore, setupdata.nc_g, setupdata.nct_g, nct
 
     def create_basis_functions(self, phit_jg, rcut2, gcut2):

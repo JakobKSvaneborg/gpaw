@@ -84,7 +84,7 @@ class PWLFC:  # (BaseLFC)
                  *,
                  xp,
                  integrals: ArrayLike1D | float | None = None,
-                 blocksize: int = 5000):
+                 blocksize: int | None = 5000):
         """Reciprocal-space plane-wave localized function collection.
 
         spline_aj: list of list of spline objects
@@ -108,7 +108,7 @@ class PWLFC:  # (BaseLFC)
         self.Y_GL = None
         self.emiGR_Ga = None
         self.f_Gs = None
-        self.l_s = None
+        self.l_s: np.ndarray | None = None
         self.a_J = None
         self.s_J = None
         self.lmax = None
@@ -128,23 +128,21 @@ class PWLFC:  # (BaseLFC)
 
         self.comm = pw.comm
 
-        self.integral_a: list[float | None]
         if isinstance(integrals, float):
-            self.integral_a = [integrals] * len(functions)
+            self.integral_a = np.zeros(len(functions)) + integrals
         elif integrals is None:
-            self.integral_a = [None] * len(functions)
+            self.integral_a = np.zeros(len(functions))
         else:
-            self.integral_a = [i if abs(i) > 1e-10 else None
-                               for i in integrals]
+            self.integral_a = np.array(integrals)
 
-    def initialize(self):
+    def initialize(self) -> None:
         """Initialize position-independent stuff."""
         if self.initialized:
             return
 
         xp = self.xp
 
-        splines = {}  # Dict[Spline, int]
+        splines: dict[Spline, int] = {}
         for spline_j in self.spline_aj:
             for spline in spline_j:
                 if spline not in splines:
@@ -172,7 +170,7 @@ class PWLFC:  # (BaseLFC)
                     l = spline.get_angular_momentum_number()
                     self.l_s[s] = l
                     integral = self.integral_a[a]
-                    if l == 0 and integral is not None:
+                    if l == 0 and integral != 0.0:
                         x = integral / self.f_Gs[0, s] * (4 * pi)**0.5
                         self.f_Gs[:, s] *= x
                     done.add(spline)
