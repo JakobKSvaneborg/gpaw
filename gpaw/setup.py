@@ -1168,7 +1168,7 @@ class Setup(BaseSetup):
         rcore = self.data.find_core_density_cutoff(setupdata.nc_g)
         nct = self.rgd.spline(setupdata.nct_g, rcore,
                               # points=2**10,
-                              normalize=True)
+                              )#normalize=True)
         return rcore, setupdata.nc_g, setupdata.nct_g, nct
 
     def create_basis_functions(self, phit_jg, rcut2, gcut2):
@@ -1414,7 +1414,7 @@ class Setups(list):
         return domain.atom_centered_functions(
             spline_aj, positions,
             atomdist=atomdist,
-            integral=[setup.Nct for setup in self],
+            integrals=[setup.Nct for setup in self],
             cut=True, xp=xp)
 
     def create_pseudo_core_ked(self,
@@ -1439,7 +1439,7 @@ class Setups(list):
         return domain.atom_centered_functions(
             [setup.ghat_l for setup in self], positions,
             atomdist=atomdist,
-            integral=sqrt(4 * pi),
+            integrals=sqrt(4 * pi),
             xp=xp)
 
     def get_overlap_corrections(self, atomdist, xp):

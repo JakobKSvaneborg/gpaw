@@ -9,12 +9,13 @@ from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.uniform_grid import UGArray
 from gpaw.ffbt import rescaled_fourier_bessel_transform
 from gpaw.gpu import cupy_is_fake
-from gpaw.lfc import BaseLFC
+# from gpaw.lfc import BaseLFC
 from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
 from gpaw.spline import Spline
+from gpaw.typing import ArrayLike1D
 
 if TYPE_CHECKING:
     from gpaw.core.plane_waves import PWDesc
@@ -26,10 +27,12 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
                  fracpos,
                  pw,
                  atomdist=None,
+                 integrals=None,
                  xp=None):
         AtomCenteredFunctions.__init__(self, functions, fracpos, atomdist)
         self.pw = pw
         self.xp = xp or np
+        self.integrals = integrals
 
     def new(self, pw, atomdist):
         return PWAtomCenteredFunctions(
@@ -43,7 +46,8 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
         if self._lfc is not None:
             return
 
-        self._lfc = PWLFC(self.functions, self.pw, xp=self.xp)
+        self._lfc = PWLFC(self.functions, self.pw, xp=self.xp,
+                          integrals=self.integrals)
         if self._atomdist is None:
             self._atomdist = AtomDistribution.from_number_of_atoms(
                 len(self.fracpos_ac), self.pw.comm)
@@ -73,11 +77,14 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
         self._lfc = None
 
 
-class PWLFC(BaseLFC):
+class PWLFC:  # (BaseLFC)
     def __init__(self,
                  functions,
                  pw: PWDesc,
-                 blocksize=5000, *, xp):
+                 *,
+                 xp,
+                 integrals: ArrayLike1D | float | None = None,
+                 blocksize: int = 5000):
         """Reciprocal-space plane-wave localized function collection.
 
         spline_aj: list of list of spline objects
@@ -121,6 +128,15 @@ class PWLFC(BaseLFC):
 
         self.comm = pw.comm
 
+        self.integral_a: list[float | None]
+        if isinstance(integrals, float):
+            self.integral_a = [integrals] * len(functions)
+        elif integrals is None:
+            self.integral_a = [None] * len(functions)
+        else:
+            self.integral_a = [i if abs(i) > 1e-10 else None
+                               for i in integrals]
+
     def initialize(self):
         """Initialize position-independent stuff."""
         if self.initialized:
@@ -153,7 +169,12 @@ class PWLFC(BaseLFC):
                     f = rescaled_fourier_bessel_transform(spline)
                     G_G = (2 * self.pw.ekin_G)**0.5
                     self.f_Gs[:, s] = xp.asarray(f.map(G_G))
-                    self.l_s[s] = spline.get_angular_momentum_number()
+                    l = spline.get_angular_momentum_number()
+                    self.l_s[s] = l
+                    integral = self.integral_a[a]
+                    if l == 0 and integral is not None:
+                        x = integral / self.f_Gs[0, s] * (4 * pi)**0.5
+                        self.f_Gs[:, s] *= x
                     done.add(spline)
                 self.a_J[J] = a
                 self.s_J[J] = s

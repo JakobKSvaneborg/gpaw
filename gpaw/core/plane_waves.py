@@ -236,14 +236,14 @@ class PWDesc(Domain):
                                 *,
                                 qspiral_v=None,
                                 atomdist=None,
-                                integral=None,
+                                integrals=None,
                                 cut=False,
                                 xp=None):
         """Create PlaneWaveAtomCenteredFunctions object."""
         if qspiral_v is None:
             return PWAtomCenteredFunctions(functions, positions, self,
                                            atomdist=atomdist,
-                                           xp=xp)
+                                           xp=xp, integrals=integrals)
 
         from gpaw.new.spinspiral import SpiralPWACF
         return SpiralPWACF(functions, positions, self,
