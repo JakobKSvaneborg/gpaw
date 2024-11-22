@@ -93,8 +93,7 @@ class InputParameters:
                 warnings.warn('Please use new "magmoms" parameter.',
                               DeprecatedParameterWarning)
                 self._add('magmoms', self.experimental.pop('magmoms'))
-            assert not self.experimental
-            self._remove('experimental')
+            assert self.experimental.keys() <= {'backwards_compatible'}
 
     def __repr__(self) -> str:
         p = ', '.join(f'{key}={value!r}'
@@ -145,7 +144,7 @@ def eigensolver(value=None) -> dict:
 
 @input_parameter
 def experimental(value=None):
-    return value
+    return value or {}
 
 
 @input_parameter

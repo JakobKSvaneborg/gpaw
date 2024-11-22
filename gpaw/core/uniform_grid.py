@@ -185,7 +185,7 @@ class UGDesc(Domain):
                                 *,
                                 qspiral_v=None,
                                 atomdist=None,
-                                integral=None,
+                                integrals=None,
                                 cut=False,
                                 xp=None):
         """Create UGAtomCenteredFunctions object."""
@@ -194,7 +194,7 @@ class UGDesc(Domain):
                                        positions,
                                        self,
                                        atomdist=atomdist,
-                                       integral=integral,
+                                       integrals=integrals,
                                        cut=cut,
                                        xp=xp)
 
