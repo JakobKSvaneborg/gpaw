@@ -24,6 +24,17 @@ Setup releases
    * - Date
      - Tarfile
      -
+   * - Nov 22 2024
+     - 24.2.0_
+     - PAW potentials for lanthanides added.
+       They have been generated with the following command::
+
+         $ gpaw dataset La -sw -r2.2 -P5s,6s,5p,6p,5d,d,4f,f,G -fPBE -b
+
+       and similarly for Ce, Pr, Nd, Pm, Sm, Eu, Gd,
+       Tb, Dy, Ho, Er, Tm, Yb and Lu.
+       There is also an LDA versions of the potentials.
+
    * - Feb 22 2024
      - 24.1.0_
      - New 14 electron Cr PAW potential added.
@@ -67,7 +78,9 @@ Li_ Be_                                         B_  C_  N_  O_  F_  Ne_
 Na_ Mg_                                         Al_ Si_ P_  S_  Cl_ Ar_
 K_  Ca_ Sc_ Ti_ V_  Cr_ Mn_ Fe_ Co_ Ni_ Cu_ Zn_ Ga_ Ge_ As_ Se_ Br_ Kr_
 Rb_ Sr_ Y_  Zr_ Nb_ Mo_ Tc  Ru_ Rh_ Pd_ Ag_ Cd_ In_ Sn_ Sb_ Te_ I_  Xe_
-Cs_ Ba_ La  Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
+Cs_ Ba_ La_ Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
+\
+            Ce_ Pr_ Nd_ Pm_ Sm_ Eu_ Gd_ Tb_ Dy_ Ho_ Er_ Tm_ Yb_ Lu_
 === === === === === === === === === === === === === === === === === ===
 
 .. toctree::
@@ -136,6 +149,8 @@ Advanced topics
    pawxml
 
 
+.. _24.2.0:
+    https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-24.2.0.tar.gz
 .. _24.1.0:
     https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-24.1.0.tar.gz
 .. _0.9.20000:

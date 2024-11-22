@@ -45,6 +45,8 @@ Git master branch
 
 * Updated :ref:`scissors operator`.
 
+* PAW potentials for lanthanides have been added to our :ref:`setup releases`.
+
 
 Version 24.6.0
 ==============
