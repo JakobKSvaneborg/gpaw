@@ -45,6 +45,11 @@ Git master branch
 
 * Updated :ref:`scissors operator`.
 
+* New experimental parameter: `experimental={'backwards_compatible': False}`.
+  This will make calculations slightly more accurate, but also give slightly
+  different numbers.  See :mr:`2537` for an example of the changes.
+  Default is backwards compatible.
+
 
 Version 24.6.0
 ==============
