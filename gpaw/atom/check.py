@@ -189,6 +189,13 @@ all_names = [
     'Ta', 'Ta.5', 'W', 'W.6', 'Re', 'Os', 'Os.8', 'Ir', 'Ir.9', 'Pt',
     'Pt.10', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Rn']
 
+new_names = [
+    'Cr.14',
+    'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd',
+    'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu']
+
+all_names += new_names
+
 
 def main():
     parser = optparse.OptionParser(usage='python -m gpaw.atom.check '
