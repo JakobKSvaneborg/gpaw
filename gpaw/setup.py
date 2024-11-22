@@ -84,9 +84,12 @@ def create_setup(symbol, xc='LDA', lmax=0,
         # It is not so nice that we have hubbard_u floating around here.
         # For example, none of the other setup types are aware
         # of hubbard u, so they silently ignore it!
+        if isinstance(setupdata, SetupData):
+            kwargs = dict(backwards_compatible=backwards_compatible)
+        else:
+            kwargs = {}
         setup = LeanSetup(
-            setupdata.build(xc, lmax, basis, filter,
-                            backwards_compatible=backwards_compatible),
+            setupdata.build(xc, lmax, basis, filter, **kwargs),
             hubbard_u=hubbard_u)
         return setup
     else:
