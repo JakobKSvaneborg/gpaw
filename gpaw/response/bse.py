@@ -51,7 +51,7 @@ class BSEMatrix:
         excludedeps_S = np.where(np.abs(self.deps_S) > deps_max)[0]
         exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
         if mkl:
-            assert have_mkl, 'GPAW must be compiled with Intel MKL!'
+            assert have_mkl(), 'GPAW must be compiled with Intel MKL!'
             H_rr, desc = self.exclude_states(bse, exclude_S)
             v_rt = desc.empty(dtype=complex)
             w_T = np.empty(nS, dtype=complex)
