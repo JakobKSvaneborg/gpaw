@@ -23,6 +23,8 @@ from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.screened_interaction import (initialize_w_calculator,
                                                 GammaIntegrationMode)
 from gpaw.utilities.elpa import LibElpa
+from gpaw.utilities.scalapack import mkl_scalapack_diagonalize_non_symmetric
+from gpaw.utilities.scalapack import have_mkl
 
 
 def decide_whether_tammdancoff(val_m, con_m):
@@ -39,28 +41,42 @@ class BSEMatrix:
     deps_S: np.ndarray
     deps_max: float
 
-    def diagonalize_nontammdancoff(self, bse, deps_max=None):
+    def diagonalize_nontammdancoff(self, bse, deps_max=None, mkl=False):
         df_S = self.df_S
         H_sS = self.H_sS
+        nS = H_sS.shape[-1]
         if deps_max is None:
             deps_max = self.deps_max
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
         excludedeps_S = np.where(np.abs(self.deps_S) > deps_max)[0]
         exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
-        bse.context.print('  Using numpy.linalg.eig...')
-        bse.context.print('  Eliminated %s pair orbitals' % len(
-            exclude_S))
-        H_SS = bse.collect_A_SS(H_sS)
-        w_T = np.zeros(bse.nS - len(exclude_S), complex)
-        v_ST = None
-        if world.rank == 0:
-            H_SS = np.delete(H_SS, exclude_S, axis=0)
-            H_SS = np.delete(H_SS, exclude_S, axis=1)
-            w_T, v_ST = np.linalg.eig(H_SS)
+        if mkl:
+            H_rr, desc = self.exclude_states(bse, exclude_S)
+            v_rt = desc.empty(dtype=complex)
+            w_T = np.empty(nS, dtype=complex)
+            mkl_scalapack_diagonalize_non_symmetric(desc, H_rr, v_rt, w_T)
+            grid_tR = BlacsGrid(world, world.size, 1)
+            nR = bse.nS - len(exclude_S)
+            nt = -((-nR) // world.size)
+            desc_tR = grid_tR.new_descriptor(nR, nR, nt, nR)
+            v_tR = desc_tR.zeros(dtype=complex)
+            Redistributor(world, desc,
+                          desc_tR).redistribute(v_rt, v_tR)
+            v_Rt = v_tR.conj().T
         else:
-            v_ST = None
-        world.broadcast(w_T, 0)
-        return w_T, v_ST, exclude_S
+            bse.context.print('  Using numpy.linalg.eig...')
+            bse.context.print('  Eliminated %s pair orbitals' % len(
+                exclude_S))
+            H_SS = bse.collect_A_SS(H_sS)
+            w_T = np.zeros(bse.nS - len(exclude_S), complex)
+            if world.rank == 0:
+                H_SS = np.delete(H_SS, exclude_S, axis=0)
+                H_SS = np.delete(H_SS, exclude_S, axis=1)
+                w_T, v_Rt = np.linalg.eig(H_SS)
+            else:
+                v_Rt = None
+            world.broadcast(w_T, 0)
+        return w_T, v_Rt, exclude_S
 
     def diagonalize_tammdancoff(self, bse, deps_max=None, elpa=False):
         if deps_max is None:
