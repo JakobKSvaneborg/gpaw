@@ -41,7 +41,7 @@ class BSEMatrix:
     deps_S: np.ndarray
     deps_max: float
 
-    def diagonalize_nontammdancoff(self, bse, deps_max=None, mkl=False):
+    def diagonalize_nontammdancoff(self, bse, deps_max=None):
         df_S = self.df_S
         H_sS = self.H_sS
         nS = H_sS.shape[-1]
@@ -50,8 +50,7 @@ class BSEMatrix:
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
         excludedeps_S = np.where(np.abs(self.deps_S) > deps_max)[0]
         exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
-        if mkl:
-            assert have_mkl(), 'GPAW must be compiled with Intel MKL!'
+        if world.size > 1 and have_mkl():
             H_rr, desc = self.exclude_states(bse, exclude_S)
             v_rt = desc.empty(dtype=complex)
             w_T = np.empty(nS, dtype=complex)
