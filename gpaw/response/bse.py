@@ -44,7 +44,6 @@ class BSEMatrix:
     def diagonalize_nontammdancoff(self, bse, deps_max=None):
         df_S = self.df_S
         H_sS = self.H_sS
-        nS = H_sS.shape[-1]
         if deps_max is None:
             deps_max = self.deps_max
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
@@ -52,8 +51,9 @@ class BSEMatrix:
         exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
         if world.size > 1 and have_mkl():
             H_rr, desc = self.exclude_states(bse, exclude_S)
+            nR = bse.nS - len(exclude_S)
             v_rt = desc.empty(dtype=complex)
-            w_T = np.empty(nS, dtype=complex)
+            w_T = np.empty(nR, dtype=complex)
             mkl_scalapack_diagonalize_non_symmetric(desc, H_rr, v_rt, w_T)
             grid_tR = BlacsGrid(world, world.size, 1)
             nR = bse.nS - len(exclude_S)
@@ -66,6 +66,7 @@ class BSEMatrix:
             print('w_T shape', w_T.shape)
             print('v_Rt shape', v_Rt.shape)
             print('H_rr shape', H_rr.shape)
+            print('nR, nt', nR, nt)
 
         else:
             bse.context.print('  Using numpy.linalg.eig...')
