@@ -4,30 +4,11 @@ from gpaw.new import zips
 from gpaw.new.brillouin import IBZ, BZPoints
 from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
-from gpaw.typing import ArrayLike3D, ArrayLike2D
+from gpaw.typing import ArrayLike3D, ArrayLike2D, ArrayLike1D
+from gpaw.core.domain import normalize_cell
 
 
-"""
-cell
-pbc
-pos
-tol
-
-ids
-symmorph
-pg
-
-rot
-trans
-amap
-
-    def __init__(self, id_a, cell_cv, pbc_c=np.ones(3, bool), tolerance=1e-7,
-                 point_group=True, time_reversal=True, symmorphic=True,
-                 allow_invert_aperiodic_axes=True):
-"""
-
-
-class NewSymmetries:
+class Symmetries:
     def __init__(self,
                  rotations: ArrayLike3D,
                  translations: ArrayLike2D | None = None,
@@ -46,18 +27,22 @@ class NewSymmetries:
 
     @classmethod
     def from_cell(cls,
-                  cell,
+                  cell: ArrayLike1D | ArrayLike2D,
                   *,
                   pbc: ArrayLike1D = (True, True, True),
-                  tolerance: float = 1e-7):
-        ...
+                  tolerance: float = 1e-7) -> Symmetries:
+        if isinstance(pbc, int):
+            pbc = (pbc,) * 3
+        cell = normalize_cell(cell)
+        rotation_scc = find_lattice_symmetry(cell, pbc, tolerance)
+        return cls(rotation_scc)
 
     def new_with_positions(self,
                            positions: ArrayLike2D | None = None,
                            *,
                            ids: ArrayLike1D | None = None,
                            symmorphic: bool = True,
-                           tolerance: float = 1e-7):
+                           tolerance: float = 1e-7) -> Symmetries:
         ...
 
     def from_atoms(atoms,
@@ -76,6 +61,29 @@ class NewSymmetries:
                                   ids=ids,
                                   symmorphic=symmorphic,
                                   tolerance=tolerance)
+
+def find_lattice_symmetry(cell_cv, pbc_c, tol):
+    """Determine list of symmetry operations."""
+    # Symmetry operations as matrices in 123 basis.
+    # Operation is a 3x3 matrix, with possible elements -1, 0, 1, thus
+    # there are 3**9 = 19683 possible matrices:
+    combinations = 1 - np.indices([3] * 9)
+    U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1))
+
+    # The metric of the cell should be conserved after applying
+    # the operation:
+    metric_cc = cell_cv.dot(cell_cv.T)
+    metric_scc = np.einsum('sij, jk, slk -> sil',
+                           U_scc, metric_cc, U_scc,
+                           optimize=True)
+    mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
+    U_scc = U_scc[mask_s]
+
+    # Operation must not swap axes that don't have same PBC:
+    pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)
+    mask_s = ~U_scc[:, pbc_cc].any(axis=1)
+    U_scc = U_scc[mask_s]
+    return U_scc
 
 
 def create_symmetries_object(atoms, ids=None, magmoms=None, parameters=None):
