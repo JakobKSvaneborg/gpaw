@@ -820,27 +820,21 @@ class BSEBackend:
         rhot_S = np.delete(rho_S, exclude_S)
         C_T = np.zeros(nS, complex)
         # Calculate the spectral weights C_T
-        if self.use_tammdancoff:
-            A_t = np.dot(rhot_S, v_St)
-            B_t = np.dot(rhot_S * dft_S, v_St)
-            if world.size == 1:
-                C_T = B_t.conj() * A_t
-            else:
-                grid = BlacsGrid(world, world.size, 1)
-                desc = grid.new_descriptor(nS, 1, ns, 1)
-                C_t = desc.empty(dtype=complex)
-                C_t[:, 0] = B_t.conj() * A_t
-                C_T = desc.collect_on_master(C_t)[:, 0]
-                if world.rank != 0:
-                    C_T = np.empty(nS, dtype=complex)
-                world.broadcast(C_T, 0)
+        A_t = np.dot(rhot_S, v_St)
+        B_t = np.dot(rhot_S * dft_S, v_St)
+        if world.size == 1:
+            C_T = B_t.conj() * A_t
         else:
-            if world.rank == 0:
-                A_T = np.dot(rhot_S, v_St)
-                B_T = np.dot(rhot_S * dft_S, v_St)
-                tmp = np.dot(v_St.conj().T, v_St)
-                overlap_TT = np.linalg.inv(tmp)
-                C_T = np.dot(B_T.conj(), overlap_TT.T) * A_T
+            grid = BlacsGrid(world, world.size, 1)
+            desc = grid.new_descriptor(nS, 1, ns, 1)
+            C_t = desc.empty(dtype=complex)
+            N_tt = np.dot(v_St.conj().T, v_St)
+            overlap_tt = np.linalg.inv(N_tt)
+            # C_t[:, 0] = B_t.conj() * A_t
+            C_t[:, 0] = np.dot(B_t.conj(), overlap_tt.T) * A_t
+            C_T = desc.collect_on_master(C_t)[:, 0]
+            if world.rank != 0:
+                C_T = np.empty(nS, dtype=complex)
             world.broadcast(C_T, 0)
 
         return w_T, C_T
