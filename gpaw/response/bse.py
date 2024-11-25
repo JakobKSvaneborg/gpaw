@@ -63,6 +63,10 @@ class BSEMatrix:
             Redistributor(world, desc,
                           desc_tR).redistribute(v_rt, v_tR)
             v_Rt = v_tR.conj().T
+            print('w_T shape', w_T.shape)
+            print('v_Rt shape', v_Rt.shape)
+            print('H_rr shape', H_rr.shape)
+
         else:
             bse.context.print('  Using numpy.linalg.eig...')
             bse.context.print('  Eliminated %s pair orbitals' % len(
