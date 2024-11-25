@@ -27,6 +27,10 @@ from gpaw.utilities.scalapack import mkl_scalapack_diagonalize_non_symmetric
 from gpaw.utilities.scalapack import have_mkl
 
 
+# def have_mkl():
+#     return False
+
+
 def decide_whether_tammdancoff(val_m, con_m):
     for n in val_m:
         if n in con_m:
@@ -73,35 +77,41 @@ class BSEMatrix:
             bse.context.print('  Eliminated %s pair orbitals' % len(
                 exclude_S))
             H_SS = bse.collect_A_SS(H_sS)
-            w_T = np.zeros(bse.nS - len(exclude_S), complex)
+            nR = bse.nS - len(exclude_S)
+            w_T = np.zeros(nR, complex)
+            v_Rt = np.zeros((nR, nR), complex)
             if world.rank == 0:
                 H_SS = np.delete(H_SS, exclude_S, axis=0)
                 H_SS = np.delete(H_SS, exclude_S, axis=1)
                 w_T, v_Rt = np.linalg.eig(H_SS)
-            else:
-                v_Rt = None
+            world.broadcast(v_Rt, 0)
             world.broadcast(w_T, 0)
+
         return w_T, v_Rt, exclude_S
 
-    def diagonalize_tammdancoff(self, bse, deps_max=None, elpa=False):
+    def diagonalize_tammdancoff(self, bse, deps_max=None, backend='mkl'):
         if deps_max is None:
             deps_max = self.deps_max
         exclude_S = np.where(np.abs(self.deps_S) > deps_max)[0]
-        H_rr, new_grid_desc = self.exclude_states(bse, exclude_S)
+        H_rr, desc = self.exclude_states(bse, exclude_S)
         if world.size == 1:
             bse.context.print('  Using lapack...')
             w_T, v_Rt = eigh(H_rr)
             return w_T, v_Rt, exclude_S
         nR = bse.nS - len(exclude_S)
         w_T = np.empty(nR)
-        v_rt = new_grid_desc.empty(dtype=complex)
-        if elpa:
+        v_rt = desc.empty(dtype=complex)
+        if backend == 'elpa':
             bse.context.print('Using elpa...')
-            elpa = LibElpa(new_grid_desc)
+            elpa = LibElpa(desc)
             elpa.diagonalize(H_rr, v_rt, w_T)
+        elif backend == 'mkl':
+            bse.context.print('Using mkl...')
+            w_T = np.empty(nR, dtype=complex)
+            mkl_scalapack_diagonalize_non_symmetric(desc, H_rr, v_rt, w_T)
         else:
             bse.context.print('Using scalapack...')
-            new_grid_desc.diagonalize_dc(H_rr, v_rt, w_T)
+            desc.diagonalize_dc(H_rr, v_rt, w_T)
 
         # redistribute eigenvectors
         # we want them to be parallelized over the last index only
@@ -110,7 +120,7 @@ class BSEMatrix:
         nt = -((-nR) // world.size)
         desc_tR = grid_tR.new_descriptor(nR, nR, nt, nR)
         v_tR = desc_tR.zeros(dtype=complex)
-        Redistributor(world, new_grid_desc,
+        Redistributor(world, desc,
                       desc_tR).redistribute(v_rt, v_tR)
         v_Rt = v_tR.conj().T
         return w_T, v_Rt, exclude_S
@@ -822,16 +832,16 @@ class BSEBackend:
         # Calculate the spectral weights C_T
         A_t = np.dot(rhot_S, v_St)
         B_t = np.dot(rhot_S * dft_S, v_St)
-        if world.size == 1:
-            C_T = B_t.conj() * A_t
+        if world.size == 1 or not have_mkl():
+            N_tt = np.dot(v_St.conj().T, v_St)
+            overlap_tt = np.linalg.inv(N_tt)
+            C_T = np.dot(B_t.conj(), overlap_tt.T) * A_t
         else:
             grid = BlacsGrid(world, world.size, 1)
             desc = grid.new_descriptor(nS, 1, ns, 1)
             C_t = desc.empty(dtype=complex)
             N_tt = np.dot(v_St.conj().T, v_St)
             overlap_tt = np.linalg.inv(N_tt)
-            if self.use_tammdancoff:
-                assert np.allclose(N_tt, np.identity(N_tt.shape))
             # C_t[:, 0] = B_t.conj() * A_t
             C_t[:, 0] = np.dot(B_t.conj(), overlap_tt.T) * A_t
             C_T = desc.collect_on_master(C_t)[:, 0]
