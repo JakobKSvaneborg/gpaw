@@ -830,6 +830,8 @@ class BSEBackend:
             C_t = desc.empty(dtype=complex)
             N_tt = np.dot(v_St.conj().T, v_St)
             overlap_tt = np.linalg.inv(N_tt)
+            if not self.use_tammdancoff:
+                assert np.allclose(N_tt, np.identity(N_tt.shape))
             # C_t[:, 0] = B_t.conj() * A_t
             C_t[:, 0] = np.dot(B_t.conj(), overlap_tt.T) * A_t
             C_T = desc.collect_on_master(C_t)[:, 0]
