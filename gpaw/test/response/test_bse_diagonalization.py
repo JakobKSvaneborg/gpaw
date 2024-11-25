@@ -34,10 +34,12 @@ def test_response_bse_diagonalization(in_tmp_dir, scalapack):
                   nbands=8)
 
         bse_matrix = bse.calculate(optical=True)
-        w_T, v_Rt, exclude_S = bse_matrix.diagonalize_tammdancoff(
-            backend='scalapack')
-        w2_T, v2_Rt, _ = bse_matrix.diagonalize_tammdancoff(backend='elpa')
-        w3_T, v3_Rt, _ = bse_matrix.diagonalize_tammdancoff(backend='mkl')
+        w_T, v_Rt, exclude_S = \
+            bse_matrix.diagonalize_tammdancoff(bse=bse, backend='scalapack')
+        w2_T, v2_Rt, _ = bse_matrix.diagonalize_tammdancoff(bse=bse,
+                                                            backend='elpa')
+        w3_T, v3_Rt, _ = bse_matrix.diagonalize_tammdancoff(bse=bse,
+                                                            backend='mkl')
 
     if check:
         for w in w_T:
