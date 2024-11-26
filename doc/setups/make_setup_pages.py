@@ -4,18 +4,14 @@ import json
 import sys
 
 import matplotlib.pyplot as plt
-from ase.data import atomic_numbers, atomic_names
+import numpy as np
+from ase.data import atomic_names, atomic_numbers
 from ase.units import Hartree
 from ase.utils import plural
 
-from gpaw.atom.check import cutoffs, all_names
 
-
-with open('datasets.json') as fd:
-    data = json.load(fd)
-
-
-def rst(symbol):
+def rst(names, data):
+    symbol = names[0]
     Z = atomic_numbers[symbol]
     name = atomic_names[Z]
 
@@ -36,21 +32,25 @@ Datasets:
 {table}"""
 
     table = ''
-    for e, nlfer, energies in data[symbol]:
-        nv, txt = rst1(symbol + '.' + e, nlfer, energies)
-        if e != 'default':
-            e = f"``'{e}'``"
-        table += f'    {e},{nv},{Z - nv}\n'
+    for name in names:
+        dct = data[name]
+        _, _, kind = name.partition('.')
+        kind = kind or 'default'
+
+        nv, txt = rst1(dct, name, symbol)
+        if kind != 'default':
+            kind = f"``'{kind}'``"
+        table += f'    {kind},{nv},{Z - nv}\n'
         rst += txt
 
     with open(symbol + '.rst', 'w') as fd:
         fd.write(rst.format(table=table, name=name))
 
 
-def rst1(dataset, nlfer, energies):
+def rst1(dct, name, symbol):
     table1 = ''
     nv = 0
-    for n, l, f, e, rcut in nlfer:
+    for n, l, f, e, rcut in dct['nlfer']:
         n, l, f = (int(x) for x in [n, l, f])
         if n == -1:
             n = ''
@@ -87,18 +87,23 @@ Egg-box errors in finite-difference mode:
 
 {table2}"""
 
-    epw, depw, efd, defd, elcao, delcao, deegg = energies
-
+    _, _, eegg = dct['eggbox']
     table2 = ''
-    for h, e in zip([0.16, 0.18, 0.2], deegg):
+    for h, energies in eegg:
+        e = np.ptp(eegg)
         table2 += f'    {h:.2f},{e:.4f}\n'
 
     fig = plt.figure(figsize=(8, 5))
 
+    _, _, _, _, xfcc, yfcc = dct['fcc-pw']
+    _, _, _, _, xbcc, ybcc = dct['bcc-pw']
+    n = max(len(xfcc), len(xbcc))
+    dy = ybcc[:n] - yfcc[:n]
+    dy -= dy[0]
     ax1 = plt.subplot(121)
-    ax1.semilogy(cutoffs[:-1], epw[:-1], 'C0-',
+    ax1.semilogy(xfcc[1:], yfcc[1:] - yfcc[0], 'C0-',
                  label='PW, absolute')
-    ax1.semilogy(cutoffs[:-1], depw[:-1], 'C1--',
+    ax1.semilogy(xfcc[1:n], dy[1:], 'C1--',
                  label='PW, atomization')
     plt.xticks([200, 400, 600, 800], fontsize=15)
     plt.yticks(fontsize=15)
@@ -107,11 +112,28 @@ Egg-box errors in finite-difference mode:
     plt.legend(loc='best')
 
     ax2 = plt.subplot(122, sharey=ax1)
-    h = [4.0 / g for g in [20, 24, 28]]
-    ax2.semilogy(h, efd, 'C0s-', label='FD, absolute')
-    ax2.semilogy(h, defd, 'C1s--', label='FD, atomization')
-    ax2.semilogy(h, elcao, 'C0o-', label='LCAO, absolute')
-    ax2.semilogy(h, delcao, 'C1o--', label='LCAO, atomization')
+
+    _, _, _, _, xfcc, yfcc = dct['fcc-fd']
+    _, _, _, _, xbcc, ybcc = dct['bcc-fd']
+    n = max(len(xfcc), len(xbcc))
+    dy = ybcc[:n] - yfcc[:n]
+    dy -= dy[0]
+
+    ax1.semilogy(xfcc[1:], yfcc[1:] - yfcc[0], 'C0s-',
+                 label='FD, absolute')
+    ax1.semilogy(xfcc[1:n], dy[1:], 'C1s--',
+                 label='FD, atomization')
+
+    _, _, _, _, xfcc, yfcc = dct['fcc-fd']
+    _, _, _, _, xbcc, ybcc = dct['bcc-fd']
+    n = max(len(xfcc), len(xbcc))
+    dy = ybcc[:n] - yfcc[:n]
+    dy -= dy[0]
+
+    ax1.semilogy(xfcc[1:], yfcc[1:] - yfcc[0], 'C0o-',
+                 label='LCAO, absolute')
+    ax1.semilogy(xfcc[1:n], dy[1:], 'C1o--',
+                 label='LCAO, atomization')
     plt.xticks([0.16, 0.18, 0.2], fontsize=15)
     plt.xlim(0.14, 0.2)
     plt.xlabel(u'grid-spacing [Å]', fontsize=15)
@@ -120,17 +142,27 @@ Egg-box errors in finite-difference mode:
 
     plt.tight_layout()
     plt.subplots_adjust(wspace=0)
-    plt.savefig(dataset + '.png')
+    plt.savefig(name + '.png')
     plt.close(fig)
 
+    nv = dct['nvalence']
     return nv, rst.format(electrons=plural(nv, 'valence electron'),
                           table1=table1, table2=table2, symbol=symbol,
-                          dataset=dataset)
+                          dataset=name)
 
 
-for symbol in all_names:
-    if '.' not in symbol:
-        print(symbol, end='')
-        sys.stdout.flush()
-        rst(symbol)
-print()
+def main():
+    with open('potentials.json') as fd:
+        data = json.load(fd)
+
+    for symbol in data:
+        if '.' not in symbol:
+            print(symbol, end='')
+            sys.stdout.flush()
+            rst([symbol] + [name for name in data if name.startswith(symbol)],
+                data)
+    print()
+
+
+if __name__ == '__main__':
+    main()
