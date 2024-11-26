@@ -90,6 +90,7 @@ Egg-box errors in finite-difference mode:
     _, _, eegg = dct['eggbox']
     table2 = ''
     for h, energies in eegg:
+        eegg = [e or h, e in eegg]
         e = np.ptp(eegg)
         table2 += f'    {h:.2f},{e:.4f}\n'
 
@@ -97,45 +98,40 @@ Egg-box errors in finite-difference mode:
 
     _, _, _, _, xfcc, yfcc = dct['fcc-pw']
     _, _, _, _, xbcc, ybcc = dct['bcc-pw']
-    n = max(len(xfcc), len(xbcc))
+    yfcc = np.array(yfcc)
+    efcc0 = yfcc[0]
+    ebcc0 = ybcc[0]
+    n = min(len(xfcc), len(xbcc))
     dy = ybcc[:n] - yfcc[:n]
     dy -= dy[0]
     ax1 = plt.subplot(121)
-    ax1.semilogy(xfcc[1:], yfcc[1:] - yfcc[0], 'C0-',
+    ax1.semilogy(xfcc[1:], abs(yfcc[1:] - yfcc[0]), 'C0-',
                  label='PW, absolute')
-    ax1.semilogy(xfcc[1:n], dy[1:], 'C1--',
+    ax1.semilogy(xfcc[1:n], abs(dy[1:]), 'C1--',
                  label='PW, atomization')
-    plt.xticks([200, 400, 600, 800], fontsize=15)
-    plt.yticks(fontsize=15)
+    # plt.xticks([200, 400, 600, 800], fontsize=15)
+    # plt.yticks(fontsize=15)
     plt.xlabel('Planewave cutoff [eV]', fontsize=15)
     plt.ylabel('Error [eV/atom]', fontsize=15)
     plt.legend(loc='best')
 
     ax2 = plt.subplot(122, sharey=ax1)
 
-    _, _, _, _, xfcc, yfcc = dct['fcc-fd']
-    _, _, _, _, xbcc, ybcc = dct['bcc-fd']
-    n = max(len(xfcc), len(xbcc))
-    dy = ybcc[:n] - yfcc[:n]
-    dy -= dy[0]
+    for mode, style in [('fd', 's'), ('lcao', 'o')]:
+        _, _, _, _, xfcc, yfcc = dct[f'fcc-{mode}']
+        _, _, _, _, xbcc, ybcc = dct[f'bcc-{mode}']
+        yfcc = np.array(yfcc) - efcc0
+        ybcc = np.array(ybcc) - ebcc0
+        n = min(len(xfcc), len(xbcc))
+        dy = ybcc[:n] - yfcc[:n]
 
-    ax1.semilogy(xfcc[1:], yfcc[1:] - yfcc[0], 'C0s-',
-                 label='FD, absolute')
-    ax1.semilogy(xfcc[1:n], dy[1:], 'C1s--',
-                 label='FD, atomization')
+        ax2.semilogy(xfcc, abs(yfcc), f'C0{style}-',
+                     label=f'{mode.upper()}, absolute')
+        ax2.semilogy(xfcc[:n], abs(dy), f'C1{style}--',
+                     label=f'{mode.upper()}, atomization')
 
-    _, _, _, _, xfcc, yfcc = dct['fcc-fd']
-    _, _, _, _, xbcc, ybcc = dct['bcc-fd']
-    n = max(len(xfcc), len(xbcc))
-    dy = ybcc[:n] - yfcc[:n]
-    dy -= dy[0]
-
-    ax1.semilogy(xfcc[1:], yfcc[1:] - yfcc[0], 'C0o-',
-                 label='LCAO, absolute')
-    ax1.semilogy(xfcc[1:n], dy[1:], 'C1o--',
-                 label='LCAO, atomization')
-    plt.xticks([0.16, 0.18, 0.2], fontsize=15)
-    plt.xlim(0.14, 0.2)
+    #plt.xticks([0.16, 0.18, 0.2], fontsize=15)
+    #plt.xlim(0.14, 0.2)
     plt.xlabel(u'grid-spacing [Å]', fontsize=15)
     plt.legend(loc='best')
     plt.setp(ax2.get_yticklabels(), visible=False)

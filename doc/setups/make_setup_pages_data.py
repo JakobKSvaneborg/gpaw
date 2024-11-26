@@ -8,7 +8,6 @@ from ase.units import Bohr
 from gpaw import GPAW, setup_paths
 from gpaw.setup import create_setup
 from gpaw.utilities import h2gpts
-from myqueue.workflow import run
 
 # Volumes from ACWF:
 FCC = [
@@ -55,6 +54,7 @@ new_names = [
 
 
 def workflow():
+    from myqueue.workflow import run
     setup_paths.append('../potentials')
     name = Path().absolute().name
     for xtal in ['fcc', 'bcc']:
@@ -116,7 +116,7 @@ def grid_spacings(cell_cv: np.ndarray) -> list[float]:
     g2 = h2gpts(0.2, cell_cv)[0]
     g2 = max(min(g2, g1 - 8), 8)
     if g2 == g1:
-        g1 += 4
+        g1 += 8
     gs = range(g1, g2 - 4, -4)
     L = (np.linalg.inv(cell_cv)[:, 0]**2).sum()**-0.5
     return [L / g for g in gs]
@@ -208,11 +208,12 @@ if __name__ == '__main__':
         names = old_names + new_names
         names = ['H', 'Li']  # + new_names
         for name in names:
-            Path(name).mkdir()
+            Path(name).mkdir(exist_ok=True)
 
     # scan_parameter('H', 'fcc', 'fd')
 
-    if 1:
+    if 0:
+        setup_paths.append('potentials')
         dct = {}
         for name in ['Li', 'Cr', 'Cr.14', 'H']:
             dct[name] = collect_results(name)
