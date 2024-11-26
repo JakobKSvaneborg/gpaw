@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from gpaw.mpi import MPIComm
 from gpaw.new import zips
@@ -43,7 +44,7 @@ class Symmetries:
                            ids: ArrayLike1D | None = None,
                            symmorphic: bool = True,
                            tolerance: float = 1e-7) -> Symmetries:
-        ...
+        return prune_symmetries(self, positions, ids, symmorphic, tolerance)
 
     def from_atoms(atoms,
                    *,
@@ -61,6 +62,7 @@ class Symmetries:
                                   ids=ids,
                                   symmorphic=symmorphic,
                                   tolerance=tolerance)
+
 
 def find_lattice_symmetry(cell_cv, pbc_c, tol):
     """Determine list of symmetry operations."""
@@ -84,6 +86,85 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol):
     mask_s = ~U_scc[:, pbc_cc].any(axis=1)
     U_scc = U_scc[mask_s]
     return U_scc
+
+
+def prune_symmetries(sym, spos_ac, id_a, symmorphic=True, tol=1e-7):
+    """Remove symmetries that are not satisfied by the atoms."""
+
+    if len(spos_ac) == 0:
+        return sym
+
+    # Build lists of atom numbers for each type of atom - one
+    # list for each combination of atomic number, setup type,
+    # magnetic moment and basis set:
+    a_ij = {}
+    for a, id in enumerate(id_a):
+        if id in a_ij:
+            a_ij[id].append(a)
+        else:
+            a_ij[id] = [a]
+
+    a_j = a_ij[id_a[0]]  # just pick the first species
+
+    # if supercell disable fractional translations:
+    if not symmorphic:
+        op_cc = np.identity(3, int)
+        ftrans_sc = spos_ac[a_j[1:]] - spos_ac[a_j[0]]
+        ftrans_sc -= np.rint(ftrans_sc)
+        for ft_c in ftrans_sc:
+            a_a = check_one_symmetry(spos_ac, op_cc, ft_c, a_ij, tol)
+            if a_a is not None:
+                symmorphic = True
+                break
+
+    symmetries = []
+    ftsymmetries = []
+
+    def check(op_cc, ft_c):
+        return check_one_symmetry(spos_ac, op_cc, ft_c, a_ij, tol)
+
+    # go through all possible symmetry operations
+    for op_cc in sym.rotation_scc:
+        # first ignore fractional translations
+        a_a = check(op_cc, [0, 0, 0])
+        if a_a is not None:
+            symmetries.append((op_cc, [0, 0, 0], a_a))
+        elif not symmorphic:
+            # check fractional translations
+            sposrot_ac = np.dot(spos_ac, op_cc)
+            ftrans_jc = sposrot_ac[a_j] - spos_ac[a_j[0]]
+            ftrans_jc -= np.rint(ftrans_jc)
+            for ft_c in ftrans_jc:
+                a_a = check(op_cc, ft_c)
+                if a_a is not None:
+                    ftsymmetries.append((op_cc, ft_c, a_a))
+
+    # Add symmetry operations with fractional translations at the end:
+    symmetries.extend(ftsymmetries)
+    return Symmetries([sym[0] for sym in symmetries],
+                      [sym[1] for sym in symmetries],
+                      [sym[2] for sym in symmetries])
+
+
+def check_one_symmetry(spos_ac, op_cc, ft_c, a_ia, stol):
+    """Checks whether atoms satisfy one given symmetry operation."""
+
+    a_a = np.zeros(len(spos_ac), int)
+    for b_a in a_ia.values():
+        spos_jc = spos_ac[b_a]
+        for b in b_a:
+            spos_c = np.dot(spos_ac[b], op_cc)
+            sdiff_jc = spos_c - spos_jc - ft_c
+            sdiff_jc -= sdiff_jc.round()
+            indices = np.where(abs(sdiff_jc).max(1) < stol)[0]
+            if len(indices) == 1:
+                a = indices[0]
+                a_a[b] = b_a[a]
+            else:
+                assert len(indices) == 0
+                return None
+
+    return a_a
 
 
 def create_symmetries_object(atoms, ids=None, magmoms=None, parameters=None):
@@ -209,7 +290,7 @@ def mat(rot_cc) -> str:
                               for rot_c in rot_cc) + ']]'
 
 
-class Symmetries:
+class OldNewSymmetries:
     """Wrapper for old symmetry object.  Exposes what we need now."""
     def __init__(self, symmetry):
         self.symmetry = symmetry
