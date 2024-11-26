@@ -4,7 +4,6 @@ from gpaw.mpi import MPIComm
 from gpaw.new import zips
 from gpaw.new.brillouin import IBZ, BZPoints
 from gpaw.rotation import rotation
-from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.typing import ArrayLike3D, ArrayLike2D, ArrayLike1D
 from gpaw.core.domain import normalize_cell
 
@@ -62,6 +61,71 @@ class Symmetries:
                                   ids=ids,
                                   symmorphic=symmorphic,
                                   tolerance=tolerance)
+
+    def __len__(self):
+        return len(self.rotation_scc)
+
+    def __str__(self):
+        lines = ['symmetry:',
+                 f'  number of symmetries: {len(self)}']
+        if self.symmetry.symmorphic:
+            lines.append('  rotations: [')
+            for rot_cc in self.rotation_scc:
+                lines.append(f'    {mat(rot_cc)},')
+        else:
+            nt = self.translation_sc.any(1).sum()
+            lines.append(f'  number of symmetries with translation: {nt}')
+            lines.append('  rotations and translations: [')
+            for rot_cc, t_c in zips(self.rotation_scc, self.translation_sc):
+                a, b, c = t_c
+                lines.append(f'    [{mat(rot_cc)}, '
+                             f'[{a:6.3f}, {b:6.3f}, {c:6.3f}]],')
+        lines[-1] = lines[-1][:-1] + ']\n'
+        return '\n'.join(lines)
+
+    def reduce(self,
+               bz: BZPoints,
+               comm: MPIComm = None,
+               strict: bool = True) -> IBZ:
+        """Find irreducible set of k-points."""
+        if not (self.symmetry.time_reversal or
+                self.symmetry.point_group):
+            N = len(bz)
+            return IBZ(self,
+                       bz,
+                       ibz2bz=np.arange(N),
+                       bz2ibz=np.arange(N),
+                       weights=np.ones(N) / N)
+
+        (_, weight_k, sym_k, time_reversal_k, bz2ibz_K, ibz2bz_k,
+         bz2bz_Ks) = self.symmetry.reduce(bz.kpt_Kc, comm)
+
+        if strict and -1 in bz2bz_Ks:
+            raise ValueError(
+                'Your k-points are not as symmetric as your crystal!')
+
+        return IBZ(self, bz, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks)
+
+    def check_positions(self, fracpos_ac):
+        self.symmetry.check(fracpos_ac)
+
+    def symmetrize_forces(self, F_av):
+        return self.symmetry.symmetrize_forces(F_av)
+
+    def rotations(self, l_j, xp=np):
+        ells = tuple(l_j)
+        rotation_sii = self._rotations.get(ells)
+        if rotation_sii is None:
+            ni = sum(2 * l + 1 for l in l_j)
+            rotation_sii = np.zeros((len(self), ni, ni))
+            i1 = 0
+            for l in l_j:
+                i2 = i1 + 2 * l + 1
+                rotation_sii[:, i1:i2, i1:i2] = self.rotation_lsmm[l]
+                i1 = i2
+            rotation_sii = xp.asarray(rotation_sii)
+            self._rotations[ells] = rotation_sii
+        return rotation_sii
 
 
 def find_lattice_symmetry(cell_cv, pbc_c, tol):
@@ -167,16 +231,17 @@ def check_one_symmetry(spos_ac, op_cc, ft_c, a_ia, stol):
     return a_a
 
 
-def create_symmetries_object(atoms, ids=None, magmoms=None, parameters=None):
-    ids = ids or [()] * len(atoms)
+def create_symmetries_object(atoms, ids, magmoms=None, parameters=None):
+    if 'rotations' in parameters:
+        return Symmetries(rotations=parameters['rotations'],
+                          translations=parameters.get('translations'),
+                          atommaps=parameters.get('atommaps'))
+
     if magmoms is not None:
         ids = [id + (m,) for id, m in zips(ids, safe_id(magmoms))]
-    symmetry = OldSymmetry(ids,
-                           atoms.cell.complete(),
-                           atoms.pbc,
-                           **(parameters or {}))
-    symmetry.analyze(atoms.get_scaled_positions())
-    return Symmetries(symmetry)
+    symmetries = Symmetries.from_cell(atoms.cell, pbc=atoms.pbc)
+    return symmetries.pos(ids,
+                          atoms.get_scaled_positions())
 
 
 def safe_id(magmom_av, tolerance=1e-3):
@@ -307,67 +372,3 @@ class OldNewSymmetries:
             for l in range(4)]
         self._rotations = {}
 
-    def __len__(self):
-        return len(self.rotation_scc)
-
-    def __str__(self):
-        lines = ['symmetry:',
-                 f'  number of symmetries: {len(self)}']
-        if self.symmetry.symmorphic:
-            lines.append('  rotations: [')
-            for rot_cc in self.rotation_scc:
-                lines.append(f'    {mat(rot_cc)},')
-        else:
-            nt = self.translation_sc.any(1).sum()
-            lines.append(f'  number of symmetries with translation: {nt}')
-            lines.append('  rotations and translations: [')
-            for rot_cc, t_c in zips(self.rotation_scc, self.translation_sc):
-                a, b, c = t_c
-                lines.append(f'    [{mat(rot_cc)}, '
-                             f'[{a:6.3f}, {b:6.3f}, {c:6.3f}]],')
-        lines[-1] = lines[-1][:-1] + ']\n'
-        return '\n'.join(lines)
-
-    def reduce(self,
-               bz: BZPoints,
-               comm: MPIComm = None,
-               strict: bool = True) -> IBZ:
-        """Find irreducible set of k-points."""
-        if not (self.symmetry.time_reversal or
-                self.symmetry.point_group):
-            N = len(bz)
-            return IBZ(self,
-                       bz,
-                       ibz2bz=np.arange(N),
-                       bz2ibz=np.arange(N),
-                       weights=np.ones(N) / N)
-
-        (_, weight_k, sym_k, time_reversal_k, bz2ibz_K, ibz2bz_k,
-         bz2bz_Ks) = self.symmetry.reduce(bz.kpt_Kc, comm)
-
-        if strict and -1 in bz2bz_Ks:
-            raise ValueError(
-                'Your k-points are not as symmetric as your crystal!')
-
-        return IBZ(self, bz, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks)
-
-    def check_positions(self, fracpos_ac):
-        self.symmetry.check(fracpos_ac)
-
-    def symmetrize_forces(self, F_av):
-        return self.symmetry.symmetrize_forces(F_av)
-
-    def rotations(self, l_j, xp=np):
-        ells = tuple(l_j)
-        rotation_sii = self._rotations.get(ells)
-        if rotation_sii is None:
-            ni = sum(2 * l + 1 for l in l_j)
-            rotation_sii = np.zeros((len(self), ni, ni))
-            i1 = 0
-            for l in l_j:
-                i2 = i1 + 2 * l + 1
-                rotation_sii[:, i1:i2, i1:i2] = self.rotation_lsmm[l]
-                i1 = i2
-            rotation_sii = xp.asarray(rotation_sii)
-            self._rotations[ells] = rotation_sii
-        return rotation_sii

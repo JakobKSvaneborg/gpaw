@@ -111,7 +111,7 @@ class DFTComponentsBuilder:
                     symmetries.symmetry.time_reversal)
 
         bz = create_kpts(params.kpts, atoms)
-        self.ibz = symmetries.reduce(bz, strict=False)
+        self.ibz = symmetries.reduce(bz, strict=False, params.symmetry['time_reversal'])
 
         d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
