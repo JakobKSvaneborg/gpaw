@@ -1,11 +1,43 @@
 from __future__ import annotations
+
+from typing import Sequence
+
 import numpy as np
+from gpaw.core.domain import normalize_cell
 from gpaw.mpi import MPIComm
 from gpaw.new import zips
 from gpaw.new.brillouin import IBZ, BZPoints
 from gpaw.rotation import rotation
-from gpaw.typing import ArrayLike3D, ArrayLike2D, ArrayLike1D
-from gpaw.core.domain import normalize_cell
+from gpaw.typing import ArrayLike1D, ArrayLike2D, ArrayLike3D
+
+
+def create_symmetries_object(atoms,
+                             *,
+                             setup_ids,
+                             magmoms=None,
+                             rotations=None,
+                             translations=None,
+                             extra_ids=None,
+                             tolerance=1e-7,
+                             point_group=True,
+                             symmorphic=True) -> Symmetries:
+    if rotations is not None:
+        sym = Symmetries(rotations, translations)
+    else:
+        sym = Symmetries.from_cell(atoms.cell,
+                                   pbc=atoms.pbc,
+                                   tolerance=tolerance)
+
+    ids = integer_ids(setup_ids)
+    if magmoms is not None:
+        ids = integer_ids((id, m) for id, m in zips(ids, safe_id(magmoms)))
+    if extra_ids is not None:
+        ids = integer_ids((id, x) for id, x in zips(ids, extra_ids))
+    return sym.new_with_positions(
+        atoms.get_scaled_positions(),
+        ids=ids,
+        symmorphic=symmorphic,
+        tolerance=tolerance)
 
 
 class Symmetries:
@@ -14,9 +46,9 @@ class Symmetries:
                  translations: ArrayLike2D | None = None,
                  atommaps: ArrayLike2D | None = None):
         self.rotation_scc = np.array(rotations, dtype=int)
-        assert (self.rotation_scc == rotation).all()
+        assert (self.rotation_scc == rotations).all()
         if translations is None:
-            self.tranlation_sc = np.zeros(len(rotations), 3)
+            self.tranlation_sc = np.zeros((len(rotations), 3))
         else:
             self.tranlation_sc = np.array(translations)
         if atommaps is None:
@@ -45,18 +77,18 @@ class Symmetries:
                            tolerance: float = 1e-7) -> Symmetries:
         return prune_symmetries(self, positions, ids, symmorphic, tolerance)
 
-    def from_atoms(atoms,
+    @classmethod
+    def from_atoms(cls,
+                   atoms,
                    *,
                    ids: ArrayLike1D | None = None,
                    symmorphic: bool = True,
                    tolerance: float = 1e-7):
-        sym = Symmetries.from_cell(atoms.cell,
-                                   pbc=atoms.pbc,
-                                   tolerance=tolerance)
+        sym = cls.from_cell(atoms.cell,
+                            pbc=atoms.pbc,
+                            tolerance=tolerance)
         if ids is None:
             ids = atoms.numbers
-        else:
-            ids = [...]
         return sym.with_positions(atoms.positions,
                                   ids=ids,
                                   symmorphic=symmorphic,
@@ -86,9 +118,10 @@ class Symmetries:
     def reduce(self,
                bz: BZPoints,
                comm: MPIComm = None,
-               strict: bool = True) -> IBZ:
+               strict: bool = True,
+               use_time_reversal=True) -> IBZ:
         """Find irreducible set of k-points."""
-        if not (self.symmetry.time_reversal or
+        if not (use_time_reversal or
                 self.symmetry.point_group):
             N = len(bz)
             return IBZ(self,
@@ -231,17 +264,16 @@ def check_one_symmetry(spos_ac, op_cc, ft_c, a_ia, stol):
     return a_a
 
 
-def create_symmetries_object(atoms, ids, magmoms=None, parameters=None):
-    if 'rotations' in parameters:
-        return Symmetries(rotations=parameters['rotations'],
-                          translations=parameters.get('translations'),
-                          atommaps=parameters.get('atommaps'))
-
-    if magmoms is not None:
-        ids = [id + (m,) for id, m in zips(ids, safe_id(magmoms))]
-    symmetries = Symmetries.from_cell(atoms.cell, pbc=atoms.pbc)
-    return symmetries.pos(ids,
-                          atoms.get_scaled_positions())
+def integer_ids(ids: Sequence) -> list[int]:
+    dct = {}
+    iids = []
+    for id in ids:
+        iid = dct.get(id)
+        if iid is None:
+            iid = len(dct)
+            dct[id] = iid
+        iids.append(iid)
+    return iids
 
 
 def safe_id(magmom_av, tolerance=1e-3):

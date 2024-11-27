@@ -100,18 +100,23 @@ class DFTComponentsBuilder:
             for a, setup in enumerate(self.setups):
                 self.initial_magmom_av[a, 2] = setup.get_hunds_rule_moment(c)
 
-        symmetries = create_symmetries_object(atoms,
-                                              self.setups.id_a,
-                                              self.initial_magmom_av,
-                                              params.symmetry)
-        self.setups.set_symmetry(symmetries.symmetry)
+        symmetries = create_symmetries_object(
+            atoms,
+            setup_ids=self.setups.id_a,
+            magmoms=self.initial_magmom_av,
+            **{k: v for k, v in params.symmetry.items()
+               if k != 'time_reversal'})
+        #self.setups.set_symmetry(symmetries.symmetry)
 
         if self.ncomponents == 4:
             assert (len(symmetries) == 1 and not
                     symmetries.symmetry.time_reversal)
 
         bz = create_kpts(params.kpts, atoms)
-        self.ibz = symmetries.reduce(bz, strict=False, params.symmetry['time_reversal'])
+        self.ibz = symmetries.reduce(
+            bz,
+            strict=False,
+            use_time_reversal=params.symmetry.get('time_reversal', True))
 
         d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
