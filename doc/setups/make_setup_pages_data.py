@@ -5,11 +5,11 @@ import numpy as np
 from ase.build import bulk
 from ase.data import atomic_numbers
 from ase.units import Bohr
-from gpaw import GPAW, setup_paths
+from gpaw import GPAW, setup_paths, KohnShamConvergenceError
 from gpaw.setup import create_setup
 from gpaw.utilities import h2gpts
 
-# Volumes from ACWF:
+# Volumes from ACWF [Å^3/atom]:
 FCC = [
     0.0,
     2.965, 17.773, 20.224, 7.872, 5.892, 7.322, 7.601, 7.999, 10.147, 24.303,
@@ -37,6 +37,7 @@ BCC = [
     31.635, 32.854, 40.007, 95.447, 116.492, 70.967, 45.944, 32.568, 24.797,
     20.266, 17.808, 16.564, 16.191, 16.521]
 
+# Made with old PAW-potential generator:
 old_names = [
     'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Na.1',
     'Mg', 'Mg.2', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti',
@@ -47,6 +48,7 @@ old_names = [
     'Ta', 'Ta.5', 'W', 'W.6', 'Re', 'Os', 'Os.8', 'Ir', 'Ir.9', 'Pt',
     'Pt.10', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Rn']
 
+# Made with new PAW-potential generator:
 new_names = [
     'Cr.14',
     'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd',
@@ -62,7 +64,7 @@ def workflow():
             run(function=scan_parameter,
                 args=[name, xtal, mode],
                 cores=24,
-                tmax='10h',
+                tmax='1h',
                 name=f'{xtal}-{mode}')
     run(function=eggbox_error,
         args=[name],
@@ -106,7 +108,10 @@ def scan_parameter(name: str,
         atoms.calc = GPAW(**params,
                           **p,
                           txt=f'{xtal}-{mode}-{i}.txt')
-        e = atoms.get_potential_energy()
+        try:
+            e = atoms.get_potential_energy()
+        except KohnShamConvergenceError:
+            break
         results.append(e)
     return (symbol, kind, xtal, mode, x, results)
 
@@ -122,7 +127,7 @@ def grid_spacings(cell_cv: np.ndarray) -> list[float]:
     return [L / g for g in gs]
 
 
-def eggbox_error(name: str) -> tuple[str, str, list[tuple[float, float]]]:
+def eggbox_error(name: str) -> tuple[str, str, list]:
     symbol, _, kind = name.partition('.')
     kind = kind or 'paw'
     Z = atomic_numbers[symbol]
@@ -140,37 +145,21 @@ def eggbox_error(name: str) -> tuple[str, str, list[tuple[float, float]]]:
         atoms.calc = GPAW(**params,
                           h=h,
                           txt=f'eggbox-{h:.2f}.txt')
-        e0 = atoms.get_potential_energy()
-        h_v = atoms.calc.density.gd.h_cv[0] * Bohr
-        energies = []
-        for _ in range(3):
-            atoms.positions += h_v / 6
-            e = atoms.get_potential_energy()
-            energies.append((h, e - e0))
-        results.append((h, energies))
+        try:
+            e0 = atoms.get_potential_energy()
+            h_v = atoms.calc.density.gd.h_cv[0] * Bohr
+            energies = []
+            for _ in range(3):
+                atoms.positions += h_v / 6
+                e = atoms.get_potential_energy()
+                energies.append((h, e - e0))
+            results.append((h, energies))
+        except KohnShamConvergenceError:
+            break
     return (symbol, kind, results)
 
 
-def nlfer(name: str):
-    if '.' in name:
-        symbol, kind = name.split('.')
-    else:
-        symbol = name
-        kind = 'paw'
-
-    pot = create_setup(symbol, 'PBE', type=kind)
-    print(dir(pot))
-    nlfer_j = []
-    for n, l, f, e, r in zip(pot.n_j,
-                             pot.l_j,
-                             pot.f_j,
-                             pot.data.eps_j,
-                             pot.rcut_j):
-        nlfer_j.append((n, l, f, e, r))
-    return symbol, kind, nlfer_j
-
-
-def collect_results(name: str):
+def collect_results(name: str) -> dict:
     symbol, _, kind = name.partition('.')
     kind = kind or 'paw'
     dct = {}
@@ -194,27 +183,21 @@ def collect_results(name: str):
     return dct
 
 
+def make_folders() -> None:
+    names = old_names + new_names
+    for name in names:
+        Path(name).mkdir(exist_ok=True)
+
+
+def collect_all() -> None:
+    setup_paths.append('potentials')
+    dct = {}
+    names = old_names + new_names
+    for name in names:
+        dct[name] = collect_results(name)
+    Path('potentials.json').write_text(json.dumps(dct))
+
+
 if __name__ == '__main__':
-    # nlfer('Cr.14')
-    if 0:
-        from ase.data import chemical_symbols
-        from cligpaw.commands.acwf import volumes
-        for Z, s in enumerate(chemical_symbols):
-            if Z == 0:
-                continue
-            v = volumes[s]['BCC']
-            print(f'{v:.3f}, ', end='')
-    if 0:
-        names = old_names + new_names
-        names = ['H', 'Li']  # + new_names
-        for name in names:
-            Path(name).mkdir(exist_ok=True)
-
-    # scan_parameter('H', 'fcc', 'fd')
-
-    if 0:
-        setup_paths.append('potentials')
-        dct = {}
-        for name in ['Li', 'Cr', 'Cr.14', 'H']:
-            dct[name] = collect_results(name)
-        Path('potentials.json').write_text(json.dumps(dct))
+    # make_folders()
+    collect_all()
