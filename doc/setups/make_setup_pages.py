@@ -1,5 +1,6 @@
 # creates: H.rst, H.default.png
 # ... and all the rest.
+import gzip
 import json
 import sys
 
@@ -8,7 +9,6 @@ import numpy as np
 from ase.data import atomic_names, atomic_numbers
 from ase.units import Hartree
 from ase.utils import plural
-
 
 RST = """\
 .. Computer generated reST (make_setup_pages.py)
@@ -19,7 +19,7 @@ RST = """\
 {name}
 ================
 
-Datasets:
+PAW-potentials:
 
 .. csv-table::
     :header: name, valence electrons, frozen core electrons
@@ -143,7 +143,7 @@ def rst1(dct, name, symbol):
 
 
 def main(symbols=None):
-    with open('potentials.json') as fd:
+    with gzip.open('potentials.json.gz', 'rt') as fd:
         data = json.load(fd)
 
     for symbol in symbols or data:

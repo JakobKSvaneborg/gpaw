@@ -24,8 +24,8 @@ Setup releases
    * - Date
      - Tarfile
      -
-   * - Nov 22 2024
-     - 24.2.0_
+   * - Nov 27 2024
+     - 24.11.0_
      - PAW potentials for lanthanides added.
        They have been generated with the following command::
 
@@ -150,8 +150,8 @@ Advanced topics
    pawxml
 
 
-.. _24.2.0:
-    https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-24.2.0.tar.gz
+.. _24.11.0:
+    https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-24.11.0.tar.gz
 .. _24.1.0:
     https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-24.1.0.tar.gz
 .. _0.9.20000:
