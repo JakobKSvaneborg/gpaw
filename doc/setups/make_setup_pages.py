@@ -88,11 +88,14 @@ def rst1(dct, name, symbol):
         table1 += '\n'
 
     _, _, eegg = dct['eggbox']
-    table2 = ''
-    for h, energies in eegg:
-        E = [e for h, e in energies]
-        e = np.ptp(E)
-        table2 += f'    {h:.2f},{1000 * e:.3f}\n'
+    if eegg:
+        table2 = ''
+        for h, energies in eegg:
+            E = [e for h, e in energies]
+            e = np.ptp(E)
+            table2 += f'    {h:.2f},{1000 * e:.3f}\n'
+    else:
+        table2 = '    -,-\n'
 
     fig = plt.figure(figsize=(8, 5))
 
