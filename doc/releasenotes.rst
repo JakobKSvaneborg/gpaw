@@ -12,6 +12,8 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+* PAW potentials for lanthanides have been added to our :ref:`setup releases`.
+
 * Updated development-workflow documentation:
   :ref:`a good mr`, :ref:`get your mr merged`.
 
