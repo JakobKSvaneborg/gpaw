@@ -25,6 +25,7 @@ from gpaw.response.screened_interaction import (initialize_w_calculator,
 from gpaw.utilities.elpa import LibElpa
 from gpaw.utilities.scalapack import mkl_scalapack_diagonalize_non_symmetric
 from gpaw.utilities.scalapack import have_mkl
+from gpaw.utilities.scalapack import pblas_hemm, scalapack_inverse, scalapack_solve
 
 
 # def have_mkl():
@@ -89,7 +90,7 @@ class BSEMatrix:
 
         return w_T, v_Rt, exclude_S
 
-    def diagonalize_tammdancoff(self, bse, deps_max=None, backend='mkl'):
+    def diagonalize_tammdancoff(self, bse, deps_max=None, backend='scalapack'):
         if deps_max is None:
             deps_max = self.deps_max
         exclude_S = np.where(np.abs(self.deps_S) > deps_max)[0]
@@ -109,6 +110,7 @@ class BSEMatrix:
             bse.context.print('Using mkl...')
             w_T = np.empty(nR, dtype=complex)
             mkl_scalapack_diagonalize_non_symmetric(desc, H_rr, v_rt, w_T)
+            w_T = w_T.real
         else:
             bse.context.print('Using scalapack...')
             desc.diagonalize_dc(H_rr, v_rt, w_T)
@@ -832,19 +834,23 @@ class BSEBackend:
         # Calculate the spectral weights C_T
         A_t = np.dot(rhot_S, v_St)
         B_t = np.dot(rhot_S * dft_S, v_St)
-        if world.size == 1 or not have_mkl():
+        if False:
             N_tt = np.dot(v_St.conj().T, v_St)
             overlap_tt = np.linalg.inv(N_tt)
             C_T = np.dot(B_t.conj(), overlap_tt.T) * A_t
         else:
             grid = BlacsGrid(world, world.size, 1)
-            desc = grid.new_descriptor(nS, 1, ns, 1)
-            C_t = desc.empty(dtype=complex)
-            N_tt = np.dot(v_St.conj().T, v_St)
-            overlap_tt = np.linalg.inv(N_tt)
-            # C_t[:, 0] = B_t.conj() * A_t
-            C_t[:, 0] = np.dot(B_t.conj(), overlap_tt.T) * A_t
-            C_T = desc.collect_on_master(C_t)[:, 0]
+            desc_v = grid.new_descriptor(nS, 1, ns, 1)
+            desc_m = grid.new_descriptor(nS, nS, ns, 1)
+            descb = grid.new_descriptor(nS, nS, 1, nS)
+            C_t = desc_v.empty(dtype=complex)
+            N_tT = desc_m.empty(dtype=complex)
+            pblas_hemm(1.0, v_St.conj().T, v_St, 0.0,
+                       N_tT, desc_m, descb, desc_m)
+
+            scalapack_solve(desc_m, desc_v, N_tT, B_t)
+            C_t[:, 0] = B_t.conj() * A_t
+            C_T = desc_v.collect_on_master(C_t)[:, 0]
             if world.rank != 0:
                 C_T = np.empty(nS, dtype=complex)
             world.broadcast(C_T, 0)
