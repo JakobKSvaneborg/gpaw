@@ -56,6 +56,7 @@ class Symmetries:
         else:
             self.atommap_sa = np.array(atommaps)
             assert self.atommap_sa.dtype == int
+        self.op_scc = self.rotation_scc  # old name
 
     @cached_property
     def symmorphic(self):
@@ -156,6 +157,20 @@ class Symmetries:
                 if gcd_c[c] % denom != 0:
                     gcd_c[c] *= denom
         return gcd_c
+
+    @cached_property
+    def gcd_c(self):
+        return self.gcd()
+
+    def check_grid(self, N_c) -> bool:
+        """Check that symmetries are commensurate with grid."""
+        for U_cc, t_c in zip(self.rotation_scc, self.tranlation_sc):
+            t_c *= N_c
+            # Make sure all grid-points map onto another grid-point:
+            if (((N_c * U_cc).T % N_c).any() or
+                not np.allclose(t_c, t_c.round())):
+                return False
+        return True
 
 
 def find_lattice_symmetry(cell_cv, pbc_c, tol):

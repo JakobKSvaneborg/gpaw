@@ -493,7 +493,7 @@ def create_uniform_grid(mode: str,
                         gpts,
                         cell,
                         pbc,
-                        symmetry,
+                        symmetries,
                         h: float = None,
                         interpolation: str = None,
                         ecut: float = None,
@@ -514,5 +514,5 @@ def create_uniform_grid(mode: str,
     else:
         modeobj = SimpleNamespace(name=mode, ecut=ecut)
         size = get_number_of_grid_points(cell, h, modeobj, realspace,
-                                         symmetry.symmetry)
+                                         symmetries)
     return UGDesc(cell=cell, pbc=pbc, zerobc=zerobc, size=size, comm=comm)
