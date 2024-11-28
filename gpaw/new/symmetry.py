@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Sequence
 
 import numpy as np
 from gpaw.core.domain import normalize_cell
-from gpaw.mpi import MPIComm
 from gpaw.new import zips
-from gpaw.new.brillouin import IBZ, BZPoints
 from gpaw.rotation import rotation
 from gpaw.typing import ArrayLike1D, ArrayLike2D, ArrayLike3D
+from gpaw.symmetry import frac
 
 
 def create_symmetries_object(atoms,
@@ -56,6 +56,18 @@ class Symmetries:
         else:
             self.atommap_sa = np.array(atommaps)
             assert self.atommap_sa.dtype == int
+
+    @cached_property
+    def symmorphic(self):
+        return not self.tranlation_sc.any()
+
+    @cached_property
+    def has_inversion(self):
+        inv_cc = -np.eye(3, dtype=int)
+        for r_cc, t_c in zip(self.rotation_scc, self.tranlation_sc):
+            if (r_cc == inv_cc).all() and not t_c.any():
+                return True
+        return False
 
     @classmethod
     def from_cell(cls,
@@ -115,30 +127,6 @@ class Symmetries:
         lines[-1] = lines[-1][:-1] + ']\n'
         return '\n'.join(lines)
 
-    def reduce(self,
-               bz: BZPoints,
-               comm: MPIComm = None,
-               strict: bool = True,
-               use_time_reversal=True) -> IBZ:
-        """Find irreducible set of k-points."""
-        if not (use_time_reversal or
-                self.symmetry.point_group):
-            N = len(bz)
-            return IBZ(self,
-                       bz,
-                       ibz2bz=np.arange(N),
-                       bz2ibz=np.arange(N),
-                       weights=np.ones(N) / N)
-
-        (_, weight_k, sym_k, time_reversal_k, bz2ibz_K, ibz2bz_k,
-         bz2bz_Ks) = self.symmetry.reduce(bz.kpt_Kc, comm)
-
-        if strict and -1 in bz2bz_Ks:
-            raise ValueError(
-                'Your k-points are not as symmetric as your crystal!')
-
-        return IBZ(self, bz, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks)
-
     def check_positions(self, fracpos_ac):
         self.symmetry.check(fracpos_ac)
 
@@ -159,6 +147,15 @@ class Symmetries:
             rotation_sii = xp.asarray(rotation_sii)
             self._rotations[ells] = rotation_sii
         return rotation_sii
+
+    def gcd(self, tolerance=1e-7):
+        gcd_c = np.ones(3, int)
+        for t_c in self.tranlation_sc:
+            for c, t in enumerate(t_c):
+                nom, denom = frac(t, tol=tolerance)
+                if gcd_c[c] % denom != 0:
+                    gcd_c[c] *= denom
+        return gcd_c
 
 
 def find_lattice_symmetry(cell_cv, pbc_c, tol):

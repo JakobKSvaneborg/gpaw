@@ -5,6 +5,7 @@ import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from gpaw.mpi import MPIComm
 from gpaw.typing import Array1D, ArrayLike2D
+from gpaw.symmetry import reduce_kpts
 if TYPE_CHECKING:
     from gpaw.new.symmetry import Symmetries
 
@@ -24,6 +25,38 @@ class BZPoints:
         if self.gamma_only:
             return 'BZPoints([<gamma only>])'
         return f'BZPoints([<{len(self)} points>])'
+
+    def reduce(self,
+               symmetries: Symmetries,
+               *,
+               comm: MPIComm = None,
+               strict: bool = True,
+               use_time_reversal=True,
+               tolerance=1e-7) -> IBZ:
+        """Find irreducible set of k-points."""
+        if not (use_time_reversal or
+                len(symmetries.rotation_scc) == 1):
+            N = len(self)
+            return IBZ(symmetries,
+                       self,
+                       ibz2bz=np.arange(N),
+                       bz2ibz=np.arange(N),
+                       weights=np.ones(N) / N)
+
+        if symmetries.has_inversion:
+            use_time_reversal = False
+        (_, weight_k, sym_k, time_reversal_k, bz2ibz_K, ibz2bz_k,
+         bz2bz_Ks) = reduce_kpts(self.kpt_Kc,
+                                 symmetries.rotation_scc,
+                                 use_time_reversal,
+                                 comm,
+                                 tolerance)
+
+        if strict and -1 in bz2bz_Ks:
+            raise ValueError(
+                'Your k-points are not as symmetric as your crystal!')
+
+        return IBZ(symmetries, self, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks)
 
 
 class MonkhorstPackKPoints(BZPoints):
