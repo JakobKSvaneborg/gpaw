@@ -430,13 +430,17 @@ def normalize_initial_magmoms(
 
 def create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     if 'kpts' in kpts:
-        # assert len(kpts) == 1, kpts
-        return BZPoints(kpts['kpts'])
-    if 'path' in kpts:
+        bz = BZPoints(kpts['kpts'])
+    elif 'path' in kpts:
         path = atoms.cell.bandpath(pbc=atoms.pbc, **kpts)
-        return BZPoints(path.kpts)
-    size, offset = kpts2sizeandoffsets(**kpts, atoms=atoms)
-    return MonkhorstPackKPoints(size, offset)
+        bz = BZPoints(path.kpts)
+    else:
+        size, offset = kpts2sizeandoffsets(**kpts, atoms=atoms)
+        bz = MonkhorstPackKPoints(size, offset)
+    for c, periodic in enumerate(atoms.pbc):
+        if not periodic and not np.allclose(bz.kpt_Kc[:, c], 0.0):
+            raise ValueError('K-points can only be used with PBCs!')
+    return bz
 
 
 def calculate_number_of_bands(nbands: int | str | None,

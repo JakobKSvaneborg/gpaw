@@ -48,9 +48,9 @@ class Symmetries:
         self.rotation_scc = np.array(rotations, dtype=int)
         assert (self.rotation_scc == rotations).all()
         if translations is None:
-            self.tranlation_sc = np.zeros((len(rotations), 3))
+            self.translation_sc = np.zeros((len(rotations), 3))
         else:
-            self.tranlation_sc = np.array(translations)
+            self.translation_sc = np.array(translations)
         if atommaps is None:
             self.atommap_sa = np.empty((len(rotations), 0), int)
         else:
@@ -60,12 +60,12 @@ class Symmetries:
 
     @cached_property
     def symmorphic(self):
-        return not self.tranlation_sc.any()
+        return not self.translation_sc.any()
 
     @cached_property
     def has_inversion(self):
         inv_cc = -np.eye(3, dtype=int)
-        for r_cc, t_c in zip(self.rotation_scc, self.tranlation_sc):
+        for r_cc, t_c in zip(self.rotation_scc, self.translation_sc):
             if (r_cc == inv_cc).all() and not t_c.any():
                 return True
         return False
@@ -113,7 +113,7 @@ class Symmetries:
     def __str__(self):
         lines = ['symmetry:',
                  f'  number of symmetries: {len(self)}']
-        if self.symmetry.symmorphic:
+        if self.symmorphic:
             lines.append('  rotations: [')
             for rot_cc in self.rotation_scc:
                 lines.append(f'    {mat(rot_cc)},')
@@ -134,24 +134,9 @@ class Symmetries:
     def symmetrize_forces(self, F_av):
         return self.symmetry.symmetrize_forces(F_av)
 
-    def rotations(self, l_j, xp=np):
-        ells = tuple(l_j)
-        rotation_sii = self._rotations.get(ells)
-        if rotation_sii is None:
-            ni = sum(2 * l + 1 for l in l_j)
-            rotation_sii = np.zeros((len(self), ni, ni))
-            i1 = 0
-            for l in l_j:
-                i2 = i1 + 2 * l + 1
-                rotation_sii[:, i1:i2, i1:i2] = self.rotation_lsmm[l]
-                i1 = i2
-            rotation_sii = xp.asarray(rotation_sii)
-            self._rotations[ells] = rotation_sii
-        return rotation_sii
-
     def gcd(self, tolerance=1e-7):
         gcd_c = np.ones(3, int)
-        for t_c in self.tranlation_sc:
+        for t_c in self.translation_sc:
             for c, t in enumerate(t_c):
                 nom, denom = frac(t, tol=tolerance)
                 if gcd_c[c] % denom != 0:
@@ -164,7 +149,7 @@ class Symmetries:
 
     def check_grid(self, N_c) -> bool:
         """Check that symmetries are commensurate with grid."""
-        for U_cc, t_c in zip(self.rotation_scc, self.tranlation_sc):
+        for U_cc, t_c in zip(self.rotation_scc, self.translation_sc):
             t_c *= N_c
             # Make sure all grid-points map onto another grid-point:
             if (((N_c * U_cc).T % N_c).any() or
@@ -276,45 +261,60 @@ def check_one_symmetry(spos_ac, op_cc, ft_c, a_ia, stol):
     return a_a
 
 
-def integer_ids(ids: Sequence) -> list[int]:
-    dct = {}
-    iids = []
-    for id in ids:
-        iid = dct.get(id)
-        if iid is None:
-            iid = len(dct)
-            dct[id] = iid
-        iids.append(iid)
-    return iids
-
-
-def safe_id(magmom_av, tolerance=1e-3):
-    """Convert magnetic moments to integer id's.
-
-    While calculating id's for atoms, there may be rounding errors
-    in magnetic moments supplied. This will create an unique integer
-    identifier for each magnetic moment double, based on the range
-    as set by the first occurence of each floating point number:
-    [magmom_a - tolerance, magmom_a + tolerance].
-
-    >>> safe_id([1.01, 0.99, 0.5], tolerance=0.025)
-    [0, 0, 2]
-    """
-    id_a = []
-    for a, magmom_v in enumerate(magmom_av):
-        quantized = None
-        for a2 in range(a):
-            if np.linalg.norm(magmom_av[a2] - magmom_v) < tolerance:
-                quantized = a2
-                break
-        if quantized is None:
-            quantized = a
-        id_a.append(quantized)
-    return id_a
-
-
 class SymmetrizationPlan:
-    def __init__(self, xp, rotations, a_sa, l_aj, layout):
+    def __init__(self,
+                 symmetries: Symmetries,
+                 l_aj,
+                 cell_cv):
+        self.symmetries = symmetries
+        self.l_aj = l_aj
+        self.rotation_svv = np.einsum('vc, scd, dw -> svw',
+                                      np.linalg.inv(cell_cv),
+                                      symmetries.rotation_scc,
+                                      cell_cv)
+        lmax = max(max(l_j) for l_j in l_aj)
+        self.rotation_lsmm = [
+            np.array([rotation(l, r_vv) for r_vv in self.rotation_svv])
+            for l in range(lmax + 1)]
+        self._rotations = {}
+
+    def rotations(self, l_j, xp=np):
+        ells = tuple(l_j)
+        rotation_sii = self._rotations.get(ells)
+        if rotation_sii is None:
+            ni = sum(2 * l + 1 for l in l_j)
+            rotation_sii = np.zeros((len(self.symmetries), ni, ni))
+            i1 = 0
+            for l in l_j:
+                i2 = i1 + 2 * l + 1
+                rotation_sii[:, i1:i2, i1:i2] = self.rotation_lsmm[l]
+                i1 = i2
+            rotation_sii = xp.asarray(rotation_sii)
+            self._rotations[ells] = rotation_sii
+        return rotation_sii
+
+    def apply_distributed(self, D_asii, dist_D_asii):
+        for a1, D_sii in dist_D_asii.items():
+            D_sii[:] = 0.0
+            rotation_sii = self.rotations(self.l_aj[a1])
+            for a2, rotation_ii in zips(self.symmetries.atommap_sa[:, a1],
+                                        rotation_sii):
+                D_sii += np.einsum('ij, sjk, lk -> sil',
+                                   rotation_ii, D_asii[a2], rotation_ii)
+        dist_D_asii.data *= 1.0 / len(self.symmetries)
+
+
+class GPUSymmetrizationPlan:
+    def __init__(self,
+                 symmetries: Symmetries,
+                 l_aj,
+                 cell_cv,
+                 layout):
+        super().__init__(symmetries, l_aj, cell_cv)
+
+        xp = layout.xp
+        a_sa = symmetries.atommap_sa
+
         ns = a_sa.shape[0]  # Number of symmetries
         na = a_sa.shape[1]  # Number of atoms
 
@@ -343,9 +343,9 @@ class SymmetrizationPlan:
             # Which equals to vec(ρ'_ii) = (R^s_ii ⊗  R^s_ii) vec(ρ_ii)
             # Here we to the Kronecker product for each of the
             # symmetry transformations.
-            R_sii = xp.asarray(rotations(l_aj[a], xp))
+            R_sii = xp.asarray(self.rotations(l_aj[a], xp))
             i2 = R_sii.shape[1]**2
-            R_sPP = xp.einsum('sab,scd->sacbd', R_sii, R_sii)
+            R_sPP = xp.einsum('sab, scd -> sacbd', R_sii, R_sii)
             R_sPP = R_sPP.reshape((ns, i2, i2)) / ns
 
             S_ZZ = xp.zeros((nA * i2,) * 2)
@@ -399,20 +399,38 @@ def mat(rot_cc) -> str:
                               for rot_c in rot_cc) + ']]'
 
 
-class OldNewSymmetries:
-    """Wrapper for old symmetry object.  Exposes what we need now."""
-    def __init__(self, symmetry):
-        self.symmetry = symmetry
-        self.rotation_scc = symmetry.op_scc
-        self.translation_sc = symmetry.ft_sc
-        self.a_sa = symmetry.a_sa
-        cell_cv = symmetry.cell_cv
-        self.rotation_svv = np.einsum('vc, scd, dw -> svw',
-                                      np.linalg.inv(cell_cv),
-                                      self.rotation_scc,
-                                      cell_cv)
-        self.rotation_lsmm = [
-            np.array([rotation(l, r_vv) for r_vv in self.rotation_svv])
-            for l in range(4)]
-        self._rotations = {}
+def integer_ids(ids: Sequence) -> list[int]:
+    dct = {}
+    iids = []
+    for id in ids:
+        iid = dct.get(id)
+        if iid is None:
+            iid = len(dct)
+            dct[id] = iid
+        iids.append(iid)
+    return iids
 
+
+def safe_id(magmom_av, tolerance=1e-3):
+    """Convert magnetic moments to integer id's.
+
+    While calculating id's for atoms, there may be rounding errors
+    in magnetic moments supplied. This will create an unique integer
+    identifier for each magnetic moment double, based on the range
+    as set by the first occurence of each floating point number:
+    [magmom_a - tolerance, magmom_a + tolerance].
+
+    >>> safe_id([1.01, 0.99, 0.5], tolerance=0.025)
+    [0, 0, 2]
+    """
+    id_a = []
+    for a, magmom_v in enumerate(magmom_av):
+        quantized = None
+        for a2 in range(a):
+            if np.linalg.norm(magmom_av[a2] - magmom_v) < tolerance:
+                quantized = a2
+                break
+        if quantized is None:
+            quantized = a
+        id_a.append(quantized)
+    return id_a

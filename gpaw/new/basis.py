@@ -1,11 +1,10 @@
-from types import SimpleNamespace
-
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import BasisFunctions
 from gpaw.mpi import serial_comm
+from gpaw.new.brillouin import IBZ
 
 
-def create_basis(ibz,
+def create_basis(ibz: IBZ,
                  nspins,
                  pbc_c,
                  grid,
@@ -16,9 +15,14 @@ def create_basis(ibz,
                  kpt_comm=serial_comm,
                  band_comm=serial_comm):
     kd = KPointDescriptor(ibz.bz.kpt_Kc, nspins)
-    kd.set_symmetry(SimpleNamespace(pbc=pbc_c),
-                    ibz.symmetries,
-                    comm=comm)
+    kd.ibzk_kc = ibz.kpt_kc
+    kd.weight_k = ibz.weight_k
+    kd.sym_k = '?'
+    kd.time_reversal_k = '?'
+    kd.bz2ibz_k = '?',
+    kd.ibz2bz_k = '?'
+    kd.bz2bz_ks = '?'
+    kd.nibzkpts = len(ibz)
     kd.set_communicator(kpt_comm)
 
     basis = BasisFunctions(grid._gd,

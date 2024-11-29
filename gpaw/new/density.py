@@ -14,7 +14,7 @@ from gpaw.mpi import MPIComm
 from gpaw.new import trace, zips
 from gpaw.typing import Array3D, Vector
 from gpaw.utilities import unpack_hermitian, unpack_density
-from gpaw.new.symmetry import SymmetrizationPlan
+from gpaw.new.symmetry import SymmetrizationPlan, GPUSymmetrizationPlan
 from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
@@ -246,26 +246,21 @@ class Density:
         xp = self.nt_sR.xp
         if xp is np:
             D_asii = self.D_asii.gather(broadcast=True, copy=True)
-            for a1, D_sii in self.D_asii.items():
-                D_sii[:] = 0.0
-                rotation_sii = symmetries.rotations(self.l_aj[a1], xp)
-                for a2, rotation_ii in zips(symmetries.a_sa[:, a1],
-                                            rotation_sii):
-                    D_sii += xp.einsum('ij, sjk, lk -> sil',
-                                       rotation_ii, D_asii[a2], rotation_ii)
-            self.D_asii.data *= 1.0 / len(symmetries)
+            if self.symplan is None:
+                self.symplan = SymmetrizationPlan(symmetries,
+                                                  self.l_aj,
+                                                  self.grid.cell_cv)
+            self.symplan.apply_distributed(D_asii, self.D_asii)
         else:
             # GPU version does all the work in rank 0 for now
             D_asii = self.D_asii.gather(copy=True)
             if self.D_asii.layout.atomdist.comm.rank == 0:
                 if self.symplan is None:
-                    self.symplan = SymmetrizationPlan(xp, symmetries.rotations,
-                                                      symmetries.a_sa,
-                                                      self.l_aj,
-                                                      D_asii.layout)
-
+                    self.symplan = GPUSymmetrizationPlan(symmetries,
+                                                         self.l_aj,
+                                                         self.grid.cell_cv,
+                                                         D_asii.layout)
                 self.symplan.apply(D_asii.data, D_asii.data)
-
             self.D_asii.scatter_from(D_asii)
 
     def move(self, fracpos_ac, atomdist):

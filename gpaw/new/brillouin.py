@@ -34,8 +34,7 @@ class BZPoints:
                use_time_reversal=True,
                tolerance=1e-7) -> IBZ:
         """Find irreducible set of k-points."""
-        if not (use_time_reversal or
-                len(symmetries.rotation_scc) == 1):
+        if not (use_time_reversal or len(symmetries) > 1):
             N = len(self)
             return IBZ(symmetries,
                        self,
