@@ -106,7 +106,11 @@ class DFTComponentsBuilder:
             magmoms=self.initial_magmom_av,
             **{k: v for k, v in params.symmetry.items()
                if k != 'time_reversal'})
-        #self.setups.set_symmetry(symmetries.symmetry)
+
+        use_time_reversal = params.symmetry.get('time_reversal', True)
+
+        symmetries._old_symmetry.time_reversal = use_time_reversal  # legacy
+        self.setups.set_symmetry(symmetries._old_symmetry)  # legacy
 
         if self.ncomponents == 4:
             assert (len(symmetries) == 1 and not
@@ -117,7 +121,7 @@ class DFTComponentsBuilder:
             symmetries,
             strict=False,
             comm=comm,
-            use_time_reversal=params.symmetry.get('time_reversal', True))
+            use_time_reversal=use_time_reversal)
 
         d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
         k = parallel.get('kpt', None)

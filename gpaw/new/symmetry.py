@@ -9,6 +9,7 @@ from gpaw.new import zips
 from gpaw.rotation import rotation
 from gpaw.typing import ArrayLike1D, ArrayLike2D, ArrayLike3D
 from gpaw.symmetry import frac
+from gpaw.symmetry import Symmetry as OldSymmetry
 
 
 def create_symmetries_object(atoms,
@@ -33,11 +34,25 @@ def create_symmetries_object(atoms,
         ids = integer_ids((id, m) for id, m in zips(ids, safe_id(magmoms)))
     if extra_ids is not None:
         ids = integer_ids((id, x) for id, x in zips(ids, extra_ids))
-    return sym.new_with_positions(
+    sym = sym.new_with_positions(
         atoms.get_scaled_positions(),
         ids=ids,
         symmorphic=symmorphic,
         tolerance=tolerance)
+
+    # Legacy:
+    sym._old_symmetry = OldSymmetry(
+        ids, atoms.cell, atoms.pbc, tolerance,
+        point_group,
+        time_reversal='?',
+        symmorphic=symmorphic)
+    sym._old_symmetry.op_scc = sym.rotation_scc
+    sym._old_symmetry.ft_sc = sym.translation_sc
+    sym._old_symmetry.a_sa = sym.atommap_sa
+    sym._old_symmetry.has_inversion = sym.has_inversion
+    sym._old_symmetry.gcd_c = sym.gcd()
+
+    return sym
 
 
 class Symmetries:

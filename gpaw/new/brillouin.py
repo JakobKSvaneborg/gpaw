@@ -44,7 +44,7 @@ class BZPoints:
 
         if symmetries.has_inversion:
             use_time_reversal = False
-        (_, weight_k, sym_k, time_reversal_k, bz2ibz_K, ibz2bz_k,
+        (_, weight_k, sym_K, time_reversal_K, bz2ibz_K, ibz2bz_k,
          bz2bz_Ks) = reduce_kpts(self.kpt_Kc,
                                  symmetries.rotation_scc,
                                  use_time_reversal,
@@ -55,7 +55,8 @@ class BZPoints:
             raise ValueError(
                 'Your k-points are not as symmetric as your crystal!')
 
-        return IBZ(symmetries, self, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks)
+        return IBZ(symmetries, self, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks,
+                   sym_K, time_reversal_K)
 
 
 class MonkhorstPackKPoints(BZPoints):
@@ -78,7 +79,8 @@ class IBZ:
     def __init__(self,
                  symmetries: Symmetries,
                  bz: BZPoints,
-                 ibz2bz, bz2ibz, weights, bz2bz_Ks=None):
+                 ibz2bz, bz2ibz, weights,
+                 bz2bz_Ks=None, s_K=None, time_reversal_K=None):
         self.symmetries = symmetries
         self.bz = bz
         self.weight_k = weights
@@ -86,6 +88,8 @@ class IBZ:
         self.ibz2bz_k = ibz2bz
         self.bz2ibz_K = bz2ibz
         self.bz2bz_Ks = bz2bz_Ks
+        self.s_K = s_K
+        self.time_reversal_K = time_reversal_K
 
     def __len__(self):
         """Number of k-points in the IBZ."""
