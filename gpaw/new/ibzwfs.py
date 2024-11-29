@@ -339,11 +339,11 @@ class IBZWaveFunctions(Generic[WFT]):
                      occupations=occ_skn)
         ibz = self.ibz
         writer.child('kpts').write(
-            atommap=ibz.symmetries.a_sa,
+            atommap=ibz.symmetries.atommap_sa,
             bz2ibz=ibz.bz2ibz_K,
             bzkpts=ibz.bz.kpt_Kc,
             ibzkpts=ibz.kpt_kc,
-            rotations=ibz.symmetries.rotation_svv,
+            rotations=ibz.symmetries.rotation_scc,
             translations=ibz.symmetries.translation_sc,
             weights=ibz.weight_k)
 

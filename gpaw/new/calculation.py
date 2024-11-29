@@ -302,7 +302,8 @@ class DFTCalculation:
         domain_comm = Q_aL.layout.atomdist.comm
         domain_comm.sum(F_av)
 
-        F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
+        cell_cv = self.density.grid.cell_cv
+        F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av, cell_cv)
         self.comm.broadcast(F_av, 0)
         self.results['forces'] = F_av
 

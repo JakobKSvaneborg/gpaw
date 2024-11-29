@@ -146,8 +146,14 @@ class Symmetries:
     def check_positions(self, fracpos_ac):
         self.symmetry.check(fracpos_ac)
 
-    def symmetrize_forces(self, F_av):
-        return self.symmetry.symmetrize_forces(F_av)
+    def symmetrize_forces(self, F0_av, cell_cv):
+        """Symmetrize forces."""
+        F_ac = np.zeros_like(F0_av)
+        for map_a, op_cc in zip(self.atommap_sa, self.rotation_scc):
+            op_vv = np.linalg.inv(cell_cv) @ op_cc @ cell_cv
+            for a1, a2 in enumerate(map_a):
+                F_ac[a2] += np.dot(F0_av[a1], op_vv)
+        return F_ac / len(self)
 
     def gcd(self, tolerance=1e-7):
         gcd_c = np.ones(3, int)
