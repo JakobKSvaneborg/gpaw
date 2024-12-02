@@ -23,15 +23,10 @@ from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.screened_interaction import (initialize_w_calculator,
                                                 GammaIntegrationMode)
 from gpaw.utilities.elpa import LibElpa
-from gpaw.utilities.scalapack import mkl_scalapack_diagonalize_non_symmetric
-from gpaw.utilities.scalapack import have_mkl
-from gpaw.utilities.scalapack import pblas_gemm, scalapack_solve, pblas_tran
+from gpaw.utilities.scalapack import mkl_scalapack_diagonalize_non_symmetric, \
+    have_mkl, pblas_gemm, scalapack_solve, pblas_tran
 from gpaw.matrix import suggest_blocking
 import warnings
-
-
-# def have_mkl():
-#     return False
 
 
 def decide_whether_tammdancoff(val_m, con_m):
@@ -67,17 +62,17 @@ class BSEMatrix:
             desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
             v_Rt = desc_Rt.zeros(dtype=complex)
             Redistributor(world, desc, desc_Rt).redistribute(v_rt, v_Rt)
-        else:
-            bse.context.print('  Using numpy.linalg.eig...')
-            H_RR = desc.collect_on_master(H_rr)
-            w_T = np.zeros(nR, complex)
-            v_Rt = np.zeros((nR, nR), complex)
-            if world.rank == 0:
-                w_T, v_Rt = np.linalg.eig(H_RR)
-            world.broadcast(v_Rt, 0)
-            world.broadcast(w_T, 0)
+            return w_T, v_Rt, exclude_S
 
-        return w_T, v_Rt, exclude_S
+        bse.context.print('  Using numpy.linalg.eig...')
+        H_RR = desc.collect_on_master(H_rr)
+        w_T = np.zeros(nR, complex)
+        v_RT = np.zeros((nR, nR), complex)
+        if world.rank == 0:
+            w_T, v_RT = np.linalg.eig(H_RR)
+        world.broadcast(v_RT, 0)
+        world.broadcast(w_T, 0)
+        return w_T, v_RT, exclude_S
 
     def diagonalize_tammdancoff(self, bse, deps_max=None, backend='scalapack'):
         if deps_max is None:
@@ -829,63 +824,92 @@ class BSEBackend:
         nt = -(-nR // world.size)
         dft_R = np.delete(df_S, exclude_S)
         rhot_R = np.delete(rho_S, exclude_S)
-        C_T = np.zeros(nR, complex)
-        # Calculate the spectral weights C_T
+        C_T = np.zeros(nR, complex)  # spectral weights
 
-        if world.size == 1:
-            A_t = np.dot(rhot_R, v_Rt)
-            B_t = np.dot(rhot_R * dft_R, v_Rt)
-            N_tt = np.dot(v_Rt.conj().T, v_Rt)
-            B_t = np.linalg.solve(N_tt.T, B_t)
-            C_T = A_t * B_t.conj()
-        else:
-            # existing blacs grid
+        if self.use_tammdancoff:
+            if world.size == 1:
+                A_t = np.dot(rhot_R, v_Rt)
+                B_t = np.dot(rhot_R * dft_R, v_Rt)
+                C_t = A_t * B_t.conj()
+                return w_T, C_t
+
+            # create blacs grid on which A_t and B_t are distributed
             grid_Rt = BlacsGrid(world, 1, world.size)
-            desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
-            desc1_t = grid_Rt.new_descriptor(1, nR, 1, nt)
-
-            A1_t = desc1_t.zeros(dtype=complex)
-            B1_t = desc1_t.zeros(dtype=complex)
-            A1_t[0, :] = np.dot(rhot_R, v_Rt)
-            B1_t[0, :] = np.dot(rhot_R * dft_R, v_Rt)
-
-            # new blacs grid
-            nrows, ncols, blocksize = suggest_blocking(nR, world.size)
-            grid_tt = BlacsGrid(world, nrows, ncols)
-            desc_tt = grid_tt.new_descriptor(nR, nR, blocksize, blocksize)
-            desc_t = grid_tt.new_descriptor(1, nR, blocksize, blocksize)
-            v_rt = desc_tt.zeros(dtype=complex)
-            vc_tr = desc_tt.zeros(dtype=complex)
+            desc_t = grid_Rt.new_descriptor(1, nR, 1, nt)
             A_t = desc_t.zeros(dtype=complex)
+            A_t[0, :] = np.dot(rhot_R, v_Rt)
+
             B_t = desc_t.zeros(dtype=complex)
-            N_tt = desc_tt.zeros(dtype=complex)
-
-            # redistribute arrays to new grid
-            Redistributor(world, desc_Rt,
-                          desc_tt).redistribute(v_Rt, v_rt)
-            Redistributor(world, desc1_t,
-                          desc_t).redistribute(A1_t, A_t)
-            Redistributor(world, desc1_t,
-                          desc_t).redistribute(B1_t, B_t)
-
-            # do the actual calculations
-
-            # compute overlap matrix N_tt
-            pblas_tran(1.0, v_rt, 0.0, vc_tr, desc_tt, desc_tt, conj=True)
-            pblas_gemm(1.0, vc_tr, v_rt, 0.0,
-                       N_tt, desc_tt, desc_tt, desc_tt)
-
-            # Find B_t including the inverse of overlap
-            # Note that scalapack automatically transposes N_tt,
-            # so we don't do this explicitly here
-
-            scalapack_solve(desc_tt, desc_t, N_tt, B_t)
+            B_t[0, :] = np.dot(rhot_R * dft_R, v_Rt)
             C_t = A_t * B_t.conj()
             C_T = desc_t.collect_on_master(C_t)
             if world.rank != 0:
                 C_T = np.empty((1, nR), dtype=complex)
             world.broadcast(C_T, 0)
             C_T = C_T.flatten()
+            return w_T, C_T
+
+        # not tamm-dancoff
+        if world.size == 1 or not have_mkl():
+            A_t = np.dot(rhot_R, v_Rt)
+            B_t = np.dot(rhot_R * dft_R, v_Rt)
+            N_tt = np.dot(v_Rt.conj().T, v_Rt)
+            B_t = np.linalg.solve(N_tt.T, B_t)
+            C_t = A_t * B_t.conj()
+            return w_T, C_t
+
+        # create blacs grid on which A_t and B_t are distributed
+        grid_Rt = BlacsGrid(world, 1, world.size)
+
+        # get descriptors for existing blacs grid
+        desc1_t = grid_Rt.new_descriptor(1, nR, 1, nt)
+        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
+
+        A1_t = desc1_t.zeros(dtype=complex)
+        B1_t = desc1_t.zeros(dtype=complex)
+        A1_t[0, :] = np.dot(rhot_R, v_Rt)
+        B1_t[0, :] = np.dot(rhot_R * dft_R, v_Rt)
+
+        # new blacs grid. this must be created because scalapack_solve
+        # requires that the row and columns have the same blocksize
+        nrows, ncols, blocksize = suggest_blocking(nR, world.size)
+        grid_tt = BlacsGrid(world, nrows, ncols)
+        desc_tt = grid_tt.new_descriptor(nR, nR, blocksize, blocksize)
+        desc_t = grid_tt.new_descriptor(1, nR, blocksize, blocksize)
+        vector_redistributor = Redistributor(world, desc1_t, desc_t)
+
+        A_t = desc_t.zeros(dtype=complex)
+        vector_redistributor.redistribute(A1_t, A_t)
+
+        B_t = desc_t.zeros(dtype=complex)
+        vector_redistributor.redistribute(B1_t, B_t)
+
+        # eigenvectors of BSE Hamiltonian
+        v_rt = desc_tt.zeros(dtype=complex)
+        Redistributor(world, desc_Rt,
+                      desc_tt).redistribute(v_Rt, v_rt)
+
+        # conjugate transpose eigenvectors
+        vc_tr = desc_tt.zeros(dtype=complex)
+        pblas_tran(1.0, v_rt, 0.0, vc_tr, desc_tt, desc_tt, conj=True)
+
+        # compute overlap matrix N_tt
+        N_tt = desc_tt.zeros(dtype=complex)
+        pblas_gemm(1.0, vc_tr, v_rt, 0.0,
+                   N_tt, desc_tt, desc_tt, desc_tt)
+
+        # Find B_t including the inverse of overlap
+        # Note that scalapack automatically transposes N_tt,
+        # so we don't do this explicitly here (unlike in the serial case)
+
+        scalapack_solve(desc_tt, desc_t, N_tt, B_t)
+
+        C_t = A_t * B_t.conj()
+        C_T = desc_t.collect_on_master(C_t)
+        if world.rank != 0:
+            C_T = np.empty((1, nR), dtype=complex)
+        world.broadcast(C_T, 0)
+        C_T = C_T.flatten()
         return w_T, C_T
 
     @timer('get_vchi')
