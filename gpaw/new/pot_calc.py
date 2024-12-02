@@ -37,14 +37,14 @@ class PotentialCalculator:
                  poisson_solver,
                  setups: list[Setup],
                  *,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  external_potential: ExternalPotential | None = None,
                  soc: bool = False):
         self.poisson_solver = poisson_solver
         self.xc = xc
         self.setups = setups
         self.external_potential = external_potential or ExternalPotential()
-        self.fracpos_ac = fracpos_ac
+        self.relpos_ac = relpos_ac
         self.soc = soc
 
     def __str__(self):

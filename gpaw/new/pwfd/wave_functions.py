@@ -28,7 +28,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  q: int,
                  k: int,
                  setups: Setups,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  atomdist: AtomDistribution,
                  weight: float = 1.0,
                  ncomponents: int = 1,
@@ -42,7 +42,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                          q=q,
                          k=k,
                          kpt_c=psit_nX.desc.kpt_c,
-                         fracpos_ac=fracpos_ac,
+                         relpos_ac=relpos_ac,
                          atomdist=atomdist,
                          weight=weight,
                          ncomponents=ncomponents,
@@ -60,7 +60,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def from_wfs(cls,
                  wfs: PWFDWaveFunctions,
                  psit_nX: XArray,
-                 fracpos_ac=None,
+                 relpos_ac=None,
                  atomdist=None) -> PWFDWaveFunctions:
         return cls(
             psit_nX,
@@ -68,7 +68,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             q=wfs.q,
             k=wfs.k,
             setups=wfs.setups,
-            fracpos_ac=wfs.fracpos_ac if fracpos_ac is None else fracpos_ac,
+            relpos_ac=wfs.relpos_ac if relpos_ac is None else relpos_ac,
             atomdist=atomdist or wfs.atomdist,
             weight=wfs.weight,
             ncomponents=wfs.ncomponents,
@@ -105,7 +105,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         if self._pt_aiX is None:
             self._pt_aiX = self.psit_nX.desc.atom_centered_functions(
                 [setup.pt_j for setup in self.setups],
-                self.fracpos_ac,
+                self.relpos_ac,
                 atomdist=self.atomdist,
                 qspiral_v=self.qspiral_v,
                 xp=self.psit_nX.xp)
@@ -130,20 +130,20 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         return self._P_ani
 
     def move(self,
-             fracpos_ac: Array2D,
+             relpos_ac: Array2D,
              atomdist: AtomDistribution,
              move_wave_functions: Callable[..., None]) -> None:
         if self.psit_nX.data is not None:
             move_wave_functions(
-                self.fracpos_ac,
-                fracpos_ac,
+                self.relpos_ac,
+                relpos_ac,
                 self.P_ani,
                 self.psit_nX,
                 self.setups)
-        super().move(fracpos_ac, atomdist, move_wave_functions)
+        super().move(relpos_ac, atomdist, move_wave_functions)
         self.orthonormalized = False
         assert self.pt_aiX is not None
-        self.pt_aiX.move(fracpos_ac, atomdist)
+        self.pt_aiX.move(relpos_ac, atomdist)
 
     def add_to_density(self,
                        nt_sR: UGArray,
@@ -406,7 +406,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                                  q=q,
                                  k=k,
                                  setups=self.setups,
-                                 fracpos_ac=self.fracpos_ac,
+                                 relpos_ac=self.relpos_ac,
                                  atomdist=self.atomdist.gather(),
                                  weight=weight,
                                  ncomponents=self.ncomponents,
@@ -431,7 +431,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         dipole_nnv = np.zeros((self.nbands, self.nbands, 3))
 
-        position_av = self.fracpos_ac @ cell_cv
+        position_av = self.relpos_ac @ cell_cv
 
         R_aiiv = []
         for setup, position_v in zips(self.setups, position_av):
@@ -492,7 +492,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self.psit_nX.ifft(out=psit_nR)
         return PWFDWaveFunctions.from_wfs(self, psit_nR)
 
-    def morph(self, desc, fracpos_ac, atomdist):
+    def morph(self, desc, relpos_ac, atomdist):
         desc = desc.new(kpt=self.psit_nX.desc.kpt_c)
         psit_nX = self.psit_nX.morph(desc)
 
@@ -502,4 +502,4 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self._pt_aiX = None
 
         return PWFDWaveFunctions.from_wfs(self, psit_nX,
-                                          fracpos_ac=fracpos_ac)
+                                          relpos_ac=relpos_ac)

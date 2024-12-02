@@ -60,7 +60,7 @@ def add_wannier_correction(Z_nn, G_c, wfs, wfs1, nbands):
         P_ni = P_ani[a][:nbands]
         P1_ni = P1_ani[a][:nbands]
         dO_ii = wfs.setups[a].dO_ii
-        e = np.exp(-2.j * np.pi * np.dot(G_c, wfs.fracpos_ac[a]))
+        e = np.exp(-2.j * np.pi * np.dot(G_c, wfs.relpos_ac[a]))
         Z_nn += e * P_ni.conj() @ dO_ii @ P1_ni.T
 
 
@@ -132,13 +132,13 @@ def get_projections(ibzwfs: IBZWaveFunctions,
     nkpts = len(ibzwfs.ibz)
     nbf = np.sum([2 * l + 1 for pos, l, a in locfun])
     f_knB = np.zeros((nkpts, ibzwfs.nbands, nbf), ibzwfs.dtype)
-    fracpos_ac = ibzwfs.wfs_qs[0][0].fracpos_ac
+    relpos_ac = ibzwfs.wfs_qs[0][0].relpos_ac
 
     spos_bc = []
     splines_b = []
     for spos_c, l, sigma in locfun:
         if isinstance(spos_c, int):
-            spos_c = fracpos_ac[spos_c]
+            spos_c = relpos_ac[spos_c]
         spos_bc.append(spos_c)
         alpha = .5 * Bohr**2 / sigma**2
         r = np.linspace(0, 10. * sigma, 500)
