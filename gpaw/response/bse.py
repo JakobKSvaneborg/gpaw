@@ -50,7 +50,6 @@ class BSEMatrix:
 
     def diagonalize_nontammdancoff(self, bse, deps_max=None):
         df_S = self.df_S
-        H_sS = self.H_sS
         if deps_max is None:
             deps_max = self.deps_max
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
