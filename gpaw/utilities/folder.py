@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 
 from gpaw.gauss import Gauss
 
@@ -221,7 +220,6 @@ class Folder:
         yl = np.tensordot(weightm, Y, axes=(1, 0))
 
         return Xl, yl
-
 
     def fold_valuse_variable_brodening(self, x, y, xl, linbroad: list):
 
