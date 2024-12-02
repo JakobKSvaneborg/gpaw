@@ -128,7 +128,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
                  grid,
                  *,
                  atomdist=None,
-                 integral=None,
+                 integrals=None,
                  cut=False,
                  xp=np):
         AtomCenteredFunctions.__init__(self,
@@ -136,7 +136,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
                                        fracpos_ac,
                                        atomdist, xp=xp)
         self.grid = grid
-        self.integral = integral
+        self.integrals = integrals
         self.cut = cut
 
     def new(self, grid, atomdist):
@@ -145,7 +145,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
             self.fracpos_ac,
             grid,
             atomdist=atomdist,
-            integral=self.integral,
+            integrals=self.integrals,
             cut=self.cut,
             xp=self.xp)
 
@@ -156,7 +156,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
         kd = KPointDescriptor(np.array([self.grid.kpt]))
         self._lfc = LFC(gd, self.functions, kd,
                         dtype=self.grid.dtype,
-                        integral=self.integral,
+                        integral=self.integrals,
                         forces=True,
                         cut=self.cut,
                         xp=self.xp)

@@ -387,9 +387,11 @@ class SetupData:
             print(f'  <yukawa_exchange gamma="{self.X_gamma}"/>', file=xml)
         print('</paw_dataset>', file=xml)
 
-    def build(self, xcfunc, lmax, basis, filter=None):
+    def build(self, xcfunc, lmax, basis, filter=None,
+              backwards_compatible=True):
         from gpaw.setup import Setup
-        setup = Setup(self, xcfunc, lmax, basis, filter)
+        setup = Setup(self, xcfunc, lmax, basis, filter,
+                      backwards_compatible=backwards_compatible)
         return setup
 
 
