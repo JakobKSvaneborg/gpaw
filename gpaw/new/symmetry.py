@@ -12,6 +12,10 @@ from gpaw.symmetry import frac
 from gpaw.symmetry import Symmetry as OldSymmetry
 
 
+class SymmetryBrokenError(Exception):
+    """Broken-symmetry error."""
+
+
 def create_symmetries_object(atoms,
                              *,
                              setup_ids,
@@ -59,9 +63,16 @@ def create_symmetries_object(atoms,
 
 class Symmetries:
     def __init__(self,
+                 *,
+                 cell: ArrayLike1D | ArrayLike2D,
                  rotations: ArrayLike3D,
                  translations: ArrayLike2D | None = None,
-                 atommaps: ArrayLike2D | None = None):
+                 atommaps: ArrayLike2D | None = None,
+                 tolerance=1e-7,
+                 _backwards_compatible=False):
+        self.cell_cv = normalize_cell(cell)
+        self.tolerance = tolerance
+        self._backwards_compatible = _backwards_compatible
         self.rotation_scc = np.array(rotations, dtype=int)
         assert (self.rotation_scc == rotations).all()
         if translations is None:
@@ -75,7 +86,7 @@ class Symmetries:
             assert self.atommap_sa.dtype == int
 
         # Legacy stuff:
-        self.op_scc = self.rotation_scc  # old name
+        #self.op_scc = self.rotation_scc  # old name
         self._old_symmetry: OldSymmetry
 
     @cached_property
@@ -95,20 +106,22 @@ class Symmetries:
                   cell: ArrayLike1D | ArrayLike2D,
                   *,
                   pbc: ArrayLike1D = (True, True, True),
-                  tolerance: float = 1e-7) -> Symmetries:
+                  tolerance=1e-7,
+                  _backwards_compatible=False) -> Symmetries:
         if isinstance(pbc, int):
             pbc = (pbc,) * 3
-        cell = normalize_cell(cell)
-        rotation_scc = find_lattice_symmetry(cell, pbc, tolerance)
+        cell_cv = normalize_cell(cell)
+        rotation_scc = find_lattice_symmetry(cell_cv, pbc, tolerance,
+                                             _backwards_compatible)
         return cls(rotation_scc)
 
     def new_with_positions(self,
                            positions: ArrayLike2D | None = None,
                            *,
                            ids: ArrayLike1D | None = None,
-                           symmorphic: bool = True,
-                           tolerance: float = 1e-7) -> Symmetries:
-        return prune_symmetries(self, positions, ids, symmorphic, tolerance)
+                           symmorphic: bool = True) -> Symmetries:
+        return prune_symmetries(self, positions, ids, symmorphic,
+                                self.tolerance, self._backwards_compatible)
 
     @classmethod
     def from_atoms(cls,
@@ -124,8 +137,7 @@ class Symmetries:
             ids = atoms.numbers
         return sym.new_with_positions(atoms.positions,
                                       ids=ids,
-                                      symmorphic=symmorphic,
-                                      tolerance=tolerance)
+                                      symmorphic=symmorphic)
 
     def __len__(self):
         return len(self.rotation_scc)
@@ -149,22 +161,34 @@ class Symmetries:
         return '\n'.join(lines)
 
     def check_positions(self, fracpos_ac):
-        self.symmetry.check(fracpos_ac)
+        for U_cc, t_c, b_a in zip(self.rotation_scc,
+                                  self.translation_sc,
+                                  self.atommap_sa):
+            error_ac = fracpos_ac @ U_cc - t_c - fracpos_ac[b_a]
+            error_ac -= error_ac.round()
+            if self._backwards_compatible:
+                if abs(error_ac).max() > self.tolerance:
+                    raise SymmetryBrokenError
+            else:
+                error_av = error_ac @ self.cell_cv
+                if (error_av**2).sum(1) > self.tolerance**2:
+                    raise SymmetryBrokenError
 
-    def symmetrize_forces(self, F0_av, cell_cv):
+    def symmetrize_forces(self, F0_av):
         """Symmetrize forces."""
         F_av = np.zeros_like(F0_av)
         for map_a, op_cc in zip(self.atommap_sa, self.rotation_scc):
-            op_vv = np.linalg.inv(cell_cv) @ op_cc @ cell_cv
+            op_vv = np.linalg.inv(self.cell_cv) @ op_cc @ self.cell_cv
             for a1, a2 in enumerate(map_a):
                 F_av[a2] += np.dot(F0_av[a1], op_vv)
         return F_av / len(self)
 
-    def gcd(self, tolerance=1e-7):
+    def gcd(self):
+        length_c = (self.cell_cv**2).sum(1)**0.5
         gcd_c = np.ones(3, int)
         for t_c in self.translation_sc:
             for c, t in enumerate(t_c):
-                nom, denom = frac(t, tol=tolerance)
+                nom, denom = frac(t, tol=self.tolerance / length_c[c])
                 if gcd_c[c] % denom != 0:
                     gcd_c[c] *= denom
         return gcd_c
@@ -184,7 +208,7 @@ class Symmetries:
         return True
 
 
-def find_lattice_symmetry(cell_cv, pbc_c, tol):
+def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
     """Determine list of symmetry operations."""
     # Symmetry operations as matrices in 123 basis.
     # Operation is a 3x3 matrix, with possible elements -1, 0, 1, thus
@@ -198,7 +222,10 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol):
     metric_scc = np.einsum('sij, jk, slk -> sil',
                            U_scc, metric_cc, U_scc,
                            optimize=True)
-    mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
+    if _backwards_compatible:
+        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
+    else:
+        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol**2
     U_scc = U_scc[mask_s]
 
     # Operation must not swap axes that don't have same PBC:
