@@ -90,14 +90,16 @@ class DFTComponentsBuilder:
         else:
             self._xc = params.xc
 
+        self._backwards_comatible = params.experimental.get(
+            'backwards_compatible', True)
+
         self.setups = Setups(
             atoms.numbers,
             params.setups,
             params.basis,
             self._xc.get_setup_name(),
             world=comm,
-            backwards_compatible=params.experimental.get(
-                'backwards_compatible', True))
+            backwards_compatible=self._backwards_comatible)
         if params.hund:
             c = params.charge / len(atoms)
             for a, setup in enumerate(self.setups):
@@ -108,7 +110,8 @@ class DFTComponentsBuilder:
             setup_ids=self.setups.id_a,
             magmoms=self.initial_magmom_av,
             **{k: v for k, v in params.symmetry.items()
-               if k != 'time_reversal'})
+               if k != 'time_reversal'},
+            _backwards_compatible=self._backwards_comatible)
 
         use_time_reversal = params.symmetry.get('time_reversal', True)
 
