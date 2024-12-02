@@ -330,13 +330,13 @@ class Symmetry:
 
     def symmetrize_forces(self, F0_av):
         """Symmetrize forces."""
-        F_ac = np.zeros_like(F0_av)
+        F_av = np.zeros_like(F0_av)
         for map_a, op_cc in zip(self.a_sa, self.op_scc):
             op_vv = np.dot(np.linalg.inv(self.cell_cv),
                            np.dot(op_cc, self.cell_cv))
             for a1, a2 in enumerate(map_a):
-                F_ac[a2] += np.dot(F0_av[a1], op_vv)
-        return F_ac / len(self.op_scc)
+                F_av[a2] += np.dot(F0_av[a1], op_vv)
+        return F_av / len(self.op_scc)
 
     def __str__(self):
         n = len(self.op_scc)
