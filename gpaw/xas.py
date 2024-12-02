@@ -75,6 +75,36 @@ def projection(proj_xyz, proj, orthogonal: bool):
 
     return proj_3
 
+def get_os_from_me(eps_n, sigma2_cmn,
+                   eps_n0_k, dks, w=None, raw=False):
+    n = len(eps_n)
+
+    if isinstance(dks, float) or isinstance(dks, int):
+        dks = [dks]
+
+    energy_n = np.zeros((n * len(dks)))
+    f_cmn = np.zeros((sigma2_cmn.shape[0],
+                        sigma2_cmn.shape[1],
+                        n * len(dks)))
+
+    if w is None:
+        w = np.ones(len(dks))
+    elif isinstance(w, float) or isinstance(w, int):
+        w = [w]
+
+    for i in range(len(dks)):
+        shift = dks[i] - eps_n0_k
+        ienergy_n = eps_n + shift
+
+        if_cmn = w[i] * 2 * sigma2_cmn[:, :, :] * ienergy_n / Hartree
+
+        energy_n[i * n:(1 + i) * n] = ienergy_n
+        f_cmn[:, :, i * n:(1 + i) * n] = if_cmn
+
+    if raw:
+        return energy_n, f_cmn
+    else:
+        return energy_n, f_cmn.sum(axis=1)
 
 class XAS:
     def __init__(self, paw, mode='xas', center=None,
@@ -223,9 +253,16 @@ class XAS:
             return energy_n, sigma2_cmn, eps_n0_k
         else:
             return energy_n, sigma2_cmn.sum(axis=1)
+        
+    def save_matrix_element(self, fname:str, kpoint=None, proj=None,
+            proj_xyz: bool = True):
+        energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
+            kpoint, proj, proj_xyz, raw=True)
 
-    def get_oscillator_strength(self, kpoint=None, proj=None,
-                                proj_xyz: bool = True, dks: Array1D = [0],
+        np.savez(fname, energy_n=energy_n, sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k)
+
+    def get_oscillator_strength(self, dks:Array1D, kpoint=None,
+                                proj=None, proj_xyz: bool = True,
                                 w: Array1D = None, raw: bool = False):
         """Calculate stick spectra.
 
@@ -252,36 +289,11 @@ class XAS:
 
         eps_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
             kpoint, proj, proj_xyz, raw=True)
-        n = len(eps_n)
-
-        if isinstance(dks, float) or isinstance(dks, int):
-            dks = [dks]
-
-        energy_n = np.zeros((n * len(dks)))
-        f_cmn = np.zeros((sigma2_cmn.shape[0],
-                          sigma2_cmn.shape[1],
-                          n * len(dks)))
-
-        if w is None:
-            w = np.ones(len(dks))
-        elif isinstance(w, float) or isinstance(w, int):
-            w = [w]
-
-        index_shift = np.where(eps_n0_k == self.eps_n0_k)[0][0]
-        self.index_shift = index_shift
-        for i in range(len(dks)):
-            shift = dks[i] - eps_n0_k
-            ienergy_n = eps_n + shift
-
-            if_cmn = w[i] * 2 * sigma2_cmn[:, :, :] * ienergy_n / Hartree
-
-            energy_n[i * n:(1 + i) * n] = ienergy_n
-            f_cmn[:, :, i * n:(1 + i) * n] = if_cmn
-
-        if raw:
-            return energy_n, f_cmn
-        else:
-            return energy_n, f_cmn.sum(axis=1)
+        
+        energy_n, f_cmn = get_os_from_me(eps_n, sigma2_cmn, eps_n0_k,
+                                         dks, w, raw)
+        
+        return energy_n, f_cmn
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None, proj=None, proj_xyz=True,
