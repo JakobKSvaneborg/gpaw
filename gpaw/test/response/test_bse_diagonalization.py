@@ -3,16 +3,18 @@ import numpy as np
 from ase.build import bulk
 from gpaw import GPAW, FermiDirac
 from gpaw.response.bse import BSE
+from gpaw.utilities.elpa import LibElpa
+from gpaw.utilities.scalapack import have_mkl
 from gpaw.mpi import world
 
 
 @pytest.mark.response
-@pytest.mark.skipif(world.size == 1,
-                    reason='requires parallelization')
+@pytest.mark.skipif(world.size == 1
+                    or (not have_mkl() and not LibElpa.have_elpa()),
+                    reason='requires mkl and elpa and parallel run')
 def test_response_bse_diagonalization(in_tmp_dir, scalapack):
     GS = 1
     bse = 1
-    check = 1
 
     if GS:
         a = 5.431  # From PRB 73,045112 (2006)
@@ -39,12 +41,15 @@ def test_response_bse_diagonalization(in_tmp_dir, scalapack):
         bse_matrix = bse.calculate(optical=True)
         w_T, v_Rt, exclude_S = \
             bse_matrix.diagonalize_tammdancoff(bse=bse, backend='scalapack')
-        with pytest.warns():
-            w2_T, v2_Rt, _ = bse_matrix.diagonalize_tammdancoff(bse=bse,
-                                                                backend='elpa')
-        w3_T, v3_Rt, _ = bse_matrix.diagonalize_tammdancoff(bse=bse,
-                                                            backend='mkl')
-    if check:
-        assert w_T == pytest.approx(w2_T, abs=1e-3)
-        argsort = np.argsort(w3_T)
-        assert w_T == pytest.approx(w3_T[argsort], abs=1e-3)
+        if LibElpa.have_elpa():
+            with pytest.warns():
+                w2_T, v2_Rt, _ = bse_matrix.diagonalize_tammdancoff(
+                    bse=bse, backend='elpa')
+                assert w_T == pytest.approx(w2_T, abs=1e-3)
+
+        if have_mkl():
+            w3_T, v3_Rt, _ = bse_matrix.diagonalize_tammdancoff(bse=bse,
+                                                                backend='mkl')
+
+            argsort = np.argsort(w3_T)
+            assert w_T == pytest.approx(w3_T[argsort], abs=1e-3)
