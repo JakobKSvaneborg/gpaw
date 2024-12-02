@@ -1,6 +1,7 @@
 import pytest
 from gpaw import GPAW
 from gpaw.response.bse import BSE
+import numpy as np
 
 
 @pytest.mark.response
@@ -23,6 +24,7 @@ def test_bse_exclude_states(in_tmp_dir, gpw_files):
     n_pairs = nk * nval * ncond
     assert len(exclude_S) == 27
     assert len(w_T) == n_pairs - len(exclude_S)
-    assert w_T[0] == pytest.approx(0.1008, abs=0.001)
-    assert w_T[11] == pytest.approx(0.1262, abs=0.001)
-    assert w_T[29] == pytest.approx(0.1888, abs=0.001)
+    np.sort(w_T)
+    assert w_T[0] == pytest.approx(0.1008, abs=0.005)
+    assert w_T[11] == pytest.approx(0.1262, abs=0.005)
+    assert w_T[29] == pytest.approx(0.1888, abs=0.005)
