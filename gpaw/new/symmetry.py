@@ -24,10 +24,12 @@ def create_symmetries_object(atoms,
                              symmorphic=True) -> Symmetries:
     if rotations is not None:
         sym = Symmetries(rotations, translations)
-    else:
+    elif point_group:
         sym = Symmetries.from_cell(atoms.cell,
                                    pbc=atoms.pbc,
                                    tolerance=tolerance)
+    else:
+        sym = Symmetries([[[1, 0, 0], [0, 1, 0], [0, 0, 1]]])
 
     ids = integer_ids(setup_ids)
     if magmoms is not None:
