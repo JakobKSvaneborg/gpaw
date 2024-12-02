@@ -113,8 +113,7 @@ class DFTComponentsBuilder:
         self.setups.set_symmetry(symmetries._old_symmetry)  # legacy
 
         if self.ncomponents == 4:
-            assert (len(symmetries) == 1 and not
-                    symmetries.symmetry.time_reversal)
+            assert (len(symmetries) == 1 and not use_time_reversal)
 
         bz = create_kpts(params.kpts, atoms)
         self.ibz = bz.reduce(

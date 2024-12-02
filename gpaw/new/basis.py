@@ -15,15 +15,16 @@ def create_basis(ibz: IBZ,
                  kpt_comm=serial_comm,
                  band_comm=serial_comm):
     kd = KPointDescriptor(ibz.bz.kpt_Kc, nspins)
+
     kd.ibzk_kc = ibz.kpt_kc
     kd.weight_k = ibz.weight_k
-    kd.sym_k = '?'
-    kd.time_reversal_k = '?'
-    kd.bz2ibz_k = '?',
-    kd.ibz2bz_k = '?'
-    kd.bz2bz_ks = '?'
+    kd.sym_k = ibz.s_K
+    kd.time_reversal_k = ibz.time_reversal_K
+    kd.bz2ibz_k = ibz.bz2ibz_K
+    kd.ibz2bz_k = ibz.ibz2bz_k
+    kd.bz2bz_ks = ibz.bz2bz_Ks
     kd.nibzkpts = len(ibz)
-    kd.set_communicator(kpt_comm)
+    kd.symmetry = ibz.symmetries._old_symmetry
 
     basis = BasisFunctions(grid._gd,
                            [setup.basis_functions_J for setup in setups],

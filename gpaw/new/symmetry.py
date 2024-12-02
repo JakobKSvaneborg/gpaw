@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Sequence
+from typing import Iterable, Any
 
 import numpy as np
 from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
 from gpaw.rotation import rotation
-from gpaw.typing import ArrayLike1D, ArrayLike2D, ArrayLike3D
+from gpaw.typing import ArrayLike1D, ArrayLike2D, ArrayLike3D, Array3D
 from gpaw.symmetry import frac
 from gpaw.symmetry import Symmetry as OldSymmetry
 
@@ -63,15 +63,18 @@ class Symmetries:
         self.rotation_scc = np.array(rotations, dtype=int)
         assert (self.rotation_scc == rotations).all()
         if translations is None:
-            self.translation_sc = np.zeros((len(rotations), 3))
+            self.translation_sc = np.zeros((len(self.rotation_scc), 3))
         else:
             self.translation_sc = np.array(translations)
         if atommaps is None:
-            self.atommap_sa = np.empty((len(rotations), 0), int)
+            self.atommap_sa = np.empty((len(self.rotation_scc), 0), int)
         else:
             self.atommap_sa = np.array(atommaps)
             assert self.atommap_sa.dtype == int
+
+        # Legacy stuff:
         self.op_scc = self.rotation_scc  # old name
+        self._old_symmetry: OldSymmetry
 
     @cached_property
     def symmorphic(self):
@@ -117,10 +120,10 @@ class Symmetries:
                             tolerance=tolerance)
         if ids is None:
             ids = atoms.numbers
-        return sym.with_positions(atoms.positions,
-                                  ids=ids,
-                                  symmorphic=symmorphic,
-                                  tolerance=tolerance)
+        return sym.new_with_positions(atoms.positions,
+                                      ids=ids,
+                                      symmorphic=symmorphic,
+                                      tolerance=tolerance)
 
     def __len__(self):
         return len(self.rotation_scc)
@@ -297,7 +300,7 @@ class SymmetrizationPlan:
         self.rotation_lsmm = [
             np.array([rotation(l, r_vv) for r_vv in self.rotation_svv])
             for l in range(lmax + 1)]
-        self._rotations = {}
+        self._rotations: dict[tuple[int, ...], Array3D] = {}
 
     def rotations(self, l_j, xp=np):
         ells = tuple(l_j)
@@ -325,7 +328,7 @@ class SymmetrizationPlan:
         dist_D_asii.data *= 1.0 / len(self.symmetries)
 
 
-class GPUSymmetrizationPlan:
+class GPUSymmetrizationPlan(SymmetrizationPlan):
     def __init__(self,
                  symmetries: Symmetries,
                  l_aj,
@@ -420,8 +423,8 @@ def mat(rot_cc) -> str:
                               for rot_c in rot_cc) + ']]'
 
 
-def integer_ids(ids: Sequence) -> list[int]:
-    dct = {}
+def integer_ids(ids: Iterable) -> list[int]:
+    dct: dict[Any, int] = {}
     iids = []
     for id in ids:
         iid = dct.get(id)
