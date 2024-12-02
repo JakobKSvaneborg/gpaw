@@ -3,13 +3,12 @@ import numpy as np
 from ase.build import bulk
 from gpaw import GPAW, FermiDirac
 from gpaw.response.bse import BSE
-from gpaw.utilities.elpa import LibElpa
-from gpaw.utilities.scalapack import have_mkl
+from gpaw.mpi import world
 
 
 @pytest.mark.response
-@pytest.mark.skipif(not have_mkl() or not LibElpa.have_elpa(),
-                    reason='requires mkl and elpa')
+@pytest.mark.skipif(world.size == 1,
+                    reason='requires parallelization')
 def test_response_bse_diagonalization(in_tmp_dir, scalapack):
     GS = 1
     bse = 1
