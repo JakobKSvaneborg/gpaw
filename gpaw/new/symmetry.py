@@ -295,23 +295,22 @@ def prune_symmetries(sym, spos_ac, id_a, symmorphic=True):
 
     a_j = a_ij[id_a[0]]  # just pick the first species
 
+    def check(op_cc, ft_c):
+        return sym.check_one_symmetry(spos_ac, op_cc, ft_c, a_ij)
+
     # if supercell disable fractional translations:
     if not symmorphic:
         op_cc = np.identity(3, int)
         ftrans_sc = spos_ac[a_j[1:]] - spos_ac[a_j[0]]
         ftrans_sc -= np.rint(ftrans_sc)
         for ft_c in ftrans_sc:
-            a_a = check_one_symmetry(spos_ac, op_cc, ft_c, a_ij,
-                                     sym.tolerance)
+            a_a = check(op_cc, ft_c)
             if a_a is not None:
                 symmorphic = True
                 break
 
     symmetries = []
     ftsymmetries = []
-
-    def check(op_cc, ft_c):
-        return sym.check_one_symmetry(spos_ac, op_cc, ft_c, a_ij)
 
     # go through all possible symmetry operations
     for op_cc in sym.rotation_scc:
@@ -340,6 +339,7 @@ def prune_symmetries(sym, spos_ac, id_a, symmorphic=True):
     if debug:
         sym.check_positions(spos_ac)
     return sym
+
 
 class SymmetrizationPlan:
     def __init__(self,
