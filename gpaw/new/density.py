@@ -247,19 +247,15 @@ class Density:
         if xp is np:
             D_asii = self.D_asii.gather(broadcast=True, copy=True)
             if self.symplan is None:
-                self.symplan = SymmetrizationPlan(symmetries,
-                                                  self.l_aj,
-                                                  self.grid.cell_cv)
+                self.symplan = SymmetrizationPlan(symmetries, self.l_aj)
             self.symplan.apply_distributed(D_asii, self.D_asii)
         else:
             # GPU version does all the work in rank 0 for now
             D_asii = self.D_asii.gather(copy=True)
             if self.D_asii.layout.atomdist.comm.rank == 0:
                 if self.symplan is None:
-                    self.symplan = GPUSymmetrizationPlan(symmetries,
-                                                         self.l_aj,
-                                                         self.grid.cell_cv,
-                                                         D_asii.layout)
+                    self.symplan = GPUSymmetrizationPlan(
+                        symmetries, self.l_aj, D_asii.layout)
                 self.symplan.apply(D_asii.data, D_asii.data)
             self.D_asii.scatter_from(D_asii)
 

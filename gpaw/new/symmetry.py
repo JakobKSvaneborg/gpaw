@@ -4,19 +4,21 @@ from functools import cached_property
 from typing import Any, Iterable
 
 import numpy as np
+from ase import Atoms
+from gpaw import debug
 from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
 from gpaw.rotation import rotation
-from gpaw.symmetry import Symmetry as OldSymmetry, frac
+from gpaw.symmetry import Symmetry as OldSymmetry
+from gpaw.symmetry import frac
 from gpaw.typing import Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
-from gpaw import debug
 
 
 class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""
 
 
-def create_symmetries_object(atoms,
+def create_symmetries_object(atoms: Atoms,
                              *,
                              setup_ids=None,
                              magmoms=None,
@@ -27,6 +29,14 @@ def create_symmetries_object(atoms,
                              point_group=True,
                              symmorphic=True,
                              _backwards_compatible=False) -> Symmetries:
+    """Find symmetries from atoms object.
+
+    >>> sym = create_symmetries_object(Atoms('H', cell=[1, 1, 1], pbc=True))
+    >>> len(sym)
+    48
+    >>> sym.rotation_scc.shape
+    (48, 3, 3)
+    """
     if tolerance is None:
         tolerance = 1e-7 if _backwards_compatible else 1e-5
     if rotations is not None:
@@ -83,6 +93,20 @@ class Symmetries:
                  atommaps: ArrayLike2D | None = None,
                  tolerance=1e-7,
                  _backwards_compatible=False):
+        """Symmetries object.
+
+        >>> sym = Symmetries.from_cell([1, 2, 3])
+        >>> sym.has_inversion
+        True
+        >>> len(sym)
+        8
+        >>> sym2 = sym.new_with_positions([[0, 0, 0], [0, 0, 0.4]],
+        ...                               ids=[1, 2])
+        >>> sym2.has_inversion
+        False
+        >>> len(sym2)
+        4
+        """
         self.cell_cv = normalize_cell(cell)
         self.tolerance = tolerance
         self._backwards_compatible = _backwards_compatible
@@ -132,11 +156,12 @@ class Symmetries:
                    _backwards_compatible=_backwards_compatible)
 
     def new_with_positions(self,
-                           positions: ArrayLike2D | None = None,
+                           relative_positions: ArrayLike2D | None = None,
                            *,
                            ids: ArrayLike1D | None = None,
                            symmorphic: bool = True) -> Symmetries:
-        return prune_symmetries(self, positions, ids, symmorphic)
+        return prune_symmetries(
+            self, np.asarray(relative_positions), ids, symmorphic)
 
     @classmethod
     def from_atoms(cls,
@@ -348,14 +373,13 @@ def prune_symmetries(sym, spos_ac, id_a, symmorphic=True):
 class SymmetrizationPlan:
     def __init__(self,
                  symmetries: Symmetries,
-                 l_aj,
-                 cell_cv):
+                 l_aj):
         self.symmetries = symmetries
         self.l_aj = l_aj
         self.rotation_svv = np.einsum('vc, scd, dw -> svw',
-                                      np.linalg.inv(cell_cv),
+                                      np.linalg.inv(symmetries.cell_cv),
                                       symmetries.rotation_scc,
-                                      cell_cv)
+                                      symmetries.cell_cv)
         lmax = max(max(l_j) for l_j in l_aj)
         self.rotation_lsmm = [
             np.array([rotation(l, r_vv) for r_vv in self.rotation_svv])
@@ -392,9 +416,8 @@ class GPUSymmetrizationPlan(SymmetrizationPlan):
     def __init__(self,
                  symmetries: Symmetries,
                  l_aj,
-                 cell_cv,
                  layout):
-        super().__init__(symmetries, l_aj, cell_cv)
+        super().__init__(symmetries, l_aj)
 
         xp = layout.xp
         a_sa = symmetries.atommap_sa

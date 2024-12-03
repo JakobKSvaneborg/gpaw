@@ -412,6 +412,19 @@ Core
    :members:
    :undoc-members:
 
+.. autoclass:: gpaw.new.symmetry.Symmetries
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.IBZ
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.BZPoints
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.MonkhorstPackKPoints
+   :members:
+   :undoc-members:
+
 
 DFT
 ---
