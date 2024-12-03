@@ -200,6 +200,7 @@ class Symmetries:
 
     def gcd(self):
         length_c = (self.cell_cv**2).sum(1)**0.5
+        length_c[length_c == 0.0] = 1.0
         gcd_c = np.ones(3, int)
         for t_c in self.translation_sc:
             for c, t in enumerate(t_c):
