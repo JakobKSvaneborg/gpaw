@@ -46,7 +46,7 @@ def create_symmetries_object(atoms: Atoms,
                          tolerance=tolerance,
                          _backwards_compatible=_backwards_compatible)
     elif point_group:
-        sym = Symmetries.from_cell(atoms.cell,
+        sym = Symmetries.from_cell(atoms.cell.complete(),
                                    pbc=atoms.pbc,
                                    tolerance=tolerance,
                                    _backwards_compatible=_backwards_compatible)
@@ -71,7 +71,7 @@ def create_symmetries_object(atoms: Atoms,
 
     # Legacy:
     sym._old_symmetry = OldSymmetry(
-        ids, atoms.cell, atoms.pbc, tolerance,
+        ids, atoms.cell.complete(), atoms.pbc, tolerance,
         point_group,
         time_reversal='?',
         symmorphic=symmorphic)
