@@ -186,7 +186,7 @@ class Symmetries:
                     raise SymmetryBrokenError
             else:
                 error_av = error_ac @ self.cell_cv
-                if (error_av**2).sum(1) > self.tolerance**2:
+                if (error_av**2).sum(1).max() > self.tolerance**2:
                     raise SymmetryBrokenError
 
     def symmetrize_forces(self, F0_av):

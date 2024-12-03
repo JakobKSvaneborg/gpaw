@@ -618,7 +618,7 @@ class CLICommand:
         if args.k_points:
             k = str2dict('kpts=' + args.k_points)['kpts']
             bz = create_kpts(kpts(k), atoms)
-            ibz = symmetries.reduce(bz)
+            ibz = bz.reduce(symmetries)
             txt = str(ibz)
             if not args.verbose:
                 txt = txt.split('  points and weights:', 1)[0]
