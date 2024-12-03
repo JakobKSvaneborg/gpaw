@@ -76,7 +76,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                  pw: PWDesc,
                  xc,
                  setups,
-                 fracpos_ac,
+                 relpos_ac,
                  atomdist):
         super().__init__(grid, pw)
         self.pw = pw
@@ -94,7 +94,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.v_G.data *= self.exx_fraction
 
         self.ghat_aLG = setups.create_compensation_charges(
-            pw, fracpos_ac, atomdist)
+            pw, relpos_ac, atomdist)
         self.ghat_aLG._lazy_init()
         self.ghat_GA = self.ghat_aLG._lfc.expand()
         # self.plan = grid.fft_plans()

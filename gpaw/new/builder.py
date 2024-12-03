@@ -147,9 +147,9 @@ class DFTComponentsBuilder:
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
-        self.fracpos_ac = self.atoms.get_scaled_positions()
-        self.fracpos_ac %= 1
-        self.fracpos_ac %= 1
+        self.relpos_ac = self.atoms.get_scaled_positions()
+        self.relpos_ac %= 1
+        self.relpos_ac %= 1
 
         self.xc = self.create_xc_functional()
 
@@ -162,7 +162,7 @@ class DFTComponentsBuilder:
     @cached_property
     def atomdist(self) -> AtomDistribution:
         return AtomDistribution(
-            self.grid.ranks_from_fractional_positions(self.fracpos_ac),
+            self.grid.ranks_from_fractional_positions(self.relpos_ac),
             self.grid.comm)
 
     def create_uniform_grids(self):
@@ -219,7 +219,7 @@ class DFTComponentsBuilder:
                             self.grid,
                             self.setups,
                             self.dtype,
-                            self.fracpos_ac,
+                            self.relpos_ac,
                             self.communicators['w'],
                             self.communicators['k'],
                             self.communicators['b'])
