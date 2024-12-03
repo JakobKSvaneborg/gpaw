@@ -18,7 +18,7 @@ class SymmetryBrokenError(Exception):
 
 def create_symmetries_object(atoms,
                              *,
-                             setup_ids,
+                             setup_ids=None,
                              magmoms=None,
                              rotations=None,
                              translations=None,
@@ -46,7 +46,10 @@ def create_symmetries_object(atoms,
                          tolerance=tolerance,
                          _backwards_compatible=_backwards_compatible)
 
-    ids = integer_ids(setup_ids)
+    if setup_ids is None:
+        ids = atoms.numbers
+    else:
+        ids = integer_ids(setup_ids)
     if magmoms is not None:
         ids = integer_ids((id, m) for id, m in zips(ids, safe_id(magmoms)))
     if extra_ids is not None:

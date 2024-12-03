@@ -609,8 +609,8 @@ class CLICommand:
             atoms = read(args.filename)
         symmetries = create_symmetries_object(
             atoms,
-            parameters={'tolerance': args.tolerance,
-                        'symmorphic': args.symmorphic})
+            tolerance=args.tolerance,
+            symmorphic=args.symmorphic)
         txt = str(symmetries)
         if not args.verbose:
             txt = txt.split('  rotations', 1)[0]
