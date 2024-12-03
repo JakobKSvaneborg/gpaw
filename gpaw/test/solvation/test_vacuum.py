@@ -1,13 +1,12 @@
 import numpy as np
+import pytest
 from ase.build import molecule
 from ase.data.vdw import vdw_radii
-from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
-import pytest
-from gpaw.solvation import (SolvationGPAW, EffectivePotentialCavity,
-                            Power12Potential, LinearDielectric)
 
-vdw_radii = vdw_radii.copy()
+from gpaw import GPAW
+from gpaw.solvation import (EffectivePotentialCavity, LinearDielectric,
+                            Power12Potential, SolvationGPAW)
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 def test_solvation_vacuum():
@@ -21,10 +20,9 @@ def test_solvation_vacuum():
     vac = 3.0
     u0 = 0.180
     T = 298.15
-    vdw_radii[1] = 1.09
 
     def atomic_radii(atoms):
-        return [vdw_radii[n] for n in atoms.numbers]
+        return [1.09 if Z == 1 else vdw_radii[Z] for Z in atoms.numbers]
 
     atoms = molecule('H2O')
     adjust_cell(atoms, vac, h)
@@ -51,12 +49,14 @@ def test_solvation_vacuum():
              [1.35947527e-13, -1.58227909e+00, 6.06605145e-02]])
 
     atoms.calc = SolvationGPAW(
-        mode='fd', xc='LDA', h=h, convergence=convergence,
+        mode='fd',
+        xc='LDA',
+        h=h,
+        convergence=convergence,
         cavity=EffectivePotentialCavity(
             effective_potential=Power12Potential(atomic_radii=atomic_radii,
                                                  u0=u0),
-            temperature=T
-        ),
+            temperature=T),
         dielectric=LinearDielectric(epsinf=1.0))
     Etest = atoms.get_potential_energy()
     if atoms.calc.old:

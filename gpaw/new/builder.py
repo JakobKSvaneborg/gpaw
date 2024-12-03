@@ -355,7 +355,7 @@ class DFTComponentsBuilder:
         from gpaw.new.solvation import Solvation
         return Solvation(**self.params.solvation,
                          setups=self.setups,
-                         grid=grid, fracpos_ac=self.fracpos_ac, log=log,
+                         grid=grid, relpos_ac=self.relpos_ac, log=log,
                          comm=self.communicators['w'],
                          nn=self.params.poissonsolver.get('nn', 3))
 
