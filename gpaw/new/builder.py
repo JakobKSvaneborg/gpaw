@@ -17,8 +17,8 @@ from gpaw.core.domain import Domain
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (MPIComm, Parallelization, serial_comm, synchronize_atoms,
-                      world)
+from gpaw.mpi import (broadcast, MPIComm, Parallelization, serial_comm,
+                      synchronize_atoms, world)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -90,11 +90,14 @@ class DFTComponentsBuilder:
         else:
             self._xc = params.xc
 
-        self.setups = Setups(atoms.numbers,
-                             params.setups,
-                             params.basis,
-                             self._xc.get_setup_name(),
-                             world=comm)
+        self.setups = Setups(
+            atoms.numbers,
+            params.setups,
+            params.basis,
+            self._xc.get_setup_name(),
+            world=comm,
+            backwards_compatible=params.experimental.get(
+                'backwards_compatible', True))
         if params.hund:
             c = params.charge / len(atoms)
             for a, setup in enumerate(self.setups):
@@ -144,9 +147,9 @@ class DFTComponentsBuilder:
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
-        self.fracpos_ac = self.atoms.get_scaled_positions()
-        self.fracpos_ac %= 1
-        self.fracpos_ac %= 1
+        self.relpos_ac = self.atoms.get_scaled_positions()
+        self.relpos_ac %= 1
+        self.relpos_ac %= 1
 
         self.xc = self.create_xc_functional()
 
@@ -159,7 +162,7 @@ class DFTComponentsBuilder:
     @cached_property
     def atomdist(self) -> AtomDistribution:
         return AtomDistribution(
-            self.grid.ranks_from_fractional_positions(self.fracpos_ac),
+            self.grid.ranks_from_fractional_positions(self.relpos_ac),
             self.grid.comm)
 
     def create_uniform_grids(self):
@@ -216,7 +219,7 @@ class DFTComponentsBuilder:
                             self.grid,
                             self.setups,
                             self.dtype,
-                            self.fracpos_ac,
+                            self.relpos_ac,
                             self.communicators['w'],
                             self.communicators['k'],
                             self.communicators['b'])
@@ -318,14 +321,25 @@ class DFTComponentsBuilder:
             P_ani = AtomArrays(layout, dims=dims, comm=band_comm)
 
             if domain_comm.rank == 0:
-                P_nI = reader.wave_functions.proxy('projections', *index)
-                b1, b2 = P_ani.my_slice()  # my bands
-                data = P_nI[b1:b2].astype(ibzwfs.dtype)  # read from file
+                try:
+                    P_nI = reader.wave_functions.proxy('projections', *index)
+                except KeyError:
+                    data = None
+                else:
+                    b1, b2 = P_ani.my_slice()  # my bands
+                    data = P_nI[b1:b2].astype(ibzwfs.dtype)  # read from file
             else:
                 data = None
 
-            P_ani.scatter_from(data)  # distribute over atoms
-            wfs._P_ani = P_ani
+            have_projections = broadcast(
+                data is not None if domain_comm.rank == 0 else None,
+                comm=domain_comm)
+
+            if have_projections:
+                P_ani.scatter_from(data)  # distribute over atoms
+                wfs._P_ani = P_ani
+            else:
+                wfs._P_ani = None
 
         try:
             ibzwfs.fermi_levels = reader.wave_functions.fermi_levels / ha
@@ -424,7 +438,7 @@ def normalize_initial_magmoms(
 
 def create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     if 'kpts' in kpts:
-        assert len(kpts) == 1, kpts
+        # assert len(kpts) == 1, kpts
         return BZPoints(kpts['kpts'])
     if 'path' in kpts:
         path = atoms.cell.bandpath(pbc=atoms.pbc, **kpts)

@@ -185,7 +185,7 @@ class UGDesc(Domain):
                                 *,
                                 qspiral_v=None,
                                 atomdist=None,
-                                integral=None,
+                                integrals=None,
                                 cut=False,
                                 xp=None):
         """Create UGAtomCenteredFunctions object."""
@@ -194,7 +194,7 @@ class UGDesc(Domain):
                                        positions,
                                        self,
                                        atomdist=atomdist,
-                                       integral=integral,
+                                       integrals=integrals,
                                        cut=cut,
                                        xp=xp)
 
@@ -272,8 +272,8 @@ class UGDesc(Domain):
             return fftw.create_plans([0, 0, 0], dtype)
 
     def ranks_from_fractional_positions(self,
-                                        fracpos_ac: Array2D) -> Array1D:
-        rank_ac = np.floor(fracpos_ac * self.parsize_c).astype(int)
+                                        relpos_ac: Array2D) -> Array1D:
+        rank_ac = np.floor(relpos_ac * self.parsize_c).astype(int)
         if (rank_ac < 0).any() or (rank_ac >= self.parsize_c).any():
             raise ValueError('Positions outside cell!')
         return np.ravel_multi_index(rank_ac.T, self.parsize_c)  # type: ignore

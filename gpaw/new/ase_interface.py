@@ -377,7 +377,7 @@ class ASECalculator:
     def check_state(self, atoms, tol=1e-12):
         return list(compare_atoms(self.atoms, atoms))
 
-    def write(self, filename, mode=''):
+    def write(self, filename, mode='', include_projections=True):
         """Write calculator object to a file.
 
         Parameters
@@ -391,7 +391,8 @@ class ASECalculator:
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
         write_gpw(filename, self.atoms, self.params,
-                  self.dft, skip_wfs=mode != 'all')
+                  self.dft, skip_wfs=mode != 'all',
+                  include_projections=include_projections)
 
     # Old API:
 
@@ -679,8 +680,9 @@ class ASECalculator:
             ibzwfs, density, potential,
             builder.setups,
             scf_loop,
-            SimpleNamespace(fracpos_ac=self.dft.fracpos_ac,
-                            poisson_solver=None),
+            SimpleNamespace(relpos_ac=self.dft.relpos_ac,
+                            poisson_solver=None,
+                            xc=self.dft.pot_calc.xc),
             log)
 
         dft.converge()

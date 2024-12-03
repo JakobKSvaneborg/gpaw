@@ -12,6 +12,8 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+* PAW potentials for lanthanides have been added to our :ref:`setup releases`.
+
 * Updated development-workflow documentation:
   :ref:`a good mr`, :ref:`get your mr merged`.
 
@@ -28,6 +30,9 @@ Git master branch
   return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
   or **k**-point weights (use ``raw=True``).
 
+* Implementation of the multipole approximation (MPA) for the response
+  function in the GW self-energy [PRB 104, 115157 (2021)]
+
 * Experimental:
   Faster and less memory hungry Poisson-solver in PW-mode.  For details,
   see equations 25-28 in :doi:`P. E. Blöchl: Projector augmented-wave method
@@ -39,6 +44,14 @@ Git master branch
 
 * Extended ``restrict`` keyword and random phase approximation enabled
   in :ref:`lrtddft`.
+
+* Updated :ref:`scissors operator`.
+
+* New experimental parameter:
+  ``experimental={'backwards_compatible': False}``.
+  This will make calculations slightly more accurate, but also give slightly
+  different numbers.  See :mr:`2537` for an example of the changes.
+  Default is backwards compatible.
 
 
 Version 24.6.0

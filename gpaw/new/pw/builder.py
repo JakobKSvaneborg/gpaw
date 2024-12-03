@@ -41,7 +41,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
         # We should just distribute the atom evenly, but that is not compatible
         # with LCAO initialization!
-        # return AtomDistribution.from_number_of_atoms(len(self.fracpos_ac),
+        # return AtomDistribution.from_number_of_atoms(len(self.relpos_ac),
         #                                              self.communicators['d'])
 
     def create_uniform_grids(self):
@@ -104,14 +104,14 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def get_pseudo_core_densities(self):
         if self._nct_ag is None:
             self._nct_ag = self.setups.create_pseudo_core_densities(
-                self.interpolation_desc, self.fracpos_ac, self.atomdist,
+                self.interpolation_desc, self.relpos_ac, self.atomdist,
                 xp=self.xp)
         return self._nct_ag
 
     def get_pseudo_core_ked(self):
         if self._tauct_ag is None:
             self._tauct_ag = self.setups.create_pseudo_core_ked(
-                self.interpolation_desc, self.fracpos_ac, self.atomdist)
+                self.interpolation_desc, self.relpos_ac, self.atomdist)
         return self._tauct_ag
 
     def create_poisson_solver(self):
@@ -132,12 +132,12 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if self.fast_poisson_solver:
             cutoff_a = [s.data.shape_function['rc'] for s in self.setups]
             return BloechlPAWPoissonSolver(
-                pw, cutoff_a, ps, self.fracpos_ac, self.atomdist, self.xp)
+                pw, cutoff_a, ps, self.relpos_ac, self.atomdist, self.xp)
 
         return SlowPAWPoissonSolver(
             self.interpolation_desc,
             self.setups,
-            ps, self.fracpos_ac, self.atomdist, self.xp)
+            ps, self.relpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self, log):
         return PlaneWavePotentialCalculator(
@@ -147,7 +147,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.xc,
             self.create_poisson_solver(),
             external_potential=create_external_potential(self.params.external),
-            fracpos_ac=self.fracpos_ac,
+            relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
             xp=self.xp)
@@ -161,7 +161,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             assert self.nbands % self.communicators['b'].size == 0
             return PWHybridHamiltonian(
                 self.grid, self.wf_desc, self.xc, self.setups,
-                self.fracpos_ac, self.atomdist)
+                self.relpos_ac, self.atomdist)
         return SpinorPWHamiltonian(self.qspiral_v)
 
     def convert_wave_functions_from_uniform_grid(self,
