@@ -53,7 +53,7 @@ toolchains = {
 module_cmds_all = """\
 module purge
 unset PYTHONPATH
-module load GPAW-setups/24.1.0
+module load GPAW-setups/24.11.0
 module load ELPA/2023.05.001-{fullchain}
 module load Wannier90/3.1.0-{fullchain}
 module load Python-bundle-PyPI/2023.06-{corechain}
