@@ -43,7 +43,7 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
     def create_eigensolver(self, hamiltonian):
         if self.params.xc['name'] in ['HSE06', 'PBE0', 'EXX']:
             return HybridLCAOEigensolver(self.basis,
-                                         self.fracpos_ac,
+                                         self.relpos_ac,
                                          self.grid.cell_cv)
         if self.params.eigensolver.get('name') == 'scissors':
             from gpaw.lcao.scissors import ScissorsLCAOEigensolver
@@ -81,7 +81,7 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
         ibzwfs, _ = create_lcao_ibzwfs(
             basis,
             self.ibz, self.communicators, self.setups,
-            self.fracpos_ac, self.grid, self.dtype,
+            self.relpos_ac, self.grid, self.dtype,
             self.nbands, self.ncomponents, self.atomdist, self.nelectrons,
             coefficients)
         return ibzwfs
@@ -89,7 +89,7 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
 
 def create_lcao_ibzwfs(basis,
                        ibz, communicators, setups,
-                       fracpos_ac, grid, dtype,
+                       relpos_ac, grid, dtype,
                        nbands, ncomponents, atomdist, nelectrons,
                        coefficients=None):
     kpt_band_comm = communicators['D']
@@ -99,7 +99,7 @@ def create_lcao_ibzwfs(basis,
 
     S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives = tci_helper(
         basis, ibz, domain_comm, band_comm, kpt_comm,
-        fracpos_ac, atomdist,
+        relpos_ac, atomdist,
         grid, dtype, setups)
 
     nao = setups.nao
@@ -126,7 +126,7 @@ def create_lcao_ibzwfs(basis,
             T_MM=T_qMM[q],
             P_aMi=P_qaMi[q],
             kpt_c=kpt_c,
-            fracpos_ac=fracpos_ac,
+            relpos_ac=relpos_ac,
             atomdist=atomdist,
             domain_comm=domain_comm,
             spin=spin,
@@ -150,7 +150,7 @@ def create_lcao_ibzwfs(basis,
 def tci_helper(basis,
                ibz,
                domain_comm, band_comm, kpt_comm,
-               fracpos_ac, atomdist,
+               relpos_ac, atomdist,
                grid,
                dtype,
                setups):
@@ -160,7 +160,7 @@ def tci_helper(basis,
 
     tciexpansions = TCIExpansions.new_from_setups(setups)
     manytci = tciexpansions.get_manytci_calculator(
-        setups, grid._gd, fracpos_ac,
+        setups, grid._gd, relpos_ac,
         kpt_qc, dtype, NullTimer())
 
     my_atom_indices = basis.my_atom_indices

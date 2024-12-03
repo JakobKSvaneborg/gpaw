@@ -190,8 +190,8 @@ class Symmetries:
 
         return IBZ(self, bz, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks)
 
-    def check_positions(self, fracpos_ac):
-        self.symmetry.check(fracpos_ac)
+    def check_positions(self, relpos_ac):
+        self.symmetry.check(relpos_ac)
 
     def symmetrize_forces(self, F_av):
         return self.symmetry.symmetrize_forces(F_av)
