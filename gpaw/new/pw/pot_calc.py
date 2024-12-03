@@ -17,7 +17,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  poisson_solver,
                  *,
                  external_potential,
-                 fracpos_ac,
+                 relpos_ac,
                  atomdist,
                  soc=False,
                  xp=np):
@@ -25,11 +25,11 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self.pw = pw
         super().__init__(xc, poisson_solver, setups,
                          external_potential=external_potential,
-                         fracpos_ac=fracpos_ac,
+                         relpos_ac=relpos_ac,
                          soc=soc)
 
         self.vbar_ag = setups.create_local_potentials(
-            pw, fracpos_ac, atomdist, xp)
+            pw, relpos_ac, atomdist, xp)
 
         self.fftplan = grid.fft_plans(xp=xp)
         self.fftplan2 = fine_grid.fft_plans(xp=xp)
@@ -137,9 +137,9 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                 'stress': e_coulomb + e_zero,
                 'external': e_external}, vt_sR, dedtaut_sr, vHt_h, V_aL
 
-    def move(self, fracpos_ac, atomdist):
-        self.poisson_solver.move(fracpos_ac, atomdist)
-        self.vbar_ag.move(fracpos_ac, atomdist)
+    def move(self, relpos_ac, atomdist):
+        self.poisson_solver.move(relpos_ac, atomdist)
+        self.vbar_ag.move(relpos_ac, atomdist)
         self.vbar_g.data[:] = 0.0
         self.vbar_ag.add_to(self.vbar_g)
         self.vbar0_g = self.vbar_g.gather()

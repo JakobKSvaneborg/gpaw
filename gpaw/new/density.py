@@ -148,8 +148,8 @@ class Density:
                                           scale=1.0 / (self.ncomponents % 3))
         return self._tauct_R
 
-    def new(self, new_grid, pw, fracpos_ac, atomdist):
-        self.move(fracpos_ac, atomdist)
+    def new(self, new_grid, pw, relpos_ac, atomdist):
+        self.move(relpos_ac, atomdist)
         new_pw = PWDesc(ecut=0.99 * new_grid.ekin_max(),
                         cell=new_grid.cell,
                         comm=new_grid.comm)
@@ -263,10 +263,10 @@ class Density:
                 self.symplan.apply(D_asii.data, D_asii.data)
             self.D_asii.scatter_from(D_asii)
 
-    def move(self, fracpos_ac, atomdist):
+    def move(self, relpos_ac, atomdist):
         self.nt_sR.data[:self.ndensities] -= self.nct_R.data
-        self.nct_aX.move(fracpos_ac, atomdist)
-        self.tauct_aX.move(fracpos_ac, atomdist)
+        self.nct_aX.move(relpos_ac, atomdist)
+        self.tauct_aX.move(relpos_ac, atomdist)
         self._nct_R = None
         self._tauct_R = None
         self.nt_sR.data[:self.ndensities] += self.nct_R.data
@@ -293,11 +293,11 @@ class Density:
             nct_aX=self.nct_aX.new(xdesc, atomdist),
             tauct_aX=self.tauct_aX.new(xdesc, atomdist))
 
-    def calculate_dipole_moment(self, fracpos_ac):
+    def calculate_dipole_moment(self, relpos_ac):
         dip_v = np.zeros(3)
         ccc_aL = self.calculate_compensation_charge_coefficients()
         ccc_aL = ccc_aL.to_cpu()
-        pos_av = fracpos_ac @ self.nt_sR.desc.cell_cv
+        pos_av = relpos_ac @ self.nt_sR.desc.cell_cv
         for a, ccc_L in ccc_aL.items():
             c = ccc_L[0]
             dip_v -= c * (4 * pi)**0.5 * pos_av[a]

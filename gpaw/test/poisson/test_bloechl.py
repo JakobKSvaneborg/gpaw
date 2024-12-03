@@ -43,9 +43,9 @@ def test_psolve():
     v = 7.5
     gcut = 25.0
     pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12])
-    fracpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
-                           [0.5, 0.5, (v + d12) / (2 * v + d12)]])
-    g_aig = pw.atom_centered_functions(g_ai, positions=fracpos_ac)
+    relpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
+                          [0.5, 0.5, (v + d12) / (2 * v + d12)]])
+    g_aig = pw.atom_centered_functions(g_ai, positions=relpos_ac)
     nt_g = pw.zeros()
     C_ai = g_aig.empty()
     C_ai.data[:] = [0.9, 0.7]
@@ -67,7 +67,7 @@ def test_psolve():
 
     ps = PWPoissonSolver(pw)
     spps = SimplePAWPoissonSolver(
-        pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
+        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist)
     Q_aL = spps.ghat_aLg.empty()
     Q_aL.data[:] = 0.0
     for a, C_i in C_ai.items():
@@ -80,7 +80,7 @@ def test_psolve():
     print(spps.force_contribution(Q_aL, vHt_g, nt_g))
 
     pps = BloechlPAWPoissonSolver(
-        pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
+        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist)
     vt2_g = pw.zeros()
     e2, vHt_g, V2_aL = pps.solve(nt_g, Q_aL, vt2_g)
     F2_av = pps.force_contribution(Q_aL, vHt_g, nt_g)
@@ -93,7 +93,7 @@ def test_psolve():
     if 0:
         ps = PWPoissonSolver(pw.new(gcut=2 * gcut))
         opps = SlowPAWPoissonSolver(
-            pw, [0.3, 0.4], ps, fracpos_ac, g_aig.atomdist)
+            pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist)
         vt_g = pw.zeros()
         e3, vHt_h, V_aL = opps.solve(nt_g, Q_aL, vt_g)
         print('old   ', e3, e3 - e0)

@@ -33,7 +33,7 @@ Setup releases
 
        and similarly for Ce, Pr, Nd, Pm, Sm, Eu, Gd,
        Tb, Dy, Ho, Er, Tm, Yb and Lu.
-       There is also an LDA versions of the potentials.
+       There are also LDA versions of the potentials.
 
    * - Feb 22 2024
      - 24.1.0_

@@ -24,12 +24,12 @@ if TYPE_CHECKING:
 class PWAtomCenteredFunctions(AtomCenteredFunctions):
     def __init__(self,
                  functions,
-                 fracpos,
+                 relpos,
                  pw,
                  atomdist=None,
                  integrals=None,
                  xp=None):
-        AtomCenteredFunctions.__init__(self, functions, fracpos, atomdist)
+        AtomCenteredFunctions.__init__(self, functions, relpos, atomdist)
         self.pw = pw
         self.xp = xp or np
         self.integrals = integrals
@@ -37,7 +37,7 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
     def new(self, pw, atomdist):
         return PWAtomCenteredFunctions(
             self.functions,
-            self.fracpos_ac,
+            self.relpos_ac,
             pw,
             atomdist=atomdist,
             xp=self.xp)
@@ -50,9 +50,9 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
                           integrals=self.integrals)
         if self._atomdist is None:
             self._atomdist = AtomDistribution.from_number_of_atoms(
-                len(self.fracpos_ac), self.pw.comm)
+                len(self.relpos_ac), self.pw.comm)
 
-        self._lfc.set_positions(self.fracpos_ac, self._atomdist)
+        self._lfc.set_positions(self.relpos_ac, self._atomdist)
         self._layout = AtomArraysLayout([sum(2 * f.l + 1 for f in funcs)
                                          for funcs in self.functions],
                                         self._atomdist,
