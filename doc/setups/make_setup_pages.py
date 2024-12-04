@@ -38,18 +38,23 @@ Radial cutoffs and eigenvalues:
 
 {table1}
 
-The figure shows convergence of the absolute FCC-energy (blue line)
-and BCC-FCC energy difference (orange line) relative
+The figure shows convergence of the absolute FCC-energy (blue lines)
+and BCC-FCC energy difference (orange lines) relative
 to converged numbers (plane-wave calculation at 1200 eV).
 
 .. image:: {dataset}.png
+
+.. csv-table::
+    :header: mode, E(FCC) [eV/atom], E(BCC) [eV/atom], E(BCC)-E(FCC) [eV/atom]
+
+{table2}
 
 Egg-box errors in finite-difference mode:
 
 .. csv-table::
     :header: grid-spacing [Å], energy variation [meV]
 
-{table2}"""
+{table3}"""
 
 
 def rst(names, data):
@@ -89,13 +94,13 @@ def rst1(dct, name, symbol):
 
     _, _, eegg = dct['eggbox']
     if eegg:
-        table2 = ''
+        table3 = ''
         for h, energies in eegg:
             E = [e for h, e in energies]
             e = np.ptp(E)
-            table2 += f'    {h:.2f},{1000 * e:.3f}\n'
+            table3 += f'    {h:.2f},{1000 * e:.3f}\n'
     else:
-        table2 = '    -,-\n'
+        table3 = '    -,-\n'
 
     fig = plt.figure(figsize=(8, 5))
 
@@ -104,6 +109,8 @@ def rst1(dct, name, symbol):
     yfcc = np.array(yfcc)
     efcc0 = yfcc[0]
     ebcc0 = ybcc[0]
+    table2 = ('    PW(ecut=1200),' +
+              f'{efcc0:.3f},{ebcc0:.3f},{ebcc0 - efcc0:.3f}\n')
     n = min(len(yfcc), len(ybcc))
     dy = ybcc[:n] - yfcc[:n]
     dy -= dy[0]
@@ -118,17 +125,28 @@ def rst1(dct, name, symbol):
     ax2 = plt.subplot(122, sharey=ax1)
 
     for mode, style in [('fd', 's'), ('lcao', 'o')]:
-        _, _, _, _, xfcc, yfcc = dct[f'fcc-{mode}']
-        _, _, _, _, xbcc, ybcc = dct[f'bcc-{mode}']
-        yfcc = np.array(yfcc) - efcc0
-        ybcc = np.array(ybcc) - ebcc0
-        n = min(len(yfcc), len(ybcc))
-        dy = ybcc[:n] - yfcc[:n]
-
-        ax2.semilogy(xfcc[:len(yfcc)], abs(yfcc), f'C0{style}-',
+        _, _, _, _, hfcc, efcc = dct[f'fcc-{mode}']
+        _, _, _, _, hbcc, ebcc = dct[f'bcc-{mode}']
+        efcc = np.array(efcc) - efcc0
+        ebcc = np.array(ebcc) - ebcc0
+        ax2.semilogy(hfcc[:len(efcc)], abs(efcc), f'C0{style}-',
                      label=f'{mode.upper()}, E(FCC)')
-        ax2.semilogy(xfcc[:n], abs(dy), f'C1{style}--',
+        H = []
+        de = []
+        for hf, ef in zip(hfcc, efcc):
+            _, hb, eb = min((abs(hb - hf), hb, eb)
+                            for hb, eb in zip(hbcc, ebcc))
+            H.append((hf + hb) / 2)
+            de.append(abs(eb - ef))
+
+        ax2.semilogy(H, de, f'C1{style}--',
                      label=f'{mode.upper()}, E(BCC)-E(FCC)')
+        if len(efcc) > 0:
+            table2 += (
+                f'    "{mode.upper()}(h={hfcc[0]:.2f},{hbcc[0]:.2f})",' +
+                f'{efcc[0] + efcc0:.3f},' +
+                f'{ebcc[0] + ebcc0:.3f},' +
+                f'{ebcc[0] + ebcc0 - efcc[0] - efcc0:.3f}\n')
 
     plt.xlabel('grid-spacing [Å]')
     plt.legend(loc='best')
@@ -141,7 +159,10 @@ def rst1(dct, name, symbol):
 
     nv = dct['nvalence']
     return nv, RST1.format(electrons=plural(nv, 'valence electron'),
-                           table1=table1, table2=table2, symbol=symbol,
+                           table1=table1,
+                           table2=table2,
+                           table3=table3,
+                           symbol=symbol,
                            dataset=name)
 
 
@@ -161,4 +182,5 @@ def main(symbols=None):
 
 # if __name__ == '__main__':
 if 1:
+    # main(['In'])
     main()
