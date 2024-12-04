@@ -54,11 +54,18 @@ class FakeWFS:
         self.density = density
         self.potential = potential
         self.hamiltonian = hamiltonian
-        self.kd = KPointDescriptor(ibzwfs.ibz.bz.kpt_Kc,
-                                   ibzwfs.nspins)
-        self.kd.set_symmetry(atoms,
-                             ibzwfs.ibz.symmetries.symmetry)
-        self.kd.set_communicator(ibzwfs.kpt_comm)
+        ibz = ibzwfs.ibz
+        self.kd = kd = KPointDescriptor(ibz.bz.kpt_Kc, ibzwfs.nspins)
+        kd.ibzk_kc = ibz.kpt_kc
+        kd.weight_k = ibz.weight_k
+        kd.sym_k = ibz.s_K
+        kd.time_reversal_k = ibz.time_reversal_K
+        kd.bz2ibz_k = ibz.bz2ibz_K
+        kd.ibz2bz_k = ibz.ibz2bz_k
+        kd.bz2bz_ks = ibz.bz2bz_Ks
+        kd.nibzkpts = len(ibz)
+        kd.symmetry = ibz.symmetries._old_symmetry
+        kd.set_communicator(ibzwfs.kpt_comm)
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
         self.grid = density.nt_sR.desc
         self.gd = self.grid._gd
@@ -310,11 +317,14 @@ class FakeDensity:
         self.setups = dft.setups
         self.D_asii = dft.density.D_asii
         self.atom_partition = dft._atom_partition
-        self.interpolate = dft.pot_calc._interpolate_density
+        try:
+            self.interpolate = dft.pot_calc._interpolate_density
+            self.finegd = dft.pot_calc.fine_grid._gd
+        except AttributeError:
+            pass
         self.nt_sR = dft.density.nt_sR
         self.nt_sG = self.nt_sR.data
         self.gd = self.nt_sR.desc._gd
-        self.finegd = dft.pot_calc.fine_grid._gd
         self._densities = dft.densities()
         self.ncomponents = len(self.nt_sG)
         self.nspins = self.ncomponents % 3
@@ -348,7 +358,10 @@ class FakeHamiltonian:
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
-        self.finegd = self.pot_calc.fine_grid._gd
+        try:
+            self.finegd = self.pot_calc.fine_grid._gd
+        except AttributeError:
+            pass
         self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
         self.e_xc = potential.energies['xc']

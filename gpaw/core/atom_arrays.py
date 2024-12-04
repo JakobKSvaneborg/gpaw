@@ -48,6 +48,9 @@ class AtomArraysLayout(XP):
             self.mysize += I2 - I1
             I1 = I2
 
+    def __len__(self):
+        return len(self.shape_a)
+
     def __repr__(self):
         return (f'AtomArraysLayout({self.shape_a}, {self.atomdist}, '
                 f'{self.dtype}, xp={self.xp.__name__})')
@@ -112,6 +115,9 @@ class AtomDistribution:
         self.rank_a = np.array(ranks)
         # convert from np.int64 -> int:
         self.indices = [int(a) for a in np.where(self.rank_a == comm.rank)[0]]
+
+    def __len__(self) -> int:
+        return len(self.rank_a)
 
     @classmethod
     def from_number_of_atoms(cls,
@@ -216,7 +222,9 @@ class AtomArrays:
         for a, I1, I2 in layout.myindices:
             self._arrays[a] = self.data[..., I1:I2].reshape(
                 self.mydims + layout.shape_a[a])
-        self.natoms: int = len(layout.shape_a)
+
+    def __len__(self) -> int:
+        return len(self.layout)
 
     def my_slice(self) -> tuple[int, int]:
         mydims0 = (self.dims[0] + self.comm.size - 1) // self.comm.size
@@ -457,20 +465,21 @@ class AtomArrays:
         layout = self.layout.new(atomdist=atomdist)
         new = layout.empty(self.dims)
         comm = atomdist.comm
+        xp = self.layout.xp
         requests = []
         for a, I1, I2 in self.layout.myindices:
             r = layout.atomdist.rank_a[a]
             if r == comm.rank:
                 new[a][:] = self[a]
             else:
-                requests.append(comm.send(np.ascontiguousarray(self[a]),
+                requests.append(comm.send(xp.ascontiguousarray(self[a]),
                                           r, block=False))
 
         for a, I1, I2 in layout.myindices:
             r = self.layout.atomdist.rank_a[a]
             if r != comm.rank:
                 target = new[a]
-                buf = np.empty_like(target)
+                buf = xp.empty_like(target)
                 comm.receive(buf, r)
                 target[:] = buf
 

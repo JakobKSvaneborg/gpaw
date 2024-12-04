@@ -7,6 +7,7 @@ Introduction to GPAW internals
     from gpaw.fftw import *
     from gpaw.core.matrix import *
     from gpaw.core.atom_arrays import *
+    from gpaw.new.symmetry import Symmetries
 
 .. contents::
 
@@ -181,8 +182,8 @@ Examples:
   * - ``density.nt_sR``
     - `\tilde{n}_\sigma(\mathbf{r})`
     - :class:`~UGArray`
-  * - ``ibzwfs.wfs_qs[q][s].P_ain``
-    - `P_{\sigma \mathbf{k} in}^a`
+  * - ``ibzwfs.wfs_qs[q][s].P_ani``
+    - `P_{\sigma \mathbf{k} ni}^a`
     - :class:`~atom_arrays.AtomArrays`
   * - ``ibzwfs.wfs_qs[q][s].psit_nX``
     - `\tilde{\psi}_{\sigma \mathbf{k} n}(\mathbf{r})`
@@ -412,6 +413,19 @@ Core
    :members:
    :undoc-members:
 
+.. autoclass:: gpaw.new.symmetry.Symmetries
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.IBZ
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.BZPoints
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.MonkhorstPackKPoints
+   :members:
+   :undoc-members:
+
 
 DFT
 ---
@@ -448,6 +462,7 @@ DFT
     :members:
     :undoc-members:
 .. autofunction:: gpaw.new.ase_interface.GPAW
+.. autofunction:: gpaw.new.pwfd.move_wfs.move_wave_functions
 
 
 FFTW

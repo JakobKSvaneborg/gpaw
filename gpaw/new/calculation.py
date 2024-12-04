@@ -89,7 +89,7 @@ class DFTCalculation:
         self.comm = log.comm
 
         self.results: dict[str, Any] = {}
-        self.fracpos_ac = self.pot_calc.fracpos_ac
+        self.relpos_ac = self.pot_calc.relpos_ac
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
@@ -156,18 +156,24 @@ class DFTCalculation:
     def move_atoms(self, atoms) -> DFTCalculation:
         check_atoms_too_close(atoms)
 
-        self.fracpos_ac = np.ascontiguousarray(atoms.get_scaled_positions())
-        self.comm.broadcast(self.fracpos_ac, 0)
+        self.relpos_ac = np.ascontiguousarray(atoms.get_scaled_positions())
+        self.comm.broadcast(self.relpos_ac, 0)
 
         atomdist = self.density.D_asii.layout.atomdist
         grid = self.density.nt_sR.desc
-        rank_a = grid.ranks_from_fractional_positions(self.fracpos_ac)
+        rank_a = grid.ranks_from_fractional_positions(self.relpos_ac)
         atomdist = AtomDistribution(rank_a, atomdist.comm)
 
-        self.pot_calc.move(self.fracpos_ac, atomdist)
-        self.ibzwfs.move(self.fracpos_ac, atomdist)
-        self.density.move(self.fracpos_ac, atomdist)
+        self.pot_calc.move(self.relpos_ac, atomdist)
+        self.ibzwfs.move(self.relpos_ac, atomdist)
+        self.density.move(self.relpos_ac, atomdist)
+        if self.ibzwfs.has_wave_functions():
+            self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
+
+        new_potential, _ = self.pot_calc.calculate(
+            self.density, self.ibzwfs, self.potential.vHt_x)
+        self.potential.update_from(new_potential)
 
         mm_av = self.results['non_collinear_magmoms']
         write_atoms(atoms, mm_av, self.density.nt_sR.desc, self.log)
@@ -176,26 +182,23 @@ class DFTCalculation:
 
         return self
 
-    def iconverge(self, convergence=None, maxiter=None, calculate_forces=None):
+    def iconverge(self, maxiter=None, calculate_forces=None):
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         yield from self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
                                          self.potential,
                                          self.pot_calc,
-                                         convergence,
-                                         maxiter,
-                                         calculate_forces,
+                                         maxiter=maxiter,
+                                         calculate_forces=calculate_forces,
                                          log=self.log)
 
     @trace
     def converge(self,
-                 convergence=None,
                  maxiter=None,
                  steps=99999999999999999,
                  calculate_forces=None):
         """Converge to self-consistent solution of Kohn-Sham equation."""
-        for step, _ in enumerate(self.iconverge(convergence,
-                                                maxiter,
+        for step, _ in enumerate(self.iconverge(maxiter,
                                                 calculate_forces),
                                  start=1):
             if step == steps:
@@ -227,7 +230,7 @@ class DFTCalculation:
     def dipole(self):
         if 'dipole' in self.results:
             return
-        dipole_v = self.density.calculate_dipole_moment(self.fracpos_ac)
+        dipole_v = self.density.calculate_dipole_moment(self.relpos_ac)
         x, y, z = dipole_v * Bohr
         self.log(f'dipole moment: [{x:.6f}, {y:.6f}, {z:.6f}]  # |e|*Ang\n')
         self.results['dipole'] = dipole_v
@@ -274,13 +277,12 @@ class DFTCalculation:
         F_av = self.ibzwfs.forces(self.potential)
 
         pot_calc = self.pot_calc
-        Fcc_avL, Fnct_av, Ftauct_av, Fvbar_av = pot_calc.force_contributions(
-            self.density, self.potential)
+        Q_aL = self.density.calculate_compensation_charge_coefficients()
+        Fcc_av, Fnct_av, Ftauct_av, Fvbar_av = pot_calc.force_contributions(
+            Q_aL, self.density, self.potential)
 
         # Force from compensation charges:
-        ccc_aL = self.density.calculate_compensation_charge_coefficients()
-        for a, dF_vL in Fcc_avL.items():
-            F_av[a] += dF_vL @ ccc_aL[a]
+        F_av += Fcc_av
 
         # Force from smooth core charge:
         for a, dF_v in Fnct_av.items():
@@ -297,7 +299,7 @@ class DFTCalculation:
 
         F_av = as_np(F_av)
 
-        domain_comm = ccc_aL.layout.atomdist.comm
+        domain_comm = Q_aL.layout.atomdist.comm
         domain_comm.sum(F_av)
 
         F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
@@ -431,7 +433,7 @@ class DFTCalculation:
 
         density = self.density.new(builder.grid,
                                    builder.interpolation_desc,
-                                   builder.fracpos_ac,
+                                   builder.relpos_ac,
                                    builder.atomdist)
         density.normalize()
 
@@ -452,7 +454,7 @@ class DFTCalculation:
             wfs = old_ibzwfs.wfs_qs[q][spin]
             return wfs.morph(
                 builder.wf_desc,
-                builder.fracpos_ac,
+                builder.relpos_ac,
                 builder.atomdist)
 
         ibzwfs = ibzwfs.create(

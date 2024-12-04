@@ -340,7 +340,7 @@ class RTTDDFT:
             time = self.history.propagate(time_step)
             # TODO This seems to be broken
             # dipolemoment = self.state.density.calculate_dipole_moment(
-            #     self.pot_calc.fracpos_ac)
+            #     self.pot_calc.relpos_ac)
             dipolemoment_xv = [
                 self.calculate_dipole_moment(wfs)  # type: ignore
                 for wfs in self.state.ibzwfs]

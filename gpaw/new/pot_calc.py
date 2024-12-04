@@ -37,14 +37,14 @@ class PotentialCalculator:
                  poisson_solver,
                  setups: list[Setup],
                  *,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  external_potential: ExternalPotential | None = None,
                  soc: bool = False):
         self.poisson_solver = poisson_solver
         self.xc = xc
         self.setups = setups
         self.external_potential = external_potential or ExternalPotential()
-        self.fracpos_ac = fracpos_ac
+        self.relpos_ac = relpos_ac
         self.soc = soc
 
     def __str__(self):
@@ -78,10 +78,10 @@ class PotentialCalculator:
         if xc.exx_fraction != 0.0:
             from gpaw.new.xc import create_functional
             self.xc = create_functional('PBE', xc.grid)
-        potential, Q_al = self.calculate(density, ibzwfs, vHt_x, kpt_band_comm)
+        potential, V_al = self.calculate(density, ibzwfs, vHt_x, kpt_band_comm)
         if xc.exx_fraction != 0.0:
             self.xc = xc
-        return potential, Q_al
+        return potential, V_al
 
     def calculate(self,
                   density,
@@ -136,7 +136,7 @@ def calculate_non_local_potential(setups,
                                   density,
                                   xc,
                                   ext_pot,
-                                  Q_aL,
+                                  V_aL,
                                   soc: bool,
                                   kpt_band_comm: MPIComm
                                   ) -> tuple[AtomArrays,
@@ -144,15 +144,15 @@ def calculate_non_local_potential(setups,
     dtype = float if density.ncomponents < 4 else complex
     D_asii = density.D_asii.to_xp(np)
     dH_asii = D_asii.layout.new(dtype=dtype).empty(density.ncomponents)
-    Q_aL = Q_aL.to_xp(np)
+    V_aL = V_aL.to_xp(np)
     energy_corrections: DefaultDict[str, float] = defaultdict(float)
     rank = 0
     for a, D_sii in D_asii.items():
         if rank % kpt_band_comm.size == kpt_band_comm.rank:
-            Q_L = Q_aL[a]
+            V_L = V_aL[a]
             setup = setups[a]
             dH_sii, corrections = calculate_non_local_potential1(
-                setup, xc, ext_pot, D_sii, Q_L, soc)
+                setup, xc, ext_pot, D_sii, V_L, soc)
             dH_asii[a][:] = dH_sii
             for key, e in corrections.items():
                 energy_corrections[key] += e
