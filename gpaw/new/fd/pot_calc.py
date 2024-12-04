@@ -91,7 +91,8 @@ class FDPotentialCalculator(PotentialCalculator):
 
         charge_r = grid2.empty(xp=self.xp)
         charge_r.data[:] = nt_sr.data[:density.ndensities].sum(axis=0)
-        e_zero = self.vbar_r.integrate(charge_r)
+        nt_r = charge_r.copy()
+        e_zero = self.vbar_r.integrate(nt_r)
 
         self.environment.update1(charge_r)
 
@@ -114,11 +115,11 @@ class FDPotentialCalculator(PotentialCalculator):
         vt_sr = vxct_sr
         vt_sr.data += vHt_r.data + self.vbar_r.data
 
-        self.environment.update2(vHt_r, vt_sr)
+        e_env = self.environment.update2(nt_r, vHt_r, vt_sr)
 
         vt_sR = self.restrict(vt_sr)
 
-        e_external = 0.0
+        e_external = e_env
 
         V_aL = self.ghat_aLr.integrate(vHt_r)
 

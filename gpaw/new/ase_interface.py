@@ -394,6 +394,10 @@ class ASECalculator:
                   self.dft, skip_wfs=mode != 'all',
                   include_projections=include_projections)
 
+    @property
+    def environment(self):
+        return self.dft.pot_calc.environment
+
     # Old API:
 
     implemented_properties = ['energy', 'free_energy',

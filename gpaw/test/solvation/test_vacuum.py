@@ -62,7 +62,7 @@ def test_solvation_vacuum():
     if atoms.calc.old:
         Eeltest = atoms.calc.get_electrostatic_energy()
     else:
-        Eeltest = Etest  # should be the same?
+        Eeltest = Etest - atoms.calc.environment.interaction_energy()
     Ftest = atoms.get_forces()
     assert Etest == pytest.approx(
         Eref, abs=energy_eps * atoms.calc.get_number_of_electrons())

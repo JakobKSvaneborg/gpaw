@@ -80,15 +80,6 @@ class DFTCalculation:
         self.results: dict[str, Any] = {}
         self.relpos_ac = self.pot_calc.relpos_ac
 
-    def get_state(self):
-        return DFTState(self.ibzwfs, self.density, self.potential)
-
-    @property
-    def state(self):
-        warnings.warn('Use of deprecated DFTCalculation.state attribute. '
-                      'Use ibzwfs, density and potential attributes instead.')
-        return self.get_state()
-
     @classmethod
     def from_parameters(cls,
                         atoms: Atoms,
@@ -466,6 +457,15 @@ class DFTCalculation:
         return DFTCalculation(
             ibzwfs, density, potential,
             builder.setups, scf_loop, pot_calc, log)
+
+    def get_state(self):
+        return DFTState(self.ibzwfs, self.density, self.potential)
+
+    @property
+    def state(self):
+        warnings.warn('Use of deprecated DFTCalculation.state attribute. '
+                      'Use ibzwfs, density and potential attributes instead.')
+        return self.get_state()
 
 
 def combine_energies(potential: Potential,

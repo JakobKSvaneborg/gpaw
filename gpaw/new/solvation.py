@@ -1,10 +1,10 @@
 import numpy as np
-
-from gpaw.new.environment import Environment
-from gpaw.solvation.poisson import WeightedFDPoissonSolver
-from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
+from ase.units import Ha
 from gpaw.fd_operators import Gradient
 from gpaw.new.c import add_to_density
+from gpaw.new.environment import Environment
+from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
+from gpaw.solvation.poisson import WeightedFDPoissonSolver
 
 
 class Solvation(Environment):
@@ -38,6 +38,10 @@ class Solvation(Environment):
             ia.update_atoms(self.atoms, log)
         self.grad_v = [Gradient(grid, v, 1.0, nn) for v in range(3)]
         self.vt_ia_r = grid.empty()  # self.finegd.zeros()
+        self.e_interactions = np.nan
+
+    def interaction_energy(self):
+        return self.e_interactions * Ha
 
     def create_poisson_solver(self, grid, *, xp, **kwargs) -> PoissonSolver:
         psolver = WeightedFDPoissonSolver()
@@ -52,7 +56,7 @@ class Solvation(Environment):
             self.cavity.update_vol_surf()
             self.dielectric.update(self.cavity)
 
-    def update2(self, vHt_r, vt_sr):
+    def update2(self, nt_r, vHt_r, vt_sr):
         if self.cavity.depends_on_el_density:
             del_g_del_n_g = self.cavity.del_g_del_n_g
             del_eps_del_g_g = self.dielectric.del_eps_del_g_g
@@ -61,10 +65,11 @@ class Solvation(Environment):
             for vt_r in vt_sr.data:
                 vt_r += Veps
 
+        density = DensityWrapper(nt_r)
         ia_changed = [
             ia.update(
                 self.atoms,
-                None,  # density,
+                density,
                 self.cavity if self.cavity_changed else None)
             for ia in self.interactions]
         if any(ia_changed):
@@ -80,6 +85,7 @@ class Solvation(Environment):
                 vt_r += self.vt_ia_r.data
         Eias = np.array([ia.E for ia in self.interactions])
         self.grid.comm.sum(Eias)
+        self.e_interactions = Eias.sum()
 
         self.cavity.communicate_vol_surf(self.comm)
         for E, ia in zip(Eias, self.interactions):
@@ -87,6 +93,7 @@ class Solvation(Environment):
             # setattr(self, 'e_' + ia.subscript, E)
 
         self.atoms = None
+        return self.e_interactions
 
 
 class DensityWrapper:
