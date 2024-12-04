@@ -727,7 +727,7 @@ class ASECalculator:
 
     @property
     def symmetry(self):
-        return self.dft.ibzwfs.ibz.symmetries.symmetry
+        return self.dft.ibzwfs.ibz.symmetries._old_symmetry
 
     def get_wannier_localization_matrix(self, nbands, dirG, kpoint,
                                         nextkpoint, G_I, spin):
