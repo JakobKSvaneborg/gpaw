@@ -36,7 +36,7 @@ def test_fdsic(in_tmp_dir):
                                 'scaling_factor': (0.5, 0.5)},
                     localizationseed=42,
                     localizationtype='FB_ER',
-                    grad_tol_pz_localization=5.0e-3,
+                    grad_tol_pz_localization=1.0e-3,
                     maxiter_pz_localization=200,
                     converge_unocc=True),
                 convergence={'eigenstates': 1e-4},
