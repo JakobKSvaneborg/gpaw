@@ -7,6 +7,7 @@ Introduction to GPAW internals
     from gpaw.fftw import *
     from gpaw.core.matrix import *
     from gpaw.core.atom_arrays import *
+    from gpaw.new.symmetry import Symmetries
 
 .. contents::
 
