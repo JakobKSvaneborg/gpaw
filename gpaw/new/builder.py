@@ -90,31 +90,43 @@ class DFTComponentsBuilder:
         else:
             self._xc = params.xc
 
+        self._backwards_comatible = params.experimental.get(
+            'backwards_compatible', True)
+
         self.setups = Setups(
             atoms.numbers,
             params.setups,
             params.basis,
             self._xc.get_setup_name(),
             world=comm,
-            backwards_compatible=params.experimental.get(
-                'backwards_compatible', True))
+            backwards_compatible=self._backwards_comatible)
         if params.hund:
             c = params.charge / len(atoms)
             for a, setup in enumerate(self.setups):
                 self.initial_magmom_av[a, 2] = setup.get_hunds_rule_moment(c)
 
-        symmetries = create_symmetries_object(atoms,
-                                              self.setups.id_a,
-                                              self.initial_magmom_av,
-                                              params.symmetry)
-        self.setups.set_symmetry(symmetries.symmetry)
+        symmetries = create_symmetries_object(
+            atoms,
+            setup_ids=self.setups.id_a,
+            magmoms=self.initial_magmom_av,
+            **{k: v for k, v in params.symmetry.items()
+               if k != 'time_reversal'},
+            _backwards_compatible=self._backwards_comatible)
+
+        use_time_reversal = params.symmetry.get('time_reversal', True)
+
+        symmetries._old_symmetry.time_reversal = use_time_reversal  # legacy
+        self.setups.set_symmetry(symmetries._old_symmetry)  # legacy
 
         if self.ncomponents == 4:
-            assert (len(symmetries) == 1 and not
-                    symmetries.symmetry.time_reversal)
+            assert (len(symmetries) == 1 and not use_time_reversal)
 
         bz = create_kpts(params.kpts, atoms)
-        self.ibz = symmetries.reduce(bz, strict=False)
+        self.ibz = bz.reduce(
+            symmetries,
+            strict=False,
+            comm=comm,
+            use_time_reversal=use_time_reversal)
 
         d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
@@ -427,13 +439,17 @@ def normalize_initial_magmoms(
 
 def create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     if 'kpts' in kpts:
-        # assert len(kpts) == 1, kpts
-        return BZPoints(kpts['kpts'])
-    if 'path' in kpts:
+        bz = BZPoints(kpts['kpts'])
+    elif 'path' in kpts:
         path = atoms.cell.bandpath(pbc=atoms.pbc, **kpts)
-        return BZPoints(path.kpts)
-    size, offset = kpts2sizeandoffsets(**kpts, atoms=atoms)
-    return MonkhorstPackKPoints(size, offset)
+        bz = BZPoints(path.kpts)
+    else:
+        size, offset = kpts2sizeandoffsets(**kpts, atoms=atoms)
+        bz = MonkhorstPackKPoints(size, offset)
+    for c, periodic in enumerate(atoms.pbc):
+        if not periodic and not np.allclose(bz.kpt_Kc[:, c], 0.0):
+            raise ValueError('K-points can only be used with PBCs!')
+    return bz
 
 
 def calculate_number_of_bands(nbands: int | str | None,
@@ -490,7 +506,7 @@ def create_uniform_grid(mode: str,
                         gpts,
                         cell,
                         pbc,
-                        symmetry,
+                        symmetries,
                         h: float = None,
                         interpolation: str = None,
                         ecut: float = None,
@@ -511,5 +527,5 @@ def create_uniform_grid(mode: str,
     else:
         modeobj = SimpleNamespace(name=mode, ecut=ecut)
         size = get_number_of_grid_points(cell, h, modeobj, realspace,
-                                         symmetry.symmetry)
+                                         symmetries)
     return UGDesc(cell=cell, pbc=pbc, zerobc=zerobc, size=size, comm=comm)

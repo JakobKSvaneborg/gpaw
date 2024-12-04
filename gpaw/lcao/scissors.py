@@ -68,7 +68,7 @@ def check_symmetries(symmetries: Symmetries,
     ValueError: A symmetry maps atom 0 onto atom 1,
     but those atoms have different scissors shifts
     """
-    b_sa = symmetries.a_sa
+    b_sa = symmetries.atommap_sa
     shift_a = []
     for ho, lu, natoms in shifts:
         shift_a += [(ho, lu)] * natoms
