@@ -1,5 +1,5 @@
 import numpy as np
-from ase.units import Ha
+from ase.units import Ha, Bohr
 from gpaw.fd_operators import Gradient
 from gpaw.new.c import add_to_density
 from gpaw.new.environment import Environment
@@ -31,7 +31,7 @@ class Solvation(Environment):
         from ase import Atoms
         self.atoms = Atoms([setup.symbol for setup in setups],
                            scaled_positions=relpos_ac,
-                           cell=grid.cell,
+                           cell=grid.cell * Bohr,
                            pbc=grid.pbc)
         self.cavity.update_atoms(self.atoms, log)
         for ia in self.interactions:
@@ -90,7 +90,6 @@ class Solvation(Environment):
         self.cavity.communicate_vol_surf(self.comm)
         for E, ia in zip(Eias, self.interactions):
             pass
-            # setattr(self, 'e_' + ia.subscript, E)
 
         self.atoms = None
         return self.e_interactions

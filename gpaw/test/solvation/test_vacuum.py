@@ -10,7 +10,6 @@ from gpaw.utilities.adjust_cell import adjust_cell
 
 
 def test_solvation_vacuum():
-
     SKIP_REF_CALC = True
 
     energy_eps = 0.0005 / 8

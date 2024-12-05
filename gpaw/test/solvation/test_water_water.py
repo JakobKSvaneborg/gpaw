@@ -58,9 +58,7 @@ def test_solvation_water_water(H2O, parameters):
         assert Ewater == pytest.approx(Eelwater + Esurfwater, abs=1e-14)
     else:
         Esurfwater = H2O.calc.environment.interaction_energy()
-        print(Esurfwater)
-        lkjshadf
-
+    assert Esurfwater == pytest.approx(0.058, abs=0.002)
 
 
 def test_read(H2O, in_tmp_dir):
