@@ -77,7 +77,7 @@ def create_symmetries_object(atoms: Atoms,
 
     # Legacy:
     sym._old_symmetry = OldSymmetry(
-        ids, atoms.cell_cv, atoms.pbc, tolerance,
+        ids, cell_cv, atoms.pbc, tolerance,
         point_group,
         time_reversal='?',
         symmorphic=symmorphic)
