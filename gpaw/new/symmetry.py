@@ -68,9 +68,8 @@ def create_symmetries_object(atoms: Atoms,
                 tolerance=tolerance,
                 _backwards_compatible=_backwards_compatible)
         else:
-            # No symmetries:
+            # No symmetries (identity only):
             sym = Symmetries(cell=cell_cv,
-                             rotations=[[[1, 0, 0], [0, 1, 0], [0, 0, 1]]],
                              tolerance=tolerance,
                              _backwards_compatible=_backwards_compatible)
 
@@ -79,7 +78,6 @@ def create_symmetries_object(atoms: Atoms,
             ids=ids,
             symmorphic=symmorphic)
     else:
-        print(rotations)
         sym = Symmetries(cell=cell_cv,
                          rotations=rotations,
                          translations=translations,
@@ -108,7 +106,7 @@ class Symmetries:
     def __init__(self,
                  *,
                  cell: ArrayLike1D | ArrayLike2D,
-                 rotations: ArrayLike3D,
+                 rotations: ArrayLike3D | None = None,
                  translations: ArrayLike2D | None = None,
                  atommaps: ArrayLike2D | None = None,
                  tolerance=1e-7,
@@ -133,6 +131,8 @@ class Symmetries:
         self.cell_cv = normalize_cell(cell)
         self.tolerance = tolerance
         self._backwards_compatible = _backwards_compatible
+        if rotations is None:
+            rotations = [[[1, 0, 0], [0, 1, 0], [0, 0, 1]]]
         self.rotation_scc = np.array(rotations, dtype=int)
         assert (self.rotation_scc == rotations).all()
         if translations is None:
@@ -180,15 +180,15 @@ class Symmetries:
 
     def analyze_positions(self,
                           relative_positions: ArrayLike2D,
-                          ids: ArrayLike1D,
+                          ids: Sequence[int],
                           *,
                           symmorphic: bool = True) -> Symmetries:
         return prune_symmetries(
             self, np.asarray(relative_positions), ids, symmorphic)
 
     def with_atom_maps(self,
-                       relative_positions: ArrayLike2D,
-                       ids: ArrayLike1D) -> Symmetries:
+                       relative_positions: Array2D,
+                       ids: Sequence[int]) -> Symmetries:
         atommap_sa = np.empty((len(self), len(relative_positions)), int)
         a_ij = defaultdict(list)
         for a, id in enumerate(ids):
@@ -209,7 +209,7 @@ class Symmetries:
     def from_atoms(cls,
                    atoms,
                    *,
-                   ids: ArrayLike1D | None = None,
+                   ids: Sequence[int] | None = None,
                    symmorphic: bool = True,
                    tolerance: float = 1e-7):
         sym = cls.from_cell(atoms.cell,
@@ -217,9 +217,9 @@ class Symmetries:
                             tolerance=tolerance)
         if ids is None:
             ids = atoms.numbers
-        return sym.new_with_positions(atoms.positions,
-                                      ids=ids,
-                                      symmorphic=symmorphic)
+        return sym.analyze_positions(atoms.positions,
+                                     ids=ids,
+                                     symmorphic=symmorphic)
 
     def __len__(self):
         return len(self.rotation_scc)
@@ -349,7 +349,7 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
 
 def prune_symmetries(sym: Symmetries,
                      relpos_ac: Array2D,
-                     id_a: list[int],
+                     id_a: Sequence[int],
                      symmorphic: bool = True) -> Symmetries:
     """Remove symmetries that are not satisfied by the atoms."""
 
