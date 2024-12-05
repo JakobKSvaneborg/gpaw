@@ -178,7 +178,9 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     kpts = reader.wave_functions.kpts
     rotation_scc = kpts.rotations
     if len(rotation_scc) != len(builder.ibz.symmetries):
+        # Use symmetries from gpw-file
         if reader.version == 4:
+            # gpw-files with version=4 wrote the wrong rotations
             cell_cv = atoms.cell
             rotation_scc = (cell_cv @
                             rotation_scc @
