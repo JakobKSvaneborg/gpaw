@@ -93,10 +93,20 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.v_G = coulomb(pw, grid, self.exx_omega)
         self.v_G.data *= self.exx_fraction
 
+<<<<<<< Updated upstream
         self.ghat_aLG = setups.create_compensation_charges(
             pw, relpos_ac, atomdist)
         self.ghat_aLG._lazy_init()
         self.ghat_GA = self.ghat_aLG._lfc.expand()
+=======
+        desc = grid if ... else pw
+
+        self.ghat_aLX = setups.create_compensation_charges(
+            desc, fracpos_ac, atomdist)
+        if ...:
+            self.ghat_aLG._lazy_init()
+            self.ghat_GA = self.ghat_aLG._lfc.expand()
+>>>>>>> Stashed changes
         # self.plan = grid.fft_plans()
 
     def apply_orbital_dependent(self,
@@ -160,10 +170,11 @@ class PWHybridHamiltonian(PWHamiltonian):
                 evv -= ev
                 evc -= ec
 
-        Q_nA = np.empty((mynbands,
-                         sum(delta_iiL.shape[2]
-                             for delta_iiL in self.delta_aiiL)),
-                        dtype=self.pw.dtype)
+        Q_anL = self.ghat_aLX.empty(mynbands)
+        Q_nA = Q_anL.data#np.empty((mynbands,
+                         #sum(delta_iiL.shape[2]
+                         #    for delta_iiL in self.delta_aiiL)),
+                        #dtype=self.pw.dtype)
         rhot_nR = self.grid_local.empty(mynbands)
         rhot_nG = self.pw.empty(mynbands)
         vrhot_G = self.pw.empty()
@@ -224,7 +235,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         e = 0.0
         for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
             rhot_nR.data[:] = psit1_nR.data * psit2_R.data.conj()
-            fft(rhot_nR, rhot_nG, plan=self.plan)
             A1 = 0
             for a, Q1_niL in Q1_aniL.items():
                 P2_i = psi2.P_ani[a][n2]
@@ -232,13 +242,21 @@ class PWHybridHamiltonian(PWHamiltonian):
                 Q_nA[:, A1:A2] = P2_i.conj() @ Q1_niL
                 A1 = A2
 
-            if self.pw.dtype == float:
-                # Note that G runs over G0.real, G0.imag, G1.real, G1.imag, ...
-                mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
-                    1.0, rhot_nG.data.view(float))
-            else:
-                mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
-                    1.0, rhot_nG.data)
+            if self.real_space_compensation_charges:
+                self.ghat_aLR.add_to(rhot_nR, Q_nA)
+
+            fft(rhot_nR, rhot_nG, plan=self.plan)
+
+            if not self.real_space_compensation_charges:
+                if self.pw.dtype == float:
+                    # Note that G runs over
+                    # G0.real, G0.imag, G1.real, G1.imag, ...
+                    mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
+                        1.0, rhot_nG.data.view(float))
+                else:
+                    mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
+                        1.0, rhot_nG.data)
+
             for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
                                                            rhot_nG,
                                                            psi1.f_n)):
