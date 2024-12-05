@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 import numpy as np
 from ase import Atoms
+from ase.units import Bohr
 from gpaw import debug
 from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
@@ -20,18 +21,19 @@ class SymmetryBrokenError(Exception):
 
 def create_symmetries_object(atoms: Atoms,
                              *,
-                             setup_ids=None,
-                             magmoms=None,
-                             rotations=None,
-                             translations=None,
-                             extra_ids=None,
-                             tolerance: float | None = None,
-                             point_group=True,
-                             symmorphic=True,
+                             setup_ids: Sequence | None = None,
+                             magmoms: ArrayLike2D | None = None,
+                             rotations: ArrayLike3D | None = None,
+                             translations: ArrayLike2D | None = None,
+                             extra_ids: Sequence[int] | None = None,
+                             tolerance: float | None = None,  # Å
+                             point_group: bool = True,
+                             symmorphic: bool = True,
                              _backwards_compatible=False) -> Symmetries:
     """Find symmetries from atoms object.
 
-    >>> sym = create_symmetries_object(Atoms('H', cell=[1, 1, 1], pbc=True))
+    >>> atoms = Atoms('H', cell=[1, 1, 1], pbc=True)
+    >>> sym = create_symmetries_object(atoms)
     >>> len(sym)
     48
     >>> sym.rotation_scc.shape
@@ -39,19 +41,23 @@ def create_symmetries_object(atoms: Atoms,
     """
     if tolerance is None:
         tolerance = 1e-7 if _backwards_compatible else 1e-5
+    cell_cv = atoms.cell.complete()
+    if _backwards_compatible:
+        cell_cv *= 1 / Bohr
     if rotations is not None:
-        sym = Symmetries(cell=atoms.cell,
+        sym = Symmetries(cell=cell_cv,
                          rotations=rotations,
                          translations=translations,
                          tolerance=tolerance,
                          _backwards_compatible=_backwards_compatible)
     elif point_group:
-        sym = Symmetries.from_cell(atoms.cell.complete(),
+        sym = Symmetries.from_cell(cell_cv,
                                    pbc=atoms.pbc,
                                    tolerance=tolerance,
                                    _backwards_compatible=_backwards_compatible)
     else:
-        sym = Symmetries(cell=atoms.cell,
+        # No symmetries:
+        sym = Symmetries(cell=cell_cv,
                          rotations=[[[1, 0, 0], [0, 1, 0], [0, 0, 1]]],
                          tolerance=tolerance,
                          _backwards_compatible=_backwards_compatible)
@@ -71,7 +77,7 @@ def create_symmetries_object(atoms: Atoms,
 
     # Legacy:
     sym._old_symmetry = OldSymmetry(
-        ids, atoms.cell.complete(), atoms.pbc, tolerance,
+        ids, atoms.cell_cv, atoms.pbc, tolerance,
         point_group,
         time_reversal='?',
         symmorphic=symmorphic)
@@ -94,6 +100,10 @@ class Symmetries:
                  tolerance=1e-7,
                  _backwards_compatible=False):
         """Symmetries object.
+
+        "Rotations" here means rotations, mirror and inversion operations.
+
+        Units of "cell" and "tolerance" should match.
 
         >>> sym = Symmetries.from_cell([1, 2, 3])
         >>> sym.has_inversion
@@ -225,7 +235,6 @@ class Symmetries:
 
     def gcd(self):
         length_c = (self.cell_cv**2).sum(1)**0.5
-        length_c[length_c == 0.0] = 1.0
         gcd_c = np.ones(3, int)
         for t_c in self.translation_sc:
             for c, t in enumerate(t_c):
@@ -507,6 +516,11 @@ def mat(rot_cc) -> str:
 
 
 def integer_ids(ids: Iterable) -> list[int]:
+    """Convert arbitrary ids to int ids.
+
+    >>> integer_ids([(1, 'a'), (12, 'b'), (1, 'a')])
+    [0, 1, 0]
+    """
     dct: dict[Any, int] = {}
     iids = []
     for id in ids:
