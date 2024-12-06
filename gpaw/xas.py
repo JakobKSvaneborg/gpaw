@@ -53,7 +53,7 @@ def dipole_matrix_elements(setup):
     return A_cmi
 
 
-def projection(proj_xyz, proj, orthogonal: bool):
+def projection(proj, proj_xyz, orthogonal: bool):
     if proj_xyz:
         proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
     else:
@@ -232,7 +232,8 @@ class XAS:
     def get_matrix_element(self, kpoint=None, proj=None,
                            proj_xyz: bool = True, raw: bool = False):
 
-        proj_3 = projection(proj_xyz, proj, self.orthogonal)
+        proj_3 = projection(proj=proj, proj_xyz=proj_xyz,
+                            orthogonal=self.orthogonal)
 
         sigma2_cmn = np.zeros((proj_3.shape[0],
                                self.sigma_cmn.shape[1],
@@ -267,7 +268,7 @@ class XAS:
                             proj_xyz: bool = True):
 
         energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
-            kpoint, proj, proj_xyz, raw=True)
+            kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
 
         np.savez_compressed(fname, energy_n=energy_n,
                             sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k)
@@ -299,10 +300,11 @@ class XAS:
         """
 
         eps_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
-            kpoint, proj, proj_xyz, raw=True)
+            kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
 
-        energy_n, f_cmn = get_os_from_me(eps_n, sigma2_cmn, eps_n0_k,
-                                         dks, w, raw)
+        energy_n, f_cmn = get_os_from_me(
+            eps_n=eps_n, sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k,
+            dks=dks, w=w, raw=raw)
 
         return energy_n, f_cmn
 
@@ -346,9 +348,9 @@ class XAS:
             energies: 1D array
             oscillator strengths: 3D array
         """
-        energy_n, f_cmn = self.get_oscillator_strength(kpoint, proj,
-                                                       proj_xyz, dks,
-                                                       w, raw=True)
+        energy_n, f_cmn = self.get_oscillator_strength(
+            kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, dks=dks, w=w,
+            raw=True)
 
         if stick:
             return energy_n, f_cmn.sum(axis=1)
