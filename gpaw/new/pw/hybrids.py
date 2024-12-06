@@ -77,8 +77,10 @@ class PWHybridHamiltonian(PWHamiltonian):
                  xc,
                  setups,
                  relpos_ac,
-                 atomdist):
+                 atomdist,
+                 add_comp_charge_in_real_space: bool = False):
         super().__init__(grid, pw)
+        self.add_comp_charge_in_real_space = add_comp_charge_in_real_space
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
@@ -93,20 +95,15 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.v_G = coulomb(pw, grid, self.exx_omega)
         self.v_G.data *= self.exx_fraction
 
-<<<<<<< Updated upstream
-        self.ghat_aLG = setups.create_compensation_charges(
-            pw, relpos_ac, atomdist)
-        self.ghat_aLG._lazy_init()
-        self.ghat_GA = self.ghat_aLG._lfc.expand()
-=======
-        desc = grid if ... else pw
+        desc = grid if add_comp_charge_in_real_space else pw
 
         self.ghat_aLX = setups.create_compensation_charges(
-            desc, fracpos_ac, atomdist)
-        if ...:
+            desc, relpos_ac, atomdist)
+        if not add_comp_charge_in_real_space:
             self.ghat_aLG._lazy_init()
             self.ghat_GA = self.ghat_aLG._lfc.expand()
->>>>>>> Stashed changes
+        else:
+            self.ghat_GA = None
         # self.plan = grid.fft_plans()
 
     def apply_orbital_dependent(self,
@@ -171,10 +168,12 @@ class PWHybridHamiltonian(PWHamiltonian):
                 evc -= ec
 
         Q_anL = self.ghat_aLX.empty(mynbands)
-        Q_nA = Q_anL.data#np.empty((mynbands,
-                         #sum(delta_iiL.shape[2]
-                         #    for delta_iiL in self.delta_aiiL)),
-                        #dtype=self.pw.dtype)
+        Q_nA = Q_anL.data
+        assert Q_nA.shape == (mynbands,
+                              sum(delta_iiL.shape[2]
+                                  for delta_iiL in self.delta_aiiL))
+        assert Q_nA.dtype == self.pw.dtype
+
         rhot_nR = self.grid_local.empty(mynbands)
         rhot_nG = self.pw.empty(mynbands)
         vrhot_G = self.pw.empty()
@@ -195,7 +194,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 psi2.psit_nR = self.grid_local.empty(mynbands)
                 ifft(psi2.psit_nG, psi2.psit_nR, self.plan)
             e += self.inner(psi1, psi2,
-                            Q_nA,
+                            Q_anL,
                             psit1_nR,
                             rhot_nG, rhot_nR, vrhot_G,
                             Htpsit_nG, B_ani)
@@ -219,7 +218,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         return nan, nan, nan
 
     def inner(self, psi1, psi2,
-              Q_nA,
+              Q_anL,
               psit1_nR,
               rhot_nG, rhot_nR, vrhot_G,
               Htpsit_nG, B_ani):
@@ -235,49 +234,83 @@ class PWHybridHamiltonian(PWHamiltonian):
         e = 0.0
         for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
             rhot_nR.data[:] = psit1_nR.data * psit2_R.data.conj()
-            A1 = 0
             for a, Q1_niL in Q1_aniL.items():
                 P2_i = psi2.P_ani[a][n2]
-                A2 = A1 + Q1_niL.shape[2]
-                Q_nA[:, A1:A2] = P2_i.conj() @ Q1_niL
-                A1 = A2
-
-            if self.real_space_compensation_charges:
-                self.ghat_aLR.add_to(rhot_nR, Q_nA)
-
-            fft(rhot_nR, rhot_nG, plan=self.plan)
-
-            if not self.real_space_compensation_charges:
-                if self.pw.dtype == float:
-                    # Note that G runs over
-                    # G0.real, G0.imag, G1.real, G1.imag, ...
-                    mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
-                        1.0, rhot_nG.data.view(float))
-                else:
-                    mmm(1.0 / self.pw.dv, Q_nA, 'N', self.ghat_GA, 'T',
-                        1.0, rhot_nG.data)
-
-            for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
-                                                           rhot_nG,
-                                                           psi1.f_n)):
-                vrhot_G.data = rhot_G.data * self.v_G.data
-                if psi2.f_n is not None:
-                    e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
-                rhot_G.data[:] = vrhot_G.data
-                if self.pw.dtype == float:
-                    vrhot_G.data[0] *= 0.5
-                    A1_A = vrhot_G.data.view(float) @ self.ghat_GA * 2.0
-                else:
-                    A1_A = vrhot_G.data @ self.ghat_GA
-                A1 = 0
-                for a, Q1_niL in Q1_aniL.items():
-                    A2 = A1 + Q1_niL.shape[2]
-                    B_ani[a][n2] -= Q1_niL[n1] @ (f1 * A1_A[A1:A2])
-                    A1 = A2
-            ifft(rhot_nG, rhot_nR, plan=self.plan)
+                Q_anL[a][:] = P2_i.conj() @ Q1_niL
+                e += self.inner2(
+                    psi1, psi2,
+                    rhot_nR, rhot_nG,
+                    vrhot_G,
+                    Q_anL, Q1_aniL, B_ani, n2)
             rhot_nR.data *= psit1_nR.data
             fft(rhot_nR, rhot_nG, self.plan)
             out_G.data -= psi1.f_n @ rhot_nG.data
+        return e
+
+    def inner2(self,
+               psi1, psi2,
+               rhot_nR, rhot_nG,
+               vrhot_G,
+               Q_anL, Q1_aniL, B_ani, n2) -> float:
+        if self.add_comp_charge_in_real_space:
+            return self.inner2_real_space(psi1, psi2,
+                                          rhot_nR, rhot_nG,
+                                          vrhot_G,
+                                          Q_anL, Q1_aniL, B_ani, n2)
+        fft(rhot_nR, rhot_nG, plan=self.plan)
+        if self.pw.dtype == float:
+            # Note that G runs over
+            # G0.real, G0.imag, G1.real, G1.imag, ...
+            mmm(1.0 / self.pw.dv, Q_anL.data, 'N', self.ghat_GA, 'T',
+                1.0, rhot_nG.data.view(float))
+        else:
+            mmm(1.0 / self.pw.dv, Q_anL.data, 'N', self.ghat_GA, 'T',
+                1.0, rhot_nG.data)
+
+        e = 0.0
+        for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
+                                                       rhot_nG,
+                                                       psi1.f_n)):
+            vrhot_G.data = rhot_G.data * self.v_G.data
+            if psi2.f_n is not None:
+                e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
+            rhot_G.data[:] = vrhot_G.data
+
+            if self.pw.dtype == float:
+                vrhot_G.data[0] *= 0.5
+                A1_A = vrhot_G.data.view(float) @ self.ghat_GA * 2.0
+            else:
+                A1_A = vrhot_G.data @ self.ghat_GA
+            A1 = 0
+            for a, Q1_niL in Q1_aniL.items():
+                A2 = A1 + Q1_niL.shape[2]
+                B_ani[a][n2] -= Q1_niL[n1] @ (f1 * A1_A[A1:A2])
+                A1 = A2
+        ifft(rhot_nG, rhot_nR, plan=self.plan)
+        return e
+
+    def inner2_real_space(self,
+                          psi1, psi2,
+                          rhot_nR, rhot_nG,
+                          vrhot_G,
+                          Q_anL, Q1_aniL, B_ani, n2) -> float:
+        self.ghat_aLX.add_to(rhot_nR, Q_anL)
+        fft(rhot_nR, rhot_nG, plan=self.plan)
+        e = 0.0
+        for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
+                                                       rhot_nG,
+                                                       psi1.f_n)):
+            vrhot_G.data = rhot_G.data * self.v_G.data
+            if psi2.f_n is not None:
+                e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
+            rhot_G.data[:] = vrhot_G.data
+
+        ifft(rhot_nG, rhot_nR, plan=self.plan)
+
+        A1_anL = self.ghat_aLX.integrate(rhot_nR)
+        for a, Q1_niL in Q1_aniL.items():
+            B_ani[a][n2] -= np.einsum('niL, n, nL -> i',
+                                      Q1_niL, psi1.f_n, A1_anL[a])
         return e
 
 
