@@ -109,7 +109,7 @@ class Symmetries:
                  rotations: ArrayLike3D | None = None,
                  translations: ArrayLike2D | None = None,
                  atommaps: ArrayLike2D | None = None,
-                 tolerance=1e-7,
+                 tolerance: float | None = None,
                  _backwards_compatible=False):
         """Symmetries object.
 
@@ -129,6 +129,8 @@ class Symmetries:
         4
         """
         self.cell_cv = normalize_cell(cell)
+        if tolerance is None:
+            tolerance = 1e-7 if _backwards_compatible else 1e-5
         self.tolerance = tolerance
         self._backwards_compatible = _backwards_compatible
         if rotations is None:
@@ -166,11 +168,13 @@ class Symmetries:
                   cell: ArrayLike1D | ArrayLike2D,
                   *,
                   pbc: ArrayLike1D = (True, True, True),
-                  tolerance=1e-7,
+                  tolerance: float | None = None,
                   _backwards_compatible=False) -> Symmetries:
         if isinstance(pbc, int):
             pbc = (pbc,) * 3
         cell_cv = normalize_cell(cell)
+        if tolerance is None:
+            tolerance = 1e-7 if _backwards_compatible else 1e-5
         rotation_scc = find_lattice_symmetry(cell_cv, pbc, tolerance,
                                              _backwards_compatible)
         return cls(cell=cell_cv,
@@ -211,7 +215,7 @@ class Symmetries:
                    *,
                    ids: Sequence[int] | None = None,
                    symmorphic: bool = True,
-                   tolerance: float = 1e-7):
+                   tolerance: float | None = None):
         sym = cls.from_cell(atoms.cell,
                             pbc=atoms.pbc,
                             tolerance=tolerance)
