@@ -100,8 +100,8 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.ghat_aLX = setups.create_compensation_charges(
             desc, relpos_ac, atomdist)
         if not add_comp_charge_in_real_space:
-            self.ghat_aLG._lazy_init()
-            self.ghat_GA = self.ghat_aLG._lfc.expand()
+            self.ghat_aLX._lazy_init()
+            self.ghat_GA = self.ghat_aLX._lfc.expand()
         else:
             self.ghat_GA = None
         # self.plan = grid.fft_plans()
@@ -237,11 +237,11 @@ class PWHybridHamiltonian(PWHamiltonian):
             for a, Q1_niL in Q1_aniL.items():
                 P2_i = psi2.P_ani[a][n2]
                 Q_anL[a][:] = P2_i.conj() @ Q1_niL
-                e += self.inner2(
-                    psi1, psi2,
-                    rhot_nR, rhot_nG,
-                    vrhot_G,
-                    Q_anL, Q1_aniL, B_ani, n2)
+            e += self.inner2(
+                psi1, psi2,
+                rhot_nR, rhot_nG,
+                vrhot_G,
+                Q_anL, Q1_aniL, B_ani, n2)
             rhot_nR.data *= psit1_nR.data
             fft(rhot_nR, rhot_nG, self.plan)
             out_G.data -= psi1.f_n @ rhot_nG.data
