@@ -10,7 +10,13 @@ from gpaw.poisson import PoissonSolver as make_poisson_solver
 
 
 class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
-    def __init__(self, atoms, params, *, comm, nn=3, interpolation=3):
+    def __init__(self,
+                 atoms,
+                 params,
+                 *,
+                 comm,
+                 nn=3,
+                 interpolation=3):
         super().__init__(atoms,
                          params,
                          comm=comm)
@@ -44,13 +50,13 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def get_pseudo_core_densities(self):
         if self._nct_aR is None:
             self._nct_aR = self.setups.create_pseudo_core_densities(
-                self.grid, self.fracpos_ac, atomdist=self.atomdist, xp=self.xp)
+                self.grid, self.relpos_ac, atomdist=self.atomdist, xp=self.xp)
         return self._nct_aR
 
     def get_pseudo_core_ked(self):
         if self._tauct_aR is None:
             self._tauct_aR = self.setups.create_pseudo_core_ked(
-                self.grid, self.fracpos_ac, atomdist=self.atomdist)
+                self.grid, self.relpos_ac, atomdist=self.atomdist)
         return self._tauct_aR
 
     def create_poisson_solver(self) -> PoissonSolver:
@@ -62,7 +68,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         poisson_solver = self.create_poisson_solver()
         return FDPotentialCalculator(
             self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
-            fracpos_ac=self.fracpos_ac, atomdist=self.atomdist,
+            relpos_ac=self.relpos_ac, atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
             xp=self.xp)
 

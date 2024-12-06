@@ -45,6 +45,8 @@ if fftw:
 
 # ScaLAPACK (version 2.0.1+ required):
 scalapack = True
+# Enable advanced IntelMKL specific scalapack functions (pzgeevx)
+# intelmkl = True
 if scalapack:
     libraries += ['scalapack']
 

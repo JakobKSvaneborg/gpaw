@@ -47,6 +47,10 @@ Force: -0.639 eV/Å
 News
 ====
 
+* :ref:`PAW-potentials for lanthanides <setup releases>` added (Nov 28, 2024).
+
+* :ref:`dev-meeting` (Sep 19, 2024).
+
 * :ref:`GPAW version 24.6.0 <releasenotes>` released (Jun 7, 2024).
 
 * `Psi-k highlight of the month
@@ -223,6 +227,7 @@ News
 
 
 .. toctree::
+   :maxdepth: 2
 
    algorithms
    install

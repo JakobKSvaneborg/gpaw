@@ -57,8 +57,8 @@ rc_a, magmom_a = maximize_site_magnetization(gs)
 
 # Save site data
 if rank == 0:
-    np.save('rc_r.npy', rc_r)
-    np.save('m_r.npy', m_ar[0])
-    np.save('EZ_r.npy', EZ_ar[0])
-    np.save('rc.npy', rc_a[0])
-    np.save('magmom.npy', magmom_a[0])
+    np.save('Fe_rc_r.npy', rc_r)
+    np.save('Fe_m_r.npy', m_ar[0])
+    np.save('Fe_EZ_r.npy', EZ_ar[0])
+    np.save('Fe_rc.npy', rc_a[0])
+    np.save('Fe_magmom.npy', magmom_a[0])

@@ -120,16 +120,16 @@ parameters = {
     'Ba2': ('6s,s,6p,5d', 3.9),
     'Ba10': ('5s,6s,5p,6p,5d,d,F', 2.2),
     # 57-71:
-    'La11': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.5),
-    'Ce12': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.4),
-    'Pr13': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.3),
-    'Nd14': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.3),
-    'Pm15': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.3),
+    'La11': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
+    'Ce12': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
+    'Pr13': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
+    'Nd14': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
+    'Pm15': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Sm16': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Eu17': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Gd18': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Tb19': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
-    'Dy20': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.1),
+    'Dy20': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Ho21': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Er22': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Tm23': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
@@ -850,6 +850,8 @@ class PAWSetupGenerator:
                     tn = tailnorm
                     if waves.f_n[i] == 0:
                         tn = min(0.05, tn * 20)  # no need for long tail
+                    if l == 3:
+                        tn = 0.01
                     phit_g, ronset, rc, de = self.create_basis_function(
                         l, i, tn, scale)
                     bf = BasisFunction(n, l, rc, phit_g, 'bound state')

@@ -6,7 +6,7 @@ import pytest
 from gpaw import GPAW, PW
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 @pytest.mark.ci
 def test_new_calculator(in_tmp_dir):
     """Test the GPAW.new() method."""
@@ -22,8 +22,7 @@ def test_new_calculator(in_tmp_dir):
         dict(xc='PBE'),
         dict(nbands=10),
         dict(kpts={'size': (4, 4, 4)}),
-        dict(kpts={'size': (3, 3, 3)}, xc='PBE'),
-    ]
+        dict(kpts={'size': (3, 3, 3)}, xc='PBE')]
 
     calc0 = GPAW(**params, txt='calc0.txt')
 

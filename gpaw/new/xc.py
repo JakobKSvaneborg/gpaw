@@ -10,7 +10,6 @@ from gpaw.gpu import einsum
 from gpaw.new import zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, evaluate_lda_gpu,
                         evaluate_pbe_gpu)
-from gpaw.new.calculation import DFTState
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
@@ -76,11 +75,11 @@ class Functional:
         return self.name
 
     def stress_contribution(self,
-                            state: DFTState,
+                            ibzwfs, density,
                             interpolate: Callable[[UGArray], UGArray]
                             ) -> Array2D:
-        args, kwargs = self._args(state, interpolate)
-        if state.ibzwfs.kpt_band_comm.rank == 0:
+        args, kwargs = self._args(ibzwfs, density, interpolate)
+        if ibzwfs.kpt_band_comm.rank == 0:
             if self.xp is np:
                 self.xc.kernel.calculate(*[array.data for array in args])
             # Special GPU cases:
@@ -97,7 +96,8 @@ class Functional:
         return self.xp.zeros((3, 3))
 
     def _args(self,
-              state: DFTState,
+              ibzwfs,
+              density,
               interpolate: Callable[[UGArray], UGArray]
               ) -> tuple[tuple[UGArray, ...], dict]:
         raise NotImplementedError
@@ -124,11 +124,10 @@ class LDAFunctional(Functional):
         exc = e_r.integrate()
         return exc, vxct_sr, None
 
-    def _args(self, state, interpolate):
-        ibzwfs = state.ibzwfs
+    def _args(self, ibzwfs, density, interpolate):
         if ibzwfs.kpt_band_comm.rank != 0:
             return (), {}
-        nt_sR = state.density.nt_sR
+        nt_sR = density.nt_sR
         e_r = self.grid.empty(xp=self.xp)
         nt_sr = interpolate(nt_sR)
         vt_sr = nt_sr.new(zeroed=True)
@@ -186,10 +185,11 @@ class GGAFunctional(LDAFunctional):
         return exc, vxct_sr, None
 
     def _args(self,
-              state: DFTState,
+              ibzwfs,
+              density,
               interpolate: Callable[[UGArray], UGArray]
               ) -> tuple[tuple[UGArray, ...], dict]:
-        args, kwargs = LDAFunctional._args(self, state, interpolate)
+        args, kwargs = LDAFunctional._args(self, ibzwfs, density, interpolate)
         if args:
             e_r, nt_sr, vt_sr = args
             gradn_svr, sigma_xr = gradient_and_sigma(self.grad_v, nt_sr)
@@ -294,16 +294,18 @@ class MGGAFunctional(GGAFunctional):
                                 dedsigma_xr.data, vxct_sr.data)
         return e_r.integrate(), vxct_sr, dedtaut_sr
 
-    def _args(self, state: DFTState, interpolate: Callable[[UGArray], UGArray]
-              ):
-        args, kwargs = GGAFunctional._args(self, state, interpolate)
-        taut_swR = _taut(state.ibzwfs, state.density.nt_sR.desc)
+    def _args(self,
+              ibzwfs,
+              density,
+              interpolate: Callable[[UGArray], UGArray]):
+        args, kwargs = GGAFunctional._args(self, ibzwfs, density, interpolate)
+        taut_swR = _taut(ibzwfs, density.nt_sR.desc)
 
         if not args:
             return (), {}
 
         e_r, nt_sr, vt_sr, sigma_xr, dedsigma_xr = args
-        taut_sR = state.density.taut_sR
+        taut_sR = density.taut_sR
         assert taut_sR is not None
         taut_sr = interpolate(taut_sR)
         dedtaut_sr = taut_sr.new()

@@ -27,7 +27,7 @@ More information:
 [Atoms][1] and [GPAW parameters][2].
 
 [1]: https://wiki.fysik.dtu.dk/ase/ase/atoms.html#ase.Atoms
-[2]: https://wiki.fysik.dtu.dk/gpaw/documentation/basic.html#parameters
+[2]: https://gpaw.readthedocs.io/documentation/basic.html#parameters
 """
 
 # %%

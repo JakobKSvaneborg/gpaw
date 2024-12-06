@@ -5,8 +5,7 @@ from gpaw import GPAW, FermiDirac, PoissonSolver
 from gpaw.test import gen
 
 
-@pytest.mark.later
-@pytest.mark.skip(reason='fails also in master???')
+@pytest.mark.old_gpaw_only
 def test_corehole_h2o_dks():
     def xc(name):
         return {'name': name, 'stencil': 1}

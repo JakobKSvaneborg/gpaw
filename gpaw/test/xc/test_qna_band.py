@@ -4,7 +4,7 @@ from ase.lattice.compounds import L1_2
 from gpaw import GPAW, PW
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_xc_qna_band(in_tmp_dir):
     """Cu3Au"""
     ecut = 300

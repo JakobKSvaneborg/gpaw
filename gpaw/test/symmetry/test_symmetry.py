@@ -3,11 +3,11 @@ import numpy as np
 
 from gpaw.symmetry import Symmetry
 from ase.dft.kpoints import monkhorst_pack
-
-# Primitive diamond lattice, with Si lattice parameter
+from gpaw.new.symmetry import Symmetries
 
 
 def test_symmetry_symmetry():
+    """Primitive diamond lattice, with Si lattice parameter."""
     a = 5.475
     cell_cv = .5 * a * np.array([(1, 1, 0), (1, 0, 1), (0, 1, 1)])
     spos_ac = np.array([(.00, .00, .00),
@@ -89,3 +89,12 @@ def test_symmetry_symmetry():
     assert len(symm.op_scc) == 12
     assert len(w_k) == 2
     assert np.all(w_k == [3 / 4, 1 / 4])
+
+
+def test_new():
+    sym = Symmetries.from_cell([1, 2, 3])
+    assert sym.has_inversion
+    assert len(sym) == 8
+    sym2 = sym.new_with_positions([[0, 0, 0], [0, 0, 0.5]],
+                                  ids=[1, 2])
+    assert len(sym2) == 8

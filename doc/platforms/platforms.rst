@@ -18,6 +18,7 @@ Linux:
    Linux/Niflheim/Niflheim
    Linux/Niflheim/load
    Linux/Niflheim/build
+   Linux/Niflheim/gpu
    Linux/SUNCAT/SUNCAT
    Linux/akka
    Linux/armageddon

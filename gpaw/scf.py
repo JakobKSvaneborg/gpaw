@@ -18,6 +18,7 @@ class SCFLoop:
         self.reset()
         self.converged = False
         self.eigensolver_name = None
+        self.fix_fermi_level = False
 
     def __str__(self):
         s = 'Convergence criteria:\n'
@@ -129,7 +130,7 @@ class SCFLoop:
             kin_en_using_band = False
         else:
             wfs.eigensolver.iterate(ham, wfs)
-            e_entropy = wfs.calculate_occupation_numbers(dens.fixed)
+            e_entropy = wfs.calculate_occupation_numbers(self.fix_fermi_level)
             kin_en_using_band = True
 
         if hasattr(wfs.eigensolver, 'e_sic'):
@@ -257,6 +258,6 @@ Here are some tips:
 
 See details here:
 
-    https://wiki.fysik.dtu.dk/gpaw/documentation/convergence.html
+    https://gpaw.readthedocs.io/documentation/convergence.html
 
 """

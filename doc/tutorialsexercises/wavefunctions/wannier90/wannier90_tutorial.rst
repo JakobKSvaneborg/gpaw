@@ -5,7 +5,7 @@
 Interface to Wannier90
 ======================
 
-In this tutorial we will briefly scetch the interface to Wannier90. The
+In this tutorial we will briefly sketch the interface to Wannier90. The
 tutorial assumes that ``Wannier90`` is installed and ``wannier90.x``,
 ``postw90.x`` are in your path of executables. We emphasize that this is only
 to be regarded as a tutorial on the GPAW interface to ``Wannier90``. Details

@@ -6,7 +6,7 @@ from gpaw.nlopt.basic import NLOData
 from gpaw.nlopt.linear import get_chi_tensor
 
 
-def test_chi_spinpol(mme_files):
+def test_chi_spinpol(mme_files, in_tmp_dir):
     chi_values = np.array([7.97619464 + 0.06564128j,
                            7.98936984 + 0.06620975j,
                            8.00265916 + 0.06678416j,

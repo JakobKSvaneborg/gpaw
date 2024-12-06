@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.gpu import synchronize, as_np
-from gpaw.new.calculation import DFTState
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
@@ -16,23 +15,21 @@ if TYPE_CHECKING:
 
 
 def calculate_stress(pot_calc: PlaneWavePotentialCalculator,
-                     state: DFTState,
+                     ibzwfs, density, potential,
                      vt_g: PWArray,
                      nt_g: PWArray,
                      dedtaut_g: PWArray | None) -> Array2D:
     """Calculate symmetrized stress tensor."""
-    ibzwfs = state.ibzwfs
-    density = state.density
-    potential = state.potential
     comm = ibzwfs.comm
     xp = density.nt_sR.xp
     dom = density.nt_sR.desc
 
     ibzwfs.make_sure_wfs_are_read_from_gpw_file()
     s_vv = get_wfs_stress(ibzwfs, potential.dH_asii)
-    s_vv += pot_calc.xc.stress_contribution(state, pot_calc.interpolate)
+    s_vv += pot_calc.xc.stress_contribution(
+        ibzwfs, density, pot_calc.interpolate)
 
-    if state.ibzwfs.kpt_comm.rank == 0 and state.ibzwfs.band_comm.rank == 0:
+    if ibzwfs.kpt_comm.rank == 0 and ibzwfs.band_comm.rank == 0:
         vHt_h = potential.vHt_x
         assert vHt_h is not None
         pw = vHt_h.desc
@@ -41,8 +38,8 @@ def calculate_stress(pot_calc: PlaneWavePotentialCalculator,
         s_vv += (xp.einsum('Gz, Gv, Gw -> vw', vHt2_hz, G_Gv, G_Gv) *
                  pw.dv / (2 * np.pi))
         Q_aL = density.calculate_compensation_charge_coefficients()
-        s_vv += pot_calc.ghat_aLh.stress_contribution(vHt_h, Q_aL)
-        if state.ibzwfs.domain_comm.rank == 0:
+        s_vv += pot_calc.poisson_solver.stress_contribution(vHt_h, Q_aL)
+        if ibzwfs.domain_comm.rank == 0:
             s_vv -= xp.eye(3) * potential.energies['stress']
         s_vv += pot_calc.vbar_ag.stress_contribution(nt_g)
         s_vv += density.nct_aX.stress_contribution(vt_g)

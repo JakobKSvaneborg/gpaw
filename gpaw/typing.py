@@ -8,15 +8,6 @@ except ImportError:
     Self = Any  # type: ignore
 
 try:
-    # New in Python-3.8
-    from typing import Literal
-except ImportError:
-    class _Literal:
-        def __getitem__(self, index):
-            return Any
-    Literal = _Literal()  # type: ignore
-
-try:
     # Needs numpy-1.20:
     from numpy.typing import ArrayLike, DTypeLike
 except ImportError:
@@ -25,6 +16,7 @@ except ImportError:
 
 ArrayLike1D = ArrayLike
 ArrayLike2D = ArrayLike
+ArrayLike3D = ArrayLike
 
 ArrayND = np.ndarray
 Array1D = ArrayND

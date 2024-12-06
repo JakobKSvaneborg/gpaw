@@ -14,7 +14,7 @@ def test_adapter_pseudo_wfs(gpw_files):
 
     calc = GPAW(gpw_files['sic_pw'], communicator=serial_comm)
 
-    wfs_fromcalc = calc.dft.state.ibzwfs.wfs_qs[k][s]
+    wfs_fromcalc = calc.dft.ibzwfs.wfs_qs[k][s]
     u_G_fromcalc = wfs_fromcalc.psit_nX[bands].data
 
     gs = CollinearGSInfo(calc)

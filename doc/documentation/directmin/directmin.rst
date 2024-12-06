@@ -143,7 +143,7 @@ while the figure was generated using :download:`plot_g2.py`.
 ```````````````````````
 In this test, the ground state of liquid water configurations with 32, 64, 128
 molecules and the TZDP basis set is calculated. The geometries are taken
-from `here <https://wiki.fysik.dtu.dk/gpaw/devel/benchmarks.html>`_.
+from `here <https://gpaw.readthedocs.io/devel/benchmarks.html>`_.
 The GPAW parameters used in this test include: PBE functional, grid spacing h=0.2 Å, and
 8-core domain decomposition. The convergence criterion is a
 change in density smaller than `10^{-6}` electrons per valence electron.
@@ -223,9 +223,9 @@ matrix exponential:
    .. math::
 
      \exp(A) = \begin{pmatrix}
-     \cos(P) & P^{-1/2} \sin(P^{1/2}) A_{ov}\\
+     \cos(P^{1/2}) & P^{-1/2} \sin(P^{1/2}) A_{ov}\\
      -A_{ov}^{\dagger} P^{-1/2} \sin(P^{1/2}) & I_{M-N} +
-      A_{ov}^{\dagger}\cos(P^{1/2} - I_N) P^{-1} A_{ov} )
+      A_{ov}^{\dagger}(\cos(P^{1/2}) - I_N) P^{-1} A_{ov}
      \end{pmatrix}
 
    where :math:`P = A_{ov}A_{ov}^{\dagger}`
