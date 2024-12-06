@@ -7,6 +7,7 @@ Introduction to GPAW internals
     from gpaw.fftw import *
     from gpaw.core.matrix import *
     from gpaw.core.atom_arrays import *
+    from gpaw.new.symmetry import Symmetries
 
 .. contents::
 
@@ -409,6 +410,19 @@ Core
    :members:
    :undoc-members:
 .. autoclass:: MatrixDistribution
+   :members:
+   :undoc-members:
+
+.. autoclass:: gpaw.new.symmetry.Symmetries
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.IBZ
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.BZPoints
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.MonkhorstPackKPoints
    :members:
    :undoc-members:
 

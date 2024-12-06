@@ -679,7 +679,7 @@ class ASECalculator:
             ibzwfs, density, potential,
             builder.setups,
             scf_loop,
-            SimpleNamespace(fracpos_ac=self.dft.fracpos_ac,
+            SimpleNamespace(relpos_ac=self.dft.relpos_ac,
                             poisson_solver=None,
                             xc=self.dft.pot_calc.xc),
             log)
@@ -726,7 +726,7 @@ class ASECalculator:
 
     @property
     def symmetry(self):
-        return self.dft.ibzwfs.ibz.symmetries.symmetry
+        return self.dft.ibzwfs.ibz.symmetries._old_symmetry
 
     def get_wannier_localization_matrix(self, nbands, dirG, kpoint,
                                         nextkpoint, G_I, spin):
