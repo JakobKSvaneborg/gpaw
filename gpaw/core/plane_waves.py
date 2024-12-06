@@ -150,7 +150,7 @@ class PWDesc(Domain):
         """Create new plane-wave expansion description."""
         comm = self.comm if comm == 'inherit' else comm or serial_comm
         if ecut is None and gcut is None:
-            gcut = self.gcut
+            ecut = self.ecut
         return PWDesc(gcut=gcut,
                       ecut=ecut,
                       cell=self.cell_cv,
@@ -236,14 +236,14 @@ class PWDesc(Domain):
                                 *,
                                 qspiral_v=None,
                                 atomdist=None,
-                                integral=None,
+                                integrals=None,
                                 cut=False,
                                 xp=None):
         """Create PlaneWaveAtomCenteredFunctions object."""
         if qspiral_v is None:
             return PWAtomCenteredFunctions(functions, positions, self,
                                            atomdist=atomdist,
-                                           xp=xp)
+                                           xp=xp, integrals=integrals)
 
         from gpaw.new.spinspiral import SpiralPWACF
         return SpiralPWACF(functions, positions, self,
