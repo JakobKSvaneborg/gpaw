@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 
 from gpaw.gauss import Gauss
 
@@ -206,9 +205,6 @@ class Folder:
         xl = np.arange(xmin, xmax + 0.5 * dx, dx)
         if linbroad is None:
             return self.fold_values(x, y, xl)
-        elif type(self.func) is Voigt:
-            return self.fold_valuse_variable_brodening_voigt(x, y, xl,
-                                                             linbroad)
         else:
             return self.fold_valuse_variable_brodening(x, y, xl, linbroad)
 
@@ -226,41 +222,6 @@ class Folder:
         return Xl, yl
 
     def fold_valuse_variable_brodening(self, x, y, xl, linbroad: list):
-        X, Y, Xl = x_y_xl(x, y, xl)
-
-        widht2 = linbroad[0]
-        lin_x1 = linbroad[1]
-        lin_x2 = linbroad[2]
-
-        func2 = copy.copy(self.func)
-        func2.set_width(widht2)
-
-        func1 = copy.copy(self.func)
-        func1.set_width(self.width)
-
-        fwhm1 = func1._fwhm
-        fwhm2 = func2._fwhm
-
-        weightm = np.empty((Xl.shape[0], X.shape[0]),
-                           dtype=self.func.dtype)
-
-        for i, x in enumerate(X):
-            if x < lin_x1:
-                fwhm_lin = fwhm1
-            elif x <= lin_x2 and lin_x2 != lin_x1:
-                fwhm_lin = (fwhm1 + (x - lin_x1) *
-                            (fwhm2 - fwhm1) / (lin_x2 - lin_x1))
-            elif x >= lin_x2:
-                fwhm_lin = fwhm2
-            self.func.fwhm = fwhm_lin
-
-            weightm[:, i] = self.func.get(Xl, x)
-
-        yl = np.tensordot(weightm, Y, axes=(1, 0))
-
-        return Xl, yl
-
-    def fold_valuse_variable_brodening_voigt(self, x, y, xl, linbroad: list):
 
         X, Y, Xl = x_y_xl(x, y, xl)
 
