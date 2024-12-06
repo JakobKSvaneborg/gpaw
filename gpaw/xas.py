@@ -19,7 +19,7 @@ def xas_load_me2os(fname, dks, w=None, raw=False):
 
 
 def dipole_matrix_elements(setup):
-    """calculate dipole matrix elements of setup-states
+    """calculate length form dipole matrix elements of setup-states
     with the core-state"""
     G_LLL = gaunt(setup.lmax)
 
