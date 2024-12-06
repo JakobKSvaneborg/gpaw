@@ -153,7 +153,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             xp=self.xp)
 
     def create_hamiltonian_operator(self, blocksize=10):
-
         if self.ncomponents < 4:
             if self.xc.exx_fraction == 0.0:
                 return PWHamiltonian(self.grid, self.wf_desc, self.xp)
@@ -163,8 +162,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             return PWHybridHamiltonian(
                 self.grid, self.wf_desc, self.xc, self.setups,
                 self.relpos_ac, self.atomdist,
-                add_comp_charge_in_real_space=
-                self.params.experimental.get('accirs'))
+                comp_charge_in_real_space=self.params.experimental.get(
+                    'ccirs'))
         return SpinorPWHamiltonian(self.qspiral_v)
 
     def convert_wave_functions_from_uniform_grid(self,

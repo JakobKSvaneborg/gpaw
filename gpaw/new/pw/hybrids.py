@@ -78,9 +78,9 @@ class PWHybridHamiltonian(PWHamiltonian):
                  setups,
                  relpos_ac,
                  atomdist,
-                 add_comp_charge_in_real_space: bool = False):
+                 comp_charge_in_real_space: bool = False):
         super().__init__(grid, pw)
-        self.add_comp_charge_in_real_space = add_comp_charge_in_real_space
+        self.comp_charge_in_real_space = comp_charge_in_real_space
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
@@ -95,11 +95,11 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.v_G = coulomb(pw, grid, self.exx_omega)
         self.v_G.data *= self.exx_fraction
 
-        desc = grid if add_comp_charge_in_real_space else pw
+        desc = grid if comp_charge_in_real_space else pw
 
         self.ghat_aLX = setups.create_compensation_charges(
             desc, relpos_ac, atomdist)
-        if not add_comp_charge_in_real_space:
+        if not comp_charge_in_real_space:
             self.ghat_aLX._lazy_init()
             self.ghat_GA = self.ghat_aLX._lfc.expand()
         else:
@@ -252,7 +252,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                rhot_nR, rhot_nG,
                vrhot_G,
                Q_anL, Q1_aniL, B_ani, n2) -> float:
-        if self.add_comp_charge_in_real_space:
+        if self.comp_charge_in_real_space:
             return self.inner2_real_space(psi1, psi2,
                                           rhot_nR, rhot_nG,
                                           vrhot_G,
