@@ -3,8 +3,10 @@ from math import log, pi, sqrt
 from typing import List, Tuple
 
 import numpy as np
-from gpaw.overlap import Overlap
+
 from ase.units import Hartree
+
+from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
 from gpaw.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D
@@ -130,10 +132,14 @@ class XAS:
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
         wfs = paw.wfs
+        kd = wfs.kd
+        gd = wfs.gd
         self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
         self.cell_cv = np.array(wfs.gd.cell_cv)
-        assert wfs.world.size == 1  # assert not mpi.parallel
+
+        my_atom_indices = wfs.atom_partition.my_indices
+        # assert wfs.world.size == 1  # assert not mpi.parallel
         # assert wfs.gd.orthogonal
 
         # to allow spin polarized calclulation
@@ -206,11 +212,17 @@ class XAS:
         self.n = n
 
         l_core = setup.data.lcorehole
+
         self.eps_n = np.zeros(nkpts * n)
         self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
-        n1 = 0
-        k = 0
+
+        kd_rank = kd.comm.rank
+        k_size = kd.comm.size
+
+        n1 = kd_rank * n * int(len(self.list_kpts) / k_size)
+        k = kd_rank
         eps_n0_k = np.zeros((len(self.list_kpts)))
+
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
                 continue
@@ -218,15 +230,23 @@ class XAS:
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
 
             eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
-            P_ni = kpt.P_ani[a][n_start:n_end]
-            a_cmn = np.inner(A_cmi, P_ni)
-            weight = kpt.weight * wfs.nspins / 2
-            self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cmn  # .real
+
+            if a in my_atom_indices:
+                P_ni = kpt.P_ani[a][n_start:n_end]
+                a_cmn = np.inner(A_cmi, P_ni)
+                weight = kpt.weight * wfs.nspins / 2
+                self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cmn  # .real
+
             n1 = n2
 
             k += 1
+        kd.comm.sum(self.sigma_cmn)
+        gd.comm.sum(self.sigma_cmn)
+        kd.comm.sum(eps_n0_k)
+        kd.comm.sum(self.eps_n)
 
         self.eps_n0_k = eps_n0_k
+
         self.symmetry = wfs.kd.symmetry
 
     def get_matrix_element(self, kpoint=None, proj=None,
@@ -270,8 +290,11 @@ class XAS:
         energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
             kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
 
-        np.savez_compressed(fname, energy_n=energy_n,
-                            sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k)
+        from ase.parallel import paropen
+        with paropen(fname, mode='wb') as f:
+            np.savez_compressed(
+                f, energy_n=energy_n, sigma2_cmn=sigma2_cmn,
+                eps_n0_k=eps_n0_k)
 
     def get_oscillator_strength(self, dks: Array1D, kpoint=None,
                                 proj=None, proj_xyz: bool = True,
