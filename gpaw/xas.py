@@ -201,21 +201,23 @@ class XAS:
             else:
                 n_start = 0
             n_end = ceil(wfs.bd.nbands / bd_size)
+            n = wfs.bd.nbands - nocc
             n_diff0 = n_end - nocc
             assert n_diff0 > 0, 'Over band parellaised'
             n_diff = n_end - n_start
-            n = wfs.bd.nbands - nocc
-            i_n = n % bd_size
+            i_n = n_diff0 + n_diff * (bd_size - 1) - n
         elif mode == 'xes':  # FIX XES later
             assert bd_size == 1, "'xes' does not suport band paralisation"
             n_start = 0
             n_end = nocc
-            n = nocc
+            n = n_diff = nocc
+
         elif mode == 'all':
-            assert bd_size == 1, "'all' does not suport band paralisation"
             n_start = 0
-            n_end = wfs.bd.nbands
+            n_end = ceil(wfs.bd.nbands / bd_size)
+            n_diff = n_diff0 = n_end - n_start
             n = wfs.bd.nbands
+            i_n = n_diff * bd_size - n
         else:
             raise RuntimeError(
                 "wrong keyword for 'mode', use 'xas', 'xes' or 'all'")
@@ -240,7 +242,7 @@ class XAS:
             if kpt.s != spin:
                 continue
             n2 = n1 + n_diff
-            if i_n and bd_rank == bd_size - 1:
+            if bd_size != 1 and bd_rank == bd_size - 1:
                 n2 -= i_n
             eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
