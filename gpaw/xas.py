@@ -1,5 +1,5 @@
 import pickle
-from math import log, pi, sqrt
+from math import log, pi, sqrt, ceil
 from typing import List, Tuple
 
 import numpy as np
@@ -134,6 +134,7 @@ class XAS:
         wfs = paw.wfs
         kd = wfs.kd
         gd = wfs.gd
+        bd = wfs.bd
         self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
         self.cell_cv = np.array(wfs.gd.cell_cv)
@@ -191,17 +192,27 @@ class XAS:
         assert setup.phicorehole_g is not None, 'There is no corehole'
 
         A_cmi = dipole_matrix_elements(setup)
-
+        bd_rank = bd.comm.rank
+        bd_size = bd.comm.size
         # xas, xes or all modes
         if mode == 'xas':
-            n_start = nocc
-            n_end = wfs.bd.nbands
+            if bd_rank == 0:
+                n_start = nocc
+            else:
+                n_start = 0
+            n_end = ceil(wfs.bd.nbands / bd_size)
+            n_diff0 = n_end - nocc
+            assert n_diff0 > 0, 'Over band parellaised'
+            n_diff = n_end - n_start
             n = wfs.bd.nbands - nocc
-        elif mode == 'xes':
+            i_n = n % bd_size
+        elif mode == 'xes':  # FIX XES later
+            assert bd_size == 1, "'xes' does not suport band paralisation"
             n_start = 0
             n_end = nocc
             n = nocc
         elif mode == 'all':
+            assert bd_size == 1, "'all' does not suport band paralisation"
             n_start = 0
             n_end = wfs.bd.nbands
             n = wfs.bd.nbands
@@ -210,38 +221,43 @@ class XAS:
                 "wrong keyword for 'mode', use 'xas', 'xes' or 'all'")
 
         self.n = n
-
         l_core = setup.data.lcorehole
 
         self.eps_n = np.zeros(nkpts * n)
         self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
 
         kd_rank = kd.comm.rank
-        k_size = kd.comm.size
+        kd_size = kd.comm.size
 
-        n1 = kd_rank * n * int(len(self.list_kpts) / k_size)
+        n1 = kd_rank * n * int(len(self.list_kpts) / kd_size)
+        if bd_rank != 0:
+            n1 += n_diff0 + n_diff * (bd_rank - 1)
+
         k = kd_rank
         eps_n0_k = np.zeros((len(self.list_kpts)))
 
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
                 continue
-            n2 = n1 + n
-            self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
-
+            n2 = n1 + n_diff
+            if i_n and bd_rank == bd_size - 1:
+                n2 -= i_n
             eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
-
+            self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
             if a in my_atom_indices:
                 P_ni = kpt.P_ani[a][n_start:n_end]
                 a_cmn = np.inner(A_cmi, P_ni)
                 weight = kpt.weight * wfs.nspins / 2
                 self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cmn  # .real
 
-            n1 = n2
-
+            n1 = n2 + (n - n_diff)
             k += 1
-        kd.comm.sum(self.sigma_cmn)
+
+        bd.comm.sum(self.sigma_cmn)
+        bd.comm.sum(self.eps_n)
         gd.comm.sum(self.sigma_cmn)
+
+        kd.comm.sum(self.sigma_cmn)
         kd.comm.sum(eps_n0_k)
         kd.comm.sum(self.eps_n)
 
