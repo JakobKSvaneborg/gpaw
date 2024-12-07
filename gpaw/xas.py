@@ -133,8 +133,8 @@ class XAS:
         """
         wfs = paw.wfs
         kd = wfs.kd
-        gd = wfs.gd
         bd = wfs.bd
+        gd = wfs.gd
         self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
         self.cell_cv = np.array(wfs.gd.cell_cv)
@@ -255,13 +255,14 @@ class XAS:
             n1 = n2 + (n - n_diff)
             k += 1
 
+        kd.comm.sum(self.sigma_cmn)
+        kd.comm.sum(self.eps_n)
+        kd.comm.sum(eps_n0_k)
+        
         bd.comm.sum(self.sigma_cmn)
         bd.comm.sum(self.eps_n)
-        gd.comm.sum(self.sigma_cmn)
 
-        kd.comm.sum(self.sigma_cmn)
-        kd.comm.sum(eps_n0_k)
-        kd.comm.sum(self.eps_n)
+        gd.comm.sum(self.sigma_cmn)
 
         self.eps_n0_k = eps_n0_k
 
