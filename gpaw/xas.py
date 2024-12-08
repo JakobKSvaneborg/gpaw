@@ -150,7 +150,8 @@ class XAS:
         # if mode is not 'xes' and spin == 1:
         #     raise RuntimeError(
         #         'The core hole is always in spin 0: please use spin=0')
-
+        kd_rank = kd.comm.rank
+        kd_size = kd.comm.size
         if wfs.nspins == 1:
             if spin != 0:
                 raise RuntimeError(
@@ -169,12 +170,15 @@ class XAS:
             for i, kpt in enumerate(wfs.kpt_u):
                 if kpt.s == spin:
                     self.list_kpts.append(i)
-            assert len(self.list_kpts) == nkpts
+
+            assert len(self.list_kpts) == nkpts / kd_size
 
             # find number of occupied orbitals, if no fermi smearing
             nocc = 0.0
             for i in self.list_kpts:
                 nocc += sum(wfs.kpt_u[i].f_n)
+
+            nocc = kd.comm.sum_scalar(nocc)
             nocc = int(nocc + 0.5)
 
         nocc += nocc_cor
@@ -228,15 +232,12 @@ class XAS:
         self.eps_n = np.zeros(nkpts * n)
         self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
 
-        kd_rank = kd.comm.rank
-        kd_size = kd.comm.size
-
-        n1 = kd_rank * n * int(len(self.list_kpts) / kd_size)
+        n1 = kd_rank * n * int(nkpts / kd_size)
         if bd_rank != 0:
             n1 += n_diff0 + n_diff * (bd_rank - 1)
 
         k = kd_rank
-        eps_n0_k = np.zeros((len(self.list_kpts)))
+        eps_n0_k = np.zeros((nkpts))
 
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
@@ -258,7 +259,7 @@ class XAS:
         kd.comm.sum(self.sigma_cmn)
         kd.comm.sum(self.eps_n)
         kd.comm.sum(eps_n0_k)
-        
+
         bd.comm.sum(self.sigma_cmn)
         bd.comm.sum(self.eps_n)
 
