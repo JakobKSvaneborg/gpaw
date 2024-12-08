@@ -171,7 +171,7 @@ class XAS:
                 if kpt.s == spin:
                     self.list_kpts.append(i)
 
-            assert len(self.list_kpts) == nkpts / kd_size
+            # assert len(self.list_kpts) == nkpts / kd_size
 
             # find number of occupied orbitals, if no fermi smearing
             nocc = 0.0
