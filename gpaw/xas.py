@@ -85,9 +85,8 @@ def projection(proj, proj_xyz, orthogonal: bool):
     return proj_3
 
 
-def get_me2os(
-    eps_n, sigma2_cmn, eps_n0_k, dks, w=None, raw=False):
-    
+def get_me2os(eps_n, sigma2_cmn, eps_n0_k, dks, w=None, raw=False):
+
     n = len(eps_n)
 
     if isinstance(dks, float) or isinstance(dks, int):
@@ -267,7 +266,6 @@ class XAS:
         gd.comm.sum(self.sigma_cmn)
 
         print(self.eps_n0_k)
-        
 
         self.symmetry = wfs.kd.symmetry
 
@@ -307,7 +305,7 @@ class XAS:
             return energy_n, sigma2_cmn.sum(axis=1)
 
     def write(self, fname: str, kpoint=None, proj=None,
-                            proj_xyz: bool = True):
+              proj_xyz: bool = True):
 
         energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
             kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
