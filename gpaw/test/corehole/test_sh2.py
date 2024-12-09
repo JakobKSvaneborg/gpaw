@@ -2,7 +2,7 @@ import pytest
 from ase.build import molecule
 from gpaw import GPAW
 from gpaw.test import gen
-from gpaw.xas import XAS
+from gpaw.xas import XAS, get_oscillator_strength
 
 
 def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
@@ -17,13 +17,20 @@ def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
 
 
 @pytest.fixture
-def s_2p1ch_name():
+def s1s1ch_name():
+    setupname = 'S1s1ch'
+    gen('S', name=setupname, corehole=(1, 0, 1), gpernode=30, write_xml=True)
+    return setupname
+
+
+@pytest.fixture
+def s2p1ch_name():
     setupname = 'S2p1ch'
     gen('S', name=setupname, corehole=(2, 1, 1), gpernode=30, write_xml=True)
     return setupname
 
 
-def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s_2p1ch_name):
+def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     """Make sure this calculation does not fail
     because of get_spin_contamination"""
     atoms = molecule('SH2')
@@ -31,18 +38,17 @@ def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s_2p1ch_name):
 
     atoms.set_initial_magnetic_moments([1, 0, 0])
     atoms.calc = GPAW(mode='fd', h=0.3, spinpol=True,
-                      setups={'S': s_2p1ch_name}, txt=None,
+                      setups={'S': s2p1ch_name}, txt=None,
                       convergence={
                           'energy': 0.1, 'density': 0.1, 'eigenstates': 0.1})
     atoms.get_potential_energy()
 
 
-def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths):
+def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
     atoms = molecule('SH2')
     atoms.center(3)
 
-    setupname = 'S1s1ch'
-    gen('S', name=setupname, corehole=(1, 0, 1), gpernode=30, write_xml=True)
+    setupname = s1s1ch_name
 
     nbands = 6
     nocc = 4  # for SH2
@@ -73,12 +79,32 @@ def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths):
     assert folding_is_normalized(xas, dks)
 
 
-def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, s_2p1ch_name):
+def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     atoms = molecule('SH2')
     atoms.center(3)
     dks = 20
-    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s_2p1ch_name}, txt=None)
+    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name}, txt=None)
     atoms.get_potential_energy()
 
     xas = XAS(atoms.calc)
     assert folding_is_normalized(xas, dks)
+
+
+def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
+    atoms = molecule('SH2')
+    atoms.center(3)
+
+    nbands = 6
+    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
+                      setups={'S': s1s1ch_name}, txt=None)
+    atoms.get_potential_energy()
+
+    dks = 20
+    xas0 = XAS(atoms.calc)
+    mefname = 'me.dat.npz'
+    xas0.write(mefname)
+    x0, y0_cn = xas0.get_oscillator_strength(dks=dks)
+
+    x1, y1_cn = get_oscillator_strength(mefname, dks=dks)
+    assert x1 == pytest.approx(x0)
+    assert y1_cn == pytest.approx(y0_cn)

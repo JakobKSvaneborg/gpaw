@@ -11,7 +11,9 @@ from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
 import gpaw.mpi as mpi
 
 
-def xas_load_me2os(fname, dks, w=None, raw=False):
+def get_oscillator_strength(
+        fname: str, dks: Union[float, List], w=None,
+        raw: bool = False) -> Tuple[Array1D, ArrayND]:
     data = dict(np.load(fname)).values()
     energy_n, f_cmn = get_os_from_me(*data, dks=dks, w=w, raw=raw)
 
@@ -84,7 +86,8 @@ def projection(proj, proj_xyz, orthogonal: bool):
 
 
 def get_os_from_me(eps_n, sigma2_cmn,
-                   eps_n0_k, dks, w=None, raw=False):
+                   eps_n0_k, dks: Union[float, List], w=None,
+                   raw: bool = False):
     n = len(eps_n)
 
     if isinstance(dks, float) or isinstance(dks, int):
@@ -264,8 +267,8 @@ class XAS:
         else:
             return energy_n, sigma2_cmn.sum(axis=1)
 
-    def save_matrix_element(self, fname: str, kpoint=None, proj=None,
-                            proj_xyz: bool = True):
+    def write(self, fname: str, kpoint=None, proj=None,
+              proj_xyz: bool = True):
 
         energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
             kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
@@ -311,7 +314,8 @@ class XAS:
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None, proj=None, proj_xyz=True,
-                    stick=False, dks: Union[float, List] = [0], w: Array1D = None):
+                    stick=False, dks: Union[float, List] = [0],
+                    w: Array1D = None):
         """Calculate spectra.
 
         Parameters:
