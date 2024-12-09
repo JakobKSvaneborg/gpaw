@@ -1,13 +1,13 @@
 import pickle
 from math import log, pi, sqrt
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 from gpaw.overlap import Overlap
 from ase.units import Hartree
 from gpaw.utilities.cg import CG
 from gpaw.gaunt import gaunt
-from gpaw.typing import Array1D, Array2D, Array3D
+from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
 import gpaw.mpi as mpi
 
 
@@ -111,8 +111,8 @@ def get_os_from_me(eps_n, sigma2_cmn,
 
     if raw:
         return energy_n, f_cmn
-    else:
-        return energy_n, f_cmn.sum(axis=1)
+
+    return energy_n, f_cmn.sum(axis=1)
 
 
 class XAS:
@@ -273,9 +273,10 @@ class XAS:
         np.savez_compressed(fname, energy_n=energy_n,
                             sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k)
 
-    def get_oscillator_strength(self, dks: Array1D, kpoint=None,
+    def get_oscillator_strength(self, dks: Union[float, List], kpoint=None,
                                 proj=None, proj_xyz: bool = True,
-                                w: Array1D = None, raw: bool = False):
+                                w: Array1D = None,
+                                raw: bool = False) -> Tuple[Array1D, ArrayND]:
         """Calculate stick spectra.
 
         Parameters:
@@ -310,7 +311,7 @@ class XAS:
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None, proj=None, proj_xyz=True,
-                    stick=False, dks: Array1D = [0], w: Array1D = None):
+                    stick=False, dks: Union[float, List] = [0], w: Array1D = None):
         """Calculate spectra.
 
         Parameters:
