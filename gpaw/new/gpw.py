@@ -1,3 +1,22 @@
+"""GPW file-format.
+
+Versions:
+
+1) The beginning ...
+
+2) Lost in history.
+
+3) Legacy GPAW.
+
+4) New GPAW:
+
+   * new packing convention for D^a_ij and delta-H^a_ij
+   * contains also electrostatic potential
+
+5) Bug-fix: wave_functions.kpts.rotations are now U_scc
+   as in version 3 (instead of U_svv).
+
+"""
 from __future__ import annotations
 
 from pathlib import Path
