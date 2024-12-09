@@ -37,8 +37,7 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir):
                 occupations={'name': 'fixed-uniform'},
                 symmetry='off',
                 nbands=2,
-                convergence={'eigenstates': 4.0e-6},
-                )
+                convergence={'eigenstates': 4.0e-6})
     h2.calc = calc
     e = h2.get_potential_energy()
     eig = calc.get_eigenvalues()
@@ -68,8 +67,7 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir):
                     symmetry='off',
                     nbands=2,
                     convergence={'eigenstates': 4.0e-6,
-                                 'bands': 'all'},
-                    )
+                                 'bands': 'all'})
         h2.calc = calc
         h2.get_potential_energy()
         calc.get_eigenvalues()
@@ -81,3 +79,7 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir):
         h2.get_potential_energy()
         calc.get_eigenvalues()
         calc.get_forces()
+
+
+if __name__ == '__main__':
+    test_mom_directopt_pw_hybrids(1)
