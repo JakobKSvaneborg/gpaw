@@ -21,11 +21,17 @@ def test_pawexxvv():
 def test_hse06(gpaw_new, ccirs):
     if gpaw_new and size > 4:
         pytest.skip('Only band-parallelization!')
+    if gpaw_new:
+        experimental = {'ccirs': ccirs}
+    else:
+        experimental = {}
+        if ccirs:
+            pytest.skip('CCIRS only for new GPAW')
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not True),
                       xc='HSE06',
-                      experimental={'ccirs': ccirs},
+                      experimental=experimental,
                       nbands=4)
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
