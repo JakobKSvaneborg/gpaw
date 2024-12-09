@@ -1,10 +1,12 @@
 import pickle
-from math import log, pi, sqrt
+from math import log, pi, sqrt, ceil
 from typing import List, Tuple, Union
 
 import numpy as np
-from gpaw.overlap import Overlap
+
 from ase.units import Hartree
+
+from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
 from gpaw.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
@@ -133,10 +135,15 @@ class XAS:
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
         wfs = paw.wfs
+        kd = wfs.kd
+        bd = wfs.bd
+        gd = wfs.gd
         self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
         self.cell_cv = np.array(wfs.gd.cell_cv)
-        assert wfs.world.size == 1  # assert not mpi.parallel
+
+        my_atom_indices = wfs.atom_partition.my_indices
+        # assert wfs.world.size == 1  # assert not mpi.parallel
         # assert wfs.gd.orthogonal
 
         # to allow spin polarized calclulation
@@ -146,7 +153,8 @@ class XAS:
         # if mode is not 'xes' and spin == 1:
         #     raise RuntimeError(
         #         'The core hole is always in spin 0: please use spin=0')
-
+        kd_rank = kd.comm.rank
+        kd_size = kd.comm.size
         if wfs.nspins == 1:
             if spin != 0:
                 raise RuntimeError(
@@ -165,12 +173,15 @@ class XAS:
             for i, kpt in enumerate(wfs.kpt_u):
                 if kpt.s == spin:
                     self.list_kpts.append(i)
-            assert len(self.list_kpts) == nkpts
+
+            # assert len(self.list_kpts) == nkpts / kd_size
 
             # find number of occupied orbitals, if no fermi smearing
             nocc = 0.0
             for i in self.list_kpts:
                 nocc += sum(wfs.kpt_u[i].f_n)
+
+            nocc = kd.comm.sum_scalar(nocc)
             nocc = int(nocc + 0.5)
 
         nocc += nocc_cor
@@ -188,48 +199,77 @@ class XAS:
         assert setup.phicorehole_g is not None, 'There is no corehole'
 
         A_cmi = dipole_matrix_elements(setup)
-
+        bd_rank = bd.comm.rank
+        bd_size = bd.comm.size
         # xas, xes or all modes
         if mode == 'xas':
-            n_start = nocc
-            n_end = wfs.bd.nbands
+            if bd_rank == 0:
+                n_start = nocc
+            else:
+                n_start = 0
+            n_end = ceil(wfs.bd.nbands / bd_size)
             n = wfs.bd.nbands - nocc
-        elif mode == 'xes':
+            n_diff0 = n_end - nocc
+            assert n_diff0 > 0, 'Over band parellaised'
+            n_diff = n_end - n_start
+            i_n = n_diff0 + n_diff * (bd_size - 1) - n
+        elif mode == 'xes':  # FIX XES later
+            assert bd_size == 1, "'xes' does not suport band paralisation"
             n_start = 0
             n_end = nocc
-            n = nocc
+            n = n_diff = nocc
+
         elif mode == 'all':
             n_start = 0
-            n_end = wfs.bd.nbands
+            n_end = ceil(wfs.bd.nbands / bd_size)
+            n_diff = n_diff0 = n_end - n_start
             n = wfs.bd.nbands
+            i_n = n_diff * bd_size - n
         else:
             raise RuntimeError(
                 "wrong keyword for 'mode', use 'xas', 'xes' or 'all'")
 
         self.n = n
-
         l_core = setup.data.lcorehole
+
         self.eps_n = np.zeros(nkpts * n)
         self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
-        n1 = 0
-        k = 0
-        eps_n0_k = np.zeros((len(self.list_kpts)))
+
+        n1 = kd_rank * n * int(nkpts / kd_size)
+        if bd_rank != 0:
+            n1 += n_diff0 + n_diff * (bd_rank - 1)
+
+        k = kd_rank
+        eps_n0_k = np.zeros((nkpts))
+
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
                 continue
-            n2 = n1 + n
-            self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
-
+            n2 = n1 + n_diff
+            if bd_size != 1 and bd_rank == bd_size - 1:
+                n2 -= i_n
             eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
-            P_ni = kpt.P_ani[a][n_start:n_end]
-            a_cmn = np.inner(A_cmi, P_ni)
-            weight = kpt.weight * wfs.nspins / 2
-            self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cmn  # .real
-            n1 = n2
+            self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
+            if a in my_atom_indices:
+                P_ni = kpt.P_ani[a][n_start:n_end]
+                a_cmn = np.inner(A_cmi, P_ni)
+                weight = kpt.weight * wfs.nspins / 2
+                self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cmn  # .real
 
+            n1 = n2 + (n - n_diff)
             k += 1
 
+        kd.comm.sum(self.sigma_cmn)
+        kd.comm.sum(self.eps_n)
+        kd.comm.sum(eps_n0_k)
+
+        bd.comm.sum(self.sigma_cmn)
+        bd.comm.sum(self.eps_n)
+
+        gd.comm.sum(self.sigma_cmn)
+
         self.eps_n0_k = eps_n0_k
+
         self.symmetry = wfs.kd.symmetry
 
     def get_matrix_element(self, kpoint=None, proj=None,
@@ -273,8 +313,11 @@ class XAS:
         energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
             kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
 
-        np.savez_compressed(fname, energy_n=energy_n,
-                            sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k)
+        from ase.parallel import paropen
+        with paropen(fname, mode='wb') as f:
+            np.savez_compressed(
+                f, energy_n=energy_n, sigma2_cmn=sigma2_cmn,
+                eps_n0_k=eps_n0_k)
 
     def get_oscillator_strength(self, dks: Union[float, List], kpoint=None,
                                 proj=None, proj_xyz: bool = True,
