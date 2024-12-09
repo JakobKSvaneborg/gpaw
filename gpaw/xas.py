@@ -24,7 +24,7 @@ def get_oscillator_strength(
 
 
 def dipole_matrix_elements(setup):
-    """calculate dipole matrix elements of setup-states
+    """calculate length form dipole matrix elements of setup-states
     with the core-state"""
     G_LLL = gaunt(setup.lmax)
 
@@ -318,9 +318,10 @@ class XAS:
                 f, energy_n=energy_n, sigma2_cmn=sigma2_cmn,
                 eps_n0_k=eps_n0_k)
 
-    def get_oscillator_strength(self, dks: Array1D, kpoint=None,
+    def get_oscillator_strength(self, dks: Union[float, List], kpoint=None,
                                 proj=None, proj_xyz: bool = True,
-                                w: Array1D = None, raw: bool = False):
+                                w: Array1D = None,
+                                raw: bool = False) -> Tuple[Array1D, ArrayND]:
         """Calculate stick spectra.
 
         Parameters:
@@ -355,7 +356,8 @@ class XAS:
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None, proj=None, proj_xyz=True,
-                    stick=False, dks: Array1D = [0], w: Array1D = None):
+                    stick=False, dks: Union[float, List] = [0],
+                    w: Array1D = None):
         """Calculate spectra.
 
         Parameters:
