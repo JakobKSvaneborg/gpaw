@@ -13,9 +13,9 @@ from gpaw.typing import Array1D, Array2D, Array3D
 import gpaw.mpi as mpi
 
 
-def xas_load_me2os(fname, dks, w=None, raw=False):
+def get_oscillator_strength(fname, dks, w=None, raw=False):
     data = dict(np.load(fname)).values()
-    energy_n, f_cmn = get_os_from_me(*data, dks=dks, w=w, raw=raw)
+    energy_n, f_cmn = get_me2os(*data, dks=dks, w=w, raw=raw)
 
     return energy_n, f_cmn
 
@@ -85,8 +85,9 @@ def projection(proj, proj_xyz, orthogonal: bool):
     return proj_3
 
 
-def get_os_from_me(eps_n, sigma2_cmn,
-                   eps_n0_k, dks, w=None, raw=False):
+def get_me2os(
+    eps_n, sigma2_cmn, eps_n0_k, dks, w=None, raw=False):
+    
     n = len(eps_n)
 
     if isinstance(dks, float) or isinstance(dks, int):
@@ -236,8 +237,8 @@ class XAS:
         if bd_rank != 0:
             n1 += n_diff0 + n_diff * (bd_rank - 1)
 
-        k = kd_rank
-        eps_n0_k = np.zeros((nkpts))
+        k = kd_rank * int(nkpts / kd_size)
+        self.eps_n0_k = np.zeros((nkpts))
 
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
@@ -245,7 +246,7 @@ class XAS:
             n2 = n1 + n_diff
             if bd_size != 1 and bd_rank == bd_size - 1:
                 n2 -= i_n
-            eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
+            self.eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
             if a in my_atom_indices:
                 P_ni = kpt.P_ani[a][n_start:n_end]
@@ -255,17 +256,18 @@ class XAS:
 
             n1 = n2 + (n - n_diff)
             k += 1
-
+        print(self.eps_n0_k)
         kd.comm.sum(self.sigma_cmn)
         kd.comm.sum(self.eps_n)
-        kd.comm.sum(eps_n0_k)
+        kd.comm.sum(self.eps_n0_k)
 
         bd.comm.sum(self.sigma_cmn)
         bd.comm.sum(self.eps_n)
 
         gd.comm.sum(self.sigma_cmn)
 
-        self.eps_n0_k = eps_n0_k
+        print(self.eps_n0_k)
+        
 
         self.symmetry = wfs.kd.symmetry
 
@@ -304,7 +306,7 @@ class XAS:
         else:
             return energy_n, sigma2_cmn.sum(axis=1)
 
-    def save_matrix_element(self, fname: str, kpoint=None, proj=None,
+    def write(self, fname: str, kpoint=None, proj=None,
                             proj_xyz: bool = True):
 
         energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
@@ -345,7 +347,7 @@ class XAS:
         eps_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
             kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
 
-        energy_n, f_cmn = get_os_from_me(
+        energy_n, f_cmn = get_me2os(
             eps_n=eps_n, sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k,
             dks=dks, w=w, raw=raw)
 
