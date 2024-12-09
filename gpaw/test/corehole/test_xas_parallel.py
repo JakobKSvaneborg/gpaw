@@ -31,11 +31,12 @@ def test_si_xas_paralell(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
             assert x2 == pytest.approx(x1)
             assert y2 == pytest.approx(y1)
 
+
 def test_si_xas_paralell_nosym(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
     if mpi.size == 5:
         rank = mpi.world.rank
-        print(rank)
+
         comm = mpi.world.new_communicator([0])
         comm2 = mpi.world.new_communicator([1, 2, 3, 4])
         if rank in [1, 2, 3, 4]:
@@ -44,7 +45,6 @@ def test_si_xas_paralell_nosym(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
             x2, y2, ek2 = xas2.get_matrix_element(raw=True)
 
             mpi.send((x2, y2, ek2), 0, mpi.world)
-            xas2.write('test.npz')
         elif rank == 0:
             calc1 = GPAW(gpw_files['si_corehole_nosym_pw'], communicator=comm)
             xas1 = XAS(calc1)
@@ -52,11 +52,11 @@ def test_si_xas_paralell_nosym(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
             x1, y1, ek1 = xas1.get_matrix_element(raw=True)
 
             x2, y2, ek2 = mpi.receive(1, mpi.world)
-            print(ek1, ek2)
+
             assert ek2 == pytest.approx(ek1)
             assert x2 == pytest.approx(x1)
             assert y2 == pytest.approx(y1)
-        assert 0
+
 
 def test_si_xas_band_paralell(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     if mpi.size == 5:
@@ -165,7 +165,7 @@ def test_si_all_paralell(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 def test_si_all_band_paralell_7(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     if mpi.size == 7:
         rank = mpi.world.rank
-        print(rank)
+
         comm = mpi.world.new_communicator([0])
         comm2 = mpi.world.new_communicator([1, 2, 3, 4, 5, 6])
         if rank in [1, 2, 3, 4, 5, 6]:

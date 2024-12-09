@@ -1,6 +1,6 @@
 import pickle
 from math import log, pi, sqrt, ceil
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 
@@ -9,13 +9,16 @@ from ase.units import Hartree
 from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
 from gpaw.gaunt import gaunt
-from gpaw.typing import Array1D, Array2D, Array3D
+from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
 import gpaw.mpi as mpi
 
 
-def get_oscillator_strength(fname, dks, w=None, raw=False):
+def get_oscillator_strength(
+        fname: str, dks: Union[float, List], w=None,
+        raw: bool = False) -> Tuple[Array1D, ArrayND]:
+
     data = dict(np.load(fname)).values()
-    energy_n, f_cmn = get_me2os(*data, dks=dks, w=w, raw=raw)
+    energy_n, f_cmn = get_os_from_me(*data, dks=dks, w=w, raw=raw)
 
     return energy_n, f_cmn
 
@@ -85,8 +88,9 @@ def projection(proj, proj_xyz, orthogonal: bool):
     return proj_3
 
 
-def get_me2os(eps_n, sigma2_cmn, eps_n0_k, dks, w=None, raw=False):
-
+def get_os_from_me(eps_n, sigma2_cmn,
+                   eps_n0_k, dks: Union[float, List], w=None,
+                   raw: bool = False):
     n = len(eps_n)
 
     if isinstance(dks, float) or isinstance(dks, int):
@@ -113,8 +117,8 @@ def get_me2os(eps_n, sigma2_cmn, eps_n0_k, dks, w=None, raw=False):
 
     if raw:
         return energy_n, f_cmn
-    else:
-        return energy_n, f_cmn.sum(axis=1)
+
+    return energy_n, f_cmn.sum(axis=1)
 
 
 class XAS:
@@ -255,7 +259,7 @@ class XAS:
 
             n1 = n2 + (n - n_diff)
             k += 1
-        print(self.eps_n0_k)
+
         kd.comm.sum(self.sigma_cmn)
         kd.comm.sum(self.eps_n)
         kd.comm.sum(self.eps_n0_k)
@@ -264,8 +268,6 @@ class XAS:
         bd.comm.sum(self.eps_n)
 
         gd.comm.sum(self.sigma_cmn)
-
-        print(self.eps_n0_k)
 
         self.symmetry = wfs.kd.symmetry
 
@@ -345,7 +347,7 @@ class XAS:
         eps_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
             kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
 
-        energy_n, f_cmn = get_me2os(
+        energy_n, f_cmn = get_os_from_me(
             eps_n=eps_n, sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k,
             dks=dks, w=w, raw=raw)
 
