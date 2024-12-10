@@ -134,6 +134,7 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
+        self.world = paw.world
         wfs = paw.wfs
         kd = wfs.kd
         bd = wfs.bd
@@ -313,11 +314,12 @@ class XAS:
         energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
             kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
 
-        from ase.parallel import paropen
-        with paropen(fname, mode='wb') as f:
-            np.savez_compressed(
-                f, energy_n=energy_n, sigma2_cmn=sigma2_cmn,
-                eps_n0_k=eps_n0_k)
+        if self.world.rank == 0:
+            with open(fname, mode='wb') as f:
+                np.savez_compressed(
+                    f, energy_n=energy_n, sigma2_cmn=sigma2_cmn,
+                    eps_n0_k=eps_n0_k)
+        self.world.barrier()
 
     def get_oscillator_strength(self, dks: Union[float, List], kpoint=None,
                                 proj=None, proj_xyz: bool = True,

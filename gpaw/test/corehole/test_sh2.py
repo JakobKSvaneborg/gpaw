@@ -120,7 +120,7 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     atoms.center(3)
 
     # serial calculation
-    fserial = 'serial_xas.npz'
+    fserial = f'serial_xas_rank{mpi.world.rank}.npz'
     comm = mpi.world.new_communicator([mpi.world.rank])
     print('serial, rank, size:', mpi.world.rank, comm.size)
     atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name},
