@@ -88,7 +88,7 @@ def projection(proj, proj_xyz, orthogonal: bool):
     return proj_3
 
 
-def get_os_from_me(eps_nk, sigma_cmn,
+def get_os_from_me(eps_n, sigma_cmn,
                    eps_n0_k, n_k, orthogonal,
                    dks: Union[float, List],
                    w: Array1D = None,
@@ -114,10 +114,10 @@ def get_os_from_me(eps_nk, sigma_cmn,
         eps_n0_k = eps_n0_k[kpoint]
     else:
         eps_start = 0
-        eps_end = len(eps_nk)
+        eps_end = len(eps_n)
         eps_n0_k = min(eps_n0_k)
 
-    eps_n = eps_nk[eps_start:eps_end]
+    eps_n = eps_n[eps_start:eps_end]
 
     sigma2_cmn = sigma2_cmn[:, :, eps_start:eps_end]
 
@@ -310,7 +310,7 @@ class XAS:
         if self.world.rank == 0:
             with open(fname, mode='wb') as f:
                 np.savez_compressed(
-                    f, eps_nk=self.eps_n, sigma_cmn=self.sigma_cmn,
+                    f, eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
                     eps_n0_k=self.eps_n0_k, n_k=self.n,
                     orthogonal=self.orthogonal)
         self.world.barrier()
@@ -343,7 +343,7 @@ class XAS:
             oscillator strengths: 3D array [c, m, n]
         """
         energy_n, f_cmn = get_os_from_me(
-            eps_nk=self.eps_n, sigma_cmn=self.sigma_cmn,
+            eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
             eps_n0_k=self.eps_n0_k, n_k=self.n, orthogonal=self.orthogonal,
             dks=dks, w=w, kpoint=kpoint, proj=proj,
             proj_xyz=proj_xyz, raw=raw)
