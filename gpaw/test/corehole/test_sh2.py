@@ -3,6 +3,7 @@ from ase.build import molecule
 from gpaw import GPAW
 from gpaw.test import gen
 from gpaw.xas import XAS, get_oscillator_strength
+import gpaw.mpi as mpi
 
 
 def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
@@ -108,3 +109,36 @@ def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
     x1, y1_cn = get_oscillator_strength(mefname, dks=dks)
     assert x1 == pytest.approx(x0)
     assert y1_cn == pytest.approx(y0_cn)
+
+
+def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
+    print('#### size: ', mpi.world.size, mpi.size)
+    if 0 and mpi.world.size < 2:
+        return
+
+    atoms = molecule('SH2')
+    atoms.center(3)
+
+    # serial calculation
+    fserial = 'serial_xas.npz'
+    comm = mpi.world.new_communicator([mpi.world.rank])
+    print('serial, rank, size:', mpi.world.rank, comm.size)
+    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name},
+                      txt=None, communicator=comm)
+    atoms.get_potential_energy()
+    print('serial, atoms.calc.world.size:', atoms.calc.world.size)
+    xas = XAS(atoms.calc)
+    xas.write(fserial)
+
+    # parallel calculation
+    fparallel = 'serial_xas.npz'
+    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name}, txt=None)
+    atoms.get_potential_energy()
+    print('parallel, atoms.calc.world.size:', atoms.calc.world.size)
+    xas.write(fparallel)
+
+    dks = 20
+    xs, ys = get_oscillator_strength(fserial, dks=dks)
+    xp, yp = get_oscillator_strength(fparallel, dks=dks)
+    assert (xs == xp).all()
+    assert (ys == yp).all()
