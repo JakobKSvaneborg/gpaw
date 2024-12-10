@@ -5,177 +5,161 @@ from gpaw.xas import XAS
 import gpaw.mpi as mpi
 
 
-def test_xas_paralell_kpts_and_domian(
+dks = 20
+
+
+@pytest.fixture
+def xas_sym_nosp(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
+    comm = mpi.world.new_communicator([mpi.world.rank])
+    calc1 = GPAW(gpw_files['si_corehole_sym_pw'], communicator=comm)
+    xas1 = XAS(calc1)
+    x1, y1 = xas1.get_oscillator_strength(dks=dks)
+    return x1, y1
 
-    if mpi.size == 5:
-        rank = mpi.world.rank
 
-        comm = mpi.world.new_communicator([0])
-        comm2 = mpi.world.new_communicator([1, 2, 3, 4])
-        if rank in [1, 2, 3, 4]:
-            calc2 = GPAW(gpw_files['si_corehole_sym_pw'], communicator=comm2)
-            xas2 = XAS(calc2)
-            x2, y2 = xas2.get_matrix_element()
+def test_xas_paralell_kpts_and_domian(
+        in_tmp_dir, add_cwd_to_setup_paths, gpw_files, xas_sym_nosp):
 
-            mpi.send((x2, y2), 0, mpi.world)
-            xas2.write('test.npz')
-        elif rank == 0:
-            calc1 = GPAW(gpw_files['si_corehole_sym_pw'], communicator=comm)
-            xas1 = XAS(calc1)
+    if mpi.size % 4 != 0:
+        return
 
-            x1, y1 = xas1.get_matrix_element()
+    parallel = {'kpt': 2,
+                'domain': 2}
+    calc2 = GPAW(gpw_files['si_corehole_sym_pw'], parallel=parallel)
+    xas2 = XAS(calc2)
 
-            x2, y2 = mpi.receive(1, mpi.world)
-            assert x2 == pytest.approx(x1)
-            assert y2 == pytest.approx(y1)
+    x2, y2 = xas2.get_oscillator_strength(dks=dks)
+
+    x1, y1 = xas_sym_nosp
+
+    assert x2 == pytest.approx(x1)
+    assert y2 == pytest.approx(y1)
 
 
 def test_xas_paralell_multiple_kpt_pr_rank(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
-    if mpi.size == 5:
-        rank = mpi.world.rank
+    if mpi.size % 2 != 0:
+        return
 
-        comm = mpi.world.new_communicator([0])
-        comm2 = mpi.world.new_communicator([1, 2, 3, 4])
-        if rank in [1, 2, 3, 4]:
-            calc2 = GPAW(gpw_files['si_corehole_nosym_pw'],
-                         communicator=comm2)
-            xas2 = XAS(calc2)
-            x2, y2, ek2 = xas2.get_matrix_element(raw=True)
+    comm = mpi.world.new_communicator([mpi.world.rank])
 
-            mpi.send((x2, y2, ek2), 0, mpi.world)
-        elif rank == 0:
-            calc1 = GPAW(gpw_files['si_corehole_nosym_pw'],
-                         communicator=comm)
-            xas1 = XAS(calc1)
+    parallel = {'kpt': 2}
+    calc2 = GPAW(gpw_files['si_corehole_nosym_pw'],
+                 parallel=parallel)
 
-            x1, y1, ek1 = xas1.get_matrix_element(raw=True)
+    xas2 = XAS(calc2)
+    x2, y2 = xas2.get_oscillator_strength(dks=dks)
 
-            x2, y2, ek2 = mpi.receive(1, mpi.world)
+    calc1 = GPAW(gpw_files['si_corehole_nosym_pw'],
+                 communicator=comm)
+    xas1 = XAS(calc1)
 
-            assert ek2 == pytest.approx(ek1)
-            assert x2 == pytest.approx(x1)
-            assert y2 == pytest.approx(y1)
+    x1, y1 = xas1.get_oscillator_strength(dks=dks)
+
+    assert x2 == pytest.approx(x1)
+    assert y2 == pytest.approx(y1)
 
 
-def test_xas_band_and_kpts_paralell(
-        in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
-    if mpi.size == 7:
-        rank = mpi.world.rank
+def test_xas_band_and_kpts_parallel(
+        in_tmp_dir, add_cwd_to_setup_paths, gpw_files, xas_sym_nosp):
+    if mpi.size % 6 != 0:
+        return
 
-        comm = mpi.world.new_communicator([0])
-        comm2 = mpi.world.new_communicator([1, 2, 3, 4, 5, 6])
-        if rank in [1, 2, 3, 4, 5, 6]:
-            parallel = {'band': 3}
-            calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
-                         communicator=comm2,
-                         parallel=parallel)
-            xas2 = XAS(calc2)
-            x2, y2, e_k2 = xas2.get_matrix_element(raw=True)
+    parallel = {'band': 3,
+                'kpt': 2}
+    calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 parallel=parallel)
+    xas2 = XAS(calc2)
+    x2, y2 = xas2.get_oscillator_strength(dks=dks)
 
-            mpi.send((x2, y2, e_k2), 0, mpi.world)
-        elif rank == 0:
-            calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
-                         communicator=comm)
-            xas1 = XAS(calc1)
+    x1, y1 = xas_sym_nosp
 
-            x1, y1, e_k1 = xas1.get_matrix_element(raw=True)
-
-            x2, y2, e_k2 = mpi.receive(1, mpi.world)
-
-            assert e_k2 == pytest.approx(e_k1)
-            assert x2 == pytest.approx(x1)
-            assert y2 == pytest.approx(y1)
+    assert x2 == pytest.approx(x1)
+    assert y2 == pytest.approx(y1)
 
 
 def test_xas_kpts_domian_parallel_spinpol(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
-    if mpi.world.size == 5:
-        rank = mpi.world.rank
-        comm = mpi.world.new_communicator([0])
-        comm2 = mpi.world.new_communicator([1, 2, 3, 4])
+    if mpi.size % 4 != 0:
+        return
 
-        if rank in [1, 2, 3, 4]:
-            calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
-                         communicator=comm2,
-                         spinpol=True)
-            calc2.get_potential_energy()
-            xas2 = XAS(calc2, spin=0)
+    parallel = {'kpt': 2,
+                'domain': 2}
 
-            x2, y2, e_k2 = xas2.get_matrix_element(raw=True)
+    calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 spinpol=True, parallel=parallel)
+    calc2.get_potential_energy()
+    xas2 = XAS(calc2, spin=0)
 
-            mpi.send((x2, y2, e_k2), 0, mpi.world)
-        elif rank == 0:
-            calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
-                         communicator=comm, spinpol=True)
+    x2, y2 = xas2.get_oscillator_strength(dks=dks)
 
-            calc1.get_potential_energy()
+    comm = mpi.world.new_communicator([mpi.world.rank])
 
-            xas1 = XAS(calc1, spin=0)
-            x1, y1, e_k1 = xas1.get_matrix_element(raw=True)
+    calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 communicator=comm, spinpol=True)
 
-            x2, y2, e_k2 = mpi.receive(1, mpi.world)
+    calc1.get_potential_energy()
 
-            assert e_k2 == pytest.approx(e_k1, 1.e-5)
-            assert x2 == pytest.approx(x1, 1.1e-2)
-            assert y2 == pytest.approx(y1, abs=5e-6)
+    xas1 = XAS(calc1, spin=0)
+    x1, y1 = xas1.get_oscillator_strength(dks=dks)
+
+    assert x2 == pytest.approx(x1, 1.1e-2)
+    assert y2 == pytest.approx(y1, abs=1.3e-5)
 
 
-def test_xes_kpts_and_domain_paralell(
+def test_xes_kpts_and_domain_parallel(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
-    if mpi.size == 5:
-        rank = mpi.world.rank
+    if mpi.size % 4 != 0:
+        return
 
-        comm = mpi.world.new_communicator([0])
-        comm2 = mpi.world.new_communicator([1, 2, 3, 4])
-        if rank in [1, 2, 3, 4]:
-            calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
-                         communicator=comm2)
-            xas2 = XAS(calc2, 'xes')
-            x2, y2 = xas2.get_matrix_element()
+    parallel = {'kpt': 2,
+                'domain': 2}
 
-            mpi.send((x2, y2), 0, mpi.world)
-        elif rank == 0:
-            calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
-                         communicator=comm)
-            xas1 = XAS(calc1, 'xes')
+    calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 parallel=parallel)
 
-            x1, y1 = xas1.get_matrix_element()
+    xes2 = XAS(calc2, 'xes')
+    x2, y2 = xes2.get_oscillator_strength(dks=dks)
 
-            x2, y2 = mpi.receive(1, mpi.world)
-            assert x2 == pytest.approx(x1)
-            assert y2 == pytest.approx(y1)
+    comm = mpi.world.new_communicator([mpi.world.rank])
+
+    calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 communicator=comm)
+
+    xes1 = XAS(calc1, 'xes')
+
+    x1, y1 = xes1.get_oscillator_strength(dks=dks)
+
+    assert x2 == pytest.approx(x1)
+    assert y2 == pytest.approx(y1)
 
 
-def test_all_band_and_kpts_paralell(
+def test_all_band_and_kpts_parallel(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
-    if mpi.size == 7:
-        rank = mpi.world.rank
+    if mpi.size % 6 != 0:
+        return
 
-        comm = mpi.world.new_communicator([0])
-        comm2 = mpi.world.new_communicator([1, 2, 3, 4, 5, 6])
-        if rank in [1, 2, 3, 4, 5, 6]:
-            parallel = {'band': 3}
-            calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
-                         communicator=comm2,
-                         parallel=parallel)
-            xas2 = XAS(calc2, 'all')
-            x2, y2, e_k2 = xas2.get_matrix_element(raw=True)
+    parallel = {'band': 3,
+                'kpt': 2}
 
-            mpi.send((x2, y2, e_k2), 0, mpi.world)
-        elif rank == 0:
-            calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
-                         communicator=comm)
-            xas1 = XAS(calc1, 'all')
+    calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 parallel=parallel)
 
-            x1, y1, e_k1 = xas1.get_matrix_element(raw=True)
+    xas2 = XAS(calc2, 'all')
+    x2, y2 = xas2.get_oscillator_strength(dks=dks)
 
-            x2, y2, e_k2 = mpi.receive(1, mpi.world)
+    comm = mpi.world.new_communicator([mpi.world.rank])
 
-            assert e_k2 == pytest.approx(e_k1)
-            assert x2 == pytest.approx(x1)
-            assert y2 == pytest.approx(y1)
+    calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 communicator=comm)
+
+    xas1 = XAS(calc1, 'all')
+
+    x1, y1 = xas1.get_oscillator_strength(dks=dks)
+
+    assert x2 == pytest.approx(x1)
+    assert y2 == pytest.approx(y1)

@@ -113,7 +113,7 @@ def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
 
 def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     print('#### size: ', mpi.world.size, mpi.size)
-    if 0 and mpi.world.size < 2:
+    if mpi.world.size < 2:
         return
 
     atoms = molecule('SH2')
