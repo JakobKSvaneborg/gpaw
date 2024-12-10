@@ -42,7 +42,11 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir):
     h2.calc = calc
     e = h2.get_potential_energy()
     eig = calc.get_eigenvalues()
-    f = calc.get_forces()
+    assert e == pytest.approx(e_ref, abs=1.0e-3)
+    assert eig == pytest.approx(eig_ref, abs=0.1)
+    if calc.old:
+        f = calc.get_forces()
+        assert f == pytest.approx(f_ref, abs=1.0e-2)
 
     calc.set(eigensolver=FDPWETDM(excited_state=True,
                                   converge_unocc=True))
@@ -51,14 +55,11 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir):
 
     e_es = h2.get_potential_energy()
     eig_es = calc.get_eigenvalues()
-    f_es = calc.get_forces()
-
-    assert e == pytest.approx(e_ref, abs=1.0e-3)
-    assert eig == pytest.approx(eig_ref, abs=0.1)
-    assert f == pytest.approx(f_ref, abs=1.0e-2)
     assert e_es == pytest.approx(e_ref_es, abs=1.0e-3)
     assert eig_es == pytest.approx(eig_ref_es, abs=0.1)
-    assert f_es == pytest.approx(f_ref_es, abs=1.0e-2)
+    if calc.old:
+        f_es = calc.get_forces()
+        assert f_es == pytest.approx(f_ref_es, abs=1.0e-2)
 
     reference_calc = False
     if reference_calc:

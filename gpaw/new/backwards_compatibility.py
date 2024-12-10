@@ -386,6 +386,7 @@ class FakeHamiltonian:
         else:
             self.e_kinetic0 = self.ibzwfs.calculate_kinetic_energy(
                 wfs.hamiltonian, self.density)
+            self.ibzwfs.energies['exx_kinetic'] = 0.0
             energies['kinetic'] = self.e_kinetic0
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):

@@ -121,7 +121,8 @@ class PWHybridHamiltonian(PWHamiltonian):
         psi1 = Psi(wfs.psit_nX, wfs.P_ani, wfs.myocc_n)
         pt_aiG = wfs.pt_aiX
 
-        if psi1.psit_nG is psit2_nG:
+        # We should pass a flag instead of this:
+        if psi1.psit_nG.data is psit2_nG.data:
             # We are doing a subspace diagonalization ...
             evv, evc, ekin = self.apply1(D_aii, pt_aiG,
                                          psi1, psi1, Htpsit2_nG)
