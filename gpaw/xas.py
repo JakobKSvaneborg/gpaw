@@ -237,11 +237,11 @@ class XAS:
         self.eps_n = np.zeros(nkpts * n)
         self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
 
-        n1 = kd_rank * n * int(nkpts / kd_size)
+        n1 = kd_rank * n * (nkpts // kd_size)
         if bd_rank != 0:
             n1 += n_diff0 + n_diff * (bd_rank - 1)
 
-        k = kd_rank * int(nkpts / kd_size)
+        k = kd_rank * (nkpts // kd_size)
         self.eps_n0_k = np.zeros((nkpts))
 
         for kpt in wfs.kpt_u:
