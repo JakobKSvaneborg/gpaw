@@ -15,10 +15,13 @@ import gpaw.mpi as mpi
 
 def get_oscillator_strength(
         fname: str, dks: Union[float, List], w=None,
+        kpoint=None, proj=None, proj_xyz: bool = True,
         raw: bool = False) -> Tuple[Array1D, ArrayND]:
 
     data = dict(np.load(fname)).values()
-    energy_n, f_cmn = get_os_from_me(*data, dks=dks, w=w, raw=raw)
+    energy_n, f_cmn = get_os_from_me(
+        *data, dks=dks, w=w, kpoint=kpoint, proj=proj,
+        proj_xyz=proj_xyz, raw=raw)
 
     return energy_n, f_cmn
 

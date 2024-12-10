@@ -111,6 +111,41 @@ def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
     assert y1_cn == pytest.approx(y0_cn)
 
 
+def test_proj(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
+    atoms = molecule('SH2')
+    atoms.center(3)
+
+    nbands = 6
+    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
+                      setups={'S': s1s1ch_name}, txt=None)
+    atoms.get_potential_energy()
+
+    dks = 20
+    xas0 = XAS(atoms.calc)
+    mefname = 'me.dat.npz'
+    proj = [[1, 0, 0]]
+    xas0.write(mefname)
+    x0, y0_cn = xas0.get_oscillator_strength(
+        dks=dks, proj=proj, proj_xyz=False)
+    x1, y1_cn = xas0.get_oscillator_strength(
+        dks=dks, proj_xyz=True)
+
+    x0_1, y0_1_cn = get_oscillator_strength(
+        mefname, dks=dks, proj=proj, proj_xyz=False)
+    x1_1, y1_1_cn = get_oscillator_strength(
+        mefname, dks=dks, proj_xyz=True)
+
+    assert y1_cn.shape[0] == y0_cn.shape[0] + 2
+    assert y1_cn.shape[1] == y0_cn.shape[1]
+    assert x1 == pytest.approx(x0)
+    assert y1_cn[0] == pytest.approx(y0_cn[0])
+
+    assert x0 == pytest.approx(x0_1)
+    assert x1 == pytest.approx(x1_1)
+    assert y0_cn == pytest.approx(y0_1_cn)
+    assert y1_cn == pytest.approx(y1_1_cn)
+
+
 def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     print('#### size: ', mpi.world.size, mpi.size)
     if mpi.world.size < 2:
