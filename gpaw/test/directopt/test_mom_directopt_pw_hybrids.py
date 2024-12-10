@@ -10,6 +10,7 @@ from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.mom import prepare_mom_calculation
 
 
+@pytest.mark.new_gpaw_ready
 @pytest.mark.do
 def test_mom_directopt_pw_hybrids(in_tmp_dir):
     d = 1.4 * Bohr
@@ -79,7 +80,3 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir):
         h2.get_potential_energy()
         calc.get_eigenvalues()
         calc.get_forces()
-
-
-if __name__ == '__main__':
-    test_mom_directopt_pw_hybrids(1)

@@ -27,6 +27,7 @@ class ETDMPWFD(Eigensolver):
         wfs.eigensolver = self.eigensolver
         ham = FakeHamiltonian(ibzwfs, density, potential, self.pot_calc)
         dens = Density(ibzwfs, density)
+        ham.D_asii = density.D_asii  # needed for hybrids
         return wfs, ham, dens
 
     def initialize_etdm(self,
