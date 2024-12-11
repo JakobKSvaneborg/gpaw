@@ -23,7 +23,7 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
     calc = GPAW(mode=PW(300),
                 spinpol=True,
                 symmetry='off',
-                eigensolver=FDPWETDM(converge_unocc=True),
+                eigensolver={'name': 'etdm-fdpw', 'converge_unocc': True},
                 mixer={'backend': 'no-mixing'},
                 occupations={'name': 'fixed-uniform'},
                 convergence={'eigenstates': 1e-4}

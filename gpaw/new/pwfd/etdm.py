@@ -1,33 +1,26 @@
 import numpy as np
 
-from gpaw.new.backwards_compatibility import FakeHamiltonian, FakeWFS
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.directmin.scf_helper import check_eigensolver_state, do_if_converged
-from gpaw.directmin.etdm_fdpw import FDPWETDM
+from gpaw.core.arrays import DistributedArrays as XArray
 
 
 class ETDM(Eigensolver):
     def __init__(self,
                  *,
-                 log,
                  preconditioner_factory,
                  excited_state: bool = False,
-                 converge_unocc: bool = False):
+                 converge_unocc: bool = False,
+                 xp=np):
         self.preconditioner = None
-        self.preconditioner_factory = preconditioner_factory
+        self.preconditioner = preconditioner_factory(10, xp=xp)
         self.search_dir = LBFGS()
-        # ibzwfs, density, potential,
-        #                pot_calc, occ_calc, hamiltonian, mixer,
-        #                log):
-        # self.pot_calc = pot_calc
-        #self.occ_calc = occ_calc
-        self.log = log
         self.iters = 0
         self.alpha = 1.0  # step length
         self.energy_i = [None, None]  # energy at last two iterations
         self.dedalpha_i = [None, None]  # energy gradient w.r.t. alpha
         self.grad_knX = None
+        self.dS_aii = setups.get_overlap_corrections(atomdist, xp)
 
     def iterate(self,
                 ibzwfs,
@@ -35,13 +28,15 @@ class ETDM(Eigensolver):
                 potential,
                 hamiltonian: Hamiltonian) -> float:
         if self.iters == 0:
+            error = 0.0
             for wfs in ibzwfs:
                 wfs.orthonormalize()
-            grad = self.get_gradients_2(ham, wfs)
-            self.project_gradient(wfs, grad)
-            self.error = self.error_eigv(wfs, grad)
-            self.eg_count += 1
-            return energy, grad
+                grad_nX = gradient(ibzwfs,
+                                   density,
+                                   potential,
+                                   hamiltonian,
+                                   wfs)
+            error += calculate_error(grad_nX)
 
         e_entropy = 0.0
         kin_en_using_band = False
@@ -56,12 +51,42 @@ class ETDM(Eigensolver):
             'etdm-fdpw', wfs, ham, dens, self.log)
 
 
+def gradient(hamiltonian,
+             potential,
+             ibzwfs,
+             density,
+             wfs):
+    psit_nX = wfs.psit_nX
+    grad_nX = psit_nX.new()
+
+    hamiltonian.apply(
+        potential.vt_sR,
+        potential.dedtaut_sR,
+        ibzwfs,  # used by hybrids
+        density.D_asii,  # used by hybrids
+        psit_nX,
+        grad_nX,
+        wfs.spin)
+
+    c_ani = {}
+    dH_asii = ham.potential.dH_asii
+    for a, P_ni in wfs.P_ani.items():
+        dH_ii = dH_asii[a][wfs.spin]
+        c_ani[a] = P_ni @ dH_ii
+    wfs.pt_aiX.add_to(grad_nX, c_ani)
+
+    # scale with occupation numbers
+    for f, grad_X in zips(wfs.myocc_n, grad_nX.data):
+        grad_X *= f
+    project_gradient(wfs, grad)
+
+
 class LBFGS:
     def __init__(self):
         from gpaw.directmin.sd_etdm import LBFGS as _LBFGS
         self._algo = _LBFGS()
 
-    def update(self, ...):
+    def update(self):
         self._algo.update_data()
 
 
