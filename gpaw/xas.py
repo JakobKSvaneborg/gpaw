@@ -5,6 +5,7 @@ from typing import List, Tuple, Union
 import numpy as np
 
 from ase.units import Hartree
+from ase.parallel import paropen
 
 from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
@@ -310,13 +311,12 @@ class XAS:
 
     def write(self, fname: str):
 
-        if self.world.rank == 0:
-            with open(fname, mode='wb') as f:
-                np.savez_compressed(
-                    f, eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
-                    eps_n0_k=self.eps_n0_k, n_k=self.n,
-                    orthogonal=self.orthogonal)
-        self.world.barrier()
+        with paropen(fname, mode='wb') as f:
+            np.savez_compressed(
+                f, eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
+                eps_n0_k=self.eps_n0_k, n_k=self.n,
+                orthogonal=self.orthogonal)
+        #self.world.barrier()
 
     def get_oscillator_strength(
             self, dks: Union[float, List], kpoint=None,
