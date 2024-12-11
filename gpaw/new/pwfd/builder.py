@@ -8,7 +8,7 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.pwfd.davidson import Davidson
-from gpaw.new.pwfd.etdm import ETDMPWFD
+from gpaw.new.pwfd.etdm import ETDM, ETDMHack
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
@@ -35,11 +35,12 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 converge_bands=self.params.convergence.get('bands',
                                                            'occupied'),
                 **eigsolv_params)
-        from gpaw.directmin.etdm_fdpw import FDPWETDM
-        return ETDMPWFD(self.setups,
+        if name == 'etdm':
+            return ETDM(**eigsolv_params)
+        return ETDMHack(self.setups,
                         self.communicators['w'],
                         self.atoms,
-                        FDPWETDM(**eigsolv_params))
+                        eigsolv_params)
 
     def read_ibz_wave_functions(self, reader):
         kpt_comm, band_comm, domain_comm = (self.communicators[x]

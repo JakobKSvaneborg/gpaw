@@ -59,11 +59,6 @@ class SCFLoop:
         cc = self.convergence
         maxiter = maxiter or self.maxiter
 
-        self.eigensolver.initialize_etdm(
-            ibzwfs, density, potential,
-            pot_calc, self.occ_calc,
-            self.hamiltonian, self.mixer, log)
-
         if log:
             log('convergence criteria:')
             for criterion in cc.values():
@@ -114,11 +109,8 @@ class SCFLoop:
             if self.update_density_and_potential:
                 density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
                 dens_error = self.mixer.mix(density)
-                new_potential, _ = pot_calc.calculate(
+                potential, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
-                # Because of the way direct-optimization works at the moment,
-                # we need to update the potential in-place!
-                potential.update_from(new_potential)
                 if self.eigensolver.direct:
                     ekin = ibzwfs.calculate_kinetic_energy(
                         self.hamiltonian, density)

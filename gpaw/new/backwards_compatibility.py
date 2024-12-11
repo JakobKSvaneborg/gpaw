@@ -371,9 +371,8 @@ class FakeHamiltonian:
         self.e_xc = potential.energies['xc']
 
     def update(self, dens, wfs, kin_en_using_band=True):
-        potential, _ = self.pot_calc.calculate(
+        self.potential, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
-        self.potential.update_from(potential)
 
         energies = self.potential.energies
         self.e_xc = energies['xc']
