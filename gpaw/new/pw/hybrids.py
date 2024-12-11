@@ -121,7 +121,8 @@ class PWHybridHamiltonian(PWHamiltonian):
         psi1 = Psi(wfs.psit_nX, wfs.P_ani, wfs.myocc_n)
         pt_aiG = wfs.pt_aiX
 
-        if psi1.psit_nG is psit2_nG:
+        # We should pass a flag instead of this:
+        if psi1.psit_nG.data is psit2_nG.data:
             # We are doing a subspace diagonalization ...
             evv, evc, ekin = self.apply1(D_aii, pt_aiG,
                                          psi1, psi1, Htpsit2_nG)
@@ -149,7 +150,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                psi2: Psi,
                Htpsit_nG: PWArray) -> tuple[float, float, float]:
         comm = Htpsit_nG.comm
-        mynbands = Htpsit_nG.mydims[0]
+        mynbands1 = psi1.psit_nG.mydims[0]
+        mynbands2 = psi2.psit_nG.mydims[0]
         same = psi1 is psi2
         evv = 0.0
         evc = 0.0
@@ -167,19 +169,19 @@ class PWHybridHamiltonian(PWHamiltonian):
                 evv -= ev
                 evc -= ec
 
-        Q_anL = self.ghat_aLX.empty(mynbands)
+        Q_anL = self.ghat_aLX.empty(mynbands1)
         Q_nA = Q_anL.data
-        assert Q_nA.shape == (mynbands,
+        assert Q_nA.shape == (mynbands1,
                               sum(delta_iiL.shape[2]
                                   for delta_iiL in self.delta_aiiL))
         assert Q_nA.dtype == self.pw.dtype
 
-        rhot_nR = self.grid_local.empty(mynbands)
-        rhot_nG = self.pw.empty(mynbands)
+        rhot_nR = self.grid_local.empty(mynbands1)
+        rhot_nG = self.pw.empty(mynbands1)
         vrhot_G = self.pw.empty()
 
         if psi1 is not psi2 or comm.size > 1:
-            psit1_nR = self.grid_local.empty(mynbands)
+            psit1_nR = self.grid_local.empty(mynbands1)
         else:
             psit1_nR = None
 
@@ -191,7 +193,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                     psi = psi1.empty()
                 psi.receive((comm.rank - 1) % comm.size)
             if p == 0:
-                psi2.psit_nR = self.grid_local.empty(mynbands)
+                psi2.psit_nR = self.grid_local.empty(mynbands2)
                 ifft(psi2.psit_nG, psi2.psit_nR, self.plan)
             e += self.inner(psi1, psi2,
                             Q_anL,
@@ -232,7 +234,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             ifft(psi1.psit_nG, psit1_nR, self.plan)
 
         e = 0.0
-        for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
+        for n2, (psit2_R, out_G) in enumerate(zips(psi2.psit_nR, Htpsit_nG)):
             rhot_nR.data[:] = psit1_nR.data * psit2_R.data.conj()
             for a, Q1_niL in Q1_aniL.items():
                 P2_i = psi2.P_ani[a][n2]

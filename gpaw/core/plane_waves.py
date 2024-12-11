@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import pi
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Sequence
 
 import numpy as np
 from ase.units import Ha
@@ -20,6 +20,7 @@ from gpaw.new.c import (add_to_density, add_to_density_gpu, pw_insert,
 from gpaw.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
+from gpaw.fftw import get_efficient_fft_size
 
 if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
@@ -163,12 +164,33 @@ class PWDesc(Domain):
         Q_G = self._indices_cache.get(shape)
         if Q_G is None:
             # We should do this here instead of everywhere calling this: !!!!
-            # if self..dtype == float:
+            # if self.dtype == float:
             #     shape = (shape[0], shape[1], shape[2] // 2 + 1)
             Q_G = np.ravel_multi_index(self.indices_cG, shape,  # type: ignore
                                        mode='wrap').astype(np.int32)
+            if debug:
+                assert (Q_G[1:] > Q_G[:-1]).all()
             self._indices_cache[shape] = Q_G
         return Q_G
+
+    def minimal_uniform_grid(self,
+                             n: int = 1,
+                             factors: Sequence[int] = (2, 3, 5, 7)
+                             ) -> UGDesc:
+        from gpaw.core import UGDesc
+        size_c = np.ptp(self.indices_cG, axis=1) + 1
+        if self.dtype == float:
+            size_c[2] = size_c[2] * 2 - 1
+        size_c = (size_c + n - 1) // n * n
+        if factors:
+            size_c = np.array([get_efficient_fft_size(N, n, factors)
+                               for N in size_c])
+        return UGDesc(size=size_c,
+                      cell=self.cell_cv,
+                      pbc=self.pbc_c,
+                      kpt=self.kpt_c,
+                      dtype=self.dtype,
+                      comm=self.comm)
 
     def cut(self, array_Q: Array3D) -> Array1D:
         """Cut out G-vectors with (G+k)^2/2<E_kin."""
