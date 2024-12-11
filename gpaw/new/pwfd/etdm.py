@@ -36,7 +36,7 @@ class ETDM(Eigensolver):
                                    potential,
                                    hamiltonian,
                                    wfs)
-            error += calculate_error(grad_nX)
+            error += grad_nX.normmmm()
 
         e_entropy = 0.0
         kin_en_using_band = False
