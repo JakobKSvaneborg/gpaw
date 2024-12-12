@@ -26,7 +26,8 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
                 eigensolver={'name': 'etdm-fdpw', 'converge_unocc': True},
                 mixer={'backend': 'no-mixing'},
                 occupations={'name': 'fixed-uniform'},
-                convergence={'eigenstates': 1e-4}
+                convergence={'eigenstates': 1e-4},
+                #txt=None
                 )
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -108,3 +109,7 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
     niter = calc.get_number_of_iterations()
     assert niter == pytest.approx(4, abs=3)
     assert e == pytest.approx(e2, abs=1.0e-3)
+
+
+if __name__ == '__main__':
+    test_mom_directopt_pw(1, 1)

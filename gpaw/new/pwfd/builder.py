@@ -37,6 +37,9 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 **eigsolv_params)
         if name == 'etdm-fdpw':
             return ETDM(
+                setups=self.setups,
+                atomdist=self.atomdist,
+                nspins=self.nspins,
                 preconditioner_factory=hamiltonian.create_preconditioner,
                 **eigsolv_params)
 
