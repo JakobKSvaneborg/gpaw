@@ -36,29 +36,47 @@ class ETDM(Eigensolver):
                 ibzwfs: PWFDIBZWaveFunction,
                 density: Density,
                 potential: Potential,
-                hamiltonian: Hamiltonian) -> float:
+                hamiltonian: Hamiltonian,
+                pot_calc) -> float:
         dH = potential.dH
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
+
         if self.iters == 0:
             self.nocc_s = find_number_of_ocupied_bands(ibzwfs)
-            error = 0.0
+
             for wfs in ibzwfs:
                 wfs.orthonormalize()
-                Htpsit_nX = wfs.psit_nX.new()
-                wfs.subspace_diagonalize(Ht, dH,
-                                         Htpsit_nX=Htpsit_nX)
+
+            print(potential.vt_sR.data[0, 20, 18])
+            for wfs in ibzwfs:
+                # Htpsit_nX = wfs.psit_nX.new()
+                wfs.subspace_diagonalize(Ht, dH)  # , Htpsit_nX=Htpsit_nX)
+
+            energy, potential = update_density_and_potential(
+                density, potential, pot_calc, ibzwfs, hamiltonian)
+            print(potential.vt_sR.data[0, 20, 18])
+            Ht = partial(hamiltonian.apply,
+                         potential.vt_sR,
+                         potential.dedtaut_sR,
+                         ibzwfs, density.D_asii)
+
+            error = 0.0
+            for wfs in ibzwfs:
                 nocc = self.nocc_s[wfs.spin]
-                print(nocc)
-                grad_nX = Htpsit_nX[:nocc]
+                psit_nX = wfs.psit_nX[:nocc]
+                grad_nX = psit_nX.new()
+                Ht(psit_nX, out=grad_nX, spin=0)
                 apply_non_local_hamiltonian(grad_nX, wfs, potential)
+                print(wfs.myocc_n)
                 grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
                 project_gradient(grad_nX, self.dS_aii, wfs)
+                error += grad_nX.norm2().sum()
                 self.grad_unX.append(grad_nX)
-            error += grad_nX.norm2().sum()
-            print(error)
+
+            print(energy, error)
 
         self.search_dir.update([wfs.psit_nX.copy() for wfs in ibzwfs],
                                self.grad_unX,
@@ -86,7 +104,6 @@ def apply_non_local_hamiltonian(Htpsit_nX,
     for a, P_ni in wfs.P_ani.items():
         dH_ii = dH_asii[a][wfs.spin]
         c_ani[a] = P_ni[:nocc] @ dH_ii
-        print(a, c_ani[a])
     wfs.pt_aiX.add_to(Htpsit_nX, c_ani)
 
 
@@ -99,12 +116,29 @@ def project_gradient(grad_nX: XArray,
     M_nn = grad_nX.integrate(psit_nX)
     M_nn += M_nn.T.conj()
     M_nn *= 0.5
-    print(M_nn)
+    print('M', M_nn)
     grad_nX.data -= M_nn @ psit_nX.data
     c_ani = {}
     for a, P_ni in wfs.P_ani.items():
         c_ani[a] = M_nn @ P_ni[:nocc] @ dS_aii[a]
     wfs.pt_aiX.add_to(grad_nX, c_ani)
+
+
+def update_density_and_potential(density,
+                                 potential,
+                                 pot_calc,
+                                 ibzwfs,
+                                 hamiltonian):
+    density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
+    potential, _ = pot_calc.calculate(density, ibzwfs, potential.vHt_x)
+    energy = (sum(e
+                  for name, e in potential.energies.items()
+                  if name not in ['stress', 'kinetic']) +
+              sum(e
+                  for name, e in ibzwfs.energies.items()
+                  if name != 'band'))
+    energy += ibzwfs.calculate_kinetic_energy(hamiltonian, density)
+    return energy, potential
 
 
 def find_number_of_ocupied_bands(ibzwfs: PWFDIBZWaveFunction) -> list[int]:
