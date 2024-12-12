@@ -1,7 +1,7 @@
 import numpy as np
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomDistribution
-from gpaw.new import zips
+# from gpaw.new import zips
 from gpaw.new.density import Density
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
@@ -9,6 +9,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
 from gpaw.setup import Setups
 from functools import partial
+from types import SimpleNamespace
 
 
 class ETDM(Eigensolver):
@@ -21,14 +22,12 @@ class ETDM(Eigensolver):
                  excited_state: bool = False,
                  converge_unocc: bool = False,
                  xp=np):
-        self.preconditioner = None
         self.preconditioner = preconditioner_factory(10, xp=xp)
-        self.search_dir = LBFGS()
-        self.iters = 0
+        self.search_dir = LBFGS(self.preconditioner, nspins)
         self.alpha = 1.0  # step length
-        self.energy_i = [None, None]  # energy at last two iterations
-        self.dedalpha_i = [None, None]  # energy gradient w.r.t. alpha
-        self.grad_unX: list = []
+        self.energy_i = (np.nan, np.nan)  # energy at last two iterations
+        self.dedalpha_i = (np.nan, np.nan)  # energy gradient w.r.t. alpha
+        self.grad_unX: list[XArray] = []
         self.dS_aii = setups.get_overlap_corrections(atomdist, xp)
         self.nocc_s = [-1] * nspins
 
@@ -44,20 +43,15 @@ class ETDM(Eigensolver):
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
 
-        if self.iters == 0:
+        if len(self.grad_unX) == 0:
             self.nocc_s = find_number_of_ocupied_bands(ibzwfs)
 
             for wfs in ibzwfs:
                 wfs.orthonormalize()
-
-            print(potential.vt_sR.data[0, 20, 18])
-            for wfs in ibzwfs:
-                # Htpsit_nX = wfs.psit_nX.new()
-                wfs.subspace_diagonalize(Ht, dH)  # , Htpsit_nX=Htpsit_nX)
+                wfs.subspace_diagonalize(Ht, dH)
 
             energy, potential = update_density_and_potential(
                 density, potential, pot_calc, ibzwfs, hamiltonian)
-            print(potential.vt_sR.data[0, 20, 18])
             Ht = partial(hamiltonian.apply,
                          potential.vt_sR,
                          potential.dedtaut_sR,
@@ -70,29 +64,29 @@ class ETDM(Eigensolver):
                 grad_nX = psit_nX.new()
                 Ht(psit_nX, out=grad_nX, spin=0)
                 apply_non_local_hamiltonian(grad_nX, wfs, potential)
-                print(wfs.myocc_n)
                 grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
                 project_gradient(grad_nX, self.dS_aii, wfs)
                 error += grad_nX.norm2().sum()
                 self.grad_unX.append(grad_nX)
 
-            print(energy, error)
-
         self.search_dir.update([wfs.psit_nX.copy() for wfs in ibzwfs],
-                               self.grad_unX,
-                               self.preconditioner)
+                               self.grad_unX)
 
+        """
         e_entropy = 0.0
         kin_en_using_band = False
         e_sic = 0.0
         ham.get_energy(
             e_entropy, wfs, kin_en_using_band=kin_en_using_band, e_sic=e_sic)
-        return self.eigensolver.error
+        """
+        return error
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
-        wfs, ham, dens = self.whd(ibzwfs, density, potential, hamiltonian)
+        """wfs, ham, dens = self.whd(ibzwfs, density, potential, hamiltonian)
         do_if_converged(
             'etdm-fdpw', wfs, ham, dens, self.log)
+        """
+        ...
 
 
 def apply_non_local_hamiltonian(Htpsit_nX,
@@ -109,18 +103,17 @@ def apply_non_local_hamiltonian(Htpsit_nX,
 
 def project_gradient(grad_nX: XArray,
                      dS_aii,
-                     wfs) -> XArray:
+                     wfs):
     nocc = len(grad_nX)
     psit_nX = wfs.psit_nX[:nocc]
 
     M_nn = grad_nX.integrate(psit_nX)
     M_nn += M_nn.T.conj()
     M_nn *= 0.5
-    print('M', M_nn)
     grad_nX.data -= M_nn @ psit_nX.data
     c_ani = {}
     for a, P_ni in wfs.P_ani.items():
-        c_ani[a] = M_nn @ P_ni[:nocc] @ dS_aii[a]
+        c_ani[a] = M_nn @ P_ni[:nocc] @ -dS_aii[a]
     wfs.pt_aiX.add_to(grad_nX, c_ani)
 
 
@@ -128,7 +121,7 @@ def update_density_and_potential(density,
                                  potential,
                                  pot_calc,
                                  ibzwfs,
-                                 hamiltonian):
+                                 hamiltonian) -> tuple[float, Potential]:
     density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
     potential, _ = pot_calc.calculate(density, ibzwfs, potential.vHt_x)
     energy = (sum(e
@@ -154,12 +147,26 @@ def find_number_of_ocupied_bands(ibzwfs: PWFDIBZWaveFunction) -> list[int]:
 
 
 class LBFGS:
-    def __init__(self):
+    def __init__(self, preconditioner, nspins):
         from gpaw.directmin.sd_etdm import LBFGS as _LBFGS
+        self.preconditioner = preconditioner
+        print(preconditioner)
         self._algo = _LBFGS()
+        self.mode = '?'
+        self.kd = self
+        self.nspins = nspins
 
-    def update(self):
-        self._algo.update_data()
+    def update(self, psit_unX, grad_unX):
+        dims_u = {u: len(psit_nX) for u, psit_nX in enumerate(psit_unX)}
+        self.mode = 'pw' if psit_unX[0].data.ndim == 2 else 'fd'
+        self.kpt_u = [
+            SimpleNamespace(psit=SimpleNamespace(array=psit_nX.data))
+            for psit_nX in psit_unX]
+        self._algo.update_data(self,
+                               [psit_nX.data for psit_nX in psit_unX],
+                               [grad_nX.data for grad_nX in grad_unX],
+                               dims_u,
+                               self.preconditioner)
 
 
 def step_length_update(x, p, evaluate_phi_and_der_phi, wfs,

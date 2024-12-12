@@ -8,7 +8,8 @@ class Eigensolver:
                 ibzwfs,
                 density,
                 potential,
-                hamiltonian) -> float:
+                hamiltonian,
+                pot_calc) -> float:
         raise NotImplementedError
 
     def initialize_etdm(self, *args, **kwargs):
