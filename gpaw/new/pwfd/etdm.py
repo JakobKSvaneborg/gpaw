@@ -25,9 +25,6 @@ class ETDM(Eigensolver):
                  xp=np):
         self.preconditioner = preconditioner_factory(10, xp=xp)
         self.search_dir = LBFGS()
-        self.alpha = 1.0  # step length
-        self.energy_i = (np.nan, np.nan)  # energy at last two iterations
-        self.dedalpha_i = (np.nan, np.nan)  # energy gradient w.r.t. alpha
         self.grad_unX: list[XArray] = []
         self.dS_aii = setups.get_overlap_corrections(atomdist, xp)
         self.nocc_s = [-1] * nspins
@@ -63,7 +60,7 @@ class ETDM(Eigensolver):
                 nocc = self.nocc_s[wfs.spin]
                 psit_nX = wfs.psit_nX[:nocc]
                 grad_nX = psit_nX.new()
-                Ht(psit_nX, out=grad_nX, spin=0)
+                Ht(psit_nX, out=grad_nX, spin=wfs.spin)
                 apply_non_local_hamiltonian(grad_nX, wfs, potential)
                 grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
                 project_gradient(grad_nX, wfs, self.dS_aii)
@@ -84,67 +81,36 @@ class ETDM(Eigensolver):
             pg_unX.append(pg_nX)
 
         p_unX = self.search_dir.update(psit_unX, pg_unX)
-
         for wfs, p_nX in zips(ibzwfs, p_unX):
             project_gradient(p_nX, wfs)
 
-        self.der_phi_2i[0] = sum(
-            sum(p_X.integrate(grad_X)
-                for p_X, grad_X in zip(p_nX, grad_nX)
-                for p_nX, grad_nX in zips(p_unX, self.grad_unX)))
+        slength = sum(p_nX.norm2().sum() for p_nX in p_unX)**0.5
+        max_step = 0.2
+        alpha = max_step / slength if slength > max_step else 1.0
 
         for psit_nX, p_nX in zips(psit_unX, p_unX):
             psit_nX.data += alpha * p_nX.data
 
         for wfs in ibzwfs:
+            wfs._P_ani = None
             wfs.orthonormalize()
 
         energy, potential = update_density_and_potential(
             density, potential, pot_calc, ibzwfs, hamiltonian)
 
-            Ht = partial(hamiltonian.apply,
-                         potential.vt_sR,
-                         potential.dedtaut_sR,
-                         ibzwfs, density.D_asii)
+        Ht = partial(hamiltonian.apply,
+                     potential.vt_sR,
+                     potential.dedtaut_sR,
+                     ibzwfs, density.D_asii)
 
-            error = 0.0
-            for wfs in ibzwfs:
-                nocc = self.nocc_s[wfs.spin]
-                psit_nX = wfs.psit_nX[:nocc]
-                grad_nX = psit_nX.new()
-                Ht(psit_nX, out=grad_nX, spin=0)
-                apply_non_local_hamiltonian(grad_nX, wfs, potential)
-                grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
-                project_gradient(grad_nX, wfs, self.dS_aii)
-                error += grad_nX.norm2().sum()
-                self.grad_unX.append(grad_nX)
-        phi, grad_k = self.get_energy_and_tangent_gradients(
-            ham, wfs, dens, psit_knG=x_knG)
-
-        der_phi = 0.0
-        for kpt in wfs.kpt_u:
-            k = self.n_kps * kpt.s + kpt.q
-            for i, g in enumerate(grad_k[k]):
-                    der_phi += self.dot(
-                        wfs, g, search_dir[k][i], kpt,
-
-        alpha, phi_alpha, der_phi_alpha, grad_knG = step_length_update(
-            psit_unX, p_unX, wfs, ham, dens, converge_unocc,
-                phi_0=phi_2i[0], der_phi_0=der_phi_2i[0],
-                phi_old=phi_2i[1], der_phi_old=der_phi_2i[1],
-                alpha_max=3.0, alpha_old=alpha, kpdescr=wfs.kd)
-        self.alpha = alpha
-        self.grad_knG = grad_knG
-
-        # and 'shift' phi, der_phi for the next iteration
-        phi_2i[1], der_phi_2i[1] = phi_2i[0], der_phi_2i[0]
-        phi_2i[0], der_phi_2i[0] = phi_alpha, der_phi_alpha,
-
-        self.iters += 1
-        if not converge_unocc:
-            self.globaliters += 1
-        wfs.timer.stop('Direct Minimisation step')
-
+        error = 0.0
+        for psit_nX, grad_nX, wfs in zips(psit_unX, self.grad_unX, ibzwfs):
+            Ht(psit_nX, out=grad_nX, spin=wfs.spin)
+            apply_non_local_hamiltonian(grad_nX, wfs, potential)
+            grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
+            project_gradient(grad_nX, wfs, self.dS_aii)
+            error += grad_nX.norm2().sum()
+        print(energy, error, alpha)
         """
         e_entropy = 0.0
         kin_en_using_band = False
@@ -218,21 +184,3 @@ def find_number_of_ocupied_bands(ibzwfs: PWFDIBZWaveFunction) -> list[int]:
         else:
             nocc_s[wfs.spin] = nocc
     return nocc_s
-
-
-def step_length_update(x, p, evaluate_phi_and_der_phi, wfs,
-                       max_step=0.2):
-    slength = 0.0
-    for k in p:
-        for val in p[k]:
-            slength += np.real(
-                wfs.integrate(val, val, global_integral=False))
-    slength = wfs.world.sum_scalar(slength)**0.5
-    # slength = kd.comm.max_scalar(slength)
-
-    a_star = max_step / slength if slength > max_step else 1.0
-
-    phi_star, der_phi_star, g_star = evaluate_phi_and_der_phi(
-        x, p, a_star, wfs)
-
-    return a_star, phi_star, der_phi_star, g_star
