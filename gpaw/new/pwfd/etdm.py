@@ -45,6 +45,8 @@ class ETDM(Eigensolver):
             self.nocc_s = find_number_of_ocupied_bands(ibzwfs)
 
             for wfs in ibzwfs:
+                wfs._P_ani = None
+                wfs.orthonormalized = False
                 wfs.orthonormalize()
                 wfs.subspace_diagonalize(Ht, dH)
 
@@ -93,6 +95,7 @@ class ETDM(Eigensolver):
 
         for wfs in ibzwfs:
             wfs._P_ani = None
+            wfs.orthonormalized = False
             wfs.orthonormalize()
 
         energy, potential = update_density_and_potential(
