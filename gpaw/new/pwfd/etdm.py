@@ -1,15 +1,16 @@
+from functools import partial
+
 import numpy as np
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomDistribution
-# from gpaw.new import zips
+from gpaw.new import zips
 from gpaw.new.density import Density
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
+from gpaw.new.pwfd.lbfgs import LBFGS
 from gpaw.setup import Setups
-from functools import partial
-from types import SimpleNamespace
 
 
 class ETDM(Eigensolver):
@@ -23,7 +24,7 @@ class ETDM(Eigensolver):
                  converge_unocc: bool = False,
                  xp=np):
         self.preconditioner = preconditioner_factory(10, xp=xp)
-        self.search_dir = LBFGS(self.preconditioner, nspins)
+        self.search_dir = LBFGS()
         self.alpha = 1.0  # step length
         self.energy_i = (np.nan, np.nan)  # energy at last two iterations
         self.dedalpha_i = (np.nan, np.nan)  # energy gradient w.r.t. alpha
@@ -65,12 +66,84 @@ class ETDM(Eigensolver):
                 Ht(psit_nX, out=grad_nX, spin=0)
                 apply_non_local_hamiltonian(grad_nX, wfs, potential)
                 grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
-                project_gradient(grad_nX, self.dS_aii, wfs)
+                project_gradient(grad_nX, wfs, self.dS_aii)
                 error += grad_nX.norm2().sum()
                 self.grad_unX.append(grad_nX)
 
-        self.search_dir.update([wfs.psit_nX.copy() for wfs in ibzwfs],
-                               self.grad_unX)
+        psit_unX = []
+        for wfs in ibzwfs:
+            nocc = self.nocc_s[wfs.spin]
+            psit_nX = wfs.psit_nX[:nocc]
+            psit_unX.append(psit_nX)
+
+        pg_unX = []
+        for psit_nX, grad_nX in zips(psit_unX, self.grad_unX):
+            pg_nX = grad_nX.new()
+            self.preconditioner(psit_nX, grad_nX, out=pg_nX)
+            pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
+            pg_unX.append(pg_nX)
+
+        p_unX = self.search_dir.update(psit_unX, pg_unX)
+
+        for wfs, p_nX in zips(ibzwfs, p_unX):
+            project_gradient(p_nX, wfs)
+
+        self.der_phi_2i[0] = sum(
+            sum(p_X.integrate(grad_X)
+                for p_X, grad_X in zip(p_nX, grad_nX)
+                for p_nX, grad_nX in zips(p_unX, self.grad_unX)))
+
+        for psit_nX, p_nX in zips(psit_unX, p_unX):
+            psit_nX.data += alpha * p_nX.data
+
+        for wfs in ibzwfs:
+            wfs.orthonormalize()
+
+        energy, potential = update_density_and_potential(
+            density, potential, pot_calc, ibzwfs, hamiltonian)
+
+            Ht = partial(hamiltonian.apply,
+                         potential.vt_sR,
+                         potential.dedtaut_sR,
+                         ibzwfs, density.D_asii)
+
+            error = 0.0
+            for wfs in ibzwfs:
+                nocc = self.nocc_s[wfs.spin]
+                psit_nX = wfs.psit_nX[:nocc]
+                grad_nX = psit_nX.new()
+                Ht(psit_nX, out=grad_nX, spin=0)
+                apply_non_local_hamiltonian(grad_nX, wfs, potential)
+                grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
+                project_gradient(grad_nX, wfs, self.dS_aii)
+                error += grad_nX.norm2().sum()
+                self.grad_unX.append(grad_nX)
+        phi, grad_k = self.get_energy_and_tangent_gradients(
+            ham, wfs, dens, psit_knG=x_knG)
+
+        der_phi = 0.0
+        for kpt in wfs.kpt_u:
+            k = self.n_kps * kpt.s + kpt.q
+            for i, g in enumerate(grad_k[k]):
+                    der_phi += self.dot(
+                        wfs, g, search_dir[k][i], kpt,
+
+        alpha, phi_alpha, der_phi_alpha, grad_knG = step_length_update(
+            psit_unX, p_unX, wfs, ham, dens, converge_unocc,
+                phi_0=phi_2i[0], der_phi_0=der_phi_2i[0],
+                phi_old=phi_2i[1], der_phi_old=der_phi_2i[1],
+                alpha_max=3.0, alpha_old=alpha, kpdescr=wfs.kd)
+        self.alpha = alpha
+        self.grad_knG = grad_knG
+
+        # and 'shift' phi, der_phi for the next iteration
+        phi_2i[1], der_phi_2i[1] = phi_2i[0], der_phi_2i[0]
+        phi_2i[0], der_phi_2i[0] = phi_alpha, der_phi_alpha,
+
+        self.iters += 1
+        if not converge_unocc:
+            self.globaliters += 1
+        wfs.timer.stop('Direct Minimisation step')
 
         """
         e_entropy = 0.0
@@ -102,8 +175,8 @@ def apply_non_local_hamiltonian(Htpsit_nX,
 
 
 def project_gradient(grad_nX: XArray,
-                     dS_aii,
-                     wfs):
+                     wfs,
+                     dS_aii=None):
     nocc = len(grad_nX)
     psit_nX = wfs.psit_nX[:nocc]
 
@@ -111,10 +184,11 @@ def project_gradient(grad_nX: XArray,
     M_nn += M_nn.T.conj()
     M_nn *= 0.5
     grad_nX.data -= M_nn @ psit_nX.data
-    c_ani = {}
-    for a, P_ni in wfs.P_ani.items():
-        c_ani[a] = M_nn @ P_ni[:nocc] @ -dS_aii[a]
-    wfs.pt_aiX.add_to(grad_nX, c_ani)
+    if dS_aii:
+        c_ani = {}
+        for a, P_ni in wfs.P_ani.items():
+            c_ani[a] = M_nn @ P_ni[:nocc] @ -dS_aii[a]
+        wfs.pt_aiX.add_to(grad_nX, c_ani)
 
 
 def update_density_and_potential(density,
@@ -144,29 +218,6 @@ def find_number_of_ocupied_bands(ibzwfs: PWFDIBZWaveFunction) -> list[int]:
         else:
             nocc_s[wfs.spin] = nocc
     return nocc_s
-
-
-class LBFGS:
-    def __init__(self, preconditioner, nspins):
-        from gpaw.directmin.sd_etdm import LBFGS as _LBFGS
-        self.preconditioner = preconditioner
-        print(preconditioner)
-        self._algo = _LBFGS()
-        self.mode = '?'
-        self.kd = self
-        self.nspins = nspins
-
-    def update(self, psit_unX, grad_unX):
-        dims_u = {u: len(psit_nX) for u, psit_nX in enumerate(psit_unX)}
-        self.mode = 'pw' if psit_unX[0].data.ndim == 2 else 'fd'
-        self.kpt_u = [
-            SimpleNamespace(psit=SimpleNamespace(array=psit_nX.data))
-            for psit_nX in psit_unX]
-        self._algo.update_data(self,
-                               [psit_nX.data for psit_nX in psit_unX],
-                               [grad_nX.data for grad_nX in grad_unX],
-                               dims_u,
-                               self.preconditioner)
 
 
 def step_length_update(x, p, evaluate_phi_and_der_phi, wfs,
