@@ -31,15 +31,16 @@ def test_write_new_single(name, build_atoms, kwargs):
     # write
     gpw_name = f'{name}_{kwargs["mode"]}_calc_all.gpw'
 
-    calc.write(gpw_name + '_double', mode="all", precision="double")
-    calc.write(gpw_name + '_single', mode="all", precision="single")
+    calc.write(gpw_name + "_double", mode="all", precision="double")
+    calc.write(gpw_name + "_single", mode="all", precision="single")
     dft1 = calc.dft
     # load
-    calc = GPAW(gpw_name + '_single')
+    calc = GPAW(gpw_name + "_single")
     dft2 = calc.dft
 
     assert dft1.density.nt_sR.data == pytest.approx(dft2.density.nt_sR.data)
-    assert dft1.potential.vt_sR.data == pytest.approx(dft2.potential.vt_sR.data)
+    assert (dft1.potential.vt_sR.data ==
+            pytest.approx(dft2.potential.vt_sR.data))
     for wfs1, wfs2 in zip(dft1.ibzwfs, dft2.ibzwfs):
         error = abs(wfs1.psit_nX.data - wfs2.psit_nX.data).max()
         # for the fd mode the error is higher than expected 1e-8
