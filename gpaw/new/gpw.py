@@ -28,7 +28,7 @@ ENERGY_NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
 
 def as_single_precision(array):
     assert array.dtype in [np.float64, np.complex128]
-    return array.astype(np.float32 if array.dtype == np.float64
+    return np.array(array, dtype=np.float32 if array.dtype == np.float64
                         else np.complex64)
 
 
@@ -40,7 +40,7 @@ def as_double_precision(array):
         dtype = np.float64
     else:
         dtype = complex
-    return array.astype(dtype)
+    return np.array(array, dtype=dtype)
 
 
 def write_gpw(filename: str,
