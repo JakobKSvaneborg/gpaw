@@ -390,8 +390,13 @@ class IBZWaveFunctions(Generic[WFT]):
         shape = spin_k_shape + (self.nbands,) + xshape
         dtype = complex if self.mode == 'pw' else self.dtype
         dtype_write = dtype
-        if precision == 'single':
-            dtype_write = np.complex64 if self.mode == 'pw' else np.float32
+        singlep = precision == 'single'
+        if singlep:
+            from gpaw.new.gpw import as_single_precision
+            if dtype == complex:
+                dtype_write = np.complex64
+            else:
+                dtype_write = np.float32
         c = 1.0 if self.mode == 'lcao' else Bohr**-1.5
 
         writer.add_array('coefficients', shape, dtype=dtype_write)
@@ -414,8 +419,7 @@ class IBZWaveFunctions(Generic[WFT]):
                                 buf_nX[..., x:] = 0.0
                                 coef_nX = buf_nX
                         if rank == 0:
-                            if precision == 'single':
-                                from gpaw.new.gpw import as_single_precision
+                            if singlep:
                                 writer.fill(as_single_precision(coef_nX * c))
                             else:
                                 writer.fill(coef_nX * c)
@@ -423,8 +427,7 @@ class IBZWaveFunctions(Generic[WFT]):
                             self.kpt_comm.send(coef_nX, 0)
                 elif self.comm.rank == 0:
                     self.kpt_comm.receive(buf_nX, rank)
-                    if precision == 'single':
-                        from gpaw.new.gpw import as_single_precision
+                    if singlep:
                         writer.fill(as_single_precision(buf_nX * c))
                     else:
                         writer.fill(buf_nX * c)

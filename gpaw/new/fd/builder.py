@@ -97,6 +97,10 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         else:
             return ibzwfs
 
+        singlep = self.reader_single_precision
+        if singlep:
+            from gpaw.new.gpw import as_double_precision
+
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # old gpw file
@@ -106,7 +110,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             index = (wfs.spin, wfs.k)
             data = reader.wave_functions.proxy(name, *index)
             data.scale = c
-            if self.communicators['w'].size == 1:
+            if self.communicators['w'].size == 1 and not singlep:
                 wfs.psit_nX = UGArray(grid, self.nbands, data=data)
             else:
                 band_comm = self.communicators['b']
@@ -120,6 +124,10 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     n2 = min((band_comm.rank + 1) * mynbands, self.nbands)
                     assert wfs.psit_nX.mydims[0] == n2 - n1
                     data = data[n1:n2]  # read from file
-                wfs.psit_nX.scatter_from(data)
+
+                if singlep:
+                    wfs.psit_nX.scatter_from(as_double_precision(data))
+                else:
+                    wfs.psit_nX.scatter_from(data)
 
         return ibzwfs
