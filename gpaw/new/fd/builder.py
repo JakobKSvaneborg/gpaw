@@ -125,7 +125,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     assert wfs.psit_nX.mydims[0] == n2 - n1
                     data = data[n1:n2]  # read from file
 
-                if singlep:
+                if singlep and name != 'values':
                     wfs.psit_nX.scatter_from(as_double_precision(data))
                 else:
                     wfs.psit_nX.scatter_from(data)

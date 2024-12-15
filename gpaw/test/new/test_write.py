@@ -21,6 +21,8 @@ def build_Si():
         ("Si", build_Si, {"mode": "pw", "kpts": (2, 2, 2), "txt": None}),
         ("N2", build_N2, {"mode": "fd", "txt": None}),
         ("Si", build_Si, {"mode": "fd", "kpts": (2, 2, 2), "txt": None}),
+        ("N2", build_N2, {"mode": "lcao", "txt": None}),
+        ("Si", build_Si, {"mode": "lcao", "kpts": (2, 2, 2), "txt": None}),
     ],
 )
 def test_write_new_single(name, build_atoms, kwargs):
@@ -29,7 +31,8 @@ def test_write_new_single(name, build_atoms, kwargs):
     atoms.calc = calc
     atoms.get_potential_energy()
     # write
-    gpw_name = f'{name}_{kwargs["mode"]}_calc_all.gpw'
+    mode = kwargs["mode"]
+    gpw_name = f"{name}_{mode}_calc_all.gpw"
 
     calc.write(gpw_name + "_double", mode="all", precision="double")
     calc.write(gpw_name + "_single", mode="all", precision="single")
@@ -37,11 +40,12 @@ def test_write_new_single(name, build_atoms, kwargs):
     # load
     calc = GPAW(gpw_name + "_single")
     dft2 = calc.dft
-
+    # pytest.approx by default takes the relative tolerance of 1e-6, but we should consider 1e-8?
     assert dft1.density.nt_sR.data == pytest.approx(dft2.density.nt_sR.data)
-    assert (dft1.potential.vt_sR.data ==
-            pytest.approx(dft2.potential.vt_sR.data))
+    assert dft1.potential.vt_sR.data == pytest.approx(
+        dft2.potential.vt_sR.data)
     for wfs1, wfs2 in zip(dft1.ibzwfs, dft2.ibzwfs):
-        error = abs(wfs1.psit_nX.data - wfs2.psit_nX.data).max()
-        # for the fd mode the error is higher than expected 1e-8
-        assert error == pytest.approx(0.0, abs=3e-8)
+        if mode == 'lcao':
+            assert wfs1.C_nM.data == pytest.approx(wfs2.C_nM.data)
+        else:
+            assert wfs1.psit_nX.data == pytest.approx(wfs2.psit_nX.data)

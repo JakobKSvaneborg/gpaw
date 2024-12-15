@@ -28,8 +28,8 @@ ENERGY_NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
 
 def as_single_precision(array):
     assert array.dtype in [np.float64, np.complex128]
-    return np.array(array, dtype=np.float32 if array.dtype == np.float64
-                    else np.complex64)
+    dtype = np.float32 if array.dtype == np.float64 else np.complex64
+    return np.array(array, dtype=dtype)
 
 
 def as_double_precision(array):
