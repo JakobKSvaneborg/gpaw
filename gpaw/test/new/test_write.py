@@ -40,7 +40,8 @@ def test_write_new_single(name, build_atoms, kwargs):
     # load
     calc = GPAW(gpw_name + "_single")
     dft2 = calc.dft
-    # pytest.approx by default takes the relative tolerance of 1e-6, but we should consider 1e-8?
+    # pytest.approx by default takes the relative tolerance of 1e-6,
+    # the test should be 1e-8?
     assert dft1.density.nt_sR.data == pytest.approx(dft2.density.nt_sR.data)
     assert dft1.potential.vt_sR.data == pytest.approx(
         dft2.potential.vt_sR.data)
