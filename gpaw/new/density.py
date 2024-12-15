@@ -367,7 +367,8 @@ class Density:
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
         if self.taut_sR is not None:
-            taut_sR_data = self.taut_sR.data
+            taut_sR = self.taut_sR.to_xp(np).gather()
+            taut_sR_data = taut_sR.data
             if precision == 'single':
                 from gpaw.new.gpw import as_single_precision
                 taut_sR_data = as_single_precision(taut_sR_data)
