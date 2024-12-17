@@ -319,7 +319,7 @@ class XAS:
                     f, eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
                     eps_n0_k=self.eps_n0_k, n_k=self.n,
                     orthogonal=self.orthogonal)
-        self.world.barrier()
+        #self.world.barrier()
 
     def get_oscillator_strength(
             self, dks: Union[float, List], kpoint=None,
