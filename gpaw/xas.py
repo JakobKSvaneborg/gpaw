@@ -5,7 +5,6 @@ from typing import List, Tuple, Union
 import numpy as np
 
 from ase.units import Hartree
-from ase.parallel import paropen
 
 from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
@@ -169,8 +168,9 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
-        self.world = paw.world
+
         wfs = paw.wfs
+        self.world = wfs.world
         kd = wfs.kd
         bd = wfs.bd
         gd = wfs.gd
@@ -310,13 +310,16 @@ class XAS:
         self.symmetry = wfs.kd.symmetry
 
     def write(self, fname: str):
+        if self.world.rank != 0:
+            return
 
-        with paropen(fname, mode='wb') as f:
-            np.savez_compressed(
-                f, eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
-                eps_n0_k=self.eps_n0_k, n_k=self.n,
-                orthogonal=self.orthogonal)
-        #self.world.barrier()
+        if self.world.rank == 0:
+            with open(fname, mode='wb') as f:
+                np.savez_compressed(
+                    f, eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
+                    eps_n0_k=self.eps_n0_k, n_k=self.n,
+                    orthogonal=self.orthogonal)
+        self.world.barrier()
 
     def get_oscillator_strength(
             self, dks: Union[float, List], kpoint=None,
@@ -421,7 +424,7 @@ class XAS:
             self, fwhm: float, linbroad: List[float],
             eps_n: Array1D, f_cmn: Array3D,
             e: Array1D) -> Tuple[Array1D, Array2D]:
-        """
+        """mpirun -n 6 python3 -m pytest  test_xas_parallel.py
         fwhm:
           the full width half maximum in eV for gaussian broadening
         linbroad:
