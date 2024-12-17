@@ -14,7 +14,7 @@ from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, world
+from gpaw.mpi import world
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -27,6 +27,7 @@ from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 from gpaw.utilities.partition import AtomPartition
+from gpaw.new.energies import EnergyContributions
 
 
 class ReuseWaveFunctionsError(Exception):
@@ -90,6 +91,7 @@ class DFTCalculation:
 
         self.results: dict[str, Any] = {}
         self.relpos_ac = self.pot_calc.relpos_ac
+        self.energies = EnergyContributions()
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
@@ -183,13 +185,15 @@ class DFTCalculation:
 
     def iconverge(self, maxiter=None, calculate_forces=None):
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-        yield from self.scf_loop.iterate(self.ibzwfs,
+        for ctx in self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
                                          self.potential,
                                          self.pot_calc,
                                          maxiter=maxiter,
                                          calculate_forces=calculate_forces,
-                                         log=self.log)
+                                         log=self.log):
+            self.energies = ctx.energies
+            yield ctx
 
     @trace
     def converge(self,
@@ -206,25 +210,9 @@ class DFTCalculation:
             self.log('SCF steps:', step)
 
     def energies(self):
-        energies = combine_energies(self.potential, self.ibzwfs)
-
-        self.log('Energy contributions relative to reference atoms:',
-                 f'(reference = {self.setups.Eref * Ha:.6f})\n')
-
-        for name, e in energies.items():
-            if not name.startswith('total') and name != 'stress':
-                self.log(f'{name + ":":10}   {e * Ha:14.6f}')
-        total_free = energies['total_free']
-        total_extrapolated = energies['total_extrapolated']
-        self.log('----------------------------')
-        self.log(f'Free energy: {total_free * Ha:14.6f}')
-        self.log(f'Extrapolated:{total_extrapolated * Ha:14.6f}\n')
-
-        total_free = broadcast_float(total_free, self.comm)
-        total_extrapolated = broadcast_float(total_extrapolated, self.comm)
-
-        self.results['free_energy'] = total_free
-        self.results['energy'] = total_extrapolated
+        self.results['free_energy'] = self.energies.total_free
+        self.results['energy'] = self.energies.total_extrapolated
+        self.energies.summary(self.log)
 
     def dipole(self):
         if 'dipole' in self.results:
@@ -476,23 +464,6 @@ class DFTCalculation:
         return DFTCalculation(
             ibzwfs, density, potential,
             builder.setups, scf_loop, pot_calc, log)
-
-
-def combine_energies(potential: Potential,
-                     ibzwfs: IBZWaveFunctions) -> dict[str, float]:
-    """Add up energy contributions."""
-    energies = potential.energies.copy()
-    energies.pop('stress', 0.0)
-    energies['kinetic'] += ibzwfs.energies['band']
-    energies['kinetic'] += ibzwfs.energies.get('exx_kinetic', 0.0)
-    energies['xc'] += (ibzwfs.energies.get('exx_vv', 0.0) +
-                       ibzwfs.energies.get('exx_vc', 0.0) +
-                       ibzwfs.energies.get('exx_cc', 0.0))
-    energies['entropy'] = ibzwfs.energies['entropy']
-    energies['total_free'] = sum(energies.values())
-    energies['total_extrapolated'] = (energies['total_free'] +
-                                      ibzwfs.energies['extrapolation'])
-    return energies
 
 
 def write_atoms(atoms: Atoms,

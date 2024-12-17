@@ -78,11 +78,11 @@ class SCFLoop:
         for self.niter in itertools.count(start=1):
             wfs_error = self.eigensolver.iterate(
                 ibzwfs, density, potential, self.hamiltonian, pot_calc)
-            ibzwfs.calculate_occs(
+            energy_contribs = ibzwfs.calculate_occs(
                 self.occ_calc,
                 fix_fermi_level=self.fix_fermi_level)
-            if self.eigensolver.direct:
-                ibzwfs.energies['band'] = 0.0
+
+            energies = Energies(potential.energies | energy_contribs)
 
             ctx = SCFContext(
                 log, self.niter,
@@ -111,6 +111,7 @@ class SCFLoop:
                 dens_error = self.mixer.mix(density)
                 potential, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
+
                 if self.eigensolver.direct:
                     ekin = ibzwfs.calculate_kinetic_energy(
                         self.hamiltonian, density)

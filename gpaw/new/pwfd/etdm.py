@@ -64,10 +64,13 @@ class ETDM(Eigensolver):
                 grad_nX = psit_nX.new()
                 Ht(psit_nX, out=grad_nX, spin=wfs.spin)
                 apply_non_local_hamiltonian(grad_nX, wfs, potential)
-                grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
                 project_gradient(grad_nX, wfs, self.dS_aii)
-                error += grad_nX.norm2().sum()
+                weight_n = (wfs.weight * wfs.spin_degeneracy *
+                            wfs.myocc_n[:nocc])
+                error += grad_nX.norm2() @ weight_n
+                grad_nX.data *= weight_n[:, np.newaxis]
                 self.grad_unX.append(grad_nX)
+            print(energy, error)
 
         psit_unX = []
         for wfs in ibzwfs:
@@ -110,9 +113,11 @@ class ETDM(Eigensolver):
         for psit_nX, grad_nX, wfs in zips(psit_unX, self.grad_unX, ibzwfs):
             Ht(psit_nX, out=grad_nX, spin=wfs.spin)
             apply_non_local_hamiltonian(grad_nX, wfs, potential)
-            grad_nX.data *= wfs.myocc_n[:nocc, np.newaxis]
             project_gradient(grad_nX, wfs, self.dS_aii)
-            error += grad_nX.norm2().sum()
+            weight_n = (wfs.weight * wfs.spin_degeneracy *
+                        wfs.myocc_n[:nocc])
+            error += grad_nX.norm2() @ weight_n
+            grad_nX.data *= weight_n[:, np.newaxis]
         print(energy, error, alpha)
         """
         e_entropy = 0.0
@@ -173,7 +178,9 @@ def update_density_and_potential(density,
               sum(e
                   for name, e in ibzwfs.energies.items()
                   if name != 'band'))
-    energy += ibzwfs.calculate_kinetic_energy(hamiltonian, density)
+    potential.energies['kinetic'] = ibzwfs.calculate_kinetic_energy(
+        hamiltonian, density)
+    ibzwfs.energies['band'] = 0.0
     return energy, potential
 
 
