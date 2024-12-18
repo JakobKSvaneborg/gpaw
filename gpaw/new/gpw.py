@@ -274,7 +274,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     energies = {name: reader.hamiltonian.get(f'e_{name}', np.nan) / ha
                 for name in ENERGY_NAMES}
     penergies = {key: e for key, e in energies.items()
-                 if not key.startswith('total')}
+                 if key not in ['total_extrapolated',
+                                'total_free', 'stress']}
     e_band = penergies.pop('band', np.nan)
     e_entropy = penergies.pop('entropy')
     penergies['kinetic'] -= e_band

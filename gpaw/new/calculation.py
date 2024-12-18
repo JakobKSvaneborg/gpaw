@@ -192,6 +192,7 @@ class DFTCalculation:
                                          calculate_forces=calculate_forces,
                                          log=self.log):
             self.energies = ctx.energies
+            self.potential = ctx.potential
             yield ctx
 
     @trace
