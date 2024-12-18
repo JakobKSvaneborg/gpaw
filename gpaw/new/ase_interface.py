@@ -244,7 +244,7 @@ class ASECalculator:
         self.log(f'Converged in {ctx.niter} steps')
 
         # Calculate all the cheap things:
-        self.dft.energies()
+        self.dft.energy()
         self.dft.dipole()
         self.dft.magmoms()
 

@@ -84,6 +84,7 @@ class SCFLoop:
                 fix_fermi_level=self.fix_fermi_level)
 
             energies = DFTEnergies(**potential.energies,
+                                   **pot_calc.xc.energies,
                                    band=e_band,
                                    entropy=e_entropy,
                                    extrapolate=e_extrapolate)

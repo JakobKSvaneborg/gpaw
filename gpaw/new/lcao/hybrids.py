@@ -29,7 +29,7 @@ class HybridLCAOEigensolver(LCAOEigensolver):
                 density,
                 potential,
                 hamiltonian,
-                pot_calc) -> float:
+                pot_calc=None) -> float:
         for wfs in ibzwfs:
             rho_MM = wfs.calculate_density_matrix()
             print(rho_MM)

@@ -490,7 +490,6 @@ class FDPWETDM:
             else:
                 phi_2i[0], grad_knG = \
                     self.get_energy_and_tangent_gradients_unocc(ham, wfs)
-            print(phi_2i, self.error);dsag
         else:
             grad_knG = self.grad_knG
 

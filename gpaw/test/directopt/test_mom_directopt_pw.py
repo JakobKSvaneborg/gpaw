@@ -27,8 +27,7 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
                 mixer={'backend': 'no-mixing'},
                 occupations={'name': 'fixed-uniform'},
                 convergence={'eigenstates': 1e-4},
-                #txt=None
-                )
+                txt=None)
     atoms.calc = calc
     atoms.get_potential_energy()
     calc.write('h2o.gpw', mode='all')

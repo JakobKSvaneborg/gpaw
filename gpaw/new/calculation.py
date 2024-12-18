@@ -208,7 +208,7 @@ class DFTCalculation:
         else:  # no break
             self.log('SCF steps:', step)
 
-    def energies(self):
+    def energy(self):
         self.results['free_energy'] = broadcast_float(
             self.energies.total_free, self.comm)
         self.results['energy'] = broadcast_float(
