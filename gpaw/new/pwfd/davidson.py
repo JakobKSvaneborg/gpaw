@@ -82,7 +82,8 @@ class Davidson(Eigensolver):
                 ibzwfs,
                 density,
                 potential,
-                hamiltonian: Hamiltonian) -> float:
+                hamiltonian: Hamiltonian,
+                pot_calc) -> float:
         """Iterate on state given fixed hamiltonian.
 
         Returns

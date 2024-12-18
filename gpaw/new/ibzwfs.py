@@ -176,7 +176,9 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.orthonormalize(work_array_nX)
 
-    def calculate_occs(self, occ_calc, fix_fermi_level=False):
+    def calculate_occs(self,
+                       occ_calc,
+                       fix_fermi_level=False) -> tuple[float, float, float]:
         degeneracy = self.spin_degeneracy
 
         # u index is q and s combined
@@ -203,10 +205,7 @@ class IBZWaveFunctions(Generic[WFT]):
             e_band += wfs.occ_n @ wfs.eig_n * wfs.weight * degeneracy
         e_band = self.kpt_comm.sum_scalar(float(e_band))  # XXX CPU float?
 
-        return dict(
-            band=e_band,
-            entropy=e_entropy,
-            extrapolation=e_entropy * occ_calc.extrapolate_factor)
+        return e_band, e_entropy, e_entropy * occ_calc.extrapolate_factor
 
     def add_to_density(self, nt_sR, D_asii) -> None:
         """Compute density and add to ``nt_sR`` and ``D_asii``."""

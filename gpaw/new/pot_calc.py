@@ -106,7 +106,7 @@ class PotentialCalculator:
         else:
             dedtaut_sR = None
 
-        energies['kinetic'] = e_kinetic
+        energies['kinetic_correction'] = e_kinetic
 
         if kpt_band_comm is None:
             if ibzwfs is None:
@@ -163,7 +163,8 @@ def calculate_non_local_potential(setups,
     kpt_band_comm.sum(dH_asii.data)
 
     # Sum over domain:
-    names = ['kinetic', 'coulomb', 'zero', 'xc', 'external', 'spinorbit']
+    names = ['kinetic_correction', 'coulomb', 'zero', 'xc', 'external',
+             'spinorbit']
     energies = np.array([energy_corrections[name] for name in names])
     density.D_asii.layout.atomdist.comm.sum(energies)
     kpt_band_comm.sum(energies)
@@ -214,7 +215,7 @@ def calculate_non_local_potential1(setup: Setup,
 
     e_kinetic -= (D_sii * dH_sii).sum().real
 
-    return dH_sii, {'kinetic': e_kinetic,
+    return dH_sii, {'kinetic_correction': e_kinetic,
                     'coulomb': e_coulomb,
                     'zero': e_zero,
                     'xc': e_xc,

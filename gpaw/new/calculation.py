@@ -7,16 +7,16 @@ from typing import Any, Union
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
-
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import world
+from gpaw.mpi import broadcast_float, world
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
+from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
@@ -27,7 +27,6 @@ from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 from gpaw.utilities.partition import AtomPartition
-from gpaw.new.energies import EnergyContributions
 
 
 class ReuseWaveFunctionsError(Exception):
@@ -91,7 +90,7 @@ class DFTCalculation:
 
         self.results: dict[str, Any] = {}
         self.relpos_ac = self.pot_calc.relpos_ac
-        self.energies = EnergyContributions()
+        self.energies = DFTEnergies()
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
@@ -210,8 +209,13 @@ class DFTCalculation:
             self.log('SCF steps:', step)
 
     def energies(self):
-        self.results['free_energy'] = self.energies.total_free
-        self.results['energy'] = self.energies.total_extrapolated
+        self.results['free_energy'] = broadcast_float(
+            self.energies.total_free, self.comm)
+        self.results['energy'] = broadcast_float(
+            self.energies.total_extrapolated, self.comm)
+
+        self.log('Energy contributions relative to reference atoms:',
+                 f'(reference = {self.setups.Eref * Ha:.6f})\n')
         self.energies.summary(self.log)
 
     def dipole(self):

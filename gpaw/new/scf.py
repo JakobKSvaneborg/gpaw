@@ -13,6 +13,7 @@ from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
 from gpaw.new.logger import indent
 from gpaw import KohnShamConvergenceError
+from gpaw.new.energies import DFTEnergies
 
 
 class TooFewBandsError(KohnShamConvergenceError):
@@ -78,14 +79,17 @@ class SCFLoop:
         for self.niter in itertools.count(start=1):
             wfs_error = self.eigensolver.iterate(
                 ibzwfs, density, potential, self.hamiltonian, pot_calc)
-            energy_contribs = ibzwfs.calculate_occs(
+            e_band, e_entropy, e_extrapolate = ibzwfs.calculate_occs(
                 self.occ_calc,
                 fix_fermi_level=self.fix_fermi_level)
 
-            energies = Energies(potential.energies | energy_contribs)
+            energies = DFTEnergies(**potential.energies,
+                                   band=e_band,
+                                   entropy=e_entropy,
+                                   extrapolate=e_extrapolate)
 
             ctx = SCFContext(
-                log, self.niter,
+                log, self.niter, energies,
                 ibzwfs, density, potential,
                 wfs_error, dens_error,
                 self.comm, calculate_forces,
@@ -125,6 +129,7 @@ class SCFContext:
     def __init__(self,
                  log,
                  niter: int,
+                 energies: DFTEnergies,
                  ibzwfs,
                  density,
                  potential,
@@ -136,15 +141,12 @@ class SCFContext:
                  update_density_and_potential):
         self.log = log
         self.niter = niter
+        self.energies = energies
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
-        energy = np.array([sum(e
-                               for name, e in potential.energies.items()
-                               if name != 'stress') +
-                           sum(ibzwfs.energies.values())])
-        comm.broadcast(energy, 0)
-        self.ham = SimpleNamespace(e_total_extrapolated=energy[0],
+        energy = energies.total_extrapolated
+        self.ham = SimpleNamespace(e_total_extrapolated=energy,
                                    get_workfunctions=self._get_workfunctions)
         self.wfs = SimpleNamespace(nvalence=ibzwfs.nelectrons,
                                    world=comm,
