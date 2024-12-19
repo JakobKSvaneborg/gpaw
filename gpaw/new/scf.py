@@ -52,6 +52,7 @@ class SCFLoop:
                 ibzwfs,
                 density,
                 potential,
+                energies: DFTEnergies,
                 pot_calc,
                 *,
                 maxiter=None,
@@ -77,17 +78,17 @@ class SCFLoop:
             dens_error = 0.0
 
         for self.niter in itertools.count(start=1):
-            wfs_error = self.eigensolver.iterate(
-                ibzwfs, density, potential, self.hamiltonian, pot_calc)
+            wfs_error, energies = self.eigensolver.iterate(
+                ibzwfs, density, potential, energies,
+                self.hamiltonian, pot_calc)
             e_band, e_entropy, e_extrapolate = ibzwfs.calculate_occs(
                 self.occ_calc,
                 fix_fermi_level=self.fix_fermi_level)
 
-            energies = DFTEnergies(**potential.energies,
-                                   **pot_calc.xc.energies,
-                                   band=e_band,
-                                   entropy=e_entropy,
-                                   extrapolate=e_extrapolate)
+            energies.set(**pot_calc.xc.energies,
+                         band=e_band,
+                         entropy=e_entropy,
+                         extrapolate=e_extrapolate)
 
             ctx = SCFContext(
                 log, self.niter, energies,
@@ -114,13 +115,8 @@ class SCFLoop:
             if self.update_density_and_potential:
                 density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
                 dens_error = self.mixer.mix(density)
-                potential, _ = pot_calc.calculate(
+                potential, energies, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
-
-                if self.eigensolver.direct:
-                    ekin = ibzwfs.calculate_kinetic_energy(
-                        self.hamiltonian, density)
-                    potential.energies['kinetic'] = ekin
 
         self.eigensolver.postprocess(
             ibzwfs, density, potential, self.hamiltonian)

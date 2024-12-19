@@ -82,6 +82,7 @@ class Davidson(Eigensolver):
                 ibzwfs,
                 density,
                 potential,
+                energies,
                 hamiltonian: Hamiltonian,
                 pot_calc) -> float:
         """Iterate on state given fixed hamiltonian.
@@ -117,8 +118,9 @@ class Davidson(Eigensolver):
             for wfs, weight_n in zips(ibzwfs, weight_un):
                 e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
                 error += wfs.weight * e
-        return ibzwfs.kpt_band_comm.sum_scalar(
+        error = ibzwfs.kpt_band_comm.sum_scalar(
             float(error)) * ibzwfs.spin_degeneracy
+        return error, energies
 
     @trace
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):

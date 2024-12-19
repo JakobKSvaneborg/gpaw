@@ -33,6 +33,7 @@ class ETDM(Eigensolver):
                 ibzwfs: PWFDIBZWaveFunction,
                 density: Density,
                 potential: Potential,
+                energies,
                 hamiltonian: Hamiltonian,
                 pot_calc) -> float:
         dH = potential.dH
@@ -50,7 +51,7 @@ class ETDM(Eigensolver):
                 wfs.orthonormalize()
                 wfs.subspace_diagonalize(Ht, dH)
 
-            energy, potential = update_density_and_potential(
+            energies, potential = update_density_and_potential(
                 density, potential, pot_calc, ibzwfs, hamiltonian)
             Ht = partial(hamiltonian.apply,
                          potential.vt_sR,
@@ -70,7 +71,6 @@ class ETDM(Eigensolver):
                 error += grad_nX.norm2() @ weight_n
                 grad_nX.data *= weight_n[:, np.newaxis]
                 self.grad_unX.append(grad_nX)
-            print(energy, error)
 
         psit_unX = []
         for wfs in ibzwfs:
@@ -101,7 +101,7 @@ class ETDM(Eigensolver):
             wfs.orthonormalized = False
             wfs.orthonormalize()
 
-        energy, potential = update_density_and_potential(
+        energies, potential = update_density_and_potential(
             density, potential, pot_calc, ibzwfs, hamiltonian)
 
         Ht = partial(hamiltonian.apply,
@@ -118,15 +118,8 @@ class ETDM(Eigensolver):
                         wfs.myocc_n[:nocc])
             error += grad_nX.norm2() @ weight_n
             grad_nX.data *= weight_n[:, np.newaxis]
-        print(energy, error, alpha)
-        """
-        e_entropy = 0.0
-        kin_en_using_band = False
-        e_sic = 0.0
-        ham.get_energy(
-            e_entropy, wfs, kin_en_using_band=kin_en_using_band, e_sic=e_sic)
-        """
-        return error
+
+        return error, energies
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
         """wfs, ham, dens = self.whd(ibzwfs, density, potential, hamiltonian)
@@ -171,17 +164,12 @@ def update_density_and_potential(density,
                                  ibzwfs,
                                  hamiltonian) -> tuple[float, Potential]:
     density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
-    potential, _ = pot_calc.calculate(density, ibzwfs, potential.vHt_x)
-    energy = (sum(e
-                  for name, e in potential.energies.items()
-                  if name not in ['stress', 'kinetic']) +
-              sum(e
-                  for name, e in ibzwfs.energies.items()
-                  if name != 'band'))
-    potential.energies['kinetic'] = ibzwfs.calculate_kinetic_energy(
-        hamiltonian, density)
-    ibzwfs.energies['band'] = 0.0
-    return energy, potential
+    potential, energies, _ = pot_calc.calculate(density,
+                                                ibzwfs,
+                                                potential.vHt_x)
+    energies.set(kinetic=ibzwfs.calculate_kinetic_energy(hamiltonian, density),
+                 band=0.0)
+    return energies, potential
 
 
 def find_number_of_ocupied_bands(ibzwfs: PWFDIBZWaveFunction) -> list[int]:

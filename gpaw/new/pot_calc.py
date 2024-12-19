@@ -29,6 +29,7 @@ from gpaw.utilities import pack_hermitian, pack_density, unpack_hermitian
 from gpaw.new.logger import indent
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new.external_potential import ExternalPotential
+from gpaw.new.energies import DFTEnergies
 
 
 class PotentialCalculator:
@@ -78,17 +79,18 @@ class PotentialCalculator:
         if xc.exx_fraction != 0.0:
             from gpaw.new.xc import create_functional
             self.xc = create_functional('PBE', xc.grid)
-        potential, V_al = self.calculate(density, ibzwfs, vHt_x, kpt_band_comm)
+        potential, energies, V_al = self.calculate(
+            density, ibzwfs, vHt_x, kpt_band_comm)
         if xc.exx_fraction != 0.0:
             self.xc = xc
-        return potential, V_al
+        return potential, energies, V_al
 
     def calculate(self,
                   density,
                   ibzwfs=None,
                   vHt_x: DistributedArrays | None = None,
                   kpt_band_comm: MPIComm | None = None
-                  ) -> tuple[Potential, AtomArrays]:
+                  ) -> tuple[Potential, DFTEnergies, AtomArrays]:
         energies, vt_sR, dedtaut_sr, vHt_x, V_aL = (
             self.calculate_pseudo_potential(density, ibzwfs, vHt_x))
         e_kinetic = 0.0
@@ -128,7 +130,9 @@ class PotentialCalculator:
                 print(f'{key:10} {energies[key]:15.9f} {e:15.9f}')
             energies[key] += e
 
-        return Potential(vt_sR, dH_asii, dedtaut_sR, energies, vHt_x), V_aL
+        return (Potential(vt_sR, dH_asii, dedtaut_sR, vHt_x),
+                DFTEnergies(**energies),
+                V_aL)
 
 
 @trace

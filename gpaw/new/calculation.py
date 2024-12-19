@@ -78,7 +78,8 @@ class DFTCalculation:
                  setups: Setups,
                  scf_loop: SCFLoop,
                  pot_calc,
-                 log: Logger):
+                 log: Logger,
+                 energies: DFTEnergies | None = None):
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
@@ -90,7 +91,7 @@ class DFTCalculation:
 
         self.results: dict[str, Any] = {}
         self.relpos_ac = self.pot_calc.relpos_ac
-        self.energies = DFTEnergies()
+        self.energies = energies or DFTEnergies()
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
@@ -135,7 +136,7 @@ class DFTCalculation:
         scf_loop = builder.create_scf_loop()
 
         pot_calc = builder.create_potential_calculator()
-        potential, _ = pot_calc.calculate_without_orbitals(
+        potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential, log=log)
@@ -152,7 +153,8 @@ class DFTCalculation:
         log(pot_calc)
 
         return cls(ibzwfs, density, potential,
-                   builder.setups, scf_loop, pot_calc, log)
+                   builder.setups, scf_loop, pot_calc, log,
+                   energies=energies)
 
     def move_atoms(self, atoms) -> DFTCalculation:
         check_atoms_too_close(atoms)
@@ -187,6 +189,7 @@ class DFTCalculation:
         for ctx in self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
                                          self.potential,
+                                         self.energies,
                                          self.pot_calc,
                                          maxiter=maxiter,
                                          calculate_forces=calculate_forces,

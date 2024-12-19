@@ -70,7 +70,6 @@ class Potential:
                 desc, comm1, comm2))
 
     def _write_gpw(self, writer, ibzwfs):
-        from gpaw.new.calculation import combine_energies
         energies = combine_energies(self, ibzwfs)
         energies['band'] = ibzwfs.energies['band']
         if 'stress' in self.energies:
