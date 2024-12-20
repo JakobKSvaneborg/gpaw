@@ -453,7 +453,7 @@ class ASECalculator:
 
     def get_electrostatic_potential(self):
         density = self.dft.density
-        potential, _ = self.dft.pot_calc.calculate(density)
+        potential, _, _ = self.dft.pot_calc.calculate(density)
         vHt_x = potential.vHt_x
         if isinstance(vHt_x, UGArray):
             return vHt_x.gather(broadcast=True).to_pbc_grid().data * Ha
