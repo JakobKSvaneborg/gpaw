@@ -1,6 +1,5 @@
-"""PAW-DFT energy contributions."""
+"""PAW-DFT energy-contributions."""
 
-import numpy as np
 from ase.units import Ha
 
 # Contributions to free energy:

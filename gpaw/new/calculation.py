@@ -177,7 +177,7 @@ class DFTCalculation:
             self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
 
-        self.potential, _ = self.pot_calc.calculate(
+        self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
 
         mm_av = self.results['non_collinear_magmoms']
