@@ -568,7 +568,8 @@ class ASECalculator:
         from gpaw.new.backwards_compatibility import FakeHamiltonian
         return FakeHamiltonian(
             self.dft.ibzwfs, self.dft.density, self.dft.potential,
-            self.dft.pot_calc, self.dft.results.get('free_energy'))
+            self.dft.pot_calc, self.dft.results.get('free_energy'),
+            self.dft.energies._energies['xc'])
 
     @property
     def spos_ac(self):
@@ -682,7 +683,8 @@ class ASECalculator:
             SimpleNamespace(relpos_ac=self.dft.relpos_ac,
                             poisson_solver=None,
                             xc=self.dft.pot_calc.xc),
-            log)
+            log,
+            energies=self.dft.energies)
 
         dft.converge()
 

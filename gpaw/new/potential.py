@@ -16,17 +16,17 @@ class Potential:
                  vt_sR: UGArray,
                  dH_asii: AtomArrays,
                  dedtaut_sR: UGArray | None,
-                 energies: dict[str, float],
-                 vHt_x: XArray | None = None):
+                 vHt_x: XArray | None = None,
+                 e_stress: float = np.nan):
         self.vt_sR = vt_sR
         self.dH_asii = dH_asii
         self.dedtaut_sR = dedtaut_sR
-        self.energies = energies
         self.vHt_x = vHt_x  # initial guess for Hartree potential
+        self.e_stress = e_stress  # idotropic contribution to stress tensor
 
     def __repr__(self):
         return (f'Potential({self.vt_sR}, {self.dH_asii}, '
-                f'{self.dedtaut_sR}, {self.energies})')
+                f'{self.dedtaut_sR})')
 
     def __str__(self) -> str:
         return (f'potential:\n'
@@ -65,15 +65,10 @@ class Potential:
             self.dH_asii.redist(atomdist, comm1, comm2),
             None if self.dedtaut_sR is None else self.dedtaut_sR.redist(
                 grid, comm1, comm2),
-            self.energies.copy(),
             None if self.vHt_x is None else self.vHt_x.redist(
                 desc, comm1, comm2))
 
-    def _write_gpw(self, writer, ibzwfs):
-        energies = combine_energies(self, ibzwfs)
-        energies['band'] = ibzwfs.energies['band']
-        if 'stress' in self.energies:
-            energies['stress'] = self.energies['stress']
+    def write_to_gpw(self, writer):
         dH_asp = self.dH_asii.to_cpu().to_lower_triangle().gather()
         vt_sR = self.vt_sR.to_xp(np).gather()
         if self.dedtaut_sR is not None:
@@ -84,8 +79,7 @@ class Potential:
             return
         writer.write(
             potential=vt_sR.data * Ha,
-            atomic_hamiltonian_matrices=dH_asp.data * Ha,
-            **{f'e_{name}': val * Ha for name, val in energies.items()})
+            atomic_hamiltonian_matrices=dH_asp.data * Ha)
         if self.vHt_x is not None:
             writer.write(electrostatic_potential=vHt_x.data * Ha)
         if self.dedtaut_sR is not None:

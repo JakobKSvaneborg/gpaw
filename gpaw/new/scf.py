@@ -79,16 +79,16 @@ class SCFLoop:
 
         for self.niter in itertools.count(start=1):
             wfs_error, energies = self.eigensolver.iterate(
-                ibzwfs, density, potential, energies,
-                self.hamiltonian, pot_calc)
-            e_band, e_entropy, e_extrapolate = ibzwfs.calculate_occs(
+                ibzwfs, density, potential,
+                self.hamiltonian, pot_calc, energies)
+            e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
                 self.occ_calc,
                 fix_fermi_level=self.fix_fermi_level)
 
             energies.set(**pot_calc.xc.energies,
                          band=e_band,
                          entropy=e_entropy,
-                         extrapolate=e_extrapolate)
+                         extrapolation=e_extrapolation)
 
             ctx = SCFContext(
                 log, self.niter, energies,

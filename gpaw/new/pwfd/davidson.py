@@ -21,6 +21,7 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities.blas import axpy
+from gpaw.new.energies import DFTEnergies
 
 
 class Davidson(Eigensolver):
@@ -82,9 +83,9 @@ class Davidson(Eigensolver):
                 ibzwfs,
                 density,
                 potential,
-                energies,
                 hamiltonian: Hamiltonian,
-                pot_calc) -> float:
+                pot_calc,
+                energies: DFTEnergies) -> tuple[float, DFTEnergies]:
         """Iterate on state given fixed hamiltonian.
 
         Returns

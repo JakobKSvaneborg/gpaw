@@ -3,6 +3,7 @@ import numpy as np
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.lcao.hamiltonian import HamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
+from gpaw.new.energies import DFTEnergies
 
 
 class LCAOEigensolver(Eigensolver):
@@ -14,13 +15,14 @@ class LCAOEigensolver(Eigensolver):
                 density,
                 potential,
                 hamiltonian,
-                pot_calc=None) -> float:
+                pot_calc=None,
+                energies=None) -> tuple[float, DFTEnergies]:
         matrix_calculator = hamiltonian.create_hamiltonian_matrix_calculator(
             potential)
 
         for wfs in ibzwfs:
             self.iterate1(wfs, matrix_calculator)
-        return 0.0
+        return 0.0, energies
 
     def iterate1(self,
                  wfs: LCAOWaveFunctions,

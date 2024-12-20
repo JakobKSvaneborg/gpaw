@@ -8,9 +8,10 @@ from gpaw.new.density import Density
 from gpaw.new.eigensolver import Eigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.potential import Potential
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
+from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.lbfgs import LBFGS
 from gpaw.setup import Setups
+from gpaw.new.energies import DFTEnergies
 
 
 class ETDM(Eigensolver):
@@ -30,12 +31,12 @@ class ETDM(Eigensolver):
         self.nocc_s = [-1] * nspins
 
     def iterate(self,
-                ibzwfs: PWFDIBZWaveFunction,
+                ibzwfs: IBZWaveFunctions,
                 density: Density,
                 potential: Potential,
-                energies,
                 hamiltonian: Hamiltonian,
-                pot_calc) -> float:
+                pot_calc,
+                energies) -> tuple[float, DFTEnergies]:
         dH = potential.dH
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
@@ -172,7 +173,7 @@ def update_density_and_potential(density,
     return energies, potential
 
 
-def find_number_of_ocupied_bands(ibzwfs: PWFDIBZWaveFunction) -> list[int]:
+def find_number_of_ocupied_bands(ibzwfs: IBZWaveFunctions) -> list[int]:
     nocc_s = [-1] * ibzwfs.nspins
     for wfs in ibzwfs:
         nocc = (wfs.occ_n > 0.5).sum()

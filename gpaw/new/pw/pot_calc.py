@@ -131,12 +131,17 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
 
         self._reset()
 
-        self.e_stress = e_coulomb + e_zero
+        e_stress = e_coulomb + e_zero
 
-        return {'coulomb': e_coulomb,
-                'zero': e_zero,
-                'xc': e_xc,
-                'external': e_external}, vt_sR, dedtaut_sr, vHt_h, V_aL
+        return ({'coulomb': e_coulomb,
+                 'zero': e_zero,
+                 'xc': e_xc,
+                 'external': e_external},
+                vt_sR,
+                dedtaut_sr,
+                vHt_h,
+                V_aL,
+                e_stress)
 
     def move(self, relpos_ac, atomdist):
         self.poisson_solver.move(relpos_ac, atomdist)

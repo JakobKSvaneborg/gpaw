@@ -357,7 +357,8 @@ class FakeDensity:
 
 class FakeHamiltonian:
     def __init__(self, ibzwfs, density, potential, pot_calc,
-                 e_total_free=np.nan):
+                 e_total_free=np.nan,
+                 e_xc=np.nan):
         self.pot_calc = pot_calc
         self.ibzwfs = ibzwfs
         self.density = density
@@ -368,7 +369,7 @@ class FakeHamiltonian:
             pass
         self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
-        self.e_xc = potential.energies['xc']
+        self.e_xc = e_xc
 
     def update(self, dens, wfs, kin_en_using_band=True):
         self.potential, _ = self.pot_calc.calculate(

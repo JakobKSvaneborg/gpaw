@@ -63,11 +63,13 @@ class DFTState:
     def __init__(self,
                  ibzwfs: IBZWaveFunctions,
                  density: Density,
-                 potential: Potential):
+                 potential: Potential,
+                 energies):
         """State of a Kohn-Sham calculation."""
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
+        self.energies = energies
 
 
 class DFTCalculation:
@@ -94,7 +96,8 @@ class DFTCalculation:
         self.energies = energies or DFTEnergies()
 
     def get_state(self):
-        return DFTState(self.ibzwfs, self.density, self.potential)
+        return DFTState(self.ibzwfs, self.density, self.potential,
+                        self.energies)
 
     @property
     def state(self):
@@ -441,7 +444,7 @@ class DFTCalculation:
 
         scf_loop = builder.create_scf_loop()
         pot_calc = builder.create_potential_calculator()
-        potential, _ = pot_calc.calculate(density)
+        potential, energies, _ = pot_calc.calculate(density)
 
         old_ibzwfs = ibzwfs
 
@@ -471,7 +474,8 @@ class DFTCalculation:
 
         return DFTCalculation(
             ibzwfs, density, potential,
-            builder.setups, scf_loop, pot_calc, log)
+            builder.setups, scf_loop, pot_calc, log,
+            energies=energies)
 
 
 def write_atoms(atoms: Atoms,
