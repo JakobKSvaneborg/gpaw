@@ -275,7 +275,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if reader.version >= 6:
         ec = {name: e / ha
               for name, e in reader.energy_contributions.asdict().items()}
-        e_stress = reader.e_stress
+        e_stress = reader.e_stress / ha
     else:
         NAMES = ['kinetic', 'coulomb', 'zero', 'external',
                  'xc', 'entropy',
@@ -286,7 +286,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         ec['kinetic_correction'] = ec.pop('kinetic') - ec['band']
         ec['extrapolation'] = (ec.pop('total_extrapolated') -
                                ec.pop('total_free'))
-        e_stress = ec.pop('stress', np.nan)
+        e_stress = ec.pop('stress', np.nan) / ha
 
     energies = DFTEnergies(**ec)
 

@@ -31,7 +31,7 @@ class Vector:
         for x_nX, y_nX in zips(self, other):
             for x_X, y_X in zips(x_nX, y_nX):
                 z += x_X.integrate(y_X)
-        return 2 * z
+        return 2 * z.real
 
     def __sub__(self, other):
         x_unX = self.copy()
