@@ -1,9 +1,10 @@
 import pytest
 from ase.build import molecule
+
+import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.test import gen
 from gpaw.xas import XAS, get_oscillator_strength
-import gpaw.mpi as mpi
 
 
 def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
@@ -113,7 +114,7 @@ def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
 
 def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     print('#### size: ', mpi.world.size, mpi.size)
-    if 0 and mpi.world.size < 2:
+    if mpi.world.size < 2:
         return
 
     atoms = molecule('SH2')

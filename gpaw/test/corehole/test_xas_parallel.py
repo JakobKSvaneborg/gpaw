@@ -5,8 +5,9 @@ from gpaw.xas import XAS
 import gpaw.mpi as mpi
 
 
-def test_xas_paralell_kpts_and_domian(
+def test_xas_parallel_kpts_and_domian(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
+
 
     if mpi.size == 5:
         rank = mpi.world.rank
