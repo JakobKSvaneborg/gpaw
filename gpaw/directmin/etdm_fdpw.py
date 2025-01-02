@@ -483,6 +483,7 @@ class FDPWETDM:
         wfs.timer.start('Direct Minimisation step')
 
         if self.iters == 0:
+            print(converge_unocc, '*' * 88)
             # calculate gradients
             if not converge_unocc:
                 phi_2i[0], grad_knG = \
