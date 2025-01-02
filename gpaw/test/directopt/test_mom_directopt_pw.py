@@ -1,7 +1,6 @@
 import pytest
 
 from gpaw import GPAW, PW, restart
-from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.tools import excite
 from ase import Atoms
@@ -40,10 +39,11 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
             momevery = np.inf
         else:
             momevery = 3
-        calc.set(eigensolver=FDPWETDM(excited_state=True,
-                                      momevery=momevery,
-                                      restart_canonical=canonical,
-                                      printinnerloop=True))
+        calc.set(eigensolver=dict(name='etdm-fdpw',
+                                  excited_state=True,
+                                  momevery=momevery,
+                                  restart_canonical=canonical,
+                                  printinnerloop=True))
         f_sn = excite(calc, 0, 0, (0, 0))
         prepare_mom_calculation(calc, atoms, f_sn)
 

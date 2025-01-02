@@ -1,8 +1,8 @@
+from __future__ import annotations
 from functools import partial
 
 import numpy as np
 from gpaw.core.arrays import DistributedArrays as XArray
-from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.new import zips
 from gpaw.new.density import Density
 from gpaw.new.eigensolver import Eigensolver
@@ -10,25 +10,28 @@ from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.potential import Potential
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.lbfgs import LBFGS
-from gpaw.setup import Setups
 from gpaw.new.energies import DFTEnergies
 
 
 class ETDM(Eigensolver):
     def __init__(self,
                  *,
-                 setups: Setups,
-                 atomdist: AtomDistribution,
-                 preconditioner_factory,
+                 dS_aii,
+                 preconditioner,
                  nspins: int,
                  excited_state: bool = False,
-                 converge_unocc: bool = False,
-                 xp=np):
-        self.preconditioner = preconditioner_factory(10, xp=xp)
+                 converge_unocc: bool = False):
+        self.preconditioner = preconditioner
         self.search_dir = LBFGS()
         self.grad_unX: list[XArray] = []
-        self.dS_aii = setups.get_overlap_corrections(atomdist, xp)
+        self.dS_aii = dS_aii
         self.nocc_s = [-1] * nspins
+
+    def new(self, **params) -> ETDM:
+        return ETDM(dS_aii=self.dS_aii,
+                    preconditioner=self.preconditioner,
+                    nspins=len(self.nocc_s),
+                    **params)
 
     def iterate(self,
                 ibzwfs: IBZWaveFunctions,

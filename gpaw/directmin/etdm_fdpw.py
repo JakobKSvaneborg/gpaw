@@ -688,7 +688,6 @@ class FDPWETDM:
                 dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
                 c_xi = np.dot(P_xi, dH_ii)
                 c_axi[a] = c_xi
-                print(a, c_xi)
 
         # not sure about this:
         ham.xc.add_correction(
@@ -700,7 +699,6 @@ class FDPWETDM:
         if scalewithocc:
             for i, f in enumerate(kpt.f_n):
                 Hpsi_nG[i] *= f
-                print(i, f)
         return Hpsi_nG
 
     def project_gradient(self, wfs, p_knG):
@@ -729,7 +727,6 @@ class FDPWETDM:
         n_occ = self.dimensions[k]
         psc = wfs.integrate(p_nG[:n_occ], kpt.psit_nG[:n_occ], True)
         psc = 0.5 * (psc.conj() + psc.T)
-        print(psc)
         s_psit_nG = self.apply_S(wfs, kpt.psit_nG, kpt, kpt.P_ani)
         p_nG[:n_occ] -= np.tensordot(psc, s_psit_nG[:n_occ], axes=1)
 

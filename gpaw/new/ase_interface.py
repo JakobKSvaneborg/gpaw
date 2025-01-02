@@ -753,11 +753,9 @@ class ASECalculator:
         pass
 
     def set(self, eigensolver):
-        from gpaw.new.pwfd.etdm import ETDMPWFD
-        self.dft.scf_loop.eigensolver = ETDMPWFD(self.setups,
-                                                 self.comm,
-                                                 self.atoms,
-                                                 eigensolver)
+        assert eigensolver.pop('name') == 'etdm-fdpw'
+        self.dft.scf_loop.eigensolver = self.dft.scf_loop.eigensolver.new(
+            **eigensolver)
 
     def todict(self):
         return dict(self.params.items())

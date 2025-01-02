@@ -37,10 +37,11 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 **eigsolv_params)
         if name == 'etdm-fdpw':
             return ETDM(
-                setups=self.setups,
-                atomdist=self.atomdist,
+                dS_aii=self.setups.get_overlap_corrections(
+                    self.atomdist, self.xp),
                 nspins=self.nspins,
-                preconditioner_factory=hamiltonian.create_preconditioner,
+                preconditioner=hamiltonian.create_preconditioner(
+                    10, xp=self.xp),
                 **eigsolv_params)
 
     def read_ibz_wave_functions(self, reader):
