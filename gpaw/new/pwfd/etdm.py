@@ -125,70 +125,62 @@ class ETDM(Eigensolver):
         return error, energies
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
-        self.grad_unX = []
-        if self.converge_unocc:
-            for _ in self.iterate_unoccuied(ibzwfs, density, potential,
-                                            hamiltonian):
-                ...
+        if not self.converge_unocc:
+            return
 
-    def iterate_unoccupied(self,
-                           ibzwfs: IBZWaveFunctions,
-                           density: Density,
-                           potential: Potential,
-                           hamiltonian: Hamiltonian) -> None:
         dH = potential.dH
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
 
-        if len(self.grad_unX) == 0:
-            for wfs in ibzwfs:
-                nocc = self.nocc_s[wfs.spin]
-                psit_nX = wfs.psit_nX[nocc:]
-                grad_nX = psit_nX.new()
-                Ht(psit_nX, out=grad_nX, spin=wfs.spin)
-                apply_non_local_hamiltonian(grad_nX, wfs, potential)
-                project_gradient(grad_nX, wfs, self.dS_aii)
-                self.grad_unX.append(grad_nX)
-
+        grad_unX = []
         psit_unX = []
         for wfs in ibzwfs:
             nocc = self.nocc_s[wfs.spin]
             psit_nX = wfs.psit_nX[nocc:]
             psit_unX.append(psit_nX)
-
-        pg_unX = []
-        for psit_nX, grad_nX in zips(psit_unX, self.grad_unX):
-            pg_nX = grad_nX.new()
-            self.preconditioner(psit_nX, grad_nX, out=pg_nX)
-            pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
-            pg_unX.append(pg_nX)
-
-        p_unX = self.search_dir.update(psit_unX, pg_unX)
-        for wfs, p_nX in zips(ibzwfs, p_unX):
-            project_gradient(p_nX, wfs)
-
-        slength = sum(p_nX.norm2().sum() for p_nX in p_unX)**0.5
-        max_step = 0.2
-        alpha = max_step / slength if slength > max_step else 1.0
-
-        for psit_nX, p_nX in zips(psit_unX, p_unX):
-            psit_nX.data += alpha * p_nX.data
-
-        for wfs in ibzwfs:
-            wfs._P_ani = None
-            wfs.orthonormalized = False
-            wfs.orthonormalize()
-
-        error = 0.0
-        for psit_nX, grad_nX, wfs in zips(psit_unX, self.grad_unX, ibzwfs):
+            grad_nX = psit_nX.new()
             Ht(psit_nX, out=grad_nX, spin=wfs.spin)
             apply_non_local_hamiltonian(grad_nX, wfs, potential)
             project_gradient(grad_nX, wfs, self.dS_aii)
             weight = wfs.weight * wfs.spin_degeneracy
-            error += grad_nX.norm2().sum() * weight
-            grad_nX.data *= weight_n[:, np.newaxis]
+            grad_nX.data *= weight
+            grad_unX.append(grad_nX)
+
+        while 1:
+            pg_unX = []
+            for psit_nX, grad_nX in zips(psit_unX, grad_unX):
+                pg_nX = grad_nX.new()
+                self.preconditioner(psit_nX, grad_nX, out=pg_nX)
+                pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
+                pg_unX.append(pg_nX)
+
+            p_unX = self.search_dir.update(psit_unX, pg_unX)
+            for wfs, p_nX in zips(ibzwfs, p_unX):
+                project_gradient(p_nX, wfs)
+
+            slength = sum(p_nX.norm2().sum() for p_nX in p_unX)**0.5
+            max_step = 0.2
+            alpha = max_step / slength if slength > max_step else 1.0
+
+            for psit_nX, p_nX in zips(psit_unX, p_unX):
+                psit_nX.data += alpha * p_nX.data
+
+            for wfs in ibzwfs:
+                wfs._P_ani = None
+                wfs.orthonormalized = False
+                wfs.orthonormalize()
+
+            error = 0.0
+            for psit_nX, grad_nX, wfs in zips(psit_unX, grad_unX, ibzwfs):
+                Ht(psit_nX, out=grad_nX, spin=wfs.spin)
+                apply_non_local_hamiltonian(grad_nX, wfs, potential)
+                project_gradient(grad_nX, wfs, self.dS_aii)
+                weight = wfs.weight * wfs.spin_degeneracy
+                error += grad_nX.norm2().sum() * weight
+                grad_nX.data *= weight
+            print(error)
 
 
 def apply_non_local_hamiltonian(Htpsit_nX,
