@@ -53,6 +53,10 @@ Git master branch
   different numbers.  See :mr:`2537` for an example of the changes.
   Default is backwards compatible.
 
+* New GPAW only: The :meth:`~gpaw.new.ase_interface.ASECalculator.write`
+  method of the GPAW calculator object can now write smaller gpw-files
+  by using ``precision='single'`` and ``include_projections=False``.
+
 
 Version 24.6.0
 ==============
