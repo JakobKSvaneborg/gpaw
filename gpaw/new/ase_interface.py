@@ -328,7 +328,7 @@ class ASECalculator:
         """Helper method for force-convergence criterium."""
         with self.timer('Forces'):
             self.dft.forces(silent=True)
-        return self.dft.results['forces'].copy()
+        return self.dft.results.pop('forces')
 
     def __del__(self):
         self.log('---')
