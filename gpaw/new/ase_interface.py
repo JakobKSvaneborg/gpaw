@@ -390,7 +390,7 @@ class ASECalculator:
         mode:
             Write mode. Use ``mode='all'``
             to include wave functions in the file.
-        prevision:
+        precision:
             'double' (the default) or 'single'.
         include_projections:
             Use ``include_projections=False`` to not include

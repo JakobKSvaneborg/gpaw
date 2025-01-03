@@ -62,7 +62,7 @@ def as_double_precision(array):
     return np.array(array, dtype=dtype)
 
 
-def write_gpw(filename: str,
+def write_gpw(filename: str | Path,
               atoms,
               params,
               dft: DFTCalculation,
