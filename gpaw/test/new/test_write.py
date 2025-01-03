@@ -1,47 +1,26 @@
 import pytest
-from ase.build import bulk, molecule
+from ase.build import molecule
 from gpaw.new.ase_interface import GPAW
 
 
-def build_N2():
-    atoms = molecule("N2")
-    atoms.center(vacuum=3.0)
-    return atoms * (2, 1, 1)
-
-
-def build_Si():
-    atoms = bulk("Si", "diamond", a=5.43)
-    return atoms
-
-
-@pytest.mark.parametrize(
-    "name, build_atoms, kwargs",
-    [
-        ("N2", build_N2, {"mode": "pw", "txt": None}),
-        ("Si", build_Si, {"mode": "pw", "kpts": (2, 2, 2), "txt": None}),
-        ("N2", build_N2, {"mode": "fd", "txt": None}),
-        ("Si", build_Si, {"mode": "fd", "kpts": (2, 2, 2), "txt": None}),
-        ("N2", build_N2, {"mode": "lcao", "txt": None}),
-        ("Si", build_Si, {"mode": "lcao", "kpts": (2, 2, 2), "txt": None}),
-    ],
-)
-def test_write_new_single(name, build_atoms, kwargs):
-    atoms = build_atoms()
-    calc = GPAW(**kwargs)
-    atoms.calc = calc
+@pytest.mark.parametrize('mode', ['pw', 'lcao', 'fd'])
+@pytest.mark.parametrize('kpts', [False, True])
+def test_write_new_single(mode, kpts, in_tmp_dir):
+    atoms = molecule('H2')
+    atoms.center(vacuum=2.0)
+    if kpts:
+        atoms.pbc = True
+        atoms.calc = GPAW(mode=mode, kpts=(2, 1, 1), txt=None)
+    else:
+        atoms.calc = GPAW(mode=mode, txt=None)
     atoms.get_potential_energy()
-    # write
-    mode = kwargs["mode"]
-    gpw_name = f"{name}_{mode}_calc_all.gpw"
 
-    calc.write(gpw_name + "_double", mode="all", precision="double")
-    calc.write(gpw_name + "_single", mode="all", precision="single")
-    dft1 = calc.dft
+    # write
+    atoms.calc.write('h2.gpw', mode='all', precision='single')
+    dft1 = atoms.calc.dft
     # load
-    calc = GPAW(gpw_name + "_single")
+    calc = GPAW('h2.gpw')
     dft2 = calc.dft
-    # pytest.approx by default takes the relative tolerance of 1e-6,
-    # the test should be 1e-8?
     assert dft1.density.nt_sR.data == pytest.approx(dft2.density.nt_sR.data)
     assert dft1.potential.vt_sR.data == pytest.approx(
         dft2.potential.vt_sR.data)
