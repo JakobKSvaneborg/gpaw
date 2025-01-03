@@ -9,7 +9,7 @@ from typing import IO, Any, Callable, Protocol, Sequence, Union, Iterable
 
 import numpy as np
 from ase import Atoms
-from ase.units import Ha
+from ase.units import Ha, Bohr
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
@@ -446,10 +446,11 @@ class ASECalculator:
     def get_number_of_grid_points(self):
         return self.dft.density.nt_sR.desc.size
 
-    def get_effective_potential(self, spin=0):
+    def get_effective_potential(self, spin=0, broadcast=True):
         assert spin == 0
         vt_R = self.dft.potential.vt_sR[spin]
-        return vt_R.to_pbc_grid().gather(broadcast=True).data * Ha
+        vt_R = vt_R.to_pbc_grid().gather(broadcast=broadcast)
+        return None if vt_R is None else vt_R.data * Ha
 
     def get_electrostatic_potential(self):
         density = self.dft.density
@@ -474,7 +475,8 @@ class ASECalculator:
         assert spin is None
         nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
-        return nt_sr.gather(broadcast=broadcast).data.sum(0)
+        nt_sr = nt_sr.gather(broadcast=broadcast)
+        return None if nt_sr is None else nt_sr.data.sum(0) / Bohr**3
 
     def get_all_electron_density(self,
                                  spin=None,
@@ -485,8 +487,10 @@ class ASECalculator:
             grid_refinement=gridrefinement,
             skip_core=skip_core)
         if spin is None:
-            return n_sr.gather(broadcast=broadcast).data.sum(0)
-        return n_sr[spin].gather(broadcast=broadcast).data
+            n_sr = n_sr.gather(broadcast=broadcast)
+            return None if n_sr is None else n_sr.data.sum(0) / Bohr**3
+        n_r = n_sr[spin].gather(broadcast=broadcast)
+        return None if n_sr is None else n_r.data / Bohr**3
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
         eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
