@@ -6,8 +6,8 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.setup import Setups
 
 
-def move_wave_functions(oldfracpos_ac: np.ndarray,
-                        newfracpos_ac: np.ndarray,
+def move_wave_functions(oldrelpos_ac: np.ndarray,
+                        newrelpos_ac: np.ndarray,
                         P_ani: AtomArrays,
                         psit_nX: XArray,
                         setups: Setups) -> None:
@@ -30,7 +30,7 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
     # Create partial-wave ACF object (b denotes bound states):
     phit_abX = desc.atom_centered_functions(
         [setup.get_partial_waves_for_atomic_orbitals() for setup in setups],
-        oldfracpos_ac,
+        oldrelpos_ac,
         atomdist=atomdist,
         cut=True,
         xp=psit_nX.xp)
@@ -43,7 +43,7 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
     phit_abX.add_to(psit_nX, P_anb)
 
     if desc.dtype == complex:
-        disp_ac = (newfracpos_ac - oldfracpos_ac).round()
+        disp_ac = (newrelpos_ac - oldrelpos_ac).round()
         phase_a = np.exp(2j * np.pi * disp_ac @ desc.kpt_c)
         for a, P_nb in P_anb.items():
             P_nb *= -phase_a[a]
@@ -51,7 +51,7 @@ def move_wave_functions(oldfracpos_ac: np.ndarray,
         P_anb.data *= -1.0
 
     # Add partial wave expansion at new positions:
-    atomdist2 = phit_abX.move(newfracpos_ac, atomdist)
+    atomdist2 = phit_abX.move(newrelpos_ac, atomdist)
     if atomdist2 is not atomdist:
         P_anb = P_anb.moved(atomdist2)
     phit_abX.add_to(psit_nX, P_anb)

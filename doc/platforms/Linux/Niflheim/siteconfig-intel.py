@@ -1,6 +1,7 @@
 import os
 
 scalapack = True
+intelmkl = True
 fftw = True
 mpicompiler = 'mpiicc'
 

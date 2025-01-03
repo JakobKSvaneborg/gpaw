@@ -123,8 +123,7 @@ class Potential:
         elif isinstance(self.vHt_x, PWArray):
             vHt_g = self.vHt_x.gather()
             if vHt_g is not None:
-                vHt_r = vHt_g.ifft(grid=grid.new(comm=None,
-                                                 size=grid.size_c * 2))
+                vHt_r = vHt_g.ifft(grid=vHt_g.desc.minimal_uniform_grid())
             else:
                 vHt_r = None
         else:

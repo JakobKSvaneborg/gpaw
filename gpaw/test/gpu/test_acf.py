@@ -15,13 +15,13 @@ def test_acf(dtype):
     s = Spline.from_data(0, 1.0, [1.0, 0.5, 0.0])
     n = 40
     a = 8.0
-    fracpos_ac = [(0.5, 0.5, 0.25 + 0.25 * i) for i in [0, 1, 2]]
+    relpos_ac = [(0.5, 0.5, 0.25 + 0.25 * i) for i in [0, 1, 2]]
 
     grid = UGDesc(cell=[a, a, a], size=(n, n, n), comm=world, dtype=dtype)
     basis_cpu = grid.atom_centered_functions([[s], [s], [s]],
-                                             positions=fracpos_ac, xp=np)
+                                             positions=relpos_ac, xp=np)
     basis_gpu = grid.atom_centered_functions([[s], [s], [s]],
-                                             positions=fracpos_ac, xp=cp)
+                                             positions=relpos_ac, xp=cp)
 
     P_cpu_ani = basis_cpu.layout.empty()
     P_gpu_ani = basis_gpu.layout.empty()

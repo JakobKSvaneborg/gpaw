@@ -168,12 +168,12 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs_s in self.wfs_qs:
             yield from wfs_s
 
-    def move(self, fracpos_ac, atomdist):
-        self.ibz.symmetries.check_positions(fracpos_ac)
+    def move(self, relpos_ac, atomdist):
+        self.ibz.symmetries.check_positions(relpos_ac)
         self.energies.clear()
         self.make_sure_wfs_are_read_from_gpw_file()
         for wfs in self:
-            wfs.move(fracpos_ac, atomdist, self.move_wave_functions)
+            wfs.move(relpos_ac, atomdist, self.move_wave_functions)
 
     def orthonormalize(self, work_array_nX: np.ndarray = None):
         for wfs in self:
@@ -253,7 +253,7 @@ class IBZWaveFunctions(Generic[WFT]):
 
         if not skip_paw_correction:
             dphi_aj = wfs.setups.partial_wave_corrections()
-            dphi_air = grid.atom_centered_functions(dphi_aj, wfs.fracpos_ac)
+            dphi_air = grid.atom_centered_functions(dphi_aj, wfs.relpos_ac)
             dphi_air.add_to(psi_r, wfs.P_ani[:, 0])
 
         return psi_r
@@ -340,11 +340,11 @@ class IBZWaveFunctions(Generic[WFT]):
                      occupations=occ_skn)
         ibz = self.ibz
         writer.child('kpts').write(
-            atommap=ibz.symmetries.a_sa,
+            atommap=ibz.symmetries.atommap_sa,
             bz2ibz=ibz.bz2ibz_K,
             bzkpts=ibz.bz.kpt_Kc,
             ibzkpts=ibz.kpt_kc,
-            rotations=ibz.symmetries.rotation_svv,
+            rotations=ibz.symmetries.rotation_scc,
             translations=ibz.symmetries.translation_sc,
             weights=ibz.weight_k)
 
