@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Generator, Generic, TypeVar, TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Generator, Generic, TypeVar
 
 import numpy as np
 from ase.io.ulm import Writer
@@ -12,6 +12,7 @@ from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
 from gpaw.new.brillouin import IBZ
 from gpaw.new.c import GPU_AWARE_MPI
+from gpaw.new.gpw import as_single_precision
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
@@ -392,7 +393,6 @@ class IBZWaveFunctions(Generic[WFT]):
         dtype_write = dtype
         singlep = precision == 'single'
         if singlep:
-            from gpaw.new.gpw import as_single_precision
             if dtype == complex:
                 dtype_write = np.complex64
             else:

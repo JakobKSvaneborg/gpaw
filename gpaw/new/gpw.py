@@ -46,12 +46,22 @@ ENERGY_NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
 
 
 def as_single_precision(array):
+    """Convert 64 bit floating point numbers to 32 bit.
+
+    >>> as_single_precision(np.ones(3))
+    array([1., 1., 1.], dtype=float32)
+    """
     assert array.dtype in [np.float64, np.complex128]
     dtype = np.float32 if array.dtype == np.float64 else np.complex64
     return np.array(array, dtype=dtype)
 
 
 def as_double_precision(array):
+    """Convert 32 bit floating point numbers to 64 bit.
+
+    >>> as_double_precision(np.ones(3, dtype=np.float32))
+    array([1., 1., 1.])
+    """
     if array is None:
         return None
     assert array.dtype in [np.float32, np.complex64]
@@ -175,10 +185,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     reader = ulm.Reader(filename)
     bohr = reader.bohr
     ha = reader.ha
-    try:
-        singlep = reader.precision == 'single'
-    except AttributeError:
-        singlep = False
+    singlep = reader.get('precision', 'double') == 'single'
 
     atoms = read_atoms(reader.atoms)
     kwargs = reader.parameters.asdict()
