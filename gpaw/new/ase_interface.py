@@ -379,7 +379,7 @@ class ASECalculator:
     def write(self,
               filename: str | Path,
               mode: str = '',
-              precision: str: = 'double',
+              precision: str = 'double',
               include_projections: bool = True) -> None:
         """Write calculator object to a file.
 
