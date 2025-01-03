@@ -12,7 +12,6 @@ from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
 from gpaw.new.brillouin import IBZ
 from gpaw.new.c import GPU_AWARE_MPI
-from gpaw.new.gpw import as_single_precision
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
@@ -385,6 +384,7 @@ class IBZWaveFunctions(Generic[WFT]):
             self._write_wave_functions(writer, spin_k_shape, precision)
 
     def _write_wave_functions(self, writer, spin_k_shape, precision='double'):
+        from gpaw.new.gpw import as_single_precision
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
