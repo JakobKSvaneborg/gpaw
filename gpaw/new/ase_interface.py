@@ -9,7 +9,7 @@ from typing import IO, Any, Callable, Protocol, Sequence, Union, Iterable
 
 import numpy as np
 from ase import Atoms
-from ase.units import Ha, Bohr
+from ase.units import Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
@@ -485,7 +485,7 @@ class ASECalculator:
         nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
         nt_sr = nt_sr.gather(broadcast=broadcast)
-        return None if nt_sr is None else nt_sr.data.sum(0) / Bohr**3
+        return None if nt_sr is None else nt_sr.data.sum(0)
 
     def get_all_electron_density(self,
                                  spin=None,
@@ -497,9 +497,9 @@ class ASECalculator:
             skip_core=skip_core)
         if spin is None:
             n_sr = n_sr.gather(broadcast=broadcast)
-            return None if n_sr is None else n_sr.data.sum(0) / Bohr**3
+            return None if n_sr is None else n_sr.data.sum(0)
         n_r = n_sr[spin].gather(broadcast=broadcast)
-        return None if n_sr is None else n_r.data / Bohr**3
+        return None if n_sr is None else n_r.data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
         eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
