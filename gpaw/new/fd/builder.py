@@ -4,6 +4,7 @@ from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
+from gpaw.new.gpw import as_double_precision
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 from gpaw.poisson import PoissonSolver as make_poisson_solver
@@ -93,14 +94,11 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if 'coefficients' in reader.wave_functions:
             name = 'coefficients'
         elif 'values' in reader.wave_functions:
-            name = 'values'
+            name = 'values'  # old name
         else:
             return ibzwfs
 
-        singlep = self.reader_single_precision
-        if singlep:
-            from gpaw.new.gpw import as_double_precision
-
+        singlep = reader.get('precision', 'double') == 'single'
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # old gpw file
@@ -125,7 +123,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     assert wfs.psit_nX.mydims[0] == n2 - n1
                     data = data[n1:n2]  # read from file
 
-                if singlep and name != 'values':
+                if singlep:
                     wfs.psit_nX.scatter_from(as_double_precision(data))
                 else:
                     wfs.psit_nX.scatter_from(data)
