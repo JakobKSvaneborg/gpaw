@@ -376,21 +376,30 @@ class ASECalculator:
     def check_state(self, atoms, tol=1e-12):
         return list(compare_atoms(self.atoms, atoms))
 
-    def write(self, filename, mode='', include_projections=True):
+    def write(self,
+              filename: str | Path,
+              mode: str = '',
+              precision: str = 'double',
+              include_projections: bool = True) -> None:
         """Write calculator object to a file.
 
         Parameters
         ----------
         filename:
-            File to be written
+            File to be written.
         mode:
             Write mode. Use ``mode='all'``
             to include wave functions in the file.
+        precision:
+            'double' (the default) or 'single'.
+        include_projections:
+            Use ``include_projections=False`` to not include
+            the PAW-projections.
         """
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
         write_gpw(filename, self.atoms, self.params,
-                  self.dft, skip_wfs=mode != 'all',
+                  self.dft, skip_wfs=mode != 'all', precision=precision,
                   include_projections=include_projections)
 
     # Old API:

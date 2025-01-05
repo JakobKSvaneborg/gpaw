@@ -354,18 +354,25 @@ class Density:
 
         return magmom_v, magmom_av
 
-    def write(self, writer):
+    def write(self, writer, precision='double'):
+        from gpaw.new.gpw import as_single_precision
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
         if self.taut_sR is not None:
             taut_sR = self.taut_sR.to_xp(np).gather()
         if D_asp is None:
             return  # let master do the writing
+        nt_sR_data = nt_sR.data
+        if precision == 'single':
+            nt_sR_data = as_single_precision(nt_sR_data)
         writer.write(
-            density=nt_sR.data * Bohr**-3,
+            density=nt_sR_data * Bohr**-3,
             atomic_density_matrices=D_asp.data)
         if self.taut_sR is not None:
-            writer.write(ked=taut_sR.data * (Ha * Bohr**-3))
+            taut_sR_data = taut_sR.data
+            if precision == 'single':
+                taut_sR_data = as_single_precision(taut_sR_data)
+            writer.write(ked=taut_sR_data * (Ha * Bohr**-3))
 
 
 def atomic_occupation_numbers(setup,

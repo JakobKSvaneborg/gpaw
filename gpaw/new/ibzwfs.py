@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Generator, Generic, TypeVar, TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Generator, Generic, TypeVar
 
 import numpy as np
 from ase.io.ulm import Writer
@@ -323,6 +323,7 @@ class IBZWaveFunctions(Generic[WFT]):
     def write(self,
               writer: Writer,
               skip_wfs: bool,
+              precision: str = 'double',
               include_projections=True) -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
 
@@ -380,17 +381,25 @@ class IBZWaveFunctions(Generic[WFT]):
                         writer.fill(data)
 
         if not skip_wfs:
-            self._write_wave_functions(writer, spin_k_shape)
+            self._write_wave_functions(writer, spin_k_shape, precision)
 
-    def _write_wave_functions(self, writer, spin_k_shape):
+    def _write_wave_functions(self, writer, spin_k_shape, precision='double'):
+        from gpaw.new.gpw import as_single_precision
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
         shape = spin_k_shape + (self.nbands,) + xshape
         dtype = complex if self.mode == 'pw' else self.dtype
+        dtype_write = dtype
+        singlep = precision == 'single'
+        if singlep:
+            if dtype == complex:
+                dtype_write = np.complex64
+            else:
+                dtype_write = np.float32
         c = 1.0 if self.mode == 'lcao' else Bohr**-1.5
 
-        writer.add_array('coefficients', shape, dtype=dtype)
+        writer.add_array('coefficients', shape, dtype=dtype_write)
         buf_nX = np.empty((self.nbands,) + xshape, dtype=dtype)
 
         for spin in range(self.nspins):
@@ -410,12 +419,18 @@ class IBZWaveFunctions(Generic[WFT]):
                                 buf_nX[..., x:] = 0.0
                                 coef_nX = buf_nX
                         if rank == 0:
-                            writer.fill(coef_nX * c)
+                            if singlep:
+                                writer.fill(as_single_precision(coef_nX * c))
+                            else:
+                                writer.fill(coef_nX * c)
                         else:
                             self.kpt_comm.send(coef_nX, 0)
                 elif self.comm.rank == 0:
                     self.kpt_comm.receive(buf_nX, rank)
-                    writer.fill(buf_nX * c)
+                    if singlep:
+                        writer.fill(as_single_precision(buf_nX * c))
+                    else:
+                        writer.fill(buf_nX * c)
 
     def write_summary(self, log):
         fl = self.fermi_levels * Ha
