@@ -62,7 +62,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
                  pwg: PWDesc,
                  cutoff_a: np.ndarray,
                  poisson_solver,
-                 fracpos_ac: np.ndarray,
+                 relpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
                  xp=np,
                  test=0):
@@ -70,7 +70,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         self.xp = xp
         self.pwg = pwg
         self.pwg0 = pwg.new(comm=None)  # not distributed
-        self.fracpos_ac = fracpos_ac
+        self.relpos_ac = relpos_ac
         self.cutoff_a = np.asarray(cutoff_a)
         self.r2 = self.cutoff_a.max() * 2.0
         self.rcut = 7 * self.r2
@@ -118,9 +118,9 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             vhat_al.append(vhat_l)
 
         self.ghat_aLg = pwg.atom_centered_functions(
-            ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
+            ghat_al, relpos_ac, atomdist=atomdist, xp=xp)
         self.vhat_aLg = pwg.atom_centered_functions(
-            vhat_al, fracpos_ac, atomdist=atomdist, xp=xp)
+            vhat_al, relpos_ac, atomdist=atomdist, xp=xp)
 
         self.expansions = tci(self.rcut, self.I_a, gtilde_Il, vhat_Il, ghat_Il)
 
@@ -132,7 +132,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         if self._neighbors is None:
             pw = self.pwg
             self._neighbors = primitive_neighbor_list(
-                'ijdD', pw.pbc, pw.cell, self.fracpos_ac,
+                'ijdD', pw.pbc, pw.cell, self.relpos_ac,
                 2 * self.rcut,
                 use_scaled_positions=True,
                 self_interaction=True)
@@ -141,10 +141,10 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
     def dipole_layer_correction(self):
         return self.poisson_solver.dipole_layer_correction()
 
-    def move(self, fracpos_ac, atomdist):
-        self.fracpos_ac = fracpos_ac
-        self.ghat_aLg.move(fracpos_ac, atomdist)
-        self.vhat_aLg.move(fracpos_ac, atomdist)
+    def move(self, relpos_ac, atomdist):
+        self.relpos_ac = relpos_ac
+        self.ghat_aLg.move(relpos_ac, atomdist)
+        self.vhat_aLg.move(relpos_ac, atomdist)
         self._neighbors = None
         self._force_av = None
         self._stress_vv = None

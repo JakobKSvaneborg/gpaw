@@ -1,3 +1,22 @@
+"""GPW file-format.
+
+Versions:
+
+1) The beginning ...
+
+2) Lost in history.
+
+3) Legacy GPAW.
+
+4) New GPAW:
+
+   * new packing convention for D^a_ij and delta-H^a_ij
+   * contains also electrostatic potential
+
+5) Bug-fix: wave_functions.kpts.rotations are now U_scc
+   as in version 3 (instead of U_svv).
+
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -30,7 +49,8 @@ def write_gpw(filename: str,
               atoms,
               params,
               dft: DFTCalculation,
-              skip_wfs: bool = True) -> None:
+              skip_wfs: bool = True,
+              include_projections=True) -> None:
 
     comm = dft.comm
 
@@ -41,7 +61,7 @@ def write_gpw(filename: str,
         writer = ulm.DummyWriter()
 
     with writer:
-        writer.write(version=4,
+        writer.write(version=5,
                      gpaw_version=gpaw.__version__,
                      ha=Ha,
                      bohr=Bohr)
@@ -62,7 +82,8 @@ def write_gpw(filename: str,
         dft.potential._write_gpw(writer.child('hamiltonian'),
                                  dft.ibzwfs)
         wf_writer = writer.child('wave_functions')
-        dft.ibzwfs.write(wf_writer, skip_wfs)
+        dft.ibzwfs.write(wf_writer, skip_wfs,
+                         include_projections=include_projections)
 
         if not skip_wfs and params.mode['name'] == 'pw':
             write_wave_function_indices(wf_writer,
@@ -170,6 +191,22 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         # old gpw-file:
         kwargs.pop('h', None)
         kwargs['gpts'] = nt_sR_array.shape[1:]
+        params = InputParameters(kwargs, warn=False)
+        builder = create_builder(atoms, params, comm)
+
+    kpts = reader.wave_functions.kpts
+    rotation_scc = kpts.rotations
+    if len(rotation_scc) != len(builder.ibz.symmetries):
+        # Use symmetries from gpw-file
+        if reader.version == 4:
+            # gpw-files with version=4 wrote the wrong rotations
+            cell_cv = atoms.cell
+            rotation_scc = (cell_cv @
+                            rotation_scc @
+                            np.linalg.inv(cell_cv)).round()
+        kwargs['symmetry'] = {'rotations': rotation_scc,
+                              'translations': kpts.translations,
+                              'atommaps': kpts.atommap}
         params = InputParameters(kwargs, warn=False)
         builder = create_builder(atoms, params, comm)
 

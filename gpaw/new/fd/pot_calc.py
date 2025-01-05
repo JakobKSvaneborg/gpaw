@@ -15,17 +15,17 @@ class FDPotentialCalculator(PotentialCalculator):
                  xc,
                  poisson_solver,
                  *,
-                 fracpos_ac,
+                 relpos_ac,
                  atomdist,
                  interpolation_stencil_range=3,
                  xp=np):
         self.fine_grid = fine_grid
         self.grid = wf_grid
 
-        self.vbar_ar = setups.create_local_potentials(fine_grid, fracpos_ac,
+        self.vbar_ar = setups.create_local_potentials(fine_grid, relpos_ac,
                                                       atomdist, xp=xp)
         self.ghat_aLr = setups.create_compensation_charges(fine_grid,
-                                                           fracpos_ac,
+                                                           relpos_ac,
                                                            atomdist,
                                                            xp=xp)
 
@@ -40,7 +40,7 @@ class FDPotentialCalculator(PotentialCalculator):
         self.xp = xp
 
         super().__init__(xc, poisson_solver, setups,
-                         fracpos_ac=fracpos_ac)
+                         relpos_ac=relpos_ac)
 
     def __str__(self):
         txt = super().__str__()
@@ -120,9 +120,9 @@ class FDPotentialCalculator(PotentialCalculator):
                 'xc': e_xc,
                 'external': e_external}, vt_sR, dedtaut_sr, vHt_r, V_aL
 
-    def move(self, fracpos_ac, atomdist):
-        self.ghat_aLr.move(fracpos_ac, atomdist)
-        self.vbar_ar.move(fracpos_ac, atomdist)
+    def move(self, relpos_ac, atomdist):
+        self.ghat_aLr.move(relpos_ac, atomdist)
+        self.vbar_ar.move(relpos_ac, atomdist)
         self.vbar_ar.to_uniform_grid(out=self.vbar_r)
 
     def force_contributions(self, Q_aL, density, potential):

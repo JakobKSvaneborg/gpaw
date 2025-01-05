@@ -2,6 +2,14 @@
 Gallery
 =======
 
+Band-structure
+==============
+
+:ref:`scissors band structure`
+
+.. image:: ../documentation/scissors/mos2ws2.png
+
+
 Electron localisation function (ELF)
 ====================================
 

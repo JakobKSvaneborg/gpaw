@@ -159,19 +159,27 @@ Final results
 
 A full G0W0 calculation with (8x8x8) k-points and extrapolated to infinite cutoff results in a direct band gap of 7.42 eV. Hence the value of 7.11 eV calculated at first was not converged!
 
-Another method for carrying out the frequency integration is the Plasmon Pole
-approximation (PPA). Read more about it here :ref:`gw_theory_ppa`. This is
-turned on by setting ``ppa = True`` in the G0W0 calculator (see
-:download:`C_converged_ppa.py`). Carrying out a full `G_0W_0` calculation with the PPA
-using (8x8x8) k-points and extrapolating from calculations at a cutoff of 300
-and 400 eV gives a direct band gap of 7.52 eV, which is in very good agreement
-with the result for the full frequency integration but the calculation took
+A simpler method for carrying out the frequency integration is the Plasmon Pole
+approximation (PPA), which only needs to evaluate W in two frequency points. Read more
+about it here :ref:`gw_theory_ppa`. This is turned on by setting ``ppa = True`` in the 
+G0W0 calculator (see :download:`C_converged_ppa.py`). Carrying out a full `G_0W_0` 
+calculation with the PPA using (8x8x8) k-points and extrapolating from calculations at
+a cutoff of 300 and 400 eV gives a direct band gap of 7.52 eV, which is in very good
+agreement with the result for the full frequency integration but the calculation took
 only minutes.
 
-.. note::
+PPA has also been generalized to a Multipole Approximation (MPA). Read more about it
+here [#Leon]_. This is turned on by setting ``mpa = dict`` in the
+G0W0 calculator (see :download:`C_converged_mpa.py`). `G_0W_0` MPA calculations using
+(2x2x2) k-points and extrapolating with a maximum cutoff of 400 eV results in a gap of
+7.19 eV with one pole, while increasing the number of poles to 8 gives results in a
+gap of 7.23 eV, which is much closer to the reference value of the full frequency
+numerical integration.
 
-   Currently PPA does not support Wigner-Seitz supercell truncation and thus
-   the k-point convergence will be lower.
+.. [#Leon] Dario A Leon, Claudia Cardoso, Tommaso Chiarotti, Daniele Varsano, Elisa 
+           Molinari, Andrea Ferretti
+           :doi:`Frequency dependence in GW made simple using a multipole approximation
+           <10.1103/PhysRevB.104.115157>` (Sep 27, 2021)
 
 .. note::
 
