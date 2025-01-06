@@ -128,7 +128,7 @@ class ETDM(Eigensolver):
         if not self.converge_unocc:
             return
 
-        dH = potential.dH
+        # dH = potential.dH
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
@@ -142,7 +142,8 @@ class ETDM(Eigensolver):
             psit_unX.append(psit_nX)
             grad_nX = psit_nX.new()
             Ht(psit_nX, out=grad_nX, spin=wfs.spin)
-            apply_non_local_hamiltonian(grad_nX, wfs, potential)
+            apply_non_local_hamiltonian(grad_nX, wfs, potential,
+                                        slice(nocc, None))
             project_gradient(grad_nX, wfs, self.dS_aii)
             weight = wfs.weight * wfs.spin_degeneracy
             grad_nX.data *= weight
@@ -185,13 +186,14 @@ class ETDM(Eigensolver):
 
 def apply_non_local_hamiltonian(Htpsit_nX,
                                 wfs,
-                                potential: Potential) -> None:
-    nocc = len(Htpsit_nX)
+                                potential: Potential,
+                                bands: slice | None = None) -> None:
+    bands = bands or slice(len(Htpsit_nX))
     c_ani = {}
     dH_asii = potential.dH_asii
     for a, P_ni in wfs.P_ani.items():
         dH_ii = dH_asii[a][wfs.spin]
-        c_ani[a] = P_ni[:nocc] @ dH_ii
+        c_ani[a] = P_ni[bands] @ dH_ii
     wfs.pt_aiX.add_to(Htpsit_nX, c_ani)
 
 

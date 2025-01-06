@@ -1047,7 +1047,7 @@ class FDPWETDM:
 
             minstate = np.argmin(np.diagonal(lamb, offset=-n_occ).real)
             energy = np.diagonal(lamb, offset=-n_occ)[minstate].real
-
+            print(lamb, minstate, energy)
             norm = []
             for i in [minstate]:
                 norm.append(self.dot(
