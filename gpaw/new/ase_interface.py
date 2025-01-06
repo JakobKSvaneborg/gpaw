@@ -376,21 +376,30 @@ class ASECalculator:
     def check_state(self, atoms, tol=1e-12):
         return list(compare_atoms(self.atoms, atoms))
 
-    def write(self, filename, mode='', include_projections=True):
+    def write(self,
+              filename: str | Path,
+              mode: str = '',
+              precision: str = 'double',
+              include_projections: bool = True) -> None:
         """Write calculator object to a file.
 
         Parameters
         ----------
         filename:
-            File to be written
+            File to be written.
         mode:
             Write mode. Use ``mode='all'``
             to include wave functions in the file.
+        precision:
+            'double' (the default) or 'single'.
+        include_projections:
+            Use ``include_projections=False`` to not include
+            the PAW-projections.
         """
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
         write_gpw(filename, self.atoms, self.params,
-                  self.dft, skip_wfs=mode != 'all',
+                  self.dft, skip_wfs=mode != 'all', precision=precision,
                   include_projections=include_projections)
 
     # Old API:
@@ -446,10 +455,11 @@ class ASECalculator:
     def get_number_of_grid_points(self):
         return self.dft.density.nt_sR.desc.size
 
-    def get_effective_potential(self, spin=0):
+    def get_effective_potential(self, spin=0, broadcast=True):
         assert spin == 0
         vt_R = self.dft.potential.vt_sR[spin]
-        return vt_R.to_pbc_grid().gather(broadcast=True).data * Ha
+        vt_R = vt_R.to_pbc_grid().gather(broadcast=broadcast)
+        return None if vt_R is None else vt_R.data * Ha
 
     def get_electrostatic_potential(self):
         density = self.dft.density
@@ -474,7 +484,8 @@ class ASECalculator:
         assert spin is None
         nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
-        return nt_sr.gather(broadcast=broadcast).data.sum(0)
+        nt_sr = nt_sr.gather(broadcast=broadcast)
+        return None if nt_sr is None else nt_sr.data.sum(0)
 
     def get_all_electron_density(self,
                                  spin=None,
@@ -485,8 +496,10 @@ class ASECalculator:
             grid_refinement=gridrefinement,
             skip_core=skip_core)
         if spin is None:
-            return n_sr.gather(broadcast=broadcast).data.sum(0)
-        return n_sr[spin].gather(broadcast=broadcast).data
+            n_sr = n_sr.gather(broadcast=broadcast)
+            return None if n_sr is None else n_sr.data.sum(0)
+        n_r = n_sr[spin].gather(broadcast=broadcast)
+        return None if n_sr is None else n_r.data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
         eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha

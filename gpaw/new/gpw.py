@@ -44,14 +44,44 @@ from gpaw.utilities import unpack_hermitian, unpack_density
 from gpaw.new.energies import DFTEnergies
 
 
-def write_gpw(filename: str,
+def as_single_precision(array):
+    """Convert 64 bit floating point numbers to 32 bit.
+
+    >>> as_single_precision(np.ones(3))
+    array([1., 1., 1.], dtype=float32)
+    """
+    assert array.dtype in [np.float64, np.complex128]
+    dtype = np.float32 if array.dtype == np.float64 else np.complex64
+    return np.array(array, dtype=dtype)
+
+
+def as_double_precision(array):
+    """Convert 32 bit floating point numbers to 64 bit.
+
+    >>> as_double_precision(np.ones(3, dtype=np.float32))
+    array([1., 1., 1.])
+    """
+    if array is None:
+        return None
+    assert array.dtype in [np.float32, np.complex64]
+    if array.dtype == np.float32:
+        dtype = np.float64
+    else:
+        dtype = complex
+    return np.array(array, dtype=dtype)
+
+
+def write_gpw(filename: str | Path,
               atoms,
               params,
               dft: DFTCalculation,
               skip_wfs: bool = True,
+              precision: str = 'double',
               include_projections=True) -> None:
 
     comm = dft.comm
+    if precision not in ['single', 'double']:
+        raise ValueError('precision must be either "single" or "double"')
 
     writer: ulm.Writer | ulm.DummyWriter
     if comm.rank == 0:
@@ -63,7 +93,8 @@ def write_gpw(filename: str,
         writer.write(version=6,
                      gpaw_version=gpaw.__version__,
                      ha=Ha,
-                     bohr=Bohr)
+                     bohr=Bohr,
+                     precision=precision)
 
         write_atoms(writer.child('atoms'), atoms)
 
@@ -77,13 +108,16 @@ def write_gpw(filename: str,
             p['dtype'] = np.dtype(p['dtype']).name
         writer.child('parameters').write(**p)
 
-        dft.density.write(writer.child('density'))
-        dft.potential.write_to_gpw(writer.child('hamiltonian'))
+        dft.density.write_to_gpw(writer.child('density'),
+                                 precision=precision)
+        dft.potential.write_to_gpw(writer.child('hamiltonian'),
+                                   precision=precision)
         writer.write(e_stress=dft.potential.e_stress * Ha)
         dft.energies.write_to_gpw(writer.child('energy_contributions'))
         wf_writer = writer.child('wave_functions')
         dft.ibzwfs.write(wf_writer, skip_wfs,
-                         include_projections=include_projections)
+                         include_projections=include_projections,
+                         precision=precision)
 
         if not skip_wfs and params.mode['name'] == 'pw':
             write_wave_function_indices(wf_writer,
@@ -153,6 +187,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     reader = ulm.Reader(filename)
     bohr = reader.bohr
     ha = reader.ha
+    singlep = reader.get('precision', 'double') == 'single'
 
     atoms = read_atoms(reader.atoms)
     kwargs = reader.parameters.asdict()
@@ -172,9 +207,15 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if comm.rank == 0:
         nt_sR_array = reader.density.density * bohr**3
         vt_sR_array = reader.hamiltonian.potential / ha
+        if singlep:
+            nt_sR_array = as_double_precision(nt_sR_array)
+            vt_sR_array = as_double_precision(vt_sR_array)
         if builder.xc.type == 'MGGA':
             taut_sR_array = reader.density.ked * (bohr**3 / ha)
             dedtaut_sR_array = reader.hamiltonian.mgga_potential * bohr**-3
+            if singlep:
+                taut_sR_array = as_double_precision(taut_sR_array)
+                dedtaut_sR_array = as_double_precision(dedtaut_sR_array)
         D_sap_array = reader.density.atomic_density_matrices
         dH_sap_array = reader.hamiltonian.atomic_hamiltonian_matrices / ha
         shape = nt_sR_array.shape[1:]
@@ -256,6 +297,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if reader.version >= 4:
         if comm.rank == 0:
             vHt_x_array = reader.hamiltonian.electrostatic_potential / ha
+            if singlep:
+                vHt_x_array = as_double_precision(vHt_x_array)
         else:
             vHt_x_array = None
         vHt_x = builder.electrostatic_potential_desc.empty()
