@@ -12,6 +12,14 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+
+Version 25.1.0
+==============
+
+January 6, 2025: :git:`25.1.0 <../25.1.0>`
+
+* Minimum version requirements: Python 3.9, ASE 3.23.0.
+
 * PAW potentials for lanthanides have been added to our :ref:`setup releases`.
 
 * Updated development-workflow documentation:

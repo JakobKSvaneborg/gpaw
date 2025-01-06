@@ -152,12 +152,12 @@ You can get the source from a tar-file or from Git:
 :Tar-file:
 
     Get the source for the latest stable release as a tar-file:
-    gpaw-24.6.0.tar.gz_.
+    gpaw-25.1.0.tar.gz_.
 
     Unpack and make a soft link::
 
-        $ tar -xf gpaw-24.6.0.tar.gz
-        $ ln -s gpaw-24.6.0 gpaw
+        $ tar -xf gpaw-25.1.0.tar.gz
+        $ ln -s gpaw-25.1.0 gpaw
 
     Here is a `list of tarballs <https://pypi.org/simple/gpaw/>`__.
 
@@ -166,7 +166,7 @@ You can get the source from a tar-file or from Git:
     Alternatively, you can get the source for the latest stable release from
     https://gitlab.com/gpaw/gpaw like this::
 
-        $ git clone -b 24.6.0 https://gitlab.com/gpaw/gpaw.git
+        $ git clone -b 25.1.0 https://gitlab.com/gpaw/gpaw.git
 
     or if you want the development version::
 
@@ -178,8 +178,8 @@ You can get the source from a tar-file or from Git:
     See the :ref:`releasenotes` for which tags are available.  Also the
     dates of older releases can be found there.
 
-.. _gpaw-24.6.0.tar.gz:
-    https://pypi.org/packages/source/g/gpaw/gpaw-24.6.0.tar.gz
+.. _gpaw-25.1.0.tar.gz:
+    https://pypi.org/packages/source/g/gpaw/gpaw-25.1.0.tar.gz
 
 
 .. _siteconfig:
