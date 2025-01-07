@@ -117,10 +117,14 @@ class FakeWFS:
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
         desc = self.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
-        self.hamiltonian.apply_local_potential(
-            self.potential.vt_sR[kpt.s],
+        self.hamiltonian.apply(
+            self.potential.vt_sR,
+            None,
+            self.ibzwfs,  # needed for hybrids
+            getattr(ham, 'D_asii', None),  # needed for hybrids
             desc.from_data(data=a1),
-            desc.from_data(data=a2))
+            desc.from_data(data=a2),
+            kpt.s)
 
     def calculate_occupation_numbers(self, fixed):
         self.ibzwfs.calculate_occs(
@@ -353,7 +357,8 @@ class FakeDensity:
 
 class FakeHamiltonian:
     def __init__(self, ibzwfs, density, potential, pot_calc,
-                 e_total_free=np.nan):
+                 e_total_free=np.nan,
+                 e_xc=np.nan):
         self.pot_calc = pot_calc
         self.ibzwfs = ibzwfs
         self.density = density
@@ -364,12 +369,11 @@ class FakeHamiltonian:
             pass
         self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
-        self.e_xc = potential.energies['xc']
+        self.e_xc = e_xc
 
     def update(self, dens, wfs, kin_en_using_band=True):
-        potential, _ = self.pot_calc.calculate(
+        self.potential, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
-        self.potential.update_from(potential)
 
         energies = self.potential.energies
         self.e_xc = energies['xc']
@@ -382,6 +386,7 @@ class FakeHamiltonian:
         else:
             self.e_kinetic0 = self.ibzwfs.calculate_kinetic_energy(
                 wfs.hamiltonian, self.density)
+            self.ibzwfs.energies['exx_kinetic'] = 0.0
             energies['kinetic'] = self.e_kinetic0
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):

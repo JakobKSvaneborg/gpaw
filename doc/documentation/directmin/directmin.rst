@@ -223,9 +223,9 @@ matrix exponential:
    .. math::
 
      \exp(A) = \begin{pmatrix}
-     \cos(P) & P^{-1/2} \sin(P^{1/2}) A_{ov}\\
+     \cos(P^{1/2}) & P^{-1/2} \sin(P^{1/2}) A_{ov}\\
      -A_{ov}^{\dagger} P^{-1/2} \sin(P^{1/2}) & I_{M-N} +
-      A_{ov}^{\dagger}\cos(P^{1/2} - I_N) P^{-1} A_{ov} )
+      A_{ov}^{\dagger}(\cos(P^{1/2}) - I_N) P^{-1} A_{ov}
      \end{pmatrix}
 
    where :math:`P = A_{ov}A_{ov}^{\dagger}`

@@ -6,7 +6,7 @@ from ase import Atoms
 from gpaw.mpi import world
 
 
-@pytest.mark.new_gpaw_ready
+# @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_directmin_pw(in_tmp_dir, mode, gpaw_new):

@@ -4,7 +4,7 @@ from math import pi
 import numpy as np
 
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.pwfd.eigensolver import create_eigensolver as make_eigensolver
@@ -59,7 +59,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
             return wfs
 
-        ibzwfs = PWFDIBZWaveFunction.create(
+        ibzwfs = PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
             nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,
@@ -125,7 +125,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             wfs._eig_n = eig_n
             return wfs
 
-        return PWFDIBZWaveFunction.create(
+        return PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
             nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,
@@ -159,7 +159,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
             return wfs
 
-        return PWFDIBZWaveFunction.create(
+        return PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
             nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,

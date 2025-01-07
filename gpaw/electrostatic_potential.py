@@ -40,7 +40,7 @@ class ElectrostaticPotential:
     @classmethod
     def from_calculation(cls, calculation: DFTCalculation):
         density = calculation.density
-        potential, W_aL = calculation.pot_calc.calculate(density)
+        potential, _, W_aL = calculation.pot_calc.calculate(density)
         Q_aL = density.calculate_compensation_charge_coefficients()
         return cls(potential.vHt_x,
                    W_aL,
