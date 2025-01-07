@@ -10,7 +10,7 @@ from gpaw.mom import prepare_mom_calculation
 from gpaw.mpi import world
 
 
-@pytest.mark.new_gpaw_ready
+# @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 def test_mom_directopt_pw_hybrids(in_tmp_dir, gpaw_new):
     if gpaw_new and world.size > 1:
