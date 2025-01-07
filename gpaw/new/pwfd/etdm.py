@@ -27,10 +27,7 @@ class ETDM(Eigensolver):
         self.preconditioner
 
     def new(self, **params) -> ETDM:
-        return ETDM(dS_aii=self.dS_aii,
-                    preconditioner=self.preconditioner,
-                    nspins=len(self.nocc_s),
-                    **params)
+        return ETDM(**params)
 
     def iterate(self,
                 ibzwfs: IBZWaveFunctions,
@@ -43,7 +40,7 @@ class ETDM(Eigensolver):
         if len(self.nocc_s) == 0:
             xp = ibzwfs.xp
             self.nocc_s = find_number_of_ocupied_bands(ibzwfs)
-            self.preconditioner = hamiltonian.create_preconditioner(10, xp)
+            self.preconditioner = hamiltonian.create_preconditioner(10, xp=xp)
             self.dS_aii = pot_calc.setups.get_overlap_corrections(
                 density.D_asii.layout.atomdist, xp)
 

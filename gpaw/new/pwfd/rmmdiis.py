@@ -14,6 +14,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
+from gpaw.core import PWDesc
 
 
 class RMMDIIS(PWFDEigensolver):

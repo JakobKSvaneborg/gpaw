@@ -139,9 +139,6 @@ def eigensolver(value=None) -> dict:
     """Eigensolver."""
     if isinstance(value, str):
         value = {'name': value}
-    if value and value['name'] not in {'dav', 'etdm-fdpw', 'scissors'}:
-        warnings.warn(f'{value["name"]} not implemented.  Using dav instead')
-        return {'name': 'dav'}
     return value or {}
 
 
