@@ -60,8 +60,6 @@ class IBZWaveFunctions(Generic[WFT]):
 
         self.fermi_levels: Array1D | None = None  # hartree
 
-        self.energies: dict[str, float] = {}  # hartree
-
         self.xp = self.wfs_qs[0][0].xp
         if self.xp is not np:
             if not GPU_AWARE_MPI:
@@ -170,7 +168,6 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def move(self, relpos_ac, atomdist):
         self.ibz.symmetries.check_positions(relpos_ac)
-        self.energies.clear()
         self.make_sure_wfs_are_read_from_gpw_file()
         for wfs in self:
             wfs.move(relpos_ac, atomdist, self.move_wave_functions)
@@ -179,7 +176,9 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.orthonormalize(work_array_nX)
 
-    def calculate_occs(self, occ_calc, fix_fermi_level=False):
+    def calculate_occs(self,
+                       occ_calc,
+                       fix_fermi_level=False) -> tuple[float, float, float]:
         degeneracy = self.spin_degeneracy
 
         # u index is q and s combined
@@ -206,10 +205,7 @@ class IBZWaveFunctions(Generic[WFT]):
             e_band += wfs.occ_n @ wfs.eig_n * wfs.weight * degeneracy
         e_band = self.kpt_comm.sum_scalar(float(e_band))  # XXX CPU float?
 
-        self.energies.update(
-            band=e_band,
-            entropy=e_entropy,
-            extrapolation=e_entropy * occ_calc.extrapolate_factor)
+        return e_band, e_entropy, e_entropy * occ_calc.extrapolate_factor
 
     def add_to_density(self, nt_sR, D_asii) -> None:
         """Compute density and add to ``nt_sR`` and ``D_asii``."""

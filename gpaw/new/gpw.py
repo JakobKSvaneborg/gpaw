@@ -16,6 +16,8 @@ Versions:
 5) Bug-fix: wave_functions.kpts.rotations are now U_scc
    as in version 3 (instead of U_svv).
 
+6) Write energy contributions to "energy_contributions".
+
 """
 from __future__ import annotations
 
@@ -39,10 +41,7 @@ from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.typing import DTypeLike
 from gpaw.utilities import unpack_hermitian, unpack_density
-
-ENERGY_NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
-                'total_free', 'total_extrapolated',
-                'band', 'stress', 'spinorbit']
+from gpaw.new.energies import DFTEnergies
 
 
 def as_single_precision(array):
@@ -91,7 +90,7 @@ def write_gpw(filename: str | Path,
         writer = ulm.DummyWriter()
 
     with writer:
-        writer.write(version=5,
+        writer.write(version=6,
                      gpaw_version=gpaw.__version__,
                      ha=Ha,
                      bohr=Bohr,
@@ -109,9 +108,12 @@ def write_gpw(filename: str | Path,
             p['dtype'] = np.dtype(p['dtype']).name
         writer.child('parameters').write(**p)
 
-        dft.density.write(writer.child('density'), precision=precision)
-        dft.potential._write_gpw(writer.child('hamiltonian'),
-                                 dft.ibzwfs, precision=precision)
+        dft.density.write_to_gpw(writer.child('density'),
+                                 precision=precision)
+        dft.potential.write_to_gpw(writer.child('hamiltonian'),
+                                   precision=precision)
+        writer.write(e_stress=dft.potential.e_stress * Ha)
+        dft.energies.write_to_gpw(writer.child('energy_contributions'))
         wf_writer = writer.child('wave_functions')
         dft.ibzwfs.write(wf_writer, skip_wfs,
                          include_projections=include_projections,
@@ -312,29 +314,35 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         builder.setups,
         builder.get_pseudo_core_densities(),
         builder.get_pseudo_core_ked())
-    energies = {name: reader.hamiltonian.get(f'e_{name}', np.nan) / ha
-                for name in ENERGY_NAMES}
-    penergies = {key: e for key, e in energies.items()
-                 if not key.startswith('total')}
-    e_band = penergies.pop('band', np.nan)
-    e_entropy = penergies.pop('entropy')
-    penergies['kinetic'] -= e_band
 
-    potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, penergies,
-                          vHt_x)
+    if reader.version >= 6:
+        ec = {name: e / ha
+              for name, e in reader.energy_contributions.asdict().items()}
+        e_stress = reader.e_stress / ha
+    else:
+        NAMES = ['kinetic', 'coulomb', 'zero', 'external',
+                 'xc', 'entropy',
+                 'total_free', 'total_extrapolated',
+                 'band', 'stress', 'spinorbit']
+        ec = {name: reader.hamiltonian.get(f'e_{name}', np.nan) / ha
+              for name in NAMES}
+        ec['kinetic_correction'] = ec.pop('kinetic') - ec['band']
+        ec['extrapolation'] = (ec.pop('total_extrapolated') -
+                               ec.pop('total_free'))
+        e_stress = ec.pop('stress', np.nan) / ha
+
+    energies = DFTEnergies(**ec)
+
+    potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, vHt_x, e_stress)
 
     ibzwfs = builder.read_ibz_wave_functions(reader)
-    ibzwfs.energies = {
-        'band': e_band,
-        'entropy': e_entropy,
-        'extrapolation': (energies['total_extrapolated'] -
-                          energies['total_free'])}
 
     dft = DFTCalculation(
         ibzwfs, density, potential,
         builder.setups,
         builder.create_scf_loop(),
         pot_calc=builder.create_potential_calculator(),
+        energies=energies,
         log=log)
 
     results = {key: value / units[key]

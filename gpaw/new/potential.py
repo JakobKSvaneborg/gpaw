@@ -16,28 +16,21 @@ class Potential:
                  vt_sR: UGArray,
                  dH_asii: AtomArrays,
                  dedtaut_sR: UGArray | None,
-                 energies: dict[str, float],
-                 vHt_x: XArray | None = None):
+                 vHt_x: XArray | None = None,
+                 e_stress: float = np.nan):
         self.vt_sR = vt_sR
         self.dH_asii = dH_asii
         self.dedtaut_sR = dedtaut_sR
-        self.energies = energies
         self.vHt_x = vHt_x  # initial guess for Hartree potential
+        self.e_stress = e_stress  # idotropic contribution to stress tensor
 
     def __repr__(self):
         return (f'Potential({self.vt_sR}, {self.dH_asii}, '
-                f'{self.dedtaut_sR}, {self.energies})')
+                f'{self.dedtaut_sR})')
 
     def __str__(self) -> str:
         return (f'potential:\n'
                 f'  grid points: {self.vt_sR.desc.size}\n')
-
-    def update_from(self, potential):
-        self.vt_sR = potential.vt_sR
-        self.dH_asii = potential.dH_asii
-        self.dedtaut_sR = potential.dedtaut_sR
-        self.energies = potential.energies
-        self.vHt_x = potential.vHt_x
 
     def dH(self, P_ani, out_ani, spin):
         if len(P_ani.dims) == 1:  # collinear wave functions
@@ -72,16 +65,11 @@ class Potential:
             self.dH_asii.redist(atomdist, comm1, comm2),
             None if self.dedtaut_sR is None else self.dedtaut_sR.redist(
                 grid, comm1, comm2),
-            self.energies.copy(),
             None if self.vHt_x is None else self.vHt_x.redist(
                 desc, comm1, comm2))
 
-    def _write_gpw(self, writer, ibzwfs, precision='double'):
-        from gpaw.new.calculation import combine_energies
-        energies = combine_energies(self, ibzwfs)
-        energies['band'] = ibzwfs.energies['band']
-        if 'stress' in self.energies:
-            energies['stress'] = self.energies['stress']
+    def write_to_gpw(self, writer, precision='double'):
+        from gpaw.new.gpw import as_single_precision
         dH_asp = self.dH_asii.to_cpu().to_lower_triangle().gather()
         vt_sR = self.vt_sR.to_xp(np).gather()
         if self.dedtaut_sR is not None:
@@ -93,12 +81,10 @@ class Potential:
 
         vt_sR_data = vt_sR.data
         if precision == 'single':
-            from gpaw.new.gpw import as_single_precision
             vt_sR_data = as_single_precision(vt_sR_data)
         writer.write(
             potential=vt_sR_data * Ha,
-            atomic_hamiltonian_matrices=dH_asp.data * Ha,
-            **{f'e_{name}': val * Ha for name, val in energies.items()})
+            atomic_hamiltonian_matrices=dH_asp.data * Ha)
         if self.vHt_x is not None:
             vHt_x_data = vHt_x.data
             if precision == 'single':

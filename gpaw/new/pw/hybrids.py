@@ -84,6 +84,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
+        self.xc = xc
 
         # Stuff for PAW core-core, core-valence and valence-valence correctios:
         self.exx_cc = sum(setup.ExxC for setup in setups) * self.exx_fraction
@@ -126,15 +127,14 @@ class PWHybridHamiltonian(PWHamiltonian):
             # We are doing a subspace diagonalization ...
             evv, evc, ekin = self.apply1(D_aii, pt_aiG,
                                          psi1, psi1, Htpsit2_nG)
-            for name, e in [('exx_vv', evv),
-                            ('exx_vc', evc),
-                            ('exx_kinetic', ekin)]:
+            for name, e in [('hybrid_xc', evv + evc),
+                            ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
                 if spin == 0:
-                    ibzwfs.energies[name] = e
+                    self.xc.energies[name] = e
                 else:
-                    ibzwfs.energies[name] += e
-            ibzwfs.energies['exx_cc'] = self.exx_cc
+                    self.xc.energies[name] += e
+            self.xc.energies['hybrid_xc'] += self.exx_cc
             return
 
         # We are applying the exchange operator (defined by psit1_nG,

@@ -244,7 +244,7 @@ class ASECalculator:
         self.log(f'Converged in {ctx.niter} steps')
 
         # Calculate all the cheap things:
-        self.dft.energies()
+        self.dft.energy()
         self.dft.dipole()
         self.dft.magmoms()
 
@@ -328,7 +328,7 @@ class ASECalculator:
         """Helper method for force-convergence criterium."""
         with self.timer('Forces'):
             self.dft.forces(silent=True)
-        return self.dft.results['forces'].copy()
+        return self.dft.results.pop('forces')
 
     def __del__(self):
         self.log('---')
@@ -463,7 +463,7 @@ class ASECalculator:
 
     def get_electrostatic_potential(self):
         density = self.dft.density
-        potential, _ = self.dft.pot_calc.calculate(density)
+        potential, _, _ = self.dft.pot_calc.calculate(density)
         vHt_x = potential.vHt_x
         if isinstance(vHt_x, UGArray):
             return vHt_x.gather(broadcast=True).to_pbc_grid().data * Ha
@@ -581,7 +581,8 @@ class ASECalculator:
         from gpaw.new.backwards_compatibility import FakeHamiltonian
         return FakeHamiltonian(
             self.dft.ibzwfs, self.dft.density, self.dft.potential,
-            self.dft.pot_calc, self.dft.results.get('free_energy'))
+            self.dft.pot_calc, self.dft.results.get('free_energy'),
+            self.dft.energies._energies['xc'])
 
     @property
     def spos_ac(self):
@@ -628,7 +629,7 @@ class ASECalculator:
             dexc += xc.calculate_paw_correction(
                 setup, np.array([pack_density(D_ii) for D_ii in D_sii.real]))
         dexc = dft.ibzwfs.domain_comm.sum_scalar(dexc)
-        return (exct + dexc - dft.potential.energies['xc']) * Ha
+        return (exct + dexc - dft.energies._energies['xc']) * Ha
 
     def diagonalize_full_hamiltonian(self,
                                      nbands: int | None = None,
@@ -695,7 +696,8 @@ class ASECalculator:
             SimpleNamespace(relpos_ac=self.dft.relpos_ac,
                             poisson_solver=None,
                             xc=self.dft.pot_calc.xc),
-            log)
+            log,
+            energies=self.dft.energies)
 
         dft.converge()
 
@@ -764,11 +766,9 @@ class ASECalculator:
         pass
 
     def set(self, eigensolver):
-        from gpaw.new.pwfd.etdm import ETDMPWFD
-        self.dft.scf_loop.eigensolver = ETDMPWFD(self.setups,
-                                                 self.comm,
-                                                 self.atoms,
-                                                 eigensolver)
+        assert eigensolver.pop('name') == 'etdm-fdpw'
+        self.dft.scf_loop.eigensolver = self.dft.scf_loop.eigensolver.new(
+            **eigensolver)
 
     def todict(self):
         return dict(self.params.items())

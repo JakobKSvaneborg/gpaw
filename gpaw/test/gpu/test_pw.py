@@ -36,7 +36,7 @@ def test_gpu(dtype, gpu, mode, random):
              setups='paw'),
         log='-')
     dft.converge()
-    dft.energies()
+    dft.energy()
     energy = dft.results['energy'] * Ha
     if mode == 'pw':
         assert energy == pytest.approx(-16.032945, abs=1e-6)
@@ -90,7 +90,7 @@ def test_gpu_k(gpu, par, mode, xc):
              setups='paw'),
         log='-')
     dft.converge()
-    dft.energies()
+    dft.energy()
     if mode == 'pw':
         dft.forces()
         dft.stress()
@@ -118,7 +118,7 @@ def test_2d():
         log='-')
     dft.converge()
     assert dft.potential.get_vacuum_level() == pytest.approx(2.9436, 1e-2)
-    dft.energies()
+    dft.energy()
     dft.forces()
     dft.stress()
     E = dft.results['energy']

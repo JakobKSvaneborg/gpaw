@@ -354,7 +354,7 @@ class Density:
 
         return magmom_v, magmom_av
 
-    def write(self, writer, precision='double'):
+    def write_to_gpw(self, writer, precision='double'):
         from gpaw.new.gpw import as_single_precision
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
