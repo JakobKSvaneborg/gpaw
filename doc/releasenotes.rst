@@ -12,6 +12,14 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+
+Version 25.1.0
+==============
+
+January 6, 2025: :git:`25.1.0 <../25.1.0>`
+
+* Minimum version requirements: Python 3.9, ASE 3.23.0.
+
 * PAW potentials for lanthanides have been added to our :ref:`setup releases`.
 
 * Updated development-workflow documentation:
@@ -52,6 +60,10 @@ Git master branch
   This will make calculations slightly more accurate, but also give slightly
   different numbers.  See :mr:`2537` for an example of the changes.
   Default is backwards compatible.
+
+* New GPAW only: The :meth:`~gpaw.new.ase_interface.ASECalculator.write`
+  method of the GPAW calculator object can now write smaller gpw-files
+  by using ``precision='single'`` and ``include_projections=False``.
 
 
 Version 24.6.0
