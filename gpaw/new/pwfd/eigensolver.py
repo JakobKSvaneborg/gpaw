@@ -5,13 +5,13 @@ from typing import Callable
 
 import numpy as np
 from ase.units import Ha
-
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.mpi import broadcast_exception, broadcast_float
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver
+from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
@@ -47,12 +47,10 @@ def create_eigensolver(nbands,
             create_preconditioner,
             converge_bands,
             **kwargs)
-    from gpaw.directmin.etdm_fdpw import FDPWETDM
-    from gpaw.new.pwfd.etdm import ETDMPWFD
-    return ETDMPWFD(setups,
-                    comm,
-                    atoms,
-                    FDPWETDM(**kwargs))
+    if name == 'etdm-fdpw':
+        from gpaw.new.pwfd.etdm import ETDM
+        return ETDM(**kwargs)
+    raise ValueError
 
 
 class PWFDEigensolver(Eigensolver):
@@ -81,7 +79,9 @@ class PWFDEigensolver(Eigensolver):
                 ibzwfs,
                 density,
                 potential,
-                hamiltonian: Hamiltonian) -> float:
+                hamiltonian: Hamiltonian,
+                pot_calc,
+                energies: DFTEnergies) -> tuple[float, DFTEnergies]:
         """Iterate on state given fixed hamiltonian.
 
         Returns
@@ -115,11 +115,11 @@ class PWFDEigensolver(Eigensolver):
             for wfs, weight_n in zips(ibzwfs, weight_un):
                 e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
                 error += wfs.weight * e
-        return ibzwfs.kpt_band_comm.sum_scalar(
+        error = ibzwfs.kpt_band_comm.sum_scalar(
             float(error)) * ibzwfs.spin_degeneracy
+        return error, energies
 
 
-@trace
 def calculate_residuals(residual_nX: XArray,
                         dH: Callable[[AtomArrays, AtomArrays], AtomArrays],
                         dS_aii: AtomArrays,
