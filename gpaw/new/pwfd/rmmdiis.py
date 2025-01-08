@@ -5,15 +5,8 @@ from pprint import pformat
 
 import numpy as np
 
-from gpaw import debug
-from gpaw.core.matrix import Matrix
-from gpaw.gpu import as_np
-from gpaw.mpi import broadcast_exception
-from gpaw.new import trace, zips
-from gpaw.new.pwfd.eigensolver import PWFDEigensolver
-from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.typing import Array2D
+from gpaw.new import zips as zip
+from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.core import PWDesc
 
 
@@ -23,22 +16,19 @@ class RMMDIIS(PWFDEigensolver):
                  wf_grid,
                  band_comm,
                  preconditioner_factory,
-                 niter=2,
                  blocksize=None,
                  converge_bands='occupied',
                  scalapack_parameters=None):
-        if blocksize is None and isinstance(wf_grid, PWDesc):
-            S = wf_grid.comm.size
-            # Use a multiple of S for maximum efficiency
-            blocksize = int(np.ceil(10 / S)) * S
-        else:
-            blocksize = 10
+        if blocksize is None:
+            if isinstance(wf_grid, PWDesc):
+                S = wf_grid.comm.size
+                # Use a multiple of S for maximum efficiency
+                blocksize = int(np.ceil(10 / S)) * S
+            else:
+                blocksize = 10
+        self.blocksize = blocksize
 
-        super().__init__(
-            preconditioner_factory,
-            niter,
-            blocksize,
-            converge_bands)
+        super().__init__(preconditioner_factory, converge_bands)
 
     def __str__(self):
         return pformat(dict(name='RMMDIIS',
@@ -48,7 +38,6 @@ class RMMDIIS(PWFDEigensolver):
         super()._initialize(ibzwfs)
         ...
 
-    @trace
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         wfs.subspace_diagonalize(Ht, dH,
                                  work_array=psit2_nX.data,

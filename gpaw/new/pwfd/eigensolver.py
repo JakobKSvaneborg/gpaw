@@ -56,15 +56,11 @@ def create_eigensolver(nbands,
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
                  preconditioner_factory,
-                 niter=2,
-                 blocksize=10,
                  converge_bands='occupied'):
-        self.niter = niter
         self.converge_bands = converge_bands
 
         self.preconditioner = None
         self.preconditioner_factory = preconditioner_factory
-        self.blocksize = blocksize
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -111,12 +107,15 @@ class PWFDEigensolver(Eigensolver):
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
         error = 0.0
+        # Loop over k-points:
         with broadcast_exception(ibzwfs.kpt_comm):
             for wfs, weight_n in zips(ibzwfs, weight_un):
                 e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
                 error += wfs.weight * e
+
         error = ibzwfs.kpt_band_comm.sum_scalar(
             float(error)) * ibzwfs.spin_degeneracy
+
         return error, energies
 
 

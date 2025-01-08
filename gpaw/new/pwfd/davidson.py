@@ -21,14 +21,11 @@ class Davidson(PWFDEigensolver):
                  preconditioner_factory,
                  converge_bands='occupied',
                  niter=2,
-                 blocksize=10,
                  scalapack_parameters=None):
         super().__init__(
             preconditioner_factory,
-            niter,
-            blocksize,
             converge_bands)
-
+        self.niter = niter
         self.H_NN = None
         self.S_NN = None
         self.M_nn = None
