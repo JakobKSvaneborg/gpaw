@@ -36,9 +36,33 @@ class RMMDIIS(PWFDEigensolver):
 
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
-        ...
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
+        xp = M_nn.xp
+
+        psit_nX = wfs.psit_nX
+        B = psit_nX.dims[0]  # number of bands
+        eig_N = xp.empty(2 * B)
+        b = psit_nX.mydims[0]
+
+        psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
+        psit3_nX = psit_nX.new(data=self.work_arrays[1, :b])
+
+        wfs.subspace_diagonalize(Ht, dH,
+                                 work_array=psit2_nX.data,
+                                 Htpsit_nX=psit3_nX)
+        residual_nX = psit3_nX  # will become (H-e*S)|psit> later
+
+        P_ani = wfs.P_ani
+        P2_ani = P_ani.new()
+        P3_ani = P_ani.new()
+
+        domain_comm = psit_nX.desc.comm
+        band_comm = psit_nX.comm
+        is_domain_band_master = domain_comm.rank == 0 and band_comm.rank == 0
+
+
+
         wfs.subspace_diagonalize(Ht, dH,
                                  work_array=psit2_nX.data,
                                  Htpsit_nX=psit3_nX)
