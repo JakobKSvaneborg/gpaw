@@ -773,6 +773,33 @@ class PWArray(DistributedArrays[PWDesc]):
         tmp_R.scatter_from(taut1_R)
         taut_R.data += tmp_R.data
 
+    def transform(self,
+                  U_cc: np.ndarray,
+                  complex_conjugate: bool = False,
+                  pw: PWDesc | None = None) -> PWArray:
+        pw1 = self.desc
+        pw2 = pw
+        kpt2_c = U_cc @ pw1.kpt_c
+        if complex_conjugate:
+            kpt2_c *= -1
+        if pw2 is None:
+            pw2 = pw1.new(kpt=kpt2_c)
+        else:
+            assert np.allclose(pw2.kpt_c, kpt2_c)
+
+        size_c = np.ptp(pw1.indices_cG, axis=1) + 1
+        Q1_G = np.ravel_multi_index(U_cc @ pw1.indices_cG, size_c, mode='wrap')
+        Q2_G = np.ravel_multi_index(pw2.indices_cG, size_c, mode='wrap')
+        G_Q = np.empty(np.prod(size_c), dtype=int)
+        G_Q[:] = -1
+        G_Q[Q1_G] = np.arange(len(Q1_G), dtype=int)
+        G1_G2 = G_Q[Q2_G]
+        assert -1 not in G1_G2
+        data = self.data[..., G1_G2]
+        if complex_conjugate:
+            np.negative(data.imag, data.imag)
+        return PWArray(pw2, self.dims, self.comm, data)
+
 
 def a2a_stuff(comm, N, ng, myng, maxmyng):
     """Create arrays for MPI alltoallv call."""

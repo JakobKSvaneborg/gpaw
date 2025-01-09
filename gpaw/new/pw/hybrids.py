@@ -29,7 +29,7 @@ def coulomb(pw: PWDesc,
     v_G = pw.empty()
     G2_G = pw.ekin_G * 2
     v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
-    if pw.ng1 == 0:
+    if G2_G[0] < 1e-10:
         v_G.data[1:] /= G2_G[1:]
         v_G.data[0] = pi / omega**2
     else:

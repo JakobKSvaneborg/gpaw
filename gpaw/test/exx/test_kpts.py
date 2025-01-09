@@ -57,3 +57,21 @@ def test_kpts(xc: str, atoms: Atoms) -> None:
     k1, k2, gap = bandgap(e0)
     assert k1 == 4 and k2 == 7
     assert gap == pytest.approx(gaps['PBE'], abs=0.01)
+
+
+def test_1d():
+    from gpaw.new.pw.nschse import NonSelfConsistentHSE06
+    from gpaw.new.ase_interface import GPAW
+    a = Atoms('H',
+              [[0.0, 1.0, 1.0]],
+              cell=[1.0, 2.0, 2.0],
+              pbc=(1, 0, 0))
+    n = 4
+    a.calc = GPAW(mode=PW(200),
+                  kpts=(n, 1, 1),
+                  txt=None)
+    a.get_potential_energy()
+    hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
+    for wfs in a.calc.dft.ibzwfs:
+        hse.calculate(wfs)
+
