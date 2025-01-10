@@ -4,17 +4,18 @@ import numpy as np
 from gpaw.core import PWArray, UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new.calculation import DFTCalculation
-from gpaw.new.pw.hybrids import Psi, coulomb, ifft
+from gpaw.new.pw.hybrids import Psi, coulomb, ifft, fft
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.symmetry import SymmetrizationPlan
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
+from gpaw.new import zips as zip
 
 
 class NonSelfConsistentHSE06:
     exx_fraction = 0.25
-    hse_omega = 0.11
+    hse06_omega = 0.11
 
     def __init__(self,
                  ibzwfs: PWFDIBZWaveFunctions,
@@ -25,6 +26,7 @@ class NonSelfConsistentHSE06:
                        for setup in setups]
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.VV_app = [setup.M_pp * self.exx_fraction for setup in setups]
+        self.grid = grid
 
         xp = np
         self.plan = grid.fft_plans(xp=xp)
@@ -42,39 +44,52 @@ class NonSelfConsistentHSE06:
     def from_dft_calculation(cls,
                              dft: DFTCalculation) -> NonSelfConsistentHSE06:
         return cls(dft.ibzwfs,
-                   dft.density.nt_sR.desc,
+                   dft.density.nt_sR.desc.new(dtype=complex),
                    dft.setups,
                    dft.relpos_ac)
 
     def calculate(self,
                   wfs: PWFDWaveFunctions,
-                  n1=0,
-                  n2=None) -> np.ndarray:
-        n2 = n2 or wfs.nbands
-        eig_n = np.zeros(n2 - n1)
-        for psit in self.psit_K:
-            v_G = coulomb()
-            for n, psit_R in enumerate(psit.psit_nR):
+                  na=0,
+                  nb=None) -> np.ndarray:
+        n2a = na
+        n2b = nb or wfs.nbands
+        P2_ani = {a: P_ni[n2a:n2b] for a, P_ni in wfs.P_ani.items()}
+        ut2_nR = self.grid.empty(n2b - n2a)
+        psit2_nG = wfs.psit_nX[n2a:n2b]
+        pw2 = psit2_nG.desc
+        ifft(psit2_nG, ut2_nR, self.plan)
+        eig_n = np.zeros(n2b - n2a)
+        for psit1 in self.psit_K:
+            pw1 = psit1.psit_nG.desc
+            pw = pw1.new(kpt=pw1.kpt_c - pw2.kpt_c)
+            ghat_aLG = setups.create_compensation_charges(pw, relpos_ac)
+            v_G = coulomb(pw, None, self.hse06_omega)
+            for n1, psit1_R in enumerate(psit1.psit_nR):
                 eig_n += self._calculate(v_G,
-                                         psit_R, n,
-                                         wfs.psit_nX, wfs.P_ani,
-                                         n1, n2)
+                                         ghat_aLG,
+                                         psit1, n1,
+                                         ut2_nR,
+                                         P2_ani)
         return eig_n
 
     def _calculate(self,
-                   psit1_R: UGArray,
-                   Q1_aniL,
+                   v_G: np.ndarray,
+                   ghat_aLG,
+                   psit1: Psi,
                    n1: int,
-                   psit2_nG: PWArray,
-                   P2_ani: AtomArrays,
-                   n2a: int,
-                   n2b: int) -> np.ndarray:
+                   ut2_nR: UGArray,
+                   P2_ani: dict[int, np.ndarray]) -> np.ndarray:
+        rhot_nR = ut2_nR.copy()
+        rhot_nR.data *= psit1.psit_nR.data[n1].conj()
+        rhot_nG = psit1.psit_nG.new()
+        fft(rhot_nR, rhot_nG, plan=self.plan)
+        Q_anL = {}
+        for a, Q1_niL in psit1.Q_aniL.items():
+            Q_anL[a] = P2_ani[a].conj() @ Q1_niL[n1]
+        ghat_aLG.add_to(rhot_nR, Q_anL)
         """
         for n2, (psit2_R, out_G) in enumerate(zips(psi2.psit_nR, Htpsit_nG)):
-            rhot_nR.data[:] = psit1_nR.data * psit2_R.data.conj()
-            for a, Q1_niL in Q1_aniL.items():
-                P2_i = psi2.P_ani[a][n2]
-                Q_anL[a][:] = P2_i.conj() @ Q1_niL
         fft(rhot_nR, rhot_nG, plan=self.plan)
         mmm(1.0 / self.pw.dv, Q_anL.data, 'N', self.ghat_GA, 'T',
             1.0, rhot_nG.data)
