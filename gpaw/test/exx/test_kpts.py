@@ -74,4 +74,3 @@ def test_1d():
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
     for wfs in a.calc.dft.ibzwfs:
         hse.calculate(wfs)
-

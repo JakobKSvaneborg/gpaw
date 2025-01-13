@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 from gpaw.core import PWArray, UGArray, UGDesc
-from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new.calculation import DFTCalculation
-from gpaw.new.pw.hybrids import Psi, coulomb, ifft, fft
+from gpaw.new.pw.hybrids import Psi, hse_coulomb, ifft, fft
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.symmetry import SymmetrizationPlan
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
-from gpaw.new import zips as zip
+# from gpaw.new import zips as zip
 
 
 class NonSelfConsistentHSE06:
@@ -40,9 +39,12 @@ class NonSelfConsistentHSE06:
                                         setup.Delta_iiL, psit.P_ani[a])
                            for a, setup in enumerate(setups)}
 
+        self.ghat_aLR = setups.create_compensation_charges(grid, relpos_ac)
+
     @classmethod
     def from_dft_calculation(cls,
                              dft: DFTCalculation) -> NonSelfConsistentHSE06:
+        assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         return cls(dft.ibzwfs,
                    dft.density.nt_sR.desc.new(dtype=complex),
                    dft.setups,
@@ -63,47 +65,34 @@ class NonSelfConsistentHSE06:
         for psit1 in self.psit_K:
             pw1 = psit1.psit_nG.desc
             pw = pw1.new(kpt=pw1.kpt_c - pw2.kpt_c)
-            ghat_aLG = setups.create_compensation_charges(pw, relpos_ac)
-            v_G = coulomb(pw, None, self.hse06_omega)
+            v_G = hse_coulomb(pw, self.hse06_omega)
             for n1, psit1_R in enumerate(psit1.psit_nR):
                 eig_n += self._calculate(v_G,
-                                         ghat_aLG,
                                          psit1, n1,
                                          ut2_nR,
                                          P2_ani)
         return eig_n
 
     def _calculate(self,
-                   v_G: np.ndarray,
-                   ghat_aLG,
+                   v_G: PWArray,
                    psit1: Psi,
                    n1: int,
                    ut2_nR: UGArray,
                    P2_ani: dict[int, np.ndarray]) -> np.ndarray:
         rhot_nR = ut2_nR.copy()
-        rhot_nR.data *= psit1.psit_nR.data[n1].conj()
-        rhot_nG = psit1.psit_nG.new()
-        fft(rhot_nR, rhot_nG, plan=self.plan)
+        ut1_nR = psit1.psit_nR
+        assert ut1_nR is not None
+        rhot_nR.data *= ut1_nR.data[n1].conj()
+        Q_aniL = psit1.Q_aniL
+        assert Q_aniL is not None
         Q_anL = {}
-        for a, Q1_niL in psit1.Q_aniL.items():
+        for a, Q1_niL in Q_aniL.items():
             Q_anL[a] = P2_ani[a].conj() @ Q1_niL[n1]
-        ghat_aLG.add_to(rhot_nR, Q_anL)
-        """
-        for n2, (psit2_R, out_G) in enumerate(zips(psi2.psit_nR, Htpsit_nG)):
+        self.ghat_aLR.add_to(rhot_nR, Q_anL)
+        rhot_nG = v_G.desc.empty(len(rhot_nR))
         fft(rhot_nR, rhot_nG, plan=self.plan)
-        mmm(1.0 / self.pw.dv, Q_anL.data, 'N', self.ghat_GA, 'T',
-            1.0, rhot_nG.data)
-
-        e = 0.0
-        for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
-                                                       rhot_nG,
-                                                       psi1.f_n)):
-            vrhot_G.data = rhot_G.data * self.v_G.data
-            if psi2.f_n is not None:
-                e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
-        """
-        print('.')
-        return 0.0
+        rhot_nG.data *= v_G.data.real**0.5
+        return rhot_nG.norm2()
 
 
 def ibz2bz(ibzwfs, grid, setups, relpos_ac, spin):

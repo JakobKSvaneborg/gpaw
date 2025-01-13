@@ -788,8 +788,12 @@ class PWArray(DistributedArrays[PWDesc]):
             assert np.allclose(pw2.kpt_c, kpt2_c)
 
         size_c = np.ptp(pw1.indices_cG, axis=1) + 1
-        Q1_G = np.ravel_multi_index(U_cc @ pw1.indices_cG, size_c, mode='wrap')
-        Q2_G = np.ravel_multi_index(pw2.indices_cG, size_c, mode='wrap')
+        Q1_G = np.ravel_multi_index(U_cc @ pw1.indices_cG,
+                                    size_c,
+                                    mode='wrap')
+        Q2_G = np.ravel_multi_index(pw2.indices_cG,  # type: ignore
+                                    size_c,
+                                    mode='wrap')
         G_Q = np.empty(np.prod(size_c), dtype=int)
         G_Q[:] = -1
         G_Q[Q1_G] = np.arange(len(Q1_G), dtype=int)

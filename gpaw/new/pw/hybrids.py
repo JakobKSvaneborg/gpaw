@@ -25,7 +25,11 @@ def coulomb(pw: PWDesc,
         wstc = WignerSeitzTruncatedCoulomb(
             pw.cell_cv, np.array([1, 1, 1]))
         return wstc.get_potential_new(pw, grid)
+    return hse_coulomb(pw, omega)
 
+
+def hse_coulomb(pw: PWDesc,
+                omega: float = 0.11) -> PWArray:
     v_G = pw.empty()
     G2_G = pw.ekin_G * 2
     v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
@@ -34,7 +38,6 @@ def coulomb(pw: PWDesc,
         v_G.data[0] = pi / omega**2
     else:
         v_G.data /= G2_G
-
     return v_G
 
 
@@ -44,6 +47,7 @@ class Psi:
     P_ani: AtomArrays
     f_n: Array1D | None = None
     psit_nR: UGArray | None = None
+    Q_aniL: dict[int, np.ndarray] | None = None
 
     def empty(self):
         return Psi(self.psit_nG.new(),
