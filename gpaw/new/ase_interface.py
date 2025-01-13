@@ -327,8 +327,8 @@ class ASECalculator:
     def _calculate_forces(self) -> Array2D:  # units: Ha/Bohr
         """Helper method for force-convergence criterium."""
         with self.timer('Forces'):
-            self.dft.forces(silent=True)
-        return self.dft.results.pop('forces')
+            self.dft._calculate_forces()
+        return self.dft.results['forces']
 
     def __del__(self):
         self.log('---')

@@ -94,6 +94,7 @@ class DFTCalculation:
         self.results: dict[str, Any] = {}
         self.relpos_ac = self.pot_calc.relpos_ac
         self.energies = energies or DFTEnergies()
+        self.forces_have_been_printed = False
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential,
@@ -184,6 +185,7 @@ class DFTCalculation:
         write_atoms(atoms, mm_av, self.density.nt_sR.desc, self.log)
 
         self.results = {}
+        self.forces_have_been_printed = False
 
         return self
 
@@ -252,21 +254,22 @@ class DFTCalculation:
             self.log()
         return mm_v, mm_av
 
-    def forces(self, silent=False):
+    def forces(self):
         """Calculate atomic forces."""
-        if 'forces' not in self.results or silent:
+        if 'forces' not in self.results:
             self._calculate_forces()
 
-            if silent:
-                return
+        if self.forces_have_been_printed:
+            return
 
-            self.log('\nForces: [  # eV/Ang')
-            F_av = self.results['forces'] * (Ha / Bohr)
-            for a, setup in enumerate(self.setups):
-                x, y, z = F_av[a]
-                c = ',' if a < len(F_av) - 1 else ']'
-                self.log(f'  [{x:10.4f}, {y:10.4f}, {z:10.4f}]{c}'
-                         f'  # {setup.symbol:2} {a}')
+        self.forces_have_been_printed = True
+        self.log('\nForces: [  # eV/Ang')
+        F_av = self.results['forces'] * (Ha / Bohr)
+        for a, setup in enumerate(self.setups):
+            x, y, z = F_av[a]
+            c = ',' if a < len(F_av) - 1 else ']'
+            self.log(f'  [{x:10.4f}, {y:10.4f}, {z:10.4f}]{c}'
+                     f'  # {setup.symbol:2} {a}')
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc
