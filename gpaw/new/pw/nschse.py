@@ -101,8 +101,6 @@ class NonSelfConsistentHSE06:
         for P2_ni, dE_sii in zip(P2_ani.values(), self.dE_asii):
             eig_n -= np.einsum('ni, ij, nj -> n',
                                P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real
-            print('de', np.einsum('ni, ij, nj -> n',
-                                  P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real)
 
         eig0_n = wfs.eig_n[n2a:n2b]
 
@@ -180,12 +178,32 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
 def nsc_corrections(density: Density,
                     pot_calc: PlaneWavePotentialCalculator
                     ) -> tuple[UGArray, AtomArrays]:
-    xc1 = pot_calc.xc
-    xc2 = create_functional('HSE06', pot_calc.fine_grid)
+    """Semi-local XC-potential corrections.
+
+    Pseudo-part (calculated from ``density.nt_sR``):::
+
+        ~  _    ~      _    ~     _
+       Δv (r) = v     (r) - v    (r),
+         σ       σ,HSE       σ,xc
+
+    and PAW corrections:::
+
+         a     / a    a _   /~a   ~a _
+       Δv    = |φ Δv φ dr - |φ Δv φ dr,
+         σij   / i  σ j     / i  σ j
+
+    using (calculated from ``density.D_asii``):::
+
+           _           _          _
+       Δv (r) = v     (r) - v    (r).
+         σ       σ,HSE       σ,xc
+    """
+    xc = pot_calc.xc
+    hse = create_functional('HSE06', pot_calc.fine_grid)
     nt_sr = density.nt_sR.interpolate(grid=pot_calc.fine_grid)
-    _, dvt_sr, _ = xc1.calculate(nt_sr)
-    _, vhse06t_sr, _ = xc2.calculate(nt_sr)
-    dvt_sr.data -= vhse06t_sr.data
+    _, dvt_sr, _ = hse.calculate(nt_sr)
+    _, vxct_sr, _ = xc.calculate(nt_sr)
+    dvt_sr.data -= vxct_sr.data
     dvt_sR = dvt_sr.fft_restrict(grid=density.nt_sR.desc)
 
     dV_asii = density.D_asii.new()
@@ -194,9 +212,9 @@ def nsc_corrections(density: Density,
                                     dV_asii.values()):
         D_sp = np.array([pack_density(D_ii.real) for D_ii in D_sii])
         dV_sp = np.zeros_like(D_sp)
-        xc2.calculate_paw_correction(setup, D_sp, dV_sp)
+        xc.calculate_paw_correction(setup, D_sp, dV_sp)
         dV_sp *= -1
-        xc1.calculate_paw_correction(setup, D_sp, dV_sp)
+        hse.calculate_paw_correction(setup, D_sp, dV_sp)
         dV_sii[:] = unpack_hermitian(dV_sp)
 
     return dvt_sR, dV_asii
