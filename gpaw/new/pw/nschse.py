@@ -92,7 +92,9 @@ class NonSelfConsistentHSE06:
         rhot_nG = v_G.desc.empty(len(rhot_nR))
         fft(rhot_nR, rhot_nG, plan=self.plan)
         rhot_nG.data *= v_G.data.real**0.5
-        return rhot_nG.norm2()
+        e_n = rhot_nG.norm2()
+        print(e_n)
+        return e_n
 
 
 def ibz2bz(ibzwfs, grid, setups, relpos_ac, spin):

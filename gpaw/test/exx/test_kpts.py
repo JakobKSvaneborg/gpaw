@@ -71,6 +71,12 @@ def test_1d():
                   kpts=(n, 1, 1),
                   txt=None)
     a.get_potential_energy()
+    e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
+    print(e0, v0, v)
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
     for wfs in a.calc.dft.ibzwfs:
         hse.calculate(wfs)
+
+
+if __name__ == '__main__':
+    test_1d()
