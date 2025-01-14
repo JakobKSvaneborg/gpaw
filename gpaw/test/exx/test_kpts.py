@@ -68,9 +68,17 @@ def test_1d():
               pbc=(1, 0, 0))
     n = 4
     a.calc = GPAW(mode=PW(200),
+                  # setups='ae',
                   kpts=(n, 1, 1),
                   txt=None)
     a.get_potential_energy()
+    e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
+    print(e0)
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
     for wfs in a.calc.dft.ibzwfs:
-        hse.calculate(wfs)
+        e_n = hse.calculate(wfs)
+        print(e_n)
+
+
+if __name__ == '__main__':
+    test_1d()

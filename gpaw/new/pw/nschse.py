@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import numpy as np
 from gpaw.core import PWArray, UGArray, UGDesc
+from gpaw.core.atom_arrays import AtomArrays
+from gpaw.new import zips as zip
 from gpaw.new.calculation import DFTCalculation
-from gpaw.new.pw.hybrids import Psi, hse_coulomb, ifft, fft
+from gpaw.new.pw.hybrids import Psi, fft, hse_coulomb, ifft, pawexxvv
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.symmetry import SymmetrizationPlan
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
-# from gpaw.new import zips as zip
 
 
 class NonSelfConsistentHSE06:
@@ -19,13 +20,19 @@ class NonSelfConsistentHSE06:
     def __init__(self,
                  ibzwfs: PWFDIBZWaveFunctions,
                  grid: UGDesc,
+                 D_asii: AtomArrays,
                  setups: Setups,
                  relpos_ac: np.ndarray):
-        self.VC_aii = [unpack_hermitian(setup.X_p * self.exx_fraction)
-                       for setup in setups]
-        self.delta_aiiL = [setup.Delta_iiL for setup in setups]
-        self.VV_app = [setup.M_pp * self.exx_fraction for setup in setups]
         self.grid = grid
+        self.delta_aiiL = [setup.Delta_iiL for setup in setups]
+        self.dE_asii = []
+        for D_sii, setup in zip(D_asii.values(), setups):
+            VC_ii = unpack_hermitian(setup.X_p * self.exx_fraction)
+            self.dE_asii.append(
+                [self.exx_fraction * 4 *
+                 (pawexxvv(2 * setup.M_pp, D_ii / ibzwfs.spin_degeneracy) +
+                  VC_ii)
+                 for D_ii in D_sii])
 
         xp = np
         self.plan = grid.fft_plans(xp=xp)
@@ -47,13 +54,14 @@ class NonSelfConsistentHSE06:
         assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         return cls(dft.ibzwfs,
                    dft.density.nt_sR.desc.new(dtype=complex),
+                   dft.density.D_asii,
                    dft.setups,
                    dft.relpos_ac)
 
     def calculate(self,
                   wfs: PWFDWaveFunctions,
-                  na=0,
-                  nb=None) -> np.ndarray:
+                  na: int = 0,
+                  nb: int | None = None) -> np.ndarray:
         n2a = na
         n2b = nb or wfs.nbands
         P2_ani = {a: P_ni[n2a:n2b] for a, P_ni in wfs.P_ani.items()}
@@ -71,6 +79,14 @@ class NonSelfConsistentHSE06:
                                          psit1, n1,
                                          ut2_nR,
                                          P2_ani)
+        eig_n /= len(self.psit_K)
+
+        # Valence-valence and valence-core PAW corrections:
+        for P2_ni, dE_sii in zip(P2_ani.values(), self.dE_asii):
+            eig_n -= np.einsum('ni, ij, nj -> n',
+                               P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real
+            print('de', np.einsum('ni, ij, nj -> n',
+                                  P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real)
         return eig_n
 
     def _calculate(self,
@@ -92,10 +108,16 @@ class NonSelfConsistentHSE06:
         rhot_nG = v_G.desc.empty(len(rhot_nR))
         fft(rhot_nR, rhot_nG, plan=self.plan)
         rhot_nG.data *= v_G.data.real**0.5
-        return rhot_nG.norm2()
+        e_n = rhot_nG.norm2()
+        print(n1, v_G.desc.kpt, e_n)
+        return e_n
 
 
-def ibz2bz(ibzwfs, grid, setups, relpos_ac, spin):
+def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
+           grid: UGDesc,
+           setups: Setups,
+           relpos_ac: np.ndarray,
+           spin: int) -> list[Psi]:
     ibz = ibzwfs.ibz
     symmetries = ibzwfs.ibz.symmetries
     symmplan = SymmetrizationPlan(symmetries, [setup.l_j for setup in setups])
