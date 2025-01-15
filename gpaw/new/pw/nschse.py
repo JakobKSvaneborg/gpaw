@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import numpy as np
+from ase.units import Ha
+
 from gpaw.core import PWArray, UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new import zips as zip
+from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
-from gpaw.new.pw.hybrids import Psi, fft, truncated_coulomb, ifft, pawexxvv
+from gpaw.new.pw.hybrids import Psi, fft, ifft, pawexxvv, truncated_coulomb
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
@@ -14,7 +17,6 @@ from gpaw.new.symmetry import SymmetrizationPlan
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
-from gpaw.new.c import add_to_density
 
 
 class NonSelfConsistentHSE06:
@@ -44,6 +46,7 @@ class NonSelfConsistentHSE06:
         self.plan = self.grid.fft_plans(xp=xp)
 
         nbands = ibzwfs.nbands
+        # ???? Spin ????
         self.psit_K = ibz2bz(ibzwfs, self.grid, setups, relpos_ac, 0)
         for psit in self.psit_K:
             psit.psit_nR = self.grid.empty(nbands)
@@ -66,7 +69,7 @@ class NonSelfConsistentHSE06:
             for D_ii, dVxc_ii in zip(D_sii, dVxc_sii):
                 VV_ii = self.exx_fraction * 4 * (
                     pawexxvv(2 * setup.M_pp, D_ii / ibzwfs.spin_degeneracy))
-                dE_ii = VC_ii + VV_ii + dVxc_ii
+                dE_ii = dVxc_ii - VC_ii - VV_ii
                 dE_sii.append(dE_ii)
             self.dE_asii.append(dE_sii)
 
@@ -74,6 +77,7 @@ class NonSelfConsistentHSE06:
                   wfs: PWFDWaveFunctions,
                   na: int = 0,
                   nb: int | None = None) -> np.ndarray:
+        """Calculate eigenvalues (in eV)."""
         n2a = na
         n2b = nb or wfs.nbands
         P2_ani = {a: P_ni[n2a:n2b] for a, P_ni in wfs.P_ani.items()}
@@ -82,6 +86,7 @@ class NonSelfConsistentHSE06:
         ifft(psit2_nG, ut2_nR, self.plan)
 
         deig_n = self._semi_local_xc_part(ut2_nR, wfs.spin)
+        print('SL', deig_n * Ha)
 
         pw2 = psit2_nG.desc
         eig_n = np.zeros(n2b - n2a)
@@ -95,16 +100,20 @@ class NonSelfConsistentHSE06:
                                         psit1, n1,
                                         ut2_nR,
                                         P2_ani)
-        eig_n *= self.exx_fraction / len(self.psit_K)
+        eig_n *= -self.exx_fraction / len(self.psit_K)
 
-        # Valence-valence and valence-core PAW corrections:
+        # PAW corrections:
         for P2_ni, dE_sii in zip(P2_ani.values(), self.dE_asii):
-            eig_n -= np.einsum('ni, ij, nj -> n',
+            eig_n += 0*np.einsum('ni, ij, nj -> n',
                                P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real
+            print('SL',
+                  np.einsum('ni, ij, nj -> n',
+                            P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real)
 
         eig0_n = wfs.eig_n[n2a:n2b]
 
-        return deig_n + eig_n + eig0_n
+        print(deig_n * Ha, eig_n * Ha, eig0_n * Ha)
+        return (deig_n + eig_n + eig0_n) * Ha
 
     def _exx_part(self,
                   v_G: PWArray,
@@ -112,6 +121,7 @@ class NonSelfConsistentHSE06:
                   n1: int,
                   ut2_nR: UGArray,
                   P2_ani: dict[int, np.ndarray]) -> np.ndarray:
+        """"""
         rhot_nR = ut2_nR.copy()
         ut1_nR = psit1.psit_nR
         assert ut1_nR is not None
@@ -126,6 +136,7 @@ class NonSelfConsistentHSE06:
         fft(rhot_nR, rhot_nG, plan=self.plan)
         rhot_nG.data *= v_G.data.real**0.5
         e_n = rhot_nG.norm2()
+        print(v_G.desc.kpt, e_n, psit1.f_n[n1])
         return e_n * psit1.f_n[n1]
 
     def _semi_local_xc_part(self,
@@ -187,13 +198,13 @@ def nsc_corrections(density: Density,
 
     and PAW corrections:::
 
-         a     / a    a _   /~a   ~a _
-       Δv    = |φ Δv φ dr - |φ Δv φ dr,
-         σij   / i  σ j     / i  σ j
+         a     / a  a a _   /~a  a ~a _
+       Δv    = |φ Δv φ dr - |φ Δv  φ dr,
+         σij   / i  σ j     / i  σ  j
 
     using (calculated from ``density.D_asii``):::
 
-           _           _          _
+        a _      a     _      a   _
        Δv (r) = v     (r) - v    (r).
          σ       σ,HSE       σ,xc
     """
