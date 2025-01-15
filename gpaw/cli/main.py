@@ -51,6 +51,7 @@ def hook(parser, args):
             # Start again in parallel:
             pyargs = []
             if sys.version_info >= (3, 11):
+                # Don't prepend a potentially unsafe path to sys.path
                 pyargs.append('-P')
             if args.command == 'python' and args.debug:
                 pyargs.append('-d')
