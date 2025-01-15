@@ -21,7 +21,7 @@ __all__ = ['GPAW',
            'restart']
 
 GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
-no_c_extension = bool(int(os.environ.get('GPAW_NO_C_EXTENSION', '0')))
+no_c_extension = bool(int(os.environ.get('GPAW_NO_C_EXTENSION') or 0))
 setup_paths: List[Union[str, Path]] = []
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
@@ -30,7 +30,7 @@ dry_run = 0
 debug: bool = (TYPE_CHECKING or
                'pytest' in sys.modules or
                bool(sys.flags.debug))
-
+debug=True
 
 @contextlib.contextmanager
 def disable_dry_run():

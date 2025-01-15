@@ -29,6 +29,7 @@ else:
 
         def map(self, r_g, out_g):
             out_g[:] = self.spline(r_g) * r_g**self.l
+            out_g[r_g >= self.rmax] = 0.0
 
     def hartree(l: int,
                 nrdr: np.ndarray,
