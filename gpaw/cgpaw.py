@@ -2,7 +2,9 @@ from gpaw import no_c_extension
 import numpy as np
 
 
-if no_c_extension:
+if not no_c_extension:
+    from _gpaw import *
+else:
     have_openmp = False
 
     def get_num_threads():
@@ -24,6 +26,9 @@ if no_c_extension:
 
         def get_cutoff(self):
             return self.rmax
+
+        def map(self, r_g, out_g):
+            out_g[:] = self.spline(r_g) * r_g**self.l
 
     def hartree(l: int,
                 nrdr: np.ndarray,
@@ -54,9 +59,15 @@ if no_c_extension:
                 M2[r, c] = d
                 M2[c, r] = d
                 p += 1
-else:
-    from _gpaw import *
 
-
-# def __getattr__(name):
-#    return getattr(_gpaw, name)
+    def pack(M2):
+        n = len(M2)
+        M = np.empty(n * (n + 1) // 2)
+        p = 0
+        for r in range(n):
+            M[p] = M2[r, r]
+            p += 1
+            for c in range(r + 1, n):
+                M[p] = M2[r, c] + M2[c, r]
+                p += 1
+        return M

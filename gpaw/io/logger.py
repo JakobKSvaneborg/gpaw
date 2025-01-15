@@ -132,7 +132,7 @@ def write_header(log, world):
     if gpaw.no_c_extension:
         line = 'No C-extension'
     else:
-        c = getattr(cgpaw._gpaw, '__file__', None)
+        c = getattr(cgpaw, '__file__', None)
         if not c:
             c = sys.executable
         line = os.path.normpath(c)
