@@ -26,7 +26,7 @@ def create_basis(ibz: IBZ,
     kd.nibzkpts = len(ibz)
     kd.symmetry = ibz.symmetries._old_symmetry
     kd.set_communicator(kpt_comm)
-
+    return None
     basis = BasisFunctions(grid._gd,
                            [setup.basis_functions_J for setup in setups],
                            kd,
