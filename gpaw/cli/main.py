@@ -49,18 +49,23 @@ def hook(parser, args):
 
         if py:
             # Start again in parallel:
-            arguments = ['mpiexec', '-np', str(args.parallel), py]
+            pyargs = []
+            if sys.version_info >= (3, 11):
+                pyargs.append('-P')
             if args.command == 'python' and args.debug:
-                arguments.append('-d')
-            arguments += ['-m', 'gpaw']
-            arguments += sys.argv[1:]
-
-            extra = os.environ.get('GPAW_MPI_OPTIONS')
-            if extra:
-                arguments[1:1] = extra.split()
+                pyargs.append('-d')
+            arguments = ['mpiexec',
+                         *os.environ.get('GPAW_MPI_OPTIONS', '').split(),
+                         '-np',
+                         str(args.parallel),
+                         py,
+                         *pyargs,
+                         '-m',
+                         'gpaw',
+                         *sys.argv[1:]]
 
             # Use a clean set of environment variables without any MPI stuff:
-            p = subprocess.run(arguments, check=not True, env=os.environ)
+            p = subprocess.run(arguments, check=False, env=os.environ)
             sys.exit(p.returncode)
 
     return args
