@@ -6,7 +6,7 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new import zips as zip
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
-from gpaw.new.pw.hybrids import Psi, fft, hse_coulomb, ifft, pawexxvv
+from gpaw.new.pw.hybrids import Psi, fft, truncated_coulomb, ifft, pawexxvv
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
@@ -21,10 +21,20 @@ class NonSelfConsistentHSE06:
     exx_fraction = 0.25
     hse06_omega = 0.11
 
+    @classmethod
+    def from_dft_calculation(cls,
+                             dft: DFTCalculation) -> NonSelfConsistentHSE06:
+        assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
+        return cls(dft.ibzwfs,
+                   dft.density,
+                   dft.pot_calc,
+                   dft.setups,
+                   dft.relpos_ac)
+
     def __init__(self,
                  ibzwfs: PWFDIBZWaveFunctions,
                  density: Density,
-                 pot_calc,
+                 pot_calc: PlaneWavePotentialCalculator,
                  setups: Setups,
                  relpos_ac: np.ndarray):
         self.grid = density.nt_sR.desc.new(dtype=complex)
@@ -39,7 +49,7 @@ class NonSelfConsistentHSE06:
             psit.psit_nR = self.grid.empty(nbands)
             ifft(psit.psit_nG, psit.psit_nR, self.plan)
             psit.Q_aniL = {a: np.einsum('ijL, nj -> niL',
-                                        setup.Delta_iiL, psit.P_ani[a])
+                                        setup.Delta_iiL, psit.P_ani[a].conj())
                            for a, setup in enumerate(setups)}
 
         self.ghat_aLR = setups.create_compensation_charges(
@@ -60,16 +70,6 @@ class NonSelfConsistentHSE06:
                 dE_sii.append(dE_ii)
             self.dE_asii.append(dE_sii)
 
-    @classmethod
-    def from_dft_calculation(cls,
-                             dft: DFTCalculation) -> NonSelfConsistentHSE06:
-        assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
-        return cls(dft.ibzwfs,
-                   dft.density,
-                   dft.pot_calc,
-                   dft.setups,
-                   dft.relpos_ac)
-
     def calculate(self,
                   wfs: PWFDWaveFunctions,
                   na: int = 0,
@@ -87,15 +87,15 @@ class NonSelfConsistentHSE06:
         eig_n = np.zeros(n2b - n2a)
         for psit1 in self.psit_K:
             pw1 = psit1.psit_nG.desc
-            pw = pw1.new(kpt=pw1.kpt_c - pw2.kpt_c)
-            v_G = hse_coulomb(pw, self.hse06_omega)
+            pw = pw1.new(kpt=pw2.kpt_c - pw1.kpt_c)
+            v_G = truncated_coulomb(pw, self.hse06_omega)
             assert psit1.psit_nR is not None
             for n1, psit1_R in enumerate(psit1.psit_nR):
                 eig_n += self._exx_part(v_G,
                                         psit1, n1,
                                         ut2_nR,
                                         P2_ani)
-        eig_n /= len(self.psit_K)
+        eig_n *= self.exx_fraction / len(self.psit_K)
 
         # Valence-valence and valence-core PAW corrections:
         for P2_ni, dE_sii in zip(P2_ani.values(), self.dE_asii):
@@ -120,14 +120,13 @@ class NonSelfConsistentHSE06:
         assert Q_aniL is not None
         Q_anL = {}
         for a, Q1_niL in Q_aniL.items():
-            Q_anL[a] = P2_ani[a].conj() @ Q1_niL[n1]
+            Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
         self.ghat_aLR.add_to(rhot_nR, Q_anL)
         rhot_nG = v_G.desc.empty(len(rhot_nR))
         fft(rhot_nR, rhot_nG, plan=self.plan)
         rhot_nG.data *= v_G.data.real**0.5
         e_n = rhot_nG.norm2()
-        print(n1, v_G.desc.kpt, e_n)
-        return e_n
+        return e_n * psit1.f_n[n1]
 
     def _semi_local_xc_part(self,
                             ut2_nR: UGArray,
