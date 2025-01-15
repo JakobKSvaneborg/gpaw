@@ -24,9 +24,10 @@ import sys
 import marshal
 from importlib.machinery import PathFinder, ModuleSpec
 
+from gpaw import no_c_extension
 import gpaw.cgpaw as cgpaw
 
-if getattr(cgpaw, 'version', 0) != 9:
+if not no_c_extension and getattr(cgpaw, 'version', 0) != 9:
     raise ImportError('Please recompile GPAW''s C-extensions!')
 
 

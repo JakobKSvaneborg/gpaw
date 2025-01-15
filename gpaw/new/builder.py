@@ -97,7 +97,7 @@ class DFTComponentsBuilder:
             atoms.numbers,
             params.setups,
             params.basis,
-            self._xc.get_setup_name(),
+            self._xc,#.get_setup_name(),
             world=comm,
             backwards_compatible=self._backwards_comatible)
         if params.hund:

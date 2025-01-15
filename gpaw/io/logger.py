@@ -129,12 +129,15 @@ def write_header(log, world):
     log('gpaw:  ', line)
 
     # Find C-code:
-    c = getattr(cgpaw._gpaw, '__file__', None)
-    if not c:
-        c = sys.executable
-    line = os.path.normpath(c)
-    if hasattr(cgpaw, 'githash'):
-        line += f' ({cgpaw.githash():.10})'
+    if gpaw.no_c_extension:
+        line = 'No C-extension'
+    else:
+        c = getattr(cgpaw._gpaw, '__file__', None)
+        if not c:
+            c = sys.executable
+        line = os.path.normpath(c)
+        if hasattr(cgpaw, 'githash'):
+            line += f' ({cgpaw.githash():.10})'
     log('_gpaw: ', cut(line))
 
     # ASE
