@@ -155,6 +155,7 @@ class IBZWaveFunctions(Generic[WFT]):
                 f'spin-degeneracy: {self.spin_degeneracy}\n'
                 f'dtype: {self.dtype}\n\n'
                 'memory:\n'
+                f'    storage: {"CPU" if self.xp is np else "GPU"}\n'
                 f'    wave functions: {nbytes:_}  # bytes '
                 f' ({nbytes // ncores:_} per core)\n\n'
                 'parallelization:\n'

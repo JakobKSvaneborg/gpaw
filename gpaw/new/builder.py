@@ -197,7 +197,7 @@ class DFTComponentsBuilder:
     @cached_property
     def gpu(self) -> bool:
         """Are we running on a GPU?."""
-        if self.params.parallel.get('gpu', False):
+        if self.params.parallel.get('gpu', os.environ.get('GPAW_USE_GPUS')):
             from gpaw.gpu import cupy_is_fake
             if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
                 raise ValueError(
