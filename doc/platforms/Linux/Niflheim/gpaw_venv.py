@@ -79,7 +79,7 @@ module load libvdwxc/0.4.0-{fullchain}
 module_cmds_arch_dependent = """\
 if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2023a" ];\
 then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
-if [ "$SLURM_JOB_PARTITION" == "a100"];\
+if [ "$SLURM_JOB_PARTITION" == "a100" ];\
 then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 """
 
