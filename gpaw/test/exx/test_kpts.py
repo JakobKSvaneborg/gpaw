@@ -66,7 +66,7 @@ def test_1d():
               [[0.0, 1.0, 1.0]],
               cell=[1.0, 2.0, 2.0],
               pbc=(1, 0, 0))
-    n = 4
+    n = 10
     a.calc = GPAW(mode=PW(200),
                   # setups='ae',
                   kpts=(n, 1, 1),
@@ -76,7 +76,7 @@ def test_1d():
     e_skn = e0 - v0 + v
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
     for k, wfs in enumerate(a.calc.dft.ibzwfs):
-        e_n = hse.calculate(wfs)
+        e_n = hse.calculate(wfs)[1]
         assert e_n == pytest.approx(e_skn[0, k], abs=0.002)
 
 

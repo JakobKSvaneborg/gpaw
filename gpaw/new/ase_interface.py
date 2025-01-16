@@ -13,7 +13,7 @@ from ase.units import Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
-from gpaw.mpi import MPIComm
+from gpaw.mpi import MPIComm, broadcast
 from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
@@ -376,6 +376,18 @@ class ASECalculator:
     def check_state(self, atoms, tol=1e-12):
         return list(compare_atoms(self.atoms, atoms))
 
+    def eigenvalues(self):
+        return broadcast(
+            self.dft.ibzwfs.get_all_eigs_and_occs()[0] * Ha
+            if self.comm.rank == 0 else None,
+            comm=self.comm)
+
+    def occupations(self):
+        return broadcast(
+            self.dft.ibzwfs.get_all_eigs_and_occs()[1]
+            if self.comm.rank == 0 else None,
+            comm=self.comm)
+
     def write(self,
               filename: str | Path,
               mode: str = '',
@@ -662,7 +674,7 @@ class ASECalculator:
                       *,
                       txt='-',
                       update_fermi_level: bool = False,
-                      **kwargs):
+                      **kwargs) -> ASECalculator:
         kwargs = {**dict(self.params.items()), **kwargs}
 
         params = InputParameters(kwargs)

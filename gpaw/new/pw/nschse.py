@@ -76,7 +76,7 @@ class NonSelfConsistentHSE06:
     def calculate(self,
                   wfs: PWFDWaveFunctions,
                   na: int = 0,
-                  nb: int | None = None) -> np.ndarray:
+                  nb: int | None = None) -> tuple[np.ndarray, np.ndarray]:
         """Calculate eigenvalues (in eV)."""
         n2a = na
         n2b = nb or wfs.nbands
@@ -86,7 +86,6 @@ class NonSelfConsistentHSE06:
         ifft(psit2_nG, ut2_nR, self.plan)
 
         deig_n = self._semi_local_xc_part(ut2_nR, wfs.spin)
-        print('SL', deig_n * Ha)
 
         pw2 = psit2_nG.desc
         eig_n = np.zeros(n2b - n2a)
@@ -106,14 +105,10 @@ class NonSelfConsistentHSE06:
         for P2_ni, dE_sii in zip(P2_ani.values(), self.dE_asii):
             eig_n += np.einsum('ni, ij, nj -> n',
                                P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real
-            print('SL',
-                  np.einsum('ni, ij, nj -> n',
-                            P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real)
 
         eig0_n = wfs.eig_n[n2a:n2b]
 
-        print(deig_n * Ha, eig_n * Ha, eig0_n * Ha)
-        return (deig_n + eig_n + eig0_n) * Ha
+        return eig0_n * Ha, (deig_n + eig_n + eig0_n) * Ha
 
     def _exx_part(self,
                   v_G: PWArray,
@@ -136,7 +131,6 @@ class NonSelfConsistentHSE06:
         fft(rhot_nR, rhot_nG, plan=self.plan)
         rhot_nG.data *= v_G.data.real**0.5
         e_n = rhot_nG.norm2()
-        print(v_G.desc.kpt, e_n, psit1.f_n[n1])
         return e_n * psit1.f_n[n1]
 
     def _semi_local_xc_part(self,

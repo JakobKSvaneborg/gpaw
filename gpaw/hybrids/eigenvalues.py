@@ -225,7 +225,6 @@ def _calculate_eigenvalues(kpt1, kpts2, paw, kd, coulomb, sym, wfs, spos_ac):
                     vrho_G = v_G * rho_G
                     e = ghat.pd.integrate(rho_G, vrho_G).real
                     e_nn[n1, n2] = e / kd.nbzkpts
-            print(q_c, e_nn, rskpt2.f_n)
             e_n -= e_nn.dot(rskpt2.f_n)
 
     for a, VV_ii in paw.VV_aii.items():
@@ -237,7 +236,6 @@ def _calculate_eigenvalues(kpt1, kpts2, paw, kd, coulomb, sym, wfs, spos_ac):
                              P_ni.conj(), paw.VC_aii[a], P_ni).real
         else:
             vc_n = 0.0
-        print('de', 2 * vv_n + vc_n)
         E_n -= (2 * vv_n + vc_n)
 
     return E_n
