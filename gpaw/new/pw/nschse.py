@@ -67,7 +67,7 @@ class NonSelfConsistentHSE06:
             VC_ii = unpack_hermitian(setup.X_p * self.exx_fraction)
             dE_sii = []
             for D_ii, dVxc_ii in zip(D_sii, dVxc_sii):
-                VV_ii = self.exx_fraction * 4 * (
+                VV_ii = self.exx_fraction * (
                     pawexxvv(2 * setup.M_pp, D_ii / ibzwfs.spin_degeneracy))
                 dE_ii = dVxc_ii - VC_ii - VV_ii
                 dE_sii.append(dE_ii)
@@ -104,7 +104,7 @@ class NonSelfConsistentHSE06:
 
         # PAW corrections:
         for P2_ni, dE_sii in zip(P2_ani.values(), self.dE_asii):
-            eig_n += 0*np.einsum('ni, ij, nj -> n',
+            eig_n += np.einsum('ni, ij, nj -> n',
                                P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real
             print('SL',
                   np.einsum('ni, ij, nj -> n',

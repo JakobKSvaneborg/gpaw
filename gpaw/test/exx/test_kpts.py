@@ -73,11 +73,11 @@ def test_1d():
                   txt=None)
     a.get_potential_energy()
     e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
-    print(e0, v0, v)
+    e_skn = e0 - v0 + v
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
-    for wfs in a.calc.dft.ibzwfs:
+    for k, wfs in enumerate(a.calc.dft.ibzwfs):
         e_n = hse.calculate(wfs)
-        print(e_n)
+        assert e_n == pytest.approx(e_skn[0, k], abs=0.002)
 
 
 if __name__ == '__main__':
