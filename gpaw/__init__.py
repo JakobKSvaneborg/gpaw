@@ -8,7 +8,7 @@ import contextlib
 from pathlib import Path
 from typing import List, Union, Any, TYPE_CHECKING
 
-__version__ = '24.7.0b1'
+__version__ = '25.1.1b1'
 __ase_version_required__ = '3.23.0'
 
 __all__ = ['GPAW',
@@ -20,7 +20,10 @@ __all__ = ['GPAW',
            'PW', 'LCAO', 'FD',
            'restart']
 
+# Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
 GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
+GPAW_USE_GPUS = bool(int(os.environ.get('GPAW_USE_GPUS') or 0))
+
 setup_paths: List[Union[str, Path]] = []
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0

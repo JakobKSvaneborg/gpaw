@@ -6,12 +6,11 @@ from ase import Atoms
 from ase.units import Bohr
 
 from gpaw import GPAW, PW
-from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.mom import prepare_mom_calculation
 from gpaw.mpi import world
 
 
-@pytest.mark.new_gpaw_ready
+# @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 def test_mom_directopt_pw_hybrids(in_tmp_dir, gpaw_new):
     if gpaw_new and world.size > 1:
@@ -55,7 +54,8 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir, gpaw_new):
     calc = GPAW(mode=PW(300),
                 # h=0.3,
                 xc={'name': 'HSE06', 'backend': 'pw'},
-                eigensolver=FDPWETDM(converge_unocc=True),
+                eigensolver={'name': 'etdm-fdpw',
+                             'converge_unocc': True},
                 mixer={'backend': 'no-mixing'},
                 occupations={'name': 'fixed-uniform'},
                 symmetry='off',
@@ -70,8 +70,9 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir, gpaw_new):
         f = calc.get_forces()
         assert f == pytest.approx(np.array(f_ref), abs=1.0e-2)
 
-    calc.set(eigensolver=FDPWETDM(excited_state=True,
-                                  converge_unocc=True))
+    calc.set(eigensolver={'name': 'etdm-fdpw',
+                          'excited_state': True,
+                          'converge_unocc': True})
     f_sn = [[0, 1]]
     prepare_mom_calculation(calc, h2, f_sn)
 

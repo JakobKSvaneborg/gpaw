@@ -13,17 +13,24 @@ This will automatically build the latest GPU version of GPAW.
    * Type ``mq info`` to locate the myqueue root, and the config.py file in
      there, and add following items to the list of nodes::
 
-        ('a100G1', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=1']}),
-        ('a100G2', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=2']}),
-        ('a100G4', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=4']}),
+        ('a100G1', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=1', '--mem=100G']}),
+        ('a100G2', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=2', '--mem=200G']}),
+        ('a100G4', {'nodename': 'a100', 'cores': 128, 'memory': '512000M', 'extra_args':['--gpus-per-node=4', '--mem=400G']}),
 
    * This will allow you to run calculations with 1, 2 or 4 GPUs (4 GPUs equals a full node).
 
 
-2. Prepare your script for GPUs. One needs to use the NEW gpaw, when running with GPUs,
+2. Use the latest ``gpaw_venv.py`` script to build the environment. This automatically will set ``GPAW_NEW=1``
+   and ``GPAW_USE_GPUS=1`` environment variables when using a100 nodes. Thus, the user only has to submit to
+   a100 nodes, and GPUs should work automatically. Check out the wave function memory section from the output, 
+   it should have ``storage: GPU`` under it.
+  
+   If do not want to use the latest ``gpaw_venv.py``, alternatively, 
+   you need to prepare your script for GPUs. One needs to use the NEW gpaw, when running with GPUs,
    so either you need to add ``export GPAW_NEW=1`` to your virtual environment,
    or import the calculator from new GPAW directly. In addition you need to add
-   ``parallel={'gpu': True, ...}`` to your input of GPAW. Here is an example script
+   ``parallel={'gpu': True, ...}`` to your input of GPAW, or set ``export GPAW_USE_GPUS=1`` environment variable. 
+   Here is an example script
    to relax a nanostructure (note that you can keep the absolute path, if you want to rerun this test)::
 
     def gpaw_test(atoms, gpu=False):

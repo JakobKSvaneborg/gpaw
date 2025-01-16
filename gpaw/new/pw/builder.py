@@ -3,7 +3,6 @@ from __future__ import annotations
 from functools import cached_property
 
 from ase.units import Ha
-
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
@@ -11,10 +10,11 @@ from gpaw.core.plane_waves import PWArray
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.external_potential import create_external_potential
+from gpaw.new.gpw import as_double_precision
+from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
 from gpaw.new.pw.paw_poisson import SlowPAWPoissonSolver
-from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
@@ -210,6 +210,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if 'coefficients' not in reader.wave_functions:
             return ibzwfs
 
+        singlep = reader.get('precision', 'double') == 'single'
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # very old gpw file
@@ -233,7 +234,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             data.scale = c
             data.length_of_last_dimension = pw.shape[-1]
 
-            if self.communicators['w'].size == 1:
+            if self.communicators['w'].size == 1 and not singlep:
                 orig_shape = data.shape
                 data.shape = shape + pw.shape
                 wfs.psit_nX = pw.from_data(data)
@@ -251,7 +252,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 else:
                     data = [None] * (n2 - n1)
                 for psit_G, array in zips(wfs.psit_nX, data):
-                    psit_G.scatter_from(array)
+                    if singlep:
+                        psit_G.scatter_from(as_double_precision(array))
+                    else:
+                        psit_G.scatter_from(array)
 
         return ibzwfs
 
