@@ -117,21 +117,24 @@ class NonSelfConsistentHSE06:
                   ut2_nR: UGArray,
                   P2_ani: dict[int, np.ndarray]) -> np.ndarray:
         """"""
-        rhot_nR = ut2_nR.copy()
         ut1_nR = psit1.psit_nR
+        Q1_aniL = psit1.Q_aniL
+        f1_n = psit1.f_n
         assert ut1_nR is not None
+        assert Q1_aniL is not None
+        assert f1_n is not None
+
+        rhot_nR = ut2_nR.copy()
         rhot_nR.data *= ut1_nR.data[n1].conj()
-        Q_aniL = psit1.Q_aniL
-        assert Q_aniL is not None
         Q_anL = {}
-        for a, Q1_niL in Q_aniL.items():
+        for a, Q1_niL in Q1_aniL.items():
             Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
         self.ghat_aLR.add_to(rhot_nR, Q_anL)
         rhot_nG = v_G.desc.empty(len(rhot_nR))
         fft(rhot_nR, rhot_nG, plan=self.plan)
         rhot_nG.data *= v_G.data.real**0.5
         e_n = rhot_nG.norm2()
-        return e_n * psit1.f_n[n1]
+        return e_n * f1_n[n1]
 
     def _semi_local_xc_part(self,
                             ut2_nR: UGArray,
