@@ -1,4 +1,3 @@
-import os
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -55,7 +54,6 @@ def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
                  l_s, a_J, s_J,
                  cc, f_GI):
     real = f_GI.dtype == float
-    nG = len(f_Gs)
     I1 = 0
     for J, (a, s) in enumerate(zip(a_J, s_J)):
         l = l_s[s]
@@ -67,8 +65,8 @@ def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
         if cc:
             np.conjugate(f_Gi, f_Gi)
         if real:
-            f_GI[:nG, I1:I2] = f_Gi.real
-            f_GI[nG:, I1:I2] = f_Gi.imag
+            f_GI[::2, I1:I2] = f_Gi.real
+            f_GI[1::2, I1:I2] = f_Gi.imag
         else:
             f_GI[:, I1:I2] = f_Gi
         I1 = I2
