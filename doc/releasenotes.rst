@@ -11,7 +11,8 @@ Git master branch
 :git:`master <>`.
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
-
+* Sign of electron chemical potential in SJM text output has been corrected.
+  The resulting (Grand) energies are not affected by this change.
 
 Version 25.1.0
 ==============
