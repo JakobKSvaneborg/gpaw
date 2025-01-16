@@ -787,3 +787,7 @@ class ASECalculator:
             return x.flatten()
         elif type == 'mbeefvdw':
             return np.append(x.flatten(), c)
+
+    def get_bz_to_ibz_map(self):
+        """Return indices from BZ to IBZ."""
+        return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
