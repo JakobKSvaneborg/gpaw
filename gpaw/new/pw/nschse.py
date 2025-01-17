@@ -50,13 +50,15 @@ class NonSelfConsistentHSE06:
         self.psit_K = ibz2bz(ibzwfs, self.grid, setups, relpos_ac, 0)
         for psit in self.psit_K:
             psit.psit_nR = self.grid.empty(nbands)
-            ifft(psit.psit_nG, psit.psit_nR, self.plan)
+            psit.psit_nG.ifft(out=psit.psit_nR, plan=self.plan, periodic=False)
             psit.Q_aniL = {a: np.einsum('ijL, nj -> niL',
                                         setup.Delta_iiL, psit.P_ani[a].conj())
                            for a, setup in enumerate(setups)}
 
         self.ghat_aLR = setups.create_compensation_charges(
             self.grid, relpos_ac)
+        self.setups =setups
+        self.relpos_ac =relpos_ac
 
         self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
 
@@ -83,7 +85,7 @@ class NonSelfConsistentHSE06:
         P2_ani = {a: P_ni[n2a:n2b] for a, P_ni in wfs.P_ani.items()}
         ut2_nR = self.grid.empty(n2b - n2a)
         psit2_nG = wfs.psit_nX[n2a:n2b]
-        ifft(psit2_nG, ut2_nR, self.plan)
+        psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
         deig_n = self._semi_local_xc_part(ut2_nR, wfs.spin)
 
@@ -123,17 +125,24 @@ class NonSelfConsistentHSE06:
         assert ut1_nR is not None
         assert Q1_aniL is not None
         assert f1_n is not None
-
         rhot_nR = ut2_nR.copy()
         rhot_nR.data *= ut1_nR.data[n1].conj()
         Q_anL = {}
         for a, Q1_niL in Q1_aniL.items():
             Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
-        self.ghat_aLR.add_to(rhot_nR, Q_anL)
-        rhot_nG = v_G.desc.empty(len(rhot_nR))
-        fft(rhot_nR, rhot_nG, plan=self.plan)
+        if 0:
+            ghat_aLG = self.setups.create_compensation_charges(
+                v_G.desc, self.relpos_ac)
+            rhot_nG = v_G.desc.empty(len(rhot_nR))
+            fft(rhot_nR, rhot_nG, plan=self.plan)
+            ghat_aLG.add_to(rhot_nG, Q_anL)
+        else:
+            self.ghat_aLR.add_to(rhot_nR, Q_anL)
+            rhot_nG = v_G.desc.empty(len(rhot_nR))
+            fft(rhot_nR, rhot_nG, plan=self.plan)
         rhot_nG.data *= v_G.data.real**0.5
         e_n = rhot_nG.norm2()
+        print(v_G.desc.kpt, e_n)
         return e_n * f1_n[n1]
 
     def _semi_local_xc_part(self,
@@ -174,10 +183,20 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                     S_c = relpos_ac[a] @ U_cc - relpos_ac[b]
                     x = np.exp(2j * np.pi * (psit1_nG.desc.kpt_c @ S_c))
                     U_ii = symmplan.rotations(setups[a].l_j)[s].T * x
+                    if 0:
+                        print(U_ii)
+                        print(setups[a].l_j,
+                              b, S_c, x, U_cc, complex_conjugate);sadgf
                     P2_ni[:] = P1_ani[b] @ U_ii
                 if complex_conjugate:
                     np.conjugate(P2_ani.data, P2_ani.data)
                 psit = Psi(psit2_nG, P2_ani, wfs.myocc_n)
+                if 0:
+                    pt_aiG = psit2_nG.desc.atom_centered_functions(
+                        [setup.pt_j for setup in setups],
+                        relpos_ac)
+                    P3_ani = pt_aiG.integrate(psit2_nG)
+                    print(abs(P2_ani.data - P3_ani.data).max())
                 psit_K.append(psit)
     return psit_K
 

@@ -779,9 +779,9 @@ class PWArray(DistributedArrays[PWDesc]):
                   pw: PWDesc | None = None) -> PWArray:
         pw1 = self.desc
         pw2 = pw
-        kpt2_c = U_cc @ pw1.kpt_c
         if complex_conjugate:
-            kpt2_c *= -1
+            U_cc = -U_cc
+        kpt2_c = U_cc @ pw1.kpt_c
         if pw2 is None:
             pw2 = pw1.new(kpt=kpt2_c)
         else:

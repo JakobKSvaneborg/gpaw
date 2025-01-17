@@ -1,9 +1,12 @@
-from ase.build import mx2
-from gpaw.new.ase_interface import GPAW
+import pickle
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
-from ase.units import Ha
+from ase.build import mx2
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
+from gpaw.new.pw.nschse import NonSelfConsistentHSE06
 
 
 def mos2() -> None:
@@ -11,31 +14,64 @@ def mos2() -> None:
     atoms = mx2(formula='MoS2', kind='2H', a=3.184, thickness=3.13,
                 size=(1, 1, 1))
     atoms.center(vacuum=3.5, axis=2)
-    k = 6
-    atoms.calc = GPAW(mode={'nama': 'pw', 'ecut': 500},
+    k = 4
+    atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 500},
                       kpts=(k, k, 1),
                       txt='lda.txt')
     atoms.get_potential_energy()
-
-    bp = atoms.cell.bandpath('GMKG', npoints=50)
-    bs_calc = atoms.calc.fixed_density(kpts=bp, symmetry='off')
+    return atoms
 
 
-def plot(ibzwfs, bp, ax):
-    x_k, xlabel_K, label_K = bp.get_linear_kpoint_axis()
-    label_K = [label.replace('G', r'$\Gamma$') for label in label_K]
-    ax.set_xlim(0, x_k[-1])
-    ax.set_ylim(-10, 0)
-    ax.set_xticks(xlabel_K)
-    ax.set_xticklabels(label_K)
-    return lines
+def bandstructure(calc, bp):
+    from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
+    e0, v0, v = non_self_consistent_eigenvalues(calc, 'HSE06')
+    hse = NonSelfConsistentHSE06.from_dft_calculation(calc.dft)
+    for k, wfs in enumerate(calc.dft.ibzwfs):
+        lda_n, hse_n = hse.calculate(wfs)
+        print(k)
+        print(lda_n - e0[0, k])
+        print(hse_n - (e0 - v0 + v)[0, k])
+    dsaflkjh
+    efermi = calc.get_fermi_level()
+    bs_calc = calc.fixed_density(kpts=bp, symmetry='off')
+    lda_skn = bs_calc.eigenvalues()
+    print(lda_skn)
+    hse_kn = np.empty_like(lda_skn[0])
+    hse = NonSelfConsistentHSE06.from_dft_calculation(calc.dft)
+    for k, wfs in enumerate(bs_calc.dft.ibzwfs):
+        lda_n, hse_kn[k] = hse.calculate(wfs)
+        print(k, lda_n)
+    return lda_skn[0] - efermi, hse_kn - efermi
+
+
+def run():
+    atoms = mos2()
+    # bp = atoms.cell.bandpath('GMKG', npoints=50)
+    bp = atoms.cell.bandpath('KG', npoints=10)
+    lda_kn, hse_kn = bandstructure(atoms.calc, bp)
+    if world.rank == 0:
+        Path('bs.pckl').write_bytes(pickle.dumps((bp, lda_kn, hse_kn)))
+
+
+def plot(bp, lda_kn, hse_kn):
+    ax = plt.subplot()
+    x, xlabels, labels = bp.get_linear_kpoint_axis()
+    labels = [label.replace('G', r'$\Gamma$') for label in labels]
+    for y in lda_kn.T:
+        ax.plot(x, y, color='C0')
+    for y in hse_kn.T:
+        ax.plot(x, y, color='C1')
+    ax.set_xlim(0.0, x[-1])
+    ax.set_ylim(-3.0, 3.0)
+    ax.set_xticks(xlabels)
+    ax.set_xticklabels(labels)
+    plt.show()
+    # plt.savefig('hse.png')
 
 
 if __name__ == '__main__':
-    fig, axs = plt.subplots(1, 3, sharey=True)
-    for i, ax in enumerate(axs):
-        bs_calc = GPAW(f'mos2ws2-{i}.gpw')
-        bp = bs_calc.atoms.cell.bandpath('GMKG', npoints=50)
-        lines = plot(bs_calc.dft.ibzwfs, bp, ax)
-    # plt.show()
-    plt.savefig('mos2ws2.png')
+    path = Path('bs.pckl')
+    if not path.is_file():
+        run()
+    else:
+        plot(*pickle.loads(path.read_bytes()))

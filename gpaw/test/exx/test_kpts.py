@@ -59,17 +59,71 @@ def test_kpts(xc: str, atoms: Atoms) -> None:
     assert gap == pytest.approx(gaps['PBE'], abs=0.01)
 
 
+def test_1ds():
+    from gpaw.new.pw.nschse import NonSelfConsistentHSE06, ibz2bz
+    from gpaw.new.ase_interface import GPAW
+    a = Atoms('H',
+              [[0.5, 1.0, 1.0]],
+              cell=[1.0, 2.0, 2.0],
+              pbc=(1, 0, 0))
+    n = 4
+    c1 = a.calc = GPAW(mode=PW(200),
+                       # setups='ae',
+                       kpts=(n, 1, 1),
+                       txt=None)
+    a.get_potential_energy()
+    c2 = a.calc = GPAW(mode=PW(200),
+                       # setups='ae',
+                       kpts=(n, 1, 1),
+                       symmetry='off',
+                       txt=None)
+    a.get_potential_energy()
+    bz = ibz2bz(c1.dft.ibzwfs,
+                c1.dft.density.nt_sR.desc.new(dtype=complex),
+                c1.setups,
+                c1.dft.relpos_ac,
+                0)
+    for wfs in c2.dft.ibzwfs:
+        print(wfs.kpt_c, wfs.P_ani[0][0, [0, 1, 4]])
+    for p in bz:
+        print(p.psit_nG.desc.kpt, p.P_ani[0][0, [0, 1, 4]])
+
+
 def test_1d():
     from gpaw.new.pw.nschse import NonSelfConsistentHSE06
     from gpaw.new.ase_interface import GPAW
     a = Atoms('H',
-              [[0.0, 1.0, 1.0]],
+              [[0.5, 1.0, 1.0]],
               cell=[1.0, 2.0, 2.0],
               pbc=(1, 0, 0))
     n = 10
-    a.calc = GPAW(mode=PW(200),
+    a.calc = GPAW(mode=PW(400),
                   # setups='ae',
                   kpts=(n, 1, 1),
+                  symmetry='off',
+                  )#txt=None)
+    a.get_potential_energy()
+    e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
+    e_skn = e0 - v0 + v
+    print(e_skn)
+    hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
+    for k, wfs in enumerate(a.calc.dft.ibzwfs):
+        e_n = hse.calculate(wfs)[1]
+        print(e_n, e_skn[0, k])
+        assert e_n == pytest.approx(e_skn[0, k], abs=0.002)
+        break
+
+def test_2d():
+    from gpaw.new.pw.nschse import NonSelfConsistentHSE06
+    from gpaw.new.ase_interface import GPAW
+    a = Atoms('H',
+              [[0.75, 0.75, 1.0]],
+              cell=[1.5, 1.5, 2.0],
+              pbc=(1, 1, 0))
+    n = 4
+    a.calc = GPAW(mode=PW(200),
+                  # setups='ae',
+                  kpts=(n, n, 1),
                   txt=None)
     a.get_potential_energy()
     e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
