@@ -29,7 +29,9 @@ class Chi0Integrand(Integrand):
                  qpd: SingleQPWDescriptor,
                  generator: KPointDomainGenerator,
                  m1: int,
-                 m2: int):
+                 m2: int,
+                 n1: int,
+                 n2: int):
 
         self._chi0calc = chi0calc
 
@@ -37,11 +39,11 @@ class Chi0Integrand(Integrand):
         # completely and partially unoccupied bands to range(m1, m2)
 
         self.gs: ResponseGroundStateAdapter = chi0calc.gs
-        self.n1 = 0
-        self.n2 = self.gs.nocc2
         assert m1 <= m2
         self.m1 = m1
         self.m2 = m2
+        self.n1 = n1
+        self.n2 = n2
 
         self.context: ResponseContext = chi0calc.context
         self.kptpair_factory: KPointPairFactory = chi0calc.kptpair_factory
