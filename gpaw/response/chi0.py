@@ -194,7 +194,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         # Integrate all transitions into partially filled and empty bands
         n1, n2, m1, m2 = self.get_band_transitions()
         self.update_chi0_body(chi0_body, m1, m2, n1, n2,
-            spins=range(self.gs.nspins))
+                              spins=range(self.gs.nspins))
 
         return chi0_body
 
