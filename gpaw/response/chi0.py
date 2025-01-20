@@ -42,8 +42,6 @@ class Chi0Calculator:
                  **kwargs):
         self.gs = ResponseGroundStateAdapter.from_input(gs)
         self.context = ResponseContext.from_input(context)
-        if n2 is None:
-            n2 = self.gs.nocc2
         self.chi0_body_calc = Chi0BodyCalculator(
             self.gs, self.context,
             nblocks=nblocks, eshift=eshift, **kwargs)
@@ -321,7 +319,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 
     def __init__(self, *args,
                  intraband=True,
-                 rate=0.0, n1, n2,
+                 rate=0.0,
                  **kwargs):
         """Contruct the Chi0OpticalExtensionCalculator.
 
@@ -339,8 +337,6 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         # Serial block distribution
         super().__init__(*args, nblocks=1, **kwargs)
 
-        self.n1 = n1
-        self.n2 = n2
         # In the optical limit of metals, one must add the Drude dielectric
         # response from the free-space plasma frequency of the intraband
         # transitions to the head of chi0. This is handled by a separate
