@@ -19,7 +19,7 @@ def test_chi0_n1(in_tmp_dir, gpw_files):
 
     chi0calc = Chi0Calculator(gs, context,
                               wd=wd,
-                              band_range=slice(3,10),
+                              band_range=slice(3, 1),
                               intraband=False,
                               hilbert=False,
                               eta=0.2,
