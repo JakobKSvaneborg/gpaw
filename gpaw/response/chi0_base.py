@@ -348,10 +348,10 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
             component is evaluated, and the reactive part is calculated via a
             hilbert transform. Only works for frequencies on the real axis and
             requires a nonlinear frequency grid.
-        nbands : int  
+        nbands : int
             Number of bands to include.
-        band_range : slice 
-            Bands to include if lower valence bands should be excluded 
+        band_range : slice
+            Bands to include if lower valence bands should be excluded
         timeordered : bool
             Flag for calculating the time ordered chi0 component. Used for
             G0W0, which performs its own hilbert transform.
@@ -366,7 +366,8 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         self.nbands = nbands or self.gs.bd.nbands
         self.band_range = band_range
 
-        assert not (band_range is not None and nbands is not None), 'nbands and band_range cannot be used simultaneously'
+        assert not (band_range is not None and nbands is not None), 
+        'nbands and band_range cannot be used simultaneously'
 
         self.wd = wd
         self.context.print(self.wd, flush=False)
