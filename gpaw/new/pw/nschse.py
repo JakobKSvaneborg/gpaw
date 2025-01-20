@@ -9,7 +9,7 @@ from gpaw.new import zips as zip
 from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
-from gpaw.new.pw.hybrids import Psi, fft, ifft, pawexxvv, truncated_coulomb
+from gpaw.new.pw.hybrids import Psi, fft, pawexxvv, truncated_coulomb
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
@@ -57,8 +57,7 @@ class NonSelfConsistentHSE06:
 
         self.ghat_aLR = setups.create_compensation_charges(
             self.grid, relpos_ac)
-        self.setups =setups
-        self.relpos_ac =relpos_ac
+        self.relpos_ac = relpos_ac
 
         self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
 
@@ -127,9 +126,10 @@ class NonSelfConsistentHSE06:
         assert f1_n is not None
         rhot_nR = ut2_nR.copy()
         rhot_nR.data *= ut1_nR.data[n1].conj()
+        phase_a = np.exp(-2j * np.pi * (self.relpos_ac @ v_G.desc.kpt_c))
         Q_anL = {}
         for a, Q1_niL in Q1_aniL.items():
-            Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
+            Q_anL[a] = P2_ani[a] @ Q1_niL[n1] * phase_a
         if 0:
             ghat_aLG = self.setups.create_compensation_charges(
                 v_G.desc, self.relpos_ac)
@@ -142,7 +142,6 @@ class NonSelfConsistentHSE06:
             fft(rhot_nR, rhot_nG, plan=self.plan)
         rhot_nG.data *= v_G.data.real**0.5
         e_n = rhot_nG.norm2()
-        print(v_G.desc.kpt, e_n)
         return e_n * f1_n[n1]
 
     def _semi_local_xc_part(self,
@@ -186,7 +185,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                     if 0:
                         print(U_ii)
                         print(setups[a].l_j,
-                              b, S_c, x, U_cc, complex_conjugate);sadgf
+                              b, S_c, x, U_cc, complex_conjugate)
                     P2_ni[:] = P1_ani[b] @ U_ii
                 if complex_conjugate:
                     np.conjugate(P2_ani.data, P2_ani.data)
