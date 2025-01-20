@@ -332,6 +332,7 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
                  wd,
                  hilbert=True,
                  nbands=None,
+                 band_range=None,
                  timeordered=False,
                  ecut=50.0,
                  eta=0.2,
@@ -347,8 +348,10 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
             component is evaluated, and the reactive part is calculated via a
             hilbert transform. Only works for frequencies on the real axis and
             requires a nonlinear frequency grid.
-        nbands : int
+        nbands : int  
             Number of bands to include.
+        band_range : slice 
+            Bands to include if lower valence bands should be excluded 
         timeordered : bool
             Flag for calculating the time ordered chi0 component. Used for
             G0W0, which performs its own hilbert transform.
@@ -361,6 +364,9 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
 
         self.ecut = ecut / Ha
         self.nbands = nbands or self.gs.bd.nbands
+        self.band_range = band_range
+
+        assert not (band_range is not None and nbands is not None), 'nbands and band_range cannot be used simultaneously'
 
         self.wd = wd
         self.context.print(self.wd, flush=False)
@@ -428,7 +434,17 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         return SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
 
     def get_band_transitions(self):
-        return self.gs.nocc1, self.nbands  # m1, m2
+        if self.band_range is None:
+            n1 = 0
+            m2 = self.nbands
+        else:
+            n1 = self.band_range.start
+            m2 = self.band_range.stop
+
+        n2 = self.gs.nocc2
+        m1 = self.gs.nocc1
+
+        return n1, n2, m1, m2
 
     def get_response_info_string(self, qpd, tab=''):
         nw = len(self.wd)

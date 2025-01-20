@@ -18,8 +18,8 @@ def test_chi0_n1(in_tmp_dir, gpw_files):
     wd = get_frequency_descriptor(np.array([-3, 0, 6]), gs=gs, nbands=nbands)
 
     chi0calc = Chi0Calculator(gs, context,
-                              wd=wd, n1=3,
-                              nbands=nbands,
+                              wd=wd,
+                              band_range=slice(3,10),
                               intraband=False,
                               hilbert=False,
                               eta=0.2,
