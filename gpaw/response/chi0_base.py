@@ -366,8 +366,8 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         self.nbands = nbands or self.gs.bd.nbands
         self.band_range = band_range
 
-        assert not (band_range is not None and nbands is not None), 
-        'nbands and band_range cannot be used simultaneously'
+        assert not (band_range is not None and nbands is not None), \
+            'nbands and band_range cannot be used simultaneously'
 
         self.wd = wd
         self.context.print(self.wd, flush=False)
