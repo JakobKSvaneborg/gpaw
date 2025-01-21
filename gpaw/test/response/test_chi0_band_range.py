@@ -1,45 +1,60 @@
-import numpy as np
-import pytest
 from gpaw.mpi import world
-from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response.pair import get_gs_and_context
 from gpaw.response.df import Chi0DysonEquations
-from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
+from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.coulomb_kernels import CoulombKernel
+from ase.units import Ha
+import pytest
+from gpaw.response.frequencies import NonLinearFrequencyDescriptor
 
 
 @pytest.mark.response
-def test_chi0_n1(in_tmp_dir, gpw_files):
+def test_chi0_band_range(in_tmp_dir, gpw_files):
 
     gs, context = get_gs_and_context(
-        gpw_files['bn_pw'], txt=None, world=world, timer=None)
+        gpw_files['mos2_pw'], txt=None, world=world, timer=None)
+    omegamax = 25 / Ha
+    wd = NonLinearFrequencyDescriptor(omegamax / 9999, 10 / Ha, omegamax)
 
-    nbands = 10
-
-    wd = get_frequency_descriptor(np.array([-3, 0, 6]), gs=gs, nbands=nbands)
+    ecut = 15
+    eta = 0.1
+    nbands = 17
 
     chi0calc = Chi0Calculator(gs, context,
-                              wd=wd,
-                              band_range=slice(3, 1),
+                              wd=wd, nbands=nbands,
                               intraband=False,
-                              hilbert=False,
-                              eta=0.2,
-                              ecut=50,
+                              hilbert=True,
+                              eta=eta,
+                              ecut=ecut,
                               eshift=None)
 
     chi0_data = chi0calc.calculate(q_c=[0, 0, 0])
 
-    coulomb_kernel = CoulombKernel.from_gs(gs, truncation=None)
+    coulomb_kernel = CoulombKernel.from_gs(gs, truncation='2D')
 
     dyson_eqs = Chi0DysonEquations(chi0_data, coulomb_kernel, None, gs.cd)
 
     chi0_wGG = dyson_eqs.get_chi0_wGG(direction='x')
 
-    chi0_WGG = dyson_eqs.wblocks.all_gather(chi0_wGG)
+    chi0_WGG_Hilbert = dyson_eqs.wblocks.all_gather(chi0_wGG)
 
-    ref = [(-0.00133961281103788 - 0.012865342502627285j),
-           (-0.0014452831931862785 - 0.00991005825917634j),
-           (0.002570439550573476 + 0.007398973837800821j)]
+    chi0calc = Chi0Calculator(gs, context,
+                              wd=wd, band_range=slice(4, nbands),
+                              intraband=False,
+                              hilbert=False,
+                              eta=eta,
+                              ecut=ecut,
+                              eshift=None)
 
-    if world.rank == 0:
-        for i, r in enumerate(ref):
-            assert chi0_WGG[i, i, i + 1] == pytest.approx(r, abs=1e-02)
+    chi0_data = chi0calc.calculate(q_c=[0, 0, 0])
+
+    coulomb_kernel = CoulombKernel.from_gs(gs, truncation='2D')
+
+    dyson_eqs = Chi0DysonEquations(chi0_data, coulomb_kernel, None, gs.cd)
+
+    chi0_wGG = dyson_eqs.get_chi0_wGG(direction='x')
+
+    chi0_WGG_notHilbert = dyson_eqs.wblocks.all_gather(chi0_wGG)
+
+    assert chi0_WGG_Hilbert == pytest.approx(chi0_WGG_notHilbert,
+                                             rel=1e-3, abs=1e-4)
