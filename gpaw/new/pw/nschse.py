@@ -57,6 +57,7 @@ class NonSelfConsistentHSE06:
             self.grid, relpos_ac)
         self.relpos_ac = relpos_ac
         self.setups = setups
+        self.comm = ibzwfs.comm
 
         self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
 
@@ -73,22 +74,22 @@ class NonSelfConsistentHSE06:
                 dE_sii.append(dE_ii)
             self.dE_asii.append(dE_sii)
 
+    def calculate_many(self,
+                  path: Sequence[PWFDWaveFunctions],
+                  na, nb, comm) -> tuple[np.ndarray, np.ndarray]:
+        ...
     def calculate(self,
-                  wfs: PWFDWaveFunctions,
-                  na: int = 0,
-                  nb: int | None = None) -> tuple[np.ndarray, np.ndarray]:
+                  wfs: PWFDWaveFunctions) -> tuple[np.ndarray, np.ndarray]:
         """Calculate eigenvalues (in eV)."""
-        n2a = na
-        n2b = nb or wfs.nbands
-        P2_ani = {a: P_ni[n2a:n2b] for a, P_ni in wfs.P_ani.items()}
-        ut2_nR = self.grid.empty(n2b - n2a)
-        psit2_nG = wfs.psit_nX[n2a:n2b]
+        P2_ani = wfs.P_ani
+        ut2_nR = self.grid.empty(wfs.nbands)
+        psit2_nG = wfs.psit_nX
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
         deig_n = self._semi_local_xc_part(ut2_nR, wfs.spin)
 
         pw2 = psit2_nG.desc
-        eig_n = np.zeros(n2b - n2a)
+        eig_n = np.zeros(wfs.nbands)
         for psit1 in self.psit_K.values():
             pw1 = psit1.psit_nG.desc
             pw = pw1.new(kpt=pw2.kpt_c - pw1.kpt_c)
@@ -100,14 +101,14 @@ class NonSelfConsistentHSE06:
                                         ut2_nR,
                                         P2_ani)
         eig_n *= -self.exx_fraction / len(self.psit_K)
+        self.comm.sum(eig_n)
 
         # PAW corrections:
         for P2_ni, dE_sii in zip(P2_ani.values(), self.dE_asii):
             eig_n += np.einsum('ni, ij, nj -> n',
                                P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real
 
-        eig0_n = wfs.eig_n[n2a:n2b]
-
+        eig0_n = wfs.eig_n
         return eig0_n * Ha, (deig_n + eig_n + eig0_n) * Ha
 
     def _exx_part(self,
@@ -162,7 +163,7 @@ def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,
                               tolerance: float = 1e-5) -> int:
     nocc = 0
     for wfs in ibzwfs:
-        nocc = max(nocc, (wfs.occ_n > tolerance).sum())
+        nocc = max(nocc, int((wfs.occ_n > tolerance).sum()))
     return int(ibzwfs.kpt_comm.max_scalar(nocc))
 
 

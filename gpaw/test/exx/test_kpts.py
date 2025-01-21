@@ -129,13 +129,13 @@ def test_2d():
                   kpts=(n, n, 1),
                   txt=None)
     a.get_potential_energy()
-    e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
-    e_skn = e0 - v0 + v
+    # e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
+    # e_skn = e0 - v0 + v
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
     for k, wfs in enumerate(a.calc.dft.ibzwfs):
         e0_n, e_n = hse.calculate(wfs)
         # print(k, e0_n, e0[0, k], wfs.kpt_c)
-        print(k, e_n - e_skn[0, k])
+        # print(k, e_n - e_skn[0, k])
         # assert e_n == pytest.approx(e_skn[0, k], abs=0.004)
 
 

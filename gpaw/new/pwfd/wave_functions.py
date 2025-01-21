@@ -416,10 +416,10 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         :::
 
-           _    /  _ ~ ~ _   ---  a  a  _a
-           μ  = | dr 𝜓 𝜓 r + >   P  P  Δμ
-            mn  /     m n    ---  im jn  ij
-                             aij
+           _    / ~ ~ _ _   ---  a  a  _a
+           μ  = | 𝜓 𝜓 rdr + >   P  P  Δμ
+            mn  /  m n      ---  im jn  ij
+                            aij
 
         Returns
         -------
