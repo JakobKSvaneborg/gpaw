@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from ase.units import Ha
 
-from gpaw.core import PWArray, UGArray, UGDesc
+from gpaw.core import PWArray, UGArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new import zips as zip
 from gpaw.new.c import add_to_density
@@ -13,7 +13,6 @@ from gpaw.new.pw.hybrids import Psi, fft, pawexxvv, truncated_coulomb
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.new.symmetry import SymmetrizationPlan
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
@@ -45,11 +44,10 @@ class NonSelfConsistentHSE06:
         xp = np
         self.plan = self.grid.fft_plans(xp=xp)
 
-        nbands = ibzwfs.nbands
         # ???? Spin ????
-        self.psit_K = ibz2bz(ibzwfs, self.grid, setups, relpos_ac, 0)
-        for psit in self.psit_K:
-            psit.psit_nR = self.grid.empty(nbands)
+        nocc, self.psit_K = ibz2bz(ibzwfs, setups, relpos_ac, 0)
+        for psit in self.psit_K.values():
+            psit.psit_nR = self.grid.empty(nocc)
             psit.psit_nG.ifft(out=psit.psit_nR, plan=self.plan, periodic=False)
             psit.Q_aniL = {a: np.einsum('ijL, nj -> niL',
                                         setup.Delta_iiL, psit.P_ani[a].conj())
@@ -58,6 +56,7 @@ class NonSelfConsistentHSE06:
         self.ghat_aLR = setups.create_compensation_charges(
             self.grid, relpos_ac)
         self.relpos_ac = relpos_ac
+        self.setups = setups
 
         self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
 
@@ -90,7 +89,7 @@ class NonSelfConsistentHSE06:
 
         pw2 = psit2_nG.desc
         eig_n = np.zeros(n2b - n2a)
-        for psit1 in self.psit_K:
+        for psit1 in self.psit_K.values():
             pw1 = psit1.psit_nG.desc
             pw = pw1.new(kpt=pw2.kpt_c - pw1.kpt_c)
             v_G = truncated_coulomb(pw, self.hse06_omega)
@@ -128,15 +127,17 @@ class NonSelfConsistentHSE06:
         rhot_nR.data *= ut1_nR.data[n1].conj()
         phase_a = np.exp(-2j * np.pi * (self.relpos_ac @ v_G.desc.kpt_c))
         Q_anL = {}
-        for a, Q1_niL in Q1_aniL.items():
-            Q_anL[a] = P2_ani[a] @ Q1_niL[n1] * phase_a
-        if 0:
+        if 1:
+            for a, Q1_niL in Q1_aniL.items():
+                Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
             ghat_aLG = self.setups.create_compensation_charges(
                 v_G.desc, self.relpos_ac)
             rhot_nG = v_G.desc.empty(len(rhot_nR))
             fft(rhot_nR, rhot_nG, plan=self.plan)
             ghat_aLG.add_to(rhot_nG, Q_anL)
         else:
+            for a, Q1_niL in Q1_aniL.items():
+                Q_anL[a] = P2_ani[a] @ Q1_niL[n1] * phase_a[a]
             self.ghat_aLR.add_to(rhot_nR, Q_anL)
             rhot_nG = v_G.desc.empty(len(rhot_nR))
             fft(rhot_nR, rhot_nG, plan=self.plan)
@@ -157,47 +158,78 @@ class NonSelfConsistentHSE06:
         return np.array(eig_n)
 
 
+def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,
+                              tolerance: float = 1e-5) -> int:
+    nocc = 0
+    for wfs in ibzwfs:
+        nocc = max(nocc, (wfs.occ_n > tolerance).sum())
+    return int(ibzwfs.kpt_comm.max_scalar(nocc))
+
+
 def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
-           grid: UGDesc,
            setups: Setups,
            relpos_ac: np.ndarray,
-           spin: int) -> list[Psi]:
+           spin: int) -> tuple[int, list[Psi]]:
+    nocc = number_of_non_empty_bands(ibzwfs)
     ibz = ibzwfs.ibz
+    nbzk = len(ibz.bz)
+    comm = ibzwfs.comm
     symmetries = ibzwfs.ibz.symmetries
-    symmplan = SymmetrizationPlan(symmetries, [setup.l_j for setup in setups])
-    psit_K = []
+    rank_K = np.zeros(nbzk, int)
+    psit_KnG = {}
     for wfs_s in ibzwfs.wfs_qs:
-        wfs = wfs_s[spin]
+        wfs = wfs_s[spin].collect(0, nocc)
+        if wfs is None:
+            continue
         for K, k in enumerate(ibz.bz2ibz_K):
-            if k == wfs.k:
-                s = ibz.s_K[K]
-                U_cc = symmetries.rotation_scc[s]
-                complex_conjugate = ibz.time_reversal_K[K]
-                psit1_nG = wfs.psit_nX
-                psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
-                P1_ani = wfs.P_ani
-                P2_ani = P1_ani.new()
-                for a, P2_ni in P2_ani.items():
-                    b = symmetries.atommap_sa[s, a]
-                    S_c = relpos_ac[a] @ U_cc - relpos_ac[b]
-                    x = np.exp(2j * np.pi * (psit1_nG.desc.kpt_c @ S_c))
-                    U_ii = symmplan.rotations(setups[a].l_j)[s].T * x
-                    if 0:
-                        print(U_ii)
-                        print(setups[a].l_j,
-                              b, S_c, x, U_cc, complex_conjugate)
-                    P2_ni[:] = P1_ani[b] @ U_ii
-                if complex_conjugate:
-                    np.conjugate(P2_ani.data, P2_ani.data)
-                psit = Psi(psit2_nG, P2_ani, wfs.myocc_n)
-                if 0:
-                    pt_aiG = psit2_nG.desc.atom_centered_functions(
-                        [setup.pt_j for setup in setups],
-                        relpos_ac)
-                    P3_ani = pt_aiG.integrate(psit2_nG)
-                    print(abs(P2_ani.data - P3_ani.data).max())
-                psit_K.append(psit)
-    return psit_K
+            if k != wfs.k:
+                continue
+            s = ibz.s_K[K]
+            U_cc = symmetries.rotation_scc[s]
+            complex_conjugate = ibz.time_reversal_K[K]
+            psit1_nG = wfs.psit_nX
+            psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
+            psit_KnG[K] = psit2_nG
+            rank_K[K] = comm.rank
+
+    comm.sum(rank_K)
+
+    nblocks = max(1, 5 * comm.size // nbzk)
+    blocksize = (nocc + nblocks - 1) // nblocks
+    nanb_i = [(min(i * blocksize, nocc), min((i + 1) * blocksize, nocc))
+              for i in range(nblocks)]
+
+    psit_K = {}
+    requests = []
+    for K, psit_nG in sorted(psit_KnG.items()):
+        for i in range(nblocks):
+            rank = (i + nblocks * K) % comm.size
+            na, nb = nanb_i[i]
+            if rank != comm.rank:
+                requests.append(
+                    comm.send(psit_nG.data[na:nb], rank, block=False))
+
+    comm.waitall(requests)
+
+    pw = ibzwfs.wfs_qs[0][0].psit_nX.desc.new(comm=None)
+    _, occ_skn = ibzwfs.get_all_eigs_and_occs()
+    for iK in range(comm.rank, nblocks * nbzk, comm.size):
+        K, i = divmod(iK, nblocks)
+        na, nb = nanb_i[i]
+        print(K, i, na, nb)
+        rank = rank_K[K]
+        if rank == comm.rank:
+            psit_nG = psit_KnG[K][na:nb]
+        else:
+            psit_nG = pw.new(kpt=ibz.bz.kpt_Kc[K]).empty(nb - na)
+            comm.receive(psit_nG.data, rank)
+        pt_aiG = psit_nG.desc.atom_centered_functions(
+            [setup.pt_j for setup in setups],
+            relpos_ac)
+        P_ani = pt_aiG.integrate(psit_nG)
+        k = ibz.bz2ibz_K[K]
+        psit_K[K] = Psi(psit_nG, P_ani, occ_skn[spin, k, na:nb])
+    return nocc, psit_K
 
 
 def nsc_corrections(density: Density,

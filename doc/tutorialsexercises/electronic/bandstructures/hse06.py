@@ -14,9 +14,10 @@ def mos2() -> None:
     atoms = mx2(formula='MoS2', kind='2H', a=3.184, thickness=3.13,
                 size=(1, 1, 1))
     atoms.center(vacuum=3.5, axis=2)
-    k = 4
-    atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 500},
+    k = 3
+    atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 400},
                       kpts=(k, k, 1),
+                      # symmetry='off',
                       txt='lda.txt')
     atoms.get_potential_energy()
     return atoms
@@ -24,14 +25,15 @@ def mos2() -> None:
 
 def bandstructure(calc, bp):
     from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
-    e0, v0, v = non_self_consistent_eigenvalues(calc, 'HSE06')
     hse = NonSelfConsistentHSE06.from_dft_calculation(calc.dft)
-    for k, wfs in enumerate(calc.dft.ibzwfs):
-        lda_n, hse_n = hse.calculate(wfs)
-        print(k)
-        print(lda_n - e0[0, k])
-        print(hse_n - (e0 - v0 + v)[0, k])
-    dsaflkjh
+    if 0:
+        e0, v0, v = non_self_consistent_eigenvalues(calc, 'HSE06')
+        for k, wfs in enumerate(calc.dft.ibzwfs):
+            lda_n, hse_n = hse.calculate(wfs)
+            # print(k)
+            # print(lda_n - e0[0, k])
+            print(k, wfs.kpt_c, hse_n - (e0 - v0 + v)[0, k])
+        1 / 0
     efermi = calc.get_fermi_level()
     bs_calc = calc.fixed_density(kpts=bp, symmetry='off')
     lda_skn = bs_calc.eigenvalues()
@@ -46,11 +48,11 @@ def bandstructure(calc, bp):
 
 def run():
     atoms = mos2()
-    # bp = atoms.cell.bandpath('GMKG', npoints=50)
-    bp = atoms.cell.bandpath('KG', npoints=10)
+    bp = atoms.cell.bandpath('GMKG', npoints=50)
+    # bp = atoms.cell.bandpath('KG', npoints=10)
     lda_kn, hse_kn = bandstructure(atoms.calc, bp)
     if world.rank == 0:
-        Path('bs.pckl').write_bytes(pickle.dumps((bp, lda_kn, hse_kn)))
+        Path('bs0.pckl').write_bytes(pickle.dumps((bp, lda_kn, hse_kn)))
 
 
 def plot(bp, lda_kn, hse_kn):
@@ -70,7 +72,7 @@ def plot(bp, lda_kn, hse_kn):
 
 
 if __name__ == '__main__':
-    path = Path('bs.pckl')
+    path = Path('bs0.pckl')
     if not path.is_file():
         run()
     else:

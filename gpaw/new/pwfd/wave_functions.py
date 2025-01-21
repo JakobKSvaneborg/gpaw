@@ -339,8 +339,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def collect(self,
                 n1: int = 0,
                 n2: int = 0) -> PWFDWaveFunctions | None:
-        """Collect range of bands to master of band and domain
-        communicators."""
+        """Collect range of bands to master of band and domain comms."""
         # Also collect projections instead of recomputing XXX
         n2 = n2 if n2 > 0 else self.nbands + n2
         spinors = (2,) if self.ncomponents == 4 else ()
