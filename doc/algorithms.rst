@@ -96,8 +96,3 @@ participate in using and :ref:`developing the code <devel>`.
    Phys. Rev. B 50, 17953 (1994)
 .. [Blo03] P. E. Blöchl, C. J. Först and J. Schimpl,
    Bull. Mater. Sci, 26, 33 (2003)
-.. [Bri96] E. L. Briggs, D. J. Sullivan and J. Bernholc,
-   Phys. Rev. B 54, 14362 (1996)
-.. [Taf06] *A general and efficient pseudopotential Fourier filtering scheme
-   for real space methods using mask functions*, Maxim Tafipolsky, Rochus
-   Schmid, J Chem Phys. 2006 May 7;124:174102
