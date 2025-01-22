@@ -97,7 +97,7 @@ def create_symmetries_object(atoms: Atoms,
     sym._old_symmetry.ft_sc = sym.translation_sc
     sym._old_symmetry.a_sa = sym.atommap_sa
     sym._old_symmetry.has_inversion = sym.has_inversion
-    sym._old_symmetry.gcd_c = sym.gcd()
+    sym._old_symmetry.gcd_c = sym.lcm()
 
     return sym
 
@@ -269,19 +269,16 @@ class Symmetries:
                 F_av[a2] += np.dot(F0_av[a1], op_vv)
         return F_av / len(self)
 
-    def gcd(self):
-        length_c = (self.cell_cv**2).sum(1)**0.5
-        gcd_c = np.ones(3, int)
-        for t_c in self.translation_sc:
-            for c, t in enumerate(t_c):
-                nom, denom = frac(t, tol=self.tolerance / length_c[c])
-                if gcd_c[c] % denom != 0:
-                    gcd_c[c] *= denom
-        return gcd_c
+    def lcm(self) -> list[int]:
+        """Find least common multiple compatible with translations."""
+        return [np.lcm.reduce([frac(t, tol=1e-4)[1] for t in t_s])
+                for t_s in self.translation_sc.T]
 
     @cached_property
-    def gcd_c(self):
-        return self.gcd()
+    def gcd_ccccccccccccccc(self):
+        # Needed for old gpaw.utilities.gpts.get_number_of_grid_points()
+        # function ...
+        return self.lcm()
 
     def check_grid(self, N_c) -> bool:
         """Check that symmetries are commensurate with grid."""
