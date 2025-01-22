@@ -1250,11 +1250,11 @@ class GPWFiles(CachedFilesHandler):
 
     @gpwfile
     def ni_pw(self):
-        return self._ni_pw_kpts333(self, setups={})
+        return self._ni_pw_kpts333(setups={})
 
     @gpwfile
     def ni_pw_kpts333(self):
-        return self._ni_pw_kpts333(self)
+        return self._ni_pw_kpts333()
 
     @gpwfile
     def c_pw(self):
