@@ -275,7 +275,7 @@ class Symmetries:
                 for t_s in self.translation_sc.T]
 
     @cached_property
-    def gcd_ccccccccccccccc(self):
+    def gcd_c(self):
         # Needed for old gpaw.utilities.gpts.get_number_of_grid_points()
         # function ...
         return self.lcm()
@@ -283,7 +283,7 @@ class Symmetries:
     def check_grid(self, N_c) -> bool:
         """Check that symmetries are commensurate with grid."""
         for U_cc, t_c in zip(self.rotation_scc, self.translation_sc):
-            t_c *= N_c
+            t_c = t_c * N_c
             # Make sure all grid-points map onto another grid-point:
             if (((N_c * U_cc).T % N_c).any() or
                 not np.allclose(t_c, t_c.round())):
@@ -401,6 +401,7 @@ def prune_symmetries(sym: Symmetries,
 
     # Add symmetry operations with fractional translations at the end:
     symmetries.extend(ftsymmetries)
+
     sym = Symmetries(cell=sym.cell_cv,
                      rotations=[s[0] for s in symmetries],
                      translations=[s[1] for s in symmetries],
