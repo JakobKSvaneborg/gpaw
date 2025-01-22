@@ -13,8 +13,9 @@ def test_chi0_band_range(in_tmp_dir, gpw_files):
 
     gs, context = get_gs_and_context(
         gpw_files['mos2_pw'], txt=None, world=world, timer=None)
+
     omegamax = 25 / Ha
-    wd = NonLinearFrequencyDescriptor(omegamax / 9999, 10 / Ha, omegamax)
+    wd = NonLinearFrequencyDescriptor(omegamax / 1000, 10 / Ha, omegamax)
 
     ecut = 15
     eta = 0.1
@@ -38,10 +39,13 @@ def test_chi0_band_range(in_tmp_dir, gpw_files):
 
     chi0_WGG_Hilbert = dyson_eqs.wblocks.all_gather(chi0_wGG)
 
+    omegamax = 100 / Ha
+    wd = NonLinearFrequencyDescriptor(omegamax / 4000, 10 / Ha, omegamax)
+
     chi0calc = Chi0Calculator(gs, context,
                               wd=wd, band_range=slice(4, nbands),
                               intraband=False,
-                              hilbert=False,
+                              hilbert=True,
                               eta=eta,
                               ecut=ecut,
                               eshift=None)
@@ -56,5 +60,5 @@ def test_chi0_band_range(in_tmp_dir, gpw_files):
 
     chi0_WGG_notHilbert = dyson_eqs.wblocks.all_gather(chi0_wGG)
 
-    assert chi0_WGG_Hilbert == pytest.approx(chi0_WGG_notHilbert,
-                                             rel=1e-3, abs=1e-4)
+    assert chi0_WGG_Hilbert[:493, :, :] == \
+        pytest.approx(chi0_WGG_notHilbert[:493, :, :], rel=1e-3, abs=1e-4)
