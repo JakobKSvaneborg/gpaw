@@ -97,7 +97,7 @@ def create_symmetries_object(atoms: Atoms,
     sym._old_symmetry.ft_sc = sym.translation_sc
     sym._old_symmetry.a_sa = sym.atommap_sa
     sym._old_symmetry.has_inversion = sym.has_inversion
-    sym._old_symmetry.gcd_c = sym.lcm()
+    sym._old_symmetry.gcd_c = sym.gcd_c
 
     return sym
 
@@ -278,7 +278,7 @@ class Symmetries:
     def gcd_c(self):
         # Needed for old gpaw.utilities.gpts.get_number_of_grid_points()
         # function ...
-        return self.lcm()
+        return np.array(self.lcm())
 
     def check_grid(self, N_c) -> bool:
         """Check that symmetries are commensurate with grid."""
