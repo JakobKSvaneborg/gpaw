@@ -58,7 +58,8 @@ class NonSelfConsistentHSE06:
         self.relpos_ac = relpos_ac
         self.setups = setups
         self.comm = ibzwfs.comm
-
+        self.kpt_comm = ibzwfs.kpt_comm
+        self._comm = ibzwfs.
         self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
 
         self.dE_asii = []
@@ -75,9 +76,21 @@ class NonSelfConsistentHSE06:
             self.dE_asii.append(dE_sii)
 
     def calculate_many(self,
-                  path: Sequence[PWFDWaveFunctions],
-                  na, nb, comm) -> tuple[np.ndarray, np.ndarray]:
-        ...
+                       path: Sequence[PWFDWaveFunctions],
+                       na, nb) -> tuple[np.ndarray, np.ndarray]:
+        nk_r = np.zeros(self.kpt_comm.size, int)
+        nk_r[self.kpt_comm.rank] = len(path)
+        self.comm.sum(nk_r)
+
+        comm_rank_r = np.zeros(self.kpt_comm.size, int)
+        if self.bank_comm.rank == 0 and self.domain_comm.rank == 0:
+        self.comm.sum(comm_rank_r)
+
+        for i in range(nk_r.max()):
+            if i < len(path):
+                wfs = path[i].collect(na, nb)
+            for rank in range(self.kpt_comm.size):
+                if wfs
     def calculate(self,
                   wfs: PWFDWaveFunctions) -> tuple[np.ndarray, np.ndarray]:
         """Calculate eigenvalues (in eV)."""
