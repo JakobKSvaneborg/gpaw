@@ -36,6 +36,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
+from gpaw import GPAW_USE_GPUS
 
 
 def builder(atoms: Atoms,
@@ -196,8 +197,13 @@ class DFTComponentsBuilder:
 
     @cached_property
     def gpu(self) -> bool:
-        """Are we running on a GPU?."""
-        if self.params.parallel.get('gpu', False):
+        """Are we running on a GPU?
+
+        If parallel dict does not specify 'gpu': True or False,
+        GPAW_USE_GPUS environment variable will be used to
+        determine whether we use GPUs or not.
+        """
+        if self.params.parallel.get('gpu', GPAW_USE_GPUS):
             from gpaw.gpu import cupy_is_fake
             if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
                 raise ValueError(
