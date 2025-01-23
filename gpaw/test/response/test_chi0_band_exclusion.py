@@ -60,3 +60,35 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     assert chi0_WGG[:327, :, :] == \
         pytest.approx(chi0_WGG_bands_excluded[:327, :, :], rel=1e-3, abs=1e-4)
+
+    # test assertionerror when n1 >= n2 (n2=9)
+    with pytest.raises(AssertionError):
+        chi0calc = Chi0Calculator(gs, context,
+                                  wd=wd2, band_range=slice(9, nbands),
+                                  intraband=False,
+                                  hilbert=True,
+                                  eta=eta,
+                                  ecut=ecut,
+                                  eshift=None)
+        chi0calc.calculate(q_c=[0, 0, 0])
+
+    with pytest.raises(AssertionError):
+        chi0calc = Chi0Calculator(gs, context,
+                                  wd=wd2, band_range=slice(10, nbands),
+                                  intraband=False,
+                                  hilbert=True,
+                                  eta=eta,
+                                  ecut=ecut,
+                                  eshift=None)
+        chi0calc.calculate(q_c=[0, 0, 0])
+
+    # test assertionerror when n1 > m1 (m1=7)
+    with pytest.raises(AssertionError):
+        chi0calc = Chi0Calculator(gs, context,
+                                  wd=wd2, band_range=slice(8, nbands),
+                                  intraband=False,
+                                  hilbert=True,
+                                  eta=eta,
+                                  ecut=ecut,
+                                  eshift=None)
+        chi0calc.calculate(q_c=[0, 0, 0])
