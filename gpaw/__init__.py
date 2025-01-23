@@ -28,7 +28,7 @@ allowed_envvars = {
     'GPAW_CPUPY',
     'GPAW_USE_GPUS',
     'GPAW_MPI',
-    'GPAW_NO_C_EXTENSION'
+    'GPAW_NO_C_EXTENSION',
     'GPAW_SETUP_PATH'}
 
 # Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
