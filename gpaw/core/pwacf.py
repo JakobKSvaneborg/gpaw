@@ -216,7 +216,6 @@ class PWLFC:  # (BaseLFC)
         Gk_Gv = xp.asarray(self.pw.G_plus_k_Gv)
         GkR_Ga = Gk_Gv @ xp.asarray(self.pos_av.T)
         self.emiGR_Ga = xp.exp(-1j * GkR_Ga) * self.eikR_a
-
         rank_a = atomdist.rank_a
 
         self.my_atom_indices = []
