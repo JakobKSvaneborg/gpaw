@@ -19,7 +19,7 @@ else:
             self.rmax = rmax
 
         def __call__(self, r):
-            return self.spline(r) * r**self.l
+            return self.spline(r)
 
         def get_angular_momentum_number(self):
             return self.l
@@ -28,7 +28,7 @@ else:
             return self.rmax
 
         def map(self, r_g, out_g):
-            out_g[:] = self.spline(r_g) * r_g**self.l
+            out_g[:] = self.spline(r_g)
             out_g[r_g >= self.rmax] = 0.0
 
     def hartree(l: int,
