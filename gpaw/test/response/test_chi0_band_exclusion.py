@@ -1,8 +1,6 @@
 from gpaw.mpi import world
 from gpaw.response.pair import get_gs_and_context
-from gpaw.response.df import Chi0DysonEquations
 from gpaw.response.chi0 import Chi0Calculator
-from gpaw.response.coulomb_kernels import CoulombKernel
 from ase.units import Ha
 import pytest
 from gpaw.response.frequencies import NonLinearFrequencyDescriptor
@@ -31,14 +29,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     chi0_data1 = chi0calc1.calculate(q_c=[0, 0, 0])
 
-    coulomb_kernel = CoulombKernel.from_gs(gs, truncation=None)
-
-    dyson_eqs1 = Chi0DysonEquations(chi0_data1, coulomb_kernel, None, gs.cd)
-
-    chi0_wGG1 = dyson_eqs1.get_chi0_wGG(direction='x')
-
-    chi0_WGG = dyson_eqs1.wblocks.all_gather(chi0_wGG1)
-
     omegamax2 = 200 / Ha
     wd2 = NonLinearFrequencyDescriptor(omegamax2 / 4000, 10 / Ha, omegamax2)
 
@@ -52,14 +42,17 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     chi0_data2 = chi0calc2.calculate(q_c=[0, 0, 0])
 
-    dyson_eqs2 = Chi0DysonEquations(chi0_data2, coulomb_kernel, None, gs.cd)
+    chi0_data1_body = \
+        chi0_data1.body.get_distributed_frequencies_array().copy()
+    chi0_data2_body = \
+        chi0_data2.body.get_distributed_frequencies_array().copy()
 
-    chi0_wGG2 = dyson_eqs2.get_chi0_wGG(direction='x')
-
-    chi0_WGG_bands_excluded = dyson_eqs2.wblocks.all_gather(chi0_wGG2)
-
-    assert chi0_WGG[:327, :, :] == \
-        pytest.approx(chi0_WGG_bands_excluded[:327, :, :], rel=1e-3, abs=1e-4)
+    assert chi0_data1_body[:327] == pytest.approx(
+        chi0_data2_body[:327], rel=1e-3, abs=1e-4)
+    assert chi0_data1.chi0_WxvG[:327] == pytest.approx(
+        chi0_data2.chi0_WxvG[:327], rel=1e-3, abs=1e-4)
+    assert chi0_data1.chi0_Wvv[:327] == pytest.approx(
+        chi0_data2.chi0_Wvv[:327], rel=1e-3, abs=1e-4)
 
     # test assertionerror when n1 >= n2 (n2=9)
     with pytest.raises(AssertionError):
