@@ -20,7 +20,7 @@ from ase.neighborlist import neighbor_list
 
 import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
-from gpaw import debug, no_c_extension
+from gpaw import debug, GPAW_NO_C_EXTENSION
 
 # Code will crash for setups without any projectors.  Setups that have
 # no projectors therefore receive a dummy projector as a hacky
@@ -368,7 +368,7 @@ def load_balance(paw, atoms):
     print("    standard deviation:     %5.1f" % stddev_atoms)
 
 
-if not debug and not no_c_extension:
+if not debug and not GPAW_NO_C_EXTENSION:
     hartree = cgpaw.hartree  # noqa
     pack_density = cgpaw.pack
 

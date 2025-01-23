@@ -1,6 +1,6 @@
-from gpaw import no_c_extension
+from gpaw import GPAW_NO_C_EXTENSION
 
-if no_c_extension:
+if GPAW_NO_C_EXTENSION:
     import gpaw.pp as _gpaw
 else:
     import _gpaw  # type: ignore[no-redef]

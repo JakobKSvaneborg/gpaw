@@ -5,7 +5,7 @@ import numpy as np
 import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy as cp
 from gpaw.typing import Array1D, ArrayND
-from gpaw import no_c_extension
+from gpaw import GPAW_NO_C_EXTENSION
 
 __all__ = ['GPU_AWARE_MPI']
 
@@ -128,7 +128,7 @@ def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
                               sigma_xr._data, dedsigma_xr._data)
 
 
-if not TYPE_CHECKING and not no_c_extension:
+if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
     from gpaw.cgpaw import (add_to_density, pw_insert, pw_precond,  # noqa
                             pwlfc_expand, symmetrize_ft)
 

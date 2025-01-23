@@ -1,3 +1,7 @@
+"""Pure Python implementation of the _gpaw C-extension module.
+
+Used if GPAW_NO_C_EXTENSION=1.  See also the gpaw.cgpaw module.
+"""
 import numpy as np
 from scipy.interpolate import CubicSpline
 

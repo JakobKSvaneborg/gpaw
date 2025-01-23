@@ -1,5 +1,5 @@
 import numpy as np
-from gpaw import no_c_extension
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import PWDesc, UGDesc
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import BasisFunctions
@@ -29,7 +29,7 @@ def create_basis(ibz: IBZ,
     kd.nibzkpts = len(ibz)
     kd.symmetry = ibz.symmetries._old_symmetry
     kd.set_communicator(kpt_comm)
-    if no_c_extension:
+    if GPAW_NO_C_EXTENSION:
         return SimpleBasis(grid, setups, relpos_ac)
     basis = BasisFunctions(grid._gd,
                            [setup.basis_functions_J for setup in setups],

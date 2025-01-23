@@ -23,11 +23,11 @@ import numpy as np
 
 from math import pi
 from collections import defaultdict
-from gpaw import debug, no_c_extension
+from gpaw import debug, GPAW_NO_C_EXTENSION
 
 __all__ = ['Y', 'YL', 'nablarlYL', 'Yl']
 
-if no_c_extension:
+if GPAW_NO_C_EXTENSION:
     Yl = None
 else:
     from gpaw.cgpaw import spherical_harmonics
