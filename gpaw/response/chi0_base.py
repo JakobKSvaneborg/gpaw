@@ -40,6 +40,8 @@ class Chi0Integrand(Integrand):
 
         self.gs: ResponseGroundStateAdapter = chi0calc.gs
         assert m1 <= m2
+        assert n1 < n2
+        assert n1 <= m1
         self.m1 = m1
         self.m2 = m2
         self.n1 = n1
