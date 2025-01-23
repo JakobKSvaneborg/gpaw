@@ -51,7 +51,7 @@ debug: bool = (TYPE_CHECKING or
 if debug:
     for var in os.environ:
         if var.startswith('GPAW') and var not in allowed_envvars:
-            warnings.warn('Unknown GPAW environment varable: {var}')
+            warnings.warn(f'Unknown GPAW environment varable: {var}')
 
 
 @contextlib.contextmanager
