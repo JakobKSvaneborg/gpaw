@@ -134,7 +134,7 @@ if not TYPE_CHECKING and not no_c_extension:
 
     if GPU_ENABLED:
         from gpaw.cgpaw import add_to_density_gpu  # noqa
-        from gpaw.cgpaw import (calculate_residuals_gpu,
+        from gpaw.cgpaw import (calculate_residuals_gpu,  # noqa
                                 dH_aii_times_P_ani_gpu, evaluate_lda_gpu,
                                 evaluate_pbe_gpu, pw_amend_insert_realwf_gpu,
                                 pw_insert_gpu, pwlfc_expand_gpu)
