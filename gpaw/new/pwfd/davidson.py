@@ -168,9 +168,7 @@ class Davidson(Eigensolver):
         Ht = partial(Ht, out=residual_nX, spin=wfs.spin)
         dH = partial(dH, spin=wfs.spin)
 
-        residual_nX.sanity_check()
         calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
-        residual_nX.sanity_check()
 
         def copy(C_nn: Array2D) -> None:
             domain_comm.sum(M_nn.data, 0)
@@ -247,7 +245,6 @@ class Davidson(Eigensolver):
             domain_comm.broadcast(M_nn.data, 0)
 
             M_nn.multiply(psit2_nX, beta=1.0, out=residual_nX)
-            residual_nX.sanity_check()
             M_nn.multiply(P2_ani, beta=1.0, out=P3_ani)
             psit_nX.data[:] = residual_nX.data
             P_ani, P3_ani = P3_ani, P_ani
