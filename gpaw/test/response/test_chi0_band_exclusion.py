@@ -47,10 +47,11 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     chi0_data2_body = \
         chi0_data2.body.get_distributed_frequencies_array().copy()
 
+    n_freq_points_distributed = len(chi0_data1_body)
     n_freq_points = len(chi0_data1.chi0_Wvv)
 
-    assert chi0_data1_body[:n_freq_points] == pytest.approx(
-        chi0_data2_body[:n_freq_points], rel=1e-3, abs=1e-4)
+    assert chi0_data1_body[:n_freq_points_distributed] == pytest.approx(
+        chi0_data2_body[:n_freq_points_distributed], rel=1e-3, abs=1e-4)
     assert chi0_data1.chi0_WxvG[:n_freq_points] == pytest.approx(
         chi0_data2.chi0_WxvG[:n_freq_points], rel=1e-3, abs=1e-4)
     assert chi0_data1.chi0_Wvv[:n_freq_points] == pytest.approx(
