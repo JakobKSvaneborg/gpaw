@@ -47,12 +47,14 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     chi0_data2_body = \
         chi0_data2.body.get_distributed_frequencies_array().copy()
 
-    assert chi0_data1_body[:327] == pytest.approx(
-        chi0_data2_body[:327], rel=1e-3, abs=1e-4)
-    assert chi0_data1.chi0_WxvG[:327] == pytest.approx(
-        chi0_data2.chi0_WxvG[:327], rel=1e-3, abs=1e-4)
-    assert chi0_data1.chi0_Wvv[:327] == pytest.approx(
-        chi0_data2.chi0_Wvv[:327], rel=1e-3, abs=1e-4)
+    n_freq_points = len(chi0_data1.chi0_Wvv)
+
+    assert chi0_data1_body[:n_freq_points] == pytest.approx(
+        chi0_data2_body[:n_freq_points], rel=1e-3, abs=1e-4)
+    assert chi0_data1.chi0_WxvG[:n_freq_points] == pytest.approx(
+        chi0_data2.chi0_WxvG[:n_freq_points], rel=1e-3, abs=1e-4)
+    assert chi0_data1.chi0_Wvv[:n_freq_points] == pytest.approx(
+        chi0_data2.chi0_Wvv[:n_freq_points], rel=1e-3, abs=1e-4)
 
     # test assertionerror when n1 >= n2 (n2=9)
     with pytest.raises(AssertionError):
