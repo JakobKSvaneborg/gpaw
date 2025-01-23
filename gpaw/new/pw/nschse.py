@@ -16,6 +16,7 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
+from gpaw.mpi import broadcast
 
 
 class NonSelfConsistentHSE06:
@@ -90,7 +91,13 @@ class NonSelfConsistentHSE06:
             if i < len(path):
                 wfs = path[i].collect(na, nb)
             for rank in range(self.kpt_comm.size):
-                if wfs
+                if i < nk_r[rank]:
+                    wfs = broadcast(
+                        wfs if rank == self.kpt_comm.rank else None,
+                        comm_rank_r[rank],
+                        self.comm)
+                    e0_n, e_n = self.calculate(wfs)
+
     def calculate(self,
                   wfs: PWFDWaveFunctions) -> tuple[np.ndarray, np.ndarray]:
         """Calculate eigenvalues (in eV)."""
