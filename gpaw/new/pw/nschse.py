@@ -38,16 +38,19 @@ class NonSelfConsistentHSE06:
                  density: Density,
                  pot_calc: PlaneWavePotentialCalculator,
                  setups: Setups,
-                 relpos_ac: np.ndarray):
+                 relpos_ac: np.ndarray,
+                 spin=0):
         self.grid = density.nt_sR.desc.new(dtype=complex)
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
+        self.spin = spin
+        self.nbzk = len(ibzwfs.ibz.bz)
 
         xp = np
         self.plan = self.grid.fft_plans(xp=xp)
 
         # ???? Spin ????
-        nocc, self.psit_K = ibz2bz(ibzwfs, setups, relpos_ac, 0)
-        for psit in self.psit_K.values():
+        nocc, self.psits = ibz2bz(ibzwfs, setups, relpos_ac, spin)
+        for psit in self.psits:
             psit.psit_nR = self.grid.empty(nocc)
             psit.psit_nG.ifft(out=psit.psit_nR, plan=self.plan, periodic=False)
             psit.Q_aniL = {a: np.einsum('ijL, nj -> niL',
@@ -59,8 +62,7 @@ class NonSelfConsistentHSE06:
         self.relpos_ac = relpos_ac
         self.setups = setups
         self.comm = ibzwfs.comm
-        self.kpt_comm = ibzwfs.kpt_comm
-        self._comm = ibzwfs.
+
         self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
 
         self.dE_asii = []
@@ -76,31 +78,42 @@ class NonSelfConsistentHSE06:
                 dE_sii.append(dE_ii)
             self.dE_asii.append(dE_sii)
 
-    def calculate_many(self,
-                       path: Sequence[PWFDWaveFunctions],
-                       na, nb) -> tuple[np.ndarray, np.ndarray]:
-        nk_r = np.zeros(self.kpt_comm.size, int)
-        nk_r[self.kpt_comm.rank] = len(path)
-        self.comm.sum(nk_r)
-
-        comm_rank_r = np.zeros(self.kpt_comm.size, int)
-        if self.bank_comm.rank == 0 and self.domain_comm.rank == 0:
-        self.comm.sum(comm_rank_r)
-
-        for i in range(nk_r.max()):
-            if i < len(path):
-                wfs = path[i].collect(na, nb)
-            for rank in range(self.kpt_comm.size):
-                if i < nk_r[rank]:
-                    wfs = broadcast(
-                        wfs if rank == self.kpt_comm.rank else None,
-                        comm_rank_r[rank],
-                        self.comm)
-                    e0_n, e_n = self.calculate(wfs)
-
     def calculate(self,
-                  wfs: PWFDWaveFunctions) -> tuple[np.ndarray, np.ndarray]:
-        """Calculate eigenvalues (in eV)."""
+                  ibzwfs: PWFDIBZWaveFunctions,
+                  na: int = 0,
+                  nb: int = 0) -> tuple[np.ndarray, np.ndarray]:
+        comm = self.comm
+        domain_comm = ibzwfs.domain_comm
+        band_comm = ibzwfs.band_comm
+        kpt_comm = ibzwfs.kpt_comm
+
+        kpt_comm_rank_k = ibzwfs.rank_k
+        comm_rank_k = np.zeros(len(kpt_comm_rank_k), int)
+        for k, kpt_comm_rank in enumerate(kpt_comm_rank_k):
+            if kpt_comm_rank == kpt_comm.rank:
+                if band_comm.rank == 0 and domain_comm.rank == 0:
+                    comm_rank_k[k] = comm.rank
+        comm.sum(comm_rank_k)
+
+        eig0_kn = []
+        eig_kn = []
+        for k, kpt_comm_rank in enumerate(kpt_comm_rank_k):
+            if kpt_comm_rank == kpt_comm.rank:
+                q = ibzwfs.q_k[k]
+                wfs = ibzwfs.wfs_qs[q][self.spin].collect(na, nb)
+            else:
+                wfs = None
+            wfs = broadcast(wfs, comm_rank_k[k], comm)
+            e0_n, e_n = self.calculate_one_kpt(wfs)
+            eig0_kn.append(e0_n)
+            eig_kn.append(e_n)
+
+        return np.array(eig0_kn), np.array(eig_kn)
+
+    def calculate_one_kpt(self,
+                          wfs: PWFDWaveFunctions
+                          ) -> tuple[np.ndarray, np.ndarray]:
+        """Calculate eigenvalues at one k-point (in eV)."""
         P2_ani = wfs.P_ani
         ut2_nR = self.grid.empty(wfs.nbands)
         psit2_nG = wfs.psit_nX
@@ -110,7 +123,7 @@ class NonSelfConsistentHSE06:
 
         pw2 = psit2_nG.desc
         eig_n = np.zeros(wfs.nbands)
-        for psit1 in self.psit_K.values():
+        for psit1 in self.psits:
             pw1 = psit1.psit_nG.desc
             pw = pw1.new(kpt=pw2.kpt_c - pw1.kpt_c)
             v_G = truncated_coulomb(pw, self.hse06_omega)
@@ -120,7 +133,7 @@ class NonSelfConsistentHSE06:
                                         psit1, n1,
                                         ut2_nR,
                                         P2_ani)
-        eig_n *= -self.exx_fraction / len(self.psit_K)
+        eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
 
         # PAW corrections:
@@ -217,27 +230,32 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
 
     nblocks = max(1, 5 * comm.size // nbzk)
     blocksize = (nocc + nblocks - 1) // nblocks
-    nanb_i = [(min(i * blocksize, nocc), min((i + 1) * blocksize, nocc))
+    nanb_i = [(min(i * blocksize, nocc),
+               min((i + 1) * blocksize, nocc))
               for i in range(nblocks)]
+    print(nblocks, nbzk, nocc, nanb_i)
 
-    psit_K = {}
     requests = []
     for K, psit_nG in sorted(psit_KnG.items()):
         for i in range(nblocks):
-            rank = (i + nblocks * K) % comm.size
+            rank = (K + nbzk * i) % comm.size
             na, nb = nanb_i[i]
-            if rank != comm.rank:
+            if rank != comm.rank and nb > na:
                 requests.append(
                     comm.send(psit_nG.data[na:nb], rank, block=False))
 
     comm.waitall(requests)
 
     pw = ibzwfs.wfs_qs[0][0].psit_nX.desc.new(comm=None)
-    _, occ_skn = ibzwfs.get_all_eigs_and_occs()
+    _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
+
+    psits = []
     for iK in range(comm.rank, nblocks * nbzk, comm.size):
-        K, i = divmod(iK, nblocks)
+        i, K = divmod(iK, nbzk)
         na, nb = nanb_i[i]
-        print(K, i, na, nb)
+        print(comm.rank, K, na, nb)
+        if na == nb:
+            continue
         rank = rank_K[K]
         if rank == comm.rank:
             psit_nG = psit_KnG[K][na:nb]
@@ -249,8 +267,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             relpos_ac)
         P_ani = pt_aiG.integrate(psit_nG)
         k = ibz.bz2ibz_K[K]
-        psit_K[K] = Psi(psit_nG, P_ani, occ_skn[spin, k, na:nb])
-    return nocc, psit_K
+        psits.append(Psi(psit_nG, P_ani, occ_skn[spin, k, na:nb]))
+
+    return nocc, psits
 
 
 def nsc_corrections(density: Density,
