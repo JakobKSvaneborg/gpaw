@@ -4,11 +4,12 @@
 
 import os
 import re
+import shlex
 import sys
 import warnings
 from pathlib import Path
 from subprocess import run
-from sysconfig import get_platform
+from sysconfig import get_config_var, get_platform
 
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext as _build_ext
@@ -31,6 +32,10 @@ def warn_deprecated(msg):
 def raise_error(msg):
     msg = f'\n\n{msg}\n\n'
     raise ValueError(msg)
+
+
+def config_args(key):
+    return shlex.split(get_config_var(key))
 
 
 # Get the current version number:
@@ -85,6 +90,18 @@ intelmkl = False
 compiler_args = None
 linker_so_args = None
 linker_exe_args = None
+# Advanced args for linking gpaw-python;
+# override if needed:
+# Note: LDFLAGS and LIBS go together, but depending on the platform,
+# it might be unnecessary to include them
+parallel_python_interpreter_link_extra_preargs \
+    = config_args('LDFLAGS')
+parallel_python_interpreter_link_extra_postargs \
+    = (config_args('BLDLIBRARY')
+       + config_args('LIBS')
+       + config_args('LIBM')
+       + config_args('LINKFORSHARED'))
+
 
 # Search and store current git hash if possible
 try:
@@ -348,6 +365,8 @@ class build_ext(_build_ext):
             # Build gpaw-python
             parallel_python_exefile = build_interpreter(
                 self.compiler, extension, objects,
+                link_extra_preargs=parallel_python_interpreter_link_extra_preargs,  # noqa: E501
+                link_extra_postargs=parallel_python_interpreter_link_extra_postargs,  # noqa: E501
                 build_temp=self.build_temp,
                 build_bin=build_bin,
                 debug=self.debug)
