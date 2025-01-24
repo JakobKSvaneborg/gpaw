@@ -374,10 +374,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 ba = 0
                 na = nb
             if domain_comm.rank == 0:
-                return PWFDWaveFunctions.from_wfs(
+                wfs = PWFDWaveFunctions.from_wfs(
                     self,
                     psit_nX,
                     atomdist=self.atomdist.gather())
+                wfs._eig_n = self._eig_n[n1:n2]
+                return wfs
         else:
             rank = band_comm.rank
             ranka, ba = max((rank1, b1), (rank, 0))
