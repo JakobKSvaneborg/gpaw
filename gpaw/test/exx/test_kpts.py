@@ -124,8 +124,9 @@ def test_2d():
     a.calc = GPAW(mode=PW(200),
                   # setups='ae',
                   #symmetry='off',
+                  parallel={'kpt': 1},
                   kpts=(n, n, 1),
-                  txt=None)
+                  )#txt=None)
     a.get_potential_energy()
     #e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
     #e_skn = e0 - v0 + v
