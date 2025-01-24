@@ -40,7 +40,7 @@ class NonSelfConsistentHSE06:
                  setups: Setups,
                  relpos_ac: np.ndarray,
                  spin=0):
-        self.grid = density.nt_sR.desc.new(dtype=complex)
+        self.grid = density.nt_sR.desc.new(dtype=complex, comm=None)
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.spin = spin
         self.nbzk = len(ibzwfs.ibz.bz)
@@ -65,18 +65,17 @@ class NonSelfConsistentHSE06:
 
         self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
 
-        self.dE_asii = []
-        for D_sii, setup, dVxc_sii in zip(density.D_asii.values(),
-                                          setups,
-                                          dVxc_asii.values()):
+        self.dE_asii = dVxc_asii.new()
+        for a, D_sii in density.D_asii.items():
+            setup = setups[a]
             VC_ii = unpack_hermitian(setup.X_p * self.exx_fraction)
             dE_sii = []
-            for D_ii, dVxc_ii in zip(D_sii, dVxc_sii):
+            for D_ii, dVxc_ii in zip(D_sii, dVxc_asii[a]):
                 VV_ii = self.exx_fraction * (
                     pawexxvv(2 * setup.M_pp, D_ii / ibzwfs.spin_degeneracy))
                 dE_ii = dVxc_ii - VC_ii - VV_ii
                 dE_sii.append(dE_ii)
-            self.dE_asii.append(dE_sii)
+            self.dE_asii[a][:] = dE_sii
 
     def calculate(self,
                   ibzwfs: PWFDIBZWaveFunctions,
@@ -101,6 +100,8 @@ class NonSelfConsistentHSE06:
             if kpt_comm_rank == kpt_comm.rank:
                 q = ibzwfs.q_k[k]
                 wfs = ibzwfs.wfs_qs[q][self.spin].collect(na, nb)
+                if wfs is not None:
+                    wfs = wfs.psit_nX, wfs.P_ani, wfs.eig_n, wfs.spin
             else:
                 wfs = None
             wfs = broadcast(wfs, comm_rank_k[k], comm)
@@ -114,15 +115,24 @@ class NonSelfConsistentHSE06:
                           wfs: PWFDWaveFunctions
                           ) -> tuple[np.ndarray, np.ndarray]:
         """Calculate eigenvalues at one k-point (in eV)."""
-        P2_ani = wfs.P_ani
-        ut2_nR = self.grid.empty(wfs.nbands)
-        psit2_nG = wfs.psit_nX
+        psit2_nG, P2_ani, eig0_n, spin = wfs
+        # P2_ani = wfs.P_ani
+        ut2_nR = self.grid.empty(len(psit2_nG))  # wfs.nbands)
+        # psit2_nG = wfs.psit_nX
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
-        deig_n = self._semi_local_xc_part(ut2_nR, wfs.spin)
+        deig_n = self._semi_local_xc_part(ut2_nR, spin)
+
+        # PAW corrections:
+        for a, dE_sii in self.dE_asii.items():
+            P2_ni = P2_ani[a]
+            deig_n += np.einsum('ni, ij, nj -> n',
+                                P2_ni.conj(), dE_sii[spin], P2_ni).real
+
+        self.dE_asii.layout.atomdist.comm.sum(deig_n)
 
         pw2 = psit2_nG.desc
-        eig_n = np.zeros(wfs.nbands)
+        eig_n = np.zeros_like(eig0_n)
         for psit1 in self.psits:
             pw1 = psit1.psit_nG.desc
             pw = pw1.new(kpt=pw2.kpt_c - pw1.kpt_c)
@@ -136,12 +146,7 @@ class NonSelfConsistentHSE06:
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
 
-        # PAW corrections:
-        for P2_ni, dE_sii in zip(P2_ani.values(), self.dE_asii):
-            eig_n += np.einsum('ni, ij, nj -> n',
-                               P2_ni.conj(), dE_sii[wfs.spin], P2_ni).real
-
-        eig0_n = wfs.eig_n
+        # eig0_n = wfs.eig_n
         return eig0_n * Ha, (deig_n + eig_n + eig0_n) * Ha
 
     def _exx_part(self,
@@ -182,14 +187,15 @@ class NonSelfConsistentHSE06:
     def _semi_local_xc_part(self,
                             ut2_nR: UGArray,
                             spin: int) -> np.ndarray:
-        dvxc_R = self.dvxct_sR[spin]
-        eig_n = []
-        nt_R = ut2_nR.desc.new(dtype=float).empty()
-        for ut_R in ut2_nR.data:
-            nt_R.data[:] = 0.0
-            add_to_density(1.0, ut_R, nt_R.data)
-            eig_n.append(dvxc_R.integrate(nt_R))
-        return np.array(eig_n)
+        eig_n = np.zeros(len(ut2_nR))
+        if self.dvxct_sR is not None:
+            dvxc_R = self.dvxct_sR[spin]
+            nt_R = ut2_nR.desc.new(dtype=float).empty()
+            for n, ut_R in enumerate(ut2_nR.data):
+                nt_R.data[:] = 0.0
+                add_to_density(1.0, ut_R, nt_R.data)
+                eig_n[n] = dvxc_R.integrate(nt_R)
+        return eig_n
 
 
 def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,
@@ -291,7 +297,7 @@ def nsc_corrections(density: Density,
 
     using (calculated from ``density.D_asii``):::
 
-        a _      a     _      a   _
+        a  _     a     _     a   _
        Δv (r) = v     (r) - v    (r).
          σ       σ,HSE       σ,xc
     """
@@ -301,17 +307,19 @@ def nsc_corrections(density: Density,
     _, dvt_sr, _ = hse.calculate(nt_sr)
     _, vxct_sr, _ = xc.calculate(nt_sr)
     dvt_sr.data -= vxct_sr.data
-    dvt_sR = dvt_sr.fft_restrict(grid=density.nt_sR.desc)
-
+    dvt_sr = dvt_sr.gather()
+    if dvt_sr is not None:
+        dvt_sR = dvt_sr.fft_restrict(grid=density.nt_sR.desc.new(comm=None))
+    else:
+        dvt_sR = None
     dV_asii = density.D_asii.new()
-    for setup, D_sii, dV_sii in zip(pot_calc.setups,
-                                    density.D_asii.values(),
-                                    dV_asii.values()):
+    for a, D_sii in density.D_asii.items():
+        setup = pot_calc.setups[a]
         D_sp = np.array([pack_density(D_ii.real) for D_ii in D_sii])
         dV_sp = np.zeros_like(D_sp)
         xc.calculate_paw_correction(setup, D_sp, dV_sp)
         dV_sp *= -1
         hse.calculate_paw_correction(setup, D_sp, dV_sp)
-        dV_sii[:] = unpack_hermitian(dV_sp)
+        dV_asii[a][:] = unpack_hermitian(dV_sp)
 
     return dvt_sR, dV_asii

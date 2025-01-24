@@ -131,11 +131,11 @@ def test_2d():
     #e_skn = e0 - v0 + v
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
     e0_n, e_n = hse.calculate(a.calc.dft.ibzwfs)
-    #print(e0, e0_n)
+    #print(e0 - e0_n)
     #print(e_n - e_skn[0])
-    print(e0_n, e_n)
+    print(e_n)
     # assert e_n == pytest.approx(e_skn[0, k], abs=0.004)
 
 
 if __name__ == '__main__':
-    test_1d()
+    test_2d()
