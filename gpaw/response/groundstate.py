@@ -286,9 +286,8 @@ class ResponseGroundStateAdapter:
 
     def get_eigenvalue_range(self, nbands: int | None = None):
         """Get smallest and largest Kohn-Sham eigenvalues."""
-        if nbands is None:
-            nbands = self.bd.nbands
-        assert 1 <= nbands <= self.bd.nbands
+        nbands = nbands if nbands is not None else self.nbands
+        assert 1 <= nbands <= self.nbands
 
         epsmin = np.inf
         epsmax = -np.inf
@@ -296,6 +295,10 @@ class ResponseGroundStateAdapter:
             epsmin = min(epsmin, kpt.eps_n[0])  # the eigenvalues are ordered
             epsmax = max(epsmax, kpt.eps_n[nbands - 1])
         return epsmin, epsmax
+
+    @property
+    def nbands(self):
+        return self.bd.nbands
 
     @property
     def metallic(self):

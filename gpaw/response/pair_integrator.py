@@ -257,7 +257,7 @@ class PairFunctionIntegrator(ABC):
 
     def get_band_information(self):
         """Get information about band occupation."""
-        nbands = self.gs.bd.nbands
+        nbands = self.gs.nbands
         nocc1 = self.kptpair_extractor.nocc1
         nocc2 = self.kptpair_extractor.nocc2
 
