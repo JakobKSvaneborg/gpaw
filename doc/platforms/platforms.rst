@@ -21,26 +21,16 @@ Linux:
    Linux/Niflheim/gpu
    Linux/SUNCAT/SUNCAT
    Linux/akka
-   Linux/armageddon
    Linux/batman
    Linux/brown
-   Linux/bwgrid
-   Linux/bwuni
    Linux/carbon_cnm
    Linux/davinci
-   Linux/gardar.nhpc.hi.is
    Linux/huygens
-   Linux/juropa
    Linux/jureca
    Linux/justus
    Linux/Juwels/juwels
    Linux/monolith
-   Linux/murska
-   Linux/nanolab_EL4
    Linux/nemo
-   Linux/neolith
-   Linux/newcell
-   Linux/r410_psmn.ens-lyon
    Linux/ranger_EL4
    Linux/sepeli
    Linux/sun_chpc
@@ -104,7 +94,6 @@ Cray:
    Cray/lumi
    Cray/nersc_perlmutter
    Cray/louhi
-   Cray/jaguar
    Cray/sisu
    Cray/hermit
 
