@@ -695,11 +695,17 @@ class DielectricFunction(DielectricFunctionCalculator):
             None for no truncation.
             '2D' for standard analytical truncation scheme.
             Non-periodic directions are determined from k-point grid
+        integrationmode: str or None
+            if == 'tetrahedron integration' then tetrahedron integration is performed
+            if == None or 'point integration' is used
         eshift: float
             Shift unoccupied bands
         """
         gs, context = get_gs_and_context(calc, txt, world, timer=None)
         wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
+
+        if integrationmode is None:
+             integrationmode = 'point integration'
 
         chi0calc = Chi0Calculator(
             gs, context, nblocks=nblocks,
