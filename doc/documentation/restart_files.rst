@@ -17,7 +17,7 @@ For example ``calc.write('xyz.gpw')``.
  * To also save the (potentially very large) wavefunctions, use
    ``calc.write('xyz.gpw', mode='all')``.
 
-With “new” GPAW there are also two ways to produce smaller .gpw files:
+With :ref:`newgpaw` there are also two ways to produce smaller .gpw files:
 
  * To avoid saving the (potentially large) PAW projections, use
    ``calc.write('xyz.gpw', include_projection=False)``.

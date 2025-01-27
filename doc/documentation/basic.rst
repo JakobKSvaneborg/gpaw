@@ -1230,7 +1230,7 @@ On-going refactoring and “New” GPAW
 
 Some features may be only available with either “new” or “old” GPAW.
 This refers to on-going efforts to refactor the computational backend.
-See :ref:`new_gpaw` for further information.
+See :ref:`newgpaw` for further information.
 
 
 .. [#LDA]    J. P. Perdew and Y. Wang,
