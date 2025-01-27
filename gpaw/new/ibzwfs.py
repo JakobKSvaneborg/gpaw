@@ -321,7 +321,8 @@ class IBZWaveFunctions(Generic[WFT]):
               writer: Writer,
               skip_wfs: bool,
               precision: str = 'double',
-              include_projections=True) -> None:
+              *,
+              flags: GPWFlags) -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
 
         ... k-points, symmetry information, projections and possibly
@@ -357,7 +358,7 @@ class IBZWaveFunctions(Generic[WFT]):
             spin_k_shape = (len(ibz),)
             proj_shape = (self.nbands, 2, nproj)
 
-        if include_projections:
+        if flags.include_projections:
             writer.add_array('projections', spin_k_shape + proj_shape,
                              self.dtype)
             for spin in range(self.nspins):

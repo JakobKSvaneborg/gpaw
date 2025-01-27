@@ -21,6 +21,7 @@ Versions:
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Union
 
@@ -71,13 +72,20 @@ def as_double_precision(array):
     return np.array(array, dtype=dtype)
 
 
+@dataclass
+class GPWFlags:
+    include_projections: bool
+
+
 def write_gpw(filename: str | Path,
               atoms,
               params,
               dft: DFTCalculation,
               skip_wfs: bool = True,
               precision: str = 'double',
-              include_projections=True) -> None:
+              *,
+              flags,
+              ) -> None:
 
     comm = dft.comm
     if precision not in ['single', 'double']:
@@ -116,7 +124,7 @@ def write_gpw(filename: str | Path,
         dft.energies.write_to_gpw(writer.child('energy_contributions'))
         wf_writer = writer.child('wave_functions')
         dft.ibzwfs.write(wf_writer, skip_wfs,
-                         include_projections=include_projections,
+                         flags=flags,
                          precision=precision)
 
         if not skip_wfs and params.mode['name'] == 'pw':

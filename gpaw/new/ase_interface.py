@@ -19,7 +19,7 @@ from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
-from gpaw.new.gpw import read_gpw, write_gpw
+from gpaw.new.gpw import read_gpw, write_gpw, GPWFlags
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.logger import Logger
@@ -398,9 +398,11 @@ class ASECalculator:
         """
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
+        flags = GPWFlags(include_projections=include_projections)
+
         write_gpw(filename, self.atoms, self.params,
                   self.dft, skip_wfs=mode != 'all', precision=precision,
-                  include_projections=include_projections)
+                  flags=flags)
 
     # Old API:
 
