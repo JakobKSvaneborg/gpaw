@@ -132,9 +132,6 @@ class KohnShamKPointPairExtractor:
         self.rrequests = []
         self.srequests = []
 
-        # Count bands so it is possible to remove null transitions
-        self.nocc1, self.nocc2 = self.gs.nocc1, self.gs.nocc2
-
     @timer('Get Kohn-Sham pairs')
     def get_kpoint_pairs(self, k1_pc, k2_pc,
                          transitions) -> KohnShamKPointPair | None:

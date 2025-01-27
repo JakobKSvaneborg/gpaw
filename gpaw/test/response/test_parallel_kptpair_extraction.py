@@ -62,8 +62,7 @@ def test_parallel_extract_kptdata(in_tmp_dir, gpw_files,
     parallel_integral = initialize_integral(parallel_extractor, context, q_c)
 
     # Set up transitions
-    transitions = initialize_transitions(
-        serial_extractor, spincomponent, nbands)
+    transitions = initialize_transitions(parallel_gs, spincomponent, nbands)
 
     # Extract and compare kptpairs
     ni = serial_integral.ni  # Number of iterations in kptpair generator
@@ -113,8 +112,7 @@ def initialize_integral(extractor, context, q_c):
     return KPointPairPointIntegral(extractor, generator)
 
 
-def initialize_transitions(extractor, spincomponent, nbands):
+def initialize_transitions(gs, spincomponent, nbands):
     bandsummation = 'pairwise'
     return PairTransitions.from_transitions_domain_arguments(
-        spincomponent, nbands, extractor.nocc1, extractor.nocc2,
-        extractor.gs.nspins, bandsummation)
+        spincomponent, nbands, gs.nocc1, gs.nocc2, gs.nspins, bandsummation)
