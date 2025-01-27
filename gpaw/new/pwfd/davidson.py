@@ -167,7 +167,7 @@ class Davidson(Eigensolver):
 
         Ht = partial(Ht, out=residual_nX, spin=wfs.spin)
         dH = partial(dH, spin=wfs.spin)
-
+        breakpoint()
         calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
 
         def copy(C_nn: Array2D) -> None:
@@ -286,7 +286,7 @@ def calculate_residuals(residual_nX: XArray,
     else:
         subscripts = 'nsI, n -> nsI'
     if xp is np:
-        np.einsum(subscripts, P2_ani.data, eig_n, out=P2_ani.data)
+        np.einsum(subscripts, P2_ani.data, eig_n, out=P2_ani.data, dtype=P2_ani.data.dtype, casting='same_kind')
     else:
         P2_ani.data[:] = xp.einsum(subscripts, P2_ani.data, eig_n)
     P1_ani.data -= P2_ani.data

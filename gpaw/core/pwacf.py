@@ -250,7 +250,7 @@ class PWLFC:  # (BaseLFC)
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 
-        if self.dtype == complex:
+        if np.isdtype(np.dtype(self.dtype), kind='complex floating'):
             f_GI = xp.empty((G2 - G1, self.nI), complex)
         else:
             # Special layout because BLAS does not have real-complex
@@ -348,22 +348,23 @@ class PWLFC:  # (BaseLFC)
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
         alpha = 1.0
-        if self.dtype == float:
+        if np.isdtype(np.dtype(self.dtype), kind='real floating'):
             alpha *= 2
-            a_xG = a_xG.view(float)
+            a_xG = a_xG.view(self.dtype)
 
         if c_axi is None:
             c_axi = self.dict(a_xG.shape[:-1])
 
         x = 0.0
         for G1, G2 in self.block():
-            f_GI = self.expand(G1, G2, cc=self.dtype == complex)
-            if self.dtype == float:
+            f_GI = self.expand(G1, G2, cc=np.isdtype(np.dtype(self.dtype), kind='complex floating'))
+            if np.isdtype(np.dtype(self.dtype), kind='real floating'):
                 if G1 == 0 and self.comm.rank == 0:
                     f_GI[0] *= 0.5
                 G1 *= 2
                 G2 *= 2
             if xp is np:
+                print(self.dtype)
                 mmm(alpha, a_xG[:, G1:G2], 'N', f_GI, 'N', x, b_xI)
             else:
                 xp.cublas.gemm('N', 'N',

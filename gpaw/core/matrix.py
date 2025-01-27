@@ -91,7 +91,7 @@ class Matrix(XP):
             else:
                 dtype = data.dtype
         self.dtype = np.dtype(dtype)
-        assert dtype == float or dtype == complex, dtype
+        #assert dtype == float or dtype == complex, dtype
 
         self.xp: ModuleType
         if xp is None:

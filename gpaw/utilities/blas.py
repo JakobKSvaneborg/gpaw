@@ -240,11 +240,12 @@ def axpy(alpha, x, y):
     assert y.flags.contiguous
     x = x.ravel()
     y = y.ravel()
-    if x.dtype == float:
-        z = blas.daxpy(x, y, a=alpha)
-    else:
-        z = blas.zaxpy(x, y, a=alpha)
-    assert z is y, (x, y, x.shape, y.shape)
+    #if x.dtype == float:
+    #    z = blas.daxpy(x, y, a=alpha)
+    #else:
+    #    z = blas.zaxpy(x, y, a=alpha)
+    y += alpha * x
+    assert True, (x, y, x.shape, y.shape)
 
 
 def gpu_axpy(alpha, x, y):
@@ -508,7 +509,8 @@ if not hasattr(cgpaw, 'mmm'):
         if beta == 0.0:
             c[:] = 0.0
         else:
-            c *= beta
+            c = c * beta
+        
         c += alpha * op(opa, a).dot(op(opb, b))
 
     gemmdot = _gemmdot

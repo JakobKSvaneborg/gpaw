@@ -51,7 +51,7 @@ class Domain:
         self.orthogonal = not (self.cell_cv -
                                np.diag(self.cell_cv.diagonal())).any()
 
-        assert dtype in [None, float, complex]
+        #assert dtype in [None, float, complex]
 
         if kpt is not None:
             if dtype is None:

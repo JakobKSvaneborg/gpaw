@@ -31,10 +31,11 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  *,
                  comm,
                  ecut=340,
+                 dtype=complex,
                  qspiral=None,
                  dedecut=None):
         self.ecut = ecut / Ha
-        super().__init__(atoms, params, comm=comm, qspiral=qspiral)
+        super().__init__(atoms, params, dtype=dtype, comm=comm, qspiral=qspiral)
 
         self._nct_ag = None
         self._tauct_ag = None

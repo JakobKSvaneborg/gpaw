@@ -293,9 +293,10 @@ class PWArray(DistributedArrays[PWDesc]):
         data:
             Data array for storage.
         """
+                
         DistributedArrays. __init__(self, dims, pw.myshape,
                                     comm, pw.comm,
-                                    data, pw.dv, complex, xp)
+                                    data, pw.dv, pw.dtype, xp)
         self.desc = pw
         self._matrix: Matrix | None
 
@@ -828,7 +829,7 @@ def find_reciprocal_vectors(ecut: float,
     n = Gcut * (cell**2).sum(axis=1)**0.5 / (2 * pi) + abs(kpt)
     size = 2 * n.astype(int) + 4
 
-    if dtype == float:
+    if np.isdtype(np.dtype(dtype), kind='real floating'):
         size[2] = size[2] // 2 + 1
         i_Qc = np.indices(size).transpose((1, 2, 3, 0))
         i_Qc[..., :2] += size[:2] // 2
@@ -851,7 +852,7 @@ def find_reciprocal_vectors(ecut: float,
 
     assert not mask[size[0] // 2].any()
     assert not mask[:, size[1] // 2].any()
-    if dtype == complex:
+    if np.isdtype(np.dtype(dtype), kind='complex floating'):
         assert not mask[:, :, size[2] // 2].any()
     else:
         assert not mask[:, :, -1].any()
