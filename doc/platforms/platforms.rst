@@ -31,12 +31,10 @@ Linux:
    Linux/Juwels/juwels
    Linux/monolith
    Linux/nemo
-   Linux/ranger_EL4
    Linux/sepeli
    Linux/sun_chpc
    Linux/supernova
    Linux/uranus
-   Linux/vsc.univie
    Linux/odyssey
 
 WSL:
