@@ -547,7 +547,8 @@ class WaveFunctions:
             assert (kpts.bz2ibz == self.kd.bz2ibz_k).all()
             assert np.allclose(kpts.weights, self.kd.weight_k)
 
-        self.read_projections(r)
+        if 'projections' in r:
+            self.read_projections(r)
         self.read_eigenvalues(r, r.version <= 0)
         self.read_occupations(r, r.version <= 0)
 
