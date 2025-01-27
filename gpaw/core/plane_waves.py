@@ -293,16 +293,11 @@ class PWArray(DistributedArrays[PWDesc]):
         data:
             Data array for storage.
         """
-        
-        dtype = complex
-        if pw.dtype == np.float64:
-            dtype = np.complex128
-        elif pw.dtype == np.float32:
-            dtype = np.complex64
-                
+        complex_dtype = np.dtype(pw.dtype.name.replace('d', 'c'))
         DistributedArrays. __init__(self, dims, pw.myshape,
                                     comm, pw.comm,
-                                    data, pw.dv, dtype, xp)
+                                    data, pw.dv,
+                                    complex_dtype, xp)
         self.desc = pw
         self._matrix: Matrix | None
 

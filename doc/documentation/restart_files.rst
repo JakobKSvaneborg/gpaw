@@ -7,9 +7,19 @@ Restart files
 Writing restart files
 =====================
 
-Use ``calc.write('xyz.gpw')`` or ``calc.write('xyz.gpw', mode='all')``
-to include also the wave functions:
-:meth:`~gpaw.new.ase_interface.ASECalculator.write`.
+It is possible to save a ground state by writing a .gpw file. 
+This saves the density, potential, eigenvalues and other information. 
+
+
+Use the :meth:`~gpaw.new.ase_interface.ASECalculator.write` method.
+For example ``calc.write('xyz.gpw')``. 
+
+ * To also save the (potentially very large) wavefunctions, use ``calc.write('xyz.gpw', mode='all')``.
+ * To avoid saving the (potentially large) PAW projections, use ``calc.write('xyz.gpw', include_projection=False)``.
+ * To further save space you can save the file in single-precision representation
+   using ``calc.write('xyz.gpw', precision='single')``. Note that reloading the file will load it as double-precission, so 
+   further processing will always be double precision.
+
 
 .. tip::
 
@@ -25,6 +35,7 @@ to include also the wave functions:
    This can be useful for very expensive calculations, where the SCF cycle
    may be interrupted before it completes. In this way, you can resume the
    calculation from an intermediate electronic structure.
+
 
 
 Reading restart files
