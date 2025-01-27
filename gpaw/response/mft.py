@@ -381,7 +381,7 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
 
     def get_band_and_spin_transitions(self):
         """Set up all intraband transitions (n,s)->(n,s)."""
-        nocc2 = self.kptpair_extractor.nocc2
+        nocc2 = self.gs.nocc2
         n_n = list(range(nocc2))
         n_t = np.array(n_n + n_n)
         s_t = np.array([0] * nocc2 + [1] * nocc2)
