@@ -76,10 +76,25 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         # By default, the size of the grid used for the FFT's (self.grid)
         # will acommodate G-vectors up to 2 * self.ecut, but the grid-size
         # could have been set using h=... or gpts=...
+        
+        # XXX: Duplicate code
+        import numpy as np
+        is_real = np.isdtype(np.dtype(self.dtype), kind='real floating')
+        if is_real:
+            n_bytes = np.dtype(self.dtype).itemsize * 16
+            real_dtype = np.dtype(self.dtype)
+            complex_dtype = np.dtype(f'complex{n_bytes}')
+        else:
+            n_bytes = np.dtype(self.dtype).itemsize * 4
+            real_dtype = np.dtype(f'float{n_bytes}')
+            complex_dtype = np.dtype(self.dtype)
+        # XXX: End of duplicate code
+        
         ecut = min(2 * self.ecut, self.grid.ekin_max())
         return PWDesc(ecut=ecut,
                       cell=self.grid.cell,
-                      comm=self.grid.comm)
+                      comm=self.grid.comm,
+                      dtype=real_dtype)
 
     @cached_property
     def electrostatic_potential_desc(self):

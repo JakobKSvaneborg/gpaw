@@ -19,6 +19,6 @@ def test_single_precision():
                       random=True,
                       #mode={'name': 'pw', 'ecut': 200.0})
                      # h=0.21,
-                      mode={'name': 'pw', 'ecut': 200.0, 'dtype': np.complex64})
+                      mode={'name': 'pw', 'ecut': 400.0, 'dtype': np.float32})
     atoms.get_potential_energy()
     

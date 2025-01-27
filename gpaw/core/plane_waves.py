@@ -421,7 +421,10 @@ class PWArray(DistributedArrays[PWDesc]):
             if grid is None:
                 grid = self.desc.uniform_grid_with_grid_spacing(grid_spacing)
             out = grid.empty(self.dims, xp=xp)
-        assert self.desc.dtype == out.desc.dtype, (self.desc, out.desc)
+        #assert self.desc.dtype == out.desc.dtype, (self.desc, out.desc)
+        temp_desc = self.desc.new(dtype=out.desc.dtype)
+        #temp_desc.data = temp_desc.dtype(self.desc.data)
+        
         assert not out.desc.zerobc_c.any()
         assert comm.size == out.desc.comm.size, (comm, out.desc.comm)
 
@@ -430,9 +433,11 @@ class PWArray(DistributedArrays[PWDesc]):
         if this is not None:
             for coef_G, out1 in zips(this._arrays(), out.flat()):
                 plan.ifft_sphere(coef_G, self.desc, out1)
+                #plan.ifft_sphere(coef_G, temp_desc, out1)
         else:
             for out1 in out.flat():
                 plan.ifft_sphere(None, self.desc, out1)
+                #plan.ifft_sphere(None, temp_desc, out1)
 
         if not periodic:
             out.multiply_by_eikr()

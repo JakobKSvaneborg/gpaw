@@ -367,7 +367,6 @@ class PWLFC:  # (BaseLFC)
                 G1 *= 2
                 G2 *= 2
             if xp is np:
-                print(self.dtype)
                 try:
                     mmm(alpha, a_xG[:, G1:G2], 'N', f_GI, 'N', x, b_xI)
                 except:

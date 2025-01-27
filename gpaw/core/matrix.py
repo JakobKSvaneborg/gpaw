@@ -362,7 +362,7 @@ class Matrix(XP):
 
         if rows * columns == 1:
             if self.dist.comm.rank == 0:
-                if cc and H.dtype == complex:
+                if cc and np.isdtype(np.dtype(H.dtype), kind='complex floating'):
                     np.negative(H.data.imag, H.data.imag)
                 if debug:
                     H.data[np.triu_indices(H.shape[0], 1)] = 42.0

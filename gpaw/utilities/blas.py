@@ -487,7 +487,7 @@ if not hasattr(cgpaw, 'mmm'):
         else:
             a = a.reshape((len(a), -1))
             try:
-                c += alpha * a.dot(a.conj().T).real
+                c += alpha * a.dot(a.conj().T)
             except:
                 breakpoint()
 
@@ -502,7 +502,7 @@ if not hasattr(cgpaw, 'mmm'):
             c += (alpha * a.reshape((len(a), -1))
                   .dot(b.reshape((len(b), -1)).conj().T) +
                   alpha * b.reshape((len(b), -1))
-                  .dot(a.reshape((len(a), -1)).conj().T)).real
+                  .dot(a.reshape((len(a), -1)).conj().T))
         else:
             c += alpha * (a.conj().T @ b + b.conj().T @ a)
 
