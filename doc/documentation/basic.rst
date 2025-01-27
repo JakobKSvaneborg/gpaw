@@ -1224,6 +1224,14 @@ Parallelization settings that would be employed when run on
 
     See also Python's :option:`python:-X` option.
 
+-----------------------------------
+On-going refactoring and “New” GPAW
+-----------------------------------
+
+Some features may be only available with either “new” or “old” GPAW.
+This refers to on-going efforts to refactor the computational backend.
+See :ref:`new_gpaw` for further information.
+
 
 .. [#LDA]    J. P. Perdew and Y. Wang,
              Accurate and simple analytic representation of the
