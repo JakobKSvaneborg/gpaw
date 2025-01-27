@@ -111,6 +111,10 @@ class ResponseGroundStateAdapter:
         # code, and that includes places that are also compatible with FD.
         return self._wfs.pd
 
+    def is_parallelized(self):
+        """Are we dealing with a parallel calculator?"""
+        return self.world.size > 1
+
     @cached_property
     def global_pd(self):
         """Get a PWDescriptor that includes all k-points.

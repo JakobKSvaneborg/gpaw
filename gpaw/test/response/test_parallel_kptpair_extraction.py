@@ -23,6 +23,7 @@ pytestmark = pytest.mark.skipif(world.size == 1, reason='world.size == 1')
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parametrize('system,qrel,nblocks', product(generate_system_s(),
                                                         generate_qrel_q(),
                                                         generate_nblocks_n()))
@@ -40,22 +41,22 @@ def test_parallel_extract_kptdata(in_tmp_dir, gpw_files,
 
     # Initialize serial ground state adapter
     serial_gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files[wfs])
+    assert not serial_gs.is_parallelized()
 
     # Initialize parallel ground state adapter
     calc = GPAW(gpw_files[wfs], parallel=dict(domain=1))
     nbands = response_band_cutoff[wfs]
     parallel_gs = ResponseGroundStateAdapter(calc)
+    assert parallel_gs.is_parallelized()
 
     # Set up extractors and integrals
     context = ResponseContext()
     tcomm, kcomm = block_partition(context.comm, nblocks)
     serial_extractor = initialize_extractor(
         serial_gs, context, tcomm, kcomm)
-    assert not serial_extractor.calc_parallel
     assert serial_extractor.gs.world.size == 1
     parallel_extractor = initialize_extractor(
         parallel_gs, context, tcomm, kcomm)
-    assert parallel_extractor.calc_parallel
     assert parallel_extractor.gs.world.size > 1
     serial_integral = initialize_integral(serial_extractor, context, q_c)
     parallel_integral = initialize_integral(parallel_extractor, context, q_c)

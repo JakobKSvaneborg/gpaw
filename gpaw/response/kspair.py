@@ -117,7 +117,10 @@ class KohnShamKPointPairExtractor:
         assert isinstance(context, ResponseContext)
         self.context = context
 
-        self.calc_parallel = self.check_calc_parallelisation()
+        if self.gs.is_parallelized():
+            assert self.context.comm is self.gs.world
+            # We assume no grid-parallelization in `map_who_has()`
+            assert self.gs.gd.comm.size == 1
 
         self.transitions_blockcomm = transitions_blockcomm
         self.kpts_blockcomm = kpts_blockcomm
@@ -133,15 +136,6 @@ class KohnShamKPointPairExtractor:
         self.nocc1 = None  # number of completely filled bands
         self.nocc2 = None  # number of non-empty bands
         self.count_occupied_bands()
-
-    def check_calc_parallelisation(self):
-        """Check how ground state calculation is distributed in memory"""
-        if self.gs.world.size == 1:
-            return False
-        else:
-            assert self.context.comm.rank == self.gs.world.rank
-            assert self.gs.gd.comm.size == 1
-            return True
 
     def count_occupied_bands(self):
         """Count number of occupied and unoccupied bands in ground state
@@ -220,7 +214,7 @@ class KohnShamKPointPairExtractor:
     def extract_kptdata(self, k_pc, n_t, s_t):
         """Extract the input data needed to construct the IrreducibleKPoints.
         """
-        if self.calc_parallel:
+        if self.gs.is_parallelized():
             return self.parallel_extract_kptdata(k_pc, n_t, s_t)
         else:
             return self.serial_extract_kptdata(k_pc, n_t, s_t)
@@ -398,7 +392,7 @@ class KohnShamKPointPairExtractor:
 
     def create_get_extraction_info(self):
         """Creator component of the extraction information factory."""
-        if self.calc_parallel:
+        if self.gs.is_parallelized():
             return self.get_parallel_extraction_info
         else:
             return self.get_serial_extraction_info
