@@ -156,7 +156,7 @@ class PlasmaFrequencyIntegrand(Integrand):
             blockcomm=self._drude.blockcomm)
         vel_nv = pair_calc.intraband_pair_density(kpt1, n_n)
 
-        if self._drude.integrationmode is None:
+        if self._drude.integrationmode == 'point integration':
             f_n = kpt1.f_n
             width = self._drude.gs.get_occupations_width()
             if width > 1e-15:
