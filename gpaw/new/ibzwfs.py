@@ -320,7 +320,6 @@ class IBZWaveFunctions(Generic[WFT]):
     def write(self,
               writer: Writer,
               skip_wfs: bool,
-              precision: str = 'double',
               *,
               flags: GPWFlags) -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
@@ -379,7 +378,7 @@ class IBZWaveFunctions(Generic[WFT]):
                         writer.fill(data)
 
         if not skip_wfs:
-            self._write_wave_functions(writer, spin_k_shape, precision)
+            self._write_wave_functions(writer, spin_k_shape, flags.precision)
 
     def _write_wave_functions(self, writer, spin_k_shape, precision='double'):
         from gpaw.new.gpw import as_single_precision
