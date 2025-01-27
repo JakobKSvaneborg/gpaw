@@ -17,7 +17,8 @@ def test_single_precision():
     atoms.calc = GPAW(xc='PPLDA',
                       symmetry='off',
                       random=True,
+                      #mode={'name': 'pw', 'ecut': 200.0})
                      # h=0.21,
-                      mode={'name': 'pw', 'ecut': 200.0, 'dtype': np.complex256})
+                      mode={'name': 'pw', 'ecut': 200.0, 'dtype': np.float32})
     atoms.get_potential_energy()
     

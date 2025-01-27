@@ -293,10 +293,16 @@ class PWArray(DistributedArrays[PWDesc]):
         data:
             Data array for storage.
         """
+        
+        dtype = complex
+        if pw.dtype == np.float64:
+            dtype = np.complex128
+        elif pw.dtype == np.float32:
+            dtype = np.complex64
                 
         DistributedArrays. __init__(self, dims, pw.myshape,
                                     comm, pw.comm,
-                                    data, pw.dv, pw.dtype, xp)
+                                    data, pw.dv, dtype, xp)
         self.desc = pw
         self._matrix: Matrix | None
 
@@ -694,11 +700,10 @@ class PWArray(DistributedArrays[PWDesc]):
         if seed is None:
             seed = self.comm.rank + self.desc.comm.rank * self.comm.size
         rng = self.xp.random.default_rng(seed)
-        a = self.data.view(float)
-        rng.random(a.shape, out=a)
-        a -= 0.5
-        if self.desc.dtype == float and self.desc.comm.rank == 0:
-            a[..., 1] = 0.0
+        self.data[:] = rng.random(self.data.shape)
+        self.data -= 0.5
+        #if self.desc.dtype == float and self.desc.comm.rank == 0:
+        #    a[..., 1] = 0.0
 
     def moment(self):
         pw = self.desc

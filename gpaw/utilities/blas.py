@@ -486,7 +486,10 @@ if not hasattr(cgpaw, 'mmm'):
             c += alpha * a.conj().T.dot(a)
         else:
             a = a.reshape((len(a), -1))
-            c += alpha * a.dot(a.conj().T)
+            try:
+                c += alpha * a.dot(a.conj().T).real
+            except:
+                breakpoint()
 
     def r2k(alpha, a, b, beta, c, trans='c'):  # noqa
         if c.size == 0:
@@ -499,7 +502,7 @@ if not hasattr(cgpaw, 'mmm'):
             c += (alpha * a.reshape((len(a), -1))
                   .dot(b.reshape((len(b), -1)).conj().T) +
                   alpha * b.reshape((len(b), -1))
-                  .dot(a.reshape((len(a), -1)).conj().T))
+                  .dot(a.reshape((len(a), -1)).conj().T)).real
         else:
             c += alpha * (a.conj().T @ b + b.conj().T @ a)
 
@@ -509,7 +512,7 @@ if not hasattr(cgpaw, 'mmm'):
         if beta == 0.0:
             c[:] = 0.0
         else:
-            c = c * beta
+            c *= beta
         
         c += alpha * op(opa, a).dot(op(opb, b))
 

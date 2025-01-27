@@ -35,6 +35,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  qspiral_v: Vector | None = None):
         assert isinstance(atomdist, AtomDistribution)
         self.psit_nX = psit_nX
+        assert not np.isnan(self.psit_nX.data).any()
         nbands = psit_nX.dims[0]
         super().__init__(setups=setups,
                          nbands=nbands,

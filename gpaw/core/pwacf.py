@@ -322,14 +322,17 @@ class PWLFC:  # (BaseLFC)
         for G1, G2 in self.block():
             f_GI = self.expand(G1, G2, cc=False)
 
-            if self.dtype == float:
+            if np.isdtype(np.dtype(self.dtype), kind='real floating'):
                 # f_IG = f_IG.view(float)
                 G1 *= 2
                 G2 *= 2
 
             if self.xp is np:
-                mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
-                    1.0, a_xG[:, G1:G2])
+                try:
+                    mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
+                        1.0, a_xG[:, G1:G2])
+                except:
+                    breakpoint()
             else:
                 self.xp.cublas.gemm('N', 'T',
                                     c_xI, f_GI, a_xG[:, G1:G2],
@@ -365,7 +368,10 @@ class PWLFC:  # (BaseLFC)
                 G2 *= 2
             if xp is np:
                 print(self.dtype)
-                mmm(alpha, a_xG[:, G1:G2], 'N', f_GI, 'N', x, b_xI)
+                try:
+                    mmm(alpha, a_xG[:, G1:G2], 'N', f_GI, 'N', x, b_xI)
+                except:
+                    breakpoint()
             else:
                 xp.cublas.gemm('N', 'N',
                                a_xG[:, G1:G2], f_GI, b_xI,
