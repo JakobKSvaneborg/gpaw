@@ -13,6 +13,7 @@ from gpaw.test.response.test_parallel_kptpair_extraction import \
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.old_gpaw_only
 def test_nicl2_pair_potential(gpw_files):
     """Test that the transverse pair potential vanishes in vacuum."""
