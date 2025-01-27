@@ -176,7 +176,7 @@ class Chi0ComponentCalculator:
             QSymmetryAnalyzer, or bool to enable all/no symmetries,
             or dict with which to create QSymmetryAnalyzer.
             Disabling symmetries may be useful for debugging.
-        integrationmode : str or None
+        integrationmode : str
             Integrator for the k-point integration.
             If == 'tetrahedron integration' then the kpoint integral is
             performed using the linear tetrahedron method.
