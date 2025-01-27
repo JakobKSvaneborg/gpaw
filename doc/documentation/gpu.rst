@@ -8,7 +8,6 @@ some limitations:
 
 * only PW-mode
 * it has only been implemented in the new GPAW code
-* only parallelization over **k**-points
 
 You use the new code like this:
 
@@ -17,7 +16,8 @@ You use the new code like this:
 >>> atoms.calc = GPAW(..., parallel={'gpu': True})
 
 By default, the environment variable ``$GPAW_USE_GPUS`` is used, to determine
-whether to use gpu or not. The user can specify ``parallel={‘gpu’: False}`` to
+whether to use gpu or not (defaults to not). 
+In addition, the user can specify ``parallel={‘gpu’: False}`` (or True) to
 override this behaviour.
 
 Instead of importing ``GPAW`` from ``gpaw.new.ase_interface``, you can use ``from gpaw import GPAW`` and the select new GPAW
@@ -37,6 +37,66 @@ See :git:`gpaw/test/gpu/test_pw.py` for an example.
    >>> a_gpu = cp.asarray(a_cpu)  # from CPU to GPU
    >>> b_cpu = a_gpu.get()  # from GPU to CPU
 
+Building the GPU code
+---------------------
+
+To build GPAW with GPU support, siteconfig.py needs to be updated. To see how to use siteconfig, see :ref:`siteconfig`. Five variables need to be set: 
+
+    1. ``gpu`` is a boolean determining whether to build the GPU kernels or not.
+    2. ``gpu_target`` where valid target architechrures are ``'cuda'``, ``'hip-amd'`` or ``'hip-cuda'``. Essentially, with NVIDIA architechrures, the target should be ``'cuda'``, and ``nvcc``  compiler will be required, and with ``hip-`` selections, ``hipcc`` compiler will be used.
+    3. ``gpu_compiler`` is optinal, and will be selected by ``gpu_target`` normally, but it can be overwritten with this parameter.
+    4. ``gpu_include_dirs`` are not normally needed, but can be used to provide additional search paths to locate headers.
+    5. ``gpu_compile_args`` is essenitial, and proper target architechture needs to be supplied in most cases.
+
+
+In addition, libraries list should be appended by GPU blas and GPU runtime librarires. See the examples below for examples of how to utilize these commands.
+
+Example piece of siteconfig to build with HIP (AMD)::
+
+    gpu = True
+    gpu_target = 'hip-amd'
+    gpu_compiler = 'hipcc'
+    gpu_include_dirs = []
+    gpu_compile_args = [
+        '-g',
+        '-O3',
+        '--offload-arch=gfx90a',
+        ]
+    libraries += ['amdhip64', 'hipblas']
+
+Example piece of siteconfig to build with CUDA::
+
+    gpu = True
+    gpu_target = 'cuda'
+    gpu_compiler = 'nvcc'
+    gpu_compile_args = ['-O3',
+                        '-g',
+                        '-gencode', 'arch=compute_80,code=sm_80']
+
+    libraries += ['cudart', 'cublas']
+
+
+To see what the siteconfig should look in practice, see 
+:download:`../platforms/Cray/siteconfig-lumi-gpu.py`
+(AMD MI210X) or  
+:download:`../platforms/Linux/Niflheim/siteconfig-foss.py`
+(NVIDIA A100) examples.
+
+
+GPU parallelization
+-------------------
+  
+Same paralleization options are available as with the CPU version.
+GPAW will distribute the available GPUs in round robin manner.
+As a rule of thump, always use 1 CPU per logical GPU. It rerely helps to oversubscribe the GPUs, however, it sometimes might make a small speed up.
+
+By default, GPAW will utilize GPU aware MPI, expecting the MPI library to be compiled with GPU aware MPI support.
+However, if this is not the case (segfaults or bus errors occur at MPI calls),
+one may disable the GPU aware MPI with following commmand added to the siteconfig::
+
+    undef_macros += ['GPAW_GPU_AWARE_MPI']
+
+If disabled, at MPI calls, GPAW will transfer data from GPU to CPU, to move it via MPI in CPU, and transfer it back to GPU after that. However, the normal behaviour is to tranfer directly from GPU to GPU.
 
 The gpaw.gpu module
 ===================
@@ -94,14 +154,3 @@ these objects now have an ``xp`` attribute that can be :mod:`numpy` or
 
 Also, the :class:`~gpaw.core.atom_centered_functions.AtomCenteredFunctions`
 object can do its operations on the GPU.
-
-
-GPU-aware MPI
-=============
-
-Use a GPU-aware MPI implementation and set the :envvar:`GPAW_GPU` when compiling
-GPAW's C-extension.
-
-.. envvar:: GPAW_GPU
-
-   Add support for passing :class:`cupy.ndarray` objects to MPI
