@@ -27,7 +27,7 @@ class WrongMagmomForHundsRuleError(ValueError):
 
 def create_setup(symbol, xc='LDA', lmax=0,
                  type='paw', basis=None, setupdata=None,
-                 filter=None, world=None):
+                 filter=None, world=None, backwards_compatible=True):
     if isinstance(xc, str):
         xc = XC(xc)
 
@@ -84,8 +84,13 @@ def create_setup(symbol, xc='LDA', lmax=0,
         # It is not so nice that we have hubbard_u floating around here.
         # For example, none of the other setup types are aware
         # of hubbard u, so they silently ignore it!
-        setup = LeanSetup(setupdata.build(xc, lmax, basis, filter),
-                          hubbard_u=hubbard_u)
+        if isinstance(setupdata, SetupData):
+            kwargs = dict(backwards_compatible=backwards_compatible)
+        else:
+            kwargs = {}
+        setup = LeanSetup(
+            setupdata.build(xc, lmax, basis, filter, **kwargs),
+            hubbard_u=hubbard_u)
         return setup
     else:
         return setupdata
@@ -161,10 +166,12 @@ class BaseSetup:
         # projectors.  This should be the correct behaviour for all the
         # currently supported PAW/pseudopotentials.
         partial_waves_j = []
-        for n, phit in zips(self.n_j, self.pseudo_partial_waves_j,
-                            strict=False):
+        for n, phit in zip(self.n_j, self.pseudo_partial_waves_j):
             if n > 0:
                 partial_waves_j.append(phit)
+
+        assert all(n > 0 for n in self.n_j[:len(partial_waves_j)])
+
         return partial_waves_j
 
     def calculate_initial_occupation_numbers(self, magmom, hund, charge,
@@ -715,7 +722,8 @@ class Setup(BaseSetup):
     ``tauct``  Pseudo core kinetic energy density
     ========== ============================================
     """
-    def __init__(self, data, xc, lmax=0, basis=None, filter=None):
+    def __init__(self, data, xc, lmax=0, basis=None, filter=None,
+                 backwards_compatible=True):
         self.type = data.name
 
         if not data.is_compatible(xc):
@@ -833,7 +841,8 @@ class Setup(BaseSetup):
         # Construct splines:
         self.vbar = rgd.spline(vbar_g, rcutfilter)
 
-        rcore, nc_g, nct_g, nct = self.construct_core_densities(data)
+        rcore, nc_g, nct_g, nct = self.construct_core_densities(
+            data, backwards_compatible)
         self.rcore = rcore
         self.nct = nct
 
@@ -1162,9 +1171,12 @@ class Setup(BaseSetup):
             assert not np.any(np.isnan(rxnabla_iiv))
         return rxnabla_iiv
 
-    def construct_core_densities(self, setupdata):
+    def construct_core_densities(self, setupdata, backwards_compatible=True):
         rcore = self.data.find_core_density_cutoff(setupdata.nc_g)
-        nct = self.rgd.spline(setupdata.nct_g, rcore)
+        nct = self.rgd.spline(
+            setupdata.nct_g, rcore,
+            points=None if backwards_compatible else 256,
+            backwards_compatible=backwards_compatible)
         return rcore, setupdata.nc_g, setupdata.nct_g, nct
 
     def create_basis_functions(self, phit_jg, rcut2, gcut2):
@@ -1262,7 +1274,9 @@ class Setups(list):
     """
 
     def __init__(self, Z_a, setup_types, basis_sets, xc, *,
-                 filter=None, world=None):
+                 filter=None,
+                 world=None,
+                 backwards_compatible=True):
         list.__init__(self)
         symbols = [chemical_symbols[Z] for Z in Z_a]
         type_a = types2atomtypes(symbols, setup_types, default='paw')
@@ -1328,7 +1342,8 @@ class Setups(list):
                     basis = Basis(symbol, basis, world=world)
                 setup = create_setup(symbol, xc, 2, type,
                                      basis, setupdata=setupdata,
-                                     filter=filter, world=world)
+                                     filter=filter, world=world,
+                                     backwards_compatible=backwards_compatible)
                 self.setups[id] = setup
                 natoms[id] = 0
             natoms[id] += 1
@@ -1349,6 +1364,8 @@ class Setups(list):
             self.nao += n * setup.nao
 
         self.dS = OverlapCorrections(self)
+
+        self.backwards_compatible = backwards_compatible
 
     def __str__(self):
         # Write PAW setup information in order of appearance:
@@ -1407,10 +1424,16 @@ class Setups(list):
                 spline_aj.append([])
             else:
                 spline_aj.append([setup.nct])
+        if self.backwards_compatible and hasattr(domain, 'ecut'):
+            integrals = None
+        else:
+            # 0.0 will skip normalization:
+            integrals = [setup.Nct if abs(setup.Nct) > 1e-12 else 0.0
+                         for setup in self]
         return domain.atom_centered_functions(
             spline_aj, positions,
             atomdist=atomdist,
-            integral=[setup.Nct for setup in self],
+            integrals=integrals,
             cut=True, xp=xp)
 
     def create_pseudo_core_ked(self,
@@ -1432,10 +1455,14 @@ class Setups(list):
 
     def create_compensation_charges(self, domain, positions, atomdist,
                                     xp=np):
+        if self.backwards_compatible and hasattr(domain, 'ecut'):
+            integral = None
+        else:
+            integral = sqrt(4 * pi)
         return domain.atom_centered_functions(
             [setup.ghat_l for setup in self], positions,
             atomdist=atomdist,
-            integral=sqrt(4 * pi),
+            integrals=integral,
             xp=xp)
 
     def get_overlap_corrections(self, atomdist, xp):

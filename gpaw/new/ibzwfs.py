@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Generator, Generic, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Generator, Generic, TypeVar
 
 import numpy as np
 from ase.io.ulm import Writer
@@ -60,12 +60,12 @@ class IBZWaveFunctions(Generic[WFT]):
 
         self.fermi_levels: Array1D | None = None  # hartree
 
-        self.energies: dict[str, float] = {}  # hartree
-
         self.xp = self.wfs_qs[0][0].xp
         if self.xp is not np:
             if not GPU_AWARE_MPI:
                 self.kpt_comm = CuPyMPI(self.kpt_comm)  # type: ignore
+
+        self.move_wave_functions: Callable[..., None] = lambda *args: None
 
         self.read_from_file_init_wfs_dm = False
 
@@ -155,6 +155,7 @@ class IBZWaveFunctions(Generic[WFT]):
                 f'spin-degeneracy: {self.spin_degeneracy}\n'
                 f'dtype: {self.dtype}\n\n'
                 'memory:\n'
+                f'    storage: {"CPU" if self.xp is np else "GPU"}\n'
                 f'    wave functions: {nbytes:_}  # bytes '
                 f' ({nbytes // ncores:_} per core)\n\n'
                 'parallelization:\n'
@@ -166,17 +167,19 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs_s in self.wfs_qs:
             yield from wfs_s
 
-    def move(self, fracpos_ac, atomdist):
-        self.ibz.symmetries.check_positions(fracpos_ac)
-        self.energies.clear()
+    def move(self, relpos_ac, atomdist):
+        self.ibz.symmetries.check_positions(relpos_ac)
+        self.make_sure_wfs_are_read_from_gpw_file()
         for wfs in self:
-            wfs.move(fracpos_ac, atomdist)
+            wfs.move(relpos_ac, atomdist, self.move_wave_functions)
 
     def orthonormalize(self, work_array_nX: np.ndarray = None):
         for wfs in self:
             wfs.orthonormalize(work_array_nX)
 
-    def calculate_occs(self, occ_calc, fix_fermi_level=False):
+    def calculate_occs(self,
+                       occ_calc,
+                       fix_fermi_level=False) -> tuple[float, float, float]:
         degeneracy = self.spin_degeneracy
 
         # u index is q and s combined
@@ -203,10 +206,7 @@ class IBZWaveFunctions(Generic[WFT]):
             e_band += wfs.occ_n @ wfs.eig_n * wfs.weight * degeneracy
         e_band = self.kpt_comm.sum_scalar(float(e_band))  # XXX CPU float?
 
-        self.energies.update(
-            band=e_band,
-            entropy=e_entropy,
-            extrapolation=e_entropy * occ_calc.extrapolate_factor)
+        return e_band, e_entropy, e_entropy * occ_calc.extrapolate_factor
 
     def add_to_density(self, nt_sR, D_asii) -> None:
         """Compute density and add to ``nt_sR`` and ``D_asii``."""
@@ -250,7 +250,7 @@ class IBZWaveFunctions(Generic[WFT]):
 
         if not skip_paw_correction:
             dphi_aj = wfs.setups.partial_wave_corrections()
-            dphi_air = grid.atom_centered_functions(dphi_aj, wfs.fracpos_ac)
+            dphi_air = grid.atom_centered_functions(dphi_aj, wfs.relpos_ac)
             dphi_air.add_to(psi_r, wfs.P_ani[:, 0])
 
         return psi_r
@@ -309,7 +309,7 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def forces(self, potential: Potential) -> Array2D:
         self.make_sure_wfs_are_read_from_gpw_file()
-        F_av = self.xp.zeros((potential.dH_asii.natoms, 3))
+        F_av = self.xp.zeros((len(potential.dH_asii), 3))
         for wfs in self:
             wfs.force_contribution(potential, F_av)
         if self.xp is not np:
@@ -319,7 +319,9 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def write(self,
               writer: Writer,
-              skip_wfs: bool) -> None:
+              skip_wfs: bool,
+              precision: str = 'double',
+              include_projections=True) -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
 
         ... k-points, symmetry information, projections and possibly
@@ -335,11 +337,11 @@ class IBZWaveFunctions(Generic[WFT]):
                      occupations=occ_skn)
         ibz = self.ibz
         writer.child('kpts').write(
-            atommap=ibz.symmetries.a_sa,
+            atommap=ibz.symmetries.atommap_sa,
             bz2ibz=ibz.bz2ibz_K,
             bzkpts=ibz.bz.kpt_Kc,
             ibzkpts=ibz.kpt_kc,
-            rotations=ibz.symmetries.rotation_svv,
+            rotations=ibz.symmetries.rotation_scc,
             translations=ibz.symmetries.translation_sc,
             weights=ibz.weight_k)
 
@@ -355,37 +357,46 @@ class IBZWaveFunctions(Generic[WFT]):
             spin_k_shape = (len(ibz),)
             proj_shape = (self.nbands, 2, nproj)
 
-        writer.add_array('projections', spin_k_shape + proj_shape, self.dtype)
-
-        for spin in range(self.nspins):
-            for k, rank in enumerate(self.rank_k):
-                if rank == self.kpt_comm.rank:
-                    wfs = self.wfs_qs[self.q_k[k]][spin]
-                    P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
-                    if P_ani is not None:
-                        P_nI = P_ani.matrix.gather()  # gather bands
-                        if P_nI.dist.comm.rank == 0:
-                            if rank == 0:
-                                writer.fill(P_nI.data.reshape(proj_shape))
-                            else:
-                                self.kpt_comm.send(P_nI.data, 0)
-                elif self.comm.rank == 0:
-                    data = np.empty(proj_shape, self.dtype)
-                    self.kpt_comm.receive(data, rank)
-                    writer.fill(data)
+        if include_projections:
+            writer.add_array('projections', spin_k_shape + proj_shape,
+                             self.dtype)
+            for spin in range(self.nspins):
+                for k, rank in enumerate(self.rank_k):
+                    if rank == self.kpt_comm.rank:
+                        wfs = self.wfs_qs[self.q_k[k]][spin]
+                        P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
+                        if P_ani is not None:
+                            P_nI = P_ani.matrix.gather()  # gather bands
+                            if P_nI.dist.comm.rank == 0:
+                                if rank == 0:
+                                    writer.fill(P_nI.data.reshape(proj_shape))
+                                else:
+                                    self.kpt_comm.send(P_nI.data, 0)
+                    elif self.comm.rank == 0:
+                        data = np.empty(proj_shape, self.dtype)
+                        self.kpt_comm.receive(data, rank)
+                        writer.fill(data)
 
         if not skip_wfs:
-            self._write_wave_functions(writer, spin_k_shape)
+            self._write_wave_functions(writer, spin_k_shape, precision)
 
-    def _write_wave_functions(self, writer, spin_k_shape):
+    def _write_wave_functions(self, writer, spin_k_shape, precision='double'):
+        from gpaw.new.gpw import as_single_precision
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
         shape = spin_k_shape + (self.nbands,) + xshape
         dtype = complex if self.mode == 'pw' else self.dtype
+        dtype_write = dtype
+        singlep = precision == 'single'
+        if singlep:
+            if dtype == complex:
+                dtype_write = np.complex64
+            else:
+                dtype_write = np.float32
         c = 1.0 if self.mode == 'lcao' else Bohr**-1.5
 
-        writer.add_array('coefficients', shape, dtype=dtype)
+        writer.add_array('coefficients', shape, dtype=dtype_write)
         buf_nX = np.empty((self.nbands,) + xshape, dtype=dtype)
 
         for spin in range(self.nspins):
@@ -405,12 +416,18 @@ class IBZWaveFunctions(Generic[WFT]):
                                 buf_nX[..., x:] = 0.0
                                 coef_nX = buf_nX
                         if rank == 0:
-                            writer.fill(coef_nX * c)
+                            if singlep:
+                                writer.fill(as_single_precision(coef_nX * c))
+                            else:
+                                writer.fill(coef_nX * c)
                         else:
                             self.kpt_comm.send(coef_nX, 0)
                 elif self.comm.rank == 0:
                     self.kpt_comm.receive(buf_nX, rank)
-                    writer.fill(buf_nX * c)
+                    if singlep:
+                        writer.fill(as_single_precision(buf_nX * c))
+                    else:
+                        writer.fill(buf_nX * c)
 
     def write_summary(self, log):
         fl = self.fermi_levels * Ha
@@ -490,26 +507,35 @@ class IBZWaveFunctions(Generic[WFT]):
     def get_homo_lumo(self, spin: int = None) -> Array1D:
         """Return HOMO and LUMO eigenvalues."""
         if self.ncomponents == 1:
-            N = 2
             assert spin != 1
             spin = 0
         elif self.ncomponents == 2:
-            N = 2
             if spin is None:
                 h0, l0 = self.get_homo_lumo(0)
                 h1, l1 = self.get_homo_lumo(1)
                 return np.array([max(h0, h1), min(l0, l1)])
         else:
-            N = 1
             assert spin != 1
             spin = 0
 
-        n = int(round(self.nelectrons)) // N
-        assert N * n == self.nelectrons
-        homo = self.kpt_comm.max_scalar(max(wfs_s[spin].eig_n[n - 1]
-                                            for wfs_s in self.wfs_qs))
-        lumo = self.kpt_comm.min_scalar(min(wfs_s[spin].eig_n[n]
-                                            for wfs_s in self.wfs_qs))
+        nocc = 0.0
+        for wfs_s in self.wfs_qs:
+            wfs = wfs_s[spin]
+            nocc += wfs.occ_n.sum() * wfs.weight
+        nocc = self.kpt_comm.sum_scalar(nocc)
+        n = int(round(nocc))
+
+        homo = -np.inf
+        if n > 0:
+            for wfs_s in self.wfs_qs:
+                homo = max(homo, wfs_s[spin].eig_n[n - 1])
+        homo = self.kpt_comm.max_scalar(homo)
+
+        lumo = np.inf
+        if n < self.nbands:
+            for wfs_s in self.wfs_qs:
+                lumo = min(lumo, wfs_s[spin].eig_n[n])
+        lumo = self.kpt_comm.min_scalar(lumo)
 
         return np.array([homo, lumo])
 

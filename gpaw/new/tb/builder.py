@@ -70,8 +70,8 @@ class NoGrid(Domain):
     def empty(self, shape=(), comm=serial_comm, xp=None):
         return DummyFunctions(self, shape, comm)
 
-    def ranks_from_fractional_positions(self, fracpos_ac):
-        return np.zeros(len(fracpos_ac), int)
+    def ranks_from_fractional_positions(self, relpos_ac):
+        return np.zeros(len(relpos_ac), int)
 
 
 class DummyFunctions(DistributedArrays[NoGrid]):
@@ -109,8 +109,8 @@ class DummyFunctions(DistributedArrays[NoGrid]):
 class PSCoreDensities:
     xp = np
 
-    def __init__(self, grid, fracpos_ac):
-        self.layout = AtomArraysLayout([1] * len(fracpos_ac),
+    def __init__(self, grid, relpos_ac):
+        self.layout = AtomArraysLayout([1] * len(relpos_ac),
                                        grid.comm)
 
     def to_uniform_grid(self, out, scale):
@@ -124,7 +124,7 @@ class TBPotentialCalculator(PotentialCalculator):
                  atoms,
                  domain_comm):
         super().__init__(xc, None, setups,
-                         fracpos_ac=atoms.get_scaled_positions())
+                         relpos_ac=atoms.get_scaled_positions())
         self.atoms = atoms.copy()
         self.domain_comm = domain_comm
         self.force_av = None
@@ -151,10 +151,11 @@ class TBPotentialCalculator(PotentialCalculator):
                 vt_sR,
                 None,
                 DummyFunctions(density.nt_sR.desc),
-                V_aL)
+                V_aL,
+                np.nan)
 
-    def _move(self, fracpos_ac, ndensities):
-        self.atoms.set_scaled_positions(fracpos_ac)
+    def _move(self, relpos_ac, ndensities):
+        self.atoms.set_scaled_positions(relpos_ac)
         self.force_av = None
         self.stress_vv = None
 
@@ -186,24 +187,31 @@ class TBSCFLoop:
                 ibzwfs,
                 density,
                 potential,
+                energies,
                 pot_calc,
                 convergence=None,
                 maxiter=None,
                 calculate_forces=None,
                 log=None):
         self.eigensolver.iterate(ibzwfs, density, potential, self.hamiltonian)
-        ibzwfs.calculate_occs(self.occ_calc)
+        e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
+            self.occ_calc)
+
+        energies.set(band=e_band,
+                     entropy=e_entropy,
+                     extrapolation=e_extrapolation)
+
         yield SCFContext(
             log,
             1,
+            energies,
             ibzwfs, density, potential,
             0.0, 0.0,
             self.comm, calculate_forces,
             pot_calc, False)
 
-        new_potential, _ = pot_calc.calculate(
-            density, None, potential.vHt_x)
-        potential.update_from(new_potential)
+        # potential, _, _ = pot_calc.calculate(
+        #     density, None, potential.vHt_x)
 
 
 class DummyBasis:
@@ -232,10 +240,10 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         return grid, grid
 
     def get_pseudo_core_densities(self):
-        return PSCoreDensities(self.grid, self.fracpos_ac)
+        return PSCoreDensities(self.grid, self.relpos_ac)
 
     def get_pseudo_core_ked(self):
-        return PSCoreDensities(self.grid, self.fracpos_ac)
+        return PSCoreDensities(self.grid, self.relpos_ac)
 
     def create_basis_set(self):
         self.basis = DummyBasis(self.setups)
@@ -267,7 +275,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         ibzwfs, tciexpansions = create_lcao_ibzwfs(
             basis,
             self.ibz, self.communicators, self.setups,
-            self.fracpos_ac, self.grid, self.dtype,
+            self.relpos_ac, self.grid, self.dtype,
             self.nbands, self.ncomponents, self.atomdist, self.nelectrons)
 
         vtphit: dict[Setup, list[Spline]] = {}
@@ -296,7 +304,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
 
         kpt_qc = np.array([wfs.kpt_c for wfs in ibzwfs])
         manytci = vtciexpansions.get_manytci_calculator(
-            self.setups, self.grid._gd, self.fracpos_ac,
+            self.setups, self.grid._gd, self.relpos_ac,
             kpt_qc, self.dtype, NullTimer())
 
         manytci.Pindices = manytci.Mindices

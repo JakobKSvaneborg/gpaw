@@ -4,16 +4,21 @@ from math import pi
 import numpy as np
 
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.pwfd.davidson import Davidson
-from gpaw.new.pwfd.etdm import ETDMPWFD
+from gpaw.new.pwfd.etdm import ETDM
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
-    def __init__(self, atoms, params, *, comm, qspiral=None):
+    def __init__(self,
+                 atoms,
+                 params,
+                 *,
+                 comm,
+                 qspiral=None):
         super().__init__(atoms, params, comm=comm)
         self.qspiral_v = (None if qspiral is None else
                           qspiral @ self.grid.icell * (2 * pi))
@@ -30,11 +35,14 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 converge_bands=self.params.convergence.get('bands',
                                                            'occupied'),
                 **eigsolv_params)
-        from gpaw.directmin.etdm_fdpw import FDPWETDM
-        return ETDMPWFD(self.setups,
-                        self.communicators['w'],
-                        self.atoms,
-                        FDPWETDM(**eigsolv_params))
+        if name == 'etdm-fdpw':
+            return ETDM(
+                dS_aii=self.setups.get_overlap_corrections(
+                    self.atomdist, self.xp),
+                nspins=self.nspins,
+                preconditioner=hamiltonian.create_preconditioner(
+                    10, xp=self.xp),
+                **eigsolv_params)
 
     def read_ibz_wave_functions(self, reader):
         kpt_comm, band_comm, domain_comm = (self.communicators[x]
@@ -54,14 +62,14 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 weight=weight,
                 psit_nX=psit_nG,  # type: ignore
                 setups=self.setups,
-                fracpos_ac=self.fracpos_ac,
+                relpos_ac=self.relpos_ac,
                 atomdist=self.atomdist,
                 ncomponents=self.ncomponents,
                 qspiral_v=self.qspiral_v)
 
             return wfs
 
-        ibzwfs = PWFDIBZWaveFunction.create(
+        ibzwfs = PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
             nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,
@@ -89,7 +97,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         lcao_ibzwfs, _ = create_lcao_ibzwfs(
             basis,
             self.ibz, self.communicators, self.setups,
-            self.fracpos_ac, self.grid, self.dtype,
+            self.relpos_ac, self.grid, self.dtype,
             lcaonbands, self.ncomponents, self.atomdist, self.nelectrons)
 
         hamiltonian = LCAOHamiltonian(basis)
@@ -120,14 +128,14 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 k=k,
                 weight=weight,
                 setups=self.setups,
-                fracpos_ac=self.fracpos_ac,
+                relpos_ac=self.relpos_ac,
                 atomdist=self.atomdist,
                 ncomponents=self.ncomponents,
                 qspiral_v=self.qspiral_v)
             wfs._eig_n = eig_n
             return wfs
 
-        return PWFDIBZWaveFunction.create(
+        return PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
             nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,
@@ -154,14 +162,14 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 k=k,
                 weight=weight,
                 setups=self.setups,
-                fracpos_ac=self.fracpos_ac,
+                relpos_ac=self.relpos_ac,
                 atomdist=self.atomdist,
                 ncomponents=self.ncomponents,
                 qspiral_v=self.qspiral_v)
 
             return wfs
 
-        return PWFDIBZWaveFunction.create(
+        return PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
             nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,

@@ -17,8 +17,8 @@ from gpaw.core.domain import Domain
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (MPIComm, Parallelization, serial_comm, synchronize_atoms,
-                      world)
+from gpaw.mpi import (broadcast, MPIComm, Parallelization, serial_comm,
+                      synchronize_atoms, world)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -36,6 +36,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
+from gpaw import GPAW_USE_GPUS
 
 
 def builder(atoms: Atoms,
@@ -90,28 +91,43 @@ class DFTComponentsBuilder:
         else:
             self._xc = params.xc
 
-        self.setups = Setups(atoms.numbers,
-                             params.setups,
-                             params.basis,
-                             self._xc.get_setup_name(),
-                             world=comm)
+        self._backwards_comatible = params.experimental.get(
+            'backwards_compatible', True)
+
+        self.setups = Setups(
+            atoms.numbers,
+            params.setups,
+            params.basis,
+            self._xc,  # .get_setup_name(),
+            world=comm,
+            backwards_compatible=self._backwards_comatible)
         if params.hund:
             c = params.charge / len(atoms)
             for a, setup in enumerate(self.setups):
                 self.initial_magmom_av[a, 2] = setup.get_hunds_rule_moment(c)
 
-        symmetries = create_symmetries_object(atoms,
-                                              self.setups.id_a,
-                                              self.initial_magmom_av,
-                                              params.symmetry)
-        self.setups.set_symmetry(symmetries.symmetry)
+        symmetries = create_symmetries_object(
+            atoms,
+            setup_ids=self.setups.id_a,
+            magmoms=self.initial_magmom_av,
+            **{k: v for k, v in params.symmetry.items()
+               if k != 'time_reversal'},
+            _backwards_compatible=self._backwards_comatible)
+
+        use_time_reversal = params.symmetry.get('time_reversal', True)
+
+        symmetries._old_symmetry.time_reversal = use_time_reversal  # legacy
+        self.setups.set_symmetry(symmetries._old_symmetry)  # legacy
 
         if self.ncomponents == 4:
-            assert (len(symmetries) == 1 and not
-                    symmetries.symmetry.time_reversal)
+            assert (len(symmetries) == 1 and not use_time_reversal)
 
         bz = create_kpts(params.kpts, atoms)
-        self.ibz = symmetries.reduce(bz, strict=False)
+        self.ibz = bz.reduce(
+            symmetries,
+            strict=False,
+            comm=comm,
+            use_time_reversal=use_time_reversal)
 
         d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
@@ -144,9 +160,9 @@ class DFTComponentsBuilder:
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
-        self.fracpos_ac = self.atoms.get_scaled_positions()
-        self.fracpos_ac %= 1
-        self.fracpos_ac %= 1
+        self.relpos_ac = self.atoms.get_scaled_positions()
+        self.relpos_ac %= 1
+        self.relpos_ac %= 1
 
         self.xc = self.create_xc_functional()
 
@@ -159,7 +175,7 @@ class DFTComponentsBuilder:
     @cached_property
     def atomdist(self) -> AtomDistribution:
         return AtomDistribution(
-            self.grid.ranks_from_fractional_positions(self.fracpos_ac),
+            self.grid.ranks_from_fractional_positions(self.relpos_ac),
             self.grid.comm)
 
     def create_uniform_grids(self):
@@ -181,8 +197,13 @@ class DFTComponentsBuilder:
 
     @cached_property
     def gpu(self) -> bool:
-        """Are we running on a GPU?."""
-        if self.params.parallel.get('gpu', False):
+        """Are we running on a GPU?
+
+        If parallel dict does not specify 'gpu': True or False,
+        GPAW_USE_GPUS environment variable will be used to
+        determine whether we use GPUs or not.
+        """
+        if self.params.parallel.get('gpu', GPAW_USE_GPUS):
             from gpaw.gpu import cupy_is_fake
             if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
                 raise ValueError(
@@ -216,7 +237,7 @@ class DFTComponentsBuilder:
                             self.grid,
                             self.setups,
                             self.dtype,
-                            self.fracpos_ac,
+                            self.relpos_ac,
                             self.communicators['w'],
                             self.communicators['k'],
                             self.communicators['b'])
@@ -318,14 +339,25 @@ class DFTComponentsBuilder:
             P_ani = AtomArrays(layout, dims=dims, comm=band_comm)
 
             if domain_comm.rank == 0:
-                P_nI = reader.wave_functions.proxy('projections', *index)
-                b1, b2 = P_ani.my_slice()  # my bands
-                data = P_nI[b1:b2].astype(ibzwfs.dtype)  # read from file
+                try:
+                    P_nI = reader.wave_functions.proxy('projections', *index)
+                except KeyError:
+                    data = None
+                else:
+                    b1, b2 = P_ani.my_slice()  # my bands
+                    data = P_nI[b1:b2].astype(ibzwfs.dtype)  # read from file
             else:
                 data = None
 
-            P_ani.scatter_from(data)  # distribute over atoms
-            wfs._P_ani = P_ani
+            have_projections = broadcast(
+                data is not None if domain_comm.rank == 0 else None,
+                comm=domain_comm)
+
+            if have_projections:
+                P_ani.scatter_from(data)  # distribute over atoms
+                wfs._P_ani = P_ani
+            else:
+                wfs._P_ani = None
 
         try:
             ibzwfs.fermi_levels = reader.wave_functions.fermi_levels / ha
@@ -413,13 +445,17 @@ def normalize_initial_magmoms(
 
 def create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     if 'kpts' in kpts:
-        assert len(kpts) == 1, kpts
-        return BZPoints(kpts['kpts'])
-    if 'path' in kpts:
+        bz = BZPoints(kpts['kpts'])
+    elif 'path' in kpts:
         path = atoms.cell.bandpath(pbc=atoms.pbc, **kpts)
-        return BZPoints(path.kpts)
-    size, offset = kpts2sizeandoffsets(**kpts, atoms=atoms)
-    return MonkhorstPackKPoints(size, offset)
+        bz = BZPoints(path.kpts)
+    else:
+        size, offset = kpts2sizeandoffsets(**kpts, atoms=atoms)
+        bz = MonkhorstPackKPoints(size, offset)
+    for c, periodic in enumerate(atoms.pbc):
+        if not periodic and not np.allclose(bz.kpt_Kc[:, c], 0.0):
+            raise ValueError('K-points can only be used with PBCs!')
+    return bz
 
 
 def calculate_number_of_bands(nbands: int | str | None,
@@ -476,7 +512,7 @@ def create_uniform_grid(mode: str,
                         gpts,
                         cell,
                         pbc,
-                        symmetry,
+                        symmetries,
                         h: float = None,
                         interpolation: str = None,
                         ecut: float = None,
@@ -497,5 +533,5 @@ def create_uniform_grid(mode: str,
     else:
         modeobj = SimpleNamespace(name=mode, ecut=ecut)
         size = get_number_of_grid_points(cell, h, modeobj, realspace,
-                                         symmetry.symmetry)
+                                         symmetries)
     return UGDesc(cell=cell, pbc=pbc, zerobc=zerobc, size=size, comm=comm)

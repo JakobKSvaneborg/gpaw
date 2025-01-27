@@ -542,15 +542,9 @@ class FDPWETDM:
         return phi_2i[0], self.error
 
     def update_ks_energy(self, ham, wfs, dens, updateproj=True):
+        """Update Kohn-Sham energy.
 
-        """
-        Update Kohn-Shame energy
         It assumes the temperature is zero K.
-
-        :param ham:
-        :param wfs:
-        :param dens:
-        :return:
         """
 
         if updateproj:
@@ -1052,7 +1046,6 @@ class FDPWETDM:
 
             minstate = np.argmin(np.diagonal(lamb, offset=-n_occ).real)
             energy = np.diagonal(lamb, offset=-n_occ)[minstate].real
-
             norm = []
             for i in [minstate]:
                 norm.append(self.dot(

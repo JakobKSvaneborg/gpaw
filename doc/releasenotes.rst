@@ -12,6 +12,21 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+* Sign of electron chemical potential in SJM text output has been corrected.
+  The resulting (Grand) energies are not affected by this change.
+
+* Preliminary support for ``wasm32`` architecture (web-browsers).
+
+
+Version 25.1.0
+==============
+
+January 6, 2025: :git:`25.1.0 <../25.1.0>`
+
+* Minimum version requirements: Python 3.9, ASE 3.23.0.
+
+* PAW potentials for lanthanides have been added to our :ref:`setup releases`.
+
 * Updated development-workflow documentation:
   :ref:`a good mr`, :ref:`get your mr merged`.
 
@@ -28,11 +43,32 @@ Git master branch
   return the *raw* numbers (in the [0,1] range) without any spin-degeneracy
   or **k**-point weights (use ``raw=True``).
 
+* Implementation of the multipole approximation (MPA) for the response
+  function in the GW self-energy [PRB 104, 115157 (2021)]
+
+* Experimental:
+  Faster and less memory hungry Poisson-solver in PW-mode.  For details,
+  see equations 25-28 in :doi:`P. E. Blöchl: Projector augmented-wave method
+  Phys. Rev. B 50, 17953 (1994) <0.1103/PhysRevB.50.17953>`.  Use
+  ``poissonsolver={'fast': True}`` to try it.
+
 * Added functionality to compute LDA exchange constants based on the
   local site properties methodology, see :ref:`sites`.
 
 * Extended ``restrict`` keyword and random phase approximation enabled
-  in :ref:`lrtddft`
+  in :ref:`lrtddft`.
+
+* Updated :ref:`scissors operator`.
+
+* New experimental parameter:
+  ``experimental={'backwards_compatible': False}``.
+  This will make calculations slightly more accurate, but also give slightly
+  different numbers.  See :mr:`2537` for an example of the changes.
+  Default is backwards compatible.
+
+* New GPAW only: The :meth:`~gpaw.new.ase_interface.ASECalculator.write`
+  method of the GPAW calculator object can now write smaller gpw-files
+  by using ``precision='single'`` and ``include_projections=False``.
 
 
 Version 24.6.0

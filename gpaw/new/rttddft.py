@@ -93,7 +93,7 @@ class ECNAlgorithm(TDAlgorithm):
         state.density.update(state.ibzwfs)
 
         # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
-        state.potential, _ = pot_calc.calculate(
+        state.potential, state.energies, _ = pot_calc.calculate(
             state.density, state.potential.vHt_x)
 
     def propagate(self,
@@ -119,7 +119,7 @@ class ECNAlgorithm(TDAlgorithm):
         state.density.update(state.ibzwfs)
 
         # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
-        state.potential, _ = pot_calc.calculate(
+        state.potential, state.energies, _ = pot_calc.calculate(
             state.density, state.potential.vHt_x)
 
 
@@ -340,7 +340,7 @@ class RTTDDFT:
             time = self.history.propagate(time_step)
             # TODO This seems to be broken
             # dipolemoment = self.state.density.calculate_dipole_moment(
-            #     self.pot_calc.fracpos_ac)
+            #     self.pot_calc.relpos_ac)
             dipolemoment_xv = [
                 self.calculate_dipole_moment(wfs)  # type: ignore
                 for wfs in self.state.ibzwfs]

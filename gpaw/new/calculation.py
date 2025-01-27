@@ -7,7 +7,6 @@ from typing import Any, Union
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
-
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
@@ -17,6 +16,7 @@ from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, world
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
+from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
@@ -63,11 +63,13 @@ class DFTState:
     def __init__(self,
                  ibzwfs: IBZWaveFunctions,
                  density: Density,
-                 potential: Potential):
+                 potential: Potential,
+                 energies):
         """State of a Kohn-Sham calculation."""
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
+        self.energies = energies
 
 
 class DFTCalculation:
@@ -78,7 +80,8 @@ class DFTCalculation:
                  setups: Setups,
                  scf_loop: SCFLoop,
                  pot_calc,
-                 log: Logger):
+                 log: Logger,
+                 energies: DFTEnergies | None = None):
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
@@ -89,10 +92,13 @@ class DFTCalculation:
         self.comm = log.comm
 
         self.results: dict[str, Any] = {}
-        self.fracpos_ac = self.pot_calc.fracpos_ac
+        self.relpos_ac = self.pot_calc.relpos_ac
+        self.energies = energies or DFTEnergies()
+        self.forces_have_been_printed = False
 
     def get_state(self):
-        return DFTState(self.ibzwfs, self.density, self.potential)
+        return DFTState(self.ibzwfs, self.density, self.potential,
+                        self.energies)
 
     @property
     def state(self):
@@ -134,7 +140,7 @@ class DFTCalculation:
         scf_loop = builder.create_scf_loop()
 
         pot_calc = builder.create_potential_calculator()
-        potential, _ = pot_calc.calculate_without_orbitals(
+        potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential, log=log)
@@ -151,51 +157,59 @@ class DFTCalculation:
         log(pot_calc)
 
         return cls(ibzwfs, density, potential,
-                   builder.setups, scf_loop, pot_calc, log)
+                   builder.setups, scf_loop, pot_calc, log,
+                   energies=energies)
 
     def move_atoms(self, atoms) -> DFTCalculation:
         check_atoms_too_close(atoms)
 
-        self.fracpos_ac = np.ascontiguousarray(atoms.get_scaled_positions())
-        self.comm.broadcast(self.fracpos_ac, 0)
+        self.relpos_ac = np.ascontiguousarray(atoms.get_scaled_positions())
+        self.comm.broadcast(self.relpos_ac, 0)
 
         atomdist = self.density.D_asii.layout.atomdist
         grid = self.density.nt_sR.desc
-        rank_a = grid.ranks_from_fractional_positions(self.fracpos_ac)
+        rank_a = grid.ranks_from_fractional_positions(self.relpos_ac)
         atomdist = AtomDistribution(rank_a, atomdist.comm)
 
-        self.pot_calc.move(self.fracpos_ac, atomdist)
-        self.ibzwfs.move(self.fracpos_ac, atomdist)
-        self.density.move(self.fracpos_ac, atomdist)
+        self.pot_calc.move(self.relpos_ac, atomdist)
+        self.ibzwfs.move(self.relpos_ac, atomdist)
+        self.density.move(self.relpos_ac, atomdist)
+        if self.ibzwfs.has_wave_functions():
+            self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
+
+        self.potential, self.energies, _ = self.pot_calc.calculate(
+            self.density, self.ibzwfs, self.potential.vHt_x)
 
         mm_av = self.results['non_collinear_magmoms']
         write_atoms(atoms, mm_av, self.density.nt_sR.desc, self.log)
 
         self.results = {}
+        self.forces_have_been_printed = False
 
         return self
 
-    def iconverge(self, convergence=None, maxiter=None, calculate_forces=None):
+    def iconverge(self, maxiter=None, calculate_forces=None):
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-        yield from self.scf_loop.iterate(self.ibzwfs,
+        for ctx in self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
                                          self.potential,
+                                         self.energies,
                                          self.pot_calc,
-                                         convergence,
-                                         maxiter,
-                                         calculate_forces,
-                                         log=self.log)
+                                         maxiter=maxiter,
+                                         calculate_forces=calculate_forces,
+                                         log=self.log):
+            self.energies = ctx.energies
+            self.potential = ctx.potential
+            yield ctx
 
     @trace
     def converge(self,
-                 convergence=None,
                  maxiter=None,
                  steps=99999999999999999,
                  calculate_forces=None):
         """Converge to self-consistent solution of Kohn-Sham equation."""
-        for step, _ in enumerate(self.iconverge(convergence,
-                                                maxiter,
+        for step, _ in enumerate(self.iconverge(maxiter,
                                                 calculate_forces),
                                  start=1):
             if step == steps:
@@ -203,31 +217,20 @@ class DFTCalculation:
         else:  # no break
             self.log('SCF steps:', step)
 
-    def energies(self):
-        energies = combine_energies(self.potential, self.ibzwfs)
+    def energy(self):
+        self.results['free_energy'] = broadcast_float(
+            self.energies.total_free, self.comm)
+        self.results['energy'] = broadcast_float(
+            self.energies.total_extrapolated, self.comm)
 
         self.log('Energy contributions relative to reference atoms:',
                  f'(reference = {self.setups.Eref * Ha:.6f})\n')
-
-        for name, e in energies.items():
-            if not name.startswith('total') and name != 'stress':
-                self.log(f'{name + ":":10}   {e * Ha:14.6f}')
-        total_free = energies['total_free']
-        total_extrapolated = energies['total_extrapolated']
-        self.log('----------------------------')
-        self.log(f'Free energy: {total_free * Ha:14.6f}')
-        self.log(f'Extrapolated:{total_extrapolated * Ha:14.6f}\n')
-
-        total_free = broadcast_float(total_free, self.comm)
-        total_extrapolated = broadcast_float(total_extrapolated, self.comm)
-
-        self.results['free_energy'] = total_free
-        self.results['energy'] = total_extrapolated
+        self.energies.summary(self.log)
 
     def dipole(self):
         if 'dipole' in self.results:
             return
-        dipole_v = self.density.calculate_dipole_moment(self.fracpos_ac)
+        dipole_v = self.density.calculate_dipole_moment(self.relpos_ac)
         x, y, z = dipole_v * Bohr
         self.log(f'dipole moment: [{x:.6f}, {y:.6f}, {z:.6f}]  # |e|*Ang\n')
         self.results['dipole'] = dipole_v
@@ -251,13 +254,15 @@ class DFTCalculation:
             self.log()
         return mm_v, mm_av
 
-    def forces(self, silent=False):
+    def forces(self):
         """Calculate atomic forces."""
-        if 'forces' not in self.results or silent:
+        if 'forces' not in self.results:
             self._calculate_forces()
 
-        if silent:
+        if self.forces_have_been_printed:
             return
+
+        self.forces_have_been_printed = True
         self.log('\nForces: [  # eV/Ang')
         F_av = self.results['forces'] * (Ha / Bohr)
         for a, setup in enumerate(self.setups):
@@ -274,13 +279,12 @@ class DFTCalculation:
         F_av = self.ibzwfs.forces(self.potential)
 
         pot_calc = self.pot_calc
-        Fcc_avL, Fnct_av, Ftauct_av, Fvbar_av = pot_calc.force_contributions(
-            self.density, self.potential)
+        Q_aL = self.density.calculate_compensation_charge_coefficients()
+        Fcc_av, Fnct_av, Ftauct_av, Fvbar_av = pot_calc.force_contributions(
+            Q_aL, self.density, self.potential)
 
         # Force from compensation charges:
-        ccc_aL = self.density.calculate_compensation_charge_coefficients()
-        for a, dF_vL in Fcc_avL.items():
-            F_av[a] += dF_vL @ ccc_aL[a]
+        F_av += Fcc_av
 
         # Force from smooth core charge:
         for a, dF_v in Fnct_av.items():
@@ -297,7 +301,7 @@ class DFTCalculation:
 
         F_av = as_np(F_av)
 
-        domain_comm = ccc_aL.layout.atomdist.comm
+        domain_comm = Q_aL.layout.atomdist.comm
         domain_comm.sum(F_av)
 
         F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
@@ -431,7 +435,7 @@ class DFTCalculation:
 
         density = self.density.new(builder.grid,
                                    builder.interpolation_desc,
-                                   builder.fracpos_ac,
+                                   builder.relpos_ac,
                                    builder.atomdist)
         density.normalize()
 
@@ -444,7 +448,7 @@ class DFTCalculation:
 
         scf_loop = builder.create_scf_loop()
         pot_calc = builder.create_potential_calculator()
-        potential, _ = pot_calc.calculate(density)
+        potential, energies, _ = pot_calc.calculate(density)
 
         old_ibzwfs = ibzwfs
 
@@ -452,7 +456,7 @@ class DFTCalculation:
             wfs = old_ibzwfs.wfs_qs[q][spin]
             return wfs.morph(
                 builder.wf_desc,
-                builder.fracpos_ac,
+                builder.relpos_ac,
                 builder.atomdist)
 
         ibzwfs = ibzwfs.create(
@@ -474,24 +478,8 @@ class DFTCalculation:
 
         return DFTCalculation(
             ibzwfs, density, potential,
-            builder.setups, scf_loop, pot_calc, log)
-
-
-def combine_energies(potential: Potential,
-                     ibzwfs: IBZWaveFunctions) -> dict[str, float]:
-    """Add up energy contributions."""
-    energies = potential.energies.copy()
-    energies.pop('stress', 0.0)
-    energies['kinetic'] += ibzwfs.energies['band']
-    energies['kinetic'] += ibzwfs.energies.get('exx_kinetic', 0.0)
-    energies['xc'] += (ibzwfs.energies.get('exx_vv', 0.0) +
-                       ibzwfs.energies.get('exx_vc', 0.0) +
-                       ibzwfs.energies.get('exx_cc', 0.0))
-    energies['entropy'] = ibzwfs.energies['entropy']
-    energies['total_free'] = sum(energies.values())
-    energies['total_extrapolated'] = (energies['total_free'] +
-                                      ibzwfs.energies['extrapolation'])
-    return energies
+            builder.setups, scf_loop, pot_calc, log,
+            energies=energies)
 
 
 def write_atoms(atoms: Atoms,

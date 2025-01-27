@@ -22,7 +22,6 @@ def get_wavefunctions(atoms, name, params):
 
 
 def borncharges(calc, delta=0.01):
-
     params = calc.parameters
     atoms = calc.atoms
     cell_cv = atoms.get_cell() / Bohr
