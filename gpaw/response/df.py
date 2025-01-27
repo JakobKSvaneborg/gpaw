@@ -698,7 +698,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         integrationmode: str
             if == 'tetrahedron integration' then tetrahedron
             integration is performed
-            if == None or 'point integration' then point integration is used
+            if == 'point integration' then point integration is used
         eshift: float
             Shift unoccupied bands
         """
