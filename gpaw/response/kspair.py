@@ -156,11 +156,6 @@ class KohnShamKPointPairExtractor:
 
         self.nocc1 = int(nocc1)
         self.nocc2 = int(nocc2)
-        self.context.print('Number of completely filled bands:',
-                           self.nocc1, flush=False)
-        self.context.print('Number of partially filled bands:',
-                           self.nocc2, flush=False)
-        self.context.print('Total number of bands:', self.gs.bd.nbands)
 
     @timer('Get Kohn-Sham pairs')
     def get_kpoint_pairs(self, k1_pc, k2_pc,
