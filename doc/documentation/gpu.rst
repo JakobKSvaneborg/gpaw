@@ -16,7 +16,11 @@ You use the new code like this:
 >>> atoms = ...
 >>> atoms.calc = GPAW(..., parallel={'gpu': True})
 
-Alternatively, you can use ``from gpaw import GPAW`` and the select new GPAW
+By default, the environment variable ``$GPAW_USE_GPUS`` is used, to determine
+whether to use gpu or not. The user can specify ``parallel={‘gpu’: False}`` to
+override this behaviour.
+
+Instead of importing ``GPAW`` from ``gpaw.new.ase_interface``, you can use ``from gpaw import GPAW`` and the select new GPAW
 by setting the environment variable :envvar:`GPAW_NEW` to ``1``:
 ``GPAW_NEW=1 python ...``.
 See :git:`gpaw/test/gpu/test_pw.py` for an example.
