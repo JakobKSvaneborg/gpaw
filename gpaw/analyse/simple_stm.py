@@ -19,7 +19,7 @@ class SimpleStm(STM):
 
     def __init__(self, atoms):
 
-        self.file = None
+        self.filename = None
         self.is_wf = False
         self.bias = None
         self.ldos = None
@@ -117,7 +117,7 @@ class SimpleStm(STM):
 # print "w=", w, kpt.weight
         self.ldos += w * (psi * np.conj(psi)).real
 
-    def write_3D(self, bias, file, filetype=None):
+    def write_3D(self, bias, filename, filetype=None):
         """Write the density as a 3D file.
 
         Units: [e/A^3]"""
@@ -131,24 +131,24 @@ class SimpleStm(STM):
 
         if filetype is None:
             # estimate file type from name ending
-            filetype = file.split('.')[-1]
+            filetype = filename.split('.')[-1]
         filetype = filetype.lower()
 
         if filetype == 'cube':
-            with open(file, 'w') as fd:
+            with open(filename, 'w') as fd:
                 write_cube(fd, self.calc.get_atoms(), ldos / Bohr ** 3)
         else:
             raise NotImplementedError('unknown file type "' + filetype + '"')
 
-    def read_3D(self, file, filetype=None):
+    def read_3D(self, filename, filetype=None):
         """Read the density from a 3D file"""
 
         if filetype is None:
             # estimate file type from name ending
-            filetype = file.split('.')[-1]
+            filetype = filename.split('.')[-1]
 
         if filetype == 'cube':
-            data, atoms = read_cube_data(file)
+            data, atoms = read_cube_data(filename)
             self.cell = atoms.cell.array
 
             pbc_c = [True, True, True]
@@ -163,7 +163,7 @@ class SimpleStm(STM):
         else:
             raise NotImplementedError('unknown file type "' + filetype + '"')
 
-        self.file = file
+        self.filename = filename
         self.ldos = np.array(data * Bohr ** 3)
 # print "read: integrated =", self.gd.integrate(self.ldos)
 
@@ -199,28 +199,28 @@ class SimpleStm(STM):
 
         return self.heights
 
-    def write(self, file=None):
-        """Write STM data to a file in gnuplot readable tyle."""
+    def write(self, filename=None):
+        """Write STM data to a file in gnuplot readable style."""
 
         if mpi.rank != 0:
             return
 
-        xvals, yvals, heights = self.pylab_contour()
+        xvals, yvals, heights = self.plot_contour()
         nx, ny = heights.shape[:2]
 
-        if file is None:
+        if filename is None:
             n, k, s = self.bias
             fname = 'stm_n%dk%ds%d.dat' % (n, k, s)
         else:
-            fname = file
+            fname = filename
 
         with open(fname, 'w') as fd:
 
             import datetime
             print('#', datetime.datetime.now().ctime(), file=fd)
             print('# Simulated STM picture', file=fd)
-            if hasattr(self, 'file'):
-                print('# density read from', self.file, file=fd)
+            if hasattr(self, 'filename'):
+                print('# density read from', self.filename, file=fd)
             else:
                 if self.is_wf:
                     print('# pseudo-wf n=%d k=%d s=%d' % tuple(self.bias),
@@ -245,8 +245,8 @@ class SimpleStm(STM):
                           file=fd)
                 print(file=fd)
 
-    def pylab_contour(self):
-        """Return the countour to be plotted using pylab."""
+    def plot_contour(self):
+        """Return the countour to be plotted using gnuplot."""
 
         nx, ny = self.heights.shape[:2]
         h_c = np.array([np.linalg.norm(self.gd.h_cv[c])
@@ -256,5 +256,5 @@ class SimpleStm(STM):
         yvals = [(i + self.offset_c[1]) * h_c[1] for i in range(ny)]
         heights = self.heights * Bohr
 
-        # pylab interprets heights[y_i][x_i]
+        # gnuplot? interprets heights[y_i][x_i]
         return np.array(xvals), np.array(yvals), heights.swapaxes(0, 1)
