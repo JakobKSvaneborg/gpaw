@@ -74,8 +74,8 @@ def as_double_precision(array):
 
 @dataclass
 class GPWFlags:
-    include_projections: bool
     include_wfs: bool
+    include_projections: bool
     precision: str
 
     def __post_init__(self) -> None:
@@ -87,9 +87,7 @@ def write_gpw(filename: str | Path,
               atoms,
               params,
               dft: DFTCalculation,
-              *,
-              flags,
-              ) -> None:
+              flags: GPWFlags) -> None:
 
     comm = dft.comm
 
