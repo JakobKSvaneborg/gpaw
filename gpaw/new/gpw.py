@@ -75,9 +75,10 @@ def as_double_precision(array):
 @dataclass
 class GPWFlags:
     include_projections: bool
+    include_wfs: bool
     precision: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.precision not in ['single', 'double']:
             raise ValueError('precision must be either "single" or "double"')
 
@@ -86,7 +87,6 @@ def write_gpw(filename: str | Path,
               atoms,
               params,
               dft: DFTCalculation,
-              skip_wfs: bool = True,
               *,
               flags,
               ) -> None:
@@ -125,9 +125,9 @@ def write_gpw(filename: str | Path,
         writer.write(e_stress=dft.potential.e_stress * Ha)
         dft.energies.write_to_gpw(writer.child('energy_contributions'))
         wf_writer = writer.child('wave_functions')
-        dft.ibzwfs.write(wf_writer, skip_wfs, flags=flags)
+        dft.ibzwfs.write(wf_writer, flags=flags)
 
-        if not skip_wfs and params.mode['name'] == 'pw':
+        if flags.include_wfs and params.mode['name'] == 'pw':
             write_wave_function_indices(wf_writer,
                                         dft.ibzwfs,
                                         dft.density.nt_sR.desc)

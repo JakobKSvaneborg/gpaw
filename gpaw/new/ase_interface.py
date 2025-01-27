@@ -399,11 +399,8 @@ class ASECalculator:
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
         flags = GPWFlags(include_projections=include_projections,
-                         precision=precision)
-
-        write_gpw(filename, self.atoms, self.params,
-                  self.dft, skip_wfs=mode != 'all',
-                  flags=flags)
+                         precision=precision, include_wfs=mode == 'all')
+        write_gpw(filename, self.atoms, self.params, self.dft, flags=flags)
 
     # Old API:
 

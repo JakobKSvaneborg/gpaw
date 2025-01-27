@@ -317,11 +317,7 @@ class IBZWaveFunctions(Generic[WFT]):
         self.kpt_band_comm.sum(F_av)
         return F_av
 
-    def write(self,
-              writer: Writer,
-              skip_wfs: bool,
-              *,
-              flags: GPWFlags) -> None:
+    def write(self, writer: Writer, flags) -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
 
         ... k-points, symmetry information, projections and possibly
@@ -377,7 +373,7 @@ class IBZWaveFunctions(Generic[WFT]):
                         self.kpt_comm.receive(data, rank)
                         writer.fill(data)
 
-        if not skip_wfs:
+        if flags.include_wfs:
             self._write_wave_functions(writer, spin_k_shape, flags.precision)
 
     def _write_wave_functions(self, writer, spin_k_shape, precision='double'):
