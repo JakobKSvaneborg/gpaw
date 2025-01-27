@@ -62,7 +62,13 @@ def test_parallel_extract_kptdata(in_tmp_dir, gpw_files,
     parallel_integral = initialize_integral(parallel_extractor, context, q_c)
 
     # Set up transitions
-    transitions = initialize_transitions(parallel_gs, spincomponent, nbands)
+    transitions = initialize_transitions(serial_gs, spincomponent, nbands)
+    parallel_transitions = initialize_transitions(
+        parallel_gs, spincomponent, nbands)
+    assert np.allclose(parallel_transitions.n1_t, transitions.n1_t)
+    assert np.allclose(parallel_transitions.n2_t, transitions.n2_t)
+    assert np.allclose(parallel_transitions.s1_t, transitions.s1_t)
+    assert np.allclose(parallel_transitions.s2_t, transitions.s2_t)
 
     # Extract and compare kptpairs
     ni = serial_integral.ni  # Number of iterations in kptpair generator
