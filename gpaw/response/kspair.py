@@ -133,27 +133,7 @@ class KohnShamKPointPairExtractor:
         self.srequests = []
 
         # Count bands so it is possible to remove null transitions
-        # nocc1: number of completely filled bands
-        # nocc2: number of non-empty bands
-        self.nocc1, self.nocc2 = self.count_occupied_bands()
-
-    def count_occupied_bands(self):
-        """Count number of occupied and unoccupied bands in ground state
-        calculation. Can be used to omit null-transitions between two occupied
-        bands or between two unoccupied bands."""
-
-        nocc1, nocc2 = self.gs.count_occupied_bands(ftol=1e-9)
-        nocc1 = int(nocc1)
-        nocc2 = int(nocc2)
-
-        # Collect nocc for all k-points
-        nocc1 = self.gs.kd.comm.min_scalar(nocc1)
-        nocc2 = self.gs.kd.comm.max_scalar(nocc2)
-
-        # Sum over band distribution
-        nocc1 = self.gs.bd.comm.sum_scalar(nocc1)
-        nocc2 = self.gs.bd.comm.sum_scalar(nocc2)
-        return int(nocc1), int(nocc2)
+        self.nocc1, self.nocc2 = self.gs.nocc1, self.gs.nocc2
 
     @timer('Get Kohn-Sham pairs')
     def get_kpoint_pairs(self, k1_pc, k2_pc,

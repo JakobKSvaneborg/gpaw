@@ -258,20 +258,31 @@ class ResponseGroundStateAdapter:
         # gd.cell_cv must always be the same as pd.gd.cell_cv, right??
         return np.dot(self.spos_ac, self.gd.cell_cv)
 
-    def count_occupied_bands(self, ftol=1e-6):
-        """Count the number of filled and non-empty bands.
+    def count_occupied_bands(self, ftol: float = 1e-6) -> tuple[int, int]:
+        """Count the number of filled (nocc1) and nonempty bands (nocc2).
 
         ftol : float
             Threshold determining whether a band is completely filled
             (f > 1 - ftol) or completely empty (f < ftol).
         """
-        nocc1 = 9999999
-        nocc2 = 0
+        # Count the number of occupied bands for this rank
+        nocc1, nocc2 = self._count_occupied_bands(ftol=ftol)
+        # Minimize/maximize over k-points
+        nocc1 = self.kd.comm.min_scalar(nocc1)  # bands filled for all k
+        nocc2 = self.kd.comm.max_scalar(nocc2)  # bands filled for any k
+        # Sum over band distribution
+        nocc1 = self.bd.comm.sum_scalar(nocc1)  # number of filled bands
+        nocc2 = self.bd.comm.sum_scalar(nocc2)  # number of nonempty bands
+        return int(nocc1), int(nocc2)
+
+    def _count_occupied_bands(self, *, ftol: float) -> tuple[int, int]:
+        nocc1 = 9999999  # number of completely filled bands
+        nocc2 = 0  # number of nonempty bands
         for kpt in self.kpt_u:
             f_n = kpt.f_n / kpt.weight
             nocc1 = min((f_n > 1 - ftol).sum(), nocc1)
             nocc2 = max((f_n > ftol).sum(), nocc2)
-        return nocc1, nocc2
+        return int(nocc1), int(nocc2)
 
     def get_eigenvalue_range(self, nbands: int | None = None):
         """Get smallest and largest Kohn-Sham eigenvalues."""
