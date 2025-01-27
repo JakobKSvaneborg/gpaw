@@ -358,7 +358,7 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         super().__init__(gs, context, **kwargs)
 
         self.ecut = ecut / Ha
-        self.nbands = nbands or self.gs.bd.nbands
+        self.nbands = nbands or self.gs.nbands
 
         self.wd = wd
         self.context.print(self.wd, flush=False)

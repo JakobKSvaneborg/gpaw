@@ -150,7 +150,7 @@ class PlasmaFrequencyIntegrand(Integrand):
         K0 = kptpair_factory.gs.kpoints.kptfinder.find(k_c)  # XXX
 
         kpt1 = kptpair_factory.get_k_point(point.spin, K0, n1, n2)
-        n_n = range(n1, n2)
+        n_n = np.arange(n1, n2)
 
         pair_calc = kptpair_factory.pair_calculator(
             blockcomm=self._drude.blockcomm)
