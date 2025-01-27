@@ -169,6 +169,8 @@ class PWDesc(Domain):
             Q_G = np.ravel_multi_index(self.indices_cG, shape,  # type: ignore
                                        mode='wrap').astype(np.int32)
             if debug:
+                if not (Q_G[1:] > Q_G[:-1]).all():
+                    breakpoint()
                 assert (Q_G[1:] > Q_G[:-1]).all()
             self._indices_cache[shape] = Q_G
         return Q_G
@@ -179,7 +181,7 @@ class PWDesc(Domain):
                              ) -> UGDesc:
         from gpaw.core import UGDesc
         size_c = np.ptp(self.indices_cG, axis=1) + 1
-        if self.dtype == float:
+        if np.isdtype(np.dtype(self.dtype), kind='real floating'):
             size_c[2] = size_c[2] * 2 - 1
         size_c = (size_c + n - 1) // n * n
         if factors:
