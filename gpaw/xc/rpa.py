@@ -308,7 +308,7 @@ class RPACalculator:
                                            gamma_int):
         """Calculate correlation energy from chi0 in the optical limit."""
         e_w = []
-        for iw, chi0_GG in enumerate(chi0_wGG[:self.wblocks.nlocal]):
+        for iw, chi0_GG in zip(range(self.wblocks.nlocal), chi0_wGG):
             e = 0
             for iqf in range(len(gamma_int.qf_qv)):
                 gamma_int.set_appendages(chi0_GG, iw, iqf)
