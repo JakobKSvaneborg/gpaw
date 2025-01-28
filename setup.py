@@ -401,7 +401,7 @@ setup(name='gpaw',
                         'numpy',
                         'scipy>=1.6.0',
                         # TODO: publish this on PyPI
-                        # 'gpaw-potentials',
+                        # 'gpaw-data',
                         ],
       extras_require={'docs': ['sphinx-rtd-theme',
                                'sphinxcontrib-jquery',

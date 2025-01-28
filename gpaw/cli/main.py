@@ -18,7 +18,7 @@ commands = [
     ('sbatch', 'gpaw.cli.sbatch'),
     ('dataset', 'gpaw.atom.generator2'),
     ('symmetry', 'gpaw.symmetry'),
-    ('install-data', 'gpaw.cli.install_data')]
+    ('install-data', 'gpaw_data')]
 
 
 def hook(parser, args):

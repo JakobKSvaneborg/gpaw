@@ -45,7 +45,7 @@ if os.uname().machine == 'wasm32':
 
 setup_paths: List[Union[str, Path]] = sorted(set(
     str(fname.absolute().parent)
-    for fname in ir_files('gpaw_potentials.setups').iterdir()
+    for fname in ir_files('gpaw_data.setups').iterdir()
 ))
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
