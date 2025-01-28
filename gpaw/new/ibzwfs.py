@@ -354,7 +354,7 @@ class IBZWaveFunctions(Generic[WFT]):
             proj_shape = (self.nbands, 2, nproj)
 
         if flags.include_projections:
-            proj_dtype = flags.reduced_dtype(self.dtype)
+            proj_dtype = flags.storage_dtype(self.dtype)
             writer.add_array('projections', spin_k_shape + proj_shape,
                              proj_dtype)
             for spin in range(self.nspins):
@@ -384,7 +384,7 @@ class IBZWaveFunctions(Generic[WFT]):
         xshape = self.get_max_shape(global_shape=True)
         shape = spin_k_shape + (self.nbands,) + xshape
         dtype = complex if self.mode == 'pw' else self.dtype
-        dtype_write = flags.reduced_dtype(dtype)
+        dtype_write = flags.storage_dtype(dtype)
         c = 1.0 if self.mode == 'lcao' else Bohr**-1.5
 
         writer.add_array('coefficients', shape, dtype=dtype_write)
@@ -407,12 +407,12 @@ class IBZWaveFunctions(Generic[WFT]):
                                 buf_nX[..., x:] = 0.0
                                 coef_nX = buf_nX
                         if rank == 0:
-                            writer.fill(flags.reduced_precision(coef_nX * c))
+                            writer.fill(flags.to_storage_dtype(coef_nX * c))
                         else:
                             self.kpt_comm.send(coef_nX, 0)
                 elif self.comm.rank == 0:
                     self.kpt_comm.receive(buf_nX, rank)
-                    writer.fill(flags.reduced_precision(buf_nX * c))
+                    writer.fill(flags.to_storage_dtype(buf_nX * c))
 
     def write_summary(self, log):
         fl = self.fermi_levels * Ha

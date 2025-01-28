@@ -79,13 +79,13 @@ class Potential:
             return
 
         writer.write(
-            potential=flags.reduced_precision(vt_sR.data) * Ha,
+            potential=flags.to_storage_dtype(vt_sR.data) * Ha,
             atomic_hamiltonian_matrices=dH_asp.data * Ha)
         if self.vHt_x is not None:
-            vHt_x_data = flags.reduced_precision(vHt_x.data)
+            vHt_x_data = flags.to_storage_dtype(vHt_x.data)
             writer.write(electrostatic_potential=vHt_x_data * Ha)
         if self.dedtaut_sR is not None:
-            dedtaut_sR_data = flags.reduced_precision(dedtaut_sR.data)
+            dedtaut_sR_data = flags.to_storage_dtype(dedtaut_sR.data)
             writer.write(mgga_potential=dedtaut_sR_data * Bohr**3)
 
     def get_vacuum_level(self) -> float:
