@@ -57,6 +57,13 @@ Total DOS
 The total density of states can be obtained by the GPAW calculator
 method ``get_dos(spin=0, npts=201, width=None)``.
 
+Take a look at the 
+:git:`~doc/tutorialsexercises/electronic/dos/dos.py` program and try to
+get a rough idea of what it can do for you.  Use it to plot the
+density of states (DOS) for the three Fe configurations from the
+:ref:`iron_exercise` exercise (on the *x*-axis you have the energy
+relative to the Fermilevel).
+
 
 ----------------------
 Molecular Orbital PDOS
