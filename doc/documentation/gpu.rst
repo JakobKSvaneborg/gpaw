@@ -30,13 +30,14 @@ The GPAW CI has a GitLab Runner with a GPU, so the GPU parts of GPAW are tested 
 .. envvar:: GPAW_NEW
 
    If this environment variable is set to ``1`` then new GPAW will be used, when it is imported as
-   ``from gpaw import GPAW``. Other method to use GPAW, which does not require the environment variable
+   ``from gpaw import GPAW``. The other method to use the new GPAW, which does not require the environment variable
    is to import it from ``gpaw.new.ase_interface``.
 
 .. envvar:: GPAW_USE_GPUS
 
    If this environment variable is set to ``1`` then the default value for ``gpu`` in the parallel
-   dictionary will be set to ``True``. The effect of ``GPAW_USE_GPUS`` may be overrided by specifying
+   dictionary will be set to ``True``. Since it only is a default value,
+   the effect of ``$GPAW_USE_GPUS`` may be overrided by specifying
    the ``gpu`` key to the ``parallel`` dictionary.
 
 .. envvar:: GPAW_CPUPY
