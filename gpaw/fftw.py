@@ -15,6 +15,7 @@ from scipy.fft import fftn, ifftn, irfftn, rfftn
 import warnings
 
 import gpaw.cgpaw as cgpaw
+from gpaw.utilities.float_utils import as_complex_float, as_real_float, is_complex_float, is_real_float
 from gpaw.new.c import pw_insert_gpu
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 
@@ -66,22 +67,15 @@ def get_efficient_fft_size(N: int, n=1, factors=[2, 3, 5, 7]) -> int:
 
 def empty(shape, dtype=float):
     """numpy.empty() equivalent with 16 byte alignment."""
-    if dtype == np.complex128:
-        N = np.prod(shape)
-        a = np.empty(2 * N + 1, np.float64)
-        offset = (a.ctypes.data % 16) // 8
-        a = a[offset:2 * N + offset].view(np.complex128)
-        a.shape = shape
-        return a
-    elif dtype == np.complex64:
-        N = np.prod(shape)
-        a = np.empty(2 * N + 1, np.float32)
-        offset = (a.ctypes.data % 8) // 4
-        a = a[offset:2 * N + offset].view(np.complex64)
-        a.shape = shape
-        return a
-    else:
-        raise ValueError('dtype must be complex64 or complex128')
+    assert is_complex_float(dtype)
+    
+    N = np.prod(shape)
+    a = np.empty(2 * N + 1, as_real_float(dtype))
+    offset = (a.ctypes.data % as_complex_float(dtype).itemsize) \
+        // as_real_float(dtype).itemsize
+    a = a[offset:2 * N + offset].view(as_complex_float(dtype))
+    a.shape = shape
+    return a
 
 
 def create_plans(size_c: IntVector,
@@ -114,25 +108,13 @@ class FFTPlans:
                  empty=empty):
         self.shape: tuple[int, ...]
         
-        # XXX: More duplicate code:
-        is_real = np.isdtype(np.dtype(dtype), kind='real floating')
-        if is_real:
-            n_bytes = np.dtype(dtype).itemsize * 16
-            real_dtype = np.dtype(dtype)
-            complex_dtype = np.dtype(f'complex{n_bytes}')
-        else:
-            n_bytes = np.dtype(dtype).itemsize * 4
-            real_dtype = np.dtype(f'float{n_bytes}')
-            complex_dtype = np.dtype(dtype)
-        # XXX: End of duplicate code
-        
-        if is_real:
+        if is_real_float(dtype):
             self.shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
-            self.tmp_Q = empty(self.shape, complex_dtype)
-            self.tmp_R = self.tmp_Q.view(real_dtype)[:, :, :size_c[2]]
+            self.tmp_Q = empty(self.shape, as_complex_float(dtype))
+            self.tmp_R = self.tmp_Q.view(as_real_float(dtype))[:, :, :size_c[2]]
         else:
             self.shape = tuple(size_c)
-            self.tmp_Q = empty(size_c, complex_dtype)
+            self.tmp_Q = empty(size_c, as_complex_float(dtype))
             self.tmp_R = self.tmp_Q
 
     def fft(self) -> None:
@@ -162,8 +144,8 @@ class FFTPlans:
             out_R.scatter_from(None)
             return
         pw.paste(coef_G, self.tmp_Q)
-        #breakpoint()
-        if np.isdtype(pw.dtype, kind='real floating'):
+        
+        if is_real_float(pw.dtype):
             t = self.tmp_Q[:, :, 0]
             n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
             t[0, -m:] = t[0, m:0:-1].conj()
@@ -206,13 +188,13 @@ class FFTWPlans(FFTPlans):
 class NumpyFFTPlans(FFTPlans):
     """Numpy fallback."""
     def fft(self):
-        if np.isdtype(self.tmp_R.dtype, kind='real floating'):
+        if is_real_float(self.tmp_R.dtype):
             self.tmp_Q[:] = rfftn(self.tmp_R, overwrite_x=True)
         else:
             self.tmp_Q[:] = fftn(self.tmp_R, overwrite_x=True)
 
     def ifft(self):
-        if np.isdtype(self.tmp_R.dtype, kind='real floating'):
+        if is_real_float(self.tmp_R.dtype):
             self.tmp_R[:] = irfftn(self.tmp_Q, self.tmp_R.shape,
                                    norm='forward', overwrite_x=True)
         else:

@@ -13,12 +13,22 @@ def test_single_precision():
     #atoms = bulk('Ag')
     atoms = molecule('H2')
     atoms.center(vacuum=2.5)
+    atoms2 = atoms.copy()
     
     atoms.calc = GPAW(xc='PPLDA',
                       symmetry='off',
                       random=True,
                       #mode={'name': 'pw', 'ecut': 200.0})
                      # h=0.21,
-                      mode={'name': 'pw', 'ecut': 400.0, 'dtype': np.float32})
-    atoms.get_potential_energy()
+                      mode={'name': 'pw', 'ecut': 800.0, 'dtype': complex})
+    e_pot1 = atoms.get_potential_energy()
     
+    atoms2.calc = GPAW(xc='PPLDA',
+                      symmetry='off',
+                      random=True,
+                      #mode={'name': 'pw', 'ecut': 200.0})
+                     # h=0.21,
+                      mode={'name': 'pw', 'ecut': 800.0, 'dtype': np.float32})
+    e_pot2 = atoms2.get_potential_energy()
+    
+    assert e_pot2 == pytest.approx(e_pot1, rel=1e-4)
