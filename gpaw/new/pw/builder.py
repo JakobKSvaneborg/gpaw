@@ -82,8 +82,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         ecut = min(2 * self.ecut, self.grid.ekin_max())
         return PWDesc(ecut=ecut,
                       cell=self.grid.cell,
-                      comm=self.grid.comm,
-                      dtype=as_real_float(self.dtype))
+                      comm=self.grid.comm)
 
     @cached_property
     def electrostatic_potential_desc(self):

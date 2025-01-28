@@ -416,7 +416,7 @@ class PWArray(DistributedArrays[PWDesc]):
             if grid is None:
                 grid = self.desc.uniform_grid_with_grid_spacing(grid_spacing)
             out = grid.empty(self.dims, xp=xp)
-        assert self.desc.dtype == out.desc.dtype, (self.desc, out.desc)
+        assert self.desc.dtype == out.desc.dtype, (self.desc.dtype, out.desc.dtype)
 
         assert not out.desc.zerobc_c.any()
         assert comm.size == out.desc.comm.size, (comm, out.desc.comm)
@@ -703,9 +703,11 @@ class PWArray(DistributedArrays[PWDesc]):
         if seed is None:
             seed = self.comm.rank + self.desc.comm.rank * self.comm.size
         rng = self.xp.random.default_rng(seed)
-        self.data[:] = rng.random(self.data.shape)
-        self.data -= 0.5
-        # XXX: Double check this does what we want
+        a = self.data.view(self.real_dtype)
+        rng.random(a.shape, out=a, dtype=self.real_dtype)
+        a -= 0.5
+        if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
+            a[..., 1] = 0.0
 
     def moment(self):
         pw = self.desc

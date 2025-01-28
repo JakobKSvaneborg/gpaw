@@ -26,5 +26,8 @@ def test_single_precision():
                              'ecut': 200.0,
                              'dtype': np.float32})
     e_pot2 = atoms2.get_potential_energy()
+    
+    assert not atoms.calc.wfs.dtype == np.float32
+    assert atoms2.calc.wfs.dtype == np.float32
 
     assert e_pot2 == pytest.approx(e_pot1, rel=1e-4)
