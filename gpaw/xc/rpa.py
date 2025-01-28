@@ -92,11 +92,11 @@ class RPACalculator:
         self.gs = gs
         self.context = context
 
-        self.omega_w = frequencies / Hartree
-        self.weight_w = weights / Hartree
+        self.omega_W = frequencies / Hartree
+        self.weight_W = weights / Hartree
 
         # TODO: We should avoid this requirement.
-        assert len(self.omega_w) % nblocks == 0
+        assert len(self.omega_W) % nblocks == 0
 
         self.nblocks = nblocks
 
@@ -201,14 +201,14 @@ class RPACalculator:
             self.gs, self.context.with_txt(
                 f'{txt + "_" if txt else ""}chi0.txt'),
             nblocks=self.nblocks,
-            wd=FrequencyDescriptor(1j * self.omega_w),
+            wd=FrequencyDescriptor(1j * self.omega_W),
             eta=0.0,
             intraband=False,
             hilbert=False,
             ecut=ecutmax * Hartree)
 
         self.wblocks = Blocks1D(
-            chi0calc.chi0_body_calc.blockcomm, len(self.omega_w))
+            chi0calc.chi0_body_calc.blockcomm, len(self.omega_W))
 
         energy_qi = []
         nq = len(energy_qi)
@@ -298,8 +298,7 @@ class RPACalculator:
                 chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
 
             rpa_energy = self.calculate_optical_limit_rpa_energy(
-                chi0.qpd, chi0_wGG, gcut,
-                gamma_int=gamma_int)
+                chi0.qpd, chi0_wGG, gcut, gamma_int=gamma_int)
         else:
             rpa_energy = self.calculate_rpa_energy(chi0.qpd, chi0_wGG, gcut)
         self.context.print('%.3f eV' % (rpa_energy * Hartree))
@@ -338,7 +337,7 @@ class RPACalculator:
 
     def integrate_frequencies(self, e_w):
         e_W = self.wblocks.all_gather(np.array(e_w))
-        return e_W @ self.weight_w / (2 * np.pi)
+        return e_W @ self.weight_W / (2 * np.pi)
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
@@ -477,13 +476,13 @@ class RPACorrelation(RPACalculator):
         p('Frequencies')
         if not user_spec:
             p('    Gauss-Legendre integration with %s frequency points' %
-              len(self.omega_w))
+              len(self.omega_W))
             p('    Transformed from [0,oo] to [0,1] using e^[-aw^(1/B)]')
             p('    Highest frequency point at %5.1f eV and B=%1.1f' %
-              (self.omega_w[-1] * Hartree, frequency_scale))
+              (self.omega_W[-1] * Hartree, frequency_scale))
         else:
             p('    User specified frequency integration with',
-              len(self.omega_w), 'frequency points')
+              len(self.omega_W), 'frequency points')
         p()
         p('Parallelization')
         p('    Total number of CPUs          : % s' % self.context.comm.size)

@@ -156,10 +156,8 @@ class FXCCorrelation:
 
         self.cache = FXCCache(self.context.comm, tag, self.xc, self.ecut_max)
 
-        self.omega_w = self.rpa.omega_w
         self.ibzq_qc = self.rpa.ibzq_qc
         self.nblocks = self.rpa.nblocks
-        self.weight_w = self.rpa.weight_w
 
     @property
     def blockcomm(self):
