@@ -317,11 +317,19 @@ class RPACalculator:
     def calculate_rpa_energy(self, chi0, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
         sqrtV_G = gcut.cut(self.coulomb.sqrtV(chi0.qpd, q_v=None))
-        e_w = []
+
+        def integrand(chi0_GG):
+            return single_rpa_energy(chi0_GG, sqrtV_G, gcut)
+
         chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
-        for chi0_GG in chi0_wGG:
-            e_w.append(single_rpa_energy(chi0_GG, sqrtV_G, gcut))
-        return self.integrate_frequencies(e_w)
+        return self.integrate(integrand, data_w=chi0_wGG)
+
+    def integrate(self, integrand, *, data_w):
+        """Integrate over frequency to obtain the rpa correlation energy."""
+        energy = 0.
+        for weight, data in zip(self.weight_W[self.wblocks.myslice], data_w):
+            energy += weight * integrand(data) / (2 * np.pi)
+        return self.wblocks.blockcomm.sum_scalar(energy)
 
     def integrate_frequencies(self, e_w):
         e_W = self.wblocks.all_gather(np.array(e_w))
