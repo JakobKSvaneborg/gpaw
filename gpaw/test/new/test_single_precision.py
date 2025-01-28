@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import subprocess
 
 from ase.build import molecule
 
@@ -7,6 +8,14 @@ from gpaw.new.ase_interface import GPAW
 
 
 def test_single_precision():
+    result = subprocess.run(
+        "GPAW_NO_C_EXTENSION=1 python ./test_single_precision.py",
+        shell=True, capture_output=True,
+        text=True, check=True)
+    result.stderr
+
+
+def run_single_precision():
     atoms = molecule('H2')
     atoms.center(vacuum=2.5)
     atoms2 = atoms.copy()
@@ -31,3 +40,7 @@ def test_single_precision():
     assert atoms2.calc.wfs.dtype == np.float32
 
     assert e_pot2 == pytest.approx(e_pot1, rel=1e-4)
+
+
+if __name__ == '__main__':
+    run_single_precision()
