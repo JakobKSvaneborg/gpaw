@@ -14,7 +14,7 @@ from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
-from gpaw.utilities.float_utils import as_complex_dtype
+from gpaw.utilities import as_complex_dtype
 from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 

@@ -15,7 +15,7 @@ from scipy.fft import fftn, ifftn, irfftn, rfftn
 import warnings
 
 import gpaw.cgpaw as cgpaw
-from gpaw.utilities.float_utils import as_complex_dtype, as_real_dtype
+from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw.new.c import pw_insert_gpu
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 

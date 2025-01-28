@@ -21,7 +21,7 @@ from gpaw.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.utilities.float_utils import as_real_dtype, as_complex_dtype
+from gpaw.utilities import as_real_dtype, as_complex_dtype
 
 if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
