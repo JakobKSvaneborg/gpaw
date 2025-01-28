@@ -63,8 +63,10 @@ class DielectricFunctionCalculator:
                                              self.mode,
                                              self.fxc_GG)
         if self.optical_limit:
+            W = self.wblocks.a + w
             _dfc = _GammaDielectricFunctionCalculator(
-                _dfc, self.gamma_int, self.qpd, w, self.coulomb)
+                _dfc, self.gamma_int, self.qpd, self.coulomb,
+                self.chi0.chi0_Wvv[W], self.chi0.chi0_WxvG[W])
         return _dfc.get_epsinv_GG()
 
 
@@ -79,9 +81,9 @@ class _DielectricFunctionCalculator:
         self.chi0_GG = chi0_GG
         self.mode = mode
 
-    def new_with(self, *, sqrtV_G):
+    def new_with(self, *, sqrtV_G, chi0_GG):
         return _DielectricFunctionCalculator(
-            sqrtV_G, self.chi0_GG, self.mode, fxc_GG=self.fxc_GG)
+            sqrtV_G, chi0_GG, self.mode, fxc_GG=self.fxc_GG)
 
     def _chiVVfxc_GG(self):
         assert self.mode != 'GW'
@@ -125,12 +127,14 @@ class _DielectricFunctionCalculator:
 
 class _GammaDielectricFunctionCalculator:
 
-    def __init__(self, _dfc, gamma_int, qpd, iw, coulomb):
+    def __init__(self, _dfc, gamma_int, qpd, coulomb, chi0_vv, chi0_xvG):
         self._dfc = _dfc
         self.gamma_int = gamma_int
         self.qpd = qpd
-        self.iw = iw
         self.coulomb = coulomb
+
+        self.chi0_vv = chi0_vv
+        self.chi0_xvG = chi0_xvG
 
     @property
     def chi0_GG(self):
@@ -139,12 +143,10 @@ class _GammaDielectricFunctionCalculator:
     def get_epsinv_GG(self):
         # Get average epsinv over small region around Gamma
         epsinv_GG = np.zeros(self.chi0_GG.shape, complex)
-        for iqf in range(len(self.gamma_int.qf_qv)):
-            # Note! set_appendages changes (0,0), (0,:), (:,0)
-            # elements of chi0_GG
-            self.gamma_int.set_appendages(self.chi0_GG, self.iw, iqf)
-            sqrtV_G = self.coulomb.sqrtV(
-                qpd=self.qpd, q_v=self.gamma_int.qf_qv[iqf])
-            _dfc = self._dfc.new_with(sqrtV_G=sqrtV_G)
+        for qf_v in self.gamma_int.qf_qv:
+            sqrtV_G = self.coulomb.sqrtV(qpd=self.qpd, q_v=qf_v)
+            chi0p_GG = self.gamma_int.project(
+                self.chi0_GG, self.chi0_vv, self.chi0_xvG, qf_v)
+            _dfc = self._dfc.new_with(sqrtV_G=sqrtV_G, chi0_GG=chi0p_GG)
             epsinv_GG += _dfc.get_epsinv_GG() * self.gamma_int.weight_q
         return epsinv_GG
