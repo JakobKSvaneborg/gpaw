@@ -12,15 +12,14 @@ class DielectricFunctionCalculator:
         self.optical_limit = chi0.optical_limit
         self.chi0 = chi0
         self.xckernel = xckernel
-        wblocks1d = Blocks1D(chi0.body.blockdist.blockcomm, len(chi0.wd))
-        self.wblocks1d = wblocks1d
+        self.wblocks = Blocks1D(chi0.body.blockdist.blockcomm, len(chi0.wd))
         # Generate fine grid in vicinity of gamma
-        if chi0.optical_limit and wblocks1d.nlocal:
+        if chi0.optical_limit and self.wblocks.nlocal:
             self.gamma_int = GammaIntegrator(
                 truncation=self.coulomb.truncation,
                 kd=coulomb.kd, qpd=self.qpd,
-                chi0_wvv=chi0.chi0_Wvv[wblocks1d.myslice],
-                chi0_wxvG=chi0.chi0_WxvG[wblocks1d.myslice])
+                chi0_wvv=chi0.chi0_Wvv[self.wblocks.myslice],
+                chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
         else:
             self.gamma_int = None
 
@@ -39,30 +38,33 @@ class DielectricFunctionCalculator:
         else:
             return self.xckernel.calculate(self.qpd)
 
+    @cached_property
+    def chi0_wGG(self):
+        return self.chi0.body.copy_array_with_distribution('wGG')
+
     def get_epsinv_wGG(self, only_correlation=True):
         """
         Calculates inverse dielectric matrix for all frequencies.
         """
-        chi0_wGG = self.chi0.body.copy_array_with_distribution('wGG')
         epsinv_wGG = []
-        for iw, chi0_GG in enumerate(chi0_wGG):
-            epsinv_GG = self.get_epsinv_GG(chi0_GG, iw)
+        for w in range(self.wblocks.nlocal):
+            epsinv_GG = self.single_frequency_epsinv_GG(w)
             if only_correlation:
                 epsinv_GG -= self.I_GG
             epsinv_wGG.append(epsinv_GG)
         return np.asarray(epsinv_wGG)
 
-    def get_epsinv_GG(self, chi0_GG, iw=None):
+    def single_frequency_epsinv_GG(self, w):
         """
         Calculates inverse dielectric matrix for single frequency
         """
         _dfc = _DielectricFunctionCalculator(self.sqrtV_G,
-                                             chi0_GG,
+                                             self.chi0_wGG[w],
                                              self.mode,
                                              self.fxc_GG)
         if self.optical_limit:
             _dfc = _GammaDielectricFunctionCalculator(
-                _dfc, self.gamma_int, self.qpd, iw, self.coulomb)
+                _dfc, self.gamma_int, self.qpd, w, self.coulomb)
         return _dfc.get_epsinv_GG()
 
 

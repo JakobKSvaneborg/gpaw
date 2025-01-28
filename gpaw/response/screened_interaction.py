@@ -272,7 +272,7 @@ class WCalculator(WBaseCalculator):
             W_GG[:] = einvt_GG * (sqrtV_G *
                                   sqrtV_G[:, np.newaxis])
             if self.q0_corrector is not None and chi0.optical_limit:
-                W = dfc.wblocks1d.a + iw
+                W = dfc.wblocks.a + iw
                 self.q0_corrector.add_q0_correction(chi0.qpd, W_GG,
                                                     einv_GG,
                                                     chi0.chi0_WxvG[W],
