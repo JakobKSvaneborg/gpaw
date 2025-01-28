@@ -96,10 +96,9 @@ class GPWFlags:
         raise ValueError(f'Unexpected dtype: {dtype}')
 
     def reduced_precision(self, array: np.ndarray) -> np.ndarray:
-        dtype = self.reduced_dtype(array.dtype)
-        if dtype == array.dtype:
+        if self.precision == 'double':
             return array
-        return array.astype(dtype)
+        return array.astype(self.reduced_dtype(array.dtype))
 
 
 def write_gpw(filename: str | Path,
