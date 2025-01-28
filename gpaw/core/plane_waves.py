@@ -21,8 +21,7 @@ from gpaw.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.utilities.float_utils import (is_real_float, is_complex_float,
-                                        as_real_float, as_complex_float)
+from gpaw.utilities.float_utils import as_real_dtype, as_complex_dtype
 
 if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
@@ -181,7 +180,7 @@ class PWDesc(Domain):
                              ) -> UGDesc:
         from gpaw.core import UGDesc
         size_c = np.ptp(self.indices_cG, axis=1) + 1
-        if is_real_float(self.dtype):
+        if np.issubdtype(self.dtype, np.floating):#
             size_c[2] = size_c[2] * 2 - 1
         size_c = (size_c + n - 1) // n * n
         if factors:
@@ -296,8 +295,8 @@ class PWArray(DistributedArrays[PWDesc]):
             Data array for storage.
         """
 
-        self.real_dtype = as_real_float(pw.dtype)
-        self.complex_dtype = as_complex_float(pw.dtype)
+        self.real_dtype = as_real_dtype(pw.dtype)
+        self.complex_dtype = as_complex_dtype(pw.dtype)
 
         DistributedArrays. __init__(self, dims, pw.myshape,
                                     comm, pw.comm,
@@ -838,7 +837,8 @@ def find_reciprocal_vectors(ecut: float,
     n = Gcut * (cell**2).sum(axis=1)**0.5 / (2 * pi) + abs(kpt)
     size = 2 * n.astype(int) + 4
 
-    if is_real_float(dtype):
+    real = np.issubdtype(dtype, np.floating)
+    if real:
         size[2] = size[2] // 2 + 1
         i_Qc = np.indices(size).transpose((1, 2, 3, 0))
         i_Qc[..., :2] += size[:2] // 2
@@ -861,12 +861,12 @@ def find_reciprocal_vectors(ecut: float,
 
     assert not mask[size[0] // 2].any()
     assert not mask[:, size[1] // 2].any()
-    if is_complex_float(dtype):
+    if not real:
         assert not mask[:, :, size[2] // 2].any()
     else:
         assert not mask[:, :, -1].any()
 
-    if is_real_float(dtype):
+    if real:
         mask &= ((i_Qc[..., 2] > 0) |
                  (i_Qc[..., 1] > 0) |
                  ((i_Qc[..., 0] >= 0) & (i_Qc[..., 1] == 0)))

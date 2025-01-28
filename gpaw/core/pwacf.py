@@ -14,8 +14,7 @@ from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
-from gpaw.utilities.float_utils import (is_complex_float, is_real_float,
-                                        as_complex_float)
+from gpaw.utilities.float_utils import as_complex_dtype
 from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 
@@ -103,6 +102,7 @@ class PWLFC:  # (BaseLFC)
         self.spline_aj = functions
 
         self.dtype = pw.dtype
+        self.real = np.issubdtype(pw.dtype, np.floating)
 
         self.initialized = False
 
@@ -207,7 +207,7 @@ class PWLFC:  # (BaseLFC)
 
         xp = self.xp
 
-        if is_real_float(self.pw.dtype):
+        if self.real:
             self.eikR_a = xp.ones(len(spos_ac))
         else:
             self.eikR_a = xp.asarray(
@@ -252,8 +252,8 @@ class PWLFC:  # (BaseLFC)
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 
-        if is_complex_float(self.dtype):
-            f_GI = xp.empty((G2 - G1, self.nI), as_complex_float(self.dtype))
+        if not self.real:
+            f_GI = xp.empty((G2 - G1, self.nI), as_complex_dtype(self.dtype))
         else:
             # Special layout because BLAS does not have real-complex
             # multiplications.  f_GI(G,I) layout:
@@ -324,7 +324,7 @@ class PWLFC:  # (BaseLFC)
         for G1, G2 in self.block():
             f_GI = self.expand(G1, G2, cc=False)
 
-            if is_real_float(self.dtype):
+            if self.real:
                 # f_IG = f_IG.view(float)
                 G1 *= 2
                 G2 *= 2
@@ -350,7 +350,7 @@ class PWLFC:  # (BaseLFC)
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
         alpha = 1.0
-        if is_real_float(self.dtype):
+        if self.real:
             alpha *= 2
             a_xG = a_xG.view(self.dtype)
 
@@ -359,8 +359,8 @@ class PWLFC:  # (BaseLFC)
 
         x = 0.0
         for G1, G2 in self.block():
-            f_GI = self.expand(G1, G2, cc=is_complex_float(self.dtype))
-            if is_real_float(self.dtype):
+            f_GI = self.expand(G1, G2, cc=not self.real)
+            if self.real:
                 if G1 == 0 and self.comm.rank == 0:
                     f_GI[0] *= 0.5
                 G1 *= 2
