@@ -362,11 +362,11 @@ class Density:
         if D_asp is None:
             return  # let master do the writing
         writer.write(
-            density=flags.to_storage_dtype(nt_sR.data) * Bohr**-3,
+            density=flags.to_storage_dtype(nt_sR.data * Bohr**-3),
             atomic_density_matrices=D_asp.data)
         if self.taut_sR is not None:
             writer.write(ked=flags.to_storage_dtype(
-                taut_sR.data) * (Ha * Bohr**-3))
+                taut_sR.data * (Ha * Bohr**-3)))
 
 
 def atomic_occupation_numbers(setup,
