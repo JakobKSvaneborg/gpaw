@@ -307,18 +307,19 @@ class RPACalculator:
 
     def calculate_optical_limit_rpa_energy(self, qpd, chi0_wGG, gcut, *,
                                            wblocks, gamma_int):
-        e = 0
-        for iqf in range(len(gamma_int.qf_qv)):
-            for iw in range(wblocks.nlocal):
-                gamma_int.set_appendages(chi0_wGG[iw], iw, iqf)
-            sqrtV_G = gcut.cut(
-                self.coulomb.sqrtV(qpd, q_v=gamma_int.qf_qv[iqf]))
-            e_w = []
-            for chi0_GG in chi0_wGG:
-                e_w.append(self.single_rpa_energy(chi0_GG, sqrtV_G, gcut))
-            _, ev = self.gather_energies(e_w)
-            e += ev * gamma_int.weight_q
-        return e
+        """Calculate correlation energy from chi0 in the optical limit."""
+        e_w = []
+        for iw, chi0_GG in enumerate(chi0_wGG[:wblocks.nlocal]):
+            e = 0
+            for iqf in range(len(gamma_int.qf_qv)):
+                gamma_int.set_appendages(chi0_GG, iw, iqf)
+                sqrtV_G = gcut.cut(
+                    self.coulomb.sqrtV(qpd, q_v=gamma_int.qf_qv[iqf]))
+                ev = self.single_rpa_energy(chi0_GG, sqrtV_G, gcut)
+                e += ev * gamma_int.weight_q
+            e_w.append(e)
+        self.E_w, energy = self.gather_energies(e_w)
+        return energy
 
     def calculate_rpa_energy(self, qpd, chi0_wGG, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
