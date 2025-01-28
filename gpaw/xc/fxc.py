@@ -338,10 +338,7 @@ class FXCCorrelation:
         if qpd.optical_limit:
             G_G[0] = 1.0
 
-        e_w = []
-
-        # Loop over frequencies
-        for chi0_sGG in np.swapaxes(chi0_swGG, 0, 1):
+        def integrand(chi0_sGG):
             chi0_sGG = gcut.cut(chi0_sGG, [1, 2])
 
             if self.xcflags.spin_kernel:
@@ -349,11 +346,11 @@ class FXCCorrelation:
             else:
                 chi0v_sGsG = get_chi0v_spinsum(chi0_sGG, G_G)
 
-            energy = self.calculate_energy_contribution(
+            return self.calculate_energy_contribution(
                 chi0v_sGsG, fv_GG, nG)
-            e_w.append(energy)
 
-        return self.rpa.integrate_frequencies(e_w)
+        return self.rpa.integrate(
+            integrand, data_w=np.swapaxes(chi0_swGG, 0, 1))
 
 
 class KernelIntegrator(ABC):
