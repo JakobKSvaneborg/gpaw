@@ -20,6 +20,7 @@ from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D
+from gpaw.utilities.float_utils import is_complex_float, is_real_float
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -180,7 +181,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
         pw = self.wf_desc.new(kpt=kpt_c)
 
-        if np.is_complex_float(self.dtype):
+        if is_complex_float(self.dtype):
             emikr_R = grid.eikr(-kpt_c)
 
         mynbands, M = C_nM.dist.shape
@@ -190,7 +191,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             basis_set.lcao_to_grid(C_nM.data, psit_nR.data, q)
 
             for psit_R, psit_G in zips(psit_nR, psit_nG, strict=False):
-                if self.dtype == complex:
+                if is_complex_float(self.dtype):
                     psit_R.data *= emikr_R
                 psit_R.fft(out=psit_G)
             return psit_nG.to_xp(self.xp)
@@ -266,7 +267,7 @@ def check_g_vector_ordering(grid: UGDesc,
                             pw: PWDesc,
                             index_G: Array1D) -> None:
     size = tuple(grid.size)
-    if pw.dtype == float:
+    if is_real_float(pw.dtype):
         size = (size[0], size[1], size[2] // 2 + 1)
     index0_G = pw.indices(size)
     nG = len(index0_G)
