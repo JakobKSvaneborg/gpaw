@@ -355,8 +355,7 @@ class FXCCorrelation:
                 chi0v_sGsG, fv_GG, nG)
             e_w.append(energy)
 
-        E_w, energies = self.rpa.gather_energies(e_w)
-        return energies
+        return self.rpa.integrate_frequencies(e_w)
 
 
 class KernelIntegrator(ABC):

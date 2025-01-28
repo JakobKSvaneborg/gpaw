@@ -318,8 +318,7 @@ class RPACalculator:
                 ev = self.single_rpa_energy(chi0_GG, sqrtV_G, gcut)
                 e += ev * gamma_int.weight_q
             e_w.append(e)
-        self.E_w, energy = self.gather_energies(e_w)
-        return energy
+        return self.integrate_frequencies(e_w)
 
     def calculate_rpa_energy(self, qpd, chi0_wGG, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
@@ -327,8 +326,7 @@ class RPACalculator:
         e_w = []
         for chi0_GG in chi0_wGG:
             e_w.append(self.single_rpa_energy(chi0_GG, sqrtV_G, gcut))
-        self.E_w, energy = self.gather_energies(e_w)
-        return energy
+        return self.integrate_frequencies(e_w)
 
     @staticmethod
     def single_rpa_energy(chi0_GG, sqrtV_G, gcut):
@@ -338,12 +336,11 @@ class RPACalculator:
         e = np.log(np.linalg.det(e_GG)) + nG - np.trace(e_GG)
         return e.real
 
-    def gather_energies(self, e_w):
+    def integrate_frequencies(self, e_w):
         E_w = np.zeros_like(self.omega_w)
         # XXX This requires all cores to the same number of w doesn't it?
         self.blockcomm.all_gather(np.array(e_w), E_w)
-        energy = E_w @ self.weight_w / (2 * np.pi)
-        return E_w, energy
+        return E_w @ self.weight_w / (2 * np.pi)
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
