@@ -31,7 +31,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  *,
                  comm,
                  ecut=340,
-                 dtype=complex,
+                 dtype=None,
                  qspiral=None,
                  dedecut=None):
         self.ecut = ecut / Ha
@@ -180,7 +180,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
         pw = self.wf_desc.new(kpt=kpt_c)
 
-        if self.dtype == complex:
+        if np.is_complex_float(self.dtype):
             emikr_R = grid.eikr(-kpt_c)
 
         mynbands, M = C_nM.dist.shape

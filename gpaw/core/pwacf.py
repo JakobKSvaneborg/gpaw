@@ -207,7 +207,7 @@ class PWLFC:  # (BaseLFC)
 
         xp = self.xp
 
-        if self.pw.dtype == float:
+        if is_real_float(self.pw.dtype):
             self.eikR_a = xp.ones(len(spos_ac))
         else:
             self.eikR_a = xp.asarray(
