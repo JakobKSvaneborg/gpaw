@@ -666,8 +666,7 @@ class PWArray(DistributedArrays[PWDesc]):
                 if xp is np:
                     add_to_density(weight, a_R.data, out.data)
                 else:
-                    out.data += self.real_dtype.type(weight) \
-                        * xp.abs(a_R.data)**2
+                    out.data += float(weight) * xp.abs(a_R.data)**2
             return
 
         # Undistributed work arrays:
