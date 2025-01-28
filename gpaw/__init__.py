@@ -316,8 +316,11 @@ def standard_setup_paths() -> list[str | Path]:
     try:
         import gpaw_data
     except ModuleNotFoundError:
-        warnings.warn('Please install GPAW datafiles, '
-                      'e.g. pip install gpaw-data')
+        warnings.warn(
+            'Please install GPAW datafiles, e.g. pip install gpaw-data',
+            # End-users won't see this for the time being
+            DeprecationWarning,
+        )
         return []
     else:
         return [gpaw_data.datapath()]
