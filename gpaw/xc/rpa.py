@@ -282,47 +282,43 @@ class RPACalculator:
         chi0 = chi0_s[0]
         chi0calc.update_chi0(
             chi0, m1, m2, spins=range(chi0calc.gs.nspins))
-
         self.context.print('E_c(q) = ', end='', flush=False)
-
-        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
-
         if chi0.qpd.optical_limit:
-            from gpaw.response.gamma_int import GammaIntegrator
-
-            gamma_int = GammaIntegrator(
-                truncation=self.coulomb.truncation,
-                kd=self.gs.kd,
-                qpd=chi0.qpd,
-                chi0_wvv=chi0.chi0_Wvv[self.wblocks.myslice],
-                chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
-
-            rpa_energy = self.calculate_optical_limit_rpa_energy(
-                chi0.qpd, chi0_wGG, gcut, gamma_int=gamma_int)
+            rpa_energy = self.calculate_optical_limit_rpa_energy(chi0, gcut)
         else:
-            rpa_energy = self.calculate_rpa_energy(chi0.qpd, chi0_wGG, gcut)
+            rpa_energy = self.calculate_rpa_energy(chi0, gcut)
         self.context.print('%.3f eV' % (rpa_energy * Hartree))
         return rpa_energy
 
-    def calculate_optical_limit_rpa_energy(self, qpd, chi0_wGG, gcut, *,
-                                           gamma_int):
+    def calculate_optical_limit_rpa_energy(self, chi0, gcut):
         """Calculate correlation energy from chi0 in the optical limit."""
+        from gpaw.response.gamma_int import GammaIntegrator
+
+        gamma_int = GammaIntegrator(
+            truncation=self.coulomb.truncation,
+            kd=self.gs.kd,
+            qpd=chi0.qpd,
+            chi0_wvv=chi0.chi0_Wvv[self.wblocks.myslice],
+            chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
+
         e_w = []
+        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
         for iw, chi0_GG in zip(range(self.wblocks.nlocal), chi0_wGG):
             e = 0
             for iqf in range(len(gamma_int.qf_qv)):
                 gamma_int.set_appendages(chi0_GG, iw, iqf)
                 sqrtV_G = gcut.cut(
-                    self.coulomb.sqrtV(qpd, q_v=gamma_int.qf_qv[iqf]))
+                    self.coulomb.sqrtV(chi0.qpd, q_v=gamma_int.qf_qv[iqf]))
                 ev = self.single_rpa_energy(chi0_GG, sqrtV_G, gcut)
                 e += ev * gamma_int.weight_q
             e_w.append(e)
         return self.integrate_frequencies(e_w)
 
-    def calculate_rpa_energy(self, qpd, chi0_wGG, gcut):
+    def calculate_rpa_energy(self, chi0, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
-        sqrtV_G = gcut.cut(self.coulomb.sqrtV(qpd, q_v=None))
+        sqrtV_G = gcut.cut(self.coulomb.sqrtV(chi0.qpd, q_v=None))
         e_w = []
+        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
         for chi0_GG in chi0_wGG:
             e_w.append(self.single_rpa_energy(chi0_GG, sqrtV_G, gcut))
         return self.integrate_frequencies(e_w)
