@@ -21,6 +21,7 @@ from gpaw.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
 from gpaw.fftw import get_efficient_fft_size
+from gpaw.utilities.float_utils import is_real_float, is_complex_float, as_real_float, as_complex_float
 
 if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
@@ -181,7 +182,7 @@ class PWDesc(Domain):
                              ) -> UGDesc:
         from gpaw.core import UGDesc
         size_c = np.ptp(self.indices_cG, axis=1) + 1
-        if np.isdtype(np.dtype(self.dtype), kind='real floating'):
+        if is_real_float(self.dtype):
             size_c[2] = size_c[2] * 2 - 1
         size_c = (size_c + n - 1) // n * n
         if factors:
@@ -296,15 +297,8 @@ class PWArray(DistributedArrays[PWDesc]):
             Data array for storage.
         """
         
-        is_real = np.isdtype(np.dtype(pw.dtype), kind='real floating')
-        if is_real:
-            n_bytes = np.dtype(pw.dtype).itemsize * 16
-            self.real_dtype = np.dtype(pw.dtype)
-            self.complex_dtype = np.dtype(f'complex{n_bytes}')
-        else:
-            n_bytes = np.dtype(pw.dtype).itemsize * 4
-            self.real_dtype = np.dtype(f'float{n_bytes}')
-            self.complex_dtype = np.dtype(pw.dtype)
+        self.real_dtype = as_real_float(pw.dtype)
+        self.complex_dtype = as_complex_float(pw.dtype)
         
         DistributedArrays. __init__(self, dims, pw.myshape,
                                     comm, pw.comm,
@@ -846,7 +840,7 @@ def find_reciprocal_vectors(ecut: float,
     n = Gcut * (cell**2).sum(axis=1)**0.5 / (2 * pi) + abs(kpt)
     size = 2 * n.astype(int) + 4
 
-    if np.isdtype(np.dtype(dtype), kind='real floating'):
+    if is_real_float(dtype):
         size[2] = size[2] // 2 + 1
         i_Qc = np.indices(size).transpose((1, 2, 3, 0))
         i_Qc[..., :2] += size[:2] // 2
@@ -869,12 +863,12 @@ def find_reciprocal_vectors(ecut: float,
 
     assert not mask[size[0] // 2].any()
     assert not mask[:, size[1] // 2].any()
-    if np.isdtype(np.dtype(dtype), kind='complex floating'):
+    if is_complex_float(dtype):
         assert not mask[:, :, size[2] // 2].any()
     else:
         assert not mask[:, :, -1].any()
 
-    if np.isdtype(np.dtype(dtype), kind='real floating'):
+    if is_real_float(dtype):
         mask &= ((i_Qc[..., 2] > 0) |
                  (i_Qc[..., 1] > 0) |
                  ((i_Qc[..., 0] >= 0) & (i_Qc[..., 1] == 0)))

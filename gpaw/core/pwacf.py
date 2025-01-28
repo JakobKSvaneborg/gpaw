@@ -14,6 +14,7 @@ from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
+from gpaw.utilities.float_utils import is_complex_float, is_real_float, as_complex_float, as_real_float
 from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 
@@ -250,8 +251,8 @@ class PWLFC:  # (BaseLFC)
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 
-        if np.isdtype(np.dtype(self.dtype), kind='complex floating'):
-            f_GI = xp.empty((G2 - G1, self.nI), complex)
+        if is_complex_float(self.dtype):
+            f_GI = xp.empty((G2 - G1, self.nI), as_complex_float(self.dtype))
         else:
             # Special layout because BLAS does not have real-complex
             # multiplications.  f_GI(G,I) layout:
@@ -322,7 +323,7 @@ class PWLFC:  # (BaseLFC)
         for G1, G2 in self.block():
             f_GI = self.expand(G1, G2, cc=False)
 
-            if np.isdtype(np.dtype(self.dtype), kind='real floating'):
+            if is_real_float(self.dtype):
                 # f_IG = f_IG.view(float)
                 G1 *= 2
                 G2 *= 2
@@ -351,7 +352,7 @@ class PWLFC:  # (BaseLFC)
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
         alpha = 1.0
-        if np.isdtype(np.dtype(self.dtype), kind='real floating'):
+        if is_real_float(self.dtype):
             alpha *= 2
             a_xG = a_xG.view(self.dtype)
 
@@ -360,17 +361,14 @@ class PWLFC:  # (BaseLFC)
 
         x = 0.0
         for G1, G2 in self.block():
-            f_GI = self.expand(G1, G2, cc=np.isdtype(np.dtype(self.dtype), kind='complex floating'))
-            if np.isdtype(np.dtype(self.dtype), kind='real floating'):
+            f_GI = self.expand(G1, G2, cc=is_complex_float(self.dtype))
+            if is_real_float(self.dtype):
                 if G1 == 0 and self.comm.rank == 0:
                     f_GI[0] *= 0.5
                 G1 *= 2
                 G2 *= 2
             if xp is np:
-                try:
-                    mmm(alpha, a_xG[:, G1:G2], 'N', f_GI, 'N', x, b_xI)
-                except:
-                    breakpoint()
+                mmm(alpha, a_xG[:, G1:G2], 'N', f_GI, 'N', x, b_xI)
             else:
                 xp.cublas.gemm('N', 'N',
                                a_xG[:, G1:G2], f_GI, b_xI,

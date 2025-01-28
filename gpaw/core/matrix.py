@@ -12,6 +12,7 @@ from gpaw import debug, get_scipy_version
 from gpaw.gpu import cupy as cp, cupy_eigh, XP
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
+from gpaw.utilities.float_utils import is_complex_float, is_real_float, as_complex_float, as_real_float
 
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
@@ -362,7 +363,7 @@ class Matrix(XP):
 
         if rows * columns == 1:
             if self.dist.comm.rank == 0:
-                if cc and np.isdtype(np.dtype(H.dtype), kind='complex floating'):
+                if cc and is_complex_float(H.dtype):
                     np.negative(H.data.imag, H.data.imag)
                 if debug:
                     H.data[np.triu_indices(H.shape[0], 1)] = 42.0
