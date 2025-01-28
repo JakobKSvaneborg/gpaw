@@ -35,7 +35,7 @@ def test_nicl2_pair_potential(gpw_files):
     # Set up extractor and transitions
     tcomm, kcomm = block_partition(context.comm, nblocks)
     extractor = initialize_extractor(gs, context, tcomm, kcomm)
-    transitions = initialize_transitions(extractor, '+-', nbands=20)
+    transitions = initialize_transitions(gs, '+-', nbands=20)
 
     # Set up calculator
     pair_potential_calc = TransversePairPotentialCalculator(gs, context,

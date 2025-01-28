@@ -1,5 +1,5 @@
 import numpy as np
-import pylab as plt
+from matplotlib import pyplot as plt
 
 plt.rcParams['mathtext.fontset'] = 'cm'
 plt.rcParams['mathtext.rm'] = 'serif'
