@@ -460,20 +460,20 @@ _real_float = {
     float: float}
 
 
-def to_complex_dtype(dtype: DTypeLike) -> np.dtype:
+def as_complex_dtype(dtype: DTypeLike) -> np.dtype:
     """Convert dtype to complex dtype.
 
-    >>> [to_complex_dtype(dt) for dt in
+    >>> [as_complex_dtype(dt) for dt in
     ...  [np.float32, np.float64, complex]]
     [dtype('complex64'), dtype('complex128'), dtype('complex128')]
     """
     return np.dtype(_complex_float[np.dtype(dtype).type])
 
 
-def to_real_dtype(dtype: DTypeLike) -> np.dtype:
+def as_real_dtype(dtype: DTypeLike) -> np.dtype:
     """Convert dtype to complex dtype.
 
-    >>> [to_real_dtype(dt) for dt in
+    >>> [as_real_dtype(dt) for dt in
     ...  [np.float32, np.float64, complex]]
     [dtype('float32'), dtype('float64'), dtype('float64')]
     """
