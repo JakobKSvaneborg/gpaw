@@ -301,18 +301,20 @@ class RPACalculator:
             chi0_wvv=chi0.chi0_Wvv[self.wblocks.myslice],
             chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
 
-        e_w = []
-        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
-        for iw, chi0_GG in zip(range(self.wblocks.nlocal), chi0_wGG):
-            e = 0
+        def integrand(data):
+            iw, chi0_GG = data
+            energy = 0.
             for iqf in range(len(gamma_int.qf_qv)):
                 gamma_int.set_appendages(chi0_GG, iw, iqf)
                 sqrtV_G = gcut.cut(
                     self.coulomb.sqrtV(chi0.qpd, q_v=gamma_int.qf_qv[iqf]))
-                ev = single_rpa_energy(chi0_GG, sqrtV_G, gcut)
-                e += ev * gamma_int.weight_q
-            e_w.append(e)
-        return self.integrate_frequencies(e_w)
+                energy += gamma_int.weight_q * single_rpa_energy(
+                    chi0_GG, sqrtV_G, gcut)
+            return energy
+
+        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
+        return self.integrate(
+            integrand, data_w=zip(range(self.wblocks.nlocal), chi0_wGG))
 
     def calculate_rpa_energy(self, chi0, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
