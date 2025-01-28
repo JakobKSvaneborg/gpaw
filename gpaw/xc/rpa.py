@@ -93,7 +93,7 @@ class RPACalculator:
         self.context = context
 
         self.omega_W = frequencies / Hartree
-        self.weight_W = weights / Hartree
+        self.weight_W = weights / Hartree / (2 * np.pi)
 
         # TODO: We should avoid this requirement.
         assert len(self.omega_W) % nblocks == 0
@@ -330,12 +330,8 @@ class RPACalculator:
         """Integrate over frequency to obtain the rpa correlation energy."""
         energy = 0.
         for weight, data in zip(self.weight_W[self.wblocks.myslice], data_w):
-            energy += weight * integrand(data) / (2 * np.pi)
+            energy += weight * integrand(data)
         return self.wblocks.blockcomm.sum_scalar(energy)
-
-    def integrate_frequencies(self, e_w):
-        e_W = self.wblocks.all_gather(np.array(e_w))
-        return e_W @ self.weight_W / (2 * np.pi)
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
