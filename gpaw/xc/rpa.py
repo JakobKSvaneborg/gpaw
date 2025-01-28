@@ -309,7 +309,7 @@ class RPACalculator:
                 gamma_int.set_appendages(chi0_GG, iw, iqf)
                 sqrtV_G = gcut.cut(
                     self.coulomb.sqrtV(chi0.qpd, q_v=gamma_int.qf_qv[iqf]))
-                ev = self.single_rpa_energy(chi0_GG, sqrtV_G, gcut)
+                ev = single_rpa_energy(chi0_GG, sqrtV_G, gcut)
                 e += ev * gamma_int.weight_q
             e_w.append(e)
         return self.integrate_frequencies(e_w)
@@ -320,16 +320,8 @@ class RPACalculator:
         e_w = []
         chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
         for chi0_GG in chi0_wGG:
-            e_w.append(self.single_rpa_energy(chi0_GG, sqrtV_G, gcut))
+            e_w.append(single_rpa_energy(chi0_GG, sqrtV_G, gcut))
         return self.integrate_frequencies(e_w)
-
-    @staticmethod
-    def single_rpa_energy(chi0_GG, sqrtV_G, gcut):
-        nG = len(sqrtV_G)
-        chi0_GG = gcut.cut(chi0_GG, [0, 1])
-        e_GG = np.eye(nG) - chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
-        e = np.log(np.linalg.det(e_GG)) + nG - np.trace(e_GG)
-        return e.real
 
     def integrate_frequencies(self, e_w):
         e_W = self.wblocks.all_gather(np.array(e_w))
@@ -350,6 +342,14 @@ class RPACalculator:
         self.context.print('')
 
         return e_i * Hartree
+
+
+def single_rpa_energy(chi0_GG, sqrtV_G, gcut):
+    nG = len(sqrtV_G)
+    chi0_GG = gcut.cut(chi0_GG, [0, 1])
+    e_GG = np.eye(nG) - chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
+    e = np.log(np.linalg.det(e_GG)) + nG - np.trace(e_GG)
+    return e.real
 
 
 def get_gauss_legendre_points(nw=16, frequency_max=800.0, frequency_scale=2.0):
