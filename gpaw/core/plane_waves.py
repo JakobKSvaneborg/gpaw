@@ -658,7 +658,6 @@ class PWArray(DistributedArrays[PWDesc]):
             if not _slow and xp is cp and pw.dtype == self.complex_dtype:
                 return abs_square_gpu(a_nG, weights, out)
 
-            # XXX: check dtypes here!
             a_R = out.desc.new(dtype=pw.dtype).empty(xp=xp)
             for weight, a_G in zips(weights, a_nG):
                 if weight == 0.0:
