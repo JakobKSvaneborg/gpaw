@@ -292,23 +292,17 @@ class RPACalculator:
 
     def calculate_optical_limit_rpa_energy(self, chi0, gcut):
         """Calculate correlation energy from chi0 in the optical limit."""
-        from gpaw.response.gamma_int import GammaIntegrator
+        from gpaw.response.gamma_int import GammaIntegral
 
-        gamma_int = GammaIntegrator(
-            truncation=self.coulomb.truncation,
-            kd=self.gs.kd,
-            qpd=chi0.qpd,
-            chi0_wvv=chi0.chi0_Wvv[self.wblocks.myslice],
-            chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
+        gamma_int = GammaIntegral(self.coulomb, qpd=chi0.qpd)
 
         def integrand(data):
             chi0_GG, chi0_vv, chi0_xvG = data
             energy = 0.
-            for qf_v in gamma_int.qf_qv:
-                chi0p_GG = gamma_int.project(chi0_GG, chi0_vv, chi0_xvG, qf_v)
-                sqrtV_G = gcut.cut(self.coulomb.sqrtV(chi0.qpd, q_v=qf_v))
-                energy += gamma_int.weight_q * single_rpa_energy(
-                    chi0p_GG, sqrtV_G, gcut)
+            for qweight, sqrtV_G, chi0_mapping in gamma_int:
+                chi0p_GG = chi0_mapping(chi0_GG, chi0_vv, chi0_xvG)
+                energy += qweight * single_rpa_energy(
+                    chi0p_GG, gcut.cut(sqrtV_G), gcut)
             return energy
 
         chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
