@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Tuple
+import warnings
 
 import numpy as np
 from time import ctime
@@ -20,6 +21,10 @@ from gpaw.response.matrix_elements import (PlaneWaveMatrixElementCalculator,
 from gpaw.response.pair_integrator import PairFunctionIntegrator
 from gpaw.response.pair_transitions import PairTransitions
 from gpaw.response.pair_functions import SingleQPWDescriptor, Chi
+
+
+class RealAxisWarning(UserWarning):
+    pass
 
 
 class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
@@ -110,6 +115,13 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
         zd : ComplexFrequencyDescriptor
             Complex frequencies z to evaluate ̄x_KS,GG'^μν(q,z) at.
         """
+        if self.gs.metallic and not zd.upper_half_plane:
+            warnings.warn(
+                'The generalized susceptibility is not well behaved at the '
+                'real axis for metals. Please consider evaluating it in the '
+                'upper-half complex frequency plane.',
+                RealAxisWarning,
+            )
         return self._calculate(*self._set_up_internals(spincomponent, q_c, zd))
 
     def _set_up_internals(self, spincomponent, q_c, zd,
