@@ -354,8 +354,9 @@ class IBZWaveFunctions(Generic[WFT]):
             proj_shape = (self.nbands, 2, nproj)
 
         if flags.include_projections:
+            proj_dtype = flags.optionally_smaller_dtype(self.dtype)
             writer.add_array('projections', spin_k_shape + proj_shape,
-                             self.dtype)
+                             proj_dtype)
             for spin in range(self.nspins):
                 for k, rank in enumerate(self.rank_k):
                     if rank == self.kpt_comm.rank:
@@ -365,31 +366,26 @@ class IBZWaveFunctions(Generic[WFT]):
                             P_nI = P_ani.matrix.gather()  # gather bands
                             if P_nI.dist.comm.rank == 0:
                                 if rank == 0:
-                                    writer.fill(P_nI.data.reshape(proj_shape))
+                                    writer.fill(P_nI.data.reshape(
+                                        proj_shape).astype(proj_dtype))
                                 else:
                                     self.kpt_comm.send(P_nI.data, 0)
                     elif self.comm.rank == 0:
                         data = np.empty(proj_shape, self.dtype)
                         self.kpt_comm.receive(data, rank)
-                        writer.fill(data)
+                        writer.fill(data.astype(proj_dtype))
 
         if flags.include_wfs:
-            self._write_wave_functions(writer, spin_k_shape, flags.precision)
+            self._write_wave_functions(writer, spin_k_shape, flags)
 
-    def _write_wave_functions(self, writer, spin_k_shape, precision='double'):
+    def _write_wave_functions(self, writer, spin_k_shape, flags):
         from gpaw.new.gpw import as_single_precision
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
         shape = spin_k_shape + (self.nbands,) + xshape
         dtype = complex if self.mode == 'pw' else self.dtype
-        dtype_write = dtype
-        singlep = precision == 'single'
-        if singlep:
-            if dtype == complex:
-                dtype_write = np.complex64
-            else:
-                dtype_write = np.float32
+        dtype_write = flags.optionally_smaller_dtype(dtype)
         c = 1.0 if self.mode == 'lcao' else Bohr**-1.5
 
         writer.add_array('coefficients', shape, dtype=dtype_write)
@@ -412,7 +408,7 @@ class IBZWaveFunctions(Generic[WFT]):
                                 buf_nX[..., x:] = 0.0
                                 coef_nX = buf_nX
                         if rank == 0:
-                            if singlep:
+                            if flags.precision == 'single':
                                 writer.fill(as_single_precision(coef_nX * c))
                             else:
                                 writer.fill(coef_nX * c)
@@ -420,7 +416,7 @@ class IBZWaveFunctions(Generic[WFT]):
                             self.kpt_comm.send(coef_nX, 0)
                 elif self.comm.rank == 0:
                     self.kpt_comm.receive(buf_nX, rank)
-                    if singlep:
+                    if flags.precision == 'single':
                         writer.fill(as_single_precision(buf_nX * c))
                     else:
                         writer.fill(buf_nX * c)

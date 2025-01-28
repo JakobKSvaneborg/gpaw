@@ -82,6 +82,19 @@ class GPWFlags:
         if self.precision not in ['single', 'double']:
             raise ValueError('precision must be either "single" or "double"')
 
+    def optionally_smaller_dtype(self, dtype):
+        dtype = np.dtype(dtype)
+        if self.precision == 'double':
+            return dtype
+
+        if dtype == float:
+            return np.dtype(np.float32)
+
+        if dtype == complex:
+            return np.dtype(np.complex64)
+
+        raise ValueError(f'Unexpected dtype: {dtype}')
+
 
 def write_gpw(filename: str | Path,
               atoms,
