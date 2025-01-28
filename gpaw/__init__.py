@@ -6,7 +6,7 @@ import os
 import sys
 import contextlib
 from pathlib import Path
-from typing import List, Union, Any, TYPE_CHECKING
+from typing import List, Any, TYPE_CHECKING
 import warnings
 
 
