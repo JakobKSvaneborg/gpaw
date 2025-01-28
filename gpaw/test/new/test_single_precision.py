@@ -9,7 +9,7 @@ from gpaw.new.ase_interface import GPAW
 
 def test_single_precision():
     result = subprocess.run(
-        "GPAW_NO_C_EXTENSION=1 python ./test_single_precision.py",
+        f"GPAW_NO_C_EXTENSION=1 python {__file__}",
         shell=True, capture_output=True,
         text=True, check=True)
     result.stderr
