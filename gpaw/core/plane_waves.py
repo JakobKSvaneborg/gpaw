@@ -688,7 +688,7 @@ class PWArray(DistributedArrays[PWDesc]):
             if xp is np:
                 add_to_density(weight, a1_R.data, b1_R.data)
             else:
-                b1_R.data += self.real_dtype(weight) * xp.abs(a1_R.data)**2
+                b1_R.data += float(weight) * xp.abs(a1_R.data)**2
 
         domain_comm.sum(b1_R.data)
         b_R = out.new()
