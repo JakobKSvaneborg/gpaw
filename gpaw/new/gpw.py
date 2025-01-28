@@ -135,8 +135,7 @@ def write_gpw(filename: str | Path,
             p['dtype'] = np.dtype(p['dtype']).name
         writer.child('parameters').write(**p)
 
-        dft.density.write_to_gpw(writer.child('density'),
-                                 precision=flags.precision)
+        dft.density.write_to_gpw(writer.child('density'), flags)
         dft.potential.write_to_gpw(writer.child('hamiltonian'),
                                    precision=flags.precision)
         writer.write(e_stress=dft.potential.e_stress * Ha)

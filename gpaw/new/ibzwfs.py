@@ -379,7 +379,6 @@ class IBZWaveFunctions(Generic[WFT]):
             self._write_wave_functions(writer, spin_k_shape, flags)
 
     def _write_wave_functions(self, writer, spin_k_shape, flags):
-        from gpaw.new.gpw import as_single_precision
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
