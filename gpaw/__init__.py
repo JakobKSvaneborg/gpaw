@@ -40,20 +40,6 @@ if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
 
 
-def standard_setup_paths() -> list[str | Path]:
-    try:
-        import gpaw_data
-    except ModuleNotFoundError:
-        warnings.warn('Please install GPAW datafiles, '
-                      'e.g. pip install gpaw-data')
-        return []
-    else:
-        return [gpaw_data.datapath()]
-
-
-setup_paths = standard_setup_paths()
-
-
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
 
@@ -326,6 +312,18 @@ def initialize_data_paths():
         pass
 
 
+def standard_setup_paths() -> list[str | Path]:
+    try:
+        import gpaw_data
+    except ModuleNotFoundError:
+        warnings.warn('Please install GPAW datafiles, '
+                      'e.g. pip install gpaw-data')
+        return []
+    else:
+        return [gpaw_data.datapath()]
+
+
+setup_paths = standard_setup_paths()
 read_rc_file()
 initialize_data_paths()
 
