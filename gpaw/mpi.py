@@ -128,7 +128,6 @@ class _Communicator:
         else:
             # assert a.ndim != 0
             tc = a.dtype
-            #assert tc == int or tc == float or tc == complex
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
             self.comm.sum(a, root)

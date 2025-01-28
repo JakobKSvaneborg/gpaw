@@ -7,6 +7,7 @@ from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
+from gpaw.utilities.float_utils import as_complex_float, as_real_float, is_complex_float, is_real_float
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.external_potential import create_external_potential
@@ -77,24 +78,11 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         # will acommodate G-vectors up to 2 * self.ecut, but the grid-size
         # could have been set using h=... or gpts=...
         
-        # XXX: Duplicate code
-        import numpy as np
-        is_real = np.isdtype(np.dtype(self.dtype), kind='real floating')
-        if is_real:
-            n_bytes = np.dtype(self.dtype).itemsize * 16
-            real_dtype = np.dtype(self.dtype)
-            complex_dtype = np.dtype(f'complex{n_bytes}')
-        else:
-            n_bytes = np.dtype(self.dtype).itemsize * 4
-            real_dtype = np.dtype(f'float{n_bytes}')
-            complex_dtype = np.dtype(self.dtype)
-        # XXX: End of duplicate code
-        
         ecut = min(2 * self.ecut, self.grid.ekin_max())
         return PWDesc(ecut=ecut,
                       cell=self.grid.cell,
                       comm=self.grid.comm,
-                      dtype=real_dtype)
+                      dtype=as_real_float(self.dtype))
 
     @cached_property
     def electrostatic_potential_desc(self):
