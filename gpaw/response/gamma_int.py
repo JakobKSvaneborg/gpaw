@@ -27,3 +27,11 @@ class GammaIntegrator:
         chi0_GG[0, :] = self.a0_qwG[iqf, iw]
         chi0_GG[:, 0] = self.a1_qwG[iqf, iw]
         chi0_GG[0, 0] = self.a_wq[iw, iqf]
+
+    @staticmethod
+    def project(chi0_GG, chi0_vv, chi0_xvG, qf_v):
+        out_GG = chi0_GG.copy()
+        out_GG[0, :] = qf_v @ chi0_xvG[0]
+        out_GG[:, 0] = qf_v @ chi0_xvG[1]
+        out_GG[0, 0] = qf_v @ chi0_vv @ qf_v
+        return out_GG
