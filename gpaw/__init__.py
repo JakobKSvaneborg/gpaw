@@ -6,7 +6,7 @@ import os
 import sys
 import contextlib
 from pathlib import Path
-from typing import List, Union, Any, TYPE_CHECKING
+from typing import List, Any, TYPE_CHECKING
 import warnings
 
 
@@ -39,7 +39,7 @@ GPAW_USE_GPUS = bool(int(os.environ.get('GPAW_USE_GPUS') or 0))
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
 
-setup_paths: List[Union[str, Path]] = []
+
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
 
@@ -309,14 +309,19 @@ def initialize_data_paths():
     try:
         setup_paths[:0] = os.environ['GPAW_SETUP_PATH'].split(os.pathsep)
     except KeyError:
-        if len(setup_paths) == 0:
-            if os.pathsep == ';':
-                setup_paths[:] = [r'C:\gpaw-setups']
-            else:
-                setup_paths[:] = ['/usr/local/share/gpaw-setups',
-                                  '/usr/share/gpaw-setups']
+        pass
 
 
+def standard_setup_paths() -> list[str | Path]:
+    try:
+        import gpaw_data
+    except ModuleNotFoundError:
+        return []
+    else:
+        return [gpaw_data.datapath()]
+
+
+setup_paths = standard_setup_paths()
 read_rc_file()
 initialize_data_paths()
 
