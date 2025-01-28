@@ -416,7 +416,8 @@ class PWArray(DistributedArrays[PWDesc]):
             if grid is None:
                 grid = self.desc.uniform_grid_with_grid_spacing(grid_spacing)
             out = grid.empty(self.dims, xp=xp)
-        assert self.desc.dtype == out.desc.dtype, (self.desc.dtype, out.desc.dtype)
+        assert self.desc.dtype == out.desc.dtype, \
+            (self.desc.dtype, out.desc.dtype)
 
         assert not out.desc.zerobc_c.any()
         assert comm.size == out.desc.comm.size, (comm, out.desc.comm)

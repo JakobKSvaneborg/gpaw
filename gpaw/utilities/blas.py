@@ -514,7 +514,6 @@ if not hasattr(cgpaw, 'mmm'):
             c[:] = 0.0
         else:
             c *= beta
-
         c += alpha * op(opa, a).dot(op(opb, b))
 
     gemmdot = _gemmdot

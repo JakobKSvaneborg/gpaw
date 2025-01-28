@@ -7,7 +7,6 @@ from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
-from gpaw.utilities.float_utils import as_real_float
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.external_potential import create_external_potential
@@ -78,7 +77,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         # By default, the size of the grid used for the FFT's (self.grid)
         # will acommodate G-vectors up to 2 * self.ecut, but the grid-size
         # could have been set using h=... or gpts=...
-
         ecut = min(2 * self.ecut, self.grid.ekin_max())
         return PWDesc(ecut=ecut,
                       cell=self.grid.cell,
