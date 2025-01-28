@@ -13,6 +13,7 @@ from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.pair import get_gs_and_context
+from gpaw.response.pw_parallelization import Blocks1D
 
 
 def default_ecut_extrapolation(ecut, extrapolate):
@@ -206,7 +207,8 @@ class RPACalculator:
             hilbert=False,
             ecut=ecutmax * Hartree)
 
-        self.blockcomm = chi0calc.chi0_body_calc.blockcomm
+        self.wblocks = Blocks1D(
+            chi0calc.chi0_body_calc.blockcomm, len(self.omega_w))
 
         energy_qi = []
         nq = len(energy_qi)
@@ -287,29 +289,27 @@ class RPACalculator:
 
         if chi0.qpd.optical_limit:
             from gpaw.response.gamma_int import GammaIntegrator
-            from gpaw.response.pw_parallelization import Blocks1D
 
-            wblocks = Blocks1D(self.blockcomm, len(self.omega_w))
             gamma_int = GammaIntegrator(
                 truncation=self.coulomb.truncation,
                 kd=self.gs.kd,
                 qpd=chi0.qpd,
-                chi0_wvv=chi0.chi0_Wvv[wblocks.myslice],
-                chi0_wxvG=chi0.chi0_WxvG[wblocks.myslice])
+                chi0_wvv=chi0.chi0_Wvv[self.wblocks.myslice],
+                chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
 
             rpa_energy = self.calculate_optical_limit_rpa_energy(
                 chi0.qpd, chi0_wGG, gcut,
-                wblocks=wblocks, gamma_int=gamma_int)
+                gamma_int=gamma_int)
         else:
             rpa_energy = self.calculate_rpa_energy(chi0.qpd, chi0_wGG, gcut)
         self.context.print('%.3f eV' % (rpa_energy * Hartree))
         return rpa_energy
 
     def calculate_optical_limit_rpa_energy(self, qpd, chi0_wGG, gcut, *,
-                                           wblocks, gamma_int):
+                                           gamma_int):
         """Calculate correlation energy from chi0 in the optical limit."""
         e_w = []
-        for iw, chi0_GG in enumerate(chi0_wGG[:wblocks.nlocal]):
+        for iw, chi0_GG in enumerate(chi0_wGG[:self.wblocks.nlocal]):
             e = 0
             for iqf in range(len(gamma_int.qf_qv)):
                 gamma_int.set_appendages(chi0_GG, iw, iqf)
@@ -337,10 +337,8 @@ class RPACalculator:
         return e.real
 
     def integrate_frequencies(self, e_w):
-        E_w = np.zeros_like(self.omega_w)
-        # XXX This requires all cores to the same number of w doesn't it?
-        self.blockcomm.all_gather(np.array(e_w), E_w)
-        return E_w @ self.weight_w / (2 * np.pi)
+        e_W = self.wblocks.all_gather(np.array(e_w))
+        return e_W @ self.weight_w / (2 * np.pi)
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)

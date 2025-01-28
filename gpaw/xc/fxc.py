@@ -165,7 +165,7 @@ class FXCCorrelation:
     def blockcomm(self):
         # Cannot be aliased as attribute
         # because rpa gets blockcomm during calculate
-        return self.rpa.blockcomm
+        return self.rpa.wblocks.blockcomm
 
     def _calculate_kernel(self):
         # Find the first q vector to calculate kernel for
