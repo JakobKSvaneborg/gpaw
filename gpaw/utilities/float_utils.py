@@ -18,14 +18,18 @@ _real_float = {
     float: float
 }
 
+
 def is_real_float(dtype):
     return np.issubdtype(dtype, np.floating)
+
 
 def is_complex_float(dtype):
     return np.issubdtype(dtype, np.complexfloating)
 
+
 def as_complex_float(dtype):
     return np.dtype(_complex_float[np.dtype(dtype).type])
+
 
 def as_real_float(dtype):
     return np.dtype(_real_float[np.dtype(dtype).type])

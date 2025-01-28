@@ -21,7 +21,8 @@ from gpaw.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.utilities.float_utils import is_real_float, is_complex_float, as_real_float, as_complex_float
+from gpaw.utilities.float_utils import (is_real_float, is_complex_float,
+                                        as_real_float, as_complex_float)
 
 if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
@@ -170,8 +171,6 @@ class PWDesc(Domain):
             Q_G = np.ravel_multi_index(self.indices_cG, shape,  # type: ignore
                                        mode='wrap').astype(np.int32)
             if debug:
-                if not (Q_G[1:] > Q_G[:-1]).all():
-                    breakpoint()
                 assert (Q_G[1:] > Q_G[:-1]).all()
             self._indices_cache[shape] = Q_G
         return Q_G
@@ -296,10 +295,10 @@ class PWArray(DistributedArrays[PWDesc]):
         data:
             Data array for storage.
         """
-        
+
         self.real_dtype = as_real_float(pw.dtype)
         self.complex_dtype = as_complex_float(pw.dtype)
-        
+
         DistributedArrays. __init__(self, dims, pw.myshape,
                                     comm, pw.comm,
                                     data, pw.dv,
@@ -417,10 +416,8 @@ class PWArray(DistributedArrays[PWDesc]):
             if grid is None:
                 grid = self.desc.uniform_grid_with_grid_spacing(grid_spacing)
             out = grid.empty(self.dims, xp=xp)
-        #assert self.desc.dtype == out.desc.dtype, (self.desc, out.desc)
-        temp_desc = self.desc.new(dtype=out.desc.dtype)
-        #temp_desc.data = temp_desc.dtype(self.desc.data)
-        
+        assert self.desc.dtype == out.desc.dtype, (self.desc, out.desc)
+
         assert not out.desc.zerobc_c.any()
         assert comm.size == out.desc.comm.size, (comm, out.desc.comm)
 
@@ -429,11 +426,9 @@ class PWArray(DistributedArrays[PWDesc]):
         if this is not None:
             for coef_G, out1 in zips(this._arrays(), out.flat()):
                 plan.ifft_sphere(coef_G, self.desc, out1)
-                #plan.ifft_sphere(coef_G, temp_desc, out1)
         else:
             for out1 in out.flat():
                 plan.ifft_sphere(None, self.desc, out1)
-                #plan.ifft_sphere(None, temp_desc, out1)
 
         if not periodic:
             out.multiply_by_eikr()
@@ -466,7 +461,8 @@ class PWArray(DistributedArrays[PWDesc]):
                 out = Empty(self.mydims)
 
         if comm.rank == 0:
-            data = self.xp.empty(self.desc.maxmysize * comm.size, self.complex_dtype)
+            data = self.xp.empty(self.desc.maxmysize * comm.size,
+                                 self.complex_dtype)
         else:
             data = None
 
@@ -661,6 +657,7 @@ class PWArray(DistributedArrays[PWDesc]):
             if not _slow and xp is cp and pw.dtype == self.complex_dtype:
                 return abs_square_gpu(a_nG, weights, out)
 
+            # XXX: check dtypes here!
             a_R = out.desc.new(dtype=pw.dtype).empty(xp=xp)
             for weight, a_G in zips(weights, a_nG):
                 if weight == 0.0:
@@ -708,8 +705,7 @@ class PWArray(DistributedArrays[PWDesc]):
         rng = self.xp.random.default_rng(seed)
         self.data[:] = rng.random(self.data.shape)
         self.data -= 0.5
-        #if self.desc.dtype == float and self.desc.comm.rank == 0:
-        #    a[..., 1] = 0.0
+        # XXX: Double check this does what we want
 
     def moment(self):
         pw = self.desc

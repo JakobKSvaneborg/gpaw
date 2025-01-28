@@ -225,12 +225,14 @@ def gpu_gemv(alpha, a, x, beta, y, trans='t'):
                    y.data.ptr, a.dtype,
                    trans)
 
+
 which_axpy = {
     np.float32: blas.saxpy,
     np.float64: blas.daxpy,
     np.complex64: blas.caxpy,
     np.complex128: blas.zaxpy
 }
+
 
 def axpy(alpha, x, y):
     """alpha x plus y.
@@ -512,7 +514,7 @@ if not hasattr(cgpaw, 'mmm'):
             c[:] = 0.0
         else:
             c *= beta
-        
+
         c += alpha * op(opa, a).dot(op(opb, b))
 
     gemmdot = _gemmdot

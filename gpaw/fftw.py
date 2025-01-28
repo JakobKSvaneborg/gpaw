@@ -15,7 +15,8 @@ from scipy.fft import fftn, ifftn, irfftn, rfftn
 import warnings
 
 import gpaw.cgpaw as cgpaw
-from gpaw.utilities.float_utils import as_complex_float, as_real_float, is_complex_float, is_real_float
+from gpaw.utilities.float_utils import (as_complex_float, as_real_float,
+                                        is_complex_float, is_real_float)
 from gpaw.new.c import pw_insert_gpu
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 
@@ -68,7 +69,7 @@ def get_efficient_fft_size(N: int, n=1, factors=[2, 3, 5, 7]) -> int:
 def empty(shape, dtype=float):
     """numpy.empty() equivalent with 16 byte alignment."""
     assert is_complex_float(dtype)
-    
+
     N = np.prod(shape)
     a = np.empty(2 * N + 1, as_real_float(dtype))
     offset = (a.ctypes.data % as_complex_float(dtype).itemsize) \
@@ -107,11 +108,12 @@ class FFTPlans:
                  dtype: DTypeLike,
                  empty=empty):
         self.shape: tuple[int, ...]
-        
+
         if is_real_float(dtype):
             self.shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
             self.tmp_Q = empty(self.shape, as_complex_float(dtype))
-            self.tmp_R = self.tmp_Q.view(as_real_float(dtype))[:, :, :size_c[2]]
+            self.tmp_R = self.tmp_Q.view(
+                as_real_float(dtype))[:, :, :size_c[2]]
         else:
             self.shape = tuple(size_c)
             self.tmp_Q = empty(size_c, as_complex_float(dtype))
@@ -144,7 +146,7 @@ class FFTPlans:
             out_R.scatter_from(None)
             return
         pw.paste(coef_G, self.tmp_Q)
-        
+
         if is_real_float(pw.dtype):
             t = self.tmp_Q[:, :, 0]
             n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])

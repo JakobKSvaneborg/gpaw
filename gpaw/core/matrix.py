@@ -12,7 +12,7 @@ from gpaw import debug, get_scipy_version
 from gpaw.gpu import cupy as cp, cupy_eigh, XP
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
-from gpaw.utilities.float_utils import is_complex_float, is_real_float, as_complex_float, as_real_float
+from gpaw.utilities.float_utils import is_complex_float
 
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
@@ -92,7 +92,8 @@ class Matrix(XP):
             else:
                 dtype = data.dtype
         self.dtype = np.dtype(dtype)
-        #assert dtype == float or dtype == complex, dtype
+        assert self.dtype in \
+            [np.float32, np.float64, np.complex64, np.complex128], dtype
 
         self.xp: ModuleType
         if xp is None:

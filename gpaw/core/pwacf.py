@@ -14,7 +14,8 @@ from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
-from gpaw.utilities.float_utils import is_complex_float, is_real_float, as_complex_float, as_real_float
+from gpaw.utilities.float_utils import (is_complex_float, is_real_float,
+                                        as_complex_float)
 from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 
@@ -329,11 +330,8 @@ class PWLFC:  # (BaseLFC)
                 G2 *= 2
 
             if self.xp is np:
-                try:
-                    mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
-                        1.0, a_xG[:, G1:G2])
-                except:
-                    breakpoint()
+                mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
+                    1.0, a_xG[:, G1:G2])
             else:
                 self.xp.cublas.gemm('N', 'T',
                                     c_xI, f_GI, a_xG[:, G1:G2],

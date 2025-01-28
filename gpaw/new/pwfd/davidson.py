@@ -111,7 +111,7 @@ class Davidson(Eigensolver):
                      potential.vt_sR,
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)  # used by hybrids
-        
+
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
         error = 0.0
