@@ -92,7 +92,7 @@ class Matrix(XP):
             else:
                 dtype = data.dtype
         self.dtype = np.dtype(dtype)
-        assert self.dtype in \
+        assert np.dtype(self.dtype) in \
             [np.float32, np.float64, np.complex64, np.complex128], dtype
 
         self.xp: ModuleType
