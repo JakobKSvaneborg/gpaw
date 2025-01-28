@@ -180,7 +180,7 @@ class PWDesc(Domain):
                              ) -> UGDesc:
         from gpaw.core import UGDesc
         size_c = np.ptp(self.indices_cG, axis=1) + 1
-        if np.issubdtype(self.dtype, np.floating):#
+        if np.issubdtype(self.dtype, np.floating):
             size_c[2] = size_c[2] * 2 - 1
         size_c = (size_c + n - 1) // n * n
         if factors:
