@@ -16,7 +16,7 @@ You use the new code like this:
 >>> atoms.calc = GPAW(..., parallel={'gpu': True})
 
 By default, the environment variable ``$GPAW_USE_GPUS`` is used, to determine
-whether to use gpu or not (defaults to not). 
+whether to use gpu or not (defaults to not).
 In addition, the user can specify ``parallel={‘gpu’: False}`` (or True) to
 override this behaviour.
 
@@ -40,18 +40,18 @@ See :git:`gpaw/test/gpu/test_pw.py` for an example.
 Building the GPU code
 ---------------------
 
-To build GPAW with GPU support, siteconfig.py needs to be updated. To see how to use siteconfig, see :ref:`siteconfig`. Five variables need to be set: 
+To build GPAW with GPU support, siteconfig.py needs to be updated. To see how to use siteconfig, see :ref:`siteconfig`. Five variables need to be set:
 
     1. ``gpu`` is a boolean determining whether to build the GPU kernels or not.
-    2. ``gpu_target`` where valid target architechrures are ``'cuda'``, ``'hip-amd'`` or ``'hip-cuda'``. Essentially, with NVIDIA architechrures, the target should be ``'cuda'``, and ``nvcc``  compiler will be required, and with ``hip-`` selections, ``hipcc`` compiler will be used.
-    3. ``gpu_compiler`` is optinal, and will be selected by ``gpu_target`` normally, but it can be overwritten with this parameter.
+    2. ``gpu_target`` where valid target architectures are ``'cuda'``, ``'hip-amd'`` or ``'hip-cuda'``. Essentially, with NVIDIA architectures, the target should be ``'cuda'``, and ``nvcc``  compiler will be required, and with ``hip-`` selections, ``hipcc`` compiler will be used.
+    3. ``gpu_compiler`` is optional, and will be selected by ``gpu_target`` normally, but it can be overwritten with this parameter.
     4. ``gpu_include_dirs`` are not normally needed, but can be used to provide additional search paths to locate headers.
-    5. ``gpu_compile_args`` is essenitial, and proper target architechture needs to be supplied in most cases.
+    5. ``gpu_compile_args`` is essential, and proper target architecture needs to be supplied in most cases.
 
 
 In addition, libraries list should be appended by GPU blas and GPU runtime librarires. See the examples below for examples of how to utilize these commands.
 
-Example piece of siteconfig to build with HIP (AMD)::
+Example piece of siteconfig to build with HIP (AMD MI250X)::
 
     gpu = True
     gpu_target = 'hip-amd'
@@ -64,7 +64,7 @@ Example piece of siteconfig to build with HIP (AMD)::
         ]
     libraries += ['amdhip64', 'hipblas']
 
-Example piece of siteconfig to build with CUDA::
+Example piece of siteconfig to build with CUDA (NVIDIA A100)::
 
     gpu = True
     gpu_target = 'cuda'
@@ -76,23 +76,23 @@ Example piece of siteconfig to build with CUDA::
     libraries += ['cudart', 'cublas']
 
 
-To see what the siteconfig should look in practice, see 
+To see what the siteconfig should look in practice, see
 :download:`../platforms/Cray/siteconfig-lumi-gpu.py`
-(AMD MI210X) or  
+(AMD MI250X) or
 :download:`../platforms/Linux/Niflheim/siteconfig-foss.py`
 (NVIDIA A100) examples.
 
 
 GPU parallelization
 -------------------
-  
-Same paralleization options are available as with the CPU version.
-GPAW will distribute the available GPUs in round robin manner.
-As a rule of thump, always use 1 CPU per logical GPU. It rerely helps to oversubscribe the GPUs, however, it sometimes might make a small speed up.
 
-By default, GPAW will utilize GPU aware MPI, expecting the MPI library to be compiled with GPU aware MPI support.
+Same parallelization options are available as with the CPU version.
+GPAW will distribute the available GPUs in round robin manner.
+As a rule of thumb, always use 1 CPU per logical GPU. While it rarely helps to oversubscribe the GPUs, it might sometimes give a small speed up.
+
+By default, GPAW will utilize GPU-aware MPI, expecting the MPI library to be compiled with GPU-aware MPI support.
 However, if this is not the case (segfaults or bus errors occur at MPI calls),
-one may disable the GPU aware MPI with following commmand added to the siteconfig::
+one may disable the GPU-aware MPI with following commmand added to the siteconfig::
 
     undef_macros += ['GPAW_GPU_AWARE_MPI']
 
