@@ -180,6 +180,10 @@ class IsotropicExchangeCalculator:
         if txt is not None:
             self.context.new_txt_and_timer(txt)
 
+        # Even though the Heisenberg exchange constants are difficult to
+        # converge for metals, it does not really help to add finite broadening
+        # of the susceptibility. Therefore, we bite the sour apple and always
+        # evaluate the χ_KS on the real axis.
         zd = ComplexFrequencyDescriptor.from_array([0. + 0.j])
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=RealAxisWarning)

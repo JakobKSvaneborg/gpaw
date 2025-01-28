@@ -24,7 +24,7 @@ from gpaw.response.pair_functions import SingleQPWDescriptor, Chi
 
 
 class RealAxisWarning(UserWarning):
-    pass
+    """For warning users to stay off the real axis."""
 
 
 class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
