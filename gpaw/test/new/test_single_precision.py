@@ -7,6 +7,7 @@ from ase.build import molecule
 from gpaw.new.ase_interface import GPAW
 
 
+@pytest.mark.serial
 def test_single_precision():
     result = subprocess.run(
         f"GPAW_NO_C_EXTENSION=1 python {__file__}",
