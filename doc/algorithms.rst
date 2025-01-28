@@ -14,7 +14,7 @@ Quick links to all features:
     * - :ref:`XC-functionals <xc>`
       - :ref:`DFT+U <hubbardu>`
       - :ref:`GLLB-SC <band_gap>`
-    * - :ref:`DOS <pdos>`
+    * - :ref:`DOS <dos>`
       - :ref:`STM <stm tutorial>`
       - :ref:`Wannier functions <wannier>`
     * - :ref:`delta-SCF <dscf>`
