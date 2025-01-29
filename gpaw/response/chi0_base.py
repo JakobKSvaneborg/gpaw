@@ -334,7 +334,6 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
                  wd,
                  hilbert=True,
                  nbands=None,
-                 band_range=None,
                  timeordered=False,
                  ecut=50.0,
                  eta=0.2,
@@ -350,10 +349,8 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
             component is evaluated, and the reactive part is calculated via a
             hilbert transform. Only works for frequencies on the real axis and
             requires a nonlinear frequency grid.
-        nbands : int
+        nbands : int or slice
             Number of bands to include.
-        band_range : slice
-            Bands to include if lower valence bands should be excluded
         timeordered : bool
             Flag for calculating the time ordered chi0 component. Used for
             G0W0, which performs its own hilbert transform.
@@ -366,14 +363,8 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
 
         self.ecut = ecut / Ha
         self.nbands = nbands or self.gs.nbands
-        self.band_range = band_range
-
-        assert not (band_range is not None and nbands is not None), \
-            'nbands and band_range cannot be used simultaneously'
-
         self.wd = wd
         self.context.print(self.wd, flush=False)
-
         self.eta = eta / Ha
         self.hilbert = hilbert
         self.task = self.construct_integral_task()
@@ -437,12 +428,16 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         return SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
 
     def get_band_transitions(self):
-        if self.band_range is None:
+        if self.nbands is None:
             n1 = 0
             m2 = self.nbands
-        else:
-            n1 = self.band_range.start
-            m2 = self.band_range.stop
+        elif isinstance(self.nbands, int):
+            n1 = 0
+            m2 = self.nbands
+        elif isinstance(self.nbands, slice):
+            n1 = self.nbands.start
+            m2 = self.nbands.stop
+            assert n1 < m2 <= self.nbands
 
         n2 = self.gs.nocc2
         m1 = self.gs.nocc1

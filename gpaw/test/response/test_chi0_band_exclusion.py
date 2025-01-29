@@ -33,7 +33,7 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     wd2 = NonLinearFrequencyDescriptor(omegamax2 / 4000, 10 / Ha, omegamax2)
 
     chi0calc2 = Chi0Calculator(gs, context,
-                               wd=wd2, band_range=slice(3, nbands),
+                               wd=wd2, nbands=slice(3, nbands),
                                intraband=False,
                                hilbert=True,
                                eta=eta,
