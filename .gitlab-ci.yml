@@ -5,6 +5,7 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
 
 default:
   before_script:
@@ -560,10 +561,15 @@ typecheck:
   tags:
     - linux
   script:
+    - pip install --upgrade 'numpy<2.2.0'
     - pip install mypy
     - python --version
     - mypy --version
     - mypy --pretty
+  cache:
+    paths:
+      - $PIP_CACHE_DIR
+    key: $CI_PROJECT_ID
 
 
 docs:
