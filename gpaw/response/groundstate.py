@@ -284,16 +284,22 @@ class ResponseGroundStateAdapter:
             nocc2 = max((f_n > ftol).sum(), nocc2)
         return int(nocc1), int(nocc2)
 
-    def get_eigenvalue_range(self, nbands: int | None = None):
+    def get_eigenvalue_range(self, nbands: int | slice | None = None):
         """Get smallest and largest Kohn-Sham eigenvalues."""
-        nbands = nbands if nbands is not None else self.nbands
-        assert 1 <= nbands <= self.nbands
+        if nbands is None:
+            n1, m2 = 0, self.nbands
+        elif isinstance(nbands, int):
+            n1, m2 = 0, nbands
+            assert 1 <= m2 <= self.nbands
+        elif isinstance(nbands, slice):
+            n1, m2 = nbands.start, nbands.stop
+            assert n1 < m2 <= self.nbands
 
         epsmin = np.inf
         epsmax = -np.inf
         for kpt in self.kpt_u:
-            epsmin = min(epsmin, kpt.eps_n[0])  # the eigenvalues are ordered
-            epsmax = max(epsmax, kpt.eps_n[nbands - 1])
+            epsmin = min(epsmin, kpt.eps_n[n1])  # the eigenvalues are ordered
+            epsmax = max(epsmax, kpt.eps_n[m2 - 1])
         return epsmin, epsmax
 
     @property

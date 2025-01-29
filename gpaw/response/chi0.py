@@ -466,7 +466,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 def get_frequency_descriptor(
         frequencies: ArrayLike1D | dict[str, Any] | None = None, *,
         gs: ResponseGroundStateAdapter | None = None,
-        nbands: int | None = None):
+        nbands: int | slice | None = None):
     """Helper function to generate frequency descriptors.
 
     In most cases, the `frequencies` input can be processed directly via
@@ -483,7 +483,7 @@ def get_frequency_descriptor(
 
 
 def get_omegamax(gs: ResponseGroundStateAdapter,
-                 nbands: int | None = None):
+                 nbands: int | slice | None = None):
     """Get the maxmimum eigenvalue difference including nbands, in eV."""
     epsmin, epsmax = gs.get_eigenvalue_range(nbands=nbands)
     return (epsmax - epsmin) * Ha
