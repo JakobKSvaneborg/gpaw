@@ -13,6 +13,7 @@ from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.pair import get_gs_and_context
+from gpaw.response.pw_parallelization import Blocks1D
 
 
 def default_ecut_extrapolation(ecut, extrapolate):
@@ -91,11 +92,11 @@ class RPACalculator:
         self.gs = gs
         self.context = context
 
-        self.omega_w = frequencies / Hartree
-        self.weight_w = weights / Hartree
+        self.omega_W = frequencies / Hartree
+        self.weight_W = weights / Hartree / (2 * np.pi)
 
         # TODO: We should avoid this requirement.
-        assert len(self.omega_w) % nblocks == 0
+        assert len(self.omega_W) % nblocks == 0
 
         self.nblocks = nblocks
 
@@ -200,13 +201,14 @@ class RPACalculator:
             self.gs, self.context.with_txt(
                 f'{txt + "_" if txt else ""}chi0.txt'),
             nblocks=self.nblocks,
-            wd=FrequencyDescriptor(1j * self.omega_w),
+            wd=FrequencyDescriptor(1j * self.omega_W),
             eta=0.0,
             intraband=False,
             hilbert=False,
             ecut=ecutmax * Hartree)
 
-        self.blockcomm = chi0calc.chi0_body_calc.blockcomm
+        self.wblocks = Blocks1D(
+            chi0calc.chi0_body_calc.blockcomm, len(self.omega_W))
 
         energy_qi = []
         nq = len(energy_qi)
@@ -280,63 +282,56 @@ class RPACalculator:
         chi0 = chi0_s[0]
         chi0calc.update_chi0(
             chi0, m1, m2, spins=range(chi0calc.gs.nspins))
-
         self.context.print('E_c(q) = ', end='', flush=False)
+        if chi0.qpd.optical_limit:
+            rpa_energy = self.calculate_optical_limit_rpa_energy(chi0, gcut)
+        else:
+            rpa_energy = self.calculate_rpa_energy(chi0, gcut)
+        self.context.print('%.3f eV' % (rpa_energy * Hartree))
+        return rpa_energy
+
+    def calculate_optical_limit_rpa_energy(self, chi0, gcut):
+        """Calculate correlation energy from chi0 in the optical limit."""
+        from gpaw.response.gamma_int import GammaIntegrator
+
+        gamma_int = GammaIntegrator(
+            truncation=self.coulomb.truncation,
+            kd=self.gs.kd,
+            qpd=chi0.qpd,
+            chi0_wvv=chi0.chi0_Wvv[self.wblocks.myslice],
+            chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
+
+        def integrand(data):
+            iw, chi0_GG = data
+            energy = 0.
+            for iqf in range(len(gamma_int.qf_qv)):
+                gamma_int.set_appendages(chi0_GG, iw, iqf)
+                sqrtV_G = gcut.cut(
+                    self.coulomb.sqrtV(chi0.qpd, q_v=gamma_int.qf_qv[iqf]))
+                energy += gamma_int.weight_q * single_rpa_energy(
+                    chi0_GG, sqrtV_G, gcut)
+            return energy
 
         chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
+        return self.integrate(
+            integrand, data_w=zip(range(self.wblocks.nlocal), chi0_wGG))
 
-        kd = self.gs.kd
-        if not chi0.qpd.optical_limit:
-            e = self.calculate_energy_rpa(chi0.qpd, chi0_wGG, gcut)
-            self.context.print('%.3f eV' % (e * Hartree))
-        else:
-            from gpaw.response.gamma_int import GammaIntegrator
-            from gpaw.response.pw_parallelization import Blocks1D
+    def calculate_rpa_energy(self, chi0, gcut):
+        """Evaluate correlation energy from chi0 at finite q."""
+        sqrtV_G = gcut.cut(self.coulomb.sqrtV(chi0.qpd, q_v=None))
 
-            wblocks = Blocks1D(self.blockcomm, len(self.omega_w))
-            gamma_int = GammaIntegrator(
-                truncation=self.coulomb.truncation,
-                kd=kd,
-                qpd=chi0.qpd,
-                chi0_wvv=chi0.chi0_Wvv[wblocks.myslice],
-                chi0_wxvG=chi0.chi0_WxvG[wblocks.myslice])
+        def integrand(chi0_GG):
+            return single_rpa_energy(chi0_GG, sqrtV_G, gcut)
 
-            e = 0
-            for iqf in range(len(gamma_int.qf_qv)):
-                for iw in range(wblocks.nlocal):
-                    gamma_int.set_appendages(chi0_wGG[iw], iw, iqf)
-                ev = self.calculate_energy_rpa(chi0.qpd, chi0_wGG, gcut,
-                                               q_v=gamma_int.qf_qv[iqf])
-                e += ev * gamma_int.weight_q
-            self.context.print('%.3f eV' % (e * Hartree))
+        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
+        return self.integrate(integrand, data_w=chi0_wGG)
 
-        return e
-
-    @timer('Energy')
-    def calculate_energy_rpa(self, qpd, chi0_wGG, gcut, q_v=None):
-        """Evaluate correlation energy from chi0."""
-
-        sqrtV_G = gcut.cut(self.coulomb.sqrtV(qpd, q_v))
-
-        nG = len(sqrtV_G)
-
-        e_w = []
-        for chi0_GG in chi0_wGG:
-            chi0_GG = gcut.cut(chi0_GG, [0, 1])
-
-            e_GG = np.eye(nG) - chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
-            e = np.log(np.linalg.det(e_GG)) + nG - np.trace(e_GG)
-            e_w.append(e.real)
-
-        self.E_w, energy = self.gather_energies(e_w)
-        return energy
-
-    def gather_energies(self, e_w):
-        E_w = np.zeros_like(self.omega_w)
-        # XXX This requires all cores to the same number of w doesn't it?
-        self.blockcomm.all_gather(np.array(e_w), E_w)
-        energy = E_w @ self.weight_w / (2 * np.pi)
-        return E_w, energy
+    def integrate(self, integrand, *, data_w):
+        """Integrate over frequency to obtain the rpa correlation energy."""
+        energy = 0.
+        for weight, data in zip(self.weight_W[self.wblocks.myslice], data_w):
+            energy += weight * integrand(data)
+        return self.wblocks.blockcomm.sum_scalar(energy)
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
@@ -353,6 +348,14 @@ class RPACalculator:
         self.context.print('')
 
         return e_i * Hartree
+
+
+def single_rpa_energy(chi0_GG, sqrtV_G, gcut):
+    nG = len(sqrtV_G)
+    chi0_GG = gcut.cut(chi0_GG, [0, 1])
+    e_GG = np.eye(nG) - chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
+    e = np.log(np.linalg.det(e_GG)) + nG - np.trace(e_GG)
+    return e.real
 
 
 def get_gauss_legendre_points(nw=16, frequency_max=800.0, frequency_scale=2.0):
@@ -475,13 +478,13 @@ class RPACorrelation(RPACalculator):
         p('Frequencies')
         if not user_spec:
             p('    Gauss-Legendre integration with %s frequency points' %
-              len(self.omega_w))
+              len(self.omega_W))
             p('    Transformed from [0,oo] to [0,1] using e^[-aw^(1/B)]')
             p('    Highest frequency point at %5.1f eV and B=%1.1f' %
-              (self.omega_w[-1] * Hartree, frequency_scale))
+              (self.omega_W[-1] * Hartree, frequency_scale))
         else:
             p('    User specified frequency integration with',
-              len(self.omega_w), 'frequency points')
+              len(self.omega_W), 'frequency points')
         p()
         p('Parallelization')
         p('    Total number of CPUs          : % s' % self.context.comm.size)
