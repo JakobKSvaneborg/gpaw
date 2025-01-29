@@ -292,29 +292,28 @@ class RPACalculator:
 
     def calculate_optical_limit_rpa_energy(self, chi0, gcut):
         """Calculate correlation energy from chi0 in the optical limit."""
-        from gpaw.response.gamma_int import GammaIntegrator
+        from gpaw.response.gamma_int import GammaIntegral
 
-        gamma_int = GammaIntegrator(
-            truncation=self.coulomb.truncation,
-            kd=self.gs.kd,
-            qpd=chi0.qpd,
-            chi0_wvv=chi0.chi0_Wvv[self.wblocks.myslice],
-            chi0_wxvG=chi0.chi0_WxvG[self.wblocks.myslice])
+        gamma_int = GammaIntegral(self.coulomb, qpd=chi0.qpd)
 
         def integrand(data):
-            iw, chi0_GG = data
+            chi0_GG, chi0_vv, chi0_xvG = data
             energy = 0.
-            for iqf in range(len(gamma_int.qf_qv)):
-                gamma_int.set_appendages(chi0_GG, iw, iqf)
-                sqrtV_G = gcut.cut(
-                    self.coulomb.sqrtV(chi0.qpd, q_v=gamma_int.qf_qv[iqf]))
-                energy += gamma_int.weight_q * single_rpa_energy(
-                    chi0_GG, sqrtV_G, gcut)
+            for qweight, sqrtV_G, chi0_mapping in gamma_int:
+                chi0p_GG = chi0_mapping(chi0_GG, chi0_vv, chi0_xvG)
+                energy += qweight * single_rpa_energy(
+                    chi0p_GG, gcut.cut(sqrtV_G), gcut)
             return energy
 
         chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
         return self.integrate(
-            integrand, data_w=zip(range(self.wblocks.nlocal), chi0_wGG))
+            integrand,
+            data_w=zip(
+                chi0_wGG,
+                chi0.chi0_Wvv[self.wblocks.myslice],
+                chi0.chi0_WxvG[self.wblocks.myslice],
+            ),
+        )
 
     def calculate_rpa_energy(self, chi0, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
