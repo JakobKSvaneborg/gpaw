@@ -555,7 +555,7 @@ lint:
 
 
 # XXX Failing in many places with latest mypy all of a sudden
-.typecheck:
+typecheck:
   image: $IMAGE_MAIN_LATEST
   stage: build
   tags:
