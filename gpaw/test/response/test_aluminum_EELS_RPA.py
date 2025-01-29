@@ -54,6 +54,7 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
 
     # Calculate the eels spectrum using point integration at both q-points
     df1 = DielectricFunction(calc='Al.gpw', frequencies=w_w, eta=0.2, ecut=50,
+                             integrationmode='point integration',
                              hilbert=False, rate=0.2)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Al-PI_q0', q_c=q0_c)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Al-PI_q1', q_c=q1_c)

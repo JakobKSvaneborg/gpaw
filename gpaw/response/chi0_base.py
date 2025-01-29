@@ -107,8 +107,8 @@ class Chi0Integrand(Integrand):
         K = self.gs.kpoints.kptfinder.find(k_c)
         # assert point.K == K, (point.K, K)
 
-        weight = np.sqrt(self.generator.get_kpoint_weight(k_c) /
-                         self.generator.how_many_symmetries())
+        weight = np.sqrt(self.generator.get_kpoint_weight(k_c)
+                         / self.generator.how_many_symmetries())
 
         # Here we're again setting pawcorr willy-nilly
         if self._chi0calc.pawcorr is None:
@@ -125,7 +125,7 @@ class Chi0Integrand(Integrand):
                               pawcorr=self._chi0calc.pawcorr,
                               block=True)
 
-        if self.integrationmode is None:
+        if self.integrationmode == 'point integration':
             n_nmG *= weight
 
         df_nm = kptpair.get_occupation_differences()
@@ -169,7 +169,7 @@ class Chi0ComponentCalculator:
 
     def __init__(self, gs, context, *, nblocks,
                  qsymmetry: QSymmetryInput = True,
-                 integrationmode=None):
+                 integrationmode='point integration'):
         """Set up attributes common to all chi0 related calculators.
 
         Parameters
@@ -180,11 +180,11 @@ class Chi0ComponentCalculator:
             QSymmetryAnalyzer, or bool to enable all/no symmetries,
             or dict with which to create QSymmetryAnalyzer.
             Disabling symmetries may be useful for debugging.
-        integrationmode : str or None
+        integrationmode : str
             Integrator for the k-point integration.
             If == 'tetrahedron integration' then the kpoint integral is
-            performed using the linear tetrahedron method. If None, point
-            integration is used.
+            performed using the linear tetrahedron method.
+            If == 'point integration', point integration is used.
         """
         self.gs = gs
         self.context = context
@@ -215,7 +215,7 @@ class Chi0ComponentCalculator:
 
     def get_integrator_cls(self):  # -> Integrator or child of Integrator
         """Get the appointed k-point integrator class."""
-        if self.integrationmode is None:
+        if self.integrationmode == 'point integration':
             self.context.print('Using integrator: PointIntegrator')
             cls = PointIntegrator
         elif self.integrationmode == 'tetrahedron integration':
@@ -275,10 +275,10 @@ class Chi0ComponentCalculator:
         else:
             factor = 1
 
-        prefactor = (2 * factor * generator.how_many_symmetries() /
-                     (self.gs.nspins * (2 * np.pi)**3))  # Remember prefactor
+        prefactor = (2 * factor * generator.how_many_symmetries()
+                     / (self.gs.nspins * (2 * np.pi)**3))  # Remember prefactor
 
-        if self.integrationmode is None:
+        if self.integrationmode == 'point integration':
             nbzkpts = self.gs.kd.nbzkpts
             prefactor *= len(kpoints) / nbzkpts
 
@@ -290,7 +290,7 @@ class Chi0ComponentCalculator:
         symmetries, generator = self.qsymmetry.analyze(
             np.asarray(q_c), self.gs.kpoints, self.context)
 
-        if integrationmode is None:
+        if integrationmode == 'point integration':
             k_kc = generator.get_kpt_domain()
         elif integrationmode == 'tetrahedron integration':
             k_kc = generator.get_tetrahedron_kpt_domain(
@@ -365,7 +365,7 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         super().__init__(gs, context, **kwargs)
 
         self.ecut = ecut / Ha
-        self.nbands = nbands or self.gs.bd.nbands
+        self.nbands = nbands or self.gs.nbands
         self.band_range = band_range
 
         assert not (band_range is not None and nbands is not None), \
