@@ -159,7 +159,6 @@ build-latest:
 
       EOF
     - cat siteconfig.py
-    - pip install --user --upgrade numpy scipy
     - pip install --user --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
