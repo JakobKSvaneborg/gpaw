@@ -82,7 +82,7 @@ class NonSelfConsistentHSE06:
     def calculate(self,
                   ibzwfs: PWFDIBZWaveFunctions,
                   na: int = 0,
-                  nb: int = 0) -> tuple[np.ndarray, np.ndarray]:
+                  nb: int = 0) -> np.ndarray:
         comm = self.comm
         domain_comm = ibzwfs.domain_comm
         band_comm = ibzwfs.band_comm
