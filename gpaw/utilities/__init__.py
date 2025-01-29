@@ -13,14 +13,14 @@ from math import sqrt
 from pathlib import Path
 from typing import Union
 
+import gpaw.cgpaw as cgpaw
+import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.data import covalent_radii
 from ase.neighborlist import neighbor_list
-
-import gpaw.cgpaw as cgpaw
-import gpaw.mpi as mpi
-from gpaw import debug, GPAW_NO_C_EXTENSION
+from gpaw import GPAW_NO_C_EXTENSION, debug
+from gpaw.typing import DTypeLike
 
 # Code will crash for setups without any projectors.  Setups that have
 # no projectors therefore receive a dummy projector as a hacky
@@ -441,3 +441,40 @@ def convert_string_to_fd(name, world=None):
     if isinstance(name, (str, Path)):
         return open(name, 'w')
     return name  # we assume name is already a file-descriptor
+
+
+_complex_float = {
+    np.float32: np.complex64,
+    np.float64: np.complex128,
+    np.complex64: np.complex64,
+    np.complex128: np.complex128,
+    float: complex,
+    complex: complex}
+
+_real_float = {
+    np.complex64: np.float32,
+    np.complex128: np.float64,
+    np.float32: np.float32,
+    np.float64: np.float64,
+    complex: float,
+    float: float}
+
+
+def as_complex_dtype(dtype: DTypeLike) -> np.dtype:
+    """Convert dtype to complex dtype.
+
+    >>> [as_complex_dtype(dt) for dt in
+    ...  [np.float32, np.float64, complex]]
+    [dtype('complex64'), dtype('complex128'), dtype('complex128')]
+    """
+    return np.dtype(_complex_float[np.dtype(dtype).type])
+
+
+def as_real_dtype(dtype: DTypeLike) -> np.dtype:
+    """Convert dtype to complex dtype.
+
+    >>> [as_real_dtype(dt) for dt in
+    ...  [np.float32, np.float64, complex]]
+    [dtype('float32'), dtype('float64'), dtype('float64')]
+    """
+    return np.dtype(_real_float[np.dtype(dtype).type])

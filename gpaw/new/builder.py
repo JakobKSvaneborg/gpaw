@@ -67,6 +67,7 @@ class DFTComponentsBuilder:
     def __init__(self,
                  atoms: Atoms,
                  params: InputParameters,
+                 dtype: None | DTypeLike = None,
                  *,
                  comm):
 
@@ -150,13 +151,16 @@ class DFTComponentsBuilder:
             self.nbands *= 2
 
         self.dtype: DTypeLike
-        if self.params.mode.get('force_complex_dtype', False):
-            self.dtype = complex
-        else:
-            if self.ibz.bz.gamma_only and self.ncomponents < 4:
-                self.dtype = float
-            else:
+        if dtype is None:
+            if self.params.mode.get('force_complex_dtype', False):
                 self.dtype = complex
+            else:
+                if self.ibz.bz.gamma_only and self.ncomponents < 4:
+                    self.dtype = float
+                else:
+                    self.dtype = complex
+        else:
+            self.dtype = dtype
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 

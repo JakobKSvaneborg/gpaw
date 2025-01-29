@@ -17,6 +17,9 @@ Git master branch
 
 * Preliminary support for ``wasm32`` architecture (web-browsers).
 
+* Experimental support for calculations with wave-functions in
+  single precision.
+
 
 Version 25.1.0
 ==============
