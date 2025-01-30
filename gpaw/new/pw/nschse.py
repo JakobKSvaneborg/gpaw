@@ -14,7 +14,6 @@ from gpaw.new.density import Density
 from gpaw.new.pw.hybrids import fft, pawexxvv, truncated_coulomb
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
@@ -100,28 +99,26 @@ class NonSelfConsistentHSE06:
         for k, kpt_comm_rank in enumerate(kpt_comm_rank_k):
             eig_sn = []
             for spin in range(ibzwfs.nspins):
+                data = None
                 if kpt_comm_rank == kpt_comm.rank:
                     q = ibzwfs.q_k[k]
                     wfs = ibzwfs.wfs_qs[q][spin].collect(na, nb)
                     if wfs is not None:
-                        wfs = wfs.psit_nX, wfs.P_ani, wfs.eig_n, spin
-                else:
-                    wfs = None
-                wfs = broadcast(wfs, comm_rank_k[k], comm)
-                eig_n = self.calculate_one_kpt(wfs)
+                        data = (wfs.psit_nX, wfs.P_ani, wfs.eig_n, spin)
+                args = broadcast(data, comm_rank_k[k], comm)
+                eig_n = self.calculate_one_kpt(*args)
                 eig_sn.append(eig_n)
             eig_ksn.append(eig_sn)
 
         return np.array(eig_ksn).transpose((1, 0, 2))
 
     def calculate_one_kpt(self,
-                          wfs: PWFDWaveFunctions
-                          ) -> tuple[np.ndarray, np.ndarray]:
+                          psit2_nG: PWArray,
+                          P2_ani: AtomArrays,
+                          eig0_n: np.ndarray,
+                          spin: int) -> np.ndarray:
         """Calculate eigenvalues at one k-point (in eV)."""
-        psit2_nG, P2_ani, eig0_n, spin = wfs
-        # P2_ani = wfs.P_ani
         ut2_nR = self.grid.empty(len(psit2_nG))  # wfs.nbands)
-        # psit2_nG = wfs.psit_nX
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
         deig_n = self._semi_local_xc_part(ut2_nR, spin)
@@ -137,21 +134,20 @@ class NonSelfConsistentHSE06:
         pw2 = psit2_nG.desc
         eig_n = np.zeros_like(eig0_n)
         for psit1 in self.mypsits:
-            if psit1.spin == wfs.spin:
+            if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = truncated_coulomb(pw, self.hse06_omega)
                 eig_n += self._exx_part(v_G, psit1, ut2_nR, P2_ani)
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
 
-        # eig0_n = wfs.eig_n
-        return eig0_n * Ha, (deig_n + eig_n + eig0_n) * Ha
+        return (deig_n + eig_n + eig0_n) * Ha
 
     def _exx_part(self,
                   v_G: PWArray,
                   psit1: Psit,
                   ut2_nR: UGArray,
-                  P2_ani: dict[int, np.ndarray]) -> np.ndarray:
+                  P2_ani: AtomArrays) -> np.ndarray:
         """"""
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL

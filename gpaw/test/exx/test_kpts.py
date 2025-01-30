@@ -122,18 +122,15 @@ def test_2d():
               pbc=(1, 1, 0))
     n = 4
     a.calc = GPAW(mode=PW(200),
-                  # setups='ae',
-                  #symmetry='off',
                   parallel={'kpt': 1},
                   kpts=(n, n, 1),
-                  )#txt=None)
+                  txt=None)
     a.get_potential_energy()
-    #e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
-    #e_skn = e0 - v0 + v
+    e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
+    e_skn = e0 - v0 + v
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
-    e0_n, e_n = hse.calculate(a.calc.dft.ibzwfs)
-    #print(e0 - e0_n)
-    #print(e_n - e_skn[0])
+    e_n = hse.calculate(a.calc.dft.ibzwfs)
+    print(e_n - e_skn)
     print(e_n)
     # assert e_n == pytest.approx(e_skn[0, k], abs=0.004)
 
