@@ -26,24 +26,19 @@ def mos2() -> None:
 def bandstructure(calc, bp):
     from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
     hse = NonSelfConsistentHSE06.from_dft_calculation(calc.dft)
-    if 0:
+    if 1:
         e0, v0, v = non_self_consistent_eigenvalues(calc, 'HSE06')
-        for k, wfs in enumerate(calc.dft.ibzwfs):
-            lda_n, hse_n = hse.calculate(wfs)
-            # print(k)
-            # print(lda_n - e0[0, k])
-            print(k, wfs.kpt_c, hse_n - (e0 - v0 + v)[0, k])
+        hse_n = hse.calculate(calc.dft.ibzwfs)
+        print(hse_n - (e0 - v0 + v))
         1 / 0
     efermi = calc.get_fermi_level()
     bs_calc = calc.fixed_density(kpts=bp, symmetry='off')
     lda_skn = bs_calc.eigenvalues()
     print(lda_skn)
-    hse_kn = np.empty_like(lda_skn[0])
     hse = NonSelfConsistentHSE06.from_dft_calculation(calc.dft)
-    for k, wfs in enumerate(bs_calc.dft.ibzwfs):
-        lda_n, hse_kn[k] = hse.calculate(wfs)
-        print(k, lda_n)
-    return lda_skn[0] - efermi, hse_kn - efermi
+    hse_skn = hse.calculate(bs_calc.dft.ibzwfs)
+    print(hse_skn)
+    return lda_skn[0] - efermi, hse_skn[0] - efermi
 
 
 def run():
@@ -52,7 +47,7 @@ def run():
     # bp = atoms.cell.bandpath('KG', npoints=10)
     lda_kn, hse_kn = bandstructure(atoms.calc, bp)
     if world.rank == 0:
-        Path('bs0.pckl').write_bytes(pickle.dumps((bp, lda_kn, hse_kn)))
+        Path('bs.pckl').write_bytes(pickle.dumps((bp, lda_kn, hse_kn)))
 
 
 def plot(bp, lda_kn, hse_kn):
@@ -72,7 +67,7 @@ def plot(bp, lda_kn, hse_kn):
 
 
 if __name__ == '__main__':
-    path = Path('bs0.pckl')
+    path = Path('bs?.pckl')
     if not path.is_file():
         run()
     else:

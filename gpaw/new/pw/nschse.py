@@ -22,6 +22,7 @@ from gpaw.mpi import broadcast
 
 @dataclass
 class Psit:
+
     ut_nR: UGArray
     P_ani: AtomArrays
     f_n: np.ndarray
@@ -118,7 +119,7 @@ class NonSelfConsistentHSE06:
                           eig0_n: np.ndarray,
                           spin: int) -> np.ndarray:
         """Calculate eigenvalues at one k-point (in eV)."""
-        ut2_nR = self.grid.empty(len(psit2_nG))  # wfs.nbands)
+        ut2_nR = self.grid.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
         deig_n = self._semi_local_xc_part(ut2_nR, spin)
@@ -251,7 +252,6 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     for iK in range(comm.rank, nblocks * nbzk, comm.size):
         i, K = divmod(iK, nbzk)
         na, nb = nanb_i[i]
-        print(comm.rank, K, na, nb)
         if na == nb:
             continue
         rank = rank_K[K]
