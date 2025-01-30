@@ -45,7 +45,7 @@ class Chi0Integrand(Integrand):
 
         assert m1 <= m2
         assert n1 < n2 <= chi0calc.gs.nocc2
-        assert n1 <= m1
+        assert n1 <= chi0calc.gs.nocc1
         assert chi0calc.gs.nocc1 <= m1
         self.m1 = m1
         self.m2 = m2
