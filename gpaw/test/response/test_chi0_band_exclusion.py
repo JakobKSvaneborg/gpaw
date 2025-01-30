@@ -66,10 +66,12 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     assert chi0_data1.chi0_Wvv[:n_freq_points] == pytest.approx(
         chi0_data2.chi0_Wvv[:n_freq_points], rel=1e-3, abs=1e-4)
 
-    # test assertion error when n1 >= n2 (n2=9)
+    # test assertion error when n1 >= n2
+    n2 = gs.nocc2
+    m1 = gs.nocc1
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
-                                  wd=wd2, nbands=slice(9, nbands_max),
+                                  wd=wd2, nbands=slice(n2, nbands_max),
                                   intraband=False,
                                   hilbert=True,
                                   eta=eta,
@@ -79,7 +81,7 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
-                                  wd=wd2, nbands=slice(10, nbands_max),
+                                  wd=wd2, nbands=slice(n2+1, nbands_max),
                                   intraband=False,
                                   hilbert=True,
                                   eta=eta,
@@ -87,10 +89,10 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
                                   eshift=None)
         chi0calc.calculate(q_c=[0, 0, 0])
 
-    # test assertion error when n1 > m1 (m1=7)
+    # test assertion error when n1 > m1
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
-                                  wd=wd2, nbands=slice(8, nbands_max),
+                                  wd=wd2, nbands=slice(m1+1, nbands_max),
                                   intraband=False,
                                   hilbert=True,
                                   eta=eta,
