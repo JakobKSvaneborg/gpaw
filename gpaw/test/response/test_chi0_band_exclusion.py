@@ -18,12 +18,12 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     omegamax2 = get_omegamax(gs, nbands=slice(0, nbands_max))
     wd2 = FrequencyDescriptor.from_array_or_dict({'type': 'nonlinear',
                                                   'domega0': omegamax2 / 4000,
-                                                  'omega2': 10, 
+                                                  'omega2': 10,
                                                   'omegamax': omegamax2})
     omegamax1 = get_omegamax(gs, nbands=slice(3, nbands_max))
     wd1 = FrequencyDescriptor.from_array_or_dict({'type': 'nonlinear',
-                                                  'domega0': omegamax2 / 4000, 
-                                                  'omega2': 10, 
+                                                  'domega0': omegamax2 / 4000,
+                                                  'omega2': 10,
                                                   'omegamax': omegamax1})
 
     chi0calc1 = Chi0Calculator(gs, context,
