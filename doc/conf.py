@@ -22,7 +22,8 @@ extensions = ['images',
               'sphinx.ext.napoleon',
               'sphinx.ext.mathjax',
               'sphinx.ext.intersphinx',
-              'sphinxcontrib.jquery']
+              'sphinxcontrib.jquery',
+              'sphinx_charts.charts']
 
 if sphinxcontrib:
     extensions.append('sphinxcontrib.spelling')
