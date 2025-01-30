@@ -206,15 +206,16 @@ def main():
     activate = venv / 'bin/activate'
     gpaw = venv / 'gpaw'
 
+    intel_only = args.toolchain == 'intel'
+
     if args.recompile:
-        compile_gpaw_c_code(gpaw, activate)
+        compile_gpaw_c_code(gpaw, activate, intel_only)
         return 0
 
     # Sanity checks
     if args.toolchain not in ('foss', 'intel'):
         raise ValueError(f'Unsupported toolchain "{args.toolchain}"')
 
-    intel_only = args.toolchain == 'intel'
 
     module_cmds = module_cmds_all.format(**toolchains[args.toolchain])
     if not args.piponly:
