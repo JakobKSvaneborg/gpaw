@@ -216,7 +216,6 @@ def main():
     if args.toolchain not in ('foss', 'intel'):
         raise ValueError(f'Unsupported toolchain "{args.toolchain}"')
 
-
     module_cmds = module_cmds_all.format(**toolchains[args.toolchain])
     if not args.piponly:
         module_cmds += module_cmds_easybuild.format(
