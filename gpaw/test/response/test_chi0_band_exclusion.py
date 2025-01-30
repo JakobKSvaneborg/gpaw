@@ -34,7 +34,7 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     chi0calc1 = Chi0Calculator(gs, context,
                                wd=wd1, nbands=nbands_max,
-                               intraband=False,
+                               intraband=True,
                                hilbert=True,
                                eta=eta,
                                ecut=ecut,
@@ -44,7 +44,7 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     chi0calc2 = Chi0Calculator(gs, context,
                                wd=wd2, nbands=slice(3, nbands_max),
-                               intraband=False,
+                               intraband=True,
                                hilbert=True,
                                eta=eta,
                                ecut=ecut,
