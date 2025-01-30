@@ -1,9 +1,8 @@
 from gpaw.mpi import world
 from gpaw.response.pair import get_gs_and_context
 from gpaw.response.chi0 import Chi0Calculator, get_omegamax
-from ase.units import Ha
 import pytest
-from gpaw.response.frequencies import NonLinearFrequencyDescriptor
+from gpaw.response.frequencies import FrequencyDescriptor
 
 
 @pytest.mark.response
@@ -16,10 +15,16 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     eta = 0.1
     nbands_max = 14
 
-    omegamax2 = get_omegamax(gs, nbands=slice(0, nbands_max)) / Ha
-    wd2 = NonLinearFrequencyDescriptor(omegamax2 / 4000, 10 / Ha, omegamax2)
-    omegamax1 = get_omegamax(gs, nbands=slice(3, nbands_max)) / Ha
-    wd1 = NonLinearFrequencyDescriptor(omegamax2 / 4000, 10 / Ha, omegamax1)
+    omegamax2 = get_omegamax(gs, nbands=slice(0, nbands_max))
+    wd2 = FrequencyDescriptor.from_array_or_dict({'type': 'nonlinear',
+                                                  'domega0': omegamax2 / 4000,
+                                                  'omega2': 10, 
+                                                  'omegamax': omegamax2})
+    omegamax1 = get_omegamax(gs, nbands=slice(3, nbands_max))
+    wd1 = FrequencyDescriptor.from_array_or_dict({'type': 'nonlinear',
+                                                  'domega0': omegamax2 / 4000, 
+                                                  'omega2': 10, 
+                                                  'omegamax': omegamax1})
 
     chi0calc1 = Chi0Calculator(gs, context,
                                wd=wd1, nbands=nbands_max,
