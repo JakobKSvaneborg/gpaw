@@ -16,8 +16,10 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     eta = 0.1
     nbands_max = 14
 
+    omegamax2 = get_omegamax(gs, nbands=slice(0, nbands_max)) / Ha
+    wd2 = NonLinearFrequencyDescriptor(omegamax2 / 4000, 10 / Ha, omegamax2)
     omegamax1 = get_omegamax(gs, nbands=slice(3, nbands_max)) / Ha
-    wd1 = NonLinearFrequencyDescriptor(omegamax1 / 1000, 10 / Ha, omegamax1)
+    wd1 = NonLinearFrequencyDescriptor(omegamax2 / 4000, 10 / Ha, omegamax1)
 
     chi0calc1 = Chi0Calculator(gs, context,
                                wd=wd1, nbands=nbands_max,
@@ -28,9 +30,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
                                eshift=None)
 
     chi0_data1 = chi0calc1.calculate(q_c=[0, 0, 0])
-
-    omegamax2 = get_omegamax(gs, nbands=slice(0, nbands_max)) / Ha
-    wd2 = NonLinearFrequencyDescriptor(omegamax2 / 4000, 10 / Ha, omegamax2)
 
     chi0calc2 = Chi0Calculator(gs, context,
                                wd=wd2, nbands=slice(3, nbands_max),
