@@ -7,6 +7,12 @@ from gpaw.response.frequencies import FrequencyDescriptor
 
 @pytest.mark.response
 def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
+    """Testing the removal of the lowest three valence bands in a chi0
+    calculation for Ni. This is done by comparing two chi0 calculation: one
+    includs all bands but limits the frequency grid to exclude the transitions
+    from the 3 lowest valence bands, and the other explicitly excludes
+    these bands but extends the grid to cover their transition range.
+    The real part is obtained via a Hilbert transform"""
 
     gs, context = get_gs_and_context(
         gpw_files['ni_pw'], txt=None, world=world, timer=None)
