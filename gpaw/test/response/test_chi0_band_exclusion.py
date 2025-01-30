@@ -81,7 +81,7 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
-                                  wd=wd2, nbands=slice(n2+1, nbands_max),
+                                  wd=wd2, nbands=slice(n2 + 1, nbands_max),
                                   intraband=False,
                                   hilbert=True,
                                   eta=eta,
@@ -92,7 +92,7 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     # test assertion error when n1 > m1
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
-                                  wd=wd2, nbands=slice(m1+1, nbands_max),
+                                  wd=wd2, nbands=slice(m1 + 1, nbands_max),
                                   intraband=False,
                                   hilbert=True,
                                   eta=eta,
