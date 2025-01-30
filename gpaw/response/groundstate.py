@@ -293,7 +293,7 @@ class ResponseGroundStateAdapter:
             assert 1 <= m2 <= self.nbands
         elif isinstance(nbands, slice):
             n1, m2 = nbands.start, nbands.stop
-            assert n1 < m2 <= self.nbands
+            assert n1 < m2 <= self.bd.nbands
 
         epsmin = np.inf
         epsmax = -np.inf
