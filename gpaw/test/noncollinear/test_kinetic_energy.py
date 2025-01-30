@@ -18,8 +18,8 @@ def test_kinetic_energy(gpw_files):
     setup = calc.dft.setups[0]
 
     # Kinetic energy calculated from sum of bands (the standard way):
-    Ekin1 = (calc.dft.ibzwfs.energies['band'] +
-             calc.dft.potential.energies['kinetic'])
+    Ekin1 = (calc.dft.energies._energies['band'] +
+             calc.dft.energies._energies['kinetic_correction'])
 
     # Kinetic energy calculated directly from second-order derivative:
     wfs = calc.dft.ibzwfs.wfs_qs[0][0]

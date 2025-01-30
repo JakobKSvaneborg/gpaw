@@ -430,7 +430,7 @@ class WaveFunctions:
         # and there.
         return np.nan
 
-    def get_homo_lumo(self, spin=None):
+    def get_homo_lumo(self, spin=None, _gllb=False):
         """Return HOMO and LUMO eigenvalues."""
         if spin is None:
             if self.nspins == 1:
@@ -439,7 +439,17 @@ class WaveFunctions:
             h1, l1 = self.get_homo_lumo(1)
             return np.array([max(h0, h1), min(l0, l1)])
 
-        n = self.nvalence // 2
+        if _gllb:
+            # Backwards compatibility (see test/gllb/test_metallic.py test)
+            n = self.nvalence // 2
+        else:
+            nocc = 0.0
+            for kpt in self.kpt_u:
+                if kpt.s == spin:
+                    nocc += kpt.f_n.sum()
+            nocc = self.kptband_comm.sum_scalar(nocc) * self.nspins / 2
+            n = int(round(nocc))
+
         band_rank, myn = self.bd.who_has(n - 1)
         homo = -np.inf
         if self.bd.comm.rank == band_rank:
@@ -511,35 +521,36 @@ class WaveFunctions:
                 writer.fill(self.collect_occupations(k, s) / weight)
 
     def read(self, reader):
-        r = reader.wave_functions
+        wfs_reader = reader.wave_functions
         # Backward compatibility:
         # Take parameters from main reader
-        if 'ha' not in r:
-            r.ha = reader.ha
-        if 'version' not in r:
-            r.version = reader.version
+        if 'ha' not in wfs_reader:
+            wfs_reader.ha = reader.ha
+        if 'version' not in wfs_reader:
+            wfs_reader.version = reader.version
 
         if reader.version >= 3:
-            self.fermi_levels = r.fermi_levels / r.ha
+            self.fermi_levels = wfs_reader.fermi_levels / wfs_reader.ha
         else:
             o = reader.occupations
             self.fermi_levels = np.array(
                 [o.fermilevel + o.split / 2,
-                 o.fermilevel - o.split / 2]) / r.ha
+                 o.fermilevel - o.split / 2]) / wfs_reader.ha
             if self.occupations.name != 'fixmagmom':
                 assert o.split == 0.0
                 self.fermi_levels = self.fermi_levels[:1]
 
         if reader.version >= 2:
-            kpts = r.kpts
+            kpts = wfs_reader.kpts
             assert np.allclose(kpts.ibzkpts, self.kd.ibzk_kc)
             assert np.allclose(kpts.bzkpts, self.kd.bzk_kc)
             assert (kpts.bz2ibz == self.kd.bz2ibz_k).all()
             assert np.allclose(kpts.weights, self.kd.weight_k)
 
-        self.read_projections(r)
-        self.read_eigenvalues(r, r.version <= 0)
-        self.read_occupations(r, r.version <= 0)
+        if 'projections' in wfs_reader:
+            self.read_projections(wfs_reader)
+        self.read_eigenvalues(wfs_reader, wfs_reader.version <= 0)
+        self.read_occupations(wfs_reader, wfs_reader.version <= 0)
 
     def read_projections(self, reader):
         nslice = self.bd.get_slice()

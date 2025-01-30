@@ -24,7 +24,7 @@ class LCAOWaveFunctions(WaveFunctions):
                  S_MM: Matrix,
                  T_MM: Matrix,
                  P_aMi,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  atomdist: AtomDistribution,
                  kpt_c=(0.0, 0.0, 0.0),
                  domain_comm: MPIComm = serial_comm,
@@ -40,7 +40,7 @@ class LCAOWaveFunctions(WaveFunctions):
                          k=k,
                          kpt_c=kpt_c,
                          weight=weight,
-                         fracpos_ac=fracpos_ac,
+                         relpos_ac=relpos_ac,
                          atomdist=atomdist,
                          ncomponents=ncomponents,
                          dtype=C_nM.dtype,
@@ -62,14 +62,14 @@ class LCAOWaveFunctions(WaveFunctions):
         self._L_MM = None
 
     def move(self,
-             fracpos_ac: Array2D,
+             relpos_ac: Array2D,
              atomdist: AtomDistribution,
              move_wave_functions) -> None:
-        self._update_phases(fracpos_ac)
-        super().move(fracpos_ac, atomdist, move_wave_functions)
+        self._update_phases(relpos_ac)
+        super().move(relpos_ac, atomdist, move_wave_functions)
         self._L_MM = None
 
-    def _update_phases(self, fracpos_ac):
+    def _update_phases(self, relpos_ac):
         """Complex-rotate coefficients compensating discontinuous phase shift.
 
         This changes the coefficients to counteract the phase discontinuity
@@ -86,7 +86,7 @@ class LCAOWaveFunctions(WaveFunctions):
         C_nM = self.C_nM.data
         if C_nM.dtype == float:
             return
-        diff_ac = (fracpos_ac - self.fracpos_ac).round()
+        diff_ac = (relpos_ac - self.relpos_ac).round()
         if not diff_ac.any():
             return
         phase_a = np.exp(2j * np.pi * diff_ac @ self.kpt_c)
@@ -121,17 +121,26 @@ class LCAOWaveFunctions(WaveFunctions):
         1 / 0
 
     @property
+    def _layout(self):
+        atomdist = AtomDistribution.from_atom_indices(
+            list(self.P_aMi),
+            self.domain_comm,
+            natoms=len(self.setups))
+        return AtomArraysLayout([setup.ni for setup in self.setups],
+                                atomdist=atomdist,
+                                dtype=self.dtype)
+
+    @property
     def P_ani(self):
         if self._P_ani is None:
-            atomdist = AtomDistribution.from_atom_indices(
-                list(self.P_aMi),
-                self.domain_comm,
-                natoms=len(self.setups))
-            layout = AtomArraysLayout([setup.ni for setup in self.setups],
-                                      atomdist=atomdist,
-                                      dtype=self.dtype)
-            self._P_ani = layout.empty(self.nbands,
-                                       comm=self.C_nM.dist.comm)
+            self._P_ani = self._layout.empty(self.nbands,
+                                             comm=self.C_nM.dist.comm)
+            # As a hack, builder.py injects a NaN in the first element of
+            # C_nM.data in order for us to be able to tell that the
+            # data is uninitialized:
+            # if np.isnan(self.C_nM.data.flat[0]):
+            #   raise RuntimeError('There are no projections or wavefunctions')
+
             for a, P_Mi in self.P_aMi.items():
                 self._P_ani[a][:] = self.C_nM.data @ P_Mi
 
@@ -214,7 +223,7 @@ class LCAOWaveFunctions(WaveFunctions):
             S_MM=self.S_MM,
             T_MM=self.T_MM,
             P_aMi=self.P_aMi,
-            fracpos_ac=self.fracpos_ac,
+            relpos_ac=self.relpos_ac,
             atomdist=self.atomdist.gather(),
             kpt_c=self.kpt_c,
             spin=self.spin,
@@ -247,7 +256,7 @@ class LCAOWaveFunctions(WaveFunctions):
                                  S_MM=None,
                                  T_MM=None,
                                  P_aMi=None,
-                                 fracpos_ac=self.fracpos_ac,
+                                 relpos_ac=self.relpos_ac,
                                  atomdist=self.atomdist.gather(),
                                  kpt_c=kpt_c,
                                  spin=spin,

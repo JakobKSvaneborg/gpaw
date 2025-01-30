@@ -21,6 +21,7 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities.blas import axpy
+from gpaw.new.energies import DFTEnergies
 
 
 class Davidson(Eigensolver):
@@ -82,7 +83,9 @@ class Davidson(Eigensolver):
                 ibzwfs,
                 density,
                 potential,
-                hamiltonian: Hamiltonian) -> float:
+                hamiltonian: Hamiltonian,
+                pot_calc,
+                energies: DFTEnergies) -> tuple[float, DFTEnergies]:
         """Iterate on state given fixed hamiltonian.
 
         Returns
@@ -116,8 +119,9 @@ class Davidson(Eigensolver):
             for wfs, weight_n in zips(ibzwfs, weight_un):
                 e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
                 error += wfs.weight * e
-        return ibzwfs.kpt_band_comm.sum_scalar(
+        error = ibzwfs.kpt_band_comm.sum_scalar(
             float(error)) * ibzwfs.spin_degeneracy
+        return error, energies
 
     @trace
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
@@ -163,7 +167,6 @@ class Davidson(Eigensolver):
 
         Ht = partial(Ht, out=residual_nX, spin=wfs.spin)
         dH = partial(dH, spin=wfs.spin)
-
         calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
 
         def copy(C_nn: Array2D) -> None:
@@ -282,7 +285,8 @@ def calculate_residuals(residual_nX: XArray,
     else:
         subscripts = 'nsI, n -> nsI'
     if xp is np:
-        np.einsum(subscripts, P2_ani.data, eig_n, out=P2_ani.data)
+        np.einsum(subscripts, P2_ani.data, eig_n, out=P2_ani.data,
+                  dtype=P2_ani.data.dtype, casting='same_kind')
     else:
         P2_ani.data[:] = xp.einsum(subscripts, P2_ani.data, eig_n)
     P1_ani.data -= P2_ani.data

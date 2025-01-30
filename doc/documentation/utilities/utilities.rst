@@ -4,6 +4,9 @@
 Utilities
 =========
 
+.. autofunction:: as_real_dtype
+.. autofunction:: as_complex_dtype
+
 .. autoclass:: gpaw.utilities.partition.AtomPartition
     :members:
 

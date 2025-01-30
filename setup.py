@@ -77,6 +77,7 @@ scalapack = False
 libvdwxc = False
 elpa = False
 gpu = False
+intelmkl = False
 
 # Advanced:
 # If these are defined, they replace
@@ -222,6 +223,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                    (scalapack, 'GPAW_WITH_SL'),
                    (libvdwxc, 'GPAW_WITH_LIBVDWXC'),
                    (elpa, 'GPAW_WITH_ELPA'),
+                   (intelmkl, 'GPAW_WITH_INTEL_MKL'),
                    (gpu, 'GPAW_GPU'),
                    (gpu, 'GPAW_GPU_AWARE_MPI'),
                    (gpu and gpu_target == 'cuda',
@@ -397,7 +399,8 @@ setup(name='gpaw',
       python_requires=python_requires,
       install_requires=[f'ase>={ase_version_required}',
                         'numpy',
-                        'scipy>=1.6.0'],
+                        'scipy>=1.6.0',
+                        'gpaw-data'],
       extras_require={'docs': ['sphinx-rtd-theme',
                                'sphinxcontrib-jquery',
                                'plotly',

@@ -28,8 +28,8 @@ def test_exx_double_cell(in_tmp_dir):
     if 0:
         # To check against numeric calculation of the forces, but it takes
         # more time
-        from ase.calculators.test import numeric_force
-        f1n = numeric_force(a, 1, 0, 0.001)
+        from gpaw.test import calculate_numerical_forces
+        f1n = calculate_numerical_forces(a, 0.001, [1], [0])[0, 0]
         assert abs(f1[1, 0] - f1n) < 0.0005
 
     a *= (1, 1, 2)

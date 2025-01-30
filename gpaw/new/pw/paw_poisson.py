@@ -23,7 +23,7 @@ class PAWPoissonSolver:
         return self.poisson_solver.dipole_layer_correction()
 
     def move(self,
-             fracpos_ac: np.ndarray,
+             relpos_ac: np.ndarray,
              atomdist: AtomDistribution) -> None:
         raise NotImplementedError
 
@@ -44,7 +44,7 @@ class SlowPAWPoissonSolver(PAWPoissonSolver):
                  # cutoff_a,
                  setups: Setups,
                  poisson_solver,
-                 fracpos_ac: np.ndarray,
+                 relpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
                  xp=np):
         super().__init__(poisson_solver)
@@ -53,16 +53,16 @@ class SlowPAWPoissonSolver(PAWPoissonSolver):
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.pwh = poisson_solver.pw
         self.ghat_aLh = setups.create_compensation_charges(
-            self.pwh, fracpos_ac, atomdist, xp)
+            self.pwh, relpos_ac, atomdist, xp)
         self.h_g, self.g_r = self.pwh.map_indices(self.pwg0)
         if xp is cp:
             self.h_g = cp.asarray(self.h_g)
             self.g_r = [cp.asarray(g) for g in self.g_r]
 
     def move(self,
-             fracpos_ac: np.ndarray,
+             relpos_ac: np.ndarray,
              atomdist: AtomDistribution) -> None:
-        self.ghat_aLh.move(fracpos_ac, atomdist)
+        self.ghat_aLh.move(relpos_ac, atomdist)
 
     def solve(self,
               nt_g: PWArray,
@@ -125,7 +125,7 @@ class SimplePAWPoissonSolver(PAWPoissonSolver):
                  pwg: PWDesc,
                  cutoff_a,
                  poisson_solver,
-                 fracpos_ac: np.ndarray,
+                 relpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
                  xp=np):
         self.xp = xp
@@ -146,7 +146,7 @@ class SimplePAWPoissonSolver(PAWPoissonSolver):
             ghat_al.append(ghat_l)
 
         self.ghat_aLg = pwg.atom_centered_functions(
-            ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
+            ghat_al, relpos_ac, atomdist=atomdist, xp=xp)
 
     def solve(self,
               nt_g: PWArray,

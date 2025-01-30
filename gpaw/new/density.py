@@ -14,7 +14,7 @@ from gpaw.mpi import MPIComm
 from gpaw.new import trace, zips
 from gpaw.typing import Array3D, Vector
 from gpaw.utilities import unpack_hermitian, unpack_density
-from gpaw.new.symmetry import SymmetrizationPlan
+from gpaw.new.symmetry import SymmetrizationPlan, GPUSymmetrizationPlan
 from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
@@ -148,8 +148,8 @@ class Density:
                                           scale=1.0 / (self.ncomponents % 3))
         return self._tauct_R
 
-    def new(self, new_grid, pw, fracpos_ac, atomdist):
-        self.move(fracpos_ac, atomdist)
+    def new(self, new_grid, pw, relpos_ac, atomdist):
+        self.move(relpos_ac, atomdist)
         new_pw = PWDesc(ecut=0.99 * new_grid.ekin_max(),
                         cell=new_grid.cell,
                         comm=new_grid.comm)
@@ -246,32 +246,23 @@ class Density:
         xp = self.nt_sR.xp
         if xp is np:
             D_asii = self.D_asii.gather(broadcast=True, copy=True)
-            for a1, D_sii in self.D_asii.items():
-                D_sii[:] = 0.0
-                rotation_sii = symmetries.rotations(self.l_aj[a1], xp)
-                for a2, rotation_ii in zips(symmetries.a_sa[:, a1],
-                                            rotation_sii):
-                    D_sii += xp.einsum('ij, sjk, lk -> sil',
-                                       rotation_ii, D_asii[a2], rotation_ii)
-            self.D_asii.data *= 1.0 / len(symmetries)
+            if self.symplan is None:
+                self.symplan = SymmetrizationPlan(symmetries, self.l_aj)
+            self.symplan.apply_distributed(D_asii, self.D_asii)
         else:
             # GPU version does all the work in rank 0 for now
             D_asii = self.D_asii.gather(copy=True)
             if self.D_asii.layout.atomdist.comm.rank == 0:
                 if self.symplan is None:
-                    self.symplan = SymmetrizationPlan(xp, symmetries.rotations,
-                                                      symmetries.a_sa,
-                                                      self.l_aj,
-                                                      D_asii.layout)
-
+                    self.symplan = GPUSymmetrizationPlan(
+                        symmetries, self.l_aj, D_asii.layout)
                 self.symplan.apply(D_asii.data, D_asii.data)
-
             self.D_asii.scatter_from(D_asii)
 
-    def move(self, fracpos_ac, atomdist):
+    def move(self, relpos_ac, atomdist):
         self.nt_sR.data[:self.ndensities] -= self.nct_R.data
-        self.nct_aX.move(fracpos_ac, atomdist)
-        self.tauct_aX.move(fracpos_ac, atomdist)
+        self.nct_aX.move(relpos_ac, atomdist)
+        self.tauct_aX.move(relpos_ac, atomdist)
         self._nct_R = None
         self._tauct_R = None
         self.nt_sR.data[:self.ndensities] += self.nct_R.data
@@ -298,11 +289,11 @@ class Density:
             nct_aX=self.nct_aX.new(xdesc, atomdist),
             tauct_aX=self.tauct_aX.new(xdesc, atomdist))
 
-    def calculate_dipole_moment(self, fracpos_ac):
+    def calculate_dipole_moment(self, relpos_ac):
         dip_v = np.zeros(3)
         ccc_aL = self.calculate_compensation_charge_coefficients()
         ccc_aL = ccc_aL.to_cpu()
-        pos_av = fracpos_ac @ self.nt_sR.desc.cell_cv
+        pos_av = relpos_ac @ self.nt_sR.desc.cell_cv
         for a, ccc_L in ccc_aL.items():
             c = ccc_L[0]
             dip_v -= c * (4 * pi)**0.5 * pos_av[a]
@@ -363,7 +354,7 @@ class Density:
 
         return magmom_v, magmom_av
 
-    def write(self, writer):
+    def write_to_gpw(self, writer, flags):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
         if self.taut_sR is not None:
@@ -371,10 +362,11 @@ class Density:
         if D_asp is None:
             return  # let master do the writing
         writer.write(
-            density=nt_sR.data * Bohr**-3,
+            density=flags.to_storage_dtype(nt_sR.data * Bohr**-3),
             atomic_density_matrices=D_asp.data)
         if self.taut_sR is not None:
-            writer.write(ked=taut_sR.data * (Ha * Bohr**-3))
+            writer.write(ked=flags.to_storage_dtype(
+                taut_sR.data * (Ha * Bohr**-3)))
 
 
 def atomic_occupation_numbers(setup,

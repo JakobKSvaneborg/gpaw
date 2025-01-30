@@ -4,6 +4,7 @@ from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
+from gpaw.new.gpw import as_double_precision
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 from gpaw.poisson import PoissonSolver as make_poisson_solver
@@ -50,13 +51,13 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def get_pseudo_core_densities(self):
         if self._nct_aR is None:
             self._nct_aR = self.setups.create_pseudo_core_densities(
-                self.grid, self.fracpos_ac, atomdist=self.atomdist, xp=self.xp)
+                self.grid, self.relpos_ac, atomdist=self.atomdist, xp=self.xp)
         return self._nct_aR
 
     def get_pseudo_core_ked(self):
         if self._tauct_aR is None:
             self._tauct_aR = self.setups.create_pseudo_core_ked(
-                self.grid, self.fracpos_ac, atomdist=self.atomdist)
+                self.grid, self.relpos_ac, atomdist=self.atomdist)
         return self._tauct_aR
 
     def create_poisson_solver(self) -> PoissonSolver:
@@ -68,7 +69,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         poisson_solver = self.create_poisson_solver()
         return FDPotentialCalculator(
             self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
-            fracpos_ac=self.fracpos_ac, atomdist=self.atomdist,
+            relpos_ac=self.relpos_ac, atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
             xp=self.xp)
 
@@ -93,10 +94,11 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if 'coefficients' in reader.wave_functions:
             name = 'coefficients'
         elif 'values' in reader.wave_functions:
-            name = 'values'
+            name = 'values'  # old name
         else:
             return ibzwfs
 
+        singlep = reader.get('precision', 'double') == 'single'
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # old gpw file
@@ -106,7 +108,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             index = (wfs.spin, wfs.k)
             data = reader.wave_functions.proxy(name, *index)
             data.scale = c
-            if self.communicators['w'].size == 1:
+            if self.communicators['w'].size == 1 and not singlep:
                 wfs.psit_nX = UGArray(grid, self.nbands, data=data)
             else:
                 band_comm = self.communicators['b']
@@ -120,6 +122,10 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     n2 = min((band_comm.rank + 1) * mynbands, self.nbands)
                     assert wfs.psit_nX.mydims[0] == n2 - n1
                     data = data[n1:n2]  # read from file
-                wfs.psit_nX.scatter_from(data)
+
+                if singlep:
+                    wfs.psit_nX.scatter_from(as_double_precision(data))
+                else:
+                    wfs.psit_nX.scatter_from(data)
 
         return ibzwfs

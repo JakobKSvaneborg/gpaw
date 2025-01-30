@@ -53,7 +53,7 @@ toolchains = {
 module_cmds_all = """\
 module purge
 unset PYTHONPATH
-module load GPAW-setups/24.1.0
+module load GPAW-setups/24.11.0
 module load ELPA/2023.05.001-{fullchain}
 module load Wannier90/3.1.0-{fullchain}
 module load Python-bundle-PyPI/2023.06-{corechain}
@@ -77,8 +77,10 @@ module load libvdwxc/0.4.0-{fullchain}
 }
 
 module_cmds_arch_dependent = """\
-if [ "$CPU_ARCH" == "icelake" ];\
+if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2023a" ];\
 then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
+if [ "$SLURM_JOB_PARTITION" == "a100" ];\
+then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 """
 
 
@@ -110,7 +112,7 @@ def run(cmd: str, **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, shell=True, check=True, **kwargs)
 
 
-def compile_gpaw_c_code(gpaw: Path, activate: Path) -> None:
+def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     """Compile for all architectures: xeon24, xeon40, ..."""
     # Remove targets:
     for path in gpaw.glob('build/lib.linux-x86_64-*/_gpaw.*.so'):
@@ -118,6 +120,8 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path) -> None:
 
     # Compile:
     for host in nifllogin:
+        if host == 'fjorm' and intel_only:
+            continue
         run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
 
     # Clean up:
@@ -210,6 +214,8 @@ def main():
     if args.toolchain not in ('foss', 'intel'):
         raise ValueError(f'Unsupported toolchain "{args.toolchain}"')
 
+    intel_only = args.toolchain == 'intel'
+
     module_cmds = module_cmds_all.format(**toolchains[args.toolchain])
     if not args.piponly:
         module_cmds += module_cmds_easybuild.format(
@@ -282,7 +288,7 @@ def main():
         f'gpaw/doc/platforms/Linux/Niflheim/siteconfig-{args.toolchain}.py')
     Path('gpaw/siteconfig.py').write_text(siteconfig.read_text())
 
-    compile_gpaw_c_code(gpaw, activate)
+    compile_gpaw_c_code(gpaw, activate, intel_only)
 
     for fro, to in [('ivybridge', 'sandybridge'),
                     ('nahelem', 'icelake')]:

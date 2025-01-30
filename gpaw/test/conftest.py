@@ -194,6 +194,9 @@ def all_gpw_files(request, gpw_files, pytestconfig):
     if GPAW_NEW and request.param in skip_if_new:
         pytest.xfail(f'{request.param} gpwfile not yet working with GPAW_NEW')
 
+    if request.param == 'Tl_box_pw' and world.size > 1:
+        pytest.skip(f'{request.param} gpwfile only works in serial')
+
     # Accessing each file via __getitem__ executes the calculation:
     return gpw_files[request.param]
 

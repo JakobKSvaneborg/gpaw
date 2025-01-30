@@ -34,7 +34,7 @@ def test_gauss_func():
         for mL in range(9):
             m = gauss.get_moment(g, mL)  # the mL'th moment of g
             print(f'  {mL}\'th moment = {m:2.6f}')
-            assert m == pytest.approx(gL == mL, abs=1e-4)
+            assert m == pytest.approx(float(gL == mL), abs=1e-4)
 
     # Check the moments of the constructed 1s density
     print('\nDensity of Hydrogen atom')

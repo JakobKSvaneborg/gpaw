@@ -68,10 +68,8 @@ def test_lcao_force():
     fd = False
 
     if fd:
-        from ase.calculators.test import numeric_force
-        F_ac_fd = np.array([[numeric_force(system, a, i)
-                             for i in range(3)]
-                            for a in range(len(system))])
+        from gpaw.test import calculate_numerical_forces
+        F_ac_fd = calculate_numerical_forces(system, 0.001)
         print('Self-consistent forces')
         print(F_ac)
         print('FD')

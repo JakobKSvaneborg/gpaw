@@ -20,11 +20,17 @@ class HybridXCFunctional:
 
 
 class HybridLCAOEigensolver(LCAOEigensolver):
-    def __init__(self, basis, fracpos_ac, cell_cv):
+    def __init__(self, basis, relpos_ac, cell_cv):
         super().__init__(basis)
-        print(fracpos_ac, cell_cv)
+        print(relpos_ac, cell_cv)
 
-    def iterate(self, ibzwfs, density, potential, hamiltonian) -> float:
+    def iterate(self,
+                ibzwfs,
+                density,
+                potential,
+                hamiltonian,
+                pot_calc=None,
+                energies=None):
         for wfs in ibzwfs:
             rho_MM = wfs.calculate_density_matrix()
             print(rho_MM)

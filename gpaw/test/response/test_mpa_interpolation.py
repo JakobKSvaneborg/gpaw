@@ -99,15 +99,15 @@ def test_ppa(in_tmp_dir):
     omega_w = np.array([0, 2j])
 
     start = time()
-    E_GG, R_GG = RESolver(omega_w).solve(X_wGG)
+    E_pGG, R_pGG = RESolver(omega_w).solve(X_wGG)
     stop = time()
     fail = False
     for i in range(nG):
         for j in range(nG):
             R, E, MPres, PPcond_rate = mpa_RE_solver(
                 npols=1, w=omega_w, x=X_wGG[:, i, j])
-            assert np.allclose(E, E_GG[i, j])
-            if not np.allclose(R, R_GG[i, j]):
+            assert np.allclose(E, E_pGG[0, i, j])
+            if not np.allclose(R, R_pGG[0, i, j]):
                 fail = True
     assert not fail
     vectorized_time = stop - start

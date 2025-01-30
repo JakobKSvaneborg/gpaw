@@ -13,6 +13,7 @@ from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
 from gpaw.new.logger import indent
 from gpaw import KohnShamConvergenceError
+from gpaw.new.energies import DFTEnergies
 
 
 class TooFewBandsError(KohnShamConvergenceError):
@@ -51,6 +52,7 @@ class SCFLoop:
                 ibzwfs,
                 density,
                 potential,
+                energies: DFTEnergies,
                 pot_calc,
                 *,
                 maxiter=None,
@@ -58,11 +60,6 @@ class SCFLoop:
                 log=None):
         cc = self.convergence
         maxiter = maxiter or self.maxiter
-
-        self.eigensolver.initialize_etdm(
-            ibzwfs, density, potential,
-            pot_calc, self.occ_calc,
-            self.hamiltonian, self.mixer, log)
 
         if log:
             log('convergence criteria:')
@@ -81,16 +78,20 @@ class SCFLoop:
             dens_error = 0.0
 
         for self.niter in itertools.count(start=1):
-            wfs_error = self.eigensolver.iterate(
-                ibzwfs, density, potential, self.hamiltonian)
-            ibzwfs.calculate_occs(
+            wfs_error, energies = self.eigensolver.iterate(
+                ibzwfs, density, potential,
+                self.hamiltonian, pot_calc, energies)
+            e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
                 self.occ_calc,
                 fix_fermi_level=self.fix_fermi_level)
-            if self.eigensolver.direct:
-                ibzwfs.energies['band'] = 0.0
+
+            energies.set(**pot_calc.xc.energies,
+                         band=e_band,
+                         entropy=e_entropy,
+                         extrapolation=e_extrapolation)
 
             ctx = SCFContext(
-                log, self.niter,
+                log, self.niter, energies,
                 ibzwfs, density, potential,
                 wfs_error, dens_error,
                 self.comm, calculate_forces,
@@ -114,15 +115,8 @@ class SCFLoop:
             if self.update_density_and_potential:
                 density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
                 dens_error = self.mixer.mix(density)
-                new_potential, _ = pot_calc.calculate(
+                potential, energies, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
-                # Because of the way direct-optimization works at the moment,
-                # we need to update the potential in-place!
-                potential.update_from(new_potential)
-                if self.eigensolver.direct:
-                    ekin = ibzwfs.calculate_kinetic_energy(
-                        self.hamiltonian, density)
-                    potential.energies['kinetic'] = ekin
 
         self.eigensolver.postprocess(
             ibzwfs, density, potential, self.hamiltonian)
@@ -132,6 +126,7 @@ class SCFContext:
     def __init__(self,
                  log,
                  niter: int,
+                 energies: DFTEnergies,
                  ibzwfs,
                  density,
                  potential,
@@ -143,15 +138,12 @@ class SCFContext:
                  update_density_and_potential):
         self.log = log
         self.niter = niter
+        self.energies = energies
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
-        energy = np.array([sum(e
-                               for name, e in potential.energies.items()
-                               if name != 'stress') +
-                           sum(ibzwfs.energies.values())])
-        comm.broadcast(energy, 0)
-        self.ham = SimpleNamespace(e_total_extrapolated=energy[0],
+        energy = energies.total_extrapolated
+        self.ham = SimpleNamespace(e_total_extrapolated=energy,
                                    get_workfunctions=self._get_workfunctions)
         self.wfs = SimpleNamespace(nvalence=ibzwfs.nelectrons,
                                    world=comm,

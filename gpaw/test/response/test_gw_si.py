@@ -18,7 +18,7 @@ def generate_si_systems():
     return [si1, si2]
 
 
-def run(gpw_filename, nblocks, integrate_gamma):
+def run(gpw_filename, nblocks, integrate_gamma, qpt=False):
     # This tests checks the actual numerical accuracy which is asserted below
     calc = GPAW(gpw_filename)
     e = calc.get_potential_energy()
@@ -27,20 +27,27 @@ def run(gpw_filename, nblocks, integrate_gamma):
     # The numerical integration default is too slow, so overriding
     integrate_gamma._N = 30
 
-    gw = G0W0(gpw_filename, 'gw_None',
-              nbands=8, integrate_gamma=integrate_gamma,
-              kpts=[(0, 0, 0), (0.5, 0.5, 0)],  # Gamma, X
-              ecut=40, nblocks=nblocks,
-              frequencies={'type': 'nonlinear',
-                           'domega0': 0.1, 'omegamax': None},
-              eta=0.2, relbands=(-1, 2))
+    kwargs = dict(nbands=8, integrate_gamma=integrate_gamma,
+                  kpts=[(0, 0, 0), (0.5, 0.5, 0)],  # Gamma, X
+                  ecut=40, nblocks=nblocks,
+                  frequencies={'type': 'nonlinear',
+                               'domega0': 0.1, 'omegamax': None},
+                  eta=0.2, relbands=(-1, 2))
+
+    if qpt:
+        # This part of the code is testing for separate calculation of qpoints
+        # which would help in trivial parallelization of GW
+        gw = G0W0(gpw_filename, 'gw_None', **kwargs)
+        for q in range(gw.nqpts):
+            gw.calculate(qpoints=[q])
+
+    gw = G0W0(gpw_filename, 'gw_None', **kwargs)
     results = gw.calculate()
 
     G, X = results['eps'][0]
     output = [e, G[0], G[1] - G[0], X[1] - G[0], X[2] - X[1]]
     G, X = results['qp'][0]
     output += [G[0], G[1] - G[0], X[1] - G[0], X[2] - X[1]]
-    print(output)
     return output
 
 

@@ -6,7 +6,7 @@ from gpaw.nlopt.basic import NLOData
 from gpaw.nlopt.shg import get_shg
 
 
-def test_shg_spinpol(mme_files):
+def test_shg_spinpol(mme_files, in_tmp_dir):
     shg_values = np.array([-0.77053399 - 0.37041593j,
                            -0.87903174 - 0.4177294j,
                            -1.00791251 - 0.51051291j,

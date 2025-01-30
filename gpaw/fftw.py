@@ -15,6 +15,7 @@ from scipy.fft import fftn, ifftn, irfftn, rfftn
 import warnings
 
 import gpaw.cgpaw as cgpaw
+from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw.new.c import pw_insert_gpu
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 
@@ -66,11 +67,15 @@ def get_efficient_fft_size(N: int, n=1, factors=[2, 3, 5, 7]) -> int:
 
 def empty(shape, dtype=float):
     """numpy.empty() equivalent with 16 byte alignment."""
-    assert dtype == complex
+    assert np.issubdtype(dtype, np.complexfloating)
+
+    real_dtype = as_real_dtype(dtype)
+    complex_dtype = as_complex_dtype(dtype)
+
     N = np.prod(shape)
-    a = np.empty(2 * N + 1)
-    offset = (a.ctypes.data % 16) // 8
-    a = a[offset:2 * N + offset].view(complex)
+    a = np.empty(2 * N + 16 // real_dtype.itemsize - 1, real_dtype)
+    offset = (a.ctypes.data % 16) // real_dtype.itemsize
+    a = a[offset:2 * N + offset].view(complex_dtype)
     a.shape = shape
     return a
 
@@ -104,13 +109,14 @@ class FFTPlans:
                  dtype: DTypeLike,
                  empty=empty):
         self.shape: tuple[int, ...]
-        if dtype == float:
+
+        if np.issubdtype(dtype, np.floating):
             self.shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
-            self.tmp_Q = empty(self.shape, complex)
-            self.tmp_R = self.tmp_Q.view(float)[:, :, :size_c[2]]
+            self.tmp_Q = empty(self.shape, as_complex_dtype(dtype))
+            self.tmp_R = self.tmp_Q.view(dtype)[:, :, :size_c[2]]
         else:
             self.shape = tuple(size_c)
-            self.tmp_Q = empty(size_c, complex)
+            self.tmp_Q = empty(size_c, dtype)
             self.tmp_R = self.tmp_Q
 
     def fft(self) -> None:
@@ -140,7 +146,8 @@ class FFTPlans:
             out_R.scatter_from(None)
             return
         pw.paste(coef_G, self.tmp_Q)
-        if pw.dtype == float:
+
+        if np.issubdtype(pw.dtype, np.floating):
             t = self.tmp_Q[:, :, 0]
             n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
             t[0, -m:] = t[0, m:0:-1].conj()
@@ -183,13 +190,13 @@ class FFTWPlans(FFTPlans):
 class NumpyFFTPlans(FFTPlans):
     """Numpy fallback."""
     def fft(self):
-        if self.tmp_R.dtype == float:
+        if np.issubdtype(self.tmp_R.dtype, np.floating):
             self.tmp_Q[:] = rfftn(self.tmp_R, overwrite_x=True)
         else:
             self.tmp_Q[:] = fftn(self.tmp_R, overwrite_x=True)
 
     def ifft(self):
-        if self.tmp_R.dtype == float:
+        if np.issubdtype(self.tmp_R.dtype, np.floating):
             self.tmp_R[:] = irfftn(self.tmp_Q, self.tmp_R.shape,
                                    norm='forward', overwrite_x=True)
         else:

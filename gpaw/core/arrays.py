@@ -232,6 +232,9 @@ class DistributedArrays(Generic[DomainType], XP):
                     out: UGArray | None = None) -> UGArray:
         raise NotImplementedError
 
+    def integrate(self, other: Self | None = None) -> np.ndarray:
+        raise NotImplementedError
+
 
 def _parallel_me(psit1_nX: DistributedArrays,
                  psit2_nX: DistributedArrays,

@@ -88,11 +88,11 @@ class PWHamiltonian(Hamiltonian):
 
     def calculate_kinetic_energy(self, wfs, skip_sum=False):
         e_kin = 0.0
-        for f, psit_R in zip(wfs.myocc_n, wfs.psit_nX):
+        for f, psit_G in zip(wfs.myocc_n, wfs.psit_nX):
             if f > 1.0e-10:
-                e_kin += f * psit_R.norm2('kinetic', skip_sum=skip_sum)
+                e_kin += f * psit_G.norm2('kinetic', skip_sum=skip_sum)
         if not skip_sum:
-            e_kin = psit_R.desc.comm.sum_scalar(e_kin)
+            e_kin = psit_G.desc.comm.sum_scalar(e_kin)
             e_kin = wfs.band_comm.sum_scalar(e_kin)
         return e_kin * wfs.spin_degeneracy
 

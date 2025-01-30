@@ -36,7 +36,7 @@ def test_fdsic(in_tmp_dir):
                                 'scaling_factor': (0.5, 0.5)},
                     localizationseed=42,
                     localizationtype='FB_ER',
-                    grad_tol_pz_localization=5.0e-3,
+                    grad_tol_pz_localization=1.0e-3,
                     maxiter_pz_localization=200,
                     converge_unocc=True),
                 convergence={'eigenstates': 1e-4},
@@ -62,10 +62,8 @@ def test_fdsic(in_tmp_dir):
 
     numeric = False
     if numeric:
-        from ase.calculators.test import numeric_force
-        f_num = np.array([[numeric_force(H2O, a, i)
-                          for i in range(3)]
-                         for a in range(len(H2O))])
+        from gpaw.test import calculate_numerical_forces
+        f_num = calculate_numerical_forces(H2O, 0.001)
         print('Numerical forces')
         print(f_num)
         print(f - f_num, np.abs(f - f_num).max())

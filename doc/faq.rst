@@ -142,15 +142,8 @@ Compiling the C-code
 For architecture dependent settings see the
 :ref:`platforms and architectures` page.
 
-Compilation of the C part failed::
-
- [~]$ python2.4 setup.py build_ext
- building '_gpaw' extension
- pgcc -fno-strict-aliasing -DNDEBUG -O2 -g -pipe -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -m64 -D_GNU_SOURCE -fPIC -fPIC -I/usr/include/python2.4 -c c/localized_functions.c -o build/temp.linux-x86_64-2.4/c/localized_functions.o -Wall -std=c99
- pgcc-Warning-Unknown switch: -fno-strict-aliasing
- PGC-S-0040-Illegal use of symbol, _Complex (/usr/include/bits/cmathcalls.h: 54)
-
-You are probably using another compiler, than was used for
+If compilation of the C part failed, the problem could be
+that you are using another compiler, than was used for
 compiling python. Undefine the environment variables CC, CFLAGS and
 LDFLAGS with::
 
