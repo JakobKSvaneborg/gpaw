@@ -15,7 +15,7 @@ Electron localisation function (ELF)
 
 Water molecule (ELF=0.8):
 
-.. chart:: gallery/charts/h2o-elf.json
+.. chart:: gallery/h2o-elf.json
 
     Interactive plot!
 
