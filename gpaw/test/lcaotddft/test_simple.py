@@ -2,7 +2,9 @@ import numpy as np
 import pytest
 
 from gpaw.lcaotddft import LCAOTDDFT
+from gpaw.lcaotddft.densitymatrix import DensityMatrix
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
+from gpaw.lcaotddft.energywriter import EnergyWriter
 from gpaw.mpi import world
 from gpaw.tddft.spectrum import photoabsorption_spectrum
 
@@ -11,7 +13,9 @@ from gpaw.tddft.spectrum import photoabsorption_spectrum
 def test_lcaotddft_simple(gpw_files, in_tmp_dir):
     # Time-propagation calculation
     td_calc = LCAOTDDFT(gpw_files['na2_tddft_poisson'], txt='td.out')
+    dmat = DensityMatrix(td_calc)
     DipoleMomentWriter(td_calc, 'dm.dat')
+    EnergyWriter(td_calc, dmat, 'energy.dat')
     td_calc.absorption_kick(np.ones(3) * 1e-5)
     td_calc.propagate(20, 3)
     photoabsorption_spectrum('dm.dat', 'spec.dat', delta_e=5)
@@ -78,6 +82,46 @@ def test_lcaotddft_simple(gpw_files, in_tmp_dir):
              5.008661764300e-02]
 
     tol = 1e-5
+    assert data_i == pytest.approx(ref_i, abs=tol)
+
+    # Test energy
+    data_i = np.loadtxt('energy.dat')[:, 1:].ravel()
+    if 0:
+        from gpaw.test import print_reference
+        print_reference(data_i, 'ref_i', '%.12le')
+
+    ref_i = [0.000000000000e+00,
+             0.000000000000e+00,
+             0.000000000000e+00,
+             0.000000000000e+00,
+             0.000000000000e+00,
+             0.000000000000e+00,
+             9.704270165223e-10,
+             -8.180593980001e-10,
+             1.064837107378e-11,
+             0.000000000000e+00,
+             -1.392340687190e-10,
+             3.722011032714e-10,
+             9.493952290995e-10,
+             -7.723939265958e-10,
+             1.052818943137e-11,
+             0.000000000000e+00,
+             -1.397386650837e-10,
+             3.767328393689e-10,
+             8.977075194316e-10,
+             -7.237954680051e-10,
+             1.019540007974e-11,
+             0.000000000000e+00,
+             -1.407626237793e-10,
+             3.819958516171e-10,
+             8.238734139354e-10,
+             -6.549392139732e-10,
+             9.723888361179e-12,
+             0.000000000000e+00,
+             -1.410381811340e-10,
+             3.877606014058e-10]
+
+    tol = 1e-8
     assert data_i == pytest.approx(ref_i, abs=tol)
 
 
