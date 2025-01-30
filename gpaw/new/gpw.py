@@ -21,6 +21,7 @@ Versions:
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Union
 
@@ -71,17 +72,42 @@ def as_double_precision(array):
     return np.array(array, dtype=dtype)
 
 
+@dataclass
+class GPWFlags:
+    include_wfs: bool
+    include_projections: bool
+    precision: str
+
+    def __post_init__(self) -> None:
+        if self.precision not in ['single', 'double']:
+            raise ValueError('precision must be either "single" or "double"')
+
+    def storage_dtype(self, dtype):
+        dtype = np.dtype(dtype)
+        if self.precision == 'double':
+            return dtype
+
+        if dtype == float:
+            return np.dtype(np.float32)
+
+        if dtype == complex:
+            return np.dtype(np.complex64)
+
+        raise ValueError(f'Unexpected dtype: {dtype}')
+
+    def to_storage_dtype(self, array: np.ndarray) -> np.ndarray:
+        if self.precision == 'double':
+            return array
+        return array.astype(self.storage_dtype(array.dtype))
+
+
 def write_gpw(filename: str | Path,
               atoms,
               params,
               dft: DFTCalculation,
-              skip_wfs: bool = True,
-              precision: str = 'double',
-              include_projections=True) -> None:
+              flags: GPWFlags) -> None:
 
     comm = dft.comm
-    if precision not in ['single', 'double']:
-        raise ValueError('precision must be either "single" or "double"')
 
     writer: ulm.Writer | ulm.DummyWriter
     if comm.rank == 0:
@@ -94,7 +120,7 @@ def write_gpw(filename: str | Path,
                      gpaw_version=gpaw.__version__,
                      ha=Ha,
                      bohr=Bohr,
-                     precision=precision)
+                     precision=flags.precision)
 
         write_atoms(writer.child('atoms'), atoms)
 
@@ -108,18 +134,14 @@ def write_gpw(filename: str | Path,
             p['dtype'] = np.dtype(p['dtype']).name
         writer.child('parameters').write(**p)
 
-        dft.density.write_to_gpw(writer.child('density'),
-                                 precision=precision)
-        dft.potential.write_to_gpw(writer.child('hamiltonian'),
-                                   precision=precision)
+        dft.density.write_to_gpw(writer.child('density'), flags)
+        dft.potential.write_to_gpw(writer.child('hamiltonian'), flags)
         writer.write(e_stress=dft.potential.e_stress * Ha)
         dft.energies.write_to_gpw(writer.child('energy_contributions'))
         wf_writer = writer.child('wave_functions')
-        dft.ibzwfs.write(wf_writer, skip_wfs,
-                         include_projections=include_projections,
-                         precision=precision)
+        dft.ibzwfs.write(wf_writer, flags=flags)
 
-        if not skip_wfs and params.mode['name'] == 'pw':
+        if flags.include_wfs and params.mode['name'] == 'pw':
             write_wave_function_indices(wf_writer,
                                         dft.ibzwfs,
                                         dft.density.nt_sR.desc)

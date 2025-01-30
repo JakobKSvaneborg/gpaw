@@ -36,6 +36,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
+from gpaw import GPAW_USE_GPUS
 
 
 def builder(atoms: Atoms,
@@ -66,6 +67,7 @@ class DFTComponentsBuilder:
     def __init__(self,
                  atoms: Atoms,
                  params: InputParameters,
+                 dtype: None | DTypeLike = None,
                  *,
                  comm):
 
@@ -97,7 +99,7 @@ class DFTComponentsBuilder:
             atoms.numbers,
             params.setups,
             params.basis,
-            self._xc.get_setup_name(),
+            self._xc,  # .get_setup_name(),
             world=comm,
             backwards_compatible=self._backwards_comatible)
         if params.hund:
@@ -149,13 +151,16 @@ class DFTComponentsBuilder:
             self.nbands *= 2
 
         self.dtype: DTypeLike
-        if self.params.mode.get('force_complex_dtype', False):
-            self.dtype = complex
-        else:
-            if self.ibz.bz.gamma_only and self.ncomponents < 4:
-                self.dtype = float
-            else:
+        if dtype is None:
+            if self.params.mode.get('force_complex_dtype', False):
                 self.dtype = complex
+            else:
+                if self.ibz.bz.gamma_only and self.ncomponents < 4:
+                    self.dtype = float
+                else:
+                    self.dtype = complex
+        else:
+            self.dtype = dtype
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
@@ -196,8 +201,13 @@ class DFTComponentsBuilder:
 
     @cached_property
     def gpu(self) -> bool:
-        """Are we running on a GPU?."""
-        if self.params.parallel.get('gpu', False):
+        """Are we running on a GPU?
+
+        If parallel dict does not specify 'gpu': True or False,
+        GPAW_USE_GPUS environment variable will be used to
+        determine whether we use GPUs or not.
+        """
+        if self.params.parallel.get('gpu', GPAW_USE_GPUS):
             from gpaw.gpu import cupy_is_fake
             if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
                 raise ValueError(

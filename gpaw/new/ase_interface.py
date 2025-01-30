@@ -19,7 +19,7 @@ from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
-from gpaw.new.gpw import read_gpw, write_gpw
+from gpaw.new.gpw import read_gpw, write_gpw, GPWFlags
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.logger import Logger
@@ -327,8 +327,8 @@ class ASECalculator:
     def _calculate_forces(self) -> Array2D:  # units: Ha/Bohr
         """Helper method for force-convergence criterium."""
         with self.timer('Forces'):
-            self.dft.forces(silent=True)
-        return self.dft.results.pop('forces')
+            self.dft._calculate_forces()
+        return self.dft.results['forces']
 
     def __del__(self):
         self.log('---')
@@ -410,9 +410,9 @@ class ASECalculator:
         """
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
-        write_gpw(filename, self.atoms, self.params,
-                  self.dft, skip_wfs=mode != 'all', precision=precision,
-                  include_projections=include_projections)
+        flags = GPWFlags(include_projections=include_projections,
+                         precision=precision, include_wfs=mode == 'all')
+        write_gpw(filename, self.atoms, self.params, self.dft, flags=flags)
 
     # Old API:
 
@@ -799,3 +799,7 @@ class ASECalculator:
             return x.flatten()
         elif type == 'mbeefvdw':
             return np.append(x.flatten(), c)
+
+    def get_bz_to_ibz_map(self):
+        """Return indices from BZ to IBZ."""
+        return self.dft.ibzwfs.ibz.bz2ibz_K.copy()

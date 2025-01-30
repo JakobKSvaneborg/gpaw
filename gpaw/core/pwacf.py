@@ -14,6 +14,7 @@ from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
+from gpaw.utilities import as_complex_dtype
 from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 
@@ -101,6 +102,7 @@ class PWLFC:  # (BaseLFC)
         self.spline_aj = functions
 
         self.dtype = pw.dtype
+        self.real = np.issubdtype(pw.dtype, np.floating)
 
         self.initialized = False
 
@@ -205,7 +207,7 @@ class PWLFC:  # (BaseLFC)
 
         xp = self.xp
 
-        if self.pw.dtype == float:
+        if self.real:
             self.eikR_a = xp.ones(len(spos_ac))
         else:
             self.eikR_a = xp.asarray(
@@ -216,7 +218,6 @@ class PWLFC:  # (BaseLFC)
         Gk_Gv = xp.asarray(self.pw.G_plus_k_Gv)
         GkR_Ga = Gk_Gv @ xp.asarray(self.pos_av.T)
         self.emiGR_Ga = xp.exp(-1j * GkR_Ga) * self.eikR_a
-
         rank_a = atomdist.rank_a
 
         self.my_atom_indices = []
@@ -251,8 +252,8 @@ class PWLFC:  # (BaseLFC)
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 
-        if self.dtype == complex:
-            f_GI = xp.empty((G2 - G1, self.nI), complex)
+        if not self.real:
+            f_GI = xp.empty((G2 - G1, self.nI), as_complex_dtype(self.dtype))
         else:
             # Special layout because BLAS does not have real-complex
             # multiplications.  f_GI(G,I) layout:
@@ -323,7 +324,7 @@ class PWLFC:  # (BaseLFC)
         for G1, G2 in self.block():
             f_GI = self.expand(G1, G2, cc=False)
 
-            if self.dtype == float:
+            if self.real:
                 # f_IG = f_IG.view(float)
                 G1 *= 2
                 G2 *= 2
@@ -349,17 +350,17 @@ class PWLFC:  # (BaseLFC)
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
         alpha = 1.0
-        if self.dtype == float:
+        if self.real:
             alpha *= 2
-            a_xG = a_xG.view(float)
+            a_xG = a_xG.view(self.dtype)
 
         if c_axi is None:
             c_axi = self.dict(a_xG.shape[:-1])
 
         x = 0.0
         for G1, G2 in self.block():
-            f_GI = self.expand(G1, G2, cc=self.dtype == complex)
-            if self.dtype == float:
+            f_GI = self.expand(G1, G2, cc=not self.real)
+            if self.real:
                 if G1 == 0 and self.comm.rank == 0:
                     f_GI[0] *= 0.5
                 G1 *= 2

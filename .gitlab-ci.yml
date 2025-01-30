@@ -159,7 +159,6 @@ build-latest:
 
       EOF
     - cat siteconfig.py
-    - pip install --user --upgrade numpy scipy
     - pip install --user --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
@@ -512,7 +511,7 @@ check-agts:
     - mq init
     - mq workflow -p agts.py -zT | tail -1 | tee task_count
     - >
-      [[ `cut -d ' ' -f1 < task_count` -ge 501 ]] || (echo "Too few agts tasks"; exit 1)
+      [[ `cut -d ' ' -f1 < task_count` -ge 543 ]] || (echo "Too few agts tasks"; exit 1)
 
 
 lint:

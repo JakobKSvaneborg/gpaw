@@ -68,8 +68,7 @@ class Potential:
             None if self.vHt_x is None else self.vHt_x.redist(
                 desc, comm1, comm2))
 
-    def write_to_gpw(self, writer, precision='double'):
-        from gpaw.new.gpw import as_single_precision
+    def write_to_gpw(self, writer, flags):
         dH_asp = self.dH_asii.to_cpu().to_lower_triangle().gather()
         vt_sR = self.vt_sR.to_xp(np).gather()
         if self.dedtaut_sR is not None:
@@ -79,22 +78,15 @@ class Potential:
         if dH_asp is None:
             return
 
-        vt_sR_data = vt_sR.data
-        if precision == 'single':
-            vt_sR_data = as_single_precision(vt_sR_data)
         writer.write(
-            potential=vt_sR_data * Ha,
+            potential=flags.to_storage_dtype(vt_sR.data * Ha),
             atomic_hamiltonian_matrices=dH_asp.data * Ha)
         if self.vHt_x is not None:
-            vHt_x_data = vHt_x.data
-            if precision == 'single':
-                vHt_x_data = as_single_precision(vHt_x_data)
-            writer.write(electrostatic_potential=vHt_x_data * Ha)
+            vHt_x_data = flags.to_storage_dtype(vHt_x.data * Ha)
+            writer.write(electrostatic_potential=vHt_x_data)
         if self.dedtaut_sR is not None:
-            dedtaut_sR_data = dedtaut_sR.data
-            if precision == 'single':
-                dedtaut_sR_data = as_single_precision(dedtaut_sR_data)
-            writer.write(mgga_potential=dedtaut_sR_data * Bohr**3)
+            dedtaut_sR_data = flags.to_storage_dtype(dedtaut_sR.data * Bohr**3)
+            writer.write(mgga_potential=dedtaut_sR_data)
 
     def get_vacuum_level(self) -> float:
         grid = self.vt_sR.desc
