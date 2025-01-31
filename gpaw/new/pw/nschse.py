@@ -153,12 +153,12 @@ class NonSelfConsistentHSE06:
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
-        rhot_nR = ut2_nR.copy()
         phase_a = np.exp(-2j * np.pi * (self.relpos_ac @ v_G.desc.kpt_c))
         ghat_aLG = self.setups.create_compensation_charges(
             v_G.desc, self.relpos_ac)
         e_n = np.zeros(len(ut2_nR))
         for n1, ut1_R in enumerate(ut1_nR.data):
+            rhot_nR = ut2_nR.copy()
             rhot_nR.data *= ut1_R.conj()
             Q_anL = {}
             if 1:
