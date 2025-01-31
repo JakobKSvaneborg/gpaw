@@ -98,12 +98,14 @@ def grr():
         txt=None)
     a.get_potential_energy()
     print(a.calc.occupations())
-    e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
+    print(a.calc.eigenvalues())
+    e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06', 0, 1)
     e0_skn = e0 - v0 + v
-    print(e0_skn)
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
-    e_skn = hse.calculate(a.calc.dft.ibzwfs)
+    e_skn = hse.calculate(a.calc.dft.ibzwfs, 0, 1)
+    print(e0_skn)
     print(e_skn)
+    print(e_skn - e0_skn)
     # e_skn = hse.calculate(a.calc.dft.ibzwfs, na=0, nb=1)
     # assert e_skn[0, :, 0] == pytest.approx(e0_skn[0, :, 0])
 
