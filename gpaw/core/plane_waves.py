@@ -621,28 +621,14 @@ class PWArray(DistributedArrays[PWDesc]):
                 result_x = self.xp.empty((a_xG.shape[0],),
                                          dtype=self.real_dtype)
                 pw_norm_gpu(result_x, self._arrays())
-                result2_x = self.xp.einsum('xG, xG -> x', a_xG, a_xG)
-                if not self.xp.allclose(result_x, result2_x):
-                    for r1, r2 in zip(result_x.ravel(), result2_x.ravel()):
-                        print(r1, r2)
-                    raise ValueError
             else:
                 result_x = self.xp.einsum('xG, xG -> x', a_xG, a_xG)
         elif kind == 'kinetic':
             x, G2 = a_xG.shape
             if self.xp is not np:
-                a_xGz = a_xG.reshape((x, G2 // 2, 2))
-                result2_x = self.xp.einsum('xGz, xGz, G -> x',
-                                           a_xGz,
-                                           a_xGz,
-                                           self.xp.asarray(self.desc.ekin_G))
                 result_x = self.xp.empty((x,), dtype=self.real_dtype)
                 pw_norm_kinetic_gpu(result_x, self._arrays(),
                                     self.xp.asarray(self.desc.ekin_G))
-                if not self.xp.allclose(result_x, result2_x):
-                    for r1, r2 in zip(result_x.ravel(), result2_x.ravel()):
-                        print(r1, r2)
-                    raise ValueError
             else:
                 a_xGz = a_xG.reshape((x, G2 // 2, 2))
                 result_x = self.xp.einsum('xGz, xGz, G -> x',
