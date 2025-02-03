@@ -127,11 +127,15 @@ def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
     XCKernel('PBE').calculate(e_r._data, nt_sr._data, vxct_sr._data,
                               sigma_xr._data, dedsigma_xr._data)
 
+
 def pw_norm_gpu(result_x, C_xG):
-    result_x._data[:] = np.sum(np.abs(C_xG._data)**2, axis=)
+    result_x._data[:] = np.sum(np.abs(C_xG._data)**2, axis=1)
+
 
 def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
-    result_x._data[:] = np.sum(np.abs(a_xG._data)**2 * kin_G._data[None, :], axis=1)
+    result_x._data[:] = np.sum(np.abs(a_xG._data)**2 * kin_G._data[None, :],
+                               axis=1)
+
 
 if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
     from gpaw.cgpaw import (add_to_density, pw_insert, pw_precond,  # noqa

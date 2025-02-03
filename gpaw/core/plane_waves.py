@@ -618,13 +618,14 @@ class PWArray(DistributedArrays[PWDesc]):
         a_xG = self._arrays().view(self.real_dtype)
         if kind == 'normal':
             if self.xp is not np:
-                result_x = self.xp.empty((a_xG.shape[0],), dtype=self.real_dtype)
+                result_x = self.xp.empty((a_xG.shape[0],),
+                                         dtype=self.real_dtype)
                 pw_norm_gpu(result_x, self._arrays())
                 result2_x = self.xp.einsum('xG, xG -> x', a_xG, a_xG)
                 if not self.xp.allclose(result_x, result2_x):
                     for r1, r2 in zip(result_x.ravel(), result2_x.ravel()):
-                        print(r1,r2)
-                    asd
+                        print(r1, r2)
+                    raise ValueError
             else:
                 result_x = self.xp.einsum('xG, xG -> x', a_xG, a_xG)
         elif kind == 'kinetic':
@@ -632,21 +633,16 @@ class PWArray(DistributedArrays[PWDesc]):
             if self.xp is not np:
                 a_xGz = a_xG.reshape((x, G2 // 2, 2))
                 result2_x = self.xp.einsum('xGz, xGz, G -> x',
-                                          a_xGz,
-                                          a_xGz,
-                                          self.xp.asarray(self.desc.ekin_G))
-                #print('result2 now', result2_x)
+                                           a_xGz,
+                                           a_xGz,
+                                           self.xp.asarray(self.desc.ekin_G))
                 result_x = self.xp.empty((x,), dtype=self.real_dtype)
-                #ekin_G = self.xp.asarray(self.desc.ekin_G)
-                #import cupy
-                #cupy.cuda.runtime.deviceSynchronize()
-                pw_norm_kinetic_gpu(result_x, self._arrays(), self.xp.asarray(self.desc.ekin_G))
-                #print('ekin_G', ekin_G) 
+                pw_norm_kinetic_gpu(result_x, self._arrays(),
+                                    self.xp.asarray(self.desc.ekin_G))
                 if not self.xp.allclose(result_x, result2_x):
                     for r1, r2 in zip(result_x.ravel(), result2_x.ravel()):
-                        print(r1,r2)
-                    asd
-                #result_x = result2_x
+                        print(r1, r2)
+                    raise ValueError
             else:
                 a_xGz = a_xG.reshape((x, G2 // 2, 2))
                 result_x = self.xp.einsum('xGz, xGz, G -> x',

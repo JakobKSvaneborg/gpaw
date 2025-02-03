@@ -213,7 +213,6 @@ class PWLFC:  # (BaseLFC)
                 np.exp(2j * pi * (spos_ac @ self.pw.kpt_c)))
         self.pos_av = np.dot(spos_ac, self.pw.cell)
         pos_avT = xp.asarray(self.pos_av.T)
-        
 
         def emiGR_block(G1, G2):
             Gk_Gv = xp.asarray(self.pw.G_plus_k_Gv)[G1:G2]
@@ -252,7 +251,7 @@ class PWLFC:  # (BaseLFC)
         if G2 is None:
             G2 = self.Y_GL.shape[0]
 
-        emiGR_Ga = self.emiGR_Ga(G1,G2)
+        emiGR_Ga = self.emiGR_Ga(G1, G2)
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 
@@ -502,7 +501,7 @@ class PWLFC:  # (BaseLFC)
                                     G_Gv, a_xG, c_axi, Z_LvG):
         xp = self.xp
         f_IG = xp.empty((self.nI, G2 - G1), complex)
-        emiGR_Ga = self.emiGR_Ga(G1,G2)
+        emiGR_Ga = self.emiGR_Ga(G1, G2)
         Y_LG = self.Y_GL.T
         for a, l, I1, I2, f_G, dfdGoG_G in things:
             L1 = l**2
