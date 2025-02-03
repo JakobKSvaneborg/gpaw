@@ -108,6 +108,7 @@ class PWLFC:  # (BaseLFC)
 
         # These will be filled in later:
         self.Y_GL = np.zeros((0, 0))
+        self.emiGR_Ga = None
         self.f_Gs: np.ndarray = np.zeros((0, 0))
         self.l_s: np.ndarray | None = None
         self.a_J: np.ndarray | None = None
