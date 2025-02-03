@@ -206,6 +206,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            relpos_ac: np.ndarray,
            grid,
            plan) -> list[Psit]:
+    """Compute BZ from IBZ and distribute."""
     nocc = number_of_non_empty_bands(ibzwfs)
     ibz = ibzwfs.ibz
     nbzk = len(ibz.bz)
@@ -214,66 +215,73 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     symmetries = ibzwfs.ibz.symmetries
     rank_K = np.zeros(nbzk, int)
     psit_KsnG = {}
-    for wfs in ibzwfs:
-        wfs = wfs.collect(0, nocc)
-        if wfs is None:
+    for wfs_s in ibzwfs.wfs_qs:
+        wfs_s = [wfs.collect(0, nocc) for wfs in wfs_s]
+        if wfs_s[0] is None:
             continue
         for K, k in enumerate(ibz.bz2ibz_K):
-            if k != wfs.k:
+            if k != wfs_s[0].k:
                 continue
+            rank_K[K] = comm.rank
             s = ibz.s_K[K]
             U_cc = symmetries.rotation_scc[s]
             complex_conjugate = ibz.time_reversal_K[K]
             print(comm.rank, K, k, s, complex_conjugate)
-            psit1_nG = wfs.psit_nX
-            psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
-            psit_KsnG[(K, wfs.spin)] = psit2_nG
-            rank_K[K] = comm.rank
+            psit_snG = []
+            for wfs in wfs_s:
+                psit1_nG = wfs.psit_nX
+                psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
+                if K == 0:
+                    print('B', comm.rank, k, K, psit1_nG.data.shape, psit2_nG.data.shape)
+                psit_snG.append(psit2_nG)
+            psit_KsnG[K] = psit_snG
 
     comm.sum(rank_K)
 
-    #
     nocc_total = nocc * nbzk
     blocksize = (nocc_total + comm.size - 1) // comm.size
     blocks = []
-    for b in range(0, nocc_total, blocksize):
-        Ka, na = divmod(b, nocc)
-        Kb, nb = divmod(b + blocksize, nocc)
+    for rank in range(comm.size):
+        Ka, na = divmod(rank * blocksize, nocc)
+        Kb, nb = divmod((rank + 1) * blocksize, nocc)
         for K in range(Ka, Kb):
-            blocks.append((K, (na, nocc)))
+            blocks.append((rank, K, (na, nocc)))
             na = 0
-        blocks.append((Kb, (na, nb)))
+        if nb > na:
+            blocks.append((rank, Kb, (na, nb)))
 
     print(nocc, nbzk, rank_K, blocks)
 
     requests = []
-    for (K, spin), psit_nG in sorted(psit_KsnG.items()):
-        for i in range(nblocks):
-            rank = (K + nbzk * i) % comm.size
-            na, nb = nanb_i[i]
-            if rank != comm.rank and nb > na:
-                requests.append(
-                    comm.send(psit_nG.data[na:nb], rank, block=False))
-
-    comm.waitall(requests)
+    for K, psit_snG in psit_KsnG.items():
+        for rank, KK, (na, nb) in blocks:
+            if KK != K:
+                continue
+            if rank != comm.rank:
+                for psit_nG in psit_snG:
+                    if K == 0:
+                        print('S', comm.rank, K, psit_nG.data.shape)
+                    requests.append(
+                        comm.send(psit_nG.data[na:nb], rank,
+                                  block=False, tag=K))
 
     pw = ibzwfs.wfs_qs[0][0].psit_nX.desc.new(comm=None)
     _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
 
     mypsits = []
-    for iK in range(comm.rank, nblocks * nbzk, comm.size):
-        i, K = divmod(iK, nbzk)
-        na, nb = nanb_i[i]
-        if na == nb:
+    for rank, K, (na, nb) in blocks:
+        if rank != comm.rank:
             continue
-        rank = rank_K[K]
+        pt_aiG = None
         for spin in range(ibzwfs.nspins):
-            if rank == comm.rank:
-                psit_nG = psit_KsnG[(K, spin)][na:nb]
+            if rank_K[K] == rank:
+                print(rank, K, list(psit_KsnG.keys()))
+                psit_nG = psit_KsnG[K][spin][na:nb]
             else:
                 psit_nG = pw.new(kpt=ibz.bz.kpt_Kc[K]).empty(nb - na)
-                comm.receive(psit_nG.data, rank)
-            pt_aiG = psit_nG.desc.atom_centered_functions(
+                print('R', K, psit_nG.data.shape)
+                comm.receive(psit_nG.data, rank_K[K], tag=K)
+            pt_aiG = pt_aiG or psit_nG.desc.atom_centered_functions(
                 [setup.pt_j for setup in setups],
                 relpos_ac)
             P_ani = pt_aiG.integrate(psit_nG)
@@ -286,6 +294,8 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             f_n = occ_skn[spin, k, na:nb]
             psit = Psit(psit_nR, P_ani, f_n, psit_nG.desc.kpt_c, Q_aniL, spin)
             mypsits.append(psit)
+
+    comm.waitall(requests)
 
     return mypsits
 
