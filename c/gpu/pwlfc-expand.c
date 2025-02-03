@@ -43,6 +43,11 @@ void pw_insert_gpu_launch_kernel(
                              double* tmp_nQ,
                              int rx, int ry, int rz);
 
+void pw_norm_kinetic_gpu_launch_kernel(int nx, int nG,
+                                       double* result_x,
+                                       double* C_xG,
+                                       double* kin_G);
+
 void pw_amend_insert_realwf_gpu_launch_kernel(int nb,
                                               int nx,
                                               int ny,
@@ -293,6 +298,45 @@ PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
                                 Q_G,
                                 scale,
                                 (double*)tmp_nQ, rx, ry, rz);
+    Py_RETURN_NONE;
+}
+
+PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
+{
+    PyObject *result_x_obj, *C_xG_obj, *kin_G_obj;
+    if (!PyArg_ParseTuple(args, "OOO",
+                          &result_x_obj, &C_xG_obj, &kin_G_obj))
+        return NULL;
+
+    double *result_x = Array_DATA(result_x_obj);
+    double complex *C_xG = Array_DATA(c_xG_obj);
+    double *kin_G = Array_DATA(kin_G_obj);
+
+    // Make sure number of dimensions are correct    
+    assert(Array_NDIM(c_xG_obj) == 2);
+    assert(Array_NDIM(result_x_obj) == 1);
+    assert(Array_NDIM(kin_G_obj) == 1);
+
+    // Make sure dtypes are correct
+    assert(Array_ITEMSIZE(C_xG_obj) == 16);
+    assert(Array_ITEMSIZE(result_x_obj) == 8);
+    assert(Array_ITEMSIZE(kin_G_obj) == 8);
+
+    // Make sure dimensions match
+    int nx = Array_DIM(result_x_obj, 0);
+    int nG = Array_DIM(C_xG_obj, 1);
+    assert(Array_DIM(kin_G_obj, 0) == nG);
+    assert(Array_DIM(C_xG_obj, 1) == nx);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
+    pw_norm_kinetic_gpu_launch_kernel(nx, nG,
+                                      result_x,
+                                      C_xG,
+                                      kin_G);
     Py_RETURN_NONE;
 }
 

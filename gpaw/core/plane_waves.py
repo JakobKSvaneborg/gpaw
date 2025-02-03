@@ -13,6 +13,7 @@ from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.gpu import cupy as cp
+from gpaw.gpu import gpu_norm2
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, pw_insert,
@@ -619,11 +620,15 @@ class PWArray(DistributedArrays[PWDesc]):
             result_x = self.xp.einsum('xG, xG -> x', a_xG, a_xG)
         elif kind == 'kinetic':
             x, G2 = a_xG.shape
-            a_xGz = a_xG.reshape((x, G2 // 2, 2))
-            result_x = self.xp.einsum('xGz, xGz, G -> x',
-                                      a_xGz,
-                                      a_xGz,
-                                      self.xp.asarray(self.desc.ekin_G))
+            if self.xp is not np:
+                result_x = self.xp.empty((x,), dtype=self.real_dtype)
+                gpu_norm2(result_x, self._arrays(), self.xp.asarray(self.desc.ekin_G))
+            else:
+                a_xGz = a_xG.reshape((x, G2 // 2, 2))
+                result_x = self.xp.einsum('xGz, xGz, G -> x',
+                                          a_xGz,
+                                          a_xGz,
+                                          self.xp.asarray(self.desc.ekin_G))
         else:
             1 / 0
         if self.desc.dtype == self.real_dtype:
