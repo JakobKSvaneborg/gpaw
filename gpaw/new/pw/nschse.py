@@ -57,7 +57,9 @@ class NonSelfConsistentHSE06:
         xp = np
         self.plan = self.grid.fft_plans(xp=xp)
 
+        print(ibzwfs, self.grid)
         self.mypsits = ibz2bz(ibzwfs, setups, relpos_ac, self.grid, self.plan)
+        1 / 0
 
         self.ghat_aLR = setups.create_compensation_charges(
             self.grid, relpos_ac)
@@ -208,6 +210,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     ibz = ibzwfs.ibz
     nbzk = len(ibz.bz)
     comm = ibzwfs.comm
+    print(comm.rank, len(ibzwfs.wfs_qs))
     symmetries = ibzwfs.ibz.symmetries
     rank_K = np.zeros(nbzk, int)
     psit_KsnG = {}
@@ -221,6 +224,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             s = ibz.s_K[K]
             U_cc = symmetries.rotation_scc[s]
             complex_conjugate = ibz.time_reversal_K[K]
+            print(comm.rank, K, k, s, complex_conjugate)
             psit1_nG = wfs.psit_nX
             psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
             psit_KsnG[(K, wfs.spin)] = psit2_nG
@@ -228,11 +232,19 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
 
     comm.sum(rank_K)
 
-    nblocks = max(1, 5 * comm.size // nbzk)
-    blocksize = (nocc + nblocks - 1) // nblocks
-    nanb_i = [(min(i * blocksize, nocc),
-               min((i + 1) * blocksize, nocc))
-              for i in range(nblocks)]
+    #
+    nocc_total = nocc * nbzk
+    blocksize = (nocc_total + comm.size - 1) // comm.size
+    blocks = []
+    for b in range(0, nocc_total, blocksize):
+        Ka, na = divmod(b, nocc)
+        Kb, nb = divmod(b + blocksize, nocc)
+        for K in range(Ka, Kb):
+            blocks.append((K, (na, nocc)))
+            na = 0
+        blocks.append((Kb, (na, nb)))
+
+    print(nocc, nbzk, rank_K, blocks)
 
     requests = []
     for (K, spin), psit_nG in sorted(psit_KsnG.items()):

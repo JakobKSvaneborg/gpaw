@@ -22,26 +22,33 @@ def mos2() -> None:
     return atoms
 
 
-def bandstructure(calc, bp):
-    hse = NonSelfConsistentHSE06.from_dft_calculation(calc.dft)
-    fermi_level = calc.get_fermi_level()
-    vacuum_level = calc.dft.vacuum_level()
+def bandstructure(gs_calc, bp):
+    print(bp)
+    fermi_level = gs_calc.get_fermi_level()
+    print(fermi_level)
+    vacuum_level = gs_calc.dft.vacuum_level()
     N = 13 + 4
-    bs_calc = calc.fixed_density(
+    print(fermi_level)
+    bs_calc = gs_calc.fixed_density(
         kpts=bp,
         convergence={'bands': N},
         symmetry='off')
+    print(fermi_level)
+    print(bs_calc)
     lda_skn = bs_calc.eigenvalues()
-    hse = NonSelfConsistentHSE06.from_dft_calculation(calc.dft)
-    hse_skn = hse.calculate(bs_calc.dft.ibzwfs)
+    print(lda_skn)
+    hse = NonSelfConsistentHSE06.from_dft_calculation(gs_calc.dft)
+    print(hse)
+    hse_skn = hse.calculate(bs_calc.dft.ibzwfs, na=0, nb=N)
     return (lda_skn[0, :, :N] - vacuum_level,
-            hse_skn[0, :, :N] - vacuum_level,
+            hse_skn[0] - vacuum_level,
             fermi_level - vacuum_level)
 
 
 def run():
     atoms = mos2()
-    bp = atoms.cell.bandpath('GMKG', npoints=50)
+    # bp = atoms.cell.bandpath('GMKG', npoints=50)
+    bp = atoms.cell.bandpath('GK', npoints=4)
     lda_kn, hse_kn, fermi_level = bandstructure(atoms.calc, bp)
     if world.rank == 0:
         Path('bs.pckl').write_bytes(
@@ -67,7 +74,7 @@ def plot(bp, lda_kn, hse_kn, fermi_level):
 
 if __name__ == '__main__':
     path = Path('bs.pckl')
-    if not path.is_file():
+    if 1:  # not path.is_file():
         run()
     else:
         plot(*pickle.loads(path.read_bytes()))

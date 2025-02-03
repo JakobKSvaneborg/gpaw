@@ -377,16 +377,14 @@ class ASECalculator:
         return list(compare_atoms(self.atoms, atoms))
 
     def eigenvalues(self):
-        return broadcast(
-            self.dft.ibzwfs.get_all_eigs_and_occs()[0] * Ha
-            if self.comm.rank == 0 else None,
-            comm=self.comm)
+        eig_skn = self.dft.ibzwfs.get_all_eigs_and_occs()[0]
+        return broadcast(eig_skn * Ha if self.comm.rank == 0 else None,
+                         comm=self.comm)
 
     def occupations(self):
-        return broadcast(
-            self.dft.ibzwfs.get_all_eigs_and_occs()[1]
-            if self.comm.rank == 0 else None,
-            comm=self.comm)
+        occ_skn = self.dft.ibzwfs.get_all_eigs_and_occs()[1]
+        return broadcast(occ_skn if self.comm.rank == 0 else None,
+                         comm=self.comm)
 
     def write(self,
               filename: str | Path,
