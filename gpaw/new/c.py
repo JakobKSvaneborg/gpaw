@@ -137,4 +137,5 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
         from gpaw.cgpaw import (calculate_residuals_gpu,  # noqa
                                 dH_aii_times_P_ani_gpu, evaluate_lda_gpu,
                                 evaluate_pbe_gpu, pw_amend_insert_realwf_gpu,
-                                pw_insert_gpu, pwlfc_expand_gpu)
+                                pw_insert_gpu, pwlfc_expand_gpu,
+                                pw_norm_kinetic_gpu, pw_norm_gpu)
