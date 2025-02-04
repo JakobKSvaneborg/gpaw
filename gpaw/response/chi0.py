@@ -48,7 +48,7 @@ class Chi0Calculator:
             nblocks=nblocks, eshift=eshift, **kwargs)
         self.chi0_opt_ext_calc = Chi0OpticalExtensionCalculator(
             self.gs, self.context,
-            intraband=intraband, rate=rate, **kwargs)
+            intraband=intraband, rate=rate, eshift=eshift, **kwargs)
 
     @property
     def wd(self) -> FrequencyDescriptor:
@@ -314,7 +314,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 
     def __init__(self, *args,
                  intraband=True,
-                 rate=0.0,
+                 rate=0.0, eshift=None,
                  **kwargs):
         """Contruct the Chi0OpticalExtensionCalculator.
 
