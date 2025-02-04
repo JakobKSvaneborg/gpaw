@@ -336,6 +336,7 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
                  timeordered=False,
                  ecut=50.0,
                  eta=0.2,
+                 eshift=None,
                  **kwargs):
         """Set up attributes to calculate the chi0 body and optical extensions.
 
@@ -361,6 +362,7 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         super().__init__(gs, context, **kwargs)
 
         self.ecut = ecut / Ha
+        self.eshift = eshift / Ha if eshift else eshift
         self.nbands = nbands or self.gs.nbands
 
         self.wd = wd
