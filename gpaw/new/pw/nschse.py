@@ -1,12 +1,16 @@
 """Non self-consistent HSE06 eigenvalues."""
 from __future__ import annotations
+
 from dataclasses import dataclass
+from pathlib import Path
+from typing import IO
 
 import numpy as np
 from ase.units import Ha
 
 from gpaw.core import PWArray, UGArray
 from gpaw.core.atom_arrays import AtomArrays
+from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
@@ -17,7 +21,7 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
-from gpaw.mpi import broadcast
+from gpaw.new.logger import Logger
 
 
 @dataclass
@@ -37,35 +41,39 @@ class NonSelfConsistentHSE06:
 
     @classmethod
     def from_dft_calculation(cls,
-                             dft: DFTCalculation) -> NonSelfConsistentHSE06:
+                             dft: DFTCalculation,
+                             log: str | Path | IO[str] | None = '-',
+                             ) -> NonSelfConsistentHSE06:
         assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         return cls(dft.ibzwfs,
                    dft.density,
                    dft.pot_calc,
                    dft.setups,
-                   dft.relpos_ac)
+                   dft.relpos_ac,
+                   log)
 
     def __init__(self,
                  ibzwfs: PWFDIBZWaveFunctions,
                  density: Density,
                  pot_calc: PlaneWavePotentialCalculator,
                  setups: Setups,
-                 relpos_ac: np.ndarray):
+                 relpos_ac: np.ndarray,
+                 log: str | Path | IO[str] | None = '-'):
+        self.comm = ibzwfs.comm
+        self.log = Logger(log, self.comm)
         self.grid = density.nt_sR.desc.new(dtype=complex, comm=None)
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.nbzk = len(ibzwfs.ibz.bz)
         xp = np
         self.plan = self.grid.fft_plans(xp=xp)
 
-        print(ibzwfs, self.grid)
-        self.mypsits = ibz2bz(ibzwfs, setups, relpos_ac, self.grid, self.plan)
-        1 / 0
+        self.mypsits = ibz2bz(ibzwfs, setups, relpos_ac, self.grid, self.plan,
+                              self.log)
 
         self.ghat_aLR = setups.create_compensation_charges(
             self.grid, relpos_ac)
         self.relpos_ac = relpos_ac
         self.setups = setups
-        self.comm = ibzwfs.comm
 
         self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
 
@@ -205,13 +213,13 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            setups: Setups,
            relpos_ac: np.ndarray,
            grid,
-           plan) -> list[Psit]:
+           plan,
+           log: Logger) -> list[Psit]:
     """Compute BZ from IBZ and distribute."""
     nocc = number_of_non_empty_bands(ibzwfs)
     ibz = ibzwfs.ibz
     nbzk = len(ibz.bz)
     comm = ibzwfs.comm
-    print(comm.rank, len(ibzwfs.wfs_qs))
     symmetries = ibzwfs.ibz.symmetries
     rank_K = np.zeros(nbzk, int)
     psit_KsnG = {}
@@ -226,13 +234,10 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             s = ibz.s_K[K]
             U_cc = symmetries.rotation_scc[s]
             complex_conjugate = ibz.time_reversal_K[K]
-            print(comm.rank, K, k, s, complex_conjugate)
             psit_snG = []
             for wfs in wfs_s:
                 psit1_nG = wfs.psit_nX
                 psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
-                if K == 0:
-                    print('B', comm.rank, k, K, psit1_nG.data.shape, psit2_nG.data.shape)
                 psit_snG.append(psit2_nG)
             psit_KsnG[K] = psit_snG
 
@@ -247,10 +252,12 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
         for K in range(Ka, Kb):
             blocks.append((rank, K, (na, nocc)))
             na = 0
-        if nb > na:
+        if nb > na and Kb < nbzk:
             blocks.append((rank, Kb, (na, nb)))
 
-    print(nocc, nbzk, rank_K, blocks)
+    log(ibz)
+    log('Occupied bands:', nocc)
+    print(blocks)
 
     requests = []
     for K, psit_snG in psit_KsnG.items():
@@ -259,8 +266,6 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                 continue
             if rank != comm.rank:
                 for psit_nG in psit_snG:
-                    if K == 0:
-                        print('S', comm.rank, K, psit_nG.data.shape)
                     requests.append(
                         comm.send(psit_nG.data[na:nb], rank,
                                   block=False, tag=K))
@@ -275,22 +280,20 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
         pt_aiG = None
         for spin in range(ibzwfs.nspins):
             if rank_K[K] == rank:
-                print(rank, K, list(psit_KsnG.keys()))
                 psit_nG = psit_KsnG[K][spin][na:nb]
             else:
                 psit_nG = pw.new(kpt=ibz.bz.kpt_Kc[K]).empty(nb - na)
-                print('R', K, psit_nG.data.shape)
                 comm.receive(psit_nG.data, rank_K[K], tag=K)
             pt_aiG = pt_aiG or psit_nG.desc.atom_centered_functions(
                 [setup.pt_j for setup in setups],
                 relpos_ac)
             P_ani = pt_aiG.integrate(psit_nG)
-            k = ibz.bz2ibz_K[K]
 
             psit_nR = psit_nG.ifft(grid=grid, plan=plan, periodic=False)
             Q_aniL = {a: np.einsum('ijL, nj -> niL',
                                    setup.Delta_iiL, P_ani[a].conj())
                       for a, setup in enumerate(setups)}
+            k = ibz.bz2ibz_K[K]
             f_n = occ_skn[spin, k, na:nb]
             psit = Psit(psit_nR, P_ani, f_n, psit_nG.desc.kpt_c, Q_aniL, spin)
             mypsits.append(psit)
