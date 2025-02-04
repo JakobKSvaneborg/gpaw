@@ -29,7 +29,8 @@ class Chi0Integrand(Integrand):
                  qpd: SingleQPWDescriptor,
                  generator: KPointDomainGenerator,
                  m1: int,
-                 m2: int):
+                 m2: int,
+                 eshift: float):
 
         self._chi0calc = chi0calc
 
@@ -42,6 +43,8 @@ class Chi0Integrand(Integrand):
         assert m1 <= m2
         self.m1 = m1
         self.m2 = m2
+
+        self.eshift = eshift or 0.0
 
         self.context: ResponseContext = chi0calc.context
         self.kptpair_factory: KPointPairFactory = chi0calc.kptpair_factory

@@ -223,7 +223,8 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         symmetries, generator, domain, prefactor = self.get_integration_domain(
             qpd.q_c, spins)
         integrand = Chi0Integrand(self, qpd=qpd, generator=generator,
-                                  optical=False, m1=m1, m2=m2)
+                                  optical=False, m1=m1, m2=m2, 
+                                  eshift=self.eshift)
 
         chi0_body.data_WgG[:] /= prefactor
         if self.hilbert:
