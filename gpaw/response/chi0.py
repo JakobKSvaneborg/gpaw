@@ -96,8 +96,8 @@ class Chi0Calculator:
 
         # Calculate optical extension
         if qpd.optical_limit:
-            if self.chi0_body_calc.eshift is not None:
-                raise NotImplementedError("No wings eshift available")
+            #if self.chi0_body_calc.eshift is not None:
+            #    raise NotImplementedError("No wings eshift available")
             chi0_opt_ext = self.chi0_opt_ext_calc.calculate(qpd=qpd)
         else:
             chi0_opt_ext = None
@@ -129,8 +129,8 @@ class Chi0Calculator:
         """
         self.chi0_body_calc.update_chi0_body(chi0.body, m1, m2, spins)
         if chi0.optical_limit:
-            if self.chi0_body_calc.eshift is not None:
-                raise NotImplementedError("No wings eshift available")
+            #if self.chi0_body_calc.eshift is not None:
+            #    raise NotImplementedError("No wings eshift available")
             assert chi0.optical_extension is not None
             # Update the head and wings
             self.chi0_opt_ext_calc.update_chi0_optical_extension(
