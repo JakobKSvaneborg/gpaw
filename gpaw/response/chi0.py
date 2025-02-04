@@ -404,7 +404,8 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         symmetries, generator, domain, prefactor = self.get_integration_domain(
             qpd.q_c, spins)
         integrand = Chi0Integrand(self, qpd=qpd, generator=generator,
-                                  optical=True, m1=m1, m2=m2)
+                                  optical=True, m1=m1, m2=m2,
+                                  eshift=self.eshift)
 
         # We integrate the head and wings together, using the combined index P
         # index v = (x, y, z)
