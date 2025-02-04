@@ -332,6 +332,8 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         # Serial block distribution
         super().__init__(*args, nblocks=1, **kwargs)
 
+        self.eshift = eshift / Ha if eshift else eshift
+
         # In the optical limit of metals, one must add the Drude dielectric
         # response from the free-space plasma frequency of the intraband
         # transitions to the head of chi0. This is handled by a separate
