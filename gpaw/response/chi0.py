@@ -432,16 +432,16 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         operators.symmetrize_wvv(chi0_opt_ext.head_Wvv)
 
     def construct_hermitian_task(self):
-        return HermitianOpticalLimit()
+        return HermitianOpticalLimit(eshift=self.eshift)
 
     def construct_point_hilbert_task(self):
-        return HilbertOpticalLimit()
+        return HilbertOpticalLimit(eshift=self.eshift)
 
     def construct_tetra_hilbert_task(self):
         return HilbertOpticalLimitTetrahedron()
 
     def construct_literal_task(self):
-        return OpticalLimit(eta=self.eta)
+        return OpticalLimit(eta=self.eta, eshift=self.eshift)
 
     def print_info(self, qpd: SingleQPWDescriptor):
         """Print information about optical extension calculation."""
