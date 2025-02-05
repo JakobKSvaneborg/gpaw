@@ -1,4 +1,4 @@
-# creates: H.rst, H.default.png
+# creates: H.rst, H.png
 # ... and all the rest.
 import gzip
 import json

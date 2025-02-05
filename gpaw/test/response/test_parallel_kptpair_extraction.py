@@ -23,6 +23,7 @@ pytestmark = pytest.mark.skipif(world.size == 1, reason='world.size == 1')
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parametrize('system,qrel,nblocks', product(generate_system_s(),
                                                         generate_qrel_q(),
                                                         generate_nblocks_n()))
@@ -40,29 +41,34 @@ def test_parallel_extract_kptdata(in_tmp_dir, gpw_files,
 
     # Initialize serial ground state adapter
     serial_gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files[wfs])
+    assert not serial_gs.is_parallelized()
 
     # Initialize parallel ground state adapter
     calc = GPAW(gpw_files[wfs], parallel=dict(domain=1))
     nbands = response_band_cutoff[wfs]
     parallel_gs = ResponseGroundStateAdapter(calc)
+    assert parallel_gs.is_parallelized()
 
     # Set up extractors and integrals
     context = ResponseContext()
     tcomm, kcomm = block_partition(context.comm, nblocks)
     serial_extractor = initialize_extractor(
         serial_gs, context, tcomm, kcomm)
-    assert not serial_extractor.calc_parallel
     assert serial_extractor.gs.world.size == 1
     parallel_extractor = initialize_extractor(
         parallel_gs, context, tcomm, kcomm)
-    assert parallel_extractor.calc_parallel
     assert parallel_extractor.gs.world.size > 1
     serial_integral = initialize_integral(serial_extractor, context, q_c)
     parallel_integral = initialize_integral(parallel_extractor, context, q_c)
 
     # Set up transitions
-    transitions = initialize_transitions(
-        serial_extractor, spincomponent, nbands)
+    transitions = initialize_transitions(serial_gs, spincomponent, nbands)
+    parallel_transitions = initialize_transitions(
+        parallel_gs, spincomponent, nbands)
+    assert np.allclose(parallel_transitions.n1_t, transitions.n1_t)
+    assert np.allclose(parallel_transitions.n2_t, transitions.n2_t)
+    assert np.allclose(parallel_transitions.s1_t, transitions.s1_t)
+    assert np.allclose(parallel_transitions.s2_t, transitions.s2_t)
 
     # Extract and compare kptpairs
     ni = serial_integral.ni  # Number of iterations in kptpair generator
@@ -112,8 +118,7 @@ def initialize_integral(extractor, context, q_c):
     return KPointPairPointIntegral(extractor, generator)
 
 
-def initialize_transitions(extractor, spincomponent, nbands):
+def initialize_transitions(gs, spincomponent, nbands):
     bandsummation = 'pairwise'
     return PairTransitions.from_transitions_domain_arguments(
-        spincomponent, nbands, extractor.nocc1, extractor.nocc2,
-        extractor.gs.nspins, bandsummation)
+        spincomponent, nbands, gs.nocc1, gs.nocc2, gs.nspins, bandsummation)

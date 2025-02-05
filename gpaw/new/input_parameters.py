@@ -94,7 +94,10 @@ class InputParameters:
                 warnings.warn('Please use new "magmoms" parameter.',
                               DeprecatedParameterWarning)
                 self._add('magmoms', self.experimental.pop('magmoms'))
-            assert self.experimental.keys() <= {'backwards_compatible'}
+            unknown = self.experimental.keys() - {'backwards_compatible'}
+            if unknown:
+                warnings.warn(f'Unknown experimental keyword(s): {unknown}',
+                              stacklevel=3)
 
     def __repr__(self) -> str:
         p = ', '.join(f'{key}={value!r}'

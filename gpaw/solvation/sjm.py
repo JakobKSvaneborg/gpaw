@@ -555,15 +555,15 @@ class SJM(SolvationGPAW):
         # Add grand-canonical terms.
         p = self.parameters['sj']
         self.log()
-        mu_N = self.get_electrode_potential() * p.excess_electrons / Ha
-        self.omega_free = self.hamiltonian.e_total_free + mu_N
-        self.omega_extrapolated = self.hamiltonian.e_total_extrapolated + mu_N
+        mu_N = -self.get_electrode_potential() * p.excess_electrons / Ha
+        self.omega_free = self.hamiltonian.e_total_free - mu_N
+        self.omega_extrapolated = self.hamiltonian.e_total_extrapolated - mu_N
         self.log('Legendre-transformed energies (grand potential, '
                  'Omega = E - N mu)')
         self.log(' N (excess electrons):  {:+11.6f}'
                  .format(p.excess_electrons))
-        self.log(' mu (workfunction, eV): {:+11.6f}'
-                 .format(self.get_electrode_potential()))
+        self.log(' mu (-workfunction, eV): {:+11.6f}'
+                 .format(-self.get_electrode_potential()))
         self.log(' (Grand) free energy:   {:+11.6f}'
                  .format(Ha * self.omega_free))
         self.log(' (Grand) extrapolated:  {:+11.6f}'

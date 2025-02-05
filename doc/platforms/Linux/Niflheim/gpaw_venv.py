@@ -79,6 +79,8 @@ module load libvdwxc/0.4.0-{fullchain}
 module_cmds_arch_dependent = """\
 if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2023a" ];\
 then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
+if [ "$SLURM_JOB_PARTITION" == "a100" ];\
+then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 """
 
 
@@ -204,15 +206,15 @@ def main():
     activate = venv / 'bin/activate'
     gpaw = venv / 'gpaw'
 
+    intel_only = args.toolchain == 'intel'
+
     if args.recompile:
-        compile_gpaw_c_code(gpaw, activate)
+        compile_gpaw_c_code(gpaw, activate, intel_only)
         return 0
 
     # Sanity checks
     if args.toolchain not in ('foss', 'intel'):
         raise ValueError(f'Unsupported toolchain "{args.toolchain}"')
-
-    intel_only = args.toolchain == 'intel'
 
     module_cmds = module_cmds_all.format(**toolchains[args.toolchain])
     if not args.piponly:

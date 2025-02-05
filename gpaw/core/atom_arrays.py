@@ -373,6 +373,7 @@ class AtomArrays:
         comm = self.layout.atomdist.comm
         xp = self.layout.xp
         if comm.size == 1:
+            assert data is not None
             self.data[:] = data
             return
 

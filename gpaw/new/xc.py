@@ -64,9 +64,17 @@ class Functional:
         self.xc.set_grid_descriptor(grid._gd)
         self.exx_fraction = 0.0
         self.exx_omega = 0.0
+        self.energies: dict[str, float] = {}
 
     def __str__(self):
         return f'name: {self.xc.get_description()}'
+
+    def calculate(self,
+                  nt_sr: UGArray,
+                  taut_sr: UGArray | None = None) -> tuple[float,
+                                                           UGArray,
+                                                           UGArray | None]:
+        raise NotImplementedError
 
     def calculate_paw_correction(self, setup, d, h=None):
         return self.xc.calculate_paw_correction(setup, d, h)

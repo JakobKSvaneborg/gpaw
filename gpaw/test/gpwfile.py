@@ -1314,12 +1314,16 @@ class GPWFiles(CachedFilesHandler):
                    scaled_positions=[[0.5, 0.5, 0.5]],
                    pbc=False)
 
-        Tl.calc = GPAWNew(mode={'name': 'pw', 'ecut': 300}, xc='LDA',
-                          occupations={'name': 'fermi-dirac', 'width': 0.01},
-                          symmetry='off',
-                          convergence={'density': 1e-6},
-                          magmoms=[[0, 0, 0.5]], soc=True,
-                          txt=self.folder / 'Tl_box_pw.txt')
+        Tl.calc = GPAWNew(
+            mode={'name': 'pw', 'ecut': 300},
+            xc='LDA',
+            occupations={'name': 'fermi-dirac', 'width': 0.01},
+            symmetry='off',
+            convergence={'density': 1e-6},
+            parallel={'domain': 1, 'band': 1},
+            magmoms=[[0, 0, 0.5]],
+            soc=True,
+            txt=self.folder / 'Tl_box_pw.txt')
         Tl.get_potential_energy()
         return Tl.calc
 

@@ -354,7 +354,7 @@ class Density:
 
         return magmom_v, magmom_av
 
-    def write(self, writer):
+    def write_to_gpw(self, writer, flags):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
         if self.taut_sR is not None:
@@ -362,10 +362,11 @@ class Density:
         if D_asp is None:
             return  # let master do the writing
         writer.write(
-            density=nt_sR.data * Bohr**-3,
+            density=flags.to_storage_dtype(nt_sR.data * Bohr**-3),
             atomic_density_matrices=D_asp.data)
         if self.taut_sR is not None:
-            writer.write(ked=taut_sR.data * (Ha * Bohr**-3))
+            writer.write(ked=flags.to_storage_dtype(
+                taut_sR.data * (Ha * Bohr**-3)))
 
 
 def atomic_occupation_numbers(setup,

@@ -742,6 +742,74 @@ __global__ void dH_aii_times_P_ani_16(int nA, int nn, int nI,
     }
 }
 
+template <unsigned int blockSize>
+__device__ void warpReduce(volatile double *sdata, unsigned int tid) {
+if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
+if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
+if (blockSize >= 16) sdata[tid] += sdata[tid + 8];
+if (blockSize >= 8) sdata[tid] += sdata[tid + 4];
+if (blockSize >= 4) sdata[tid] += sdata[tid + 2];
+if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
+}
+
+
+// One block will always sum one G-vector. Thus, no block wide reduce.
+template <unsigned int blockSize>
+__global__ void pw_norm_kinetic_kernel(int nx, int nG,
+                                       double* result_x,
+                                       double* C_xG,
+                                       double* kin_G)
+{
+    extern __shared__ double sdata[];
+    unsigned int tid = threadIdx.x;
+
+    sdata[tid] = 0;
+    unsigned int x = blockIdx.x;
+
+    double* C_G = C_xG + (x * nG * 2); // C_xG is a double complex array
+    unsigned int i = tid;
+    while (i < nG)
+    {
+        double kin_i = kin_G[i] * (C_G[i*2] * C_G[i*2] + C_G[i*2+1] * C_G[i*2+1]);
+        sdata[tid] += kin_i;
+        i += blockSize;
+    }
+    __syncthreads();
+    if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+    if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+    if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+    if (tid < 32) warpReduce<blockSize>(sdata, tid);
+    if (tid == 0) result_x[x] = sdata[0];
+}
+
+    template <unsigned int blockSize>
+__global__ void pw_norm_kernel(int nx, int nG,
+                               double* result_x,
+                               double* C_xG)
+{
+    extern __shared__ double sdata[];
+    unsigned int tid = threadIdx.x;
+
+    sdata[tid] = 0;
+    unsigned int x = blockIdx.x;
+
+    double* C_G = C_xG + (x * nG * 2); // C_xG is a double complex array
+    unsigned int i = tid;
+    while (i < nG)
+    {
+        double kin_i = C_G[i*2] * C_G[i*2] + C_G[i*2+1] * C_G[i*2+1];
+        sdata[tid] += kin_i;
+        i += blockSize;
+    }
+    __syncthreads();
+    if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+    if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+    if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+    if (tid < 32) warpReduce<blockSize>(sdata, tid);
+    if (tid == 0) result_x[x] = sdata[0];
+}
+
+
 __global__ void dH_aii_times_P_ani_8(int nA, int nn, int nI,
 				      npy_int32* ni_a, double* dH_aii_dev,
 				      double* P_ani_dev,
@@ -805,6 +873,35 @@ void dH_aii_times_P_ani_launch_kernel(int nA, int nn,
 
 }
 
+extern "C" void pw_norm_gpu_launch_kernel(int nx, int nG,
+                                          double* result_x,
+                                          double* C_xG)
+{
+	gpuLaunchKernel(pw_norm_kernel<512>,
+                    dim3(nx, 1),
+                    dim3(512, 1),
+                    sizeof(double) * 512, 0,
+                    nx,
+                    nG,
+                    result_x,
+                    C_xG);
+}
+
+extern "C" void pw_norm_kinetic_gpu_launch_kernel(int nx, int nG,
+                                                  double* result_x,
+                                                  double* C_xG,
+                                                  double* kin_G)
+{
+	gpuLaunchKernel(pw_norm_kinetic_kernel<512>,
+                    dim3(nx, 1),
+                    dim3(512, 1),
+                    sizeof(double) * 512, 0,
+                    nx,
+                    nG,
+                    result_x,
+                    C_xG,
+                    kin_G);
+}
 
 
 extern "C"

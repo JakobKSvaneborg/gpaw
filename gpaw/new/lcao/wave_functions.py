@@ -204,7 +204,9 @@ class LCAOWaveFunctions(WaveFunctions):
         psit_nR = grid.zeros(self.nbands, self.band_comm)
         basis.lcao_to_grid(self.C_nM.data, psit_nR.data, self.q)
 
-        return PWFDWaveFunctions.from_wfs(self, psit_nR)
+        wfs = PWFDWaveFunctions.from_wfs(self, psit_nR)
+        wfs._eig_n = self._eig_n.copy()
+        return wfs
 
     def collect(self,
                 n1: int = 0,

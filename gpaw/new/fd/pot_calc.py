@@ -123,10 +123,15 @@ class FDPotentialCalculator(PotentialCalculator):
 
         V_aL = self.ghat_aLr.integrate(vHt_r)
 
-        return {'coulomb': e_coulomb,
-                'zero': e_zero,
-                'xc': e_xc,
-                'external': e_external}, vt_sR, dedtaut_sr, vHt_r, V_aL
+        return ({'coulomb': e_coulomb,
+                 'zero': e_zero,
+                 'xc': e_xc,
+                 'external': e_external},
+                vt_sR,
+                dedtaut_sr,
+                vHt_r,
+                V_aL,
+                np.nan)
 
     def move(self, relpos_ac, atomdist):
         self.ghat_aLr.move(relpos_ac, atomdist)

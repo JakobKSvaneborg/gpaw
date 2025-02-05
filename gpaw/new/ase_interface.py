@@ -13,13 +13,13 @@ from ase.units import Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
-from gpaw.mpi import MPIComm
+from gpaw.mpi import MPIComm, broadcast
 from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
-from gpaw.new.gpw import read_gpw, write_gpw
+from gpaw.new.gpw import read_gpw, write_gpw, GPWFlags
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.logger import Logger
@@ -245,7 +245,7 @@ class ASECalculator:
         self.log(f'Converged in {ctx.niter} steps')
 
         # Calculate all the cheap things:
-        self.dft.energies()
+        self.dft.energy()
         self.dft.dipole()
         self.dft.magmoms()
 
@@ -328,8 +328,8 @@ class ASECalculator:
     def _calculate_forces(self) -> Array2D:  # units: Ha/Bohr
         """Helper method for force-convergence criterium."""
         with self.timer('Forces'):
-            self.dft.forces(silent=True)
-        return self.dft.results['forces'].copy()
+            self.dft._calculate_forces()
+        return self.dft.results['forces']
 
     def __del__(self):
         self.log('---')
@@ -377,22 +377,41 @@ class ASECalculator:
     def check_state(self, atoms, tol=1e-12):
         return list(compare_atoms(self.atoms, atoms))
 
-    def write(self, filename, mode='', include_projections=True):
+    def eigenvalues(self):
+        eig_skn = self.dft.ibzwfs.get_all_eigs_and_occs()[0]
+        return broadcast(eig_skn * Ha if self.comm.rank == 0 else None,
+                         comm=self.comm)
+
+    def occupations(self):
+        occ_skn = self.dft.ibzwfs.get_all_eigs_and_occs()[1]
+        return broadcast(occ_skn if self.comm.rank == 0 else None,
+                         comm=self.comm)
+
+    def write(self,
+              filename: str | Path,
+              mode: str = '',
+              precision: str = 'double',
+              include_projections: bool = True) -> None:
         """Write calculator object to a file.
 
         Parameters
         ----------
         filename:
-            File to be written
+            File to be written.
         mode:
             Write mode. Use ``mode='all'``
             to include wave functions in the file.
+        precision:
+            'double' (the default) or 'single'.
+        include_projections:
+            Use ``include_projections=False`` to not include
+            the PAW-projections.
         """
         self.log(f'# Writing to {filename} (mode={mode!r})\n')
 
-        write_gpw(filename, self.atoms, self.params,
-                  self.dft, skip_wfs=mode != 'all',
-                  include_projections=include_projections)
+        flags = GPWFlags(include_projections=include_projections,
+                         precision=precision, include_wfs=mode == 'all')
+        write_gpw(filename, self.atoms, self.params, self.dft, flags=flags)
 
     @property
     def environment(self):
@@ -451,14 +470,15 @@ class ASECalculator:
     def get_number_of_grid_points(self):
         return self.dft.density.nt_sR.desc.size
 
-    def get_effective_potential(self, spin=0):
+    def get_effective_potential(self, spin=0, broadcast=True):
         assert spin == 0
         vt_R = self.dft.potential.vt_sR[spin]
-        return vt_R.to_pbc_grid().gather(broadcast=True).data * Ha
+        vt_R = vt_R.to_pbc_grid().gather(broadcast=broadcast)
+        return None if vt_R is None else vt_R.data * Ha
 
     def get_electrostatic_potential(self):
         density = self.dft.density
-        potential, _ = self.dft.pot_calc.calculate(density)
+        potential, _, _ = self.dft.pot_calc.calculate(density)
         vHt_x = potential.vHt_x
         if isinstance(vHt_x, UGArray):
             return vHt_x.gather(broadcast=True).to_pbc_grid().data * Ha
@@ -479,7 +499,8 @@ class ASECalculator:
         assert spin is None
         nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
-        return nt_sr.gather(broadcast=broadcast).data.sum(0)
+        nt_sr = nt_sr.gather(broadcast=broadcast)
+        return None if nt_sr is None else nt_sr.data.sum(0)
 
     def get_all_electron_density(self,
                                  spin=None,
@@ -490,8 +511,10 @@ class ASECalculator:
             grid_refinement=gridrefinement,
             skip_core=skip_core)
         if spin is None:
-            return n_sr.gather(broadcast=broadcast).data.sum(0)
-        return n_sr[spin].gather(broadcast=broadcast).data
+            n_sr = n_sr.gather(broadcast=broadcast)
+            return None if n_sr is None else n_sr.data.sum(0)
+        n_r = n_sr[spin].gather(broadcast=broadcast)
+        return None if n_sr is None else n_r.data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
         eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
@@ -573,7 +596,8 @@ class ASECalculator:
         from gpaw.new.backwards_compatibility import FakeHamiltonian
         return FakeHamiltonian(
             self.dft.ibzwfs, self.dft.density, self.dft.potential,
-            self.dft.pot_calc, self.dft.results.get('free_energy'))
+            self.dft.pot_calc, self.dft.results.get('free_energy'),
+            self.dft.energies._energies['xc'])
 
     @property
     def spos_ac(self):
@@ -620,7 +644,7 @@ class ASECalculator:
             dexc += xc.calculate_paw_correction(
                 setup, np.array([pack_density(D_ii) for D_ii in D_sii.real]))
         dexc = dft.ibzwfs.domain_comm.sum_scalar(dexc)
-        return (exct + dexc - dft.potential.energies['xc']) * Ha
+        return (exct + dexc - dft.energies._energies['xc']) * Ha
 
     def diagonalize_full_hamiltonian(self,
                                      nbands: int | None = None,
@@ -653,7 +677,7 @@ class ASECalculator:
                       *,
                       txt='-',
                       update_fermi_level: bool = False,
-                      **kwargs):
+                      **kwargs) -> ASECalculator:
         kwargs = {**dict(self.params.items()), **kwargs}
 
         params = InputParameters(kwargs)
@@ -687,7 +711,8 @@ class ASECalculator:
             SimpleNamespace(relpos_ac=self.dft.relpos_ac,
                             poisson_solver=None,
                             xc=self.dft.pot_calc.xc),
-            log)
+            log,
+            energies=self.dft.energies)
 
         dft.converge()
 
@@ -756,11 +781,9 @@ class ASECalculator:
         pass
 
     def set(self, eigensolver):
-        from gpaw.new.pwfd.etdm import ETDMPWFD
-        self.dft.scf_loop.eigensolver = ETDMPWFD(self.setups,
-                                                 self.comm,
-                                                 self.atoms,
-                                                 eigensolver)
+        assert eigensolver.pop('name') == 'etdm-fdpw'
+        self.dft.scf_loop.eigensolver = self.dft.scf_loop.eigensolver.new(
+            **eigensolver)
 
     def todict(self):
         return dict(self.params.items())
@@ -779,3 +802,7 @@ class ASECalculator:
             return x.flatten()
         elif type == 'mbeefvdw':
             return np.append(x.flatten(), c)
+
+    def get_bz_to_ibz_map(self):
+        """Return indices from BZ to IBZ."""
+        return self.dft.ibzwfs.ibz.bz2ibz_K.copy()

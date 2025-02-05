@@ -4,6 +4,7 @@ from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
+from gpaw.new.gpw import as_double_precision
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
 
 
@@ -89,10 +90,11 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if 'coefficients' in reader.wave_functions:
             name = 'coefficients'
         elif 'values' in reader.wave_functions:
-            name = 'values'
+            name = 'values'  # old name
         else:
             return ibzwfs
 
+        singlep = reader.get('precision', 'double') == 'single'
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # old gpw file
@@ -102,7 +104,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             index = (wfs.spin, wfs.k)
             data = reader.wave_functions.proxy(name, *index)
             data.scale = c
-            if self.communicators['w'].size == 1:
+            if self.communicators['w'].size == 1 and not singlep:
                 wfs.psit_nX = UGArray(grid, self.nbands, data=data)
             else:
                 band_comm = self.communicators['b']
@@ -116,6 +118,10 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     n2 = min((band_comm.rank + 1) * mynbands, self.nbands)
                     assert wfs.psit_nX.mydims[0] == n2 - n1
                     data = data[n1:n2]  # read from file
-                wfs.psit_nX.scatter_from(data)
+
+                if singlep:
+                    wfs.psit_nX.scatter_from(as_double_precision(data))
+                else:
+                    wfs.psit_nX.scatter_from(data)
 
         return ibzwfs
