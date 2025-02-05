@@ -331,12 +331,12 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 
         self.eshift = eshift
 
+        super().__init__(*args, nblocks=1, **kwargs)
+
         if self.gs.metallic:
             assert self.eshift is None, \
                 'A rigid energy shift cannot be applied to the conduction '\
                 'bands if there is no band gap'
-
-        super().__init__(*args, nblocks=1, **kwargs)
 
         # In the optical limit of metals, one must add the Drude dielectric
         # response from the free-space plasma frequency of the intraband
