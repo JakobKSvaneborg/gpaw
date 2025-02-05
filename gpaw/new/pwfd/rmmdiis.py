@@ -26,9 +26,7 @@ class RMMDIIS(PWFDEigensolver):
                 blocksize = int(np.ceil(10 / S)) * S
             else:
                 blocksize = 10
-        self.blocksize = blocksize
-
-        super().__init__(preconditioner_factory, converge_bands)
+        super().__init__(preconditioner_factory, converge_bands, blocksize)
 
     def __str__(self):
         return pformat(dict(name='RMMDIIS',

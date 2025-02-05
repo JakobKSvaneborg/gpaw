@@ -56,9 +56,10 @@ def create_eigensolver(nbands,
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
                  preconditioner_factory,
-                 converge_bands='occupied'):
+                 converge_bands='occupied',
+                 blocksize=10):
         self.converge_bands = converge_bands
-
+        self.blocksize = blocksize
         self.preconditioner = None
         self.preconditioner_factory = preconditioner_factory
 
@@ -90,10 +91,8 @@ class PWFDEigensolver(Eigensolver):
                n        n   n
         """
 
-        if self.work_arrays is None:
+        if self.preconditioner is None:
             self._initialize(ibzwfs)
-
-        assert self.M_nn is not None
 
         wfs = ibzwfs.wfs_qs[0][0]
         dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
@@ -117,6 +116,9 @@ class PWFDEigensolver(Eigensolver):
             float(error)) * ibzwfs.spin_degeneracy
 
         return error, energies
+
+    def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
+        raise NotImplementedError
 
 
 def calculate_residuals(residual_nX: XArray,
