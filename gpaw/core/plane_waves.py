@@ -786,6 +786,7 @@ class PWArray(DistributedArrays[PWDesc]):
                   U_cc: np.ndarray,
                   complex_conjugate: bool = False,
                   pw: PWDesc | None = None) -> PWArray:
+        """Symmetry-transform data."""
         pw1 = self.desc
         pw2 = pw
         if complex_conjugate:

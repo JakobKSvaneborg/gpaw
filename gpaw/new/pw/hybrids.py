@@ -65,7 +65,6 @@ class Psi:
     P_ani: AtomArrays
     f_n: Array1D | None = None
     psit_nR: UGArray | None = None
-    Q_aniL: dict[int, np.ndarray] | None = None
 
     def empty(self):
         return Psi(self.psit_nG.new(),
