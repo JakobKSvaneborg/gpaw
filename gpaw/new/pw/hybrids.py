@@ -40,9 +40,8 @@ def truncated_coulomb(pw: PWDesc,
 
     Reciprocal space:::
 
-                    _ _ 2     2
-        4π        -(G+k) /(4 ω )
-      ------(1 - e              )
+        4π             _ _ 2     2
+      ------(1 - exp(-(G+k) /(4 ω )))
        _ _ 2
       (G+k)
 

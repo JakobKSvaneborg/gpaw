@@ -60,4 +60,5 @@ Non self-consistent HSE06
 .. figure:: hse06.png
 .. literalinclude:: plot_hse06.py
 .. autoclass:: gpaw.new.pw.nschse.NonSelfConsistentHSE06
+   :members:
 .. autofunction:: gpaw.new.pw.hybrids.truncated_coulomb
