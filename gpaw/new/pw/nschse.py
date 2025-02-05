@@ -113,7 +113,7 @@ class NonSelfConsistentHSE06:
 
         self.log('Calculating eigenvalues:')
         self.log('  k-points:', len(kpt_comm_rank_k))
-        self.log(f'  Bands: {na}:{nb}')
+        self.log(f'  Bands: {na}-{nb - 1} (inclusive)')
 
         t1 = time()
         eig_ksn = []
