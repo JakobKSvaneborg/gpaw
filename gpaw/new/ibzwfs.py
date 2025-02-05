@@ -291,20 +291,20 @@ class IBZWaveFunctions(Generic[WFT]):
                 return eig_n, occ_n
         return np.zeros(0), np.zeros(0)
 
-    def get_all_eigs_and_occs(self):
+    def get_all_eigs_and_occs(self, broadcast=False):
         nkpts = len(self.ibz)
-        if self.comm.rank == 0:
-            eig_skn = np.empty((self.nspins, nkpts, self.nbands))
-            occ_skn = np.empty((self.nspins, nkpts, self.nbands))
-        else:
-            eig_skn = np.empty((self.nspins, nkpts, 0))
-            occ_skn = np.empty((self.nspins, nkpts, 0))
+        mynbands = self.nbands if self.comm.rank == 0 or broadcast else 0
+        eig_skn = np.empty((self.nspins, nkpts, mynbands))
+        occ_skn = np.empty((self.nspins, nkpts, mynbands))
         for k in range(nkpts):
             for s in range(self.nspins):
                 eig_n, occ_n = self.get_eigs_and_occs(k, s)
                 if self.comm.rank == 0:
                     eig_skn[s, k, :] = eig_n
                     occ_skn[s, k, :] = occ_n
+        if broadcast:
+            self.comm.broadcast(eig_skn, 0)
+            self.comm.broadcast(occ_skn, 0)
         return eig_skn, occ_skn
 
     def forces(self, potential: Potential) -> Array2D:

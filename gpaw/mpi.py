@@ -195,7 +195,7 @@ class _Communicator:
             self.comm.max(a, root)
 
     def max_scalar(self, a, root=-1):
-        assert isinstance(a, (int, float))
+        assert isinstance(a, (int, float, np.int64))
         return self.comm.max_scalar(a, root)
 
     def min(self, a, root=-1):
