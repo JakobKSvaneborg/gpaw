@@ -146,6 +146,8 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
             Energy shift of the conduction bands in eV.
         """
 
+        self.eshift = eshift
+
         super().__init__(*args, **kwargs)
 
         if self.gs.metallic:
@@ -326,7 +328,9 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
             literature by a factor of 2.
         """
         # Serial block distribution
+
         self.eshift = eshift
+
         super().__init__(*args, nblocks=1, **kwargs)
 
         # In the optical limit of metals, one must add the Drude dielectric
