@@ -32,11 +32,8 @@ class RMMDIIS(PWFDEigensolver):
         return pformat(dict(name='RMMDIIS',
                             converge_bands=self.converge_bands))
 
-    def _initialize(self, ibzwfs):
-        super()._initialize(ibzwfs)
-
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
-        xp = M_nn.xp
+        xp = wfs.xp
 
         psit_nX = wfs.psit_nX
         B = psit_nX.dims[0]  # number of bands
@@ -58,8 +55,6 @@ class RMMDIIS(PWFDEigensolver):
         domain_comm = psit_nX.desc.comm
         band_comm = psit_nX.comm
         is_domain_band_master = domain_comm.rank == 0 and band_comm.rank == 0
-
-
 
         wfs.subspace_diagonalize(Ht, dH,
                                  work_array=psit2_nX.data,

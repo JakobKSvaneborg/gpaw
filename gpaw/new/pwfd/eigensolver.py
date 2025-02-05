@@ -38,7 +38,7 @@ def create_eigensolver(nbands,
             create_preconditioner,
             converge_bands,
             **kwargs)
-    if name == 'rmmdiis':
+    if name == 'rmm-diis':
         from gpaw.new.pwfd.rmmdiis import RMMDIIS
         return RMMDIIS(
             nbands,
