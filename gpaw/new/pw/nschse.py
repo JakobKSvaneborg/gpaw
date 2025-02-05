@@ -279,8 +279,6 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
         if nb > na and Kb < nbzk:
             blocks.append((rank, Kb, (na, nb)))
 
-    print(blocks)
-
     log('Distributing wave functions and iFFT-ing to real space: ', end='')
     t1 = time()
     requests = []
