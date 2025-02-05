@@ -212,12 +212,16 @@ class PWLFC:  # (BaseLFC)
         else:
             self.eikR_a = xp.asarray(
                 np.exp(2j * pi * (spos_ac @ self.pw.kpt_c)))
-
         self.pos_av = np.dot(spos_ac, self.pw.cell)
 
-        Gk_Gv = xp.asarray(self.pw.G_plus_k_Gv)
-        GkR_Ga = Gk_Gv @ xp.asarray(self.pos_av.T)
-        self.emiGR_Ga = xp.exp(-1j * GkR_Ga) * self.eikR_a
+        if xp is not np:
+            self.pos_avT = xp.asarray(self.pos_av.T)
+            self.emiGR_Ga = None
+        else:
+            Gk_Gv = self.pw.G_plus_k_Gv
+            GkR_Ga = Gk_Gv @ self.pos_av.T
+            self.emiGR_Ga = xp.exp(-1j * GkR_Ga) * self.eikR_a
+
         rank_a = atomdist.rank_a
 
         self.my_atom_indices = []
@@ -248,7 +252,7 @@ class PWLFC:  # (BaseLFC)
         if G2 is None:
             G2 = self.Y_GL.shape[0]
 
-        emiGR_Ga = self.emiGR_Ga[G1:G2]
+        emiGR_Ga = self.get_emiGR_Ga(G1, G2)
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 
@@ -298,6 +302,14 @@ class PWLFC:  # (BaseLFC)
                     yield nG, nG  # empty block
         else:
             yield 0, nG
+
+    def get_emiGR_Ga(self, G1, G2):
+        if self.emiGR_Ga is None:
+            Gk_Gv = self.xp.asarray(self.pw.G_plus_k_Gv)[G1:G2]
+            GkR_Ga = Gk_Gv @ self.pos_avT
+            return self.xp.exp(-1j * GkR_Ga) * self.eikR_a
+        else:
+            return self.emiGR_Ga[G1:G2]
 
     def add(self, a_xG, c_axi=1.0, q=None):
         if self.nI == 0:
@@ -498,7 +510,7 @@ class PWLFC:  # (BaseLFC)
                                     G_Gv, a_xG, c_axi, Z_LvG):
         xp = self.xp
         f_IG = xp.empty((self.nI, G2 - G1), complex)
-        emiGR_Ga = self.emiGR_Ga[G1:G2]
+        emiGR_Ga = self.get_emiGR_Ga(G1, G2)
         Y_LG = self.Y_GL.T
         for a, l, I1, I2, f_G, dfdGoG_G in things:
             L1 = l**2
