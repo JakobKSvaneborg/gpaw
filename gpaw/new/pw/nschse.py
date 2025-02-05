@@ -3,30 +3,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from time import time
 from typing import IO
 
 import numpy as np
 from ase.units import Ha
-
-from gpaw.core import PWArray, UGArray
+from gpaw.core import PWArray, UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
+from gpaw.new.logger import Logger
 from gpaw.new.pw.hybrids import fft, pawexxvv, truncated_coulomb
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
-from gpaw.new.logger import Logger
 
 
 @dataclass
 class Psit:
-
     ut_nR: UGArray
     P_ani: AtomArrays
     f_n: np.ndarray
@@ -93,6 +92,12 @@ class NonSelfConsistentHSE06:
                   ibzwfs: PWFDIBZWaveFunctions,
                   na: int = 0,
                   nb: int = 0) -> np.ndarray:
+        """Calculate eigenvalues at several k-points.
+
+        Returned eigenvalues are in eV.
+        """
+        nb = nb if nb > 0 else ibzwfs.nbands + nb
+
         comm = self.comm
         domain_comm = ibzwfs.domain_comm
         band_comm = ibzwfs.band_comm
@@ -106,6 +111,11 @@ class NonSelfConsistentHSE06:
                     comm_rank_k[k] = comm.rank
         comm.sum(comm_rank_k)
 
+        self.log('Calculating eigenvalues:')
+        self.log('  k-points:', len(kpt_comm_rank_k))
+        self.log(f'  Bands: {na}:{nb}')
+
+        t1 = time()
         eig_ksn = []
         for k, kpt_comm_rank in enumerate(kpt_comm_rank_k):
             eig_sn = []
@@ -120,6 +130,8 @@ class NonSelfConsistentHSE06:
                 eig_n = self.calculate_one_kpt(*args)
                 eig_sn.append(eig_n)
             eig_ksn.append(eig_sn)
+        t2 = time()
+        self.log(f'  Seconds: {t2 - t1:.3f}')
 
         return np.array(eig_ksn).transpose((1, 0, 2))
 
@@ -128,7 +140,10 @@ class NonSelfConsistentHSE06:
                           P2_ani: AtomArrays,
                           eig0_n: np.ndarray,
                           spin: int) -> np.ndarray:
-        """Calculate eigenvalues at one k-point (in eV)."""
+        """Calculate eigenvalues at one k-point.
+
+        Returned eigenvalues are in eV.
+        """
         ut2_nR = self.grid.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
@@ -159,7 +174,7 @@ class NonSelfConsistentHSE06:
                   psit1: Psit,
                   ut2_nR: UGArray,
                   P2_ani: AtomArrays) -> np.ndarray:
-        """"""
+        """EXX contribution from one k-point in the BZ."""
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
@@ -212,16 +227,22 @@ def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,
 def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            setups: Setups,
            relpos_ac: np.ndarray,
-           grid,
-           plan,
+           grid: UGDesc,
+           plan,  # FFT-plan
            log: Logger) -> list[Psit]:
     """Compute BZ from IBZ and distribute."""
     nocc = number_of_non_empty_bands(ibzwfs)
     ibz = ibzwfs.ibz
+    log(ibz)
+    log('Occupied bands:', nocc)
+
+    log('Transforming wave functions from IBZ to BZ: ', end='')
+    t1 = time()
     nbzk = len(ibz.bz)
     comm = ibzwfs.comm
     symmetries = ibzwfs.ibz.symmetries
     rank_K = np.zeros(nbzk, int)
+    kpt_Kc = np.zeros((nbzk, 3))
     psit_KsnG = {}
     for wfs_s in ibzwfs.wfs_qs:
         wfs_s = [wfs.collect(0, nocc) for wfs in wfs_s]
@@ -239,9 +260,12 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                 psit1_nG = wfs.psit_nX
                 psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
                 psit_snG.append(psit2_nG)
+                kpt_Kc[K] = psit2_nG.desc.kpt_c
             psit_KsnG[K] = psit_snG
-
     comm.sum(rank_K)
+    comm.sum(kpt_Kc)
+    t2 = time()
+    log(f'{t2 - t1:.3f} seconds')
 
     nocc_total = nocc * nbzk
     blocksize = (nocc_total + comm.size - 1) // comm.size
@@ -249,16 +273,16 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     for rank in range(comm.size):
         Ka, na = divmod(rank * blocksize, nocc)
         Kb, nb = divmod((rank + 1) * blocksize, nocc)
-        for K in range(Ka, Kb):
+        for K in range(Ka, min(Kb, nbzk)):
             blocks.append((rank, K, (na, nocc)))
             na = 0
         if nb > na and Kb < nbzk:
             blocks.append((rank, Kb, (na, nb)))
 
-    log(ibz)
-    log('Occupied bands:', nocc)
     print(blocks)
 
+    log('Distributing wave functions and iFFT-ing to real space: ', end='')
+    t1 = time()
     requests = []
     for K, psit_snG in psit_KsnG.items():
         for rank, KK, (na, nb) in blocks:
@@ -282,7 +306,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             if rank_K[K] == rank:
                 psit_nG = psit_KsnG[K][spin][na:nb]
             else:
-                psit_nG = pw.new(kpt=ibz.bz.kpt_Kc[K]).empty(nb - na)
+                psit_nG = pw.new(kpt=kpt_Kc[K]).empty(nb - na)
                 comm.receive(psit_nG.data, rank_K[K], tag=K)
             pt_aiG = pt_aiG or psit_nG.desc.atom_centered_functions(
                 [setup.pt_j for setup in setups],
@@ -299,6 +323,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             mypsits.append(psit)
 
     comm.waitall(requests)
+
+    t2 = time()
+    log(f'{t2 - t1:.3f} seconds')
 
     return mypsits
 
