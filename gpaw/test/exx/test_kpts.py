@@ -89,31 +89,5 @@ def test_2d_non_self_consistent():
     assert e_skn[0, :, 0] == pytest.approx(eref_kn[:, 0])
 
 
-def grr():
-    a = Atoms('Li',
-              [[0*0.75, 0*0.75, 1.0],
-               ],#[0.0, 0.0, 2.0]],
-              cell=[1.5, 1.5, 4.0, 90, 90, 120],
-              pbc=(1, 1, 0))
-    n = 3
-    a.calc = NewGPAW(
-        mode=PW(200),
-        kpts=(n, n, 1),
-        txt=None)
-    a.get_potential_energy()
-    print(a.calc.occupations())
-    print(a.calc.eigenvalues())
-    hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
-    e_skn = hse.calculate(a.calc.dft.ibzwfs, 0, 1)
-    print(e_skn)
-    if 0:
-        e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06', 0, 1)
-        e0_skn = e0 - v0 + v
-        print(e0_skn)
-        print(e_skn - e0_skn)
-    # e_skn = hse.calculate(a.calc.dft.ibzwfs, na=0, nb=1)
-    # assert e_skn[0, :, 0] == pytest.approx(e0_skn[0, :, 0])
-
-
 if __name__ == '__main__':
-    grr()
+    test_2d_non_self_consistent()
