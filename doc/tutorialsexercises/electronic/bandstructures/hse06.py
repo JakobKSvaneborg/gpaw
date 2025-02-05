@@ -1,7 +1,6 @@
 import pickle
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 from ase.build import mx2
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
@@ -13,7 +12,7 @@ def mos2() -> None:
     atoms = mx2(formula='MoS2', kind='2H', a=3.184, thickness=3.13,
                 size=(1, 1, 1))
     atoms.center(vacuum=3.5, axis=2)
-    k = 3
+    k = 6
     atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 400},
                       kpts=(k, k, 1),
                       txt='lda.txt')
@@ -24,11 +23,12 @@ def mos2() -> None:
 def bandstructure(gs_calc, bp):
     fermi_level = gs_calc.get_fermi_level()
     vacuum_level = gs_calc.dft.vacuum_level()
-    N = 13 + 4
+    N = 13 + 4  # 13 occupied + 4 empty
     bs_calc = gs_calc.fixed_density(
         kpts=bp,
         convergence={'bands': N},
-        symmetry='off')
+        symmetry='off',
+        txt='gmkg.txt')
     lda_skn = bs_calc.eigenvalues()
     hse = NonSelfConsistentHSE06.from_dft_calculation(
         gs_calc.dft, 'hse06.txt')
@@ -47,26 +47,5 @@ def run():
             pickle.dumps((bp, lda_kn, hse_kn, fermi_level)))
 
 
-def plot(bp, lda_kn, hse_kn, fermi_level):
-    ax = plt.subplot()
-    x, xlabels, labels = bp.get_linear_kpoint_axis()
-    labels = [label.replace('G', r'$\Gamma$') for label in labels]
-    for y in lda_kn.T:
-        ax.plot(x, y, color='C0')
-    for y in hse_kn.T:
-        ax.plot(x, y, color='C1')
-    ax.hlines(fermi_level, 0.0, x[-1])
-    ax.set_xlim(0.0, x[-1])
-    ax.set_ylim(fermi_level - 3.0, fermi_level + 3.0)
-    ax.set_xticks(xlabels)
-    ax.set_xticklabels(labels)
-    plt.show()
-    # plt.savefig('hse.png')
-
-
 if __name__ == '__main__':
-    path = Path('bs.pckl')
-    if not path.is_file():
-        run()
-    else:
-        plot(*pickle.loads(path.read_bytes()))
+    run()

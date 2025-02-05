@@ -49,3 +49,10 @@ Here is a zoom in on the VBM to see the effect of including
 
 .. literalinclude:: soc.py
     :start-after: web-page
+
+
+Non self-consistent HSE06
+=========================
+
+.. literalinclude:: hse06.py
+.. figure:: hse06.png
