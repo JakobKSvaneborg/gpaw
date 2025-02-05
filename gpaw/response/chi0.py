@@ -42,13 +42,13 @@ class Chi0Calculator:
                  **kwargs):
         self.gs = ResponseGroundStateAdapter.from_input(gs)
         self.context = ResponseContext.from_input(context)
-
+        self.eshift = eshift / Ha if eshift else eshift
         self.chi0_body_calc = Chi0BodyCalculator(
             self.gs, self.context,
-            nblocks=nblocks, eshift=eshift, **kwargs)
+            nblocks=nblocks, eshift=self.eshift, **kwargs)
         self.chi0_opt_ext_calc = Chi0OpticalExtensionCalculator(
             self.gs, self.context,
-            intraband=intraband, rate=rate, eshift=eshift, **kwargs)
+            intraband=intraband, rate=rate, eshift=self.eshift, **kwargs)
 
     @property
     def wd(self) -> FrequencyDescriptor:
@@ -145,7 +145,6 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         eshift : float or None
             Energy shift of the conduction bands in eV.
         """
-        self.eshift = eshift / Ha if eshift else eshift
 
         super().__init__(*args, **kwargs)
 
@@ -219,8 +218,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         symmetries, generator, domain, prefactor = self.get_integration_domain(
             qpd.q_c, spins)
         integrand = Chi0Integrand(self, qpd=qpd, generator=generator,
-                                  optical=False, m1=m1, m2=m2,
-                                  eshift=self.eshift)
+                                  optical=False, m1=m1, m2=m2)
 
         chi0_body.data_WgG[:] /= prefactor
         if self.hilbert:
@@ -310,8 +308,9 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
 class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 
     def __init__(self, *args,
+                 eshift: float | None = None,
                  intraband=True,
-                 rate=0.0, eshift=None,
+                 rate=0.0,
                  **kwargs):
         """Contruct the Chi0OpticalExtensionCalculator.
 
@@ -327,9 +326,8 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
             literature by a factor of 2.
         """
         # Serial block distribution
+        self.eshift = eshift
         super().__init__(*args, nblocks=1, **kwargs)
-
-        self.eshift = eshift / Ha if eshift else eshift
 
         # In the optical limit of metals, one must add the Drude dielectric
         # response from the free-space plasma frequency of the intraband
@@ -400,8 +398,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         symmetries, generator, domain, prefactor = self.get_integration_domain(
             qpd.q_c, spins)
         integrand = Chi0Integrand(self, qpd=qpd, generator=generator,
-                                  optical=True, m1=m1, m2=m2,
-                                  eshift=self.eshift)
+                                  optical=True, m1=m1, m2=m2)
 
         # We integrate the head and wings together, using the combined index P
         # index v = (x, y, z)

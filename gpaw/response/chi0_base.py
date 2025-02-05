@@ -29,8 +29,7 @@ class Chi0Integrand(Integrand):
                  qpd: SingleQPWDescriptor,
                  generator: KPointDomainGenerator,
                  m1: int,
-                 m2: int,
-                 eshift: float):
+                 m2: int):
 
         self._chi0calc = chi0calc
 
@@ -43,8 +42,6 @@ class Chi0Integrand(Integrand):
         assert m1 <= m2
         self.m1 = m1
         self.m2 = m2
-
-        self.eshift = eshift or 0.0
 
         self.context: ResponseContext = chi0calc.context
         self.kptpair_factory: KPointPairFactory = chi0calc.kptpair_factory
@@ -336,7 +333,6 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
                  timeordered=False,
                  ecut=50.0,
                  eta=0.2,
-                 eshift=None,
                  **kwargs):
         """Set up attributes to calculate the chi0 body and optical extensions.
 
@@ -362,7 +358,6 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         super().__init__(gs, context, **kwargs)
 
         self.ecut = ecut / Ha
-        self.eshift = eshift / Ha if eshift else eshift
         self.nbands = nbands or self.gs.nbands
 
         self.wd = wd
