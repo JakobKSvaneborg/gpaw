@@ -51,8 +51,12 @@ Here is a zoom in on the VBM to see the effect of including
     :start-after: web-page
 
 
+.. _ hse06 on lda:
+
 Non self-consistent HSE06
 =========================
 
 .. literalinclude:: hse06.py
 .. figure:: hse06.png
+.. literalinclude:: plot_hse06.py
+.. autoclass:: gpaw.new.pw.nschse.HSE06Calculator

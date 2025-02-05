@@ -43,6 +43,7 @@ class NonSelfConsistentHSE06:
                              dft: DFTCalculation,
                              log: str | Path | IO[str] | None = '-',
                              ) -> NonSelfConsistentHSE06:
+        """Create HSE06-eigenvalue calculator from DFT calculation."""
         assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         return cls(dft.ibzwfs,
                    dft.density,

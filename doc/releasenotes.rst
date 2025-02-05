@@ -20,6 +20,9 @@ Git master branch
 * Experimental support for calculations with wave-functions in
   single precision.
 
+* Non self-consistent calculation of HSE06 eigenvalues for arbitrary
+  **k**-points has been implemented.  See :ref:`hse06 on lda`.
+
 
 Version 25.1.0
 ==============
