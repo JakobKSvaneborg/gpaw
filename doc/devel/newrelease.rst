@@ -11,7 +11,7 @@ New release
 
 * Upload to PyPI::
 
-      $ python3 setup.py sdist
+      $ python3 -m build
       $ twine upload dist/*
 
 * Push and make a tag.

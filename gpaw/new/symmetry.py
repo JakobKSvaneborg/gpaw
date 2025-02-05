@@ -97,7 +97,7 @@ def create_symmetries_object(atoms: Atoms,
     sym._old_symmetry.ft_sc = sym.translation_sc
     sym._old_symmetry.a_sa = sym.atommap_sa
     sym._old_symmetry.has_inversion = sym.has_inversion
-    sym._old_symmetry.gcd_c = sym.gcd()
+    sym._old_symmetry.gcd_c = sym.gcd_c
 
     return sym
 
@@ -269,24 +269,21 @@ class Symmetries:
                 F_av[a2] += np.dot(F0_av[a1], op_vv)
         return F_av / len(self)
 
-    def gcd(self):
-        length_c = (self.cell_cv**2).sum(1)**0.5
-        gcd_c = np.ones(3, int)
-        for t_c in self.translation_sc:
-            for c, t in enumerate(t_c):
-                nom, denom = frac(t, tol=self.tolerance / length_c[c])
-                if gcd_c[c] % denom != 0:
-                    gcd_c[c] *= denom
-        return gcd_c
+    def lcm(self) -> list[int]:
+        """Find least common multiple compatible with translations."""
+        return [np.lcm.reduce([frac(t, tol=1e-4)[1] for t in t_s])
+                for t_s in self.translation_sc.T]
 
     @cached_property
     def gcd_c(self):
-        return self.gcd()
+        # Needed for old gpaw.utilities.gpts.get_number_of_grid_points()
+        # function ...
+        return np.array(self.lcm())
 
     def check_grid(self, N_c) -> bool:
         """Check that symmetries are commensurate with grid."""
         for U_cc, t_c in zip(self.rotation_scc, self.translation_sc):
-            t_c *= N_c
+            t_c = t_c * N_c
             # Make sure all grid-points map onto another grid-point:
             if (((N_c * U_cc).T % N_c).any() or
                 not np.allclose(t_c, t_c.round())):
@@ -404,6 +401,7 @@ def prune_symmetries(sym: Symmetries,
 
     # Add symmetry operations with fractional translations at the end:
     symmetries.extend(ftsymmetries)
+
     sym = Symmetries(cell=sym.cell_cv,
                      rotations=[s[0] for s in symmetries],
                      translations=[s[1] for s in symmetries],

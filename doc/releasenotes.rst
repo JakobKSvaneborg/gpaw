@@ -12,6 +12,18 @@ Git master branch
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
+* Sign of electron chemical potential in SJM text output has been corrected.
+  The resulting (Grand) energies are not affected by this change.
+
+* Preliminary support for ``wasm32`` architecture (web-browsers).
+
+* Experimental support for calculations with wave-functions in
+  single precision.
+
+* Non self-consistent calculation of HSE06 eigenvalues for arbitrary
+  **k**-points has been implemented.  See :ref:`hse06 on lda` and
+  :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
+
 
 Version 25.1.0
 ==============

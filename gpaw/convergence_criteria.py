@@ -295,8 +295,7 @@ class Forces(Criterion):
         # criterion is off; backwards compatibility
         if np.isinf(self.atol) and np.isinf(self.rtol):
             return True, ''
-        F_av = context.calculate_forces()
-        F_av *= Ha / Bohr
+        F_av = context.calculate_forces() * (Ha / Bohr)
         error = np.inf
         max_force = np.max(np.linalg.norm(F_av, axis=1))
         if self.old_F_av is not None:

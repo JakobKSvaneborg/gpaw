@@ -143,7 +143,8 @@ def calculate_residuals(residual_nX: XArray,
     else:
         subscripts = 'nsI, n -> nsI'
     if xp is np:
-        np.einsum(subscripts, P2_ani.data, eig_n, out=P2_ani.data)
+        np.einsum(subscripts, P2_ani.data, eig_n, out=P2_ani.data,
+                  dtype=P2_ani.data.dtype, casting='same_kind')
     else:
         P2_ani.data[:] = xp.einsum(subscripts, P2_ani.data, eig_n)
     P1_ani.data -= P2_ani.data

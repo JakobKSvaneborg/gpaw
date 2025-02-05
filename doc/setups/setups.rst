@@ -40,7 +40,7 @@ Setup releases
      - New 14 electron Cr PAW potential added.
        For high accuracy, it is recommented over the old 6-electron version
        (which is still the default).  You can use it by
-       specifying ``setups={'Cr': '14'}`` (see also :ref:manual_setups).
+       specifying ``setups={'Cr': '14'}`` (see also :ref:`manual_setups`).
        It has been generated with the following command::
 
          $ gpaw dataset Cr -sw -r2.0 -P3s,4s,3p,4p,3d,d,F -fPBE -t 14 -b

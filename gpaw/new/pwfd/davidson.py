@@ -104,7 +104,6 @@ class Davidson(PWFDEigensolver):
 
         Ht = partial(Ht, out=residual_nX, spin=wfs.spin)
         dH = partial(dH, spin=wfs.spin)
-
         calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
 
         def copy(C_nn: Array2D) -> None:

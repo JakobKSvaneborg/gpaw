@@ -32,6 +32,7 @@ from gpaw.test.response.test_chiks import generate_qrel_q, get_q_c
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 def test_Fe_bcc(in_tmp_dir, gpw_files):
     # ---------- Inputs ---------- #
 
@@ -117,6 +118,7 @@ def test_Fe_bcc(in_tmp_dir, gpw_files):
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 def test_Co_hcp(in_tmp_dir, gpw_files):
     # ---------- Inputs ---------- #
 
@@ -231,6 +233,7 @@ def test_Co_hcp(in_tmp_dir, gpw_files):
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parametrize('qrel', generate_qrel_q())
 def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel):
     # Set up ground state adapter and basic parameters
@@ -295,6 +298,7 @@ def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel):
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parametrize('qrel', generate_qrel_q())
 def test_Co_site_zeeman_energy_sum_rule(in_tmp_dir, gpw_files, qrel):
     # Set up ground state adapter and atomic site data
@@ -369,6 +373,7 @@ def get_Co_exchange_reference(qrel):
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parametrize('qrel', generate_qrel_q())
 def test_Co_exchange(in_tmp_dir, gpw_files, qrel):
     # Set up ground state adapter and atomic site data
@@ -425,6 +430,7 @@ def test_Co_exchange(in_tmp_dir, gpw_files, qrel):
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parallel
 def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files):
     # Set up ground state adapter and atomic site data

@@ -226,6 +226,14 @@ def gpu_gemv(alpha, a, x, beta, y, trans='t'):
                    trans)
 
 
+which_axpy = {
+    np.float32: blas.saxpy,
+    np.float64: blas.daxpy,
+    np.complex64: blas.caxpy,
+    np.complex128: blas.zaxpy
+}
+
+
 def axpy(alpha, x, y):
     """alpha x plus y.
 
@@ -240,10 +248,7 @@ def axpy(alpha, x, y):
     assert y.flags.contiguous
     x = x.ravel()
     y = y.ravel()
-    if x.dtype == float:
-        z = blas.daxpy(x, y, a=alpha)
-    else:
-        z = blas.zaxpy(x, y, a=alpha)
+    z = which_axpy[np.dtype(x.dtype).type](x, y, a=alpha)
     assert z is y, (x, y, x.shape, y.shape)
 
 

@@ -339,8 +339,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def collect(self,
                 n1: int = 0,
                 n2: int = 0) -> PWFDWaveFunctions | None:
-        """Collect range of bands to master of band and domain
-        communicators."""
+        """Collect range of bands to master of band and domain comms."""
         # Also collect projections instead of recomputing XXX
         n2 = n2 if n2 > 0 else self.nbands + n2
         spinors = (2,) if self.ncomponents == 4 else ()
@@ -375,10 +374,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 ba = 0
                 na = nb
             if domain_comm.rank == 0:
-                return PWFDWaveFunctions.from_wfs(
+                wfs = PWFDWaveFunctions.from_wfs(
                     self,
                     psit_nX,
                     atomdist=self.atomdist.gather())
+                wfs._eig_n = self.eig_n[n1:n2]
+                return wfs
         else:
             rank = band_comm.rank
             ranka, ba = max((rank1, b1), (rank, 0))
@@ -417,10 +418,10 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         :::
 
-           _    /  _ ~ ~ _   ---  a  a  _a
-           μ  = | dr 𝜓 𝜓 r + >   P  P  Δμ
-            mn  /     m n    ---  im jn  ij
-                             aij
+           _    / ~ ~ _ _   ---  a  a  _a
+           μ  = | 𝜓 𝜓 rdr + >   P  P  Δμ
+            mn  /  m n      ---  im jn  ij
+                            aij
 
         Returns
         -------
