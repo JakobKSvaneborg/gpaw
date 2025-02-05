@@ -310,7 +310,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
 class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 
     def __init__(self, *args,
-                 eshift: float | None = None,
+                 eshift=None,
                  intraband=True,
                  rate=0.0,
                  **kwargs):
