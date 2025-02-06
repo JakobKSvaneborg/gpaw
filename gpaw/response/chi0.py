@@ -40,9 +40,15 @@ class Chi0Calculator:
                  intraband=True,
                  rate=0.0,
                  **kwargs):
+        """
+        Parameters
+            ----------
+            eshift : float or None
+                Energy shift of the conduction bands in eV.
+        """
         self.gs = ResponseGroundStateAdapter.from_input(gs)
         self.context = ResponseContext.from_input(context)
-        self.eshift = eshift / Ha if eshift else eshift
+        self.eshift = eshift / Ha if eshift else None
         self.chi0_body_calc = Chi0BodyCalculator(
             self.gs, self.context,
             nblocks=nblocks, eshift=self.eshift, **kwargs)
@@ -143,7 +149,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         Parameters
         ----------
         eshift : float or None
-            Energy shift of the conduction bands in eV.
+            Energy shift of the conduction bands in Hartree.
         """
 
         self.eshift = eshift
@@ -326,6 +332,8 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
             rate. Please note that for consistency the rate is implemented as
             omegap^2 / (omega + 1j * rate)^2, which differs from some
             literature by a factor of 2.
+        eshift : float or None
+            Energy shift of the conduction bands in Hartree.
         """
         # Serial block distribution
 
@@ -444,6 +452,8 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         return HilbertOpticalLimit(eshift=self.eshift)
 
     def construct_tetra_hilbert_task(self):
+        assert self.eshift is None, \
+            'energy shift is not applied here'
         return HilbertOpticalLimitTetrahedron()
 
     def construct_literal_task(self):
