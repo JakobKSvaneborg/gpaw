@@ -68,7 +68,6 @@ def get_valence_data(generator, xc, gtxt, run, non_relativistic_guess,
                               nofiles=True)
         generator.N *= 4
 
-
     if run:
         if non_relativistic_guess:
             ae0 = AllElectron(generator.symbol, scalarrel=False,
