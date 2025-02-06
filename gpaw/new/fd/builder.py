@@ -69,8 +69,9 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             environment=env,
             xp=self.xp)
 
-    def create_hamiltonian_operator(self, blocksize=10):
-        return FDHamiltonian(self.wf_desc, self.kin_stencil_range, blocksize,
+    def create_hamiltonian_operator(self):
+        return FDHamiltonian(self.wf_desc,
+                             kin_stencil=self.kin_stencil_range,
                              xp=self.xp)
 
     def convert_wave_functions_from_uniform_grid(self,
