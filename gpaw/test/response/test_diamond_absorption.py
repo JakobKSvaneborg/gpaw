@@ -32,12 +32,12 @@ def test_response_diamond_absorption(in_tmp_dir, eshift):
         w_ = 10.7532
         I_ = 5.98
     else:
-        eM1_ = 9.727
-        eM2_ = 9.548
-        w0_ = 10.7782
+        eM1_ = 6.993
+        eM2_ = 6.904
+        w0_ = 14.784
         I0_ = 5.47
-        w_ = 10.7532
-        I_ = 5.98
+        w_ = 14.757
+        I_ = 5.998
 
     # Test the old interface to the dielectric constant
     df = DielectricFunction('C.gpw', frequencies=(0.,), eta=0.001, ecut=50,
@@ -49,7 +49,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift):
     # ----- RPA dielectric function ----- #
     dfcalc = DielectricFunction(
         'C.gpw', eta=0.25, ecut=50,
-        frequencies=np.linspace(0, 24., 241), hilbert=False)
+        frequencies=np.linspace(0, 24., 241), hilbert=False, eshift=eshift)
     eps = dfcalc.get_literal_dielectric_function()
 
     # Test the new interface to the dielectric constant
@@ -87,8 +87,12 @@ def test_response_diamond_absorption(in_tmp_dir, eshift):
     # ----- TDDFT absorption spectra ----- #
 
     # Absorption spectrum calculation ALDA
-    w_ = 10.7562
-    I_ = 5.8803
+    if eshift is None:
+        w_ = 10.7562
+        I_ = 5.8803
+    else:
+        w_ = 14.7615
+        I_ = 5.7946
 
     epsinv = dfcalc.get_inverse_dielectric_function(xc='ALDA', rshelmax=0)
     # Here we base the check on a written results file
@@ -102,8 +106,12 @@ def test_response_diamond_absorption(in_tmp_dir, eshift):
     assert I == pytest.approx(I_, abs=0.1)
 
     # Absorption spectrum calculation long-range kernel
-    w_ = 10.2906
-    I_ = 5.6955
+    if eshift is None:
+        w_ = 10.2906
+        I_ = 5.6955
+    else: 
+        w_ = 14.2901
+        I_ = 5.5508
 
     epsinv = dfcalc.get_inverse_dielectric_function(xc='LR0.25')
     omega_w, a0lr_w, alr_w = epsinv.polarizability().arrays
@@ -114,8 +122,12 @@ def test_response_diamond_absorption(in_tmp_dir, eshift):
     assert I == pytest.approx(I_, abs=0.1)
 
     # Absorption spectrum calculation Bootstrap
-    w_ = 10.4600
-    I_ = 6.0263
+    if eshift is None:
+        w_ = 10.4600
+        I_ = 6.0263
+    else: 
+        w_ = 14.2626
+        I_ = 5.3896
 
     epsinv = dfcalc.get_inverse_dielectric_function(xc='Bootstrap')
     omega_w, a0btsr_w, abtsr_w = epsinv.polarizability().arrays
