@@ -9,8 +9,9 @@ from gpaw.test import findpeak
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
+@pytest.mark.parametrize('eshift', [None, 4])
 @pytest.mark.libxc
-def test_response_diamond_absorption(in_tmp_dir):
+def test_response_diamond_absorption(in_tmp_dir, eshift):
     a = 6.75 * Bohr
     atoms = bulk('C', 'diamond', a=a)
 
@@ -23,16 +24,24 @@ def test_response_diamond_absorption(in_tmp_dir):
     atoms.get_potential_energy()
     calc.write('C.gpw', 'all')
 
-    eM1_ = 9.727
-    eM2_ = 9.548
-    w0_ = 10.7782
-    I0_ = 5.47
-    w_ = 10.7532
-    I_ = 5.98
+    if eshift is None:
+        eM1_ = 9.727
+        eM2_ = 9.548
+        w0_ = 10.7782
+        I0_ = 5.47
+        w_ = 10.7532
+        I_ = 5.98
+    else:
+        eM1_ = 9.727
+        eM2_ = 9.548
+        w0_ = 10.7782
+        I0_ = 5.47
+        w_ = 10.7532
+        I_ = 5.98
 
     # Test the old interface to the dielectric constant
     df = DielectricFunction('C.gpw', frequencies=(0.,), eta=0.001, ecut=50,
-                            hilbert=False)
+                            hilbert=False, eshift=eshift)
     eM1, eM2 = df.get_macroscopic_dielectric_constant()
     assert eM1 == pytest.approx(eM1_, abs=0.01)
     assert eM2 == pytest.approx(eM2_, abs=0.01)
