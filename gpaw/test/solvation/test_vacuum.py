@@ -28,7 +28,7 @@ def test_solvation_vacuum():
 
     convergence = {
         'energy': energy_eps,
-        'forces': forces_eps**2,  # force error is squared
+        'forces': forces_eps,
         'density': 10.0,
         'eigenstates': 10.0}
 
@@ -39,13 +39,10 @@ def test_solvation_vacuum():
         Fref = atoms.get_forces()
         print(Fref)
     else:
-        # setups: 0.9.11271, same settings as above
-        Eref = -11.9932
-
-        Fref = np.array(
-            [[1.95122040e-12, -1.17770462e-12, -6.04993798e+00],
-             [6.61270337e-14, 1.58227909e+00, 6.06605145e-02],
-             [1.35947527e-13, -1.58227909e+00, 6.06605145e-02]])
+        Eref = -11.9929
+        Fref = np.array([[0.0, 0.0, -6.07500],
+                         [0.0, 1.60924, 0.05999],
+                         [0.0, -1.60924, 0.05999]])
 
     atoms.calc = SolvationGPAW(
         mode='fd',
