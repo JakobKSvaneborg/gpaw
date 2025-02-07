@@ -11,5 +11,5 @@ class Environment:
     def update1(self, nt_r):
         pass
 
-    def update2(self, vHt_r, vt_sr):
-        pass
+    def update2(self, nt_r, vHt_r, vt_sr):
+        return 0.0

@@ -29,6 +29,8 @@ def create_eigensolver(nbands,
                        atoms,
                        name='dav',
                        **kwargs):
+    if name == 'rmm-diis':
+        name = 'dav'
     if name == 'dav':
         from gpaw.new.pwfd.davidson import Davidson
         return Davidson(

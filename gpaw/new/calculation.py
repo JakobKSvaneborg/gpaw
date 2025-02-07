@@ -482,8 +482,10 @@ class DFTState:
     def __init__(self,
                  ibzwfs: IBZWaveFunctions,
                  density: Density,
-                 potential: Potential):
+                 potential: Potential,
+                 energies):
         """State of a Kohn-Sham calculation."""
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
+        self.energies = energies
