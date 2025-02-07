@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 from gpaw.core import UGArray
 from gpaw.core.arrays import DistributedArrays as XArray
 
@@ -39,5 +40,5 @@ class Hamiltonian:
                                 out: XArray) -> None:
         pass
 
-    def create_preconditioner(self, blocksize):
+    def create_preconditioner(self, blocksize, xp=np):
         raise NotImplementedError
