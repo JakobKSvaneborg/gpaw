@@ -30,7 +30,7 @@ def create_eigensolver(nbands,
                        atoms,
                        name='dav',
                        **kwargs):
-    if name in ['rmm-diis', 'cg']:
+    if name in ['rmm-diis', 'cg', 'direct']:
         warnings.warn(f'{name} not implemented.  Using dav instead')
         name = 'dav'
     if name == 'dav':
