@@ -15,10 +15,13 @@ import gpaw.mpi as mpi
 
 def get_oscillator_strength(
         fname: str, dks: Union[float, List], w=None,
+        kpoint=None, proj=None, proj_xyz: bool = True,
         raw: bool = False) -> Tuple[Array1D, ArrayND]:
 
     data = dict(np.load(fname)).values()
-    energy_n, f_cmn = get_os_from_me(*data, dks=dks, w=w, raw=raw)
+    energy_n, f_cmn = get_os_from_me(
+        *data, dks=dks, w=w, kpoint=kpoint, proj=proj,
+        proj_xyz=proj_xyz, raw=raw)
 
     return energy_n, f_cmn
 
@@ -88,9 +91,39 @@ def projection(proj, proj_xyz, orthogonal: bool):
     return proj_3
 
 
-def get_os_from_me(eps_n, sigma2_cmn,
-                   eps_n0_k, dks: Union[float, List], w=None,
-                   raw: bool = False):
+def get_os_from_me(eps_n, sigma_cmn,
+                   eps_n0_k, n_k, orthogonal,
+                   dks: Union[float, List],
+                   w: Array1D = None,
+                   kpoint=None,
+                   proj=None, proj_xyz: bool = True,
+                   raw: bool = False,):
+
+    proj_3 = projection(proj=proj, proj_xyz=proj_xyz,
+                        orthogonal=orthogonal)
+
+    sigma2_cmn = np.zeros((proj_3.shape[0],
+                           sigma_cmn.shape[1],
+                           sigma_cmn.shape[2]), float)
+
+    for i, p in enumerate(proj_3):
+        for m in range(sigma_cmn.shape[1]):
+            s_tmp = np.dot(p, sigma_cmn[:, m, :])
+            sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
+
+    if kpoint is not None:
+        eps_start = kpoint * n_k
+        eps_end = (kpoint + 1) * n_k
+        eps_n0_k = eps_n0_k[kpoint]
+    else:
+        eps_start = 0
+        eps_end = len(eps_n)
+        eps_n0_k = min(eps_n0_k)
+
+    eps_n = eps_n[eps_start:eps_end]
+
+    sigma2_cmn = sigma2_cmn[:, :, eps_start:eps_end]
+
     n = len(eps_n)
 
     if isinstance(dks, float) or isinstance(dks, int):
@@ -135,8 +168,9 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
-        self.world = paw.world
+
         wfs = paw.wfs
+        self.world = wfs.world
         kd = wfs.kd
         bd = wfs.bd
         gd = wfs.gd
@@ -203,6 +237,7 @@ class XAS:
         A_cmi = dipole_matrix_elements(setup)
         bd_rank = bd.comm.rank
         bd_size = bd.comm.size
+
         # xas, xes or all modes
         if mode == 'xas':
             if bd_rank == 0:
@@ -237,11 +272,11 @@ class XAS:
         self.eps_n = np.zeros(nkpts * n)
         self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
 
-        n1 = kd_rank * n * int(nkpts / kd_size)
+        n1 = kd_rank * n * (nkpts // kd_size)
         if bd_rank != 0:
             n1 += n_diff0 + n_diff * (bd_rank - 1)
 
-        k = kd_rank * int(nkpts / kd_size)
+        k = kd_rank * (nkpts // kd_size)
         self.eps_n0_k = np.zeros((nkpts))
 
         for kpt in wfs.kpt_u:
@@ -250,7 +285,8 @@ class XAS:
             n2 = n1 + n_diff
             if bd_size != 1 and bd_rank == bd_size - 1:
                 n2 -= i_n
-            self.eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
+            if bd_rank == 0:
+                self.eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
             self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
             if a in my_atom_indices:
                 P_ni = kpt.P_ani[a][n_start:n_end]
@@ -267,63 +303,29 @@ class XAS:
 
         bd.comm.sum(self.sigma_cmn)
         bd.comm.sum(self.eps_n)
+        bd.comm.sum(self.eps_n0_k)
 
         gd.comm.sum(self.sigma_cmn)
 
         self.symmetry = wfs.kd.symmetry
 
-    def get_matrix_element(self, kpoint=None, proj=None,
-                           proj_xyz: bool = True, raw: bool = False):
-
-        proj_3 = projection(proj=proj, proj_xyz=proj_xyz,
-                            orthogonal=self.orthogonal)
-
-        sigma2_cmn = np.zeros((proj_3.shape[0],
-                               self.sigma_cmn.shape[1],
-                               self.sigma_cmn.shape[2]), float)
-
-        for i, p in enumerate(proj_3):
-            for m in range(self.sigma_cmn.shape[1]):
-                s_tmp = np.dot(p, self.sigma_cmn[:, m, :])
-                sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
-
-        eps_n = self.eps_n[:]
-
-        if kpoint is not None:
-            eps_start = kpoint * self.n
-            eps_end = (kpoint + 1) * self.n
-            eps_n0_k = self.eps_n0_k[kpoint]
-        else:
-            eps_start = 0
-            eps_end = len(self.eps_n)
-            eps_n0_k = min(self.eps_n0_k)
-
-        energy_n = eps_n[eps_start:eps_end]
-
-        sigma2_cmn = sigma2_cmn[:, :, eps_start:eps_end]
-
-        if raw:
-            return energy_n, sigma2_cmn, eps_n0_k
-        else:
-            return energy_n, sigma2_cmn.sum(axis=1)
-
-    def write(self, fname: str, kpoint=None, proj=None,
-              proj_xyz: bool = True):
-
-        energy_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
-            kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
+    def write(self, fname: str):
+        if self.world.rank != 0:
+            return
 
         if self.world.rank == 0:
             with open(fname, mode='wb') as f:
                 np.savez_compressed(
-                    f, energy_n=energy_n, sigma2_cmn=sigma2_cmn,
-                    eps_n0_k=eps_n0_k)
-        self.world.barrier()
+                    f, eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
+                    eps_n0_k=self.eps_n0_k, n_k=self.n,
+                    orthogonal=self.orthogonal)
+        #self.world.barrier()
 
-    def get_oscillator_strength(self, dks: Union[float, List], kpoint=None,
-                                proj=None, proj_xyz: bool = True,
-                                w: Array1D = None,
-                                raw: bool = False) -> Tuple[Array1D, ArrayND]:
+    def get_oscillator_strength(
+            self, dks: Union[float, List], kpoint=None,
+            proj=None, proj_xyz: bool = True,
+            w: Array1D = None,
+            raw: bool = False) -> Tuple[Array1D, ArrayND]:
         """Calculate stick spectra.
 
         Parameters:
@@ -346,13 +348,11 @@ class XAS:
             energies: 1D array [n]
             oscillator strengths: 3D array [c, m, n]
         """
-
-        eps_n, sigma2_cmn, eps_n0_k = self.get_matrix_element(
-            kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, raw=True)
-
         energy_n, f_cmn = get_os_from_me(
-            eps_n=eps_n, sigma2_cmn=sigma2_cmn, eps_n0_k=eps_n0_k,
-            dks=dks, w=w, raw=raw)
+            eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
+            eps_n0_k=self.eps_n0_k, n_k=self.n, orthogonal=self.orthogonal,
+            dks=dks, w=w, kpoint=kpoint, proj=proj,
+            proj_xyz=proj_xyz, raw=raw)
 
         return energy_n, f_cmn
 
@@ -424,7 +424,7 @@ class XAS:
             self, fwhm: float, linbroad: List[float],
             eps_n: Array1D, f_cmn: Array3D,
             e: Array1D) -> Tuple[Array1D, Array2D]:
-        """
+        """mpirun -n 6 python3 -m pytest  test_xas_parallel.py
         fwhm:
           the full width half maximum in eV for gaussian broadening
         linbroad:
