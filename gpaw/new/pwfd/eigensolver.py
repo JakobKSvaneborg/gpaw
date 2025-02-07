@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from functools import partial
 from typing import Callable
 
@@ -29,7 +30,8 @@ def create_eigensolver(nbands,
                        atoms,
                        name='dav',
                        **kwargs):
-    if name == 'rmm-diis':
+    if name in ['rmm-diis', 'cg']:
+        warnings.warn(f'{name} not implemented.  Using dav instead')
         name = 'dav'
     if name == 'dav':
         from gpaw.new.pwfd.davidson import Davidson
