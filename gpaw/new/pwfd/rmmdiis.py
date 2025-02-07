@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from functools import partial
+# from functools import partial
 from pprint import pformat
 
 import numpy as np
 
-from gpaw.new import zips as zip
-from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
+# from gpaw.new import zips as zip
+from gpaw.new.pwfd.eigensolver import PWFDEigensolver  # , calculate_residuals
 from gpaw.core import PWDesc
 
 
@@ -33,6 +33,7 @@ class RMMDIIS(PWFDEigensolver):
                             converge_bands=self.converge_bands))
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
+        """
         xp = wfs.xp
 
         psit_nX = wfs.psit_nX
@@ -132,3 +133,4 @@ class RMMDIIS(PWFDEigensolver):
 
             for lam, psit_G, dpsit_G in zip(lam_x, psitb.array, dpsit.array):
                 axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
+        """
