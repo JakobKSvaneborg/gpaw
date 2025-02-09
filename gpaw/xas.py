@@ -155,7 +155,11 @@ def get_os_from_me(eps_n, sigma_cmn,
 
 
 class XAS:
-    def __init__(self, paw, mode='xas', center=None,
+    def __init__(self, paw=None, *args, **kwargs):
+        if paw is not None:
+            self.__full_init__(paw, *args, **kwargs)
+
+    def __full_init__(self, paw, mode='xas', center=None,
                  spin=0, nocc_cor=0):
         """_summary_
 
@@ -310,16 +314,20 @@ class XAS:
         self.symmetry = wfs.kd.symmetry
 
     def write(self, fname: str):
-        if self.world.rank != 0:
-            return
-
         if self.world.rank == 0:
             with open(fname, mode='wb') as f:
                 np.savez_compressed(
-                    f, eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
+                    f, eps_n=self.eps_kn, sigma_cmn=self.sigma_cmn,
                     eps_n0_k=self.eps_n0_k, n_k=self.n,
                     orthogonal=self.orthogonal)
-        #self.world.barrier()
+        self.world.barrier()
+
+    @classmethod
+    def read(cls, fname: str):
+        self = XAS()
+        with open(fname, mode='rb') as f:
+            self.eps_n, self.sigma_cmn, sellf.eps_n0_k, self.n, self.orthogonal = self.nnp.loadz_compressed(f)
+        return self
 
     def get_oscillator_strength(
             self, dks: Union[float, List], kpoint=None,

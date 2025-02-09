@@ -1,9 +1,10 @@
 import pytest
 from ase.build import molecule
+
+import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.test import gen
 from gpaw.xas import XAS, get_oscillator_strength
-import gpaw.mpi as mpi
 
 
 def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
