@@ -5,7 +5,6 @@ from gpaw.core.matrix import Matrix
 from gpaw.external import ExternalPotential
 from gpaw.lfc import BasisFunctions
 from gpaw.new import zips
-from gpaw.new.calculation import DFTState
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
