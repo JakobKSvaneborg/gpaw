@@ -12,6 +12,10 @@ def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
         return
     _, ys_cn = xas.get_oscillator_strength(dks=dks)
 
+    if mpi.world.size > 1:
+        return
+    _, ys_cn = xas.get_oscillator_strength(dks=dks)
+
     ys_summed_c = ys_cn.sum(axis=1)
     xf, yf_cn = xas.get_spectra(fwhm=0.5, dks=dks)
     dxf = xf[1:] - xf[:-1]
@@ -175,6 +179,7 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name},
                       txt=None, communicator=comm)
 
+
     print('serial, atoms.calc.world.size:', atoms.calc.world.size)
     atoms.get_potential_energy()
 
@@ -200,6 +205,9 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     dks = 20
     xs, ys = get_oscillator_strength(fserial, dks=dks)
     xp, yp = get_oscillator_strength(fparallel, dks=dks)
+
+    assert xs == pytest.approx(xp)
+    assert ys == pytest.approx(yp)
 
     assert xs == pytest.approx(xp)
     assert ys == pytest.approx(yp)
