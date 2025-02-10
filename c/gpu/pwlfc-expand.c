@@ -40,7 +40,25 @@ void pw_insert_gpu_launch_kernel(
                              double* c_nG,
                              npy_int32* Q_G,
                              double scale,
-                             double* tmp_nQ);
+                             double* tmp_nQ,
+                             int rx, int ry, int rz);
+
+void pw_norm_gpu_launch_kernel(int nx, int nG,
+                               double* result_x,
+                               double* C_xG);
+
+void pw_norm_kinetic_gpu_launch_kernel(int nx, int nG,
+                                       double* result_x,
+                                       double* C_xG,
+                                       double* kin_G);
+
+void pw_amend_insert_realwf_gpu_launch_kernel(int nb,
+                                              int nx,
+                                              int ny,
+                                              int nz, 
+                                              int n, 
+                                              int m, 
+                                              double* array_nQ);
 
 void add_to_density_gpu_launch_kernel(int nb,
                                       int nR,
@@ -247,8 +265,11 @@ PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
 {
     PyObject *c_nG_obj, *Q_G_obj, *tmp_nQ_obj;
     double scale;
-    if (!PyArg_ParseTuple(args, "OOdO",
-                          &c_nG_obj, &Q_G_obj, &scale, &tmp_nQ_obj))
+    int rx;
+    int ry;
+    int rz;
+    if (!PyArg_ParseTuple(args, "OOdOiii",
+                          &c_nG_obj, &Q_G_obj, &scale, &tmp_nQ_obj, &rx, &ry, &rz))
         return NULL;
     npy_int32 *Q_G = Array_DATA(Q_G_obj);
     double complex *c_nG = Array_DATA(c_nG_obj);
@@ -280,9 +301,113 @@ PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
                                 (double*)c_nG,
                                 Q_G,
                                 scale,
-                                (double*)tmp_nQ);
+                                (double*)tmp_nQ, rx, ry, rz);
     Py_RETURN_NONE;
 }
+
+PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
+{
+    PyObject *result_x_obj, *C_xG_obj;
+    if (!PyArg_ParseTuple(args, "OO",
+                          &result_x_obj, &C_xG_obj))
+        return NULL;
+
+    double *result_x = Array_DATA(result_x_obj);
+    double complex *C_xG = Array_DATA(C_xG_obj);
+
+    // Make sure number of dimensions are correct    
+    assert(Array_NDIM(C_xG_obj) == 2);
+    assert(Array_NDIM(result_x_obj) == 1);
+
+    // Make sure dtypes are correct
+    assert(Array_ITEMSIZE(C_xG_obj) == 16);
+    assert(Array_ITEMSIZE(result_x_obj) == 8);
+
+    // Make sure dimensions match
+    int nx = Array_DIM(result_x_obj, 0);
+    int nG = Array_DIM(C_xG_obj, 1);
+    assert(Array_DIM(C_xG_obj, 0) == nx);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+    pw_norm_gpu_launch_kernel(nx, nG,
+                              result_x,
+                              (double*) C_xG);
+    Py_RETURN_NONE;
+}
+
+PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
+{
+    PyObject *result_x_obj, *C_xG_obj, *kin_G_obj;
+    if (!PyArg_ParseTuple(args, "OOO",
+                          &result_x_obj, &C_xG_obj, &kin_G_obj))
+        return NULL;
+
+    double *result_x = Array_DATA(result_x_obj);
+    double complex *C_xG = Array_DATA(C_xG_obj);
+    double *kin_G = Array_DATA(kin_G_obj);
+
+    // Make sure number of dimensions are correct    
+    assert(Array_NDIM(C_xG_obj) == 2);
+    assert(Array_NDIM(result_x_obj) == 1);
+    assert(Array_NDIM(kin_G_obj) == 1);
+
+    // Make sure dtypes are correct
+    assert(Array_ITEMSIZE(C_xG_obj) == 16);
+    assert(Array_ITEMSIZE(result_x_obj) == 8);
+    assert(Array_ITEMSIZE(kin_G_obj) == 8);
+
+    // Make sure dimensions match
+    int nx = Array_DIM(result_x_obj, 0);
+    int nG = Array_DIM(C_xG_obj, 1);
+    assert(Array_DIM(kin_G_obj, 0) == nG);
+    assert(Array_DIM(C_xG_obj, 0) == nx);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+    pw_norm_kinetic_gpu_launch_kernel(nx, nG,
+                                      result_x,
+                                      (double*) C_xG,
+                                      kin_G);
+    Py_RETURN_NONE;
+}
+
+PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
+{
+    PyObject *array_nQ_obj;
+    int n;
+    int m;
+    if (!PyArg_ParseTuple(args, "Oii",
+                          &array_nQ_obj, &n, &m))
+        return NULL;
+    double complex *array_nQ = Array_DATA(array_nQ_obj);
+    if (Array_ITEMSIZE(array_nQ_obj) != 16)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "array_nQ must complex128.");
+        return NULL;
+    }
+    if (Array_NDIM(array_nQ_obj) != 4)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "array_nQ must be of (nb, NGx, NGy, NGz)-shape.");
+        return NULL;
+    }
+    int nb = Array_DIM(array_nQ_obj, 0);
+    int nx = Array_DIM(array_nQ_obj, 1);
+    int ny = Array_DIM(array_nQ_obj, 2);
+    int nz = Array_DIM(array_nQ_obj, 3);
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
+    pw_amend_insert_realwf_gpu_launch_kernel(nb, nx, ny, nz, n, m, (double*) array_nQ);
+    Py_RETURN_NONE;
+}
+
 
 
 PyObject* add_to_density_gpu(PyObject* self, PyObject* args)

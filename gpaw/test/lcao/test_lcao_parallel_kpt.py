@@ -15,7 +15,7 @@ pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
 
 
-@pytest.mark.later  # doesn't work with new GPAW yet
+@pytest.mark.old_gpaw_only  # doesn't work with new GPAW yet
 def test_lcao_lcao_parallel_kpt():
     tolerance = 4e-5
 

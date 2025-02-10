@@ -9,11 +9,14 @@ from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.uniform_grid import UGArray
 from gpaw.ffbt import rescaled_fourier_bessel_transform
 from gpaw.gpu import cupy_is_fake
-from gpaw.lfc import BaseLFC
+# from gpaw.lfc import BaseLFC
 from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
+from gpaw.utilities import as_complex_dtype
+from gpaw.spline import Spline
+from gpaw.typing import ArrayLike1D
 
 if TYPE_CHECKING:
     from gpaw.core.plane_waves import PWDesc
@@ -22,18 +25,20 @@ if TYPE_CHECKING:
 class PWAtomCenteredFunctions(AtomCenteredFunctions):
     def __init__(self,
                  functions,
-                 fracpos,
+                 relpos,
                  pw,
                  atomdist=None,
+                 integrals=None,
                  xp=None):
-        AtomCenteredFunctions.__init__(self, functions, fracpos, atomdist)
+        AtomCenteredFunctions.__init__(self, functions, relpos, atomdist)
         self.pw = pw
         self.xp = xp or np
+        self.integrals = integrals
 
     def new(self, pw, atomdist):
         return PWAtomCenteredFunctions(
             self.functions,
-            self.fracpos_ac,
+            self.relpos_ac,
             pw,
             atomdist=atomdist,
             xp=self.xp)
@@ -42,12 +47,13 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
         if self._lfc is not None:
             return
 
-        self._lfc = PWLFC(self.functions, self.pw, xp=self.xp)
+        self._lfc = PWLFC(self.functions, self.pw, xp=self.xp,
+                          integrals=self.integrals)
         if self._atomdist is None:
             self._atomdist = AtomDistribution.from_number_of_atoms(
-                len(self.fracpos_ac), self.pw.comm)
+                len(self.relpos_ac), self.pw.comm)
 
-        self._lfc.set_positions(self.fracpos_ac, self._atomdist)
+        self._lfc.set_positions(self.relpos_ac, self._atomdist)
         self._layout = AtomArraysLayout([sum(2 * f.l + 1 for f in funcs)
                                          for funcs in self.functions],
                                         self._atomdist,
@@ -72,11 +78,14 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
         self._lfc = None
 
 
-class PWLFC(BaseLFC):
+class PWLFC:  # (BaseLFC)
     def __init__(self,
                  functions,
                  pw: PWDesc,
-                 blocksize=5000, *, xp):
+                 *,
+                 xp,
+                 integrals: ArrayLike1D | float | None = None,
+                 blocksize: int | None = 5000):
         """Reciprocal-space plane-wave localized function collection.
 
         spline_aj: list of list of spline objects
@@ -93,17 +102,19 @@ class PWLFC(BaseLFC):
         self.spline_aj = functions
 
         self.dtype = pw.dtype
+        self.real = np.issubdtype(pw.dtype, np.floating)
 
         self.initialized = False
 
         # These will be filled in later:
-        self.Y_GL = None
+        self.Y_GL = np.zeros((0, 0))
         self.emiGR_Ga = None
-        self.f_Gs = None
-        self.l_s = None
-        self.a_J = None
-        self.s_J = None
-        self.lmax = None
+        self.f_Gs: np.ndarray = np.zeros((0, 0))
+        self.l_s: np.ndarray | None = None
+        self.a_J: np.ndarray | None = None
+        self.s_J: np.ndarray | None = None
+        self.I_J: np.ndarray | None = None
+        self.lmax = -1
 
         if blocksize is not None:
             if pw.maxmysize <= blocksize:
@@ -120,14 +131,21 @@ class PWLFC(BaseLFC):
 
         self.comm = pw.comm
 
-    def initialize(self):
+        if isinstance(integrals, float):
+            self.integral_a = np.zeros(len(functions)) + integrals
+        elif integrals is None:
+            self.integral_a = np.zeros(len(functions))
+        else:
+            self.integral_a = np.array(integrals)
+
+    def initialize(self) -> None:
         """Initialize position-independent stuff."""
         if self.initialized:
             return
 
         xp = self.xp
 
-        splines = {}  # Dict[Spline, int]
+        splines: dict[Spline, int] = {}
         for spline_j in self.spline_aj:
             for spline in spline_j:
                 if spline not in splines:
@@ -143,7 +161,7 @@ class PWLFC(BaseLFC):
         self.I_J = np.empty(nJ, np.int32)
         # Fourier transform radial functions:
         J = 0
-        done = set()  # Set[Spline]
+        done: set[Spline] = set()
         I = 0
         for a, spline_j in enumerate(self.spline_aj):
             for spline in spline_j:
@@ -152,7 +170,12 @@ class PWLFC(BaseLFC):
                     f = rescaled_fourier_bessel_transform(spline)
                     G_G = (2 * self.pw.ekin_G)**0.5
                     self.f_Gs[:, s] = xp.asarray(f.map(G_G))
-                    self.l_s[s] = spline.get_angular_momentum_number()
+                    l = spline.get_angular_momentum_number()
+                    self.l_s[s] = l
+                    integral = self.integral_a[a]
+                    if l == 0 and integral != 0.0:
+                        x = integral / self.f_Gs[0, s] * (4 * pi)**0.5
+                        self.f_Gs[:, s] *= x
                     done.add(spline)
                 self.a_J[J] = a
                 self.s_J[J] = s
@@ -184,17 +207,20 @@ class PWLFC(BaseLFC):
 
         xp = self.xp
 
-        if self.pw.dtype == float:
+        if self.real:
             self.eikR_a = xp.ones(len(spos_ac))
         else:
             self.eikR_a = xp.asarray(
                 np.exp(2j * pi * (spos_ac @ self.pw.kpt_c)))
-
         self.pos_av = np.dot(spos_ac, self.pw.cell)
 
-        Gk_Gv = xp.asarray(self.pw.G_plus_k_Gv)
-        GkR_Ga = Gk_Gv @ xp.asarray(self.pos_av.T)
-        self.emiGR_Ga = xp.exp(-1j * GkR_Ga) * self.eikR_a
+        if xp is not np:
+            self.pos_avT = xp.asarray(self.pos_av.T)
+            self.emiGR_Ga = None
+        else:
+            Gk_Gv = self.pw.G_plus_k_Gv
+            GkR_Ga = Gk_Gv @ self.pos_av.T
+            self.emiGR_Ga = xp.exp(-1j * GkR_Ga) * self.eikR_a
 
         rank_a = atomdist.rank_a
 
@@ -226,12 +252,12 @@ class PWLFC(BaseLFC):
         if G2 is None:
             G2 = self.Y_GL.shape[0]
 
-        emiGR_Ga = self.emiGR_Ga[G1:G2]
+        emiGR_Ga = self.get_emiGR_Ga(G1, G2)
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 
-        if self.dtype == complex:
-            f_GI = xp.empty((G2 - G1, self.nI), complex)
+        if not self.real:
+            f_GI = xp.empty((G2 - G1, self.nI), as_complex_dtype(self.dtype))
         else:
             # Special layout because BLAS does not have real-complex
             # multiplications.  f_GI(G,I) layout:
@@ -277,6 +303,14 @@ class PWLFC(BaseLFC):
         else:
             yield 0, nG
 
+    def get_emiGR_Ga(self, G1, G2):
+        if self.emiGR_Ga is None:
+            Gk_Gv = self.xp.asarray(self.pw.G_plus_k_Gv)[G1:G2]
+            GkR_Ga = Gk_Gv @ self.pos_avT
+            return self.xp.exp(-1j * GkR_Ga) * self.eikR_a
+        else:
+            return self.emiGR_Ga[G1:G2]
+
     def add(self, a_xG, c_axi=1.0, q=None):
         if self.nI == 0:
             return
@@ -302,7 +336,7 @@ class PWLFC(BaseLFC):
         for G1, G2 in self.block():
             f_GI = self.expand(G1, G2, cc=False)
 
-            if self.dtype == float:
+            if self.real:
                 # f_IG = f_IG.view(float)
                 G1 *= 2
                 G2 *= 2
@@ -315,7 +349,7 @@ class PWLFC(BaseLFC):
                                     c_xI, f_GI, a_xG[:, G1:G2],
                                     1.0 / self.pw.dv, 1.0)
 
-    def integrate(self, a_xG, c_axi=None, q=-1):
+    def integrate(self, a_xG, c_axi=None, q=-1, add_to=False):
         xp = self.xp
         if self.nI == 0:
             return c_axi
@@ -328,17 +362,17 @@ class PWLFC(BaseLFC):
         a_xG = a_xG.reshape((nx, a_xG.shape[-1]))
 
         alpha = 1.0
-        if self.dtype == float:
+        if self.real:
             alpha *= 2
-            a_xG = a_xG.view(float)
+            a_xG = a_xG.view(self.dtype)
 
         if c_axi is None:
             c_axi = self.dict(a_xG.shape[:-1])
 
         x = 0.0
         for G1, G2 in self.block():
-            f_GI = self.expand(G1, G2, cc=self.dtype == complex)
-            if self.dtype == float:
+            f_GI = self.expand(G1, G2, cc=not self.real)
+            if self.real:
                 if G1 == 0 and self.comm.rank == 0:
                     f_GI[0] *= 0.5
                 G1 *= 2
@@ -352,8 +386,12 @@ class PWLFC(BaseLFC):
             x = 1.0
 
         self.comm.sum(b_xI)
-        for a, I1, I2 in self.my_indices:
-            c_axi[a][:] = self.eikR_a[a] * c_xI[..., I1:I2]
+        if add_to:
+            for a, I1, I2 in self.my_indices:
+                c_axi[a] += self.eikR_a[a] * c_xI[..., I1:I2]
+        else:
+            for a, I1, I2 in self.my_indices:
+                c_axi[a][:] = self.eikR_a[a] * c_xI[..., I1:I2]
 
         return c_axi
 
@@ -472,7 +510,7 @@ class PWLFC(BaseLFC):
                                     G_Gv, a_xG, c_axi, Z_LvG):
         xp = self.xp
         f_IG = xp.empty((self.nI, G2 - G1), complex)
-        emiGR_Ga = self.emiGR_Ga[G1:G2]
+        emiGR_Ga = self.get_emiGR_Ga(G1, G2)
         Y_LG = self.Y_GL.T
         for a, l, I1, I2, f_G, dfdGoG_G in things:
             L1 = l**2

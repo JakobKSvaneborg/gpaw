@@ -747,6 +747,19 @@ class GPWFiles(CachedFilesHandler):
         return atoms.calc
 
     @gpwfile
+    def c2_gw_more_bands(self):
+        a = 3.567
+        atoms = bulk('C', 'diamond', a=a)
+        atoms.calc = GPAW(mode=PW(400),
+                          parallel={'domain': 1},
+                          kpts={'size': (2, 2, 2), 'gamma': True},
+                          xc='LDA',
+                          occupations=FermiDirac(0.001))
+        atoms.get_potential_energy()
+        atoms.calc.diagonalize_full_hamiltonian(nbands=128)
+        return atoms.calc
+
+    @gpwfile
     def na_pw(self):
         from ase.build import bulk
 
@@ -1301,12 +1314,16 @@ class GPWFiles(CachedFilesHandler):
                    scaled_positions=[[0.5, 0.5, 0.5]],
                    pbc=False)
 
-        Tl.calc = GPAWNew(mode={'name': 'pw', 'ecut': 300}, xc='LDA',
-                          occupations={'name': 'fermi-dirac', 'width': 0.01},
-                          symmetry='off',
-                          convergence={'density': 1e-6},
-                          magmoms=[[0, 0, 0.5]], soc=True,
-                          txt=self.folder / 'Tl_box_pw.txt')
+        Tl.calc = GPAWNew(
+            mode={'name': 'pw', 'ecut': 300},
+            xc='LDA',
+            occupations={'name': 'fermi-dirac', 'width': 0.01},
+            symmetry='off',
+            convergence={'density': 1e-6},
+            parallel={'domain': 1, 'band': 1},
+            magmoms=[[0, 0, 0.5]],
+            soc=True,
+            txt=self.folder / 'Tl_box_pw.txt')
         Tl.get_potential_energy()
         return Tl.calc
 

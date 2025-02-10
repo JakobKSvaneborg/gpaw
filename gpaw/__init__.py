@@ -6,9 +6,11 @@ import os
 import sys
 import contextlib
 from pathlib import Path
-from typing import List, Union, Any, TYPE_CHECKING
+from typing import List, Any, TYPE_CHECKING
+import warnings
 
-__version__ = '24.7.0b1'
+
+__version__ = '25.1.1b1'
 __ase_version_required__ = '3.23.0'
 
 __all__ = ['GPAW',
@@ -20,8 +22,24 @@ __all__ = ['GPAW',
            'PW', 'LCAO', 'FD',
            'restart']
 
+allowed_envvars = {
+    'GPAW_MPI_OPTIONS',
+    'GPAW_NEW',
+    'GPAW_CPUPY',
+    'GPAW_USE_GPUS',
+    'GPAW_MPI',
+    'GPAW_NO_C_EXTENSION',
+    'GPAW_SETUP_PATH'}
+
+# Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
 GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
-setup_paths: List[Union[str, Path]] = []
+GPAW_NO_C_EXTENSION = bool(int(os.environ.get('GPAW_NO_C_EXTENSION') or 0))
+GPAW_USE_GPUS = bool(int(os.environ.get('GPAW_USE_GPUS') or 0))
+
+if os.uname().machine == 'wasm32':
+    GPAW_NO_C_EXTENSION = True
+
+
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
 
@@ -29,6 +47,11 @@ dry_run = 0
 debug: bool = (TYPE_CHECKING or
                'pytest' in sys.modules or
                bool(sys.flags.debug))
+
+if debug:
+    for var in os.environ:
+        if var.startswith('GPAW') and var not in allowed_envvars:
+            warnings.warn(f'Unknown GPAW environment varable: {var}')
 
 
 @contextlib.contextmanager
@@ -89,8 +112,6 @@ def get_libraries() -> dict[str, str]:
 def parse_arguments(argv):
     from argparse import (ArgumentParser, REMAINDER,
                           RawDescriptionHelpFormatter)
-    import warnings
-
     # With gpaw-python BLAS symbols are in global scope and we need to
     # ensure that NumPy and SciPy use symbols from their own dependencies
     if is_gpaw_python:
@@ -288,14 +309,19 @@ def initialize_data_paths():
     try:
         setup_paths[:0] = os.environ['GPAW_SETUP_PATH'].split(os.pathsep)
     except KeyError:
-        if len(setup_paths) == 0:
-            if os.pathsep == ';':
-                setup_paths[:] = [r'C:\gpaw-setups']
-            else:
-                setup_paths[:] = ['/usr/local/share/gpaw-setups',
-                                  '/usr/share/gpaw-setups']
+        pass
 
 
+def standard_setup_paths() -> list[str | Path]:
+    try:
+        import gpaw_data
+    except ModuleNotFoundError:
+        return []
+    else:
+        return [gpaw_data.datapath()]
+
+
+setup_paths = standard_setup_paths()
 read_rc_file()
 initialize_data_paths()
 

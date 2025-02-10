@@ -31,7 +31,7 @@ from gpaw.new.gpw import read_gpw
 from gpaw.new.symmetry import Symmetries
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.tddft.solvers.cscg import CSCG
 from gpaw.tddft.units import asetime_to_autime, autime_to_asetime, au_to_eA
 from gpaw.utilities.timing import nulltimer
@@ -68,7 +68,7 @@ class TDAlgorithm:
         state.density.update(state.ibzwfs)
 
         # Calculate Hamiltonian H(t+dt) = H[n[Phi_n]]
-        state.potential, _ = pot_calc.calculate(
+        state.potential, state.energies, _ = pot_calc.calculate(
             state.density, state.ibzwfs, vHt_x=state.potential.vHt_x)
 
     def propagate_wfs(self,
@@ -117,7 +117,8 @@ class LCAONumpyPropagator(WaveFunctionPropagator):
                  hamiltonian: Hamiltonian,
                  state: DFTState):
         assert isinstance(hamiltonian, LCAOHamiltonian)
-        ham_calc = hamiltonian.create_hamiltonian_matrix_calculator(state)
+        ham_calc = hamiltonian.create_hamiltonian_matrix_calculator(
+            state.potential)
         self.ham_calc = ham_calc
 
     def propagate(self,
@@ -495,12 +496,10 @@ class RTTDDFT:
         # Disable symmetries, ie keep only identity operation
         # I suppose this should be done in the kick, as the kick breaks
         # the symmetry
-        symmetry = state.ibzwfs.ibz.symmetries.symmetry
-        natoms = symmetry.a_sa.shape[1]
-        symmetry.op_scc = np.eye(3)[None, ...]
-        symmetry.ft_sc = np.zeros((1, 3))
-        symmetry.a_sa = np.arange(natoms)[None, ...]
-        state.ibzwfs.ibz.symmetries = Symmetries(symmetry)
+        cell = state.ibzwfs.ibz.symmetries.cell_cv
+        natoms = state.ibzwfs.ibz.symmetries.atommap_sa.shape[1]
+        atommaps = np.arange(natoms).reshape((1, natoms))
+        state.ibzwfs.ibz.symmetries = Symmetries(cell=cell, atommaps=atommaps)
 
         self.state = state
         self.pot_calc = pot_calc
@@ -542,7 +541,7 @@ class RTTDDFT:
             assert calc.dft is not None
             dft = calc.dft
 
-        state = dft.state
+        state = dft.get_state()
         pot_calc = dft.pot_calc
         hamiltonian = dft.scf_loop.hamiltonian
         history = RTTDDFTHistory()
@@ -559,7 +558,7 @@ class RTTDDFT:
                                            comm=world,
                                            dtype=complex)
 
-        state = dft.state
+        state = dft.get_state()
         pot_calc = dft.pot_calc
         hamiltonian = builder.create_hamiltonian_operator()
         history = RTTDDFTHistory()
@@ -637,7 +636,7 @@ class RTTDDFT:
                 self.calculate_dipole_moment(wfs)  # type: ignore
                 for wfs in self.state.ibzwfs]
             dipolemoment_v = np.sum(dipolemoment_xv, axis=0)
-            norm = np.sum(self.state.density.nct_aX.integral)
+            norm = np.sum(self.state.density.nct_aX.integrals)
             result = RTTDDFTResult(time=0,
                                    dipolemoment=dipolemoment_v,
                                    norm=norm)
@@ -676,9 +675,8 @@ class RTTDDFT:
                                                    ext,
                                                    self.pot_calc)
         elif self.mode == 'fd':
-            assert isinstance(self.state.ibzwfs, PWFDIBZWaveFunction)
+            assert isinstance(self.state.ibzwfs, PWFDIBZWaveFunctions)
             kwargs = dict(kin_stencil=len(self.hamiltonian.kin.coef_p),
-                          blocksize=self.hamiltonian.blocksize,
                           xp=self.hamiltonian.kin.xp)
             layout = self.state.potential.dH_asii.layout
             kick_hamiltonian = FDKickHamiltonian(self.hamiltonian.grid,
@@ -719,7 +717,7 @@ class RTTDDFT:
                 self.calculate_dipole_moment(wfs)  # type: ignore
                 for wfs in self.state.ibzwfs]
             dipolemoment_v = np.sum(dipolemoment_xv, axis=0)
-            norm = np.sum(self.state.density.nct_aX.integral)
+            norm = np.sum(self.state.density.nct_aX.integrals)
             result = RTTDDFTResult(time=time,
                                    dipolemoment=dipolemoment_v,
                                    norm=norm)
@@ -727,7 +725,7 @@ class RTTDDFT:
 
     def _calculate_dipole_moment(self, wfs: WaveFunctions) -> np.ndarray:
         dipolemoment_v = self.state.density.calculate_dipole_moment(
-            self.pot_calc.fracpos_ac)
+            self.pot_calc.relpos_ac)
 
         return dipolemoment_v
 

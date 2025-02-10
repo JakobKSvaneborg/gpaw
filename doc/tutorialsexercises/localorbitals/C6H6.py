@@ -70,8 +70,8 @@ benzene = molecule('C6H6', vacuum=5)
 
 # LCAO calculation
 calc = GPAW(mode='lcao', xc='LDA', basis='szp(dzp)', txt=None)
-calc.atoms = benzene
-calc.get_potential_energy()
+benzene.calc = calc
+benzene.get_potential_energy()
 
 # LCAO wrapper
 lcao = LCAOwrap(calc)

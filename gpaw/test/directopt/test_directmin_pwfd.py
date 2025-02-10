@@ -3,12 +3,15 @@ import numpy as np
 
 from gpaw import GPAW, PW, FD
 from ase import Atoms
+from gpaw.mpi import world
 
 
+# @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_directmin_pw(in_tmp_dir, mode):
-
+def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
+    if gpaw_new and world.size > 1:
+        pytest.skip('Does not work yet for new GPAW')
     atoms = Atoms('CCHHHH',
                   positions=[
                       [-0.66874198, -0.00001714, -0.00001504],
@@ -70,3 +73,7 @@ def test_directmin_pw(in_tmp_dir, mode):
     assert niter == pytest.approx(3, abs=1)
     assert f0 == pytest.approx(f2, abs=1e-2)
     assert calc.wfs.kpt_u[0].eps_n[5] > calc.wfs.kpt_u[0].eps_n[6]
+
+
+if __name__ == '__main__':
+    test_directmin_pw(1, 'fd')

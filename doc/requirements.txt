@@ -1,8 +1,10 @@
 sphinx
 sphinx-rtd-theme
 sphinxcontrib-jquery
+sphinx-charts
 pillow
 graphviz
 pytest
 plotly
 kaleido
+scikit-image

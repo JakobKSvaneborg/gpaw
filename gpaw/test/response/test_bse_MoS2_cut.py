@@ -9,10 +9,11 @@ from gpaw.response.df import read_response_function
 def create_bse(gpwfile, q_c=(0, 0, 0)):
     bse = BSE(gpwfile,
               q_c=q_c,
-              spinors=True,
+              soc_tol=0.01,
+              add_soc=True,
               ecut=10,
-              valence_bands=[8],
-              conduction_bands=[9],
+              valence_bands=2,
+              conduction_bands=2,
               eshift=0.8,
               nbands=15,
               mode='BSE',
@@ -25,8 +26,7 @@ def test_response_bse_MoS2_cut(in_tmp_dir, scalapack, gpw_files):
     gpwfile = gpw_files['mos2_5x5_pw']
     bse = create_bse(gpwfile)
 
-    outw_w, outalpha_w = bse.get_polarizability(write_eig=None,
-                                                eta=0.02,
+    outw_w, outalpha_w = bse.get_polarizability(eta=0.02,
                                                 w_w=np.linspace(0., 5., 5001))
     world.barrier()
     w_w, alphareal_w, alphaimag_w = read_response_function('pol_bse.csv')

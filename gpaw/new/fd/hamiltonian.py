@@ -6,14 +6,13 @@ from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.fd_operators import Gradient, Laplace
 from gpaw.new import zips
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunction
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.hamiltonian import Hamiltonian
 
 
 class FDHamiltonian(Hamiltonian):
-    def __init__(self, grid, kin_stencil=3, blocksize=10, xp=np):
+    def __init__(self, grid, *, kin_stencil=3, xp=np):
         self.grid = grid
-        self.blocksize = blocksize
         self._gd = grid._gd
         self.kin = Laplace(self._gd, -0.5, kin_stencil, grid.dtype, xp=xp)
 
@@ -54,7 +53,7 @@ class FDHamiltonian(Hamiltonian):
         from types import SimpleNamespace
 
         from gpaw.preconditioner import Preconditioner as PC
-        pc = PC(self._gd, self.kin, self.grid.dtype, self.blocksize, xp=xp)
+        pc = PC(self._gd, self.kin, self.grid.dtype, blocksize, xp=xp)
 
         def apply(psit, residuals, out):
             kpt = SimpleNamespace(phase_cd=psit.desc.phase_factor_cd)
@@ -78,7 +77,7 @@ class FDKickHamiltonian(FDHamiltonian):
     def __init__(self,
                  grid,
                  ext: ExternalPotential,
-                 ibzwfs: PWFDIBZWaveFunction,
+                 ibzwfs: PWFDIBZWaveFunctions,
                  pot_calc: FDPotentialCalculator,
                  layout: AtomArraysLayout,
                  **kwargs):
@@ -92,7 +91,7 @@ class FDKickHamiltonian(FDHamiltonian):
         # This is a shifted grid, compared to ext.calculate_potential
         self.vext_R.data[:] = np.einsum('xyzv,v->xyz', r_Rv, ext.field_v)
         wfs = ibzwfs.wfs_qs[0][0]
-        positions_av = wfs.fracpos_ac @ grid.cell_cv
+        positions_av = wfs.relpos_ac @ grid.cell_cv
         potential_a = positions_av @ ext.field_v
 
         # calculate coefficient

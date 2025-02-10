@@ -22,19 +22,19 @@ class Densities:
     def __init__(self,
                  nt_sR: UGArray,
                  D_asii: AtomArrays,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  setups: Setups):
         self.nt_sR = nt_sR
         self.D_asii = D_asii
-        self.fracpos_ac = fracpos_ac
+        self.relpos_ac = relpos_ac
         self.setups = setups
 
     @classmethod
     def from_calculation(cls, calculation: DFTCalculation):
-        density = calculation.state.density
+        density = calculation.density
         return cls(density.nt_sR,
                    density.D_asii,
-                   calculation.fracpos_ac,
+                   calculation.relpos_ac,
                    calculation.setups)
 
     def pseudo_densities(self,
@@ -63,7 +63,7 @@ class Densities:
 
             ghat_aLR = self.setups.create_compensation_charges(
                 nt_sR.desc,
-                self.fracpos_ac,
+                self.relpos_ac,
                 self.D_asii.layout.atomdist)
             ghat_aLR.add_to(nt_sR, cc_asL)
 
@@ -100,7 +100,7 @@ class Densities:
         splines = {}
         for a, D_sii in self.D_asii.items():
             D_sii = D_sii.real
-            fracpos_c = self.fracpos_ac[a]
+            relpos_c = self.relpos_ac[a]
             setup = self.setups[a]
             if setup not in splines:
                 phi_j, phit_j, nc, nct = setup.get_partial_waves()[:4]
@@ -121,18 +121,35 @@ class Densities:
                                                      setup.Delta_iiL[:, :, 0])
 
             # Add PAW correction:
-            R_v = fracpos_c @ grid.cell_cv
+            R_v = relpos_c @ grid.cell_cv
             electrons_s -= add(R_v, n_sR, phi_j, phit_j, nc, nct, rcut, D_sii)
 
             if not skip_core:
                 # Add missing charge to grid point closest to atom:
-                R_c = np.around(grid.size * fracpos_c).astype(int) % grid.size
+                R_c = np.around(grid.size * relpos_c).astype(int) % grid.size
                 R_c -= grid.start_c
                 if (R_c >= 0).all() and (R_c < grid.mysize_c).all():
                     for n_R, e in zips(n_sR.data, electrons_s):
                         n_R[tuple(R_c)] += e / grid.dv
 
         return n_sR.scaled(Bohr, Bohr**-3)
+
+    def spin_contamination(self, majority_spin=None):
+        """Calculate the spin contamination.
+
+        Spin contamination is defined as the integral over the
+        spin density difference, where it is negative (i.e. the
+        minority spin density is larger than the majority spin density.
+        """
+        n_sR = self.all_electron_densities()
+        m0, m1 = n_sR.integrate()
+        if majority_spin is None:
+            majority_spin = int(m1 > m0)
+        d_R = n_sR[0].data - n_sR[1].data
+        if majority_spin == 0:
+            d_R *= -1.0
+        d_R = np.where(d_R > 0, d_R, 0.0)
+        return n_sR.desc.from_data(d_R).integrate()
 
 
 def add(R_v: Vector,

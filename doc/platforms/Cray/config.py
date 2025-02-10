@@ -8,6 +8,6 @@ config = {
         ('small', {'cores': 128}),
         ('debug', {'cores': 128}),
         ('largemem', {'cores': 128}),
-        ('standard-g', {'cores': 63}),
-        ('small-g', {'cores': 63}),
-        ('dev-g', {'cores': 63})]}
+        ('standard-g', {'cores': 56}),
+        ('small-g', {'cores': 56}),
+        ('dev-g', {'cores': 56})]}

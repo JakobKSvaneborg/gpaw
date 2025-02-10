@@ -45,8 +45,16 @@ def array(a, dtype=None):
     return ndarray(np.array(a, dtype))
 
 
+def ascontiguousarray(a):
+    return ndarray(np.ascontiguousarray(a._data))
+
+
 def dot(a, b):
     return ndarray(np.dot(a._data, b._data))
+
+
+def outer(a, b):
+    return ndarray(np.outer(a._data, b._data))
 
 
 def multiply(a, b, c):
@@ -87,6 +95,10 @@ def triu_indices(n, k=0, m=None):
 
 def tri(n, k=0, dtype=float):
     return ndarray(np.tri(n, k=k, dtype=dtype))
+
+
+def allclose(a, b, **kwargs):
+    return np.allclose(a._data, b._data, **kwargs)
 
 
 def moveaxis(a, source, destination):
@@ -169,6 +181,9 @@ class ndarray:
                 yield ndarray(data.item())
             else:
                 yield ndarray(data)
+
+    def mean(self):
+        return ndarray(self._data.mean())
 
     def __setitem__(self, index, value):
         if isinstance(index, tuple):

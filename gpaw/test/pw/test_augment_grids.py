@@ -26,7 +26,7 @@ def test_pw_augment_grids(in_tmp_dir, gpaw_new):
                      occupations=FermiDirac(width=0.1)),
                 log=f'gpaw.aug{aug}.txt')
             dft.converge(steps=4)
-            dft.energies()
+            dft.energy()
             dft.forces()
             dft.stress()
             e = dft.results['energy']

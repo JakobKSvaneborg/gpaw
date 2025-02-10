@@ -4,7 +4,9 @@ from types import SimpleNamespace
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
+
 from gpaw.band_descriptor import BandDescriptor
+from gpaw.fftw import MEASURE
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
 from gpaw.new.calculation import DFTCalculation
@@ -36,7 +38,9 @@ class PT:
 
 class FakeWFS:
     def __init__(self,
-                 state,
+                 ibzwfs,
+                 density,
+                 potential,
                  setups,
                  comm,
                  occ_calc,
@@ -46,20 +50,28 @@ class FakeWFS:
         from gpaw.utilities.partition import AtomPartition
         self.timer = nulltimer
         self.setups = setups
-        self.state = state
+        self.ibzwfs = ibzwfs
+        self.density = density
+        self.potential = potential
         self.hamiltonian = hamiltonian
-        ibzwfs = self.state.ibzwfs
-        self.kd = KPointDescriptor(ibzwfs.ibz.bz.kpt_Kc,
-                                   ibzwfs.nspins)
-        self.kd.set_symmetry(atoms,
-                             ibzwfs.ibz.symmetries.symmetry)
-        self.kd.set_communicator(ibzwfs.kpt_comm)
+        ibz = ibzwfs.ibz
+        self.kd = kd = KPointDescriptor(ibz.bz.kpt_Kc, ibzwfs.nspins)
+        kd.ibzk_kc = ibz.kpt_kc
+        kd.weight_k = ibz.weight_k
+        kd.sym_k = ibz.s_K
+        kd.time_reversal_k = ibz.time_reversal_K
+        kd.bz2ibz_k = ibz.bz2ibz_K
+        kd.ibz2bz_k = ibz.ibz2bz_k
+        kd.bz2bz_ks = ibz.bz2bz_Ks
+        kd.nibzkpts = len(ibz)
+        kd.symmetry = ibz.symmetries._old_symmetry
+        kd.set_communicator(ibzwfs.kpt_comm)
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
-        self.grid = self.state.density.nt_sR.desc
+        self.grid = density.nt_sR.desc
         self.gd = self.grid._gd
-        atomdist = self.state.density.D_asii.layout.atomdist
+        atomdist = density.D_asii.layout.atomdist
         self.atom_partition = AtomPartition(atomdist.comm, atomdist.rank_a)
-        self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
+        # self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
         self.occ_calc = occ_calc
         self.occupations = occ_calc.occ
         self.nvalence = int(round(ibzwfs.nelectrons))
@@ -80,7 +92,7 @@ class FakeWFS:
                 self.mode = 'pw'
                 self.ecut = wfs.psit_nX.desc.ecut
                 self.pd = PWDescriptor(self.ecut,
-                                       self.gd, self.dtype, self.kd)
+                                       self.gd, self.dtype, self.kd, _new=True)
                 self.pwgrid = self.grid.new(dtype=self.dtype)
             else:
                 self.mode = 'fd'
@@ -101,28 +113,33 @@ class FakeWFS:
             self.scale = self.ngpts
         else:
             self.scale = 1
+        self.fftwflags = MEASURE
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
-        desc = self.state.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
-        self.hamiltonian.apply_local_potential(
-            self.state.potential.vt_sR[kpt.s],
+        desc = self.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
+        self.hamiltonian.apply(
+            self.potential.vt_sR,
+            None,
+            self.ibzwfs,  # needed for hybrids
+            getattr(ham, 'D_asii', None),  # needed for hybrids
             desc.from_data(data=a1),
-            desc.from_data(data=a2))
+            desc.from_data(data=a2),
+            kpt.s)
 
     def calculate_occupation_numbers(self, fixed):
-        self.state.ibzwfs.calculate_occs(
+        self.ibzwfs.calculate_occs(
             self.occ_calc,
-            fixed_fermi_level=fixed)
+            fix_fermi_level=fixed)
 
     def empty(self, n, q):
         return np.empty((n,) +
-                        self.state.ibzwfs.wfs_qs[q][0].psit_nX.data.shape[1:],
+                        self.ibzwfs.wfs_qs[q][0].psit_nX.data.shape[1:],
                         complex if self.mode == 'pw' else self.dtype)
 
     @cached_property
     def work_array(self):
         return np.empty(
-            (self.bd.mynbands,) + self.state.ibzwfs.get_max_shape(),
+            (self.bd.mynbands,) + self.ibzwfs.get_max_shape(),
             complex if self.mode == 'pw' else self.dtype)
 
     @cached_property
@@ -135,13 +152,13 @@ class FakeWFS:
 
     @property
     def orthonormalized(self):
-        return self.state.ibzwfs.wfs_qs[0][0].orthonormalized
+        return self.ibzwfs.wfs_qs[0][0].orthonormalized
 
     def orthonormalize(self, kpt=None):
         if kpt is None:
-            kpts = list(self.state.ibzwfs)
+            kpts = list(self.ibzwfs)
         else:
-            kpts = [self.state.ibzwfs.wfs_qs[kpt.q][kpt.s]]
+            kpts = [self.ibzwfs.wfs_qs[kpt.q][kpt.s]]
         for wfs in kpts:
             wfs._P_ani = None
             wfs.orthonormalized = False
@@ -165,12 +182,19 @@ class FakeWFS:
             return psit_R.data
         return psit_X.data
 
-    def get_wave_function_array(self, n, k, s, realspace=True, periodic=False):
+    def get_wave_function_array(self, n, k, s,
+                                realspace=True,
+                                periodic=False,
+                                cut=False):
+        assert not cut
+        assert self.ibzwfs.band_comm.size == 1
+        assert self.ibzwfs.kpt_comm.size == 1
         if self.mode == 'lcao':
             assert not realspace
             return self.kpt_qs[k][s].C_nM[n]
-        assert realspace
         psit_X = self.kpt_qs[k][s].wfs.psit_nX[n]
+        if not realspace:
+            return psit_X.data
         if self.mode == 'pw':
             psit_R = psit_X.ifft(grid=self.pwgrid, periodic=True)
             if not periodic:
@@ -185,7 +209,7 @@ class FakeWFS:
         return self.kpt_qs[k][s].projections.collect()
 
     def collect_eigenvalues(self, k, s):
-        return self.state.ibzwfs.wfs_qs[k][s].eig_n.copy()
+        return self.ibzwfs.wfs_qs[k][s].eig_n.copy()
 
     @cached_property
     def kpt_u(self):
@@ -198,7 +222,7 @@ class FakeWFS:
         return [[KPT(self.mode, wfs, self.atom_partition, self.scale,
                      self.pd, self.gd)
                  for wfs in wfs_s]
-                for wfs_s in self.state.ibzwfs.wfs_qs]
+                for wfs_s in self.ibzwfs.wfs_qs]
 
     def integrate(self, a_nX, b_nX, global_integral):
         if self.mode == 'fd':
@@ -264,9 +288,13 @@ class KPT:
 
     @property
     def psit_nG(self):
+        data = self.psit_nX.data
         if self.scale == 1:
-            return self.psit_nX.data
-        return self.psit_nX.data * self.scale
+            return data
+        if 1:  # isinstance(data, np.ndarray):
+            return data * self.scale
+        data.scale *= self.scale
+        return data
 
     @cached_property
     def psit(self):
@@ -291,14 +319,16 @@ class KPT:
 class FakeDensity:
     def __init__(self, dft: DFTCalculation):
         self.setups = dft.setups
-        self.state = dft.state
-        self.D_asii = self.state.density.D_asii
+        self.D_asii = dft.density.D_asii
         self.atom_partition = dft._atom_partition
-        self.interpolate = dft.pot_calc._interpolate_density
-        self.nt_sR = self.state.density.nt_sR
+        try:
+            self.interpolate = dft.pot_calc._interpolate_density
+            self.finegd = dft.pot_calc.fine_grid._gd
+        except AttributeError:
+            pass
+        self.nt_sR = dft.density.nt_sR
         self.nt_sG = self.nt_sR.data
         self.gd = self.nt_sR.desc._gd
-        self.finegd = dft.pot_calc.fine_grid._gd
         self._densities = dft.densities()
         self.ncomponents = len(self.nt_sG)
         self.nspins = self.ncomponents % 3
@@ -326,19 +356,26 @@ class FakeDensity:
 
 
 class FakeHamiltonian:
-    def __init__(self, state, pot_calc, e_total_free=np.nan):
+    def __init__(self, ibzwfs, density, potential, pot_calc,
+                 e_total_free=np.nan,
+                 e_xc=np.nan):
         self.pot_calc = pot_calc
-        self.state = state
-        self.finegd = pot_calc.fine_grid._gd
-        self.grid = state.potential.vt_sR.desc
+        self.ibzwfs = ibzwfs
+        self.density = density
+        self.potential = potential
+        try:
+            self.finegd = self.pot_calc.fine_grid._gd
+        except AttributeError:
+            pass
+        self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
-        self.e_xc = state.potential.energies['xc']
+        self.e_xc = e_xc
 
     def update(self, dens, wfs, kin_en_using_band=True):
-        self.state.potential, _ = self.pot_calc.calculate(
-            self.state.density, self.state.ibzwfs, self.state.potential.vHt_x)
+        self.potential, _ = self.pot_calc.calculate(
+            self.density, self.ibzwfs, self.potential.vHt_x)
 
-        energies = self.state.potential.energies
+        energies = self.potential.energies
         self.e_xc = energies['xc']
         self.e_coulomb = energies['coulomb']
         self.e_zero = energies['zero']
@@ -347,12 +384,13 @@ class FakeHamiltonian:
         if kin_en_using_band:
             self.e_kinetic0 = energies['kinetic']
         else:
-            self.e_kinetic0 = self.state.ibzwfs.calculate_kinetic_energy(
-                wfs.hamiltonian, self.state.density)
+            self.e_kinetic0 = self.ibzwfs.calculate_kinetic_energy(
+                wfs.hamiltonian, self.density)
+            self.ibzwfs.energies['exx_kinetic'] = 0.0
             energies['kinetic'] = self.e_kinetic0
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
-        self.e_band = self.state.ibzwfs.energies['band']
+        self.e_band = self.ibzwfs.energies['band']
         if kin_en_using_band:
             self.e_kinetic = self.e_kinetic0 + self.e_band
         else:
@@ -376,7 +414,7 @@ class FakeHamiltonian:
 
         self.e_total_extrapolated = (
             self.e_total_free +
-            self.state.ibzwfs.energies['extrapolation'])
+            self.ibzwfs.energies['extrapolation'])
 
         return self.e_total_free
 
@@ -395,5 +433,5 @@ class FakeHamiltonian:
 
     def dH(self, P, out):
         for a, I1, I2 in P.indices:
-            dH_ii = self.state.potential.dH_asii[a][P.spin]
+            dH_ii = self.potential.dH_asii[a][P.spin]
             out.array[:, I1:I2] = np.dot(P.array[:, I1:I2], dH_ii)

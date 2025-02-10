@@ -127,14 +127,14 @@ class LCAOHamiltonian(Hamiltonian):
         self.basis = basis
 
     def create_hamiltonian_matrix_calculator(self,
-                                             state: DFTState
+                                             potential,
                                              ) -> HamiltonianMatrixCalculator:
         V_sxMM = [self.basis.calculate_potential_matrices(vt_R.data)
-                  for vt_R in state.potential.vt_sR.to_xp(np)]
+                  for vt_R in potential.vt_sR.to_xp(np)]
 
         dH_saii = [{a: dH_sii[s]
                     for a, dH_sii
-                    in state.potential.dH_asii.to_xp(np).items()}
+                    in potential.dH_asii.to_xp(np).items()}
                    for s in range(len(V_sxMM))]
 
         matcalc = CollinearHamiltonianMatrixCalculator(V_sxMM, dH_saii,
@@ -178,10 +178,9 @@ class LCAOKickHamiltonian(LCAOHamiltonian):
                         for s in range(self.nspins)]
 
     def create_hamiltonian_matrix_calculator(self,
-                                             state: DFTState
+                                             potential,
                                              ) -> HamiltonianMatrixCalculator:
-        assert state.ibzwfs.ibz.bz.gamma_only
-        # The supplied state is ignored.
+        # The supplied potential is ignored.
         # We are kicking with the potential stored by the init
         return CollinearHamiltonianMatrixCalculator(self.V_sxMM, self.dH_saii,
                                                     self.basis,

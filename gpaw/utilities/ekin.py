@@ -67,7 +67,8 @@ if __name__ == '__main__':
 
         ecut = 0.5 * G**2 * Ha
         y = (de[-1] - de) * Ha
-        plt.plot(ecut, y)
-        plt.xlim(300, 1000)
-        plt.ylim(0, y[ecut > 300][0])
+        ax = plt.figure().add_subplot(111)
+        ax.plot(ecut, y)
+        ax.set_xlim(300.0, 1000.0)
+        ax.set_ylim(0.0, y[ecut > 300.0][0])
         plt.show()

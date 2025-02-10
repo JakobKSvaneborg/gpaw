@@ -8,7 +8,7 @@ from gpaw.lcao.tools import get_lcao_hamiltonian
 from gpaw.mpi import world
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_lcao_lcao_hamiltonian(in_tmp_dir, add_cwd_to_setup_paths):
     if world.rank == 0:
         basis = BasisMaker('Li').generate(1, 1)

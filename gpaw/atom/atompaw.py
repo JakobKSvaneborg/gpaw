@@ -272,7 +272,8 @@ class AtomOccupations(OccupationNumberCalculator):
                    eig_qn,
                    weight_q,
                    f_qn,
-                   fermi_level_guess):
+                   fermi_level_guess,
+                   fix_fermi_level=False):
         for s, f_n in enumerate(f_qn):
             n1 = 0
             for l, f0_n in enumerate(self.f_sln[s]):

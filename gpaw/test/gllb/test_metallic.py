@@ -39,3 +39,7 @@ def test_metallic_GLLBSCM():
         assert np.allclose(y1_i, y_i, rtol=0, atol=1e-6), \
             "DOS values don't match, " \
             "error = {}".format(np.max(np.abs(y1_i - y_i)))
+
+
+if __name__ == '__main__':
+    test_metallic_GLLBSCM()

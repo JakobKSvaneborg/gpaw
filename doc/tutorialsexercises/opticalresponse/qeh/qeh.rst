@@ -40,7 +40,7 @@ and [#qeh_theory2]_:
 
     * `Documentation <https://qeh.readthedocs.io/en/latest/>`_
       for the ``qeh`` Python package.
-    * `qeh on PyPI <https://pypi.org/project/qeh/>`_.
+    * `qeh on Gitlab <https://gitlab.com/camd/qeh/>`_.
     * Examples from the
       `CMR database <https://cmr.fysik.dtu.dk/vdwh/vdwh.html>`_.
 
@@ -58,12 +58,15 @@ The gpw-file for WSe2 can be obtained in a similar way.
 The gpw-files stores all the necessary eigenvalues and eigenfunctions for the
 response calculation.
 
-Next the building blocks are created by using the *BuildingBlock* class.
-Essentially, a Dyson equation for the isolated layer is solved to obtain
-the full response function `\chi(q,\omega)`. Starting from `\chi(q,\omega)`
-the monopole and dipole component of the response function and of the induced
-densities are condensed into the dielectric building block. Here is how to get
-the MoS2 and building block:
+Next, we need the `z`-dependence of the full response function 
+`\chi(q,\omega, G_z, G'_z)`. Essentially, a Dyson equation for the isolated layer
+is solved to obtain the full response function `\chi(q,\omega,G,G')`, and then the
+desired `G_z`-elements are chosen from its basis. This is all handled by the ChiHandler
+object, and saved to the file \*-chi.npz. Subsequently, the method interpolate_chi_to_bb
+will interpolate the full response function onto a dense `q`-grid, and calculate
+the monopole and dipole component of the response function and the corresponding
+induced densities. These quantities are then condensed into the dielectric
+building block \*-bb.npz. Here is how to get the MoS2 and building block:
 
 .. literalinclude:: bb_MoS2.py
 
@@ -73,7 +76,7 @@ same kpoint and frequency grid. This is done as follows:
 
 .. literalinclude:: interpolate_bb.py
 
-Specifically, this interpolates the WSe2 building block to the MoS2 grid.
+Specifically, this interpolates both building block to lowest `q`-grid of the two.
 
 Finally the building blocks are ready to be combined electrostatically.
 

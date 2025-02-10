@@ -32,8 +32,7 @@ def get_eigensolver(eigensolver, mode, convergence=None):
                        'lcao': DirectLCAO,
                        'direct': DirectPW,
                        'etdm-lcao': LCAOETDM,
-                       'etdm-fdpw': FDPWETDM,
-                       }[name](**eigensolver)
+                       'etdm-fdpw': FDPWETDM}[name](**eigensolver)
 
     if isinstance(eigensolver, CG):
         eigensolver.tolerance = convergence.get('eigenstates', 4.0e-8)

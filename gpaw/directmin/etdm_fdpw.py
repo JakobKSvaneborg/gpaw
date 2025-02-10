@@ -542,15 +542,9 @@ class FDPWETDM:
         return phi_2i[0], self.error
 
     def update_ks_energy(self, ham, wfs, dens, updateproj=True):
+        """Update Kohn-Sham energy.
 
-        """
-        Update Kohn-Shame energy
         It assumes the temperature is zero K.
-
-        :param ham:
-        :param wfs:
-        :param dens:
-        :return:
         """
 
         if updateproj:
@@ -684,7 +678,7 @@ class FDPWETDM:
 
         c_axi = {}
         if self.gpaw_new:
-            dH_asii = ham.state.potential.dH_asii
+            dH_asii = ham.potential.dH_asii
             for a, P_xi in kpt.P_ani.items():
                 dH_ii = dH_asii[a][kpt.s]
                 c_xi = np.dot(P_xi, dH_ii)
@@ -986,7 +980,7 @@ class FDPWETDM:
         c_axi = {}
         for a, P_xi in P1_ai.items():
             if self.gpaw_new:
-                dH_ii = ham.state.potential.dH_asii[a][kpt.s]
+                dH_ii = ham.potential.dH_asii[a][kpt.s]
             else:
                 dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
             c_xi = np.dot(P_xi, dH_ii)
@@ -1052,7 +1046,6 @@ class FDPWETDM:
 
             minstate = np.argmin(np.diagonal(lamb, offset=-n_occ).real)
             energy = np.diagonal(lamb, offset=-n_occ)[minstate].real
-
             norm = []
             for i in [minstate]:
                 norm.append(self.dot(
@@ -1190,20 +1183,18 @@ class FDPWETDM:
     def initialize_orbitals(self, wfs, ham):
         if self.need_init_orbs and not wfs.read_from_file_init_wfs_dm:
             if self.gpaw_new:
-                state = wfs.state
-
                 def Ht(psit_nG, out, spin):
                     return wfs.hamiltonian.apply(
-                        state.potential.vt_sR,
-                        state.potential.dedtaut_sR,
-                        state.ibzwfs,
-                        state.density.D_asii,
+                        wfs.potential.vt_sR,
+                        wfs.potential.dedtaut_sR,
+                        wfs.ibzwfs,
+                        wfs.density.D_asii,
                         psit_nG,
                         out,
                         spin)
 
-                for w in state.ibzwfs:
-                    w.subspace_diagonalize(Ht, state.potential.dH)
+                for w in wfs.ibzwfs:
+                    w.subspace_diagonalize(Ht, wfs.potential.dH)
             else:
                 for kpt in wfs.kpt_u:
                     wfs.orthonormalize(kpt)

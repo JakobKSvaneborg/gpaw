@@ -185,7 +185,7 @@ class UGDesc(Domain):
                                 *,
                                 qspiral_v=None,
                                 atomdist=None,
-                                integral=None,
+                                integrals=None,
                                 cut=False,
                                 xp=None):
         """Create UGAtomCenteredFunctions object."""
@@ -194,7 +194,7 @@ class UGDesc(Domain):
                                        positions,
                                        self,
                                        atomdist=atomdist,
-                                       integral=integral,
+                                       integrals=integrals,
                                        cut=cut,
                                        xp=xp)
 
@@ -272,8 +272,8 @@ class UGDesc(Domain):
             return fftw.create_plans([0, 0, 0], dtype)
 
     def ranks_from_fractional_positions(self,
-                                        fracpos_ac: Array2D) -> Array1D:
-        rank_ac = np.floor(fracpos_ac * self.parsize_c).astype(int)
+                                        relpos_ac: Array2D) -> Array1D:
+        rank_ac = np.floor(relpos_ac * self.parsize_c).astype(int)
         if (rank_ac < 0).any() or (rank_ac >= self.parsize_c).any():
             raise ValueError('Positions outside cell!')
         return np.ravel_multi_index(rank_ac.T, self.parsize_c)  # type: ignore
@@ -806,20 +806,20 @@ class UGArray(DistributedArrays[UGDesc]):
         self.desc.comm.sum(d_v)
         return d_v
 
-    def scaled(self, s: float, v: float = 1.0):
+    def scaled(self, cell: float, values: float = 1.0) -> UGArray:
         """Create new scaled UGArray object.
 
-        Unit cell axes are multiplied by `s` and data by `v`.
+        Unit cell axes are multiplied by `cell` and data by `values`.
         """
         grid = self.desc
-        grid = UGDesc(cell=grid.cell_cv * s,
+        grid = UGDesc(cell=grid.cell_cv * cell,
                       size=grid.size_c,
                       pbc=grid.pbc_c,
                       zerobc=grid.zerobc_c,
                       kpt=(grid.kpt_c if grid.kpt_c.any() else None),
                       dtype=grid.dtype,
                       comm=grid.comm)
-        return UGArray(grid, self.dims, self.comm, self.data * v)
+        return UGArray(grid, self.dims, self.comm, self.data * values)
 
     def add_ked(self,
                 occ_n: Array1D,
@@ -854,7 +854,8 @@ class UGArray(DistributedArrays[UGDesc]):
             'isomax': vmax - (vmax - vmin) * 0.1,
             'caps': dict(x_show=False,
                          y_show=False,
-                         z_show=False)} | kwargs
+                         z_show=False),
+            **kwargs}
         surf = go.Isosurface(x=x, y=y, z=z, value=values.flatten(),
                              **kwargs)
         if show:

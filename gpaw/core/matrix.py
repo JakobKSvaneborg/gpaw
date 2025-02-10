@@ -91,7 +91,8 @@ class Matrix(XP):
             else:
                 dtype = data.dtype
         self.dtype = np.dtype(dtype)
-        assert dtype == float or dtype == complex, dtype
+        assert np.dtype(self.dtype) in \
+            [np.float32, np.float64, np.complex64, np.complex128], dtype
 
         self.xp: ModuleType
         if xp is None:
@@ -352,6 +353,9 @@ class Matrix(XP):
             assert self.dist.comm.size == slcomm.size
             H = self
 
+        if limit == H.shape[0]:
+            limit = None
+
         if limit:
             eps = self.xp.empty(limit)
         else:
@@ -359,7 +363,7 @@ class Matrix(XP):
 
         if rows * columns == 1:
             if self.dist.comm.rank == 0:
-                if cc and H.dtype == complex:
+                if cc and np.issubdtype(H.dtype, np.complexfloating):
                     np.negative(H.data.imag, H.data.imag)
                 if debug:
                     H.data[np.triu_indices(H.shape[0], 1)] = 42.0
@@ -834,9 +838,13 @@ class CuPyDistribution(MatrixDistribution):
                         return
                     if c.data.size > 0:
                         assert beta in [0.0, 1.0]
+                        # CuPy doesn't have dsyrk, so we roll our own:
                         cp.cublas.gemm('N', 'H',
                                        a.data, b.data, c.data,
-                                       alpha, beta)
+                                       0.5 * alpha, beta)
+                        cp.cublas.gemm('N', 'H',
+                                       b.data, a.data, c.data,
+                                       0.5 * alpha, 1.0)
             else:
                 1 / 0
                 assert opa == 'C' and opb == 'N'

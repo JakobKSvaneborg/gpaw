@@ -40,7 +40,7 @@ class KSFDPW:
             try:
                 dH_ii = unpack_hermitian(ham.dH_asp[a][kpt.s])
             except AttributeError:
-                dH_ii = ham.state.potential.dH_asii[a][kpt.s]
+                dH_ii = ham.potential.dH_asii[a][kpt.s]
             c_xi = np.dot(P_xi, dH_ii)
             c_axi[a] = c_xi
 

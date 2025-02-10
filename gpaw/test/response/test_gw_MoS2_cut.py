@@ -3,7 +3,6 @@ from ase import Atoms
 from ase.lattice.hexagonal import Hexagonal
 from gpaw import GPAW, FermiDirac
 from gpaw.response.g0w0 import G0W0
-from gpaw.mpi import world
 
 
 @pytest.fixture
@@ -41,9 +40,7 @@ def gpwfile(in_tmp_dir):
 @pytest.mark.response
 @pytest.mark.parametrize('integrate_gamma', ['sphere', 'reciprocal2D',
                                              '1BZ2D'])
-def test_response_gw_MoS2_cut(scalapack, gpwfile, gpaw_new, integrate_gamma):
-    if gpaw_new and world.size > 1:
-        pytest.skip('Hybrids not working in parallel with GPAW_NEW=1')
+def test_response_gw_MoS2_cut(scalapack, gpwfile, integrate_gamma):
     gw = G0W0(gpwfile,
               'gw-test',
               nbands=15,

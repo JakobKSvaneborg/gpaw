@@ -4,11 +4,12 @@
 
 import os
 import re
+import shlex
 import sys
 import warnings
 from pathlib import Path
 from subprocess import run
-from sysconfig import get_platform
+from sysconfig import get_config_var, get_platform
 
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext as _build_ext
@@ -18,7 +19,7 @@ from setuptools.command.install import install as _install
 from config import (build_gpu, build_interpreter, check_dependencies,
                     write_configuration)
 
-python_min_version = (3, 8)
+python_min_version = (3, 9)
 assert sys.version_info >= python_min_version, sys.version_info
 python_requires = '>=' + '.'.join(str(num) for num in python_min_version)
 
@@ -31,6 +32,10 @@ def warn_deprecated(msg):
 def raise_error(msg):
     msg = f'\n\n{msg}\n\n'
     raise ValueError(msg)
+
+
+def config_args(key):
+    return shlex.split(get_config_var(key))
 
 
 # Get the current version number:
@@ -77,6 +82,7 @@ scalapack = False
 libvdwxc = False
 elpa = False
 gpu = False
+intelmkl = False
 
 # Advanced:
 # If these are defined, they replace
@@ -84,6 +90,18 @@ gpu = False
 compiler_args = None
 linker_so_args = None
 linker_exe_args = None
+# Advanced args for linking gpaw-python;
+# override if needed:
+# Note: LDFLAGS and LIBS go together, but depending on the platform,
+# it might be unnecessary to include them
+parallel_python_interpreter_link_extra_preargs \
+    = config_args('LDFLAGS')
+parallel_python_interpreter_link_extra_postargs \
+    = (config_args('BLDLIBRARY')
+       + config_args('LIBS')
+       + config_args('LIBM')
+       + config_args('LINKFORSHARED'))
+
 
 # Search and store current git hash if possible
 try:
@@ -222,6 +240,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                    (scalapack, 'GPAW_WITH_SL'),
                    (libvdwxc, 'GPAW_WITH_LIBVDWXC'),
                    (elpa, 'GPAW_WITH_ELPA'),
+                   (intelmkl, 'GPAW_WITH_INTEL_MKL'),
                    (gpu, 'GPAW_GPU'),
                    (gpu, 'GPAW_GPU_AWARE_MPI'),
                    (gpu and gpu_target == 'cuda',
@@ -346,6 +365,8 @@ class build_ext(_build_ext):
             # Build gpaw-python
             parallel_python_exefile = build_interpreter(
                 self.compiler, extension, objects,
+                link_extra_preargs=parallel_python_interpreter_link_extra_preargs,  # noqa: E501
+                link_extra_postargs=parallel_python_interpreter_link_extra_postargs,  # noqa: E501
                 build_temp=self.build_temp,
                 build_bin=build_bin,
                 debug=self.debug)
@@ -386,7 +407,7 @@ setup(name='gpaw',
       long_description=long_description,
       maintainer='GPAW-community',
       maintainer_email='gpaw-users@listserv.fysik.dtu.dk',
-      url='https://wiki.fysik.dtu.dk/gpaw',
+      url='https://gpaw.readthedocs.io/',
       license='GPLv3+',
       platforms=['unix'],
       packages=find_packages(),
@@ -397,12 +418,14 @@ setup(name='gpaw',
       python_requires=python_requires,
       install_requires=[f'ase>={ase_version_required}',
                         'numpy',
-                        'scipy>=1.6.0'],
+                        'scipy>=1.6.0',
+                        'gpaw-data'],
       extras_require={'docs': ['sphinx-rtd-theme',
                                'sphinxcontrib-jquery',
                                'plotly',
                                'kaleido',
-                               'graphviz'],
+                               'graphviz',
+                               'scikit-image'],
                       'devel': ['flake8',
                                 'mypy',
                                 'pytest>=7.0.0',

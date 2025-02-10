@@ -184,7 +184,7 @@ class C_Response(Contribution):
         else:
             # Find homo and lumo levels for each spin
             for s in range(self.wfs.nspins):
-                homo, lumo = self.wfs.get_homo_lumo(s)
+                homo, lumo = self.wfs.get_homo_lumo(s, _gllb=True)
                 # Check that homo and lumo are reasonable
                 if homo > lumo:
                     # HOMO higher than LUMO; set Fermi level as reference
@@ -332,7 +332,7 @@ class C_Response(Contribution):
             # import warnings
             # warnings.warn('Calculating KS-gap directly from the k-points, '
             #               'can be inaccurate.')
-            homolumo = self.wfs.get_homo_lumo()
+            homolumo = self.wfs.get_homo_lumo(_gllb=True)
         homo, lumo = homolumo
         dxc_pot = self.calculate_discontinuity_potential(homo * Ha, lumo * Ha)
         self.Dxc_vt_sG = dxc_pot.vt_sG
@@ -460,7 +460,7 @@ class C_Response(Contribution):
         if dxc_pot.response is not self:
             dxc_pot.redistribute(self)
 
-        homo, lumo = self.wfs.get_homo_lumo(spin)
+        homo, lumo = self.wfs.get_homo_lumo(spin, _gllb=True)
         KSgap = lumo - homo
 
         # Find the lumo-orbital of this spin

@@ -16,7 +16,7 @@ from gpaw.gpu import cupy
 def info():
     """Show versions of GPAW and its dependencies."""
     results = [('python-' + sys.version.split()[0], sys.executable)]
-    for name in ['gpaw', 'ase', 'numpy', 'scipy']:
+    for name in ['gpaw', 'ase', 'numpy', 'scipy', 'gpaw_data']:
         try:
             module = import_module(name)
         except ImportError:

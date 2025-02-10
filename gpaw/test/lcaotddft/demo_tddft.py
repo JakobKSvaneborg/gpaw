@@ -128,7 +128,7 @@ def main():
             calc.calculate_dipole_moment(wfs)  # type: ignore
             for wfs in calc.state.ibzwfs]
         dm = np.sum(dipolemoment_xv, axis=0)
-        norm = np.sum(calc.state.density.nct_aX.integral)
+        norm = np.sum(calc.state.density.nct_aX.integrals)
         fp.write('%20.8lf %20.8le %22.12le %22.12le %22.12le\n' %
                  (0, norm, dm[0], dm[1], dm[2]))
 

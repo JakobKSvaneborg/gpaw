@@ -662,6 +662,95 @@ PyObject* blacs_destroy(PyObject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+#ifdef GPAW_WITH_INTEL_MKL
+PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
+{
+  PyArrayObject* a_obj; // matrix;
+  PyArrayObject* U_obj; // matrix;
+  PyArrayObject* eps_obj; // matrix;
+  PyArrayObject* desca_obj; // descriptor
+
+  if (!PyArg_ParseTuple(args, "OOOO", &a_obj, &U_obj, &eps_obj, &desca_obj))
+    return NULL;
+
+   char balanc = 'N';
+   char jobvl = 'N';
+   char jobvr = 'V';
+   char sense = 'N';
+   double_complex* a = (double_complex*) PyArray_BYTES(a_obj);
+   int* desca = (int*) PyArray_BYTES(desca_obj);
+   int n = desca[2];
+
+   double_complex* w = (double_complex*) PyArray_BYTES(eps_obj);
+   double_complex* vl = NULL;
+   int descvl = 0;
+   double_complex* vr = (double_complex*) PyArray_BYTES(U_obj);;
+   int* descvr = (int*) PyArray_BYTES(desca_obj);
+   int ilo = 1;
+   int ihi = n;
+   double* scale = (double*) malloc( sizeof(double) * n);
+   double abnrm = 0;
+   double* rconde = (double*) malloc(sizeof(double) * n);
+   double* rcondv = NULL;
+   double_complex qwork;
+   int lwork = -1;
+   int info = 0;
+
+   // First we query for optimal work array size
+   pzgeevx(&balanc, 
+           &jobvl,
+           &jobvr,
+           &sense,
+           &n,
+           a,
+           desca,
+           w,
+           vl,
+           &descvl,
+           vr,
+           descvr,
+           &ilo,
+           &ihi,
+           scale,
+           &abnrm,
+           rconde,
+           rcondv,
+           &qwork,
+           &lwork,
+           &info);
+
+   lwork = (int) qwork;
+   double_complex* work = (double_complex*) malloc(sizeof(double_complex) * lwork);
+ 
+   // Then we diagonalize
+   pzgeevx(&balanc, 
+           &jobvl,
+           &jobvr,
+           &sense,
+           &n,
+           a,
+           desca,
+           w,
+           vl,
+           &descvl,
+           vr,
+           descvr,
+           &ilo,
+           &ihi,
+           scale,
+           &abnrm,
+           rconde,
+           rcondv,
+           work,
+           &lwork,
+           &info);
+
+  free(scale); free(rconde); free(work);
+  PyObject* returnvalue = Py_BuildValue("i", info);
+  return returnvalue;
+}
+#endif
+
 PyObject* scalapack_set(PyObject *self, PyObject *args)
 {
   PyArrayObject* a; // matrix;

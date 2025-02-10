@@ -475,7 +475,7 @@ class SJM(SolvationGPAW):
                                          p.slope_regression_depth)
                 nreg = len(previous_electrons[-p.slope_regression_depth:])
                 self.log(f'Slope regressed from last {nreg:d} attempts is '
-                         '{slope:.4f} V/electron,')
+                         f'{slope:.4f} V/electron,')
                 area = np.prod(np.diag(atoms.cell[:2, :2]))
                 capacitance = -1.6022 * 1e3 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
@@ -555,15 +555,15 @@ class SJM(SolvationGPAW):
         # Add grand-canonical terms.
         p = self.parameters['sj']
         self.log()
-        mu_N = self.get_electrode_potential() * p.excess_electrons / Ha
-        self.omega_free = self.hamiltonian.e_total_free + mu_N
-        self.omega_extrapolated = self.hamiltonian.e_total_extrapolated + mu_N
+        mu_N = -self.get_electrode_potential() * p.excess_electrons / Ha
+        self.omega_free = self.hamiltonian.e_total_free - mu_N
+        self.omega_extrapolated = self.hamiltonian.e_total_extrapolated - mu_N
         self.log('Legendre-transformed energies (grand potential, '
                  'Omega = E - N mu)')
         self.log(' N (excess electrons):  {:+11.6f}'
                  .format(p.excess_electrons))
-        self.log(' mu (workfunction, eV): {:+11.6f}'
-                 .format(self.get_electrode_potential()))
+        self.log(' mu (-workfunction, eV): {:+11.6f}'
+                 .format(-self.get_electrode_potential()))
         self.log(' (Grand) free energy:   {:+11.6f}'
                  .format(Ha * self.omega_free))
         self.log(' (Grand) extrapolated:  {:+11.6f}'

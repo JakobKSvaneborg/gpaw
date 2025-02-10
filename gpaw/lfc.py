@@ -256,19 +256,31 @@ class LocalizedFunctionsCollection(BaseLFC):
         self.my_atom_indices = None
         self.lfc = None
 
-    def set_positions(self, spos_ac, atom_partition=None):
+    def set_positions(self, spos_ac, atom_partition=None) -> bool:
+        """Set positions and return True if any atoms have migrated to
+        another rank.
+        """
         assert len(spos_ac) == len(self.sphere_a)
         spos_ac = np.asarray(spos_ac)
         movement = False
+        old_ranks = [sphere.rank for sphere in self.sphere_a]
         for a, (spos_c, sphere) in enumerate(zip(spos_ac, self.sphere_a)):
             try:
                 movement |= sphere.set_position(spos_c, self.gd, self.cut)
             except GridBoundsError as e:
-                e.args = [f'Atom {a} too close to edge: {e}']
+                e.args = (f'Atom {a} too close to edge: {e}',)
                 raise
 
-        if movement or self.my_atom_indices is None:
+        if self.my_atom_indices is None:
             self._update(spos_ac)
+            return False
+
+        if movement:
+            self._update(spos_ac)
+            for rank, sphere in zip(old_ranks, self.sphere_a):
+                if rank != sphere.rank:
+                    return True
+        return False
 
     def _update(self, spos_ac):
         nB = 0
@@ -549,7 +561,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                                 gd.n_c, cspline_M,
                                 gd.beg_c, self.pos_Wv, a, v, q)
 
-    def integrate(self, a_xG, c_axi, q=-1):
+    def integrate(self, a_xG, c_axi, q=-1, add_to=False):
         """Calculate integrals of arrays times localized functions.
 
         ::
@@ -559,6 +571,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                    /     x       i
 
         """
+        assert not add_to
         assert not self.use_global_indices
         if q == -1:
             assert self.dtype == float
