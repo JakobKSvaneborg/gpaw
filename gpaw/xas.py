@@ -91,8 +91,7 @@ def projection(proj, proj_xyz, orthogonal: bool):
     return proj_3
 
 
-def get_os_from_me(eps_n, sigma_cmn,
-                   eps_n0_k, n_k, orthogonal,
+def get_os_from_me(eps_kn, sigma_cmkn, orthogonal,
                    dks: Union[float, List],
                    w: Array1D = None,
                    kpoint=None,
@@ -102,37 +101,28 @@ def get_os_from_me(eps_n, sigma_cmn,
     proj_3 = projection(proj=proj, proj_xyz=proj_xyz,
                         orthogonal=orthogonal)
 
-    sigma2_cmn = np.zeros((proj_3.shape[0],
-                           sigma_cmn.shape[1],
-                           sigma_cmn.shape[2]), float)
+    sigma2_cmkn = np.zeros((proj_3.shape[0],
+                           sigma_cmkn.shape[1],
+                           sigma_cmkn.shape[2],
+                           sigma_cmkn.shape[3]), float)
 
     for i, p in enumerate(proj_3):
-        for m in range(sigma_cmn.shape[1]):
-            s_tmp = np.dot(p, sigma_cmn[:, m, :])
-            sigma2_cmn[i, m, :] += (s_tmp * np.conjugate(s_tmp)).real
+        for m in range(sigma_cmkn.shape[1]):
+            for k in range(sigma_cmkn.shape[2]):
+                s_tmp = np.dot(p, sigma_cmkn[:, m, k, :])
+                sigma2_cmkn[i, m, k, :] += (s_tmp * np.conjugate(s_tmp)).real
 
-    if kpoint is not None:
-        eps_start = kpoint * n_k
-        eps_end = (kpoint + 1) * n_k
-        eps_n0_k = eps_n0_k[kpoint]
-    else:
-        eps_start = 0
-        eps_end = len(eps_n)
-        eps_n0_k = min(eps_n0_k)
-
-    eps_n = eps_n[eps_start:eps_end]
-
-    sigma2_cmn = sigma2_cmn[:, :, eps_start:eps_end]
-
-    n = len(eps_n)
+    eps_kn0 = np.min(eps_kn)
+    k_pts = sigma2_cmkn.shape[2]
+    n = sigma2_cmkn.shape[3]
 
     if isinstance(dks, float) or isinstance(dks, int):
         dks = [dks]
 
-    energy_n = np.zeros((n * len(dks)))
-    f_cmn = np.zeros((sigma2_cmn.shape[0],
-                      sigma2_cmn.shape[1],
-                      n * len(dks)))
+    energy_kn = np.zeros((k_pts, n * len(dks)))
+    f_cmkn = np.zeros((sigma2_cmkn.shape[0],
+                       sigma2_cmkn.shape[1],
+                       k_pts, n * len(dks)))
 
     if w is None:
         w = np.ones(len(dks))
@@ -140,14 +130,25 @@ def get_os_from_me(eps_n, sigma_cmn,
         w = [w]
 
     for i in range(len(dks)):
-        shift = dks[i] - eps_n0_k
-        ienergy_n = eps_n + shift
+        shift = dks[i] - eps_kn0
+        ienergy_kn = eps_kn + shift
 
-        if_cmn = w[i] * 2 * sigma2_cmn[:, :, :] * ienergy_n / Hartree
+        if_cmkn = w[i] * 2 * sigma2_cmkn[:, :, :, :] * ienergy_kn / Hartree
 
-        energy_n[i * n:(1 + i) * n] = ienergy_n
-        f_cmn[:, :, i * n:(1 + i) * n] = if_cmn
+        energy_kn[:, i * n:(1 + i) * n] = ienergy_kn
+        f_cmkn[:, :, :, i * n:(1 + i) * n] = if_cmkn
 
+    if kpoint is not None:
+        energy_n = energy_kn[kpoint, :]
+        f_cmn = f_cmkn[:, :, kpoint, :]
+    else:
+        energy_n = np.zeros((k_pts * n * len(dks)))
+        f_cmn = np.zeros((sigma2_cmkn.shape[0],
+                          sigma2_cmkn.shape[1],
+                          k_pts * n * len(dks)))
+        for k in range(k_pts):
+            energy_n[n * k:(k + 1) * n] = energy_kn[k, :]
+            f_cmn[:, :, n * k:(k + 1) * n] = f_cmkn[:, :, k, :]
     if raw:
         return energy_n, f_cmn
 
@@ -160,7 +161,7 @@ class XAS:
             self.__full_init__(paw, *args, **kwargs)
 
     def __full_init__(self, paw, mode='xas', center=None,
-                 spin=0, nocc_cor=0):
+                      spin=0, nocc_cor=0):
         """_summary_
 
         Args:
@@ -272,53 +273,47 @@ class XAS:
 
         self.n = n
         l_core = setup.data.lcorehole
+        self.eps_kn = np.zeros((nkpts, n))
+        self.sigma_cmkn = np.zeros((3, l_core * 2 + 1, nkpts, n), complex)
 
-        self.eps_n = np.zeros(nkpts * n)
-        self.sigma_cmn = np.zeros((3, l_core * 2 + 1, nkpts * n), complex)
-
-        n1 = kd_rank * n * (nkpts // kd_size)
+        n1 = 0
         if bd_rank != 0:
             n1 += n_diff0 + n_diff * (bd_rank - 1)
-
         k = kd_rank * (nkpts // kd_size)
-        self.eps_n0_k = np.zeros((nkpts))
 
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
                 continue
+
             n2 = n1 + n_diff
             if bd_size != 1 and bd_rank == bd_size - 1:
                 n2 -= i_n
-            if bd_rank == 0:
-                self.eps_n0_k[k] = kpt.eps_n[n_start] * Hartree
-            self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
+            self.eps_kn[k, n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
+
             if a in my_atom_indices:
                 P_ni = kpt.P_ani[a][n_start:n_end]
                 a_cmn = np.inner(A_cmi, P_ni)
                 weight = kpt.weight * wfs.nspins / 2
-                self.sigma_cmn[:, :, n1:n2] = weight**0.5 * a_cmn  # .real
+                self.sigma_cmkn[:, :, k, n1:n2] = weight**0.5 * a_cmn  # .real
 
-            n1 = n2 + (n - n_diff)
             k += 1
 
-        kd.comm.sum(self.sigma_cmn)
-        kd.comm.sum(self.eps_n)
-        kd.comm.sum(self.eps_n0_k)
+        kd.comm.sum(self.sigma_cmkn)
+        kd.comm.sum(self.eps_kn)
 
-        bd.comm.sum(self.sigma_cmn)
-        bd.comm.sum(self.eps_n)
-        bd.comm.sum(self.eps_n0_k)
+        bd.comm.sum(self.sigma_cmkn)
+        bd.comm.sum(self.eps_kn)
 
-        gd.comm.sum(self.sigma_cmn)
+        gd.comm.sum(self.sigma_cmkn)
 
         self.symmetry = wfs.kd.symmetry
 
     def write(self, fname: str):
         if self.world.rank == 0:
+            print('Writing')
             with open(fname, mode='wb') as f:
                 np.savez_compressed(
-                    f, eps_n=self.eps_kn, sigma_cmn=self.sigma_cmn,
-                    eps_n0_k=self.eps_n0_k, n_k=self.n,
+                    f, eps_kn=self.eps_kn, sigma_cmkn=self.sigma_cmkn,
                     orthogonal=self.orthogonal)
         self.world.barrier()
 
@@ -326,7 +321,10 @@ class XAS:
     def read(cls, fname: str):
         self = XAS()
         with open(fname, mode='rb') as f:
-            self.eps_n, self.sigma_cmn, sellf.eps_n0_k, self.n, self.orthogonal = self.nnp.loadz_compressed(f)
+            data = dict(np.load(f)).values()
+            a, b, c = data
+            self.eps_kn, self.sigma_cmkn, self.orthogonal = data
+            print('Ja')
         return self
 
     def get_oscillator_strength(
@@ -357,8 +355,8 @@ class XAS:
             oscillator strengths: 3D array [c, m, n]
         """
         energy_n, f_cmn = get_os_from_me(
-            eps_n=self.eps_n, sigma_cmn=self.sigma_cmn,
-            eps_n0_k=self.eps_n0_k, n_k=self.n, orthogonal=self.orthogonal,
+            eps_kn=self.eps_kn, sigma_cmkn=self.sigma_cmkn,
+            orthogonal=self.orthogonal,
             dks=dks, w=w, kpoint=kpoint, proj=proj,
             proj_xyz=proj_xyz, raw=raw)
 

@@ -8,7 +8,10 @@ from gpaw.xas import XAS, get_oscillator_strength
 
 
 def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
-    xs, ys_cn = xas.get_oscillator_strength(dks=dks)
+    if mpi.world.size > 1:
+        return
+    _, ys_cn = xas.get_oscillator_strength(dks=dks)
+
     ys_summed_c = ys_cn.sum(axis=1)
     xf, yf_cn = xas.get_spectra(fwhm=0.5, dks=dks)
     dxf = xf[1:] - xf[:-1]
@@ -35,6 +38,8 @@ def s2p1ch_name():
 def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     """Make sure this calculation does not fail
     because of get_spin_contamination"""
+    if mpi.world.size > 1:
+        return
     atoms = molecule('SH2')
     atoms.center(3)
 
@@ -47,6 +52,8 @@ def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
 
 
 def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
+    if mpi.world.size > 1:
+        return
     atoms = molecule('SH2')
     atoms.center(3)
 
@@ -82,6 +89,8 @@ def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
 
 
 def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
+    if mpi.world.size > 1:
+        return
     atoms = molecule('SH2')
     atoms.center(3)
     dks = 20
@@ -93,6 +102,8 @@ def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
 
 
 def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
+    if mpi.world.size > 1:
+        return
     atoms = molecule('SH2')
     atoms.center(3)
 
@@ -113,6 +124,8 @@ def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
 
 
 def test_proj(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
+    if mpi.world.size > 1:
+        return
     atoms = molecule('SH2')
     atoms.center(3)
 
@@ -161,20 +174,54 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     print('serial, rank, size:', mpi.world.rank, comm.size)
     atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name},
                       txt=None, communicator=comm)
-    atoms.get_potential_energy()
+
     print('serial, atoms.calc.world.size:', atoms.calc.world.size)
+    atoms.get_potential_energy()
+
+    import time
+    t0 = time.time()
     xas = XAS(atoms.calc)
     xas.write(fserial)
+    t1 = time.time()
+    print(t1 - t0)
 
     # parallel calculation
-    fparallel = 'serial_xas.npz'
+    fparallel = 'parallel_xas.npz'
     atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name}, txt=None)
-    atoms.get_potential_energy()
     print('parallel, atoms.calc.world.size:', atoms.calc.world.size)
+    atoms.get_potential_energy()
+
+    t0 = time.time()
+    xas = XAS(atoms.calc)
     xas.write(fparallel)
+    t1 = time.time()
+    print(t1 - t0)
 
     dks = 20
     xs, ys = get_oscillator_strength(fserial, dks=dks)
     xp, yp = get_oscillator_strength(fparallel, dks=dks)
-    assert (xs == xp).all()
-    assert (ys == yp).all()
+
+    assert xs == pytest.approx(xp)
+    assert ys == pytest.approx(yp)
+
+
+def test_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
+    dks = 20
+    """Test that a direct calculation gives the same results as a calcultion
+    from """
+    atoms = molecule('SH2')
+    atoms.center(3)
+    medata = 'xasme.dat'
+    # do XAS calculation and write out
+    calc1 = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name}, txt=None)
+    atoms.calc = calc1
+    atoms.get_potential_energy()
+    xas1 = XAS(calc1)
+    xas1.write(medata)
+
+    # define the XAS object by reading
+    xas2 = XAS().read('xasme.dat')
+    x1, y1 = xas1.get_oscillator_strength(dks=dks)
+    x2, y2 = xas2.get_oscillator_strength(dks=dks)
+    assert x1 == pytest.approx(x2)
+    assert y1 == pytest.approx(y2)

@@ -18,22 +18,6 @@ def xas_sym_nosp(
     return x1, y1
 
 
-def test_io(in_tmp_dir, gpw_files):
-    """Test that a direct calculation gives the same results as a calcultion
-    from """
-    medata = 'xasme.dat'
-    # do XAS calculation and write out
-    calc1 = GPAW(gpw_files['si_corehole_sym_pw'])
-    xas1 = XAS(calc1)
-    xas1.write(medata)
-
-    # define the XAS object by reading
-    xas2 = XAS.read('xasme.dat')
-
-    assert xas1.get_oscillator_strength(dks=dks) == pytest.approx(
-        xas2.get_oscillator_strength(dks=dks))
-
-
 def test_xas_paralell_kpts_and_domian(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files, xas_sym_nosp):
 
@@ -44,7 +28,6 @@ def test_xas_paralell_kpts_and_domian(
                 'domain': 2}
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'], parallel=parallel)
     xas2 = XAS(calc2)
-
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
 
     x1, y1 = xas_sym_nosp
