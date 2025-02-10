@@ -556,7 +556,7 @@ class RTTDDFT:
         _, dft, params, builder = read_gpw(filepath,
                                            log='-',
                                            comm=world,
-                                           dtype=complex)
+                                           force_complex_dtype=True)
 
         state = dft.get_state()
         pot_calc = dft.pot_calc

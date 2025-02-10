@@ -186,10 +186,11 @@ def read_gpw(filename: Union[str, Path, IO[str]],
              log: Union[Logger, str, Path, IO[str]] = None,
              comm=None,
              parallel: dict[str, Any] = None,
-             dtype: DTypeLike = None) -> tuple[Atoms,
-                                               DFTCalculation,
-                                               InputParameters,
-                                               DFTComponentsBuilder]:
+             force_complex_dtype: bool = False,
+             ) -> tuple[Atoms,
+                        DFTCalculation,
+                        InputParameters,
+                        DFTComponentsBuilder]:
     """
     Read gpw file
 
@@ -224,6 +225,9 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         kwargs.pop(old_keyword, None)
 
     params = InputParameters(kwargs, warn=False)
+
+    if force_complex_dtype:
+        params.mode['force_complex_dtype'] = True
     builder = create_builder(atoms, params, comm)
 
     if comm.rank == 0:
@@ -272,9 +276,6 @@ def read_gpw(filename: Union[str, Path, IO[str]],
                               'atommaps': kpts.atommap}
         params = InputParameters(kwargs, warn=False)
         builder = create_builder(atoms, params, comm)
-
-    if dtype is not None:
-        params.mode['dtype'] = dtype
 
     (kpt_comm, band_comm, domain_comm, kpt_band_comm) = (
         builder.communicators[x] for x in 'kbdD')

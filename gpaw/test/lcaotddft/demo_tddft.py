@@ -2,15 +2,10 @@ import numpy as np
 
 from ase import Atoms
 
-from gpaw import FD, LCAO
-from gpaw.core.uniform_grid import UGArray
-from gpaw.calculator import GPAW as old_GPAW
+from gpaw import GPAW
 from gpaw.tddft import TDDFT
-from gpaw.tddft import DipoleMomentWriter as FDDipoleMomentWriter
 from gpaw.lcaotddft import LCAOTDDFT
-from gpaw.lcaotddft.dipolemomentwriter import (
-    DipoleMomentWriter as LCAODipoleMomentWriter)
-from gpaw.new.ase_interface import GPAW as new_GPAW
+from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.new.rttddft import RTTDDFT
 from gpaw.tddft.units import as_to_au, autime_to_asetime
 
@@ -21,18 +16,12 @@ def main():
     parser = ArgumentParser(
         description='Demo script for new implementation of RT-TDDFT')
     parser.add_argument('--all', action='store_true', help='Run everything.')
-    parser.add_argument('--old-lcao-gs', action='store_true',
-                        help='Run old implementation of ground state LCAO '
-                             'calculation. Creates old_lcao_gs.gpw.')
-    parser.add_argument('--new-lcao-gs', action='store_true',
-                        help='Run new implementation of ground state LCAO '
-                             'calculation. Creates new_lcao_gs.gpw.')
-    parser.add_argument('--old-fd-gs', action='store_true',
-                        help='Run old implementation of ground state FD '
-                             'calculation. Creates old_lcao_gs.gpw.')
-    parser.add_argument('--new-fd-gs', action='store_true',
-                        help='Run new implementation of ground state FD '
-                             'calculation. Creates new_lcao_gs.gpw.')
+    parser.add_argument('--lcao-gs', action='store_true',
+                        help='Run old ground state LCAO calculation. '
+                        'Creates lcao_gs.gpw.')
+    parser.add_argument('--fd-gs', action='store_true',
+                        help='Run ground state FD calculation. '
+                        'Creates fd_gs.gpw.')
     parser.add_argument('--old-lcao-rt', action='store_true',
                         help='Run old implementation of LCAO time propagation'
                              '. Saves dipole moment file old_lcao_dm.out.')
@@ -56,70 +45,33 @@ def main():
 
     kick_v = [1e-5, 0, 0]
 
-    def assert_equal(a, b):
-        return
-        from gpaw.core.matrix import Matrix
-        from gpaw.core.atom_arrays import AtomArrays
-
-        def extract(o):
-            if (isinstance(o, Matrix) or isinstance(o, AtomArrays) or
-                isinstance(o, UGArray)):
-                return o.data
-            else:
-                return o
-
-        a = extract(a)
-        b = extract(b)
-
-        assert np.allclose(a, b), f'{str(a)} != {str(b)}'
-
-    if parsed.old_lcao_gs or parsed.all:
-        old_calc = old_GPAW(mode=LCAO(), basis='sz(dzp)', xc='LDA',
-                            symmetry={'point_group': False},
-                            txt='old_lcao.out', convergence={'density': 1e-12})
+    if parsed.lcao_gs or parsed.all:
+        old_calc = GPAW(mode='lcao', basis='sz(dzp)', xc='LDA',
+                        symmetry={'point_group': False},
+                        txt='lcao.out', convergence={'density': 1e-12})
         atoms.calc = old_calc
         atoms.get_potential_energy()
-        old_calc.write('old_lcao_gs.gpw', mode='all')
+        old_calc.write('lcao_gs.gpw', mode='all')
 
-    if parsed.old_fd_gs or parsed.all:
-        old_calc = old_GPAW(mode=FD(), basis='sz(dzp)', xc='LDA',
-                            symmetry={'point_group': False},
-                            txt='old_fd.out', convergence={'density': 1e-12})
+    if parsed.fd_gs or parsed.all:
+        old_calc = GPAW(mode='fd', basis='sz(dzp)', xc='LDA',
+                        symmetry={'point_group': False},
+                        txt='fd.out', convergence={'density': 1e-12})
         atoms.calc = old_calc
         atoms.get_potential_energy()
-        old_calc.write('old_fd_gs.gpw', mode='all')
-
-    if parsed.new_lcao_gs or parsed.all:
-        new_calc = new_GPAW(mode={'name': 'lcao', 'force_complex_dtype': True},
-                            basis='sz(dzp)', xc='LDA',
-                            symmetry={'point_group': False},
-                            txt='new_lcao.out',
-                            convergence={'density': 1e-12})
-        atoms.calc = new_calc
-        atoms.get_potential_energy()
-        new_calc.write('new_lcao_gs.gpw', mode='all')
-
-    if parsed.new_fd_gs or parsed.all:
-        new_calc = new_GPAW(mode={'name': 'fd', 'force_complex_dtype': True},
-                            basis='sz(dzp)', xc='LDA',
-                            symmetry={'point_group': False},
-                            txt='new_fd.out',
-                            convergence={'density': 1e-12})
-        atoms.calc = new_calc
-        atoms.get_potential_energy()
-        new_calc.write('new_fd_gs.gpw', mode='all')
+        old_calc.write('fd_gs.gpw', mode='all')
 
     if parsed.old_lcao_rt or parsed.all:
-        old_tddft = LCAOTDDFT('old_lcao_gs.gpw', propagator='ecn',
+        old_tddft = LCAOTDDFT('lcao_gs.gpw', propagator='ecn',
                               txt='/dev/null')
-        LCAODipoleMomentWriter(old_tddft, 'old_lcao_dm.out')
+        DipoleMomentWriter(old_tddft, 'old_lcao_dm.out')
         old_tddft.absorption_kick(kick_v)
         old_tddft.propagate(10, 10)
 
     if parsed.old_fd_rt or parsed.all:
-        old_tddft = TDDFT('old_fd_gs.gpw', propagator='ECN',
+        old_tddft = TDDFT('fd_gs.gpw', propagator='ECN',
                           txt='/dev/null')
-        FDDipoleMomentWriter(old_tddft, 'old_fd_dm.out')
+        DipoleMomentWriter(old_tddft, 'old_fd_dm.out')
         old_tddft.absorption_kick(kick_v)
         old_tddft.propagate(10, 10)
 
@@ -139,8 +91,7 @@ def main():
                  (result.time, result.norm, dm[0], dm[1], dm[2]))
 
     if parsed.new_lcao_rt or parsed.all:
-        #  new_tddft = RTTDDFT.from_dft_calculation(new_calc)
-        new_tddft = RTTDDFT.from_dft_file('new_lcao_gs.gpw')
+        new_tddft = RTTDDFT.from_dft_file('lcao_gs.gpw')
 
         dt = 10 * as_to_au * autime_to_asetime
         with open('new_lcao_dm.out', 'w') as fp:
@@ -156,8 +107,7 @@ def main():
                 write_result(fp, result)
 
     if parsed.new_fd_rt or parsed.all:
-        #  new_tddft = RTTDDFT.from_dft_calculation(new_calc)
-        new_tddft = RTTDDFT.from_dft_file('new_fd_gs.gpw')
+        new_tddft = RTTDDFT.from_dft_file('fd_gs.gpw')
 
         dt = 10 * as_to_au * autime_to_asetime
         with open('new_fd_dm.out', 'w') as fp:
