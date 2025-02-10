@@ -72,12 +72,77 @@ class DebugTimer(Timer):
         self.txt.write('T%s << %15.8f %s (%7.5fs) stopped\n'
                        % (self.srank, abstime, name, t))
         Timer.stop(self, name)
+        
+
+class GPUEvent:
+    def __init__(self, names):
+        self.names = names
+        import cupy
+        self.stop_event = cupy.cuda.Event(block=False,
+                                          disable_timing=False,
+                                          interprocess=False)
+        self.start_event = cupy.cuda.Event(block=False,
+                                           disable_timing=False,
+                                           interprocess=False)
+        self.start_event.record()
+
+    def stop(self):
+        self.stop_event.record()
+
+    def get_time(self):
+        import cupy
+        return cupy.cuda.get_elapsed_time(self.start_event, self.stop_event) / 1000
+
+class GPUTimer(Timer):
+    def __init__(self, *args, **kwargs):
+        Timer.__init__(self, *args, **kwargs)
+        self.event_queue = []
+        self.event_stack = []
+        from collections import defaultdict
+        self.gpu_timers = defaultdict(float)
+
+    def start(self, name):
+        Timer.start(self, name)
+        # Timer start already adds name to self.running   
+        names = tuple(self.running)
+        self.event_stack.append(GPUEvent(names))
+
+    def stop(self, name=None):
+        Timer.stop(self, name)
+        gpu_event = self.event_stack.pop()
+        gpu_event.stop()
+        self.event_queue.append(gpu_event)
+        if len(self.event_queue) > 10:
+            self.handle_events()
+
+    def handle_events(self):
+        while len(self.event_queue):
+            event = self.event_queue[0]
+            if not event.stop_event.done:
+                break
+            del self.event_queue[0]
+            time = event.get_time()
+            self.gpu_timers[event.names] += time 
+           
+    def write(self, out=sys.stdout):
+        import cupy
+        print('CPU event timings:', file=out)
+        Timer.write(self, out)
+        event = cupy.cuda.Event(block=True)
+        event.synchronize()
+        self.handle_events()
+        print('GPU event timings:', file=out)
+        self.timers = self.gpu_timers
+        Timer.write(self, out)
+
+ 
 
 
 def ranktxt(comm, rank=None):
     rank = comm.rank if rank is None else rank
     ndigits = len(str(comm.size - 1))
     return '%0*d' % (ndigits, rank)
+
 
 
 class ParallelTimer(DebugTimer):

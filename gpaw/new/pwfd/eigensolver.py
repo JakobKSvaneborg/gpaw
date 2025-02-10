@@ -125,6 +125,7 @@ class PWFDEigensolver(Eigensolver):
         raise NotImplementedError
 
 
+@trace
 def calculate_residuals(residual_nX: XArray,
                         dH: Callable[[AtomArrays, AtomArrays], AtomArrays],
                         dS_aii: AtomArrays,

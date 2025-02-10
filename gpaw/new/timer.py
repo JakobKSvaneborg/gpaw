@@ -54,4 +54,13 @@ def trace(meth: Callable[..., T]) -> Callable[..., T]:
     return wrapper
 
 
+@contextmanager
+def trace2(name):
+    global_timer.start(name)
+    try:
+        yield
+    finally:
+        global_timer.stop()
+
+
 global_timer = GlobalTimer()

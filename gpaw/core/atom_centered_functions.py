@@ -8,7 +8,7 @@ from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.mpi import MPIComm, serial_comm
-from gpaw.new import zips
+from gpaw.new import zips, trace
 from gpaw.spline import Spline
 from gpaw.typing import Array1D, ArrayLike2D
 from gpaw.gpu import XP
@@ -93,6 +93,7 @@ class AtomCenteredFunctions(XP):
         else:
             self._lfc.add(functions.data, coefs, q=0)
 
+    @trace
     def integrate(self, functions, out=None, add_to=False):
         """Calculate integrals of atom-centered functions multiplied by
         *functions*.

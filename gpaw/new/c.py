@@ -6,6 +6,7 @@ import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy as cp
 from gpaw.typing import Array1D, ArrayND
 from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.new.timer import trace
 
 __all__ = ['GPU_AWARE_MPI']
 
@@ -148,3 +149,16 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
                                 evaluate_pbe_gpu, pw_amend_insert_realwf_gpu,
                                 pw_insert_gpu, pwlfc_expand_gpu,
                                 pw_norm_kinetic_gpu, pw_norm_gpu)
+
+        # This is somewhat useless to trace the kernels in CPU 
+        add_to_density_gpu = trace(add_to_density_gpu)
+        calculate_residuals_gpu = trace(calculate_residuals_gpu)
+        dH_aii_times_P_ani_gpu = trace(dH_aii_times_P_ani_gpu)
+        evaluate_lda_gpu = trace(evaluate_lda_gpu)
+        evaluate_pbe_gpu = trace(evaluate_pbe_gpu)
+        pw_amend_insert_realwf_gpu = trace(pw_amend_insert_realwf_gpu)
+        pw_insert_gpu = trace(pw_insert_gpu)
+        pwlfc_expand_gpu = trace(pwlfc_expand_gpu)
+        pw_norm_kinetic_gpu = trace(pw_norm_kinetic_gpu)
+        pw_norm_gpu = trace(pw_norm_gpu)
+
