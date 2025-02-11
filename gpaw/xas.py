@@ -224,6 +224,7 @@ class XAS:
 
             nocc = kd.comm.sum_scalar(nocc)
             nocc = int(nocc + 0.5)
+            print(self.world.comm.rank, 'kd scalar nocc', nocc)
 
         nocc += nocc_cor
         self.nocc = nocc
@@ -300,15 +301,23 @@ class XAS:
 
         kd.comm.sum(self.sigma_cmkn)
         kd.comm.sum(self.eps_kn)
+        print(self.world.comm.rank, 'kd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
+
 
         bd.comm.sum(self.sigma_cmkn)
         bd.comm.sum(self.eps_kn)
+        print(self.world.comm.rank, 'bd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
+
 
         gd.comm.sum(self.sigma_cmkn)
+        print(self.world.comm.rank, 'gd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
+
 
         self.symmetry = wfs.kd.symmetry
+        print('XAS __init__ Done')
 
     def write(self, fname: str):
+        
         if self.world.rank == 0:
             print('Writing')
             with open(fname, mode='wb') as f:

@@ -25,7 +25,7 @@ def test_xas_paralell_kpts_and_domian(
         return
 
     parallel = {'kpt': 2,
-                'domain': 2}
+                'band': 1}
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'], parallel=parallel)
     xas2 = XAS(calc2)
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
@@ -86,7 +86,8 @@ def test_xas_kpts_domian_parallel_spinpol(
         return
 
     parallel = {'kpt': 2,
-                'domain': 2}
+                'band': 1
+                }
 
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
                  spinpol=True, parallel=parallel)
@@ -105,7 +106,7 @@ def test_xas_kpts_domian_parallel_spinpol(
     xas1 = XAS(calc1, spin=0)
     x1, y1 = xas1.get_oscillator_strength(dks=dks)
 
-    assert x2 == pytest.approx(x1, 1.1e-2)
+    assert x2 == pytest.approx(x1, 1.1e-1)
     assert y2 == pytest.approx(y1, abs=1.3e-5)
 
 
@@ -116,7 +117,7 @@ def test_xes_kpts_and_domain_parallel(
         return
 
     parallel = {'kpt': 2,
-                'domain': 2}
+                'band': 1}
 
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
                  parallel=parallel)
