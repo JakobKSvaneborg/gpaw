@@ -133,6 +133,9 @@ class LCAONumpyPropagator(WaveFunctionPropagator):
                                        wfs.S_MM.data,
                                        H_MM.data, time_step)
 
+        # Make sure wfs.C_nM and (lazy) wfs.P_ani are in sync:
+        wfs._P_ani = None
+
 
 class FDNumpyPropagator(WaveFunctionPropagator):
 
@@ -627,7 +630,11 @@ class RTTDDFTAdapter:
         if self.tddft_initialized:
             return
 
-        # TODO check if normalization needed here
+        # In principle we should update the operators here
+        # to be consistent with the old code
+        self._rttddft.td_algorithm.update_time_dependent_operators(
+            self._rttddft.state, self._rttddft.pot_calc)
+
         self.action = 'init'
         self.call_observers(self.niter)
 
