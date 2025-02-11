@@ -17,8 +17,8 @@ is_hip = False
 device_id = None
 """Device id"""
 
-def cupy_gemm(*args, **kwargs):
-    raise NotImplementedError
+def gpu_gemm(*args, **kwargs):
+    raise NotImplementedError('You have not using GPAW with GPUs.')
 
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
