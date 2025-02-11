@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from functools import wraps
 from io import StringIO
 from typing import Callable, TypeVar, Union
+from gpaw import GPAW_TRACE
 
 
 class GlobalTimer:
@@ -15,6 +16,10 @@ class GlobalTimer:
         # at least that will be necessary if we want a default
         # behaviour which would then be in effect during runs of the
         # test suite.
+        if not GPAW_TRACE:
+            raise RuntimeError('You need to set environment variable '
+                               'GPAW_TRACE=1 in order to utilize '
+                               'tracing via GlobalTimer.')
         self._timers.append(timer)
         try:
             yield
@@ -36,8 +41,8 @@ class GlobalTimer:
 T = TypeVar('T')
 
 
-def trace(meth: Union[Callable[..., T], None] = None,
-          **timer_params) -> Callable[..., T]:
+def _trace(meth: Union[Callable[..., T], None] = None,
+           **timer_params) -> Callable[..., T]:
     """Decorator for telling global timer to trace a function or method."""
 
     def get_wrapper(method):
@@ -59,6 +64,20 @@ def trace(meth: Union[Callable[..., T], None] = None,
         return get_wrapper(meth)
 
     return get_wrapper
+
+
+def dummy_decorator(meth: Union[Callable[..., T], None] = None,
+                    **timer_params) -> Callable[..., T]:
+    if meth:
+        return meth
+
+    def wrapper(method):
+        return method
+
+    return wrapper
+
+
+trace = _trace if GPAW_TRACE else dummy_decorator
 
 
 @contextmanager

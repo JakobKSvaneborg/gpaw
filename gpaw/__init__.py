@@ -35,6 +35,7 @@ allowed_envvars = {
 GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
 GPAW_NO_C_EXTENSION = bool(int(os.environ.get('GPAW_NO_C_EXTENSION') or 0))
 GPAW_USE_GPUS = bool(int(os.environ.get('GPAW_USE_GPUS') or 0))
+GPAW_TRACE = bool(int(os.environ.get('GPAW_TRACE') or 0))
 
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
