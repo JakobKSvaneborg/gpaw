@@ -93,6 +93,8 @@ else:
     except ImportError:
         import gpaw.gpu.cpupy as cupy
         import gpaw.gpu.cpupyx as cupyx
+        from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm
+
 
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']
 

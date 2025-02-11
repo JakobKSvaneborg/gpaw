@@ -128,14 +128,14 @@ def precondition(psit_nG: PWArray,
                            residual_nG.data)
 
 
-@trace(kernel=True)
 @cp.fuse()
-def gpu_prec(ekin, G2, residual):
+def _gpu_prec(ekin, G2, residual):
     x = 1 / ekin / 3 * G2
     a = 27.0 + x * (18.0 + x * (12.0 + x * 8.0))
     xx = x * x
     return -4.0 / 3 / ekin * a / (a + 16.0 * xx * xx) * residual
 
+gpu_prec= trace(kernel=True)(_gpu_prec)
 
 def spinor_precondition(psit_nsG, residual_nsG, out):
     G2_G = psit_nsG.desc.ekin_G * 2
