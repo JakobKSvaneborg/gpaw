@@ -55,7 +55,6 @@ class Chi0Integrand(Integrand):
         self._chi0calc = chi0calc
 
         # In a normal response calculation, we include transitions from all
-        # completely and partially unoccupied bands to range(m1, m2)
 
         self.gs: ResponseGroundStateAdapter = chi0calc.gs
 

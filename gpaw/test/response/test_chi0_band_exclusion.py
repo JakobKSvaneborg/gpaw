@@ -57,14 +57,16 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     chi0_data2_body = \
         chi0_data2.body.data_WgG
 
-    n_freq_points = len(chi0_data1.chi0_Wvv)
+    # The two chi0 calculations are compared only on up to the maximum
+    # of wd1 excluding transitions from the three lowest valence band
+    nw = len(wd1)
 
-    assert chi0_data1_body[:n_freq_points] == pytest.approx(
-        chi0_data2_body[:n_freq_points], rel=1e-3, abs=1e-4)
-    assert chi0_data1.chi0_WxvG[:n_freq_points] == pytest.approx(
-        chi0_data2.chi0_WxvG[:n_freq_points], rel=1e-3, abs=1e-4)
-    assert chi0_data1.chi0_Wvv[:n_freq_points] == pytest.approx(
-        chi0_data2.chi0_Wvv[:n_freq_points], rel=1e-3, abs=1e-4)
+    assert chi0_data1_body[:nw] == pytest.approx(
+        chi0_data2_body[:nw], rel=1e-3, abs=1e-4)
+    assert chi0_data1.chi0_WxvG[:nw] == pytest.approx(
+        chi0_data2.chi0_WxvG[:nw], rel=1e-3, abs=1e-4)
+    assert chi0_data1.chi0_Wvv[:nw] == pytest.approx(
+        chi0_data2.chi0_Wvv[:nw], rel=1e-3, abs=1e-4)
 
     # test assertion error when n1 >= n2
     n2 = gs.nocc2
