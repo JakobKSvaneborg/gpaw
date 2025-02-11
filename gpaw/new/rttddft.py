@@ -516,13 +516,24 @@ class DensityAdapter:
         if attr == 'finegd':
             return self.pot_calc.fine_grid._gd
         if attr == 'nt_sg':
-            return self.pot_calc.interpolate(self.nt_sR)
+            # Intepolate density
+            nt_sr = self.pot_calc.interpolate(self.nt_sR)
+
+            # Compute pseudo charge
+            pseudo_charge = nt_sr.integrate().sum()
+            ccc_aL = self.density.calculate_compensation_charge_coefficients()
+            comp_charge = (4 * np.pi)**0.5 * sum(float(ccc_L[0])
+                                                 for ccc_L in ccc_aL.values())
+            comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
+
+            # Normalize
+            nt_sr.data *= -comp_charge / pseudo_charge
+            return nt_sr.data
         if attr == 'rhot_g':
-            nt_sg = self.nt_sg
-            rhot_g = nt_sg.desc.empty()
-            rhot_g.data[:] = nt_sg.data.sum(axis=0)
-            Q_aL = self.density.calculate_compensation_charge_coefficients()
-            self.pot_calc.ghat_aLr.add_to(rhot_g, Q_aL)
+            rhot_g = self.pot_calc.fine_grid.empty()
+            rhot_g.data[:] = self.nt_sg.sum(axis=0)
+            ccc_aL = self.density.calculate_compensation_charge_coefficients()
+            self.pot_calc.ghat_aLr.add_to(rhot_g, ccc_aL)
             return rhot_g.data
 
         return getattr(self._density, attr)
@@ -616,6 +627,7 @@ class RTTDDFTAdapter:
         if self.tddft_initialized:
             return
 
+        # TODO check if normalization needed here
         self.action = 'init'
         self.call_observers(self.niter)
 
