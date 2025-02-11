@@ -66,8 +66,8 @@ def _trace(meth: Union[Callable[..., T], None] = None,
     return get_wrapper
 
 
-def dummy_decorator(meth: Union[Callable[..., T], None] = None,
-                    **timer_params) -> Callable[..., T]:
+def dummy_trace(meth: Union[Callable[..., T], None] = None,
+                **timer_params) -> Callable[..., T]:
     if meth:
         return meth
 
@@ -77,11 +77,8 @@ def dummy_decorator(meth: Union[Callable[..., T], None] = None,
     return wrapper
 
 
-trace = _trace if GPAW_TRACE else dummy_decorator
-
-
 @contextmanager
-def trace2(name):
+def _trace2(name):
     global_timer.start(name)
     try:
         yield
@@ -89,4 +86,11 @@ def trace2(name):
         global_timer.stop()
 
 
+@contextmanager
+def dummy_trace2(name):
+    yield
+
+
+trace = _trace if GPAW_TRACE else dummy_trace
+trace2 = _trace2 if GPAW_TRACE else dummy_trace2
 global_timer = GlobalTimer()
