@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from functools import wraps
 from io import StringIO
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Union
 
 
 class GlobalTimer:
@@ -21,8 +21,8 @@ class GlobalTimer:
         finally:
             self._timers.pop()
 
-    def start(self, name):
-        self._timers[-1].start(name)
+    def start(self, name, **kwargs):
+        self._timers[-1].start(name, **kwargs)
 
     def stop(self, name=None):
         self._timers[-1].stop(name=name)
@@ -36,22 +36,29 @@ class GlobalTimer:
 T = TypeVar('T')
 
 
-def trace(meth: Callable[..., T]) -> Callable[..., T]:
+def trace(meth: Union[Callable[..., T], None] = None,
+          **timer_params) -> Callable[..., T]:
     """Decorator for telling global timer to trace a function or method."""
 
-    modname = meth.__module__
-    methname = meth.__qualname__
-    name = f'{modname}.{methname}'
+    def get_wrapper(method):
+        modname = method.__module__
+        methname = method.__qualname__
+        name = f'{modname}.{methname}'
 
-    @wraps(meth)
-    def wrapper(*args, **kwargs):
-        global_timer.start(name)
-        try:
-            return meth(*args, **kwargs)
-        finally:
-            global_timer.stop()
+        @wraps(method)
+        def wrapper(*args, **kwargs):
+            global_timer.start(name, **timer_params)
+            try:
+                return method(*args, **kwargs)
+            finally:
+                global_timer.stop()
 
-    return wrapper
+        return wrapper
+
+    if meth:
+        return get_wrapper(meth)
+
+    return get_wrapper
 
 
 @contextmanager

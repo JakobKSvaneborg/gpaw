@@ -75,8 +75,9 @@ class DebugTimer(Timer):
        
 
 class GPUEvent:
-    def __init__(self, names):
+    def __init__(self, names, kernel=False):
         self.names = names
+        self.kernel = kernel
         import cupy
         default = dict(block=False,
                        disable_timing=False,
@@ -90,7 +91,9 @@ class GPUEvent:
 
     def get_time(self):
         import cupy
-        return cupy.cuda.get_elapsed_time(self.start_event, self.stop_event) / 1000
+        return cupy.cuda.get_elapsed_time(self.start_event,
+                                          self.stop_event) / 1000
+
 
 class GPUTimerBase:
     def __init__(self):
@@ -99,16 +102,16 @@ class GPUTimerBase:
         from collections import defaultdict
         self.gpu_timers = defaultdict(float)
 
-    def gpu_start(self, key):
-        self.event_stack.append(GPUEvent(key))
+    def gpu_start(self, key, kernel=True):
+        self.event_stack.append(GPUEvent(key, kernel=kernel))
 
-    def gpu_stop(self):        
+    def gpu_stop(self):
         gpu_event = self.event_stack.pop()
         gpu_event.stop()
         self.event_queue.append(gpu_event)
         if len(self.event_queue) > 10:
             self.handle_events()
-    
+
     def handle_events(self):
         while len(self.event_queue):
             event = self.event_queue[0]
@@ -116,7 +119,7 @@ class GPUTimerBase:
                 break
             del self.event_queue[0]
             time = event.get_time()
-            self.gpu_timers[event.names] += time 
+            self.gpu_timers[event.names] += time
             self.handle_event_hook(event)
 
     def handle_event_hook(self, event):
@@ -157,7 +160,6 @@ def ranktxt(comm, rank=None):
     rank = comm.rank if rank is None else rank
     ndigits = len(str(comm.size - 1))
     return '%0*d' % (ndigits, rank)
-
 
 
 class ParallelTimer(DebugTimer):
@@ -258,31 +260,33 @@ class GPUProfiler(Profiler, GPUTimerBase):
     def __init__(self, prefix, comm=mpi.world):
         Profiler.__init__(self, prefix, comm=comm)
         GPUTimerBase.__init__(self)
-   
+    
     def synchronize(self):
         from cupy.cuda import Event
-        # Make sure GPU gets here 
+        # Make sure GPU gets here
         event = Event(block=True)
         event.record()
         event.synchronize()
         # Now, initialize the CPU timers
         Profiler.synchronize(self)
-       
+
         # Now all GPUs and CPUs are somewhat simultaneous
         # So, record the reference event
         event = Event(block=True)
         event.record()
         self.ref_event = event
-         
-    def start(self, name):
+
+    def start(self, name, kernel=False):
         Profiler.start(self, name)
-        GPUTimerBase.gpu_start(self, name)
-    
+        GPUTimerBase.gpu_start(self, name, kernel=kernel)
+
     def stop(self, name=None):
         Profiler.stop(self, name)
         GPUTimerBase.gpu_stop(self)
 
     def handle_event_hook(self, event):
+        if not event.kernel:
+            return
         import cupy
         ms_start = cupy.cuda.get_elapsed_time(self.ref_event, event.start_event)
         ms_stop = cupy.cuda.get_elapsed_time(self.ref_event, event.stop_event)

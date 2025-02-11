@@ -8,7 +8,7 @@ from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.uniform_grid import UGArray
 from gpaw.ffbt import rescaled_fourier_bessel_transform
-from gpaw.gpu import cupy_is_fake
+from gpaw.gpu import cupy_is_fake, gpu_gemm
 # from gpaw.lfc import BaseLFC
 from gpaw.new import prod, trace
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
@@ -351,9 +351,9 @@ class PWLFC:  # (BaseLFC)
                 mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
                     1.0, a_xG[:, G1:G2])
             else:
-                self.xp.cublas.gemm('N', 'T',
-                                    c_xI, f_GI, a_xG[:, G1:G2],
-                                    1.0 / self.pw.dv, 1.0)
+                gpu_gemm('N', 'T',
+                         c_xI, f_GI, a_xG[:, G1:G2],
+                         1.0 / self.pw.dv, 1.0)
 
     @trace
     def integrate(self, a_xG, c_axi=None, q=-1, add_to=False):
@@ -387,9 +387,9 @@ class PWLFC:  # (BaseLFC)
             if xp is np:
                 mmm(alpha, a_xG[:, G1:G2], 'N', f_GI, 'N', x, b_xI)
             else:
-                xp.cublas.gemm('N', 'N',
-                               a_xG[:, G1:G2], f_GI, b_xI,
-                               alpha, x)
+                gpu_gemm('N', 'N',
+                         a_xG[:, G1:G2], f_GI, b_xI,
+                         alpha, x)
             x = 1.0
 
         self.comm.sum(b_xI)
@@ -432,11 +432,11 @@ class PWLFC:  # (BaseLFC)
                             d_GI, 'N',
                             x, b_vxI[v])
                     else:
-                        xp.cublas.gemm('N', 'N',
-                                       a_xG[:, 2 * G1:2 * G2],
-                                       d_GI,
-                                       b_vxI[v],
-                                       2 * alpha, x)
+                        gpu_gemm('N', 'N',
+                                 a_xG[:, 2 * G1:2 * G2],
+                                 d_GI,
+                                 b_vxI[v],
+                                 2 * alpha, x)
             else:
                 for v in range(3):
                     if xp is np:
@@ -445,11 +445,11 @@ class PWLFC:  # (BaseLFC)
                             f_GI * G_Gv[:, v, np.newaxis], 'N',
                             x, b_vxI[v])
                     else:
-                        xp.cublas.gemm('N', 'N',
-                                       a_xG[:, G1:G2],
-                                       f_GI * G_Gv[:, v, np.newaxis],
-                                       b_vxI[v],
-                                       -alpha, x)
+                        gpu_gemm('N', 'N',
+                                 a_xG[:, G1:G2],
+                                 f_GI * G_Gv[:, v, np.newaxis],
+                                 b_vxI[v],
+                                 -alpha, x)
             x = 1.0
 
         self.comm.sum(c_vxI)
@@ -549,7 +549,7 @@ class PWLFC:  # (BaseLFC)
         if xp is np:
             mmm(alpha, a_xG, 'N', f_IG, 'C', 0.0, b_xI)
         else:
-            xp.cublas.gemm('N', 'H', a_xG, f_IG, b_xI, alpha, 0.0)
+            gpu_gemm('N', 'H', a_xG, f_IG, b_xI, alpha, 0.0)
         self.comm.sum(b_xI)
 
         stress = 0.0
