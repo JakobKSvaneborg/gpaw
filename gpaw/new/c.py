@@ -162,4 +162,3 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
         pwlfc_expand_gpu = w(pwlfc_expand_gpu)
         pw_norm_kinetic_gpu = w(pw_norm_kinetic_gpu)
         pw_norm_gpu = w(pw_norm_gpu)
-

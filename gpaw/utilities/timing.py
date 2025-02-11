@@ -72,7 +72,7 @@ class DebugTimer(Timer):
         self.txt.write('T%s << %15.8f %s (%7.5fs) stopped\n'
                        % (self.srank, abstime, name, t))
         Timer.stop(self, name)
-       
+
 
 class GPUEvent:
     def __init__(self, names, kernel=False):
@@ -124,7 +124,7 @@ class GPUTimerBase:
 
     def handle_event_hook(self, event):
         pass
-    
+
     def gpu_write(self, out=sys.stdout):
         import cupy
         event = cupy.cuda.Event(block=True)
@@ -211,7 +211,6 @@ class Profiler(Timer):
         self.u = 1_000_000
 
         self.synchronize()
-        
         Timer.__init__(self, 1000)
 
     def synchronize(self):
@@ -260,7 +259,7 @@ class GPUProfiler(Profiler, GPUTimerBase):
     def __init__(self, prefix, comm=mpi.world):
         Profiler.__init__(self, prefix, comm=comm)
         GPUTimerBase.__init__(self)
-    
+
     def synchronize(self):
         from cupy.cuda import Event
         # Make sure GPU gets here
@@ -288,8 +287,9 @@ class GPUProfiler(Profiler, GPUTimerBase):
         if not event.kernel:
             return
         import cupy
-        ms_start = cupy.cuda.get_elapsed_time(self.ref_event, event.start_event)
-        ms_stop = cupy.cuda.get_elapsed_time(self.ref_event, event.stop_event)
+        events = (self.ref_event, event.start_event)
+        ms_start = cupy.cuda.get_elapsed_time(*events)
+        ms_stop = cupy.cuda.get_elapsed_time(*events)
         self.txt.write(
             f"""{{"name": "{event.names}", "cat": "PERF", "ph": "B","""
             f""" "pid": {self.pid}, "tid": "GPU {self.ranktxt}", """

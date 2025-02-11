@@ -270,7 +270,7 @@ class Density:
         self._tauct_R = None
         self.nt_sR.data[:self.ndensities] += self.nct_R.data
         self.D_asii = self.D_asii.moved(atomdist)
-   
+
     @trace
     def redist(self,
                grid: UGDesc,
