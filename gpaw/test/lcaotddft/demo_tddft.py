@@ -3,11 +3,10 @@ import numpy as np
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.tddft import TDDFT
-from gpaw.lcaotddft import LCAOTDDFT
+from gpaw.tddft import OldTDDFT as TDDFT
+from gpaw.lcaotddft import OldLCAOTDDFT as LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.new.rttddft import RTTDDFT
-from gpaw.tddft.units import as_to_au, autime_to_asetime
+from gpaw.new.rttddft import RTTDDFTAdapter
 
 
 def main():
@@ -75,56 +74,17 @@ def main():
         old_tddft.absorption_kick(kick_v)
         old_tddft.propagate(10, 10)
 
-    def write_initial(fp, calc):
-        dipolemoment_xv = [
-            calc.calculate_dipole_moment(wfs)  # type: ignore
-            for wfs in calc.state.ibzwfs]
-        dm = np.sum(dipolemoment_xv, axis=0)
-        norm = np.sum(calc.state.density.nct_aX.integrals)
-        fp.write('%20.8lf %20.8le %22.12le %22.12le %22.12le\n' %
-                 (0, norm, dm[0], dm[1], dm[2]))
-
-    def write_result(fp, result):
-        print(result)
-        dm = result.dipolemoment
-        fp.write('%20.8lf %20.8le %22.12le %22.12le %22.12le\n' %
-                 (result.time, result.norm, dm[0], dm[1], dm[2]))
-
     if parsed.new_lcao_rt or parsed.all:
-        new_tddft = RTTDDFT.from_dft_file('lcao_gs.gpw')
-
-        dt = 10 * as_to_au * autime_to_asetime
-        with open('new_lcao_dm.out', 'w') as fp:
-            fp.write('# %15s %15s %22s %22s %22s\n' %
-                     ('time', 'norm', 'dmx', 'dmy', 'dmz'))
-            fp.write('# Start; Time = %.8lf\n' % 0)
-            write_initial(fp, new_tddft)
-
-            result = new_tddft.absorption_kick(kick_v)
-            fp.write(f'# Kick {kick_v}; Time 0.0\n')
-            write_result(fp, result)
-            for result in new_tddft.ipropagate(dt, 10):
-                write_result(fp, result)
+        new_tddft = RTTDDFTAdapter.from_dft_file('lcao_gs.gpw')
+        DipoleMomentWriter(new_tddft, 'new_lcao_dm.out')
+        new_tddft.absorption_kick(kick_v)
+        new_tddft.propagate(10, 10)
 
     if parsed.new_fd_rt or parsed.all:
-        new_tddft = RTTDDFT.from_dft_file('fd_gs.gpw')
-
-        dt = 10 * as_to_au * autime_to_asetime
-        with open('new_fd_dm.out', 'w') as fp:
-            # TODO for some reason these are NDArrayReader objects
-            for wfs in new_tddft.state.ibzwfs:
-                wfs.psit_nX.data = wfs.psit_nX.data[:]
-            fp.write('# %15s %15s %22s %22s %22s\n' %
-                     ('time', 'norm', 'dmx', 'dmy', 'dmz'))
-            fp.write('# Start; Time = %.8lf\n' % 0)
-            write_initial(fp, new_tddft)
-
-            result = new_tddft.absorption_kick(kick_v)
-            fp.write(f'# Kick {kick_v}; Time 0.0\n')
-            write_result(fp, result)
-            for result in new_tddft.ipropagate(dt, 10):
-                write_result(fp, result)
-                fp.flush()
+        new_tddft = RTTDDFTAdapter.from_dft_file('fd_gs.gpw')
+        DipoleMomentWriter(new_tddft, 'new_fd_dm.out')
+        new_tddft.absorption_kick(kick_v)
+        new_tddft.propagate(10, 10)
 
     if parsed.plot:
         import matplotlib.pyplot as plt

@@ -17,7 +17,7 @@ from gpaw.typing import Any, Vector
 
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
     if GPAW_NEW:
-        from gpaw.new.rttddft import RTTDDFT
+        from gpaw.new.rttddft import RTTDDFTAdapter
         assert kwargs.get('propagator', None) in [None, 'ecn'], \
             'Not implemented yet'
         assert kwargs.get('rremisison', None) in [None], 'Not implemented yet'
@@ -26,7 +26,7 @@ def LCAOTDDFT(filename: str, **kwargs) -> Any:
         assert kwargs.get('parallel', None) in [None], 'Not implemented yet'
         assert kwargs.get('communicator', None) in [None], \
             'Not implemented yet'
-        new_tddft = RTTDDFT.from_dft_file(filename)
+        new_tddft = RTTDDFTAdapter.from_dft_file(filename)
         return new_tddft
     return OldLCAOTDDFT(filename, **kwargs)
 
