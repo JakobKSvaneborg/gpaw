@@ -287,9 +287,13 @@ class GPUProfiler(Profiler, GPUTimerBase):
         if not event.kernel:
             return
         import cupy
-        events = (self.ref_event, event.start_event)
-        ms_start = cupy.cuda.get_elapsed_time(*events)
-        ms_stop = cupy.cuda.get_elapsed_time(*events)
+
+        def get_time(e):
+            t = cupy.cuda.get_elapsed_time
+            return t(self.ref_event, e)
+
+        ms_start = get_time(event.start_event)
+        ms_stop = get_time(event.stop_event)
         self.txt.write(
             f"""{{"name": "{event.names}", "cat": "PERF", "ph": "B","""
             f""" "pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
