@@ -10,6 +10,7 @@ from gpaw.poisson import PoissonSolver
 
 
 @pytest.mark.ci
+@pytest.mark.old_gpaw_only
 def test_inducedfield_td(in_tmp_dir):
     poisson_eps = 1e-12
     density_eps = 1e-6

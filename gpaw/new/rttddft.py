@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import partial
-from typing import Generator, NamedTuple
+from typing import Any, Generator, NamedTuple
 
 import numpy as np
 from numpy.linalg import solve
@@ -550,7 +550,7 @@ class RTTDDFTAdapter:
         self._rttddft = rttddft
         self._density = DensityAdapter(rttddft)
         self._hamiltonian = HamiltonianAdapter(rttddft)
-        self.observers = []
+        self.observers: list[Any] = []
         self.action = ''
         if world.size > 1:
             raise NotImplementedError
