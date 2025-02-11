@@ -19,7 +19,7 @@ device_id = None
 
 
 def gpu_gemm(*args, **kwargs):
-    raise NotImplementedError('You have not using GPAW with GPUs.')
+    raise NotImplementedError('gpu_gemm: You are not using GPAW with GPUs.')
 
 
 if TYPE_CHECKING:
