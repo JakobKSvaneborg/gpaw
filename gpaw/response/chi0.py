@@ -38,7 +38,7 @@ class Chi0Calculator:
                  nblocks=1,
                  eshift=None,
                  intraband=True,
-                 rate=0.0,
+                 rate='eta',
                  **kwargs):
         self.gs = ResponseGroundStateAdapter.from_input(gs)
         self.context = ResponseContext.from_input(context)
@@ -322,7 +322,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 
     def __init__(self, *args,
                  intraband=True,
-                 rate=0.0,
+                 rate='eta',
                  **kwargs):
         """Contruct the Chi0OpticalExtensionCalculator.
 
