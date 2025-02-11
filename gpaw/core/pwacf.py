@@ -85,7 +85,7 @@ class PWLFC:  # (BaseLFC)
                  *,
                  xp,
                  integrals: ArrayLike1D | float | None = None,
-                 blocksize: int | None = 10000):
+                 blocksize: int | None = 5000):
         """Reciprocal-space plane-wave localized function collection.
 
         spline_aj: list of list of spline objects
