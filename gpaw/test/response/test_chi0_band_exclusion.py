@@ -39,7 +39,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     chi0calc1 = Chi0Calculator(gs, context,
                                wd=wd1, nbands=nbands_max,
-                               intraband=False,
                                hilbert=True,
                                eta=eta,
                                ecut=ecut,
@@ -49,7 +48,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
 
     chi0calc2 = Chi0Calculator(gs, context,
                                wd=wd2, nbands=slice(3, nbands_max),
-                               intraband=False,
                                hilbert=True,
                                eta=eta,
                                ecut=ecut,
@@ -79,7 +77,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
                                   wd=wd2, nbands=slice(n2, nbands_max),
-                                  intraband=False,
                                   hilbert=True,
                                   eta=eta,
                                   ecut=ecut,
@@ -89,7 +86,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
                                   wd=wd2, nbands=slice(n2 + 1, nbands_max),
-                                  intraband=False,
                                   hilbert=True,
                                   eta=eta,
                                   ecut=ecut,
@@ -100,7 +96,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
                                   wd=wd2, nbands=slice(m1 + 1, nbands_max),
-                                  intraband=False,
                                   hilbert=True,
                                   eta=eta,
                                   ecut=ecut,
@@ -111,7 +106,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
                                   wd=wd2, nbands=slice(3, nbands_max, 3),
-                                  intraband=False,
                                   hilbert=True,
                                   eta=eta,
                                   ecut=ecut,
@@ -122,7 +116,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
                                   wd=wd2, nbands=slice(-1, nbands_max),
-                                  intraband=False,
                                   hilbert=True,
                                   eta=eta,
                                   ecut=ecut,
@@ -133,7 +126,6 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     with pytest.raises(AssertionError):
         chi0calc = Chi0Calculator(gs, context,
                                   wd=wd2, nbands=slice(3, -2),
-                                  intraband=False,
                                   hilbert=True,
                                   eta=eta,
                                   ecut=ecut,
