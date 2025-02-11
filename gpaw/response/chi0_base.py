@@ -54,8 +54,6 @@ class Chi0Integrand(Integrand):
 
         self._chi0calc = chi0calc
 
-        # In a normal response calculation, we include transitions from all
-
         self.gs: ResponseGroundStateAdapter = chi0calc.gs
 
         self.context: ResponseContext = chi0calc.context
