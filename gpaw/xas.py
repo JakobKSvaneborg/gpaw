@@ -199,7 +199,6 @@ class XAS:
         #         'The core hole is always in spin 0: please use spin=0')
         kd_rank = kd.comm.rank
         kd_size = kd.comm.size
-        print(self.world.rank, 'Here', 'kd rank', kd_rank, 'kd size', kd_size)
         
         if wfs.nspins == 1:
             if spin != 0:
@@ -226,10 +225,10 @@ class XAS:
             nocc = 0.0
             for i in self.list_kpts:
                 nocc += sum(wfs.kpt_u[i].f_n)
-
+            print(self.world.rank, 'Before nocc')
             nocc = kd.comm.sum_scalar(nocc)
             nocc = int(nocc + 0.5)
-            print(self.world.comm.rank, 'kd scalar nocc', nocc)
+            print(self.world.rank, 'kd scalar nocc', nocc)
 
         nocc += nocc_cor
         self.nocc = nocc
@@ -306,16 +305,16 @@ class XAS:
 
         kd.comm.sum(self.sigma_cmkn)
         kd.comm.sum(self.eps_kn)
-        print(self.world.comm.rank, 'kd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
+        print(self.world.rank, 'kd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
 
 
         bd.comm.sum(self.sigma_cmkn)
         bd.comm.sum(self.eps_kn)
-        print(self.world.comm.rank, 'bd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
+        print(self.world.rank, 'bd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
 
 
         gd.comm.sum(self.sigma_cmkn)
-        print(self.world.comm.rank, 'gd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
+        print(self.world.rank, 'gd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
 
 
         self.symmetry = wfs.kd.symmetry
