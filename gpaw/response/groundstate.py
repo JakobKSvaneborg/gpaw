@@ -285,6 +285,9 @@ class ResponseGroundStateAdapter:
         return int(nocc1), int(nocc2)
 
     def get_band_transitions(self, nbands: int | slice | None = None):
+        """Determine the indices the define the range of occupied bands
+        n1, n2 and unoccupied bands m1, m2"""
+
         if nbands is None:
             n1 = 0
             m2 = self.nbands
