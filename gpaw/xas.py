@@ -157,6 +157,7 @@ def get_os_from_me(eps_kn, sigma_cmkn, orthogonal,
 
 class XAS:
     def __init__(self, paw=None, *args, **kwargs):
+        print('Here')
         if paw is not None:
             self.__full_init__(paw, *args, **kwargs)
 
@@ -175,7 +176,7 @@ class XAS:
         """
         wfs = paw.wfs
         self.world = wfs.world
-        print(self.world.comm.rank, 'Here')
+        print(self.world.comm.rank, 'Here __full_init__')
         kd = wfs.kd
         bd = wfs.bd
         gd = wfs.gd
