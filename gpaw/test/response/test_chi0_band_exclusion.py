@@ -37,8 +37,9 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     omegamax2 = np.max(wd2.omega_w) * Ha
     omegamax1 = np.max(wd1.omega_w) * Ha
 
-    assert np.round(omegamax1, 3) == 45.223
-    assert np.round(omegamax2, 3) == 100.713
+    assert omegamax1 == pytest.approx(45.223, abs=1e-3)
+    assert omegamax2 == pytest.approx(100.713, abs=1e-3)
+
     assert np.allclose(wd1.omega_w, wd2.omega_w[:len(wd1)])
 
     chi0calc1 = Chi0Calculator(gs, context,
