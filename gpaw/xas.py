@@ -157,7 +157,7 @@ def get_os_from_me(eps_kn, sigma_cmkn, orthogonal,
 
 class XAS:
     def __init__(self, paw=None, *args, **kwargs):
-        print(mpi.world.rank, 'Here')
+        
         if paw is not None:
             self.__full_init__(paw, *args, **kwargs)
 
@@ -174,6 +174,7 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
+        print(mpi.world.rank, 'Here1')
         wfs = paw.wfs
         self.world = wfs.world
         print(self.world.comm.rank, 'Here __full_init__')
