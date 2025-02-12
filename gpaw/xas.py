@@ -177,7 +177,7 @@ class XAS:
         #print(mpi.world.rank, 'Here1')
         wfs = paw.wfs
         self.world = mpi.world
-        print(self.world.comm.rank, 'Here __full_init__')
+        print(self.world.rank, 'Here __full_init__')
         kd = wfs.kd
         bd = wfs.bd
         gd = wfs.gd
