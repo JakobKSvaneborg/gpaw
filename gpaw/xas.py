@@ -174,7 +174,6 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
-        #print(mpi.world.rank, 'Here1')
         wfs = paw.wfs
         self.world = mpi.world
         
@@ -225,10 +224,8 @@ class XAS:
             nocc = 0.0
             for i in self.list_kpts:
                 nocc += sum(wfs.kpt_u[i].f_n)
-            print(self.world.rank, 'Before nocc')
             nocc = kd.comm.sum_scalar(nocc)
             nocc = int(nocc + 0.5)
-            print(self.world.rank, 'kd scalar nocc', nocc)
 
         nocc += nocc_cor
         self.nocc = nocc
@@ -305,20 +302,13 @@ class XAS:
 
         kd.comm.sum(self.sigma_cmkn)
         kd.comm.sum(self.eps_kn)
-        print(self.world.rank, 'kd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
-
 
         bd.comm.sum(self.sigma_cmkn)
         bd.comm.sum(self.eps_kn)
-        print(self.world.rank, 'bd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
-
 
         gd.comm.sum(self.sigma_cmkn)
-        print(self.world.rank, 'gd comm sigma_cmkn[0,0,0,0]', self.sigma_cmkn[0,0,0,0])
-
 
         self.symmetry = wfs.kd.symmetry
-        print('XAS __init__ Done')
 
     def write(self, fname: str):
         
@@ -335,9 +325,7 @@ class XAS:
         self = XAS()
         with open(fname, mode='rb') as f:
             data = dict(np.load(f)).values()
-            a, b, c = data
             self.eps_kn, self.sigma_cmkn, self.orthogonal = data
-            print('Ja')
         return self
 
     def get_oscillator_strength(
