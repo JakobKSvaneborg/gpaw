@@ -118,13 +118,10 @@ class RTTDDFT:
                  hamiltonian,
                  history: RTTDDFTHistory,
                  td_algorithm: TDAlgorithmLike = None):
-        # Disable symmetries, ie keep only identity operation
-        # I suppose this should be done in the kick, as the kick breaks
-        # the symmetry
-        cell = state.ibzwfs.ibz.symmetries.cell_cv
-        natoms = state.ibzwfs.ibz.symmetries.atommap_sa.shape[1]
-        atommaps = np.arange(natoms).reshape((1, natoms))
-        state.ibzwfs.ibz.symmetries = Symmetries(cell=cell, atommaps=atommaps)
+        if len(state.ibzwfs.ibz.symmetries.op_scc) > 1:
+            raise ValueError('Symmetries are not allowed for TDDFT. '
+                             'Run the ground state calculation with '
+                             'symmetry={"point_group": False}.')
 
         self.state = state
         self.pot_calc = pot_calc

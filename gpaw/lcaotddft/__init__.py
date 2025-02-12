@@ -18,6 +18,7 @@ from gpaw.typing import Any, Vector
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
     if GPAW_NEW:
         from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
+        kwargs.pop('txt', None)  # Ignore silently
         assert kwargs.pop('rremisison', None) in [None], 'Not implemented yet'
         assert kwargs.pop('fxc', None) in [None], 'Not implemented yet'
         assert kwargs.pop('scale', None) in [None], 'Not implemented yet'
