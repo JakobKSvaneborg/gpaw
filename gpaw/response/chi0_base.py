@@ -43,7 +43,7 @@ class Chi0Integrand(Integrand):
             Upper unoccupied band index.
         """
 
-        assert m1 <= m2
+        assert m1 < m2
         assert n1 < n2 <= chi0calc.gs.nocc2
         assert n1 <= chi0calc.gs.nocc1
         assert chi0calc.gs.nocc1 <= m1
