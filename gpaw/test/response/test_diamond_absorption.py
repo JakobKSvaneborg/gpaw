@@ -109,7 +109,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift):
     if eshift is None:
         w_ = 10.2906
         I_ = 5.6955
-    else: 
+    else:
         w_ = 14.2901
         I_ = 5.5508
 
@@ -125,7 +125,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift):
     if eshift is None:
         w_ = 10.4600
         I_ = 6.0263
-    else: 
+    else:
         w_ = 14.2626
         I_ = 5.3896
 
