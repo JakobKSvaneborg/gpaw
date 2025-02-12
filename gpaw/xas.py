@@ -157,7 +157,6 @@ def get_os_from_me(eps_kn, sigma_cmkn, orthogonal,
 
 class XAS:
     def __init__(self, paw=None, *args, **kwargs):
-        print(mpi.world.rank, 'Here')
         if paw is not None:
             self.__full_init__(paw, *args, **kwargs)
 
@@ -174,10 +173,9 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
-        
+
         wfs = paw.wfs
         self.world = paw.world
-        print(self.world.rank, 'Here __full_init__')
         kd = wfs.kd
         bd = wfs.bd
         gd = wfs.gd
@@ -199,7 +197,7 @@ class XAS:
         #         'The core hole is always in spin 0: please use spin=0')
         kd_rank = kd.comm.rank
         kd_size = kd.comm.size
-        
+
         if wfs.nspins == 1:
             if spin != 0:
                 raise RuntimeError(
@@ -310,12 +308,11 @@ class XAS:
         gd.comm.sum(self.sigma_cmkn)
 
         self.symmetry = wfs.kd.symmetry
-        print(self.world.rank, 'XAS Done')
 
     def write(self, fname: str):
-        
+
         if self.world.rank == 0:
-            print('Writing')
+            print(f'Writing to {fname}')
             with open(fname, mode='wb') as f:
                 np.savez_compressed(
                     f, eps_kn=self.eps_kn, sigma_cmkn=self.sigma_cmkn,

@@ -179,7 +179,6 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name},
                       txt=None, communicator=comm)
 
-
     print('serial, atoms.calc.world.size:', atoms.calc.world.size)
     atoms.get_potential_energy()
 

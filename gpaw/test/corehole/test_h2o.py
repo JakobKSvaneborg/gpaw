@@ -16,8 +16,8 @@ def test_corehole_h2o(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
     xas = XAS(calc)
     x, y = xas.get_spectra()
-    e1_n = xas.eps_n
-    de1 = e1_n[1] - e1_n[0]
+    e1_kn = xas.eps_kn
+    de1 = e1_kn[0, 1] - e1_kn[0, 0]
 
     if mpi.size == 1:
         # calc = GPAW('h2o-xas.gpw')
@@ -25,9 +25,9 @@ def test_corehole_h2o(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
         # calc.initialize()
         xas = XAS(calc)
         x, y = xas.get_spectra()
-        e2_n = xas.eps_n
-        w_n = np.sum(xas.sigma_cmn[:, 0, :].real**2, axis=0)
-        de2 = e2_n[1] - e2_n[0]
+        e2_kn = xas.eps_kn
+        w_n = np.sum(xas.sigma_cmkn[:, 0, 0, :].real**2, axis=0)
+        de2 = e2_kn[0, 1] - e2_kn[0, 0]
 
     assert de2 == pytest.approx(2.064, abs=0.005)
     assert w_n[1] / w_n[0] == pytest.approx(2.22, abs=0.01)
