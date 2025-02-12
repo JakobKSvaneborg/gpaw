@@ -177,10 +177,11 @@ class XAS:
         #print(mpi.world.rank, 'Here1')
         wfs = paw.wfs
         self.world = mpi.world
-        print(self.world.rank, 'Here __full_init__')
+        
         kd = wfs.kd
         bd = wfs.bd
         gd = wfs.gd
+        print(self.world.rank, 'Here kd bd gd')
         self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
         self.cell_cv = np.array(wfs.gd.cell_cv)
