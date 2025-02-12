@@ -436,24 +436,6 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
     def get_pw_descriptor(self, q_c):
         return SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
 
-    def get_band_transitions(self):
-        if self.nbands is None:
-            n1 = 0
-            m2 = self.nbands
-        elif isinstance(self.nbands, int):
-            n1 = 0
-            m2 = self.nbands
-        elif isinstance(self.nbands, slice):
-            n1 = self.nbands.start
-            m2 = self.nbands.stop
-            assert n1 >= 0 and m2 >= 0
-            assert self.nbands.step in {None, 1}
-            assert n1 < m2 <= self.gs.nbands
-
-        n2 = self.gs.nocc2
-        m1 = self.gs.nocc1
-
-        return n1, n2, m1, m2
 
     def get_response_info_string(self, qpd, tab=''):
         nw = len(self.wd)

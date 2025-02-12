@@ -195,7 +195,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         chi0_body = self._create_chi0_body(qpd)
 
         # Integrate all transitions into partially filled and empty bands
-        n1, n2, m1, m2 = self.get_band_transitions()
+        n1, n2, m1, m2 = self.gs.get_band_transitions(nbands=self.nbands)
         self.update_chi0_body(chi0_body, n1, n2, m1, m2,
                               spins=range(self.gs.nspins))
 
@@ -371,7 +371,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         self.print_info(qpd)
 
         # Define band transitions
-        n1, n2, m1, m2 = self.get_band_transitions()
+        n1, n2, m1, m2 = self.gs.get_band_transitions(nbands=self.nbands)
 
         # Perform the actual integration
         self.update_chi0_optical_extension(chi0_opt_ext, n1, n2, m1, m2,

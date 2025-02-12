@@ -283,18 +283,30 @@ class ResponseGroundStateAdapter:
             nocc1 = min((f_n > 1 - ftol).sum(), nocc1)
             nocc2 = max((f_n > ftol).sum(), nocc2)
         return int(nocc1), int(nocc2)
+    
+    def get_band_transitions(self, nbands: int | slice | None = None):
+        if nbands is None:
+            n1 = 0
+            m2 = self.nbands
+        elif isinstance(nbands, int):
+            n1 = 0
+            m2 = nbands
+            assert 1 <= m2 <= self.nbands
+        elif isinstance(nbands, slice):
+            n1 = nbands.start
+            m2 = nbands.stop
+            assert n1 >= 0 and m2 >= 0
+            assert nbands.step in {None, 1}
+            assert n1 < m2 <= self.nbands
+
+        n2 = self.nocc2
+        m1 = self.nocc1
+
+        return n1, n2, m1, m2
 
     def get_eigenvalue_range(self, nbands: int | slice | None = None):
         """Get smallest and largest Kohn-Sham eigenvalues."""
-        if nbands is None:
-            n1, m2 = 0, self.nbands
-        elif isinstance(nbands, int):
-            n1, m2 = 0, nbands
-            assert 1 <= m2 <= self.nbands
-        elif isinstance(nbands, slice):
-            n1, m2 = nbands.start, nbands.stop
-            assert n1 < m2 <= self.bd.nbands
-
+        n1, n2, m1, m2 = self.get_band_transitions(nbands)
         epsmin = np.inf
         epsmax = -np.inf
         for kpt in self.kpt_u:
