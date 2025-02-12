@@ -23,11 +23,10 @@ from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new.rttddft.td_algorithm import (create_td_algorithm,
-                                           TDAlgorithmLike,
-                                           WaveFunctionPropagator,
-                                           LCAONumpyPropagator,
-                                           FDNumpyPropagator)
+from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
+from gpaw.new.rttddft.wf_propagator import (WaveFunctionPropagator,
+                                            LCAONumpyPropagator,
+                                            FDNumpyPropagator)
 from gpaw.new.symmetry import Symmetries
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.tddft.units import (asetime_to_autime,
