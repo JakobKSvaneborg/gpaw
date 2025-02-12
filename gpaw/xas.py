@@ -183,12 +183,10 @@ class XAS:
         gd = wfs.gd
         self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
-        print(self.world.rank, 'Here wfs.gd.orthogonal')
         self.cell_cv = np.array(wfs.gd.cell_cv)
 
         my_atom_indices = wfs.atom_partition.my_indices
-        print(self.world.rank, 'Here atom_partition.my_indices')
-        
+
         # assert wfs.world.size == 1  # assert not mpi.parallel
         # assert wfs.gd.orthogonal
 
@@ -201,6 +199,8 @@ class XAS:
         #         'The core hole is always in spin 0: please use spin=0')
         kd_rank = kd.comm.rank
         kd_size = kd.comm.size
+        print(self.world.rank, 'Here', 'kd rank', kd_rank, 'kd size', kd_size)
+        
         if wfs.nspins == 1:
             if spin != 0:
                 raise RuntimeError(
