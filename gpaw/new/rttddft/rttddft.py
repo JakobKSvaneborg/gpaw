@@ -24,9 +24,6 @@ from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
-from gpaw.new.rttddft.wf_propagator import (WaveFunctionPropagator,
-                                            LCAONumpyPropagator,
-                                            FDNumpyPropagator)
 from gpaw.new.symmetry import Symmetries
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.tddft.units import (asetime_to_autime,
@@ -149,7 +146,6 @@ class RTTDDFT:
         else:
             raise ValueError(f"I don\'t know {hamiltonian} "
                              f'({type(hamiltonian)})')
-        self.td_algorithm._wf_propagator_class = self._wf_propagator_class
         # Dipole moment operators in each Cartesian direction
         # Only usable for LCAO
         # TODO is there even a point in caching these? I don't think it saves
@@ -250,7 +246,6 @@ class RTTDDFT:
 
             # For the kick, the propagator is always ECN
             td_algorithm = create_td_algorithm('ecn')
-            td_algorithm._wf_propagator_class = self._wf_propagator_class
             hamiltonian = self.kick_hamiltonian(ext)
 
             assert isinstance(self.pot_calc, FDPotentialCalculator)
@@ -271,17 +266,6 @@ class RTTDDFT:
                                    dipolemoment=dipolemoment_v,
                                    norm=norm)
             return result
-
-    @property
-    def _wf_propagator_class(self) -> type[WaveFunctionPropagator]:
-        cls: type[WaveFunctionPropagator]
-        if self.mode == 'lcao':
-            cls = LCAONumpyPropagator
-        elif self.mode == 'fd':
-            cls = FDNumpyPropagator
-        else:
-            raise RuntimeError(f'Mode {self.mode} is unexpected')
-        return cls
 
     def kick_hamiltonian(self,
                          ext: ExternalPotential) -> Hamiltonian:

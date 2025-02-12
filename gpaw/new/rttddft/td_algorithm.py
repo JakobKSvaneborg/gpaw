@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from abc import ABC
 from typing import Any, Union
 
 from gpaw.new.calculation import DFTState
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pot_calc import PotentialCalculator
+from gpaw.new.rttddft.wf_propagator import build_wf_propagator
 
 
 TDAlgorithmLike = Union[None, str, 'TDAlgorithm', dict[str, Any]]
@@ -29,7 +31,19 @@ def create_td_algorithm(name: TDAlgorithmLike,
         raise ValueError(f'Unknown propagation algorithm: {name}')
 
 
-class TDAlgorithm:
+class TDAlgorithm(ABC):
+
+    """ Propagation algorithm for the state
+
+    Parameters
+    ----------
+    implementation
+        Name of wave function propagator implementation
+    """
+
+    def __init__(self,
+                 implementation: str = 'numpy'):
+        self.implementation = implementation
 
     def propagate(self,
                   time_step: float,
@@ -50,7 +64,7 @@ class TDAlgorithm:
         (2) Update wavefunctions ψ_n(t+dt) ← U[H(t)] ψ_n(t)
         (3) Update density and hamiltonian H(t+dt)
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def update_time_dependent_operators(self,
                                         state: DFTState,
@@ -67,7 +81,8 @@ class TDAlgorithm:
                       state: DFTState,
                       pot_calc: PotentialCalculator,
                       hamiltonian: Hamiltonian):
-        wf_propagator = self._wf_propagator_class(hamiltonian, state)
+        wf_propagator = build_wf_propagator(self.implementation,
+                                            hamiltonian, state)
         for wfs in state.ibzwfs:
             wf_propagator.propagate(wfs, wfs, time_step)
 
@@ -75,7 +90,11 @@ class TDAlgorithm:
         return self.__class__.__name__
 
     def __str__(self) -> str:
-        return self.get_description()
+        return (f'{self.get_description()} '
+                f'({self.implementation} implementation)')
+
+    def todict(self):
+        raise NotImplementedError
 
 
 class ECNAlgorithm(TDAlgorithm):
@@ -85,7 +104,10 @@ class ECNAlgorithm(TDAlgorithm):
     Crank-Nicolson propagator, which approximates the time-dependent
     Hamiltonian to be unchanged during one iteration step.
 
-    (S(t) + .5j dt H(t) / hbar) psi(t+dt) = (S(t) - .5j dt H(t) / hbar) psi(t)
+    Parameters
+    ----------
+    implementation
+        Name of wave function propagator implementation
     """
 
     def propagate(self,
@@ -100,7 +122,8 @@ class ECNAlgorithm(TDAlgorithm):
         self.update_time_dependent_operators(state, pot_calc)
 
     def todict(self):
-        return {'name': 'ecn'}
+        return {'name': 'ecn',
+                'implementation': self.implementation}
 
 
 class SICNAlgorithm(TDAlgorithm):
@@ -112,10 +135,10 @@ class SICNAlgorithm(TDAlgorithm):
     wavefunctions. Then the approximations for the future wavefunctions are
     used to approximate the Hamiltonian at the middle of the time step.
 
-    (S(t) + .5j dt H(t) / hbar) psi(t+dt) = (S(t) - .5j dt H(t) / hbar) psi(t)
-    (S(t) + .5j dt H(t+dt/2) / hbar) psi(t+dt)
-    = (S(t) - .5j dt H(t+dt/2) / hbar) psi(t)
-
+    Parameters
+    ----------
+    implementation
+        Name of wave function propagator implementation
     """
 
     def propagate(self,
@@ -153,4 +176,5 @@ class SICNAlgorithm(TDAlgorithm):
         self.update_time_dependent_operators(state, pot_calc)
 
     def todict(self):
-        return {'name': 'sicn'}
+        return {'name': 'sicn',
+                'implementation': self.implementation}

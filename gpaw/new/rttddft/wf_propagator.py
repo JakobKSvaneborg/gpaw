@@ -13,10 +13,39 @@ from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
+from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.tddft.solvers.cscg import CSCG
 from gpaw.utilities.timing import nulltimer
+
+
+def build_wf_propagator(name: str,
+                        hamiltonian: Hamiltonian,
+                        state: DFTState) -> WaveFunctionPropagator:
+    cls = determine_wf_propagator_class(name, hamiltonian)
+    return cls(hamiltonian=hamiltonian, state=state)
+
+
+def determine_wf_propagator_class(name: str,
+                                  hamiltonian: Hamiltonian,
+                                  ) -> type[WaveFunctionPropagator]:
+    # Determine mode from the type of the hamiltonian
+    if isinstance(hamiltonian, LCAOHamiltonian):
+        if name == 'numpy':
+            return LCAONumpyPropagator
+        else:
+            raise ValueError(f'Unknown propagation algorithm: {name}')
+    elif isinstance(hamiltonian, FDHamiltonian):
+        if name == 'numpy':
+            return FDNumpyPropagator
+        else:
+            raise ValueError(f'Unknown propagation algorithm: {name}')
+    elif isinstance(hamiltonian, PWHamiltonian):
+        raise NotImplementedError('PW TDDFT is not implemented')
+
+    raise ValueError(f'Unknown hamiltonian: {hamiltonian} '
+                     f'({type(hamiltonian)})')
 
 
 def propagate_wave_functions_numpy(source_C_nM: np.ndarray,
