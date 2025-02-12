@@ -157,7 +157,7 @@ def get_os_from_me(eps_kn, sigma_cmkn, orthogonal,
 
 class XAS:
     def __init__(self, paw=None, *args, **kwargs):
-        print('Here')
+        print(mpi.world.rank, 'Here')
         if paw is not None:
             self.__full_init__(paw, *args, **kwargs)
 
