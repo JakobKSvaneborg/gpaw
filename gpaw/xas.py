@@ -174,9 +174,9 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
-        print(mpi.world.rank, 'Here1')
+        #print(mpi.world.rank, 'Here1')
         wfs = paw.wfs
-        self.world = wfs.world
+        self.world = mpi.world
         print(self.world.comm.rank, 'Here __full_init__')
         kd = wfs.kd
         bd = wfs.bd
