@@ -1453,7 +1453,7 @@ class Setups(list):
             atomdist=atomdist,
             xp=xp)
 
-    def create_compensation_charges(self, domain, positions, atomdist,
+    def create_compensation_charges(self, domain, positions, atomdist=None,
                                     xp=np):
         if self.backwards_compatible and hasattr(domain, 'ecut'):
             integral = None

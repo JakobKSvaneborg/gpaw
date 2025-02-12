@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from time import ctime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from ase.units import Ha
@@ -38,7 +38,7 @@ class Chi0Calculator:
                  nblocks=1,
                  eshift=None,
                  intraband=True,
-                 rate=0.0,
+                 rate='eta',
                  **kwargs):
         """
         Parameters
@@ -48,7 +48,6 @@ class Chi0Calculator:
         """
         self.gs = ResponseGroundStateAdapter.from_input(gs)
         self.context = ResponseContext.from_input(context)
-        self.eshift = eshift / Ha if eshift else None
         self.chi0_body_calc = Chi0BodyCalculator(
             self.gs, self.context,
             nblocks=nblocks, eshift=self.eshift, **kwargs)
@@ -113,7 +112,11 @@ class Chi0Calculator:
     @timer('Calculate CHI_0')
     def update_chi0(self,
                     chi0: Chi0Data,
-                    m1: int, m2: int, spins: list) -> Chi0Data:
+                    *,
+                    n1: int = 0, n2: Optional[int] = None,
+                    m1: int, m2: int,
+                    spins: list
+                    ) -> Chi0Data:
         """In-place calculation of chi0 (with optical extension).
 
         Parameters
@@ -131,12 +134,14 @@ class Chi0Calculator:
         -------
         chi0 : Chi0Data
         """
-        self.chi0_body_calc.update_chi0_body(chi0.body, m1, m2, spins)
+        if n2 is None:
+            n2 = self.gs.nocc2
+        self.chi0_body_calc.update_chi0_body(chi0.body, n1, n2, m1, m2, spins)
         if chi0.optical_limit:
             assert chi0.optical_extension is not None
             # Update the head and wings
             self.chi0_opt_ext_calc.update_chi0_optical_extension(
-                chi0.optical_extension, m1, m2, spins)
+                chi0.optical_extension, n1, n2, m1, m2, spins)
         return chi0
 
 
@@ -193,14 +198,17 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         chi0_body = self._create_chi0_body(qpd)
 
         # Integrate all transitions into partially filled and empty bands
-        m1, m2 = self.get_band_transitions()
-        self.update_chi0_body(chi0_body, m1, m2, spins=range(self.gs.nspins))
+        n1, n2, m1, m2 = self.gs.get_band_transitions(nbands=self.nbands)
+        self.update_chi0_body(chi0_body, n1, n2, m1, m2,
+                              spins=range(self.gs.nspins))
 
         return chi0_body
 
     def update_chi0_body(self,
                          chi0_body: Chi0BodyData,
-                         m1: int, m2: int, spins: list | range):
+                         n1: int, n2: int,
+                         m1: int, m2: int,
+                         spins: list | range):
         """In-place calculation of the body.
 
         Parameters
@@ -226,7 +234,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         symmetries, generator, domain, prefactor = self.get_integration_domain(
             qpd.q_c, spins)
         integrand = Chi0Integrand(self, qpd=qpd, generator=generator,
-                                  optical=False, m1=m1, m2=m2)
+                                  optical=False, n1=n1, n2=n2, m1=m1, m2=m2)
 
         chi0_body.data_WgG[:] /= prefactor
         if self.hilbert:
@@ -318,7 +326,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
     def __init__(self, *args,
                  eshift=None,
                  intraband=True,
-                 rate=0.0,
+                 rate='eta',
                  **kwargs):
         """Contruct the Chi0OpticalExtensionCalculator.
 
@@ -377,10 +385,10 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         self.print_info(qpd)
 
         # Define band transitions
-        m1, m2 = self.get_band_transitions()
+        n1, n2, m1, m2 = self.gs.get_band_transitions(nbands=self.nbands)
 
         # Perform the actual integration
-        self.update_chi0_optical_extension(chi0_opt_ext, m1, m2,
+        self.update_chi0_optical_extension(chi0_opt_ext, n1, n2, m1, m2,
                                            spins=range(self.gs.nspins))
 
         if self.drude_calc is not None:
@@ -395,6 +403,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
     def update_chi0_optical_extension(
             self,
             chi0_optical_extension: Chi0OpticalExtensionData,
+            n1: int, n2: int,
             m1: int, m2: int,
             spins: list | range):
         """In-place calculation of the chi0 head and wings.
@@ -415,7 +424,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         symmetries, generator, domain, prefactor = self.get_integration_domain(
             qpd.q_c, spins)
         integrand = Chi0Integrand(self, qpd=qpd, generator=generator,
-                                  optical=True, m1=m1, m2=m2)
+                                  optical=True, n1=n1, n2=n2, m1=m1, m2=m2)
 
         # We integrate the head and wings together, using the combined index P
         # index v = (x, y, z)
@@ -474,7 +483,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 def get_frequency_descriptor(
         frequencies: ArrayLike1D | dict[str, Any] | None = None, *,
         gs: ResponseGroundStateAdapter | None = None,
-        nbands: int | None = None):
+        nbands: int | slice | None = None):
     """Helper function to generate frequency descriptors.
 
     In most cases, the `frequencies` input can be processed directly via
@@ -491,7 +500,7 @@ def get_frequency_descriptor(
 
 
 def get_omegamax(gs: ResponseGroundStateAdapter,
-                 nbands: int | None = None):
+                 nbands: int | slice | None = None):
     """Get the maxmimum eigenvalue difference including nbands, in eV."""
     epsmin, epsmax = gs.get_eigenvalue_range(nbands=nbands)
     return (epsmax - epsmin) * Ha

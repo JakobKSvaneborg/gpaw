@@ -25,16 +25,36 @@ def coulomb(pw: PWDesc,
         wstc = WignerSeitzTruncatedCoulomb(
             pw.cell_cv, np.array([1, 1, 1]))
         return wstc.get_potential_new(pw, grid)
+    return truncated_coulomb(pw, omega)
 
+
+def truncated_coulomb(pw: PWDesc,
+                      omega: float = 0.11) -> PWArray:
+    """Fourier transform of truncated Coulomb.
+
+    Real space:::
+
+        erfc(ωr)
+        --------.
+           r
+
+    Reciprocal space:::
+
+        4π             _ _ 2     2
+      ------(1 - exp(-(G+k) /(4 ω )))
+       _ _ 2
+      (G+k)
+
+    (G+k=0 limit is pi/ω^2).
+    """
     v_G = pw.empty()
     G2_G = pw.ekin_G * 2
     v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
-    if pw.ng1 == 0:
+    if G2_G[0] < 1e-10:
         v_G.data[1:] /= G2_G[1:]
         v_G.data[0] = pi / omega**2
     else:
         v_G.data /= G2_G
-
     return v_G
 
 

@@ -3,6 +3,7 @@ from functools import partial
 
 import numpy as np
 from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new import zips
 from gpaw.new.density import Density
 from gpaw.new.eigensolver import Eigensolver
@@ -16,23 +17,17 @@ from gpaw.new.energies import DFTEnergies
 class ETDM(Eigensolver):
     def __init__(self,
                  *,
-                 dS_aii,
-                 preconditioner,
-                 nspins: int,
                  excited_state: bool = False,
                  converge_unocc: bool = False):
-        self.preconditioner = preconditioner
         self.search_dir = LBFGS()
         self.grad_unX: list[XArray] = []
-        self.dS_aii = dS_aii
-        self.nocc_s = [-1] * nspins
         self.converge_unocc = converge_unocc
+        self.dS_aii: AtomArrays
+        self.nocc_s: list[int] = []
+        self.preconditioner
 
     def new(self, **params) -> ETDM:
-        return ETDM(dS_aii=self.dS_aii,
-                    preconditioner=self.preconditioner,
-                    nspins=len(self.nocc_s),
-                    **params)
+        return ETDM(**params)
 
     def iterate(self,
                 ibzwfs: IBZWaveFunctions,
@@ -41,6 +36,14 @@ class ETDM(Eigensolver):
                 hamiltonian: Hamiltonian,
                 pot_calc,
                 energies) -> tuple[float, DFTEnergies]:
+
+        if len(self.nocc_s) == 0:
+            xp = ibzwfs.xp
+            self.nocc_s = find_number_of_ocupied_bands(ibzwfs)
+            self.preconditioner = hamiltonian.create_preconditioner(10, xp=xp)
+            self.dS_aii = pot_calc.setups.get_overlap_corrections(
+                density.D_asii.layout.atomdist, xp)
+
         dH = potential.dH
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
@@ -48,7 +51,6 @@ class ETDM(Eigensolver):
                      ibzwfs, density.D_asii)
 
         if len(self.grad_unX) == 0:
-            self.nocc_s = find_number_of_ocupied_bands(ibzwfs)
 
             for wfs in ibzwfs:
                 wfs._P_ani = None
