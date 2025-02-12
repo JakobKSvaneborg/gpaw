@@ -61,27 +61,29 @@ def main():
         old_calc.write('fd_gs.gpw', mode='all')
 
     if parsed.old_lcao_rt or parsed.all:
-        old_tddft = LCAOTDDFT('lcao_gs.gpw', propagator='ecn',
+        old_tddft = LCAOTDDFT('lcao_gs.gpw', propagator='sicn',
                               txt='/dev/null')
         DipoleMomentWriter(old_tddft, 'old_lcao_dm.out')
         old_tddft.absorption_kick(kick_v)
         old_tddft.propagate(10, 10)
 
     if parsed.old_fd_rt or parsed.all:
-        old_tddft = TDDFT('fd_gs.gpw', propagator='ECN',
+        old_tddft = TDDFT('fd_gs.gpw', propagator='SICN',
                           txt='/dev/null')
         DipoleMomentWriter(old_tddft, 'old_fd_dm.out')
         old_tddft.absorption_kick(kick_v)
         old_tddft.propagate(10, 10)
 
     if parsed.new_lcao_rt or parsed.all:
-        new_tddft = RTTDDFTAdapter.from_dft_file('lcao_gs.gpw')
+        new_tddft = RTTDDFTAdapter.from_dft_file('lcao_gs.gpw',
+                                                 propagator='sicn')
         DipoleMomentWriter(new_tddft, 'new_lcao_dm.out')
         new_tddft.absorption_kick(kick_v)
         new_tddft.propagate(10, 10)
 
     if parsed.new_fd_rt or parsed.all:
-        new_tddft = RTTDDFTAdapter.from_dft_file('fd_gs.gpw')
+        new_tddft = RTTDDFTAdapter.from_dft_file('fd_gs.gpw',
+                                                 propagator='SICN')
         DipoleMomentWriter(new_tddft, 'new_fd_dm.out')
         new_tddft.absorption_kick(kick_v)
         new_tddft.propagate(10, 10)

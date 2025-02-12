@@ -5,9 +5,8 @@ import numpy as np
 
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
-from gpaw.new.calculation import DFTCalculation
 from gpaw.new.rttddft.rttddft import RTTDDFT
-from gpaw.new.rttddft.td_algorithm import TDAlgorithm
+from gpaw.new.rttddft.td_algorithm import TDAlgorithmLike
 from gpaw.tddft.units import as_to_au, autime_to_asetime
 from gpaw.typing import Vector
 
@@ -198,6 +197,9 @@ class RTTDDFTAdapter:
 
         time_step = time_step * as_to_au * autime_to_asetime
 
+        print(f'---- Starting propagation {iterations} steps of '
+              f'{time_step:.5f}Å√(u/eV)')
+        print(f'---- Using {self._rttddft.td_algorithm}')
         for result in self._rttddft.ipropagate(time_step, iterations):
             print(result)
 
@@ -213,14 +215,16 @@ class RTTDDFTAdapter:
 
     @classmethod
     def from_dft_calculation(cls,
-                             calc: ASECalculator | DFTCalculation,
-                             td_algorithm: TDAlgorithm | None = None):
-        rttddft = RTTDDFT.from_dft_calculation(calc, td_algorithm)
+                             calc: ASECalculator,
+                             propagator: TDAlgorithmLike = None):
+        rttddft = RTTDDFT.from_dft_calculation(calc,
+                                               td_algorithm=propagator)
         return cls(rttddft)
 
     @classmethod
     def from_dft_file(cls,
                       filepath: str,
-                      td_algorithm: TDAlgorithm | None = None):
-        rttddft = RTTDDFT.from_dft_file(filepath, td_algorithm)
+                      propagator: TDAlgorithmLike = None):
+        rttddft = RTTDDFT.from_dft_file(filepath,
+                                        td_algorithm=propagator)
         return cls(rttddft)

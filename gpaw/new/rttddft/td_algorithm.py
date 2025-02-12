@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import partial
+from typing import Any, Union
 
 import numpy as np
 from numpy.linalg import solve
@@ -20,13 +21,35 @@ from gpaw.tddft.solvers.cscg import CSCG
 from gpaw.utilities.timing import nulltimer
 
 
+TDAlgorithmLike = Union[None, str, 'TDAlgorithm', dict[str, Any]]
+
+
+def create_td_algorithm(name: TDAlgorithmLike,
+                        **kwargs) -> TDAlgorithm:
+    if name is None:
+        return create_td_algorithm('sicn')
+    elif isinstance(name, TDAlgorithm):
+        return name
+    elif isinstance(name, dict):
+        kwargs.update(name)
+        return create_td_algorithm(**kwargs)
+
+    name = name.lower()
+    if name == 'sicn':
+        return SICNAlgorithm(**kwargs)
+    elif name == 'ecn':
+        return ECNAlgorithm(**kwargs)
+    else:
+        raise ValueError(f'Unknown propagation algorithm: {name}')
+
+
 class TDAlgorithm:
 
     def propagate(self,
                   time_step: float,
                   state: DFTState,
                   pot_calc: PotentialCalculator,
-                  wf_propagator: WaveFunctionPropagator):
+                  hamiltonian: Hamiltonian):
         """ One propagation step, i.e.
 
         ::
@@ -41,8 +64,7 @@ class TDAlgorithm:
         (2) Update wavefunctions ψ_n(t+dt) ← U[H(t)] ψ_n(t)
         (3) Update density and hamiltonian H(t+dt)
         """
-        self.propagate_wfs(time_step, state, pot_calc, wf_propagator)
-        self.update_time_dependent_operators(state, pot_calc)
+        raise NotImplementedError()
 
     def update_time_dependent_operators(self,
                                         state: DFTState,
@@ -58,11 +80,19 @@ class TDAlgorithm:
                       time_step: float,
                       state: DFTState,
                       pot_calc: PotentialCalculator,
-                      wf_propagator: WaveFunctionPropagator):
-        raise NotImplementedError()
+                      hamiltonian: Hamiltonian):
+        wf_propagator = self._wf_propagator_class(hamiltonian, state)
+        for wfs in state.ibzwfs:
+            wf_propagator.propagate(wfs, wfs, time_step)
 
     def get_description(self):
         return self.__class__.__name__
+
+    def __str__(self) -> str:
+        return self.get_description()
+
+    def todict(self):
+        return {'name': 'sicn'}
 
 
 def propagate_wave_functions_numpy(source_C_nM: np.ndarray,
@@ -89,8 +119,22 @@ class WaveFunctionPropagator(ABC):
         raise NotImplementedError
 
     def propagate(self,
-                  wfs: WaveFunctions,
+                  source_wfs: WaveFunctions,
+                  target_wfs: WaveFunctions,
                   time_step: float):
+        """ Propagate wave functions
+
+        Parameters
+        ----------
+        source_wfs
+            Source wave functions. Unchanged by the propagation
+            if they are different from target_wfs
+        target_wfs
+            Target wave functions where result is written
+        time_step
+            Time step
+        """
+
         raise NotImplementedError
 
 
@@ -105,18 +149,22 @@ class LCAONumpyPropagator(WaveFunctionPropagator):
         self.ham_calc = ham_calc
 
     def propagate(self,
-                  wfs: WaveFunctions,
+                  source_wfs: WaveFunctions,
+                  target_wfs: WaveFunctions,
                   time_step: float):
-        assert isinstance(wfs, LCAOWaveFunctions)
-        H_MM = self.ham_calc.calculate_matrix(wfs)
+        assert isinstance(source_wfs, LCAOWaveFunctions)
+        assert isinstance(target_wfs, LCAOWaveFunctions)
+        H_MM = self.ham_calc.calculate_matrix(source_wfs)
 
         # Phi_n <- U[H(t)] Phi_n
-        propagate_wave_functions_numpy(wfs.C_nM.data, wfs.C_nM.data,
-                                       wfs.S_MM.data,
-                                       H_MM.data, time_step)
+        propagate_wave_functions_numpy(source_wfs.C_nM.data,
+                                       target_wfs.C_nM.data,
+                                       source_wfs.S_MM.data,
+                                       H_MM.data,
+                                       time_step)
 
         # Make sure wfs.C_nM and (lazy) wfs.P_ani are in sync:
-        wfs._P_ani = None
+        target_wfs._P_ani = None
 
 
 class FDNumpyPropagator(WaveFunctionPropagator):
@@ -176,11 +224,15 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         return P_ani
 
     def propagate(self,
-                  wfs: WaveFunctions,
+                  source_wfs: WaveFunctions,
+                  target_wfs: WaveFunctions,
                   time_step: float):
-        assert isinstance(wfs, PWFDWaveFunctions)
-        assert isinstance(wfs.psit_nX, UGArray)
-        psit_nR = wfs.psit_nX
+        assert isinstance(source_wfs, PWFDWaveFunctions)
+        assert isinstance(source_wfs.psit_nX, UGArray)
+        assert isinstance(target_wfs, PWFDWaveFunctions)
+        assert isinstance(target_wfs.psit_nX, UGArray)
+        psit_nR = target_wfs.psit_nX
+        psit_nR.data[:] = source_wfs.psit_nX.data
 
         # Empty arrays
         rhs_nR = psit_nR.new(zeroed=True)
@@ -206,7 +258,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         solver = CSCGAdapter(psit_nR.desc, self)
         solver.solve(init_guess_nR, rhs_nR, psit_nR, time_step)
 
-        self.calculate_projections(psit_nR, wfs.P_ani)
+        self.calculate_projections(psit_nR, target_wfs.P_ani)
 
     def dot(self, psit_nR: UGArray, out_nR: UGArray, time_step: float):
         """Applies the propagator matrix to the given wavefunctions.
@@ -381,10 +433,71 @@ class CSCGAdapter:
 
 class ECNAlgorithm(TDAlgorithm):
 
-    def propagate_wfs(self,
-                      time_step: float,
-                      state: DFTState,
-                      pot_calc: PotentialCalculator,
-                      wf_propagator: WaveFunctionPropagator):
-        for wfs in state.ibzwfs:
-            wf_propagator.propagate(wfs, time_step)
+    """ Explicit Crank-Nicolson algorithm
+
+    Crank-Nicolson propagator, which approximates the time-dependent
+    Hamiltonian to be unchanged during one iteration step.
+
+    (S(t) + .5j dt H(t) / hbar) psi(t+dt) = (S(t) - .5j dt H(t) / hbar) psi(t)
+    """
+
+    def propagate(self,
+                  time_step: float,
+                  state: DFTState,
+                  pot_calc: PotentialCalculator,
+                  hamiltonian: Hamiltonian):
+        # Propagate wave functions one timestep; ψ(t) -> ψ(t + dt)
+        self.propagate_wfs(time_step, state, pot_calc, hamiltonian)
+
+        # Calculate density and Hamiltonian at t + dt
+        self.update_time_dependent_operators(state, pot_calc)
+
+
+class SICNAlgorithm(TDAlgorithm):
+
+    """Semi-implicit Crank-Nicolson propagator
+
+    Crank-Nicolson propagator, which first approximates the time-dependent
+    Hamiltonian to be unchanged during one iteration step to predict future
+    wavefunctions. Then the approximations for the future wavefunctions are
+    used to approximate the Hamiltonian at the middle of the time step.
+
+    (S(t) + .5j dt H(t) / hbar) psi(t+dt) = (S(t) - .5j dt H(t) / hbar) psi(t)
+    (S(t) + .5j dt H(t+dt/2) / hbar) psi(t+dt)
+    = (S(t) - .5j dt H(t+dt/2) / hbar) psi(t)
+
+    """
+
+    def propagate(self,
+                  time_step: float,
+                  state: DFTState,
+                  pot_calc: PotentialCalculator,
+                  hamiltonian: Hamiltonian):
+        # Copy wave functions
+        prev_wfs_list = [[wfs.copy() for wfs in wfs_s]
+                         for wfs_s in state.ibzwfs.wfs_qs]
+
+        # Copy Hamiltonian
+        prev_potential = state.potential.copy()
+
+        # Propagate wave functions one timestep; ψ(t) -> ψ(t + dt)
+        self.propagate_wfs(time_step, state, pot_calc, hamiltonian)
+
+        # Calculate density and Hamiltonian at t + dt
+        self.update_time_dependent_operators(state, pot_calc)
+
+        # Average Hamiltonian at t and t + dt
+        state.potential.vt_sR.data[:] += prev_potential.vt_sR.data
+        state.potential.vt_sR.data[:] *= 0.5
+        state.potential.dH_asii.data[:] += prev_potential.dH_asii.data
+        state.potential.dH_asii.data[:] *= 0.5
+
+        # Restore the previous wave functions
+        state.ibzwfs.wfs_qs = prev_wfs_list
+
+        # Propagate wave functions one timestep; ψ(t) -> ψ(t + dt)
+        # using the averaged Hamiltonian
+        self.propagate_wfs(time_step, state, pot_calc, hamiltonian)
+
+        # Calculate density and Hamiltonian at t + dt
+        self.update_time_dependent_operators(state, pot_calc)

@@ -23,7 +23,8 @@ from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new.rttddft.td_algorithm import (TDAlgorithm, ECNAlgorithm,
+from gpaw.new.rttddft.td_algorithm import (create_td_algorithm,
+                                           TDAlgorithmLike,
                                            WaveFunctionPropagator,
                                            LCAONumpyPropagator,
                                            FDNumpyPropagator)
@@ -120,10 +121,7 @@ class RTTDDFT:
                  pot_calc: PotentialCalculator,
                  hamiltonian,
                  history: RTTDDFTHistory,
-                 td_algorithm: TDAlgorithm | None = None):
-        if td_algorithm is None:
-            td_algorithm = ECNAlgorithm()
-
+                 td_algorithm: TDAlgorithmLike = None):
         # Disable symmetries, ie keep only identity operation
         # I suppose this should be done in the kick, as the kick breaks
         # the symmetry
@@ -134,7 +132,7 @@ class RTTDDFT:
 
         self.state = state
         self.pot_calc = pot_calc
-        self.td_algorithm = td_algorithm
+        self.td_algorithm = create_td_algorithm(td_algorithm)
         self.hamiltonian = hamiltonian
         self.history = history
 
@@ -152,6 +150,7 @@ class RTTDDFT:
         else:
             raise ValueError(f"I don\'t know {hamiltonian} "
                              f'({type(hamiltonian)})')
+        self.td_algorithm._wf_propagator_class = self._wf_propagator_class
         # Dipole moment operators in each Cartesian direction
         # Only usable for LCAO
         # TODO is there even a point in caching these? I don't think it saves
@@ -164,7 +163,7 @@ class RTTDDFT:
     @classmethod
     def from_dft_calculation(cls,
                              calc: ASECalculator | DFTCalculation,
-                             td_algorithm: TDAlgorithm | None = None):
+                             td_algorithm: TDAlgorithmLike = None):
 
         if isinstance(calc, DFTCalculation):
             dft = calc
@@ -183,7 +182,7 @@ class RTTDDFT:
     @classmethod
     def from_dft_file(cls,
                       filepath: str,
-                      td_algorithm: TDAlgorithm | None = None):
+                      td_algorithm: TDAlgorithmLike = None):
         _, dft, params, builder = read_gpw(filepath,
                                            log='-',
                                            comm=world,
@@ -251,15 +250,16 @@ class RTTDDFT:
             self.kick_ext = ext
 
             # For the kick, the propagator is always ECN
-            td_algorithm = ECNAlgorithm()
-            wf_propagator = self.kick_propagator(ext)
+            td_algorithm = create_td_algorithm('ecn')
+            td_algorithm._wf_propagator_class = self._wf_propagator_class
+            hamiltonian = self.kick_hamiltonian(ext)
 
             assert isinstance(self.pot_calc, FDPotentialCalculator)
             for l in range(nkicks):
                 td_algorithm.propagate_wfs(1 / nkicks,
                                            state=self.state,
                                            pot_calc=self.pot_calc,
-                                           wf_propagator=wf_propagator)
+                                           hamiltonian=hamiltonian)
             td_algorithm.update_time_dependent_operators(self.state,
                                                          self.pot_calc)
 
@@ -284,15 +284,8 @@ class RTTDDFT:
             raise RuntimeError(f'Mode {self.mode} is unexpected')
         return cls
 
-    def wf_propagator(self) -> WaveFunctionPropagator:
-        """ Wave function propagator
-
-        Corresponding to the mode and type of parallelization
-        """
-        return self._wf_propagator_class(self.hamiltonian, self.state)
-
-    def kick_propagator(self,
-                        ext: ExternalPotential) -> WaveFunctionPropagator:
+    def kick_hamiltonian(self,
+                         ext: ExternalPotential) -> Hamiltonian:
         """ Wave function propagator
 
         Corresponding to the mode and type of parallelization
@@ -319,7 +312,7 @@ class RTTDDFT:
 
         else:
             raise RuntimeError(f'Mode {self.mode} is unexpected')
-        return self._wf_propagator_class(kick_hamiltonian, self.state)
+        return kick_hamiltonian
 
     def ipropagate(self,
                    time_step: float = 10.0,
@@ -342,7 +335,7 @@ class RTTDDFT:
             self.td_algorithm.propagate(time_step,
                                         state=self.state,
                                         pot_calc=self.pot_calc,
-                                        wf_propagator=self.wf_propagator())
+                                        hamiltonian=self.hamiltonian)
             time = self.history.propagate(time_step)
             dipolemoment_xv = [
                 self.calculate_dipole_moment(wfs)  # type: ignore

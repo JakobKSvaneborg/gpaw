@@ -18,15 +18,13 @@ from gpaw.typing import Any, Vector
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
     if GPAW_NEW:
         from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
-        assert kwargs.get('propagator', None) in [None, 'ecn'], \
+        assert kwargs.pop('rremisison', None) in [None], 'Not implemented yet'
+        assert kwargs.pop('fxc', None) in [None], 'Not implemented yet'
+        assert kwargs.pop('scale', None) in [None], 'Not implemented yet'
+        assert kwargs.pop('parallel', None) in [None], 'Not implemented yet'
+        assert kwargs.pop('communicator', None) in [None], \
             'Not implemented yet'
-        assert kwargs.get('rremisison', None) in [None], 'Not implemented yet'
-        assert kwargs.get('fxc', None) in [None], 'Not implemented yet'
-        assert kwargs.get('scale', None) in [None], 'Not implemented yet'
-        assert kwargs.get('parallel', None) in [None], 'Not implemented yet'
-        assert kwargs.get('communicator', None) in [None], \
-            'Not implemented yet'
-        new_tddft = RTTDDFTAdapter.from_dft_file(filename)
+        new_tddft = RTTDDFTAdapter.from_dft_file(filename, **kwargs)
         return new_tddft
     return OldLCAOTDDFT(filename, **kwargs)
 

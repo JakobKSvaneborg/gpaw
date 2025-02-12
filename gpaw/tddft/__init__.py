@@ -41,13 +41,11 @@ __all__ = ['TDDFT', 'photoabsorption_spectrum',
 def TDDFT(filename: str, **kwargs):
     if GPAW_NEW:
         from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
-        assert kwargs.get('propagator', None) in [None, 'ecn'], \
+        assert kwargs.pop('solver', None) in [None], 'Not implemented yet'
+        assert kwargs.pop('parallel', None) in [None], 'Not implemented yet'
+        assert kwargs.pop('communicator', None) in [None], \
             'Not implemented yet'
-        assert kwargs.get('solver', None) in [None], 'Not implemented yet'
-        assert kwargs.get('parallel', None) in [None], 'Not implemented yet'
-        assert kwargs.get('communicator', None) in [None], \
-            'Not implemented yet'
-        new_tddft = RTTDDFTAdapter.from_dft_file(filename)
+        new_tddft = RTTDDFTAdapter.from_dft_file(filename, **kwargs)
         return new_tddft
     return OldTDDFT(filename, **kwargs)
 

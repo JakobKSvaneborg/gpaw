@@ -54,6 +54,24 @@ class Potential:
         """Move atoms inplace."""
         self.dH_asii = self.dH_asii.moved(atomdist)
 
+    def copy(self) -> Potential:
+        """ Make a deep copy of the potential, preserving the
+        parallel distribution of data.
+
+        Useful, e.g. in RTTDDFT, where the potential is
+        copied in order to be restored later.
+        """
+        dH_asii = self.dH_asii.new()
+        dH_asii.data[:] = self.dH_asii.data
+        dedtaut_sR = None
+        if self.dedtaut_sR is not None:
+            dedtaut_sR = self.dedtaut_sR.copy()
+        return Potential(
+            self.vt_sR.copy(),
+            dH_asii,
+            dedtaut_sR,
+            None if self.vHt_x is None else self.vHt_x.copy())
+
     def redist(self,
                grid: UGDesc,
                desc: XDesc,

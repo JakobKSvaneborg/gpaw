@@ -98,6 +98,18 @@ class WaveFunctions:
         self._eig_n = None
         # self._occ_n = None
 
+    def copy(self) -> WaveFunctions:
+        """ Make a copy of the wave functions.
+
+        The buffer for the wave functions themselves is
+        copied, so that it can be modified without changing
+        the original.
+
+        Useful, e.g. in RTTDDFT, where the wave functions
+        are copied in order to be restored later.
+        """
+        raise NotImplementedError
+
     def collect(self,
                 n1: int = 0,
                 n2: int = 0) -> WaveFunctions | None:
