@@ -6,7 +6,7 @@ from gpaw import GPAW
 from gpaw.tddft import OldTDDFT as TDDFT
 from gpaw.lcaotddft import OldLCAOTDDFT as LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.new.rttddft import RTTDDFTAdapter
+from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
 
 
 def main():

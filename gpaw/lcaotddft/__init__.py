@@ -17,7 +17,7 @@ from gpaw.typing import Any, Vector
 
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
     if GPAW_NEW:
-        from gpaw.new.rttddft import RTTDDFTAdapter
+        from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
         assert kwargs.get('propagator', None) in [None, 'ecn'], \
             'Not implemented yet'
         assert kwargs.get('rremisison', None) in [None], 'Not implemented yet'
