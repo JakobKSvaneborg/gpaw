@@ -1,9 +1,10 @@
 from gpaw.mpi import world
 import numpy as np
+from ase.units import Ha
 from gpaw.response.pair import get_gs_and_context
-from gpaw.response.chi0 import Chi0Calculator, get_omegamax
+from gpaw.response.chi0 import (Chi0Calculator, get_frequency_descriptor,
+                                get_omegamax)
 import pytest
-from gpaw.response.frequencies import FrequencyDescriptor
 
 
 @pytest.mark.response
@@ -23,18 +24,21 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     nbands_max = 14
 
     omegamax2 = get_omegamax(gs, nbands=slice(0, nbands_max))
-    wd2 = FrequencyDescriptor.from_array_or_dict({'type': 'nonlinear',
-                                                  'domega0': omegamax2 / 4000,
-                                                  'omega2': 10,
-                                                  'omegamax': omegamax2})
-    omegamax1 = get_omegamax(gs, nbands=slice(3, nbands_max))
-    wd1 = FrequencyDescriptor.from_array_or_dict({'type': 'nonlinear',
-                                                  'domega0': omegamax2 / 4000,
-                                                  'omega2': 10,
-                                                  'omegamax': omegamax1})
 
-    assert np.round(omegamax1, 3) == 45.1530
-    assert np.round(omegamax2, 3) == 100.252
+    wd2 = get_frequency_descriptor(
+        {'type': 'nonlinear', 'domega0': omegamax2 / 4000, 'omega2': 10},
+        gs=gs, nbands=slice(0, nbands_max))
+
+    wd1 = get_frequency_descriptor(
+        {'type': 'nonlinear', 'domega0': omegamax2 / 4000, 'omega2': 10},
+        gs=gs,
+        nbands=slice(3, nbands_max))
+
+    omegamax2 = np.max(wd2.omega_w) * Ha
+    omegamax1 = np.max(wd1.omega_w) * Ha
+
+    assert np.round(omegamax1, 3) == 45.223
+    assert np.round(omegamax2, 3) == 100.713
     assert np.allclose(wd1.omega_w, wd2.omega_w[:len(wd1)])
 
     chi0calc1 = Chi0Calculator(gs, context,
