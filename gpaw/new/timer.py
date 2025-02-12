@@ -2,11 +2,6 @@ from contextlib import contextmanager
 from functools import wraps
 from io import StringIO
 from typing import Callable, TypeVar, Union, overload, Optional
-import sys
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpec
-else:
-    from typing import ParamSpec
 from gpaw import GPAW_TRACE
 
 
@@ -44,8 +39,7 @@ class GlobalTimer:
 
 
 T = TypeVar('T')
-P = ParamSpec("P")
-F = Callable[P, T]
+F = Callable[..., T]
 
 
 @overload
@@ -62,13 +56,13 @@ def _trace(meth: Optional[F] = None,
            **timer_params) -> Union[F, Callable[[F], F]]:
     """Decorator for telling global timer to trace a function or method."""
 
-    def get_wrapper(method: Callable[P, T]) -> Callable[P, T]:
+    def get_wrapper(method: Callable[..., T]) -> Callable[..., T]:
         modname = method.__module__
         methname = method.__qualname__
         name = f'{modname}.{methname}'
 
         @wraps(method)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        def wrapper(*args, **kwargs) -> T:
             global_timer.start(name, **timer_params)
             try:
                 return method(*args, **kwargs)
