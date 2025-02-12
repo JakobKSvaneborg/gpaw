@@ -298,9 +298,16 @@ class ResponseGroundStateAdapter:
             assert n1 >= 0 and m2 >= 0
             assert nbands.step in {None, 1}
             assert n1 < m2 <= self.nbands
+            assert n1 <= self.nocc1
+        else:
+            raise ValueError(
+                f"Invalid type for nbands: {type(nbands)}."
+                "Expected None, int, or slice.")
 
         n2 = self.nocc2
         m1 = self.nocc1
+
+        assert n1 < n2
 
         return n1, n2, m1, m2
 
