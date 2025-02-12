@@ -46,6 +46,7 @@ class Chi0Calculator:
             eshift : float or None
                 Energy shift of the conduction bands in eV.
         """
+        self.eshift = eshift / Ha if eshift else None
         self.gs = ResponseGroundStateAdapter.from_input(gs)
         self.context = ResponseContext.from_input(context)
         self.chi0_body_calc = Chi0BodyCalculator(
