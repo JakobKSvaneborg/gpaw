@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+import warnings
 
 import numpy as np
 
 from gpaw.typing import Vector
 from gpaw.response import ResponseGroundStateAdaptable, ResponseContextInput
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
-from gpaw.response.chiks import (ChiKSCalculator, get_smat_components, smat,
+from gpaw.response.chiks import (ChiKSCalculator, RealAxisWarning,
+                                 get_smat_components, smat,
                                  regularize_intraband_transitions)
 from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
 from gpaw.response.site_kernels import SiteKernels
@@ -178,8 +180,14 @@ class IsotropicExchangeCalculator:
         if txt is not None:
             self.context.new_txt_and_timer(txt)
 
+        # Even though the Heisenberg exchange constants are difficult to
+        # converge for metals, it does not really help to add finite broadening
+        # of the susceptibility. Therefore, we bite the sour apple and always
+        # evaluate the χ_KS on the real axis.
         zd = ComplexFrequencyDescriptor.from_array([0. + 0.j])
-        chiks = self.chiks_calc.calculate('+-', q_c, zd)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=RealAxisWarning)
+            chiks = self.chiks_calc.calculate('+-', q_c, zd)
         if np.allclose(q_c, 0.):
             chiks.symmetrize_reciprocity()
 
@@ -381,7 +389,7 @@ class SingleParticleSiteSumRuleCalculator(PairFunctionIntegrator):
 
     def get_band_and_spin_transitions(self):
         """Set up all intraband transitions (n,s)->(n,s)."""
-        nocc2 = self.kptpair_extractor.nocc2
+        nocc2 = self.gs.nocc2
         n_n = list(range(nocc2))
         n_t = np.array(n_n + n_n)
         s_t = np.array([0] * nocc2 + [1] * nocc2)

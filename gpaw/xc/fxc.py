@@ -156,16 +156,14 @@ class FXCCorrelation:
 
         self.cache = FXCCache(self.context.comm, tag, self.xc, self.ecut_max)
 
-        self.omega_w = self.rpa.omega_w
         self.ibzq_qc = self.rpa.ibzq_qc
         self.nblocks = self.rpa.nblocks
-        self.weight_w = self.rpa.weight_w
 
     @property
     def blockcomm(self):
         # Cannot be aliased as attribute
         # because rpa gets blockcomm during calculate
-        return self.rpa.blockcomm
+        return self.rpa.wblocks.blockcomm
 
     def _calculate_kernel(self):
         # Find the first q vector to calculate kernel for
@@ -217,7 +215,7 @@ class FXCCorrelation:
     @timer('Chi0(q)')
     def calculate_q_fxc(self, chi0calc, chi0_s, m1, m2, gcut):
         for s, chi0 in enumerate(chi0_s):
-            chi0calc.update_chi0(chi0, m1, m2, [s])
+            chi0calc.update_chi0(chi0, m1=m1, m2=m2, spins=[s])
 
         self.context.print('E_c(q) = ', end='', flush=False)
 
@@ -340,10 +338,7 @@ class FXCCorrelation:
         if qpd.optical_limit:
             G_G[0] = 1.0
 
-        e_w = []
-
-        # Loop over frequencies
-        for chi0_sGG in np.swapaxes(chi0_swGG, 0, 1):
+        def integrand(chi0_sGG):
             chi0_sGG = gcut.cut(chi0_sGG, [1, 2])
 
             if self.xcflags.spin_kernel:
@@ -351,12 +346,11 @@ class FXCCorrelation:
             else:
                 chi0v_sGsG = get_chi0v_spinsum(chi0_sGG, G_G)
 
-            energy = self.calculate_energy_contribution(
+            return self.calculate_energy_contribution(
                 chi0v_sGsG, fv_GG, nG)
-            e_w.append(energy)
 
-        E_w, energies = self.rpa.gather_energies(e_w)
-        return energies
+        return self.rpa.integrate(
+            integrand, data_w=np.swapaxes(chi0_swGG, 0, 1))
 
 
 class KernelIntegrator(ABC):

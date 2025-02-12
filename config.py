@@ -4,14 +4,10 @@ import os
 import sys
 import re
 import shlex
-from sysconfig import get_config_var, get_platform
+from sysconfig import get_platform
 from subprocess import run
 from pathlib import Path
 from stat import ST_MTIME
-
-
-def config_args(key):
-    return shlex.split(get_config_var(key))
 
 
 def mtime(path, name, mtimes):
@@ -86,6 +82,7 @@ def write_configuration(define_macros, include_dirs, libraries, library_dirs,
 
 def build_interpreter(
         compiler, extension, extension_objects, *,
+        link_extra_preargs, link_extra_postargs,
         build_temp, build_bin, debug):
     exename = compiler.executable_filename('gpaw-python')
     print(f'building {repr(exename)} executable', flush=True)
@@ -105,24 +102,15 @@ def build_interpreter(
         extra_postargs=extension.extra_compile_args)
     objects += extension_objects
 
-    # Note: LDFLAGS and LIBS go together, but depending on the platform,
-    # it might be unnecessary to include them
-    extra_preargs = config_args('LDFLAGS')
-    extra_postargs = (config_args('BLDLIBRARY')
-                      + config_args('LIBS')
-                      + config_args('LIBM')
-                      + extension.extra_link_args
-                      + config_args('LINKFORSHARED'))
-
     # Link the custom interpreter
     compiler.link_executable(
         objects, exename,
         output_dir=str(build_bin),
-        extra_preargs=extra_preargs,
+        extra_preargs=link_extra_preargs,
         libraries=extension.libraries,
         library_dirs=extension.library_dirs,
         runtime_library_dirs=extension.runtime_library_dirs,
-        extra_postargs=extra_postargs,
+        extra_postargs=link_extra_postargs + extension.extra_link_args,
         debug=debug,
         target_lang=extension.language)
     return build_bin / exename

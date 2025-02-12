@@ -64,9 +64,9 @@ def test_chi0_intraband(in_tmp_dir, gpw_files):
     intraband_spinpolarized = gpw_files['intraband_spinpolarized_fulldiag']
 
     calc1 = Helper(intraband_spinpaired, 'tetrahedron integration')
-    calc2 = Helper(intraband_spinpaired, None)
+    calc2 = Helper(intraband_spinpaired, 'point integration')
     calc3 = Helper(intraband_spinpolarized, 'tetrahedron integration')
-    calc4 = Helper(intraband_spinpolarized, None)
+    calc4 = Helper(intraband_spinpolarized, 'point integration')
 
     # Compare plasmon frequencies and intensities
     w_w = calc1.w_w

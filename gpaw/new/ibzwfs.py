@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Generator, Generic, TypeVar, TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Generator, Generic, TypeVar
 
 import numpy as np
 from ase.io.ulm import Writer
@@ -59,8 +59,6 @@ class IBZWaveFunctions(Generic[WFT]):
         self.nbands = wfs.nbands
 
         self.fermi_levels: Array1D | None = None  # hartree
-
-        self.energies: dict[str, float] = {}  # hartree
 
         self.xp = self.wfs_qs[0][0].xp
         if self.xp is not np:
@@ -157,6 +155,7 @@ class IBZWaveFunctions(Generic[WFT]):
                 f'spin-degeneracy: {self.spin_degeneracy}\n'
                 f'dtype: {self.dtype}\n\n'
                 'memory:\n'
+                f'    storage: {"CPU" if self.xp is np else "GPU"}\n'
                 f'    wave functions: {nbytes:_}  # bytes '
                 f' ({nbytes // ncores:_} per core)\n\n'
                 'parallelization:\n'
@@ -170,7 +169,6 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def move(self, relpos_ac, atomdist):
         self.ibz.symmetries.check_positions(relpos_ac)
-        self.energies.clear()
         self.make_sure_wfs_are_read_from_gpw_file()
         for wfs in self:
             wfs.move(relpos_ac, atomdist, self.move_wave_functions)
@@ -179,7 +177,9 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.orthonormalize(work_array_nX)
 
-    def calculate_occs(self, occ_calc, fix_fermi_level=False):
+    def calculate_occs(self,
+                       occ_calc,
+                       fix_fermi_level=False) -> tuple[float, float, float]:
         degeneracy = self.spin_degeneracy
 
         # u index is q and s combined
@@ -206,10 +206,7 @@ class IBZWaveFunctions(Generic[WFT]):
             e_band += wfs.occ_n @ wfs.eig_n * wfs.weight * degeneracy
         e_band = self.kpt_comm.sum_scalar(float(e_band))  # XXX CPU float?
 
-        self.energies.update(
-            band=e_band,
-            entropy=e_entropy,
-            extrapolation=e_entropy * occ_calc.extrapolate_factor)
+        return e_band, e_entropy, e_entropy * occ_calc.extrapolate_factor
 
     def add_to_density(self, nt_sR, D_asii) -> None:
         """Compute density and add to ``nt_sR`` and ``D_asii``."""
@@ -294,20 +291,20 @@ class IBZWaveFunctions(Generic[WFT]):
                 return eig_n, occ_n
         return np.zeros(0), np.zeros(0)
 
-    def get_all_eigs_and_occs(self):
+    def get_all_eigs_and_occs(self, broadcast=False):
         nkpts = len(self.ibz)
-        if self.comm.rank == 0:
-            eig_skn = np.empty((self.nspins, nkpts, self.nbands))
-            occ_skn = np.empty((self.nspins, nkpts, self.nbands))
-        else:
-            eig_skn = np.empty((self.nspins, nkpts, 0))
-            occ_skn = np.empty((self.nspins, nkpts, 0))
+        mynbands = self.nbands if self.comm.rank == 0 or broadcast else 0
+        eig_skn = np.empty((self.nspins, nkpts, mynbands))
+        occ_skn = np.empty((self.nspins, nkpts, mynbands))
         for k in range(nkpts):
             for s in range(self.nspins):
                 eig_n, occ_n = self.get_eigs_and_occs(k, s)
                 if self.comm.rank == 0:
                     eig_skn[s, k, :] = eig_n
                     occ_skn[s, k, :] = occ_n
+        if broadcast:
+            self.comm.broadcast(eig_skn, 0)
+            self.comm.broadcast(occ_skn, 0)
         return eig_skn, occ_skn
 
     def forces(self, potential: Potential) -> Array2D:
@@ -320,10 +317,7 @@ class IBZWaveFunctions(Generic[WFT]):
         self.kpt_band_comm.sum(F_av)
         return F_av
 
-    def write(self,
-              writer: Writer,
-              skip_wfs: bool,
-              include_projections=True) -> None:
+    def write(self, writer: Writer, flags) -> None:
         """Write fermi-level(s), eigenvalues, occupation numbers, ...
 
         ... k-points, symmetry information, projections and possibly
@@ -359,9 +353,10 @@ class IBZWaveFunctions(Generic[WFT]):
             spin_k_shape = (len(ibz),)
             proj_shape = (self.nbands, 2, nproj)
 
-        if include_projections:
+        if flags.include_projections:
+            proj_dtype = flags.storage_dtype(self.dtype)
             writer.add_array('projections', spin_k_shape + proj_shape,
-                             self.dtype)
+                             proj_dtype)
             for spin in range(self.nspins):
                 for k, rank in enumerate(self.rank_k):
                     if rank == self.kpt_comm.rank:
@@ -371,26 +366,28 @@ class IBZWaveFunctions(Generic[WFT]):
                             P_nI = P_ani.matrix.gather()  # gather bands
                             if P_nI.dist.comm.rank == 0:
                                 if rank == 0:
-                                    writer.fill(P_nI.data.reshape(proj_shape))
+                                    writer.fill(P_nI.data.reshape(
+                                        proj_shape).astype(proj_dtype))
                                 else:
                                     self.kpt_comm.send(P_nI.data, 0)
                     elif self.comm.rank == 0:
                         data = np.empty(proj_shape, self.dtype)
                         self.kpt_comm.receive(data, rank)
-                        writer.fill(data)
+                        writer.fill(data.astype(proj_dtype))
 
-        if not skip_wfs:
-            self._write_wave_functions(writer, spin_k_shape)
+        if flags.include_wfs:
+            self._write_wave_functions(writer, spin_k_shape, flags)
 
-    def _write_wave_functions(self, writer, spin_k_shape):
+    def _write_wave_functions(self, writer, spin_k_shape, flags):
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
         shape = spin_k_shape + (self.nbands,) + xshape
         dtype = complex if self.mode == 'pw' else self.dtype
+        dtype_write = flags.storage_dtype(dtype)
         c = 1.0 if self.mode == 'lcao' else Bohr**-1.5
 
-        writer.add_array('coefficients', shape, dtype=dtype)
+        writer.add_array('coefficients', shape, dtype=dtype_write)
         buf_nX = np.empty((self.nbands,) + xshape, dtype=dtype)
 
         for spin in range(self.nspins):
@@ -410,12 +407,12 @@ class IBZWaveFunctions(Generic[WFT]):
                                 buf_nX[..., x:] = 0.0
                                 coef_nX = buf_nX
                         if rank == 0:
-                            writer.fill(coef_nX * c)
+                            writer.fill(flags.to_storage_dtype(coef_nX * c))
                         else:
                             self.kpt_comm.send(coef_nX, 0)
                 elif self.comm.rank == 0:
                     self.kpt_comm.receive(buf_nX, rank)
-                    writer.fill(buf_nX * c)
+                    writer.fill(flags.to_storage_dtype(buf_nX * c))
 
     def write_summary(self, log):
         fl = self.fermi_levels * Ha

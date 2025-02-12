@@ -9,5 +9,5 @@ class RNG:
     def __init__(self, rng):
         self.rng = rng
 
-    def random(self, shape, out):
-        self.rng.random(shape, out=out._data)
+    def random(self, shape, out, dtype=float):
+        self.rng.random(shape, out=out._data, dtype=dtype)
