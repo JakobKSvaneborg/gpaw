@@ -436,7 +436,6 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
     def get_pw_descriptor(self, q_c):
         return SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
 
-
     def get_response_info_string(self, qpd, tab=''):
         nw = len(self.wd)
         ecut = self.ecut * Ha

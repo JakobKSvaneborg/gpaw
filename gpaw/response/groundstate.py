@@ -283,7 +283,7 @@ class ResponseGroundStateAdapter:
             nocc1 = min((f_n > 1 - ftol).sum(), nocc1)
             nocc2 = max((f_n > ftol).sum(), nocc2)
         return int(nocc1), int(nocc2)
-    
+
     def get_band_transitions(self, nbands: int | slice | None = None):
         if nbands is None:
             n1 = 0
