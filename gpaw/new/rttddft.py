@@ -671,9 +671,9 @@ class RTTDDFTAdapter:
         """
         self.tddft_init()
 
-        dt = 10 * as_to_au * autime_to_asetime
+        time_step = time_step * as_to_au * autime_to_asetime
 
-        for result in self._rttddft.ipropagate(dt, 10):
+        for result in self._rttddft.ipropagate(time_step, iterations):
             print(result)
 
             # Call registered callback functions
