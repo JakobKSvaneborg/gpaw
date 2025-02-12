@@ -1,7 +1,12 @@
 from contextlib import contextmanager
 from functools import wraps
 from io import StringIO
-from typing import Callable, TypeVar, Union, ParamSpec, overload, Optional
+from typing import Callable, TypeVar, Union, overload, Optional
+import sys
+if sys.version_info < (3, 10):
+    from typing_extensions import ParamSpec
+else:
+    from typing import ParamSpec
 from gpaw import GPAW_TRACE
 
 
