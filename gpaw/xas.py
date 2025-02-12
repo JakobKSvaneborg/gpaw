@@ -181,12 +181,14 @@ class XAS:
         kd = wfs.kd
         bd = wfs.bd
         gd = wfs.gd
-        print(self.world.rank, 'Here kd bd gd')
         self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
+        print(self.world.rank, 'Here wfs.gd.orthogonal')
         self.cell_cv = np.array(wfs.gd.cell_cv)
 
         my_atom_indices = wfs.atom_partition.my_indices
+        print(self.world.rank, 'Here atom_partition.my_indices')
+        
         # assert wfs.world.size == 1  # assert not mpi.parallel
         # assert wfs.gd.orthogonal
 
