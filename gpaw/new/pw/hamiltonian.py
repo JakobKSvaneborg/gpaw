@@ -136,7 +136,7 @@ def _gpu_prec(ekin, G2, residual):
     return -4.0 / 3 / ekin * a / (a + 16.0 * xx * xx) * residual
 
 
-gpu_prec = trace(kernel=True)(_gpu_prec)
+gpu_prec: Callable = trace(kernel=True)(_gpu_prec)
 
 
 def spinor_precondition(psit_nsG, residual_nsG, out):

@@ -42,10 +42,10 @@ T = TypeVar('T')
 
 
 def _trace(meth: Union[Callable[..., T], None] = None,
-           **timer_params) -> Callable[..., T]:
+           **timer_params) -> Union[Callable[Callable[..., T]], Callable[..., T]]:
     """Decorator for telling global timer to trace a function or method."""
 
-    def get_wrapper(method):
+    def get_wrapper(method) -> Callable[..., T]:
         modname = method.__module__
         methname = method.__qualname__
         name = f'{modname}.{methname}'
