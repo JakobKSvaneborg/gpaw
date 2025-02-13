@@ -37,7 +37,6 @@ from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import DFTState, DFTCalculation, units
 from gpaw.new.density import Density
-from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
@@ -238,16 +237,16 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         params.mode['force_complex_dtype'] = True
 
     # Read state arrays and create the builder
-    builder, density, energies, potential, ibzwfs = read_dft_state(
+    builder, params, state = read_dft_state(
         reader, atoms=atoms, params=params,
         comm=comm, singlep=singlep)
 
     dft = DFTCalculation(
-        ibzwfs, density, potential,
+        state.ibzwfs, state.density, state.potential,
         builder.setups,
         builder.create_scf_loop(),
         pot_calc=builder.create_potential_calculator(),
-        energies=energies,
+        energies=state.energies,
         log=log)
 
     results = {key: value / units[key]
@@ -259,7 +258,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     dft.results = results
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = state.ibzwfs.wfs_qs[0][0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:
@@ -275,10 +274,8 @@ def read_dft_state(reader: ulm.Reader,
                    comm,
                    singlep: bool,
                    ) -> tuple[DFTComponentsBuilder,
-                              Density,
-                              DFTEnergies,
-                              Potential,
-                              IBZWaveFunctions]:
+                              InputParameters,
+                              DFTState]:
     """ Read DFT state from gpw file
 
     Common function shared between DFTCalculation and RTTDDFT
@@ -420,7 +417,12 @@ def read_dft_state(reader: ulm.Reader,
 
     ibzwfs = builder.read_ibz_wave_functions(reader)
 
-    return builder, density, energies, potential, ibzwfs
+    state = DFTState(ibzwfs=ibzwfs,
+                     density=density,
+                     potential=potential,
+                     energies=energies)
+
+    return builder, params, state
 
 
 def convert_to_new_packing_convention(a_asp, density=False):

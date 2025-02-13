@@ -97,21 +97,16 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
     dft_params.symmetry = {'point_group': False}
 
     # Read state arrays and create the builder
-    builder, density, energies, potential, ibzwfs = read_dft_state(
+    builder, dft_params, state = read_dft_state(
         reader.state, atoms=atoms, params=dft_params,
         comm=comm, singlep=False)
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = state.ibzwfs.wfs_qs[0][0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:
         reader.close()
-
-    state = DFTState(ibzwfs=ibzwfs,
-                     density=density,
-                     potential=potential,
-                     energies=energies)
 
     history = RTTDDFTHistory()
 
