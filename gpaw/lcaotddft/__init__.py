@@ -25,7 +25,7 @@ def LCAOTDDFT(filename: str, **kwargs) -> Any:
         assert kwargs.pop('parallel', None) in [None], 'Not implemented yet'
         assert kwargs.pop('communicator', None) in [None], \
             'Not implemented yet'
-        new_tddft = RTTDDFTAdapter.from_dft_file(filename, **kwargs)
+        new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
         return new_tddft
     return OldLCAOTDDFT(filename, **kwargs)
 

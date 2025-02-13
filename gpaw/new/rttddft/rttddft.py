@@ -4,17 +4,21 @@ from typing import Generator, NamedTuple
 
 import numpy as np
 
+from ase import Atoms
 from ase.units import Bohr, Hartree
+from ase.io.ulm import Reader
 
 from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
 from gpaw.external import ExternalPotential, ConstantElectricField
-from gpaw.mpi import world
+from gpaw.mpi import broadcast, world
 from gpaw.new.ase_interface import ASECalculator
-from gpaw.new.calculation import DFTState, DFTCalculation
+from gpaw.new.calculation import DFTState
 from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import read_gpw
+from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.hamiltonian import Hamiltonian
+from gpaw.new.input_parameters import InputParameters
 from gpaw.new.lcao.hamiltonian import (HamiltonianMatrixCalculator,
                                        LCAOKickHamiltonian,
                                        LCAOHamiltonian)
@@ -24,71 +28,12 @@ from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
-from gpaw.new.symmetry import Symmetries
+from gpaw.new.rttddft.history import RTTDDFTHistory
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.tddft.units import (asetime_to_autime,
                               autime_to_asetime, au_to_eA)
 from gpaw.typing import Vector
 from gpaw.utilities.timing import nulltimer
-
-
-class RTTDDFTHistory:
-
-    kick_strength: Vector | None  # Kick strength in atomic units
-    niter: int  # Number of propagation steps
-    time: float  # Simulation time in atomic units
-
-    def __init__(self):
-        """Object that keeps track of the RT-TDDFT history, that is
-
-        - Has a kick been performed?
-        - The number of propagation states performed
-        """
-        self.kick_strength = None
-        self.niter = 0
-        self.time = 0.0
-
-    def absorption_kick(self,
-                        kick_strength: Vector):
-        """ Store the kick strength in history
-
-        At most one kick can be done, and it must happen before any
-        propagation steps
-
-        Parameters
-        ----------
-        kick_strength
-            Strength of the kick in atomic units
-        """
-        assert self.niter == 0, 'Cannot kick if already propagated'
-        assert self.kick_strength is None, 'Cannot kick if already kicked'
-        self.kick_strength = np.array(kick_strength, dtype=float)
-
-    def propagate(self,
-                  time_step: float) -> float:
-        """ Increment the number of propagation steps and simulation time
-        in history
-
-        Parameters
-        ----------
-        time_step
-            Time step in atomic units
-
-        Returns
-        -------
-        The new simulation time in atomic units
-        """
-        self.niter += 1
-        self.time += time_step
-
-        return self.time
-
-    def todict(self):
-        absorption_kick = self.absorption_kick
-        if absorption_kick is not None:
-            absorption_kick = absorption_kick.tolist()
-        return {'niter': self.niter, 'time': self.time,
-                'absorption_kick': absorption_kick}
 
 
 class RTTDDFTResult(NamedTuple):
@@ -117,7 +62,9 @@ class RTTDDFT:
                  pot_calc: PotentialCalculator,
                  hamiltonian,
                  history: RTTDDFTHistory,
-                 td_algorithm: TDAlgorithmLike = None):
+                 td_algorithm: TDAlgorithmLike = None,
+                 *,
+                 dft_params: InputParameters):
         if len(state.ibzwfs.ibz.symmetries.op_scc) > 1:
             raise ValueError('Symmetries are not allowed for TDDFT. '
                              'Run the ground state calculation with '
@@ -128,6 +75,7 @@ class RTTDDFT:
         self.td_algorithm = create_td_algorithm(td_algorithm)
         self.hamiltonian = hamiltonian
         self.history = history
+        self.dft_params = dft_params
 
         self.kick_ext: ExternalPotential | None = None
 
@@ -152,24 +100,37 @@ class RTTDDFT:
         self.timer = nulltimer
         self.log = print
 
+    @property
+    def atoms(self) -> Atoms:
+        """ Get ASE atoms object """
+        grid = self.state.density.grid
+        symbols = [setup.symbol for setup in self.pot_calc.setups]
+        cell_cv = grid.cell_cv * Bohr
+        positions_av = self.pot_calc.relpos_ac @ cell_cv
+        pbc_c = grid.pbc_c
+        return Atoms(symbols, positions_av, cell=cell_cv, pbc=pbc_c)
+
+    @property
+    def td_params(self):
+        params = {'td_algorithm': self.td_algorithm.todict()}
+        return params
+
     @classmethod
     def from_dft_calculation(cls,
-                             calc: ASECalculator | DFTCalculation,
+                             calc: ASECalculator,
                              td_algorithm: TDAlgorithmLike = None):
 
-        if isinstance(calc, DFTCalculation):
-            dft = calc
-        else:
-            assert calc.dft is not None
-            dft = calc.dft
+        assert calc.dft is not None
+        dft = calc.dft
 
         state = dft.get_state()
         pot_calc = dft.pot_calc
         hamiltonian = dft.scf_loop.hamiltonian
         history = RTTDDFTHistory()
 
-        return cls(state, pot_calc, hamiltonian, td_algorithm=td_algorithm,
-                   history=history)
+        return cls(state, pot_calc, hamiltonian,
+                   history=history, dft_params=calc.params,
+                   td_algorithm=td_algorithm)
 
     @classmethod
     def from_dft_file(cls,
@@ -185,8 +146,49 @@ class RTTDDFT:
         hamiltonian = builder.create_hamiltonian_operator()
         history = RTTDDFTHistory()
 
-        return cls(state, pot_calc, hamiltonian, td_algorithm=td_algorithm,
-                   history=history)
+        return cls(state, pot_calc, hamiltonian,
+                   history=history, dft_params=params,
+                   td_algorithm=td_algorithm)
+
+    @classmethod
+    def from_rttddft_file(cls,
+                          filepath: str):
+        _, state, history, dft_params, params, builder = read_rttddft(
+            filepath, log='-', comm=world)
+
+        pot_calc = builder.create_potential_calculator()
+        hamiltonian = builder.create_hamiltonian_operator()
+        history = RTTDDFTHistory()
+
+        return cls(state, pot_calc, hamiltonian,
+                   history=history, dft_params=dft_params, **params)
+
+    @classmethod
+    def from_file(cls,
+                  filepath: str,
+                  **kwargs):
+        if world.rank == 0:
+            with Reader(filepath) as reader:
+                tag = reader.get_tag()
+                broadcast(tag, comm=world)
+        else:
+            tag = broadcast(None, comm=world)
+
+        if tag == 'gpaw':
+            return cls.from_dft_file(filepath, **kwargs)
+        if tag == 'gpaw-rttddft':
+            return cls.from_rttddft_file(filepath, **kwargs)
+
+        raise ValueError(f'Unknown file. Tag {tag}')
+
+    def write(self,
+              filename: str):
+        write_rttddft(filename,
+                      self.atoms,
+                      self.dft_params,
+                      self.td_params,
+                      self.state,
+                      self.history)
 
     def absorption_kick(self,
                         kick_strength: Vector):

@@ -46,7 +46,7 @@ def TDDFT(filename: str, **kwargs):
         assert kwargs.pop('parallel', None) in [None], 'Not implemented yet'
         assert kwargs.pop('communicator', None) in [None], \
             'Not implemented yet'
-        new_tddft = RTTDDFTAdapter.from_dft_file(filename, **kwargs)
+        new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
         return new_tddft
     return OldTDDFT(filename, **kwargs)
 

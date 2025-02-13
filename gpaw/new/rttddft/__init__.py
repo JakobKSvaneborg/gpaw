@@ -5,7 +5,8 @@ The main RTTDDFT class is agnostic to the underlying implementation
 of the wave functions (FD, or LCAO). Instead, the implementation
 specific functionality is contained in the propagator classes.
 """
-from gpaw.new.rttddft.rttddft import RTTDDFT, RTTDDFTResult, RTTDDFTHistory
+from gpaw.new.rttddft.rttddft import RTTDDFT, RTTDDFTResult
+from gpaw.new.rttddft.history import RTTDDFTHistory
 
 
 __all__ = ['RTTDDFT', 'RTTDDFTResult', 'RTTDDFTHistory']

@@ -213,6 +213,12 @@ class RTTDDFTAdapter:
         else:
             return getattr(self._rttddft, attr)
 
+    def write(self,
+              filename: str,
+              mode=None):
+        # Ignore mode option
+        return self._rttddft.write(filename)
+
     @classmethod
     def from_dft_calculation(cls,
                              calc: ASECalculator,
@@ -227,4 +233,19 @@ class RTTDDFTAdapter:
                       propagator: TDAlgorithmLike = None):
         rttddft = RTTDDFT.from_dft_file(filepath,
                                         td_algorithm=propagator)
+        return cls(rttddft)
+
+    @classmethod
+    def from_rttddft_file(cls,
+                          filepath: str):
+        rttddft = RTTDDFT.from_rttddft_file(filepath)
+        return cls(rttddft)
+
+    @classmethod
+    def from_file(cls,
+                  filepath: str,
+                  **kwargs):
+        if 'propagator' in kwargs:
+            kwargs['td_algorithm'] = kwargs.pop('propagator')
+        rttddft = RTTDDFT.from_file(filepath, **kwargs)
         return cls(rttddft)
