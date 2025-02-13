@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Any
-import numpy as np
 
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
@@ -11,69 +10,12 @@ from gpaw.tddft.units import as_to_au, autime_to_asetime
 from gpaw.typing import Vector
 
 
-class PoissonAdapter:
-
-    def get_description(self):
-        return ''
-
-
-class HamiltonianAdapter:
-
-    def __init__(self,
-                 rttddft: RTTDDFT):
-        self.poisson = PoissonAdapter()
-
-
-class DensityAdapter:
-
-    def __init__(self,
-                 rttddft: RTTDDFT):
-        self._density = rttddft.state.density
-        self._pot_calc = rttddft.pot_calc
-
-    @property
-    def density(self):
-        return self._density
-
-    @property
-    def pot_calc(self):
-        return self._pot_calc
-
-    def __getattr__(self, attr):
-        if attr == 'finegd':
-            return self.pot_calc.fine_grid._gd
-        if attr == 'nt_sg':
-            # Intepolate density
-            nt_sr = self.pot_calc.interpolate(self.nt_sR)
-
-            # Compute pseudo charge
-            pseudo_charge = nt_sr.integrate().sum()
-            ccc_aL = self.density.calculate_compensation_charge_coefficients()
-            comp_charge = (4 * np.pi)**0.5 * sum(float(ccc_L[0])
-                                                 for ccc_L in ccc_aL.values())
-            comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
-
-            # Normalize
-            nt_sr.data *= -comp_charge / pseudo_charge
-            return nt_sr.data
-        if attr == 'rhot_g':
-            rhot_g = self.pot_calc.fine_grid.empty()
-            rhot_g.data[:] = self.nt_sg.sum(axis=0)
-            ccc_aL = self.density.calculate_compensation_charge_coefficients()
-            self.pot_calc.ghat_aLr.add_to(rhot_g, ccc_aL)
-            return rhot_g.data
-
-        return getattr(self._density, attr)
-
-
 class RTTDDFTAdapter:
     """ Adapter to use old-GPAW code with new RTTDDFT """
 
     def __init__(self,
                  rttddft: RTTDDFT):
         self._rttddft = rttddft
-        self._density = DensityAdapter(rttddft)
-        self._hamiltonian = HamiltonianAdapter(rttddft)
         self.observers: list[Any] = []
         self.action = ''
         if world.size > 1:
@@ -86,11 +28,19 @@ class RTTDDFTAdapter:
 
     @property
     def density(self):
-        return self._density
+        from gpaw.new.backwards_compatibility import FakeDensity
+        state = self._rttddft.state
+        return FakeDensity(ibzwfs=state.ibzwfs,
+                           density=state.density,
+                           potential=state.potential,
+                           pot_calc=self._rttddft.pot_calc)
 
     @property
     def hamiltonian(self):
-        return self._hamiltonian
+        from gpaw.new.backwards_compatibility import FakeHamiltonian
+        state = self._rttddft.state
+        return FakeHamiltonian(state.ibzwfs, state.density,
+                               state.potential, self._rttddft.pot_calc)
 
     def attach(self, function, n=1, *args, **kwargs):
         """Register observer function to run during the propagation.

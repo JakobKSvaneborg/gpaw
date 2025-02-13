@@ -173,6 +173,7 @@ class RTTDDFT:
                 broadcast(tag, comm=world)
         else:
             tag = broadcast(None, comm=world)
+        tag = tag.lower()
 
         if tag == 'gpaw':
             return cls.from_dft_file(filepath, **kwargs)
