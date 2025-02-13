@@ -9,11 +9,16 @@ from gpaw.new.ase_interface import GPAW
 
 @pytest.mark.serial
 def test_single_precision():
-    result = subprocess.run(
-        f'GPAW_NO_C_EXTENSION=1 python {__file__}',
-        shell=True, capture_output=True,
-        text=True, check=True)
-    result.stderr
+    try:
+        result = subprocess.run(
+            f'GPAW_NO_C_EXTENSION=1 python {__file__}',
+            shell=True, capture_output=True,
+            text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(e.output)
+        print(e.stderr)
+        raise e
+    print(result.stdout)
 
 
 def run_single_precision():
@@ -21,20 +26,24 @@ def run_single_precision():
     atoms.center(vacuum=2.5)
     atoms2 = atoms.copy()
 
-    atoms.calc = GPAW(xc='PPLDA',
+    atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
                       mode={'name': 'pw',
                             'ecut': 200.0,
-                            'dtype': complex})
+                            'dtype': np.complex128},
+                     parallel={'gpu': False}
+                     )
     e_pot1 = atoms.get_potential_energy()
 
-    atoms2.calc = GPAW(xc='PPLDA',
+    atoms2.calc = GPAW(xc={'name': 'LDA'},
                        symmetry='off',
                        random=True,
                        mode={'name': 'pw',
                              'ecut': 200.0,
-                             'dtype': np.float32})
+                             'dtype': np.float32},
+                       parallel={'gpu': True}
+                       )
     e_pot2 = atoms2.get_potential_energy()
 
     assert not atoms.calc.wfs.dtype == np.float32

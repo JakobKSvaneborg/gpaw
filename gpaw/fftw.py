@@ -269,15 +269,15 @@ class CuPyFFTPlans(FFTPlans):
         array_Q[:] = 0.0
         Q_G = self.indices(pw)
 
-        assert array_Q.dtype == complex
-        assert coef_G.dtype == complex
+        assert np.issubdtype(array_Q.dtype, np.complexfloating)
+        assert np.issubdtype(coef_G.dtype, np.complexfloating)
         pw_insert_gpu(coef_G,
                       Q_G,
                       1.0,
                       array_Q.ravel(),
                       *out_R.desc.size_c)
 
-        if self.dtype == complex:
+        if np.issubdtype(self.dtype, np.complexfloating):
             array_R[:] = cupyx.scipy.fft.ifftn(
                 array_Q, array_Q.shape,
                 norm='forward', overwrite_x=True)
@@ -292,7 +292,7 @@ class CuPyFFTPlans(FFTPlans):
     def fft_sphere(self, in_R, pw):
         from gpaw.gpu import cupyx
         from gpaw.gpu import cupy as cp
-        if self.dtype == complex:
+        if np.issubdtype(coef_G.dtype, np.complexfloating):
             out_Q = cupyx.scipy.fft.fftn(in_R)
         else:
             try:
