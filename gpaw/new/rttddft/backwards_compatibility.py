@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from functools import cached_property
+from types import SimpleNamespace
 from typing import Any
 
+from gpaw.new.backwards_compatibility import FakePoisson
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.rttddft.rttddft import RTTDDFT
@@ -10,12 +13,30 @@ from gpaw.tddft.units import as_to_au, autime_to_asetime
 from gpaw.typing import Vector
 
 
+class FakeTDHamiltonian:
+
+    def __init__(self,
+                 rttddft: RTTDDFT):
+        self._rttddft = rttddft
+        self.poisson = FakePoisson()
+
+    def get_hamiltonian_matrix(self, kpt, time, addfxc=True, addpot=True,
+                               scale=True):
+        hamiltonian = self._rttddft.hamiltonian
+        ham_calc = hamiltonian.create_hamiltonian_matrix_calculator(
+            self._rttddft.state.potential)
+        wfs = self._rttddft.state.ibzwfs.wfs_qs[kpt.q][kpt.s]
+        H_MM = ham_calc.calculate_matrix(wfs)
+        return H_MM.data
+
+
 class RTTDDFTAdapter:
     """ Adapter to use old-GPAW code with new RTTDDFT """
 
     def __init__(self,
                  rttddft: RTTDDFT):
         self._rttddft = rttddft
+        self.td_hamiltonian = FakeTDHamiltonian(rttddft)
         self.observers: list[Any] = []
         self.action = ''
         if world.size > 1:
@@ -25,6 +46,20 @@ class RTTDDFTAdapter:
     @property
     def world(self):
         return world
+
+    @cached_property
+    def wfs(self):
+        from gpaw.new.backwards_compatibility import FakeWFS
+        state = self._rttddft.state
+        wfs = FakeWFS(state.ibzwfs,
+                      state.density,
+                      state.potential,
+                      self._rttddft.pot_calc.setups,
+                      world,
+                      SimpleNamespace(occ=SimpleNamespace()),
+                      self._rttddft.hamiltonian,
+                      self.atoms)
+        return wfs
 
     @property
     def density(self):
@@ -39,8 +74,14 @@ class RTTDDFTAdapter:
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
         state = self._rttddft.state
+        energies = dict(self._rttddft.state.energies._energies)
+        energies['kinetic0'] = energies.pop('kinetic_correction')
+        energies = {f'e_{key}': value
+                    for key, value in energies.items()
+                    if key not in ['spinorbit']}
         return FakeHamiltonian(state.ibzwfs, state.density,
-                               state.potential, self._rttddft.pot_calc)
+                               state.potential, self._rttddft.pot_calc,
+                               **energies)
 
     def attach(self, function, n=1, *args, **kwargs):
         """Register observer function to run during the propagation.

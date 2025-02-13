@@ -105,7 +105,8 @@ class FakeWFS:
             self.manytci = wfs.tci_derivatives.manytci
             if self.basis_functions is not None:
                 self.ksl = SimpleNamespace(Mstart=self.basis_functions.Mstart,
-                                           Mstop=self.basis_functions.Mstop)
+                                           Mstop=self.basis_functions.Mstop,
+                                           using_blacs=False)
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
         self.read_from_file_init_wfs_dm = ibzwfs.read_from_file_init_wfs_dm
@@ -233,6 +234,12 @@ class FakeWFS:
             return self.gd.integrate(a_nX, b_nX, global_integral)
         x = self.pd.integrate(a_nX, b_nX, global_integral)
         return self.ngpts**2 * x
+
+    def calculate_density_matrix(self, f_n, C_nM, rho_MM=None):
+        assert self.ibzwfs.band_comm.size == 1
+        assert self.ibzwfs.kpt_comm.size == 1
+        rho_MM = self.ibzwfs.wfs_qs[0][0].calculate_density_matrix()
+        return rho_MM
 
 
 class KPT:
@@ -410,7 +417,11 @@ class FakeHamiltonian:
                  density: Density,
                  potential: Potential,
                  pot_calc: PotentialCalculator,
+                 e_kinetic0=np.nan,
+                 e_coulomb=np.nan,
                  e_total_free=np.nan,
+                 e_zero=np.nan,
+                 e_external=np.nan,
                  e_xc=np.nan):
         self.pot_calc = pot_calc
         self.ibzwfs = ibzwfs
@@ -424,6 +435,10 @@ class FakeHamiltonian:
         self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
         self.e_xc = e_xc
+        self.e_kinetic0 = e_kinetic0
+        self.e_coulomb = e_coulomb
+        self.e_external = e_external
+        self.e_zero = e_zero
 
     def update(self, dens, wfs, kin_en_using_band=True):
         self.potential, _ = self.pot_calc.calculate(
