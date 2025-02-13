@@ -6,9 +6,12 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 
 from _gpaw import XCFunctional
+from _gpaw import Operator
 
 have_openmp = False
 
+def gpaw_gpu_init():
+    pass
 
 def get_num_threads():
     return 1

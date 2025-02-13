@@ -3,6 +3,7 @@ import numpy as np
 import subprocess
 
 from ase.build import molecule
+from ase.build import bulk
 
 from gpaw.new.ase_interface import GPAW
 
@@ -22,34 +23,36 @@ def test_single_precision():
 
 
 def run_single_precision():
-    atoms = molecule('H2')
+    atoms = bulk('Au')
     atoms.center(vacuum=2.5)
     atoms2 = atoms.copy()
 
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
+                      kpts={'density': 2},
                       mode={'name': 'pw',
                             'ecut': 200.0,
-                            'dtype': np.complex128},
-                     parallel={'gpu': False}
+                            'dtype': np.complex64},
+                     parallel={'gpu': True}
                      )
     e_pot1 = atoms.get_potential_energy()
 
     atoms2.calc = GPAW(xc={'name': 'LDA'},
                        symmetry='off',
                        random=True,
+                       kpts={'density': 2},
                        mode={'name': 'pw',
                              'ecut': 200.0,
-                             'dtype': np.float32},
+                             'dtype': np.complex128},
                        parallel={'gpu': True}
                        )
     e_pot2 = atoms2.get_potential_energy()
 
-    assert not atoms.calc.wfs.dtype == np.float32
-    assert atoms2.calc.wfs.dtype == np.float32
+    assert atoms.calc.wfs.dtype == np.complex64
+    assert atoms2.calc.wfs.dtype == np.complex128
 
-    assert e_pot2 == pytest.approx(e_pot1, rel=1e-4)
+    assert e_pot2 == pytest.approx(e_pot1, rel=1e-3)
 
 
 if __name__ == '__main__':

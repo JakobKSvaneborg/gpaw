@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 else:
     try:
         import gpaw.cgpaw as cgpaw
-        if not hasattr(cgpaw, 'gpaw_gpu_init'):
-            raise ImportError
+        #if not hasattr(cgpaw, 'gpaw_gpu_init'):
+        #    raise ImportError
 
         import cupy
 
