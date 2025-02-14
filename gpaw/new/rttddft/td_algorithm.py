@@ -79,7 +79,6 @@ class TDAlgorithm(ABC):
     def propagate_wfs(self,
                       time_step: float,
                       state: DFTState,
-                      pot_calc: PotentialCalculator,
                       hamiltonian: Hamiltonian):
         wf_propagator = build_wf_propagator(self.implementation,
                                             hamiltonian, state)
@@ -116,7 +115,7 @@ class ECNAlgorithm(TDAlgorithm):
                   pot_calc: PotentialCalculator,
                   hamiltonian: Hamiltonian):
         # Propagate wave functions one timestep; ψ(t) -> ψ(t + dt)
-        self.propagate_wfs(time_step, state, pot_calc, hamiltonian)
+        self.propagate_wfs(time_step, state, hamiltonian)
 
         # Calculate density and Hamiltonian at t + dt
         self.update_time_dependent_operators(state, pot_calc)
@@ -154,7 +153,7 @@ class SICNAlgorithm(TDAlgorithm):
         prev_potential = state.potential.copy()
 
         # Propagate wave functions one timestep; ψ(t) -> ψ(t + dt)
-        self.propagate_wfs(time_step, state, pot_calc, hamiltonian)
+        self.propagate_wfs(time_step, state, hamiltonian)
 
         # Calculate density and Hamiltonian at t + dt
         self.update_time_dependent_operators(state, pot_calc)
@@ -170,7 +169,7 @@ class SICNAlgorithm(TDAlgorithm):
 
         # Propagate wave functions one timestep; ψ(t) -> ψ(t + dt)
         # using the averaged Hamiltonian
-        self.propagate_wfs(time_step, state, pot_calc, hamiltonian)
+        self.propagate_wfs(time_step, state, hamiltonian)
 
         # Calculate density and Hamiltonian at t + dt
         self.update_time_dependent_operators(state, pot_calc)

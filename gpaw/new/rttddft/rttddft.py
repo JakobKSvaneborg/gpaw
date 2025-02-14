@@ -8,7 +8,6 @@ from ase import Atoms
 from ase.units import Bohr, Hartree
 from ase.io.ulm import Reader
 
-from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
 from gpaw.external import ExternalPotential, ConstantElectricField
 from gpaw.mpi import broadcast, world
 from gpaw.new.ase_interface import ASECalculator
@@ -19,17 +18,13 @@ from gpaw.new.gpw import read_gpw
 from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.input_parameters import InputParameters
-from gpaw.new.lcao.hamiltonian import (HamiltonianMatrixCalculator,
-                                       LCAOKickHamiltonian,
-                                       LCAOHamiltonian)
+from gpaw.new.lcao.hamiltonian import LCAOKickHamiltonian, LCAOHamiltonian
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
-from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
 from gpaw.new.rttddft.history import RTTDDFTHistory
-from gpaw.new.wave_functions import WaveFunctions
 from gpaw.tddft.units import (asetime_to_autime,
                               autime_to_asetime, au_to_eA)
 from gpaw.typing import Vector
@@ -44,7 +39,6 @@ class RTTDDFTResult(NamedTuple):
 
     time: float  # Time in atomic units
     dipolemoment: Vector  # Dipole moment in atomic units
-    norm: float  # Integral of density
 
     def __repr__(self):
         timestr = f'{self.time * autime_to_asetime:.3f} Å√(u/eV)'
@@ -54,6 +48,16 @@ class RTTDDFTResult(NamedTuple):
 
         return (f'{self.__class__.__name__}: '
                 f'(time: {timestr}, dipolemoment: {dmstr} eÅ)')
+
+    @classmethod
+    def from_state(cls,
+                   time: float,
+                   state: DFTState,
+                   pot_calc: PotentialCalculator) -> RTTDDFTResult:
+        relpos_ac = pot_calc.relpos_ac
+        dipolemoment = state.density.calculate_dipole_moment(relpos_ac)
+
+        return RTTDDFTResult(time=time, dipolemoment=dipolemoment)
 
 
 class RTTDDFT:
@@ -80,22 +84,14 @@ class RTTDDFT:
         self.kick_ext: ExternalPotential | None = None
 
         if isinstance(hamiltonian, LCAOHamiltonian):
-            # self.calculate_dipole_moment = self._calculate_dipole_moment_lcao
-            self.calculate_dipole_moment = self._calculate_dipole_moment
             self.mode = 'lcao'
         elif isinstance(hamiltonian, FDHamiltonian):
-            self.calculate_dipole_moment = self._calculate_dipole_moment
             self.mode = 'fd'
         elif isinstance(hamiltonian, PWHamiltonian):
             raise NotImplementedError('PW TDDFT is not implemented')
         else:
             raise ValueError(f"I don\'t know {hamiltonian} "
                              f'({type(hamiltonian)})')
-        # Dipole moment operators in each Cartesian direction
-        # Only usable for LCAO
-        # TODO is there even a point in caching these? I don't think it saves
-        # much time
-        self.dm_operator_c: list[HamiltonianMatrixCalculator] | None = None
 
         self.timer = nulltimer
         self.log = print
@@ -238,8 +234,6 @@ class RTTDDFT:
             External potential
         """
         with self.timer('Kick'):
-            assert isinstance(self.state.density.nct_aX,
-                              UGAtomCenteredFunctions)
             self.log('----  Applying kick')
             self.log(f'----  {ext}')
             self.kick_ext = ext
@@ -252,20 +246,13 @@ class RTTDDFT:
             for l in range(nkicks):
                 td_algorithm.propagate_wfs(1 / nkicks,
                                            state=self.state,
-                                           pot_calc=self.pot_calc,
                                            hamiltonian=hamiltonian)
             td_algorithm.update_time_dependent_operators(self.state,
                                                          self.pot_calc)
 
-            dipolemoment_xv = [
-                self.calculate_dipole_moment(wfs)  # type: ignore
-                for wfs in self.state.ibzwfs]
-            dipolemoment_v = np.sum(dipolemoment_xv, axis=0)
-            norm = np.sum(self.state.density.nct_aX.integrals)
-            result = RTTDDFTResult(time=0,
-                                   dipolemoment=dipolemoment_v,
-                                   norm=norm)
-            return result
+            return RTTDDFTResult.from_state(time=0,
+                                            pot_calc=self.pot_calc,
+                                            state=self.state)
 
     def kick_hamiltonian(self,
                          ext: ExternalPotential) -> Hamiltonian:
@@ -311,7 +298,6 @@ class RTTDDFT:
             Number of propagation steps
         """
 
-        assert isinstance(self.state.density.nct_aX, UGAtomCenteredFunctions)
         time_step = time_step * asetime_to_autime
 
         for iteration in range(maxiter):
@@ -320,50 +306,7 @@ class RTTDDFT:
                                         pot_calc=self.pot_calc,
                                         hamiltonian=self.hamiltonian)
             time = self.history.propagate(time_step)
-            dipolemoment_xv = [
-                self.calculate_dipole_moment(wfs)  # type: ignore
-                for wfs in self.state.ibzwfs]
-            dipolemoment_v = np.sum(dipolemoment_xv, axis=0)
-            norm = np.sum(self.state.density.nct_aX.integrals)
-            result = RTTDDFTResult(time=time,
-                                   dipolemoment=dipolemoment_v,
-                                   norm=norm)
-            yield result
 
-    def _calculate_dipole_moment(self, wfs: WaveFunctions) -> np.ndarray:
-        dipolemoment_v = self.state.density.calculate_dipole_moment(
-            self.pot_calc.relpos_ac)
-
-        return dipolemoment_v
-
-    def _calculate_dipole_moment_lcao(self,
-                                      wfs: LCAOWaveFunctions) -> np.ndarray:
-        """ Calculates the dipole moment
-
-        The dipole moment is calculated as the expectation value of the
-        dipole moment operator, i.e. the trace of it times the density matrix::
-
-          d = - Σ  ρ   d
-                μν  μν  νμ
-
-        """
-        assert isinstance(wfs, LCAOWaveFunctions)
-        if self.dm_operator_c is None:
-            self.dm_operator_c = []
-
-            # Create external potentials in each direction
-            ext_c = [ConstantElectricField(Hartree / Bohr, dir)
-                     for dir in np.eye(3)]
-            dm_operator_c = [self.hamiltonian.create_kick_matrix_calculator(
-                self.state, ext, self.pot_calc) for ext in ext_c]
-            self.dm_operator_c = dm_operator_c
-
-        dm_v = np.zeros(3)
-        for c, dm_operator in enumerate(self.dm_operator_c):
-            rho_MM = wfs.calculate_density_matrix()
-            dm_MM = dm_operator.calculate_matrix(wfs)
-            dm = - np.einsum('MN,NM->', rho_MM, dm_MM.data)
-            assert np.abs(dm.imag) < 1e-20
-            dm_v[c] = dm.real
-
-        return dm_v
+            yield RTTDDFTResult.from_state(time=time,
+                                           pot_calc=self.pot_calc,
+                                           state=self.state)
