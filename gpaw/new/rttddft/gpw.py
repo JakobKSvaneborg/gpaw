@@ -108,6 +108,6 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
     else:
         reader.close()
 
-    history = RTTDDFTHistory()
+    history = RTTDDFTHistory.from_values(**reader.history.asdict())
 
     return atoms, state, history, dft_params, td_params, builder

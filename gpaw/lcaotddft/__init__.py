@@ -22,7 +22,7 @@ def LCAOTDDFT(filename: str, **kwargs) -> Any:
         kwargs.pop('parallel', None)  # Ignore silently
         kwargs.pop('communicator', None)  # Ignore silently
         assert kwargs.pop('td_potential', None) in [None], \
-            'Not implemented yet'
+            'td_potential not implemented yet'
         assert kwargs.pop('rremission', None) in [None], \
             'rremission not implemented yet'
         assert kwargs.pop('fxc', None) in [None], \

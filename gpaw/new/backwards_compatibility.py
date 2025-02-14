@@ -13,6 +13,7 @@ from gpaw.fftw import MEASURE
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
 from gpaw.new.density import Density
+from gpaw.new.gpw import GPWFlags
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.potential import Potential
@@ -242,6 +243,21 @@ class FakeWFS:
         assert self.ibzwfs.kpt_comm.size == 1
         rho_MM = self.ibzwfs.wfs_qs[0][0].calculate_density_matrix()
         return rho_MM
+
+    def write_wave_functions(self, writer):
+        flags = GPWFlags(precision='double',
+                         include_wfs=True, include_projections=True)
+        if self.ibzwfs.collinear:
+            spin_k_shape = (self.ibzwfs.ncomponents, len(self.ibzwfs.ibz))
+        else:
+            spin_k_shape = (len(self.ibzwfs.ibz),)
+        self.ibzwfs._write_wave_functions(writer, spin_k_shape, flags)
+
+    def write_occupations(self, writer):
+        _, occ_skn = self.ibzwfs.get_all_eigs_and_occs()
+        if not self.ibzwfs.collinear:
+            occ_skn = occ_skn[0]
+        writer.write(occupations=occ_skn)
 
 
 class KPT:

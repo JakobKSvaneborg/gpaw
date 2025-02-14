@@ -62,3 +62,15 @@ class RTTDDFTHistory:
             kick_strength = kick_strength.tolist()
         return {'niter': self.niter, 'time': self.time,
                 'kick_strength': kick_strength}
+
+    @classmethod
+    def from_values(cls,
+                    kick_strength: Vector | None,
+                    niter: int,
+                    time: float) -> RTTDDFTHistory:
+        history = cls()
+        if kick_strength is not None:
+            history.absorption_kick(kick_strength)
+        history.niter = niter
+        history.time = time
+        return history

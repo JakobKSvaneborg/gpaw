@@ -157,7 +157,6 @@ class RTTDDFT:
 
         pot_calc = builder.create_potential_calculator()
         hamiltonian = builder.create_hamiltonian_operator()
-        history = RTTDDFTHistory()
 
         return cls(state, pot_calc, hamiltonian,
                    history=history, dft_params=dft_params, **params)
