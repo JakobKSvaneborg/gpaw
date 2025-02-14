@@ -427,7 +427,7 @@ class _NullIO(io.BufferedIOBase):
         return True
 
 
-devnull = io.TextIOWrapper(_NullIO())
+devnull = io.TextIOWrapper(_NullIO())  # type: ignore
 
 
 def convert_string_to_fd(name, world=None):
