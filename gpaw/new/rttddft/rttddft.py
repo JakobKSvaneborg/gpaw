@@ -69,6 +69,9 @@ class RTTDDFT:
                  td_algorithm: TDAlgorithmLike = None,
                  *,
                  dft_params: InputParameters):
+        if world.size > 1:
+            raise NotImplementedError('Parallel execution not implemented')
+
         if len(state.ibzwfs.ibz.symmetries.op_scc) > 1:
             raise ValueError('Symmetries are not allowed for TDDFT. '
                              'Run the ground state calculation with '
@@ -174,6 +177,7 @@ class RTTDDFT:
         if tag == 'gpaw':
             return cls.from_dft_file(filepath, **kwargs)
         if tag == 'gpaw-rttddft':
+            kwargs.pop('td_algorithm', None)  # Should we raise a warning?
             return cls.from_rttddft_file(filepath, **kwargs)
 
         raise ValueError(f'Unknown file. Tag {tag}')

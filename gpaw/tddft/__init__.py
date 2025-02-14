@@ -42,10 +42,12 @@ def TDDFT(filename: str, **kwargs):
     if GPAW_NEW:
         from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
         kwargs.pop('txt', None)  # Ignore silently
-        assert kwargs.pop('solver', None) in [None], 'Not implemented yet'
-        assert kwargs.pop('parallel', None) in [None], 'Not implemented yet'
-        assert kwargs.pop('communicator', None) in [None], \
-            'Not implemented yet'
+        kwargs.pop('parallel', None)  # Ignore silently
+        kwargs.pop('communicator', None)  # Ignore silently
+        assert kwargs.pop('solver', None) in [None], \
+            'solver not implemented yet'
+        assert kwargs.pop('td_potential', None) in [None], \
+            'td_potential not implemented yet'
         new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
         return new_tddft
     return OldTDDFT(filename, **kwargs)
