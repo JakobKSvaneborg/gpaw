@@ -3,7 +3,7 @@
 
 """Utility functions and classes."""
 
-import atexit
+import io
 import os
 import re
 import sys
@@ -422,8 +422,12 @@ def file_barrier(path: Union[str, Path], world=None):
     world.barrier()
 
 
-devnull = open(os.devnull, 'w')
-atexit.register(devnull.close)
+class _NullIO(io.TextIOBase):
+    def writable(self):
+        return True
+
+
+devnull = io.TextIOWrapper(_NullIO())
 
 
 def convert_string_to_fd(name, world=None):
