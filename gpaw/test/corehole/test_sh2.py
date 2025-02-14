@@ -39,6 +39,28 @@ def s2p1ch_name():
     return setupname
 
 
+def sh2(setupname):
+    atoms = molecule('SH2')
+    atoms.center(3)
+
+    nbands = 6
+    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
+                      setups={'S': setupname}, txt=None)
+    atoms.get_potential_energy()
+
+    return atoms
+
+
+@pytest.fixture
+def sh2_s1s1ch(s1s1ch_name):
+    return sh2(s1s1ch_name)
+
+
+@pytest.fixture
+def sh2_s2p1ch(s2p1ch_name):
+    return sh2(s2p1ch_name)
+
+
 def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     """Make sure this calculation does not fail
     because of get_spin_contamination"""
@@ -92,32 +114,23 @@ def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
     assert folding_is_normalized(xas, dks)
 
 
-def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
+def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, sh2_s2p1ch):
     if mpi.world.size > 1:
         return
-    atoms = molecule('SH2')
-    atoms.center(3)
-    dks = 20
-    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name}, txt=None)
-    atoms.get_potential_energy()
 
-    xas = XAS(atoms.calc)
+    dks = 20
+
+    xas = XAS(sh2_s2p1ch.calc)
     assert folding_is_normalized(xas, dks)
 
 
-def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
+def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
+    """XXX is this still needed?"""
     if mpi.world.size > 1:
         return
-    atoms = molecule('SH2')
-    atoms.center(3)
-
-    nbands = 6
-    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
-                      setups={'S': s1s1ch_name}, txt=None)
-    atoms.get_potential_energy()
 
     dks = 20
-    xas0 = XAS(atoms.calc)
+    xas0 = XAS(sh2_s1s1ch.calc)
     mefname = 'me.dat.npz'
     xas0.write(mefname)
     x0, y0_cn = xas0.get_oscillator_strength(dks=dks)
@@ -127,16 +140,10 @@ def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
     assert y1_cn == pytest.approx(y0_cn)
 
 
-def test_proj(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
+def test_proj(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch, s1s1ch_name):
     if mpi.world.size > 1:
         return
-    atoms = molecule('SH2')
-    atoms.center(3)
-
-    nbands = 6
-    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
-                      setups={'S': s1s1ch_name}, txt=None)
-    atoms.get_potential_energy()
+    atoms = sh2_s1s1ch
 
     dks = 20
     xas0 = XAS(atoms.calc)
@@ -213,6 +220,7 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
 
 
 def test_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
+    """Is this the more natural way to read?"""
     dks = 20
     """Test that a direct calculation gives the same results as a calcultion
     from """
