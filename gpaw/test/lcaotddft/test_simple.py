@@ -12,6 +12,7 @@ from gpaw.mpi import world
 from gpaw.tddft.spectrum import photoabsorption_spectrum
 
 
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 def test_lcaotddft_simple(gpw_files, in_tmp_dir):
     # Time-propagation calculation
@@ -94,6 +95,7 @@ def test_lcaotddft_simple(gpw_files, in_tmp_dir):
     assert data_i == pytest.approx(0, abs=tol)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_laser(gpw_files, in_tmp_dir):
     # Simple test with laser instead of delta-kick, so
@@ -159,6 +161,7 @@ def test_lcaotddft_laser(gpw_files, in_tmp_dir):
     assert data_i == pytest.approx(ref_i, abs=tol)
 
 
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 def test_lcaotddft_fail_with_symmetry(gpw_files, in_tmp_dir):
     # Time-propagation calculation

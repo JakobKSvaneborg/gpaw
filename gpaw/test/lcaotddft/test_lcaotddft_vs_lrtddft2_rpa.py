@@ -9,6 +9,7 @@ from gpaw.mpi import world
 from gpaw.tddft.spectrum import photoabsorption_spectrum
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_lcaotddft_vs_lrtddft2_rpa(in_tmp_dir):
     atoms = molecule('Na2')

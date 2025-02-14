@@ -86,7 +86,7 @@ def time_propagation_reference(ground_state):
                                write_and_continue=True)
 
 
-@pytest.mark.old_gpaw_only
+@pytest.mark.old_gpaw_only_mpi
 def test_dipole_moment_values(time_propagation_reference,
                               module_tmp_path, in_tmp_dir):
     with open('dm.dat', 'w') as fd:
@@ -118,9 +118,10 @@ def test_dipole_moment_values(time_propagation_reference,
     check_dm('dm2.dat', module_tmp_path / 'dm2.dat', rtol=rtol, atol=atol)
 
 
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.parametrize('parallel', parallel_i)
 @pytest.mark.parametrize('propagator', [
-    'SICN', 'ECN', 'ETRSCN', 'SIKE'])
+    'SICN', 'ECN'])
 def test_propagation(time_propagation_reference,
                      parallel, propagator,
                      module_tmp_path, in_tmp_dir):
@@ -145,7 +146,36 @@ def test_propagation(time_propagation_reference,
     check_dm(module_tmp_path / 'dm.dat', 'dm.dat', rtol=rtol, atol=atol)
 
 
+# Same test repeated, because new GPAW does not support these propagators
 @pytest.mark.old_gpaw_only
+@pytest.mark.parametrize('parallel', parallel_i)
+@pytest.mark.parametrize('propagator', [
+    'ETRSCN', 'SIKE'])
+def test_propagation2(time_propagation_reference,
+                      parallel, propagator,
+                      module_tmp_path, in_tmp_dir):
+    calculate_time_propagation(module_tmp_path / 'gs.gpw',
+                               propagator=propagator,
+                               parallel=parallel)
+    atol = 1e-12
+    if propagator == 'SICN':
+        # This is the same propagator as the reference;
+        # error comes only from parallelization
+        rtol = 1e-8
+        if 'band' in parallel:
+            # XXX band parallelization is inaccurate!
+            rtol = 7e-4
+            atol = 5e-8
+    else:
+        # Other propagators match qualitatively
+        rtol = 5e-2
+        if 'band' in parallel:
+            # XXX band parallelization is inaccurate!
+            atol = 5e-8
+    check_dm(module_tmp_path / 'dm.dat', 'dm.dat', rtol=rtol, atol=atol)
+
+
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_restart(time_propagation_reference,
                  parallel,

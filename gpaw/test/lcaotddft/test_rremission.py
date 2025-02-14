@@ -9,6 +9,7 @@ from gpaw.lcaotddft.qed import RRemission
 from . import check_txt_data
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_rremission(gpw_files, in_tmp_dir):
     # XXX convergence={'density': 1e-8} originally 1e-12
