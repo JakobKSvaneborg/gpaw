@@ -13,19 +13,6 @@ from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
 import gpaw.mpi as mpi
 
 
-def get_oscillator_strength(
-        fname: str, dks: Union[float, List], w=None,
-        kpoint=None, proj=None, proj_xyz: bool = True,
-        raw: bool = False) -> Tuple[Array1D, ArrayND]:
-
-    data = dict(np.load(fname)).values()
-    energy_n, f_cmn = get_os_from_me(
-        *data, dks=dks, w=w, kpoint=kpoint, proj=proj,
-        proj_xyz=proj_xyz, raw=raw)
-
-    return energy_n, f_cmn
-
-
 def dipole_matrix_elements(setup):
     """calculate length form dipole matrix elements of setup-states
     with the core-state"""
@@ -61,100 +48,6 @@ def dipole_matrix_elements(setup):
     return A_cmi
 
 
-def projection(proj, proj_xyz, orthogonal: bool):
-    if proj_xyz:
-        proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
-    else:
-        proj_3 = np.array([], float)
-
-    if proj is not None:
-        assert orthogonal
-        proj_2 = np.array(proj, float)
-        if len(proj_2.shape) == 1:
-            proj_2 = np.array([proj], float)
-
-        for i, p in enumerate(proj_2):
-            if sum(p**2)**0.5 != 1.0:
-                print('proj_2 %s not normalized' % i)
-                proj_2[i] /= sum(p**2)**0.5
-
-        proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
-
-        for i, p in enumerate(proj_3):
-            proj_tmp[i, :] = proj_3[i, :]
-
-        for i, p in enumerate(proj_2):
-            proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
-
-        proj_3 = proj_tmp.copy()
-
-    return proj_3
-
-
-def get_os_from_me(eps_kn, sigma_cmkn, orthogonal,
-                   dks: Union[float, List],
-                   w: Array1D = None,
-                   kpoint=None,
-                   proj=None, proj_xyz: bool = True,
-                   raw: bool = False,):
-
-    proj_3 = projection(proj=proj, proj_xyz=proj_xyz,
-                        orthogonal=orthogonal)
-
-    sigma2_cmkn = np.zeros((proj_3.shape[0],
-                           sigma_cmkn.shape[1],
-                           sigma_cmkn.shape[2],
-                           sigma_cmkn.shape[3]), float)
-
-    for i, p in enumerate(proj_3):
-        for m in range(sigma_cmkn.shape[1]):
-            for k in range(sigma_cmkn.shape[2]):
-                s_tmp = np.dot(p, sigma_cmkn[:, m, k, :])
-                sigma2_cmkn[i, m, k, :] += (s_tmp * np.conjugate(s_tmp)).real
-
-    eps_kn0 = np.min(eps_kn)
-    k_pts = sigma2_cmkn.shape[2]
-    n = sigma2_cmkn.shape[3]
-
-    if isinstance(dks, float) or isinstance(dks, int):
-        dks = [dks]
-
-    energy_kn = np.zeros((k_pts, n * len(dks)))
-    f_cmkn = np.zeros((sigma2_cmkn.shape[0],
-                       sigma2_cmkn.shape[1],
-                       k_pts, n * len(dks)))
-
-    if w is None:
-        w = np.ones(len(dks))
-    elif isinstance(w, float) or isinstance(w, int):
-        w = [w]
-
-    for i in range(len(dks)):
-        shift = dks[i] - eps_kn0
-        ienergy_kn = eps_kn + shift
-
-        if_cmkn = w[i] * 2 * sigma2_cmkn[:, :, :, :] * ienergy_kn / Hartree
-
-        energy_kn[:, i * n:(1 + i) * n] = ienergy_kn
-        f_cmkn[:, :, :, i * n:(1 + i) * n] = if_cmkn
-
-    if kpoint is not None:
-        energy_n = energy_kn[kpoint, :]
-        f_cmn = f_cmkn[:, :, kpoint, :]
-    else:
-        energy_n = np.zeros((k_pts * n * len(dks)))
-        f_cmn = np.zeros((sigma2_cmkn.shape[0],
-                          sigma2_cmkn.shape[1],
-                          k_pts * n * len(dks)))
-        for k in range(k_pts):
-            energy_n[n * k:(k + 1) * n] = energy_kn[k, :]
-            f_cmn[:, :, n * k:(k + 1) * n] = f_cmkn[:, :, k, :]
-    if raw:
-        return energy_n, f_cmn
-
-    return energy_n, f_cmn.sum(axis=1)
-
-
 class XAS:
     def __init__(self, paw=None, *args, **kwargs):
         if paw is not None:
@@ -174,19 +67,16 @@ class XAS:
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
 
+        self.log = paw.log
         wfs = paw.wfs
         self.world = paw.world
         kd = wfs.kd
         bd = wfs.bd
         gd = wfs.gd
-        self.fermi_level = wfs.fermi_levels * Hartree
         self.orthogonal = wfs.gd.orthogonal
         self.cell_cv = np.array(wfs.gd.cell_cv)
 
         my_atom_indices = wfs.atom_partition.my_indices
-
-        # assert wfs.world.size == 1  # assert not mpi.parallel
-        # assert wfs.gd.orthogonal
 
         # to allow spin polarized calclulation
         nkpts = len(wfs.kd.ibzk_kc)
@@ -309,10 +199,27 @@ class XAS:
 
         self.symmetry = wfs.kd.symmetry
 
+        self.log('\n')
+        self.log('\n')
+        self.log('XAS - Calculating Matrix ellement')
+        self.log('\n')
+        self.log('Mode:           ', mode)
+        spin_txt = 'up'
+        if spin == 1:
+            spin_txt = 'down'
+        self.log('Spin:           ', spin_txt, f'({spin})')
+        self.log('Ocupide states: ', nocc)
+        self.log('Center:         ', a)
+        self.log('Element:        ', setup.symbol)
+        self.log('Setup:')
+        setup.print_info(self.log)
+        self.log('\n')
+
     def write(self, fname: str):
 
         if self.world.rank == 0:
-            print(f'Writing to {fname}')
+            self.log(f'Writing to {fname}')
+            self.log('\n')
             with open(fname, mode='wb') as f:
                 np.savez_compressed(
                     f, eps_kn=self.eps_kn, sigma_cmkn=self.sigma_cmkn,
@@ -320,12 +227,41 @@ class XAS:
         self.world.barrier()
 
     @classmethod
-    def read(cls, fname: str):
+    def restart(cls, fname: str):
         self = XAS()
         with open(fname, mode='rb') as f:
             data = dict(np.load(f)).values()
             self.eps_kn, self.sigma_cmkn, self.orthogonal = data
         return self
+
+    def projection(self, proj=None, proj_xyz=True):
+        if proj_xyz:
+            proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
+        else:
+            proj_3 = np.array([], float)
+
+        if proj is not None:
+            assert self.orthogonal
+            proj_2 = np.array(proj, float)
+            if len(proj_2.shape) == 1:
+                proj_2 = np.array([proj], float)
+
+            for i, p in enumerate(proj_2):
+                if sum(p**2)**0.5 != 1.0:
+                    print('proj_2 %s not normalized' % i)
+                    proj_2[i] /= sum(p**2)**0.5
+
+            proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
+
+            for i, p in enumerate(proj_3):
+                proj_tmp[i, :] = proj_3[i, :]
+
+            for i, p in enumerate(proj_2):
+                proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
+
+            proj_3 = proj_tmp.copy()
+
+        return proj_3
 
     def get_oscillator_strength(
             self, dks: Union[float, List], kpoint=None,
@@ -354,13 +290,64 @@ class XAS:
             energies: 1D array [n]
             oscillator strengths: 3D array [c, m, n]
         """
-        energy_n, f_cmn = get_os_from_me(
-            eps_kn=self.eps_kn, sigma_cmkn=self.sigma_cmkn,
-            orthogonal=self.orthogonal,
-            dks=dks, w=w, kpoint=kpoint, proj=proj,
-            proj_xyz=proj_xyz, raw=raw)
+        proj_3 = self.projection(proj=proj, proj_xyz=proj_xyz)
 
-        return energy_n, f_cmn
+        sigma2_cmkn = np.zeros((proj_3.shape[0],
+                                self.sigma_cmkn.shape[1],
+                                self.sigma_cmkn.shape[2],
+                                self.sigma_cmkn.shape[3]), float)
+
+        for i, p in enumerate(proj_3):
+            for m in range(self.sigma_cmkn.shape[1]):
+                for k in range(self.sigma_cmkn.shape[2]):
+                    s_tmp = np.dot(p, self.sigma_cmkn[:, m, k, :])
+                    sigma2_cmkn[i, m, k, :] += (s_tmp *
+                                                np.conjugate(s_tmp)).real
+
+        eps_kn0 = np.min(self.eps_kn)
+        k_pts = sigma2_cmkn.shape[2]
+        n = sigma2_cmkn.shape[3]
+
+        if isinstance(dks, float) or isinstance(dks, int):
+            dks = [dks]
+
+        energy_kn = np.zeros((k_pts, n * len(dks)))
+        f_cmkn = np.zeros((sigma2_cmkn.shape[0],
+                           sigma2_cmkn.shape[1],
+                           k_pts, n * len(dks)))
+
+        if w is None:
+            w = np.ones(len(dks))
+        elif isinstance(w, float) or isinstance(w, int):
+            w = [w]
+
+        for i in range(len(dks)):
+            shift = dks[i] - eps_kn0
+            ienergy_kn = self.eps_kn + shift
+
+            if_cmkn = w[i] * 2 * sigma2_cmkn[:, :, :, :] * ienergy_kn / Hartree
+
+            energy_kn[:, i * n:(1 + i) * n] = ienergy_kn
+            f_cmkn[:, :, :, i * n:(1 + i) * n] = if_cmkn
+
+        if kpoint is not None:
+            energy_n = energy_kn[kpoint, :]
+            f_cmn = f_cmkn[:, :, kpoint, :]
+        else:
+            energy_n = np.zeros((k_pts * n * len(dks)))
+            f_cmn = np.zeros((sigma2_cmkn.shape[0],
+                              sigma2_cmkn.shape[1],
+                              k_pts * n * len(dks)))
+
+            for k in range(k_pts):
+                energy_n[n * k * len(dks):
+                         (k + 1) * n * len(dks)] = energy_kn[k, :]
+                f_cmn[:, :, n * k * len(dks):
+                      (k + 1) * n * len(dks)] = f_cmkn[:, :, k, :]
+        if raw:
+            return energy_n, f_cmn
+
+        return energy_n, f_cmn.sum(axis=1)
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None, proj=None, proj_xyz=True,
