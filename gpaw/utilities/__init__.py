@@ -422,7 +422,7 @@ def file_barrier(path: Union[str, Path], world=None):
     world.barrier()
 
 
-class _NullIO(io.TextIOBase):
+class _NullIO(io.BufferedIOBase):
     def writable(self):
         return True
 
