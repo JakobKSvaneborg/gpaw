@@ -107,9 +107,15 @@ class FakeWFS:
             self.mode = 'lcao'
             self.manytci = wfs.tci_derivatives.manytci
             if self.basis_functions is not None:
-                self.ksl = SimpleNamespace(Mstart=self.basis_functions.Mstart,
-                                           Mstop=self.basis_functions.Mstop,
-                                           using_blacs=False)
+                Mstart = self.basis_functions.Mstart
+                Mstop = self.basis_functions.Mstop
+                self.ksl = SimpleNamespace(Mstart=Mstart,
+                                           Mstop=Mstop,
+                                           using_blacs=False,
+                                           world=self.world,
+                                           nao=self.basis_functions.Mmax,
+                                           mynao=Mstop - Mstart,
+                                           block_comm=comm)
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
         self.read_from_file_init_wfs_dm = ibzwfs.read_from_file_init_wfs_dm
@@ -435,11 +441,14 @@ class FakeHamiltonian:
                  density: Density,
                  potential: Potential,
                  pot_calc: PotentialCalculator,
+                 e_band=np.nan,
                  e_kinetic0=np.nan,
                  e_coulomb=np.nan,
                  e_total_free=np.nan,
                  e_zero=np.nan,
                  e_external=np.nan,
+                 e_entropy=np.nan,
+                 e_extrapolation=np.nan,
                  e_xc=np.nan):
         self.pot_calc = pot_calc
         self.ibzwfs = ibzwfs
@@ -457,6 +466,9 @@ class FakeHamiltonian:
         self.e_coulomb = e_coulomb
         self.e_external = e_external
         self.e_zero = e_zero
+        self.e_entropy = e_entropy
+        self.e_extrapolation = e_extrapolation
+        self.e_band = e_band
 
     def update(self, dens, wfs, kin_en_using_band=True):
         self.potential, _ = self.pot_calc.calculate(
@@ -517,6 +529,15 @@ class FakeHamiltonian:
     @property
     def xc(self):
         return self.pot_calc.xc.xc
+
+    @property
+    def dH_asp(self):
+        from gpaw.utilities.partition import AtomPartition
+        dH_asp = self.potential.dH_asii.to_cpu().to_lower_triangle().gather()
+        atomdist = self.potential.dH_asii.layout.atomdist
+        atom_partition = AtomPartition(atomdist.comm, atomdist.rank_a)
+        dH_asp.partition = atom_partition
+        return dH_asp
 
     def dH(self, P, out):
         for a, I1, I2 in P.indices:

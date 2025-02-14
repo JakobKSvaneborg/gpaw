@@ -679,6 +679,7 @@ class ASECalculator:
                       txt='-',
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
+        kwargs.pop('communicator', None)  # Ignore silently
         kwargs = {**dict(self.params.items()), **kwargs}
 
         params = InputParameters(kwargs)
