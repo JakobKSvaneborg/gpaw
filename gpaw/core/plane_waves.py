@@ -713,11 +713,19 @@ class PWArray(DistributedArrays[PWDesc]):
         if seed is None:
             seed = self.comm.rank + self.desc.comm.rank * self.comm.size
         rng = self.xp.random.default_rng(seed)
-        a = self.data.view(self.real_dtype)
-        rng.random(a.shape, out=a, dtype=self.real_dtype)
-        a -= 0.5
-        if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
-            a[..., 1] = 0.0
+
+        batches = self.data.size // 5_000_000 + 1
+        arrays = self.xp.array_split(self.data, batches)
+        is_complex = self.desc.dtype == self.real_dtype
+        for a in arrays:
+            rng.random(out=a.view(dtype=self.real_dtype))
+            if not is_complex:
+                if self.desc.comm.rank == 0:
+                    a[..., 1] = 0.0
+            else:
+                # Uniform distribution inside unit circle
+                a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)
+            a[..., :] *= 0.5 / (0.15 + self.desc.ekin_G[..., :])
 
     def moment(self):
         pw = self.desc
