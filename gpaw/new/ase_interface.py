@@ -705,6 +705,8 @@ class ASECalculator:
             scf_loop,
             SimpleNamespace(relpos_ac=self.dft.relpos_ac,
                             poisson_solver=None,
+                            fine_grid=builder.fine_grid,
+                            setups=builder.setups,
                             xc=self.dft.pot_calc.xc),
             log,
             energies=self.dft.energies)
