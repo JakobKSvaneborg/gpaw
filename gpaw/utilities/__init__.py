@@ -423,8 +423,13 @@ def file_barrier(path: Union[str, Path], world=None):
 
 
 class _NullIO(io.BufferedIOBase):
+    # Implement as few methods as possible in order to be the target of
+    # TextIOWrapper.  Python docs are not very specific.
     def writable(self):
         return True
+
+    def flush(self):
+        pass
 
 
 devnull = io.TextIOWrapper(_NullIO())  # type: ignore
