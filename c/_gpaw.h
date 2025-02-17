@@ -201,7 +201,12 @@ PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args);
 PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
 PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
 PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
-#endif
+
+#ifdef GPAW_WITH_MAGMA
+PyObject* eigh_syevd_magma(PyObject* self, PyObject* args);
+#endif // GPAW_WITH_MAGMA
+
+#endif // GPAW_GPU
 
 static PyMethodDef functions[] = {
     {"pawexxvv", pawexxvv, METH_VARARGS, 0},
@@ -372,6 +377,11 @@ static PyMethodDef functions[] = {
     {"evaluate_lda_gpu", evaluate_lda_gpu, METH_VARARGS, 0},
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
+
+    #if GPAW_WITH_MAGMA
+    {"eigh_syevd_magma", eigh_syevd_magma, METH_VARARGS, 0},
+    #endif // GPAW_WITH_MAGMA
+
 #endif // GPAW_GPU
     {0, 0, 0, 0}
 };
