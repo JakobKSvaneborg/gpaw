@@ -96,6 +96,8 @@ class GPUEvent:
 
 
 class GPUTimerBase:
+    trace_kernel = True
+
     def __init__(self):
         self.event_queue = []
         self.event_stack = []

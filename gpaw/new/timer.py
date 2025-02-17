@@ -27,7 +27,11 @@ class GlobalTimer:
             self._timers.pop()
 
     def start(self, name, **kwargs):
-        self._timers[-1].start(name, **kwargs)
+        timer = self._timers[-1]
+        if getattr(timer, 'trace_kernel', False):
+            timer.start(name, **kwargs)
+        else:
+            timer.start(name)
 
     def stop(self, name=None):
         self._timers[-1].stop(name=name)
