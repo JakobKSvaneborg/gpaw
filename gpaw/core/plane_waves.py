@@ -722,7 +722,7 @@ class PWArray(DistributedArrays[PWDesc]):
             rng.random(out=a.view(dtype=self.real_dtype))
             if not is_complex:
                 if self.desc.comm.rank == 0:
-                    a[..., 1] = 0.0
+                    a[..., 0].imag = 0.0
             else:
                 # Uniform distribution inside unit circle
                 a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)
