@@ -717,6 +717,7 @@ class PWArray(DistributedArrays[PWDesc]):
         batches = self.data.size // 5_000_000 + 1
         arrays = self.xp.array_split(self.data, batches)
         is_complex = self.desc.dtype == self.real_dtype
+        ekin_G = self.xp.asarray(self.desc.ekin_G)
         for a in arrays:
             rng.random(out=a.view(dtype=self.real_dtype))
             if not is_complex:
@@ -725,7 +726,7 @@ class PWArray(DistributedArrays[PWDesc]):
             else:
                 # Uniform distribution inside unit circle
                 a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)
-            a[..., :] *= 0.5 / (0.15 + self.desc.ekin_G[..., :])
+            a[..., :] *= 0.5 / (0.15 + ekin_G[..., :])
 
     def moment(self):
         pw = self.desc
