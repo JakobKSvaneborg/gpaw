@@ -122,6 +122,17 @@ class MyMatCalc:
         except ValueError:
             return H_MM
 
+        H0_MM_data = H_MM.data.copy()
+
+        self.add_scissors(wfs, H_MM, nocc)
+        old_scissor_data = H_MM.data.copy()
+
+        H_MM.data[:] = H0_MM_data
+        self.add_scissors_made_easy(wfs, H_MM, nocc)
+        assert np.allclose(H_MM.data, old_scissor_data)
+        return H_MM
+
+    def add_scissors(self, wfs, H_MM, nocc):
         C_nM = wfs.C_nM.data
         S_MM = wfs.S_MM.data
         # assert abs(S_MM - S_MM.T.conj()).max() < 1e-10
@@ -144,6 +155,32 @@ class MyMatCalc:
             V_Mn = Z_MM[:, M1:M2] @ V_mn
             L_1n = (homo - lumo) * l_n[np.newaxis] + lumo
             H_MM.data += V_Mn @ (L_1n * V_Mn).T.conj()
+            a1 = a2
+            M1 = M2
+
+        return H_MM
+
+    def add_scissors_made_easy(self, wfs, H_MM, nocc):
+        C_nM = wfs.C_nM.data
+        S_MM = wfs.S_MM.data
+
+        # Find Z=S^(1/2):
+        e_N, U_MN = np.linalg.eigh(S_MM)
+        # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
+        Z_MM = U_MN @ (e_N[np.newaxis]**0.5 * U_MN).T.conj()
+
+        # Density matrix:
+        A_nM = C_nM[:nocc].conj() @ Z_MM
+        R_MM = A_nM.conj().T @ A_nM
+
+        M1 = 0
+        a1 = 0
+        for homo, lumo, natoms in self.shifts:
+            a2 = a1 + natoms
+            M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
+            H_MM.data += Z_MM[:, M1:M2] @ \
+                ((homo - lumo) * R_MM[M1:M2, M1:M2] + np.eye(M2 - M1) * lumo) \
+                @ Z_MM.conj().T[M1:M2, :]
             a1 = a2
             M1 = M2
 
