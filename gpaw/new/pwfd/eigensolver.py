@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numbers
 import warnings
 from functools import partial
 from typing import Callable
@@ -182,7 +181,7 @@ def calculate_weights(converge_bands: int | str,
     if converge_bands == 'all':
         converge_bands = nbands
 
-    if isinstance(converge_bands, numbers.Integral):
+    if not isinstance(converge_bands, str):
         # Converge fixed number of bands:
         n = converge_bands
         if n < 0:
