@@ -6,7 +6,7 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 from ase.utils import IOContext
-from gpaw.fd_operators import Gradient
+from gpaw.fd_operators import Laplace, Gradient
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
 from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.typing import Vector
@@ -132,7 +132,7 @@ def calculate_magnetic_moment_atomic_corrections(R_av, setups, partition):
 
 
 def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
-                                     only_pseudo=False):
+                                     only_pseudo=False, gauge_including=True):
     """Calculate magnetic moment matrix in LCAO basis.
 
     Parameters
@@ -172,6 +172,58 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
         bfs.calculate_potential_matrix_derivative(r_vG[v], rnabla_vmM, 0)
         M_vmM[v1] += rnabla_vmM[v2]
         M_vmM[v2] -= rnabla_vmM[v1]
+
+    gd = bfs.gd
+    kin = Laplace(gd, -0.5, 3, complex)
+    kpt = kpt_u[0]
+
+    assert len(kpt_u) == 1 # This only works for gamma point
+
+    def basis_to_grid(M):
+        C_M = np.zeros((nao,), dtype=complex)
+        C_M[M] = 1.0
+        psit_G = gd.zeros(dtype=complex)
+        bfs.lcao_to_grid(C_M, psit_G, kpt.q)
+        return psit_G
+
+    # Calculate overlap matrix
+    S_MM = np.zeros((mynao, nao), dtype=complex)
+    for mu in range(mynao):
+        psitmu_G = basis_to_grid(mu)
+        for nu in range(nao):
+            psitnu_G = basis_to_grid(nu)
+            S_MM[mu, nu] = gd.integrate(psitmu_G.conj() * psitnu_G)
+    
+    print(S_MM, 'S_MM method 1 grid')
+    print(kpt.S_MM, 'S_MM official')
+    assert np.allclose(S_MM, kpt.S_MM, rtol=1e-2, atol=1e-2)
+
+    # Calculate overlap matrix by utilizing unity potential
+    S_MM = np.zeros((mynao, nao), dtype=complex)
+    V_G = gd.zeros()
+    V_G[:] = 1.0
+    bfs.calculate_potential_matrix(V_G, S_MM, kpt.q)
+   
+    lower = np.tri(nao, k=-1, dtype=bool)
+    S_MM.T[lower] = S_MM[lower].conj()
+
+    print(S_MM, 'S_MM method 2 grid')
+    print(kpt.S_MM, 'S_MM official')
+    assert np.allclose(S_MM, kpt.S_MM, rtol=1e-2, atol=1e-2)
+    
+    # Calculate kineetic energy matrix
+    T_MM = np.zeros((mynao, nao), dtype=complex)
+    for mu in range(mynao):
+        psitmu_G = basis_to_grid(mu)
+        for nu in range(nao):
+            psitnu_G = basis_to_grid(nu)
+            Tpsitnu_G = gd.empty(dtype=complex)
+            kin.apply(psitnu_G, Tpsitnu_G, np.ones((3, 2), dtype=complex)) # phasecd missing, gamma point only
+            T_MM[mu, nu] = gd.integrate(psitmu_G.conj() * Tpsitnu_G)
+
+    print(T_MM, 'grid')
+    print(kpt.T_MM, 'official')
+    assert np.allclose(T_MM, kpt.T_MM, rtol=1e-2, atol=1e-2)
 
     if not only_pseudo:
         for kpt in kpt_u:
