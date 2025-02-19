@@ -150,11 +150,13 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         self._stress_vv = None
 
     def solve(self,
-              nt_g: PWArray,
+              nt0_g: PWArray,
               Q_aL: AtomArrays,
               vt0_g: PWArray,
               vHt_g: PWArray | None = None):
-        charge_g = nt_g.copy()
+
+        charge_g = self.pwg.empty(xp=self.xp)
+        charge_g.scatter_from(nt0_g)
         self.ghat_aLg.add_to(charge_g, Q_aL)
         pwg = self.pwg
 
