@@ -698,6 +698,7 @@ class ASECalculator:
         scf_loop = builder.create_scf_loop()
         scf_loop.update_density_and_potential = False
         scf_loop.fix_fermi_level = not update_fermi_level
+        scf_loop.convergence.pop('forces', None)
 
         dft = DFTCalculation(
             ibzwfs, density, potential,
