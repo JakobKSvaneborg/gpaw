@@ -4,7 +4,7 @@ from ase.build import molecule
 import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.test import gen
-from gpaw.xas import XAS, get_oscillator_strength
+from gpaw.xas import XAS
 
 
 def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
@@ -77,22 +77,15 @@ def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     atoms.get_potential_energy()
 
 
-def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
+def test_sulphur_1s_xas_TP(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
     if mpi.world.size > 1:
         return
-    atoms = molecule('SH2')
-    atoms.center(3)
-
-    setupname = s1s1ch_name
 
     nbands = 6
     nocc = 4  # for SH2
-    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
-                      setups={'S': setupname}, txt=None)
-    atoms.get_potential_energy()
 
     dks = 20
-    xas = XAS(atoms.calc)
+    xas = XAS(sh2_s1s1ch.calc)
     x, y_cn = xas.get_oscillator_strength(dks=dks)
     assert y_cn.shape == (3, nbands - nocc)
     assert x[0] == dks
@@ -100,9 +93,19 @@ def test_sulphur_1s_xas(in_tmp_dir, add_cwd_to_setup_paths, s1s1ch_name):
 
     assert folding_is_normalized(xas, dks)
 
-    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
-                      setups={'S': setupname}, txt=None,
-                      charge=-1)
+
+def test_sulphur_1s_xas_XCH(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
+    if mpi.world.size > 1:
+        return
+    atoms = sh2_s1s1ch
+
+    nbands = 6
+    nocc = 4  # for SH2
+    dks = 20
+
+    calc = sh2_s1s1ch.calc.new(charge=-1)
+    atoms.calc = calc
+
     atoms[0].magmom = 1
     atoms.get_potential_energy()
 
@@ -134,13 +137,13 @@ def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
     mefname = 'me.dat.npz'
     xas0.write(mefname)
     x0, y0_cn = xas0.get_oscillator_strength(dks=dks)
-
-    x1, y1_cn = get_oscillator_strength(mefname, dks=dks)
+    xas1 = XAS().restart(mefname)
+    x1, y1_cn = xas1.get_oscillator_strength(dks=dks)
     assert x1 == pytest.approx(x0)
     assert y1_cn == pytest.approx(y0_cn)
 
 
-def test_proj(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch, s1s1ch_name):
+def test_proj(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
     if mpi.world.size > 1:
         return
     atoms = sh2_s1s1ch
@@ -155,10 +158,11 @@ def test_proj(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch, s1s1ch_name):
     x1, y1_cn = xas0.get_oscillator_strength(
         dks=dks, proj_xyz=True)
 
-    x0_1, y0_1_cn = get_oscillator_strength(
-        mefname, dks=dks, proj=proj, proj_xyz=False)
-    x1_1, y1_1_cn = get_oscillator_strength(
-        mefname, dks=dks, proj_xyz=True)
+    xas1 = XAS().restart(mefname)
+    x0_1, y0_1_cn = xas1.get_oscillator_strength(
+        dks=dks, proj=proj, proj_xyz=False)
+    x1_1, y1_1_cn = xas1.get_oscillator_strength(
+        dks=dks, proj_xyz=True)
 
     assert y1_cn.shape[0] == y0_cn.shape[0] + 2
     assert y1_cn.shape[1] == y0_cn.shape[1]
@@ -191,8 +195,8 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
 
     import time
     t0 = time.time()
-    xas = XAS(atoms.calc)
-    xas.write(fserial)
+    xas_s = XAS(atoms.calc)
+    xas_s.write(fserial)
     t1 = time.time()
     print(t1 - t0)
 
@@ -203,14 +207,14 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     atoms.get_potential_energy()
 
     t0 = time.time()
-    xas = XAS(atoms.calc)
-    xas.write(fparallel)
+    xas_p = XAS(atoms.calc)
+    xas_p.write(fparallel)
     t1 = time.time()
     print(t1 - t0)
 
     dks = 20
-    xs, ys = get_oscillator_strength(fserial, dks=dks)
-    xp, yp = get_oscillator_strength(fparallel, dks=dks)
+    xs, ys = xas_s.get_oscillator_strength(dks=dks)
+    xp, yp = xas_p.get_oscillator_strength(dks=dks)
 
     assert xs == pytest.approx(xp)
     assert ys == pytest.approx(yp)
@@ -219,23 +223,18 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     assert ys == pytest.approx(yp)
 
 
-def test_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
+def test_io(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
     """Is this the more natural way to read?"""
     dks = 20
     """Test that a direct calculation gives the same results as a calcultion
     from """
-    atoms = molecule('SH2')
-    atoms.center(3)
     medata = 'xasme.dat'
-    # do XAS calculation and write out
-    calc1 = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name}, txt=None)
-    atoms.calc = calc1
-    atoms.get_potential_energy()
-    xas1 = XAS(calc1)
+
+    xas1 = XAS(sh2_s1s1ch.calc)
     xas1.write(medata)
 
     # define the XAS object by reading
-    xas2 = XAS().read('xasme.dat')
+    xas2 = XAS().restart('xasme.dat')
     x1, y1 = xas1.get_oscillator_strength(dks=dks)
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
     assert x1 == pytest.approx(x2)
