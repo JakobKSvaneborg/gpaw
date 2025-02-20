@@ -140,7 +140,9 @@ def einsum(subscripts, *operands, out):
 def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     """Wrapper for ``eigh()``.
 
-    HIP-GPU version is too slow for now so we do it on the CPU.
+    Usually CUDA > MAGMA > HIP, so we try to choose the best one.
+    HIP native solver is questionable slow so for now do it on the CPU if
+    MAGMA is not available.
     """
     from scipy.linalg import eigh
     if not is_hip:

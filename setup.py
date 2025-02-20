@@ -82,6 +82,7 @@ scalapack = False
 libvdwxc = False
 elpa = False
 gpu = False
+magma = False
 intelmkl = False
 
 # Advanced:
@@ -251,6 +252,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                        '__HIP_PLATFORM_AMD__'),
                    (gpu and gpu_target == 'hip-cuda',
                        '__HIP_PLATFORM_NVIDIA__'),
+                    (gpu and magma, 'GPAW_WITH_MAGMA'),
                    ]:
     if flag and name not in [n for (n, _) in define_macros]:
         define_macros.append((name, None))

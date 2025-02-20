@@ -203,7 +203,7 @@ PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
 PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 
 #ifdef GPAW_WITH_MAGMA
-PyObject* eigh_syevd_magma(PyObject* self, PyObject* args);
+PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args);
 #endif // GPAW_WITH_MAGMA
 
 #endif // GPAW_GPU
@@ -378,8 +378,8 @@ static PyMethodDef functions[] = {
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
-    #if GPAW_WITH_MAGMA
-    {"eigh_syevd_magma", eigh_syevd_magma, METH_VARARGS, 0},
+    #ifdef GPAW_WITH_MAGMA
+    {"eigh_magma_dsyevd", eigh_magma_dsyevd, METH_VARARGS, 0},
     #endif // GPAW_WITH_MAGMA
 
 #endif // GPAW_GPU
@@ -476,6 +476,12 @@ static PyObject* moduleinit(void)
     PyObject_SetAttrString(m, "have_openmp", Py_True);
 #else
     PyObject_SetAttrString(m, "have_openmp", Py_False);
+#endif
+
+#if defined(GPAW_GPU) && defined(GPAW_WITH_MAGMA)
+    PyObject_SetAttrString(m, "have_magma", Py_True);
+#else
+    PyObject_SetAttrString(m, "have_magma", Py_False);
 #endif
     // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
     PyObject_SetAttrString(m, "version", PyLong_FromLong(9));
