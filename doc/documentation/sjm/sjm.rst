@@ -83,7 +83,7 @@ where `\epsilon(\br)` accounts for the solvation; that is, the dielectric consta
 `\rho_\mathrm{explicit} (\br)` contains the standard charge density of the system; that is, due to the electrons and nuclei.
 Since the changes to the Poisson equation are relatively simple, it can be solved without relying on linearization.
 
-The generalized Poisson solver can be solved with either Dirichlet+Neumann or Neumann boundary conditions as discussed in [Melander2024]_. The Dirichlet boundary condition sets the electrostatic potential to zero at the top of the cell while Neumann boundary conditions are set the electrostatic potential gradient to zero.
+When the electrode potential is defined as the work function, the generalized Poisson equation is solved with Neumann boundary conditions. When the inner potential is used to define the electrode potential, the generalized Poisson solver is solved with Dirichlet+Neumann boundary conditions as discussed in [Melander2024]_. The Dirichlet boundary condition sets the electrostatic potential to zero at the top of the cell while Neumann boundary conditions are set the electrostatic potential gradient to zero.
 
 The electrode potential
 -----------------------
@@ -91,7 +91,7 @@ The electrode potential
 The electrode potential
 -----------------------
 
-The electrode potential can be defined in three ways: as the Fermi-level, work function (wf), or as the electrode inner potential (CIP).
+The electrode potential can be defined in two ways: as the work function (wf) or as the electrode inner potential (CIP).
 
 **Work function:**
 This is the original SJM way of computeing the electrode potential. The electrode potential computed from the (`\phi_\mathrm{e}`) is defined as the Fermi-level energy (`\mu`) referenced to a point deep in the solvent (`\Phi_\mathrm{w}`), where the whole charge on the electrode has been screened and no electric field is present.
@@ -102,13 +102,8 @@ This is divided by the unit electronic charge `e` to convert from energy (typica
 
 Note that this gives the potential with respect to vacuum; if you would like your potential on a reference electrode scale, such as SHE, please see the :ref:`solvated_jellium_method` tutorial.
 
-**Fermi-level:**
-This electrode potential scale is implemented in [Melander2024]_ and_directly uses the Fermi level as the electrode potential. This method should always be used with the Dirichlet boundary condition.
-
-.. math:: \phi_\mathrm{e} = -E_F.
-
 **Inner potential:**
-This electrode potential scale uses the constant inner potential DFT (CIP-DFT) developed in[Melander2024]_. CIP-DFT uses the electrode inner potential (`\phi`) as the electrode potential. This method should always be used with the Dirichlet boundary condition. To use this method one needs to provide the Fermi-level (`\mu^{PZC}_e`) and the inner potential (`\phi^{PZC}`) of the uncharged simulation cell corresponding a potential of zero charge (PZC) at surface charge (`\sigma=0`). The applied electrode potential with respect to PZC at a given surface charge is then given as
+This electrode potential scale uses the constant inner potential DFT (CIP-DFT) developed in[Melander2024]_. CIP-DFT uses the electrode inner potential (`\phi`) as the electrode potential. This method is always  used with the Dirichlet boundary condition. To use this method one needs to provide the Fermi-level (`\mu^{PZC}_e`) and the inner potential (`\phi^{PZC}`) of the uncharged simulation cell corresponding a potential of zero charge (PZC) at surface charge (`\sigma=0`). The applied electrode potential with respect to PZC at a given surface charge is then given as
 
 
 .. math:: \phi_\mathrm{e} = \phi[\sigma] - \phi[\sigma=0]
