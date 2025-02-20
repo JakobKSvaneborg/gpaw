@@ -81,7 +81,7 @@ class SJM(SolvationGPAW):
     automatically, but can be overridden with the poissonsolver keyword.
 
     When using method='CIP', mixed Dirichlet/Neumann boundary conditions
-    for the electrostatic potential are required.
+    for the electrostatic potential are used by default.
 
     The SJM class takes a single argument, the sj dictionary. All other
     arguments are fed to the parent SolvationGPAW (and therefore GPAW)
@@ -168,10 +168,6 @@ class SJM(SolvationGPAW):
         new slope is established. E.g., new_slope = mixer * old_slope +
         (1. - mixer) * current_slope_estimate. Set to 0 for no damping.
         Default: 0.5.
-
-    dirichlet: bool
-        True: set the solvent phase electrostatic potential to zero.
-        Changes also the way work functions computed
     pot_ref = 'wf' or 'CIP'
         potential reference scale
         wf: original SJM using workfunction for the absolute potential
@@ -279,7 +275,7 @@ class SJM(SolvationGPAW):
                         ', '.join(self.default_parameters['sj'])))
         self.fill_cip_keywords(p.cip)
         if p.pot_ref == 'CIP':           
-            assert p['dirichlet'] is True
+             p['dirichlet'] = True
 
             if p.cip['inner_region'] is None and p.cip['autoinner'] is None:
                 raise RuntimeError("The inner region cannot be none" +
