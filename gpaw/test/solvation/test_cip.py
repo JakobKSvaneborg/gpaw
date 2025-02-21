@@ -34,7 +34,6 @@ def test_cip():
                 'jelliumregion': {'top': 17.9},
                 'tol': tol,
                 'pot_ref': 'wf',
-                'dirichlet': False,
                 'cip': {'filter': 10,
                         'autoinner': {'nlayers': 4,
                                       'threshold': 0.01}}}
@@ -82,7 +81,6 @@ def test_cip():
               'jelliumregion': {'top': 17.9},
               'tol': tol,
               'pot_ref': 'CIP',
-              'dirichlet': True,
               'cip': {'autoinner': {'nlayers': 4,
                       'threshold': 0.01},
                       'inner_region': None,
