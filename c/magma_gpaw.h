@@ -9,6 +9,7 @@
 
 #include <magma_v2.h>
 #include <magma_auxiliary.h>
+#include <magma_types.h>
 
 
 static inline magma_uplo_t get_magma_uplo(char* in_uplo_str)
@@ -26,5 +27,15 @@ typedef struct syevd_workgroup
     double* work;
     magma_int_t* iwork;
 } syevd_workgroup;
+
+typedef struct heevd_workgroup
+{
+    magma_int_t lwork;
+    magma_int_t lrwork;
+    magma_int_t liwork;
+    magmaDoubleComplex* work;
+    double* rwork;
+    magma_int_t* iwork;
+} heevd_workgroup;
 
 #endif

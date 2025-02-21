@@ -8,14 +8,13 @@ def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray, np.ndarra
     assert cgpaw.have_magma, "Must compile with MAGMA support"
 
     if np.issubdtype(matrix.dtype, np.complexfloating):
-        raise NotImplementedError
+        eigvals, eigvects = cgpaw.eigh_magma_zheevd(matrix, UPLO)
 
     elif np.issubdtype(matrix.dtype, np.floating):
         eigvals, eigvects = cgpaw.eigh_magma_dsyevd(matrix, UPLO)
 
     else:
-        ## Not floating point
-        raise NotImplementedError
+        raise TypeError("Unsupported matrix dtype")
 
     # MAGMA eigenvectors are on rows, numpy/cupy has them on columns
     return eigvals, eigvects.T
@@ -56,8 +55,7 @@ def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray, cp.ndarra
                                     eigvects)
 
     else:
-        ## Not floating point
-        raise NotImplementedError
+        raise TypeError("Unsupported matrix dtype")
 
     # MAGMA eigenvectors are on rows, numpy/cupy has them on columns
     return eigvals, eigvects.T

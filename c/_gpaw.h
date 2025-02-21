@@ -207,8 +207,10 @@ PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 #ifdef GPAW_WITH_MAGMA
 #include "magma_gpaw.h"
 PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args);
+PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args);
 #ifdef GPAW_GPU
 PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args);
+PyObject* eigh_magma_zheevd_gpu(PyObject* self, PyObject* args);
 #endif
 #endif // GPAW_WITH_MAGMA
 
@@ -386,8 +388,10 @@ static PyMethodDef functions[] = {
 
 #ifdef GPAW_WITH_MAGMA
 {"eigh_magma_dsyevd", eigh_magma_dsyevd, METH_VARARGS, 0},
+{"eigh_magma_zheevd", eigh_magma_zheevd, METH_VARARGS, 0},
 #ifdef GPAW_GPU
 {"eigh_magma_dsyevd_gpu", eigh_magma_dsyevd_gpu, METH_VARARGS, 0},
+{"eigh_magma_zheevd_gpu", eigh_magma_zheevd_gpu, METH_VARARGS, 0},
 #endif
 #endif // GPAW_WITH_MAGMA
 
@@ -495,7 +499,7 @@ static PyObject* moduleinit(void)
     PyObject_SetAttrString(m, "have_openmp", Py_False);
 #endif
 
-#if defined(GPAW_WITH_MAGMA)
+#ifdef GPAW_WITH_MAGMA
     PyObject_SetAttrString(m, "have_magma", Py_True);
 
     // MAGMA needs to be globally initialized, but keeps track of accumulated
@@ -503,7 +507,9 @@ static PyObject* moduleinit(void)
     // libs are also doing it.
 
     // FIXME: Where should GPAW call magma_init()?
-    // Should not be in GPU-specific init because magma can work without GPU too
+    // Should not be in GPU-specific init because magma can work without GPU too.
+    // However it needs to come AFTER cudaSetValidDevices and cudaSetDeviceFlags.
+    // Calling it here could become a problem if Python-side GPU init does more than setDevice(...)
     magma_init();
 
 #else
