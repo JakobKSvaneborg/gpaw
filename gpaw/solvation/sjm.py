@@ -275,7 +275,7 @@ class SJM(SolvationGPAW):
                         ', '.join(self.default_parameters['sj'])))
         self.fill_cip_keywords(p.cip)
         if p.pot_ref == 'CIP':           
-             p['dirichlet'] = True
+            p['dirichlet'] = True
 
             if p.cip['inner_region'] is None and p.cip['autoinner'] is None:
                 raise RuntimeError("The inner region cannot be none" +
@@ -1343,23 +1343,16 @@ class SJMDipoleCorrection(DipoleCorrection):
                            broadcast=True)
         eps_z = eps_g.mean(0).mean(0)
 
-        if dirichlet is False:
-            saw = [-0.5]
-            for i, eps in enumerate(eps_z):
-                saw.append(saw[i] + step / eps)
-            saw = np.array(saw)
-            saw /= saw[-1] + step / eps_z[-1] - saw[0]
+        saw = np.zeros((int(L / gd.h_cv[c, c])))
+        for i, eps in enumerate(eps_z):
+            saw[i + 1] = saw[i] + step / eps
+        saw /= saw[-1] + step / eps_z[-1] - saw[0]
+
+        if dirichlet:
+            saw -= saw[-1]
+        else:
             saw -= (saw[0] + saw[-1] + step / eps_z[-1]) / 2.
 
-        else:
-            saw = np.zeros((int(L / gd.h_cv[c, c])))
-            saw[0] = -1.
-            for i, eps in enumerate(eps_z):
-                saw[i + 1] = saw[i] + step / eps
-            saw -= saw[-1]
-            saw /= saw[-1] + step / eps_z[-1] - saw[0]
-            saw /= 2.
-        
         return saw
 
 
