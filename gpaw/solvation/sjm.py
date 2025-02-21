@@ -321,7 +321,7 @@ class SJM(SolvationGPAW):
             # If target potential is changed by the user and the slope is
             # known, a step towards the new potential is taken right away.
             try:
-                true_potential = self.get_electrode_potential(p.pot_ref)
+                true_potential = self.get_electrode_potential()
             # TypeError is needed for the case of starting from a gpw
             # file and changing the target potential at the start.
             except (AttributeError, TypeError):
@@ -345,7 +345,7 @@ class SJM(SolvationGPAW):
 
         if 'tol' in sj_changes:
             try:
-                true_potential = self.get_electrode_potential(p.pot_ref)
+                true_potential = self.get_electrode_potential()
             except (AttributeError, TypeError):
                 pass
             else:
@@ -429,8 +429,7 @@ class SJM(SolvationGPAW):
             self.set(background_charge=self._create_jellium())
             SolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
             self.log('Potential found to be {:.5f} V (with {:+.5f} '
-                     'electrons)'.format(self.get_electrode_potential(
-                                         p.pot_ref),
+                     'electrons)'.format(self.get_electrode_potential(),
                                          p.excess_electrons))
         else:
             self.log(' Constant-potential mode.')
@@ -464,7 +463,7 @@ class SJM(SolvationGPAW):
             self.log('Canonical energy was written into results.\n')
 
         self.results['excess_electrons'] = p.excess_electrons
-        self.results['electrode_potential'] = self.get_electrode_potential(p.pot_ref)
+        self.results['electrode_potential'] = self.get_electrode_potential()
         self.log.fd.flush()
 
     def _equilibrate_potential(self, atoms, system_changes):
@@ -493,7 +492,7 @@ class SJM(SolvationGPAW):
 
             # Do the calculation.
             SolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
-            true_potential = self.get_electrode_potential(p.pot_ref)
+            true_potential = self.get_electrode_potential()
             self.log()
             msg = (f'Potential found to be {true_potential:.5f} V (with '
                    f'{p.excess_electrons:+.5f} excess electrons, attempt '
@@ -620,7 +619,7 @@ class SJM(SolvationGPAW):
         # Add grand-canonical terms.
         p = self.parameters['sj']
         self.log()
-        mu_N = -self.get_electrode_potential(p.pot_ref)
+        mu_N = -self.get_electrode_potential()
         mu_N *= p.excess_electrons / Ha
         self.omega_free = self.hamiltonian.e_total_free - mu_N
         self.omega_extrapolated = self.hamiltonian.e_total_extrapolated - mu_N
@@ -630,10 +629,10 @@ class SJM(SolvationGPAW):
                  .format(p.excess_electrons))
         if p['pot_ref'] == 'wf':
             self.log(' mu (-workfunction, eV): {:+11.6f}'
-                     .format(-self.get_electrode_potential(p.pot_ref)))
+                     .format(-self.get_electrode_potential()))
         elif p['pot_ref'] == 'CIP':
             self.log('Electrode potential from inner potential: {:+11.6f} [eV]'
-                     .format(self.get_electrode_potential(p.pot_ref)))
+                     .format(self.get_electrode_potential()))
             self.log('The absolute inner potential is: {:+11.6f} [eV]'
                      .format(self.get_inner_potential(self.atoms,
                              p['cip']['inner_region'])))
@@ -765,10 +764,14 @@ class SJM(SolvationGPAW):
                            z1=bottom,
                            z2=top)
 
-    def get_electrode_potential(self, pot_ref,
+    def get_electrode_potential(self, pot_ref=None,
                                 return_referenced=True):
         """Returns the potential of the simulated electrode, in V, relative
         to the vacuum. This comes directly from the work function."""
+        
+        if pot_ref is None:
+            pot_ref = self.parameters.sj['pot_ref']
+
         if pot_ref == 'wf':
             try:
                 return Ha * self.hamiltonian.get_workfunctions(self.wfs)[1]
