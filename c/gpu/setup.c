@@ -5,10 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef GPAW_WITH_MAGMA
-// Temp, figure MAGMA init out later
-#include <magma_v2.h>
-#endif
 
 void bc_init_buffers_gpu();
 void blas_init_gpu();
@@ -35,12 +31,6 @@ PyObject* gpaw_gpu_init(PyObject *self, PyObject *args)
     lfc_reduce_init_buffers_gpu();
     blas_init_gpu();
 
-#ifdef GPAW_WITH_MAGMA
-    // TODO where to do this for non-GPU builds?
-    magma_int_t status = magma_init();
-    printf("MAGMA initialized, status %d\n", status);
-#endif
-
     if (PyErr_Occurred())
         return NULL;
     else
@@ -51,11 +41,6 @@ PyObject* gpaw_gpu_delete(PyObject *self, PyObject *args)
 {
     if (!PyArg_ParseTuple(args, ""))
         return NULL;
-
-#ifdef GPAW_WITH_MAGMA
-    magma_finalize();
-#endif
-
 
     reduce_dealloc_gpu();
     lfc_reduce_dealloc_gpu();

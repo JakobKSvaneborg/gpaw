@@ -37,7 +37,8 @@ def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray, cp.ndarra
     assert matrix.ndim == 2 and matrix.shape[0] == matrix.shape[1]
 
     if cupy_is_fake:
-        return eigh_magma_cpu(asnumpy(matrix), UPLO)
+        eigval_np, eigvect_np = eigh_magma_cpu(asnumpy(matrix), UPLO)
+        return cp.asarray(eigval_np), cp.asarray(eigvect_np)
 
     # Alloc output arrays with CUPY.
     # Necessary because the C code has no easy access to CUPY array creation

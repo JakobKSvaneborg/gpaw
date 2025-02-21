@@ -202,12 +202,15 @@ PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
 PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
 PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 
-#ifdef GPAW_WITH_MAGMA
-PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args);
-PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args);
-#endif // GPAW_WITH_MAGMA
-
 #endif // GPAW_GPU
+
+#ifdef GPAW_WITH_MAGMA
+#include "magma_gpaw.h"
+PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args);
+#ifdef GPAW_GPU
+PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args);
+#endif
+#endif // GPAW_WITH_MAGMA
 
 static PyMethodDef functions[] = {
     {"pawexxvv", pawexxvv, METH_VARARGS, 0},
@@ -379,12 +382,16 @@ static PyMethodDef functions[] = {
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
-    #ifdef GPAW_WITH_MAGMA
-    {"eigh_magma_dsyevd", eigh_magma_dsyevd, METH_VARARGS, 0},
-    {"eigh_magma_dsyevd_gpu", eigh_magma_dsyevd_gpu, METH_VARARGS, 0},
-    #endif // GPAW_WITH_MAGMA
-
 #endif // GPAW_GPU
+
+#ifdef GPAW_WITH_MAGMA
+{"eigh_magma_dsyevd", eigh_magma_dsyevd, METH_VARARGS, 0},
+#ifdef GPAW_GPU
+{"eigh_magma_dsyevd_gpu", eigh_magma_dsyevd_gpu, METH_VARARGS, 0},
+#endif
+#endif // GPAW_WITH_MAGMA
+
+
     {0, 0, 0, 0}
 };
 
@@ -404,6 +411,14 @@ extern PyTypeObject lxcXCFunctionalType;
 #endif
 
 
+static void gpaw_module_cleanup(void *m)
+{
+#ifdef GPAW_WITH_MAGMA
+    // Assuming GPAW calls magma_init() during module startup
+    magma_finalize();
+#endif
+}
+
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
     "_gpaw",
@@ -413,7 +428,7 @@ static struct PyModuleDef moduledef = {
     NULL,
     NULL,
     NULL,
-    NULL
+    gpaw_module_cleanup
 };
 
 static PyObject* moduleinit(void)
@@ -480,8 +495,17 @@ static PyObject* moduleinit(void)
     PyObject_SetAttrString(m, "have_openmp", Py_False);
 #endif
 
-#if defined(GPAW_GPU) && defined(GPAW_WITH_MAGMA)
+#if defined(GPAW_WITH_MAGMA)
     PyObject_SetAttrString(m, "have_magma", Py_True);
+
+    // MAGMA needs to be globally initialized, but keeps track of accumulated
+    // magma_init() calls. So it's safe to call it inside GPAW, even if other
+    // libs are also doing it.
+
+    // FIXME: Where should GPAW call magma_init()?
+    // Should not be in GPU-specific init because magma can work without GPU too
+    magma_init();
+
 #else
     PyObject_SetAttrString(m, "have_magma", Py_False);
 #endif

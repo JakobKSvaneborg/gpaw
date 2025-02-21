@@ -242,6 +242,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                    (libvdwxc, 'GPAW_WITH_LIBVDWXC'),
                    (elpa, 'GPAW_WITH_ELPA'),
                    (intelmkl, 'GPAW_WITH_INTEL_MKL'),
+                   (magma, 'GPAW_WITH_MAGMA'),
                    (gpu, 'GPAW_GPU'),
                    (gpu, 'GPAW_GPU_AWARE_MPI'),
                    (gpu and gpu_target == 'cuda',
@@ -251,8 +252,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                    (gpu and gpu_target == 'hip-amd',
                        '__HIP_PLATFORM_AMD__'),
                    (gpu and gpu_target == 'hip-cuda',
-                       '__HIP_PLATFORM_NVIDIA__'),
-                    (gpu and magma, 'GPAW_WITH_MAGMA'),
+                       '__HIP_PLATFORM_NVIDIA__')
                    ]:
     if flag and name not in [n for (n, _) in define_macros]:
         define_macros.append((name, None))
