@@ -7,6 +7,8 @@ from collections.abc import Iterable
 
 import numpy as np
 
+from gpaw.cgpaw import have_magma
+
 cupy_is_fake = True
 """True if :mod:`cupy` has been replaced by ``gpaw.gpu.cpupy``"""
 
@@ -147,9 +149,19 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     from scipy.linalg import eigh
     if not is_hip:
         return cupy.linalg.eigh(a, UPLO=UPLO)
-    eigs, evals = eigh(cupy.asnumpy(a),
-                       lower=(UPLO == 'L'),
-                       check_finite=False)
+
+    elif have_magma and a.ndim == 2 and a.shape[0] > 100:
+        # import here to avoid circular import.
+        # magma needs cupy (possibly fake), which must be imported from this file
+        from gpaw.new.magma import eigh_magma_gpu
+
+        return eigh_magma_gpu(a, UPLO)
+
+    else:
+        # fallback to CPU
+        eigs, evals = eigh(cupy.asnumpy(a),
+                        lower=(UPLO == 'L'),
+                        check_finite=False)
 
     return cupy.asarray(eigs), cupy.asarray(evals)
 

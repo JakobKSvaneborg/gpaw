@@ -7,6 +7,7 @@
 #define gpuMemcpyKind             hipMemcpyKind
 #define gpuMemcpyDeviceToHost     hipMemcpyDeviceToHost
 #define gpuMemcpyHostToDevice     hipMemcpyHostToDevice
+#define gpuMemcpyDeviceToDevice   hipMemcpyDeviceToDevice
 #define gpuSuccess                hipSuccess
 #define gpuEventDefault           hipEventDefault
 #define gpuEventBlockingSync      hipEventBlockingSync

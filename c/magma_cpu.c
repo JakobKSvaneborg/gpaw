@@ -1,41 +1,14 @@
 #ifdef GPAW_WITH_MAGMA
 
-#include "../extensions.h"
-#include "../array.h"
-
-// MAGMA needs stdbool.h but it is not properly included by their own headers.
-// Can remove this include once it is fixed in MAGMA.
-// See https://github.com/icl-utk-edu/magma/pull/41
-#include <stdbool.h>
-
-#include <magma_v2.h>
-#include <magma_auxiliary.h>
-
-#include "gpu.h"
-#include "gpu-complex.h"
+#include "extensions.h"
+#include "array.h"
 
 #include <assert.h>
 #include <string.h>
 
-/*
-typedef enum {
-    eNone,
-    eDouble,
-    eComplexDouble
-} matrix_dtype;
+#include "magma_gpaw.h"
 
-
-typedef struct gpaw_magma_eigh_info
-{
-    matrix_dtype dtype;
-    magma_vec_t jobz;
-    magma_uplo_t uplo;
-    // N x N matrix
-    magma_int_t n;
-    magma_int_t lda;
-} gpaw_magma_eigh_info;
-*/
-
+// CPU version, operates on Numpy arrays
 PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
 {
     PyObject *in_matrix;
@@ -52,10 +25,9 @@ PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
         return NULL;
     }
 
+    // Must be symmetric, real, double precision matrix
     assert(Array_NDIM(in_matrix) == 2);
     assert(Array_DIM(in_matrix, 0) == Array_DIM(in_matrix, 1));
-
-    // TEMP TEMP
     assert(Array_ITEMSIZE(in_matrix) == sizeof(double));
 
     const size_t n = Array_DIM(in_matrix, 0);
@@ -67,22 +39,14 @@ PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
 
     const magma_vec_t jobz = MagmaVec; // always compute eigenvectors
     const magma_int_t lda = n;
-    const magma_uplo_t uplo = strcmp(in_uplo, "L") == 0 ? MagmaLower : MagmaUpper;
+    const magma_uplo_t uplo = get_magma_uplo(in_uplo);
 
     // Copy the input matrix because MAGMA will override it with eigenvectors.
     // So we can use the eigenvector buffer both as a work copy and as output.
     double* dA = Array_DATA(eigvects);
     memcpy(dA, Array_DATA(in_matrix), n*n*sizeof(double));
 
-    struct syevd_workgroup
-    {
-        magma_int_t lwork;
-        magma_int_t liwork;
-        double* work;
-        magma_int_t* iwork;
-    };
-
-    struct syevd_workgroup workgroup = {0, 0, NULL, NULL};
+    syevd_workgroup workgroup = {};
 
     // Query optimal workgroup sizes
     double work_temp;
@@ -102,7 +66,7 @@ PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
         &status
     );
 
-    assert(status == 0 && "MAGMA dsyevd query failed");
+    assert(status == 0 && "magma_dsyevd query failed");
     workgroup.lwork = (magma_int_t) work_temp;
     workgroup.liwork = iwork_temp;
 
@@ -126,9 +90,13 @@ PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
         &status
     );
 
-    if (status != 0)
+    assert(status >= 0 && "Invalid input to MAGMA solver");
+    if (status > 0)
     {
-        // ... todo
+        PyErr_WarnEx(PyExc_RuntimeWarning,
+            "MAGMA eigensolver failed to converge",
+            1
+        );
     }
 
     free(workgroup.work);

@@ -36,6 +36,7 @@ PyObject* gpaw_gpu_init(PyObject *self, PyObject *args)
     blas_init_gpu();
 
 #ifdef GPAW_WITH_MAGMA
+    // TODO where to do this for non-GPU builds?
     magma_int_t status = magma_init();
     printf("MAGMA initialized, status %d\n", status);
 #endif

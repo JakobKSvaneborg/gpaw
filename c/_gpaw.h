@@ -204,6 +204,7 @@ PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 
 #ifdef GPAW_WITH_MAGMA
 PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args);
+PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args);
 #endif // GPAW_WITH_MAGMA
 
 #endif // GPAW_GPU
@@ -380,6 +381,7 @@ static PyMethodDef functions[] = {
 
     #ifdef GPAW_WITH_MAGMA
     {"eigh_magma_dsyevd", eigh_magma_dsyevd, METH_VARARGS, 0},
+    {"eigh_magma_dsyevd_gpu", eigh_magma_dsyevd_gpu, METH_VARARGS, 0},
     #endif // GPAW_WITH_MAGMA
 
 #endif // GPAW_GPU

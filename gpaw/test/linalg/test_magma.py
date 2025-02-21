@@ -8,9 +8,10 @@ from gpaw.gpu import cupy_is_fake # GPU tests don't work with fake cupy
 
 def fix_eigenvector_phase(inout_arr):
     """Helper function for comparing eigenvector output from different
-    solvers. Rotates the input eigenvector matrix so that the first column
-    of each row becomes a real non-negative number.
+    solvers. Rotates eigenvectors in the input matrix so that the first
+    element of each vector is real and non-negative.
     Input is modified in-place.
+    NB: eigenvectors are on columns.
     """
     assert inout_arr.ndim == 2
 
@@ -18,9 +19,9 @@ def fix_eigenvector_phase(inout_arr):
     if np.issubdtype(inout_arr.dtype, np.floating):
         # Real matrices
         for i in range(inout_arr.shape[0]):
-            if inout_arr[i, 0] < 0:
-                inout_arr[i] *= -1
-        return inout_arr
+            if inout_arr[0, i] < 0:
+                inout_arr[:, i] *= -1
+    return inout_arr
 
 
 @pytest.fixture
@@ -51,14 +52,19 @@ def test_eigh_magma_cpu(symmetric_matrix: np.ndarray,
 
     eigvals_np, eigvects_np = np.linalg.eigh(arr, UPLO=uplo)
 
-    np.testing.assert_allclose(eigvals, eigvals_np, atol=1e-16)
-    np.testing.assert_allclose(eigvects, eigvects_np, atol=1e-16)
+    fix_eigenvector_phase(eigvects)
+    fix_eigenvector_phase(eigvects_np)
+
+    np.testing.assert_allclose(eigvals, eigvals_np, atol=1e-12)
+    np.testing.assert_allclose(eigvects, eigvects_np, atol=1e-12)
 
 
+# MAGMA seems to do small matrices (N <= 128) on the CPU,
+# so need a large matrix for honest GPU tests
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")
-@pytest.mark.skipif(cupy_is_fake, reason="MAGMA GPU tests broken for fake cupy")
+@pytest.mark.skipif(cupy_is_fake, reason="MAGMA GPU tests disabled for fake cupy")
 @pytest.mark.gpu
-@pytest.mark.parametrize("matrix_size, uplo", [(2, 'L'), (4, 'U')])
+@pytest.mark.parametrize("matrix_size, uplo", [(16, 'L'), (256, 'U')])
 def test_eigh_magma_gpu(symmetric_matrix: cp.ndarray,
                         matrix_size: int,
                         uplo: str):
@@ -67,7 +73,10 @@ def test_eigh_magma_gpu(symmetric_matrix: cp.ndarray,
     arr = symmetric_matrix(matrix_size, backend='cupy')
     eigvals, eigvects = eigh_magma_gpu(arr, uplo)
 
-    eigvals_np, eigvects_np = cp.linalg.eigh(arr, UPLO=uplo)
+    eigvals_cp, eigvects_cp = cp.linalg.eigh(arr, UPLO=uplo)
 
-    cp.testing.assert_allclose(eigvals, eigvals_np, atol=1e-16)
-    cp.testing.assert_allclose(eigvects, eigvects_np, atol=1e-16)
+    fix_eigenvector_phase(eigvects)
+    fix_eigenvector_phase(eigvects_cp)
+
+    cp.testing.assert_allclose(eigvals, eigvals_cp, atol=1e-12)
+    cp.testing.assert_allclose(eigvects, eigvects_cp, atol=1e-12)
