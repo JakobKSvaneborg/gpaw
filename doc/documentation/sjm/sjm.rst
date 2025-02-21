@@ -177,7 +177,9 @@ The :literal:`autoinner` part automatically finds the inner region, in this case
     atoms.get_potential_energy()
     elstat = calc.get_electrostatic_potential()
     el_stat_z = elstat.mean(0).mean(0)
-    # correct inner potential so solvent inner potential is zero
+    # Correct the electrostatic potential so that solvent inner potential is zero.
+    # This is needed for establishing the Fermi level (mu_pzc) and
+    # the electrode inner potential (phi_pzc) at potential of zero charge (PZC)
     el_stat_z -= el_stat_z[-1]
     # same for inner potential
     phi_pzc = calc.get_inner_potential(atoms) - el_stat_z[-1]
