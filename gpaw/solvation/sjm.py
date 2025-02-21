@@ -220,7 +220,6 @@ class SJM(SolvationGPAW):
          'slope': None,
          'mixer': 0.5,
          'slope_regression_depth': 4,
-         'dirichlet': False,
          'cip': {'autoinner': {'nlayers': None,
                  'threshold': 0.0001},
                  'inner_region': None,
@@ -229,6 +228,7 @@ class SJM(SolvationGPAW):
                  'filter': 10
                  }})
 
+    _sj_default_parameters.update({'dirichlet': False})
     default_parameters = copy.deepcopy(SolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
     default_parameters['convergence'].update({'work function': 0.001})
