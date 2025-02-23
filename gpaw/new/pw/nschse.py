@@ -246,7 +246,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            relpos_ac: np.ndarray,
            grid: UGDesc,
            plan,  # FFT-plan
-           log: Logger) -> list[Psit]:
+           log: Logger) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
     nocc = number_of_non_empty_bands(ibzwfs)
     ibz = ibzwfs.ibz
