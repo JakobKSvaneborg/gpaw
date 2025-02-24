@@ -284,10 +284,12 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
                 correction.calculate(kpt.q, dM_vaii[v], M_vmM[v],
                                      Mstart, Mstop)
 
-    # The matrix should be real
+    # The matrices should be real
     assert np.max(np.absolute(M_vmM.imag)) == 0.0
     M_vmM = M_vmM.real.copy()
-    return -0.5 * M_vmM
+    assert np.max(np.absolute(gicorrM_vMM.imag)) == 0.0
+    gicorrM_vMM = gicorrM_vMM.real.copy()
+    return -0.5 * ( M_vmM + gicorrM_vMM)
 
 
 def calculate_magnetic_moment_in_lcao(ksl, rho_mm, M_vmm):
