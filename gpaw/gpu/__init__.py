@@ -150,7 +150,7 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     if not is_hip:
         return cupy.linalg.eigh(a, UPLO=UPLO)
 
-    elif have_magma and a.ndim == 2 and a.shape[0] > 100:
+    elif have_magma and a.ndim == 2 and a.shape[0] > 128:
         # import here to avoid circular import.
         # magma needs cupy (possibly fake), which must be imported from this file
         from gpaw.new.magma import eigh_magma_gpu
