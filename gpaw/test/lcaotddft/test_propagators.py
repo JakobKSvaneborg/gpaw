@@ -9,15 +9,15 @@ from . import check_txt_data
 
 
 @pytest.mark.rttddft
-@pytest.mark.parametrize('prpgtr', ['sicn', 'scpc', 'ecn'])
-def test_propagators(prpgtr, gpw_files, in_tmp_dir):
+@pytest.mark.parametrize('propagator', ['sicn', 'scpc', 'ecn'])
+def test_propagators(propagator, gpw_files, in_tmp_dir):
     # XXX convergence={'density': 1e-8} originally 1e-12
-    td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'], propagator=prpgtr)
+    td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'], propagator=propagator)
     DipoleMomentWriter(td_calc, 'dm.dat')
     td_calc.absorption_kick([0.0, 0.0, 1e-5])
     td_calc.propagate(40, 20)
 
-    if prpgtr == 'sicn':
+    if propagator == 'sicn':
 
         with paropen('dm_ref.dat', 'w') as fd:
             fd.write('''
@@ -49,7 +49,7 @@ def test_propagators(prpgtr, gpw_files, in_tmp_dir):
          33.07309868      -8.55054824e-16     5.915566249147e-15     5.896392821838e-15     1.580588287559e-04
 '''.strip())  # noqa: E501
 
-    elif prpgtr == 'scpc':
+    elif propagator == 'scpc':
         with paropen('dm_ref.dat', 'w') as fd:
             fd.write('''
 # DipoleMomentWriter[version=1](center=False, density='comp')
@@ -80,7 +80,7 @@ def test_propagators(prpgtr, gpw_files, in_tmp_dir):
          33.07309868      -5.14207907e-16     6.720850196124e-15     6.129857495542e-15     1.581341901411e-04
 '''.strip())  # noqa: E501
 
-    elif prpgtr == 'ecn':
+    elif propagator == 'ecn':
         with paropen('dm_ref.dat', 'w') as fd:
             fd.write('''
 # DipoleMomentWriter[version=1](center=False, density='comp')
