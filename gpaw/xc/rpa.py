@@ -86,11 +86,13 @@ class RPAIntegral:
         """Number of plane-wave cutoffs to extrapolate over."""
         return len(self.ecut_i)
 
-    def integrate_frequencies(self, in_wx):
-        return self.weight_w @ in_wx
+    def integrate_frequencies(self, in_xwi):
+        out_xi = self.weight_w @ in_xwi
+        return out_xi
 
-    def integrate_qpoints(self, in_qx):
-        return self.weight_q @ in_qx
+    def integrate_qpoints(self, in_xqi):
+        out_xi = self.weight_q @ in_xqi
+        return out_xi
 
 
 @dataclass
@@ -98,15 +100,23 @@ class RPAData:
     integral: RPAIntegral
 
     def __post_init__(self):
-        self.energy_qi = np.zeros(self.shape)
+        self.energy_qwi = np.zeros(self.shape)
 
     @property
     def shape(self):
-        # store frequencies XXX
-        return (self.integral.nq, self.integral.ni)
+        return (self.integral.nq, self.integral.nw, self.integral.ni)
 
-    def correlation_energies(self):
-        """Correlation energy as a function of plane-wave cutoff."""
+    def contribution_from_qpoint(self, q, i=-1):
+        return self.integral.integrate_frequencies(self.energy_qwi[q, :, i])
+
+    @property
+    def energy_qi(self):
+        """Correlation energy contribution, E_c(q)."""
+        return self.integral.integrate_frequencies(self.energy_qwi)
+
+    @property
+    def energy_i(self):
+        """Correlation energy E_c as a function of the plane-wave cutoff."""
         return self.integral.integrate_qpoints(self.energy_qi)
 
 
@@ -224,15 +234,15 @@ class RPACalculator:
                 p('E_cut = %d eV / Bands = %d:' % (ecut * Hartree, m2),
                   end='\n', flush=True)
                 p('E_c(q) = ', end='', flush=False)
-                energy = self.calculate_q(
-                    chi0calc, chi0_s, m1, m2, gcut)
+                energy_w = self.calculate_q(chi0calc, chi0_s, m1, m2, gcut)
+                data.energy_qwi[q, :, i] += self.wblocks.all_gather(energy_w)
+                energy = data.contribution_from_qpoint(q, i=i)
                 p('%.3f eV' % (energy * Hartree), flush=True)
-                data.energy_qi[q, i] = energy
                 m1 = m2
 
             p()
 
-        e_i = data.correlation_energies()
+        e_i = data.energy_i
         p('==========================================================')
         p()
         p('Total correlation energy:')
@@ -257,55 +267,40 @@ class RPACalculator:
         chi0 = chi0_s[0]
         chi0calc.update_chi0(
             chi0, m1, m2, spins=range(chi0calc.gs.nspins))
+        # Calculate RPA energy contributions (as a function of w)
         if chi0.qpd.optical_limit:
-            rpa_energy = self.calculate_optical_limit_rpa_energy(chi0, gcut)
-        else:
-            rpa_energy = self.calculate_rpa_energy(chi0, gcut)
-        return rpa_energy
+            return self.calculate_optical_limit_rpa_energies(chi0, gcut)
+        return self.calculate_rpa_energies(chi0, gcut)
 
-    def calculate_optical_limit_rpa_energy(self, chi0, gcut):
+    def calculate_optical_limit_rpa_energies(self, chi0, gcut):
         """Calculate correlation energy from chi0 in the optical limit."""
         from gpaw.response.gamma_int import GammaIntegral
 
         gamma_int = GammaIntegral(self.coulomb, qpd=chi0.qpd)
 
-        def integrand(data):
-            chi0_GG, chi0_vv, chi0_xvG = data
+        energy_w = []
+        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
+        for chi0_GG, chi0_vv, chi0_xvG in zip(
+                chi0_wGG,
+                chi0.chi0_Wvv[self.wblocks.myslice],
+                chi0.chi0_WxvG[self.wblocks.myslice],
+        ):
+            # Integrate over the optical wave vector volume
             energy = 0.
             for qweight, sqrtV_G, chi0_mapping in gamma_int:
                 chi0p_GG = chi0_mapping(chi0_GG, chi0_vv, chi0_xvG)
                 energy += qweight * single_rpa_energy(
                     chi0p_GG, gcut.cut(sqrtV_G), gcut)
-            return energy
+            energy_w.append(energy)
+        return np.array(energy_w)
 
-        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
-        return self.integrate(
-            integrand,
-            data_w=zip(
-                chi0_wGG,
-                chi0.chi0_Wvv[self.wblocks.myslice],
-                chi0.chi0_WxvG[self.wblocks.myslice],
-            ),
-        )
-
-    def calculate_rpa_energy(self, chi0, gcut):
+    def calculate_rpa_energies(self, chi0, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
         sqrtV_G = gcut.cut(self.coulomb.sqrtV(chi0.qpd, q_v=None))
-
-        def integrand(chi0_GG):
-            return single_rpa_energy(chi0_GG, sqrtV_G, gcut)
-
-        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
-        return self.integrate(integrand, data_w=chi0_wGG)
-
-    def integrate(self, integrand, *, data_w):
-        """Integrate over frequency to obtain the rpa correlation energy."""
-        energy_w = np.array([
-            integrand(data) for data in data_w
+        return np.array([
+            single_rpa_energy(chi0_GG, sqrtV_G, gcut)
+            for chi0_GG in chi0.body.copy_array_with_distribution('wGG')
         ])
-        return self.integral.integrate_frequencies(
-            self.wblocks.all_gather(energy_w)
-        )
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
