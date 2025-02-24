@@ -462,10 +462,11 @@ class SelfConsistentPropagator(SICNPropagator):
                                ' many iterations to reached the',
                                ' demanded accuracy.')
         return time + time_step
-    
+
     def todict(self):
         return {'name': 'scpc', 'tolerance': self.tolerance,
                 'PCmax': self.PCmax}
+
 
 class TaylorPropagator(Propagator):
 
