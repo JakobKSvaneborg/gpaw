@@ -54,7 +54,7 @@ def pw_insert_gpu(psit_nG,
 def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
                  l_s, a_J, s_J,
                  cc, f_GI):
-    real = f_GI.dtype == float
+    real = np.issubdtype(f_GI.dtype, np.floating)
     I1 = 0
     for J, (a, s) in enumerate(zip(a_J, s_J)):
         l = l_s[s]
