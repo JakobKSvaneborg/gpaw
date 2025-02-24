@@ -433,9 +433,6 @@ class SelfConsistentPropagator(ECNPropagator):
             #       = (S_MM + 0.5j*H_MM(t)*dt) Psi(t)
             self.propagate_wfs(kpt.C_nM, kpt.C_nM, kpt.S_MM, kpt.H0_MM,
                                time_step)
-        if self.hamiltonian.rremission is not None:
-            self.hamiltonian.rremission.savelast(
-                self.density.calculate_dipole_moment())
         self.hamiltonian.update()
         for PC_ii in range(self.PCmax):
             self.PC_ii = PC_ii
