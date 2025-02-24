@@ -4,4 +4,8 @@
 Structure relaxation recipes
 =================================
 
-.. literalinclude:: gpaw_relax.py
+.. literalinclude:: fixcell_relax.py
+
+.. literalinclude:: full_relax.py
+
+.. literalinclude:: params.json
