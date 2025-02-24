@@ -34,7 +34,7 @@ def fix_eigenvector_phase(inout_arr):
 
 
 @pytest.fixture
-def symmetric_matrix():
+def eigh_test_matrix():
     def _generate(n: int,
         type: str = 'symmetric',
         backend: str ='numpy',
@@ -63,13 +63,13 @@ def symmetric_matrix():
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")
 @pytest.mark.parametrize("matrix_size, matrix_type, uplo",
                         [(2, 'symmetric', 'L'), (4, 'hermitian', 'U')])
-def test_eigh_magma_cpu(symmetric_matrix: np.ndarray,
+def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
                         matrix_size: int,
                         matrix_type: str,
                         uplo: str) -> None:
     """Compare eigh output of Numpy and MAGMA"""
 
-    arr = symmetric_matrix(matrix_size, type=matrix_type, backend='numpy')
+    arr = eigh_test_matrix(matrix_size, type=matrix_type, backend='numpy')
     eigvals, eigvects = eigh_magma_cpu(arr, uplo)
 
     eigvals_np, eigvects_np = np.linalg.eigh(arr, UPLO=uplo)
@@ -92,13 +92,13 @@ def test_eigh_magma_cpu(symmetric_matrix: np.ndarray,
                          [(16, 'symmetric', 'L'),
                           (150, 'hermitian', 'L'),
                           (256, 'hermitian', 'U')])
-def test_eigh_magma_gpu(symmetric_matrix: cp.ndarray,
+def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
                         matrix_size: int,
                         matrix_type: str,
                         uplo: str):
     """Compare eigh output of CUPY and MAGMA"""
 
-    arr = symmetric_matrix(matrix_size, type=matrix_type, backend='cupy')
+    arr = eigh_test_matrix(matrix_size, type=matrix_type, backend='cupy')
     eigvals, eigvects = eigh_magma_gpu(arr, uplo)
 
     eigvals_cp, eigvects_cp = cp.linalg.eigh(arr, UPLO=uplo)
