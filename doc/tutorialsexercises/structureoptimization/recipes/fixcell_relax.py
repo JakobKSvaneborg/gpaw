@@ -23,7 +23,7 @@ assert 'gpaw' == calculator_params.pop('name')
 calc_dft = GPAW(**calculator_params)
 
 # magnetize atoms
-atoms.set_initial_magnetic_moments(len(atoms)*[1])
+atoms.set_initial_magnetic_moments(len(atoms) * [1])
 
 # optionally include van der Waals DFT-D3
 if d3:

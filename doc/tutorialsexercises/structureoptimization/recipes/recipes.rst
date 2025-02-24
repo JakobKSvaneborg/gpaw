@@ -49,7 +49,9 @@ Full relaxation
 --------------------------------
 
 The cell shape and size can be relaxed together with the atom positions using 
-cell filters. The cell filter takes the ``Atoms`` object as input and is
+cell filters. For that, we need to import the corresponding class using 
+``from ase.filters import UnitCellFilter``.
+The cell filter takes the ``Atoms`` object as input and is
 directly handed to the optimization routine. For full relaxations, 
 you can simply replace the  optimization routine line 
 ``opt = ...`` with the following code lines

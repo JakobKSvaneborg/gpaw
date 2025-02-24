@@ -1,5 +1,6 @@
 import ase.io as io
 from ase.optimize import BFGS
+from ase.filters import UnitCellFilter
 from gpaw import GPAW
 import json
 
@@ -23,7 +24,7 @@ assert 'gpaw' == calculator_params.pop('name')
 calc_dft = GPAW(**calculator_params)
 
 # magnetize atoms
-atoms.set_initial_magnetic_moments(len(atoms)*[1])
+atoms.set_initial_magnetic_moments(len(atoms) * [1])
 
 # optionally include van der Waals DFT-D3
 if d3:
@@ -40,7 +41,6 @@ logfile = open('opt.log', 'w')
 trajectory = io.Trajectory('opt.traj', 'w', atoms)
 
 # --- literalinclude start line ---
-from ase.filters import UnitCellFilter
 # set unit cell filter
 ucf = UnitCellFilter(atoms)
 opt = BFGS(ucf, logfile=logfile, trajectory=trajectory)
