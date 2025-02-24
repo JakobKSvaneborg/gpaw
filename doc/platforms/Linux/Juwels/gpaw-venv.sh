@@ -64,7 +64,7 @@ pip install -e gpaw -v > compilation.out
 
 # Install extra basis-functions:
 cd "$VENV"
-gpaw install-data --basis --version=20000 . --no-register
+gpaw install-data --basis --version=0.9.20000 . --no-register
 export GPAW_SETUP_PATH="$GPAW_SETUP_PATH:$VENV/gpaw-basis-pvalence-0.9.20000"
 echo "export GPAW_SETUP_PATH=$GPAW_SETUP_PATH" >> bin/activate
 
