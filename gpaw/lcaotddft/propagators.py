@@ -70,7 +70,6 @@ class LCAOPropagator(Propagator):
         self.wfs = paw.wfs
         self.density = paw.density
         self.hamiltonian = paw.td_hamiltonian
-        self.PC_conv = 0
 
 
 class ReplayPropagator(LCAOPropagator):
@@ -385,7 +384,7 @@ class SICNPropagator(ECNPropagator):
         return {'name': 'sicn'}
 
 
-class SelfConsistentPropagator(ECNPropagator):
+class SelfConsistentPropagator(SICNPropagator):
     """
     This is an actual Predictor-Corrector propagator that uses the SICN
     and combines it with an actual Corrector step. This is identical to
@@ -399,11 +398,11 @@ class SelfConsistentPropagator(ECNPropagator):
     You will notice an artifical exponential decay of the SICN dipole
     after kick while SCPC will preserve the dipole oscillations.
     """
-    def __init__(self, tolerance=1e-8, PCmax=20):
+    def __init__(self, tolerance=1e-8, max_pc_iterations=20):
         ECNPropagator.__init__(self)
         self.tolerance = tolerance
-        self.PCmax = PCmax
-        self.PC_ii = 0
+        self.max_pc_iterations = max_pc_iterations
+        self.last_pc_iterations = 0
 
     def initialize(self, paw):
         ECNPropagator.initialize(self, paw)
@@ -434,8 +433,8 @@ class SelfConsistentPropagator(ECNPropagator):
             self.propagate_wfs(kpt.C_nM, kpt.C_nM, kpt.S_MM, kpt.H0_MM,
                                time_step)
         self.hamiltonian.update()
-        for PC_ii in range(self.PCmax):
-            self.PC_ii = PC_ii
+        for last_pc_iterations in range(self.max_pc_iterations):
+            self.last_pc_iterations = last_pc_iterations
             # ---------------
             # Propagator step
             # ---------------
@@ -458,19 +457,11 @@ class SelfConsistentPropagator(ECNPropagator):
             PCnew_dip = self.density.calculate_dipole_moment()
             if np.sum(np.abs(PCnew_dip - PCprev_dip)) < self.tolerance:
                 break
-        if PC_ii == self.PCmax - 1:
+        if last_pc_iterations == self.max_pc_iterations - 1:
             raise RuntimeError('The SCPC propagator required too',
                                ' many iterations to reached the',
                                ' demanded accuracy.')
         return time + time_step
-
-    def save_wfs(self):
-        for kpt in self.wfs.kpt_u:
-            kpt.C2_nM[:] = kpt.C_nM
-
-    def todict(self):
-        return {'name': 'scpc', 'tolerance': self.tolerance,
-                'PCmax': self.PCmax}
 
 
 class TaylorPropagator(Propagator):
