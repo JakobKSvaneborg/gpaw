@@ -1,6 +1,7 @@
 import pytest
 from ase import Atoms
 from ase.io import read
+from ase.units import Ha
 
 from gpaw import GPAW
 
@@ -21,5 +22,5 @@ def test_read_txt(in_tmp_dir, gpw_files, name):
     e = atoms.get_potential_energy()
     assert e == pytest.approx(e0)
     if not calc.old:
-        print(atoms.calc.energy_contributions)
-        print(calc.dft.energies.kinetic)
+        assert atoms.calc.energy_contributions['kinetic'] == pytest.approx(
+            calc.dft.energies.kinetic * Ha)
