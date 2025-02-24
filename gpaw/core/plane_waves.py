@@ -720,14 +720,16 @@ class PWArray(DistributedArrays[PWDesc]):
         ekin_G = self.xp.asarray(self.desc.ekin_G)
         for a in arrays:
             rng.random(out=a.view(dtype=self.real_dtype))
-            if is_real and self.desc.comm.rank == 0:
-                a[..., 0].imag = 0.0
 
             # Uniform distribution inside unit circle
             a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)
 
             # Damp high spatial frequencies
-            a[..., :] *= 0.5 / (0.15 + ekin_G[..., :])
+            a[..., :] *= 0.5 / (1.00 + ekin_G[..., :])
+
+            # Make sure gamma point G=0 does not have imaginary part
+            if is_real and self.desc.comm.rank == 0:
+                a[..., 0].imag = 0.0
 
     def moment(self):
         pw = self.desc
