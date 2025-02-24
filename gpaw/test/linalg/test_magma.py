@@ -18,7 +18,7 @@ def fix_eigenvector_phase(inout_arr):
 
     if np.issubdtype(inout_arr.dtype, np.complexfloating):
         # Complex matrices
-        for i in range(inout_arr.shape[0]):
+        for i in range(inout_arr.shape[1]):
             phase = np.angle(inout_arr[0, i])
             if phase != 0:
                 rotation = np.exp(phase * (-1j))
@@ -26,7 +26,7 @@ def fix_eigenvector_phase(inout_arr):
 
     elif np.issubdtype(inout_arr.dtype, np.floating):
         # Real matrices
-        for i in range(inout_arr.shape[0]):
+        for i in range(inout_arr.shape[1]):
             if inout_arr[0, i] < 0:
                 inout_arr[:, i] *= -1
 
@@ -35,7 +35,11 @@ def fix_eigenvector_phase(inout_arr):
 
 @pytest.fixture
 def symmetric_matrix():
-    def _generate(n: int, type: str = 'symmetric', backend: str ='numpy', seed: int = 42):
+    def _generate(n: int,
+        type: str = 'symmetric',
+        backend: str ='numpy',
+        seed: int = 42):
+
         assert type in ['symmetric', 'hermitian']
         assert backend in ['numpy', 'cupy']
 
@@ -57,7 +61,8 @@ def symmetric_matrix():
     return _generate
 
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")
-@pytest.mark.parametrize("matrix_size, matrix_type, uplo", [(2, 'symmetric', 'L'), (4, 'hermitian', 'U')])
+@pytest.mark.parametrize("matrix_size, matrix_type, uplo",
+                        [(2, 'symmetric', 'L'), (4, 'hermitian', 'U')])
 def test_eigh_magma_cpu(symmetric_matrix: np.ndarray,
                         matrix_size: int,
                         matrix_type: str,
@@ -80,9 +85,13 @@ def test_eigh_magma_cpu(symmetric_matrix: np.ndarray,
 # MAGMA seems to do small matrices (N <= 128) on the CPU.
 # So need a large matrix for honest GPU tests
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")
-@pytest.mark.skipif(cupy_is_fake, reason="MAGMA GPU tests disabled for fake cupy")
+@pytest.mark.skipif(cupy_is_fake,
+                    reason="MAGMA GPU tests disabled for fake cupy")
 @pytest.mark.gpu
-@pytest.mark.parametrize("matrix_size, matrix_type, uplo", [(16, 'symmetric', 'L'), (150, 'hermitian', 'L'), (256, 'hermitian', 'U')])
+@pytest.mark.parametrize("matrix_size, matrix_type, uplo",
+                         [(16, 'symmetric', 'L'),
+                          (150, 'hermitian', 'L'),
+                          (256, 'hermitian', 'U')])
 def test_eigh_magma_gpu(symmetric_matrix: cp.ndarray,
                         matrix_size: int,
                         matrix_type: str,
