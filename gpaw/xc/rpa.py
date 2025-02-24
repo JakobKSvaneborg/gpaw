@@ -83,6 +83,22 @@ def initialize_q_points(kd, qsym):
     return bzq_qc, ibzq_qc, weight_q
 
 
+class RPAIntegral:
+    def __init__(self, omega_w, weight_w):
+        """Construct the RPA integral.
+
+        Parameters:
+        -----------
+        omega_w: Frequencies in eV.
+        weight_w: Frequency integral weights.
+        """
+        self.omega_w = omega_w
+        self.weight_w = weight_w
+
+    def integrate_frequencies(self, in_wx):
+        return self.weight_w @ in_wx
+
+
 class RPACalculator:
     def __init__(self, gs, *, context, filename=None,
                  ecut,
@@ -93,7 +109,10 @@ class RPACalculator:
         self.context = context
 
         self.omega_W = frequencies / Hartree
-        self.weight_W = weights / Hartree / (2 * np.pi)
+        self.integral = RPAIntegral(
+            frequencies,
+            weights / Hartree / (2 * np.pi),
+        )
 
         # TODO: We should avoid this requirement.
         assert len(self.omega_W) % nblocks == 0
@@ -327,10 +346,12 @@ class RPACalculator:
 
     def integrate(self, integrand, *, data_w):
         """Integrate over frequency to obtain the rpa correlation energy."""
-        energy = 0.
-        for weight, data in zip(self.weight_W[self.wblocks.myslice], data_w):
-            energy += weight * integrand(data)
-        return self.wblocks.blockcomm.sum_scalar(energy)
+        energy_w = np.array([
+            integrand(data) for data in data_w
+        ])
+        return self.integral.integrate_frequencies(
+            self.wblocks.all_gather(energy_w)
+        )
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
