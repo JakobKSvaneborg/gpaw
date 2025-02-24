@@ -5,6 +5,11 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
+  # CI for branches inside the GPAW namespace will run on camd-runner2
+  # because the GPAW project settings define the CI variable
+  # DEFAULT_RUNNER_TAG: "linux".
+  # Forks will instead get this definition which allows running 
+  # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
 
 
