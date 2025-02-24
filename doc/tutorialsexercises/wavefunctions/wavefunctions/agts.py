@@ -5,4 +5,3 @@ def workflow():
             args=['CO.gpw'])
     with run(script='O.py', cores=8, tmax='15m'):
         run(script='O_lumo.py')
-
