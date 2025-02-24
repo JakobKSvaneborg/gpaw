@@ -20,28 +20,6 @@ def default_ecut_extrapolation(ecut, extrapolate):
     return ecut * (1 + 0.5 * np.arange(extrapolate))**(-2 / 3)
 
 
-def rpa(filename, ecut=200.0, blocks=1, extrapolate=4):
-    """Calculate RPA energy.
-
-    filename: str
-        Name of restart-file.
-    ecut: float
-        Plane-wave cutoff.
-    blocks: int
-        Split polarizability matrix in this many blocks.
-    extrapolate: int
-        Number of cutoff energies to use for extrapolation.
-    """
-    name, ext = filename.rsplit('.', 1)
-    assert ext == 'gpw'
-    from gpaw.xc.rpa import RPACorrelation
-    rpa = RPACorrelation(name, name + '-rpa.dat',
-                         nblocks=blocks,
-                         ecut=default_ecut_extrapolation(ecut, extrapolate),
-                         txt=name + '-rpa.txt')
-    rpa.calculate()
-
-
 class GCut:
     def __init__(self, cut_G):
         self._cut_G = cut_G
