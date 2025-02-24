@@ -462,17 +462,17 @@ __global__ void pw_insert_many_16(int nb,
     }
 }
 
+template <typename Treal>
 __global__ void add_to_density_8(int nb,
 				  int nR,
 				  double* f_n,
-				  double* psit_nR,
-				  double* rho_R)
+				  Treal* psit_nR,
+				  Treal* rho_R)
 {
-    //int b = threadIdx.x + blockIdx.x * blockDim.x;
     int R = threadIdx.x + blockIdx.x * blockDim.x;
     if (R < nR)
     {
-	double rho = 0.0;
+	Treal rho = 0.0;
 	for (int b=0; b< nb; b++)
 	{
 	    int idx = b * nR + R;
@@ -483,17 +483,17 @@ __global__ void add_to_density_8(int nb,
 }
 
 
+template <typename Tcomplex, typename Treal>
 __global__ void add_to_density_16(int nb,
 				  int nR,
 				  double* f_n,
-				  gpuDoubleComplex* psit_nR,
-				  double* rho_R)
+				  Tcomplex* psit_nR,
+				  Treal* rho_R)
 {
-    //int b = threadIdx.x + blockIdx.x * blockDim.x;
     int R = threadIdx.x + blockIdx.x * blockDim.x;
     if (R < nR)
     {
-	double rho = 0.0;
+	Treal rho = 0.0;
 	for (int b=0; b< nb; b++)
 	{
 	    int idx = b * nR + R;
@@ -521,35 +521,40 @@ extern "C" void gpawDeviceSynchronize()
     gpuDeviceSynchronize();
 }
 
+
 extern "C"
 void add_to_density_gpu_launch_kernel(int nb,
 				      int nR,
 				      double* f_n,
-				      gpuDoubleComplex* psit_nR,
-				      double* rho_R,
-				      int wfs_is_complex)
+				      void* psit_nR,
+				      void* rho_R,
+				      int dtypenum)
 {
-    if (wfs_is_complex)
+    if (dtypenum==15)
     {
-    gpuLaunchKernel(add_to_density_16,
-		    dim3((nR+255)/256),
-		    dim3(256),
-		    0, 0,
-		    nb, nR,
-		    f_n,
-		    psit_nR,
-		    rho_R);
+        auto fptr = &add_to_density_16<gpuDoubleComplex, double>;
+        gpuLaunchKernel(fptr, dim3((nR+255)/256), dim3(256), 0, 0,
+		    nb, nR, f_n, (gpuDoubleComplex*)psit_nR, (double*)rho_R);
+    }
+    else if (dtypenum==14)
+    {
+        auto fptr = &add_to_density_16<gpuFloatComplex, float>;
+        gpuLaunchKernel(fptr, dim3((nR+255)/256), dim3(256), 0, 0,
+		    nb, nR, f_n, (gpuFloatComplex*)psit_nR, (float*)rho_R);
+    } else if (dtypenum==11)
+    {
+        auto fptr = &add_to_density_8<float>;
+        gpuLaunchKernel(fptr, dim3((nR+255)/256), dim3(256), 0, 0,
+		    nb, nR, f_n, (float*) psit_nR, (float*) rho_R);
+    } else if (dtypenum==12)
+    {
+        auto fptr = &add_to_density_8<double>;
+        gpuLaunchKernel(fptr, dim3((nR+255)/256), dim3(256), 0, 0,
+		    nb, nR, f_n, (double*) psit_nR, (double*) rho_R);
     }
     else
     {
-    gpuLaunchKernel(add_to_density_8,
-		    dim3((nR+255)/256),
-		    dim3(256),
-		    0, 0,
-		    nb, nR,
-		    f_n,
-		    (double*) psit_nR,
-		    rho_R);
+        assert(0);
     }
 }
 

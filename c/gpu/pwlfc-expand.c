@@ -65,7 +65,7 @@ void add_to_density_gpu_launch_kernel(int nb,
                                       double* f_n,
                                       double complex* psit_nR,
                                       double* rho_R,
-                                      int wfs_is_complex);
+                                      int dtypenum);
 
 
 void dH_aii_times_P_ani_launch_kernel(int nA, int nn,
@@ -416,17 +416,30 @@ PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
     if (!PyArg_ParseTuple(args, "OOO",
                           &f_n_obj, &psit_nR_obj, &rho_R_obj))
         return NULL;
+    int dtypenum = Array_TYPE(psit_nR_obj);
+
     double *f_n = Array_DATA(f_n_obj);
-    double complex *psit_nR = Array_DATA(psit_nR_obj);
-    double* rho_R = Array_DATA(rho_R_obj);
+    void *psit_nR = (void*) Array_DATA(psit_nR_obj);
+    void *rho_R = (void*) Array_DATA(rho_R_obj);
     int nb = Array_SIZE(f_n_obj);
     int nR = Array_SIZE(psit_nR_obj) / nb;
-    assert(Array_ITEMSIZE(rho_R_obj) == 8);
+    //assert(Array_ITEMSIZE(rho_R_obj) == 8);
+    int rhodtype = Array_TYPE(rho_R_obj);
+    // f_n always double
+    // Only these combinations are allowed. Make it so.
+    // dtype.num 11      14        12      15
+    // psit_nR   float32 complex64 float64 complex128
+    //
+    // dtype.num 11      11        12      12
+    // rho_r     float32 float32   float64 float64
+    assert ((rhodtype == 11 && (dtypenum == 11 || dtypenum == 14)) ||
+            (rhodtype == 12 && (dtypenum == 12 || dtypenum == 15)));
+    
     if (PyErr_Occurred())
     {
         return NULL;
     }
-    add_to_density_gpu_launch_kernel(nb, nR, f_n, psit_nR, rho_R, Array_ITEMSIZE(psit_nR_obj)==16); 
+    add_to_density_gpu_launch_kernel(nb, nR, f_n, psit_nR, rho_R, dtypenum); 
     Py_RETURN_NONE;
 }
 

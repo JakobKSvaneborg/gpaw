@@ -19,6 +19,7 @@
 #define gpuDeviceProp             cudaDeviceProp
 
 #define gpuDoubleComplex          cuDoubleComplex
+#define gpuFloatComplex           cuFloatComplex
 #define gpublasDoubleComplex      cuDoubleComplex
 #define make_gpuDoubleComplex     make_cuDoubleComplex
 #define gpuCreal                  cuCreal
