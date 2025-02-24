@@ -533,6 +533,7 @@ class AllElectron(IOContext):
 
     @cached_property
     def valence_data(self):
+        assert abs(self.rgd.beta - self.beta) < 1e-13
         return ValenceData(rgd=self.rgd, vr=self.vr,
                            n_j=self.n_j[self.njcore:],
                            l_j=self.l_j[self.njcore:],
@@ -542,7 +543,6 @@ class AllElectron(IOContext):
                            u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
                            rcut_l=self.rcut_l,
                            scalarrel=self.scalarrel,
-                           beta=self.beta,
                            r2dvdr=self.r2dvdr,
                            njcore=self.njcore,
                            xcname=self.xcname,
@@ -794,7 +794,6 @@ class ValenceData:
 
     rcut_l: list[float]
     scalarrel: bool
-    beta: float
     r2dvdr: np.ndarray
 
     # Maybe we don't need these variables:
@@ -808,10 +807,10 @@ class ValenceData:
 
     def r2g(self, r):
         """Convert radius to index of the radial grid."""
-        return int(r * self.N / (self.beta + r))
+        return int(r * self.N / (self.rgd.beta + r))
 
     def __post_init__(self):
-        err = abs(self.beta / len(self.rgd.r_g) - self.rgd.a)
+        err = abs(self.rgd.beta / len(self.rgd.r_g) - self.rgd.a)
         assert err < 1e-15, f'Inconsistent rgd spacing, {err=}'
 
     @cached_property
@@ -853,7 +852,7 @@ class ValenceData:
             u = self.u_j[j].copy()
 
         nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
-                               self.scalarrel, rc=rc, beta=self.beta)
+                               self.scalarrel, rc=rc, beta=self.rgd.beta)
         assert nn == n - l - 1  # run() should have been called already
 
         # adjust eigenenergy until u is smooth at the turning point
@@ -869,7 +868,7 @@ class ValenceData:
             assert e < 0.0
 
             nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
-                                   self.scalarrel, rc=rc, beta=self.beta)
+                                   self.scalarrel, rc=rc, beta=self.rgd.beta)
         u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
         return u, e
 
