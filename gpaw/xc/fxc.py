@@ -217,18 +217,12 @@ class FXCCorrelation:
         for s, chi0 in enumerate(chi0_s):
             chi0calc.update_chi0(chi0, m1, m2, [s])
 
-        self.context.print('E_c(q) = ', end='', flush=False)
-
-        qpd = chi0.qpd
-        nw = chi0.nw
-        mynw = nw // self.nblocks
-        assert nw % self.nblocks == 0
-        nspins = len(chi0_s)
-        nG = qpd.ngmax
-        chi0_swGG = np.empty((nspins, mynw, nG, nG), complex)
-        for chi0_wGG, chi0 in zip(chi0_swGG, chi0_s):
-            chi0_wGG[:] = chi0.body.copy_array_with_distribution('wGG')
-        if self.nblocks > 1:
+        qpd = chi0_s[0].qpd
+        chi0_swGG = np.array([
+            chi0.body.get_distributed_frequencies_array() for chi0 in chi0_s
+        ])
+        wblocks = chi0_s[0].body.get_distributed_frequencies_blocks1d()
+        if wblocks.blockcomm.size > 1:  # why???
             chi0_swGG = np.swapaxes(chi0_swGG, 2, 3)
 
         # XXX Gamma-point code is NOT well tested!
@@ -236,20 +230,26 @@ class FXCCorrelation:
         # This if/else was pasted from RPA where bug was also fixed.
         # We have not added regression test for fxc and the change
         # causes no test failures.
-        if not qpd.optical_limit:
-            return self.calculate_energies_fxc(qpd, chi0_swGG, gcut)
+        if not chi0.qpd.optical_limit:
+            energy_w = self.calculate_fxc_energies(qpd, chi0_swGG, gcut)
+        else:
+            energy_w = self.calculate_optical_limit_fxc_energies(
+                qpd, wblocks, chi0_s, chi0_swGG, gcut
+            )
+        return wblocks.all_gather(energy_w)
+
+    def calculate_optical_limit_fxc_energies(
+            self, qpd, wblocks, chi0_s, chi0_swGG, gcut):
         # For some reason, we "only" average out cartesian directions, instead
         # of performing an actual integral over the q-point volume as in rpa...
-        wblocks = self.rpa.wblocks
-        myslice = wblocks.myslice
-        e_w = np.zeros(wblocks.nlocal)
+        energy_w = np.zeros(chi0_swGG.shape[1])
         for v in range(3):
-            for chi0_wGG, chi0 in zip(chi0_swGG, chi0_s):
-                chi0_wGG[:, 0] = chi0.chi0_WxvG[myslice, 0, v]
-                chi0_wGG[:, :, 0] = chi0.chi0_WxvG[myslice, 1, v]
-                chi0_wGG[:, 0, 0] = chi0.chi0_Wvv[myslice, v, v]
-            e_w += self.calculate_energies_fxc(qpd, chi0_swGG, gcut) / 3
-        return e_w
+            for chi0, chi0_wGG in zip(chi0_s, chi0_swGG):
+                chi0_wGG[:, 0] = chi0.chi0_WxvG[wblocks.myslice, 0, v]
+                chi0_wGG[:, :, 0] = chi0.chi0_WxvG[wblocks.myslice, 1, v]
+                chi0_wGG[:, 0, 0] = chi0.chi0_Wvv[wblocks.myslice, v, v]
+            energy_w += self.calculate_fxc_energies(qpd, chi0_swGG, gcut) / 3
+        return energy_w
 
     def calculate_energy_contribution(self, chi0v_sGsG, fv_sGsG, nG):
         """Calculate contribution to energy from a single frequency point.
@@ -275,7 +275,7 @@ class FXCCorrelation:
         return e
 
     @timer('Energy')
-    def calculate_energies_fxc(self, qpd, chi0_swGG, gcut):
+    def calculate_fxc_energies(self, qpd, chi0_swGG, gcut):
         """Evaluate correlation energy from chi0 and the kernel fhxc"""
         ibzq2_q = [
             np.dot(self.ibzq_qc[i] - qpd.q_c,
@@ -330,7 +330,7 @@ class FXCCorrelation:
         if qpd.optical_limit:
             G_G[0] = 1.0
 
-        e_w = []
+        energy_w = []
         for chi0_sGG in np.swapaxes(chi0_swGG, 0, 1):
             chi0_sGG = gcut.cut(chi0_sGG, [1, 2])
 
@@ -339,10 +339,10 @@ class FXCCorrelation:
             else:
                 chi0v_sGsG = get_chi0v_spinsum(chi0_sGG, G_G)
 
-            e_w.append(self.calculate_energy_contribution(
+            energy_w.append(self.calculate_energy_contribution(
                 chi0v_sGsG, fv_GG, nG
             ))
-        return np.array(e_w)
+        return np.array(energy_w)
 
 
 class KernelIntegrator(ABC):

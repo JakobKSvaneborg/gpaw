@@ -199,9 +199,6 @@ class RPACalculator:
             hilbert=False,
             ecut=ecutmax * Hartree)
 
-        self.wblocks = Blocks1D(
-            chi0calc.chi0_body_calc.blockcomm, len(self.omega_W))
-
         self.context.timer.start('RPA')
 
         data = RPAData(self.integral)
@@ -234,8 +231,9 @@ class RPACalculator:
                 p('E_cut = %d eV / Bands = %d:' % (ecut * Hartree, m2),
                   end='\n', flush=True)
                 p('E_c(q) = ', end='', flush=False)
-                energy_w = self.calculate_q(chi0calc, chi0_s, m1, m2, gcut)
-                data.energy_qwi[q, :, i] += self.wblocks.all_gather(energy_w)
+                data.energy_qwi[q, :, i] = self.calculate_q(
+                    chi0calc, chi0_s, m1, m2, gcut
+                )
                 energy = data.contribution_from_qpoint(q, i=i)
                 p('%.3f eV' % (energy * Hartree), flush=True)
                 m1 = m2
@@ -279,11 +277,12 @@ class RPACalculator:
         gamma_int = GammaIntegral(self.coulomb, qpd=chi0.qpd)
 
         energy_w = []
-        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
+        chi0_wGG = chi0.body.get_distributed_frequencies_array()
+        wblocks = chi0.body.get_distributed_frequencies_blocks1d()
         for chi0_GG, chi0_vv, chi0_xvG in zip(
                 chi0_wGG,
-                chi0.chi0_Wvv[self.wblocks.myslice],
-                chi0.chi0_WxvG[self.wblocks.myslice],
+                chi0.chi0_Wvv[wblocks.myslice],
+                chi0.chi0_WxvG[wblocks.myslice],
         ):
             # Integrate over the optical wave vector volume
             energy = 0.
@@ -292,15 +291,17 @@ class RPACalculator:
                 energy += qweight * single_rpa_energy(
                     chi0p_GG, gcut.cut(sqrtV_G), gcut)
             energy_w.append(energy)
-        return np.array(energy_w)
+        return wblocks.all_gather(np.array(energy_w))
 
     def calculate_rpa_energies(self, chi0, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
         sqrtV_G = gcut.cut(self.coulomb.sqrtV(chi0.qpd, q_v=None))
-        return np.array([
-            single_rpa_energy(chi0_GG, sqrtV_G, gcut)
-            for chi0_GG in chi0.body.copy_array_with_distribution('wGG')
-        ])
+        energy_w = []
+        chi0_wGG = chi0.body.get_distributed_frequencies_array()
+        wblocks = chi0.body.get_distributed_frequencies_blocks1d()
+        for chi0_GG in chi0_wGG:
+            energy_w.append(single_rpa_energy(chi0_GG, sqrtV_G, gcut))
+        return wblocks.all_gather(np.array(energy_w))
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
