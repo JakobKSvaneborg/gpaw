@@ -233,21 +233,24 @@ class FXCCorrelation:
         if not chi0.qpd.optical_limit:
             energy_w = self.calculate_fxc_energies(qpd, chi0_swGG, gcut)
         else:
+            chi0_swvv = [chi0.chi0_Wvv[wblocks.myslice] for chi0 in chi0_s]
+            chi0_swxvG = [chi0.chi0_WxvG[wblocks.myslice] for chi0 in chi0_s]
             energy_w = self.calculate_optical_limit_fxc_energies(
-                qpd, wblocks, chi0_s, chi0_swGG, gcut
+                qpd, chi0_swGG, chi0_swvv, chi0_swxvG, gcut
             )
         return wblocks.all_gather(energy_w)
 
     def calculate_optical_limit_fxc_energies(
-            self, qpd, wblocks, chi0_s, chi0_swGG, gcut):
+            self, qpd, chi0_swGG, chi0_swvv, chi0_swxvG, gcut):
         # For some reason, we "only" average out cartesian directions, instead
         # of performing an actual integral over the q-point volume as in rpa...
         energy_w = np.zeros(chi0_swGG.shape[1])
         for v in range(3):
-            for chi0, chi0_wGG in zip(chi0_s, chi0_swGG):
-                chi0_wGG[:, 0] = chi0.chi0_WxvG[wblocks.myslice, 0, v]
-                chi0_wGG[:, :, 0] = chi0.chi0_WxvG[wblocks.myslice, 1, v]
-                chi0_wGG[:, 0, 0] = chi0.chi0_Wvv[wblocks.myslice, v, v]
+            for chi0_wGG, chi0_wvv, chi0_wxvG in zip(
+                    chi0_swGG, chi0_swvv, chi0_swxvG):
+                chi0_wGG[:, 0] = chi0_wxvG[:, 0, v]
+                chi0_wGG[:, :, 0] = chi0_wxvG[:, 1, v]
+                chi0_wGG[:, 0, 0] = chi0_wvv[:, v, v]
             energy_w += self.calculate_fxc_energies(qpd, chi0_swGG, gcut) / 3
         return energy_w
 
