@@ -1,6 +1,5 @@
 from __future__ import annotations
 import functools
-import os
 from time import ctime
 
 import numpy as np
@@ -18,28 +17,6 @@ from gpaw.response.pw_parallelization import Blocks1D
 
 def default_ecut_extrapolation(ecut, extrapolate):
     return ecut * (1 + 0.5 * np.arange(extrapolate))**(-2 / 3)
-
-
-def rpa(filename, ecut=200.0, blocks=1, extrapolate=4):
-    """Calculate RPA energy.
-
-    filename: str
-        Name of restart-file.
-    ecut: float
-        Plane-wave cutoff.
-    blocks: int
-        Split polarizability matrix in this many blocks.
-    extrapolate: int
-        Number of cutoff energies to use for extrapolation.
-    """
-    name, ext = filename.rsplit('.', 1)
-    assert ext == 'gpw'
-    from gpaw.xc.rpa import RPACorrelation
-    rpa = RPACorrelation(name, name + '-rpa.dat',
-                         nblocks=blocks,
-                         ecut=default_ecut_extrapolation(ecut, extrapolate),
-                         txt=name + '-rpa.txt')
-    rpa.calculate()
 
 
 class GCut:
@@ -84,8 +61,7 @@ def initialize_q_points(kd, qsym):
 
 
 class RPACalculator:
-    def __init__(self, gs, *, context, filename=None,
-                 ecut,
+    def __init__(self, gs, *, context, ecut,
                  skip_gamma=False, qsym=True,
                  frequencies, weights, truncation=None,
                  nblocks=1, calculate_q=None):
@@ -109,8 +85,6 @@ class RPACalculator:
         self.bzq_qc, self.ibzq_qc, self.weight_q = initialize_q_points(
             gs.kd, qsym)
 
-        self.filename = filename
-
         if calculate_q is None:
             calculate_q = self.calculate_q_rpa
         self.calculate_q = calculate_q
@@ -118,47 +92,6 @@ class RPACalculator:
         if isinstance(ecut, (float, int)):
             ecut = default_ecut_extrapolation(ecut, extrapolate=6)
         self.ecut_i = np.asarray(np.sort(ecut)) / Hartree
-
-    def read(self, ecut_i, filename):
-        with open(filename) as fd:
-            lines = fd.readlines()[1:]
-
-        n = 0
-        energy_qi = []
-        nq = len(lines) // len(ecut_i)
-        for q_c in self.ibzq_qc[:nq]:
-            energy_qi.append([])
-            for ecut in ecut_i:
-                current_inputs = np.array([*q_c, ecut * Hartree])
-                numbers_from_file = [float(x) for x in lines[n].split()]
-                previous_inputs = numbers_from_file[:-1]
-
-                if not np.allclose(current_inputs, previous_inputs):
-                    # Energies are not reusable since input parameters
-                    # have changed
-                    return []
-
-                energy = numbers_from_file[-1]
-                energy_qi[-1].append(energy / Hartree)
-                n += 1
-
-        return energy_qi
-
-    def energies_to_string(self, energy_qi, ecut_i):
-        lines = []
-        app = lines.append
-        app('q1 q2 q3 E_cut E_c(q)')
-        for energy_i, q_c in zip(energy_qi, self.ibzq_qc):
-            for energy, ecut in zip(energy_i, ecut_i):
-                tokens = [repr(num) for num in
-                          (*q_c, ecut * Hartree, energy * Hartree)]
-                app(' '.join(tokens))
-
-    def write(self, energy_qi, ecut_i):
-        txt = self.energies_to_string(energy_qi, ecut_i)
-        if self.context.comm.rank == 0 and self.filename:
-            with open(self.filename, 'w') as fd:
-                print(txt, file=fd)
 
     def calculate(self, *, nbands=None, spin=False, txt=''):
         """Calculate RPA correlation energy for one or several cutoffs.
@@ -190,13 +123,6 @@ class RPACalculator:
         p(self.coulomb.description())
         self.context.print('')
 
-        if self.filename and os.path.isfile(self.filename):
-            energy_qi = self.read(ecut_i, self.filename)
-            self.context.print(
-                'Read %d q-points from file: %s\n' % (len(energy_qi)))
-
-            self.context.comm.barrier()
-
         chi0calc = Chi0Calculator(
             self.gs, self.context.with_txt(
                 f'{txt + "_" if txt else ""}chi0.txt'),
@@ -218,7 +144,6 @@ class RPACalculator:
         for q_c in self.ibzq_qc[nq:]:
             if np.allclose(q_c, 0.0) and self.skip_gamma:
                 energy_qi.append(len(ecut_i) * [0.0])
-                self.write(energy_qi, ecut_i)
                 p('Not calculating E_c(q) at Gamma')
                 p()
                 continue
@@ -254,7 +179,6 @@ class RPACalculator:
                 m1 = m2
 
             energy_qi.append(energy_i)
-            self.write(energy_qi, ecut_i)
             p()
 
         e_i = np.dot(self.weight_q, np.array(energy_qi))
@@ -386,8 +310,6 @@ class RPACorrelation(RPACalculator):
         xc: str
             Exchange-correlation kernel. This is only different from RPA when
             this object is constructed from a different module - e.g. fxc.py
-        filename: str
-            txt output
         skip_gamme: bool
             If True, skip q = [0,0,0] from the calculation
         qsym: bool
