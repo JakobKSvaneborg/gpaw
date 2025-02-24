@@ -133,6 +133,8 @@ class RPACalculator:
         self.ecut_i = np.asarray(np.sort(ecut)) / Hartree
 
         # TODO: We should avoid this requirement.
+        # thosk notes: it might work now (after some clean-up), but I have not
+        # tested it
         assert len(frequencies) % nblocks == 0
 
         # This is a super weird way of achieving inheritance...
@@ -260,30 +262,33 @@ class RPACalculator:
         return e_i * Hartree
 
     @timer('chi0(q)')
-    def calculate_q_rpa(self, chi0calc, chi0_s,
-                        m1, m2, gcut):
+    def calculate_q_rpa(self, chi0calc, chi0_s, m1, m2, gcut):
         chi0 = chi0_s[0]
         chi0calc.update_chi0(
             chi0, m1, m2, spins=range(chi0calc.gs.nspins))
+        qpd = chi0.qpd
+        chi0_wGG = chi0.body.get_distributed_frequencies_array()
+        wblocks = chi0.body.get_distributed_frequencies_blocks1d()
         # Calculate RPA energy contributions (as a function of w)
         if chi0.qpd.optical_limit:
-            return self.calculate_optical_limit_rpa_energies(chi0, gcut)
-        return self.calculate_rpa_energies(chi0, gcut)
+            chi0_wvv = chi0.chi0_Wvv[wblocks.myslice]
+            chi0_wxvG = chi0.chi0_WxvG[wblocks.myslice]
+            energy_w = self.calculate_optical_limit_rpa_energies(
+                qpd, chi0_wGG, chi0_wvv, chi0_wxvG, gcut
+            )
+        else:
+            energy_w = self.calculate_rpa_energies(qpd, chi0_wGG, gcut)
+        return wblocks.all_gather(energy_w)
 
-    def calculate_optical_limit_rpa_energies(self, chi0, gcut):
+    def calculate_optical_limit_rpa_energies(
+            self, qpd, chi0_wGG, chi0_wvv, chi0_wxvG, gcut):
         """Calculate correlation energy from chi0 in the optical limit."""
         from gpaw.response.gamma_int import GammaIntegral
 
-        gamma_int = GammaIntegral(self.coulomb, qpd=chi0.qpd)
+        gamma_int = GammaIntegral(self.coulomb, qpd=qpd)
 
         energy_w = []
-        chi0_wGG = chi0.body.get_distributed_frequencies_array()
-        wblocks = chi0.body.get_distributed_frequencies_blocks1d()
-        for chi0_GG, chi0_vv, chi0_xvG in zip(
-                chi0_wGG,
-                chi0.chi0_Wvv[wblocks.myslice],
-                chi0.chi0_WxvG[wblocks.myslice],
-        ):
+        for chi0_GG, chi0_vv, chi0_xvG in zip(chi0_wGG, chi0_wvv, chi0_wxvG):
             # Integrate over the optical wave vector volume
             energy = 0.
             for qweight, sqrtV_G, chi0_mapping in gamma_int:
@@ -291,17 +296,14 @@ class RPACalculator:
                 energy += qweight * single_rpa_energy(
                     chi0p_GG, gcut.cut(sqrtV_G), gcut)
             energy_w.append(energy)
-        return wblocks.all_gather(np.array(energy_w))
+        return np.array(energy_w)
 
-    def calculate_rpa_energies(self, chi0, gcut):
+    def calculate_rpa_energies(self, qpd, chi0_wGG, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
-        sqrtV_G = gcut.cut(self.coulomb.sqrtV(chi0.qpd, q_v=None))
-        energy_w = []
-        chi0_wGG = chi0.body.get_distributed_frequencies_array()
-        wblocks = chi0.body.get_distributed_frequencies_blocks1d()
-        for chi0_GG in chi0_wGG:
-            energy_w.append(single_rpa_energy(chi0_GG, sqrtV_G, gcut))
-        return wblocks.all_gather(np.array(energy_w))
+        sqrtV_G = gcut.cut(self.coulomb.sqrtV(qpd, q_v=None))
+        return np.array([
+            single_rpa_energy(chi0_GG, sqrtV_G, gcut) for chi0_GG in chi0_wGG
+        ])
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
