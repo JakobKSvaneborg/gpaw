@@ -63,14 +63,51 @@ def initialize_q_points(kd, qsym):
 
 @dataclass
 class RPAIntegral:
+    omega_w: np.ndarray
     weight_w: np.ndarray
+    ibzq_qc: np.ndarray
     weight_q: np.ndarray
+    ecut_i: np.ndarray
+
+    @property
+    def nq(self):
+        """Number of q-points."""
+        return len(self.weight_q)
+
+    @property
+    def nw(self):
+        """Number of frequencies."""
+        nw = len(self.omega_w)
+        assert len(self.weight_w) == nw
+        return nw
+
+    @property
+    def ni(self):
+        """Number of plane-wave cutoffs to extrapolate over."""
+        return len(self.ecut_i)
 
     def integrate_frequencies(self, in_wx):
         return self.weight_w @ in_wx
 
     def integrate_qpoints(self, in_qx):
         return self.weight_q @ in_qx
+
+
+@dataclass
+class RPAData:
+    integral: RPAIntegral
+
+    def __post_init__(self):
+        self.energy_qi = np.zeros(self.shape)
+
+    @property
+    def shape(self):
+        # store frequencies XXX
+        return (self.integral.nq, self.integral.ni)
+
+    def correlation_energies(self):
+        """Correlation energy as a function of plane-wave cutoff."""
+        return self.integral.integrate_qpoints(self.energy_qi)
 
 
 class RPACalculator:
@@ -81,12 +118,17 @@ class RPACalculator:
         self.gs = gs
         self.context = context
 
-        self.omega_W = frequencies / Hartree
+        if isinstance(ecut, (float, int)):
+            ecut = default_ecut_extrapolation(ecut, extrapolate=6)
+        self.ecut_i = np.asarray(np.sort(ecut)) / Hartree
 
         # TODO: We should avoid this requirement.
-        assert len(self.omega_W) % nblocks == 0
+        assert len(frequencies) % nblocks == 0
 
-        self.nblocks = nblocks
+        # This is a super weird way of achieving inheritance...
+        if calculate_q is None:
+            calculate_q = self.calculate_q_rpa
+        self.calculate_q = calculate_q
 
         self.coulomb = CoulombKernel.from_gs(gs, truncation=truncation)
         self.skip_gamma = skip_gamma
@@ -94,20 +136,18 @@ class RPACalculator:
         # We should actually have a kpoint descriptor for the qpoints.
         # We are badly failing at making use of the existing tools by reducing
         # the qpoints to dumb arrays.
+        # Clean up this mess... XXX
+        self.omega_W = frequencies / Hartree
         self.bzq_qc, self.ibzq_qc, weight_q = initialize_q_points(
             gs.kd, qsym)
         self.integral = RPAIntegral(
+            omega_w=frequencies,
             weight_w=weights / Hartree / (2 * np.pi),
+            ibzq_qc=self.ibzq_qc,
             weight_q=weight_q,
+            ecut_i=self.ecut_i,
         )
-
-        if calculate_q is None:
-            calculate_q = self.calculate_q_rpa
-        self.calculate_q = calculate_q
-
-        if isinstance(ecut, (float, int)):
-            ecut = default_ecut_extrapolation(ecut, extrapolate=6)
-        self.ecut_i = np.asarray(np.sort(ecut)) / Hartree
+        self.nblocks = nblocks
 
     def calculate(self, *, nbands=None, spin=False, txt=''):
         """Calculate RPA correlation energy for one or several cutoffs.
@@ -152,16 +192,12 @@ class RPACalculator:
         self.wblocks = Blocks1D(
             chi0calc.chi0_body_calc.blockcomm, len(self.omega_W))
 
-        energy_qi = []
-        nq = len(energy_qi)
-
         self.context.timer.start('RPA')
 
-        for q_c in self.ibzq_qc[nq:]:
+        data = RPAData(self.integral)
+        for q, q_c in enumerate(self.ibzq_qc):
             if np.allclose(q_c, 0.0) and self.skip_gamma:
-                energy_qi.append(len(ecut_i) * [0.0])
-                p('Not calculating E_c(q) at Gamma')
-                p()
+                p('Not calculating E_c(q) at Gamma\n')
                 continue
 
             chi0_s = [chi0calc.create_chi0(q_c)]
@@ -173,11 +209,10 @@ class RPACalculator:
 
             # First not completely filled band:
             m1 = self.gs.nocc1
-            p(f'# {len(energy_qi)}  -  {ctime().split()[-2]}')
+            p(f'# {q}  -  {ctime().split()[-2]}')
             p('q = [%1.3f %1.3f %1.3f]' % tuple(q_c))
 
-            energy_i = []
-            for ecut in ecut_i:
+            for i, ecut in enumerate(ecut_i):
                 if ecut == ecutmax:
                     # Nothing to cut away:
                     gcut = GCut(None)
@@ -189,15 +224,13 @@ class RPACalculator:
                 p('E_cut = %d eV / Bands = %d:' % (ecut * Hartree, m2),
                   end='\n', flush=True)
 
-                energy = self.calculate_q(chi0calc, chi0_s, m1, m2, gcut)
-
-                energy_i.append(energy)
+                data.energy_qi[q, i] = self.calculate_q(
+                    chi0calc, chi0_s, m1, m2, gcut)
                 m1 = m2
 
-            energy_qi.append(energy_i)
             p()
 
-        e_i = self.integral.integrate_qpoints(np.array(energy_qi))
+        e_i = data.correlation_energies()
         p('==========================================================')
         p()
         p('Total correlation energy:')
@@ -344,7 +377,7 @@ class RPACorrelation(RPACalculator):
             increase to e.g. 2.5 or 3.0 improves convergence wth respect to
             frequency points for metals
         frequencies: list
-            List of frequancies for user-specified frequency integration
+            List of frequencies for user-specified frequency integration
         weights: list
             list of weights (integration measure) for a user specified
             frequency grid. Must be specified and have the same length as
