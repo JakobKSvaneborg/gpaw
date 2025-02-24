@@ -197,7 +197,7 @@ class RPACalculator:
         data = RPAData(self.integral)
         for q, q_c in enumerate(self.ibzq_qc):
             if np.allclose(q_c, 0.0) and self.skip_gamma:
-                p('Not calculating E_c(q) at Gamma\n')
+                p('Not calculating E_c(q) at Gamma', end='\n')
                 continue
 
             chi0_s = [chi0calc.create_chi0(q_c)]
@@ -223,9 +223,11 @@ class RPACalculator:
 
                 p('E_cut = %d eV / Bands = %d:' % (ecut * Hartree, m2),
                   end='\n', flush=True)
-
-                data.energy_qi[q, i] = self.calculate_q(
+                p('E_c(q) = ', end='', flush=False)
+                energy = self.calculate_q(
                     chi0calc, chi0_s, m1, m2, gcut)
+                p('%.3f eV' % (energy * Hartree), flush=True)
+                data.energy_qi[q, i] = energy
                 m1 = m2
 
             p()
@@ -255,12 +257,10 @@ class RPACalculator:
         chi0 = chi0_s[0]
         chi0calc.update_chi0(
             chi0, m1, m2, spins=range(chi0calc.gs.nspins))
-        self.context.print('E_c(q) = ', end='', flush=False)
         if chi0.qpd.optical_limit:
             rpa_energy = self.calculate_optical_limit_rpa_energy(chi0, gcut)
         else:
             rpa_energy = self.calculate_rpa_energy(chi0, gcut)
-        self.context.print('%.3f eV' % (rpa_energy * Hartree))
         return rpa_energy
 
     def calculate_optical_limit_rpa_energy(self, chi0, gcut):
