@@ -11,15 +11,15 @@ optimizations with GPAW.
 Fixed-cell relaxation
 --------------------------------
 
-The most common use case is to optimize the atom positions without changing
+The simplest scenario is to optimize the atom positions without changing
 the unit cell shape or size. In this case, we need to calculate the forces 
 acting on the atoms and pass these to an optimization routine (here: ``BFGS``)
 which iteratively updates the atom positions such that the magnitude of 
 the forces decreases jointly with the total potential energy. 
-The following example scripts:
+The following example script:
 
-* reads in the structure in ``unrelaxed.json``, 
-* reads the calculator parameters from ``params_forces.json`` (selected by the keyword ``fast_forces``),
+* reads in the structure from ``unrelaxed.json``, 
+* reads the calculator parameters from ``params.json`` (selected by the keyword ``fast_forces``),
 * sets up a GPAW calculator,
 * adds the initial magnetic moments, 
 * optionally uses van der Waals forces with the DFT-D3 method, and 
@@ -30,26 +30,29 @@ The relaxation history is written to ``opt.log``, its trajectory is saved to
 
 .. literalinclude:: fixcell_relax.py
 
-The parameter file ``params_forces.json`` contains the calculation parameters in
+The parameter file ``params.json`` contains the calculation parameters in
 standardized format.
 Typically we would start with a fast and less accurate relaxation,
-which is consecutively refined with tighter convergence parameters (see
-:ref:`accuracy of the self-consistency cycle<manual_convergence>` 
+which is consecutively refined with tighter convergence parameters
+once we approach the atomic configuration which minimizes the potential energy
+(see :ref:`accuracy of the self-consistency cycle<manual_convergence>` 
 and :ref:`converging forces<custom_convergence-forces>` for relevant options).
 
 .. literalinclude:: params_forces.json
 
 For more accurate force convergence the Brillioun zone sampling should be
-refined by setting a larger number of kpoints (e.g. five or more points in each direction), 
-and the convergences criteria should be tightend to ``convergence: {"density": 1e-6, "forces": 1e-4}``.
+refined by setting a larger number of kpoints (e.g. five or more points 
+in each direction), and the convergences criteria should be tightend to
+``convergence: {"density": 1e-6, "forces": 1e-4}``.
 
 Full relaxation
 --------------------------------
 
-The cell shape and size can be relaxed together with the atomic positions using 
+The cell shape and size can be relaxed together with the atom positions using 
 cell filters. The cell filter takes the ``Atoms`` object as input and is
-directly handed to the optimization routine. For full relaxations, you can simply replace the 
-optimization routine line ``opt = ...`` with the following code lines
+directly handed to the optimization routine. For full relaxations, 
+you can simply replace the  optimization routine line 
+``opt = ...`` with the following code lines
 
 .. literalinclude:: full_relax.py
     :start-after: literalinclude start line
@@ -57,12 +60,16 @@ optimization routine line ``opt = ...`` with the following code lines
 
 Note, that calculation of stresses requires the plane wave mode in GPAW
 and that the accuracy of the calculations
-should be refined using the parameter file ``param_file = params_stresses.json`` and 
-the parameter keyword ``param_key = accurate_stresses``.
+should be refined using the parameter keyword ``param_key = accurate_stresses``.
 
 .. literalinclude:: params_stresses.json
 
-Parameter files using multi-level dictionaries (with keys such as ``fast_forces``, ``accurate_stresses``) 
+Parameter files using multi-level dictionaries (with keys such as 
+``fast_forces``, ``accurate_stresses``) 
 allow to store different parameter sets in one common parameter file 
 and to select the appropriate parameters by keywords in the
-optimization scripts.
+optimization scripts. 
+
+Here, you can download an example structure :download:`unrelaxed.json` (bulk hBN), 
+the relaxation scripts :download:`fixcell_relax.py`, :download:`full_relax.py` and 
+the joint parameter file :download:`params.json`.

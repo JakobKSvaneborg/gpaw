@@ -5,7 +5,7 @@ import json
 
 infile = 'unrelaxed.json'
 outfile = 'relaxed.json'
-param_file = 'params_forces.json'
+param_file = 'params.json'
 param_key = 'fast_forces'
 fmax = 0.01
 d3 = False
