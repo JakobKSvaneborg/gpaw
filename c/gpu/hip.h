@@ -18,6 +18,7 @@
 #define gpuDeviceProp             hipDeviceProp_t
 
 #define gpuDoubleComplex          hipDoubleComplex
+#define gpuFloatComplex           hipFloatComplex
 #define gpublasDoubleComplex      hipblasDoubleComplex
 #define make_gpuDoubleComplex     make_hipDoubleComplex
 #define gpuCreal                  hipCreal
