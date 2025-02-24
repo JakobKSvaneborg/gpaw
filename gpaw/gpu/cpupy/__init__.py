@@ -97,6 +97,10 @@ def tri(n, k=0, dtype=float):
     return ndarray(np.tri(n, k=k, dtype=dtype))
 
 
+def allclose(a, b, **kwargs):
+    return np.allclose(a._data, b._data, **kwargs)
+
+
 def moveaxis(a, source, destination):
     return ndarray(np.moveaxis(a._data, source, destination))
 

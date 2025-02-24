@@ -19,6 +19,7 @@ in materials physics, chemistry and biology
 .. toctree::
    :maxdepth: 2
 
+   basics/basics
    structureoptimization/structureoptimization
    energetics/energetics
    electronic/electronic

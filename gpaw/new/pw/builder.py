@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from functools import cached_property
 
+import numpy as np
 from ase.units import Ha
+
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
@@ -31,10 +33,12 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  *,
                  comm,
                  ecut=340,
+                 dtype=None,
                  qspiral=None,
                  dedecut=None):
         self.ecut = ecut / Ha
-        super().__init__(atoms, params, comm=comm, qspiral=qspiral)
+        super().__init__(atoms, params, dtype=dtype,
+                         comm=comm, qspiral=qspiral)
 
         self._nct_ag = None
         self._tauct_ag = None
@@ -178,7 +182,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
         pw = self.wf_desc.new(kpt=kpt_c)
 
-        if self.dtype == complex:
+        if np.issubdtype(self.dtype, np.complexfloating):
             emikr_R = grid.eikr(-kpt_c)
 
         mynbands, M = C_nM.dist.shape
@@ -188,7 +192,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             basis_set.lcao_to_grid(C_nM.data, psit_nR.data, q)
 
             for psit_R, psit_G in zips(psit_nR, psit_nG, strict=False):
-                if self.dtype == complex:
+                if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
                 psit_R.fft(out=psit_G)
             return psit_nG.to_xp(self.xp)
@@ -264,7 +268,7 @@ def check_g_vector_ordering(grid: UGDesc,
                             pw: PWDesc,
                             index_G: Array1D) -> None:
     size = tuple(grid.size)
-    if pw.dtype == float:
+    if np.issubdtype(pw.dtype, np.floating):
         size = (size[0], size[1], size[2] // 2 + 1)
     index0_G = pw.indices(size)
     nG = len(index0_G)

@@ -48,6 +48,7 @@ There are several ways to install GPAW:
       architectures`
     * :ref:`troubleshooting`
     * In case of trouble: :ref:`Our mail list and #gpaw chat channel <contact>`
+    * Building the :ref:`gpu` version of GPAW.
 
 
 Requirements
