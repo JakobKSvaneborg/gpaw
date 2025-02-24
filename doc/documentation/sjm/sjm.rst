@@ -173,6 +173,7 @@ The :literal:`autoinner` part automatically finds the inner region, in this case
                     }}
     calc = SJM(sj=sj_calib...)
     atoms.calc = calc
+    atoms.get_potential_energy()
     phi_pzc = calc.get_inner_potential(atoms) 
     mu_pzc = calc.get_fermi_level()
 
