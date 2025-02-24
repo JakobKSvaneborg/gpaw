@@ -5,9 +5,6 @@ Used if GPAW_NO_C_EXTENSION=1.  See also the gpaw.cgpaw module.
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-from _gpaw import XCFunctional
-from _gpaw import Operator
-
 have_openmp = False
 
 

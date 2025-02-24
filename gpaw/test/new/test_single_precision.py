@@ -14,10 +14,11 @@ from gpaw.new.ase_interface import GPAW
                           'np.complex64',
                           'np.float64',
                           'np.float32'])
-def test_single_precision(dtype):
+@pytest.mark.parametrize('gpu', [False, True])
+def test_single_precision(dtype, gpu):
     try:
         result = subprocess.run(
-            f'GPAW_NO_C_EXTENSION=1 python {__file__} {dtype}',
+            f'GPAW_NO_C_EXTENSION=1 python {__file__} {dtype} {gpu}',
             shell=True, capture_output=True,
             text=True, check=True)
     except subprocess.CalledProcessError as e:
@@ -27,9 +28,11 @@ def test_single_precision(dtype):
     print(result.stdout)
 
 
-def run_single_precision(dtype):
+def run_single_precision(dtype, gpu):
     atoms = molecule('H2O')
     atoms.center(vacuum=2.5)
+
+    gpu = gpu == 'True'
 
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
@@ -38,7 +41,7 @@ def run_single_precision(dtype):
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
-                      parallel={'gpu': False}
+                      parallel={'gpu': gpu}
                       )
 
     e_pot = atoms.get_potential_energy()
@@ -54,4 +57,4 @@ if __name__ == '__main__':
               'np.float64': np.float64,
               'np.complex64': np.complex64,
               'np.complex128': np.complex128}
-    run_single_precision(dtype=dtypes[sys.argv[1]])
+    run_single_precision(dtype=dtypes[sys.argv[1]], gpu=sys.argv[2])
