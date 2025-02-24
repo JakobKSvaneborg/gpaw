@@ -3,7 +3,6 @@ from math import log as ln
 
 from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.tddft.units import autime_to_attosec
-from gpaw.lcaotddft.propagators import SelfConsistentPropagator
 
 
 class TDDFTLogger(TDDFTObserver):
@@ -22,13 +21,8 @@ class TDDFTLogger(TDDFTObserver):
     def _write_header(self, paw):
         paw.log('Logging time propagation')
         paw.log('------------------------')
-        if isinstance(paw.propagator, SelfConsistentPropagator):
-            line = ('      %4s %9s %11s %9s %7s %6s' %
-                    ('iter', 'realtime', 'calctime', 'log(norm)', 'PCitera',
-                     'energy'))
-        else:
-            line = ('      %4s %9s %11s %9s' %
-                    ('iter', 'realtime', 'calctime', 'log(norm)'))
+        line = ('      %4s %9s %11s %9s' %
+                ('iter', 'realtime', 'calctime', 'log(norm)'))
         paw.log(line)
         paw.log.flush()
 
@@ -36,21 +30,10 @@ class TDDFTLogger(TDDFTObserver):
         density = paw.density
         norm = density.finegd.integrate(density.rhot_g)
         T = localtime()
-        total_energy = (paw.hamiltonian.e_kinetic0 + paw.hamiltonian.e_coulomb
-                        + paw.hamiltonian.e_zero + paw.hamiltonian.e_external
-                        + paw.hamiltonian.e_xc)
-        if isinstance(paw.propagator, SelfConsistentPropagator):
-            paw.log('iter: %4d  %02d:%02d:%02d %11.2f %9.1f %4d %6.18f' %
-                    (paw.niter, T[3], T[4], T[5],
-                     paw.time * autime_to_attosec,
-                     ln(abs(norm) + 1e-16) / ln(10),
-                     paw.propagator.PC_ii,
-                     total_energy))
-        else:
-            paw.log('iter: %4d  %02d:%02d:%02d %11.2f %9.1f' %
-                    (paw.niter, T[3], T[4], T[5],
-                     paw.time * autime_to_attosec,
-                     ln(abs(norm) + 1e-16) / ln(10)))
+        paw.log('iter: %4d  %02d:%02d:%02d %11.2f %9.1f' %
+                (paw.niter, T[3], T[4], T[5],
+                 paw.time * autime_to_attosec,
+                 ln(abs(norm) + 1e-16) / ln(10)))
         if paw.niter > self.flush_next:
             paw.log.flush()
             while paw.niter > self.flush_next:
