@@ -17,7 +17,7 @@ def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray, np.ndarra
         raise TypeError("Unsupported matrix dtype")
 
     # MAGMA eigenvectors are on rows, numpy/cupy has them on columns
-    return eigvals, eigvects.T
+    return eigvals, np.conjugate(eigvects).T
 
 
 def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray, cp.ndarray]:
@@ -63,4 +63,4 @@ def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray, cp.ndarra
         raise TypeError("Unsupported matrix dtype")
 
     # MAGMA eigenvectors are on rows, numpy/cupy has them on columns
-    return eigvals, eigvects.T
+    return eigvals, cp.conjugate(eigvects).T
