@@ -293,8 +293,6 @@ class BasisMaker:
             args = np.argsort(sortkeys, kind='mergesort')
             jvalues = np.array(jvalues)[args]
 
-        fulljvalues = jvalues  # [njcore + j for j in jvalues]
-
         if isinstance(energysplit, float):
             energysplit = [energysplit] * len(jvalues)
 
@@ -310,7 +308,7 @@ class BasisMaker:
         splitvalencedescr = 'split-valence wave, fixed tail norm'
         derivativedescr = 'derivative of sz wrt. (ri/rc) of potential'
 
-        for vj, fullj, esplit in zip(jvalues, fulljvalues, energysplit):
+        for vj, esplit in zip(jvalues, energysplit):
             l = l_j[vj]
             n = n_j[vj]
             assert n > 0
@@ -326,7 +324,7 @@ class BasisMaker:
             print('Zeta 1: %s confined pseudo wave,' % adverb, end=' ',
                   file=txt)
 
-            u, e, de, vconf, rc = self.rcut_by_energy(fullj, esplit,
+            u, e, de, vconf, rc = self.rcut_by_energy(vj, esplit,
                                                       tolerance,
                                                       vconf_args=vconf_args)
             if rc > rcutmax:
@@ -334,7 +332,7 @@ class BasisMaker:
                 if vconf is not None:
                     vconf = valdata.get_confinement_potential(
                         amplitude, ri_rel * rc, rc)
-                u, e = valdata.solve_confined(fullj, rc, vconf)
+                u, e = valdata.solve_confined(vj, rc, vconf)
                 print('using maximum cutoff', file=txt)
                 print('rc=%.02f Bohr' % rc, file=txt)
             else:
@@ -360,7 +358,7 @@ class BasisMaker:
                 print('\nZeta %d: %s' % (zeta, derivativedescr), file=txt)
                 vconf2 = valdata.get_confinement_potential(
                     amplitude, ri_rel * rc * .99, rc)
-                u2, e2 = valdata.solve_confined(fullj, rc, vconf2)
+                u2, e2 = valdata.solve_confined(vj, rc, vconf2)
 
                 phit2_g = self.smoothify(u2, l)
                 dphit_g = phit2_g - phit_g
@@ -399,10 +397,9 @@ class BasisMaker:
 
             # Find the last state with l=l_pol - 1, which will be the state we
             # base the polarization function on
-            for vj, fullj, bf in zip(jvalues[::-1], fulljvalues[::-1],
-                                     singlezetas[::-1]):
+            for vj, bf in zip(jvalues[::-1], singlezetas[::-1]):
                 if bf.l == l_pol - 1:
-                    fullj_pol = fullj
+                    j_pol = vj
                     rcut = bf.rc * rcutpol_rel
                     break
             else:
@@ -425,7 +422,7 @@ class BasisMaker:
             # these value for other energies, we just find the energy
             # shift at .3 eV now
 
-            u, e, de, vconf, rc_fixed = self.rcut_by_energy(fullj_pol,
+            u, e, de, vconf, rc_fixed = self.rcut_by_energy(j_pol,
                                                             .3, 1e-2,
                                                             6., (12., .6))
 
