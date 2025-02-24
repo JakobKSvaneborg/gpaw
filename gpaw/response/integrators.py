@@ -276,12 +276,15 @@ class OpticalLimit(IntegralTask):
     kind = 'response function wings'
     symmetrizable_unless_blocked = False
 
-    def __init__(self, eta):
+    def __init__(self, eta, eshift=None):
         self.eta = eta
+        self.eshift = eshift or 0.0
 
     # @timer('CHI_0 optical limit update')
     def run(self, wd, n_mG, deps_m, chi0_wxvG):
         """Optical limit update of chi."""
+        deps_m += self.eshift * np.sign(deps_m)
+
         deps1_m = deps_m + 1j * self.eta
         deps2_m = deps_m - 1j * self.eta
 
@@ -295,9 +298,14 @@ class HermitianOpticalLimit(IntegralTask):
     kind = 'hermitian response function wings'
     symmetrizable_unless_blocked = False
 
+    def __init__(self, eshift=None):
+        self.eshift = eshift or 0.0
+
     # @timer('CHI_0 hermitian optical limit update')
     def run(self, wd, n_mG, deps_m, chi0_wxvG):
         """Optical limit update of hermitian chi."""
+        deps_m += self.eshift * np.sign(deps_m)
+
         for w, omega in enumerate(wd.omega_w):
             x_m = - np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))
             chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, n_mG.conj())
@@ -308,9 +316,13 @@ class HilbertOpticalLimit(IntegralTask):
     kind = 'spectral function wings'
     symmetrizable_unless_blocked = False
 
+    def __init__(self, eshift=None):
+        self.eshift = eshift or 0.0
+
     # @timer('CHI_0 optical limit hilbert-update')
     def run(self, wd, n_mG, deps_m, chi0_wxvG):
         """Optical limit update of chi-head and -wings."""
+        deps_m += self.eshift * np.sign(deps_m)
 
         for deps, n_G in zip(deps_m, n_mG):
             o = abs(deps)

@@ -120,7 +120,6 @@ Then, the following steps build GPAW in a Python virtual environment:
 
   # TODO: use correct project_...
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
-  export GPAW_SETUP_PATH=/projappl/project_.../gpaw-setups-24.1.0
   cd /projappl/project_.../$USER
 
   # Create virtual environment
@@ -131,7 +130,6 @@ Then, the following steps build GPAW in a Python virtual environment:
   cp venv-gpaw-gpu/bin/activate venv-gpaw-gpu/bin/activate.old
   cat << EOF > venv-gpaw-gpu/bin/activate
   export EBU_USER_PREFIX=$EBU_USER_PREFIX
-  export GPAW_SETUP_PATH=$GPAW_SETUP_PATH
   module load LUMI/24.03
   module load partition/G
   module load cpeGNU/24.03
@@ -157,9 +155,6 @@ Then, the following steps build GPAW in a Python virtual environment:
   rm -rf build _gpaw.*.so gpaw.egg-info
   pip install -v --log build-gpu.log .
   cd ..
-
-  # Install gpaw setups
-  gpaw install-data --no-register ${GPAW_SETUP_PATH%/*} --version 24.1.0
 
 Note that above the siteconfig file is taken from the git clone.
 Alternatively, download the siteconfig files from here:
@@ -229,7 +224,6 @@ Then, the following steps build GPAW in a Python virtual environment:
 
   # TODO: use correct project_...
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
-  export GPAW_SETUP_PATH=/projappl/project_.../gpaw-setups-24.1.0
   cd /projappl/project_.../$USER
 
   # Create virtual environment
@@ -240,7 +234,6 @@ Then, the following steps build GPAW in a Python virtual environment:
   cp venv-gpaw-cpu/bin/activate venv-gpaw-cpu/bin/activate.old
   cat << EOF > venv-gpaw-cpu/bin/activate
   export EBU_USER_PREFIX=$EBU_USER_PREFIX
-  export GPAW_SETUP_PATH=$GPAW_SETUP_PATH
   module load LUMI/24.03
   module load partition/C
   module load cpeGNU/24.03
@@ -260,9 +253,6 @@ Then, the following steps build GPAW in a Python virtual environment:
   rm -rf build _gpaw.*.so gpaw.egg-info
   pip install -v --log build-cpu.log .
   cd ..
-
-  # Install gpaw setups
-  gpaw install-data --no-register ${GPAW_SETUP_PATH%/*} --version 24.1.0
 
 Note that above the siteconfig file is taken from the git clone.
 Alternatively, download the siteconfig file from here:
