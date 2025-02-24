@@ -273,9 +273,9 @@ class BasisMaker:
         njcore = valdata.njcore
         # We can probably create valdata with only the [njcore:] subset.
         # Refactor later.
-        n_j = valdata.n_j[njcore:]
-        l_j = valdata.l_j[njcore:]
-        f_j = valdata.f_j[njcore:]
+        n_j = valdata.n_j
+        l_j = valdata.l_j
+        f_j = valdata.f_j
 
         if jvalues is None:
             jvalues = []
@@ -293,7 +293,7 @@ class BasisMaker:
             args = np.argsort(sortkeys, kind='mergesort')
             jvalues = np.array(jvalues)[args]
 
-        fulljvalues = [njcore + j for j in jvalues]
+        fulljvalues = jvalues  # [njcore + j for j in jvalues]
 
         if isinstance(energysplit, float):
             energysplit = [energysplit] * len(jvalues)

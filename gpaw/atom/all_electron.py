@@ -533,9 +533,12 @@ class AllElectron(IOContext):
 
     @cached_property
     def valence_data(self):
-        return ValenceData(rgd=self.rgd, vr=self.vr, n_j=self.n_j,
-                           l_j=self.l_j, e_j=self.e_j, u_j=self.u_j,
-                           f_j=self.f_j,
+        return ValenceData(rgd=self.rgd, vr=self.vr,
+                           n_j=self.n_j[self.njcore:],
+                           l_j=self.l_j[self.njcore:],
+                           e_j=self.e_j[self.njcore:],
+                           u_j=self.u_j[self.njcore:],
+                           f_j=self.f_j[self.njcore:],
                            u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
                            rcut_l=self.rcut_l,
                            scalarrel=self.scalarrel,
@@ -544,9 +547,6 @@ class AllElectron(IOContext):
                            njcore=self.njcore,
                            xcname=self.xcname,
                            symbol=self.symbol)
-
-    def solve_confined(self, j, rc, vconf=None):
-        return self.valence_data.solve_confined(j, rc, vconf)
 
     def kin(self, l, u, e=None):  # XXX move to Generator
         r = self.r[1:]
