@@ -292,7 +292,7 @@ class CuPyFFTPlans(FFTPlans):
     def fft_sphere(self, in_R, pw):
         from gpaw.gpu import cupyx
         from gpaw.gpu import cupy as cp
-        if np.issubdtype(coef_G.dtype, np.complexfloating):
+        if np.issubdtype(self.dtype, np.complexfloating):
             out_Q = cupyx.scipy.fft.fftn(in_R)
         else:
             try:

@@ -76,10 +76,10 @@ def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
 def pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
                      l_s, a_J, s_J,
                      cc, f_GI, I_J):
-    #raise NotImplementedError
     pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
                  l_s, a_J, s_J,
                  cc, f_GI)
+
 
 def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
                            P_nI, out_nI):
@@ -125,9 +125,10 @@ def evaluate_lda_gpu(nt_sr, vxct_sr, e_r) -> None:
         from gpaw.xc.kernel import XCKernel
         XCKernel('LDA').calculate(e_r._data, nt_sr._data, vxct_sr._data)
     else:
-        from _gpaw import evaluate_lda_gpu
-        evaluate_lda_gpu(nt_sr, vxct_sr, e_r)
- 
+        from _gpaw import evaluate_lda_gpu as evalf
+        evalf(nt_sr, vxct_sr, e_r)
+
+
 def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
     from gpaw.xc.kernel import XCKernel
     XCKernel('PBE').calculate(e_r._data, nt_sr._data, vxct_sr._data,
@@ -143,8 +144,9 @@ def pw_norm_gpu(result_x, C_xG):
 
 def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
     if cupy_is_fake:
-        result_x._data[:] = np.sum(np.abs(a_xG._data)**2 * kin_G._data[None, :],
-                                   axis=1)
+        result_x._data[:] = np.sum(
+            np.abs(a_xG._data)**2 * kin_G._data[None, :],
+            axis=1)
     else:
         result_x[:] = cp.sum(cp.abs(a_xG)**2 * kin_G[None, :], axis=1)
 

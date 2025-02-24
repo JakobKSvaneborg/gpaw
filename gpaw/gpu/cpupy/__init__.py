@@ -52,8 +52,10 @@ def ascontiguousarray(a):
 def dot(a, b):
     return ndarray(np.dot(a._data, b._data))
 
+
 def inner(a, b):
     return ndarray(np.inner(a._data, b._data))
+
 
 def outer(a, b):
     return ndarray(np.outer(a._data, b._data))
@@ -228,17 +230,17 @@ class ndarray:
         if isinstance(other, (float, complex, int)):
             return self._data < other
         return ndarray(self._data < other._data)
-    
+
     def __le__(self, other):
         if isinstance(other, (float, complex, int)):
             return self._data <= other
         return ndarray(self._data <= other._data)
-    
+
     def __gt__(self, other):
         if isinstance(other, (float, complex, int)):
             return self._data > other
         return ndarray(self._data > other._data)
-    
+
     def __ge__(self, other):
         if isinstance(other, (float, complex, int)):
             return self._data >= other
