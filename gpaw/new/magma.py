@@ -3,8 +3,29 @@ from gpaw.gpu import cupy as cp, cupy_is_fake
 import numpy as np
 from gpaw.gpu.cpupy import asnumpy
 
-def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray, np.ndarray]:
-    """"""
+
+def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray,
+                                                           np.ndarray]:
+    """
+    Wrapper for MAGMA symmetric/Hermitian eigensolvers, CPU version.
+
+    Parameters
+    ----------
+    matrix : (N, N) numpy.ndarray
+        The matrix to diagonalize. Must be symmetric or Hermitian.
+    UPLO : str
+        Whether the upper or lower part of the matrix is stored.
+        Choose 'U' or 'L'.
+
+    Returns
+    -------
+    w : (N,) numpy.ndarray
+        Eigenvalues in ascending order
+    v : (N, N) numpy.ndarray
+        Matrix containing orthonormal eigenvectors.
+        Eigenvector corresponding to ``w[i]`` is in column ``v[:,i]``.
+    """
+
     assert cgpaw.have_magma, "Must compile with MAGMA support"
 
     if matrix.dtype == np.complex128:
@@ -20,16 +41,26 @@ def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray, np.ndarra
     return eigvals, np.conjugate(eigvects).T
 
 
-def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray, cp.ndarray]:
+def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray,
+                                                           cp.ndarray]:
     """
+    Wrapper for MAGMA symmetric/Hermitian eigensolvers, CPU version.
+
+    Parameters
+    ----------
+    matrix : (N, N) cupy.ndarray
+        The matrix to diagonalize. Must be symmetric or Hermitian.
+    UPLO : str
+        Whether the upper or lower part of the matrix is stored.
+        Choose 'U' or 'L'.
+
     Returns
     -------
-    w : (N,) ndarray
+    w : (N,) cupy.ndarray
         Eigenvalues in ascending order
-    v : (N, N) ndarray
+    v : (N, N) cupy.ndarray
         Matrix containing orthonormal eigenvectors.
-        Vector corresponding to ``w[i]`` is in column ``v[:,i]``.
-
+        Eigenvector corresponding to ``w[i]`` is in column ``v[:,i]``.
     """
     assert cgpaw.have_magma, "Must compile with MAGMA support"
 

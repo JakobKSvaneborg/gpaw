@@ -152,7 +152,8 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
 
     elif have_magma and a.ndim == 2 and a.shape[0] > 128:
         # import here to avoid circular import.
-        # magma needs cupy (possibly fake), which must be imported from this file
+        # magma needs cupy (possibly fake),
+        # which must be imported from this file
         from gpaw.new.magma import eigh_magma_gpu
 
         return eigh_magma_gpu(a, UPLO)
@@ -160,8 +161,8 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     else:
         # fallback to CPU
         eigs, evals = eigh(cupy.asnumpy(a),
-                        lower=(UPLO == 'L'),
-                        check_finite=False)
+                           lower=(UPLO == 'L'),
+                           check_finite=False)
 
     return cupy.asarray(eigs), cupy.asarray(evals)
 

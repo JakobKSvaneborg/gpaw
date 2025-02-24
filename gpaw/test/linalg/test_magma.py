@@ -4,7 +4,8 @@ import pytest
 from gpaw.new.magma import eigh_magma_cpu, eigh_magma_gpu
 from gpaw.cgpaw import have_magma
 from gpaw.gpu import cupy as cp
-from gpaw.gpu import cupy_is_fake # GPU tests don't work with fake cupy
+from gpaw.gpu import cupy_is_fake
+
 
 def fix_eigenvector_phase(inout_arr):
     """Helper function for comparing eigenvector output from different
@@ -35,10 +36,8 @@ def fix_eigenvector_phase(inout_arr):
 
 @pytest.fixture
 def eigh_test_matrix():
-    def _generate(n: int,
-        type: str = 'symmetric',
-        backend: str ='numpy',
-        seed: int = 42):
+    def _generate(n: int, type: str = 'symmetric',
+                  backend: str = 'numpy', seed: int = 42):
 
         assert type in ['symmetric', 'hermitian']
         assert backend in ['numpy', 'cupy']
@@ -55,14 +54,15 @@ def eigh_test_matrix():
 
         else:
             # Create Hermitian matrix
-            A = rng.random((n,n)) + 1j*rng.random((n,n))
+            A = rng.random((n, n)) + 1j * rng.random((n, n))
             return (A + A.T.conj()) / 2
 
     return _generate
 
+
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")
 @pytest.mark.parametrize("matrix_size, matrix_type, uplo",
-                        [(2, 'symmetric', 'L'), (4, 'hermitian', 'U')])
+                         [(2, 'symmetric', 'L'), (4, 'hermitian', 'U')])
 def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
                         matrix_size: int,
                         matrix_type: str,
@@ -79,7 +79,6 @@ def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
 
     np.testing.assert_allclose(eigvals, eigvals_np, atol=1e-12)
     np.testing.assert_allclose(eigvects, eigvects_np, atol=1e-12)
-
 
 
 # MAGMA seems to do small matrices (N <= 128) on the CPU.
