@@ -274,8 +274,18 @@ class SJM(SolvationGPAW):
                 .format(', '.join(sj_changes),
                         ', '.join(self.default_parameters['sj'])))
         self.fill_cip_keywords(p.cip)
+        
         if p.pot_ref == 'CIP':           
             p['dirichlet'] = True
+
+            if p.cip['mu_pzc'] is None or p.cip['phi_pzc'] is None:
+                p.cip['mu_pzc'] = 0
+                p.cip['phi_pzc'] = 0
+                msg = ('Warning: a CIP calculation has been activated '+
+                        'but mu_pzc and/or phi_pzc was none. This is fine get_mask'+
+                        'for CIP calibration but proper values need to be '+
+                        'provided for meaningful reference must be provided '+
+                        'for production calculations\n')
 
             if p.cip['inner_region'] is None and p.cip['autoinner'] is None:
                 raise RuntimeError("The inner region cannot be none" +

@@ -30,13 +30,12 @@ def test_cip():
     # SJM parameters
     potential = 4.5
     tol = 0.02
-    sj_fermi = {'excess_electrons': -0.,
-                'jelliumregion': {'top': 17.9},
-                'tol': tol,
-                'pot_ref': 'wf',
-                'cip': {'filter': 10,
-                        'autoinner': {'nlayers': 4,
-                                      'threshold': 0.01}}}
+    sj_calib = {'excess_electrons':0,
+            'pot_ref': 'CIP',
+            'cip': {'autoinner': {'nlayers': 4, 
+                    'threshold': 0.01}
+                    }}
+
 
     convergence = {
         'energy': 0.05 / 8.,
@@ -45,66 +44,58 @@ def test_cip():
 
     # Calculator
     calc = SJM(mode='lcao',
-               sj=sj_fermi,
-               txt='sjmwf.test',
-               gpts=(8, 8, 48),
-               kpts=(2, 2, 1),
-               xc='PBE',
-               convergence=convergence,
-               occupations=FermiDirac(0.1),
-               cavity=EffectivePotentialCavity(
-                   effective_potential=SJMPower12Potential(atomic_radii, u0),
-                   temperature=T,
-                   surface_calculator=GradientSurface()),
-               dielectric=LinearDielectric(epsinf=epsinf),
-               interactions=[SurfaceInteraction(surface_tension=gamma)])
-
-    # Run the calculation using the Fermi level as the electrode potential
+            sj=sj_calib,
+            txt='sjmwf.test',
+            gpts=(8, 8, 48),
+            kpts=(2, 2, 1),
+            xc='PBE',
+            convergence=convergence,
+            occupations=FermiDirac(0.1),
+            cavity=EffectivePotentialCavity(
+                effective_potential=SJMPower12Potential(atomic_radii, u0),
+                temperature=T,
+                surface_calculator=GradientSurface()),
+            dielectric=LinearDielectric(epsinf=epsinf),
+            interactions=[SurfaceInteraction(surface_tension=gamma)])
+    # Run calibration calculations with zero charge conditions
     atoms.calc = calc
     atoms.get_potential_energy()
-    elstat = calc.get_electrostatic_potential()
-    el_stat_z = elstat.mean(0).mean(0)
-    # correct inner potential so solvent inner potential is zero
-    el_stat_z -= el_stat_z[-1]
-    # same for inner potential
-    phi_pzc = calc.get_inner_potential(atoms) - el_stat_z[-1]
-    mu_pzc = -calc.get_electrode_potential(sj_fermi['pot_ref'])
+    phi_pzc = calc.get_inner_potential(atoms) 
+    mu_pzc = calc.get_fermi_level()
 
     assert np.isclose(mu_pzc, -4.39, 1e-1, 1e-1)
-
     # Reset for CIP using computed potential of zero charge and fermi level
-
     potential = 4.5
     tol = 0.02
     sj_cip = {'target_potential': potential,
-              'excess_electrons': -0.11,
-              'jelliumregion': {'top': 17.9},
-              'tol': tol,
-              'pot_ref': 'CIP',
-              'cip': {'autoinner': {'nlayers': 4,
-                      'threshold': 0.01},
-                      'inner_region': None,
-                      'mu_pzc': mu_pzc,
-                      'phi_pzc': phi_pzc,
-                      'filter': 10}}
+            'excess_electrons': 0.,
+            'jelliumregion': {'top': 17.9},
+            'tol': tol,
+            'pot_ref': 'CIP',
+            'cip': {'autoinner': {'nlayers': 4,
+                    'threshold': 0.01},
+                    'inner_region': None,
+                    'mu_pzc': mu_pzc,
+                    'phi_pzc': phi_pzc,
+                    'filter': 10}}
 
     calc = SJM(mode='lcao',
-               sj=sj_cip,
-               txt='sjmcip.test',
-               gpts=(8, 8, 48),
-               kpts=(2, 2, 1),
-               xc='PBE',
-               convergence=convergence,
-               occupations=FermiDirac(0.1),
-               cavity=EffectivePotentialCavity(
-                   effective_potential=SJMPower12Potential(atomic_radii, u0),
-                   temperature=T,
-                   surface_calculator=GradientSurface()),
-               dielectric=LinearDielectric(epsinf=epsinf),
-               interactions=[SurfaceInteraction(surface_tension=gamma)])
+            sj=sj_cip,
+            txt='sjmcip.test',
+            gpts=(8, 8, 48),
+            kpts=(2, 2, 1),
+            xc='PBE',
+            convergence=convergence,
+            occupations=FermiDirac(0.1),
+            cavity=EffectivePotentialCavity(
+                effective_potential=SJMPower12Potential(atomic_radii, u0),
+                temperature=T,
+                surface_calculator=GradientSurface()),
+            dielectric=LinearDielectric(epsinf=epsinf),
+            interactions=[SurfaceInteraction(surface_tension=gamma)])
 
     atoms.calc = calc
     atoms.get_potential_energy()
     assert abs(calc.get_electrode_potential(sj_cip['pot_ref'], 
                                             return_referenced=True) 
-               - potential) < tol
+            - potential) < tol

@@ -166,25 +166,15 @@ To use CIP-DFT mode, one needs to specify the potential reference scale and :lit
 
 The :literal:`autoinner` part automatically finds the inner region, in this case a 4-layer metal slab. The target electrode potential is given  with respect to the inner potential (:literal:`phi_pzc`) and Fermi level (:literal:`mu_pzc`) at the potential zero charge (PZC). For instance, if the PZC is 4.44 vs SHE, then :literal:`mu_pzc=-4.44`, and the targeted potential is 0.6 vs SHE, then :literal:`target_potential=3.84`. The needed :literal:`mu_pzc` and :literal:`phi_pzc` parameters are most easily obtained as follows::
 
-    sj_fermi= {'excess_electrons':0,
-              'pot_ref': 'wf', 
-              'cip': {'autoinner': {'nlayers': 4, 
-                      'threshold': 0.01}
-                      }
-              }
-    calc = SJM(sj=sj_fermi...)
+        sj_calib = {'excess_electrons':0,
+            'pot_ref': 'CIP',
+            'cip': {'autoinner': {'nlayers': 4, 
+                    'threshold': 0.01}
+                    }}
+    calc = SJM(sj=sj_calib...)
     atoms.calc = calc
-    atoms.get_potential_energy()
-    elstat = calc.get_electrostatic_potential()
-    el_stat_z = elstat.mean(0).mean(0)
-    # Manually change the electrostatic potential of the cell
-    # so that solvent inner potential is zero.
-    # This is needed for establishing the Fermi level (mu_pzc) and
-    # the electrode inner potential (phi_pzc) at potential of zero charge (PZC)
-    el_stat_z -= el_stat_z[-1]
-    # same for inner potential
-    phi_pzc = calc.get_inner_potential(atoms) - el_stat_z[-1]
-    mu_pzc = -calc.get_electrode_potential(sj_fermi['pot_ref'])
+    phi_pzc = calc.get_inner_potential(atoms) 
+    mu_pzc = calc.get_fermi_level()
 
 References
 ==========
