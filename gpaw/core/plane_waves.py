@@ -719,7 +719,10 @@ class PWArray(DistributedArrays[PWDesc]):
         is_real = self.desc.dtype == self.real_dtype
         ekin_G = self.xp.asarray(self.desc.ekin_G)
         for a in arrays:
-            rng.random(out=a.view(dtype=self.real_dtype))
+            # numpy does not require shape, cupy does
+            # cupy just makes all elements equal to one random number
+            aview = a.view(dtype=self.real_dtype)
+            rng.random(shape=aview.shape, out=aview)
 
             # Uniform distribution inside unit circle
             a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)
