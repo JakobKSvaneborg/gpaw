@@ -76,8 +76,9 @@ def test_eigh_magma_cpu(symmetric_matrix: np.ndarray,
     np.testing.assert_allclose(eigvects, eigvects_np, atol=1e-12)
 
 
-# MAGMA seems to do small matrices (N <= 128) on the CPU,
-# so need a large matrix for honest GPU tests
+
+# MAGMA seems to do small matrices (N <= 128) on the CPU.
+# So need a large matrix for honest GPU tests
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")
 @pytest.mark.skipif(cupy_is_fake, reason="MAGMA GPU tests disabled for fake cupy")
 @pytest.mark.gpu

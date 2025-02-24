@@ -48,7 +48,7 @@ PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
     double* dA = Array_DATA(eigvects);
     memcpy(dA, Array_DATA(in_matrix), n*n*sizeof(double));
 
-    syevd_workgroup workgroup = {};
+    dsyevd_workgroup workgroup = {};
 
     // Query optimal workgroup sizes
     double work_temp;
@@ -71,9 +71,6 @@ PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
     assert(status == 0 && "magma_dsyevd query failed");
     workgroup.lwork = (magma_int_t) work_temp;
     workgroup.liwork = iwork_temp;
-
-    assert(workgroup.lwork > 0);
-    assert(workgroup.liwork > 0);
 
     workgroup.work = malloc(workgroup.lwork * sizeof(double));
     workgroup.iwork = malloc(workgroup.liwork * sizeof(magma_int_t));
@@ -150,7 +147,7 @@ PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args)
     magmaDoubleComplex* dA = (magmaDoubleComplex*) Array_DATA(eigvects);
     memcpy(dA, Array_DATA(in_matrix), n*n*sizeof(magmaDoubleComplex));
 
-    heevd_workgroup workgroup = {};
+    zheevd_workgroup workgroup = {};
 
     // Query
     magmaDoubleComplex work_temp;
@@ -172,15 +169,11 @@ PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args)
         -1,
         &status
     );
-    assert(status == 0);
+    assert(status == 0 && "magma_zheevd query failed");
 
     workgroup.lwork = (magma_int_t) MAGMA_Z_REAL(work_temp);
     workgroup.lrwork = (magma_int_t) rwork_temp;
     workgroup.liwork = iwork_temp;
-
-    assert(workgroup.lwork > 0);
-    assert(workgroup.lrwork > 0);
-    assert(workgroup.liwork > 0);
 
     workgroup.work = malloc(workgroup.lwork * sizeof(magmaDoubleComplex));
     workgroup.rwork = malloc(workgroup.lrwork * sizeof(double));

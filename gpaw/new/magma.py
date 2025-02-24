@@ -7,10 +7,10 @@ def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray, np.ndarra
     """"""
     assert cgpaw.have_magma, "Must compile with MAGMA support"
 
-    if np.issubdtype(matrix.dtype, np.complexfloating):
+    if matrix.dtype == np.complex128:
         eigvals, eigvects = cgpaw.eigh_magma_zheevd(matrix, UPLO)
 
-    elif np.issubdtype(matrix.dtype, np.floating):
+    elif matrix.dtype == np.float64:
         eigvals, eigvects = cgpaw.eigh_magma_dsyevd(matrix, UPLO)
 
     else:
@@ -43,12 +43,17 @@ def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray, cp.ndarra
     # Necessary because the C code has no easy access to CUPY array creation
 
     eigvects = cp.empty_like(matrix)
-    eigvals = cp.empty((matrix.shape[0],), dtype=matrix.dtype)
+    # Only symmetric/Hermitian matrices supported for now,
+    # so eigenvalues are always real
+    eigvals = cp.empty((matrix.shape[0],), dtype=np.float64)
 
-    if np.issubdtype(matrix.dtype, np.complexfloating):
-        raise NotImplementedError
+    if matrix.dtype == np.complex128:
+        cgpaw.eigh_magma_zheevd_gpu(matrix,
+                                    UPLO,
+                                    eigvals,
+                                    eigvects)
 
-    elif np.issubdtype(matrix.dtype, np.floating):
+    elif matrix.dtype == np.float64:
         cgpaw.eigh_magma_dsyevd_gpu(matrix,
                                     UPLO,
                                     eigvals,

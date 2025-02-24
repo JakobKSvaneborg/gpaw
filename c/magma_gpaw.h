@@ -20,15 +20,15 @@ static inline magma_uplo_t get_magma_uplo(char* in_uplo_str)
     return strcmp(in_uplo_str, "L") == 0 ? MagmaLower : MagmaUpper;
 }
 
-typedef struct syevd_workgroup
+typedef struct dsyevd_workgroup
 {
     magma_int_t lwork;
     magma_int_t liwork;
     double* work;
     magma_int_t* iwork;
-} syevd_workgroup;
+} dsyevd_workgroup;
 
-typedef struct heevd_workgroup
+typedef struct zheevd_workgroup
 {
     magma_int_t lwork;
     magma_int_t lrwork;
@@ -36,6 +36,6 @@ typedef struct heevd_workgroup
     magmaDoubleComplex* work;
     double* rwork;
     magma_int_t* iwork;
-} heevd_workgroup;
+} zheevd_workgroup;
 
 #endif
