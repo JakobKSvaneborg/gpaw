@@ -13,7 +13,6 @@ from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.pair import get_gs_and_context
-from gpaw.response.pw_parallelization import Blocks1D
 
 
 def default_ecut_extrapolation(ecut, extrapolate):
@@ -121,45 +120,53 @@ class RPAData:
 
 
 class RPACalculator:
-    def __init__(self, gs, *, context, ecut,
-                 skip_gamma=False, qsym=True,
-                 frequencies, weights, truncation=None,
-                 nblocks=1, calculate_q=None):
+    def __init__(
+            self,
+            gs,
+            *,
+            context,
+            ecut,
+            frequencies,
+            weights,
+            qsym=True,
+            skip_gamma=False,
+            truncation=None,
+            nblocks=1,
+            calculate_q=None
+    ):
         self.gs = gs
         self.context = context
 
+        # Normalize RPA integral inputs
         if isinstance(ecut, (float, int)):
             ecut = default_ecut_extrapolation(ecut, extrapolate=6)
-        self.ecut_i = np.asarray(np.sort(ecut)) / Hartree
-
+        ecut_i = np.asarray(np.sort(ecut)) / Hartree
         # TODO: We should avoid this requirement.
-        # thosk notes: it might work now (after some clean-up), but I have not
-        # tested it
+        # thosk notes: it might work now (after some extensive clean-up of the
+        # frequency integration), but I have not tested it
         assert len(frequencies) % nblocks == 0
+        # We should actually have a kpoint descriptor for the qpoints.
+        # We are badly failing at making use of the existing tools by reducing
+        # the qpoints to dumb arrays.
+        bzq_qc, ibzq_qc, weight_q = initialize_q_points(gs.kd, qsym)
+        # Collect information about the RPA integral on a single object (a.u.)
+        self.integral = RPAIntegral(
+            omega_w=frequencies / Hartree,
+            weight_w=weights / Hartree / (2 * np.pi),
+            ibzq_qc=ibzq_qc,
+            weight_q=weight_q,
+            ecut_i=ecut_i,
+        )
 
+        self.skip_gamma = skip_gamma
+        self.coulomb = CoulombKernel.from_gs(gs, truncation=truncation)
+        self.nblocks = nblocks
         # This is a super weird way of achieving inheritance...
         if calculate_q is None:
             calculate_q = self.calculate_q_rpa
         self.calculate_q = calculate_q
 
-        self.coulomb = CoulombKernel.from_gs(gs, truncation=truncation)
-        self.skip_gamma = skip_gamma
-
-        # We should actually have a kpoint descriptor for the qpoints.
-        # We are badly failing at making use of the existing tools by reducing
-        # the qpoints to dumb arrays.
-        # Clean up this mess... XXX
-        self.omega_W = frequencies / Hartree
-        self.bzq_qc, self.ibzq_qc, weight_q = initialize_q_points(
-            gs.kd, qsym)
-        self.integral = RPAIntegral(
-            omega_w=frequencies,
-            weight_w=weights / Hartree / (2 * np.pi),
-            ibzq_qc=self.ibzq_qc,
-            weight_q=weight_q,
-            ecut_i=self.ecut_i,
-        )
-        self.nblocks = nblocks
+        return bzq_qc
 
     def calculate(self, *, nbands=None, spin=False, txt=''):
         """Calculate RPA correlation energy for one or several cutoffs.
@@ -177,7 +184,7 @@ class RPACalculator:
 
         p = functools.partial(self.context.print, flush=False)
 
-        ecut_i = self.ecut_i
+        ecut_i = self.integral.ecut_i
         ecutmax = max(ecut_i)
 
         if nbands is None:
@@ -195,7 +202,7 @@ class RPACalculator:
             self.gs, self.context.with_txt(
                 f'{txt + "_" if txt else ""}chi0.txt'),
             nblocks=self.nblocks,
-            wd=FrequencyDescriptor(1j * self.omega_W),
+            wd=FrequencyDescriptor(1j * self.integral.omega_w),
             eta=0.0,
             intraband=False,
             hilbert=False,
@@ -204,7 +211,7 @@ class RPACalculator:
         self.context.timer.start('RPA')
 
         data = RPAData(self.integral)
-        for q, q_c in enumerate(self.ibzq_qc):
+        for q, q_c in enumerate(self.integral.ibzq_qc):
             if np.allclose(q_c, 0.0) and self.skip_gamma:
                 p('Not calculating E_c(q) at Gamma', end='\n')
                 continue
@@ -407,14 +414,16 @@ class RPACorrelation(RPACalculator):
         if truncation is None and not gs.pbc.any():
             truncation = '0D'
 
-        super().__init__(gs=gs, context=context,
-                         frequencies=frequencies, weights=weights,
-                         truncation=truncation,
-                         **kwargs)
+        bzq_qc = super().__init__(gs=gs, context=context,
+                                  frequencies=frequencies, weights=weights,
+                                  truncation=truncation,
+                                  **kwargs)
 
-        self.print_initialization(xc, frequency_scale, nlambda, user_spec)
+        self.print_initialization(
+            xc, frequency_scale, nlambda, user_spec, bzq_qc)
 
-    def print_initialization(self, xc, frequency_scale, nlambda, user_spec):
+    def print_initialization(
+            self, xc, frequency_scale, nlambda, user_spec, bzq_qc):
         p = functools.partial(self.context.print, flush=False)
         p('----------------------------------------------------------')
         p('Non-self-consistent %s correlation energy' % xc)
@@ -429,10 +438,10 @@ class RPACorrelation(RPACalculator):
         p('Number of spins                :', self.gs.nspins)
         p('Number of k-points             :', len(self.gs.kd.bzk_kc))
         p('Number of irreducible k-points :', len(self.gs.kd.ibzk_kc))
-        p('Number of q-points             :', len(self.bzq_qc))
-        p('Number of irreducible q-points :', len(self.ibzq_qc))
+        p('Number of q-points             :', len(bzq_qc))
+        p('Number of irreducible q-points :', len(self.integral.ibzq_qc))
         p()
-        for q, weight in zip(self.ibzq_qc, self.integral.weight_q):
+        for q, weight in zip(self.integral.ibzq_qc, self.integral.weight_q):
             p('    q: [%1.4f %1.4f %1.4f] - weight: %1.3f' %
               (q[0], q[1], q[2], weight))
         p()
@@ -448,13 +457,13 @@ class RPACorrelation(RPACalculator):
         p('Frequencies')
         if not user_spec:
             p('    Gauss-Legendre integration with %s frequency points' %
-              len(self.omega_W))
+              len(self.integral.omega_w))
             p('    Transformed from [0,oo] to [0,1] using e^[-aw^(1/B)]')
             p('    Highest frequency point at %5.1f eV and B=%1.1f' %
-              (self.omega_W[-1] * Hartree, frequency_scale))
+              (self.integral.omega_w[-1] * Hartree, frequency_scale))
         else:
             p('    User specified frequency integration with',
-              len(self.omega_W), 'frequency points')
+              len(self.integral.omega_w), 'frequency points')
         p()
         p('Parallelization')
         p('    Total number of CPUs          : % s' % self.context.comm.size)

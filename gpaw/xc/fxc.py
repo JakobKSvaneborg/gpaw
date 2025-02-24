@@ -156,7 +156,6 @@ class FXCCorrelation:
 
         self.cache = FXCCache(self.context.comm, tag, self.xc, self.ecut_max)
 
-        self.ibzq_qc = self.rpa.ibzq_qc
         self.nblocks = self.rpa.nblocks
 
     @property
@@ -171,7 +170,7 @@ class FXCCorrelation:
 
         q_empty = None
 
-        for iq in reversed(range(len(self.ibzq_qc))):
+        for iq in reversed(range(len(self.rpa.integral.ibzq_qc))):
             handle = self.cache.handle(iq)
 
             if not handle.exists():
@@ -185,7 +184,7 @@ class FXCCorrelation:
         kernelkwargs = dict(
             gs=self.gs,
             xc=self.xc,
-            ibzq_qc=self.ibzq_qc,
+            ibzq_qc=self.rpa.integral.ibzq_qc,
             ecut=self.ecut_max,
             context=self.context)
 
@@ -280,10 +279,11 @@ class FXCCorrelation:
     @timer('Energy')
     def calculate_fxc_energies(self, qpd, chi0_swGG, gcut):
         """Evaluate correlation energy from chi0 and the kernel fhxc"""
+        ibzq_qc = self.rpa.integral.ibzq_qc
         ibzq2_q = [
-            np.dot(self.ibzq_qc[i] - qpd.q_c,
-                   self.ibzq_qc[i] - qpd.q_c)
-            for i in range(len(self.ibzq_qc))
+            np.dot(ibzq_qc[i] - qpd.q_c,
+                   ibzq_qc[i] - qpd.q_c)
+            for i in range(len(ibzq_qc))
         ]
 
         qi = np.argsort(ibzq2_q)[0]
