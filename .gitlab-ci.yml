@@ -5,13 +5,6 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
-  # CI for branches inside the GPAW namespace will run on camd-runner2
-  # because the GPAW project settings define the CI variable
-  # DEFAULT_RUNNER_TAG: "linux".
-  # Forks will instead get this definition which allows running 
-  # pipelines on shared runners.
-  DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
-
 
 default:
   before_script:
@@ -20,8 +13,6 @@ default:
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
   interruptible: true
-  tags:
-    - $DEFAULT_RUNNER_TAG
 
 
 stages:
@@ -29,7 +20,6 @@ stages:
   - precalculate
   - test
   - deploy
-
 
 .build:
   stage: build
@@ -126,8 +116,9 @@ stages:
 
 build:
   image: $IMAGE_MAIN_OLDEST
-  extends:
-    - .build
+  extends: .build
+  tags:
+    - linux
   script:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
@@ -137,8 +128,9 @@ build:
 
 build-latest:
   image: $IMAGE_MAIN_LATEST
-  extends:
-    - .build
+  extends: .build
+  tags:
+    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -177,6 +169,8 @@ build-cuda:
   extends:
     - .build
     - .gpu-job
+  tags:
+    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -196,6 +190,8 @@ build-hip-cuda:
   extends:
     - .build
     - .gpu-job
+  tags:
+    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -218,8 +214,9 @@ build-hip-cuda:
 
 build-minimal:
   image: $IMAGE_MAIN_OLDEST
-  extends:
-    - .build
+  extends: .build
+  tags:
+    - linux
   script:
     - |
       cat << EOF > siteconfig.py
@@ -288,6 +285,8 @@ build-lumi-g:
 prepare-libxc:
   image: $IMAGE_MAIN_OLDEST
   stage: build
+  tags:
+    - linux
   variables:
     PREFIX: $PYTHONUSERBASE
   before_script:
@@ -317,6 +316,8 @@ build-libxc:
     - .build
   needs:
     - prepare-libxc
+  tags:
+    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -336,6 +337,8 @@ test-oldest:
     - .test
   needs:
     - build
+  tags:
+    - linux
   script:
     - gpaw info
     - >
@@ -357,6 +360,8 @@ test-latest:
     - .test
   needs:
     - build-latest
+  tags:
+    - linux
   script:
     - gpaw info
 
@@ -384,6 +389,8 @@ test-latest-new:
     - .test
   needs:
     - build-latest
+  tags:
+    - linux
   script:
     - gpaw info
     - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
@@ -395,6 +402,8 @@ test-minimal:
     - .test
   needs:
     - build-minimal
+  tags:
+    - linux
   script:
     - gpaw info
     - >
@@ -482,6 +491,8 @@ test-libxc:
     - .test
   needs:
     - build-libxc
+  tags:
+    - linux
   script:
     - gpaw info
     - pytest -v -m libxc
@@ -491,6 +502,8 @@ check-agts:
   stage: test
   needs:
     - build
+  tags:
+    - linux
   script:
     # - pip install --user git+https://gitlab.com/myqueue/myqueue.git@master
     - pip install --user myqueue
@@ -504,6 +517,8 @@ check-agts:
 lint:
   image: $IMAGE_MAIN_LATEST
   stage: build
+  tags:
+    - linux
   script:
     - echo "png check"
     - >
@@ -541,6 +556,8 @@ lint:
 typecheck:
   image: $IMAGE_MAIN_LATEST
   stage: build
+  tags:
+    - linux
   script:
     - pip install mypy
     - python --version
@@ -553,6 +570,8 @@ docs:
   stage: test
   needs:
     - build-latest
+  tags:
+    - linux
   script:
     - pip install scikit-image
     - cd doc
