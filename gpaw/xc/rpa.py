@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 import functools
 import os
 from time import ctime
@@ -83,20 +84,16 @@ def initialize_q_points(kd, qsym):
     return bzq_qc, ibzq_qc, weight_q
 
 
+@dataclass
 class RPAIntegral:
-    def __init__(self, omega_w, weight_w):
-        """Construct the RPA integral.
-
-        Parameters:
-        -----------
-        omega_w: Frequencies in eV.
-        weight_w: Frequency integral weights.
-        """
-        self.omega_w = omega_w
-        self.weight_w = weight_w
+    weight_w: np.ndarray
+    weight_q: np.ndarray
 
     def integrate_frequencies(self, in_wx):
         return self.weight_w @ in_wx
+
+    def integrate_qpoints(self, in_qx):
+        return self.weight_q @ in_qx
 
 
 class RPACalculator:
@@ -109,10 +106,6 @@ class RPACalculator:
         self.context = context
 
         self.omega_W = frequencies / Hartree
-        self.integral = RPAIntegral(
-            frequencies,
-            weights / Hartree / (2 * np.pi),
-        )
 
         # TODO: We should avoid this requirement.
         assert len(self.omega_W) % nblocks == 0
@@ -125,8 +118,12 @@ class RPACalculator:
         # We should actually have a kpoint descriptor for the qpoints.
         # We are badly failing at making use of the existing tools by reducing
         # the qpoints to dumb arrays.
-        self.bzq_qc, self.ibzq_qc, self.weight_q = initialize_q_points(
+        self.bzq_qc, self.ibzq_qc, weight_q = initialize_q_points(
             gs.kd, qsym)
+        self.integral = RPAIntegral(
+            weight_w=weights / Hartree / (2 * np.pi),
+            weight_q=weight_q,
+        )
 
         self.filename = filename
 
@@ -276,7 +273,7 @@ class RPACalculator:
             self.write(energy_qi, ecut_i)
             p()
 
-        e_i = np.dot(self.weight_q, np.array(energy_qi))
+        e_i = self.integral.integrate_qpoints(np.array(energy_qi))
         p('==========================================================')
         p()
         p('Total correlation energy:')
@@ -482,7 +479,7 @@ class RPACorrelation(RPACalculator):
         p('Number of q-points             :', len(self.bzq_qc))
         p('Number of irreducible q-points :', len(self.ibzq_qc))
         p()
-        for q, weight in zip(self.ibzq_qc, self.weight_q):
+        for q, weight in zip(self.ibzq_qc, self.integral.weight_q):
             p('    q: [%1.4f %1.4f %1.4f] - weight: %1.3f' %
               (q[0], q[1], q[2], weight))
         p()
