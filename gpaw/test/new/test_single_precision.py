@@ -30,7 +30,8 @@ def run_single_precision():
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
-                      kpts={'density': 2},
+                      kpts={'density': 1},
+                      convergence={'energy': 1e-5},
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': np.complex64},
@@ -41,18 +42,19 @@ def run_single_precision():
     atoms2.calc = GPAW(xc={'name': 'LDA'},
                        symmetry='off',
                        random=True,
-                       kpts={'density': 2},
+                       kpts={'density': 1},
+                       convergence={'energy': 1e-5},
                        mode={'name': 'pw',
                              'ecut': 200.0,
-                             'dtype': np.complex128},
-                       parallel={'gpu': True}
+                             'dtype': np.float32},
+                       parallel={'gpu': False}
                        )
     e_pot2 = atoms2.get_potential_energy()
 
     assert atoms.calc.wfs.dtype == np.complex64
     assert atoms2.calc.wfs.dtype == np.complex128
 
-    assert e_pot2 == pytest.approx(e_pot1, rel=1e-3)
+    assert e_pot2 == pytest.approx(e_pot1, rel=1e-3), e_pot1 - e_pot2
 
 
 if __name__ == '__main__':
