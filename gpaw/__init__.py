@@ -179,6 +179,7 @@ def __getattr__(attr: str) -> Any:
             last_xc = xc
         else:
             return globals().setdefault(attr, result)
+    assert last_xc is not None
     raise last_xc
 
 
