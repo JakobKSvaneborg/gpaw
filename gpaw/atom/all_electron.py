@@ -39,10 +39,12 @@ def calculate_hartree(rgd, n, Z):
     return vHr
 
 
-def calculate_xc(rgd, xc, n):
+def calculate_xc(rgd, xc, n_g):
     vxc_g = np.zeros(rgd.N)
 
     if xc.type == 'GLLB':
+        # Wait, the xc functional necessarily needs to see the density!
+        # ☠☠☠ XXX From where does it have the density? XXX ☠☠☠
         Exc = xc.get_xc_potential_and_energy_1d(vxc_g)
     else:
         Exc = xc.calculate_spherical(
@@ -50,15 +52,15 @@ def calculate_xc(rgd, xc, n):
     return vxc_g, Exc
 
 
-def calculate_potentials(rgd, xc, n, Z, tw_coeff=None):
-    vHr = calculate_hartree(rgd, n, Z)
-    vXC, Exc = calculate_xc(rgd, xc, n)
-    vr = vHr + vXC * rgd.r_g
+def calculate_potentials(rgd, xc, n_g, Z, tw_coeff=None):
+    vHr_g = calculate_hartree(rgd, n_g, Z)
+    vxc_g, Exc = calculate_xc(rgd, xc, n_g)
+    vr_g = vHr_g + vxc_g * rgd.r_g
 
     if tw_coeff is not None:
-        vr /= tw_coeff
+        vr_g /= tw_coeff
 
-    return vr, vHr, vXC, Exc
+    return vr_g, vHr_g, vxc_g, Exc
 
 
 def calculate_density(f_j, u_jg, r_g):
@@ -830,6 +832,8 @@ class ValenceData:
     def from_setupdata(cls, setupdata):
         rgd = setupdata.rgd
         xc = XC(setupdata.setupname)
+
+        # XXX GLLB needs special initialization I think.
 
         if setupdata.orbital_free:
             raise RuntimeError('Setup is orbital-free')
