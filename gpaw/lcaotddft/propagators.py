@@ -64,10 +64,10 @@ class Propagator:
 class LCAOPropagator(Propagator):
 
     def __init__(self):
-        super().__init__(self)
+        super().__init__()
 
     def initialize(self, paw):
-        super().initialize(self, paw)
+        super().initialize(paw)
         self.wfs = paw.wfs
         self.density = paw.density
         self.hamiltonian = paw.td_hamiltonian
@@ -77,7 +77,7 @@ class ReplayPropagator(LCAOPropagator):
 
     def __init__(self, filename, update='all'):
         from gpaw.lcaotddft.wfwriter import WaveFunctionReader
-        super().__init__(self)
+        super().__init__()
         self.filename = filename
         self.update_mode = update
         self.reader = WaveFunctionReader(self.filename)
@@ -174,10 +174,10 @@ class ReplayPropagator(LCAOPropagator):
 class ECNPropagator(LCAOPropagator):
 
     def __init__(self):
-        super().__init__(self)
+        super().__init__()
 
     def initialize(self, paw, hamiltonian=None):
-        super().initialize(self, paw)
+        super().initialize(paw)
         if hamiltonian is not None:
             self.hamiltonian = hamiltonian
 
@@ -335,10 +335,10 @@ class ECNPropagator(LCAOPropagator):
 class SICNPropagator(ECNPropagator):
 
     def __init__(self):
-        super().__init__(self)
+        super().__init__()
 
     def initialize(self, paw):
-        super().initialize(self, paw)
+        super().initialize(paw)
         # Allocate kpt.C2_nM arrays
         for kpt in self.wfs.kpt_u:
             kpt.C2_nM = np.empty_like(kpt.C_nM)
@@ -402,7 +402,7 @@ class SelfConsistentPropagator(SICNPropagator):
     after kick while SCPC will preserve the dipole oscillations.
     """
     def __init__(self, tolerance=1e-8, max_pc_iterations=20):
-        super().__init__(self)
+        super().__init__()
         self.tolerance = tolerance
         self.max_pc_iterations = max_pc_iterations
         self.last_pc_iterations = 0
@@ -474,7 +474,7 @@ class SelfConsistentPropagator(SICNPropagator):
 class TaylorPropagator(Propagator):
 
     def __init__(self):
-        super().__init__(self)
+        super().__init__()
         raise NotImplementedError('TaylorPropagator not implemented')
 
     def initialize(self, paw):
