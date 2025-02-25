@@ -292,14 +292,14 @@ class AtomPAW(GPAW):
 
         gd = AtomGridDescriptor(h, rcut)
         super().__init__(mode=MakeWaveFunctions(gd),
-                      eigensolver=AtomEigensolver(gd, f_sln),
-                      poissonsolver=AtomPoissonSolver(),
-                      nbands=sum([(2 * l + 1) * len(f_n)
-                                  for l, f_n in enumerate(f_sln[0])]),
-                      communicator=mpi.serial_comm,
-                      parallel=dict(augment_grids=False),
-                      occupations=AtomOccupations(f_sln),
-                      **kwargs)
+                         eigensolver=AtomEigensolver(gd, f_sln),
+                         poissonsolver=AtomPoissonSolver(),
+                         nbands=sum([(2 * l + 1) * len(f_n)
+                                     for l, f_n in enumerate(f_sln[0])]),
+                         communicator=mpi.serial_comm,
+                         parallel=dict(augment_grids=False),
+                         occupations=AtomOccupations(f_sln),
+                         **kwargs)
         # Initialize function will raise an error unless we set a (bogus) cell
         self.initialize(Atoms(symbol, calculator=self,
                               cell=np.eye(3)))
