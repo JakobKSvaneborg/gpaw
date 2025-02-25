@@ -102,9 +102,10 @@ class BasisMaker:
 
         if isinstance(valence_data, (str, Generator)):
             valence_data = initialize_generator(
-                valence_data, xc, gtxt, run,
-                non_relativistic_guess, name,
-                save_setup).valence_data
+                valence_data, xc=xc, gtxt=gtxt, run=run,
+                non_relativistic_guess=non_relativistic_guess,
+                name=name,
+                save_setup=save_setup).valence_data
 
         self.name = name
         self.valence_data = valence_data
