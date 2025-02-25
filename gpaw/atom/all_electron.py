@@ -30,6 +30,30 @@ def get_r2dvdr(rgd, vr):
     return r2dvdr
 
 
+def calculate_hartree(rgd, n, Z):
+    vHr = np.zeros(rgd.N)
+    hartree(0, n * rgd.r_g * rgd.dr_g, rgd.r_g, vHr)
+
+    # add potential from nuclear point charge (v = -Z / r)
+    vHr -= Z
+    return vHr
+
+
+def calculate_xc(rgd, xc, n):
+    vXC = np.zeros(rgd.N)
+    # calculated exchange correlation potential and energy
+    vXC[:] = 0.0
+
+    if xc.type == 'GLLB':
+        # Update the potential to self.vXC an the energy to self.Exc
+        Exc = xc.get_xc_potential_and_energy_1d(vXC)
+    else:
+        Exc = xc.calculate_spherical(rgd,
+                                     n.reshape((1, -1)),
+                                     vXC.reshape((1, -1)))
+    return vXC, Exc
+
+
 class AllElectron(IOContext):
     """Object for doing an atomic DFT calculation."""
 
@@ -219,22 +243,8 @@ class AllElectron(IOContext):
         vrold = None
 
         while True:
-            # calculate hartree potential
-            hartree(0, n * r * dr, r, vHr)
-
-            # add potential from nuclear point charge (v = -Z / r)
-            vHr -= Z
-
-            # calculated exchange correlation potential and energy
-            self.vXC[:] = 0.0
-
-            if self.xc.type == 'GLLB':
-                # Update the potential to self.vXC an the energy to self.Exc
-                Exc = self.xc.get_xc_potential_and_energy_1d(self.vXC)
-            else:
-                Exc = self.xc.calculate_spherical(self.rgd,
-                                                  n.reshape((1, -1)),
-                                                  self.vXC.reshape((1, -1)))
+            vHr[:] = calculate_hartree(self.rgd, n, Z)
+            self.vXC[:], Exc = calculate_xc(self.rgd, self.xc, n)
 
             # calculate new total Kohn-Sham effective potential and
             # admix with old version
@@ -800,7 +810,7 @@ class ValenceData:
 
     rcut_l: list[float]
     scalarrel: bool
-    r2dvdr: np.ndarray
+    r2dvdr: np.ndarray | None  # Actually: None means not scalarrel
 
     # Maybe we don't need these variables:
     njcore: int
