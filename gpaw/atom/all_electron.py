@@ -22,12 +22,12 @@ from gpaw.mpi import serial_comm
 alpha = 1 / 137.036
 
 
-def get_r2dvdr(rgd, vr):
-    r2dvdr = np.zeros(rgd.N)
-    rgd.derivative(vr, r2dvdr)
-    r2dvdr *= rgd.r_g
-    r2dvdr -= vr
-    return r2dvdr
+def get_r2dvdr(rgd, vr_g):
+    r2dvdr_g = np.zeros(rgd.N)
+    rgd.derivative(vr_g, r2dvdr_g)
+    r2dvdr_g *= rgd.r_g
+    r2dvdr_g -= vr_g
+    return r2dvdr_g
 
 
 def calculate_hartree(rgd, n, Z):
@@ -40,18 +40,14 @@ def calculate_hartree(rgd, n, Z):
 
 
 def calculate_xc(rgd, xc, n):
-    vXC = np.zeros(rgd.N)
-    # calculated exchange correlation potential and energy
-    vXC[:] = 0.0
+    vxc_g = np.zeros(rgd.N)
 
     if xc.type == 'GLLB':
-        # Update the potential to self.vXC an the energy to self.Exc
-        Exc = xc.get_xc_potential_and_energy_1d(vXC)
+        Exc = xc.get_xc_potential_and_energy_1d(vxc_g)
     else:
-        Exc = xc.calculate_spherical(rgd,
-                                     n.reshape((1, -1)),
-                                     vXC.reshape((1, -1)))
-    return vXC, Exc
+        Exc = xc.calculate_spherical(
+            rgd, n_g.reshape((1, -1)), vxc_g.reshape((1, -1)))
+    return vxc_g, Exc
 
 
 def calculate_potentials(rgd, xc, n, Z, tw_coeff=None):
@@ -835,7 +831,6 @@ class ValenceData:
         rgd = setupdata.rgd
         xc = XC(setupdata.setupname)
 
-        # XXX orbital free
         if setupdata.orbital_free:
             raise RuntimeError('Setup is orbital-free')
 
