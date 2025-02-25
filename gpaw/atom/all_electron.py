@@ -839,9 +839,20 @@ class ValenceData:
         if setupdata.orbital_free:
             raise RuntimeError('Setup is orbital-free')
 
-        n = ...  # density?
-        vr_g = calculate_potentials(rgd, xc, n, setupdata.Z, tw_coeff=None)[0]
+        # XXX factor 4 pi?
+        #
+        # f_j includes only valence states, so we need to add also
+        # all-electron core density.
+        n_g = calculate_density(setupdata.f_j, np.array(setupdata.phi_jg),
+                                rgd.r_g)
+        n_g += setupdata.nc_g
+
+        vr_g = calculate_potentials(rgd, xc, n_g, setupdata.Z,
+                                    tw_coeff=None)[0]
         r2dvdr_g = get_r2dvdr(rgd, vr_g)
+
+        assert setupdata.type in {'scalar-relativistic', 'non-relativistic'}
+        scalarrel = setupdata.type == 'scalar-relativistic'
 
         return ValenceData(
             symbol=setupdata.symbol,
@@ -857,7 +868,7 @@ class ValenceData:
             # q_ln
             # s_ln
             r2dvdr=r2dvdr_g,
-            # scalarrel=xxx,
+            scalarrel=scalarrel,
             # njcore=xxx,
             xcname=setupdata.setupname,
         )
