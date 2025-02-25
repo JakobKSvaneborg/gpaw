@@ -68,9 +68,12 @@ def calculate_potentials(rgd, xc, n, Z, tw_coeff=None):
 class AllElectron(IOContext):
     """Object for doing an atomic DFT calculation."""
 
+    default_gpernode = 150
+
     def __init__(self, symbol, xcname='LDA', scalarrel=True,
                  corehole=None, configuration=None, nofiles=True,
-                 txt='-', gpernode=150, orbital_free=False, tw_coeff=1.):
+                 txt='-', gpernode=default_gpernode,
+                 orbital_free=False, tw_coeff=1.):
         """Do an atomic DFT calculation.
 
         Example::
@@ -121,6 +124,8 @@ class AllElectron(IOContext):
         maxnodes = max([n - l - 1 for n, l in zip(self.n_j, self.l_j)])
         self.N = (maxnodes + 1) * gpernode
         self.beta = 0.4
+        self.rgd = AERadialGridDescriptor(self.beta / self.N, 1.0 / self.N,
+                                          self.N)
 
         self.orbital_free = orbital_free
         self.tw_coeff = tw_coeff
@@ -192,7 +197,6 @@ class AllElectron(IOContext):
         N = self.N
         beta = self.beta
         t(N, 'radial gridpoints.')
-        self.rgd = AERadialGridDescriptor(beta / N, 1.0 / N, N)
         g = np.arange(N, dtype=float)
         self.r = self.rgd.r_g
         self.dr = self.rgd.dr_g

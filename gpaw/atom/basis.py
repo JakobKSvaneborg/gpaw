@@ -60,16 +60,18 @@ def rsplit_by_norm(rgd, l, u, tailnorm_squared, txt):
     return rsplit, partial_norm_squared, splitwave
 
 
-def get_valence_data(generator, xc, gtxt, run, non_relativistic_guess,
-                     name, save_setup):
+def initialize_generator(
+        generator, xc, gtxt, run, non_relativistic_guess=False,
+        *, name, save_setup=False):
     if isinstance(generator, str):  # treat 'generator' as symbol
         generator = Generator(generator, scalarrel=True,
                               xcname=xc, txt=gtxt,
-                              nofiles=True)
-        generator.N *= 4
+                              nofiles=True,
+                              gpernode=Generator.default_gpernode * 4)
 
     if run:
         if non_relativistic_guess:
+            raise RuntimeError('Non-relativistic guess currently disabled')
             ae0 = AllElectron(generator.symbol, scalarrel=False,
                               nofiles=False, txt=gtxt, xcname=xc)
             ae0.N = generator.N
@@ -89,7 +91,7 @@ def get_valence_data(generator, xc, gtxt, run, non_relativistic_guess,
                              'was already generated before basis '
                              'generation.')
 
-    return generator.valence_data
+    return generator
 
 
 class BasisMaker:
@@ -99,9 +101,10 @@ class BasisMaker:
                  save_setup=False):
 
         if isinstance(valence_data, (str, Generator)):
-            valence_data = get_valence_data(valence_data, xc, gtxt, run,
-                                            non_relativistic_guess, name,
-                                            save_setup)
+            valence_data = initialize_generator(
+                valence_data, xc, gtxt, run,
+                non_relativistic_guess, name,
+                save_setup).valence_data
 
         self.name = name
         self.valence_data = valence_data
