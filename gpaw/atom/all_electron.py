@@ -195,7 +195,6 @@ class AllElectron(IOContext):
 
         t = self.text
         N = self.N
-        beta = self.beta
         t(N, 'radial gridpoints.')
         g = np.arange(N, dtype=float)
         self.r = self.rgd.r_g

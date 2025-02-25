@@ -273,9 +273,6 @@ class BasisMaker:
         valdata = self.valence_data
         rgd = self.rgd
 
-        njcore = valdata.njcore
-        # We can probably create valdata with only the [njcore:] subset.
-        # Refactor later.
         n_j = valdata.n_j
         l_j = valdata.l_j
         f_j = valdata.f_j
