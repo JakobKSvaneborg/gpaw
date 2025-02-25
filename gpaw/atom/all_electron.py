@@ -265,7 +265,7 @@ class AllElectron(IOContext):
             tw_coeff = self.tw_coeff if self.orbital_free else None
 
             vr[:], vHr[:], self.vXC[:], Exc = calculate_potentials(
-                rgd=self.rgd, xc=self.xc, n=n, Z=Z, tw_coeff=tw_coeff)
+                rgd=self.rgd, xc=self.xc, n_g=n, Z=Z, tw_coeff=tw_coeff)
 
             # calculate new total Kohn-Sham effective potential and
             # admix with old version
