@@ -109,9 +109,18 @@ class RPAData:
         return self.integral.integrate_frequencies(self.energy_qwi[q, :, i])
 
     @property
+    def energy_wqi(self):
+        return np.swapaxes(self.energy_qwi, 0, 1)
+
+    @property
     def energy_qi(self):
         """Correlation energy contribution, E_c(q)."""
         return self.integral.integrate_frequencies(self.energy_qwi)
+
+    @property
+    def energy_wi(self):
+        """Correlation energy contribution, E_c(ω)."""
+        return self.integral.integrate_qpoints(self.energy_wqi)
 
     @property
     def energy_i(self):
