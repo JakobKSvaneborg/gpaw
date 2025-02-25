@@ -4,45 +4,26 @@ from gpaw import GPAW
 # --- literalinclude import-end ---
 from ase.filters import FrechetCellFilter
 # --- literalinclude import-filter ---
-from ase import io
-import json
+from params_forces import calculator_params as fast_params
+from params_stresses import calculator_params as accurate_params
 
 
 def main():
     # a0 = 5.421
     a = 5.6
-    param_file = 'params.json'
-    outfile = 'relaxed.json'
 
     atoms = bulk('Si', 'fcc', a=a)
     atoms.rattle(0.05)
 
-    with open(param_file, 'r') as f:
-        params = json.load(f)
-
-    atoms = relax(atoms, params, fixcell=True)
-    atoms = relax(atoms, params, fixcell=False)
-
-    # write out relaxed structure
-    io.write(outfile, atoms)
+    atoms = relax(atoms, fast_params, fixcell=True)
+    atoms = relax(atoms, accurate_params, fixcell=False)
 
 
 # --- literalinclude relax-start ---
-def relax(atoms, params, fmax=0.01,
-          d3=False, fixcell=True,
+def relax(atoms, calculator_params,
+          fmax=0.01, d3=False, fixcell=True,
           logname='opt.log',
           trajname='opt.traj'):
-
-    if fixcell:
-        # take fast optimization with LCAO
-        param_key = 'fast_forces'
-    else:
-        # calculate accurate stresses with PW
-        param_key = 'accurate_stresses'
-
-    calculator_params = params[param_key]["calculator"]
-    # remove 'name' from calculator params
-    assert 'gpaw' == calculator_params.pop('name')
 
     # set DFT calculator
     calc_dft = GPAW(**calculator_params)

@@ -35,10 +35,10 @@ Now consider the function ``relax``:
     :start-after: literalinclude relax-start
     :end-before: literalinclude relax-end
 
-The relaxation history is written to ``logname=opt.log``, its trajectory is saved to
-``trajname=opt.traj`` and the final configuration is written to ``relaxed.json``.
+The relaxation history is written to ``logname = 'opt.log'``, its trajectory is saved to
+``trajname = 'opt.traj'`` and the final configuration is returned from the function.
 
-The parameter file ``params.json`` contains the calculation parameters in
+The parameter file ``params_forces.py`` contains the calculation parameters in
 standardized format.
 Typically we would start with a fast and less accurate relaxation,
 which is consecutively refined with tighter convergence parameters
@@ -46,7 +46,7 @@ once we approach the atomic configuration which minimizes the potential energy
 (see :ref:`accuracy of the self-consistency cycle<manual_convergence>` 
 and :ref:`converging forces<custom_convergence-forces>` for relevant options).
 
-.. literalinclude:: params_forces.json
+.. literalinclude:: params_forces.py
 
 For more accurate force convergence the Brillioun zone sampling should be
 refined by setting a larger number of kpoints (e.g. five or more points 
@@ -61,22 +61,14 @@ cell filters. For that, we need to import the corresponding class using
 ``from ase.filters import FrechetCellFilter``.
 The cell filter takes the ``Atoms`` object as input and is
 directly handed to the optimization routine. For full relaxations, 
-you can then simply replace the  optimization routine line 
-``opt = ...`` with the following code lines. 
+you can then simply replace the optimization configuration line 
+``opt_conf = atoms`` with the ``opt_conf = FrechetCellFilter(atoms)``. 
 In the example script we use an if-statement for that.
 
 Note, that calculation of stresses requires the plane wave mode in GPAW
 and that the accuracy of the calculations
-should be refined (here: taking the more accurate parameter set by
-using the parameter keyword ``param_key = accurate_stresses``).
+should be refined (here: taking the more accurate parameter set ``params_stresses.py``).
 
-.. literalinclude:: params_stresses.json
+.. literalinclude:: params_stresses.py
 
-Parameter files using multi-level dictionaries (with keys such as 
-``fast_forces``, ``accurate_stresses``) 
-allow to store different parameter sets in one common parameter file. 
-The appropriate parameters are selected by keywords in the
-optimization script. 
-
-Here, you can download the relaxation script :download:`relax.py`, and 
-the joint parameter file :download:`params.json`.
+Here, you can download the full relaxation script :download:`relax.py`.
