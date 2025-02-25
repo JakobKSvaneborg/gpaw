@@ -1,4 +1,5 @@
 import numpy as np
+
 from numpy.linalg import inv, solve
 
 from ase.utils.timing import timer
@@ -383,8 +384,9 @@ class SICNPropagator(ECNPropagator):
     def todict(self):
         return {'name': 'sicn'}
 
-#ToDo: Should there be an abstract baseclass for SelfConsistentPropagator and SICNPropagator 
-# instead of inheriting from ECNPropagator?
+
+# ToDo: Should there be an abstract baseclass for SelfConsistentPropagator
+# and SICNPropagator instead of inheriting from ECNPropagator?
 class SelfConsistentPropagator(SICNPropagator):
     """
     This is an actual Predictor-Corrector propagator that uses the SICN
