@@ -825,6 +825,38 @@ class ValenceData:
     symbol: str
     xcname: str
 
+    @classmethod
+    def from_setupdata(cls, setupdata):
+        rgd = setupdata.rgd
+        xc = XC(setupdata.setupname)
+
+        # XXX orbital free
+        if setupdata.orbital_free:
+            raise RuntimeError('Setup is orbital-free')
+
+        n = ...  # density?
+        vr_g = calculate_potentials(rgd, xc, n, setupdata.Z, tw_coef=None)[0]
+        r2dvdr_g = get_r2dvdr(rgd, vr_g)
+
+        return ValenceData(
+            symbol=setupdata.symbol,
+            rgd=setupdata.rgd,
+            l_j=setupdata.l_j,
+            n_j=setupdata.n_j,
+            f_j=setupdata.f_j,
+            e_j=setupdata.eps_j,
+            u_j=setupdata.phi_jg,
+            rcut_l=setupdata.rcut_j,  # j vs l ?????
+            vr=vr_g,
+            # u_ln
+            # q_ln
+            # s_ln
+            r2dvdr=r2dvdr_g,
+            # scalarrel=xxx,
+            # njcore=xxx,
+            xcname=setupdata.setupname,
+        )
+
     @property
     def N(self):
         return len(self.rgd.r_g)
