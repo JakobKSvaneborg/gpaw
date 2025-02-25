@@ -13,7 +13,7 @@ def workflow():
         run(function=check_constraints)
     with run(script='si_es.py', cores=8):
         run(function=check_si_es)
-    
+
 
 def check_co():
     for tag in ['spinpol', 'spinpaired']:
