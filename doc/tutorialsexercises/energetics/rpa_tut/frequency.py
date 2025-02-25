@@ -1,6 +1,5 @@
 import numpy as np
 from ase.parallel import paropen
-from ase.units import Hartree
 
 from gpaw.xc.rpa import RPACorrelation
 

@@ -1,4 +1,3 @@
-import numpy as np
 from ase.parallel import paropen
 from ase.units import Hartree
 
