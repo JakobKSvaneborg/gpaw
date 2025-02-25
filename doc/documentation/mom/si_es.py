@@ -6,28 +6,28 @@ from gpaw.directmin.tools import excite
 from ase.parallel import paropen
 
 
-atoms = bulk('Si', 'diamond', a = 5.44, cubic = True)
+atoms = bulk('Si', 'diamond', a=5.44, cubic=True)
 
 # Step: Set up the GPAW calculator
-calc = GPAW(mode = {'name': 'pw',    # Use plane wave mode
-                   'ecut': 340},    # Cutoff energy
-            xc = 'PBE',
-            kpts = (1, 1, 1),
-            eigensolver = FDPWETDM(converge_unocc = True),
-            mixer = {'backend': 'no-mixing'},
-            occupations = {'name': 'fixed-uniform'},
-            spinpol = True,
+calc = GPAW(mode={'name': 'pw',    # Use plane wave mode
+                  'ecut': 340},   # Cutoff energy
+            xc='PBE',
+            kpts=(1, 1, 1),
+            eigensolver=FDPWETDM(converge_unocc=True),
+            mixer={'backend': 'no-mixing'},
+            occupations={'name': 'fixed-uniform'},
+            spinpol=True,
             )
 
 atoms.calc = calc
 E_gs = atoms.get_potential_energy()
 
 
-calc.set(eigensolver = FDPWETDM(excited_state = True,
-                                converge_unocc = False,
-                                momevery = 10,
-                                max_step_inner_loop = 0.2,
-                                maxiter_inner_loop = 20))
+calc.set(eigensolver=FDPWETDM(excited_state=True,
+                              converge_unocc=False,
+                              momevery=10,
+                              max_step_inner_loop=0.2,
+                              maxiter_inner_loop=20))
 
 
 f_sn = excite(calc, 0, 0, (0, 0))
