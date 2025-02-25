@@ -6,7 +6,7 @@ import os
 import sys
 import contextlib
 from pathlib import Path
-from typing import List, Any, Union, TYPE_CHECKING
+from typing import List, Any, TYPE_CHECKING
 import warnings
 
 
@@ -32,16 +32,6 @@ allowed_envvars = {
     'GPAW_MPI_OPTIONS',
     'GPAW_MPI',
     'GPAW_SETUP_PATH'}
-
-# Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
-# (`__getattr__()` magic handles the other boolean environment
-# variables, but GPAW_NEW is used within the same script, so it needs to
-# concretely exist in the namespace)
-GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
-
-if os.uname().machine == 'wasm32':
-    GPAW_NO_C_EXTENSION = True
-
 
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
@@ -171,16 +161,13 @@ def parse_arguments(argv):
 
 
 def __getattr__(attr: str) -> Any:
-    last_xc: Union[AttributeError, None] = None
     for attr_getter in _lazy_import, _get_gpaw_env_vars:
         try:
             result = attr_getter(attr)
-        except AttributeError as xc:
-            last_xc = xc
-        else:
-            return globals().setdefault(attr, result)
-    assert last_xc is not None
-    raise last_xc
+        except AttributeError:
+            continue
+        return globals().setdefault(attr, result)
+    raise _module_attr_error(attr)
 
 
 def __dir__() -> List[str]:
@@ -217,12 +204,12 @@ def _lazy_import(attr: str) -> Any:
     return getattr(importlib.import_module(module), target)
 
 
-def _get_gpaw_env_vars(attr: str) -> Union[bool, str]:
+def _get_gpaw_env_vars(attr: str) -> bool | str:
     if attr in boolean_envvars:
         return bool(int(os.environ.get(attr, 0)))
-    if not (attr.startswith('GPAW_') and attr in os.environ):
-        raise _module_attr_error(attr)
-    return os.environ[attr]
+    if attr in allowed_envvars and attr in os.environ:
+        return os.environ[attr]
+    raise _module_attr_error(attr)
 
 
 all_lazy_imports = dict(
@@ -244,6 +231,16 @@ all_lazy_imports = dict(
     FD='gpaw.wavefunctions.fd.FD',
     LCAO='gpaw.wavefunctions.lcao.LCAO',
     PW='gpaw.wavefunctions.pw.PW')
+
+
+# Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
+# (`__getattr__()` magic handles the other boolean environment
+# variables, but GPAW_NEW is used within the same script, so it needs to
+# concretely exist in the namespace)
+GPAW_NEW = _get_gpaw_env_vars('GPAW_NEW')
+
+if os.uname().machine == 'wasm32':
+    GPAW_NO_C_EXTENSION = True
 
 
 class BroadcastImports:
