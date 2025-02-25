@@ -39,6 +39,6 @@ class PAW(ASECalculator):
         ...
 
     def get_potential_energy(self, atoms):
-        ASECalculator.get_potential_energy(self, atoms)
+        super().get_potential_energy(atoms)
         return self.hamiltonian.energy
 
