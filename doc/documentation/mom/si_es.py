@@ -3,6 +3,7 @@ from ase.build import bulk
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.tools import excite
+from ase.parallel import paropen
 
 
 atoms = bulk('Si', 'diamond', a=5.44, cubic = True)
@@ -33,4 +34,8 @@ f_sn = excite(calc, 0, 0, (0, 0))
 prepare_mom_calculation(calc, atoms, f_sn)
 E_es = atoms.get_potential_energy()
 
-print(E_es - E_gs)
+print(f'Excitation energy: {E_es - E_gs}')
+
+with paropen('si_excited.txt', 'w') as fd:
+    print(f'Excitation energy Si: {E_es - E_gs} eV',
+          file=fd)
