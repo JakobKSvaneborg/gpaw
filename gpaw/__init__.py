@@ -6,7 +6,7 @@ import os
 import sys
 import contextlib
 from pathlib import Path
-from typing import List, Any, TYPE_CHECKING
+from typing import List, Any, Union, TYPE_CHECKING
 import warnings
 
 
@@ -22,19 +22,22 @@ __all__ = ['GPAW',
            'PW', 'LCAO', 'FD',
            'restart']
 
-allowed_envvars = {
-    'GPAW_MPI_OPTIONS',
+boolean_envvars = {
     'GPAW_NEW',
     'GPAW_CPUPY',
     'GPAW_USE_GPUS',
+    'GPAW_NO_C_EXTENSION'}
+allowed_envvars = {
+    *boolean_envvars,
+    'GPAW_MPI_OPTIONS',
     'GPAW_MPI',
-    'GPAW_NO_C_EXTENSION',
     'GPAW_SETUP_PATH'}
 
 # Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
+# (`__getattr__()` magic handles the other boolean environment
+# variables, but GPAW_NEW is used within the same script, so it needs to
+# concretely exist in the namespace)
 GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
-GPAW_NO_C_EXTENSION = bool(int(os.environ.get('GPAW_NO_C_EXTENSION') or 0))
-GPAW_USE_GPUS = bool(int(os.environ.get('GPAW_USE_GPUS') or 0))
 
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
@@ -168,17 +171,43 @@ def parse_arguments(argv):
 
 
 def __getattr__(attr: str) -> Any:
+    last_xc: Union[AttributeError, None] = None
+    for attr_getter in _lazy_import, _get_gpaw_env_vars:
+        try:
+            result = attr_getter(attr)
+        except AttributeError as xc:
+            last_xc = xc
+        else:
+            return globals().setdefault(attr, result)
+    raise last_xc
+
+
+def __dir__() -> List[str]:
+    """
+    Get the (1) normally-present module attributes, (2) lazily-imported
+    objects, and (3) envrionmental variables starting with `GPAW_`.
+    """
+    return list({*globals(),
+                 *all_lazy_imports,  # From `_lazy_import()`
+                 *{*boolean_envvars,  # From `_get_gpaw_env_vars()`
+                   *(var for var in os.environ if var.startswith('GPAW_'))}})
+
+
+def _module_attr_error(attr: str, *args, **kwargs) -> AttributeError:
+    return AttributeError(f'{__getattr__.__module__}: '
+                          'no attribute named `.{attr!r}`',
+                          *args, **kwargs)
+
+
+def _lazy_import(attr: str) -> Any:
     """
     Implement the lazy importing of classes in submodules."""
-
     import importlib
 
     try:
         import_target = all_lazy_imports[attr]
     except KeyError:
-        raise AttributeError(
-            f'{__getattr__.__module__}: no attribute named `.{attr!r}`'
-        ) from None
+        raise _module_attr_error(attr) from None
 
     module, sep, target = import_target.rpartition('.')
     assert module and all(chunk.isidentifier() for chunk in module.split('.'))
@@ -187,11 +216,12 @@ def __getattr__(attr: str) -> Any:
     return getattr(importlib.import_module(module), target)
 
 
-def __dir__() -> List[str]:
-    """
-    Get the normally-present module attributes and the lazily-imported objects.
-    """
-    return [*globals(), *all_lazy_imports]
+def _get_gpaw_env_vars(attr: str) -> Union[bool, str]:
+    if attr in boolean_envvars:
+        return bool(int(os.environ.get(attr, 0)))
+    if not (attr.startswith('GPAW_') and attr in os.environ):
+        raise _module_attr_error(attr)
+    return os.environ[attr]
 
 
 all_lazy_imports = dict(
