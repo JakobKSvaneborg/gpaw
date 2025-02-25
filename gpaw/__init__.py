@@ -183,7 +183,7 @@ def __dir__() -> List[str]:
 
 def _module_attr_error(attr: str, *args, **kwargs) -> AttributeError:
     return AttributeError(f'{__getattr__.__module__}: '
-                          'no attribute named `.{attr!r}`',
+                          f'no attribute named `.{attr}`',
                           *args, **kwargs)
 
 

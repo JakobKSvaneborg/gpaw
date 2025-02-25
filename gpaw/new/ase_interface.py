@@ -122,10 +122,12 @@ def write_header(log, params):
     with log.indent('environment variables:'):
         import gpaw
         parts = []
-        for name in dir(gpaw):
-            if not name.startswith('GPAW_'):
+        for name in gpaw.allowed_envvars:
+            try:
+                value = getattr(gpaw, name)
+            except AttributeError:
                 continue
-            parts.append(f'{name}={getattr(gpaw, name)!r}')
+            parts.append(f'{name}={value!r}')
         log(',\n'.join(parts))
 
 
