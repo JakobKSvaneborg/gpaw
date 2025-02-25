@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import os
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
 from typing import Any, Union
@@ -14,6 +13,7 @@ from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
 from gpaw.core.domain import Domain
+from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
@@ -36,12 +36,29 @@ from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
-from gpaw import GPAW_USE_GPUS
+from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
+
+
+FAKE_CUPY_WARNING = """
+************************************************************
+*                         WARNING                          *
+* -------------------------------------------------------- *
+*            GPU calculation requested via e.g.            *
+*      `GPAW_GPU = True` but `cupy` cannot be loaded;      *
+*   calculations are thus run on CPUs with the substitute  *
+* `gpaw.gpu.cpupy` module, which in most cases is not the  *
+*    desired behavior. Check your configurations with      *
+*    `gpaw info` and reconfigure and recompile GPAW if     *
+*                        necessary.                        *
+*                                                          *
+************************************************************
+"""
 
 
 def builder(atoms: Atoms,
             params: dict[str, Any] | InputParameters,
-            comm=None) -> DFTComponentsBuilder:
+            comm=None,
+            log=None) -> DFTComponentsBuilder:
     """Create DFT-components builder.
 
     * pw
@@ -50,8 +67,11 @@ def builder(atoms: Atoms,
     * tb
     * atom
     """
+    comm = comm or world
     if isinstance(params, dict):
         params = InputParameters(params)
+    if not isinstance(log, Logger):
+        log = Logger(log, comm)
 
     mode = params.mode.copy()
     name = mode.pop('name')
@@ -59,8 +79,11 @@ def builder(atoms: Atoms,
     assert name in {'pw', 'lcao', 'fd', 'tb', 'atom'}
     mod = importlib.import_module(f'gpaw.new.{name}.builder')
     name = name.title() if name == 'atom' else name.upper()
-    return getattr(mod, f'{name}DFTComponentsBuilder')(
-        atoms, params, comm=comm or world, **mode)
+    Builder = getattr(mod, f'{name}DFTComponentsBuilder')
+    builder = Builder(atoms, params, comm=comm, **mode)
+    if builder.xp is fake_cupy:
+        log(FAKE_CUPY_WARNING)
+    return builder
 
 
 class DFTComponentsBuilder:
@@ -209,7 +232,7 @@ class DFTComponentsBuilder:
         """
         if self.params.parallel.get('gpu', GPAW_USE_GPUS):
             from gpaw.gpu import cupy_is_fake
-            if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
+            if cupy_is_fake and not GPAW_CPUPY:
                 raise ValueError(
                     'Please set GPAW_CPUPY=1 if you really want to do GPU '
                     'calculations with GPAW''s fake cupy library '
