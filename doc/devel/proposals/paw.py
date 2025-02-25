@@ -1,7 +1,7 @@
 # flake8: noqa
 class PAW(ASECalculator):
     def __init__(self, restart=None, **kwargs):
-        ASECalculator.__init__(self)
+        super().__init__(self)
         self.density = Density()
         self.hamiltonian = Hamiltonian()
         self.wfs = WaveFunctions()
