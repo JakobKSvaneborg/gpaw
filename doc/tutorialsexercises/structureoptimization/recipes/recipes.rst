@@ -78,6 +78,5 @@ allow to store different parameter sets in one common parameter file.
 The appropriate parameters are selected by keywords in the
 optimization script. 
 
-Here, you can download an example structure :download:`unrelaxed.json` (bulk hBN), 
-the relaxation scripts :download:`gpaw_relax.py`, and 
+Here, you can download the relaxation script :download:`relax.py`, and 
 the joint parameter file :download:`params.json`.
