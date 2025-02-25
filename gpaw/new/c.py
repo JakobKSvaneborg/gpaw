@@ -125,7 +125,7 @@ def evaluate_lda_gpu(nt_sr, vxct_sr, e_r) -> None:
         from gpaw.xc.kernel import XCKernel
         XCKernel('LDA').calculate(e_r._data, nt_sr._data, vxct_sr._data)
     else:
-        from _gpaw import evaluate_lda_gpu as evalf # type: ignore
+        from _gpaw import evaluate_lda_gpu as evalf  # type: ignore
         evalf(nt_sr, vxct_sr, e_r)
 
 
