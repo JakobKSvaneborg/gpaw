@@ -65,6 +65,13 @@ def calculate_potentials(rgd, xc, n, Z, tw_coeff=None):
     return vr, vHr, vXC, Exc
 
 
+def calculate_density(f_j, u_jg, r_g):
+    n_g = np.dot(f_j, np.where(abs(u_jg) < 1e-160, 0, u_jg)**2) / (4 * pi)
+    n_g[1:] /= r_g[1:]**2
+    n_g[0] = n_g[1]
+    return n_g
+
+
 class AllElectron(IOContext):
     """Object for doing an atomic DFT calculation."""
 
@@ -390,13 +397,8 @@ class AllElectron(IOContext):
             print(r, a, file=f)
 
     def calculate_density(self):
-        """Return the electron charge density divided by 4 pi"""
-        n = np.dot(self.f_j,
-                   np.where(abs(self.u_j) < 1e-160, 0,
-                            self.u_j)**2) / (4 * pi)
-        n[1:] /= self.r[1:]**2
-        n[0] = n[1]
-        return n
+        """Return the electron charge density divided by 4 pi."""
+        return calculate_density(self.f_j, self.u_j, self.r)
 
     def calculate_kinetic_energy_density(self):
         """Return the kinetic energy density"""
@@ -838,7 +840,7 @@ class ValenceData:
             raise RuntimeError('Setup is orbital-free')
 
         n = ...  # density?
-        vr_g = calculate_potentials(rgd, xc, n, setupdata.Z, tw_coef=None)[0]
+        vr_g = calculate_potentials(rgd, xc, n, setupdata.Z, tw_coeff=None)[0]
         r2dvdr_g = get_r2dvdr(rgd, vr_g)
 
         return ValenceData(
