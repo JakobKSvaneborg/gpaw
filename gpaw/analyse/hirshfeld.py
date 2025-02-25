@@ -19,7 +19,7 @@ class HirshfeldDensity(RealSpaceDensity):
     def __init__(self, calculator, log=None):
         self.calculator = calculator
         dens = calculator.density
-        super().__init__(self, dens.gd, dens.finegd,
+        super().__init__(dens.gd, dens.finegd,
                          dens.nspins, collinear=True, charge=0.0,
                          stencil=dens.stencil,
                          redistributor=dens.redistributor)
