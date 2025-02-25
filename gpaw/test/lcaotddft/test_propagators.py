@@ -13,8 +13,12 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
     DipoleMomentWriter(td_calc, 'dm.dat')
     td_calc.absorption_kick([0.0, 0.0, 1e-5])
     td_calc.propagate(40, 20)
+    data = np.loadtxt('dm.dat')
+
+    # Make sure that norm and x and y components are zero
+    assert data[:, 1:4] == pytest.approx(0, abs=1e-8)
     # Isolate z-directional data for comparison
-    data_i = np.loadtxt('dm.dat')[:, 4]
+    data_i = data[:, 4]
 
     if propagator == 'sicn':
         ref_i = [1.440334447474e-15,
