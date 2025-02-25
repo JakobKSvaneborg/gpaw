@@ -22,12 +22,16 @@ The following example script:
 * sets up a GPAW calculator,
 * adds the initial magnetic moments, 
 * optionally uses van der Waals forces with the DFT-D3 method, and 
-* runs the optimization. 
+* setup the optimization. 
+
+.. literalinclude:: gpaw_relax.py
+    :end-before: literalinclude full-opt-start
 
 The relaxation history is written to ``opt.log``, its trajectory is saved to
 ``opt.traj`` and the final configuration is written to ``relaxed.json``.
 
-.. literalinclude:: fixcell_relax.py
+.. literalinclude:: gpaw_relax.py
+    :start-after: literalinclude full-opt-end
 
 The parameter file ``params.json`` contains the calculation parameters in
 standardized format.
@@ -53,11 +57,12 @@ cell filters. For that, we need to import the corresponding class using
 The cell filter takes the ``Atoms`` object as input and is
 directly handed to the optimization routine. For full relaxations, 
 you can then simply replace the  optimization routine line 
-``opt = ...`` with the following code lines
+``opt = ...`` with the following code lines. 
+In the example script we use an if-statement for that.
 
-.. literalinclude:: full_relax.py
-    :start-after: literalinclude start line
-    :end-before: literalinclude end line
+.. literalinclude:: gpaw_relax.py
+    :start-after: literalinclude full-opt-else
+    :end-before: literalinclude full-opt-end
 
 Note, that calculation of stresses requires the plane wave mode in GPAW
 and that the accuracy of the calculations
@@ -73,5 +78,5 @@ The appropriate parameters are selected by keywords in the
 optimization script. 
 
 Here, you can download an example structure :download:`unrelaxed.json` (bulk hBN), 
-the relaxation scripts :download:`fixcell_relax.py`, :download:`full_relax.py` and 
+the relaxation scripts :download:`gpaw_relax.py`, and 
 the joint parameter file :download:`params.json`.
