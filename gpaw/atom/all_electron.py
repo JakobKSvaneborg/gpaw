@@ -22,6 +22,14 @@ from gpaw.mpi import serial_comm
 alpha = 1 / 137.036
 
 
+def get_r2dvdr(rgd, vr):
+    r2dvdr = np.zeros(rgd.N)
+    rgd.derivative(vr, r2dvdr)
+    r2dvdr *= rgd.r_g
+    r2dvdr -= vr
+    return r2dvdr
+
+
 class AllElectron(IOContext):
     """Object for doing an atomic DFT calculation."""
 
@@ -492,10 +500,8 @@ class AllElectron(IOContext):
         c10 = -self.d2gdr2 * r**2  # first part of c1 vector
 
         if self.scalarrel:
-            self.r2dvdr = np.zeros(self.N)
-            self.rgd.derivative(vr, self.r2dvdr)
-            self.r2dvdr *= r
-            self.r2dvdr -= vr
+            assert self.N == self.rgd.N
+            self.r2dvdr = get_r2dvdr(self.rgd, vr)
         else:
             self.r2dvdr = None
 
