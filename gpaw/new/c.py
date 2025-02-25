@@ -76,6 +76,11 @@ def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
 def pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
                      l_s, a_J, s_J,
                      cc, f_GI, I_J):
+    #from _gpaw import pwlfc_expand_gpu as expand
+    #expand(f_Gs, emiGR_Ga, Y_GL,
+    #       l_s, a_J, s_J,
+    #       cc, f_GI, I_J)
+
     pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
                  l_s, a_J, s_J,
                  cc, f_GI)
@@ -109,8 +114,11 @@ def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
 
 
 def add_to_density_gpu(weight_n, psit_nR, nt_R):
-    for weight, psit_R in zip(weight_n, psit_nR):
-        nt_R += float(weight) * cp.abs(psit_R)**2
+    #for weight, psit_R in zip(weight_n, psit_nR):
+    #    nt_R += float(weight) * cp.abs(psit_R)**2
+    from _gpaw import add_to_density_gpu as evalf
+    evalf(weight_n, psit_nR, nt_R)
+ #   pri123nt('doing it')
 
 
 def symmetrize_ft(a_R, b_R, r_cc, t_c, offset_c):

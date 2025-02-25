@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 from ase.build import molecule
+from ase.build import bulk
 
 from gpaw.new.ase_interface import GPAW
 

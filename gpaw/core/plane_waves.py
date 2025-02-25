@@ -665,7 +665,7 @@ class PWArray(DistributedArrays[PWDesc]):
         a_nG = self
 
         if domain_comm.size == 1:
-            if not _slow and xp is cp and pw.dtype == self.complex_dtype:
+            if not _slow and xp is cp:
                 return abs_square_gpu(a_nG, weights, out)
 
             a_R = out.desc.new(dtype=pw.dtype).empty(xp=xp)
