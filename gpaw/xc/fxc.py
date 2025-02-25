@@ -207,7 +207,9 @@ class FXCCorrelation:
         if self.xc != 'RPA':
             self._calculate_kernel()
 
-        return self.rpa.calculate(spin=self.gs.nspins > 1, nbands=nbands)
+        data = self.rpa.calculate_all_contributions(
+            spin=self.gs.nspins > 1, nbands=nbands)
+        return data.energy_i * Ha  # energies in eV
 
     @timer('Chi0(q)')
     def calculate_q_fxc(self, chi0_s, m1, m2, gcut):

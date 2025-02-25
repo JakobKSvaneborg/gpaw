@@ -174,8 +174,14 @@ class RPACalculator:
             calculate_q = self.calculate_q_rpa
         self.calculate_q = calculate_q
 
-    def calculate(self, *, nbands=None, spin=False):
-        """Calculate RPA correlation energy for one or several cutoffs.
+    def calculate(self, *, nbands=None) -> np.ndarray:
+        """Calculate the RPA correlation energy as a function of cutoff."""
+        data = self.calculate_all_contributions(nbands=nbands)
+        return data.energy_i * Hartree  # energies in eV
+
+    def calculate_all_contributions(
+            self, *, nbands=None, spin=False) -> RPAData:
+        """Calculate RPA correlation energy contributions.
 
         nbands: int
             Number of bands (defaults to number of plane-waves).
@@ -256,7 +262,7 @@ class RPACalculator:
         self.context.timer.stop('RPA')
         self.context.write_timer()
 
-        return e_i * Hartree
+        return data
 
     @timer('chi0(q)')
     def calculate_q_rpa(self, chi0_s, m1, m2, gcut):
