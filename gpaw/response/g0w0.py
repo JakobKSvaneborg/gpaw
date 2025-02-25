@@ -551,7 +551,7 @@ class G0W0Calculator:
         self.mpa = mpa
         if evaluate_sigma is None:
             evaluate_sigma = np.array([])
-        self.evaluate_sigma = evaluate_sigma
+        self.evaluate_sigma = evaluate_sigma / Ha
         self.qcache = qcache
 
         # Note: self.wd should be our only representation of the frequencies.

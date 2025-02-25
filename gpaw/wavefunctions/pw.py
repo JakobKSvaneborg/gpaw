@@ -805,7 +805,8 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
 
     def initialize_from_lcao_coefficients(self,
                                           basis_functions: BasisFunctions,
-                                          block_size: int = 10) -> None:
+                                          block_size: int = 10,
+                                          reset_C_nM=True) -> None:
         """Convert from LCAO to PW coefficients."""
         nlcao = len(self.kpt_qs[0][0].C_nM)
 
@@ -837,7 +838,8 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                                              block_size)
                 for psit_R, psit_G in zip(psit_nR, psit_nG[n1:n2]):
                     psit_G[:] = self.pd.fft(psit_R * emikr_R, kpt.q)
-            kpt.C_nM = None
+            if reset_C_nM:
+                kpt.C_nM = None
 
     def random_wave_functions(self, mynao):
         rs = np.random.RandomState(self.world.rank)

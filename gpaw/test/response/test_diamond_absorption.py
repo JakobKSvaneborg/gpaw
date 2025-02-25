@@ -10,14 +10,15 @@ from gpaw.test import findpeak
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.parametrize('eshift', [None, 4])
+@pytest.mark.parametrize('mode', ['pw', 'lcao'])
 @pytest.mark.libxc
-def test_response_diamond_absorption(in_tmp_dir, eshift):
+def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     a = 6.75 * Bohr
     atoms = bulk('C', 'diamond', a=a)
 
-    calc = GPAW(mode='pw',
+    calc = GPAW(mode=mode,
                 kpts=(3, 3, 3),
-                eigensolver='rmm-diis',
+                eigensolver='rmm-diis' if mode == 'pw' else None,
                 occupations=FermiDirac(0.001))
 
     atoms.calc = calc

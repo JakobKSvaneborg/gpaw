@@ -14,6 +14,7 @@ from gpaw.ibz2bz import IBZ2BZMaps
 from gpaw.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
+from gpaw.wavefunctions.lcao import LCAOWaveFunctions
 
 if TYPE_CHECKING:
     from gpaw.setup import Setups, LeanSetup
@@ -46,7 +47,15 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator):
+
         wfs = calc.wfs  # wavefunction object from gpaw.wavefunctions
+        
+        if isinstance(wfs, LCAOWaveFunctions):
+            calc.initialize_positions()
+            for kpt in wfs.kpt_u:
+                assert kpt.C_nM is not None
+            wfs.planewavefy(ecut=500/Ha)
+
 
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object from gpaw.kpt_descriptor.
@@ -294,7 +303,7 @@ class ResponseGroundStateAdapter:
         elif isinstance(nbands, int):
             n1 = 0
             m2 = nbands
-            assert 1 <= m2 <= self.nbands
+            assert 1 <= m2 <= self.nbands, (m2, self.nbands)
         elif isinstance(nbands, slice):
             n1 = nbands.start
             m2 = nbands.stop
