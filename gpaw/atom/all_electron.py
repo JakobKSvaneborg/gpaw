@@ -54,6 +54,17 @@ def calculate_xc(rgd, xc, n):
     return vXC, Exc
 
 
+def calculate_potentials(rgd, xc, n, Z, tw_coeff=None):
+    vHr = calculate_hartree(rgd, n, Z)
+    vXC, Exc = calculate_xc(rgd, xc, n)
+    vr = vHr + vXC * rgd.r_g
+
+    if tw_coeff is not None:
+        vr /= tw_coeff
+
+    return vr, vHr, vXC, Exc
+
+
 class AllElectron(IOContext):
     """Object for doing an atomic DFT calculation."""
 
@@ -243,16 +254,13 @@ class AllElectron(IOContext):
         vrold = None
 
         while True:
-            vHr[:] = calculate_hartree(self.rgd, n, Z)
-            self.vXC[:], Exc = calculate_xc(self.rgd, self.xc, n)
+            tw_coeff = self.tw_coeff if self.orbital_free else None
+
+            vr[:], vHr[:], self.vXC[:], Exc = calculate_potentials(
+                rgd=self.rgd, xc=self.xc, n=n, Z=Z, tw_coeff=tw_coeff)
 
             # calculate new total Kohn-Sham effective potential and
             # admix with old version
-
-            vr[:] = (vHr + self.vXC * r)
-
-            if self.orbital_free:
-                vr /= self.tw_coeff
 
             if niter > 0:
                 vr[:] = mix * vr + (1 - mix) * vrold
