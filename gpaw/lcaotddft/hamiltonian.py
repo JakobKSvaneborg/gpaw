@@ -117,6 +117,8 @@ class TimeDependentHamiltonian:
             self.write_scale(writer.child('scale'))
         if self.td_potential is not None:
             self.td_potential.write(writer.child('td_potential'))
+        if self.rremission is not None:
+            self.rremission.write(writer.child('rremission'))
 
     def write_fxc(self, writer):
         writer.write(name=self.fxc_name)
@@ -140,6 +142,10 @@ class TimeDependentHamiltonian:
             self.td_potential.kd = self.wfs.kd
             self.td_potential.kpt_u = self.wfs.kpt_u
             self.td_potential.read(reader.td_potential)
+        if 'rremission' in reader:
+            assert self.rremission is None
+            from gpaw.lcaotddft.qed import RRemission
+            self.rremission = RRemission.from_reader(reader.rremission)
 
     def read_fxc(self, reader):
         assert self.fxc_name is None or self.fxc_name == reader.name
