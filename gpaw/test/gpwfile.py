@@ -1226,8 +1226,7 @@ class GPWFiles(CachedFilesHandler):
     def p4_pw_spinpol(self):
         return self._p4(spinpol=True)
 
-    @gpwfile
-    def ni_pw_kpts333(self):
+    def _ni_pw_kpts333(self, setups={'Ni': '10'}):
         from ase.dft.kpoints import monkhorst_pack
         # from gpaw.mpi import serial_comm
         Ni = bulk('Ni', 'fcc')
@@ -1239,7 +1238,7 @@ class GPWFiles(CachedFilesHandler):
                     txt=self.folder / 'ni_pw_kpts333.txt',
                     kpts=kpts,
                     occupations=FermiDirac(0.001),
-                    setups={'Ni': '10'},
+                    setups=setups,
                     parallel=dict(domain=1),  # >1 fails on 8 cores
                     # communicator=serial_comm
                     )
@@ -1248,6 +1247,14 @@ class GPWFiles(CachedFilesHandler):
         Ni.get_potential_energy()
         calc.diagonalize_full_hamiltonian()
         return calc
+
+    @gpwfile
+    def ni_pw(self):
+        return self._ni_pw_kpts333(setups={})
+
+    @gpwfile
+    def ni_pw_kpts333(self):
+        return self._ni_pw_kpts333()
 
     @gpwfile
     def c_pw(self):

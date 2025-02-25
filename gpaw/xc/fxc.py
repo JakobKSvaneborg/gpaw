@@ -214,7 +214,7 @@ class FXCCorrelation:
     @timer('Chi0(q)')
     def calculate_q_fxc(self, chi0calc, chi0_s, m1, m2, gcut):
         for s, chi0 in enumerate(chi0_s):
-            chi0calc.update_chi0(chi0, m1, m2, [s])
+            chi0calc.update_chi0(chi0, m1=m1, m2=m2, spins=[s])
 
         qpd = chi0_s[0].qpd
         chi0_swGG = np.array([

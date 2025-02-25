@@ -272,7 +272,7 @@ class RPACalculator:
     def calculate_q_rpa(self, chi0calc, chi0_s, m1, m2, gcut):
         chi0 = chi0_s[0]
         chi0calc.update_chi0(
-            chi0, m1, m2, spins=range(chi0calc.gs.nspins))
+            chi0, m1=m1, m2=m2, spins=range(chi0calc.gs.nspins))
         qpd = chi0.qpd
         chi0_wGG = chi0.body.get_distributed_frequencies_array()
         wblocks = chi0.body.get_distributed_frequencies_blocks1d()
