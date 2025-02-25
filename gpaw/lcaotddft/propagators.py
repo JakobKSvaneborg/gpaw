@@ -383,7 +383,8 @@ class SICNPropagator(ECNPropagator):
     def todict(self):
         return {'name': 'sicn'}
 
-
+#ToDo: Should there be an abstract baseclass for SelfConsistentPropagator and SICNPropagator 
+# instead of inheriting from ECNPropagator?
 class SelfConsistentPropagator(SICNPropagator):
     """
     This is an actual Predictor-Corrector propagator that uses the SICN
@@ -399,13 +400,13 @@ class SelfConsistentPropagator(SICNPropagator):
     after kick while SCPC will preserve the dipole oscillations.
     """
     def __init__(self, tolerance=1e-8, max_pc_iterations=20):
-        ECNPropagator.__init__(self)
+        SICNPropagator.__init__(self)
         self.tolerance = tolerance
         self.max_pc_iterations = max_pc_iterations
         self.last_pc_iterations = 0
 
     def initialize(self, paw):
-        ECNPropagator.initialize(self, paw)
+        super().initialize(paw)
         # Allocate kpt.C2_nM arrays
         for kpt in self.wfs.kpt_u:
             kpt.C2_nM = np.empty_like(kpt.C_nM)
