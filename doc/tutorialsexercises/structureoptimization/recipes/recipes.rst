@@ -14,24 +14,29 @@ The simplest scenario is to optimize the atom positions without changing
 the unit cell shape or size. In this case, we need to calculate the forces 
 acting on the atoms and pass these to an optimization routine (here: ``BFGS``)
 which iteratively updates the atom positions such that the magnitude of 
-the forces decreases jointly with the total potential energy. 
-The following example script:
+the forces decreases jointly with the total potential energy.
+First import the necessary modules:
 
-* reads in the structure from ``unrelaxed.json``, 
-* reads the calculator parameters from ``params.json`` (selected by the keyword ``fast_forces``),
+.. literalinclude:: relax.py
+    :end-before: literalinclude import-end
+
+Now consider the function ``relax``:
+
+* expects an ASE ``Atoms`` object, and 
+* calculation parameters dictionary ``param``,
+* optionally the maximum force ``fmax`` can be set,
+* extracts calculation parameters from ``param`` (selected by the keyword ``fast_forces``),
 * sets up a GPAW calculator,
 * adds the initial magnetic moments, 
 * optionally uses van der Waals forces with the DFT-D3 method, and 
-* setup the optimization. 
+* sets up the optimization.
 
-.. literalinclude:: gpaw_relax.py
-    :end-before: literalinclude full-opt-start
+.. literalinclude:: relax.py
+    :start-after: literalinclude relax-start
+    :end-before: literalinclude relax-end
 
-The relaxation history is written to ``opt.log``, its trajectory is saved to
-``opt.traj`` and the final configuration is written to ``relaxed.json``.
-
-.. literalinclude:: gpaw_relax.py
-    :start-after: literalinclude full-opt-end
+The relaxation history is written to ``logname=opt.log``, its trajectory is saved to
+``trajname=opt.traj`` and the final configuration is written to ``relaxed.json``.
 
 The parameter file ``params.json`` contains the calculation parameters in
 standardized format.
@@ -53,16 +58,12 @@ Full relaxation
 
 The cell shape and size can be relaxed together with the atom positions using 
 cell filters. For that, we need to import the corresponding class using 
-``from ase.filters import UnitCellFilter``.
+``from ase.filters import FrechetCellFilter``.
 The cell filter takes the ``Atoms`` object as input and is
 directly handed to the optimization routine. For full relaxations, 
 you can then simply replace the  optimization routine line 
 ``opt = ...`` with the following code lines. 
 In the example script we use an if-statement for that.
-
-.. literalinclude:: gpaw_relax.py
-    :start-after: literalinclude full-opt-else
-    :end-before: literalinclude full-opt-end
 
 Note, that calculation of stresses requires the plane wave mode in GPAW
 and that the accuracy of the calculations
