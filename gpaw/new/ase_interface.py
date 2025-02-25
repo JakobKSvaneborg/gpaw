@@ -119,6 +119,14 @@ def write_header(log, params):
             txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
             parts.append(f'{key}={txt}')
         log(',\n'.join(parts))
+    with log.indent('environment variables:'):
+        import gpaw
+        parts = []
+        for name in dir(gpaw):
+            if not name.startswith('GPAW_'):
+                continue
+            parts.append(f'{name}={getattr(gpaw, name)!r}')
+        log(',\n'.join(parts))
 
 
 def compare_atoms(a1: Atoms, a2: Atoms) -> set[str]:
