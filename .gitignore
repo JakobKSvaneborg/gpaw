@@ -46,6 +46,7 @@ doc/setups/[A-Z]*.rst
 *.ipynb
 !*.master.ipynb
 !doc/devel/gpaw-logo.svg
+!doc/templates/breadcrumbs.html
 
 # If you run the tests, these may write out files
 *.gpw
