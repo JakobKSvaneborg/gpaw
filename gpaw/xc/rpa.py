@@ -57,7 +57,7 @@ def initialize_q_points(kd, qsym):
         U_scc = kd.symmetry.op_scc
         ibzq_qc = kd.get_ibz_q_points(bzq_qc, U_scc)[0]
         weight_q = kd.q_weights
-    return bzq_qc, ibzq_qc, weight_q
+    return ibzq_qc, weight_q
 
 
 @dataclass
@@ -148,7 +148,7 @@ class RPACalculator:
         # We should actually have a kpoint descriptor for the qpoints.
         # We are badly failing at making use of the existing tools by reducing
         # the qpoints to dumb arrays.
-        bzq_qc, ibzq_qc, weight_q = initialize_q_points(gs.kd, qsym)
+        ibzq_qc, weight_q = initialize_q_points(gs.kd, qsym)
         # Collect information about the RPA integral on a single object (a.u.)
         self.integral = RPAIntegral(
             omega_w=frequencies / Hartree,
@@ -165,8 +165,6 @@ class RPACalculator:
         if calculate_q is None:
             calculate_q = self.calculate_q_rpa
         self.calculate_q = calculate_q
-
-        return bzq_qc
 
     def calculate(self, *, nbands=None, spin=False, txt=''):
         """Calculate RPA correlation energy for one or several cutoffs.
@@ -414,16 +412,14 @@ class RPACorrelation(RPACalculator):
         if truncation is None and not gs.pbc.any():
             truncation = '0D'
 
-        bzq_qc = super().__init__(gs=gs, context=context,
-                                  frequencies=frequencies, weights=weights,
-                                  truncation=truncation,
-                                  **kwargs)
+        super().__init__(gs=gs, context=context,
+                         frequencies=frequencies, weights=weights,
+                         truncation=truncation,
+                         **kwargs)
 
-        self.print_initialization(
-            xc, frequency_scale, nlambda, user_spec, bzq_qc)
+        self.print_initialization(xc, frequency_scale, nlambda, user_spec)
 
-    def print_initialization(
-            self, xc, frequency_scale, nlambda, user_spec, bzq_qc):
+    def print_initialization(self, xc, frequency_scale, nlambda, user_spec):
         p = functools.partial(self.context.print, flush=False)
         p('----------------------------------------------------------')
         p('Non-self-consistent %s correlation energy' % xc)
@@ -438,7 +434,6 @@ class RPACorrelation(RPACalculator):
         p('Number of spins                :', self.gs.nspins)
         p('Number of k-points             :', len(self.gs.kd.bzk_kc))
         p('Number of irreducible k-points :', len(self.gs.kd.ibzk_kc))
-        p('Number of q-points             :', len(bzq_qc))
         p('Number of irreducible q-points :', len(self.integral.ibzq_qc))
         p()
         for q, weight in zip(self.integral.ibzq_qc, self.integral.weight_q):
