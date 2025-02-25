@@ -1,6 +1,5 @@
 """Python wrapper for GPAW's native XC functionals."""
 
-import gpaw.cgpaw as cgpaw
 from gpaw import debug
 
 codes = {

@@ -268,7 +268,8 @@ class PWLFC:  # (BaseLFC)
             #    imag(G1+1, 0), imag(G1+1, 1), ...
             #    ...
 
-            f_GI = xp.empty((2 * (G2 - G1), self.nI), as_real_dtype(self.dtype))
+            f_GI = xp.empty((2 * (G2 - G1), self.nI),
+                            as_real_dtype(self.dtype))
 
         if xp is np:
             # Fast C-code:
