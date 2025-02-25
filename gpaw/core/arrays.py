@@ -206,7 +206,7 @@ class DistributedArrays(Generic[DomainType], XP):
             if m_xX.dist.comm.rank == 0:
                 data = m_xX.data
                 if a_xX.data.dtype != data.dtype:
-                    data = data.view(complex)  # XXX: Hmmmmmmm
+                    data = data.view(complex)
                 return self.desc.new(comm=None).from_data(data)
 
     def scatter_from(self, data: ArrayND | None = None) -> None:
