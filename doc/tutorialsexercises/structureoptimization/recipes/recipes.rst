@@ -5,8 +5,7 @@ Structure relaxation recipes
 =================================
 
 In the previous sections we reviewed the basics of structure relaxations. 
-Here, we want to give some examples how to run and refine structure
-optimizations with GPAW.
+Here, we give some examples how to run and refine structure optimizations with GPAW.
 
 Fixed-cell relaxation
 --------------------------------
@@ -43,7 +42,7 @@ and :ref:`converging forces<custom_convergence-forces>` for relevant options).
 For more accurate force convergence the Brillioun zone sampling should be
 refined by setting a larger number of kpoints (e.g. five or more points 
 in each direction), and the convergences criteria should be tightend to
-``convergence: {"density": 1e-6, "forces": 1e-4}``.
+``"convergence": {"density": 1e-6, "forces": 1e-4}``.
 
 Full relaxation
 --------------------------------
@@ -53,7 +52,7 @@ cell filters. For that, we need to import the corresponding class using
 ``from ase.filters import UnitCellFilter``.
 The cell filter takes the ``Atoms`` object as input and is
 directly handed to the optimization routine. For full relaxations, 
-you can simply replace the  optimization routine line 
+you can then simply replace the  optimization routine line 
 ``opt = ...`` with the following code lines
 
 .. literalinclude:: full_relax.py
@@ -62,15 +61,16 @@ you can simply replace the  optimization routine line
 
 Note, that calculation of stresses requires the plane wave mode in GPAW
 and that the accuracy of the calculations
-should be refined using the parameter keyword ``param_key = accurate_stresses``.
+should be refined (here: taking the more accurate parameter set by
+using the parameter keyword ``param_key = accurate_stresses``).
 
 .. literalinclude:: params_stresses.json
 
 Parameter files using multi-level dictionaries (with keys such as 
 ``fast_forces``, ``accurate_stresses``) 
-allow to store different parameter sets in one common parameter file 
-and to select the appropriate parameters by keywords in the
-optimization scripts. 
+allow to store different parameter sets in one common parameter file. 
+The appropriate parameters are selected by keywords in the
+optimization script. 
 
 Here, you can download an example structure :download:`unrelaxed.json` (bulk hBN), 
 the relaxation scripts :download:`fixcell_relax.py`, :download:`full_relax.py` and 

@@ -6,7 +6,7 @@
    "basis": "dzp",
    "mode": {
     "name": "pw",
-	"ecut": 600
+    "ecut": 600
    },
    "kpts": {
     "size": [5,5,5],
@@ -21,8 +21,8 @@
     "width": 0.05
    },
    "mixer": {
-	 "method": "fullspin",
-	 "backend": "pulay"
+    "method": "fullspin",
+    "backend": "pulay"
    },
    "txt": "rlx.txt"
   }
