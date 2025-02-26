@@ -44,7 +44,7 @@ def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray,
 def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray,
                                                            cp.ndarray]:
     """
-    Wrapper for MAGMA symmetric/Hermitian eigensolvers, CPU version.
+    Wrapper for MAGMA symmetric/Hermitian eigensolvers, GPU version.
 
     Parameters
     ----------

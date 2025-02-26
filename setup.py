@@ -252,7 +252,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                    (gpu and gpu_target == 'hip-amd',
                        '__HIP_PLATFORM_AMD__'),
                    (gpu and gpu_target == 'hip-cuda',
-                       '__HIP_PLATFORM_NVIDIA__')
+                       '__HIP_PLATFORM_NVIDIA__'),
                    ]:
     if flag and name not in [n for (n, _) in define_macros]:
         define_macros.append((name, None))

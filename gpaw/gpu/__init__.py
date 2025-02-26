@@ -143,7 +143,7 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     """Wrapper for ``eigh()``.
 
     Usually CUDA > MAGMA > HIP, so we try to choose the best one.
-    HIP native solver is questionable slow so for now do it on the CPU if
+    HIP native solver is questionably slow so for now do it on the CPU if
     MAGMA is not available.
     """
     from scipy.linalg import eigh
