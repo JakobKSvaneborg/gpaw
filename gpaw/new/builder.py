@@ -373,7 +373,7 @@ class DFTComponentsBuilder:
     def create_environment(self, grid, log):
         if not self.params.solvation:
             from gpaw.new.environment import Environment
-            return Environment()
+            return Environment(len(self.atoms))
         from gpaw.new.solvation import Solvation
         return Solvation(**self.params.solvation,
                          setups=self.setups,

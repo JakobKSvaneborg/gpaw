@@ -39,7 +39,7 @@ class Solvation(Environment):
         self.grad_v = [Gradient(grid, v, 1.0, nn) for v in range(3)]
         self.vt_ia_r = grid.empty()  # self.finegd.zeros()
         self.e_interactions = np.nan
-        self.natoms = len(self.atoms)
+        super().__init__(len(self.atoms))
 
     def interaction_energy(self):
         return self.e_interactions * Ha
