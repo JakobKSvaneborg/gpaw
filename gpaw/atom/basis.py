@@ -116,7 +116,7 @@ class BasisMaker:
                                      default_spline_points=100)
         self.rgd = rgd
 
-    def smoothify(self, psi_mg, l):
+    def smoothify(self, psi_mg, j):
         r"""Generate pseudo wave functions from all-electron ones.
 
         The pseudo wave function is::
@@ -148,10 +148,12 @@ class BasisMaker:
 
         which is exact if the projectors/pseudo partial waves are complete.
         """
+
         if psi_mg.ndim == 1:
-            return self.smoothify(psi_mg[None], l)[0]
+            return self.smoothify(psi_mg[None], j)[0]
 
         valdata = self.valence_data
+        l = valdata.l_j[j]
         u_ng = valdata.u_ln[l]
         q_ng = valdata.q_ln[l]
         s_ng = valdata.s_ln[l]
@@ -344,7 +346,7 @@ class BasisMaker:
             if vconf is not None:
                 print('Potential amp=%.02f :: ri/rc=%.02f' %
                       (amplitude, ri_rel), file=txt)
-            phit_g = self.smoothify(u, l)
+            phit_g = self.smoothify(u, vj)
             bf = BasisFunction(n, l, rc, phit_g,
                                '%s-sz confined orbital' % orbitaltype)
             norm = np.dot(valdata.rgd.dr_g, phit_g * phit_g)**.5
@@ -361,7 +363,7 @@ class BasisMaker:
                     amplitude, ri_rel * rc * .99, rc)
                 u2, e2 = valdata.solve_confined(vj, rc, vconf2)
 
-                phit2_g = self.smoothify(u2, l)
+                phit2_g = self.smoothify(u2, vj)
                 dphit_g = phit2_g - phit_g
                 dphit_norm = np.dot(rgd.dr_g, dphit_g * dphit_g) ** .5
                 dphit_g /= dphit_norm
