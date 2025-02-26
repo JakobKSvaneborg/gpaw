@@ -50,9 +50,6 @@ static magma_int_t _eigh_magma_dsyevd_gpu(int matrix_size, magma_uplo_t uplo,
     workgroup.lwork = (magma_int_t) work_temp;
     workgroup.liwork = iwork_temp;
 
-    assert(workgroup.lwork > 0);
-    assert(workgroup.liwork > 0);
-
     // All buffers apart from the input matrix are in HOST memory
     workgroup.work = malloc(workgroup.lwork * sizeof(double));
     workgroup.iwork = malloc(workgroup.liwork * sizeof(magma_int_t));
