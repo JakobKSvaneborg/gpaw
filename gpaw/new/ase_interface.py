@@ -61,6 +61,7 @@ def GPAW(
     random: bool | None = None,
     setups: Any | None = None,
     soc: bool | None = None,
+    solvation=None,
     spinpol: bool | None = None,
     symmetry: str | dict[str, Any] | None = None,
     xc: str | dict[str, Any] | Dictable | None = None) -> ASECalculator:
@@ -421,6 +422,10 @@ class ASECalculator:
         flags = GPWFlags(include_projections=include_projections,
                          precision=precision, include_wfs=mode == 'all')
         write_gpw(filename, self.atoms, self.params, self.dft, flags=flags)
+
+    @property
+    def environment(self):
+        return self.dft.pot_calc.environment
 
     # Old API:
 
