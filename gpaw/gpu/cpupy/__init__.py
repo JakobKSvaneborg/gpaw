@@ -94,8 +94,10 @@ def abs(a):
 def exp(a):
     return ndarray(np.exp(a._data))
 
+
 def conjugate(a):
     return ndarray(np.conjugate(a._data))
+
 
 def log(a):
     return ndarray(np.log(a._data))
@@ -103,6 +105,7 @@ def log(a):
 
 def eye(n):
     return ndarray(np.eye(n))
+
 
 def triu_indices(n, k=0, m=None):
     i, j = np.triu_indices(n, k, m)
