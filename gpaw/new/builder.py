@@ -50,7 +50,7 @@ FAKE_CUPY_WARNING = """
 |    set the environment variable `GPAW_CPUPY`, consult    |
 | `gpaw info` for `cupy` availability, and reconfigure and |
 |               recompile GPAW if necessary.               |
- ---------------------------------------------------------- 
+ ----------------------------------------------------------
 """
 
 

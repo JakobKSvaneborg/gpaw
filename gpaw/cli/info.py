@@ -58,7 +58,8 @@ def warn(text: str,
 
 def info() -> None:
     """Show versions of GPAW and its dependencies."""
-    results = [('python-' + sys.version.split()[0], sys.executable)]
+    results: list[tuple[str, str | bool]] = [
+        ('python-' + sys.version.split()[0], sys.executable)]
     warnings = {}
     for name in ['gpaw', 'ase', 'numpy', 'scipy', 'gpaw_data']:
         try:

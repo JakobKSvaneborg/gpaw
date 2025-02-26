@@ -69,6 +69,15 @@ def monkeypatch_response_spline_points(sessionscoped_monkeypatch):
     sessionscoped_monkeypatch.setattr(paw, 'DEFAULT_RADIAL_POINTS', 2**10)
 
 
+@pytest.fixture(autouse=True, scope='session')
+def monkeypatch_allow_cpupy(sessionscoped_monkeypatch):
+    """Monkey-patch `GPAW_CPUPY` to true where it's used."""
+    import gpaw
+    from gpaw.new import builder
+    sessionscoped_monkeypatch.setattr(gpaw, 'GPAW_CPUPY', True)
+    sessionscoped_monkeypatch.setattr(builder, 'GPAW_CPUPY', True)
+
+
 @pytest.fixture(scope='session')
 def gpw_files(request):
     """Reuse gpw-files.
@@ -233,9 +242,6 @@ def sg15_hydrogen():
 
 
 def pytest_configure(config):
-    # Allow for fake cupy:
-    os.environ['GPAW_CPUPY'] = '1'
-
     if world.rank != 0:
         try:
             tw = config.get_terminal_writer()
