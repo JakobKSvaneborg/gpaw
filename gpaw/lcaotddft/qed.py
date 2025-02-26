@@ -1,18 +1,26 @@
 from __future__ import annotations
 
 
+from abc import ABC, abstractmethod
+
 import numpy as np
 from ase.units import alpha, Hartree, Bohr
 from gpaw.external import ConstantElectricField
 from gpaw.lcaotddft.hamiltonian import KickHamiltonian
 
 
-def create_environment(quantization_plane,
-                       cavity_polarization):
-    kwargs = dict(quantization_plane=quantization_plane,
-                  cavity_polarization=cavity_polarization)
-
-    return WaveguideEnvironment(**kwargs)
+def create_environment(environment, **kwargs):
+    if environment is None:
+        return create_environment('waveguide', **kwargs)
+    elif isinstance(environment, Environment):
+        return environment
+    elif isinstance(environment, dict):
+        kwargs.update(environment)
+        return create_environment(**kwargs)
+    elif environment == 'waveguide':
+        return WaveguideEnvironment(**kwargs)
+    else:
+        raise ValueError(f'Unknown environment: {environment}')
 
 
 def forward_finite_difference(coefficients: list[int],
@@ -119,10 +127,15 @@ class RRemission:
         value of :math:`cavity_polarization` dimensionless (directional)
     """
 
-    def __init__(self, quantization_plane, cavity_polarization):
+    def __init__(self,
+                 quantization_plane,
+                 cavity_polarization,
+                 environment=None):
         # Set up environment
         self.environment = create_environment(
-            quantization_plane, cavity_polarization)
+            environment=environment,
+            quantization_plane=quantization_plane,
+            cavity_polarization=cavity_polarization)
 
         # Recorded dipole moment over time
         # The entries all correspond to unique times
@@ -146,10 +159,9 @@ class RRemission:
 
     @classmethod
     def from_reader(cls, reader):
-        kwargs = dict(quantization_plane=reader.quantization_plane,
-                      cavity_polarization=reader.cavity_polarization)
+        parameters = reader.parameters.asdict()
 
-        rremission = cls(**kwargs)
+        rremission = cls(**parameters)
         rremission.read(reader)
 
         return rremission
@@ -257,17 +269,17 @@ class RRemission:
         return Vrr_MM
 
 
-class Environment:
-
-    def __init__(self, quantization_plane, cavity_polarization):
-        self.quantization_plane = quantization_plane / Bohr**2
-        self.cavity_polarization = np.array(cavity_polarization)
+class Environment(ABC):
 
     def write(self, writer):
-        writer.write(quantization_plane=self.quantization_plane * Bohr**2)
-        writer.write(cavity_polarization=list(self.cavity_polarization))
+        writer.child('parameters').write(**self.todict())
 
+    @abstractmethod
     def radiation_reaction_field(self, timestep, dipole_tv):
+        raise NotImplementedError
+
+    @abstractmethod
+    def todict(self):
         raise NotImplementedError
 
 
@@ -278,11 +290,21 @@ class WaveguideEnvironment(Environment):
     .. math::
 
         -\frac{4 \pi \alpha}{A}
-        \varepsilon_c \cdot \partial_t \boldsymbol{R}(t)
-        \varepsilon_c \cdot \hat{\boldsymbol{r}}
+        \boldsymbol{\varepsilon_c} \cdot \partial_t \boldsymbol{R}(t)
+        \boldsymbol{\varepsilon_c} \cdot \hat{\boldsymbol{r}}
 
-    where :math:`A` is the quantization plane.
+    Parameters
+    ----------
+    quantization_plane
+        Quantization plane :math:`A` in units of Å^2.
+    cavity_polarization
+        The polarization of the cavity :math:`\boldsymbol{\varepsilon_c}`.
+        Direction vector.
     """
+
+    def __init__(self, quantization_plane, cavity_polarization):
+        self.quantization_plane = quantization_plane / Bohr**2
+        self.cavity_polarization = np.array(cavity_polarization)
 
     def radiation_reaction_field(self, timestep, dipole_tv):
         d1_dipole_v = calculate_first_derivative(timestep, dipole_tv)[-1]
@@ -292,3 +314,8 @@ class WaveguideEnvironment(Environment):
                    * self.cavity_polarization)
 
         return field_v
+
+    def todict(self):
+        return {'environment': 'waveguide',
+                'quantization_plane': self.quantization_plane * Bohr**2,
+                'cavity_polarization': list(self.cavity_polarization)}
