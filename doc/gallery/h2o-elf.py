@@ -1,4 +1,4 @@
-# creates: h2o-elf.png
+# creates: h2o-elf.html
 import plotly.graph_objects as go
 from ase.build import molecule
 from ase.units import Bohr

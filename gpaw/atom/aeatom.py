@@ -346,7 +346,7 @@ class Channel:
 class DiracChannel(Channel):
     def __init__(self, k, f_n, basis):
         l = (abs(2 * k + 1) - 1) // 2
-        Channel.__init__(self, l, 0, f_n, basis)
+        super().__init__(l, 0, f_n, basis)
         self.k = k
         self.j = abs(k) - 0.5
         self.c_nb = None  # eigenvectors (small component)
