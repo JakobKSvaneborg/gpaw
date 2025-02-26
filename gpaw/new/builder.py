@@ -40,18 +40,17 @@ from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 
 
 FAKE_CUPY_WARNING = """
-************************************************************
-*                         WARNING                          *
-* -------------------------------------------------------- *
-*            GPU calculation requested via e.g.            *
-*      `GPAW_GPU = True` but `cupy` cannot be loaded;      *
-*   calculations are thus run on CPUs with the substitute  *
-* `gpaw.gpu.cpupy` module, which in most cases is not the  *
-*    desired behavior. Check your configurations with      *
-*    `gpaw info` and reconfigure and recompile GPAW if     *
-*                        necessary.                        *
-*                                                          *
-************************************************************
+ ----------------------------------------------------------
+|                         WARNING                          |
+| -------------------------------------------------------- |
+|  GPU calculation requested, but calculations are run on  |
+|    CPUs with the `cupy` substitute `gpaw.gpu.cpupy`.     |
+| This is most likely not the desired behavior, except for |
+| testing purposes. Please check if you have inadvertently |
+|    set the environment variable `GPAW_CPUPY`, consult    |
+| `gpaw info` for `cupy` availability, and reconfigure and |
+|               recompile GPAW if necessary.               |
+ ---------------------------------------------------------- 
 """
 
 
@@ -233,9 +232,14 @@ class DFTComponentsBuilder:
         if self.params.parallel.get('gpu', GPAW_USE_GPUS):
             from gpaw.gpu import cupy_is_fake
             if cupy_is_fake and not GPAW_CPUPY:
+                parallel_source = ('the `parallel` parameter'
+                                   if self.params.parallel.get('gpu') else
+                                   'the environment variable `GPAW_USE_GPUS`')
                 raise ValueError(
-                    'Please set GPAW_CPUPY=1 if you really want to do GPU '
-                    'calculations with GPAW''s fake cupy library '
+                    f'GPU calculation is requested via {parallel_source}, '
+                    'but the requisite CuPy library is not found; '
+                    'please set GPAW_CPUPY=1 if you really want to do "GPU" '
+                    'calculations with GPAW\'s fake CuPy library '
                     '(gpaw.gpu.cpupy)')
             return True
         return False
