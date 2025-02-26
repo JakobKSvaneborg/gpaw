@@ -28,7 +28,7 @@ convergence = {
     'eigenstates': 10.0}
 
 
-@pytest.mark.gpaw_old_only
+@pytest.mark.old_gpaw_only
 def test_solvation_pbc():
     atoms = molecule('H2O')
     adjust_cell(atoms, vac, h)
