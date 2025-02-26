@@ -90,7 +90,7 @@ def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
 @pytest.mark.parametrize("matrix_size, matrix_type, uplo",
                          [(16, 'symmetric', 'L'),
                           (150, 'hermitian', 'L'),
-                          (256, 'hermitian', 'U')])
+                          (256, 'symmetric', 'U')])
 def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
                         matrix_size: int,
                         matrix_type: str,
