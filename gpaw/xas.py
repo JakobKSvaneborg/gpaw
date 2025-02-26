@@ -88,14 +88,13 @@ class XAS:
         kd_rank = kd.comm.rank
         kd_size = kd.comm.size
 
-        
         if wfs.nspins == 1:
             if spin != 0:
                 raise RuntimeError(
                     'use spin=0 for a spin paired calculation')
-            # nocc = wfs.setups.nvalence // 2
+            nocc = wfs.setups.nvalence // 2
             self.list_kpts = range(nkpts)
-            
+
         else:
             self.list_kpts = []
 
@@ -112,14 +111,15 @@ class XAS:
             # assert len(self.list_kpts) == nkpts / kd_size
 
             # find number of occupied orbitals, if no fermi smearing
-        nocc = 0
-        for i in self.list_kpts:
-            #nocc += sum(wfs.kpt_u[i].f_n)
-            for j in wfs.kpt_u[i].f_n:
-                if j > 0.5:
-                    nocc += 1
-        nocc = kd.comm.sum_scalar(nocc)
-        #nocc = int(nocc + 0.5)
+            nocc = 0.0
+            for i in self.list_kpts:
+                nocc += sum(wfs.kpt_u[i].f_n)
+                '''for j in wfs.kpt_u[i].f_n:
+                    if j > 0.5:
+                        nocc += 1'''
+            nocc = kd.comm.sum_scalar(nocc)
+            nocc = int(nocc + 0.5)
+
         nocc += nocc_cor
         self.nocc = nocc
 
