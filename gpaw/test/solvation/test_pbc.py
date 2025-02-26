@@ -1,13 +1,13 @@
-from gpaw.utilities.adjust_cell import adjust_cell
+import warnings
+
+import pytest
 from ase.build import molecule
 from ase.data.vdw import vdw_radii
-from gpaw.solvation import (
-    SolvationGPAW,
-    EffectivePotentialCavity,
-    Power12Potential,
-    LinearDielectric)
+
+from gpaw.solvation import (EffectivePotentialCavity, LinearDielectric,
+                            Power12Potential, SolvationGPAW)
 from gpaw.solvation.poisson import ADM12PoissonSolver
-import warnings
+from gpaw.utilities.adjust_cell import adjust_cell
 
 h = 0.3
 vac = 3.0
@@ -28,6 +28,7 @@ convergence = {
     'eigenstates': 10.0}
 
 
+@pytest.mark.gpaw_old_only
 def test_solvation_pbc():
     atoms = molecule('H2O')
     adjust_cell(atoms, vac, h)
@@ -51,6 +52,3 @@ def test_solvation_pbc():
         poissonsolver=psolver)
     atoms.get_potential_energy()
     atoms.get_forces()
-
-
-test_solvation_pbc()

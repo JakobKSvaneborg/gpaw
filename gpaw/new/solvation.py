@@ -39,6 +39,7 @@ class Solvation(Environment):
         self.grad_v = [Gradient(grid, v, 1.0, nn) for v in range(3)]
         self.vt_ia_r = grid.empty()  # self.finegd.zeros()
         self.e_interactions = np.nan
+        self.natoms = len(self.atoms)
 
     def interaction_energy(self):
         return self.e_interactions * Ha
@@ -93,6 +94,46 @@ class Solvation(Environment):
 
         self.atoms = None
         return self.e_interactions
+
+    def forces(self, nt_r, vHt_r):
+        F_av = np.zeros((self.natoms, 3))
+        add_el_force_correction(
+            nt_r, vHt_r, self.grad_v, self.cavity, self.dielectric, F_av)
+
+        density = DensityWrapper(nt_r)
+
+        for ia in self.interactions:
+            if self.cavity.depends_on_atomic_positions:
+                delta_E_delta_g_r = self.grid.from_data(
+                    ia.delta_E_delta_g_g)
+                for a, F_v in enumerate(F_av):
+                    del_g_del_r_vg = self.grid.from_data(
+                        self.cavity.get_del_r_vg(a, density))
+                    F_v -= delta_E_delta_g_r.integrate(del_g_del_r_vg,
+                                                       skip_sum=True)
+
+            if ia.depends_on_atomic_positions:
+                for a, F_v in enumerate(F_av):
+                    del_E_del_r_vr = self.grid.from_data(
+                        ia.get_del_r_vg(a, density))
+                    F_v -= del_E_del_r_vr.integrate(skip_sum=True)
+
+        return F_av
+
+
+def add_el_force_correction(nt_r, vHt_r, grad_v, cavity, dielectric, F_av):
+    if not cavity.depends_on_atomic_positions:
+        return
+
+    fixed_r = grad_squared(vHt_r, grad_v)  # XXX grad_vHt_g inexact in bmgs
+    fixed_r.data *= 1 / (8 * np.pi) * dielectric.del_eps_del_g_g
+
+    density = DensityWrapper(nt_r)
+
+    for a, F_v in enumerate(F_av):
+        del_g_del_r_vr = fixed_r.desc.from_data(
+            cavity.get_del_r_vg(a, density))
+        F_v += fixed_r.integrate(del_g_del_r_vr, skip_sum=True)
 
 
 class DensityWrapper:

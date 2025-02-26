@@ -158,6 +158,8 @@ class FDPotentialCalculator(PotentialCalculator):
         for a, dF_vL in F_avL.items():
             force_av[a] += dF_vL @ Q_aL[a]
 
+        force_av += self.environment.forces(nt_r, potential.vHt_x)
+
         return (force_av,
                 density.nct_aX.derivative(vt_R),
                 Ftauct_av,
