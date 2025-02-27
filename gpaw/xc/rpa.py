@@ -1,6 +1,6 @@
 from __future__ import annotations
+from dataclasses import dataclass
 import functools
-import os
 from time import ctime
 
 import numpy as np
@@ -13,33 +13,10 @@ from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.pair import get_gs_and_context
-from gpaw.response.pw_parallelization import Blocks1D
 
 
 def default_ecut_extrapolation(ecut, extrapolate):
     return ecut * (1 + 0.5 * np.arange(extrapolate))**(-2 / 3)
-
-
-def rpa(filename, ecut=200.0, blocks=1, extrapolate=4):
-    """Calculate RPA energy.
-
-    filename: str
-        Name of restart-file.
-    ecut: float
-        Plane-wave cutoff.
-    blocks: int
-        Split polarizability matrix in this many blocks.
-    extrapolate: int
-        Number of cutoff energies to use for extrapolation.
-    """
-    name, ext = filename.rsplit('.', 1)
-    assert ext == 'gpw'
-    from gpaw.xc.rpa import RPACorrelation
-    rpa = RPACorrelation(name, name + '-rpa.dat',
-                         nblocks=blocks,
-                         ecut=default_ecut_extrapolation(ecut, extrapolate),
-                         txt=name + '-rpa.txt')
-    rpa.calculate()
 
 
 class GCut:
@@ -80,163 +57,183 @@ def initialize_q_points(kd, qsym):
         U_scc = kd.symmetry.op_scc
         ibzq_qc = kd.get_ibz_q_points(bzq_qc, U_scc)[0]
         weight_q = kd.q_weights
-    return bzq_qc, ibzq_qc, weight_q
+    return ibzq_qc, weight_q
+
+
+@dataclass
+class RPAIntegral:
+    omega_w: np.ndarray
+    weight_w: np.ndarray
+    ibzq_qc: np.ndarray
+    weight_q: np.ndarray
+    ecut_i: np.ndarray
+
+    @property
+    def nq(self):
+        """Number of q-points."""
+        return len(self.weight_q)
+
+    @property
+    def nw(self):
+        """Number of frequencies."""
+        nw = len(self.omega_w)
+        assert len(self.weight_w) == nw
+        return nw
+
+    @property
+    def ni(self):
+        """Number of plane-wave cutoffs to extrapolate over."""
+        return len(self.ecut_i)
+
+    def integrate_frequencies(self, in_xwi):
+        out_xi = self.weight_w @ in_xwi
+        return out_xi
+
+    def integrate_qpoints(self, in_xqi):
+        out_xi = self.weight_q @ in_xqi
+        return out_xi
+
+
+@dataclass
+class RPAData:
+    integral: RPAIntegral
+
+    def __post_init__(self):
+        self.energy_qwi = np.zeros(self.shape)
+
+    @property
+    def shape(self):
+        return (self.integral.nq, self.integral.nw, self.integral.ni)
+
+    def contribution_from_qpoint(self, q, i=-1):
+        return self.integral.integrate_frequencies(self.energy_qwi[q, :, i])
+
+    @property
+    def energy_wqi(self):
+        return np.swapaxes(self.energy_qwi, 0, 1)
+
+    @property
+    def energy_qi(self):
+        """Correlation energy contribution, E_c(q)."""
+        return self.integral.integrate_frequencies(self.energy_qwi)
+
+    @property
+    def energy_wi(self):
+        """Correlation energy contribution, E_c(ω)."""
+        return self.integral.integrate_qpoints(self.energy_wqi)
+
+    @property
+    def energy_i(self):
+        """Correlation energy E_c as a function of the plane-wave cutoff."""
+        return self.integral.integrate_qpoints(self.energy_qi)
 
 
 class RPACalculator:
-    def __init__(self, gs, *, context, filename=None,
-                 ecut,
-                 skip_gamma=False, qsym=True,
-                 frequencies, weights, truncation=None,
-                 nblocks=1, calculate_q=None):
+    def __init__(
+            self,
+            gs,
+            *,
+            context,
+            ecut,
+            frequencies,
+            weights,
+            qsym=True,
+            skip_gamma=False,
+            truncation=None,
+            nblocks=1,
+            calculate_q=None
+    ):
         self.gs = gs
         self.context = context
 
-        self.omega_W = frequencies / Hartree
-        self.weight_W = weights / Hartree / (2 * np.pi)
-
+        # Normalize RPA integral inputs
+        if isinstance(ecut, (float, int)):
+            ecut = default_ecut_extrapolation(ecut, extrapolate=6)
+        ecut_i = np.asarray(np.sort(ecut)) / Hartree
         # TODO: We should avoid this requirement.
-        assert len(self.omega_W) % nblocks == 0
-
-        self.nblocks = nblocks
-
-        self.coulomb = CoulombKernel.from_gs(gs, truncation=truncation)
-        self.skip_gamma = skip_gamma
-
+        # thosk notes: it might work now (after some extensive clean-up of the
+        # frequency integration), but I have not tested it
+        assert len(frequencies) % nblocks == 0
         # We should actually have a kpoint descriptor for the qpoints.
         # We are badly failing at making use of the existing tools by reducing
         # the qpoints to dumb arrays.
-        self.bzq_qc, self.ibzq_qc, self.weight_q = initialize_q_points(
-            gs.kd, qsym)
+        ibzq_qc, weight_q = initialize_q_points(gs.kd, qsym)
+        # Collect information about the RPA integral on a single object (a.u.)
+        self.integral = RPAIntegral(
+            omega_w=frequencies / Hartree,
+            weight_w=weights / Hartree / (2 * np.pi),
+            ibzq_qc=ibzq_qc,
+            weight_q=weight_q,
+            ecut_i=ecut_i,
+        )
 
-        self.filename = filename
+        self.chi0calc = Chi0Calculator(
+            self.gs, self.context.with_txt('chi0.txt'),
+            nblocks=nblocks,
+            wd=FrequencyDescriptor(1j * self.integral.omega_w),
+            eta=0.0,
+            intraband=False,
+            hilbert=False,
+            ecut=max(self.integral.ecut_i) * Hartree)
+        self.coulomb = CoulombKernel.from_gs(gs, truncation=truncation)
 
+        self.skip_gamma = skip_gamma
+        # This is a super weird way of achieving inheritance...
         if calculate_q is None:
             calculate_q = self.calculate_q_rpa
         self.calculate_q = calculate_q
 
-        if isinstance(ecut, (float, int)):
-            ecut = default_ecut_extrapolation(ecut, extrapolate=6)
-        self.ecut_i = np.asarray(np.sort(ecut)) / Hartree
+    def calculate(self, *, nbands=None) -> np.ndarray:
+        """Calculate the RPA correlation energy as a function of cutoff."""
+        data = self.calculate_all_contributions(nbands=nbands)
+        return data.energy_i * Hartree  # energies in eV
 
-    def read(self, ecut_i, filename):
-        with open(filename) as fd:
-            lines = fd.readlines()[1:]
+    def calculate_all_contributions(
+            self, *, nbands=None, spin=False) -> RPAData:
+        """Calculate RPA correlation energy contributions.
 
-        n = 0
-        energy_qi = []
-        nq = len(lines) // len(ecut_i)
-        for q_c in self.ibzq_qc[:nq]:
-            energy_qi.append([])
-            for ecut in ecut_i:
-                current_inputs = np.array([*q_c, ecut * Hartree])
-                numbers_from_file = [float(x) for x in lines[n].split()]
-                previous_inputs = numbers_from_file[:-1]
-
-                if not np.allclose(current_inputs, previous_inputs):
-                    # Energies are not reusable since input parameters
-                    # have changed
-                    return []
-
-                energy = numbers_from_file[-1]
-                energy_qi[-1].append(energy / Hartree)
-                n += 1
-
-        return energy_qi
-
-    def energies_to_string(self, energy_qi, ecut_i):
-        lines = []
-        app = lines.append
-        app('q1 q2 q3 E_cut E_c(q)')
-        for energy_i, q_c in zip(energy_qi, self.ibzq_qc):
-            for energy, ecut in zip(energy_i, ecut_i):
-                tokens = [repr(num) for num in
-                          (*q_c, ecut * Hartree, energy * Hartree)]
-                app(' '.join(tokens))
-
-    def write(self, energy_qi, ecut_i):
-        txt = self.energies_to_string(energy_qi, ecut_i)
-        if self.context.comm.rank == 0 and self.filename:
-            with open(self.filename, 'w') as fd:
-                print(txt, file=fd)
-
-    def calculate(self, *, nbands=None, spin=False, txt=''):
-        """Calculate RPA correlation energy for one or several cutoffs.
-
-        ecut: float or list of floats
-            Plane-wave cutoff(s) in eV.
         nbands: int
             Number of bands (defaults to number of plane-waves).
         spin: bool
             Separate spin in response function.
             (Only needed for beyond RPA methods that inherit this function).
-        txt:
-            Prefix for the chi0.txt file. Added as {txt}_chi0.txt
         """
 
         p = functools.partial(self.context.print, flush=False)
-
-        ecut_i = self.ecut_i
-        ecutmax = max(ecut_i)
 
         if nbands is None:
             p('Response function bands : Equal to number of plane waves')
         else:
             p('Response function bands : %s' % nbands)
         p('Plane wave cutoffs (eV) :', end='')
-        for e in ecut_i:
+        for e in self.integral.ecut_i:
             p(f' {e * Hartree:.3f}', end='')
         p()
         p(self.coulomb.description())
-        self.context.print('')
-
-        if self.filename and os.path.isfile(self.filename):
-            energy_qi = self.read(ecut_i, self.filename)
-            self.context.print(
-                'Read %d q-points from file: %s\n' % (len(energy_qi)))
-
-            self.context.comm.barrier()
-
-        chi0calc = Chi0Calculator(
-            self.gs, self.context.with_txt(
-                f'{txt + "_" if txt else ""}chi0.txt'),
-            nblocks=self.nblocks,
-            wd=FrequencyDescriptor(1j * self.omega_W),
-            eta=0.0,
-            intraband=False,
-            hilbert=False,
-            ecut=ecutmax * Hartree)
-
-        self.wblocks = Blocks1D(
-            chi0calc.chi0_body_calc.blockcomm, len(self.omega_W))
-
-        energy_qi = []
-        nq = len(energy_qi)
+        p('', flush=True)
 
         self.context.timer.start('RPA')
 
-        for q_c in self.ibzq_qc[nq:]:
+        data = RPAData(self.integral)
+        ecutmax = max(self.integral.ecut_i)
+        for q, q_c in enumerate(self.integral.ibzq_qc):
             if np.allclose(q_c, 0.0) and self.skip_gamma:
-                energy_qi.append(len(ecut_i) * [0.0])
-                self.write(energy_qi, ecut_i)
-                p('Not calculating E_c(q) at Gamma')
-                p()
+                p('Not calculating E_c(q) at Gamma', end='\n')
                 continue
 
-            chi0_s = [chi0calc.create_chi0(q_c)]
+            chi0_s = [self.chi0calc.create_chi0(q_c)]
             if spin:
-                chi0_s.append(chi0calc.create_chi0(q_c))
+                chi0_s.append(self.chi0calc.create_chi0(q_c))
 
             qpd = chi0_s[0].qpd
             nG = qpd.ngmax
 
             # First not completely filled band:
             m1 = self.gs.nocc1
-            p(f'# {len(energy_qi)}  -  {ctime().split()[-2]}')
+            p(f'# {q}  -  {ctime().split()[-2]}')
             p('q = [%1.3f %1.3f %1.3f]' % tuple(q_c))
 
-            energy_i = []
-            for ecut in ecut_i:
+            for i, ecut in enumerate(self.integral.ecut_i):
                 if ecut == ecutmax:
                     # Nothing to cut away:
                     gcut = GCut(None)
@@ -247,26 +244,26 @@ class RPACalculator:
 
                 p('E_cut = %d eV / Bands = %d:' % (ecut * Hartree, m2),
                   end='\n', flush=True)
-
-                energy = self.calculate_q(chi0calc, chi0_s, m1, m2, gcut)
-
-                energy_i.append(energy)
+                p('E_c(q) = ', end='', flush=False)
+                data.energy_qwi[q, :, i] = self.calculate_q(
+                    chi0_s, m1, m2, gcut
+                )
+                energy = data.contribution_from_qpoint(q, i=i)
+                p('%.3f eV' % (energy * Hartree), flush=True)
                 m1 = m2
 
-            energy_qi.append(energy_i)
-            self.write(energy_qi, ecut_i)
             p()
 
-        e_i = np.dot(self.weight_q, np.array(energy_qi))
+        e_i = data.energy_i
         p('==========================================================')
         p()
         p('Total correlation energy:')
-        for e_cut, e in zip(ecut_i, e_i):
+        for e_cut, e in zip(self.integral.ecut_i, e_i):
             p(f'{e_cut * Hartree:6.0f}:   {e * Hartree:6.4f} eV')
         p()
 
         if len(e_i) > 1:
-            self.extrapolate(e_i, ecut_i)
+            self.extrapolate(e_i, self.integral.ecut_i)
 
         p('Calculation completed at: ', ctime())
         p()
@@ -274,63 +271,51 @@ class RPACalculator:
         self.context.timer.stop('RPA')
         self.context.write_timer()
 
-        return e_i * Hartree
+        return data
 
     @timer('chi0(q)')
-    def calculate_q_rpa(self, chi0calc, chi0_s,
-                        m1, m2, gcut):
+    def calculate_q_rpa(self, chi0_s, m1, m2, gcut):
         chi0 = chi0_s[0]
-        chi0calc.update_chi0(
-            chi0, m1=m1, m2=m2, spins=range(chi0calc.gs.nspins))
-        self.context.print('E_c(q) = ', end='', flush=False)
+        self.chi0calc.update_chi0(
+            chi0, m1=m1, m2=m2, spins=range(self.chi0calc.gs.nspins))
+        qpd = chi0.qpd
+        chi0_wGG = chi0.body.get_distributed_frequencies_array()
+        wblocks = chi0.body.get_distributed_frequencies_blocks1d()
+        # Calculate RPA energy contributions (as a function of w)
         if chi0.qpd.optical_limit:
-            rpa_energy = self.calculate_optical_limit_rpa_energy(chi0, gcut)
+            chi0_wvv = chi0.chi0_Wvv[wblocks.myslice]
+            chi0_wxvG = chi0.chi0_WxvG[wblocks.myslice]
+            energy_w = self.calculate_optical_limit_rpa_energies(
+                qpd, chi0_wGG, chi0_wvv, chi0_wxvG, gcut
+            )
         else:
-            rpa_energy = self.calculate_rpa_energy(chi0, gcut)
-        self.context.print('%.3f eV' % (rpa_energy * Hartree))
-        return rpa_energy
+            energy_w = self.calculate_rpa_energies(qpd, chi0_wGG, gcut)
+        return wblocks.all_gather(energy_w)
 
-    def calculate_optical_limit_rpa_energy(self, chi0, gcut):
+    def calculate_optical_limit_rpa_energies(
+            self, qpd, chi0_wGG, chi0_wvv, chi0_wxvG, gcut):
         """Calculate correlation energy from chi0 in the optical limit."""
         from gpaw.response.gamma_int import GammaIntegral
 
-        gamma_int = GammaIntegral(self.coulomb, qpd=chi0.qpd)
+        gamma_int = GammaIntegral(self.coulomb, qpd=qpd)
 
-        def integrand(data):
-            chi0_GG, chi0_vv, chi0_xvG = data
+        energy_w = []
+        for chi0_GG, chi0_vv, chi0_xvG in zip(chi0_wGG, chi0_wvv, chi0_wxvG):
+            # Integrate over the optical wave vector volume
             energy = 0.
             for qweight, sqrtV_G, chi0_mapping in gamma_int:
                 chi0p_GG = chi0_mapping(chi0_GG, chi0_vv, chi0_xvG)
                 energy += qweight * single_rpa_energy(
                     chi0p_GG, gcut.cut(sqrtV_G), gcut)
-            return energy
+            energy_w.append(energy)
+        return np.array(energy_w)
 
-        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
-        return self.integrate(
-            integrand,
-            data_w=zip(
-                chi0_wGG,
-                chi0.chi0_Wvv[self.wblocks.myslice],
-                chi0.chi0_WxvG[self.wblocks.myslice],
-            ),
-        )
-
-    def calculate_rpa_energy(self, chi0, gcut):
+    def calculate_rpa_energies(self, qpd, chi0_wGG, gcut):
         """Evaluate correlation energy from chi0 at finite q."""
-        sqrtV_G = gcut.cut(self.coulomb.sqrtV(chi0.qpd, q_v=None))
-
-        def integrand(chi0_GG):
-            return single_rpa_energy(chi0_GG, sqrtV_G, gcut)
-
-        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
-        return self.integrate(integrand, data_w=chi0_wGG)
-
-    def integrate(self, integrand, *, data_w):
-        """Integrate over frequency to obtain the rpa correlation energy."""
-        energy = 0.
-        for weight, data in zip(self.weight_W[self.wblocks.myslice], data_w):
-            energy += weight * integrand(data)
-        return self.wblocks.blockcomm.sum_scalar(energy)
+        sqrtV_G = gcut.cut(self.coulomb.sqrtV(qpd, q_v=None))
+        return np.array([
+            single_rpa_energy(chi0_GG, sqrtV_G, gcut) for chi0_GG in chi0_wGG
+        ])
 
     def extrapolate(self, e_i, ecut_i):
         self.context.print('Extrapolated energies:', flush=False)
@@ -386,9 +371,7 @@ class RPACorrelation(RPACalculator):
         xc: str
             Exchange-correlation kernel. This is only different from RPA when
             this object is constructed from a different module - e.g. fxc.py
-        filename: str
-            txt output
-        skip_gamme: bool
+        skip_gamma: bool
             If True, skip q = [0,0,0] from the calculation
         qsym: bool
             Use symmetry to reduce q-points
@@ -404,7 +387,7 @@ class RPACorrelation(RPACalculator):
             increase to e.g. 2.5 or 3.0 improves convergence wth respect to
             frequency points for metals
         frequencies: list
-            List of frequancies for user-specified frequency integration
+            List of frequencies for user-specified frequency integration
         weights: list
             list of weights (integration measure) for a user specified
             frequency grid. Must be specified and have the same length as
@@ -417,6 +400,8 @@ class RPACorrelation(RPACalculator):
             Number of parallelization blocks. Frequency parallelization
             can be specified by setting nblocks=nfrequencies and is useful
             for memory consuming calculations
+        ecut: float or list of floats
+            Plane-wave cutoff(s) in eV.
         txt: str
             txt file for saving and loading contributions to the correlation
             energy from different q-points
@@ -458,10 +443,9 @@ class RPACorrelation(RPACalculator):
         p('Number of spins                :', self.gs.nspins)
         p('Number of k-points             :', len(self.gs.kd.bzk_kc))
         p('Number of irreducible k-points :', len(self.gs.kd.ibzk_kc))
-        p('Number of q-points             :', len(self.bzq_qc))
-        p('Number of irreducible q-points :', len(self.ibzq_qc))
+        p('Number of irreducible q-points :', len(self.integral.ibzq_qc))
         p()
-        for q, weight in zip(self.ibzq_qc, self.weight_q):
+        for q, weight in zip(self.integral.ibzq_qc, self.integral.weight_q):
             p('    q: [%1.4f %1.4f %1.4f] - weight: %1.3f' %
               (q[0], q[1], q[2], weight))
         p()
@@ -477,17 +461,18 @@ class RPACorrelation(RPACalculator):
         p('Frequencies')
         if not user_spec:
             p('    Gauss-Legendre integration with %s frequency points' %
-              len(self.omega_W))
+              len(self.integral.omega_w))
             p('    Transformed from [0,oo] to [0,1] using e^[-aw^(1/B)]')
             p('    Highest frequency point at %5.1f eV and B=%1.1f' %
-              (self.omega_W[-1] * Hartree, frequency_scale))
+              (self.integral.omega_w[-1] * Hartree, frequency_scale))
         else:
             p('    User specified frequency integration with',
-              len(self.omega_W), 'frequency points')
+              len(self.integral.omega_w), 'frequency points')
         p()
         p('Parallelization')
         p('    Total number of CPUs          : % s' % self.context.comm.size)
-        p('    G-vector decomposition        : % s' % self.nblocks)
-        p('    K-point/band decomposition    : % s' %
-          (self.context.comm.size // self.nblocks))
+        blockcomm = self.chi0calc.chi0_body_calc.blockcomm
+        p('    G-vector decomposition        : % s' % blockcomm.size)
+        kncomm = self.chi0calc.chi0_body_calc.kncomm
+        p('    K-point/band decomposition    : % s' % kncomm.size)
         self.context.print('')

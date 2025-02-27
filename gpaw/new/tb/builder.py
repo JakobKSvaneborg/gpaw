@@ -252,7 +252,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
     def create_hamiltonian_operator(self):
         return TBHamiltonian(self.basis)
 
-    def create_potential_calculator(self):
+    def create_potential_calculator(self, log):
         xc = DummyXC()
         return TBPotentialCalculator(xc, self.setups, self.atoms,
                                      self.communicators['d'])

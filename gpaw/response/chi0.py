@@ -40,14 +40,21 @@ class Chi0Calculator:
                  intraband=True,
                  rate='eta',
                  **kwargs):
+        """
+        Parameters
+            ----------
+            eshift : float or None
+                Energy shift of the conduction bands in eV.
+        """
+        self.eshift = eshift / Ha if eshift else None
         self.gs = ResponseGroundStateAdapter.from_input(gs)
         self.context = ResponseContext.from_input(context)
         self.chi0_body_calc = Chi0BodyCalculator(
             self.gs, self.context,
-            nblocks=nblocks, eshift=eshift, **kwargs)
+            nblocks=nblocks, eshift=self.eshift, **kwargs)
         self.chi0_opt_ext_calc = Chi0OpticalExtensionCalculator(
             self.gs, self.context,
-            intraband=intraband, rate=rate, **kwargs)
+            intraband=intraband, rate=rate, eshift=self.eshift, **kwargs)
 
     @property
     def wd(self) -> FrequencyDescriptor:
@@ -95,8 +102,6 @@ class Chi0Calculator:
 
         # Calculate optical extension
         if qpd.optical_limit:
-            if self.chi0_body_calc.eshift is not None:
-                raise NotImplementedError("No wings eshift available")
             chi0_opt_ext = self.chi0_opt_ext_calc.calculate(qpd=qpd)
         else:
             chi0_opt_ext = None
@@ -134,8 +139,6 @@ class Chi0Calculator:
             n2 = self.gs.nocc2
         self.chi0_body_calc.update_chi0_body(chi0.body, n1, n2, m1, m2, spins)
         if chi0.optical_limit:
-            if self.chi0_body_calc.eshift is not None:
-                raise NotImplementedError("No wings eshift available")
             assert chi0.optical_extension is not None
             # Update the head and wings
             self.chi0_opt_ext_calc.update_chi0_optical_extension(
@@ -152,9 +155,10 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         Parameters
         ----------
         eshift : float or None
-            Energy shift of the conduction bands in eV.
+            Energy shift of the conduction bands in Hartree.
         """
-        self.eshift = eshift / Ha if eshift else eshift
+
+        self.eshift = eshift
 
         super().__init__(*args, **kwargs)
 
@@ -321,6 +325,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
 class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
 
     def __init__(self, *args,
+                 eshift=None,
                  intraband=True,
                  rate='eta',
                  **kwargs):
@@ -336,9 +341,19 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
             rate. Please note that for consistency the rate is implemented as
             omegap^2 / (omega + 1j * rate)^2, which differs from some
             literature by a factor of 2.
+        eshift : float or None
+            Energy shift of the conduction bands in Hartree.
         """
         # Serial block distribution
+
+        self.eshift = eshift
+
         super().__init__(*args, nblocks=1, **kwargs)
+
+        if self.gs.metallic:
+            assert self.eshift is None, \
+                'A rigid energy shift cannot be applied to the conduction '\
+                'bands if there is no band gap'
 
         # In the optical limit of metals, one must add the Drude dielectric
         # response from the free-space plasma frequency of the intraband
@@ -441,16 +456,18 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         operators.symmetrize_wvv(chi0_opt_ext.head_Wvv)
 
     def construct_hermitian_task(self):
-        return HermitianOpticalLimit()
+        return HermitianOpticalLimit(eshift=self.eshift)
 
     def construct_point_hilbert_task(self):
-        return HilbertOpticalLimit()
+        return HilbertOpticalLimit(eshift=self.eshift)
 
     def construct_tetra_hilbert_task(self):
+        assert self.eshift is None, \
+            'energy shift is not applied here'
         return HilbertOpticalLimitTetrahedron()
 
     def construct_literal_task(self):
-        return OpticalLimit(eta=self.eta)
+        return OpticalLimit(eta=self.eta, eshift=self.eshift)
 
     def print_info(self, qpd: SingleQPWDescriptor):
         """Print information about optical extension calculation."""
