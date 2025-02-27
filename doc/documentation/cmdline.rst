@@ -11,9 +11,9 @@ Command line interface
 GPAW has a command line tool called :program:`gpaw` with the following
 sub-commands:
 
-==============  =====================================================
+==============  ==============================================================
 sub-command     description
-==============  =====================================================
+==============  ==============================================================
 help            Help for sub-command
 run             Run calculation with GPAW
 info            Show versions of GPAW and its dependencies
@@ -25,8 +25,8 @@ python          Run GPAW's parallel Python interpreter
 sbatch          Submit a GPAW Python script via sbatch
 dataset         Calculate density of states from gpw-file
 symmetry        Analyse symmetry (and show IBZ **k**-points)
-install-data    Install PAW datasets, pseudopotential or basis sets
-==============  =====================================================
+install-data    Install additional PAW datasets, pseudopotential or basis sets
+==============  ==============================================================
 
 Example::
 
