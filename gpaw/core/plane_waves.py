@@ -722,7 +722,7 @@ class PWArray(DistributedArrays[PWDesc]):
             # numpy does not require shape, cupy does
             # cupy just makes all elements equal to one random number
             aview = a.view(dtype=self.real_dtype)
-            rng.random(aview.shape, out=aview)
+            rng.random(aview.shape, out=aview, dtype=self.real_dtype)
 
             # Uniform distribution inside unit circle
             a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)

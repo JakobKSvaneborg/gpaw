@@ -8,6 +8,10 @@ from scipy.interpolate import CubicSpline
 have_openmp = False
 
 
+def gpaw_gpu_init():
+    pass
+
+
 def get_num_threads():
     return 1
 

@@ -4,6 +4,7 @@ import numpy as np
 
 import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
 from gpaw.typing import Array1D, ArrayND
 from gpaw import GPAW_NO_C_EXTENSION
 
@@ -53,7 +54,7 @@ def pw_insert_gpu(psit_nG,
 def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
                  l_s, a_J, s_J,
                  cc, f_GI):
-    real = f_GI.dtype == float
+    real = np.issubdtype(f_GI.dtype, np.floating)
     I1 = 0
     for J, (a, s) in enumerate(zip(a_J, s_J)):
         l = l_s[s]
@@ -75,14 +76,16 @@ def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
 def pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
                      l_s, a_J, s_J,
                      cc, f_GI, I_J):
-    raise NotImplementedError
+    pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
+                 l_s, a_J, s_J,
+                 cc, f_GI)
 
 
 def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
                            P_nI, out_nI):
     I1 = 0
     J1 = 0
-    for ni in ni_a._data:
+    for ni in ni_a.get():
         I2 = I1 + ni
         J2 = J1 + ni**2
         dH_ii = dH_aii[J1:J2].reshape((ni, ni))
@@ -118,8 +121,12 @@ def symmetrize_ft(a_R, b_R, r_cc, t_c, offset_c):
 
 
 def evaluate_lda_gpu(nt_sr, vxct_sr, e_r) -> None:
-    from gpaw.xc.kernel import XCKernel
-    XCKernel('LDA').calculate(e_r._data, nt_sr._data, vxct_sr._data)
+    if cupy_is_fake:
+        from gpaw.xc.kernel import XCKernel
+        XCKernel('LDA').calculate(e_r._data, nt_sr._data, vxct_sr._data)
+    else:
+        from _gpaw import evaluate_lda_gpu as evalf  # type: ignore
+        evalf(nt_sr, vxct_sr, e_r)
 
 
 def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
@@ -129,12 +136,19 @@ def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
 
 
 def pw_norm_gpu(result_x, C_xG):
-    result_x._data[:] = np.sum(np.abs(C_xG._data)**2, axis=1)
+    if cupy_is_fake:
+        result_x._data[:] = np.sum(np.abs(C_xG._data)**2, axis=1)
+    else:
+        result_x[:] = cp.sum(cp.abs(C_xG)**2, axis=1)
 
 
 def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
-    result_x._data[:] = np.sum(np.abs(a_xG._data)**2 * kin_G._data[None, :],
-                               axis=1)
+    if cupy_is_fake:
+        result_x._data[:] = np.sum(
+            np.abs(a_xG._data)**2 * kin_G._data[None, :],
+            axis=1)
+    else:
+        result_x[:] = cp.sum(cp.abs(a_xG)**2 * kin_G[None, :], axis=1)
 
 
 if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
