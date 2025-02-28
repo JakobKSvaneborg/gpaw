@@ -629,11 +629,13 @@ class VelocityGaugeWriter(TDDFTObserver):
         self.fd.flush()
 
     def _write_header(self, paw, kwargs):
+        # FAKING DipoleMoment header for now
         self._write("""# DipoleMomentWriter[version=1](center=False, density='comp')
 #            time            norm                    dmx                    dmy                    dmz
 # Start; Time = 0.00000000
           0.00000000       2.50928403e-15    -2.313281359846e-14     6.813825387633e-15    -1.663624500112e-14
-# Kick = [    1.000000000000e-04,     0.000000000000e+00,     0.000000000000e+00]; Time = 0.00000000""")
+# Kick = [    1.000000000000e-04,     0.000000000000e+00,     0.000000000000e+00]; Time = 0.00000000
+""")
 
     def _read_header(self, filename):
         asd
