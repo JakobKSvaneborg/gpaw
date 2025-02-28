@@ -219,7 +219,7 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
     lower = np.tri(nao, k=-1, dtype=bool)
     V_MM.T[lower] = V_MM[lower].conj()
 
-    print(V_MM, 'V_MM')
+    #print(V_MM, 'V_MM')
     
     # Calculate potential energy matrix
     V2_MM = np.zeros((mynao, nao), dtype=complex)
@@ -230,7 +230,7 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
             Vpsitnu_G = vt_sG[kpt.s] * psitnu_G 
             V2_MM[mu, nu] = gd.integrate(psitmu_G.conj() * Vpsitnu_G)
     
-    print(V2_MM, 'V integrateMM')
+    #print(V2_MM, 'V integrateMM')
     
     # Calculate kinetic energy matrix
     T_MM = np.zeros((mynao, nao), dtype=complex)
@@ -269,13 +269,15 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
                                       (1.0, 1, 2, 0), (-1.0, 1, 0, 2),
                                       (1.0, 0, 1, 2), (-1.0, 0, 2, 1)]:
                 gicorrM_vMM[v1, amu, anu] -= sign * gd.integrate(psitmu_G.conj() * r_vG[v2] * (R_av[anu][v3]) * Tpsitnu_G)
-                gicorrM_vMM[v1, anu, amu] += sign * gd.integrate(psitmu_G.conj() * r_vG[v2] * (R_av[amu][v3]) * Tpsitnu_G)
+                gicorrM_vMM[v1, anu, amu] += sign * gd.integrate(psitmu_G.conj() * r_vG[v2] * (R_av[anu][v3]) * Tpsitnu_G)
 
-    for v in range(3):
-        print('dim', v)
+    #gicorrM_vMM += M_vmM
+
+    for v in [2]:#range(3):
+        #print('dim', v)
         print('gicorr', -0.5 * gicorrM_vMM[v])
         print('M official', -0.5 * M_vmM[v])
-        print('div', gicorrM_vMM[v] / M_vmM[v])
+        print('sub', -0.5 * (gicorrM_vMM[v] - M_vmM[v]))
 
     if not only_pseudo:
         for kpt in kpt_u:
@@ -475,7 +477,7 @@ class MagneticMomentWriter(TDDFTObserver):
         assert isinstance(origin, str)
         assert isinstance(origin_shift, list)
         origin_v = get_origin_coordinates(atoms, origin, origin_shift)
-        R_av = atoms.positions / Bohr - origin_v[np.newaxis, :]
+        R_av = atoms.positions / Bohr# - origin_v[np.newaxis, :]
         r_vG, _ = coordinates(gd, origin=origin_v)
 
         dM_vaii = calculate_magnetic_moment_atomic_corrections(
@@ -492,11 +494,13 @@ class MagneticMomentWriter(TDDFTObserver):
                 grad_v.append(Gradient(gd, v, dtype=complex, n=2))
             self.grad_v = grad_v
         else:
+            print('ORIGIN', origin_v)
             M_vmM = calculate_magnetic_moment_matrix(
                 paw.wfs.kpt_u, paw.wfs.basis_functions,
                 paw.wfs.atomic_correction, r_vG, dM_vaii,
                 only_pseudo=only_pseudo, R_av=R_av, setups=paw.wfs.setups,
                 vt_sG=paw.hamiltonian.vt_sG)
+            print('XXXXXXXXXXXXXXXXXX')
 
             # TODO: All observers recalculate density matrix
             # unless dmat is given.
@@ -587,3 +591,99 @@ class MagneticMomentWriter(TDDFTObserver):
 
     def __del__(self):
         self.ioctx.close()
+
+class VelocityGaugeWriter(TDDFTObserver):
+    """Observer for writing time-dependent momentum operator data.
+
+    The data is written in atomic units.
+
+    The observer attaches to the TDDFT calculator during creation.
+
+    Parameters
+    ----------
+    paw
+        TDDFT calculator
+    filename
+        File for writing magnetic moment data
+    """
+    version = 5
+    def __init__(self, paw, filename: str, interval: int = 1):
+        super().__init__(paw, interval)
+        self.ioctx = IOContext()
+        mode = paw.wfs.mode
+        assert mode in ['lcao']
+
+        if paw.niter == 0:
+            self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='w')
+        else:
+            self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='a')
+        self._write_header(paw, {})
+
+        #grad_v = []
+        #for v in range(3):
+        #    grad_v.append(Gradient(gd, v, dtype=complex, n=2))
+        #self.grad_v = grad_v
+
+    def _write(self, line):
+        self.fd.write(line)
+        self.fd.flush()
+
+    def _write_header(self, paw, kwargs):
+        self._write("""# DipoleMomentWriter[version=1](center=False, density='comp')
+#            time            norm                    dmx                    dmy                    dmz
+# Start; Time = 0.00000000
+          0.00000000       2.50928403e-15    -2.313281359846e-14     6.813825387633e-15    -1.663624500112e-14
+# Kick = [    1.000000000000e-04,     0.000000000000e+00,     0.000000000000e+00]; Time = 0.00000000""")
+
+    def _read_header(self, filename):
+        asd
+        with open(filename, encoding='utf-8') as fd:
+            line = fd.readline()
+        try:
+            name, version, kwargs = parse_header(line[2:])
+        except ValueError as e:
+            raise ValueError(f'File {filename} cannot be parsed: {e}')
+        if name != self.__class__.__name__:
+            raise ValueError(f'File {filename} is not '
+                             f'for {self.__class__.__name__}')
+        if version != self.version:
+            raise ValueError(f'File {filename} is not '
+                             f'of version {self.version}')
+        return kwargs
+
+    def _write_init(self, paw):
+        time = paw.time
+        line = '# Start; Time = %.8lf\n' % time
+        self._write(line)
+
+    def _write_kick(self, paw):
+        time = paw.time
+        kick = paw.kick_strength
+        line = '# Kick = [%22.12le, %22.12le, %22.12le]; ' % tuple(kick)
+        line += 'Time = %.8lf\n' % time
+        self._write(line)
+
+    def _calculate_v(self, paw):
+        C_nM = paw.wfs.kpt_u[0].C_nM
+        f_n = paw.wfs.kpt_u[0].f_n
+        rho_MM = C_nM.T.conj() @ (f_n[:, None] * C_nM)
+        Vkick_MM = paw.wfs.kpt_u[0].Vkick_MM
+        return [np.sum((rho_MM * Vkick_MM.conj()).ravel()), 0,0]
+
+    def _write_v(self, paw):
+        time = paw.time
+        v_v = self._calculate_v(paw)
+        line = ('%20.8lf %22.12le %22.12le %22.12le %22.12le\n'
+                % (time, 0.0, v_v[0], v_v[1], v_v[2]))
+        self._write(line)
+
+    def _update(self, paw):
+        if paw.action == 'init':
+            self._write_init(paw)
+        elif paw.action == 'kick':
+            self._write_kick(paw)
+        self._write_v(paw)
+
+    def __del__(self):
+        self.ioctx.close()
+

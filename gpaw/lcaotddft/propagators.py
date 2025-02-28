@@ -234,6 +234,27 @@ class ECNPropagator(LCAOPropagator):
                                        self.MM_descriptor,
                                        self.mm_block_descriptor)
 
+    def velocity_gauge_kick(self, magnitude, direction, time):
+        ksl = self.wfs.ksl
+        gcomm = self.wfs.gd.comm
+        manytci = self.wfs.manytci
+        O_qvMM = manytci.O_qMM_T_qMM(gcomm,
+                                     ksl.Mstart,
+                                     ksl.Mstop,
+                                     ignore_upper=ksl.using_blacs,
+                                     derivative=True)[0]
+        for kpt in self.wfs.kpt_u:
+            import code
+            code.interact(local=locals())
+            Vkick_MM = 1j * np.einsum('vAB,v->AB', O_qvMM[kpt.q], direction) * magnitude
+            kpt.Vkick_MM = Vkick_MM 
+            print(Vkick_MM, 'kicking')
+            for i in range(10):
+                self.propagate_wfs(kpt.C_nM, kpt.C_nM, kpt.S_MM, Vkick_MM, 0.1)
+
+        # Update Hamiltonian (and density)
+        self.hamiltonian.update()
+
     def kick(self, ext, time):
         # Propagate
         get_matrix = self.wfs.eigensolver.calculate_hamiltonian_matrix
