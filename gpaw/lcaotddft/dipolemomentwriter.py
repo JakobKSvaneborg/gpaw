@@ -71,7 +71,6 @@ class DipoleMomentWriter(TDDFTObserver):
             self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='w')
             self._write_header(paw)
         else:
-            # Read and continue
             self.read_header(filename)
             self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='a')
 

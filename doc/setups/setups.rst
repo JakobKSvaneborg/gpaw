@@ -38,7 +38,7 @@ Setup releases
    * - Feb 22 2024
      - 24.1.0_
      - New 14 electron Cr PAW potential added.
-       For high accuracy, it is recommented over the old 6-electron version
+       For high accuracy, it is recommended over the old 6-electron version
        (which is still the default).  You can use it by
        specifying ``setups={'Cr': '14'}`` (see also :ref:`manual_setups`).
        It has been generated with the following command::
@@ -98,11 +98,13 @@ Cs_ Ba_     Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
 Installation of PAW datasets
 ============================
 
-The PAW datasets can be installed automatically or manually.
+A basic PAW dataset has been installed as part of the default
+installation;
+additional PAW datasets can be installed automatically or manually.
 
 To install them automatically, run :command:`gpaw install-data
-{<dir>}`.  This downloads and unpacks the newest package into
-:file:`{<dir>}/gpaw-setups-{<version>}`.  When prompted, answer
+--{<dataset>} {<dir>}`.  This downloads and unpacks the newest package
+into :file:`{<dir>}/{<name>}-{<version>}`.  When prompted, answer
 yes (y) to register the path in the GPAW configuration file.
 
 To manually install the setups, do as follows:
