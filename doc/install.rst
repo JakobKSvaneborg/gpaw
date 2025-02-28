@@ -108,15 +108,6 @@ Check that you have installed everything in the correct places::
     $ gpaw info
 
 
-Install PAW datasets
-====================
-
-Install the datasets into the folder ``<dir>`` using this command::
-
-    $ gpaw install-data <dir>
-
-See :ref:`installation of paw datasets` for more details.
-
 Now you should be ready to use GPAW, but before you start, please run the
 tests as described below.
 
