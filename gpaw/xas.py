@@ -10,6 +10,7 @@ from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
 from gpaw.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
+# 
 
 
 def dipole_matrix_elements(setup):
@@ -754,8 +755,9 @@ class RecursionMethod:
 
     def get_spectra(self, eps_s, delta=0.1, imax=None, kpoint=None, fwhm=None,
                     linbroad=None, spin=0):
-        import gpaw.mpi as mpi
-        assert not mpi.parallel
+        if self.wfs is not None:
+            assert self.wfs.world.size == 1
+        # assert not mpi.parallel
 
         # the following lines are to stop the user to make mistakes
         # if spin == 1:
