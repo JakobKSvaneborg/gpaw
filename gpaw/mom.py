@@ -238,29 +238,47 @@ class OccupationsMOM:
                 # subspace of the reference orbitals and occupy orbitals
                 # with biggest weights
 
+                # number of subspaces
                 nsubs = len(self.subspace_mask[kpt.s])
-                nband = len(self.numbers[kpt.s])
-                Ps_m = np.zeros((nband,nband)) 
-                fs_key = []
-                sidx = 0
-                for ss, f_n_unique in enumerate(self.subspace_mask[kpt.s]):
+                if nsubs == 1:
+                    # we can just occupied the orbitals with largest projections
+                    f_n_unique = list(self.subspace_mask[kpt.s].keys())[0]
                     subspace_mask = self.subspace_mask[kpt.s][f_n_unique]
-                    sub_size = np.sum(subspace_mask) 
-                    # Ps_m ... projections of the subspace orbitals of the scf orbitals
-                    Ps_m[sidx:sidx+sub_size,:] = self.calculate_weights(kpt, f_n_unique)[None, :]
-                    fs_key += sub_size*[f_n_unique]
-                    sidx += sub_size
+                    sub_size = np.sum(subspace_mask)
+                    P_m = self.calculate_weights(kpt, f_n_unique)
 
-                Ps_m = Ps_m[:sidx]
+                    # we could use np.argpartition here but this is better readable
+                    occ_mask = np.argsort(P_m)[::-1][:sub_size]
+                    f_sn[kpt.s][occ_mask] = f_n_unique
+                else:
+                    # for more than one subspace we need to figure out the
+                    # assignment with the maximum projections
 
-                # Optimize assigment of subspace occupations 
-                # such that sum of the selected projections is maximal
-                row_ind, col_ind = linear_sum_assignment(-Ps_m)
+                    nband = len(self.numbers[kpt.s])
+                    Ps_m = np.zeros((nband,nband)) 
+                    fs_key = []
+                    sidx = 0
+                    for ss, f_n_unique in enumerate(self.subspace_mask[kpt.s]):
+                        subspace_mask = self.subspace_mask[kpt.s][f_n_unique]
+                        sub_size = np.sum(subspace_mask) 
+                        # Ps_m ... projections of the subspace orbitals of the scf orbitals
+                        w = self.calculate_weights(kpt, f_n_unique)
+                        Ps_m[sidx:sidx+sub_size,:] = w[None, :]
+                        fs_key += sub_size*[f_n_unique]
+                        sidx += sub_size
 
-                # select the subspace index from rol_ind
-                for irow, icol in zip(row_ind, col_ind):
-                    f_n_unique = fs_key[irow]
-                    f_sn[kpt.s][icol] = f_n_unique
+                    Ps_m = Ps_m[:sidx,:]
+                    # Ps_m.shape = noccupied,nbands
+                    assert(Ps_m.shape[0] == np.sum(self.numbers[kpt.s] > 1.0e-10))
+
+                    # Optimize assigment of subspace occupations 
+                    # such that sum of the selected projections is maximal
+                    row_ind, col_ind = linear_sum_assignment(-Ps_m)
+
+                    # select the subspace index from rol_ind
+                    for irow, icol in zip(row_ind, col_ind):
+                        f_n_unique = fs_key[irow]
+                        f_sn[kpt.s][icol] = f_n_unique
 
                 if self.update_numbers:
                     self.numbers[kpt.s] = f_sn[kpt.s].copy()
