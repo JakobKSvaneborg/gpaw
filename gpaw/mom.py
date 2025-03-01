@@ -241,7 +241,7 @@ class OccupationsMOM:
                 # number of subspaces
                 nsubs = len(self.subspace_mask[kpt.s])
                 if nsubs == 1:
-                    # we can just occupied the orbitals
+                    # we can just occupy the orbitals
                     # with largest projections
                     f_n_unique = list(self.subspace_mask[kpt.s].keys())[0]
                     subspace_mask = self.subspace_mask[kpt.s][f_n_unique]
@@ -271,7 +271,7 @@ class OccupationsMOM:
                         sidx += sub_size
 
                     Ps_m = Ps_m[:sidx, :]
-                    # Ps_m.shape = noccupied,nbands
+                    # Ps_m.shape = noccupied, nbands
                     noccupied = np.sum(self.numbers[kpt.s] > 1.0e-10)
                     assert (Ps_m.shape[0] == noccupied)
 
@@ -280,6 +280,7 @@ class OccupationsMOM:
                     row_ind, col_ind = linear_sum_assignment(-Ps_m)
 
                     # select the subspace index from rol_ind
+                    # assign band index (=col_ind) with occupation number
                     for irow, icol in zip(row_ind, col_ind):
                         f_n_unique = fs_key[irow]
                         f_sn[kpt.s][icol] = f_n_unique
