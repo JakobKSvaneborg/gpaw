@@ -48,8 +48,7 @@ def test_mom_fd_energy(in_tmp_dir):
         occ.initialize_reference_orbitals()
         for kpt in calc.wfs.kpt_u:
             f_sn = calc.get_occupation_numbers(spin=kpt.s)
-            unoccupied = [True for i in range(len(f_sn))]
-            P = occ.calculate_weights(kpt, 1.0, unoccupied)
+            P = occ.calculate_weights(kpt, 1.0)
             assert (np.allclose(P, f_sn))
 
         dE = E_es - E_gs

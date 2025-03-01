@@ -11,6 +11,7 @@ import numpy as np
 from ase.units import Ha
 
 from gpaw.occupations import FixedOccupationNumbers, ParallelLayout
+from scipy.optimize import linear_sum_assignment
 
 
 def prepare_mom_calculation(calc,
@@ -196,13 +197,13 @@ class OccupationsMOM:
 
         # Initialize MOM reference orbitals for each equally
         # occupied subspace separately
-        self.f_sn_unique = self.find_unique_occupation_numbers()
+        self.subspace_mask = self.find_unique_occupation_numbers()
         if self.wfs.mode == 'lcao':
             self.c_ref = {}
             for kpt in self.wfs.kpt_u:
                 self.c_ref[kpt.s] = {}
-                for f_n_unique in self.f_sn_unique[kpt.s]:
-                    occupied = self.f_sn_unique[kpt.s][f_n_unique]
+                for f_n_unique in self.subspace_mask[kpt.s]:
+                    occupied = self.subspace_mask[kpt.s][f_n_unique]
                     self.c_ref[kpt.s][f_n_unique] = kpt.C_nM[occupied].copy()
         else:
             self.wf = {}
@@ -210,8 +211,8 @@ class OccupationsMOM:
             for kpt in self.wfs.kpt_u:
                 self.wf[kpt.s] = {}
                 self.p_an[kpt.s] = {}
-                for f_n_unique in self.f_sn_unique[kpt.s]:
-                    occupied = self.f_sn_unique[kpt.s][f_n_unique]
+                for f_n_unique in self.subspace_mask[kpt.s]:
+                    occupied = self.subspace_mask[kpt.s][f_n_unique]
                     # Pseudo wave functions
                     self.wf[kpt.s][f_n_unique] = kpt.psit_nG[occupied].copy()
                     # Atomic contributions times projector overlaps
@@ -236,17 +237,30 @@ class OccupationsMOM:
                 # Compute weights with respect to each equally occupied
                 # subspace of the reference orbitals and occupy orbitals
                 # with biggest weights
-                for f_n_unique in self.f_sn_unique[kpt.s]:
-                    occupied = self.f_sn_unique[kpt.s][f_n_unique]
-                    n_occ = len(f_sn[kpt.s][occupied])
-                    unoccupied = f_sn[kpt.s] == 0
 
-                    P = np.zeros(len(f_sn[kpt.s]))
-                    P[unoccupied] = self.calculate_weights(kpt,
-                                                           f_n_unique,
-                                                           unoccupied)
-                    P_max = np.argpartition(P, -n_occ)[-n_occ:]
-                    f_sn[kpt.s][P_max] = f_n_unique
+                nsubs = len(self.subspace_mask[kpt.s])
+                nband = len(self.numbers[kpt.s])
+                Ps_m = np.zeros((nband,nband)) 
+                fs_key = []
+                sidx = 0
+                for ss, f_n_unique in enumerate(self.subspace_mask[kpt.s]):
+                    subspace_mask = self.subspace_mask[kpt.s][f_n_unique]
+                    sub_size = np.sum(subspace_mask) 
+                    # Ps_m ... projections of the subspace orbitals of the scf orbitals
+                    Ps_m[sidx:sidx+sub_size,:] = self.calculate_weights(kpt, f_n_unique)[None, :]
+                    fs_key += sub_size*[f_n_unique]
+                    sidx += sub_size
+
+                Ps_m = Ps_m[:sidx]
+
+                # Optimize assigment of subspace occupations 
+                # such that sum of the selected projections is maximal
+                row_ind, col_ind = linear_sum_assignment(-Ps_m)
+
+                # select the subspace index from rol_ind
+                for irow, icol in zip(row_ind, col_ind):
+                    f_n_unique = fs_key[irow]
+                    f_sn[kpt.s][icol] = f_n_unique
 
                 if self.update_numbers:
                     self.numbers[kpt.s] = f_sn[kpt.s].copy()
@@ -267,19 +281,19 @@ class OccupationsMOM:
 
         return f_sn
 
-    def calculate_weights(self, kpt, f_n_unique, unoccupied):
+    def calculate_weights(self, kpt, f_n_unique):
         if self.wfs.mode == 'lcao':
             O = np.dot(self.c_ref[kpt.s][f_n_unique].conj(),
-                       np.dot(kpt.S_MM, kpt.C_nM[unoccupied].T))
+                       np.dot(kpt.S_MM, kpt.C_nM[:].T))
         else:
             # Pseudo wave function overlaps
             O = self.wfs.integrate(self.wf[kpt.s][f_n_unique][:],
-                                   kpt.psit_nG[unoccupied][:], True)
+                                   kpt.psit_nG[:][:], True)
 
             # Atomic contributions
             O_corr = np.zeros_like(O)
             for a, p_a in self.p_an[kpt.s][f_n_unique].items():
-                O_corr += np.dot(kpt.P_ani[a][unoccupied].conj(), p_a).T
+                O_corr += np.dot(kpt.P_ani[a][:].conj(), p_a).T
             O_corr = np.ascontiguousarray(O_corr)
             self.wfs.gd.comm.sum(O_corr)
 

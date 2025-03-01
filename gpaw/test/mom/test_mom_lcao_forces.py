@@ -38,8 +38,7 @@ def test_mom_lcao_forces(in_tmp_dir):
     occ.initialize_reference_orbitals()
     for kpt in calc.wfs.kpt_u:
         f_n = calc.get_occupation_numbers(spin=kpt.s)
-        unoccupied = [True for i in range(len(f_n))]
-        P = occ.calculate_weights(kpt, 1.0, unoccupied)
+        P = occ.calculate_weights(kpt, 1.0)
         assert (np.allclose(P, f_n))
 
     E = []
