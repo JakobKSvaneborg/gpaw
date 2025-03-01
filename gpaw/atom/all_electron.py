@@ -571,7 +571,6 @@ class AllElectron(IOContext):
                            rcut_l=self.rcut_l,
                            scalarrel=self.scalarrel,
                            r2dvdr=self.r2dvdr,
-                           njcore=self.njcore,
                            xcname=self.xcname,
                            symbol=self.symbol)
 
@@ -824,7 +823,6 @@ class ValenceData:
     r2dvdr: np.ndarray | None  # Actually: None means not scalarrel
 
     # Maybe we don't need these variables:
-    njcore: int
     symbol: str
     xcname: str
 
@@ -868,7 +866,6 @@ class ValenceData:
             # s_ln
             r2dvdr=r2dvdr_g,
             scalarrel=scalarrel,
-            # njcore=xxx,
             xcname=setupdata.setupname,
         )
 
