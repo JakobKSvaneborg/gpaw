@@ -54,7 +54,7 @@ excited-state calculation are taken as fixed reference orbitals
 for MOM. The implementation in GPAW supports the
 use of fractional occupation numbers. 
 
-Let `\{|\psi_{n}\rangle\}` be a subspace of `N` initial guess 
+Let `\{|\psi_{n}\rangle\}` be the set of reference 
 orbitals with occupation
 numbers `f_n^0` and `\{|\psi_{m}^{(k)}\rangle\}` the orbitals
 determined at iteration `k` of the wave-function optimization.
