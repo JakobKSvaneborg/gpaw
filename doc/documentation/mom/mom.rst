@@ -119,7 +119,7 @@ matrix for a fictional system with 8 bands and the initial occupations `f_n^0`.
 
 From the visual representation of the overlap matrix it is immediately clear how the updated occupations `f_m^{(k)}` should look like.
 Unfortunately, finding the assignment based on maximizing the overlaps
-is known to fail if the one of the wavefunction sets `\{ |\psi_{n}\rangle \}`
+is known to fail if one of the wavefunction sets `\{ |\psi_{n}\rangle \}`
 is rotated by an arbitrary unitary matrix.
 
 
