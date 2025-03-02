@@ -68,7 +68,7 @@ Maximizing wavefunction overlaps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Naively, this can be achieved by finding a mapping between the
-states by measuring their similarity using the wavefunction overlap
+states while measuring their similarity using the wavefunction overlap
 `O_{nm}^{(k)} = \langle\psi_n | \psi_{m}^{(k)}\rangle`.
 
 .. tip::
@@ -102,10 +102,10 @@ numbers such that the sum of the absolute values of the overlap matrix is
 maximized  
 
 .. math::
-    \max_{\mathcal P} \text{Tr} \left( \mathcal P |O_{nm}^{(k)}| \right) \rightarrow \mathcal P^\max,
+    \max_{\mathcal P} \text{Tr} \left( \mathcal P |O_{nm}^{(k)}| \right) \rightarrow \mathcal P^\max.
 
-with the matrix representation of the permutation `\mathcal P^\max_{mn}` the
-updated occupation numbers are
+With the matrix representation of the permutation `\mathcal P^\max_{mn}` 
+the occupation numbers are updated according to
 
 .. math::
     f_m^{(k)} = \sum_n \mathcal P^\max_{mn} f_n^0
