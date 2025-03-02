@@ -257,33 +257,28 @@ class OccupationsMOM:
                     # assignment with the maximum projections
 
                     nband = len(self.numbers[kpt.s])
-                    Ps_m = np.zeros((nband, nband))
-                    fs_key = []
-                    sidx = 0
+                    noccupied = np.sum(self.numbers[kpt.s] > 1.0e-10)
+                    Ps_m = np.zeros((noccupied, nband))
+
+                    fs = []
+                    nn = 0
                     for ss, f_n_unique in enumerate(self.subspace_mask[kpt.s]):
                         subspace_mask = self.subspace_mask[kpt.s][f_n_unique]
                         sub_size = np.sum(subspace_mask)
                         # Ps_m ... projections of the subspace orbitals
                         # to the scf orbitals from the k-iteration
                         w = self.calculate_weights(kpt, f_n_unique)
-                        Ps_m[sidx: sidx + sub_size, :] = w[None, :]
-                        fs_key += sub_size * [f_n_unique]
-                        sidx += sub_size
-
-                    Ps_m = Ps_m[:sidx, :]
-                    # Ps_m.shape = noccupied, nbands
-                    noccupied = np.sum(self.numbers[kpt.s] > 1.0e-10)
-                    assert (Ps_m.shape[0] == noccupied)
+                        Ps_m[nn: nn + sub_size, :] = w[None, :]
+                        fs += sub_size * [f_n_unique]
+                        nn += sub_size
 
                     # Optimize assigment of subspace occupations
                     # such that sum of the selected projections is maximal
                     row_ind, col_ind = linear_sum_assignment(-Ps_m)
 
-                    # select the subspace index from rol_ind
                     # assign band index (=col_ind) with occupation number
-                    for irow, icol in zip(row_ind, col_ind):
-                        f_n_unique = fs_key[irow]
-                        f_sn[kpt.s][icol] = f_n_unique
+                    assert (all(row_ind == np.arange(noccupied)))
+                    f_sn[kpt.s][col_ind] = fs[:]
 
                 if self.update_numbers:
                     self.numbers[kpt.s] = f_sn[kpt.s].copy()
