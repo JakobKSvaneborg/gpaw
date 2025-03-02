@@ -5,6 +5,7 @@ from myqueue.workflow import run
 
 
 def workflow():
+    run(script='plot_overlap_projections.py')
     with run(script='domom_co.py', cores=8):
         run(function=check_co)
     with run(script='mom_h2o.py', cores=8):

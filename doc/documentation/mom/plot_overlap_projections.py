@@ -106,12 +106,13 @@ def plot_overlaps_projections(use_projections=True):
 
 
 def main():
+    import subprocess
 
     plot_overlaps_projections()
     plot_overlaps_projections(use_projections=False)
 
     # run to append horizontally
-    # convert +append P_nm_*.png P_nm.png
+    subprocess.run(['convert', '+append', 'P_nm_*.png', 'P_nm.png'])
 
 
 if __name__ == "__main__":
