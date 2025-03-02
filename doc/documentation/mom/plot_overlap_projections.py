@@ -19,7 +19,7 @@ def plot_overlaps_projections(use_projections=True):
     #                   0   1   2   3   4   5   6   7
     numbers = np.array([1., 1., 1., 1., 0., .4, .6, 0.])
     nbands = 8
-    noise = 0.1
+    noise = 0.15
 
     # generate overlap
     perm = np.arange(nbands)
@@ -81,7 +81,10 @@ def plot_overlaps_projections(use_projections=True):
 
     # matrix
     ax4.imshow(P_nm.T, aspect='auto', cmap='Greys')
-    ax4.set_xlabel('$P_{sm}^{(k)}$')
+    if use_projections:
+        ax4.set_xlabel('$P_{sm}^{(k)}$ (projections)')
+    else:
+        ax4.set_xlabel('$P_{sm}^{(k)}$ (maximum)')
 
     # subspace occupations (number corresponding to subspace size)
     ax5.bar(np.arange(len(f_s)), f_s, color='darkblue')
@@ -106,6 +109,9 @@ def main():
 
     plot_overlaps_projections()
     plot_overlaps_projections(use_projections=False)
+
+    # run to append horizontally
+    # convert +append P_nm_*.png P_nm.png
 
 
 if __name__ == "__main__":

@@ -49,7 +49,6 @@ The MOM approach implemented in GPAW is the initial maximum
 overlap method [#imom]_. The implementation is
 presented in [#momgpaw1]_ (real space grid and plane waves
 approaches) and [#momgpaw2]_ (LCAO approach).
-
 The orbitals `\{|\psi_{i}\rangle\}` used as initial guess for an
 excited-state calculation are taken as fixed reference orbitals
 for MOM. The implementation in GPAW supports the
@@ -72,29 +71,31 @@ Naively, this can be achieved by finding a mapping between the
 states by measuring their similarity using the wavefunction overlap
 `O_{nm}^{(k)} = \langle\psi_n | \psi_{m}^{(k)}\rangle`.
 
-In :ref:`plane-waves<manual_mode>` or :ref:`finite-difference <manual_stencils>`
-modes, the elements of the overlap matrix are calculated from:
+.. tip::
 
-.. math::
-    O_{nm}^{(k)} = \langle\tilde{\psi}_n | \tilde{\psi}_{m}^{(k)}\rangle +
-    \sum_{a, i_1, i_2} \langle\tilde{\psi}_n | \tilde{p}_{i_1}^{a}\rangle \left( \langle\phi_{i_1}^{a} | \phi_{i_2}^{a}\rangle -
-    \langle\tilde{\phi}_{i_1}^{a} | \tilde{\phi}_{i_2}^{a}\rangle \right) \langle\tilde{p}_{i_2}^{a} | \tilde{\psi}_{m}^{(k)}\rangle
+    In :ref:`plane-waves<manual_mode>` or :ref:`finite-difference <manual_stencils>`
+    modes, the elements of the overlap matrix are calculated from:
 
-where `|\tilde{\psi}_{n}\rangle` and `|\tilde{\psi}_{m}^{(k)}\rangle`
-are the pseudo orbitals, `|\tilde{p}_{i_1}^{a}\rangle`, `|\phi_{i_1}^{a}\rangle`
-and `|\tilde{\phi}_{i_1}^{a}\rangle` are projector functions, partial
-waves and pseudo partial waves localized on atom `a`, respectively.
-In :ref:`LCAO <lcao>`, the overlaps `O_{nm}^{(k)}` are calculated as:
+    .. math::
+        O_{nm}^{(k)} = \langle\tilde{\psi}_n | \tilde{\psi}_{m}^{(k)}\rangle +
+        \sum_{a, i_1, i_2} \langle\tilde{\psi}_n | \tilde{p}_{i_1}^{a}\rangle \left( \langle\phi_{i_1}^{a} | \phi_{i_2}^{a}\rangle -
+        \langle\tilde{\phi}_{i_1}^{a} | \tilde{\phi}_{i_2}^{a}\rangle \right) \langle\tilde{p}_{i_2}^{a} | \tilde{\psi}_{m}^{(k)}\rangle
 
-.. math::
-    O_{nm}^{(k)} = \sum_{\mu\nu} c^*_{\mu n}S_{\mu\nu}c^{(k)}_{\nu m}, \qquad
-    S_{\mu\nu} = \langle\Phi_{\mu} | \Phi_{\nu}\rangle +
-    \sum_{a, i_1, i_2} \langle\Phi_{\mu} | \tilde{p}_{i_1}^{a}\rangle \left( \langle\phi_{i_1}^{a} | \phi_{i_2}^{a}\rangle -
-    \langle\tilde{\phi}_{i_1}^{a} | \tilde{\phi}_{i_2}^{a}\rangle \right) \langle\tilde{p}_{i_2}^{a} | \Phi_{\nu}\rangle
+    where `|\tilde{\psi}_{n}\rangle` and `|\tilde{\psi}_{m}^{(k)}\rangle`
+    are the pseudo orbitals, `|\tilde{p}_{i_1}^{a}\rangle`, `|\phi_{i_1}^{a}\rangle`
+    and `|\tilde{\phi}_{i_1}^{a}\rangle` are projector functions, partial
+    waves and pseudo partial waves localized on atom `a`, respectively.
+    In :ref:`LCAO <lcao>`, the overlaps `O_{nm}^{(k)}` are calculated as:
 
-where `c^*_{\mu n}` and `c^{(k)}_{\nu m}` are the expansion
-coefficients for the initial guess orbitals and orbitals at
-iteration `k`, while `|\Phi_{\nu}\rangle` are the basis functions.
+    .. math::
+        O_{nm}^{(k)} = \sum_{\mu\nu} c^*_{\mu n}S_{\mu\nu}c^{(k)}_{\nu m}, \qquad
+        S_{\mu\nu} = \langle\Phi_{\mu} | \Phi_{\nu}\rangle +
+        \sum_{a, i_1, i_2} \langle\Phi_{\mu} | \tilde{p}_{i_1}^{a}\rangle \left( \langle\phi_{i_1}^{a} | \phi_{i_2}^{a}\rangle -
+        \langle\tilde{\phi}_{i_1}^{a} | \tilde{\phi}_{i_2}^{a}\rangle \right) \langle\tilde{p}_{i_2}^{a} | \Phi_{\nu}\rangle
+
+    where `c^*_{\mu n}` and `c^{(k)}_{\nu m}` are the expansion
+    coefficients for the initial guess orbitals and orbitals at
+    iteration `k`, while `|\Phi_{\nu}\rangle` are the basis functions.
 
 Effectively, we want to find the permutation `\mathcal P` of the updated occupation
 numbers such that the sum of the absolute values of the overlap matrix is
@@ -110,14 +111,16 @@ updated occupation numbers are
     f_m^{(k)} = \sum_n \mathcal P^\max_{mn} f_n^0
 
 Given the wavefunction overlaps `|O_{nm}^{(k)}|` the optimal permutation can be found using
-``scipy.optimize.linear_sum_assignement``. The figure shows the absolute values of the overlap
+``scipy.optimize.linear_sum_assignment``. The figure shows the absolute values of the overlap
 matrix for a fictional system with 8 bands and the initial occupations `f_n^0`.
 
 .. image:: O_nm.png 
+   :align: center
 
+From the visual representation of the overlap matrix it is immediately clear how the updated occupations `f_m^{(k)}` should look like.
 Unfortunately, finding the assignment based on maximizing the overlaps
-is known to fail if the one of the wavefunction sets `\{ |\tilde{\psi}_{n}\rangle \}`
-is rotated by an arbitrary unitary matrix [#cite_ref]_.
+is known to fail if the one of the wavefunction sets `\{ |\psi_{n}\rangle \}`
+is rotated by an arbitrary unitary matrix.
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -127,18 +130,21 @@ Maximizing subspace projections
 
 A more stable method can be employed noticing that the optimization task needs to be performed
 only for the subspaces of the occupations numbers, where a subspace is defined by all the orbitals
-`\{ |\tilde{\psi}_{n}\rangle \}_s` having the same occupation number `f^s`.
+`\{ |\psi_{n}\rangle \}_s` having the same occupation number `f^s` (permutations within
+a subspace have no physical effect).
 
 
-An occupation number of `f^s` is given to the first `N`
-orbitals with the biggest numerical weights, evaluated as
+In the original maximum overlap method the numerical weights based on
+whose the assignment is done are evaluated as
 [#dongmom]_:
 
 .. math::
    :label: eq:mommaxoverlap
 
-    P_{m}^{(k)} = \max_{n}\left( |O_{nm}^{(k)}| \right)
+    P_{sm}^{(k)} = \max_{n \in s}\left( |O_{nm}^{(k)}| \right)
 
+Here `n \in s` denotes that only orbitals from the subspace 
+`\{ |\psi_{n}\rangle \}_s` are taking into account.
 Alternatively, the numerical weights can be evaluated as
 the following projections onto the manifold `\{|\psi_{n}\rangle\}_{s}`
 [#imom]_:
@@ -146,8 +152,14 @@ the following projections onto the manifold `\{|\psi_{n}\rangle\}_{s}`
 .. math::
    :label: eq:momprojections
 
-    P_{m}^{(k)} = \left(\sum_{n=1}^{N}  |O_{nm}^{(k)}|^{2} \right)^{1/2}
+    P_{sm}^{(k)} = \left(\sum_{n \in s}  |O_{nm}^{(k)}|^{2} \right)^{1/2}
 
+The images show the weight matrices calculated from the overlaps of the above example.
+Again, the assignment, which for more than one subspace is done using ``scipy.optimize.linear_sum_assignment``
+numerically, can be directly seen from in this example case.
+
+.. image:: P_nm.png
+   :align: center
 
 
 ~~~~~~~~~~~~~~
