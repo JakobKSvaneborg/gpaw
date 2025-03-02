@@ -68,8 +68,8 @@ class EnergyWriter(TDDFTObserver):
 
             e_band += e
 
-        paw.occupations.e_band = e_band
-        paw.occupations.e_entropy = 0.0
+        paw.wfs.occupations.e_band = e_band
+        paw.wfs.occupations.e_entropy = 0.0
         e_kinetic0 = paw.hamiltonian.e_kinetic0
         e_coulomb = paw.hamiltonian.e_coulomb
         e_zero = paw.hamiltonian.e_zero

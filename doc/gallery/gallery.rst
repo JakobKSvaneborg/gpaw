@@ -15,7 +15,8 @@ Electron localisation function (ELF)
 
 Water molecule (ELF=0.8):
 
-.. image:: h2o-elf.png
+.. raw:: html
+	:file: h2o-elf.html
 
 :mod:`gpaw.elf`, :download:`h2o-elf.py`.
 
