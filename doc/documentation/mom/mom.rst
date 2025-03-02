@@ -45,10 +45,6 @@ with MOM.
 Maximum overlap method
 ----------------------
 
-~~~~~~~~~~~~~~
-Implementation
-~~~~~~~~~~~~~~
-
 The MOM approach implemented in GPAW is the initial maximum
 overlap method [#imom]_. The implementation is
 presented in [#momgpaw1]_ (real space grid and plane waves
@@ -57,28 +53,24 @@ approaches) and [#momgpaw2]_ (LCAO approach).
 The orbitals `\{|\psi_{i}\rangle\}` used as initial guess for an
 excited-state calculation are taken as fixed reference orbitals
 for MOM. The implementation in GPAW supports the
-use of fractional occupation numbers. Let `\{|\psi_{n}\rangle\}_{s}`
-be a subspace of `N` initial guess orbitals with occupation
-number `f_{s}` and `\{|\psi_{m}^{(k)}\rangle\}` the orbitals
+use of fractional occupation numbers. 
+
+Let `\{|\psi_{n}\rangle\}` be a subspace of `N` initial guess 
+orbitals with occupation
+numbers `f_n^0` and `\{|\psi_{m}^{(k)}\rangle\}` the orbitals
 determined at iteration `k` of the wave-function optimization.
-An occupation number of `f_{s}` is given to the first `N`
-orbitals with the biggest numerical weights, evaluated as
-[#dongmom]_:
+The methods aims to find the updated occupation numbers `f_m^{(k)}` 
+for the orbitals at iteration `k` such that the updated state 
+`\sum_m f_m^{(k)} |\psi_{m}^{(k)}\rangle` approximates the
+initial state `\sum_n f_n^0 |\psi_{n}\rangle` as closely as possible.
 
-.. math::
-   :label: eq:mommaxoverlap
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Maximizing wavefunction overlaps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    P_{m}^{(k)} = \max_{n}\left( |O_{nm}^{(k)}| \right)
-
-where `O_{nm}^{(k)} = \langle\psi_n | \psi_{m}^{(k)}\rangle`.
-Alternatively, the numerical weights can be evaluated as
-the following projections onto the manifold `\{|\psi_{n}\rangle\}_{s}`
-[#imom]_:
-
-.. math::
-   :label: eq:momprojections
-
-    P_{m}^{(k)} = \left(\sum_{n=1}^{N}  |O_{nm}^{(k)}|^{2} \right)^{1/2}
+Naively, this can be achieved by finding a mapping between the
+states by measuring their similarity using the wavefunction overlap
+`O_{nm}^{(k)} = \langle\psi_n | \psi_{m}^{(k)}\rangle`.
 
 In :ref:`plane-waves<manual_mode>` or :ref:`finite-difference <manual_stencils>`
 modes, the elements of the overlap matrix are calculated from:
@@ -103,6 +95,60 @@ In :ref:`LCAO <lcao>`, the overlaps `O_{nm}^{(k)}` are calculated as:
 where `c^*_{\mu n}` and `c^{(k)}_{\nu m}` are the expansion
 coefficients for the initial guess orbitals and orbitals at
 iteration `k`, while `|\Phi_{\nu}\rangle` are the basis functions.
+
+Effectively, we want to find the permutation `\mathcal P` of the updated occupation
+numbers such that the sum of the absolute values of the overlap matrix is
+maximized  
+
+.. math::
+    \max_{\mathcal P} \text{Tr} \left( \mathcal P |O_{nm}^{(k)}| \right) \rightarrow \mathcal P^\max,
+
+with the matrix representation of the permutation `\mathcal P^\max_{mn}` the
+updated occupation numbers are
+
+.. math::
+    f_m^{(k)} = \sum_n \mathcal P^\max_{mn} f_n^0
+
+Given the wavefunction overlaps `|O_{nm}^{(k)}|` the optimal permutation can be found using
+``scipy.optimize.linear_sum_assignement``. The figure shows the absolute values of the overlap
+matrix for a fictional system with 8 bands and the initial occupations `f_n^0`.
+
+.. image:: O_nm.png 
+
+Unfortunately, finding the assignment based on maximizing the overlaps
+is known to fail if the one of the wavefunction sets `\{ |\tilde{\psi}_{n}\rangle \}`
+is rotated by an arbitrary unitary matrix [#cite_ref]_.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Maximizing subspace projections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+A more stable method can be employed noticing that the optimization task needs to be performed
+only for the subspaces of the occupations numbers, where a subspace is defined by all the orbitals
+`\{ |\tilde{\psi}_{n}\rangle \}_s` having the same occupation number `f^s`.
+
+
+An occupation number of `f^s` is given to the first `N`
+orbitals with the biggest numerical weights, evaluated as
+[#dongmom]_:
+
+.. math::
+   :label: eq:mommaxoverlap
+
+    P_{m}^{(k)} = \max_{n}\left( |O_{nm}^{(k)}| \right)
+
+Alternatively, the numerical weights can be evaluated as
+the following projections onto the manifold `\{|\psi_{n}\rangle\}_{s}`
+[#imom]_:
+
+.. math::
+   :label: eq:momprojections
+
+    P_{m}^{(k)} = \left(\sum_{n=1}^{N}  |O_{nm}^{(k)}|^{2} \right)^{1/2}
+
+
 
 ~~~~~~~~~~~~~~
 How to use MOM
