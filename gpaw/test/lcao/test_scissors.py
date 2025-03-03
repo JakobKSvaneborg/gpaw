@@ -1,10 +1,10 @@
 import pytest
 from ase import Atoms
-from ase.build import mx2
 from gpaw.new.ase_interface import GPAW
 from gpaw.lcao.scissors import non_self_consistent_scissors_shift as nsc_shift
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.mpi import world
+
 
 def test_scissors():
     """Opens gap in one of two isolated H2 moleculs."""
@@ -23,7 +23,7 @@ def test_scissors():
                    txt=None)
     h2.get_potential_energy()
     eigs1 = h2.calc.get_eigenvalues()
-    
+
     i, ii, iii, iv = eigs1
     assert ii - i == pytest.approx(d, abs=0.01)
     assert iv - iii == pytest.approx(d, abs=0.01)

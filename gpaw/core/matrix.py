@@ -1042,7 +1042,7 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
             m1 = min(rrank * m, M)
             m2 = min(m1 + m, M)
             if m2 > m1:
-                rrequest = comm.receive(buf1[:m2 - m1], rrank, 11, False)  
+                rrequest = comm.receive(buf1[:m2 - m1], rrank, 11, False)
                 # XXX: BUFFER OVERFLOW WHEN M < N!!!!
                 # SO WE GET SEGGFAULT
             if mym > 0:
