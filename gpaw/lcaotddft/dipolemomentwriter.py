@@ -159,3 +159,55 @@ class DipoleMomentWriter(TDDFTObserver):
 
     def __del__(self):
         self.ioctx.close()
+
+
+class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
+    """Observer for writing time-dependent velocity-kick density for test purposes.
+
+    The data is written in atomic units.
+
+    The observer attaches to the TDDFT calculator during creation.
+
+    Parameters
+    ----------
+    paw
+        TDDFT calculator
+    filename
+        File for writing density data
+    """
+    version = 5
+    def __init__(self, paw, filename: str, interval: int = 1):
+        super().__init__(paw, interval)
+        self.ioctx = IOContext()
+        mode = paw.wfs.mode
+        assert mode in ['lcao']
+
+        if paw.niter == 0:
+            self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='w')
+        else:
+            self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='a')
+        self._write_header(paw, {})
+
+    def _write(self, line):
+        self.fd.write(line)
+        self.fd.flush()
+
+    def _write_header(self, paw, kwargs):
+        self._write("""# DipoleMor[version=1](center=False, density='comp')
+#            time            norm                    dmx                    dmy                    dmz
+# Start; Time = 0.00000000
+          0.00000000       2.50928403e-15    -2.313281359846e-14     6.813825387633e-15    -1.663624500112e-14
+# Kick = [    1.000000000000e-04,     0.000000000000e+00,     0.000000000000e+00]; Time = 0.00000000
+""")
+
+    def _read_header(self, filename):
+        with open(filename, encoding='utf-8') as fd:
+            line = fd.readline()
+        try:
+            name, version, kwargs = parse_header(line[2:])
+        except ValueError as e:
+            raise ValueError(f'File {filename} cannot be parsed: {e}')
+        if name != self.__class__.__name__:
+            raise ValueError(f'File {filename} is not '
+                             f'for {self.__class__.__name__}')
+        if version != self.version:
