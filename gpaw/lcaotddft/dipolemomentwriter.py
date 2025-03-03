@@ -193,13 +193,13 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
         self.fd.flush()
 
     def _write_header(self, paw, kwargs):
-        self._write("""# DipoleMor[version=1](center=False, density='comp')
-#            time            norm                    dmx                    dmy                    dmz
-# Start; Time = 0.00000000
-          0.00000000       2.50928403e-15    -2.313281359846e-14     6.813825387633e-15    -1.663624500112e-14
-# Kick = [    1.000000000000e-04,     0.000000000000e+00,     0.000000000000e+00]; Time = 0.00000000
-""")
-
+        origin_v = get_origin_coordinates( paw.atoms, kwargs['origin'], kwargs['origin_shift'])
+        lines = [f'{self.__class__.__name__}[version={self.version}]'
+                 f'(**{json.dumps(kwargs)})',
+                 'origin_v = [%.6f, %.6f, %.6f] Å' % tuple(origin_v * Bohr)]
+        self._write('# ' + '\n# '.join(lines) + '\n')
+        self._write(f'# {"time":>15} {"rho_vkick_x":>17} {"rho_vkick_y":>22} {"rho_vkick_z":>22}\n')
+    
     def _read_header(self, filename):
         with open(filename, encoding='utf-8') as fd:
             line = fd.readline()
@@ -211,3 +211,43 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
             raise ValueError(f'File {filename} is not '
                              f'for {self.__class__.__name__}')
         if version != self.version:
+            raise ValueError(f'File {filename} is not '
+                             f'of version {self.version}')
+        return kwargs
+
+    def _write_init(self, paw):
+        time = paw.time
+        line = '# Start; Time = %.8lf\n' % time
+        self._write(line)
+
+    def _write_kick(self, paw):
+        time = paw.time
+        kick = paw.kick_strength
+        line = '# Kick = [%22.12le, %22.12le, %22.12le]; ' % tuple(kick)
+        line += 'Time = %.8lf\n' % time
+        self._write(line)
+
+    def _calculate_v(self, paw):
+        C_nM = paw.wfs.kpt_u[0].C_nM
+        f_n = paw.wfs.kpt_u[0].f_n
+        rho_MM = C_nM.T.conj() @ (f_n[:, None] * C_nM)
+        Vkick_MM = paw.wfs.kpt_u[0].Vkick_MM
+        return [np.sum((rho_MM * Vkick_MM.conj()).ravel()), 0,0]
+
+    def _write_v(self, paw):
+        time = paw.time
+        v_v = self._calculate_v(paw)
+        line = ('%20.8lf %22.12le %22.12le %22.12le %22.12le\n'
+                % (time, 0.0, v_v[0], v_v[1], v_v[2]))
+        self._write(line)
+
+    def _update(self, paw):
+        if paw.action == 'init':
+            self._write_init(paw)
+        elif paw.action == 'kick':
+            self._write_kick(paw)
+        self._write_v(paw)
+
+    def __del__(self):
+        self.ioctx.close()
+
