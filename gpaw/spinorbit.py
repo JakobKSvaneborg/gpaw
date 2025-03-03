@@ -212,7 +212,7 @@ class BZWaveFunctions:
         else:
             fermi_level = 0.0
 
-        if self.domain_comm.rank == 0 and self.bcomm.rank == 0:
+        if self.domain_comm.rank == 0:
             fermi_level = self.bcomm.sum_scalar(fermi_level)
         fermi_level = self.domain_comm.sum_scalar(fermi_level)
 
