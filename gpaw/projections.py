@@ -69,14 +69,15 @@ class Projections(Mapping):
 
     def new(self, bcomm='inherit', nbands=None, atom_partition=None):
         if bcomm == 'inherit':
-            if self.bdist is not None:
+            if hasattr(self, 'bdist'):
                 return Projections(
                     nbands or self.nbands, self.nproj_a,
-                    self.atom_partition if atom_partition is None else atom_partition,
+                    self.atom_partition if atom_partition is None
+                    else atom_partition,
                     collinear=self.collinear,
                     spin=self.spin,
                     dtype=self.matrix.dtype,
-                    bdist = self.bdist)
+                    bdist=self.bdist)
             else:
                 bcomm = self.bcomm
         elif bcomm is None:
