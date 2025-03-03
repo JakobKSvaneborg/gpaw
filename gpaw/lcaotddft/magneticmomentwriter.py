@@ -479,7 +479,7 @@ class MagneticMomentWriter(TDDFTObserver):
         assert isinstance(origin, str)
         assert isinstance(origin_shift, list)
         origin_v = get_origin_coordinates(atoms, origin, origin_shift)
-        R_av = atoms.positions / Bohr# - origin_v[np.newaxis, :]
+        R_av = atoms.positions / Bohr - origin_v[np.newaxis, :]
         r_vG, _ = coordinates(gd, origin=origin_v)
 
         dM_vaii = calculate_magnetic_moment_atomic_corrections(
