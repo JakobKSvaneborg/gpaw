@@ -140,6 +140,7 @@ class WaveFunctions:
             for D_sii, P_ni in zips(D_asii.values(), P_ani.values()):
                 D_sii[self.spin] += xp.einsum('ni, n, nj -> ij',
                                               P_ni.conj(), occ_n, P_ni).real
+                # XXX: Why do we not sum over band-comms? I guess this is done later
         else:
             for D_xii, P_nsi in zips(D_asii.values(), self.P_ani.values()):
                 add_to_4component_density_matrix(D_xii, P_nsi, occ_n, xp)

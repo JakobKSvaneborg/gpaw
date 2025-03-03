@@ -113,7 +113,7 @@ class SCFLoop:
                 raise TooFewBandsError
 
             if self.update_density_and_potential:
-                density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
+                density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')  # XXX: This method fails with band parallelization in LCAO mode
                 dens_error = self.mixer.mix(density)
                 potential, energies, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)

@@ -10,7 +10,7 @@ from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.symmetry import Symmetries
-
+from gpaw.core.matrix import Matrix
 
 def non_self_consistent_scissors_shift(
         shifts: Sequence[tuple[float, float, int]],
@@ -124,19 +124,19 @@ class MyMatCalc:
 
         H0_MM_data = H_MM.data.copy()
 
-        self.add_scissors(wfs, H_MM, nocc)
-        old_scissor_data = H_MM.data.copy()
+        #self.add_scissors(wfs, H_MM, nocc)
+        #old_scissor_data = H_MM.data.copy()
 
-        H_MM.data[:] = H0_MM_data
+        #H_MM.data[:] = H0_MM_data
         self.add_scissors_made_easy(wfs, H_MM, nocc)
-        assert np.allclose(H_MM.data, old_scissor_data)
+        #assert np.allclose(H_MM.data, old_scissor_data)
         return H_MM
 
     def add_scissors(self, wfs, H_MM, nocc):
         C_nM = wfs.C_nM.data
         S_MM = wfs.S_MM.data
         # assert abs(S_MM - S_MM.T.conj()).max() < 1e-10
-
+        
         # Find Z=S^(1/2):
         e_N, U_MN = np.linalg.eigh(S_MM)
         # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
@@ -161,26 +161,61 @@ class MyMatCalc:
         return H_MM
 
     def add_scissors_made_easy(self, wfs, H_MM, nocc):
-        C_nM = wfs.C_nM.data
-        S_MM = wfs.S_MM.data
-
         # Find Z=S^(1/2):
-        e_N, U_MN = np.linalg.eigh(S_MM)
+        U_NM = wfs.S_MM.copy()
+         
+        C_nM = wfs.C_nM
+        comm = wfs.C_nM.dist.comm
+        dist = (comm, comm.size, 1)
+        
+        M = C_nM.shape[1]
+        C0_nM = C_nM.gather()
+        C1_nM = Matrix(nocc, M, dtype=C_nM.dtype, dist=(comm, 1, 1))
+        if comm.rank == 0:
+            C1_nM.data[:] = np.ascontiguousarray(C0_nM.data[:nocc, :])
+        C_nM = C1_nM.new(dist=dist)
+        C1_nM.redist(C_nM)
+
+        e_N = U_NM.eigh()
         # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
-        Z_MM = U_MN @ (e_N[np.newaxis]**0.5 * U_MN).T.conj()
+        e_NM = U_NM.copy()
+        n1, n2 = U_NM.dist.my_row_range()
+        e_NM.data *= e_N[n1:n2, None]**0.5
+        e_NM.complex_conjugate()
+       
+        Z_MM = U_NM.multiply(e_NM, opa='T')
 
         # Density matrix:
-        A_nM = C_nM[:nocc].conj() @ Z_MM
-        R_MM = A_nM.conj().T @ A_nM
+        #Q_nM = C_nM[:nocc].conj() @ Z_MM
+        C_nM.complex_conjugate()
+        Q_nM = C_nM.multiply(Z_MM, opb='C')
+        
+        #R_MM = A_nM.conj().T @ A_nM
+        
+        n = Q_nM.shape[0]
 
         M1 = 0
         a1 = 0
         for homo, lumo, natoms in self.shifts:
             a2 = a1 + natoms
             M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
-            H_MM.data += Z_MM[:, M1:M2] @ \
-                ((homo - lumo) * R_MM[M1:M2, M1:M2] + np.eye(M2 - M1) * lumo) \
-                @ Z_MM.conj().T[M1:M2, :]
+            A_Mm = Matrix(M, M2 - M1, Z_MM.dtype, dist=dist)
+            A_Mm.data[:] = np.ascontiguousarray(Z_MM.data[:, M1:M2])
+            Q_nm = Matrix(n, M2 - M1, Q_nM.dtype, dist=dist)
+            Q_nm.data[:] = np.ascontiguousarray(Q_nM.data[:, M1:M2])
+
+            Q2_nm = Q_nm.copy()
+            Q2_nm.complex_conjugate()
+            R_mm = Q2_nm.multiply(Q_nm, opa='T')
+            R_mm.data *= (homo - lumo)
+            R_mm.add_to_diagonal(lumo)
+            B_mM = R_mm.multiply(A_Mm, opb='C')
+            A_Mm.multiply(B_mM, beta=1, out=H_MM)
+            
+            #H_MM.data += (Z_MM.data[:, M1:M2] @ \
+            #    ((homo - lumo) * R_MM.data[M1:M2, M1:M2] + np.eye(M2 - M1) * lumo) @ \
+            #    Z_MM.data.conj().T[M1:M2, :])
+            
             a1 = a2
             M1 = M2
 

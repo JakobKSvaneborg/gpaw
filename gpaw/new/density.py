@@ -215,7 +215,7 @@ class Density:
         self.D_asii.data[:] = 0.0
         ibzwfs.add_to_density(self.nt_sR, self.D_asii)
         self.nt_sR.data[:self.ndensities] += self.nct_R.data
-
+        
         # LCAO ...:
         ibzwfs.normalize_density(self)
 
