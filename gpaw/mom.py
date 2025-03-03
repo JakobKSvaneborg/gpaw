@@ -17,6 +17,7 @@ from scipy.optimize import linear_sum_assignment
 def prepare_mom_calculation(calc,
                             atoms,
                             numbers,
+                            match_orbitals=False,
                             use_projections=True,
                             update_numbers=True,
                             use_fixed_occupations=False,
@@ -32,6 +33,9 @@ def prepare_mom_calculation(calc,
     numbers: list (len=nspins) of lists (len=nbands)
         Occupation numbers (in the range from 0 to 1). Used
         for the initialization of the MOM reference orbitals.
+    match_orbitals: bool
+        If True try to match the orbitals directly based on their overlap.
+        If False (default) use occupation number subspaces instead.
     use_projections: bool
         If True (default), the occupied orbitals at iteration k are
         chosen as the orbitals ``|psi^(k)_m>`` with the biggest
@@ -77,6 +81,7 @@ def prepare_mom_calculation(calc,
 
     occ_mom = OccupationsMOM(calc.wfs,
                              numbers,
+                             match_orbitals,
                              use_projections,
                              update_numbers,
                              use_fixed_occupations,
@@ -105,6 +110,7 @@ class OccupationsMOM:
     def __init__(self,
                  wfs,
                  numbers,
+                 match_orbitals=False,
                  use_projections=False,
                  update_numbers=True,
                  use_fixed_occupations=False,
@@ -113,6 +119,7 @@ class OccupationsMOM:
                  width_increment=0.0):
         self.wfs = wfs
         self.numbers = np.array(numbers)
+        self.match_orbitals = match_orbitals
         self.use_projections = use_projections
         self.update_numbers = update_numbers
         self.use_fixed_occupations = use_fixed_occupations
@@ -133,6 +140,7 @@ class OccupationsMOM:
     def todict(self):
         dct = {'name': self.name,
                'numbers': self.numbers,
+               'match_orbitals': self.match_orbitals,
                'use_projections': self.use_projections,
                'update_numbers': self.update_numbers,
                'use_fixed_occupations': self.use_fixed_occupations}
@@ -195,28 +203,42 @@ class OccupationsMOM:
             self.initialized = True
             return
 
+        # initial occupations numbers
+        self.f_sn0 = self.numbers.copy()
+
         # Initialize MOM reference orbitals for each equally
         # occupied subspace separately
-        self.subspace_mask = self.find_unique_occupation_numbers()
+        self.subs_mask = self.find_unique_occupation_numbers()
         if self.wfs.mode == 'lcao':
             self.c_ref = {}
             for kpt in self.wfs.kpt_u:
                 self.c_ref[kpt.s] = {}
-                for f_n_unique in self.subspace_mask[kpt.s]:
-                    occupied = self.subspace_mask[kpt.s][f_n_unique]
-                    self.c_ref[kpt.s][f_n_unique] = kpt.C_nM[occupied].copy()
+
+                self.c_ref[kpt.s]['all'] = kpt.C_nM[:].copy()
+
+                for fs_key in self.subs_mask[kpt.s]:
+                    occupied = self.subs_mask[kpt.s][fs_key]
+                    self.c_ref[kpt.s][fs_key] = kpt.C_nM[occupied].copy()
         else:
             self.wf = {}
             self.p_an = {}
             for kpt in self.wfs.kpt_u:
                 self.wf[kpt.s] = {}
                 self.p_an[kpt.s] = {}
-                for f_n_unique in self.subspace_mask[kpt.s]:
-                    occupied = self.subspace_mask[kpt.s][f_n_unique]
+
+                # Pseudo wave functions
+                self.wf[kpt.s]['all'] = kpt.psit_nG[:].copy()
+                # Atomic contributions times projector overlaps
+                self.p_an[kpt.s]['all'] = \
+                    {a: np.dot(self.wfs.setups[a].dO_ii, P_ni[:].T)
+                     for a, P_ni in kpt.P_ani.items()}
+
+                for fs_key in self.subs_mask[kpt.s]:
+                    occupied = self.subs_mask[kpt.s][fs_key]
                     # Pseudo wave functions
-                    self.wf[kpt.s][f_n_unique] = kpt.psit_nG[occupied].copy()
+                    self.wf[kpt.s][fs_key] = kpt.psit_nG[occupied].copy()
                     # Atomic contributions times projector overlaps
-                    self.p_an[kpt.s][f_n_unique] = \
+                    self.p_an[kpt.s][fs_key] = \
                         {a: np.dot(self.wfs.setups[a].dO_ii, P_ni[occupied].T)
                          for a, P_ni in kpt.P_ani.items()}
 
@@ -238,47 +260,50 @@ class OccupationsMOM:
                 # subspace of the reference orbitals and occupy orbitals
                 # with biggest weights
 
-                # number of subspaces
-                nsubs = len(self.subspace_mask[kpt.s])
-                if nsubs == 1:
-                    # we can just occupy the orbitals
-                    # with largest projections
-                    f_n_unique = list(self.subspace_mask[kpt.s].keys())[0]
-                    subspace_mask = self.subspace_mask[kpt.s][f_n_unique]
-                    sub_size = np.sum(subspace_mask)
-                    P_m = self.calculate_weights(kpt, f_n_unique)
-
-                    # we could use np.argpartition here
-                    # but argsort is better readable
-                    occ_mask = np.argsort(P_m)[::-1][:sub_size]
-                    f_sn[kpt.s][occ_mask] = f_n_unique
+                if self.match_orbitals:
+                    pass
                 else:
-                    # for more than one subspace we need to figure out the
-                    # assignment with the maximum projections
+                    # number of subspaces
+                    nsubs = len(self.subs_mask[kpt.s])
+                    if nsubs == 1:
+                        # we can just occupy the orbitals
+                        # with largest projections
+                        fs_key = list(self.subs_mask[kpt.s].keys())[0]
+                        subs_mask = self.subs_mask[kpt.s][fs_key]
+                        subs_size = np.sum(subs_mask)
+                        P_m = self.calculate_weights(kpt, fs_key)
 
-                    nband = len(self.numbers[kpt.s])
-                    noccupied = np.sum(self.numbers[kpt.s] > 1.0e-10)
-                    Ps_m = np.zeros((noccupied, nband))
+                        # we could use np.argpartition here
+                        # but argsort is better readable
+                        occ_mask = np.argsort(P_m)[::-1][:subs_size]
+                        f_sn[kpt.s][occ_mask] = fs_key
+                    else:
+                        # for more than one subspace we need to figure out the
+                        # assignment with the maximum projections
 
-                    fs = []
-                    nn = 0
-                    for ss, f_n_unique in enumerate(self.subspace_mask[kpt.s]):
-                        subspace_mask = self.subspace_mask[kpt.s][f_n_unique]
-                        sub_size = np.sum(subspace_mask)
-                        # Ps_m ... projections of the subspace orbitals
-                        # to the scf orbitals from the k-iteration
-                        w = self.calculate_weights(kpt, f_n_unique)
-                        Ps_m[nn: nn + sub_size, :] = w[None, :]
-                        fs += sub_size * [f_n_unique]
-                        nn += sub_size
+                        nband = len(self.numbers[kpt.s])
+                        noccupied = np.sum(self.numbers[kpt.s] > 1.0e-10)
+                        Ps_m = np.zeros((noccupied, nband))
 
-                    # Optimize assigment of subspace occupations
-                    # such that sum of the selected projections is maximal
-                    row_ind, col_ind = linear_sum_assignment(-Ps_m)
+                        fs = []
+                        nn = 0
+                        for ss, fs_key in enumerate(self.subs_mask[kpt.s]):
+                            subs_mask = self.subs_mask[kpt.s][fs_key]
+                            subs_size = np.sum(subs_mask)
+                            # Ps_m ... projections of the subspace orbitals
+                            # to the scf orbitals from the k-iteration
+                            w = self.calculate_weights(kpt, fs_key)
+                            Ps_m[nn: nn + subs_size, :] = w[None, :]
+                            fs += subs_size * [fs_key]
+                            nn += subs_size
 
-                    # assign band index (=col_ind) with occupation number
-                    assert (all(row_ind == np.arange(noccupied)))
-                    f_sn[kpt.s][col_ind] = fs[:]
+                        # Optimize assigment of subspace occupations
+                        # such that sum of the selected projections is maximal
+                        row_ind, col_ind = linear_sum_assignment(-Ps_m)
+
+                        # assign band index (=col_ind) with occupation number
+                        assert (all(row_ind == np.arange(noccupied)))
+                        f_sn[kpt.s][col_ind] = fs[:]
 
                 if self.update_numbers:
                     self.numbers[kpt.s] = f_sn[kpt.s].copy()
@@ -299,18 +324,18 @@ class OccupationsMOM:
 
         return f_sn
 
-    def calculate_weights(self, kpt, f_n_unique):
+    def calculate_weights(self, kpt, fs_key):
         if self.wfs.mode == 'lcao':
-            O = np.dot(self.c_ref[kpt.s][f_n_unique].conj(),
+            O = np.dot(self.c_ref[kpt.s][fs_key].conj(),
                        np.dot(kpt.S_MM, kpt.C_nM[:].T))
         else:
             # Pseudo wave function overlaps
-            O = self.wfs.integrate(self.wf[kpt.s][f_n_unique][:],
+            O = self.wfs.integrate(self.wf[kpt.s][fs_key][:],
                                    kpt.psit_nG[:][:], True)
 
             # Atomic contributions
             O_corr = np.zeros_like(O)
-            for a, p_a in self.p_an[kpt.s][f_n_unique].items():
+            for a, p_a in self.p_an[kpt.s][fs_key].items():
                 O_corr += np.dot(kpt.P_ani[a][:].conj(), p_a).T
             O_corr = np.ascontiguousarray(O_corr)
             self.wfs.gd.comm.sum(O_corr)
@@ -360,8 +385,8 @@ class OccupationsMOM:
             f_sn_unique[kpt.s] = {}
             f_n = self.numbers[kpt.s]
 
-            for f_n_unique in np.unique(f_n):
-                if f_n_unique >= 1.0e-10:
-                    f_sn_unique[kpt.s][f_n_unique] = f_n == f_n_unique
+            for fs_key in np.unique(f_n):
+                if fs_key >= 1.0e-10:
+                    f_sn_unique[kpt.s][fs_key] = f_n == fs_key
 
         return f_sn_unique
