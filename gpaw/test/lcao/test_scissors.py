@@ -11,7 +11,7 @@ def test_scissors():
     h2 = Atoms('2H2', [[0, 0, 0], [0, 0, 0.74],
                        [4, 0, 0], [4, 0, 0.74]])
     h2.center(vacuum=3.0)
-    d = 1
+    d = 1.0
     h2.calc = GPAW(mode='lcao',
                    basis='sz(dzp)',
                    eigensolver={'name': 'scissors',

@@ -123,14 +123,7 @@ class MyMatCalc:
         except ValueError:
             return H_MM
 
-        # H0_MM_data = H_MM.data.copy()
-
-        # self.add_scissors(wfs, H_MM, nocc)
-        # old_scissor_data = H_MM.data.copy()
-
-        # H_MM.data[:] = H0_MM_data
         self.add_scissors_made_easy(wfs, H_MM, nocc)
-        # assert np.allclose(H_MM.data, old_scissor_data)
         return H_MM
 
     def add_scissors(self, wfs, H_MM, nocc):
