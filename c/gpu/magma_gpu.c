@@ -50,12 +50,15 @@ static magma_int_t _eigh_magma_dsyevd_gpu(int matrix_size, magma_uplo_t uplo,
     workgroup.lwork = (magma_int_t) work_temp;
     workgroup.liwork = iwork_temp;
 
-    // All buffers apart from the input matrix are in HOST memory
-    workgroup.work = malloc(workgroup.lwork * sizeof(double));
-    workgroup.iwork = malloc(workgroup.liwork * sizeof(magma_int_t));
+    // All buffers apart from the input matrix are in HOST memory.
+    // Use MAGMA allocators instead of malloc for possibly better alignment
+    MAGMA_CHECK(magma_dmalloc_cpu(&workgroup.work, workgroup.lwork));
+    MAGMA_CHECK(magma_imalloc_cpu(&workgroup.iwork, workgroup.liwork));
 
-    double* h_wA = malloc(matrix_size * lda * sizeof(double));
-    double* h_eigvals = malloc(matrix_size * sizeof(double));
+    double* h_wA;
+    double* h_eigvals;
+    MAGMA_CHECK(magma_dmalloc_cpu(&h_wA, matrix_size * lda));
+    MAGMA_CHECK(magma_dmalloc_cpu(&h_eigvals, matrix_size));
 
     magma_dsyevd_gpu(jobz, uplo, matrix_size, inout_eigvects, lda,
         h_eigvals, h_wA, lda, workgroup.work, workgroup.lwork,
@@ -65,11 +68,10 @@ static magma_int_t _eigh_magma_dsyevd_gpu(int matrix_size, magma_uplo_t uplo,
     // copy eigenvalues to device output buffer
     gpuMemcpy(inout_eigvals, h_eigvals, matrix_size * sizeof(double), gpuMemcpyHostToDevice);
 
-
-    free(h_wA);
-    free(workgroup.work);
-    free(workgroup.iwork);
-    free(h_eigvals);
+    magma_free(h_wA);
+    magma_free(workgroup.work);
+    magma_free(workgroup.iwork);
+    magma_free(h_eigvals);
 
     return status;
 }
@@ -105,12 +107,14 @@ static magma_int_t _eigh_magma_zheevd_gpu(int matrix_size, magma_uplo_t uplo,
     workgroup.lrwork = (magma_int_t) rwork_temp;
     workgroup.liwork = iwork_temp;
 
-    workgroup.work = malloc(workgroup.lwork * sizeof(magmaDoubleComplex));
-    workgroup.rwork = malloc(workgroup.lrwork * sizeof(double));
-    workgroup.iwork = malloc(workgroup.liwork * sizeof(magma_int_t));
+    MAGMA_CHECK(magma_zmalloc_cpu(&workgroup.work, workgroup.lwork));
+    MAGMA_CHECK(magma_dmalloc_cpu(&workgroup.rwork, workgroup.lrwork));
+    MAGMA_CHECK(magma_imalloc_cpu(&workgroup.iwork, workgroup.liwork));
 
-    magmaDoubleComplex* h_wA = malloc(matrix_size * lda * sizeof(magmaDoubleComplex));
-    double* h_eigvals = malloc(matrix_size * sizeof(double));
+    magmaDoubleComplex* h_wA;
+    double* h_eigvals;
+    MAGMA_CHECK(magma_zmalloc_cpu(&h_wA, matrix_size * lda));
+    MAGMA_CHECK(magma_dmalloc_cpu(&h_eigvals, matrix_size));
 
     magma_zheevd_gpu(jobz, uplo, matrix_size, inout_eigvects, lda,
         h_eigvals, h_wA, lda, workgroup.work, workgroup.lwork,
@@ -122,11 +126,11 @@ static magma_int_t _eigh_magma_zheevd_gpu(int matrix_size, magma_uplo_t uplo,
     gpuMemcpy(inout_eigvals, h_eigvals, matrix_size * sizeof(double), gpuMemcpyHostToDevice);
 
 
-    free(h_wA);
-    free(workgroup.work);
-    free(workgroup.rwork);
-    free(workgroup.iwork);
-    free(h_eigvals);
+    magma_free(h_wA);
+    magma_free(workgroup.work);
+    magma_free(workgroup.rwork);
+    magma_free(workgroup.iwork);
+    magma_free(h_eigvals);
 
     return status;
 

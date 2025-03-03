@@ -11,6 +11,14 @@
 #include <magma_auxiliary.h>
 #include <magma_types.h>
 
+/* Check error code of a MAGMA function. This is intended for fatal errors,
+so we assert on failure. */
+#define MAGMA_CHECK(expr)               \
+    do {                                \
+        magma_int_t res = expr;         \
+        assert(res == MAGMA_SUCCESS);   \
+    } while (0)
+
 
 static inline magma_uplo_t get_magma_uplo(char* in_uplo_str)
 {
