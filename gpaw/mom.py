@@ -261,8 +261,19 @@ class OccupationsMOM:
                 # with biggest weights
 
                 if self.match_orbitals:
-                    pass
+                    # match orbitals directly
+                    # assign occupations based on match
+
+                    # calculate overlap
+                    O_nm = self.calculate_weights(kpt, 'all')
+                    # find permutation maximizing overlap (absolute value)
+                    _, col_ind = linear_sum_assignment(-np.abs(O_nm))
+                    # map to the initial occupations
+                    f_sn[kpt.s] = self.f_sn0[kpt.s][col_ind]
                 else:
+                    # match occupation number subspaces to bands for
+                    # maximizing weights (projections)
+
                     # number of subspaces
                     nsubs = len(self.subs_mask[kpt.s])
                     if nsubs == 1:
@@ -343,13 +354,19 @@ class OccupationsMOM:
             # Sum pseudo wave and atomic contributions
             O += O_corr
 
-        if self.use_projections:
-            P = np.sum(abs(O)**2, axis=0)
-            P = P**0.5
+        if fs_key == 'all':
+            # direct orbital matching
+            assert self.match_orbitals
+            return O
         else:
-            P = np.amax(abs(O), axis=0)
+            # return subspace weights
+            if self.use_projections:
+                P = np.sum(abs(O)**2, axis=0)
+                P = P**0.5
+            else:
+                P = np.amax(abs(O), axis=0)
 
-        return P
+            return P
 
     def find_hole_and_excited_orbitals(self, f_sn, kpt):
         # Zero-width occupations for ground state
