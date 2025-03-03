@@ -9,30 +9,22 @@ from gpaw.mpi import world
 
 def test_scissors():
     """Opens gap in one of two isolated H2 moleculs."""
-    #h2 = Atoms('2H2', [[0, 0, 0], [0, 0, 0.74],
-    #                   [4, 0, 0], [4, 0, 0.74]])
-    #h2.center(vacuum=3.0)
-    mos2 = mx2('MoS2', vacuum=3.0)
-    mos22 = mos2.repeat((1, 1, 2))
-    h2=mos22
-    d = 0.2
+    h2 = Atoms('2H2', [[0, 0, 0], [0, 0, 0.74],
+                       [4, 0, 0], [4, 0, 0.74]])
+    h2.center(vacuum=3.0)
+    d = 1
     h2.calc = GPAW(mode='lcao',
                    basis='sz(dzp)',
-                   #mode='pw',
-                   kpts={'density': 0.5},
-                   #eigensolver={'name': 'scissors',
-                   #             'shifts': [(-d, d, 3),
-                   #                        (d, -d, 3)]},
+                   eigensolver={'name': 'scissors',
+                                'shifts': [(-d, d, 2)]},
                    symmetry='off',
                    parallel={'domain': 1,
                              'band': world.size,
                              'sl_auto': True},
-                   nbands='nao',)
-                   #txt=None)
+                   txt=None)
     h2.get_potential_energy()
     eigs1 = h2.calc.get_eigenvalues()
     
-    return
     i, ii, iii, iv = eigs1
     assert ii - i == pytest.approx(d, abs=0.01)
     assert iv - iii == pytest.approx(d, abs=0.01)
@@ -47,9 +39,10 @@ def test_scissors():
     assert eigs3 == pytest.approx(eigs1)
 
     # SOC corrections:
-    eigs4 = soc_eigenstates(calc).eigenvalues()[0]
-    assert eigs4[::2] == pytest.approx(eigs1)
-    assert eigs4[1::2] == pytest.approx(eigs1)
+    if world.size == 1:
+        eigs4 = soc_eigenstates(calc).eigenvalues()[0]
+        assert eigs4[::2] == pytest.approx(eigs1)
+        assert eigs4[1::2] == pytest.approx(eigs1)
 
 
 if __name__ == '__main__':
