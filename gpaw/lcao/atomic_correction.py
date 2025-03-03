@@ -31,8 +31,6 @@ class BaseAtomicCorrection:
         self.calculate(kpt.q, dH_aii, H_MM, self.Mstart, self.Mstop)
 
     def add_overlap_correction(self, S_qMM):
-        print('skipping overlap PAW')
-        return
         for q, S_MM in enumerate(S_qMM):
             self.calculate(q, self.dS_aii, S_MM, self.Mstart, self.Mstop)
 
