@@ -53,7 +53,7 @@ commands = {
     'info':
         [],
     'install-data':
-        ['--version', '--tarball', '--list-all', '--gpaw', '--sg15',
+        ['--version', '--list-all', '--tarball', '--gpaw', '--sg15',
          '--basis', '--test', '--register', '--no-register'],
     'python':
         ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
