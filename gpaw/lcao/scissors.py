@@ -50,7 +50,7 @@ def non_self_consistent_scissors_shift(
     for wfs in ibzwfs:
         H_MM = matcalc.calculate_matrix(wfs)
         eig_M = H_MM.eighg(wfs.L_MM, wfs.domain_comm)
-        eig_skn[wfs.spin, wfs.k] = eig_M
+        eig_skn[wfs.spin, wfs.k] = eig_M[:ibzwfs.nbands]
     ibzwfs.kpt_comm.sum(eig_skn)
     return eig_skn * Ha
 
