@@ -153,7 +153,7 @@ class LCAOWaveFunctions(WaveFunctions):
 
         Adds to ``nt_sR`` and ``D_asii``.
         """
-        rho_MM = self.calculate_density_matrix().data
+        rho_MM = self.calculate_density_matrix()
         self.basis.construct_density(rho_MM, nt_sR.data[self.spin], q=self.q)
         f_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.add_to_atomic_density_matrices(f_n, D_asii)
@@ -193,7 +193,7 @@ class LCAOWaveFunctions(WaveFunctions):
             else:
                 C1_nM.complex_conjugate()
                 C1_nM.data *= f_n[:, None]
-            rho_MM = C1_nM.multiply(C2_nM, opa='T')
+            rho_MM = C1_nM.multiply(C2_nM, opa='T').data
         else:
             rho_MM = np.empty_like(self.T_MM.data)
         self.domain_comm.broadcast(rho_MM, 0)
