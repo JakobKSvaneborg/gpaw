@@ -198,7 +198,7 @@ class LCAOWaveFunctions(WaveFunctions):
             rho_MM = np.empty_like(self.T_MM.data)
         self.domain_comm.broadcast(rho_MM, 0)
 
-        return rho_MM[self.n1:self.n2]
+        return rho_MM
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
