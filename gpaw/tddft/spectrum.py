@@ -203,11 +203,16 @@ def calculate_polarizability(kick_v, time_t, dm_tv, foldedfrequencies):
     return alpha_wv
 
 
-def calculate_photoabsorption(kick_v, time_t, dm_tv, foldedfrequencies):
+def calculate_photoabsorption(kick_v, time_t, dm_tv, foldedfrequencies, velocity=False):
     omega_w = foldedfrequencies.frequencies
     alpha_wv = calculate_polarizability(kick_v, time_t, dm_tv,
                                         foldedfrequencies)
-    abs_wv = 2 / np.pi * omega_w[:, np.newaxis] * alpha_wv.imag
+    #p = -1 if velocity else 1
+    #abs_wv = 2 / np.pi * omega_w[:, np.newaxis]**p * alpha_wv.imag
+    if velocity:
+        abs_wv = 2 / np.pi * alpha_wv.real
+    else:
+        abs_wv = 2 / np.pi * omega_w[:, np.newaxis] * alpha_wv.imag
 
     kick_magnitude = np.sqrt(np.sum(kick_v**2))
     abs_wv *= kick_v / kick_magnitude
@@ -311,7 +316,8 @@ def photoabsorption_spectrum(dipole_moment_file: str,
                              width: float = 0.2123,
                              e_min: float = 0.0,
                              e_max: float = 30.0,
-                             delta_e: float = 0.05):
+                             delta_e: float = 0.05,
+                             velocity: bool = False):
     """Calculates photoabsorption spectrum from the time-dependent
     dipole moment.
 
@@ -344,7 +350,7 @@ def photoabsorption_spectrum(dipole_moment_file: str,
               % dipole_moment_file)
 
         def calculate(*args):
-            return calculate_photoabsorption(*args) / au_to_eV
+            return calculate_photoabsorption(*args, velocity=velocity) / au_to_eV
         sinc = write_spectrum(dipole_moment_file, spectrum_file,
                               folding, width, e_min, e_max, delta_e,
                               'Photoabsorption', 'S', calculate)

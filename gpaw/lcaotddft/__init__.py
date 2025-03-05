@@ -185,7 +185,7 @@ class OldLCAOTDDFT(GPAW):
             # Propagate kick
             self.propagator.kick(cef, self.time)
         else:
-            self.propagator.velocity_gauge_kick(magnitude * Hartree / Bohr, direction, self.time)
+            self.propagator.velocity_gauge_kick(magnitude, direction, self.time)
 
         # Call observers after kick
         self.action = 'kick'

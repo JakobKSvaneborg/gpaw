@@ -1,4 +1,5 @@
 import re
+import json
 
 import numpy as np
 
@@ -193,10 +194,9 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
         self.fd.flush()
 
     def _write_header(self, paw, kwargs):
-        origin_v = get_origin_coordinates( paw.atoms, kwargs['origin'], kwargs['origin_shift'])
+        from gpaw.lcaotddft.magneticmomentwriter import get_origin_coordinates
         lines = [f'{self.__class__.__name__}[version={self.version}]'
-                 f'(**{json.dumps(kwargs)})',
-                 'origin_v = [%.6f, %.6f, %.6f] Å' % tuple(origin_v * Bohr)]
+                 f'(**{json.dumps(kwargs)})']
         self._write('# ' + '\n# '.join(lines) + '\n')
         self._write(f'# {"time":>15} {"rho_vkick_x":>17} {"rho_vkick_y":>22} {"rho_vkick_z":>22}\n')
     
@@ -231,8 +231,8 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
         C_nM = paw.wfs.kpt_u[0].C_nM
         f_n = paw.wfs.kpt_u[0].f_n
         rho_MM = C_nM.T.conj() @ (f_n[:, None] * C_nM)
-        Vkick_MM = paw.wfs.kpt_u[0].Vkick_MM
-        return [np.sum((rho_MM * Vkick_MM.conj()).ravel()), 0,0]
+        Vkick_vMM = paw.wfs.kpt_u[0].Vkick_vMM
+        return [np.sum((rho_MM * Vkick_MM.conj()).ravel()) for Vkick_MM in Vkick_vMM]
 
     def _write_v(self, paw):
         time = paw.time

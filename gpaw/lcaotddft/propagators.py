@@ -238,19 +238,50 @@ class ECNPropagator(LCAOPropagator):
         ksl = self.wfs.ksl
         gcomm = self.wfs.gd.comm
         manytci = self.wfs.manytci
-        O_qvMM = manytci.O_qMM_T_qMM(gcomm,
+        Vkick_qvMM = manytci.O_qMM_T_qMM(gcomm,
                                      ksl.Mstart,
                                      ksl.Mstop,
                                      ignore_upper=ksl.using_blacs,
-                                     derivative=True)[0]
+                                     derivative=True)[0] 
+
+        dnabla_vaii = { v: { a: -setup.nabla_iiv[:, :, v] for a, setup in enumerate(self.wfs.setups)} for v in range(3)}
         for kpt in self.wfs.kpt_u:
+            for v in range(3):
+                #Vkick_qvMM[kpt.q][v][:] = 0.0
+                self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v], Vkick_qvMM[kpt.q][v], ksl.Mstart, ksl.Mstop)
+
+            #from gpaw.lcao.dipoletransition import get_momentum_transitions, get_dipole_transitions
+            #d_vnn = get_momentum_transitions(self.wfs)[0][0]  <- this was the reference
+            #d_vnn = get_dipole_transitions(self.wfs, velocity=True)[0][0]
+
+            kpt.Vkick_vMM = Vkick_qvMM[kpt.q] * (-1j)
+            kpt.A_MM = magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vMM)
+            kpt.A_MM += kpt.A_MM.T.conj()
+            kpt.A_MM /= 2
+
+            """ 
+            C_nM = kpt.C_nM
+            myd_vnn = []
+            for v in range(3):
+                myd_vnn.append(-C_nM.conj() @ Vkick_qvMM[kpt.q][v].conj() @ C_nM.T)
+            myd_vnn = np.array(myd_vnn) * (-1j)
+        
+            print('myd_vnn', myd_vnn.shape)
+            print('d_vnn', d_vnn.shape)
+            for n in range(22):
+                for n2 in range(22):
+                    if np.abs(myd_vnn[0, n, n2] - d_vnn[0, n, n2]) > 1e-5:
+                        print('bad', n, n2, myd_vnn[0, n, n2], d_vnn[0, n, n2], C_nM[n, 0], C_nM[n2, 0])
+                    else:
+                        print('good', n, n2, myd_vnn[0, n, n2], d_vnn[0, n, n2], C_nM[n, 0], C_nM[n2, 0])
+
+            assert np.allclose(myd_vnn, d_vnn, 1e-5)
+
             import code
             code.interact(local=locals())
-            Vkick_MM = 1j * np.einsum('vAB,v->AB', O_qvMM[kpt.q], direction) * magnitude
-            kpt.Vkick_MM = Vkick_MM 
-            print(Vkick_MM, 'kicking')
-            for i in range(10):
-                self.propagate_wfs(kpt.C_nM, kpt.C_nM, kpt.S_MM, Vkick_MM, 0.1)
+            #for i in range(10):
+            #    self.propagate_wfs(kpt.C_nM, kpt.C_nM, kpt.S_MM, magnitude * np.einsum('v,vMN->MN', direction, Vkick_qvMM[kpt.q]), 0.1)
+            """
 
         # Update Hamiltonian (and density)
         self.hamiltonian.update()
