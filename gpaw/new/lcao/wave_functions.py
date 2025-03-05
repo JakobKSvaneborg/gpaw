@@ -186,14 +186,13 @@ class LCAOWaveFunctions(WaveFunctions):
             if eigs:
                 f_n *= self.myeig_n
             C2_nM = self.C_nM.copy()
-            C1_nM = self.C_nM.copy()            
+            C1_nM = self.C_nM.copy()
             if transposed:
                 C1_nM.data *= f_n[:, None]
                 C2_nM.complex_conjugate()
             else:
                 C1_nM.complex_conjugate()
                 C1_nM.data *= f_n[:, None]
-                
             rho_MM = C1_nM.multiply(C2_nM, opa='T')
         else:
             rho_MM = np.empty_like(self.T_MM.data)
