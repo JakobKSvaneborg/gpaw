@@ -153,7 +153,7 @@ class LCAOWaveFunctions(WaveFunctions):
 
         Adds to ``nt_sR`` and ``D_asii``.
         """
-        rho_MM = self.calculate_density_matrix()
+        rho_MM = self.calculate_density_matrix().data
         self.basis.construct_density(rho_MM, nt_sR.data[self.spin], q=self.q)
         f_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.add_to_atomic_density_matrices(f_n, D_asii)
@@ -185,17 +185,21 @@ class LCAOWaveFunctions(WaveFunctions):
             f_n = self.weight * self.spin_degeneracy * self.myocc_n
             if eigs:
                 f_n *= self.myeig_n
-            C_nM = self.C_nM.data
+            C2_nM = self.C_nM.copy()
+            C1_nM = self.C_nM.copy()            
             if transposed:
-                rho_MM = (C_nM.T * f_n) @ C_nM.conj()
+                C1_nM.data *= f_n[:, None]
+                C2_nM.complex_conjugate()
             else:
-                rho_MM = (C_nM.T.conj() * f_n) @ C_nM
-            self.band_comm.sum(rho_MM)
+                C1_nM.complex_conjugate()
+                C1_nM.data *= f_n[:, None]
+                
+            rho_MM = C1_nM.multiply(C2_nM, opa='T')
         else:
             rho_MM = np.empty_like(self.T_MM.data)
         self.domain_comm.broadcast(rho_MM, 0)
 
-        return rho_MM[self.n1:self.n2]
+        return rho_MM
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
