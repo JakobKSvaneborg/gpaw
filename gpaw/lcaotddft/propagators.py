@@ -259,7 +259,7 @@ class ECNPropagator(LCAOPropagator):
     def velocity_gauge_kick(self, magnitude, direction, time):
         self.calculate_velocity_operator_matrix()
         for kpt in self.wfs.kpt_u:
-            kpt.A_MM = magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vMM)
+            kpt.A_MM = -magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vMM)
             kpt.A_MM += kpt.A_MM.T.conj()
             kpt.A_MM /= 2
 

@@ -25,7 +25,9 @@ def calculate_fourier_transform(x_t, y_ti, foldedfrequencies):
     # Integrate
     f_wt = np.exp(1.0j * np.outer(X_w, x_t))
     y_it = np.swapaxes(y_ti, 0, 1)
-    Y_wi = np.tensordot(f_wt, dx_t * envelope(x_t) * y_it, axes=(1, 1))
+    env_t = envelope(x_t)
+    Y_wi = np.tensordot(f_wt, dx_t * env_t * y_it, axes=(1, 1))
+    print('Sinc contamination', env_t[-1])
     return Y_wi
 
 
@@ -463,7 +465,7 @@ def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
     rot_w *= rot_au_to_cgs * 1e40 / au_to_eV
 
     # Unique non-zero time steps
-    time_steps = np.unique(time_steps)
+    time_steps = np.unique(np.concat(time_steps).ravel())
     time_steps = time_steps[time_steps != 0]
 
     with open(spectrum_file, 'w') as fd:
