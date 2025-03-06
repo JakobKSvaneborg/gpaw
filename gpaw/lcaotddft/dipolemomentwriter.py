@@ -180,14 +180,15 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
     def __init__(self, paw, filename: str, interval: int = 1):
         super().__init__(paw, interval)
         self.ioctx = IOContext()
-        #mode = paw.wfs.mode
-        #assert mode in ['lcao']
-
+        mode = paw.wfs.mode
+        assert mode in ['lcao']
+        
         if paw.niter == 0:
             self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='w')
         else:
             self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='a')
-        self._write_header(paw, {})
+
+
 
     def _write(self, line):
         self.fd.write(line)
@@ -203,7 +204,6 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
         line += ('# %15s %15s %22s %22s %22s\n' %
                  ('time', 'norm', 'rhoVMM_x', 'rhoVMM_y', 'rhoVMM_z'))
         self._write(line)
-        #self.update(paw) # update does not seem to do anything when not called here
     
     def _read_header(self, filename):
         with open(filename, encoding='utf-8') as fd:
@@ -248,6 +248,8 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
 
     def _update(self, paw): # This does not seem to work in here and I don't see why
         if paw.action == 'init':
+            paw.propagator.calculate_velocity_operator_matrix()
+            self._write_header(paw, {})
             self._write_init(paw)
         elif paw.action == 'kick':
             self._write_kick(paw)
