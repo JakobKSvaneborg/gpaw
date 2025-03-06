@@ -235,6 +235,9 @@ class ECNPropagator(LCAOPropagator):
                                        self.mm_block_descriptor)
 
     def calculate_velocity_operator_matrix(self):
+        if getattr(self, 'have_velocity_operator_matrix', False):
+            return
+        print('Calculating velocity operator matrix')
         ksl = self.wfs.ksl
         gcomm = self.wfs.gd.comm
         manytci = self.wfs.manytci
@@ -249,6 +252,9 @@ class ECNPropagator(LCAOPropagator):
             for v in range(3):
                 self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v], Vkick_qvMM[kpt.q][v], ksl.Mstart, ksl.Mstop)
             kpt.Vkick_vMM = Vkick_qvMM[kpt.q] * (-1j)
+
+        self.have_velocity_operator_matrix = True
+        print('Done')
 
     def velocity_gauge_kick(self, magnitude, direction, time):
         self.calculate_velocity_operator_matrix()

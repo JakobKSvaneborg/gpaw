@@ -175,6 +175,7 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
         M_vmM[v1] += rnabla_vmM[v2]
         M_vmM[v2] -= rnabla_vmM[v1]
 
+    """
     gd = bfs.gd
     kin = Laplace(gd, -0.5, 3, complex)
     kpt = kpt_u[0]
@@ -278,6 +279,7 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
         print('gicorr', -0.5 * gicorrM_vMM[v])
         print('M official', -0.5 * M_vmM[v])
         print('sub', -0.5 * (gicorrM_vMM[v] - M_vmM[v]))
+    """
 
     if not only_pseudo:
         for kpt in kpt_u:
