@@ -180,8 +180,8 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
     def __init__(self, paw, filename: str, interval: int = 1):
         super().__init__(paw, interval)
         self.ioctx = IOContext()
-        mode = paw.wfs.mode
-        assert mode in ['lcao']
+        #mode = paw.wfs.mode
+        #assert mode in ['lcao']
 
         if paw.niter == 0:
             self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='w')
@@ -194,11 +194,16 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
         self.fd.flush()
 
     def _write_header(self, paw, kwargs):
-        from gpaw.lcaotddft.magneticmomentwriter import get_origin_coordinates
-        lines = [f'{self.__class__.__name__}[version={self.version}]'
-                 f'(**{json.dumps(kwargs)})']
-        self._write('# ' + '\n# '.join(lines) + '\n')
-        self._write(f'# {"time":>15} {"rho_vkick_x":>17} {"rho_vkick_y":>22} {"rho_vkick_z":>22}\n')
+        #from gpaw.lcaotddft.magneticmomentwriter import get_origin_coordinates
+        #line = [f'{self.__class__.__name__}[version={self.version}]']
+                # f'(**{json.dumps(kwargs)})']
+        #self._write('# ' + '\n# '.join(line) + '\n')
+        #self._write(f'# {"time":>15} {"norm":>15} {"rho_vkick_x":>17} {"rho_vkick_y":>22} {"rho_vkick_z":>22}\n')
+        line = f'# {self.__class__.__name__}[version={self.version}]\n'
+        line += ('# %15s %15s %22s %22s %22s\n' %
+                 ('time', 'norm', 'rhoVMM_x', 'rhoVMM_y', 'rhoVMM_z'))
+        self._write(line)
+        #self.update(paw) # update does not seem to do anything when not called here
     
     def _read_header(self, filename):
         with open(filename, encoding='utf-8') as fd:
@@ -241,7 +246,7 @@ class VelocityGaugeWriter(TDDFTObserver): # Maybe remove or move?
                 % (time, 0.0, v_v[0], v_v[1], v_v[2]))
         self._write(line)
 
-    def _update(self, paw):
+    def _update(self, paw): # This does not seem to work in here and I don't see why
         if paw.action == 'init':
             self._write_init(paw)
         elif paw.action == 'kick':
