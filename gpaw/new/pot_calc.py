@@ -216,9 +216,9 @@ def calculate_non_local_potential1(setup: Setup,
     dH_sii = unpack_hermitian(dH_sp)
 
     if setup.hubbard_u is not None:
-        eU, dHU_sii = setup.hubbard_u.calculate(setup, D_sii)
-        e_xc += eU
-        dH_sii += dHU_sii
+        eL, dHL_vii = setup.hubbard_u.calculate(setup, D_sii[1:4].real)
+        e_xc += eL
+        dH_sii[1:4] += dHL_vii
 
     e_kinetic -= (D_sii * dH_sii).sum().real
 

@@ -119,6 +119,12 @@ class InputParameters:
 
 
 @input_parameter
+def atomic_constraints(value=None):
+    """Constraints on wave functions near the atoms."""
+    return value or {}
+
+
+@input_parameter
 def basis(value=None):
     """Atomic basis set."""
     return value or {}
