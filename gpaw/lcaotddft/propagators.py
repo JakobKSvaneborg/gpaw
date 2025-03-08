@@ -239,7 +239,11 @@ class ECNPropagator(LCAOPropagator):
             return
         print('Calculating velocity operator matrix')
         ksl = self.wfs.ksl
+        
         gcomm = self.wfs.gd.comm
+        # Parallelization not yet working
+        assert gcomm.size == 1
+        assert self.wfs.kptband_comm.size == 1
         manytci = self.wfs.manytci
         Vkick_qvMM = manytci.O_qMM_T_qMM(gcomm,
                                      ksl.Mstart,
