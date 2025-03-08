@@ -93,3 +93,21 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
                  1.638150141478e-04]
 
     assert data_i == pytest.approx(ref_i, abs=1e-8)
+
+def test_velocity(gpw_files, in_tmp_dir):
+    td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'])
+    VelocityGaugeWriter(td_calc, 'dm.dat')
+    td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
+    td_calc.propagate(40, 20)
+    data = np.loadtxt('dm.dat')
+    # TODO: VERIFY data here
+
+def test_velocity_magnetic_moment(gpw_files, in_tmp_dir):
+    td_calc = LCAOTDDFT(gpw_files['some chiral system'])
+    MagneticMomentWriter(td_calc, 'mom.dat')
+    td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
+    td_calc.propagate(40, 20)
+    data = np.loadtxt('mom.dat')
+    # TODO: VERIFY data here
+
+
