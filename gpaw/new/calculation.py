@@ -121,16 +121,15 @@ class DFTCalculation:
             from gpaw.new.constraints import SpinDirectionConstraint
 
             atomic_constraints = []
-            for const_type, constraint in params.atomic_constraints.items():
+            for const_type, const in params.atomic_constraints.items():
                 if const_type == 'spin_dir':
-                    atomic_constraints.append(11)
-                print(const_type)
-                print(constraint)
+                    atomic_constraints.append(SpinDirectionConstraint(const))
+                else:
+                    raise Exception
             pot_calc.atomic_constraints = atomic_constraints
+        else:
+            pot_calc.atomic_constraints = []
 
-        print(pot_calc.atomic_constraints)
-
-        cc
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(

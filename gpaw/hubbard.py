@@ -208,4 +208,3 @@ def aoom(D_ii: Array2D,
         raise NotImplementedError(f'Setup has {len(nl)} partial waves with '
                                   f'angular momentum quantum number {l}. '
                                   'Must be 1 or 2 for DFT+U correction.')
-

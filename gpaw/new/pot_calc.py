@@ -125,6 +125,7 @@ class PotentialCalculator:
             self.external_potential,
             V_aL,
             self.soc,
+            self.atomic_constraints,
             kpt_band_comm)
 
         energies['spinorbit'] = 0.0
@@ -145,6 +146,7 @@ def calculate_non_local_potential(setups,
                                   ext_pot,
                                   V_aL,
                                   soc: bool,
+                                  atomic_constraints,
                                   kpt_band_comm: MPIComm
                                   ) -> tuple[AtomArrays,
                                              dict[str, float]]:
@@ -159,7 +161,7 @@ def calculate_non_local_potential(setups,
             V_L = V_aL[a]
             setup = setups[a]
             dH_sii, corrections = calculate_non_local_potential1(
-                setup, xc, ext_pot, D_sii, V_L, soc)
+                setup, xc, ext_pot, D_sii, V_L, soc, atomic_constraints, a)
             dH_asii[a][:] = dH_sii
             for key, e in corrections.items():
                 energy_corrections[key] += e
@@ -185,8 +187,10 @@ def calculate_non_local_potential1(setup: Setup,
                                    ext_pot,
                                    D_sii: Array3D,
                                    V_L: Array1D,
-                                   soc: bool) -> tuple[Array3D,
-                                                       dict[str, float]]:
+                                   soc: bool,
+                                   atomic_constraints,
+                                   atom_index) -> tuple[Array3D,
+                                                        dict[str, float]]:
     ncomponents = len(D_sii)
     ndensities = 2 if ncomponents == 2 else 1
     D_sp = np.array([pack_density(D_ii.real) for D_ii in D_sii])
@@ -216,8 +220,14 @@ def calculate_non_local_potential1(setup: Setup,
     dH_sii = unpack_hermitian(dH_sp)
 
     if setup.hubbard_u is not None:
-        eL, dHL_vii = setup.hubbard_u.calculate(setup, D_sii[1:4].real)
-        e_xc += eL
+        eU, dHU_sii = setup.hubbard_u.calculate(setup, D_sii)
+        e_xc += eU
+        dH_sii += dHU_sii
+
+    for atomic_constraint in atomic_constraints:
+        eL, dHL_vii = atomic_constraint.calculate(D_sii[1:4].real,
+                                                  atom_index, setup)
+        # eL = constraining field energy is unphysical and ignored.
         dH_sii[1:4] += dHL_vii
 
     e_kinetic -= (D_sii * dH_sii).sum().real
