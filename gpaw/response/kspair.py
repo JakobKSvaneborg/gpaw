@@ -520,26 +520,17 @@ class KohnShamKPointPairExtractor:
                         eps_r1rh, f_r1rh, P_r1rhI, psit_r1rhG):
         """From the extracted data, collect the IrreducibleKPoint data arrays
         """
-        kpt0 = self.gs.kpt_u[0]
         # Allocate data arrays
         maxh_r1 = [max(h_rh) for h_rh in h_r1rh if h_rh]
         if maxh_r1:
             nh = max(maxh_r1) + 1
-            Ph = kpt0.projections.new(nbands=nh, bcomm=None)
-        else:  # Carry around empty array
+        else:  # Carry around empty arrays
             assert self.tblocks.a == self.tblocks.b
             nh = 0
-            # We have to initialize the projections by hand, because
-            # Projections.new() interprets nbands == 0 to imply that it should
-            # inherit the preexisting number of bands...
-            proj = kpt0.projections
-            Ph = Projections(nh, proj.nproj_a, proj.atom_partition,
-                             serial_comm, proj.collinear, proj.spin,
-                             proj.matrix.dtype)
         eps_h = np.empty(nh)
         f_h = np.empty(nh)
-        assert self.gs.dtype == kpt0.psit.array.dtype
-        psit_hG = np.empty((nh, self.gs.global_pd.ng_q[myik]), self.gs.dtype)
+        Ph = self.new_projections(nh)
+        psit_hG = self.new_wfs(nh, self.gs.global_pd.ng_q[myik])
 
         # Store extracted data in the arrays
         for (h_rh, eps_rh,
@@ -552,6 +543,18 @@ class KohnShamKPointPairExtractor:
                 psit_hG[h_rh] = psit_rhG
 
         return eps_h, f_h, Ph, psit_hG
+
+    def new_projections(self, nh):
+        proj = self.gs.kpt_u[0].projections
+        # We have to initialize the projections by hand, because
+        # Projections.new() interprets nbands == 0 to imply that it should
+        # inherit the preexisting number of bands...
+        return Projections(nh, proj.nproj_a, proj.atom_partition, serial_comm,
+                           proj.collinear, proj.spin, proj.matrix.dtype)
+
+    def new_wfs(self, nh, nG):
+        assert self.gs.dtype == self.gs.kpt_u[0].psit.array.dtype
+        return np.empty((nh, nG), self.gs.dtype)
 
     def serial_extract_kptdata(self, k_pc, n_t, s_t):
         """Extract the k-point data from a serial calculator.
