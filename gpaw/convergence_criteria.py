@@ -199,6 +199,9 @@ class Density(Criterion):
         """Should return (bool, entry), where bool is True if converged and
         False if not, and entry is a <=5 character string to be printed in
         the user log file."""
+        if context.dens.fixed:
+            # Old GPAW needs this
+            return True, ''
         nv = context.wfs.nvalence
         if nv == 0:
             return True, ''
