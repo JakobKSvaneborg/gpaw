@@ -566,13 +566,10 @@ class KohnShamKPointPairExtractor:
             # No data to extract
             return None
 
-        gs = self.gs
-        kpt_u = gs.kpt_u
-
         # Find k-point indeces
         k_c = k_pc[self.kpts_blockcomm.rank]
         K = self.gs.kpoints.kptfinder.find(k_c)
-        ik = gs.kd.bz2ibz_k[K]
+        ik = self.gs.kd.bz2ibz_k[K]
 
         (myu_eu, myn_eurn, nh,
          h_eurn, h_myt) = self.get_serial_extraction_protocol(ik, n_t, s_t)
@@ -580,13 +577,12 @@ class KohnShamKPointPairExtractor:
         # Allocate transfer arrays
         eps_h = np.empty(nh)
         f_h = np.empty(nh)
-        Ph = kpt_u[0].projections.new(nbands=nh, bcomm=None)
-        psit_hG = np.empty((nh, gs.pd.ng_q[ik]),
-                           dtype=kpt_u[0].psit.array.dtype)
+        Ph = self.new_projections(nh)
+        psit_hG = self.new_wfs(nh, self.gs.pd.ng_q[ik])
 
         # Extract data from the ground state
         for myu, myn_rn, h_rn in zip(myu_eu, myn_eurn, h_eurn):
-            kpt = kpt_u[myu]
+            kpt = self.gs.kpt_u[myu]
             with self.context.timer('Extracting eps, f and P_I from wfs'):
                 eps_h[h_rn] = kpt.eps_n[myn_rn]
                 f_h[h_rn] = kpt.f_n[myn_rn] / kpt.weight
