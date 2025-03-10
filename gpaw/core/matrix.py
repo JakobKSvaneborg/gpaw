@@ -490,7 +490,7 @@ class Matrix(XP):
 
     def complex_conjugate(self) -> None:
         """Inplace complex conjugation."""
-        if self.dtype == complex:
+        if np.issubdtype(self.dtype, np.complexfloating):
             self.xp.negative(self.data.imag, self.data.imag)
 
     def add_hermitian_conjugate(self, scale: float = 1.0) -> None:

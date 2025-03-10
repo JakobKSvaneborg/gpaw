@@ -34,15 +34,15 @@ At this point, PIP can give some warnings as:
     which is not on PATH.
     Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
 
-Add the following line at the end of your ~/.bashrc file::
+Add the following line at the end of your :file:`~/.bashrc` file::
 
     export PATH=/home/YOURUSERNAME/.local/bin:$PATH
 
-After editing ~/.bashrc file quit the current shell session and start a new one (or you can use source ~/.bashrc command). Then continue::
+After editing :file:`~/.bashrc` file quit the current shell session and start a new one (or you can use :command:`source ~/.bashrc` command). Then continue::
 
     $ sudo apt install python3-dev libopenblas-dev libxc-dev libscalapack-mpi-dev libfftw3-dev
 
-Create a siteconfig.py file::
+Create a :file:`siteconfig.py` file::
 
     $ mkdir -p ~/.gpaw
     $ cat > ~/.gpaw/siteconfig.py
@@ -57,10 +57,7 @@ Then install gpaw (it will install with its dependencies: ASE_, Numpy, SciPy)::
 
     $ pip3 install --upgrade --user gpaw
 
-Use gpaw info to see information about installation. However, PAW-datasets are not installed yet. To install it, firstly create a directory under ~/.gpaw then install PAW datasets::
-
-    $ mkdir ~/.gpaw/gpaw-setups
-    $ gpaw install-data ~/.gpaw/gpaw-setups/
+Use :command:`gpaw info` to see information about the installation.
 
 
 Conda Installation (easier than the Classical installation)

@@ -810,6 +810,7 @@ class Generator(AllElectron):
         attrs = [('type', reltype), ('name', 'gpaw-%s' % version)]
         data = 'Frozen core: ' + (self.core or 'none')
 
+        setup.type = reltype
         setup.generatorattrs = attrs
         setup.generatordata = data
         setup.orbital_free = self.orbital_free

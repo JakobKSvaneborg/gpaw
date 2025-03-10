@@ -61,6 +61,7 @@ def GPAW(
     random: bool | None = None,
     setups: Any | None = None,
     soc: bool | None = None,
+    solvation=None,
     spinpol: bool | None = None,
     symmetry: str | dict[str, Any] | None = None,
     xc: str | dict[str, Any] | Dictable | None = None) -> ASECalculator:
@@ -118,6 +119,16 @@ def write_header(log, params):
             n = len(key)
             txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
             parts.append(f'{key}={txt}')
+        log(',\n'.join(parts))
+    with log.indent('environment variables:'):
+        import gpaw
+        parts = []
+        for name in gpaw.allowed_envvars:
+            try:
+                value = getattr(gpaw, name)
+            except AttributeError:
+                continue
+            parts.append(f'{name}={value!r}')
         log(',\n'.join(parts))
 
 
@@ -411,6 +422,10 @@ class ASECalculator:
         flags = GPWFlags(include_projections=include_projections,
                          precision=precision, include_wfs=mode == 'all')
         write_gpw(filename, self.atoms, self.params, self.dft, flags=flags)
+
+    @property
+    def environment(self):
+        return self.dft.pot_calc.environment
 
     # Old API:
 

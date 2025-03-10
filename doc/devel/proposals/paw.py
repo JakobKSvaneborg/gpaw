@@ -1,7 +1,7 @@
 # flake8: noqa
 class PAW(ASECalculator):
     def __init__(self, restart=None, **kwargs):
-        ASECalculator.__init__(self)
+        super().__init__()
         self.density = Density()
         self.hamiltonian = Hamiltonian()
         self.wfs = WaveFunctions()
@@ -39,6 +39,6 @@ class PAW(ASECalculator):
         ...
 
     def get_potential_energy(self, atoms):
-        ASECalculator.get_potential_energy(self, atoms)
+        super().get_potential_energy(atoms)
         return self.hamiltonian.energy
 

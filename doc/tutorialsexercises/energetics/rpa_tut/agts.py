@@ -5,15 +5,14 @@ ds = [1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75,
 
 
 def workflow():
-    # We skip r1 and r2 until #1302 has been fixed
     with run(script='gs_N2.py', cores=16):
-        # r1 = run(script='frequency.py', tmax='3h')
-        # r2 = run(script='con_freq.py', cores=2, tmax='16h')
+        r1 = run(script='frequency.py', tmax='3h')
+        r2 = run(script='con_freq.py', cores=2, tmax='16h')
         r3 = run(script='rpa_N2.py', cores=48, tmax='30m')
-    # with r1, r2:
-    #     run(script='plot_w.py')
-    # with r2:
-    #     run(script='plot_con_freq.py')
+    with r1, r2:
+        run(script='plot_w.py')
+    with r2:
+        run(script='plot_con_freq.py')
     with r3:
         run(script='extrapolate.py')
 
