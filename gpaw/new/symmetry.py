@@ -423,7 +423,7 @@ class SymmetrizationPlan:
                                       np.linalg.inv(symmetries.cell_cv),
                                       symmetries.rotation_scc,
                                       symmetries.cell_cv)
-        lmax = max(max(l_j) for l_j in l_aj)
+        lmax = max((max(l_j) for l_j in l_aj), default=-1)
         self.rotation_lsmm = [
             np.array([rotation(l, r_vv) for r_vv in self.rotation_svv])
             for l in range(lmax + 1)]

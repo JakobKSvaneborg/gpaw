@@ -4,7 +4,7 @@ import importlib
 import os
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -374,6 +374,11 @@ class DFTComponentsBuilder:
         if not self.params.solvation:
             from gpaw.new.environment import Environment
             return Environment(len(self.atoms))
+        if self.params.background_charge:
+            from gpaw.new.environment import Jellium
+            jel = self.params.background_charge
+            jel.set_grid_descriptor(grid._gd)
+            return Jellium(jel, len(self.atoms))
         from gpaw.new.solvation import Solvation
         return Solvation(**self.params.solvation,
                          setups=self.setups,
@@ -384,7 +389,7 @@ class DFTComponentsBuilder:
 
 def create_communicators(comm: MPIComm = None,
                          nibzkpts: int = 1,
-                         domain: Union[int, tuple[int, int, int]] = None,
+                         domain: int | tuple[int, int, int] = None,
                          kpt: int = None,
                          band: int = None,
                          xp: ModuleType = np) -> dict[str, MPIComm]:

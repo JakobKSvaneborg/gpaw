@@ -20,3 +20,12 @@ class Environment:
 
     def forces(self, nt_r, vHt_r):
         return np.zeros((self.natoms, 3))
+
+
+class Jellium(Environment):
+    def __init__(self, jellium, natoms):
+        super().__init__(natoms)
+        self.jellium = jellium
+
+    def update1(self, nt_r):
+        self.jellium.add_charge_to(nt_r.data)

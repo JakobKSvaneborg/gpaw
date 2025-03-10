@@ -7,12 +7,6 @@ import numpy as np
 
 parameter_functions = {}
 
-"""
-Missing:
-    background_charge
-    external
-"""
-
 
 class DeprecatedParameterWarning(FutureWarning):
     """Warning class for when a parameter or its value is deprecated."""
@@ -23,7 +17,9 @@ def input_parameter(func):
     parameter_functions[func.__name__] = func
     return func
 
+
 class InputParameters:
+    background_charge: Any
     basis: Any
     charge: float
     convergence: dict[str, Any]
@@ -116,6 +112,12 @@ class InputParameters:
     def items(self):
         for key in self.non_defaults:
             yield key, getattr(self, key)
+
+
+@input_parameter
+def background_charge(value=None):
+    """Atomic basis set."""
+    return value
 
 
 @input_parameter

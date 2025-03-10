@@ -103,7 +103,8 @@ class FDPotentialCalculator(PotentialCalculator):
                                           for ccc_L in ccc_aL.values())
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         pseudo_charge = charge_r.integrate()
-        charge_r.data *= -(comp_charge + density.charge) / pseudo_charge
+        if abs(pseudo_charge) > 1e-10:
+            charge_r.data *= -(comp_charge + density.charge) / pseudo_charge
 
         self.ghat_aLr.add_to(charge_r, ccc_aL)
 
