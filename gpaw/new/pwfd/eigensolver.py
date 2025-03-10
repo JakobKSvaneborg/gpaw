@@ -6,6 +6,7 @@ from typing import Callable
 
 import numpy as np
 from ase.units import Ha
+
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.mpi import broadcast_exception, broadcast_float
@@ -180,7 +181,7 @@ def calculate_weights(converge_bands: int | str,
     if converge_bands == 'all':
         converge_bands = nbands
 
-    if isinstance(converge_bands, int):
+    if not isinstance(converge_bands, str):
         # Converge fixed number of bands:
         n = converge_bands
         if n < 0:

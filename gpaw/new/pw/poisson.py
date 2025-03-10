@@ -181,6 +181,7 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
         self.width = width / Bohr
         (self.axis,) = np.where(~grid.pbc_c)[0]
         self.correction = np.nan
+        self.pw = ps.pw
 
     def solve(self,
               vHt_g: PWArray,
