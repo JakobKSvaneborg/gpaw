@@ -206,7 +206,7 @@ def _lazy_import(attr: str) -> Any:
 
 def _get_gpaw_env_vars(attr: str) -> bool | str:
     if attr in boolean_envvars:
-        return bool(int(os.environ.get(attr, 0)))
+        return bool(int(os.environ.get(attr) or 0))
     if attr in allowed_envvars and attr in os.environ:
         return os.environ[attr]
     raise _module_attr_error(attr)
