@@ -8,8 +8,9 @@ import numpy as np
 parameter_functions = {}
 
 """
-background_charge
-external
+Missing:
+    background_charge
+    external
 """
 
 
@@ -21,7 +22,6 @@ def input_parameter(func):
     """Decorator for input-parameter normalization functions."""
     parameter_functions[func.__name__] = func
     return func
-
 
 class InputParameters:
     basis: Any
