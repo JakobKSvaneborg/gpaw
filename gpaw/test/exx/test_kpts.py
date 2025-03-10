@@ -83,9 +83,9 @@ def test_2d_non_self_consistent():
         assert e_skn[0] == pytest.approx(eref_kn)
 
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
-    e_skn = hse.calculate(a.calc.dft.ibzwfs)
+    _, e_skn = hse.calculate(a.calc.dft.ibzwfs)
     assert e_skn[0] == pytest.approx(eref_kn)
-    e_skn = hse.calculate(a.calc.dft.ibzwfs, na=0, nb=1)
+    _, e_skn = hse.calculate(a.calc.dft.ibzwfs, na=0, nb=1)
     assert e_skn[0, :, 0] == pytest.approx(eref_kn[:, 0])
 
 
