@@ -155,8 +155,6 @@ class Energy(Criterion):
         """Should return (bool, entry), where bool is True if converged and
         False if not, and entry is a <=5 character string to be printed in
         the user log file."""
-        if context.dens.fixed:
-            return True, ''
         # Note the previous code was calculating the peak-to-
         # peak energy difference on e_total_free, while reporting
         # e_total_extrapolated in the SCF table (logfile). I changed it to
@@ -201,8 +199,6 @@ class Density(Criterion):
         """Should return (bool, entry), where bool is True if converged and
         False if not, and entry is a <=5 character string to be printed in
         the user log file."""
-        if context.dens.fixed:
-            return True, ''
         nv = context.wfs.nvalence
         if nv == 0:
             return True, ''
