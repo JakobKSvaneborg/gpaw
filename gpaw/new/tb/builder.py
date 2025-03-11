@@ -124,7 +124,8 @@ class TBPotentialCalculator(PotentialCalculator):
                  atoms,
                  domain_comm):
         super().__init__(xc, None, setups,
-                         relpos_ac=atoms.get_scaled_positions())
+                         relpos_ac=atoms.get_scaled_positions(),
+                         environment=None)
         self.atoms = atoms.copy()
         self.domain_comm = domain_comm
         self.force_av = None
