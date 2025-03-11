@@ -33,7 +33,7 @@ def test_jellium(in_tmp_dir):
                      convergence={'density': 1e-5},
                      mixer=Mixer(0.3, 7, 100),
                      nbands=int(ne / 2) + 15,
-                     )#txt='surface.txt')
+                     txt='surface.txt')
     _ = surf.get_potential_energy()
 
     # Get the work function

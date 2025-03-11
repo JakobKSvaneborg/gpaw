@@ -21,8 +21,8 @@ plt.plot([-L / lambdaF, -L / lambdaF, 0, 0], [0, 1, 1, 0], 'k')
 plt.plot((z - z0) / lambdaF, density / n)
 # plt.xlim(xmin=-1.2, xmax=1)
 plt.ylim(ymin=0)
-plt.title(r'$r_s=%.1f\ \mathrm{Bohr},\ \lambda_F=%.1f\ \mathrm{Bohr}$' %
-          (rs / Bohr, lambdaF / Bohr))
+plt.title(rf'$r_s={rs / Bohr:.1f}\ \mathrm{{Bohr}},\ '
+          rf'\lambda_F={lambdaF / Bohr:.1f}\ \mathrm{{Bohr}}$')
 plt.xlabel('DISTANCE (FERMI WAVELENGTHS)')
 plt.ylabel('ELECTRON DENSITY')
 plt.savefig('fig2.png')

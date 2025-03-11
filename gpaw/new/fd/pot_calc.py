@@ -105,9 +105,9 @@ class FDPotentialCalculator(PotentialCalculator):
             pc = -comp_charge - density.charge + self.environment.charge
             charge_r.data *= pc / pseudo_charge
 
-        self.ghat_aLr.add_to(charge_r, ccc_aL)
-
         self.environment.update1(charge_r)
+
+        self.ghat_aLr.add_to(charge_r, ccc_aL)
 
         if vHt_r is None:
             vHt_r = grid2.zeros(xp=self.xp)

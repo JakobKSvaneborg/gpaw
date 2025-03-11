@@ -399,7 +399,7 @@ class DFTComponentsBuilder:
 
 def create_communicators(comm: MPIComm = None,
                          nibzkpts: int = 1,
-                         domain: int | tuple[int, int, int] = None,
+                         domain: int | tuple[int, int, int] | None = None,
                          kpt: int = None,
                          band: int = None,
                          xp: ModuleType = np) -> dict[str, MPIComm]:
