@@ -1,5 +1,6 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
+from functools import cached_property
 from math import pi, sqrt
 
 import numpy as np
@@ -827,7 +828,27 @@ class Generator(AllElectron):
 
         if write_xml:
             setup.write_xml()
+        self._return_setup = setup
         return setup
+
+    @cached_property
+    def valence_data(self):
+        from gpaw.atom.all_electron import ValenceData
+        setup = self._return_setup
+        # assert self.n_j[self.njcore:] == setup.n_j
+        assert abs(self.rgd.beta - self.beta) < 1e-13
+        return ValenceData(rgd=self.rgd, vr=self.vr,
+                           n_j=self.n_j[self.njcore:],
+                           l_j=self.l_j[self.njcore:],
+                           e_j=self.e_j[self.njcore:],
+                           u_j=self.u_j[self.njcore:],
+                           f_j=self.f_j[self.njcore:],
+                           u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
+                           rcut_l=self.rcut_l,
+                           scalarrel=self.scalarrel,
+                           r2dvdr=self.r2dvdr,
+                           xcname=self.xcname,
+                           symbol=self.symbol)
 
     def diagonalize(self, h):
         ng = 350

@@ -558,22 +558,6 @@ class AllElectron(IOContext):
             self.e_j[j] = e
             u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
 
-    @cached_property
-    def valence_data(self):
-        assert abs(self.rgd.beta - self.beta) < 1e-13
-        return ValenceData(rgd=self.rgd, vr=self.vr,
-                           n_j=self.n_j[self.njcore:],
-                           l_j=self.l_j[self.njcore:],
-                           e_j=self.e_j[self.njcore:],
-                           u_j=self.u_j[self.njcore:],
-                           f_j=self.f_j[self.njcore:],
-                           u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
-                           rcut_l=self.rcut_l,
-                           scalarrel=self.scalarrel,
-                           r2dvdr=self.r2dvdr,
-                           xcname=self.xcname,
-                           symbol=self.symbol)
-
     def kin(self, l, u, e=None):  # XXX move to Generator
         r = self.r[1:]
         dr = self.dr[1:]
@@ -803,28 +787,26 @@ guess for the density).
 
 @dataclass
 class ValenceData:
+    symbol: str
+    xcname: str
+
     rgd: AERadialGridDescriptor
-    # r: np.ndarrray
-    # dr: np.ndarray
-    vr: np.ndarray
-    # d2gdr2: np.ndarray
+
     n_j: list[int]
     l_j: list[int]
     e_j: list[float]
     u_j: list[np.ndarray]
     f_j: list[float]
 
+    rcut_l: list[float]
+    scalarrel: bool
+
+    vr: np.ndarray
+    r2dvdr: np.ndarray | None  # Actually: None means not scalarrel
+
     u_ln: list[list[np.ndarray]]
     q_ln: list[list[np.ndarray]]
     s_ln: list[list[np.ndarray]]
-
-    rcut_l: list[float]
-    scalarrel: bool
-    r2dvdr: np.ndarray | None  # Actually: None means not scalarrel
-
-    # Maybe we don't need these variables:
-    symbol: str
-    xcname: str
 
     @classmethod
     def from_setupdata(cls, setupdata):
