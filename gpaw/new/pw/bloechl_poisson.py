@@ -163,6 +163,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         charge_g = nt_g.copy()
         self.ghat_aLg.add_to(charge_g, Q_aL)
         pwg = self.pwg
+        comm = pwg.comm
 
         if vHt_g is None:
             vHt_g = pwg.empty(xp=self.xp)
@@ -174,7 +175,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
 
         self.vhat_aLg.add_to(vhat_g, Q_aL)
         vhat0_g = vhat_g.gather()
-        if pwg.comm.rank == 0:
+        if comm.rank == 0:
             vt0_g.data += vhat0_g.data
             e_coulomb2 = vhat0_g.integrate(nt0_g)
         else:
@@ -202,16 +203,19 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             e_coulomb3 -= float(Q_all_aL[a1] @ vQ2_L)
         e_coulomb3 *= -0.5
 
-        self.pwg.comm.sum(dV_all_aL.data)
+        comm.sum(dV_all_aL.data)
         dV_aL = Q_aL.new()
         dV_aL.scatter_from(dV_all_aL)
         V_aL.data += dV_aL.data
 
         vHt0_g = vHt_g.gather()
-        if pwg.comm.rank == 0:
+        if comm.rank == 0:
             vt0_g.data += vHt0_g.data
 
-        return e_coulomb1 + e_coulomb2 + e_coulomb3, vHt_g, V_aL
+        e_coulomb = comm.sum_scalar(e_coulomb1 / comm.size +
+                                    e_coulomb2 +
+                                    e_coulomb3)
+        return e_coulomb, vHt_g, V_aL
 
     def force_contribution(self, Q_aL, vHt_g, nt_g):
         force_av = self.xp.zeros((len(Q_aL), 3))
@@ -230,6 +234,7 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         xp = self.xp
         force_av = xp.zeros((len(Q_aL), 3))
         stress_vv = xp.zeros((3, 3))
+        Q_aL = Q_aL.gather(broadcast=True)
         for a1, a2, d, d_v in zip(*self.get_neighbors()):
             if d == 0.0:
                 continue
