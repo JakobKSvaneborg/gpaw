@@ -45,7 +45,6 @@ def test_jellium(in_tmp_dir):
         phi1 = v[-1] - efermi
     else:
         phi1, _ = surf.calc.dft.workfunctions()
-
     assert phi1 == pytest.approx(2.715, abs=1e-3)
     # Reference value: Lang and Kohn, 1971, Theory of Metal Surfaces:
     # Work function

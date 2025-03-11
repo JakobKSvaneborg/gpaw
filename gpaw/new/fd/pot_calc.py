@@ -94,8 +94,6 @@ class FDPotentialCalculator(PotentialCalculator):
         nt_r = charge_r.copy()
         e_zero = self.vbar_r.integrate(nt_r)
 
-        self.environment.update1(charge_r)
-
         ccc_aL = density.calculate_compensation_charge_coefficients()
 
         # Normalize: (LCAO basis functions may extend outside box)
@@ -104,9 +102,12 @@ class FDPotentialCalculator(PotentialCalculator):
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         pseudo_charge = charge_r.integrate()
         if abs(pseudo_charge) > 1e-10:
-            charge_r.data *= -(comp_charge + density.charge) / pseudo_charge
+            pc = -comp_charge - density.charge + self.environment.charge
+            charge_r.data *= pc / pseudo_charge
 
         self.ghat_aLr.add_to(charge_r, ccc_aL)
+
+        self.environment.update1(charge_r)
 
         if vHt_r is None:
             vHt_r = grid2.zeros(xp=self.xp)

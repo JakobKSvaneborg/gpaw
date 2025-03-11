@@ -6,6 +6,7 @@ from gpaw.poisson import PoissonSolver as make_poisson_solver
 class Environment:
     def __init__(self, natoms: int):
         self.natoms = natoms
+        self.charge = 0.0
 
     def create_poisson_solver(self, grid, *, xp, **kwargs) -> PoissonSolver:
         solver = make_poisson_solver(**kwargs, xp=xp)
@@ -26,6 +27,7 @@ class Jellium(Environment):
     def __init__(self, jellium, natoms):
         super().__init__(natoms)
         self.jellium = jellium
+        self.charge = jellium.charge
 
     def update1(self, nt_r):
         self.jellium.add_charge_to(nt_r.data)

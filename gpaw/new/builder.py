@@ -175,11 +175,15 @@ class DFTComponentsBuilder:
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
 
     @cached_property
-    def nelectrons(self):
-        ne = self.setups.nvalence - self.params.charge
+    def nelectrons(self) -> float:
+        return self.setups.nvalence - (self.params.charge -
+                                       self.background_charge)
+
+    @cached_property
+    def background_charge(self) -> float:
         if self.params.background_charge:
-            ne += self.params.background_charge['charge']
-        return ne
+            return self.params.background_charge['charge']
+        return 0.0
 
     @cached_property
     def atomdist(self) -> AtomDistribution:
