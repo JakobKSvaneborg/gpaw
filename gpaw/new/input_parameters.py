@@ -116,7 +116,7 @@ class InputParameters:
 
 @input_parameter
 def background_charge(value=None):
-    """Atomic basis set."""
+    """Background-charge object."""
     return value
 
 
