@@ -79,30 +79,44 @@ to the basis generator in gpaw.atom.basis directly and choose very
 smart parameters."""
 
 
-def main():
-    parser = build_parser()
-    opts, symbols = parser.parse_args()
-
+def get_basismaker(valdata, opts):
     from gpaw.atom.basis import BasisMaker
+    return BasisMaker(
+        valdata, name=opts.name, gtxt=None,
+        non_relativistic_guess=opts.non_relativistic_guess,
+        xc=opts.xcfunctional,
+        save_setup=opts.save_setup)
+
+
+def read_setupdata(path):
+    from gpaw.setup_data import SetupData
+    path = Path(path)
+    tokens = path.name.split('.')
+
+    # We should not get symbol and xc from the filename, instead we should
+    # parse them.
+    symbol = tokens[0]
+    xc = tokens[1]
+
+    setupdata = SetupData(symbol, xc, readxml=False)
+    setupdata.read_xml(source=path.read_bytes())
+    return setupdata
+
+
+def main():
     from gpaw import ConvergenceError
     from gpaw.basis_data import parse_basis_name
 
-    zetacount, polcount = parse_basis_name(opts.type)
-
-    for symbol in symbols:
-        try:
-            bm = BasisMaker(symbol, name=opts.name, gtxt=None,
-                            non_relativistic_guess=opts.non_relativistic_guess,
-                            xc=opts.xcfunctional,
-                            save_setup=opts.save_setup)
-        except ConvergenceError:
-            if opts.non_relativistic_guess:
-                print(very_bad_density_warning, file=sys.stderr)
-                import traceback
-                traceback.print_exc()
-            else:
-                print(bad_density_warning, file=sys.stderr)
-            continue
+    def generate_basis_set(symbol_or_path: str):
+        if '.' in symbol_or_path:  # symbol is actually a path
+            from gpaw.atom.all_electron import ValenceData
+            setupdata = read_setupdata(symbol_or_path)
+            valdata = ValenceData.from_setupdata(setupdata)
+            symbol = valdata.symbol
+            bm = get_basismaker(valdata, opts)
+        else:
+            symbol = symbol_or_path
+            bm = get_basismaker(symbol, opts)
 
         tailnorm = [float(norm) for norm in opts.tailnorm.split(',')]
         vconf_args = None
@@ -123,3 +137,11 @@ def main():
                             l_pol=opts.lpol,
                             jvalues=jvalues)
         basis.write_xml()
+
+
+    parser = build_parser()
+    opts, symbols = parser.parse_args()
+    zetacount, polcount = parse_basis_name(opts.type)
+
+    for symbol in symbols:
+        generate_basis_set(symbol)
