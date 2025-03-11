@@ -139,7 +139,6 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             comm = self.pwg.comm
             x = slice(comm.rank, None, comm.size)
             self._neighbors = i[x], j[x], d[x], D[x]
-            print(self._neighbors)
         return self._neighbors
 
     def dipole_layer_correction(self):
