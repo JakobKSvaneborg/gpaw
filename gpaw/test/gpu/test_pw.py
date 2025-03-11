@@ -1,4 +1,6 @@
 import pytest
+import numpy as np
+
 from ase import Atoms
 from ase.units import Ha
 
@@ -27,7 +29,7 @@ def test_gpu(dtype, gpu, mode, random):
     dft = DFTCalculation.from_parameters(
         atoms,
         dict(mode={'name': mode,
-                   'force_complex_dtype': dtype == complex},
+                   'force_complex_dtype': dtype == complex },
              poissonsolver=poisson,
              random=random,
              h=h,

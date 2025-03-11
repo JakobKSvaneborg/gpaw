@@ -87,6 +87,31 @@ void evaluate_lda_launch_kernel(int nspin, int ng,
                                 double* v,
                                 double* e);
 
+int get_dtype(void* array)
+{
+    // Only these combinations are allowed. Make it so.
+    // dtype.num 11      14        12      15
+    // array     float32 complex64 float64 complex128
+
+    int dtypenum = Array_TYPE(array);
+    assert(dtypenum == 11 || dtypenum == 12 || dtypenum == 14 || dtypenum == 15);
+    return dtypenum;
+}
+
+void assert_corresponding_real(int dtypenum, void* array)
+{
+    // Only these combinations are allowed. Make it so.
+    // dtypenum  11      14        12      15
+    //           float32 complex64 float64 complex128
+    //
+    // realdtype 11      11        12      12
+    // array     float32 float32   float64
+    int realdtype = Array_TYPE(array);
+    assert((realdtype == 11 && (dtypenum == 11 || dtypenum == 14)) ||
+           (realdtype == 12 && (dtypenum == 12 || dtypenum == 15)));
+    return;
+}
+
 PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
 {
     PyObject* n_obj;
@@ -416,24 +441,14 @@ PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
     if (!PyArg_ParseTuple(args, "OOO",
                           &f_n_obj, &psit_nR_obj, &rho_R_obj))
         return NULL;
-    int dtypenum = Array_TYPE(psit_nR_obj);
+    int dtypenum = get_dtype(psit_nR_obj);
 
     double *f_n = Array_DATA(f_n_obj);
     void *psit_nR = (void*) Array_DATA(psit_nR_obj);
     void *rho_R = (void*) Array_DATA(rho_R_obj);
     int nb = Array_SIZE(f_n_obj);
     int nR = Array_SIZE(psit_nR_obj) / nb;
-    //assert(Array_ITEMSIZE(rho_R_obj) == 8);
-    int rhodtype = Array_TYPE(rho_R_obj);
-    // f_n always double
-    // Only these combinations are allowed. Make it so.
-    // dtype.num 11      14        12      15
-    // psit_nR   float32 complex64 float64 complex128
-    //
-    // dtype.num 11      11        12      12
-    // rho_r     float32 float32   float64 float64
-    assert ((rhodtype == 11 && (dtypenum == 11 || dtypenum == 14)) ||
-            (rhodtype == 12 && (dtypenum == 12 || dtypenum == 15)));
+    assert_corresponding_real(dtypenum, rho_R_obj);
     
     if (PyErr_Occurred())
     {

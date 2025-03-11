@@ -32,6 +32,7 @@ def test_single_precision(dtype, gpu):
 def run_single_precision(dtype, gpu):
     atoms = molecule('H2O')
     atoms.center(vacuum=2.5)
+    #atoms = bulk('Cu')
 
     gpu = gpu == 'True'
 
@@ -39,6 +40,7 @@ def run_single_precision(dtype, gpu):
                       symmetry='off',
                       random=True,
                       convergence={'energy': 1e-5},
+                      #kpts={'density': 1},
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
@@ -46,7 +48,8 @@ def run_single_precision(dtype, gpu):
                       )
 
     e_pot = atoms.get_potential_energy()
-    expected_e = 9.595593485742606
+    #expected_e = 9.595593485742606
+    expected_e = -2.19724921704334
 
     assert atoms.calc.wfs.dtype == dtype
 

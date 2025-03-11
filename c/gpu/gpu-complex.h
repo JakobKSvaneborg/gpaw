@@ -62,6 +62,14 @@ __host__ __device__ static __inline__ gpuDoubleComplex gpuCmulD(
     return make_gpuDoubleComplex(gpuCreal(x) * y, gpuCimag(x) * y);
 }
 
+#ifdef __cplusplus
+__host__ __device__ static __inline__ gpuFloatComplex gpuCmulD(
+        gpuFloatComplex x, float y)
+{
+    return make_gpuFloatComplex(x.x * y, x.y * y);
+}
+#endif
+
 __host__ __device__ static __inline__ gpuDoubleComplex gpuCneg(
         gpuDoubleComplex x)
 {

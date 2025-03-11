@@ -21,6 +21,7 @@
 #define gpuFloatComplex           hipFloatComplex
 #define gpublasDoubleComplex      hipblasDoubleComplex
 #define make_gpuDoubleComplex     make_hipDoubleComplex
+#define make_gpuFloatComplex      make_hipFloatComplex
 #define gpuCreal                  hipCreal
 #define gpuCimag                  hipCimag
 #define gpuCadd                   hipCadd

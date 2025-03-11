@@ -114,10 +114,10 @@ def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
 
 
 def add_to_density_gpu(weight_n, psit_nR, nt_R):
-    #for weight, psit_R in zip(weight_n, psit_nR):
-    #    nt_R += float(weight) * cp.abs(psit_R)**2
-    from _gpaw import add_to_density_gpu as evalf
-    evalf(weight_n, psit_nR, nt_R)
+    for weight, psit_R in zip(weight_n, psit_nR):
+        nt_R += float(weight) * cp.abs(psit_R)**2
+    #from _gpaw import add_to_density_gpu as evalf
+    #evalf(weight_n, psit_nR, nt_R)
  #   pri123nt('doing it')
 
 
