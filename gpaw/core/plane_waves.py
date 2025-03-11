@@ -713,11 +713,26 @@ class PWArray(DistributedArrays[PWDesc]):
         if seed is None:
             seed = self.comm.rank + self.desc.comm.rank * self.comm.size
         rng = self.xp.random.default_rng(seed)
-        a = self.data.view(self.real_dtype)
-        rng.random(a.shape, out=a, dtype=self.real_dtype)
-        a -= 0.5
-        if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
-            a[..., 1] = 0.0
+
+        batches = self.data.size // 5_000_000 + 1
+        arrays = self.xp.array_split(self.data, batches)
+        is_real = self.desc.dtype == self.real_dtype
+        ekin_G = self.xp.asarray(self.desc.ekin_G)
+        for a in arrays:
+            # numpy does not require shape, cupy does
+            # cupy just makes all elements equal to one random number
+            aview = a.view(dtype=self.real_dtype)
+            rng.random(aview.shape, out=aview, dtype=self.real_dtype)
+
+            # Uniform distribution inside unit circle
+            a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)
+
+            # Damp high spatial frequencies
+            a[..., :] *= 0.5 / (1.00 + ekin_G[..., :])
+
+            # Make sure gamma point G=0 does not have imaginary part
+            if is_real and self.desc.comm.rank == 0:
+                a[..., 0].imag = 0.0
 
     def moment(self):
         pw = self.desc

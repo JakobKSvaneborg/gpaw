@@ -12,6 +12,9 @@ __version__ = 'fake'
 __all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
 
 
+pi = np.pi
+
+
 def empty(*args, **kwargs):
     return ndarray(np.empty(*args, **kwargs))
 
@@ -43,6 +46,10 @@ def asarray(a):
 
 def array(a, dtype=None):
     return ndarray(np.array(a, dtype))
+
+
+def array_split(a, *args, **kwargs):
+    return list(map(ndarray, np.array_split(a._data, *args, **kwargs)))
 
 
 def ascontiguousarray(a):
@@ -151,6 +158,13 @@ class ndarray:
     @property
     def imag(self):
         return ndarray(self._data.imag)
+
+    @imag.setter
+    def imag(self, value):
+        if isinstance(value, (float, complex)):
+            self._data.imag = value
+        else:
+            self._data.imag = value._data
 
     def set(self, a):
         if self.ndim == 0:

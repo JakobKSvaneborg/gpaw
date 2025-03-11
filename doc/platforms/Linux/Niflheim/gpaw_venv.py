@@ -305,7 +305,7 @@ def main():
     Path(f'lib/python{version}/site-packages/niflheim.pth').write_text(pth)
 
     # Install extra basis-functions:
-    run(f'. {activate} && gpaw install-data --basis --version=20000 '
+    run(f'. {activate} && gpaw install-data --basis --version=0.9.20000 '
         f'{venv} --no-register')
 
     extra = activate_extra.format(venv=venv)

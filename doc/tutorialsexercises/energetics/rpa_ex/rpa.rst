@@ -238,9 +238,7 @@ and sets the number of bands to equal the number of plane waves describing `\chi
 Now, run :download:`si.rpa.py` (4 minutes, 4 CPUs).
 
 Studying the output file ``si.rpa.rpa_output.txt``, we see that the code calculates
-the contribution from each q point sequentially.  In fact by specifying the
-``filename`` attribute of the ``RPACorrelation`` object we can generate a
-restart file which allows GPAW to pick up from an interrupted calculation.
+the contribution from each q point sequentially.
 Once the contributions from all the q points have been calculated, they are
 summed together with the appropriate q-point weights to construct the
 correlation energy.  The correlation energy for each plane-wave cutoff is
