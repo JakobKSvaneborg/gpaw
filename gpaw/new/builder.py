@@ -385,7 +385,7 @@ class DFTComponentsBuilder:
             from gpaw.jellium import create_background_charge
             bc = create_background_charge(**self.params.background_charge)
             bc.set_grid_descriptor(grid._gd)
-            return Jellium(bc, len(self.atoms))
+            return Jellium(bc, len(self.atoms), grid)
         if self.params.solvation:
             from gpaw.new.solvation import Solvation
             return Solvation(**self.params.solvation,

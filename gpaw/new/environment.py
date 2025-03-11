@@ -1,6 +1,7 @@
 import numpy as np
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.poisson import PoissonSolver as make_poisson_solver
+from gpaw.core import UGArray
 
 
 class Environment:
@@ -24,10 +25,20 @@ class Environment:
 
 
 class Jellium(Environment):
-    def __init__(self, jellium, natoms):
+    def __init__(self, jellium, natoms, grid):
         super().__init__(natoms)
         self.jellium = jellium
+        self.grid = grid
         self.charge = jellium.charge
+        self.charge_g = None
 
     def update1(self, nt_r):
-        self.jellium.add_charge_to(nt_r.data)
+        if isinstance(nt_r, UGArray):
+            self.jellium.add_charge_to(nt_r.data)
+            return
+        nt_g = nt_r
+        if self.charge_g is None:
+            charge_r = self.grid.zeros()
+            self.jellium.add_charge_to(charge_r.data)
+            self.charge_g = charge_r.fft(pw=nt_g.desc)
+        nt_g.data += self.charge_g.data

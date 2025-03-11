@@ -22,7 +22,6 @@ class FDPotentialCalculator(PotentialCalculator):
                  xp=np):
         self.fine_grid = fine_grid
         self.grid = wf_grid
-        self.environment = environment
 
         self.vbar_ar = setups.create_local_potentials(fine_grid, relpos_ac,
                                                       atomdist, xp=xp)
@@ -42,7 +41,8 @@ class FDPotentialCalculator(PotentialCalculator):
         self.xp = xp
 
         super().__init__(xc, poisson_solver, setups,
-                         relpos_ac=relpos_ac)
+                         relpos_ac=relpos_ac,
+                         environment=environment)
 
     def __str__(self):
         txt = super().__str__()

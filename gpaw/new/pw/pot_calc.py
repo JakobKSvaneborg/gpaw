@@ -19,6 +19,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  external_potential,
                  relpos_ac,
                  atomdist,
+                 environment,
                  soc=False,
                  xp=np):
         self.xp = xp
@@ -26,6 +27,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         super().__init__(xc, poisson_solver, setups,
                          external_potential=external_potential,
                          relpos_ac=relpos_ac,
+                         environment=environment,
                          soc=soc)
 
         self.vbar_ag = setups.create_local_potentials(
@@ -106,6 +108,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             vt0_g = self.vbar0_g.copy()
         else:
             vt0_g = None
+
+        self.environment.update1(nt0_g)
 
         Q_aL = density.calculate_compensation_charge_coefficients()
         e_coulomb, vHt_h, V_aL = self.poisson_solver.solve(
