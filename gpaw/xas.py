@@ -10,22 +10,24 @@ from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
 from gpaw.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
-# 
+import gpaw.mpi as mpi
 
 
 def dipole_matrix_elements(setup):
     """calculate length form dipole matrix elements of setup-states
     with the core-state"""
-    G_LLL = gaunt(setup.lmax)
+    l_core = setup.data.lcorehole
+    lmax = max(setup.lmax, l_core)
+    G_LLL = gaunt(lmax)  # include the f states
 
     # map m, l quantum numbers to L
     M = {0: [0]}
-    for l in range(1, setup.lmax + 1):
+    for l in range(1, lmax + 1): # include the f states
         M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
 
     phi_jg = setup.data.phi_jg
     nj = len(phi_jg)
-    l_core = setup.data.lcorehole
+
     A_cmi = np.zeros((3, len(M[l_core]), setup.ni))
 
     i = 0
@@ -755,9 +757,7 @@ class RecursionMethod:
 
     def get_spectra(self, eps_s, delta=0.1, imax=None, kpoint=None, fwhm=None,
                     linbroad=None, spin=0):
-        if self.wfs is not None:
-            assert self.wfs.world.size == 1
-        # assert not mpi.parallel
+        assert not mpi.parallel
 
         # the following lines are to stop the user to make mistakes
         # if spin == 1:
