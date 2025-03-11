@@ -14,6 +14,7 @@ from gpaw.typing import Array2D
 from gpaw.new.logger import indent
 from gpaw import KohnShamConvergenceError
 from gpaw.new.energies import DFTEnergies
+from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class TooFewBandsError(KohnShamConvergenceError):
@@ -49,7 +50,7 @@ class SCFLoop:
                 f'occupation numbers:\n{indent(self.occ_calc)}\n')
 
     def iterate(self,
-                ibzwfs,
+                ibzwfs: IBZWaveFunctions,
                 density,
                 potential,
                 energies: DFTEnergies,
@@ -71,6 +72,10 @@ class SCFLoop:
         self.mixer.reset()
 
         self.occ_calc.initialize_reference_orbitals()
+
+        if pot_calc.environment.fixed_fermi_level is not None:
+            self.fix_fermi_level = True
+            ibzwfs.fermi_levels = np.array([pot_calc.environment.fixed_fermi_level])
 
         if self.update_density_and_potential:
             dens_error = self.mixer.mix(density)

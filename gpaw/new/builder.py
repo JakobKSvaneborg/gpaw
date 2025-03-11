@@ -383,9 +383,10 @@ class DFTComponentsBuilder:
         if self.params.background_charge:
             from gpaw.new.environment import Jellium
             from gpaw.jellium import create_background_charge
+            fl = self.params.background_charge.pop('fermi_level', None)
             bc = create_background_charge(**self.params.background_charge)
             bc.set_grid_descriptor(grid._gd)
-            return Jellium(bc, len(self.atoms), grid)
+            return Jellium(bc, len(self.atoms), grid, fl)
         if self.params.solvation:
             from gpaw.new.solvation import Solvation
             return Solvation(**self.params.solvation,

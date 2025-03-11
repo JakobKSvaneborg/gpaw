@@ -2,12 +2,14 @@ import numpy as np
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.poisson import PoissonSolver as make_poisson_solver
 from gpaw.core import UGArray
+from ase.units import Ha
 
 
 class Environment:
     def __init__(self, natoms: int):
         self.natoms = natoms
         self.charge = 0.0
+        self.fixed_fermi_level = None
 
     def create_poisson_solver(self, grid, *, xp, **kwargs) -> PoissonSolver:
         solver = make_poisson_solver(**kwargs, xp=xp)
@@ -25,20 +27,22 @@ class Environment:
 
 
 class Jellium(Environment):
-    def __init__(self, jellium, natoms, grid):
+    def __init__(self, jellium, natoms, grid, fermi_level):
         super().__init__(natoms)
+        if fermi_level is not None:
+            self.fixed_fermi_level = fermi_level / Ha
         self.jellium = jellium
         self.grid = grid
         self.charge = jellium.charge
         self.charge_g = None
 
-    def update1(self, nt_r):
+    def update1(self, nt_r, charge):
         if isinstance(nt_r, UGArray):
-            self.jellium.add_charge_to(nt_r.data)
+            self.jellium.add_charge_to(nt_r.data, charge)
             return
         nt_g = nt_r
         if self.charge_g is None:
             charge_r = self.grid.zeros()
             self.jellium.add_charge_to(charge_r.data)
             self.charge_g = charge_r.fft(pw=nt_g.desc)
-        nt_g.data += self.charge_g.data
+        nt_g.data += self.charge_g.data * charge
