@@ -17,6 +17,11 @@ from gpaw.xc.hybrid import constructX, atomic_exact_exchange
 from gpaw.atom.filter import Filter
 
 
+def enumerate_j_ln(anything_ln: list[list[object]]) -> list[list[int]]:
+    """Return j_ln to map between _j and _ln index."""
+    return [[0 for _ in anything_n] for anything_n in anything_ln]
+
+
 class Generator(AllElectron):
     def __init__(self, symbol, xcname='LDA', scalarrel=True, corehole=None,
                  configuration=None,
@@ -679,7 +684,8 @@ class Generator(AllElectron):
         self.vq_j = vq_j = []
         gllb = 'w_ln' in extra_xc_data
         self.vw_j = vw_j = []
-        j_ln = [[0 for f in f_n] for f_n in f_ln]
+
+        j_ln = enumerate_j_ln(f_ln)
         j = 0
         for l, n_n in enumerate(n_ln):
             for n, nn in enumerate(n_n):
@@ -843,6 +849,10 @@ class Generator(AllElectron):
                            e_j=self.e_j[self.njcore:],
                            u_j=self.u_j[self.njcore:],
                            f_j=self.f_j[self.njcore:],
+                           phi_jg=setup.phi_jg,
+                           phit_jg=setup.phit_jg,
+                           pt_jg=setup.pt_jg,
+                           rcut_j=setup.rcut_j,
                            u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
                            rcut_l=self.rcut_l,
                            scalarrel=self.scalarrel,

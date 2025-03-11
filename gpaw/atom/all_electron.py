@@ -804,9 +804,14 @@ class ValenceData:
     vr: np.ndarray
     r2dvdr: np.ndarray | None  # Actually: None means not scalarrel
 
-    u_ln: list[list[np.ndarray]]
-    q_ln: list[list[np.ndarray]]
-    s_ln: list[list[np.ndarray]]
+    phi_jg: list[np.ndarray] | None = None
+    phit_jg: list[np.ndarray] | None = None
+    pt_jg: list[np.ndarray] | None = None
+    rcut_j: list[float] | None  = None
+
+    u_ln: list[list[np.ndarray]] | None  = None  # ~ phi_jg
+    q_ln: list[list[np.ndarray]] | None  = None  # ~ pt_jg
+    s_ln: list[list[np.ndarray]] | None  = None  # ~ phit_jg
 
     @classmethod
     def from_setupdata(cls, setupdata):
