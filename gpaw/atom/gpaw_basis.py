@@ -88,27 +88,10 @@ def get_basismaker(valdata, opts):
         save_setup=opts.save_setup)
 
 
-def read_setupdata(path):
-    from pathlib import Path
-    from gpaw.setup_data import SetupData
-    path = Path(path)
-    tokens = path.name.split('.')
-
-    # We should not get symbol and xc from the filename, instead we should
-    # parse them.
-    #
-    # Also, this doesn't work if the setup is unnamed.
-    symbol = tokens[0]
-    xc = tokens[2]
-
-    setupdata = SetupData(symbol, xc, readxml=False)
-    setupdata.read_xml(source=path.read_bytes())
-    return setupdata
-
-
 def main():
     from gpaw import ConvergenceError
     from gpaw.basis_data import parse_basis_name
+    from gpaw.atom.basisfromfile import read_setupdata
 
     def generate_basis_set(symbol_or_path: str):
         if '.' in symbol_or_path:  # symbol is actually a path
