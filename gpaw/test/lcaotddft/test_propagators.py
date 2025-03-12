@@ -96,24 +96,14 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
 
     assert data_i == pytest.approx(ref_i, abs=1e-8)
 
-#@pytest.mark.serial #once the ref is generated
+@pytest.mark.serial #remove later
 def test_velocity(gpw_files, in_tmp_dir):
-
-    # kicks are different, so  dm's are expected tp be different
-    # but they should lead to agreeing physical results
 
     td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'])
 
     VelocityGaugeWriter(td_calc, 'dm_velocityGauge.dat')
     td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
     td_calc.propagate(10, 20)
-    #data = []
-    #for line in open('dm_velocityGauge.dat').readlines():
-    #    if line.strip().startswith('#'):
-    #        continue
-    #    data.append(float(line.split()[4]))
-    #from pprint import pprint
-    #pprint(data)
     data_i = np.loadtxt('dm_velocityGauge.dat')[:, 4]
     ref_i = [0.000000000000e+00,
              0.000000000000e+00,
@@ -138,35 +128,4 @@ def test_velocity(gpw_files, in_tmp_dir):
              3.104240038438e-06,
              3.400220392727e-06]
     assert data_i == pytest.approx(ref_i, abs=1e-10)
-    photoabsorption_spectrum('dm_velocityGauge.dat', 'spec_velocityGauge.dat', width=0.15, velocity=True)
-    
-    asd
-    data = np.loadtxt('dm_velocityGauge.dat')
-    from pathlib import Path
-    print('Spectrum is at', Path('spec_velocityGauge.dat').resolve())
-    ## generation of reference data
-    #DipoleMomentWriter(td_calc, 'dm_lengthGauge.dat')
-    #td_calc.absorption_kick([0.0, 0.0, 1e-5]) 
-    #td_calc.propagate(10, 2500)
-    #photoabsorption_spectrum('dm_lengthGauge.dat', 'spec_lengthGauge.dat', width=1.0)
-    #from  GPAW version: 25.1.1b1
-    # ToDo: insert refernce data 
-    #np allclose 
 
-
-
-    # TODO: VERIFY data here
-    #  - generate/find reference data with standard dzp-basis
-    #  - leave it in here and compare new data with assert
-
-#def test_velocity_magnetic_moment(gpw_files, in_tmp_dir):
-#    td_calc = LCAOTDDFT(gpw_files['some chiral system'])
-#    MagneticMomentWriter(td_calc, 'mom.dat')
-#    td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
-#    td_calc.propagate(40, 20)
-#    data = np.loadtxt('mom.dat')
-#    # TODO: VERIFY data here
-#    # same as above
-#
-
-# same as above
