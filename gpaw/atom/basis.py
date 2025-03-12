@@ -154,7 +154,10 @@ class BasisMaker:
 
         valdata = self.valence_data
         l = valdata.l_j[j]
-        u_ng = valdata.u_ln[l]
+
+        u_ng = np.array([valdata.u_j[j] for j, _l in
+                         enumerate(valdata.l_j) if _l == l])
+
         q_ng = valdata.q_ln[l]
         s_ng = valdata.s_ln[l]
         r_g = valdata.rgd.r_g

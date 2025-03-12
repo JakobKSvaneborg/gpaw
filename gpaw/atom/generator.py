@@ -844,8 +844,8 @@ class Generator(AllElectron):
         assert abs(self.rgd.beta - self.beta) < 1e-13
 
         def bound_only(thing_j):
-            return [thing_j[j] for j, thing in enumerate(thing_j)
-                    if setup.n_j[j] > 0]
+            # Actually wait, should we use unbound after all?
+            return [thing_j[j] for j, thing in enumerate(thing_j)]
 
         valdata = ValenceData(
             rgd=self.rgd, vr=self.vr,
@@ -853,7 +853,7 @@ class Generator(AllElectron):
             l_j=bound_only(setup.l_j),
             e_j=bound_only(setup.eps_j),
             f_j=bound_only(setup.f_j),
-            rcut_j=[setup.rcut_j[j] for j, n in enumerate(setup.n_j) if n > 0],
+            rcut_j=bound_only(setup.rcut_j),
             u_j=bound_only(setup.phi_jg * self.rgd.r_g[None, :]),
             u_ln=self.u_ln,
             q_ln=self.q_ln,

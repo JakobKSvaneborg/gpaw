@@ -882,8 +882,6 @@ class ValenceData:
             thing_j = getattr(self, attr)
             assert len(thing_j) == self.nj, (attr, len(thing_j), self.nj)
 
-        for n in self.n_j:
-            assert n > 0
         err = abs(self.rgd.beta / len(self.rgd.r_g) - self.rgd.a)
         assert err < 1e-15, f'Inconsistent rgd spacing, {err=}'
 
