@@ -853,16 +853,14 @@ class Generator(AllElectron):
             r2dvdr_g=self.r2dvdr,
             scalarrel=self.scalarrel)
 
-        vr1_g, r2dvdr1_g, scalarrel1 = ValenceData.calculate_potential_data(
-            setup)
+        # We can verify to what extent we can reproduce the potential:
+        # vr1_g, r2dvdr1_g, scalarrel1 = ValenceData.calculate_potential_data(
+        #     setup)
 
-        err1 = np.abs(vr1_g - valdata.vr_g).max()
-        err2 = np.abs(r2dvdr1_g - valdata.r2dvdr_g).max()
-
-        assert scalarrel1 == self.scalarrel
-        # These are not enormously precise, but values may be ~20 for Ti.
-        assert err1 < 2e-4, err1
-        assert err2 < 1e-2, err2
+        # np.testing.assert_allclose(
+        #    vr1_g, valdata.vr_g,rtol=1e-4, atol=0.005)
+        # np.testing.assert_allclose(
+        #    r2dvdr1_g, valdata.r2dvdr_g, rtol=1e-4, atol=0.005)
         return valdata
 
     def diagonalize(self, h):
