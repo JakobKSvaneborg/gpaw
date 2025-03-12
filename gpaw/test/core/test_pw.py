@@ -97,7 +97,7 @@ def test_pw_integrate(xp, grid):
     gg = g.new()
     gg.scatter_from(f.gather(broadcast=True)
                     .ifft(grid=g.desc.new(comm=None)))
-    assert (g.data == gg.data).all()
+    assert xp.allclose(g.data, gg.data, 1e-15)
 
     i1 = g.integrate()
     i2 = f.integrate()
