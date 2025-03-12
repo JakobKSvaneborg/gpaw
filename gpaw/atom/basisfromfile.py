@@ -17,19 +17,39 @@ def read_setupdata(path):
 def build_parser(parser):
     add = parser.add_argument
     add('file', nargs='+')
+    add('--name', help='Basis name to be included in output filename.')
+    add('--type', default='dzp',
+        help='Type of basis set.  Currently only "dzp".')
 
 
-def generate(args, filename):
+def generate_basis(setupdata, args):
     from gpaw.atom.basis import BasisMaker
+    from gpaw.atom.all_electron import ValenceData
 
-    setupdata = read_setupdata(filename)
-    print(setupdata)
+    valdata = ValenceData.from_setupdata_onthefly_potentials(setupdata)
+    bm = BasisMaker(valdata)
+    basis = bm.generate()
 
-    # bm = BasisMaker()
+    tokens = [setupdata.symbol]
+
+    # Should the setupname be added as part of the name, too?
+    # Probably not, since we don't include the xcname either.
+    # But I suppose it depends more on the runtime behaviour when
+    # GPAW actually picks setups/basis sets for a calculation.
+    if args.name:
+        tokens.append(args.name)
+    tokens += [args.type, 'basis']
+    outputfile = '.'.join(tokens)
+
+    with open(outputfile, 'w') as fd:
+        basis.write_to(fd)
+
 
 def main(args):
     for filename in args.file:
-        generate(args, filename)
+        print(f'Generating basis set for {filename}')
+        setupdata = read_setupdata(filename)
+        generate_basis(setupdata, args)
 
 
 class CLICommand:
