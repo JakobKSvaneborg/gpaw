@@ -8,10 +8,11 @@ from gpaw.tddft.folding import FoldedFrequencies
 from gpaw.tddft.folding import Folding
 
 
-def calculate_fourier_transform(x_t, y_ti, foldedfrequencies):
+def calculate_fourier_transform(x_t, y_ti, foldedfrequencies, velocity=False):
     ff = foldedfrequencies
     X_w = ff.frequencies
     envelope = ff.folding.envelope
+    
 
     # Construct integration weights:
     # We use trapezoidal rule except the end point is accounted with
@@ -21,11 +22,17 @@ def calculate_fourier_transform(x_t, y_ti, foldedfrequencies):
     # should damp the data to zero at the end point in any case.
     dx_t1 = x_t[1:] - x_t[:-1]
     dx_t = 0.5 * (np.insert(dx_t1, 0, 0.0) + np.append(dx_t1, dx_t1[-1]))
-
+    
+    env_t = envelope(x_t)
+    Ienv = np.sum(dx_t * env_t)
+    
+    if velocity:
+        y_ti -= np.sum((dx_t * env_t)[:, None] * y_ti, axis=0) / Ienv
+    
     # Integrate
     f_wt = np.exp(1.0j * np.outer(X_w, x_t))
     y_it = np.swapaxes(y_ti, 0, 1)
-    env_t = envelope(x_t)
+    
     Y_wi = np.tensordot(f_wt, dx_t * env_t * y_it, axes=(1, 1))
     print('Sinc contamination', env_t[-1])
     return Y_wi
@@ -197,9 +204,13 @@ def read_dipole_moment_file(fname, remove_duplicates=True):
     return kick_i, time_t, norm_t, dm_tv
 
 
-def calculate_polarizability(kick_v, time_t, dm_tv, foldedfrequencies):
-    dm_tv = dm_tv - dm_tv[0]
-    alpha_wv = calculate_fourier_transform(time_t, dm_tv, foldedfrequencies)
+def calculate_polarizability(kick_v, time_t, dm_tv, foldedfrequencies, velocity=False):
+    if not velocity:
+        dm_tv = dm_tv - dm_tv[0]
+
+    alpha_wv = calculate_fourier_transform(time_t, dm_tv, foldedfrequencies,
+                                           velocity=velocity)
+    
     kick_magnitude = np.sqrt(np.sum(kick_v**2))
     alpha_wv /= kick_magnitude
     return alpha_wv
@@ -208,7 +219,8 @@ def calculate_polarizability(kick_v, time_t, dm_tv, foldedfrequencies):
 def calculate_photoabsorption(kick_v, time_t, dm_tv, foldedfrequencies, velocity=False):
     omega_w = foldedfrequencies.frequencies
     alpha_wv = calculate_polarizability(kick_v, time_t, dm_tv,
-                                        foldedfrequencies)
+                                        foldedfrequencies,
+                                        velocity=velocity)
     #p = -1 if velocity else 1
     #abs_wv = 2 / np.pi * omega_w[:, np.newaxis]**p * alpha_wv.imag
     if velocity:
