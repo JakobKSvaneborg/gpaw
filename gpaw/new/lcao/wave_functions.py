@@ -190,12 +190,12 @@ class LCAOWaveFunctions(WaveFunctions):
             rho_MM = TempC_nM.multiply(self.C_nM, opa='C')
             if transposed:
                 rho_MM.complex_conjugate()
-            rho_MM = rho_MM.data
+            rho_MM_data = rho_MM.data
         else:
-            rho_MM = np.empty_like(self.T_MM.data)
-        self.domain_comm.broadcast(rho_MM, 0)
+            rho_MM_data = np.empty_like(self.T_MM.data)
+        self.domain_comm.broadcast(rho_MM_data, 0)
 
-        return rho_MM
+        return rho_MM_data
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
