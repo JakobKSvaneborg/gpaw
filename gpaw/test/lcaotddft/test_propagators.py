@@ -110,8 +110,9 @@ def test_velocity(gpw_files, in_tmp_dir):
     td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
     td_calc.propagate(10, 2500)
     data = np.loadtxt('dm_velocityGauge.dat')
-    photoabsorption_spectrum('dm_velocityGauge.dat', 'spec_velocityGauge.dat', width=1.0, velocity=True)
-    
+    photoabsorption_spectrum('dm_velocityGauge.dat', 'spec_velocityGauge.dat', width=0.15, velocity=True)
+    from pathlib import Path
+    print('Spectrum is at', Path('spec_velocityGauge.dat').resolve())
     ## generation of reference data
     #DipoleMomentWriter(td_calc, 'dm_lengthGauge.dat')
     #td_calc.absorption_kick([0.0, 0.0, 1e-5]) 
