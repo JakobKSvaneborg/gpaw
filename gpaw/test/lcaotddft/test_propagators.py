@@ -3,7 +3,9 @@ import numpy as np
 
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
+from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter, VelocityGaugeWriter
 
+from gpaw.tddft.spectrum import photoabsorption_spectrum
 
 @pytest.mark.rttddft
 @pytest.mark.parametrize('propagator', ['sicn', 'scpc', 'ecn'])
@@ -62,7 +64,9 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
                  2.807437787678e-04,
                  2.755072543407e-04,
                  2.658179386847e-04,
-                 2.518229288423e-04,
+         
+
+             2.518229288423e-04,
                  2.337394843530e-04,
                  2.118531419552e-04,
                  1.865144815236e-04,
@@ -94,20 +98,43 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
 
     assert data_i == pytest.approx(ref_i, abs=1e-8)
 
+#@pytest.mark.serial #once the ref is generated
 def test_velocity(gpw_files, in_tmp_dir):
+
+    # kicks are different, so  dm's are expected tp be different
+    # but they should lead to agreeing physical results
+
     td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'])
-    VelocityGaugeWriter(td_calc, 'dm.dat')
+
+    VelocityGaugeWriter(td_calc, 'dm_velocityGauge.dat')
     td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
-    td_calc.propagate(40, 20)
-    data = np.loadtxt('dm.dat')
+    td_calc.propagate(10, 2500)
+    data = np.loadtxt('dm_velocityGauge.dat')
+    photoabsorption_spectrum('dm_velocityGauge.dat', 'spec_velocityGauge.dat', width=1.0, velocity=True)
+    
+    ## generation of reference data
+    #DipoleMomentWriter(td_calc, 'dm_lengthGauge.dat')
+    #td_calc.absorption_kick([0.0, 0.0, 1e-5]) 
+    #td_calc.propagate(10, 2500)
+    #photoabsorption_spectrum('dm_lengthGauge.dat', 'spec_lengthGauge.dat', width=1.0)
+    #from  GPAW version: 25.1.1b1
+    # ToDo: insert refernce data 
+    #np allclose 
+
+
+
     # TODO: VERIFY data here
+    #  - generate/find reference data with standard dzp-basis
+    #  - leave it in here and compare new data with assert
 
-def test_velocity_magnetic_moment(gpw_files, in_tmp_dir):
-    td_calc = LCAOTDDFT(gpw_files['some chiral system'])
-    MagneticMomentWriter(td_calc, 'mom.dat')
-    td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
-    td_calc.propagate(40, 20)
-    data = np.loadtxt('mom.dat')
-    # TODO: VERIFY data here
+#def test_velocity_magnetic_moment(gpw_files, in_tmp_dir):
+#    td_calc = LCAOTDDFT(gpw_files['some chiral system'])
+#    MagneticMomentWriter(td_calc, 'mom.dat')
+#    td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
+#    td_calc.propagate(40, 20)
+#    data = np.loadtxt('mom.dat')
+#    # TODO: VERIFY data here
+#    # same as above
+#
 
-
+# same as above
