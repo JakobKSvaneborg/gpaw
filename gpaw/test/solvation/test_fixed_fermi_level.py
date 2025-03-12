@@ -2,6 +2,7 @@ from gpaw.new.ase_interface import GPAW
 from ase import Atoms
 from gpaw.jellium import JelliumSlab
 import numpy as np
+from gpaw.mixer import Mixer
 
 
 def test_ffl():
@@ -12,6 +13,8 @@ def test_ffl():
     atoms.calc = GPAW(
         mode='pw',
         kpts=(k, k, 1),
+        mixer=Mixer(0.001, 1),
+        convergence={'density': 1.0},
         poissonsolver={'dipolelayer': 'xy'},
         background_charge=dict(charge=0.01,
                                z1=7.0, z2=9.0,
