@@ -114,7 +114,7 @@ def main():
         if '.' in symbol_or_path:  # symbol is actually a path
             from gpaw.atom.all_electron import ValenceData
             setupdata = read_setupdata(symbol_or_path)
-            valdata = ValenceData.from_setupdata(setupdata)
+            valdata = ValenceData.from_setupdata_onthefly_potentials(setupdata)
             symbol = valdata.symbol
             bm = get_basismaker(valdata, opts)
         else:
