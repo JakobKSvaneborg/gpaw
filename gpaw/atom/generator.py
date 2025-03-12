@@ -853,8 +853,16 @@ class Generator(AllElectron):
             r2dvdr_g=self.r2dvdr,
             scalarrel=self.scalarrel)
 
-        # valdata1 = ValenceData.from_setupdata(setup)
-        # valdata.compare(valdata1)
+        vr1_g, r2dvdr1_g, scalarrel1 = ValenceData.calculate_potential_data(
+            setup)
+
+        err1 = np.abs(vr1_g - valdata.vr_g).max()
+        err2 = np.abs(r2dvdr1_g - valdata.r2dvdr_g).max()
+
+        assert scalarrel1 == self.scalarrel
+        # These are not enormously precise, but values may be ~20 for Ti.
+        assert err1 < 2e-4, err1
+        assert err2 < 1e-2, err2
         return valdata
 
     def diagonalize(self, h):
