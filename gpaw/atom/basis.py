@@ -317,6 +317,8 @@ class BasisMaker:
         splitvalencedescr = 'split-valence wave, fixed tail norm'
         derivativedescr = 'derivative of sz wrt. (ri/rc) of potential'
 
+        jvalues = [j for j in jvalues if n_j[j] > 0]
+
         for vj, esplit in zip(jvalues, energysplit):
             l = l_j[vj]
             n = n_j[vj]
