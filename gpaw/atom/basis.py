@@ -155,11 +155,14 @@ class BasisMaker:
         valdata = self.valence_data
         l = valdata.l_j[j]
 
-        u_ng = np.array([valdata.u_j[j] for j, _l in
-                         enumerate(valdata.l_j) if _l == l])
+        def angular_buddies(array_j):
+            return np.array([array_j[j] for j, l1 in enumerate(valdata.l_j)
+                             if l1 == l])
 
-        q_ng = valdata.q_ln[l]
-        s_ng = valdata.s_ln[l]
+        u_ng = angular_buddies(valdata.phi_jg)
+        q_ng = angular_buddies(valdata.pt_jg)
+        s_ng = angular_buddies(valdata.phit_jg)
+
         r_g = valdata.rgd.r_g
 
         Pi_nn = np.dot(r_g * q_ng, u_ng.T)

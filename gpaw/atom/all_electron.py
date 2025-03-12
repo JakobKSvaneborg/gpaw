@@ -795,22 +795,17 @@ class ValenceData:
     n_j: list[int]
     l_j: list[int]
     e_j: list[float]
-    u_j: list[np.ndarray]
     f_j: list[float]
 
     scalarrel: bool
 
+    phi_jg: list[np.ndarray]
+    phit_jg: list[np.ndarray]
+    pt_jg: list[np.ndarray]
+    rcut_j: list[float]
+
     vr: np.ndarray
     r2dvdr: np.ndarray | None  # Actually: None means not scalarrel
-
-    phi_jg: list[np.ndarray] | None = None
-    phit_jg: list[np.ndarray] | None = None
-    pt_jg: list[np.ndarray] | None = None
-    rcut_j: list[float] | None  = None
-
-    u_ln: list[list[np.ndarray]] | None  = None  # ~ phi_jg
-    q_ln: list[list[np.ndarray]] | None  = None  # ~ pt_jg
-    s_ln: list[list[np.ndarray]] | None  = None  # ~ phit_jg
 
     @property
     def nj(self):
@@ -856,7 +851,7 @@ class ValenceData:
             n_j=only_bound(setupdata.n_j),
             f_j=only_bound(setupdata.f_j),
             e_j=only_bound(setupdata.eps_j),
-            u_j=only_bound(setupdata.phi_jg * setupdata.rgd.r_g[None, :]),
+            # u_j=only_bound(setupdata.phi_jg * setupdata.rgd.r_g[None, :]),
             rcut_j=only_bound(setupdata.rcut_j),
             vr=vr_g,
             # u_ln
@@ -916,12 +911,12 @@ class ValenceData:
         c10 = -self.d2gdr2_g * r**2  # first part of c1 vector
 
         if j is None:
-            n, l, e, u = 3, 2, -0.15, self.u_j[-1].copy()
+            n, l, e, u = 3, 2, -0.15, self.phi_jg[-1].copy()
         else:
             n = self.n_j[j]
             l = self.l_j[j]
             e = self.e_j[j]
-            u = self.u_j[j].copy()
+            u = self.phi_jg[j].copy()
 
         nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
                                self.scalarrel, rc=rc, beta=self.rgd.beta)
