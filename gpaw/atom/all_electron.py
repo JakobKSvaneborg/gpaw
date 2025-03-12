@@ -812,11 +812,12 @@ class ValenceData:
         return len(self.l_j)
 
     @classmethod
-    def from_setupdata(cls, setupdata):
+    def calculate_potential_data(cls, setupdata):
         rgd = setupdata.rgd
         xc = XC(setupdata.setupname)
 
         # XXX GLLB needs special initialization I think.
+        assert 'GLLB' not in setupdata.setupname
 
         if setupdata.orbital_free:
             raise RuntimeError('Setup is orbital-free')
@@ -835,31 +836,38 @@ class ValenceData:
 
         assert setupdata.type in {'scalar-relativistic', 'non-relativistic'}
         scalarrel = setupdata.type == 'scalar-relativistic'
+        return vr_g, r2dvdr_g, scalarrel
 
-        bound_j = [j for j in range(len(setupdata.l_j))
-                   if setupdata.n_j[j] > 0]
+    @classmethod
+    def from_setupdata_onthefly_potentials(cls, setupdata):
+        vr_g, r2dvdr_g, scalarrel = cls.calculate_potential_data(setupdata)
+        return cls.from_setupdata_and_potentials(
+            setupdata, vr_g, r2dvdr_g, scalarrel)
 
-        def only_bound(things_j):
-            return [things_j[j] for j in bound_j]
+    @classmethod
+    def from_setupdata_and_potentials(cls, setupdata, vr_g, r2dvdr_g,
+                                      scalarrel):
 
         assert len(setupdata.phi_jg) == len(setupdata.l_j)
 
+        def multiply_r(array_jg):
+            return array_jg * setupdata.rgd.r_g[None, :]
+
         return ValenceData(
+            xcname=setupdata.setupname,
             symbol=setupdata.symbol,
             rgd=setupdata.rgd,
-            l_j=only_bound(setupdata.l_j),
-            n_j=only_bound(setupdata.n_j),
-            f_j=only_bound(setupdata.f_j),
-            e_j=only_bound(setupdata.eps_j),
-            # u_j=only_bound(setupdata.phi_jg * setupdata.rgd.r_g[None, :]),
-            rcut_j=only_bound(setupdata.rcut_j),
+            n_j=setupdata.n_j,
+            l_j=setupdata.l_j,
+            e_j=setupdata.eps_j,
+            f_j=setupdata.f_j,
+            rcut_j=setupdata.rcut_j,
+            phi_jg=multiply_r(setupdata.phi_jg),
+            phit_jg=multiply_r(setupdata.phit_jg),
+            pt_jg=multiply_r(setupdata.pt_jg),
             vr=vr_g,
-            # u_ln
-            # q_ln
-            # s_ln
             r2dvdr=r2dvdr_g,
             scalarrel=scalarrel,
-            xcname=setupdata.setupname,
         )
 
     @property

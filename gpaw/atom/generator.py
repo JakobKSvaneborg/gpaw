@@ -846,20 +846,12 @@ class Generator(AllElectron):
         def multiply_r(array_jg):
             return array_jg * self.rgd.r_g[None, :]
 
-        valdata = ValenceData(
-            rgd=self.rgd, vr=self.vr,
-            n_j=setup.n_j,
-            l_j=setup.l_j,
-            e_j=setup.eps_j,
-            f_j=setup.f_j,
-            rcut_j=setup.rcut_j,
-            phi_jg=multiply_r(setup.phi_jg),
-            phit_jg=multiply_r(setup.phit_jg),
-            pt_jg=multiply_r(setup.pt_jg),
-            scalarrel=self.scalarrel,
-            r2dvdr=self.r2dvdr,
-            xcname=self.xcname,
-            symbol=self.symbol)
+        assert self.xcname == setup.setupname
+
+        valdata = ValenceData.from_setupdata_and_potentials(
+            setup, vr_g=self.vr,
+            r2dvdr_g=self.r2dvdr,
+            scalarrel=self.scalarrel)
 
         # valdata1 = ValenceData.from_setupdata(setup)
         # valdata.compare(valdata1)
