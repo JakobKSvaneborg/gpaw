@@ -64,9 +64,7 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
                  2.807437787678e-04,
                  2.755072543407e-04,
                  2.658179386847e-04,
-         
-
-             2.518229288423e-04,
+                 2.518229288423e-04,
                  2.337394843530e-04,
                  2.118531419552e-04,
                  1.865144815236e-04,
@@ -108,9 +106,42 @@ def test_velocity(gpw_files, in_tmp_dir):
 
     VelocityGaugeWriter(td_calc, 'dm_velocityGauge.dat')
     td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
-    td_calc.propagate(10, 2500)
-    data = np.loadtxt('dm_velocityGauge.dat')
+    td_calc.propagate(10, 20)
+    #data = []
+    #for line in open('dm_velocityGauge.dat').readlines():
+    #    if line.strip().startswith('#'):
+    #        continue
+    #    data.append(float(line.split()[4]))
+    #from pprint import pprint
+    #pprint(data)
+    data_i = np.loadtxt('dm_velocityGauge.dat')[:, 4]
+    ref_i = [0.000000000000e+00,
+             0.000000000000e+00,
+             1.006067165210e-08,
+             4.016494936588e-08,
+             9.010441886809e-08,
+             1.595392493537e-07,
+             2.480091681830e-07,
+             3.549482463863e-07,
+             4.797029544063e-07,
+             6.215528195238e-07,
+             7.797329169342e-07,
+             9.534573665756e-07,
+             1.141942968879e-06,
+             1.344432105004e-06,
+             1.560214064258e-06,
+             1.788644005768e-06,
+             2.029158870610e-06,
+             2.281289660947e-06,
+             2.544669639498e-06,
+             2.819038164914e-06,
+             3.104240038438e-06,
+             3.400220392727e-06]
+    assert data_i == pytest.approx(ref_i, abs=1e-10)
     photoabsorption_spectrum('dm_velocityGauge.dat', 'spec_velocityGauge.dat', width=0.15, velocity=True)
+    
+    asd
+    data = np.loadtxt('dm_velocityGauge.dat')
     from pathlib import Path
     print('Spectrum is at', Path('spec_velocityGauge.dat').resolve())
     ## generation of reference data
