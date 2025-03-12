@@ -1,4 +1,3 @@
-import sys
 from optparse import OptionParser
 
 
@@ -89,7 +88,6 @@ def get_basismaker(valdata, opts):
 
 
 def main():
-    from gpaw import ConvergenceError
     from gpaw.basis_data import parse_basis_name
     from gpaw.atom.basisfromfile import read_setupdata
 
@@ -123,7 +121,6 @@ def main():
                             l_pol=opts.lpol,
                             jvalues=jvalues)
         basis.write_xml()
-
 
     parser = build_parser()
     opts, symbols = parser.parse_args()

@@ -121,7 +121,7 @@ class SetupData:
         if self.name is None or self.name == 'paw':
             return f'{self.symbol}.{self.setupname}'
         else:
-            return f'{self.symbol}.{name}.{self.setupname}'
+            return f'{self.symbol}.{self.name}.{self.setupname}'
 
     def __repr__(self):
         return ('{0}({symbol!r}, {setupname!r}, name={name!r}, '
