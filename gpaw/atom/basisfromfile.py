@@ -1,13 +1,9 @@
+from pathlib import Path
+
+
 def read_setupdata(path):
-    from pathlib import Path
     from gpaw.setup_data import SetupData
     path = Path(path)
-    tokens = path.name.split('.')
-
-    # We should not get symbol and xc from the filename, instead we should
-    # parse them.
-    #
-    # Also, this doesn't work if the setup is unnamed.
 
     setupdata = SetupData(symbol=None, xcsetupname=None, readxml=False)
     setupdata.read_xml(source=path.read_bytes())
@@ -30,12 +26,11 @@ def generate_basis(setupdata, args):
     bm = BasisMaker(valdata)
     basis = bm.generate()
 
-    tokens = [setupdata.symbol]
-
     # Should the setupname be added as part of the name, too?
     # Probably not, since we don't include the xcname either.
     # But I suppose it depends more on the runtime behaviour when
     # GPAW actually picks setups/basis sets for a calculation.
+    tokens = [setupdata.symbol]
     if args.name:
         tokens.append(args.name)
     tokens += [args.type, 'basis']
