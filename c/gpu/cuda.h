@@ -28,6 +28,7 @@
 #define gpuCadd                   cuCadd
 #define gpuCsub                   cuCsub
 #define gpuCmul                   cuCmul
+#define gpuCmulf                  cuCmulf
 #define gpuConj                   cuConj
 
 #define gpuCheckLastError()       gpuSafeCall(cudaGetLastError())

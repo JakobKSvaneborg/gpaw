@@ -6,6 +6,7 @@ import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.typing import Array1D, ArrayND
+from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw import GPAW_NO_C_EXTENSION
 
 __all__ = ['GPU_AWARE_MPI']
@@ -43,12 +44,16 @@ def pw_insert_gpu(psit_nG,
                   scale,
                   psit_bQ,
                   nx, ny, nz):
-    assert scale == 1.0
-    psit_bQ[..., Q_G] = psit_nG
-    if nx * ny * nz != psit_bQ.shape[-1]:
-        n, m = nx // 2 - 1, ny // 2 - 1
-        pw_amend_insert_realwf_gpu(psit_bQ.reshape((-1, nx, ny, nz // 2 + 1)),
-                                   n, m)
+    from _gpaw import pw_insert_gpu as evalf
+    assert psit_nG.dtype == psit_bQ.dtype, (psit_nG.dtype, psit_bQ.dtype)
+    evalf(psit_nG, Q_G, scale, psit_bQ, nx, ny, nz)
+    
+    #assert scale == 1.0
+    #psit_bQ[..., Q_G] = psit_nG
+    #if nx * ny * nz != psit_bQ.shape[-1]:
+    #    n, m = nx // 2 - 1, ny // 2 - 1
+    #    pw_amend_insert_realwf_gpu(psit_bQ.reshape((-1, nx, ny, nz // 2 + 1)),
+    #                               n, m)
 
 
 def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
@@ -76,14 +81,14 @@ def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
 def pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
                      l_s, a_J, s_J,
                      cc, f_GI, I_J):
-    #from _gpaw import pwlfc_expand_gpu as expand
-    #expand(f_Gs, emiGR_Ga, Y_GL,
-    #       l_s, a_J, s_J,
-    #       cc, f_GI, I_J)
+    from _gpaw import pwlfc_expand_gpu as expand
+    expand(f_Gs, emiGR_Ga, Y_GL,
+        l_s, a_J, s_J,
+        cc, f_GI, I_J)
 
-    pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
-                 l_s, a_J, s_J,
-                 cc, f_GI)
+    #pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
+    #             l_s, a_J, s_J,
+    #             cc, f_GI)
 
 
 def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
@@ -100,12 +105,15 @@ def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
 
 
 def pw_amend_insert_realwf_gpu(array_nQ, n, m):
-    for array_Q in array_nQ:
-        t = array_Q[:, :, 0]
-        t[0, -m:] = t[0, m:0:-1].conj()
-        t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
-        t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
-        t[-n:, 0] = t[n:0:-1, 0].conj()
+    from _gpaw import pw_amend_insert_realwf_gpu as evalf
+    evalf(array_nQ, n, m)
+    
+    #for array_Q in array_nQ:
+    #    t = array_Q[:, :, 0]
+    #    t[0, -m:] = t[0, m:0:-1].conj()
+    #    t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
+    #    t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
+    #    t[-n:, 0] = t[n:0:-1, 0].conj()
 
 
 def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
@@ -114,11 +122,10 @@ def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
 
 
 def add_to_density_gpu(weight_n, psit_nR, nt_R):
-    for weight, psit_R in zip(weight_n, psit_nR):
-        nt_R += float(weight) * cp.abs(psit_R)**2
-    #from _gpaw import add_to_density_gpu as evalf
-    #evalf(weight_n, psit_nR, nt_R)
- #   pri123nt('doing it')
+    #for weight, psit_R in zip(weight_n, psit_nR):
+    #    nt_R += float(weight) * cp.abs(psit_R)**2
+    from _gpaw import add_to_density_gpu as evalf
+    evalf(weight_n, psit_nR, nt_R)
 
 
 def symmetrize_ft(a_R, b_R, r_cc, t_c, offset_c):

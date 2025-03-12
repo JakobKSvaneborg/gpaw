@@ -27,6 +27,7 @@
 #define gpuCadd                   hipCadd
 #define gpuCsub                   hipCsub
 #define gpuCmul                   hipCmul
+#define gpuCmulf                  hipCmulf
 #define gpuConj                   hipConj
 
 #define gpuCheckLastError()       gpuSafeCall(hipGetLastError())

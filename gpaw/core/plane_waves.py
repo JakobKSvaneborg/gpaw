@@ -665,7 +665,7 @@ class PWArray(DistributedArrays[PWDesc]):
         a_nG = self
 
         if domain_comm.size == 1:
-            if not _slow and xp is cp:
+            if not _slow and xp is cp and pw.dtype == self.complex_dtype:
                 return abs_square_gpu(a_nG, weights, out)
 
             a_R = out.desc.new(dtype=pw.dtype).empty(xp=xp)
@@ -950,7 +950,7 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
         b2 = min(b1 + B, N)
         nb = b2 - b1
         if psit_bR is None:
-            psit_bR = cp.empty((nb,) + shape, complex)
+            psit_bR = cp.empty((nb,) + shape, psit_nG.data.dtype)
         elif nb < B:
             psit_bR = psit_bR[:nb]
         psit_bR[:] = 0.0
@@ -966,4 +966,6 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
             shape,
             norm='forward',
             overwrite_x=True)
-        add_to_density_gpu(weight_n[b1:b2], psit_bR, nt_R.data)
+        add_to_density_gpu(weight_n[b1:b2],
+                           psit_bR.astype(as_complex_dtype(nt_R.data.dtype)),
+                           nt_R.data)

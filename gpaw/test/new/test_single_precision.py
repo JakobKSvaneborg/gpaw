@@ -30,8 +30,10 @@ def test_single_precision(dtype, gpu):
 
 
 def run_single_precision(dtype, gpu):
-    atoms = molecule('H2O')
+    #atoms = molecule('H20')
+    atoms = molecule('C60')
     atoms.center(vacuum=2.5)
+    atoms = atoms.repeat((2, 1, 1))
     #atoms = bulk('Cu')
 
     gpu = gpu == 'True'
@@ -39,18 +41,22 @@ def run_single_precision(dtype, gpu):
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
-                      convergence={'energy': 1e-5},
+                      convergence={'energy': 1e-5,
+                                   'eigenstates': 1e-6,
+                                   'density': 1e-5},
                       #kpts={'density': 1},
                       mode={'name': 'pw',
-                            'ecut': 200.0,
+                            'ecut': 600.0,
                             'dtype': dtype},
                       parallel={'gpu': gpu}
                       )
 
     e_pot = atoms.get_potential_energy()
     #expected_e = 9.595593485742606
-    expected_e = -2.19724921704334
-
+    #expected_e = -2.19724921704334
+    #expected_e = -15.047246
+    #expected_e = -582.809148
+    expected_e = -1165.754498
     assert atoms.calc.wfs.dtype == dtype
 
     assert e_pot == pytest.approx(expected_e, rel=1e-3), e_pot - expected_e
