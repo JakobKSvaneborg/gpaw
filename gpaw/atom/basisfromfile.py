@@ -8,10 +8,8 @@ def read_setupdata(path):
     # parse them.
     #
     # Also, this doesn't work if the setup is unnamed.
-    symbol = tokens[0]
-    xc = tokens[2]
 
-    setupdata = SetupData(symbol, xc, readxml=False)
+    setupdata = SetupData(symbol=None, xcsetupname=None, readxml=False)
     setupdata.read_xml(source=path.read_bytes())
     return setupdata
 
@@ -21,8 +19,17 @@ def build_parser(parser):
     add('file', nargs='+')
 
 
+def generate(args, filename):
+    from gpaw.atom.basis import BasisMaker
+
+    setupdata = read_setupdata(filename)
+    print(setupdata)
+
+    # bm = BasisMaker()
+
 def main(args):
-    print(args)
+    for filename in args.file:
+        generate(args, filename)
 
 
 class CLICommand:
