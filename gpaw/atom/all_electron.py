@@ -704,6 +704,7 @@ def shoot_confined(u, l, vr, e, r2dvdr, r, dr, c10, c2, scalarrel,
                    gmax=None, rc=10., beta=7.):
     """This method is used by the solve_confined method."""
     # XXX much of this is pasted from the ordinary shoot method
+    assert l < 3
 
     if scalarrel:
         x = 0.5 * alpha**2  # x = 1 / (2c^2)
