@@ -89,14 +89,17 @@ def get_basismaker(valdata, opts):
 
 
 def read_setupdata(path):
+    from pathlib import Path
     from gpaw.setup_data import SetupData
     path = Path(path)
     tokens = path.name.split('.')
 
     # We should not get symbol and xc from the filename, instead we should
     # parse them.
+    #
+    # Also, this doesn't work if the setup is unnamed.
     symbol = tokens[0]
-    xc = tokens[1]
+    xc = tokens[2]
 
     setupdata = SetupData(symbol, xc, readxml=False)
     setupdata.read_xml(source=path.read_bytes())

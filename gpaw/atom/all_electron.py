@@ -798,7 +798,6 @@ class ValenceData:
     u_j: list[np.ndarray]
     f_j: list[float]
 
-    rcut_l: list[float]
     scalarrel: bool
 
     vr: np.ndarray
@@ -812,6 +811,10 @@ class ValenceData:
     u_ln: list[list[np.ndarray]] | None  = None  # ~ phi_jg
     q_ln: list[list[np.ndarray]] | None  = None  # ~ pt_jg
     s_ln: list[list[np.ndarray]] | None  = None  # ~ phit_jg
+
+    @property
+    def nj(self):
+        return len(self.l_j)
 
     @classmethod
     def from_setupdata(cls, setupdata):
@@ -838,15 +841,23 @@ class ValenceData:
         assert setupdata.type in {'scalar-relativistic', 'non-relativistic'}
         scalarrel = setupdata.type == 'scalar-relativistic'
 
+        bound_j = [j for j in range(len(setupdata.l_j))
+                   if setupdata.n_j[j] > 0]
+
+        def only_bound(things_j):
+            return [things_j[j] for j in bound_j]
+
+        assert len(setupdata.phi_jg) == len(setupdata.l_j)
+
         return ValenceData(
             symbol=setupdata.symbol,
             rgd=setupdata.rgd,
-            l_j=setupdata.l_j,
-            n_j=setupdata.n_j,
-            f_j=setupdata.f_j,
-            e_j=setupdata.eps_j,
-            u_j=setupdata.phi_jg,
-            rcut_l=setupdata.rcut_j,  # j vs l ?????
+            l_j=only_bound(setupdata.l_j),
+            n_j=only_bound(setupdata.n_j),
+            f_j=only_bound(setupdata.f_j),
+            e_j=only_bound(setupdata.eps_j),
+            u_j=only_bound(setupdata.phi_jg * setupdata.rgd.r_g[None, :]),
+            rcut_j=only_bound(setupdata.rcut_j),
             vr=vr_g,
             # u_ln
             # q_ln
@@ -865,6 +876,14 @@ class ValenceData:
         return int(r * self.N / (self.rgd.beta + r))
 
     def __post_init__(self):
+        jattributes = 'n_j l_j e_j f_j rcut_j'.split()
+
+        for attr in jattributes:
+            thing_j = getattr(self, attr)
+            assert len(thing_j) == self.nj, (attr, len(thing_j), self.nj)
+
+        for n in self.n_j:
+            assert n > 0
         err = abs(self.rgd.beta / len(self.rgd.r_g) - self.rgd.a)
         assert err < 1e-15, f'Inconsistent rgd spacing, {err=}'
 

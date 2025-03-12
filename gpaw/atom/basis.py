@@ -164,7 +164,7 @@ class BasisMaker:
         Qt_nm = np.linalg.solve(Pi_nn, Q_nm)
 
         # Weight-function for truncating all-electron parts smoothly near core
-        gmerge = valdata.r2g(valdata.rcut_l[l])
+        gmerge = valdata.r2g(valdata.rcut_j[j])
         w_g = np.ones_like(r_g)
         w_g[0:gmerge] = (r_g[0:gmerge] / r_g[gmerge])**2.
         w_g = w_g[None]

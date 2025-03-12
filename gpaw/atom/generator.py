@@ -841,24 +841,31 @@ class Generator(AllElectron):
     def valence_data(self):
         from gpaw.atom.all_electron import ValenceData
         setup = self._return_setup
-        # assert self.n_j[self.njcore:] == setup.n_j
         assert abs(self.rgd.beta - self.beta) < 1e-13
-        return ValenceData(rgd=self.rgd, vr=self.vr,
-                           n_j=self.n_j[self.njcore:],
-                           l_j=self.l_j[self.njcore:],
-                           e_j=self.e_j[self.njcore:],
-                           u_j=self.u_j[self.njcore:],
-                           f_j=self.f_j[self.njcore:],
-                           phi_jg=setup.phi_jg,
-                           phit_jg=setup.phit_jg,
-                           pt_jg=setup.pt_jg,
-                           rcut_j=setup.rcut_j,
-                           u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
-                           rcut_l=self.rcut_l,
-                           scalarrel=self.scalarrel,
-                           r2dvdr=self.r2dvdr,
-                           xcname=self.xcname,
-                           symbol=self.symbol)
+
+        def bound_only(thing_j):
+            return [thing_j[j] for j, thing in enumerate(thing_j)
+                    if setup.n_j[j] > 0]
+
+        valdata = ValenceData(
+            rgd=self.rgd, vr=self.vr,
+            n_j=bound_only(setup.n_j),
+            l_j=bound_only(setup.l_j),
+            e_j=bound_only(setup.eps_j),
+            f_j=bound_only(setup.f_j),
+            rcut_j=[setup.rcut_j[j] for j, n in enumerate(setup.n_j) if n > 0],
+            u_j=bound_only(setup.phi_jg * self.rgd.r_g[None, :]),
+            u_ln=self.u_ln,
+            q_ln=self.q_ln,
+            s_ln=self.s_ln,
+            scalarrel=self.scalarrel,
+            r2dvdr=self.r2dvdr,
+            xcname=self.xcname,
+            symbol=self.symbol)
+
+        # valdata1 = ValenceData.from_setupdata(setup)
+        # Compare valdata1 to valdata
+        return valdata
 
     def diagonalize(self, h):
         ng = 350
