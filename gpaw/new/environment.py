@@ -16,7 +16,7 @@ class Environment:
         solver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(solver)
 
-    def update1(self, nt_r):
+    def update1(self, nt_r,c):
         pass
 
     def update2(self, nt_r, vHt_r, vt_sr):
