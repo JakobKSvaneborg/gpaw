@@ -843,27 +843,26 @@ class Generator(AllElectron):
         setup = self._return_setup
         assert abs(self.rgd.beta - self.beta) < 1e-13
 
-        def bound_only(thing_j):
-            # Actually wait, should we use unbound after all?
-            return [thing_j[j] for j, thing in enumerate(thing_j)]
+        def multiply_r(array_jg):
+            return array_jg * self.rgd.r_g[None, :]
 
         valdata = ValenceData(
             rgd=self.rgd, vr=self.vr,
-            n_j=bound_only(setup.n_j),
-            l_j=bound_only(setup.l_j),
-            e_j=bound_only(setup.eps_j),
-            f_j=bound_only(setup.f_j),
-            rcut_j=bound_only(setup.rcut_j),
-            phi_jg=bound_only(setup.phi_jg * self.rgd.r_g[None, :]),
-            phit_jg=bound_only(setup.phit_jg * self.rgd.r_g[None, :]),
-            pt_jg=bound_only(setup.pt_jg * self.rgd.r_g[None, :]),
+            n_j=setup.n_j,
+            l_j=setup.l_j,
+            e_j=setup.eps_j,
+            f_j=setup.f_j,
+            rcut_j=setup.rcut_j,
+            phi_jg=multiply_r(setup.phi_jg),
+            phit_jg=multiply_r(setup.phit_jg),
+            pt_jg=multiply_r(setup.pt_jg),
             scalarrel=self.scalarrel,
             r2dvdr=self.r2dvdr,
             xcname=self.xcname,
             symbol=self.symbol)
 
         # valdata1 = ValenceData.from_setupdata(setup)
-        # Compare valdata1 to valdata
+        # valdata.compare(valdata1)
         return valdata
 
     def diagonalize(self, h):
