@@ -44,14 +44,16 @@ void pw_insert_gpu_launch_kernel(
                              double* tmp_nQ,
                              int rx, int ry, int rz);
 
-void pw_norm_gpu_launch_kernel(int nx, int nG,
-                               double* result_x,
-                               double* C_xG);
+void pw_norm_gpu_launch_kernel(int dtypenum,
+                               int nx, int nG,
+                               void* result_x,
+                               void* C_xG);
 
-void pw_norm_kinetic_gpu_launch_kernel(int nx, int nG,
-                                       double* result_x,
-                                       double* C_xG,
-                                       double* kin_G);
+void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
+                                       int nx, int nG,
+                                       void* result_x,
+                                       void* C_xG,
+                                       void* kin_G);
 
 void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int nb,
@@ -342,16 +344,16 @@ PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
                           &result_x_obj, &C_xG_obj))
         return NULL;
 
-    double *result_x = Array_DATA(result_x_obj);
-    double complex *C_xG = Array_DATA(C_xG_obj);
+    void *result_x = Array_DATA(result_x_obj);
+    void *C_xG = Array_DATA(C_xG_obj);
+    int dtypenum = get_dtype(C_xG_obj);
 
     // Make sure number of dimensions are correct    
     assert(Array_NDIM(C_xG_obj) == 2);
     assert(Array_NDIM(result_x_obj) == 1);
 
     // Make sure dtypes are correct
-    assert(Array_ITEMSIZE(C_xG_obj) == 16);
-    assert(Array_ITEMSIZE(result_x_obj) == 8);
+    assert_corresponding_real(dtypenum, result_x_obj);
 
     // Make sure dimensions match
     int nx = Array_DIM(result_x_obj, 0);
@@ -362,9 +364,10 @@ PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
     {
         return NULL;
     }
-    pw_norm_gpu_launch_kernel(nx, nG,
+    pw_norm_gpu_launch_kernel(dtypenum,
+                              nx, nG,
                               result_x,
-                              (double*) C_xG);
+                              C_xG);
     Py_RETURN_NONE;
 }
 
@@ -375,9 +378,10 @@ PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
                           &result_x_obj, &C_xG_obj, &kin_G_obj))
         return NULL;
 
-    double *result_x = Array_DATA(result_x_obj);
-    double complex *C_xG = Array_DATA(C_xG_obj);
-    double *kin_G = Array_DATA(kin_G_obj);
+    void *result_x = Array_DATA(result_x_obj);
+    void *C_xG = Array_DATA(C_xG_obj);
+    void *kin_G = Array_DATA(kin_G_obj);
+    int dtypenum = get_dtype(C_xG_obj);
 
     // Make sure number of dimensions are correct    
     assert(Array_NDIM(C_xG_obj) == 2);
@@ -385,9 +389,8 @@ PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
     assert(Array_NDIM(kin_G_obj) == 1);
 
     // Make sure dtypes are correct
-    assert(Array_ITEMSIZE(C_xG_obj) == 16);
-    assert(Array_ITEMSIZE(result_x_obj) == 8);
-    assert(Array_ITEMSIZE(kin_G_obj) == 8);
+    assert_corresponding_real(dtypenum, result_x_obj);
+    assert_corresponding_real(dtypenum, kin_G_obj);
 
     // Make sure dimensions match
     int nx = Array_DIM(result_x_obj, 0);
@@ -399,9 +402,10 @@ PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
     {
         return NULL;
     }
-    pw_norm_kinetic_gpu_launch_kernel(nx, nG,
+    pw_norm_kinetic_gpu_launch_kernel(dtypenum,
+                                      nx, nG,
                                       result_x,
-                                      (double*) C_xG,
+                                      C_xG,
                                       kin_G);
     Py_RETURN_NONE;
 }
@@ -415,11 +419,6 @@ PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
                           &array_nQ_obj, &n, &m))
         return NULL;
     void *array_nQ = Array_DATA(array_nQ_obj);
-    if (Array_ITEMSIZE(array_nQ_obj) != 16)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "array_nQ must complex128.");
-        return NULL;
-    }
     if (Array_NDIM(array_nQ_obj) != 4)
     {
         PyErr_SetString(PyExc_RuntimeError, "array_nQ must be of (nb, NGx, NGy, NGz)-shape.");

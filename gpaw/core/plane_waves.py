@@ -628,7 +628,8 @@ class PWArray(DistributedArrays[PWDesc]):
             if self.xp is not np:
                 result_x = self.xp.empty((x,), dtype=self.real_dtype)
                 pw_norm_kinetic_gpu(result_x, self._arrays(),
-                                    self.xp.asarray(self.desc.ekin_G))
+                                    self.xp.asarray(self.desc.ekin_G,
+                                                    dtype=self.real_dtype))
             else:
                 a_xGz = a_xG.reshape((x, G2 // 2, 2))
                 result_x = self.xp.einsum('xGz, xGz, G -> x',

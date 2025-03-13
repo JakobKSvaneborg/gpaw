@@ -92,15 +92,18 @@ def pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
 
 def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
                            P_nI, out_nI):
-    I1 = 0
-    J1 = 0
-    for ni in ni_a.get():
-        I2 = I1 + ni
-        J2 = J1 + ni**2
-        dH_ii = dH_aii[J1:J2].reshape((ni, ni))
-        out_nI[:, I1:I2] = P_nI[:, I1:I2] @ dH_ii
-        I1 = I2
-        J1 = J2
+    from _gpaw import dH_aii_times_P_ani_gpu as evalf
+    evalf(dH_aii, ni_a, P_nI, out_nI)
+    
+    #I1 = 0
+    #J1 = 0
+    #for ni in ni_a.get():
+    #    I2 = I1 + ni
+    #    J2 = J1 + ni**2
+    #    dH_ii = dH_aii[J1:J2].reshape((ni, ni))
+    #    out_nI[:, I1:I2] = P_nI[:, I1:I2] @ dH_ii
+    #    I1 = I2
+    #    J1 = J2
 
 
 def pw_amend_insert_realwf_gpu(array_nQ, n, m):
@@ -156,7 +159,9 @@ def pw_norm_gpu(result_x, C_xG):
     if cupy_is_fake:
         result_x._data[:] = np.sum(np.abs(C_xG._data)**2, axis=1)
     else:
-        result_x[:] = cp.sum(cp.abs(C_xG)**2, axis=1)
+        from _gpaw import pw_norm_gpu as evalf
+        evalf(result_x, C_xG)
+        #result_x[:] = cp.sum(cp.abs(C_xG)**2, axis=1)
 
 
 def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
@@ -165,7 +170,9 @@ def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
             np.abs(a_xG._data)**2 * kin_G._data[None, :],
             axis=1)
     else:
-        result_x[:] = cp.sum(cp.abs(a_xG)**2 * kin_G[None, :], axis=1)
+        from _gpaw import pw_norm_kinetic_gpu as evalf
+        evalf(result_x, a_xG, kin_G)
+        #result_x[:] = cp.sum(cp.abs(a_xG)**2 * kin_G[None, :], axis=1)
 
 
 if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
