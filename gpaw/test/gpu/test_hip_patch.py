@@ -2,6 +2,7 @@ import pytest
 from gpaw.fftw import rfftn_patch, irfftn_patch
 from gpaw.gpu import is_hip
 
+
 @pytest.mark.gpu
 def test_hip_patch_on_cuda():
     if is_hip:
