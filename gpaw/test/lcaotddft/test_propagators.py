@@ -1,11 +1,9 @@
 import pytest
 import numpy as np
-
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter, VelocityGaugeWriter
+from gpaw.lcaotddft.dipolemomentwriter import VelocityGaugeWriter
 
-from gpaw.tddft.spectrum import photoabsorption_spectrum
 
 @pytest.mark.rttddft
 @pytest.mark.parametrize('propagator', ['sicn', 'scpc', 'ecn'])
@@ -96,7 +94,8 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
 
     assert data_i == pytest.approx(ref_i, abs=1e-8)
 
-@pytest.mark.serial #remove later
+
+@pytest.mark.serial  # Todo:remove later
 def test_velocity(gpw_files, in_tmp_dir):
 
     td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'])
@@ -128,4 +127,3 @@ def test_velocity(gpw_files, in_tmp_dir):
              3.104240038438e-06,
              3.400220392727e-06]
     assert data_i == pytest.approx(ref_i, abs=1e-10)
-

@@ -45,30 +45,31 @@ def initialize_system():
     atoms.get_potential_energy()
     calc.write('gs.gpw', mode='all')
 
-  
     for gauge in ['length', 'velocity']:
-        if  gauge == 'velocity':
-            add = '_'+gauge
+        if gauge == 'velocity':
+            add = '_' + gauge
         else:
             add = ''
         td_calc = LCAOTDDFT('gs.gpw',
                             communicator=comm,
-                            txt='td'+add+'.out')
+                            txt='td' + add + '.out')
         dmat = DensityMatrix(td_calc)
-        MagneticMomentWriter(td_calc, 'mm'+add+'.dat', dmat=dmat)
-        MagneticMomentWriter(td_calc, 'mm_grid'+add+'.dat', calculate_on_grid=True)
-        MagneticMomentWriter(td_calc, 'mm_origin'+add+'.dat',
+        MagneticMomentWriter(td_calc, 'mm' + add + '.dat', dmat=dmat)
+        MagneticMomentWriter(td_calc, 'mm_grid' + add + '.dat',
+                             calculate_on_grid=True)
+        MagneticMomentWriter(td_calc, 'mm_origin' + add + '.dat',
                              origin='zero', origin_shift=[1.0, 2.0, 3.0])
-        td_calc.absorption_kick([1e-5, 0., 0.],gauge=gauge)
+        td_calc.absorption_kick([1e-5, 0., 0.], gauge=gauge)
         td_calc.propagate(100, 3)
-        td_calc.write('td'+add+'.gpw', mode='all')
+        td_calc.write('td' + add + '.gpw', mode='all')
         td_calc.propagate(100, 2)
 
-#def test_init(initialize_system):
+# def test_init(initialize_system):
 #    pass
 
+
 def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
-                               in_tmp_dir):
+                                        in_tmp_dir):
     with open('mm_ref.dat', 'w', encoding='utf-8') as f:
         f.write('''
 # MagneticMomentWriter[version=5](**{"origin": "COM", "origin_shift": [0.0, 0.0, 0.0], "calculate_on_grid": false, "only_pseudo": false})
@@ -84,7 +85,8 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
          16.53654934    -4.424269197168e-06    -5.428714567811e-06     1.652651689986e-05
          20.67068667    -6.501209589454e-06    -8.162871785725e-06     2.323149911180e-05
 '''.strip())  # noqa: E501
-    check_txt_data(module_tmp_path / 'mm_velocity.dat', 'mm_ref.dat', atol=2e-14)
+    check_txt_data(module_tmp_path / 'mm_velocity.dat',
+                   'mm_ref.dat', atol=2e-14)
 
     with open('mm_grid_ref.dat', 'w', encoding='utf-8') as f:
         f.write('''
@@ -100,9 +102,10 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
          12.40241200    -2.606162974554e-06    -3.131346591800e-06     1.010643346002e-05
          16.53654934    -4.422978770321e-06    -5.427020998550e-06     1.652116134041e-05
          20.67068667    -6.499162446085e-06    -8.160246795614e-06     2.322393973892e-05
-'''.strip()) # noqa: E501 
+'''.strip())  # noqa: E501
 
-    check_txt_data(module_tmp_path / 'mm_grid_velocity.dat', 'mm_grid_ref.dat', atol=2e-14)
+    check_txt_data(module_tmp_path / 'mm_grid_velocity.dat',
+                   'mm_grid_ref.dat', atol=2e-14)
 
     with open('mm_origin_ref.dat', 'w', encoding='utf-8') as f:
         f.write('''
@@ -118,9 +121,11 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
          12.40241200     1.830150711621e-06    -2.413141874059e-05     3.586908883647e-05
          16.53654934     2.098630938582e-06    -3.928697753788e-05     6.127421238813e-05
          20.67068667     1.409938523718e-06    -5.497359580260e-05     9.073479845925e-05
-'''.strip()) # noqa: E501 
+'''.strip())  # noqa: E501
 
-    check_txt_data(module_tmp_path / 'mm_origin_velocity.dat', 'mm_origin_ref.dat', atol=2e-14)
+    check_txt_data(module_tmp_path / 'mm_origin_velocity.dat',
+                   'mm_origin_ref.dat', atol=2e-14)
+
 
 @pytest.mark.rttddft
 def test_magnetic_moment_values(initialize_system, module_tmp_path,
