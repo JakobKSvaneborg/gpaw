@@ -212,7 +212,7 @@ def rfftn_patch(tmp_R):
 def irfftn_patch(B, shape):
     from gpaw.gpu import cupyx
     import cupy as xp
-    A = xp.zeros(shape, dtype=complex)
+    A = xp.empty(shape, dtype=complex)
     A[:, :, :B.shape[2]] = B
     inv_ind1 = -xp.arange(B.shape[0])[:, None, None]
     inv_ind2 = -xp.arange(B.shape[1])[None, :, None]

@@ -1,12 +1,14 @@
 import pytest
 from gpaw.fftw import rfftn_patch, irfftn_patch
-from gpaw.gpu import is_hip
+from gpaw.gpu import is_hip, cupy_is_fake
 
 
 @pytest.mark.gpu
 def test_hip_patch_on_cuda():
     if is_hip:
-        pytest.skip('Run only on CUDA')
+        pytest.skip('Test runs only on CUDA (have hip)')
+    if cupy_is_fake:
+        pytest.skip('Run runs only on CUDA (have fake cupy)')
 
     import cupy
     import cupyx
