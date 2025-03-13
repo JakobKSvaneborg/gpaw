@@ -96,6 +96,16 @@ __host__ __device__ static __inline__ gpuFloatComplex operator-(
 {
     return gpuCsubf(x, y);
 }
+__host__ __device__ static __inline__ gpuDoubleComplex operator+(
+        gpuDoubleComplex x, gpuDoubleComplex y)
+{
+    return gpuCadd(x, y);
+}
+__host__ __device__ static __inline__ gpuFloatComplex operator+(
+        gpuFloatComplex x, gpuFloatComplex y)
+{
+    return gpuCaddf(x, y);
+}
 #endif
 
 __host__ __device__ static __inline__ gpuDoubleComplex gpuCneg(

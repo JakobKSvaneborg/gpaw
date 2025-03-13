@@ -10,6 +10,7 @@ from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
 from gpaw.typing import Array1D, ArrayLike1D
 from gpaw.new.c import dH_aii_times_P_ani_gpu
+from gpaw.utilities import as_real_dtype
 
 
 class AtomArraysLayout(XP):
@@ -536,5 +537,5 @@ class AtomArrays:
         if index is not None:
             data = data[index]
         if self.data.size > 0:
-            dH_aii_times_P_ani_gpu(data, ni_a,
+            dH_aii_times_P_ani_gpu(data.astype(as_real_dtype(self.data.dtype)), ni_a,
                                    self.data, out_ani.data)

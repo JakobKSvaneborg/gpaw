@@ -1465,12 +1465,13 @@ class Setups(list):
             integrals=integral,
             xp=xp)
 
-    def get_overlap_corrections(self, atomdist, xp):
+    def get_overlap_corrections(self, atomdist, xp, dtype=np.float64):
         if atomdist is getattr(self, '_atomdist', None):
-            return self.dS_aii
+            if self.dS_aii.data.dtype == dtype:
+                return self.dS_aii
         self._atomdist = atomdist
         dS_aii = AtomArraysLayout([setup.dO_ii.shape for setup in self],
-                                  atomdist=atomdist).empty()
+                                  atomdist=atomdist, dtype=dtype).empty()
         for a, dS_ii in dS_aii.items():
             dS_ii[:] = self[a].dO_ii
         self.dS_aii = dS_aii.to_xp(xp)

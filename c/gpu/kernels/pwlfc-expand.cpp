@@ -732,15 +732,16 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
     }
 }
 
-// outP_ani[a] = \sum_A H_aii[a] P_ani[a]
-__global__ void dH_aii_times_P_ani_16(int nA, int nn, int nI,
-				      npy_int32* ni_a, double* dH_aii_dev,
-				      gpuDoubleComplex* P_ani_dev,
-				      gpuDoubleComplex* outP_ani_dev)
+template <typename Tcomplex, typename Treal>
+__global__ void dH_aii_times_P_ani(int nA, int nn, int nI,
+				      npy_int32* ni_a, 
+					  Treal* dH_aii_dev,
+				      Tcomplex* P_ani_dev,
+				      Tcomplex* outP_ani_dev)
 {
     int n1 = threadIdx.x + blockIdx.x * blockDim.x;
     if (n1 < nn) {
-	double* dH_ii = dH_aii_dev;
+	Treal* dH_ii = dH_aii_dev;
 	int I = 0;
 	for (int a=0; a< nA; a++)
 	{
@@ -748,18 +749,22 @@ __global__ void dH_aii_times_P_ani_16(int nA, int nn, int nI,
 	    int Istart = I;
 	    for (int i=0; i< ni; i++)
 	    {
-		gpuDoubleComplex* outP_ni = outP_ani_dev + n1 * nI + I;
-		gpuDoubleComplex result = make_gpuDoubleComplex(0.0, 0.0);
-		gpuDoubleComplex* P_ni = P_ani_dev + n1 * nI + Istart;
+		Tcomplex* outP_ni = outP_ani_dev + n1 * nI + I;
+		Tcomplex result;
+		if  constexpr (std::is_same<Tcomplex, Treal>::value) {
+			result = 0.0;
+		} else {
+			result = {0.0, 0.0};
+		}
+		Tcomplex* P_ni = P_ani_dev + n1 * nI + Istart;
 		for (int i2=0; i2 < ni; i2++)
 		{
-		   gpuDoubleComplex item = gpuCmulD(*P_ni, dH_ii[i2 * ni + i]);
-		   result.x += item.x;
-		   result.y += item.y;
+		   result = result + *P_ni * dH_ii[i2 * ni + i];
 		   P_ni++;
 		}
-		outP_ni->x = result.x;
-		outP_ni->y = result.y;
+		*outP_ni = result;
+		//outP_ni->x = result.x;
+		//outP_ni->y = result.y;
 		I++;
 	    }
 	    dH_ii += ni * ni;
@@ -785,9 +790,9 @@ __global__ void pw_norm_kinetic_kernel(int nx, int nG,
                                        Treal* C_xG,
                                        Treal* kin_G)
 {
-	extern __shared__ __align__(sizeof(Treal)) unsigned char my_sdata[];
+	// Double check this line (and next)
+	extern __shared__ __align__(sizeof(double)) unsigned char my_sdata[];
 	Treal *sdata = reinterpret_cast<Treal *>(my_sdata);
-    //extern __shared__ Treal sdata[];
     unsigned int tid = threadIdx.x;
 
     sdata[tid] = 0;
@@ -814,7 +819,7 @@ __global__ void pw_norm_kernel(int nx, int nG,
                                Treal* result_x,
                                Treal* C_xG)
 {
-    extern __shared__ __align__(sizeof(Treal)) unsigned char my_sdata[];
+    extern __shared__ __align__(sizeof(double)) unsigned char my_sdata[];
 	Treal *sdata = reinterpret_cast<Treal *>(my_sdata);
     unsigned int tid = threadIdx.x;
 
@@ -872,32 +877,62 @@ __global__ void dH_aii_times_P_ani_8(int nA, int nn, int nI,
 
 
 extern "C"
-void dH_aii_times_P_ani_launch_kernel(int nA, int nn,
+void dH_aii_times_P_ani_launch_kernel(int dtypenum,
+					  int nA, int nn,
 				      int nI, npy_int32* ni_a,
-				      double* dH_aii_dev,
-				      gpuDoubleComplex* P_ani_dev,
-				      gpuDoubleComplex* outP_ani_dev,
-				      int is_complex)
+				      void* dH_aii_dev,
+				      void* P_ani_dev,
+				      void* outP_ani_dev)
 {
-    if (is_complex)
+    if (dtypenum == NP_DOUBLE_COMPLEX)
     {
-    gpuLaunchKernel(dH_aii_times_P_ani_16,
-		    dim3((nn+255)/256),
-		    dim3(256),
-		    0, 0,
-		    nA, nn, nI, ni_a, dH_aii_dev,
-		    P_ani_dev, outP_ani_dev);
+		auto fptr = &dH_aii_times_P_ani<gpuDoubleComplex, double>;
+		gpuLaunchKernel(fptr,
+				dim3((nn+255)/256),
+				dim3(256),
+				0, 0,
+				nA, nn, nI, ni_a,
+				(double*) dH_aii_dev,
+				(gpuDoubleComplex*) P_ani_dev,
+				(gpuDoubleComplex*) outP_ani_dev);
     }
-    else
+    else if (dtypenum == NP_FLOAT_COMPLEX)
+	{
+		auto fptr = &dH_aii_times_P_ani<gpuFloatComplex, float>;
+		gpuLaunchKernel(fptr,
+				dim3((nn+255)/256),
+				dim3(256),
+				0, 0,
+				nA, nn, nI, ni_a,
+				(float*) dH_aii_dev,
+				(gpuFloatComplex*) P_ani_dev,
+				(gpuFloatComplex*) outP_ani_dev);
+	}
+	else if (dtypenum == NP_DOUBLE)
     {
-    gpuLaunchKernel(dH_aii_times_P_ani_8,
-		    dim3((nn+255)/256),
-		    dim3(256),
-		    0, 0,
-		    nA, nn, nI, ni_a, dH_aii_dev,
-		    (double*) P_ani_dev, (double*) outP_ani_dev);
+		auto fptr = &dH_aii_times_P_ani<double, double>;
+		gpuLaunchKernel(fptr,
+				dim3((nn+255)/256),
+				dim3(256),
+				0, 0,
+				nA, nn, nI, ni_a,
+				(double*) dH_aii_dev,
+				(double*) P_ani_dev,
+				(double*) outP_ani_dev);
     }
-
+	else if (dtypenum == NP_FLOAT)
+	{
+		auto fptr = &dH_aii_times_P_ani<float, float>;
+		gpuLaunchKernel(fptr,
+				dim3((nn+255)/256),
+				dim3(256),
+				0, 0,
+				nA, nn, nI, ni_a,
+				(float*) dH_aii_dev,
+				(float*) P_ani_dev,
+				(float*) outP_ani_dev);
+	}
+	else assert(0);
 }
 
 extern "C" void pw_norm_gpu_launch_kernel(int dtypenum,

@@ -25,6 +25,7 @@
 #define gpuCreal                  hipCreal
 #define gpuCimag                  hipCimag
 #define gpuCadd                   hipCadd
+#define gpuCaddf                  hipCaddf
 #define gpuCsub                   hipCsub
 #define gpuCsubf                  hipCsubf
 #define gpuCmul                   hipCmul

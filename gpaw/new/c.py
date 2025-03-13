@@ -93,6 +93,8 @@ def pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
 def dH_aii_times_P_ani_gpu(dH_aii, ni_a,
                            P_nI, out_nI):
     from _gpaw import dH_aii_times_P_ani_gpu as evalf
+    if not dH_aii.dtype == as_real_dtype(P_nI.dtype):
+        breakpoint()
     evalf(dH_aii, ni_a, P_nI, out_nI)
     
     #I1 = 0
