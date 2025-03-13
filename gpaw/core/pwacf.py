@@ -421,7 +421,7 @@ class PWLFC:  # (BaseLFC)
         x = 0.0
         for G1, G2 in self.block():
             f_GI = self.expand(G1, G2, cc=True)
-            G_Gv = xp.asarray(self.pw.G_plus_k_Gv[G1:G2])
+            G_Gv = xp.asarray(self.pw.G_plus_k_Gv[G1:G2], dtype=as_real_dtype(self.dtype))
             if self.real:
                 d_GI = xp.empty(f_GI.shape)
                 for v in range(3):

@@ -45,7 +45,6 @@ def pw_insert_gpu(psit_nG,
                   psit_bQ,
                   nx, ny, nz):
     from _gpaw import pw_insert_gpu as evalf
-    assert psit_nG.dtype == psit_bQ.dtype, (psit_nG.dtype, psit_bQ.dtype)
     evalf(psit_nG, Q_G, scale, psit_bQ, nx, ny, nz)
     
     #assert scale == 1.0
@@ -117,8 +116,11 @@ def pw_amend_insert_realwf_gpu(array_nQ, n, m):
 
 
 def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
-    for residual_G, eps, wfs_G in zip(residual_nG, eps_n, wfs_nG):
-        residual_G -= eps * wfs_G
+    from _gpaw import calculate_residuals_gpu as evalf
+    evalf(residual_nG, eps_n, wfs_nG)
+    
+    #for residual_G, eps, wfs_G in zip(residual_nG, eps_n, wfs_nG):
+    #    residual_G -= eps * wfs_G
 
 
 def add_to_density_gpu(weight_n, psit_nR, nt_R):

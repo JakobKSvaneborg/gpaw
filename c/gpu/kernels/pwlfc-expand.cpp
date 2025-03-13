@@ -18,30 +18,17 @@
 #define THIRD  0.33333333333333333
 #define NMIN   1.0E-10
 
-__global__ void calculate_residual_kernel_complex(int nG, int nn,
-						  gpuDoubleComplex* residual_nG,
-						  double* eps_n,
-						  gpuDoubleComplex* wf_nG)
+template <typename Tcomplex, typename Treal>
+__global__ void calculate_residual_kernel(int nG, int nn,
+					       Tcomplex* residual_nG,
+					       Treal* eps_n,
+					       Tcomplex* wf_nG)
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
     int g = threadIdx.y + blockIdx.y * blockDim.y;
     if ((g < nG) && (n < nn))
     {
-	residual_nG[n*nG + g] = gpuCsub(residual_nG[n*nG + g],
-					gpuCmulD(wf_nG[n*nG + g], eps_n[n]));
-    }
-}
-
-__global__ void calculate_residual_kernel_real(int nG, int nn,
-					       double* residual_nG,
-					       double* eps_n,
-					       double* wf_nG)
-{
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
-    int g = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((g < nG) && (n < nn))
-    {
-	residual_nG[n*nG + g] -= eps_n[n] * wf_nG[n*nG + g];
+	residual_nG[n*nG + g] = residual_nG[n*nG + g] - wf_nG[n*nG + g] * eps_n[n];
     }
 }
 
@@ -86,39 +73,64 @@ __global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, in
 
 
 extern "C"
-void calculate_residual_launch_kernel(int nG,
+void calculate_residual_launch_kernel(
+				      int dtypenum,
+					  int nG,
 				      int nn,
-				      double* residual_nG,
-				      double* eps_n,
-				      double* wf_nG,
-				      int is_complex)
+				      void* residual_nG,
+				      void* eps_n,
+				      void* wf_nG)
 {
     if ((nG == 0) || (nn == 0))
     {
         return;
     }
-    if (is_complex)
+    if (dtypenum==NP_DOUBLE_COMPLEX)
     {
-	gpuLaunchKernel(calculate_residual_kernel_complex,
+	auto fptr = &calculate_residual_kernel<gpuDoubleComplex, double>;
+	gpuLaunchKernel(fptr,
 			dim3((nn+15)/16, (nG+15)/16),
 			dim3(16, 16),
 			0, 0,
 			nG, nn,
 			(gpuDoubleComplex*) residual_nG,
-			eps_n,
+			(double*) eps_n,
 			(gpuDoubleComplex*) wf_nG);
     }
-    else
+    else if (dtypenum==NP_FLOAT_COMPLEX)
     {
-	gpuLaunchKernel(calculate_residual_kernel_real,
+	auto fptr = &calculate_residual_kernel<gpuFloatComplex, float>;
+	gpuLaunchKernel(fptr,
 			dim3((nn+15)/16, (nG+15)/16),
 			dim3(16, 16),
 			0, 0,
 			nG, nn,
-			residual_nG,
-			eps_n,
-			wf_nG);
-    }
+			(gpuFloatComplex*) residual_nG,
+			(float*) eps_n,
+			(gpuFloatComplex*) wf_nG);
+    } else if (dtypenum==NP_FLOAT)
+	{
+	auto fptr = &calculate_residual_kernel<float, float>;
+	gpuLaunchKernel(fptr,
+			dim3((nn+15)/16, (nG+15)/16),
+			dim3(16, 16),
+			0, 0,
+			nG, nn,
+			(float*) residual_nG,
+			(float*) eps_n,
+			(float*) wf_nG);
+	} else if (dtypenum==NP_DOUBLE)
+	{
+	auto fptr = &calculate_residual_kernel<double, double>;
+	gpuLaunchKernel(fptr,
+			dim3((nn+15)/16, (nG+15)/16),
+			dim3(16, 16),
+			0, 0,
+			nG, nn,
+			(double*) residual_nG,
+			(double*) eps_n,
+			(double*) wf_nG);
+	}
 }
 
 
@@ -469,21 +481,21 @@ __global__ void add_to_density(int nb,
 			       int nR,
 			       double* f_n,
 			       Tcomplex* psit_nR,
-			       Treal* rho_R)
+			       double* rho_R)
 {
     constexpr bool realtype = std::is_same<Tcomplex, Treal>::value;
 	
     int R = threadIdx.x + blockIdx.x * blockDim.x;
     if (R < nR)
     {
-	Treal rho = 0.0;
+	double rho = 0.0;
 	for (int b=0; b< nb; b++)
 	{
 	    int idx = b * nR + R;
 	    if constexpr(realtype) {
-	    	rho += f_n[b] * (psit_nR[idx] * psit_nR[idx]);
+	    	rho += f_n[b] * double(psit_nR[idx] * psit_nR[idx]);
 	    } else {
-	    	rho += f_n[b] * (psit_nR[idx].x * psit_nR[idx].x + psit_nR[idx].y * psit_nR[idx].y);
+	    	rho += f_n[b] * double(psit_nR[idx].x * psit_nR[idx].x + psit_nR[idx].y * psit_nR[idx].y);
 	    }
 	}
 	rho_R[R] += rho;
@@ -514,30 +526,30 @@ void add_to_density_gpu_launch_kernel(int nb,
 				      int nR,
 				      double* f_n,
 				      void* psit_nR,
-				      void* rho_R,
+				      double* rho_R,
 				      int dtypenum)
 {
-    if (dtypenum==15)
+    if (dtypenum==NP_DOUBLE_COMPLEX)
     {
         auto fptr = &add_to_density<gpuDoubleComplex, double>;
         gpuLaunchKernel(fptr, dim3((nR+255)/256), dim3(256), 0, 0,
-		    nb, nR, f_n, (gpuDoubleComplex*)psit_nR, (double*)rho_R);
+		    nb, nR, f_n, (gpuDoubleComplex*)psit_nR, rho_R);
     }
-    else if (dtypenum==14)
+    else if (dtypenum==NP_FLOAT_COMPLEX)
     {
         auto fptr = &add_to_density<gpuFloatComplex, float>;
         gpuLaunchKernel(fptr, dim3((nR+255)/256), dim3(256), 0, 0,
-		    nb, nR, f_n, (gpuFloatComplex*)psit_nR, (float*)rho_R);
-    } else if (dtypenum==11)
+		    nb, nR, f_n, (gpuFloatComplex*)psit_nR, rho_R);
+    } else if (dtypenum==NP_FLOAT)
     {
         auto fptr = &add_to_density<float, float>;
         gpuLaunchKernel(fptr, dim3((nR+255)/256), dim3(256), 0, 0,
-		    nb, nR, f_n, (float*) psit_nR, (float*) rho_R);
-    } else if (dtypenum==12)
+		    nb, nR, f_n, (float*) psit_nR, rho_R);
+    } else if (dtypenum==NP_DOUBLE)
     {
         auto fptr = &add_to_density<double, double>;
         gpuLaunchKernel(fptr, dim3((nR+255)/256), dim3(256), 0, 0,
-		    nb, nR, f_n, (double*) psit_nR, (double*) rho_R);
+		    nb, nR, f_n, (double*) psit_nR, rho_R);
     }
     else
     {

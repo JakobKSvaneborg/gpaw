@@ -26,6 +26,7 @@
 #define gpuCimag                  hipCimag
 #define gpuCadd                   hipCadd
 #define gpuCsub                   hipCsub
+#define gpuCsubf                  hipCsubf
 #define gpuCmul                   hipCmul
 #define gpuCmulf                  hipCmulf
 #define gpuConj                   hipConj

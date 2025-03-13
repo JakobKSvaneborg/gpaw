@@ -967,5 +967,5 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
             norm='forward',
             overwrite_x=True)
         add_to_density_gpu(weight_n[b1:b2],
-                           psit_bR.astype(as_complex_dtype(nt_R.data.dtype)),
+                           psit_bR,
                            nt_R.data)

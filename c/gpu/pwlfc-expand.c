@@ -9,12 +9,12 @@
 #include "gpu-complex.h"
 #include <stdio.h>
 
-void calculate_residual_launch_kernel(int nG,
+void calculate_residual_launch_kernel(int dtypenum,
+                                      int nG,
                                       int nn,
-                                      double* residual_ng, 
-                                      double* eps_n, 
-                                      double* wf_nG,
-                                      int is_complex);
+                                      void* residual_ng, 
+                                      void* eps_n, 
+                                      void* wf_nG);
 
 void pwlfc_expand_gpu_launch_kernel(int dtypenum,
                                     double* f_Gs,
@@ -96,7 +96,8 @@ int get_dtype(void* array)
     // array     float32 complex64 float64 complex128
 
     int dtypenum = Array_TYPE(array);
-    assert(dtypenum == 11 || dtypenum == 12 || dtypenum == 14 || dtypenum == 15);
+    assert(dtypenum == NP_FLOAT || dtypenum == NP_DOUBLE || 
+           dtypenum == NP_FLOAT_COMPLEX || dtypenum == NP_DOUBLE_COMPLEX);
     return dtypenum;
 }
 
@@ -109,8 +110,8 @@ void assert_corresponding_real(int dtypenum, void* array)
     // realdtype 11      11        12      12
     // array     float32 float32   float64
     int realdtype = Array_TYPE(array);
-    assert((realdtype == 11 && (dtypenum == 11 || dtypenum == 14)) ||
-           (realdtype == 12 && (dtypenum == 12 || dtypenum == 15)));
+    assert((realdtype == NP_FLOAT && (dtypenum == NP_FLOAT || dtypenum == NP_FLOAT_COMPLEX)) ||
+           (realdtype == NP_DOUBLE && (dtypenum == NP_DOUBLE || dtypenum == NP_DOUBLE_COMPLEX)));
     return;
 }
 
@@ -453,7 +454,11 @@ PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
     void *rho_R = (void*) Array_DATA(rho_R_obj);
     int nb = Array_SIZE(f_n_obj);
     int nR = Array_SIZE(psit_nR_obj) / nb;
-    assert_corresponding_real(dtypenum, rho_R_obj);
+    
+    // If running on same precision, then this should be the case
+    // assert_corresponding_real(dtypenum, rho_R_obj);
+    // However, we always have the density as double:
+    assert(get_dtype(rho_R_obj) == NP_DOUBLE);
     
     if (PyErr_Occurred())
     {
@@ -470,11 +475,10 @@ PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
     if (!PyArg_ParseTuple(args, "OOO",
                           &residual_nG_obj, &eps_n_obj, &wf_nG_obj))
         return NULL;
-    double *residual_nG = Array_DATA(residual_nG_obj);
-    double* eps_n = Array_DATA(eps_n_obj);
-    double *wf_nG = Array_DATA(wf_nG_obj);
+    void *residual_nG = Array_DATA(residual_nG_obj);
+    void* eps_n = Array_DATA(eps_n_obj);
+    void *wf_nG = Array_DATA(wf_nG_obj);
     int nn = Array_DIM(residual_nG_obj, 0);
-    bool is_complex = Array_ITEMSIZE(residual_nG_obj) == 16;
     int nG = 1;
     for (int d=1; d<Array_NDIM(residual_nG_obj); d++)
     {
@@ -484,6 +488,8 @@ PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
     {
         return NULL;
     }
-    calculate_residual_launch_kernel(nG, nn, residual_nG, eps_n, wf_nG, is_complex);
+    int dtypenum = get_dtype(residual_nG_obj);
+    assert_corresponding_real(dtypenum, eps_n_obj);
+    calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG);
     Py_RETURN_NONE;
 }
