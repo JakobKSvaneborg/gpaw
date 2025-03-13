@@ -22,13 +22,14 @@ def test_qsymmetries(gpw_files, identifier):
 
     # Test symmetry analysis
     kpts = gs._calc.parameters.get('kpts', {})
+    rng = np.random.default_rng(42)
     if 'gamma' in kpts and kpts['gamma']:
         # If the ground state is Γ-centered, all IBZ k-points are valid
         # q-points as well (autocommensurate) and we check that the q-point
         # symmetry analyzer reproduces the symmetries of the ground state.
         for k, k_c in enumerate(gs.kd.ibzk_kc):
             # Add a bit of numerical noise:
-            q_c = k_c + (np.random.rand(3) - 0.5) * 1e-15
+            q_c = k_c + (rng.random(3) - 0.5) * 1e-15
             qsymmetries, _ = qsymmetry.analyze(q_c, gs.kpoints, context)
             # The number of q -> G + q symmetries is reduced by the
             # multiplicity of the corresponding k-point
@@ -38,7 +39,7 @@ def test_qsymmetries(gpw_files, identifier):
     else:
         # If the ground state isn't Γ-centered, we simply check that a "noisy"
         # Γ-point q vector recovers all symmetries of the system
-        q_c = (np.random.rand(3) - 0.5) * 1e-15  # "Noisy" Γ-point
+        q_c = (rng.random(3) - 0.5) * 1e-15  # "Noisy" Γ-point
         qsymmetries, _ = qsymmetry.analyze(q_c, gs.kpoints, context)
         assert qsymmetries.ndirect == ndirect, f'{q_c}'
         assert qsymmetries.nindirect == nindirect, f'{q_c}'
