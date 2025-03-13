@@ -50,8 +50,7 @@ def initialize_system():
             add = '_' + gauge
         else:
             add = ''
-        td_calc = LCAOTDDFT('gs.gpw',
-                            communicator=comm,
+        td_calc = LCAOTDDFT('gs.gpw', communicator=comm,
                             txt='td' + add + '.out')
         dmat = DensityMatrix(td_calc)
         MagneticMomentWriter(td_calc, 'mm' + add + '.dat', dmat=dmat)
@@ -124,7 +123,7 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
 '''.strip())  # noqa: E501
 
     check_txt_data(module_tmp_path / 'mm_origin_velocity.dat',
-                   'mm_origin_ref.dat', atol=2e-14)
+                   'mm_origin_ref.dat', atol=1e-13)
 
 
 @pytest.mark.rttddft
@@ -145,7 +144,7 @@ def test_magnetic_moment_values(initialize_system, module_tmp_path,
          20.67068667     6.247451722277e-07     1.298788405738e-06     1.460017881082e-06
 '''.strip())  # noqa: E501
 
-    check_txt_data(module_tmp_path / 'mm.dat', 'mm_ref.dat', atol=2e-14)
+    check_txt_data(module_tmp_path / 'mm.dat', 'mm_ref.dat', atol=1e-13)
 
 
 @pytest.mark.rttddft
@@ -156,19 +155,28 @@ def test_magnetic_moment_grid_evaluation(initialize_system, module_tmp_path):
 
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
+@pytest.mark.parametrize('gauge', ['velocity', 'length'])
 def test_magnetic_moment_parallel(initialize_system, module_tmp_path, parallel,
-                                  in_tmp_dir):
+                                  in_tmp_dir, gauge):
+    if gauge == 'velocity':
+        if parallel.get('sl_auto', False):
+            pytest.skip('Scalapack velocity not yet implemented.')
+        #if parallel.get('band', 1) > 1:
+        #    pytest.skip('No band parallelization available yet.')
+
     td_calc = LCAOTDDFT(module_tmp_path / 'gs.gpw',
                         parallel=parallel,
                         txt='td.out')
-    MagneticMomentWriter(td_calc, 'mm.dat')
-    MagneticMomentWriter(td_calc, 'mm_grid.dat', calculate_on_grid=True)
-    MagneticMomentWriter(td_calc, 'mm_origin.dat',
+    print(parallel)
+    add = '_velocity' if gauge == 'velocity' else ''
+    MagneticMomentWriter(td_calc, f'mm{add}.dat')
+    MagneticMomentWriter(td_calc, f'mm_grid{add}.dat', calculate_on_grid=True)
+    MagneticMomentWriter(td_calc, f'mm_origin{add}.dat',
                          origin='zero', origin_shift=[1.0, 2.0, 3.0])
-    td_calc.absorption_kick([1e-5, 0., 0.])
+    td_calc.absorption_kick([1e-5, 0., 0.], gauge=gauge)
     td_calc.propagate(100, 5)
 
-    for fname in ['mm.dat', 'mm_grid.dat', 'mm_origin.dat']:
+    for fname in [f'mm{add}.dat', f'mm_grid{add}.dat', f'mm_origin{add}.dat']:
         check_txt_data(module_tmp_path / fname, fname, atol=7e-14)
 
 

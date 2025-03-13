@@ -242,19 +242,25 @@ class ECNPropagator(LCAOPropagator):
         
         gcomm = self.wfs.gd.comm
         # Parallelization not yet working
-        assert gcomm.size == 1
-        assert self.wfs.kptband_comm.size == 1
+        # assert gcomm.size == 1
+        #assert self.wfs.kptband_comm.size == 1
         manytci = self.wfs.manytci
         Vkick_qvMM = manytci.O_qMM_T_qMM(gcomm,
-                                     ksl.Mstart,
-                                     ksl.Mstop,
-                                     ignore_upper=ksl.using_blacs,
-                                     derivative=True)[0] 
+                                         ksl.Mstart,
+                                         ksl.Mstop,
+                                         ignore_upper=ksl.using_blacs,
+                                         derivative=True)[0] 
 
-        dnabla_vaii = { v: { a: -setup.nabla_iiv[:, :, v] for a, setup in enumerate(self.wfs.setups)} for v in range(3)}
+
+        my_atoms = self.wfs.atomic_correction.P_aqMi.keys()
+        dnabla_vaii = { v: { a: -self.wfs.setups[a].nabla_iiv[:, :, v] for a in my_atoms} for v in range(3)}
         for kpt in self.wfs.kpt_u:
             for v in range(3):
                 self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v], Vkick_qvMM[kpt.q][v], ksl.Mstart, ksl.Mstop)
+
+        gcomm.sum(Vkick_qvMM)
+
+        for kpt in self.wfs.kpt_u:
             kpt.Vkick_vMM = Vkick_qvMM[kpt.q] * (-1j)
 
         self.have_velocity_operator_matrix = True
