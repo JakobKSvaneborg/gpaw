@@ -281,20 +281,20 @@ class SJM(SolvationGPAW):
             if p.cip['mu_pzc'] is None or p.cip['phi_pzc'] is None:
                 p.cip['mu_pzc'] = 0
                 p.cip['phi_pzc'] = 0
-                msg = ('Warning: a CIP calculation has been activated '+
-                        'but mu_pzc and/or phi_pzc was none. This is fine get_mask'+
-                        'for CIP calibration but proper values need to be '+
-                        'provided for meaningful reference must be provided '+
-                        'for production calculations\n')
+                msg = ('Warning: a CIP calculation has been activated '
+                   'but mu_pzc and/or phi_pzc was none. This is fine '
+                   'for CIP calibration but meaningful references '
+                   'must be provided for production calculations\n')
+
 
             if p.cip['inner_region'] is None and p.cip['autoinner'] is None:
                 raise RuntimeError("The inner region cannot be none" +
                                    "when using inner potential as the" +
-                                   "reference. Please, set up the" +
-                                   "either bottom/top values defining the" +
+                                   "reference. Please, set up" +
+                                   "either bottom/top values to define the" +
                                    "electrode bulk or set autoinner to True")
 
-            if p.cip['inner_region'] is not None and p.cip['autoinner'] is not None:
+            if p.cip.get('inner_region') and p.cip.get('autoinner'):
                 raise RuntimeError("Only inner_region or autoinner" +
                                    "can be set to define the inner potential")
 
