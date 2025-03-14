@@ -169,7 +169,7 @@ class SJM(SolvationGPAW):
         new slope is established. E.g., new_slope = mixer * old_slope +
         (1. - mixer) * current_slope_estimate. Set to 0 for no damping.
         Default: 0.5.
-    pot_ref = 'wf' or 'CIP'
+    pot_ref: 'wf' or 'CIP'
         potential reference scale
         wf: original SJM using workfunction for the absolute potential
         CIP: use inner potential as the abs. el. pot.
@@ -183,7 +183,7 @@ class SJM(SolvationGPAW):
             if inner_region is given, autoinner is automatically disabled
             nlayers: number of layers
             threshold: Required threshold of peaks, the innerpotential
-                    difference at neighboring grid points
+            difference at neighboring grid points
         mu_pzc: float
             Fermi level at potential of zero charge
             Sets the reference scale for the absolute potential level for CIP
@@ -222,12 +222,11 @@ class SJM(SolvationGPAW):
          'mixer': 0.5,
          'slope_regression_depth': 4,
          'cip': {'autoinner': {'nlayers': None,
-                 'threshold': 0.0001},
+                               'threshold': 0.0001},
                  'inner_region': None,
                  'mu_pzc': None,
                  'phi_pzc': None,
-                 'filter': 10
-                 }})
+                 'filter': 10}})
 
     _sj_default_parameters.update({'dirichlet': False})
     default_parameters = copy.deepcopy(SolvationGPAW.default_parameters)
