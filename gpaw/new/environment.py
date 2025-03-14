@@ -47,5 +47,5 @@ class Jellium(Environment):
             self.charge_g = charge_r.fft(pw=nt_g.desc)
             self.charge_g.data *= 1.0 / self.charge_g.integrate()
         x = -(nt_g.integrate() + comp_charge)
-        print(x)
+        print(nt_g.integrate(), comp_charge, x)
         nt_g.data += self.charge_g.data * x

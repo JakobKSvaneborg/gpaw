@@ -309,12 +309,14 @@ class SmoothDistribution(OccupationNumberCalculator):
             df = f - nelectrons
             return df, dfde
 
+        print(eig_qn)
         if fix_fermi_level:
-            func(x)
+            df, _ = func(x)
+            print('NE', nelectrons + df, x)
             fermi_level = x
         else:
             fermi_level, niter = findroot(func, x)
-
+            print('FL', fermi_level, niter)
         e_entropy = data[2]
 
         return fermi_level, e_entropy

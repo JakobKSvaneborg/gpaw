@@ -3,16 +3,18 @@ from ase import Atoms
 from gpaw.jellium import JelliumSlab
 import numpy as np
 from gpaw.mixer import Mixer
+from gpaw import FermiDirac
 
 
 def test_ffl():
     a = 1.4
     atoms = Atoms('H', cell=[a, a, 11.0], pbc=(1, 1, 0))
     atoms.positions[0, 2] = 4.0
-    k = 2
+    k = 4
     atoms.calc = GPAW(
         mode='pw',
         kpts=(k, k, 1),
+        occupations=FermiDirac(0.2),
         mixer=Mixer(0.001, 1),
         convergence={'density': 1.0},
         poissonsolver={'dipolelayer': 'xy'},
