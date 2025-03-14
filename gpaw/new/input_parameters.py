@@ -7,11 +7,6 @@ import numpy as np
 
 parameter_functions = {}
 
-"""
-background_charge
-external
-"""
-
 
 class DeprecatedParameterWarning(FutureWarning):
     """Warning class for when a parameter or its value is deprecated."""
@@ -24,6 +19,7 @@ def input_parameter(func):
 
 
 class InputParameters:
+    background_charge: Any
     basis: Any
     charge: float
     convergence: dict[str, Any]
@@ -45,6 +41,7 @@ class InputParameters:
     # random
     setups: Any
     soc: bool
+    solvation: Any
     spinpol: bool
     symmetry: dict[str, Any]
     xc: dict[str, Any]
@@ -118,6 +115,12 @@ class InputParameters:
 
 
 @input_parameter
+def background_charge(value=None):
+    """Background-charge object."""
+    return value
+
+
+@input_parameter
 def basis(value=None):
     """Atomic basis set."""
     return value or {}
@@ -139,9 +142,6 @@ def eigensolver(value=None) -> dict:
     """Eigensolver."""
     if isinstance(value, str):
         value = {'name': value}
-    if value and value['name'] not in {'dav', 'etdm-fdpw', 'scissors'}:
-        warnings.warn(f'{value["name"]} not implemented.  Using dav instead')
-        return {'name': 'dav'}
     return value or {}
 
 
@@ -269,6 +269,11 @@ def setups(value='paw'):
 
 @input_parameter
 def soc(value=False):
+    return value
+
+
+@input_parameter
+def solvation(value=None):
     return value
 
 

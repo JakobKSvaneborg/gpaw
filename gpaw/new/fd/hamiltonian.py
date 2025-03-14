@@ -7,9 +7,8 @@ from gpaw.new.hamiltonian import Hamiltonian
 
 
 class FDHamiltonian(Hamiltonian):
-    def __init__(self, grid, kin_stencil=3, blocksize=10, xp=np):
+    def __init__(self, grid, *, kin_stencil=3, xp=np):
         self.grid = grid
-        self.blocksize = blocksize
         self._gd = grid._gd
         self.kin = Laplace(self._gd, -0.5, kin_stencil, grid.dtype, xp=xp)
 
@@ -50,7 +49,7 @@ class FDHamiltonian(Hamiltonian):
         from types import SimpleNamespace
 
         from gpaw.preconditioner import Preconditioner as PC
-        pc = PC(self._gd, self.kin, self.grid.dtype, self.blocksize, xp=xp)
+        pc = PC(self._gd, self.kin, self.grid.dtype, blocksize, xp=xp)
 
         def apply(psit, residuals, out):
             kpt = SimpleNamespace(phase_cd=psit.desc.phase_factor_cd)

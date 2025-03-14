@@ -577,6 +577,15 @@ class AERadialGridDescriptor(RadialGridDescriptor):
         RadialGridDescriptor.__init__(self, r_g, dr_g, default_spline_points)
         self._d2gdr2 = -2 * self.a * self.b / (self.b * self.r_g + self.a)**3
 
+    @property
+    def beta(self):
+        return self.a * self.N
+
+    def __repr__(self):
+        return (
+            f'{type(self).__name__}'
+            f'({self.a}, {self.b}, {self.N}, {self.default_spline_points})')
+
     def r2g(self, r):
         # return r / (r * self.b + self.a)
         # Hack to preserve backwards compatibility:

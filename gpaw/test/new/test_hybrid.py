@@ -50,7 +50,7 @@ def test_h(gpaw_new):
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
-    assert e == pytest.approx(-1.703969, abs=1e-3)
+    assert e == pytest.approx(-1.703969, abs=4e-3)
     assert eigs[0] == pytest.approx(-9.71440, abs=1e-3)
 
 

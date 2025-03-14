@@ -713,11 +713,26 @@ class PWArray(DistributedArrays[PWDesc]):
         if seed is None:
             seed = self.comm.rank + self.desc.comm.rank * self.comm.size
         rng = self.xp.random.default_rng(seed)
-        a = self.data.view(self.real_dtype)
-        rng.random(a.shape, out=a, dtype=self.real_dtype)
-        a -= 0.5
-        if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
-            a[..., 1] = 0.0
+
+        batches = self.data.size // 5_000_000 + 1
+        arrays = self.xp.array_split(self.data, batches)
+        is_real = self.desc.dtype == self.real_dtype
+        ekin_G = self.xp.asarray(self.desc.ekin_G)
+        for a in arrays:
+            # numpy does not require shape, cupy does
+            # cupy just makes all elements equal to one random number
+            aview = a.view(dtype=self.real_dtype)
+            rng.random(aview.shape, out=aview, dtype=self.real_dtype)
+
+            # Uniform distribution inside unit circle
+            a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)
+
+            # Damp high spatial frequencies
+            a[..., :] *= 0.5 / (1.00 + ekin_G[..., :])
+
+            # Make sure gamma point G=0 does not have imaginary part
+            if is_real and self.desc.comm.rank == 0:
+                a[..., 0].imag = 0.0
 
     def moment(self):
         pw = self.desc
@@ -792,6 +807,38 @@ class PWArray(DistributedArrays[PWDesc]):
         tmp_R = taut_R.new()
         tmp_R.scatter_from(taut1_R)
         taut_R.data += tmp_R.data
+
+    def transform(self,
+                  U_cc: np.ndarray,
+                  complex_conjugate: bool = False,
+                  pw: PWDesc | None = None) -> PWArray:
+        """Symmetry-transform data."""
+        pw1 = self.desc
+        pw2 = pw
+        if complex_conjugate:
+            U_cc = -U_cc
+        kpt2_c = U_cc @ pw1.kpt_c
+        if pw2 is None:
+            pw2 = pw1.new(kpt=kpt2_c)
+        else:
+            assert np.allclose(pw2.kpt_c, kpt2_c)
+
+        size_c = np.ptp(pw1.indices_cG, axis=1) + 1
+        Q1_G = np.ravel_multi_index(U_cc @ pw1.indices_cG,
+                                    size_c,
+                                    mode='wrap')
+        Q2_G = np.ravel_multi_index(pw2.indices_cG,  # type: ignore
+                                    size_c,
+                                    mode='wrap')
+        G_Q = np.empty(np.prod(size_c), dtype=int)
+        G_Q[:] = -1
+        G_Q[Q1_G] = np.arange(len(Q1_G), dtype=int)
+        G1_G2 = G_Q[Q2_G]
+        assert -1 not in G1_G2
+        data = np.ascontiguousarray(self.data[..., G1_G2])
+        if complex_conjugate:
+            np.negative(data.imag, data.imag)
+        return PWArray(pw2, self.dims, self.comm, data)
 
 
 def a2a_stuff(comm, N, ng, myng, maxmyng):

@@ -13,8 +13,8 @@ def test_diamond(in_tmp_dir, add_cwd_to_setup_paths):
     from gpaw.atom.basis import BasisMaker
 
     args = parameters['C']
-    generator = Generator('C', 'PBE', configuration='1s2')
-    generator.N *= 2
+    generator = Generator('C', 'PBE', configuration='1s2',
+                          gpernode=2 * Generator.default_gpernode)
     generator.run(write_xml=True, exx=True, **args)
     bm = BasisMaker(generator, run=False)
     basis = bm.generate(zetacount=4, polarizationcount=2,

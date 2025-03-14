@@ -52,13 +52,13 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                                            self.ibz.symmetries)
         return LCAOEigensolver(self.basis)
 
-    def read_ibz_wave_functions(self, reader):
+    def read_ibz_wave_functions(self, reader, log):
         c = 1
         if reader.version >= 0 and reader.version < 4:
             c = reader.bohr**1.5
 
         basis = self.create_basis_set()
-        potential = self.create_potential_calculator()
+        potential = self.create_potential_calculator(log)
         if 'coefficients' in reader.wave_functions:
             coefficients = reader.wave_functions.proxy('coefficients')
             coefficients.scale = c
@@ -109,7 +109,8 @@ def create_lcao_ibzwfs(basis,
                       dtype,
                       dist=(band_comm, band_comm.size, 1))
         if coefficients is not None:
-            C_nM.data[:] = coefficients.proxy(spin, k)
+            n1, n2 = C_nM.dist.my_row_range()
+            C_nM.data[:] = coefficients.proxy(spin, k)[n1:n2]
         else:
             # We set the first element to NaN as a hack so that the
             # code can later tell that the data is not initialized.

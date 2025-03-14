@@ -3,7 +3,7 @@
 
 """Utility functions and classes."""
 
-import atexit
+import io
 import os
 import re
 import sys
@@ -422,8 +422,17 @@ def file_barrier(path: Union[str, Path], world=None):
     world.barrier()
 
 
-devnull = open(os.devnull, 'w')
-atexit.register(devnull.close)
+class _NullIO(io.BufferedIOBase):
+    # Implement as few methods as possible in order to be the target of
+    # TextIOWrapper.  Python docs are not very specific.
+    def writable(self):
+        return True
+
+    def flush(self):
+        pass
+
+
+devnull = io.TextIOWrapper(_NullIO())  # type: ignore
 
 
 def convert_string_to_fd(name, world=None):

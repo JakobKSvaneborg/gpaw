@@ -6,7 +6,6 @@ from gpaw.jellium import JelliumSlab
 from gpaw import GPAW, Mixer
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.libxc
 def test_jellium(in_tmp_dir):
     rs = 5.0 * Bohr  # Wigner-Seitz radius
@@ -37,17 +36,15 @@ def test_jellium(in_tmp_dir):
                      txt='surface.txt')
     _ = surf.get_potential_energy()
 
-    efermi = surf.calc.get_fermi_level()
-    # Get (x-y-averaged) electrostatic potential
-    # Must collect it from the CPUs
-    # https://listserv.fysik.dtu.dk/pipermail/gpaw-users/2014-January/002524.html
-    ham = surf.calc.hamiltonian
-    v = (ham.finegd.collect(ham.vHt_g,
-                            broadcast=True) * Hartree).mean(0).mean(0)
-
     # Get the work function
-    phi1 = v[-1] - efermi
-
+    if surf.calc.old:
+        efermi = surf.calc.get_fermi_level()
+        ham = surf.calc.hamiltonian
+        v = (ham.finegd.collect(ham.vHt_g,
+                                broadcast=True) * Hartree).mean(0).mean(0)
+        phi1 = v[-1] - efermi
+    else:
+        phi1, _ = surf.calc.dft.workfunctions()
     assert phi1 == pytest.approx(2.715, abs=1e-3)
     # Reference value: Lang and Kohn, 1971, Theory of Metal Surfaces:
     # Work function

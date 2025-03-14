@@ -13,7 +13,7 @@ from ase.units import Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
-from gpaw.mpi import MPIComm
+from gpaw.mpi import MPIComm, broadcast
 from gpaw.mpi import synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
@@ -40,6 +40,7 @@ def GPAW(
     *,
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Iterable[int] | None = None,
+    background_charge=None,
     basis: str | dict[str | int | None, str] | None = None,
     charge: float | None = None,
     convergence: dict[str, Any] | None = None,
@@ -61,6 +62,7 @@ def GPAW(
     random: bool | None = None,
     setups: Any | None = None,
     soc: bool | None = None,
+    solvation=None,
     spinpol: bool | None = None,
     symmetry: str | dict[str, Any] | None = None,
     xc: str | dict[str, Any] | Dictable | None = None) -> ASECalculator:
@@ -118,6 +120,16 @@ def write_header(log, params):
             n = len(key)
             txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
             parts.append(f'{key}={txt}')
+        log(',\n'.join(parts))
+    with log.indent('environment variables:'):
+        import gpaw
+        parts = []
+        for name in gpaw.allowed_envvars:
+            try:
+                value = getattr(gpaw, name)
+            except AttributeError:
+                continue
+            parts.append(f'{name}={value!r}')
         log(',\n'.join(parts))
 
 
@@ -376,6 +388,16 @@ class ASECalculator:
     def check_state(self, atoms, tol=1e-12):
         return list(compare_atoms(self.atoms, atoms))
 
+    def eigenvalues(self):
+        eig_skn = self.dft.ibzwfs.get_all_eigs_and_occs()[0]
+        return broadcast(eig_skn * Ha if self.comm.rank == 0 else None,
+                         comm=self.comm)
+
+    def occupations(self):
+        occ_skn = self.dft.ibzwfs.get_all_eigs_and_occs()[1]
+        return broadcast(occ_skn if self.comm.rank == 0 else None,
+                         comm=self.comm)
+
     def write(self,
               filename: str | Path,
               mode: str = '',
@@ -401,6 +423,10 @@ class ASECalculator:
         flags = GPWFlags(include_projections=include_projections,
                          precision=precision, include_wfs=mode == 'all')
         write_gpw(filename, self.atoms, self.params, self.dft, flags=flags)
+
+    @property
+    def environment(self):
+        return self.dft.pot_calc.environment
 
     # Old API:
 
@@ -662,7 +688,7 @@ class ASECalculator:
                       *,
                       txt='-',
                       update_fermi_level: bool = False,
-                      **kwargs):
+                      **kwargs) -> ASECalculator:
         kwargs = {**dict(self.params.items()), **kwargs}
 
         params = InputParameters(kwargs)
@@ -688,14 +714,14 @@ class ASECalculator:
         scf_loop = builder.create_scf_loop()
         scf_loop.update_density_and_potential = False
         scf_loop.fix_fermi_level = not update_fermi_level
+        for name in ['energy', 'density', 'forces']:
+            scf_loop.convergence.pop(name, None)
 
         dft = DFTCalculation(
             ibzwfs, density, potential,
             builder.setups,
             scf_loop,
-            SimpleNamespace(relpos_ac=self.dft.relpos_ac,
-                            poisson_solver=None,
-                            xc=self.dft.pot_calc.xc),
+            builder.create_potential_calculator(log=log),
             log,
             energies=self.dft.energies)
 

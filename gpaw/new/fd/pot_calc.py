@@ -18,6 +18,7 @@ class FDPotentialCalculator(PotentialCalculator):
                  relpos_ac,
                  atomdist,
                  interpolation_stencil_range=3,
+                 environment=None,
                  xp=np):
         self.fine_grid = fine_grid
         self.grid = wf_grid
@@ -40,7 +41,8 @@ class FDPotentialCalculator(PotentialCalculator):
         self.xp = xp
 
         super().__init__(xc, poisson_solver, setups,
-                         relpos_ac=relpos_ac)
+                         relpos_ac=relpos_ac,
+                         environment=environment)
 
     def __str__(self):
         txt = super().__str__()
@@ -89,7 +91,8 @@ class FDPotentialCalculator(PotentialCalculator):
 
         charge_r = grid2.empty(xp=self.xp)
         charge_r.data[:] = nt_sr.data[:density.ndensities].sum(axis=0)
-        e_zero = self.vbar_r.integrate(charge_r)
+        nt_r = charge_r.copy()
+        e_zero = self.vbar_r.integrate(nt_r)
 
         ccc_aL = density.calculate_compensation_charge_coefficients()
 
@@ -98,7 +101,11 @@ class FDPotentialCalculator(PotentialCalculator):
                                           for ccc_L in ccc_aL.values())
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         pseudo_charge = charge_r.integrate()
-        charge_r.data *= -(comp_charge + density.charge) / pseudo_charge
+        if abs(pseudo_charge) > 1e-10:
+            pc = -comp_charge - density.charge + self.environment.charge
+            charge_r.data *= pc / pseudo_charge
+
+        self.environment.update1(charge_r)
 
         self.ghat_aLr.add_to(charge_r, ccc_aL)
 
@@ -109,9 +116,12 @@ class FDPotentialCalculator(PotentialCalculator):
 
         vt_sr = vxct_sr
         vt_sr.data += vHt_r.data + self.vbar_r.data
+
+        e_env = self.environment.update2(nt_r, vHt_r, vt_sr)
+
         vt_sR = self.restrict(vt_sr)
 
-        e_external = 0.0
+        e_external = e_env
 
         V_aL = self.ghat_aLr.integrate(vHt_r)
 
@@ -149,6 +159,8 @@ class FDPotentialCalculator(PotentialCalculator):
         force_av = np.zeros((len(Q_aL), 3))
         for a, dF_vL in F_avL.items():
             force_av[a] += dF_vL @ Q_aL[a]
+
+        force_av += self.environment.forces(nt_r, potential.vHt_x)
 
         return (force_av,
                 density.nct_aX.derivative(vt_R),

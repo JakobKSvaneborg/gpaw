@@ -59,19 +59,6 @@ units = {'energy': Ha,
          'non_collinear_magmoms': 1.0}
 
 
-class DFTState:
-    def __init__(self,
-                 ibzwfs: IBZWaveFunctions,
-                 density: Density,
-                 potential: Potential,
-                 energies):
-        """State of a Kohn-Sham calculation."""
-        self.ibzwfs = ibzwfs
-        self.density = density
-        self.potential = potential
-        self.energies = energies
-
-
 class DFTCalculation:
     def __init__(self,
                  ibzwfs: IBZWaveFunctions,
@@ -95,16 +82,6 @@ class DFTCalculation:
         self.relpos_ac = self.pot_calc.relpos_ac
         self.energies = energies or DFTEnergies()
         self.forces_have_been_printed = False
-
-    def get_state(self):
-        return DFTState(self.ibzwfs, self.density, self.potential,
-                        self.energies)
-
-    @property
-    def state(self):
-        warnings.warn('Use of deprecated DFTCalculation.state attribute. '
-                      'Use ibzwfs, density and potential attributes instead.')
-        return self.get_state()
 
     @classmethod
     def from_parameters(cls,
@@ -132,14 +109,16 @@ class DFTCalculation:
         basis_set = builder.create_basis_set()
 
         density = builder.density_from_superposition(basis_set)
-        density.normalize()
+        if len(atoms) == 0:
+            density.nt_sR.data[:] = 1.0
+        density.normalize(builder.background_charge)
 
         # The SCF-loop has a Hamiltonian that has an fft-plan that is
         # cached for later use, so best to create the SCF-loop first
         # FIX this!
         scf_loop = builder.create_scf_loop()
 
-        pot_calc = builder.create_potential_calculator()
+        pot_calc = builder.create_potential_calculator(log)
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
@@ -324,7 +303,7 @@ class DFTCalculation:
         if not np.isnan(vacuum_level):
             self.log(f'vacuum-level: {vacuum_level:.3f}  # V')
             try:
-                wf1, wf2 = self.workfunctions(vacuum_level=vacuum_level)
+                wf1, wf2 = self.workfunctions(_vacuum_level=vacuum_level)
             except NonsenseError:
                 pass
             else:
@@ -332,12 +311,10 @@ class DFTCalculation:
         self.log.fd.flush()
 
     def workfunctions(self,
-                      *,
-                      vacuum_level: float | None = None
-                      ) -> tuple[float, float]:
-        if vacuum_level is None:
-            vacuum_level = self.potential.get_vacuum_level()
-        if np.isnan(vacuum_level):
+                      *, _vacuum_level=None) -> tuple[float, float]:
+        if _vacuum_level is None:
+            _vacuum_level = self.potential.get_vacuum_level()
+        if np.isnan(_vacuum_level):
             raise NonsenseError('No vacuum')
         try:
             correction = self.pot_calc.poisson_solver.dipole_layer_correction()
@@ -345,8 +322,11 @@ class DFTCalculation:
             raise NonsenseError('No dipole layer')
         correction *= Ha
         fermi_level = self.ibzwfs.fermi_level * Ha
-        wf = vacuum_level - fermi_level
+        wf = _vacuum_level - fermi_level
         return wf - correction, wf + correction
+
+    def vacuum_level(self) -> float:
+        return self.potential.get_vacuum_level()
 
     def electrostatic_potential(self) -> ElectrostaticPotential:
         return ElectrostaticPotential.from_calculation(self)
@@ -437,7 +417,7 @@ class DFTCalculation:
                                    builder.interpolation_desc,
                                    builder.relpos_ac,
                                    builder.atomdist)
-        density.normalize()
+        density.normalize(builder.background_charge)
 
         # Make sure all have exactly the same density.
         # Not quite sure it is needed???
@@ -447,7 +427,7 @@ class DFTCalculation:
             self.comm.broadcast(density.nt_sR.data, 0)
 
         scf_loop = builder.create_scf_loop()
-        pot_calc = builder.create_potential_calculator()
+        pot_calc = builder.create_potential_calculator(log)
         potential, energies, _ = pot_calc.calculate(density)
 
         old_ibzwfs = ibzwfs
@@ -481,6 +461,15 @@ class DFTCalculation:
             builder.setups, scf_loop, pot_calc, log,
             energies=energies)
 
+    def get_state(self):
+        return DFTState(self.ibzwfs, self.density, self.potential)
+
+    @property
+    def state(self):
+        warnings.warn('Use of deprecated DFTCalculation.state attribute. '
+                      'Use ibzwfs, density and potential attributes instead.')
+        return self.get_state()
+
 
 def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
@@ -489,3 +478,16 @@ def write_atoms(atoms: Atoms,
     from gpaw.output import print_cell, print_positions
     print_positions(atoms, log, magmom_av)
     print_cell(grid._gd, grid.pbc, log)
+
+
+class DFTState:
+    def __init__(self,
+                 ibzwfs: IBZWaveFunctions,
+                 density: Density,
+                 potential: Potential,
+                 energies):
+        """State of a Kohn-Sham calculation."""
+        self.ibzwfs = ibzwfs
+        self.density = density
+        self.potential = potential
+        self.energies = energies

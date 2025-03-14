@@ -185,17 +185,17 @@ class LCAOWaveFunctions(WaveFunctions):
             f_n = self.weight * self.spin_degeneracy * self.myocc_n
             if eigs:
                 f_n *= self.myeig_n
-            C_nM = self.C_nM.data
+            TempC_nM = self.C_nM.copy()
+            TempC_nM.data *= f_n[:, None]
+            rho_MM = TempC_nM.multiply(self.C_nM, opa='C')
             if transposed:
-                rho_MM = (C_nM.T * f_n) @ C_nM.conj()
-            else:
-                rho_MM = (C_nM.T.conj() * f_n) @ C_nM
-            self.band_comm.sum(rho_MM)
+                rho_MM.complex_conjugate()
+            rho_MM_data = rho_MM.data
         else:
-            rho_MM = np.empty_like(self.T_MM.data)
-        self.domain_comm.broadcast(rho_MM, 0)
+            rho_MM_data = np.empty_like(self.T_MM.data)
+        self.domain_comm.broadcast(rho_MM_data, 0)
 
-        return rho_MM
+        return rho_MM_data
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
@@ -204,7 +204,10 @@ class LCAOWaveFunctions(WaveFunctions):
         psit_nR = grid.zeros(self.nbands, self.band_comm)
         basis.lcao_to_grid(self.C_nM.data, psit_nR.data, self.q)
 
-        return PWFDWaveFunctions.from_wfs(self, psit_nR)
+        wfs = PWFDWaveFunctions.from_wfs(self, psit_nR)
+        if self._eig_n is not None:
+            wfs._eig_n = self._eig_n.copy()
+        return wfs
 
     def collect(self,
                 n1: int = 0,

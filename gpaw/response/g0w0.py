@@ -1027,7 +1027,8 @@ class G0W0Calculator:
         """Calculates the screened potential for a specified q-point."""
 
         chi0calc.chi0_body_calc.print_info(chi0.qpd)
-        chi0calc.update_chi0(chi0, m1, m2, range(self.wcalc.gs.nspins))
+        chi0calc.update_chi0(chi0, m1=m1, m2=m2,
+                             spins=range(self.wcalc.gs.nspins))
 
         Wdict = {}
 

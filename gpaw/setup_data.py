@@ -85,7 +85,8 @@ class SetupData:
         self.e_total = 0.0
         self.e_kinetic_core = 0.0
 
-        # Generator may store description of setup in this string
+        # Generator may store description of setup in these
+        self.type = None
         self.generatorattrs = []
         self.generatordata = ''
 

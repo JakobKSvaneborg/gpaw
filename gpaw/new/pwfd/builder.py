@@ -7,8 +7,7 @@ from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
-from gpaw.new.pwfd.davidson import Davidson
-from gpaw.new.pwfd.etdm import ETDM
+from gpaw.new.pwfd.eigensolver import create_eigensolver as make_eigensolver
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
@@ -25,27 +24,18 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                           qspiral @ self.grid.icell * (2 * pi))
 
     def create_eigensolver(self, hamiltonian):
-        eigsolv_params = self.params.eigensolver.copy()
-        name = eigsolv_params.pop('name', 'dav')
-        if name == 'dav':
-            return Davidson(
-                self.nbands,
-                self.wf_desc,
-                self.communicators['b'],
-                hamiltonian.create_preconditioner,
-                converge_bands=self.params.convergence.get('bands',
-                                                           'occupied'),
-                **eigsolv_params)
-        if name == 'etdm-fdpw':
-            return ETDM(
-                dS_aii=self.setups.get_overlap_corrections(
-                    self.atomdist, self.xp),
-                nspins=self.nspins,
-                preconditioner=hamiltonian.create_preconditioner(
-                    10, xp=self.xp),
-                **eigsolv_params)
+        return make_eigensolver(
+            self.nbands,
+            self.wf_desc,
+            self.communicators['b'],
+            self.communicators['w'],
+            hamiltonian.create_preconditioner,
+            self.params.convergence.get('bands', 'occupied'),
+            self.setups,
+            self.atoms,
+            **self.params.eigensolver)
 
-    def read_ibz_wave_functions(self, reader):
+    def read_ibz_wave_functions(self, reader, log):
         kpt_comm, band_comm, domain_comm = (self.communicators[x]
                                             for x in 'kbd')
 
@@ -117,7 +107,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             mynbands = len(psit_nX.data)
             eig_n = np.empty(self.nbands)
             eig_n[:lcaonbands] = lcaowfs._eig_n
-            eig_n[lcaonbands:] = 1e10
+            eig_n[lcaonbands:] = 100.0  # set high value for random wfs.
             if mylcaonbands < mynbands:
                 psit_nX[mylcaonbands:].randomize(
                     seed=self.communicators['w'].rank)
