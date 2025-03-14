@@ -83,16 +83,30 @@ where `\epsilon(\br)` accounts for the solvation; that is, the dielectric consta
 `\rho_\mathrm{explicit} (\br)` contains the standard charge density of the system; that is, due to the electrons and nuclei.
 Since the changes to the Poisson equation are relatively simple, it can be solved without relying on linearization.
 
+When the electrode potential is defined as the work function, the generalized Poisson equation is solved with Neumann boundary conditions. When the inner potential is used to define the electrode potential, the generalized Poisson solver is solved with Dirichlet+Neumann boundary conditions as discussed in [Melander2024]_. The Dirichlet boundary condition sets the electrostatic potential to zero at the top of the cell while Neumann boundary conditions set the electrostatic potential gradient to zero.
+
 The electrode potential
 -----------------------
 
-The electrode potential (`\phi_\mathrm{e}`) is then defined as the Fermi-level energy (`\mu`) referenced to a point deep in the solvent (`\Phi_\mathrm{w}`), where the whole charge on the electrode has been screened and no electric field is present.
+The electrode potential
+-----------------------
+
+The electrode potential can be defined in two ways: as the work function (wf) or as the electrode inner potential (CIP).
+
+**Work function:**
+This is SJM's way of computing the electrode potential. It is computed from the (\phi_\mathrm{e}) defined as the Fermi-level energy (\mu) referenced to a point deep in the solvent (\Phi_\mathrm{w}), where the whole charge on the electrode has been screened and no electric field is present.
 (This is equivalently the topside work function of the slab.)
 This is divided by the unit electronic charge `e` to convert from energy (typically in eV) to potential (typically in V) dimensions. 
 
 .. math:: \phi_\mathrm{e} = \frac{\Phi_\mathrm{w} - \mu}{e} .
 
 Note that this gives the potential with respect to vacuum; if you would like your potential on a reference electrode scale, such as SHE, please see the :ref:`solvated_jellium_method` tutorial.
+
+**Inner potential:**
+This electrode potential scale uses the constant inner potential DFT (CIP-DFT) developed in [Melander2024]_. CIP-DFT uses the electrode inner potential (`\phi`) as the electrode potential. This method is always  used with the Dirichlet boundary condition. To use this method one needs to provide the Fermi-level (`\mu^{PZC}_e`) and the inner potential (`\phi^{PZC}`) of the uncharged simulation cell corresponding a potential of zero charge (PZC) at surface charge (`\sigma=0`). The applied electrode potential with respect to PZC at a given surface charge is then given as
+
+
+.. math:: \phi_\mathrm{e} = \phi[\sigma] - \phi[\sigma=0]
 
 .. _grand-potential-energy:
 
@@ -136,6 +150,32 @@ Atoms typically move relatively little from image-to-image in a trajectory; ther
 Typically, over the course of a full trajectory, the added computational cost of working in the constant-potential ensemble is minimal, generally <50% greater computational time compared to a constant-charge calculation.
 As described in the  :ref:`solvated_jellium_method` tutorial, this can sometimes be further improved by simultaneously optimizing the potential with the atomic positions.
 
+**Constant inner potential (CIP) DFT:**
+
+The SJM can also be ran in the constant inner potential mode where the average electrostatic potential within the electrode, i.e. the inner potential, is controlled (see :ref:`the-electrode-potential` section). The usage of CIP-DFT is similar to the standard work function-based SJM with a few key changes.
+
+To use CIP-DFT mode, one needs to specify the potential reference scale and :literal:`cip` dict in the :literal:`sj` dict::
+
+    sj_cip = {'target_potential': pot, # potential on the absolute potential scale
+              'pot_ref': 'CIP',
+              'cip': {'autoinner': {'nlayers': 4},
+                      'mu_pzc': mu_pzc, # Fermi level at zero charge
+                      'phi_pzc': phi_pzc # inner potential at zero charge,
+                      }
+              }
+
+The :literal:`autoinner` part automatically finds the inner region, in this case a 4-layer metal slab. The target electrode potential is given  with respect to the inner potential (:literal:`phi_pzc`) and Fermi level (:literal:`mu_pzc`) at the potential zero charge (PZC). For instance, if the PZC is 4.44 vs SHE, then :literal:`mu_pzc=-4.44`, and the targeted potential is 0.6 vs SHE, then :literal:`target_potential=3.84`. The needed :literal:`mu_pzc` and :literal:`phi_pzc` parameters are most easily obtained as follows::
+
+        sj_calib = {'excess_electrons':0,
+            'pot_ref': 'CIP',
+            'cip': {'autoinner': {'nlayers': 4, 
+                    'threshold': 0.01}
+                    }}
+    calc = SJM(sj=sj_calib...)
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    phi_pzc = calc.get_inner_potential(atoms) 
+    mu_pzc = calc.get_fermi_level()
 
 References
 ==========
@@ -146,6 +186,10 @@ References
 .. [Held2014] A. Held and M. Walter,
            :doi:`Simplified continuum solvent model with a smooth cavity based on volumetric data <10.1063/1.4900838>`,
            *J. Chem. Phys.* **141**, 174108 (2014).
+
+.. [Melander2024] Marko M. Melander, Tongwei Wu, Timo Weckman, Karoliina Honkala,
+           :doi:`Constant inner potential DFT for modelling electrochemical systems under constant potential and bias <10.1038/s41524-023-01184-4>`,
+           *npj Computational Materials* **10** Article number: 5 (2024)
 
 Class documentation
 ===================
