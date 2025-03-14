@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -162,8 +162,6 @@ class DFTComponentsBuilder:
             pass  # filter = create_fourier_filter(grid)
             # setups = setups.filter(filter)
 
-        self.nelectrons = self.setups.nvalence - params.charge
-
         self.nbands = calculate_number_of_bands(params.nbands,
                                                 self.setups,
                                                 params.charge,
@@ -188,7 +186,7 @@ class DFTComponentsBuilder:
 
         self.relpos_ac = self.atoms.get_scaled_positions()
         self.relpos_ac %= 1
-        self.relpos_ac %= 1
+        self.relpos_ac %= 1  # yes, we need to do this twice!
 
         self.xc = self.create_xc_functional()
 
@@ -197,6 +195,17 @@ class DFTComponentsBuilder:
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
+
+    @cached_property
+    def nelectrons(self) -> float:
+        return self.setups.nvalence - (self.params.charge -
+                                       self.background_charge)
+
+    @cached_property
+    def background_charge(self) -> float:
+        if self.params.background_charge:
+            return self.params.background_charge['charge']
+        return 0.0
 
     @cached_property
     def atomdist(self) -> AtomDistribution:
@@ -398,20 +407,26 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
     def create_environment(self, grid, log):
-        if not self.params.solvation:
-            from gpaw.new.environment import Environment
-            return Environment(len(self.atoms))
-        from gpaw.new.solvation import Solvation
-        return Solvation(**self.params.solvation,
-                         setups=self.setups,
-                         grid=grid, relpos_ac=self.relpos_ac, log=log,
-                         comm=self.communicators['w'],
-                         nn=self.params.poissonsolver.get('nn', 3))
+        if self.params.background_charge:
+            from gpaw.new.environment import Jellium
+            from gpaw.jellium import create_background_charge
+            bc = create_background_charge(**self.params.background_charge)
+            bc.set_grid_descriptor(grid._gd)
+            return Jellium(bc, len(self.atoms), grid)
+        if self.params.solvation:
+            from gpaw.new.solvation import Solvation
+            return Solvation(**self.params.solvation,
+                             setups=self.setups,
+                             grid=grid, relpos_ac=self.relpos_ac, log=log,
+                             comm=self.communicators['w'],
+                             nn=self.params.poissonsolver.get('nn', 3))
+        from gpaw.new.environment import Environment
+        return Environment(len(self.atoms))
 
 
 def create_communicators(comm: MPIComm = None,
                          nibzkpts: int = 1,
-                         domain: Union[int, tuple[int, int, int]] = None,
+                         domain: int | tuple[int, int, int] | None = None,
                          kpt: int = None,
                          band: int = None,
                          xp: ModuleType = np) -> dict[str, MPIComm]:
