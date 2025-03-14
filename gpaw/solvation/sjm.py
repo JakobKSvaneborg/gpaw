@@ -241,7 +241,7 @@ class SJM(SolvationGPAW):
          'fdt': False,
          'previous_electrons': [],
          'previous_potentials': [],
-         'slope_regression_depth': 4
+         'slope_regression_depth': 4,
          'cip': {'autoinner': {'nlayers': None,
                                'threshold': 0.0001},
                  'inner_region': None,
