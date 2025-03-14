@@ -32,6 +32,7 @@ from gpaw.io.logger import indent
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
 
+
 class SJM(SolvationGPAW):
     r"""Solvated Jellium method.
     (Implemented as a subclass of the SolvationGPAW class.)
@@ -71,7 +72,7 @@ class SJM(SolvationGPAW):
     In both cases, a potential of 0 V_SHE corresponds to target_potential of
     roughly 4.4 eV. (That is, the user should specify
     target_potential as 4.4 in this case.) Because this method is
-    attempting to bring either the work function or the inner potential to a 
+    attempting to bring either the work function or the inner potential to a
     target value, the work function and electrostatics need to be
     well-converged. For this reason, the 'work function' keyword is
     automatically added to the SCF convergence dictionary with a value of
@@ -274,18 +275,17 @@ class SJM(SolvationGPAW):
                 .format(', '.join(sj_changes),
                         ', '.join(self.default_parameters['sj'])))
         self.fill_cip_keywords(p.cip)
-        
-        if p.pot_ref == 'CIP':           
+
+        if p.pot_ref == 'CIP':
             p['dirichlet'] = True
 
             if p.cip['mu_pzc'] is None or p.cip['phi_pzc'] is None:
                 p.cip['mu_pzc'] = 0
                 p.cip['phi_pzc'] = 0
                 msg = ('Warning: a CIP calculation has been activated '
-                   'but mu_pzc and/or phi_pzc was none. This is fine '
-                   'for CIP calibration but meaningful references '
-                   'must be provided for production calculations\n')
-
+                       'but mu_pzc and/or phi_pzc was none. This is fine '
+                       'for CIP calibration but meaningful references '
+                       'must be provided for production calculations\n')
 
             if p.cip['inner_region'] is None and p.cip['autoinner'] is None:
                 raise RuntimeError("The inner region cannot be none" +
@@ -303,9 +303,9 @@ class SJM(SolvationGPAW):
                 p.cip['autoinner'] = None
             else:
                 assert p.cip['autoinner']['nlayers'] is not None
-        
+
         p.update(sj_changes)
-        
+
         background_charge = kwargs.pop('background_charge', None)
         kwargs['_set_ok'] = True
         SolvationGPAW.set(self, **kwargs)
@@ -778,7 +778,7 @@ class SJM(SolvationGPAW):
                                 return_referenced=True):
         """Returns the potential of the simulated electrode, in V, relative
         to the vacuum. This comes directly from the work function."""
-        
+
         if pot_ref is None:
             pot_ref = self.parameters.sj['pot_ref']
 
@@ -790,7 +790,7 @@ class SJM(SolvationGPAW):
                 if 'electrode_potential' in self.results:
                     return self.results['electrode_potential']
                 else:
-                    msg = ('Electrode potential could not be read. Make sure a' 
+                    msg = ('Electrode potential could not be read. Make sure a'
                            'DFT calculation has been performed before reading '
                            'the potential.')
                     raise PropertyNotPresent(textwrap.fill(msg))
@@ -1364,7 +1364,6 @@ class SJMDipoleCorrection(DipoleCorrection):
             saw -= (saw[0] + saw[-1] + step / eps_z[-1]) / 2.
 
         return saw
-
 
 
 class PotentialConvergenceError(ConvergenceError):
