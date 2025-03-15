@@ -38,8 +38,8 @@ def run_single_precision(dtype, gpu):
     #atoms.center(vacuum=2.5)
     #atoms = atoms.repeat((2, 2, 1))
     atoms = bulk('Cu')
-    atoms = atoms.repeat((2, 2, 2))
-    atoms.rattle(stdev=0.001, seed=42)
+    atoms = atoms.repeat((4, 4, 4))
+    #atoms.rattle(stdev=0.001, seed=42)
 
     gpu = gpu == 'True'
 
@@ -47,12 +47,12 @@ def run_single_precision(dtype, gpu):
                       symmetry='off',
                       random=True,
                       convergence={'energy': 1e-5,
-                                   'eigenstates': 1e-6,
-                                   'density': 5e-6,
-                                   'forces': 5e-4},
-                      kpts={'density': 0.5},
+                                   'eigenstates': 1e-5,
+                                   'density': 5e-6,},
+                                   #'forces': 5e-4},
+                      #kpts={'density': 0.5},
                       mode={'name': 'pw',
-                            'ecut': 600.0,
+                            'ecut': 800.0,
                             'dtype': dtype},
                       parallel={'gpu': gpu},
                       #txt=None

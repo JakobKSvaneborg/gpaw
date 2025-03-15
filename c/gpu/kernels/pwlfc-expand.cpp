@@ -682,7 +682,7 @@ void pw_insert_gpu_launch_kernel(
     }
 }
 
-template <typename Tcomplex, typename Treal, bool strided>
+template <typename Tcomplex, typename Treal, bool strided, bool cc>
 __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 				       Tcomplex *emiGR_Ga,
 				       Treal *Y_GL,
@@ -697,36 +697,54 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 				       int nI,
 				       int natoms,
 				       int nsplines,
-				       bool cc)
+				       bool cc__unused)
 
 {
     int G = threadIdx.x + blockIdx.x * blockDim.x;
     int J = threadIdx.y + blockIdx.y * blockDim.y;
 
-	Tcomplex imag_powers[4] = {{1.0,0}, {0.0,-1.0}, {-1.0,0}, {0, 1.0}};
-    
+	__shared__ Tcomplex imag_powers[4];
+	if (threadIdx.y == 0 && threadIdx.x == 0)
+		imag_powers[0] = {1.0,0};
+	if (threadIdx.y == 0 && threadIdx.x == 1)
+		imag_powers[1] = {0,1.0};
+	if (threadIdx.y == 1 && threadIdx.x == 0)
+		imag_powers[2] = {-1.0,0};
+	if (threadIdx.y == 1 && threadIdx.x == 1)
+		imag_powers[3] = {0,-1.0};
+    __syncthreads();
+	
+	//Tcomplex imag_powers[4] = {{1.0,0},{0,1.0},{-1.0,0},{0,-1.0}};
+
     if ((G < nG) && (J < nJ))
     {
 	f_Gs += G*nsplines;
 	emiGR_Ga += G*natoms;
-	Y_GL += G*nL;
 	int s = s_J[J];
 	int l = l_s[s];
+	Y_GL += G*nL + l*l;
 	Tcomplex f1 = emiGR_Ga[a_J[J]] * imag_powers[l % 4] * f_Gs[s];
 	if constexpr(strided) {
 		f_GI += G*nI*2 + I_J[J];
 		for (int m = 0; m < 2 * l + 1; m++) {
-	    	Tcomplex f = f1 * Y_GL[l * l + m];
+	    	Tcomplex f = f1 * Y_GL[m];
 	    	f_GI[0] = f.x;
-	    	f_GI[nI] = cc ? -f.y : f.y;
+			if constexpr(cc)
+	    		f_GI[nI] = -f.y;
+			else
+				f_GI[nI] = f.y;
 	    	f_GI++;
 		}
 	} else {
 		f_GI += (G*nI + I_J[J])*2;
 	    for (int m = 0; m < 2 * l + 1; m++) {
-	        Tcomplex f = f1 * Y_GL[l * l + m];
+	        Tcomplex f = f1 * Y_GL[m];
 	        *f_GI++ = f.x;
-	        *f_GI++ = cc ? -f.y : f.y;
+			if constexpr(cc)
+				*f_GI++ = -f.y;
+			else
+				*f_GI++ = f.y;
+	        //*f_GI++ = cc ? -f.y : f.y;
    	    }
 	}
     }
@@ -1016,9 +1034,12 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 				    int nsplines,
 				    bool cc)
 {
-    if (dtypenum == 15) // Double Complex
+    if (dtypenum == NP_DOUBLE_COMPLEX) // Double Complex
     {
-	auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, false>;	
+	auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, false, false>;
+	if (cc)
+		fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, false, true>;
+	//auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, false, cc>;
 	gpuLaunchKernel(fptr,
 			dim3((nG+15)/16, (nJ+15)/16),
 			dim3(16, 16),
@@ -1039,9 +1060,12 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 			nsplines,
 			cc);
     }
-    else if(dtypenum == 12) // Double Real
+    else if(dtypenum == NP_DOUBLE) // Double Real
     {
-	auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, true>;	
+	auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, true, false>;
+	if (cc)
+		fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, true, true>;
+	//auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, true, cc>;	
 	gpuLaunchKernel(fptr,
 			dim3((nG+15)/16, (nJ+15)/16),
 			dim3(16, 16),
@@ -1061,9 +1085,12 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 			natoms,
 			nsplines,
 			cc);
-	} else if (dtypenum == 14) // Float Complex
+	} else if (dtypenum == NP_FLOAT_COMPLEX) // Float Complex
 	{
-		auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, false>;
+		auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, false, false>;
+		if (cc)
+			fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, false, true>;
+		//auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, false, cc>;
 		gpuLaunchKernel(fptr,
 			dim3((nG+15)/16, (nJ+15)/16),
 			dim3(16, 16),
@@ -1083,9 +1110,12 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 			natoms,
 			nsplines,
 			cc);
-	} else if (dtypenum == 11) // Float Real
+	} else if (dtypenum == NP_FLOAT) // Float Real
 	{
-		auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, true>;
+		auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, true, false>;
+		if (cc)
+			fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, true, true>;
+		//auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, true, cc>;
 		gpuLaunchKernel(fptr,
 			dim3((nG+15)/16, (nJ+15)/16),
 			dim3(16, 16),
