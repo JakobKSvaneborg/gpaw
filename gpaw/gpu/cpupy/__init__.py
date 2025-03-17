@@ -40,7 +40,7 @@ def asnumpy(a, out=None):
 
 def asarray(a, dtype=None):
     if isinstance(a, ndarray):
-        if a.dtype == dtype:
+        if a.dtype == dtype or dtype is None:
             return a
         else:
             return ndarray(a._data.astype(dtype))
