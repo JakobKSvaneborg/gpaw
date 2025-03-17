@@ -249,18 +249,18 @@ class ECNPropagator(LCAOPropagator):
                                          ksl.Mstart,
                                          ksl.Mstop,
                                          ignore_upper=ksl.using_blacs,
-                                         derivative=True)[0] * (1j)
+                                         derivative=True)[0]
 
-        if ksl.using_blacs:
-            for Vkick_vmM in Vkick_qvmM:
-                for Vkick_mM in Vkick_vmM:
-                    scalapack_tri2full(ksl.mMdescriptor, Vkick_mM)
+        #if ksl.using_blacs:
+        #    for Vkick_vmM in Vkick_qvmM:
+        #        for Vkick_mM in Vkick_vmM:
+        #            scalapack_tri2full(ksl.mMdescriptor, Vkick_mM)
 
         my_atoms = self.wfs.atom_partition.my_indices
         dnabla_vaii = { v: { a: -self.wfs.setups[a].nabla_iiv[:, :, v] for a in my_atoms} for v in range(3)}
-        #for kpt in self.wfs.kpt_u:
-        #    for v in range(3):
-        #        self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v], Vkick_qvMM[kpt.q][v], ksl.Mstart, ksl.Mstop)
+        for kpt in self.wfs.kpt_u:
+            for v in range(3):
+                self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v], Vkick_qvmM[kpt.q][v], ksl.Mstart, ksl.Mstop)
 
         for kpt in self.wfs.kpt_u:
             if ksl.using_blacs:
@@ -269,7 +269,7 @@ class ECNPropagator(LCAOPropagator):
                 gcomm.sum(Vkick_qvmM[kpt.q])
                 Vkick_vmm = Vkick_qvmM[kpt.q]
 
-            kpt.Vkick_vMM = Vkick_vmm # TODO: Change kpt.Vkick_vMM to Vkick_vmm
+            kpt.Vkick_vMM = Vkick_vmm * 1j# TODO: Change kpt.Vkick_vMM to Vkick_vmm
             from gpaw.mpi import world
             print('Vkick_vMM', Vkick_vmm, 'rank', world.rank)
 
