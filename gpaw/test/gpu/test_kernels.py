@@ -1,10 +1,12 @@
 import pytest
 import numpy as np
-import os
 
 from gpaw.utilities import as_real_dtype
 
 seed = 42
+
+# Currently this test needs to be run with GPU_NO_C_EXTENSION=1
+# or it will (almost) trivially pass.
 
 
 @pytest.mark.gpu
