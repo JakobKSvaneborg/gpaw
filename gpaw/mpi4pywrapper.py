@@ -1,4 +1,8 @@
-import mpi4py.MPI as mpi
+try:
+    from mpi4py.MPI import COMM_SELF, Request, SUM, PROD, MAX, MIN
+except ImportError:
+    COMM_SELF = SUM = PROD = MAX = MIN = None
+    Request = None
 
 
 class MPI4PYWrapper:
@@ -16,7 +20,7 @@ class MPI4PYWrapper:
             # This cpu is not in the new communicator:
             return None
 
-    def sum(self, a, root=-1, op=mpi.SUM):
+    def sum(self, a, root=-1, op=SUM):
         if isinstance(a, (int, float, complex)):
             if root == -1:
                 return self.comm.allreduce(a, op=op)
@@ -29,13 +33,13 @@ class MPI4PYWrapper:
                 self.comm.Reduce(a, a, root=root, op=op)
 
     def product(self, a, root=-1):
-        return self.sum(a, root, mpi.PROD)
+        return self.sum(a, root, PROD)
 
     def max(self, a, root=-1):
-        return self.sum(a, root, mpi.MAX)
+        return self.sum(a, root, MAX)
 
     def min(self, a, root=-1):
-        return self.sum(a, root, mpi.MIN)
+        return self.sum(a, root, MIN)
 
     def scatter(self, a, b, root):
         self.comm.Scatter(a, b, root)
@@ -75,13 +79,13 @@ class MPI4PYWrapper:
         return request.test()
 
     def testall(self, requests):
-        return mpi.Request.testall(requests)
+        return Request.testall(requests)
 
     def wait(self, request):
         request.wait()
 
     def waitall(self, requests):
-        mpi.Request.waitall(requests)
+        Request.waitall(requests)
 
     def abort(self, errcode):
         """Terminate MPI execution environment of all tasks in the group.
@@ -137,31 +141,9 @@ class MPI4PYWrapper:
         assert ranks.dtype == otherranks.dtype
         return otherranks
 
-    def get_members(self):
-        """Return the subset of processes which are members of this MPI group
-        in terms of the ranks they are assigned on the parent communicator.
-        For the world communicator, this is all integers up to ``size``.
-
-        Example::
-
-          >>> world.rank, world.size
-          (3, 4)
-          >>> world.get_members()
-          array([0, 1, 2, 3])
-          >>> comm = world.new_communicator(array([2, 3]))
-          >>> comm.rank, comm.size
-          (1, 2)
-          >>> comm.get_members()
-          array([2, 3])
-          >>> comm.get_members()[comm.rank] == world.rank
-          True
-
-        """
-        1 / 0
-        return self.comm.get_members()
-
     def get_c_object(self):
         return self.comm
 
 
-serial_comm = MPI4PYWrapper(mpi.COMM_SELF)
+if 0:
+    serial_comm = MPI4PYWrapper(COMM_SELF)
