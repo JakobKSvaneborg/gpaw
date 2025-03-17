@@ -1,16 +1,27 @@
 try:
-    from mpi4py.MPI import COMM_SELF, Request, SUM, PROD, MAX, MIN
+    from mpi4py.MPI import COMM_SELF, Request, SUM, PROD, MAX, MIN, IN_PLACE
 except ImportError:
     COMM_SELF = SUM = PROD = MAX = MIN = None
     Request = None
 
+ii = 0
+
 
 class MPI4PYWrapper:
     def __init__(self, comm, parent=None):
-        self.comm = comm
+        self._comm = comm
         self.size = comm.size
         self.rank = comm.rank
         self.parent = parent  # XXX check C-object against comm.parent?
+
+    @property
+    def comm(self):
+        global ii
+        if ii == -26:
+            1 / 0
+        print(self.rank, ii)
+        ii += 1
+        return self._comm
 
     def new_communicator(self, ranks):
         comm = self.comm.Create(self.comm.group.Incl(ranks))
@@ -20,17 +31,24 @@ class MPI4PYWrapper:
             # This cpu is not in the new communicator:
             return None
 
+    def sum_scalar(self, a, root=-1, op=SUM):
+        assert isinstance(a, (int, float, complex))
+        if root == -1:
+            return self.comm.allreduce(a, op=op)
+        else:
+            return self.comm.reduce(a, root=root, op=op)
+
     def sum(self, a, root=-1, op=SUM):
         if isinstance(a, (int, float, complex)):
-            if root == -1:
-                return self.comm.allreduce(a, op=op)
-            else:
-                return self.comm.reduce(a, root=root, op=op)
+            1 / 0
         else:
             if root == -1:
-                self.comm.Allreduce(a, a, op=op)
+                self.comm.Allreduce(IN_PLACE, a, op=op)
             else:
-                self.comm.Reduce(a, a, root=root, op=op)
+                if root == self.rank:
+                    self.comm.Reduce(IN_PLACE, a, root=root, op=op)
+                else:
+                    self.comm.Reduce(a, None, root=root, op=op)
 
     def product(self, a, root=-1):
         return self.sum(a, root, PROD)

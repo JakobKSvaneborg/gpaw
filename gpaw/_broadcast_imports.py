@@ -31,7 +31,11 @@ if not GPAW_NO_C_EXTENSION and getattr(cgpaw, 'version', 0) != 9:
     raise ImportError('Please recompile GPAW''s C-extensions!')
 
 
-if hasattr(cgpaw, 'Communicator'):
+if 1:
+    from gpaw.mpi4pywrapper import MPI4PYWrapper
+    from mpi4py.MPI import COMM_WORLD
+    world = MPI4PYWrapper(COMM_WORLD)
+elif hasattr(cgpaw, 'Communicator'):
     if '_gpaw' not in sys.builtin_module_names:
         libmpi = os.environ.get('GPAW_MPI', 'libmpi.so')
         import ctypes
