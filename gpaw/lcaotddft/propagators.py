@@ -251,16 +251,17 @@ class ECNPropagator(LCAOPropagator):
                                          ignore_upper=ksl.using_blacs,
                                          derivative=True)[0] * (-1j)
 
-        #if ksl.using_blacs:
-        #    for Vkick_vmM in Vkick_qvmM:
-        #        for Vkick_mM in Vkick_vmM:
-        #            scalapack_tri2full(ksl.mMdescriptor, Vkick_mM)
 
         my_atoms = self.wfs.atom_partition.my_indices
         dnabla_vaii = { v: { a: -self.wfs.setups[a].nabla_iiv[:, :, v] * (-1j) for a in my_atoms} for v in range(3)}
         for kpt in self.wfs.kpt_u:
             for v in range(3):
                 self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v], Vkick_qvmM[kpt.q][v], ksl.Mstart, ksl.Mstop)
+
+        if ksl.using_blacs:
+            for Vkick_vmM in Vkick_qvmM:
+                for Vkick_mM in Vkick_vmM:
+                    scalapack_tri2full(ksl.mMdescriptor, Vkick_mM)
 
         for kpt in self.wfs.kpt_u:
             if ksl.using_blacs:
