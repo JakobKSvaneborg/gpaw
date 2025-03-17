@@ -537,5 +537,6 @@ class AtomArrays:
         if index is not None:
             data = data[index]
         if self.data.size > 0:
-            dH_aii_times_P_ani_gpu(data.astype(as_real_dtype(self.data.dtype)), ni_a,
-                                   self.data, out_ani.data)
+            realdtype = as_real_dtype(self.data.dtype)
+            dH_aii_times_P_ani_gpu(data.astype(realdtype),
+                                   ni_a, self.data, out_ani.data)

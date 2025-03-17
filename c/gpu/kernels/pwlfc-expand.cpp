@@ -1039,7 +1039,6 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 	auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, false, false>;
 	if (cc)
 		fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, false, true>;
-	//auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, false, cc>;
 	gpuLaunchKernel(fptr,
 			dim3((nG+15)/16, (nJ+15)/16),
 			dim3(16, 16),
@@ -1065,7 +1064,6 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 	auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, true, false>;
 	if (cc)
 		fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, true, true>;
-	//auto fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, true, cc>;	
 	gpuLaunchKernel(fptr,
 			dim3((nG+15)/16, (nJ+15)/16),
 			dim3(16, 16),
@@ -1090,7 +1088,6 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 		auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, false, false>;
 		if (cc)
 			fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, false, true>;
-		//auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, false, cc>;
 		gpuLaunchKernel(fptr,
 			dim3((nG+15)/16, (nJ+15)/16),
 			dim3(16, 16),
@@ -1115,7 +1112,6 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 		auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, true, false>;
 		if (cc)
 			fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, true, true>;
-		//auto fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, true, cc>;
 		gpuLaunchKernel(fptr,
 			dim3((nG+15)/16, (nJ+15)/16),
 			dim3(16, 16),
