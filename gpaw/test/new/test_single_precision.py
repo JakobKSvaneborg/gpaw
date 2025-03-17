@@ -58,6 +58,8 @@ def run_single_precision(dtype, gpu):
     e_pot = atoms.get_potential_energy()
     expected_e = 9.595593485742606
 
+    assert atoms.calc.wfs.dtype == dtype
+
     assert e_pot == pytest.approx(expected_e, rel=1e-3), e_pot - expected_e
 
 

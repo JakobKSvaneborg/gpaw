@@ -17,13 +17,13 @@ void calculate_residual_launch_kernel(int dtypenum,
                                       void* wf_nG);
 
 void pwlfc_expand_gpu_launch_kernel(int dtypenum,
-                                    double* f_Gs,
-                                    gpuDoubleComplex *emiGR_Ga,
-                                    double *Y_GL,
+                                    void* f_Gs,
+                                    void* emiGR_Ga,
+                                    void* Y_GL,
                                     int* l_s,
                                     int* a_J,
                                     int* s_J,
-                                    double* f_GI,
+                                    void* f_GI,
                                     int* I_J,
                                     int nG,
                                     int nJ,
@@ -38,10 +38,10 @@ void pw_insert_gpu_launch_kernel(
                              int nb,
                              int nG,
                              int nQ,
-                             double* c_nG,
+                             void* c_nG,
                              npy_int32* Q_G,
                              double scale,
-                             double* tmp_nQ,
+                             void* tmp_nQ,
                              int rx, int ry, int rz);
 
 void pw_norm_gpu_launch_kernel(int dtypenum,
@@ -62,13 +62,13 @@ void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int nz, 
                                               int n, 
                                               int m, 
-                                              double* array_nQ);
+                                              void* array_nQ);
 
 void add_to_density_gpu_launch_kernel(int nb,
                                       int nR,
-                                      double* f_n,
-                                      double complex* psit_nR,
-                                      double* rho_R,
+                                      void* f_n,
+                                      void* psit_nR,
+                                      void* rho_R,
                                       int dtypenum);
 
 
