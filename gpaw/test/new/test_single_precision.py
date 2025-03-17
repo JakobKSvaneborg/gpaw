@@ -38,7 +38,7 @@ def run_single_precision(dtype, gpu):
     #atoms.center(vacuum=2.5)
     #atoms = atoms.repeat((2, 2, 1))
     atoms = bulk('Cu')
-    atoms = atoms.repeat((4, 4, 4))
+    atoms = atoms.repeat((1, 1, 1))
     #atoms.rattle(stdev=0.001, seed=42)
 
     gpu = gpu == 'True'

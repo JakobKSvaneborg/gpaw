@@ -8,7 +8,7 @@
 #define MU     0.2195164512208958 // PBE mod in libxc
 //#define MU     0.2195149727645171 from libxc
 #define C2     0.26053088059892404
-#define C0I    0.238732414637843
+#define C0I    0.238732414637843	
 #define C1    -0.45816529328314287
 #define CC1    1.9236610509315362
 #define CC2    2.5648814012420482
