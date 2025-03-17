@@ -109,7 +109,9 @@ class DFTCalculation:
         basis_set = builder.create_basis_set()
 
         density = builder.density_from_superposition(basis_set)
-        density.normalize()
+        if len(atoms) == 0:
+            density.nt_sR.data[:] = 1.0
+        density.normalize(builder.background_charge)
 
         # The SCF-loop has a Hamiltonian that has an fft-plan that is
         # cached for later use, so best to create the SCF-loop first
@@ -428,7 +430,7 @@ class DFTCalculation:
                                    builder.interpolation_desc,
                                    builder.relpos_ac,
                                    builder.atomdist)
-        density.normalize()
+        density.normalize(builder.background_charge)
 
         # Make sure all have exactly the same density.
         # Not quite sure it is needed???

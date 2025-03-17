@@ -7,11 +7,6 @@ import numpy as np
 
 parameter_functions = {}
 
-"""
-background_charge
-external
-"""
-
 
 class DeprecatedParameterWarning(FutureWarning):
     """Warning class for when a parameter or its value is deprecated."""
@@ -24,6 +19,7 @@ def input_parameter(func):
 
 
 class InputParameters:
+    background_charge: Any
     basis: Any
     charge: float
     convergence: dict[str, Any]
@@ -122,6 +118,12 @@ class InputParameters:
 def atomic_constraints(value=None):
     """Constraints on wave functions near the atoms."""
     return value or {}
+
+
+@input_parameter
+def background_charge(value=None):
+    """Background-charge object."""
+    return value
 
 
 @input_parameter

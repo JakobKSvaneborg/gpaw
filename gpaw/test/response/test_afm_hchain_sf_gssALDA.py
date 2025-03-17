@@ -24,7 +24,8 @@ from gpaw.response.pair_functions import read_pair_function
 @pytest.mark.old_gpaw_only  # interpolate=3 for PW-mode not implemented!
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_afm_hchain_gssALDA(in_tmp_dir):
+@pytest.mark.parametrize('from_file', [False, True])
+def test_response_afm_hchain_gssALDA(in_tmp_dir, from_file):
     # ---------- Inputs ---------- #
 
     # Part 1: Ground state calculation
@@ -85,7 +86,11 @@ def test_response_afm_hchain_gssALDA(in_tmp_dir):
     Hchain.get_potential_energy()
 
     # Part 2: Magnetic response calculation
-    gs = ResponseGroundStateAdapter(calc)
+    if from_file:
+        calc.write('gs.gpw', mode='all')
+        gs = ResponseGroundStateAdapter.from_gpw_file('gs.gpw')
+    else:
+        gs = ResponseGroundStateAdapter(calc)
     chiks_calc = ChiKSCalculator(gs,
                                  nbands=nbands,
                                  ecut=ecut,
