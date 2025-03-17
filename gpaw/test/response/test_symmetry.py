@@ -21,9 +21,8 @@ def test_qsymmetries(gpw_files, identifier):
     nsymmetries = ndirect + nindirect
 
     # Test symmetry analysis
-    kpts = gs._calc.parameters.get('kpts', {})
     rng = np.random.default_rng(42)
-    if 'gamma' in kpts and kpts['gamma']:
+    if np.linalg.norm(gs.kd.ibzk_kc, axis=1).min() < 1e-10:
         # If the ground state is Γ-centered, all IBZ k-points are valid
         # q-points as well (autocommensurate) and we check that the q-point
         # symmetry analyzer reproduces the symmetries of the ground state.
