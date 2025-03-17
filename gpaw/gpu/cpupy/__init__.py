@@ -38,10 +38,13 @@ def asnumpy(a, out=None):
     return out
 
 
-def asarray(a):
+def asarray(a, dtype=None):
     if isinstance(a, ndarray):
-        return a
-    return ndarray(np.array(a))
+        if a.dtype == dtype:
+            return a
+        else:
+            return ndarray(a._data.astype(dtype))
+    return ndarray(np.array(a, dtype=dtype))
 
 
 def array(a, dtype=None):
