@@ -225,4 +225,4 @@ class QSymmetryAnalyzer:
         assert (
             abs(shift_sc - shift_sc.round()) < kd.symmetry.tol
         ).all()
-        return QSymmetries(q_c, U_ucc, S_s, shift_sc.round())
+        return QSymmetries(q_c, U_ucc, S_s, shift_sc.round().astype(int))
