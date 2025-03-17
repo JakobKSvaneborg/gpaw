@@ -6,7 +6,7 @@ import sys
 from ase.build import molecule
 
 from gpaw.new.ase_interface import GPAW
-from gpaw.gpu import cupy as cp, cupy_is_fake
+from gpaw.gpu import cupy_is_fake
 
 
 @pytest.mark.serial

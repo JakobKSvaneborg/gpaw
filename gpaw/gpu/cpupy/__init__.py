@@ -181,6 +181,9 @@ class ndarray:
     def copy(self):
         return ndarray(self._data.copy())
 
+    def astype(self, dtype):
+        return ndarray(self._data.astype(dtype))
+
     def all(self):
         return ndarray(self._data.all())
 
