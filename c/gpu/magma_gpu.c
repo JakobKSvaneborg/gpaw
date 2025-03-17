@@ -68,10 +68,10 @@ static magma_int_t _eigh_magma_dsyevd_gpu(int matrix_size, magma_uplo_t uplo,
     // copy eigenvalues to device output buffer
     gpuMemcpy(inout_eigvals, h_eigvals, matrix_size * sizeof(double), gpuMemcpyHostToDevice);
 
-    magma_free(h_wA);
-    magma_free(workgroup.work);
-    magma_free(workgroup.iwork);
-    magma_free(h_eigvals);
+    MAGMA_CHECK(magma_free_cpu(h_wA));
+    MAGMA_CHECK(magma_free_cpu(workgroup.work));
+    MAGMA_CHECK(magma_free_cpu(workgroup.iwork));
+    MAGMA_CHECK(magma_free_cpu(h_eigvals));
 
     return status;
 }
@@ -126,11 +126,11 @@ static magma_int_t _eigh_magma_zheevd_gpu(int matrix_size, magma_uplo_t uplo,
     gpuMemcpy(inout_eigvals, h_eigvals, matrix_size * sizeof(double), gpuMemcpyHostToDevice);
 
 
-    magma_free(h_wA);
-    magma_free(workgroup.work);
-    magma_free(workgroup.rwork);
-    magma_free(workgroup.iwork);
-    magma_free(h_eigvals);
+    MAGMA_CHECK(magma_free_cpu(h_wA));
+    MAGMA_CHECK(magma_free_cpu(workgroup.work));
+    MAGMA_CHECK(magma_free_cpu(workgroup.rwork));
+    MAGMA_CHECK(magma_free_cpu(workgroup.iwork));
+    MAGMA_CHECK(magma_free_cpu(h_eigvals));
 
     return status;
 
