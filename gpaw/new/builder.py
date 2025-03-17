@@ -177,7 +177,7 @@ class DFTComponentsBuilder:
     @cached_property
     def nelectrons(self) -> float:
         return self.setups.nvalence - (self.params.charge -
-                                       0)#self.background_charge)
+                                       self.background_charge)
 
     @cached_property
     def background_charge(self) -> float:

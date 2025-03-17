@@ -16,7 +16,7 @@ class Environment:
         solver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(solver)
 
-    def update1(self, nt_r,c):
+    def update1(self, nt_r, c):
         pass
 
     def update2(self, nt_r, vHt_r, vt_sr):
@@ -33,7 +33,7 @@ class Jellium(Environment):
             self.fixed_fermi_level = fermi_level / Ha
         self.jellium = jellium
         self.grid = grid
-        self.charge = None#jellium.charge
+        self.charge = jellium.charge
         self.charge_g = None
 
     def update1(self, nt_r, comp_charge: float) -> None:
@@ -46,6 +46,9 @@ class Jellium(Environment):
             self.jellium.add_charge_to(charge_r.data)
             self.charge_g = charge_r.fft(pw=nt_g.desc)
             self.charge_g.data *= 1.0 / self.charge_g.integrate()
-        x = -(nt_g.integrate() + comp_charge)
+        if self.fixed_fermi_level is None:
+            x = -self.charge
+        else:
+            x = -(nt_g.integrate() + comp_charge)
         print(nt_g.integrate(), comp_charge, x)
         nt_g.data += self.charge_g.data * x

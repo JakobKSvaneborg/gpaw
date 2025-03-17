@@ -75,7 +75,8 @@ class SCFLoop:
 
         if pot_calc.environment.fixed_fermi_level is not None:
             self.fix_fermi_level = True
-            ibzwfs.fermi_levels = np.array([pot_calc.environment.fixed_fermi_level])
+            ibzwfs.fermi_levels = np.array(
+                [pot_calc.environment.fixed_fermi_level])
 
         if self.update_density_and_potential:
             dens_error = self.mixer.mix(density)
@@ -119,14 +120,19 @@ class SCFLoop:
 
             if self.update_density_and_potential:
                 density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
-                dens_error = 0.0#self.mixer.mix(density)
-                xpotential, energies, _ = pot_calc.calculate(
-                    density, ibzwfs, potential.vHt_x)
-                x = 0.1
-                potential.vt_sR.data *= 1 - x
-                potential.vt_sR.data += x * xpotential.vt_sR.data
-                potential.dH_asii.data *= 1 - x
-                potential.dH_asii.data += x * xpotential.dH_asii.data
+                if pot_calc.environment.fixed_fermi_level is None:
+                    dens_error = self.mixer.mix(density)
+                    potential, energies, _ = pot_calc.calculate(
+                        density, ibzwfs, potential.vHt_x)
+                else:
+                    dens_error = 0.0
+                    xpotential, energies, _ = pot_calc.calculate(
+                        density, ibzwfs, potential.vHt_x)
+                    x = 0.1
+                    potential.vt_sR.data *= 1 - x
+                    potential.vt_sR.data += x * xpotential.vt_sR.data
+                    potential.dH_asii.data *= 1 - x
+                    potential.dH_asii.data += x * xpotential.dH_asii.data
 
         self.eigensolver.postprocess(
             ibzwfs, density, potential, self.hamiltonian)
