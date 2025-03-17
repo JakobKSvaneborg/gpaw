@@ -6,6 +6,7 @@ import sys
 from ase.build import molecule
 
 from gpaw.new.ase_interface import GPAW
+from gpaw.gpu import cupy as cp, cupy_is_fake
 
 
 @pytest.mark.serial
@@ -30,6 +31,7 @@ def test_single_precision(dtype, gpu):
 
 @pytest.mark.serial
 @pytest.mark.gpu
+@pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('dtype',
                          [np.complex128,
                           np.complex64,
