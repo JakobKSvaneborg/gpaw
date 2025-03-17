@@ -50,5 +50,4 @@ class Jellium(Environment):
             x = -self.charge
         else:
             x = -(nt_g.integrate() + comp_charge)
-        print(nt_g.integrate(), comp_charge, x)
         nt_g.data += self.charge_g.data * x
