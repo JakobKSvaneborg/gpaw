@@ -706,14 +706,14 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 	if (threadIdx.y == 0 && threadIdx.x == 0)
 		imag_powers[0] = {1.0,0};
 	if (threadIdx.y == 0 && threadIdx.x == 1)
-		imag_powers[1] = {0,1.0};
-	if (threadIdx.y == 1 && threadIdx.x == 0)
+		imag_powers[1] = {0,-1.0};
+	if (threadIdx.y == 0 && threadIdx.x == 2)
 		imag_powers[2] = {-1.0,0};
-	if (threadIdx.y == 1 && threadIdx.x == 1)
-		imag_powers[3] = {0,-1.0};
+	if (threadIdx.y == 0 && threadIdx.x == 3)
+		imag_powers[3] = {0,1.0};
     __syncthreads();
 	
-	//Tcomplex imag_powers[4] = {{1.0,0},{0,1.0},{-1.0,0},{0,-1.0}};
+	//Tcomplex imag_powers[4] = {{1.0,0},{0,-1.0},{-1.0,0},{0,1.0}};
 
     if ((G < nG) && (J < nJ))
     {
@@ -923,7 +923,7 @@ extern "C" void pw_norm_gpu_launch_kernel(int dtypenum,
                                           void* result_x,
                                           void* C_xG)
 {
-	if (dtypenum == NP_DOUBLE || dtypenum == NP_DOUBLE_COMPLEX) {
+	if (dtypenum == NP_DOUBLE_COMPLEX) {
 		auto fptr = &pw_norm_kernel<512, double>;
 		gpuLaunchKernel(fptr,
 						dim3(nx, 1),
@@ -933,12 +933,12 @@ extern "C" void pw_norm_gpu_launch_kernel(int dtypenum,
 						nG,
 						(double*) result_x,
 						(double*) C_xG);
-	} else if (dtypenum == NP_FLOAT || dtypenum == NP_FLOAT_COMPLEX) {
+	} else if (dtypenum == NP_FLOAT_COMPLEX) {
 		auto fptr = &pw_norm_kernel<512, float>;
 		gpuLaunchKernel(fptr,
 						dim3(nx, 1),
 						dim3(512, 1),
-						sizeof(float) * 512, 0,
+						sizeof(double) * 512, 0,
 						nx,
 						nG,
 						(float*) result_x,
@@ -952,7 +952,7 @@ extern "C" void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
                                                   void* C_xG,
                                                   void* kin_G)
 {
-	if (dtypenum == NP_DOUBLE || dtypenum == NP_DOUBLE_COMPLEX) {
+	if (dtypenum == NP_DOUBLE_COMPLEX) {
 		auto fptr = &pw_norm_kinetic_kernel<512, double>;
 		gpuLaunchKernel(fptr,
                     dim3(nx, 1),
@@ -963,12 +963,12 @@ extern "C" void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
                     (double*) result_x,
                     (double*) C_xG,
                     (double*) kin_G);
-	} else if (dtypenum == NP_FLOAT || dtypenum == NP_FLOAT_COMPLEX) {
+	} else if (dtypenum == NP_FLOAT_COMPLEX) {
 		auto fptr = &pw_norm_kinetic_kernel<512, float>;
 		gpuLaunchKernel(fptr,
 					dim3(nx, 1),
 					dim3(512, 1),
-					sizeof(float) * 512, 0,
+					sizeof(double) * 512, 0,
 					nx,
 					nG,
 					(float*) result_x,
