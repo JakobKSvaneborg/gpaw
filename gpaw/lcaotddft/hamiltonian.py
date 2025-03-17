@@ -263,6 +263,8 @@ class TimeDependentHamiltonian:
         if addpot and self.td_potential is not None:
             H_MM += self.td_potential.get_MM(u, time)
         self.timer.stop('Calculate H_MM')
+        print('H_MM', H_MM)
+        print('A_MM', getattr(kpt, 'A_MM', 0))
         return H_MM + getattr(kpt, 'A_MM', 0)
 
     def update(self, mode='all'):

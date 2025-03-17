@@ -160,7 +160,8 @@ def test_magnetic_moment_parallel(initialize_system, module_tmp_path, parallel,
                                   in_tmp_dir, gauge):
     if gauge == 'velocity':
         if parallel.get('sl_auto', False):
-            pytest.skip('Scalapack velocity not yet implemented.')
+            pass
+            #pytest.skip('Scalapack velocity not yet implemented.')
         #if parallel.get('band', 1) > 1:
         #    pytest.skip('No band parallelization available yet.')
 
