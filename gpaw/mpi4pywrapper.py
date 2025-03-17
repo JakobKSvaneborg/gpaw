@@ -31,6 +31,9 @@ class MPI4PYWrapper:
             # This cpu is not in the new communicator:
             return None
 
+    def max_scalar(self, a, root=-1):
+        return self.sum_scalar(a, root=-1, op=MAX)
+
     def sum_scalar(self, a, root=-1, op=SUM):
         assert isinstance(a, (int, float, complex))
         if root == -1:
