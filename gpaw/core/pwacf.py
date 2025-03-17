@@ -104,8 +104,6 @@ class PWLFC:  # (BaseLFC)
         self.dtype = pw.dtype
         self.real = np.issubdtype(pw.dtype, np.floating)
 
-        self.G_plus_k_Gv = xp.asarray(self.pw.G_plus_k_Gv, as_real_dtype(self.pw.dtype))
-
         self.initialized = False
 
         # These will be filled in later:
@@ -156,7 +154,8 @@ class PWLFC:  # (BaseLFC)
 
         nJ = sum(len(spline_j) for spline_j in self.spline_aj)
 
-        self.f_Gs = xp.empty(self.pw.myshape + (nsplines,), as_real_dtype(self.dtype))
+        self.f_Gs = xp.empty(self.pw.myshape + (nsplines,),
+                             dtype=as_real_dtype(self.dtype))
         self.l_s = np.empty(nsplines, np.int32)
         self.a_J = np.empty(nJ, np.int32)
         self.s_J = np.empty(nJ, np.int32)
@@ -189,7 +188,8 @@ class PWLFC:  # (BaseLFC)
 
         # Spherical harmonics:
         G_Gv = self.pw.G_plus_k_Gv
-        self.Y_GL = xp.empty((len(G_Gv), (self.lmax + 1)**2), dtype=as_real_dtype(self.dtype))
+        self.Y_GL = xp.empty((len(G_Gv), (self.lmax + 1)**2),
+                             dtype=as_real_dtype(self.dtype))
         for L in range((self.lmax + 1)**2):
             self.Y_GL[:, L] = xp.asarray(Y(L, *G_Gv.T))
 
@@ -210,20 +210,25 @@ class PWLFC:  # (BaseLFC)
         xp = self.xp
 
         if self.real:
-            self.eikR_a = xp.ones(len(spos_ac), dtype=as_real_dtype(self.dtype))
+            self.eikR_a = xp.ones(len(spos_ac),
+                                  dtype=as_real_dtype(self.dtype))
         else:
             self.eikR_a = xp.asarray(
                 np.exp(2j * pi * (spos_ac @ self.pw.kpt_c)),
-                as_complex_dtype(self.dtype))
-        self.pos_av = np.dot(spos_ac, self.pw.cell).astype(as_real_dtype(self.dtype))
+                dtype=as_complex_dtype(self.dtype))
+        self.pos_av = np.dot(spos_ac, self.pw.cell).astype(
+            as_real_dtype(self.dtype))
 
         if xp is not np:
-            self.pos_avT = xp.asarray(self.pos_av.T, as_real_dtype(self.dtype))
+            self.pos_avT = xp.asarray(self.pos_av.T,
+                                      as_real_dtype(self.dtype))
             self.emiGR_Ga = None
         else:
             Gk_Gv = self.pw.G_plus_k_Gv
             GkR_Ga = Gk_Gv @ self.pos_av.T
-            self.emiGR_Ga = (xp.exp(-1j * GkR_Ga) * self.eikR_a).astype(as_complex_dtype(self.dtype))
+            self.emiGR_Ga = (xp.exp(-1j * GkR_Ga)
+                             * self.eikR_a).astype(
+                                 as_complex_dtype(self.dtype))
 
         rank_a = atomdist.rank_a
 
@@ -309,16 +314,12 @@ class PWLFC:  # (BaseLFC)
 
     def get_emiGR_Ga(self, G1, G2):
         if self.emiGR_Ga is None:
-            GkR_Ga = self.G_plus_k_Gv @ self.pos_avT
-            self.emiGR_Ga = self.xp.exp(-1j * GkR_Ga) * self.eikR_a
-
-        return self.emiGR_Ga[G1:G2]
-        
-        #if self.emiGR_Ga is None:
-        #    GkR_Ga = self.G_plus_k_Gv[G1:G2] @ self.pos_avT
-        #    return self.xp.exp(-1j * GkR_Ga) * self.eikR_a
-        #else:
-        #    return self.emiGR_Ga[G1:G2]
+            Gk_Gv = self.xp.asarray(self.pw.G_plus_k_Gv[G1:G2],
+                                    as_real_dtype(self.dtype))
+            GkR_Ga = Gk_Gv @ self.pos_avT
+            return self.xp.exp(-1j * GkR_Ga) * self.eikR_a
+        else:
+            return self.emiGR_Ga[G1:G2]
 
     def add(self, a_xG, c_axi=1.0, q=None):
         if self.nI == 0:
@@ -421,7 +422,8 @@ class PWLFC:  # (BaseLFC)
         x = 0.0
         for G1, G2 in self.block():
             f_GI = self.expand(G1, G2, cc=True)
-            G_Gv = xp.asarray(self.pw.G_plus_k_Gv[G1:G2], dtype=as_real_dtype(self.dtype))
+            G_Gv = xp.asarray(self.pw.G_plus_k_Gv[G1:G2],
+                              dtype=as_real_dtype(self.dtype))
             if self.real:
                 d_GI = xp.empty(f_GI.shape)
                 for v in range(3):
