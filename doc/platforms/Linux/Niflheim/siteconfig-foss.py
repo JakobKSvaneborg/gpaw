@@ -8,6 +8,7 @@ fftw = True
 libraries = ['openblas', 'fftw3', 'readline', 'gfortran']
 mpi_libraries = []
 include_dirs = []
+undef_macros = []
 
 # Use EasyBuild scalapack from the active toolchain
 libraries += ['scalapack']
