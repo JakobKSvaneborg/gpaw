@@ -26,6 +26,11 @@ Git master branch
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
   :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
 
+* Experimental: Support for using MPI4PY_.  Set ``GPAW_MPI4PY=1`` to use this.
+
+
+.. _MPI4PY:: https://mpi4py.readthedocs.io/en/stable/
+
 
 Version 25.1.0
 ==============
