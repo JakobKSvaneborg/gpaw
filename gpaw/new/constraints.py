@@ -5,21 +5,27 @@ from gpaw.typing import Array1D, Array3D
 
 
 class SpinDirectionConstraint:
-    def __init__(self, constraint):
-        self.penalty = constraint.pop('penalty') / Ha
-        self.constraint = constraint
+    def __init__(self,
+                 constraint: dict[int, Array1D],
+                 penalty: float = 0.8):
+        self.constraint = {a: np.array(u_v) / np.linalg.norm(u_v)
+                           for a, u_v in constraint.items()}
+        self.penalty = penalty / Ha
 
-    def calculate(self, M_vii, atom_index, setup):
+    def calculate(self,
+                  M_vii: Array3D,
+                  a: int,
+                  setup):
         dHL_vii = np.zeros_like(M_vii)
 
-        if atom_index not in self.constraint.keys():
+        if a not in self.constraint:
             return 0., dHL_vii
-        u_v = self.constraint[atom_index]
+        u_v = self.constraint[a]
 
         N0_q = setup.N0_q
         l_j = setup.l_j
 
-        magmom_v = np.zeros(3)
+        smm_v = np.zeros(3)  # Spin magnetic moment
 
         nj = len(l_j)
         i1 = slice(0, 0)
@@ -28,33 +34,20 @@ class SpinDirectionConstraint:
             i2 = slice(0, 0)
             for j2, l2 in enumerate(l_j):
                 i2 = slice(i2.stop, i2.stop + 2 * l2 + 1)
-                if not l1 == l2:
+                if l1 != l2:
                     continue
                 N0 = N0_q[(j2 + j1 * nj - j1 * (j1 + 1) // 2
                            if j1 < j2 else
                            j1 + j2 * nj - j2 * (j2 + 1) // 2)]
 
-                magmom_v += np.sum(M_vii[:, i1, i2], axis=(1, 2)) * N0
+                smm_v += np.sum(M_vii[:, i1, i2], axis=(1, 2)) * N0
                 dHL_vii[:, i1, i2] += np.eye(2 * l1 + 1) * N0
 
-        eL = constraining_field(magmom_v, dHL_vii, self.penalty, u_v)
+        for v in range(3):
+            dHL_vii[v] *= (1 - u_v[v]**2) * smm_v[v] - u_v[v] * (
+                u_v[(v + 1) % 3] * smm_v[(v + 1) % 3]
+                + u_v[(v + 2) % 3] * smm_v[(v + 2) % 3])
+        dHL_vii *= 2 * self.penalty
 
-        return eL, dHL_vii
-
-
-def constraining_field(smm_v: Array1D,
-                       dHL_vii: Array3D,
-                       penalty: float,
-                       u_v: Array1D) -> float:
-
-    dHL_vii[0] *= (1 - u_v[0]**2) * smm_v[0] - u_v[0] * (
-        u_v[1] * smm_v[1] + u_v[2] * smm_v[2])
-    dHL_vii[1] *= (1 - u_v[1]**2) * smm_v[1] - u_v[1] * (
-        u_v[2] * smm_v[2] + u_v[0] * smm_v[0])
-    dHL_vii[2] *= (1 - u_v[2]**2) * smm_v[2] - u_v[2] * (
-        u_v[0] * smm_v[0] + u_v[1] * smm_v[1])
-
-    dHL_vii *= 2 * penalty
-
-    # eL = penalty * (np.dot(smm_v, smm_v) - np.dot(u_v, smm_v)**2)
-    return 0.
+        # eL = self.penalty * (smm_v @ smm_v - (u_v @ smm_v)**2)
+        return 0., dHL_vii

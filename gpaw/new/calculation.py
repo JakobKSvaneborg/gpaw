@@ -119,18 +119,6 @@ class DFTCalculation:
         scf_loop = builder.create_scf_loop()
 
         pot_calc = builder.create_potential_calculator(log)
-        if len(params.atomic_constraints):
-            from gpaw.new.constraints import SpinDirectionConstraint
-
-            atomic_constraints = []
-            for const_type, const in params.atomic_constraints.items():
-                if const_type == 'spin_dir':
-                    atomic_constraints.append(SpinDirectionConstraint(const))
-                else:
-                    raise Exception
-            pot_calc.atomic_constraints = atomic_constraints
-        else:
-            pot_calc.atomic_constraints = []
 
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])

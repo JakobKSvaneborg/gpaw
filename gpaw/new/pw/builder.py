@@ -154,6 +154,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             external_potential=create_external_potential(self.params.external),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
+            atomic_constraints=self.params.atomic_constraints,
             soc=self.soc,
             xp=self.xp,
             environment=env)
