@@ -274,6 +274,8 @@ class SmoothDistribution(OccupationNumberCalculator):
 
         self._width = width
         OccupationNumberCalculator.__init__(self, parallel_layout)
+        self.target_fermi_level = None
+        self.ne = None
 
     def todict(self):
         return {'name': self.name, 'width': self._width}
@@ -285,6 +287,9 @@ class SmoothDistribution(OccupationNumberCalculator):
                    f_qn,
                    fermi_level_guess,
                    fix_fermi_level):
+        if self.target_fermi_level is not None and self.ne is not None:
+            nelectrons = self.ne
+
         # Guess can be nan or inf:
         if not np.isfinite(fermi_level_guess) or self._width == 0.0:
             zero = ZeroWidth(self.parallel_layout)
@@ -309,18 +314,24 @@ class SmoothDistribution(OccupationNumberCalculator):
             df = f - nelectrons
             return df, dfde
 
-        if fix_fermi_level:
-            fermi_level, niter = findroot(func, x)
-            df, dfde = func(fermi_level)
-            dn = (x - fermi_level) * dfde
+        if self.target_fermi_level is not None:
+            fermi_level1, niter = findroot(func, x)
+            # df, dfde = func(x)
+            df, dfde = func(fermi_level1)
+            dn = (self.target_fermi_level - fermi_level1) * dfde
             if abs(dn) > 0.001:
-                fermi_level = fermi_level + 0.001 / dfde * dn / abs(dn)
+                fermi_level = fermi_level1 + 0.001 * dn / abs(dn) / dfde
             else:
-                fermi_level = x
-            df2, dfde = func(fermi_level)
-            print(dn, fermi_level, df, df2)
+                fermi_level = self.target_fermi_level
+            df2, dfde2 = func(fermi_level)
+            self.ne = nelectrons + df2
+            print(x, fermi_level1, fermi_level, self.ne)
+        elif fix_fermi_level:
+            df, dfde = func(fermi_level)
+            fermi_level = x
         else:
             fermi_level, niter = findroot(func, x)
+
         e_entropy = data[2]
 
         return fermi_level, e_entropy

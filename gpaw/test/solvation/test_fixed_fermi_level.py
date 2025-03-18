@@ -15,11 +15,11 @@ def test_ffl():
         mode='pw',
         kpts=(k, k, 1),
         occupations=FermiDirac(0.2),
-        convergence={'density': 1.0},
+        convergence={'minimum iterations': 120},  # 'density': 1.0},
         poissonsolver={'dipolelayer': 'xy'},
         background_charge=dict(charge=0.0001,
                                z1=7.0, z2=9.0,
-                               fermi_level=-3.1),
+                               fermi_level=-3.15),
         )#txt=None)
     atoms.get_potential_energy()
     v = atoms.calc.get_electrostatic_potential()

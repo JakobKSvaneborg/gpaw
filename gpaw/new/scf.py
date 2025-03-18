@@ -74,9 +74,11 @@ class SCFLoop:
         self.occ_calc.initialize_reference_orbitals()
 
         if pot_calc.environment.fixed_fermi_level is not None:
-            self.fix_fermi_level = True
-            ibzwfs.fermi_levels = np.array(
-                [pot_calc.environment.fixed_fermi_level])
+            from ase.units import Ha
+            self.occ_calc.occ.target_fermi_level = pot_calc.environment.fixed_fermi_level * Ha
+            # self.fix_fermi_level = True
+            # ibzwfs.fermi_levels = np.array(
+            #    [pot_calc.environment.fixed_fermi_level])
 
         if self.update_density_and_potential:
             dens_error = self.mixer.mix(density)
@@ -128,7 +130,7 @@ class SCFLoop:
                     dens_error = 0.0
                     xpotential, energies, _ = pot_calc.calculate(
                         density, ibzwfs, potential.vHt_x)
-                    x = 0.1
+                    x = 0.001
                     potential.vt_sR.data *= 1 - x
                     potential.vt_sR.data += x * xpotential.vt_sR.data
                     potential.dH_asii.data *= 1 - x
