@@ -6,7 +6,7 @@ from gpaw.gpu import cupy as cp, cupy_is_fake
 
 seed = 42
 
-# Currently this test needs to be run with GPU_NO_C_EXTENSION=1
+# Currently this test needs to be run with GPAW_NO_C_EXTENSION=1
 # or it will (almost) trivially pass.
 
 
