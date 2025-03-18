@@ -2,6 +2,7 @@
 #define GPU_HIP_H
 
 #include <hip/hip_runtime.h>
+#include <hip/hip_complex.h>
 #include <hipblas/hipblas.h>
 
 #define gpuMemcpyKind             hipMemcpyKind
