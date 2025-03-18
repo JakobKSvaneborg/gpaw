@@ -91,7 +91,7 @@ void evaluate_lda_launch_kernel(int nspin, int ng,
                                 double* v,
                                 double* e);
 
-int get_dtype(void* array)
+static int get_dtype(void* array)
 {
     // Only these combinations are allowed. Make it so.
     // dtype.num 11      14        12      15
@@ -103,7 +103,7 @@ int get_dtype(void* array)
     return dtypenum;
 }
 
-void assert_corresponding_real(int dtypenum, void* array)
+static void assert_corresponding_real(int dtypenum, void* array)
 {
     // Only these combinations are allowed. Make it so.
     // dtypenum  11      14        12      15

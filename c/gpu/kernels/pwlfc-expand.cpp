@@ -1005,7 +1005,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 	if (cc)
 		fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, false, true>;
 	gpuLaunchKernel(fptr,
-			dim3((nG+15)/16, (nJ+15)/16),
+			dim3((nG+15)/16, (nJ+15)/16), // blockDimX must be > 4 due to shared initialization,
 			dim3(16, 16),
 			0, 0,
 			(double*) f_Gs,
@@ -1029,7 +1029,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 	if (cc)
 		fptr = &pwlfc_expand_kernel<gpuDoubleComplex, double, true, true>;
 	gpuLaunchKernel(fptr,
-			dim3((nG+15)/16, (nJ+15)/16),
+			dim3((nG+15)/16, (nJ+15)/16), // blockDimX must be > 4 due to shared initialization,
 			dim3(16, 16),
 			0, 0,
 			(double*) f_Gs,
@@ -1052,7 +1052,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 		if (cc)
 			fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, false, true>;
 		gpuLaunchKernel(fptr,
-			dim3((nG+15)/16, (nJ+15)/16),
+			dim3((nG+15)/16, (nJ+15)/16), // blockDimX must be > 4 due to shared initialization,
 			dim3(16, 16),
 			0, 0,
 			(float*) f_Gs,
@@ -1075,7 +1075,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 		if (cc)
 			fptr = &pwlfc_expand_kernel<gpuFloatComplex, float, true, true>;
 		gpuLaunchKernel(fptr,
-			dim3((nG+15)/16, (nJ+15)/16),
+			dim3((nG+15)/16, (nJ+15)/16), // blockDimX must be > 4 due to shared initialization,
 			dim3(16, 16),
 			0, 0,
 			(float*) f_Gs,

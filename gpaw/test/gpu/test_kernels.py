@@ -14,6 +14,7 @@ seed = 42
 def test_dH_aii_times_P_ani(dtype):
     from _gpaw import dH_aii_times_P_ani_gpu as kernel_call
     from gpaw.purepython import dH_aii_times_P_ani_gpu as cupy_call
+    assert cupy_call is not kernel_call
 
     rng = cp.random.RandomState(seed)
     aN = 3
@@ -44,6 +45,7 @@ def test_dH_aii_times_P_ani(dtype):
 def test_pwlfc_expand(dtype, cc):
     from _gpaw import pwlfc_expand_gpu as kernel_call
     from gpaw.purepython import pwlfc_expand_gpu as cupy_call
+    assert cupy_call is not kernel_call
 
     rng = cp.random.RandomState(seed)
     GN = 100
@@ -94,6 +96,7 @@ def test_pwlfc_expand(dtype, cc):
 def test_pw_amend_insert_realwf(dtype):
     from _gpaw import pw_amend_insert_realwf_gpu as kernel_call
     from gpaw.purepython import pw_amend_insert_realwf_gpu as cupy_call
+    assert cupy_call is not kernel_call
 
     rng = cp.random.RandomState(seed)
     nN = 10
@@ -121,6 +124,7 @@ def test_pw_amend_insert_realwf(dtype):
 def test_calculate_residuals(dtype):
     from _gpaw import calculate_residuals_gpu as kernel_call
     from gpaw.purepython import calculate_residuals_gpu as cupy_call
+    assert cupy_call is not kernel_call
 
     rng = cp.random.RandomState(seed)
     nN = 10
@@ -147,6 +151,7 @@ def test_calculate_residuals(dtype):
 def test_add_to_density(dtype):
     from _gpaw import add_to_density_gpu as kernel_call
     from gpaw.purepython import add_to_density_gpu as cupy_call
+    assert cupy_call is not kernel_call
 
     rng = cp.random.RandomState(seed)
     nN = 10
@@ -174,6 +179,7 @@ def test_add_to_density(dtype):
 def test_pw_norm(dtype):
     from _gpaw import pw_norm_gpu as kernel_call
     from gpaw.purepython import pw_norm_gpu as cupy_call
+    assert cupy_call is not kernel_call
 
     rng = cp.random.RandomState(seed)
     rdtype = as_real_dtype(dtype)
@@ -199,6 +205,7 @@ def test_pw_norm(dtype):
 def test_pw_norm_kinetic(dtype):
     from _gpaw import pw_norm_kinetic_gpu as kernel_call
     from gpaw.purepython import pw_norm_kinetic_gpu as cupy_call
+    assert cupy_call is not kernel_call
 
     rng = cp.random.RandomState(seed)
     rdtype = as_real_dtype(dtype)
@@ -226,6 +233,7 @@ def test_pw_norm_kinetic(dtype):
 def test_pw_insert(dtype):
     from _gpaw import pw_insert_gpu as kernel_call
     from gpaw.purepython import pw_insert_gpu as cupy_call
+    assert cupy_call is not kernel_call
 
     rng = cp.random.RandomState(seed)
     rdtype = as_real_dtype(dtype)
