@@ -29,7 +29,7 @@ Git master branch
 * Experimental: Support for using MPI4PY_.  Set ``GPAW_MPI4PY=1`` to use this.
 
 
-.. _MPI4PY:: https://mpi4py.readthedocs.io/en/stable/
+.. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
 
 
 Version 25.1.0
