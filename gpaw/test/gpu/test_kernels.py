@@ -6,9 +6,6 @@ from gpaw.gpu import cupy as cp, cupy_is_fake
 
 seed = 42
 
-# Currently this test needs to be run with GPU_NO_C_EXTENSION=1
-# or it will (almost) trivially pass.
-
 
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
@@ -16,7 +13,7 @@ seed = 42
                                    np.complex64, np.complex128])
 def test_dH_aii_times_P_ani(dtype):
     from _gpaw import dH_aii_times_P_ani_gpu as kernel_call
-    from gpaw.new.c import dH_aii_times_P_ani_gpu as cupy_call
+    from gpaw.purepython import dH_aii_times_P_ani_gpu as cupy_call
 
     rng = cp.random.RandomState(seed)
     aN = 3
@@ -46,7 +43,7 @@ def test_dH_aii_times_P_ani(dtype):
 @pytest.mark.parametrize("cc", [True, False])
 def test_pwlfc_expand(dtype, cc):
     from _gpaw import pwlfc_expand_gpu as kernel_call
-    from gpaw.new.c import pwlfc_expand_gpu as cupy_call
+    from gpaw.purepython import pwlfc_expand_gpu as cupy_call
 
     rng = cp.random.RandomState(seed)
     GN = 100
@@ -96,7 +93,7 @@ def test_pwlfc_expand(dtype, cc):
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_pw_amend_insert_realwf(dtype):
     from _gpaw import pw_amend_insert_realwf_gpu as kernel_call
-    from gpaw.new.c import pw_amend_insert_realwf_gpu as cupy_call
+    from gpaw.purepython import pw_amend_insert_realwf_gpu as cupy_call
 
     rng = cp.random.RandomState(seed)
     nN = 10
@@ -123,7 +120,7 @@ def test_pw_amend_insert_realwf(dtype):
                                    np.complex64, np.complex128])
 def test_calculate_residuals(dtype):
     from _gpaw import calculate_residuals_gpu as kernel_call
-    from gpaw.new.c import calculate_residuals_gpu as cupy_call
+    from gpaw.purepython import calculate_residuals_gpu as cupy_call
 
     rng = cp.random.RandomState(seed)
     nN = 10
@@ -149,7 +146,7 @@ def test_calculate_residuals(dtype):
                                    np.complex64, np.complex128])
 def test_add_to_density(dtype):
     from _gpaw import add_to_density_gpu as kernel_call
-    from gpaw.new.c import add_to_density_gpu as cupy_call
+    from gpaw.purepython import add_to_density_gpu as cupy_call
 
     rng = cp.random.RandomState(seed)
     nN = 10
@@ -176,7 +173,7 @@ def test_add_to_density(dtype):
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_norm(dtype):
     from _gpaw import pw_norm_gpu as kernel_call
-    from gpaw.new.c import pw_norm_gpu as cupy_call
+    from gpaw.purepython import pw_norm_gpu as cupy_call
 
     rng = cp.random.RandomState(seed)
     rdtype = as_real_dtype(dtype)
@@ -201,7 +198,7 @@ def test_pw_norm(dtype):
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_norm_kinetic(dtype):
     from _gpaw import pw_norm_kinetic_gpu as kernel_call
-    from gpaw.new.c import pw_norm_kinetic_gpu as cupy_call
+    from gpaw.purepython import pw_norm_kinetic_gpu as cupy_call
 
     rng = cp.random.RandomState(seed)
     rdtype = as_real_dtype(dtype)
@@ -228,7 +225,7 @@ def test_pw_norm_kinetic(dtype):
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_insert(dtype):
     from _gpaw import pw_insert_gpu as kernel_call
-    from gpaw.new.c import pw_insert_gpu as cupy_call
+    from gpaw.purepython import pw_insert_gpu as cupy_call
 
     rng = cp.random.RandomState(seed)
     rdtype = as_real_dtype(dtype)
