@@ -121,10 +121,10 @@ def write_header(log, params):
             txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
             parts.append(f'{key}={txt}')
         log(',\n'.join(parts))
-    with log.indent('environment variables:'):
+    with log.indent('\nenvironment variables:'):
         import gpaw
         parts = []
-        for name in gpaw.allowed_envvars:
+        for name in sorted(gpaw.allowed_envvars):
             try:
                 value = getattr(gpaw, name)
             except AttributeError:
