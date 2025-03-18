@@ -1,27 +1,17 @@
 try:
-    from mpi4py.MPI import COMM_SELF, Request, SUM, PROD, MAX, MIN, IN_PLACE
+    from mpi4py.MPI import Request, SUM, MAX, IN_PLACE
 except ImportError:
-    COMM_SELF = SUM = PROD = MAX = MIN = None
+    SUM = None
+    MAX = None
     Request = None
-
-ii = 0
 
 
 class MPI4PYWrapper:
     def __init__(self, comm, parent=None):
-        self._comm = comm
+        self.comm = comm
         self.size = comm.size
         self.rank = comm.rank
         self.parent = parent  # XXX check C-object against comm.parent?
-
-    @property
-    def comm(self):
-        global ii
-        if ii == -26:
-            1 / 0
-        print(self.rank, ii)
-        ii += 1
-        return self._comm
 
     def new_communicator(self, ranks):
         comm = self.comm.Create(self.comm.group.Incl(ranks))
@@ -32,35 +22,23 @@ class MPI4PYWrapper:
             return None
 
     def max_scalar(self, a, root=-1):
-        return self.sum_scalar(a, root=-1, op=MAX)
+        return self.sum_scalar(a, root=-1, _op=MAX)
 
-    def sum_scalar(self, a, root=-1, op=SUM):
+    def sum_scalar(self, a, root=-1, _op=SUM):
         assert isinstance(a, (int, float, complex))
         if root == -1:
-            return self.comm.allreduce(a, op=op)
+            return self.comm.allreduce(a, op=_op)
         else:
-            return self.comm.reduce(a, root=root, op=op)
+            return self.comm.reduce(a, root=root, op=_op)
 
     def sum(self, a, root=-1, op=SUM):
-        if isinstance(a, (int, float, complex)):
-            1 / 0
+        if root == -1:
+            self.comm.Allreduce(IN_PLACE, a, op=op)
         else:
-            if root == -1:
-                self.comm.Allreduce(IN_PLACE, a, op=op)
+            if root == self.rank:
+                self.comm.Reduce(IN_PLACE, a, root=root, op=op)
             else:
-                if root == self.rank:
-                    self.comm.Reduce(IN_PLACE, a, root=root, op=op)
-                else:
-                    self.comm.Reduce(a, None, root=root, op=op)
-
-    def product(self, a, root=-1):
-        return self.sum(a, root, PROD)
-
-    def max(self, a, root=-1):
-        return self.sum(a, root, MAX)
-
-    def min(self, a, root=-1):
-        return self.sum(a, root, MIN)
+                self.comm.Reduce(a, None, root=root, op=op)
 
     def scatter(self, a, b, root):
         self.comm.Scatter(a, b, root)
@@ -108,63 +86,11 @@ class MPI4PYWrapper:
     def waitall(self, requests):
         Request.waitall(requests)
 
-    def abort(self, errcode):
-        """Terminate MPI execution environment of all tasks in the group.
-        This function only returns in the advent of an error occurring.
-
-        Parameters:
-
-        errcode: int
-            Error code to return to the invoking environment.
-
-        """
-        1 / 0
-        return self.comm.abort(errcode)
-
     def name(self):
         return self.comm.Get_name()
 
     def barrier(self):
         self.comm.barrier()
 
-    def compare(self, othercomm):
-        """Compare communicator to other.
-
-        Returns 'ident' if they are identical, 'congruent' if they are
-        copies of each other, 'similar' if they are permutations of
-        each other, and otherwise 'unequal'.
-
-        This method corresponds to MPI_Comm_compare."""
-        1 / 0
-        # if isinstance(self.comm, SerialCommunicator):
-        #     return self.comm.compare(othercomm.comm)  # argh!
-        result = self.comm.compare(othercomm.get_c_object())
-        assert result in ['ident', 'congruent', 'similar', 'unequal']
-        return result
-
-    def translate_ranks(self, other, ranks):
-        """"Translate ranks from communicator to other.
-
-        ranks must be valid on this communicator.  Returns ranks
-        on other communicator corresponding to the same processes.
-        Ranks that are not defined on the other communicator are
-        assigned values of -1.  (In contrast to MPI which would
-        assign MPI_UNDEFINED)."""
-        1 / 0
-        assert hasattr(other, 'translate_ranks'), \
-            'Excpected communicator, got %s' % other
-        assert all(0 <= rank for rank in ranks)
-        assert all(rank < self.size for rank in ranks)
-        # if isinstance(self.comm, SerialCommunicator):
-        #     return self.comm.translate_ranks(other.comm, ranks)  # argh!
-        otherranks = self.comm.translate_ranks(other.get_c_object(), ranks)
-        assert all(-1 <= rank for rank in otherranks)
-        assert ranks.dtype == otherranks.dtype
-        return otherranks
-
     def get_c_object(self):
         return self.comm
-
-
-if 0:
-    serial_comm = MPI4PYWrapper(COMM_SELF)
