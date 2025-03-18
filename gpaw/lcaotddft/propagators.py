@@ -237,13 +237,9 @@ class ECNPropagator(LCAOPropagator):
     def calculate_velocity_operator_matrix(self):
         if getattr(self, 'have_velocity_operator_matrix', False):
             return
-        print('Calculating velocity operator matrix')
         ksl = self.wfs.ksl
         
         gcomm = self.wfs.gd.comm
-        # Parallelization not yet working
-        # assert gcomm.size == 1
-        #assert self.wfs.kptband_comm.size == 1
         manytci = self.wfs.manytci
         Vkick_qvmM = manytci.O_qMM_T_qMM(gcomm,
                                          ksl.Mstart,
@@ -270,17 +266,15 @@ class ECNPropagator(LCAOPropagator):
                 gcomm.sum(Vkick_qvmM[kpt.q])
                 Vkick_vmm = Vkick_qvmM[kpt.q]
 
-            kpt.Vkick_vMM = Vkick_vmm # TODO: Change kpt.Vkick_vMM to Vkick_vmm
+            kpt.Vkick_vmm = Vkick_vmm # TODO: Change kpt.Vkick_vMM to Vkick_vmm
             from gpaw.mpi import world
-            print('Vkick_vMM', Vkick_vmm, 'rank', world.rank)
 
         self.have_velocity_operator_matrix = True
-        print('Done')
 
     def velocity_gauge_kick(self, magnitude, direction, time):
         self.calculate_velocity_operator_matrix()
         for kpt in self.wfs.kpt_u:
-            kpt.A_MM = -magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vMM)
+            kpt.A_MM = -magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vmm)
             #kpt.A_MM += kpt.A_MM.T.conj()
             #kpt.A_MM /= 2
 

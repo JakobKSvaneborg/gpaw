@@ -6,7 +6,7 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 from ase.utils import IOContext
-from gpaw.fd_operators import Laplace, Gradient
+from gpaw.fd_operators import Gradient
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
 from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.typing import Vector
@@ -132,7 +132,7 @@ def calculate_magnetic_moment_atomic_corrections(R_av, setups, partition):
 
 
 def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
-                                     only_pseudo=False, gauge_including=True,
+                                     only_pseudo=False,
                                      R_av=None, setups=None,
                                      vt_sG=None):
     """Calculate magnetic moment matrix in LCAO basis.
@@ -175,112 +175,6 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
         M_vmM[v1] += rnabla_vmM[v2]
         M_vmM[v2] -= rnabla_vmM[v1]
 
-    """
-    gd = bfs.gd
-    kin = Laplace(gd, -0.5, 3, complex)
-    kpt = kpt_u[0]
-
-    #assert len(kpt_u) == 1 # This only works for gamma point
-
-    def basis_to_grid(M):
-        C_M = np.zeros((nao,), dtype=complex)
-        C_M[M] = 1.0
-        psit_G = gd.zeros(dtype=complex)
-        bfs.lcao_to_grid(C_M, psit_G, kpt.q)
-        return psit_G
-
-    # Calculate overlap matrix
-    S_MM = np.zeros((mynao, nao), dtype=complex)
-    for mu in range(mynao):
-        psitmu_G = basis_to_grid(mu)
-        for nu in range(nao):
-            psitnu_G = basis_to_grid(nu)
-            S_MM[mu, nu] = gd.integrate(psitmu_G.conj() * psitnu_G)
-    
-    #print(S_MM, 'S_MM method 1 grid')
-    #print(kpt.S_MM, 'S_MM official')
-    #assert np.allclose(S_MM, kpt.S_MM, rtol=1e-2, atol=1e-2)
-
-    # Calculate overlap matrix by utilizing unity potential
-    S_MM = np.zeros((mynao, nao), dtype=complex)
-    V_G = gd.zeros()
-    V_G[:] = 1.0
-    bfs.calculate_potential_matrix(V_G, S_MM, kpt.q)
-   
-    lower = np.tri(nao, k=-1, dtype=bool)
-    S_MM.T[lower] = S_MM[lower].conj()
-
-    #print(S_MM, 'S_MM method 2 grid')
-    #print(kpt.S_MM, 'S_MM official')
-    #assert np.allclose(S_MM, kpt.S_MM, rtol=1e-2, atol=1e-2)
-    
-    # Calculate overlap matrix by utilizing unity potential
-    V_MM = np.zeros((mynao, nao), dtype=complex)
-    bfs.calculate_potential_matrix(vt_sG[kpt.s], V_MM, kpt.q)
-    lower = np.tri(nao, k=-1, dtype=bool)
-    V_MM.T[lower] = V_MM[lower].conj()
-
-    #print(V_MM, 'V_MM')
-    
-    # Calculate potential energy matrix
-    V2_MM = np.zeros((mynao, nao), dtype=complex)
-    for mu in range(mynao):
-        psitmu_G = basis_to_grid(mu)
-        for nu in range(nao):
-            psitnu_G = basis_to_grid(nu)
-            Vpsitnu_G = vt_sG[kpt.s] * psitnu_G 
-            V2_MM[mu, nu] = gd.integrate(psitmu_G.conj() * Vpsitnu_G)
-    
-    #print(V2_MM, 'V integrateMM')
-    
-    # Calculate kinetic energy matrix
-    T_MM = np.zeros((mynao, nao), dtype=complex)
-    for mu in range(mynao):
-        psitmu_G = basis_to_grid(mu)
-        for nu in range(nao):
-            psitnu_G = basis_to_grid(nu)
-            Tpsitnu_G = gd.empty(dtype=complex)
-            kin.apply(psitnu_G, Tpsitnu_G, np.ones((3, 2), dtype=complex)) # phasecd missing, gamma point only
-            T_MM[mu, nu] = gd.integrate(psitmu_G.conj() * Tpsitnu_G)
-
-    #print(T_MM, 'grid')
-    #print(kpt.T_MM, 'official')
-    #assert np.allclose(T_MM, kpt.T_MM, rtol=1e-2, atol=1e-2)
-
-    # Calcul/ate <phi| [r X (Rμ - Rν) T] | phi>
-
-    gicorrM_vMM = np.zeros((3, mynao, nao), dtype=complex)
-
-    def basis_and_atoms():
-        M1 = 0
-        for a, setup in enumerate(setups):
-            M2 = M1 + setup.nao
-            for M in range(M1, M2):
-                yield a, M
-            M1 = M2
-
-    for amu, mu in basis_and_atoms(): 
-        psitmu_G = basis_to_grid(mu)
-        for anu, nu in basis_and_atoms():
-            psitnu_G = basis_to_grid(nu)
-            Tpsitnu_G = gd.empty(dtype=complex)
-            kin.apply(psitnu_G, Tpsitnu_G, np.ones((3, 2), dtype=complex)) # phasecd missing, gamma point only
-            Tpsitnu_G += vt_sG[kpt.s] * psitnu_G 
-            for sign, v1, v2, v3 in [ (1.0, 2, 0, 1), (-1.0, 2, 1, 0),
-                                      (1.0, 1, 2, 0), (-1.0, 1, 0, 2),
-                                      (1.0, 0, 1, 2), (-1.0, 0, 2, 1)]:
-                gicorrM_vMM[v1, amu, anu] -= sign * gd.integrate(psitmu_G.conj() * r_vG[v2] * (R_av[anu][v3]) * Tpsitnu_G)
-                gicorrM_vMM[v1, anu, amu] += sign * gd.integrate(psitmu_G.conj() * r_vG[v2] * (R_av[anu][v3]) * Tpsitnu_G)
-
-    #gicorrM_vMM += M_vmM
-
-    for v in [2]:#range(3):
-        #print('dim', v)
-        print('gicorr', -0.5 * gicorrM_vMM[v])
-        print('M official', -0.5 * M_vmM[v])
-        print('sub', -0.5 * (gicorrM_vMM[v] - M_vmM[v]))
-    """
-
     if not only_pseudo:
         for kpt in kpt_u:
             assert kpt.k == 0
@@ -291,9 +185,7 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
     # The matrices should be real
     assert np.max(np.absolute(M_vmM.imag)) == 0.0
     M_vmM = M_vmM.real.copy()
-    #assert np.max(np.absolute(gicorrM_vMM.imag)) == 0.0
-    #gicorrM_vMM = gicorrM_vMM.real.copy()
-    return -0.5 * M_vmM  #( M_vmM + gicorrM_vMM)
+    return -0.5 * M_vmM
 
 
 def calculate_magnetic_moment_in_lcao(ksl, rho_mm, M_vmm):
@@ -595,4 +487,3 @@ class MagneticMomentWriter(TDDFTObserver):
 
     def __del__(self):
         self.ioctx.close()
-
