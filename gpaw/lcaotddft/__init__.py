@@ -152,7 +152,6 @@ class OldLCAOTDDFT(GPAW):
         self.tddft_initialized = True
         self.timer.stop('Initialize TDDFT')
 
-
     def absorption_kick(self, kick_strength: Vector,
                         gauge: str = 'length'):
         """Kick with a weak electric field.
@@ -185,14 +184,15 @@ class OldLCAOTDDFT(GPAW):
             # Propagate kick
             self.propagator.kick(cef, self.time)
         else:
-            self.propagator.velocity_gauge_kick(magnitude, direction, self.time)
+            self.propagator.velocity_gauge_kick(magnitude,
+                                                direction, self.time)
 
         # Call observers after kick
         self.action = 'kick'
         self.call_observers(self.niter)
         self.niter += 1
         self.timer.stop('Kick')
-    
+
     def kick(self, ext):
         """Kick with any external potential.
 

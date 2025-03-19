@@ -1,9 +1,10 @@
 import re
-import json
 
 import numpy as np
 
 from ase.utils import IOContext
+
+from gpaw.lcaotddft.magneticmomentwriter import parse_header
 
 from gpaw.lcaotddft.observer import TDDFTObserver
 
@@ -163,8 +164,9 @@ class DipoleMomentWriter(TDDFTObserver):
         self.ioctx.close()
 
 
-class VelocityGaugeWriter(TDDFTObserver): # ToDo: let inherit 
-    """Observer for writing time-dependent velocity-kick density for test purposes.
+class VelocityGaugeWriter(TDDFTObserver):  # ToDo: let inherit
+    """Observer for writing time-dependent velocity-kick density
+       for test purposes.
 
     The data is written in atomic units.
 
@@ -178,18 +180,17 @@ class VelocityGaugeWriter(TDDFTObserver): # ToDo: let inherit
         File for writing density data
     """
     version = 5
+
     def __init__(self, paw, filename: str, interval: int = 1):
         super().__init__(paw, interval)
         self.ioctx = IOContext()
         mode = paw.wfs.mode
         assert mode in ['lcao']
-        
+
         if paw.niter == 0:
             self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='w')
         else:
             self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='a')
-
-
 
     def _write(self, line):
         self.fd.write(line)
@@ -200,7 +201,7 @@ class VelocityGaugeWriter(TDDFTObserver): # ToDo: let inherit
         line += ('# %15s %15s %22s %22s %22s\n' %
                  ('time', 'norm', 'rhoVMM_x', 'rhoVMM_y', 'rhoVMM_z'))
         self._write(line)
-    
+
     def _read_header(self, filename):
         with open(filename, encoding='utf-8') as fd:
             line = fd.readline()
@@ -233,7 +234,8 @@ class VelocityGaugeWriter(TDDFTObserver): # ToDo: let inherit
         f_n = paw.wfs.kpt_u[0].f_n
         rho_MM = C_nM.T.conj() @ (f_n[:, None] * C_nM)
         Vkick_vMM = paw.wfs.kpt_u[0].Vkick_vMM
-        return [np.sum((rho_MM * Vkick_MM.conj()).ravel()) for Vkick_MM in Vkick_vMM]
+        return [np.sum((rho_MM * Vkick_MM.conj()).ravel())
+                for Vkick_MM in Vkick_vMM]
 
     def _write_v(self, paw):
         time = paw.time
@@ -242,7 +244,7 @@ class VelocityGaugeWriter(TDDFTObserver): # ToDo: let inherit
                 % (time, 0.0, v_v[0], v_v[1], v_v[2]))
         self._write(line)
 
-    def _update(self, paw): # This does not seem to work in here and I don't see why
+    def _update(self, paw):  # This does not seem to work in here
         if paw.action == 'init':
             paw.propagator.calculate_velocity_operator_matrix()
             self._write_header(paw, {})
@@ -253,4 +255,3 @@ class VelocityGaugeWriter(TDDFTObserver): # ToDo: let inherit
 
     def __del__(self):
         self.ioctx.close()
-

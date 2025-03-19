@@ -54,8 +54,6 @@ class DenseAtomicCorrection(BaseAtomicCorrection):
     def calculate(self, q, dX_aii, X_MM, Mstart, Mstop):
         dtype = X_MM.dtype
         P_aqMi = self.P_aqMi
-        #from gpaw.mpi import world
-        #print(world.rank, P_aqMi)
 
         # P_aqMi is distributed over domains (a) and bands (M).
         # Hence the correction X_MM = sum(P dX P) includes contributions
