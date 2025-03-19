@@ -12,25 +12,28 @@ x   r or h
 
 from __future__ import annotations
 from collections import defaultdict
-from typing import DefaultDict
+from typing import DefaultDict, TYPE_CHECKING
 
 import numpy as np
 
-from gpaw.core.arrays import DistributedArrays
-from gpaw.core.atom_arrays import AtomArrays
-from gpaw.core.uniform_grid import UGArray
-from gpaw.mpi import MPIComm, serial_comm
+from gpaw.mpi import serial_comm
 from gpaw.new import trace, zips
-from gpaw.new.constraints import SpinDirectionConstraint
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.external_potential import ExternalPotential
 from gpaw.new.logger import indent
 from gpaw.new.potential import Potential
-from gpaw.new.xc import Functional
-from gpaw.setup import Setup
 from gpaw.spinorbit import soc as soc_terms
-from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_hermitian, pack_density, unpack_hermitian
+
+if TYPE_CHECKING:
+    from gpaw.core.arrays import DistributedArrays
+    from gpaw.core.atom_arrays import AtomArrays
+    from gpaw.core.uniform_grid import UGArray
+    from gpaw.mpi import MPIComm
+    from gpaw.new.constraints import SpinDirectionConstraint
+    from gpaw.new.xc import Functional
+    from gpaw.setup import Setup
+    from gpaw.typing import Array1D, Array2D, Array3D
 
 
 class PotentialCalculator:
