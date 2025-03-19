@@ -14,7 +14,7 @@ from gpaw.new import prod
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
-from gpaw.utilities import as_complex_dtype
+from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 
@@ -268,7 +268,8 @@ class PWLFC:  # (BaseLFC)
             #    imag(G1+1, 0), imag(G1+1, 1), ...
             #    ...
 
-            f_GI = xp.empty((2 * (G2 - G1), self.nI))
+            f_GI = xp.empty((2 * (G2 - G1), self.nI),
+                            as_real_dtype(self.dtype))
 
         if xp is np:
             # Fast C-code:
@@ -413,7 +414,7 @@ class PWLFC:  # (BaseLFC)
         for G1, G2 in self.block():
             f_GI = self.expand(G1, G2, cc=True)
             G_Gv = xp.asarray(self.pw.G_plus_k_Gv[G1:G2])
-            if self.dtype == float:
+            if self.real:
                 d_GI = xp.empty(f_GI.shape)
                 for v in range(3):
                     d_GI[::2] = f_GI[1::2] * G_Gv[:, v, np.newaxis]
@@ -447,7 +448,7 @@ class PWLFC:  # (BaseLFC)
         self.comm.sum(c_vxI)
 
         for v in range(3):
-            if self.dtype == float:
+            if self.real:
                 for a, I1, I2 in self.my_indices:
                     c_axiv[a][..., v] = c_vxI[v, ..., I1:I2]
             else:
@@ -509,7 +510,7 @@ class PWLFC:  # (BaseLFC)
     def _stress_tensor_contribution(self, v1, v2, things, G1, G2,
                                     G_Gv, a_xG, c_axi, Z_LvG):
         xp = self.xp
-        f_IG = xp.empty((self.nI, G2 - G1), complex)
+        f_IG = xp.empty((self.nI, G2 - G1), as_complex_dtype(self.dtype))
         emiGR_Ga = self.get_emiGR_Ga(G1, G2)
         Y_LG = self.Y_GL.T
         for a, l, I1, I2, f_G, dfdGoG_G in things:
@@ -529,12 +530,12 @@ class PWLFC:  # (BaseLFC)
         a_xG = a_xG.reshape((x, a_xG.shape[-1]))
 
         alpha = 1.0
-        if self.pw.dtype == float:
+        if self.real:
             alpha = 2.0
             if G1 == 0 and self.pw.comm.rank == 0:
                 f_IG[:, 0] *= 0.5
-            f_IG = f_IG.view(float)
-            a_xG = a_xG.copy().view(float)
+            f_IG = f_IG.view(as_real_dtype(f_IG.dtype))
+            a_xG = a_xG.copy().view(as_real_dtype(f_IG.dtype))
 
         if xp is np:
             mmm(alpha, a_xG, 'N', f_IG, 'C', 0.0, b_xI)

@@ -113,6 +113,7 @@ def info() -> None:
                                   'environment variable GPAW_CPUPY=1, '
                                   'which uses GPAW\'s fake CuPy '
                                   '(gpaw.gpu.cpupy) for testing purposes')
+    results.append(('MAGMA', cgpaw.have_magma))
     if have_mpi:
         have_sl = compiled_with_sl()
         have_elpa = LibElpa.have_elpa()
@@ -137,6 +138,7 @@ def info() -> None:
     have_fftw = fftw.have_fftw()
     results.append(('FFTW', have_fftw))
     results.append(('libvdwxc', compiled_with_libvdwxc()))
+
     for i, path in enumerate(gpaw.setup_paths):
         results.append((f'PAW-datasets ({i + 1})', str(path)))
 

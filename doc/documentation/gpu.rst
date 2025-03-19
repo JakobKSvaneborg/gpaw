@@ -172,3 +172,27 @@ these objects now have an ``xp`` attribute that can be :mod:`numpy` or
 
 Also, the :class:`~gpaw.core.atom_centered_functions.AtomCenteredFunctions`
 object can do its operations on the GPU.
+
+
+Using MAGMA eigensolvers
+==============================
+
+.. _MAGMA: https://icl.utk.edu/magma/
+
+GPAW provides wrappers to a subset of eigensystem solvers from the MAGMA_
+library, which implements efficient, hybrid CPU-GPU algorithms for common linear
+algebra tasks. Compiling GPAW with MAGMA support is recommended for performance
+if running on AMD GPUs. On Nvidia there is currently no performance increase.
+
+MAGMA features can be enabled in siteconfig.py::
+
+   magma = True
+   libraries += ['magma']
+
+You may also need to modify ``library_dirs``, ``runtime_library_dirs`` and
+``include_dirs`` with paths to your MAGMA installation (see :ref:`siteconfig`).
+
+You can use the ``gpaw.cgpaw.have_magma`` flag to check if MAGMA is available
+within GPAW. GPAW eigensystem routines will default to the MAGMA implementation
+on AMD GPUs, provided the matrix is large enough to benefit from it. You can
+also call the MAGMA solvers directly from the ``gpaw.new.magma`` module.

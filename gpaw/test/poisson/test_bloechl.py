@@ -107,7 +107,7 @@ def fast_slow(fast):
     atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 600},
                       poissonsolver={'fast': fast},
                       convergence={'forces': 1e-3},
-                      txt=None,
+                      # txt=None,
                       symmetry='off')
     atoms.get_potential_energy()
     f = atoms.get_forces()
