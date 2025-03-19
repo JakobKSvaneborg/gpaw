@@ -3,7 +3,7 @@ variables:
   IMAGE_PATH: "registry.gitlab.com/gpaw/gpaw-ci-containers"
   IMAGE_MAIN_OLDEST: "$IMAGE_PATH/main:oldest"
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
-  IMAGE_CUDA: "$IMAGE_PATH/cuda:temp"
+  IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
   # CI for branches inside the GPAW namespace will run on camd-runner2
   # because the GPAW project settings define the CI variable
