@@ -19,6 +19,7 @@ from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
+from gpaw.new.constraints import SpinDirectionConstraint
 from gpaw.new.gpw import read_gpw, write_gpw, GPWFlags
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.input_parameters import parameter_functions as parameter_names
@@ -40,7 +41,7 @@ def GPAW(
     *,
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Iterable[int] | None = None,
-    atomic_constraints: dict[str, dict[int, Array1D]] | None = None,
+    atomic_constraints: list[SpinDirectionConstraint] | None = None,
     background_charge=None,
     basis: str | dict[str | int | None, str] | None = None,
     charge: float | None = None,

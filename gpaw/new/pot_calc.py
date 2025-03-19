@@ -230,9 +230,9 @@ def calculate_non_local_potential1(setup: Setup,
         dH_sii += dHU_sii
 
     for atomic_constraint in atomic_constraints:
-        eL, dHL_vii = atomic_constraint.calculate(D_sii[1:4].real,
-                                                  atom_index, setup)
-        # eL = constraining field energy is unphysical and ignored.
+        eL, dHL_vii = atomic_constraint.calculate(D_sii[1:4].real, atom_index,
+                                                  setup.l_j, setup.N0_q)
+        e_xc += eL
         dH_sii[1:4] += dHL_vii
 
     e_kinetic -= (D_sii * dH_sii).sum().real

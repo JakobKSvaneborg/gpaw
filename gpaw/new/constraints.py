@@ -1,7 +1,11 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import numpy as np
 from ase.units import Ha
 
-from gpaw.typing import Array1D, Array3D
+if TYPE_CHECKING:
+    from gpaw.typing import Array1D, Array3D
 
 
 class SpinDirectionConstraint:
@@ -15,15 +19,14 @@ class SpinDirectionConstraint:
     def calculate(self,
                   M_vii: Array3D,
                   a: int,
-                  setup):
+                  l_j: Array1D,
+                  N0_q: Array1D,
+                  return_energy: bool = False):
         dHL_vii = np.zeros_like(M_vii)
 
         if a not in self.constraint:
             return 0., dHL_vii
         u_v = self.constraint[a]
-
-        N0_q = setup.N0_q
-        l_j = setup.l_j
 
         smm_v = np.zeros(3)  # Spin magnetic moment
 
@@ -49,5 +52,7 @@ class SpinDirectionConstraint:
                 + u_v[(v + 2) % 3] * smm_v[(v + 2) % 3])
         dHL_vii *= 2 * self.penalty
 
-        # eL = self.penalty * (smm_v @ smm_v - (u_v @ smm_v)**2)
-        return 0., dHL_vii
+        if not return_energy:
+            return 0., dHL_vii
+        else:
+            return self.penalty * (smm_v @ smm_v - (u_v @ smm_v)**2), dHL_vii
