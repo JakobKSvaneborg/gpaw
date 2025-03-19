@@ -109,12 +109,9 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         else:
             vt0_g = None
 
-        Q_aL = density.calculate_compensation_charge_coefficients()
-        comp_charge = (4 * np.pi)**0.5 * sum(float(Q_L[0])
-                                             for Q_L in Q_aL.values())
-        comp_charge = Q_aL.layout.atomdist.comm.sum_scalar(comp_charge)
+        self.environment.update1(nt0_g)
 
-        self.environment.update1(nt0_g, comp_charge)
+        Q_aL = density.calculate_compensation_charge_coefficients()
 
         e_coulomb, vHt_h, V_aL = self.poisson_solver.solve(
             nt0_g, Q_aL, vt0_g, vHt_h)

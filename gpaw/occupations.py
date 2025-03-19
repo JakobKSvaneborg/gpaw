@@ -274,8 +274,6 @@ class SmoothDistribution(OccupationNumberCalculator):
 
         self._width = width
         OccupationNumberCalculator.__init__(self, parallel_layout)
-        self.target_fermi_level = None
-        self.ne = None
 
     def todict(self):
         return {'name': self.name, 'width': self._width}
@@ -287,9 +285,6 @@ class SmoothDistribution(OccupationNumberCalculator):
                    f_qn,
                    fermi_level_guess,
                    fix_fermi_level):
-        if self.target_fermi_level is not None and self.ne is not None:
-            nelectrons = self.ne
-
         # Guess can be nan or inf:
         if not np.isfinite(fermi_level_guess) or self._width == 0.0:
             zero = ZeroWidth(self.parallel_layout)
