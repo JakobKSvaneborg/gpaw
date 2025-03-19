@@ -95,6 +95,10 @@ def exp(a):
     return ndarray(np.exp(a._data))
 
 
+def conjugate(a):
+    return ndarray(np.conjugate(a._data))
+
+
 def log(a):
     return ndarray(np.log(a._data))
 
