@@ -238,7 +238,7 @@ class ECNPropagator(LCAOPropagator):
         if getattr(self, 'have_velocity_operator_matrix', False):
             return
         ksl = self.wfs.ksl
-        
+
         gcomm = self.wfs.gd.comm
         manytci = self.wfs.manytci
         Vkick_qvmM = manytci.O_qMM_T_qMM(gcomm,
@@ -247,12 +247,14 @@ class ECNPropagator(LCAOPropagator):
                                          ignore_upper=ksl.using_blacs,
                                          derivative=True)[0] * (-1j)
 
-
         my_atoms = self.wfs.atom_partition.my_indices
-        dnabla_vaii = { v: { a: -self.wfs.setups[a].nabla_iiv[:, :, v] * (-1j) for a in my_atoms} for v in range(3)}
+        dnabla_vaii = {v: {a: -self.wfs.setups[a].nabla_iiv[:, :, v] * (-1j)
+                       for a in my_atoms} for v in range(3)}
         for kpt in self.wfs.kpt_u:
             for v in range(3):
-                self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v], Vkick_qvmM[kpt.q][v], ksl.Mstart, ksl.Mstop)
+                self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v],
+                                                     Vkick_qvmM[kpt.q][v],
+                                                     ksl.Mstart, ksl.Mstop)
 
         if ksl.using_blacs:
             for Vkick_vmM in Vkick_qvmM:
@@ -261,22 +263,25 @@ class ECNPropagator(LCAOPropagator):
 
         for kpt in self.wfs.kpt_u:
             if ksl.using_blacs:
-                Vkick_vmm = self.wfs.ksl.distribute_overlap_matrix(Vkick_qvmM[kpt.q])
+                Vkick_vmm = self.wfs.ksl.distribute_overlap_matrix(
+                    Vkick_qvmM[kpt.q]
+                )
             else:
                 gcomm.sum(Vkick_qvmM[kpt.q])
                 Vkick_vmm = Vkick_qvmM[kpt.q]
 
-            kpt.Vkick_vmm = Vkick_vmm # TODO: Change kpt.Vkick_vMM to Vkick_vmm
-            from gpaw.mpi import world
+            kpt.Vkick_vmm = Vkick_vmm
 
         self.have_velocity_operator_matrix = True
 
     def velocity_gauge_kick(self, magnitude, direction, time):
         self.calculate_velocity_operator_matrix()
         for kpt in self.wfs.kpt_u:
-            kpt.A_MM = -magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vmm)
-            #kpt.A_MM += kpt.A_MM.T.conj()
-            #kpt.A_MM /= 2
+            kpt.A_MM = (
+                -magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vmm)
+            )
+            # kpt.A_MM += kpt.A_MM.T.conj()  # forgot the issue from here
+            # kpt.A_MM /= 2
 
         # Update Hamiltonian (and density)
         self.hamiltonian.update()
