@@ -52,6 +52,7 @@ def info():
     results.append(('OpenMP enabled', cgpaw.have_openmp))
     results.append(('GPU enabled', GPU_ENABLED))
     results.append(('GPU-aware MPI', GPU_AWARE_MPI))
+    results.append(('MAGMA', cgpaw.have_magma))
     results.append(('cupy-' + cupy.__version__, cupy.__file__))
     if have_mpi:
         have_sl = compiled_with_sl()
@@ -73,6 +74,7 @@ def info():
     have_fftw = fftw.have_fftw()
     results.append(('FFTW', have_fftw))
     results.append(('libvdwxc', compiled_with_libvdwxc()))
+
     for i, path in enumerate(gpaw.setup_paths):
         results.append((f'PAW-datasets ({i + 1})', str(path)))
 
