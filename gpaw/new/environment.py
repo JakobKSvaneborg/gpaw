@@ -36,19 +36,14 @@ class Jellium(Environment):
         self.charge = jellium.charge
         self.charge_g = None
 
-    def update1(self, nt_r, comp_charge: float) -> None:
-        if isinstance(nt_r, UGArray):
-            self.jellium.add_charge_to(nt_r.data)
+    def update1(self, nt_x) -> None:
+        if isinstance(nt_x, UGArray):
+            self.jellium.add_charge_to(nt_x.data)
             return
-        nt_g = nt_r
+        nt_g = nt_x
         if self.charge_g is None:
             charge_r = self.grid.zeros()
             self.jellium.add_charge_to(charge_r.data)
             self.charge_g = charge_r.fft(pw=nt_g.desc)
             self.charge_g.data *= 1.0 / self.charge_g.integrate()
-        if self.fixed_fermi_level is None:
-            x = -self.charge
-        else:
-            x = -(nt_g.integrate() + comp_charge)
-            print(x)
-        nt_g.data += self.charge_g.data * x
+        nt_g.data -= self.charge_g.data * self.charge
