@@ -47,3 +47,10 @@ class Jellium(Environment):
             self.charge_g = charge_r.fft(pw=nt_g.desc)
             self.charge_g.data *= 1.0 / self.charge_g.integrate()
         nt_g.data -= self.charge_g.data * self.charge
+
+    def check_convergence(self):
+        if self.fixed_fermi_level is None:
+            return True
+
+    def post_scf_convergence(self, ...):
+        ...

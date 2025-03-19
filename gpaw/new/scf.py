@@ -73,13 +73,6 @@ class SCFLoop:
 
         self.occ_calc.initialize_reference_orbitals()
 
-        if pot_calc.environment.fixed_fermi_level is not None:
-            from ase.units import Ha
-            self.occ_calc.occ.target_fermi_level = pot_calc.environment.fixed_fermi_level * Ha
-            # self.fix_fermi_level = True
-            # ibzwfs.fermi_levels = np.array(
-            #    [pot_calc.environment.fixed_fermi_level])
-
         if self.update_density_and_potential:
             dens_error = self.mixer.mix(density)
         else:
@@ -113,8 +106,14 @@ class SCFLoop:
 
             if log:
                 write_iteration(cc, converged_items, entries, ctx, log)
+
             if converged:
-                break
+                converged = pot_calc.environment.check_convergence()
+                if converged:
+                    break
+                pot_calc.environment.post_convergence(...)
+                continue
+
             if self.niter == maxiter:
                 if wfs_error < inf:
                     raise KohnShamConvergenceError
