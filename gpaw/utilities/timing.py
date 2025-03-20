@@ -268,14 +268,22 @@ class GPUProfiler(Profiler, GPUTimerBase):
         event = Event(block=True)
         event.record()
         event.synchronize()
-        # Now, initialize the CPU timers
-        Profiler.synchronize(self)
+
+        # Wait all CPUs
+        self.comm.barrier()
 
         # Now all GPUs and CPUs are somewhat simultaneous
-        # So, record the reference event
+        # So, record the reference event and time
         event = Event(block=True)
         event.record()
+        self.ref = time.time()
         self.ref_event = event
+
+        # Broadcast CPU time reference (possibly problematic)
+        buf = np.zeros(1)
+        buf[0] = self.ref
+        self.comm.broadcast(buf, 0)
+        self.ref = buf[0]
 
     def start(self, name, kernel=False):
         Profiler.start(self, name)
