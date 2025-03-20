@@ -3,11 +3,13 @@ import pytest
 
 from ase import Atoms
 
+from gpaw.mpi import world
 from gpaw.new.constraints import SpinDirectionConstraint
 from gpaw.new.ase_interface import GPAW
 
 
 @pytest.mark.soc
+@pytest.mark.skipif(world.size > 1, reason='Gamma-point calculation.')
 def test_spin_dir_constraint_H():
 
     c = 2.5  # Å
@@ -36,6 +38,8 @@ def test_spin_dir_constraint_H():
 
 
 @pytest.mark.soc
+@pytest.mark.skipif(world.size > 1, reason='Unit test with no'
+                                           ' parallelization.')
 def test_spin_dir_constraint_derivative():
 
     rng = np.random.default_rng(seed=23)

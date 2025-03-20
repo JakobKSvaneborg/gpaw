@@ -122,10 +122,11 @@ class TBPotentialCalculator(PotentialCalculator):
                  xc,
                  setups,
                  atoms,
-                 domain_comm):
+                 domain_comm,
+                 atomic_constraints):
         super().__init__(xc, None, setups,
                          relpos_ac=atoms.get_scaled_positions(),
-                         atomic_constraints=[],
+                         atomic_constraints=atomic_constraints,
                          environment=None)
         self.atoms = atoms.copy()
         self.domain_comm = domain_comm
@@ -257,7 +258,8 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
     def create_potential_calculator(self, log):
         xc = DummyXC()
         return TBPotentialCalculator(xc, self.setups, self.atoms,
-                                     self.communicators['d'])
+                                     self.communicators['d'],
+                                     self.params.atomic_constraints)
 
     def create_scf_loop(self):
         occ_calc = self.create_occupation_number_calculator()
