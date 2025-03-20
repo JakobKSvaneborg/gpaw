@@ -236,9 +236,9 @@ class VelocityGaugeWriter(TDDFTObserver):
         C_nM = paw.wfs.kpt_u[0].C_nM
         f_n = paw.wfs.kpt_u[0].f_n
         rho_MM = C_nM.T.conj() @ (f_n[:, None] * C_nM)
-        Vkick_vMM = paw.wfs.kpt_u[0].Vkick_vMM
-        return [np.sum((rho_MM * Vkick_MM.conj()).ravel())
-                for Vkick_MM in Vkick_vMM]
+        Vkick_vmm = paw.wfs.kpt_u[0].Vkick_vmm
+        return [np.sum((rho_MM * Vkick_mm.conj()).ravel())
+                for Vkick_mm in Vkick_vmm]
 
     def _write_v(self, paw):
         time = paw.time
