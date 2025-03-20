@@ -21,9 +21,6 @@ def build_parser():
     parser.add_option('-f', '--xcfunctional', default='PBE', metavar='<XC>',
                       help='Exchange-Correlation functional '
                       '[default: %default]')
-    parser.add_option('-g', '--non-relativistic-guess', action='store_true',
-                      help='Run non-scalar relativistic AE calculation for '
-                      'initial guess')
     parser.add_option('--rcut-max', type='float', default=16.,
                       metavar='<rcut>',
                       help='max cutoff for confined atomic orbitals.  This ' +
@@ -82,7 +79,6 @@ def get_basismaker(valdata, opts):
     from gpaw.atom.basis import BasisMaker
     return BasisMaker(
         valdata, name=opts.name, gtxt=None,
-        non_relativistic_guess=opts.non_relativistic_guess,
         xc=opts.xcfunctional,
         save_setup=opts.save_setup)
 

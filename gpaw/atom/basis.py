@@ -70,15 +70,6 @@ def initialize_generator(
                               gpernode=Generator.default_gpernode * 4)
 
     if run:
-        if non_relativistic_guess:
-            raise RuntimeError('Non-relativistic guess currently disabled')
-            ae0 = AllElectron(generator.symbol, scalarrel=False,
-                              nofiles=False, txt=gtxt, xcname=xc)
-            ae0.N = generator.N  # XXX this will not currently work
-            ae0.beta = generator.beta
-            ae0.run()
-            # Now files will be stored such that they can
-            # automagically be used by the next run()
         setup = generator.run(write_xml=False,
                               name=name,
                               **parameters[generator.symbol])
