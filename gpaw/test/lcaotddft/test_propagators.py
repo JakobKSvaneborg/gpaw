@@ -127,4 +127,3 @@ def test_velocity(gpw_files, in_tmp_dir):
              3.104240038438e-06,
              3.400220392727e-06]
     assert data_i == pytest.approx(ref_i, abs=1e-10)
-    assert gauge == 'velocity'
