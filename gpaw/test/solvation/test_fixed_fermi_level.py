@@ -1,6 +1,5 @@
 from gpaw.new.ase_interface import GPAW
 from ase import Atoms
-from gpaw.jellium import JelliumSlab
 import numpy as np
 from gpaw.mixer import Mixer
 from gpaw import FermiDirac
@@ -19,8 +18,7 @@ def test_ffl():
         poissonsolver={'dipolelayer': 'xy'},
         background_charge=dict(charge=0.0001,
                                z1=7.0, z2=9.0,
-                               fermi_level=-3.15),
-        )#txt=None)
+                               fermi_level=-3.15))
     atoms.get_potential_energy()
     v = atoms.calc.get_electrostatic_potential()
     import matplotlib.pyplot as plt
@@ -56,9 +54,10 @@ def test_ffl2():
         F.append(atoms.calc.get_fermi_level())
         print('XXX', e, atoms.calc.get_fermi_level())
         print('XXX', atoms.calc.eigenvalues())
-    import matplotlib.pyplot as plt
-    plt.plot(E, F)
-    plt.show()
+    if 0:
+        import matplotlib.pyplot as plt
+        plt.plot(E, F)
+        plt.show()
 
 
 if __name__ == '__main__':
