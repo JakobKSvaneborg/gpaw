@@ -115,6 +115,29 @@ class BasisMaker:
             scalarrel=generator.scalarrel)
         return cls(valdata, **kwargs)
 
+    @classmethod
+    def from_symbol(cls, symbol, gtxt='-', xc='PBE', name=None,
+                    generator_run_kwargs=None, **kwargs):
+        generator = Generator(symbol, scalarrel=True,
+                              xcname=xc, txt=gtxt,
+                              nofiles=True,
+                              gpernode=Generator.default_gpernode * 4)
+
+        run_kwargs = {
+            'write_xml': False,
+            'name': name,
+            **parameters[generator.symbol]}
+
+        if generator_run_kwargs is not None:
+            run_kwargs.update(generator_run_kwargs)
+
+        setup = generator.run(**run_kwargs)
+
+        if save_setup:
+            setup.write_xml()
+
+        return cls.from_setup_and_generator(setup, generator, **kwargs)
+
     def smoothify(self, psi_mg, j):
         r"""Generate pseudo wave functions from all-electron ones.
 

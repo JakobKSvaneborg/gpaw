@@ -116,9 +116,9 @@ def main():
             raise ValueError('Strange setup specification')
 
         # This generates only dz setups
-        bm = BasisMaker(sym, name,
-                        run=False, gtxt=gtxt, xc=opts.xc)
-        bm.generator.run(write_xml=False, **p[sym])
+        bm = BasisMaker.from_symbol(
+            sym, name=name, gtxt=gtxt, xc=opts.xc,
+            generator_run_kwargs=dict(write_xml=False, **p[sym]))
         basis = bm.generate(2, 0, txt=None, jvalues=spec.jvalues)
         basis.write_xml()
 
