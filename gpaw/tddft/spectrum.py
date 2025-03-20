@@ -122,7 +122,8 @@ def read_td_file_kicks(fname):
         for line in f:
             if line.startswith('# Kick'):
                 kick_v, time, velocity = parse_kick_line(line)
-                kick_i.append({'strength_v': kick_v, 'time': time, 'velocity': velocity})
+                kick_i.append({'strength_v': kick_v, 'time': time,
+                              'velocity': velocity})
     return kick_i
 
 
