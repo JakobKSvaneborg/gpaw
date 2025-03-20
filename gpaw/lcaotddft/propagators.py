@@ -280,8 +280,6 @@ class ECNPropagator(LCAOPropagator):
             kpt.A_MM = (
                 -magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vmm)
             )
-            # kpt.A_MM += kpt.A_MM.T.conj()  # forgot the issue from here
-            # kpt.A_MM /= 2
 
         # Update Hamiltonian (and density)
         self.hamiltonian.update()
