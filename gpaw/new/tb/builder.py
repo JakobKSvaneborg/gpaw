@@ -125,6 +125,7 @@ class TBPotentialCalculator(PotentialCalculator):
                  domain_comm):
         super().__init__(xc, None, setups,
                          relpos_ac=atoms.get_scaled_positions(),
+                         atomic_constraints=[],
                          environment=None)
         self.atoms = atoms.copy()
         self.domain_comm = domain_comm
