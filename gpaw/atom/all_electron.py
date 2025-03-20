@@ -582,9 +582,6 @@ class AllElectron(IOContext):
         kr[0] = 0.0
         return kr
 
-    def get_confinement_potential(self, alpha, ri, rc):
-        return self.valence_data.get_confinement_potential(alpha, ri, rc)
-
     def __del__(self):
         self.close()
 
