@@ -132,9 +132,7 @@ def calculate_magnetic_moment_atomic_corrections(R_av, setups, partition):
 
 
 def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
-                                     only_pseudo=False,
-                                     R_av=None, setups=None,
-                                     vt_sG=None):
+                                     only_pseudo=False):
     """Calculate magnetic moment matrix in LCAO basis.
 
     Parameters

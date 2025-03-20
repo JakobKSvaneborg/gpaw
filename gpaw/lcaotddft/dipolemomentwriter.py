@@ -228,6 +228,7 @@ class VelocityGaugeWriter(TDDFTObserver):
         time = paw.time
         kick = paw.kick_strength
         line = '# Kick = [%22.12le, %22.12le, %22.12le]; ' % tuple(kick)
+        line += 'Gauge = velocity; '
         line += 'Time = %.8lf\n' % time
         self._write(line)
 

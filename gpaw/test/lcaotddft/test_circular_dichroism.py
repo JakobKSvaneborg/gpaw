@@ -155,9 +155,6 @@ def test_magnetic_moment_grid_evaluation(initialize_system, module_tmp_path):
 @pytest.mark.parametrize('gauge', ['velocity', 'length'])
 def test_magnetic_moment_parallel(initialize_system, module_tmp_path, parallel,
                                   in_tmp_dir, gauge):
-    if gauge == 'velocity':
-        if parallel.get('sl_auto', False):
-            pass
 
     td_calc = LCAOTDDFT(module_tmp_path / 'gs.gpw',
                         parallel=parallel,
