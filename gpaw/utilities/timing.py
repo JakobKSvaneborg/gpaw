@@ -279,7 +279,8 @@ class GPUProfiler(Profiler, GPUTimerBase):
 
     def start(self, name, kernel=False):
         Profiler.start(self, name)
-        GPUTimerBase.gpu_start(self, name, kernel=kernel)
+        if kernel:
+            GPUTimerBase.gpu_start(self, name)
 
     def stop(self, name=None):
         Profiler.stop(self, name)
