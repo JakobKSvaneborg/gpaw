@@ -11,7 +11,7 @@ from gpaw.mpi import broadcast_exception
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
-from gpaw.new import trace, trace2
+from gpaw.new import trace, tracectx
 
 
 class Davidson(PWFDEigensolver):
@@ -130,7 +130,7 @@ class Davidson(PWFDEigensolver):
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
 
-            with trace2('Matrix elements'):
+            with tracectx('Matrix elements'):
                 # <psi2 | H | psi2>
                 me(psit2_nX, psit2_nX, function=Ht)
                 dH(P2_ani, out_ani=P3_ani)
@@ -155,7 +155,7 @@ class Davidson(PWFDEigensolver):
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
                 copy(S_NN.data[B:, :B])
 
-            with trace2('Diagonalize'):
+            with tracectx('Diagonalize'):
                 with broadcast_exception(domain_comm):
                     with broadcast_exception(band_comm):
                         if is_domain_band_master:
@@ -174,7 +174,7 @@ class Davidson(PWFDEigensolver):
                     M0_nn.redist(M_nn)
                 domain_comm.broadcast(M_nn.data, 0)
 
-            with trace2('Rotate Psi'):
+            with tracectx('Rotate Psi'):
                 M_nn.multiply(psit_nX, out=residual_nX)
                 M_nn.multiply(P_ani, out=P3_ani)
 

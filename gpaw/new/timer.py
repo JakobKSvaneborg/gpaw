@@ -93,7 +93,7 @@ def dummy_trace(meth: Union[Callable[..., T], None] = None,
 
 
 @contextmanager
-def _trace2(name):
+def _tracectx(name):
     global_timer.start(name)
     try:
         yield
@@ -102,10 +102,10 @@ def _trace2(name):
 
 
 @contextmanager
-def dummy_trace2(name):
+def dummy_tracectx(name):
     yield
 
 
 trace = _trace if GPAW_TRACE else dummy_trace
-trace2 = _trace2 if GPAW_TRACE else dummy_trace2
+tracectx = _tracectx if GPAW_TRACE else dummy_tracectx
 global_timer = GlobalTimer()

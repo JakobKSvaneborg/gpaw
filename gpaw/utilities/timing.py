@@ -121,7 +121,7 @@ class GPUTimerBase:
                 break
             del self.event_queue[0]
             time = event.get_time()
-            self.gpu_timers[event.names] += time
+            self.gpu_timers[event.name] += time
             self.handle_event_hook(event)
 
     def handle_event_hook(self, event):
@@ -297,11 +297,11 @@ class GPUProfiler(Profiler, GPUTimerBase):
         ms_start = get_time(event.start_event)
         ms_stop = get_time(event.stop_event)
         self.txt.write(
-            f"""{{"name": "{event.names}", "cat": "PERF", "ph": "B","""
+            f"""{{"name": "{event.name}", "cat": "PERF", "ph": "B","""
             f""" "pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
             f""""ts": {int(ms_start*1000)} }},\n""")
         self.txt.write(
-            f"""{{"name": "{event.names}", "cat": "PERF", "ph": "E", """
+            f"""{{"name": "{event.name}", "cat": "PERF", "ph": "E", """
             f""""pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
             f""""ts": {int(ms_stop*1000)} }},\n""")
 
