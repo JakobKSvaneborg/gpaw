@@ -8,7 +8,9 @@ from gpaw.test.gpwfile import response_band_cutoff
 
 @pytest.mark.response
 @pytest.mark.parametrize('identifier', list(response_band_cutoff))
-def test_qsymmetries(gpw_files, identifier):
+def test_qsymmetries(gpw_files, identifier, gpaw_new):
+    if gpaw_new and identifier == 'v2br4_pw':
+        pytest.skip('New-GPAW does not support interpolate=3')
     # Set up basic response code objects
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files[identifier])
     context = ResponseContext()
