@@ -193,7 +193,7 @@ class Density:
 
         return ccc_aL
 
-    def normalize(self):
+    def normalize(self, background_charge: float) -> None:
         comp_charge = 0.0
         xp = self.D_asii.layout.xp
         for a, D_sii in self.D_asii.items():
@@ -204,7 +204,7 @@ class Density:
         # comp_charge could be cupy.ndarray:
         comp_charge = float(comp_charge) * sqrt(4 * pi)
         comp_charge = self.nt_sR.desc.comm.sum_scalar(comp_charge)
-        charge = comp_charge + self.charge
+        charge = comp_charge + self.charge - background_charge
         pseudo_charge = self.nt_sR[:self.ndensities].integrate().sum()
         if pseudo_charge != 0.0:
             x = -charge / pseudo_charge

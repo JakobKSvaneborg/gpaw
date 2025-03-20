@@ -82,6 +82,7 @@ scalapack = False
 libvdwxc = False
 elpa = False
 gpu = False
+magma = False
 intelmkl = False
 
 # Advanced:
@@ -241,6 +242,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                    (libvdwxc, 'GPAW_WITH_LIBVDWXC'),
                    (elpa, 'GPAW_WITH_ELPA'),
                    (intelmkl, 'GPAW_WITH_INTEL_MKL'),
+                   (magma, 'GPAW_WITH_MAGMA'),
                    (gpu, 'GPAW_GPU'),
                    (gpu, 'GPAW_GPU_AWARE_MPI'),
                    (gpu and gpu_target == 'cuda',

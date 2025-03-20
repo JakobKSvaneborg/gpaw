@@ -8,6 +8,8 @@ from gpaw.new import trace
 
 import numpy as np
 
+from gpaw.cgpaw import have_magma
+
 cupy_is_fake = True
 """True if :mod:`cupy` has been replaced by ``gpaw.gpu.cpupy``"""
 
@@ -148,14 +150,27 @@ def einsum(subscripts, *operands, out):
 def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     """Wrapper for ``eigh()``.
 
-    HIP-GPU version is too slow for now so we do it on the CPU.
+    Usually CUDA > MAGMA > HIP, so we try to choose the best one.
+    HIP native solver is questionably slow so for now do it on the CPU if
+    MAGMA is not available.
     """
     from scipy.linalg import eigh
     if not is_hip:
         return cupy.linalg.eigh(a, UPLO=UPLO)
-    eigs, evals = eigh(cupy.asnumpy(a),
-                       lower=(UPLO == 'L'),
-                       check_finite=False)
+
+    elif have_magma and a.ndim == 2 and a.shape[0] > 128:
+        # import here to avoid circular import.
+        # magma needs cupy (possibly fake),
+        # which must be imported from this file
+        from gpaw.new.magma import eigh_magma_gpu
+
+        return eigh_magma_gpu(a, UPLO)
+
+    else:
+        # fallback to CPU
+        eigs, evals = eigh(cupy.asnumpy(a),
+                           lower=(UPLO == 'L'),
+                           check_finite=False)
 
     return cupy.asarray(eigs), cupy.asarray(evals)
 

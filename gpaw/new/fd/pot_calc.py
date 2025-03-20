@@ -22,7 +22,6 @@ class FDPotentialCalculator(PotentialCalculator):
                  xp=np):
         self.fine_grid = fine_grid
         self.grid = wf_grid
-        self.environment = environment
 
         self.vbar_ar = setups.create_local_potentials(fine_grid, relpos_ac,
                                                       atomdist, xp=xp)
@@ -42,7 +41,8 @@ class FDPotentialCalculator(PotentialCalculator):
         self.xp = xp
 
         super().__init__(xc, poisson_solver, setups,
-                         relpos_ac=relpos_ac)
+                         relpos_ac=relpos_ac,
+                         environment=environment)
 
     def __str__(self):
         txt = super().__str__()
@@ -94,8 +94,6 @@ class FDPotentialCalculator(PotentialCalculator):
         nt_r = charge_r.copy()
         e_zero = self.vbar_r.integrate(nt_r)
 
-        self.environment.update1(charge_r)
-
         ccc_aL = density.calculate_compensation_charge_coefficients()
 
         # Normalize: (LCAO basis functions may extend outside box)
@@ -103,7 +101,11 @@ class FDPotentialCalculator(PotentialCalculator):
                                           for ccc_L in ccc_aL.values())
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         pseudo_charge = charge_r.integrate()
-        charge_r.data *= -(comp_charge + density.charge) / pseudo_charge
+        if abs(pseudo_charge) > 1e-10:
+            pc = -comp_charge - density.charge + self.environment.charge
+            charge_r.data *= pc / pseudo_charge
+
+        self.environment.update1(charge_r)
 
         self.ghat_aLr.add_to(charge_r, ccc_aL)
 
