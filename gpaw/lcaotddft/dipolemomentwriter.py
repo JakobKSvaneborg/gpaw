@@ -164,7 +164,9 @@ class DipoleMomentWriter(TDDFTObserver):
         self.ioctx.close()
 
 
-class VelocityGaugeWriter(TDDFTObserver):  # ToDo: let inherit
+# TODO: Create a common base class for VelocityGaugeWriter
+# and DipoleMomentWriter.
+class VelocityGaugeWriter(TDDFTObserver):
     """Observer for writing time-dependent velocity-kick density
        for test purposes.
 

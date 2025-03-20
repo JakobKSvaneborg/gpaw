@@ -479,7 +479,7 @@ def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
     rot_w *= rot_au_to_cgs * 1e40 / au_to_eV
 
     # Unique non-zero time steps
-    time_steps = np.unique(np.concatenate(time_steps).ravel())
+    time_steps = np.unique(time_steps)
     time_steps = time_steps[time_steps != 0]
 
     with open(spectrum_file, 'w') as fd:

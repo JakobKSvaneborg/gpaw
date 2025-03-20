@@ -63,9 +63,6 @@ def initialize_system():
         td_calc.write('td' + add + '.gpw', mode='all')
         td_calc.propagate(100, 2)
 
-# def test_init(initialize_system):
-#    pass
-
 
 def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
                                         in_tmp_dir):
