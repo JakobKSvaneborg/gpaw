@@ -109,7 +109,8 @@ class BasisMaker:
         if save_setup:
             setup.write_xml()
 
-        return cls.from_setup_and_generator(setup, generator, **kwargs)
+        return cls.from_setup_and_generator(setup, generator, name=name,
+                                            **kwargs)
 
     def smoothify(self, psi_mg, j):
         r"""Generate pseudo wave functions from all-electron ones.
