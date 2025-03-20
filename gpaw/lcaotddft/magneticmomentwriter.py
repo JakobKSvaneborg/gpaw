@@ -391,8 +391,7 @@ class MagneticMomentWriter(TDDFTObserver):
             M_vmM = calculate_magnetic_moment_matrix(
                 paw.wfs.kpt_u, paw.wfs.basis_functions,
                 paw.wfs.atomic_correction, r_vG, dM_vaii,
-                only_pseudo=only_pseudo, R_av=R_av, setups=paw.wfs.setups,
-                vt_sG=paw.hamiltonian.vt_sG)
+                only_pseudo=only_pseudo)
 
             # TODO: All observers recalculate density matrix
             # unless dmat is given.
