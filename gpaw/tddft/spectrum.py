@@ -7,6 +7,7 @@ from gpaw.tddft.units import au_to_as, au_to_fs, au_to_eV, rot_au_to_cgs
 from gpaw.tddft.folding import FoldedFrequencies
 from gpaw.tddft.folding import Folding
 
+
 def calculate_fourier_transform(x_t, y_ti, foldedfrequencies, velocity=False):
     ff = foldedfrequencies
     X_w = ff.frequencies
@@ -362,7 +363,7 @@ def photoabsorption_spectrum(dipole_moment_file: str,
     if world.rank == 0:
         print('Calculating photoabsorption spectrum from file "%s"'
               % dipole_moment_file)
-        
+
         def calculate(*args):
             return (calculate_photoabsorption(*args, velocity=velocity)
                     / au_to_eV)
