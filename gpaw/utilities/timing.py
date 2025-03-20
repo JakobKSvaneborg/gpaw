@@ -75,8 +75,8 @@ class DebugTimer(Timer):
 
 
 class GPUEvent:
-    def __init__(self, names, kernel=False):
-        self.names = names
+    def __init__(self, name, kernel=False):
+        self.name = name
         self.kernel = kernel
         import cupy
         default = dict(block=False,
