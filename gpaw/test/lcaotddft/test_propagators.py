@@ -132,4 +132,3 @@ def test_velocity(gpw_files, in_tmp_dir):
     data_i = np.loadtxt('spec.dat')
     assert pytest.approx(-7.68e-7, 1e-5, 1e-9) == data_i[1, 3]
     assert pytest.approx(-3.07e-6, 1e-5, 1e-8) == data_i[2, 3]
-
