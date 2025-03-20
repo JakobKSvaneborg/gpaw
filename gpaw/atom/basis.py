@@ -9,7 +9,7 @@ from gpaw.utilities import devnull
 from gpaw import __version__ as version
 from gpaw.utilities import divrl
 from gpaw.atom.generator import Generator
-from gpaw.atom.all_electron import AllElectron
+from gpaw.atom.all_electron import AllElectron, ValenceData
 from gpaw.atom.configurations import parameters
 from gpaw.basis_data import Basis, BasisFunction, get_basis_name
 from gpaw.atom.radialgd import (AERadialGridDescriptor,
@@ -60,43 +60,16 @@ def rsplit_by_norm(rgd, l, u, tailnorm_squared, txt):
     return rsplit, partial_norm_squared, splitwave
 
 
-def initialize_generator(
-        generator, xc, gtxt, run, non_relativistic_guess=False,
-        *, name, save_setup=False):
-    if isinstance(generator, str):  # treat 'generator' as symbol
-        generator = Generator(generator, scalarrel=True,
-                              xcname=xc, txt=gtxt,
-                              nofiles=True,
-                              gpernode=Generator.default_gpernode * 4)
-
-    if run:
-        setup = generator.run(write_xml=False,
-                              name=name,
-                              **parameters[generator.symbol])
-
-        if save_setup:
-            setup.write_xml()
-    else:
-        if save_setup:
-            raise ValueError('cannot save setup here because setup '
-                             'was already generated before basis '
-                             'generation.')
-
-    return generator
-
-
 class BasisMaker:
     """Class for creating atomic basis functions."""
     def __init__(self, valence_data, name=None, run=True, gtxt='-',
                  non_relativistic_guess=False, xc='PBE',
                  save_setup=False):
 
-        if isinstance(valence_data, (str, Generator)):
-            valence_data = initialize_generator(
-                valence_data, xc=xc, gtxt=gtxt, run=run,
-                non_relativistic_guess=non_relativistic_guess,
-                name=name,
-                save_setup=save_setup).valence_data
+        if not isinstance(valence_data, ValenceData):
+            raise TypeError('BasisMaker no longer accepts Generator or str.  '
+                            'Please provide ValenceData or use one of the '
+                            'helper classmethods.')
 
         self.name = name
         self.valence_data = valence_data
@@ -109,7 +82,6 @@ class BasisMaker:
 
     @classmethod
     def from_setup_and_generator(cls, setup, generator, **kwargs):
-        from gpaw.atom.all_electron import ValenceData
         valdata = ValenceData.from_setupdata_and_potentials(
             setup, vr_g=generator.vr, r2dvdr_g=generator.r2dvdr,
             scalarrel=generator.scalarrel)
@@ -117,6 +89,7 @@ class BasisMaker:
 
     @classmethod
     def from_symbol(cls, symbol, gtxt='-', xc='PBE', name=None,
+                    save_setup=False,
                     generator_run_kwargs=None, **kwargs):
         generator = Generator(symbol, scalarrel=True,
                               xcname=xc, txt=gtxt,

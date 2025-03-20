@@ -75,28 +75,24 @@ to the basis generator in gpaw.atom.basis directly and choose very
 smart parameters."""
 
 
-def get_basismaker(valdata, opts):
-    from gpaw.atom.basis import BasisMaker
-    return BasisMaker(
-        valdata, name=opts.name, gtxt=None,
-        xc=opts.xcfunctional,
-        save_setup=opts.save_setup)
-
-
 def main():
+    from gpaw.atom.basis import BasisMaker
     from gpaw.basis_data import parse_basis_name
     from gpaw.atom.basisfromfile import read_setupdata
 
     def generate_basis_set(symbol_or_path: str):
+        kwargs = dict(
+            name=opts.name,
+            xc=opts.xcfunctional,
+            save_setup=opts.save_setup)
+
         if '.' in symbol_or_path:  # symbol is actually a path
             from gpaw.atom.all_electron import ValenceData
             setupdata = read_setupdata(symbol_or_path)
             valdata = ValenceData.from_setupdata_onthefly_potentials(setupdata)
-            symbol = valdata.symbol
-            bm = get_basismaker(valdata, opts)
+            bm = BasisMaker(valdata, **kwargs)
         else:
-            symbol = symbol_or_path
-            bm = get_basismaker(symbol, opts)
+            bm = BasisMaker.from_symbol(symbol_or_path, **kwargs)
 
         tailnorm = [float(norm) for norm in opts.tailnorm.split(',')]
         vconf_args = None
