@@ -170,7 +170,7 @@ class BasisMaker:
         Qt_nm = np.linalg.solve(Pi_nn, Q_nm)
 
         # Weight-function for truncating all-electron parts smoothly near core
-        gmerge = valdata.r2g(valdata.rcut_j[j])
+        gmerge = valdata.rgd.floor(valdata.rcut_j[j])
         w_g = np.ones_like(r_g)
         w_g[0:gmerge] = (r_g[0:gmerge] / r_g[gmerge])**2.
         w_g = w_g[None]
@@ -215,8 +215,9 @@ class BasisMaker:
                     amplitude, ri_rel * rc, rc)
             psi_g, e = valdata.solve_confined(j, rc, vconf)
             de = e - e_base
-            if valdata.r2g(rmax) - valdata.r2g(rmin) <= 1:  # adjacent points
-                break  # cannot meet tolerance due to grid resolution
+            if valdata.rgd.floor(rmax) - valdata.rgd.floor(rmin) <= 1:
+                # Adjacent points, cannot meet tolerance due to grid resolution
+                break
 
         return psi_g, e, de, vconf, rc
 

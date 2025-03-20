@@ -582,9 +582,6 @@ class AllElectron(IOContext):
         kr[0] = 0.0
         return kr
 
-    def r2g(self, r):
-        return self.valence_data.r2g(r)
-
     def get_confinement_potential(self, alpha, ri, rc):
         return self.valence_data.get_confinement_potential(alpha, ri, rc)
 
@@ -886,10 +883,6 @@ class ValenceData:
     def N(self):
         return len(self.rgd.r_g)
 
-    def r2g(self, r):
-        """Convert radius to index of the radial grid."""
-        return int(r * self.N / (self.rgd.beta + r))
-
     @cached_property
     def d2gdr2_g(self):
         return self.rgd.d2gdr2()
@@ -961,8 +954,8 @@ class ValenceData:
                   rc - r         \    r - ri /
 
         """
-        i_ri = self.r2g(ri)
-        i_rc = self.r2g(rc)
+        i_ri = self.rgd.floor(ri)
+        i_rc = self.rgd.floor(rc)
         if self.rgd.r_g[i_rc] == rc:
             # Avoid division by zero in the odd case that rc coincides
             # exactly with a grid point (which actually happens sometimes)
