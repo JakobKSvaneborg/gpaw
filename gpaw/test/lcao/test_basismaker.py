@@ -5,12 +5,19 @@ from gpaw.atom.basis import BasisMaker
 from gpaw.atom.configurations import parameters
 from gpaw.atom.generator import Generator
 
-def test_basismaker_onthefly_potentials():
-    """Test that generated basis functions are equal whether using on-the-fly potentials or not.
 
-    We expect them to be the same except for a mixing step which the generator performs,
-    which will affect historic basis sets but will not be present in basis sets generated
-    directly from files/setupdata."""
+def test_basismaker_onthefly_potentials():
+    """Test on-the-fly potentials.
+
+    Specifically, test that generated basis functions are
+    approximately equal whether using on-the-fly potentials or not.
+
+    We expect them to be the same except for a mixing step which the
+    generator performs, which will affect historic basis sets but will
+    not be present in basis sets generated directly from
+    files/setupdata.
+
+    """
 
     sym = 'Ti'
     gen = Generator(sym, xcname='PBE')
