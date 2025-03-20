@@ -127,3 +127,9 @@ def test_velocity(gpw_files, in_tmp_dir):
              3.104240038438e-06,
              3.400220392727e-06]
     assert data_i == pytest.approx(ref_i, abs=1e-10)
+    from gpaw.tddft.spectrum import photoabsorption_spectrum
+    photoabsorption_spectrum('dm_velocityGauge.dat', 'spec.dat')
+    data_i = np.loadtxt('spec.dat')
+    assert pytest.approx(-7.68e-7, 1e-5, 1e-9) == data_i[1, 3]
+    assert pytest.approx(-3.07e-6, 1e-5, 1e-8) == data_i[2, 3]
+

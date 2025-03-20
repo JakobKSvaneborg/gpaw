@@ -113,15 +113,16 @@ def read_td_file_kicks(fname):
             time = 0.0
         else:
             time = float(m.group('time'))
-        return kick_v, time
+        velocity = 'velocity' in line
+        return kick_v, time, velocity
 
     # Search kicks
     kick_i = []
     with open(fname) as f:
         for line in f:
             if line.startswith('# Kick'):
-                kick_v, time = parse_kick_line(line)
-                kick_i.append({'strength_v': kick_v, 'time': time})
+                kick_v, time, velocity = parse_kick_line(line)
+                kick_i.append({'strength_v': kick_v, 'time': time, 'velocity': velocity})
     return kick_i
 
 
@@ -158,6 +159,7 @@ def clean_td_data(kick_i, time_t, data_ti):
         raise RuntimeError('Multiple kicks')
     kick = kick_i[0]
     kick_v = kick['strength_v']
+    velocity = kick['velocity']
     kick_time = kick['time']
 
     # Discard times before kick
@@ -169,7 +171,7 @@ def clean_td_data(kick_i, time_t, data_ti):
     time_t -= kick_time
     assert time_t[0] == 0.0
 
-    return kick_v, time_t, data_ti
+    return kick_v, velocity, time_t, data_ti
 
 
 def read_dipole_moment_file(fname, remove_duplicates=True):
@@ -275,14 +277,14 @@ def write_spectrum(dipole_moment_file, spectrum_file,
         return '[%s]' % ', '.join(map(lambda v: fmt % v, v_i))
 
     kick_i, time_t, _, dm_tv = read_dipole_moment_file(dipole_moment_file)
-    kick_v, time_t, dm_tv = clean_td_data(kick_i, time_t, dm_tv)
+    kick_v, velocity, time_t, dm_tv = clean_td_data(kick_i, time_t, dm_tv)
     dt_t = time_t[1:] - time_t[:-1]
 
     freqs = np.arange(e_min, e_max + 0.5 * delta_e, delta_e)
     folding = Folding(folding, width)
     ff = FoldedFrequencies(freqs, folding)
     omega_w = ff.frequencies
-    spec_wv = calculate(kick_v, time_t, dm_tv, ff)
+    spec_wv = calculate(kick_v, time_t, dm_tv, ff, velocity=velocity)
 
     # Write spectrum file header
     with open(spectrum_file, 'w') as f:
@@ -329,8 +331,7 @@ def photoabsorption_spectrum(dipole_moment_file: str,
                              width: float = 0.2123,
                              e_min: float = 0.0,
                              e_max: float = 30.0,
-                             delta_e: float = 0.05,
-                             velocity: bool = False):
+                             delta_e: float = 0.05):
     """Calculates photoabsorption spectrum from the time-dependent
     dipole moment.
 
@@ -357,15 +358,13 @@ def photoabsorption_spectrum(dipole_moment_file: str,
         Maximum energy shown in the spectrum (eV)
     delta_e
         Energy resolution (eV)
-    velocity
-        Kick in velocity gauge instead of length gauge (default) if True
     """
     if world.rank == 0:
         print('Calculating photoabsorption spectrum from file "%s"'
               % dipole_moment_file)
 
-        def calculate(*args):
-            return (calculate_photoabsorption(*args, velocity=velocity)
+        def calculate(*args, **kwargs):
+            return (calculate_photoabsorption(*args, **kwargs)
                     / au_to_eV)
         sinc = write_spectrum(dipole_moment_file, spectrum_file,
                               folding, width, e_min, e_max, delta_e,
@@ -405,8 +404,8 @@ def polarizability_spectrum(dipole_moment_file, spectrum_file,
         print('Calculating polarizability spectrum from file "%s"'
               % dipole_moment_file)
 
-        def calculate(*args):
-            return calculate_polarizability(*args) / au_to_eV**2
+        def calculate(*args, **kwargs):
+            return calculate_polarizability(*args, **kwargs) / au_to_eV**2
         sinc = write_spectrum(dipole_moment_file, spectrum_file,
                               folding, width, e_min, e_max, delta_e,
                               'Polarizability', 'alpha', calculate)
