@@ -16,6 +16,9 @@ class Environment:
         solver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(solver)
 
+    def check_convergence(self):
+        return True
+
     def update1(self, nt_r):
         pass
 
@@ -51,5 +54,5 @@ class Jellium(Environment):
         if self.fixed_fermi_level is None:
             return True
 
-    def post_scf_convergence(self, ...):
+    def post_scf_convergence(self):
         ...
