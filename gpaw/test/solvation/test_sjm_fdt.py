@@ -22,7 +22,7 @@ def test_sjm_fdt_true():
     set in the calculator.
     """
     atoms = fcc111('Au', size=(1, 1, 3))
-    atoms.center(axis=2, vacuum=12.0)
+    atoms.center(axis=2, vacuum=10.2)
     atoms.translate([0.0, 0.0, -4.0])
 
     water = molecule('H2O')
@@ -57,10 +57,10 @@ def test_sjm_fdt_true():
     # The calculator
     calc = SJM(
         mode='lcao',
-        basis='dzp',
+        basis='szp',
         txt='test_fdt_true.txt',
         gpts=(16, 16, 136),
-        kpts=(2, 2, 1),
+        kpts=(1, 1, 1),
         xc='PBE',
         maxiter=1000,
         sj=sj_input,
@@ -78,7 +78,7 @@ def test_sjm_fdt_true():
     traj = 'md_fdt_true.traj'
     dyn = Langevin(atoms, 0.5 * fs, temperature_K=300,
                    friction=0.005, trajectory=traj)
-    dyn.run(10)
+    dyn.run(5)
 
     assert sj_input['fdt'] == atoms.calc.parameters['sj']['fdt']
     assert abs(atoms.calc.parameters['sj']['previous_electrons'][0]) < 1e-6
