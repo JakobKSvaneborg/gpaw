@@ -188,11 +188,8 @@ def generate_nao_ngto_basis(atom, *, xc, nao, name,
     generator = initialize_generator(atom, name=name, run=False,
                                      gtxt=None, xc=xc)
     setup = generator.run(write_xml=False, **p[atom])
-    valence_data = ValenceData.from_setupdata_and_potentials(
-        setup, vr_g=generator.vr, r2dvdr_g=generator.r2dvdr,
-        scalarrel=generator.scalarrel)
-
-    bm = BasisMaker(valence_data, name=name, run=False, gtxt=None, xc=xc)
+    bm = BasisMaker.from_setup_and_generator(
+        setup, generator, name=name, xc=xc)
     basis = bm.generate(zetacount, polarizationcount, txt=None)
 
     # Increase basis function max radius

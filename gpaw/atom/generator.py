@@ -976,10 +976,11 @@ if __name__ == '__main__':
             filename = symbol + '.' + xcname
             if os.path.isfile(filename) or os.path.isfile(filename + '.gz'):
                 continue
-            g = Generator(symbol, xcname, scalarrel=True, nofiles=True)
-            g.run(exx=True, logderiv=False, **par)
+            generator = Generator(symbol, xcname, scalarrel=True, nofiles=True)
+            setup = generator.run(exx=True, logderiv=False, **par)
 
             if xcname == 'PBE':
-                bm = BasisMaker(g, name='dzp', run=False)
+                bm = BasisMaker.from_setup_and_generator(
+                    setup, generator, name='dzp', run=False)
                 basis = bm.generate()
                 basis.write_xml()

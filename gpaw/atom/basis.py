@@ -107,6 +107,14 @@ class BasisMaker:
                                      default_spline_points=100)
         self.rgd = rgd
 
+    @classmethod
+    def from_setup_and_generator(cls, setup, generator, **kwargs):
+        from gpaw.atom.all_electron import ValenceData
+        valdata = ValenceData.from_setupdata_and_potentials(
+            setup, vr_g=generator.vr, r2dvdr_g=generator.r2dvdr,
+            scalarrel=generator.scalarrel)
+        return cls(valdata, **kwargs)
+
     def smoothify(self, psi_mg, j):
         r"""Generate pseudo wave functions from all-electron ones.
 
