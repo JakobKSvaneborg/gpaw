@@ -36,7 +36,7 @@ else:
         import cupy
         from cupy import cublas
 
-        gpu_gemm = trace(kernel=True)(cublas.gemm)  # noqa: F811
+        gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811
 
         import cupyx
         from cupy.cuda import runtime
@@ -146,7 +146,7 @@ def einsum(subscripts, *operands, out):
         out[:] = cupy.einsum(subscripts, *operands)
 
 
-@trace(kernel=True)
+@trace(gpu=True)
 def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     """Wrapper for ``eigh()``.
 

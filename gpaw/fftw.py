@@ -232,7 +232,7 @@ class CuPyFFTPlans(FFTPlans):
         super().__init__(size_c, dtype, empty=cp.empty)
         self.Q_G_cache: dict[PWDesc, Array1D] = {}
 
-    @trace(kernel=True)
+    @trace(gpu=True)
     def fft(self):
         from gpaw.gpu import cupyx
         if self.tmp_R.dtype == float:
@@ -243,7 +243,7 @@ class CuPyFFTPlans(FFTPlans):
         else:
             self.tmp_Q[:] = cupyx.scipy.fft.fftn(self.tmp_R)
 
-    @trace(kernel=True)
+    @trace(gpu=True)
     def ifft(self):
         from gpaw.gpu import cupyx
         if self.tmp_R.dtype == float:

@@ -75,9 +75,8 @@ class DebugTimer(Timer):
 
 
 class GPUEvent:
-    def __init__(self, name, kernel=False):
+    def __init__(self, name):
         self.name = name
-        self.kernel = kernel
         import cupy
         default = dict(block=False,
                        disable_timing=False,
@@ -96,7 +95,7 @@ class GPUEvent:
 
 
 class GPUTimerBase:
-    trace_kernel = True
+    trace_gpu = True
 
     def __init__(self):
         self.event_queue = []
@@ -104,8 +103,8 @@ class GPUTimerBase:
         from collections import defaultdict
         self.gpu_timers = defaultdict(float)
 
-    def gpu_start(self, key, kernel=True):
-        self.event_stack.append(GPUEvent(key, kernel=kernel))
+    def gpu_start(self, key):
+        self.event_stack.append(GPUEvent(key))
 
     def gpu_stop(self):
         gpu_event = self.event_stack.pop()
@@ -277,18 +276,17 @@ class GPUProfiler(Profiler, GPUTimerBase):
         event.record()
         self.ref_event = event
 
-    def start(self, name, kernel=False):
+    def start(self, name, gpu=False):
         Profiler.start(self, name)
-        if kernel:
+        if gpu:
             GPUTimerBase.gpu_start(self, name)
 
-    def stop(self, name=None):
+    def stop(self, name=None, gpu=False):
         Profiler.stop(self, name)
-        GPUTimerBase.gpu_stop(self)
+        if gpu:
+            GPUTimerBase.gpu_stop(self)
 
     def handle_event_hook(self, event):
-        if not event.kernel:
-            return
         import cupy
 
         def get_time(e):

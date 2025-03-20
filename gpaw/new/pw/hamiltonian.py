@@ -129,16 +129,13 @@ def precondition(psit_nG: PWArray,
                            residual_nG.data)
 
 
-@trace(kernel=True)
+@trace(gpu=True)
 @cp.fuse()
 def _gpu_prec(ekin, G2, residual):
     x = 1 / ekin / 3 * G2
     a = 27.0 + x * (18.0 + x * (12.0 + x * 8.0))
     xx = x * x
     return -4.0 / 3 / ekin * a / (a + 16.0 * xx * xx) * residual
-
-
-#gpu_prec: Callable = trace(kernel=True)(_gpu_prec)
 
 
 def spinor_precondition(psit_nsG, residual_nsG, out):
@@ -207,7 +204,7 @@ def apply_local_potential_gpu(vt_R,
     e_kin_G = cp.asarray(pw.ekin_G)
     mynbands = psit_nG.mydims[0]
     size_c = vt_R.desc.size_c
-    w = trace(kernel=True)
+    w = trace(gpu=True)
     if np.issubdtype(pw.dtype, np.floating):
         shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
         ifftn = w(cupyx.scipy.fft.irfftn)

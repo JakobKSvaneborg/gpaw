@@ -28,13 +28,17 @@ class GlobalTimer:
 
     def start(self, name, **kwargs):
         timer = self._timers[-1]
-        if getattr(timer, 'trace_kernel', False):
+        if getattr(timer, 'trace_gpu', False):
             timer.start(name, **kwargs)
         else:
             timer.start(name)
 
-    def stop(self, name=None):
-        self._timers[-1].stop(name=name)
+    def stop(self, name=None, **kwargs):
+        timer = self._timers[-1]
+        if getattr(timer, 'trace_gpu', False):
+            timer.stop(name, **kwargs)
+        else:
+            timer.stop(name)
 
     def tostring(self):
         buf = StringIO()
@@ -71,7 +75,7 @@ def _trace(meth: Optional[F] = None,
             try:
                 return method(*args, **kwargs)
             finally:
-                global_timer.stop()
+                global_timer.stop(**timer_params)
 
         return wrapper
 

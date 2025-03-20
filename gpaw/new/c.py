@@ -165,7 +165,7 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
                                 pw_norm_kinetic_gpu, pw_norm_gpu)
 
         # This is somewhat useless to trace the kernels in CPU
-        w = trace(kernel=True)
+        w = trace(gpu=True)
         add_to_density_gpu = w(add_to_density_gpu)
         calculate_residuals_gpu = w(calculate_residuals_gpu)
         dH_aii_times_P_ani_gpu = w(dH_aii_times_P_ani_gpu)
