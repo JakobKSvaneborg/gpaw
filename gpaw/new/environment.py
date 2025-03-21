@@ -31,6 +31,9 @@ class Environment:
     def update1(self, nt_r):
         pass
 
+    def update1pw(self, nt_g):
+        pass
+
     def update2(self, nt_r, vHt_r, vt_sr):
         return 0.0
 
@@ -44,22 +47,24 @@ class Jellium(Environment):
                  natoms: int,
                  grid: UGDesc):
         super().__init__(natoms)
-        self.jellium = jellium
         self.grid = grid
         self.charge = jellium.charge
-        self.charge_g: PWArray | None = None
+        self.charge_x: UGArray | PWArray | None = grid.zeros()
+        jellium.add_charge_to(self.charge_x.data)
 
-    def update1(self, nt_x: UGArray | PWArray) -> None:
-        if isinstance(nt_x, UGArray):
-            self.jellium.add_charge_to(nt_x.data)
+    def update1(self, nt_r: UGArray) -> None:
+        nt_r.data += self.charge_x.data
+
+    def update1pw(self, nt_g: PWArray | None) -> None:
+        if isinstance(self.charge_x, UGArray):
+            charge_r = self.charge_x.gather()
+            if charge_r is not None:
+                self.charge_x = charge_r.fft(pw=nt_g.desc)
+            else:
+                self.charge_x = None
+        if nt_g is None:
             return
-        nt_g = nt_x
-        if self.charge_g is None:
-            charge_r = self.grid.zeros()
-            self.jellium.add_charge_to(charge_r.data)
-            self.charge_g = charge_r.fft(pw=nt_g.desc)
-        assert self.charge_g is not None
-        nt_g.data += self.charge_g.data
+        nt_g.data += self.charge_x.data
 
 
 class FixedPotentialJellium(Jellium):
@@ -76,7 +81,7 @@ class FixedPotentialJellium(Jellium):
                           ibzwfs: IBZWaveFunctions,
                           log) -> bool:
         fl = ibzwfs.fermi_level
-        log(f'charge={self.charge:.6f} |e|, Fermi-level={fl * Ha:.3f} eV')
+        log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl * Ha:.3f} eV')
         tol = 0.001 / Ha
         return abs(fl - self.fixed_fermi_level) <= tol
 
@@ -95,8 +100,10 @@ class FixedPotentialJellium(Jellium):
             dc = c - c1
             if abs(dc) > abs(c0 - c1):
                 dc *= abs((c0 - c1) / dc)
-        self.charge += dc
-        self.charge_g = None
+        new_charge = self.charge + dc
+        if self.charge_x is not None:
+            self.charge_x.data *= new_charge / self.charge
+        self.charge = new_charge
         ibzwfs.nelectrons += dc
         ibzwfs.calculate_occs(occ_calc)
         mixer.reset()

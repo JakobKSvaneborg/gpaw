@@ -109,7 +109,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         else:
             vt0_g = None
 
-        self.environment.update1(nt0_g)
+        self.environment.update1pw(nt0_g)
 
         Q_aL = density.calculate_compensation_charge_coefficients()
 
