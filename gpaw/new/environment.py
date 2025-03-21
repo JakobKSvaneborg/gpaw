@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.poisson import PoissonSolver as make_poisson_solver
