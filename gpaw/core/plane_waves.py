@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
 
 
-class PWDesc(Domain):
+class PWDesc(Domain['PWArray']):
     itemsize = 16
 
     def __init__(self,
@@ -97,7 +97,7 @@ class PWDesc(Domain):
     def __repr__(self) -> str:
         m = self.myshape[0]
         n = self.shape[0]
-        return Domain.__repr__(self).replace(
+        return super().__repr__().replace(
             'Domain(',
             f'PWDesc(ecut={self.ecut} <coefs={m}/{n}>, ')
 

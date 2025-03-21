@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     import plotly.graph_objects as go
 
 
-class UGDesc(Domain):
+class UGDesc(Domain['UGArray']):
     def __init__(self,
                  *,
                  cell: ArrayLike1D | ArrayLike2D,  # bohr
@@ -256,7 +256,7 @@ class UGDesc(Domain):
                                    comm: MPIComm = serial_comm,
                                    dtype=None) -> UGDesc:
         """Create UGDesc from grid-spacing."""
-        domain = Domain(cell, pbc, kpt, comm, dtype)
+        domain: Domain = Domain(cell, pbc, kpt, comm, dtype)
         return domain.uniform_grid_with_grid_spacing(grid_spacing)
 
     def fft_plans(self,
