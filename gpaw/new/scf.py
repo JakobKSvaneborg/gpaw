@@ -108,11 +108,11 @@ class SCFLoop:
                 write_iteration(cc, converged_items, entries, ctx, log)
 
             if converged:
-                converged = pot_calc.environment.check_convergence()
+                converged = pot_calc.environment.check_convergence(ibzwfs, log)
                 if converged:
                     break
-                pot_calc.environment.post_convergence(...)
-                continue
+                pot_calc.environment.post_scf_convergence(
+                    ibzwfs, self.occ_calc, self.mixer)
 
             if self.niter == maxiter:
                 if wfs_error < inf:
@@ -121,19 +121,9 @@ class SCFLoop:
 
             if self.update_density_and_potential:
                 density.update(ibzwfs, ked=pot_calc.xc.type == 'MGGA')
-                if pot_calc.environment.fixed_fermi_level is None:
-                    dens_error = self.mixer.mix(density)
-                    potential, energies, _ = pot_calc.calculate(
-                        density, ibzwfs, potential.vHt_x)
-                else:
-                    dens_error = 0.0
-                    xpotential, energies, _ = pot_calc.calculate(
-                        density, ibzwfs, potential.vHt_x)
-                    x = 0.001
-                    potential.vt_sR.data *= 1 - x
-                    potential.vt_sR.data += x * xpotential.vt_sR.data
-                    potential.dH_asii.data *= 1 - x
-                    potential.dH_asii.data += x * xpotential.dH_asii.data
+                dens_error = self.mixer.mix(density)
+                potential, energies, _ = pot_calc.calculate(
+                    density, ibzwfs, potential.vHt_x)
 
         self.eigensolver.postprocess(
             ibzwfs, density, potential, self.hamiltonian)
