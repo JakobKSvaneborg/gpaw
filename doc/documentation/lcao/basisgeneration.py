@@ -6,8 +6,7 @@ symbol = 'Au'
 args = parameters[symbol]  # Dictionary of default setup parameters
 args['rcut'] = 2.6  # Set cutoff of augmentation sphere
 
-generator = Generator(symbol, 'RPBE')
-generator.N *= 2  # Increase grid resolution
+generator = Generator(symbol, 'RPBE', gpernode=2 * Generator.default_gpernode)
 setup = generator.run(write_xml=False, **args)
 
 bm = BasisMaker.from_setup_and_generator(
