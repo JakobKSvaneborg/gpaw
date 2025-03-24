@@ -175,6 +175,7 @@ class ECNPropagator(LCAOPropagator):
 
     def __init__(self):
         super().__init__()
+        self.have_velocity_operator_matrix = False
 
     def initialize(self, paw, hamiltonian=None):
         super().initialize(paw)
