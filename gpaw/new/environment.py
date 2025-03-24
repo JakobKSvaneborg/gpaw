@@ -71,10 +71,10 @@ class FixedPotentialJellium(Jellium):
                  jellium,
                  natoms: int,
                  grid: UGDesc,
-                 fermi_level: float):
+                 workfunction: float):
         """Adjust jellium charge to get the desired Fermi-level."""
         super().__init__(jellium, natoms, grid)
-        self.fixed_fermi_level = fermi_level / Ha
+        self.workfunction = workfunction / Ha
         # Charge, Fermi-level history:
         self.history: list[tuple[float, float]] = []
 
@@ -83,21 +83,22 @@ class FixedPotentialJellium(Jellium):
                              occ_calc,
                              mixer,
                              log) -> bool:
-        fl = ibzwfs.fermi_level
-        log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl * Ha:.3f} eV')
+        fl1 = ibzwfs.fermi_level
+        log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl1 * Ha:.3f} eV')
         tol = 0.001 / Ha
-        if abs(fl - self.fixed_fermi_level) <= tol:
+        fl = -self.workfunction
+        if abs(fl1 - fl) <= tol:
             return True
-        self.history.append((self.charge, fl))
+        self.history.append((self.charge, fl1))
         if len(self.history) == 1:
             area = abs(np.linalg.det(self.grid.cell_cv[:2, :2]))
-            dc = -(fl - self.fixed_fermi_level) * area * 0.02
+            dc = -(fl1 - fl) * area * 0.02
         else:
-            (c0, fl0), (c1, fl1) = self.history[-2:]
-            c = c0 + (self.fixed_fermi_level - fl0) / (fl1 - fl0) * (c1 - c0)
+            (c2, fl2), (c1, fl1) = self.history[-2:]
+            c = c2 + (fl - fl2) / (fl1 - fl2) * (c1 - c2)
             dc = c - c1
-            if abs(dc) > abs(c0 - c1):
-                dc *= abs((c0 - c1) / dc)
+            if abs(dc) > abs(c2 - c1):
+                dc *= abs((c2 - c1) / dc)
         new_charge = self.charge + dc
         if self.charge_x is not None:
             self.charge_x.data *= new_charge / self.charge

@@ -307,7 +307,8 @@ class DFTCalculation:
             except NonsenseError:
                 pass
             else:
-                self.log(f'Workfunctions: {wf1:.3f}, {wf2:.3f}  # eV')
+                self.log(
+                    f'Workfunctions: {wf1:.3f}, {wf2:.3f} eV (top, bottom)')
         self.log.fd.flush()
 
     def workfunctions(self,
