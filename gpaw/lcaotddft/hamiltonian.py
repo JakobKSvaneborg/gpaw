@@ -264,7 +264,7 @@ class TimeDependentHamiltonian:
             H_MM += self.td_potential.get_MM(u, time)
         self.timer.stop('Calculate H_MM')
         if hasattr(kpt, 'A_MM'):
-            return H_MM + kpt.A_MM #getattr(kpt, 'A_MM')
+            return H_MM + kpt.A_MM
         else:
             return H_MM
 
