@@ -13,6 +13,7 @@ from gpaw.convergence_criteria import (Criterion, check_convergence,
                                        dict2criterion)
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.logger import indent
+from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
 
@@ -50,7 +51,7 @@ class SCFLoop:
                 f'occupation numbers:\n{indent(self.occ_calc)}\n')
 
     def iterate(self,
-                ibzwfs,
+                ibzwfs: IBZWaveFunctions,
                 density,
                 potential,
                 energies: DFTEnergies,
@@ -106,8 +107,13 @@ class SCFLoop:
 
             if log:
                 write_iteration(cc, converged_items, entries, ctx, log)
+
             if converged:
-                break
+                converged = pot_calc.environment.post_scf_convergence(
+                    ibzwfs, self.occ_calc, self.mixer, log)
+                if converged:
+                    break
+
             if self.niter == maxiter:
                 if wfs_error < inf:
                     raise KohnShamConvergenceError

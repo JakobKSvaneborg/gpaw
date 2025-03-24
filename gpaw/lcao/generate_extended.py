@@ -68,7 +68,6 @@ def main():
             s = SetupData(sym, opts.xc)
         except RuntimeError as e:
             if str(e).startswith('Could not find'):
-                # print 'No %s' % sym
                 continue
             else:
                 raise
@@ -85,10 +84,9 @@ def main():
                     jextra.append(j)
         if len(jextra) > 0:
             specifications.append(BasisSpecification(s, jvalues, jextra))
-            # print sym, jvalues
+
         # XXX check whether automatic settings coincide with those of official
         # setups distribution
-        # bm = BasisMaker(sym, ''
 
     if world.rank == 0:
         print('Generating basis sets for: %s'
@@ -118,9 +116,9 @@ def main():
             raise ValueError('Strange setup specification')
 
         # This generates only dz setups
-        bm = BasisMaker(sym, '%s' % (name),
-                        run=False, gtxt=gtxt, xc=opts.xc)
-        bm.generator.run(write_xml=False, **p[sym])
+        bm = BasisMaker.from_symbol(
+            sym, name=name, gtxt=gtxt, xc=opts.xc,
+            generator_run_kwargs=dict(write_xml=False, **p[sym]))
         basis = bm.generate(2, 0, txt=None, jvalues=spec.jvalues)
         basis.write_xml()
 

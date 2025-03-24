@@ -2,6 +2,9 @@
 The solvated jellium method is contained in this module.
 This enables electronically grand-canonical calculations to be calculated,
 typically for simulating electrochemical interfaces.
+
+This version the the solvated jellium method has been modified
+and includes the Fluctuation Dissipation Theorem.
 """
 
 import os
@@ -11,10 +14,10 @@ import textwrap
 import numpy as np
 from scipy.stats import linregress
 import ase.io
-from ase.units import Bohr, Ha
+from ase.units import Bohr, Ha, kB, _e
 from ase.calculators.calculator import (Parameters, equal, InputError,
                                         PropertyNotPresent)
-from ase.parallel import paropen
+from ase.parallel import paropen, world
 
 import gpaw.mpi
 from gpaw import ConvergenceError
@@ -169,6 +172,23 @@ class SJM(SolvationGPAW):
         new slope is established. E.g., new_slope = mixer * old_slope +
         (1. - mixer) * current_slope_estimate. Set to 0 for no damping.
         Default: 0.5.
+    fdt : bool or dict
+        Keyboard for switching on/off the computation of the charge using
+        the fluctuation dissipation theorem
+        Default: False.
+        If set to True, use standard parameters for the FDT calculation.
+        If dict, the following keys are implemented:
+
+        'dt': float
+            Time step for the FDT calculation in fs. Default: 0.5.
+        'po_time': float
+            Relaxation-time constant of potentiostat. Default: 100.
+        'th_temp': float
+            Thermal temperature for the FDT calculation in K. Default: 300.
+
+    slope_regression_depth : int
+        Number of previous attempts to use for the slope regression.
+        Default: 4.
     pot_ref: 'wf' or 'CIP'
         potential reference scale
         wf: original SJM using workfunction for the absolute potential
@@ -220,6 +240,9 @@ class SJM(SolvationGPAW):
          'max_step': 2.,
          'slope': None,
          'mixer': 0.5,
+         'fdt': False,
+         'previous_electrons': [],
+         'previous_potentials': [],
          'slope_regression_depth': 4,
          'cip': {'autoinner': {'nlayers': None,
                                'threshold': 0.0001},
@@ -248,6 +271,7 @@ class SJM(SolvationGPAW):
 
         # Note the below line calls self.set().
         SolvationGPAW.__init__(self, restart, **kwargs)
+        self.world = world
 
     def set(self, **kwargs):
         """Change parameters for calculator.
@@ -317,7 +341,7 @@ class SJM(SolvationGPAW):
                            'eigensolver', 'convergence', 'fixdensity',
                            'maxiter', '_set_ok']:
                 parent_changed = True
-
+        self.world = world
         if len(sj_changes):
             if self.wfs is None:
                 self.log('Non-default Solvated Jellium parameters:')
@@ -337,6 +361,7 @@ class SJM(SolvationGPAW):
                 pass
             else:
                 if self.atoms and p.slope:
+
                     p.excess_electrons += ((p.target_potential -
                                             true_potential) / p.slope)
                     self.log('Number of electrons changed to {:.4f} based '
@@ -344,7 +369,8 @@ class SJM(SolvationGPAW):
                              .format(p.excess_electrons, p.slope))
 
         if (any(key in ['target_potential', 'excess_electrons',
-            'jelliumregion'] for key in sj_changes) and not parent_changed):
+            'jelliumregion'] for key in sj_changes) and
+                not parent_changed):
             self.results = {}
             # SolvationGPAW will not reinitialize anymore if only
             # 'sj' keywords are set. The lines below will reinitialize and
@@ -396,6 +422,28 @@ class SJM(SolvationGPAW):
                 self.wfs.nvalence = self.setups.nvalence + p.excess_electrons
                 self.log('Number of valence electrons is now {:.5f}'
                          .format(self.wfs.nvalence))
+
+        if self.parameters['sj']['fdt'] is True:
+            # Default parameters if fdt is True
+            self.parameters['sj']['fdt'] = {
+                'dt': 0.5,
+                'po_time': 100.0,
+                'th_temp': 300.0
+            }
+        elif isinstance(self.parameters['sj']['fdt'], dict):
+            # If fdt is a dict, ensure the dictionary is complete
+            fdt_dict = self.parameters['sj']['fdt']
+            self.parameters['sj']['fdt'] = {
+                'dt': fdt_dict.get('dt', 0.5),
+                'po_time': fdt_dict.get('po_time', 100.0),
+                'th_temp': fdt_dict.get('th_temp', 300.0)
+            }
+        else:
+            # If fdt is False, just leave it as False or no FDT
+            self.parameters['sj']['fdt'] = {}
+
+    #  Call the parent __init__ method
+    # SolvationGPAW.__init__(self, restart, **kwargs)
 
     def _quick_reinitialization(self):
         """Minimal reinitialization of electronic-structure stuff when only
@@ -480,8 +528,6 @@ class SJM(SolvationGPAW):
         desired value."""
         p = self.parameters['sj']
         iteration = 0
-        previous_electrons = []
-        previous_potentials = []
 
         rerun = False
         while iteration <= p.max_iters:
@@ -517,22 +563,29 @@ class SJM(SolvationGPAW):
             # into the vacuum and the slope is unreliable.
             # The rerun can happen multiple times if needed and the stepsize
             # will be reduced by factor of 2 every time.
-            if len(previous_potentials):
+            # The rerun is disabled if the FDT is used.
 
-                stepsize = abs(true_potential - previous_potentials[-1])
+            if len(p.previous_potentials):
+
+                stepsize = abs(true_potential - p.previous_potentials[-1])
 
                 if (stepsize > p.max_step and
-                   abs(previous_potentials[-1] - p.target_potential) <
-                   abs(true_potential - p.target_potential)):
+                   abs(p.previous_potentials[-1] - p.target_potential) <
+                   abs(true_potential - p.target_potential)) and not p.fdt:
                     self.log('Step resulted in a potential change of '
                              f'{stepsize:.2f} V, larger than max_step '
                              f'({p.max_step:.2f} V) and\n surpassed the'
                              ' target potential by a dangerous amount.\n'
                              ' The step is rejected and the change in'
                              ' excess_electrons will be halved.')
-                    p.excess_electrons = (previous_electrons[-1] +
-                                          p.excess_electrons) / 2.
-                    rerun = True
+
+                    if p.fdt:
+                        rerun = False
+                    else:
+
+                        p.excess_electrons = (p.previous_electrons[-1] +
+                                              p.excess_electrons) / 2.
+                        rerun = True
                     continue  # back to while
 
             # Increase iteration count.
@@ -540,29 +593,35 @@ class SJM(SolvationGPAW):
             rerun = False
 
             # Store attempt and calculate slope.
-            previous_electrons.append(float(p.excess_electrons))
-            previous_potentials.append(float(true_potential))
-            if len(previous_electrons) > 1:
-                slope = _calculate_slope(previous_electrons,
-                                         previous_potentials,
+
+            p.previous_electrons.append(float(p.excess_electrons))
+            p.previous_potentials.append(float(true_potential))
+            # p.istep += 1
+            if len(p.previous_electrons) > 1:
+                slope = _calculate_slope(p.previous_electrons,
+                                         p.previous_potentials,
                                          p.slope_regression_depth)
-                nreg = len(previous_electrons[-p.slope_regression_depth:])
+
+                nreg = len(p.previous_electrons[-p.slope_regression_depth:])
                 self.log(f'Slope regressed from last {nreg:d} attempts is '
                          f'{slope:.4f} V/electron,')
-                area = np.prod(np.diag(atoms.cell[:2, :2]))
-                capacitance = -1.6022 * 1e3 / (area * slope)
+                area = np.linalg.det(atoms.cell[:2, :2])
+                # get capacitance in muF/cm^2
+                capacitance = - _e * 1e22 / (area * p.slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
                          'muF/cm^2')
+
                 if p.slope is not None:
                     p.slope = p.mixer * p.slope + (1. - p.mixer) * slope
                     self.log(f'After mixing with {p.mixer:.2f}, new slope is '
                              f'{p.slope:.4f} V/electron.')
                 else:
                     p.slope = slope
+
                 self.log.flush()
 
             # Check if we're equilibrated and exit if always_adjust is False.
-            if abs(true_potential - p.target_potential) < p.tol:
+            if abs(true_potential - p.target_potential) < p.tol and not p.fdt:
                 self.log('Potential is within tolerance. Equilibrated.')
                 if iteration >= 2:
                     self.timer.stop('Potential equilibration loop')
@@ -570,22 +629,59 @@ class SJM(SolvationGPAW):
                     return
 
             # Guess slope if we don't have enough information yet.
-            if p.slope is None:
-                area = np.prod(np.diag(atoms.cell[:2, :2]))
+            if p.slope is None or (p.slope > 0. and p.fdt):
+                area = np.linalg.det(atoms.cell[:2, :2])
                 p.slope = -1.6022e3 / (area * 10.)
-                self.log('No slope provided, guessing a slope of '
-                         f'{p.slope:.4f} corresponding\nto an apparent '
-                         'capacitance of 10 muF/cm^2.')
+                if p.fdt:
+                    self.log('Positive slope! Guessing a slope of '
+                             f'{p.slope:.4f} corresponding\nto an apparent '
+                             'capacitance of 10 muF/cm^2.')
+                else:
+                    self.log('No slope provided, guessing a slope of '
+                             f'{p.slope:.4f} corresponding\nto an apparent '
+                             'capacitance of 10 muF/cm^2.')
 
-            # Finally, update the number of electrons.
-            p.excess_electrons += ((p.target_potential - true_potential)
-                                   / p.slope)
-            self.log(f'Number of electrons changed to {p.excess_electrons:.4f}'
-                     f' based on slope of {p.slope:.4f} V/electron.')
+            if p.fdt:
+                fdt_dict = p['fdt']
+                dt = fdt_dict['dt']
+                po_time = fdt_dict['po_time']
+                th_temp = fdt_dict['th_temp']
+
+                rn = np.random.standard_normal(1)
+
+                self.world.broadcast(rn, 0)
+                # set capacitance again
+                area = np.linalg.det(atoms.cell[:2, :2])
+                if abs(p.slope) < 1e-10:
+                    raise ValueError(
+                        "Slope cannot be zero when calculating capacitance.")
+
+                capacitance = - _e * 1e22 / (area * p.slope)
+
+                p.excess_electrons += (
+                    capacitance * (true_potential - p.target_potential)
+                    * (1 - np.exp(-dt / po_time))
+                    + rn[0] * np.sqrt(
+                        kB * th_temp * capacitance
+                            * (1 - np.exp(-2 * dt / po_time))
+                    )
+                )
+                self.log(
+                    f'Number of electrons is {p.excess_electrons:.4f} '
+                    f'using the FDT, with slope of {p.slope:.4f} V/electron '
+                    f'and capacitance of ({capacitance:.4f} muF/cm2).'
+                )
+
+            else:
+                p.excess_electrons += ((p.target_potential - true_potential)
+                                       / p.slope)
+                self.log(
+                    f'Number of electrons changed to {p.excess_electrons:.4f}'
+                    f' based on slope of {p.slope:.4f} V/electron.')
 
             # Check if we're equilibrated and exit if always_adjust is True.
             if (abs(true_potential - p.target_potential) < p.tol
-                and p.always_adjust):
+                    and p.always_adjust) or p.fdt:
                 return
 
         msg = (f'Potential could not be reached after {iteration - 1:d} '
@@ -595,7 +691,7 @@ class SJM(SolvationGPAW):
                'excess_electrons and the potential are listed below; '
                'plotting them could give you insight into the problem.')
         msg = textwrap.fill(msg) + '\n'
-        for n, p in zip(previous_electrons, previous_potentials):
+        for n, p in zip(p.previous_electrons, p.previous_potentials):
             msg += f'{n:+.6f} {p:.6f}\n'
         self.log(msg, flush=True)
         raise PotentialConvergenceError(msg)
@@ -924,6 +1020,8 @@ def _write_property_on_grid(grid, property, atoms, name, dir):
 def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
     """Calculates the slope of potential versus number of electrons;
     regresses based on (up to) last four data points to smooth noise."""
+    # debug
+
     ans = linregress(previous_electrons[-n_prev_pot:],
                      previous_potentials[-n_prev_pot:])
     return ans[0]
@@ -967,10 +1065,12 @@ class SJMPower12Potential(Power12Potential):
     depends_on_atomic_positions = True
 
     def __init__(self, atomic_radii=None, u0=0.180, pbc_cutoff=1e-6,
-                 tiny=1e-10, H2O_layer=False, unsolv_backside=True):
+                 tiny=1e-10, H2O_layer=False,
+                 unsolv_backside=True, communicator=world):
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
         self.H2O_layer = H2O_layer
         self.unsolv_backside = unsolv_backside
+        self.communicator = communicator
 
     def __str__(self):
         s = Power12Potential.__str__(self)

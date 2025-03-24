@@ -10,6 +10,8 @@ Git master branch
 
 :git:`master <>`.
 
+* The fluctuation-dissipation theorem has been added to the SJM.
+
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
 * The constant inner potential DFT method has been included SJM.

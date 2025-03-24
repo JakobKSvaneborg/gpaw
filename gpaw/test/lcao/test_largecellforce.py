@@ -18,7 +18,8 @@ from gpaw.atom.basis import BasisMaker
 
 
 def test_lcao_largecellforce(gpaw_new):
-    hbasis = BasisMaker('H').generate(1, 0, energysplit=1.8, tailnorm=0.03**.5)
+    hbasis = BasisMaker.from_symbol('H').generate(1, 0, energysplit=1.8,
+                                                  tailnorm=0.03**.5)
     basis = {'H': hbasis}
 
     atom = Atoms('H')
