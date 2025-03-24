@@ -454,7 +454,7 @@ def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
     kick_strength = None
     for v, fpath in enumerate(magnetic_moment_files):
         kick_i, time_t, mm_tv = read_magnetic_moment_file(fpath)
-        kick_v, time_t, mm_tv = clean_td_data(kick_i, time_t, mm_tv)
+        kick_v, velocity, time_t, mm_tv = clean_td_data(kick_i, time_t, mm_tv)
 
         tot_time = min(tot_time, time_t[-1])
         time_steps.append(np.around(time_t[1:] - time_t[:-1], 6))
