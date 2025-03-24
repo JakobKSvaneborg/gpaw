@@ -181,17 +181,20 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
         self.width = width / Bohr
         (self.axis,) = np.where(~grid.pbc_c)[0]
         self.correction = np.nan
+        self.pw = ps.pw
 
     def solve(self,
               vHt_g: PWArray,
               rhot_g: PWArray) -> float:
         epot = self.ps.solve(vHt_g, rhot_g)
-
+        v0 = vHt_g.boundary_value(self.axis)
         dip_v = -rhot_g.moment()
         c = self.axis
         L = self.grid.cell_cv[c, c]
         self.correction = 2 * np.pi * dip_v[c] * L / self.grid.volume
         vHt_g.data -= 2 * self.correction * self.sawtooth_g.data
+        if vHt_g.desc.comm.rank == 0:
+            vHt_g.data[0] += self.correction - v0
         return epot + 2 * np.pi * dip_v[c]**2 / self.grid.volume
 
     def dipole_layer_correction(self) -> float:

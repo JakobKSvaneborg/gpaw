@@ -21,7 +21,7 @@ class HirshfeldDensity(RealSpaceDensity):
         dens = calculator.density
         super().__init__(dens.gd, dens.finegd,
                          dens.nspins, collinear=True, charge=0.0,
-                         stencil=dens.stencil,
+                         stencil=getattr(dens, 'stencil', 3),
                          redistributor=dens.redistributor)
         self.log = GPAWLogger(world=world)
         if log is None:

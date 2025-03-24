@@ -29,6 +29,8 @@ commands = {
          '--logarithmic-derivatives', '-n', '--ngrid', '-R',
          '--rcut', '-r', '--refine', '-s',
          '--scalar-relativistic', '--no-ee-interaction'],
+    'basis':
+        ['--name', '--type'],
     'completion':
         [],
     'dataset':

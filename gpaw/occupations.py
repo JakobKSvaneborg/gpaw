@@ -298,6 +298,7 @@ class SmoothDistribution(OccupationNumberCalculator):
         data = np.empty(3)
 
         def func(x, data=data):
+            """calculate excess electrons (and update occupation numbers)."""
             data[:] = 0.0
             for eig_n, weight, f_n in zip(eig_qn, weight_q, f_qn):
                 f_n[:], dfde_n, e_entropy_n = self.distribution(eig_n, x)
@@ -310,8 +311,8 @@ class SmoothDistribution(OccupationNumberCalculator):
             return df, dfde
 
         if fix_fermi_level:
-            func(x)
             fermi_level = x
+            func(fermi_level)
         else:
             fermi_level, niter = findroot(func, x)
 

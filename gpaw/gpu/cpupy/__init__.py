@@ -60,6 +60,10 @@ def dot(a, b):
     return ndarray(np.dot(a._data, b._data))
 
 
+def inner(a, b):
+    return ndarray(np.inner(a._data, b._data))
+
+
 def outer(a, b):
     return ndarray(np.outer(a._data, b._data))
 
@@ -89,6 +93,14 @@ def abs(a):
 
 def exp(a):
     return ndarray(np.exp(a._data))
+
+
+def conjugate(a):
+    return ndarray(np.conjugate(a._data))
+
+
+def log(a):
+    return ndarray(np.log(a._data))
 
 
 def eye(n):
@@ -123,7 +135,8 @@ def fuse():
 class ndarray:
     def __init__(self, data):
         if isinstance(data, (float, complex, int, np.int32, np.int64,
-                             np.bool_)):
+                             np.bool_, np.float64, np.float32,
+                             np.complex64, np.complex128)):
             data = np.asarray(data)
         assert isinstance(data, np.ndarray), type(data)
         self._data = data
@@ -230,6 +243,26 @@ class ndarray:
         if isinstance(other, (float, complex, int)):
             return self._data != other
         return ndarray(self._data != other._data)
+
+    def __lt__(self, other):
+        if isinstance(other, (float, complex, int)):
+            return self._data < other
+        return ndarray(self._data < other._data)
+
+    def __le__(self, other):
+        if isinstance(other, (float, complex, int)):
+            return self._data <= other
+        return ndarray(self._data <= other._data)
+
+    def __gt__(self, other):
+        if isinstance(other, (float, complex, int)):
+            return self._data > other
+        return ndarray(self._data > other._data)
+
+    def __ge__(self, other):
+        if isinstance(other, (float, complex, int)):
+            return self._data >= other
+        return ndarray(self._data >= other._data)
 
     def __neg__(self):
         return ndarray(-self._data)
