@@ -20,8 +20,8 @@ class Environment:
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,
                              occ_calc,
-                             log,
-                             mixer) -> bool:
+                             mixer,
+                             log) -> bool:
         """Allow for environment to "converge"."""
         return True
 
