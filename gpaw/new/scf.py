@@ -108,11 +108,10 @@ class SCFLoop:
                 write_iteration(cc, converged_items, entries, ctx, log)
 
             if converged:
-                converged = pot_calc.environment.check_convergence(ibzwfs, log)
+                converged = pot_calc.environment.post_scf_convergence(
+                    ibzwfs, self.occ_calc, self.mixer, log)
                 if converged:
                     break
-                pot_calc.environment.post_scf_convergence(
-                    ibzwfs, self.occ_calc, self.mixer)
 
             if self.niter == maxiter:
                 if wfs_error < inf:

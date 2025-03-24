@@ -753,14 +753,14 @@ class PWArray(DistributedArrays[PWDesc]):
         return m_v
 
     def boundary_value(self, axis: int) -> float:
+        """Calculate average value at boundary of box."""
         assert axis == 2
         pw = self.desc
         m0_G, m1_G = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
-        value = self.data.real[m0_G & m1_G].sum()
-        if self.desc.dtype == self.real_dtype:
-            value *= 2
-            if self.desc.comm.rank == 0:
-                value -= self.data[0].real
+        assert self.desc.dtype == self.real_dtype
+        value = self.data.real[m0_G & m1_G].sum() * 2
+        if self.desc.comm.rank == 0:
+            value -= self.data[0].real
         return self.desc.comm.sum_scalar(value)
 
     def morph(self, pw: PWDesc) -> PWArray:

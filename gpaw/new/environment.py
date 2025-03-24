@@ -17,16 +17,13 @@ class Environment:
         solver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(solver)
 
-    def check_convergence(self,
-                          ibzwfs: IBZWaveFunctions,
-                          log) -> bool:
-        return True
-
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,
                              occ_calc,
-                             mixer) -> None:
-        pass
+                             log,
+                             mixer) -> bool:
+        """Allow for environment to "converge"."""
+        return True
 
     def update1(self, nt_r):
         pass
@@ -75,23 +72,22 @@ class FixedPotentialJellium(Jellium):
                  natoms: int,
                  grid: UGDesc,
                  fermi_level: float):
+        """Adjust jellium charge to get the desired Fermi-level."""
         super().__init__(jellium, natoms, grid)
         self.fixed_fermi_level = fermi_level / Ha
+        # Charge, Fermi-level history:
         self.history: list[tuple[float, float]] = []
-
-    def check_convergence(self,
-                          ibzwfs: IBZWaveFunctions,
-                          log) -> bool:
-        fl = ibzwfs.fermi_level
-        log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl * Ha:.3f} eV')
-        tol = 0.001 / Ha
-        return abs(fl - self.fixed_fermi_level) <= tol
 
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,
                              occ_calc,
-                             mixer) -> None:
+                             mixer,
+                             log) -> bool:
         fl = ibzwfs.fermi_level
+        log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl * Ha:.3f} eV')
+        tol = 0.001 / Ha
+        if abs(fl - self.fixed_fermi_level) <= tol:
+            return True
         self.history.append((self.charge, fl))
         if len(self.history) == 1:
             area = abs(np.linalg.det(self.grid.cell_cv[:2, :2]))
@@ -109,3 +105,4 @@ class FixedPotentialJellium(Jellium):
         ibzwfs.nelectrons += dc
         ibzwfs.calculate_occs(occ_calc)
         mixer.reset()
+        return False
