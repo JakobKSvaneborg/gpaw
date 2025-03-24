@@ -53,17 +53,19 @@ class Jellium(Environment):
         jellium.add_charge_to(self.charge_x.data)
 
     def update1(self, nt_r: UGArray) -> None:
+        assert self.charge_x is not None
         nt_r.data += self.charge_x.data
 
     def update1pw(self, nt_g: PWArray | None) -> None:
         if isinstance(self.charge_x, UGArray):
             charge_r = self.charge_x.gather()
-            if charge_r is not None:
+            if nt_g is not None:
                 self.charge_x = charge_r.fft(pw=nt_g.desc)
             else:
                 self.charge_x = None
         if nt_g is None:
             return
+        assert self.charge_x is not None
         nt_g.data += self.charge_x.data
 
 
