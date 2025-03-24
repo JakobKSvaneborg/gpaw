@@ -178,12 +178,14 @@ class SJM(SolvationGPAW):
         Default: False.
         If set to True, use standard parameters for the FDT calculation.
         If dict, the following keys are implemented:
+
         'dt': float
             Time step for the FDT calculation in fs. Default: 0.5.
         'po_time': float
             Relaxation-time constant of potentiostat. Default: 100.
         'th_temp': float
             Thermal temperature for the FDT calculation in K. Default: 300.
+
     slope_regression_depth : int
         Number of previous attempts to use for the slope regression.
         Default: 4.
