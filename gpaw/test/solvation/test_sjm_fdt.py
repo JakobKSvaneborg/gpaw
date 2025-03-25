@@ -52,7 +52,7 @@ def test_sjm_fdt_true():
     # The calculator
     calc = SJM(
         mode='lcao',
-        basis='szp',
+        basis='szp(dzp)',
         txt='test_fdt_true.txt',
         gpts=(16, 16, 136),
         kpts=(1, 1, 1),
