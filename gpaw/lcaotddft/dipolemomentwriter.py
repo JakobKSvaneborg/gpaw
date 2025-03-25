@@ -114,7 +114,9 @@ class DipoleMomentWriter(TDDFTObserver):
     def _write_kick(self, paw):
         time = paw.time
         kick = paw.kick_strength
+        gauge = paw.kich_gauge
         line = '# Kick = [%22.12le, %22.12le, %22.12le]; ' % tuple(kick)
+        line += 'Gauge = %s; ' % gauge
         line += 'Time = %.8lf\n' % time
         self._write(line)
 
@@ -227,8 +229,9 @@ class VelocityGaugeWriter(TDDFTObserver):
     def _write_kick(self, paw):
         time = paw.time
         kick = paw.kick_strength
+        gauge = paw.kick_gauge
         line = '# Kick = [%22.12le, %22.12le, %22.12le]; ' % tuple(kick)
-        line += 'Gauge = velocity; '
+        line += 'Gauge = %s; ' % gauge
         line += 'Time = %.8lf\n' % time
         self._write(line)
 
