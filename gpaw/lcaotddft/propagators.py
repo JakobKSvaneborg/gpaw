@@ -252,10 +252,12 @@ class ECNPropagator(LCAOPropagator):
         dnabla_vaii = {v: {a: -self.wfs.setups[a].nabla_iiv[:, :, v] * (-1j)
                        for a in my_atoms} for v in range(3)}
         for kpt in self.wfs.kpt_u:
-            for v in range(3):
-                self.wfs.atomic_correction.calculate(kpt.q, dnabla_vaii[v],
-                                                     Vkick_qvmM[kpt.q][v],
-                                                     ksl.Mstart, ksl.Mstop)
+            assert kpt.k == 0
+
+        for v in range(3):
+            self.wfs.atomic_correction.calculate(0, dnabla_vaii[v],
+                                                 Vkick_qvmM[kpt.q][v],
+                                                 ksl.Mstart, ksl.Mstop)
 
         if ksl.using_blacs:
             for Vkick_vmM in Vkick_qvmM:
