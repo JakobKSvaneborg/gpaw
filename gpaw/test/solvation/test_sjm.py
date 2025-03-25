@@ -1,8 +1,5 @@
-import pytest
 from ase.build import fcc111
-# Import solvation modules
 from ase.data.vdw import vdw_radii
-
 from gpaw import FermiDirac
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
                             LinearDielectric, SurfaceInteraction)
