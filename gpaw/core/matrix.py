@@ -736,9 +736,11 @@ class BLACSDistribution(MatrixDistribution):
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
-            # XXX: I am not 100% sure what the requirements for "ok" are
-            # however, requiring square matrices seems necessary.
-            # @JJ, maybe you know more about this?
+            # XXX: Not 100% sure what the requirements for "ok" are
+            # however, requiring square matrices seems necessary
+            # in the current implementation. Maybe this should be 
+            # looked into more. For now, we just use the more general
+            # scalapack function in that case.
             ok = a.dist.simple and b.dist.simple and c.dist.simple \
                 and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1]
             if ok:
