@@ -177,7 +177,7 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
         for kpt in kpt_u:
             assert kpt.k == 0
         for v in range(3):
-            correction.calculate(0, dM_vaii[v], M_vmM[v],
+            correction.calculate(kpt_u[0].q, dM_vaii[v], M_vmM[v],
                                  Mstart, Mstop)
 
     # The matrices should be real
