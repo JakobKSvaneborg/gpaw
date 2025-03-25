@@ -199,17 +199,17 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
 
 
 def test_io(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
-    """Is this the more natural way to read?"""
+    """Test that a direct calculation gives the same results as a calculation
+    restarted from matrix element file."""
     dks = 20
-    """Test that a direct calculation gives the same results as a calcultion
-    from """
     medata = 'xasme.dat'
 
     xas1 = XAS(sh2_s1s1ch.calc)
     xas1.write(medata)
 
     # define the XAS object by reading
-    xas2 = XAS().restart('xasme.dat')
+    xas2 = XAS().restart(medata)
+
     x1, y1 = xas1.get_oscillator_strength(dks=dks)
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
     assert x1 == pytest.approx(x2)
