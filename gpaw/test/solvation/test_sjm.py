@@ -9,7 +9,6 @@ from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
 from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 
-@pytest.mark.skip('see #1340')
 def test_sjm():
     # Solvent parameters
     u0 = 0.180  # eV
