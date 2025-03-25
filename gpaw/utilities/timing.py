@@ -96,9 +96,10 @@ class GPUEvent:
 
 class GPUTimerBase:
 
-    def __init__(self):
+    def __init__(self, max_stack=10):
         self.event_queue = []
         self.event_stack = []
+        self.max_stack = max_stack
         from collections import defaultdict
         self.gpu_timers = defaultdict(float)
 
@@ -109,7 +110,7 @@ class GPUTimerBase:
         gpu_event = self.event_stack.pop()
         gpu_event.stop()
         self.event_queue.append(gpu_event)
-        if len(self.event_queue) > 10:
+        if len(self.event_queue) > self.max_stack:
             self.handle_events()
 
     def handle_events(self):
