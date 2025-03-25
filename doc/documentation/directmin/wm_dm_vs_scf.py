@@ -10,7 +10,7 @@ from gpaw import setup_paths
 setup_paths.insert(0, '.')
 
 for symbol in ['H', 'O']:
-    bm = BasisMaker(symbol, xc='PBE')
+    bm = BasisMaker.from_symbol(symbol, xc='PBE')
     basis = bm.generate(zetacount=3, polarizationcount=2)
     basis.write_xml()
 

@@ -1,4 +1,3 @@
-import sys
 from optparse import OptionParser
 
 
@@ -22,9 +21,6 @@ def build_parser():
     parser.add_option('-f', '--xcfunctional', default='PBE', metavar='<XC>',
                       help='Exchange-Correlation functional '
                       '[default: %default]')
-    parser.add_option('-g', '--non-relativistic-guess', action='store_true',
-                      help='Run non-scalar relativistic AE calculation for '
-                      'initial guess')
     parser.add_option('--rcut-max', type='float', default=16.,
                       metavar='<rcut>',
                       help='max cutoff for confined atomic orbitals.  This ' +
@@ -80,29 +76,23 @@ smart parameters."""
 
 
 def main():
-    parser = build_parser()
-    opts, symbols = parser.parse_args()
-
     from gpaw.atom.basis import BasisMaker
-    from gpaw import ConvergenceError
     from gpaw.basis_data import parse_basis_name
+    from gpaw.atom.basisfromfile import read_setupdata
 
-    zetacount, polcount = parse_basis_name(opts.type)
+    def generate_basis_set(symbol_or_path: str):
+        kwargs = dict(
+            name=opts.name,
+            xc=opts.xcfunctional,
+            save_setup=opts.save_setup)
 
-    for symbol in symbols:
-        try:
-            bm = BasisMaker(symbol, name=opts.name, gtxt=None,
-                            non_relativistic_guess=opts.non_relativistic_guess,
-                            xc=opts.xcfunctional,
-                            save_setup=opts.save_setup)
-        except ConvergenceError:
-            if opts.non_relativistic_guess:
-                print(very_bad_density_warning, file=sys.stderr)
-                import traceback
-                traceback.print_exc()
-            else:
-                print(bad_density_warning, file=sys.stderr)
-            continue
+        if '.' in symbol_or_path:  # symbol is actually a path
+            from gpaw.atom.all_electron import ValenceData
+            setupdata = read_setupdata(symbol_or_path)
+            valdata = ValenceData.from_setupdata_onthefly_potentials(setupdata)
+            bm = BasisMaker(valdata, **kwargs)
+        else:
+            bm = BasisMaker.from_symbol(symbol_or_path, **kwargs)
 
         tailnorm = [float(norm) for norm in opts.tailnorm.split(',')]
         vconf_args = None
@@ -123,3 +113,10 @@ def main():
                             l_pol=opts.lpol,
                             jvalues=jvalues)
         basis.write_xml()
+
+    parser = build_parser()
+    opts, symbols = parser.parse_args()
+    zetacount, polcount = parse_basis_name(opts.type)
+
+    for symbol in symbols:
+        generate_basis_set(symbol)
