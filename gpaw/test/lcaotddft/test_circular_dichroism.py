@@ -31,7 +31,7 @@ def initialize_system():
                              [4.0, 0.0, 1.0],
                              [6.0, -1.0, 0.0]])
     atoms.center(vacuum=4.0)
-    atoms.set_initial_magnetic_moments([0.01]*len(atoms))
+    atoms.set_initial_magnetic_moments([0.01] * len(atoms))
     calc = GPAW(nbands=2,
                 h=0.4,
                 setups={'Na': '1'},

@@ -461,7 +461,8 @@ class MagneticMomentWriter(TDDFTObserver):
             mm_v = 0.0
             for kpt in paw.wfs.kpt_u:
                 assert kpt.q == 0
-            for rho_mm in self.dmat.get_density_matrix((paw.niter, paw.action)):
+            for rho_mm in self.dmat.get_density_matrix((paw.niter,
+                                                        paw.action)):
                 mm_v += calculate_magnetic_moment_in_lcao(
                     paw.wfs.ksl, rho_mm, self.M_vmm)
             self.timer.stop('Calculate magnetic moment in LCAO')
