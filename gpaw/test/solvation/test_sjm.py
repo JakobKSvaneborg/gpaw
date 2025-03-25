@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from ase.build import fcc111
 from ase.data.vdw import vdw_radii
 from gpaw import FermiDirac
@@ -6,6 +5,7 @@ from gpaw.new.sjm import SJM
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
                             LinearDielectric, SurfaceInteraction)
 from gpaw.solvation.sjm import SJM as OldSJM, SJMPower12Potential
+from gpaw.new.ase_interface import GPAW
 
 
 def test_sjm(gpaw_new):
@@ -57,7 +57,7 @@ def test_sjm(gpaw_new):
     else:
         calc = GPAW(
             **params,
-            envoronment=SJM(*sj, *solvation)))
+            environment=SJM(**sj, **solvation))
 
     # Run the calculation
     atoms.calc = calc

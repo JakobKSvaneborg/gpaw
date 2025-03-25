@@ -12,7 +12,7 @@ class Environment:
         self.natoms = natoms
         self.charge = 0.0
 
-    def create_poisson_solver(self, grid, *, xp, **kwargs) -> PoissonSolver:
+    def create_poisson_solver(self, *, grid, xp, **kwargs) -> PoissonSolver:
         solver = make_poisson_solver(**kwargs, xp=xp)
         solver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(solver)
