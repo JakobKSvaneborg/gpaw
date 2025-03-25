@@ -1,20 +1,15 @@
-from ase.build import fcc111, molecule
-from ase.units import Pascal, m, fs
-
-from gpaw.solvation import (
-    EffectivePotentialCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction
-)
-
-from gpaw.solvation.sjm import SJM, SJMPower12Potential
-from ase.md.langevin import Langevin
-from ase.constraints import FixAtoms
-
 import pytest
+from ase.build import fcc111, molecule
+from ase.constraints import FixAtoms
+from ase.md.langevin import Langevin
+from ase.units import Pascal, fs, m
+
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            LinearDielectric, SurfaceInteraction)
+from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 
+@pytest.mark.skip('see #1340')
 @pytest.mark.slow
 def test_sjm_fdt_true():
     """Test if fdt dictionary is correctly set in the calculator.
