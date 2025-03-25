@@ -55,9 +55,7 @@ def logger(txt, mode, spin, nocc, center, setup):
     if spin == 1:
         spin_txt = 'down'
 
-    txt('\n\n')
-    txt('XAS - Calculating Matrix elements')
-    txt('\n')
+    txt('\nXAS - Calculating matrix elements\n')
     txt('Mode:            ', mode)
     txt('Spin:            ', spin_txt, f'({spin})')
     txt('Occupied states: ', nocc)
@@ -65,7 +63,6 @@ def logger(txt, mode, spin, nocc, center, setup):
     txt('Element:         ', setup.symbol)
     txt('Setup:')
     setup.print_info(txt)
-    txt('\n')
 
 
 class XAS:
@@ -224,8 +221,7 @@ class XAS:
     def write(self, fname: str):
         """Write matrix elements out to a file"""
         if self.world.rank == 0:
-            self.log(f'Writing to {fname}')
-            self.log('\n')
+            self.log(f'Writing to {fname}\n')
             with open(fname, mode='wb') as f:
                 np.savez_compressed(
                     f, eps_kn=self.eps_kn, sigma_cmkn=self.sigma_cmkn,
