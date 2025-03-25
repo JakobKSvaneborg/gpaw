@@ -47,19 +47,20 @@ Plot the spectrum:
 
 2p Transition potential
 -----------------------
-The 2p tranisitons can mostly be done in the same way as the 1s spectrum.
-In the sens that the you preforme a grond state calculation with a core hole.
-Here we have also included writing out the matrix ellement, that aloaws you to 
-restart the XAS calculation with out the calculator object.
-This can be benifishal for larger calculations where the gpw files will be encredibly 
-large.
+The 2p transitions can typically be approached in a manner similar to the 1s
+spectrum, involving a ground state calculation that includes a core hole. 
+We've also provided a detailed expression for the matrix element, allowing you 
+to restart the XAS calculation without using the calculator object. This method 
+is especially useful for larger calculations, where the .gpw files can become 
+quite large.
 
 .. literalinclude:: run_2p.py
 
-The 2p calculation differ when it comes to plottoing the spectrum, as the spin orbit splitting
-needs to be consided. This occurs do to the angular momentum (l ≠ 0) for the initial state.
-The spin orbit spliting can be fond experimetaly or be calculate, here we have used the experimatla 
-value.
+The 2p calculations differ in terms of plotting the spectrum, as spin-orbit 
+splitting must be taken into account. This is due to the angular momentum 
+(l ≠ 0) of the initial state. Spin-orbit splitting can be determined 
+experimentally or calculated theoretically; in this case, we have utilized 
+the experimental value.
 
 .. literalinclude:: plot_2p.py
 
@@ -70,8 +71,8 @@ The claculation can be restarted using the writen out matrix element,
 
 .. literalinclude:: restart_2p.py
 
-This will create a new ``XAS`` object thate behaves exactly the same as the 
-``XAS`` object crated by using the ``calc`` object.
+This will create a new ``XAS`` object that behaves exactly like the 
+``XAS(calc)`` object.
 
 Haydock recursion method
 ========================
