@@ -176,9 +176,9 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
     if not only_pseudo:
         for kpt in kpt_u:
             assert kpt.k == 0
-            for v in range(3):
-                correction.calculate(kpt.q, dM_vaii[v], M_vmM[v],
-                                     Mstart, Mstop)
+        for v in range(3):
+            correction.calculate(0, dM_vaii[v], M_vmM[v],
+                                 Mstart, Mstop)
 
     # The matrix should be real
     assert np.max(np.absolute(M_vmM.imag)) == 0.0
@@ -457,10 +457,13 @@ class MagneticMomentWriter(TDDFTObserver):
             self.timer.stop('Calculate magnetic moment on grid')
         else:
             self.timer.start('Calculate magnetic moment in LCAO')
-            u = 0
-            rho_mm = self.dmat.get_density_matrix((paw.niter, paw.action))[u]
-            mm_v = calculate_magnetic_moment_in_lcao(
-                paw.wfs.ksl, rho_mm, self.M_vmm)
+
+            mm_v = 0.0
+            for kpt in paw.wfs.kpt_u:
+                assert kpt.q == 0
+            for rho_mm in self.dmat.get_density_matrix((paw.niter, paw.action)):
+                mm_v += calculate_magnetic_moment_in_lcao(
+                    paw.wfs.ksl, rho_mm, self.M_vmm)
             self.timer.stop('Calculate magnetic moment in LCAO')
         assert mm_v.shape == (3,)
         assert mm_v.dtype == float

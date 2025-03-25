@@ -31,7 +31,7 @@ def initialize_system():
                              [4.0, 0.0, 1.0],
                              [6.0, -1.0, 0.0]])
     atoms.center(vacuum=4.0)
-
+    atoms.set_initial_magnetic_moments([0.01]*len(atoms))
     calc = GPAW(nbands=2,
                 h=0.4,
                 setups={'Na': '1'},
@@ -49,6 +49,7 @@ def initialize_system():
                         communicator=comm,
                         txt='td.out')
     dmat = DensityMatrix(td_calc)
+
     MagneticMomentWriter(td_calc, 'mm.dat', dmat=dmat)
     MagneticMomentWriter(td_calc, 'mm_grid.dat', calculate_on_grid=True)
     MagneticMomentWriter(td_calc, 'mm_origin.dat',
