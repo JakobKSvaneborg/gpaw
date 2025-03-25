@@ -38,10 +38,9 @@ def test_scissors():
     assert eigs3 == pytest.approx(eigs1)
 
     # SOC corrections:
-    if world.size == 1:
-        eigs4 = soc_eigenstates(calc).eigenvalues()[0]
-        assert eigs4[::2] == pytest.approx(eigs1)
-        assert eigs4[1::2] == pytest.approx(eigs1)
+    eigs4 = soc_eigenstates(calc).eigenvalues()[0]
+    assert eigs4[::2] == pytest.approx(eigs1)
+    assert eigs4[1::2] == pytest.approx(eigs1)
 
 
 if __name__ == '__main__':

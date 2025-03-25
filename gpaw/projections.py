@@ -27,6 +27,7 @@ class Projections(Mapping):
             bdist = (self.bcomm, self.bcomm.size, 1)
         else:
             assert bcomm is None
+            self.bdist = bdist  # For calling "new"
             self.bcomm = bdist[0]
 
         self.nproj_a = np.asarray(nproj_a)
@@ -68,7 +69,17 @@ class Projections(Mapping):
 
     def new(self, bcomm='inherit', nbands=None, atom_partition=None):
         if bcomm == 'inherit':
-            bcomm = self.bcomm
+            if hasattr(self, 'bdist'):
+                return Projections(
+                    nbands or self.nbands, self.nproj_a,
+                    self.atom_partition if atom_partition is None
+                    else atom_partition,
+                    collinear=self.collinear,
+                    spin=self.spin,
+                    dtype=self.matrix.dtype,
+                    bdist=self.bdist)
+            else:
+                bcomm = self.bcomm
         elif bcomm is None:
             bcomm = serial_comm
 
