@@ -142,7 +142,34 @@ class MyMatCalc:
         return H_MM
 
     def add_scissors(self, wfs, H_MM, nocc):
+        ''' Serial implementation for readability:
+        C_nM = wfs.C_nM.data
+        S_MM = wfs.S_MM.data
+
         # Find Z=S^(1/2):
+        e_N, U_MN = np.linalg.eigh(S_MM)
+        # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
+        Z_MM = U_MN @ (e_N[np.newaxis]**0.5 * U_MN).T.conj()
+
+        # Density matrix:
+        A_nM = C_nM[:nocc].conj() @ Z_MM
+        R_MM = A_nM.conj().T @ A_nM
+
+        M1 = 0
+        a1 = 0
+        for homo, lumo, natoms in self.shifts:
+            a2 = a1 + natoms
+            M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
+            H_MM.data += Z_MM[:, M1:M2] @ \
+                ((homo - lumo) * R_MM[M1:M2, M1:M2] + np.eye(M2 - M1) * lumo) \
+                @ Z_MM.conj().T[M1:M2, :]
+            a1 = a2
+            M1 = M2
+
+        return H_MM
+        '''
+
+        # Parallel implementation:
         U_NM = wfs.S_MM.copy()
 
         C_nM = wfs.C_nM
@@ -157,12 +184,15 @@ class MyMatCalc:
         C_nM = C1_nM.new(dist=dist)
         C1_nM.redist(C_nM)
 
+        # Find Z=S^(1/2):
         e_N = U_NM.eigh()
         e_NM = U_NM.copy()
+        # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
+
+        # Next: Z_MM = U_MN @ (e_N[np.newaxis]**0.5 * U_MN).T.conj()
         n1, n2 = U_NM.dist.my_row_range()
         e_NM.data *= e_N[n1:n2, None]**0.5
         e_NM.complex_conjugate()
-
         Z_MM = U_NM.multiply(e_NM, opa='T')
 
         # Density matrix:
