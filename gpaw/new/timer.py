@@ -106,7 +106,7 @@ def _tracectx(name, gpu=False):
 
 
 @contextmanager
-def dummy_tracectx(name):
+def dummy_tracectx(name, gpu=False):
     yield
 
 
