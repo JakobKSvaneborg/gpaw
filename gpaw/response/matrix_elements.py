@@ -592,3 +592,84 @@ class SiteSpinPairEnergyCalculator(SiteMatrixElementCalculator):
     """
     def add_f(self, gd, n_sx, f_x):
         f_x[:] += - np.abs(calculate_LSDA_Wxc(gd, n_sx))
+
+    def _add_paw_correction(self, P1_Amyti, P2_Amyti, matrix_element):
+        # Add usual PAW correction to d^(xc,ap)
+        super()._add_paw_correction(P1_Amyti, P2_Amyti, matrix_element)
+        # If relevant, add Hubbard correction to the matrix element
+        if self.gs_is_hubbard_corrected:
+            self._add_hubbard_correction(P1_Amyti, P2_Amyti, matrix_element)
+
+    @property
+    def gs_is_hubbard_corrected(self):
+        hubbard_u = False
+        for setup in self.gs.pawdatasets.by_atom:
+            if setup.hubbard_u is not None:
+                hubbard_u = True
+        return hubbard_u
+
+    def _add_hubbard_correction(self, P1_Amyti, P2_Amyti,
+                                matrix_element: SiteMatrixElement):
+        r"""Add the correction to the matrix elements required in MFT
+        calculations based on DTF+U.
+
+        The correction is given by:
+                            __
+                          U \   ˷     ˷             ˷     ˷
+        Δd^(xc,a)_kt = -  - /  <ψ_nks|p_ai> m_aii' <p_ai'|ψ_n'k+qs'>
+                          2 ‾‾
+                            i,i'
+
+        where m_aii' is the non-local magnetization matrix.
+        """
+        from gpaw.hubbard import aoom
+        from gpaw.utilities import unpack_density
+        d_mytap = matrix_element.local_array_view
+        for a, A in enumerate(self.sites.A_a):
+            setup = self.gs.pawdatasets.by_atom[A]
+            if setup.hubbard_u is not None:
+                # Only one angular components per atom
+                assert len(setup.hubbard_u.U) == 1
+                assert len(setup.hubbard_u.l) == 1
+                U = setup.hubbard_u.U[0]
+                l = setup.hubbard_u.l[0]
+                nl = np.where(np.equal(setup.l_j, l))[0]
+                nm_j = 2 * np.array(setup.l_j) + 1
+                nm = nm_j[nl[0]]
+
+                D_sii = unpack_density(self.gs.density.D_asp[A])
+                # Get atomic orbital occupation matrices (aoom)
+                N0_mm, _ = aoom(D_sii[0],
+                                setup.hubbard_u.l[0],
+                                setup.l_j,
+                                setup.n_j,
+                                setup.N0_q,
+                                setup.hubbard_u.scale[0])
+
+                N1_mm, dHU_ii = aoom(D_sii[1],
+                                     setup.hubbard_u.l[0],
+                                     setup.l_j,
+                                     setup.n_j,
+                                     setup.N0_q,
+                                     setup.hubbard_u.scale[0])
+
+                for il1, l1 in enumerate(nl):
+                    # All indices with the given angular momentum
+                    slice1_i = slice(nm_j[:nl[il1]].sum(),
+                                     nm_j[:nl[il1]].sum() + nm)
+                    P1_myti = P1_Amyti[A][:, slice1_i]
+                    for il2, l2 in enumerate(nl):
+                        slice2_i = slice(nm_j[:nl[il2]].sum(),
+                                         nm_j[:nl[il2]].sum() + nm)
+                        # Non-local magnetization matrix
+                        m_ii = N0_mm.T - N1_mm.T
+                        # dHU_ii implements rescaling by unbound states
+                        m_ii *= dHU_ii[slice1_i, slice2_i]
+                        # Choose positive m_ii (magnetization magnitude)
+                        m_n, m_in = np.linalg.eigh(m_ii)
+                        if np.max(m_n) < 0:
+                            m_ii *= -1
+                        P2_myti = P2_Amyti[A][:, slice2_i]
+                        dd_myt = np.diag(P1_myti.conj()
+                                         @ m_ii @ P2_myti.T)
+                        d_mytap[:, a] -= dd_myt[:, np.newaxis] * U / 2
