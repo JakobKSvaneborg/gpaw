@@ -65,8 +65,10 @@ class SJMEnvironment(Environment):
                              occ_calc,
                              mixer,
                              log) -> bool:
-        return self.fixed_potential.post_scf_convergence(
+        converged = self.fixed_potential.post_scf_convergence(
             ibzwfs, occ_calc, mixer, log)
+        self.charge = self.fixed_potential.charge
+        return converged
 
     def update1(self, nt_r):
         self.solvation.update1(nt_r)

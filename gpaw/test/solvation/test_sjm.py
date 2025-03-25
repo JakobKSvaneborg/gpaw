@@ -53,13 +53,14 @@ def test_sjm(gpaw_new):
         interactions=[SurfaceInteraction(surface_tension=gamma)])
 
     if not gpaw_new:
-        calc = OldSJM(**params, sj=sj, **solvation)
+        atoms.calc = OldSJM(**params, sj=sj, **solvation)
+        atoms.get_potential_energy()
+        pot = atoms.calc.get_electrode_potential()
     else:
-        calc = GPAW(
+        atoms.calc = GPAW(
             **params,
             environment=SJM(**sj, **solvation))
+        atoms.get_potential_energy()
+        pot = -atoms.calc.get_fermi_level()
 
-    # Run the calculation
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    assert abs(calc.get_electrode_potential() - potential) < tol
+    assert abs(pot - potential) < tol
