@@ -29,7 +29,7 @@ calc2 = GPAW(mode='fd',
              charge=-1,
              spinpol=True,
              occupations=FermiDirac(0.0, fixmagmom=True),
-             setups={0: 'fch1s'})
+             setups={0: '1s1ch'})
 atoms[0].magmom = 1
 atoms.calc = calc2
 e2 = atoms.get_potential_energy() + calc2.get_reference_energy()
