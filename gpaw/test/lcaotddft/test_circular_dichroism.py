@@ -31,7 +31,7 @@ def initialize_system():
                              [4.0, 0.0, 1.0],
                              [6.0, -1.0, 0.0]])
     atoms.center(vacuum=4.0)
-
+    atoms.set_initial_magnetic_moments([0.01]*len(atoms))
     calc = GPAW(nbands=2,
                 h=0.4,
                 setups={'Na': '1'},
@@ -45,6 +45,7 @@ def initialize_system():
     atoms.get_potential_energy()
     calc.write('gs.gpw', mode='all')
 
+<<<<<<< HEAD
     for gauge in ['length', 'velocity']:
         if gauge == 'velocity':
             add = '_' + gauge
@@ -121,6 +122,21 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
 
     check_txt_data(module_tmp_path / 'mm_origin_velocity.dat',
                    'mm_origin_ref.dat', atol=1e-13)
+=======
+    td_calc = LCAOTDDFT('gs.gpw',
+                        communicator=comm,
+                        txt='td.out')
+    dmat = DensityMatrix(td_calc)
+
+    MagneticMomentWriter(td_calc, 'mm.dat', dmat=dmat)
+    MagneticMomentWriter(td_calc, 'mm_grid.dat', calculate_on_grid=True)
+    MagneticMomentWriter(td_calc, 'mm_origin.dat',
+                         origin='zero', origin_shift=[1.0, 2.0, 3.0])
+    td_calc.absorption_kick([1e-5, 0., 0.])
+    td_calc.propagate(100, 3)
+    td_calc.write('td.gpw', mode='all')
+    td_calc.propagate(100, 2)
+>>>>>>> fix-spinpol-cd
 
 
 @pytest.mark.rttddft
