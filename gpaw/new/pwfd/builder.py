@@ -107,7 +107,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             mynbands = len(psit_nX.data)
             eig_n = np.empty(self.nbands)
             eig_n[:lcaonbands] = lcaowfs._eig_n
-            eig_n[lcaonbands:] = 1e10
+            eig_n[lcaonbands:] = 100.0  # set high value for random wfs.
             if mylcaonbands < mynbands:
                 psit_nX[mylcaonbands:].randomize(
                     seed=self.communicators['w'].rank)

@@ -558,23 +558,6 @@ class AllElectron(IOContext):
             self.e_j[j] = e
             u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
 
-    @cached_property
-    def valence_data(self):
-        assert abs(self.rgd.beta - self.beta) < 1e-13
-        return ValenceData(rgd=self.rgd, vr=self.vr,
-                           n_j=self.n_j[self.njcore:],
-                           l_j=self.l_j[self.njcore:],
-                           e_j=self.e_j[self.njcore:],
-                           u_j=self.u_j[self.njcore:],
-                           f_j=self.f_j[self.njcore:],
-                           u_ln=self.u_ln, q_ln=self.q_ln, s_ln=self.s_ln,
-                           rcut_l=self.rcut_l,
-                           scalarrel=self.scalarrel,
-                           r2dvdr=self.r2dvdr,
-                           njcore=self.njcore,
-                           xcname=self.xcname,
-                           symbol=self.symbol)
-
     def kin(self, l, u, e=None):  # XXX move to Generator
         r = self.r[1:]
         dr = self.dr[1:]
@@ -598,12 +581,6 @@ class AllElectron(IOContext):
         kr[1:-1] += fp[:-1] * u[2:]
         kr[0] = 0.0
         return kr
-
-    def r2g(self, r):
-        return self.valence_data.r2g(r)
-
-    def get_confinement_potential(self, alpha, ri, rc):
-        return self.valence_data.get_confinement_potential(alpha, ri, rc)
 
     def __del__(self):
         self.close()
@@ -721,6 +698,7 @@ def shoot_confined(u, l, vr, e, r2dvdr, r, dr, c10, c2, scalarrel,
                    gmax=None, rc=10., beta=7.):
     """This method is used by the solve_confined method."""
     # XXX much of this is pasted from the ordinary shoot method
+    assert l < 3
 
     if scalarrel:
         x = 0.5 * alpha**2  # x = 1 / (2c^2)
@@ -804,47 +782,59 @@ guess for the density).
 
 @dataclass
 class ValenceData:
-    rgd: AERadialGridDescriptor
-    # r: np.ndarrray
-    # dr: np.ndarray
-    vr: np.ndarray
-    # d2gdr2: np.ndarray
-    n_j: list[int]
-    l_j: list[int]
-    e_j: list[float]
-    u_j: list[np.ndarray]
-    f_j: list[float]
-
-    u_ln: list[list[np.ndarray]]
-    q_ln: list[list[np.ndarray]]
-    s_ln: list[list[np.ndarray]]
-
-    rcut_l: list[float]
-    scalarrel: bool
-    r2dvdr: np.ndarray | None  # Actually: None means not scalarrel
-
-    # Maybe we don't need these variables:
-    njcore: int
     symbol: str
     xcname: str
 
+    rgd: AERadialGridDescriptor
+
+    n_j: list[int]
+    l_j: list[int]
+    e_j: list[float]
+    f_j: list[float]
+
+    scalarrel: bool
+
+    phi_jg: list[np.ndarray]
+    phit_jg: list[np.ndarray]
+    pt_jg: list[np.ndarray]
+    rcut_j: list[float]
+
+    vr_g: np.ndarray
+    r2dvdr_g: np.ndarray | None  # Actually: None means not scalarrel
+
+    def __post_init__(self):
+        assert self.scalarrel == (self.r2dvdr_g is not None)
+        jattributes = 'n_j l_j e_j f_j rcut_j'.split()
+
+        for attr in jattributes:
+            thing_j = getattr(self, attr)
+            assert len(thing_j) == self.nj, (attr, len(thing_j), self.nj)
+
+        err = abs(self.rgd.beta / len(self.rgd.r_g) - self.rgd.a)
+        assert err < 1e-15, f'Inconsistent rgd spacing, {err=}'
+
+    @property
+    def nj(self):
+        return len(self.l_j)
+
     @classmethod
-    def from_setupdata(cls, setupdata):
+    def calculate_potential_data(cls, setupdata):
+        sqrt4pi = np.sqrt(4.0 * np.pi)
         rgd = setupdata.rgd
         xc = XC(setupdata.setupname)
 
         # XXX GLLB needs special initialization I think.
+        assert 'GLLB' not in setupdata.setupname
 
         if setupdata.orbital_free:
             raise RuntimeError('Setup is orbital-free')
 
-        # XXX factor 4 pi?
-        #
         # f_j includes only valence states, so we need to add also
         # all-electron core density.
-        n_g = calculate_density(setupdata.f_j, np.array(setupdata.phi_jg),
+        n_g = calculate_density(setupdata.f_j,
+                                setupdata.phi_jg * rgd.r_g[None, :],
                                 rgd.r_g)
-        n_g += setupdata.nc_g
+        n_g += setupdata.nc_g / sqrt4pi
 
         vr_g = calculate_potentials(rgd, xc, n_g, setupdata.Z,
                                     tw_coeff=None)[0]
@@ -852,37 +842,43 @@ class ValenceData:
 
         assert setupdata.type in {'scalar-relativistic', 'non-relativistic'}
         scalarrel = setupdata.type == 'scalar-relativistic'
+        return vr_g, r2dvdr_g, scalarrel
+
+    @classmethod
+    def from_setupdata_onthefly_potentials(cls, setupdata):
+        vr_g, r2dvdr_g, scalarrel = cls.calculate_potential_data(setupdata)
+        return cls.from_setupdata_and_potentials(
+            setupdata, vr_g=vr_g, r2dvdr_g=r2dvdr_g, scalarrel=scalarrel)
+
+    @classmethod
+    def from_setupdata_and_potentials(cls, setupdata, *, vr_g, r2dvdr_g,
+                                      scalarrel):
+
+        assert len(setupdata.phi_jg) == len(setupdata.l_j)
+
+        def multiply_r(array_jg):
+            return array_jg * setupdata.rgd.r_g[None, :]
 
         return ValenceData(
+            xcname=setupdata.setupname,
             symbol=setupdata.symbol,
             rgd=setupdata.rgd,
-            l_j=setupdata.l_j,
             n_j=setupdata.n_j,
-            f_j=setupdata.f_j,
+            l_j=setupdata.l_j,
             e_j=setupdata.eps_j,
-            u_j=setupdata.phi_jg,
-            rcut_l=setupdata.rcut_j,  # j vs l ?????
-            vr=vr_g,
-            # u_ln
-            # q_ln
-            # s_ln
-            r2dvdr=r2dvdr_g,
+            f_j=setupdata.f_j,
+            rcut_j=setupdata.rcut_j,
+            phi_jg=multiply_r(setupdata.phi_jg),
+            phit_jg=multiply_r(setupdata.phit_jg),
+            pt_jg=multiply_r(setupdata.pt_jg),
+            vr_g=vr_g,
+            r2dvdr_g=r2dvdr_g,
             scalarrel=scalarrel,
-            # njcore=xxx,
-            xcname=setupdata.setupname,
         )
 
     @property
     def N(self):
         return len(self.rgd.r_g)
-
-    def r2g(self, r):
-        """Convert radius to index of the radial grid."""
-        return int(r * self.N / (self.rgd.beta + r))
-
-    def __post_init__(self):
-        err = abs(self.rgd.beta / len(self.rgd.r_g) - self.rgd.a)
-        assert err < 1e-15, f'Inconsistent rgd spacing, {err=}'
 
     @cached_property
     def d2gdr2_g(self):
@@ -907,7 +903,7 @@ class ValenceData:
         """
         r = self.rgd.r_g
         dr = self.rgd.dr_g
-        vr = self.vr.copy()
+        vr = self.vr_g.copy()
         if vconf is not None:
             vr += vconf * r
 
@@ -915,14 +911,14 @@ class ValenceData:
         c10 = -self.d2gdr2_g * r**2  # first part of c1 vector
 
         if j is None:
-            n, l, e, u = 3, 2, -0.15, self.u_j[-1].copy()
+            n, l, e, u = 3, 2, -0.15, self.phi_jg[-1].copy()
         else:
             n = self.n_j[j]
             l = self.l_j[j]
             e = self.e_j[j]
-            u = self.u_j[j].copy()
+            u = self.phi_jg[j].copy()
 
-        nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
+        nn, A = shoot_confined(u, l, vr, e, self.r2dvdr_g, r, dr, c10, c2,
                                self.scalarrel, rc=rc, beta=self.rgd.beta)
         assert nn == n - l - 1  # run() should have been called already
 
@@ -938,7 +934,7 @@ class ValenceData:
             e -= de
             assert e < 0.0
 
-            nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
+            nn, A = shoot_confined(u, l, vr, e, self.r2dvdr_g, r, dr, c10, c2,
                                    self.scalarrel, rc=rc, beta=self.rgd.beta)
         u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
         return u, e
@@ -955,8 +951,8 @@ class ValenceData:
                   rc - r         \    r - ri /
 
         """
-        i_ri = self.r2g(ri)
-        i_rc = self.r2g(rc)
+        i_ri = self.rgd.floor(ri)
+        i_rc = self.rgd.floor(rc)
         if self.rgd.r_g[i_rc] == rc:
             # Avoid division by zero in the odd case that rc coincides
             # exactly with a grid point (which actually happens sometimes)

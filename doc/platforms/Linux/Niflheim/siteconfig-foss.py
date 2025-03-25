@@ -8,6 +8,7 @@ fftw = True
 libraries = ['openblas', 'fftw3', 'readline', 'gfortran']
 mpi_libraries = []
 include_dirs = []
+undef_macros = []
 
 # Use EasyBuild scalapack from the active toolchain
 libraries += ['scalapack']
@@ -48,5 +49,15 @@ if os.getenv('CPU_ARCH') == 'icelake':
                         '-gencode', 'arch=compute_80,code=sm_80']
 
     libraries += ['cudart', 'cublas']
+elif os.getenv('CPU_ARCH') == 'skylake_el8':
+    gpu = True
+    gpu_target = 'cuda'
+    gpu_compiler = 'nvcc'
+    gpu_compile_args = ['-O3',
+                        '-g',
+                        '-gencode', 'arch=compute_86,code=sm_86']
+
+    libraries += ['cudart', 'cublas']
+    undef_macros += ['GPAW_GPU_AWARE_MPI']
 else:
     gpu = False
