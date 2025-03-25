@@ -55,7 +55,7 @@ pip install -e gpaw
 
 $PIP install myqueue graphviz qeh ase-ext
 
-gpaw install-data --basis --version=20000 . --no-register
+gpaw install-data --basis --version=0.9.20000 . --no-register
 export GPAW_SETUP_PATH=$GPAW_SETUP_PATH:$VENV/gpaw-basis-pvalence-0.9.20000
 echo "export GPAW_SETUP_PATH=$GPAW_SETUP_PATH" >> bin/activate
 

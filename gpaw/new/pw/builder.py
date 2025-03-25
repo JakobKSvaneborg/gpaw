@@ -143,7 +143,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.setups,
             ps, self.relpos_ac, self.atomdist, self.xp)
 
-    def create_potential_calculator(self):
+    def create_potential_calculator(self, log):
+        env = self.create_environment(self.fine_grid, log)
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
             self.interpolation_desc,
@@ -154,7 +155,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
-            xp=self.xp)
+            xp=self.xp,
+            environment=env)
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:
@@ -208,8 +210,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     psit_R.fft(out=psit_G)
             return psit_nsG
 
-    def read_ibz_wave_functions(self, reader):
-        ibzwfs = super().read_ibz_wave_functions(reader)
+    def read_ibz_wave_functions(self, reader, log):
+        ibzwfs = super().read_ibz_wave_functions(reader, log)
 
         if 'coefficients' not in reader.wave_functions:
             return ibzwfs

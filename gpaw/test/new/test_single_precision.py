@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 import subprocess
+import sys
 
 from ase.build import molecule
 
@@ -8,40 +9,52 @@ from gpaw.new.ase_interface import GPAW
 
 
 @pytest.mark.serial
-def test_single_precision():
-    result = subprocess.run(
-        f'GPAW_NO_C_EXTENSION=1 python {__file__}',
-        shell=True, capture_output=True,
-        text=True, check=True)
-    result.stderr
+@pytest.mark.parametrize('dtype',
+                         ['np.complex128',
+                          'np.complex64',
+                          'np.float64',
+                          'np.float32'])
+@pytest.mark.parametrize('gpu', [False, True])
+def test_single_precision(dtype, gpu):
+    try:
+        result = subprocess.run(
+            f'GPAW_NO_C_EXTENSION=1 python {__file__} {dtype} {gpu}',
+            shell=True, capture_output=True,
+            text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(e.output)
+        print(e.stderr)
+        raise e
+    print(result.stdout)
 
 
-def run_single_precision():
-    atoms = molecule('H2')
+def run_single_precision(dtype, gpu):
+    atoms = molecule('H2O')
     atoms.center(vacuum=2.5)
-    atoms2 = atoms.copy()
 
-    atoms.calc = GPAW(xc='PPLDA',
+    gpu = gpu == 'True'
+
+    atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
+                      convergence={'energy': 1e-5},
                       mode={'name': 'pw',
                             'ecut': 200.0,
-                            'dtype': complex})
-    e_pot1 = atoms.get_potential_energy()
+                            'dtype': dtype},
+                      parallel={'gpu': gpu}
+                      )
 
-    atoms2.calc = GPAW(xc='PPLDA',
-                       symmetry='off',
-                       random=True,
-                       mode={'name': 'pw',
-                             'ecut': 200.0,
-                             'dtype': np.float32})
-    e_pot2 = atoms2.get_potential_energy()
+    e_pot = atoms.get_potential_energy()
+    expected_e = 9.595593485742606
 
-    assert not atoms.calc.wfs.dtype == np.float32
-    assert atoms2.calc.wfs.dtype == np.float32
+    assert atoms.calc.wfs.dtype == dtype
 
-    assert e_pot2 == pytest.approx(e_pot1, rel=1e-4)
+    assert e_pot == pytest.approx(expected_e, rel=1e-3), e_pot - expected_e
 
 
 if __name__ == '__main__':
-    run_single_precision()
+    dtypes = {'np.float32': np.float32,
+              'np.float64': np.float64,
+              'np.complex64': np.complex64,
+              'np.complex128': np.complex128}
+    run_single_precision(dtype=dtypes[sys.argv[1]], gpu=sys.argv[2])

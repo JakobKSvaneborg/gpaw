@@ -94,6 +94,21 @@ class ScissorsLCAOEigensolver(LCAOEigensolver):
         for homo, lumo, natoms in shifts:
             self.shifts.append((homo / Ha, lumo / Ha, natoms))
 
+    def iterate(self,
+                ibzwfs,
+                density,
+                potential,
+                hamiltonian,
+                pot_calc=None,
+                energies=None):  # -> tuple[float, DFTEnergies]:
+        super().iterate(ibzwfs, density, potential, hamiltonian,
+                        pot_calc, energies)
+        if ibzwfs.wfs_qs[0][0]._occ_n is None:
+            error = np.nan
+        else:
+            error = 0.0
+        return error, energies
+
     def iterate1(self, wfs, matrix_calculator):
         super().iterate1(wfs, MyMatCalc(matrix_calculator, self.shifts))
 

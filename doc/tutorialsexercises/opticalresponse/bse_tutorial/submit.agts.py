@@ -17,3 +17,4 @@ def workflow():
     with run(script='gs_RhCl2.py', cores=4, tmax='10m'):
         with run(script='magnons_q.py', cores=56, tmax='35m'):
             run(script='plot_magnons.py')
+        run(script='magnons_RhCl2.py', cores=4, tmax='25m')

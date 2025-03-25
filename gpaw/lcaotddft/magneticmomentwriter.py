@@ -325,7 +325,7 @@ class MagneticMomentWriter(TDDFTObserver):
                  calculate_on_grid: bool = None,
                  only_pseudo: bool = None,
                  interval: int = 1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.ioctx = IOContext()
         mode = paw.wfs.mode
         assert mode in ['fd', 'lcao'], f'unknown mode: {mode}'

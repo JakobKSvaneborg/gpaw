@@ -32,7 +32,7 @@ class Davidson(Eigensolver):
 
     def __init__(
             self, niter=2):
-        Eigensolver.__init__(self)
+        super().__init__()
         self.niter = niter
         self.diagonalizer_backend = None
 
@@ -58,7 +58,7 @@ class Davidson(Eigensolver):
             'elpa': ElpaDiagonalizer
         }
 
-        Eigensolver.initialize(self, wfs)
+        super().initialize(wfs)
         slcomm, nrows, ncols, slsize = wfs.scalapack_parameters
 
         if wfs.gd.comm.rank == 0 and wfs.bd.comm.rank == 0:
@@ -80,7 +80,7 @@ class Davidson(Eigensolver):
             self.diagonalizer_backend = ScipyDiagonalizer(slcomm)
 
     def estimate_memory(self, mem, wfs):
-        Eigensolver.estimate_memory(self, mem, wfs)
+        super().estimate_memory(mem, wfs)
         nbands = wfs.bd.nbands
         mem.subnode('H_nn', nbands * nbands * mem.itemsize[wfs.dtype])
         mem.subnode('S_nn', nbands * nbands * mem.itemsize[wfs.dtype])

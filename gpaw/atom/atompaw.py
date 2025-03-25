@@ -214,7 +214,7 @@ class AtomGridDescriptor(EquidistantRadialGridDescriptor):
     def __init__(self, h, rcut):
         ng = int(float(rcut) / h + 0.5) - 1
         rcut = ng * h
-        EquidistantRadialGridDescriptor.__init__(self, h, ng, h0=h)
+        super().__init__(h, ng, h0=h)
         self.sdisp_cd = np.empty((3, 2))
         self.comm = mpi.serial_comm
         self.pbc_c = np.zeros(3, bool)
@@ -265,7 +265,7 @@ class AtomOccupations(OccupationNumberCalculator):
 
     def __init__(self, f_sln):
         self.f_sln = f_sln
-        OccupationNumberCalculator.__init__(self)
+        super().__init__()
 
     def _calculate(self,
                    nelectrons,
@@ -291,16 +291,15 @@ class AtomPAW(GPAW):
         self.symbol = symbol
 
         gd = AtomGridDescriptor(h, rcut)
-        GPAW.__init__(self,
-                      mode=MakeWaveFunctions(gd),
-                      eigensolver=AtomEigensolver(gd, f_sln),
-                      poissonsolver=AtomPoissonSolver(),
-                      nbands=sum([(2 * l + 1) * len(f_n)
-                                  for l, f_n in enumerate(f_sln[0])]),
-                      communicator=mpi.serial_comm,
-                      parallel=dict(augment_grids=False),
-                      occupations=AtomOccupations(f_sln),
-                      **kwargs)
+        super().__init__(mode=MakeWaveFunctions(gd),
+                         eigensolver=AtomEigensolver(gd, f_sln),
+                         poissonsolver=AtomPoissonSolver(),
+                         nbands=sum([(2 * l + 1) * len(f_n)
+                                     for l, f_n in enumerate(f_sln[0])]),
+                         communicator=mpi.serial_comm,
+                         parallel=dict(augment_grids=False),
+                         occupations=AtomOccupations(f_sln),
+                         **kwargs)
         # Initialize function will raise an error unless we set a (bogus) cell
         self.initialize(Atoms(symbol, calculator=self,
                               cell=np.eye(3)))
