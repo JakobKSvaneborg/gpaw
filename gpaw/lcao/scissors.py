@@ -180,7 +180,7 @@ class MyMatCalc:
         C0_nM = C_nM.gather()
         C1_nM = Matrix(nocc, M, dtype=C_nM.dtype, dist=(comm, 1, 1))
         if comm.rank == 0:
-            C1_nM.data[:] = np.ascontiguousarray(C0_nM.data[:nocc, :])
+            C1_nM.data[:] = C0_nM.data[:nocc, :]
         C_nM = C1_nM.new(dist=dist)
         C1_nM.redist(C_nM)
 
@@ -207,9 +207,9 @@ class MyMatCalc:
             a2 = a1 + natoms
             M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
             A_Mm = Matrix(M, M2 - M1, Z_MM.dtype, dist=dist)
-            A_Mm.data[:] = np.ascontiguousarray(Z_MM.data[:, M1:M2])
+            A_Mm.data[:] = Z_MM.data[:, M1:M2]
             Q_nm = Matrix(n, M2 - M1, Q_nM.dtype, dist=dist)
-            Q_nm.data[:] = np.ascontiguousarray(Q_nM.data[:, M1:M2])
+            Q_nm.data[:] = Q_nM.data[:, M1:M2]
 
             Q2_nm = Q_nm.copy()
             Q2_nm.complex_conjugate()
