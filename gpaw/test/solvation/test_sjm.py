@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from ase.build import fcc111
 from ase.data.vdw import vdw_radii
 from gpaw import FermiDirac

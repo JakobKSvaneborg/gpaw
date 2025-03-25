@@ -71,10 +71,12 @@ class FixedPotentialJellium(Jellium):
                  jellium,
                  natoms: int,
                  grid: UGDesc,
-                 workfunction: float):
+                 workfunction: float,
+                 tolerance: float = 0.001):
         """Adjust jellium charge to get the desired Fermi-level."""
         super().__init__(jellium, natoms, grid)
         self.workfunction = workfunction / Ha
+        self.tolerance = tolerance / Ha
         # Charge, Fermi-level history:
         self.history: list[tuple[float, float]] = []
 
@@ -85,9 +87,8 @@ class FixedPotentialJellium(Jellium):
                              log) -> bool:
         fl1 = ibzwfs.fermi_level
         log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl1 * Ha:.3f} eV')
-        tol = 0.001 / Ha
         fl = -self.workfunction
-        if abs(fl1 - fl) <= tol:
+        if abs(fl1 - fl) <= self.tolerance:
             return True
         self.history.append((self.charge, fl1))
         if len(self.history) == 1:

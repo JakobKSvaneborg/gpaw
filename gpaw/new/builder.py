@@ -380,6 +380,13 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
     def create_environment(self, grid, log):
+        if self.params.environment is not None:
+            return self.params.environment.build(
+                setups=self.setups,
+                grid=grid, relpos_ac=self.relpos_ac, log=log,
+                comm=self.communicators['w'],
+                nn=self.params.poissonsolver.get('nn', 3))
+
         if self.params.background_charge:
             from gpaw.new.environment import Jellium, FixedPotentialJellium
             from gpaw.jellium import create_background_charge

@@ -4,6 +4,7 @@ import warnings
 from typing import Any, Sequence
 
 import numpy as np
+from gpaw.new.environment import Environment
 
 parameter_functions = {}
 
@@ -24,6 +25,7 @@ class InputParameters:
     charge: float
     convergence: dict[str, Any]
     eigensolver: dict[str, Any]
+    environment: Environment,
     experimental: dict[str, Any]
     external: dict[str, Any]
     gpts: None | Sequence[int]
@@ -143,6 +145,11 @@ def eigensolver(value=None) -> dict:
     if isinstance(value, str):
         value = {'name': value}
     return value or {}
+
+
+@input_parameter
+def environment(value=None):
+    return value
 
 
 @input_parameter
