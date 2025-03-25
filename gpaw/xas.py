@@ -50,6 +50,25 @@ def dipole_matrix_elements(setup):
     return A_cmi
 
 
+def logger(txt, mode, spin, nocc, center, setup):
+
+    spin_txt = 'up'
+    if spin == 1:
+        spin_txt = 'down'
+
+    txt('\n\n')
+    txt('XAS - Calculating Matrix ellement')
+    txt('\n')
+    txt('Mode:           ', mode)
+    txt('Spin:           ', spin_txt, f'({spin})')
+    txt('Ocupide states: ', nocc)
+    txt('Center:         ', center)
+    txt('Element:        ', setup.symbol)
+    txt('Setup:')
+    setup.print_info(txt)
+    txt('\n')
+
+
 class XAS:
     def __init__(self, paw=None, *args, **kwargs):
         if paw is not None:
@@ -201,21 +220,7 @@ class XAS:
 
         self.symmetry = wfs.kd.symmetry
 
-        spin_txt = 'up'
-        if spin == 1:
-            spin_txt = 'down'
-
-        self.log('\n\n')
-        self.log('XAS - Calculating Matrix ellement')
-        self.log('\n')
-        self.log('Mode:           ', mode)
-        self.log('Spin:           ', spin_txt, f'({spin})')
-        self.log('Ocupide states: ', nocc)
-        self.log('Center:         ', a)
-        self.log('Element:        ', setup.symbol)
-        self.log('Setup:')
-        setup.print_info(self.log)
-        self.log('\n')
+        logger(self.log, mode, spin, nocc, a, setup)
 
     def write(self, fname: str):
 
