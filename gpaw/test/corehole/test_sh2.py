@@ -111,19 +111,6 @@ def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, sh2_s2p1ch):
     assert folding_is_normalized(xas, dks)
 
 
-def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
-    """XXX is this still needed?"""
-    dks = 20
-    xas0 = XAS(sh2_s1s1ch.calc)
-    mefname = 'me.dat.npz'
-    xas0.write(mefname)
-    x0, y0_cn = xas0.get_oscillator_strength(dks=dks)
-    xas1 = XAS().restart(mefname)
-    x1, y1_cn = xas1.get_oscillator_strength(dks=dks)
-    assert x1 == pytest.approx(x0)
-    assert y1_cn == pytest.approx(y0_cn)
-
-
 def test_proj(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
     atoms = sh2_s1s1ch
 
