@@ -64,3 +64,9 @@ def test_sjm(gpaw_new):
         pot = -atoms.calc.get_fermi_level()
 
     assert abs(pot - potential) < tol
+    if 1:
+        v = atoms.calc.get_electrostatic_potential()
+        import matplotlib.pyplot as plt
+        import numpy as np
+        plt.plot(np.linspace(0, atoms.cell[2, 2], v.shape[2], 0), v[0, 0])
+        plt.show()

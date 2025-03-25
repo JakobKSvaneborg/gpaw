@@ -12,7 +12,7 @@ from gpaw.solvation import (
     SurfaceInteraction)
 
 
-def test_cip():
+def test_cip(in_tmp_dir):
     # Solvent parameters
     u0 = 0.180  # eV
     epsinf = 78.36  # Dielectric constant of water at 298 K

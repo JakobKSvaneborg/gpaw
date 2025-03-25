@@ -8,6 +8,10 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class Environment:
+    """Environment object.
+
+    Used for jellium, solvation, solvated jellium model, ...
+    """
     def __init__(self, natoms: int):
         self.natoms = natoms
         self.charge = 0.0

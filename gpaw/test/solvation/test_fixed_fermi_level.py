@@ -22,7 +22,7 @@ def test_ffl(mode):
                                workfunction=3.15))
     atoms.get_potential_energy()
     assert atoms.calc.get_fermi_level() == pytest.approx(-3.15, abs=0.001)
-    if 1:
+    if 0:
         v = atoms.calc.get_electrostatic_potential()
         import matplotlib.pyplot as plt
         plt.plot(np.linspace(0, 11, v.shape[2], 0), v[0, 0])
