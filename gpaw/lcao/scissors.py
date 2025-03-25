@@ -213,7 +213,7 @@ class MyMatCalc:
 
             Q2_nm = Q_nm.copy()
             Q2_nm.complex_conjugate()
-            
+
             R_mm = Q2_nm.multiply(Q_nm, opa='T')
             R_mm.data *= (homo - lumo)
             R_mm.add_to_diagonal(lumo)
