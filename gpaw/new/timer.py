@@ -97,12 +97,12 @@ def dummy_trace(meth: Union[Callable[..., T], None] = None,
 
 
 @contextmanager
-def _tracectx(name):
-    global_timer.start(name)
+def _tracectx(name, gpu=False):
+    global_timer.start(name, gpu=gpu)
     try:
         yield
     finally:
-        global_timer.stop()
+        global_timer.stop(gpu=gpu)
 
 
 @contextmanager

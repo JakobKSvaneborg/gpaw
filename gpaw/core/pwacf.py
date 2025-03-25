@@ -10,7 +10,7 @@ from gpaw.core.uniform_grid import UGArray
 from gpaw.ffbt import rescaled_fourier_bessel_transform
 from gpaw.gpu import cupy_is_fake, gpu_gemm
 # from gpaw.lfc import BaseLFC
-from gpaw.new import prod, trace
+from gpaw.new import prod, trace, tracectx
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
 from gpaw.utilities.blas import mmm
@@ -394,12 +394,13 @@ class PWLFC:  # (BaseLFC)
             x = 1.0
 
         self.comm.sum(b_xI)
-        if add_to:
-            for a, I1, I2 in self.my_indices:
-                c_axi[a] += self.eikR_a[a] * c_xI[..., I1:I2]
-        else:
-            for a, I1, I2 in self.my_indices:
-                c_axi[a][:] = self.eikR_a[a] * c_xI[..., I1:I2]
+        with tracectx('Displace integrals', gpu=True):
+            if add_to:
+                for a, I1, I2 in self.my_indices:
+                    c_axi[a] += self.eikR_a[a] * c_xI[..., I1:I2]
+            else:
+                for a, I1, I2 in self.my_indices:
+                    c_axi[a][:] = self.eikR_a[a] * c_xI[..., I1:I2]
 
         return c_axi
 
