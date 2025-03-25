@@ -91,7 +91,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return self.interpolation_desc.new(ecut=8 * self.ecut)
 
     @cached_property
-    def fast_poisson_solver(self):
+    def fast_poisson_solver(self) -> bool:
         fast = self.params.poissonsolver.get('fast', False)
         if fast:
             # Only works for gaussian compensation charges at the moment:
