@@ -17,12 +17,12 @@ def dipole_matrix_elements(setup):
     """calculate length form dipole matrix elements of setup-states
     with the core-state"""
     l_core = setup.data.lcorehole
-    lmax = max(setup.lmax, l_core)
-    G_LLL = gaunt(lmax)  # include the f states
+    lmax = max(setup.lmax, l_core)  # include the f states
+    G_LLL = gaunt(lmax)
 
     # map m, l quantum numbers to L
     M = {0: [0]}
-    for l in range(1, lmax + 1): # include the f states
+    for l in range(1, lmax + 1):
         M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
 
     phi_jg = setup.data.phi_jg
@@ -110,15 +110,11 @@ class XAS:
                 if kpt.s == spin:
                     self.list_kpts.append(i)
 
-            # assert len(self.list_kpts) == nkpts / kd_size
-
             # find number of occupied orbitals, if no fermi smearing
             nocc = 0.0
             for i in self.list_kpts:
                 nocc += sum(wfs.kpt_u[i].f_n)
-                '''for j in wfs.kpt_u[i].f_n:
-                    if j > 0.5:
-                        nocc += 1'''
+
             nocc = kd.comm.sum_scalar(nocc)
             nocc = int(nocc + 0.5)
 
@@ -205,14 +201,14 @@ class XAS:
 
         self.symmetry = wfs.kd.symmetry
 
-        self.log('\n')
-        self.log('\n')
-        self.log('XAS - Calculating Matrix ellement')
-        self.log('\n')
-        self.log('Mode:           ', mode)
         spin_txt = 'up'
         if spin == 1:
             spin_txt = 'down'
+
+        self.log('\n\n')
+        self.log('XAS - Calculating Matrix ellement')
+        self.log('\n')
+        self.log('Mode:           ', mode)
         self.log('Spin:           ', spin_txt, f'({spin})')
         self.log('Ocupide states: ', nocc)
         self.log('Center:         ', a)
