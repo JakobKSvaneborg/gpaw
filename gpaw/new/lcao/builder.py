@@ -109,7 +109,8 @@ def create_lcao_ibzwfs(basis,
                       dtype,
                       dist=(band_comm, band_comm.size, 1))
         if coefficients is not None:
-            C_nM.data[:] = coefficients.proxy(spin, k)
+            n1, n2 = C_nM.dist.my_row_range()
+            C_nM.data[:] = coefficients.proxy(spin, k)[n1:n2]
         else:
             # We set the first element to NaN as a hack so that the
             # code can later tell that the data is not initialized.

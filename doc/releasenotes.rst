@@ -10,7 +10,11 @@ Git master branch
 
 :git:`master <>`.
 
+* The fluctuation-dissipation theorem has been added to the SJM.
+
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
+
+* The constant inner potential DFT method has been included SJM.
 
 * Sign of electron chemical potential in SJM text output has been corrected.
   The resulting (Grand) energies are not affected by this change.

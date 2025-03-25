@@ -13,8 +13,10 @@ from gpaw.atom.basis import BasisMaker
 
 @pytest.mark.old_gpaw_only  # basis set cutoff?
 def test_lcao_force():
-    obasis = BasisMaker('O').generate(2, 1, energysplit=0.3, tailnorm=0.03**.5)
-    hbasis = BasisMaker('H').generate(2, 1, energysplit=0.3, tailnorm=0.03**.5)
+    obasis = BasisMaker.from_symbol('O').generate(2, 1, energysplit=0.3,
+                                                  tailnorm=0.03**.5)
+    hbasis = BasisMaker.from_symbol('H').generate(2, 1, energysplit=0.3,
+                                                  tailnorm=0.03**.5)
     basis = {'O': obasis, 'H': hbasis}
 
     system = molecule('H2O')
