@@ -25,13 +25,13 @@ class Environment:
         """Allow for environment to "converge"."""
         return True
 
-    def update1(self, nt_r):
+    def update1(self, nt_r) -> None:
         pass
 
-    def update1pw(self, nt_g):
+    def update1pw(self, nt_g) -> None:
         pass
 
-    def update2(self, nt_r, vHt_r, vt_sr):
+    def update2(self, nt_r, vHt_r, vt_sr) -> float:
         return 0.0
 
     def forces(self, nt_r, vHt_r):
@@ -71,8 +71,8 @@ class FixedPotentialJellium(Jellium):
                  jellium,
                  natoms: int,
                  grid: UGDesc,
-                 workfunction: float,
-                 tolerance: float = 0.001):
+                 workfunction: float,  # eV
+                 tolerance: float = 0.001):  # eV
         """Adjust jellium charge to get the desired Fermi-level."""
         super().__init__(jellium, natoms, grid)
         self.workfunction = workfunction / Ha

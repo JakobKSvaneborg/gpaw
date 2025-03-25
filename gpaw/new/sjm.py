@@ -13,9 +13,9 @@ class SJM:
                  dielectric,
                  interactions,
                  jelliumregion,
-                 target_potential: float,
+                 target_potential: float,  # eV
                  excess_electrons: float = 0.0,
-                 tol: float = 0.001):
+                 tol: float = 0.001):  # eV
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions
@@ -24,7 +24,13 @@ class SJM:
         self.excess_electrons = excess_electrons
         self.tol = tol
 
-    def build(self, setups, grid, relpos_ac, log, comm, nn):
+    def build(self,
+              setups,
+              grid,
+              relpos_ac,
+              log,
+              comm,
+              nn) -> SJMEnvironment:
         solvation = Solvation(
             cavity=self.cavity,
             dielectric=self.dielectric,
@@ -74,5 +80,5 @@ class SJMEnvironment(Environment):
         self.solvation.update1(nt_r)
         self.fixed_potential.update1(nt_r)
 
-    def update2(self, nt_r, vHt_r, vt_sr):
+    def update2(self, nt_r, vHt_r, vt_sr) -> float:
         return self.solvation.update2(nt_r, vHt_r, vt_sr)

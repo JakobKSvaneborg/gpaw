@@ -175,8 +175,8 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
     def __init__(self,
                  ps: PWPoissonSolver,
                  grid: UGDesc,
-                 width: float = 1.0,
-                 zero_vacuum=False):  # Ångström
+                 width: float = 1.0,  # Ångström
+                 zero_vacuum=False):
         self.ps = ps
         self.grid = grid
         self.width = width / Bohr
