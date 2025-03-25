@@ -297,6 +297,16 @@ consistent with the wanted charge transfer state.
 
 .. literalinclude:: constraints.py
 
+
+-----------------------------------------------------
+Example IV: Excited state of silicon using plane wave
+-----------------------------------------------------
+
+In this example, the singlet excited state of a conventional silicon is calculated using plane waves approach.
+
+.. literalinclude:: si_es.py
+
+
 ----------
 References
 ----------

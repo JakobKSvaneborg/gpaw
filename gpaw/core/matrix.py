@@ -490,7 +490,7 @@ class Matrix(XP):
 
     def complex_conjugate(self) -> None:
         """Inplace complex conjugation."""
-        if self.dtype == complex:
+        if np.issubdtype(self.dtype, np.complexfloating):
             self.xp.negative(self.data.imag, self.data.imag)
 
     def add_hermitian_conjugate(self, scale: float = 1.0) -> None:
@@ -736,7 +736,11 @@ class BLACSDistribution(MatrixDistribution):
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
-            ok = a.dist.simple and b.dist.simple and c.dist.simple
+            # XXX: I am not 100% sure what the requirements for "ok" are
+            # however, requiring square matrices seems necessary.
+            # @JJ, maybe you know more about this?
+            ok = a.dist.simple and b.dist.simple and c.dist.simple \
+                and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1]
             if ok:
                 # Special cases that don't need scalapack - most likely also
                 # faster:
@@ -1039,6 +1043,8 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
             m2 = min(m1 + m, M)
             if m2 > m1:
                 rrequest = comm.receive(buf1[:m2 - m1], rrank, 11, False)
+                # XXX: BUFFER OVERFLOW WHEN M < N!!!!
+                # SO WE GET SEGGFAULT
             if mym > 0:
                 srequest = comm.send(b.data, srank, 11, False)
 

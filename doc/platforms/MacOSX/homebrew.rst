@@ -45,18 +45,6 @@ Install GPAW::
 
     $ pip install --upgrade --user gpaw
 
-Install GPAW setups::
-
-    $ gpaw install-data
-
-.. note::
-
-  Alternative solution if the above command fails::
-
-    $ curl -O https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-0.9.20000.tar.gz
-    $ tar -xf gpaw-setups-0.9.20000.tar
-    $ echo 'export GPAW_SETUP_PATH=~/gpaw-setups-0.9.20000' >> ~/.bash_profile
-
 Test GPAW::
 
     $ gpaw test

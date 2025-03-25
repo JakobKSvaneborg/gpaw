@@ -36,6 +36,8 @@ If you'd rather have it examine changes in the last *four* values of the energy,
 
 (In fact, :code:`convergence={'energy': 0.0005}` is just a shortcut to :code:`convergence={'energy': Energy(0.0005)}`; the dictionary value :code:`0.0005` becomes the first positional argument to :code:`Energy`.)
 
+.. _custom_convergence-forces:
+
 Converging forces
 -----------------
 
