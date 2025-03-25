@@ -740,7 +740,7 @@ class BLACSDistribution(MatrixDistribution):
             # however, requiring square matrices seems necessary
             # in the current implementation. Maybe this should be 
             # looked into more. For now, we just use the more general
-            # scalapack function in that case.
+            # scalapack function when matrices are not square.
             ok = a.dist.simple and b.dist.simple and c.dist.simple \
                 and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1]
             if ok:
