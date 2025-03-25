@@ -9,9 +9,9 @@ from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
 from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 
-@pytest.mark.skip('see #1340')
+@pytest.mark.skip('Too slow: 11 min.')
 @pytest.mark.slow
-def test_sjm_fdt_true():
+def test_sjm_fdt_true(in_tmp_dir):
     """Test if fdt dictionary is correctly set in the calculator.
     Test if fdt initial excess electron value is correctly
     set in the calculator.
@@ -34,9 +34,7 @@ def test_sjm_fdt_true():
         'fdt': {
             'dt': 0.5,
             'po_time': 1000.0,
-            'th_temp': 300,
-        },
-    }
+            'th_temp': 300}}
 
     # Implicit solvent parameters (to SolvationGPAW).
     epsinf = 78.36
@@ -44,8 +42,7 @@ def test_sjm_fdt_true():
     cavity = EffectivePotentialCavity(
         effective_potential=SJMPower12Potential(H2O_layer=True),
         temperature=298.15,  # K
-        surface_calculator=GradientSurface(),
-    )
+        surface_calculator=GradientSurface())
     dielectric = LinearDielectric(epsinf=epsinf)
     interactions = [SurfaceInteraction(surface_tension=gamma)]
 
@@ -62,8 +59,7 @@ def test_sjm_fdt_true():
         cavity=cavity,
         dielectric=dielectric,
         interactions=interactions,
-        symmetry={'point_group': False},
-    )
+        symmetry={'point_group': False})
     atoms.calc = calc
 
     atoms.get_potential_energy()
