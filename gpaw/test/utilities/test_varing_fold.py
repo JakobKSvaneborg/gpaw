@@ -12,11 +12,15 @@ def test_vering_fold():
     y = [2, 6, 1, 9, 3]
 
     width = 0.2
-    linbroad = [0.4, 4, 8]
+    width2 = 0.4
+    x1 = 4
+    x2 = 8
     for folding in ['Gauss', 'Lorentz']:
         x_c, y_c = Folder(width, folding).fold(x, y)
 
-        x_v, y_v = Folder(width, folding).fold(x, y, linbroad=linbroad)
+        x_v, y_v = Folder(width, folding).varing_fold(x, y,
+                                                      width2=width2,
+                                                      x1=x1, x2=x2)
         assert (x_c == x_v).all()
 
         i = np.where(x_c < 4)

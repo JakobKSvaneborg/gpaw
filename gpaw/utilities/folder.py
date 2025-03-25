@@ -180,33 +180,35 @@ class Folder:
         else:
             raise RuntimeError('unknown folding "' + folding + '"')
 
-    def fold(self, x, y, dx=None, xmin=None, xmax=None,
-             linbroad: list = None):
-        X = np.array(x)
-        assert len(X.shape) == 1
-        Y = np.array(y)
-        assert X.shape[0] == Y.shape[0]
-
+    def x_lim(self, x, dx=None, xmin=None, xmax=None):
         try:
             w = self.func.width
         except AttributeError:
             w = self.width
 
         if xmin is None:
-            xmin = np.min(X) - 4 * w
+            xmin = np.min(x) - 4 * w
         if xmax is None:
-            xmax = np.max(X) + 4 * w
+            xmax = np.max(x) + 4 * w
         if dx is None:
             try:
                 dx = self.func.width / 4.
             except AttributeError:
                 dx = self.width / 4.
 
+        return dx, xmin, xmax
+
+    def fold(self, x, y, dx=None, xmin=None, xmax=None):
+        X = np.array(x)
+        assert len(X.shape) == 1
+        Y = np.array(y)
+        assert X.shape[0] == Y.shape[0]
+
+        dx, xmin, xmax = self.x_lim(X, dx, xmin, xmax)
+
         xl = np.arange(xmin, xmax + 0.5 * dx, dx)
-        if linbroad is None:
-            return self.fold_values(x, y, xl)
-        else:
-            return self.fold_valuse_variable_brodening(x, y, xl, linbroad)
+
+        return self.fold_values(x, y, xl)
 
     def fold_values(self, x, y, xl=None):
         X, Y, Xl = x_y_xl(x, y, xl)
@@ -221,13 +223,22 @@ class Folder:
 
         return Xl, yl
 
-    def fold_valuse_variable_brodening(self, x, y, xl, linbroad: list):
+    def varing_fold(self, x, y, width2, x1, x2,
+                    dx=None, xmin=None, xmax=None):
+
+        X = np.array(x)
+        assert len(X.shape) == 1
+        Y = np.array(y)
+        assert X.shape[0] == Y.shape[0]
+
+        dx, xmin, xmax = self.x_lim(X, dx, xmin, xmax)
+
+        xl = np.arange(xmin, xmax + 0.5 * dx, dx)
+        return self.varing_fold_values(x, y, xl, width2, x1, x2)
+
+    def varing_fold_values(self, x, y, xl, width2, x1, x2,):
 
         X, Y, Xl = x_y_xl(x, y, xl)
-
-        width2 = np.array(linbroad[0])
-        lin_x1 = linbroad[1]
-        lin_x2 = linbroad[2]
 
         width1 = self.width
 
@@ -235,14 +246,14 @@ class Folder:
                            dtype=self.func.dtype)
 
         for i, x in enumerate(X):
-            if x < lin_x1:
-                width_line = width1
-            elif x <= lin_x2 and lin_x2 != lin_x1:
-                width_line = (width1 + (x - lin_x1) *
-                              (width2 - width1) / (lin_x2 - lin_x1))
-            elif x >= lin_x2:
-                width_line = width2
-            self.func.set_width(width_line)
+            if x < x1:
+                width_eff = width1
+            elif x < x2:
+                width_eff = (width1 + (x - x1) *
+                             (width2 - width1) / (x2 - x1))
+            elif x >= x2:
+                width_eff = width2
+            self.func.set_width(width_eff)
 
             weightm[:, i] = self.func.get(Xl, x)
 
