@@ -3,6 +3,7 @@ from functools import wraps
 from io import StringIO
 from typing import Callable, TypeVar, Union, overload, Optional
 from gpaw import GPAW_TRACE
+import inspect
 
 
 class GlobalTimer:
@@ -28,17 +29,19 @@ class GlobalTimer:
 
     def start(self, name, **kwargs):
         timer = self._timers[-1]
-        if getattr(timer, 'trace_gpu', False):
-            timer.start(name, **kwargs)
-        else:
+        n_params = len(inspect.signature(timer.start).parameters)
+        if n_params == 1:
             timer.start(name)
+        else:
+            timer.start(name, **kwargs)
 
     def stop(self, name=None, **kwargs):
         timer = self._timers[-1]
-        if getattr(timer, 'trace_gpu', False):
-            timer.stop(name, **kwargs)
-        else:
+        n_params = len(inspect.signature(timer.stop).parameters)
+        if n_params == 1:
             timer.stop(name)
+        else:
+            timer.stop(name, **kwargs)
 
     def tostring(self):
         buf = StringIO()
