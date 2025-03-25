@@ -169,6 +169,7 @@ class OldLCAOTDDFT(GPAW):
 
         self.timer.start('Kick')
 
+        self.kick_gauge = gauge
         self.kick_strength = np.array(kick_strength, dtype=float)
         magnitude = np.sqrt(np.sum(self.kick_strength**2))
         direction = self.kick_strength / magnitude
