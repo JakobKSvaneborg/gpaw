@@ -438,15 +438,6 @@ class SJM(SolvationGPAW):
                 'po_time': fdt_dict.get('po_time', 100.0),
                 'th_temp': fdt_dict.get('th_temp', 300.0)
             }
-        # @resas: I think this is not needed anymore and makes the code switch
-        # to the default parameters if fdt is False. Can we delete this?
-
-        # else:
-        #     # If fdt is False, just leave it as False or no FDT
-        #     self.parameters['sj']['fdt'] = {}
-
-    #  Call the parent __init__ method
-    # SolvationGPAW.__init__(self, restart, **kwargs)
 
     def _quick_reinitialization(self):
         """Minimal reinitialization of electronic-structure stuff when only
