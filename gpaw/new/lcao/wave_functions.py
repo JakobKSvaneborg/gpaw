@@ -185,20 +185,17 @@ class LCAOWaveFunctions(WaveFunctions):
             f_n = self.weight * self.spin_degeneracy * self.myocc_n
             if eigs:
                 f_n *= self.myeig_n
-            C2_nM = self.C_nM.copy()
-            C1_nM = self.C_nM.copy()
+            TempC_nM = self.C_nM.copy()
+            TempC_nM.data *= f_n[:, None]
+            rho_MM = TempC_nM.multiply(self.C_nM, opa='C')
             if transposed:
-                C1_nM.data *= f_n[:, None]
-                C2_nM.complex_conjugate()
-            else:
-                C1_nM.complex_conjugate()
-                C1_nM.data *= f_n[:, None]
-            rho_MM = C1_nM.multiply(C2_nM, opa='T').data
+                rho_MM.complex_conjugate()
+            rho_MM_data = rho_MM.data
         else:
-            rho_MM = np.empty_like(self.T_MM.data)
-        self.domain_comm.broadcast(rho_MM, 0)
+            rho_MM_data = np.empty_like(self.T_MM.data)
+        self.domain_comm.broadcast(rho_MM_data, 0)
 
-        return rho_MM
+        return rho_MM_data
 
     def to_uniform_grid_wave_functions(self,
                                        grid,

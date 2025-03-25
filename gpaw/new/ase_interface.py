@@ -40,6 +40,7 @@ def GPAW(
     *,
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Iterable[int] | None = None,
+    background_charge=None,
     basis: str | dict[str | int | None, str] | None = None,
     charge: float | None = None,
     convergence: dict[str, Any] | None = None,
@@ -713,14 +714,14 @@ class ASECalculator:
         scf_loop = builder.create_scf_loop()
         scf_loop.update_density_and_potential = False
         scf_loop.fix_fermi_level = not update_fermi_level
+        for name in ['energy', 'density', 'forces']:
+            scf_loop.convergence.pop(name, None)
 
         dft = DFTCalculation(
             ibzwfs, density, potential,
             builder.setups,
             scf_loop,
-            SimpleNamespace(relpos_ac=self.dft.relpos_ac,
-                            poisson_solver=None,
-                            xc=self.dft.pot_calc.xc),
+            builder.create_potential_calculator(log=log),
             log,
             energies=self.dft.energies)
 

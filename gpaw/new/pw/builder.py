@@ -144,6 +144,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             ps, self.relpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self, log):
+        env = self.create_environment(self.fine_grid, log)
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
             self.interpolation_desc,
@@ -154,7 +155,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
-            xp=self.xp)
+            xp=self.xp,
+            environment=env)
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:
