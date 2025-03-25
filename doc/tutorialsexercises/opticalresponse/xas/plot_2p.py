@@ -10,8 +10,8 @@ setup_paths.insert(0, '.')
 dks = 164.623
 so = 1.2  # SO splitting form experiment
 
-dks_energies = [dks, dks + so]  # the dks energyes for the two 2p edges
-w_xas = [2 / 3, 1 / 3]  # wight distrubution of the two 2p edges
+dks_energies = [dks, dks + so]  # the dks energies for the two 2p edges
+w_xas = [2 / 3, 1 / 3]  # weight distribution of the two 2p edges
 
 calc = GPAW('h2s_xas.gpw')
 
