@@ -158,7 +158,6 @@ class MyMatCalc:
         C1_nM.redist(C_nM)
 
         e_N = U_NM.eigh()
-        # We now have: S_MM @ U_MN = U_MN @ diag(e_N)
         e_NM = U_NM.copy()
         n1, n2 = U_NM.dist.my_row_range()
         e_NM.data *= e_N[n1:n2, None]**0.5
@@ -167,11 +166,8 @@ class MyMatCalc:
         Z_MM = U_NM.multiply(e_NM, opa='T')
 
         # Density matrix:
-        # Q_nM = C_nM[:nocc].conj() @ Z_MM
         C_nM.complex_conjugate()
         Q_nM = C_nM.multiply(Z_MM, opb='C')
-
-        # R_MM = A_nM.conj().T @ A_nM
 
         n = Q_nM.shape[0]
 
@@ -187,6 +183,7 @@ class MyMatCalc:
 
             Q2_nm = Q_nm.copy()
             Q2_nm.complex_conjugate()
+            
             R_mm = Q2_nm.multiply(Q_nm, opa='T')
             R_mm.data *= (homo - lumo)
             R_mm.add_to_diagonal(lumo)
