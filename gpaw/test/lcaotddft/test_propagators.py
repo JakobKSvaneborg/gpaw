@@ -96,6 +96,7 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
 
 
 @pytest.mark.serial  # Todo:remove later
+@pytest.mark.rttddft
 def test_velocity(gpw_files, in_tmp_dir):
 
     td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'])
