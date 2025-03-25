@@ -1,3 +1,4 @@
+from __future__ import annotations
 from ase.units import Bohr
 from gpaw.new.environment import Environment, FixedPotentialJellium
 from gpaw.new.solvation import Solvation
