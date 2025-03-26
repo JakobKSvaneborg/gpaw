@@ -23,9 +23,7 @@ parallel_i = parallel_options()
 # Parameterize over spin polarized and unpolarized calculations
 @pytest.fixture(scope='module', params=[True, False])
 @only_on_master(world)
-def initialize_system(request, gpaw_new):
-    if gpaw_new:
-        pytest.skip('LCAOTDDFT on new GPAW does not accept communicator.')
+def initialize_system(request):
     comm = serial_comm
 
     atoms = Atoms('LiNaNaNa',
@@ -70,6 +68,7 @@ def initialize_system(request, gpaw_new):
         td_calc.propagate(100, 2)
 
 
+@pytest.mark.rttddft
 def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
                                         in_tmp_dir):
     with open('mm_ref.dat', 'w', encoding='utf-8') as f:

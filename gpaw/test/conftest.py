@@ -318,7 +318,7 @@ def rng():
     return np.random.default_rng(42)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def gpaw_new() -> bool:
     """Are we testing the new code?"""
     return GPAW_NEW
