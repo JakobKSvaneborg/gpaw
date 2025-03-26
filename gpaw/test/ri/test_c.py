@@ -15,8 +15,8 @@ def test_diamond(in_tmp_dir, add_cwd_to_setup_paths):
     args = parameters['C']
     generator = Generator('C', 'PBE', configuration='1s2',
                           gpernode=2 * Generator.default_gpernode)
-    generator.run(write_xml=True, exx=True, **args)
-    bm = BasisMaker(generator, run=False)
+    setup = generator.run(write_xml=True, exx=True, **args)
+    bm = BasisMaker.from_setup_and_generator(setup, generator)
     basis = bm.generate(zetacount=4, polarizationcount=2,
                         energysplit=0.0001, rcutmax=12.0)
     basis.write_xml()

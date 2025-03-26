@@ -1,15 +1,9 @@
-from gpaw.solvation.sjm import SJM, SJMPower12Potential
-
 from ase.build import fcc111
-from gpaw import FermiDirac
-
-# Import solvation modules
 from ase.data.vdw import vdw_radii
-from gpaw.solvation import (
-    EffectivePotentialCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction)
+from gpaw import FermiDirac
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            LinearDielectric, SurfaceInteraction)
+from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 
 def test_sjm():

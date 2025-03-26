@@ -10,6 +10,8 @@ Git master branch
 
 :git:`master <>`.
 
+* The fluctuation-dissipation theorem has been added to the SJM.
+
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
 * The constant inner potential DFT method has been included SJM.
@@ -27,6 +29,8 @@ Git master branch
   :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
 
 * Experimental: Support for using MPI4PY_.  Set ``GPAW_MPI4PY=1`` to use this.
+
+* Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
 
 
 .. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/

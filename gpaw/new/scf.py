@@ -14,6 +14,7 @@ from gpaw.typing import Array2D
 from gpaw.new.logger import indent
 from gpaw import KohnShamConvergenceError
 from gpaw.new.energies import DFTEnergies
+from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class TooFewBandsError(KohnShamConvergenceError):
@@ -49,7 +50,7 @@ class SCFLoop:
                 f'occupation numbers:\n{indent(self.occ_calc)}\n')
 
     def iterate(self,
-                ibzwfs,
+                ibzwfs: IBZWaveFunctions,
                 density,
                 potential,
                 energies: DFTEnergies,
@@ -105,8 +106,13 @@ class SCFLoop:
 
             if log:
                 write_iteration(cc, converged_items, entries, ctx, log)
+
             if converged:
-                break
+                converged = pot_calc.environment.post_scf_convergence(
+                    ibzwfs, self.occ_calc, self.mixer, log)
+                if converged:
+                    break
+
             if self.niter == maxiter:
                 if wfs_error < inf:
                     raise KohnShamConvergenceError
