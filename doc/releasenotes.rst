@@ -28,6 +28,7 @@ Git master branch
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
   :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
 
+* Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
 
 Version 25.1.0
 ==============

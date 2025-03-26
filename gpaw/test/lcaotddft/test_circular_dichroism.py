@@ -20,9 +20,10 @@ pytestmark = pytest.mark.usefixtures('module_tmp_path')
 parallel_i = parallel_options()
 
 
-@pytest.fixture(scope='module')
+# Parameterize over spin polarized and unpolarized calculations
+@pytest.fixture(scope='module', params=[True, False])
 @only_on_master(world)
-def initialize_system():
+def initialize_system(request):
     comm = serial_comm
 
     atoms = Atoms('LiNaNaNa',
@@ -31,6 +32,9 @@ def initialize_system():
                              [4.0, 0.0, 1.0],
                              [6.0, -1.0, 0.0]])
     atoms.center(vacuum=4.0)
+
+    if request.param:
+        atoms.set_initial_magnetic_moments([0.01] * len(atoms))
 
     calc = GPAW(nbands=2,
                 h=0.4,
@@ -49,6 +53,7 @@ def initialize_system():
                         communicator=comm,
                         txt='td.out')
     dmat = DensityMatrix(td_calc)
+
     MagneticMomentWriter(td_calc, 'mm.dat', dmat=dmat)
     MagneticMomentWriter(td_calc, 'mm_grid.dat', calculate_on_grid=True)
     MagneticMomentWriter(td_calc, 'mm_origin.dat',
