@@ -23,7 +23,9 @@ parallel_i = parallel_options()
 # Parameterize over spin polarized and unpolarized calculations
 @pytest.fixture(scope='module', params=[True, False])
 @only_on_master(world)
-def initialize_system(request):
+def initialize_system(request, gpaw_new):
+    if gpaw_new:
+        pytest.skip('LCAOTDDFT on new GPAW does not accept communicator.')
     comm = serial_comm
 
     atoms = Atoms('LiNaNaNa',
