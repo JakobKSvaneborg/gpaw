@@ -538,5 +538,5 @@ class AtomArrays:
             data = data[index]
         if self.data.size > 0:
             realdtype = as_real_dtype(self.data.dtype)
-            dH_aii_times_P_ani_gpu(data.astype(realdtype),
+            dH_aii_times_P_ani_gpu(xp.asarray(data, dtype=realdtype),
                                    ni_a, self.data, out_ani.data)
