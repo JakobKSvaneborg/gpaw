@@ -738,7 +738,7 @@ class BLACSDistribution(MatrixDistribution):
         if self.comm.size > 1:
             # XXX: Not 100% sure what the requirements for "ok" are
             # however, requiring square matrices seems necessary
-            # in the current implementation. Maybe this should be 
+            # in the current implementation. Maybe this should be
             # looked into more. For now, we just use the more general
             # scalapack function when matrices are not square.
             ok = a.dist.simple and b.dist.simple and c.dist.simple \
