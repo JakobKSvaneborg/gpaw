@@ -51,22 +51,18 @@ def dipole_matrix_elements(setup):
 
 
 def logger(txt, mode, spin, nocc, center, setup):
-
     spin_txt = 'up'
     if spin == 1:
         spin_txt = 'down'
 
-    txt('\n\n')
-    txt('XAS - Calculating Matrix ellement')
-    txt('\n')
-    txt('Mode:           ', mode)
-    txt('Spin:           ', spin_txt, f'({spin})')
-    txt('Ocupide states: ', nocc)
-    txt('Center:         ', center)
-    txt('Element:        ', setup.symbol)
+    txt('\nXAS - Calculating matrix elements\n')
+    txt('Mode:            ', mode)
+    txt('Spin:            ', spin_txt, f'({spin})')
+    txt('Occupied states: ', nocc)
+    txt('Center:          ', center)
+    txt('Element:         ', setup.symbol)
     txt('Setup:')
     setup.print_info(txt)
-    txt('\n')
 
 
 class XAS:
@@ -223,10 +219,9 @@ class XAS:
         logger(self.log, mode, spin, nocc, a, setup)
 
     def write(self, fname: str):
-
+        """Write matrix elements out to a file"""
         if self.world.rank == 0:
-            self.log(f'Writing to {fname}')
-            self.log('\n')
+            self.log(f'Writing to {fname}\n')
             with open(fname, mode='wb') as f:
                 np.savez_compressed(
                     f, eps_kn=self.eps_kn, sigma_cmkn=self.sigma_cmkn,
@@ -235,6 +230,7 @@ class XAS:
 
     @classmethod
     def restart(cls, fname: str):
+        """Read from a matrix elements file"""
         self = XAS()
         with open(fname, mode='rb') as f:
             data = dict(np.load(f)).values()
@@ -279,6 +275,9 @@ class XAS:
 
         Parameters:
 
+        dks:
+          Energy of first transition. Can be a list for spin-orbit split
+          spectra.
         kpoint:
           select a specific k-point to calculate spectrum for
         proj:

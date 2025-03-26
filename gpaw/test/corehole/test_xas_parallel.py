@@ -18,11 +18,10 @@ def xas_sym_nosp(
     return x1, y1
 
 
+@pytest.mark.skipif(mpi.size % 4 != 0,
+                    reason='works only for multiples of 4 cores')
 def test_xas_paralell_kpts_and_domian(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files, xas_sym_nosp):
-
-    if mpi.size % 4 != 0:
-        return
 
     parallel = {'kpt': 2,
                 'band': 1}
@@ -36,11 +35,10 @@ def test_xas_paralell_kpts_and_domian(
     assert y2 == pytest.approx(y1)
 
 
+@pytest.mark.skipif(mpi.size % 2 != 0,
+                    reason='works only for multiples of 2 cores')
 def test_xas_paralell_multiple_kpt_pr_rank(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
-
-    if mpi.size % 2 != 0:
-        return
 
     comm = mpi.world.new_communicator([mpi.world.rank])
 
@@ -61,10 +59,10 @@ def test_xas_paralell_multiple_kpt_pr_rank(
     assert y2 == pytest.approx(y1)
 
 
+@pytest.mark.skipif(mpi.size % 6 != 0,
+                    reason='works only for multiples of 6 cores')
 def test_xas_band_and_kpts_parallel(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files, xas_sym_nosp):
-    if mpi.size % 6 != 0:
-        return
 
     parallel = {'band': 3,
                 'kpt': 2}
@@ -79,15 +77,13 @@ def test_xas_band_and_kpts_parallel(
     assert y2 == pytest.approx(y1)
 
 
+@pytest.mark.skipif(mpi.size % 4 != 0,
+                    reason='works only for multiples of 4 cores')
 def test_xas_kpts_domian_parallel_spinpol(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
-    if mpi.size % 4 != 0:
-        return
-
     parallel = {'kpt': 2,
-                'band': 1
-                }
+                'band': 1}
 
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
                  spinpol=True, parallel=parallel)
@@ -110,11 +106,10 @@ def test_xas_kpts_domian_parallel_spinpol(
     assert y2 == pytest.approx(y1, abs=1.3e-5)
 
 
+@pytest.mark.skipif(mpi.size % 4 != 0,
+                    reason='works only for multiples of 4 cores')
 def test_xes_kpts_and_domain_parallel(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
-
-    if mpi.size % 4 != 0:
-        return
 
     parallel = {'kpt': 2,
                 'band': 1}
@@ -138,10 +133,10 @@ def test_xes_kpts_and_domain_parallel(
     assert y2 == pytest.approx(y1)
 
 
+@pytest.mark.skipif(mpi.size % 6 != 0,
+                    reason='works only for multiples of 6 cores')
 def test_all_band_and_kpts_parallel(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
-    if mpi.size % 6 != 0:
-        return
 
     parallel = {'band': 3,
                 'kpt': 2}

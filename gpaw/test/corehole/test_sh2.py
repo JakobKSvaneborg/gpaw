@@ -8,12 +8,6 @@ from gpaw.xas import XAS
 
 
 def folding_is_normalized(xas: XAS, dks, rel: float = 1e-5) -> bool:
-    if mpi.world.size > 1:
-        return
-    _, ys_cn = xas.get_oscillator_strength(dks=dks)
-
-    if mpi.world.size > 1:
-        return
     _, ys_cn = xas.get_oscillator_strength(dks=dks)
 
     ys_summed_c = ys_cn.sum(axis=1)
@@ -64,8 +58,6 @@ def sh2_s2p1ch(s2p1ch_name):
 def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     """Make sure this calculation does not fail
     because of get_spin_contamination"""
-    if mpi.world.size > 1:
-        return
     atoms = molecule('SH2')
     atoms.center(3)
 
@@ -77,10 +69,7 @@ def test_sulphur_2p_spin_io(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     atoms.get_potential_energy()
 
 
-def test_sulphur_1s_xas_TP(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
-    if mpi.world.size > 1:
-        return
-
+def test_sulphur_1s_xas_tp(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
     nbands = 6
     nocc = 4  # for SH2
 
@@ -95,8 +84,6 @@ def test_sulphur_1s_xas_TP(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
 
 
 def test_sulphur_1s_xas_XCH(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
-    if mpi.world.size > 1:
-        return
     atoms = sh2_s1s1ch
 
     nbands = 6
@@ -118,34 +105,13 @@ def test_sulphur_1s_xas_XCH(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
 
 
 def test_sulphur_2p_xas(in_tmp_dir, add_cwd_to_setup_paths, sh2_s2p1ch):
-    if mpi.world.size > 1:
-        return
-
     dks = 20
 
     xas = XAS(sh2_s2p1ch.calc)
     assert folding_is_normalized(xas, dks)
 
 
-def test_lean_io(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
-    """XXX is this still needed?"""
-    if mpi.world.size > 1:
-        return
-
-    dks = 20
-    xas0 = XAS(sh2_s1s1ch.calc)
-    mefname = 'me.dat.npz'
-    xas0.write(mefname)
-    x0, y0_cn = xas0.get_oscillator_strength(dks=dks)
-    xas1 = XAS().restart(mefname)
-    x1, y1_cn = xas1.get_oscillator_strength(dks=dks)
-    assert x1 == pytest.approx(x0)
-    assert y1_cn == pytest.approx(y0_cn)
-
-
 def test_proj(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
-    if mpi.world.size > 1:
-        return
     atoms = sh2_s1s1ch
 
     dks = 20
@@ -176,10 +142,6 @@ def test_proj(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
 
 
 def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
-    print('#### size: ', mpi.world.size, mpi.size)
-    if mpi.world.size < 2:
-        return
-
     atoms = molecule('SH2')
     atoms.center(3)
 
@@ -224,17 +186,17 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
 
 
 def test_io(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
-    """Is this the more natural way to read?"""
+    """Test that a direct calculation gives the same results as a calculation
+    restarted from matrix element file."""
     dks = 20
-    """Test that a direct calculation gives the same results as a calcultion
-    from """
     medata = 'xasme.dat'
 
     xas1 = XAS(sh2_s1s1ch.calc)
     xas1.write(medata)
 
     # define the XAS object by reading
-    xas2 = XAS().restart('xasme.dat')
+    xas2 = XAS().restart(medata)
+
     x1, y1 = xas1.get_oscillator_strength(dks=dks)
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
     assert x1 == pytest.approx(x2)
