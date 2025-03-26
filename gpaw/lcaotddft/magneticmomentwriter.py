@@ -180,7 +180,7 @@ def calculate_magnetic_moment_matrix(kpt_u, bfs, correction, r_vG, dM_vaii, *,
             correction.calculate(kpt_u[0].q, dM_vaii[v], M_vmM[v],
                                  Mstart, Mstop)
 
-    # The matrix should be real
+    # The matrices should be real
     assert np.max(np.absolute(M_vmM.imag)) == 0.0
     M_vmM = M_vmM.real.copy()
     return -0.5 * M_vmM
@@ -444,7 +444,9 @@ class MagneticMomentWriter(TDDFTObserver):
     def _write_kick(self, paw):
         time = paw.time
         kick = paw.kick_strength
+        gauge = paw.kick_gauge
         line = '# Kick = [%22.12le, %22.12le, %22.12le]; ' % tuple(kick)
+        line += 'Gauge = %s; ' % gauge
         line += 'Time = %.8lf\n' % time
         self._write(line)
 

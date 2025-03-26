@@ -152,31 +152,41 @@ class OldLCAOTDDFT(GPAW):
         self.tddft_initialized = True
         self.timer.stop('Initialize TDDFT')
 
-    def absorption_kick(self, kick_strength: Vector):
+    def absorption_kick(self, kick_strength: Vector,
+                        gauge: str = 'length'):
         """Kick with a weak electric field.
 
         Parameters
         ----------
         kick_strength
             Strength of the kick in atomic units
+        gauge
+            Either 'length' or 'velocity'
         """
+
+        assert gauge in {'length', 'velocity'}
         self.tddft_init()
 
         self.timer.start('Kick')
 
+        self.kick_gauge = gauge
         self.kick_strength = np.array(kick_strength, dtype=float)
         magnitude = np.sqrt(np.sum(self.kick_strength**2))
         direction = self.kick_strength / magnitude
 
-        self.log('----  Applying absorption kick')
+        self.log(f'----  Applying absorption kick in {gauge} gauge')
         self.log('----  Magnitude: %.8f Hartree/Bohr' % magnitude)
         self.log('----  Direction: %.4f %.4f %.4f' % tuple(direction))
 
-        # Create hamiltonian object for absorption kick
-        cef = ConstantElectricField(magnitude * Hartree / Bohr, direction)
+        if gauge == 'length':
+            # Create hamiltonian object for absorption kick
+            cef = ConstantElectricField(magnitude * Hartree / Bohr, direction)
 
-        # Propagate kick
-        self.propagator.kick(cef, self.time)
+            # Propagate kick
+            self.propagator.kick(cef, self.time)
+        else:
+            self.propagator.velocity_gauge_kick(magnitude,
+                                                direction, self.time)
 
         # Call observers after kick
         self.action = 'kick'
