@@ -264,15 +264,17 @@ class ECNPropagator(LCAOPropagator):
                 for Vkick_mM in Vkick_vmM:
                     scalapack_tri2full(ksl.mMdescriptor, Vkick_mM)
 
-        for kpt in self.wfs.kpt_u:
-            if ksl.using_blacs:
-                Vkick_vmm = self.wfs.ksl.distribute_overlap_matrix(
-                    Vkick_qvmM[kpt.q]
-                )
-            else:
-                gcomm.sum(Vkick_qvmM[kpt.q])
-                Vkick_vmm = Vkick_qvmM[kpt.q]
+        q = 0
+        if ksl.using_blacs:
+            Vkick_vmm = self.wfs.ksl.distribute_overlap_matrix(
+                Vkick_qvmM[kpt.q]
+            )
+        else:
+            gcomm.sum(Vkick_qvmM[q])
+            Vkick_vmm = Vkick_qvmM[q]
 
+        for kpt in self.wfs.kpt_u:
+            assert kpt.q == 0
             kpt.Vkick_vmm = Vkick_vmm
 
         self.have_velocity_operator_matrix = True
