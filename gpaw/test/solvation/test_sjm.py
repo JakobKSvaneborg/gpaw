@@ -1,15 +1,11 @@
-import pytest
 from ase.build import fcc111
-# Import solvation modules
 from ase.data.vdw import vdw_radii
-
 from gpaw import FermiDirac
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
                             LinearDielectric, SurfaceInteraction)
 from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 
-@pytest.mark.skip('see #1340')
 def test_sjm():
     # Solvent parameters
     u0 = 0.180  # eV
