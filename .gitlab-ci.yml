@@ -20,6 +20,7 @@ default:
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
+    - pip freeze
   interruptible: true
   tags:
     - $DEFAULT_RUNNER_TAG
