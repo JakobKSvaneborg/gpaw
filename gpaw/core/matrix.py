@@ -9,7 +9,7 @@ import scipy.linalg as sla
 
 import gpaw.utilities.blas as blas
 from gpaw import debug, get_scipy_version
-from gpaw.gpu import cupy as cp, cupy_eigh, XP
+from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
 
@@ -787,8 +787,8 @@ def cublas_mmm(alpha, a, opa, b, opb, beta, c):
         return
     if a.size == 0 and beta == 1.0:
         return
-    cp.cublas.gemm(opa.replace('C', 'H'), opb.replace('C', 'H'),
-                   a, b, c, alpha, beta)
+    gpu_gemm(opa.replace('C', 'H'), opb.replace('C', 'H'),
+             a, b, c, alpha, beta)
 
 
 class CuPyDistribution(MatrixDistribution):
@@ -835,9 +835,9 @@ class CuPyDistribution(MatrixDistribution):
             if opa == 'N':
                 assert opb == 'C' or opb == 'T' and a.dtype == float
                 if a is b:
-                    cp.cublas.gemm('N', 'H',
-                                   a.data, a.data, c.data,
-                                   alpha, beta)
+                    gpu_gemm('N', 'H',
+                             a.data, a.data, c.data,
+                             alpha, beta)
                     # cp.cublas.syrk('N', a.data, c.data, alpha, beta, True)
                 else:
                     if beta == 1.0 and a.shape[1] == 0:
@@ -845,12 +845,12 @@ class CuPyDistribution(MatrixDistribution):
                     if c.data.size > 0:
                         assert beta in [0.0, 1.0]
                         # CuPy doesn't have dsyrk, so we roll our own:
-                        cp.cublas.gemm('N', 'H',
-                                       a.data, b.data, c.data,
-                                       0.5 * alpha, beta)
-                        cp.cublas.gemm('N', 'H',
-                                       b.data, a.data, c.data,
-                                       0.5 * alpha, 1.0)
+                        gpu_gemm('N', 'H',
+                                 a.data, b.data, c.data,
+                                 0.5 * alpha, beta)
+                        gpu_gemm('N', 'H',
+                                 b.data, a.data, c.data,
+                                 0.5 * alpha, 1.0)
             else:
                 1 / 0
                 assert opa == 'C' and opb == 'N'
