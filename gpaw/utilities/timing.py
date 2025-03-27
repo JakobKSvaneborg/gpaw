@@ -306,11 +306,11 @@ class GPUProfiler(Profiler, GPUTimerBase):
         self.txt.write(
             f"""{{"name": "{event.name}", "cat": "PERF", "ph": "B","""
             f""" "pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
-            f""""ts": {int(ms_start*1000)} }},\n""")
+            f""""ts": {int(ms_start * 1000)} }},\n""")
         self.txt.write(
             f"""{{"name": "{event.name}", "cat": "PERF", "ph": "E", """
             f""""pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
-            f""""ts": {int(ms_stop*1000)} }},\n""")
+            f""""ts": {int(ms_stop * 1000)} }},\n""")
 
 
 class HPMTimer(Timer):
