@@ -158,7 +158,7 @@ class UGDesc(Domain['UGArray']):
         """
         return UGArray(self, dims, comm, xp=xp)
 
-    def from_data(self, data):
+    def from_data(self, data: np.dnarray) -> UGArray:
         return UGArray(self, data.shape[:-3], data=data)
 
     def blocks(self, data: np.ndarray):

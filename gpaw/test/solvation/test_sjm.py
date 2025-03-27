@@ -70,3 +70,8 @@ def test_sjm(gpaw_new):
         import numpy as np
         plt.plot(np.linspace(0, atoms.cell[2, 2], v.shape[2], 0), v[0, 0])
         plt.show()
+
+
+if __name__ == '__main__':
+    import sys
+    test_sjm(int(sys.argv[1]))

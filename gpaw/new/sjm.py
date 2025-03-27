@@ -1,10 +1,12 @@
 from __future__ import annotations
+
+import numpy as np
 from ase.units import Bohr
-from gpaw.new.environment import Environment, FixedPotentialJellium
-from gpaw.new.solvation import Solvation
+
 from gpaw.jellium import create_background_charge
-from gpaw.poisson import DipoleCorrection
+from gpaw.new.environment import Environment, FixedPotentialJellium
 from gpaw.new.poisson import PoissonSolverWrapper
+from gpaw.new.solvation import Solvation
 
 
 class SJM:
@@ -64,8 +66,7 @@ class SJMEnvironment(Environment):
 
     def create_poisson_solver(self, **kwargs):
         ps = self.solvation.create_poisson_solver(**kwargs).solver
-        return PoissonSolverWrapper(
-            DipoleCorrection(ps, direction=2, zero_vacuum=True))
+        return SJMPoissonSolver(ps, self.solvation.dielectric)
 
     def post_scf_convergence(self,
                              ibzwfs,
@@ -83,3 +84,27 @@ class SJMEnvironment(Environment):
 
     def update2(self, nt_r, vHt_r, vt_sr) -> float:
         return self.solvation.update2(nt_r, vHt_r, vt_sr)
+
+
+class SJMPoissonSolver(PoissonSolverWrapper):
+    def __init__(self, solver, dielectric):
+        super().__init__(solver)
+        self.dielectric = dielectric
+
+    def solve(self,
+              vHt_r,
+              rhot_r) -> float:
+        self.solver.solve(vHt_r.data, rhot_r.data)
+        eps_r = vHt_r.desc.from_data(self.dielectric.eps_epsgrad[0])
+        saw_tooth_z = modified_saw_tooth(eps_r)
+        s1, s2 = saw_tooth_z[[2, 10]]
+        v1, v2 = vHt_r.data[:, :, [2, 10]].mean(axis=(0, 1))
+        vHt_r.data -= (v2 - v1) / (s2 - s1) * saw_tooth_z[np.newaxis, np.newaxis]
+        vHt_r.data -= vHt_r.data[:, :, -1].mean()
+        return np.nan
+
+
+def modified_saw_tooth(eps_r):
+    eps_z = eps_r.data.mean(axis=(0, 1))
+    ...
+    
