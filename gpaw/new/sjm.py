@@ -95,16 +95,18 @@ class SJMPoissonSolver(PoissonSolverWrapper):
               vHt_r,
               rhot_r) -> float:
         self.solver.solve(vHt_r.data, rhot_r.data)
-        eps_r = vHt_r.desc.from_data(self.dielectric.eps_epsgrad[0])
+        eps_r = vHt_r.desc.from_data(self.dielectric.eps_gradeps[0])
         saw_tooth_z = modified_saw_tooth(eps_r)
         s1, s2 = saw_tooth_z[[2, 10]]
         v1, v2 = vHt_r.data[:, :, [2, 10]].mean(axis=(0, 1))
-        vHt_r.data -= (v2 - v1) / (s2 - s1) * saw_tooth_z[np.newaxis, np.newaxis]
+        vHt_r.data -= (v2 - v1) / (s2 - s1) * saw_tooth_z[np.newaxis,
+                                                          np.newaxis]
         vHt_r.data -= vHt_r.data[:, :, -1].mean()
         return np.nan
 
 
 def modified_saw_tooth(eps_r):
-    eps_z = eps_r.data.mean(axis=(0, 1))
-    ...
-    
+    a_z = 1.0 / eps_r.data.mean(axis=(0, 1))
+    saw_tooth_z = np.add.accumulate(a_z)
+    saw_tooth_z -= 0.5 * a_z
+    return saw_tooth_z
