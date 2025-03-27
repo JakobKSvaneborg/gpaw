@@ -736,7 +736,13 @@ class BLACSDistribution(MatrixDistribution):
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
-            ok = a.dist.simple and b.dist.simple and c.dist.simple
+            # XXX: Not 100% sure what the requirements for "ok" are
+            # however, requiring square matrices seems necessary
+            # in the current implementation. Maybe this should be
+            # looked into more. For now, we just use the more general
+            # scalapack function when matrices are not square.
+            ok = a.dist.simple and b.dist.simple and c.dist.simple \
+                and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1]
             if ok:
                 # Special cases that don't need scalapack - most likely also
                 # faster:
@@ -1039,6 +1045,8 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
             m2 = min(m1 + m, M)
             if m2 > m1:
                 rrequest = comm.receive(buf1[:m2 - m1], rrank, 11, False)
+                # XXX: BUFFER OVERFLOW WHEN M < N!!!!
+                # SO WE GET SEGGFAULT
             if mym > 0:
                 srequest = comm.send(b.data, srank, 11, False)
 
