@@ -74,42 +74,52 @@ class RMMDIIS(PWFDEigensolver):
 
         error = 0.0
         for n1 in range(0, mynbands, self.blocksize):
-            errors_x[:] = 0.0
-            for n in range(n1, n2):
-                weight = weights[n]
-                errors_x[n - n1] = weight * integrate(Rb.array[n - n1],
-                                                      Rb.array[n - n1])
-            comm.sum(errors_x)
-            error += np.sum(errors_x)
+            n2 = min(n1 + self.blocksize, mynbands)
+            error = self._block_step(weight_n[n1:n2])
+        return error
 
-            ekin_x = self.preconditioner.calculate_kinetic_energy(
-                psitb.array, kpt)
-            self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
+    def block_step(self, weight_n) -> float:
+        error = weight_n @ as_np(residual_nX.norm2())
+        if wfs.ncomponents == 4:
+            error = error.sum()
 
-            # Calculate the residual of dpsit_G, dR_G = (H - e S) dpsit_G:
-            # self.timer.start('Apply Hamiltonian')
-            dpsit.apply(Ht, out=dR)
-            # self.timer.stop('Apply Hamiltonian')
-            dpsit.matrix_elements(wfs.pt, out=P)
+        self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
+        errors_x[:] = 0.0
+        for n in range(n1, n2):
+            weight = weights[n]
+            errors_x[n - n1] = weight * integrate(Rb.array[n - n1],
+                                                  Rb.array[n - n1])
+        comm.sum(errors_x)
+        error += np.sum(errors_x)
 
-            self.calculate_residuals(kpt, wfs, ham, dpsit,
-                                     P, kpt.eps_n[n_x], dR, P2, n_x,
-                                     calculate_change=True)
+        ekin_x = self.preconditioner.calculate_kinetic_energy(
+            psitb.array, kpt)
+        self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
 
-            # Find lam that minimizes the norm of R'_G = R_G + lam dR_G
-            RdR_x = np.array([integrate(dR_G, R_G)
-                              for R_G, dR_G in zip(Rb.array, dR.array)])
-            dRdR_x = np.array([integrate(dR_G, dR_G) for dR_G in dR.array])
-            comm.sum(RdR_x)
-            comm.sum(dRdR_x)
-            lam_x = -RdR_x / dRdR_x
-            for lam, psit_G, dpsit_G, R_G, dR_G in zip(
-                lam_x, psitb.array,
-                dpsit.array, Rb.array,
-                dR.array):
-                axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
-                axpy(lam, dR_G, R_G)  # R_G += lam * dR_G
-            self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
-            lam_x[:] = self.trial_step
-            for lam, psit_G, dpsit_G in zip(lam_x, psitb.array, dpsit.array):
-                axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
+        # Calculate the residual of dpsit_G, dR_G = (H - e S) dpsit_G:
+        # self.timer.start('Apply Hamiltonian')
+        dpsit.apply(Ht, out=dR)
+        # self.timer.stop('Apply Hamiltonian')
+        dpsit.matrix_elements(wfs.pt, out=P)
+
+        self.calculate_residuals(kpt, wfs, ham, dpsit,
+                                 P, kpt.eps_n[n_x], dR, P2, n_x,
+                                 calculate_change=True)
+
+        # Find lam that minimizes the norm of R'_G = R_G + lam dR_G
+        RdR_x = np.array([integrate(dR_G, R_G)
+                          for R_G, dR_G in zip(Rb.array, dR.array)])
+        dRdR_x = np.array([integrate(dR_G, dR_G) for dR_G in dR.array])
+        comm.sum(RdR_x)
+        comm.sum(dRdR_x)
+        lam_x = -RdR_x / dRdR_x
+        for lam, psit_G, dpsit_G, R_G, dR_G in zip(
+            lam_x, psitb.array,
+            dpsit.array, Rb.array,
+            dR.array):
+            axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
+            axpy(lam, dR_G, R_G)  # R_G += lam * dR_G
+        self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
+        lam_x[:] = self.trial_step
+        for lam, psit_G, dpsit_G in zip(lam_x, psitb.array, dpsit.array):
+            axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
