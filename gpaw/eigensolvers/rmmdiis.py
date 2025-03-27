@@ -185,7 +185,7 @@ class RMMDIIS(Eigensolver):
                         dpsit.array, Rb.array,
                         dR.array):
                     axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
-                    axpy(lam, dR_G, R_G)  # R_G += lam** dR_G
+                    axpy(lam, dR_G, R_G)  # R_G += lam * dR_G
 
             self.timer.start('DIIS step')
             # DIIS step

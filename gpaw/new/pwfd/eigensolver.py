@@ -70,11 +70,13 @@ class PWFDEigensolver(Eigensolver):
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
-        wfs = ibzwfs.wfs_qs[0][0]
-        assert isinstance(wfs, PWFDWaveFunctions)
-        xp = wfs.psit_nX.xp
         self.preconditioner = self.preconditioner_factory(self.blocksize,
-                                                          xp=xp)
+                                                          xp=ibzwfs.xp)
+
+    def _allocate_work_arrays(self, ibzwfs, shape):
+        shape += ibzwfs.get_max_shape()
+        dtype = ibzwfs.dtype
+        self.work_arrays = ibzwfs.xp.empty(shape, dtype)
 
     @trace
     def iterate(self,
