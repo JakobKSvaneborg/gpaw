@@ -52,14 +52,16 @@ class RMMDIIS(PWFDEigensolver):
         residual_nX = psit_nX.new(data=self.work_arrays[1, :mynbands])
 
         P_ani = wfs.P_ani
-        P2_ani = P_ani.new()
-        P3_ani = P_ani.new()
+        work1_ani = P_ani.new()
+        work2_ani = P_ani.new()
 
         wfs.subspace_diagonalize(Ht, dH,
                                  work_array=work_nX.data,
                                  Htpsit_nX=residual_nX)
         dH = partial(dH, spin=wfs.spin)
-        calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
+        calculate_residuals(wfs.psit_nX, residual_nX, wfs.pt_aiX,
+                            wfs.P_ani, wfs.myeig_n,
+                            dH, dS_aii, work1_ani, work2_ani)
 
         # domain_comm = psit_nX.desc.comm
         # band_comm = psit_nX.comm
@@ -81,13 +83,10 @@ class RMMDIIS(PWFDEigensolver):
                 weight_n[n1:n2],
                 psit_nX[n1:n2],
                 residual_nX[n1:n2],
+                Ht, dH, dS_aii,
                 work_nX[:n2 - n1],
                 work2_nX[:n2 - n1],
-                Ht,
-                dH,
-                dS_aii,
-                P1_ani,
-                P2_ani,
+                P1_ani, P2_ani,
                 self.preconditioner)
         return error
 
@@ -96,11 +95,11 @@ def block_step(wfs,
                weight_n,
                psit_nX,
                residual_nX,
-               work1_nX,
-               work2_nX,
                Ht,
                dH,
                dS_aii,
+               work1_nX,
+               work2_nX,
                P1_ani,
                P2_ani,
                preconditioner) -> float:
@@ -112,13 +111,12 @@ def block_step(wfs,
 
     Ht(presidual_nX, out=dresidual_nX, spin=wfs.spin)
     wfs.pt_aiX.integrate(presidual_nX, out=P1_ani)
-    dH(P1_ani, out_ani=P2_ani)
-    calculate_residuals(dresidual_nX, dH, dS_aii, wfs, P2_ani, P2_ani)
-
-    # Find lam that minimizes the norm of R'_G = R_G + lam dR_G
+    calculate_residuals(dresidual_nX, dH, dS_aii, wfs, P1_ani, P2_ani)
     a_n = [-d_X.integrate(r_X) for d_X, r_X in zip(dresidual_nX, residual_nX)]
     b_n = dresidual_nX.norm2()
     lambda_n = (a_n / b_n).reshape((-1,) + (1,) * (psit_nX.data.ndim - 1))
+    print(a_n, b_n, lambda_n)
+    1 / 0
     presidual_nX.data *= lambda_n
     psit_nX.data += presidual_nX.data
     dresidual_nX.data *= lambda_n

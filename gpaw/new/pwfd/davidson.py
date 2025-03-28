@@ -103,7 +103,12 @@ class Davidson(PWFDEigensolver):
 
         Ht = partial(Ht, out=residual_nX, spin=wfs.spin)
         dH = partial(dH, spin=wfs.spin)
-        calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
+        calculate_residuals(wfs.psit_nX,
+                            residual_nX,
+                            wfs.pt_aiX,
+                            wfs.P_ani,
+                            wfs.myeig_n,
+                            dH, dS_aii, P2_ani, P3_ani)
 
         def copy(C_nn: Array2D) -> None:
             domain_comm.sum(M_nn.data, 0)
@@ -191,7 +196,10 @@ class Davidson(PWFDEigensolver):
             if i < self.niter - 1:
                 Ht(psit_nX)
                 calculate_residuals(
-                    residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
+                    wfs.psit_nX,
+                    residual_nX,
+                    wfs.pt_aiX, wfs.P_ani, wfs.myeig_n,
+                    dH, dS_aii, P2_ani, P3_ani)
 
         if debug:
             psit_nX.sanity_check()

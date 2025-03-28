@@ -162,7 +162,7 @@ class RMMDIIS(Eigensolver):
                 comm.sum(RdR_x)
                 comm.sum(dRdR_x)
                 lam_x = -RdR_x / dRdR_x
-
+                print(RdR_x, dRdR_x, lam_x);sadg
             # Limit abs(lam) to [0.15, 1.0]
             if self.limit_lambda:
                 upper = self.limit_lambda['upper']
