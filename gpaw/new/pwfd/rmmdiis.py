@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from pprint import pformat
 from functools import partial
+from pprint import pformat
+
 import numpy as np
 
+from gpaw.core import PWDesc
+from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
-from gpaw.core import PWDesc
 
 
 class RMMDIIS(PWFDEigensolver):
@@ -33,93 +35,93 @@ class RMMDIIS(PWFDEigensolver):
 
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
-        self._allocate_work_arrays(ibzwfs, shape=(2, self.blocksize))
+        self._allocate_work_arrays(ibzwfs, shape=(2,))
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         """Do one step ...
 
-        Also take a look at ths document:
+        See here:
 
             https://gpaw.readthedocs.io/documentation/rmm-diis.html
         """
-        xp = wfs.xp
 
         psit_nX = wfs.psit_nX
-        nbands = psit_nX.dims[0]  # number of bands
-        eig_n = xp.empty(nbands)
         mynbands = psit_nX.mydims[0]
 
-        psit2_nX = psit_nX.new(data=self.work_arrays[0])
-        psit3_nX = psit_nX.new(data=self.work_arrays[1])
-
-        wfs.subspace_diagonalize(Ht, dH,
-                                 work_array=psit2_nX.data,
-                                 Htpsit_nX=psit3_nX)
-        residual_nX = psit3_nX  # will become (H-e*S)|psit> later
+        work_nX = psit_nX.new(data=self.work_arrays[0, :mynbands])
+        residual_nX = psit_nX.new(data=self.work_arrays[1, :mynbands])
 
         P_ani = wfs.P_ani
         P2_ani = P_ani.new()
         P3_ani = P_ani.new()
 
-        domain_comm = psit_nX.desc.comm
-        band_comm = psit_nX.comm
-        is_domain_band_master = domain_comm.rank == 0 and band_comm.rank == 0
-
-        if domain_comm.rank == 0:
-            eig_n[:] = xp.asarray(wfs.eig_n)
-
-        Ht = partial(Ht, out=residual_nX, spin=wfs.spin)
+        wfs.subspace_diagonalize(Ht, dH,
+                                 work_array=work_nX.data,
+                                 Htpsit_nX=residual_nX)
         dH = partial(dH, spin=wfs.spin)
         calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
+
+        # domain_comm = psit_nX.desc.comm
+        # band_comm = psit_nX.comm
+        # is_domain_band_master = domain_comm.rank == 0 and band_comm.rank == 0
+
+        # if domain_comm.rank == 0:
+        #    eig_n[:] = xp.asarray(wfs.eig_n)
+
+        work2_nX = work_nX.desk.empty(self.blocksize)
 
         error = 0.0
         for n1 in range(0, mynbands, self.blocksize):
             n2 = min(n1 + self.blocksize, mynbands)
-            error = self._block_step(weight_n[n1:n2])
+            error += block_step(
+                wfs,
+                weight_n[n1:n2],
+                psit_nX[n1:n2],
+                residual_nX[n1:n2],
+                work_nX[:n2 - n1],
+                work2_nX[:n2 - n1],
+                Ht,
+                dH,
+                dS_aii,
+                P2_ani[:, n2 - n1],
+                P3_ani[:, n2 - n1],
+                self.preconditioner)
         return error
 
-    def block_step(self, weight_n) -> float:
-        error = weight_n @ as_np(residual_nX.norm2())
-        if wfs.ncomponents == 4:
-            error = error.sum()
 
-        self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
-        errors_x[:] = 0.0
-        for n in range(n1, n2):
-            weight = weights[n]
-            errors_x[n - n1] = weight * integrate(Rb.array[n - n1],
-                                                  Rb.array[n - n1])
-        comm.sum(errors_x)
-        error += np.sum(errors_x)
+def block_step(wfs,
+               weight_n,
+               psit_nX,
+               residual_nX,
+               work1_nX,
+               work2_nX,
+               Ht,
+               dH,
+               dS_aii,
+               P2_ani,
+               P3_ani,
+               preconditioner) -> float:
+    error = weight_n @ as_np(residual_nX.norm2())
 
-        ekin_x = self.preconditioner.calculate_kinetic_energy(
-            psitb.array, kpt)
-        self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
+    presidual_nX = work1_nX
+    dresidual_nX = work2_nX
+    preconditioner(psit_nX, residual_nX, out=presidual_nX)
 
-        # Calculate the residual of dpsit_G, dR_G = (H - e S) dpsit_G:
-        # self.timer.start('Apply Hamiltonian')
-        dpsit.apply(Ht, out=dR)
-        # self.timer.stop('Apply Hamiltonian')
-        dpsit.matrix_elements(wfs.pt, out=P)
+    Ht(presidual_nX, out=dresidual_nX, spin=wfs.spin)
+    wfs.pt_aiX.integrate(presidual_nX, out=P2_ani)
+    dH(P2_ani, out_ani=P3_ani)
+    calculate_residuals(dresidual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
 
-        self.calculate_residuals(kpt, wfs, ham, dpsit,
-                                 P, kpt.eps_n[n_x], dR, P2, n_x,
-                                 calculate_change=True)
+    # Find lam that minimizes the norm of R'_G = R_G + lam dR_G
+    a_n = [d_X.integrate(r_X) for d_X, r_X in zip(dresidual_nX, residual_nX)]
+    b_n = dresidual_nX.norm2()
+    lambda_n = -a_n / b_n
+    presidual_nX.data.T *= lambda_n
+    psit_nX.data += presidual_nX.data
+    dresidual_nX.data.T *= lambda_n
+    residual_nX.data += dresidual_nX.data
+    preconditioner(psit_nX, residual_nX, out=presidual_nX)
+    presidual_nX.data.T *= lambda_n
+    psit_nX.data += presidual_nX.data
 
-        # Find lam that minimizes the norm of R'_G = R_G + lam dR_G
-        RdR_x = np.array([integrate(dR_G, R_G)
-                          for R_G, dR_G in zip(Rb.array, dR.array)])
-        dRdR_x = np.array([integrate(dR_G, dR_G) for dR_G in dR.array])
-        comm.sum(RdR_x)
-        comm.sum(dRdR_x)
-        lam_x = -RdR_x / dRdR_x
-        for lam, psit_G, dpsit_G, R_G, dR_G in zip(
-            lam_x, psitb.array,
-            dpsit.array, Rb.array,
-            dR.array):
-            axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
-            axpy(lam, dR_G, R_G)  # R_G += lam * dR_G
-        self.preconditioner(Rb.array, kpt, ekin_x, out=dpsit.array)
-        lam_x[:] = self.trial_step
-        for lam, psit_G, dpsit_G in zip(lam_x, psitb.array, dpsit.array):
-            axpy(lam, dpsit_G, psit_G)  # psit_G += lam * dpsit_G
+    return error

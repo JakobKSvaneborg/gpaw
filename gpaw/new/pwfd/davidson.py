@@ -39,16 +39,15 @@ class Davidson(PWFDEigensolver):
 
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
-        B = ibzwfs.nbands
-        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
-        shape = (2, b)
-        self._allocate_work_arrays(ibzwfs, shape)
+        self._allocate_work_arrays(ibzwfs, shape=(2,))
 
         wfs = ibzwfs.wfs_qs[0][0]
         assert isinstance(wfs, PWFDWaveFunctions)
         domain_comm = wfs.psit_nX.desc.comm
         band_comm = wfs.band_comm
 
+        B = ibzwfs.nbands
+        xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
         if domain_comm.rank == 0 and band_comm.rank == 0:
             self.H_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)

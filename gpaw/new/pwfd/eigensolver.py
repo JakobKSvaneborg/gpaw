@@ -74,7 +74,8 @@ class PWFDEigensolver(Eigensolver):
                                                           xp=ibzwfs.xp)
 
     def _allocate_work_arrays(self, ibzwfs, shape):
-        shape += ibzwfs.get_max_shape()
+        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
+        shape += (b,) + ibzwfs.get_max_shape()
         dtype = ibzwfs.dtype
         self.work_arrays = ibzwfs.xp.empty(shape, dtype)
 
