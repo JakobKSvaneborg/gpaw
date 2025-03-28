@@ -31,7 +31,7 @@ def create_eigensolver(nbands,
                        atoms,
                        name='dav',
                        **kwargs):
-    if name in ['rmm-diis', 'cg', 'direct']:
+    if name in ['cg', 'direct']:
         warnings.warn(f'{name} not implemented.  Using dav instead')
         name = 'dav'
     if name == 'dav':
@@ -76,7 +76,7 @@ class PWFDEigensolver(Eigensolver):
     def _allocate_work_arrays(self, ibzwfs, shape):
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         shape += (b,) + ibzwfs.get_max_shape()
-        dtype = ibzwfs.dtype
+        dtype = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype
         self.work_arrays = ibzwfs.xp.empty(shape, dtype)
 
     @trace

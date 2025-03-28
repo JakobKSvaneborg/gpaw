@@ -17,8 +17,8 @@ class RMMDIIS(PWFDEigensolver):
                  wf_grid,
                  band_comm,
                  preconditioner_factory,
-                 blocksize=None,
                  converge_bands='occupied',
+                 blocksize=None,
                  scalapack_parameters=None):
         if blocksize is None:
             if isinstance(wf_grid, PWDesc):
@@ -68,7 +68,10 @@ class RMMDIIS(PWFDEigensolver):
         # if domain_comm.rank == 0:
         #    eig_n[:] = xp.asarray(wfs.eig_n)
 
-        work2_nX = work_nX.desk.empty(self.blocksize)
+        n = min(self.blocksize, mynbands)
+        work2_nX = work_nX.desc.empty(n)
+        P1_ani = P_ani.layout.empty(n)
+        P2_ani = P_ani.layout.empty(n)
 
         error = 0.0
         for n1 in range(0, mynbands, self.blocksize):
@@ -83,8 +86,8 @@ class RMMDIIS(PWFDEigensolver):
                 Ht,
                 dH,
                 dS_aii,
-                P2_ani[:, n2 - n1],
-                P3_ani[:, n2 - n1],
+                P1_ani,
+                P2_ani,
                 self.preconditioner)
         return error
 
@@ -98,8 +101,8 @@ def block_step(wfs,
                Ht,
                dH,
                dS_aii,
+               P1_ani,
                P2_ani,
-               P3_ani,
                preconditioner) -> float:
     error = weight_n @ as_np(residual_nX.norm2())
 
@@ -108,20 +111,20 @@ def block_step(wfs,
     preconditioner(psit_nX, residual_nX, out=presidual_nX)
 
     Ht(presidual_nX, out=dresidual_nX, spin=wfs.spin)
-    wfs.pt_aiX.integrate(presidual_nX, out=P2_ani)
-    dH(P2_ani, out_ani=P3_ani)
-    calculate_residuals(dresidual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
+    wfs.pt_aiX.integrate(presidual_nX, out=P1_ani)
+    dH(P1_ani, out_ani=P2_ani)
+    calculate_residuals(dresidual_nX, dH, dS_aii, wfs, P2_ani, P2_ani)
 
     # Find lam that minimizes the norm of R'_G = R_G + lam dR_G
-    a_n = [d_X.integrate(r_X) for d_X, r_X in zip(dresidual_nX, residual_nX)]
+    a_n = [-d_X.integrate(r_X) for d_X, r_X in zip(dresidual_nX, residual_nX)]
     b_n = dresidual_nX.norm2()
-    lambda_n = -a_n / b_n
-    presidual_nX.data.T *= lambda_n
+    lambda_n = (a_n / b_n).reshape((-1,) + (1,) * (psit_nX.data.ndim - 1))
+    presidual_nX.data *= lambda_n
     psit_nX.data += presidual_nX.data
-    dresidual_nX.data.T *= lambda_n
+    dresidual_nX.data *= lambda_n
     residual_nX.data += dresidual_nX.data
     preconditioner(psit_nX, residual_nX, out=presidual_nX)
-    presidual_nX.data.T *= lambda_n
+    presidual_nX.data *= lambda_n
     psit_nX.data += presidual_nX.data
 
     return error
