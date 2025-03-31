@@ -9,7 +9,7 @@ from ase.units import Ha
 from gpaw import __version__ as version
 from gpaw.atom.aeatom import (AllElectronAtom, Channel, GaussianBasis, colors,
                               parse_ld_str)
-from gpaw.basis_data import Basis, BasisFunction, BasisPlotter
+from gpaw.basis_data import Basis, BasisFunction
 from gpaw.gaunt import gaunt
 from gpaw.typing import Array2D
 from gpaw.utilities import pack_hermitian

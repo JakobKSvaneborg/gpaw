@@ -9,7 +9,6 @@ from matplotlib import pyplot as plt
 
 from ..basis_data import Basis, BasisPlotter
 from ..setup_data import SetupData
-from .aeatom import AllElectronAtom
 from .generator2 import PAWSetupGenerator, generate, plot_log_derivs
 
 
@@ -19,9 +18,21 @@ def reconstruct_paw_gen(paw: str,
     tag = '.'.join(remainder)
     setup = SetupData(symbol, setupname, readxml=False)
     with open(paw, mode='rb') as fobj:
-        # `SetupData.vbar_g` can be read from the setup XML
-        # (<zero_potential>)
+        # Can be read from the setup XML:
+        # - `SetupData.vbar_g` (<zero_potential>)
+        # - `SetupData.nc_g` (<ae_core_density>)
+        # - `SetupData.nct_g` (<pseudo_core_density>)
+        # - `SetupData.tauc_g` (<ae_core_kinetic_energy_density>)
+        # - `SetupData.tauct_g` (<pseudo_core_kinetic_energy_density>)
+        # - `SetupData.phi_jg` (<ae_partial_wave>)
+        # - `SetupData.phit_jg` (<pseudo_partial_wave>)
+        # - `SetupData.pt_jg` (<projector_function>)
+        # - `SetupData.vt_g` (<pseudo_potential>)
+        # - `SetupData.e_kin_jj` (<kinetic_energy_differences>)
+        # - `SetupData.X_p` (<exact_exchange_X_matrix>)
+        # - `SetupData.X_pg` (<yukawa_exchange_X_matrix>)
         setup.read_xml(fobj.read())
+    breakpoint()
     params = {'v0': None}
     generator_data = setup.generatordata
     if not generator_data:
