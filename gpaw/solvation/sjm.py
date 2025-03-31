@@ -17,7 +17,7 @@ import ase.io
 from ase.units import Bohr, Ha, kB, _e
 from ase.calculators.calculator import (Parameters, equal, InputError,
                                         PropertyNotPresent)
-from ase.parallel import paropen, world
+from ase.parallel import paropen
 
 import gpaw.mpi
 from gpaw import ConvergenceError
@@ -271,7 +271,6 @@ class SJM(SolvationGPAW):
 
         # Note the below line calls self.set().
         SolvationGPAW.__init__(self, restart, **kwargs)
-        self.world = world
 
     def set(self, **kwargs):
         """Change parameters for calculator.
@@ -341,7 +340,6 @@ class SJM(SolvationGPAW):
                            'eigensolver', 'convergence', 'fixdensity',
                            'maxiter', '_set_ok']:
                 parent_changed = True
-        self.world = world
         if len(sj_changes):
             if self.wfs is None:
                 self.log('Non-default Solvated Jellium parameters:')
@@ -1058,7 +1056,7 @@ class SJMPower12Potential(Power12Potential):
 
     def __init__(self, atomic_radii=None, u0=0.180, pbc_cutoff=1e-6,
                  tiny=1e-10, H2O_layer=False,
-                 unsolv_backside=True, communicator=world):
+                 unsolv_backside=True, communicator=gpaw.mpi.world):
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
         self.H2O_layer = H2O_layer
         self.unsolv_backside = unsolv_backside
