@@ -66,7 +66,7 @@ class SJMEnvironment(Environment):
         super().__init__(solvation.natoms)
         self.solvation = solvation
         self.jellium = jellium
-        self.charge = self.fixed_potential.charge
+        self.charge = jellium.charge
 
     def create_poisson_solver(self, **kwargs):
         ps = self.solvation.create_poisson_solver(**kwargs).solver
@@ -79,7 +79,7 @@ class SJMEnvironment(Environment):
                              log) -> bool:
         converged = self.jellium.post_scf_convergence(
             ibzwfs, occ_calc, mixer, log)
-        self.charge = self.fixed_potential.charge
+        self.charge = self.jellium.charge
         return converged
 
     def update1(self, nt_r):
