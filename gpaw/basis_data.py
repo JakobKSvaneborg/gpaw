@@ -44,7 +44,7 @@ def get_basis_name(zetacount, polarizationcount):
 
 
 class Basis:
-    def __init__(self, symbol, name, readxml=True, rgd=None, world=None):
+    def __init__(self, symbol, name, readxml=False, rgd=None, world=None):
         self.symbol = symbol
         self.name = name
         self.rgd = rgd
