@@ -41,7 +41,6 @@ def main(argv=sys.argv[1:]):
         name = '.'.join(splitfilename[1:-1])
         if opts.actual_filenames:
             basis = Basis.read_path(symbol, name, path)
-            basis.read_xml(path)
         else:  # search GPAW setup dirs
             basis = Basis.find(symbol, name)
         plotter.plot(basis)
