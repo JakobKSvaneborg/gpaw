@@ -30,7 +30,7 @@ class Eigensolver:
         pass
 
     def iterate_kpt(self, wfs, weight_n, iter_func, **fkwargs):
-        had_eigs = wfs.has_eigs
+        had_eigs_and_occs = wfs.has_eigs and wfs.has_occs
         if had_eigs:
             eig_old = wfs.myeig_n
         eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **fkwargs)
