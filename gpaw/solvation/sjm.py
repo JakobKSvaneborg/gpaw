@@ -428,16 +428,14 @@ class SJM(SolvationGPAW):
             self.parameters['sj']['fdt'] = {
                 'dt': 0.5,
                 'po_time': 100.0,
-                'th_temp': 300.0
-            }
+                'th_temp': 300.0}
         elif isinstance(self.parameters['sj']['fdt'], dict):
             # If fdt is a dict, ensure the dictionary is complete
             fdt_dict = self.parameters['sj']['fdt']
             self.parameters['sj']['fdt'] = {
                 'dt': fdt_dict.get('dt', 0.5),
                 'po_time': fdt_dict.get('po_time', 100.0),
-                'th_temp': fdt_dict.get('th_temp', 300.0)
-            }
+                'th_temp': fdt_dict.get('th_temp', 300.0)}
 
     def _quick_reinitialization(self):
         """Minimal reinitialization of electronic-structure stuff when only
@@ -1062,7 +1060,18 @@ class SJMPower12Potential(Power12Potential):
                  tiny=1e-10, H2O_layer=False,
                  unsolv_backside=True, communicator=world):
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
-        self.H2O_layer = H2O_layer
+
+        # The following guarantees backwards compatibility
+        self.H2O_layer = {}
+        if H2O_layer is not False:
+            if H2O_layer is True:
+                H2O_layer = {}
+            elif isinstance(H2O_layer, int):
+                H2O_layer = {'nox': H2O_layer}
+            elif isinstance(H2O_layer, str):
+                H2O_layer = {'style': H2O_layer}
+            self.H2O_layer = {'style': H2O_layer.get('style', 'ghost_atoms'),
+                              'nox': H2O_layer.get('nox', 'all')}
         self.unsolv_backside = unsolv_backside
         self.communicator = communicator
 
@@ -1106,7 +1115,7 @@ class SJMPower12Potential(Power12Potential):
                               if atom.symbol == 'O']
 
             # Disregard oxygens that don't belong to the water layer
-            allwater_oxygen_ind = []
+            i_all_ox_in_h2o = []
             for ox in all_oxygen_ind:
                 nH = 0
 
@@ -1117,67 +1126,78 @@ class SJMPower12Potential(Power12Potential):
                             nH += 1
 
                 if nH >= 2:
-                    allwater_oxygen_ind.append(ox)
+                    i_all_ox_in_h2o.append(ox)
 
             # If the number of waters in the water layer is given as an input
             # (H2O_layer=i) then only the uppermost i water molecules are
             # regarded for unsolvating the interface (this is relevant if
             # water is adsorbed on the surface)
-            if not isinstance(self.H2O_layer, (bool, str)):
-                if self.H2O_layer % 1 < self.tiny:
-                    self.H2O_layer = int(self.H2O_layer)
-                else:
-                    raise InputError('Only an integer number of water '
-                                     'molecules is possible in the water '
-                                     'layer')
+            # if not isinstance(self.H2O_layer, (bool, str)):
+            nox = self.H2O_layer['nox']
+            i_ox_in_h2o = []
+            if nox != 'all':
+                if not isinstance(nox, (int, float)):
+                    raise InputError('nox must either be a positive integer '
+                                     '(number of regarded oxygens) or a '
+                                     'negative float (plane position)')
 
-                allwaters = atoms[allwater_oxygen_ind]
-                indizes_water_ox_ind = np.argsort(allwaters.positions[:, 2],
-                                                  axis=0)
+                if nox > len(i_all_ox_in_h2o):
+                    raise InputError('nox must be smaller or equal to the '
+                                     'number of water molecules in the layer')
+                if nox > 0:
+                    if nox % 1:
+                        raise InputError('nox for number of regarded oxygens '
+                                         'must be a positive integer')
+                    allwaters = atoms[i_all_ox_in_h2o]
+                    sorted_ox_ind = np.argsort(allwaters.positions[:, 2],
+                                               axis=0)
 
-                water_oxygen_ind = []
-                for i in range(self.H2O_layer):
-                    water_oxygen_ind.append(
-                        allwater_oxygen_ind[indizes_water_ox_ind[-1 - i]])
+                    for i in range(nox):
+                        i_ox_in_h2o.append(
+                            i_all_ox_in_h2o[sorted_ox_ind[-1 - i]])
 
             else:
-                water_oxygen_ind = allwater_oxygen_ind
+                i_ox_in_h2o = i_all_ox_in_h2o
 
-            oxygen = self.pos_aav[water_oxygen_ind[0]] * Bohr
-            if len(water_oxygen_ind) > 1:
-                for windex in water_oxygen_ind[1:]:
-                    oxygen = np.concatenate(
-                        (oxygen, self.pos_aav[windex] * Bohr))
+            if len(i_ox_in_h2o):
+                oxygen = self.pos_aav[i_ox_in_h2o[0]] * Bohr
+                if len(i_ox_in_h2o) > 1:
+                    for windex in i_ox_in_h2o[1:]:
+                        oxygen = np.concatenate(
+                            (oxygen, self.pos_aav[windex] * Bohr))
 
-            O_layer = []
-            if isinstance(self.H2O_layer, str):
+            # if isinstance(self.H2O_layer, str):
+            if 'plane' in self.H2O_layer['style']:
                 # Add a virtual plane
-                if len(self.H2O_layer.split('-')) > 1:
-                    plane_z = float(self.H2O_layer.split('-')[1]) - \
-                        1.0 * self.atomic_radii_output[water_oxygen_ind[0]]
-                else:
+                plane_z = None
+                if nox != 'all':
+                    if nox < 0:
+                        plane_z = -nox -\
+                            self.atomic_radii_output[i_all_ox_in_h2o[0]]
+                if plane_z is None:
                     plane_rel_oxygen = -1.5 * self.atomic_radii_output[
-                        water_oxygen_ind[0]]
+                        i_ox_in_h2o[0]]
                     plane_z = oxygen[:, 2].min() + plane_rel_oxygen
 
                 r_diff_zg = self.r_vg[2, :, :, :] - plane_z / Bohr
                 r_diff_zg[r_diff_zg < self.tiny] = self.tiny
                 r_diff_zg2 = r_diff_zg ** 2
-                u_g = self.r12_a[water_oxygen_ind[0]] / r_diff_zg2 ** 6
+                u_g = self.r12_a[i_all_ox_in_h2o[0]] / r_diff_zg2 ** 6
                 self.u_g += u_g.copy()
                 u_g /= r_diff_zg2
                 r_diff_zg *= u_g.copy()
                 self.grad_u_vg[2, :, :, :] += r_diff_zg
 
-            else:
+            elif self.H2O_layer['style'] == 'ghost_atoms':
                 # Ghost atoms are added below the explicit water layer
+                O_layer = []
                 cell = atoms.cell.copy() / Bohr
                 cell[2][2] = 1.
                 natoms_in_plane = [round(np.linalg.norm(cell[0]) * 1.5),
                                    round(np.linalg.norm(cell[1]) * 1.5)]
 
                 plane_z = (oxygen[:, 2].min() - 1.75 *
-                           self.atomic_radii_output[water_oxygen_ind[0]])
+                           self.atomic_radii_output[i_ox_in_h2o[0]])
                 nghatoms_z = int(round(oxygen[:, 2].min() -
                                  atoms.positions[:, 2].min()))
 
@@ -1199,12 +1219,12 @@ class SJMPower12Potential(Power12Potential):
                 for ox in oxygen / Bohr:
                     O_layer.append([ox[0], ox[1], ox[2] - 1.0 *
                                     self.atomic_radii_output[
-                                        water_oxygen_ind[0]] / Bohr])
+                                        i_ox_in_h2o[0]] / Bohr])
 
                 r12_add = []
                 for i in range(len(O_layer)):
                     self.pos_aav[len(atoms) + i] = [O_layer[i]]
-                    r12_add.append(self.r12_a[water_oxygen_ind[0]])
+                    r12_add.append(self.r12_a[i_ox_in_h2o[0]])
                 r12_add = np.array(r12_add)
                 # r12_a must have same dimensions as pos_aav items
                 self.r12_a = np.concatenate((self.r12_a, r12_add))
