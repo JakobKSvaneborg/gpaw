@@ -125,7 +125,9 @@ class DFTCalculation:
             basis_set, potential, log=log)
 
         if ibzwfs.wfs_qs[0][0]._eig_n is not None:
-            ibzwfs.calculate_occs(scf_loop.occ_calc)
+            nelectrons = (density.nvalence - density.charge +
+                          pot_calc.environment.charge)
+            ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
         log(ibzwfs)

@@ -86,6 +86,7 @@ class FixedPotentialJellium(Jellium):
 
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,
+                             nelectrons: float,
                              occ_calc,
                              mixer,
                              log) -> bool:
@@ -108,7 +109,7 @@ class FixedPotentialJellium(Jellium):
         if self.charge_x is not None:
             self.charge_x.data *= new_charge / self.charge
         self.charge = new_charge
-        ibzwfs.nelectrons += dc
-        ibzwfs.calculate_occs(occ_calc)
+        nelectrons += dc
+        ibzwfs.calculate_occs(occ_calc, nelectrons)
         mixer.reset()
         return False

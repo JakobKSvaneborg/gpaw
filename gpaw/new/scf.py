@@ -82,7 +82,8 @@ class SCFLoop:
             wfs_error, energies = self.eigensolver.iterate(
                 ibzwfs, density, potential,
                 self.hamiltonian, pot_calc, energies)
-            nelectrons = ... - density.charge + pot_calc.environment.charge
+            nelectrons = (density.nvalence - density.charge +
+                          pot_calc.environment.charge)
             e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
                 self.occ_calc,
                 nelectrons,
@@ -111,7 +112,7 @@ class SCFLoop:
 
             if converged:
                 converged = pot_calc.environment.post_scf_convergence(
-                    ibzwfs, self.occ_calc, self.mixer, log)
+                    ibzwfs, nelectrons, self.occ_calc, self.mixer, log)
                 if converged:
                     break
 
@@ -153,7 +154,7 @@ class SCFContext:
         energy = energies.total_extrapolated
         self.ham = SimpleNamespace(e_total_extrapolated=energy,
                                    get_workfunctions=self._get_workfunctions)
-        self.wfs = SimpleNamespace(nvalence=ibzwfs.nelectrons,
+        self.wfs = SimpleNamespace(nvalence=density.nvalence,
                                    world=comm,
                                    eigensolver=SimpleNamespace(
                                        error=wfs_error),
