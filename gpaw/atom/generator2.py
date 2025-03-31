@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import sys
 from functools import partial
 from math import exp, log, pi, sqrt
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 from ase.data import atomic_numbers, chemical_symbols
@@ -18,6 +20,9 @@ from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
 from scipy.linalg import eigh
 from scipy.optimize import fsolve
 from scipy.special import erf
+
+if TYPE_CHECKING:
+    from matplotlib import pyplot as plt
 
 
 class DatasetGenerationError(Exception):
@@ -783,25 +788,24 @@ class PAWSetupGenerator:
         plt.legend()
         plt.show()
 
-    def plot(self):
-        import matplotlib.pyplot as plt
+    def plot_potential_components(self, ax) -> None:
         r_g = self.rgd.r_g
 
-        plt.figure()
-        plt.plot(r_g, self.vxct_g, label='xc')
-        plt.plot(r_g[1:], self.v0r_g[1:] / r_g[1:], label='0')
-        plt.plot(r_g[1:], self.vHtr_g[1:] / r_g[1:], label='H')
-        plt.plot(r_g[1:], self.vtr_g[1:] / r_g[1:], label='ps')
-        plt.plot(r_g[1:], self.aea.vr_sg[0, 1:] / r_g[1:], label='ae')
-        plt.axis(xmin=0,
-                 xmax=2 * self.rcmax,
-                 ymin=self.vtr_g[1] / r_g[1],
-                 ymax=max(0, (self.v0r_g[1:] / r_g[1:]).max()))
-        plt.xlabel('radius [Bohr]')
-        plt.ylabel('potential [Ha]')
-        plt.legend()
+        ax.plot(r_g, self.vxct_g, label='xc')
+        ax.plot(r_g[1:], self.v0r_g[1:] / r_g[1:], label='0')
+        ax.plot(r_g[1:], self.vHtr_g[1:] / r_g[1:], label='H')
+        ax.plot(r_g[1:], self.vtr_g[1:] / r_g[1:], label='ps')
+        ax.plot(r_g[1:], self.aea.vr_sg[0, 1:] / r_g[1:], label='ae')
+        ax.axis(xmin=0,
+                xmax=2 * self.rcmax,
+                ymin=self.vtr_g[1] / r_g[1],
+                ymax=max(0, (self.v0r_g[1:] / r_g[1:]).max()))
+        ax.set_xlabel('radius [Bohr]')
+        ax.set_ylabel('potential [Ha]')
+        ax.legend()
 
-        plt.figure()
+    def plot_partial_waves(self, ax) -> None:
+        r_g = self.rgd.r_g
         i = 0
         for l, waves in enumerate(self.waves_l):
             for n, e, phi_g, phit_g in zip(waves.n_n, waves.e_n,
@@ -812,16 +816,17 @@ class PAWSetupGenerator:
                 else:
                     gc = len(self.rgd)
                     name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-                plt.plot(r_g[:gc], (phi_g * r_g)[:gc], color=colors[i],
-                         label=name)
-                plt.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=colors[i])
+                ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=colors[i],
+                        label=name)
+                ax.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=colors[i])
                 i += 1
-        plt.axis(xmin=0, xmax=3 * self.rcmax)
-        plt.xlabel('radius [Bohr]')
-        plt.ylabel(r'$r\phi_{n\ell}(r)$')
-        plt.legend()
+        ax.axis(xmin=0, xmax=3 * self.rcmax)
+        ax.set_xlabel('radius [Bohr]')
+        ax.set_ylabel(r'partial waves $r\phi_{n\ell}(r)$')
+        ax.legend()
 
-        plt.figure()
+    def plot_projectors(self, ax) -> None:
+        r_g = self.rgd.r_g
         i = 0
         for l, waves in enumerate(self.waves_l):
             for n, e, pt_g in zip(waves.n_n, waves.e_n, waves.pt_ng):
@@ -829,10 +834,24 @@ class PAWSetupGenerator:
                     name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
                 else:
                     name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-                plt.plot(r_g, pt_g * r_g, color=colors[i], label=name)
+                ax.plot(r_g, pt_g * r_g, color=colors[i], label=name)
                 i += 1
-        plt.axis(xmin=0, xmax=self.rcmax)
-        plt.legend()
+        ax.axis(xmin=0, xmax=self.rcmax)
+        ax.set_xlabel('radius [Bohr]')
+        ax.set_ylabel(r'projectors $r\tilde{p}(r)$')
+        ax.legend()
+
+    def plot(self,
+             *,
+             potential_components: 'plt.Axes' | None = None,
+             partial_waves: 'plt.Axes' | None = None,
+             projectors: 'plt.Axes' | None = None):
+        if potential_components:
+            self.plot_potential_components(potential_components)
+        if partial_waves:
+            self.plot_partial_waves(partial_waves)
+        if projectors:
+            self.plot_projectors(projectors)
 
     def create_basis_set(self, tailnorm=0.0005, scale=200.0, splitnorm=0.16,
                          tag=None, ri=None):

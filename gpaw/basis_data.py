@@ -289,17 +289,15 @@ class BasisPlotter:
         self.default_filename = '%(symbol)s.%(name)s.' + ext
 
         self.title = 'Basis functions: %(symbol)s %(name)s'
-        self.xlabel = r'r [Bohr]'
+        self.xlabel = 'radius [Bohr]'
+        ylabel = r'\Phi(r)'
         if premultiply:
-            ylabel = r'$\tilde{\phi} r$'
-        else:
-            ylabel = r'$\tilde{\phi}$'
-        self.ylabel = ylabel
+            ylabel = 'r' + ylabel
+        self.ylabel = f'${ylabel}$'
 
         self.normalize = normalize
 
-    def plot(self, basis, filename=None, **plot_args):
-        import matplotlib.pyplot as plt
+    def plot(self, basis, ax, filename=None, **plot_args):
         if plot_args is None:
             plot_args = {}
         r_g = basis.rgd.r_g
@@ -333,28 +331,27 @@ class BasisPlotter:
 
         dashes_l = [(), (6, 3), (4, 1, 1, 1), (1, 1)]
 
-        plt.figure()
         for norm, bf in zip(norm_j, basis.bf_j):
             ng = len(bf.phit_g)
             y_g = bf.phit_g * factor[:ng]
             if self.normalize:
                 y_g /= norm
-            plt.plot(r_g[:ng], y_g, label=bf.type[:12],
-                     dashes=dashes_l[bf.l], lw=2,
-                     **plot_args)
-        axis = plt.axis()
+            ax.plot(r_g[:ng], y_g, label=bf.type[:12],
+                    dashes=dashes_l[bf.l], lw=2,
+                    **plot_args)
+        axis = ax.axis()
         rc = max([bf.rc for bf in basis.bf_j])
         newaxis = [0., rc, axis[2], axis[3]]
-        plt.axis(newaxis)
-        plt.legend()
-        plt.title(self.title % basis.__dict__)
-        plt.xlabel(self.xlabel)
-        plt.ylabel(self.ylabel)
+        ax.axis(newaxis)
+        ax.legend()
+        ax.set_title(self.title % basis.__dict__)
+        ax.set_xlabel(self.xlabel)
+        ax.set_ylabel(self.ylabel)
 
         if filename is None:
             filename = self.default_filename
         if self.save:
-            plt.savefig(filename % basis.__dict__)
+            ax.figure.savefig(filename % basis.__dict__)
 
         if self.show:
-            plt.show()
+            ax.figure.show()

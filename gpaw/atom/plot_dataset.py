@@ -32,7 +32,6 @@ def reconstruct_paw_gen(paw: str,
         # - `SetupData.X_p` (<exact_exchange_X_matrix>)
         # - `SetupData.X_pg` (<yukawa_exchange_X_matrix>)
         setup.read_xml(fobj.read())
-    breakpoint()
     params = {'v0': None}
     generator_data = setup.generatordata
     if not generator_data:
@@ -75,12 +74,16 @@ def main(args: SimpleNamespace,
         plot_log_derivs(gen, args.logarithmic_derivatives, plot=True)
     if not plot:
         return
-    gen.plot()
+    fig = plt.figure()
+    subplots = fig.subplots(2, 2).flatten()
+    gen.plot(potential_components=subplots[0],
+             partial_waves=subplots[1],
+             projectors=subplots[2])
     if args.create_basis_set:
         if gen.basis is None:
             gen.create_basis_set()
         gen.basis.generatordata = ''  # we already printed this
-        BasisPlotter(show=True).plot(gen.basis)
+        BasisPlotter().plot(gen.basis, subplots[3])
     try:
         plt.show()
     except KeyboardInterrupt:
