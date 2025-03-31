@@ -1,9 +1,12 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 import xml.sax
 
 import numpy as np
 
 from gpaw.setup_data import search_for_file
-from gpaw.atom.radialgd import radial_grid_descriptor
+from gpaw.atom.radialgd import RadialGridDescriptor, radial_grid_descriptor
 
 
 _basis_letter2number = {'s': 1, 'd': 2, 't': 3, 'q': 4}
@@ -43,16 +46,17 @@ def get_basis_name(zetacount, polarizationcount):
         return f'{zetachar}z{polarizationchar}p'
 
 
+@dataclass(eq=False)
 class Basis:
-    def __init__(self, symbol, name, rgd=None):
-        self.symbol = symbol
-        self.name = name
-        self.rgd = rgd
-        self.bf_j = []
-        self.ribf_j = []
-        self.generatorattrs = {}
-        self.generatordata = ''
-        self.filename = None
+    symbol: str
+    name: str
+    rgd: RadialGridDescriptor | None = None
+
+    bf_j: list[BasisFunction] = field(default_factory=list)
+    ribf_j: list[BasisFunction] = field(default_factory=list)
+    generatorattrs: dict = field(default_factory=dict)
+    generatordata: str = ''
+    filename: str | None = None
 
     @classmethod
     def find(cls, symbol, name, world=None):
