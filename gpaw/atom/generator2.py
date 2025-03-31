@@ -838,12 +838,12 @@ class PAWSetupGenerator:
                          tag=None, ri=None):
         rgd = self.rgd
         name = 'dzp' if not tag else f'{tag}.dzp'
-        self.basis = Basis(self.aea.symbol, name, rgd=rgd)
 
         # We print text to sdtout and put it in the basis-set file
         txt = 'Basis functions:\n'
 
         # Bound states:
+        bf_j = []
         for l, waves in enumerate(self.waves_l):
             for i, n in enumerate(waves.n_n):
                 if n > 0:
@@ -855,7 +855,7 @@ class PAWSetupGenerator:
                     phit_g, ronset, rc, de = self.create_basis_function(
                         l, i, tn, scale)
                     bf = BasisFunction(n, l, rc, phit_g, 'bound state')
-                    self.basis.append(bf)
+                    bf_j.append(bf)
 
                     txt += '%d%s bound state:\n' % (n, 'spdf'[l])
                     txt += ('  cutoff: %.3f to %.3f Bohr (tail-norm=%f)\n' %
@@ -872,7 +872,7 @@ class PAWSetupGenerator:
             if n0 is None:
                 continue
 
-            for bf in self.basis.bf_j:
+            for bf in bf_j:
                 if bf.l == l and bf.n == n0:
                     break
 
@@ -890,7 +890,7 @@ class PAWSetupGenerator:
 
             phit2_g = self.pseudizer(phit_g, gc, l, 2)[0]  # "split valence"
             bf = BasisFunction(n, l, rc, phit_g - phit2_g, 'split valence')
-            self.basis.append(bf)
+            bf_j.append(bf)
 
             txt += '%d%s split valence:\n' % (n0, 'spdf'[l])
             txt += f'  cutoff: {rc:.3f} Bohr (tail-norm={splitnorm:f})\n'
@@ -907,23 +907,24 @@ class PAWSetupGenerator:
             phit_g[gcpol:] = 0.0
 
             bf = BasisFunction(None, lpol, rcpol, phit_g, 'polarization')
-            self.basis.append(bf)
+            bf_j.append(bf)
             txt += f'l={lpol} polarization functions:\n'
             txt += f'  cutoff: {rcpol:.3f} Bohr '
             txt += f'(r^{lpol} exp(-{alpha:.3f}*r^2))\n'
 
         self.log(txt)
 
-        # Write basis-set file:
-        self.basis.generatordata = txt
-        self.basis.generatorattrs.update(dict(tailnorm=tailnorm,
-                                              scale=scale,
-                                              splitnorm=splitnorm))
+        basis = Basis(self.aea.symbol, name, rgd=rgd, bf_j=bf_j,
+                      generatordata=txt,
+                      generatorattrs=dict(tailnorm=tailnorm,
+                                          scale=scale,
+                                          splitnorm=splitnorm))
 
         if ri:
-            generate_ri_basis(self.basis, ri)
+            basis = generate_ri_basis(basis, ri)
 
-        return self.basis
+        self.basis = basis
+        return basis
 
     def create_basis_function(self, l, n, tailnorm, scale):
         rgd = self.rgd
