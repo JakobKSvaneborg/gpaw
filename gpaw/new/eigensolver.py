@@ -30,12 +30,9 @@ class Eigensolver:
         pass
 
     def iterate_kpt(self, wfs, weight_n, iter_func, **fkwargs):
-        has_eigs = True
-        try:
+        has_eigs = weight_n is not None
+        if has_eigs:
             eig_old = wfs.myeig_n
-        except ValueError:  # no eigenvalues yet
-            eig_old = np.inf
-            has_eigs = False
         eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **fkwargs)
         if has_eigs:
             eig_error = np.max(weight_n * np.abs(eig_old - wfs.myeig_n))
