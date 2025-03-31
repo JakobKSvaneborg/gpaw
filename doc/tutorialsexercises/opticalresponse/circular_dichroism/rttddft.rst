@@ -58,7 +58,7 @@ we calculate the rotatory strength spectrum from the magnetic moments:
 Comparing the resulting spectrum to one calculated with plain dzp basis sets shows
 the importance of augmented basis sets:
 
-.. image:: lcao/spectra.png
+.. image:: lcao/spectra_length.png
 
 
 FD mode
@@ -110,12 +110,15 @@ during a single propagation as demonstrated in this script:
 
 The resulting spectra:
 
-.. image:: lcao/spectra_origins.png
+.. image:: lcao/spectra_origins_length.png
 
 Velocity gauge
 ~~~~~~~~~~~~~~
 
 In the velocity gauge, circular dichroism spectra are less origin dependent since the velocity form of the dipole operator satisfies gauge invariance more naturally in comparison to its length gauge form. By reducing of the artificial dependence on the choice of coordinate origin during dipole moment calculations, the velocity gauge can provide more consistent and physically meaningful circular dichroism spectra across different origins.
+
+.. image:: lcao/spectra_velocity.png
+.. image:: lcao/spectra_origins_velocity.png
 
 References
 ----------
