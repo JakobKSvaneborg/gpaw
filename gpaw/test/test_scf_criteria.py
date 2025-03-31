@@ -29,7 +29,8 @@ class FourIterations(Criterion):
         self.iters = 0
 
 
-def test_scf_criterion(in_tmp_dir, gpaw_new):
+@pytest.mark.parametrize('gpaw_mode', ['fd', 'lcao'])
+def test_scf_criterion(in_tmp_dir, gpaw_new, gpaw_mode):
     """Tests different ways of setting SCF convergence criteria,
     and that it behaves consistenly with regard to the work function."""
     convergence = {'eigenstates': 1.0,
@@ -43,7 +44,8 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
                   cell=(5., 5., 9.),
                   pbc=(True, True, False))
     atoms.center()
-    atoms.calc = GPAW(mode='fd',
+    atoms.calc = GPAW(mode=gpaw_mode,
+                      basis='sz(dzp)',
                       h=0.3,
                       nbands=-1,
                       convergence=convergence,
@@ -62,7 +64,18 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
                   cell=(5., 5., 9.),
                   pbc=(True, True, False))
     atoms.center()
-    atoms.calc = GPAW('scf-criterion.gpw')  # checks loading
+    if gpaw_new and gpaw_mode == 'lcao':
+        # XXX: Hotfix due to lcao mode in GPAW new being buggy.
+        # See https://gitlab.com/gpaw/gpaw/-/issues/1354
+        atoms.calc = GPAW(mode=gpaw_mode,
+                          basis='sz(dzp)',
+                          h=0.3,
+                          nbands=-1,
+                          convergence=convergence,
+                          txt=None,
+                          poissonsolver={'dipolelayer': 'xy'})
+    else:
+        atoms.calc = GPAW('scf-criterion.gpw')  # checks loading
     atoms.get_potential_energy()
     workfunctions2 = (
         atoms.calc.dft.workfunctions()
