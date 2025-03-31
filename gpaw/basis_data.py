@@ -81,12 +81,6 @@ class Basis:
     def nrio(self):
         return sum([2 * ribf.l + 1 for ribf in self.ribf_j])
 
-    def append(self, bf):
-        if bf.type != 'auxiliary':
-            self.bf_j.append(bf)
-        else:
-            self.ribf_j.append(bf)
-
     def get_grid_descriptor(self):
         return self.rgd
 
@@ -229,6 +223,8 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
         self.rc = None
         self.data = None
         self.l = None
+        self.bf_j = []
+        self.ribf_j = []
 
         self._dct = {}
 
@@ -257,6 +253,7 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
         xml.sax.parseString(source, self)
 
         basis = Basis(symbol=self.symbol, name=self.name, filename=filename,
+                      bf_j=[*self.bf_j], ribf_j=[*self.ribf_j],
                       **self._dct)
 
         if reduced:
@@ -294,7 +291,12 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
             bf = BasisFunction(self.n, self.l, self.rc, phit_g, self.type)
             # Also auxiliary basis functions are added here. They are
             # distinguished by their type='auxiliary'.
-            self._dct.setdefault('bf_j', []).append(bf)
+
+            if bf.type == 'auxiliary':
+                self.ribf_j.append(bf)
+            else:
+                self.bf_j.append(bf)
+
         elif name == 'generator':
             self._dct['generatordata'] = ''.join([line for line in self.data])
 
