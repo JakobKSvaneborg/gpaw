@@ -320,7 +320,7 @@ class BasisPlotter:
 
         self.normalize = normalize
 
-    def plot(self, basis, filename=None, **plot_args):
+    def plot(self, basis, filename=None, ax=None, **plot_args):
         import matplotlib.pyplot as plt
         if plot_args is None:
             plot_args = {}
@@ -355,23 +355,26 @@ class BasisPlotter:
 
         dashes_l = [(), (6, 3), (4, 1, 1, 1), (1, 1)]
 
-        plt.figure()
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.gca()
+
         for norm, bf in zip(norm_j, basis.bf_j):
             ng = len(bf.phit_g)
             y_g = bf.phit_g * factor[:ng]
             if self.normalize:
                 y_g /= norm
-            plt.plot(r_g[:ng], y_g, label=bf.type[:12],
-                     dashes=dashes_l[bf.l], lw=2,
-                     **plot_args)
-        axis = plt.axis()
+            ax.plot(r_g[:ng], y_g, label=bf.type[:12],
+                    dashes=dashes_l[bf.l], lw=2,
+                    **plot_args)
+        axis = ax.axis()
         rc = max([bf.rc for bf in basis.bf_j])
         newaxis = [0., rc, axis[2], axis[3]]
-        plt.axis(newaxis)
-        plt.legend()
-        plt.title(self.title % basis.__dict__)
-        plt.xlabel(self.xlabel)
-        plt.ylabel(self.ylabel)
+        ax.axis(newaxis)
+        ax.legend()
+        ax.set_title(self.title % basis.__dict__)
+        ax.set_xlabel(self.xlabel)
+        ax.set_ylabel(self.ylabel)
 
         if filename is None:
             filename = self.default_filename
@@ -379,4 +382,38 @@ class BasisPlotter:
             plt.savefig(filename % basis.__dict__)
 
         if self.show:
+            plt.show()
+
+        return ax.get_figure(), ax
+
+
+class CLICommand:
+    """Plot basis set from FILE."""
+
+    @staticmethod
+    def add_arguments(parser):
+        parser.add_argument('file', metavar='FILE')
+        parser.add_argument(
+            '--write', metavar='FILE',
+            help='write plot to file.  Format is inferred from filename.')
+
+    @staticmethod
+    def run(args):
+        import matplotlib.pyplot as plt
+        filename = args.file
+        tokens = filename.split('.')
+
+        # It is not particularly beautiful that we get the symbol and type
+        # from the filename.  It would be better for that information
+        # to be stored in the file, but it isn't.
+        symbol = tokens[0]
+        btype = tokens[1]
+        basis = Basis.read_path(symbol, btype, path=filename)
+
+        plotter = BasisPlotter()
+        fig, ax = plotter.plot(basis)
+
+        if args.write:
+            fig.savefig(args.write)
+        else:
             plt.show()
