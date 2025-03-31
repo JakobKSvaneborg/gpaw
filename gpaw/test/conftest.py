@@ -1,5 +1,6 @@
 import os
 from contextlib import contextmanager
+from functools import cached_property
 
 import numpy as np
 import pytest
@@ -71,11 +72,19 @@ def monkeypatch_response_spline_points(sessionscoped_monkeypatch):
 
 @pytest.fixture(autouse=True, scope='session')
 def monkeypatch_allow_cpupy(sessionscoped_monkeypatch):
-    """Monkey-patch `GPAW_CPUPY` to true where it's used."""
+    """Monkey-patch `gpaw.new.builder.DFTComponentsBuilder.gpu` to
+    allow setting `gpu` regardless of the value of `GPAW_CPUPY`.
+    """
     import gpaw
-    from gpaw.new import builder
-    sessionscoped_monkeypatch.setattr(gpaw, 'GPAW_CPUPY', True)
-    sessionscoped_monkeypatch.setattr(builder, 'GPAW_CPUPY', True)
+    from gpaw.new.builder import DFTComponentsBuilder
+
+    @cached_property
+    def gpu(self) -> bool:
+        return self.params.parallel.get('gpu', gpaw.GPAW_USE_GPUS)
+
+    sessionscoped_monkeypatch.setattr(DFTComponentsBuilder, 'gpu', gpu)
+    # Needed for `@cached_property` to work
+    gpu.__set_name__(DFTComponentsBuilder, 'gpu')
 
 
 @pytest.fixture(scope='session')
