@@ -15,9 +15,9 @@ LCAO mode
 ---------
 
 In this example, we use :ref:`real-time TDDFT LCAO mode <lcaotddft>`.
-We recall that the LCAO calculations are
-:ref:`sensitive to the used basis sets <note basis sets>`,
-and we also demonstrate the construction of augmented basis sets.
+We recall that the LCAO calculations are in general
+:ref:`sensitive to the used basis sets <note basis sets>` and, additionally, the choice of gauge—whether length or velocity—can significantly influence the results. 
+We also demonstrate the construction of augmented basis sets.
 
 We augment the default dzp basis sets with
 numerical Gaussian-type orbitals (NGTOs):
@@ -38,10 +38,11 @@ but we attach :class:`~gpaw.tddft.MagneticMomentWriter`
 to record the time-dependent magnetic moment.
 In this script, we wrap the time propagation code
 inside ``main()`` function to make the same script reusable
-with different kick directions:
+with different gauges and different kick directions:
 
 .. literalinclude:: lcao/td.py
 
+When running the script with gpaw, one must add '--' before the actual arguments to ensure they are correctly passed to argparse. For example: $ gpaw -P 4 python td.py -- --gauge='length' --kick='x'.
 After repeating the calculation for kicks in x, y, and z directions,
 we calculate the rotatory strength spectrum from the magnetic moments:
 
@@ -88,8 +89,10 @@ with LCAO mode and augmented basis sets.
 Origin dependence
 -----------------
 
-The circular dichroism spectra obtained with the present implementation
-depend on the choice of origin.
+Length gauge
+~~~~~~~~~~~~
+
+Circular dichroism spectra obtained in length gauge can exhibit pronounced origin dependence. Below, this is demonstrated by plotting the circular dichroism spectra calculated in the length gauge using different origins. 
 See the documentation of :class:`~gpaw.tddft.MagneticMomentWriter`
 for parameters controlling the origin location.
 
@@ -102,6 +105,10 @@ The resulting spectra:
 
 .. image:: lcao/spectra_origins.png
 
+Velocity gauge
+~~~~~~~~~~~~~~
+
+In the velocity gauge, circular dichroism spectra are less origin dependent since the velocity form of the dipole operator satisfies gauge invariance more naturall in comparison to its length gauge form. By the reduction of the artificial dependence on the choice of coordinate origin during dipole moment calculations, the velocity gauge can provide more consistent and physically meaningful circular dichroism spectra across different origins.
 
 References
 ----------
