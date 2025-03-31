@@ -19,6 +19,7 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array1D
 from gpaw.utilities.blas import axpy
+from gpaw.utilities import as_real_dtype
 
 
 def create_eigensolver(nbands,
@@ -126,6 +127,7 @@ class PWFDEigensolver(Eigensolver):
         raise NotImplementedError
 
 
+@trace
 def calculate_residuals(residual_nX: XArray,
                         dH: Callable[[AtomArrays, AtomArrays], AtomArrays],
                         dS_aii: AtomArrays,
@@ -139,7 +141,7 @@ def calculate_residuals(residual_nX: XArray,
         for r, e, p in zips(residual_nX.data, eig_n, wfs.psit_nX.data):
             axpy(-e, p, r)
     else:
-        eig_n = xp.asarray(eig_n)
+        eig_n = xp.asarray(eig_n, dtype=as_real_dtype(residual_nX.data.dtype))
         calculate_residuals_gpu(residual_nX.data, eig_n, wfs.psit_nX.data)
 
     dH(wfs.P_ani, P1_ani)

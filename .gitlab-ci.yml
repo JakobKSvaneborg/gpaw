@@ -11,6 +11,7 @@ variables:
   # Forks will instead get this definition which allows running
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
 
 
 default:
@@ -19,6 +20,7 @@ default:
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
+    - pip freeze
   interruptible: true
   tags:
     - $DEFAULT_RUNNER_TAG
@@ -133,6 +135,10 @@ build:
     - pip install --user --log build.log --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-oldest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-latest:
@@ -168,9 +174,14 @@ build-latest:
       EOF
     - cat siteconfig.py
     - pip install --user --upgrade numpy scipy
+    - pip install --user --upgrade mpi4py
     - pip install --user --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-latest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-cuda:

@@ -1,7 +1,7 @@
 import numpy as np
 from gpaw.core import PWDesc
 from gpaw.mpi import broadcast_float
-from gpaw.new import zips, spinsum
+from gpaw.new import zips, spinsum, trace
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.stress import calculate_stress
 from gpaw.setup import Setups
@@ -92,6 +92,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         _, _, _, e_xc, _, _ = self._interpolate_and_calculate_xc(xc, density)
         return e_xc
 
+    @trace
     def calculate_pseudo_potential(self, density, ibzwfs, vHt_h=None):
         nt_sr, nt0_g, taut_sr, e_xc, vxct_sr, dedtaut_sr = (
             self._interpolate_and_calculate_xc(self.xc, density))
@@ -109,9 +110,10 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         else:
             vt0_g = None
 
-        self.environment.update1(nt0_g)
+        self.environment.update1pw(nt0_g)
 
         Q_aL = density.calculate_compensation_charge_coefficients()
+
         e_coulomb, vHt_h, V_aL = self.poisson_solver.solve(
             nt0_g, Q_aL, vt0_g, vHt_h)
 

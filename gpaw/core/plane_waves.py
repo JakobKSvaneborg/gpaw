@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
 
 
-class PWDesc(Domain):
+class PWDesc(Domain['PWArray']):
     itemsize = 16
 
     def __init__(self,
@@ -97,7 +97,7 @@ class PWDesc(Domain):
     def __repr__(self) -> str:
         m = self.myshape[0]
         n = self.shape[0]
-        return Domain.__repr__(self).replace(
+        return super().__repr__().replace(
             'Domain(',
             f'PWDesc(ecut={self.ecut} <coefs={m}/{n}>, ')
 
@@ -628,7 +628,8 @@ class PWArray(DistributedArrays[PWDesc]):
             if self.xp is not np:
                 result_x = self.xp.empty((x,), dtype=self.real_dtype)
                 pw_norm_kinetic_gpu(result_x, self._arrays(),
-                                    self.xp.asarray(self.desc.ekin_G))
+                                    self.xp.asarray(self.desc.ekin_G,
+                                                    dtype=self.real_dtype))
             else:
                 a_xGz = a_xG.reshape((x, G2 // 2, 2))
                 result_x = self.xp.einsum('xGz, xGz, G -> x',
@@ -746,11 +747,22 @@ class PWArray(DistributedArrays[PWDesc]):
                     b_G[m0_G & m1_G]]
             d_c = [b_s[1:] @ (1.0 / np.arange(1, len(b_s)))
                    for b_s in b_cs]
-            m_v = np.dot(d_c, pw.cell_cv) / pi * pw.dv
+            m_v = d_c @ pw.cell_cv / pi * pw.dv
         else:
             m_v = np.empty(3)
         pw.comm.broadcast(m_v, 0)
         return m_v
+
+    def boundary_value(self, axis: int) -> float:
+        """Calculate average value at boundary of box."""
+        assert axis == 2
+        pw = self.desc
+        m0_G, m1_G = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
+        assert self.desc.dtype == self.real_dtype
+        value = self.data.real[m0_G & m1_G].sum() * 2
+        if self.desc.comm.rank == 0:
+            value -= self.data[0].real
+        return self.desc.comm.sum_scalar(value)
 
     def morph(self, pw: PWDesc) -> PWArray:
         pw0 = self.desc
@@ -950,7 +962,7 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
         b2 = min(b1 + B, N)
         nb = b2 - b1
         if psit_bR is None:
-            psit_bR = cp.empty((nb,) + shape, complex)
+            psit_bR = cp.empty((nb,) + shape, psit_nG.data.dtype)
         elif nb < B:
             psit_bR = psit_bR[:nb]
         psit_bR[:] = 0.0
@@ -966,4 +978,6 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
             shape,
             norm='forward',
             overwrite_x=True)
-        add_to_density_gpu(weight_n[b1:b2], psit_bR, nt_R.data)
+        add_to_density_gpu(weight_n[b1:b2],
+                           psit_bR,
+                           nt_R.data)
