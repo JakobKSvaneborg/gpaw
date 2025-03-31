@@ -44,7 +44,7 @@ def get_basis_name(zetacount, polarizationcount):
 
 
 class Basis:
-    def __init__(self, symbol, name, readxml=False, rgd=None, world=None):
+    def __init__(self, symbol, name, rgd=None):
         self.symbol = symbol
         self.name = name
         self.rgd = rgd
@@ -54,20 +54,17 @@ class Basis:
         self.generatordata = ''
         self.filename = None
 
-        if readxml:
-            self.read_xml(world=world)
-
     @classmethod
     def find(cls, symbol, name, world=None):
         # Refactor: First search, then call read_path().
-        basis = cls(symbol, name, readxml=False)
+        basis = cls(symbol, name)
         basis.read_xml(world=world)
         return basis
 
     @classmethod
     def read_path(cls, symbol, name, path, world=None):
         # Refactor: Should not require symbol and name
-        basis = cls(symbol, name, readxml=False)
+        basis = cls(symbol, name)
         basis.read_xml(filename=path, world=world)
         return basis
 
