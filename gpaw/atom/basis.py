@@ -511,8 +511,8 @@ class BasisMaker:
         else:
             compound_name = f'{self.name}.{basistype}'
 
-        basis = Basis(valdata.symbol, compound_name, False,
-                      EquidistantRadialGridDescriptor(d, ng))
+        basis = Basis(valdata.symbol, compound_name,
+                      rgd=EquidistantRadialGridDescriptor(d, ng))
         basis.bf_j = bf_j
         basis.generatordata = textbuffer.getvalue().strip()
         basis.generatorattrs = {'version': version}

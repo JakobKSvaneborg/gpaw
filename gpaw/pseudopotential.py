@@ -148,7 +148,7 @@ def generate_basis_functions(ppdata):
     class SimpleBasis(Basis):
         def __init__(self, symbol, l_j, n_j):
             rgd = EquidistantRadialGridDescriptor(0.02, 160)
-            Basis.__init__(self, symbol, 'simple', readxml=False, rgd=rgd)
+            super().__init__(symbol, 'simple', rgd=rgd)
             self.generatordata = 'simple'
             bf_j = self.bf_j
             rcgauss = rgd.r_g[-1] / 3.0
