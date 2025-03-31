@@ -286,6 +286,7 @@ class Density:
             self.taut_sR.redist(grid, comm1, comm2),
             self.D_asii.redist(atomdist, comm1, comm2),
             self.charge,
+            self.nvalence,
             self.delta_aiiL,
             self.delta0_a,
             self.N0_aii,

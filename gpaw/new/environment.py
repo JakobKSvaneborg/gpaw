@@ -23,6 +23,7 @@ class Environment:
 
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,
+                             nelectrons: float,
                              occ_calc,
                              mixer,
                              log) -> bool:

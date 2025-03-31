@@ -145,7 +145,6 @@ def diagonalize(potential: Potential,
 
     new_ibzwfs = IBZWaveFunctions(
         ibzwfs.ibz,
-        nelectrons=ibzwfs.nelectrons,
         ncomponents=ibzwfs.ncomponents,
         wfs_qs=wfs_qs,
         kpt_comm=ibzwfs.kpt_comm,

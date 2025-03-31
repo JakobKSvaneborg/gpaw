@@ -444,7 +444,6 @@ class DFTCalculation:
 
         ibzwfs = ibzwfs.create(
             ibz=builder.ibz,
-            nelectrons=old_ibzwfs.nelectrons,
             ncomponents=old_ibzwfs.ncomponents,
             create_wfs_func=create_wfs,
             kpt_comm=old_ibzwfs.kpt_comm,

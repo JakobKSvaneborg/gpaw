@@ -74,11 +74,12 @@ class SJMEnvironment(Environment):
 
     def post_scf_convergence(self,
                              ibzwfs,
+                             nelectrons,
                              occ_calc,
                              mixer,
                              log) -> bool:
         converged = self.jellium.post_scf_convergence(
-            ibzwfs, occ_calc, mixer, log)
+            ibzwfs, nelectrons, occ_calc, mixer, log)
         self.charge = self.jellium.charge
         return converged
 

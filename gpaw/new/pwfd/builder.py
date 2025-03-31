@@ -62,7 +62,6 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
         ibzwfs = PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
-            nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,
             create_wfs_func=create_wfs,
             kpt_comm=self.communicators['k'],
