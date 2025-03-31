@@ -60,17 +60,16 @@ class Basis:
 
     @classmethod
     def find(cls, symbol, name, world=None):
-        # Refactor: First search, then call read_path().
-        basis = cls(symbol, name)
-        basis.read_xml(world=world)
-        return basis
+        return cls.read_xml(symbol, name, world=world)
 
     @classmethod
     def read_path(cls, symbol, name, path, world=None):
-        # Refactor: Should not require symbol and name
-        basis = cls(symbol, name)
-        basis.read_xml(filename=path, world=world)
-        return basis
+        return cls.read_xml(symbol, name, filename=path, world=world)
+
+    @classmethod
+    def read_xml(cls, symbol, name, filename=None, world=None):
+        parser = BasisSetXMLParser(symbol, name)
+        return parser.parse(filename, world=world)
 
     @property
     def nao(self):  # implement as a property so we don't have to
@@ -98,10 +97,6 @@ class Basis:
     def ritosplines(self):
         return [self.rgd.spline(ribf.phit_g, ribf.rc, ribf.l, points=400)
                 for ribf in self.ribf_j]
-
-    def read_xml(self, filename=None, world=None):
-        parser = BasisSetXMLParser(self)
-        parser.parse(filename, world=world)
 
     def write_xml(self):
         """Write basis functions to file.
@@ -225,13 +220,17 @@ class BasisFunction:
 
 
 class BasisSetXMLParser(xml.sax.handler.ContentHandler):
-    def __init__(self, basis):
+    def __init__(self, symbol, name):
         super().__init__()
-        self.basis = basis
+        self.symbol = symbol
+        self.name = name
+
         self.type = None
         self.rc = None
         self.data = None
         self.l = None
+
+        self._dct = {}
 
     def parse(self, filename=None, world=None):
         """Read from symbol.name.basis file.
@@ -239,37 +238,40 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
         Example of filename: N.dzp.basis.  Use sz(dzp) to read
         the sz-part from the N.dzp.basis file."""
 
-        basis = self.basis
-        if '(' in basis.name:
-            assert basis.name.endswith(')')
-            reduced, name = basis.name.split('(')
+        if '(' in self.name:
+            assert self.name.endswith(')')
+            reduced, name = self.name.split('(')
             name = name[:-1]
         else:
-            name = basis.name
+            name = self.name
             reduced = None
-        fullname = f'{basis.symbol}.{name}.basis'
+        fullname = f'{self.symbol}.{name}.basis'
         if filename is None:
-            basis.filename, source = search_for_file(fullname, world=world)
+            filename, source = search_for_file(fullname, world=world)
         else:
-            basis.filename = filename
             with open(filename, 'rb') as fd:
                 source = fd.read()
 
+        self.filename = filename
         self.data = None
         xml.sax.parseString(source, self)
+
+        basis = Basis(symbol=self.symbol, name=self.name, filename=filename,
+                      **self._dct)
 
         if reduced:
             basis.reduce(reduced)
 
+        return basis
+
     def startElement(self, name, attrs):
-        basis = self.basis
-        if name == 'paw_basis':
-            basis.version = attrs['version']
-        elif name == 'generator':
-            basis.generatorattrs = dict(attrs)
+        dct = self._dct
+        # For name == 'paw_basis' we can save attrs['version'], too.
+        if name == 'generator':
+            dct['generatorattrs'] = dict(attrs)
             self.data = []
         elif name == 'radial_grid':
-            basis.rgd = radial_grid_descriptor(**attrs)
+            dct['rgd'] = radial_grid_descriptor(**attrs)
         elif name == 'basis_function':
             self.l = int(attrs['l'])
             self.rc = float(attrs['rc'])
@@ -287,15 +289,14 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
             self.data.append(data)
 
     def endElement(self, name):
-        basis = self.basis
         if name == 'basis_function':
             phit_g = np.array([float(x) for x in ''.join(self.data).split()])
             bf = BasisFunction(self.n, self.l, self.rc, phit_g, self.type)
             # Also auxiliary basis functions are added here. They are
             # distinguished by their type='auxiliary'.
-            basis.append(bf)
+            self._dct.setdefault('bf_j', []).append(bf)
         elif name == 'generator':
-            basis.generatordata = ''.join([line for line in self.data])
+            self._dct['generatordata'] = ''.join([line for line in self.data])
 
 
 class BasisPlotter:
