@@ -42,7 +42,7 @@ but we attach :class:`~gpaw.tddft.MagneticMomentWriter`
 to record the time-dependent magnetic moment.
 In this script, we wrap the time propagation code
 inside ``main()`` function to make the same script reusable
-with ``gauges='length' or 'velocity'`` and different kick directions:
+with ``gauge='length' or 'velocity'`` and different kick directions:
 
 .. literalinclude:: lcao/td.py
 
@@ -50,7 +50,7 @@ with ``gauges='length' or 'velocity'`` and different kick directions:
 
     When running the script with ``gpaw``-command, one must add ``--`` before the actual arguments to ensure they are correctly passed the script. For example: ``$ gpaw -P 4 python td.py -- --gauge=length --kick=x``.
 
-After repeating the calculation for kicks in x, y, and z directions,
+After repeating the calculation for kicks in x, y, and z directions in length gauge and velocity gauge, respectively,
 we calculate the rotatory strength spectrum from the magnetic moments:
 
 .. literalinclude:: lcao/spec.py
@@ -115,7 +115,7 @@ The resulting spectra:
 Velocity gauge
 ~~~~~~~~~~~~~~
 
-In the velocity gauge, circular dichroism spectra are less origin dependent since the velocity form of the dipole operator satisfies gauge invariance more naturall in comparison to its length gauge form. By the reduction of the artificial dependence on the choice of coordinate origin during dipole moment calculations, the velocity gauge can provide more consistent and physically meaningful circular dichroism spectra across different origins.
+In the velocity gauge, circular dichroism spectra are less origin dependent since the velocity form of the dipole operator satisfies gauge invariance more naturally in comparison to its length gauge form. By reducing of the artificial dependence on the choice of coordinate origin during dipole moment calculations, the velocity gauge can provide more consistent and physically meaningful circular dichroism spectra across different origins.
 
 References
 ----------
