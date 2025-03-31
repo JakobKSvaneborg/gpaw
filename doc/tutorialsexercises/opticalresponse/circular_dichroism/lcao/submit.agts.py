@@ -10,9 +10,10 @@ def workflow():
             # Simple calculation
             td_jobs = []
             for kick in 'xyz':
-                td = run(script='td.py', args=['--', '--kick', kick],
-                         cores=4, tmax='1h')
-                td_jobs.append(td)
+                for gauge in ['length', 'velocity']:
+                    td = run(script='td.py', args=['--', '--kick', kick, '--gauge', gauge],
+                             cores=4, tmax='1h')
+                    td_jobs.append(td)
             spec = run(script='spec.py', deps=td_jobs)
             spec_jobs.append(spec)
 

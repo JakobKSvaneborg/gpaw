@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 
 fig, ax = plt.subplots(figsize=(6, 6 / 1.62))
 
-for tag in ['COM', 'COM+x', 'COM+y', 'COM+z', '123']:
-    data_ej = np.loadtxt(f'rot_spec-{tag}.dat')
-    ax.plot(data_ej[:, 0], data_ej[:, 1], label=tag)
+for gauge in ['length', 'velocity']:
+    for tag in ['COM', 'COM+x', 'COM+y', 'COM+z', '123']:
+        data_ej = np.loadtxt(f'rot_spec-{tag}_{gauge}.dat')
+        ax.plot(data_ej[:, 0], data_ej[:, 1], label=tag)
 
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
