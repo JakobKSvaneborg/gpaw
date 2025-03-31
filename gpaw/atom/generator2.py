@@ -1507,23 +1507,8 @@ def main(args):
                          'RI-basis set as well')
 
     if args.logarithmic_derivatives or args.plot:
-        if args.plot:
-            import matplotlib.pyplot as plt
-        if args.logarithmic_derivatives:
-            plot_log_derivs(gen, args.logarithmic_derivatives, args.plot)
-
-        if args.plot:
-            gen.plot()
-
-            if args.create_basis_set:
-                gen.basis.generatordata = ''  # we already printed this
-                BasisPlotter(show=True).plot(gen.basis)
-
-        if args.plot:
-            try:
-                plt.show()
-            except KeyboardInterrupt:
-                pass
+        from .plot_dataset import main as plot_main
+        plot_main(args, gen=gen, plot=args.plot)
 
 
 def plot_log_derivs(gen, ld_str: str, plot: bool):
