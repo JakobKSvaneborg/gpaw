@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import xml.sax
 
 import numpy as np
@@ -46,7 +46,7 @@ def get_basis_name(zetacount, polarizationcount):
         return f'{zetachar}z{polarizationchar}p'
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, frozen=True)
 class Basis:
     symbol: str
     name: str
@@ -128,7 +128,7 @@ class Basis:
         write('</paw_basis>\n')
 
     def reduce(self, name):
-        """Reduce the number of basis functions.
+        """Reduce the number of basis functions and return new Basis.
 
         Example: basis.reduce('sz') will remove all non single-zeta
         and polarization functions."""
@@ -149,7 +149,7 @@ class Basis:
                 if N[nl] < zeta:
                     newbf_j.append(bf)
                     N[nl] += 1
-        self.bf_j = newbf_j
+        return replace(self, bf_j=newbf_j)
 
     def get_description(self):
         title = 'LCAO basis set for %s:' % self.symbol
@@ -257,7 +257,7 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
                       **self._dct)
 
         if reduced:
-            basis.reduce(reduced)
+            basis = basis.reduce(reduced)
 
         return basis
 
