@@ -1,8 +1,8 @@
 .. _circular_dichroism_rtddft:
 
-=======================================
-Circular dichroism with real-time TDDFT
-=======================================
+============================================
+Circular dichroism (CD) with real-time TDDFT
+============================================
 
 In this tutorial, we calculate the rotatory strength spectrum of
 :download:`(R)-methyloxirane molecule <r-methyloxirane.xyz>`.
@@ -15,9 +15,13 @@ LCAO mode
 ---------
 
 In this example, we use :ref:`real-time TDDFT LCAO mode <lcaotddft>`.
-We recall that the LCAO calculations are in general
-:ref:`sensitive to the used basis sets <note basis sets>` and, additionally, the choice of gauge—whether length or velocity—can significantly influence the results. 
-We also demonstrate the construction of augmented basis sets.
+We recall that the CD-LCAO calculations are in general
+:ref:`sensitive to the used basis sets <note basis sets>`,
+so we will demonstrate how to construct augmented basis sets,
+and compare them to standard basis sets. Additionally, a choice of gauge
+is essential. GPAW provides two possibilites, which are selected by providing
+either ``gauge='length'`` (default) or ``gauge='velocity'`` keyword argument to
+the ``absorption_kick``-method. 
 
 We augment the default dzp basis sets with
 numerical Gaussian-type orbitals (NGTOs):
@@ -42,7 +46,10 @@ with different gauges and different kick directions:
 
 .. literalinclude:: lcao/td.py
 
-When running the script with gpaw, one must add '--' before the actual arguments to ensure they are correctly passed to argparse. For example: $ gpaw -P 4 python td.py -- --gauge='length' --kick='x'.
+.. tip::
+
+    When running the script with ``gpaw``-command, one must add ``--`` before the actual arguments to ensure they are correctly passed the script. For example: ``$ gpaw -P 4 python td.py -- --gauge=length --kick=x``.
+
 After repeating the calculation for kicks in x, y, and z directions,
 we calculate the rotatory strength spectrum from the magnetic moments:
 
