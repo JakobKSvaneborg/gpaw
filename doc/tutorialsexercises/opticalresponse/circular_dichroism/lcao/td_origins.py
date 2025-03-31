@@ -23,7 +23,8 @@ def main(kick, gauge):
     for shift_axis in 'xyz':
         origin_shift = [0, 0, 0]
         origin_shift['xyz'.index(shift_axis)] = 5
-        MagneticMomentWriter(td_calc, f'mm-COM+{shift_axis}-{gauge}_{kick}.dat',
+        MagneticMomentWriter(td_calc,
+                             f'mm-COM+{shift_axis}-{gauge}_{kick}.dat',
                              origin='COM', origin_shift=origin_shift)
 
     # Origin: arbitrary coordinate

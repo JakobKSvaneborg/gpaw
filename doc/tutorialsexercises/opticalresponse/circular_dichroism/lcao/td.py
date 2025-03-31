@@ -16,7 +16,7 @@ def main(kick, gauge):
     DipoleMomentWriter(td_calc, f'dm-{gauge}_{kick}.dat')
     MagneticMomentWriter(td_calc, f'mm-{gauge}_{kick}.dat')
 
-    td_calc.absorption_kick(kick_strength,gauge=gauge)
+    td_calc.absorption_kick(kick_strength, gauge=gauge)
     td_calc.propagate(10, 2000)
 
     td_calc.write(f'td-{kick}.gpw', mode='all')
