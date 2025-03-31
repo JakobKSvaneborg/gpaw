@@ -36,6 +36,8 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
                    'density': 1.0,
                    'energy': 1.0,
                    'work function': 1.0}
+    if gpaw_new:
+        convergence['eigenvalues'] = 1.0
     atoms = Atoms('HF', [(0., 0.5, 0.5),
                          (0., 0.4, -0.4)],
                   cell=(5., 5., 9.),
@@ -80,6 +82,8 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
                    'density': 1.0,
                    'energy': 1.0,
                    'work function': workfunction}
+    if gpaw_new:
+        convergence['eigenvalues'] = 1.0
     atoms.calc = atoms.calc.new(convergence=convergence)
     atoms.get_potential_energy()
     if gpaw_new:
@@ -97,6 +101,8 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
     convergence = {'energy': Energy(2.0, n_old=4),
                    'density': np.inf,
                    'eigenstates': np.inf}
+    if gpaw_new:
+        convergence['eigenvalues'] = np.inf
     atoms.calc = atoms.calc.new(convergence=convergence)
     atoms.get_potential_energy()
     if gpaw_new:
