@@ -790,6 +790,7 @@ class PAWSetupGenerator:
 
     def plot_potential_components(self, ax) -> None:
         r_g = self.rgd.r_g
+        assert self.vtr_g is not None  # Appease `mypy`
 
         ax.plot(r_g, self.vxct_g, label='xc')
         ax.plot(r_g[1:], self.v0r_g[1:] / r_g[1:], label='0')
@@ -805,41 +806,18 @@ class PAWSetupGenerator:
         ax.legend()
 
     def plot_partial_waves(self, ax) -> None:
-        r_g = self.rgd.r_g
-        i = 0
-        for l, waves in enumerate(self.waves_l):
-            for n, e, phi_g, phit_g in zip(waves.n_n, waves.e_n,
-                                           waves.phi_ng, waves.phit_ng):
-                if n == -1:
-                    gc = self.rgd.ceil(waves.rcut)
-                    name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
-                else:
-                    gc = len(self.rgd)
-                    name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-                ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=colors[i],
-                        label=name)
-                ax.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=colors[i])
-                i += 1
-        ax.axis(xmin=0, xmax=3 * self.rcmax)
-        ax.set_xlabel('radius [Bohr]')
-        ax.set_ylabel(r'partial waves $r\phi_{n\ell}(r)$')
-        ax.legend()
+        from .plot_dataset import (
+            plot_partial_waves as plot,
+            get_ppw_params_paw_setup_generator as get_args)
+
+        plot(ax, *get_args(self))
 
     def plot_projectors(self, ax) -> None:
-        r_g = self.rgd.r_g
-        i = 0
-        for l, waves in enumerate(self.waves_l):
-            for n, e, pt_g in zip(waves.n_n, waves.e_n, waves.pt_ng):
-                if n == -1:
-                    name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
-                else:
-                    name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-                ax.plot(r_g, pt_g * r_g, color=colors[i], label=name)
-                i += 1
-        ax.axis(xmin=0, xmax=self.rcmax)
-        ax.set_xlabel('radius [Bohr]')
-        ax.set_ylabel(r'projectors $r\tilde{p}(r)$')
-        ax.legend()
+        from .plot_dataset import (
+            plot_projectors as plot,
+            get_pp_params_paw_setup_generator as get_args)
+
+        plot(ax, *get_args(self))
 
     def plot(self,
              *,
