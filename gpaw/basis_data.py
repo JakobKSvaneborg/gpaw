@@ -57,6 +57,12 @@ class Basis:
         if readxml:
             self.read_xml(world=world)
 
+    @classmethod
+    def find(cls, symbol, name, world=None):
+        basis = cls(symbol, name, readxml=False)
+        basis.read_xml(world=world)
+        return basis
+
     @property
     def nao(self):  # implement as a property so we don't have to
         # catch all the places where Basis objects are modified without
