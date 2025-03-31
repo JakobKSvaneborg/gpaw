@@ -838,7 +838,7 @@ class PAWSetupGenerator:
                          tag=None, ri=None):
         rgd = self.rgd
         name = 'dzp' if not tag else f'{tag}.dzp'
-        self.basis = Basis(self.aea.symbol, name, readxml=False, rgd=rgd)
+        self.basis = Basis(self.aea.symbol, name, rgd=rgd)
 
         # We print text to sdtout and put it in the basis-set file
         txt = 'Basis functions:\n'
