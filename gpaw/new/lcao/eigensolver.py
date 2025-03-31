@@ -26,11 +26,11 @@ class LCAOEigensolver(Eigensolver):
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
         eig_error = 0.0
         for wfs, weight_n in zip(ibzwfs, weight_un):
-            _, eig_e = \
+            _, temp_eig_error = \
                 self.iterate_kpt(wfs, weight_n, self.iterate1,
                                  matrix_calculator=matrix_calculator)
-            if eig_error < eig_e:
-                eig_error = eig_e
+            if eig_error < temp_eig_error:
+                eig_error = temp_eig_error
 
         eig_error = ibzwfs.kpt_band_comm.max_scalar(eig_error)
         return eig_error, 0.0, energies
