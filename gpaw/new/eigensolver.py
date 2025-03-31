@@ -23,7 +23,7 @@ class Eigensolver:
                 potential: Potential,
                 hamiltonian: Hamiltonian,
                 pot_calc: PotentialCalculator,
-                energies: DFTEnergies) -> tuple[float, DFTEnergies]:
+                energies: DFTEnergies) -> tuple[float, float, DFTEnergies]:
         raise NotImplementedError
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
