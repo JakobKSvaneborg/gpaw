@@ -574,9 +574,16 @@ class SJM(SolvationGPAW):
                     if p.fdt:
                         rerun = False
                     else:
+                        pe, ce = p.previous_electrons[-1], p.excess_electrons
+                        if abs(pe - ce) < 1e-5:
+                            msg = ('Step size is too small to be halved in '
+                                   'rerun. To avoid this try to change your '
+                                   'initial guess of excess electrons. '
+                                   'Potential equilibration failed.')
+                            raise PotentialConvergenceError(msg)
 
-                        p.excess_electrons = (p.previous_electrons[-1] +
-                                              p.excess_electrons) / 2.
+                        p.excess_electrons = (pe + ce) / 2.
+
                         rerun = True
                     continue  # back to while
 
@@ -585,10 +592,20 @@ class SJM(SolvationGPAW):
             rerun = False
 
             # Store attempt and calculate slope.
-
             p.previous_electrons.append(float(p.excess_electrons))
             p.previous_potentials.append(float(true_potential))
-            # p.istep += 1
+
+            # The following solves a bug, where the code would crash if the
+            # user sets the right number of electrons to reach the target
+            # potential in the first iteration and then changes the target
+            # potential. The code would crash because the slope has not been
+            # calculated yet and so no step is taken towards the new potential.
+            # As two equal charges are added to p.previous_electrons, the
+            # regression of the slope will fail.
+            if len(p.previous_electrons) > 1:
+                if not p.previous_electrons[-2] - p.previous_electrons[-1]:
+                    del p.previous_electrons[-2], p.previous_potentials[-2]
+
             if len(p.previous_electrons) > 1:
                 slope = _calculate_slope(p.previous_electrons,
                                          p.previous_potentials,
@@ -599,7 +616,7 @@ class SJM(SolvationGPAW):
                          f'{slope:.4f} V/electron,')
                 area = np.linalg.det(atoms.cell[:2, :2])
                 # get capacitance in muF/cm^2
-                capacitance = - _e * 1e22 / (area * p.slope)
+                capacitance = - _e * 1e22 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
                          'muF/cm^2')
 

@@ -1246,10 +1246,11 @@ class Setup(BaseSetup):
 
 class PartialWaveBasis(Basis):  # yuckkk
     def __init__(self, symbol, phit_J, n_J):
-        super().__init__(symbol, 'partial-waves')
         self._basis_functions_J = phit_J
-        self.bf_j = [BasisFunction(n, phit.get_angular_momentum_number())
-                     for n, phit in zip(n_J, phit_J)]
+        super().__init__(
+            symbol, 'partial-waves',
+            bf_j=[BasisFunction(n, phit.get_angular_momentum_number())
+                  for n, phit in zip(n_J, phit_J)])
 
     def tosplines(self):
         return self._basis_functions_J
