@@ -104,6 +104,12 @@ class WaveFunctions:
         raise NotImplementedError
 
     @property
+    def has_eigs(self) -> bool:
+        # Checks if eigenvalues have been calculated,
+        # that is, one scf step has been performed.
+        return self._eig_n is not None
+
+    @property
     def eig_n(self) -> Array1D:
         if self._eig_n is None:
             raise ValueError

@@ -30,11 +30,11 @@ class Eigensolver:
         pass
 
     def iterate_kpt(self, wfs, weight_n, iter_func, **fkwargs):
-        has_eigs = weight_n is not None
-        if has_eigs:
+        had_eigs = wfs.has_eigs
+        if had_eigs:
             eig_old = wfs.myeig_n
         eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **fkwargs)
-        if has_eigs:
+        if had_eigs:
             eig_error = np.max(weight_n * np.abs(eig_old - wfs.myeig_n))
         else:  # no eigenvalues yet
             eig_error = np.inf
@@ -51,11 +51,11 @@ def calculate_weights(converge_bands: int | str,
     if converge_bands == 'occupied':
         # Converge occupied bands:
         for wfs in ibzwfs:
-            try:
+            if wfs.has_eigs:
                 # Methfessel-Paxton or cold-smearing distributions can give
                 # negative occupation numbers - so we take the absolute value:
                 weight_n = np.abs(wfs.myocc_n)
-            except ValueError:
+            else:
                 # No eigenvalues yet:
                 return [None] * nu
             weight_un.append(weight_n)
