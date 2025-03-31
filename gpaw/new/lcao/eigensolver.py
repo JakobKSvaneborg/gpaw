@@ -26,17 +26,9 @@ class LCAOEigensolver(Eigensolver):
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
         eig_error = 0.0
         for wfs, weight_n in zip(ibzwfs, weight_un):
-            has_eigs = True
-            try:
-                eig_old = wfs.myeig_n
-            except ValueError:  # no eigenvalues yet
-                eig_old = np.inf
-                has_eigs = False
-            self.iterate1(wfs, matrix_calculator)
-            if has_eigs:
-                eig_error += weight_n @ np.abs(eig_old - wfs.myeig_n)**2
-            else:  # no eigenvalues yet
-                eig_error = np.inf
+            e_eigs, e_eig = self.iterate_kpt(wfs, weight_n, self.iterate1,
+                                             matrix_calculator=matrix_calculator)
+            eig_error += e_eig
         
         eig_error = (ibzwfs.kpt_band_comm.sum_scalar(
                      float(eig_error)) * ibzwfs.spin_degeneracy)**0.5
@@ -44,6 +36,7 @@ class LCAOEigensolver(Eigensolver):
 
     def iterate1(self,
                  wfs: LCAOWaveFunctions,
+                 weight_n: np.ndarray,  # XXX: Unused
                  matrix_calculator: HamiltonianMatrixCalculator):
         H_MM = matrix_calculator.calculate_matrix(wfs)
         eig_M = H_MM.eighg(wfs.L_MM, wfs.domain_comm)

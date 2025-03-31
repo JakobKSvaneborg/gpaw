@@ -116,11 +116,11 @@ class PWFDEigensolver(Eigensolver):
         # Loop over k-points:
         with broadcast_exception(ibzwfs.kpt_comm):
             for wfs, weight_n in zips(ibzwfs, weight_un):
-                eig_old = wfs.myeig_n
-                e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
-                error += wfs.weight * e
-                occs = wfs.myocc_n
-                eig_error += weight_n @ np.abs(eig_old - wfs.myeig_n)**2
+                e_eigs, e_eig = self.iterate_kpt(wfs, weight_n, self.iterate1,
+                                                 Ht=Ht, dH=dH,
+                                                 dS_aii=dS_aii)
+                error += wfs.weight * e_eigs
+                eig_error += np.abs(e_eig)
 
         error = ibzwfs.kpt_band_comm.sum_scalar(
             float(error)) * ibzwfs.spin_degeneracy

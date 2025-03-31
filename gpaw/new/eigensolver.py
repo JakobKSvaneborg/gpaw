@@ -24,6 +24,21 @@ class Eigensolver:
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
         pass
+    
+    def iterate_kpt(self, wfs, weight_n, iter_func, **fkwargs):
+        has_eigs = True
+        try:
+            eig_old = wfs.myeig_n
+        except ValueError:  # no eigenvalues yet
+            eig_old = np.inf
+            has_eigs = False
+        eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **fkwargs)
+        if has_eigs:
+            eig_error = weight_n @ np.abs(eig_old - wfs.myeig_n)**2
+        else:  # no eigenvalues yet
+            eig_error = np.inf
+        return eigs_error, eig_error
+        
 
 
 def calculate_weights(converge_bands: int | str,
