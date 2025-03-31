@@ -21,7 +21,7 @@ def get_bf_centers(atoms, basis=None):
     if calc is None or isinstance(calc, SinglePointCalculator):
         symbols = atoms.get_chemical_symbols()
         basis_a = types2atomtypes(symbols, basis, 'dzp')
-        nao_a = [Basis(symbol, type).nao
+        nao_a = [Basis.find(symbol, type).nao
                  for symbol, type in zip(symbols, basis_a)]
     else:
         if not calc.initialized:
@@ -383,10 +383,10 @@ def basis_subset(symbol, largebasis, smallbasis):
     Determine which basis function indices from ``largebasis`` are also
     present in smallbasis.
     """
-    blarge = Basis(symbol, largebasis)
+    blarge = Basis.find(symbol, largebasis)
     zeta_large, pol_large = zeta_pol(blarge)
 
-    bsmall = Basis(symbol, smallbasis)
+    bsmall = Basis.find(symbol, smallbasis)
     zeta_small, pol_small = zeta_pol(bsmall)
 
     assert zeta_small <= zeta_large

@@ -43,7 +43,7 @@ def main(argv=sys.argv[1:]):
             basis = Basis(symbol, name, False)
             basis.read_xml(path)
         else:  # search GPAW setup dirs
-            basis = Basis(symbol, name)
+            basis = Basis.find(symbol, name)
         plotter.plot(basis)
 
     if not opts.save:
