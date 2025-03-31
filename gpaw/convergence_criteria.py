@@ -275,7 +275,7 @@ class Eigenvalues(Criterion):
         return converged, entry
 
     def get_error(self, context):
-        return context.eigs * Ha
+        return context.eig_error * Ha
 
 
 class Forces(Criterion):

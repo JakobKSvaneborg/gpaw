@@ -162,7 +162,7 @@ class SCFContext:
             calculate_magnetic_moments=density.calculate_magnetic_moments,
             fixed=not update_density_and_potential,
             error=dens_error)
-        self.eigs = eig_error
+        self.eig_error = eig_error
         self.calculate_forces = calculate_forces
         self.poisson_solver = pot_calc.poisson_solver
 

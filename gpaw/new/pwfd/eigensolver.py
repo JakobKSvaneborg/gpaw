@@ -108,23 +108,23 @@ class PWFDEigensolver(Eigensolver):
 
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
-        error = 0.0
+        wfs_error = 0.0
         eig_error = 0.0
         # Loop over k-points:
         with broadcast_exception(ibzwfs.kpt_comm):
             for wfs, weight_n in zips(ibzwfs, weight_un):
-                e_eigs, e_eig = self.iterate_kpt(wfs, weight_n, self.iterate1,
-                                                 Ht=Ht, dH=dH,
-                                                 dS_aii=dS_aii)
-                error += wfs.weight * e_eigs
-                if eig_error < e_eig:
-                    eig_error = e_eig
+                wfs_e, eig_e = self.iterate_kpt(wfs, weight_n, self.iterate1,
+                                                Ht=Ht, dH=dH,
+                                                dS_aii=dS_aii)
+                wfs_error += wfs.weight * wfs_e
+                if eig_error < eig_e:
+                    eig_error = eig_e
 
-        error = ibzwfs.kpt_band_comm.sum_scalar(
-            float(error)) * ibzwfs.spin_degeneracy
+        wfs_error = ibzwfs.kpt_band_comm.sum_scalar(
+            float(wfs_error)) * ibzwfs.spin_degeneracy
         eig_error = ibzwfs.kpt_band_comm.max_scalar(eig_error)
 
-        return eig_error, error, energies
+        return eig_error, wfs_error, energies
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         raise NotImplementedError
