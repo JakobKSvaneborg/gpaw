@@ -51,7 +51,7 @@ def calculate_weights(converge_bands: int | str,
     if converge_bands == 'occupied':
         # Converge occupied bands:
         for wfs in ibzwfs:
-            if wfs.has_eigs:
+            if wfs.has_occs:
                 # Methfessel-Paxton or cold-smearing distributions can give
                 # negative occupation numbers - so we take the absolute value:
                 weight_n = np.abs(wfs.myocc_n)
