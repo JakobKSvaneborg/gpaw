@@ -259,9 +259,9 @@ class Eigenvalues(Criterion):
     tablename = 'eigs'
     calc_last = False
 
-    def __init__(self, tol=1e-4):
+    def __init__(self, tol=1e-3):
         self.tol = tol
-        self.description = 'Norm of change in eigenvalues.'  # XXX
+        self.description = 'Maximum absolute change in eigenvalues [eV].'
 
     def __call__(self, context):
         if context.wfs.nvalence == 0:

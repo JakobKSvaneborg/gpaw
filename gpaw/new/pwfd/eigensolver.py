@@ -117,12 +117,13 @@ class PWFDEigensolver(Eigensolver):
                                                  Ht=Ht, dH=dH,
                                                  dS_aii=dS_aii)
                 error += wfs.weight * e_eigs
-                eig_error += np.abs(e_eig)
+                if eig_error < e_eig:
+                    eig_error = e_eig
 
         error = ibzwfs.kpt_band_comm.sum_scalar(
             float(error)) * ibzwfs.spin_degeneracy
-        eig_error = (ibzwfs.kpt_band_comm.sum_scalar(
-                     float(eig_error)) * ibzwfs.spin_degeneracy)**0.5
+        eig_error = (ibzwfs.kpt_band_comm.max_scalar(
+                     float(eig_error)) * ibzwfs.spin_degeneracy)
 
         return eig_error, error, energies
 

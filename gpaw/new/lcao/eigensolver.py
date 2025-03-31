@@ -29,10 +29,11 @@ class LCAOEigensolver(Eigensolver):
             e_eigs, e_eig = \
                 self.iterate_kpt(wfs, weight_n, self.iterate1,
                                  matrix_calculator=matrix_calculator)
-            eig_error += e_eig
+            if eig_error < e_eig:
+                eig_error = e_eig
 
-        eig_error = (ibzwfs.kpt_band_comm.sum_scalar(
-                     float(eig_error)) * ibzwfs.spin_degeneracy)**0.5
+        eig_error = (ibzwfs.kpt_band_comm.max_scalar(
+                     float(eig_error)) * ibzwfs.spin_degeneracy)
         return eig_error, 0.0, energies
 
     def iterate1(self,

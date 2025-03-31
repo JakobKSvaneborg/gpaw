@@ -38,7 +38,7 @@ class Eigensolver:
             has_eigs = False
         eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **fkwargs)
         if has_eigs:
-            eig_error = weight_n @ np.abs(eig_old - wfs.myeig_n)**2
+            eig_error = np.max(weight_n * np.abs(eig_old - wfs.myeig_n))
         else:  # no eigenvalues yet
             eig_error = np.inf
         return eigs_error, eig_error
