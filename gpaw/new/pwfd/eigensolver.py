@@ -6,6 +6,7 @@ from typing import Callable
 
 import numpy as np
 from ase.units import Ha
+
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.mpi import broadcast_exception, broadcast_float
@@ -18,6 +19,7 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array1D
 from gpaw.utilities.blas import axpy
+from gpaw.utilities import as_real_dtype
 
 
 def create_eigensolver(nbands,
@@ -125,6 +127,7 @@ class PWFDEigensolver(Eigensolver):
         raise NotImplementedError
 
 
+@trace
 def calculate_residuals(residual_nX: XArray,
                         dH: Callable[[AtomArrays, AtomArrays], AtomArrays],
                         dS_aii: AtomArrays,
@@ -138,7 +141,7 @@ def calculate_residuals(residual_nX: XArray,
         for r, e, p in zips(residual_nX.data, eig_n, wfs.psit_nX.data):
             axpy(-e, p, r)
     else:
-        eig_n = xp.asarray(eig_n)
+        eig_n = xp.asarray(eig_n, dtype=as_real_dtype(residual_nX.data.dtype))
         calculate_residuals_gpu(residual_nX.data, eig_n, wfs.psit_nX.data)
 
     dH(wfs.P_ani, P1_ani)
@@ -180,7 +183,7 @@ def calculate_weights(converge_bands: int | str,
     if converge_bands == 'all':
         converge_bands = nbands
 
-    if isinstance(converge_bands, int):
+    if not isinstance(converge_bands, str):
         # Converge fixed number of bands:
         n = converge_bands
         if n < 0:

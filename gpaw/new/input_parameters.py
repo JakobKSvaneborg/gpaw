@@ -7,11 +7,6 @@ import numpy as np
 
 parameter_functions = {}
 
-"""
-background_charge
-external
-"""
-
 
 class DeprecatedParameterWarning(FutureWarning):
     """Warning class for when a parameter or its value is deprecated."""
@@ -24,6 +19,7 @@ def input_parameter(func):
 
 
 class InputParameters:
+    background_charge: Any
     basis: Any
     charge: float
     convergence: dict[str, Any]
@@ -45,6 +41,7 @@ class InputParameters:
     # random
     setups: Any
     soc: bool
+    solvation: Any
     spinpol: bool
     symmetry: dict[str, Any]
     xc: dict[str, Any]
@@ -115,6 +112,12 @@ class InputParameters:
     def items(self):
         for key in self.non_defaults:
             yield key, getattr(self, key)
+
+
+@input_parameter
+def background_charge(value=None):
+    """Background-charge object."""
+    return value
 
 
 @input_parameter
@@ -266,6 +269,11 @@ def setups(value='paw'):
 
 @input_parameter
 def soc(value=False):
+    return value
+
+
+@input_parameter
+def solvation(value=None):
     return value
 
 

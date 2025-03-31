@@ -39,6 +39,7 @@ class PotentialCalculator:
                  setups: list[Setup],
                  *,
                  relpos_ac: Array2D,
+                 environment,
                  external_potential: ExternalPotential | None = None,
                  soc: bool = False):
         self.poisson_solver = poisson_solver
@@ -47,6 +48,7 @@ class PotentialCalculator:
         self.external_potential = external_potential or ExternalPotential()
         self.relpos_ac = relpos_ac
         self.soc = soc
+        self.environment = environment
 
     def __str__(self):
         return (f'{self.poisson_solver}\n'
@@ -88,6 +90,7 @@ class PotentialCalculator:
             self.xc = xc
         return potential, energies, V_al
 
+    @trace
     def calculate(self,
                   density,
                   ibzwfs=None,

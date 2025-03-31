@@ -8,6 +8,7 @@
 #define gpuMemcpyKind             cudaMemcpyKind
 #define gpuMemcpyDeviceToHost     cudaMemcpyDeviceToHost
 #define gpuMemcpyHostToDevice     cudaMemcpyHostToDevice
+#define gpuMemcpyDeviceToDevice   cudaMemcpyDeviceToDevice
 #define gpuSuccess                cudaSuccess
 #define gpuEventDefault           cudaEventDefault
 #define gpuEventBlockingSync      cudaEventBlockingSync
@@ -19,13 +20,18 @@
 #define gpuDeviceProp             cudaDeviceProp
 
 #define gpuDoubleComplex          cuDoubleComplex
+#define gpuFloatComplex           cuFloatComplex
 #define gpublasDoubleComplex      cuDoubleComplex
 #define make_gpuDoubleComplex     make_cuDoubleComplex
+#define make_gpuFloatComplex      make_cuFloatComplex
 #define gpuCreal                  cuCreal
 #define gpuCimag                  cuCimag
 #define gpuCadd                   cuCadd
+#define gpuCaddf                  cuCaddf
 #define gpuCsub                   cuCsub
+#define gpuCsubf                  cuCsubf
 #define gpuCmul                   cuCmul
+#define gpuCmulf                  cuCmulf
 #define gpuConj                   cuConj
 
 #define gpuCheckLastError()       gpuSafeCall(cudaGetLastError())

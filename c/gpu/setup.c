@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 void bc_init_buffers_gpu();
 void blas_init_gpu();
 void transformer_init_buffers_gpu();

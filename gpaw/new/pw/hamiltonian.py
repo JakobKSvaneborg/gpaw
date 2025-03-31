@@ -10,6 +10,7 @@ from gpaw.gpu import cupy as cp
 from gpaw.new import trace, zips
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.c import pw_precond, pw_insert_gpu
+from gpaw.utilities import as_complex_dtype
 
 
 class PWHamiltonian(Hamiltonian):
@@ -128,6 +129,7 @@ def precondition(psit_nG: PWArray,
                            residual_nG.data)
 
 
+@trace(gpu=True)
 @cp.fuse()
 def gpu_prec(ekin, G2, residual):
     x = 1 / ekin / 3 * G2
@@ -192,30 +194,32 @@ class SpinorPWHamiltonian(Hamiltonian):
         return spinor_precondition
 
 
+@trace
 def apply_local_potential_gpu(vt_R,
                               psit_nG,
                               out_nG,
-                              blocksize=10):
+                              blocksize=50):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
     e_kin_G = cp.asarray(pw.ekin_G)
     mynbands = psit_nG.mydims[0]
     size_c = vt_R.desc.size_c
-    if pw.dtype == float:
+    w = trace(gpu=True)
+    if np.issubdtype(pw.dtype, np.floating):
         shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
-        ifftn = cupyx.scipy.fft.irfftn
-        fftn = cupyx.scipy.fft.rfftn
+        ifftn = w(cupyx.scipy.fft.irfftn)
+        fftn = w(cupyx.scipy.fft.rfftn)
     else:
         shape = tuple(size_c)
-        ifftn = cupyx.scipy.fft.ifftn
-        fftn = cupyx.scipy.fft.fftn
+        ifftn = w(cupyx.scipy.fft.ifftn)
+        fftn = w(cupyx.scipy.fft.fftn)
     Q_G = cp.asarray(pw.indices(shape))
     psit_bQ = None
     for b1 in range(0, mynbands, blocksize):
         b2 = min(b1 + blocksize, mynbands)
         nb = b2 - b1
         if psit_bQ is None:
-            psit_bQ = cp.empty((nb,) + shape, complex)
+            psit_bQ = cp.empty((nb,) + shape, as_complex_dtype(pw.dtype))
         elif nb < blocksize:
             psit_bQ = psit_bQ[:nb]
         psit_bQ[:] = 0.0

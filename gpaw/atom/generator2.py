@@ -838,7 +838,7 @@ class PAWSetupGenerator:
                          tag=None, ri=None):
         rgd = self.rgd
         name = 'dzp' if not tag else f'{tag}.dzp'
-        self.basis = Basis(self.aea.symbol, name, readxml=False, rgd=rgd)
+        self.basis = Basis(self.aea.symbol, name, rgd=rgd)
 
         # We print text to sdtout and put it in the basis-set file
         txt = 'Basis functions:\n'
@@ -1338,7 +1338,7 @@ def get_parameters(symbol, args):
                 r0=r0, v0=None, nderiv0=nderiv0,
                 pseudize=pseudize, rcore=rcore,
                 core_hole=args.core_hole,
-                output=args.output,
+                output=None,  # args.output,
                 yukawa_gamma=args.gamma,
                 ecut=args.ecut,
                 omega=args.omega)
@@ -1362,8 +1362,6 @@ def generate(symbol,
              yukawa_gamma=0.0,
              ecut=None,
              omega=None):
-    if isinstance(output, str):
-        output = open(output, 'w')
     aea = AllElectronAtom(symbol, xc, Z=Z,
                           configuration=configuration)
     gen = PAWSetupGenerator(aea, projectors, scalar_relativistic, core_hole,
@@ -1420,7 +1418,9 @@ class CLICommand:
             '(integer) or energy (floating point number). ' +
             'Example: 2s,0.5s,2p,0.5p,0.0d.')
         add('-r', '--radius',
-            help='1.2 or 1.2,1.1,1.1.  Units: Bohr.')
+            help='Cutoff radius for all projectors or comma-separated list '
+            'of radii for each angular momentum channel.  '
+            'Example: 1.2 or 1.2,1.1,1.1.  Units: Bohr.')
         add('-0', '--zero-potential',
             metavar='nderivs,radius',
             help='Parameters for zero potential.')
@@ -1430,25 +1430,43 @@ class CLICommand:
         add('-z', '--pseudize',
             metavar='type,nderivs',
             help='Parameters for pseudizing wave functions.')
-        add('-p', '--plot', action='store_true')
+        add('-p', '--plot', action='store_true',
+            help='Show a plot of the setup.')
         add('-l', '--logarithmic-derivatives',
             metavar='spdfg,e1:e2:de,radius',
             help='Plot logarithmic derivatives. ' +
             'Example: -l spdf,-1:1:0.05,1.3. ' +
             'Energy range and/or radius can be left out.')
-        add('-w', '--write', action='store_true')
-        add('-s', '--scalar-relativistic', action='store_true')
-        add('-n', '--no-check', action='store_true')
-        add('-t', '--tag', type=str)
-        add('-a', '--alpha', type=float)
-        add('-g', '--gamma', type=float, default=0.0)
-        add('-b', '--create-basis-set', action='store_true')
+        add('-w', '--write', action='store_true',
+            help='Write setup to file <symbol>.<XC> '
+            'or, with --tag, <symbol>.<TAG>.<XC>.')
+        add('-s', '--scalar-relativistic', action='store_true',
+            help='Perform a scalar-relativistic calculation.  '
+            'Default is a non-scalar-relativistic.')
+        add('-n', '--no-check', action='store_true',
+            help='Disable error checks.  This allows saving files that would '
+            'normally be considered invalid.')
+        add('-t', '--tag', type=str, help='Include TAG in output filename.')
+        add('-a', '--alpha', type=float,
+            help='Decay of shape function exp(-alpha r²) used for '
+            'compensation charges.  Default is based on --radius.')
+        add('-g', '--gamma', type=float, default=0.0,
+            help='Yukawa gamma parameter for range-separated functionals.  '
+            'Default is zero (no range separation).')
+        add('-b', '--create-basis-set', action='store_true',
+            help='Create a rudimentary basis set.')
         add('--nlcc', action='store_true',
             help='Use NLCC-style pseudo core density '
             '(for vdW-DF functionals).')
-        add('--core-hole')
-        add('-e', '--electrons', type=int)
-        add('-o', '--output')
+        add('--core-hole', metavar='STATE,OCC',
+            help='State and occupation of core hole.  Default is no '
+            'core hole.  Example: "3s,0.5."')
+        add('-e', '--electrons', type=int,
+            help='Number of valence electrons.  Requires a corresponding '
+            'entry in the global parameters dictionary (read source code).')
+        # --output does not currently work since it never closes or flushes.
+        # add('-o', '--output', metavar='FILE',
+        #     help='Write log to FILE.')
         add('--ecut', type=float, help='Minimize Fourier components above '
             'ECUT for pseudo wave functions.')
         add('--ri', type=str,

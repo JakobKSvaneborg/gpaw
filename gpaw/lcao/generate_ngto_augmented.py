@@ -184,8 +184,9 @@ def generate_nao_ngto_basis(atom, *, xc, nao, name,
 
     # Generate nao basis
     zetacount, polarizationcount = parse_basis_name(nao)
-    bm = BasisMaker(atom, name=name, run=False, gtxt=None, xc=xc)
-    bm.generator.run(write_xml=False, **p[atom])
+    bm = BasisMaker.from_symbol(
+        atom, name=name, gtxt=None, xc=xc,
+        generator_run_kwargs=dict(write_xml=False, **p[atom]))
     basis = bm.generate(zetacount, polarizationcount, txt=None)
 
     # Increase basis function max radius

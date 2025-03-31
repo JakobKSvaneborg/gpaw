@@ -334,7 +334,7 @@ class AtomPAW(GPAW):
         d = self.wfs.gd.r_g[0]
         ng = self.wfs.gd.N + 1
         rgd = EquidistantRadialGridDescriptor(d, ng)
-        basis = Basis(self.symbol, basis_name, readxml=False, rgd=rgd)
+        basis = Basis(self.symbol, basis_name, rgd=rgd)
         basis.generatorattrs = {}  # attrs of the setup maybe
         basis.generatordata = 'AtomPAW'  # version info too?
 

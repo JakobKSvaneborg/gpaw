@@ -9,7 +9,7 @@ from gpaw.utilities import devnull
 from gpaw import __version__ as version
 from gpaw.utilities import divrl
 from gpaw.atom.generator import Generator
-from gpaw.atom.all_electron import AllElectron
+from gpaw.atom.all_electron import ValenceData
 from gpaw.atom.configurations import parameters
 from gpaw.basis_data import Basis, BasisFunction, get_basis_name
 from gpaw.atom.radialgd import (AERadialGridDescriptor,
@@ -62,43 +62,57 @@ def rsplit_by_norm(rgd, l, u, tailnorm_squared, txt):
 
 class BasisMaker:
     """Class for creating atomic basis functions."""
-    def __init__(self, generator, name=None, run=True, gtxt='-',
+    def __init__(self, valence_data, name=None, run=True, gtxt='-',
                  non_relativistic_guess=False, xc='PBE',
                  save_setup=False):
 
-        if isinstance(generator, str):  # treat 'generator' as symbol
-            generator = Generator(generator, scalarrel=True,
-                                  xcname=xc, txt=gtxt,
-                                  nofiles=True)
-            generator.N *= 4
-        self.generator = generator
-        self.rgd = AERadialGridDescriptor(generator.beta / generator.N,
-                                          1.0 / generator.N, generator.N,
-                                          default_spline_points=100)
+        if not isinstance(valence_data, ValenceData):
+            raise TypeError('BasisMaker no longer accepts Generator or str.  '
+                            'Please provide ValenceData or use one of the '
+                            'helper classmethods.')
+
         self.name = name
+        self.valence_data = valence_data
+        rgd = valence_data.rgd
+        rgd = AERadialGridDescriptor(rgd.a,
+                                     rgd.b,
+                                     len(rgd.r_g),
+                                     default_spline_points=100)
+        self.rgd = rgd
 
-        if run:
-            if non_relativistic_guess:
-                ae0 = AllElectron(generator.symbol, scalarrel=False,
-                                  nofiles=False, txt=gtxt, xcname=xc)
-                ae0.N = generator.N
-                ae0.beta = generator.beta
-                ae0.run()
-                # Now files will be stored such that they can
-                # automagically be used by the next run()
-            setup = generator.run(write_xml=False,
-                                  name=name,
-                                  **parameters[generator.symbol])
+    @classmethod
+    def from_setup_and_generator(cls, setup, generator, **kwargs):
+        valdata = ValenceData.from_setupdata_and_potentials(
+            setup, vr_g=generator.vr, r2dvdr_g=generator.r2dvdr,
+            scalarrel=generator.scalarrel)
+        return cls(valdata, **kwargs)
 
-            if save_setup:
-                setup.write_xml()
-        else:
-            if save_setup:
-                raise ValueError('cannot save setup here because setup '
-                                 'was already generated before basis '
-                                 'generation.')
+    @classmethod
+    def from_symbol(cls, symbol, gtxt='-', xc='PBE', name=None,
+                    save_setup=False,
+                    generator_run_kwargs=None, **kwargs):
+        generator = Generator(symbol, scalarrel=True,
+                              xcname=xc, txt=gtxt,
+                              nofiles=True,
+                              gpernode=Generator.default_gpernode * 4)
 
-    def smoothify(self, psi_mg, l):
+        run_kwargs = {
+            'write_xml': False,
+            'name': name,
+            **parameters[generator.symbol]}
+
+        if generator_run_kwargs is not None:
+            run_kwargs.update(generator_run_kwargs)
+
+        setup = generator.run(**run_kwargs)
+
+        if save_setup:
+            setup.write_xml()
+
+        return cls.from_setup_and_generator(setup, generator, name=name,
+                                            **kwargs)
+
+    def smoothify(self, psi_mg, j):
         r"""Generate pseudo wave functions from all-electron ones.
 
         The pseudo wave function is::
@@ -130,22 +144,31 @@ class BasisMaker:
 
         which is exact if the projectors/pseudo partial waves are complete.
         """
+
         if psi_mg.ndim == 1:
-            return self.smoothify(psi_mg[None], l)[0]
+            return self.smoothify(psi_mg[None], j)[0]
 
-        g = self.generator
-        u_ng = g.u_ln[l]
-        q_ng = g.q_ln[l]
-        s_ng = g.s_ln[l]
+        valdata = self.valence_data
+        l = valdata.l_j[j]
 
-        Pi_nn = np.dot(g.r * q_ng, u_ng.T)
-        Q_nm = np.dot(g.r * q_ng, psi_mg.T)
+        def angular_buddies(array_j):
+            return np.array([array_j[j] for j, l1 in enumerate(valdata.l_j)
+                             if l1 == l])
+
+        u_ng = angular_buddies(valdata.phi_jg)
+        q_ng = angular_buddies(valdata.pt_jg)
+        s_ng = angular_buddies(valdata.phit_jg)
+
+        r_g = valdata.rgd.r_g
+
+        Pi_nn = np.dot(r_g * q_ng, u_ng.T)
+        Q_nm = np.dot(r_g * q_ng, psi_mg.T)
         Qt_nm = np.linalg.solve(Pi_nn, Q_nm)
 
         # Weight-function for truncating all-electron parts smoothly near core
-        gmerge = g.r2g(g.rcut_l[l])
-        w_g = np.ones(g.r.shape)
-        w_g[0:gmerge] = (g.r[0:gmerge] / g.r[gmerge])**2.
+        gmerge = valdata.rgd.floor(valdata.rcut_j[j])
+        w_g = np.ones_like(r_g)
+        w_g[0:gmerge] = (r_g[0:gmerge] / r_g[gmerge])**2.
         w_g = w_g[None]
 
         psit_mg = psi_mg * w_g + np.dot(Qt_nm.T, s_ng - u_ng * w_g)
@@ -158,21 +181,22 @@ class BasisMaker:
         Creates a confinement potential for the orbital given by j,
         such that the confined-orbital energy is (emin to emax) eV larger
         than the free-orbital energy."""
-        g = self.generator
-        e_base = g.e_j[j]
+        valdata = self.valence_data
+        e_base = valdata.e_j[j]
         rc = rguess
 
         if vconf_args is None:
             vconf = None
         else:
             amplitude, ri_rel = vconf_args
-            vconf = g.get_confinement_potential(amplitude, ri_rel * rc, rc)
+            vconf = valdata.get_confinement_potential(
+                amplitude, ri_rel * rc, rc)
 
-        psi_g, e = g.solve_confined(j, rc, vconf)
+        psi_g, e = valdata.solve_confined(j, rc, vconf)
         de_min, de_max = esplit / Hartree, (esplit + tolerance) / Hartree
 
         rmin = 0.
-        rmax = g.r[-1]
+        rmax = valdata.rgd.r_g[-1]
 
         de = e - e_base
         while de < de_min or de > de_max:
@@ -183,11 +207,13 @@ class BasisMaker:
                 rmin = rc
                 rc = (rc + rmax) / 2.
             if vconf is not None:
-                vconf = g.get_confinement_potential(amplitude, ri_rel * rc, rc)
-            psi_g, e = g.solve_confined(j, rc, vconf)
+                vconf = valdata.get_confinement_potential(
+                    amplitude, ri_rel * rc, rc)
+            psi_g, e = valdata.solve_confined(j, rc, vconf)
             de = e - e_base
-            if g.r2g(rmax) - g.r2g(rmin) <= 1:  # adjacent points
-                break  # cannot meet tolerance due to grid resolution
+            if valdata.rgd.floor(rmax) - valdata.rgd.floor(rmin) <= 1:
+                # Adjacent points, cannot meet tolerance due to grid resolution
+                break
 
         return psi_g, e, de, vconf, rc
 
@@ -250,13 +276,12 @@ class BasisMaker:
         if vconf_args is not None:
             amplitude, ri_rel = vconf_args
 
-        g = self.generator
+        valdata = self.valence_data
         rgd = self.rgd
 
-        njcore = g.njcore
-        n_j = g.n_j[njcore:]
-        l_j = g.l_j[njcore:]
-        f_j = g.f_j[njcore:]
+        n_j = valdata.n_j
+        l_j = valdata.l_j
+        f_j = valdata.f_j
 
         if jvalues is None:
             jvalues = []
@@ -274,12 +299,10 @@ class BasisMaker:
             args = np.argsort(sortkeys, kind='mergesort')
             jvalues = np.array(jvalues)[args]
 
-        fulljvalues = [njcore + j for j in jvalues]
-
         if isinstance(energysplit, float):
             energysplit = [energysplit] * len(jvalues)
 
-        title = f'{g.xcname} Basis functions for {g.symbol}'
+        title = f'{valdata.xcname} Basis functions for {valdata.symbol}'
         print(title, file=txt)
         print('=' * len(title), file=txt)
 
@@ -291,7 +314,9 @@ class BasisMaker:
         splitvalencedescr = 'split-valence wave, fixed tail norm'
         derivativedescr = 'derivative of sz wrt. (ri/rc) of potential'
 
-        for vj, fullj, esplit in zip(jvalues, fulljvalues, energysplit):
+        jvalues = [j for j in jvalues if n_j[j] > 0]
+
+        for vj, esplit in zip(jvalues, energysplit):
             l = l_j[vj]
             n = n_j[vj]
             assert n > 0
@@ -307,15 +332,15 @@ class BasisMaker:
             print('Zeta 1: %s confined pseudo wave,' % adverb, end=' ',
                   file=txt)
 
-            u, e, de, vconf, rc = self.rcut_by_energy(fullj, esplit,
+            u, e, de, vconf, rc = self.rcut_by_energy(vj, esplit,
                                                       tolerance,
                                                       vconf_args=vconf_args)
             if rc > rcutmax:
                 rc = rcutmax  # scale things down
                 if vconf is not None:
-                    vconf = g.get_confinement_potential(amplitude, ri_rel * rc,
-                                                        rc)
-                u, e = g.solve_confined(fullj, rc, vconf)
+                    vconf = valdata.get_confinement_potential(
+                        amplitude, ri_rel * rc, rc)
+                u, e = valdata.solve_confined(vj, rc, vconf)
                 print('using maximum cutoff', file=txt)
                 print('rc=%.02f Bohr' % rc, file=txt)
             else:
@@ -326,10 +351,10 @@ class BasisMaker:
             if vconf is not None:
                 print('Potential amp=%.02f :: ri/rc=%.02f' %
                       (amplitude, ri_rel), file=txt)
-            phit_g = self.smoothify(u, l)
+            phit_g = self.smoothify(u, vj)
             bf = BasisFunction(n, l, rc, phit_g,
                                '%s-sz confined orbital' % orbitaltype)
-            norm = np.dot(g.dr, phit_g * phit_g)**.5
+            norm = np.dot(valdata.rgd.dr_g, phit_g * phit_g)**.5
             print('Norm=%.03f' % norm, file=txt)
             singlezetas.append(bf)
 
@@ -339,11 +364,11 @@ class BasisMaker:
                 assert zetacount > 1
                 zeta = next(zetacounter)
                 print('\nZeta %d: %s' % (zeta, derivativedescr), file=txt)
-                vconf2 = g.get_confinement_potential(amplitude,
-                                                     ri_rel * rc * .99, rc)
-                u2, e2 = g.solve_confined(fullj, rc, vconf2)
+                vconf2 = valdata.get_confinement_potential(
+                    amplitude, ri_rel * rc * .99, rc)
+                u2, e2 = valdata.solve_confined(vj, rc, vconf2)
 
-                phit2_g = self.smoothify(u2, l)
+                phit2_g = self.smoothify(u2, vj)
                 dphit_g = phit2_g - phit_g
                 dphit_norm = np.dot(rgd.dr_g, dphit_g * dphit_g) ** .5
                 dphit_g /= dphit_norm
@@ -380,10 +405,9 @@ class BasisMaker:
 
             # Find the last state with l=l_pol - 1, which will be the state we
             # base the polarization function on
-            for vj, fullj, bf in zip(jvalues[::-1], fulljvalues[::-1],
-                                     singlezetas[::-1]):
+            for vj, bf in zip(jvalues[::-1], singlezetas[::-1]):
                 if bf.l == l_pol - 1:
-                    fullj_pol = fullj
+                    j_pol = vj
                     rcut = bf.rc * rcutpol_rel
                     break
             else:
@@ -406,7 +430,7 @@ class BasisMaker:
             # these value for other energies, we just find the energy
             # shift at .3 eV now
 
-            u, e, de, vconf, rc_fixed = self.rcut_by_energy(fullj_pol,
+            u, e, de, vconf, rc_fixed = self.rcut_by_energy(j_pol,
                                                             .3, 1e-2,
                                                             6., (12., .6))
 
@@ -487,8 +511,8 @@ class BasisMaker:
         else:
             compound_name = f'{self.name}.{basistype}'
 
-        basis = Basis(g.symbol, compound_name, False,
-                      EquidistantRadialGridDescriptor(d, ng))
+        basis = Basis(valdata.symbol, compound_name,
+                      rgd=EquidistantRadialGridDescriptor(d, ng))
         basis.bf_j = bf_j
         basis.generatordata = textbuffer.getvalue().strip()
         basis.generatorattrs = {'version': version}

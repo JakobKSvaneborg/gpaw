@@ -1,9 +1,12 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 import xml.sax
 
 import numpy as np
 
 from gpaw.setup_data import search_for_file
-from gpaw.atom.radialgd import radial_grid_descriptor
+from gpaw.atom.radialgd import RadialGridDescriptor, radial_grid_descriptor
 
 
 _basis_letter2number = {'s': 1, 'd': 2, 't': 3, 'q': 4}
@@ -43,19 +46,31 @@ def get_basis_name(zetacount, polarizationcount):
         return f'{zetachar}z{polarizationchar}p'
 
 
+@dataclass(eq=False)
 class Basis:
-    def __init__(self, symbol, name, readxml=True, rgd=None, world=None):
-        self.symbol = symbol
-        self.name = name
-        self.rgd = rgd
-        self.bf_j = []
-        self.ribf_j = []
-        self.generatorattrs = {}
-        self.generatordata = ''
-        self.filename = None
+    symbol: str
+    name: str
+    rgd: RadialGridDescriptor | None = None
 
-        if readxml:
-            self.read_xml(world=world)
+    bf_j: list[BasisFunction] = field(default_factory=list)
+    ribf_j: list[BasisFunction] = field(default_factory=list)
+    generatorattrs: dict = field(default_factory=dict)
+    generatordata: str = ''
+    filename: str | None = None
+
+    @classmethod
+    def find(cls, symbol, name, world=None):
+        # Refactor: First search, then call read_path().
+        basis = cls(symbol, name)
+        basis.read_xml(world=world)
+        return basis
+
+    @classmethod
+    def read_path(cls, symbol, name, path, world=None):
+        # Refactor: Should not require symbol and name
+        basis = cls(symbol, name)
+        basis.read_xml(filename=path, world=world)
+        return basis
 
     @property
     def nao(self):  # implement as a property so we don't have to
@@ -175,19 +190,23 @@ class Basis:
         return '\n  '.join(lines)
 
 
+@dataclass
 class BasisFunction:
     """Encapsulates various basis function data."""
 
-    def __init__(self, n=None, l=None, rc=None, phit_g=None, type=''):
-        self.n = n
-        self.l = l
-        self.rc = rc
-        self.phit_g = phit_g
-        self.type = type
-        if n is None or n < 0:
-            self.name = 'l=%d %s' % (l, type)
-        else:
-            self.name = '%d%s %s' % (n, 'spdf'[l], type)
+    n: int | None = None
+    l: int | None = None
+    rc: float | None = None
+    phit_g: np.ndarray | None = None
+    type: str | None = None
+
+    @property
+    def name(self):
+        if self.n is None or self.n < 0:
+            return f'l={self.l} {self.type}'
+
+        lname = 'spdf'[self.l]
+        return f'{self.n}{lname} {type}'
 
     def __repr__(self, gridid=None):
         txt = '<basis_function '
@@ -207,7 +226,7 @@ class BasisFunction:
 
 class BasisSetXMLParser(xml.sax.handler.ContentHandler):
     def __init__(self, basis):
-        xml.sax.handler.ContentHandler.__init__(self)
+        super().__init__()
         self.basis = basis
         self.type = None
         self.rc = None
