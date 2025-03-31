@@ -81,6 +81,5 @@ def test_generate(in_tmp_dir):
     generate_nao_ngto_basis('C', xc='LDA', nao='dzp', name='NAO+NGTO',
                             gtos=gtos, gto_description=gbs_description)
 
-    basis = Basis('C', 'NAO+NGTO', readxml=False)
-    basis.read_xml('C.NAO+NGTO.dzp.basis')
+    basis = Basis.read_path('C', 'NAO+NGTO', 'C.NAO+NGTO.dzp.basis')
     assert len(basis.bf_j) == 5 + 7

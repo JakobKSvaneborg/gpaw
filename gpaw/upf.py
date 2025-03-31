@@ -508,8 +508,8 @@ class UPFSetupData:
         ng = int(1 + rcut / d)
         rgd = EquidistantRadialGridDescriptor(d, ng)
 
-        b = Basis(self.symbol, 'upf', readxml=False, rgd=rgd)
-        b.generatordata = 'upf-pregenerated'
+        basis = Basis(self.symbol, 'upf', rgd=rgd)
+        basis.generatordata = 'upf-pregenerated'
 
         for j, state in enumerate(states):
             val = state.values
@@ -519,8 +519,8 @@ class UPFSetupData:
             rcut = rgd.r_g[icut]
             bf = BasisFunction(self.n_j[j], state.l, rcut, phit_g,
                                'pregenerated')
-            b.bf_j.append(bf)
-        return b
+            basis.bf_j.append(bf)
+        return basis
 
     def build(self, xcfunc, lmax, basis, filter=None):
         # XXX better to create basis functions after filtering?
