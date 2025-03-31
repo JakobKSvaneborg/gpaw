@@ -190,19 +190,23 @@ class Basis:
         return '\n  '.join(lines)
 
 
+@dataclass
 class BasisFunction:
     """Encapsulates various basis function data."""
 
-    def __init__(self, n=None, l=None, rc=None, phit_g=None, type=''):
-        self.n = n
-        self.l = l
-        self.rc = rc
-        self.phit_g = phit_g
-        self.type = type
-        if n is None or n < 0:
-            self.name = 'l=%d %s' % (l, type)
-        else:
-            self.name = '%d%s %s' % (n, 'spdf'[l], type)
+    n: int | None = None
+    l: int | None = None
+    rc: float | None = None
+    phit_g: np.ndarray | None = None
+    type: str | None = None
+
+    @property
+    def name(self):
+        if self.n is None or self.n < 0:
+            return f'l={self.l} {self.type}'
+
+        lname = 'spdf'[self.l]
+        return f'{self.n}{lname} {type}'
 
     def __repr__(self, gridid=None):
         txt = '<basis_function '
@@ -222,7 +226,7 @@ class BasisFunction:
 
 class BasisSetXMLParser(xml.sax.handler.ContentHandler):
     def __init__(self, basis):
-        xml.sax.handler.ContentHandler.__init__(self)
+        super().__init__()
         self.basis = basis
         self.type = None
         self.rc = None
