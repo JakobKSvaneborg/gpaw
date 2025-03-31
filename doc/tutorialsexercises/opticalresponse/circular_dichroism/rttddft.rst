@@ -72,7 +72,7 @@ with respect to these parameters need to be checked for both modes separately):
 
 .. literalinclude:: fd/gs.py
 
-Then, similarly to LCAO mode, we carry the time propagation as usual but attach
+Then, similarly to LCAO mode, we carry the time propagation as usual and attach
 :class:`~gpaw.tddft.MagneticMomentWriter`
 to record the time-dependent magnetic moment
 (note the ``tolerance`` parameter for the iterative solver;
