@@ -175,7 +175,11 @@ def main(args: SimpleNamespace,
         gen = reconstruct_paw_gen(args.paw, basis_file)
 
     if gen and args.logarithmic_derivatives:
-        plot_log_derivs(gen, args.logarithmic_derivatives, plot=True)
+        fig_deriv = plt.figure()
+        plot_log_derivs(gen,
+                        args.logarithmic_derivatives,
+                        plot=True,
+                        ax=fig_deriv.gca())
 
     if not plot:
         return
@@ -229,15 +233,16 @@ class CLICommand:
             metavar='BASIS',
             nargs='?',
             help='Load the basis set from an XML file; '
-            'if not provided, create a rudimentary basis set.')
+            'if not provided, create a rudimentary basis set '
+            '(requires `-r`)')
         add('-r', '--reconstruct-generator',
             action='store_true',
             help='Try to reconstruct the full PAW setup generator object; '
-            'required for plotting the potential components and '
-            'the logarithmic derivatives')
+            'required for basis-set creation, and for plotting '
+            'the potential components and logarithmic derivatives')
         add('-l', '--logarithmic-derivatives',
             metavar='spdfg,e1:e2:de,radius',
-            help='Plot logarithmic derivatives. ' +
+            help='Plot logarithmic derivatives (requires `-r`). ' +
             'Example: -l spdf,-1:1:0.05,1.3. ' +
             'Energy range and/or radius can be left out.')
         add('paw',

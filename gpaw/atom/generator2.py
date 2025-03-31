@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from functools import partial
 from math import exp, log, pi, sqrt
-from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Dict, List, Optional, Literal, Tuple, Union
 
 import numpy as np
 from ase.data import atomic_numbers, chemical_symbols
@@ -17,12 +17,18 @@ from gpaw.typing import Array2D
 from gpaw.utilities import pack_hermitian
 from gpaw.xc.ri.ribasis import generate_ri_basis
 from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
+from matplotlib import pyplot as plt
 from scipy.linalg import eigh
 from scipy.optimize import fsolve
 from scipy.special import erf
 
-if TYPE_CHECKING:
-    from matplotlib import pyplot as plt
+try:
+    from matplotlib.pyplot import FigureBase
+except ImportError:  # mpl < 3.4
+    FigureBase: type = plt.Figure  # type: ignore[no-redef]
+
+
+_FigAx = tuple[Union[FigureBase, None], plt.Axes]
 
 
 class DatasetGenerationError(Exception):
@@ -737,7 +743,9 @@ class PAWSetupGenerator:
         e_b, _ = eigh(H_bb, S_bb)
         return e_b
 
-    def test_convergence(self):
+    def test_convergence(self,
+                         ax: plt.Axes | None = None,
+                         show: bool = True) -> _FigAx:
         rgd = self.rgd
         r_g = rgd.r_g
         G_k, nt_k = self.rgd.fft(self.nt_g * r_g)
@@ -757,7 +765,8 @@ class PAWSetupGenerator:
         ekin = self.aea.ekin - self.ekincore - self.waves_l[0].dekin_nn[0, 0]
         evt = rgd.integrate(self.nt_g * self.vtr_g, -1)
 
-        import matplotlib.pyplot as plt
+        if ax is None:
+            ax = plt.figure().gca()
 
         errors = 10.0**np.arange(-4, 0) / Ha
         self.log('\nConvergence of energy:')
@@ -780,15 +789,21 @@ class PAWSetupGenerator:
                 ecut = 0.5 * G**2
                 h = pi / G
                 self.log(f' {ecut * Ha:6.1f} ({h:4.2f})', end='')
-            plt.semilogy(G_k, abs(e_k - e_k[-1]) * Ha, label=label)
+            ax.semilogy(G_k, abs(e_k - e_k[-1]) * Ha, label=label)
         self.log()
-        plt.axis(xmax=20)
-        plt.xlabel('G')
-        plt.ylabel('[eV]')
-        plt.legend()
-        plt.show()
+        ax.axis(xmax=20)
+        ax.set_xlabel('G')
+        ax.set_ylabel('[eV]')
+        ax.legend()
+        if show:
+            plt.show()
+        return ax.figure, ax
 
-    def plot_potential_components(self, ax) -> None:
+    def plot_potential_components(self,
+                                  ax: plt.Axes | None = None) -> _FigAx:
+        if ax is None:
+            ax = plt.figure().gca()
+
         r_g = self.rgd.r_g
         assert self.vtr_g is not None  # Appease `mypy`
 
@@ -804,32 +819,58 @@ class PAWSetupGenerator:
         ax.set_xlabel('radius [Bohr]')
         ax.set_ylabel('potential [Ha]')
         ax.legend()
+        return ax.figure, ax
 
-    def plot_partial_waves(self, ax) -> None:
+    def plot_partial_waves(self, ax: plt.Axes | None = None) -> _FigAx:
         from .plot_dataset import (
             plot_partial_waves as plot,
             get_ppw_params_paw_setup_generator as get_args)
 
-        plot(ax, *get_args(self))
+        if ax is None:
+            ax = plt.figure().gca()
 
-    def plot_projectors(self, ax) -> None:
+        plot(ax, *get_args(self))
+        return ax.figure, ax
+
+    def plot_projectors(self, ax: plt.Axes | None = None) -> _FigAx:
         from .plot_dataset import (
             plot_projectors as plot,
             get_pp_params_paw_setup_generator as get_args)
 
-        plot(ax, *get_args(self))
+        if ax is None:
+            ax = plt.figure().gca()
 
-    def plot(self,
-             *,
-             potential_components: 'plt.Axes' | None = None,
-             partial_waves: 'plt.Axes' | None = None,
-             projectors: 'plt.Axes' | None = None):
-        if potential_components:
-            self.plot_potential_components(potential_components)
-        if partial_waves:
-            self.plot_partial_waves(partial_waves)
-        if projectors:
-            self.plot_projectors(projectors)
+        plot(ax, *get_args(self))
+        return ax.figure, ax
+
+    def plot(
+        self,
+        *,
+        potential_components: plt.Axes | None = None,
+        partial_waves: plt.Axes | None = None,
+        projectors: plt.Axes | None = None,
+    ) -> dict[Literal['potential_components', 'partial_waves', 'projectors'],
+              _FigAx | None]:
+        result: dict[Literal['potential_components',
+                             'partial_waves',
+                             'projectors'],
+                     _FigAx | None] = {}
+        if potential_components is None:
+            result['potential_components'] = None
+        else:
+            fig, ax = self.plot_potential_components(potential_components)
+            result['potential_components'] = fig, ax
+        if partial_waves is None:
+            result['partial_waves'] = None
+        else:
+            fig, ax = self.plot_partial_waves(partial_waves)
+            result['partial_waves'] = fig, ax
+        if projectors is None:
+            result['projectors'] = None
+        else:
+            fig, ax = self.plot_projectors(projectors)
+            result['projectors'] = fig, ax
+        return result
 
     def create_basis_set(self, tailnorm=0.0005, scale=200.0, splitnorm=0.16,
                          tag=None, ri=None):
@@ -837,7 +878,7 @@ class PAWSetupGenerator:
         name = 'dzp' if not tag else f'{tag}.dzp'
         self.basis = Basis(self.aea.symbol, name, readxml=False, rgd=rgd)
 
-        # We print text to sdtout and put it in the basis-set file
+        # We print text to stdout and put it in the basis-set file
         txt = 'Basis functions:\n'
 
         # Bound states:
@@ -1505,12 +1546,19 @@ def main(args):
 
     if args.logarithmic_derivatives or args.plot:
         from .plot_dataset import main as plot_main
+
         plot_main(args, gen=gen, plot=args.plot)
 
 
-def plot_log_derivs(gen, ld_str: str, plot: bool):
+def plot_log_derivs(gen: PAWSetupGenerator,
+                    ld_str: str,
+                    plot: bool,
+                    ax: plt.Axes | None = None) -> _FigAx:
     """Make nice log-derivs plot."""
-    import matplotlib.pyplot as plt
+
+    if ax is None:
+        ax = plt.figure().gca()
+
     r = 1.1 * gen.rcmax
     emin = min(min(wave.e_n) for wave in gen.waves_l) - 0.8
     emax = max(max(wave.e_n) for wave in gen.waves_l) + 0.8
@@ -1535,18 +1583,19 @@ def plot_log_derivs(gen, ld_str: str, plot: bool):
                 ld1 -= round(ld1[i] - ld2[i])
                 if plot:
                     ldfix = ld1[i]
-                    plt.plot([energies[i]], [ldfix],
-                             'x' + colors[l])
+                    ax.plot([energies[i]], [ldfix], 'x' + colors[l])
 
         if plot:
-            plt.plot(energies, ld1, colors[l], label='spdfg'[l])
-            plt.plot(energies, ld2, '--' + colors[l])
+            ax.plot(energies, ld1, colors[l], label='spdfg'[l])
+            ax.plot(energies, ld2, '--' + colors[l])
 
         error = abs(ld1 - ld2).sum() * de
         print('Logarithmic derivative error:', l, error)
 
     if plot:
-        plt.xlabel('energy [Ha]')
-        plt.ylabel(r'$\arctan(d\log\phi_{\ell\epsilon}(r)/dr)/\pi'
-                   r'|_{r=r_c}$')
-        plt.legend(loc='best')
+        ax.set_xlabel('energy [Ha]')
+        ax.set_ylabel(r'$\arctan(d\log\phi_{\ell\epsilon}(r)/dr)/\pi'
+                      r'|_{r=r_c}$')
+        ax.legend(loc='best')
+
+    return ax.figure, ax
