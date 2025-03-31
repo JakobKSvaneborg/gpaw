@@ -82,8 +82,10 @@ class SCFLoop:
             wfs_error, energies = self.eigensolver.iterate(
                 ibzwfs, density, potential,
                 self.hamiltonian, pot_calc, energies)
+            nelectrons = ... - density.charge + pot_calc.environment.charge
             e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
                 self.occ_calc,
+                nelectrons,
                 fix_fermi_level=self.fix_fermi_level)
 
             energies.set(**pot_calc.xc.energies,
