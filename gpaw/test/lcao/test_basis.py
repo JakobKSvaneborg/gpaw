@@ -1,6 +1,5 @@
 import subprocess
 
-from gpaw.setup import create_setup
 from gpaw.basis_data import parse_basis_filename
 from gpaw.setup_data import search_for_file
 
