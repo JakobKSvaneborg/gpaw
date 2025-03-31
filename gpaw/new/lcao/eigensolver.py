@@ -19,7 +19,7 @@ class LCAOEigensolver(Eigensolver):
                 potential,
                 hamiltonian,
                 pot_calc=None,
-                energies=None) -> tuple[float, DFTEnergies]:
+                energies=None) -> tuple[float, float, DFTEnergies]:
         matrix_calculator = hamiltonian.create_hamiltonian_matrix_calculator(
             potential)
 

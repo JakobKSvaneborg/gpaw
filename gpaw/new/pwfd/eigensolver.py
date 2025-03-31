@@ -81,7 +81,7 @@ class PWFDEigensolver(Eigensolver):
                 potential,
                 hamiltonian: Hamiltonian,
                 pot_calc,
-                energies: DFTEnergies) -> tuple[float, DFTEnergies]:
+                energies: DFTEnergies) -> tuple[float, float, DFTEnergies]:
         """Iterate on state given fixed hamiltonian.
 
         Returns
