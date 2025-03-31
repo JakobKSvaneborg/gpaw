@@ -104,11 +104,10 @@ class PWFDEigensolver(Eigensolver):
         wfs = ibzwfs.wfs_qs[0][0]
         dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
                                                     wfs.xp)
-        dH = potential.dH
-        Ht = partial(hamiltonian.apply,
-                     potential.vt_sR,
-                     potential.dedtaut_sR,
-                     ibzwfs, density.D_asii)  # used by hybrids
+        apply = partial(hamiltonian.apply,
+                        potential.vt_sR,
+                        potential.dedtaut_sR,
+                        ibzwfs, density.D_asii)  # used by hybrids
 
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
@@ -116,6 +115,8 @@ class PWFDEigensolver(Eigensolver):
         # Loop over k-points:
         with broadcast_exception(ibzwfs.kpt_comm):
             for wfs, weight_n in zips(ibzwfs, weight_un):
+                dH = partial(potential.dH, spin=wfs.spin)
+                Ht = partial(apply, spin=wfs.spin)
                 e = self.iterate1(wfs, Ht, dH, dS_aii, weight_n)
                 error += wfs.weight * e
 

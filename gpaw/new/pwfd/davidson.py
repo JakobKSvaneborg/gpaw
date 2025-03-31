@@ -101,8 +101,8 @@ class Davidson(PWFDEigensolver):
                                      function=function,
                                      cc=True)
 
-        Ht = partial(Ht, out=residual_nX, spin=wfs.spin)
-        dH = partial(dH, spin=wfs.spin)
+        Ht = partial(Ht, out=residual_nX)#, spin=wfs.spin)
+        #dH = partial(dH, spin=wfs.spin)
         calculate_residuals(wfs.psit_nX,
                             residual_nX,
                             wfs.pt_aiX,
