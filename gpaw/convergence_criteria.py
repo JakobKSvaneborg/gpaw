@@ -12,8 +12,8 @@ def get_criterion(name):
     """Returns one of the pre-specified criteria by it's .name attribute,
     and raises sensible error if missing."""
     # All built-in criteria should be in this list.
-    criteria = [Energy, Density, Eigenstates, Eigenvalues, Forces, WorkFunction,
-                MinIter, MaxIter]
+    criteria = [Energy, Density, Eigenstates, Eigenvalues, Forces,
+                WorkFunction, MinIter, MaxIter]
     criteria = {c.name: c for c in criteria}
     try:
         return criteria[name]
@@ -258,11 +258,11 @@ class Eigenvalues(Criterion):
     name = 'eigenvalues'
     tablename = 'eigs'
     calc_last = False
-    
-    def __init__(self, tol = 1e-4):
+
+    def __init__(self, tol=1e-4):
         self.tol = tol
         self.description = 'Norm of change in eigenvalues.'  # XXX
-    
+
     def __call__(self, context):
         if context.wfs.nvalence == 0:
             return True, ''
@@ -273,7 +273,7 @@ class Eigenvalues(Criterion):
         else:
             entry = f'{np.log10(error):+6.2f}'
         return converged, entry
-    
+
     def get_error(self, context):
         return context.eigs * Ha
 

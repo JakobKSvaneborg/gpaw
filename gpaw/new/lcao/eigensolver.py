@@ -26,10 +26,11 @@ class LCAOEigensolver(Eigensolver):
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
         eig_error = 0.0
         for wfs, weight_n in zip(ibzwfs, weight_un):
-            e_eigs, e_eig = self.iterate_kpt(wfs, weight_n, self.iterate1,
-                                             matrix_calculator=matrix_calculator)
+            e_eigs, e_eig = \
+                self.iterate_kpt(wfs, weight_n, self.iterate1,
+                                 matrix_calculator=matrix_calculator)
             eig_error += e_eig
-        
+
         eig_error = (ibzwfs.kpt_band_comm.sum_scalar(
                      float(eig_error)) * ibzwfs.spin_degeneracy)**0.5
         return eig_error, 0.0, energies

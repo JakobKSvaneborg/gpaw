@@ -5,19 +5,16 @@ from functools import partial
 from typing import Callable
 
 import numpy as np
-from ase.units import Ha
 
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_centered_functions import AtomArrays
-from gpaw.mpi import broadcast_exception, broadcast_float
+from gpaw.mpi import broadcast_exception
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.typing import Array1D
 from gpaw.utilities.blas import axpy
 from gpaw.utilities import as_real_dtype
 
@@ -164,4 +161,3 @@ def calculate_residuals(residual_nX: XArray,
         P2_ani.data[:] = xp.einsum(subscripts, P2_ani.data, eig_n)
     P1_ani.data -= P2_ani.data
     wfs.pt_aiX.add_to(residual_nX, P1_ani)
-

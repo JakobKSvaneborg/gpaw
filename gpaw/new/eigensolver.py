@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import numpy as np
 
+from ase.units import Ha
+
 from gpaw.new.density import Density
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.potential import Potential
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
+from gpaw.mpi import broadcast_float
+from gpaw.typing import Array1D
 
 
 class Eigensolver:
@@ -24,7 +28,7 @@ class Eigensolver:
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
         pass
-    
+
     def iterate_kpt(self, wfs, weight_n, iter_func, **fkwargs):
         has_eigs = True
         try:
@@ -38,7 +42,6 @@ class Eigensolver:
         else:  # no eigenvalues yet
             eig_error = np.inf
         return eigs_error, eig_error
-        
 
 
 def calculate_weights(converge_bands: int | str,
