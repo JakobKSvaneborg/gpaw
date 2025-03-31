@@ -30,6 +30,9 @@ Git master branch
 
 * Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
 
+* Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
+  See :ref:`manual_convergence`.
+
 Version 25.1.0
 ==============
 
