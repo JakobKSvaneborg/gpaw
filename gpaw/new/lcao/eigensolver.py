@@ -32,8 +32,7 @@ class LCAOEigensolver(Eigensolver):
             if eig_error < e_eig:
                 eig_error = e_eig
 
-        eig_error = (ibzwfs.kpt_band_comm.max_scalar(
-                     float(eig_error)) * ibzwfs.spin_degeneracy)
+        eig_error = ibzwfs.kpt_band_comm.max_scalar(eig_error)
         return eig_error, 0.0, energies
 
     def iterate1(self,
