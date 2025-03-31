@@ -42,7 +42,7 @@ but we attach :class:`~gpaw.tddft.MagneticMomentWriter`
 to record the time-dependent magnetic moment.
 In this script, we wrap the time propagation code
 inside ``main()`` function to make the same script reusable
-with different gauges and different kick directions:
+with ``gauges='length' or 'velocity'`` and different kick directions:
 
 .. literalinclude:: lcao/td.py
 
