@@ -4,9 +4,8 @@ import textwrap
 from ast import literal_eval
 from collections.abc import Iterable
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from xml.dom import minidom
-
-from matplotlib import pyplot as plt
 
 from .. import typing
 from ..basis_data import Basis, BasisPlotter
@@ -14,6 +13,9 @@ from ..setup_data import SetupData
 from .aeatom import colors
 from .generator2 import PAWSetupGenerator, generate, plot_log_derivs
 from .radialgd import AERadialGridDescriptor
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 
 _PartialWaveItem = tuple[int,  # l
@@ -28,7 +30,7 @@ _ProjectorItem = tuple[int,  # l
                        typing.Array1D]  # pt_g
 
 
-def plot_partial_waves(ax: plt.Axes,
+def plot_partial_waves(ax: 'Axes',
                        rgd: AERadialGridDescriptor,
                        cutoff: float,
                        iterator: Iterable[_PartialWaveItem]) -> None:
@@ -50,7 +52,7 @@ def plot_partial_waves(ax: plt.Axes,
     ax.legend()
 
 
-def plot_projectors(ax: plt.Axes,
+def plot_projectors(ax: 'Axes',
                     rgd: AERadialGridDescriptor,
                     cutoff: float,
                     iterator: Iterable[_ProjectorItem]) -> None:
@@ -161,6 +163,8 @@ def read_setup_file(paw: str) -> SetupData:
 def main(args: SimpleNamespace,
          gen: PAWSetupGenerator | None = None,
          plot: bool = True) -> None:
+    from matplotlib import pyplot as plt
+
     setup = read_setup_file(args.paw)
 
     if args.create_basis_set in (True, False):
@@ -207,7 +211,6 @@ def main(args: SimpleNamespace,
             gen.create_basis_set()
             basis = gen.basis
             assert basis  # Assure `mypy` that it's a `Basis`
-            basis.generatordata = ''  # we already printed this
         if basis:
             BasisPlotter().plot(basis, ax=subplots[-1])
 
