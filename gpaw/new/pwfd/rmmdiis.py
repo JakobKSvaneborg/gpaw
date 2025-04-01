@@ -108,14 +108,14 @@ def block_step(weight_n,
     preconditioner(psit_nX, R_nX, out=PR_nX)
 
     Ht(PR_nX, out=dR_nX)
-    pt_aiX.integrate(PR_nX, out=P1_ani)
-    calculate_residuals(psit_nX, dR_nX, pt_aiX, P1_ani, eig_n,
+    P_ani = pt_aiX.integrate(PR_nX)
+    calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,
                         dH, dS_aii, P1_ani, P2_ani)
     a_n = [-d_X.integrate(r_X)
            for d_X, r_X in zip(dR_nX, R_nX)]
     b_n = dR_nX.norm2()
-    lambda_n = (a_n / b_n).reshape((-1,) + (1,) * (psit_nX.data.ndim - 1))
-    print(a_n, b_n, lambda_n)
+    shape = (-1,) + (1,) * (psit_nX.data.ndim - 1)
+    lambda_n = (a_n / b_n).reshape(shape)
     PR_nX.data *= lambda_n
     psit_nX.data += PR_nX.data
     dR_nX.data *= lambda_n
