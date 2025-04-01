@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+from dataclasses import dataclass
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
 from typing import Any
@@ -83,6 +84,30 @@ def builder(atoms: Atoms,
     if builder.xp is fake_cupy:
         log(FAKE_CUPY_WARNING)
     return builder
+
+
+def get_dft_parameters(atoms: Atoms, **params) -> DFTParameters:
+    dft_builder = builder(atoms, params)
+    return DFTParameters(atoms,
+                         dft_builder.ibz,
+                         dft_builder.ncomponents,
+                         dft_builder.nspins,
+                         dft_builder.nbands,
+                         dft_builder.setups,
+                         dft_builder.grid,
+                         dft_builder.create_wf_description())
+
+
+@dataclass
+class DFTParameters:
+    atoms: Atoms
+    ibz: IBZ
+    ncomponents: int
+    nspins: int
+    nbands: int
+    setups: Setups
+    grid: Grid
+    wf_description: Domain
 
 
 class DFTComponentsBuilder:
