@@ -4,7 +4,7 @@ import importlib
 from dataclasses import dataclass
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 from ase import Atoms
@@ -24,6 +24,7 @@ from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints, IBZ
 from gpaw.new.c import GPU_AWARE_MPI
+from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
@@ -88,6 +89,7 @@ def builder(atoms: Atoms,
 def get_calculation_info(atoms: Atoms, **params) -> CalcInfo:
     dft_builder = builder(atoms, params)
     dft_params = CalcInfo(atoms,
+                          params,
                           dft_builder.ibz,
                           dft_builder.ncomponents,
                           dft_builder.nspins,
@@ -103,6 +105,7 @@ def get_calculation_info(atoms: Atoms, **params) -> CalcInfo:
 @dataclass
 class CalcInfo:
     atoms: Atoms
+    input_params: dict
     ibz: IBZ
     ncomponents: int
     nspins: int
@@ -110,6 +113,27 @@ class CalcInfo:
     setups: Setups
     grid: UGDesc
     wf_description: Domain | None = None
+
+    def get_dft_calc(self,
+                     updated_params: Union[dict, InputParameters] = {},
+                     comm=None,
+                     log=None) -> DFTCalculation:
+        params = self.input_params.copy()
+        params.update(updated_params)
+        return DFTCalculation.from_parameters(self.atoms,
+                                              params,
+                                              comm=comm,
+                                              log=log)
+
+    def get_ase_calc(self,
+                     updated_params: Union[dict, InputParameters] = {},
+                     comm=None,
+                     log=None):
+        params = self.input_params.copy()
+        params.update(updated_params)
+        return self.get_dft_calc(updated_params,
+                                 comm,
+                                 log).get_ase_calc()
 
 
 class DFTComponentsBuilder:
