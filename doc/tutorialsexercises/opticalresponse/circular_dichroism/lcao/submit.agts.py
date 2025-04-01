@@ -33,9 +33,10 @@ def workflow():
     with run(script='gs.py', cores=4, folder='dzp'):
         td_jobs = []
         for kick in 'xyz':
-            td = run(script='td.py', args=['--', '--kick', kick],
-                     cores=4, tmax='1h', folder='dzp')
-            td_jobs.append(td)
+            for gauge in ['length', 'velocity']:
+                td = run(script='td.py', args=['--', '--kick', kick, '--gauge', gauge],
+                         cores=4, tmax='1h', folder='dzp')
+                td_jobs.append(td)
         spec = run(script='spec.py', deps=td_jobs, folder='dzp')
         spec_jobs.append(spec)
 
