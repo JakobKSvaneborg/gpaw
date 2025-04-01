@@ -95,7 +95,8 @@ def get_calculation_info(atoms: Atoms, **params) -> CalcInfo:
                           dft_builder.nspins,
                           dft_builder.nbands,
                           dft_builder.setups,
-                          dft_builder.grid)
+                          dft_builder.grid,
+                          dft_builder.communicators)
     if dft_builder.mode != 'lcao':
         dft_params.wf_description = \
             dft_builder.create_wf_description()
@@ -113,6 +114,12 @@ class CalcInfo:
     setups: Setups
     grid: UGDesc
     wf_description: Domain | None = None
+    communicators: dict[str, MPIComm] | None = None
+
+    def update_params(self, **updated_params):
+        params = self.input_params.copy()
+        params.update(updated_params)
+        return get_calculation_info(self.atoms, **params)
 
     def get_dft_calc(self,
                      updated_params: Union[dict, InputParameters] = {},
@@ -132,8 +139,7 @@ class CalcInfo:
         params = self.input_params.copy()
         params.update(updated_params)
         return self.get_dft_calc(updated_params,
-                                 comm,
-                                 log).get_ase_calc()
+                                 comm, log).get_ase_calc()
 
 
 class DFTComponentsBuilder:
