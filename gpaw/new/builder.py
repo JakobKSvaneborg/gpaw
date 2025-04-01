@@ -22,7 +22,7 @@ from gpaw.mpi import (broadcast, MPIComm, Parallelization, serial_comm,
                       synchronize_atoms, world)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
-from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
+from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints, IBZ
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -38,7 +38,6 @@ from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
 from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
-
 
 FAKE_CUPY_WARNING = """
  ----------------------------------------------------------
@@ -86,28 +85,31 @@ def builder(atoms: Atoms,
     return builder
 
 
-def get_dft_parameters(atoms: Atoms, **params) -> DFTParameters:
+def get_calculation_info(atoms: Atoms, **params) -> CalcInfo:
     dft_builder = builder(atoms, params)
-    return DFTParameters(atoms,
-                         dft_builder.ibz,
-                         dft_builder.ncomponents,
-                         dft_builder.nspins,
-                         dft_builder.nbands,
-                         dft_builder.setups,
-                         dft_builder.grid,
-                         dft_builder.create_wf_description())
+    dft_params = CalcInfo(atoms,
+                          dft_builder.ibz,
+                          dft_builder.ncomponents,
+                          dft_builder.nspins,
+                          dft_builder.nbands,
+                          dft_builder.setups,
+                          dft_builder.grid)
+    if dft_builder.mode != 'lcao':
+        dft_params.wf_description = \
+            dft_builder.create_wf_description()
+    return dft_params
 
 
 @dataclass
-class DFTParameters:
+class CalcInfo:
     atoms: Atoms
     ibz: IBZ
     ncomponents: int
     nspins: int
     nbands: int
     setups: Setups
-    grid: Grid
-    wf_description: Domain
+    grid: UGDesc
+    wf_description: Domain | None = None
 
 
 class DFTComponentsBuilder:
