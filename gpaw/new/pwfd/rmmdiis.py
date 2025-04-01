@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import partial
 from pprint import pformat
 
 import numpy as np
@@ -102,7 +101,7 @@ def block_step(weight_n,
                P1_ani,
                P2_ani,
                preconditioner) -> float:
-    error = weight_n @ as_np(residual_nX.norm2())
+    error = weight_n @ as_np(R_nX.norm2())
 
     PR_nX = work1_nX
     dR_nX = work2_nX
@@ -113,17 +112,16 @@ def block_step(weight_n,
     calculate_residuals(psit_nX, dR_nX, pt_aiX, P1_ani, eig_n,
                         dH, dS_aii, P1_ani, P2_ani)
     a_n = [-d_X.integrate(r_X)
-           for d_X, r_X in zip(dresidual_nX, residual_nX)]
-    b_n = dresidual_nX.norm2()
+           for d_X, r_X in zip(dR_nX, R_nX)]
+    b_n = dR_nX.norm2()
     lambda_n = (a_n / b_n).reshape((-1,) + (1,) * (psit_nX.data.ndim - 1))
     print(a_n, b_n, lambda_n)
-    1 / 0
-    presidual_nX.data *= lambda_n
-    psit_nX.data += presidual_nX.data
-    dresidual_nX.data *= lambda_n
-    residual_nX.data += dresidual_nX.data
-    preconditioner(psit_nX, residual_nX, out=presidual_nX)
-    presidual_nX.data *= lambda_n
-    psit_nX.data += presidual_nX.data
+    PR_nX.data *= lambda_n
+    psit_nX.data += PR_nX.data
+    dR_nX.data *= lambda_n
+    R_nX.data += dR_nX.data
+    preconditioner(psit_nX, R_nX, out=PR_nX)
+    PR_nX.data *= lambda_n
+    psit_nX.data += PR_nX.data
 
     return error
