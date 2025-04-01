@@ -56,9 +56,38 @@ we calculate the rotatory strength spectrum from the magnetic moments:
 .. literalinclude:: lcao/spec.py
 
 Comparing the resulting spectrum to one calculated with plain dzp basis sets shows
-the importance of augmented basis sets. We also see that aug.dzp is less prone to origin dependence:
+the importance of augmented basis sets. For comparison of different gauge choices, see below
+at the next section Origin dependence.
 
 .. image:: lcao/spectra.png
+
+
+Origin dependence
+-----------------
+
+Length gauge
+~~~~~~~~~~~~
+
+Circular dichroism spectra obtained in length gauge can exhibit pronounced origin dependence.
+Below, this is demonstrated by plotting the circular dichroism spectra calculated in the length gauge using different origins. 
+See the documentation of :class:`~gpaw.tddft.MagneticMomentWriter`
+for parameters controlling the origin location.
+
+The magnetic moment data can be written at multiple different origins
+during a single propagation as demonstrated in this script:
+
+.. literalinclude:: lcao/td_origins.py
+
+
+Velocity gauge
+~~~~~~~~~~~~~~
+
+In the velocity gauge, circular dichroism spectra are less origin dependent since the velocity form of the dipole operator satisfies gauge invariance more naturally in comparison to its length gauge form. By reducing of the artificial dependence on the choice of coordinate origin during dipole moment calculations, the velocity gauge can provide more consistent and physically meaningful circular dichroism spectra across different origins.
+
+In the following image, the length and velocity gauge spectra with different origins are compared. We see that the velocity gauge
+has much smaller origin dependence:
+
+.. image:: lcao/spectra_origins.png
 
 
 FD mode
@@ -91,33 +120,6 @@ The resulting spectrum:
 
 The spectrum compares well with the one obtained
 with LCAO mode and augmented basis sets.
-
-
-Origin dependence
------------------
-
-Length gauge
-~~~~~~~~~~~~
-
-Circular dichroism spectra obtained in length gauge can exhibit pronounced origin dependence. Below, this is demonstrated by plotting the circular dichroism spectra calculated in the length gauge using different origins. 
-See the documentation of :class:`~gpaw.tddft.MagneticMomentWriter`
-for parameters controlling the origin location.
-
-The magnetic moment data can be written at multiple different origins
-during a single propagation as demonstrated in this script:
-
-.. literalinclude:: lcao/td_origins.py
-
-
-Velocity gauge
-~~~~~~~~~~~~~~
-
-In the velocity gauge, circular dichroism spectra are less origin dependent since the velocity form of the dipole operator satisfies gauge invariance more naturally in comparison to its length gauge form. By reducing of the artificial dependence on the choice of coordinate origin during dipole moment calculations, the velocity gauge can provide more consistent and physically meaningful circular dichroism spectra across different origins.
-
-In the following image, the length and velocity gauge spectra with different origins are compared. We see that the velocity gauge
-has much smaller origin dependence:
-
-.. image:: lcao/spectra_origins.png
 
 References
 ----------
