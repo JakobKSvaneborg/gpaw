@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import functools
 import textwrap
 from ast import literal_eval
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from xml.dom import minidom
@@ -31,6 +32,8 @@ _ProjectorItem = tuple[int,  # l
 
 
 def plot_partial_waves(ax: 'Axes',
+                       symbol: str,
+                       name: str,
                        rgd: AERadialGridDescriptor,
                        cutoff: float,
                        iterator: Iterable[_PartialWaveItem]) -> None:
@@ -39,20 +42,23 @@ def plot_partial_waves(ax: 'Axes',
     for l, n, rcut, e, phi_g, phit_g in sorted(iterator):
         if n == -1:
             gc = rgd.ceil(rcut)
-            name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
+            label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
         else:
             gc = len(rgd)
-            name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-        ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=colors[i], label=name)
+            label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
+        ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=colors[i], label=label)
         ax.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=colors[i])
         i += 1
     ax.axis(xmin=0, xmax=3 * cutoff)
+    ax.set_title(f'Partial waves: {symbol} {name}')
     ax.set_xlabel('radius [Bohr]')
-    ax.set_ylabel(r'partial waves $r\phi_{n\ell}(r)$')
+    ax.set_ylabel(r'$r\phi_{n\ell}(r)$')
     ax.legend()
 
 
 def plot_projectors(ax: 'Axes',
+                    symbol: str,
+                    name: str,
                     rgd: AERadialGridDescriptor,
                     cutoff: float,
                     iterator: Iterable[_ProjectorItem]) -> None:
@@ -60,21 +66,34 @@ def plot_projectors(ax: 'Axes',
     i = 0
     for l, n, e, pt_g in sorted(iterator):
         if n == -1:
-            name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
+            label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
         else:
-            name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-        ax.plot(r_g, pt_g * r_g, color=colors[i], label=name)
+            label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
+        ax.plot(r_g, pt_g * r_g, color=colors[i], label=label)
         i += 1
     ax.axis(xmin=0, xmax=cutoff)
+    ax.set_title(f'Projectors: {symbol} {name}')
     ax.set_xlabel('radius [Bohr]')
-    ax.set_ylabel(r'projectors $r\tilde{p}(r)$')
+    ax.set_ylabel(r'$r\tilde{p}(r)$')
     ax.legend()
+
+
+def _get_setup_symbol_and_name(setup: SetupData) -> tuple[str, str]:
+    return setup.symbol, setup.setupname
+
+
+def _get_gen_symbol_and_name(gen: PAWSetupGenerator) -> tuple[str, str]:
+    aea = gen.aea
+    return aea.symbol, aea.xc.name
 
 
 def get_ppw_params_paw_setup_generator(
     gen: PAWSetupGenerator,
-) -> tuple[AERadialGridDescriptor, float, Iterable[_PartialWaveItem]]:
-    return (gen.rgd,
+) -> tuple[str, str,
+           AERadialGridDescriptor, float,
+           Iterable[_PartialWaveItem]]:
+    return (*_get_gen_symbol_and_name(gen),
+            gen.rgd,
             gen.rcmax,
             ((l, n, waves.rcut, e, phi_g, phit_g)
              for l, waves in enumerate(gen.waves_l)
@@ -84,8 +103,11 @@ def get_ppw_params_paw_setup_generator(
 
 def get_ppw_params_setup_data(
     setup: SetupData,
-) -> tuple[AERadialGridDescriptor, float, Iterable[_PartialWaveItem]]:
-    return (setup.rgd,
+) -> tuple[str, str,
+           AERadialGridDescriptor, float,
+           Iterable[_PartialWaveItem]]:
+    return (*_get_setup_symbol_and_name(setup),
+            setup.rgd,
             setup.r0,
             zip(setup.l_j, setup.n_j, setup.rcut_j, setup.eps_j,
                 setup.phi_jg, setup.phit_jg))
@@ -93,8 +115,9 @@ def get_ppw_params_setup_data(
 
 def get_pp_params_paw_setup_generator(
     gen: PAWSetupGenerator,
-) -> tuple[AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
-    return (gen.rgd,
+) -> tuple[str, str, AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
+    return (*_get_gen_symbol_and_name(gen),
+            gen.rgd,
             gen.rcmax,
             ((l, n, e, pt_g)
              for l, waves in enumerate(gen.waves_l)
@@ -103,8 +126,9 @@ def get_pp_params_paw_setup_generator(
 
 def get_pp_params_setup_data(
     setup: SetupData,
-) -> tuple[AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
-    return (setup.rgd,
+) -> tuple[str, str, AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
+    return (*_get_setup_symbol_and_name(setup),
+            setup.rgd,
             setup.r0,
             zip(setup.l_j, setup.n_j, setup.eps_j, setup.pt_jg))
 
@@ -176,35 +200,47 @@ def main(args: SimpleNamespace,
     if gen is None and args.reconstruct_generator:
         gen = reconstruct_paw_gen(args.paw, basis_file)
 
+    plots: list[Callable] = []
+
     if gen and args.logarithmic_derivatives:
-        fig_deriv = plt.figure()
-        plot_log_derivs(gen,
-                        args.logarithmic_derivatives,
-                        plot=True,
-                        ax=fig_deriv.gca())
+        plots.append(functools.partial(plot_log_derivs,
+                                       gen,
+                                       args.logarithmic_derivatives,
+                                       True))
 
     if not plot:
+        # We may end up here if called via `gpaw dataset`;
+        # in that case, show the logarithmic derivatives if requested
+        # nonetheless
+        for func in plots:
+            func(ax=None)
+        try:
+            plt.show()
+        except KeyboardInterrupt:
+            pass
         return
 
-    fig = plt.figure()
     basis: Basis | None
 
     if gen:
-        subplots = fig.subplots(2, 2).flatten()
-        gen.plot(potential_components=subplots[0],
-                 partial_waves=subplots[1],
-                 projectors=subplots[2])
+        plots.extend([
+            gen.plot_potential_components,
+            gen.plot_partial_waves,
+            gen.plot_projectors,
+        ])
         basis = gen.basis
     else:
         basis = read_basis_file(basis_file) if basis_file else None
-        layout: tuple[int, ...]
-        if basis:
-            layout, i_ppw, i_pp = (2, 2), 1, 2
-        else:
-            layout, i_ppw, i_pp = (2,), 0, 1
-        subplots = fig.subplots(*layout).flatten()
-        plot_partial_waves(subplots[i_ppw], *get_ppw_params_setup_data(setup))
-        plot_projectors(subplots[i_pp], *get_pp_params_setup_data(setup))
+        symbol, name, rgd, cutoff, ppw_iter = get_ppw_params_setup_data(setup)
+        plots.append(functools.partial(
+            plot_partial_waves,
+            symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
+            iterator=ppw_iter))
+        symbol, name, rgd, cutoff, pp_iter = get_pp_params_setup_data(setup)
+        plots.append(functools.partial(
+            plot_projectors,
+            symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
+            iterator=pp_iter))
 
     if args.create_basis_set:
         if gen and basis is None:
@@ -212,7 +248,39 @@ def main(args: SimpleNamespace,
             basis = gen.basis
             assert basis  # Assure `mypy` that it's a `Basis`
         if basis:
-            BasisPlotter().plot(basis, ax=subplots[-1])
+            plots.append(functools.partial(BasisPlotter().plot, basis))
+
+    if args.separate_figures:
+        # Make separate figures
+        for plot_func in plots:
+            plot_func(ax=plt.figure().gca())
+    else:  # Plot graphs as panels in the same figure
+        fig = plt.figure()
+
+        nplots = len(plots)
+        if nplots > 9:
+            raise AssertionError('Too many plots; '
+                                 f'expected <= 9, got {nplots}')
+        elif nplots > 6:
+            layout = 3, 3
+        elif nplots > 4:
+            layout = 2, 3
+        elif nplots > 2:
+            layout = 2, 2
+        else:
+            layout = 1, nplots
+        npanels = layout[0] * layout[1]
+        assert npanels >= nplots
+
+        # Tile the grid one by one
+        subplots = fig.subplots(*layout).flatten()
+        for ax, plot_func in zip(subplots, plots):
+            plot_func(ax=ax)
+
+        # Hide unused subplots
+        if npanels - nplots:
+            for ax in subplots[-(npanels - nplots):]:
+                ax.set_visible(False)
 
     try:
         plt.show()
@@ -241,6 +309,10 @@ class CLICommand:
             help='Try to reconstruct the full PAW setup generator object; '
             'required for basis-set creation, and for plotting '
             'the potential components and logarithmic derivatives')
+        add('-s', '--separate-figures',
+            action='store_true',
+            help='plot the plots in separate figure windows/tabs, '
+            'instead of as subplots/panels in the same figure')
         add('-l', '--logarithmic-derivatives',
             metavar='spdfg,e1:e2:de,radius',
             help='Plot logarithmic derivatives (requires `-r`). ' +

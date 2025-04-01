@@ -824,6 +824,8 @@ class PAWSetupGenerator:
                 xmax=2 * self.rcmax,
                 ymin=self.vtr_g[1] / r_g[1],
                 ymax=max(0, (self.v0r_g[1:] / r_g[1:]).max()))
+        aea = self.aea
+        ax.set_title(f'Potential components: {aea.symbol} {aea.xc.name}')
         ax.set_xlabel('radius [Bohr]')
         ax.set_ylabel('potential [Ha]')
         ax.legend()
@@ -1477,6 +1479,10 @@ class CLICommand:
             help='Parameters for pseudizing wave functions.')
         add('-p', '--plot', action='store_true',
             help='Show a plot of the setup.')
+        add('-S', '--separate-figures',
+            action='store_true',
+            help='plot the plots in separate figure windows/tabs, '
+            'instead of as subplots/panels in the same figure')
         add('-l', '--logarithmic-derivatives',
             metavar='spdfg,e1:e2:de,radius',
             help='Plot logarithmic derivatives. ' +
@@ -1573,6 +1579,7 @@ def plot_log_derivs(gen: PAWSetupGenerator,
     de = energies[1] - emin
 
     error = 0.0
+    aea = gen.aea
     for l in lvalues:
         efix = []
         # Fixed points:
@@ -1581,7 +1588,7 @@ def plot_log_derivs(gen: PAWSetupGenerator,
         if l == gen.l0:
             efix.append(0.0)
 
-        ld1 = gen.aea.logarithmic_derivative(l, energies, r)
+        ld1 = aea.logarithmic_derivative(l, energies, r)
         ld2 = gen.logarithmic_derivative(l, energies, r)
         for e in efix:
             i = int((e - emin) / de)
@@ -1599,6 +1606,7 @@ def plot_log_derivs(gen: PAWSetupGenerator,
         print('Logarithmic derivative error:', l, error)
 
     if plot:
+        ax.set_title(f'Logarithmic derivatives: {aea.symbol} {aea.xc.name}')
         ax.set_xlabel('energy [Ha]')
         ax.set_ylabel(r'$\arctan(d\log\phi_{\ell\epsilon}(r)/dr)/\pi'
                       r'|_{r=r_c}$')
