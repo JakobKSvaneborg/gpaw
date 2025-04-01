@@ -4,7 +4,7 @@ from time import time
 from typing import TYPE_CHECKING
 from types import ModuleType
 from collections.abc import Iterable
-from gpaw.new import trace
+from gpaw.new.timer import trace
 
 import numpy as np
 

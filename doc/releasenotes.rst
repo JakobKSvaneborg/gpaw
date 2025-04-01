@@ -32,6 +32,9 @@ Git master branch
 
 * Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
 
+* Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
+  See :ref:`manual_convergence`.
+
 
 .. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
 
