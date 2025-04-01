@@ -121,10 +121,10 @@ def write_header(log, params):
             txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
             parts.append(f'{key}={txt}')
         log(',\n'.join(parts))
-    with log.indent('environment variables:'):
+    with log.indent('\nenvironment variables:'):
         import gpaw
         parts = []
-        for name in gpaw.allowed_envvars:
+        for name in sorted(gpaw.allowed_envvars):
             try:
                 value = getattr(gpaw, name)
             except AttributeError:
@@ -639,7 +639,8 @@ class ASECalculator:
             dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
             if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, SimpleNamespace):
                 params = InputParameters(dict(self.params.items()))
-                builder = create_builder(self.atoms, params, self.comm)
+                builder = create_builder(self.atoms, params,
+                                         self.comm, dft.log)
                 basis_set = builder.create_basis_set()
                 ibzwfs = builder.create_ibz_wave_functions(
                     basis_set, dft.potential, log=dft.log)
@@ -693,7 +694,7 @@ class ASECalculator:
 
         params = InputParameters(kwargs)
         log = Logger(txt, self.comm)
-        builder = create_builder(self.atoms, params, self.comm)
+        builder = create_builder(self.atoms, params, self.comm, log)
         basis_set = builder.create_basis_set()
         dft = self.dft
         comm1 = dft.ibzwfs.kpt_band_comm

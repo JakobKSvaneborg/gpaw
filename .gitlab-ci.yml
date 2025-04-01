@@ -20,6 +20,7 @@ default:
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
+    - pip freeze
   interruptible: true
   tags:
     - $DEFAULT_RUNNER_TAG
@@ -387,7 +388,7 @@ test-latest:
       EOF
 
     - >
-      pytest -v -m ci -m gpu
+      pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
 
   artifacts:

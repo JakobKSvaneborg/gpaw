@@ -27,7 +27,8 @@ boolean_envvars = {
     'GPAW_CPUPY',
     'GPAW_USE_GPUS',
     'GPAW_TRACE',
-    'GPAW_NO_C_EXTENSION'}
+    'GPAW_NO_C_EXTENSION',
+    'GPAW_MPI4PY'}
 allowed_envvars = {
     *boolean_envvars,
     'GPAW_MPI_OPTIONS',
