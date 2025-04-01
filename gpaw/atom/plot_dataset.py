@@ -134,9 +134,7 @@ def read_basis_file(basis: str) -> Basis:
     symbol, *chunks, end = basis.split('.')
     assert end == 'basis'
     name = '.'.join(chunks)
-    basis_obj = Basis(symbol, name, readxml=False)
-    basis_obj.read_xml(basis)
-    return basis_obj
+    return Basis.read_xml(symbol, name, basis)
 
 
 def read_setup_file(paw: str) -> SetupData:
@@ -211,7 +209,7 @@ def main(args: SimpleNamespace,
             assert basis  # Assure `mypy` that it's a `Basis`
             basis.generatordata = ''  # we already printed this
         if basis:
-            BasisPlotter().plot(basis, subplots[-1])
+            BasisPlotter().plot(basis, ax=subplots[-1])
 
     try:
         plt.show()

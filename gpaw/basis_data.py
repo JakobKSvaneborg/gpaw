@@ -319,7 +319,12 @@ class BasisPlotter:
 
         self.normalize = normalize
 
-    def plot(self, basis, ax, filename=None, **plot_args):
+    def plot(self, basis, filename=None, ax=None, **plot_args):
+        if ax is None:
+            from matplotlib import pyplot as plt
+
+            ax = plt.figure().gca()
+
         if plot_args is None:
             plot_args = {}
         r_g = basis.rgd.r_g
@@ -377,3 +382,5 @@ class BasisPlotter:
 
         if self.show:
             ax.figure.show()
+
+        return ax.figure, ax
