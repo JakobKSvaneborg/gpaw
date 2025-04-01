@@ -223,24 +223,23 @@ def main(args: SimpleNamespace,
     basis: Basis | None
 
     if gen:
-        plots.extend([
-            gen.plot_potential_components,
-            gen.plot_partial_waves,
-            gen.plot_projectors,
-        ])
+        plots.append(gen.plot_potential_components)
         basis = gen.basis
+        (symbol, name,
+         rgd, cutoff, ppw_iter) = get_ppw_params_paw_setup_generator(gen)
+        *_, pp_iter = get_pp_params_paw_setup_generator(gen)
     else:
         basis = read_basis_file(basis_file) if basis_file else None
         symbol, name, rgd, cutoff, ppw_iter = get_ppw_params_setup_data(setup)
-        plots.append(functools.partial(
-            plot_partial_waves,
-            symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
-            iterator=ppw_iter))
-        symbol, name, rgd, cutoff, pp_iter = get_pp_params_setup_data(setup)
-        plots.append(functools.partial(
-            plot_projectors,
-            symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
-            iterator=pp_iter))
+        *_, pp_iter = get_pp_params_setup_data(setup)
+    plots.append(functools.partial(
+        plot_partial_waves,
+        symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
+        iterator=ppw_iter))
+    plots.append(functools.partial(
+        plot_projectors,
+        symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
+        iterator=pp_iter))
 
     if args.create_basis_set:
         if gen and basis is None:
@@ -258,11 +257,9 @@ def main(args: SimpleNamespace,
         fig = plt.figure()
 
         nplots = len(plots)
-        if nplots > 9:
+        if nplots > 6:
             raise AssertionError('Too many plots; '
-                                 f'expected <= 9, got {nplots}')
-        elif nplots > 6:
-            layout = 3, 3
+                                 f'expected <= 6, got {nplots}')
         elif nplots > 4:
             layout = 2, 3
         elif nplots > 2:
