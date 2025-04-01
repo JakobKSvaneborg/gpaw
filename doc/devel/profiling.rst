@@ -4,8 +4,8 @@
 Profiling
 =========
 
-profile
-=======
+cProfile
+========
 
 Python has a :mod:`cProfile` module to help you find the places in the
 code where the time is spent.
@@ -72,4 +72,51 @@ the :mod:`pstats` documentation if you want to do more fancy things.
 
    There is also a quick and simple way to profile a script::
 
-     $ pyhton3 -m cProfile script.py
+     $ python3 -m cProfile script.py
+
+
+Parallel profiling (GPAW new only)
+==================================
+
+The profiling of GPAW new code is done by a decorator called trace, which
+is to be applied to all functions one wants to profile.
+GPAW already has a lot of trace decorators added.
+
+To keep overhead minimum when not tracing,
+An environment variable called ``GPAW_TRACE`` has to be set to 1
+in order to allow tracing. If ``GPAW_TRACE`` is not defined, or 0,
+the trace decorator will be identity, and now overhead will be added to function calls.
+
+In addition to setting the environment variable,
+one needs to use the ``global_timer`` of ``gpaw.new``. Below are two examples
+of how to profile.
+
+
+CPU profiling
+-------------
+
+.. literalinclude:: profiling.py
+
+This will write ``.json`` files for each rank, and finally, at exit, it will concatenate them into a single file.
+In order to visualize the pro
+
+GPU profiling
+-------------
+
+.. literalinclude:: profiling.py
+
+
+Adding tracing to new functions
+-------------------------------
+The trace decorator can be imported as follows: `from gpaw.new import trace`.
+
+To profile a particular function one needs to decorate it as follows::
+
+    from gpaw.new import trace
+    ...
+    @trace
+    def my_slow_function('
+    import cProfile
+    cProfile.run('atoms.get_potential_energy()', 'prof')
+    ...
+
