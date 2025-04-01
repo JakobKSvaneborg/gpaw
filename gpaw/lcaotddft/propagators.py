@@ -512,7 +512,7 @@ class SelfConsistentPropagator(SICNPropagator):
                 break
         if last_pc_iterations == self.max_pc_iterations - 1:
             raise RuntimeError('The SCPC propagator required too ',
-                               'many iterations to reache the ',
+                               'many iterations to reach the ',
                                'demanded accuracy.')
         return time + time_step
 
