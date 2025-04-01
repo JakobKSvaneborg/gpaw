@@ -101,8 +101,9 @@ class ScissorsLCAOEigensolver(LCAOEigensolver):
                 hamiltonian,
                 pot_calc=None,
                 energies=None):  # -> tuple[float, DFTEnergies]:
-        eps_error, _, energies = super().iterate(ibzwfs, density, potential, hamiltonian,
-                        pot_calc, energies)
+        eps_error, _, energies = \
+            super().iterate(ibzwfs, density, potential,
+                            hamiltonian, pot_calc, energies)
         if ibzwfs.wfs_qs[0][0]._occ_n is None:
             wfs_error = np.nan
         else:
@@ -113,7 +114,8 @@ class ScissorsLCAOEigensolver(LCAOEigensolver):
                  wfs,
                  weight_n,
                  matrix_calculator):
-        super().iterate1(wfs, weight_n, MyMatCalc(matrix_calculator, self.shifts))
+        super().iterate1(wfs, weight_n,
+                         MyMatCalc(matrix_calculator, self.shifts))
 
     def __repr__(self):
         txt = DirectLCAO.__repr__(self)
