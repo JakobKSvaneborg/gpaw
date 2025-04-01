@@ -79,7 +79,7 @@ class SCFLoop:
             dens_error = 0.0
 
         for self.niter in itertools.count(start=1):
-            wfs_error, energies = self.eigensolver.iterate(
+            eig_error, wfs_error, energies = self.eigensolver.iterate(
                 ibzwfs, density, potential,
                 self.hamiltonian, pot_calc, energies)
             e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
@@ -94,7 +94,7 @@ class SCFLoop:
             ctx = SCFContext(
                 log, self.niter, energies,
                 ibzwfs, density, potential,
-                wfs_error, dens_error,
+                wfs_error, dens_error, eig_error,
                 self.comm, calculate_forces,
                 pot_calc, self.update_density_and_potential)
 
@@ -138,6 +138,7 @@ class SCFContext:
                  potential,
                  wfs_error: float,
                  dens_error: float,
+                 eig_error: float,
                  comm,
                  calculate_forces: Callable[[], Array2D],
                  pot_calc,
@@ -161,6 +162,7 @@ class SCFContext:
             calculate_magnetic_moments=density.calculate_magnetic_moments,
             fixed=not update_density_and_potential,
             error=dens_error)
+        self.eig_error = eig_error
         self.calculate_forces = calculate_forces
         self.poisson_solver = pot_calc.poisson_solver
 

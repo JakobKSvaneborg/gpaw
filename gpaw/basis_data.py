@@ -1,9 +1,12 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field, replace
 import xml.sax
 
 import numpy as np
 
 from gpaw.setup_data import search_for_file
-from gpaw.atom.radialgd import radial_grid_descriptor
+from gpaw.atom.radialgd import RadialGridDescriptor, radial_grid_descriptor
 
 
 _basis_letter2number = {'s': 1, 'd': 2, 't': 3, 'q': 4}
@@ -43,19 +46,30 @@ def get_basis_name(zetacount, polarizationcount):
         return f'{zetachar}z{polarizationchar}p'
 
 
+@dataclass(eq=False, frozen=True)
 class Basis:
-    def __init__(self, symbol, name, readxml=True, rgd=None, world=None):
-        self.symbol = symbol
-        self.name = name
-        self.rgd = rgd
-        self.bf_j = []
-        self.ribf_j = []
-        self.generatorattrs = {}
-        self.generatordata = ''
-        self.filename = None
+    symbol: str
+    name: str
+    rgd: RadialGridDescriptor | None = None
 
-        if readxml:
-            self.read_xml(world=world)
+    bf_j: list[BasisFunction] = field(default_factory=list)
+    ribf_j: list[BasisFunction] = field(default_factory=list)
+    generatorattrs: dict = field(default_factory=dict)
+    generatordata: str = ''
+    filename: str | None = None
+
+    @classmethod
+    def find(cls, symbol, name, world=None):
+        return cls.read_xml(symbol, name, world=world)
+
+    @classmethod
+    def read_path(cls, symbol, name, path, world=None):
+        return cls.read_xml(symbol, name, filename=path, world=world)
+
+    @classmethod
+    def read_xml(cls, symbol, name, filename=None, world=None):
+        parser = BasisSetXMLParser(symbol, name)
+        return parser.parse(filename, world=world)
 
     @property
     def nao(self):  # implement as a property so we don't have to
@@ -67,12 +81,6 @@ class Basis:
     def nrio(self):
         return sum([2 * ribf.l + 1 for ribf in self.ribf_j])
 
-    def append(self, bf):
-        if bf.type != 'auxiliary':
-            self.bf_j.append(bf)
-        else:
-            self.ribf_j.append(bf)
-
     def get_grid_descriptor(self):
         return self.rgd
 
@@ -83,10 +91,6 @@ class Basis:
     def ritosplines(self):
         return [self.rgd.spline(ribf.phit_g, ribf.rc, ribf.l, points=400)
                 for ribf in self.ribf_j]
-
-    def read_xml(self, filename=None, world=None):
-        parser = BasisSetXMLParser(self)
-        parser.parse(filename, world=world)
 
     def write_xml(self):
         """Write basis functions to file.
@@ -124,7 +128,7 @@ class Basis:
         write('</paw_basis>\n')
 
     def reduce(self, name):
-        """Reduce the number of basis functions.
+        """Reduce the number of basis functions and return new Basis.
 
         Example: basis.reduce('sz') will remove all non single-zeta
         and polarization functions."""
@@ -145,7 +149,7 @@ class Basis:
                 if N[nl] < zeta:
                     newbf_j.append(bf)
                     N[nl] += 1
-        self.bf_j = newbf_j
+        return replace(self, bf_j=newbf_j)
 
     def get_description(self):
         title = 'LCAO basis set for %s:' % self.symbol
@@ -175,19 +179,23 @@ class Basis:
         return '\n  '.join(lines)
 
 
+@dataclass
 class BasisFunction:
     """Encapsulates various basis function data."""
 
-    def __init__(self, n=None, l=None, rc=None, phit_g=None, type=''):
-        self.n = n
-        self.l = l
-        self.rc = rc
-        self.phit_g = phit_g
-        self.type = type
-        if n is None or n < 0:
-            self.name = 'l=%d %s' % (l, type)
-        else:
-            self.name = '%d%s %s' % (n, 'spdf'[l], type)
+    n: int | None = None
+    l: int | None = None
+    rc: float | None = None
+    phit_g: np.ndarray | None = None
+    type: str | None = None
+
+    @property
+    def name(self):
+        if self.n is None or self.n < 0:
+            return f'l={self.l} {self.type}'
+
+        lname = 'spdf'[self.l]
+        return f'{self.n}{lname} {type}'
 
     def __repr__(self, gridid=None):
         txt = '<basis_function '
@@ -206,13 +214,19 @@ class BasisFunction:
 
 
 class BasisSetXMLParser(xml.sax.handler.ContentHandler):
-    def __init__(self, basis):
-        xml.sax.handler.ContentHandler.__init__(self)
-        self.basis = basis
+    def __init__(self, symbol, name):
+        super().__init__()
+        self.symbol = symbol
+        self.name = name
+
         self.type = None
         self.rc = None
         self.data = None
         self.l = None
+        self.bf_j = []
+        self.ribf_j = []
+
+        self._dct = {}
 
     def parse(self, filename=None, world=None):
         """Read from symbol.name.basis file.
@@ -220,37 +234,41 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
         Example of filename: N.dzp.basis.  Use sz(dzp) to read
         the sz-part from the N.dzp.basis file."""
 
-        basis = self.basis
-        if '(' in basis.name:
-            assert basis.name.endswith(')')
-            reduced, name = basis.name.split('(')
+        if '(' in self.name:
+            assert self.name.endswith(')')
+            reduced, name = self.name.split('(')
             name = name[:-1]
         else:
-            name = basis.name
+            name = self.name
             reduced = None
-        fullname = f'{basis.symbol}.{name}.basis'
+        fullname = f'{self.symbol}.{name}.basis'
         if filename is None:
-            basis.filename, source = search_for_file(fullname, world=world)
+            filename, source = search_for_file(fullname, world=world)
         else:
-            basis.filename = filename
             with open(filename, 'rb') as fd:
                 source = fd.read()
 
+        self.filename = filename
         self.data = None
         xml.sax.parseString(source, self)
 
+        basis = Basis(symbol=self.symbol, name=self.name, filename=filename,
+                      bf_j=[*self.bf_j], ribf_j=[*self.ribf_j],
+                      **self._dct)
+
         if reduced:
-            basis.reduce(reduced)
+            basis = basis.reduce(reduced)
+
+        return basis
 
     def startElement(self, name, attrs):
-        basis = self.basis
-        if name == 'paw_basis':
-            basis.version = attrs['version']
-        elif name == 'generator':
-            basis.generatorattrs = dict(attrs)
+        dct = self._dct
+        # For name == 'paw_basis' we can save attrs['version'], too.
+        if name == 'generator':
+            dct['generatorattrs'] = dict(attrs)
             self.data = []
         elif name == 'radial_grid':
-            basis.rgd = radial_grid_descriptor(**attrs)
+            dct['rgd'] = radial_grid_descriptor(**attrs)
         elif name == 'basis_function':
             self.l = int(attrs['l'])
             self.rc = float(attrs['rc'])
@@ -268,15 +286,19 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
             self.data.append(data)
 
     def endElement(self, name):
-        basis = self.basis
         if name == 'basis_function':
             phit_g = np.array([float(x) for x in ''.join(self.data).split()])
             bf = BasisFunction(self.n, self.l, self.rc, phit_g, self.type)
             # Also auxiliary basis functions are added here. They are
             # distinguished by their type='auxiliary'.
-            basis.append(bf)
+
+            if bf.type == 'auxiliary':
+                self.ribf_j.append(bf)
+            else:
+                self.bf_j.append(bf)
+
         elif name == 'generator':
-            basis.generatordata = ''.join([line for line in self.data])
+            self._dct['generatordata'] = ''.join([line for line in self.data])
 
 
 class BasisPlotter:
