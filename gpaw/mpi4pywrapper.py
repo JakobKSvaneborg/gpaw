@@ -1,9 +1,7 @@
 try:
     from mpi4py.MPI import Request, SUM, MAX, IN_PLACE
 except ImportError:
-    SUM = None
-    MAX = None
-    Request = None
+    pass
 
 
 class MPI4PYWrapper:
