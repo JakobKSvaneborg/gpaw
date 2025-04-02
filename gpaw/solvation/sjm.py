@@ -601,17 +601,6 @@ class SJM(SolvationGPAW):
             previous_electrons.append(float(p.excess_electrons))
             previous_potentials.append(float(true_potential))
 
-            # The following solves a bug, where the code would crash if the
-            # user sets the right number of electrons to reach the target
-            # potential in the first iteration and then changes the target
-            # potential. The code would crash because the slope has not been
-            # calculated yet and so no step is taken towards the new potential.
-            # As two equal charges are added to p.previous_electrons, the
-            # regression of the slope will fail.
-            #if len(p.previous_electrons) > 1:
-            #    if not p.previous_electrons[-2] - p.previous_electrons[-1]:
-            #        del p.previous_electrons[-2], p.previous_potentials[-2]
-
             if len(previous_electrons) > 1:
                 slope = _calculate_slope(previous_electrons,
                                          previous_potentials,
