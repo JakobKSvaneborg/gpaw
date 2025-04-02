@@ -372,8 +372,7 @@ class BasisPlotter:
         dashes_l = [(), (6, 3), (4, 1, 1, 1), (1, 1)]
 
         if ax is None:
-            fig = plt.figure()
-            ax = fig.gca()
+            ax = plt.figure().gca()
 
         for norm, bf in zip(norm_j, basis.bf_j):
             ng = len(bf.phit_g)
@@ -395,12 +394,12 @@ class BasisPlotter:
         if filename is None:
             filename = self.default_filename
         if self.save:
-            plt.savefig(filename % basis.__dict__)
+            ax.get_figure().savefig(filename % basis.__dict__)
 
         if self.show:
             plt.show()
 
-        return ax.get_figure(), ax
+        return ax
 
 
 class CLICommand:
@@ -411,7 +410,7 @@ class CLICommand:
         parser.add_argument('file', metavar='FILE')
         parser.add_argument(
             '--write', metavar='FILE',
-            help='write plot to file.  Format is inferred from filename.')
+            help='write plot to file inferring format from file extension.')
 
     @staticmethod
     def run(args):
@@ -426,9 +425,9 @@ class CLICommand:
         basis = Basis.read_path(symbol, name, path=path)
 
         plotter = BasisPlotter()
-        fig, ax = plotter.plot(basis)
+        ax = plotter.plot(basis)
 
         if args.write:
-            fig.savefig(args.write)
+            ax.get_figure().savefig(args.write)
         else:
             plt.show()
