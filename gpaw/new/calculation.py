@@ -470,9 +470,9 @@ class DFTCalculation:
         log(pot_calc)
 
         return DFTCalculation(
-            ibzwfs, density, potential,
+            atoms, ibzwfs, density, potential,
             builder.setups, scf_loop, pot_calc, log,
-            energies=energies)
+            params=params, energies=energies)
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
