@@ -1,11 +1,16 @@
 import pytest
-from .base_calc import atoms, calculator
+from .base_calc import calculator
+from ase.build import fcc111
 
 
 @pytest.mark.old_gpaw_only
 @pytest.mark.ci
 @pytest.mark.serial
 def test_keys():
+    atoms = fcc111('H', size=(1, 1, 1), a=2.5)
+    atoms.center(axis=2, vacuum=5)
+    atoms.cell[2][2] = 10
+
     calc = calculator()
     calc.set(sj={'excess_electrons': 1.,
                  'jelliumregion': {'top': -2.,
@@ -32,6 +37,7 @@ def test_keys():
                          'filter': 10}})
     atoms.calc = calc
     atoms.calc.initialize(atoms)
+    atoms.calc.initialize_positions(atoms)
 
 
 if __name__ == '__main__':

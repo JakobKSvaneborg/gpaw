@@ -1,13 +1,18 @@
 import pytest
 from gpaw import restart
 from gpaw.solvation.sjm import SJM
-from .base_calc import atoms, calculator
+from .base_calc import calculator
+from ase.build import fcc111
 
 
 # Test wrting and reading of the SJM object into the gpw file
 @pytest.mark.old_gpaw_only
 @pytest.mark.ci
-def test_gpw():
+def test_gpw(in_tmp_dir):
+    atoms = fcc111('H', size=(1, 1, 1), a=2.5)
+    atoms.center(axis=2, vacuum=5)
+    atoms.cell[2][2] = 10
+
     calc = calculator()
     atoms.calc = calc
     atoms.calc.set(sj={'target_potential': None})

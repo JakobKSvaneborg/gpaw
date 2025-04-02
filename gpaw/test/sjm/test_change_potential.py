@@ -1,9 +1,14 @@
 import pytest
-from .base_calc import atoms, calculator
+from .base_calc import calculator
+from ase.build import fcc111
 
 
 @pytest.mark.old_gpaw_only
 def test_change_potential():
+    atoms = fcc111('H', size=(1, 1, 1), a=2.5)
+    atoms.center(axis=2, vacuum=5)
+    atoms.cell[2][2] = 10
+
     atoms.calc = calculator()
     atoms.calc.set(sj={'tol': 0.1})
 

@@ -1,28 +1,17 @@
 from gpaw.solvation.sjm import SJM, SJMPower12Potential
 from gpaw import FermiDirac
-from ase.data.vdw import vdw_radii
 from gpaw.solvation import (
     EffectivePotentialCavity,
     LinearDielectric,
     GradientSurface,
     SurfaceInteraction
 )
-from ase.build import fcc111
 
 
 # Solvent parameters
-u0 = 0.180
 epsinf = 78.36
 gamma = 0.00114843767916
 T = 298.15
-
-atoms = fcc111('H', size=(1, 1, 1), a=2.5)
-atoms.center(axis=2, vacuum=5)
-atoms.cell[2][2] = 10
-
-
-def atomic_radii(atoms):
-    return [vdw_radii[n] for n in atoms.numbers]
 
 
 def calculator():
@@ -46,7 +35,7 @@ def calculator():
         mode='lcao',
         basis='dzp',
         cavity=EffectivePotentialCavity(
-            effective_potential=SJMPower12Potential(atomic_radii, u0),
+            effective_potential=SJMPower12Potential(),
             temperature=T,
             surface_calculator=GradientSurface()),
         dielectric=LinearDielectric(epsinf=epsinf),
