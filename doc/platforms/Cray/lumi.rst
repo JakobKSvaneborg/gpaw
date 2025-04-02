@@ -107,9 +107,10 @@ Do the following in a clean terminal session and exit afterwards!
   module load EasyBuild-user
 
   # Install
-  eb CuPy-13.2.0-cpeGNU-24.03-rocm.eb -r
-  eb ELPA-2024.05.001-cpeGNU-24.03-rocm.eb -r
-  eb libxc-6.2.2-cpeGNU-24.03.eb -r
+  eb CuPy-13.2.0-cpeGNU-24.03-rocm6.2.2.eb -r
+  eb ELPA-2024.05.001-cpeGNU-24.03-rocm6.2.2.eb -r
+  eb magma-2.8.0-cpeGNU-24.03-rocm6.2.2.eb -r
+  eb libxc-7.0.0-cpeGNU-24.03.eb -r
 
 Exit the terminal now and open a clean terminal.
 The above EasyBuild setup is needed only once.
@@ -133,12 +134,14 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load LUMI/24.03
   module load partition/G
   module load cpeGNU/24.03
-  module load rocm/6.0.3
+  module load SuiteSparse/5.13.0-cpeGNU-24.03-OpenMP    # Dependency of hipSolver for ROCm 6.2
+  module load rocm/6.2.2
   module load cray-fftw/3.3.10.7
   module load buildtools-python/24.03-cray-python3.11
-  module load CuPy/13.2.0-cpeGNU-24.03-rocm             # from EBU_USER_PREFIX
-  module load ELPA/2024.05.001-cpeGNU-24.03-rocm        # from EBU_USER_PREFIX
-  module load libxc/6.2.2-cpeGNU-24.03                  # from EBU_USER_PREFIX
+  module load CuPy/13.2.0-cpeGNU-24.03-rocm6.2.2        # from EBU_USER_PREFIX
+  module load ELPA/2024.05.001-cpeGNU-24.03-rocm6.2.2   # from EBU_USER_PREFIX
+  module load magma/2.8.0-cpeGNU-24.03-rocm6.2.2        # from EBU_USER_PREFIX
+  module load libxc/7.0.0-cpeGNU-24.03                  # from EBU_USER_PREFIX
   export MPICH_GPU_SUPPORT_ENABLED=1
   EOF
   cat venv-gpaw-gpu/bin/activate.old >> venv-gpaw-gpu/bin/activate
@@ -213,7 +216,7 @@ Do the following in a clean terminal session and exit afterwards!
   module load EasyBuild-user
 
   # Install
-  eb libxc-6.2.2-cpeGNU-24.03.eb -r
+  eb libxc-7.0.0-cpeGNU-24.03.eb -r
 
 Exit the terminal now and open a clean terminal.
 The above EasyBuild setup is needed only once.
@@ -239,7 +242,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load cpeGNU/24.03
   module load cray-fftw/3.3.10.7
   module load buildtools-python/24.03-cray-python3.11
-  module load libxc/6.2.2-cpeGNU-24.03                  # from EBU_USER_PREFIX
+  module load libxc/7.0.0-cpeGNU-24.03                  # from EBU_USER_PREFIX
   EOF
   cat venv-gpaw-cpu/bin/activate.old >> venv-gpaw-cpu/bin/activate
 
