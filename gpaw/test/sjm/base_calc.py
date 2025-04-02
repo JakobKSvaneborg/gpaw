@@ -24,7 +24,6 @@ def calculator():
         kpts=(4, 4, 1),
         xc='PBE',
         spinpol=False,
-        maxiter=1000,
         occupations=FermiDirac(0.1),
         convergence={'energy': 1,
                      'density': 1.0,
