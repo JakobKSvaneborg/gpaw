@@ -73,7 +73,8 @@ def test_cupy_fftn(shape: tuple):
         res_inverse = cupyx.scipy.fft.ifftn(res, shape)
 
     except cp.cuda.cufft.CuFFTError as e:
-        raise RuntimeError("Cupy fftn failed, are you on ROCm < 6.2?") from e
+        raise RuntimeError(
+            "Cupy fftn failed, please report this to GPAW developers") from e
 
     arr_np = cp.asnumpy(arr)
     ref = scipy.fft.fftn(arr_np)
