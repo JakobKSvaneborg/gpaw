@@ -40,7 +40,6 @@ def GPAW(
     *,
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Iterable[int] | None = None,
-    background_charge=None,
     basis: str | dict[str | int | None, str] | None = None,
     charge: float | None = None,
     convergence: dict[str, Any] | None = None,
