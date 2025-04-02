@@ -38,4 +38,4 @@ def test_new_cell(gpu):
     assert s1 == pytest.approx([-4.37458548e-01] * 2 +
                                [-9.41665221e-02, 0.0, 0.0, 0.0], abs=5e-7)
     out = broadcast_string(output.getvalue() or None)
-    assert '# Interpolating wave fun' in out
+    assert 'Interpolating wave fun' in out
