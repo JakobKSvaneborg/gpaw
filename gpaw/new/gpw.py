@@ -359,11 +359,12 @@ def read_gpw(filename: Union[str, Path, IO[str]],
 
     ibzwfs = builder.read_ibz_wave_functions(reader, log)
 
-    dft = DFTCalculation(
+    dft = DFTCalculation(atoms,
         ibzwfs, density, potential,
         builder.setups,
         builder.create_scf_loop(),
         pot_calc=builder.create_potential_calculator(log),
+        params=params,
         energies=energies,
         log=log)
 

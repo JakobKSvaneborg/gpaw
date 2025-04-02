@@ -36,9 +36,9 @@ class CalcInfo:
         if self.comm is not None:
             params['comm'] = self.comm
         params.update(updated_params)
-        return get_calculation_info(self.atoms, **params)
+        return get_calculation_info(self.atoms, params)
 
-    def get_dft_calc(self, updated_params: Union[dict, InputParameters] = {},
+    def get_dft_calc(self, updated_params: dict = {},
                      comm=None, log=None) -> DFTCalculation:
         params = self.input_params.copy()
         params.update(updated_params)
@@ -51,7 +51,7 @@ class CalcInfo:
                                               comm=comm,
                                               log=log)
 
-    def get_ase_calc(self, updated_params: Union[dict, InputParameters] = {},
+    def get_ase_calc(self, updated_params: dict = {},
                      comm=None, log=None):
         dft = self.get_dft_calc(updated_params, comm, log)
         return dft.get_ase_calc()

@@ -38,6 +38,7 @@ from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
 from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 
+
 FAKE_CUPY_WARNING = """
  ----------------------------------------------------------
 |                         WARNING                          |
