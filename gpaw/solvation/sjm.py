@@ -521,6 +521,13 @@ class SJM(SolvationGPAW):
         p = self.parameters['sj']
         iteration = 0
 
+        if p.fdt:
+            previous_electrons = p.previous_electrons
+            previous_potentials = p.previous_potentials
+        else:
+            previous_electrons = []
+            previous_potentials = []
+
         rerun = False
         while iteration <= p.max_iters:
             self.log('Attempt {:d} to equilibrate potential to {:.3f} +/-'
@@ -557,12 +564,12 @@ class SJM(SolvationGPAW):
             # will be reduced by factor of 2 every time.
             # The rerun is disabled if the FDT is used.
 
-            if len(p.previous_potentials):
+            if len(previous_potentials):
 
-                stepsize = abs(true_potential - p.previous_potentials[-1])
+                stepsize = abs(true_potential - previous_potentials[-1])
 
                 if (stepsize > p.max_step and
-                   abs(p.previous_potentials[-1] - p.target_potential) <
+                   abs(previous_potentials[-1] - p.target_potential) <
                    abs(true_potential - p.target_potential)) and not p.fdt:
                     self.log('Step resulted in a potential change of '
                              f'{stepsize:.2f} V, larger than max_step '
@@ -574,7 +581,7 @@ class SJM(SolvationGPAW):
                     if p.fdt:
                         rerun = False
                     else:
-                        pe, ce = p.previous_electrons[-1], p.excess_electrons
+                        pe, ce = previous_electrons[-1], p.excess_electrons
                         if abs(pe - ce) < 1e-5:
                             msg = ('Step size is too small to be halved in '
                                    'rerun. To avoid this try to change your '
@@ -592,8 +599,8 @@ class SJM(SolvationGPAW):
             rerun = False
 
             # Store attempt and calculate slope.
-            p.previous_electrons.append(float(p.excess_electrons))
-            p.previous_potentials.append(float(true_potential))
+            previous_electrons.append(float(p.excess_electrons))
+            previous_potentials.append(float(true_potential))
 
             # The following solves a bug, where the code would crash if the
             # user sets the right number of electrons to reach the target
@@ -602,16 +609,16 @@ class SJM(SolvationGPAW):
             # calculated yet and so no step is taken towards the new potential.
             # As two equal charges are added to p.previous_electrons, the
             # regression of the slope will fail.
-            if len(p.previous_electrons) > 1:
-                if not p.previous_electrons[-2] - p.previous_electrons[-1]:
-                    del p.previous_electrons[-2], p.previous_potentials[-2]
+            #if len(p.previous_electrons) > 1:
+            #    if not p.previous_electrons[-2] - p.previous_electrons[-1]:
+            #        del p.previous_electrons[-2], p.previous_potentials[-2]
 
-            if len(p.previous_electrons) > 1:
-                slope = _calculate_slope(p.previous_electrons,
-                                         p.previous_potentials,
+            if len(previous_electrons) > 1:
+                slope = _calculate_slope(previous_electrons,
+                                         previous_potentials,
                                          p.slope_regression_depth)
 
-                nreg = len(p.previous_electrons[-p.slope_regression_depth:])
+                nreg = len(previous_electrons[-p.slope_regression_depth:])
                 self.log(f'Slope regressed from last {nreg:d} attempts is '
                          f'{slope:.4f} V/electron,')
                 area = np.linalg.det(atoms.cell[:2, :2])
@@ -700,7 +707,7 @@ class SJM(SolvationGPAW):
                'excess_electrons and the potential are listed below; '
                'plotting them could give you insight into the problem.')
         msg = textwrap.fill(msg) + '\n'
-        for n, p in zip(p.previous_electrons, p.previous_potentials):
+        for n, p in zip(previous_electrons, previous_potentials):
             msg += f'{n:+.6f} {p:.6f}\n'
         self.log(msg, flush=True)
         raise PotentialConvergenceError(msg)
