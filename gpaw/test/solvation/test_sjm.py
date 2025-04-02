@@ -37,8 +37,8 @@ def test_sjm(gpaw_new):
         'eigenstates': 1e-4}
 
     params = dict(
-        mode='fd',
-        gpts=(8, 8, 48),
+        mode='pw',
+        #gpts=(8, 8, 48),
         kpts=(2, 2, 1),
         xc='PBE',
         convergence=convergence,
@@ -64,7 +64,7 @@ def test_sjm(gpaw_new):
         pot = -atoms.calc.get_fermi_level()
 
     assert abs(pot - potential) < tol
-    if 0:
+    if 1:
         v = atoms.calc.get_electrostatic_potential()
         import matplotlib.pyplot as plt
         import numpy as np

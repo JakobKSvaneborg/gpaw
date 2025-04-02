@@ -88,6 +88,11 @@ class SJMEnvironment(Environment):
         self.solvation.update1(nt_r)
         self.jellium.update1(nt_r)
 
+    def update1pw(self, nt_g):
+        nt_r = nt_g.ifft(grid=self.jellium.grid)
+        self.solvation.update1(nt_r)
+        self.jellium.update1pw(nt_g)
+
     def update2(self, nt_r, vHt_r, vt_sr) -> float:
         return self.solvation.update2(nt_r, vHt_r, vt_sr)
 
