@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import importlib
-from dataclasses import dataclass
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -22,9 +21,8 @@ from gpaw.mpi import (broadcast, MPIComm, Parallelization, serial_comm,
                       synchronize_atoms, world)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
-from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints, IBZ
+from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
 from gpaw.new.c import GPU_AWARE_MPI
-from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.input_parameters import InputParameters
@@ -84,62 +82,6 @@ def builder(atoms: Atoms,
     if builder.xp is fake_cupy:
         log(FAKE_CUPY_WARNING)
     return builder
-
-
-def get_calculation_info(atoms: Atoms, **params) -> CalcInfo:
-    dft_builder = builder(atoms, params)
-    dft_params = CalcInfo(atoms,
-                          params,
-                          dft_builder.ibz,
-                          dft_builder.ncomponents,
-                          dft_builder.nspins,
-                          dft_builder.nbands,
-                          dft_builder.setups,
-                          dft_builder.grid,
-                          dft_builder.communicators)
-    if dft_builder.mode != 'lcao':
-        dft_params.wf_description = \
-            dft_builder.create_wf_description()
-    return dft_params
-
-
-@dataclass
-class CalcInfo:
-    atoms: Atoms
-    input_params: dict
-    ibz: IBZ
-    ncomponents: int
-    nspins: int
-    nbands: int
-    setups: Setups
-    grid: UGDesc
-    wf_description: Domain | None = None
-    communicators: dict[str, MPIComm] | None = None
-
-    def update_params(self, **updated_params):
-        params = self.input_params.copy()
-        params.update(updated_params)
-        return get_calculation_info(self.atoms, **params)
-
-    def get_dft_calc(self,
-                     updated_params: Union[dict, InputParameters] = {},
-                     comm=None,
-                     log=None) -> DFTCalculation:
-        params = self.input_params.copy()
-        params.update(updated_params)
-        return DFTCalculation.from_parameters(self.atoms,
-                                              params,
-                                              comm=comm,
-                                              log=log)
-
-    def get_ase_calc(self,
-                     updated_params: Union[dict, InputParameters] = {},
-                     comm=None,
-                     log=None):
-        params = self.input_params.copy()
-        params.update(updated_params)
-        return self.get_dft_calc(updated_params,
-                                 comm, log).get_ase_calc()
 
 
 class DFTComponentsBuilder:
