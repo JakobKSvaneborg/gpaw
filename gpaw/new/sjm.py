@@ -6,6 +6,7 @@ from gpaw.jellium import create_background_charge
 from gpaw.new.environment import Environment, FixedPotentialJellium, Jellium
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.solvation import Solvation
+from gpaw.core import UGArray
 
 
 class SJM:
@@ -52,7 +53,7 @@ class SJM:
                               grid=grid)
         else:
             jellium = FixedPotentialJellium(
-                jellium,
+                background,
                 natoms=len(relpos_ac),
                 grid=grid,
                 workfunction=self.target_potential)
@@ -110,7 +111,7 @@ class SJMPoissonSolver(PoissonSolverWrapper):
         return np.nan
 
 
-def modified_saw_tooth(eps_r):
+def modified_saw_tooth(eps_r: UGArray) -> np.ndarray:
     a_z = 1.0 / eps_r.data.mean(axis=(0, 1))
     saw_tooth_z = np.add.accumulate(a_z)
     saw_tooth_z -= 0.5 * a_z

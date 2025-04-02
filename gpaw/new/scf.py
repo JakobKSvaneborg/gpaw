@@ -154,7 +154,8 @@ class SCFContext:
         energy = energies.total_extrapolated
         self.ham = SimpleNamespace(e_total_extrapolated=energy,
                                    get_workfunctions=self._get_workfunctions)
-        self.wfs = SimpleNamespace(nvalence=density.nvalence,
+        self.wfs = SimpleNamespace(nvalence=density.nvalence +
+                                   pot_calc.environment.charge,
                                    world=comm,
                                    eigensolver=SimpleNamespace(
                                        error=wfs_error),

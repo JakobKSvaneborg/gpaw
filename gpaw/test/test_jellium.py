@@ -7,13 +7,13 @@ from gpaw import GPAW, Mixer
 
 
 @pytest.mark.libxc
-def test_jellium(in_tmp_dir):
+def test_jellium(in_tmp_dir, gpaw_new):
     rs = 5.0 * Bohr  # Wigner-Seitz radius
-    h = 0.24          # grid-spacing
-    a = 8 * h        # lattice constant
-    v = 3 * a        # vacuum
-    L = 8 * a       # thickness
-    k = 6           # number of k-points (k*k*1)
+    h = 0.24  # grid-spacing
+    a = 8 * h  # lattice constant
+    v = 3 * a  # vacuum
+    L = 8 * a  # thickness
+    k = 6  # number of k-points (k*k*1)
 
     ne = a**2 * L / (4 * np.pi / 3 * rs**3)
 
@@ -22,30 +22,30 @@ def test_jellium(in_tmp_dir):
 
     surf = Atoms(pbc=(True, True, False),
                  cell=(a, a, v + L + v))
-    surf.calc = GPAW(mode='fd',
-                     background_charge=bc,
-                     poissonsolver={'dipolelayer': 'xy'},
-                     xc='LDA_X+LDA_C_WIGNER',
-                     eigensolver='dav',
-                     kpts=[k, k, 1],
-                     h=h,
-                     maxiter=300,
-                     convergence={'density': 1e-5},
-                     mixer=Mixer(0.3, 7, 100),
-                     nbands=int(ne / 2) + 15,
-                     txt='surface.txt')
+    params = dict(
+        mode='fd',
+        poissonsolver={'dipolelayer': 'xy'},
+        xc='LDA_X+LDA_C_WIGNER',
+        eigensolver='dav',
+        kpts=[k, k, 1],
+        h=h,
+        maxiter=300,
+        convergence={'density': 1e-5},
+        mixer=Mixer(0.3, 7, 100),
+        nbands=int(ne / 2) + 15)
+    if gpaw_new:
+        surf.calc = GPAW(**params, environment=bc)
+    else:
+        surf.calc = GPAW(**params, background_charge=bc)
+
     _ = surf.get_potential_energy()
 
     # Get the work function
-    if surf.calc.old:
-        efermi = surf.calc.get_fermi_level()
-        ham = surf.calc.hamiltonian
-        v = (ham.finegd.collect(ham.vHt_g,
-                                broadcast=True) * Hartree).mean(0).mean(0)
-        phi1 = v[-1] - efermi
-    else:
-        phi1, _ = surf.calc.dft.workfunctions()
-    assert phi1 == pytest.approx(2.715, abs=1e-3)
+    v = surf.calc.get_electrostatic_potential()
+    efermi = surf.calc.get_fermi_level()
+    print(v.mean(axis=(0, 1)), efermi)
+    phi = v[:, :, -1].mean() - efermi
+    assert phi == pytest.approx(2.715, abs=1e-3)
     # Reference value: Lang and Kohn, 1971, Theory of Metal Surfaces:
     # Work function
     # DOI 10.1103/PhysRevB.3.1215

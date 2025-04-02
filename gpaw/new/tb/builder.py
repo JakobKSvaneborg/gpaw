@@ -196,7 +196,8 @@ class TBSCFLoop:
                 log=None):
         self.eigensolver.iterate(ibzwfs, density, potential, self.hamiltonian)
         e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
-            self.occ_calc)
+            self.occ_calc,
+            nelectrons=density.nvalence - density.charge)
 
         energies.set(band=e_band,
                      entropy=e_entropy,

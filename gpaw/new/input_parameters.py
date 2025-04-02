@@ -59,7 +59,7 @@ class InputParameters:
             param = params.get(key)
             if param is not None:
                 self.non_defaults.append(key)
-                if hasattr(param, 'todict'):
+                if hasattr(param, 'todict') and not hasattr(param, 'build'):
                     param = param.todict()
                 value = func(param)
             else:
