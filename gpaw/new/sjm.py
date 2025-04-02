@@ -100,13 +100,13 @@ class SJMEnvironment(Environment):
 class SJMPoissonSolver(PoissonSolverWrapper):
     def __init__(self, solver, dielectric):
         super().__init__(solver)
-        self.dielectric = dielectric
+        #self.dielectric=dielectric
 
     def solve(self,
               vHt_r,
               rhot_r) -> float:
         self.solver.solve(vHt_r.data, rhot_r.data)
-        eps_r = vHt_r.desc.from_data(self.dielectric.eps_gradeps[0])
+        eps_r = vHt_r.desc.from_data(self.solver.dielectric.eps_gradeps[0])
         saw_tooth_z = modified_saw_tooth(eps_r)
         s1, s2 = saw_tooth_z[[2, 10]]
         v1, v2 = vHt_r.data[:, :, [2, 10]].mean(axis=(0, 1))
@@ -119,5 +119,5 @@ class SJMPoissonSolver(PoissonSolverWrapper):
 def modified_saw_tooth(eps_r: UGArray) -> np.ndarray:
     a_z = 1.0 / eps_r.data.mean(axis=(0, 1))
     saw_tooth_z = np.add.accumulate(a_z)
-    saw_tooth_z -= 0.5 * a_z
+    saw_tooth_z -= 0.5 * a_z#+0.5 from z=0.0
     return saw_tooth_z
