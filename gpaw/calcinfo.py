@@ -17,7 +17,7 @@ from gpaw.mpi import MPIComm
 @dataclass
 class CalcInfo:
     atoms: Atoms
-    input_params: Union[dict, InputParameters]
+    input_params: dict
     ibz: IBZ
     ncomponents: int
     nspins: int
