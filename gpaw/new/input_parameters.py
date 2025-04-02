@@ -4,6 +4,7 @@ import warnings
 from typing import Any, Sequence
 
 import numpy as np
+from gpaw.new.environment import Environment
 
 parameter_functions = {}
 
@@ -19,11 +20,11 @@ def input_parameter(func):
 
 
 class InputParameters:
-    background_charge: Any
     basis: Any
     charge: float
     convergence: dict[str, Any]
     eigensolver: dict[str, Any]
+    environment: Environment
     experimental: dict[str, Any]
     external: dict[str, Any]
     gpts: None | Sequence[int]
@@ -57,7 +58,7 @@ class InputParameters:
             param = params.get(key)
             if param is not None:
                 self.non_defaults.append(key)
-                if hasattr(param, 'todict'):
+                if hasattr(param, 'todict') and not hasattr(param, 'build'):
                     param = param.todict()
                 value = func(param)
             else:
@@ -115,12 +116,6 @@ class InputParameters:
 
 
 @input_parameter
-def background_charge(value=None):
-    """Background-charge object."""
-    return value
-
-
-@input_parameter
 def basis(value=None):
     """Atomic basis set."""
     return value or {}
@@ -143,6 +138,11 @@ def eigensolver(value=None) -> dict:
     if isinstance(value, str):
         value = {'name': value}
     return value or {}
+
+
+@input_parameter
+def environment(value=None):
+    return value
 
 
 @input_parameter
