@@ -111,7 +111,7 @@ LOGO = """\
 """
 
 
-def write_header(log, params):
+def write_header(log: Logger, params: InputParameters) -> None:
     from gpaw.io.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
@@ -474,7 +474,9 @@ class ASECalculator:
         return self.dft.ibzwfs.get_homo_lumo(spin) * Ha
 
     def get_number_of_electrons(self):
-        return self.dft.ibzwfs.nelectrons
+        density = self.dft.density
+        return (density.nvalence - density.charge +
+                self.dft.pot_calc.environment.charge)
 
     def get_number_of_bands(self):
         return self.dft.ibzwfs.nbands
@@ -677,7 +679,8 @@ class ASECalculator:
         ibzwfs = diagonalize(dft.potential,
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
-                             nbands)
+                             nbands,
+                             dft.density.nvalence + dft.density.charge)
         dft.ibzwfs = ibzwfs
         self.params._add('nbands', ibzwfs.nbands)
 

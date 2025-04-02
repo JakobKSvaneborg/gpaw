@@ -174,6 +174,7 @@ class Density:
             None if self.taut_sR is None else new_nt_sR.new(zeroed=True),
             self.D_asii,
             self.charge,
+            self.nvalence,
             self.delta_aiiL,
             self.delta0_a,
             self.N0_aii,
