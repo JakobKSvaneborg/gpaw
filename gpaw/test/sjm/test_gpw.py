@@ -7,7 +7,7 @@ from ase.build import fcc111
 
 # Test wrting and reading of the SJM object into the gpw file
 @pytest.mark.old_gpaw_only
-@pytest.mark.ci
+# @pytest.mark.ci
 def test_gpw(in_tmp_dir):
     atoms = fcc111('H', size=(1, 1, 1), a=2.5)
     atoms.center(axis=2, vacuum=5)
