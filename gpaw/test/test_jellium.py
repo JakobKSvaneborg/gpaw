@@ -1,22 +1,22 @@
 import pytest
 import numpy as np
 from ase import Atoms
-from ase.units import Bohr, Hartree
+from ase.units import Bohr
 from gpaw.jellium import JelliumSlab
 from gpaw import GPAW, Mixer
+
+rs = 5.0 * Bohr  # Wigner-Seitz radius
+h = 0.24  # grid-spacing
+a = 8 * h  # lattice constant
+v = 3 * a  # vacuum
+L = 8 * a  # thickness
+k = 6  # number of k-points (k*k*1)
+
+ne = a**2 * L / (4 * np.pi / 3 * rs**3)
 
 
 @pytest.mark.libxc
 def test_jellium(in_tmp_dir, gpaw_new):
-    rs = 5.0 * Bohr  # Wigner-Seitz radius
-    h = 0.24  # grid-spacing
-    a = 8 * h  # lattice constant
-    v = 3 * a  # vacuum
-    L = 8 * a  # thickness
-    k = 6  # number of k-points (k*k*1)
-
-    ne = a**2 * L / (4 * np.pi / 3 * rs**3)
-
     x = h / 4  # make sure surfaces are between grid-points
     bc = JelliumSlab(ne, z1=v - x, z2=v + L + x)
 
@@ -41,10 +41,9 @@ def test_jellium(in_tmp_dir, gpaw_new):
     _ = surf.get_potential_energy()
 
     # Get the work function
-    v = surf.calc.get_electrostatic_potential()
+    v_r = surf.calc.get_electrostatic_potential()
     efermi = surf.calc.get_fermi_level()
-    print(v.mean(axis=(0, 1)), efermi)
-    phi = v[:, :, -1].mean() - efermi
+    phi = v_r[:, :, -1].mean() - efermi
     assert phi == pytest.approx(2.715, abs=1e-3)
     # Reference value: Lang and Kohn, 1971, Theory of Metal Surfaces:
     # Work function
