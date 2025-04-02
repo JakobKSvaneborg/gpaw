@@ -135,7 +135,7 @@ def get_calculation_info(atoms: Atoms, *param_dict,
         comm = None
     dft_builder = builder(atoms, params=params, comm=comm, log=log)
     dft_params = CalcInfo(atoms=atoms,
-                          params=params,
+                          input_params=params,
                           ibz=dft_builder.ibz,
                           ncomponents=dft_builder.ncomponents,
                           nspins=dft_builder.nspins,
