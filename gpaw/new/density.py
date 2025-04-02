@@ -216,6 +216,7 @@ class Density:
             x = -charge / pseudo_charge
             self.nt_sR.data *= x
 
+    @trace
     def update(self, ibzwfs: IBZWaveFunctions, ked=False):
         self.nt_sR.data[:] = 0.0
         self.D_asii.data[:] = 0.0
@@ -242,6 +243,7 @@ class Density:
             self.taut_sR.symmetrize(symmetries.rotation_scc,
                                     symmetries.translation_sc)
 
+    @trace
     def symmetrize(self, symmetries):
         self.nt_sR.symmetrize(symmetries.rotation_scc,
                               symmetries.translation_sc)
@@ -265,6 +267,7 @@ class Density:
                 self.symplan.apply(D_asii.data, D_asii.data)
             self.D_asii.scatter_from(D_asii)
 
+    @trace
     def move(self, relpos_ac, atomdist):
         self.nt_sR.data[:self.ndensities] -= self.nct_R.data
         self.nct_aX.move(relpos_ac, atomdist)
@@ -274,6 +277,7 @@ class Density:
         self.nt_sR.data[:self.ndensities] += self.nct_R.data
         self.D_asii = self.D_asii.moved(atomdist)
 
+    @trace
     def redist(self,
                grid: UGDesc,
                xdesc,
@@ -361,6 +365,7 @@ class Density:
 
         return magmom_v, magmom_av
 
+    @trace
     def write_to_gpw(self, writer, flags):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()

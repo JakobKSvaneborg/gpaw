@@ -628,7 +628,8 @@ class PWArray(DistributedArrays[PWDesc]):
             if self.xp is not np:
                 result_x = self.xp.empty((x,), dtype=self.real_dtype)
                 pw_norm_kinetic_gpu(result_x, self._arrays(),
-                                    self.xp.asarray(self.desc.ekin_G))
+                                    self.xp.asarray(self.desc.ekin_G,
+                                                    dtype=self.real_dtype))
             else:
                 a_xGz = a_xG.reshape((x, G2 // 2, 2))
                 result_x = self.xp.einsum('xGz, xGz, G -> x',
@@ -961,7 +962,7 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
         b2 = min(b1 + B, N)
         nb = b2 - b1
         if psit_bR is None:
-            psit_bR = cp.empty((nb,) + shape, complex)
+            psit_bR = cp.empty((nb,) + shape, psit_nG.data.dtype)
         elif nb < B:
             psit_bR = psit_bR[:nb]
         psit_bR[:] = 0.0
@@ -977,4 +978,6 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
             shape,
             norm='forward',
             overwrite_x=True)
-        add_to_density_gpu(weight_n[b1:b2], psit_bR, nt_R.data)
+        add_to_density_gpu(weight_n[b1:b2],
+                           psit_bR,
+                           nt_R.data)

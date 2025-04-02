@@ -1,9 +1,21 @@
 import pytest
 import numpy as np
 from gpaw.mpi import world, send, receive, broadcast_array
+from gpaw.mpi4pywrapper import MPI4PYWrapper
+
+worlds = [world]
+
+try:
+    from mpi4py.MPI import COMM_WORLD
+except ImportError:
+    pass
+else:
+    worlds.append(MPI4PYWrapper(COMM_WORLD))
 
 
-def test_send_receive_object():
+@pytest.mark.parametrize('world', worlds)
+@pytest.mark.ci
+def test_send_receive_object(world):
     if world.size == 1:
         return
     obj = (42, 'hello')

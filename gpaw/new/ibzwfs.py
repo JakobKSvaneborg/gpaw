@@ -10,6 +10,7 @@ from gpaw.gpu import as_np, synchronize
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
+from gpaw.new.timer import trace
 from gpaw.new.brillouin import IBZ
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.potential import Potential
@@ -172,6 +173,7 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.orthonormalize(work_array_nX)
 
+    @trace
     def calculate_occs(self,
                        occ_calc,
                        nelectrons: float,

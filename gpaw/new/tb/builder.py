@@ -208,7 +208,7 @@ class TBSCFLoop:
             1,
             energies,
             ibzwfs, density, potential,
-            0.0, 0.0,
+            0.0, 0.0, 0.0,
             self.comm, calculate_forces,
             pot_calc, False)
 

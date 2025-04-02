@@ -225,7 +225,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         kwargs.pop(old_keyword, None)
 
     params = InputParameters(kwargs, warn=False)
-    builder = create_builder(atoms, params, comm)
+    builder = create_builder(atoms, params, comm, log)
 
     if comm.rank == 0:
         nt_sR_array = reader.density.density * bohr**3
@@ -256,7 +256,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         kwargs.pop('h', None)
         kwargs['gpts'] = nt_sR_array.shape[1:]
         params = InputParameters(kwargs, warn=False)
-        builder = create_builder(atoms, params, comm)
+        builder = create_builder(atoms, params, comm, log)
 
     kpts = reader.wave_functions.kpts
     rotation_scc = kpts.rotations
@@ -272,7 +272,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
                               'translations': kpts.translations,
                               'atommaps': kpts.atommap}
         params = InputParameters(kwargs, warn=False)
-        builder = create_builder(atoms, params, comm)
+        builder = create_builder(atoms, params, comm, log)
 
     if dtype is not None:
         params.mode['dtype'] = dtype

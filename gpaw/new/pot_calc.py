@@ -91,6 +91,7 @@ class PotentialCalculator:
             self.xc = xc
         return potential, energies, V_al
 
+    @trace
     def calculate(self,
                   density,
                   ibzwfs=None,

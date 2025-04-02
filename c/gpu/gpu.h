@@ -6,6 +6,12 @@
 #include <Python.h>
 #include "gpu-runtime.h"
 
+// Numpy datatype defines
+#define NP_FLOAT                  (11)
+#define NP_DOUBLE                 (12)
+#define NP_FLOAT_COMPLEX          (14)
+#define NP_DOUBLE_COMPLEX         (15)
+
 #define GPU_BLOCKS_MIN            (16)
 #define GPU_BLOCKS_MAX            (96)
 #define GPU_DEFAULT_BLOCK_X       (32)

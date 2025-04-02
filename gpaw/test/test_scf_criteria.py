@@ -29,19 +29,23 @@ class FourIterations(Criterion):
         self.iters = 0
 
 
-def test_scf_criterion(in_tmp_dir, gpaw_new):
+@pytest.mark.parametrize('gpaw_mode', ['fd', 'lcao'])
+def test_scf_criterion(in_tmp_dir, gpaw_new, gpaw_mode):
     """Tests different ways of setting SCF convergence criteria,
     and that it behaves consistenly with regard to the work function."""
     convergence = {'eigenstates': 1.0,
                    'density': 1.0,
                    'energy': 1.0,
                    'work function': 1.0}
+    if gpaw_new:
+        convergence['eigenvalues'] = 1.0
     atoms = Atoms('HF', [(0., 0.5, 0.5),
                          (0., 0.4, -0.4)],
                   cell=(5., 5., 9.),
                   pbc=(True, True, False))
     atoms.center()
-    atoms.calc = GPAW(mode='fd',
+    atoms.calc = GPAW(mode=gpaw_mode,
+                      basis='sz(dzp)',
                       h=0.3,
                       nbands=-1,
                       convergence=convergence,
@@ -60,7 +64,18 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
                   cell=(5., 5., 9.),
                   pbc=(True, True, False))
     atoms.center()
-    atoms.calc = GPAW('scf-criterion.gpw')  # checks loading
+    if gpaw_new and gpaw_mode == 'lcao':
+        # XXX: Hotfix due to lcao mode in GPAW new being buggy.
+        # See https://gitlab.com/gpaw/gpaw/-/issues/1354
+        atoms.calc = GPAW(mode=gpaw_mode,
+                          basis='sz(dzp)',
+                          h=0.3,
+                          nbands=-1,
+                          convergence=convergence,
+                          txt=None,
+                          poissonsolver={'dipolelayer': 'xy'})
+    else:
+        atoms.calc = GPAW('scf-criterion.gpw')  # checks loading
     atoms.get_potential_energy()
     workfunctions2 = (
         atoms.calc.dft.workfunctions()
@@ -80,6 +95,8 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
                    'density': 1.0,
                    'energy': 1.0,
                    'work function': workfunction}
+    if gpaw_new:
+        convergence['eigenvalues'] = 1.0
     atoms.calc = atoms.calc.new(convergence=convergence)
     atoms.get_potential_energy()
     if gpaw_new:
@@ -97,6 +114,8 @@ def test_scf_criterion(in_tmp_dir, gpaw_new):
     convergence = {'energy': Energy(2.0, n_old=4),
                    'density': np.inf,
                    'eigenstates': np.inf}
+    if gpaw_new:
+        convergence['eigenvalues'] = np.inf
     atoms.calc = atoms.calc.new(convergence=convergence)
     atoms.get_potential_energy()
     if gpaw_new:

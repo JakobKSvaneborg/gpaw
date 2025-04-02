@@ -104,7 +104,7 @@ class DFTCalculation:
         if not isinstance(log, Logger):
             log = Logger(log, comm or world)
 
-        builder = builder or create_builder(atoms, params, log.comm)
+        builder = builder or create_builder(atoms, params, log.comm, log)
 
         basis_set = builder.create_basis_set()
 
@@ -406,7 +406,7 @@ class DFTCalculation:
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
-        builder = create_builder(atoms, params, self.comm)
+        builder = create_builder(atoms, params, self.comm, log)
 
         kpt_kc = builder.ibz.kpt_kc
         old_kpt_kc = ibzwfs.ibz.kpt_kc

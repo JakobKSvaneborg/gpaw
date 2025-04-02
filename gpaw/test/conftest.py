@@ -1,5 +1,6 @@
 import os
 from contextlib import contextmanager
+from functools import cached_property
 
 import numpy as np
 import pytest
@@ -67,6 +68,23 @@ def monkeypatch_response_spline_points(sessionscoped_monkeypatch):
     import gpaw.response.paw as paw
     # https://gitlab.com/gpaw/gpaw/-/issues/984
     sessionscoped_monkeypatch.setattr(paw, 'DEFAULT_RADIAL_POINTS', 2**10)
+
+
+@pytest.fixture(autouse=True, scope='session')
+def monkeypatch_allow_cpupy(sessionscoped_monkeypatch):
+    """Monkey-patch `gpaw.new.builder.DFTComponentsBuilder.gpu` to
+    allow setting `gpu` regardless of the value of `GPAW_CPUPY`.
+    """
+    import gpaw
+    from gpaw.new.builder import DFTComponentsBuilder
+
+    @cached_property
+    def gpu(self) -> bool:
+        return self.params.parallel.get('gpu', gpaw.GPAW_USE_GPUS)
+
+    sessionscoped_monkeypatch.setattr(DFTComponentsBuilder, 'gpu', gpu)
+    # Needed for `@cached_property` to work
+    gpu.__set_name__(DFTComponentsBuilder, 'gpu')
 
 
 @pytest.fixture(scope='session')
@@ -233,9 +251,6 @@ def sg15_hydrogen():
 
 
 def pytest_configure(config):
-    # Allow for fake cupy:
-    os.environ['GPAW_CPUPY'] = '1'
-
     if world.rank != 0:
         try:
             tw = config.get_terminal_writer()

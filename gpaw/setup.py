@@ -77,9 +77,11 @@ def create_setup(symbol, xc='LDA', lmax=0,
                                  'functional.  This calculation would use '
                                  'the %s functional.' % xc.get_setup_name())
         else:
-            setupdata = SetupData(symbol, xc.get_setup_name(),
-                                  type, True,
-                                  world=world)
+            setupdata = SetupData.find_and_read_path(symbol,
+                                                     xc.get_setup_name(),
+                                                     setuptype=type,
+                                                     world=world)
+
     if hasattr(setupdata, 'build'):
         # It is not so nice that we have hubbard_u floating around here.
         # For example, none of the other setup types are aware
@@ -1246,10 +1248,11 @@ class Setup(BaseSetup):
 
 class PartialWaveBasis(Basis):  # yuckkk
     def __init__(self, symbol, phit_J, n_J):
-        Basis.__init__(self, symbol, 'partial-waves', readxml=False)
         self._basis_functions_J = phit_J
-        self.bf_j = [BasisFunction(n, phit.get_angular_momentum_number())
-                     for n, phit in zip(n_J, phit_J)]
+        super().__init__(
+            symbol, 'partial-waves',
+            bf_j=[BasisFunction(n, phit.get_angular_momentum_number())
+                  for n, phit in zip(n_J, phit_J)])
 
     def tosplines(self):
         return self._basis_functions_J
@@ -1339,7 +1342,7 @@ class Setups(list):
                 # (meaning we load the basis set now from a file) or an actual
                 # pre-created Basis object (meaning we just pass it along)
                 if isinstance(basis, str):
-                    basis = Basis(symbol, basis, world=world)
+                    basis = Basis.find(symbol, basis, world=world)
                 setup = create_setup(symbol, xc, 2, type,
                                      basis, setupdata=setupdata,
                                      filter=filter, world=world,
@@ -1465,12 +1468,13 @@ class Setups(list):
             integrals=integral,
             xp=xp)
 
-    def get_overlap_corrections(self, atomdist, xp):
+    def get_overlap_corrections(self, atomdist, xp, dtype=np.float64):
         if atomdist is getattr(self, '_atomdist', None):
-            return self.dS_aii
+            if self.dS_aii.data.dtype == dtype:
+                return self.dS_aii
         self._atomdist = atomdist
         dS_aii = AtomArraysLayout([setup.dO_ii.shape for setup in self],
-                                  atomdist=atomdist).empty()
+                                  atomdist=atomdist, dtype=dtype).empty()
         for a, dS_ii in dS_aii.items():
             dS_ii[:] = self[a].dO_ii
         self.dS_aii = dS_aii.to_xp(xp)
