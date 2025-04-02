@@ -134,15 +134,15 @@ def get_calculation_info(atoms: Atoms, *param_dict,
     else:
         comm = None
     dft_builder = builder(atoms, params=params, comm=comm, log=log)
-    dft_params = CalcInfo(atoms,
-                          params,
-                          dft_builder.ibz,
-                          dft_builder.ncomponents,
-                          dft_builder.nspins,
-                          dft_builder.nbands,
-                          dft_builder.setups,
-                          dft_builder.grid,
-                          dft_builder.communicators,
+    dft_params = CalcInfo(atoms=atoms,
+                          params=params,
+                          ibz=dft_builder.ibz,
+                          ncomponents=dft_builder.ncomponents,
+                          nspins=dft_builder.nspins,
+                          nbands=dft_builder.nbands,
+                          setups=dft_builder.setups,
+                          grid=dft_builder.grid,
+                          communicators=dft_builder.communicators,
                           comm=comm,
                           log=log)
     if dft_builder.mode != 'lcao':
