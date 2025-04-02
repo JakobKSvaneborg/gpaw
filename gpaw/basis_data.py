@@ -47,7 +47,7 @@ def parse_basis_filename(filename: str):
     symbol = tokens[0]
     name = '.'.join(tokens[1:-1])
     if not name:
-        name = None
+        return symbol, None
     return symbol, name
 
 

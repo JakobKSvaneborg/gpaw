@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import os
 import re
@@ -419,13 +421,14 @@ class SetupData:
         return setup
 
 
-def read_maybe_unzipping(path: Path) -> bytes:
+def read_maybe_unzipping(path: Path | str) -> bytes:
     import gzip
-    if path.suffix == '.gz':
+    if Path(path).suffix == '.gz':
         with gzip.open(path) as fd:
             return fd.read()
 
-    return path.read_bytes()
+    with open(path, 'rb') as fd:
+        return fd.read()
 
 
 def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
@@ -445,7 +448,7 @@ def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
                 # the files are somehow version numbered; then we want the
                 # last/newest of the results (used with SG15).  (User must
                 # instantiate (UPF)SetupData directly to override.)
-                filename = Path(max(filenames))
+                filename = max(filenames)
                 source = read_maybe_unzipping(filename)
                 break
 
