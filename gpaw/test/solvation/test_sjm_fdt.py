@@ -11,6 +11,7 @@ from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 @pytest.mark.skip('Too slow: 11 min.')
 @pytest.mark.slow
+@pytest.mark.old_gpaw_only
 def test_sjm_fdt_true(in_tmp_dir):
     """Test if fdt dictionary is correctly set in the calculator.
     Test if fdt initial excess electron value is correctly

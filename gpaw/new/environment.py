@@ -8,30 +8,35 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class Environment:
+    """Environment object.
+
+    Used for jellium, solvation, solvated jellium model, ...
+    """
     def __init__(self, natoms: int):
         self.natoms = natoms
         self.charge = 0.0
 
-    def create_poisson_solver(self, grid, *, xp, **kwargs) -> PoissonSolver:
+    def create_poisson_solver(self, *, grid, xp, **kwargs) -> PoissonSolver:
         solver = make_poisson_solver(**kwargs, xp=xp)
         solver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(solver)
 
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,
+                             nelectrons: float,
                              occ_calc,
                              mixer,
                              log) -> bool:
         """Allow for environment to "converge"."""
         return True
 
-    def update1(self, nt_r):
+    def update1(self, nt_r) -> None:
         pass
 
-    def update1pw(self, nt_g):
+    def update1pw(self, nt_g) -> None:
         pass
 
-    def update2(self, nt_r, vHt_r, vt_sr):
+    def update2(self, nt_r, vHt_r, vt_sr) -> float:
         return 0.0
 
     def forces(self, nt_r, vHt_r):
@@ -71,38 +76,41 @@ class FixedPotentialJellium(Jellium):
                  jellium,
                  natoms: int,
                  grid: UGDesc,
-                 fermi_level: float):
+                 workfunction: float,  # eV
+                 tolerance: float = 0.001):  # eV
         """Adjust jellium charge to get the desired Fermi-level."""
         super().__init__(jellium, natoms, grid)
-        self.fixed_fermi_level = fermi_level / Ha
+        self.workfunction = workfunction / Ha
+        self.tolerance = tolerance / Ha
         # Charge, Fermi-level history:
         self.history: list[tuple[float, float]] = []
 
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,
+                             nelectrons: float,
                              occ_calc,
                              mixer,
                              log) -> bool:
-        fl = ibzwfs.fermi_level
-        log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl * Ha:.3f} eV')
-        tol = 0.001 / Ha
-        if abs(fl - self.fixed_fermi_level) <= tol:
+        fl1 = ibzwfs.fermi_level
+        log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl1 * Ha:.3f} eV')
+        fl = -self.workfunction
+        if abs(fl1 - fl) <= self.tolerance:
             return True
-        self.history.append((self.charge, fl))
+        self.history.append((self.charge, fl1))
         if len(self.history) == 1:
             area = abs(np.linalg.det(self.grid.cell_cv[:2, :2]))
-            dc = -(fl - self.fixed_fermi_level) * area * 0.02
+            dc = -(fl1 - fl) * area * 0.02
         else:
-            (c0, fl0), (c1, fl1) = self.history[-2:]
-            c = c0 + (self.fixed_fermi_level - fl0) / (fl1 - fl0) * (c1 - c0)
+            (c2, fl2), (c1, fl1) = self.history[-2:]
+            c = c2 + (fl - fl2) / (fl1 - fl2) * (c1 - c2)
             dc = c - c1
-            if abs(dc) > abs(c0 - c1):
-                dc *= abs((c0 - c1) / dc)
+            if abs(dc) > abs(c2 - c1):
+                dc *= abs((c2 - c1) / dc)
         new_charge = self.charge + dc
         if self.charge_x is not None:
             self.charge_x.data *= new_charge / self.charge
         self.charge = new_charge
-        ibzwfs.nelectrons += dc
-        ibzwfs.calculate_occs(occ_calc)
+        nelectrons += dc
+        ibzwfs.calculate_occs(occ_calc, nelectrons)
         mixer.reset()
         return False

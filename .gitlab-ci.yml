@@ -658,6 +658,10 @@ nightly-mpi-1:
     paths:
       - htmlcov/
     expire_in: 1 day
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_success
+      allow_failure: true
 
 
 nightly-mpi-2:

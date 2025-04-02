@@ -112,24 +112,27 @@ class DFTCalculation:
 
         basis_set = builder.create_basis_set()
 
-        density = builder.density_from_superposition(basis_set)
-        if len(atoms) == 0:
-            density.nt_sR.data[:] = 1.0
-        density.normalize(builder.background_charge)
-
         # The SCF-loop has a Hamiltonian that has an fft-plan that is
         # cached for later use, so best to create the SCF-loop first
         # FIX this!
         scf_loop = builder.create_scf_loop()
 
         pot_calc = builder.create_potential_calculator(log)
+
+        density = builder.density_from_superposition(basis_set)
+        if len(atoms) == 0:
+            density.nt_sR.data[:] = 1.0
+        density.normalize(pot_calc.environment.charge)
+
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential, log=log)
 
         if ibzwfs.wfs_qs[0][0]._eig_n is not None:
-            ibzwfs.calculate_occs(scf_loop.occ_calc)
+            nelectrons = (density.nvalence - density.charge +
+                          pot_calc.environment.charge)
+            ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
         log(ibzwfs)
@@ -320,7 +323,8 @@ class DFTCalculation:
             except NonsenseError:
                 pass
             else:
-                self.log(f'Workfunctions: {wf1:.3f}, {wf2:.3f}  # eV')
+                self.log(
+                    f'Workfunctions: {wf1:.3f}, {wf2:.3f} eV (top, bottom)')
         self.log.fd.flush()
 
     def workfunctions(self,
@@ -424,13 +428,16 @@ class DFTCalculation:
         if abs(kpt_kc - old_kpt_kc).max() > 1e-9:
             raise ReuseWaveFunctionsError
 
-        log('# Interpolating wave functions to new cell')
+        log('Interpolating wave functions to new cell')
+
+        scf_loop = builder.create_scf_loop()
+        pot_calc = builder.create_potential_calculator(log)
 
         density = self.density.new(builder.grid,
                                    builder.interpolation_desc,
                                    builder.relpos_ac,
                                    builder.atomdist)
-        density.normalize(builder.background_charge)
+        density.normalize(pot_calc.environment.charge)
 
         # Make sure all have exactly the same density.
         # Not quite sure it is needed???
@@ -439,8 +446,6 @@ class DFTCalculation:
         if density.nt_sR.xp is np:
             self.comm.broadcast(density.nt_sR.data, 0)
 
-        scf_loop = builder.create_scf_loop()
-        pot_calc = builder.create_potential_calculator(log)
         potential, energies, _ = pot_calc.calculate(density)
 
         old_ibzwfs = ibzwfs
@@ -454,7 +459,6 @@ class DFTCalculation:
 
         ibzwfs = ibzwfs.create(
             ibz=builder.ibz,
-            nelectrons=old_ibzwfs.nelectrons,
             ncomponents=old_ibzwfs.ncomponents,
             create_wfs_func=create_wfs,
             kpt_comm=old_ibzwfs.kpt_comm,

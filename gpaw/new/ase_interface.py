@@ -5,7 +5,7 @@ from functools import cached_property
 from pathlib import Path
 from pprint import pformat
 from types import SimpleNamespace
-from typing import IO, Any, Callable, Protocol, Sequence, Union, Iterable
+from typing import IO, Any, Callable, Iterable, Protocol, Sequence, Union
 
 import numpy as np
 from ase import Atoms
@@ -13,13 +13,13 @@ from ase.units import Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
-from gpaw.mpi import MPIComm, broadcast
-from gpaw.mpi import synchronize_atoms, world
+from gpaw.mpi import MPIComm, broadcast, synchronize_atoms, world
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
-from gpaw.new.gpw import read_gpw, write_gpw, GPWFlags
+from gpaw.new.environment import Environment
+from gpaw.new.gpw import GPWFlags, read_gpw, write_gpw
 from gpaw.new.input_parameters import InputParameters
 from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.logger import Logger
@@ -40,11 +40,11 @@ def GPAW(
     *,
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Iterable[int] | None = None,
-    background_charge=None,
     basis: str | dict[str | int | None, str] | None = None,
     charge: float | None = None,
     convergence: dict[str, Any] | None = None,
     eigensolver: dict[str, Any] | None = None,
+    environment: Environment | None = None,
     experimental: dict[str, Any] | None = None,
     external: dict[str, Any] | None = None,
     gpts: None | Sequence[int] | None = None,
@@ -110,7 +110,7 @@ LOGO = """\
 """
 
 
-def write_header(log, params):
+def write_header(log: Logger, params: InputParameters) -> None:
     from gpaw.io.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
@@ -473,7 +473,9 @@ class ASECalculator:
         return self.dft.ibzwfs.get_homo_lumo(spin) * Ha
 
     def get_number_of_electrons(self):
-        return self.dft.ibzwfs.nelectrons
+        density = self.dft.density
+        return (density.nvalence - density.charge +
+                self.dft.pot_calc.environment.charge)
 
     def get_number_of_bands(self):
         return self.dft.ibzwfs.nbands
@@ -677,7 +679,8 @@ class ASECalculator:
         ibzwfs = diagonalize(dft.potential,
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
-                             nbands)
+                             nbands,
+                             dft.density.nvalence + dft.density.charge)
         dft.ibzwfs = ibzwfs
         self.params._add('nbands', ibzwfs.nbands)
 
