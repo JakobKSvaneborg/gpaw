@@ -17,17 +17,17 @@ from gpaw.mpi import MPIComm
 @dataclass
 class CalcInfo:
     atoms: Atoms
-    input_params: Union(dict, InputParameters)
+    input_params: Union[dict, InputParameters]
     ibz: IBZ
     ncomponents: int
     nspins: int
     nbands: int
     setups: Setups
     grid: UGDesc
-    wf_description: Union(Domain, None) = None
-    communicators: Union(dict[str, MPIComm], None) = None
-    comm: Union(MPIComm, None) = None
-    log: Union(Logger, str, None) = None
+    wf_description: Union[Domain, None] = None
+    communicators: Union[dict[str, MPIComm], None] = None
+    comm: Union[MPIComm, None] = None
+    log: Union[Logger, str, None] = None
 
     def update_params(self, **updated_params):
         params = self.input_params.copy()
