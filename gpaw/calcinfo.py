@@ -6,7 +6,6 @@ from ase import Atoms
 from gpaw.new.builder import builder
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.ibzwfs import IBZ
-from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.core import UGDesc
 from gpaw.core.domain import Domain
