@@ -38,32 +38,40 @@ def check_dependencies(sources):
     mtimes = {}  # modification times
 
     # Remove object files if any dependencies have changed:
-    plat = get_platform() + '-{maj}.{min}'.format(maj=sys.version_info[0],
-                                                  min=sys.version_info[1])
+    plat = get_platform() + "-{maj}.{min}".format(
+        maj=sys.version_info[0], min=sys.version_info[1]
+    )
     remove = False
     for source in sources:
         path, name = os.path.split(source)
-        t = mtime(path + '/', name, mtimes)
-        o = 'build/temp.%s/%s.o' % (plat, source[:-2])  # object file
+        t = mtime(path + "/", name, mtimes)
+        o = "build/temp.%s/%s.o" % (plat, source[:-2])  # object file
         if os.path.exists(o) and t > os.stat(o)[ST_MTIME]:
-            print('removing', o)
+            print("removing", o)
             os.remove(o)
             remove = True
 
-    so = 'build/lib.{}/_gpaw.so'.format(plat)
+    so = "build/lib.{}/_gpaw.so".format(plat)
     if os.path.exists(so) and remove:
         # Remove shared object C-extension:
         # print 'removing', so
         os.remove(so)
 
 
-def write_configuration(define_macros, include_dirs, libraries, library_dirs,
-                        extra_link_args, extra_compile_args,
-                        runtime_library_dirs, extra_objects, compiler):
-
+def write_configuration(
+    define_macros,
+    include_dirs,
+    libraries,
+    library_dirs,
+    extra_link_args,
+    extra_compile_args,
+    runtime_library_dirs,
+    extra_objects,
+    compiler,
+):
     # Write the compilation configuration into a file
     try:
-        out = open('configuration.log', 'w')
+        out = open("configuration.log", "w")
     except IOError as x:
         print(x)
         return
@@ -81,30 +89,39 @@ def write_configuration(define_macros, include_dirs, libraries, library_dirs,
 
 
 def build_interpreter(
-        compiler, extension, extension_objects, *,
-        link_extra_preargs, link_extra_postargs,
-        build_temp, build_bin, debug):
-    exename = compiler.executable_filename('gpaw-python')
-    print(f'building {repr(exename)} executable', flush=True)
+    compiler,
+    extension,
+    extension_objects,
+    *,
+    link_extra_preargs,
+    link_extra_postargs,
+    build_temp,
+    build_bin,
+    debug,
+):
+    exename = compiler.executable_filename("gpaw-python")
+    print(f"building {repr(exename)} executable", flush=True)
 
     macros = extension.define_macros.copy()
     for undef in extension.undef_macros:
         macros.append((undef,))
 
     # Compile the sources that define GPAW_INTERPRETER
-    sources = ['c/main.c']
+    sources = ["c/main.c"]
     objects = compiler.compile(
         sources,
         output_dir=str(build_temp),
         macros=macros,
         include_dirs=extension.include_dirs,
         debug=debug,
-        extra_postargs=extension.extra_compile_args)
+        extra_postargs=extension.extra_compile_args,
+    )
     objects += extension_objects
 
     # Link the custom interpreter
     compiler.link_executable(
-        objects, exename,
+        objects,
+        exename,
         output_dir=str(build_bin),
         extra_preargs=link_extra_preargs,
         libraries=extension.libraries,
@@ -112,54 +129,73 @@ def build_interpreter(
         runtime_library_dirs=extension.runtime_library_dirs,
         extra_postargs=link_extra_postargs + extension.extra_link_args,
         debug=debug,
-        target_lang=extension.language)
+        target_lang=extension.language,
+    )
     return build_bin / exename
 
 
-def build_gpu(gpu_compiler, gpu_compile_args, gpu_include_dirs,
-              define_macros, undef_macros, build_temp):
-    print('building gpu kernels', flush=True)
+def build_gpu(
+    gpu_compiler,
+    gpu_compile_args,
+    gpu_include_dirs,
+    define_macros,
+    undef_macros,
+    build_temp,
+):
+    print("building gpu kernels", flush=True)
 
-    kernels_dpath = Path('c/gpu/kernels')
+    kernels_dpath = Path("c/gpu/kernels")
 
     # Create temp build directory
     build_temp_kernels_dpath = build_temp / kernels_dpath
     if not build_temp_kernels_dpath.exists():
-        print(f'creating {build_temp_kernels_dpath}', flush=True)
+        print(f"creating {build_temp_kernels_dpath}", flush=True)
         build_temp_kernels_dpath.mkdir(parents=True)
 
     # Glob all kernel files, but remove those included by other kernels
-    kernels = sorted(kernels_dpath.glob('*.cpp'))
-    for name in ['interpolate-stencil.cpp',
-                 'lfc-reduce.cpp',
-                 'lfc-reduce-kernel.cpp',
-                 'reduce.cpp',
-                 'reduce-kernel.cpp',
-                 'restrict-stencil.cpp']:
+    kernels = sorted(kernels_dpath.glob("*.cpp"))
+    for name in [
+        "interpolate-stencil.cpp",
+        "lfc-reduce.cpp",
+        "lfc-reduce-kernel.cpp",
+        "reduce.cpp",
+        "reduce-kernel.cpp",
+        "restrict-stencil.cpp",
+    ]:
         kernels.remove(kernels_dpath / name)
+
+    ## Add Magma-specific files if needed (figure out from define_macros)
+    with_magma: bool = any(t[0] == "GPAW_WITH_MAGMA" for t in define_macros)
+    if with_magma:
+        path_magma = Path(kernels_dpath / "magma")
+        files_magma = sorted(path_magma.rglob("*.cpp"))
+        kernels.extend(files_magma)
 
     # Compile GPU kernels
     objects = []
     for src in kernels:
-        obj = build_temp / src.with_suffix('.o')
+        obj = build_temp / src.with_suffix(".o")
         objects.append(str(obj))
         run_args = [gpu_compiler]
         run_args += gpu_compile_args
-        for (name, value) in define_macros:
-            arg = f'-D{name}'
+        for name, value in define_macros:
+            arg = f"-D{name}"
             if value is not None:
-                arg += f'={value}'
+                arg += f"={value}"
             run_args += [arg]
-        run_args += [f'-U{name}' for name in undef_macros]
-        run_args += [f'-I{dpath}' for dpath in gpu_include_dirs]
-        run_args += ['-c', str(src)]
-        run_args += ['-o', str(obj)]
+        run_args += [f"-U{name}" for name in undef_macros]
+        run_args += [f"-I{dpath}" for dpath in gpu_include_dirs]
+        run_args += ["-c", str(src)]
+        run_args += ["-o", str(obj)]
         print(shlex.join(run_args), flush=True)
         p = run(run_args, check=False, shell=False)
         if p.returncode != 0:
-            print(f'error: command {repr(gpu_compiler)} failed '
-                  f'with exit code {p.returncode}',
-                  file=sys.stderr, flush=True)
+            print(
+                f"error: command {repr(gpu_compiler)} failed "
+                f"with exit code {p.returncode}",
+                file=sys.stderr,
+                flush=True,
+            )
             sys.exit(1)
 
     return objects
