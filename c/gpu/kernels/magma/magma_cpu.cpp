@@ -1,14 +1,18 @@
 #ifdef GPAW_WITH_MAGMA
 
-#include "extensions.h"
-#include "array.h"
+#include "../../../extensions.h"
+#include "../../../array.h"
 
 #include <assert.h>
 #include <string.h>
 
 #include "magma_gpaw.hpp"
 
+namespace gpawmagma
+{
+
 // Wrappers for MAGMA CPU-eigensolvers. These input and output Numpy arrays
+
 
 extern "C"
 PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
@@ -218,5 +222,7 @@ PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args)
     return result;
 
 }
+
+} // namespace gpawmagma
 
 #endif

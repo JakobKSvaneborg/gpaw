@@ -1,16 +1,16 @@
 #if defined(GPAW_WITH_MAGMA) && defined(GPAW_GPU)
 
-#include "../extensions.h"
+#include "../../../extensions.h"
 
 // Define magic to enable custom Array_** macros for CUPY arrays
 #define GPAW_ARRAY_DISABLE_NUMPY
 #define GPAW_ARRAY_ALLOW_CUPY
-#include "../array.h"
+#include "../../../array.h"
 #undef GPAW_ARRAY_DISABLE_NUMPY
 
-#include "gpu.h"
-#include "gpu-complex.h"
-#include "../magma_gpaw.hpp"
+#include "../gpu.h"
+#include "../gpu-complex.h"
+#include "magma_gpaw.hpp"
 
 #include <assert.h>
 #include <string.h>
@@ -21,6 +21,8 @@
 // underlying memory pointers to an internal function that does the work, ie.
 // calls MAGMA. Output is written to the buffers that were passed from Python.
 
+namespace gpawmagma
+{
 
 static magma_int_t _eigh_magma_dsyevd_gpu(int matrix_size, magma_uplo_t uplo,
     double* in_matrix, double* inout_eigvals, double* inout_eigvects)
@@ -238,4 +240,5 @@ PyObject* eigh_magma_zheevd_gpu(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
+} // namespace gpawmagma
 #endif

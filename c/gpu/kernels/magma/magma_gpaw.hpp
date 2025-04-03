@@ -9,14 +9,22 @@
     #error "C++ needed for GPAW Magma wrappers"
 #endif
 
-/* Check error code of a MAGMA function. This is intended for fatal errors,
-so we assert on failure. */
-#define MAGMA_CHECK(expr)               \
-    do {                                \
-        magma_int_t res = expr;         \
-        assert(res == MAGMA_SUCCESS);   \
-    } while (0)
+#include <assert.h>
+#include <stdlib.h>
 
+// Check error code of a MAGMA function. Intended for fatal errors, so we exit on failure.
+#define MAGMA_CHECK(result) gpawmagma::check(result, __FILE__, __LINE__)
+
+namespace gpawmagma
+{
+
+inline void check(magma_int_t result, const char *file, int line)
+{
+    if (result != MAGMA_SUCCESS) {
+        printf("\n\n%s in %s at line %d\n", magma_strerror(result), file, line);
+        exit(EXIT_FAILURE);
+    }
+}
 
 static inline magma_uplo_t get_magma_uplo(char* in_uplo_str)
 {
@@ -60,3 +68,5 @@ typedef struct heevd_workgroup
     RealT* rwork;
     magma_int_t* iwork;
 } heevd_workgroup;
+
+} // namespace gpawmagma
