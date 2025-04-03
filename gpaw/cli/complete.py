@@ -38,12 +38,12 @@ commands = {
          '--projectors', '-r', '--radius', '-0',
          '--zero-potential', '-c',
          '--pseudo-core-density-radius', '-z', '--pseudize',
-         '-p', '--plot', '-l', '--logarithmic-derivatives', '-w',
-         '--write', '-s', '--scalar-relativistic', '-n',
-         '--no-check', '-t', '--tag', '-a', '--alpha', '-g',
-         '--gamma', '-b', '--create-basis-set', '--nlcc',
-         '--core-hole', '-e', '--electrons', '--ecut', '--ri',
-         '--omega'],
+         '-p', '--plot', '-S', '--separate-figures', '-l',
+         '--logarithmic-derivatives', '-w', '--write', '-s',
+         '--scalar-relativistic', '-n', '--no-check', '-t',
+         '--tag', '-a', '--alpha', '-g', '--gamma', '-b',
+         '--create-basis-set', '--nlcc', '--core-hole', '-e',
+         '--electrons', '--ecut', '--ri', '--omega'],
     'diag':
         ['-b', '--bands', '-s', '--scalapack'],
     'dos':
@@ -59,6 +59,10 @@ commands = {
          '--basis', '--test', '--register', '--no-register'],
     'plot-basis':
         ['--write'],
+    'plot-dataset':
+        ['-b', '--basis-set', '-p', '--potential-components', '-l',
+         '--logarithmic-derivatives', '-s', '--separate-figures',
+         '-o', '--outfile', '--write'],
     'python':
         ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
          '--module', '-m'],

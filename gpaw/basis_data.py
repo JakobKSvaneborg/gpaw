@@ -327,17 +327,20 @@ class BasisPlotter:
         self.default_filename = '%(symbol)s.%(name)s.' + ext
 
         self.title = 'Basis functions: %(symbol)s %(name)s'
-        self.xlabel = r'r [Bohr]'
+        self.xlabel = 'radius [Bohr]'
+        ylabel = r'\Phi(r)'
         if premultiply:
-            ylabel = r'$\tilde{\phi} r$'
-        else:
-            ylabel = r'$\tilde{\phi}$'
-        self.ylabel = ylabel
+            ylabel = 'r' + ylabel
+        self.ylabel = f'${ylabel}$'
 
         self.normalize = normalize
 
     def plot(self, basis, filename=None, ax=None, **plot_args):
-        import matplotlib.pyplot as plt
+        if ax is None:
+            from matplotlib import pyplot as plt
+
+            ax = plt.figure().gca()
+
         if plot_args is None:
             plot_args = {}
         r_g = basis.rgd.r_g
@@ -370,9 +373,6 @@ class BasisPlotter:
             factor = np.ones_like(r_g)
 
         dashes_l = [(), (6, 3), (4, 1, 1, 1), (1, 1)]
-
-        if ax is None:
-            ax = plt.figure().gca()
 
         for norm, bf in zip(norm_j, basis.bf_j):
             ng = len(bf.phit_g)

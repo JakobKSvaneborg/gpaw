@@ -17,6 +17,7 @@ commands = [
     ('python', 'gpaw.cli.python'),
     ('sbatch', 'gpaw.cli.sbatch'),
     ('dataset', 'gpaw.atom.generator2'),
+    ('plot-dataset', 'gpaw.atom.plot_dataset'),
     ('basis', 'gpaw.atom.basisfromfile'),
     ('plot-basis', 'gpaw.basis_data'),
     ('symmetry', 'gpaw.symmetry'),
