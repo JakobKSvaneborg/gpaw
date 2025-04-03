@@ -206,7 +206,13 @@ def plot_dataset(
     plot_logarithmic_derivatives: str | None = None,
     separate_figures: bool = False,
     reconstruct_generator: bool = False,
-) -> list['Axes']:
+    savefig: str | None = None,
+) -> tuple[list['Axes'], str | None]:
+    """
+    Return
+    ------
+    2-tuple: `tuple[list[Axes], <filename> | None]`
+    """
     if gen is not None:
         reconstruct = False
     elif plot_logarithmic_derivatives or plot_potential_components:
@@ -251,12 +257,21 @@ def plot_dataset(
     if basis is not None:
         plots.append(functools.partial(BasisPlotter().plot, basis))
 
+    if savefig is not None:
+        separate_figures = False
     ax_objs: list['Axes'] = _get_ax_objs(len(plots), separate_figures)
     assert len(ax_objs) == len(plots)
     for ax, plot_func in zip(ax_objs, plots):
         plot_func(ax=ax)
 
-    return ax_objs
+    if savefig is not None:
+        figures = [ax.get_figure() for ax in ax_objs]
+        assert len({id(fig) for fig in figures}) == 1
+        fig, *_ = figures
+        assert fig is not None
+        fig.savefig(savefig)
+
+    return ax_objs, savefig
 
 
 def main(args: SimpleNamespace) -> None:
@@ -264,14 +279,17 @@ def main(args: SimpleNamespace) -> None:
 
     setup = read_setup_file(args.dataset)
     basis = None if args.basis_set is None else read_basis_file(args.basis_set)
-    ax_objs = plot_dataset(
+    sep_figs = args.savefig is None and args.separate_figures
+    ax_objs, fname = plot_dataset(
         setup,
         basis=basis,
-        separate_figures=args.separate_figures,
+        separate_figures=sep_figs,
         plot_potential_components=args.potential_components,
-        plot_logarithmic_derivatives=args.logarithmic_derivatives)
+        plot_logarithmic_derivatives=args.logarithmic_derivatives,
+        savefig=args.savefig)
+    assert ax_objs
 
-    if ax_objs:
+    if fname is None:
         plt.show()
 
 
@@ -297,8 +315,12 @@ class CLICommand:
             'Energy range and/or radius can be left out.')
         add('-s', '--separate-figures',
             action='store_true',
-            help='plot the plots in separate figure windows/tabs, '
+            help='if not plotting to a file, '
+            'plot the plots in separate figure windows/tabs, '
             'instead of as subplots/panels in the same figure')
+        add('-o', '--savefig',
+            metavar='FILE',
+            help='write the plots to FILE instead of `plt.show()`-ing them')
         add('dataset',
             metavar='FILE',
             help='XML file from which to read the PAW dataset')

@@ -59,8 +59,8 @@ commands = {
          '--basis', '--test', '--register', '--no-register'],
     'plot-dataset':
         ['-b', '--basis-set', '-p', '--potential-components', '-l',
-         '--logarithmic-derivatives', '-s',
-         '--separate-figures'],
+         '--logarithmic-derivatives', '-s', '--separate-figures',
+         '-o', '--savefig'],
     'python':
         ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
          '--module', '-m'],

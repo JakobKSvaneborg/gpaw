@@ -1426,11 +1426,18 @@ class CLICommand:
         add('-z', '--pseudize',
             metavar='type,nderivs',
             help='Parameters for pseudizing wave functions.')
-        add('-p', '--plot', action='store_true',
-            help='Show a plot of the setup.')
+        add('-p', '--plot',
+            const=True,
+            default=False,
+            metavar='FILE',
+            nargs='?',
+            help='Show plots of the setup; '
+            'if a filename is supplied, write the plots thereto instead of '
+            '`plt.show()`-ing them')
         add('-S', '--separate-figures',
             action='store_true',
-            help='plot the plots in separate figure windows/tabs, '
+            help='if not plotting to a file, '
+            'plot the plots in separate figure windows/tabs, '
             'instead of as subplots/panels in the same figure')
         add('-l', '--logarithmic-derivatives',
             metavar='spdfg,e1:e2:de,radius',
@@ -1517,19 +1524,19 @@ def main(args):
         from .plot_dataset import plot_dataset
 
         assert setup is not None
-        ax_objs = plot_dataset(
+        ax_objs, plot_fname = plot_dataset(
             setup,
             basis=basis,
             gen=gen,
-            plot_potential_components=args.plot,
-            plot_partial_waves=args.plot,
-            plot_projectors=args.plot,
+            plot_potential_components=bool(args.plot),
+            plot_partial_waves=bool(args.plot),
+            plot_projectors=bool(args.plot),
             plot_logarithmic_derivatives=args.logarithmic_derivatives,
             separate_figures=args.separate_figures,
+            savefig=(None if args.plot in (True, False) else args.plot),
         )
-        if not ax_objs:
-            return
-        plt.show()
+        if ax_objs and plot_fname is None:
+            plt.show()
 
 
 def plot_log_derivs(gen: PAWSetupGenerator,
