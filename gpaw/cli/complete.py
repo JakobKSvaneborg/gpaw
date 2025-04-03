@@ -62,7 +62,7 @@ commands = {
     'plot-dataset':
         ['-b', '--basis-set', '-p', '--potential-components', '-l',
          '--logarithmic-derivatives', '-s', '--separate-figures',
-         '-o', '--savefig'],
+         '-o', '--outfile', '--write'],
     'python':
         ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
          '--module', '-m'],

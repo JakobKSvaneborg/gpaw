@@ -279,14 +279,14 @@ def main(args: SimpleNamespace) -> None:
 
     setup = read_setup_file(args.dataset)
     basis = None if args.basis_set is None else read_basis_file(args.basis_set)
-    sep_figs = args.savefig is None and args.separate_figures
+    sep_figs = args.outfile is None and args.separate_figures
     ax_objs, fname = plot_dataset(
         setup,
         basis=basis,
         separate_figures=sep_figs,
         plot_potential_components=args.potential_components,
         plot_logarithmic_derivatives=args.logarithmic_derivatives,
-        savefig=args.savefig)
+        savefig=args.outfile)
     assert ax_objs
 
     if fname is None:
@@ -309,18 +309,18 @@ class CLICommand:
             '(this reconstructs the full PAW setup generator object)')
         add('-l', '--logarithmic-derivatives',
             metavar='spdfg,e1:e2:de,radius',
-            help='Plot logarithmic derivatives'
+            help='Plot logarithmic derivatives '
             '(this reconstructs the full PAW setup generator object). '
             'Example: -l spdf,-1:1:0.05,1.3. '
             'Energy range and/or radius can be left out.')
         add('-s', '--separate-figures',
             action='store_true',
-            help='if not plotting to a file, '
+            help='If not plotting to a file, '
             'plot the plots in separate figure windows/tabs, '
             'instead of as subplots/panels in the same figure')
-        add('-o', '--savefig',
+        add('-o', '--outfile', '--write',
             metavar='FILE',
-            help='write the plots to FILE instead of `plt.show()`-ing them')
+            help='Write the plots to FILE instead of `plt.show()`-ing them')
         add('dataset',
             metavar='FILE',
             help='XML file from which to read the PAW dataset')

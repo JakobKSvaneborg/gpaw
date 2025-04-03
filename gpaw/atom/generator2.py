@@ -1436,7 +1436,7 @@ class CLICommand:
             '`plt.show()`-ing them')
         add('-S', '--separate-figures',
             action='store_true',
-            help='if not plotting to a file, '
+            help='If not plotting to a file, '
             'plot the plots in separate figure windows/tabs, '
             'instead of as subplots/panels in the same figure')
         add('-l', '--logarithmic-derivatives',
