@@ -31,12 +31,15 @@ class Environment:
         return True
 
     def update1(self, nt_r) -> None:
+        """Hook called right before solving the Poisson equation."""
         pass
 
     def update1pw(self, nt_g) -> None:
+        """PW-mode hook called right before solving the Poisson equation."""
         pass
 
     def update2(self, nt_r, vHt_r, vt_sr) -> float:
+        """Calculate environment energy."""
         return 0.0
 
     def forces(self, nt_r, vHt_r):
