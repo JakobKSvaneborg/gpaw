@@ -168,8 +168,13 @@ def build_gpu(
     with_magma: bool = any(t[0] == "GPAW_WITH_MAGMA" for t in define_macros)
     if with_magma:
         path_magma = Path(kernels_dpath / "magma")
-        files_magma = sorted(path_magma.rglob("*.cpp"))
+        files_magma = sorted(path_magma.glob("*.cpp"))
         kernels.extend(files_magma)
+
+        build_temp_magma_dir = build_temp_kernels_dpath / "magma"
+        if not build_temp_magma_dir.exists():
+            print(f"creating {build_temp_magma_dir}", flush=True)
+            build_temp_magma_dir.mkdir(parents=True)
 
     # Compile GPU kernels
     objects = []
