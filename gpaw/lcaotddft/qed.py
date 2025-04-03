@@ -9,19 +9,20 @@ from gpaw.external import ConstantElectricField
 from gpaw.lcaotddft.hamiltonian import KickHamiltonian
 
 
-def create_environment(environment, **kwargs):
-    if environment is None:
-        return create_environment('waveguide', **kwargs)
-    elif isinstance(environment, Environment):
-        assert len(kwargs) == 0, 'kwargs must not be given here'
+def create_environment(environment='waveguide', **kwargs):
+    if isinstance(environment, Environment):
+        assert not kwargs, 'kwargs must not be given here'
         return environment
-    elif isinstance(environment, dict):
-        kwargs.update(environment)
-        return create_environment(**kwargs)
-    elif environment == 'waveguide':
+
+    if isinstance(environment, dict):
+        assert not kwargs, 'please do not give kwargs with dict'
+        kwargs = dict(environment)
+        environment = kwargs.pop('environment', 'waveguide')
+
+    if environment == 'waveguide':
         return WaveguideEnvironment(**kwargs)
-    else:
-        raise ValueError(f'Unknown environment: {environment}')
+
+    raise ValueError(f'Unknown environment {environment}')
 
 
 def forward_finite_difference(coefficients: list[int],
