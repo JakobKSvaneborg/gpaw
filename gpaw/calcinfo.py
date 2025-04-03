@@ -21,6 +21,7 @@ class CalcInfo:
     ncomponents: int
     nspins: int
     nbands: int
+    nelectrons: int
     setups: Setups
     grid: UGDesc
     wf_description: Union[Domain, None] = None
@@ -140,6 +141,7 @@ def get_calculation_info(atoms: Atoms, *param_dict,
                           ncomponents=dft_builder.ncomponents,
                           nspins=dft_builder.nspins,
                           nbands=dft_builder.nbands,
+                          nelectrons=dft_builder.nelectrons,
                           setups=dft_builder.setups,
                           grid=dft_builder.grid,
                           communicators=dft_builder.communicators,
