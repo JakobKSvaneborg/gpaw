@@ -1,14 +1,19 @@
+import pytest
 from ase.build import fcc111
 from ase.data.vdw import vdw_radii
 from gpaw import FermiDirac
+from gpaw.mpi import size
+from gpaw.new.ase_interface import GPAW
 from gpaw.new.sjm import SJM
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
                             LinearDielectric, SurfaceInteraction)
-from gpaw.solvation.sjm import SJM as OldSJM, SJMPower12Potential
-from gpaw.new.ase_interface import GPAW
+from gpaw.solvation.sjm import SJM as OldSJM
+from gpaw.solvation.sjm import SJMPower12Potential
 
 
 def test_sjm(gpaw_new):
+    if gpaw_new and size > 1:
+        pytest.skip('SJM with new-GPAW only works in serial!')
     # Solvent parameters
     u0 = 0.180  # eV
     epsinf = 78.36  # Dielectric constant of water at 298 K
