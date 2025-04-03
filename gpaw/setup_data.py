@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import os
 import re
@@ -419,6 +421,16 @@ class SetupData:
         return setup
 
 
+def read_maybe_unzipping(path: Path | str) -> bytes:
+    import gzip
+    if Path(path).suffix == '.gz':
+        with gzip.open(path) as fd:
+            return fd.read()
+
+    with open(path, 'rb') as fd:
+        return fd.read()
+
+
 def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
     """Traverse gpaw setup paths to find file.
 
@@ -437,12 +449,7 @@ def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
                 # last/newest of the results (used with SG15).  (User must
                 # instantiate (UPF)SetupData directly to override.)
                 filename = max(filenames)
-                import gzip
-                if filename.endswith('.gz'):
-                    with gzip.open(filename) as fd:
-                        source = fd.read()
-                else:
-                    source = Path(filename).read_bytes()
+                source = read_maybe_unzipping(filename)
                 break
 
     if world is not None:

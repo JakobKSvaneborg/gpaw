@@ -57,6 +57,8 @@ commands = {
     'install-data':
         ['--version', '--list-all', '--tarball', '--gpaw', '--sg15',
          '--basis', '--test', '--register', '--no-register'],
+    'plot-basis':
+        ['--write'],
     'python':
         ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
          '--module', '-m'],
