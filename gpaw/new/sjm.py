@@ -68,6 +68,7 @@ class SJMEnvironment(Environment):
         self.solvation = solvation
         self.jellium = jellium
         self.charge = jellium.charge
+        self.dielectric = solvation.dielectric
 
     def create_poisson_solver(self, **kwargs):
         ps = self.solvation.create_poisson_solver(**kwargs).solver

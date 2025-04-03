@@ -11,6 +11,7 @@ from scipy.special import erf
 def make_poisson_solver(pw: PWDesc,
                         grid: UGDesc,
                         charge: float,
+                        dielectric=None,
                         strength: float = 1.0,
                         dipolelayer: bool = False,
                         **kwargs) -> PoissonSolver:
@@ -21,7 +22,12 @@ def make_poisson_solver(pw: PWDesc,
 
     if dipolelayer:
         return DipoleLayerPWPoissonSolver(ps, grid, **kwargs)
+
     assert not kwargs
+
+    if dielectric is not None:
+        return ps  # return SJM Poisson-solver here ...
+
     return ps
 
 
