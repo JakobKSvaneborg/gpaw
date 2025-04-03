@@ -21,7 +21,7 @@ class CalcInfo:
     ncomponents: int
     nspins: int
     nbands: int
-    nelectrons: int
+    nelectrons: float
     setups: Setups
     grid: UGDesc
     wf_description: Union[Domain, None] = None
