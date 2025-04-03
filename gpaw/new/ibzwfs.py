@@ -29,7 +29,6 @@ class IBZWaveFunctions(Generic[WFT]):
     def __init__(self,
                  ibz: IBZ,
                  *,
-                 nelectrons: float,
                  ncomponents: int,
                  wfs_qs: list[list[WFT]],
                  kpt_comm: MPIComm = serial_comm,
@@ -40,7 +39,6 @@ class IBZWaveFunctions(Generic[WFT]):
         self.kpt_comm = kpt_comm
         self.kpt_band_comm = kpt_band_comm
         self.comm = comm
-        self.nelectrons = nelectrons
         self.ncomponents = ncomponents
         self.collinear = (ncomponents != 4)
         self.spin_degeneracy = ncomponents % 2 + 1
@@ -74,7 +72,6 @@ class IBZWaveFunctions(Generic[WFT]):
     def create(cls,
                *,
                ibz: IBZ,
-               nelectrons: float,
                ncomponents: int,
                create_wfs_func,
                kpt_comm: MPIComm = serial_comm,
@@ -98,7 +95,6 @@ class IBZWaveFunctions(Generic[WFT]):
             wfs_qs.append(wfs_s)
 
         return cls(ibz,
-                   nelectrons=nelectrons,
                    ncomponents=ncomponents,
                    wfs_qs=wfs_qs,
                    kpt_comm=kpt_comm,
@@ -152,7 +148,6 @@ class IBZWaveFunctions(Generic[WFT]):
                 '  # (' +
                 ('' if self.collinear else 'non-') + 'collinear spins)\n'
                 f'bands: {self.nbands}\n'
-                f'valence electrons: {self.nelectrons}\n'
                 f'spin-degeneracy: {self.spin_degeneracy}\n'
                 f'dtype: {self.dtype}\n\n'
                 'memory:\n'
@@ -181,12 +176,13 @@ class IBZWaveFunctions(Generic[WFT]):
     @trace
     def calculate_occs(self,
                        occ_calc,
+                       nelectrons: float,
                        fix_fermi_level=False) -> tuple[float, float, float]:
         degeneracy = self.spin_degeneracy
 
         # u index is q and s combined
         occ_un, fermi_levels, e_entropy = occ_calc.calculate(
-            nelectrons=self.nelectrons / degeneracy,
+            nelectrons=nelectrons / degeneracy,
             eigenvalues=[wfs.eig_n * Ha for wfs in self],
             weights=[wfs.weight for wfs in self],
             fermi_levels_guess=(None

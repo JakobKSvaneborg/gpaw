@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import os
 import re
@@ -113,6 +115,24 @@ class SetupData:
         if readxml:
             self.read_xml(world=world)
 
+    @classmethod
+    def find_and_read_path(cls, symbol, xctype,
+                           setuptype='paw', world=None):
+
+        setupdata = SetupData(symbol, xctype,
+                              name=setuptype,
+                              readxml=False,
+                              world=world)
+
+        setupdata.filename, source = search_for_file(setupdata.stdfilename,
+                                                     world=world)
+        PAWXMLParser(setupdata).parse(source=source, world=world)
+
+        nj = len(setupdata.l_j)
+        setupdata.e_kin_jj.shape = (nj, nj)
+
+        return setupdata
+
     @property
     def stdfilename(self):
         """Default filename if this setup is written."""
@@ -138,6 +158,7 @@ class SetupData:
         self.phit_jg.append(phit_g)
         self.pt_jg.append(pt_g)
 
+    # XXX delete me
     def read_xml(self, source=None, world=None):
         PAWXMLParser(self).parse(source=source, world=world)
         nj = len(self.l_j)
@@ -400,6 +421,16 @@ class SetupData:
         return setup
 
 
+def read_maybe_unzipping(path: Path | str) -> bytes:
+    import gzip
+    if Path(path).suffix == '.gz':
+        with gzip.open(path) as fd:
+            return fd.read()
+
+    with open(path, 'rb') as fd:
+        return fd.read()
+
+
 def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
     """Traverse gpaw setup paths to find file.
 
@@ -418,12 +449,7 @@ def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
                 # last/newest of the results (used with SG15).  (User must
                 # instantiate (UPF)SetupData directly to override.)
                 filename = max(filenames)
-                import gzip
-                if filename.endswith('.gz'):
-                    with gzip.open(filename) as fd:
-                        source = fd.read()
-                else:
-                    source = Path(filename).read_bytes()
+                source = read_maybe_unzipping(filename)
                 break
 
     if world is not None:

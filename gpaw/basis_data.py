@@ -35,6 +35,22 @@ def parse_basis_name(name):
     return zetacount, polcount
 
 
+def parse_basis_filename(filename: str):
+    tokens = filename.split('.')
+    if tokens[-1] == 'gz':
+        tokens.pop()
+
+    if tokens[-1] != 'basis':
+        raise RuntimeError('Expected <symbol>[.<name>].basis[.gz], '
+                           'got {filename!r}')
+
+    symbol = tokens[0]
+    name = '.'.join(tokens[1:-1])
+    if not name:
+        return symbol, None
+    return symbol, name
+
+
 def get_basis_name(zetacount, polarizationcount):
     zetachar = _basis_number2letter[zetacount]
     if polarizationcount == 0:
@@ -49,7 +65,7 @@ def get_basis_name(zetacount, polarizationcount):
 @dataclass(eq=False, frozen=True)
 class Basis:
     symbol: str
-    name: str
+    name: str | None = None
     rgd: RadialGridDescriptor | None = None
 
     bf_j: list[BasisFunction] = field(default_factory=list)
@@ -233,6 +249,7 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
 
         Example of filename: N.dzp.basis.  Use sz(dzp) to read
         the sz-part from the N.dzp.basis file."""
+        from gpaw.setup_data import read_maybe_unzipping
 
         if '(' in self.name:
             assert self.name.endswith(')')
@@ -245,8 +262,7 @@ class BasisSetXMLParser(xml.sax.handler.ContentHandler):
         if filename is None:
             filename, source = search_for_file(fullname, world=world)
         else:
-            with open(filename, 'rb') as fd:
-                source = fd.read()
+            source = read_maybe_unzipping(filename)
 
         self.filename = filename
         self.data = None
@@ -378,9 +394,40 @@ class BasisPlotter:
         if filename is None:
             filename = self.default_filename
         if self.save:
-            ax.figure.savefig(filename % basis.__dict__)
+            ax.get_figure().savefig(filename % basis.__dict__)
 
         if self.show:
-            ax.figure.show()
+            plt.show()
 
-        return ax.figure, ax
+        return ax
+
+
+class CLICommand:
+    """Plot basis set from FILE."""
+
+    @staticmethod
+    def add_arguments(parser):
+        parser.add_argument('file', metavar='FILE')
+        parser.add_argument(
+            '--write', metavar='FILE',
+            help='write plot to file inferring format from file extension.')
+
+    @staticmethod
+    def run(args):
+        from pathlib import Path
+        import matplotlib.pyplot as plt
+        path = Path(args.file)
+
+        # It is not particularly beautiful that we get the symbol and type
+        # from the filename.  It would be better for that information
+        # to be stored in the file, but it isn't.
+        symbol, name = parse_basis_filename(path.name)
+        basis = Basis.read_path(symbol, name, path=path)
+
+        plotter = BasisPlotter()
+        ax = plotter.plot(basis)
+
+        if args.write:
+            ax.get_figure().savefig(args.write)
+        else:
+            plt.show()

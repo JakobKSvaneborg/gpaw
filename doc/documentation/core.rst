@@ -426,6 +426,10 @@ Core
    :members:
    :undoc-members:
 
+.. autoclass:: gpaw.new.environment.Environment
+   :members:
+   :undoc-members:
+
 
 DFT
 ---

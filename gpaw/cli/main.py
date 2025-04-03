@@ -19,6 +19,7 @@ commands = [
     ('dataset', 'gpaw.atom.generator2'),
     ('plot-dataset', 'gpaw.atom.plot_dataset'),
     ('basis', 'gpaw.atom.basisfromfile'),
+    ('plot-basis', 'gpaw.basis_data'),
     ('symmetry', 'gpaw.symmetry'),
     ('install-data', 'gpaw.cli.install_data')]
 
