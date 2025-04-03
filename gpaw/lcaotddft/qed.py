@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-
+import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -13,6 +13,7 @@ def create_environment(environment, **kwargs):
     if environment is None:
         return create_environment('waveguide', **kwargs)
     elif isinstance(environment, Environment):
+        assert len(kwargs) == 0, 'kwargs must not be given here'
         return environment
     elif isinstance(environment, dict):
         kwargs.update(environment)
@@ -121,21 +122,37 @@ class RRemission:
 
     Parameters
     ----------
-    quantization_plane: float
-        value of :math:`quantization_plane` in atomic units
-    cavity_polarization: array
-        value of :math:`cavity_polarization` dimensionless (directional)
+    environment
+        Environment, or dictionary with environment parameters.
+
+    Notes
+    -----
+    A legacy form for constructing the RRemission object is supported
+    for backwards compatibility. In this form, two parameters are given.
+
+        quantization_plane: float
+            value of :math:`quantization_plane` in units of Å^2
+        cavity_polarization: array
+            value of :math:`cavity_polarization`; dimensionless (directional)
     """
 
-    def __init__(self,
-                 quantization_plane,
-                 cavity_polarization,
-                 environment=None):
-        # Set up environment
-        self.environment = create_environment(
-            environment=environment,
-            quantization_plane=quantization_plane,
-            cavity_polarization=cavity_polarization)
+    def __init__(self, *args):
+        if len(args) == 1:
+            self.environment = create_environment(args[0])
+        elif len(args) == 2:
+            # Legacy syntax
+            self.environment = create_environment(
+                'waveguide',
+                quantization_plane=args[0],
+                cavity_polarization=args[1])
+            warnings.warn(
+                "Use RRemission({'environment': 'waveguide', "
+                "'quantization_plane': quantization_plane, "
+                "'cavity_polarization': cavity_polarization})) instead of "
+                'RRemission(quantization_plane, cavity_polarization).',
+                FutureWarning)
+        else:
+            raise ValueError(...)
 
         # Recorded dipole moment over time
         # The entries all correspond to unique times
@@ -161,7 +178,7 @@ class RRemission:
     def from_reader(cls, reader):
         parameters = reader.parameters.asdict()
 
-        rremission = cls(**parameters)
+        rremission = cls(parameters)
         rremission.read(reader)
 
         return rremission

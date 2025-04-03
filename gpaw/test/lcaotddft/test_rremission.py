@@ -13,8 +13,11 @@ def test_rremission(gpw_files, in_tmp_dir):
     dt = 40
     niter = 20
 
+    env = {'environment': 'waveguide',
+           'quantization_plane': 0.5,
+           'cavity_polarization': [0, 0, 1]}
     td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'],
-                        rremission=RRemission(0.5, [0, 0, 1]),
+                        rremission=RRemission(env),
                         propagator={'name': 'scpc', 'tolerance': 1e-0})
     DipoleMomentWriter(td_calc, 'dm.dat')
     td_calc.absorption_kick([0.0, 0.0, 1e-5])
@@ -62,8 +65,11 @@ def test_rremission(gpw_files, in_tmp_dir):
     Restart check for rremission. Does restarting change the outcome?
     """
 
+    env = {'environment': 'waveguide',
+           'quantization_plane': 0.5,
+           'cavity_polarization': [0, 0, 1]}
     td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'],
-                        rremission=RRemission(0.5, [0, 0, 1]),
+                        rremission=RRemission(env),
                         propagator={'name': 'scpc', 'tolerance': 1e-0})
     DipoleMomentWriter(td_calc, 'dm_rrsplit.dat')
     td_calc.absorption_kick([0.0, 0.0, 1e-5])
@@ -77,3 +83,22 @@ def test_rremission(gpw_files, in_tmp_dir):
     dipole_full = read_td_file_data('dm.dat')[1][-10:]
     dipole_restart = read_td_file_data('dm_rrsplit.dat',)[1][-10:]
     assert np.allclose(dipole_full, dipole_restart)
+
+
+@pytest.mark.ci
+def test_legacy_parameters():
+    quantization_plane = 0.5
+    cavity_polarization = [0, 0, 1]
+    env = {'environment': 'waveguide',
+           'quantization_plane': quantization_plane,
+           'cavity_polarization': cavity_polarization}
+
+    # The proper way of setting up the RRemission
+    rr = RRemission(env)
+
+    # The legacy way
+    with pytest.warns(FutureWarning):
+        rr_legacy = RRemission(quantization_plane, cavity_polarization)
+
+    # The environment should be the same
+    assert rr.environment.todict() == rr_legacy.environment.todict()
