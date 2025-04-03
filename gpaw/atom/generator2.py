@@ -13,6 +13,7 @@ from gpaw.atom.aeatom import (AllElectronAtom, Channel, GaussianBasis, colors,
                               parse_ld_str)
 from gpaw.basis_data import Basis, BasisFunction
 from gpaw.gaunt import gaunt
+from gpaw.setup_data import SetupData
 from gpaw.typing import Array2D
 from gpaw.utilities import pack_hermitian
 from gpaw.xc.ri.ribasis import generate_ri_basis
@@ -1039,8 +1040,6 @@ class PAWSetupGenerator:
 
     def make_paw_setup(self, tag=None):
         aea = self.aea
-
-        from gpaw.setup_data import SetupData
         setup = SetupData(aea.symbol, aea.xc.name, tag, readxml=False,
                           generator_version=3)
 
@@ -1485,32 +1484,52 @@ def main(args):
     kwargs = get_parameters(args.symbol, args)
     gen = generate(**kwargs)
 
+    should_plot_dataset = args.logarithmic_derivatives or args.plot
+
     if not args.no_check:
         if not gen.check_all():
             raise DatasetGenerationError
 
-    if args.create_basis_set or args.write:
-        if args.create_basis_set:
-            basis = gen.create_basis_set(tag=args.tag, ri=args.ri)
-            basis.write_xml()
+    if args.create_basis_set:
+        basis = gen.create_basis_set(tag=args.tag, ri=args.ri)
+        basis.write_xml()  # XXX: should this only happen if `.write`?
+    else:
+        basis = None
 
+    if args.write or should_plot_dataset:
+        setup = gen.make_paw_setup(args.tag)
+        parameters = []
+        for key, value in kwargs.items():
+            if value is not None:
+                parameters.append(f'{key}={value!r}')
+        setup.generatordata = ',\n    '.join(parameters)
         if args.write:
-            setup = gen.make_paw_setup(args.tag)
-            parameters = []
-            for key, value in kwargs.items():
-                if value is not None:
-                    parameters.append(f'{key}={value!r}')
-            setup.generatordata = ',\n    '.join(parameters)
             setup.write_xml()
+    else:
+        setup = None
 
     if not args.create_basis_set and args.ri:
         raise ValueError('Basis set must be created in order to create the '
                          'RI-basis set as well')
 
-    if args.logarithmic_derivatives or args.plot:
-        from .plot_dataset import main as plot_main
+    if should_plot_dataset:
+        from matplotlib import pyplot as plt
+        from .plot_dataset import plot_dataset
 
-        plot_main(args, gen=gen, plot=args.plot)
+        assert setup is not None
+        ax_objs = plot_dataset(
+            setup,
+            basis=basis,
+            gen=gen,
+            plot_potential_components=args.plot,
+            plot_partial_waves=args.plot,
+            plot_projectors=args.plot,
+            plot_logarithmic_derivatives=args.logarithmic_derivatives,
+            separate_figures=args.separate_figures,
+        )
+        if not ax_objs:
+            return
+        plt.show()
 
 
 def plot_log_derivs(gen: PAWSetupGenerator,

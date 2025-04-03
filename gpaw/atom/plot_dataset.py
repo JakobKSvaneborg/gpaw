@@ -133,26 +133,19 @@ def get_pp_params_setup_data(
             zip(setup.l_j, setup.n_j, setup.eps_j, setup.pt_jg))
 
 
-def reconstruct_paw_gen(paw: str,
-                        basis: str | None = None) -> PAWSetupGenerator:
-    setup = read_setup_file(paw)
+def reconstruct_paw_gen(setup: SetupData,
+                        basis: Basis | None = None) -> PAWSetupGenerator:
     params = {'v0': None}
-    generator_data = setup.generatordata
-    if not generator_data:
-        generator, = minidom.parse(paw).getElementsByTagName('generator')
-        text, = generator.childNodes
-        generator_data = textwrap.dedent(text.data).strip('\n')
-    for line in generator_data.splitlines():
+    for line in setup.generatordata.splitlines():
         key, _, value = line.rstrip(',').partition('=')
         try:
             value = literal_eval(value)
         except Exception:
             continue
         params[key] = value
-    # XXX: Replace this with data read directly from the files
     gen = generate(**params)
-    if False and basis is not None:
-        gen.basis = read_basis_file(basis)
+    if basis is not None:
+        gen.basis = basis
     return gen
 
 
@@ -163,160 +156,151 @@ def read_basis_file(basis: str) -> Basis:
     return Basis.read_xml(symbol, name, basis)
 
 
-def read_setup_file(paw: str) -> SetupData:
-    symbol, *_, setupname = paw.split('.')
+def read_setup_file(dataset: str) -> SetupData:
+    symbol, *_, setupname = dataset.split('.')
     setup = SetupData(symbol, setupname, readxml=False)
-    with open(paw, mode='rb') as fobj:
-        # Can be read from the setup XML:
-        # - `SetupData.vbar_g` (<zero_potential>)
-        # - `SetupData.nc_g` (<ae_core_density>)
-        # - `SetupData.nct_g` (<pseudo_core_density>)
-        # - `SetupData.tauc_g` (<ae_core_kinetic_energy_density>)
-        # - `SetupData.tauct_g` (<pseudo_core_kinetic_energy_density>)
-        # - `SetupData.phi_jg` (<ae_partial_wave>)
-        # - `SetupData.phit_jg` (<pseudo_partial_wave>)
-        # - `SetupData.pt_jg` (<projector_function>)
-        # - `SetupData.vt_g` (<pseudo_potential>)
-        # - `SetupData.e_kin_jj` (<kinetic_energy_differences>)
-        # - `SetupData.X_p` (<exact_exchange_X_matrix>)
-        # - `SetupData.X_pg` (<yukawa_exchange_X_matrix>)
+    with open(dataset, mode='rb') as fobj:
         setup.read_xml(fobj.read())
+    generator_data = setup.generatordata
+    if not generator_data:
+        generator, = minidom.parse(dataset).getElementsByTagName('generator')
+        text, = generator.childNodes
+        setup.generatordata = textwrap.dedent(text.data).strip('\n')
     return setup
 
 
-def main(args: SimpleNamespace,
-         gen: PAWSetupGenerator | None = None,
-         plot: bool = True) -> None:
+def _get_ax_objs(ngraphs: int, separate_figures: bool = False) -> list['Axes']:
     from matplotlib import pyplot as plt
 
-    setup = read_setup_file(args.paw)
+    if separate_figures:
+        return [plt.figure().gca() for _ in range(ngraphs)]
 
-    if args.create_basis_set in (True, False):
-        basis_file = None
+    assert ngraphs <= 6, f'Too many plots; expected <= 6, got {ngraphs}'
+    if ngraphs > 4:
+        layout = 2, 3
+    elif ngraphs > 2:
+        layout = 2, 2
     else:
-        basis_file = args.create_basis_set
-        args.create_basis_set = True
+        layout = 1, ngraphs
 
-    if gen is None and args.reconstruct_generator:
-        gen = reconstruct_paw_gen(args.paw, basis_file)
+    # Remove unused subplots
+    subplots = plt.figure().subplots(*layout).flatten()
+    ntrimmed = layout[0] * layout[1] - ngraphs
+    if ntrimmed:
+        assert ntrimmed > 0, (f'Too many plots {ngraphs!r} '
+                              f'for the layout {layout!r}')
+        for ax in subplots[-ntrimmed:]:
+            ax.remove()
+
+    return subplots[:ngraphs].tolist()
+
+
+def plot_dataset(
+    setup: SetupData,
+    *,
+    basis: Basis | None = None,
+    gen: PAWSetupGenerator | None = None,
+    plot_potential_components: bool = True,
+    plot_partial_waves: bool = True,
+    plot_projectors: bool = True,
+    plot_logarithmic_derivatives: str | None = None,
+    separate_figures: bool = False,
+    reconstruct_generator: bool = False,
+) -> list['Axes']:
+    if gen is not None:
+        reconstruct = False
+    elif plot_logarithmic_derivatives or plot_potential_components:
+        reconstruct = True
+    else:
+        reconstruct = False
+    if reconstruct:
+        gen = reconstruct_paw_gen(setup, basis)
 
     plots: list[Callable] = []
 
-    if gen and args.logarithmic_derivatives:
-        plots.append(functools.partial(plot_log_derivs,
-                                       gen,
-                                       args.logarithmic_derivatives,
-                                       True))
-
-    if not plot:
-        # We may end up here if called via `gpaw dataset`;
-        # in that case, show the logarithmic derivatives if requested
-        # nonetheless
-        for func in plots:
-            func(ax=None)
-        try:
-            plt.show()
-        except KeyboardInterrupt:
-            pass
-        return
-
-    basis: Basis | None
-
-    if gen:
-        plots.append(gen.plot_potential_components)
-        basis = gen.basis
+    if gen is None:
+        symbol, name, rgd, cutoff, ppw_iter = get_ppw_params_setup_data(setup)
+        *_, pp_iter = get_pp_params_setup_data(setup)
+    else:
+        # TODO: maybe we can compare the `ppw_iter` and `pp_iter`
+        # between the stored and regenerated values for verification
         (symbol, name,
          rgd, cutoff, ppw_iter) = get_ppw_params_paw_setup_generator(gen)
         *_, pp_iter = get_pp_params_paw_setup_generator(gen)
-    else:
-        basis = read_basis_file(basis_file) if basis_file else None
-        symbol, name, rgd, cutoff, ppw_iter = get_ppw_params_setup_data(setup)
-        *_, pp_iter = get_pp_params_setup_data(setup)
-    plots.append(functools.partial(
-        plot_partial_waves,
-        symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
-        iterator=ppw_iter))
-    plots.append(functools.partial(
-        plot_projectors,
-        symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
-        iterator=pp_iter))
 
-    if args.create_basis_set:
-        if gen and basis is None:
-            gen.create_basis_set()
-            basis = gen.basis
-            assert basis  # Assure `mypy` that it's a `Basis`
-        if basis:
-            plots.append(functools.partial(BasisPlotter().plot, basis))
+    if plot_logarithmic_derivatives:
+        assert gen is not None
+        plots.append(functools.partial(
+            plot_log_derivs, gen, plot_logarithmic_derivatives, True))
+    if plot_potential_components:
+        assert gen is not None
+        plots.append(gen.plot_potential_components)
+    if plot_partial_waves:
+        plots.append(functools.partial(
+            # Name clash with local variable
+            globals()['plot_partial_waves'],
+            symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
+            iterator=ppw_iter))
+    if plot_projectors:
+        plots.append(functools.partial(
+            # Name clash with local variable
+            globals()['plot_projectors'],
+            symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
+            iterator=pp_iter))
 
-    if args.separate_figures:
-        # Make separate figures
-        for plot_func in plots:
-            plot_func(ax=plt.figure().gca())
-    else:  # Plot graphs as panels in the same figure
-        fig = plt.figure()
+    if basis is not None:
+        plots.append(functools.partial(BasisPlotter().plot, basis))
 
-        nplots = len(plots)
-        if nplots > 6:
-            raise AssertionError('Too many plots; '
-                                 f'expected <= 6, got {nplots}')
-        elif nplots > 4:
-            layout = 2, 3
-        elif nplots > 2:
-            layout = 2, 2
-        else:
-            layout = 1, nplots
-        npanels = layout[0] * layout[1]
-        assert npanels >= nplots
+    ax_objs: list['Axes'] = _get_ax_objs(len(plots), separate_figures)
+    assert len(ax_objs) == len(plots)
+    for ax, plot_func in zip(ax_objs, plots):
+        plot_func(ax=ax)
 
-        # Tile the grid one by one
-        subplots = fig.subplots(*layout).flatten()
-        for ax, plot_func in zip(subplots, plots):
-            plot_func(ax=ax)
+    return ax_objs
 
-        # Hide unused subplots
-        if npanels - nplots:
-            for ax in subplots[-(npanels - nplots):]:
-                ax.set_visible(False)
 
-    try:
+def main(args: SimpleNamespace) -> None:
+    from matplotlib import pyplot as plt
+
+    setup = read_setup_file(args.dataset)
+    basis = None if args.basis_set is None else read_basis_file(args.basis_set)
+    ax_objs = plot_dataset(
+        setup,
+        basis=basis,
+        separate_figures=args.separate_figures,
+        plot_potential_components=args.potential_components,
+        plot_logarithmic_derivatives=args.logarithmic_derivatives)
+
+    if ax_objs:
         plt.show()
-    except KeyboardInterrupt:
-        pass
 
 
 class CLICommand:
-    """Plot PAW dataset."""
-
+    """Plot the PAW dataset,
+    which by default includes the partial waves and the projectors.
+    """
     @staticmethod
     def add_arguments(parser):
         add = parser.add_argument
         add('-b', '--basis-set',
-            const=True,
-            default=False,
-            # For compatibility with `generator2`
-            dest='create_basis_set',
-            metavar='BASIS',
-            nargs='?',
-            help='Load the basis set from an XML file; '
-            'if not provided, create a rudimentary basis set '
-            '(requires `-r`)')
-        add('-r', '--reconstruct-generator',
+            metavar='FILE',
+            help='Load and plot the basis set from an XML file')
+        add('-p', '--potential-components',
             action='store_true',
-            help='Try to reconstruct the full PAW setup generator object; '
-            'required for basis-set creation, and for plotting '
-            'the potential components and logarithmic derivatives')
+            help='Plot the potential components '
+            '(this reconstructs the full PAW setup generator object)')
+        add('-l', '--logarithmic-derivatives',
+            metavar='spdfg,e1:e2:de,radius',
+            help='Plot logarithmic derivatives'
+            '(this reconstructs the full PAW setup generator object). '
+            'Example: -l spdf,-1:1:0.05,1.3. '
+            'Energy range and/or radius can be left out.')
         add('-s', '--separate-figures',
             action='store_true',
             help='plot the plots in separate figure windows/tabs, '
             'instead of as subplots/panels in the same figure')
-        add('-l', '--logarithmic-derivatives',
-            metavar='spdfg,e1:e2:de,radius',
-            help='Plot logarithmic derivatives (requires `-r`). ' +
-            'Example: -l spdf,-1:1:0.05,1.3. ' +
-            'Energy range and/or radius can be left out.')
-        add('paw',
-            metavar='DATASET',
+        add('dataset',
+            metavar='FILE',
             help='XML file from which to read the PAW dataset')
 
     @staticmethod

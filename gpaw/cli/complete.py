@@ -58,9 +58,9 @@ commands = {
         ['--version', '--list-all', '--tarball', '--gpaw', '--sg15',
          '--basis', '--test', '--register', '--no-register'],
     'plot-dataset':
-        ['-b', '--basis-set', '-r', '--reconstruct-generator', '-s',
-         '--separate-figures', '-l',
-         '--logarithmic-derivatives'],
+        ['-b', '--basis-set', '-p', '--potential-components', '-l',
+         '--logarithmic-derivatives', '-s',
+         '--separate-figures'],
     'python':
         ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
          '--module', '-m'],
