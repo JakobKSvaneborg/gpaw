@@ -15,7 +15,7 @@ def create_environment(environment='waveguide', **kwargs):
         return environment
 
     if isinstance(environment, dict):
-        assert not kwargs, 'please do not give kwargs with dict'
+        assert not kwargs, 'please do not give kwargs together with dict'
         kwargs = dict(environment)
         environment = kwargs.pop('environment', 'waveguide')
 
@@ -153,7 +153,8 @@ class RRemission:
                 'RRemission(quantization_plane, cavity_polarization).',
                 FutureWarning)
         else:
-            raise ValueError(...)
+            raise TypeError('Please provide only one argument '
+                            '(two for legacy syntax)')
 
         # Recorded dipole moment over time
         # The entries all correspond to unique times
