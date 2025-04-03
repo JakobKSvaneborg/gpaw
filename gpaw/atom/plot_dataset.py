@@ -19,6 +19,7 @@ from .radialgd import AERadialGridDescriptor
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
 
 _PartialWaveItem = tuple[int,  # l
@@ -200,11 +201,19 @@ def parse_generator_data(data: str) -> dict[str, Any]:
     return params
 
 
-def _get_ax_objs(ngraphs: int, separate_figures: bool = False) -> list['Axes']:
+def _get_figures_and_axes(
+        ngraphs: int,
+        separate_figures: bool = False) -> tuple[list['Figure'], list['Axes']]:
     from matplotlib import pyplot as plt
 
     if separate_figures:
-        return [plt.figure().gca() for _ in range(ngraphs)]
+        figs = []
+        ax_objs = []
+        for _ in range(ngraphs):
+            fig = plt.figure()
+            figs.append(fig)
+            ax_objs.append(fig.gca())
+        return figs, ax_objs
 
     assert ngraphs <= 6, f'Too many plots; expected <= 6, got {ngraphs}'
     if ngraphs > 4:
@@ -214,16 +223,16 @@ def _get_ax_objs(ngraphs: int, separate_figures: bool = False) -> list['Axes']:
     else:
         layout = 1, ngraphs
 
-    # Remove unused subplots
-    subplots = plt.figure().subplots(*layout).flatten()
+    fig = plt.figure()
+    subplots = fig.subplots(*layout).flatten()
     ntrimmed = layout[0] * layout[1] - ngraphs
     if ntrimmed:
         assert ntrimmed > 0, (f'Too many plots {ngraphs!r} '
                               f'for the layout {layout!r}')
-        for ax in subplots[-ntrimmed:]:
+        for ax in subplots[-ntrimmed:]:  # Remove unused subplots
             ax.remove()
 
-    return subplots[:ngraphs].tolist()
+    return [fig] * ngraphs, subplots[:ngraphs].tolist()
 
 
 def plot_dataset(
@@ -304,15 +313,14 @@ def plot_dataset(
 
     if savefig is not None:
         separate_figures = False
-    ax_objs: list['Axes'] = _get_ax_objs(len(plots), separate_figures)
-    assert len(ax_objs) == len(plots)
+    figs, ax_objs = _get_figures_and_axes(len(plots), separate_figures)
+    assert len(figs) == len(ax_objs) == len(plots)
     for ax, plot_func in zip(ax_objs, plots):
         plot_func(ax=ax)
 
     if savefig is not None:
-        figures = [ax.get_figure() for ax in ax_objs]
-        assert len({id(fig) for fig in figures}) == 1
-        fig, *_ = figures
+        assert len({id(fig) for fig in figs}) == 1
+        fig, *_ = figs
         assert fig is not None
         fig.savefig(savefig)
 
