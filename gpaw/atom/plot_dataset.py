@@ -5,14 +5,16 @@ import textwrap
 from ast import literal_eval
 from collections.abc import Callable, Iterable
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 from xml.dom import minidom
+from warnings import warn
 
 from .. import typing
 from ..basis_data import Basis, BasisPlotter
 from ..setup_data import SetupData
 from .aeatom import colors
-from .generator2 import PAWSetupGenerator, generate, plot_log_derivs
+from .generator2 import (PAWSetupGenerator, parameters,
+                         generate, plot_log_derivs)
 from .radialgd import AERadialGridDescriptor
 
 if TYPE_CHECKING:
@@ -87,6 +89,29 @@ def _get_gen_symbol_and_name(gen: PAWSetupGenerator) -> tuple[str, str]:
     return aea.symbol, aea.xc.name
 
 
+def _get_setup_cutoff(setup: SetupData) -> float:
+    cutoff = setup.r0
+    if cutoff is not None:
+        return cutoff
+
+    # `.r0` can be `None` for 'old setups', whatever that means
+    name = f'{setup.symbol}{setup.Nv}'
+    params = parameters[name]
+    if len(params) == 3:
+        _, radii, extra = params
+    else:
+        _, radii = params
+        extra = {}
+    if 'r0' in extra:  # E.g. N5
+        value = extra['r0']
+        if TYPE_CHECKING:
+            assert isinstance(value, float)
+        return value
+    if not isinstance(radii, Iterable):
+        radii = [radii]
+    return min(radii)
+
+
 def get_ppw_params_paw_setup_generator(
     gen: PAWSetupGenerator,
 ) -> tuple[str, str,
@@ -108,7 +133,7 @@ def get_ppw_params_setup_data(
            Iterable[_PartialWaveItem]]:
     return (*_get_setup_symbol_and_name(setup),
             setup.rgd,
-            setup.r0,
+            _get_setup_cutoff(setup),
             zip(setup.l_j, setup.n_j, setup.rcut_j, setup.eps_j,
                 setup.phi_jg, setup.phit_jg))
 
@@ -129,20 +154,13 @@ def get_pp_params_setup_data(
 ) -> tuple[str, str, AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
     return (*_get_setup_symbol_and_name(setup),
             setup.rgd,
-            setup.r0,
+            _get_setup_cutoff(setup),
             zip(setup.l_j, setup.n_j, setup.eps_j, setup.pt_jg))
 
 
 def reconstruct_paw_gen(setup: SetupData,
                         basis: Basis | None = None) -> PAWSetupGenerator:
-    params = {'v0': None}
-    for line in setup.generatordata.splitlines():
-        key, _, value = line.rstrip(',').partition('=')
-        try:
-            value = literal_eval(value)
-        except Exception:
-            continue
-        params[key] = value
+    params = {'v0': None, **parse_generator_data(setup.generatordata)}
     gen = generate(**params)
     if basis is not None:
         gen.basis = basis
@@ -161,12 +179,25 @@ def read_setup_file(dataset: str) -> SetupData:
     setup = SetupData(symbol, setupname, readxml=False)
     with open(dataset, mode='rb') as fobj:
         setup.read_xml(fobj.read())
-    generator_data = setup.generatordata
-    if not generator_data:
+    if not setup.generatordata:
         generator, = minidom.parse(dataset).getElementsByTagName('generator')
         text, = generator.childNodes
         setup.generatordata = textwrap.dedent(text.data).strip('\n')
     return setup
+
+
+def parse_generator_data(data: str) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    for line in data.splitlines():
+        key, sep, value = line.rstrip(',').partition('=')
+        if not (sep and key.isidentifier()):
+            continue
+        try:
+            value = literal_eval(value)
+        except Exception:
+            continue
+        params[key] = value
+    return params
 
 
 def _get_ax_objs(ngraphs: int, separate_figures: bool = False) -> list['Axes']:
@@ -220,7 +251,21 @@ def plot_dataset(
     else:
         reconstruct = False
     if reconstruct:
-        gen = reconstruct_paw_gen(setup, basis)
+        data = setup.generatordata
+        if parse_generator_data(data):
+            gen = reconstruct_paw_gen(setup, basis)
+        else:
+            if data:
+                data_status = 'malformed'
+            else:
+                data_status = 'missing'
+            msg = ('cannot reconstruct the `PAWSetupGenerator` object '
+                   f'({data_status} `setup.generatordata`), '
+                   'so the logarithmic derivatives and/or '
+                   'potential components cannot be plotted')
+            warn(msg, stacklevel=2)
+            plot_logarithmic_derivatives = None
+            plot_potential_components = False
 
     plots: list[Callable] = []
 

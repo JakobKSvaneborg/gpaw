@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from functools import partial
 from math import exp, log, pi, sqrt
-from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 from ase.data import atomic_numbers, chemical_symbols
@@ -30,7 +30,9 @@ class DatasetGenerationError(Exception):
     pass
 
 
-parameters = {
+parameters: dict[str,
+                 Union[tuple[str, float | list[float]],
+                       tuple[str, float | list[float], dict[str, Any]]]] = {
     # 1-2:
     'H1': ('1s,s,p', 0.9),
     'He2': ('1s,s,p', 1.5),
