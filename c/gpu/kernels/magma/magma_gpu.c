@@ -10,7 +10,7 @@
 
 #include "gpu.h"
 #include "gpu-complex.h"
-#include "../magma_gpaw.h"
+#include "../magma_gpaw.hpp"
 
 #include <assert.h>
 #include <string.h>
@@ -37,7 +37,7 @@ static magma_int_t _eigh_magma_dsyevd_gpu(int matrix_size, magma_uplo_t uplo,
     const magma_vec_t jobz = MagmaVec; // always compute eigenvectors
     const magma_int_t lda = matrix_size;
 
-    dsyevd_workgroup workgroup = {};
+    syevd_workgroup<double> workgroup = {};
     // Query
     double work_temp;
     magma_int_t iwork_temp;
@@ -77,8 +77,8 @@ static magma_int_t _eigh_magma_dsyevd_gpu(int matrix_size, magma_uplo_t uplo,
 }
 
 static magma_int_t _eigh_magma_zheevd_gpu(int matrix_size, magma_uplo_t uplo,
-    magmaDoubleComplex* in_matrix, double* inout_eigvals,
-    magmaDoubleComplex* inout_eigvects)
+    magmaComplex<double>* in_matrix, double* inout_eigvals,
+    magmaComplex<double> inout_eigvects)
 {
 
     gpuMemcpy(
@@ -90,10 +90,10 @@ static magma_int_t _eigh_magma_zheevd_gpu(int matrix_size, magma_uplo_t uplo,
     const magma_vec_t jobz = MagmaVec;
     const magma_int_t lda = matrix_size;
 
-    zheevd_workgroup workgroup = {};
+    heevd_workgroup<double> workgroup = {};
 
     // Query
-    magmaDoubleComplex work_temp;
+    magmaComplex<double> work_temp;
     double rwork_temp;
     magma_int_t iwork_temp;
     magma_int_t status;
@@ -137,6 +137,7 @@ static magma_int_t _eigh_magma_zheevd_gpu(int matrix_size, magma_uplo_t uplo,
 }
 
 // dsyevd: Real symmetric matrix, double precision
+extern "C"
 PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args)
 {
     PyObject *in_matrix;
@@ -187,6 +188,7 @@ PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args)
 }
 
 // zheevd: Complex Hermitian matrix, double precision
+extern "C"
 PyObject* eigh_magma_zheevd_gpu(PyObject* self, PyObject* args)
 {
     PyObject *in_matrix;
@@ -219,9 +221,9 @@ PyObject* eigh_magma_zheevd_gpu(PyObject* self, PyObject* args)
     magma_int_t status = _eigh_magma_zheevd_gpu(
         n,
         uplo,
-        (magmaDoubleComplex*) Array_DATA(in_matrix),
+        (magmaComplex<double>*) Array_DATA(in_matrix),
         Array_DATA(inout_eigvals),
-        (magmaDoubleComplex*) Array_DATA(inout_eigvects)
+        (magmaComplex<double>*) Array_DATA(inout_eigvects)
     );
 
     assert(status >= 0 && "Invalid input to MAGMA solver");

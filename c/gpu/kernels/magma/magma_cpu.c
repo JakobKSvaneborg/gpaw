@@ -6,10 +6,11 @@
 #include <assert.h>
 #include <string.h>
 
-#include "magma_gpaw.h"
+#include "magma_gpaw.hpp"
 
 // Wrappers for MAGMA CPU-eigensolvers. These input and output Numpy arrays
 
+extern "C"
 PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
 {
     PyObject *in_matrix;
@@ -48,7 +49,7 @@ PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
     double* dA = Array_DATA(eigvects);
     memcpy(dA, Array_DATA(in_matrix), n*n*sizeof(double));
 
-    dsyevd_workgroup workgroup = {};
+    syevd_workgroup<double> workgroup = {};
 
     // Query optimal workgroup sizes
     double work_temp;
@@ -111,6 +112,7 @@ PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args)
     return result;
 }
 
+extern "C"
 PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args)
 {
     PyObject *in_matrix;
@@ -144,13 +146,13 @@ PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args)
     const magma_int_t lda = n;
     const magma_uplo_t uplo = get_magma_uplo(in_uplo);
 
-    magmaDoubleComplex* dA = (magmaDoubleComplex*) Array_DATA(eigvects);
-    memcpy(dA, Array_DATA(in_matrix), n*n*sizeof(magmaDoubleComplex));
+    magmaComplex<double>* dA = (magmaComplex<double>*) Array_DATA(eigvects);
+    memcpy(dA, Array_DATA(in_matrix), n*n*sizeof(magmaComplex<double>));
 
-    zheevd_workgroup workgroup = {};
+    heevd_workgroup<double> workgroup = {};
 
     // Query
-    magmaDoubleComplex work_temp;
+    magmaComplex<double> work_temp;
     double rwork_temp;
     magma_int_t iwork_temp;
     magma_int_t status;
@@ -175,7 +177,7 @@ PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args)
     workgroup.lrwork = (magma_int_t) rwork_temp;
     workgroup.liwork = iwork_temp;
 
-    workgroup.work = malloc(workgroup.lwork * sizeof(magmaDoubleComplex));
+    workgroup.work = malloc(workgroup.lwork * sizeof(magmaComplex<double>));
     workgroup.rwork = malloc(workgroup.lrwork * sizeof(double));
     workgroup.iwork = malloc(workgroup.liwork * sizeof(magma_int_t));
 
