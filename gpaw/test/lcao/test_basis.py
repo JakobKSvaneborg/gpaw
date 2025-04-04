@@ -10,6 +10,7 @@ def test_parse_basis_filename():
     assert parse_basis_filename('Si.any.thing.basis') == ('Si', 'any.thing')
 
 
+@pytest.mark.serial
 def test_plot_basis(tmp_path):
     basisfile, _ = search_for_file('Ti.dzp.basis')
     pngfile = tmp_path / 'output.png'
