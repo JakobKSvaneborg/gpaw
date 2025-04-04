@@ -1,5 +1,7 @@
 import subprocess
 
+import pytest
+
 from gpaw.basis_data import parse_basis_filename
 from gpaw.setup_data import search_for_file
 
