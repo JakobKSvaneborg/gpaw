@@ -16,6 +16,7 @@ def use_tmp_path(tmp_path):
     os.chdir(curdir)
 
 
+@pytest.mark.serial
 @pytest.mark.parametrize(('flags', 'basis'),
                          [('', False),  # Minimal plot
                           ('-s', False),  # --separate-figures (ignored)
@@ -49,6 +50,7 @@ def test_gpaw_plot_dataset(flags, basis):
     assert new_files - old_files == expected_files
 
 
+@pytest.mark.serial
 @pytest.mark.parametrize(('write', 'basis'),
                          [(False, False),  # Minimal
                           (True, True)])
