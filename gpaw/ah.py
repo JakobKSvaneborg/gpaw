@@ -63,9 +63,9 @@ class AppelbaumHamann(BaseSetup):
 
     def build(self, basis):
         if basis is None:
-            basis = Basis('Si', 'sz(dzp)')
+            basis = Basis.find('Si', 'sz(dzp)')
         elif isinstance(basis, str):
-            basis = Basis('Si', basis)
+            basis = Basis.find('Si', basis)
 
         self.basis = basis
         self.basis_functions_J = self.basis.tosplines()

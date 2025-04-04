@@ -35,7 +35,7 @@ class ETDM(Eigensolver):
                 potential: Potential,
                 hamiltonian: Hamiltonian,
                 pot_calc,
-                energies) -> tuple[float, DFTEnergies]:
+                energies) -> tuple[float, float, DFTEnergies]:
 
         if len(self.nocc_s) == 0:
             xp = ibzwfs.xp
@@ -124,7 +124,7 @@ class ETDM(Eigensolver):
             error += grad_nX.norm2() @ weight_n
             grad_nX.data *= weight_n[:, np.newaxis]
 
-        return error, energies
+        return 0.0, error, energies
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
         if not self.converge_unocc:
