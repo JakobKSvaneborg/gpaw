@@ -29,6 +29,18 @@ PyObject* libvdwxc_has(PyObject* self, PyObject* args)
         val = vdwxc_has_mpi();
     } else if(strcmp("pfft", name) == 0) {
         val = vdwxc_has_pfft();
+    } else if(strcmp("spin", name) == 0) {
+#ifdef VDWXC_HAS_SPIN
+        val = true;
+#else
+        val = false;
+#endif
+    } else if(strcmp("stress", name) == 0) {
+#ifdef VDWXC_HAS_STRESS
+        val = true;
+#else
+        val = false;
+#endif
     } else {
         return NULL;
     }
@@ -90,11 +102,17 @@ PyObject* libvdwxc_init_serial(PyObject* self, PyObject* args)
 PyObject* libvdwxc_calculate(PyObject* self, PyObject* args)
 {
     PyObject *vdwxc_obj;
-    PyArrayObject *rho_obj, *sigma_obj, *dedn_obj, *dedsigma_obj;
-    if(!PyArg_ParseTuple(args, "OOOOO",
-                         &vdwxc_obj, &rho_obj, &sigma_obj,
+    PyArrayObject *stress_obj, *rho_obj, *sigma_obj, *dedn_obj, *dedsigma_obj;
+    if(!PyArg_ParseTuple(args, "OOOOOO",
+                         &vdwxc_obj, &stress_obj, &rho_obj, &sigma_obj,
                          &dedn_obj, &dedsigma_obj)) {
         return NULL;
+    }
+    double *stress_vv;
+    if ((PyObject *)stress_obj == Py_None) {
+        stress_vv = NULL;
+    } else {
+        stress_vv = (double*)PyArray_DATA(stress_obj);
     }
     vdwxc_data* vdw = unpack_vdwxc_pointer(vdwxc_obj);
     int nspins = PyArray_DIM(rho_obj, 0);
@@ -104,7 +122,18 @@ PyObject* libvdwxc_calculate(PyObject* self, PyObject* args)
         double* sigma_g = (double*)PyArray_DATA(sigma_obj);
         double* dedn_g = (double*)PyArray_DATA(dedn_obj);
         double* dedsigma_g = (double*)PyArray_DATA(dedsigma_obj);
-        energy = vdwxc_calculate(*vdw, rho_g, sigma_g, dedn_g, dedsigma_g);
+        if (stress_vv == NULL) {
+            energy = vdwxc_calculate(*vdw, rho_g, sigma_g, dedn_g, dedsigma_g);
+        } else {
+#ifdef VDWXC_HAS_STRESS
+            energy = vdwxc_stress(*vdw, stress_vv, rho_g, sigma_g,
+                                  dedn_g, dedsigma_g);
+#else
+            PyErr_SetString(PyExc_ValueError,
+                            "This libvdwxc version does not implement stress.");
+            return NULL;
+#endif
+        }
     } else if (nspins == 2) {
         // We actually only need two sigmas/dedsigmas.
         // The third one came along because that's what usually happens,
@@ -112,17 +141,33 @@ PyObject* libvdwxc_calculate(PyObject* self, PyObject* args)
         assert(PyArray_DIM(sigma_obj, 0) == 3);
         assert(PyArray_DIM(dedn_obj, 0) == 2);
         assert(PyArray_DIM(dedsigma_obj, 0) == 3);
+        double *rhoa_g = (double*)PyArray_GETPTR1(rho_obj, 0);
+        double *rhob_g = (double*)PyArray_GETPTR1(rho_obj, 1);
+        double *sigmaa_g = (double*)PyArray_GETPTR1(sigma_obj, 0);
+        double *sigmab_g = (double*)PyArray_GETPTR1(sigma_obj, 2);
+        double *dedna_g = (double*)PyArray_GETPTR1(dedn_obj, 0);
+        double *dednb_g = (double*)PyArray_GETPTR1(dedn_obj, 1);
+        double *dedsigmaa_g = (double*)PyArray_GETPTR1(dedsigma_obj, 0);
+        double *dedsigmab_g = (double*)PyArray_GETPTR1(dedsigma_obj, 2);
 #ifdef VDWXC_HAS_SPIN
-        energy = vdwxc_calculate_spin(*vdw,
-                                      (double*)PyArray_GETPTR1(rho_obj, 0),
-                                      (double*)PyArray_GETPTR1(rho_obj, 1),
-                                      (double*)PyArray_GETPTR1(sigma_obj, 0),
-                                      (double*)PyArray_GETPTR1(sigma_obj, 2),
-                                      (double*)PyArray_GETPTR1(dedn_obj, 0),
-                                      (double*)PyArray_GETPTR1(dedn_obj, 1),
-                                      (double*)PyArray_GETPTR1(dedsigma_obj, 0),
-                                      (double*)PyArray_GETPTR1(dedsigma_obj, 2));
+        if (stress_vv == NULL) {
+            energy = vdwxc_calculate_spin(*vdw, rhoa_g, rhob_g, sigmaa_g,
+                                          sigmab_g, dedna_g, dednb_g,
+                                          dedsigmaa_g, dedsigmab_g);
+        } else {
+#ifdef VDWXC_HAS_STRESS
+            energy = vdwxc_stress_spin(*vdw, stress_vv, rhoa_g, rhob_g,
+                                       sigmaa_g, sigmab_g, dedna_g, dednb_g,
+                                       dedsigmaa_g, dedsigmab_g);
 #else
+            PyErr_SetString(PyExc_ValueError,
+                            "This libvdwxc version does not implement stress.");
+            return NULL;
+#endif
+        }
+#else
+        PyErr_SetString(PyExc_ValueError,
+                        "This libvdwxc version does not implement spin.");
         return NULL;
 #endif
     } else {
