@@ -388,7 +388,7 @@ class UGArray(DistributedArrays[UGDesc]):
         c.data[:] = self.data
         return c
 
-    def scatter_from(self, data=None):
+    def scatter_from(self, data: np.ndaray | UGArray | None = None) -> None:
         """Scatter data from rank-0 to all ranks."""
         if isinstance(data, UGArray):
             data = data.data

@@ -91,7 +91,9 @@ class SJMEnvironment(Environment):
         self.jellium.update1(nt_r)
 
     def update1pw(self, nt_g):
-        nt_r = nt_g.ifft(grid=self.jellium.grid)
+        nt_r = self.jellium.grid.empty()
+        nt_r.scatter_from(nt_g.ifft(grid=self.jellium.grid.new(comm=None))
+                          if nt_g is not None else None)
         self.solvation.update1(nt_r)
         self.jellium.update1pw(nt_g)
 
@@ -154,17 +156,21 @@ def saw_tooth_sympy():
 
 def saw_tooth(pw: PWDesc, width: float = 0.5) -> PWArray:
     """Saw-tooth in reciprocal space with a slope of 1."""
-    st_g = pw.zeros()
+    assert np.allclose(pw.cell_cv[:2, 2], 0.0)
+    assert np.allclose(pw.cell_cv[2, :2], 0.0)
+
     m0_g, m1_g = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
     mask_g = m0_g & m1_g
     Gz_i = pw.G_plus_k_Gv[mask_g, 2]
-    assert Gz_i[0] == 0.0
-    Gz_i[0] = 1.0
+    if pw.comm.rank == 0.0:
+        assert Gz_i[0] == 0.0
+        Gz_i[0] = 1.0
     L = pw.cell_cv[2, 2]
     b = L / 2
     st_i = -(np.sin(b * Gz_i) / Gz_i -
              b * np.cos(b * Gz_i)) / Gz_i * (2j / L)
-    st_i[0] = 0.0
+    if pw.comm.rank == 0.0:
+        st_i[0] = 0.0
 
     # Make the saw-tooth more smooth (fold with Gaussian):
     alpha = width**-2
@@ -173,5 +179,6 @@ def saw_tooth(pw: PWDesc, width: float = 0.5) -> PWArray:
     # Shift by half the cell height:
     st_i *= np.exp(1j * Gz_i * b)
 
+    st_g = pw.zeros()
     st_g.data[mask_g] = st_i
     return st_g

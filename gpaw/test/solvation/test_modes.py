@@ -76,4 +76,4 @@ class Vacuum:
 
 
 if __name__ == '__main__':
-    test_h(True, 'pw')
+    test_h(True, 'fd')
