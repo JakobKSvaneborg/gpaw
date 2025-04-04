@@ -2,7 +2,6 @@ from math import pi
 
 import numpy as np
 import pytest
-
 from gpaw.core import PWDesc, UGDesc
 from gpaw.new.pw.poisson import PWPoissonSolver
 from gpaw.new.sjm import SJMPoissonSolver
@@ -13,11 +12,12 @@ def f(a, z, z0, w):
 
 
 if 0:  # Analytic result
-    from sympy import integrate, exp, oo, var, Symbol
+    from sympy import Symbol, exp, integrate, oo, var
     z = var('z')
     w = Symbol('w', positive=True)
     m = integrate(exp(-(z / w)**2), (z, -oo, oo))
     print(m)
+
 
 
 def test_sjm():
@@ -43,7 +43,9 @@ def test_sjm():
     rhot_g = rhot_r.fft(pw=pw)
     ps.solve(vt_g, rhot_g)
     vt_r = vt_g.ifft(grid=grid)
+    st_r = st_g.ifft(grid=grid)
     plt.plot(z, vt_r.data[0, 0])
+    plt.plot(z, st_r.data[0, 0])
     plt.show()
 
 

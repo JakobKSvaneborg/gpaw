@@ -26,7 +26,8 @@ def make_poisson_solver(pw: PWDesc,
     assert not kwargs
 
     if dielectric is not None:
-        return ps  # return SJM Poisson-solver here ...
+        from gpaw.new.sjm import SJMPWPoissonSolver
+        return SJMPWPoissonSolver(pw, dielectric)
 
     return ps
 

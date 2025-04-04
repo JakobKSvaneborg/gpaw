@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 from ase.units import Bohr
+from gpaw.core import UGArray, PWDesc, PWArray
 from gpaw.jellium import create_background_charge
 from gpaw.new.environment import Environment, FixedPotentialJellium, Jellium
 from gpaw.new.poisson import PoissonSolverWrapper
+from gpaw.new.pw.poisson import PWPoissonSolver
 from gpaw.new.solvation import Solvation
-from gpaw.core import UGArray
 
 
 class SJM:
@@ -122,3 +123,39 @@ def modified_saw_tooth(eps_r: UGArray) -> np.ndarray:
     saw_tooth_z = np.add.accumulate(a_z)
     saw_tooth_z -= 0.5 * a_z#+0.5 from z=0.0
     return saw_tooth_z
+
+
+class SJMPWPoissonSolver(PWPoissonSolver):
+    def __init__(self, pw, dielectric):
+        super().__init__(pw)
+        self.dielectric = dielectric
+
+    def solve(self, vHt_g, rhot_g):
+        energy = super().solve(vHt_g, rhot_g)
+
+
+def saw_tooth_sympy():
+    """Fourier-transform."""
+    from sympy import Symbol, integrate, sin, var
+    z = var('z')
+    G = Symbol('G', positive=True)
+    b = Symbol('b', positive=True)
+    m = integrate(sin(G * z) * z, (z, 0, b))
+    print(m)  # -b*cos(G*b)/G + sin(G*b)/G**2
+
+
+def saw_tooth(pw: PWDesc, width: float = 0.5) -> PWArray:
+    """Saw-tooth in reciprocal space."""
+    st_g = pw.zeros()
+    m0_G, m1_G = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
+    mask_G = m0_G & m1_G
+    Gz = pw.G_plus_k_Gv[mask_G, 2]
+    assert Gz[0] == 0.0
+    Gz[0] = 1.0
+    L = pw.cell_cv[2, 2]
+    b = L / 2
+    st_g.data[mask_G] = (
+        np.sin(b * Gz) / Gz -
+        b * np.cos(b * Gz)) / Gz * 1j * np.exp(-Gz**2 * 0.1 +
+                                               1j * Gz * b)
+    return st_g
