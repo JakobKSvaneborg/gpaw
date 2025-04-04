@@ -37,7 +37,7 @@ def test_sjm(gpaw_new):
         'eigenstates': 1e-4}
 
     params = dict(
-        mode='pw',
+        mode='fd',
         kpts=(2, 2, 1),
         xc='PBE',
         convergence=convergence,

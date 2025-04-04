@@ -131,7 +131,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         ps = make_poisson_solver(pw,
                                  grid,
                                  self.params.charge,
-                                 env.dielectric,
+                                 env,
                                  **psparams)
 
         if self.fast_poisson_solver:
