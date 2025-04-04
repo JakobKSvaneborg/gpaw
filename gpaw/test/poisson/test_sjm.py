@@ -1,10 +1,6 @@
-from math import pi
-
 import numpy as np
-import pytest
 from gpaw.core import PWDesc, UGDesc
-from gpaw.new.pw.poisson import PWPoissonSolver
-from gpaw.new.sjm import SJMPoissonSolver
+from gpaw.new.sjm import SJMPWPoissonSolver
 
 
 def f(a, z, z0, w):
@@ -16,8 +12,7 @@ if 0:  # Analytic result
     z = var('z')
     w = Symbol('w', positive=True)
     m = integrate(exp(-(z / w)**2), (z, -oo, oo))
-    print(m)
-
+    print(m)  # sqrt(pi)*w
 
 
 def test_sjm():
@@ -26,10 +21,10 @@ def test_sjm():
     grid = UGDesc.from_cell_and_grid_spacing(cell=[a, a, L], grid_spacing=0.15)
     z = grid.xyz()[0, 0, :, 2]
     c = 0.05
-    rhot = f(a, z, 4.0, 1.0) * (1 + c)
-    rhot -= f(a, z, 4.0, 0.5)
-    rhot -= f(a, z, 6.0, 1.0) * c
-    eps = 1.0 + f(a, z, 5.0, 2.0) * 20
+    rhot = f(a, z, 4.0, 1.0) * (1 + c)  # electrons
+    rhot -= f(a, z, 4.0, 0.5)  # nucleui
+    rhot -= f(a, z, 6.0, 1.0) * c  # jellium
+    eps = 1.0 + f(a, z, 5.0, 2.0) * 20  # dielectric
     rhot_r = grid.zeros()
     rhot_r.data[:] = rhot
     eps_r = grid.zeros()
@@ -38,14 +33,12 @@ def test_sjm():
     import matplotlib.pyplot as plt
     plt.plot(z, rhot_r.data[0, 0])
     pw = PWDesc(ecut=grid.ekin_max(), cell=grid.cell)
-    ps = PWPoissonSolver(pw)
+    ps = SJMPWPoissonSolver(pw, dielectric=None)
     vt_g = pw.zeros()
     rhot_g = rhot_r.fft(pw=pw)
     ps.solve(vt_g, rhot_g)
     vt_r = vt_g.ifft(grid=grid)
-    st_r = st_g.ifft(grid=grid)
     plt.plot(z, vt_r.data[0, 0])
-    plt.plot(z, st_r.data[0, 0])
     plt.show()
 
 

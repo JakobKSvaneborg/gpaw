@@ -102,7 +102,6 @@ class SJMEnvironment(Environment):
 class SJMPoissonSolver(PoissonSolverWrapper):
     def __init__(self, solver, dielectric):
         super().__init__(solver)
-        #self.dielectric=dielectric
 
     def solve(self,
               vHt_r,
@@ -121,7 +120,7 @@ class SJMPoissonSolver(PoissonSolverWrapper):
 def modified_saw_tooth(eps_r: UGArray) -> np.ndarray:
     a_z = 1.0 / eps_r.data.mean(axis=(0, 1))
     saw_tooth_z = np.add.accumulate(a_z)
-    saw_tooth_z -= 0.5 * a_z#+0.5 from z=0.0
+    saw_tooth_z -= 0.5 * a_z  # +0.5 from z=0.0 ???
     return saw_tooth_z
 
 
@@ -129,9 +128,18 @@ class SJMPWPoissonSolver(PWPoissonSolver):
     def __init__(self, pw, dielectric):
         super().__init__(pw)
         self.dielectric = dielectric
+        self.saw_tooth_g = saw_tooth(pw, 0.25)
 
     def solve(self, vHt_g, rhot_g):
         energy = super().solve(vHt_g, rhot_g)
+        dipole = rhot_g.moment()[2]
+        slope = 4 * np.pi * dipole / rhot_g.desc.volume
+        vHt_g.data += slope * self.saw_tooth_g.data
+        # Shift potential so that it is zero above the slab:
+        shift = 0.5 * slope * rhot_g.desc.cell_cv[2, 2]
+        v0 = vHt_g.boundary_value(2)
+        vHt_g.data[0] -= shift + v0
+        return energy
 
 
 def saw_tooth_sympy():
@@ -145,17 +153,25 @@ def saw_tooth_sympy():
 
 
 def saw_tooth(pw: PWDesc, width: float = 0.5) -> PWArray:
-    """Saw-tooth in reciprocal space."""
+    """Saw-tooth in reciprocal space with a slope of 1."""
     st_g = pw.zeros()
-    m0_G, m1_G = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
-    mask_G = m0_G & m1_G
-    Gz = pw.G_plus_k_Gv[mask_G, 2]
-    assert Gz[0] == 0.0
-    Gz[0] = 1.0
+    m0_g, m1_g = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
+    mask_g = m0_g & m1_g
+    Gz_i = pw.G_plus_k_Gv[mask_g, 2]
+    assert Gz_i[0] == 0.0
+    Gz_i[0] = 1.0
     L = pw.cell_cv[2, 2]
     b = L / 2
-    st_g.data[mask_G] = (
-        np.sin(b * Gz) / Gz -
-        b * np.cos(b * Gz)) / Gz * 1j * np.exp(-Gz**2 * 0.1 +
-                                               1j * Gz * b)
+    st_i = -(np.sin(b * Gz_i) / Gz_i -
+             b * np.cos(b * Gz_i)) / Gz_i * (2j / L)
+    st_i[0] = 0.0
+
+    # Make the saw-tooth more smooth (fold with Gaussian):
+    alpha = width**-2
+    st_i *= np.exp(-Gz_i**2 / (4 * alpha))
+
+    # Shift by half the cell height:
+    st_i *= np.exp(1j * Gz_i * b)
+
+    st_g.data[mask_g] = st_i
     return st_g
