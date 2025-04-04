@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from ase import Atoms
 from gpaw import FermiDirac
 from gpaw.new.ase_interface import GPAW
@@ -44,7 +43,7 @@ def test_h(gpaw_new, mode):
     else:
         atoms.calc = OldSJM(**solvation, sj=sjm, **params)
     atoms.get_potential_energy()
-    #assert atoms.calc.get_fermi_level() == pytest.approx(-3.15, abs=0.001)
+    # assert atoms.calc.get_fermi_level() == pytest.approx(-3.15, abs=0.001)
     if 1:
         v = atoms.calc.get_electrostatic_potential()
         import matplotlib.pyplot as plt

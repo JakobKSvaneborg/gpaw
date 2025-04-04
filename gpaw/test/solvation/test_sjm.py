@@ -38,7 +38,6 @@ def test_sjm(gpaw_new):
 
     params = dict(
         mode='pw',
-        #gpts=(8, 8, 48),
         kpts=(2, 2, 1),
         xc='PBE',
         convergence=convergence,
