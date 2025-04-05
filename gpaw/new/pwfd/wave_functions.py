@@ -287,8 +287,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         if Htpsit_nX is not None:
             H.multiply(psit2_nX, out=Htpsit_nX)
 
-        H.multiply(psit_nX, out=psit2_nX)
-        psit_nX.data[:] = psit2_nX.data
+        H.multiply(psit_nX, out=psit_nX)
+        #psit_nX.data[:] = psit2_nX.data
         H.multiply(P_ani, out=P2_ani)
         P_ani.data[:] = P2_ani.data
 

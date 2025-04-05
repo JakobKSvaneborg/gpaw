@@ -176,6 +176,31 @@ class Matrix(XP):
             out = Matrix(M, N, A.dtype, dist=dist.new(M, N))
         elif not isinstance(out, Matrix):
             out = out.matrix
+        if out.data is other.data:
+            # Recursively call multiply to save memory (2 gigs per rank)
+            assert opa == 'N', 'Not implemented'
+            assert opb == 'N', 'Not implemented'
+            assert other.shape[0] == self.shape[0]
+            buffer_size = max(min(int(2e3 / (other.data.shape[0] * other.dtype.itemsize)),
+                                  other.data.shape[1]), 1)
+            buffer_out = Matrix(
+                M=other.shape[0],
+                N=buffer_size,
+                dtype=other.dtype,
+                dist=dist.new(M=other.shape[0], N=buffer_size),
+                xp=other.xp)
+            data_buffer = buffer_out.new()
+            for i in range(0, other.shape[1], buffer_size):
+                data_buffer.data[:, :other.data.shape[1] - i] = other.data[:, i:i + buffer_size]
+                self.multiply(data_buffer,
+                              alpha=alpha,
+                              opa=opa,
+                              opb=opb,
+                              out=buffer_out,
+                              beta=beta,
+                              symmetric=symmetric)
+                other.data[:, i:i + buffer_size] = buffer_out.data[:, :other.data.shape[1] - i]
+            return out
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
         return out
