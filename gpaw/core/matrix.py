@@ -191,15 +191,12 @@ class Matrix(XP):
                 xp=other.xp)
             data_buffer = buffer_out.new()
             for i in range(0, other.shape[1], buffer_size):
-                data_buffer.data[:, :other.data.shape[1] - i] = other.data[:, i:i + buffer_size]
-                self.multiply(data_buffer,
-                              alpha=alpha,
-                              opa=opa,
-                              opb=opb,
-                              out=buffer_out,
-                              beta=beta,
-                              symmetric=symmetric)
-                other.data[:, i:i + buffer_size] = buffer_out.data[:, :other.data.shape[1] - i]
+                data_buffer.data[:, :other.data.shape[1] - i] \
+                    = other.data[:, i:i + buffer_size]
+                dist.multiply(alpha, A, opa, data_buffer, opb, beta,
+                              buffer_out, symmetric=symmetric)
+                other.data[:, i:i + buffer_size] \
+                    = buffer_out.data[:, :other.data.shape[1] - i]
             return out
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
