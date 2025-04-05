@@ -161,6 +161,7 @@ class Matrix(XP):
                  opa='N',
                  opb='N',
                  out=None,
+                 work_buffers=None,
                  beta=0.0,
                  symmetric=False) -> Matrix:
         """BLAS matrix-multiplication with other matrix."""
@@ -181,22 +182,31 @@ class Matrix(XP):
             assert opa == 'N', 'Not implemented'
             assert opb == 'N', 'Not implemented'
             assert other.shape[0] == self.shape[0]
-            buffer_size = max(min(int(2e3 / (other.data.shape[0] * other.dtype.itemsize)),
-                                  other.data.shape[1]), 1)
-            buffer_out = Matrix(
-                M=other.shape[0],
-                N=buffer_size,
-                dtype=other.dtype,
-                dist=dist.new(M=other.shape[0], N=buffer_size),
-                xp=other.xp)
-            data_buffer = buffer_out.new()
+            
+            if work_buffers is None:
+                buffer_size = max(min(int(2e3 / (other.data.shape[0] * other.dtype.itemsize)),
+                                    other.data.shape[1]), 1)
+                buffer_out = Matrix(
+                    M=other.shape[0],
+                    N=buffer_size,
+                    dtype=other.dtype,
+                    dist=dist.new(M=other.shape[0], N=buffer_size),
+                    xp=other.xp)
+                data_buffer = buffer_out.new()
+            else:
+                buffer_out, data_buffer = work_buffers
+                buffer_size = buffer_out.shape[1]
+                assert (buffer_out.shape == data_buffer.shape).all()
+                assert (buffer_out.data.shape[0] == self.data.shape[0])
+
             for i in range(0, other.shape[1], buffer_size):
                 data_buffer.data[:, :other.data.shape[1] - i] \
                     = other.data[:, i:i + buffer_size]
-                dist.multiply(alpha, A, opa, data_buffer, opb, beta,
+                dist.multiply(alpha, A, opa, data_buffer, opb, 0.0,
                               buffer_out, symmetric=symmetric)
                 other.data[:, i:i + buffer_size] \
-                    = buffer_out.data[:, :other.data.shape[1] - i]
+                    = buffer_out.data[:, :other.data.shape[1] - i] \
+                    + beta * other.data[:, i:i + buffer_size]
             return out
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
