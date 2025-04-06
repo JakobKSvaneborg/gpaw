@@ -948,15 +948,6 @@ class FDPWETDM:
 
             if 'SIC' in self.odd.name:
                 self.odd.lagr_diag_s[k] = np.append(lo_nn, lu_nn)
-                # Sorting by energy for consistency
-                # TODO: Extract into helper function
-                orb_energies = kpt.eps_n
-                ind_occ = np.argsort(orb_energies[occupied])
-                ind_unocc = np.argsort(orb_energies[~occupied])
-                ind = np.concatenate((ind_occ, ind_unocc + n_occ))
-                self.odd.lagr_diag_s[k] = orb_energies[ind]
-                self.odd.e_sic_by_orbitals[k] = (self.odd.e_sic_by_orbitals
-                                                 )[k][ind_occ]
 
         del grad_knG
 
