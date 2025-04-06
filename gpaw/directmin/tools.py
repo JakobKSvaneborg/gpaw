@@ -338,12 +338,15 @@ def sort_orbitals_according_to_energies(
     the diagonal elements of the Hamiltonian matrix
     """
     eigensolver_name = getattr(wfs.eigensolver, "name", None)
-    is_sic = 'SIC' in wfs.eigensolver.odd.name
-    lcao_sic = eigensolver_name == 'etdm-lcao' and is_sic
     if hasattr(wfs.eigensolver, 'dm_helper'):
         dm_helper = wfs.eigensolver.dm_helper
+        is_sic = 'SIC' in dm_helper.func.name
     else:
         dm_helper = None
+        if hasattr(wfs.eigensolver, 'odd'):
+            is_sic = 'SIC' in wfs.eigensolver.odd.name
+
+    lcao_sic = eigensolver_name == 'etdm-lcao' and is_sic
 
     for kpt in wfs.kpt_u:
         k = wfs.kd.nibzkpts * kpt.s + kpt.q
@@ -361,10 +364,22 @@ def sort_orbitals_according_to_energies(
             ind_occ = np.argsort(orb_energies[occupied])
             ind_unocc = np.argsort(orb_energies[~occupied])
             ind = np.concatenate((ind_occ, ind_unocc + n_occ))
+            # For SIC, we need to sort both the diagonal elements of
+            # the Lagrange matrix and the self-interaction energies
+            if dm_helper is None:
+                # Directly sort the solver energies
+                wfs.eigensolver.odd.lagr_diag_s[k] = orb_energies[ind]
+                wfs.eigensolver.odd.e_sic_by_orbitals[k] = (
+                wfs.eigensolver.odd.e_sic_by_orbitals)[k][ind_occ]
+            else:
+                dm_helper.func.lagr_diag_s[k] = orb_energies[ind]
+                dm_helper.func.e_sic_by_orbitals[k] = (
+                    dm_helper.func.e_sic_by_orbitals)[k][ind_occ]
         else:
             ind = np.argsort(orb_energies)
+            kpt.eps_n[np.arange(len(ind))] = orb_energies[ind]
 
-        # check if it is necessary to sort
+        # check if it is necessary to sort wfs
         x = np.max(abs(ind - np.arange(len(ind))))
         if x > 0:
             # now sort wfs according to orbital energies
@@ -376,15 +391,6 @@ def sort_orbitals_according_to_energies(
             assert len(ind) == len(kpt.f_n)
             # kpt.f_n[np.arange(len(ind))] = kpt.f_n[ind]
             kpt.f_n = kpt.f_n[ind]
-
-            if is_sic:
-                # For SIC, we need to sort both the diagonal elements of
-                # the Lagrange matrix and the self-interaction energies
-                dm_helper.func.lagr_diag_s[k] = orb_energies[ind]
-                dm_helper.func.e_sic_by_orbitals[k] = (
-                    dm_helper.func.e_sic_by_orbitals)[k][ind_occ]
-            else:
-                kpt.eps_n[np.arange(len(ind))] = orb_energies[ind]
 
             occ_name = getattr(wfs.occupations, "name", None)
             if occ_name == 'mom':

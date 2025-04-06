@@ -25,6 +25,11 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
     else:
         e_sic = 0.0
 
+    if hasattr(solver, 'constraints'):
+        constraints = solver.constraints
+    else:
+        constraints = None
+
     if eigensolver_name == 'etdm-lcao':
         with ((wfs.timer('Get canonical representation'))):
             for kpt in wfs.kpt_u:
@@ -32,10 +37,6 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
                     wfs, ham, kpt, False, False)
 
         if sic_calc:
-            if hasattr(solver, 'constraints'):
-                constraints = solver.constraints
-            else:
-                constraints = None
             # Sort orbitals according to orbital energies
             sort_orbitals_according_to_energies(
                 ham, wfs, constraints)
@@ -91,6 +92,7 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
             rewrite_psi = False
 
         solver.get_canonical_representation(ham, wfs, rewrite_psi)
+        sort_orbitals_according_to_energies(ham, wfs, constraints)
 
     if occ_name == 'mom':
         check_mom_no_update_of_occupations(wfs)
@@ -99,10 +101,6 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
     ham.get_energy(0.0, wfs, kin_en_using_band=False, e_sic=e_sic)
 
     if occ_name == 'mom' and not sic_calc:
-        if hasattr(solver, 'constraints'):
-            constraints = solver.constraints
-        else:
-            constraints = None
         # Sort orbitals according to eigenvalues
         sort_orbitals_according_to_energies(
             ham, wfs, constraints)
