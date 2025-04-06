@@ -893,7 +893,7 @@ class FDPWETDM:
             # and unoccupied subspaces
             bd = self.eigensolver.bd
             k = self.n_kps * kpt.s + kpt.q
-            n_occ = get_n_occ(kpt)[0]
+            n_occ, occupied = get_n_occ(kpt)
             dim = bd.nbands - n_occ
             if scalewithocc:
                 scale = kpt.f_n[:n_occ]
@@ -948,6 +948,15 @@ class FDPWETDM:
 
             if 'SIC' in self.odd.name:
                 self.odd.lagr_diag_s[k] = np.append(lo_nn, lu_nn)
+                # Sorting by energy for consistency
+                # TODO: Extract into helper function
+                orb_energies = kpt.eps_n
+                ind_occ = np.argsort(orb_energies[occupied])
+                ind_unocc = np.argsort(orb_energies[~occupied])
+                ind = np.concatenate((ind_occ, ind_unocc + n_occ))
+                self.odd.lagr_diag_s[k] = orb_energies[ind]
+                self.odd.e_sic_by_orbitals[k] = (self.odd.e_sic_by_orbitals
+                                                 )[k][ind_occ]
 
         del grad_knG
 
