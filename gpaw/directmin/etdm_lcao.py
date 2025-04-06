@@ -884,7 +884,7 @@ class LCAOETDM:
 
             if sort_eigenvalues:
                 sort_orbitals_according_to_energies(
-                    ham, wfs, self.constraints, use_eps=True)
+                    ham, wfs, self.constraints)
 
             self.set_ref_orbitals_and_a_vec(wfs)
 

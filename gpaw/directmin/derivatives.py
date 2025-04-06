@@ -507,7 +507,7 @@ class Davidson:
             kpt.C_nM = deepcopy(self.c_ref[k])
         if not self.gmf:
             sort_orbitals_according_to_energies(
-                ham, wfs, self.etdm.constraints, use_eps=True)
+                ham, wfs, self.etdm.constraints)
         self.first_run = False
 
     def obtain_grad_at_c_ref(self, wfs, ham, dens):
@@ -954,7 +954,7 @@ class Davidson:
                 calc.wfs, use_prev=True)
             self.etdm.constraints = deepcopy(constraints_copy)
         sort_orbitals_according_to_energies(
-            calc.hamiltonian, calc.wfs, self.etdm.constraints, use_eps=True)
+            calc.hamiltonian, calc.wfs, self.etdm.constraints)
         return appr_sp_order
 
 

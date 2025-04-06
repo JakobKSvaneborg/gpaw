@@ -38,7 +38,7 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
                 constraints = None
             # Sort orbitals according to orbital energies
             sort_orbitals_according_to_energies(
-                ham, wfs, constraints, use_eps=False)
+                ham, wfs, constraints)
 
         solver.set_ref_orbitals_and_a_vec(wfs)
 
@@ -105,7 +105,7 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
             constraints = None
         # Sort orbitals according to eigenvalues
         sort_orbitals_according_to_energies(
-            ham, wfs, constraints, use_eps=True)
+            ham, wfs, constraints)
         not_update = not wfs.occupations.update_numbers
         fixed_occ = wfs.occupations.use_fixed_occupations
         if not_update or fixed_occ:
