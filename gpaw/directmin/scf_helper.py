@@ -36,11 +36,6 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
                 solver.dm_helper.update_to_canonical_orbitals(
                     wfs, ham, kpt, False, False)
 
-        if sic_calc:
-            # Sort orbitals according to orbital energies
-            sort_orbitals_according_to_energies(
-                ham, wfs, constraints)
-
         solver.set_ref_orbitals_and_a_vec(wfs)
 
         log('\nOccupied states converged after'
@@ -92,7 +87,6 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
             rewrite_psi = False
 
         solver.get_canonical_representation(ham, wfs, rewrite_psi)
-        sort_orbitals_according_to_energies(ham, wfs, constraints)
 
     if occ_name == 'mom':
         check_mom_no_update_of_occupations(wfs)
@@ -100,14 +94,13 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
     solver.update_ks_energy(ham, wfs, dens)
     ham.get_energy(0.0, wfs, kin_en_using_band=False, e_sic=e_sic)
 
-    if occ_name == 'mom' and not sic_calc:
-        # Sort orbitals according to eigenvalues
-        sort_orbitals_according_to_energies(
-            ham, wfs, constraints)
+    if occ_name == 'mom':
         not_update = not wfs.occupations.update_numbers
         fixed_occ = wfs.occupations.use_fixed_occupations
         if not_update or fixed_occ:
             wfs.occupations.numbers = solver.initial_occupation_numbers
+
+    sort_orbitals_according_to_energies(ham, wfs, constraints)
 
 
 def check_eigensolver_state(eigensolver_name, wfs, ham, dens, log):
