@@ -355,7 +355,7 @@ def sort_orbitals_according_to_energies(
                 wfs, ham, kpt)
         else:
             orb_energies = kpt.eps_n
-            
+
         if is_sic:
             # For SIC, we sort occupied and unoccupied orbitals
             # separately, so the occupation numbers  of canonical
@@ -370,7 +370,7 @@ def sort_orbitals_according_to_energies(
                 # Directly sort the solver energies
                 wfs.eigensolver.odd.lagr_diag_s[k] = orb_energies[ind]
                 wfs.eigensolver.odd.e_sic_by_orbitals[k] = (
-                wfs.eigensolver.odd.e_sic_by_orbitals)[k][ind_occ]
+                    wfs.eigensolver.odd.e_sic_by_orbitals)[k][ind_occ]
             else:
                 dm_helper.func.lagr_diag_s[k] = orb_energies[ind]
                 dm_helper.func.e_sic_by_orbitals[k] = (
