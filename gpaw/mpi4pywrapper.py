@@ -1,9 +1,7 @@
 try:
     from mpi4py.MPI import Request, SUM, MAX, IN_PLACE
 except ImportError:
-    SUM = None
-    MAX = None
-    Request = None
+    pass
 
 
 class MPI4PYWrapper:
@@ -24,21 +22,23 @@ class MPI4PYWrapper:
     def max_scalar(self, a, root=-1):
         return self.sum_scalar(a, root=-1, _op=MAX)
 
-    def sum_scalar(self, a, root=-1, _op=SUM):
+    def sum_scalar(self, a, root=-1, _op=None):
+        if _op is None:
+            _op = SUM
         assert isinstance(a, (int, float, complex))
         if root == -1:
             return self.comm.allreduce(a, op=_op)
         else:
             return self.comm.reduce(a, root=root, op=_op)
 
-    def sum(self, a, root=-1, op=SUM):
+    def sum(self, a, root=-1):
         if root == -1:
-            self.comm.Allreduce(IN_PLACE, a, op=op)
+            self.comm.Allreduce(IN_PLACE, a, op=SUM)
         else:
             if root == self.rank:
-                self.comm.Reduce(IN_PLACE, a, root=root, op=op)
+                self.comm.Reduce(IN_PLACE, a, root=root, op=SUM)
             else:
-                self.comm.Reduce(a, None, root=root, op=op)
+                self.comm.Reduce(a, None, root=root, op=SUM)
 
     def scatter(self, a, b, root):
         self.comm.Scatter(a, b, root)

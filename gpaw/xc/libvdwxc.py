@@ -5,7 +5,8 @@ from gpaw.utilities import compiled_with_libvdwxc
 from gpaw.utilities.grid_redistribute import Domains, general_redistribute
 from gpaw.utilities.timing import nulltimer
 from gpaw.xc.functional import XCFunctional
-from gpaw.xc.gga import GGA, gga_vars, add_gradient_correction
+from gpaw.xc.lda import stress_lda_term
+from gpaw.xc.gga import GGA, gga_vars, add_gradient_correction, stress_gga_term
 from gpaw.xc.libxc import LibXC
 from gpaw.xc.mgga import MGGA
 import gpaw
@@ -18,6 +19,21 @@ def libvdwxc_has_mpi():
 
 def libvdwxc_has_pfft():
     return have_mpi and cgpaw.libvdwxc_has('pfft')
+
+
+def libvdwxc_has_spin():
+    try:
+        return cgpaw.libvdwxc_has("spin")
+    except SystemError as err:
+        raise SystemError(interface_error) from err
+
+
+def libvdwxc_has_stress():
+    try:
+        val = cgpaw.libvdwxc_has("stress")
+    except SystemError as err:
+        raise SystemError(interface_error) from err
+    return val
 
 
 def check_grid_descriptor(gd):
@@ -48,6 +64,8 @@ def get_auto_pfft_grid(size):
     return nproc1, nproc2
 
 
+interface_error = ("The libvdwxc interface has changed. You might need to "
+                   "recompile the GPAW C extensions.")
 spinwarning = """\
 GPAW uses the total density to evaluate the van der Waals functional
 for a spin-polarized system.  This is not entirely rigorous, so the
@@ -123,7 +141,8 @@ class LibVDWXC:
 
         self.initialized = True
 
-    def calculate(self, n_sg, sigma_xg, dedn_sg, dedsigma_xg):
+    def calculate(self, n_sg, sigma_xg, dedn_sg, dedsigma_xg,
+                  get_stress=False):
         """Calculate energy and add partial derivatives to arrays."""
         if not self.initialized:
             self.initialize_backend()
@@ -133,9 +152,16 @@ class LibVDWXC:
             assert arr.dtype == float
             # XXX We cannot actually ask libvdwxc about its expected shape
             # assert arr.shape == self.shape, [arr.shape, self.shape]
-        energy = cgpaw.libvdwxc_calculate(self._ptr, n_sg, sigma_xg,
-                                          dedn_sg, dedsigma_xg)
-        return energy
+        if get_stress:
+            stress_vv = np.zeros((3, 3))
+        else:
+            stress_vv = None
+        try:
+            energy = cgpaw.libvdwxc_calculate(self._ptr, stress_vv, n_sg,
+                                              sigma_xg, dedn_sg, dedsigma_xg)
+        except TypeError as err:
+            raise TypeError(interface_error) from err
+        return energy, stress_vv
 
     def get_description(self):
         if self.mode == 'serial':
@@ -170,7 +196,7 @@ class RedistWrapper:
         self.timer = timer
         self.vdwcoef = vdwcoef
 
-    def calculate(self, n_sg, sigma_xg, v_sg, dedsigma_xg):
+    def calculate(self, n_sg, sigma_xg, v_sg, dedsigma_xg, get_stress=False):
         zeros = self.distribution.block_zeros
         sshape = (len(n_sg),)
         xshape = (len(sigma_xg),)
@@ -185,10 +211,13 @@ class RedistWrapper:
         self.timer.stop('redistribute')
 
         self.timer.start('libvdwxc nonlocal')
-        energy = self.libvdwxc.calculate(nblock_sg, sigmablock_xg,
-                                         vblock_sg, dedsigmablock_xg)
+        energy, stress = self.libvdwxc.calculate(nblock_sg, sigmablock_xg,
+                                                 vblock_sg, dedsigmablock_xg,
+                                                 get_stress=get_stress)
         self.timer.stop('libvdwxc nonlocal')
         energy *= self.vdwcoef
+        if get_stress:
+            stress[:] *= self.vdwcoef
         for arr in vblock_sg, dedsigmablock_xg:
             arr *= self.vdwcoef
 
@@ -196,7 +225,7 @@ class RedistWrapper:
         self.distribution.block2gd_add(vblock_sg, v_sg)
         self.distribution.block2gd_add(dedsigmablock_xg, dedsigma_xg)
         self.timer.stop('redistribute')
-        return energy
+        return energy, stress
 
 
 class FFTDistribution:
@@ -338,6 +367,8 @@ class VDWXC(XCFunctional):
     def set_grid_descriptor(self, gd):
         XCFunctional.set_grid_descriptor(self, gd)
         self.semilocal_xc.set_grid_descriptor(gd)
+        # If gd changes, libvdwxc changes
+        self.libvdwxc = None
 
     def get_description(self):
         lines = []
@@ -426,6 +457,15 @@ class VDWXC(XCFunctional):
                               ' x '.join(str(N) for N in gd.N_c)))
         # TODO Here we could decide FFT padding.
 
+    def calculate_vdw(self, e_g, n_sg, v_sg, sigma_xg, dedsigma_xg):
+        assert self.libvdwxc is not None
+        # Note: Redistwrapper handles vdwcoef.  For now
+        energy_nonlocal = self.redist_wrapper.calculate(n_sg, sigma_xg,
+                                                        v_sg, dedsigma_xg)[0]
+        self.last_semilocal_energy = e_g.sum() * self.gd.dv
+        self.last_nonlocal_energy = energy_nonlocal
+        e_g[0, 0, 0] += energy_nonlocal / self.gd.dv
+
     def calculate_impl(self, gd, n_sg, v_sg, e_g):
         """Calculate energy and potential.
 
@@ -440,7 +480,7 @@ class VDWXC(XCFunctional):
 
         self.timer.start('semilocal')
         # XXXXXXX taken from GGA
-        grad_v = semiloc.grad_v
+        grad_v = self.grad_v
         sigma_xg, dedsigma_xg, gradn_svg = gga_vars(gd, grad_v, n_sg)
         n_sg[:] = np.abs(n_sg)  # XXXX What to do about this?
         sigma_xg[:] = np.abs(sigma_xg)
@@ -450,18 +490,50 @@ class VDWXC(XCFunctional):
             semiloc.process_mgga(e_g, n_sg, v_sg, sigma_xg, dedsigma_xg)
         else:
             semiloc.kernel.calculate(e_g, n_sg, v_sg, sigma_xg, dedsigma_xg)
-        self.last_semilocal_energy = e_g.sum() * self.gd.dv
         self.timer.stop('semilocal')
 
-        energy_nonlocal = self.redist_wrapper.calculate(n_sg, sigma_xg,
-                                                        v_sg, dedsigma_xg)
-        # Note: Redistwrapper handles vdwcoef.  For now
-
+        self.calculate_vdw(e_g, n_sg, v_sg, sigma_xg, dedsigma_xg)
         add_gradient_correction(grad_v, gradn_svg, sigma_xg, dedsigma_xg, v_sg)
-
-        self.last_nonlocal_energy = energy_nonlocal
-        e_g[0, 0, 0] += energy_nonlocal / self.gd.dv
         self.timer.stop('van der Waals')
+
+    def stress_tensor_contribution(self, n_sg, skip_sum=False):
+        assert self.libvdwxc is not None
+
+        stress0_vv = self.semilocal_xc.stress_tensor_contribution(
+            n_sg, skip_sum=skip_sum
+        )
+
+        sigma_xg, dedsigma_xg, gradn_svg = gga_vars(self.gd, self.grad_v, n_sg)
+        n_sg[:] = np.abs(n_sg)  # XXXX What to do about this?
+        sigma_xg[:] = np.abs(sigma_xg)
+        v_sg = np.zeros_like(n_sg)
+        dedsigma_xg = np.zeros_like(sigma_xg)
+
+        stress_vv = self.redist_wrapper.calculate(n_sg, sigma_xg,
+                                                  v_sg, dedsigma_xg,
+                                                  get_stress=True)[1]
+
+        stress_vv += stress_lda_term(self.gd, None, n_sg, v_sg)
+        stress_vv += stress_gga_term(self.gd, sigma_xg, gradn_svg, dedsigma_xg)
+
+        if not skip_sum:
+            self.gd.comm.sum(stress_vv)
+        return stress_vv + stress0_vv
+
+    @property
+    def grad_v(self):
+        return self.semilocal_xc.grad_v
+
+    @property
+    def dedtaut_sG(self):
+        return self.semilocal_xc.dedtaut_sG
+
+    @property
+    def tauct(self):
+        if hasattr(self.semilocal_xc, "tauct"):
+            return self.semilocal_xc.tauct
+        else:
+            raise ValueError("This vdW functional does not have tauct")
 
 
 def vdw_df(**kwargs):
