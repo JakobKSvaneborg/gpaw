@@ -19,7 +19,7 @@ class HybridXC:
                  fraction: float = None,
                  omega: float = None):
         from . import parse_name
-        if xcname in ['EXX', 'PBE0', 'HSE03', 'HSE06', 'B3LYP']:
+        if xcname in ['EXX', 'PBE0', 'HSE03', 'HSE06', 'B3LYP', 'YS-PBE0']:
             if fraction is not None or omega is not None:
                 raise ValueError
             self.name = xcname
