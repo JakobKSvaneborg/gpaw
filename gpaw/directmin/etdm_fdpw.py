@@ -928,21 +928,11 @@ class FDPWETDM:
             lumo = lumo.T
             kpt.eps_n[n_occ:n_occ + dim] = evals_lumo.real
 
-            if rewrite_psi:
+            if rewrite_psi: # Only for SIC
                 kpt.psit_nG[:n_occ] = np.tensordot(
                     lamb1.conj(), kpt.psit_nG[:n_occ], axes=1)
                 kpt.psit_nG[n_occ:n_occ + dim] = np.tensordot(
                     lumo.conj(), kpt.psit_nG[n_occ:n_occ + dim], axes=1)
-
-            if scalewithocc:
-                orb_en = [lo_nn, lu_nn]
-                for i in [0, 1]:
-                    ind = np.argsort(orb_en[i])
-                    orb_en[i][:] = orb_en[i][ind]
-                    if not rewrite_psi:
-                        # we need to sort wfs
-                        kpt.psit_nG[n_occ * i + np.arange(len(ind)), :] = \
-                            kpt.psit_nG[n_occ * i + ind, :]
 
             wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
 

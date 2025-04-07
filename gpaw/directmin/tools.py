@@ -382,29 +382,26 @@ def sort_orbitals_according_to_energies(
             ind = np.argsort(orb_energies)
             kpt.eps_n[np.arange(len(ind))] = orb_energies[ind]
 
-        # check if it is necessary to sort wfs
-        x = np.max(abs(ind - np.arange(len(ind))))
-        if x > 0:
-            # now sort wfs according to orbital energies
-            if dm_helper:
-                dm_helper.sort_orbitals(wfs, kpt, ind)
-            else:
-                sort_orbitals_kpt(wfs, kpt, ind, update_proj=True)
+        # now sort wfs according to orbital energies
+        if dm_helper:
+            dm_helper.sort_orbitals(wfs, kpt, ind)
+        else:
+            sort_orbitals_kpt(wfs, kpt, ind, update_proj=True)
 
-            assert len(ind) == len(kpt.f_n)
-            # kpt.f_n[np.arange(len(ind))] = kpt.f_n[ind]
-            kpt.f_n = kpt.f_n[ind]
+        assert len(ind) == len(kpt.f_n)
+        # kpt.f_n[np.arange(len(ind))] = kpt.f_n[ind]
+        kpt.f_n = kpt.f_n[ind]
 
-            occ_name = getattr(wfs.occupations, "name", None)
-            if occ_name == 'mom':
-                # OccupationsMOM.numbers needs to be updated
-                # after sorting
-                update_mom_numbers(wfs, kpt)
-            if constraints:
-                # Identity if the constrained orbitals have
-                # changed and need to be updated
-                constraints[k] = update_constraints_kpt(
-                    constraints[k], list(ind))
+        occ_name = getattr(wfs.occupations, "name", None)
+        if occ_name == 'mom':
+            # OccupationsMOM.numbers needs to be updated
+            # after sorting
+            update_mom_numbers(wfs, kpt)
+        if constraints:
+            # Identity if the constrained orbitals have
+            # changed and need to be updated
+            constraints[k] = update_constraints_kpt(
+                constraints[k], list(ind))
 
 
 def update_mom_numbers(wfs, kpt):
