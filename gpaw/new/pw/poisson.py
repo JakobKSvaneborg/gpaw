@@ -6,6 +6,7 @@ from ase.units import Bohr, Ha
 from gpaw.core import PWDesc, UGDesc, PWArray
 from gpaw.new.poisson import PoissonSolver
 from scipy.special import erf
+from scipy.sparse.linalg import cg, LinearOperator
 
 
 def make_poisson_solver(pw: PWDesc,
@@ -16,7 +17,7 @@ def make_poisson_solver(pw: PWDesc,
                         **kwargs) -> PoissonSolver:
     if charge != 0.0 and not grid.pbc_c.any():
         return ChargedPWPoissonSolver(pw, grid, charge, strength, **kwargs)
-
+    
     ps = PWPoissonSolver(pw, charge, strength)
 
     if dipolelayer:
@@ -229,3 +230,134 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
         result_g = self.ps.pw.empty()
         result_g.scatter_from(sawtooth_g)
         return result_g
+
+
+class ConjugateGradientPoissonSolver(PoissonSolver):
+    """Poisson solver using conjugate gradient method in reciprocal space.
+    """
+    
+    def __init__(self,
+                 pw: PWDesc,
+                 charge: float = 0.0,
+                 strength: float = 1.0,
+                 eps=1e-4, 
+                 maxiter=15):
+        """Initialize the conjugate gradient Poisson solver.
+        
+        Parameters:
+        -----------
+        pw : PWDesc
+            Plane wave descriptor
+        charge : float, optional
+            Total charge of the system
+        strength : float, optional
+            Scaling factor for the potential
+        eps : float, optional
+            Convergence threshold for conjugate gradient algorithm
+        maxiter : int, optional
+            Maximum number of iterations for the conjugate gradient algorithm
+        """
+        
+        self.pw = pw
+        self.charge = charge
+        self.strength = strength
+        self.eps = eps
+        self.maxiter = maxiter
+
+        self.G2_q = pw.ekin_G.copy()
+        if pw.comm.rank == 0:
+            # avoid division by zero:
+            self.G2_q[0] = 1.0
+            
+        self.dielectric = None
+
+    def set_dielectric(self, dielectric):
+        """Set the dielectric function for the Poisson solver.
+        
+        Parameters:
+        -----------
+        dielectric : object
+            Dielectric function object with eps_gradeps attribute
+        """
+        self.dielectric = dielectric
+
+    def __str__(self) -> str:
+        txt = ('conjugate gradient poisson solver:\n'
+               f'  ecut: {self.pw.ecut * Ha}  # eV\n'
+               f'  eps: {self.eps}\n'
+               f'  maxiter: {self.maxiter}\n')
+        if self.strength != 1.0:
+            txt += f'  strength: {self.strength}\n'
+        if self.charge != 0.0:
+            txt += f'  uniform background charge: {self.charge}  # electrons\n'
+        return txt
+
+    def get_description(self):
+        return 'Conjugate Gradient Poisson Solver'
+
+    def estimate_memory(self, mem):
+        pass
+
+    def dipole_layer_correction(self) -> float:
+        raise NotImplementedError
+
+    def operator(self, phi_q):
+        """Apply the generalized Poisson operator in reciprocal space.
+                
+        Parameters:
+        -----------
+        phi_q : ndarray
+            Input potential in reciprocal space
+            
+        Returns:
+        --------
+        ndarray
+            Result of operator application
+        """
+        if self.dielectric is None:
+            return self.G2_q * phi_q
+        
+        G_Qv = self.pw.G_plus_k_Gv
+        Gx, Gy, Gz = G_Qv.T
+
+        grad_x, grad_y, grad_z = [x * phi_q for x in [Gx, Gy, Gz]]
+
+        gx_real, gy_real, gz_real = [self.pw.ifft(x)
+                                     for x in [grad_x, grad_y, grad_z]]
+
+        epsg_x_r, epsg_y_r, epsg_z_r = [x * self.dielectric.eps_gradeps[0]
+                                        for x in [gx_real, gy_real, gz_real]]
+
+        epsg_x, epsg_y, epsg_z = [self.pw.fft(x)
+                                  for x in [epsg_x_r, epsg_y_r, epsg_z_r]]
+
+        return np.sum(
+            [Gx * epsg_x, Gy * epsg_y, Gz * epsg_z], axis=0)
+
+    def solve(self,
+              vHt_g: PWArray,
+              rhot_g: PWArray) -> float:
+        epot = self._solve(vHt_g, rhot_g)
+        return epot
+
+    def _solve(self,
+               vHt_g,
+               rhot_g) -> float:
+        vHt_g.data[:] = 4 * np.pi * self.strength * rhot_g.data
+        if self.pw.comm.rank == 0:
+            vHt_g.data[0] = 0.0
+
+        if not isinstance(self.G2_q, vHt_g.xp.ndarray):
+            self.G2_q = vHt_g.xp.array(self.G2_q)
+
+        N = len(vHt_g.data)
+        op = LinearOperator((N, N), matvec=self.operator, dtype=vHt_g.data.dtype)
+        M = LinearOperator((N, N), matvec=lambda x: x / self.G2_q, dtype=vHt_g.data.dtype)
+
+        vHt_g.data[:], info = cg(op, vHt_g.data, rtol=self.eps, maxiter=self.maxiter, M=M)
+        
+        if info != 0:
+            warnings.warn(f'Conjugate gradient did not converge (info={info})')
+
+        epot = 0.5 * vHt_g.integrate(rhot_g)
+        return epot
