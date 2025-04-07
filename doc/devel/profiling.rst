@@ -83,9 +83,9 @@ is to be applied to all functions one wants to profile.
 GPAW already has a lot of trace decorators added.
 
 To keep overhead minimum when not tracing,
-An environment variable called ``GPAW_TRACE`` has to be set to 1
+an environment variable called ``GPAW_TRACE`` has to be set to 1
 in order to allow tracing. If ``GPAW_TRACE`` is not defined, or 0,
-the trace decorator will be identity, and now overhead will be added to function calls.
+the trace decorator will be identity, and no overhead will be added to function calls.
 
 In addition to setting the environment variable,
 one needs to use the ``global_timer`` of ``gpaw.new``. Below are two examples
