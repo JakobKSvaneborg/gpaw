@@ -11,7 +11,7 @@ def test_pw_bulk():
     calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
                 eigensolver='dav',
-                parallel={'band': 4})
+                parallel={'band': 1})
 
     bulk.calc = calc
     e = []

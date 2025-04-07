@@ -39,7 +39,7 @@ class Davidson(PWFDEigensolver):
 
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
-        self._allocate_work_arrays(ibzwfs, shape=(2,))
+        self._allocate_work_arrays(ibzwfs, shape=(1,))
 
         wfs = ibzwfs.wfs_qs[0][0]
         assert isinstance(wfs, PWFDWaveFunctions)
@@ -76,7 +76,6 @@ class Davidson(PWFDEigensolver):
 
         wfs.subspace_diagonalize(Ht, dH,
                                  psit2_nX=psit2_nX)
-        residual_nX = psit2_nX.copy()  # will become (H-e*S)|psit> later
 
         P_ani = wfs.P_ani
         P2_ani = P_ani.new()
@@ -92,15 +91,16 @@ class Davidson(PWFDEigensolver):
             eig_N[:B] = xp.asarray(wfs.eig_n)
 
         @trace
-        def me(a, b, function=None):
+        def me(a, b, function=None, sliced=False):
             """Matrix elements"""
             return a.matrix_elements(b,
                                      domain_sum=False,
                                      out=M_nn,
                                      function=function,
-                                     cc=True)
+                                     cc=True,
+                                     sliced=sliced)
 
-        Ht = partial(Ht, out=residual_nX)#, spin=wfs.spin)
+        #Ht = partial(Ht, out=residual_nX)#, spin=wfs.spin)
         #dH = partial(dH, spin=wfs.spin)
         calculate_residuals(wfs.psit_nX,
                             psit2_nX,
@@ -133,14 +133,14 @@ class Davidson(PWFDEigensolver):
 
             with tracectx('Matrix elements'):
                 # <psi2 | H | psi2>
-                me(psit2_nX, psit2_nX, function=Ht)
+                me(psit2_nX, psit2_nX, function=Ht, sliced=True)
                 dH(P2_ani, out_ani=P3_ani)
                 P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
                                        out=M_nn)
                 copy(H_NN.data[B:, B:])  # Needed?
 
                 # <psi2 | H | psi>
-                me(psit2_nX, Ht(psit_nX))
+                me(psit2_nX, psit_nX, function=Ht, sliced=True)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
                 copy(H_NN.data[B:, :B])
 
@@ -192,10 +192,10 @@ class Davidson(PWFDEigensolver):
                 wfs._P_ani = P_ani
 
             if i < self.niter - 1:
-                Ht(psit_nX)
+                partial(Ht, out=psit2_nX)(psit_nX)
                 calculate_residuals(
                     wfs.psit_nX,
-                    residual_nX,
+                    psit2_nX,
                     wfs.pt_aiX, wfs.P_ani, wfs.myeig_n,
                     dH, dS_aii, P2_ani, P3_ani)
 

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, TypeVar, Callable, Literal
+from abc import abstractmethod
 
 import gpaw.fftw as fftw
 import numpy as np
 from ase.io.ulm import NDArrayReader
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
-from gpaw.mpi import MPIComm
+from gpaw.mpi import MPIComm, serial_comm
 from gpaw.typing import Array1D, Self, ArrayND
 from gpaw.gpu import XP
 
@@ -72,6 +73,10 @@ class DistributedArrays(Generic[DomainType], XP):
         XP.__init__(self, xp)
         self._matrix: Matrix | None = None
 
+    @abstractmethod
+    def create_buffer(self):
+        raise NotImplementedError
+
     def new(self, data=None) -> DistributedArrays:
         raise NotImplementedError
 
@@ -133,7 +138,8 @@ class DistributedArrays(Generic[DomainType], XP):
                         symmetric: bool | Literal['_default'] = '_default',
                         function=None,
                         domain_sum=True,
-                        cc: bool = False) -> Matrix:
+                        cc: bool = False,
+                        sliced: bool = False) -> Matrix:
         if symmetric == '_default':
             symmetric = self is other
 
@@ -147,18 +153,28 @@ class DistributedArrays(Generic[DomainType], XP):
 
         if comm.size == 1:
             assert other.comm.size == 1
-            if function:
-                assert symmetric
-                other = function(other)
+            if sliced and function:
+                M1 = self.matrix
+                data_buffer, buffer_size = other.create_buffer()
+                func_buffer = data_buffer.new()
+                for i in range(0, other.data.shape[0], buffer_size):
+                    func_buffer.data[:other.data.shape[0] - i, :] \
+                        = other.data[i:i + buffer_size, :]
+                    func = function(func_buffer, out=data_buffer)
+                    out.data[:, i:i + buffer_size] = \
+                        M1.multiply(data_buffer, opb='C', alpha=self.dv).data  # XXX
+            else:
+                if function:
+                    assert symmetric
+                    other = function(other)
 
-            M1 = self.matrix
-            M2 = other.matrix
-            out = M1.multiply(M2, opb='C', alpha=self.dv,
-                              symmetric=symmetric, out=out)
+                M1 = self.matrix
+                M2 = other.matrix
+                out = M1.multiply(M2, opb='C', alpha=self.dv,
+                                  symmetric=symmetric, out=out)
 
-            # Plane-wave expansion of real-valued functions needs a correction:
-            self._matrix_elements_correction(M1, M2, out, symmetric)
-
+                # Plane-wave expansion of real-valued functions needs a correction:
+                self._matrix_elements_correction(M1, M2, out, symmetric)
         else:
             if symmetric:
                 _parallel_me_sym(self, out, function)

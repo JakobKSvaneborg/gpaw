@@ -178,14 +178,14 @@ class Matrix(XP):
         elif not isinstance(out, Matrix):
             out = out.matrix
         if out.data is other.data:
-            # Recursively call multiply to save memory (2 gigs per rank)
+            # Recursively call multiply to save memory (200 MB per rank)
             assert opa == 'N', 'Not implemented'
             assert opb == 'N', 'Not implemented'
             assert other.shape[0] == self.shape[0]
             
             if work_buffers is None:
                 buffer_size = max(
-                    min(int(2e3 / (max(other.data.shape[0], 1)
+                    min(int(2e8 / (max(other.data.shape[0], 1)
                                    * other.dtype.itemsize)),
                                       other.data.shape[1]), 1)
                 buffer_out = Matrix(

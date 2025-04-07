@@ -306,6 +306,23 @@ class PWArray(DistributedArrays[PWDesc]):
         self.desc = pw
         self._matrix: Matrix | None
 
+    def create_buffer(self):
+        # Create work buffer for matrix elements with maximal
+        # size of 200 MB per rank.
+        mat_rep = self.matrix
+        buffer_size = max(
+            min(int(2e8 / (max(mat_rep.shape[1], 1)
+                            * mat_rep.dtype.itemsize)),
+                                mat_rep.shape[0]), 1)
+        dims = (buffer_size,)
+        comm = serial_comm
+        xp = self.xp
+        return PWArray(pw=self.desc,
+                       dims=dims,
+                       comm=comm,
+                       data=None,
+                       xp=xp), buffer_size
+
     def __repr__(self):
         txt = f'PWArray(pw={self.desc}, dims={self.dims}'
         if self.comm.size > 1:
