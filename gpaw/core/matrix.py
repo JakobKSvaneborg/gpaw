@@ -184,8 +184,10 @@ class Matrix(XP):
             assert other.shape[0] == self.shape[0]
             
             if work_buffers is None:
-                buffer_size = max(min(int(2e3 / (other.data.shape[0] * other.dtype.itemsize)),
-                                    other.data.shape[1]), 1)
+                buffer_size = max(
+                    min(int(2e3 / (max(other.data.shape[0], 1)
+                                   * other.dtype.itemsize)),
+                                      other.data.shape[1]), 1)
                 buffer_out = Matrix(
                     M=other.shape[0],
                     N=buffer_size,
@@ -199,7 +201,7 @@ class Matrix(XP):
                 assert (buffer_out.shape == data_buffer.shape).all()
                 assert (buffer_out.data.shape[0] == self.data.shape[0])
 
-            for i in range(0, other.shape[1], buffer_size):
+            for i in range(0, other.data.shape[1], buffer_size):
                 data_buffer.data[:, :other.data.shape[1] - i] \
                     = other.data[:, i:i + buffer_size]
                 dist.multiply(alpha, A, opa, data_buffer, opb, 0.0,
