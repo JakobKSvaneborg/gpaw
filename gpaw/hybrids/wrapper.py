@@ -17,21 +17,23 @@ class HybridXC:
     def __init__(self,
                  xcname: str,
                  fraction: float = None,
-                 omega: float = None):
+                 omega: float = None,
+                 yukawa=None):
         from . import parse_name
         if xcname in ['EXX', 'PBE0', 'HSE03', 'HSE06', 'B3LYP', 'YS-PBE0']:
-            if fraction is not None or omega is not None:
+            if fraction is not None or omega is not None or yukawa is not None:
                 raise ValueError
             self.name = xcname
-            xcname, fraction, omega = parse_name(xcname)
+            xcname, fraction, omega, yukawa = parse_name(xcname)
         else:
-            if fraction is None or omega is None:
+            if fraction is None or omega is None or yukawa is None:
                 raise ValueError
             self.name = f'{xcname}-{fraction:.3f}-{omega:.3f}'
 
         self.xc = XC(xcname)
         self.exx_fraction = fraction
         self.omega = omega
+        self.yukawa = yukawa
 
         if xcname == 'null':
             self.description = ''
@@ -80,7 +82,8 @@ class HybridXC:
                                             Htpsit_xG=None, dH_asp=None):
         wfs = self.wfs
         if self.coulomb is None:
-            self.coulomb = coulomb_interaction(self.omega, wfs.gd, wfs.kd)
+            self.coulomb = coulomb_interaction(self.omega, self.yukawa,
+                                               wfs.gd, wfs.kd)
             self.description += '\n' + self.coulomb.get_description()
             self.sym = Symmetry(wfs.kd)
 
