@@ -928,7 +928,7 @@ class FDPWETDM:
             lumo = lumo.T
             kpt.eps_n[n_occ:n_occ + dim] = evals_lumo.real
 
-            if rewrite_psi: # Only for SIC
+            if rewrite_psi:  # Only for SIC
                 kpt.psit_nG[:n_occ] = np.tensordot(
                     lamb1.conj(), kpt.psit_nG[:n_occ], axes=1)
                 kpt.psit_nG[n_occ:n_occ + dim] = np.tensordot(
