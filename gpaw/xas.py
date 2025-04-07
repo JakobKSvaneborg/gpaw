@@ -71,7 +71,7 @@ class XAS:
             self.__full_init__(paw, *args, **kwargs)
 
     def __full_init__(self, paw, mode='xas', center=None,
-                      spin=0, nocc_cor=0):
+                      spin=0, relative_index_lumo=0):
         """_summary_
 
         Args:
@@ -133,7 +133,7 @@ class XAS:
             nocc = kd.comm.sum_scalar(nocc)
             nocc = int(nocc + 0.5)
 
-        nocc += nocc_cor
+        nocc += relative_index_lumo
         self.nocc = nocc
 
         # look for the center with the corehole
