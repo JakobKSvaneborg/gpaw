@@ -347,12 +347,15 @@ def sort_orbitals_according_to_energies(
             is_sic = 'SIC' in wfs.eigensolver.odd.name
 
     lcao_sic = eigensolver_name == 'etdm-lcao' and is_sic
+    fdpw_sic = eigensolver_name == 'etdm-fdpw' and is_sic
 
     for kpt in wfs.kpt_u:
         k = wfs.kd.nibzkpts * kpt.s + kpt.q
         if lcao_sic:
             orb_energies = wfs.eigensolver.dm_helper.orbital_energies(
                 wfs, ham, kpt)
+        elif fdpw_sic:
+            orb_energies = wfs.eigensolver.odd.lagr_diag_s[k]
         else:
             orb_energies = kpt.eps_n
 
