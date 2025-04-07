@@ -2,6 +2,7 @@ import numpy as np
 from ase import Atoms
 from gpaw import GPAW
 from gpaw import PW
+from gpaw.mpi import world
 import pytest
 
 
@@ -11,7 +12,7 @@ def test_pw_bulk():
     calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
                 eigensolver='dav',
-                parallel={'band': 1})
+                parallel={'band': world.size})
 
     bulk.calc = calc
     e = []

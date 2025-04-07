@@ -151,18 +151,21 @@ class DistributedArrays(Generic[DomainType], XP):
                          dtype=self.desc.dtype,
                          xp=self.xp)
 
-        if comm.size == 1:
-            assert other.comm.size == 1
+        if comm.size == 1 or sliced:
+            assert other.comm.size == comm.size
             if sliced and function:
+                #return self.matrix_elements(function(other, out=other.new()), out=out, cc=cc)
                 M1 = self.matrix
-                data_buffer, buffer_size = other.create_buffer()
-                func_buffer = data_buffer.new()
-                for i in range(0, other.data.shape[0], buffer_size):
-                    func_buffer.data[:other.data.shape[0] - i, :] \
-                        = other.data[i:i + buffer_size, :]
-                    func = function(func_buffer, out=data_buffer)
-                    out.data[:, i:i + buffer_size] = \
-                        M1.multiply(data_buffer, opb='C', alpha=self.dv).data  # XXX
+                M2 = other.matrix
+                func_buffer, buffer_size = self.create_buffer() # Consider caching
+                mybands, _ = self.data.shape
+                for i in range(0, mybands, buffer_size):
+                    function(self[i:i + buffer_size], out=func_buffer)
+                    out.data[i:i + buffer_size, :] = \
+                        func_buffer.matrix.multiply(
+                            M2, opb='C', alpha=self.dv,
+                            symmetric=False).data[:mybands - i, :]
+                self._matrix_elements_correction(M1, M2, out, symmetric)
             else:
                 if function:
                     assert symmetric
@@ -186,7 +189,6 @@ class DistributedArrays(Generic[DomainType], XP):
 
         if domain_sum:
             self.domain_comm.sum(out.data)
-
         return out
 
     def _matrix_elements_correction(self,
