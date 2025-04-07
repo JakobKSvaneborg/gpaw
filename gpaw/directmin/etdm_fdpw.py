@@ -893,7 +893,7 @@ class FDPWETDM:
             # and unoccupied subspaces
             bd = self.eigensolver.bd
             k = self.n_kps * kpt.s + kpt.q
-            n_occ, occupied = get_n_occ(kpt)
+            n_occ = get_n_occ(kpt)[0]
             dim = bd.nbands - n_occ
             if scalewithocc:
                 scale = kpt.f_n[:n_occ]
