@@ -108,7 +108,7 @@ GPU profiling
 
 The GPU profiling is the same as CPU profiling, but in addition, there are additional events which are tracked
 in the GPU stream. This allows to trace what CPU is doing vs. what GPU is doing. For more information,
-see below for the ``gpu=True `` option on trace decorator.
+see below for the ``gpu=True`` option on trace decorator.
 
 .. literalinclude:: gpuprofiling.py
 
