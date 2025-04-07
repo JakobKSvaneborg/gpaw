@@ -74,7 +74,7 @@ def XC(kernel,
             # HSExx, since otherwise PWHybrid would hijack the control flow.
             from gpaw.xc.ri import RI
             return RI(name, **kwargs)
-        elif backend == 'pw' or name in ['HSE03', 'HSE06', 'YS-PBE0]:
+        elif backend == 'pw' or name in ['HSE03', 'HSE06', 'YS-PBE0']:
             from gpaw.hybrids import HybridXC
             return HybridXC(name, **kwargs)  # type: ignore
         elif backend:
