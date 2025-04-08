@@ -287,12 +287,34 @@ magnetic sites, one may nevertheless take the isotropic exchange
 onto atom-centered spherical sites to be a well-defined physical property of the
 hcp-Co system.
 
-Excecuting
+Executing
 :download:`Co_plot_dispersion.py`,
 you can explore the full magnon dispersion of hcp-Co as calculated within LDA in
 the LR-MFT method.
 
 .. image:: Co_dispersion.png
+	   :align: center
+
+Example: NiO with LDA+U
+-----------------------
+For strongly correlated systems the exchange splitting is often underestimated,
+which results in too large exchange constants. This may largely be remedied by
+inclusion of Hubbard corrections through the LDA+U scheme. This approach
+introduces an additional term in the KS Hamiltonian that needs to be included
+in addition to the exchange-correlation magnetic field. This is easily included
+in the local site formulation and results in a U-dependent correction to the spin
+pair energy site matrix element defined above.
+
+The effect of U is be illustrated by the anti-ferromagnet NiO here. The exchange
+constants with and without Hubbard corrections can be calculated with the script 
+:download:`nio_dispersion.py`, which takes roughly 10 hours on 120 CPUs. The
+spin-wave dipsersions with and without U is calculated and plotted with the script
+:download:`plot_nio_dispersion.py` and are show below. We note that the MFT
+calculations are significantly more challenging to converge with respect to
+unoccupied bands when Hubbard corrections are included and the present
+calculation may not be completely converged.
+
+.. image:: nio_dispersion.png
 	   :align: center
 
 
@@ -325,6 +347,9 @@ excercises to get you started:
    a similar interplay between the number of bands and its
    `r_\mathrm{c}`-sensitivity as shown for the pair site Zeeman energy of Fe?
 
+6) Calculate and plot the magnon band width (maximal magnins energy )as a
+   function of U for the case of anti-ferromagnetic NiO.
+
 
 API
 ===
@@ -345,8 +370,8 @@ API
 References
 ==========
 
-.. [#Skovhus] T. Skovhus and T. Olsen,
-	   *publication in preparation*, (2024)
+.. [#Skovhus] T. Skovhus, V. R. Pavizhakumari and T. Olsen,
+	   *publication in preparation*, (2025)
 
 .. [#Durhuus] F. L. Durhuus, T. Skovhus and T. Olsen,
 	   *J. Phys.: Condens. Matter* **35**, 105802 (2023)
