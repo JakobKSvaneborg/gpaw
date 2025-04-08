@@ -50,7 +50,7 @@ qGZ_qc = np.array([[x / Nk, x / Nk, x / Nk]
                    for x in range(Nk // 2 + 1)])
 qZF_qc = np.array([[1 / 2, 1 / 2, 1 / 2 - x / Nk]
                    for x in range(Nk // 2 + 1)])
-qFG_qc = np.array([[1 / 2 - x / Nk, 1 / 2 - x / Nk,  0]
+qFG_qc = np.array([[1 / 2 - x / Nk, 1 / 2 - x / Nk, 0]
                    for x in range(Nk // 2 + 1)])
 q_qc = np.vstack([qLG_qc, qGZ_qc[1:], qZF_qc[1:], qFG_qc[1:]])
 

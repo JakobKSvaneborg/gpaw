@@ -309,10 +309,11 @@ The effect of U is be illustrated by the anti-ferromagnet NiO here. The exchange
 constants with and without Hubbard corrections can be calculated with the script 
 :download:`nio_dispersion.py`, which takes roughly 10 hours on 120 CPUs. The
 spin-wave dipsersions with and without U is calculated and plotted with the script
-:download:`plot_nio_dispersion.py` and are show below. We note that the MFT
-calculations are significantly more challenging to converge with respect to
-unoccupied bands when Hubbard corrections are included and the present
-calculation may not be completely converged.
+:download:`plot_nio_dispersion.py` and are show below. Experimentally, the magnon
+band width is close to 100 meV, whic is close to the LDA+U result. We note that the
+MFT calculations are significantly more challenging to converge with respect to
+unoccupied bands when Hubbard corrections are included and the present calculation
+may not be completely converged.
 
 .. image:: nio_dispersion.png
 	   :align: center
