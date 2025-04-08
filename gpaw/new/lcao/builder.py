@@ -138,7 +138,6 @@ def create_lcao_ibzwfs(basis,
 
     ibzwfs = LCAOIBZWaveFunctions.create(
         ibz=ibz,
-        nelectrons=nelectrons,
         ncomponents=ncomponents,
         create_wfs_func=create_wfs,
         kpt_comm=kpt_comm,

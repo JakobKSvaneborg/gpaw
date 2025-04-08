@@ -30,6 +30,7 @@ from gpaw.new.logger import indent
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new.external_potential import ExternalPotential
 from gpaw.new.energies import DFTEnergies
+from gpaw.new.environment import Environment
 
 
 class PotentialCalculator:
@@ -39,7 +40,7 @@ class PotentialCalculator:
                  setups: list[Setup],
                  *,
                  relpos_ac: Array2D,
-                 environment,
+                 environment: Environment,
                  external_potential: ExternalPotential | None = None,
                  soc: bool = False):
         self.poisson_solver = poisson_solver
@@ -48,7 +49,7 @@ class PotentialCalculator:
         self.external_potential = external_potential or ExternalPotential()
         self.relpos_ac = relpos_ac
         self.soc = soc
-        self.environment = environment
+        self.environment = environment or Environment(len(relpos_ac))
 
     def __str__(self):
         return (f'{self.poisson_solver}\n'
@@ -90,6 +91,7 @@ class PotentialCalculator:
             self.xc = xc
         return potential, energies, V_al
 
+    @trace
     def calculate(self,
                   density,
                   ibzwfs=None,

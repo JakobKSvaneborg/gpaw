@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
-
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
+from gpaw.lcaotddft.dipolemomentwriter import VelocityGaugeWriter
 
 
 @pytest.mark.rttddft
@@ -93,3 +93,43 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
                  1.638150141478e-04]
 
     assert data_i == pytest.approx(ref_i, abs=1e-8)
+
+
+@pytest.mark.serial  # Todo:remove later
+@pytest.mark.rttddft
+def test_velocity(gpw_files, in_tmp_dir):
+
+    td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'])
+
+    VelocityGaugeWriter(td_calc, 'dm_velocityGauge.dat')
+    td_calc.absorption_kick([0.0, 0.0, 1e-5], gauge='velocity')
+    td_calc.propagate(10, 20)
+    data_i = np.loadtxt('dm_velocityGauge.dat')[:, 4]
+    ref_i = [0.000000000000e+00,
+             0.000000000000e+00,
+             1.006067165210e-08,
+             4.016494936588e-08,
+             9.010441886809e-08,
+             1.595392493537e-07,
+             2.480091681830e-07,
+             3.549482463863e-07,
+             4.797029544063e-07,
+             6.215528195238e-07,
+             7.797329169342e-07,
+             9.534573665756e-07,
+             1.141942968879e-06,
+             1.344432105004e-06,
+             1.560214064258e-06,
+             1.788644005768e-06,
+             2.029158870610e-06,
+             2.281289660947e-06,
+             2.544669639498e-06,
+             2.819038164914e-06,
+             3.104240038438e-06,
+             3.400220392727e-06]
+    assert data_i == pytest.approx(ref_i, abs=1e-10)
+    from gpaw.tddft.spectrum import photoabsorption_spectrum
+    photoabsorption_spectrum('dm_velocityGauge.dat', 'spec.dat')
+    data_i = np.loadtxt('spec.dat')
+    assert pytest.approx(-7.68e-7, 1e-5, 1e-9) == data_i[1, 3]
+    assert pytest.approx(-3.07e-6, 1e-5, 1e-8) == data_i[2, 3]

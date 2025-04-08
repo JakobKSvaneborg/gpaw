@@ -480,7 +480,7 @@ def as_complex_dtype(dtype: DTypeLike) -> np.dtype:
 
 
 def as_real_dtype(dtype: DTypeLike) -> np.dtype:
-    """Convert dtype to complex dtype.
+    """Convert dtype to real dtype.
 
     >>> [as_real_dtype(dt) for dt in
     ...  [np.float32, np.float64, complex]]
