@@ -57,7 +57,8 @@ class SJM:
                 background,
                 natoms=len(relpos_ac),
                 grid=grid,
-                workfunction=self.target_potential)
+                workfunction=self.target_potential,
+                tolerance=self.tol)
         return SJMEnvironment(solvation, jellium)
 
 
