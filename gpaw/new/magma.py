@@ -28,14 +28,8 @@ def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray,
 
     assert cgpaw.have_magma, "Must compile with MAGMA support"
 
-    if matrix.dtype == np.complex128:
-        eigvals, eigvects = cgpaw.eigh_magma_zheevd(matrix, UPLO)
-
-    elif matrix.dtype == np.float64:
-        eigvals, eigvects = cgpaw.eigh_magma_dsyevd(matrix, UPLO)
-
-    else:
-        raise TypeError("Unsupported matrix dtype")
+    # The internal function handles output array creation
+    eigvals, eigvects = cgpaw._eigh_magma_cpu(matrix, UPLO)
 
     # MAGMA eigenvectors are on rows, numpy/cupy has them on columns
     return eigvals, np.conjugate(eigvects).T

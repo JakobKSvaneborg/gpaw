@@ -211,15 +211,9 @@ PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
 PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
 PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 
-    #ifdef GPAW_WITH_MAGMA
-    #include "gpu/kernels/magma/magma_gpaw_interface.h"
-    // Real symmetric eigensolvers
-    PyObject* eigh_magma_syevd(PyObject* self, PyObject* args);
-    PyObject* eigh_magma_syevd_gpu(PyObject* self, PyObject* args);
-    // Complex Hermitian eigensolvers
-    PyObject* eigh_magma_heevd(PyObject* self, PyObject* args);
-    PyObject* eigh_magma_heevd_gpu(PyObject* self, PyObject* args);
-    #endif // GPAW_WITH_MAGMA
+#ifdef GPAW_WITH_MAGMA
+    #include "gpu/kernels/magma/magma_python_interface.h"
+#endif // GPAW_WITH_MAGMA
 
 #endif // GPAW_GPU
 
@@ -395,10 +389,8 @@ static PyMethodDef functions[] = {
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
     #ifdef GPAW_WITH_MAGMA
-    {"eigh_magma_syevd", eigh_magma_syevd, METH_VARARGS, 0},
-    {"eigh_magma_heevd", eigh_magma_heevd, METH_VARARGS, 0},
-    {"eigh_magma_syevd_gpu", eigh_magma_syevd_gpu, METH_VARARGS, 0},
-    {"eigh_magma_heevd_gpu", eigh_magma_heevd_gpu, METH_VARARGS, 0},
+    {"_eigh_magma_cpu", eigh_magma_cpu, METH_VARARGS, 0},
+    {"_eigh_magma_gpu", eigh_magma_gpu, METH_VARARGS, 0},
     #endif // GPAW_WITH_MAGMA
 
 #endif // GPAW_GPU
