@@ -806,13 +806,12 @@ DATA = [
       (161502, 28172, 52388, 21330, 6451, 32928, 22009, 0)))]
 
 
-if __name__ == '__main__':
-    if 0:
-        data = count_all()
-        for y, m, (f, l) in data:
-            print(f'    ({y}, {m},\n     ({f},\n      {l})),')
-    elif 0:
-        for name, f, l in count():
-            print(name, f, l)
-    else:
-        plot_count()
+if 0:
+    data = count_all()
+    for y, m, (f, l) in data:
+        print(f'    ({y}, {m},\n     ({f},\n      {l})),')
+elif 0:
+    for name, f, l in count():
+        print(name, f, l)
+else:
+    plot_count()
