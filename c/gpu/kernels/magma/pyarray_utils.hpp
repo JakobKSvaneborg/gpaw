@@ -35,7 +35,6 @@ bool has_array_interface(PyObject* a);
 template<typename T>
 T* Array_DATA(PyObject* obj)
 {
-    assert(false);
     // Equivalent to obj.data.ptr
     PyObject* ndarray_data = PyObject_GetAttrString(obj, "data");
     if (ndarray_data == nullptr)
