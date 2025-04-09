@@ -244,6 +244,8 @@ if gpu:
             gpu_compile_args += ['-Xcompiler']
         gpu_compile_args += ['-fPIC']
 
+    # GPU code needs to link to c++ stdlib
+    libraries += ['stdc++']
 
 def set_compiler_executables(cc: CCompiler) -> None:
     # Override the compiler executables
