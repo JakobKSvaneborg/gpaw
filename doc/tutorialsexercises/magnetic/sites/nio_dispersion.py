@@ -93,12 +93,12 @@ if rank == 0:
     np.save('delta_a.npy', delta_a)
 
 
-# Redo everything with U = 2.0 eV
+# Redo everything with U = 2.5 eV
 calc = GPAW(mode=PW(1000),
             xc='LDA',
             occupations=FermiDirac(width=0.001),
             nbands=80,
-            setups={'Ni': ':d,3.0'},
+            setups={'Ni': ':d,2.5'},
             convergence={'density': 1.0e-6, 'bands': Nb},
             kpts={'size': (Nk, Nk, Nk), 'gamma': True},
             parallel={'domain': 1},
