@@ -128,7 +128,7 @@ EighErrorType magma_symmetric_solver_gpu(
     T* h_eigvals;
     MAGMA_CHECK(magma_host_malloc(&h_eigvals, n));
 
-    const magma_int_t status = magma_Xsyevd_gpu<T>(context, inout_eigvecs, inout_eigvals, workspace, false);
+    const magma_int_t status = magma_Xsyevd_gpu<T>(context, inout_eigvecs, h_eigvals, workspace, false);
 
     // Copy eigenvalues back to device
     gpuMemcpy(inout_eigvals, h_eigvals, n*sizeof(T), gpuMemcpyHostToDevice);
@@ -168,7 +168,7 @@ EighErrorType magma_hermitian_solver_gpu(
     T* h_eigvals;
     MAGMA_CHECK(magma_host_malloc(&h_eigvals, n));
 
-    const magma_int_t status = magma_Xheevd_gpu<T>(context, inout_eigvecs, inout_eigvals, workspace, false);
+    const magma_int_t status = magma_Xheevd_gpu<T>(context, inout_eigvecs, h_eigvals, workspace, false);
 
     // Copy eigenvalues back to device
     gpuMemcpy(inout_eigvals, h_eigvals, n*sizeof(T), gpuMemcpyHostToDevice);

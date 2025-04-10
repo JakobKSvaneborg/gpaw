@@ -101,7 +101,7 @@ PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    const npy_intp* dims = PyArray_DIMS((PyArrayObject*)in_matrix);
+    const npy_intp* dims = PyArray_DIMS(in_matrix);
 
     PyObject* eigvals = PyArray_SimpleNew(1, &size_np, python_context.numpy_eigval_dtype);
     PyObject* eigvecs = PyArray_SimpleNew(2, dims, python_context.numpy_eigvec_dtype);
@@ -118,7 +118,7 @@ PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
 
     const EighErrorType status = magma_eigh_cpu(
         solver_context,
-        PyArray_DATA((PyArrayObject*)in_matrix),
+        PyArray_DATA(in_matrix),
         PyArray_DATA((PyArrayObject*)eigvals),
         PyArray_DATA((PyArrayObject*)eigvecs)
     );
@@ -162,10 +162,6 @@ PyObject* eigh_magma_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    assert(gpaw::has_array_interface(in_matrix_cupy));
-    assert(gpaw::has_array_interface(inout_eigvals_cupy));
-    assert(gpaw::has_array_interface(inout_eigvecs_cupy));
-
     assert(gpaw::Array_NDIM(in_matrix_cupy) == 2);
     assert(gpaw::Array_DIM(in_matrix_cupy, 0) == gpaw::Array_DIM(in_matrix_cupy, 1));
 
@@ -200,7 +196,7 @@ PyObject* eigh_magma_gpu(PyObject* self, PyObject* args)
 
     const EighErrorType status = magma_eigh_gpu(
         solver_context,
-        gpaw::Array_DATA<void*>(in_matrix_cupy),
+        gpaw::Array_DATA<const void*>(in_matrix_cupy),
         gpaw::Array_DATA<void*>(inout_eigvals_cupy),
         gpaw::Array_DATA<void*>(inout_eigvecs_cupy)
     );

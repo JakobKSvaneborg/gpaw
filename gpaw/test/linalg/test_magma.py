@@ -120,5 +120,5 @@ def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
 
     atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-6
 
-    np.testing.assert_allclose(eigvals, eigvals_cp, atol=atol)
-    np.testing.assert_allclose(eigvects, eigvects_cp, atol=atol)
+    cp.testing.assert_allclose(eigvals, eigvals_cp, atol=atol)
+    cp.testing.assert_allclose(eigvects, eigvects_cp, atol=atol)
