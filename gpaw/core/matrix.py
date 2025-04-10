@@ -144,6 +144,41 @@ class Matrix(XP):
         M.data[:] = self.data
         return M
 
+    def __getitem__(self, index: List[slice]) -> Matrix:
+        # Indexing Matrix will, for simplicity, kill
+        # the BLACS distribution along indexed axes.
+               
+        # ROWS:
+        r, c, b = self.dist.rows, self.dist.columns, self.dist.blocksize
+        M, N = self.shape
+        data = self.data[index]
+        if isinstance(index[0], slice):
+            if index[0].stop is None and index[0].start is None:
+                m = M
+            else:
+                r = 1
+                m = data.shape[0]
+        else:
+            raise ValueError(index)
+        
+        # COLUMNS:
+        if isinstance(index[1], slice):
+            if index[1].stop is None and index[1].start is None:
+                n = N
+            else:
+                c = 1
+                n = data.shape[1]
+        else:
+            raise ValueError(index)
+
+        dist = (self.dist.comm, r, c, b)
+        return Matrix(M=m,
+                      N=n,
+                      dtype=self.dtype,
+                      data=data,
+                      dist=dist,
+                      xp=self.xp)
+
     def __setitem__(self, item, value):
         assert item == slice(None)
         assert isinstance(value, Matrix)
@@ -161,7 +196,7 @@ class Matrix(XP):
                  opa='N',
                  opb='N',
                  out=None,
-                 work_buffers=None,
+                 buffer=None,
                  beta=0.0,
                  symmetric=False) -> Matrix:
         """BLAS matrix-multiplication with other matrix."""
@@ -183,32 +218,30 @@ class Matrix(XP):
             assert opb == 'N', 'Not implemented'
             assert other.shape[0] == self.shape[0]
             
-            if work_buffers is None:
+            if buffer is None:
                 buffer_size = max(
                     min(int(2e8 / (max(other.data.shape[0], 1)
                                    * other.dtype.itemsize)),
                                       other.data.shape[1]), 1)
-                buffer_out = Matrix(
+                buffer = Matrix(
                     M=other.shape[0],
                     N=buffer_size,
                     dtype=other.dtype,
                     dist=dist.new(M=other.shape[0], N=buffer_size),
                     xp=other.xp)
-                data_buffer = buffer_out.new()
             else:
-                buffer_out, data_buffer = work_buffers
-                buffer_size = buffer_out.shape[1]
-                assert (buffer_out.shape == data_buffer.shape).all()
-                assert (buffer_out.data.shape[0] == self.data.shape[0])
+                buffer_size = buffer.shape[1]
+                assert (buffer.data.shape[0] == self.data.shape[0])
 
             for i in range(0, other.data.shape[1], buffer_size):
-                data_buffer.data[:, :other.data.shape[1] - i] \
-                    = other.data[:, i:i + buffer_size]
-                dist.multiply(alpha, A, opa, data_buffer, opb, 0.0,
-                              buffer_out, symmetric=symmetric)
-                other.data[:, i:i + buffer_size] \
-                    = buffer_out.data[:, :other.data.shape[1] - i] \
-                    + beta * other.data[:, i:i + buffer_size]
+                buffer_view = buffer[:, :other.data.shape[1] - i]
+                other_view = other[:, i:i + buffer_size]
+                dist.multiply(alpha, A, opa,
+                              other_view, opb, 0.0,
+                              buffer_view, symmetric=symmetric)
+                other_view.data[:] \
+                    = buffer_view.data \
+                    + beta * other_view.data
             return out
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
