@@ -158,6 +158,7 @@ class DFTCalculation:
     def move_atoms(self, atoms) -> DFTCalculation:
         check_atoms_too_close(atoms)
 
+        self.atoms = atoms
         self.relpos_ac = np.ascontiguousarray(atoms.get_scaled_positions())
         self.comm.broadcast(self.relpos_ac, 0)
 
