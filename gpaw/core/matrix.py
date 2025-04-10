@@ -196,7 +196,7 @@ class Matrix(XP):
                  opa='N',
                  opb='N',
                  out=None,
-                 buffer=None,
+                 buffers=None,
                  beta=0.0,
                  symmetric=False) -> Matrix:
         """BLAS matrix-multiplication with other matrix."""
@@ -213,35 +213,39 @@ class Matrix(XP):
         elif not isinstance(out, Matrix):
             out = out.matrix
         if out.data is other.data:
-            # Recursively call multiply to save memory (200 MB per rank)
+            # Repeatably call multiply to save memory (200 MB per rank)
             assert opa == 'N', 'Not implemented'
             assert opb == 'N', 'Not implemented'
             assert other.shape[0] == self.shape[0]
             
-            if buffer is None:
+            if buffers is None:
                 buffer_size = max(
-                    min(int(2e8 / (max(other.data.shape[0], 1)
-                                   * other.dtype.itemsize)),
-                                      other.data.shape[1]), 1)
-                buffer = Matrix(
+                    min(int(other.dist.comm.size * 2e8 /
+                            (max(other.shape[0], 1) * 
+                             other.dtype.itemsize)),
+                        other.data.shape[1]), 1)
+                out_buffer = Matrix(
                     M=other.shape[0],
                     N=buffer_size,
                     dtype=other.dtype,
                     dist=dist.new(M=other.shape[0], N=buffer_size),
                     xp=other.xp)
+                data_buffer = out_buffer.new()
             else:
-                buffer_size = buffer.shape[1]
-                assert (buffer.data.shape[0] == self.data.shape[0])
+                out_buffer, data_buffer = buffers
+                assert out_buffer.data.shape == data_buffer.data.shape
+                buffer_size = out_buffer.data.shape[1]
+                assert (out_buffer.data.shape[0] == other.data.shape[0])
 
             for i in range(0, other.data.shape[1], buffer_size):
-                buffer_view = buffer[:, :other.data.shape[1] - i]
-                other_view = other[:, i:i + buffer_size]
+                data_buffer.data[:, :other.data.shape[1] - i] \
+                    = other.data[:, i:i + buffer_size]
                 dist.multiply(alpha, A, opa,
-                              other_view, opb, 0.0,
-                              buffer_view, symmetric=symmetric)
-                other_view.data[:] \
-                    = buffer_view.data \
-                    + beta * other_view.data
+                              data_buffer, opb, beta,
+                              out_buffer, symmetric=symmetric)
+                out.data[:, i:i + buffer_size] *= beta
+                out.data[:, i:i + buffer_size] += \
+                    out_buffer.data[:, :other.data.shape[1] - i]
             return out
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)

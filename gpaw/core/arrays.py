@@ -22,6 +22,7 @@ DomainType = TypeVar('DomainType', bound=Domain)
 
 class DistributedArrays(Generic[DomainType], XP):
     desc: DomainType
+    workbuffer = None
 
     def __init__(self,
                  dims: int | tuple[int, ...],
@@ -74,7 +75,7 @@ class DistributedArrays(Generic[DomainType], XP):
         self._matrix: Matrix | None = None
 
     @abstractmethod
-    def create_buffer(self):
+    def get_buffer(self):
         raise NotImplementedError
 
     def new(self, data=None) -> DistributedArrays:
@@ -139,7 +140,8 @@ class DistributedArrays(Generic[DomainType], XP):
                         function=None,
                         domain_sum=True,
                         cc: bool = False,
-                        sliced: bool = False) -> Matrix:
+                        sliced: bool = False,
+                        buffer: DistributedArrays | None = None) -> Matrix:
         if symmetric == '_default':
             symmetric = self is other
 
@@ -154,10 +156,13 @@ class DistributedArrays(Generic[DomainType], XP):
         if comm.size == 1 or sliced:
             assert other.comm.size == comm.size
             if sliced and function:
-                #return self.matrix_elements(function(other, out=other.new()), out=out, cc=cc)
                 M1 = self.matrix
                 M2 = other.matrix
-                func_buffer, buffer_size = self.create_buffer() # Consider caching
+                if buffer is None:
+                    func_buffer, buffer_size = self.get_buffer()
+                else:
+                    func_buffer = buffer
+                    buffer_size = func_buffer.data.shape[0]
                 mybands, _ = self.data.shape
                 for i in range(0, mybands, buffer_size):
                     function(self[i:i + buffer_size], out=func_buffer)
