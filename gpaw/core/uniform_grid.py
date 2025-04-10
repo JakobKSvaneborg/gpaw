@@ -403,7 +403,7 @@ class UGArray(DistributedArrays[UGDesc]):
             return
 
         requests = []
-        assert isinstance(data, np.ndarray)
+        assert isinstance(data, self.xp.ndarray)
         for rank, block in enumerate(self.desc.blocks(data)):
             if rank != 0:
                 block = block.copy()
