@@ -17,19 +17,8 @@
 // Here we cast npy_intp to int64_t which should be more than enough for any practical size.
 // For routines returning 'int' we often cast to 'int32_t' for explicity (with some exceptions)
 
-// When using with generic PyObject* (eg. Cupy arrays) one should call gpaw::has_array_interface first
-// to verify that the object is array-like. This is crucial as the other routines like gpaw::Array_NDIM do not
-// perform sanity checking.
-
 namespace gpaw
 {
-
-/* True if the object can be interpreted as an array.
-This necessitates that the object defines named variables such as 'data', 'shape' etc.
-If this check passes, it should be safe to apply the other functions on the object,
-hence they do no further checking.
-*/
-bool has_array_interface(PyObject* a);
 
 // Get pointer to the array data
 template<typename T>
@@ -77,8 +66,6 @@ bool Array_ISCOMPLEX(PyObject* a);
 
 //~
 // Begin overloads for PyArrayObject, ie. Numpy array
-
-bool has_array_interface(PyArrayObject* a);
 
 template<typename T>
 T* Array_DATA(PyArrayObject* a)

@@ -3,33 +3,11 @@
 namespace gpaw
 {
 
-bool has_array_interface(PyObject* obj)
-{
-    if (obj == nullptr)
-    {
-        return false;
-    }
-    if (PyArray_Check(obj))
-    {
-        return true;
-    }
-
-    bool has_all_attributes = true;
-    has_all_attributes &= (PyObject_GetAttrString(obj, "data") != nullptr);
-    has_all_attributes &= (PyObject_GetAttrString(obj, "shape") != nullptr);
-    has_all_attributes &= (PyObject_GetAttrString(obj, "size") != nullptr);
-    has_all_attributes &= (PyObject_GetAttrString(obj, "dtype") != nullptr);
-    has_all_attributes &= (PyObject_GetAttrString(obj, "itemsize") != nullptr);
-    has_all_attributes &= (PyObject_GetAttrString(obj, "num") != nullptr);
-    has_all_attributes &= (PyObject_GetAttrString(obj, "nbytes") != nullptr);
-
-    return has_all_attributes;
-}
-
 int32_t Array_NDIM(PyObject* obj)
 {
     // return len(obj.shape)
     PyObject* shape = PyObject_GetAttrString(obj, "shape");
+    if (shape == NULL) return -1;
     const int32_t ndim = static_cast<int32_t>(PyTuple_Size(shape));
     Py_DECREF(shape);
 
@@ -39,6 +17,7 @@ int32_t Array_NDIM(PyObject* obj)
 int64_t Array_DIM(PyObject* obj, int32_t dim)
 {
     PyObject* shape = PyObject_GetAttrString(obj, "shape");
+    if (shape == NULL) return -1;
     PyObject* pydim = PyTuple_GetItem(shape, dim);
     Py_DECREF(shape);
     if (pydim == NULL) return -1;
@@ -50,9 +29,12 @@ int64_t Array_DIM(PyObject* obj, int32_t dim)
 int64_t Array_ITEMSIZE(PyObject* obj)
 {
     PyObject* dtype = PyObject_GetAttrString(obj, "dtype");
+    if (dtype == NULL) return -1;
     PyObject* itemsize_obj = PyObject_GetAttrString(dtype, "itemsize");
+    if (itemsize_obj == NULL) return -1;
 
     int64_t itemsize = static_cast<int64_t>(PyLong_AS_LONG(itemsize_obj));
+
     Py_DECREF(itemsize_obj);
     Py_DECREF(dtype);
 
@@ -62,6 +44,8 @@ int64_t Array_ITEMSIZE(PyObject* obj)
 int64_t Array_SIZE(PyObject* obj)
 {
     PyObject* size = PyObject_GetAttrString(obj, "size");
+    if (size == NULL) return -1;
+
     int64_t arraysize = static_cast<int64_t>(PyLong_AS_LONG(size));
     Py_DECREF(size);
 
@@ -71,6 +55,8 @@ int64_t Array_SIZE(PyObject* obj)
 int64_t Array_NBYTES(PyObject* obj)
 {
     PyObject* nbytes = PyObject_GetAttrString(obj, "nbytes");
+    if (nbytes == NULL) return -1;
+
     int64_t nbytesvalue = static_cast<int64_t>(PyLong_AS_LONG(nbytes));
     Py_DECREF(nbytes);
 
@@ -80,6 +66,8 @@ int64_t Array_NBYTES(PyObject* obj)
 int Array_TYPE(PyObject* obj)
 {
     PyObject* dtype = PyObject_GetAttrString(obj, "dtype");
+    if (dtype == NULL) return -1;
+
     PyObject* num = PyObject_GetAttrString(dtype, "num");
     Py_DECREF(dtype);
 
@@ -99,10 +87,6 @@ bool Array_ISCOMPLEX(PyObject* obj)
 
 // Numpy overloads
 
-bool has_array_interface(PyArrayObject* a)
-{
-    return true;
-}
 
 int32_t Array_NDIM(PyArrayObject* a)
 {
