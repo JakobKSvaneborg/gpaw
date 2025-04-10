@@ -16,14 +16,14 @@ class SJM:
                  cavity,
                  dielectric,
                  interactions,
-                 jelliumregion,
+                 jelliumregion: dict | None = None,
                  target_potential: float | None,  # eV
                  excess_electrons: float = 0.0,
                  tol: float = 0.001):  # eV
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions
-        self.jelliumregion = jelliumregion
+        self.jelliumregion = jelliumregion or {}
         self.target_potential = target_potential
         self.excess_electrons = excess_electrons
         self.tol = tol
