@@ -223,7 +223,8 @@ build-hip-cuda:
       gpu_target = 'hip-cuda'
       gpu_compiler = 'hipcc'
       gpu_compile_args = ['-O3',
-                          '-g']
+                          '-g',
+                          '-v']
       libraries += ['cudart', 'hipblas']
 
       # Suppress warnings from hip-cuda headers
