@@ -1,5 +1,5 @@
 #include "magma_python_interface.h"
-#include "pyarray_utils.hpp"
+#include "../pyarray_utils.hpp"
 #include "magma_gpaw.hpp"
 
 #include <cassert>

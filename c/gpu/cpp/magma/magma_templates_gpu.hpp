@@ -1,7 +1,7 @@
 #pragma once
 
 #include "magma_gpaw.hpp"
-#include "template_utils.hpp"
+#include "../template_utils.hpp"
 #include "../../gpu-runtime.h"
 
 template<typename T>

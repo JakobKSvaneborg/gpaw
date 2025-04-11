@@ -142,15 +142,20 @@ def build_gpu(
     undef_macros,
     build_temp,
 ):
-    print("building gpu kernels", flush=True)
+    print("building gpu code", flush=True)
 
     kernels_dpath = Path("c/gpu/kernels")
 
-    # Create temp build directory
-    build_temp_kernels_dpath = build_temp / kernels_dpath
-    if not build_temp_kernels_dpath.exists():
-        print(f"creating {build_temp_kernels_dpath}", flush=True)
-        build_temp_kernels_dpath.mkdir(parents=True)
+    def create_build_dir(build_temp_base: Path, path_to_code: Path) -> None:
+        """Creates a temp build directory corresponding to given directory in
+        the code folder structure"""
+        path_to_create = build_temp_base / path_to_code
+        if not path_to_create.exists():
+            print(f"creating {path_to_create}", flush=True)
+            path_to_create.mkdir(parents=True)
+
+    # Create temp build directory for gpu/kernels
+    create_build_dir(build_temp, kernels_dpath)
 
     # Glob all kernel files, but remove those included by other kernels
     kernels = sorted(kernels_dpath.glob("*.cpp"))
@@ -164,21 +169,25 @@ def build_gpu(
     ]:
         kernels.remove(kernels_dpath / name)
 
+    # Add other C++ code
+    cpp_dpath = Path("c/gpu/cpp")
+    create_build_dir(build_temp, cpp_dpath)
+    cpp_files = sorted(cpp_dpath.glob("*.cpp"))
+
+    cpp_files.extend(kernels)
+
     ## Add Magma-specific files if needed (figure out from define_macros)
     with_magma: bool = any(t[0] == "GPAW_WITH_MAGMA" for t in define_macros)
     if with_magma:
-        path_magma = Path(kernels_dpath / "magma")
-        files_magma = sorted(path_magma.glob("*.cpp"))
-        kernels.extend(files_magma)
+        magma_dpath = Path(cpp_dpath / "magma")
+        create_build_dir(build_temp, magma_dpath)
 
-        build_temp_magma_dir = build_temp_kernels_dpath / "magma"
-        if not build_temp_magma_dir.exists():
-            print(f"creating {build_temp_magma_dir}", flush=True)
-            build_temp_magma_dir.mkdir(parents=True)
+        files_magma = sorted(magma_dpath.glob("*.cpp"))
+        cpp_files.extend(files_magma)
 
-    # Compile GPU kernels
+    # Compile C++ code with cuda/hip compiler
     objects = []
-    for src in kernels:
+    for src in cpp_files:
         obj = build_temp / src.with_suffix(".o")
         objects.append(str(obj))
         run_args = [gpu_compiler]

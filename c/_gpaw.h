@@ -212,7 +212,8 @@ PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
 PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 
 #ifdef GPAW_WITH_MAGMA
-    #include "gpu/kernels/magma/magma_python_interface.h"
+    // Include just the C99-compliant interface, implementation is C++
+    #include "gpu/cpp/magma/magma_python_interface.h"
 #endif // GPAW_WITH_MAGMA
 
 #endif // GPAW_GPU
