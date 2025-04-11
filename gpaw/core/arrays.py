@@ -165,11 +165,23 @@ class DistributedArrays(Generic[DomainType], XP):
                     buffer_size = func_buffer.data.shape[0]
                 mybands, _ = self.data.shape
                 for i in range(0, mybands, buffer_size):
-                    function(self[i:i + buffer_size], out=func_buffer[:mybands - i])
-                    out.data[i:i + buffer_size, :] = \
-                        func_buffer.matrix.multiply(
-                            M2, opb='C', alpha=self.dv,
-                            symmetric=False).data[:mybands - i, :]
+                    buffer_view = func_buffer[:mybands - i]
+                    function(self[i:i + buffer_size], out=buffer_view)
+                    buffer_view_matrix = Matrix(
+                            M=comm.size*buffer_view.data.shape[0],
+                            N=buffer_view.data.shape[1],
+                            data=buffer_view.data,
+                            dist=(comm, -1, 1),
+                            xp=self.xp)
+                    out_view_matrix = Matrix(
+                            M=comm.size*min(mybands-i,
+                                            buffer_size),
+                            N=out.data.shape[1],
+                            data=out.data[i:i + buffer_size, :],
+                            dist=(comm, -1, 1),
+                            xp=self.xp)
+                    M2.dist.multiply(self.dv, buffer_view_matrix, 'N', M2, 'C',
+                                     0.0, out_view_matrix, symmetric=False)
                 self._matrix_elements_correction(M1, M2, out, symmetric)
             else:
                 if function:
@@ -179,7 +191,7 @@ class DistributedArrays(Generic[DomainType], XP):
                 M1 = self.matrix
                 M2 = other.matrix
                 out = M1.multiply(M2, opb='C', alpha=self.dv,
-                                  symmetric=symmetric, out=out)
+                                  symmetric=False, out=out)
 
                 # Plane-wave expansion of real-valued functions needs a correction:
                 self._matrix_elements_correction(M1, M2, out, symmetric)

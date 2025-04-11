@@ -706,6 +706,7 @@ class NoDistribution(MatrixDistribution):
     rows = 1
     columns = 1
     blocksize = None
+    simple = False  # For working together with distributed matrices
 
     def __init__(self, M, N):
         self.shape = (M, N)
