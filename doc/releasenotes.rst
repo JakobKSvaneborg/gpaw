@@ -10,6 +10,8 @@ Git master branch
 
 :git:`master <>`.
 
+* :ref:`acwf` result for our PAW-potentials (PW and LCAO modes).
+
 * The fluctuation-dissipation theorem has been added to the SJM.
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.

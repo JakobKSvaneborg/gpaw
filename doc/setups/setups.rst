@@ -152,6 +152,16 @@ Advanced topics
    pawxml
 
 
+.. _acwf:
+
+ACWF-benchmark
+==============
+
+:git:`gpaw/utilities.acwf.py`:
+
+.. csv-table:: acwf.csv
+
+
 .. _24.11.0:
     https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-24.11.0.tar.gz
 .. _24.1.0:
