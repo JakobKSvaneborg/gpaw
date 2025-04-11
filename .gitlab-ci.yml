@@ -212,6 +212,10 @@ build-hip-cuda:
   extends:
     - .build
     - .gpu-job
+  before_script:
+    # Set env variable for HIPCC because otherwise it fails to pass the -std
+    # flag to underlying nvcc/cicc... and may default to c++14
+    - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
   script:
     - |
       cat << EOF >> siteconfig.py
