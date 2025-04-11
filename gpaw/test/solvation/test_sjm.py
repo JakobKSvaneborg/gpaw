@@ -18,7 +18,7 @@ def test_sjm(gpaw_new):
     u0 = 0.180  # eV
     epsinf = 78.36  # Dielectric constant of water at 298 K
     gamma = 0.00114843767916  # 18.4*1e-3 * Pascal* m
-    T = 298.15   # K
+    T = 298.15  # K
 
     def atomic_radii(atoms):
         return [vdw_radii[n] for n in atoms.numbers]
@@ -46,7 +46,8 @@ def test_sjm(gpaw_new):
         kpts=(2, 2, 1),
         xc='PBE',
         convergence=convergence,
-        occupations=FermiDirac(0.1))
+        occupations=FermiDirac(0.1),
+        txt=f'{gpaw_new}.txt')
 
     solvation = dict(
         cavity=EffectivePotentialCavity(
@@ -68,6 +69,12 @@ def test_sjm(gpaw_new):
         pot = -atoms.calc.get_fermi_level()
 
     assert abs(pot - potential) < tol
+    if 0:
+        import matplotlib.pyplot as plt
+        import numpy as np
+        x, y = np.array(atoms.calc.environment.jellium.history).T
+        plt.plot(x, y)
+        plt.show()
     if 0:
         v = atoms.calc.get_electrostatic_potential()
         import matplotlib.pyplot as plt

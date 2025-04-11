@@ -54,24 +54,23 @@ class Jellium(Environment):
         super().__init__(natoms)
         self.grid = grid
         self.charge = jellium.charge
-        self.charge_x: UGArray | PWArray | None = grid.zeros()
-        jellium.add_charge_to(self.charge_x.data)
+        self.mask_r = grid.from_data(jellium.mask_g / jellium.volume)
+        self.mask_g: PWArray | str = 'undefined'
 
     def update1(self, nt_r: UGArray) -> None:
-        assert self.charge_x is not None
-        nt_r.data += self.charge_x.data
+        nt_r.data -= self.mask_r.data * self.charge
 
     def update1pw(self, nt_g: PWArray | None) -> None:
-        if isinstance(self.charge_x, UGArray):
-            charge_r = self.charge_x.gather()
+        if self.mask_g == 'undefined':
+            mask_r = self.mask_r.gather()
             if nt_g is not None:
-                self.charge_x = charge_r.fft(pw=nt_g.desc)
+                self.mask_g = mask_r.fft(pw=nt_g.desc)
             else:
-                self.charge_x = None
+                self.mask_g = 'ready'
         if nt_g is None:
             return
-        assert self.charge_x is not None
-        nt_g.data += self.charge_x.data
+        assert not isinstance(self.mask_g, str)
+        nt_g.data -= self.mask_g.data * self.charge
 
 
 class FixedPotentialJellium(Jellium):
@@ -109,10 +108,7 @@ class FixedPotentialJellium(Jellium):
             dc = c - c1
             if abs(dc) > abs(c2 - c1):
                 dc *= abs((c2 - c1) / dc)
-        new_charge = self.charge + dc
-        if self.charge_x is not None:
-            self.charge_x.data *= new_charge / self.charge
-        self.charge = new_charge
+        self.charge += dc
         nelectrons += dc
         ibzwfs.calculate_occs(occ_calc, nelectrons)
         mixer.reset()
