@@ -212,10 +212,6 @@ build-hip-cuda:
   extends:
     - .build
     - .gpu-job
-  before_script:
-    # Set env variable for HIPCC because otherwise it fails to pass the -std
-    # flag to underlying nvcc/cicc... and may default to c++14
-    - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -238,6 +234,11 @@ build-hip-cuda:
       libraries += ['magma']
       EOF
     - cat siteconfig.py
+     # Set env variable for HIPCC because otherwise it fails to pass the -std
+    # flag to underlying nvcc/cicc... and may default to c++14.
+    # Also, setting this in before_script phase for some reason broke BLAS
+    # linking when installing ASE. So we set it here instead.
+    - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
     - pip install -v --user --log build.log --editable .
 
 
