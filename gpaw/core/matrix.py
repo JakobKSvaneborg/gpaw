@@ -241,13 +241,13 @@ class Matrix(XP):
                 data_buffer.data[:, :other.data.shape[1] - i] \
                     = other.data[:, i:i + buffer_size]
                 dist.multiply(alpha, A, opa,
-                              data_buffer, opb, beta,
+                              data_buffer, opb, False,
                               out_buffer, symmetric=symmetric)
                 out.data[:, i:i + buffer_size] *= beta
                 out.data[:, i:i + buffer_size] += \
                     out_buffer.data[:, :other.data.shape[1] - i]
             return out
-
+        print('going fast')
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
         return out
 
@@ -736,6 +736,7 @@ class NoDistribution(MatrixDistribution):
                 blas.r2k(0.5 * alpha, a.data, b.data, beta, c.data, 'n')
 
         else:
+            print('blasin')
             blas.mmm(alpha, a.data, opa, b.data, opb, beta, c.data)
 
 

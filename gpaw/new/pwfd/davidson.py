@@ -13,7 +13,7 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
 from gpaw.new import trace, tracectx
 
-MAX_MEM = 2e5 # ~20 MB
+MAX_MEM = 2e6 # ~20 MB
 
 class Davidson(PWFDEigensolver):
     def __init__(self,
