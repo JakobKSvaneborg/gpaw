@@ -11,7 +11,8 @@ from gpaw.gpu import cupy_is_fake
 # sensible convention; however this doesn't seem to work very well at single
 # precision. Instead, we check that the eigenvalues, eigenvector pairs
 # (lam, v) satisfy A.v == lam*v, and assert that eigenvalues from Magma
-# match with those from Numpy/Cupy.
+# match with those from Numpy/Cupy
+
 
 def assert_eigenpairs(A, eigvals, eigvecs, rtol=1e-12, atol=1e-12) -> None:
     """Checks that A @ v == lam*v and asserts on failure."""
@@ -26,6 +27,7 @@ def assert_eigenpairs(A, eigvals, eigvecs, rtol=1e-12, atol=1e-12) -> None:
 
         xp.testing.assert_allclose(lhs, rhs, rtol=rtol, atol=atol)
     #
+
 
 @pytest.fixture
 def eigh_test_matrix():
@@ -52,8 +54,10 @@ def eigh_test_matrix():
             assert dtype == np.complex64 or dtype == np.complex128
             dtype_real = np.float32 if dtype == np.complex64 else np.float64
             # Create Hermitian matrix
-            A = ( rng.random((n, n), dtype=dtype_real)
-                + 1j * rng.random((n, n), dtype=dtype_real) )
+            A = (
+                rng.random((n, n), dtype=dtype_real)
+                + 1j * rng.random((n, n), dtype=dtype_real)
+            )
             return (A + A.T.conj()) / 2
 
     return _generate
@@ -81,6 +85,7 @@ def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
 
     np.testing.assert_allclose(eigvals, eigvals_np, atol=atol)
     assert_eigenpairs(arr, eigvals, eigvecs, rtol=rtol, atol=atol)
+
 
 # MAGMA seems to do small matrices (N <= 128) on the CPU.
 # So need a large matrix for honest GPU tests
