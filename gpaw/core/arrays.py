@@ -165,7 +165,7 @@ class DistributedArrays(Generic[DomainType], XP):
                     buffer_size = func_buffer.data.shape[0]
                 mybands, _ = self.data.shape
                 for i in range(0, mybands, buffer_size):
-                    function(self[i:i + buffer_size], out=func_buffer)
+                    function(self[i:i + buffer_size], out=func_buffer[:mybands - i])
                     out.data[i:i + buffer_size, :] = \
                         func_buffer.matrix.multiply(
                             M2, opb='C', alpha=self.dv,
