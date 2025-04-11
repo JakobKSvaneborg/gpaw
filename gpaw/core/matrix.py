@@ -216,6 +216,7 @@ class Matrix(XP):
             # Repeatably call multiply to save memory (200 MB per rank)
             assert opa == 'N', 'Not implemented'
             assert opb == 'N', 'Not implemented'
+            assert not beta, 'Not implemented'
             assert other.shape[0] == self.shape[0]
             
             if buffers is None:
@@ -241,13 +242,13 @@ class Matrix(XP):
                 data_buffer.data[:, :other.data.shape[1] - i] \
                     = other.data[:, i:i + buffer_size]
                 dist.multiply(alpha, A, opa,
-                              data_buffer, opb, False,
-                              out_buffer, symmetric=symmetric)
-                out.data[:, i:i + buffer_size] *= beta
-                out.data[:, i:i + buffer_size] += \
-                    out_buffer.data[:, :other.data.shape[1] - i]
+                              data_buffer, opb, beta,
+                              other[:, i:i + buffer_size], symmetric=symmetric)
+                              #out_buffer, symmetric=symmetric)
+                #out.data[:, i:i + buffer_size] *= beta
+                #out.data[:, i:i + buffer_size] = \
+                #    out_buffer.data[:, :other.data.shape[1] - i]
             return out
-        print('going fast')
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
         return out
 
@@ -736,7 +737,6 @@ class NoDistribution(MatrixDistribution):
                 blas.r2k(0.5 * alpha, a.data, b.data, beta, c.data, 'n')
 
         else:
-            print('blasin')
             blas.mmm(alpha, a.data, opa, b.data, opb, beta, c.data)
 
 
@@ -814,7 +814,10 @@ class BLACSDistribution(MatrixDistribution):
             # looked into more. For now, we just use the more general
             # scalapack function when matrices are not square.
             ok = a.dist.simple and b.dist.simple and c.dist.simple \
-                and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1]
+                and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1] \
+                and a.data.flags['C_CONTIGUOUS'] \
+                and b.data.flags['C_CONTIGUOUS'] \
+                and c.data.flags['C_CONTIGUOUS']
             if ok:
                 # Special cases that don't need scalapack - most likely also
                 # faster:
@@ -848,6 +851,7 @@ class BLACSDistribution(MatrixDistribution):
                 Ka, M = M, Ka
             if opb == 'N':
                 N, Kb = Kb, N
+            #print('p-blasin')
             cgpaw.pblas_gemm(N, M, Ka, alpha, b.data, a.data,
                              beta, c.data,
                              b.dist.desc, a.dist.desc, c.dist.desc,
