@@ -38,12 +38,13 @@ def SJM(*args, **kwargs):
     if GPAW_NEW:
         from gpaw.new.ase_interface import GPAW
         from gpaw.new.sjm import SJM
+        environment = SJM(cavity=kwargs.pop('cavity'),
+                          dielectric=kwargs.pop('dielectric'),
+                          interactions=kwargs.pop('interactions', None),
+                          **kwargs.pop('sj'))
         return GPAW(
             *args, **kwargs,
-            environment=SJM(cavity=kwargs.pop('cavity'),
-                            dielectric=kwargs.pop('dielectric'),
-                            interactions=kwargs.pop('interactions', None),
-                            **kwargs.pop('sj')))
+            environment=environment)
     return OldSJM(*args, **kwargs)
 
 
