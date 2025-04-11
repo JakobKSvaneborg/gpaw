@@ -61,6 +61,16 @@ class SJM:
                 tolerance=self.tol)
         return SJMEnvironment(solvation, jellium)
 
+    def todict(self):
+        return dict(
+            cavity=self.cavity.todict(),
+            dielectric=self.dielectric.todict(),
+            interactions=[i.todict() for i in self.interactions],
+            jelliumregion=self.jelliumregion,
+            target_potential=self.target_potential,
+            excess_electrons=self.excess_electrons,
+            tol=self.tol)
+
 
 class SJMEnvironment(Environment):
     def __init__(self,

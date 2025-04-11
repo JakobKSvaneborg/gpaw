@@ -8,9 +8,10 @@ from gpaw.solvation.sjm import SJM as OldSJM
 
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_h(gpaw_new, mode):
+def test_h(gpaw_new, mode, in_tmp_dir):
     if mode == 'pw' and not gpaw_new:
         pytest.skip('PW-mode not implemented for old GPAW')
+
     a = 1.4
     atoms = Atoms('H', cell=[a, a, 11.0], pbc=(1, 1, 0))
     atoms.positions[0, 2] = 4.0
@@ -36,6 +37,8 @@ def test_h(gpaw_new, mode):
         pot = atoms.calc.get_electrode_potential()
 
     assert pot == pytest.approx(7.5, abs=0.01)
+
+    atoms.write('h.traj')
 
     if 0:
         v = atoms.calc.get_electrostatic_potential()
@@ -65,6 +68,9 @@ class NoCavity:
     def summary(self, log):
         pass
 
+    def todict(self):
+        return {}
+
 
 class Vacuum:
     def set_grid_descriptor(self, gd):
@@ -73,6 +79,9 @@ class Vacuum:
 
     def allocate(self):
         pass
+
+    def todict(self):
+        return {}
 
 
 if __name__ == '__main__':
