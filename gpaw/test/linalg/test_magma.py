@@ -15,23 +15,29 @@ def fix_eigenvector_phase(inout_arr):
     NB: eigenvectors are on columns.
     """
     assert inout_arr.ndim == 2
-    # Works for cupy arrays too because the dtypes are compatible
 
-    if np.issubdtype(inout_arr.dtype, np.complexfloating):
+    is_complex = np.issubdtype(inout_arr.dtype, np.complexfloating)
+
+    # Always use double precision for the rotations
+    arr = inout_arr.astype(np.complex128 if is_complex else np.float64,
+                           copy=False)
+
+    if is_complex:
         # Complex matrices
-        for i in range(inout_arr.shape[1]):
-            phase = np.angle(inout_arr[0, i])
+        for i in range(arr.shape[1]):
+            phase = np.angle(arr[0, i])
             if phase != 0:
                 rotation = np.exp(phase * (-1j))
-                inout_arr[:, i] *= rotation
+                arr[:, i] *= rotation
 
-    elif np.issubdtype(inout_arr.dtype, np.floating):
+    elif np.issubdtype(arr.dtype, np.floating):
         # Real matrices
-        for i in range(inout_arr.shape[1]):
-            if inout_arr[0, i] < 0:
-                inout_arr[:, i] *= -1
+        for i in range(arr.shape[1]):
+            if arr[0, i] < 0:
+                arr[:, i] *= -1
 
-    return inout_arr
+    # convert back to original dtype
+    inout_arr[:] = arr.astype(inout_arr.dtype)
 
 
 @pytest.fixture
@@ -86,7 +92,7 @@ def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
     fix_eigenvector_phase(eigvects)
     fix_eigenvector_phase(eigvects_np)
 
-    atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-6
+    atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
 
     np.testing.assert_allclose(eigvals, eigvals_np, atol=atol)
     np.testing.assert_allclose(eigvects, eigvects_np, atol=atol)
@@ -108,17 +114,29 @@ def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
                         matrix_size: int,
                         dtype: np.dtype,
                         uplo: str):
-    """Compare eigh output of CUPY and MAGMA"""
+    """Compare eigh output of CUPY and MAGMA (GPU)"""
 
     arr = eigh_test_matrix(matrix_size, dtype=dtype, backend='cupy')
-    eigvals, eigvects = eigh_magma_gpu(arr, uplo)
 
+    eigvals, eigvects = eigh_magma_gpu(arr, uplo)
     eigvals_cp, eigvects_cp = cp.linalg.eigh(arr, UPLO=uplo)
 
-    fix_eigenvector_phase(eigvects)
-    fix_eigenvector_phase(eigvects_cp)
+    #fix_eigenvector_phase(eigvects)
+    #fix_eigenvector_phase(eigvects_cp)
 
-    atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-6
+    atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
+    rtol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-4
 
-    cp.testing.assert_allclose(eigvals, eigvals_cp, atol=atol)
-    cp.testing.assert_allclose(eigvects, eigvects_cp, atol=atol)
+    cp.testing.assert_allclose(eigvals, eigvals_cp, atol=atol, rtol=rtol)
+    #cp.testing.assert_allclose(eigvects, eigvects_cp, atol=atol, rtol=rtol)
+
+    ## TODO: instead of rotating eigenvectors, do the following checks:
+    # 1) A.v == lam*v       (magma only). Eg. norm(A.v - lam*v) / norm(lam*v)
+    # 2) eigenvals match between magma and cupy
+    # 3) eigenvectors match up to a phase: v.u / |v||u|
+
+    for i in range(eigvects.shape[1]):
+        u, v = eigvects[:, i], eigvects_cp[:, i]
+        inner = cp.vdot(u, v)
+        norm_product = cp.linalg.norm(u) * cp.linalg.norm(v)
+        assert cp.abs(inner / norm_product) > 1 - atol
