@@ -4,8 +4,10 @@ Do equation-of-state calculation for the 10 reference systems from
 the AiiDA common workflows (ACWF) benchmark:
 DIAMOND, FCC, SC, BCC, XO3, XO, X4O6, XO2, X4O10, X2O.
 """
+from __future__ import annotations
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -105,9 +107,9 @@ def workflow() -> None:
 def work(structure: str,
          symbol: str,
          setup_name: str = '',
-         mode: str = 'pw') -> dict:
+         mode: str = 'pw'):
     """Do single EOS calculations with PBE."""
-    params = dict(
+    params: dict[str, Any] = dict(
         xc='PBE',
         occupations=dict(name='fermi-dirac', width=0.0612),
         kpts=dict(density=6.0),
@@ -137,7 +139,7 @@ def collect_data() -> None:
     """Collect everything need for a table on the web-page."""
     results = {}
     for name in all_names:
-        result = {'pw': [], 'lcao': []}
+        result: dict[str, list[tuple[str, float]]] = {'pw': [], 'lcao': []}
         for mode in ['pw', 'lcao']:
             for path in Path(name).glob(f'{mode}-*.json'):
                 structure = path.stem.split('-')[1]
