@@ -40,8 +40,8 @@ def test_h(gpaw_new, mode, in_tmp_dir):
     assert pot == pytest.approx(7.5, abs=0.01)
 
     atoms.write('h.traj')
-    atoms.calc.write('h.gpw')
     if gpaw_new:
+        atoms.calc.write('h.gpw')
         GPAW('h.gpw')
 
     if 0:
