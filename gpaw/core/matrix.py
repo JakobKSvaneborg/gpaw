@@ -233,8 +233,11 @@ class Matrix(XP):
                     xp=other.xp)
             else:
                 assert isinstance(data_buffer, Array1D)
-                buffer_size = min(data_buffer.size // other.data.shape[0],
-                                  other.data.shape[1])
+                if other.data.shape[0] > 0:
+                    buffer_size = min(data_buffer.size // other.data.shape[0],
+                                    other.data.shape[1])
+                else:
+                    buffer_size = other.data.shape[1]
                 buffer = Matrix(
                     M=other.shape[0],
                     N=buffer_size,
@@ -244,22 +247,14 @@ class Matrix(XP):
                     dist=dist.new(M=other.shape[0], N=buffer_size),
                     xp=other.xp)
 
-            # Special case for when buffer fits entire other matrix
-            # XXX: What if this statement is true on some, but not all, ranks?
-            # Can that even happen?
-            if buffer.data.shape == other.data.shape:
-                dist.multiply(alpha, A, opa, B, opb, beta, buffer,
-                              symmetric=symmetric)
-                other.data[:] = buffer.data
-                return out
-
             # Sliced multiply
             for i in range(0, other.data.shape[1], buffer_size):
-                buffer.data[:, :other.data.shape[1] - i] \
+                buffer_view = buffer[:, :other.data.shape[1] - i]
+                buffer_view.data[:] \
                     = other.data[:, i:i + buffer_size]
                 dist.multiply(alpha, A, opa,
-                              buffer, opb, beta,
-                              other[:, i:i + buffer_size], symmetric=symmetric)
+                              buffer_view, opb, beta,
+                              other[:, i:i + buffer_size], symmetric=False)
             return out
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)

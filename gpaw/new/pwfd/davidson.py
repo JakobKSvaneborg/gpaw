@@ -10,10 +10,10 @@ from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_exception
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.typing import Array2D
+from gpaw.typing import Array2D, Array1D
 from gpaw.new import trace, tracectx
 
-MAX_MEM = 2e6 # ~20 MB
+MAX_MEM = 2e8 # ~200 MB
 
 class Davidson(PWFDEigensolver):
     def __init__(self,
@@ -32,7 +32,9 @@ class Davidson(PWFDEigensolver):
         self.S_NN = None
         self.M_nn = None
         self.work_arrays: np.ndarray | None = None
-        self.buffer_nx: NDArray | None = None
+        self.data_buffer: Array1D | None = None
+        self.data_buffer2: Array1D | None = None
+        
 
     def __str__(self):
         return pformat(dict(name='Davidson',
@@ -66,9 +68,14 @@ class Davidson(PWFDEigensolver):
         dist = psit_nX.dist
         
         # Single buffer approach
-        buffer_size = min(MAX_MEM / dtype.itemsize,
-                          psit_nX.data.shape[0] * G_max)
+        buffer_size = max(min(int(MAX_MEM / dtype.itemsize),
+                              psit_nX.data.shape[0] * G_max),
+                          G_max)
         self.data_buffer = xp.empty((buffer_size,), dtype)
+        buffer_size = max(min(int(MAX_MEM / dtype.itemsize),
+                              psit_nX.data.shape[0] * G_max),
+                          G_max)
+        self.data_buffer2 = xp.empty((buffer_size,), dtype)
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN
@@ -101,7 +108,7 @@ class Davidson(PWFDEigensolver):
         if domain_comm.rank == 0:
             eig_N[:B] = xp.asarray(wfs.eig_n)
 
-        me_buffer_mX = psit_nX.new_buffer(self.data_buffer)
+        me_buffer_mX = psit_nX.new_buffer(self.data_buffer2)
 
         @trace
         def me(a, b, function=None, sliced=False):
@@ -207,7 +214,7 @@ class Davidson(PWFDEigensolver):
                 wfs._P_ani = P_ani
 
             if i < self.niter - 1:
-                partial(Ht, out=psit2_nX)(psit_nX)
+                Ht(psit_nX, out=psit2_nX)
                 calculate_residuals(
                     wfs.psit_nX,
                     psit2_nX,
