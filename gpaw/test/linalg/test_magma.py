@@ -6,6 +6,7 @@ from gpaw.cgpaw import have_magma
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 
+
 # Comparing eigenvectors from different solvers is challenging because of
 # phase ambiguity. One solution would be to fix the phase according to some
 # sensible convention; however this doesn't seem to work very well at single
