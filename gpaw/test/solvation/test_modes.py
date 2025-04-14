@@ -5,6 +5,7 @@ from gpaw import FermiDirac
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.sjm import SJM
 from gpaw.solvation.sjm import SJM as OldSJM
+from gpaw.new.input_parameters import register
 
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
@@ -39,6 +40,9 @@ def test_h(gpaw_new, mode, in_tmp_dir):
     assert pot == pytest.approx(7.5, abs=0.01)
 
     atoms.write('h.traj')
+    atoms.calc.write('h.gpw')
+    if gpaw_new:
+        GPAW('h.gpw')
 
     if 0:
         v = atoms.calc.get_electrostatic_potential()
@@ -47,6 +51,7 @@ def test_h(gpaw_new, mode, in_tmp_dir):
         plt.show()
 
 
+@register
 class NoCavity:
     depends_on_el_density = False
 
@@ -72,6 +77,7 @@ class NoCavity:
         return {}
 
 
+@register
 class Vacuum:
     def set_grid_descriptor(self, gd):
         self.eps_gradeps = [gd.zeros() for _ in range(4)]

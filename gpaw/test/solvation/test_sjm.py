@@ -72,6 +72,12 @@ def test_sjm(gpaw_new, in_tmp_dir):
 
     atoms.write('Au.traj')
 
+    atoms.calc.write('Au.gpw')
+    if gpaw_new:
+        calc = GPAW('Au.gpw')
+        print(atoms.calc.environment)
+        print(calc.environment)
+
     if 0:
         import matplotlib.pyplot as plt
         import numpy as np

@@ -1,13 +1,14 @@
 import numpy as np
 from ase.units import kB, Hartree, Bohr
 from ase.data.vdw import vdw_radii
+from ase.data import chemical_symbols
 
 from gpaw.solvation.gridmem import NeedsGD
 from gpaw.fd_operators import Gradient
 from gpaw.io.logger import indent
+from gpaw.new.input_parameters import register
 
-
-BAD_RADIUS_MESSAGE = "All atomic radii have to be finite and >= zero."
+BAD_RADIUS_MESSAGE = 'All atomic radii have to be finite and >= zero.'
 
 
 def set_log_and_check_radii(obj, atoms, log):
@@ -204,6 +205,7 @@ class Cavity(NeedsGD):
         log(f'Solvation cavity volume: {V}')
 
 
+@register
 class EffectivePotentialCavity(Cavity):
     """Cavity built from effective potential and Boltzmann distribution.
 
@@ -413,6 +415,9 @@ class Power12Potential(Potential):
         Potential.__init__(self)
         if atomic_radii is None:
             atomic_radii = get_vdw_radii
+        elif isinstance(atomic_radii, dict):
+            def atomic_radii(atoms, radii=atomic_radii):
+                return [radii[symbol] for symbol in atoms.symbols]
         self.atomic_radii = atomic_radii
         self.u0 = float(u0)
         self.pbc_cutoff = float(pbc_cutoff)
@@ -426,7 +431,9 @@ class Power12Potential(Potential):
 
     def todict(self):
         return {
-            'atomic_radii': self.atomic_radii_output.tolist(),
+            'atomic_radii': {
+                symbol: r for symbol, r in zip(
+                    self.symbols, self.atomic_radii_output)},
             'u0': self.u0,
             'pbc_cutoff': self.pbc_cutoff,
             'tiny': self.tiny}
@@ -937,6 +944,7 @@ class SurfaceCalculator(NeedsGD):
         raise NotImplementedError()
 
 
+@register
 class GradientSurface(SurfaceCalculator):
     """Class for getting the surface area from the gradient of the cavity.
 
