@@ -1092,6 +1092,12 @@ class SJMPower12Potential(Power12Potential):
         self.unsolv_backside = unsolv_backside
         self.communicator = communicator
 
+    def todict(self):
+        return {
+            **super().todict(),
+            'H2O_layer': self.H2O_layer,
+            'unsolv_backside': self.unsolv_backside}
+
     def __str__(self):
         s = Power12Potential.__str__(self)
         s += indent(f'  H2O layer: {self.H2O_layer}\n')

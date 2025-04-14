@@ -85,6 +85,14 @@ class Cavity(NeedsGD):
         self.V = None  # global Volume
         self.A = None  # global Surface
 
+    def todict(self):
+        dct = {}
+        if self.surface_calculator is not None:
+            dct['surface_calculator'] = self.surface_calculator
+        if self.volume_calculator is not None:
+            dct['volume_calculator'] = self.volume_calculator
+        return dct
+
     def write(self, writer):
         pass
 
@@ -220,6 +228,12 @@ class EffectivePotentialCavity(Cavity):
         self.effective_potential = effective_potential
         self.temperature = float(temperature)
         self.minus_beta = -1. / (kB * temperature / Hartree)
+
+    def todict(self):
+        return {
+            'effective_potential': self.effective_potential.todict(),
+            'temperature': self.temperature,
+            **super().todict()}
 
     def write(self, writer):
         writer.write(effective_potential=self.effective_potential,
@@ -409,6 +423,13 @@ class Power12Potential(Potential):
         self.del_u_del_r_vg = None
         self.atomic_radii_output = None
         self.symbols = None
+
+    def todict(self):
+        return {
+            'atomic_radii': self.atomic_radii_output.tolist(),
+            'u0': self.u0,
+            'pbc_cutoff': self.pbc_cutoff,
+            'tiny': self.tiny}
 
     def estimate_memory(self, mem):
         Potential.estimate_memory(self, mem)
@@ -932,6 +953,9 @@ class GradientSurface(SurfaceCalculator):
         self.gradient_out = None
         self.norm_grad_out = None
         self.div_tmp = None
+
+    def todict(self):
+        return {'nn': self.nn}
 
     def write(self, writer):
         writer.write(

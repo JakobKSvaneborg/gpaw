@@ -90,6 +90,9 @@ class SurfaceInteraction(Interaction):
         Interaction.__init__(self)
         self.surface_tension = float(surface_tension)
 
+    def todict(self):
+        return {'surface_tension': self.surface_tension}
+
     def write(self, writer):
         writer.write(name='SurfaceInteraction',
                      surface_tension=self.surface_tension)

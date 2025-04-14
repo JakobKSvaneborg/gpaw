@@ -11,7 +11,7 @@ from gpaw.solvation.sjm import SJM as OldSJM
 from gpaw.solvation.sjm import SJMPower12Potential
 
 
-def test_sjm(gpaw_new):
+def test_sjm(gpaw_new, in_tmp_dir):
     if gpaw_new and size > 1:
         pytest.skip('SJM with new-GPAW only works in serial!')
     # Solvent parameters
@@ -69,6 +69,9 @@ def test_sjm(gpaw_new):
         pot = -atoms.calc.get_fermi_level()
 
     assert abs(pot - potential) < tol
+
+    atoms.write('Au.traj')
+
     if 0:
         import matplotlib.pyplot as plt
         import numpy as np
