@@ -29,5 +29,4 @@ def create_acwf_csv_file():
             for Z, name, n1, mx1, mn1, n2, mx2, mn2 in table))
 
 
-if __name__ == '__main__':
-    create_acwf_csv_file()
+create_acwf_csv_file()
