@@ -33,7 +33,6 @@ class Davidson(PWFDEigensolver):
         self.M_nn = None
         self.work_arrays: np.ndarray | None = None
         self.data_buffer: Array1D | None = None
-        self.data_buffer2: Array1D | None = None
         
 
     def __str__(self):
@@ -72,10 +71,6 @@ class Davidson(PWFDEigensolver):
                               psit_nX.data.shape[0] * G_max),
                           G_max)
         self.data_buffer = xp.empty((buffer_size,), dtype)
-        buffer_size = max(min(int(MAX_MEM / dtype.itemsize),
-                              psit_nX.data.shape[0] * G_max),
-                          G_max)
-        self.data_buffer2 = xp.empty((buffer_size,), dtype)
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN
