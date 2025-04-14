@@ -5,12 +5,14 @@ from gpaw import FermiDirac
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.sjm import SJM
 from gpaw.solvation.sjm import SJM as OldSJM
+from gpaw.new.input_parameters import register
 
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_h(gpaw_new, mode):
+def test_h(gpaw_new, mode, in_tmp_dir):
     if mode == 'pw' and not gpaw_new:
         pytest.skip('PW-mode not implemented for old GPAW')
+
     a = 1.4
     atoms = Atoms('H', cell=[a, a, 11.0], pbc=(1, 1, 0))
     atoms.positions[0, 2] = 4.0
@@ -37,6 +39,11 @@ def test_h(gpaw_new, mode):
 
     assert pot == pytest.approx(7.5, abs=0.01)
 
+    atoms.write('h.traj')
+    if gpaw_new:
+        atoms.calc.write('h.gpw')
+        GPAW('h.gpw')
+
     if 0:
         v = atoms.calc.get_electrostatic_potential()
         import matplotlib.pyplot as plt
@@ -44,6 +51,7 @@ def test_h(gpaw_new, mode):
         plt.show()
 
 
+@register
 class NoCavity:
     depends_on_el_density = False
 
@@ -65,7 +73,11 @@ class NoCavity:
     def summary(self, log):
         pass
 
+    def todict(self):
+        return {}
 
+
+@register
 class Vacuum:
     def set_grid_descriptor(self, gd):
         self.eps_gradeps = [gd.zeros() for _ in range(4)]
@@ -73,6 +85,9 @@ class Vacuum:
 
     def allocate(self):
         pass
+
+    def todict(self):
+        return {}
 
 
 if __name__ == '__main__':
