@@ -11,7 +11,8 @@ from gpaw.gpu import cupy_is_fake
 # sensible convention; however this doesn't seem to work very well at single
 # precision. Instead, we check that the eigenvalues, eigenvector pairs
 # (lam, v) satisfy A.v == lam*v, and assert that eigenvalues from Magma
-# match with those from Numpy/Cupy
+# match with those from Numpy/Cupy.
+# We also check unitarity/orthonormality of the eigenvector matrix.
 
 
 def assert_eigenpairs(A, eigvals, eigvecs, rtol=1e-12, atol=1e-12) -> None:
@@ -86,6 +87,11 @@ def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
     np.testing.assert_allclose(eigvals, eigvals_np, atol=atol)
     assert_eigenpairs(arr, eigvals, eigvecs, rtol=rtol, atol=atol)
 
+    # check orthonormality
+    np.testing.assert_allclose(np.identity(matrix_size),
+                               eigvecs.conjugate().T @ eigvecs,
+                               rtol=rtol, atol=atol)
+
 
 # MAGMA seems to do small matrices (N <= 128) on the CPU.
 # So need a large matrix for honest GPU tests
@@ -115,3 +121,8 @@ def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
 
     cp.testing.assert_allclose(eigvals, eigvals_cp, atol=atol, rtol=rtol)
     assert_eigenpairs(arr, eigvals, eigvecs, rtol=rtol, atol=atol)
+
+    # check orthonormality
+    cp.testing.assert_allclose(cp.identity(matrix_size),
+                               eigvecs.conjugate().T @ eigvecs,
+                               rtol=rtol, atol=atol)
