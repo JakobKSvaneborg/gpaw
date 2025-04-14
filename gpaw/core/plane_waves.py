@@ -306,27 +306,6 @@ class PWArray(DistributedArrays[PWDesc]):
         self.desc = pw
         self._matrix: Matrix | None
 
-    def get_buffer(self, max_mem = None):
-        # Create work buffer for matrix elements with maximal
-        # size of max_mem per rank.
-        if max_mem is None:
-            if self.workbuffer is not None:
-                return self.workbuffer, self.workbuffer.data.shape[0]
-            max_mem = 2e8
-        M = self.matrix
-        buffer_size = max(
-            min(int(self.desc.comm.size * max_mem /
-                    (max(M.shape[1], 1) * M.dtype.itemsize)),
-                M.data.shape[0]), 1)
-        dims = (buffer_size * self.comm.size,)
-        xp = self.xp
-        self.workbuffer = PWArray(pw=self.desc,
-                                  dims=dims,
-                                  comm=self.comm,
-                                  data=None,
-                                  xp=xp)
-        return self.workbuffer, buffer_size
-
     def __repr__(self):
         txt = f'PWArray(pw={self.desc}, dims={self.dims}'
         if self.comm.size > 1:
@@ -366,6 +345,27 @@ class PWArray(DistributedArrays[PWDesc]):
                        self.dims,
                        self.comm,
                        data)
+
+    def new_buffer(self,
+                   data_buffer) -> PWArray:
+        """Create new PWArray object of same kind,
+        to be used as a buffer array when doing
+        sliced operations.
+
+        Parameters
+        ----------
+        data_buffer:
+            Array to use for storage.
+        """
+        assert isinstance(data_buffer, Array1D)
+        datasize = data_buffer.size
+        nG = self.data.shape[1]
+        mybands = datasize // nG
+        assert mybands > 0
+        data = data_buffer[:mybands * nG].reshape((mybands, nG))
+        return PWArray(self.desc,
+                       (mybands,),
+                       data=data)
 
     def copy(self):
         """Create a copy (surprise!)."""

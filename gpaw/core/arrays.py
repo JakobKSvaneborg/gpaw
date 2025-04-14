@@ -74,11 +74,10 @@ class DistributedArrays(Generic[DomainType], XP):
         XP.__init__(self, xp)
         self._matrix: Matrix | None = None
 
-    @abstractmethod
-    def get_buffer(self):
-        raise NotImplementedError
-
     def new(self, data=None) -> DistributedArrays:
+        raise NotImplementedError
+    
+    def new_buffer(self, data_buffer):
         raise NotImplementedError
 
     def copy(self):
@@ -159,13 +158,12 @@ class DistributedArrays(Generic[DomainType], XP):
                 M1 = self.matrix
                 M2 = other.matrix
                 if buffer is None:
-                    func_buffer, buffer_size = self.get_buffer()
-                else:
-                    func_buffer = buffer
-                    buffer_size = func_buffer.data.shape[0]
+                    raise ValueError
+            
+                buffer_size = buffer.data.shape[0]
                 mybands, _ = self.data.shape
                 for i in range(0, mybands, buffer_size):
-                    buffer_view = func_buffer[:mybands - i]
+                    buffer_view = buffer[:mybands - i]
                     function(self[i:i + buffer_size], out=buffer_view)
                     buffer_view_matrix = Matrix(
                             M=comm.size*buffer_view.data.shape[0],

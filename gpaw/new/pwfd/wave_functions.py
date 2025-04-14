@@ -239,7 +239,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              Ht,
                              dH,
                              psit2_nX = None,
-                             buffer_nx = None,
+                             data_buffer = None,
                              scalapack_parameters=(None, 1, 1, None)):
         """
 
@@ -284,8 +284,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         domain_comm.broadcast(H.data, 0)
         domain_comm.broadcast(self._eig_n, 0)
         
-        H.multiply(psit2_nX, out=psit2_nX, buffers=buffer_nx)
-        H.multiply(psit_nX, out=psit_nX, buffers=buffer_nx)
+        H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
+        H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
         H.multiply(P_ani, out=P2_ani)
         P_ani.data[:] = P2_ani.data
 

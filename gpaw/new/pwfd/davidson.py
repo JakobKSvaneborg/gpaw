@@ -32,8 +32,7 @@ class Davidson(PWFDEigensolver):
         self.S_NN = None
         self.M_nn = None
         self.work_arrays: np.ndarray | None = None
-        self.buffers_nx: List[Matrix] | None = None
-        self.buffer_mX: np.ndarray | None = None
+        self.buffer_nx: NDArray | None = None
 
     def __str__(self):
         return pformat(dict(name='Davidson',
@@ -66,22 +65,10 @@ class Davidson(PWFDEigensolver):
         psit_nX = wfs.psit_nX.matrix
         dist = psit_nX.dist
         
-        # allocate buffers for Ht @ psit
-        buffer_size = max(
-            min(int(dist.comm.size * MAX_MEM /
-                    (max(B, 1) *
-                         dtype.itemsize)),
-                G_max), 1)
-        buffer_nx = Matrix(M=B, N=buffer_size,
-                           dtype=dtype,
-                           dist=(dist.new(M=psit_nX.shape[0],
-                                          N=buffer_size)),
-                            xp=psit_nX.xp)
-        print(buffer_nx.shape)
-        self.buffers_nx = [buffer_nx, buffer_nx.new()]
-        
-        # preallocate buffer for psit @ Ht(psit). XXX: Is there a way to obtain one-buffer-fits-all?
-        [wfs.psit_nX.get_buffer(max_mem=MAX_MEM) for wfs in ibzwfs]
+        # Single buffer approach
+        buffer_size = min(MAX_MEM / dtype.itemsize,
+                          psit_nX.data.shape[0] * G_max)
+        self.data_buffer = xp.empty((buffer_size,), dtype)
 
     def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN
@@ -96,11 +83,10 @@ class Davidson(PWFDEigensolver):
         b = psit_nX.mydims[0]
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
-        #psit3_nX = psit_nX.new(data=self.work_arrays[1, :b])
 
         wfs.subspace_diagonalize(Ht, dH,
                                  psit2_nX=psit2_nX,
-                                 buffer_nx=self.buffers_nx)
+                                 data_buffer=self.data_buffer)
 
         P_ani = wfs.P_ani
         P2_ani = P_ani.new()
@@ -115,6 +101,8 @@ class Davidson(PWFDEigensolver):
         if domain_comm.rank == 0:
             eig_N[:B] = xp.asarray(wfs.eig_n)
 
+        me_buffer_mX = psit_nX.new_buffer(self.data_buffer)
+
         @trace
         def me(a, b, function=None, sliced=False):
             """Matrix elements"""
@@ -124,7 +112,7 @@ class Davidson(PWFDEigensolver):
                                      function=function,
                                      cc=True,
                                      sliced=sliced,
-                                     buffer=self.buffer_mX)
+                                     buffer=me_buffer_mX)
 
         #Ht = partial(Ht, out=residual_nX)#, spin=wfs.spin)
         #dH = partial(dH, spin=wfs.spin)
@@ -202,7 +190,8 @@ class Davidson(PWFDEigensolver):
                 domain_comm.broadcast(M_nn.data, 0)
 
             with tracectx('Rotate Psi'):
-                M_nn.multiply(psit_nX, out=psit_nX)
+                M_nn.multiply(psit_nX, out=psit_nX,
+                              data_buffer=self.data_buffer)
                 M_nn.multiply(P_ani, out=P3_ani)
 
                 if domain_comm.rank == 0:

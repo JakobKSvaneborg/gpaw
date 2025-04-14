@@ -196,7 +196,7 @@ class Matrix(XP):
                  opa='N',
                  opb='N',
                  out=None,
-                 buffers=None,
+                 data_buffer=None,
                  beta=0.0,
                  symmetric=False) -> Matrix:
         """BLAS matrix-multiplication with other matrix."""
@@ -219,36 +219,49 @@ class Matrix(XP):
             assert not beta, 'Not implemented'
             assert other.shape[0] == self.shape[0]
             
-            if buffers is None:
+            if data_buffer is None:
                 buffer_size = max(
                     min(int(other.dist.comm.size * 2e8 /
                             (max(other.shape[0], 1) * 
                              other.dtype.itemsize)),
                         other.data.shape[1]), 1)
-                out_buffer = Matrix(
+                buffer = Matrix(
                     M=other.shape[0],
                     N=buffer_size,
                     dtype=other.dtype,
                     dist=dist.new(M=other.shape[0], N=buffer_size),
                     xp=other.xp)
-                data_buffer = out_buffer.new()
             else:
-                out_buffer, data_buffer = buffers
-                assert out_buffer.data.shape == data_buffer.data.shape
-                buffer_size = out_buffer.data.shape[1]
-                assert (out_buffer.data.shape[0] == other.data.shape[0])
+                assert isinstance(data_buffer, Array1D)
+                buffer_size = min(data_buffer.size // other.data.shape[0],
+                                  other.data.shape[1])
+                buffer = Matrix(
+                    M=other.shape[0],
+                    N=buffer_size,
+                    data=data_buffer[:buffer_size * other.data.shape[0]].reshape(
+                        (other.data.shape[0], buffer_size)
+                    ),
+                    dist=dist.new(M=other.shape[0], N=buffer_size),
+                    xp=other.xp)
 
+            # Special case for when buffer fits entire other matrix
+            # XXX: What if this statement is true on some, but not all, ranks?
+            # Can that even happen?
+            if buffer.data.shape == other.data.shape:
+                dist.multiply(alpha, A, opa, B, opb, beta, buffer,
+                              symmetric=symmetric)
+                other.data[:] = buffer.data
+                return out
+
+            # Sliced multiply
             for i in range(0, other.data.shape[1], buffer_size):
-                data_buffer.data[:, :other.data.shape[1] - i] \
+                buffer.data[:, :other.data.shape[1] - i] \
                     = other.data[:, i:i + buffer_size]
                 dist.multiply(alpha, A, opa,
-                              data_buffer, opb, beta,
+                              buffer, opb, beta,
                               other[:, i:i + buffer_size], symmetric=symmetric)
-                              #out_buffer, symmetric=symmetric)
-                #out.data[:, i:i + buffer_size] *= beta
-                #out.data[:, i:i + buffer_size] = \
-                #    out_buffer.data[:, :other.data.shape[1] - i]
             return out
+
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
         return out
 
