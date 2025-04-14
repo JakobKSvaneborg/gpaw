@@ -336,6 +336,26 @@ class UGArray(DistributedArrays[UGDesc]):
             f_xR.data[:] = 0.0
         return f_xR
 
+    def new_buffer(self, data_buffer):
+        """Create new PWArray object of same kind,
+        to be used as a buffer array when doing
+        sliced operations.
+
+        Parameters
+        ----------
+        data_buffer:
+            Array to use for storage.
+        """
+        assert isinstance(data_buffer, Array1D)
+        datasize = data_buffer.size
+        nR = self.xp.prod(self.data.shape[1:])
+        mybands = datasize // nR
+        assert mybands > 0
+        data = data_buffer[:mybands * nR].reshape((mybands,) + self.data.shape[1:])
+        return UGArray(self.desc,
+                       (mybands,),
+                       data=data)
+
     def __getitem__(self, index):
         data = self.data[index]
         return UGArray(data=data,

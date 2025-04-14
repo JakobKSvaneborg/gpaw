@@ -62,7 +62,7 @@ class Davidson(PWFDEigensolver):
                            dist=(band_comm, band_comm.size),
                            xp=xp)
         
-        G_max = ibzwfs.get_max_shape()[0]
+        G_max = xp.prod(ibzwfs.get_max_shape())
         psit_nX = wfs.psit_nX.matrix
         dist = psit_nX.dist
         

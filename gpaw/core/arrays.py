@@ -161,14 +161,14 @@ class DistributedArrays(Generic[DomainType], XP):
                     raise ValueError
             
                 buffer_size = buffer.data.shape[0]
-                mybands, _ = self.data.shape
+                mybands = self.data.shape[0]
                 for i in range(0, mybands, buffer_size):
                     buffer_view = buffer[:mybands - i]
                     function(self[i:i + buffer_size], out=buffer_view)
                     buffer_view_matrix = Matrix(
                             M=comm.size*buffer_view.data.shape[0],
-                            N=buffer_view.data.shape[1],
-                            data=buffer_view.data,
+                            N=M2.data.shape[1],
+                            data=buffer_view.data.reshape(-1, M2.data.shape[1]),
                             dist=(comm, -1, 1),
                             xp=self.xp)
                     out_view_matrix = Matrix(
