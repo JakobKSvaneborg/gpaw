@@ -142,8 +142,20 @@ class Davidson(PWFDEigensolver):
                     if wfs.ncomponents == 4:
                         error = error.sum()
 
-            self.preconditioner(psit_nX, psit2_nX, out=psit2_nX)
-
+            # Attempt at sliced preconditioning
+            buffer = me_buffer_mX
+            buffer_size = buffer.data.shape[0]
+            mybands = psit_nX.data.shape[0]
+            for i in range(0, mybands, buffer_size):
+                buffer_view = buffer[:mybands - i]
+                self.preconditioner(psit_nX[i:i + buffer_size],
+                                    psit2_nX[i:i + buffer_size],
+                                    buffer_view)
+                psit2_nX.data[i:i + buffer_size] = buffer_view.data
+                
+            # Nasty preconditioning (dont work for FD)
+            #self.preconditioner(psit_nX, psit2_nX, out=psit2_nX)
+            
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
 
