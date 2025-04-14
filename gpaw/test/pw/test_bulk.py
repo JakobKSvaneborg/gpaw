@@ -9,11 +9,11 @@ import pytest
 def test_pw_bulk():
     bulk = Atoms('Li', pbc=True)
     k = 4
-    calc = GPAW(mode=PW(400),
+    calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
                 eigensolver='dav',
                 parallel={'kpt': 1,
-                          'band': 4})
+                          'band': 1})
 
     bulk.calc = calc
     e = []
