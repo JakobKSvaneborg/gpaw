@@ -2,7 +2,7 @@ import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy as cp, cupy_is_fake
 import numpy as np
 from gpaw.gpu.cpupy import asnumpy
-
+from gpaw.utilities import as_real_dtype
 
 def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray,
                                                            np.ndarray]:
@@ -70,14 +70,9 @@ def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray,
 
     # Only symmetric/Hermitian matrices supported for now,
     # so eigenvalues are always real
-    if np.issubdtype(matrix.dtype, np.complexfloating):
-        eigval_dtype = (
-            np.float32 if matrix.dtype == np.complex64 else np.float64
-        )
-    else:
-        eigval_dtype = matrix.dtype
+    eigval_dtype = as_real_dtype(matrix.dtype)
 
-    eigvals = cp.empty((matrix.shape[0],), dtype=eigval_dtype)
+    eigvals = cp.empty((matrix.shape[0]), dtype=eigval_dtype)
 
     # Will throw if matrix dtype is unsupported
     cgpaw._eigh_magma_gpu(matrix, UPLO, eigvals, eigvects)
