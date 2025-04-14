@@ -221,7 +221,7 @@ class PWLFC:  # (BaseLFC)
         self.pos_av = np.dot(spos_ac, self.pw.cell).astype(
             as_real_dtype(self.dtype))
 
-        if xp is not np:
+        if xp is not np or True:
             self.pos_avT = xp.asarray(self.pos_av.T,
                                       as_real_dtype(self.dtype))
             self.G_plus_k_Gv_gpu = self.xp.asarray(self.pw.G_plus_k_Gv,
