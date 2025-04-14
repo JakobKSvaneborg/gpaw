@@ -1,7 +1,6 @@
 import numpy as np
 from ase.units import kB, Hartree, Bohr
 from ase.data.vdw import vdw_radii
-from ase.data import chemical_symbols
 
 from gpaw.solvation.gridmem import NeedsGD
 from gpaw.fd_operators import Gradient
