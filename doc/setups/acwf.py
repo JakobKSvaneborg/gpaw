@@ -1,4 +1,4 @@
-# web-page: acwf.csv
+# creates: acwf.csv
 import json
 from pathlib import Path
 import numpy as np
