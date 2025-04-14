@@ -152,14 +152,39 @@ Advanced topics
    pawxml
 
 
-.. _acwf:
+.. _acwf benchmark:
 
 ACWF-benchmark
 ==============
 
-:git:`gpaw/utilities.acwf.py`:
+Equation-of-state calculations for the 10 reference systems from
+the `AiiDA common workflows (ACWF) benchmark <ACWF>`_:
+DIAMOND, FCC, SC, BCC, XO3, XO, X4O6, XO2, X4O10, X2O.
 
-.. csv-table:: acwf.csv
+See :git:`gpaw/utilities/acwf.py` for how to run these calculation.
+
+The following table shows the errors in lattice constant in %
+compared to accurate Wien2k results.  Calculations are done for:
+
+* PW-mode calculations with ``ecut=1000`` (columns 3-5)
+* LCAO-mode calculations with ``h=0.12`` (columns 6-8)
+
+The coulumns are:
+
+1. atomic number
+2. PAW-potential name
+3. number of errors (out of the 10 systems) (PW)
+4. maxium absolute error (PW)
+5. mean absolute error (PW)
+6. number of errors (out of the 10 systems) (LCAO)
+7. maxium absolute error (LCAO)
+8. mean absolute error (LCAO)
+
+.. csv-table::
+   :file: acwf.csv
+   :header: number, name, errors, max, mean, errors, max, mean
+
+.. _ACWF: https://acwf-verification.materialscloud.org/
 
 
 .. _24.11.0:

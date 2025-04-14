@@ -37,7 +37,7 @@ def plot_count():
         ax.set_ylabel('Number of ' + name)
         ax.xaxis.set_major_locator(tck.MultipleLocator(4))
         plt.savefig(name + '.png')
-        plt.show()
+        # plt.show()
 
 
 def count_all(year=2005, month=11):

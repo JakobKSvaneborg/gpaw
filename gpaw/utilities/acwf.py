@@ -4,11 +4,14 @@ Do equation-of-state calculation for the 10 reference systems from
 the AiiDA common workflows (ACWF) benchmark:
 DIAMOND, FCC, SC, BCC, XO3, XO, X4O6, XO2, X4O10, X2O.
 """
+import json
 from pathlib import Path
 
 import numpy as np
 from ase import Atoms
 from ase.data import atomic_numbers
+from gpaw.atom.check import all_names
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.builder import builder as create_builder
 
@@ -96,7 +99,7 @@ def workflow() -> None:
         run(function=work, args=[x, symbol, setup_name, 'pw'],
             cores=24, tmax='1h', name=f'pw-{x}')
         run(function=work, args=[x, symbol, setup_name, 'lcao'],
-            cores=24, tmax='1h', name=f'lcao-{x}')
+            cores=24, tmax='5h', name=f'lcao-{x}', restart=2)
 
 
 def work(structure: str,
@@ -120,14 +123,28 @@ def work(structure: str,
         structure,
         symbol,
         **params)
-    return data
+    if world.rank == 0:
+        Path(f'{mode}-{structure}.json').write_text(json.dumps(data))
 
 
 def create_folders() -> None:
     """Create folder for all 101 PAW-potentials."""
-    from gpaw.atom.check import all_names
     for name in all_names:
         Path(name).mkdir(exist_ok=True)
+
+
+def collect_data() -> None:
+    """Collect everything need for a table on the web-page."""
+    results = {}
+    for name in all_names:
+        result = {'pw': [], 'lcao': []}
+        for mode in ['pw', 'lcao']:
+            for path in Path(name).glob(f'{mode}-*.json'):
+                structure = path.stem.split('-')[1]
+                strain = json.loads(path.read_text())['strain']
+                result[mode].append((structure, strain))
+        results[name] = result
+    Path('acwf-results.json').write_text(json.dumps(results))
 
 
 def reference_structure(symbol: str,

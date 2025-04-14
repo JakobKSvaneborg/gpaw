@@ -10,7 +10,7 @@ Git master branch
 
 :git:`master <>`.
 
-* :ref:`acwf` result for our PAW-potentials (PW and LCAO modes).
+* :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
 
 * The fluctuation-dissipation theorem has been added to the SJM.
 
