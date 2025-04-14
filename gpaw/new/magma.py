@@ -4,6 +4,7 @@ import numpy as np
 from gpaw.gpu.cpupy import asnumpy
 from gpaw.utilities import as_real_dtype
 
+
 def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray,
                                                            np.ndarray]:
     """
