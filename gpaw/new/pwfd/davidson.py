@@ -59,7 +59,9 @@ class Davidson(PWFDEigensolver):
                            dist=(band_comm, band_comm.size),
                            xp=xp)
 
-    def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
+    def iterate1(self,
+                 wfs: PWFDWaveFunctions,
+                 Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN
         S_NN = self.S_NN
         M_nn = self.M_nn

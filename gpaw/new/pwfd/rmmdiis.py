@@ -8,6 +8,7 @@ from gpaw.core import PWDesc
 from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 class RMMDIIS(PWFDEigensolver):
@@ -36,7 +37,9 @@ class RMMDIIS(PWFDEigensolver):
         super()._initialize(ibzwfs)
         self._allocate_work_arrays(ibzwfs, shape=(2,))
 
-    def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
+    def iterate1(self,
+                 wfs: PWFDWaveFunctions,
+                 Ht, dH, dS_aii, weight_n):
         """Do one step ...
 
         See here:
@@ -85,6 +88,9 @@ class RMMDIIS(PWFDEigensolver):
                 work2_nX[:n2 - n1],
                 P1_ani, P2_ani,
                 self.preconditioner)
+        wfs._P_ani = None
+        wfs.orthonormalized = False
+        wfs.orthonormalize(work_nX.data)
         return error
 
 
@@ -105,7 +111,7 @@ def block_step(weight_n,
 
     PR_nX = work1_nX
     dR_nX = work2_nX
-    preconditioner(psit_nX, R_nX, out=PR_nX)
+    ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
 
     Ht(PR_nX, out=dR_nX)
     P_ani = pt_aiX.integrate(PR_nX)
@@ -114,14 +120,13 @@ def block_step(weight_n,
     a_n = [-d_X.integrate(r_X)
            for d_X, r_X in zip(dR_nX, R_nX)]
     b_n = dR_nX.norm2()
-    shape = (-1,) + (1,) * (psit_nX.data.ndim - 1)
+    shape = (len(a_n),) + (1,) * (psit_nX.data.ndim - 1)
     lambda_n = (a_n / b_n).reshape(shape)
     PR_nX.data *= lambda_n
     psit_nX.data += PR_nX.data
     dR_nX.data *= lambda_n
     R_nX.data += dR_nX.data
-    preconditioner(psit_nX, R_nX, out=PR_nX)
-    PR_nX.data *= lambda_n
+    preconditioner(psit_nX, R_nX, out=PR_nX, ekin_n=ekin_n)
+    PR_nX.data *= 0.1
     psit_nX.data += PR_nX.data
-
     return error
