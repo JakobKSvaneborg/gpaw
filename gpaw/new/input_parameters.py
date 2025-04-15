@@ -44,7 +44,7 @@ class InputParameters:
     charge: float
     convergence: dict[str, Any]
     eigensolver: dict[str, Any]
-    environment: Environment
+    extensions: list | None
     experimental: dict[str, Any]
     external: dict[str, Any]
     gpts: None | Sequence[int]
