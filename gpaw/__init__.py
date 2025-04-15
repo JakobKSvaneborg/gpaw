@@ -316,6 +316,8 @@ elif GPAW_NEW:
 else:
     all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
 
+all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
+
 
 def restart(filename, Class=None, **kwargs):
     if Class is None:

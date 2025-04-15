@@ -118,7 +118,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.interpolation_desc, self.relpos_ac, self.atomdist)
         return self._tauct_ag
 
-    def create_poisson_solver(self):
+    def create_poisson_solver(self, env):
         psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
         psparams.pop('fast', False)
 
@@ -131,6 +131,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         ps = make_poisson_solver(pw,
                                  grid,
                                  self.params.charge,
+                                 env,
                                  **psparams)
 
         if self.fast_poisson_solver:
@@ -150,7 +151,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.interpolation_desc,
             self.setups,
             self.xc,
-            self.create_poisson_solver(),
+            self.create_poisson_solver(env),
             external_potential=create_external_potential(self.params.external),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,

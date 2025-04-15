@@ -128,7 +128,8 @@ def write_gpw(filename: str | Path,
                    for key, value in dft.results.items()}
         writer.child('results').write(**results)
 
-        p = {k: v for k, v in params.items() if k not in ['parallel']}
+        p = {k: v.todict() if hasattr(v, 'todict') else v
+             for k, v in params.items() if k not in ['parallel']}
         # ULM does not know about numpy dtypes:
         if 'dtype' in p:
             p['dtype'] = np.dtype(p['dtype']).name
@@ -360,10 +361,11 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     ibzwfs = builder.read_ibz_wave_functions(reader, log)
 
     dft = DFTCalculation(
-        ibzwfs, density, potential,
+        atoms, ibzwfs, density, potential,
         builder.setups,
         builder.create_scf_loop(),
         pot_calc=builder.create_potential_calculator(log),
+        params=params,
         energies=energies,
         log=log)
 

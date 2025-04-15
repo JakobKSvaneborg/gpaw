@@ -1,3 +1,4 @@
+from __future__ import annotations
 from types import SimpleNamespace
 
 import numpy as np
@@ -15,7 +16,7 @@ __all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
 pi = np.pi
 
 
-def empty(*args, **kwargs):
+def empty(*args, **kwargs) -> ndarray:
     return ndarray(np.empty(*args, **kwargs))
 
 
