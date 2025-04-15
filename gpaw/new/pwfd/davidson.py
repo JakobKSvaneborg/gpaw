@@ -11,6 +11,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D, Array1D
 from gpaw.new import trace, tracectx
+from gpaw.utilities import as_complex_dtype
 
 MAX_MEM = 2e8  # ~200 MB, seems to be the sweet spot
 
@@ -62,12 +63,13 @@ class Davidson(PWFDEigensolver):
 
         G_max = np.prod(ibzwfs.get_max_shape())
         psit_nX = wfs.psit_nX.matrix
+        complex_dtype = as_complex_dtype(dtype)
 
         # Single buffer approach
-        buffer_size = max(min(int(MAX_MEM / dtype.itemsize),
-                              psit_nX.data.shape[0] * G_max),
-                          G_max)
-        self.data_buffer = xp.empty((buffer_size,), dtype)
+        buffer_size = max(min(MAX_MEM,
+                              psit_nX.data.shape[0] * G_max * complex_dtype.itemsize),
+                          G_max * complex_dtype.itemsize)
+        self.data_buffer = xp.empty((buffer_size,), np.byte)
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,

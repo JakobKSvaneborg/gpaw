@@ -235,6 +235,8 @@ class Matrix(XP):
                     xp=other.xp)
             else:
                 assert isinstance(data_buffer, other.xp.ndarray)
+                dtype = other.data.dtype
+                data_buffer = data_buffer.view(dtype)
                 if other.data.shape[0] > 0:
                     buffer_size = min(data_buffer.size // other.data.shape[0],
                                       other.data.shape[1])

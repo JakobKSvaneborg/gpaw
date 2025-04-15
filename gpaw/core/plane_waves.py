@@ -358,9 +358,11 @@ class PWArray(DistributedArrays[PWDesc]):
             Array to use for storage.
         """
         assert isinstance(data_buffer, self.xp.ndarray)
+        data_buffer = data_buffer.view(self.data.dtype)
         datasize = data_buffer.size
         nG = self.data.shape[1]
-        mybands = datasize // nG
+        mybands = min(datasize // nG,
+                      self.data.shape[0])
         assert mybands > 0
         data = data_buffer[:mybands * nG].reshape((mybands, nG))
         return PWArray(self.desc,

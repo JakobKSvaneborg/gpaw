@@ -38,7 +38,7 @@ def test_sliced_multiply(N=10, max_mem=2e2):
                                       N=buffer_size)),
                        xp=B_nX.xp)
     print(buffer_nx.data.shape)
-    buffers_nx = [buffer_nx, buffer_nx.new()]
+    buffer_nx = buffer_nx
     if buffer_nx.shape == B_nX.shape:
         # Only time the multiply
         then = time.time()
@@ -53,9 +53,9 @@ def test_sliced_multiply(N=10, max_mem=2e2):
     else:
         # Only time the multiply
         then = time.time()
-        A_nn.multiply(B_nX, out=B_nX, buffers=buffers_nx)
-        A_nn.multiply(B_nX, out=B_nX, buffers=buffers_nx)
-        A_nn.multiply(B_nX, out=B_nX, buffers=buffers_nx)
+        A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx.data)
+        A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx.data)
+        A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx.data)
         now = time.time()
         return (now - then)
 

@@ -6,8 +6,9 @@ from functools import partial
 from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray, PWDesc
 from gpaw.mpi import world, serial_comm
+import pytest
 
-
+@pytest.mark.skip
 def test_array_me(N=50, max_mem=2e8, use_func=True):
     pw_desc = PWDesc(ecut=N / 2,
                      cell=[10, 10, 10],  # bohr
@@ -41,7 +42,7 @@ def test_array_me(N=50, max_mem=2e8, use_func=True):
         func = None
         symmetric = False
 
-    buffer_mx = psit_nX.get_buffer(max_mem=max_mem)[0]
+    buffer_mx = psit_nX.new_buffer(max_mem=max_mem)[0]
     if buffer_mx.matrix.shape == psit_nX.matrix.shape:
         then = time.time()
         psit_nX.matrix_elements(

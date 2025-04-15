@@ -167,7 +167,7 @@ class DistributedArrays(Generic[DomainType], XP):
                     buffer_view_matrix = Matrix(
                         M=comm.size * buffer_view.data.shape[0],
                         N=M2.data.shape[1],
-                        data=buffer_view.data.reshape(-1, M2.data.shape[1]),
+                        data=buffer_view.matrix.data.reshape((-1, M2.data.shape[1])),
                         dist=(comm, -1, 1),
                         xp=self.xp)
                     out_view_matrix = Matrix(
@@ -179,7 +179,8 @@ class DistributedArrays(Generic[DomainType], XP):
                         xp=self.xp)
                     M2.dist.multiply(self.dv, buffer_view_matrix, 'N', M2, 'C',
                                      0.0, out_view_matrix, symmetric=False)
-                self._matrix_elements_correction(M1, M2, out, symmetric)
+                    self._matrix_elements_correction(buffer_view_matrix, M2, out_view_matrix,
+                                                     symmetric=False)
             else:
                 if function:
                     assert symmetric

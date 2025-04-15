@@ -9,6 +9,9 @@ from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.utilities import as_complex_dtype
+
+MAX_MEM = 2e8
 
 
 class RMMDIIS(PWFDEigensolver):
@@ -31,6 +34,7 @@ class RMMDIIS(PWFDEigensolver):
             else:
                 blocksize = 10
         super().__init__(preconditioner_factory, converge_bands, blocksize)
+        self.data_buffer: Array1D | None = None
 
     def __str__(self):
         return pformat(dict(name='RMMDIIS',
@@ -39,6 +43,20 @@ class RMMDIIS(PWFDEigensolver):
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
         self._allocate_work_arrays(ibzwfs, shape=(2,))
+        
+        wfs = ibzwfs.wfs_qs[0][0]
+        dtype = wfs.psit_nX.desc.dtype
+        B = ibzwfs.nbands
+        xp = ibzwfs.xp
+        G_max = np.prod(ibzwfs.get_max_shape())
+        psit_nX = wfs.psit_nX.matrix
+        complex_dtype = as_complex_dtype(dtype)
+
+        # Single buffer approach
+        buffer_size = max(min(MAX_MEM,
+                              psit_nX.data.shape[0] * G_max * complex_dtype.itemsize),
+                          G_max * complex_dtype.itemsize)
+        self.data_buffer = xp.empty((buffer_size,), np.byte)
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
@@ -61,8 +79,9 @@ class RMMDIIS(PWFDEigensolver):
         work2_ani = P_ani.new()
 
         wfs.subspace_diagonalize(Ht, dH,
-                                 work_array=work_nX.data,
-                                 Htpsit_nX=residual_nX)
+                                 psit2_nX=work_nX,
+                                 data_buffer=self.data_buffer)
+        residual_nX = work_nX.copy()
         calculate_residuals(wfs.psit_nX, residual_nX, wfs.pt_aiX,
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
