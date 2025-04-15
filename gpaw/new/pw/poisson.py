@@ -319,40 +319,24 @@ class ConjugateGradientPoissonSolver(PoissonSolver):
         
         G_Qv = self.pw.G_plus_k_Gv
         Gx, Gy, Gz = G_Qv.T
-
-        grad_x, grad_y, grad_z = [x * phi_q for x in [Gx, Gy, Gz]]
-        
         grid = self.dielectric.eps_gradeps[0].desc
         
-        grad_x_pw = PWArray(pw=self.pw)
-        grad_y_pw = PWArray(pw=self.pw)
-        grad_z_pw = PWArray(pw=self.pw)
+        gradients = []
+        for G_component in [Gx, Gy, Gz]:
+            grad_pw = PWArray(pw=self.pw)
+            grad_pw.data[:] = G_component * phi_q
+            gradients.append(grad_pw)
         
-        grad_x_pw.data[:] = grad_x
-        grad_y_pw.data[:] = grad_y
-        grad_z_pw.data[:] = grad_z
+        eps_gradients = []
+        for grad_pw in gradients:
+            grad_real = grad_pw.ifft(grid=grid).data
+            
+            epsg_ug = grid.zeros()
+            epsg_ug.data[:] = grad_real * self.dielectric.eps_gradeps[0].data
+            
+            eps_gradients.append(epsg_ug.fft(pw=self.pw).data)
         
-        gx_real = grad_x_pw.ifft(grid=grid).data
-        gy_real = grad_y_pw.ifft(grid=grid).data
-        gz_real = grad_z_pw.ifft(grid=grid).data
-
-        epsg_x_r = gx_real * self.dielectric.eps_gradeps[0].data
-        epsg_y_r = gy_real * self.dielectric.eps_gradeps[0].data
-        epsg_z_r = gz_real * self.dielectric.eps_gradeps[0].data
-        
-        epsg_x_ug = grid.zeros()
-        epsg_y_ug = grid.zeros()
-        epsg_z_ug = grid.zeros()
-        epsg_x_ug.data[:] = epsg_x_r
-        epsg_y_ug.data[:] = epsg_y_r
-        epsg_z_ug.data[:] = epsg_z_r
-        
-        epsg_x = epsg_x_ug.fft(pw=self.pw).data
-        epsg_y = epsg_y_ug.fft(pw=self.pw).data
-        epsg_z = epsg_z_ug.fft(pw=self.pw).data
-
-        return np.sum(
-            [Gx * epsg_x, Gy * epsg_y, Gz * epsg_z], axis=0)
+        return np.sum([G * epsg for G, epsg in zip([Gx, Gy, Gz], eps_gradients)], axis=0)
 
     def solve(self,
               vHt_g: PWArray,
