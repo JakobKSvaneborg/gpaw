@@ -13,7 +13,7 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D, Array1D
 from gpaw.new import trace, tracectx
 
-MAX_MEM = 2e8 # ~200 MB
+MAX_MEM = 2e8 # ~200 MB, seems to be the sweet spot
 
 class Davidson(PWFDEigensolver):
     def __init__(self,
@@ -62,7 +62,7 @@ class Davidson(PWFDEigensolver):
                            dist=(band_comm, band_comm.size),
                            xp=xp)
         
-        G_max = xp.prod(ibzwfs.get_max_shape())
+        G_max = np.prod(ibzwfs.get_max_shape())
         psit_nX = wfs.psit_nX.matrix
         dist = psit_nX.dist
         
@@ -154,7 +154,7 @@ class Davidson(PWFDEigensolver):
                 psit2_nX.data[i:i + buffer_size] = buffer_view.data
                 
             # Nasty preconditioning (dont work for FD)
-            #self.preconditioner(psit_nX, psit2_nX, out=psit2_nX)
+            # self.preconditioner(psit_nX, psit2_nX, out=psit2_nX)
             
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)

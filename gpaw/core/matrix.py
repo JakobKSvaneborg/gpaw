@@ -232,7 +232,7 @@ class Matrix(XP):
                     dist=dist.new(M=other.shape[0], N=buffer_size),
                     xp=other.xp)
             else:
-                assert isinstance(data_buffer, Array1D)
+                assert isinstance(data_buffer, other.xp.ndarray)
                 if other.data.shape[0] > 0:
                     buffer_size = min(data_buffer.size // other.data.shape[0],
                                     other.data.shape[1])

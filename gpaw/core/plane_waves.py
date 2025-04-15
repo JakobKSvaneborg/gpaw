@@ -357,7 +357,7 @@ class PWArray(DistributedArrays[PWDesc]):
         data_buffer:
             Array to use for storage.
         """
-        assert isinstance(data_buffer, Array1D)
+        assert isinstance(data_buffer, self.xp.ndarray)
         datasize = data_buffer.size
         nG = self.data.shape[1]
         mybands = datasize // nG
