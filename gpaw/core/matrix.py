@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Any
 import gpaw.cgpaw as cgpaw
 import numpy as np
 import scipy.linalg as sla
@@ -144,9 +144,11 @@ class Matrix(XP):
         M.data[:] = self.data
         return M
 
-    def __getitem__(self, index: Tuple[slice]) -> Matrix:
+    def __getitem__(self, index: tuple) -> Matrix:
         # Indexing Matrix will, for simplicity, kill
         # the BLACS distribution along indexed axes.
+
+        assert len(index) == 2
 
         # ROWS:
         r, c, b = self.dist.rows, self.dist.columns, self.dist.blocksize
