@@ -2,7 +2,6 @@ import numpy as np
 from ase import Atoms
 from gpaw import GPAW
 from gpaw import PW
-from gpaw.mpi import world
 import pytest
 
 

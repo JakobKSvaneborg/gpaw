@@ -11,7 +11,7 @@ import gpaw.utilities.blas as blas
 from gpaw import debug, get_scipy_version
 from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
-from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
+from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D, List
 
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
@@ -147,7 +147,7 @@ class Matrix(XP):
     def __getitem__(self, index: List[slice]) -> Matrix:
         # Indexing Matrix will, for simplicity, kill
         # the BLACS distribution along indexed axes.
-               
+
         # ROWS:
         r, c, b = self.dist.rows, self.dist.columns, self.dist.blocksize
         M, N = self.shape
@@ -160,7 +160,7 @@ class Matrix(XP):
                 m = data.shape[0]
         else:
             raise ValueError(index)
-        
+
         # COLUMNS:
         if isinstance(index[1], slice):
             if index[1].stop is None and index[1].start is None:
@@ -218,11 +218,11 @@ class Matrix(XP):
             assert opb == 'N', 'Not implemented'
             assert not beta, 'Not implemented'
             assert other.shape[0] == self.shape[0]
-            
+
             if data_buffer is None:
                 buffer_size = max(
                     min(int(other.dist.comm.size * 2e8 /
-                            (max(other.shape[0], 1) * 
+                            (max(other.shape[0], 1) *
                              other.dtype.itemsize)),
                         other.data.shape[1]), 1)
                 buffer = Matrix(
@@ -235,13 +235,14 @@ class Matrix(XP):
                 assert isinstance(data_buffer, other.xp.ndarray)
                 if other.data.shape[0] > 0:
                     buffer_size = min(data_buffer.size // other.data.shape[0],
-                                    other.data.shape[1])
+                                      other.data.shape[1])
                 else:
                     buffer_size = other.data.shape[1]
                 buffer = Matrix(
                     M=other.shape[0],
                     N=buffer_size,
-                    data=data_buffer[:buffer_size * other.data.shape[0]].reshape(
+                    data=data_buffer[
+                        :buffer_size * other.data.shape[0]].reshape(
                         (other.data.shape[0], buffer_size)
                     ),
                     dist=dist.new(M=other.shape[0], N=buffer_size),
@@ -860,7 +861,6 @@ class BLACSDistribution(MatrixDistribution):
                 Ka, M = M, Ka
             if opb == 'N':
                 N, Kb = Kb, N
-            #print('p-blasin')
             cgpaw.pblas_gemm(N, M, Ka, alpha, b.data, a.data,
                              beta, c.data,
                              b.dist.desc, a.dist.desc, c.dist.desc,

@@ -238,8 +238,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def subspace_diagonalize(self,
                              Ht,
                              dH,
-                             psit2_nX = None,
-                             data_buffer = None,
+                             psit2_nX=None,
+                             data_buffer=None,
                              scalapack_parameters=(None, 1, 1, None)):
         """
 
@@ -254,7 +254,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
           <𝜓 |p> ΔH  <p |𝜓>
             m  i   ij  j  n
         """
-        self.orthonormalize(psit2_nX.data)  # XXX: Could in theory take a matrix, for reduced copying.
+        self.orthonormalize(psit2_nX.data)
         psit_nX = self.psit_nX
         P_ani = self.P_ani
         P2_ani = P_ani.new()
@@ -283,7 +283,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         domain_comm.broadcast(H.data, 0)
         domain_comm.broadcast(self._eig_n, 0)
-        
+
         H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
         H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
         H.multiply(P_ani, out=P2_ani)

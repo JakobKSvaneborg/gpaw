@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import partial
 from pprint import pformat
 
 import numpy as np
@@ -13,7 +12,8 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D, Array1D
 from gpaw.new import trace, tracectx
 
-MAX_MEM = 2e8 # ~200 MB, seems to be the sweet spot
+MAX_MEM = 2e8  # ~200 MB, seems to be the sweet spot
+
 
 class Davidson(PWFDEigensolver):
     def __init__(self,
@@ -31,9 +31,7 @@ class Davidson(PWFDEigensolver):
         self.H_NN: Matrix
         self.S_NN: Matrix
         self.M_nn: Matrix
-        self.work_arrays: np.ndarray | None = None
         self.data_buffer: Array1D | None = None
-        
 
     def __str__(self):
         return pformat(dict(name='Davidson',
@@ -56,16 +54,15 @@ class Davidson(PWFDEigensolver):
             self.H_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
             self.S_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
         else:
-            self.H_NN = self.S_NN = Matrix(0, 0)       
+            self.H_NN = self.S_NN = Matrix(0, 0)
 
         self.M_nn = Matrix(B, B, dtype,
                            dist=(band_comm, band_comm.size),
                            xp=xp)
-        
+
         G_max = np.prod(ibzwfs.get_max_shape())
         psit_nX = wfs.psit_nX.matrix
-        dist = psit_nX.dist
-        
+
         # Single buffer approach
         buffer_size = max(min(int(MAX_MEM / dtype.itemsize),
                               psit_nX.data.shape[0] * G_max),
@@ -118,8 +115,6 @@ class Davidson(PWFDEigensolver):
                                      sliced=sliced,
                                      buffer=me_buffer_mX)
 
-        #Ht = partial(Ht, out=residual_nX)#, spin=wfs.spin)
-        #dH = partial(dH, spin=wfs.spin)
         calculate_residuals(wfs.psit_nX,
                             psit2_nX,
                             wfs.pt_aiX,
@@ -142,7 +137,7 @@ class Davidson(PWFDEigensolver):
                 else:
                     error = (weight_n @ as_np(psit2_nX.norm2())).sum()
 
-            # Attempt at sliced preconditioning
+            # Sliced preconditioning
             buffer = me_buffer_mX
             buffer_size = buffer.data.shape[0]
             mybands = psit_nX.data.shape[0]
@@ -152,10 +147,7 @@ class Davidson(PWFDEigensolver):
                                     psit2_nX[i:i + buffer_size],
                                     buffer_view)
                 psit2_nX.data[i:i + buffer_size] = buffer_view.data
-                
-            # Nasty preconditioning (dont work for FD)
-            # self.preconditioner(psit_nX, psit2_nX, out=psit2_nX)
-            
+
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
 

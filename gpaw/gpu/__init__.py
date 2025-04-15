@@ -34,16 +34,16 @@ else:
             raise ImportError
 
         import cupy
-        from cupy import cublas
         from cupy_backends.cuda.libs import cublas as _cublas
 
         # Cupy gemm wrapper (does extra copying):
-        #gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811
-        
+        # from cupy import cublas
+        # gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811
+
         # Homerolled gemm wrapper and helper functions:
         from cupy.cublas import (_get_scalar_ptr, _trans_to_cublas_op,
                                  _change_order_if_necessary, device)
-        
+
         def _decide_ld_and_trans(a, trans):
             ld = None
             if a._f_contiguous:
@@ -52,16 +52,17 @@ else:
                 ld = a.shape[1]
                 trans = 1 - trans
             return ld, trans
-        
+
         @trace(gpu=True)
-        def gpu_gemm(transa, transb, a, b, out=None, alpha=1.0, beta=0.0):
+        def gpu_gemm(  # noqa: F811
+                transa, transb, a, b, out=None, alpha=1.0, beta=0.0):
             """Computes out = alpha * op(a) @ op(b) + beta * out
 
             op(a) = a if transa is 'N', op(a) = a.T if transa is 'T',
             op(a) = a.T.conj() if transa is 'H'.
             op(b) = b if transb is 'N', op(b) = b.T if transb is 'T',
             op(b) = b.T.conj() if transb is 'H'.
-            
+
             This is pretty much a copy of the code from cupy.cublas.gemm,
             with _decide_ld_and_trans modified to not be afraid of
             hermitian transposes.
@@ -104,16 +105,19 @@ else:
             beta, beta_ptr = _get_scalar_ptr(beta, a.dtype)
             handle = device.get_cublas_handle()
             orig_mode = _cublas.getPointerMode(handle)
-            if isinstance(alpha, cupy.ndarray) or isinstance(beta, cupy.ndarray):
+            if isinstance(alpha, cupy.ndarray) or \
+               isinstance(beta, cupy.ndarray):
                 if not isinstance(alpha, cupy.ndarray):
                     alpha = cupy.array(alpha)
                     alpha_ptr = alpha.data.ptr
                 if not isinstance(beta, cupy.ndarray):
                     beta = cupy.array(beta)
                     beta_ptr = beta.data.ptr
-                _cublas.setPointerMode(handle, _cublas.CUBLAS_POINTER_MODE_DEVICE)
+                _cublas.setPointerMode(handle,
+                                       _cublas.CUBLAS_POINTER_MODE_DEVICE)
             else:
-                _cublas.setPointerMode(handle, _cublas.CUBLAS_POINTER_MODE_HOST)
+                _cublas.setPointerMode(handle,
+                                       _cublas.CUBLAS_POINTER_MODE_HOST)
 
             lda, transa = _decide_ld_and_trans(a, transa)
             ldb, transb = _decide_ld_and_trans(b, transb)
@@ -121,21 +125,21 @@ else:
                 if out._f_contiguous:
                     try:
                         func(handle, transa, transb, m, n, k, alpha_ptr,
-                             a.data.ptr, lda, b.data.ptr, ldb, beta_ptr, out.data.ptr,
-                             m)
+                             a.data.ptr, lda, b.data.ptr, ldb, beta_ptr,
+                             out.data.ptr, m)
                     finally:
                         _cublas.setPointerMode(handle, orig_mode)
                     return out
                 elif out._c_contiguous:
                     # Computes out.T = alpha * b.T @ a.T + beta * out.T
                     try:
-                        func(handle, 1 - transb, 1 - transa, n, m, k, alpha_ptr,
-                             b.data.ptr, ldb, a.data.ptr, lda, beta_ptr, out.data.ptr,
-                             n)
+                        func(handle, 1 - transb, 1 - transa, n, m, k,
+                             alpha_ptr, b.data.ptr, ldb, a.data.ptr, lda,
+                             beta_ptr, out.data.ptr, n)
                     finally:
                         _cublas.setPointerMode(handle, orig_mode)
                     return out
-            
+
             # Backup plan with copies
             a, lda = _change_order_if_necessary(a, lda)
             b, ldb = _change_order_if_necessary(b, ldb)
@@ -143,8 +147,8 @@ else:
             if not out._f_contiguous:
                 c = out.copy(order='F')
             try:
-                func(handle, transa, transb, m, n, k, alpha_ptr, a.data.ptr, lda,
-                    b.data.ptr, ldb, beta_ptr, c.data.ptr, m)
+                func(handle, transa, transb, m, n, k, alpha_ptr, a.data.ptr,
+                     lda, b.data.ptr, ldb, beta_ptr, c.data.ptr, m)
             finally:
                 _cublas.setPointerMode(handle, orig_mode)
             if not out._f_contiguous:

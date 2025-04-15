@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, TypeVar, Callable, Literal
-from abc import abstractmethod
 
 import gpaw.fftw as fftw
 import numpy as np
 from ase.io.ulm import NDArrayReader
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
-from gpaw.mpi import MPIComm, serial_comm
+from gpaw.mpi import MPIComm
 from gpaw.typing import Array1D, Self, ArrayND
 from gpaw.gpu import XP
 
@@ -76,7 +75,7 @@ class DistributedArrays(Generic[DomainType], XP):
 
     def new(self, data=None) -> DistributedArrays:
         raise NotImplementedError
-    
+
     def new_buffer(self, data_buffer):
         raise NotImplementedError
 
@@ -159,25 +158,25 @@ class DistributedArrays(Generic[DomainType], XP):
                 M2 = other.matrix
                 if buffer is None:
                     raise ValueError
-            
+
                 buffer_size = buffer.data.shape[0]
                 mybands = self.data.shape[0]
                 for i in range(0, mybands, buffer_size):
                     buffer_view = buffer[:mybands - i]
                     function(self[i:i + buffer_size], out=buffer_view)
                     buffer_view_matrix = Matrix(
-                            M=comm.size*buffer_view.data.shape[0],
-                            N=M2.data.shape[1],
-                            data=buffer_view.data.reshape(-1, M2.data.shape[1]),
-                            dist=(comm, -1, 1),
-                            xp=self.xp)
+                        M=comm.size * buffer_view.data.shape[0],
+                        N=M2.data.shape[1],
+                        data=buffer_view.data.reshape(-1, M2.data.shape[1]),
+                        dist=(comm, -1, 1),
+                        xp=self.xp)
                     out_view_matrix = Matrix(
-                            M=comm.size*min(mybands-i,
-                                            buffer_size),
-                            N=out.data.shape[1],
-                            data=out.data[i:i + buffer_size, :],
-                            dist=(comm, -1, 1),
-                            xp=self.xp)
+                        M=comm.size * min(mybands - i,
+                                          buffer_size),
+                        N=out.data.shape[1],
+                        data=out.data[i:i + buffer_size, :],
+                        dist=(comm, -1, 1),
+                        xp=self.xp)
                     M2.dist.multiply(self.dv, buffer_view_matrix, 'N', M2, 'C',
                                      0.0, out_view_matrix, symmetric=False)
                 self._matrix_elements_correction(M1, M2, out, symmetric)
@@ -191,7 +190,8 @@ class DistributedArrays(Generic[DomainType], XP):
                 out = M1.multiply(M2, opb='C', alpha=self.dv,
                                   symmetric=False, out=out)
 
-                # Plane-wave expansion of real-valued functions needs a correction:
+                # Plane-wave expansion of real-valued
+                # functions needs a correction:
                 self._matrix_elements_correction(M1, M2, out, symmetric)
         else:
             if symmetric:
