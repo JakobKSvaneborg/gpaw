@@ -21,7 +21,7 @@ class RMMDIIS(Eigensolver):
     * Improvement of wave functions:  psi' = psi + lambda PR + lambda PR'
     * Orthonormalization"""
 
-    def __init__(self, keep_htpsit=True, blocksize=None, niter=3-2, rtol=1e-16,
+    def __init__(self, keep_htpsit=True, blocksize=None, niter=3, rtol=1e-16,
                  limit_lambda=False, use_rayleigh=False, trial_step=0.1):
         """Initialize RMM-DIIS eigensolver.
 

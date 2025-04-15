@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import warnings
 from pprint import pformat
 
 import numpy as np
-
 from gpaw.core import PWDesc
 from gpaw.gpu import as_np
 from gpaw.new import zips as zip
@@ -19,7 +19,10 @@ class RMMDIIS(PWFDEigensolver):
                  preconditioner_factory,
                  converge_bands='occupied',
                  blocksize=None,
+                 niter: int = 1,
                  scalapack_parameters=None):
+        if niter != 1:
+            warnings.warn(f'Ignoring niter={niter} in RMMDIIS')
         if blocksize is None:
             if isinstance(wf_grid, PWDesc):
                 S = wf_grid.comm.size

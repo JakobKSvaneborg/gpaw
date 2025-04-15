@@ -27,10 +27,9 @@ class Davidson(PWFDEigensolver):
             preconditioner_factory,
             converge_bands)
         self.niter = niter
-        self.H_NN = None
-        self.S_NN = None
-        self.M_nn = None
-        self.work_arrays: np.ndarray | None = None
+        self.H_NN: Matrix
+        self.S_NN: Matrix
+        self.M_nn: Matrix
 
     def __str__(self):
         return pformat(dict(name='Davidson',
@@ -103,8 +102,7 @@ class Davidson(PWFDEigensolver):
                                      function=function,
                                      cc=True)
 
-        Ht = partial(Ht, out=residual_nX)#, spin=wfs.spin)
-        #dH = partial(dH, spin=wfs.spin)
+        Ht = partial(Ht, out=residual_nX)
         calculate_residuals(wfs.psit_nX,
                             residual_nX,
                             wfs.pt_aiX,
@@ -125,9 +123,7 @@ class Davidson(PWFDEigensolver):
                 if weight_n is None:
                     error = np.inf
                 else:
-                    error = weight_n @ as_np(residual_nX.norm2())
-                    if wfs.ncomponents == 4:
-                        error = error.sum()
+                    error = (weight_n @ as_np(residual_nX.norm2())).sum()
 
             self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
 
