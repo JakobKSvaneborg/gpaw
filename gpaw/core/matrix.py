@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple
 import gpaw.cgpaw as cgpaw
 import numpy as np
 import scipy.linalg as sla
