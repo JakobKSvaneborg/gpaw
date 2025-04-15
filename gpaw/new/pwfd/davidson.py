@@ -28,9 +28,9 @@ class Davidson(PWFDEigensolver):
             preconditioner_factory,
             converge_bands)
         self.niter = niter
-        self.H_NN = None
-        self.S_NN = None
-        self.M_nn = None
+        self.H_NN: Matrix
+        self.S_NN: Matrix
+        self.M_nn: Matrix
         self.work_arrays: np.ndarray | None = None
         self.data_buffer: Array1D | None = None
         
@@ -72,7 +72,9 @@ class Davidson(PWFDEigensolver):
                           G_max)
         self.data_buffer = xp.empty((buffer_size,), dtype)
 
-    def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
+    def iterate1(self,
+                 wfs: PWFDWaveFunctions,
+                 Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN
         S_NN = self.S_NN
         M_nn = self.M_nn
@@ -138,9 +140,7 @@ class Davidson(PWFDEigensolver):
                 if weight_n is None:
                     error = np.inf
                 else:
-                    error = weight_n @ as_np(psit2_nX.norm2())
-                    if wfs.ncomponents == 4:
-                        error = error.sum()
+                    error = (weight_n @ as_np(psit2_nX.norm2())).sum()
 
             # Attempt at sliced preconditioning
             buffer = me_buffer_mX

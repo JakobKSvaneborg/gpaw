@@ -77,9 +77,11 @@ def create_setup(symbol, xc='LDA', lmax=0,
                                  'functional.  This calculation would use '
                                  'the %s functional.' % xc.get_setup_name())
         else:
-            setupdata = SetupData(symbol, xc.get_setup_name(),
-                                  type, True,
-                                  world=world)
+            setupdata = SetupData.find_and_read_path(symbol,
+                                                     xc.get_setup_name(),
+                                                     setuptype=type,
+                                                     world=world)
+
     if hasattr(setupdata, 'build'):
         # It is not so nice that we have hubbard_u floating around here.
         # For example, none of the other setup types are aware

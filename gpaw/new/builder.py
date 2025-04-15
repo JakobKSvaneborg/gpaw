@@ -25,7 +25,7 @@ from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.input_parameters import InputParameters
+from gpaw.new.input_parameters import InputParameters, fromdict
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
@@ -198,14 +198,7 @@ class DFTComponentsBuilder:
 
     @cached_property
     def nelectrons(self) -> float:
-        return self.setups.nvalence - (self.params.charge -
-                                       self.background_charge)
-
-    @cached_property
-    def background_charge(self) -> float:
-        if self.params.background_charge:
-            return self.params.background_charge['charge']
-        return 0.0
+        return self.setups.nvalence - self.params.charge
 
     @cached_property
     def atomdist(self) -> AtomDistribution:
@@ -407,15 +400,14 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
     def create_environment(self, grid, log):
-        if self.params.background_charge:
-            from gpaw.new.environment import Jellium, FixedPotentialJellium
-            from gpaw.jellium import create_background_charge
-            fl = self.params.background_charge.pop('fermi_level', None)
-            bc = create_background_charge(**self.params.background_charge)
-            bc.set_grid_descriptor(grid._gd)
-            if fl is None:
-                return Jellium(bc, len(self.atoms), grid)
-            return FixedPotentialJellium(bc, len(self.atoms), grid, fl)
+        if self.params.environment is not None:
+            env = fromdict(self.params.environment)
+            return env.build(
+                setups=self.setups,
+                grid=grid, relpos_ac=self.relpos_ac, log=log,
+                comm=self.communicators['w'],
+                nn=self.params.poissonsolver.get('nn', 3))
+
         if self.params.solvation:
             from gpaw.new.solvation import Solvation
             return Solvation(**self.params.solvation,

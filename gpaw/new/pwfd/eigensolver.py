@@ -14,9 +14,6 @@ from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.typing import Array1D
-from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.utilities.blas import axpy
 from gpaw.utilities import as_real_dtype
 
@@ -61,12 +58,13 @@ def create_eigensolver(nbands,
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
                  preconditioner_factory,
-                 converge_bands='occupied',
-                 blocksize=10):
+                 converge_bands: int | str = 'occupied',
+                 blocksize: int = 10):
         self.converge_bands = converge_bands
         self.blocksize = blocksize
-        self.preconditioner = None
+        self.preconditioner: Callable
         self.preconditioner_factory = preconditioner_factory
+        self.work_arrays: np.ndarray
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -99,7 +97,7 @@ class PWFDEigensolver(Eigensolver):
                n        n   n
         """
 
-        if self.preconditioner is None:
+        if not hasattr(self, 'preconditioner'):
             self._initialize(ibzwfs)
 
         wfs = ibzwfs.wfs_qs[0][0]
