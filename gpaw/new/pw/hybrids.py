@@ -136,8 +136,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         assert isinstance(psit2_nG, PWArray)
         assert isinstance(Htpsit2_nG, PWArray)
         wfs = ibzwfs.wfs_qs[0][spin]
-        D_aii = D_asii[:, spin]
+        D_aii = D_asii[:, spin].copy()
         if ibzwfs.nspins == 1:
+            D_aii = D_aii.copy()
             D_aii.data *= 0.5
         psi1 = Psi(wfs.psit_nX, wfs.P_ani, wfs.myocc_n)
         pt_aiG = wfs.pt_aiX

@@ -98,11 +98,17 @@ class RMMDIIS(PWFDEigensolver):
         P1_ani = P_ani.layout.empty(n)
         P2_ani = P_ani.layout.empty(n)
 
-        error = 0.0
+        if weight_n is None:
+            error = np.inf
+        else:
+            error = weight_n @ as_np(residual_nX.norm2())
         for n1 in range(0, mynbands, self.blocksize):
-            n2 = min(n1 + self.blocksize, mynbands)
-            error += block_step(
-                weight_n[n1:n2],
+            n2 = n1 + self.blocksize
+            if n2 > mynbands:
+                n2 = mynbands
+                P1_ani = P1_ani[:, :n2 - n1]
+                P2_ani = P2_ani[:, :n2 - n1]
+            block_step(
                 psit_nX[n1:n2],
                 residual_nX[n1:n2],
                 wfs.pt_aiX, wfs.myeig_n[n1:n2], Ht, dH, dS_aii,
@@ -116,8 +122,7 @@ class RMMDIIS(PWFDEigensolver):
         return error
 
 
-def block_step(weight_n,
-               psit_nX,
+def block_step(psit_nX,
                R_nX,
                pt_aiX,
                eig_n,
@@ -128,9 +133,7 @@ def block_step(weight_n,
                work2_nX,
                P1_ani,
                P2_ani,
-               preconditioner) -> float:
-    error = weight_n @ as_np(R_nX.norm2())
-
+               preconditioner) -> None:
     PR_nX = work1_nX
     dR_nX = work2_nX
     ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
@@ -151,4 +154,3 @@ def block_step(weight_n,
     preconditioner(psit_nX, R_nX, out=PR_nX, ekin_n=ekin_n)
     PR_nX.data *= 0.1
     psit_nX.data += PR_nX.data
-    return error

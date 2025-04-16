@@ -295,9 +295,15 @@ class AtomArrays:
         if len(self.dims) == 1:
             a0, a1 = a
             assert a0 == slice(None)
-            a_ai = AtomArrays(self.layout, data=self.data[a1].copy())
+            data = self.data[a1]
+            a_ai = AtomArrays(self.layout,
+                              dims=data.shape[:-1],
+                              data=data)
             return a_ai
         1 / 0
+
+    def copy(self):
+        return self.new(data=self.data.copy())
 
     def get(self, a):
         return self._arrays.get(a)
