@@ -1,12 +1,13 @@
+import warnings
 from functools import cached_property
 from math import pi
 
 import numpy as np
 from ase.units import Bohr, Ha
-from gpaw.core import PWDesc, UGDesc, PWArray
+from gpaw.core import PWArray, PWDesc, UGDesc
 from gpaw.new.poisson import PoissonSolver
+from scipy.sparse.linalg import LinearOperator, cg
 from scipy.special import erf
-from scipy.sparse.linalg import cg, LinearOperator
 
 
 def make_poisson_solver(pw: PWDesc,
@@ -18,7 +19,7 @@ def make_poisson_solver(pw: PWDesc,
                         **kwargs) -> PoissonSolver:
     if charge != 0.0 and not grid.pbc_c.any():
         return ChargedPWPoissonSolver(pw, grid, charge, strength, **kwargs)
-    
+
     ps = PWPoissonSolver(pw, charge, strength)
 
     if dipolelayer:
@@ -27,6 +28,9 @@ def make_poisson_solver(pw: PWDesc,
     assert not kwargs
 
     if hasattr(environment, 'dielectric'):
+        ps = ConjugateGradientPoissonSolver(pw, grid)
+        ps.set_dielectric(environment.dielectric)
+        return ps
         from gpaw.new.sjm import SJMPWPoissonSolver
         return SJMPWPoissonSolver(pw, environment.dielectric)
 
@@ -242,15 +246,16 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
 class ConjugateGradientPoissonSolver(PoissonSolver):
     """Poisson solver using conjugate gradient method in reciprocal space.
     """
-    
+
     def __init__(self,
                  pw: PWDesc,
+                 grid,
                  charge: float = 0.0,
                  strength: float = 1.0,
-                 eps=1e-4, 
+                 eps=1e-4,
                  maxiter=15):
         """Initialize the conjugate gradient Poisson solver.
-        
+
         Parameters:
         -----------
         pw : PWDesc
@@ -264,8 +269,9 @@ class ConjugateGradientPoissonSolver(PoissonSolver):
         maxiter : int, optional
             Maximum number of iterations for the conjugate gradient algorithm
         """
-        
+
         self.pw = pw
+        self.grid = grid
         self.charge = charge
         self.strength = strength
         self.eps = eps
@@ -275,12 +281,12 @@ class ConjugateGradientPoissonSolver(PoissonSolver):
         if pw.comm.rank == 0:
             # avoid division by zero:
             self.G2_q[0] = 1.0
-            
+
         self.dielectric = None
 
     def set_dielectric(self, dielectric):
         """Set the dielectric function for the Poisson solver.
-        
+
         Parameters:
         -----------
         dielectric : object
@@ -310,12 +316,12 @@ class ConjugateGradientPoissonSolver(PoissonSolver):
 
     def operator(self, phi_q):
         """Apply the generalized Poisson operator in reciprocal space.
-                
+
         Parameters:
         -----------
         phi_q : ndarray
             Input potential in reciprocal space
-            
+
         Returns:
         --------
         ndarray
@@ -323,27 +329,29 @@ class ConjugateGradientPoissonSolver(PoissonSolver):
         """
         if self.dielectric is None:
             return self.G2_q * phi_q
-        
+
         G_Qv = self.pw.G_plus_k_Gv
         Gx, Gy, Gz = G_Qv.T
-        grid = self.dielectric.eps_gradeps[0].desc
-        
+        grid = self.grid  # dielectric.eps_gradeps[0].desc
+
         gradients = []
         for G_component in [Gx, Gy, Gz]:
             grad_pw = PWArray(pw=self.pw)
             grad_pw.data[:] = G_component * phi_q
             gradients.append(grad_pw)
-        
+
         eps_gradients = []
         for grad_pw in gradients:
             grad_real = grad_pw.ifft(grid=grid).data
-            
+
             epsg_ug = grid.zeros()
             epsg_ug.data[:] = grad_real * self.dielectric.eps_gradeps[0].data
-            
+
             eps_gradients.append(epsg_ug.fft(pw=self.pw).data)
-        
-        return np.sum([G * epsg for G, epsg in zip([Gx, Gy, Gz], eps_gradients)], axis=0)
+
+        return np.sum([G * epsg
+                       for G, epsg in zip([Gx, Gy, Gz], eps_gradients)],
+                      axis=0)
 
     def solve(self,
               vHt_g: PWArray,
@@ -362,13 +370,19 @@ class ConjugateGradientPoissonSolver(PoissonSolver):
             self.G2_q = vHt_g.xp.array(self.G2_q)
 
         N = len(vHt_g.data)
-        op = LinearOperator((N, N), matvec=self.operator, dtype=vHt_g.data.dtype)
-        M = LinearOperator((N, N), matvec=lambda x: x / self.G2_q, dtype=vHt_g.data.dtype)
+        op = LinearOperator((N, N),
+                            matvec=self.operator,
+                            dtype=vHt_g.data.dtype)
+        M = LinearOperator((N, N),
+                           matvec=lambda x: x / self.G2_q,
+                           dtype=vHt_g.data.dtype)
 
-        vHt_g.data[:], info = cg(op, vHt_g.data, rtol=self.eps, maxiter=self.maxiter, M=M)
-        
+        vHt_g.data[:], info = cg(op, vHt_g.data,
+                                 rtol=self.eps, maxiter=self.maxiter, M=M)
+
         if info != 0:
-            warnings.warn(f'Conjugate gradient did not converge (info={info})')
+            warnings.warn(
+                f'Conjugate gradient did not converge (info={info})')
 
         epot = 0.5 * vHt_g.integrate(rhot_g)
         return epot
