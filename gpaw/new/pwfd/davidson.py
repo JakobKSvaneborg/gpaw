@@ -67,7 +67,8 @@ class Davidson(PWFDEigensolver):
 
         # Single buffer approach
         buffer_size = max(min(MAX_MEM,
-                              psit_nX.data.shape[0] * G_max * complex_dtype.itemsize),
+                              psit_nX.data.shape[0] * G_max
+                              * complex_dtype.itemsize),
                           G_max * complex_dtype.itemsize)
         self.data_buffer = xp.empty((buffer_size,), np.byte)
 
@@ -142,7 +143,8 @@ class Davidson(PWFDEigensolver):
             # Sliced preconditioning
             buffer = me_buffer_mX.new()
             buffer_size = buffer.data.shape[0]
-            buffer_size_world = band_comm.max_scalar(buffer_size) * band_comm.size
+            buffer_size_world = \
+                band_comm.max_scalar(buffer_size) * band_comm.size
             mybands = psit_nX.data.shape[0]
             totalbands = psit_nX.dims[0]
             for i_world in range(0, totalbands, buffer_size_world):
@@ -153,7 +155,7 @@ class Davidson(PWFDEigensolver):
                                     buffer_view)
                 psit2_nX.data[i:i + buffer_size] = buffer_view.data
 
-            #self.preconditioner(psit_nX, psit2_nX, psit2_nX)
+            # self.preconditioner(psit_nX, psit2_nX, psit2_nX)
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
 

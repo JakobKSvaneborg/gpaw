@@ -162,12 +162,12 @@ class DistributedArrays(Generic[DomainType], XP):
                 if function is None:
                     def function(inp, out):
                         out.data[:] = inp.data
-                
+
                 buffer_size = buffer.data.shape[0]
                 buffer_size_world = comm.max_scalar(buffer_size) * comm.size
                 mybands = self.data.shape[0]
                 totalbands = out.shape[0]
-                
+
                 for i_world in range(0, totalbands, buffer_size_world):
                     i = i_world // comm.size
                     buffer_view = buffer[:mybands - i]
@@ -188,7 +188,8 @@ class DistributedArrays(Generic[DomainType], XP):
                         xp=self.xp)
                     M2.dist.multiply(self.dv, buffer_view_matrix, 'N', M2, 'C',
                                      0.0, out_view_matrix, symmetric=False)
-                    self._matrix_elements_correction(buffer_view_matrix, M2, out_view_matrix,
+                    self._matrix_elements_correction(buffer_view_matrix, M2,
+                                                     out_view_matrix,
                                                      symmetric=False)
             else:
                 if function:

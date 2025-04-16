@@ -346,11 +346,11 @@ class UGArray(DistributedArrays[UGDesc]):
         data_buffer:
             Array to use for storage.
         """
-        assert isinstance(data_buffer, Array1D)
+        assert isinstance(data_buffer, self.xp.ndarray)
+        data_buffer = data_buffer.view(self.data.dtype)
         datasize = data_buffer.size
         nR = self.xp.prod(self.data.shape[1:])
         mybands = datasize // nR
-        assert mybands > 0
         data = data_buffer[:mybands * nR].reshape(
             (mybands,) + self.data.shape[1:])
         return UGArray(self.desc,

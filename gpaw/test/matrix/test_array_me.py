@@ -8,6 +8,7 @@ from gpaw.core.plane_waves import PWArray, PWDesc
 from gpaw.mpi import world, serial_comm
 import pytest
 
+
 @pytest.mark.skip
 def test_array_me(N=50, max_mem=2e8, use_func=True):
     pw_desc = PWDesc(ecut=N / 2,

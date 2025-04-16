@@ -34,7 +34,6 @@ class RMMDIIS(PWFDEigensolver):
             else:
                 blocksize = 10
         super().__init__(preconditioner_factory, converge_bands, blocksize)
-        self.data_buffer: Array1D | None = None
 
     def __str__(self):
         return pformat(dict(name='RMMDIIS',
@@ -43,10 +42,9 @@ class RMMDIIS(PWFDEigensolver):
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
         self._allocate_work_arrays(ibzwfs, shape=(2,))
-        
+
         wfs = ibzwfs.wfs_qs[0][0]
         dtype = wfs.psit_nX.desc.dtype
-        B = ibzwfs.nbands
         xp = ibzwfs.xp
         G_max = np.prod(ibzwfs.get_max_shape())
         psit_nX = wfs.psit_nX.matrix
@@ -54,7 +52,8 @@ class RMMDIIS(PWFDEigensolver):
 
         # Single buffer approach
         buffer_size = max(min(MAX_MEM,
-                              psit_nX.data.shape[0] * G_max * complex_dtype.itemsize),
+                              psit_nX.data.shape[0] * G_max
+                              * complex_dtype.itemsize),
                           G_max * complex_dtype.itemsize)
         self.data_buffer = xp.empty((buffer_size,), np.byte)
 

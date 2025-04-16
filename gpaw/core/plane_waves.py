@@ -363,7 +363,6 @@ class PWArray(DistributedArrays[PWDesc]):
         nG = self.data.shape[1]
         mybands = min(datasize // nG,
                       self.data.shape[0])
-        #assert mybands > 0 or self.dims[0] == 0
         data = data_buffer[:mybands * nG].reshape((mybands, nG))
         return PWArray(self.desc,
                        (mybands,),
