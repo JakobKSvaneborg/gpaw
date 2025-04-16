@@ -142,7 +142,7 @@ class Davidson(PWFDEigensolver):
             # Sliced preconditioning
             buffer = me_buffer_mX.new()
             buffer_size = buffer.data.shape[0]
-            buffer_size_world = band_comm.max_scalar(buffer_size)
+            buffer_size_world = band_comm.max_scalar(buffer_size) * band_comm.size
             mybands = psit_nX.data.shape[0]
             totalbands = psit_nX.dims[0]
             for i_world in range(0, totalbands, buffer_size_world):
