@@ -12,6 +12,7 @@ from scipy.sparse.linalg import cg, LinearOperator
 def make_poisson_solver(pw: PWDesc,
                         grid: UGDesc,
                         charge: float,
+                        environment=None,
                         strength: float = 1.0,
                         dipolelayer: bool = False,
                         **kwargs) -> PoissonSolver:
@@ -22,7 +23,13 @@ def make_poisson_solver(pw: PWDesc,
 
     if dipolelayer:
         return DipoleLayerPWPoissonSolver(ps, grid, **kwargs)
+
     assert not kwargs
+
+    if hasattr(environment, 'dielectric'):
+        from gpaw.new.sjm import SJMPWPoissonSolver
+        return SJMPWPoissonSolver(pw, environment.dielectric)
+
     return ps
 
 
@@ -52,7 +59,7 @@ class PWPoissonSolver(PoissonSolver):
     def solve(self,
               vHt_g: PWArray,
               rhot_g: PWArray) -> float:
-        """Solve Poisson equeation.
+        """Solve Poisson equation.
 
         Places result in vHt_g ndarray.
         """
@@ -64,7 +71,7 @@ class PWPoissonSolver(PoissonSolver):
                rhot_g) -> float:
         vHt_g.data[:] = 2 * pi * self.strength * rhot_g.data
         if self.pw.comm.rank == 0:
-            # Use uniform backgroud charge in case we have a charged system:
+            # Use uniform background charge in case we have a charged system:
             vHt_g.data[0] = 0.0
         if not isinstance(self.ekin_g, vHt_g.xp.ndarray):
             self.ekin_g = vHt_g.xp.array(self.ekin_g)
@@ -83,7 +90,7 @@ class ChargedPWPoissonSolver(PWPoissonSolver):
                  eps: float = 1e-5):
         """Reciprocal-space Poisson solver for charged molecules.
 
-        * Add a compensating Guassian-shaped charge to the density
+        * Add a compensating Gaussian-shaped charge to the density
           in order to make the total charge neutral (placed in the
           middle of the unit cell
 
@@ -108,7 +115,7 @@ class ChargedPWPoissonSolver(PWPoissonSolver):
         ----------
         alpha : float
         charge_g : np.ndarray
-            Guassian-shaped charge in reciprocal space
+            Gaussian-shaped charge in reciprocal space
         potential_g : PWArray
              Potential in reciprocal space created by charge_g
         """

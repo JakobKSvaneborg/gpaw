@@ -61,6 +61,7 @@ units = {'energy': Ha,
 
 class DFTCalculation:
     def __init__(self,
+                 atoms: Atoms,
                  ibzwfs: IBZWaveFunctions,
                  density: Density,
                  potential: Potential,
@@ -68,7 +69,9 @@ class DFTCalculation:
                  scf_loop: SCFLoop,
                  pot_calc,
                  log: Logger,
+                 params: InputParameters,
                  energies: DFTEnergies | None = None):
+        self.atoms = atoms
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
@@ -77,6 +80,7 @@ class DFTCalculation:
         self.pot_calc = pot_calc
         self.log = log
         self.comm = log.comm
+        self.params = params
 
         self.results: dict[str, Any] = {}
         self.relpos_ac = self.pot_calc.relpos_ac
@@ -138,13 +142,23 @@ class DFTCalculation:
         log(scf_loop)
         log(pot_calc)
 
-        return cls(ibzwfs, density, potential,
+        return cls(atoms, ibzwfs, density, potential,
                    builder.setups, scf_loop, pot_calc, log,
-                   energies=energies)
+                   params=params, energies=energies)
+
+    def get_ase_calc(self):
+        """Create ASE-compatible GPAW calculator.
+        """
+        from gpaw.new.ase_interface import ASECalculator
+        return ASECalculator(params=self.params,
+                             log=self.log,
+                             dft=self,
+                             atoms=self.atoms)
 
     def move_atoms(self, atoms) -> DFTCalculation:
         check_atoms_too_close(atoms)
 
+        self.atoms = atoms
         self.relpos_ac = np.ascontiguousarray(atoms.get_scaled_positions())
         self.comm.broadcast(self.relpos_ac, 0)
 
@@ -461,9 +475,9 @@ class DFTCalculation:
         log(pot_calc)
 
         return DFTCalculation(
-            ibzwfs, density, potential,
+            atoms, ibzwfs, density, potential,
             builder.setups, scf_loop, pot_calc, log,
-            energies=energies)
+            params=params, energies=energies)
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)

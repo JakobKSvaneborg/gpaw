@@ -25,7 +25,7 @@ from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.input_parameters import InputParameters
+from gpaw.new.input_parameters import InputParameters, fromdict
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
@@ -401,7 +401,8 @@ class DFTComponentsBuilder:
 
     def create_environment(self, grid, log):
         if self.params.environment is not None:
-            return self.params.environment.build(
+            env = fromdict(self.params.environment)
+            return env.build(
                 setups=self.setups,
                 grid=grid, relpos_ac=self.relpos_ac, log=log,
                 comm=self.communicators['w'],
