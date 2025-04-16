@@ -29,7 +29,7 @@ def make_poisson_solver(pw: PWDesc,
 
     if hasattr(environment, 'dielectric'):
         return ConjugateGradientPoissonSolver(
-            pw, grid, environment.dielectric)
+            pw, grid, environment.dielectric, zero_vacuum=True)
         from gpaw.new.sjm import SJMPWPoissonSolver
         return SJMPWPoissonSolver(pw, environment.dielectric)
 
@@ -253,7 +253,8 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
                  charge: float = 0.0,
                  strength: float = 1.0,
                  eps=1e-4,
-                 maxiter=15):
+                 maxiter=15,
+                 zero_vacuum=False):
         """Initialize the conjugate gradient Poisson solver.
 
         Parameters:
@@ -274,6 +275,7 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         self.grid = grid
         self.eps = eps
         self.maxiter = maxiter
+        self.zero_vacuum = zero_vacuum
 
     def __str__(self) -> str:
         txt = ('conjugate gradient poisson solver:\n'
@@ -347,5 +349,25 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
             warnings.warn(
                 f'Conjugate gradient did not converge (info={info})')
 
+        if self.zero_vacuum:
+            self.correct_slope(vHt_g)
+
         epot = 0.5 * vHt_g.integrate(rhot_g)
         return epot
+
+    def correct_slope(self, vHt_g: PWArray):
+        from gpaw.new.sjm import modified_saw_tooth
+        eps_r = self.grid.from_data(self.dielectric.eps_gradeps[0])
+        eps0_r = eps_r.gather()
+        vHt0_g = vHt_g.gather()
+        if eps0_r is not None:
+            saw_tooth_z = modified_saw_tooth(eps0_r)
+            vHt0_r = vHt0_g.ifft(grid=self.grid.new(comm=None))
+            s1, s2 = saw_tooth_z[[2, 10]]
+            v1, v2 = vHt0_r.data[:, :, [2, 10]].mean(axis=(0, 1))
+            print(s1, s2, v1, v2, vHt0_g.data.shape)
+            vHt0_r.data -= (v2 - v1) / (s2 - s1) * saw_tooth_z[np.newaxis,
+                                                               np.newaxis]
+            vHt0_r.data -= vHt0_r.data[:, :, -1].mean()
+            vHt0_r.fft(out=vHt0_g)
+        vHt_g.scatter_from(vHt0_g)
