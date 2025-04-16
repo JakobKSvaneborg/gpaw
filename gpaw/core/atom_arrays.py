@@ -298,9 +298,12 @@ class AtomArrays:
             data = self.data[a1]
             a_ai = AtomArrays(self.layout,
                               dims=data.shape[:-1],
-                              data=data.copy())#view?
+                              data=data)
             return a_ai
         1 / 0
+
+    def copy(self):
+        return self.new(data=self.data.copy())
 
     def get(self, a):
         return self._arrays.get(a)
