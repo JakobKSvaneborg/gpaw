@@ -140,7 +140,7 @@ class Davidson(PWFDEigensolver):
                     error = (weight_n @ as_np(psit2_nX.norm2())).sum()
 
             # Sliced preconditioning
-            buffer = me_buffer_mX
+            buffer = me_buffer_mX.new()
             buffer_size = buffer.data.shape[0]
             mybands = psit_nX.data.shape[0]
             for i in range(0, mybands, buffer_size):

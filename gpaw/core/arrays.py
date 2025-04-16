@@ -153,12 +153,18 @@ class DistributedArrays(Generic[DomainType], XP):
 
         if comm.size == 1 or sliced:
             assert other.comm.size == comm.size
-            if sliced and function:
+            if sliced:
                 M1 = self.matrix
                 M2 = other.matrix
                 if buffer is None:
                     raise ValueError
 
+                if function is None:
+                    def function(inp, out):
+                        out.data[:] = inp.data
+                
+                assert self.data.shape[0] > 0
+                
                 buffer_size = buffer.data.shape[0]
                 mybands = self.data.shape[0]
                 for i in range(0, mybands, buffer_size):
@@ -167,16 +173,19 @@ class DistributedArrays(Generic[DomainType], XP):
                     buffer_view_matrix = Matrix(
                         M=comm.size * buffer_view.data.shape[0],
                         N=M2.data.shape[1],
-                        data=buffer_view.matrix.data.reshape((-1, M2.data.shape[1])),
+                        data=buffer_view.matrix.data,
                         dist=(comm, -1, 1),
                         xp=self.xp)
                     out_view_matrix = Matrix(
-                        M=comm.size * min(mybands - i,
-                                          buffer_size),
-                        N=out.data.shape[1],
+                        M=comm.size * buffer_view.data.shape[0],
+                        N=out.shape[1],
                         data=out.data[i:i + buffer_size, :],
                         dist=(comm, -1, 1),
                         xp=self.xp)
+                    print(buffer_view_matrix)
+                    print(M2)
+                    print(out_view_matrix)
+                    adsfsd
                     M2.dist.multiply(self.dv, buffer_view_matrix, 'N', M2, 'C',
                                      0.0, out_view_matrix, symmetric=False)
                     self._matrix_elements_correction(buffer_view_matrix, M2, out_view_matrix,
@@ -189,7 +198,7 @@ class DistributedArrays(Generic[DomainType], XP):
                 M1 = self.matrix
                 M2 = other.matrix
                 out = M1.multiply(M2, opb='C', alpha=self.dv,
-                                  symmetric=False, out=out)
+                                  symmetric=symmetric, out=out)
 
                 # Plane-wave expansion of real-valued
                 # functions needs a correction:
