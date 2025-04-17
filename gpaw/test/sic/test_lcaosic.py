@@ -1,14 +1,13 @@
 import pytest
 
 from gpaw import GPAW, LCAO
-from gpaw.directmin.etdm_lcao import LCAOETDM
 from ase import Atoms
 import numpy as np
 
 
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
-def test_lcaosic(in_tmp_dir):
+def test_lcaosic(in_tmp_dir, gpw_files):
     """
     Test Perdew-Zunger Self-Interaction
     Correction  in LCAO mode using ETDM
@@ -17,27 +16,8 @@ def test_lcaosic(in_tmp_dir):
     """
 
     # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * 104.51
-    H2O = Atoms('OH2',
-                positions=[(0, 0, 0),
-                           (d, 0, 0),
-                           (d * np.cos(t), d * np.sin(t), 0)])
-    H2O.center(vacuum=4.0)
-
-    calc = GPAW(mode=LCAO(force_complex_dtype=True),
-                h=0.22,
-                occupations={'name': 'fixed-uniform'},
-                eigensolver=LCAOETDM(localizationtype='PM_PZ',
-                                     localizationseed=42,
-                                     functional={'name': 'PZ-SIC',
-                                                 'scaling_factor':
-                                                     (0.5, 0.5)}),
-                convergence={'eigenstates': 1e-4},
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                symmetry='off'
-                )
+    calc = GPAW(gpw_files['h2o_lcaosic'])
+    H2O = calc.atoms
     H2O.calc = calc
     e = H2O.get_potential_energy()
     f = H2O.get_forces()
