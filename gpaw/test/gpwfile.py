@@ -7,7 +7,9 @@ from ase import Atom, Atoms
 from ase.build import bulk, molecule
 from ase.lattice.compounds import L1_2
 from ase.lattice.hexagonal import Graphene
-from gpaw import Davidson, FermiDirac, GPAW, Mixer, PW
+from gpaw import Davidson, FermiDirac, GPAW, Mixer, PW, FD, LCAO
+from gpaw.directmin.etdm_fdpw import FDPWETDM
+from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.mpi import world, serial_comm
 from gpaw.new.ase_interface import GPAW as GPAWNew
 from gpaw.poisson import FDPoissonSolver, PoissonSolver
@@ -196,6 +198,60 @@ class GPWFiles(CachedFilesHandler):
                           kpts={'density': 2.0, 'gamma': True})
         atoms.get_potential_energy()
         return atoms.calc
+
+    def h2o_maker(self, vacuum, t=np.pi / 180 * 104.51, eps=0):
+        d = 0.9575
+        H2O = Atoms('OH2',
+                    positions=[(0, 0, 0),
+                               (d + eps, 0, 0),
+                               (d * np.cos(t), d * np.sin(t), 0)])
+        H2O.center(vacuum=vacuum)
+        return H2O
+
+    @gpwfile
+    def h2o_fdsic(self):
+        atm = self.h2o_maker(vacuum=4.0,
+                             t = np.pi / 180 * (104.51 + 2.0),
+                             eps=0.02)
+        atm.calc = GPAW(
+            mode=FD(force_complex_dtype=True),
+            h=0.25,
+            occupations={"name": "fixed-uniform"},
+            eigensolver=FDPWETDM(
+                functional={"name": "PZ-SIC", "scaling_factor": (0.5, 0.5)},
+                localizationseed=42,
+                localizationtype="FB_ER",
+                grad_tol_pz_localization=1.0e-3,
+                maxiter_pz_localization=200,
+                converge_unocc=True,
+            ),
+            convergence={"eigenstates": 1e-4},
+            mixer={"backend": "no-mixing"},
+            symmetry="off",
+            spinpol=True,
+        )
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
+    def h2o_lcaosic(self):
+        atm = self.h2o_maker(vacuum=4.0)
+        atm.calc = GPAW(
+            mode=LCAO(force_complex_dtype=True),
+            h=0.22,
+            occupations={'name': 'fixed-uniform'},
+            eigensolver=LCAOETDM(localizationtype='PM_PZ',
+                                 localizationseed=42,
+                                 functional={'name': 'PZ-SIC',
+                                             'scaling_factor':
+                                                 (0.5, 0.5)}),
+            convergence={'eigenstates': 1e-4},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off'
+            )
+        atm.get_potential_energy()
+        return atm.calc
 
     @gpwfile
     def silicon_pdens_tool(self):
