@@ -11,6 +11,7 @@ pytestmark = pytest.mark.skipif(world.size > 1,
 
 
 @pytest.mark.old_gpaw_only
+@pytest.mark.sic
 def test_sic_nscfsic(in_tmp_dir):
     atoms = ['He', 'Be']  # ,'Ne'] # Ne deviates already 2.5 eV
     EE = []
