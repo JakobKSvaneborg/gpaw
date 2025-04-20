@@ -921,7 +921,6 @@ class CuPyDistribution(MatrixDistribution):
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
         if self.comm.size > 1 \
-            and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1] \
             and a.data.flags['C_CONTIGUOUS'] \
             and b.data.flags['C_CONTIGUOUS'] \
             and c.data.flags['C_CONTIGUOUS']:

@@ -157,7 +157,6 @@ class Davidson(PWFDEigensolver):
             # self.preconditioner(psit_nX, psit2_nX, psit2_nX)
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
-            band_comm.barrier()
             with tracectx('Matrix elements'):
                 # <psi2 | H | psi2>
                 #psit3_nX = psit2_nX.new()
@@ -186,7 +185,6 @@ class Davidson(PWFDEigensolver):
                 me(psit2_nX, psit_nX)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
                 copy(S_NN.data[B:, :B])
-                band_comm.barrier()
 
             with tracectx('Diagonalize'):
                 with broadcast_exception(domain_comm):
