@@ -222,11 +222,14 @@ class Matrix(XP):
             assert other.shape[0] == self.shape[0]
 
             if data_buffer is None:
+                raise NotImplementedError
+                
                 buffer_size = max(
                     min(int(other.dist.comm.size * 2e8 /
                             (max(other.shape[0], 1) *
                              other.dtype.itemsize)),
                         other.data.shape[1]), 1)
+                buffer_size = dist.comm.min_scalar(buffer_size)
                 buffer = Matrix(
                     M=other.shape[0],
                     N=buffer_size,
@@ -238,28 +241,36 @@ class Matrix(XP):
                 dtype = other.data.dtype
                 data_buffer = data_buffer.view(dtype)
                 if other.data.shape[0] > 0:
-                    buffer_size = min(data_buffer.size // other.data.shape[0],
+                    buffer_size = min(data_buffer.size // other.data.shape[0] // 2,
                                       other.data.shape[1])
                 else:
                     buffer_size = other.data.shape[1]
+                buffer_size = dist.comm.min_scalar(buffer_size)
+            
+            max_X = other.data.shape[1]
+            # Sliced multiply
+            for i in range(0, max_X, buffer_size):
+                r_buffer_size = min(max(other.data.shape[1] - i, 0), buffer_size)
+                buffer_slice = r_buffer_size * other.data.shape[0]
                 buffer = Matrix(
                     M=other.shape[0],
-                    N=buffer_size,
+                    N=r_buffer_size,
                     data=data_buffer[
-                        :buffer_size * other.data.shape[0]].reshape(
-                        (other.data.shape[0], buffer_size)
+                        :buffer_slice].reshape(
+                        (other.data.shape[0], r_buffer_size)
                     ),
-                    dist=dist.new(M=other.shape[0], N=buffer_size),
+                    dist=dist.new(M=other.shape[0], N=r_buffer_size),
                     xp=other.xp)
-
-            # Sliced multiply
-            for i in range(0, other.data.shape[1], buffer_size):
-                buffer_view = buffer[:, :other.data.shape[1] - i]
-                buffer_view.data[:] \
+                buffer.data[:] \
                     = other.data[:, i:i + buffer_size]
-                dist.multiply(alpha, A, opa,
-                              buffer_view, opb, beta,
-                              other[:, i:i + buffer_size], symmetric=False)
+                out_buffer = buffer.new(data=data_buffer[
+                        buffer_slice:2*buffer_slice].reshape(
+                        (other.data.shape[0], r_buffer_size)
+                        ))
+                
+                dist.multiply(alpha, A, opa, buffer, opb, 0.0, out_buffer, symmetric=False)
+                out.data[:, i:i + buffer_size] *= beta
+                out.data[:, i:i + buffer_size] += out_buffer.data
             return out
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
@@ -909,7 +920,11 @@ class CuPyDistribution(MatrixDistribution):
                                 self.blocksize)
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
-        if self.comm.size > 1:
+        if self.comm.size > 1 \
+            and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1] \
+            and a.data.flags['C_CONTIGUOUS'] \
+            and b.data.flags['C_CONTIGUOUS'] \
+            and c.data.flags['C_CONTIGUOUS']:
             if opa == 'N' and opb == 'N':
                 return mmm_nn(a, b, c, alpha, beta, cublas_mmm)
             if opa == 'N' and opb == 'C':

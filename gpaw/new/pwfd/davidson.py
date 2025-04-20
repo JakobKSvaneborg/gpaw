@@ -13,7 +13,7 @@ from gpaw.typing import Array2D, Array1D
 from gpaw.new import trace, tracectx
 from gpaw.utilities import as_complex_dtype
 
-MAX_MEM = 2e8  # ~200 MB, seems to be the sweet spot
+MAX_MEM = int(2e8)  # ~200 MB, seems to be the sweet spot
 
 
 class Davidson(PWFDEigensolver):
@@ -63,13 +63,15 @@ class Davidson(PWFDEigensolver):
 
         G_max = np.prod(ibzwfs.get_max_shape())
         psit_nX = wfs.psit_nX.matrix
+        mybands = psit_nX.shape[0]
         complex_dtype = as_complex_dtype(dtype)
 
         # Single buffer approach
         buffer_size = max(min(MAX_MEM,
                               psit_nX.data.shape[0] * G_max
                               * complex_dtype.itemsize),
-                          G_max * complex_dtype.itemsize)
+                          G_max * complex_dtype.itemsize,
+                          2 * mybands * complex_dtype.itemsize)
         self.data_buffer = xp.empty((buffer_size,), np.byte)
 
     def iterate1(self,
@@ -106,7 +108,8 @@ class Davidson(PWFDEigensolver):
             eig_N[:B] = xp.asarray(wfs.eig_n)
 
         me_buffer_mX = psit_nX.new_buffer(self.data_buffer)
-
+        
+        
         @trace
         def me(a, b, function=None, sliced=False):
             """Matrix elements"""
@@ -141,26 +144,25 @@ class Davidson(PWFDEigensolver):
                     error = (weight_n @ as_np(psit2_nX.norm2())).sum()
 
             # Sliced preconditioning
-            buffer = me_buffer_mX.new()
-            buffer_size = buffer.data.shape[0]
-            buffer_size_world = \
-                band_comm.max_scalar(buffer_size) * band_comm.size
+            buffer_size = me_buffer_mX.data.shape[0]
             mybands = psit_nX.data.shape[0]
-            totalbands = psit_nX.dims[0]
-            for i_world in range(0, totalbands, buffer_size_world):
-                i = i_world // band_comm.size
-                buffer_view = buffer[:mybands - i]
-                self.preconditioner(psit_nX[i:i + buffer_size],
-                                    psit2_nX[i:i + buffer_size],
-                                    buffer_view)
-                psit2_nX.data[i:i + buffer_size] = buffer_view.data
-
+            if not mybands == 0:
+                for i_local in range(0, mybands, buffer_size):
+                    buffer_view = me_buffer_mX[:mybands - i_local]
+                    self.preconditioner(psit_nX[i_local:i_local + buffer_size],
+                                        psit2_nX[i_local:i_local + buffer_size],
+                                        buffer_view)
+                    psit2_nX.data[i_local:i_local + buffer_size] = buffer_view.data[:]
+            
             # self.preconditioner(psit_nX, psit2_nX, psit2_nX)
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
-
+            band_comm.barrier()
             with tracectx('Matrix elements'):
                 # <psi2 | H | psi2>
+                #psit3_nX = psit2_nX.new()
+                #from functools import partial
+                #me(psit2_nX, psit2_nX, function=partial(Ht, out=psit3_nX))
                 me(psit2_nX, psit2_nX, function=Ht, sliced=True)
                 dH(P2_ani, out_ani=P3_ani)
                 P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
@@ -168,6 +170,7 @@ class Davidson(PWFDEigensolver):
                 copy(H_NN.data[B:, B:])
 
                 # <psi2 | H | psi>
+                #me(psit3_nX, psit_nX)
                 me(psit2_nX, psit_nX, function=Ht, sliced=True)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
                 copy(H_NN.data[B:, :B])
@@ -183,6 +186,7 @@ class Davidson(PWFDEigensolver):
                 me(psit2_nX, psit_nX)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
                 copy(S_NN.data[B:, :B])
+                band_comm.barrier()
 
             with tracectx('Diagonalize'):
                 with broadcast_exception(domain_comm):

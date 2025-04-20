@@ -283,7 +283,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         domain_comm.broadcast(H.data, 0)
         domain_comm.broadcast(self._eig_n, 0)
-
         H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
         H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
         H.multiply(P_ani, out=P2_ani)
