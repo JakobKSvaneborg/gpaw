@@ -22,7 +22,7 @@ def test_parallel_fd_parallel():
     parallel = dict()
 
     basekwargs = dict(mode='fd',
-                      eigensolver='dav',#'rmm-diis',
+                      eigensolver='rmm-diis',
                       convergence={'maximum iterations': 3},
                       nbands=6,
                       parallel=parallel)

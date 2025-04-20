@@ -108,8 +108,7 @@ class Davidson(PWFDEigensolver):
             eig_N[:B] = xp.asarray(wfs.eig_n)
 
         me_buffer_mX = psit_nX.new_buffer(self.data_buffer)
-        
-        
+
         @trace
         def me(a, b, function=None, sliced=False):
             """Matrix elements"""
@@ -149,19 +148,17 @@ class Davidson(PWFDEigensolver):
             if not mybands == 0:
                 for i_local in range(0, mybands, buffer_size):
                     buffer_view = me_buffer_mX[:mybands - i_local]
-                    self.preconditioner(psit_nX[i_local:i_local + buffer_size],
-                                        psit2_nX[i_local:i_local + buffer_size],
-                                        buffer_view)
-                    psit2_nX.data[i_local:i_local + buffer_size] = buffer_view.data[:]
-            
-            # self.preconditioner(psit_nX, psit2_nX, psit2_nX)
+                    self.preconditioner(
+                        psit_nX[i_local:i_local + buffer_size],
+                        psit2_nX[i_local:i_local + buffer_size],
+                        buffer_view)
+                    psit2_nX.data[i_local:i_local + buffer_size] \
+                        = buffer_view.data[:]
+
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
             with tracectx('Matrix elements'):
                 # <psi2 | H | psi2>
-                #psit3_nX = psit2_nX.new()
-                #from functools import partial
-                #me(psit2_nX, psit2_nX, function=partial(Ht, out=psit3_nX))
                 me(psit2_nX, psit2_nX, function=Ht, sliced=True)
                 dH(P2_ani, out_ani=P3_ani)
                 P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
@@ -169,7 +166,6 @@ class Davidson(PWFDEigensolver):
                 copy(H_NN.data[B:, B:])
 
                 # <psi2 | H | psi>
-                #me(psit3_nX, psit_nX)
                 me(psit2_nX, psit_nX, function=Ht, sliced=True)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
                 copy(H_NN.data[B:, :B])

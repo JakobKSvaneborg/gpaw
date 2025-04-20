@@ -168,7 +168,8 @@ class DistributedArrays(Generic[DomainType], XP):
                 mybands = self.data.shape[0]
                 totalbands = out.shape[0]
 
-                for niter, i_world in enumerate(range(0, totalbands, buffer_size_world)):
+                for niter, i_world in enumerate(
+                        range(0, totalbands, buffer_size_world)):
                     i = niter * buffer_size
                     buffer_view = buffer[:mybands - i]
                     function(self[i:i + buffer_size], out=buffer_view)
@@ -191,9 +192,6 @@ class DistributedArrays(Generic[DomainType], XP):
                     self._matrix_elements_correction(buffer_view_matrix, M2,
                                                      out_view_matrix,
                                                      symmetric=False)
-                #if symmetric:
-                #    out.add_hermitian_conjugate(0.5)
-                    
             else:
                 if function:
                     assert symmetric

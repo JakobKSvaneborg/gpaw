@@ -223,7 +223,7 @@ class Matrix(XP):
 
             if data_buffer is None:
                 raise NotImplementedError
-                
+
                 buffer_size = max(
                     min(int(other.dist.comm.size * 2e8 /
                             (max(other.shape[0], 1) *
@@ -241,16 +241,18 @@ class Matrix(XP):
                 dtype = other.data.dtype
                 data_buffer = data_buffer.view(dtype)
                 if other.data.shape[0] > 0:
-                    buffer_size = min(data_buffer.size // other.data.shape[0] // 2,
-                                      other.data.shape[1])
+                    buffer_size = min(
+                        data_buffer.size // other.data.shape[0] // 2,
+                        other.data.shape[1])
                 else:
                     buffer_size = other.data.shape[1]
                 buffer_size = dist.comm.min_scalar(buffer_size)
-            
+
             max_X = other.data.shape[1]
             # Sliced multiply
             for i in range(0, max_X, buffer_size):
-                r_buffer_size = min(max(other.data.shape[1] - i, 0), buffer_size)
+                r_buffer_size = min(max(other.data.shape[1] - i, 0),
+                                    buffer_size)
                 buffer_slice = r_buffer_size * other.data.shape[0]
                 buffer = Matrix(
                     M=other.shape[0],
@@ -264,11 +266,11 @@ class Matrix(XP):
                 buffer.data[:] \
                     = other.data[:, i:i + buffer_size]
                 out_buffer = buffer.new(data=data_buffer[
-                        buffer_slice:2*buffer_slice].reshape(
-                        (other.data.shape[0], r_buffer_size)
-                        ))
-                
-                dist.multiply(alpha, A, opa, buffer, opb, 0.0, out_buffer, symmetric=False)
+                    buffer_slice:2 * buffer_slice].reshape(
+                    (other.data.shape[0], r_buffer_size)))
+
+                dist.multiply(alpha, A, opa, buffer,
+                              opb, 0.0, out_buffer, symmetric=False)
                 out.data[:, i:i + buffer_size] *= beta
                 out.data[:, i:i + buffer_size] += out_buffer.data
             return out
@@ -997,6 +999,7 @@ def mmm_nn(m1, m2, m3, alpha, beta, mmm):
 
     for r in range(comm.size):
         if r == 0:
+            # BUFFERRRSSS!??
             buf2 = xp.empty((n, buf1.shape[1]), dtype=buf1.dtype)
 
         rrequest = None
@@ -1019,6 +1022,7 @@ def mmm_nn(m1, m2, m3, alpha, beta, mmm):
         beta = 1.0
 
         if r == 0:
+            # MORE BUFFERING!?
             buf1 = xp.empty_like(buf2)
 
         buf1, buf2 = buf2, buf1
@@ -1047,6 +1051,7 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
     mym = len(a.data)
     xp = a.xp
 
+    # The buffering never ends
     buf1 = xp.empty((m, N), dtype=a.dtype)
     buf2 = xp.empty((m, N), dtype=a.dtype)
     half = comm.size // 2
@@ -1130,6 +1135,7 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
     mym = len(a.data)
     xp = a.xp
 
+    # More... buffers...
     buf1 = xp.empty((m, N), dtype=a.dtype)
     buf2 = xp.empty((m, N), dtype=a.dtype)
     aa = a.data
