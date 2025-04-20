@@ -46,11 +46,11 @@ else:
 
         def _decide_ld_and_trans(a, trans):
             ld = None
-            if a._f_contiguous:
-                ld = a.shape[0]
-            elif a._c_contiguous:
+            if a._c_contiguous:
                 ld = a.shape[1]
                 trans = 1 - trans
+            elif a._f_contiguous:
+                ld = a.shape[0]
             return ld, trans
 
         @trace(gpu=True)

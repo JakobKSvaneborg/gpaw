@@ -13,7 +13,7 @@ from gpaw.typing import Array2D, Array1D
 from gpaw.new import trace, tracectx
 from gpaw.utilities import as_complex_dtype
 
-MAX_MEM = int(2e2)  # ~200 MB, seems to be the sweet spot
+MAX_MEM = int(2e8)  # ~200 MB, seems to be the sweet spot
 
 
 class Davidson(PWFDEigensolver):
