@@ -920,10 +920,7 @@ class CuPyDistribution(MatrixDistribution):
                                 self.blocksize)
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
-        if self.comm.size > 1 \
-            and a.data.flags['C_CONTIGUOUS'] \
-            and b.data.flags['C_CONTIGUOUS'] \
-            and c.data.flags['C_CONTIGUOUS']:
+        if self.comm.size > 1:
             if opa == 'N' and opb == 'N':
                 return mmm_nn(a, b, c, alpha, beta, cublas_mmm)
             if opa == 'N' and opb == 'C':
@@ -1076,6 +1073,7 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
             m2 = min(m1 + m, M)
             if r == 0:
                 # symmmmmmmmmmmmmmmmmmmmmmetricccccccccccccccc
+                # NOT FREAKING CONTIGUOUS!!!!!! AAARGHHHHHHHHHHHHH
                 mmm(alpha, aa, 'N', bb, 'C', 1.0, out.data[:, m1:m2])
             else:
                 beta = 1.0 if r <= comm.rank else 0.0
@@ -1156,6 +1154,7 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
         m1 = min(((comm.rank - r) % comm.size) * m, M)
         m2 = min(m1 + m, M)
         # symmmmmmmmmmmmmmmmmmmmmmetricccccccccccccccc ??
+        # CONTIGUITY!?!?!?!??
         mmm(alpha, aa, 'N', bb[:m2 - m1], 'C', beta, out.data[:, m1:m2])
 
         if rrequest:

@@ -65,7 +65,7 @@ else:
 
             This is pretty much a copy of the code from cupy.cublas.gemm,
             with _decide_ld_and_trans modified to not be afraid of
-            hermitian transposes.
+            hermitian transposes and a preference to C-contiguous arrays.
             """
             assert a.ndim == b.ndim == 2
             assert a.dtype == b.dtype
@@ -94,7 +94,7 @@ else:
                 n = b.shape[0]
                 assert b.shape[1] == k
             if out is None:
-                out = cupy.empty((m, n), dtype=dtype, order='F')
+                out = cupy.empty((m, n), dtype=dtype, order='C')
                 beta = 0.0
             else:
                 assert out.ndim == 2
@@ -122,20 +122,20 @@ else:
             lda, transa = _decide_ld_and_trans(a, transa)
             ldb, transb = _decide_ld_and_trans(b, transb)
             if not (lda is None or ldb is None):
-                if out._f_contiguous:
-                    try:
-                        func(handle, transa, transb, m, n, k, alpha_ptr,
-                             a.data.ptr, lda, b.data.ptr, ldb, beta_ptr,
-                             out.data.ptr, m)
-                    finally:
-                        _cublas.setPointerMode(handle, orig_mode)
-                    return out
-                elif out._c_contiguous:
+                if out._c_contiguous:
                     # Computes out.T = alpha * b.T @ a.T + beta * out.T
                     try:
                         func(handle, 1 - transb, 1 - transa, n, m, k,
                              alpha_ptr, b.data.ptr, ldb, a.data.ptr, lda,
                              beta_ptr, out.data.ptr, n)
+                    finally:
+                        _cublas.setPointerMode(handle, orig_mode)
+                    return out
+                elif out._f_contiguous:
+                    try:
+                        func(handle, transa, transb, m, n, k, alpha_ptr,
+                             a.data.ptr, lda, b.data.ptr, ldb, beta_ptr,
+                             out.data.ptr, m)
                     finally:
                         _cublas.setPointerMode(handle, orig_mode)
                     return out
