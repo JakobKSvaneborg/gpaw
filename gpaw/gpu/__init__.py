@@ -33,7 +33,6 @@ else:
         if not hasattr(cgpaw, 'gpaw_gpu_init'):
             raise ImportError
 
-        from cupy import cublas as _cublas
         import cupy
         # Cupy gemm wrapper (does extra copying):
         # from cupy import cublas
@@ -42,6 +41,7 @@ else:
         # Homerolled gemm wrapper and helper functions:
         from cupy.cublas import (_get_scalar_ptr, _trans_to_cublas_op,
                                  _change_order_if_necessary, device)
+        from cupy_backends.cuda.libs import cublas as _cublas
 
         def _decide_ld_and_trans(a, trans):
             ld = None
