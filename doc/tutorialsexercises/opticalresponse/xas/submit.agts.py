@@ -16,4 +16,5 @@ def workflow():
         with run(script='diamond1.py', cores=8):
             run(script='diamond2.py', cores=8, tmax='1d')
         r4 = run(script='run_2p.py', cores=8, tmax='5m')
-    run(function=check, deps=[r1, r2, r3, r4])
+        r5 = run(script='dks_2p.py', cores=8, tmax='25m')
+    run(function=check, deps=[r1, r2, r3, r4, r5])

@@ -17,7 +17,7 @@ calc = GPAW(mode='fd',
             nbands=-30,
             h=0.2,
             txt='h2o_xas.txt',
-            setups={'O': '1s05ch'})
+            setups={'O': 'hch1s'})
 # the number of unoccupied stated will determine how
 # high you will get in energy
 
