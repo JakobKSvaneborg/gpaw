@@ -11,6 +11,7 @@ from gpaw import Davidson, FermiDirac, GPAW, Mixer, PW, FD, LCAO
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import excite
+from gpaw.directmin.derivatives import Davidson as SICDavidson
 from gpaw.mom import prepare_mom_calculation
 from gpaw.mpi import world, serial_comm
 from gpaw.new.ase_interface import GPAW as GPAWNew
@@ -282,6 +283,47 @@ class GPWFiles(CachedFilesHandler):
                                       functional={'name': 'pz-sic',
                                                   'scaling_factor': (0.5, 0.5)}),
                  convergence={'eigenstates': 1e-2})
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
+    def h2o_gmf_lcaosic(self):
+        atm = self.h2o_maker(vacuum=3.0)
+        calc = GPAW(mode=LCAO(),
+                    basis='sz(dzp)',
+                    h=0.24,
+                    occupations={'name': 'fixed-uniform'},
+                    eigensolver='etdm-lcao',
+                    convergence={'eigenstates': 1e-4},
+                    mixer={'backend': 'no-mixing'},
+                    nbands='nao',
+                    spinpol=True,
+                    symmetry='off'
+                    )
+        atm.calc = calc
+        atm.get_potential_energy()
+        atm.calc.set(eigensolver=LCAOETDM(excited_state=True))
+        f_sn = excite(atm.calc, 0, 0, (0, 0))
+        prepare_mom_calculation(atm.calc, atm, f_sn)
+        atm.get_potential_energy()
+        dave = SICDavidson(atm.calc.wfs.eigensolver, None)
+        appr_sp_order = dave.estimate_sp_order(atm.calc)
+
+        for kpt in atm.calc.wfs.kpt_u:
+            f_sn[kpt.s] = kpt.f_n
+        atm.calc.set(eigensolver=LCAOETDM(
+            partial_diagonalizer={
+                'name': 'Davidson', 'seed': 42,
+                'm': 20, 'eps': 5e-3, 'remember_sp_order': True,
+                'sp_order': appr_sp_order},
+            linesearch_algo={'name': 'max-step'},
+            searchdir_algo={'name': 'LBFGS-P_GMF'},
+            localizationtype='PM',
+            functional={'name': 'PZ-SIC',
+                        'scaling_factor': (0.5, 0.5)},
+            need_init_orbs=False),
+            occupations={'name': 'mom', 'numbers': f_sn,
+                         'use_fixed_occupations': True})
         atm.get_potential_energy()
         return atm.calc
 
