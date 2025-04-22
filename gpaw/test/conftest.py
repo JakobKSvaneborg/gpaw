@@ -384,5 +384,5 @@ def extract_lagrange_section(log_output: str) -> str:
         return ""
 
 
-def mk_arr_from_str(log_out: str, skip_header: int = 3) -> str:
-    return np.fromiter(log_out.split()[skip_header:], dtype=float).reshape(-1, 3)
+def mk_arr_from_str(log_out: str, row_elems: int = 3) -> str:
+    return np.fromiter(log_out.split()[row_elems:], dtype=float).reshape(-1, row_elems)
