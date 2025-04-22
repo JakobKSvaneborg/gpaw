@@ -410,6 +410,33 @@ class GPWFiles(CachedFilesHandler):
         return atm.calc
 
     @gpwfile
+    def h2_sic_scfsic(self):
+        a = 6.0
+        atm = Atoms('H2', positions=[
+                         (0, 0, 0), (0, 0, 0.737)], cell=(a, a, a))
+        atm.center()
+        calc = GPAW(mode='fd',
+                    xc='LDA-PZ-SIC',
+                    eigensolver='rmm-diis',
+                    setups='hgh')
+        atm.calc = calc
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
+    def h_mamom(self):
+        a = 6.0
+        atm = Atoms('H', magmoms=[1.0], cell=(a, a, a))
+        atm.center()
+        calc = GPAW(mode='fd',
+                    xc='LDA-PZ-SIC',
+                    eigensolver='rmm-diis',
+                    setups='hgh')
+        atm.calc = calc
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
     def silicon_pdens_tool(self):
         # used by response code's pdens tool test
         pw = 200
