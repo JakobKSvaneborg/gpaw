@@ -1,7 +1,15 @@
+import io
 import pytest
 
 from gpaw import GPAW
 import numpy as np
+import numpy.testing as npt
+
+from gpaw.io.logger import GPAWLogger
+from gpaw.wavefunctions.base import eigenvalue_string
+from gpaw.test.conftest import (mk_arr_from_str,
+                                extract_lagrange_section,
+                                MockWorld)
 
 
 @pytest.mark.old_gpaw_only
@@ -44,3 +52,40 @@ def test_lcaosic(in_tmp_dir, gpw_files):
     niter = calc.get_number_of_iterations()
     assert niter == pytest.approx(4, abs=3)
     assert f2 == pytest.approx(f3, abs=0.1)
+
+    logger = GPAWLogger(MockWorld(rank=0))
+    string_io = io.StringIO()
+    logger.fd = string_io
+    calc.wfs.summary_func(logger)
+    lstr = extract_lagrange_section(string_io.getvalue())
+
+    expect_lagrange_str = """\
+      Band         L_ii  Occupancy
+         0    -20.96885    2.00000
+         1    -20.72880    2.00000
+         2    -14.63714    2.00000
+         3    -14.63436    2.00000
+         4      1.52758    0.00000
+         5      5.15451    0.00000
+    """
+    expect_eigen_str = """\
+     Band  Eigenvalues  Occupancy
+          0    -30.11715    2.00000
+          1    -17.20818    2.00000
+          2    -12.38599    2.00000
+          3    -11.25782    2.00000
+          4      1.52757    0.00000
+          5      5.15452    0.00000
+    """
+
+    npt.assert_allclose(
+        mk_arr_from_str(expect_lagrange_str),
+        mk_arr_from_str(lstr),
+        atol=0.3,
+    )
+
+    npt.assert_allclose(
+        mk_arr_from_str(expect_eigen_str),
+        mk_arr_from_str(eigenvalue_string(calc.wfs)),
+        atol=0.3,
+    )
