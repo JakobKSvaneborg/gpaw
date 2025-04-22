@@ -34,8 +34,8 @@ params = dict(mode={'name': 'pw', 'ecut': 350},
 
 
 @pytest.mark.soc
-@pytest.mark.skipif(size > 1, reason='Does not work in parallel')
-def test_soc_self_consistent(gpaw_new):
+@pytest.mark.skipif(size > 2, reason='May not work in parallel')
+def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     """Self-consistent SOC."""
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
@@ -57,8 +57,12 @@ def test_soc_self_consistent(gpaw_new):
     eigs = a.calc.get_eigenvalues(kpt=0)
     check(eigs, 0.15, 0.002)
 
-    phi_c = get_polarization_phase(a.calc)
-    check_pol(phi_c)
+    a.calc.write('mos2.gpw', 'all')
+    GPAW('mos2.gpw')
+
+    if size == 1:
+        phi_c = get_polarization_phase(a.calc)
+        check_pol(phi_c)
 
 
 @pytest.mark.soc
