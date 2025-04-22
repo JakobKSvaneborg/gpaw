@@ -360,6 +360,29 @@ class GPWFiles(CachedFilesHandler):
         return atm.calc
 
     @gpwfile
+    def h2o_pwsic(self):
+        atm = self.h2o_maker(vacuum=4.0,
+                             t = np.pi / 180 * (104.51 + 2.0),
+                             eps=0.02)
+        atm.calc = GPAW(mode=PW(300, force_complex_dtype=True),
+                occupations={'name': 'fixed-uniform'},
+                eigensolver=FDPWETDM(
+                    functional={'name': 'pz-sic',
+                                'scaling_factor': (0.5, 0.5)},
+                    localizationseed=42,
+                    localizationtype='FB_ER',
+                    grad_tol_pz_localization=5.0e-3,
+                    maxiter_pz_localization=200,
+                    converge_unocc=True),
+                convergence={'eigenstates': 1e-4},
+                mixer={'backend': 'no-mixing'},
+                symmetry='off',
+                spinpol=True
+                )
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
     def silicon_pdens_tool(self):
         # used by response code's pdens tool test
         pw = 200
