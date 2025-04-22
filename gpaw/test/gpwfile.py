@@ -197,12 +197,13 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         return atoms.calc
 
-    def h2o_maker(self, vacuum, t=np.pi / 180 * 104.51, eps=0):
+    def h2o_maker(self, vacuum, t=np.pi / 180 * 104.51, eps=0, cell_param=None):
         d = 0.9575
         H2O = Atoms('OH2',
                     positions=[(0, 0, 0),
                                (d + eps, 0, 0),
-                               (d * np.cos(t), d * np.sin(t), 0)])
+                               (d * np.cos(t), d * np.sin(t), 0)],
+                  cell=cell_param,)
         H2O.center(vacuum=vacuum)
         return H2O
 
