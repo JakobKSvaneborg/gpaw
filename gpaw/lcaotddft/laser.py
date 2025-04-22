@@ -11,7 +11,6 @@ known_lasers: dict[str, Type[Laser]] = dict()
 
 def create_laser(name, **kwargs):
     """ Create Laser from dict """
-    # global known_lasers
 
     if isinstance(name, Laser):
         return name

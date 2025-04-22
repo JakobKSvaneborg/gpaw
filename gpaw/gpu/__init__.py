@@ -4,6 +4,7 @@ from time import time
 from typing import TYPE_CHECKING
 from types import ModuleType
 from collections.abc import Iterable
+from gpaw.new.timer import trace
 
 import numpy as np
 
@@ -18,6 +19,11 @@ is_hip = False
 device_id = None
 """Device id"""
 
+
+def gpu_gemm(*args, **kwargs):
+    raise NotImplementedError('gpu_gemm: You are not using GPAW with GPUs.')
+
+
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
     import gpaw.gpu.cpupyx as cupyx
@@ -28,10 +34,9 @@ else:
             raise ImportError
 
         import cupy
+        from cupy import cublas
 
-        # This import is to preload cublas
-        # Fixes cp.cublas.gemm attribute not found error introduced by v13.
-        from cupy import cublas  # noqa: F401
+        gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811
 
         import cupyx
         from cupy.cuda import runtime
@@ -90,6 +95,8 @@ else:
     except ImportError:
         import gpaw.gpu.cpupy as cupy
         import gpaw.gpu.cpupyx as cupyx
+        from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm  # noqa
+
 
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']
 
@@ -139,6 +146,7 @@ def einsum(subscripts, *operands, out):
         out[:] = cupy.einsum(subscripts, *operands)
 
 
+@trace(gpu=True)
 def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     """Wrapper for ``eigh()``.
 

@@ -4,6 +4,8 @@ import numpy as np
 
 from ase.utils import IOContext
 
+from gpaw.lcaotddft.magneticmomentwriter import parse_header
+
 from gpaw.lcaotddft.observer import TDDFTObserver
 
 
@@ -112,7 +114,9 @@ class DipoleMomentWriter(TDDFTObserver):
     def _write_kick(self, paw):
         time = paw.time
         kick = paw.kick_strength
+        gauge = paw.kick_gauge
         line = '# Kick = [%22.12le, %22.12le, %22.12le]; ' % tuple(kick)
+        line += 'Gauge = %s; ' % gauge
         line += 'Time = %.8lf\n' % time
         self._write(line)
 
@@ -157,6 +161,103 @@ class DipoleMomentWriter(TDDFTObserver):
         elif paw.action == 'kick':
             self._write_kick(paw)
         self._write_dm(paw)
+
+    def __del__(self):
+        self.ioctx.close()
+
+
+# TODO: Create a common base class for VelocityGaugeWriter
+# and DipoleMomentWriter.
+class VelocityGaugeWriter(TDDFTObserver):
+    """Observer for writing time-dependent velocity-kick density
+       for test purposes.
+
+    The data is written in atomic units.
+
+    The observer attaches to the TDDFT calculator during creation.
+
+    Parameters
+    ----------
+    paw
+        TDDFT calculator
+    filename
+        File for writing density data
+    """
+    version = 5
+
+    def __init__(self, paw, filename: str, interval: int = 1):
+        super().__init__(paw, interval)
+        self.ioctx = IOContext()
+        mode = paw.wfs.mode
+        assert mode in ['lcao']
+
+        if paw.niter == 0:
+            self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='w')
+        else:
+            self.fd = self.ioctx.openfile(filename, comm=paw.world, mode='a')
+
+    def _write(self, line):
+        self.fd.write(line)
+        self.fd.flush()
+
+    def _write_header(self, paw, kwargs):
+        line = f'# {self.__class__.__name__}[version={self.version}]\n'
+        line += ('# %15s %15s %22s %22s %22s\n' %
+                 ('time', 'norm', 'rhoVMM_x', 'rhoVMM_y', 'rhoVMM_z'))
+        self._write(line)
+
+    def _read_header(self, filename):
+        with open(filename, encoding='utf-8') as fd:
+            line = fd.readline()
+        try:
+            name, version, kwargs = parse_header(line[2:])
+        except ValueError as e:
+            raise ValueError(f'File {filename} cannot be parsed: {e}')
+        if name != self.__class__.__name__:
+            raise ValueError(f'File {filename} is not '
+                             f'for {self.__class__.__name__}')
+        if version != self.version:
+            raise ValueError(f'File {filename} is not '
+                             f'of version {self.version}')
+        return kwargs
+
+    def _write_init(self, paw):
+        time = paw.time
+        line = '# Start; Time = %.8lf\n' % time
+        self._write(line)
+
+    def _write_kick(self, paw):
+        time = paw.time
+        kick = paw.kick_strength
+        gauge = paw.kick_gauge
+        line = '# Kick = [%22.12le, %22.12le, %22.12le]; ' % tuple(kick)
+        line += 'Gauge = %s; ' % gauge
+        line += 'Time = %.8lf\n' % time
+        self._write(line)
+
+    def _calculate_v(self, paw):
+        C_nM = paw.wfs.kpt_u[0].C_nM
+        f_n = paw.wfs.kpt_u[0].f_n
+        rho_MM = C_nM.T.conj() @ (f_n[:, None] * C_nM)
+        Vkick_vmm = paw.wfs.kpt_u[0].Vkick_vmm
+        return [np.sum((rho_MM * Vkick_mm.conj()).ravel())
+                for Vkick_mm in Vkick_vmm]
+
+    def _write_v(self, paw):
+        time = paw.time
+        v_v = self._calculate_v(paw)
+        line = ('%20.8lf %22.12le %22.12le %22.12le %22.12le\n'
+                % (time, 0.0, v_v[0], v_v[1], v_v[2]))
+        self._write(line)
+
+    def _update(self, paw):  # This does not seem to work in here
+        if paw.action == 'init':
+            paw.propagator.calculate_velocity_operator_matrix()
+            self._write_header(paw, {})
+            self._write_init(paw)
+        elif paw.action == 'kick':
+            self._write_kick(paw)
+        self._write_v(paw)
 
     def __del__(self):
         self.ioctx.close()

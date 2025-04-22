@@ -7,36 +7,49 @@ This version the the solvated jellium method has been modified
 and includes the Fluctuation Dissipation Theorem.
 """
 
-import os
 import copy
+import os
 import textwrap
 
-import numpy as np
-from scipy.stats import linregress
 import ase.io
-from ase.units import Bohr, Ha, kB, _e
-from ase.calculators.calculator import (Parameters, equal, InputError,
-                                        PropertyNotPresent)
-from ase.parallel import paropen, world
-
 import gpaw.mpi
-from gpaw import ConvergenceError
-from gpaw.jellium import Jellium, JelliumSlab
-from gpaw.hamiltonian import RealSpaceHamiltonian
-from gpaw.fd_operators import Gradient
+import numpy as np
+from ase.calculators.calculator import (InputError, Parameters,
+                                        PropertyNotPresent, equal)
+from ase.parallel import paropen
+from ase.units import Bohr, Ha, _e, kB
+from gpaw import GPAW_NEW, ConvergenceError
 from gpaw.dipole_correction import DipoleCorrection
+from gpaw.fd_operators import Gradient
+from gpaw.hamiltonian import RealSpaceHamiltonian
+from gpaw.io.logger import indent
+from gpaw.jellium import Jellium, JelliumSlab
+from gpaw.solvation.calculator import OldSolvationGPAW
 from gpaw.solvation.cavity import Power12Potential, get_pbc_positions
-from gpaw.solvation.calculator import OldSolvationGPAW as SolvationGPAW
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
-from gpaw.io.logger import indent
-
-# CIP specific imports
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
+from scipy.stats import linregress
+from gpaw.new.input_parameters import register
 
 
-class SJM(SolvationGPAW):
+def SJM(*args, **kwargs):
+    """Backwards compatibility ..."""
+    if GPAW_NEW:
+        from gpaw.new.ase_interface import GPAW
+        from gpaw.new.sjm import SJM
+        environment = SJM(cavity=kwargs.pop('cavity'),
+                          dielectric=kwargs.pop('dielectric'),
+                          interactions=kwargs.pop('interactions', None),
+                          **kwargs.pop('sj'))
+        return GPAW(
+            *args, **kwargs,
+            environment=environment)
+    return OldSJM(*args, **kwargs)
+
+
+class OldSJM(OldSolvationGPAW):
     r"""Solvated Jellium method.
     (Implemented as a subclass of the SolvationGPAW class.)
 
@@ -252,7 +265,7 @@ class SJM(SolvationGPAW):
                  'filter': 10}})
 
     _sj_default_parameters.update({'dirichlet': False})
-    default_parameters = copy.deepcopy(SolvationGPAW.default_parameters)
+    default_parameters = copy.deepcopy(OldSolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
     default_parameters['convergence'].update({'work function': 0.001})
     default_parameters.update({'sj': _sj_default_parameters})
@@ -270,8 +283,7 @@ class SJM(SolvationGPAW):
                 raise InputError(textwrap.fill(msg.format(key)))
 
         # Note the below line calls self.set().
-        SolvationGPAW.__init__(self, restart, **kwargs)
-        self.world = world
+        OldSolvationGPAW.__init__(self, restart, **kwargs)
 
     def set(self, **kwargs):
         """Change parameters for calculator.
@@ -331,7 +343,7 @@ class SJM(SolvationGPAW):
 
         background_charge = kwargs.pop('background_charge', None)
         kwargs['_set_ok'] = True
-        SolvationGPAW.set(self, **kwargs)
+        OldSolvationGPAW.set(self, **kwargs)
 
         # parent_changed checks if GPAW needs to be reinitialized
         # The following key do not need reinitialization
@@ -341,7 +353,7 @@ class SJM(SolvationGPAW):
                            'eigensolver', 'convergence', 'fixdensity',
                            'maxiter', '_set_ok']:
                 parent_changed = True
-        self.world = world
+
         if len(sj_changes):
             if self.wfs is None:
                 self.log('Non-default Solvated Jellium parameters:')
@@ -408,7 +420,7 @@ class SJM(SolvationGPAW):
             if self.wfs is None:
                 kwargs.update({'background_charge': background_charge,
                                '_set_ok': True})
-                SolvationGPAW.set(self, **kwargs)
+                OldSolvationGPAW.set(self, **kwargs)
             else:
                 if parent_changed:
                     self.density = None
@@ -428,22 +440,14 @@ class SJM(SolvationGPAW):
             self.parameters['sj']['fdt'] = {
                 'dt': 0.5,
                 'po_time': 100.0,
-                'th_temp': 300.0
-            }
+                'th_temp': 300.0}
         elif isinstance(self.parameters['sj']['fdt'], dict):
             # If fdt is a dict, ensure the dictionary is complete
             fdt_dict = self.parameters['sj']['fdt']
             self.parameters['sj']['fdt'] = {
                 'dt': fdt_dict.get('dt', 0.5),
                 'po_time': fdt_dict.get('po_time', 100.0),
-                'th_temp': fdt_dict.get('th_temp', 300.0)
-            }
-        else:
-            # If fdt is False, just leave it as False or no FDT
-            self.parameters['sj']['fdt'] = {}
-
-    #  Call the parent __init__ method
-    # SolvationGPAW.__init__(self, restart, **kwargs)
+                'th_temp': fdt_dict.get('th_temp', 300.0)}
 
     def _quick_reinitialization(self):
         """Minimal reinitialization of electronic-structure stuff when only
@@ -472,7 +476,7 @@ class SJM(SolvationGPAW):
 
         if len(system_changes) == 0 and len(self.results) > 0:
             # Potential is already equilibrated.
-            SolvationGPAW.calculate(self, atoms, properties, system_changes)
+            OldSolvationGPAW.calculate(self, atoms, properties, system_changes)
             return
 
         self.log('Solvated jellium method (SJM) calculation:')
@@ -484,7 +488,7 @@ class SJM(SolvationGPAW):
                      'electrons'.format(p.excess_electrons))
             # Background charge is set here, not earlier, because atoms needed.
             self.set(background_charge=self._create_jellium())
-            SolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
+            OldSolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
             self.log('Potential found to be {:.5f} V (with {:+.5f} '
                      'electrons)'.format(self.get_electrode_potential(),
                                          p.excess_electrons))
@@ -507,7 +511,7 @@ class SJM(SolvationGPAW):
         if properties != ['energy']:
             # The equilibration loop only calculated energy, to save
             # unnecessary computations (mostly of forces) in the loop.
-            SolvationGPAW.calculate(self, atoms, properties, [])
+            OldSolvationGPAW.calculate(self, atoms, properties, [])
 
         # Note that grand-potential energies were assembled in summary,
         # which in turn was called by GPAW.calculate.
@@ -546,7 +550,7 @@ class SJM(SolvationGPAW):
                 self.set(background_charge=self._create_jellium())
 
             # Do the calculation.
-            SolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
+            OldSolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
             true_potential = self.get_electrode_potential()
             self.log()
             msg = (f'Potential found to be {true_potential:.5f} V (with '
@@ -582,9 +586,16 @@ class SJM(SolvationGPAW):
                     if p.fdt:
                         rerun = False
                     else:
+                        pe, ce = p.previous_electrons[-1], p.excess_electrons
+                        if abs(pe - ce) < 1e-5:
+                            msg = ('Step size is too small to be halved in '
+                                   'rerun. To avoid this try to change your '
+                                   'initial guess of excess electrons. '
+                                   'Potential equilibration failed.')
+                            raise PotentialConvergenceError(msg)
 
-                        p.excess_electrons = (p.previous_electrons[-1] +
-                                              p.excess_electrons) / 2.
+                        p.excess_electrons = (pe + ce) / 2.
+
                         rerun = True
                     continue  # back to while
 
@@ -593,10 +604,20 @@ class SJM(SolvationGPAW):
             rerun = False
 
             # Store attempt and calculate slope.
-
             p.previous_electrons.append(float(p.excess_electrons))
             p.previous_potentials.append(float(true_potential))
-            # p.istep += 1
+
+            # The following solves a bug, where the code would crash if the
+            # user sets the right number of electrons to reach the target
+            # potential in the first iteration and then changes the target
+            # potential. The code would crash because the slope has not been
+            # calculated yet and so no step is taken towards the new potential.
+            # As two equal charges are added to p.previous_electrons, the
+            # regression of the slope will fail.
+            if len(p.previous_electrons) > 1:
+                if not p.previous_electrons[-2] - p.previous_electrons[-1]:
+                    del p.previous_electrons[-2], p.previous_potentials[-2]
+
             if len(p.previous_electrons) > 1:
                 slope = _calculate_slope(p.previous_electrons,
                                          p.previous_potentials,
@@ -607,7 +628,7 @@ class SJM(SolvationGPAW):
                          f'{slope:.4f} V/electron,')
                 area = np.linalg.det(atoms.cell[:2, :2])
                 # get capacitance in muF/cm^2
-                capacitance = - _e * 1e22 / (area * p.slope)
+                capacitance = - _e * 1e22 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
                          'muF/cm^2')
 
@@ -966,7 +987,7 @@ class SJM(SolvationGPAW):
             if 'z1' in background_charge:
                 if background_charge['z1'] == 'cavity_like':
                     self.parameters['background_charge'] = None
-        SolvationGPAW.initialize(self=self, atoms=atoms, reading=reading)
+        OldSolvationGPAW.initialize(self=self, atoms=atoms, reading=reading)
 
     def create_hamiltonian(self, realspace, mode, xc):
         """This differs from SolvationGPAW's create_hamiltonian method by the
@@ -1027,6 +1048,7 @@ def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
     return ans[0]
 
 
+@register
 class SJMPower12Potential(Power12Potential):
     r"""Inverse power-law potential.
     Inverse power law potential for SJM, inherited from the
@@ -1066,11 +1088,17 @@ class SJMPower12Potential(Power12Potential):
 
     def __init__(self, atomic_radii=None, u0=0.180, pbc_cutoff=1e-6,
                  tiny=1e-10, H2O_layer=False,
-                 unsolv_backside=True, communicator=world):
+                 unsolv_backside=True, communicator=gpaw.mpi.world):
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
         self.H2O_layer = H2O_layer
         self.unsolv_backside = unsolv_backside
         self.communicator = communicator
+
+    def todict(self):
+        return {
+            **super().todict(),
+            'H2O_layer': self.H2O_layer,
+            'unsolv_backside': self.unsolv_backside}
 
     def __str__(self):
         s = Power12Potential.__str__(self)

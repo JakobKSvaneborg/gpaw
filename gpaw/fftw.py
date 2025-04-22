@@ -16,6 +16,7 @@ from scipy.fft import fftn, ifftn, irfftn, rfftn
 import gpaw.cgpaw as cgpaw
 from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw.new.c import pw_insert_gpu
+from gpaw.new import trace
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 from gpaw.gpu import is_hip
 
@@ -231,6 +232,7 @@ class CuPyFFTPlans(FFTPlans):
         super().__init__(size_c, dtype, empty=cp.empty)
         self.Q_G_cache: dict[PWDesc, Array1D] = {}
 
+    @trace(gpu=True)
     def fft(self):
         from gpaw.gpu import cupyx
         if self.tmp_R.dtype == float:
@@ -241,6 +243,7 @@ class CuPyFFTPlans(FFTPlans):
         else:
             self.tmp_Q[:] = cupyx.scipy.fft.fftn(self.tmp_R)
 
+    @trace(gpu=True)
     def ifft(self):
         from gpaw.gpu import cupyx
         if self.tmp_R.dtype == float:
@@ -266,6 +269,7 @@ class CuPyFFTPlans(FFTPlans):
             self.Q_G_cache[pw] = Q_G
         return Q_G
 
+    @trace
     def ifft_sphere(self, coef_G, pw, out_R):
         from gpaw.gpu import cupyx
 
@@ -306,6 +310,7 @@ class CuPyFFTPlans(FFTPlans):
         if out_R.desc.comm.size > 1:
             out_R.scatter_from(array_R)
 
+    @trace
     def fft_sphere(self, in_R, pw):
         from gpaw.gpu import cupyx
         if np.issubdtype(self.dtype, np.complexfloating):

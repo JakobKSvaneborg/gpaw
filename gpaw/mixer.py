@@ -12,6 +12,7 @@ import gpaw.mpi as mpi
 from gpaw.utilities.blas import axpy
 from gpaw.fd_operators import FDOperator
 from gpaw.utilities.tools import construct_reciprocal
+from gpaw.new import trace
 
 """About mixing-related classes.
 
@@ -728,6 +729,7 @@ class MixerWrapper:
             basemixer.initialize_metric(gd)
             basemixer.world = world
 
+    @trace
     def mix(self, nt_sR, D_asp=None):
         if D_asp is not None:
             return self.driver.mix(self.basemixers, nt_sR, D_asp)
