@@ -10,6 +10,8 @@ from ase.lattice.hexagonal import Graphene
 from gpaw import Davidson, FermiDirac, GPAW, Mixer, PW, FD, LCAO
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.etdm_lcao import LCAOETDM
+from gpaw.directmin.tools import excite
+from gpaw.mom import prepare_mom_calculation
 from gpaw.mpi import world, serial_comm
 from gpaw.new.ase_interface import GPAW as GPAWNew
 from gpaw.poisson import FDPoissonSolver, PoissonSolver
@@ -251,6 +253,37 @@ class GPWFiles(CachedFilesHandler):
             nbands='nao',
             symmetry='off'
             )
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
+    def h2o_mom_lcaosic(self):
+        atm = self.h2o_maker(vacuum=3.0)
+        calc = GPAW(
+            mode=LCAO(force_complex_dtype=True),
+            h=0.24,
+            basis="sz(dzp)",
+            spinpol=True,
+            symmetry="off",
+            eigensolver="etdm-lcao",
+            mixer={"backend": "no-mixing"},
+            occupations={"name": "fixed-uniform"},
+            convergence={"eigenstates": 1e-4},
+        )
+        atm.calc = calc
+        atm.get_potential_energy()
+        atm.calc.set(eigensolver=LCAOETDM(excited_state=True))
+        f_sn = excite(atm.calc, 0, 0, (0, 0))
+        prepare_mom_calculation(atm.calc, atm, f_sn)
+        atm.get_potential_energy()
+        atm.calc.set(eigensolver=LCAOETDM(searchdir_algo={'name': 'l-sr1p'},
+                                      linesearch_algo={'name': 'max-step'},
+                                      need_init_orbs=False,
+                                      localizationtype='PM_PZ',
+                                      localizationseed=42,
+                                      functional={'name': 'pz-sic',
+                                                  'scaling_factor': (0.5, 0.5)}),
+                 convergence={'eigenstates': 1e-2})
         atm.get_potential_energy()
         return atm.calc
 
