@@ -94,8 +94,7 @@ class Davidson(PWFDEigensolver):
             eig_N[:B] = xp.asarray(wfs.eig_n)
 
         me_buffer_mX = psit_nX.new_buffer(data_buffer)
-        
-        
+
         @trace
         def me(a, b, function=None, sliced=False):
             """Matrix elements"""
