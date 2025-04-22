@@ -34,7 +34,6 @@ else:
             raise ImportError
 
         import cupy
-        from cupy_backends.cuda.libs import cublas as _cublas
 
         # Cupy gemm wrapper (does extra copying):
         from cupy import cublas
