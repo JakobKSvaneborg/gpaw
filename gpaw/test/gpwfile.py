@@ -328,6 +328,38 @@ class GPWFiles(CachedFilesHandler):
         return atm.calc
 
     @gpwfile
+    def h2o_mom_pwsic(self):
+        atm = self.h2o_maker(vacuum=3.0)
+        calc = GPAW(mode=PW(300, force_complex_dtype=True),
+                spinpol=True,
+                symmetry='off',
+                eigensolver=FDPWETDM(converge_unocc=True),
+                mixer={'backend': 'no-mixing'},
+                occupations={'name': 'fixed-uniform'},
+                convergence={'eigenstates': 1e-4}
+                )
+        atm.calc = calc
+        atm.get_potential_energy()
+        atm.calc.set(eigensolver=FDPWETDM(excited_state=True))
+        f_sn = excite(atm.calc, 0, 0, (0, 0))
+        prepare_mom_calculation(atm.calc, atm, f_sn)
+        atm.get_potential_energy()
+        atm.calc.set(eigensolver=FDPWETDM(
+            excited_state=True,
+            need_init_orbs=False,
+            functional={'name': 'PZ-SIC',
+                        'scaling_factor': (0.5, 0.5)},  # SIC/2
+            localizationseed=42,
+            localizationtype='PM',
+            grad_tol_pz_localization=1.0e-2,
+            printinnerloop=False,
+            grad_tol_inner_loop=1.0e-2),
+            convergence={'eigenstates': 1e-3,
+                         'density': 1e-3})
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
     def silicon_pdens_tool(self):
         # used by response code's pdens tool test
         pw = 200
