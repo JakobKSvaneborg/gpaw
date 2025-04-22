@@ -349,12 +349,13 @@ class UGArray(DistributedArrays[UGDesc]):
         assert isinstance(data_buffer, self.xp.ndarray)
         data_buffer = data_buffer.view(self.data.dtype)
         datasize = data_buffer.size
-        nR = np.prod(self.data.shape[1:])
-        mybands = datasize // nR
-        data = data_buffer[:mybands * nR].reshape(
-            (mybands,) + self.data.shape[1:])
+        X = self.data.shape[1:]
+        nX = np.prod(X)
+        mybands = datasize // nX
+        data = data_buffer[:mybands * nX].reshape(
+            (mybands,) + X)
         return UGArray(self.desc,
-                       (mybands,),
+                       (mybands,) + X[:-3],
                        data=data)
 
     def __getitem__(self, index):

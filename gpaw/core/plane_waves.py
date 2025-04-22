@@ -360,12 +360,13 @@ class PWArray(DistributedArrays[PWDesc]):
         assert isinstance(data_buffer, self.xp.ndarray)
         data_buffer = data_buffer.view(self.data.dtype)
         datasize = data_buffer.size
-        nG = self.data.shape[1]
-        mybands = min(datasize // nG,
+        X = self.data.shape[1:]
+        nX = np.prod(X)
+        mybands = min(datasize // nX,
                       self.data.shape[0])
-        data = data_buffer[:mybands * nG].reshape((mybands, nG))
+        data = data_buffer[:mybands * nX].reshape((mybands,) + X)
         return PWArray(self.desc,
-                       (mybands,),
+                       (mybands,) + X[:-1],
                        data=data)
 
     def copy(self):
