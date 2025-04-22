@@ -33,6 +33,7 @@ else:
         if not hasattr(cgpaw, 'gpaw_gpu_init'):
             raise ImportError
 
+        from cupy import cublas as _cublas
         import cupy
         # Cupy gemm wrapper (does extra copying):
         # from cupy import cublas
@@ -152,7 +153,6 @@ else:
             if not out._f_contiguous:
                 cupy._core.elementwise_copy(c, out)
             return out
-
 
         import cupyx
         from cupy.cuda import runtime
