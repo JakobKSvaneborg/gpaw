@@ -15,7 +15,7 @@ from gpaw.new.eigensolver import Eigensolver, calculate_weights
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.utilities.blas import axpy
-from gpaw.utilities import as_real_dtype, as_complex_dtype
+from gpaw.utilities import as_real_dtype
 
 MAX_MEM = int(2e8)  # 200 MB seems to be the sweet spot
 
@@ -78,7 +78,7 @@ class PWFDEigensolver(Eigensolver):
         G_max = np.prod(ibzwfs.get_max_shape())
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         nbands = ibzwfs.nbands
-        dtype_size = as_complex_dtype(ibzwfs.dtype).itemsize
+        dtype_size = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype.itemsize
         buffer_size = max(min(MAX_MEM,
                               b * G_max * dtype_size),
                           G_max * dtype_size,
@@ -89,7 +89,7 @@ class PWFDEigensolver(Eigensolver):
     def _allocate_work_arrays(self, ibzwfs, shape):
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         shape += (b,) + ibzwfs.get_max_shape()
-        dtype = as_complex_dtype(ibzwfs.dtype)
+        dtype = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype
         self.work_arrays = ibzwfs.xp.empty(shape, dtype)
 
     @trace
