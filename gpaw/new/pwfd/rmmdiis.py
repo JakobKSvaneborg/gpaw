@@ -9,9 +9,6 @@ from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.utilities import as_complex_dtype
-
-MAX_MEM = 2e8
 
 
 class RMMDIIS(PWFDEigensolver):
@@ -41,21 +38,8 @@ class RMMDIIS(PWFDEigensolver):
 
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
-        self._allocate_work_arrays(ibzwfs, shape=(2,))
-
-        wfs = ibzwfs.wfs_qs[0][0]
-        dtype = wfs.psit_nX.desc.dtype
-        xp = ibzwfs.xp
-        G_max = np.prod(ibzwfs.get_max_shape())
-        psit_nX = wfs.psit_nX.matrix
-        complex_dtype = as_complex_dtype(dtype)
-
-        # Single buffer approach
-        buffer_size = max(min(MAX_MEM,
-                              psit_nX.data.shape[0] * G_max
-                              * complex_dtype.itemsize),
-                          G_max * complex_dtype.itemsize)
-        self.data_buffer = xp.empty((buffer_size,), np.byte)
+        self._allocate_work_arrays(ibzwfs, shape=(1,))
+        self._allocate_buffer_arrays(ibzwfs, shape=(2,))
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
@@ -70,17 +54,15 @@ class RMMDIIS(PWFDEigensolver):
         psit_nX = wfs.psit_nX
         mynbands = psit_nX.mydims[0]
 
-        work_nX = psit_nX.new(data=self.work_arrays[0, :mynbands])
-        residual_nX = psit_nX.new(data=self.work_arrays[1, :mynbands])
+        residual_nX = psit_nX.new(data=self.work_arrays[0, :mynbands])
 
         P_ani = wfs.P_ani
         work1_ani = P_ani.new()
         work2_ani = P_ani.new()
 
         wfs.subspace_diagonalize(Ht, dH,
-                                 psit2_nX=work_nX,
-                                 data_buffer=self.data_buffer)
-        residual_nX = work_nX.copy()
+                                 psit2_nX=residual_nX,
+                                 data_buffer=self.data_buffers[0])
         calculate_residuals(wfs.psit_nX, residual_nX, wfs.pt_aiX,
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
@@ -92,17 +74,18 @@ class RMMDIIS(PWFDEigensolver):
         # if domain_comm.rank == 0:
         #    eig_n[:] = xp.asarray(wfs.eig_n)
 
-        n = min(self.blocksize, mynbands)
-        work2_nX = work_nX.desc.empty(n)
-        P1_ani = P_ani.layout.empty(n)
-        P2_ani = P_ani.layout.empty(n)
+        work1_nX = psit_nX.new_buffer(self.data_buffers[0])
+        work2_nX = psit_nX.new_buffer(self.data_buffers[1])
+        blocksize = work1_nX.data.shape[0]
+        P1_ani = P_ani.layout.empty(blocksize)
+        P2_ani = P_ani.layout.empty(blocksize)
 
         if weight_n is None:
             error = np.inf
         else:
             error = weight_n @ as_np(residual_nX.norm2())
-        for n1 in range(0, mynbands, self.blocksize):
-            n2 = n1 + self.blocksize
+        for n1 in range(0, mynbands, blocksize):
+            n2 = n1 + blocksize
             if n2 > mynbands:
                 n2 = mynbands
                 P1_ani = P1_ani[:, :n2 - n1]
@@ -111,13 +94,13 @@ class RMMDIIS(PWFDEigensolver):
                 psit_nX[n1:n2],
                 residual_nX[n1:n2],
                 wfs.pt_aiX, wfs.myeig_n[n1:n2], Ht, dH, dS_aii,
-                work_nX[:n2 - n1],
+                work1_nX[:n2 - n1],
                 work2_nX[:n2 - n1],
                 P1_ani, P2_ani,
                 self.preconditioner)
         wfs._P_ani = None
         wfs.orthonormalized = False
-        wfs.orthonormalize(work_nX.data)
+        wfs.orthonormalize(residual_nX.data)
         return error
 
 

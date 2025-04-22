@@ -11,9 +11,6 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D, Array1D
 from gpaw.new import trace, tracectx
-from gpaw.utilities import as_complex_dtype
-
-MAX_MEM = int(2e8)  # ~200 MB, seems to be the sweet spot
 
 
 class Davidson(PWFDEigensolver):
@@ -42,6 +39,7 @@ class Davidson(PWFDEigensolver):
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
         self._allocate_work_arrays(ibzwfs, shape=(1,))
+        self._allocate_buffer_arrays(ibzwfs, shape=(1,))
 
         wfs = ibzwfs.wfs_qs[0][0]
         assert isinstance(wfs, PWFDWaveFunctions)
@@ -61,19 +59,6 @@ class Davidson(PWFDEigensolver):
                            dist=(band_comm, band_comm.size),
                            xp=xp)
 
-        G_max = np.prod(ibzwfs.get_max_shape())
-        psit_nX = wfs.psit_nX.matrix
-        mybands = psit_nX.shape[0]
-        complex_dtype = as_complex_dtype(dtype)
-
-        # Single buffer approach
-        buffer_size = max(min(MAX_MEM,
-                              psit_nX.data.shape[0] * G_max
-                              * complex_dtype.itemsize),
-                          G_max * complex_dtype.itemsize,
-                          2 * mybands * complex_dtype.itemsize)
-        self.data_buffer = xp.empty((buffer_size,), np.byte)
-
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
                  Ht, dH, dS_aii, weight_n):
@@ -89,10 +74,11 @@ class Davidson(PWFDEigensolver):
         b = psit_nX.mydims[0]
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
+        data_buffer = self.data_buffers[0]
 
         wfs.subspace_diagonalize(Ht, dH,
                                  psit2_nX=psit2_nX,
-                                 data_buffer=self.data_buffer)
+                                 data_buffer=data_buffer)
 
         P_ani = wfs.P_ani
         P2_ani = P_ani.new()
@@ -107,8 +93,9 @@ class Davidson(PWFDEigensolver):
         if domain_comm.rank == 0:
             eig_N[:B] = xp.asarray(wfs.eig_n)
 
-        me_buffer_mX = psit_nX.new_buffer(self.data_buffer)
-
+        me_buffer_mX = psit_nX.new_buffer(data_buffer)
+        
+        
         @trace
         def me(a, b, function=None, sliced=False):
             """Matrix elements"""
@@ -203,7 +190,7 @@ class Davidson(PWFDEigensolver):
 
             with tracectx('Rotate Psi'):
                 M_nn.multiply(psit_nX, out=psit_nX,
-                              data_buffer=self.data_buffer)
+                              data_buffer=data_buffer)
                 M_nn.multiply(P_ani, out=P3_ani)
 
                 if domain_comm.rank == 0:
