@@ -197,13 +197,13 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         return atoms.calc
 
-    def h2o_maker(self, vacuum, t=np.pi / 180 * 104.51, eps=0, cell_param=None):
+    def h2o_maker(self, vacuum, t=np.pi / 180 * 104.51, eps=0, **kwargs):
         d = 0.9575
         H2O = Atoms('OH2',
                     positions=[(0, 0, 0),
                                (d + eps, 0, 0),
                                (d * np.cos(t), d * np.sin(t), 0)],
-                  cell=cell_param,)
+                    **kwargs)
         H2O.center(vacuum=vacuum)
         return H2O
 
@@ -521,18 +521,7 @@ class GPWFiles(CachedFilesHandler):
             name=setupname)
 
         a = 5.0
-        d = 0.9575
-        t = pi / 180 * 104.51
-        H2O = Atoms(
-            [
-                Atom('O', (0, 0, 0)),
-                Atom('H', (d, 0, 0)),
-                Atom('H', (d * cos(t), d * sin(t), 0)),
-            ],
-            cell=(a, a, a),
-            pbc=False,
-        )
-        H2O.center()
+        H2O = self.h2o_maker(vacuum=None, cell=[a, a, a], pbc=False)
         calc = GPAW(
             txt=self.folder / 'h2o_xas.txt',
             mode='fd',
