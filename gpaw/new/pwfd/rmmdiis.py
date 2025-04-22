@@ -69,13 +69,6 @@ class RMMDIIS(PWFDEigensolver):
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
 
-        # domain_comm = psit_nX.desc.comm
-        # band_comm = psit_nX.comm
-        # is_domain_band_master = domain_comm.rank == 0 and band_comm.rank == 0
-
-        # if domain_comm.rank == 0:
-        #    eig_n[:] = xp.asarray(wfs.eig_n)
-
         n = min(self.blocksize, mynbands)
         work2_nX = work_nX.desc.empty(n)
         P1_ani = P_ani.layout.empty(n)
