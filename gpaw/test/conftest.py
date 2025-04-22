@@ -1,4 +1,5 @@
 import os
+import re
 from contextlib import contextmanager
 from functools import cached_property
 
@@ -337,3 +338,51 @@ def rng():
 def gpaw_new() -> bool:
     """Are we testing the new code?"""
     return GPAW_NEW
+
+
+class MockWorld:
+    def __init__(self, rank=0, size=1):
+        self.rank = rank
+        self.size = size
+
+
+def extract_lagrange_section(log_output: str) -> str:
+    """
+    Extracts the 'Diagonal elements of Lagrange matrix' section from log output.
+
+    Args:
+        log_output: The full string content (e.g., from string_io.getvalue()).
+
+    Returns:
+        The extracted section as a string, or an empty string if not found.
+    """
+
+    float_pattern = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
+
+    # - re.MULTILINE (^ matches start of line)
+    # - Captures the entire block in group 1
+    pattern = re.compile(
+        # Start capture group 1
+        r"("
+        # 1. Match the header line (flexible spacing between columns)
+        r"\s*Band\s+L_ii\s+Occupancy\s*\n"
+        # 2. Match one or more data lines (non-capturing group repeated)
+        r"(?:"
+        # Format: spaces, integer, spaces, float, spaces, float, spaces, newline
+        r"\s*\d+\s+" + float_pattern + r"\s+" + float_pattern + r"\s*\n"
+        r")+"  # Match one or more (+) data lines
+        # End capture group 1
+        r")",
+        re.MULTILINE,
+    )
+
+    match = pattern.search(log_output)
+
+    if match:
+        return match.group(1)
+    else:
+        return ""
+
+
+def mk_arr_from_str(log_out: str, skip_header: int = 3) -> str:
+    return np.fromiter(log_out.split()[skip_header:], dtype=float).reshape(-1, 3)
