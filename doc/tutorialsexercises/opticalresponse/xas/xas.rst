@@ -5,7 +5,7 @@ Simulating an XAS spectrum
 First we must create a core hole setup.  This can be done with the
 :program:`gpaw-setup` command::
 
-    gpaw-setup -f PBE N --name 1s05ch --core-hole=1s,0.5
+    gpaw-setup -f PBE N --name hch1s --core-hole=1s,0.5
 
 or you can write a small script to do it:
 
@@ -65,6 +65,10 @@ the experimental value here.
 
 .. figure:: xas_h2s_spectrum.png
    :width: 400 px
+
+There are some limitations to using this method for 2p transitions, as 
+𝑙≠0, and it is based on the single-particle picture.
+This is particularly relevant for transition metals as Ti [Joh25]_.
 
 Haydock recursion method
 ========================
@@ -160,3 +164,7 @@ and plot it
 .. [Nil04] *Chemical bonding on surfaces probed by X-ray emission
    spectroscopy and density functional theory*, A. Nilsson and
    L. G. M. Pettersson, Surf. Sci. Rep. 55 (2004) 49-167
+
+.. [Joh25] *Explicit core-hole single-particle methods for L- and M- edge X-ray
+   absorption and electron energy-loss spectra*
+   E. A. B. Johnsen,  N. Horiuchi, T. Susi, and M. Walter (2025).  arXiv. https://arxiv.org/abs/2504.08458
