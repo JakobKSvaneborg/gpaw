@@ -134,7 +134,7 @@ def test_xes_kpts_and_domain_parallel(
 
 
 @pytest.mark.skipif(mpi.size % 8 != 0,
-                    reason='works only for multiples of 6 cores')
+                    reason='works only for multiples of 8 cores')
 def test_all_band_and_kpts_parallel(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
