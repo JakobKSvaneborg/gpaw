@@ -59,12 +59,12 @@ def test_xas_paralell_multiple_kpt_pr_rank(
     assert y2 == pytest.approx(y1)
 
 
-@pytest.mark.skipif(mpi.size % 6 != 0,
-                    reason='works only for multiples of 6 cores')
+@pytest.mark.skipif(mpi.size % 4 != 0,
+                    reason='works only for multiples of 4 cores')
 def test_xas_band_and_kpts_parallel(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files, xas_sym_nosp):
 
-    parallel = {'band': 3,
+    parallel = {'band': 2,
                 'kpt': 2}
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
                  parallel=parallel)
@@ -133,12 +133,12 @@ def test_xes_kpts_and_domain_parallel(
     assert y2 == pytest.approx(y1)
 
 
-@pytest.mark.skipif(mpi.size % 6 != 0,
+@pytest.mark.skipif(mpi.size % 8 != 0,
                     reason='works only for multiples of 6 cores')
 def test_all_band_and_kpts_parallel(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
-    parallel = {'band': 3,
+    parallel = {'band': 4,
                 'kpt': 2}
 
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
