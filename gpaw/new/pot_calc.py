@@ -41,6 +41,7 @@ class PotentialCalculator:
                  *,
                  relpos_ac: Array2D,
                  environment: Environment,
+                 extensions: list | None = None,
                  external_potential: ExternalPotential | None = None,
                  soc: bool = False):
         self.poisson_solver = poisson_solver
@@ -50,6 +51,7 @@ class PotentialCalculator:
         self.relpos_ac = relpos_ac
         self.soc = soc
         self.environment = environment or Environment(len(relpos_ac))
+        self.extensions: list = extensions or []
 
     def __str__(self):
         return (f'{self.poisson_solver}\n'
@@ -130,6 +132,10 @@ class PotentialCalculator:
             V_aL,
             self.soc,
             kpt_band_comm)
+
+        for ext in self.extensions:
+            assert ext.name not in energies
+            energies[ext.name] = ext.get_energy_contribution()
 
         energies['spinorbit'] = 0.0
         for key, e in corrections.items():

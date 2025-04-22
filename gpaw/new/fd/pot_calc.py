@@ -19,6 +19,7 @@ class FDPotentialCalculator(PotentialCalculator):
                  atomdist,
                  interpolation_stencil_range=3,
                  environment=None,
+                 extensions=None,
                  xp=np):
         self.fine_grid = fine_grid
         self.grid = wf_grid
@@ -42,7 +43,8 @@ class FDPotentialCalculator(PotentialCalculator):
 
         super().__init__(xc, poisson_solver, setups,
                          relpos_ac=relpos_ac,
-                         environment=environment)
+                         environment=environment,
+                         extensions=extensions)
 
     def __str__(self):
         txt = super().__str__()

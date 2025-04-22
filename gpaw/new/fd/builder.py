@@ -67,6 +67,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             relpos_ac=self.relpos_ac, atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
             environment=env,
+            extensions=self.get_extensions(),
             xp=self.xp)
 
     def create_hamiltonian_operator(self):

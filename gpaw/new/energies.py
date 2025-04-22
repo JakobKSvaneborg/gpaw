@@ -18,7 +18,7 @@ class DFTEnergies:
         self.set(**energies)
 
     def set(self, **energies: float) -> None:
-        assert energies.keys() <= set(NAMES) | OTHERS, energies
+        # assert energies.keys() <= set(NAMES) | OTHERS, energies
         self._energies.update(energies)
         self._total_free = None
 
@@ -40,7 +40,7 @@ class DFTEnergies:
             energies['kinetic'] = self.kinetic
             if 'hybrid_xc' in energies:
                 energies['xc'] += energies['hybrid_xc']
-            self._total_free = sum(energies.get(name, 0.0) for name in NAMES)
+            self._total_free = sum(energies.get(name, 0.0) for name in energies if name not in OTHERS)
         return self._total_free
 
     @property
@@ -52,7 +52,9 @@ class DFTEnergies:
         return f'DFTEnergies({s})'
 
     def summary(self, log) -> None:
-        for name in NAMES:
+        for name in self._energies:
+            if name in OTHERS:
+                continue
             e = self._energies.get(name)
             if e is None:
                 if name != 'kinetic':

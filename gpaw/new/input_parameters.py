@@ -44,6 +44,7 @@ class InputParameters:
     charge: float
     convergence: dict[str, Any]
     eigensolver: dict[str, Any]
+    environment: Environment
     extensions: list | None
     experimental: dict[str, Any]
     external: dict[str, Any]
@@ -163,6 +164,11 @@ def eigensolver(value=None) -> dict:
 @input_parameter
 def environment(value=None):
     return value
+
+
+@input_parameter
+def extensions(value=None):
+    return value or []
 
 
 @input_parameter

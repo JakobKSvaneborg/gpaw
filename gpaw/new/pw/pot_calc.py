@@ -20,6 +20,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  relpos_ac,
                  atomdist,
                  environment,
+                 extensions,
                  soc=False,
                  xp=np):
         self.xp = xp
@@ -28,6 +29,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                          external_potential=external_potential,
                          relpos_ac=relpos_ac,
                          environment=environment,
+                         extensions=extensions,
                          soc=soc)
 
         self.vbar_ag = setups.create_local_potentials(

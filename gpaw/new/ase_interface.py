@@ -45,6 +45,7 @@ def GPAW(
     convergence: dict[str, Any] | None = None,
     eigensolver: dict[str, Any] | None = None,
     environment: Environment | None = None,
+    extensions: list | None = None,
     experimental: dict[str, Any] | None = None,
     external: dict[str, Any] | None = None,
     gpts: None | Sequence[int] | None = None,
