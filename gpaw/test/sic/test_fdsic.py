@@ -11,40 +11,15 @@ from ase.units import Ha
 @pytest.mark.slow
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
-def test_fdsic(in_tmp_dir):
+def test_fdsic(in_tmp_dir, gpw_files):
     """
     Test Perdew-Zunger Self-Interaction
     Correction in PW mode using DirectMin
     :param in_tmp_dir:
     :return:
     """
-
-    # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * (104.51 + 2.0)
-    eps = 0.02
-    H2O = Atoms('OH2',
-                positions=[(0, 0, 0),
-                           (d + eps, 0, 0),
-                           (d * np.cos(t), d * np.sin(t), 0)])
-    H2O.center(vacuum=4.0)
-
-    calc = GPAW(mode=FD(force_complex_dtype=True),
-                h=0.25,
-                occupations={'name': 'fixed-uniform'},
-                eigensolver=FDPWETDM(
-                    functional={'name': 'PZ-SIC',
-                                'scaling_factor': (0.5, 0.5)},
-                    localizationseed=42,
-                    localizationtype='FB_ER',
-                    grad_tol_pz_localization=1.0e-3,
-                    maxiter_pz_localization=200,
-                    converge_unocc=True),
-                convergence={'eigenstates': 1e-4},
-                mixer={'backend': 'no-mixing'},
-                symmetry='off',
-                spinpol=True
-                )
+    calc = GPAW(gpw_files['h2o_fdsic'])
+    H2O = calc.atoms
     H2O.calc = calc
     e = H2O.get_potential_energy()
     f = H2O.get_forces()
