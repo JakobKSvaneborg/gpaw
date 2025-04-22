@@ -6,12 +6,9 @@ from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.utilities.sic import NSCFSIC
 
-pytestmark = pytest.mark.skipif(world.size > 1,
-                                reason='world.size > 1')
-
-
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
+@pytest.mark.serial
 def test_sic_nscfsic(in_tmp_dir):
     atoms = ['He', 'Be']  # ,'Ne'] # Ne deviates already 2.5 eV
     EE = []
