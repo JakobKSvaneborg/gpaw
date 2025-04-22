@@ -1,5 +1,7 @@
 import io
 import pytest
+import io
+import re
 
 from gpaw import GPAW, LCAO
 from ase import Atoms
@@ -11,7 +13,6 @@ from gpaw.wavefunctions.base import eigenvalue_string
 from gpaw.test.conftest import (mk_arr_from_str,
                                 extract_lagrange_section,
                                 MockWorld)
-
 
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
@@ -88,5 +89,9 @@ def test_lcaosic(in_tmp_dir, gpw_files):
     npt.assert_allclose(
         mk_arr_from_str(expect_eigen_str),
         mk_arr_from_str(eigenvalue_string(calc.wfs)),
+        atol=0.3,
+    )
+    npt.assert_allclose(
+        mk_arr_from_str(expect_lagrange_str), mk_arr_from_str(lstr),
         atol=0.3,
     )
