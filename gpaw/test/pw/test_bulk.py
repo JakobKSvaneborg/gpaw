@@ -10,9 +10,7 @@ def test_pw_bulk():
     k = 4
     calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
-                eigensolver='dav',
-                parallel={'kpt': 1,
-                          'band': 1})
+                eigensolver='rmm-diis')
 
     bulk.calc = calc
     e = []

@@ -9,7 +9,7 @@ from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_exception
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.typing import Array2D, Array1D
+from gpaw.typing import Array2D
 from gpaw.new import trace, tracectx
 
 
@@ -29,7 +29,6 @@ class Davidson(PWFDEigensolver):
         self.H_NN: Matrix
         self.S_NN: Matrix
         self.M_nn: Matrix
-        self.data_buffer: Array1D | None = None
 
     def __str__(self):
         return pformat(dict(name='Davidson',
