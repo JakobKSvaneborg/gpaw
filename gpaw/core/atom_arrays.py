@@ -292,15 +292,12 @@ class AtomArrays:
     def __getitem__(self, a):
         if isinstance(a, numbers.Integral):
             return self._arrays[a]
-        if len(self.dims) == 1:
-            a0, a1 = a
-            assert a0 == slice(None)
-            data = self.data[a1]
-            a_ai = AtomArrays(self.layout,
-                              dims=data.shape[:-1],
-                              data=data.copy())#view?
-            return a_ai
-        1 / 0
+        assert len(self.dims) >= 1
+        a0, a1 = a
+        assert a0 == slice(None)
+        data = self.data[a1]
+        a_ai = AtomArrays(self.layout, dims=data.shape[:-1], data=data)
+        return a_ai
 
     def get(self, a):
         return self._arrays.get(a)
