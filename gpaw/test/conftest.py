@@ -348,41 +348,51 @@ class MockWorld:
 
 def extract_lagrange_section(log_output: str) -> str:
     """
-    Extracts the 'Diagonal elements of Lagrange matrix' section from log output.
+    Finds all blocks starting with a line containing the word 'L_ii',
+    and captures that line plus all immediately subsequent lines that
+    consist only of space-separated floats.
 
     Args:
-        log_output: The full string content (e.g., from string_io.getvalue()).
+        log_output: The full string content.
 
     Returns:
-        The extracted section as a string, or an empty string if not found.
+        A Lagrange elements block.
     """
-
     float_pattern = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
+    data_line_pattern = r"^\s*" + float_pattern + r"(?:\s+" + float_pattern + r")*\s*\n"
 
-    # - re.MULTILINE (^ matches start of line)
-    # - Captures the entire block in group 1
+    # Pattern to find the blocks:
+    # - Group 1 captures the entire block (trigger + data lines)
     pattern = re.compile(
-        # Start capture group 1
+        # Start Group 1
         r"("
-        # 1. Match the header line (flexible spacing between columns)
-        r"\s*Band\s+L_ii\s+Occupancy\s*\n"
-        # 2. Match one or more data lines (non-capturing group repeated)
-        r"(?:"
-        # Format: spaces, integer, spaces, float, spaces, float, spaces, newline
-        r"\s*\d+\s+" + float_pattern + r"\s+" + float_pattern + r"\s*\n"
-        r")+"  # Match one or more (+) data lines
-        # End capture group 1
+        # 1. Trigger Line: Must contain 'L_ii' as a whole word (\b)
+        r"^(.*\bL_ii\b.*?\n)"  # Capture the trigger line itself in Group 2
+        # 2. Data Lines: Zero or more (*) lines immediately following
+        #    that match the data_line_pattern.
+        r"(?:" + data_line_pattern + r")*"
+        # End Group 1
         r")",
         re.MULTILINE,
     )
 
-    match = pattern.search(log_output)
+    # Find all non-overlapping matches
+    matches = pattern.finditer(log_output)
 
-    if match:
-        return match.group(1)
+    # Extract the full captured block (Group 1) from each match
+    extracted_blocks = [match.group(1) for match in matches]
+
+    # Generate single string
+    ext_log = "".join(extracted_blocks)
+
+    return ext_log
+
+
+def mk_arr_from_str(log_out: str, row_elems: int = 3, skip_rows: int = 0) -> str:
+    if skip_rows > 0:
+        ldat = log_out.split("\n")[skip_rows:]
+        ldat = "\n".join(ldat)
     else:
-        return ""
-
-
-def mk_arr_from_str(log_out: str, row_elems: int = 3) -> str:
-    return np.fromiter(log_out.split()[row_elems:], dtype=float).reshape(-1, row_elems)
+        ldat = log_out
+    ldat = ldat.split()[row_elems:]
+    return np.fromiter(ldat, dtype=float).reshape(-1, row_elems)
