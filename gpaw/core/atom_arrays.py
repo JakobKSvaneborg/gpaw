@@ -289,6 +289,14 @@ class AtomArrays:
         return self.new(layout=self.layout.new(xp=cp),
                         data=cp.asarray(self.data))
 
+    @overload
+    def __getitem__(self, a: int) -> np.ndarray:
+        ...
+
+    @overload
+    def __getitem__(self, a: tuple) -> AtomArrays:
+        ...
+
     def __getitem__(self, a):
         if isinstance(a, numbers.Integral):
             return self._arrays[a]
