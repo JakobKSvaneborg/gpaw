@@ -424,7 +424,7 @@ class GPWFiles(CachedFilesHandler):
         return atm.calc
 
     @gpwfile
-    def h_mamom(self):
+    def h_magmom(self):
         a = 6.0
         atm = Atoms('H', magmoms=[1.0], cell=(a, a, a))
         atm.center()
