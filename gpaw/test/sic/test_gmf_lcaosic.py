@@ -1,3 +1,4 @@
+import io
 import pytest
 
 from gpaw import GPAW, LCAO
@@ -8,6 +9,12 @@ from gpaw.mom import prepare_mom_calculation
 from ase import Atoms
 import numpy as np
 
+import numpy.testing as npt
+from gpaw.io.logger import GPAWLogger
+from gpaw.wavefunctions.base import eigenvalue_string
+from gpaw.test.conftest import (mk_arr_from_str,
+                                extract_lagrange_section,
+                                MockWorld)
 
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
@@ -38,3 +45,40 @@ def test_gmf_lcaosic(in_tmp_dir, gpw_files):
 
     assert e == pytest.approx(-2.007241, abs=1.0e-3)
     assert f == pytest.approx(f_num, abs=0.75)
+
+    logger = GPAWLogger(MockWorld(rank=0))
+    string_io = io.StringIO()
+    logger.fd = string_io
+    calc.wfs.summary_func(logger)
+    lstr = extract_lagrange_section(string_io.getvalue())
+
+    expect_lagrange_str = """\
+    Band         L_ii   Occupancy   Band      L_ii   Occupancy
+       0    -19.72305    1.00000    0    -23.07192    1.00000
+       1    -18.87889    1.00000    1    -22.32765    1.00000
+       2    -16.46949    1.00000    2    -18.76539    1.00000
+       3    -12.38574    1.00000    3    -18.76537    1.00000
+       4     -9.12084    0.00000    4      2.49357    0.00000
+       5      4.16510    0.00000    5      4.81118    0.00000
+    """
+    expect_eigen_str = """\
+    Band  Eigenvalues  Occupancy  Eigenvalues  Occupancy
+       0    -32.37420    1.00000    -32.74320    1.00000
+       1    -17.73904    1.00000    -18.76757    1.00000
+       2    -15.58035    1.00000    -15.92320    1.00000
+       3     -1.76357    1.00000    -15.49637    1.00000
+       4     -9.12084    0.00000      2.48462    0.00000
+       5      4.16510    0.00000      4.82013    0.00000
+    """
+
+    npt.assert_allclose(
+        mk_arr_from_str(expect_lagrange_str, 6),
+        mk_arr_from_str(lstr, 6),
+        atol=0.3,
+    )
+
+    npt.assert_allclose(
+        mk_arr_from_str(expect_eigen_str, 5),
+        mk_arr_from_str(eigenvalue_string(calc.wfs), 5, skip_rows=1),
+        atol=0.3,
+    )
