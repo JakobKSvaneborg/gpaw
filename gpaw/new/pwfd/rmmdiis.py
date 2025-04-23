@@ -20,7 +20,24 @@ class RMMDIIS(PWFDEigensolver):
                  converge_bands='occupied',
                  blocksize=None,
                  niter: int = 1,
+                 trial_step: float | None = None,
                  scalapack_parameters=None):
+        """RMM-DIIS eigensolver.
+
+        Solution steps are:
+
+        * Subspace diagonalization
+        * Calculation of residuals
+        * Improvement of wave functions:  psi' = psi + lambda PR + lambda PR'
+        * Orthonormalization
+
+        Parameters
+        ==========
+        trial_step:
+            Step length for final step.  Use None for using the previously
+            optimized step lengths.
+        """
+
         if niter != 1:
             warnings.warn(f'Ignoring niter={niter} in RMMDIIS')
         if blocksize is None:
@@ -31,6 +48,7 @@ class RMMDIIS(PWFDEigensolver):
             else:
                 blocksize = 10
         super().__init__(preconditioner_factory, converge_bands, blocksize)
+        self.trial_step = trial_step
 
     def __str__(self):
         return pformat(dict(name='RMMDIIS',
@@ -67,13 +85,6 @@ class RMMDIIS(PWFDEigensolver):
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
 
-        # domain_comm = psit_nX.desc.comm
-        # band_comm = psit_nX.comm
-        # is_domain_band_master = domain_comm.rank == 0 and band_comm.rank == 0
-
-        # if domain_comm.rank == 0:
-        #    eig_n[:] = xp.asarray(wfs.eig_n)
-
         work1_nX = psit_nX.new_buffer(self.data_buffers[0])
         work2_nX = psit_nX.new_buffer(self.data_buffers[1])
         blocksize = work1_nX.data.shape[0]
@@ -94,6 +105,7 @@ class RMMDIIS(PWFDEigensolver):
                 psit_nX[n1:n2],
                 residual_nX[n1:n2],
                 wfs.pt_aiX, wfs.myeig_n[n1:n2], Ht, dH, dS_aii,
+                self.trial_step,
                 work1_nX[:n2 - n1],
                 work2_nX[:n2 - n1],
                 P1_ani, P2_ani,
@@ -111,11 +123,16 @@ def block_step(psit_nX,
                Ht,
                dH,
                dS_aii,
+               trial_step,
                work1_nX,
                work2_nX,
                P1_ani,
                P2_ani,
                preconditioner) -> None:
+    """See here:
+
+            https://gpaw.readthedocs.io/documentation/rmm-diis.html
+    """
     PR_nX = work1_nX
     dR_nX = work2_nX
     ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
@@ -134,5 +151,8 @@ def block_step(psit_nX,
     dR_nX.data *= lambda_n
     R_nX.data += dR_nX.data
     preconditioner(psit_nX, R_nX, out=PR_nX, ekin_n=ekin_n)
-    PR_nX.data *= 0.1
+    if trial_step is None:
+        PR_nX.data *= lambda_n
+    else:
+        PR_nX.data *= trial_step
     psit_nX.data += PR_nX.data

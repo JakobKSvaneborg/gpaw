@@ -289,18 +289,23 @@ class AtomArrays:
         return self.new(layout=self.layout.new(xp=cp),
                         data=cp.asarray(self.data))
 
+    @overload
+    def __getitem__(self, a: int) -> np.ndarray:
+        ...
+
+    @overload
+    def __getitem__(self, a: tuple) -> AtomArrays:
+        ...
+
     def __getitem__(self, a):
         if isinstance(a, numbers.Integral):
             return self._arrays[a]
-        if len(self.dims) == 1:
-            a0, a1 = a
-            assert a0 == slice(None)
-            data = self.data[a1]
-            a_ai = AtomArrays(self.layout,
-                              dims=data.shape[:-1],
-                              data=data)
-            return a_ai
-        1 / 0
+        assert len(self.dims) >= 1
+        a0, a1 = a
+        assert a0 == slice(None)
+        data = self.data[a1]
+        a_ai = AtomArrays(self.layout, dims=data.shape[:-1], data=data)
+        return a_ai
 
     def copy(self):
         return self.new(data=self.data.copy())
