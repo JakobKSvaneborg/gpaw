@@ -20,8 +20,24 @@ class RMMDIIS(PWFDEigensolver):
                  converge_bands='occupied',
                  blocksize=None,
                  niter: int = 1,
-                 trial_step: float | None = 0.1,
+                 trial_step: float | None = None,
                  scalapack_parameters=None):
+        """RMM-DIIS eigensolver.
+
+        Solution steps are:
+
+        * Subspace diagonalization
+        * Calculation of residuals
+        * Improvement of wave functions:  psi' = psi + lambda PR + lambda PR'
+        * Orthonormalization
+
+        Parameters
+        ==========
+        trial_step:
+            Step length for final step.  Use None for using the previously
+            optimized step lengths.
+        """
+
         if niter != 1:
             warnings.warn(f'Ignoring niter={niter} in RMMDIIS')
         if blocksize is None:
@@ -112,6 +128,10 @@ def block_step(psit_nX,
                P1_ani,
                P2_ani,
                preconditioner) -> None:
+    """See here:
+
+            https://gpaw.readthedocs.io/documentation/rmm-diis.html
+    """
     PR_nX = work1_nX
     dR_nX = work2_nX
     ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
