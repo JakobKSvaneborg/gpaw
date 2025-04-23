@@ -1,17 +1,17 @@
 import numpy as np
 import time as time
+import pytest
+import warnings
 
 from functools import partial
 
 from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray, PWDesc
 from gpaw.mpi import world, serial_comm
-import pytest
 
 
-@pytest.mark.skip
-def test_array_me(N=50, max_mem=2e8, use_func=True):
-    pw_desc = PWDesc(ecut=N / 2,
+def test_array_me(N=20, max_mem=2e3, use_func=True):
+    pw_desc = PWDesc(ecut=N**2 / 800,
                      cell=[10, 10, 10],  # bohr
                      kpt=[0, 0, 0],  # in units of reciprocal cell
                      comm=serial_comm,
@@ -43,18 +43,22 @@ def test_array_me(N=50, max_mem=2e8, use_func=True):
         func = None
         symmetric = False
 
-    buffer_mx = psit_nX.new_buffer(max_mem=max_mem)[0]
-    if buffer_mx.matrix.shape == psit_nX.matrix.shape:
+    buffer_mX = psit_nX.new_buffer(
+        np.empty(int(max_mem) * 2, np.byte)
+    )
+    if buffer_mX.matrix.shape == psit_nX.matrix.shape:
         then = time.time()
         psit_nX.matrix_elements(
-            psit_nX, function=partial(func, out=buffer_mx) if func else None,
+            psit_nX, function=partial(func, out=buffer_mX) if func else None,
             out=M_nn, sliced=False, symmetric=symmetric)
         now = time.time()
         M_nn.tril2full()
+        warnings.warn('Not testing sliced me')
     else:
         then = time.time()
         psit_nX.matrix_elements(psit_nX, function=func, out=M_nn,
-                                sliced=True, symmetric=symmetric)
+                                sliced=True, symmetric=symmetric,
+                                buffer=buffer_mX)
         now = time.time()
     assert np.allclose(M_nn.data, pw_desc.shape[0] * psit_nX.dv), \
         f'''Max: {np.max(M_nn.data)},
@@ -65,5 +69,5 @@ Expected: {pw_desc.shape[0] * psit_nX.dv}'''
 
 if __name__ == '__main__':
     max_mem_l = [2e7, 1e8, 2e8, 2e10]
-    print([test_array_me(N=500, max_mem=max_mem, use_func=False)
+    print([test_array_me(N=200, max_mem=max_mem, use_func=False)
            for max_mem in max_mem_l])

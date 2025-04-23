@@ -1,10 +1,14 @@
 import numpy as np
 import time
+import pytest
+import warnings
+
 from gpaw.mpi import world
 
 
 def test_sliced_multiply(N=10, max_mem=2e2):
     from gpaw.core.matrix import Matrix
+    N = int(N * np.sqrt(world.size))
 
     A_nn = Matrix(
         N,
@@ -22,42 +26,24 @@ def test_sliced_multiply(N=10, max_mem=2e2):
         dist=(world, world.size, 1),
         xp=np,
     )
+    A_nn.data[:] = 1
+    B_nX.data[:] = 1
 
-    dist = B_nX.dist
-    dtype = B_nX.dtype
-
-    # allocate buffers for Ht @ psit
-    buffer_size = max(
-        min(int(dist.comm.size * max_mem /
-                (max(N, 1) *
-                    dtype.itemsize)),
-            B_nX.data.shape[1]), 1)
-    buffer_nx = Matrix(M=N, N=buffer_size,
-                       dtype=dtype,
-                       dist=(dist.new(M=B_nX.shape[0],
-                                      N=buffer_size)),
-                       xp=B_nX.xp)
-    print(buffer_nx.data.shape)
-    buffer_nx = buffer_nx
+    buffer_nx = np.empty(int(max_mem) * 2, np.byte)
     if buffer_nx.shape == B_nX.shape:
         # Only time the multiply
         then = time.time()
-
         A_nn.multiply(B_nX, out=buffer_nx)
-        A_nn.multiply(B_nX, out=buffer_nx)
-        A_nn.multiply(B_nX, out=buffer_nx)
-
         now = time.time()
-        return (now - then)
-
+        warnings.warn('Not testing sliced multiply')
     else:
         # Only time the multiply
         then = time.time()
-        A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx.data)
-        A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx.data)
-        A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx.data)
+        A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx)
         now = time.time()
-        return (now - then)
+
+    assert B_nX.data == pytest.approx(N)
+    return now - then
 
 
 if __name__ == '__main__':
