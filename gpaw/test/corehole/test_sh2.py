@@ -96,7 +96,7 @@ def test_sulphur_1s_xas_XCH(in_tmp_dir, add_cwd_to_setup_paths, sh2_s1s1ch):
     atoms[0].magmom = 1
     atoms.get_potential_energy()
 
-    xas = XAS(atoms.calc, nocc_cor=-1)
+    xas = XAS(atoms.calc, relative_index_lumo=-1)
     x, y_cn = xas.get_oscillator_strength(dks=dks)
     assert xas.nocc == nocc
     assert y_cn.shape == (3, nbands - nocc)
