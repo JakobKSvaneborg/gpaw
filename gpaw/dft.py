@@ -99,8 +99,19 @@ class Symmetry:
             return Symmetry()
 
 
+class KPoints:
+    @classmethod
+    def from_param(cls, kpts):
+        if isinstance(kpts, KPoints):
+            return kpts
+        if isinstance(kpts, dict):
+            kpts = kpts.copy()
+            kpts.pop('name', '')
+        return MonkhorstPack.from_param(kpts)
+
+
 @register
-class MonkhorstPack:
+class MonkhorstPack(KPoints):
     size: Sequence[int] | None = None
     density: float | None = None
     gamma: bool | None = None
@@ -163,6 +174,7 @@ class Parameters:
                 is_default = not value
             else:
                 continue
+            print(key, repr(value), is_default)
             if not is_default:
                 self._non_defaults.append(key)
 
@@ -175,7 +187,7 @@ class Parameters:
         self.h = h
         self.hund = hund
         self.extensions = list(extensions or [])
-        self.kpts = MonkhorstPack.from_param(kpts)
+        self.kpts = KPoints.from_param(kpts)
         self.magmoms = np.array(magmoms) if magmoms is not None else None
         self.maxiter = maxiter
         self.mixer = Mixer.from_param(mixer),
