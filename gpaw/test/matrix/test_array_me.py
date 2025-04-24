@@ -1,6 +1,5 @@
 import numpy as np
 import time as time
-import pytest
 import warnings
 
 from functools import partial

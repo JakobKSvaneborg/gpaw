@@ -222,36 +222,33 @@ class Matrix(XP):
             assert other.shape[0] == self.shape[0]
 
             if data_buffer is None:
-                raise NotImplementedError
+                raise ValueError('other is out, and data_buffer is None')
 
-                buffer_size = max(
-                    min(int(other.dist.comm.size * 2e8 /
-                            (max(other.shape[0], 1) *
-                             other.dtype.itemsize)),
-                        other.data.shape[1]), 1)
-                buffer_size = dist.comm.min_scalar(buffer_size)
-                buffer = Matrix(
-                    M=other.shape[0],
-                    N=buffer_size,
-                    dtype=other.dtype,
-                    dist=dist.new(M=other.shape[0], N=buffer_size),
-                    xp=other.xp)
+            assert isinstance(data_buffer, other.xp.ndarray)
+            dtype = other.data.dtype
+            data_buffer = data_buffer.view(dtype)
+            if other.data.shape[0] > 0:
+                buffer_size = min(
+                    data_buffer.size // other.data.shape[1],
+                    other.data.shape[0])
             else:
-                assert isinstance(data_buffer, other.xp.ndarray)
-                dtype = other.data.dtype
-                data_buffer = data_buffer.view(dtype)
-                if other.data.shape[0] > 0:
-                    buffer_size = min(
-                        data_buffer.size // other.data.shape[0] // 2,
-                        other.data.shape[1])
-                else:
-                    buffer_size = other.data.shape[1]
-                buffer_size = dist.comm.min_scalar(buffer_size)
+                buffer_size = other.data.shape[1]
+            buffer_size = dist.comm.min_scalar(buffer_size)
+            max_B = other.data.shape[0]
 
-            max_X = other.data.shape[1]
+            if buffer_size >= max_B:
+                # No need for sliced multiply
+                other_buffer = other.new(
+                    data=data_buffer[:other.data.size].reshape(
+                        other.data.shape))
+                other_buffer.data[:] = other.data
+                dist.multiply(alpha, A, opa, other_buffer, opb, beta, out,
+                              symmetric=symmetric)
+                return out
+
             # Sliced multiply
-            for i in range(0, max_X, buffer_size):
-                r_buffer_size = min(max(other.data.shape[1] - i, 0),
+            for i in range(0, max_B, buffer_size):
+                r_buffer_size = min(max(other.data.shape[0] - i, 0),
                                     buffer_size)
                 buffer_slice = r_buffer_size * other.data.shape[0]
                 buffer = Matrix(

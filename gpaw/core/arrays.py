@@ -167,6 +167,14 @@ class DistributedArrays(Generic[DomainType], XP):
                 buffer_size_world = comm.sum_scalar(buffer_size)
                 mybands = self.data.shape[0]
                 totalbands = out.shape[0]
+                if buffer_size_world == totalbands:
+                    # No need for slicing
+                    function(self, out=buffer)
+                    return buffer.matrix_elements(other,
+                                                  out=out,
+                                                  symmetric=symmetric,
+                                                  domain_sum=domain_sum,
+                                                  cc=cc)
 
                 for niter, i_world in enumerate(
                         range(0, totalbands, buffer_size_world)):
