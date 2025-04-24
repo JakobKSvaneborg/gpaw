@@ -17,7 +17,7 @@ for el in elements:
 # Generate setups with 0.5, 1.0 core holes in 2p
 el = 'S'
 coreholes = [0.5, 1.0]
-names = ['2p05ch', '2p1ch']
+names = ['hch2p', 'fch2p']
 
 for name, ch in zip(names, coreholes):
     for funct in functionals:

@@ -18,7 +18,7 @@ calc = GPAW(mode='fd',
             nbands=-30,
             h=h,
             txt='h2s_xas.txt',
-            setups={'S': '2p05ch'},
+            setups={'S': 'hch2p'},
             xc=xc)
 
 atoms.calc = calc

@@ -31,12 +31,12 @@ calc_exc = GPAW(mode='fd',
                 charge=q,
                 spinpol=True,
                 occupations=FermiDirac(0.0, fixmagmom=True),
-                setups={0: '2p1ch'})
+                setups={0: 'fch2p'})
 
 atoms[0].magmom = -q
 
 atoms.calc = calc_exc
 e_exc = atoms.get_potential_energy() + calc_exc.get_reference_energy()
 
-with paropen('dks.result', 'w') as fd:
+with paropen('dks_2p.result', 'w') as fd:
     print('Energy difference:', e_exc - e_gs, file=fd)

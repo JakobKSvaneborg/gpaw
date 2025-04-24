@@ -2,9 +2,12 @@
 
 def check():
     exec(open('plot.py').read())
-    e_dks = float(open('dks.result').readline().split()[2])
-    assert abs(e_dks - 532.502) < 0.001
+    e_dks_1s = float(open('dks_1s.result').readline().split()[2])
+    assert abs(e_dks_1s - 532.502) < 0.001
     exec(open('h2o_xas_box2.py').read())
+    e_dks_2p = float(open('dks_2p.result').readline().split()[2])
+    assert abs(e_dks_2p - 164.623) < 0.001
+    exec(open('plot_2p.py').read())
 
 
 def workflow():
