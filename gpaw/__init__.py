@@ -27,7 +27,8 @@ boolean_envvars = {
     'GPAW_CPUPY',
     'GPAW_USE_GPUS',
     'GPAW_TRACE',
-    'GPAW_NO_C_EXTENSION'}
+    'GPAW_NO_C_EXTENSION',
+    'GPAW_MPI4PY'}
 allowed_envvars = {
     *boolean_envvars,
     'GPAW_MPI_OPTIONS',
@@ -314,6 +315,8 @@ elif GPAW_NEW:
     all_lazy_imports['GPAW'] = 'gpaw.new.ase_interface.GPAW'
 else:
     all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
+
+all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
 
 
 def restart(filename, Class=None, **kwargs):

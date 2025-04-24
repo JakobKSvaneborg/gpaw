@@ -388,7 +388,7 @@ test-latest:
       EOF
 
     - >
-      pytest -v -m ci -m gpu
+      pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
 
   artifacts:
@@ -658,6 +658,11 @@ nightly-mpi-1:
     paths:
       - htmlcov/
     expire_in: 1 day
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_success
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
 nightly-mpi-2:

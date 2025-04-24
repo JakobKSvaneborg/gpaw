@@ -3,8 +3,8 @@
 from ase.units import Ha
 
 # Contributions to free energy:
-NAMES = {'kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
-         'spinorbit'}
+NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
+         'spinorbit']
 
 # Other allowed names:
 OTHERS = {'band', 'kinetic_correction', 'extrapolation',
@@ -18,7 +18,7 @@ class DFTEnergies:
         self.set(**energies)
 
     def set(self, **energies: float) -> None:
-        assert energies.keys() <= NAMES | OTHERS, energies
+        assert energies.keys() <= set(NAMES) | OTHERS, energies
         self._energies.update(energies)
         self._total_free = None
 
