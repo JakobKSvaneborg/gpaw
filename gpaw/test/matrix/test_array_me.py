@@ -1,8 +1,5 @@
 import numpy as np
 import time as time
-import warnings
-
-from functools import partial
 
 from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray, PWDesc
@@ -26,7 +23,7 @@ def test_array_me(N=20, max_mem=2e3, use_func=True):
         N,
         dtype=np.complex128,
         data=None,
-        dist=(psit_nX.comm, psit_nX.comm.size, 1),
+        dist=(world, -1, 1),
         xp=np,
     )
     M_nn.data[:] = 1
@@ -43,22 +40,13 @@ def test_array_me(N=20, max_mem=2e3, use_func=True):
         symmetric = False
 
     buffer_mX = psit_nX.new_buffer(
-        np.empty(int(max_mem) * 2, np.byte)
+        np.empty(int(max_mem), np.byte)
     )
-    if buffer_mX.matrix.shape == psit_nX.matrix.shape:
-        then = time.time()
-        psit_nX.matrix_elements(
-            psit_nX, function=partial(func, out=buffer_mX) if func else None,
-            out=M_nn, sliced=False, symmetric=symmetric)
-        now = time.time()
-        M_nn.tril2full()
-        warnings.warn('Not testing sliced me')
-    else:
-        then = time.time()
-        psit_nX.matrix_elements(psit_nX, function=func, out=M_nn,
-                                sliced=True, symmetric=symmetric,
-                                buffer=buffer_mX)
-        now = time.time()
+    then = time.time()
+    psit_nX.matrix_elements(psit_nX, function=func, out=M_nn,
+                            sliced=True, symmetric=symmetric,
+                            buffer=buffer_mX)
+    now = time.time()
     assert np.allclose(M_nn.data, pw_desc.shape[0] * psit_nX.dv), \
         f'''Max: {np.max(M_nn.data)},
 Min: {np.min(M_nn.data)},

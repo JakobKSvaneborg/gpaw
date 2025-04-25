@@ -351,11 +351,14 @@ class UGArray(DistributedArrays[UGDesc]):
         datasize = data_buffer.size
         X = self.data.shape[1:]
         nX = np.prod(X)
-        mybands = datasize // nX
+        mybands = min(datasize // nX,
+                      self.data.shape[0])
         data = data_buffer[:mybands * nX].reshape(
             (mybands,) + X)
+        totalbands = self.comm.sum_scalar(mybands)
         return UGArray(self.desc,
-                       (mybands,) + X[:-3],
+                       (totalbands,) + X[:-3],
+                       comm=self.comm,
                        data=data)
 
     def __getitem__(self, index):

@@ -1,12 +1,11 @@
 import numpy as np
 import time
 import pytest
-import warnings
 
 from gpaw.mpi import world
 
 
-def test_sliced_multiply(N=10, max_mem=2e2):
+def test_sliced_multiply(N=10, max_mem=5e3):
     from gpaw.core.matrix import Matrix
     N = int(N * np.sqrt(world.size))
 
@@ -30,17 +29,10 @@ def test_sliced_multiply(N=10, max_mem=2e2):
     B_nX.data[:] = 1
 
     buffer_nx = np.empty(int(max_mem) * 2, np.byte)
-    if buffer_nx.shape == B_nX.shape:
-        # Only time the multiply
-        then = time.time()
-        A_nn.multiply(B_nX, out=buffer_nx)
-        now = time.time()
-        warnings.warn('Not testing sliced multiply')
-    else:
-        # Only time the multiply
-        then = time.time()
-        A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx)
-        now = time.time()
+    # Only time the multiply
+    then = time.time()
+    A_nn.multiply(B_nX, out=B_nX, data_buffer=buffer_nx)
+    now = time.time()
 
     assert B_nX.data == pytest.approx(N)
     return now - then

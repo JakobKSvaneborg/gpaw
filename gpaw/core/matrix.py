@@ -229,12 +229,12 @@ class Matrix(XP):
             data_buffer = data_buffer.view(dtype)
             if other.data.shape[0] > 0:
                 buffer_size = min(
-                    data_buffer.size // other.data.shape[1],
-                    other.data.shape[0])
+                    data_buffer.size // other.data.shape[0] // 2,
+                    other.data.shape[1])
             else:
                 buffer_size = other.data.shape[1]
             buffer_size = dist.comm.min_scalar(buffer_size)
-            max_B = other.data.shape[0]
+            max_B = other.data.shape[1]
 
             if buffer_size >= max_B:
                 # No need for sliced multiply
@@ -248,7 +248,7 @@ class Matrix(XP):
 
             # Sliced multiply
             for i in range(0, max_B, buffer_size):
-                r_buffer_size = min(max(other.data.shape[0] - i, 0),
+                r_buffer_size = min(max(other.data.shape[1] - i, 0),
                                     buffer_size)
                 buffer_slice = r_buffer_size * other.data.shape[0]
                 buffer = Matrix(
