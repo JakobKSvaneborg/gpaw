@@ -350,7 +350,7 @@ class UGArray(DistributedArrays[UGDesc]):
         data_buffer = data_buffer.view(self.data.dtype)
         datasize = data_buffer.size
         X = self.data.shape[1:]
-        nX = np.prod(X)
+        nX = int(np.prod(X))
         mybands = min(datasize // nX,
                       self.data.shape[0])
         data = data_buffer[:mybands * nX].reshape(
