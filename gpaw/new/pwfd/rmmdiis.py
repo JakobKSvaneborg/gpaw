@@ -148,8 +148,8 @@ def block_step(psit_nX,
     P_ani = pt_aiX.integrate(PR_nX)
     calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,
                         dH, dS_aii, P1_ani, P2_ani)
-    a_n = [-d_X.integrate(r_X)
-           for d_X, r_X in zip(dR_nX, R_nX)]
+    a_n = psit_nX.xp.asarray(
+        [-d_X.integrate(r_X) for d_X, r_X in zip(dR_nX, R_nX)])
     b_n = dR_nX.norm2()
     shape = (len(a_n),) + (1,) * (psit_nX.data.ndim - 1)
     lambda_n = (a_n / b_n).reshape(shape)
