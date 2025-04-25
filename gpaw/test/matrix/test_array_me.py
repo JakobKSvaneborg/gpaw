@@ -49,8 +49,8 @@ def test_array_me(N=20, max_mem=2e3, use_func=True):
     now = time.time()
     if symmetric:
         M_nn.tril2full()
-    assert np.allclose(M_nn.data, pw_desc.shape[0] * psit_nX.dv), \
-        f'''Max: {np.max(M_nn.data)},
+    assert np.allclose(M_nn.data, pw_desc.shape[0] * psit_nX.dv), f'''
+Max: {np.max(M_nn.data)},
 Min: {np.min(M_nn.data)},
 Expected: {pw_desc.shape[0] * psit_nX.dv}'''
     return now - then
