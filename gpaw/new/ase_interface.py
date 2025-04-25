@@ -5,7 +5,7 @@ from functools import cached_property
 from pathlib import Path
 from pprint import pformat
 from types import SimpleNamespace
-from typing import IO, Any, Callable, Iterable, Protocol, Sequence, Union
+from typing import Any, Callable
 
 import numpy as np
 from ase import Atoms
@@ -13,90 +13,20 @@ from ase.units import Ha
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
-from gpaw.mpi import MPIComm, broadcast, synchronize_atoms, world
+from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
-from gpaw.new.environment import Environment
-from gpaw.new.gpw import GPWFlags, read_gpw, write_gpw
+from gpaw.new.gpw import GPWFlags, write_gpw
 from gpaw.new.input_parameters import InputParameters
-from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
-
-
-class Dictable(Protocol):
-    def todict(self) -> dict[str, Any]:
-        ...
-
-
-def GPAW(
-    filename: Union[str, Path, IO[str]] = None,
-    *,
-    txt: str | Path | IO[str] | None = '?',
-    communicator: MPIComm | Iterable[int] | None = None,
-    parallel: dict[str, Any] | None = None,
-    basis: str | dict[str | int | None, str] | None = None,
-    charge: float | None = None,
-    convergence: dict[str, Any] | None = None,
-    eigensolver: dict[str, Any] | None = None,
-    environment: Environment | None = None,
-    experimental: dict[str, Any] | None = None,
-    external: dict[str, Any] | None = None,
-    gpts: None | Sequence[int] | None = None,
-    h: float | None = None,
-    hund: bool | None = None,
-    kpts: dict[str, Any] | None = None,
-    magmoms: Any | None = None,
-    maxiter: int | None = None,
-    mixer: dict[str, Any] | None = None,
-    mode: str | dict[str, Any] | None = None,
-    nbands: int | str | None = None,
-    occupations: dict[str, Any] | None = None,
-    poissonsolver: dict[str, Any] | None = None,
-    random: bool | None = None,
-    setups: Any | None = None,
-    soc: bool | None = None,
-    solvation=None,
-    spinpol: bool | None = None,
-    symmetry: str | dict[str, Any] | None = None,
-    xc: str | dict[str, Any] | Dictable | None = None,
-    hooks = None) -> ASECalculator:
-
-    """Create ASE-compatible GPAW calculator.
-
-    """
-    if txt == '?':
-        txt = '-' if filename is None else None
-
-    log = Logger(txt, communicator)
-
-    kwargs = {key: value for key, value in locals().items()
-              if key in parameter_names})
-
-    if filename is not None:
-        if mode is not None:
-            raise ValueError('"mode" not allowed when reading from a file')
-        args = Parameters(mode='pw', **kwargs).non_defaults
-        if args != ['mode']:
-            raise ValueError(
-                'Illegal argument(s) when reading from a file: '
-                f'{", ".join(args}}')
-        atoms, dft, params, _ = read_gpw(filename,
-                                         log=log,
-                                         parallel=parallel,
-                                         hooks=hooks)
-        return ASECalculator(params,
-                             log=log, dft=dft, atoms=atoms)
-
-    params = Parameters(**kwargs)
-    write_header(log, params)
-    return ASECalculator(params, log=log)
+from gpaw.dft import Parameters, GPAW
 
 
 LOGO = """\
@@ -108,7 +38,7 @@ LOGO = """\
 """
 
 
-def write_header(log: Logger, params: InputParameters) -> None:
+def write_header(log: Logger, params: Parameters) -> None:
     from gpaw.io.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
@@ -169,6 +99,7 @@ class ASECalculator:
         self._atoms = atoms
         self.timer = Timer()
         self.hooks: dict[str, Callable] = {}
+        write_header(log, params)
 
     @property
     def dft(self) -> DFTCalculation:

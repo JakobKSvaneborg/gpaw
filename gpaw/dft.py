@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
-from typing import IO, Any, Callable, Iterable, Protocol, Sequence, Union
+from typing import IO, Iterable, Sequence, Union, TYPE_CHECKING
 
 import numpy as np
 
-from gpaw.mpi import MPIComm, broadcast, synchronize_atoms, world
+from gpaw.mpi import MPIComm
+from gpaw.new.logger import Logger
+from gpaw.new.gpw import read_gpw
+if TYPE_CHECKING:
+    from gpaw.new.ase_interface import ASECalculator
 
 PARAMETER_NAMES = [
     'mode',
@@ -24,6 +28,7 @@ PARAMETER_NAMES = [
     'mixer',
     'nbands',
     'occupations',
+    'parallel',
     'poissonsolver',
     'random',
     'setups',
@@ -171,6 +176,7 @@ def DFT(
     mixer: dict | Mixer | None = None,
     nbands: int | str = '',
     occupations: dict | Occupations | None = None,
+    parallel: dict | None = None,
     poissonsolver: dict | PoissonSolver | None = None,
     random: bool = False,
     setups: str | dict = '',
@@ -179,13 +185,12 @@ def DFT(
     symmetry: str | dict | Symmetry = '',
     xc: str | dict | XC = 'LDA',
     txt: str | Path | IO[str] | None = '?',
-    communicator: MPIComm | Iterable[int] | None = None,
-    parallel: dict[str, Any] | None = None):
+    communicator: MPIComm | Iterable[int] | None = None):
     """asdg
     """
     params = Parameters(**{k: v for k, v in locals().items()
                            if k in PARAMETER_NAMES})
-    return params.dft_calculation(atoms, txt, communicator, parallel)
+    return params.dft_calculation(atoms, txt, communicator)
 
 
 class Parameters:
@@ -207,6 +212,7 @@ class Parameters:
         mixer: dict | Mixer | None = None,
         nbands: int | str = '',
         occupations: dict | Occupations | None = None,
+        parallel: dict | None = None,
         poissonsolver: dict | PoissonSolver | None = None,
         random: bool = False,
         setups: str | dict = '',
@@ -255,6 +261,7 @@ class Parameters:
         self.mixer = Mixer.from_param(mixer),
         self.nbands = nbands
         self.occupations = Occupations.from_param(occupations)
+        self.parallel = parallel or {}
         self.poissonsolver = PoissonSolver.from_param(poissonsolver)
         self.random = random
         self.setups = {None: setups} if isinstance(setups, str) else setups
@@ -286,13 +293,72 @@ class Parameters:
 
     def dft_calculation(self,
                         atoms,
-                        txt = '-',
-                        communicator=None,
-                        parallel=None):
+                        txt: str = '-',
+                        communicator=None):
         from gpaw.new.calculation import DFTCalculation
         log = Logger(txt, communicator)
-        parallel???
         return DFTCalculation.from_parameters(atoms, self, log.comm, log)
+
+
+def GPAW(
+    filename: Union[str, Path, IO[str]] = None,
+    *,
+    basis: str | dict[str | int | None, str] = '',
+    charge: float = 0.0,
+    convergence: dict | None = None,
+    eigensolver: dict | Eigensolver | None = None,
+    gpts: Sequence[int] | None = None,
+    h: float = 0.0,
+    hund: bool = False,
+    extensions: Sequence[Extension] = (),
+    kpts: Sequence[int] | dict | MonkhorstPack | None = None,
+    magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
+    maxiter: int = 0,
+    mixer: dict | Mixer | None = None,
+    mode: str | dict | Mode = '',
+    nbands: int | str = '',
+    occupations: dict | Occupations | None = None,
+    parallel: dict | None = None,
+    poissonsolver: dict | PoissonSolver | None = None,
+    random: bool = False,
+    setups: str | dict = '',
+    soc: bool = False,
+    spinpol: bool = False,
+    symmetry: str | dict | Symmetry = '',
+    xc: str | dict | XC = 'LDA',
+    txt: str | Path | IO[str] | None = '?',
+    communicator: MPIComm | Iterable[int] | None = None,
+    hooks: dict | None = None) -> ASECalculator:
+    """Create ASE-compatible GPAW calculator.
+
+    """
+    from gpaw.new.ase_interface import ASECalculator
+
+    if txt == '?':
+        txt = '-' if filename is None else None
+
+    log = Logger(txt, communicator)
+
+    kwargs = {key: value for key, value in locals().items()
+              if key in PARAMETER_NAMES}
+
+    if filename is not None:
+        if mode is not None:
+            raise ValueError('"mode" not allowed when reading from a file')
+        args = Parameters(mode='pw', **kwargs).non_defaults
+        if set(args) >= {'mode', 'parallel'}:
+            raise ValueError(
+                'Illegal argument(s) when reading from a file: '
+                f'{", ".join(args)}')
+        atoms, dft, params, _ = read_gpw(filename,
+                                         log=log,
+                                         parallel=parallel,
+                                         hooks=hooks)
+        return ASECalculator(params,
+                             log=log, dft=dft, atoms=atoms)
+
+    params = Parameters(**kwargs)
+    return ASECalculator(params, log=log)
 
 
 if __name__ == '__main__':
