@@ -21,10 +21,12 @@ class Davidson(PWFDEigensolver):
                  preconditioner_factory,
                  converge_bands='occupied',
                  niter=2,
-                 scalapack_parameters=None):
+                 scalapack_parameters=None,
+                 max_buffer_mem: int = 200 * 1024 ** 2):
         super().__init__(
             preconditioner_factory,
-            converge_bands)
+            converge_bands,
+            max_buffer_mem=max_buffer_mem)
         self.niter = niter
         self.H_NN: Matrix
         self.S_NN: Matrix

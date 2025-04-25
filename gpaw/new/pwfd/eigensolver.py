@@ -17,14 +17,12 @@ from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.utilities.blas import axpy
 from gpaw.utilities import as_real_dtype
 
-MAX_MEM = int(2e8)  # 200 MB seems to be the sweet spot
-
 
 def create_eigensolver(nbands,
                        wf_desc,
                        band_comm,
                        comm,
-                       create_preconditioner,
+                       hamiltonian,
                        converge_bands,
                        setups,
                        atoms,
@@ -39,7 +37,7 @@ def create_eigensolver(nbands,
             nbands,
             wf_desc,
             band_comm,
-            create_preconditioner,
+            hamiltonian,
             converge_bands,
             **kwargs)
     if name == 'rmm-diis':
@@ -48,7 +46,7 @@ def create_eigensolver(nbands,
             nbands,
             wf_desc,
             band_comm,
-            create_preconditioner,
+            hamiltonian,
             converge_bands,
             **kwargs)
     if name == 'etdm-fdpw':
@@ -59,15 +57,21 @@ def create_eigensolver(nbands,
 
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
-                 preconditioner_factory,
+                 hamiltonian,
                  converge_bands: int | str = 'occupied',
-                 blocksize: int = 10):
+                 blocksize: int = 10,
+                 max_buffer_mem: int = 200 * 1024 ** 2):
         self.converge_bands = converge_bands
         self.blocksize = blocksize
         self.preconditioner: Callable
-        self.preconditioner_factory = preconditioner_factory
+        self.preconditioner_factory = hamiltonian.create_preconditioner
         self.work_arrays: np.ndarray
         self.data_buffers: np.ndarray
+
+        # Maximal memory to be used for the eigensolver
+        # should be infinite if hamiltonian is not band-local
+        self.max_buffer_mem = max_buffer_mem \
+            if hamiltonian.band_local else np.inf
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -79,7 +83,7 @@ class PWFDEigensolver(Eigensolver):
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         nbands = ibzwfs.nbands
         dtype_size = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype.itemsize
-        buffer_size = max(min(MAX_MEM,
+        buffer_size = max(min(self.max_buffer_mem,
                               b * G_max * dtype_size),
                           G_max * dtype_size,
                           2 * nbands * dtype_size)

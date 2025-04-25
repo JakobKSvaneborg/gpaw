@@ -21,7 +21,8 @@ class RMMDIIS(PWFDEigensolver):
                  blocksize=None,
                  niter: int = 1,
                  trial_step: float | None = None,
-                 scalapack_parameters=None):
+                 scalapack_parameters=None,
+                 max_buffer_mem: int = 200 * 1024 ** 2):
         """RMM-DIIS eigensolver.
 
         Solution steps are:
@@ -47,7 +48,8 @@ class RMMDIIS(PWFDEigensolver):
                 blocksize = int(np.ceil(10 / S)) * S
             else:
                 blocksize = 10
-        super().__init__(preconditioner_factory, converge_bands, blocksize)
+        super().__init__(preconditioner_factory, converge_bands, blocksize,
+                         max_buffer_mem=max_buffer_mem)
         self.trial_step = trial_step
 
     def __str__(self):
