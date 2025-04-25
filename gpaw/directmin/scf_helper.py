@@ -100,7 +100,8 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
         if not_update or fixed_occ:
             wfs.occupations.numbers = solver.initial_occupation_numbers
 
-    sort_orbitals_according_to_energies(ham, wfs, constraints)
+    if sic_calc:
+        sort_orbitals_according_to_energies(ham, wfs, constraints)
 
 
 def check_eigensolver_state(eigensolver_name, wfs, ham, dens, log):

@@ -11,14 +11,14 @@ from gpaw.solvation.sjm import SJM as OldSJM
 from gpaw.solvation.sjm import SJMPower12Potential
 
 
-def test_sjm(gpaw_new):
+def test_sjm(gpaw_new, in_tmp_dir):
     if gpaw_new and size > 1:
         pytest.skip('SJM with new-GPAW only works in serial!')
     # Solvent parameters
     u0 = 0.180  # eV
     epsinf = 78.36  # Dielectric constant of water at 298 K
     gamma = 0.00114843767916  # 18.4*1e-3 * Pascal* m
-    T = 298.15   # K
+    T = 298.15  # K
 
     def atomic_radii(atoms):
         return [vdw_radii[n] for n in atoms.numbers]
@@ -43,11 +43,11 @@ def test_sjm(gpaw_new):
 
     params = dict(
         mode='fd',
-        gpts=(8, 8, 48),
         kpts=(2, 2, 1),
         xc='PBE',
         convergence=convergence,
-        occupations=FermiDirac(0.1))
+        occupations=FermiDirac(0.1),
+        txt=f'{gpaw_new}.txt')
 
     solvation = dict(
         cavity=EffectivePotentialCavity(
@@ -69,6 +69,21 @@ def test_sjm(gpaw_new):
         pot = -atoms.calc.get_fermi_level()
 
     assert abs(pot - potential) < tol
+
+    atoms.write('Au.traj')
+
+    atoms.calc.write('Au.gpw')
+    if gpaw_new:
+        calc = GPAW('Au.gpw')
+        print(atoms.calc.environment)
+        print(calc.environment)
+
+    if 0:
+        import matplotlib.pyplot as plt
+        import numpy as np
+        x, y = np.array(atoms.calc.environment.jellium.history).T
+        plt.plot(x, y)
+        plt.show()
     if 0:
         v = atoms.calc.get_electrostatic_potential()
         import matplotlib.pyplot as plt

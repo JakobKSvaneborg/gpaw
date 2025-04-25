@@ -1,3 +1,4 @@
+import pytest
 from gpaw.solvation.sjm import SJM, SJMPower12Potential
 import numpy as np
 from ase.build import fcc111
@@ -12,6 +13,8 @@ from gpaw.solvation import (
     SurfaceInteraction)
 
 
+@pytest.mark.slow
+@pytest.mark.old_gpaw_only
 def test_cip(in_tmp_dir):
     # Solvent parameters
     u0 = 0.180  # eV

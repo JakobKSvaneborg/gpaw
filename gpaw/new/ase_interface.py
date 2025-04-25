@@ -722,11 +722,12 @@ class ASECalculator:
             scf_loop.convergence.pop(name, None)
 
         dft = DFTCalculation(
-            ibzwfs, density, potential,
+            self.atoms, ibzwfs, density, potential,
             builder.setups,
             scf_loop,
             builder.create_potential_calculator(log=log),
             log,
+            params=params,
             energies=self.dft.energies)
 
         dft.converge()

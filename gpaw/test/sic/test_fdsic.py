@@ -1,3 +1,4 @@
+import io
 import pytest
 
 from gpaw import GPAW, FD
@@ -7,43 +8,26 @@ from gpaw.directmin.etdm_fdpw import FDPWETDM
 from ase.dft.bandgap import bandgap
 from ase.units import Ha
 
+import numpy.testing as npt
+from gpaw.io.logger import GPAWLogger
+from gpaw.wavefunctions.base import eigenvalue_string
+from gpaw.test.conftest import (mk_arr_from_str,
+                                extract_lagrange_section,
+                                MockWorld)
 
+
+@pytest.mark.slow
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
-def test_fdsic(in_tmp_dir):
+def test_fdsic(in_tmp_dir, gpw_files):
     """
     Test Perdew-Zunger Self-Interaction
     Correction in PW mode using DirectMin
     :param in_tmp_dir:
     :return:
     """
-
-    # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * (104.51 + 2.0)
-    eps = 0.02
-    H2O = Atoms('OH2',
-                positions=[(0, 0, 0),
-                           (d + eps, 0, 0),
-                           (d * np.cos(t), d * np.sin(t), 0)])
-    H2O.center(vacuum=4.0)
-
-    calc = GPAW(mode=FD(force_complex_dtype=True),
-                h=0.25,
-                occupations={'name': 'fixed-uniform'},
-                eigensolver=FDPWETDM(
-                    functional={'name': 'PZ-SIC',
-                                'scaling_factor': (0.5, 0.5)},
-                    localizationseed=42,
-                    localizationtype='FB_ER',
-                    grad_tol_pz_localization=1.0e-3,
-                    maxiter_pz_localization=200,
-                    converge_unocc=True),
-                convergence={'eigenstates': 1e-4},
-                mixer={'backend': 'no-mixing'},
-                symmetry='off',
-                spinpol=True
-                )
+    calc = GPAW(gpw_files['h2o_fdsic'])
+    H2O = calc.atoms
     H2O.calc = calc
     e = H2O.get_potential_energy()
     f = H2O.get_forces()
@@ -78,3 +62,40 @@ def test_fdsic(in_tmp_dir):
     assert niter == pytest.approx(4, abs=3)
     assert e == pytest.approx(e_old, abs=1e-3)
     assert f == pytest.approx(f_num, abs=5e-2)
+
+    logger = GPAWLogger(MockWorld(rank=0))
+    string_io = io.StringIO()
+    logger.fd = string_io
+    calc.wfs.summary_func(logger)
+    lstr = extract_lagrange_section(string_io.getvalue())
+
+    expect_lagrange_str = """\
+    Band         L_ii   Occupancy   Band      L_ii   Occupancy
+       0    -21.19082    1.00000    0    -21.19081    1.00000
+       1    -20.53526    1.00000    1    -20.53521    1.00000
+       2    -13.88424    1.00000    2    -13.88428    1.00000
+       3    -13.83555    1.00000    3    -13.83554    1.00000
+       4     -0.58073    0.00000    4     -0.58073    0.00000
+       5      1.21087    0.00000    5      1.21087    0.00000
+    """
+    expect_eigen_str = """\
+    Band  Eigenvalues  Occupancy  Eigenvalues  Occupancy
+       0    -28.89620    1.00000    -28.89620    1.00000
+       1    -16.92142    1.00000    -16.92142    1.00000
+       2    -12.82836    1.00000    -12.82835    1.00000
+       3    -10.79987    1.00000    -10.79987    1.00000
+       4     -0.58369    0.00000     -0.58369    0.00000
+       5      1.21382    0.00000      1.21382    0.00000
+    """
+
+    npt.assert_allclose(
+        mk_arr_from_str(expect_lagrange_str, 6),
+        mk_arr_from_str(lstr, 6),
+        atol=0.3,
+    )
+
+    npt.assert_allclose(
+        mk_arr_from_str(expect_eigen_str, 5),
+        mk_arr_from_str(eigenvalue_string(calc.wfs), 5, skip_rows=1),
+        atol=0.3,
+    )

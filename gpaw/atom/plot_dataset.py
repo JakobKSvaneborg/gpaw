@@ -224,7 +224,7 @@ def _get_figures_and_axes(
         layout = 1, ngraphs
 
     fig = plt.figure()
-    subplots = fig.subplots(*layout).flatten()
+    subplots = fig.subplots(*layout).flatten()  # type: ignore
     ntrimmed = layout[0] * layout[1] - ngraphs
     if ntrimmed:
         assert ntrimmed > 0, (f'Too many plots {ngraphs!r} '

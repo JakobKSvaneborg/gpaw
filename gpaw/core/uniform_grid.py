@@ -388,10 +388,11 @@ class UGArray(DistributedArrays[UGDesc]):
         c.data[:] = self.data
         return c
 
-    def scatter_from(self, data=None):
+    def scatter_from(self, data: np.ndarray | UGArray | None = None) -> None:
         """Scatter data from rank-0 to all ranks."""
         if isinstance(data, UGArray):
             data = data.data
+
         comm = self.desc.comm
         if comm.size == 1:
             self.data[:] = data
@@ -402,6 +403,7 @@ class UGArray(DistributedArrays[UGDesc]):
             return
 
         requests = []
+        assert isinstance(data, self.xp.ndarray)
         for rank, block in enumerate(self.desc.blocks(data)):
             if rank != 0:
                 block = block.copy()
