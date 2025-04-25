@@ -4,7 +4,7 @@ import contextlib
 import os
 import sys
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, Sequence
 
 from gpaw.mpi import MPIComm, world
 
@@ -23,8 +23,13 @@ def indent(text: Any, indentation='  ') -> str:
 class Logger:
     def __init__(self,
                  filename: str | Path | IO[str] | None = '-',
-                 comm: MPIComm | None = None):
-        self.comm = comm or world
+                 comm: MPIComm | Sequence[int] | None = None):
+        if comm is None:
+            comm = world
+        elif not hasattr(comm, 'rank'):
+            comm = world.new_communicator(list(comm))
+
+        self.comm = comm
 
         self.fd: IO[str]
 

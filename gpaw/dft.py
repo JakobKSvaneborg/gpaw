@@ -1,30 +1,36 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, is_dataclass
-from functools import cached_property
-from typing import Sequence, Type
+from pathlib import Path
+from typing import IO, Any, Callable, Iterable, Protocol, Sequence, Union
 
 import numpy as np
 
-_classes = {}
+from gpaw.mpi import MPIComm, broadcast, synchronize_atoms, world
 
-
-def register(cls):
-    _classes[cls.__name__.lower()] = cls
-    return dataclass(cls)
-
-
-def ensure_object(obj, classes=_classes):
-    if isinstance(obj, list):
-        return [ensure_object(x, classes) for x in obj]
-    if not isinstance(obj, dict):
-        return obj
-    if 'name' not in obj:
-        return obj
-    obj = obj.copy()
-    cls = _classes[obj.pop('name')]
-    return cls(**{key: ensure_object(value, classes)
-                  for key, value in obj.items()})
+PARAMETER_NAMES = [
+    'mode',
+    'basis',
+    'charge',
+    'convergence',
+    'eigensolver',
+    'gpts',
+    'h',
+    'hund',
+    'extensions',
+    'kpts',
+    'magmoms',
+    'maxiter',
+    'mixer',
+    'nbands',
+    'occupations',
+    'poissonsolver',
+    'random',
+    'setups',
+    'soc',
+    'spinpol',
+    'symmetry',
+    'xc']
 
 
 @dataclass
@@ -43,26 +49,32 @@ class Mode:
     def from_param(cls, mode) -> Mode:
         if isinstance(mode, str):
             mode = {'name': mode}
-        return ensure_object(mode)
+        if isinstance(mode, dict):
+            mode = mode.copy()
+            return {'pw': PW}[mode.pop('name')](**mode)
+        return mode
 
 
-@register
+@dataclass
 class PW(Mode):
     ecut: float = 340
 
 
+@dataclass
 class Eigensolver:
+    parameters: dict
+
     @classmethod
     def from_param(cls, eigensolver):
         if eigensolver is None:
-            return Eigensolver()
+            eigensolver = {}
+        if 'name' in eigensolver:
+            eigensolver = eigensolver.copy()
+            return {'dav': Davidson}[eigensolver.pop('name')](**eigensolver)
+        return Eigensolver(eigensolver)
 
 
-class DefaultEigensolver(Eigensolver):
-    pass
-
-
-@register
+@dataclass
 class Davidson(Eigensolver):
     niter: int = 2
 
@@ -110,7 +122,7 @@ class KPoints:
         return MonkhorstPack.from_param(kpts)
 
 
-@register
+@dataclass
 class MonkhorstPack(KPoints):
     size: Sequence[int] | None = None
     density: float | None = None
@@ -132,6 +144,48 @@ class Missing:
 
 
 missing = Missing()
+
+DOCS = """
+mode:
+    PW, LCAO or FD mode.
+basis:
+    Basis-set.
+"""
+
+
+def DFT(
+    atoms,
+    *,
+    mode,
+    basis: str | dict[str | int | None, str] = '',
+    charge: float = 0.0,
+    convergence: dict | None = None,
+    eigensolver: dict | Eigensolver | None = None,
+    gpts: Sequence[int] | None = None,
+    h: float = 0.0,
+    hund: bool = False,
+    extensions: Sequence[Extension] = (),
+    kpts: Sequence[int] | dict | MonkhorstPack | None = None,
+    magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
+    maxiter: int = 0,
+    mixer: dict | Mixer | None = None,
+    nbands: int | str = '',
+    occupations: dict | Occupations | None = None,
+    poissonsolver: dict | PoissonSolver | None = None,
+    random: bool = False,
+    setups: str | dict = '',
+    soc: bool = False,
+    spinpol: bool = False,
+    symmetry: str | dict | Symmetry = '',
+    xc: str | dict | XC = 'LDA',
+    txt: str | Path | IO[str] | None = '?',
+    communicator: MPIComm | Iterable[int] | None = None,
+    parallel: dict[str, Any] | None = None):
+    """asdg
+    """
+    params = Parameters(**{k: v for k, v in locals().items()
+                           if k in PARAMETER_NAMES})
+    return params.dft_calculation(atoms, txt, communicator, parallel)
 
 
 class Parameters:
@@ -162,7 +216,16 @@ class Parameters:
         xc: str | dict | XC = 'LDA'):
         """DFT-parameters object.
 
-        """ + ''
+        >>> p = Parameters(mode=PW(400))
+        >>> p
+        >>> p.charge
+        0.0
+        >>> p.xc
+        >>> atoms = Atoms()
+        >>> dft = p.dft_calculation(atoms)
+        >>> atoms.calc = p.ase_calculator(atoms)
+
+        """ + DOCS
 
         self._non_defaults = []
         for key, value in locals().items():
@@ -174,7 +237,6 @@ class Parameters:
                 is_default = not value
             else:
                 continue
-            print(key, repr(value), is_default)
             if not is_default:
                 self._non_defaults.append(key)
 
@@ -222,13 +284,20 @@ class Parameters:
             dct[key] = value
         return dct
 
+    def dft_calculation(self,
+                        atoms,
+                        txt = '-',
+                        communicator=None,
+                        parallel=None):
+        from gpaw.new.calculation import DFTCalculation
+        log = Logger(txt, communicator)
+        parallel???
+        return DFTCalculation.from_parameters(atoms, self, log.comm, log)
+
 
 if __name__ == '__main__':
     p = Parameters(xc='PBE', mode=PW(ecut=200), charge=1.0)
     print(p)
     print(p.todict())
-    print(p.todict(1))
     p = Parameters(**p.todict())
-    print(p)
-    p = Parameters(**p.todict(1))
     print(p)

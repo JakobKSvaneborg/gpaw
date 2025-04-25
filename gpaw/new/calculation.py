@@ -90,10 +90,9 @@ class DFTCalculation:
     @classmethod
     def from_parameters(cls,
                         atoms: Atoms,
-                        params: Union[dict, InputParameters],
+                        params: Parameters,
                         comm=None,
-                        log=None,
-                        builder=None) -> DFTCalculation:
+                        log=None) -> DFTCalculation:
         """Create DFTCalculation object from parameters and atoms."""
         from gpaw.new.builder import builder as create_builder
 
@@ -108,7 +107,7 @@ class DFTCalculation:
         if not isinstance(log, Logger):
             log = Logger(log, comm or world)
 
-        builder = builder or create_builder(atoms, params, log.comm, log)
+        builder = create_builder(atoms, params, log.comm, log)
 
         basis_set = builder.create_basis_set()
 

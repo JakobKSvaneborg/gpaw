@@ -40,6 +40,7 @@ def GPAW(
     *,
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Iterable[int] | None = None,
+    parallel: dict[str, Any] | None = None,
     basis: str | dict[str | int | None, str] | None = None,
     charge: float | None = None,
     convergence: dict[str, Any] | None = None,
@@ -57,7 +58,6 @@ def GPAW(
     mode: str | dict[str, Any] | None = None,
     nbands: int | str | None = None,
     occupations: dict[str, Any] | None = None,
-    parallel: dict[str, Any] | None = None,
     poissonsolver: dict[str, Any] | None = None,
     random: bool | None = None,
     setups: Any | None = None,
@@ -65,7 +65,8 @@ def GPAW(
     solvation=None,
     spinpol: bool | None = None,
     symmetry: str | dict[str, Any] | None = None,
-    xc: str | dict[str, Any] | Dictable | None = None) -> ASECalculator:
+    xc: str | dict[str, Any] | Dictable | None = None,
+    hooks = None) -> ASECalculator:
 
     """Create ASE-compatible GPAW calculator.
 
@@ -73,30 +74,27 @@ def GPAW(
     if txt == '?':
         txt = '-' if filename is None else None
 
-    if communicator is None:
-        comm = world
-    elif not hasattr(communicator, 'rank'):
-        comm = world.new_communicator(list(communicator))
-    else:
-        comm = communicator  # type: ignore
+    log = Logger(txt, communicator)
 
-    log = Logger(txt, comm)
-
-    params_dict = {key: value for key, value in locals().items()
-                   if key in parameter_names}
+    kwargs = {key: value for key, value in locals().items()
+              if key in parameter_names})
 
     if filename is not None:
-        for key, value in params_dict.items():
-            if key != 'parallel' and value is not None:
-                raise ValueError(
-                    f'Illegal argument when reading from a file: {key}')
+        if mode is not None:
+            raise ValueError('"mode" not allowed when reading from a file')
+        args = Parameters(mode='pw', **kwargs).non_defaults
+        if args != ['mode']:
+            raise ValueError(
+                'Illegal argument(s) when reading from a file: '
+                f'{", ".join(args}}')
         atoms, dft, params, _ = read_gpw(filename,
                                          log=log,
-                                         parallel=parallel)
+                                         parallel=parallel,
+                                         hooks=hooks)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
-    params = InputParameters(params_dict)
+    params = Parameters(**kwargs)
     write_header(log, params)
     return ASECalculator(params, log=log)
 
@@ -159,7 +157,7 @@ class ASECalculator:
     old = False
 
     def __init__(self,
-                 params: InputParameters,
+                 params: Parameters,
                  *,
                  log: Logger,
                  dft: DFTCalculation | None = None,
