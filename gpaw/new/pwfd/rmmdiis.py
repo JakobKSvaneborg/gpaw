@@ -92,12 +92,17 @@ class RMMDIIS(PWFDEigensolver):
         blocksize = work1_nX.data.shape[0]
         P1_ani = P_ani.layout.empty(blocksize)
         P2_ani = P_ani.layout.empty(blocksize)
-
         if weight_n is None:
             error = np.inf
         else:
             error = weight_n @ as_np(residual_nX.norm2())
-        for n1 in range(0, mynbands, blocksize):
+
+        comm = psit_nX.comm
+        blocksize_world = comm.sum_scalar(blocksize)
+        totalbands = comm.sum_scalar(mynbands)
+        for i1, N1 in enumerate(
+                range(0, totalbands, blocksize_world)):
+            n1 = i1 * blocksize
             n2 = n1 + blocksize
             if n2 > mynbands:
                 n2 = mynbands

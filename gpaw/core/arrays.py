@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, TypeVar, Callable, Literal
+from functools import partial
 
 import gpaw.fftw as fftw
 import numpy as np
@@ -153,15 +154,11 @@ class DistributedArrays(Generic[DomainType], XP):
 
         if comm.size == 1 or sliced:
             assert other.comm.size == comm.size
-            if sliced:
+            if sliced and function:
                 M1 = self.matrix
                 M2 = other.matrix
                 if buffer is None:
                     raise ValueError
-
-                if function is None:
-                    def function(inp, out):
-                        out.data[:] = inp.data
 
                 buffer_size = buffer.data.shape[0]
                 buffer_size_world = comm.sum_scalar(buffer_size)
@@ -169,12 +166,22 @@ class DistributedArrays(Generic[DomainType], XP):
                 totalbands = out.shape[0]
                 if buffer_size_world == totalbands:
                     # No need for slicing
-                    function(self, out=buffer)
-                    return buffer.matrix_elements(other,
-                                                  out=out,
-                                                  symmetric=symmetric,
-                                                  domain_sum=domain_sum,
-                                                  cc=cc)
+                    if symmetric:
+                        return self.matrix_elements(self,
+                                                    out=out,
+                                                    symmetric=symmetric,
+                                                    domain_sum=domain_sum,
+                                                    function=partial(
+                                                        function,
+                                                        out=buffer),
+                                                    cc=cc)
+                    else:
+                        function(self, out=buffer)
+                        return buffer.matrix_elements(other,
+                                                      out=out,
+                                                      symmetric=symmetric,
+                                                      domain_sum=domain_sum,
+                                                      cc=cc)
 
                 for niter, i_world in enumerate(
                         range(0, totalbands, buffer_size_world)):

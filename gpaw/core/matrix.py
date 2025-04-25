@@ -1127,9 +1127,9 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
         c <- αab  + βc
     """
     comm = a.dist.comm
-    M, N = a.shape
+    M, N = b.shape
     m = (M + comm.size - 1) // comm.size
-    mym = len(a.data)
+    mym = len(b.data)
     xp = a.xp
 
     # More... buffers...
