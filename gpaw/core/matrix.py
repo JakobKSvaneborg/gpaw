@@ -729,7 +729,6 @@ class NoDistribution(MatrixDistribution):
     rows = 1
     columns = 1
     blocksize = None
-    simple = False  # For working together with distributed matrices
 
     def __init__(self, M, N):
         self.shape = (M, N)
@@ -837,11 +836,7 @@ class BLACSDistribution(MatrixDistribution):
             # in the current implementation. Maybe this should be
             # looked into more. For now, we just use the more general
             # scalapack function when matrices are not square.
-            ok = a.dist.simple and b.dist.simple and c.dist.simple \
-                and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1] \
-                and a.data.flags['C_CONTIGUOUS'] \
-                and b.data.flags['C_CONTIGUOUS'] \
-                and c.data.flags['C_CONTIGUOUS']
+            ok = a.dist.simple and b.dist.simple and c.dist.simple
             if ok:
                 # Special cases that don't need scalapack - most likely also
                 # faster:
@@ -1043,9 +1038,9 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
     Only lower half of c is updated.
     """
     comm = a.dist.comm
-    M, N = a.shape
+    M, N = b.shape
     m = (M + comm.size - 1) // comm.size
-    mym = len(a.data)
+    mym = len(b.data)
     xp = a.xp
 
     # The buffering never ends

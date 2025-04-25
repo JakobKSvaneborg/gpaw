@@ -23,6 +23,8 @@ def test_hse06(gpaw_new, ccirs):
         pytest.skip('Only band-parallelization!')
     if gpaw_new:
         experimental = {'ccirs': ccirs}
+        # Low max_buffer_mem to test that this value is overwritten due to
+        # the non band-local hybrid-xc hamiltonian.
         eigensolver = {'name': 'dav',
                        'max_buffer_mem': 1024 * 4}
     else:
@@ -32,8 +34,6 @@ def test_hse06(gpaw_new, ccirs):
             pytest.skip('CCIRS only for new GPAW')
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
-    # Low max_buffer_mem to test that this value is overwritten due to
-    # the non band-local hybrid-xc hamiltonian.
     atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not True),
                       xc='HSE06',
                       experimental=experimental,

@@ -17,7 +17,7 @@ from gpaw.new import prod, trace, zips
 from gpaw.new.potential import Potential
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
-from gpaw.typing import Array2D, Array3D, ArrayND, Vector
+from gpaw.typing import Array2D, Array3D, Vector
 from gpaw.utilities import as_real_dtype
 
 
@@ -178,7 +178,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         occ_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.psit_nX.add_ked(occ_n, taut_sR[self.spin])
 
-    def orthonormalize(self, work_array_nX: ArrayND = None):
+    def orthonormalize(self, psit2_nX: XArray = None):
         r"""Orthonormalize wave functions.
 
         Computes the overlap matrix:::
@@ -211,7 +211,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P_ani = self.P_ani
 
         P2_ani = P_ani.new()
-        psit2_nX = psit_nX.new(data=work_array_nX)
+        if psit2_nX is None:
+            psit2_nX = psit_nX.new()
         dS_aii = self.setups.get_overlap_corrections(
             P_ani.layout.atomdist,
             self.xp,
@@ -254,7 +255,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
           <𝜓 |p> ΔH  <p |𝜓>
             m  i   ij  j  n
         """
-        self.orthonormalize(psit2_nX.data)
+        self.orthonormalize(psit2_nX)
         psit_nX = self.psit_nX
         P_ani = self.P_ani
         P2_ani = P_ani.new()

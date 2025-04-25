@@ -16,7 +16,7 @@ class RMMDIIS(PWFDEigensolver):
                  nbands: int,
                  wf_grid,
                  band_comm,
-                 preconditioner_factory,
+                 hamiltonian,
                  converge_bands='occupied',
                  blocksize=None,
                  niter: int = 1,
@@ -48,7 +48,7 @@ class RMMDIIS(PWFDEigensolver):
                 blocksize = int(np.ceil(10 / S)) * S
             else:
                 blocksize = 10
-        super().__init__(preconditioner_factory, converge_bands, blocksize,
+        super().__init__(hamiltonian, converge_bands, blocksize,
                          max_buffer_mem=max_buffer_mem)
         self.trial_step = trial_step
 
@@ -119,7 +119,7 @@ class RMMDIIS(PWFDEigensolver):
                 self.preconditioner)
         wfs._P_ani = None
         wfs.orthonormalized = False
-        wfs.orthonormalize(residual_nX.data)
+        wfs.orthonormalize(residual_nX)
         return error
 
 

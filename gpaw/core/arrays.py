@@ -22,7 +22,6 @@ DomainType = TypeVar('DomainType', bound=Domain)
 
 class DistributedArrays(Generic[DomainType], XP):
     desc: DomainType
-    workbuffer = None
 
     def __init__(self,
                  dims: int | tuple[int, ...],
