@@ -339,10 +339,10 @@ class FDPWETDM:
         self.initialize_eigensolver(wfs, ham)
         self.initialize_orbitals(wfs, ham)
 
-        wfs.calculate_occupation_numbers(dens.fixed)
+        if not wfs.read_from_file_init_wfs_dm:
+            wfs.calculate_occupation_numbers(dens.fixed)
 
-        # MOM
-        self.initial_sort_orbitals_mom(wfs)
+        self.initial_sort_orbitals(wfs)
 
         # localize orbitals?
         self.localize(wfs, dens, ham, log)
@@ -455,13 +455,15 @@ class FDPWETDM:
 
         self.initialized = True
 
-    def initial_sort_orbitals_mom(self, wfs):
+    def initial_sort_orbitals(self, wfs):
         occ_name = getattr(wfs.occupations, "name", None)
-        if occ_name == 'mom':
-            if self.globaliters == 0:
-                self.initial_occupation_numbers = \
-                    wfs.occupations.numbers.copy()
-            sort_orbitals_according_to_occ(wfs, update_mom=True)
+        if occ_name == 'mom' and self.globaliters == 0:
+            update_mom = True
+            self.initial_occupation_numbers = \
+                wfs.occupations.numbers.copy()
+        else:
+            update_mom = False
+        sort_orbitals_according_to_occ(wfs, update_mom=update_mom)
 
     def iterate(self, ham, wfs, dens, log, converge_unocc=False):
         """

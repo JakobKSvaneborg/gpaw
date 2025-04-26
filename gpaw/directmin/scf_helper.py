@@ -36,8 +36,6 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
                 solver.dm_helper.update_to_canonical_orbitals(
                     wfs, ham, kpt, False, False)
 
-        solver.set_ref_orbitals_and_a_vec(wfs)
-
         log('\nOccupied states converged after'
             ' {:d} e/g evaluations'.format(solver.eg_count))
 
@@ -93,15 +91,16 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
 
     solver.update_ks_energy(ham, wfs, dens)
     ham.get_energy(0.0, wfs, kin_en_using_band=False, e_sic=e_sic)
+    sort_orbitals_according_to_energies(ham, wfs, constraints)
+
+    if eigensolver_name == 'etdm-lcao':
+        solver.set_ref_orbitals_and_a_vec(wfs)
 
     if occ_name == 'mom':
         not_update = not wfs.occupations.update_numbers
         fixed_occ = wfs.occupations.use_fixed_occupations
         if not_update or fixed_occ:
             wfs.occupations.numbers = solver.initial_occupation_numbers
-
-    if sic_calc:
-        sort_orbitals_according_to_energies(ham, wfs, constraints)
 
 
 def check_eigensolver_state(eigensolver_name, wfs, ham, dens, log):
