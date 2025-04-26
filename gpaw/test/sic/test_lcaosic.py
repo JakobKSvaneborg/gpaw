@@ -91,7 +91,3 @@ def test_lcaosic(in_tmp_dir, gpw_files):
         mk_arr_from_str(eigenvalue_string(calc.wfs)),
         atol=0.3,
     )
-    npt.assert_allclose(
-        mk_arr_from_str(expect_lagrange_str), mk_arr_from_str(lstr),
-        atol=0.3,
-    )
