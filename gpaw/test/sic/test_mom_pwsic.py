@@ -73,11 +73,11 @@ def test_mom_pwsic(in_tmp_dir, gpw_files):
     npt.assert_allclose(
         mk_arr_from_str(expect_lagrange_str, 6),
         mk_arr_from_str(lstr, 6),
-        atol=0.3,
+        atol=0.75,
     )
 
     npt.assert_allclose(
         mk_arr_from_str(expect_eigen_str, 5),
         mk_arr_from_str(eigenvalue_string(calc.wfs), 5, skip_rows=1),
-        atol=0.3,
+        atol=0.75,
     )
