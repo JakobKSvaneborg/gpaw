@@ -98,8 +98,7 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
 
     if occ_name == 'mom':
         not_update = not wfs.occupations.update_numbers
-        fixed_occ = wfs.occupations.use_fixed_occupations
-        if not_update or fixed_occ:
+        if not_update:
             wfs.occupations.numbers = solver.initial_occupation_numbers
 
 
