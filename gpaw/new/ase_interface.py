@@ -43,12 +43,7 @@ def write_header(log: Logger, params: Parameters) -> None:
     log(LOGO.format(version=__version__))
     header(log, log.comm)
     with log.indent('input parameters:'):
-        parts = []
-        for key, val in params.items():
-            n = len(key)
-            txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
-            parts.append(f'{key}={txt}')
-        log(',\n'.join(parts))
+        log(params)
     with log.indent('\nenvironment variables:'):
         import gpaw
         parts = []

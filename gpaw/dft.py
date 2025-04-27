@@ -1,46 +1,35 @@
 from __future__ import annotations
 
+import importlib
 from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path
-from typing import IO, Iterable, Sequence, Union, TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Iterable, Sequence, Union
 
 import numpy as np
 
 from gpaw.mpi import MPIComm
-from gpaw.new.logger import Logger
 from gpaw.new.gpw import read_gpw
+from gpaw.new.logger import Logger
+
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
 
 PARAMETER_NAMES = [
-    'mode',
-    'basis',
-    'charge',
-    'convergence',
-    'eigensolver',
-    'gpts',
-    'h',
-    'hund',
-    'extensions',
-    'kpts',
-    'magmoms',
-    'maxiter',
-    'mixer',
-    'nbands',
-    'occupations',
-    'parallel',
-    'poissonsolver',
-    'random',
-    'setups',
-    'soc',
-    'spinpol',
-    'symmetry',
-    'xc']
+    'mode', 'basis', 'charge', 'convergence', 'eigensolver',
+    'experimental', 'gpts', 'h', 'hund', 'extensions', 'kpts',
+    'magmoms', 'maxiter', 'mixer', 'nbands', 'occupations',
+    'parallel', 'poissonsolver', 'random', 'setups', 'soc',
+    'spinpol', 'symmetry', 'xc']
 
 
-@dataclass
 class XC:
-    name: str
+    def __init__(self, name, **kwargs):
+        self.name = name
+        self.kwargs = kwargs
+
+    @cached_property
+    def _xc_func(self):
+        return XC(
 
     @classmethod
     def from_param(cls, xc):
@@ -59,10 +48,20 @@ class Mode:
             return {'pw': PW}[mode.pop('name')](**mode)
         return mode
 
+    @property
+    def dft_components_builder_class(self):
+        name = self.__class__.__name__
+        mod = importlib.import_module(f'gpaw.new.{name.lower()}.builder')
+        return getattr(mod, f'{name}DFTComponentsBuilder')
+
 
 @dataclass
 class PW(Mode):
     ecut: float = 340
+
+
+class LCAO(Mode):
+    pass
 
 
 @dataclass
@@ -166,6 +165,7 @@ def DFT(
     charge: float = 0.0,
     convergence: dict | None = None,
     eigensolver: dict | Eigensolver | None = None,
+    experimental: dict | None = None,
     gpts: Sequence[int] | None = None,
     h: float = 0.0,
     hund: bool = False,
@@ -205,6 +205,7 @@ class Parameters:
         gpts: Sequence[int] | None = None,
         h: float = 0.0,
         hund: bool = False,
+        experimental: dict | None = None,
         extensions: Sequence[Extension] = (),
         kpts: Sequence[int] | dict | MonkhorstPack | None = None,
         magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
@@ -254,6 +255,7 @@ class Parameters:
         self.gpts = np.array(gpts) if gpts is not None else None
         self.h = h
         self.hund = hund
+        self.experimental = experimental or {}
         self.extensions = list(extensions or [])
         self.kpts = KPoints.from_param(kpts)
         self.magmoms = np.array(magmoms) if magmoms is not None else None
@@ -269,6 +271,7 @@ class Parameters:
         self.spinpol = spinpol
         self.symmetry = Symmetry.from_param(symmetry)
         self.xc = XC.from_param(xc)
+        _fix_legacy_stuff(self)
 
     def __repr__(self):
         lines = []
@@ -276,6 +279,8 @@ class Parameters:
             value = self.__dict__[key]
             lines.append(f'{key}={value!r}')
         return ',\n'.join(lines)
+
+        # txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
 
     def todict(self, everything=False):
         dct = {}
@@ -310,6 +315,7 @@ def GPAW(
     gpts: Sequence[int] | None = None,
     h: float = 0.0,
     hund: bool = False,
+    experimental: dict | None = None,
     extensions: Sequence[Extension] = (),
     kpts: Sequence[int] | dict | MonkhorstPack | None = None,
     magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
@@ -359,6 +365,11 @@ def GPAW(
 
     params = Parameters(**kwargs)
     return ASECalculator(params, log=log)
+
+
+def _fix_legacy_stuff(params):
+    if not isinstance(params.mode, Mode):
+        params.mode = Mode.from_param(params.mode.todict())
 
 
 if __name__ == '__main__':

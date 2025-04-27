@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import importlib
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import numpy as np
 from ase import Atoms
@@ -37,7 +36,8 @@ from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
 from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
-
+if TYPE_CHECKING:
+    from gpaw.dft import Parameters
 
 FAKE_CUPY_WARNING = """
  ----------------------------------------------------------
@@ -55,7 +55,7 @@ FAKE_CUPY_WARNING = """
 
 
 def builder(atoms: Atoms,
-            params: dict[str, Any] | InputParameters,
+            params: Parameters,
             comm=None,
             log=None) -> DFTComponentsBuilder:
     """Create DFT-components builder.
@@ -67,19 +67,11 @@ def builder(atoms: Atoms,
     * atom
     """
     comm = comm or world
-    if isinstance(params, dict):
-        params = InputParameters(params)
     if not isinstance(log, Logger):
         log = Logger(log, comm)
 
-    mode = params.mode.copy()
-    name = mode.pop('name')
-    mode.pop('force_complex_dtype', False)
-    assert name in {'pw', 'lcao', 'fd', 'tb', 'atom'}
-    mod = importlib.import_module(f'gpaw.new.{name}.builder')
-    name = name.title() if name == 'atom' else name.upper()
-    Builder = getattr(mod, f'{name}DFTComponentsBuilder')
-    builder = Builder(atoms, params, comm=comm, **mode)
+    builder = params.mode.dft_components_builder_class(
+        atoms, params, comm=comm)
     if builder.xp is fake_cupy:
         log(FAKE_CUPY_WARNING)
     return builder
@@ -94,7 +86,7 @@ class DFTComponentsBuilder:
                  comm):
 
         self.atoms = atoms.copy()
-        self.mode = params.mode['name']
+        self.mode = params.mode.__class__.__name__.lower()
         self.params = params
 
         parallel = params.parallel
@@ -108,6 +100,7 @@ class DFTComponentsBuilder:
         self.soc = params.soc
         self.nspins = self.ncomponents % 3
         self.spin_degeneracy = self.ncomponents % 2 + 1
+        xc = ...
         if isinstance(params.xc, (dict, str)):
             self._xc = XC(params.xc, collinear=(self.ncomponents < 4),
                           xp=self.xp)
@@ -188,7 +181,7 @@ class DFTComponentsBuilder:
         self.relpos_ac %= 1
         self.relpos_ac %= 1  # yes, we need to do this twice!
 
-        self.xc = self.create_xc_functional()
+        self.xc = create_functional(xc, self.fine_grid, self.xp)
 
         self.interpolation_desc: Domain
         self.electrostatic_potential_desc: Domain
@@ -208,9 +201,6 @@ class DFTComponentsBuilder:
 
     def create_uniform_grids(self):
         raise NotImplementedError
-
-    def create_xc_functional(self):
-        return create_functional(self._xc, self.fine_grid, self.xp)
 
     def check_cell(self, cell):
         number_of_lattice_vectors = cell.rank

@@ -35,8 +35,7 @@ def xc_string_to_dict(string):
 def XC(kernel,
        parameters=None,
        atoms=None,
-       collinear=True,
-       xp=np) -> XCFunctional:
+       collinear=True) -> XCFunctional:
     """Create XCFunctional object.
 
     kernel: XCKernel object, dict or str
@@ -150,6 +149,6 @@ def XC(kernel,
         return LDA(kernel, **kwargs)
 
     elif kernel.type == 'GGA':
-        return GGA(kernel, xp=xp, **kwargs)
+        return GGA(kernel, **kwargs)
     else:
         return MGGA(kernel, **kwargs)
