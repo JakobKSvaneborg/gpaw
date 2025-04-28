@@ -221,18 +221,20 @@ class PWLFC:  # (BaseLFC)
         self.pos_av = np.dot(spos_ac, self.pw.cell).astype(
             as_real_dtype(self.dtype))
 
-        if xp is not np or True:
-            self.pos_avT = xp.asarray(self.pos_av.T,
-                                      as_real_dtype(self.dtype))
-            self.G_plus_k_Gv_gpu = self.xp.asarray(self.pw.G_plus_k_Gv,
-                                                   as_real_dtype(self.dtype))
-            self.emiGR_Ga = None
-        else:
-            Gk_Gv = self.pw.G_plus_k_Gv
-            GkR_Ga = Gk_Gv @ self.pos_av.T
-            self.emiGR_Ga = (xp.exp(-1j * GkR_Ga)
-                             * self.eikR_a).astype(
-                                 as_complex_dtype(self.dtype))
+        # if xp is not np:
+        # No buffering
+        self.pos_avT = xp.asarray(self.pos_av.T,
+                                  as_real_dtype(self.dtype))
+        self.G_plus_k_Gv = self.xp.asarray(self.pw.G_plus_k_Gv,
+                                           as_real_dtype(self.dtype))
+        self.emiGR_Ga = None
+        # else:
+        #     # Buffering
+        #     Gk_Gv = self.pw.G_plus_k_Gv
+        #     GkR_Ga = Gk_Gv @ self.pos_av.T
+        #     self.emiGR_Ga = (xp.exp(-1j * GkR_Ga)
+        #                      * self.eikR_a).astype(
+        #                          as_complex_dtype(self.dtype))
 
         rank_a = atomdist.rank_a
 
@@ -320,7 +322,7 @@ class PWLFC:  # (BaseLFC)
     @trace
     def get_emiGR_Ga(self, G1, G2):
         if self.emiGR_Ga is None:
-            Gk_Gv = self.G_plus_k_Gv_gpu[G1:G2]
+            Gk_Gv = self.G_plus_k_Gv[G1:G2]
             GkR_Ga = Gk_Gv @ self.pos_avT
             return self.xp.exp(-1j * GkR_Ga) * self.eikR_a
         else:
