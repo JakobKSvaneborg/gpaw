@@ -100,12 +100,8 @@ class DFTComponentsBuilder:
         self.soc = params.soc
         self.nspins = self.ncomponents % 3
         self.spin_degeneracy = self.ncomponents % 2 + 1
-        xc = ...
-        if isinstance(params.xc, (dict, str)):
-            self._xc = XC(params.xc, collinear=(self.ncomponents < 4),
-                          xp=self.xp)
-        else:
-            self._xc = params.xc
+
+        xcfunc = params.xc.functional(collinear=(self.ncomponents < 4))
 
         self._backwards_comatible = params.experimental.get(
             'backwards_compatible', True)
@@ -114,7 +110,7 @@ class DFTComponentsBuilder:
             atoms.numbers,
             params.setups,
             params.basis,
-            self._xc,  # .get_setup_name(),
+            xcfunc,#.get_setup_name(),
             world=comm,
             backwards_compatible=self._backwards_comatible)
         if params.hund:
@@ -145,7 +141,7 @@ class DFTComponentsBuilder:
             comm=comm,
             use_time_reversal=use_time_reversal)
 
-        d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
+        d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
         self.communicators = create_communicators(comm, len(self.ibz),
@@ -181,7 +177,7 @@ class DFTComponentsBuilder:
         self.relpos_ac %= 1
         self.relpos_ac %= 1  # yes, we need to do this twice!
 
-        self.xc = create_functional(xc, self.fine_grid, self.xp)
+        self.xc = create_functional(xcfunc, self.fine_grid, self.xp)
 
         self.interpolation_desc: Domain
         self.electrostatic_potential_desc: Domain

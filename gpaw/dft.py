@@ -27,9 +27,10 @@ class XC:
         self.name = name
         self.kwargs = kwargs
 
-    @cached_property
-    def _xc_func(self):
-        return XC(
+    def functional(self, collinear):
+        from gpaw.xc import XC as xc
+        return xc({'name': self.name, **self.kwargs},
+                  collinear=collinear)
 
     @classmethod
     def from_param(cls, xc):
