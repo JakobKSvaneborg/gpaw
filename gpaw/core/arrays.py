@@ -97,7 +97,7 @@ class DistributedArrays(Generic[DomainType], XP):
             (mybands,) + X)
         totalbands = self.comm.sum_scalar(mybands)
         return self.new(data=data,
-                        dims=(totalbands,) + X[:-3])
+                        dims=(totalbands,) + self.dims[1:])
 
     def copy(self):
         return self.new(data=self.data.copy())
