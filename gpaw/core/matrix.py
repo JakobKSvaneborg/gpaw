@@ -892,8 +892,11 @@ def mmm_nn(m1, m2, m3, alpha, beta, mmm):
     buf1 = m2.data
     xp = m1.xp
 
-    N = m1.shape[0]
+    N = m2.shape[0]
     n = (N + comm.size - 1) // comm.size
+
+    mym = len(m1.data)
+    m1_buf = xp.empty((mym, n), dtype=m1.dtype)
 
     for r in range(comm.size):
         if r == 0:
@@ -914,7 +917,10 @@ def mmm_nn(m1, m2, m3, alpha, beta, mmm):
         r0 = (comm.rank + r) % comm.size
         n1 = min(r0 * n, N)
         n2 = min(n1 + n, N)
-        mmm(alpha, m1.data[:, n1:n2], 'N', buf1[:n2 - n1], 'N', beta, m3.data)
+
+        m1_buf_view = m1_buf.ravel()[:mym * (n2 - n1)].reshape((mym, n2 - n1))
+        m1_buf_view[:] = m1.data[:, n1:n2]
+        mmm(alpha, m1_buf_view, 'N', buf1[:n2 - n1], 'N', beta, m3.data)
 
         beta = 1.0
 
@@ -942,9 +948,9 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
     Only lower half of c is updated.
     """
     comm = a.dist.comm
-    M, N = a.shape
+    M, N = b.shape
     m = (M + comm.size - 1) // comm.size
-    mym = len(a.data)
+    mym = len(b.data)
     xp = a.xp
 
     buf1 = xp.empty((m, N), dtype=a.dtype)
@@ -952,6 +958,8 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
     half = comm.size // 2
     aa = a.data
     bb = b.data
+    myo = len(out.data)
+    buf_out = xp.empty((myo, m), dtype=out.dtype)
 
     for r in range(half + 1):
         rrequest = None
@@ -971,14 +979,18 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
         if not (comm.size % 2 == 0 and r == half and comm.rank < half):
             m1 = min(((comm.rank - r) % comm.size) * m, M)
             m2 = min(m1 + m, M)
+            out_buf_view = \
+                buf_out.ravel()[:(m2 - m1) * myo].reshape((myo, m2 - m1))
             if r == 0:
                 # symmmmmmmmmmmmmmmmmmmmmmetricccccccccccccccc
-                mmm(alpha, aa, 'N', bb, 'C', 1.0, out.data[:, m1:m2])
+                beta = 1.0
+                mmm(alpha, aa, 'N', bb, 'C', 0.0, out_buf_view)
             else:
                 beta = 1.0 if r <= comm.rank else 0.0
                 mmm(alpha, aa, 'N', buf2[:m2 - m1], 'C',
-                    beta, out.data[:, m1:m2])
-            # out.data[:, m1:m2] = m12.data[:, :m2 - m1]
+                    0.0, out_buf_view)
+            out.data[:, m1:m2] *= beta
+            out.data[:, m1:m2] += out_buf_view
 
         if rrequest:
             comm.wait(rrequest)
@@ -1024,15 +1036,18 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
         c <- αab  + βc
     """
     comm = a.dist.comm
-    M, N = a.shape
+    M, N = b.shape
     m = (M + comm.size - 1) // comm.size
-    mym = len(a.data)
+    mym = len(b.data)
     xp = a.xp
 
     buf1 = xp.empty((m, N), dtype=a.dtype)
     buf2 = xp.empty((m, N), dtype=a.dtype)
     aa = a.data
     bb = b.data
+    myo = len(out.data)
+    buf_out = xp.empty((myo, m), dtype=out.dtype)
+    out.data *= beta
 
     for r in range(comm.size):
         rrequest = None
@@ -1052,8 +1067,11 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
 
         m1 = min(((comm.rank - r) % comm.size) * m, M)
         m2 = min(m1 + m, M)
+        out_buf_view = \
+            buf_out.ravel()[:(m2 - m1) * myo].reshape((myo, m2 - m1))
         # symmmmmmmmmmmmmmmmmmmmmmetricccccccccccccccc ??
-        mmm(alpha, aa, 'N', bb[:m2 - m1], 'C', beta, out.data[:, m1:m2])
+        mmm(alpha, aa, 'N', bb[:m2 - m1], 'C', 0.0, out_buf_view)
+        out.data[:, m1:m2] += out_buf_view
 
         if rrequest:
             comm.wait(rrequest)
