@@ -58,11 +58,12 @@ class FDHamiltonian(Hamiltonian):
             else:
                 # Sliced recursive preconditioning
                 buffer_size = buffer.data.shape[0]
-                mybands = psit_nG.data.shape[0]
+                mybands = psit.data.shape[0]
                 if not mybands == 0:
                     for i_local in range(0, mybands, buffer_size):
-                        buffer_view = me_buffer_mX[:mybands - i_local]
-                        kpt = SimpleNamespace(phase_cd=psit.desc.phase_factor_cd)
+                        buffer_view = buffer[:mybands - i_local]
+                        kpt = SimpleNamespace(
+                            phase_cd=psit.desc.phase_factor_cd)
                         pc(residuals.data, kpt, out=buffer_view.data)
                         out.data[i_local:i_local + buffer_size] \
                             = buffer_view.data[:]

@@ -122,13 +122,13 @@ def precondition(psit_nG: PWArray,
 
         if xp is np:
             for r_G, o_G, ekin in zips(residual_nG.data,
-                                    out.data,
-                                    ekin_n):
+                                       out.data,
+                                       ekin_n):
                 pw_precond(G2_G, r_G, ekin, o_G)
         else:
             out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
-                                G2_G[np.newaxis],
-                                residual_nG.data)
+                                   G2_G[np.newaxis],
+                                   residual_nG.data)
         return ekin_n
     else:
         if ekin_n is None:
@@ -138,7 +138,7 @@ def precondition(psit_nG: PWArray,
         mybands = psit_nG.data.shape[0]
         if not mybands == 0:
             for i_local in range(0, mybands, buffer_size):
-                buffer_view = me_buffer_mX[:mybands - i_local]
+                buffer_view = buffer[:mybands - i_local]
                 ekin_n[i_local:i_local + buffer_size] = \
                     precondition(
                         psit_nG[i_local:i_local + buffer_size],
