@@ -3,9 +3,11 @@ from gpaw.new.input_parameters import register
 from ase.units import Hartree, Bohr
 import numpy as np
 
+
 class ExtensionParameter:
     def build(self, atoms):
         raise NotImplementedError
+
 
 """
 class D3Extension:
@@ -25,7 +27,6 @@ class D3Extension:
         atoms.calc = PureDFTD3(xc=self.params.xc, **self.params.kwargs)
         energies['D3'] += atoms.get_potential_energy()
 
-        
 @register
 class D3(ExtensionParameter):
     def __init__(self, *, xc, **kwargs):
@@ -35,6 +36,7 @@ class D3(ExtensionParameter):
     def build(self, atoms):
         return D3Extension(self, atoms)
 """
+
 
 class Extension:
     name = 'unnamed extension'
@@ -52,16 +54,6 @@ class Extension:
         raise NotImplementedError
 
 
-"""
-   E = 0.5 * (sqrt( (r_1 - r_2)**2 ) - D)**2
-   
-   A**2, A = sqrt( (r1-r2) . (r1 - r2) ) - D
-
-   dE/dx = A dA/dx
-
-   - (r1 - r2) / sqrt( (r1-r2) . (r1 - r2)
-"""
-
 @register
 class Spring(ExtensionParameter):
     def __init__(self, *, a1, a2, l, k):
@@ -73,6 +65,7 @@ class Spring(ExtensionParameter):
             @property
             def name(_self):
                 return f'Spring k={self.k}'
+
             def __init__(self, atoms):
                 self._calculate(atoms)
 
@@ -81,8 +74,7 @@ class Spring(ExtensionParameter):
                 v = atoms.positions[self.a1] - atoms.positions[self.a2]
                 v /= np.linalg.norm(v)
                 F = self.k * D / Hartree * Bohr
-                print('F', F)
-                _self.E = 1/2 * self.k * D**2 / Hartree
+                _self.E = 1 / 2 * self.k * D**2 / Hartree
                 _self.F_av = np.zeros((len(atoms), 3))
                 if domain_comm.rank == 0:
                     _self.F_av[self.a1, :] = v * F
@@ -103,7 +95,7 @@ class Spring(ExtensionParameter):
         return dict(a1=self.a1, a2=self.a2, l=self.l, k=self.k)
 
 
-@pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)]) 
+@pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', ['fd', {'name': 'pw', 'ecut': 400}, 'lcao'])
 def test_extensions(mode, parallel):
     from gpaw.new.ase_interface import GPAW
@@ -114,7 +106,6 @@ def test_extensions(mode, parallel):
         pytest.skip('Not enough cores for this test.')
     if world.size > domain * band * 2:
         pytest.skip('Too many cores for this test.')
-
 
     """
     1. Create a calculation with a particular list of extensions.
@@ -130,7 +121,7 @@ def test_extensions(mode, parallel):
                             Spring(a1=0, a2=1, l=2, k=6)],
                 symmetry='off',
                 parallel={'band': band, 'domain': domain},
-                kpts=(2,1,1),
+                kpts=(2, 1, 1),
                 mode=mode)
     atoms.calc = calc
 
@@ -152,23 +143,22 @@ def test_extensions(mode, parallel):
     3. Calculate a reference result without extensions
     """
     calc = GPAW(mode=mode,
-                kpts=(2,1,1),
-                symmetry='off',
-            )
+                kpts=(2, 1, 1),
+                symmetry='off')
     atoms.calc = calc
 
     E0, F0 = atoms.get_potential_energy(), atoms.get_forces()
 
     # Manually evaluate the spring energy, and compare forces
     l = atoms.get_distance(0, 1)
-    assert E == pytest.approx(E0 + 1/2 * 10 * (l - 2)**2)
+    assert E == pytest.approx(E0 + 1 / 2 * 10 * (l - 2)**2)
     assert F[0, 2] == pytest.approx(F0[0, 2] + 10 * (l - 2))
-   
+
     # Evaluate the reference energy and forces also for the moved atoms
     atoms.positions[0, 2] -= 0.1
     movedE0, movedF0 = atoms.get_potential_energy(), atoms.get_forces()
     l = atoms.get_distance(0, 1)
-    assert movedE == pytest.approx(movedE0 + 1/2 * 10 * (l - 2)**2)
+    assert movedE == pytest.approx(movedE0 + 1 / 2 * 10 * (l - 2)**2)
     assert movedF[0, 2] == pytest.approx(movedF0[0, 2] + 10 * (l - 2))
 
     """
@@ -179,9 +169,8 @@ def test_extensions(mode, parallel):
     # without a new calculation
     assert E == pytest.approx(atoms.get_potential_energy())
     assert F == pytest.approx(atoms.get_forces())
- 
+
     # Make sure the recalculated energies are forces are correct
-    atoms.set_positions(atoms.get_positions()+1e-14)
+    atoms.set_positions(atoms.get_positions() + 1e-14)
     assert E == pytest.approx(atoms.get_potential_energy())
     assert F == pytest.approx(atoms.get_forces())
-
