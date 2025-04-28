@@ -1,0 +1,135 @@
+import pytest
+from gpaw.new.input_parameters import register
+from ase.units import Hartree, Bohr
+import numpy as np
+
+class ExtensionParameter:
+    def build(self, atoms):
+        raise NotImplementedError
+
+"""
+class D3Extension:
+    def __init__(self, params, atoms):
+        self.params = params
+        self.atoms = atoms
+
+    def update_forces_postscf(self, F_av):
+        from ase.calculators.dftd3 import PureDFTD3
+        atoms = self.atoms.copy()
+        atoms.calc = PureDFTD3(xc=self.params.xc, **self.params.kwargs)
+        F_av += self.atoms.get_forces()
+
+    def update_energy_postscf(self, energies):
+        from ase.calculators.dftd3 import PureDFTD3
+        atoms = atoms.copy()
+        atoms.calc = PureDFTD3(xc=self.params.xc, **self.params.kwargs)
+        energies['D3'] += atoms.get_potential_energy()
+
+        
+@register
+class D3(ExtensionParameter):
+    def __init__(self, *, xc, **kwargs):
+        self.xc = xc
+        self.kwargs = kwargs
+
+    def build(self, atoms):
+        return D3Extension(self, atoms)
+"""
+
+class Extension:
+    name = 'unnamed extension'
+
+    def __init__(self, atoms, domain_comm):
+        ...
+
+    def get_energy_contribution(self) -> float:
+        raise NotImplementedError
+
+    def force_contribution(self):
+        raise NotImplementedError
+
+    def move_atoms(self, atoms) -> None:
+        raise NotImplementedError
+
+
+"""
+   E = 0.5 * (sqrt( (r_1 - r_2)**2 ) - D)**2
+   
+   A**2, A = sqrt( (r1-r2) . (r1 - r2) ) - D
+
+   dE/dx = A dA/dx
+
+   - (r1 - r2) / sqrt( (r1-r2) . (r1 - r2)
+"""
+
+@register
+class Spring(ExtensionParameter):
+    def __init__(self, *, a1, a2, l, k):
+        self.a1, self.a2, self.l, self.k = a1, a2, l, k
+
+    def build(self, atoms, domain_comm):
+        class EnergyAdder(Extension):
+            name = 'Spring energy'
+            def __init__(self, atoms):
+                self._calculate(atoms)
+
+            def _calculate(_self, atoms):
+                D = atoms.get_distance(self.a1, self.a2) - self.l
+                v = atoms.positions[self.a1] - atoms.positions[self.a2]
+                v /= np.linalg.norm(v)
+                F = self.k * D / Hartree * Bohr
+                print('F', F)
+                _self.E = 1/2 * self.k * D**2 / Hartree
+                _self.F_av = np.zeros((len(atoms), 3))
+                if domain_comm.rank == 0:
+                    _self.F_av[self.a1, :] = v * F
+                    _self.F_av[self.a2, :] = -v * F
+
+            def force_contribution(self):
+                return self.F_av
+
+            def get_energy_contribution(self):
+                return self.E
+
+            def move_atoms(self, atoms):
+                self._calculate(atoms)
+
+        return EnergyAdder(atoms)
+
+    def todict(self):
+        return dict(a1=self.a1, a2=self.a2, l=self.l, k=self.k)
+
+
+@pytest.mark.new
+def test_extensions():
+    from gpaw.new.ase_interface import GPAW
+    from ase.build import molecule
+    atoms = molecule('H2')
+    atoms.center(vacuum=4)
+    calc = GPAW(extensions=[Spring(a1=0, a2=1, l=2, k=10)],
+                symmetry='off',
+                mode={'name': 'pw', 'ecut': 400})
+    atoms.calc = calc
+
+    E, F = atoms.get_potential_energy(), atoms.get_forces()
+    
+    atoms.positions[0, 2] -= 0.1
+    movedE, movedF = atoms.get_potential_energy(), atoms.get_forces()
+
+    atoms.positions[0, 2] += 0.1
+
+    calc = GPAW(mode={'name': 'pw', 'ecut': 400},
+                symmetry='off',
+            )
+    atoms.calc = calc
+
+    E0, F0 = atoms.get_potential_energy(), atoms.get_forces()
+
+    l = atoms.get_distance(0, 1)
+    assert E == pytest.approx(E0 + 1/2 * 10 * (l - 2)**2)
+    assert F[0, 2] == pytest.approx(F0[0, 2] + 10 * (l - 2))
+    
+    atoms.positions[0, 2] -= 0.1
+    movedE0, movedF0 = atoms.get_potential_energy(), atoms.get_forces()
+    l = atoms.get_distance(0, 1)
+    assert movedE == pytest.approx(movedE0 + 1/2 * 10 * (l - 2)**2)

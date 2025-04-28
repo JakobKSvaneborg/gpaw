@@ -197,7 +197,8 @@ class DFTComponentsBuilder:
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
 
     def get_extensions(self):
-        return [fromdict(ext).build(self.atoms) for ext in self.params.extensions]
+        return [fromdict(ext).build(self.atoms, 
+                                    self.communicators['d']) for ext in self.params.extensions]
 
     @cached_property
     def nelectrons(self) -> float:
