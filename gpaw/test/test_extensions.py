@@ -109,9 +109,7 @@ def test_extensions(mode, parallel, in_tmp_dir):
     if world.size > domain * band * 2:
         pytest.skip('Too many cores for this test.')
 
-    """
-    1. Create a calculation with a particular list of extensions.
-    """
+    # 1. Create a calculation with a particular list of extensions.
     def get_atoms():
         from ase.build import molecule
         atoms = molecule('H2')
@@ -123,7 +121,7 @@ def test_extensions(mode, parallel, in_tmp_dir):
 
     def get_calc(atoms):
         # To test multiple extensions, create two sprigs which add
-        # up to k=10, which is what is tested in this test
+        # up to k=ktot, which is what is tested in this test
         calc = GPAW(extensions=[Spring(a1=0, a2=1, l=2, k=4),
                                 Spring(a1=0, a2=1, l=2, k=ktot - 4)],
                     symmetry='off',
@@ -141,18 +139,14 @@ def test_extensions(mode, parallel, in_tmp_dir):
     print('Wrote the potential energy', E)
     calc.write('calc.gpw')
 
-    """
-    2. Test that moving the atoms works after an SFC convergence
-    """
+    # 2. Test that moving the atoms works after an SFC convergence
     atoms.positions[0, 2] -= 0.1
     movedE, movedF = atoms.get_potential_energy(), atoms.get_forces()
 
     # Reset atoms to their original positions
     atoms.positions[0, 2] += 0.1
 
-    """
-    3. Calculate a reference result without extensions
-    """
+    # 3. Calculate a reference result without extensions
     calc = GPAW(mode=mode,
                 kpts=(2, 1, 1),
                 symmetry='off')
@@ -172,9 +166,7 @@ def test_extensions(mode, parallel, in_tmp_dir):
     assert movedE == pytest.approx(movedE0 + 1 / 2 * ktot * (l - 2)**2)
     assert movedF[0, 2] == pytest.approx(movedF0[0, 2] - ktot * (l - 2))
 
-    """
-    4. Test restarting from a file
-    """
+    # 4. Test restarting from a file
     atoms, calc = restart('calc.gpw', Class=GPAW)
     # Make sure the cached energies and forces are correct
     # without a new calculation
@@ -190,9 +182,7 @@ def test_extensions(mode, parallel, in_tmp_dir):
     assert E == pytest.approx(atoms.get_potential_energy(), abs=1e-5)
     assert F == pytest.approx(atoms.get_forces(), abs=1e-5)
 
-    """
-    5. Test full blown relaxation.
-    """
+    # 5. Test full blown relaxation.
     from ase.optimize import BFGS
     atoms = get_atoms()
     calc = get_calc(atoms)
@@ -203,9 +193,7 @@ def test_extensions(mode, parallel, in_tmp_dir):
     Egs = atoms.get_potential_energy()
     L = atoms.get_distance(0, 1)
 
-    """
-    6. Test restarting from a relaxation.
-    """
+    # 6. Test restarting from a relaxation.
     atoms = get_atoms()
     calc = get_calc(atoms)
     relax = BFGS(atoms, restart='relax_restart')
