@@ -168,7 +168,7 @@ def _blend_colors(color, background='w', alpha=1.):
     # Too troublesome to type this and refactor to have `mypy`
     # understand what we're doing, not worth it
     from matplotlib.colors import to_rgb
-    
+
     color = np.array(to_rgb(color))
     background = np.array(to_rgb(color))
     return color * alpha + background * (1 - alpha)
@@ -281,8 +281,6 @@ def get_plot_pot_comps_params_from_setup(
                   'all_electron': all_electron}
     if pseudo is not None:
         components['pseudo'] = pseudo
-    # TODO: use `gpaw.atom.all_electron.calculate_potentials()` to
-    # extract the other components
     return (symbol, xc_name, rgd, _get_setup_cutoff(setup), components)
 
 
