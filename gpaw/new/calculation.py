@@ -276,11 +276,14 @@ class DFTCalculation:
 
         pot_calc = self.pot_calc
         Q_aL = self.density.calculate_compensation_charge_coefficients()
-        Fcc_av, Fnct_av, Ftauct_av, Fvbar_av = pot_calc.force_contributions(
+        Fcc_av, Fnct_av, Ftauct_av, Fvbar_av, Fext_av = pot_calc.force_contributions(
             Q_aL, self.density, self.potential)
 
         # Force from compensation charges:
         F_av += Fcc_av
+        
+        # Force from extensions:
+        F_av += Fext_av
 
         # Force from smooth core charge:
         for a, dF_v in Fnct_av.items():

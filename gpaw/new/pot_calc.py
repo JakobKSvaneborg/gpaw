@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 from typing import DefaultDict
+import functools
+import operator
 
 import numpy as np
 from gpaw.core.arrays import DistributedArrays
@@ -72,6 +74,13 @@ class PotentialCalculator:
     def move(self, relpos_ac, atomdist, *, atoms):
         for ext in self.extensions:
             ext.move_atoms(atoms)
+
+    @property
+    def extensions_force_contributions(self):
+        if not self.extensions:
+            return 0.0
+        return functools.reduce(operator.add, [ext.force_contribution() for ext in self.extensions])
+        
 
     def calculate_charges(self, vHt_x):
         raise NotImplementedError

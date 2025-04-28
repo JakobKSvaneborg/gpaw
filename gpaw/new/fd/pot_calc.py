@@ -168,4 +168,5 @@ class FDPotentialCalculator(PotentialCalculator):
         return (force_av,
                 density.nct_aX.derivative(vt_R),
                 Ftauct_av,
-                self.vbar_ar.derivative(nt_r))
+                self.vbar_ar.derivative(nt_r),
+                self.extensions_force_contributions)
