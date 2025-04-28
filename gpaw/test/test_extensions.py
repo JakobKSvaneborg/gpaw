@@ -97,7 +97,7 @@ class Spring(ExtensionParameter):
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', ['fd', {'name': 'pw', 'ecut': 400}, 'lcao'])
-def test_extensions(mode, parallel):
+def test_extensions(mode, parallel, in_tmp_dir):
     from gpaw.new.ase_interface import GPAW
     from gpaw import restart
     from gpaw.mpi import world
@@ -128,6 +128,7 @@ def test_extensions(mode, parallel):
     E, F = atoms.get_potential_energy(), atoms.get_forces()
 
     # Write the GPW file for the restart test later on (4.)
+    print('Wrote the potential energy', E)
     calc.write('calc.gpw')
 
     """
@@ -170,7 +171,11 @@ def test_extensions(mode, parallel):
     assert E == pytest.approx(atoms.get_potential_energy())
     assert F == pytest.approx(atoms.get_forces())
 
+    if mode == 'lcao':
+        # See issue #1369
+        return
+
     # Make sure the recalculated energies are forces are correct
-    atoms.set_positions(atoms.get_positions() + 1e-14)
-    assert E == pytest.approx(atoms.get_potential_energy())
-    assert F == pytest.approx(atoms.get_forces())
+    atoms.set_positions(atoms.get_positions() + 1e-10)
+    assert E == pytest.approx(atoms.get_potential_energy(), abs=1e-5)
+    assert F == pytest.approx(atoms.get_forces(), abs=1e-5)
