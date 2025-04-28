@@ -101,7 +101,8 @@ class Spring(ExtensionParameter):
 
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)]) 
-def test_extensions(parallel):
+@pytest.mark.parametrize('mode', ['fd', {'name': 'pw', 'ecut': 400}, 'lcao'])
+def test_extensions(mode, parallel):
     from gpaw.new.ase_interface import GPAW
     from gpaw.mpi import world
     domain, band = parallel
@@ -119,7 +120,7 @@ def test_extensions(parallel):
                 symmetry='off',
                 parallel={'band': band, 'domain': domain},
                 kpts=(2,1,1),
-                mode={'name': 'pw', 'ecut': 400})
+                mode=mode)
     atoms.calc = calc
 
     E, F = atoms.get_potential_energy(), atoms.get_forces()
@@ -129,7 +130,7 @@ def test_extensions(parallel):
 
     atoms.positions[0, 2] += 0.1
 
-    calc = GPAW(mode={'name': 'pw', 'ecut': 400},
+    calc = GPAW(mode=mode,
                 kpts=(2,1,1),
                 symmetry='off',
             )
