@@ -100,14 +100,25 @@ class Spring(ExtensionParameter):
         return dict(a1=self.a1, a2=self.a2, l=self.l, k=self.k)
 
 
-@pytest.mark.new
-def test_extensions():
+@pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)]) 
+def test_extensions(parallel):
     from gpaw.new.ase_interface import GPAW
+    from gpaw.mpi import world
+    domain, band = parallel
+    if world.size < domain * band:
+        pytest.skip('Not enough cores for this test.')
+    if world.size > domain * band * 2:
+        pytest.skip('Too many cores for this test.')
+
+
     from ase.build import molecule
     atoms = molecule('H2')
     atoms.center(vacuum=4)
+    atoms.set_pbc((True, True, True))
     calc = GPAW(extensions=[Spring(a1=0, a2=1, l=2, k=10)],
                 symmetry='off',
+                parallel={'band': band, 'domain': domain},
+                kpts=(2,1,1),
                 mode={'name': 'pw', 'ecut': 400})
     atoms.calc = calc
 
@@ -119,6 +130,7 @@ def test_extensions():
     atoms.positions[0, 2] += 0.1
 
     calc = GPAW(mode={'name': 'pw', 'ecut': 400},
+                kpts=(2,1,1),
                 symmetry='off',
             )
     atoms.calc = calc
