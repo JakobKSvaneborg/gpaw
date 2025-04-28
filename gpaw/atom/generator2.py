@@ -802,18 +802,18 @@ class PAWSetupGenerator:
         if potential_components is not None:
             from .plot_dataset import (
                 plot_potential_components,
-                get_pc_params_paw_setup_generator as get_pc_args)
+                get_plot_pot_comps_params_from_generator as get_pc_args)
             plot_potential_components(potential_components, *get_pc_args(self))
         if partial_waves is not None:
             from .plot_dataset import (
                 plot_partial_waves,
-                get_ppw_params_paw_setup_generator as get_ppw_args)
+                get_plot_pwaves_params_from_generator as get_ppw_args)
 
             plot_partial_waves(partial_waves, *get_ppw_args(self))
         if projectors is not None:
             from .plot_dataset import (
                 plot_projectors,
-                get_pp_params_paw_setup_generator as get_pp_args)
+                get_plot_projs_params_from_generator as get_pp_args)
 
             plot_projectors(projectors, *get_pp_args(self))
 

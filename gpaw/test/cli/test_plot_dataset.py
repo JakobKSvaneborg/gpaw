@@ -8,14 +8,6 @@ import pytest
 from gpaw.setup_data import search_for_file
 
 
-@pytest.fixture(autouse=True)
-def use_tmp_path(tmp_path):
-    curdir = os.path.abspath(os.curdir)
-    os.chdir(tmp_path)
-    yield
-    os.chdir(curdir)
-
-
 @pytest.mark.serial
 @pytest.mark.parametrize(
     ('flags', 'basis', 'lookup'),
@@ -25,7 +17,7 @@ def use_tmp_path(tmp_path):
       True, False),  # Also load and plot the basis
      ('-p -l spd,-1:1:.05', True,  # Same as the above, but...
       True)])  # ... also test the dataset file lookup
-def test_gpaw_plot_dataset(flags, basis, lookup):
+def test_gpaw_plot_dataset(flags, basis, lookup, in_tmp_dir):
     """
     Test for `gpaw plot-dataset`.
     """
@@ -60,7 +52,7 @@ def test_gpaw_plot_dataset(flags, basis, lookup):
 @pytest.mark.parametrize(('write', 'basis'),
                          [(False, False),  # Minimal
                           (True, True)])
-def test_gpaw_dataset_plot(write, basis):
+def test_gpaw_dataset_plot(write, basis, in_tmp_dir):
     """
     Test for `gpaw dataset --plot`.
     """

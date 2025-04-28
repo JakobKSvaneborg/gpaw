@@ -6,16 +6,8 @@ import pytest
 from gpaw.setup_data import SetupData, read_maybe_unzipping
 
 
-@pytest.fixture(autouse=True)
-def use_tmp_path(tmp_path):
-    curdir = os.path.abspath(os.curdir)
-    os.chdir(tmp_path)
-    yield
-    os.chdir(curdir)
-
-
 @pytest.mark.serial
-def test_parsing_core_hole_state(tmp_path):
+def test_parsing_core_hole_state(in_tmp_dir):
     """
     Test for parsing a core-hole state from an XML file.
     """

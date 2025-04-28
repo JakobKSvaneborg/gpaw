@@ -90,7 +90,7 @@ def plot_potential_components(ax: 'Axes',
     radial_grid = rgd.r_g
     for color, (key, label) in zip(
             colors,
-            [('xc', 'xc'), ('zero', '0'), ('hamiltonian', 'H'),
+            [('xc', 'xc'), ('zero', '0'), ('hartree', 'H'),
              ('pseudo', 'ps'), ('all_electron', 'ae')]):
         if key in components:
             ax.plot(radial_grid, components[key], color=color, label=label)
@@ -138,7 +138,15 @@ def _get_setup_cutoff(setup: SetupData) -> float:
     return min(radii)
 
 
-def get_ppw_params_paw_setup_generator(
+def _normalize_with_radial_grid(array: typing.Array1D,
+                                rgd: AERadialGridDescriptor) -> typing.Array1D:
+    result = rgd.zeros()
+    result[0] = float('nan')
+    result[1:] = array[1:] / rgd.r_g[1:]
+    return result
+
+
+def get_plot_pwaves_params_from_generator(
     gen: PAWSetupGenerator,
 ) -> tuple[str, str,
            AERadialGridDescriptor, float,
@@ -152,7 +160,7 @@ def get_ppw_params_paw_setup_generator(
                                             waves.phi_ng, waves.phit_ng)))
 
 
-def get_ppw_params_setup_data(
+def get_plot_pwaves_params_from_setup(
     setup: SetupData,
 ) -> tuple[str, str,
            AERadialGridDescriptor, float,
@@ -164,7 +172,7 @@ def get_ppw_params_setup_data(
                 setup.phi_jg, setup.phit_jg))
 
 
-def get_pp_params_paw_setup_generator(
+def get_plot_projs_params_from_generator(
     gen: PAWSetupGenerator,
 ) -> tuple[str, str, AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
     return (*_get_gen_symbol_and_name(gen),
@@ -175,7 +183,7 @@ def get_pp_params_paw_setup_generator(
              for n, e, pt_g in zip(waves.n_n, waves.e_n, waves.pt_ng)))
 
 
-def get_pp_params_setup_data(
+def get_plot_projs_params_from_setup(
     setup: SetupData,
 ) -> tuple[str, str, AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
     return (*_get_setup_symbol_and_name(setup),
@@ -184,35 +192,27 @@ def get_pp_params_setup_data(
             zip(setup.l_j, setup.n_j, setup.eps_j, setup.pt_jg))
 
 
-def get_pc_params_paw_setup_generator(
+def get_plot_pot_comps_params_from_generator(
     gen: PAWSetupGenerator,
 ) -> tuple[str, str, AERadialGridDescriptor, float, dict[str, typing.Array1D]]:
     assert gen.vtr_g is not None  # Appease `mypy`
 
     rgd = gen.rgd
     r_g = rgd.r_g
-    nan = float('nan')
-    zero = rgd.zeros()
-    zero[0] = nan
-    zero[1:] = gen.v0r_g[1:] / r_g[1:]
-    hamiltonian = rgd.zeros()
-    hamiltonian[0] = nan
-    hamiltonian[1:] = gen.vHtr_g[1:] / r_g[1:]
-    pseudo = rgd.zeros()
-    pseudo[0] = nan
-    pseudo[1:] = gen.vtr_g[1:] / r_g[1:]
-    all_electron = rgd.zeros()
-    all_electron[0] = nan
-    all_electron[1:] = gen.aea.vr_sg[0, 1:] / r_g[1:]
+    normalize = functools.partial(_normalize_with_radial_grid, rgd=rgd)
+    zero = normalize(gen.v0r_g)
+    hartree = normalize(gen.vHtr_g)
+    pseudo = normalize(gen.vtr_g)
+    all_electron = normalize(gen.aea.vr_sg[0])
     components = {'xc': gen.vxct_g,
                   'zero': zero,
-                  'hamiltonian': hamiltonian,
+                  'hartree': hartree,
                   'pseudo': pseudo,
                   'all_electron': all_electron}
     return (*_get_gen_symbol_and_name(gen), rgd, gen.rcmax, components)
 
 
-def get_pc_params_setup_data(
+def get_plot_pot_comps_params_from_setup(
     setup: SetupData,
 ) -> tuple[str, str, AERadialGridDescriptor, float, dict[str, typing.Array1D]]:
     prefactor = (4 * pi) ** -.5
@@ -235,9 +235,7 @@ def get_pc_params_setup_data(
     aea.run()
     aea.scalar_relativistic = setup.type == 'scalar-relativistic'
     aea.refine()
-    all_electron = rgd.zeros()
-    all_electron[0] = float('nan')
-    all_electron[1:] = aea.vr_sg[0, 1:] / rgd.r_g[1:]
+    all_electron = _normalize_with_radial_grid(aea.vr_sg[0], rgd)
     # Note: the XC and Hamiltonian parts cannot be extracted from the
     # setup data
     components = {'zero': zero, 'all_electron': all_electron}
@@ -376,16 +374,17 @@ def plot_dataset(
     plots: list[Callable] = []
 
     if gen is None:
-        symbol, name, rgd, cutoff, ppw_iter = get_ppw_params_setup_data(setup)
-        *_, pp_iter = get_pp_params_setup_data(setup)
-        *_, pot_comps = get_pc_params_setup_data(setup)
+        (symbol, name,
+         rgd, cutoff, ppw_iter) = get_plot_pwaves_params_from_setup(setup)
+        *_, pp_iter = get_plot_projs_params_from_setup(setup)
+        *_, pot_comps = get_plot_pot_comps_params_from_setup(setup)
     else:
         # TODO: maybe we can compare the `ppw_iter` and `pp_iter`
         # between the stored and regenerated values for verification
         (symbol, name,
-         rgd, cutoff, ppw_iter) = get_ppw_params_paw_setup_generator(gen)
-        *_, pp_iter = get_pp_params_paw_setup_generator(gen)
-        *_, pot_comps = get_pc_params_paw_setup_generator(gen)
+         rgd, cutoff, ppw_iter) = get_plot_pwaves_params_from_generator(gen)
+        *_, pp_iter = get_plot_projs_params_from_generator(gen)
+        *_, pot_comps = get_plot_pot_comps_params_from_generator(gen)
 
     if plot_logarithmic_derivatives:
         assert gen is not None
