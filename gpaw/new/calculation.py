@@ -167,7 +167,7 @@ class DFTCalculation:
         rank_a = grid.ranks_from_fractional_positions(self.relpos_ac)
         atomdist = AtomDistribution(rank_a, atomdist.comm)
 
-        self.pot_calc.move(self.relpos_ac, atomdist)
+        self.pot_calc.move(self.relpos_ac, atomdist, atoms=atoms)
         self.ibzwfs.move(self.relpos_ac, atomdist)
         self.density.move(self.relpos_ac, atomdist)
         if self.ibzwfs.has_wave_functions():

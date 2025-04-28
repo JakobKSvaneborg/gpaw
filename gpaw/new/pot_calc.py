@@ -69,6 +69,10 @@ class PotentialCalculator:
                                               float]:
         raise NotImplementedError
 
+    def move(self, relpos_ac, atomdist, *, atoms):
+        for ext in self.extensions:
+            ext.move_atoms(atoms)
+
     def calculate_charges(self, vHt_x):
         raise NotImplementedError
 
