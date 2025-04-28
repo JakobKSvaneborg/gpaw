@@ -79,8 +79,8 @@ class PotentialCalculator:
     def extensions_force_contributions(self):
         if not self.extensions:
             return 0.0
-        return functools.reduce(operator.add, [ext.force_contribution() for ext in self.extensions])
-        
+        return functools.reduce(operator.add, [ext.force_contribution()
+                                for ext in self.extensions])
 
     def calculate_charges(self, vHt_x):
         raise NotImplementedError

@@ -40,7 +40,8 @@ class DFTEnergies:
             energies['kinetic'] = self.kinetic
             if 'hybrid_xc' in energies:
                 energies['xc'] += energies['hybrid_xc']
-            self._total_free = sum(energies.get(name, 0.0) for name in energies if name not in OTHERS)
+            self._total_free = sum(energies.get(name, 0.0) for name in energies
+                                   if name not in OTHERS)
         return self._total_free
 
     @property
