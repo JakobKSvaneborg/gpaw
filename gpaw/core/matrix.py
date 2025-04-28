@@ -831,18 +831,14 @@ class BLACSDistribution(MatrixDistribution):
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
-            # XXX: Not 100% sure what the requirements for "ok" are
-            # however, requiring square matrices seems necessary
-            # in the current implementation. Maybe this should be
-            # looked into more. For now, we just use the more general
-            # scalapack function when matrices are not square.
+            # XXX: ...
             ok = a.dist.simple and b.dist.simple and c.dist.simple
             if ok:
                 # Special cases that don't need scalapack - most likely also
                 # faster:
                 if opa == 'N' and opb == 'N':
                     return mmm_nn(a, b, c, alpha, beta, blas.mmm)
-                if opa == 'N' and opb == 'C':
+                elif opa == 'N' and opb == 'C':
                     if symmetric:
                         if beta == 1.0:
                             return mmm_nc_sym(a, b, c, alpha, blas.mmm)
@@ -874,6 +870,7 @@ class BLACSDistribution(MatrixDistribution):
                              beta, c.data,
                              b.dist.desc, a.dist.desc, c.dist.desc,
                              opb, opa)
+        return c
 
 
 def cublas_mmm(alpha, a, opa, b, opb, beta, c):
@@ -986,7 +983,8 @@ def mmm_nn(m1, m2, m3, alpha, beta, mmm):
     buf1 = m2.data
     xp = m1.xp
 
-    N = m1.shape[0]
+    N = m1.shape[1]
+    assert N == m2.shape[0], f'{N}, {m2.shape[0]}'
     n = (N + comm.size - 1) // comm.size
 
     for r in range(comm.size):
