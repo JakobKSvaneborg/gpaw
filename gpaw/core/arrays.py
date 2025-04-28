@@ -73,10 +73,10 @@ class DistributedArrays(Generic[DomainType], XP):
         XP.__init__(self, xp)
         self._matrix: Matrix | None = None
 
-    def new(self, data=None) -> DistributedArrays:
+    def new(self, data=None, dims=None) -> DistributedArrays:
         raise NotImplementedError
 
-    def new_buffer(self, data_buffer: ArrayND):
+    def new_buffer(self, data_buffer: np.ndarray):
         """Create new Distributed array object of same
         kind, to be used as a buffer array when doing
         sliced operations.
