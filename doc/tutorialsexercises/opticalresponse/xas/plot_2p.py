@@ -1,4 +1,4 @@
-# creates xas_h2s_spectrum.png
+# creates: xas_h2s_spectrum.png
 from gpaw.xas import XAS
 from gpaw.utilities.folder import Folder
 
