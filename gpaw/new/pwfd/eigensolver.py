@@ -83,10 +83,17 @@ class PWFDEigensolver(Eigensolver):
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         nbands = ibzwfs.nbands
         dtype_size = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype.itemsize
-        buffer_size = max(min(self.max_buffer_mem,
-                              b * G_max * dtype_size),
-                          G_max * dtype_size,
-                          2 * nbands * dtype_size)
+        domain_size = ibzwfs.domain_comm.size
+        
+        # Buffer size needs to ensure that the number of bands
+        # of the buffer is a multiple of domain_size.
+        buffer_size_per_domain = max(self.max_buffer_mem,
+                                     domain_size * G_max * dtype_size,
+                                     2 * nbands * dtype_size) \
+                                         // (domain_size * G_max * dtype_size)
+        buffer_size = min(buffer_size_per_domain * domain_size * G_max * dtype_size,
+                          b * G_max * dtype_size)
+
         self.data_buffers = ibzwfs.xp.empty(shape + (buffer_size,),
                                             np.byte)
 

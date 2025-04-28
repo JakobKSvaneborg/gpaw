@@ -327,7 +327,8 @@ class PWArray(DistributedArrays[PWDesc]):
                           data=data)
 
     def new(self,
-            data=None) -> PWArray:
+            data=None,
+            dims=None) -> PWArray:
         """Create new PWArray object of same kind.
 
         Parameters
@@ -336,40 +337,19 @@ class PWArray(DistributedArrays[PWDesc]):
             Array to use for storage.
         """
         if data is None:
+            assert dims is None
             data = self.xp.empty_like(self.data)
         else:
-            # Number of plane-waves depends on the k-point.  We therfore
-            # allow for data to be bigger than needed:
-            data = data.ravel()[:self.data.size].reshape(self.data.shape)
+            if dims is None:
+                # Number of plane-waves depends on the k-point.  We therfore
+                # allow for data to be bigger than needed:
+                data = data.ravel()[:self.data.size].reshape(self.data.shape)
+            else:
+                return PWArray(self.desc, dims, self.comm, data)
         return PWArray(self.desc,
                        self.dims,
                        self.comm,
                        data)
-
-    def new_buffer(self,
-                   data_buffer) -> PWArray:
-        """Create new PWArray object of same kind,
-        to be used as a buffer array when doing
-        sliced operations.
-
-        Parameters
-        ----------
-        data_buffer:
-            Array to use for storage.
-        """
-        assert isinstance(data_buffer, self.xp.ndarray)
-        data_buffer = data_buffer.view(self.data.dtype)
-        datasize = data_buffer.size
-        X = self.data.shape[1:]
-        nX = int(np.prod(X))
-        mybands = min(datasize // nX,
-                      self.data.shape[0])
-        data = data_buffer[:mybands * nX].reshape((mybands,) + X)
-        totalbands = self.comm.sum_scalar(mybands)
-        return PWArray(self.desc,
-                       (totalbands,) + X[:-1],
-                       comm=self.comm,
-                       data=data)
 
     def copy(self):
         """Create a copy (surprise!)."""

@@ -76,8 +76,28 @@ class DistributedArrays(Generic[DomainType], XP):
     def new(self, data=None) -> DistributedArrays:
         raise NotImplementedError
 
-    def new_buffer(self, data_buffer):
-        raise NotImplementedError
+    def new_buffer(self, data_buffer: ArrayND):
+        """Create new Distributed array object of same
+        kind, to be used as a buffer array when doing
+        sliced operations.
+
+        Parameters
+        ----------
+        data_buffer:
+            Array to use for storage.
+        """
+        assert isinstance(data_buffer, self.xp.ndarray)
+        data_buffer = data_buffer.view(self.data.dtype)
+        datasize = data_buffer.size
+        X = self.data.shape[1:]
+        nX = int(np.prod(X))
+        mybands = min(datasize // nX,
+                      self.data.shape[0])
+        data = data_buffer[:mybands * nX].reshape(
+            (mybands,) + X)
+        totalbands = self.comm.sum_scalar(mybands)
+        return self.new(data=data,
+                        dims=(totalbands,) + X[:-3])
 
     def copy(self):
         return self.new(data=self.data.copy())

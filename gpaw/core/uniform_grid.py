@@ -321,7 +321,7 @@ class UGArray(DistributedArrays[UGDesc]):
             txt += ', xp=cp'
         return txt + ')'
 
-    def new(self, data=None, zeroed=False):
+    def new(self, data=None, zeroed=False, dims=None):
         """Create new UniforGridFunctions object of same kind.
 
         Parameters
@@ -329,37 +329,15 @@ class UGArray(DistributedArrays[UGDesc]):
         data:
             Array to use for storage.
         """
+        if dims:
+            assert data is not None
+            return UGArray(self.desc, dims, self.comm, data)
         if data is None:
             data = self.xp.empty_like(self.data)
         f_xR = UGArray(self.desc, self.dims, self.comm, data)
         if zeroed:
             f_xR.data[:] = 0.0
         return f_xR
-
-    def new_buffer(self, data_buffer):
-        """Create new PWArray object of same kind,
-        to be used as a buffer array when doing
-        sliced operations.
-
-        Parameters
-        ----------
-        data_buffer:
-            Array to use for storage.
-        """
-        assert isinstance(data_buffer, self.xp.ndarray)
-        data_buffer = data_buffer.view(self.data.dtype)
-        datasize = data_buffer.size
-        X = self.data.shape[1:]
-        nX = int(np.prod(X))
-        mybands = min(datasize // nX,
-                      self.data.shape[0])
-        data = data_buffer[:mybands * nX].reshape(
-            (mybands,) + X)
-        totalbands = self.comm.sum_scalar(mybands)
-        return UGArray(self.desc,
-                       (totalbands,) + X[:-3],
-                       comm=self.comm,
-                       data=data)
 
     def __getitem__(self, index):
         data = self.data[index]
