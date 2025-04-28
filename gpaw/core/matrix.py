@@ -989,7 +989,7 @@ def mmm_nn(m1, m2, m3, alpha, beta, mmm):
 
     for r in range(comm.size):
         if r == 0:
-            # BUFFERRRSSS!??
+            # Buffers...
             buf2 = xp.empty((n, buf1.shape[1]), dtype=buf1.dtype)
 
         rrequest = None
@@ -1007,12 +1007,13 @@ def mmm_nn(m1, m2, m3, alpha, beta, mmm):
         r0 = (comm.rank + r) % comm.size
         n1 = min(r0 * n, N)
         n2 = min(n1 + n, N)
+        # Contiguity...
         mmm(alpha, m1.data[:, n1:n2], 'N', buf1[:n2 - n1], 'N', beta, m3.data)
 
         beta = 1.0
 
         if r == 0:
-            # MORE BUFFERING!?
+            # Buffers...
             buf1 = xp.empty_like(buf2)
 
         buf1, buf2 = buf2, buf1
@@ -1041,7 +1042,7 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
     mym = len(b.data)
     xp = a.xp
 
-    # The buffering never ends
+    # Buffers...
     buf1 = xp.empty((m, N), dtype=a.dtype)
     buf2 = xp.empty((m, N), dtype=a.dtype)
     half = comm.size // 2
@@ -1068,7 +1069,7 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
             m2 = min(m1 + m, M)
             if r == 0:
                 # symmmmmmmmmmmmmmmmmmmmmmetricccccccccccccccc
-                # NOT FREAKING CONTIGUOUS!!!!!! AAARGHHHHHHHHHHHHH
+                # Contiguity...
                 mmm(alpha, aa, 'N', bb, 'C', 1.0, out.data[:, m1:m2])
             else:
                 beta = 1.0 if r <= comm.rank else 0.0
@@ -1125,7 +1126,7 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
     mym = len(b.data)
     xp = a.xp
 
-    # More... buffers...
+    # Nasty buffers
     buf1 = xp.empty((m, N), dtype=a.dtype)
     buf2 = xp.empty((m, N), dtype=a.dtype)
     aa = a.data
@@ -1142,15 +1143,12 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
             m2 = min(m1 + m, M)
             if m2 > m1:
                 rrequest = comm.receive(buf1[:m2 - m1], rrank, 11, False)
-                # XXX: BUFFER OVERFLOW WHEN M < N!!!!
-                # SO WE GET SEGGFAULT
             if mym > 0:
                 srequest = comm.send(b.data, srank, 11, False)
 
         m1 = min(((comm.rank - r) % comm.size) * m, M)
         m2 = min(m1 + m, M)
         # symmmmmmmmmmmmmmmmmmmmmmetricccccccccccccccc ??
-        # CONTIGUITY!?!?!?!??
         mmm(alpha, aa, 'N', bb[:m2 - m1], 'C', beta, out.data[:, m1:m2])
 
         if rrequest:
