@@ -102,7 +102,6 @@ class PWHamiltonian(Hamiltonian):
 def precondition(psit_nG: PWArray,
                  residual_nG: PWArray,
                  out: PWArray,
-                 buffer: PWArray = None,
                  ekin_n=None) -> None:
     """Preconditioner for KS equation.
 
@@ -114,40 +113,21 @@ def precondition(psit_nG: PWArray,
 
       Kresse and Furthmüller, Phys. Rev. B 54, 11169 (1996)
     """
-    if buffer is None:
-        xp = psit_nG.xp
-        G2_G = xp.asarray(psit_nG.desc.ekin_G * 2)
-        if ekin_n is None:
-            ekin_n = psit_nG.norm2('kinetic')
+    xp = psit_nG.xp
+    G2_G = xp.asarray(psit_nG.desc.ekin_G * 2)
+    if ekin_n is None:
+        ekin_n = psit_nG.norm2('kinetic')
 
-        if xp is np:
-            for r_G, o_G, ekin in zips(residual_nG.data,
-                                       out.data,
-                                       ekin_n):
-                pw_precond(G2_G, r_G, ekin, o_G)
-        else:
-            out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
-                                   G2_G[np.newaxis],
-                                   residual_nG.data)
-        return ekin_n
+    if xp is np:
+        for r_G, o_G, ekin in zips(residual_nG.data,
+                                   out.data,
+                                   ekin_n):
+            pw_precond(G2_G, r_G, ekin, o_G)
     else:
-        if ekin_n is None:
-            ekin_n = psit_nG.norm2('kinetic')
-        # Sliced recursive preconditioning
-        buffer_size = buffer.data.shape[0]
-        mybands = psit_nG.data.shape[0]
-        if not mybands == 0:
-            for i_local in range(0, mybands, buffer_size):
-                buffer_view = buffer[:mybands - i_local]
-                ekin_n[i_local:i_local + buffer_size] = \
-                    precondition(
-                        psit_nG[i_local:i_local + buffer_size],
-                        residual_nG[i_local:i_local + buffer_size],
-                        out=buffer_view,
-                        ekin_n=ekin_n[i_local:i_local + buffer_size])
-                out.data[i_local:i_local + buffer_size] \
-                    = buffer_view.data[:]
-        return ekin_n
+        out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
+                               G2_G[np.newaxis],
+                               residual_nG.data)
+    return ekin_n
 
 
 @trace(gpu=True)

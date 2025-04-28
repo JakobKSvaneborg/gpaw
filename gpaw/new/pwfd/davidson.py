@@ -129,8 +129,9 @@ class Davidson(PWFDEigensolver):
                 else:
                     error = (weight_n @ as_np(psit2_nX.norm2())).sum()
 
-            self.preconditioner(psit_nX, psit2_nX, out=psit2_nX,
-                                buffer=me_buffer_mX)
+            sliced_preconditioner(psit_nX, psit2_nX,
+                                  buffer=me_buffer_mX,
+                                  precon=self.preconditioner)
 
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
@@ -207,3 +208,23 @@ class Davidson(PWFDEigensolver):
             psit_nX.sanity_check()
 
         return error
+
+
+def sliced_preconditioner(psit_nX, psit2_nX, buffer, precon, ekin_n=None):
+    if ekin_n is None:
+        ekin_n = psit_nX.norm2('kinetic')
+    # Sliced recursive preconditioning
+    buffer_size = buffer.data.shape[0]
+    mybands = psit_nX.data.shape[0]
+    if not mybands == 0:
+        for i_local in range(0, mybands, buffer_size):
+            buffer_view = buffer[:mybands - i_local]
+            ekin_n[i_local:i_local + buffer_size] = \
+                precon(
+                    psit_nX[i_local:i_local + buffer_size],
+                    psit2_nX[i_local:i_local + buffer_size],
+                    out=buffer_view,
+                    ekin_n=ekin_n[i_local:i_local + buffer_size])
+            psit2_nX.data[i_local:i_local + buffer_size] \
+                = buffer_view.data[:]
+    return ekin_n
