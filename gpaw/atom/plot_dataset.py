@@ -259,8 +259,6 @@ def read_basis_file(basis: str) -> Basis:
         *chunks, end = chunks
     assert end == 'basis'
     name = '.'.join(chunks)
-    if not os.path.isfile(basis):
-        basis, _ = search_for_file(basis)
     return Basis.read_xml(symbol, name, basis)
 
 
@@ -268,13 +266,8 @@ def read_setup_file(dataset: str) -> SetupData:
     symbol, *name, xc = os.path.basename(dataset).split('.')
     if xc == 'gz':
         *name, xc = name
-    if os.path.isfile(dataset):
-        setup = SetupData(symbol, xc, readxml=False)
-        setup.read_xml(read_maybe_unzipping(dataset))
-    else:
-        setup = SetupData.find_and_read_path(symbol, xc,
-                                             '.'.join(name) or 'paw')
-        dataset = setup.filename
+    setup = SetupData(symbol, xc, readxml=False)
+    setup.read_xml(read_maybe_unzipping(dataset))
     if not setup.generatordata:
         generator, = (minidom.parseString(read_maybe_unzipping(dataset))
                       .getElementsByTagName('generator'))
@@ -431,6 +424,10 @@ def plot_dataset(
 def main(args: SimpleNamespace) -> None:
     from matplotlib import pyplot as plt
 
+    if args.search in (True, 'dataset'):
+        args.dataset, _ = search_for_file(args.dataset)
+    if args.search in (True, 'basis') and args.basis_set is not None:
+        args.basis_set, _ = search_for_file(args.basis_set)
     setup = read_setup_file(args.dataset)
     basis = None if args.basis_set is None else read_basis_file(args.basis_set)
     sep_figs = args.outfile is None and args.separate_figures
@@ -472,6 +469,13 @@ class CLICommand:
             help='If not plotting to a file, '
             'plot the plots in separate figure windows/tabs, '
             'instead of as subplots/panels in the same figure')
+        add('-S', '--search',
+            choices=['basis', 'dataset'],
+            const=True,
+            nargs='?',
+            help='Look into the installed datasets (see `gpaw info`) for the '
+            'PAW-dataset and basis-set XML files, instead of treating them as '
+            'paths')
         add('-o', '--outfile', '--write',
             metavar='FILE',
             help='Write the plots to FILE instead of `plt.show()`-ing them')
