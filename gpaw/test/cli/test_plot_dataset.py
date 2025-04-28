@@ -17,33 +17,39 @@ def use_tmp_path(tmp_path):
 
 
 @pytest.mark.serial
-@pytest.mark.parametrize(('flags', 'basis'),
-                         [('', False),  # Minimal plot
-                          ('-s', False),  # --separate-figures (ignored)
-                          ('-p -l spd,-1:1:.05',  # Reconstruct gen
-                           True)])  # Also load and plot the basis
-def test_gpaw_plot_dataset(flags, basis):
+@pytest.mark.parametrize(
+    ('flags', 'basis', 'lookup'),
+    [('', False, False),  # Minimal plot
+     ('-s', False, False),  # --separate-figures (ignored)
+     ('-p -l spd,-1:1:.05',  # Reconstruct gen
+      True, False),  # Also load and plot the basis
+     ('-p -l spd,-1:1:.05', True,  # Same as the above, but...
+      True)])  # ... also test the dataset file lookup
+def test_gpaw_plot_dataset(flags, basis, lookup):
     """
     Test for `gpaw plot-dataset`.
     """
     old_files = set(os.listdir(os.curdir))
-    _, content = search_for_file('Ti.LDA')
-    setup_file = 'Ti.LDA'
-    with open(setup_file, mode='wb') as fobj:
-        # Note: we can't directly use the file pointed to by
-        # `search_for_file()` because it may be zipped
-        fobj.write(content)
     outfile = 'output.png'
-    expected_files = {outfile, setup_file}
+    expected_files = {outfile}
+    setup_file = 'Ti.LDA'
+    if not lookup:
+        _, content = search_for_file('Ti.LDA')
+        with open(setup_file, mode='wb') as fobj:
+            # Note: we can't directly use the file pointed to by
+            # `search_for_file()` because it may be zipped
+            fobj.write(content)
+        expected_files.add(setup_file)
     argv = [sys.executable, '-m', 'gpaw', '-T', 'plot-dataset',
             f'--write={outfile}', *shlex.split(flags), setup_file]
     if basis:
-        _, content = search_for_file('Ti.dzp.basis')
-        basis_file = 'T.dzp.basis'
-        with open(basis_file, mode='wb') as fobj:
-            fobj.write(content)
+        basis_file = 'Ti.dzp.basis'
+        if not lookup:
+            _, content = search_for_file('Ti.dzp.basis')
+            with open(basis_file, mode='wb') as fobj:
+                fobj.write(content)
+            expected_files.add(basis_file)
         argv.insert(-1, '-b' + basis_file)
-        expected_files.add(basis_file)
     subprocess.check_call(argv)
     new_files = set(os.listdir(os.curdir))
     assert new_files == old_files | expected_files
