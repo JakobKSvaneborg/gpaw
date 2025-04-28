@@ -137,7 +137,7 @@ def test_extensions(mode, parallel):
     E, F = atoms.get_potential_energy(), atoms.get_forces()
 
     # Write the GPW file for the restart test later on (4.)
-    atoms.write('calc.gpw')
+    calc.write('calc.gpw')
 
     """
     2. Test that moving the atoms works after an SFC convergence
@@ -174,14 +174,14 @@ def test_extensions(mode, parallel):
     """
     4. Test restarting from a file
     """
-    calc, atoms = restart('calc.gpw', class=GPAW)
+    atoms, calc = restart('calc.gpw', Class=GPAW)
     # Make sure the cached energies and forces are correct
     # without a new calculation
     assert E == pytest.approx(atoms.get_potential_energy())
     assert F == pytest.approx(atoms.get_forces())
  
     # Make sure the recalculated energies are forces are correct
-    calc.scf.reset()
+    atoms.set_positions(atoms.get_positions()+1e-14)
     assert E == pytest.approx(atoms.get_potential_energy())
     assert F == pytest.approx(atoms.get_forces())
 
