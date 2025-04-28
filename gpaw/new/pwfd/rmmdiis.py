@@ -4,7 +4,6 @@ import warnings
 from pprint import pformat
 
 import numpy as np
-from gpaw.core import PWDesc
 from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
@@ -18,7 +17,6 @@ class RMMDIIS(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 blocksize=None,
                  niter: int = 1,
                  trial_step: float | None = None,
                  scalapack_parameters=None,
@@ -41,14 +39,7 @@ class RMMDIIS(PWFDEigensolver):
 
         if niter != 1:
             warnings.warn(f'Ignoring niter={niter} in RMMDIIS')
-        if blocksize is None:
-            if isinstance(wf_grid, PWDesc):
-                S = wf_grid.comm.size
-                # Use a multiple of S for maximum efficiency
-                blocksize = int(np.ceil(10 / S)) * S
-            else:
-                blocksize = 10
-        super().__init__(hamiltonian, converge_bands, blocksize,
+        super().__init__(hamiltonian, converge_bands,
                          max_buffer_mem=max_buffer_mem)
         self.trial_step = trial_step
 
