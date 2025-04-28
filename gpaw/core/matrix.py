@@ -801,7 +801,7 @@ class BLACSDistribution(MatrixDistribution):
                 # faster:
                 if opa == 'N' and opb == 'N':
                     return mmm_nn(a, b, c, alpha, beta, blas.mmm)
-                elif opa == 'N' and opb == 'C':
+                if opa == 'N' and opb == 'C':
                     if symmetric:
                         if beta == 1.0:
                             return mmm_nc_sym(a, b, c, alpha, blas.mmm)
