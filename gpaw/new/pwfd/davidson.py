@@ -210,21 +210,16 @@ class Davidson(PWFDEigensolver):
         return error
 
 
-def sliced_preconditioner(psit_nX, psit2_nX, buffer, precon, ekin_n=None):
-    if ekin_n is None:
-        ekin_n = psit_nX.norm2('kinetic')
+def sliced_preconditioner(psit_nX, psit2_nX, buffer, precon):
     # Sliced recursive preconditioning
     buffer_size = buffer.data.shape[0]
     mybands = psit_nX.data.shape[0]
     if not mybands == 0:
         for i_local in range(0, mybands, buffer_size):
             buffer_view = buffer[:mybands - i_local]
-            ekin_n[i_local:i_local + buffer_size] = \
-                precon(
-                    psit_nX[i_local:i_local + buffer_size],
-                    psit2_nX[i_local:i_local + buffer_size],
-                    out=buffer_view,
-                    ekin_n=ekin_n[i_local:i_local + buffer_size])
+            precon(
+                psit_nX[i_local:i_local + buffer_size],
+                psit2_nX[i_local:i_local + buffer_size],
+                out=buffer_view)
             psit2_nX.data[i_local:i_local + buffer_size] \
                 = buffer_view.data[:]
-    return ekin_n
