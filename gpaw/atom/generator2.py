@@ -792,25 +792,6 @@ class PAWSetupGenerator:
         if show:
             plt.show()
 
-    def plot_potential_components(self, ax: 'plt.Axes') -> None:
-        r_g = self.rgd.r_g
-        assert self.vtr_g is not None  # Appease `mypy`
-
-        ax.plot(r_g, self.vxct_g, label='xc')
-        ax.plot(r_g[1:], self.v0r_g[1:] / r_g[1:], label='0')
-        ax.plot(r_g[1:], self.vHtr_g[1:] / r_g[1:], label='H')
-        ax.plot(r_g[1:], self.vtr_g[1:] / r_g[1:], label='ps')
-        ax.plot(r_g[1:], self.aea.vr_sg[0, 1:] / r_g[1:], label='ae')
-        ax.axis(xmin=0,
-                xmax=2 * self.rcmax,
-                ymin=self.vtr_g[1] / r_g[1],
-                ymax=max(0, (self.v0r_g[1:] / r_g[1:]).max()))
-        aea = self.aea
-        ax.set_title(f'Potential components: {aea.symbol} {aea.xc.name}')
-        ax.set_xlabel('radius [Bohr]')
-        ax.set_ylabel('potential [Ha]')
-        ax.legend()
-
     def plot(
         self,
         *,
@@ -819,7 +800,10 @@ class PAWSetupGenerator:
         projectors: 'plt.Axes' | None = None,
     ) -> None:
         if potential_components is not None:
-            self.plot_potential_components(potential_components)
+            from .plot_dataset import (
+                plot_potential_components,
+                get_pc_params_paw_setup_generator as get_pc_args)
+            plot_potential_components(potential_components, *get_pc_args(self))
         if partial_waves is not None:
             from .plot_dataset import (
                 plot_partial_waves,

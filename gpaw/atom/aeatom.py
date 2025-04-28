@@ -1,5 +1,6 @@
 import copy
 import sys
+from itertools import cycle
 from math import pi
 
 import numpy as np
@@ -21,7 +22,20 @@ from gpaw.atom.radialgd import (AERadialGridDescriptor,
 c = 2 * units._hplanck / (units._mu0 * units._c * units._e**2)
 
 # Colors for s, p, d, f, g:
-colors = 'krgbycmkrgbycmmmm'
+
+
+class _Colors:
+    def __init__(self, items):
+        self.items = items
+
+    def __getitem__(self, i):
+        return self.items[i % len(self.items)]
+
+    def __iter__(self):
+        yield from cycle(self.items)
+
+
+colors = _Colors('krgbycm')
 
 
 class GaussianBasis:
