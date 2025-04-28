@@ -107,6 +107,7 @@ class Spring(ExtensionParameter):
 @pytest.mark.parametrize('mode', ['fd', {'name': 'pw', 'ecut': 400}, 'lcao'])
 def test_extensions(mode, parallel):
     from gpaw.new.ase_interface import GPAW
+    from gpaw import restart
     from gpaw.mpi import world
     domain, band = parallel
     if world.size < domain * band:
@@ -116,7 +117,7 @@ def test_extensions(mode, parallel):
 
 
     """
-    Create a calculation with a particular extension.
+    1. Create a calculation with a particular list of extensions.
     """
     from ase.build import molecule
     atoms = molecule('H2')
@@ -134,12 +135,22 @@ def test_extensions(mode, parallel):
     atoms.calc = calc
 
     E, F = atoms.get_potential_energy(), atoms.get_forces()
-    
+
+    # Write the GPW file for the restart test later on (4.)
+    atoms.write('calc.gpw')
+
+    """
+    2. Test that moving the atoms works after an SFC convergence
+    """
     atoms.positions[0, 2] -= 0.1
     movedE, movedF = atoms.get_potential_energy(), atoms.get_forces()
 
+    # Reset atoms to their original positions
     atoms.positions[0, 2] += 0.1
 
+    """
+    3. Calculate a reference result without extensions
+    """
     calc = GPAW(mode=mode,
                 kpts=(2,1,1),
                 symmetry='off',
@@ -148,11 +159,29 @@ def test_extensions(mode, parallel):
 
     E0, F0 = atoms.get_potential_energy(), atoms.get_forces()
 
+    # Manually evaluate the spring energy, and compare forces
     l = atoms.get_distance(0, 1)
     assert E == pytest.approx(E0 + 1/2 * 10 * (l - 2)**2)
     assert F[0, 2] == pytest.approx(F0[0, 2] + 10 * (l - 2))
-    
+   
+    # Evaluate the reference energy and forces also for the moved atoms
     atoms.positions[0, 2] -= 0.1
     movedE0, movedF0 = atoms.get_potential_energy(), atoms.get_forces()
     l = atoms.get_distance(0, 1)
     assert movedE == pytest.approx(movedE0 + 1/2 * 10 * (l - 2)**2)
+    assert movedF[0, 2] == pytest.approx(movedF0[0, 2] + 10 * (l - 2))
+
+    """
+    4. Test restarting from a file
+    """
+    calc, atoms = restart('calc.gpw', class=GPAW)
+    # Make sure the cached energies and forces are correct
+    # without a new calculation
+    assert E == pytest.approx(atoms.get_potential_energy())
+    assert F == pytest.approx(atoms.get_forces())
+ 
+    # Make sure the recalculated energies are forces are correct
+    calc.scf.reset()
+    assert E == pytest.approx(atoms.get_potential_energy())
+    assert F == pytest.approx(atoms.get_forces())
+
