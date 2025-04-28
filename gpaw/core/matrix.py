@@ -144,43 +144,6 @@ class Matrix(XP):
         M.data[:] = self.data
         return M
 
-    def __getitem__(self, index: tuple) -> Matrix:
-        # Indexing Matrix will, for simplicity, kill
-        # the BLACS distribution along indexed axes.
-
-        assert len(index) == 2
-
-        # ROWS:
-        r, c, b = self.dist.rows, self.dist.columns, self.dist.blocksize
-        M, N = self.shape
-        data = self.data[index]
-        if isinstance(index[0], slice):
-            if index[0].stop is None and index[0].start is None:
-                m = M
-            else:
-                r = 1
-                m = data.shape[0]
-        else:
-            raise ValueError(index)
-
-        # COLUMNS:
-        if isinstance(index[1], slice):
-            if index[1].stop is None and index[1].start is None:
-                n = N
-            else:
-                c = 1
-                n = data.shape[1]
-        else:
-            raise ValueError(index)
-
-        dist = (self.dist.comm, r, c, b)
-        return Matrix(M=m,
-                      N=n,
-                      dtype=self.dtype,
-                      data=data,
-                      dist=dist,
-                      xp=self.xp)
-
     def __setitem__(self, item, value):
         assert item == slice(None)
         assert isinstance(value, Matrix)
