@@ -5,16 +5,19 @@ import textwrap
 import os
 from ast import literal_eval
 from collections.abc import Callable, Iterable
-from math import pi
 from types import SimpleNamespace
 from typing import Any, TYPE_CHECKING
 from xml.dom import minidom
 from warnings import warn
 
+import numpy as np
+
 from .. import typing
 from ..basis_data import Basis, BasisPlotter
 from ..setup_data import SetupData, read_maybe_unzipping, search_for_file
+# from ..xc import XC
 from .aeatom import AllElectronAtom, colors
+# from .all_electron import calculate_density, calculate_potentials
 from .generator2 import (PAWSetupGenerator, parameters,
                          generate, plot_log_derivs)
 from .radialgd import AERadialGridDescriptor
@@ -43,16 +46,21 @@ def plot_partial_waves(ax: 'Axes',
                        cutoff: float,
                        iterator: Iterable[_PartialWaveItem]) -> None:
     r_g = rgd.r_g
-    for l, n, rcut, e, phi_g, phit_g in sorted(iterator):
-        if n == -1:
-            gc = rgd.ceil(rcut)
-            label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
-        else:
-            gc = len(rgd)
-            label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-        color = colors[l]
-        ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=color, label=label)
-        ax.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=color)
+    group_by_l: dict[int, list[_PartialWaveItem]] = {}
+    for item in sorted(iterator):
+        group_by_l.setdefault(item[0], []).append(item)
+    for l, items in group_by_l.items():
+        alphas = _get_alphas(len(items))
+        for alpha, (_, n, rcut, e, phi_g, phit_g) in zip(alphas, items):
+            if n == -1:
+                gc = rgd.ceil(rcut)
+                label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
+            else:
+                gc = len(rgd)
+                label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
+            color = _blend_colors(colors[l], alpha=alpha)
+            ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=color, label=label)
+            ax.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=color)
     ax.axis(xmin=0, xmax=3 * cutoff)
     ax.set_title(f'Partial waves: {symbol} {name}')
     ax.set_xlabel('radius [Bohr]')
@@ -67,12 +75,18 @@ def plot_projectors(ax: 'Axes',
                     cutoff: float,
                     iterator: Iterable[_ProjectorItem]) -> None:
     r_g = rgd.r_g
-    for l, n, e, pt_g in sorted(iterator):
-        if n == -1:
-            label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
-        else:
-            label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-        ax.plot(r_g, pt_g * r_g, color=colors[l], label=label)
+    group_by_l: dict[int, list[_ProjectorItem]] = {}
+    for item in sorted(iterator):
+        group_by_l.setdefault(item[0], []).append(item)
+    for l, items in group_by_l.items():
+        alphas = _get_alphas(len(items))
+        for alpha, (_, n, e, pt_g) in zip(alphas, items):
+            if n == -1:
+                label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
+            else:
+                label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
+            ax.plot(r_g, pt_g * r_g,
+                    color=_blend_colors(colors[l], alpha=alpha), label=label)
     ax.axis(xmin=0, xmax=cutoff)
     ax.set_title(f'Projectors: {symbol} {name}')
     ax.set_xlabel('radius [Bohr]')
@@ -94,12 +108,12 @@ def plot_potential_components(ax: 'Axes',
              ('pseudo', 'ps'), ('all_electron', 'ae')]):
         if key in components:
             ax.plot(radial_grid, components[key], color=color, label=label)
-    arrays = components.values()
+    arrays = [array for key, array in components.items()
+              if key != 'all_electron']
     ax.axis(xmin=0,
             xmax=2 * cutoff,
             ymin=min(array[1:].min() for array in arrays),
             ymax=max(0, *(array[1:].max() for array in arrays)))
-    ax.set_yscale('symlog')
     ax.set_title(f'Potential components: {symbol} {name}')
     ax.set_xlabel('radius [Bohr]')
     ax.set_ylabel('potential [Ha]')
@@ -141,9 +155,23 @@ def _get_setup_cutoff(setup: SetupData) -> float:
 def _normalize_with_radial_grid(array: typing.Array1D,
                                 rgd: AERadialGridDescriptor) -> typing.Array1D:
     result = rgd.zeros()
-    result[0] = float('nan')
+    result[0] = np.nan
     result[1:] = array[1:] / rgd.r_g[1:]
     return result
+
+
+def _get_alphas(n: int, attenuation: float = .5) -> typing.Array1D:
+    return (1 - attenuation) ** np.arange(n)
+
+
+def _blend_colors(color, background='w', alpha=1.):
+    # Too troublesome to type this and refactor to have `mypy`
+    # understand what we're doing, not worth it
+    from matplotlib.colors import to_rgb
+    
+    color = np.array(to_rgb(color))
+    background = np.array(to_rgb(color))
+    return color * alpha + background * (1 - alpha)
 
 
 def get_plot_pwaves_params_from_generator(
@@ -198,7 +226,6 @@ def get_plot_pot_comps_params_from_generator(
     assert gen.vtr_g is not None  # Appease `mypy`
 
     rgd = gen.rgd
-    r_g = rgd.r_g
     normalize = functools.partial(_normalize_with_radial_grid, rgd=rgd)
     zero = normalize(gen.v0r_g)
     hartree = normalize(gen.vHtr_g)
@@ -215,7 +242,7 @@ def get_plot_pot_comps_params_from_generator(
 def get_plot_pot_comps_params_from_setup(
     setup: SetupData,
 ) -> tuple[str, str, AERadialGridDescriptor, float, dict[str, typing.Array1D]]:
-    prefactor = (4 * pi) ** -.5
+    prefactor = (4 * np.pi) ** -.5
     zero = setup.vbar_g * prefactor
     if setup.vt_g is None:
         pseudo = None
@@ -223,6 +250,18 @@ def get_plot_pot_comps_params_from_setup(
         pseudo = setup.vt_g * prefactor
     symbol, xc_name = _get_setup_symbol_and_name(setup)
     rgd = setup.rgd
+    normalize = functools.partial(_normalize_with_radial_grid, rgd=rgd)
+
+    # FIXME: inconsistent with the `PAWSetupGenerator` results
+    # # Re-calculate the XC and Hartree parts
+    # n_g = calculate_density(setup.f_j,
+    #                         setup.phi_jg * rgd.r_g[None, :],
+    #                         rgd.r_g)
+    # n_g += setup.nc_g * prefactor
+    # _, vHr_g, xc, _ = calculate_potentials(rgd, XC(xc_name), n_g,
+    #                                        setup.Z)
+    # hartree = normalize(vHr_g)
+
     # Reconstruct the AEA object
     # (Note: this misses the empty bound states from projectors)
     aea = AllElectronAtom(symbol, xc_name,
@@ -235,12 +274,15 @@ def get_plot_pot_comps_params_from_setup(
     aea.run()
     aea.scalar_relativistic = setup.type == 'scalar-relativistic'
     aea.refine()
-    all_electron = _normalize_with_radial_grid(aea.vr_sg[0], rgd)
-    # Note: the XC and Hamiltonian parts cannot be extracted from the
-    # setup data
-    components = {'zero': zero, 'all_electron': all_electron}
+    all_electron = normalize(aea.vr_sg[0])
+    components = {'zero': zero,
+                  # FIXME: see above
+                  # 'xc': xc, 'hartree': hartree,
+                  'all_electron': all_electron}
     if pseudo is not None:
         components['pseudo'] = pseudo
+    # TODO: use `gpaw.atom.all_electron.calculate_potentials()` to
+    # extract the other components
     return (symbol, xc_name, rgd, _get_setup_cutoff(setup), components)
 
 
