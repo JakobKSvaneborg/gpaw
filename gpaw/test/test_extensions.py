@@ -69,7 +69,10 @@ class Spring(ExtensionParameter):
 
     def build(self, atoms, domain_comm):
         class EnergyAdder(Extension):
-            name = 'Spring energy'
+
+            @property
+            def name(_self):
+                return f'Spring k={self.k}'
             def __init__(self, atoms):
                 self._calculate(atoms)
 
@@ -112,11 +115,18 @@ def test_extensions(mode, parallel):
         pytest.skip('Too many cores for this test.')
 
 
+    """
+    Create a calculation with a particular extension.
+    """
     from ase.build import molecule
     atoms = molecule('H2')
     atoms.center(vacuum=4)
     atoms.set_pbc((True, True, True))
-    calc = GPAW(extensions=[Spring(a1=0, a2=1, l=2, k=10)],
+
+    # To test multiple extensions, create two sprigs which add
+    # up to k=10, which is what is tested in this test
+    calc = GPAW(extensions=[Spring(a1=0, a2=1, l=2, k=4),
+                            Spring(a1=0, a2=1, l=2, k=6)],
                 symmetry='off',
                 parallel={'band': band, 'domain': domain},
                 kpts=(2,1,1),
