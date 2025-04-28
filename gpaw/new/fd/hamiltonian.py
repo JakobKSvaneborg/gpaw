@@ -51,9 +51,21 @@ class FDHamiltonian(Hamiltonian):
         from gpaw.preconditioner import Preconditioner as PC
         pc = PC(self._gd, self.kin, self.grid.dtype, blocksize, xp=xp)
 
-        def apply(psit, residuals, out, ekin_n=None):
-            kpt = SimpleNamespace(phase_cd=psit.desc.phase_factor_cd)
-            pc(residuals.data, kpt, out=out.data)
+        def apply(psit, residuals, out, buffer=None, ekin_n=None):
+            if buffer is None:
+                kpt = SimpleNamespace(phase_cd=psit.desc.phase_factor_cd)
+                pc(residuals.data, kpt, out=out.data)
+            else:
+                # Sliced recursive preconditioning
+                buffer_size = buffer.data.shape[0]
+                mybands = psit_nG.data.shape[0]
+                if not mybands == 0:
+                    for i_local in range(0, mybands, buffer_size):
+                        buffer_view = me_buffer_mX[:mybands - i_local]
+                        kpt = SimpleNamespace(phase_cd=psit.desc.phase_factor_cd)
+                        pc(residuals.data, kpt, out=buffer_view.data)
+                        out.data[i_local:i_local + buffer_size] \
+                            = buffer_view.data[:]
 
         return apply
 
