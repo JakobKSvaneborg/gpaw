@@ -77,8 +77,8 @@ class Spring(ExtensionParameter):
                 _self.E = 1 / 2 * self.k * D**2 / Hartree
                 _self.F_av = np.zeros((len(atoms), 3))
                 if domain_comm.rank == 0:
-                    _self.F_av[self.a1, :] = v * F
-                    _self.F_av[self.a2, :] = -v * F
+                    _self.F_av[self.a1, :] = -v * F
+                    _self.F_av[self.a2, :] = v * F
 
             def force_contribution(self):
                 return self.F_av
@@ -96,8 +96,10 @@ class Spring(ExtensionParameter):
 
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
-@pytest.mark.parametrize('mode', ['fd', {'name': 'pw', 'ecut': 400}, 'lcao'])
+@pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 400}, 'fd', 'lcao'])
 def test_extensions(mode, parallel, in_tmp_dir):
+    ktot = 20
+
     from gpaw.new.ase_interface import GPAW
     from gpaw import restart
     from gpaw.mpi import world
@@ -110,20 +112,28 @@ def test_extensions(mode, parallel, in_tmp_dir):
     """
     1. Create a calculation with a particular list of extensions.
     """
-    from ase.build import molecule
-    atoms = molecule('H2')
-    atoms.center(vacuum=4)
-    atoms.set_pbc((True, True, True))
+    def get_atoms():
+        from ase.build import molecule
+        atoms = molecule('H2')
+        atoms.center(vacuum=4)
+        atoms.set_pbc((True, True, True))
+        return atoms
 
-    # To test multiple extensions, create two sprigs which add
-    # up to k=10, which is what is tested in this test
-    calc = GPAW(extensions=[Spring(a1=0, a2=1, l=2, k=4),
-                            Spring(a1=0, a2=1, l=2, k=6)],
-                symmetry='off',
-                parallel={'band': band, 'domain': domain},
-                kpts=(2, 1, 1),
-                mode=mode)
-    atoms.calc = calc
+    atoms = get_atoms()
+
+    def get_calc(atoms):
+        # To test multiple extensions, create two sprigs which add
+        # up to k=10, which is what is tested in this test
+        calc = GPAW(extensions=[Spring(a1=0, a2=1, l=2, k=4),
+                                Spring(a1=0, a2=1, l=2, k=ktot - 4)],
+                    symmetry='off',
+                    parallel={'band': band, 'domain': domain},
+                    kpts=(2, 1, 1),
+                    mode=mode)
+        atoms.calc = calc
+        return calc
+
+    calc = get_calc(atoms)
 
     E, F = atoms.get_potential_energy(), atoms.get_forces()
 
@@ -152,15 +162,15 @@ def test_extensions(mode, parallel, in_tmp_dir):
 
     # Manually evaluate the spring energy, and compare forces
     l = atoms.get_distance(0, 1)
-    assert E == pytest.approx(E0 + 1 / 2 * 10 * (l - 2)**2)
-    assert F[0, 2] == pytest.approx(F0[0, 2] + 10 * (l - 2))
+    assert E == pytest.approx(E0 + 1 / 2 * ktot * (l - 2)**2)
+    assert F[0, 2] == pytest.approx(F0[0, 2] - ktot * (l - 2))
 
     # Evaluate the reference energy and forces also for the moved atoms
     atoms.positions[0, 2] -= 0.1
     movedE0, movedF0 = atoms.get_potential_energy(), atoms.get_forces()
     l = atoms.get_distance(0, 1)
-    assert movedE == pytest.approx(movedE0 + 1 / 2 * 10 * (l - 2)**2)
-    assert movedF[0, 2] == pytest.approx(movedF0[0, 2] + 10 * (l - 2))
+    assert movedE == pytest.approx(movedE0 + 1 / 2 * ktot * (l - 2)**2)
+    assert movedF[0, 2] == pytest.approx(movedF0[0, 2] - ktot * (l - 2))
 
     """
     4. Test restarting from a file
@@ -179,3 +189,37 @@ def test_extensions(mode, parallel, in_tmp_dir):
     atoms.set_positions(atoms.get_positions() + 1e-10)
     assert E == pytest.approx(atoms.get_potential_energy(), abs=1e-5)
     assert F == pytest.approx(atoms.get_forces(), abs=1e-5)
+
+    """
+    5. Test full blown relaxation.
+    """
+    from ase.optimize import BFGS
+    atoms = get_atoms()
+    calc = get_calc(atoms)
+    relax = BFGS(atoms)
+    relax.run()
+    nsteps = relax.nsteps
+    assert atoms.get_distance(0, 1) == pytest.approx(1.8483, abs=1e-2)
+    Egs = atoms.get_potential_energy()
+    L = atoms.get_distance(0, 1)
+
+    """
+    6. Test restarting from a relaxation.
+    """
+    atoms = get_atoms()
+    calc = get_calc(atoms)
+    relax = BFGS(atoms, restart='relax_restart')
+    for _, _ in zip(relax.irun(), range(3)):
+        pass
+    calc.write('restart_relax.gpw')
+    atoms, calc = restart('restart_relax.gpw', Class=GPAW)
+    relax = BFGS(atoms, restart='relax_restart')
+    relax.run()
+
+    assert relax.nsteps + 3 == nsteps
+    assert atoms.get_distance(0, 1) == pytest.approx(L, abs=1e-2)
+    assert atoms.get_potential_energy() == pytest.approx(Egs, abs=1e-4)
+    
+    
+
+
