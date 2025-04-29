@@ -53,7 +53,7 @@ class DFTEnergies:
         return f'DFTEnergies({s})'
 
     def summary(self, log) -> None:
-        for name in self._energies:
+        for name in NAMES:
             if name in OTHERS:
                 continue
             e = self._energies.get(name)
@@ -62,6 +62,11 @@ class DFTEnergies:
                     continue
                 e = self.kinetic
             log(f'{name + ":":10}   {e * Ha:14.6f}')
+        extensions = [(name, self._energies.get(name)) for name in self._energies if name not in OTHERS and name not in NAMES]
+        if extensions:
+            log('--------extensions:---------')
+            for name, e in extensions:
+                log(f'{name + ":":12} {e * Ha:14.6f}')
         log('----------------------------')
         log(f'Free energy: {self.total_free * Ha:14.6f}')
         log(f'Extrapolated:{self.total_extrapolated * Ha:14.6f}\n')
