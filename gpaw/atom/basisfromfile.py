@@ -2,20 +2,15 @@ from __future__ import annotations
 
 from argparse import Namespace
 from collections.abc import Callable, Sequence
+from operator import methodcaller
+from os import PathLike
+from pathlib import Path
+from typing import NamedTuple
 
-from ..basis_data import Basis
+from ..basis_data import Basis, parse_basis_name
 from ..setup_data import SetupData
+from ..typing import Self
 from .basis import BasisMaker
-from .gpaw_basis import (
-    add_arguments as _add_args, get_basis_maker_caller, read_setupdata)
-
-
-def add_arguments(parser) -> None:
-    add = parser.add_argument
-    add('file', metavar='<filename>', nargs='+', help='setup data file')
-    add('--name',
-        metavar='<name>', help='basis name to be included in output filename')
-    _add_args(add)
 
 
 def generate_basis(setupdata: SetupData,
@@ -36,6 +31,91 @@ def generate_basis(setupdata: SetupData,
         basis.write_to(fd)
 
 
+class BasisInfo(NamedTuple):
+    zetacount: int
+    polcount: int
+    name: str | None = None
+
+    @classmethod
+    def from_name(cls, name: str) -> Self:
+        zc, pc = parse_basis_name(name)
+        return cls(zc, pc, name)
+
+
+def parse_j_values(j: str) -> list[int]:
+    return [int(value) for value in j.split(',')]
+
+
+def parse_tail_norm(tail: str) -> list[float]:
+    return [float(value) for value in tail.split(',')]
+
+
+def add_common_args(add: Callable) -> None:
+    add('-t', '--type',
+        default='dzp', metavar='<type>', type=BasisInfo.from_name,
+        help='type of basis.  For example: sz, dzp, qztp, '
+        '4z3p.  [default: %(default)s]')
+    add('-E', '--energy-shift',
+        default=.1, metavar='<energy>', type=float,
+        help='use given energy shift to determine cutoff')
+    add('-T', '--tail-norm',
+        default=[0.16, 0.3, 0.6], dest='tailnorm',
+        metavar='<norm>[,<norm>[,...]]', type=parse_tail_norm,
+        help='use the given fractions to define the split'
+        '-valence cutoffs.  Default: [%(default)s]')
+    add('--rcut-max',
+        default=16., metavar='<rcut>', type=float,
+        help='max cutoff for confined atomic orbitals.  '
+        'This option has no effect on orbitals with smaller cutoff '
+        '[default/Bohr: %(default)s]')
+    add('--rcut-pol-rel', default=1.0, metavar='<rcut>', type=float,
+        help='polarization function cutoff relative to largest '
+        'single-zeta cutoff [default: %(default)s]')
+    add('--rchar-pol-rel', metavar='<rchar>', type=float,
+        help='characteristic radius of Gaussian when not using interpolation '
+        'scheme, relative to rcut')
+    add('--vconf-amplitude', default=12., metavar='<alpha>', type=float,
+        help='set proportionality constant of smooth '
+        'confinement potential [default: %(default)s]')
+    add('--vconf-rstart-rel', default=.6, metavar='<ri/rc>', type=float,
+        help='set inner cutoff for smooth confinement potential '
+        'relative to hard cutoff [default: %(default)s]')
+    add('--vconf-sharp-confinement', action='store_true',
+        help='use sharp rather than smooth confinement potential')
+    add('--lpol', metavar='<l>', type=int,
+        help='angular momentum quantum number of polarization function.  '
+        'Default behaviour is to take the lowest l which is not '
+        'among the valence states')
+    add('--jvalues', metavar='<j>[,<j>[,...]]', type=parse_j_values,
+        help='explicitly specify which states to include.  '
+        'Numbering corresponds to generator\'s valence state ordering.  '
+        'For example: 0,1,2')
+
+
+def read_setupdata(path: str | PathLike) -> SetupData:
+    path = Path(path)
+
+    setupdata = SetupData(symbol=None, xcsetupname=None, readxml=False)
+    setupdata.read_xml(source=path.read_bytes())
+    return setupdata
+
+
+def get_basis_maker_caller(args: Namespace) -> Callable[[BasisMaker], Basis]:
+    if args.vconf_sharp_confinement:
+        vconf_args = None
+    else:
+        vconf_args = args.vconf_amplitude, args.vconf_rstart_rel
+    return methodcaller('generate', args.type.zetacount, args.type.polcount,
+                        tailnorm=args.tailnorm,
+                        energysplit=args.energy_shift,
+                        rcutpol_rel=args.rcut_pol_rel,
+                        rcutmax=args.rcut_max,
+                        rcharpol_rel=args.rchar_pol_rel,
+                        vconf_args=vconf_args,
+                        l_pol=args.lpol,
+                        jvalues=args.jvalues)
+
+
 def main(args: Namespace) -> None:
     caller = get_basis_maker_caller(args)
     tokens = []
@@ -51,5 +131,13 @@ def main(args: Namespace) -> None:
 class CLICommand:
     """Create basis sets from setup files."""
 
-    add_arguments = staticmethod(add_arguments)
+    @staticmethod
+    def add_arguments(parser) -> None:
+        add = parser.add_argument
+        add('file', metavar='<filename>', nargs='+', help='setup data file')
+        add('--name',
+            metavar='<name>',
+            help='basis name to be included in output filename')
+        add_common_args(add)
+
     run = staticmethod(main)
