@@ -54,7 +54,8 @@ class DFTEnergies:
 
     @property
     def extensions_energies(self) -> list[tuple[str, float]]:
-        return [(name, self._energies.get(name)) for name in self._energies
+        return [(name, self._energies.get(name, 0.0))
+                for name in self._energies
                 if name not in OTHERS and name not in NAMES]
 
     def summary(self, log) -> None:
