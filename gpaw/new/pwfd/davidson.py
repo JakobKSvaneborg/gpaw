@@ -114,7 +114,7 @@ class Davidson(PWFDEigensolver):
                             wfs.myeig_n,
                             dH, dS_aii, P2_ani, P3_ani)
 
-        def copy(C_nn: Array2D) -> None:
+        def copy(C_nn: Array2D, M_nn: Matrix) -> None:
             domain_comm.sum(M_nn.data, 0)
             if domain_comm.rank == 0:
                 M_nn.redist(M0_nn)
@@ -136,29 +136,77 @@ class Davidson(PWFDEigensolver):
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
             with tracectx('Matrix elements'):
+                M2_nn = M_nn.new()
+
+                comm = psit_nX.comm
+                blocksize = me_buffer_mX.data.shape[0]
+                blocksize_world = comm.sum_scalar(blocksize)
+                totalbands = comm.sum_scalar(b)
+                for i1, N1 in enumerate(
+                        range(0, totalbands, blocksize_world)):
+                    n1 = i1 * blocksize
+                    n2 = n1 + blocksize
+                    if n2 > b:
+                        n2 = b
+
+                    Ht(psit2_nX[n1:n2], out=me_buffer_mX[:n2 - n1])
+                    M1 = psit_nX.matrix
+                    M2 = psit2_nX.matrix
+
+                    buffer_view_matrix = Matrix(
+                        M=min(blocksize_world,
+                              totalbands - N1),
+                        N=M2.data.shape[1],
+                        data=me_buffer_mX[:n2 - n1].matrix.data,
+                        dist=(comm, -1, 1),
+                        xp=M2.xp)
+                    out1 = Matrix(
+                        M=min(blocksize_world,
+                              totalbands - N1),
+                        N=M_nn.shape[1],
+                        data=M_nn.data[n1:n2, :],
+                        dist=(comm, -1, 1),
+                        xp=M_nn.xp)
+                    out2 = Matrix(
+                        M=min(blocksize_world,
+                              totalbands - N1),
+                        N=M_nn.shape[1],
+                        data=M2_nn.data[n1:n2, :],
+                        dist=(comm, -1, 1),
+                        xp=M_nn.xp)
+
+                    buffer_view_matrix.multiply(M1, alpha=psit_nX.dv, opb='C',
+                                                out=out1)
+                    buffer_view_matrix.multiply(M2, alpha=psit2_nX.dv, opb='C',
+                                                out=out2)
+                    psit_nX._matrix_elements_correction(buffer_view_matrix, M1, out1,
+                                                        symmetric=False)
+                    psit2_nX._matrix_elements_correction(buffer_view_matrix, M2, out2,
+                                                         symmetric=False)
+
                 # <psi2 | H | psi2>
-                me(psit2_nX, psit2_nX, function=Ht, sliced=True)
+                # me(psit2_nX, psit2_nX, function=Ht, sliced=True)
                 dH(P2_ani, out_ani=P3_ani)
                 P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
-                                       out=M_nn)
-                copy(H_NN.data[B:, B:])
+                                       out=M2_nn)
+                copy(H_NN.data[B:, B:], M2_nn)
 
                 # <psi2 | H | psi>
-                me(psit2_nX, psit_nX, function=Ht, sliced=True)
+                # me(psit2_nX, psit_nX, function=Ht, sliced=True)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
-                copy(H_NN.data[B:, :B])
+                copy(H_NN.data[B:, :B], M_nn)
 
                 # <psi2 | S | psi2>
                 me(psit2_nX, psit2_nX)
                 P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
                 P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
                                        out=M_nn)
-                copy(S_NN.data[B:, B:])
+                copy(S_NN.data[B:, B:], M_nn)
 
                 # <psi2 | S | psi>
                 me(psit2_nX, psit_nX)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
-                copy(S_NN.data[B:, :B])
+                copy(S_NN.data[B:, :B], M_nn)
 
             with tracectx('Diagonalize'):
                 with broadcast_exception(domain_comm):
