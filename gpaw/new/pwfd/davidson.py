@@ -66,6 +66,7 @@ class Davidson(PWFDEigensolver):
         H_NN = self.H_NN
         S_NN = self.S_NN
         M_nn = self.M_nn
+        M2_nn = M_nn.new()
 
         xp = M_nn.xp
 
@@ -136,63 +137,19 @@ class Davidson(PWFDEigensolver):
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
             with tracectx('Matrix elements'):
-                M2_nn = M_nn.new()
-
-                comm = psit_nX.comm
-                blocksize = me_buffer_mX.data.shape[0]
-                blocksize_world = comm.sum_scalar(blocksize)
-                totalbands = comm.sum_scalar(b)
-                for i1, N1 in enumerate(
-                        range(0, totalbands, blocksize_world)):
-                    n1 = i1 * blocksize
-                    n2 = n1 + blocksize
-                    if n2 > b:
-                        n2 = b
-
-                    Ht(psit2_nX[n1:n2], out=me_buffer_mX[:n2 - n1])
-                    M1 = psit_nX.matrix
-                    M2 = psit2_nX.matrix
-
-                    buffer_view_matrix = Matrix(
-                        M=min(blocksize_world,
-                              totalbands - N1),
-                        N=M2.data.shape[1],
-                        data=me_buffer_mX[:n2 - n1].matrix.data,
-                        dist=(comm, -1, 1),
-                        xp=M2.xp)
-                    out1 = Matrix(
-                        M=min(blocksize_world,
-                              totalbands - N1),
-                        N=M_nn.shape[1],
-                        data=M_nn.data[n1:n2, :],
-                        dist=(comm, -1, 1),
-                        xp=M_nn.xp)
-                    out2 = Matrix(
-                        M=min(blocksize_world,
-                              totalbands - N1),
-                        N=M_nn.shape[1],
-                        data=M2_nn.data[n1:n2, :],
-                        dist=(comm, -1, 1),
-                        xp=M_nn.xp)
-
-                    buffer_view_matrix.multiply(M1, alpha=psit_nX.dv, opb='C',
-                                                out=out1)
-                    buffer_view_matrix.multiply(M2, alpha=psit2_nX.dv, opb='C',
-                                                out=out2)
-                    psit_nX._matrix_elements_correction(buffer_view_matrix, M1, out1,
-                                                        symmetric=False)
-                    psit2_nX._matrix_elements_correction(buffer_view_matrix, M2, out2,
-                                                         symmetric=False)
+                sliced_matrix_elements(psit_nX, psit2_nX,
+                                       buffer=me_buffer_mX,
+                                       Ht=Ht,
+                                       M1_nn=M_nn,
+                                       M2_nn=M2_nn)
 
                 # <psi2 | H | psi2>
-                # me(psit2_nX, psit2_nX, function=Ht, sliced=True)
                 dH(P2_ani, out_ani=P3_ani)
                 P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
                                        out=M2_nn)
                 copy(H_NN.data[B:, B:], M2_nn)
 
                 # <psi2 | H | psi>
-                # me(psit2_nX, psit_nX, function=Ht, sliced=True)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
                 copy(H_NN.data[B:, :B], M_nn)
 
@@ -271,3 +228,52 @@ def sliced_preconditioner(psit_nX, psit2_nX, buffer, precon):
                 out=buffer_view)
             psit2_nX.data[i_local:i_local + buffer_size] \
                 = buffer_view.data[:]
+
+
+def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
+    comm = psit1_nX.comm
+    b = psit1_nX.data.shape[0]
+    blocksize = buffer_mX.data.shape[0]
+    blocksize_world = comm.sum_scalar(blocksize)
+    totalbands = comm.sum_scalar(b)
+    for i1, N1 in enumerate(
+            range(0, totalbands, blocksize_world)):
+        n1 = i1 * blocksize
+        n2 = n1 + blocksize
+        if n2 > b:
+            n2 = b
+
+        Ht(psit2_nX[n1:n2], out=buffer_mX[:n2 - n1])
+        M1 = psit1_nX.matrix
+        M2 = psit2_nX.matrix
+
+        buffer_view_matrix = Matrix(
+            M=min(blocksize_world,
+                  totalbands - N1),
+            N=M2.data.shape[1],
+            data=buffer_mX[:n2 - n1].matrix.data,
+            dist=(comm, -1, 1),
+            xp=M2.xp)
+        out1 = Matrix(
+            M=min(blocksize_world,
+                  totalbands - N1),
+            N=M1_nn.shape[1],
+            data=M1_nn.data[n1:n2, :],
+            dist=(comm, -1, 1),
+            xp=M1_nn.xp)
+        out2 = Matrix(
+            M=min(blocksize_world,
+                  totalbands - N1),
+            N=M2_nn.shape[1],
+            data=M2_nn.data[n1:n2, :],
+            dist=(comm, -1, 1),
+            xp=M2_nn.xp)
+
+        buffer_view_matrix.multiply(M1, alpha=psit1_nX.dv, opb='C',
+                                    out=out1)
+        buffer_view_matrix.multiply(M2, alpha=psit2_nX.dv, opb='C',
+                                    out=out2)
+        psit1_nX._matrix_elements_correction(buffer_view_matrix, M1, out1,
+                                             symmetric=False)
+        psit2_nX._matrix_elements_correction(buffer_view_matrix, M2, out2,
+                                             symmetric=False)
