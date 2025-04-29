@@ -15,9 +15,7 @@ import numpy as np
 from .. import typing
 from ..basis_data import Basis, BasisPlotter
 from ..setup_data import SetupData, read_maybe_unzipping, search_for_file
-# from ..xc import XC
 from .aeatom import AllElectronAtom, colors
-# from .all_electron import calculate_density, calculate_potentials
 from .generator2 import (PAWSetupGenerator, parameters,
                          generate, plot_log_derivs)
 from .radialgd import AERadialGridDescriptor
@@ -47,18 +45,21 @@ def plot_partial_waves(ax: 'Axes',
                        iterator: Iterable[_PartialWaveItem]) -> None:
     r_g = rgd.r_g
     group_by_l: dict[int, list[_PartialWaveItem]] = {}
+    bg_color = _get_patch_color(ax)
     for item in sorted(iterator):
         group_by_l.setdefault(item[0], []).append(item)
     for l, items in group_by_l.items():
-        alphas = _get_alphas(len(items))
-        for alpha, (_, n, rcut, e, phi_g, phit_g) in zip(alphas, items):
+        weights = _get_blend_weights(len(items))
+        for weight, (_, n, rcut, e, phi_g, phit_g) in zip(weights, items):
             if n == -1:
                 gc = rgd.ceil(rcut)
                 label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
             else:
                 gc = len(rgd)
                 label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-            color = _blend_colors(colors[l], alpha=alpha)
+            color = _blend_colors(colors[l],
+                                  background=bg_color,
+                                  foreground_weight=weight)
             ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=color, label=label)
             ax.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=color)
     ax.axis(xmin=0, xmax=3 * cutoff)
@@ -76,17 +77,21 @@ def plot_projectors(ax: 'Axes',
                     iterator: Iterable[_ProjectorItem]) -> None:
     r_g = rgd.r_g
     group_by_l: dict[int, list[_ProjectorItem]] = {}
+    bg_color = _get_patch_color(ax)
     for item in sorted(iterator):
         group_by_l.setdefault(item[0], []).append(item)
     for l, items in group_by_l.items():
-        alphas = _get_alphas(len(items))
-        for alpha, (_, n, e, pt_g) in zip(alphas, items):
+        weights = _get_blend_weights(len(items))
+        for weight, (_, n, e, pt_g) in zip(weights, items):
             if n == -1:
                 label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
             else:
                 label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
             ax.plot(r_g, pt_g * r_g,
-                    color=_blend_colors(colors[l], alpha=alpha), label=label)
+                    color=_blend_colors(colors[l],
+                                        background=bg_color,
+                                        foreground_weight=weight),
+                    label=label)
     ax.axis(xmin=0, xmax=cutoff)
     ax.set_title(f'Projectors: {symbol} {name}')
     ax.set_xlabel('radius [Bohr]')
@@ -160,18 +165,29 @@ def _normalize_with_radial_grid(array: typing.Array1D,
     return result
 
 
-def _get_alphas(n: int, attenuation: float = .5) -> typing.Array1D:
+def _get_blend_weights(n: int, attenuation: float = .5) -> typing.Array1D:
     return (1 - attenuation) ** np.arange(n)
 
 
-def _blend_colors(color, background='w', alpha=1.):
+def _get_patch_color(ax: 'Axes') -> tuple[float, float, float]:
+    from matplotlib.colors import to_rgb
+    try:
+        color = ax.patch.get_facecolor()
+        if color is None:
+            color = 'w'
+    except AttributeError:
+        color = 'w'
+    return to_rgb(color)
+
+
+def _blend_colors(color, background='w', foreground_weight=1.):
     # Too troublesome to type this and refactor to have `mypy`
     # understand what we're doing, not worth it
     from matplotlib.colors import to_rgb
 
     color = np.array(to_rgb(color))
-    background = np.array(to_rgb(color))
-    return color * alpha + background * (1 - alpha)
+    background = np.array(to_rgb(background))
+    return color * foreground_weight + background * (1 - foreground_weight)
 
 
 def get_plot_pwaves_params_from_generator(
@@ -252,16 +268,6 @@ def get_plot_pot_comps_params_from_setup(
     rgd = setup.rgd
     normalize = functools.partial(_normalize_with_radial_grid, rgd=rgd)
 
-    # FIXME: inconsistent with the `PAWSetupGenerator` results
-    # # Re-calculate the XC and Hartree parts
-    # n_g = calculate_density(setup.f_j,
-    #                         setup.phi_jg * rgd.r_g[None, :],
-    #                         rgd.r_g)
-    # n_g += setup.nc_g * prefactor
-    # _, vHr_g, xc, _ = calculate_potentials(rgd, XC(xc_name), n_g,
-    #                                        setup.Z)
-    # hartree = normalize(vHr_g)
-
     # Reconstruct the AEA object
     # (Note: this misses the empty bound states from projectors)
     aea = AllElectronAtom(symbol, xc_name,
@@ -275,10 +281,22 @@ def get_plot_pot_comps_params_from_setup(
     aea.scalar_relativistic = setup.type == 'scalar-relativistic'
     aea.refine()
     all_electron = normalize(aea.vr_sg[0])
-    components = {'zero': zero,
-                  # FIXME: see above
-                  # 'xc': xc, 'hartree': hartree,
-                  'all_electron': all_electron}
+    components = {'zero': zero, 'all_electron': all_electron}
+
+    # FIXME: inconsistent with the `PAWSetupGenerator` results
+    # # Re-calculate the XC and Hartree parts
+    # from ..xc import XC
+    # from .all_electron import calculate_density, calculate_potentials
+
+    # n_g = calculate_density(setup.f_j,
+    #                         setup.phi_jg * rgd.r_g[None, :],
+    #                         rgd.r_g)
+    # n_g += setup.nc_g * prefactor
+    # _, vHr_g, xc, _ = calculate_potentials(rgd, XC(xc_name), n_g,
+    #                                        setup.Z)
+    # hartree = normalize(vHr_g)
+    # components.update(xc=xc, hartree=hartree)
+
     if pseudo is not None:
         components['pseudo'] = pseudo
     return (symbol, xc_name, rgd, _get_setup_cutoff(setup), components)
@@ -374,7 +392,6 @@ def plot_dataset(
     plot_projectors: bool = True,
     plot_logarithmic_derivatives: str | None = None,
     separate_figures: bool = False,
-    reconstruct_generator: bool = False,
     savefig: str | None = None,
 ) -> tuple[list['Axes'], str | None]:
     """
