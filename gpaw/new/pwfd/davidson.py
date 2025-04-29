@@ -104,9 +104,7 @@ class Davidson(PWFDEigensolver):
                                      domain_sum=False,
                                      out=M_nn,
                                      function=function,
-                                     cc=True,
-                                     sliced=sliced,
-                                     buffer=me_buffer_mX)
+                                     cc=True)
 
         calculate_residuals(wfs.psit_nX,
                             psit2_nX,
