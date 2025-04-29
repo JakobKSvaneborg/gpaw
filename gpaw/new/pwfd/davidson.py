@@ -241,37 +241,37 @@ def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
         if n2 > b:
             n2 = b
 
-        Ht(psit2_nX[n1:n2], out=buffer_mX[:n2 - n1])
+        world_N = min(blocksize_world,
+                      totalbands - N1)
+
+        buffer_view_aX = buffer_mX.new(
+            data=buffer_mX.data[:n2 - n1],
+            dims=(world_N,) + buffer_mX.dims[1:],
+        )
+        Ht(psit2_nX[n1:n2], out=buffer_view_aX)
         M1 = psit1_nX.matrix
         M2 = psit2_nX.matrix
 
-        buffer_view_matrix = Matrix(
-            M=min(blocksize_world,
-                  totalbands - N1),
-            N=M2.data.shape[1],
-            data=buffer_mX[:n2 - n1].matrix.data,
-            dist=(comm, -1, 1),
-            xp=M2.xp)
         out1 = Matrix(
-            M=min(blocksize_world,
-                  totalbands - N1),
+            M=world_N,
             N=M1_nn.shape[1],
             data=M1_nn.data[n1:n2, :],
             dist=(comm, -1, 1),
             xp=M1_nn.xp)
         out2 = Matrix(
-            M=min(blocksize_world,
-                  totalbands - N1),
+            M=world_N,
             N=M2_nn.shape[1],
             data=M2_nn.data[n1:n2, :],
             dist=(comm, -1, 1),
             xp=M2_nn.xp)
 
-        buffer_view_matrix.multiply(M1, alpha=psit1_nX.dv, opb='C',
-                                    out=out1)
-        buffer_view_matrix.multiply(M2, alpha=psit2_nX.dv, opb='C',
-                                    out=out2)
-        psit1_nX._matrix_elements_correction(buffer_view_matrix, M1, out1,
-                                             symmetric=False)
-        psit2_nX._matrix_elements_correction(buffer_view_matrix, M2, out2,
-                                             symmetric=False)
+        buffer_view_aX.matrix_elements(psit1_nX,
+                                       out=out1,
+                                       symmetric=False,
+                                       domain_sum=False,
+                                       cc=True)
+        buffer_view_aX.matrix_elements(psit2_nX,
+                                       out=out2,
+                                       symmetric=False,
+                                       domain_sum=False,
+                                       cc=True)
