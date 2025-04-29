@@ -1,13 +1,5 @@
-class ExtensionParameter:
-    def build(self, atoms):
-        raise NotImplementedError
-
-
 class Extension:
     name = 'unnamed extension'
-
-    def __init__(self, atoms, domain_comm):
-        ...
 
     def get_energy_contributions(self) -> dict[str, float]:
         raise NotImplementedError
@@ -19,23 +11,10 @@ class Extension:
         raise NotImplementedError
 
 
-"""
-class D3Extension:
-    def __init__(self, params, atoms):
-        self.params = params
-        self.atoms = atoms
+class ExtensionParameter:
+    def build(self, atoms, domain_comm) -> Extension:
+        raise NotImplementedError
 
-    def update_forces_postscf(self, F_av):
-        from ase.calculators.dftd3 import PureDFTD3
-        atoms = self.atoms.copy()
-        atoms.calc = PureDFTD3(xc=self.params.xc, **self.params.kwargs)
-        F_av += self.atoms.get_forces()
-
-    def update_energy_postscf(self, energies):
-        from ase.calculators.dftd3 import PureDFTD3
-        atoms = atoms.copy()
-        atoms.calc = PureDFTD3(xc=self.params.xc, **self.params.kwargs)
-        energies['D3'] += atoms.get_potential_energy()
 
 @register
 class D3(ExtensionParameter):
@@ -43,6 +22,31 @@ class D3(ExtensionParameter):
         self.xc = xc
         self.kwargs = kwargs
 
-    def build(self, atoms):
-        return D3Extension(self, atoms)
-"""
+    def build(self, atoms, domain_comm):
+        atoms = atoms.copy()
+        class D3Extension(Extension):
+            def __init__(self):
+                super().__init__()
+                self._calculate(atoms)
+
+            def _calculate(self, atoms):
+                from ase.calculators.dftd3 import PureDFTD3
+                atoms.calc = PureDFTD3(xc=self.params.xc, **self.params.kwargs)
+                # XXX params.xc should be taken directly from the calculator.
+                # XXX What if this is changed via set?
+                self.F_av = atoms.get_forces()
+                self.E = atoms.get_potential_energy()
+
+            def get_energy_contributions(_self) -> dict[str, float]:
+                return {f'D3 (xc={self.xc})': self.E}
+
+            def force_contribution(self):
+                if domain_comm.rank == 0:
+                    return self.F_av
+                else:
+                    return np.zeros_like(self.F_av)
+
+            def move_atoms(self, relpos_ac) -> None:
+                atoms.set_scaled_positions(relpos_ac)
+
+        return D3Extension()

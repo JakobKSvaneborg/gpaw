@@ -13,7 +13,6 @@ class Spring(ExtensionParameter):
     def build(self, atoms, domain_comm):
         atoms = atoms.copy()
         class EnergyAdder(Extension):
-
             @property
             def name(_self):
                 return f'Spring k={self.k}'
