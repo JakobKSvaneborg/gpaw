@@ -3,10 +3,13 @@ from __future__ import annotations
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable, Sequence
 from operator import methodcaller
+from os import PathLike
+from pathlib import Path
 from typing import Any, NamedTuple
 
 from gpaw.atom.basis import BasisMaker
 from gpaw.basis_data import Basis, parse_basis_name
+from gpaw.setup_data import SetupData
 from gpaw.typing import Self
 
 
@@ -87,18 +90,12 @@ def add_arguments(add: Callable) -> None:
         'For example: 0,1,2')
 
 
-bad_density_warning = """\
-Bad initial electron density guess!  Try rerunning the basis generator
-with the '-g' parameter to run a separate non-scalar relativistic
-all-electron calculation and use its resulting density as an initial
-guess."""
+def read_setupdata(path: str | PathLike) -> SetupData:
+    path = Path(path)
 
-very_bad_density_warning = """\
-Could not generate non-scalar relativistic electron density guess,
-or non-scalar relativistic guess was not good enough for the scalar
-relativistic calculation.  You probably have to use the Python interface
-to the basis generator in gpaw.atom.basis directly and choose very
-smart parameters."""
+    setupdata = SetupData(symbol=None, xcsetupname=None, readxml=False)
+    setupdata.read_xml(source=path.read_bytes())
+    return setupdata
 
 
 def get_basis_maker_caller(args: Namespace) -> Callable[[BasisMaker], Basis]:
@@ -118,8 +115,6 @@ def get_basis_maker_caller(args: Namespace) -> Callable[[BasisMaker], Basis]:
 
 
 def main(args: Sequence[str] | None = None) -> None:
-    from gpaw.atom.basisfromfile import read_setupdata
-
     def generate_basis_set(symbol_or_path: str,
                            caller: Callable[[BasisMaker], Any], /,
                            **kwargs) -> None:
