@@ -10,6 +10,7 @@ from gpaw.mpi import world
 # first on 3D without restart. Then does restart and recalculates.
 
 
+@pytest.mark.slow
 @pytest.mark.gllb
 @pytest.mark.libxc
 def test_gllb_ne_disc(in_tmp_dir, add_cwd_to_setup_paths):

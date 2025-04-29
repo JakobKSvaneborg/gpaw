@@ -173,20 +173,24 @@ class QSymmetryAnalyzer:
         # Direct and indirect -> global symmetries
         nU = len(U_ucc)
         nS = 2 * nU
-        shift_Sc = np.zeros((nS, 3), int)
+        shift_Sc = np.zeros((nS, 3), float)
         is_qsymmetry_S = np.zeros(nS, bool)
 
         # Identify direct symmetries
         # Check whether U q - q is integer (reciprocal lattice vector)
         dshift_uc = Uq_uc - q_c[np.newaxis]
-        is_direct_symm_u = (dshift_uc == dshift_uc.round()).all(axis=1)
+        is_direct_symm_u = (
+            abs(dshift_uc - dshift_uc.round()) < kd.symmetry.tol
+        ).all(axis=1)
         is_qsymmetry_S[:nU][is_direct_symm_u] = True
         shift_Sc[:nU] = dshift_uc
 
         # Identify indirect symmetries
         # Check whether -U q - q is integer (reciprocal lattice vector)
         idshift_uc = -Uq_uc - q_c
-        is_indirect_symm_u = (idshift_uc == idshift_uc.round()).all(axis=1)
+        is_indirect_symm_u = (
+            abs(idshift_uc - idshift_uc.round()) < kd.symmetry.tol
+        ).all(axis=1)
         is_qsymmetry_S[nU:][is_indirect_symm_u] = True
         shift_Sc[nU:] = idshift_uc
 
@@ -216,4 +220,9 @@ class QSymmetryAnalyzer:
         # We always filter out non-symmorphic symmetries
         S_s = list(filter(is_not_non_symmorphic, S_s))
 
-        return QSymmetries(q_c, U_ucc, S_s, shift_Sc[S_s])
+        # All shifts should now be integer
+        shift_sc = shift_Sc[S_s]
+        assert (
+            abs(shift_sc - shift_sc.round()) < kd.symmetry.tol
+        ).all()
+        return QSymmetries(q_c, U_ucc, S_s, shift_sc.round().astype(int))

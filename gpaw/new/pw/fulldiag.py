@@ -103,7 +103,8 @@ def pw_matrix(pw: PWDesc,
 def diagonalize(potential: Potential,
                 ibzwfs: IBZWaveFunctions,
                 occ_calc: OccupationNumberCalculator,
-                nbands: int) -> IBZWaveFunctions:
+                nbands: int,
+                nelectrons: float) -> IBZWaveFunctions:
     """Diagonalize hamiltonian in plane-wave basis."""
     vt_sR = potential.vt_sR
     dH_asii = potential.dH_asii
@@ -145,13 +146,12 @@ def diagonalize(potential: Potential,
 
     new_ibzwfs = IBZWaveFunctions(
         ibzwfs.ibz,
-        nelectrons=ibzwfs.nelectrons,
         ncomponents=ibzwfs.ncomponents,
         wfs_qs=wfs_qs,
         kpt_comm=ibzwfs.kpt_comm,
         kpt_band_comm=ibzwfs.kpt_band_comm,
         comm=ibzwfs.comm)
 
-    new_ibzwfs.calculate_occs(occ_calc)
+    new_ibzwfs.calculate_occs(occ_calc, nelectrons)
 
     return new_ibzwfs

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from types import SimpleNamespace
 
 import numpy as np
@@ -15,7 +16,7 @@ __all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
 pi = np.pi
 
 
-def empty(*args, **kwargs):
+def empty(*args, **kwargs) -> ndarray:
     return ndarray(np.empty(*args, **kwargs))
 
 
@@ -38,10 +39,13 @@ def asnumpy(a, out=None):
     return out
 
 
-def asarray(a):
+def asarray(a, dtype=None):
     if isinstance(a, ndarray):
-        return a
-    return ndarray(np.array(a))
+        if a.dtype == dtype or dtype is None:
+            return a
+        else:
+            return ndarray(a._data.astype(dtype))
+    return ndarray(np.array(a, dtype=dtype))
 
 
 def array(a, dtype=None):
@@ -93,6 +97,10 @@ def abs(a):
 
 def exp(a):
     return ndarray(np.exp(a._data))
+
+
+def conjugate(a):
+    return ndarray(np.conjugate(a._data))
 
 
 def log(a):
@@ -177,6 +185,9 @@ class ndarray:
 
     def copy(self):
         return ndarray(self._data.copy())
+
+    def astype(self, dtype):
+        return ndarray(self._data.astype(dtype))
 
     def all(self):
         return ndarray(self._data.all())

@@ -61,6 +61,7 @@ units = {'energy': Ha,
 
 class DFTCalculation:
     def __init__(self,
+                 atoms: Atoms,
                  ibzwfs: IBZWaveFunctions,
                  density: Density,
                  potential: Potential,
@@ -68,7 +69,9 @@ class DFTCalculation:
                  scf_loop: SCFLoop,
                  pot_calc,
                  log: Logger,
+                 params: InputParameters,
                  energies: DFTEnergies | None = None):
+        self.atoms = atoms
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
@@ -77,6 +80,7 @@ class DFTCalculation:
         self.pot_calc = pot_calc
         self.log = log
         self.comm = log.comm
+        self.params = params
 
         self.results: dict[str, Any] = {}
         self.relpos_ac = self.pot_calc.relpos_ac
@@ -104,12 +108,9 @@ class DFTCalculation:
         if not isinstance(log, Logger):
             log = Logger(log, comm or world)
 
-        builder = builder or create_builder(atoms, params, log.comm)
+        builder = builder or create_builder(atoms, params, log.comm, log)
 
         basis_set = builder.create_basis_set()
-
-        density = builder.density_from_superposition(basis_set)
-        density.normalize()
 
         # The SCF-loop has a Hamiltonian that has an fft-plan that is
         # cached for later use, so best to create the SCF-loop first
@@ -117,13 +118,21 @@ class DFTCalculation:
         scf_loop = builder.create_scf_loop()
 
         pot_calc = builder.create_potential_calculator(log)
+
+        density = builder.density_from_superposition(basis_set)
+        if len(atoms) == 0:
+            density.nt_sR.data[:] = 1.0
+        density.normalize(pot_calc.environment.charge)
+
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential, log=log)
 
         if ibzwfs.wfs_qs[0][0]._eig_n is not None:
-            ibzwfs.calculate_occs(scf_loop.occ_calc)
+            nelectrons = (density.nvalence - density.charge +
+                          pot_calc.environment.charge)
+            ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
         log(ibzwfs)
@@ -133,13 +142,23 @@ class DFTCalculation:
         log(scf_loop)
         log(pot_calc)
 
-        return cls(ibzwfs, density, potential,
+        return cls(atoms, ibzwfs, density, potential,
                    builder.setups, scf_loop, pot_calc, log,
-                   energies=energies)
+                   params=params, energies=energies)
+
+    def get_ase_calc(self):
+        """Create ASE-compatible GPAW calculator.
+        """
+        from gpaw.new.ase_interface import ASECalculator
+        return ASECalculator(params=self.params,
+                             log=self.log,
+                             dft=self,
+                             atoms=self.atoms)
 
     def move_atoms(self, atoms) -> DFTCalculation:
         check_atoms_too_close(atoms)
 
+        self.atoms = atoms
         self.relpos_ac = np.ascontiguousarray(atoms.get_scaled_positions())
         self.comm.broadcast(self.relpos_ac, 0)
 
@@ -305,7 +324,8 @@ class DFTCalculation:
             except NonsenseError:
                 pass
             else:
-                self.log(f'Workfunctions: {wf1:.3f}, {wf2:.3f}  # eV')
+                self.log(
+                    f'Workfunctions: {wf1:.3f}, {wf2:.3f} eV (top, bottom)')
         self.log.fd.flush()
 
     def workfunctions(self,
@@ -400,7 +420,7 @@ class DFTCalculation:
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
-        builder = create_builder(atoms, params, self.comm)
+        builder = create_builder(atoms, params, self.comm, log)
 
         kpt_kc = builder.ibz.kpt_kc
         old_kpt_kc = ibzwfs.ibz.kpt_kc
@@ -409,13 +429,16 @@ class DFTCalculation:
         if abs(kpt_kc - old_kpt_kc).max() > 1e-9:
             raise ReuseWaveFunctionsError
 
-        log('# Interpolating wave functions to new cell')
+        log('Interpolating wave functions to new cell')
+
+        scf_loop = builder.create_scf_loop()
+        pot_calc = builder.create_potential_calculator(log)
 
         density = self.density.new(builder.grid,
                                    builder.interpolation_desc,
                                    builder.relpos_ac,
                                    builder.atomdist)
-        density.normalize()
+        density.normalize(pot_calc.environment.charge)
 
         # Make sure all have exactly the same density.
         # Not quite sure it is needed???
@@ -424,8 +447,6 @@ class DFTCalculation:
         if density.nt_sR.xp is np:
             self.comm.broadcast(density.nt_sR.data, 0)
 
-        scf_loop = builder.create_scf_loop()
-        pot_calc = builder.create_potential_calculator(log)
         potential, energies, _ = pot_calc.calculate(density)
 
         old_ibzwfs = ibzwfs
@@ -439,7 +460,6 @@ class DFTCalculation:
 
         ibzwfs = ibzwfs.create(
             ibz=builder.ibz,
-            nelectrons=old_ibzwfs.nelectrons,
             ncomponents=old_ibzwfs.ncomponents,
             create_wfs_func=create_wfs,
             kpt_comm=old_ibzwfs.kpt_comm,
@@ -455,9 +475,9 @@ class DFTCalculation:
         log(pot_calc)
 
         return DFTCalculation(
-            ibzwfs, density, potential,
+            atoms, ibzwfs, density, potential,
             builder.setups, scf_loop, pot_calc, log,
-            energies=energies)
+            params=params, energies=energies)
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)

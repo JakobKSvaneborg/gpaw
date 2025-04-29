@@ -8,7 +8,7 @@ from gpaw.tddft.folding import FoldedFrequencies
 from gpaw.tddft.folding import Folding
 
 
-def calculate_fourier_transform(x_t, y_ti, foldedfrequencies):
+def calculate_fourier_transform(x_t, y_ti, foldedfrequencies, velocity=False):
     ff = foldedfrequencies
     X_w = ff.frequencies
     envelope = ff.folding.envelope
@@ -22,10 +22,18 @@ def calculate_fourier_transform(x_t, y_ti, foldedfrequencies):
     dx_t1 = x_t[1:] - x_t[:-1]
     dx_t = 0.5 * (np.insert(dx_t1, 0, 0.0) + np.append(dx_t1, dx_t1[-1]))
 
+    env_t = envelope(x_t)
+    Ienv = np.sum(dx_t * env_t)
+
+    if velocity:
+        y_ti -= np.sum((dx_t * env_t)[:, None] * y_ti, axis=0) / Ienv
+
     # Integrate
     f_wt = np.exp(1.0j * np.outer(X_w, x_t))
     y_it = np.swapaxes(y_ti, 0, 1)
-    Y_wi = np.tensordot(f_wt, dx_t * envelope(x_t) * y_it, axes=(1, 1))
+
+    Y_wi = np.tensordot(f_wt, dx_t * env_t * y_it, axes=(1, 1))
+    print('Sinc contamination', env_t[-1])
     return Y_wi
 
 
@@ -105,15 +113,17 @@ def read_td_file_kicks(fname):
             time = 0.0
         else:
             time = float(m.group('time'))
-        return kick_v, time
+        velocity = 'velocity' in line
+        return kick_v, time, velocity
 
     # Search kicks
     kick_i = []
     with open(fname) as f:
         for line in f:
             if line.startswith('# Kick'):
-                kick_v, time = parse_kick_line(line)
-                kick_i.append({'strength_v': kick_v, 'time': time})
+                kick_v, time, velocity = parse_kick_line(line)
+                kick_i.append({'strength_v': kick_v, 'time': time,
+                              'velocity': velocity})
     return kick_i
 
 
@@ -150,6 +160,7 @@ def clean_td_data(kick_i, time_t, data_ti):
         raise RuntimeError('Multiple kicks')
     kick = kick_i[0]
     kick_v = kick['strength_v']
+    velocity = kick['velocity']
     kick_time = kick['time']
 
     # Discard times before kick
@@ -161,7 +172,7 @@ def clean_td_data(kick_i, time_t, data_ti):
     time_t -= kick_time
     assert time_t[0] == 0.0
 
-    return kick_v, time_t, data_ti
+    return kick_v, velocity, time_t, data_ti
 
 
 def read_dipole_moment_file(fname, remove_duplicates=True):
@@ -195,19 +206,29 @@ def read_dipole_moment_file(fname, remove_duplicates=True):
     return kick_i, time_t, norm_t, dm_tv
 
 
-def calculate_polarizability(kick_v, time_t, dm_tv, foldedfrequencies):
-    dm_tv = dm_tv - dm_tv[0]
-    alpha_wv = calculate_fourier_transform(time_t, dm_tv, foldedfrequencies)
+def calculate_polarizability(kick_v, time_t, dm_tv,
+                             foldedfrequencies, velocity=False):
+    if not velocity:
+        dm_tv = dm_tv - dm_tv[0]
+
+    alpha_wv = calculate_fourier_transform(time_t, dm_tv, foldedfrequencies,
+                                           velocity=velocity)
+
     kick_magnitude = np.sqrt(np.sum(kick_v**2))
     alpha_wv /= kick_magnitude
     return alpha_wv
 
 
-def calculate_photoabsorption(kick_v, time_t, dm_tv, foldedfrequencies):
+def calculate_photoabsorption(kick_v, time_t, dm_tv,
+                              foldedfrequencies, velocity=False):
     omega_w = foldedfrequencies.frequencies
     alpha_wv = calculate_polarizability(kick_v, time_t, dm_tv,
-                                        foldedfrequencies)
-    abs_wv = 2 / np.pi * omega_w[:, np.newaxis] * alpha_wv.imag
+                                        foldedfrequencies,
+                                        velocity=velocity)
+    if velocity:
+        abs_wv = 2 / np.pi * alpha_wv.real
+    else:
+        abs_wv = 2 / np.pi * omega_w[:, np.newaxis] * alpha_wv.imag
 
     kick_magnitude = np.sqrt(np.sum(kick_v**2))
     abs_wv *= kick_v / kick_magnitude
@@ -257,14 +278,14 @@ def write_spectrum(dipole_moment_file, spectrum_file,
         return '[%s]' % ', '.join(map(lambda v: fmt % v, v_i))
 
     kick_i, time_t, _, dm_tv = read_dipole_moment_file(dipole_moment_file)
-    kick_v, time_t, dm_tv = clean_td_data(kick_i, time_t, dm_tv)
+    kick_v, velocity, time_t, dm_tv = clean_td_data(kick_i, time_t, dm_tv)
     dt_t = time_t[1:] - time_t[:-1]
 
     freqs = np.arange(e_min, e_max + 0.5 * delta_e, delta_e)
     folding = Folding(folding, width)
     ff = FoldedFrequencies(freqs, folding)
     omega_w = ff.frequencies
-    spec_wv = calculate(kick_v, time_t, dm_tv, ff)
+    spec_wv = calculate(kick_v, time_t, dm_tv, ff, velocity=velocity)
 
     # Write spectrum file header
     with open(spectrum_file, 'w') as f:
@@ -343,8 +364,9 @@ def photoabsorption_spectrum(dipole_moment_file: str,
         print('Calculating photoabsorption spectrum from file "%s"'
               % dipole_moment_file)
 
-        def calculate(*args):
-            return calculate_photoabsorption(*args) / au_to_eV
+        def calculate(*args, **kwargs):
+            return (calculate_photoabsorption(*args, **kwargs)
+                    / au_to_eV)
         sinc = write_spectrum(dipole_moment_file, spectrum_file,
                               folding, width, e_min, e_max, delta_e,
                               'Photoabsorption', 'S', calculate)
@@ -383,8 +405,8 @@ def polarizability_spectrum(dipole_moment_file, spectrum_file,
         print('Calculating polarizability spectrum from file "%s"'
               % dipole_moment_file)
 
-        def calculate(*args):
-            return calculate_polarizability(*args) / au_to_eV**2
+        def calculate(*args, **kwargs):
+            return calculate_polarizability(*args, **kwargs) / au_to_eV**2
         sinc = write_spectrum(dipole_moment_file, spectrum_file,
                               folding, width, e_min, e_max, delta_e,
                               'Polarizability', 'alpha', calculate)
@@ -432,7 +454,7 @@ def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
     kick_strength = None
     for v, fpath in enumerate(magnetic_moment_files):
         kick_i, time_t, mm_tv = read_magnetic_moment_file(fpath)
-        kick_v, time_t, mm_tv = clean_td_data(kick_i, time_t, mm_tv)
+        kick_v, velocity, time_t, mm_tv = clean_td_data(kick_i, time_t, mm_tv)
 
         tot_time = min(tot_time, time_t[-1])
         time_steps.append(np.around(time_t[1:] - time_t[:-1], 6))

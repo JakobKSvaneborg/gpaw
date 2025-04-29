@@ -24,14 +24,18 @@ import sys
 import marshal
 from importlib.machinery import PathFinder, ModuleSpec
 
-from gpaw import GPAW_NO_C_EXTENSION
+from gpaw import GPAW_NO_C_EXTENSION, GPAW_MPI4PY
 import gpaw.cgpaw as cgpaw
 
 if not GPAW_NO_C_EXTENSION and getattr(cgpaw, 'version', 0) != 9:
     raise ImportError('Please recompile GPAW''s C-extensions!')
 
 
-if hasattr(cgpaw, 'Communicator'):
+if GPAW_MPI4PY:
+    from gpaw.mpi4pywrapper import MPI4PYWrapper
+    from mpi4py.MPI import COMM_WORLD
+    world = MPI4PYWrapper(COMM_WORLD)
+elif hasattr(cgpaw, 'Communicator'):
     if '_gpaw' not in sys.builtin_module_names:
         libmpi = os.environ.get('GPAW_MPI', 'libmpi.so')
         import ctypes

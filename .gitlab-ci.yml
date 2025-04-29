@@ -8,9 +8,10 @@ variables:
   # CI for branches inside the GPAW namespace will run on camd-runner2
   # because the GPAW project settings define the CI variable
   # DEFAULT_RUNNER_TAG: "linux".
-  # Forks will instead get this definition which allows running 
+  # Forks will instead get this definition which allows running
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
 
 
 default:
@@ -19,6 +20,7 @@ default:
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
+    - pip freeze
   interruptible: true
   tags:
     - $DEFAULT_RUNNER_TAG
@@ -133,6 +135,10 @@ build:
     - pip install --user --log build.log --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-oldest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-latest:
@@ -168,9 +174,14 @@ build-latest:
       EOF
     - cat siteconfig.py
     - pip install --user --upgrade numpy scipy
+    - pip install --user --upgrade mpi4py
     - pip install --user --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-latest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-cuda:
@@ -187,6 +198,10 @@ build-cuda:
       gpu_compile_args = ['-O3',
                           '-g']
       libraries += ['cudart', 'cublas']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
@@ -212,6 +227,10 @@ build-hip-cuda:
                              '-Wno-implicit-int',
                              ]
       undef_macros += ['GPAW_GPU_AWARE_MPI']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
@@ -369,7 +388,7 @@ test-latest:
       EOF
 
     - >
-      pytest -v -m ci -m gpu
+      pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
 
   artifacts:
@@ -556,6 +575,7 @@ docs:
     - build-latest
   script:
     - pip install scikit-image
+    - pip install -e git+https://gitlab.com/gpaw/gpaw-web-page-data.git#egg=gpaw-web-page-data
     - cd doc
     - make
     - make doctest
@@ -639,6 +659,11 @@ nightly-mpi-1:
     paths:
       - htmlcov/
     expire_in: 1 day
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_success
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
 nightly-mpi-2:

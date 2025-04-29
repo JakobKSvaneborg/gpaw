@@ -30,6 +30,6 @@ def workflow():
                     deps=[c, o], cores=1, tmax='1m')
     with run(script=dk_lda, cores=8, tmax='10m'):
         with run(script=dk_dens, cores=40, tmax='4h'):
-            with run(script=dk_wave, cores=8, tmax='1m'):
-                with run(script=dk_rpa, cores=8, tmax='1m'):
+            with run(script=dk_wave, cores=8, tmax='10m'):
+                with run(script=dk_rpa, cores=8, tmax='10m'):
                     run(script=dk_comp, cores=1, tmax='1m')

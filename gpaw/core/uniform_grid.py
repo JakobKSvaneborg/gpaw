@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     import plotly.graph_objects as go
 
 
-class UGDesc(Domain):
+class UGDesc(Domain['UGArray']):
     def __init__(self,
                  *,
                  cell: ArrayLike1D | ArrayLike2D,  # bohr
@@ -158,7 +158,7 @@ class UGDesc(Domain):
         """
         return UGArray(self, dims, comm, xp=xp)
 
-    def from_data(self, data):
+    def from_data(self, data: np.ndarray) -> UGArray:
         return UGArray(self, data.shape[:-3], data=data)
 
     def blocks(self, data: np.ndarray):
@@ -256,7 +256,7 @@ class UGDesc(Domain):
                                    comm: MPIComm = serial_comm,
                                    dtype=None) -> UGDesc:
         """Create UGDesc from grid-spacing."""
-        domain = Domain(cell, pbc, kpt, comm, dtype)
+        domain: Domain = Domain(cell, pbc, kpt, comm, dtype)
         return domain.uniform_grid_with_grid_spacing(grid_spacing)
 
     def fft_plans(self,
@@ -388,10 +388,11 @@ class UGArray(DistributedArrays[UGDesc]):
         c.data[:] = self.data
         return c
 
-    def scatter_from(self, data=None):
+    def scatter_from(self, data: np.ndarray | UGArray | None = None) -> None:
         """Scatter data from rank-0 to all ranks."""
         if isinstance(data, UGArray):
             data = data.data
+
         comm = self.desc.comm
         if comm.size == 1:
             self.data[:] = data
@@ -402,6 +403,7 @@ class UGArray(DistributedArrays[UGDesc]):
             return
 
         requests = []
+        assert isinstance(data, self.xp.ndarray)
         for rank, block in enumerate(self.desc.blocks(data)):
             if rank != 0:
                 block = block.copy()

@@ -1,14 +1,17 @@
 import numpy as np
 
-from gpaw.new.eigensolver import Eigensolver
+from gpaw.new.eigensolver import Eigensolver, calculate_weights
 from gpaw.new.lcao.hamiltonian import HamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.energies import DFTEnergies
 
 
 class LCAOEigensolver(Eigensolver):
-    def __init__(self, basis):
+    def __init__(self,
+                 basis,
+                 converge_bands='occupied'):
         self.basis = basis
+        self.converge_bands = converge_bands
 
     def iterate(self,
                 ibzwfs,
@@ -16,16 +19,25 @@ class LCAOEigensolver(Eigensolver):
                 potential,
                 hamiltonian,
                 pot_calc=None,
-                energies=None) -> tuple[float, DFTEnergies]:
+                energies=None) -> tuple[float, float, DFTEnergies]:
         matrix_calculator = hamiltonian.create_hamiltonian_matrix_calculator(
             potential)
 
-        for wfs in ibzwfs:
-            self.iterate1(wfs, matrix_calculator)
-        return 0.0, energies
+        weight_un = calculate_weights(self.converge_bands, ibzwfs)
+        eig_error = 0.0
+        for wfs, weight_n in zip(ibzwfs, weight_un):
+            _, temp_eig_error = \
+                self.iterate_kpt(wfs, weight_n, self.iterate1,
+                                 matrix_calculator=matrix_calculator)
+            if eig_error < temp_eig_error:
+                eig_error = temp_eig_error
+
+        eig_error = ibzwfs.kpt_band_comm.max_scalar(eig_error)
+        return eig_error, 0.0, energies
 
     def iterate1(self,
                  wfs: LCAOWaveFunctions,
+                 weight_n: np.ndarray,  # XXX: Unused
                  matrix_calculator: HamiltonianMatrixCalculator):
         H_MM = matrix_calculator.calculate_matrix(wfs)
         eig_M = H_MM.eighg(wfs.L_MM, wfs.domain_comm)

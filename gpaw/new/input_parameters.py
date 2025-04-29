@@ -4,13 +4,29 @@ import warnings
 from typing import Any, Sequence
 
 import numpy as np
+from gpaw.new.environment import Environment
 
 parameter_functions = {}
+classes = {}
 
-"""
-background_charge
-external
-"""
+
+def register(cls):
+    classes[cls.__name__] = cls
+    todict = cls.todict
+    cls.todict = lambda self: {'name': cls.__name__, **todict(self)}
+    return cls
+
+
+def fromdict(dct):
+    if isinstance(dct, list):
+        return [fromdict(x) for x in dct]
+    if not isinstance(dct, dict):
+        return dct
+    if 'name' not in dct:
+        return dct
+    dct = dct.copy()
+    cls = classes[dct.pop('name')]
+    return cls(**{key: fromdict(value) for key, value in dct.items()})
 
 
 class DeprecatedParameterWarning(FutureWarning):
@@ -28,6 +44,7 @@ class InputParameters:
     charge: float
     convergence: dict[str, Any]
     eigensolver: dict[str, Any]
+    environment: Environment
     experimental: dict[str, Any]
     external: dict[str, Any]
     gpts: None | Sequence[int]
@@ -61,7 +78,7 @@ class InputParameters:
             param = params.get(key)
             if param is not None:
                 self.non_defaults.append(key)
-                if hasattr(param, 'todict'):
+                if hasattr(param, 'todict') and not hasattr(param, 'build'):
                     param = param.todict()
                 value = func(param)
             else:
@@ -141,6 +158,11 @@ def eigensolver(value=None) -> dict:
     if isinstance(value, str):
         value = {'name': value}
     return value or {}
+
+
+@input_parameter
+def environment(value=None):
+    return value
 
 
 @input_parameter

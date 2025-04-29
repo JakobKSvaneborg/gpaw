@@ -4,8 +4,11 @@ from time import time
 from typing import TYPE_CHECKING
 from types import ModuleType
 from collections.abc import Iterable
+from gpaw.new.timer import trace
 
 import numpy as np
+
+from gpaw.cgpaw import have_magma
 
 cupy_is_fake = True
 """True if :mod:`cupy` has been replaced by ``gpaw.gpu.cpupy``"""
@@ -15,6 +18,11 @@ is_hip = False
 
 device_id = None
 """Device id"""
+
+
+def gpu_gemm(*args, **kwargs):
+    raise NotImplementedError('gpu_gemm: You are not using GPAW with GPUs.')
+
 
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
@@ -26,10 +34,9 @@ else:
             raise ImportError
 
         import cupy
+        from cupy import cublas
 
-        # This import is to preload cublas
-        # Fixes cp.cublas.gemm attribute not found error introduced by v13.
-        from cupy import cublas  # noqa: F401
+        gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811
 
         import cupyx
         from cupy.cuda import runtime
@@ -88,6 +95,8 @@ else:
     except ImportError:
         import gpaw.gpu.cpupy as cupy
         import gpaw.gpu.cpupyx as cupyx
+        from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm  # noqa
+
 
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']
 
@@ -137,17 +146,31 @@ def einsum(subscripts, *operands, out):
         out[:] = cupy.einsum(subscripts, *operands)
 
 
+@trace(gpu=True)
 def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     """Wrapper for ``eigh()``.
 
-    HIP-GPU version is too slow for now so we do it on the CPU.
+    Usually CUDA > MAGMA > HIP, so we try to choose the best one.
+    HIP native solver is questionably slow so for now do it on the CPU if
+    MAGMA is not available.
     """
     from scipy.linalg import eigh
     if not is_hip:
         return cupy.linalg.eigh(a, UPLO=UPLO)
-    eigs, evals = eigh(cupy.asnumpy(a),
-                       lower=(UPLO == 'L'),
-                       check_finite=False)
+
+    elif have_magma and a.ndim == 2 and a.shape[0] > 128:
+        # import here to avoid circular import.
+        # magma needs cupy (possibly fake),
+        # which must be imported from this file
+        from gpaw.new.magma import eigh_magma_gpu
+
+        return eigh_magma_gpu(a, UPLO)
+
+    else:
+        # fallback to CPU
+        eigs, evals = eigh(cupy.asnumpy(a),
+                           lower=(UPLO == 'L'),
+                           check_finite=False)
 
     return cupy.asarray(eigs), cupy.asarray(evals)
 
