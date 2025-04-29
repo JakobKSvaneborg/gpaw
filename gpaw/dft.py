@@ -275,6 +275,27 @@ class Parameters:
             if not is_default:
                 self._non_defaults.append(key)
 
+        if h != 0.0 and gpts is not None:
+            raise ValueError("""You can't use both "gpts" and "h"!""")
+
+        if self.experimental is not None:
+            if self.experimental.pop('niter_fixdensity', None) is not None:
+                warnings.warn('Ignoring "niter_fixdensity".')
+            if 'reuse_wfs_method' in self.experimental:
+                del self.experimental['reuse_wfs_method']
+                warnings.warn('Ignoring "reuse_wfs_method".')
+            if 'soc' in self.experimental:
+                warnings.warn('Please use new "soc" parameter.',
+                              DeprecatedParameterWarning)
+                self._add('soc', self.experimental.pop('soc'))
+            if 'magmoms' in self.experimental:
+                warnings.warn('Please use new "magmoms" parameter.',
+                              DeprecatedParameterWarning)
+                self._add('magmoms', self.experimental.pop('magmoms'))
+            unknown = self.experimental.keys() - {'backwards_compatible'}
+            if unknown:
+                warnings.warn(f'Unknown experimental keyword(s): {unknown}',
+                              stacklevel=3)
         self.mode = Mode.from_param(mode)
         self.basis = {None: basis} if isinstance(basis, str) else basis
         self.charge = charge
@@ -373,12 +394,13 @@ def GPAW(
 
     log = Logger(txt, communicator)
 
+    if mode == '':
+        del mode
+
     kwargs = {key: value for key, value in locals().items()
               if key in PARAMETER_NAMES}
 
     if filename is not None:
-        if mode is not None:
-            raise ValueError('"mode" not allowed when reading from a file')
         args = Parameters(mode='pw', **kwargs).non_defaults
         if set(args) >= {'mode', 'parallel'}:
             raise ValueError(
