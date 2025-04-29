@@ -138,7 +138,7 @@ class Davidson(PWFDEigensolver):
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
             with tracectx('Matrix elements'):
                 sliced_matrix_elements(psit_nX, psit2_nX,
-                                       buffer=me_buffer_mX,
+                                       buffer_mX=me_buffer_mX,
                                        Ht=Ht,
                                        M1_nn=M_nn,
                                        M2_nn=M2_nn)
