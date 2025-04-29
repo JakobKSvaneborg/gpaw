@@ -62,6 +62,8 @@ class Mode:
 @dataclass
 class PW(Mode):
     ecut: float = 340
+    force_complex_dtype: bool = False
+    dtype: np.dtype | None = None
 
 
 class LCAO(Mode):
