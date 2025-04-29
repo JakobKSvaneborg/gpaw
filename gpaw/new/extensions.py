@@ -2,6 +2,7 @@ class ExtensionParameter:
     def build(self, atoms):
         raise NotImplementedError
 
+
 class Extension:
     name = 'unnamed extension'
 
@@ -16,6 +17,7 @@ class Extension:
 
     def move_atoms(self, relpos_ac) -> None:
         raise NotImplementedError
+
 
 """
 class D3Extension:
@@ -44,4 +46,3 @@ class D3(ExtensionParameter):
     def build(self, atoms):
         return D3Extension(self, atoms)
 """
-

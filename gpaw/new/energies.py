@@ -52,6 +52,11 @@ class DFTEnergies:
         s = ', '.join(f'{k}={v}' for k, v in self._energies.items())
         return f'DFTEnergies({s})'
 
+    @property
+    def extensions_energies(self) -> list[tuple[str, float]]:
+        return [(name, self._energies.get(name)) for name in self._energies
+                if name not in OTHERS and name not in NAMES]
+
     def summary(self, log) -> None:
         for name in NAMES:
             if name in OTHERS:
@@ -62,7 +67,7 @@ class DFTEnergies:
                     continue
                 e = self.kinetic
             log(f'{name + ":":10}   {e * Ha:14.6f}')
-        extensions = [(name, self._energies.get(name)) for name in self._energies if name not in OTHERS and name not in NAMES]
+        extensions = self.extensions_energies
         if extensions:
             log('--------extensions:---------')
             for name, e in extensions:
