@@ -98,7 +98,7 @@ class Davidson(PWFDEigensolver):
         me_buffer_mX = psit_nX.new_buffer(data_buffer)
 
         @trace
-        def me(a, b, function=None, sliced=False):
+        def me(a, b, function=None):
             """Matrix elements"""
             return a.matrix_elements(b,
                                      domain_sum=False,
