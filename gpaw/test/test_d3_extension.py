@@ -1,7 +1,6 @@
 import pytest
-from ase.units import Hartree, Bohr
-import numpy as np
 from ase.calculators.dftd3 import PureDFTD3
+
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 400}, 'fd', 'lcao'])
@@ -69,14 +68,12 @@ def test_d3_extensions(mode, parallel, in_tmp_dir):
     E0, F0 = atoms.get_potential_energy(), atoms.get_forces()
 
     # Manually evaluate the spring energy, and compare forces
-    l = atoms.get_distance(0, 1)
     assert E == pytest.approx(E0 + D3_E)
     assert F == pytest.approx(F0 + D3_F)
 
     # Evaluate the reference energy and forces also for the moved atoms
     atoms.positions[0, 2] -= 0.1
     movedE0, movedF0 = atoms.get_potential_energy(), atoms.get_forces()
-    l = atoms.get_distance(0, 1)
     assert movedE == pytest.approx(movedE0 + movedD3_E)
     assert movedF == pytest.approx(movedF0 + movedD3_F)
 
@@ -103,7 +100,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir):
     relax = BFGS(atoms)
     relax.run()
     nsteps = relax.nsteps
-    #assert atoms.get_distance(0, 1) == pytest.approx(1.8483, abs=1e-2)
+    # assert atoms.get_distance(0, 1) == pytest.approx(1.8483, abs=1e-2)
     # XXX Replace with a new test
     Egs = atoms.get_potential_energy()
     L = atoms.get_distance(0, 1)

@@ -1,5 +1,6 @@
 from gpaw.new.input_parameters import register
 from ase.units import Hartree, Bohr
+import numpy as np
 
 
 class Extension:
@@ -31,6 +32,7 @@ class D3(ExtensionParameter):
 
     def build(self, atoms, domain_comm):
         atoms = atoms.copy()
+
         class D3Extension(Extension):
             def __init__(self):
                 super().__init__()
