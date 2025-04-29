@@ -8,7 +8,7 @@ class Extension:
     def __init__(self, atoms, domain_comm):
         ...
 
-    def get_energy_contribution(self) -> float:
+    def get_energy_contributions(self) -> dict[str, float]:
         raise NotImplementedError
 
     def force_contribution(self):

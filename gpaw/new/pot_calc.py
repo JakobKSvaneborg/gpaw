@@ -147,8 +147,10 @@ class PotentialCalculator:
             kpt_band_comm)
 
         for ext in self.extensions:
-            assert ext.name not in energies
-            energies[ext.name] = ext.get_energy_contribution()
+            dct = ext.get_energy_contributions()
+            for name, e in dct.items():
+                assert name not in energies
+                energies[name] = e
 
         energies['spinorbit'] = 0.0
         for key, e in corrections.items():

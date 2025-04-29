@@ -34,8 +34,8 @@ class Spring(ExtensionParameter):
             def force_contribution(self):
                 return self.F_av
 
-            def get_energy_contribution(self):
-                return self.E
+            def get_energy_contributions(self):
+                return {self.name: self.E}
 
             def move_atoms(self, atoms):
                 self._calculate(atoms)
