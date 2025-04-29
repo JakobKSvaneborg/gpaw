@@ -575,6 +575,7 @@ docs:
     - build-latest
   script:
     - pip install scikit-image
+    - pip install -e git+https://gitlab.com/gpaw/gpaw-web-page-data.git@make-pip-installable
     - cd doc
     - make
     - make doctest
