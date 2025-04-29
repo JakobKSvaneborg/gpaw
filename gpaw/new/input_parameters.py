@@ -167,13 +167,13 @@ def environment(value=None):
 
 
 @input_parameter
-def extensions(value=None):
-    return value or []
+def experimental(value=None):
+    return value or {}
 
 
 @input_parameter
-def experimental(value=None):
-    return value or {}
+def extensions(value=None):
+    return value or []
 
 
 @input_parameter
