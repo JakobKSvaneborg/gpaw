@@ -110,7 +110,7 @@ class DFTComponentsBuilder:
             atoms.numbers,
             params.setups,
             params.basis,
-            xcfunc,#.get_setup_name(),
+            xcfunc,
             world=comm,
             backwards_compatible=self._backwards_comatible)
         if params.hund:
@@ -118,15 +118,13 @@ class DFTComponentsBuilder:
             for a, setup in enumerate(self.setups):
                 self.initial_magmom_av[a, 2] = setup.get_hunds_rule_moment(c)
 
-        symmetries = create_symmetries_object(
+        symmetries = params.symmetry.build(
             atoms,
             setup_ids=self.setups.id_a,
             magmoms=self.initial_magmom_av,
-            **{k: v for k, v in params.symmetry.items()
-               if k != 'time_reversal'},
             _backwards_compatible=self._backwards_comatible)
 
-        use_time_reversal = params.symmetry.get('time_reversal', True)
+        use_time_reversal = params.symmetry.time_reversal
 
         symmetries._old_symmetry.time_reversal = use_time_reversal  # legacy
         self.setups.set_symmetry(symmetries._old_symmetry)  # legacy
@@ -134,7 +132,7 @@ class DFTComponentsBuilder:
         if self.ncomponents == 4:
             assert (len(symmetries) == 1 and not use_time_reversal)
 
-        bz = create_kpts(params.kpts, atoms)
+        bz = params.kpts.build(atoms)
         self.ibz = bz.reduce(
             symmetries,
             strict=False,
@@ -481,7 +479,7 @@ def normalize_initial_magmoms(
     return magmom_av, ncomponents
 
 
-def create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
+def ____create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     if 'kpts' in kpts:
         bz = BZPoints(kpts['kpts'])
     elif 'path' in kpts:
@@ -515,17 +513,17 @@ def calculate_number_of_bands(nbands: int | str | None,
         elif nbands[-1] == '%':
             cfgbands = (nvalence + M) / 2
             N = int(np.ceil(float(nbands[:-1]) / 100 * cfgbands))
+        elif nbands == 'default':
+            # Number of bound partial waves:
+            nbandsmax = sum(setup.get_default_nbands()
+                            for setup in setups)
+            N = int(np.ceil(1.2 * (nvalence + M) / 2)) + 4
+            N = min(N, nbandsmax)
+            if is_lcao and N > nao:
+                N = nao
         else:
             raise ValueError('Integer expected: Only use a string '
                              'if giving a percentage of occupied bands')
-    elif nbands is None:
-        # Number of bound partial waves:
-        nbandsmax = sum(setup.get_default_nbands()
-                        for setup in setups)
-        N = int(np.ceil(1.2 * (nvalence + M) / 2)) + 4
-        N = min(N, nbandsmax)
-        if is_lcao and N > nao:
-            N = nao
     elif nbands <= 0:
         N = max(1, int(nvalence + M + 0.5) // 2 + (-nbands))
     else:

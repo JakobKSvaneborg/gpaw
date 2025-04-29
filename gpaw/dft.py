@@ -6,10 +6,13 @@ from pathlib import Path
 from typing import IO, TYPE_CHECKING, Iterable, Sequence, Union
 
 import numpy as np
+from ase import Atoms
+from ase.calculators.calculator import kpts2sizeandoffsets
 
 from gpaw.mpi import MPIComm
 from gpaw.new.gpw import read_gpw
 from gpaw.new.logger import Logger
+from gpaw.new.symmetry import Symmetries, create_symmetries_object
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
@@ -109,11 +112,31 @@ class PoissonSolver:
             return PoissonSolver()
 
 
+@dataclass
 class Symmetry:
+    rotations: np.ndarray | None = None
+    translations: np.ndarray | None = None
+    atommaps: np.ndarray | None = None
+    extra_ids: Sequence[int] | None = None
+    tolerance: float | None = None  # Å
+    point_group: bool = True
+    symmorphic: bool = True
+    time_reversal: bool = True
+
     @classmethod
     def from_param(cls, s):
-        if s is None:
-            return Symmetry()
+        return Symmetry(**(s or {}))
+
+    def build(self,
+              atoms: Atoms,
+              *,
+              setup_ids: Sequence | None = None,
+              magmoms: np.ndarray | None = None,
+              _backwards_compatible=False) -> Symmetries:
+        kwargs = asdict(self)
+        del kwargs['time_reversal']
+        return create_symmetries_object(
+            atoms, **kwargs, _backwards_compatible=_backwards_compatible)
 
 
 class KPoints:
@@ -143,12 +166,14 @@ class MonkhorstPack(KPoints):
             return MonkhorstPack(**kpts)
         return MonkhorstPack(size=kpts)
 
+    def build(self, atoms):
+        from gpaw.new.brillouin import MonkhorstPackKPoints
+        size, offset = kpts2sizeandoffsets(**asdict(self), atoms=atoms)
+        for n, periodic in zip(size, atoms.pbc):
+            if not periodic and n != 1:
+                raise ValueError('K-points can only be used with PBCs!')
+        return MonkhorstPackKPoints(size, offset)
 
-class Missing:
-    pass
-
-
-missing = Missing()
 
 DOCS = """
 mode:
@@ -258,11 +283,11 @@ class Parameters:
         self.hund = hund
         self.experimental = experimental or {}
         self.extensions = list(extensions or [])
-        self.kpts = KPoints.from_param(kpts)
+        self.kpts = KPoints.from_param(kpts or (1, 1, 1))
         self.magmoms = np.array(magmoms) if magmoms is not None else None
         self.maxiter = maxiter
         self.mixer = Mixer.from_param(mixer),
-        self.nbands = nbands
+        self.nbands = nbands if nbands != '' else 'default'
         self.occupations = Occupations.from_param(occupations)
         self.parallel = parallel or {}
         self.poissonsolver = PoissonSolver.from_param(poissonsolver)
