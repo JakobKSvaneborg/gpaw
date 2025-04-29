@@ -71,7 +71,7 @@ class PWFDEigensolver(Eigensolver):
         # Maximal memory to be used for the eigensolver
         # should be infinite if hamiltonian is not band-local
         self.max_buffer_mem = max_buffer_mem \
-            if hamiltonian.band_local else np.inf
+            if hamiltonian.band_local else 'infinite'
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -85,15 +85,19 @@ class PWFDEigensolver(Eigensolver):
         dtype_size = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype.itemsize
         domain_size = ibzwfs.domain_comm.size
 
-        # Buffer size needs to ensure that the number of bands
-        # of the buffer is a multiple of domain_size.
-        buffer_size_per_domain = max(self.max_buffer_mem,
-                                     domain_size * G_max * dtype_size,
-                                     2 * nbands * dtype_size) \
-            // (domain_size * G_max * dtype_size)
-        buffer_size = min(buffer_size_per_domain * domain_size
-                          * G_max * dtype_size,
-                          b * G_max * dtype_size)
+        if isinstance(self.max_buffer_mem, int):
+            # Buffer size needs to ensure that the number of bands
+            # of the buffer is a multiple of domain_size.
+            buffer_size_per_domain = max(self.max_buffer_mem,
+                                         domain_size * G_max * dtype_size,
+                                         2 * nbands * dtype_size) \
+                // (domain_size * G_max * dtype_size)
+            buffer_size = min(buffer_size_per_domain * domain_size
+                              * G_max * dtype_size,
+                              b * G_max * dtype_size)
+        else:
+            buffer_size = max(b * G_max * dtype_size,
+                              2 * nbands * dtype_size)
 
         self.data_buffers = ibzwfs.xp.empty(shape + (buffer_size,),
                                             np.byte)
