@@ -11,6 +11,7 @@ class Spring(ExtensionParameter):
         self.a1, self.a2, self.l, self.k = a1, a2, l, k
 
     def build(self, atoms, domain_comm):
+        atoms = atoms.copy()
         class EnergyAdder(Extension):
 
             @property
@@ -37,7 +38,8 @@ class Spring(ExtensionParameter):
             def get_energy_contributions(self):
                 return {self.name: self.E}
 
-            def move_atoms(self, atoms):
+            def move_atoms(self, relpos_ac):
+                atoms.set_scaled_positions(relpos_ac)
                 self._calculate(atoms)
 
         return EnergyAdder(atoms)

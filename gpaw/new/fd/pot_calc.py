@@ -137,8 +137,8 @@ class FDPotentialCalculator(PotentialCalculator):
                 V_aL,
                 np.nan)
 
-    def move(self, relpos_ac, atomdist, *, atoms):
-        super().move(relpos_ac, atomdist, atoms=atoms)
+    def move(self, relpos_ac, atomdist):
+        super().move(relpos_ac, atomdist)
         self.ghat_aLr.move(relpos_ac, atomdist)
         self.vbar_ar.move(relpos_ac, atomdist)
         self.vbar_ar.to_uniform_grid(out=self.vbar_r)

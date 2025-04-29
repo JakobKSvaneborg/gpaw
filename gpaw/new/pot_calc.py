@@ -71,9 +71,9 @@ class PotentialCalculator:
                                               float]:
         raise NotImplementedError
 
-    def move(self, relpos_ac, atomdist, *, atoms):
+    def move(self, relpos_ac, atomdist):
         for ext in self.extensions:
-            ext.move_atoms(atoms)
+            ext.move_atoms(relpos_ac)
 
     @property
     def extensions_force_contributions(self):

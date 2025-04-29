@@ -14,7 +14,7 @@ class Extension:
     def force_contribution(self):
         raise NotImplementedError
 
-    def move_atoms(self, atoms) -> None:
+    def move_atoms(self, relpos_ac) -> None:
         raise NotImplementedError
 
 """
