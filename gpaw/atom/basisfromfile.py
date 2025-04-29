@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from argparse import Namespace
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from operator import methodcaller
 from os import PathLike
 from pathlib import Path
@@ -10,25 +10,20 @@ from typing import NamedTuple
 from ..basis_data import Basis, parse_basis_name
 from ..setup_data import SetupData
 from ..typing import Self
+from .all_electron import ValenceData
 from .basis import BasisMaker
 
 
-def generate_basis(setupdata: SetupData,
-                   caller: Callable[[BasisMaker], Basis],
-                   tokens: Sequence[str]):
-    from gpaw.atom.all_electron import ValenceData
+BasisGetter = Callable[[BasisMaker], Basis]
 
+
+def read_setup_and_generate_basis(
+        setup: str | PathLike,
+        getter: BasisGetter, /,
+        **kwargs) -> tuple[SetupData, Basis]:
+    setupdata = read_setupdata(setup)
     valdata = ValenceData.from_setupdata_onthefly_potentials(setupdata)
-    basis = caller(BasisMaker(valdata))
-
-    # Should the setupname be added as part of the name, too?
-    # Probably not, since we don't include the xcname either.
-    # But I suppose it depends more on the runtime behaviour when
-    # GPAW actually picks setups/basis sets for a calculation.
-    outputfile = '.'.join([setupdata.symbol, *tokens])
-
-    with open(outputfile, 'w') as fd:
-        basis.write_to(fd)
+    return setupdata, getter(BasisMaker(valdata, **kwargs))
 
 
 class BasisInfo(NamedTuple):
@@ -100,7 +95,7 @@ def read_setupdata(path: str | PathLike) -> SetupData:
     return setupdata
 
 
-def get_basis_maker_caller(args: Namespace) -> Callable[[BasisMaker], Basis]:
+def get_basis_getter(args: Namespace) -> BasisGetter:
     if args.vconf_sharp_confinement:
         vconf_args = None
     else:
@@ -117,15 +112,21 @@ def get_basis_maker_caller(args: Namespace) -> Callable[[BasisMaker], Basis]:
 
 
 def main(args: Namespace) -> None:
-    caller = get_basis_maker_caller(args)
+    get_basis = get_basis_getter(args)
     tokens = []
     if args.name:
         tokens.append(args.name)
     tokens += [args.type.name, 'basis']
     for filename in args.file:
         print(f'Generating basis set for {filename!r}')
-        setupdata = read_setupdata(filename)
-        generate_basis(setupdata, caller, tokens)
+        setupdata, basis = read_setup_and_generate_basis(filename, get_basis)
+        # Should the setupname be added as part of the name, too?
+        # Probably not, since we don't include the xcname either.
+        # But I suppose it depends more on the runtime behaviour when
+        # GPAW actually picks setups/basis sets for a calculation.
+        outputfile = '.'.join([setupdata.symbol, *tokens])
+        with open(outputfile, 'w') as fd:
+            basis.write_to(fd)
 
 
 class CLICommand:

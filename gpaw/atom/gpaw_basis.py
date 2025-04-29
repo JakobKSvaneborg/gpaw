@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from collections.abc import Callable, Sequence
-from typing import Any
+from collections.abc import Sequence
 
 from .basis import BasisMaker
-from .basisfromfile import (
-    add_common_args, get_basis_maker_caller, read_setupdata)
+from .basisfromfile import (BasisGetter, add_common_args,
+                            get_basis_getter, read_setup_and_generate_basis)
 
 
 def get_parser() -> ArgumentParser:
@@ -26,26 +25,22 @@ def get_parser() -> ArgumentParser:
 
 
 def main(args: Sequence[str] | None = None) -> None:
-    def generate_basis_set(symbol_or_path: str,
-                           caller: Callable[[BasisMaker], Any], /,
+    def generate_basis_set(symbol_or_path: str, getter: BasisGetter, /,
                            **kwargs) -> None:
         if '.' in symbol_or_path:  # symbol is actually a path
-            from gpaw.atom.all_electron import ValenceData
-            setupdata = read_setupdata(symbol_or_path)
-            valdata = ValenceData.from_setupdata_onthefly_potentials(setupdata)
-            bm = BasisMaker(valdata, **kwargs)
+            _, basis = read_setup_and_generate_basis(
+                symbol_or_path, getter, **kwargs)
         else:
             bm = BasisMaker.from_symbol(symbol_or_path, **kwargs)
-
-        basis = caller(bm)
+            basis = getter(bm)
         basis.write_xml()
 
     parser = get_parser()
     arguments = parser.parse_args(args)
-    caller = get_basis_maker_caller(arguments)
+    get_basis = get_basis_getter(arguments)
 
     for symbol in arguments.symbols:
-        generate_basis_set(symbol, caller,
+        generate_basis_set(symbol, get_basis,
                            name=arguments.name,
                            xc=arguments.xcfunctional,
                            save_setup=arguments.save_setup)
