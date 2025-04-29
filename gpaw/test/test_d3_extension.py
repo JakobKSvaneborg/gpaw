@@ -20,6 +20,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir):
     def get_atoms():
         from ase.build import molecule
         atoms = molecule('H2')
+        atoms[0].position[1] += 1
         atoms.center(vacuum=4)
         atoms.set_pbc((True, True, True))
         return atoms
