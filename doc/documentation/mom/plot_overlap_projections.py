@@ -1,3 +1,4 @@
+# creates: O_nm.png, P_nm_proj.png
 import numpy as np
 
 
@@ -12,8 +13,7 @@ def simple_swap(inseq, ii, jj):
     return seq
 
 
-def plot_overlaps_projections(use_projections=True):
-    from matplotlib import pyplot as plt
+def get_overlaps():
 
     np.random.seed(12347)
     #                   0   1   2   3   4   5   6   7
@@ -33,7 +33,37 @@ def plot_overlaps_projections(use_projections=True):
     O_nm /= O_nm.max()
 
     # updated occupations
+    # here: manually
     f_n = simple_swap(numbers, 4, 6)
+
+    return nbands, numbers, f_n, O_nm
+
+
+def get_projections(numbers, O_nm, proj=True):
+
+    # calculate subspace projections
+    mask_1 = numbers == 1.
+    f_s = np.r_[numbers[mask_1], .4, .6]
+
+    P_nm = np.zeros_like(O_nm)
+    if proj:
+        P_nm[mask_1, :] = (np.sum(O_nm[mask_1, :]**2, axis=0)**0.5)[None, :]
+    else:
+        P_nm[mask_1, :] = np.max(O_nm[mask_1, :], axis=0)[None, :]
+
+    # for subspaces with only one orbital
+    # we do the assignment manually here
+    P_nm[4, 5] = O_nm[5, 5]
+    P_nm[5, 4] = O_nm[4, 6]
+
+    return f_s, P_nm
+
+
+def plot_overlaps_projections(proj=True):
+    from matplotlib import pyplot as plt
+
+    nbands, numbers, f_n, O_nm = get_overlaps()
+    f_s, P_nm = get_projections(numbers, O_nm, proj=proj)
 
     # overlaps
     fig1 = plt.figure(figsize=(5, 5), constrained_layout=True)
@@ -58,20 +88,6 @@ def plot_overlaps_projections(use_projections=True):
     ax3.spines['top'].set_visible(False)
     ax3.set_xlabel('$f_m^{(k)}$')
 
-    # calculate subspace projections
-    mask_1 = numbers == 1.
-    f_s = np.r_[numbers[mask_1], .4, .6]
-
-    P_nm = np.zeros_like(O_nm)
-    if use_projections:
-        P_nm[mask_1, :] = (np.sum(O_nm[mask_1, :]**2, axis=0)**0.5)[None, :]
-    else:
-        P_nm[mask_1, :] = np.max(O_nm[mask_1, :], axis=0)[None, :]
-    # for subspaces with only one orbital
-    # we do the assignment manually here
-    P_nm[4, 5] = O_nm[5, 5]
-    P_nm[5, 4] = O_nm[4, 6]
-
     # projections
     fig2 = plt.figure(figsize=(5, 5), constrained_layout=True)
     gs = fig2.add_gridspec(5, 5)
@@ -81,7 +97,7 @@ def plot_overlaps_projections(use_projections=True):
 
     # matrix
     ax4.imshow(P_nm.T, aspect='auto', cmap='Greys')
-    if use_projections:
+    if proj:
         ax4.set_xlabel('$P_{sm}^{(k)}$ (projections)')
     else:
         ax4.set_xlabel('$P_{sm}^{(k)}$ (maximum)')
@@ -99,21 +115,10 @@ def plot_overlaps_projections(use_projections=True):
     ax6.set_xlabel('$f_m^{(k)}$')
 
     fig1.savefig('O_nm.png')
-    if use_projections:
+    if proj:
         fig2.savefig('P_nm_proj.png')
     else:
         fig2.savefig('P_nm_max.png')
 
 
-def main():
-    import subprocess
-
-    plot_overlaps_projections()
-    plot_overlaps_projections(use_projections=False)
-
-    # run to append horizontally
-    subprocess.run(['convert', '+append', 'P_nm_*.png', 'P_nm.png'])
-
-
-if __name__ == "__main__":
-    main()
+plot_overlaps_projections()

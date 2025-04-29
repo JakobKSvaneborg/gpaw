@@ -158,7 +158,7 @@ The images show the weight matrices calculated from the overlaps of the above ex
 Again, the assignment, which for more than one subspace is done using ``scipy.optimize.linear_sum_assignment``
 numerically, can be directly seen from in this example case.
 
-.. image:: P_nm.png
+.. image:: P_nm_proj.png
    :align: center
 
 
