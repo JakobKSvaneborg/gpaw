@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, TypeVar, Callable, Literal
-from functools import partial
 
 import gpaw.fftw as fftw
 import numpy as np
@@ -157,9 +156,7 @@ class DistributedArrays(Generic[DomainType], XP):
                         symmetric: bool | Literal['_default'] = '_default',
                         function=None,
                         domain_sum=True,
-                        cc: bool = False,
-                        sliced: bool = False,
-                        buffer: DistributedArrays | None = None) -> Matrix:
+                        cc: bool = False) -> Matrix:
         if symmetric == '_default':
             symmetric = self is other
 
@@ -171,74 +168,20 @@ class DistributedArrays(Generic[DomainType], XP):
                          dtype=self.desc.dtype,
                          xp=self.xp)
 
-        if comm.size == 1 or sliced:
+        if comm.size == 1:
             assert other.comm.size == comm.size
-            if sliced and function:
-                M1 = self.matrix
-                M2 = other.matrix
-                if buffer is None:
-                    raise ValueError
+            if function:
+                assert symmetric
+                other = function(other)
 
-                buffer_size = buffer.data.shape[0]
-                buffer_size_world = comm.sum_scalar(buffer_size)
-                mybands = self.data.shape[0]
-                totalbands = out.shape[0]
-                if buffer_size_world == totalbands:
-                    # No need for slicing
-                    if symmetric:
-                        return self.matrix_elements(self,
-                                                    out=out,
-                                                    symmetric=symmetric,
-                                                    domain_sum=domain_sum,
-                                                    function=partial(
-                                                        function,
-                                                        out=buffer),
-                                                    cc=cc)
-                    else:
-                        function(self, out=buffer)
-                        return buffer.matrix_elements(other,
-                                                      out=out,
-                                                      symmetric=symmetric,
-                                                      domain_sum=domain_sum,
-                                                      cc=cc)
+            M1 = self.matrix
+            M2 = other.matrix
+            out = M1.multiply(M2, opb='C', alpha=self.dv,
+                              symmetric=symmetric, out=out)
 
-                for niter, i_world in enumerate(
-                        range(0, totalbands, buffer_size_world)):
-                    i = niter * buffer_size
-                    buffer_view = buffer[:mybands - i]
-                    function(self[i:i + buffer_size], out=buffer_view)
-                    buffer_view_matrix = Matrix(
-                        M=min(buffer_size_world,
-                              totalbands - i_world),
-                        N=M1.data.shape[1],
-                        data=buffer_view.matrix.data,
-                        dist=(comm, -1, 1),
-                        xp=self.xp)
-                    out_view_matrix = Matrix(
-                        M=min(buffer_size_world,
-                              totalbands - i_world),
-                        N=out.shape[1],
-                        data=out.data[i:i + buffer_size, :],
-                        dist=(comm, -1, 1),
-                        xp=self.xp)
-                    M2.dist.multiply(self.dv, buffer_view_matrix, 'N', M2, 'C',
-                                     0.0, out_view_matrix, symmetric=False)
-                    self._matrix_elements_correction(buffer_view_matrix, M2,
-                                                     out_view_matrix,
-                                                     symmetric=False)
-            else:
-                if function:
-                    assert symmetric
-                    other = function(other)
-
-                M1 = self.matrix
-                M2 = other.matrix
-                out = M1.multiply(M2, opb='C', alpha=self.dv,
-                                  symmetric=symmetric, out=out)
-
-                # Plane-wave expansion of real-valued
-                # functions needs a correction:
-                self._matrix_elements_correction(M1, M2, out, symmetric)
+            # Plane-wave expansion of real-valued
+            # functions needs a correction:
+            self._matrix_elements_correction(M1, M2, out, symmetric)
         else:
             if symmetric:
                 _parallel_me_sym(self, out, function)

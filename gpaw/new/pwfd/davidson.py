@@ -66,6 +66,7 @@ class Davidson(PWFDEigensolver):
         H_NN = self.H_NN
         S_NN = self.S_NN
         M_nn = self.M_nn
+        M2_nn = M_nn.new()
 
         xp = M_nn.xp
 
@@ -103,9 +104,7 @@ class Davidson(PWFDEigensolver):
                                      domain_sum=False,
                                      out=M_nn,
                                      function=function,
-                                     cc=True,
-                                     sliced=sliced,
-                                     buffer=me_buffer_mX)
+                                     cc=True)
 
         calculate_residuals(wfs.psit_nX,
                             psit2_nX,
@@ -114,7 +113,7 @@ class Davidson(PWFDEigensolver):
                             wfs.myeig_n,
                             dH, dS_aii, P2_ani, P3_ani)
 
-        def copy(C_nn: Array2D) -> None:
+        def copy(C_nn: Array2D, M_nn: Matrix) -> None:
             domain_comm.sum(M_nn.data, 0)
             if domain_comm.rank == 0:
                 M_nn.redist(M0_nn)
@@ -136,29 +135,33 @@ class Davidson(PWFDEigensolver):
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
             with tracectx('Matrix elements'):
+                sliced_matrix_elements(psit_nX, psit2_nX,
+                                       buffer_mX=me_buffer_mX,
+                                       Ht=Ht,
+                                       M1_nn=M_nn,
+                                       M2_nn=M2_nn)
+
                 # <psi2 | H | psi2>
-                me(psit2_nX, psit2_nX, function=Ht, sliced=True)
                 dH(P2_ani, out_ani=P3_ani)
                 P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
-                                       out=M_nn)
-                copy(H_NN.data[B:, B:])
+                                       out=M2_nn)
+                copy(H_NN.data[B:, B:], M2_nn)
 
                 # <psi2 | H | psi>
-                me(psit2_nX, psit_nX, function=Ht, sliced=True)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
-                copy(H_NN.data[B:, :B])
+                copy(H_NN.data[B:, :B], M_nn)
 
                 # <psi2 | S | psi2>
                 me(psit2_nX, psit2_nX)
                 P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
                 P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
                                        out=M_nn)
-                copy(S_NN.data[B:, B:])
+                copy(S_NN.data[B:, B:], M_nn)
 
                 # <psi2 | S | psi>
                 me(psit2_nX, psit_nX)
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
-                copy(S_NN.data[B:, :B])
+                copy(S_NN.data[B:, :B], M_nn)
 
             with tracectx('Diagonalize'):
                 with broadcast_exception(domain_comm):
@@ -223,3 +226,50 @@ def sliced_preconditioner(psit_nX, psit2_nX, buffer, precon):
                 out=buffer_view)
             psit2_nX.data[i_local:i_local + buffer_size] \
                 = buffer_view.data[:]
+
+
+def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
+    comm = psit1_nX.comm
+    b = psit1_nX.data.shape[0]
+    blocksize = buffer_mX.data.shape[0]
+    blocksize_world = comm.sum_scalar(blocksize)
+    totalbands = comm.sum_scalar(b)
+    for i1, N1 in enumerate(
+            range(0, totalbands, blocksize_world)):
+        n1 = i1 * blocksize
+        n2 = n1 + blocksize
+        if n2 > b:
+            n2 = b
+
+        world_N = min(blocksize_world,
+                      totalbands - N1)
+
+        buffer_view_aX = buffer_mX.new(
+            data=buffer_mX.data[:n2 - n1],
+            dims=(world_N,) + buffer_mX.dims[1:],
+        )
+        Ht(psit2_nX[n1:n2], out=buffer_view_aX)
+
+        out1 = Matrix(
+            M=world_N,
+            N=M1_nn.shape[1],
+            data=M1_nn.data[n1:n2, :],
+            dist=(comm, -1, 1),
+            xp=M1_nn.xp)
+        out2 = Matrix(
+            M=world_N,
+            N=M2_nn.shape[1],
+            data=M2_nn.data[n1:n2, :],
+            dist=(comm, -1, 1),
+            xp=M2_nn.xp)
+
+        buffer_view_aX.matrix_elements(psit1_nX,
+                                       out=out1,
+                                       symmetric=False,
+                                       domain_sum=False,
+                                       cc=True)
+        buffer_view_aX.matrix_elements(psit2_nX,
+                                       out=out2,
+                                       symmetric=False,
+                                       domain_sum=False,
+                                       cc=True)
