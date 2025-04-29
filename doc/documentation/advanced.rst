@@ -15,7 +15,6 @@ GPAW calculator:
    cdft/cdft
    dscf/dscf
    dcdft/dcdft
-   xc/exx
    external
    grids
    hyperfine
@@ -24,7 +23,6 @@ GPAW calculator:
    do-gmf/do-gmf
    smearing
    ofdft/ofdft
-   xc/rpa
    scissors/scissors
    xc/xc
    custom_convergence

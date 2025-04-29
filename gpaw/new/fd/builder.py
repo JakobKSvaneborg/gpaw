@@ -5,9 +5,7 @@ from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import as_double_precision
-from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
-from gpaw.poisson import PoissonSolver as make_poisson_solver
 
 
 class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -60,21 +58,20 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.grid, self.relpos_ac, atomdist=self.atomdist)
         return self._tauct_aR
 
-    def create_poisson_solver(self) -> PoissonSolver:
-        solver = make_poisson_solver(**self.params.poissonsolver, xp=self.xp)
-        solver.set_grid_descriptor(self.fine_grid._gd)
-        return PoissonSolverWrapper(solver)
-
-    def create_potential_calculator(self):
-        poisson_solver = self.create_poisson_solver()
+    def create_potential_calculator(self, log):
+        env = self.create_environment(self.fine_grid, log)
+        poisson_solver = env.create_poisson_solver(
+            grid=self.fine_grid, xp=self.xp, **self.params.poissonsolver)
         return FDPotentialCalculator(
             self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
             relpos_ac=self.relpos_ac, atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
+            environment=env,
             xp=self.xp)
 
-    def create_hamiltonian_operator(self, blocksize=10):
-        return FDHamiltonian(self.wf_desc, self.kin_stencil_range, blocksize,
+    def create_hamiltonian_operator(self):
+        return FDHamiltonian(self.wf_desc,
+                             kin_stencil=self.kin_stencil_range,
                              xp=self.xp)
 
     def convert_wave_functions_from_uniform_grid(self,
@@ -88,8 +85,8 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         basis_set.lcao_to_grid(C_nM.data, psit_nR.data[:mynbands], q)
         return psit_nR.to_xp(self.xp)
 
-    def read_ibz_wave_functions(self, reader):
-        ibzwfs = super().read_ibz_wave_functions(reader)
+    def read_ibz_wave_functions(self, reader, log):
+        ibzwfs = super().read_ibz_wave_functions(reader, log)
 
         if 'coefficients' in reader.wave_functions:
             name = 'coefficients'

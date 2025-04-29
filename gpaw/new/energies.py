@@ -3,8 +3,8 @@
 from ase.units import Ha
 
 # Contributions to free energy:
-NAMES = {'kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
-         'spinorbit'}
+NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
+         'spinorbit']
 
 # Other allowed names:
 OTHERS = {'band', 'kinetic_correction', 'extrapolation',
@@ -18,21 +18,26 @@ class DFTEnergies:
         self.set(**energies)
 
     def set(self, **energies: float) -> None:
-        assert energies.keys() <= NAMES | OTHERS, energies
+        assert energies.keys() <= set(NAMES) | OTHERS, energies
         self._energies.update(energies)
         self._total_free = None
+
+    @property
+    def kinetic(self):
+        e = self._energies.get('kinetic')
+        if e is not None:
+            return e
+        # Use Kohn-Sham eq. to get kinetic energy as sum over
+        # occupied eigenvalues + correction:
+        return (self._energies['band'] +
+                self._energies['kinetic_correction'] +
+                self._energies.get('hybrid_kinetic_correction', 0.0))
 
     @property
     def total_free(self) -> float:
         if self._total_free is None:
             energies = self._energies.copy()
-            if 'kinetic' not in energies:
-                # Use Kohn-Sham eq. to get kinetic energy as sum over
-                # occupied eigenvalues + correction:
-                energies['kinetic'] = (
-                    energies['band'] +
-                    energies['kinetic_correction'] +
-                    energies.get('hybrid_kinetic_correction', 0.0))
+            energies['kinetic'] = self.kinetic
             if 'hybrid_xc' in energies:
                 energies['xc'] += energies['hybrid_xc']
             self._total_free = sum(energies.get(name, 0.0) for name in NAMES)
@@ -49,8 +54,11 @@ class DFTEnergies:
     def summary(self, log) -> None:
         for name in NAMES:
             e = self._energies.get(name)
-            if e is not None:
-                log(f'{name + ":":10}   {e * Ha:14.6f}')
+            if e is None:
+                if name != 'kinetic':
+                    continue
+                e = self.kinetic
+            log(f'{name + ":":10}   {e * Ha:14.6f}')
         log('----------------------------')
         log(f'Free energy: {self.total_free * Ha:14.6f}')
         log(f'Extrapolated:{self.total_extrapolated * Ha:14.6f}\n')

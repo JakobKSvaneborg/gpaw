@@ -541,18 +541,22 @@ class GPWFiles(CachedFilesHandler):
         return si.calc
 
     @gpwfile
-    def si_qpoint_rounding_bug(self):
+    def si_noisy_kpoints(self):
         # Test system for guarding against inconsistent kpoints as in #1178.
         from ase.calculators.calculator import kpts2kpts
         atoms = bulk('Si')
-        kpts = kpts2kpts(kpts={'gamma': True, 'size': (6, 1, 1)}, atoms=atoms)
+        kpts = kpts2kpts(kpts={'size': (2, 2, 2), 'gamma': True}, atoms=atoms)
 
         # Error happened when qpoint was ~1e-17 yet was not considered gamma.
         # Add a bit of noise on purpose so we are sure to hit such a case,
         # even if the underlying implementation changes:
-        kpts.kpts += np.linspace(1e-16, 1e-15, 18).reshape(6, 3)
+        kpts.kpts += np.linspace(1e-16, 1e-15, 24).reshape(8, 3)
 
-        calc = GPAW(mode=PW(340), kpts=kpts)
+        calc = GPAW(mode='pw',
+                    xc='LDA',
+                    occupations=FermiDirac(width=0.001),
+                    kpts=kpts,
+                    txt=self.folder / 'si_noisy_kpoints.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
         return calc
@@ -1226,8 +1230,7 @@ class GPWFiles(CachedFilesHandler):
     def p4_pw_spinpol(self):
         return self._p4(spinpol=True)
 
-    @gpwfile
-    def ni_pw_kpts333(self):
+    def _ni_pw_kpts333(self, setups={'Ni': '10'}):
         from ase.dft.kpoints import monkhorst_pack
         # from gpaw.mpi import serial_comm
         Ni = bulk('Ni', 'fcc')
@@ -1239,7 +1242,7 @@ class GPWFiles(CachedFilesHandler):
                     txt=self.folder / 'ni_pw_kpts333.txt',
                     kpts=kpts,
                     occupations=FermiDirac(0.001),
-                    setups={'Ni': '10'},
+                    setups=setups,
                     parallel=dict(domain=1),  # >1 fails on 8 cores
                     # communicator=serial_comm
                     )
@@ -1248,6 +1251,14 @@ class GPWFiles(CachedFilesHandler):
         Ni.get_potential_energy()
         calc.diagonalize_full_hamiltonian()
         return calc
+
+    @gpwfile
+    def ni_pw(self):
+        return self._ni_pw_kpts333(setups={})
+
+    @gpwfile
+    def ni_pw_kpts333(self):
+        return self._ni_pw_kpts333()
 
     @gpwfile
     def c_pw(self):

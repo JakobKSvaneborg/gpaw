@@ -5,6 +5,14 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
+  # CI for branches inside the GPAW namespace will run on camd-runner2
+  # because the GPAW project settings define the CI variable
+  # DEFAULT_RUNNER_TAG: "linux".
+  # Forks will instead get this definition which allows running
+  # pipelines on shared runners.
+  DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+
 
 default:
   before_script:
@@ -12,7 +20,10 @@ default:
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
+    - pip freeze
   interruptible: true
+  tags:
+    - $DEFAULT_RUNNER_TAG
 
 
 stages:
@@ -20,6 +31,7 @@ stages:
   - precalculate
   - test
   - deploy
+
 
 .build:
   stage: build
@@ -116,21 +128,23 @@ stages:
 
 build:
   image: $IMAGE_MAIN_OLDEST
-  extends: .build
-  tags:
-    - linux
+  extends:
+    - .build
   script:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-oldest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-latest:
   image: $IMAGE_MAIN_LATEST
-  extends: .build
-  tags:
-    - linux
+  extends:
+    - .build
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -159,9 +173,15 @@ build-latest:
 
       EOF
     - cat siteconfig.py
+    - pip install --user --upgrade numpy scipy
+    - pip install --user --upgrade mpi4py
     - pip install --user --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-latest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-cuda:
@@ -169,8 +189,6 @@ build-cuda:
   extends:
     - .build
     - .gpu-job
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -180,6 +198,10 @@ build-cuda:
       gpu_compile_args = ['-O3',
                           '-g']
       libraries += ['cudart', 'cublas']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
@@ -190,8 +212,6 @@ build-hip-cuda:
   extends:
     - .build
     - .gpu-job
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -207,6 +227,10 @@ build-hip-cuda:
                              '-Wno-implicit-int',
                              ]
       undef_macros += ['GPAW_GPU_AWARE_MPI']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
@@ -214,9 +238,8 @@ build-hip-cuda:
 
 build-minimal:
   image: $IMAGE_MAIN_OLDEST
-  extends: .build
-  tags:
-    - linux
+  extends:
+    - .build
   script:
     - |
       cat << EOF > siteconfig.py
@@ -285,8 +308,6 @@ build-lumi-g:
 prepare-libxc:
   image: $IMAGE_MAIN_OLDEST
   stage: build
-  tags:
-    - linux
   variables:
     PREFIX: $PYTHONUSERBASE
   before_script:
@@ -316,8 +337,6 @@ build-libxc:
     - .build
   needs:
     - prepare-libxc
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -337,8 +356,6 @@ test-oldest:
     - .test
   needs:
     - build
-  tags:
-    - linux
   script:
     - gpaw info
     - >
@@ -360,8 +377,6 @@ test-latest:
     - .test
   needs:
     - build-latest
-  tags:
-    - linux
   script:
     - gpaw info
 
@@ -373,7 +388,7 @@ test-latest:
       EOF
 
     - >
-      pytest -v -m ci -m gpu
+      pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
 
   artifacts:
@@ -389,8 +404,6 @@ test-latest-new:
     - .test
   needs:
     - build-latest
-  tags:
-    - linux
   script:
     - gpaw info
     - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
@@ -402,8 +415,6 @@ test-minimal:
     - .test
   needs:
     - build-minimal
-  tags:
-    - linux
   script:
     - gpaw info
     - >
@@ -491,8 +502,6 @@ test-libxc:
     - .test
   needs:
     - build-libxc
-  tags:
-    - linux
   script:
     - gpaw info
     - pytest -v -m libxc
@@ -502,8 +511,6 @@ check-agts:
   stage: test
   needs:
     - build
-  tags:
-    - linux
   script:
     # - pip install --user git+https://gitlab.com/myqueue/myqueue.git@master
     - pip install --user myqueue
@@ -511,14 +518,12 @@ check-agts:
     - mq init
     - mq workflow -p agts.py -zT | tail -1 | tee task_count
     - >
-      [[ `cut -d ' ' -f1 < task_count` -ge 539 ]] || (echo "Too few agts tasks"; exit 1)
+      [[ `cut -d ' ' -f1 < task_count` -ge 501 ]] || (echo "Too few agts tasks"; exit 1)
 
 
 lint:
   image: $IMAGE_MAIN_LATEST
   stage: build
-  tags:
-    - linux
   script:
     - echo "png check"
     - >
@@ -556,8 +561,6 @@ lint:
 typecheck:
   image: $IMAGE_MAIN_LATEST
   stage: build
-  tags:
-    - linux
   script:
     - pip install mypy
     - python --version
@@ -570,8 +573,6 @@ docs:
   stage: test
   needs:
     - build-latest
-  tags:
-    - linux
   script:
     - pip install scikit-image
     - cd doc
@@ -657,6 +658,11 @@ nightly-mpi-1:
     paths:
       - htmlcov/
     expire_in: 1 day
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_success
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
 nightly-mpi-2:

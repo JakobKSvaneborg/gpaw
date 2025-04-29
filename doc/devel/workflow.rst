@@ -55,10 +55,6 @@ Same thing for GPAW::
 
     See :ref:`siteconfig` for details.
 
-Download PAW datasets::
-
- $ gpaw install-data --register ~/PAWDATA
-
 
 Run the tests
 =============

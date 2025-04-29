@@ -4,13 +4,29 @@ import warnings
 from typing import Any, Sequence
 
 import numpy as np
+from gpaw.new.environment import Environment
 
 parameter_functions = {}
+classes = {}
 
-"""
-background_charge
-external
-"""
+
+def register(cls):
+    classes[cls.__name__] = cls
+    todict = cls.todict
+    cls.todict = lambda self: {'name': cls.__name__, **todict(self)}
+    return cls
+
+
+def fromdict(dct):
+    if isinstance(dct, list):
+        return [fromdict(x) for x in dct]
+    if not isinstance(dct, dict):
+        return dct
+    if 'name' not in dct:
+        return dct
+    dct = dct.copy()
+    cls = classes[dct.pop('name')]
+    return cls(**{key: fromdict(value) for key, value in dct.items()})
 
 
 class DeprecatedParameterWarning(FutureWarning):
@@ -28,6 +44,7 @@ class InputParameters:
     charge: float
     convergence: dict[str, Any]
     eigensolver: dict[str, Any]
+    environment: Environment
     experimental: dict[str, Any]
     external: dict[str, Any]
     gpts: None | Sequence[int]
@@ -45,6 +62,7 @@ class InputParameters:
     # random
     setups: Any
     soc: bool
+    solvation: Any
     spinpol: bool
     symmetry: dict[str, Any]
     xc: dict[str, Any]
@@ -60,7 +78,7 @@ class InputParameters:
             param = params.get(key)
             if param is not None:
                 self.non_defaults.append(key)
-                if hasattr(param, 'todict'):
+                if hasattr(param, 'todict') and not hasattr(param, 'build'):
                     param = param.todict()
                 value = func(param)
             else:
@@ -139,10 +157,12 @@ def eigensolver(value=None) -> dict:
     """Eigensolver."""
     if isinstance(value, str):
         value = {'name': value}
-    if value and value['name'] not in {'dav', 'etdm-fdpw', 'scissors'}:
-        warnings.warn(f'{value["name"]} not implemented.  Using dav instead')
-        return {'name': 'dav'}
     return value or {}
+
+
+@input_parameter
+def environment(value=None):
+    return value
 
 
 @input_parameter
@@ -269,6 +289,11 @@ def setups(value='paw'):
 
 @input_parameter
 def soc(value=False):
+    return value
+
+
+@input_parameter
+def solvation(value=None):
     return value
 
 

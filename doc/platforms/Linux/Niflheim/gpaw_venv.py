@@ -77,9 +77,11 @@ module load libvdwxc/0.4.0-{fullchain}
 }
 
 module_cmds_arch_dependent = """\
-if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2023a" ];\
+if ( [ "$CPU_ARCH" == "icelake" ] || [ "$CPU_ARCH" == "skylake_el8" ] )\
+ && [ {fullchain} == "foss-2023a" ];\
 then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
-if [ "$SLURM_JOB_PARTITION" == "a100" ];\
+if [ "$SLURM_JOB_PARTITION" == "a100" ] \
+ || [ "$SLURM_JOB_PARTITION" == "sm3090el8" ];\
 then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 """
 
@@ -305,7 +307,7 @@ def main():
     Path(f'lib/python{version}/site-packages/niflheim.pth').write_text(pth)
 
     # Install extra basis-functions:
-    run(f'. {activate} && gpaw install-data --basis --version=20000 '
+    run(f'. {activate} && gpaw install-data --basis --version=0.9.20000 '
         f'{venv} --no-register')
 
     extra = activate_extra.format(venv=venv)

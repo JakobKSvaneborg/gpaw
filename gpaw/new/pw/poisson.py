@@ -11,6 +11,7 @@ from scipy.special import erf
 def make_poisson_solver(pw: PWDesc,
                         grid: UGDesc,
                         charge: float,
+                        environment=None,
                         strength: float = 1.0,
                         dipolelayer: bool = False,
                         **kwargs) -> PoissonSolver:
@@ -21,7 +22,13 @@ def make_poisson_solver(pw: PWDesc,
 
     if dipolelayer:
         return DipoleLayerPWPoissonSolver(ps, grid, **kwargs)
+
     assert not kwargs
+
+    if hasattr(environment, 'dielectric'):
+        from gpaw.new.sjm import SJMPWPoissonSolver
+        return SJMPWPoissonSolver(pw, environment.dielectric)
+
     return ps
 
 
@@ -51,7 +58,7 @@ class PWPoissonSolver(PoissonSolver):
     def solve(self,
               vHt_g: PWArray,
               rhot_g: PWArray) -> float:
-        """Solve Poisson equeation.
+        """Solve Poisson equation.
 
         Places result in vHt_g ndarray.
         """
@@ -63,7 +70,7 @@ class PWPoissonSolver(PoissonSolver):
                rhot_g) -> float:
         vHt_g.data[:] = 2 * pi * self.strength * rhot_g.data
         if self.pw.comm.rank == 0:
-            # Use uniform backgroud charge in case we have a charged system:
+            # Use uniform background charge in case we have a charged system:
             vHt_g.data[0] = 0.0
         if not isinstance(self.ekin_g, vHt_g.xp.ndarray):
             self.ekin_g = vHt_g.xp.array(self.ekin_g)
@@ -82,7 +89,7 @@ class ChargedPWPoissonSolver(PWPoissonSolver):
                  eps: float = 1e-5):
         """Reciprocal-space Poisson solver for charged molecules.
 
-        * Add a compensating Guassian-shaped charge to the density
+        * Add a compensating Gaussian-shaped charge to the density
           in order to make the total charge neutral (placed in the
           middle of the unit cell
 
@@ -107,7 +114,7 @@ class ChargedPWPoissonSolver(PWPoissonSolver):
         ----------
         alpha : float
         charge_g : np.ndarray
-            Guassian-shaped charge in reciprocal space
+            Gaussian-shaped charge in reciprocal space
         potential_g : PWArray
              Potential in reciprocal space created by charge_g
         """
@@ -175,23 +182,29 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
     def __init__(self,
                  ps: PWPoissonSolver,
                  grid: UGDesc,
-                 width: float = 1.0):  # Ångström
+                 width: float = 1.0,  # Ångström
+                 zero_vacuum=False):
         self.ps = ps
         self.grid = grid
         self.width = width / Bohr
+        self.zero_vacuum = zero_vacuum
         (self.axis,) = np.where(~grid.pbc_c)[0]
         self.correction = np.nan
+        self.pw = ps.pw
 
     def solve(self,
               vHt_g: PWArray,
               rhot_g: PWArray) -> float:
         epot = self.ps.solve(vHt_g, rhot_g)
-
         dip_v = -rhot_g.moment()
         c = self.axis
         L = self.grid.cell_cv[c, c]
         self.correction = 2 * np.pi * dip_v[c] * L / self.grid.volume
         vHt_g.data -= 2 * self.correction * self.sawtooth_g.data
+        if self.zero_vacuum:
+            v0 = vHt_g.boundary_value(self.axis)
+            if vHt_g.desc.comm.rank == 0:
+                vHt_g.data[0] += self.correction - v0
         return epot + 2 * np.pi * dip_v[c]**2 / self.grid.volume
 
     def dipole_layer_correction(self) -> float:

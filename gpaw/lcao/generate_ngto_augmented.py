@@ -175,6 +175,7 @@ def add_ngto(basis, l, coeff_j, alpha_j, tol, label):
 def generate_nao_ngto_basis(atom, *, xc, nao, name,
                             gtos, gto_description=None,
                             rmax=100.0, tol=0.001):
+    from dataclasses import replace
     # Choose basis sets without semi-core states XXXXXX
     if atom == 'Ag':
         name = '11.%s' % name
@@ -184,16 +185,18 @@ def generate_nao_ngto_basis(atom, *, xc, nao, name,
 
     # Generate nao basis
     zetacount, polarizationcount = parse_basis_name(nao)
-    bm = BasisMaker(atom, name=name, run=False, gtxt=None, xc=xc)
-    bm.generator.run(write_xml=False, **p[atom])
+    bm = BasisMaker.from_symbol(
+        atom, name=name, gtxt=None, xc=xc,
+        generator_run_kwargs=dict(write_xml=False, **p[atom]))
     basis = bm.generate(zetacount, polarizationcount, txt=None)
 
     # Increase basis function max radius
+    # XXX why are we doing this?
     assert isinstance(basis.rgd, EquidistantRadialGridDescriptor)
     h = basis.rgd.dr_g[0]
     assert basis.rgd.r_g[0] == 0.0
     N = int(rmax / h) + 1
-    basis.rgd = EquidistantRadialGridDescriptor(h, N)
+    basis = replace(basis, rgd=EquidistantRadialGridDescriptor(h, N))
 
     # Add NGTOs
     description = []
@@ -226,6 +229,8 @@ def generate_nao_ngto_basis(atom, *, xc, nao, name,
             description.append('    ' + ngtolabel)
             add_ngto(basis, l, coeff_j, alpha_j, tol, ngtolabel)
 
-    basis.generatordata += '\n\n' + '\n'.join(description)
+    basis = replace(
+        basis,
+        generatordata=basis.generatordata + '\n\n' + '\n'.join(description))
 
     basis.write_xml()

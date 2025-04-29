@@ -66,6 +66,10 @@ class Chi0BodyData(Chi0RelatedData):
         communicator."""
         return self.blockdist.distribute_frequencies(self.data_WgG, self.nw)
 
+    def get_distributed_frequencies_blocks1d(self):
+        """Get Blocks1D for the global frequency distribution."""
+        return Blocks1D(self.blockdist.world, len(self.wd))
+
     def copy_array_with_distribution(self, distribution):
         """Copy data to a new array of a desired distribution.
 

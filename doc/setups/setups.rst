@@ -38,7 +38,7 @@ Setup releases
    * - Feb 22 2024
      - 24.1.0_
      - New 14 electron Cr PAW potential added.
-       For high accuracy, it is recommented over the old 6-electron version
+       For high accuracy, it is recommended over the old 6-electron version
        (which is still the default).  You can use it by
        specifying ``setups={'Cr': '14'}`` (see also :ref:`manual_setups`).
        It has been generated with the following command::
@@ -98,11 +98,13 @@ Cs_ Ba_     Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
 Installation of PAW datasets
 ============================
 
-The PAW datasets can be installed automatically or manually.
+A basic PAW dataset has been installed as part of the default
+installation;
+additional PAW datasets can be installed automatically or manually.
 
 To install them automatically, run :command:`gpaw install-data
-{<dir>}`.  This downloads and unpacks the newest package into
-:file:`{<dir>}/gpaw-setups-{<version>}`.  When prompted, answer
+--{<dataset>} {<dir>}`.  This downloads and unpacks the newest package
+into :file:`{<dir>}/{<name>}-{<version>}`.  When prompted, answer
 yes (y) to register the path in the GPAW configuration file.
 
 To manually install the setups, do as follows:
@@ -148,6 +150,41 @@ Advanced topics
 
    generation_of_setups
    pawxml
+
+
+.. _acwf benchmark:
+
+ACWF-benchmark
+==============
+
+Equation-of-state calculations for the 10 reference systems from
+the `AiiDA common workflows (ACWF) benchmark <ACWF>`_:
+DIAMOND, FCC, SC, BCC, XO3, XO, X4O6, XO2, X4O10, X2O.
+
+See :git:`gpaw/utilities/acwf.py` for how to run these calculation.
+
+The following table shows the errors in lattice constant in %
+compared to accurate Wien2k results.  Calculations are done for:
+
+* PW-mode calculations with ``ecut=1000`` (columns 3-5)
+* LCAO-mode calculations with ``h=0.12`` (columns 6-8)
+
+The coulumns are:
+
+1. atomic number
+2. PAW-potential name
+3. number of errors (out of the 10 systems) (PW)
+4. maxium absolute error (PW)
+5. mean absolute error (PW)
+6. number of errors (out of the 10 systems) (LCAO)
+7. maxium absolute error (LCAO)
+8. mean absolute error (LCAO)
+
+.. csv-table::
+   :file: acwf.csv
+   :header: number, name, errors, max, mean, errors, max, mean
+
+.. _ACWF: https://acwf-verification.materialscloud.org/
 
 
 .. _24.11.0:

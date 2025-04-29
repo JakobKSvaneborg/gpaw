@@ -46,16 +46,22 @@ def test_solvation_water_water(H2O, parameters):
         Evac = -14.857414548
 
     Ewater = H2O.get_potential_energy()
-    Eelwater = H2O.calc.get_electrostatic_energy()
-    Esurfwater = H2O.calc.get_solvation_interaction_energy('surf')
     H2O.get_forces()
     DGSol = (Ewater - Evac) / (kcal / mol)
     print('Delta Gsol: %s kcal / mol' % DGSol)
 
     assert DGSol == pytest.approx(-6.3, abs=2.)
-    assert Ewater == pytest.approx(Eelwater + Esurfwater, abs=1e-14)
+
+    if H2O.calc.old:
+        Eelwater = H2O.calc.get_electrostatic_energy()
+        Esurfwater = H2O.calc.get_solvation_interaction_energy('surf')
+        assert Ewater == pytest.approx(Eelwater + Esurfwater, abs=1e-14)
+    else:
+        Esurfwater = H2O.calc.environment.interaction_energy()
+    assert Esurfwater == pytest.approx(0.058, abs=0.002)
 
 
+@pytest.mark.old_gpaw_only
 def test_read(H2O, in_tmp_dir):
     """Read and check some basic properties"""
     fname = 'solvation.gpw'

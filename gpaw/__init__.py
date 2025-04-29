@@ -22,23 +22,18 @@ __all__ = ['GPAW',
            'PW', 'LCAO', 'FD',
            'restart']
 
-allowed_envvars = {
-    'GPAW_MPI_OPTIONS',
+boolean_envvars = {
     'GPAW_NEW',
     'GPAW_CPUPY',
     'GPAW_USE_GPUS',
-    'GPAW_MPI',
+    'GPAW_TRACE',
     'GPAW_NO_C_EXTENSION',
+    'GPAW_MPI4PY'}
+allowed_envvars = {
+    *boolean_envvars,
+    'GPAW_MPI_OPTIONS',
+    'GPAW_MPI',
     'GPAW_SETUP_PATH'}
-
-# Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
-GPAW_NEW = bool(int(os.environ.get('GPAW_NEW') or 0))
-GPAW_NO_C_EXTENSION = bool(int(os.environ.get('GPAW_NO_C_EXTENSION') or 0))
-GPAW_USE_GPUS = bool(int(os.environ.get('GPAW_USE_GPUS') or 0))
-
-if os.uname().machine == 'wasm32':
-    GPAW_NO_C_EXTENSION = True
-
 
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
@@ -168,17 +163,41 @@ def parse_arguments(argv):
 
 
 def __getattr__(attr: str) -> Any:
+    for attr_getter in _lazy_import, _get_gpaw_env_vars:
+        try:
+            result = attr_getter(attr)
+        except AttributeError:
+            continue
+        return globals().setdefault(attr, result)
+    raise _module_attr_error(attr)
+
+
+def __dir__() -> List[str]:
+    """
+    Get the (1) normally-present module attributes, (2) lazily-imported
+    objects, and (3) envrionmental variables starting with `GPAW_`.
+    """
+    return list({*globals(),
+                 *all_lazy_imports,  # From `_lazy_import()`
+                 *{*boolean_envvars,  # From `_get_gpaw_env_vars()`
+                   *(var for var in os.environ if var.startswith('GPAW_'))}})
+
+
+def _module_attr_error(attr: str, *args, **kwargs) -> AttributeError:
+    return AttributeError(f'{__getattr__.__module__}: '
+                          f'no attribute named `.{attr}`',
+                          *args, **kwargs)
+
+
+def _lazy_import(attr: str) -> Any:
     """
     Implement the lazy importing of classes in submodules."""
-
     import importlib
 
     try:
         import_target = all_lazy_imports[attr]
     except KeyError:
-        raise AttributeError(
-            f'{__getattr__.__module__}: no attribute named `.{attr!r}`'
-        ) from None
+        raise _module_attr_error(attr) from None
 
     module, sep, target = import_target.rpartition('.')
     assert module and all(chunk.isidentifier() for chunk in module.split('.'))
@@ -187,11 +206,12 @@ def __getattr__(attr: str) -> Any:
     return getattr(importlib.import_module(module), target)
 
 
-def __dir__() -> List[str]:
-    """
-    Get the normally-present module attributes and the lazily-imported objects.
-    """
-    return [*globals(), *all_lazy_imports]
+def _get_gpaw_env_vars(attr: str) -> bool | str:
+    if attr in boolean_envvars:
+        return bool(int(os.environ.get(attr) or 0))
+    if attr in allowed_envvars and attr in os.environ:
+        return os.environ[attr]
+    raise _module_attr_error(attr)
 
 
 all_lazy_imports = dict(
@@ -213,6 +233,16 @@ all_lazy_imports = dict(
     FD='gpaw.wavefunctions.fd.FD',
     LCAO='gpaw.wavefunctions.lcao.LCAO',
     PW='gpaw.wavefunctions.pw.PW')
+
+
+# Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
+# (`__getattr__()` magic handles the other boolean environment
+# variables, but GPAW_NEW is used within the same script, so it needs to
+# concretely exist in the namespace)
+GPAW_NEW = _get_gpaw_env_vars('GPAW_NEW')
+
+if os.uname().machine == 'wasm32':
+    GPAW_NO_C_EXTENSION = True
 
 
 class BroadcastImports:
@@ -285,6 +315,8 @@ elif GPAW_NEW:
     all_lazy_imports['GPAW'] = 'gpaw.new.ase_interface.GPAW'
 else:
     all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
+
+all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
 
 
 def restart(filename, Class=None, **kwargs):

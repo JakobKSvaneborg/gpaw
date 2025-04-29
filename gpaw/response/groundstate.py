@@ -284,16 +284,44 @@ class ResponseGroundStateAdapter:
             nocc2 = max((f_n > ftol).sum(), nocc2)
         return int(nocc1), int(nocc2)
 
-    def get_eigenvalue_range(self, nbands: int | None = None):
-        """Get smallest and largest Kohn-Sham eigenvalues."""
-        nbands = nbands if nbands is not None else self.nbands
-        assert 1 <= nbands <= self.nbands
+    def get_band_transitions(self, nbands: int | slice | None = None):
+        """Determine the indices the define the range of occupied bands
+        n1, n2 and unoccupied bands m1, m2"""
 
+        if nbands is None:
+            n1 = 0
+            m2 = self.nbands
+        elif isinstance(nbands, int):
+            n1 = 0
+            m2 = nbands
+            assert 1 <= m2 <= self.nbands
+        elif isinstance(nbands, slice):
+            n1 = nbands.start
+            m2 = nbands.stop
+            assert n1 >= 0 and m2 >= 0
+            assert nbands.step in {None, 1}
+            assert n1 < m2 <= self.nbands
+            assert n1 <= self.nocc1
+        else:
+            raise ValueError(
+                f"Invalid type for nbands: {type(nbands)}."
+                "Expected None, int, or slice.")
+
+        n2 = self.nocc2
+        m1 = self.nocc1
+
+        assert n1 < n2
+
+        return n1, n2, m1, m2
+
+    def get_eigenvalue_range(self, nbands: int | slice | None = None):
+        """Get smallest and largest Kohn-Sham eigenvalues."""
+        n1, n2, m1, m2 = self.get_band_transitions(nbands)
         epsmin = np.inf
         epsmax = -np.inf
         for kpt in self.kpt_u:
-            epsmin = min(epsmin, kpt.eps_n[0])  # the eigenvalues are ordered
-            epsmax = max(epsmax, kpt.eps_n[nbands - 1])
+            epsmin = min(epsmin, kpt.eps_n[n1])  # the eigenvalues are ordered
+            epsmax = max(epsmax, kpt.eps_n[m2 - 1])
         return epsmin, epsmax
 
     @property
