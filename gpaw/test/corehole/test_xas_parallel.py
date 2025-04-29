@@ -79,6 +79,7 @@ def test_xas_band_and_kpts_parallel(
 
 @pytest.mark.skipif(mpi.size % 4 != 0,
                     reason='works only for multiples of 4 cores')
+@pytest.mark.old_gpaw_only
 def test_xas_kpts_domian_parallel_spinpol(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
