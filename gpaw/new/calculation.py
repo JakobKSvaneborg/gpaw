@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import Any, Union
+from typing import Any, TYPE_CHECKING
 
 import numpy as np
 from ase import Atoms
@@ -18,7 +18,6 @@ from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
@@ -27,6 +26,8 @@ from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 from gpaw.utilities.partition import AtomPartition
+if TYPE_CHECKING:
+    from gpaw.dft import Parameters
 
 
 class ReuseWaveFunctionsError(Exception):

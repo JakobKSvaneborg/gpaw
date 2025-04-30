@@ -24,17 +24,14 @@ from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.input_parameters import InputParameters, fromdict
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
 from gpaw.new.smearing import OccupationNumberCalculator
-from gpaw.new.symmetry import create_symmetries_object
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
-from gpaw.xc import XC
 from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
@@ -80,7 +77,7 @@ def builder(atoms: Atoms,
 class DFTComponentsBuilder:
     def __init__(self,
                  atoms: Atoms,
-                 params: InputParameters,
+                 params: Parameters,
                  dtype: None | DTypeLike = None,
                  *,
                  comm):
@@ -159,7 +156,7 @@ class DFTComponentsBuilder:
 
         self.dtype: DTypeLike
         if dtype is None:
-            if self.params.mode.get('force_complex_dtype', False):
+            if self.params.mode.force_complex_dtype:
                 self.dtype = complex
             else:
                 if self.ibz.bz.gamma_only and self.ncomponents < 4:
@@ -275,7 +272,7 @@ class DFTComponentsBuilder:
 
     def create_occupation_number_calculator(self):
         return OccupationNumberCalculator(
-            self.params.occupations,
+            self.params.occupations.params,
             self.atoms.pbc,
             self.ibz,
             self.nbands,
@@ -385,7 +382,7 @@ class DFTComponentsBuilder:
 
     def create_environment(self, grid, log):
         if self.params.environment is not None:
-            env = fromdict(self.params.environment)
+            env = ...  # fromdict(self.params.environment)
             return env.build(
                 setups=self.setups,
                 grid=grid, relpos_ac=self.relpos_ac, log=log,
@@ -549,13 +546,13 @@ def create_uniform_grid(mode: str,
                         cell,
                         pbc,
                         symmetries,
-                        h: float = None,
+                        h: float = 0.0,
                         interpolation: str = None,
                         ecut: float = None,
                         comm: MPIComm = serial_comm) -> UGDesc:
     """Create grid in a backwards compatible way."""
     cell = cell / Bohr
-    if h is not None:
+    if h != 0.0:
         h /= Bohr
 
     realspace = (mode != 'pw' and interpolation != 'fft')

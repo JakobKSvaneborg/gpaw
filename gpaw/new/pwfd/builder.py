@@ -24,7 +24,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                           qspiral @ self.grid.icell * (2 * pi))
 
     def create_eigensolver(self, hamiltonian):
-        return make_eigensolver(
+        return self.params.eigensolver.build(
+            self.mode,
             self.nbands,
             self.wf_desc,
             self.communicators['b'],
@@ -32,8 +33,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             hamiltonian.create_preconditioner,
             self.params.convergence.get('bands', 'occupied'),
             self.setups,
-            self.atoms,
-            **self.params.eigensolver)
+            self.atoms)
 
     def read_ibz_wave_functions(self, reader, log):
         kpt_comm, band_comm, domain_comm = (self.communicators[x]

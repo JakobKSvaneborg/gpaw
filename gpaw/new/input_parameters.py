@@ -1,17 +1,4 @@
 from __future__ import annotations
-import warnings
-
-from typing import Any, Sequence
-
-import numpy as np
-from gpaw.new.environment import Environment
-
-
-class DeprecatedParameterWarning(FutureWarning):
-    """Warning class for when a parameter or its value is deprecated."""
-
-
-
 
 
 def mode(value=None):
@@ -24,7 +11,7 @@ def mode(value=None):
     return value
 
 
-def parallel(value: dict[str, Any] | None = None) -> dict[str, Any]:
+def parallel(value: dict | None = None):
     known = {'kpt', 'domain', 'band',
              'order',
              'stridebands',
@@ -46,6 +33,8 @@ def parallel(value: dict[str, Any] | None = None) -> dict[str, Any]:
                 f'Unknown key: {key!r}. Must be one of {", ".join(known)}')
         return value
     return {}
+
+
 def symmetry(value='undefined'):
     """Use of symmetry."""
     if value == 'undefined':

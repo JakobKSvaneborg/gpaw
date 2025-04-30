@@ -201,9 +201,9 @@ class GGA(XCFunctional):
         self.kernel = kernel
         self.stencil_range = stencil
 
-    def set_grid_descriptor(self, gd, xp=np):
+    def set_grid_descriptor(self, gd):
         XCFunctional.set_grid_descriptor(self, gd)
-        self.grad_v = get_gradient_ops(gd, self.stencil_range, xp)
+        self.grad_v = get_gradient_ops(gd, self.stencil_range, self.xp)
 
     def todict(self):
         d = super().todict()

@@ -20,7 +20,7 @@ def get_number_of_grid_points(cell_cv,
     if realspace is None:
         realspace = mode.name != 'pw'
 
-    if h is None:
+    if not h:
         if mode.name == 'pw':
             h = np.pi / (4 * mode.ecut)**0.5
         elif mode.name == 'lcao' and not realspace:

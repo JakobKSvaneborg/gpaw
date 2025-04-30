@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import importlib
-from dataclasses import asdict, dataclass, is_dataclass
+import warnings
+from dataclasses import asdict, dataclass, is_dataclass, KW_ONLY
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Iterable, Sequence, Union
 
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
-
 from gpaw.mpi import MPIComm
 from gpaw.new.gpw import read_gpw
 from gpaw.new.logger import Logger
@@ -23,6 +23,10 @@ PARAMETER_NAMES = [
     'magmoms', 'maxiter', 'mixer', 'nbands', 'occupations',
     'parallel', 'poissonsolver', 'random', 'setups', 'soc',
     'spinpol', 'symmetry', 'xc']
+
+
+class DeprecatedParameterWarning(FutureWarning):
+    """Warning class for when a parameter or its value is deprecated."""
 
 
 class XC:
@@ -42,7 +46,11 @@ class XC:
         return XC(**xc)
 
 
+@dataclass
 class Mode:
+    _: KW_ONLY
+    force_complex_dtype: bool = False
+
     @classmethod
     def from_param(cls, mode) -> Mode:
         if isinstance(mode, str):
@@ -62,7 +70,6 @@ class Mode:
 @dataclass
 class PW(Mode):
     ecut: float = 340
-    force_complex_dtype: bool = False
     dtype: np.dtype | None = None
 
 
@@ -70,18 +77,31 @@ class LCAO(Mode):
     pass
 
 
-@dataclass
 class Eigensolver:
-    parameters: dict
-
     @classmethod
     def from_param(cls, eigensolver):
-        if eigensolver is None:
-            eigensolver = {}
         if 'name' in eigensolver:
             eigensolver = eigensolver.copy()
             return {'dav': Davidson}[eigensolver.pop('name')](**eigensolver)
-        return Eigensolver(eigensolver)
+        return DefaultEigensolver(eigensolver)
+
+
+@dataclass
+class DefaultEigensolver(Eigensolver):
+    params: dict
+
+    def build(self,
+              mode,
+              nbands,
+              wf_desc,
+              band_comm,
+              comm,
+              create_preconditioner,
+              converge_bands,
+              setups,
+              atoms):
+
+
 
 
 @dataclass
@@ -100,18 +120,26 @@ class Mixer:
             return Mixer()
 
 
+@dataclass
 class Occupations:
+    params: dict
+
     @classmethod
     def from_param(cls, occupations):
-        if occupations is None:
-            return Occupations()
+        if isinstance(occupations, dict):
+            return Occupations(occupations)
+        return occupations
 
 
+@dataclass
 class PoissonSolver:
+    params: dict
+
     @classmethod
     def from_param(cls, ps):
-        if ps is None:
-            return PoissonSolver()
+        if isinstance(ps, dict):
+            return PoissonSolver(ps)
+        return ps
 
 
 @dataclass
@@ -185,42 +213,6 @@ basis:
 """
 
 
-def DFT(
-    atoms,
-    *,
-    mode,
-    basis: str | dict[str | int | None, str] = '',
-    charge: float = 0.0,
-    convergence: dict | None = None,
-    eigensolver: dict | Eigensolver | None = None,
-    experimental: dict | None = None,
-    gpts: Sequence[int] | None = None,
-    h: float = 0.0,
-    hund: bool = False,
-    extensions: Sequence[Extension] = (),
-    kpts: Sequence[int] | dict | MonkhorstPack | None = None,
-    magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
-    maxiter: int = 0,
-    mixer: dict | Mixer | None = None,
-    nbands: int | str = '',
-    occupations: dict | Occupations | None = None,
-    parallel: dict | None = None,
-    poissonsolver: dict | PoissonSolver | None = None,
-    random: bool = False,
-    setups: str | dict = '',
-    soc: bool = False,
-    spinpol: bool = False,
-    symmetry: str | dict | Symmetry = '',
-    xc: str | dict | XC = 'LDA',
-    txt: str | Path | IO[str] | None = '?',
-    communicator: MPIComm | Iterable[int] | None = None):
-    """asdg
-    """
-    params = Parameters(**{k: v for k, v in locals().items()
-                           if k in PARAMETER_NAMES})
-    return params.dft_calculation(atoms, txt, communicator)
-
-
 class Parameters:
     def __init__(
         self,
@@ -278,29 +270,32 @@ class Parameters:
         if h != 0.0 and gpts is not None:
             raise ValueError("""You can't use both "gpts" and "h"!""")
 
-        if self.experimental is not None:
-            if self.experimental.pop('niter_fixdensity', None) is not None:
-                warnings.warn('Ignoring "niter_fixdensity".')
-            if 'reuse_wfs_method' in self.experimental:
-                del self.experimental['reuse_wfs_method']
-                warnings.warn('Ignoring "reuse_wfs_method".')
-            if 'soc' in self.experimental:
-                warnings.warn('Please use new "soc" parameter.',
-                              DeprecatedParameterWarning)
-                self._add('soc', self.experimental.pop('soc'))
-            if 'magmoms' in self.experimental:
-                warnings.warn('Please use new "magmoms" parameter.',
-                              DeprecatedParameterWarning)
-                self._add('magmoms', self.experimental.pop('magmoms'))
-            unknown = self.experimental.keys() - {'backwards_compatible'}
-            if unknown:
-                warnings.warn(f'Unknown experimental keyword(s): {unknown}',
-                              stacklevel=3)
+        if experimental is None:
+            experimental = {}
+        else:
+            experimental = experimental.copy()
+        if experimental.pop('niter_fixdensity', None) is not None:
+            warnings.warn('Ignoring "niter_fixdensity".')
+        if 'reuse_wfs_method' in experimental:
+            del experimental['reuse_wfs_method']
+            warnings.warn('Ignoring "reuse_wfs_method".')
+        if 'soc' in experimental:
+            warnings.warn('Please use new "soc" parameter.',
+                          DeprecatedParameterWarning)
+            soc = experimental.pop('soc')
+        if 'magmoms' in experimental:
+            warnings.warn('Please use new "magmoms" parameter.',
+                          DeprecatedParameterWarning)
+            magmoms = experimental.pop('magmoms')
+        unknown = experimental.keys() - {'backwards_compatible'}
+        if unknown:
+            warnings.warn(f'Unknown experimental keyword(s): {unknown}',
+                          stacklevel=3)
         self.mode = Mode.from_param(mode)
         self.basis = {None: basis} if isinstance(basis, str) else basis
         self.charge = charge
         self.convergence = convergence or {}
-        self.eigensolver = Eigensolver.from_param(eigensolver)
+        self.eigensolver = Eigensolver.from_param(eigensolver or {})
         self.gpts = np.array(gpts) if gpts is not None else None
         self.h = h
         self.hund = hund
@@ -311,9 +306,9 @@ class Parameters:
         self.maxiter = maxiter
         self.mixer = Mixer.from_param(mixer),
         self.nbands = nbands if nbands != '' else 'default'
-        self.occupations = Occupations.from_param(occupations)
+        self.occupations = Occupations.from_param(occupations or {})
         self.parallel = parallel or {}
-        self.poissonsolver = PoissonSolver.from_param(poissonsolver)
+        self.poissonsolver = PoissonSolver.from_param(poissonsolver or {})
         self.random = random
         self.setups = {None: setups} if isinstance(setups, str) else setups
         self.soc = soc
@@ -352,6 +347,42 @@ class Parameters:
         from gpaw.new.calculation import DFTCalculation
         log = Logger(txt, communicator)
         return DFTCalculation.from_parameters(atoms, self, log.comm, log)
+
+
+def DFT(
+    atoms,
+    *,
+    mode,
+    basis: str | dict[str | int | None, str] = '',
+    charge: float = 0.0,
+    convergence: dict | None = None,
+    eigensolver: dict | Eigensolver | None = None,
+    experimental: dict | None = None,
+    gpts: Sequence[int] | None = None,
+    h: float = 0.0,
+    hund: bool = False,
+    extensions: Sequence[Extension] = (),
+    kpts: Sequence[int] | dict | MonkhorstPack | None = None,
+    magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
+    maxiter: int = 0,
+    mixer: dict | Mixer | None = None,
+    nbands: int | str = '',
+    occupations: dict | Occupations | None = None,
+    parallel: dict | None = None,
+    poissonsolver: dict | PoissonSolver | None = None,
+    random: bool = False,
+    setups: str | dict = '',
+    soc: bool = False,
+    spinpol: bool = False,
+    symmetry: str | dict | Symmetry = '',
+    xc: str | dict | XC = 'LDA',
+    txt: str | Path | IO[str] | None = '?',
+    communicator: MPIComm | Iterable[int] | None = None):
+    """asdg
+    """
+    params = Parameters(**{k: v for k, v in locals().items()
+                           if k in PARAMETER_NAMES})
+    return params.dft_calculation(atoms, txt, communicator)
 
 
 def GPAW(

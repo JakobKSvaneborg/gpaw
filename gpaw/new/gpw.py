@@ -37,12 +37,12 @@ from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
-from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.typing import DTypeLike
 from gpaw.utilities import unpack_hermitian, unpack_density
 from gpaw.new.energies import DFTEnergies
+# from gpaw.new.input_parameters import InputParameters
 
 
 def as_single_precision(array):
