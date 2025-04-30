@@ -235,6 +235,9 @@ class DistributedArrays(Generic[DomainType], XP):
     def integrate(self, other: Self | None = None) -> np.ndarray:
         raise NotImplementedError
 
+    def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
+        raise NotImplementedError
+
 
 def _parallel_me(psit1_nX: DistributedArrays,
                  psit2_nX: DistributedArrays,
