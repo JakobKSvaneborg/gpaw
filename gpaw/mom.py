@@ -175,9 +175,12 @@ class OccupationsMOM:
         return f_qn, fermi_levels, e_entropy
 
     def initialize_reference_orbitals(self):
+        if hasattr(self.wfs, 'ibzwfs'):
+            if not self.wfs.ibzwfs.has_wave_functions():
+                return
         try:
             f_n = self.wfs.kpt_u[0].f_n
-        except ValueError:  # new gpaw
+        except ValueError:
             return
         if f_n is None:  # old gpaw
             # If the occupation numbers are not already available
