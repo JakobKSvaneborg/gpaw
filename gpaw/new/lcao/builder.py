@@ -4,7 +4,6 @@ from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
 from gpaw.new.fd.builder import FDDFTComponentsBuilder
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
-from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.lcao.hybrids import HybridLCAOEigensolver, HybridXCFunctional
@@ -41,16 +40,18 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
         return LCAOHamiltonian(self.basis)
 
     def create_eigensolver(self, hamiltonian):
-        if self.params.xc['name'] in ['HSE06', 'PBE0', 'EXX']:
-            return HybridLCAOEigensolver(self.basis,
-                                         self.relpos_ac,
-                                         self.grid.cell_cv)
-        if self.params.eigensolver.get('name') == 'scissors':
-            from gpaw.lcao.scissors import ScissorsLCAOEigensolver
-            return ScissorsLCAOEigensolver(self.basis,
-                                           self.params.eigensolver['shifts'],
-                                           self.ibz.symmetries)
-        return LCAOEigensolver(self.basis)
+        from gpaw.dft import DefaultEigensolver
+        es = self.params.eigensolver
+        if isinstance(es, DefaultEigensolver):
+            if self.params.xc.name in ['HSE06', 'PBE0', 'EXX']:
+                name = 'hybrid'
+            else:
+                name = 'lcao'
+            es = es.from_param({'name': name, **es.params})
+        return es.build_lcao(self.basis,
+                             self.relpos_ac,
+                             self.grid.cell_cv,
+                             self.ibz.symmetries)
 
     def read_ibz_wave_functions(self, reader, log):
         c = 1

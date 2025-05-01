@@ -46,10 +46,15 @@ class XC:
         return XC(**xc)
 
 
-@dataclass
-class Mode:
-    _: KW_ONLY
-    force_complex_dtype: bool = False
+class Parameter:
+    def __repr__(self):
+        args = ', '.join(f'{k}={v!r}' for k, v in self.todict().items())
+        return f'{self.__class__.__name__}({args})'
+
+
+class Mode(Parameter):
+    def __init__(self, *, force_complex_dtype: bool = False):
+        self.force_complex_dtype = force_complex_dtype
 
     @classmethod
     def from_param(cls, mode) -> Mode:
@@ -60,17 +65,24 @@ class Mode:
             return {'pw': PW}[mode.pop('name')](**mode)
         return mode
 
-    @property
-    def dft_components_builder_class(self):
-        name = self.__class__.__name__
-        mod = importlib.import_module(f'gpaw.new.{name.lower()}.builder')
-        return getattr(mod, f'{name}DFTComponentsBuilder')
 
-
-@dataclass
 class PW(Mode):
-    ecut: float = 340
-    dtype: np.dtype | None = None
+    def __init__(self,
+                 ecut: float = 340,
+                 dtype: np.dtype | None = None):
+        self.ecut = ecut
+        self.dtype = dtype
+
+    def todict(self):
+        dct = {'ecut': self.ecut}
+        if self.dtype:
+            dct['dtype'] = str(self.dtype)
+        return dct
+
+    def dft_components_builder(self, atoms, params, comm):
+        from gpaw.new.pw.builder import PWDFTComponentsBuilder
+        return PWDFTComponentsBuilder()
+
 
 
 class LCAO(Mode):
@@ -80,9 +92,11 @@ class LCAO(Mode):
 class Eigensolver:
     @classmethod
     def from_param(cls, eigensolver):
+        if isinstance(eigensolver, str):
+            return eigensolvers[eigensolver]()
         if 'name' in eigensolver:
             eigensolver = eigensolver.copy()
-            return {'dav': Davidson}[eigensolver.pop('name')](**eigensolver)
+            return eigensolvers[eigensolver.pop('name')](**eigensolver)
         return DefaultEigensolver(eigensolver)
 
 
@@ -90,34 +104,92 @@ class Eigensolver:
 class DefaultEigensolver(Eigensolver):
     params: dict
 
-    def build(self,
-              mode,
-              nbands,
-              wf_desc,
-              band_comm,
-              comm,
-              create_preconditioner,
-              converge_bands,
-              setups,
-              atoms):
-
-
-
 
 @dataclass
 class Davidson(Eigensolver):
     niter: int = 2
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              create_preconditioner,
+              converge_bands,
+              setups,
+              atoms):
+        from gpaw.new.pwfd.davidson import Davidson
+        return Davidson(
+            nbands,
+            wf_desc,
+            band_comm,
+            create_preconditioner,
+            converge_bands,
+            niter=self.niter)
+
+
+@dataclass
+class RMMDIIS(Eigensolver):
+    niter: int = 1
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              create_preconditioner,
+              converge_bands,
+              setups,
+              atoms):
+        from gpaw.new.pwfd.rmmdiis import RMMDIIS
+        return RMMDIIS(
+            nbands,
+            wf_desc,
+            band_comm,
+            create_preconditioner,
+            converge_bands,
+            niter=self.niter)
+
+
+class LCAOEigensolver(Eigensolver):
+    def build_lcao(self, basis, relpos_ac, cell_cv, symmetries):
+        return LCAOEigensolver(basis)
+
+
+class HybridLCAOEigensolver(LCAOEigensolver):
+    def build_lcao(self, basis, relpos_ac, cell_cv, symmetries):
+        from gpaw.new.lcao.hybrids import HybridLCAOEigensolver as HLCAOES
+        return HLCAOES(basis, relpos_ac, cell_cv)
+
+
+@dataclass
+class Scissors(LCAOEigensolver):
+    shifts: list
+
+    def build_lcao(self, basis, relpos_ac, cell_cv, symmetries):
+        from gpaw.lcao.scissors import ScissorsLCAOEigensolver
+        return ScissorsLCAOEigensolver(basis,
+                                       self.shifts,
+                                       symmetries)
+
+
+eigensolvers = {
+    'davidson': Davidson,
+    'rmm-diis': RMMDIIS,
+    'lcao': LCAOEigensolver,
+    'hybrid-lcao': HybridLCAOEigensolver,
+    'scissors': Scissors}
 
 
 class Extension:
     pass
 
 
+@dataclass
 class Mixer:
+    params: dict
+
     @classmethod
     def from_param(cls, mixer):
-        if mixer is None:
-            return Mixer()
+        return Mixer(mixer)
 
 
 @dataclass
@@ -221,7 +293,7 @@ class Parameters:
         basis: str | dict[str | int | None, str] = '',
         charge: float = 0.0,
         convergence: dict | None = None,
-        eigensolver: dict | Eigensolver | None = None,
+        eigensolver: str | dict | Eigensolver | None = None,
         gpts: Sequence[int] | None = None,
         h: float = 0.0,
         hund: bool = False,
@@ -304,7 +376,7 @@ class Parameters:
         self.kpts = KPoints.from_param(kpts or (1, 1, 1))
         self.magmoms = np.array(magmoms) if magmoms is not None else None
         self.maxiter = maxiter
-        self.mixer = Mixer.from_param(mixer),
+        self.mixer = Mixer.from_param(mixer or {})
         self.nbands = nbands if nbands != '' else 'default'
         self.occupations = Occupations.from_param(occupations or {})
         self.parallel = parallel or {}

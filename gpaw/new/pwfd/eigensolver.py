@@ -18,43 +18,6 @@ from gpaw.utilities.blas import axpy
 from gpaw.utilities import as_real_dtype
 
 
-def create_eigensolver(nbands,
-                       wf_desc,
-                       band_comm,
-                       comm,
-                       create_preconditioner,
-                       converge_bands,
-                       setups,
-                       atoms,
-                       name='dav',
-                       **kwargs):
-    if name in ['cg', 'direct']:
-        warnings.warn(f'{name} not implemented.  Using dav instead')
-        name = 'dav'
-    if name == 'dav':
-        from gpaw.new.pwfd.davidson import Davidson
-        return Davidson(
-            nbands,
-            wf_desc,
-            band_comm,
-            create_preconditioner,
-            converge_bands,
-            **kwargs)
-    if name == 'rmm-diis':
-        from gpaw.new.pwfd.rmmdiis import RMMDIIS
-        return RMMDIIS(
-            nbands,
-            wf_desc,
-            band_comm,
-            create_preconditioner,
-            converge_bands,
-            **kwargs)
-    if name == 'etdm-fdpw':
-        from gpaw.new.pwfd.etdm import ETDM
-        return ETDM(**kwargs)
-    raise ValueError
-
-
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
                  preconditioner_factory,

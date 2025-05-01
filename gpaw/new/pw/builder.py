@@ -92,7 +92,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     @cached_property
     def fast_poisson_solver(self) -> bool:
-        fast = self.params.poissonsolver.get('fast', False)
+        fast = self.params.poissonsolver.params.get('fast', False)
         if fast:
             # Only works for gaussian compensation charges at the moment:
             fast = False
@@ -119,7 +119,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return self._tauct_ag
 
     def create_poisson_solver(self, env):
-        psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
+        psparams = self.params.poissonsolver.params.copy() or {'strength': 1.0}
         psparams.pop('fast', False)
 
         if self.fast_poisson_solver:
@@ -152,7 +152,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.setups,
             self.xc,
             self.create_poisson_solver(env),
-            external_potential=create_external_potential(self.params.external),
+            external_potential=create_external_potential(
+                {}),  # self.params.external),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,

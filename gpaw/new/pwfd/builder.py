@@ -7,7 +7,6 @@ from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
-from gpaw.new.pwfd.eigensolver import create_eigensolver as make_eigensolver
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
@@ -24,12 +23,14 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                           qspiral @ self.grid.icell * (2 * pi))
 
     def create_eigensolver(self, hamiltonian):
-        return self.params.eigensolver.build(
-            self.mode,
+        from gpaw.dft import DefaultEigensolver
+        es = self.params.eigensolver
+        if isinstance(es, DefaultEigensolver):
+            es = es.from_param({'name': 'davidson', **es.params})
+        return es.build(
             self.nbands,
             self.wf_desc,
             self.communicators['b'],
-            self.communicators['w'],
             hamiltonian.create_preconditioner,
             self.params.convergence.get('bands', 'occupied'),
             self.setups,

@@ -68,9 +68,7 @@ def builder(atoms: Atoms,
         log = Logger(log, comm)
 
     builder = params.mode.dft_components_builder_class(
-        atoms, params, comm=comm)
-    if builder.xp is fake_cupy:
-        log(FAKE_CUPY_WARNING)
+        atoms, params, comm=comm, **params.mode)
     return builder
 
 
@@ -232,6 +230,8 @@ class DFTComponentsBuilder:
         """Array module: Numpy or Cupy."""
         if self.gpu:
             from gpaw.gpu import cupy
+            if cupy is fake_cupy:
+                log(FAKE_CUPY_WARNING)
             return cupy
         return np
 
@@ -302,7 +302,8 @@ class DFTComponentsBuilder:
 
         mixer = MixerWrapper(
             get_mixer_from_keywords(self.atoms.pbc.any(),
-                                    self.ncomponents, **self.params.mixer),
+                                    self.ncomponents,
+                                    **self.params.mixer.params),
             self.ncomponents,
             self.grid._gd,
             world=self.communicators['w'])
@@ -381,15 +382,15 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
     def create_environment(self, grid, log):
-        if self.params.environment is not None:
-            env = ...  # fromdict(self.params.environment)
+        if self.params.extensions:
+            (env,) = self.params.extensions
             return env.build(
                 setups=self.setups,
                 grid=grid, relpos_ac=self.relpos_ac, log=log,
                 comm=self.communicators['w'],
                 nn=self.params.poissonsolver.get('nn', 3))
 
-        if self.params.solvation:
+        if 0:  # self.params.solvation:
             from gpaw.new.solvation import Solvation
             return Solvation(**self.params.solvation,
                              setups=self.setups,
