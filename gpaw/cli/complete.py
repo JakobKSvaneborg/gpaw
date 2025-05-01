@@ -30,11 +30,11 @@ commands = {
          '--rcut', '-r', '--refine', '-s',
          '--scalar-relativistic', '--no-ee-interaction'],
     'basis':
-        ['--name', '-t', '--type', '-E', '--energy-shift', '-T',
-         '--tail-norm', '--rcut-max', '--rcut-pol-rel',
-         '--rchar-pol-rel', '--vconf-amplitude',
-         '--vconf-rstart-rel', '--vconf-sharp-confinement',
-         '--lpol', '--jvalues'],
+        ['--name', '-s', '--search', '-t', '--type', '-E',
+         '--energy-shift', '-T', '--tail-norm', '--rcut-max',
+         '--rcut-pol-rel', '--rchar-pol-rel',
+         '--vconf-amplitude', '--vconf-rstart-rel',
+         '--vconf-sharp-confinement', '--lpol', '--jvalues'],
     'completion':
         [],
     'dataset':

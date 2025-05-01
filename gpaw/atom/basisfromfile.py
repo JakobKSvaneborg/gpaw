@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from ..basis_data import Basis, parse_basis_name
-from ..setup_data import SetupData
+from ..setup_data import SetupData, read_maybe_unzipping, search_for_file
 from ..typing import Self
 from .all_electron import ValenceData
 from .basis import BasisMaker
@@ -48,16 +48,17 @@ def parse_tail_norm(tail: str) -> list[float]:
 def add_common_args(add: Callable) -> None:
     add('-t', '--type',
         default='dzp', metavar='<type>', type=BasisInfo.from_name,
-        help='type of basis.  For example: sz, dzp, qztp, '
-        '4z3p.  [default: %(default)s]')
+        help='type of basis (e.g.: sz, dzp, qztp, 4z3p) '
+        '[default: %(default)s]')
     add('-E', '--energy-shift',
         default=.1, metavar='<energy>', type=float,
-        help='use given energy shift to determine cutoff')
+        help='use given energy shift to determine cutoff '
+        '[default/eV: %(default)s]')
     add('-T', '--tail-norm',
         default=[0.16, 0.3, 0.6], dest='tailnorm',
         metavar='<norm>[,<norm>[,...]]', type=parse_tail_norm,
-        help='use the given fractions to define the split'
-        '-valence cutoffs.  Default: [%(default)s]')
+        help='use the given fractions to define the split-valence cutoffs '
+        '[default: %(default)s]')
     add('--rcut-max',
         default=16., metavar='<rcut>', type=float,
         help='max cutoff for confined atomic orbitals.  '
@@ -88,10 +89,8 @@ def add_common_args(add: Callable) -> None:
 
 
 def read_setupdata(path: str | PathLike) -> SetupData:
-    path = Path(path)
-
     setupdata = SetupData(symbol=None, xcsetupname=None, readxml=False)
-    setupdata.read_xml(source=path.read_bytes())
+    setupdata.read_xml(read_maybe_unzipping(Path(path)))
     return setupdata
 
 
@@ -119,6 +118,10 @@ def main(args: Namespace) -> None:
     tokens += [args.type.name, 'basis']
     for filename in args.file:
         print(f'Generating basis set for {filename!r}')
+        if args.search:
+            found_filename, _ = search_for_file(filename)
+            print(f'Search result: {filename!r} -> {found_filename!r}')
+            filename = found_filename
         setupdata, basis = read_setup_and_generate_basis(filename, get_basis)
         # Should the setupname be added as part of the name, too?
         # Probably not, since we don't include the xcname either.
@@ -139,6 +142,10 @@ class CLICommand:
         add('--name',
             metavar='<name>',
             help='basis name to be included in output filename')
+        add('-s', '--search',
+            action='store_true',
+            help='instead of treating <filename> as paths, '
+            'search the installed datasets for them')
         add_common_args(add)
 
     run = staticmethod(main)
