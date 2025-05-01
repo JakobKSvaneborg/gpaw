@@ -44,24 +44,21 @@ def test_gpaw_plot_dataset(
     old_files = set(os.listdir(os.curdir))
     outfile = 'output.png'
     expected_files = {outfile}
-    if search not in ('dataset', True):
-        _, content = search_for_file(setup_file)
-        with open(setup_file, mode='wb') as fobj:
-            # Note: we can't directly use the file pointed to by
-            # `search_for_file()` because it may be zipped
-            fobj.write(content)
-        expected_files.add(setup_file)
 
     if use_cli:
         argv = [sys.executable, '-m', 'gpaw', '-T', 'plot-dataset']
     else:
         argv = []
     argv.extend([f'--write={outfile}', *shlex.split(flags), setup_file])
-    if search in (True,):
+    if search:
         argv.insert(-1, '--search')
-        argv.insert(-1, '--')
-    elif search:
-        argv.insert(-1, '--search=' + search)
+    else:
+        _, content = search_for_file(setup_file)
+        with open(setup_file, mode='wb') as fobj:
+            # Note: we can't directly use the file pointed to by
+            # `search_for_file()` because it may be zipped
+            fobj.write(content)
+        expected_files.add(setup_file)
     if use_cli:
         subprocess.check_call(argv)
     else:
