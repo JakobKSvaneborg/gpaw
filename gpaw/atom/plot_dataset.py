@@ -478,7 +478,7 @@ def plot_dataset(
     return ax_objs, savefig
 
 
-def main(args: SimpleNamespace) -> 'Figure':
+def main(args: SimpleNamespace) -> list['Axes']:
     from matplotlib import pyplot as plt
 
     if args.search:
@@ -495,7 +495,7 @@ def main(args: SimpleNamespace) -> 'Figure':
 
     if fname is None:
         plt.show()
-    return plt.gcf()
+    return ax_objs
 
 
 class CLICommand:

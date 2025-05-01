@@ -68,7 +68,9 @@ def test_gpaw_plot_dataset(
         parser = argparse.ArgumentParser()
         CLICommand.add_arguments(parser)
         with contextlib.nullcontext() if ctx is None else ctx:
-            fig = CLICommand.run(parser.parse_args(argv))
+            axs = CLICommand.run(parser.parse_args(argv))
+        # All plots should be on the same figure
+        assert len({id(ax.get_figure()) for ax in axs}) == 1
 
     # Check output and inspect the figure where possible
     new_files = set(os.listdir(os.curdir))
@@ -76,8 +78,7 @@ def test_gpaw_plot_dataset(
     assert new_files - old_files == expected_files
     if use_cli:
         return
-    ax_titles = [ax.get_title() for ax in fig.axes]
-    assert len(ax_titles) == expected_nplots
+    assert len(axs) == expected_nplots, repr([ax.get_title() for ax in axs])
 
 
 @pytest.mark.serial
