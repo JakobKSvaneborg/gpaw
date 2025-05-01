@@ -478,19 +478,15 @@ def plot_dataset(
     return ax_objs, savefig
 
 
-def main(args: SimpleNamespace) -> None:
+def main(args: SimpleNamespace) -> 'Figure':
     from matplotlib import pyplot as plt
 
-    if args.search in (True, 'dataset'):
+    if args.search:
         args.dataset, _ = search_for_file(args.dataset)
-    if args.search in (True, 'basis') and args.basis_set is not None:
-        args.basis_set, _ = search_for_file(args.basis_set)
     setup = read_setup_file(args.dataset)
-    basis = None if args.basis_set is None else read_basis_file(args.basis_set)
     sep_figs = args.outfile is None and args.separate_figures
     ax_objs, fname = plot_dataset(
         setup,
-        basis=basis,
         separate_figures=sep_figs,
         plot_potential_components=args.potential_components,
         plot_logarithmic_derivatives=args.logarithmic_derivatives,
@@ -499,6 +495,7 @@ def main(args: SimpleNamespace) -> None:
 
     if fname is None:
         plt.show()
+    return plt.gcf()
 
 
 class CLICommand:
@@ -508,9 +505,6 @@ class CLICommand:
     @staticmethod
     def add_arguments(parser):
         add = parser.add_argument
-        add('-b', '--basis-set',
-            metavar='FILE',
-            help='Load and plot the basis set from an XML file')
         add('-p', '--potential-components',
             action='store_true',
             help='Plot the potential components '
@@ -527,12 +521,9 @@ class CLICommand:
             'plot the plots in separate figure windows/tabs, '
             'instead of as subplots/panels in the same figure')
         add('-S', '--search',
-            choices=['basis', 'dataset'],
-            const=True,
-            nargs='?',
+            action='store_true',
             help='Look into the installed datasets (see `gpaw info`) for the '
-            'PAW-dataset and basis-set XML files, instead of treating them as '
-            'paths')
+            'XML file, instead of treating it as a path')
         add('-o', '--outfile', '--write',
             metavar='FILE',
             help='Write the plots to FILE instead of `plt.show()`-ing them')
@@ -540,6 +531,4 @@ class CLICommand:
             metavar='FILE',
             help='XML file from which to read the PAW dataset')
 
-    @staticmethod
-    def run(args):
-        main(args)
+    run = staticmethod(main)
