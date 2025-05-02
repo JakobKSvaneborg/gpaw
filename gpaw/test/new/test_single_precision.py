@@ -50,11 +50,14 @@ def run_single_precision(dtype, gpu):
 
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
-                      random=True,
-                      convergence={'energy': 1e-5},
+                      #random=True,
+                      basis='dzp',
+                      convergence={'energy': 1e-5,
+                                   'eigenstates': 1e-10},
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
+                      #eigensolver='rmm-diis',
                       parallel={'gpu': gpu}
                       )
 

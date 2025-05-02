@@ -34,7 +34,7 @@ def create_basis(ibz: IBZ,
     basis = BasisFunctions(grid._gd,
                            [setup.basis_functions_J for setup in setups],
                            kd,
-                           dtype=dtype,
+                           dtype=complex if np.issubdtype(dtype, np.complexfloating) else float,
                            cut=True)
     basis.set_positions(relpos_ac)
     myM = (basis.Mmax + band_comm.size - 1) // band_comm.size

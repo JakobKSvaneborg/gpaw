@@ -110,6 +110,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 atomdist=self.atomdist,
                 qspiral_v=self.qspiral_v,
                 xp=self.psit_nX.xp)
+        breakpoint()
         return self._pt_aiX
 
     @property
