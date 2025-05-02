@@ -36,53 +36,19 @@ from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
-FAKE_CUPY_WARNING = """
- ----------------------------------------------------------
-|                         WARNING                          |
-| -------------------------------------------------------- |
-|  GPU calculation requested, but calculations are run on  |
-|    CPUs with the `cupy` substitute `gpaw.gpu.cpupy`.     |
-| This is most likely not the desired behavior, except for |
-| testing purposes. Please check if you have inadvertently |
-|    set the environment variable `GPAW_CPUPY`, consult    |
-| `gpaw info` for `cupy` availability, and reconfigure and |
-|               recompile GPAW if necessary.               |
- ----------------------------------------------------------
-"""
-
-
-def builder(atoms: Atoms,
-            params: Parameters,
-            comm=None,
-            log=None) -> DFTComponentsBuilder:
-    """Create DFT-components builder.
-
-    * pw
-    * lcao
-    * fd
-    * tb
-    * atom
-    """
-    comm = comm or world
-    if not isinstance(log, Logger):
-        log = Logger(log, comm)
-
-    builder = params.mode.dft_components_builder_class(
-        atoms, params, comm=comm, **params.mode)
-    return builder
-
 
 class DFTComponentsBuilder:
     def __init__(self,
                  atoms: Atoms,
                  params: Parameters,
-                 dtype: None | DTypeLike = None,
-                 *,
-                 comm):
+                 log,
+                 comm,
+                 dtype: None | DTypeLike):
 
         self.atoms = atoms.copy()
         self.mode = params.mode.__class__.__name__.lower()
         self.params = params
+        self.log = log
 
         parallel = params.parallel
 
@@ -231,7 +197,7 @@ class DFTComponentsBuilder:
         if self.gpu:
             from gpaw.gpu import cupy
             if cupy is fake_cupy:
-                log(FAKE_CUPY_WARNING)
+                self.log(fake_cupy.FAKE_CUPY_WARNING)
             return cupy
         return np
 
@@ -284,9 +250,7 @@ class DFTComponentsBuilder:
 
     def create_ibz_wave_functions(self,
                                   basis: BasisFunctions,
-                                  potential: Potential,
-                                  *,
-                                  log: Logger) -> IBZWaveFunctions:
+                                  potential: Potential) -> IBZWaveFunctions:
         raise NotImplementedError
 
     def create_hamiltonian_operator(self):
@@ -315,10 +279,10 @@ class DFTComponentsBuilder:
                         if key != 'bands'},
                        self.params.maxiter)
 
-    def read_ibz_wave_functions(self, reader, log):
+    def read_ibz_wave_functions(self, reader):
         raise NotImplementedError
 
-    def create_potential_calculator(self, log):
+    def create_potential_calculator(self):
         raise NotImplementedError
 
     def read_wavefunction_values(self,
@@ -381,12 +345,12 @@ class DFTComponentsBuilder:
             ibzwfs.fermi_levels = np.array(
                 [reader.occupations.fermilevel / ha])
 
-    def create_environment(self, grid, log):
+    def create_environment(self, grid):
         if self.params.extensions:
             (env,) = self.params.extensions
             return env.build(
                 setups=self.setups,
-                grid=grid, relpos_ac=self.relpos_ac, log=log,
+                grid=grid, relpos_ac=self.relpos_ac, log=self.log,
                 comm=self.communicators['w'],
                 nn=self.params.poissonsolver.get('nn', 3))
 
@@ -394,7 +358,7 @@ class DFTComponentsBuilder:
             from gpaw.new.solvation import Solvation
             return Solvation(**self.params.solvation,
                              setups=self.setups,
-                             grid=grid, relpos_ac=self.relpos_ac, log=log,
+                             grid=grid, relpos_ac=self.relpos_ac, log=self.log,
                              comm=self.communicators['w'],
                              nn=self.params.poissonsolver.get('nn', 3))
         from gpaw.new.environment import Environment

@@ -95,20 +95,13 @@ class DFTCalculation:
                         comm=None,
                         log=None) -> DFTCalculation:
         """Create DFTCalculation object from parameters and atoms."""
-        from gpaw.new.builder import builder as create_builder
-
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
-
-        if params is None:
-            params = {}
-        if isinstance(params, dict):
-            params = InputParameters(params)
 
         if not isinstance(log, Logger):
             log = Logger(log, comm or world)
 
-        builder = create_builder(atoms, params, log.comm, log)
+        builder = params.create_builder(atoms, log.comm, log)
 
         basis_set = builder.create_basis_set()
 
@@ -117,7 +110,7 @@ class DFTCalculation:
         # FIX this!
         scf_loop = builder.create_scf_loop()
 
-        pot_calc = builder.create_potential_calculator(log)
+        pot_calc = builder.create_potential_calculator()
 
         density = builder.density_from_superposition(basis_set)
         if len(atoms) == 0:

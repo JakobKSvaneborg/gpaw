@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import importlib
 import warnings
-from dataclasses import asdict, dataclass, is_dataclass, KW_ONLY
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Iterable, Sequence, Union
 
@@ -79,10 +77,9 @@ class PW(Mode):
             dct['dtype'] = str(self.dtype)
         return dct
 
-    def dft_components_builder(self, atoms, params, comm):
+    def dft_components_builder(self, atoms, params, log, comm):
         from gpaw.new.pw.builder import PWDFTComponentsBuilder
-        return PWDFTComponentsBuilder()
-
+        return PWDFTComponentsBuilder(atoms, params, log, comm)
 
 
 class LCAO(Mode):
@@ -412,6 +409,14 @@ class Parameters:
             dct[key] = value
         return dct
 
+    def dft_component_builder(self, atoms, comm, log):
+        comm = comm or world
+        if not isinstance(log, Logger):
+            log = Logger(log, comm)
+
+        return self.mode.dft_components_builder(
+            atoms, self, comm)
+
     def dft_calculation(self,
                         atoms,
                         txt: str = '-',
@@ -419,6 +424,9 @@ class Parameters:
         from gpaw.new.calculation import DFTCalculation
         log = Logger(txt, communicator)
         return DFTCalculation.from_parameters(atoms, self, log.comm, log)
+
+    def dft_info(self, atoms):
+        ...
 
 
 def DFT(
@@ -523,11 +531,3 @@ def GPAW(
 def _fix_legacy_stuff(params):
     if not isinstance(params.mode, Mode):
         params.mode = Mode.from_param(params.mode.todict())
-
-
-if __name__ == '__main__':
-    p = Parameters(xc='PBE', mode=PW(ecut=200), charge=1.0)
-    print(p)
-    print(p.todict())
-    p = Parameters(**p.todict())
-    print(p)
