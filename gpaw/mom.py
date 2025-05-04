@@ -186,7 +186,7 @@ class OccupationsMOM:
     def initialize_reference_orbitals(self):
         try:
             f_n = self.wfs.kpt_u[0].f_n
-        except ValueError:  # new gpaw
+        except ValueError:
             return
         if f_n is None:  # old gpaw
             # If the occupation numbers are not already available

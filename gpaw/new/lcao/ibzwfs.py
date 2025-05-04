@@ -1,9 +1,13 @@
 from math import pi
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.density import Density
+import numpy as np
 
 
 class LCAOIBZWaveFunctions(IBZWaveFunctions):
+    def has_wave_functions(self):
+        return not np.isnan(self.wfs_qs[0][0].C_nM.data.flat[0])
+
     def move(self, relpos_ac, atomdist):
         from gpaw.new.lcao.builder import tci_helper
 
