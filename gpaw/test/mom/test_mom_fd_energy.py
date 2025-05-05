@@ -42,7 +42,7 @@ def test_mom_fd_spinpol(in_tmp_dir):
             f_sn[s][4] += 1.
 
             occ = prepare_mom_calculation(calc, atoms, f_sn,
-                                          match_orbitals=mom)
+                                          use_projections=mom)
 
             E_es = atoms.get_potential_energy()
 
@@ -89,7 +89,7 @@ def test_mom_fd_spinpair(in_tmp_dir):
         f_n[0][4] += 0.5
 
         prepare_mom_calculation(calc, atoms, f_n,
-                                match_orbitals=mom)
+                                use_projections=mom)
         E_es = atoms.get_potential_energy()
 
         dE = E_es - E_gs

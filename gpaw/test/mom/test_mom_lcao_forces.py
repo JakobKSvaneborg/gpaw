@@ -40,7 +40,7 @@ def test_mom_lcao_forces(in_tmp_dir):
     for mom in [False, True]:
         atoms, calc = restart('co_lcao_gs.gpw', txt='-')
 
-        occ = prepare_mom_calculation(calc, atoms, f_sn, match_orbitals=mom)
+        occ = prepare_mom_calculation(calc, atoms, f_sn, use_projections=mom)
         F = atoms.get_forces()
 
         # Test overlaps

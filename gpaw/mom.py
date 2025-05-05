@@ -17,7 +17,6 @@ from scipy.optimize import linear_sum_assignment
 def prepare_mom_calculation(calc,
                             atoms,
                             numbers,
-                            match_orbitals=False,
                             use_projections=True,
                             update_numbers=True,
                             use_fixed_occupations=False,
@@ -33,17 +32,14 @@ def prepare_mom_calculation(calc,
     numbers: list (len=nspins) of lists (len=nbands)
         Occupation numbers (in the range from 0 to 1). Used
         for the initialization of the MOM reference orbitals.
-    match_orbitals: bool
-        If True try to match the orbitals directly based on their overlap.
-        If False (default) use occupation number subspaces instead.
     use_projections: bool
         If True (default), the occupied orbitals at iteration k are
         chosen as the orbitals ``|psi^(k)_m>`` with the biggest
         weights ``P_m`` evaluated as the projections onto the manifold
         of reference orbitals ``|psi_n>``: ``P_m = (Sum_n(|O_nm|^2))^0.5
         (O_nm = <psi_n|psi^(k)_m>)`` see :doi:`10.1021/acs.jctc.7b00994`.
-        If False, the weights are evaluated as: ``P_m = max_n(|O_nm|)``,
-        see :doi:`10.1021/acs.jctc.0c00488`.
+        If False, try to match the orbitals directly based on
+        their overlaps.
     update_numbers: bool
         If True (default), 'numbers' gets updated with the calculated
         occupation numbers, and when changing atomic positions
@@ -81,7 +77,6 @@ def prepare_mom_calculation(calc,
 
     occ_mom = OccupationsMOM(calc.wfs,
                              numbers,
-                             match_orbitals,
                              use_projections,
                              update_numbers,
                              use_fixed_occupations,
@@ -110,7 +105,6 @@ class OccupationsMOM:
     def __init__(self,
                  wfs,
                  numbers,
-                 match_orbitals=False,
                  use_projections=False,
                  update_numbers=True,
                  use_fixed_occupations=False,
@@ -119,7 +113,6 @@ class OccupationsMOM:
                  width_increment=0.0):
         self.wfs = wfs
         self.numbers = np.array(numbers)
-        self.match_orbitals = match_orbitals
         self.use_projections = use_projections
         self.update_numbers = update_numbers
         self.use_fixed_occupations = use_fixed_occupations
@@ -140,7 +133,6 @@ class OccupationsMOM:
     def todict(self):
         dct = {'name': self.name,
                'numbers': self.numbers,
-               'match_orbitals': self.match_orbitals,
                'use_projections': self.use_projections,
                'update_numbers': self.update_numbers,
                'use_fixed_occupations': self.use_fixed_occupations}
@@ -260,7 +252,7 @@ class OccupationsMOM:
                 # subspace of the reference orbitals and occupy orbitals
                 # with biggest weights
 
-                if self.match_orbitals:
+                if not self.use_projections:
                     # match orbitals directly
                     # assign occupations based on match
 
@@ -356,15 +348,11 @@ class OccupationsMOM:
 
         if fs_key == 'all':
             # direct orbital matching
-            assert self.match_orbitals
+            assert not self.use_projections
             return O
         else:
-            # return subspace weights
-            if self.use_projections:
-                P = np.sum(abs(O)**2, axis=0)
-                P = P**0.5
-            else:
-                P = np.amax(abs(O), axis=0)
+            P = np.sum(abs(O)**2, axis=0)
+            P = P**0.5
 
             return P
 
