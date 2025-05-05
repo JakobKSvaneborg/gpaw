@@ -44,6 +44,7 @@ class D3(ExtensionParameter):
                 # XXX params.xc should be taken directly from the calculator.
                 # XXX What if this is changed via set?
                 _self.F_av = atoms.get_forces() / Hartree * Bohr
+                _self.stress_vv = atoms.get_stress(voigt=False) / Hartree * Bohr**3
                 _self.E = atoms.get_potential_energy() / Hartree
 
             def get_energy_contributions(_self) -> dict[str, float]:
@@ -52,6 +53,12 @@ class D3(ExtensionParameter):
             def force_contribution(self):
                 if domain_comm.rank == 0:
                     return self.F_av
+                else:
+                    return np.zeros_like(self.F_av)
+            
+            def stress_contribution(self):
+                if domain_comm.rank == 0:
+                    return self.stress_vv
                 else:
                     return np.zeros_like(self.F_av)
 

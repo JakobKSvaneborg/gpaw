@@ -81,6 +81,13 @@ class PotentialCalculator:
             return 0.0
         return functools.reduce(operator.add, [ext.force_contribution()
                                 for ext in self.extensions])
+    
+    @property
+    def extensions_stress_contribution(self):
+        if not self.extensions:
+            return np.zeros((3, 3))
+        return functools.reduce(operator.add, [ext.stress_contribution()
+                                for ext in self.extensions])
 
     def calculate_charges(self, vHt_x):
         raise NotImplementedError
