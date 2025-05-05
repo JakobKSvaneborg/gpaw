@@ -4,51 +4,23 @@
 Excited-State Calculations with Direct Optimization
 ==============================================================================
 
-Direct Optimization (DO) can be used to perform
-variational calculations of excited states. Since
-MOM calculations are variational, atomic forces are readily
-available from the method ``get_forces`` and can, therefore,
-be used to perform geometry optimization and molecular dynamics
+Direct optimization (DO) is an alternative to the diagonalization-based
+:ref:`eigensolvers <manual_eigensolver>`, which does not use density mixing.
+Since it is designed to converge to saddle point on the electronic energy surface,
+this approach can be used to perform
+variational calculations of excited states. The atomic forces can be obtained
+directly from the method ``get_forces`` and therefore,
+the method can be used to perform geometry optimization and molecular dynamics
 in the excited state.
 
-Excited-state solutions of the SCF equations are obtained
-for non-Aufbau orbital occupations. MOM is a simple strategy to
-choose non-Aufbau occupation numbers consistent
-with the initial guess for an excited state during
-optimization of the wave function, thereby facilitating convergence
-to the target excited state and avoiding variational collapse to
-lower energy solutions.
+The implementation of DO is based on the exponential transformation
+(see also :ref:`directmin`) and uses efficient quasi-Newton algorithms
+for saddle point convergence.
+The real-space grid and plan-wave implementation is described in [#do1]_,
+while the LCAO inplementation is described in [#do2]_ and [#do3]_.
 
-Even if MOM is used, an excited-state calculation can still be difficult
-to convergence with the SCF algorithms based on diagonalization of the Hamiltonian
-matrix that are commonly employed in ground-state
-calculations. One of the main problems is that excited states
-often correspond to saddle points of the energy as a function of the electronic
-degrees of freedom (the orbital variations), but these algorithms perform better
-for minima (ground states usually correspond to minima).
-Moreover, standard SCF algorithms tend to fail when degenerate or nearly
-degenerate orbitals are unequally occupied, a situation that is
-more common in excited-state rather than ground-state calculations
-(see :ref:`coexample` below).
-In GPAW, excited-state calculations can be performed via a direct
-optimization of the orbital (implemented for the moment only
-in LCAO). DO can converge to a generic stationary point,
-and not only to a minimum and has been shown to be more robust than diagonalization-based
-:ref:`SCF algorithms <manual_eigensolver>` using density mixing in excited-state
-calculations of molecules [#momgpaw1]_ [#momgpaw2]_ [#momgpaw3]_;
-therefore, it is the recommended method for obtaining excited-state solutions
-with MOM.
-
-Direct optimization (DO) can be performed using the implementation
-of exponential transformation direct minimization (ETDM)
-[#momgpaw1]_ [#momgpaw2]_ [#momgpaw3]_ described in :ref:`directmin`.
-This method uses the exponential transformation and efficient quasi-Newton
-algorithms to find stationary points of the energy in the space of unitary
-matrices.
-
-For excited-state calculations, the recommended quasi-Newton
-algorithm is a limited-memory symmetric rank-one (L-SR1) method
-[#momgpaw2]_ with unit step. In order to use this algorithm, the
+The recommended quasi-Newton algorithm is a limited-memory symmetric rank-one (L-SR1) method
+[#do2]_ with unit step. In order to use this algorithm, the
 following ``eigensolver`` has to be specified::
 
   from gpaw.directmin.lcao_etdm import LCAOETDM
@@ -61,10 +33,11 @@ The maximum step length avoids taking too large steps at the
 beginning of the wave function optimization. The default maximum step length
 is 0.20, which has been found to provide an adequate balance between stability
 and speed of convergence for calculations of excited states of molecules
-[#momgpaw2]_. However, a different value might improve the convergence for
+[#do2]_. However, a different value might improve the convergence for
 specific cases.
 
-If the target excited state shows pronounced charge transfer character, variational
+To reduce the risk of variational collapse to lower energy solutions, DO is typically used together
+with the :ref:`mom`. However, if the target excited state shows pronounced charge transfer character, variational
 collapse can sometimes not be prevented even if DO and MOM are used in conjunction. In
 such cases, it can be worthwhile to first perform a constrained optimization in which the
 electron and hole orbitals involved in the target excitation are frozen, and a
@@ -118,7 +91,7 @@ of the excited state, the electron is excited into a complex
 eigenvalue of the z-component angular momentum operator. The
 use of complex orbitals provides an excited-state density
 with the uniaxial symmetry consistent with the symmetry of the
-molecule [#momgpaw1]_.
+molecule [#do1]_.
 
 .. literalinclude:: domom_co.py
 
@@ -141,7 +114,7 @@ For difficult cases, the ``width`` can be increased at regular
 intervals by specifying a ``width_increment=...``.
 *Note*, however, that too extended smearing can lead to
 discontinuities in the potentials and forces close to
-crossings between electronic states [#momgpaw2]_, so
+crossings between electronic states [#do2]_, so
 this feature should be used with caution and only
 at geometries far from state crossings.
 
@@ -179,15 +152,15 @@ In this example, the singlet excited state of a conventional silicon is calculat
 References
 ----------
 
-.. [#momgpaw1] A. V. Ivanov, G. Levi, H. Jónsson
+.. [#do1] A. V. Ivanov, G. Levi, H. Jónsson
                :doi:`Method for Calculating Excited Electronic States Using Density Functionals and Direct Orbital Optimization with Real Space Grid or Plane-Wave Basis Set <10.1021/acs.jctc.1c00157>`,
                *J. Chem. Theory Comput.*, (2021).
 
-.. [#momgpaw2] G. Levi, A. V. Ivanov, H. Jónsson
+.. [#do2] G. Levi, A. V. Ivanov, H. Jónsson
                :doi:`Variational Density Functional Calculations of Excited States via Direct Optimization <10.1021/acs.jctc.0c00597>`,
                *J. Chem. Theory Comput.*, **16** 6968–6982 (2020).
 
-.. [#momgpaw3] G. Levi, A. V. Ivanov, H. Jónsson
+.. [#do3] G. Levi, A. V. Ivanov, H. Jónsson
                :doi:`Variational Calculations of Excited States Via Direct Optimization of Orbitals in DFT <10.1039/D0FD00064G>`,
                *Faraday Discuss.*, **224** 448-466 (2020).
 

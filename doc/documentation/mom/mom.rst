@@ -4,36 +4,44 @@
 Maximum Overlap Method
 ==============================================================================
 
-The maximum overlap method (MOM) can be used to perform
-variational calculations of excited states. Excited-state solutions
-of the SCF equations are obtained for non-Aufbau orbital occupations.
-MOM is a simple strategy to choose non-Aufbau occupation numbers consistent
+Excited-state solutions of the SCF equations are obtained
+for non-Aufbau orbital occupations. MOM is a simple strategy to
+choose non-Aufbau occupation numbers consistent
 with the initial guess for an excited state during
 optimization of the wave function, thereby facilitating convergence
 to the target excited state and avoiding variational collapse to
 lower energy solutions.
 
 The MOM approach implemented in GPAW is the initial maximum
-overlap method [#imom]_. The implementation is
-presented in [#momgpaw1]_ (real space grid and plane waves
-approaches) and [#momgpaw2]_ (LCAO approach).
-The orbitals `\{|\psi_{i}\rangle\}` used as initial guess for an
-excited-state calculation are taken as fixed reference orbitals
-for MOM. The implementation in GPAW supports the
-use of fractional occupation numbers. 
+overlap method [#imom]_, where the orbitals
+used as initial guess for an
+excited-state calculation are taken as fixed reference orbitals.
+The GPAW implementation is presented in [#momgpaw1]_
+(real-space grid and plane-wave approaches)
+and [#momgpaw2]_ (LCAO approach), and supports the
+use of fractional occupation numbers.
 
-Let `\{|\psi_{n}\rangle\}` be the set of reference 
-orbitals with occupation
-numbers `f_n^0` and `\{|\psi_{m}^{(k)}\rangle\}` the orbitals
-determined at iteration `k` of the wave-function optimization.
-The methods aims to find the updated occupation numbers `f_m^{(k)}` 
-for the orbitals at iteration `k` such that the updated state 
-`\sum_m f_m^{(k)} |\psi_{m}^{(k)}\rangle` approximates the
-initial state `\sum_n f_n^0 |\psi_{n}\rangle` as closely as possible.
+Excited-state calculations can be difficult
+to convergence because excited states
+typically correspond to saddle points of the electronic energy surface,
+and not minima. The recommended approach to use together with MOM
+for calculating excited states is direct optimization (DO) (see :ref:`do`),
+which is an alternative to the diagonalization-based
+:ref:`eigensolvers <manual_eigensolver>` and is better suited for converging
+on saddle points.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Maximizing wavefunction overlaps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Let `\{|\psi_{n}\rangle\}` be the set of reference
+orbitals with occupation
+numbers `f_n^0` and `\{|\psi_{m}^{(k)}\rangle\}` the orbitals
+determined at iteration `k` of the wave-function optimization.
+The methods aims to find the updated occupation numbers `f_m^{(k)}`
+for the orbitals at iteration `k` such that the updated state
+`\sum_m f_m^{(k)} |\psi_{m}^{(k)}\rangle` approximates the
+initial state `\sum_n f_n^0 |\psi_{n}\rangle` as closely as possible.
 
 Naively, this can be achieved by finding a mapping between the
 states while measuring their similarity using the wavefunction overlap
@@ -170,11 +178,11 @@ one has to specify::
 
 .. autofunction:: gpaw.mom.prepare_mom_calculation
 
-.. _h2oexample:
+..  _h2oexample:
 
----------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Excitation energy Rydberg state of water
----------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In this example, the excitation energies of the singlet and
 triplet states of water corresponding to excitation
@@ -195,6 +203,10 @@ representation of the diffuse Rydberg orbital [#momgpaw1]_.
 References
 ----------
 
+.. [#imom]     G. M. J. Barca, A. T. B. Gilbert, P. M. W. Gill
+               :doi:`Simple Models for Difficult Electronic Excitations <10.1021/acs.jctc.7b00994>`,
+               *J. Chem. Theory Comput.*, **14** 1501-1509 (2018).
+
 .. [#momgpaw1] A. V. Ivanov, G. Levi, H. Jónsson
                :doi:`Method for Calculating Excited Electronic States Using Density Functionals and Direct Orbital Optimization with Real Space Grid or Plane-Wave Basis Set <10.1021/acs.jctc.1c00157>`,
                *J. Chem. Theory Comput.*, (2021).
@@ -206,10 +218,6 @@ References
 .. [#momgpaw3] G. Levi, A. V. Ivanov, H. Jónsson
                :doi:`Variational Calculations of Excited States Via Direct Optimization of Orbitals in DFT <10.1039/D0FD00064G>`,
                *Faraday Discuss.*, **224** 448-466 (2020).
-
-.. [#imom]     G. M. J. Barca, A. T. B. Gilbert, P. M. W. Gill
-               :doi:`Simple Models for Difficult Electronic Excitations <10.1021/acs.jctc.7b00994>`,
-               *J. Chem. Theory Comput.*, **14** 1501-1509 (2018).
 
 .. [#dongmom]  X. Dong, A. D. Mahler, E. M. Kempfer-Robertson, L. M. Thompson
                :doi:`Global Elucidation of Self-Consistent Field Solution Space Using Basin Hopping <10.1021/acs.jctc.0c00488>`,
