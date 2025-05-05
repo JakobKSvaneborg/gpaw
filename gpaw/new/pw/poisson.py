@@ -319,7 +319,7 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
             grad_real = grad_pw.ifft(grid=grid).data
 
             epsg_ug = grid.zeros()
-            epsg_ug.data[:] = grad_real * self.dielectric.eps_gradeps[0].data
+            epsg_ug.data[:] = grad_real * self.dielectric.eps_gradeps[0]
 
             eps_gradients.append(epsg_ug.fft(pw=self.pw).data)
 
