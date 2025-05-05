@@ -91,4 +91,5 @@ class Vacuum:
 
 
 if __name__ == '__main__':
-    test_h(True, 'fd')
+    import sys
+    test_h(int(sys.argv[1]), sys.argv[2], 1)
