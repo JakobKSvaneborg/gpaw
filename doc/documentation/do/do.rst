@@ -69,9 +69,9 @@ optimization.
 
 ..  _ppexample:
 
---------------------------------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Charge transfer excited state of N-phenylpyrrole
---------------------------------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In this example, a calculation of a charge transfer excited state of the N-phenylpyrrole
 molecule is carried out. After a ground state calculation, a single excitation is performed
@@ -83,14 +83,14 @@ is not consistent with the wanted charge transfer excited state. Variational col
 here by performing first a constrained optimization freezing the hole and excited electron
 of the initial guess. Then the new orbitals are used as the initial guess of an unconstrained
 optimization, which converges to a higher-energy saddle point with a large dipole moment of -10.227 D
-consistent with the wanted charge transfer state.
+consistent with the target charge transfer state.
 
 .. literalinclude:: constraints.py
 
 
------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Excited state of silicon using plane wave
------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In this example, the singlet excited state of a conventional silicon is calculated using plane waves approach.
 

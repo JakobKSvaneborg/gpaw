@@ -187,9 +187,9 @@ representation of the diffuse Rydberg orbital [#momgpaw1]_.
 ..  _coexample:
 
 
-----------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Geometry relaxation excited-state of carbon monoxide
-----------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In this example, the bond length of the carbon monoxide molecule
 in the lowest singlet `\Pi(\sigma\rightarrow \pi^*)` excited state
