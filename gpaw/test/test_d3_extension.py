@@ -1,14 +1,17 @@
 import pytest
-from ase.calculators.dftd3 import PureDFTD3
-
+from gpaw.mpi import world
+from gpaw.new.ase_interface import GPAW
+from gpaw import restart
+from gpaw.new.extensions import D3
+import numpy as np
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 400}, 'fd', 'lcao'])
-def test_d3_extensions(mode, parallel, in_tmp_dir):
-    from gpaw.new.ase_interface import GPAW
-    from gpaw import restart
-    from gpaw.mpi import world
-    from gpaw.new.extensions import D3
+def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new):
+    if not gpaw_new:
+        pytest.skip('Only GPAW new.')
+
+    from ase.calculators.dftd3 import PureDFTD3
     domain, band = parallel
     if world.size < domain * band:
         pytest.skip('Not enough cores for this test.')
@@ -100,8 +103,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir):
     relax = BFGS(atoms)
     relax.run()
     nsteps = relax.nsteps
-    # assert atoms.get_distance(0, 1) == pytest.approx(1.8483, abs=1e-2)
-    # XXX Replace with a new test
+    assert atoms.get_distance(0, 1) == pytest.approx(0.76915, abs=1e-2)
     Egs = atoms.get_potential_energy()
     L = atoms.get_distance(0, 1)
 
@@ -119,3 +121,43 @@ def test_d3_extensions(mode, parallel, in_tmp_dir):
     assert relax.nsteps + 3 == nsteps
     assert atoms.get_distance(0, 1) == pytest.approx(L, abs=1e-2)
     assert atoms.get_potential_energy() == pytest.approx(Egs, abs=1e-4)
+
+@pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
+def test_d3_stress(parallel, in_tmp_dir):
+    from ase.calculators.dftd3 import DFTD3
+    from ase.optimize import CellAwareBFGS
+    from ase.build import bulk
+    from ase.filters import FrechetCellFilter
+    from gpaw.new.ase_interface import GPAW
+
+    domain, band = parallel
+    if world.size < domain * band:
+        pytest.skip('Not enough cores for this test.')
+    if world.size > domain * band * 2:
+        pytest.skip('Too many cores for this test.')
+
+    get_atoms = lambda: bulk('Xe', a=4.0)
+
+    kwargs = dict(xc='PBE', 
+                  parallel={'band': band, 'domain': domain},
+                  kpts=(4, 4, 4), #txt='relaxcell',
+                  mode=dict(name='pw', ecut=400))
+    get_calc = lambda x: GPAW(**kwargs, **x)
+    # 1. Old fashioned D3 calculation
+    atoms = get_atoms()
+    atoms.calc = DFTD3(xc='PBE', dft=get_calc({}))
+    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_oldfashioned')
+    relax.run()
+    atoms_old_ref = atoms.copy()
+
+    # 2. New style D3 calculation
+    atoms = get_atoms()
+    atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
+    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_new')
+    relax.run()
+
+    assert np.allclose(atoms.cell, atoms_old_ref.cell)
+    assert np.allclose(atoms.get_scaled_positions(), atoms_old_ref.get_scaled_positions())
+
+    
+
