@@ -43,7 +43,7 @@ def get_projections(numbers, O_nm, proj=True):
 
     # calculate subspace projections
     mask_1 = numbers == 1.
-    f_s = np.r_[numbers[mask_1], .4, .6]
+    f_s = np.r_[numbers[mask_1], .0, .4, .6]
 
     P_nm = np.zeros_like(O_nm)
     if proj:
@@ -53,8 +53,8 @@ def get_projections(numbers, O_nm, proj=True):
 
     # for subspaces with only one orbital
     # we do the assignment manually here
-    P_nm[4, 5] = O_nm[5, 5]
-    P_nm[5, 4] = O_nm[4, 6]
+    P_nm[5, 5] = O_nm[5, 5]
+    P_nm[6, 4] = O_nm[4, 6]
 
     return f_s, P_nm
 
