@@ -179,6 +179,7 @@ def test_d3_stress(parallel, in_tmp_dir):
     relax.run(smax=0.001)
 
     assert relax.nsteps + 3 == nsteps
-    assert np.allclose(atoms.cell, atoms_old_ref.cell, rtol=1e-4)
+
+    assert np.allclose(atoms.cell, atoms_old_ref.cell, rtol=1e-5, atol=1e-5)
     assert np.allclose(atoms.get_scaled_positions(), atoms_old_ref.get_scaled_positions())
     assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)
