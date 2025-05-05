@@ -95,7 +95,7 @@ class Davidson(PWFDEigensolver):
         if domain_comm.rank == 0:
             eig_N[:B] = xp.asarray(wfs.eig_n)
 
-        me_buffer_mX = psit_nX.new_buffer(data_buffer)
+        me_buffer_mX = psit_nX.create_work_buffer(data_buffer)
 
         @trace
         def me(a, b, function=None):

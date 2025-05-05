@@ -78,8 +78,8 @@ class RMMDIIS(PWFDEigensolver):
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
 
-        work1_nX = psit_nX.new_buffer(self.data_buffers[0])
-        work2_nX = psit_nX.new_buffer(self.data_buffers[1])
+        work1_nX = psit_nX.create_work_buffer(self.data_buffers[0])
+        work2_nX = psit_nX.create_work_buffer(self.data_buffers[1])
         blocksize = work1_nX.data.shape[0]
         P1_ani = P_ani.layout.empty(blocksize)
         P2_ani = P_ani.layout.empty(blocksize)
