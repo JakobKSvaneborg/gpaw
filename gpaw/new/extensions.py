@@ -51,16 +51,10 @@ class D3(ExtensionParameter):
                 return {f'D3 (xc={self.xc})': _self.E}
 
             def force_contribution(self):
-                if domain_comm.rank == 0:
-                    return self.F_av
-                else:
-                    return np.zeros_like(self.F_av)
+                return self.F_av
             
             def stress_contribution(self):
-                if domain_comm.rank == 0:
-                    return self.stress_vv
-                else:
-                    return np.zeros_like(self.F_av)
+                return self.stress_vv
 
             def move_atoms(self, relpos_ac) -> None:
                 atoms.set_scaled_positions(relpos_ac)

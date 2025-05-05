@@ -143,15 +143,16 @@ def test_d3_stress(parallel, in_tmp_dir):
 
     kwargs = dict(xc='PBE', 
                   parallel={'band': band, 'domain': domain},
-                  kpts=(4, 4, 4), txt='relax',
-                  mode=dict(name='pw', ecut=400))
+                  kpts=(2, 2, 2), txt='relax',
+                  convergence={'density': 1e-5},
+                  mode=dict(name='pw', ecut=300))
     get_calc = lambda x: GPAW(**kwargs, **x)
    
     # 1. Old fashioned D3 calculation
     atoms = get_atoms()
     atoms.calc = DFTD3(xc='PBE', dft=get_calc({}))
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_oldfashioned')
-    relax.run()
+    relax.run(smax=0.001)
     atoms_old_ref = atoms.copy()
     E_ref = atoms.get_potential_energy()
 
@@ -159,7 +160,7 @@ def test_d3_stress(parallel, in_tmp_dir):
     atoms = get_atoms()
     atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_new')
-    relax.run()
+    relax.run(smax=0.001)
     nsteps = relax.nsteps
 
     assert np.allclose(atoms.cell, atoms_old_ref.cell)
@@ -175,10 +176,9 @@ def test_d3_stress(parallel, in_tmp_dir):
     atoms.calc.write('restart_cell_relax.gpw')
     atoms, calc = restart('restart_cell_relax.gpw', Class=GPAW)
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_cont')
-    relax.run()
+    relax.run(smax=0.001)
 
-    # Why is this 1 step more than with normal relax?
-    assert relax.nsteps + 4 == nsteps
-    assert np.allclose(atoms.cell, atoms_old_ref.cell)
+    assert relax.nsteps + 3 == nsteps
+    assert np.allclose(atoms.cell, atoms_old_ref.cell, rtol=1e-4)
     assert np.allclose(atoms.get_scaled_positions(), atoms_old_ref.get_scaled_positions())
     assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)

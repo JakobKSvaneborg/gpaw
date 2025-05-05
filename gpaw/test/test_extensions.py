@@ -28,9 +28,8 @@ class Spring(ExtensionParameter):
                 F = self.k * D / Hartree * Bohr
                 _self.E = 1 / 2 * self.k * D**2 / Hartree
                 _self.F_av = np.zeros((len(atoms), 3))
-                if domain_comm.rank == 0:
-                    _self.F_av[self.a1, :] = -v * F
-                    _self.F_av[self.a2, :] = v * F
+                _self.F_av[self.a1, :] = -v * F
+                _self.F_av[self.a2, :] = v * F
 
             def force_contribution(self):
                 return self.F_av

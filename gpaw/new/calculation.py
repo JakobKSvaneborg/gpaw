@@ -284,9 +284,6 @@ class DFTCalculation:
         # Force from compensation charges:
         F_av += Fcc_av
 
-        # Force from extensions:
-        F_av += Fext_av
-
         # Force from smooth core charge:
         for a, dF_v in Fnct_av.items():
             F_av[a] += dF_v[:, 0]
@@ -304,6 +301,9 @@ class DFTCalculation:
 
         domain_comm = Q_aL.layout.atomdist.comm
         domain_comm.sum(F_av)
+        
+        # Force from extensions (only from rank 0)
+        F_av += Fext_av
 
         F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
         self.comm.broadcast(F_av, 0)
