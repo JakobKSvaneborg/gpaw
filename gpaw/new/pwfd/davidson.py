@@ -236,12 +236,12 @@ def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
     <psi2 | H | psi2> -> M2_nn
     <psi2 | H | psi1> -> M1_nn
 
-    This funciton uses less memory than, but is otherwise identical to:
+    This function uses less memory than, but is otherwise identical to:
     psit3_nX = psit2_nX.new()
     psit2_nX.matrix_elements(psit2_nX,
                              out=M2_nn,
                              domain_sum=False,
-                             funciton=partial(Ht, out=psit3_nX),
+                             function=partial(Ht, out=psit3_nX),
                              cc=True)
     psit3_nX.matrix_elements(psit1_nX,
                              out=M_nn,
