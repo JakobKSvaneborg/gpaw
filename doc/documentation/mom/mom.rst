@@ -34,18 +34,22 @@ on saddle points.
 Maximizing wavefunction overlaps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Let `\{|\psi_{n}\rangle\}` be the set of reference
+Let `\{|\psi^0_{n}\rangle\}` be the set of reference
 orbitals with occupation
 numbers `f_n^0` and `\{|\psi_{m}^{(k)}\rangle\}` the orbitals
 determined at iteration `k` of the wave-function optimization.
 The methods aims to find the updated occupation numbers `f_m^{(k)}`
-for the orbitals at iteration `k` such that the updated state
-`\sum_m f_m^{(k)} |\psi_{m}^{(k)}\rangle` approximates the
-initial state `\sum_n f_n^0 |\psi_{n}\rangle` as closely as possible.
+for the orbitals at iteration `k` such that the electronic distance `\eta`
+defined as:
+
+.. math::
+    \eta = N - \sum_{n m} \bigl|\langle \psi^0_{n} \mid \psi_{m}^{(k)} \rangle\bigr|^2
+
+where `N` is the number of electrons.
 
 Naively, this can be achieved by finding a mapping between the
-states while measuring their similarity using the wavefunction overlap
-`O_{nm}^{(k)} = \langle\psi_n | \psi_{m}^{(k)}\rangle`.
+orbitals using the wavefunction overlap
+`O_{nm}^{(k)} = \langle\psi^0_n | \psi_{m}^{(k)}\rangle`, as a measure of their similarity.
 
 .. tip::
 
@@ -53,23 +57,23 @@ states while measuring their similarity using the wavefunction overlap
     modes, the elements of the overlap matrix are calculated from:
 
     .. math::
-        O_{nm}^{(k)} = \langle\tilde{\psi}_n | \tilde{\psi}_{m}^{(k)}\rangle +
-        \sum_{a, i_1, i_2} \langle\tilde{\psi}_n | \tilde{p}_{i_1}^{a}\rangle \left( \langle\phi_{i_1}^{a} | \phi_{i_2}^{a}\rangle -
+        O_{nm}^{(k)} = \langle\tilde{\psi}^0_n | \tilde{\psi}_{m}^{(k)}\rangle +
+        \sum_{a, i_1, i_2} \langle\tilde{\psi}^0_n | \tilde{p}_{i_1}^{a}\rangle \left( \langle\phi_{i_1}^{a} | \phi_{i_2}^{a}\rangle -
         \langle\tilde{\phi}_{i_1}^{a} | \tilde{\phi}_{i_2}^{a}\rangle \right) \langle\tilde{p}_{i_2}^{a} | \tilde{\psi}_{m}^{(k)}\rangle
 
-    where `|\tilde{\psi}_{n}\rangle` and `|\tilde{\psi}_{m}^{(k)}\rangle`
+    where `|\tilde{\psi}^0_{n}\rangle` and `|\tilde{\psi}_{m}^{(k)}\rangle`
     are the pseudo orbitals, `|\tilde{p}_{i_1}^{a}\rangle`, `|\phi_{i_1}^{a}\rangle`
     and `|\tilde{\phi}_{i_1}^{a}\rangle` are projector functions, partial
     waves and pseudo partial waves localized on atom `a`, respectively.
     In :ref:`LCAO <lcao>`, the overlaps `O_{nm}^{(k)}` are calculated as:
 
     .. math::
-        O_{nm}^{(k)} = \sum_{\mu\nu} c^*_{\mu n}S_{\mu\nu}c^{(k)}_{\nu m}, \qquad
+        O_{nm}^{(k)} = \sum_{\mu\nu} c^{*0}_{\mu n}S_{\mu\nu}c^{(k)}_{\nu m}, \qquad
         S_{\mu\nu} = \langle\Phi_{\mu} | \Phi_{\nu}\rangle +
         \sum_{a, i_1, i_2} \langle\Phi_{\mu} | \tilde{p}_{i_1}^{a}\rangle \left( \langle\phi_{i_1}^{a} | \phi_{i_2}^{a}\rangle -
         \langle\tilde{\phi}_{i_1}^{a} | \tilde{\phi}_{i_2}^{a}\rangle \right) \langle\tilde{p}_{i_2}^{a} | \Phi_{\nu}\rangle
 
-    where `c^*_{\mu n}` and `c^{(k)}_{\nu m}` are the expansion
+    where `c^{*0}_{\mu n}` and `c^{(k)}_{\nu m}` are the expansion
     coefficients for the initial guess orbitals and orbitals at
     iteration `k`, while `|\Phi_{\nu}\rangle` are the basis functions.
 
