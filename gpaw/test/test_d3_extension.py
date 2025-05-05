@@ -136,28 +136,49 @@ def test_d3_stress(parallel, in_tmp_dir):
     if world.size > domain * band * 2:
         pytest.skip('Too many cores for this test.')
 
-    get_atoms = lambda: bulk('Xe', a=4.0)
+    def get_atoms():
+        atoms = bulk('C', a=3.4)
+        atoms.set_cell(atoms.get_cell() @ np.array([[1.00, 0.01, -0.01], [0.02, 1.0, 0.03], [-0.01, -0.01, 1.0]]), scale_atoms=True)
+        return atoms
 
     kwargs = dict(xc='PBE', 
                   parallel={'band': band, 'domain': domain},
-                  kpts=(4, 4, 4), #txt='relaxcell',
+                  kpts=(4, 4, 4), txt='relax',
                   mode=dict(name='pw', ecut=400))
     get_calc = lambda x: GPAW(**kwargs, **x)
+   
     # 1. Old fashioned D3 calculation
     atoms = get_atoms()
     atoms.calc = DFTD3(xc='PBE', dft=get_calc({}))
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_oldfashioned')
     relax.run()
     atoms_old_ref = atoms.copy()
+    E_ref = atoms.get_potential_energy()
 
     # 2. New style D3 calculation
     atoms = get_atoms()
     atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_new')
     relax.run()
+    nsteps = relax.nsteps
 
     assert np.allclose(atoms.cell, atoms_old_ref.cell)
     assert np.allclose(atoms.get_scaled_positions(), atoms_old_ref.get_scaled_positions())
+    assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)
 
-    
+    # 3. Restarting geometry relaxation of new style D3 calculation
+    atoms = get_atoms()
+    atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
+    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_cont')
+    for _, _ in zip(relax.irun(), range(3)):
+        pass
+    calc.write('restart_cell_relax.gpw')
+    atoms, calc = restart('restart_cell_relax.gpw', Class=GPAW)
+    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='relax_cont')
+    relax.run()
+
+    assert relax.nsteps + 3 == nsteps
+    assert np.allclose(atoms.cell, atoms_old_ref.cell)
+    assert np.allclose(atoms.get_scaled_positions(), atoms_old_ref.get_scaled_positions())
+    assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)
 
