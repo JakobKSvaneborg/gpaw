@@ -81,7 +81,7 @@ class PotentialCalculator:
             return 0.0
         return functools.reduce(operator.add, [ext.force_contribution()
                                 for ext in self.extensions])
-    
+
     @property
     def extensions_stress_contribution(self):
         if not self.extensions:

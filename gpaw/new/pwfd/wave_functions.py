@@ -499,7 +499,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         desc = desc.new(kpt=self.psit_nX.desc.kpt_c)
         if not hasattr(self.psit_nX, 'morph'):
             from gpaw.new.calculation import ReuseWaveFunctionsError
-            raise ReuseWaveFunctionsError 
+            raise ReuseWaveFunctionsError
         psit_nX = self.psit_nX.morph(desc)
 
         # Save memory:
