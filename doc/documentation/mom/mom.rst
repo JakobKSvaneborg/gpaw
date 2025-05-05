@@ -94,10 +94,10 @@ Given the wavefunction overlaps `|O_{nm}^{(k)}|` the optimal permutation can be 
 ``scipy.optimize.linear_sum_assignment``. The figure shows the absolute values of the overlap
 matrix for a fictional system with 8 bands and the initial occupations `f_n^0`.
 
-.. image:: O_nm.png 
+.. image:: O_nm_P_nm.png 
    :align: center
 
-From the visual representation of the overlap matrix it is immediately clear
+From the visual representation of the overlap matrix in the left panel of the figure above it is immediately clear
 how the updated occupations `f_m^{(k)}` should look like.
 
 
@@ -121,13 +121,9 @@ where `n \in s` denotes that only orbitals from the subspace
 If only one subspace of equally occupied orbitals is present, the method is equivalent
 to the initial maximum overlap method presented in [#imom]_.
 
-The figure below shows the weight matrices calculated from the overlaps of the above example.
+The right panel in the figure above shows the weight matrices calculated from the overlaps of the above example.
 Again, the assignment, which for more than one subspace is done using ``scipy.optimize.linear_sum_assignment``
 numerically, can be directly seen in this example case.
-
-.. image:: P_nm_proj.png
-   :align: center
-
 
 ~~~~~~~~~~~~~~
 How to use MOM

@@ -1,4 +1,4 @@
-# creates: O_nm.png, P_nm_proj.png
+# creates: O_nm.png_P_nm.png
 import numpy as np
 
 
@@ -65,12 +65,17 @@ def plot_overlaps_projections(proj=True):
     nbands, numbers, f_n, O_nm = get_overlaps()
     f_s, P_nm = get_projections(numbers, O_nm, proj=proj)
 
+    # overlaps + projections
+    fig1 = plt.figure(figsize=(10, 5), constrained_layout=True)
+    gs = fig1.add_gridspec(5, 10)
     # overlaps
-    fig1 = plt.figure(figsize=(5, 5), constrained_layout=True)
-    gs = fig1.add_gridspec(5, 5)
     ax1 = fig1.add_subplot(gs[1:5, 0:4])
     ax2 = fig1.add_subplot(gs[0, 0:4], sharex=ax1)
     ax3 = fig1.add_subplot(gs[1:5, 4], sharey=ax1)
+    # projections
+    ax4 = fig1.add_subplot(gs[1:5, 5:9])
+    ax5 = fig1.add_subplot(gs[0, 5:9], sharex=ax4)
+    ax6 = fig1.add_subplot(gs[1:5, 9], sharey=ax4)
 
     # matrix
     ax1.imshow(O_nm.T, aspect='auto', cmap='Greys')
@@ -87,13 +92,6 @@ def plot_overlaps_projections(proj=True):
     ax3.spines['right'].set_visible(False)
     ax3.spines['top'].set_visible(False)
     ax3.set_xlabel('$f_m^{(k)}$')
-
-    # projections
-    fig2 = plt.figure(figsize=(5, 5), constrained_layout=True)
-    gs = fig2.add_gridspec(5, 5)
-    ax4 = fig2.add_subplot(gs[1:5, 0:4])
-    ax5 = fig2.add_subplot(gs[0, 0:4], sharex=ax4)
-    ax6 = fig2.add_subplot(gs[1:5, 4], sharey=ax4)
 
     # matrix
     ax4.imshow(P_nm.T, aspect='auto', cmap='Greys')
@@ -114,11 +112,6 @@ def plot_overlaps_projections(proj=True):
     ax6.spines['top'].set_visible(False)
     ax6.set_xlabel('$f_m^{(k)}$')
 
-    fig1.savefig('O_nm.png')
-    if proj:
-        fig2.savefig('P_nm_proj.png')
-    else:
-        fig2.savefig('P_nm_max.png')
-
+    fig1.savefig('O_nm_P_nm.png')
 
 plot_overlaps_projections()
