@@ -59,6 +59,7 @@ class Davidson(PWFDEigensolver):
         self.M_nn = Matrix(B, B, dtype,
                            dist=(band_comm, band_comm.size),
                            xp=xp)
+        self.M2_nn = self.M_nn.new()
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
@@ -66,7 +67,7 @@ class Davidson(PWFDEigensolver):
         H_NN = self.H_NN
         S_NN = self.S_NN
         M_nn = self.M_nn
-        M2_nn = M_nn.new()
+        M2_nn = self.M2_nn
 
         xp = M_nn.xp
 
@@ -135,10 +136,8 @@ class Davidson(PWFDEigensolver):
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
             with tracectx('Matrix elements'):
-                # Method for calculating matrix elements in a
-                # sliced manner.
-                # <psi2 | H | psi2> -> M2_nn
-                # <psi2 | H | psi> -> M_nn
+                # Sliced matrix elements with hamiltonian. See
+                # sliced_matrix_elements docstring.
                 sliced_matrix_elements(psit_nX, psit2_nX,
                                        buffer_mX=me_buffer_mX,
                                        Ht=Ht,
@@ -233,6 +232,22 @@ def sliced_preconditioner(psit_nX, psit2_nX, buffer, precon):
 
 
 def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
+    ''' Method for calculating matrix elements in a sliced manner:
+    <psi2 | H | psi2> -> M2_nn
+    <psi2 | H | psi1> -> M1_nn
+
+    This funciton uses less memory than, but is otherwise identical to:
+    psit3_nX = psit2_nX.new()
+    psit2_nX.matrix_elements(psit2_nX,
+                             out=M2_nn,
+                             domain_sum=False,
+                             funciton=partial(Ht, out=psit3_nX),
+                             cc=True)
+    psit3_nX.matrix_elements(psit1_nX,
+                             out=M_nn,
+                             domain_sum=False,
+                             cc=True)
+    '''
     comm = psit1_nX.comm
     b = psit1_nX.data.shape[0]
     blocksize = buffer_mX.data.shape[0]
