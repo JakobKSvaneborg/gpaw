@@ -206,7 +206,8 @@ class OccupationsMOM:
             for kpt in self.wfs.kpt_u:
                 self.c_ref[kpt.s] = {}
 
-                self.c_ref[kpt.s]['all'] = kpt.C_nM[:].copy()
+                if not self.use_projections:
+                    self.c_ref[kpt.s]['all'] = kpt.C_nM[:].copy()
 
                 for fs_key in self.subs_mask[kpt.s]:
                     occupied = self.subs_mask[kpt.s][fs_key]
@@ -218,12 +219,13 @@ class OccupationsMOM:
                 self.wf[kpt.s] = {}
                 self.p_an[kpt.s] = {}
 
-                # Pseudo wave functions
-                self.wf[kpt.s]['all'] = kpt.psit_nG[:].copy()
-                # Atomic contributions times projector overlaps
-                self.p_an[kpt.s]['all'] = \
-                    {a: np.dot(self.wfs.setups[a].dO_ii, P_ni[:].T)
-                     for a, P_ni in kpt.P_ani.items()}
+                if not self.use_projections:
+                    # Pseudo wave functions
+                    self.wf[kpt.s]['all'] = kpt.psit_nG[:].copy()
+                    # Atomic contributions times projector overlaps
+                    self.p_an[kpt.s]['all'] = \
+                        {a: np.dot(self.wfs.setups[a].dO_ii, P_ni[:].T)
+                         for a, P_ni in kpt.P_ani.items()}
 
                 for fs_key in self.subs_mask[kpt.s]:
                     occupied = self.subs_mask[kpt.s][fs_key]
