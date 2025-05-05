@@ -331,10 +331,12 @@ class UGArray(DistributedArrays[UGDesc]):
         """
         if dims:
             assert data is not None
-            return UGArray(self.desc, dims, self.comm, data)
+        else:
+            dims = self.dims
         if data is None:
             data = self.xp.empty_like(self.data)
-        f_xR = UGArray(self.desc, self.dims, self.comm, data)
+
+        f_xR = UGArray(self.desc, dims, self.comm, data)
         if zeroed:
             f_xR.data[:] = 0.0
         return f_xR
