@@ -183,6 +183,59 @@ representation of the diffuse Rydberg orbital [#momgpaw1]_.
 
 .. literalinclude:: mom_h2o.py
 
+
+..  _coexample:
+
+
+----------------------------------------------------------------
+Geometry relaxation excited-state of carbon monoxide
+----------------------------------------------------------------
+
+In this example, the bond length of the carbon monoxide molecule
+in the lowest singlet `\Pi(\sigma\rightarrow \pi^*)` excited state
+is optimized using two types of calculations, each based on a
+different approximation to the potential energy curve of an open-shell
+excited singlet state.
+The first is a spin-polarized calculation of the mixed-spin state
+as defined in :ref:`h2oexample`. The second is a spin-paired calculation
+where the occupation numbers of the open-shell orbitals are set
+to 1 [#levi2018]_. Both calculations use LCAO basis and the
+:ref:`direct optimization (DO) method <do>`.
+
+In order to obtain the correct angular momentum
+of the excited state, the electron is excited into a complex
+`\pi^*_{+1}` or `\pi^*_{-1}` orbital, where +1 or −1 is the
+eigenvalue of the z-component angular momentum operator. The
+use of complex orbitals provides an excited-state density
+with the uniaxial symmetry consistent with the symmetry of the
+molecule [#do1]_.
+
+.. literalinclude:: domom_co.py
+
+The electronic configuration of the `\Pi(\sigma\rightarrow \pi^*)`
+state includes two unequally occupied, degenerate `\pi^*` orbitals.
+Because of this, convergence to this excited state is more
+difficult when using SCF eigensolvers with density mixing
+instead of DO, unless symmetry constraints on the density
+are enforced during the calculation. Convergence of such
+excited-state calculations with an SCF eigensolver can be
+improved by using a Gaussian smearing of the holes and excited
+electrons [#levi2018]_.
+Gaussian smearing is implemented in MOM and can be used
+by specifying a ``width`` in eV for the Gaussian smearing
+function::
+
+  mom.prepare_mom_calculation(..., width=0.01, ...)
+
+For difficult cases, the ``width`` can be increased at regular
+intervals by specifying a ``width_increment=...``.
+*Note*, however, that too extended smearing can lead to
+discontinuities in the potentials and forces close to
+crossings between electronic states [#do2]_, so
+this feature should be used with caution and only
+at geometries far from state crossings.
+
+
 ----------
 References
 ----------
@@ -206,3 +259,15 @@ References
 .. [#spinpur]  T. Ziegler, A. Rauk, E. J. Baerends
                :doi:`On the calculation of multiplet energies by the hartree-fock-slater method <10.1007/BF00551551>`
                *Theoret. Chim. Acta*, **43** 261–271 (1977).
+
+.. [#levi2018] G. Levi, M. Pápai, N. E. Henriksen, A. O. Dohn, K. B. Møller
+               :doi:`Solution structure and ultrafast vibrational relaxation of the PtPOP complex revealed by ∆SCF-QM/MM Direct Dynamics simulations <10.1021/acs.jpcc.8b00301>`,
+               *J. Phys. Chem. C*, **122** 7100-7119 (2018).
+
+.. [#do1] A. V. Ivanov, G. Levi, H. Jónsson
+               :doi:`Method for Calculating Excited Electronic States Using Density Functionals and Direct Orbital Optimization with Real Space Grid or Plane-Wave Basis Set <10.1021/acs.jctc.1c00157>`,
+               *J. Chem. Theory Comput.*, (2021).
+
+.. [#do2] G. Levi, A. V. Ivanov, H. Jónsson
+               :doi:`Variational Density Functional Calculations of Excited States via Direct Optimization <10.1021/acs.jctc.0c00597>`,
+               *J. Chem. Theory Comput.*, **16** 6968–6982 (2020).

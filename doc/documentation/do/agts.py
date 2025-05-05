@@ -5,18 +5,10 @@ from myqueue.workflow import run
 
 
 def workflow():
-    with run(script='domom_co.py', cores=8):
-        run(function=check_co)
     with run(script='constraints.py', cores=8):
         run(function=check_constraints)
     with run(script='si_es.py', cores=8):
         run(function=check_si_es)
-
-
-def check_co():
-    for tag in ['spinpol', 'spinpaired']:
-        co = read('co_' + tag + '.txt')
-        assert abs(co.get_distance(0, 1) - 1.248) < 0.01
 
 
 def check_constraints():
