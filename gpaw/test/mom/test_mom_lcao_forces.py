@@ -31,6 +31,7 @@ def test_mom_lcao_forces(in_tmp_dir):
                              'density': 1e-4})
 
     atoms.calc = calc
+    atoms.get_potential_energy()
     occ = prepare_mom_calculation(calc, atoms, f_sn)
     F = atoms.get_forces()
 

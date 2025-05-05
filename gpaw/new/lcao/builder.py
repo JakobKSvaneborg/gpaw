@@ -117,7 +117,7 @@ def create_lcao_ibzwfs(basis,
             # We could set /all/ the elements, but what we care about is
             # only this piece of information.  Maybe we can find a better
             # solution.
-            pass  # C_nM.data[:1, :1] = np.nan
+            C_nM.data[:1, :1] = np.nan
         return LCAOWaveFunctions(
             setups=setups,
             tci_derivatives=tci_derivatives,

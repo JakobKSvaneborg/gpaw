@@ -239,21 +239,25 @@ class KPT:
         self.pd = pd
         self.gd = gd
 
-        I1 = 0
-        nproj_a = []
-        for a, shape in enumerate(wfs.P_ani.layout.shape_a):
-            I2 = I1 + prod(shape)
-            nproj_a.append(I2 - I1)
-            I1 = I2
+        try:
+            I1 = 0
+            nproj_a = []
+            for a, shape in enumerate(wfs.P_ani.layout.shape_a):
+                I2 = I1 + prod(shape)
+                nproj_a.append(I2 - I1)
+                I1 = I2
+        except RuntimeError:
+            pass
+        else:
+            self.projections = Projections(
+                wfs.nbands,
+                nproj_a,
+                atom_partition,
+                wfs.P_ani.comm,
+                wfs.ncomponents < 4,
+                wfs.spin,
+                data=wfs.P_ani.data)
 
-        self.projections = Projections(
-            wfs.nbands,
-            nproj_a,
-            atom_partition,
-            wfs.P_ani.comm,
-            wfs.ncomponents < 4,
-            wfs.spin,
-            data=wfs.P_ani.data)
         self.s = wfs.spin if wfs.ncomponents < 4 else None
         self.k = wfs.k
         self.q = wfs.q
