@@ -365,7 +365,6 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
             vHt0_r = vHt0_g.ifft(grid=self.grid.new(comm=None))
             s1, s2 = saw_tooth_z[[2, 10]]
             v1, v2 = vHt0_r.data[:, :, [2, 10]].mean(axis=(0, 1))
-            print(s1, s2, v1, v2, vHt0_g.data.shape)
             vHt0_r.data -= (v2 - v1) / (s2 - s1) * saw_tooth_z[np.newaxis,
                                                                np.newaxis]
             vHt0_r.data -= vHt0_r.data[:, :, -1].mean()
