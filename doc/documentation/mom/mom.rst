@@ -38,7 +38,7 @@ Let `\{|\psi^0_{n}\rangle\}` be the set of reference
 orbitals with occupation
 numbers `f_n^0` and `\{|\psi_{m}^{(k)}\rangle\}` the orbitals
 determined at iteration `k` of the wave-function optimization.
-The methods aims to find the updated occupation numbers `f_m^{(k)}`
+The method aims to find the updated occupation numbers `f_m^{(k)}`
 for the orbitals at iteration `k` such to minimize the
 electronic distance `\eta` defined as:
 
@@ -90,7 +90,7 @@ the occupation numbers are updated according to:
 .. math::
     f_m^{(k)} = \sum_n \mathcal P^\max_{nm} f_n^0
 
-Given the wavefunction overlaps `|O_{nm}^{(k)}|` the optimal permutation can be found using
+Given the wavefunction overlaps `|O_{nm}^{(k)}|`, the optimal permutation can be found using
 ``scipy.optimize.linear_sum_assignment``. The figure shows the absolute values of the overlap
 matrix for a fictional system with 8 bands and the initial occupations `f_n^0`.
 
@@ -121,7 +121,7 @@ where `n \in s` denotes that only orbitals from the subspace
 If only one subspace of equally occupied orbitals is present, the method is equivalent
 to the initial maximum overlap method presented in [#imom]_.
 
-The right panel in the figure above shows the weight matrices calculated from the overlaps of the above example.
+The right panel in the figure above shows the weight matrix calculated from the overlaps of the above example.
 Again, the assignment, which for more than one subspace is done using ``scipy.optimize.linear_sum_assignment``
 numerically, can be directly seen in this example case.
 
