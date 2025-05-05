@@ -114,4 +114,5 @@ def plot_overlaps_projections(proj=True):
 
     fig1.savefig('O_nm_P_nm.png')
 
+
 plot_overlaps_projections()
