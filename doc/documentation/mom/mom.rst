@@ -39,13 +39,13 @@ orbitals with occupation
 numbers `f_n^0` and `\{|\psi_{m}^{(k)}\rangle\}` the orbitals
 determined at iteration `k` of the wave-function optimization.
 The methods aims to find the updated occupation numbers `f_m^{(k)}`
-for the orbitals at iteration `k` such that the electronic distance `\eta`
-defined as:
+for the orbitals at iteration `k` such to minimize the
+electronic distance `\eta` defined as:
 
 .. math::
     \eta = N - \sum_{n m} \bigl|\langle \psi^0_{n} \mid \psi_{m}^{(k)} \rangle\bigr|^2
 
-where `N` is the number of electrons.
+where `N` is the number of electrons and the summations run over the occupied orbitals only.
 
 Naively, this can be achieved by finding a mapping between the
 orbitals using the wavefunction overlap
@@ -78,17 +78,17 @@ orbitals using the wavefunction overlap
     iteration `k`, while `|\Phi_{\nu}\rangle` are the basis functions.
 
 Effectively, we want to find the permutation `\mathcal P` of the updated occupation
-numbers such that the sum of the absolute values of the overlap matrix is
-maximized  
+numbers such that the sum of the absolute values of the diagonal elements of the overlap matrix is
+maximized:
 
 .. math::
-    \max_{\mathcal P} \text{Tr} \left( \mathcal P |O_{nm}^{(k)}| \right) \rightarrow \mathcal P^\max.
+    \max_{\mathcal P} \sum_{nm} {\mathcal P} _{nm}\,\bigl|O^{(k)}_{nm}\bigr| = \max_{\mathcal P} \text{Tr} \left( \mathcal P |O^{(k)}| \right) \rightarrow \mathcal P^\max
 
-With the matrix representation of the permutation `\mathcal P^\max_{mn}` 
-the occupation numbers are updated according to
+where `{\mathcal P}_{nm} \in \{0,1\}`. With the matrix representation of the permutation `\mathcal P^\max_{nm}`
+the occupation numbers are updated according to:
 
 .. math::
-    f_m^{(k)} = \sum_n \mathcal P^\max_{mn} f_n^0
+    f_m^{(k)} = \sum_n \mathcal P^\max_{nm} f_n^0
 
 Given the wavefunction overlaps `|O_{nm}^{(k)}|` the optimal permutation can be found using
 ``scipy.optimize.linear_sum_assignment``. The figure shows the absolute values of the overlap
@@ -97,46 +97,33 @@ matrix for a fictional system with 8 bands and the initial occupations `f_n^0`.
 .. image:: O_nm.png 
    :align: center
 
-From the visual representation of the overlap matrix it is immediately clear how the updated occupations `f_m^{(k)}` should look like.
-Unfortunately, finding the assignment based on maximizing the overlaps
-is known to fail if one of the wavefunction sets `\{ |\psi_{n}\rangle \}`
-is rotated by an arbitrary unitary matrix.
+From the visual representation of the overlap matrix it is immediately clear
+how the updated occupations `f_m^{(k)}` should look like.
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Maximizing subspace projections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-A more stable method can be employed noticing that the optimization task needs to be performed
-only for the subspaces of the occupations numbers, where a subspace is defined by all the orbitals
-`\{ |\psi_{n}\rangle \}_s` having the same occupation number `f^s` (permutations within
-a subspace have no physical effect).
-
-
-In the original maximum overlap method the numerical weights based on
-whose the assignment is done are evaluated as
-[#dongmom]_:
+An alternative approach consists in maximizing the sum of the projections of the orbitals
+onto subspaces of equally occupied reference orbitals, `{s(f_s)}`:
 
 .. math::
-   :label: eq:mommaxoverlap
+    P_{m}^{(k)}(f_s) = \left(\sum_{n \in s}  |O_{nm}^{(k)}|^{2} \right)^{1/2}
 
-    P_{sm}^{(k)} = \max_{n \in s}\left( |O_{nm}^{(k)}| \right)
 
-Here `n \in s` denotes that only orbitals from the subspace 
-`\{ |\psi_{n}\rangle \}_s` are taking into account.
-Alternatively, the numerical weights can be evaluated as
-the following projections onto the manifold `\{|\psi_{n}\rangle\}_{s}`
-[#imom]_:
+where `n \in s` denotes that only orbitals from the subspace
+`{s(f_s)}` are taken into account. Thus, one maximizes the sum:
 
 .. math::
-   :label: eq:momprojections
+    \sum_{m} P_{m}^{(k)}(f_m^{(k)})
 
-    P_{sm}^{(k)} = \left(\sum_{n \in s}  |O_{nm}^{(k)}|^{2} \right)^{1/2}
+If only one subspace of equally occupied orbitals is present, the method is equivalent
+to the initial maximum overlap method presented in [#imom]_.
 
-The images show the weight matrices calculated from the overlaps of the above example.
+The figure below shows the weight matrices calculated from the overlaps of the above example.
 Again, the assignment, which for more than one subspace is done using ``scipy.optimize.linear_sum_assignment``
-numerically, can be directly seen from in this example case.
+numerically, can be directly seen in this example case.
 
 .. image:: P_nm_proj.png
    :align: center
@@ -171,14 +158,11 @@ channel ``si`` to unoccupied orbital ``a`` in spin channel ``sa``
 the HOMO-1 in spin channel 0 and add an electron to LUMO+2 in spin
 channel 1.
 
-The default is to use eq. :any:`eq:mommaxoverlap` to compute
-the numerical weights used to assign the occupation numbers.
-This was found to be more stable in the presence of diffuse
-virtual orbitals [#dongmom]_. In order to use eq. :any:`eq:momprojections`,
-instead, corresponding to the original MOM approach [#imom]_,
-one has to specify::
+The default is to use the subspace projections to assign the occupation numbers.
+In order to use the approach of matching the orbitals directly based on
+their overlaps, one has to specify::
 
-  mom.prepare_mom_calculation(..., use_projections=True, ...)
+  mom.prepare_mom_calculation(..., use_projections=False, ...)
 
 .. autofunction:: gpaw.mom.prepare_mom_calculation
 
@@ -222,10 +206,6 @@ References
 .. [#momgpaw3] G. Levi, A. V. Ivanov, H. Jónsson
                :doi:`Variational Calculations of Excited States Via Direct Optimization of Orbitals in DFT <10.1039/D0FD00064G>`,
                *Faraday Discuss.*, **224** 448-466 (2020).
-
-.. [#dongmom]  X. Dong, A. D. Mahler, E. M. Kempfer-Robertson, L. M. Thompson
-               :doi:`Global Elucidation of Self-Consistent Field Solution Space Using Basin Hopping <10.1021/acs.jctc.0c00488>`,
-               *J. Chem. Theory Comput.*, **16** 5635−5644 (2020).
 
 .. [#spinpur]  T. Ziegler, A. Rauk, E. J. Baerends
                :doi:`On the calculation of multiplet energies by the hartree-fock-slater method <10.1007/BF00551551>`
