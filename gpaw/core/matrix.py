@@ -178,13 +178,13 @@ class Matrix(XP):
         elif not isinstance(out, Matrix):
             out = out.matrix
         if out.data is other.data:
-            # Repeatably call multiply to save memory (200 MB per rank)
+            # Repeatably call multiply using data_buffer
             assert opa == 'N', 'Not implemented'
             assert opb == 'N', 'Not implemented'
             assert not beta, 'Not implemented'
             assert other.shape[0] == self.shape[0]
 
-            # Assert simple distributions:
+            # Assert simple (only row distributed) distributions:
             assert self.shape[1] == self.data.shape[1]
             assert other.shape[1] == other.data.shape[1]
             assert out.shape[1] == out.data.shape[1]
@@ -196,10 +196,14 @@ class Matrix(XP):
             dtype = other.data.dtype
             data_buffer = data_buffer.view(dtype)
             if other.data.shape[0] > 0:
+                # Obtain buffer size s.t. the maximum number of
+                # columns in other.data fits into data_buffer
                 buffer_size = min(
                     data_buffer.size // other.data.shape[0],
                     other.data.shape[1])
             else:
+                # There is no data in other. Thus buffer_size
+                # fits all.
                 buffer_size = other.data.shape[1]
             buffer_size = dist.comm.min_scalar(buffer_size)
             max_B = other.data.shape[1]
