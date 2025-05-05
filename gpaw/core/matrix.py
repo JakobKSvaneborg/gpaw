@@ -997,6 +997,9 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
                 †
         c <- αab + c
 
+    This function utilizes the fact that c is symmetric, s.t.:
+                       †     †
+        c <- 0.5 * (αab + αba) + c
     Only lower half of c is updated.
     """
     comm = a.dist.comm
@@ -1076,7 +1079,7 @@ def mmm_nc_sym(a, b, out, alpha, mmm):
 
 
 def mmm_nc(a, b, out, alpha, beta, mmm):
-    """Symmetric parallel matrix-matrix multiplication.
+    """Parallel matrix-matrix multiplication.
 
     :::
 

@@ -169,7 +169,7 @@ class DistributedArrays(Generic[DomainType], XP):
                          xp=self.xp)
 
         if comm.size == 1:
-            assert other.comm.size == comm.size
+            assert other.comm.size == 1
             if function:
                 assert symmetric
                 other = function(other)
