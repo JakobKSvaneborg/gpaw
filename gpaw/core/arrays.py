@@ -75,7 +75,7 @@ class DistributedArrays(Generic[DomainType], XP):
     def new(self, data=None, dims=None) -> DistributedArrays:
         raise NotImplementedError
 
-    def new_buffer(self, data_buffer: np.ndarray):
+    def create_work_buffer(self, data_buffer: np.ndarray):
         """Create new Distributed array object of same
         kind, to be used as a buffer array when doing
         sliced operations.
@@ -90,11 +90,16 @@ class DistributedArrays(Generic[DomainType], XP):
         datasize = data_buffer.size
         X = self.data.shape[1:]
         nX = int(np.prod(X))
+        # Choose mybands, s.t. they fit into
+        # data_buffer. Hence, datasize divided by nX
+        # rounded down.
         mybands = min(datasize // nX,
                       self.data.shape[0])
         data = data_buffer[:mybands * nX].reshape(
             (mybands,) + X)
         totalbands = self.comm.sum_scalar(mybands)
+        # Dims is (totalbands,) + self.dims[1:], where
+        # self.dims[1:] is extra dimensions, such as spin.
         return self.new(data=data,
                         dims=(totalbands,) + self.dims[1:])
 

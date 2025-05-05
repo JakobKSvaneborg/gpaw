@@ -335,6 +335,9 @@ class PWArray(DistributedArrays[PWDesc]):
         ----------
         data:
             Array to use for storage.
+        dims:
+            Extra dimensions (bands, spin, etc.), required if
+            data does not fit the full array.
         """
         if data is None:
             assert dims is None

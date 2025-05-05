@@ -328,6 +328,11 @@ class UGArray(DistributedArrays[UGDesc]):
         ----------
         data:
             Array to use for storage.
+        zeroed:
+            If True, set data to zero.
+        dims:
+            Extra dimensions (bands, spin, etc.), required if
+            data does not fit the full array.
         """
         if dims:
             assert data is not None

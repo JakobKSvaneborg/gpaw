@@ -184,6 +184,11 @@ class Matrix(XP):
             assert not beta, 'Not implemented'
             assert other.shape[0] == self.shape[0]
 
+            # Assert simple distributions:
+            assert self.shape[1] == self.data.shape[1]
+            assert other.shape[1] == other.data.shape[1]
+            assert out.shape[1] == out.data.shape[1]
+
             if data_buffer is None:
                 raise ValueError('other is out, and data_buffer is None')
 
@@ -213,12 +218,12 @@ class Matrix(XP):
             for i in range(0, max_B, buffer_size):
                 r_buffer_size = min(max(other.data.shape[1] - i, 0),
                                     buffer_size)
-                buffer_slice = r_buffer_size * other.data.shape[0]
+                l_buffer_size = r_buffer_size * other.data.shape[0]
                 buffer = Matrix(
                     M=other.shape[0],
                     N=r_buffer_size,
                     data=data_buffer[
-                        :buffer_slice].reshape(
+                        :l_buffer_size].reshape(
                         (other.data.shape[0], r_buffer_size)
                     ),
                     dist=dist.new(M=other.shape[0], N=r_buffer_size),
@@ -226,7 +231,7 @@ class Matrix(XP):
                 buffer.data[:] \
                     = other.data[:, i:i + buffer_size]
                 out_buffer = buffer.new(data=data_buffer[
-                    buffer_slice:2 * buffer_slice].reshape(
+                    l_buffer_size:2 * l_buffer_size].reshape(
                     (other.data.shape[0], r_buffer_size)))
 
                 dist.multiply(alpha, A, opa, buffer,
@@ -794,7 +799,6 @@ class BLACSDistribution(MatrixDistribution):
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
-            # XXX: ...
             ok = a.dist.simple and b.dist.simple and c.dist.simple
             if ok:
                 # Special cases that don't need scalapack - most likely also

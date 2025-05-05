@@ -135,6 +135,10 @@ class Davidson(PWFDEigensolver):
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
             with tracectx('Matrix elements'):
+                # Method for calculating matrix elements in a
+                # sliced manner.
+                # <psi2 | H | psi2> -> M2_nn
+                # <psi2 | H | psi> -> M_nn
                 sliced_matrix_elements(psit_nX, psit2_nX,
                                        buffer_mX=me_buffer_mX,
                                        Ht=Ht,
