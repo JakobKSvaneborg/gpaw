@@ -5,6 +5,7 @@ from gpaw import restart
 from gpaw.new.extensions import D3
 import numpy as np
 
+
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 400}, 'fd', 'lcao'])
 def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new):
@@ -122,6 +123,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     assert atoms.get_distance(0, 1) == pytest.approx(L, abs=1e-2)
     assert atoms.get_potential_energy() == pytest.approx(Egs, abs=1e-4)
 
+
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 def test_d3_stress(parallel, in_tmp_dir):
     from ase.calculators.dftd3 import DFTD3
@@ -138,20 +140,26 @@ def test_d3_stress(parallel, in_tmp_dir):
 
     def get_atoms():
         atoms = bulk('C', a=3.4)
-        atoms.set_cell(atoms.get_cell() @ np.array([[1.00, 0.01, -0.01], [0.02, 1.0, 0.03], [-0.01, -0.01, 1.0]]), scale_atoms=True)
+        atoms.set_cell(atoms.get_cell() @ np.array([[1.00, 0.01, -0.01],
+                                                    [0.02, 1.0, 0.03],
+                                                    [-0.01, -0.01, 1.0]]),
+                       scale_atoms=True)
         return atoms
 
-    kwargs = dict(xc='PBE', 
+    kwargs = dict(xc='PBE',
                   parallel={'band': band, 'domain': domain},
                   kpts=(2, 2, 2), txt='relax',
                   convergence={'density': 1e-5},
                   mode=dict(name='pw', ecut=300))
-    get_calc = lambda x: GPAW(**kwargs, **x)
-   
+
+    def get_calc(x):
+        return GPAW(**kwargs, **x)
+
     # 1. Old fashioned D3 calculation
     atoms = get_atoms()
     atoms.calc = DFTD3(xc='PBE', dft=get_calc({}))
-    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_oldfashioned')
+    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
+                          restart='restart_oldfashioned')
     relax.run(smax=0.001)
     atoms_old_ref = atoms.copy()
     E_ref = atoms.get_potential_energy()
@@ -159,27 +167,32 @@ def test_d3_stress(parallel, in_tmp_dir):
     # 2. New style D3 calculation
     atoms = get_atoms()
     atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
-    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_new')
+    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
+                          restart='restart_new')
     relax.run(smax=0.001)
     nsteps = relax.nsteps
 
     assert np.allclose(atoms.cell, atoms_old_ref.cell)
-    assert np.allclose(atoms.get_scaled_positions(), atoms_old_ref.get_scaled_positions())
+    assert np.allclose(atoms.get_scaled_positions(),
+                       atoms_old_ref.get_scaled_positions())
     assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)
 
     # 3. Restarting geometry relaxation of new style D3 calculation
     atoms = get_atoms()
     atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
-    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_cont')
+    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
+                          restart='restart_cont')
     for _, _ in zip(relax.irun(), range(3)):
         pass
     atoms.calc.write('restart_cell_relax.gpw')
     atoms, calc = restart('restart_cell_relax.gpw', Class=GPAW)
-    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1), restart='restart_cont')
+    relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
+                          restart='restart_cont')
     relax.run(smax=0.001)
 
     assert relax.nsteps + 3 == nsteps
 
     assert np.allclose(atoms.cell, atoms_old_ref.cell, rtol=1e-5, atol=1e-5)
-    assert np.allclose(atoms.get_scaled_positions(), atoms_old_ref.get_scaled_positions())
+    assert np.allclose(atoms.get_scaled_positions(),
+                       atoms_old_ref.get_scaled_positions())
     assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)

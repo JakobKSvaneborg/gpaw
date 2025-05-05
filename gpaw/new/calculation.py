@@ -301,7 +301,7 @@ class DFTCalculation:
 
         domain_comm = Q_aL.layout.atomdist.comm
         domain_comm.sum(F_av)
-        
+
         # Force from extensions (only from rank 0)
         F_av += Fext_av
 
