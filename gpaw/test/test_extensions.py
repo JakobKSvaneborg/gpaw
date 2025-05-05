@@ -50,7 +50,9 @@ class Spring(ExtensionParameter):
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 400}, 'fd', 'lcao'])
-def test_extensions(mode, parallel, in_tmp_dir):
+def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
+    if not gpaw_new:
+        pytest.skip('Only GPAW new')
     ktot = 20
 
     from gpaw.new.ase_interface import GPAW
