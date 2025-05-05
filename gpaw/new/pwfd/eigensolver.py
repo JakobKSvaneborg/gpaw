@@ -90,14 +90,14 @@ class PWFDEigensolver(Eigensolver):
             # of the buffer is a multiple of domain_size.
             buffer_size_per_domain = max(self.max_buffer_mem,
                                          domain_size * G_max * dtype_size,
-                                         2 * nbands * dtype_size) \
+                                         nbands * dtype_size) \
                 // (domain_size * G_max * dtype_size)
             buffer_size = min(buffer_size_per_domain * domain_size
                               * G_max * dtype_size,
                               b * G_max * dtype_size)
         else:
             buffer_size = max(b * G_max * dtype_size,
-                              2 * nbands * dtype_size)
+                              nbands * dtype_size)
 
         self.data_buffers = ibzwfs.xp.empty(shape + (buffer_size,),
                                             np.byte)

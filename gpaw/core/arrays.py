@@ -270,8 +270,8 @@ def _parallel_me(psit1_nX: DistributedArrays,
                  psit2_nX: DistributedArrays,
                  M_nn: Matrix) -> None:
 
-    comm = psit1_nX.comm
-    nbands = psit1_nX.dims[0]
+    comm = psit2_nX.comm
+    nbands = psit2_nX.dims[0]
 
     psit1_nX = psit1_nX[:]
 

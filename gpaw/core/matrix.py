@@ -197,7 +197,7 @@ class Matrix(XP):
             data_buffer = data_buffer.view(dtype)
             if other.data.shape[0] > 0:
                 buffer_size = min(
-                    data_buffer.size // other.data.shape[0] // 2,
+                    data_buffer.size // other.data.shape[0],
                     other.data.shape[1])
             else:
                 buffer_size = other.data.shape[1]
@@ -230,14 +230,10 @@ class Matrix(XP):
                     xp=other.xp)
                 buffer.data[:] \
                     = other.data[:, i:i + buffer_size]
-                out_buffer = buffer.new(data=data_buffer[
-                    l_buffer_size:2 * l_buffer_size].reshape(
-                    (other.data.shape[0], r_buffer_size)))
-
+                out_view = buffer.new(
+                    data=out.data[:, i:i + buffer_size])
                 dist.multiply(alpha, A, opa, buffer,
-                              opb, 0.0, out_buffer, symmetric=False)
-                out.data[:, i:i + buffer_size] *= beta
-                out.data[:, i:i + buffer_size] += out_buffer.data
+                              opb, beta, out_view, symmetric=False)
             return out
 
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)

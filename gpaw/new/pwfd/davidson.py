@@ -266,7 +266,6 @@ def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
             data=M2_nn.data[n1:n2, :],
             dist=(comm, -1, 1),
             xp=M2_nn.xp)
-
         buffer_view_aX.matrix_elements(psit1_nX,
                                        out=out1,
                                        symmetric=False,
