@@ -50,6 +50,10 @@ else:
                 trans = 1 - trans
             elif a._f_contiguous:
                 ld = a.shape[0]
+            elif a.strides[-1] == a.dtype.itemsize:
+                # Semi C-contiguous (sliced along second dim)
+                ld = a.strides[-2] // a.strides[-1]
+                trans = 1 - trans
             return ld, trans
 
         @trace(gpu=True)
@@ -135,6 +139,17 @@ else:
                         func(handle, transa, transb, m, n, k, alpha_ptr,
                              a.data.ptr, lda, b.data.ptr, ldb, beta_ptr,
                              out.data.ptr, m)
+                    finally:
+                        _cublas.setPointerMode(handle, orig_mode)
+                    return out
+                elif out.strides[-1] == out.dtype.itemsize:
+                    # Semi C-contiguous (sliced along second dim)
+                    # Computes out.T = alpha * b.T @ a.T + beta * out.T
+                    try:
+                        ld_out = out.strides[-2] // out.strides[-1]
+                        func(handle, 1 - transb, 1 - transa, n, m, k,
+                             alpha_ptr, b.data.ptr, ldb, a.data.ptr, lda,
+                             beta_ptr, out.data.ptr, ld_out)
                     finally:
                         _cublas.setPointerMode(handle, orig_mode)
                     return out
