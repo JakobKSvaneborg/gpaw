@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Iterable, Sequence, Union
+from typing import IO, TYPE_CHECKING, Iterable, Sequence, Union, Any
 
 import numpy as np
 from ase import Atoms
@@ -465,11 +465,13 @@ class Parameters:
     def __repr__(self):
         lines = []
         for key in self._non_defaults:
-            value = self.__dict__[key]
+            value = self._value(key)
             lines.append(f'{key}={value!r}')
         return ',\n'.join(lines)
 
-        # txt = pformat(val, width=75 - n).replace('\n', '\n ' + ' ' * n)
+    @property
+    def kwargs(self):
+        return {key: self.__dict__[key] for key in self._non_defaults}
 
     def todict(self, everything=False):
         dct = {}
@@ -478,15 +480,19 @@ class Parameters:
         else:
             keys = self._non_defaults
         for key in keys:
-            value = self.__dict__[key]
+            value = self._value(key)
             if hasattr(value, 'todict'):
                 name = value.__class__.__name__.lower()
                 value = {'name': name} | value.todict()
-            elif key == 'basis':
-                if list(value) == [None]:
-                    value = value[None]
             dct[key] = value
         return dct
+
+    def _value(self, key: str) -> Any:
+        value = self.__dict__[key]
+        if key == 'basis':
+            if list(value) == [None]:
+                value = value[None]
+        return value
 
     def dft_component_builder(self, atoms, *, comm=None, log=None):
         return self.mode.dft_components_builder(
@@ -494,8 +500,8 @@ class Parameters:
 
     def dft_calculation(self,
                         atoms,
-                        txt: str = '-',
-                        communicator=None):
+                        txt: str | Path | IO[str] | None = '-',
+                        communicator: MPIComm | Sequence[int] | None = None):
         from gpaw.new.calculation import DFTCalculation
         log = Logger(txt, communicator)
         return DFTCalculation.from_parameters(atoms, self, log.comm, log)
@@ -532,7 +538,7 @@ def DFT(
     symmetry: str | dict | Symmetry = '',
     xc: str | dict | XC = 'LDA',
     txt: str | Path | IO[str] | None = '?',
-    communicator: MPIComm | Iterable[int] | None = None):
+    communicator: MPIComm | Sequence[int] | None = None):
     """asdg
     """
     params = Parameters(**{k: v for k, v in locals().items()
@@ -568,8 +574,7 @@ def GPAW(
     symmetry: str | dict | Symmetry = '',
     xc: str | dict | XC = 'LDA',
     txt: str | Path | IO[str] | None = '?',
-    communicator: MPIComm | Iterable[int] | None = None,
-    hooks: dict | None = None) -> ASECalculator:
+    communicator: MPIComm | Sequence[int] | None = None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
     """
@@ -587,15 +592,14 @@ def GPAW(
               if key in PARAMETER_NAMES}
 
     if filename is not None:
-        args = Parameters(mode='pw', **kwargs).non_defaults
+        args = Parameters(mode='pw', **kwargs)._non_defaults
         if set(args) >= {'mode', 'parallel'}:
             raise ValueError(
                 'Illegal argument(s) when reading from a file: '
                 f'{", ".join(args)}')
         atoms, dft, params, _ = read_gpw(filename,
                                          log=log,
-                                         parallel=parallel,
-                                         hooks=hooks)
+                                         parallel=parallel)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 

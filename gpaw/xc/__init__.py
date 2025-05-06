@@ -1,4 +1,3 @@
-import numpy as np
 from gpaw import get_libraries
 from gpaw.xc.functional import XCFunctional
 from gpaw.xc.gga import GGA

@@ -41,7 +41,7 @@ from gpaw.new.potential import Potential
 from gpaw.typing import DTypeLike
 from gpaw.utilities import unpack_hermitian, unpack_density
 from gpaw.new.energies import DFTEnergies
-# from gpaw.new.input_parameters import InputParameters
+from gpaw.dft import Parameters
 
 
 def as_single_precision(array):
@@ -188,7 +188,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
              parallel: dict[str, Any] = None,
              dtype: DTypeLike = None) -> tuple[Atoms,
                                                DFTCalculation,
-                                               InputParameters,
+                                               Parameters,
                                                DFTComponentsBuilder]:
     """
     Read gpw file
@@ -223,8 +223,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     for old_keyword in ['fixdensity', 'txt']:
         kwargs.pop(old_keyword, None)
 
-    params = InputParameters(kwargs, warn=False)
-    builder = create_builder(atoms, params, comm, log)
+    params = Parameters(**kwargs)
+    builder = params.dft_component_builder(atoms, log=log)
 
     if comm.rank == 0:
         nt_sR_array = reader.density.density * bohr**3
@@ -254,8 +254,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         # old gpw-file:
         kwargs.pop('h', None)
         kwargs['gpts'] = nt_sR_array.shape[1:]
-        params = InputParameters(kwargs, warn=False)
-        builder = create_builder(atoms, params, comm, log)
+        params = Parameters(**kwargs)
+        builder = params.dft_component_builder(atoms, log=log)
 
     kpts = reader.wave_functions.kpts
     rotation_scc = kpts.rotations
@@ -270,8 +270,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         kwargs['symmetry'] = {'rotations': rotation_scc,
                               'translations': kpts.translations,
                               'atommaps': kpts.atommap}
-        params = InputParameters(kwargs, warn=False)
-        builder = create_builder(atoms, params, comm, log)
+        params = Parameters(**kwargs)
+        builder = params.dft_component_builder(atoms, log=log)
 
     if dtype is not None:
         params.mode['dtype'] = dtype

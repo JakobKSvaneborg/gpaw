@@ -70,7 +70,7 @@ class DFTCalculation:
                  scf_loop: SCFLoop,
                  pot_calc,
                  log: Logger,
-                 params: InputParameters,
+                 params: Parameters,
                  energies: DFTEnergies | None = None):
         self.atoms = atoms
         self.ibzwfs = ibzwfs
@@ -395,10 +395,9 @@ class DFTCalculation:
 
     def new(self,
             atoms: Atoms,
-            params: InputParameters,
+            params: Parameters,
             log=None) -> DFTCalculation:
         """Create new DFTCalculation object."""
-        from gpaw.new.builder import builder as create_builder
 
         if params.mode['name'] != 'pw':
             raise ReuseWaveFunctionsError
@@ -413,7 +412,7 @@ class DFTCalculation:
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
-        builder = create_builder(atoms, params, self.comm, log)
+        builder = params.dft_component_builder(atoms, log=log)
 
         kpt_kc = builder.ibz.kpt_kc
         old_kpt_kc = ibzwfs.ibz.kpt_kc

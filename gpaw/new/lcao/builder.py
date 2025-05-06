@@ -6,7 +6,7 @@ from gpaw.new.fd.builder import FDDFTComponentsBuilder
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
-from gpaw.new.lcao.hybrids import HybridLCAOEigensolver, HybridXCFunctional
+from gpaw.new.lcao.hybrids import HybridXCFunctional
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.utilities.timing import NullTimer
 

@@ -35,7 +35,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  log=None):
         mode = params.mode
         self.ecut = mode.ecut / Ha
-        #mode.dedecut
+        # mode.dedecut ???
         super().__init__(atoms, params, comm=comm, log=log)
 
         self._nct_ag = None

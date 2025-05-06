@@ -359,7 +359,7 @@ class ASECalculator:
         yield from self.iconverge(atoms)
 
     def new(self, **kwargs) -> ASECalculator:
-        kwargs = {**dict(self.params.items()), **kwargs}
+        kwargs = {**self.params.kwargs, **kwargs}
         return GPAW(**kwargs)
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
@@ -561,12 +561,11 @@ class ASECalculator:
         if xc.type == 'MGGA' and density.taut_sR is None:
             dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
             if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, SimpleNamespace):
-                params = InputParameters(dict(self.params.items()))
-                builder = create_builder(self.atoms, params,
-                                         self.comm, dft.log)
+                builder = self.params.dft_component_builder(self.atoms,
+                                                            log=dft.log)
                 basis_set = builder.create_basis_set()
                 ibzwfs = builder.create_ibz_wave_functions(
-                    basis_set, dft.potential, log=dft.log)
+                    basis_set, dft.potential)
                 ibzwfs.fermi_levels = dft.ibzwfs.fermi_levels
                 dft.ibzwfs = ibzwfs
                 dft.scf_loop.update_density_and_potential = False
@@ -603,7 +602,9 @@ class ASECalculator:
                              nbands,
                              dft.density.nvalence + dft.density.charge)
         dft.ibzwfs = ibzwfs
-        self.params._add('nbands', ibzwfs.nbands)
+        self.params.nbands = ibzwfs.nbands
+        if 'nbands' not in self.params._non_defaults:
+            self.params._non_defaults.append('nbands')
 
     def gs_adapter(self):
         from gpaw.response.groundstate import ResponseGroundStateAdapter
@@ -614,11 +615,11 @@ class ASECalculator:
                       txt='-',
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
-        kwargs = {**dict(self.params.items()), **kwargs}
+        kwargs = {**self.params.kwargs, **kwargs}
 
-        params = InputParameters(kwargs)
+        params = Parameters(**kwargs)
         log = Logger(txt, self.comm)
-        builder = create_builder(self.atoms, params, self.comm, log)
+        builder = params.dft_component_builder(self.atoms, log=log)
         basis_set = builder.create_basis_set()
         dft = self.dft
         comm1 = dft.ibzwfs.kpt_band_comm
