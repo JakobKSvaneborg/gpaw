@@ -1,5 +1,6 @@
 from gpaw.new.input_parameters import register
 from ase.units import Hartree, Bohr
+from ase.calculators.calculator import PropertyNotImplementedError
 
 
 class Extension:
@@ -43,8 +44,11 @@ class D3(ExtensionParameter):
                 # XXX params.xc should be taken directly from the calculator.
                 # XXX What if this is changed via set?
                 _self.F_av = atoms.get_forces() / Hartree * Bohr
-                _self.stress_vv = atoms.get_stress(voigt=False) \
-                    / Hartree * Bohr**3
+                try:
+                    _self.stress_vv = atoms.get_stress(voigt=False) \
+                        / Hartree * Bohr**3
+                except PropertyNotImplementedError as e:
+                    _self.stress_vv = e
                 _self.E = atoms.get_potential_energy() / Hartree
 
             def get_energy_contributions(_self) -> dict[str, float]:
@@ -54,6 +58,8 @@ class D3(ExtensionParameter):
                 return self.F_av
 
             def stress_contribution(self):
+                if isinstance(self.stress_vv, Exception):
+                    raise self.stress_vv
                 return self.stress_vv
 
             def move_atoms(self, relpos_ac) -> None:
