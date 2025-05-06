@@ -8,7 +8,7 @@ from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-
+from gpaw.new.pwfd.davidson import sliced_preconditioner
 
 class RMMDIIS(PWFDEigensolver):
     def __init__(self,
@@ -78,8 +78,12 @@ class RMMDIIS(PWFDEigensolver):
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
 
-        work1_nX = psit_nX.create_work_buffer(self.data_buffers[0])
-        work2_nX = psit_nX.create_work_buffer(self.data_buffers[1])
+        work1_nX = psit_nX.new_buffer(self.data_buffers[0])
+        ekin_n = psit_nX.norm2('kinetic')
+        sliced_preconditioner(psit_nX, residual_nX, work1_nX, self.preconditioner)
+        P_ani = wfs.pt_aiX.integrate(residual_nX)
+        
+        work2_nX = psit_nX.new_buffer(self.data_buffers[1])
         blocksize = work1_nX.data.shape[0]
         P1_ani = P_ani.layout.empty(blocksize)
         P2_ani = P_ani.layout.empty(blocksize)
@@ -95,6 +99,8 @@ class RMMDIIS(PWFDEigensolver):
                 range(0, totalbands, blocksize_world)):
             n1 = i1 * blocksize
             n2 = n1 + blocksize
+            #sP_ani = {a: P_ni[n1:n2] for a, P_ni in P_ani.items()}
+            sP_ani = P_ani[:, n1:n2]
             if n2 > mynbands:
                 n2 = mynbands
                 P1_ani = P1_ani[:, :n2 - n1]
@@ -102,11 +108,13 @@ class RMMDIIS(PWFDEigensolver):
             block_step(
                 psit_nX[n1:n2],
                 residual_nX[n1:n2],
-                wfs.pt_aiX, wfs.myeig_n[n1:n2], Ht, dH, dS_aii,
+                sP_ani, wfs.myeig_n[n1:n2], Ht, dH, dS_aii,
                 self.trial_step,
                 work1_nX[:n2 - n1],
                 work2_nX[:n2 - n1],
                 P1_ani, P2_ani,
+                ekin_n[n1:n2],
+                wfs.pt_aiX,
                 self.preconditioner)
         wfs._P_ani = None
         wfs.orthonormalized = False
@@ -115,8 +123,8 @@ class RMMDIIS(PWFDEigensolver):
 
 
 def block_step(psit_nX,
-               R_nX,
-               pt_aiX,
+               PR_nX,
+               P_ani,
                eig_n,
                Ht,
                dH,
@@ -126,29 +134,35 @@ def block_step(psit_nX,
                work2_nX,
                P1_ani,
                P2_ani,
+               ekin_n,
+               pt_aiX,
                preconditioner) -> None:
     """See here:
 
             https://gpaw.readthedocs.io/documentation/rmm-diis.html
     """
-    PR_nX = work1_nX
+    buff_nX = work1_nX
     dR_nX = work2_nX
-    ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
+    # ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
 
     Ht(PR_nX, out=dR_nX)
-    P_ani = pt_aiX.integrate(PR_nX)
+    #P_ani = pt_aiX.integrate(PR_nX)
     calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,
                         dH, dS_aii, P1_ani, P2_ani)
+    preconditioner(psit_nX, dR_nX, out=buff_nX, ekin_n=ekin_n)
+    tmp = dR_nX
+    dR_nX = buff_nX
+    buff_nX = tmp
     a_n = psit_nX.xp.asarray(
-        [-d_X.integrate(r_X) for d_X, r_X in zip(dR_nX, R_nX)])
+        [-d_X.integrate(r_X) for d_X, r_X in zip(dR_nX, PR_nX)]) #  XXX PR_nX should be R_nX
     b_n = dR_nX.norm2()
     shape = (len(a_n),) + (1,) * (psit_nX.data.ndim - 1)
     lambda_n = (a_n / b_n).reshape(shape)
     PR_nX.data *= lambda_n
     psit_nX.data += PR_nX.data
     dR_nX.data *= lambda_n
-    R_nX.data += dR_nX.data
-    preconditioner(psit_nX, R_nX, out=PR_nX, ekin_n=ekin_n)
+    #R_nX.data += dR_nX.data
+    PR_nX.data += dR_nX.data
     if trial_step is None:
         PR_nX.data *= lambda_n
     else:
