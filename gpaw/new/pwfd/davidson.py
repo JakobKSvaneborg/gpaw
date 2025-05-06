@@ -27,10 +27,9 @@ class Davidson(PWFDEigensolver):
             preconditioner_factory,
             converge_bands)
         self.niter = niter
-        self.H_NN = None
-        self.S_NN = None
-        self.M_nn = None
-        self.work_arrays: np.ndarray | None = None
+        self.H_NN: Matrix
+        self.S_NN: Matrix
+        self.M_nn: Matrix
 
     def __str__(self):
         return pformat(dict(name='Davidson',
@@ -39,30 +38,29 @@ class Davidson(PWFDEigensolver):
 
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
-        B = ibzwfs.nbands
-        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
+        self._allocate_work_arrays(ibzwfs, shape=(2,))
+
         wfs = ibzwfs.wfs_qs[0][0]
         assert isinstance(wfs, PWFDWaveFunctions)
         domain_comm = wfs.psit_nX.desc.comm
         band_comm = wfs.band_comm
-        shape = ibzwfs.get_max_shape()
-        shape = (2, b) + shape
-        dtype = wfs.psit_nX.data.dtype
-        xp = wfs.psit_nX.xp
-        self.work_arrays = xp.empty(shape, dtype)
 
+        B = ibzwfs.nbands
+        xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
         if domain_comm.rank == 0 and band_comm.rank == 0:
-            self.H_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
-            self.S_NN = Matrix(2 * B, 2 * B, dtype, xp=xp)
+            self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
+            self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
         else:
             self.H_NN = self.S_NN = Matrix(0, 0)
 
-        self.M_nn = Matrix(B, B, dtype,
+        self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
                            xp=xp)
 
-    def iterate1(self, wfs, Ht, dH, dS_aii, weight_n):
+    def iterate1(self,
+                 wfs: PWFDWaveFunctions,
+                 Ht, dH, dS_aii, weight_n):
         H_NN = self.H_NN
         S_NN = self.S_NN
         M_nn = self.M_nn
@@ -104,9 +102,13 @@ class Davidson(PWFDEigensolver):
                                      function=function,
                                      cc=True)
 
-        Ht = partial(Ht, out=residual_nX, spin=wfs.spin)
-        dH = partial(dH, spin=wfs.spin)
-        calculate_residuals(residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
+        Ht = partial(Ht, out=residual_nX)
+        calculate_residuals(wfs.psit_nX,
+                            residual_nX,
+                            wfs.pt_aiX,
+                            wfs.P_ani,
+                            wfs.myeig_n,
+                            dH, dS_aii, P2_ani, P3_ani)
 
         def copy(C_nn: Array2D) -> None:
             domain_comm.sum(M_nn.data, 0)
@@ -121,9 +123,7 @@ class Davidson(PWFDEigensolver):
                 if weight_n is None:
                     error = np.inf
                 else:
-                    error = weight_n @ as_np(residual_nX.norm2())
-                    if wfs.ncomponents == 4:
-                        error = error.sum()
+                    error = (weight_n @ as_np(residual_nX.norm2())).sum()
 
             self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
 
@@ -194,7 +194,10 @@ class Davidson(PWFDEigensolver):
             if i < self.niter - 1:
                 Ht(psit_nX)
                 calculate_residuals(
-                    residual_nX, dH, dS_aii, wfs, P2_ani, P3_ani)
+                    wfs.psit_nX,
+                    residual_nX,
+                    wfs.pt_aiX, wfs.P_ani, wfs.myeig_n,
+                    dH, dS_aii, P2_ani, P3_ani)
 
         if debug:
             psit_nX.sanity_check()

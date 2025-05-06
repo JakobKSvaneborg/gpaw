@@ -63,7 +63,7 @@ Transferring the potential between two grids
 
   When these are ready and `V^{\rm{cl}}(\mathbf{r}, t)` is transferred
   to the quantum grid, `V^{\rm{tot}}(\mathbf{r}, t)` is determined
-  in both grids. 
+  in both grids.
 
 ----------------------------------------------------------------------------
 Example: photoabsorption of Na2 near gold nanosphere
@@ -71,21 +71,21 @@ Example: photoabsorption of Na2 near gold nanosphere
 This example calculates the photoabsorption of `\text{Na}_2` molecule
 in (i) presence and (ii) absence of a gold nanosphere:
 
-.. literalinclude:: gold+na2_nanosphere/calculate.py
+.. literalinclude:: gold_na2_nanosphere/calculate.py
 
 |enhanced_absorption|
 
-.. |enhanced_absorption| image:: gold+na2_nanosphere/hybrid.png
+.. |enhanced_absorption| image:: gold_na2_nanosphere/hybrid.png
 
 The optical response of the molecule apparently enhances when
 it is located near the metallic nanoparticle, see Ref. \ [#Sakko]_ for
 more examples. The geometry and the distribution
 of the grid points are shown in the following figure
-(generated with :download:`this script <gold+na2_nanosphere/plot_geom.py>`):
+(generated with :download:`this script <gold_na2_nanosphere/plot_geom.py>`):
 
 |geometry|
 
-.. |geometry| image:: gold+na2_nanosphere/geom.png
+.. |geometry| image:: gold_na2_nanosphere/geom.png
 
 
 .. _hybrid-inducedfield:
@@ -99,14 +99,14 @@ system as above, but using the advanced syntax instead of the
 in the calculation, see
 :ref:`TDDFTInducedField module documentation <inducedfield_timepropagation>`:
 
-.. literalinclude:: gold+na2_nanosphere_inducedfield/calculate.py
+.. literalinclude:: gold_na2_nanosphere_inducedfield/calculate.py
 
 The :code:`TDDFTInducedField` records the quantum part of the calculation and
 the :code:`FDTDInducedField` records the classical part.
 We can calculate the individual and the total induced field
 by the following script:
 
-.. literalinclude:: gold+na2_nanosphere_inducedfield/postprocess.py
+.. literalinclude:: gold_na2_nanosphere_inducedfield/postprocess.py
 
 All the :code:`InducedField` objects
 can be analyzed in the same way as described in
@@ -114,17 +114,17 @@ can be analyzed in the same way as described in
 Here we show an example script
 for plotting (run in serial mode, i.e., with one process):
 
-.. literalinclude:: gold+na2_nanosphere_inducedfield/plot.py
+.. literalinclude:: gold_na2_nanosphere_inducedfield/plot.py
 
 This produces the following figures for the electric near field:
 
 |cl_fe| |qm_fe| |tot_fe|
 
-.. |cl_fe| image:: gold+na2_nanosphere_inducedfield/cl_field.ind_Ffe.png
+.. |cl_fe| image:: gold_na2_nanosphere_inducedfield/cl_field.ind_Ffe.png
    :scale: 70 %
-.. |qm_fe| image:: gold+na2_nanosphere_inducedfield/qm_field.ind_Ffe.png
+.. |qm_fe| image:: gold_na2_nanosphere_inducedfield/qm_field.ind_Ffe.png
    :scale: 70 %
-.. |tot_fe| image:: gold+na2_nanosphere_inducedfield/tot_field.ind_Ffe.png
+.. |tot_fe| image:: gold_na2_nanosphere_inducedfield/tot_field.ind_Ffe.png
    :scale: 70 %
 
 
