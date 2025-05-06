@@ -2,12 +2,14 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW
+from gpaw import GPAW, restart
 from gpaw.mom import prepare_mom_calculation
 
 
 @pytest.mark.mom
 def test_mom_lcao_forces(in_tmp_dir):
+    force_ref = 11.52
+
     f_sn = [[1., 1., 1., 1., 0., 1., 0.],
             [1., 1., 1., 1., 1., 0., 0.]]
     L = 4.0
@@ -31,31 +33,36 @@ def test_mom_lcao_forces(in_tmp_dir):
                              'density': 1e-4})
 
     atoms.calc = calc
+    # Ground-state calculation
     atoms.get_potential_energy()
-    occ = prepare_mom_calculation(calc, atoms, f_sn)
-    F = atoms.get_forces()
+    calc.write('co_lcao_gs.gpw', 'all')
 
-    # Test overlaps
-    occ.initialize_reference_orbitals()
-    for kpt in calc.wfs.kpt_u:
-        f_n = calc.get_occupation_numbers(spin=kpt.s)
-        unoccupied = [True for i in range(len(f_n))]
-        P = occ.calculate_weights(kpt, 1.0, unoccupied)
-        assert (np.allclose(P, f_n))
+    for mom in [False, True]:
+        atoms, calc = restart('co_lcao_gs.gpw', txt='-')
 
-    E = []
-    p = atoms.positions.copy()
-    for i in [-1, 1]:
-        pnew = p.copy()
-        pnew[0, 2] -= delta / 2. * i
-        pnew[1, 2] += delta / 2. * i
-        atoms.set_positions(pnew)
+        occ = prepare_mom_calculation(calc, atoms, f_sn, use_projections=mom)
+        F = atoms.get_forces()
 
-        E.append(atoms.get_potential_energy())
+        # Test overlaps
+        occ.initialize_reference_orbitals()
+        for kpt in calc.wfs.kpt_u:
+            f_n = calc.get_occupation_numbers(spin=kpt.s)
+            P = occ.calculate_weights(kpt, 1.0)
+            assert (np.allclose(P, f_n))
 
-    f = np.sqrt(((F[1, :] - F[0, :])**2).sum()) * 0.5
-    fnum = (E[0] - E[1]) / (2. * delta)  # central difference
+        E = []
+        p = atoms.positions.copy()
+        for i in [-1, 1]:
+            pnew = p.copy()
+            pnew[0, 2] -= delta / 2. * i
+            pnew[1, 2] += delta / 2. * i
+            atoms.set_positions(pnew)
 
-    print(fnum, f)
-    assert fnum == pytest.approx(11.52, abs=0.016)
-    assert f == pytest.approx(fnum, abs=0.1)
+            E.append(atoms.get_potential_energy())
+
+        f = np.sqrt(((F[1, :] - F[0, :])**2).sum()) * 0.5
+        fnum = (E[0] - E[1]) / (2. * delta)  # central difference
+
+        print(fnum, f)
+        assert fnum == pytest.approx(force_ref, abs=0.016)
+        assert f == pytest.approx(fnum, abs=0.1)
