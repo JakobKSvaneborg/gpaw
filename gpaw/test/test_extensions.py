@@ -41,7 +41,7 @@ class Spring(ExtensionParameter):
                 atoms.set_scaled_positions(relpos_ac)
                 self._calculate(atoms)
 
-        return EnergyAdder(atoms)
+        return EnergyAdder()
 
     def todict(self):
         return dict(a1=self.a1, a2=self.a2, l=self.l, k=self.k)
