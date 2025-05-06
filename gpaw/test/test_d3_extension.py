@@ -141,7 +141,7 @@ def test_d3_stress(parallel, in_tmp_dir):
 
     def get_atoms():
         atoms = bulk('C', a=3.5)
-        atoms.set_cell(atoms.get_cell(), 
+        atoms.set_cell(atoms.get_cell(),
                        scale_atoms=True)
         return atoms
 
@@ -197,6 +197,7 @@ def test_d3_stress(parallel, in_tmp_dir):
                        atoms_old_ref.get_scaled_positions())
     assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)
 
+
 def test_d3_isolated_atom():
     atoms = Atoms('He')
     atoms.center(vacuum=3)
@@ -204,5 +205,5 @@ def test_d3_isolated_atom():
                 extensions=[D3(xc='PBE')],
                 mode='pw')
     atoms.calc = calc
-    E = atoms.get_potential_energy()
+    atoms.get_potential_energy()
     assert np.allclose(atoms.get_forces(), 0, atol=1e-5)

@@ -2,7 +2,7 @@ from gpaw.new.input_parameters import register
 from ase.units import Hartree, Bohr
 from ase.calculators.calculator import PropertyNotImplementedError
 import numpy as np
-from gpaw.mpi import broadcast, serial_comm, broadcast_exception, broadcast_float
+from gpaw.mpi import serial_comm, broadcast_exception, broadcast_float
 import uuid
 from pathlib import Path
 import os
@@ -76,9 +76,8 @@ class D3(ExtensionParameter):
                 world.broadcast(_self.stress_vv, 0)
 
             def calculate_single_core(_self):
-                """Single core method to calculate D3 forces and stresses
-                
-                """
+                """Single core method to calculate D3 forces and stresses"""
+
                 label = uuid.uuid4().hex[:8]
                 directory = Path('dftd3-ext-' + label).absolute()
                 directory.mkdir()
@@ -87,7 +86,7 @@ class D3(ExtensionParameter):
                 # neither are absolute folders due to 80 character limit.
                 # The only way out, is to chdir to a temporary folder here.
                 os.chdir(directory)
-              
+
                 atoms.calc = PureDFTD3(xc=self.xc,
                                        directory='.',
                                        comm=serial_comm,
@@ -101,7 +100,7 @@ class D3(ExtensionParameter):
                     # Copy needed because array is not c-contigous
                     _self.stress_vv = atoms.get_stress(voigt=False).copy() \
                         / Hartree * Bohr**3
-                except PropertyNotImplementedError as e:
+                except PropertyNotImplementedError:
                     _self.stress_vv = np.zeros((3, 3)) * np.nan
 
                 _self.E = atoms.get_potential_energy() / Hartree
@@ -113,7 +112,7 @@ class D3(ExtensionParameter):
                     os.rmdir(directory.absolute())
                 except OSError as e:
                     print(e)
-                atoms.calc = None 
+                atoms.calc = None
 
             def get_energy_contributions(_self) -> dict[str, float]:
                 return {f'D3 (xc={self.xc})': _self.E}
