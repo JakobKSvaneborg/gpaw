@@ -196,9 +196,10 @@ class DFTComponentsBuilder:
     def __repr__(self):
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
 
-    def get_extensions(self):
+    def get_extensions(self, log):
         return [fromdict(ext).build(self.atoms,
-                                    self.communicators) for ext in
+                                    self.communicators,
+                                    log) for ext in
                 self.params.extensions]
 
     @cached_property
