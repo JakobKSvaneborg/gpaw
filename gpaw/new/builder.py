@@ -198,7 +198,7 @@ class DFTComponentsBuilder:
 
     def get_extensions(self):
         return [fromdict(ext).build(self.atoms,
-                                    self.communicators['d']) for ext in
+                                    self.communicators) for ext in
                 self.params.extensions]
 
     @cached_property

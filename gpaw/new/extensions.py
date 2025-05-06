@@ -71,9 +71,9 @@ class D3(ExtensionParameter):
                             _self.calculate_single_core()
                         finally:
                             os.chdir(cwd)
-                    _self.E = broadcast_float(_self.E)
-                    world.broadcast(_self.F_av)
-                    world.broadcast(_self.stress_vv)
+                    _self.E = broadcast_float(_self.E, world)
+                    world.broadcast(_self.F_av, 0)
+                    world.broadcast(_self.stress_vv, 0)
 
             def calculate_single_core(_self):
                 """Single core method to calculate D3 forces and stresses
@@ -98,7 +98,8 @@ class D3(ExtensionParameter):
                 _self.F_av = atoms.get_forces() / Hartree * Bohr
 
                 try:
-                    _self.stress_vv = atoms.get_stress(voigt=False) \
+                    # Copy needed because array is not c-contigous
+                    _self.stress_vv = atoms.get_stress(voigt=False).copy() \
                         / Hartree * Bohr**3
                 except PropertyNotImplementedError as e:
                     _self.stress_vv = np.zeros((3, 3)) * np.nan
