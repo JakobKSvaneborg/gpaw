@@ -76,7 +76,7 @@ class PotentialCalculator:
             ext.move_atoms(relpos_ac)
 
     @property
-    def extensions_force_contributions(self):
+    def extensions_force_av(self):
         if not self.extensions:
             return np.zeros((len(self.setups, 3)))
         return functools.reduce(operator.add, [ext.force_contribution()

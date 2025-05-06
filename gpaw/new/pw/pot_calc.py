@@ -198,7 +198,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             density.nct_aX.derivative(vt_g),
             Ftauct_av,
             self.vbar_ag.derivative(nt_g),
-            self.extensions_force_contributions)
+            self.extensions_force_av)
 
     def stress(self, ibzwfs, density, potential):
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
