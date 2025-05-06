@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from math import pi
 
 import numpy as np
@@ -9,6 +8,7 @@ from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.pwfd.eigensolver import create_eigensolver as make_eigensolver
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.core.arrays import XArrayWithNoData
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
@@ -40,7 +40,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                                             for x in 'kbd')
 
         def create_wfs(spin: int, q: int, k: int, kpt_c, weight: float):
-            psit_nG = SimpleNamespace(
+            psit_nG = XArrayWithNoData(
                 comm=band_comm,
                 dims=(self.nbands,),
                 desc=self.wf_desc.new(kpt=kpt_c),
