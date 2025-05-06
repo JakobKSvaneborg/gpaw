@@ -18,7 +18,7 @@ class Spring(ExtensionParameter):
             def name(_self):
                 return f'Spring k={self.k}'
 
-            def __init__(self, atoms):
+            def __init__(self):
                 self._calculate(atoms)
 
             def _calculate(_self, atoms):

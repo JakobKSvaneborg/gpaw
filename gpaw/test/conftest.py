@@ -10,6 +10,7 @@ from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
 from gpaw.test.mmefile import MMEFiles
 from gpaw.utilities import devnull
+import subprocess
 
 
 @contextmanager
@@ -29,6 +30,15 @@ def execute_in_tmp_path(request, tmp_path_factory):
         yield path
     finally:
         os.chdir(cwd)
+
+
+@pytest.fixture(scope='module')
+def dftd3():
+    from ase.calculators.dftd3 import PureDFTD3
+    try:
+        subprocess.call(PureDFTD3().command)
+    except FileNotFoundError:
+        pytest.skip('dftd3 command not found')
 
 
 @pytest.fixture(scope='function')

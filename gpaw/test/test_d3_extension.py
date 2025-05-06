@@ -9,7 +9,7 @@ from ase import Atoms
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 300}, 'lcao'])
-def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new):
+def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new, dftd3):
     if not gpaw_new:
         pytest.skip('Only GPAW new.')
 
@@ -126,7 +126,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new):
 
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
-def test_d3_stress(parallel, in_tmp_dir):
+def test_d3_stress(parallel, in_tmp_dir, dftd3):
     from ase.calculators.dftd3 import DFTD3
     from ase.optimize import CellAwareBFGS
     from ase.build import bulk
@@ -198,7 +198,7 @@ def test_d3_stress(parallel, in_tmp_dir):
     assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)
 
 
-def test_d3_isolated_atom():
+def test_d3_isolated_atom(dftd3):
     atoms = Atoms('He')
     atoms.center(vacuum=3)
     calc = GPAW(xc='PBE',
