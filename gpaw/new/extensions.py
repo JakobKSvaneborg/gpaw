@@ -71,9 +71,9 @@ class D3(ExtensionParameter):
                             _self.calculate_single_core()
                         finally:
                             os.chdir(cwd)
-                    _self.E = broadcast_float(_self.E, world)
-                    world.broadcast(_self.F_av, 0)
-                    world.broadcast(_self.stress_vv, 0)
+                _self.E = broadcast_float(_self.E, world)
+                world.broadcast(_self.F_av, 0)
+                world.broadcast(_self.stress_vv, 0)
 
             def calculate_single_core(_self):
                 """Single core method to calculate D3 forces and stresses
