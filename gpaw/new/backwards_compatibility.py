@@ -147,7 +147,7 @@ class FakeWFS:
         from gpaw.matrix import Matrix
         return Matrix(
             self.bd.nbands, self.bd.nbands,
-            self.dtype,
+            dtype=self.dtype,
             dist=(self.bd.comm, self.bd.comm.size))
 
     @property

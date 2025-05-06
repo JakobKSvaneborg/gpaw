@@ -138,7 +138,7 @@ class LCAOWaveFunctions(WaveFunctions):
             # As a hack, builder.py injects a NaN in the first element of
             # C_nM.data in order for us to be able to tell that the
             # data is uninitialized:
-            if np.isnan(self.C_nM.data.flat[0]):
+            if not isinstance(self.C_nM, Matrix):
                 raise RuntimeError('There are no projections or wavefunctions')
 
             for a, P_Mi in self.P_aMi.items():

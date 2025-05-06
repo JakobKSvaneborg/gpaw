@@ -6,7 +6,7 @@ from gpaw.mom import prepare_mom_calculation
 
 
 @pytest.mark.mom
-def test_mom_fd_energy(in_tmp_dir):
+def test_mom_fd_spinpol(in_tmp_dir):
     dE_ref = [7.8009908153, 7.5234341583]
 
     atoms = molecule('HCl')
@@ -28,33 +28,42 @@ def test_mom_fd_energy(in_tmp_dir):
 
     calc.write('hcl_fd_gs.gpw', 'all')
 
-    # Test spin polarized excited-state calculations
-    for s in [0, 1]:
-        if s == 1:
+    # Test match orbitals directly
+    for mom in [False, True]:
+        # Test spin polarized excited-state calculations
+        for s in [0, 1]:
             atoms, calc = restart('hcl_fd_gs.gpw', txt='-')
 
-        f_sn = []
-        for spin in range(calc.get_number_of_spins()):
-            f_n = calc.get_occupation_numbers(spin=spin)
-            f_sn.append(f_n)
-        f_sn[0][3] -= 1.
-        f_sn[s][4] += 1.
+            f_sn = []
+            for spin in range(calc.get_number_of_spins()):
+                f_n = calc.get_occupation_numbers(spin=spin)
+                f_sn.append(f_n)
+            f_sn[0][3] -= 1.
+            f_sn[s][4] += 1.
 
-        occ = prepare_mom_calculation(calc, atoms, f_sn)
+            occ = prepare_mom_calculation(calc, atoms, f_sn,
+                                          use_projections=mom)
 
-        E_es = atoms.get_potential_energy()
+            E_es = atoms.get_potential_energy()
 
-        # Test overlaps
-        occ.initialize_reference_orbitals()
-        for kpt in calc.wfs.kpt_u:
-            f_sn = calc.get_occupation_numbers(spin=kpt.s)
-            unoccupied = [True for i in range(len(f_sn))]
-            P = occ.calculate_weights(kpt, 1.0, unoccupied)
-            assert (np.allclose(P, f_sn))
+            # Test overlaps
+            occ.initialize_reference_orbitals()
+            for kpt in calc.wfs.kpt_u:
+                f_sn = calc.get_occupation_numbers(spin=kpt.s)
+                P = occ.calculate_weights(kpt, 1.0)
+                assert (np.allclose(P, f_sn))
 
-        dE = E_es - E_gs
-        print(s, dE)
-        assert dE == pytest.approx(dE_ref[s], abs=0.015)
+            dE = E_es - E_gs
+            print(s, dE)
+            assert dE == pytest.approx(dE_ref[s], abs=0.015)
+
+
+@pytest.mark.mom
+def test_mom_fd_spinpair(in_tmp_dir):
+    dE_ref = 8.4695551944
+
+    atoms = molecule('HCl')
+    atoms.center(vacuum=2)
 
     calc = GPAW(mode='fd',
                 nbands=6,
@@ -68,15 +77,21 @@ def test_mom_fd_energy(in_tmp_dir):
     atoms.calc = calc
     # Ground-state calculation
     E_gs = atoms.get_potential_energy()
+    calc.write('hcl_fd_gs_spin-pair.gpw', 'all')
 
-    # Test spin paired excited-state calculation
-    f_n = [calc.get_occupation_numbers(spin=0) / 2.]
-    f_n[0][3] -= 0.5
-    f_n[0][4] += 0.5
+    # Test match orbitals directly
+    for mom in [False, True]:
+        atoms, calc = restart('hcl_fd_gs_spin-pair.gpw', txt='-')
 
-    prepare_mom_calculation(calc, atoms, f_n)
-    E_es = atoms.get_potential_energy()
+        # Test spin paired excited-state calculation
+        f_n = [calc.get_occupation_numbers(spin=0) / 2.]
+        f_n[0][3] -= 0.5
+        f_n[0][4] += 0.5
 
-    dE = E_es - E_gs
-    print(dE)
-    assert dE == pytest.approx(8.4695551944, abs=0.01)
+        prepare_mom_calculation(calc, atoms, f_n,
+                                use_projections=mom)
+        E_es = atoms.get_potential_energy()
+
+        dE = E_es - E_gs
+        print(dE)
+        assert dE == pytest.approx(dE_ref, abs=0.01)
