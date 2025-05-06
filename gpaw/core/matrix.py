@@ -52,10 +52,32 @@ def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int]:
     return nprow, npcol, blocksize
 
 
+class MatrixWithNoData:
+    def __init__(self,
+                 M: int,
+                 N: int,
+                 *,
+                 dtype=None,
+                 dist: MatrixDistribution | tuple | None = None):
+        self.shape = (M, N)
+        self.dtype = dtype
+        self.data = np.empty((0, 0), dtype)
+        dist = dist or ()
+        if isinstance(dist, tuple):
+            kwargs = {key: val for key, val in zip(['comm', 'r', 'c', 'b'],
+                                                   dist)}
+            dist = create_distribution(M, N, **kwargs)
+        self.dist = dist
+
+    def create(self) -> Matrix:
+        return Matrix(*self.shape, dtype=self.dtype, dist=self.dist)
+
+
 class Matrix(XP):
     def __init__(self,
                  M: int,
                  N: int,
+                 *,
                  dtype=None,
                  data: ArrayLike2D | None = None,
                  dist: MatrixDistribution | tuple | None = None,
@@ -174,7 +196,7 @@ class Matrix(XP):
             assert beta == 0.0
             M = A.shape[0] if opa == 'N' else A.shape[1]
             N = B.shape[1] if opb == 'N' else B.shape[0]
-            out = Matrix(M, N, A.dtype, dist=dist.new(M, N))
+            out = Matrix(M, N, dtype=A.dtype, dist=dist.new(M, N))
         elif not isinstance(out, Matrix):
             out = out.matrix
         if out.data is other.data:
