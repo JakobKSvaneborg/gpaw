@@ -46,7 +46,7 @@ class DFTComponentsBuilder:
                  comm=None):
 
         self.atoms = atoms.copy()
-        self.mode = params.mode.__class__.__name__.lower()
+        self.mode = params.mode.name
         self.params = params
         if not isinstance(log, Logger):
             log = Logger(log, comm)

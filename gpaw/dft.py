@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Iterable, Sequence, Union, Any
+from typing import IO, TYPE_CHECKING, Sequence, Union, Any
 
 import numpy as np
 from ase import Atoms
@@ -62,8 +62,17 @@ class Parameter:
 class Mode(Parameter):
     def __init__(self,
                  *,
+                 dtype: DTypeLike | None = None,
                  force_complex_dtype: bool = False):
+        self.dtype = dtype
         self.force_complex_dtype = force_complex_dtype
+        self.name = self.__class__.__name__.lower()
+
+    def todict(self) -> dict:
+        dct = self._not_none('dtype')
+        if self.force_complex_dtype:
+            dct['force_complex_dtype'] = True
+        return dct
 
     @classmethod
     def from_param(cls, mode) -> Mode:
@@ -84,14 +93,14 @@ class PW(Mode):
                  dtype: DTypeLike | None = None,
                  force_complex_dtype: bool = False):
         self.ecut = ecut
-        self.dtype = dtype
         self.qspiral = qspiral
         self.dedecut = dedecut
-        super().__init__(force_complex_dtype=force_complex_dtype)
+        super().__init__(dtype=dtype,
+                         force_complex_dtype=force_complex_dtype)
 
     def todict(self):
-        return {'ecut': self.ecut,
-                **self._not_none('dtype', 'qspiral', 'dedecut')}
+        return {**super().todict(),
+                **self._not_none('ecut', 'qspiral', 'dedecut')}
 
     def dft_components_builder(self, atoms, params, *, log=None, comm=None):
         from gpaw.new.pw.builder import PWDFTComponentsBuilder

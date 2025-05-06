@@ -3,7 +3,6 @@ from typing import Union
 
 from ase import Atoms
 
-from gpaw.new.builder import builder
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.ibzwfs import IBZ
 from gpaw.new.logger import Logger
@@ -11,6 +10,7 @@ from gpaw.core import UGDesc
 from gpaw.core.domain import Domain
 from gpaw.setup import Setups
 from gpaw.mpi import MPIComm
+from gpaw.dft import Parameters
 
 
 @dataclass
@@ -40,7 +40,7 @@ class CalcInfo:
 
     def get_dft_calc(self) -> DFTCalculation:
         return DFTCalculation.from_parameters(self.atoms.copy(),
-                                              self.input_params,
+                                              Parameters(**self.input_params),
                                               comm=self.comm,
                                               log=self.log)
 
@@ -112,7 +112,8 @@ def get_calculation_info(atoms: Atoms,
         comm = param_kwargs.pop('comm')
     else:
         comm = None
-    dft_builder = builder(atoms, params=param_kwargs, comm=comm, log=log)
+    dft_builder = Parameters(**param_kwargs).dft_component_builder(
+        atoms, comm=comm, log=log)
     dft_params = CalcInfo(atoms=atoms,
                           input_params=param_kwargs,
                           ibz=dft_builder.ibz,

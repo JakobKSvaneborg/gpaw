@@ -38,7 +38,6 @@ from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
-from gpaw.typing import DTypeLike
 from gpaw.utilities import unpack_hermitian, unpack_density
 from gpaw.new.energies import DFTEnergies
 from gpaw.dft import Parameters
@@ -186,10 +185,10 @@ def read_gpw(filename: Union[str, Path, IO[str]],
              log: Union[Logger, str, Path, IO[str]] = None,
              comm=None,
              parallel: dict[str, Any] = None,
-             dtype: DTypeLike = None) -> tuple[Atoms,
-                                               DFTCalculation,
-                                               Parameters,
-                                               DFTComponentsBuilder]:
+             dtype=None) -> tuple[Atoms,
+                                  DFTCalculation,
+                                  Parameters,
+                                  DFTComponentsBuilder]:
     """
     Read gpw file
 
@@ -217,6 +216,9 @@ def read_gpw(filename: Union[str, Path, IO[str]],
 
     if 'dtype' in kwargs:
         kwargs['dtype'] = np.dtype(kwargs['dtype'])
+
+    if dtype is not None:
+        kwargs['dtype'] = dtype
 
     # kwargs['nbands'] = reader.wave_functions.eigenvalues.shape[-1]
 
@@ -272,9 +274,6 @@ def read_gpw(filename: Union[str, Path, IO[str]],
                               'atommaps': kpts.atommap}
         params = Parameters(**kwargs)
         builder = params.dft_component_builder(atoms, log=log)
-
-    if dtype is not None:
-        params.mode['dtype'] = dtype
 
     (kpt_comm, band_comm, domain_comm, kpt_band_comm) = (
         builder.communicators[x] for x in 'kbdD')
