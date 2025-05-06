@@ -78,7 +78,7 @@ class PotentialCalculator:
     @property
     def extensions_force_av(self):
         if not self.extensions:
-            return np.zeros((len(self.setups, 3)))
+            return np.zeros((len(self.setups), 3))
         return functools.reduce(operator.add, [ext.force_contribution()
                                 for ext in self.extensions])
 
