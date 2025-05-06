@@ -34,7 +34,6 @@ from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
 from gpaw.new.logger import Logger

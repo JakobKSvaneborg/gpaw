@@ -101,7 +101,7 @@ class DFTCalculation:
         if not isinstance(log, Logger):
             log = Logger(log, comm or world)
 
-        builder = params.create_builder(atoms, log.comm, log)
+        builder = params.dft_component_builder(atoms, log=log)
 
         basis_set = builder.create_basis_set()
 

@@ -15,10 +15,10 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                  atoms,
                  params,
                  *,
-                 comm,
-                 dtype=None,
-                 qspiral=None):
-        super().__init__(atoms, params, dtype=dtype, comm=comm)
+                 comm=None,
+                 log=None):
+        super().__init__(atoms, params, comm=comm, log=log)
+        qspiral = params.mode.qspiral
         self.qspiral_v = (None if qspiral is None else
                           qspiral @ self.grid.icell * (2 * pi))
 

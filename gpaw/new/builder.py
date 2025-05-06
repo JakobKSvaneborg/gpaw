@@ -41,14 +41,17 @@ class DFTComponentsBuilder:
     def __init__(self,
                  atoms: Atoms,
                  params: Parameters,
-                 log,
-                 comm,
-                 dtype: None | DTypeLike):
+                 *,
+                 log=None,
+                 comm=None):
 
         self.atoms = atoms.copy()
         self.mode = params.mode.__class__.__name__.lower()
         self.params = params
+        if not isinstance(log, Logger):
+            log = Logger(log, comm)
         self.log = log
+        comm = log.comm
 
         parallel = params.parallel
 
@@ -119,7 +122,7 @@ class DFTComponentsBuilder:
             self.nbands *= 2
 
         self.dtype: DTypeLike
-        if dtype is None:
+        if params.mode.dtype is None:
             if self.params.mode.force_complex_dtype:
                 self.dtype = complex
             else:
@@ -128,7 +131,7 @@ class DFTComponentsBuilder:
                 else:
                     self.dtype = complex
         else:
-            self.dtype = dtype
+            self.dtype = params.mode.dtype
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 

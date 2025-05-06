@@ -31,14 +31,12 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  atoms,
                  params,
                  *,
-                 comm,
-                 ecut=340,
-                 dtype=None,
-                 qspiral=None,
-                 dedecut=None):
-        self.ecut = ecut / Ha
-        super().__init__(atoms, params, dtype=dtype,
-                         comm=comm, qspiral=qspiral)
+                 comm=None,
+                 log=None):
+        mode = params.mode
+        self.ecut = mode.ecut / Ha
+        #mode.dedecut
+        super().__init__(atoms, params, comm=comm, log=log)
 
         self._nct_ag = None
         self._tauct_ag = None
@@ -144,8 +142,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.setups,
             ps, self.relpos_ac, self.atomdist, self.xp)
 
-    def create_potential_calculator(self, log):
-        env = self.create_environment(self.fine_grid, log)
+    def create_potential_calculator(self):
+        env = self.create_environment(self.fine_grid)
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
             self.interpolation_desc,
@@ -212,8 +210,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     psit_R.fft(out=psit_G)
             return psit_nsG
 
-    def read_ibz_wave_functions(self, reader, log):
-        ibzwfs = super().read_ibz_wave_functions(reader, log)
+    def read_ibz_wave_functions(self, reader):
+        ibzwfs = super().read_ibz_wave_functions(reader)
 
         if 'coefficients' not in reader.wave_functions:
             return ibzwfs

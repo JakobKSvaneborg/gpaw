@@ -3,7 +3,6 @@ from __future__ import annotations
 import warnings
 from functools import cached_property
 from pathlib import Path
-from pprint import pformat
 from types import SimpleNamespace
 from typing import Any, Callable
 
@@ -15,7 +14,6 @@ from gpaw.core import UGArray
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
-from gpaw.new.builder import builder as create_builder
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
 from gpaw.new.gpw import GPWFlags, write_gpw

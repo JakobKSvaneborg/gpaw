@@ -11,6 +11,7 @@ from gpaw.mpi import MPIComm
 from gpaw.new.gpw import read_gpw
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
+from numpy.typing import DTypeLike
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
@@ -49,9 +50,19 @@ class Parameter:
         args = ', '.join(f'{k}={v!r}' for k, v in self.todict().items())
         return f'{self.__class__.__name__}({args})'
 
+    def _not_none(self, *keys: str) -> dict:
+        dct = {}
+        for key in keys:
+            value = self.__dict__[key]
+            if value is not None:
+                dct[key] = value
+        return dct
+
 
 class Mode(Parameter):
-    def __init__(self, *, force_complex_dtype: bool = False):
+    def __init__(self,
+                 *,
+                 force_complex_dtype: bool = False):
         self.force_complex_dtype = force_complex_dtype
 
     @classmethod
@@ -67,26 +78,31 @@ class Mode(Parameter):
 class PW(Mode):
     def __init__(self,
                  ecut: float = 340,
-                 dtype: np.dtype | None = None):
+                 *,
+                 qspiral=None,
+                 dedecut=None,
+                 dtype: DTypeLike | None = None,
+                 force_complex_dtype: bool = False):
         self.ecut = ecut
         self.dtype = dtype
+        self.qspiral = qspiral
+        self.dedecut = dedecut
+        super().__init__(force_complex_dtype=force_complex_dtype)
 
     def todict(self):
-        dct = {'ecut': self.ecut}
-        if self.dtype:
-            dct['dtype'] = str(self.dtype)
-        return dct
+        return {'ecut': self.ecut,
+                **self._not_none('dtype', 'qspiral', 'dedecut')}
 
-    def dft_components_builder(self, atoms, params, log, comm):
+    def dft_components_builder(self, atoms, params, *, log=None, comm=None):
         from gpaw.new.pw.builder import PWDFTComponentsBuilder
-        return PWDFTComponentsBuilder(atoms, params, log, comm)
+        return PWDFTComponentsBuilder(atoms, params, log=log, comm=comm)
 
 
 class LCAO(Mode):
     pass
 
 
-class Eigensolver:
+class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
         if isinstance(eigensolver, str):
@@ -97,14 +113,20 @@ class Eigensolver:
         return DefaultEigensolver(eigensolver)
 
 
-@dataclass
 class DefaultEigensolver(Eigensolver):
-    params: dict
+    def __init__(self, params: dict):
+        self.params = params
+
+    def todict(self):
+        return self.params
 
 
-@dataclass
 class Davidson(Eigensolver):
-    niter: int = 2
+    def __init__(self, niter: int = 2):
+        self.niter = niter
+
+    def todict(self):
+        return {'niter': self.niter}
 
     def build(self,
               nbands,
@@ -124,9 +146,12 @@ class Davidson(Eigensolver):
             niter=self.niter)
 
 
-@dataclass
 class RMMDIIS(Eigensolver):
-    niter: int = 1
+    def __init__(self, niter: int = 2):
+        self.niter = niter
+
+    def todict(self):
+        return {'niter': self.niter}
 
     def build(self,
               nbands,
@@ -157,9 +182,12 @@ class HybridLCAOEigensolver(LCAOEigensolver):
         return HLCAOES(basis, relpos_ac, cell_cv)
 
 
-@dataclass
 class Scissors(LCAOEigensolver):
-    shifts: list
+    def __init__(self, shifts: list):
+        self.shifts = shifts
+
+    def todict(self):
+        return {'shifts': self.shifts}
 
     def build_lcao(self, basis, relpos_ac, cell_cv, symmetries):
         from gpaw.lcao.scissors import ScissorsLCAOEigensolver
@@ -180,18 +208,24 @@ class Extension:
     pass
 
 
-@dataclass
-class Mixer:
-    params: dict
+class Mixer(Parameter):
+    def __init__(self, params: dict):
+        self.params = params
+
+    def todict(self):
+        return self.params
 
     @classmethod
     def from_param(cls, mixer):
         return Mixer(mixer)
 
 
-@dataclass
-class Occupations:
-    params: dict
+class Occupations(Parameter):
+    def __init__(self, params: dict):
+        self.params = params
+
+    def todict(self):
+        return self.params
 
     @classmethod
     def from_param(cls, occupations):
@@ -200,9 +234,12 @@ class Occupations:
         return occupations
 
 
-@dataclass
-class PoissonSolver:
-    params: dict
+class PoissonSolver(Parameter):
+    def __init__(self, params: dict):
+        self.params = params
+
+    def todict(self):
+        return self.params
 
     @classmethod
     def from_param(cls, ps):
@@ -211,20 +248,38 @@ class PoissonSolver:
         return ps
 
 
-@dataclass
-class Symmetry:
-    rotations: np.ndarray | None = None
-    translations: np.ndarray | None = None
-    atommaps: np.ndarray | None = None
-    extra_ids: Sequence[int] | None = None
-    tolerance: float | None = None  # Å
-    point_group: bool = True
-    symmorphic: bool = True
-    time_reversal: bool = True
+def array_or_none(a):
+    if a is None:
+        return None
+    return np.array(a)
+
+
+class Symmetry(Parameter):
+    def __init__(self,
+                 *,
+                 rotations: np.ndarray | None = None,
+                 translations: np.ndarray | None = None,
+                 atommaps: np.ndarray | None = None,
+                 extra_ids: Sequence[int] | None = None,
+                 tolerance: float | None = None,  # Å
+                 point_group: bool = True,
+                 symmorphic: bool = True,
+                 time_reversal: bool = True):
+        self.rotations = array_or_none(rotations)
+        self.translations = array_or_none(translations)
+        self.atommaps = array_or_none(atommaps)
+        self.extra_ids = array_or_none(extra_ids)
+        self.tolerance = tolerance
+        self.point_group = point_group
+        self.symmorphic = symmorphic
+        self.time_reversal = time_reversal
 
     @classmethod
     def from_param(cls, s):
         return Symmetry(**(s or {}))
+
+    def todict(self):
+        return ...
 
     def build(self,
               atoms: Atoms,
@@ -232,13 +287,21 @@ class Symmetry:
               setup_ids: Sequence | None = None,
               magmoms: np.ndarray | None = None,
               _backwards_compatible=False) -> Symmetries:
-        kwargs = asdict(self)
-        del kwargs['time_reversal']
         return create_symmetries_object(
-            atoms, **kwargs, _backwards_compatible=_backwards_compatible)
+            atoms,
+            setup_ids=setup_ids,
+            magmoms=magmoms,
+            rotations=self.rotations,
+            translations=self.translations,
+            atommaps=self.atommaps,
+            extra_ids=self.extra_ids,
+            tolerance=self.tolerance,
+            point_group=self.point_group,
+            symmorphic=self.symmorphic,
+            _backwards_compatible=_backwards_compatible)
 
 
-class KPoints:
+class KPoints(Parameter):
     @classmethod
     def from_param(cls, kpts):
         if isinstance(kpts, KPoints):
@@ -249,11 +312,24 @@ class KPoints:
         return MonkhorstPack.from_param(kpts)
 
 
-@dataclass
 class MonkhorstPack(KPoints):
-    size: Sequence[int] | None = None
-    density: float | None = None
-    gamma: bool | None = None
+    def __init__(self,
+                 size: Sequence[int] | None = None,
+                 density: float | None = None,
+                 gamma: bool | None = None):
+        self.size = size
+        self.density = density
+        self.gamma = gamma
+
+    def todict(self):
+        dct = {}
+        if self.size is not None:
+            dct['size'] = self.size
+        if self.density is not None:
+            dct['density'] = self.density
+        if self.gamma is not None:
+            dct['gama'] = self.gamma
+        return dct
 
     @classmethod
     def from_param(cls,
@@ -267,7 +343,7 @@ class MonkhorstPack(KPoints):
 
     def build(self, atoms):
         from gpaw.new.brillouin import MonkhorstPackKPoints
-        size, offset = kpts2sizeandoffsets(**asdict(self), atoms=atoms)
+        size, offset = kpts2sizeandoffsets(**self.todict(), atoms=atoms)
         for n, periodic in zip(size, atoms.pbc):
             if not periodic and n != 1:
                 raise ValueError('K-points can only be used with PBCs!')
@@ -403,19 +479,18 @@ class Parameters:
             keys = self._non_defaults
         for key in keys:
             value = self.__dict__[key]
-            if is_dataclass(value):
+            if hasattr(value, 'todict'):
                 name = value.__class__.__name__.lower()
-                value = {'name': name} | asdict(value)
+                value = {'name': name} | value.todict()
+            elif key == 'basis':
+                if list(value) == [None]:
+                    value = value[None]
             dct[key] = value
         return dct
 
-    def dft_component_builder(self, atoms, comm, log):
-        comm = comm or world
-        if not isinstance(log, Logger):
-            log = Logger(log, comm)
-
+    def dft_component_builder(self, atoms, *, comm=None, log=None):
         return self.mode.dft_components_builder(
-            atoms, self, comm)
+            atoms, self, comm=comm, log=log)
 
     def dft_calculation(self,
                         atoms,
