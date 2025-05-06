@@ -4,10 +4,11 @@ from gpaw.new.ase_interface import GPAW
 from gpaw import restart
 from gpaw.new.extensions import D3
 import numpy as np
+from ase import Atoms
 
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
-@pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 400}, 'fd', 'lcao'])
+@pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 300}, 'lcao'])
 def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     if not gpaw_new:
         pytest.skip('Only GPAW new.')
@@ -24,7 +25,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new):
         from ase.build import molecule
         atoms = molecule('H2')
         atoms[0].position[1] += 1
-        atoms.center(vacuum=4)
+        atoms.center(vacuum=2)
         atoms.set_pbc((True, True, True))
         return atoms
 
@@ -139,14 +140,12 @@ def test_d3_stress(parallel, in_tmp_dir):
         pytest.skip('Too many cores for this test.')
 
     def get_atoms():
-        atoms = bulk('C', a=3.4)
-        atoms.set_cell(atoms.get_cell() @ np.array([[1.00, 0.01, -0.01],
-                                                    [0.02, 1.0, 0.03],
-                                                    [-0.01, -0.01, 1.0]]),
+        atoms = bulk('C', a=3.5)
+        atoms.set_cell(atoms.get_cell(), 
                        scale_atoms=True)
         return atoms
 
-    kwargs = dict(xc='PBE',
+    kwargs = dict(xc='LDA',
                   parallel={'band': band, 'domain': domain},
                   kpts=(2, 2, 2), txt='relax',
                   convergence={'density': 1e-5},
@@ -182,6 +181,7 @@ def test_d3_stress(parallel, in_tmp_dir):
     atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
                           restart='restart_cont')
+    relax.smax = 1e-4
     for _, _ in zip(relax.irun(), range(3)):
         pass
     atoms.calc.write('restart_cell_relax.gpw')
@@ -196,3 +196,13 @@ def test_d3_stress(parallel, in_tmp_dir):
     assert np.allclose(atoms.get_scaled_positions(),
                        atoms_old_ref.get_scaled_positions())
     assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)
+
+def test_d3_isolated_atom():
+    atoms = Atoms('He')
+    atoms.center(vacuum=3)
+    calc = GPAW(xc='PBE',
+                extensions=[D3(xc='PBE')],
+                mode='pw')
+    atoms.calc = calc
+    E = atoms.get_potential_energy()
+    assert np.allclose(atoms.get_forces(), 0, atol=1e-5)

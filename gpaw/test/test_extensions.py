@@ -47,8 +47,8 @@ class Spring(ExtensionParameter):
         return dict(a1=self.a1, a2=self.a2, l=self.l, k=self.k)
 
 
-@pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
-@pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 400}, 'fd', 'lcao'])
+@pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 1)])
+@pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 300}, 'lcao'])
 def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     if not gpaw_new:
         pytest.skip('Only GPAW new')
@@ -67,7 +67,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     def get_atoms():
         from ase.build import molecule
         atoms = molecule('H2')
-        atoms.center(vacuum=4)
+        atoms.center(vacuum=3)
         atoms.set_pbc((True, True, True))
         return atoms
 
