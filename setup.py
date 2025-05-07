@@ -484,10 +484,12 @@ class build_ext(_build_ext):
         if self.link_objects is None:
             self.link_objects = []
 
-            objects = build_gpu(gpu_compiler, gpu_compile_args,
-                                gpu_include_dirs + self.include_dirs,
-                                define_macros, undef_macros,
-                                self.build_temp)
+            if gpu:
+                objects = build_gpu(gpu_compiler, gpu_compile_args,
+                                    gpu_include_dirs + self.include_dirs,
+                                    define_macros, undef_macros,
+                                    self.build_temp)
+
             self.link_objects += objects
 
         super().run()
