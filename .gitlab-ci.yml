@@ -375,8 +375,6 @@ test-latest:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
-  tags:
-    - xeon40
   needs:
     - build-latest
   script:
@@ -605,7 +603,7 @@ gpwfiles:
     - build-latest
   stage: precalculate
   tags:
-    - xeon24
+    - xeon40
   before_script:
     - !reference [default, before_script]
   script:
@@ -632,7 +630,7 @@ gpwfiles:
     - build-latest
     - gpwfiles
   tags:
-    - xeon24
+    - xeon40
   before_script:
     - !reference [default, before_script]
     - pip install pytest-instafail pytest-xdist
@@ -745,7 +743,7 @@ pages:
   dependencies:
     - nightly-mpi-1
   tags:
-    - xeon24
+    - xeon40
   script:
     - mv htmlcov/ public
   artifacts:
