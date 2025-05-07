@@ -10,7 +10,7 @@ variables:
   # DEFAULT_RUNNER_TAG: "linux".
   # Forks will instead get this definition which allows running
   # pipelines on shared runners.
-  DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
+  DEFAULT_RUNNER_TAG: "xeon40"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
 
 
@@ -35,6 +35,8 @@ stages:
 
 .build:
   stage: build
+  tags:
+    - xeon40
   before_script:
     - !reference [default, before_script]
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
@@ -80,7 +82,6 @@ stages:
       - _gpaw.*.so
       - "*.log"
     expire_in: 30 mins
-
 
 .test:
   stage: test
