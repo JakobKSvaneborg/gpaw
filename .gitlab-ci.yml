@@ -375,6 +375,8 @@ test-latest:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
+  tags:
+    - xeon40
   needs:
     - build-latest
   script:
