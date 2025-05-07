@@ -474,6 +474,17 @@ class build_ext(_build_ext):
             self.link_objects = []
 
         if gpu:
+            # Some C++ code (eg. magma wrappers) requires C++17 standard.
+            # Add the flag here, but don't override any user-specified option.
+            # GPAW C++ files that require C++17 are encouraged to #error
+            # with a sensible message if the standard is too low.
+            has_std_flag = (
+                any(re.match(r'-std=.+', arg) for arg in gpu_compile_args)
+            )
+            if not has_std_flag:
+                print("Adding gpu compile argument: '-std=c++17'")
+                gpu_compile_args.append('-std=c++17')
+
             objects = build_gpu(gpu_compiler, gpu_compile_args,
                                 gpu_include_dirs + self.include_dirs,
                                 define_macros, undef_macros,
