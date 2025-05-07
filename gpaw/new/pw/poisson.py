@@ -276,6 +276,9 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         self.eps = eps
         self.maxiter = maxiter
         self.zero_vacuum = zero_vacuum
+        if zero_vacuum:
+            self.drhot_g = pw.empty()
+
 
     def __str__(self) -> str:
         txt = ('conjugate gradient poisson solver:\n'
@@ -306,7 +309,7 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         """
         G_Qv = self.pw.G_plus_k_Gv
         Gx, Gy, Gz = G_Qv.T
-        grid = self.grid  # dielectric.eps_gradeps[0].desc
+        grid = self.grid
 
         gradients = []
         for G_component in [Gx, Gy, Gz]:
@@ -337,10 +340,10 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         N = len(vHt_g.data)
         op = LinearOperator((N, N),
                             matvec=self.operator,
-                            dtype=vHt_g.data.dtype)
+                            dtype=complex)
         M = LinearOperator((N, N),
                            matvec=lambda x: 0.5 * x / self.ekin_g,
-                           dtype=vHt_g.data.dtype)
+                           dtype=complex)
 
         vHt_g.data[:], info = cg(op, vHt_g.data,
                                  rtol=self.eps, maxiter=self.maxiter, M=M)
