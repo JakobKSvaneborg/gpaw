@@ -617,8 +617,6 @@ class LeanSetup(BaseSetup):
 
         # XAS stuff
         self.phicorehole_g = s.phicorehole_g  # should be optional
-        if s.phicorehole_g is not None:
-            self.A_ci = s.A_ci  # oscillator strengths
 
         # Required to get all electron density
         self.rgd = s.rgd
@@ -834,11 +832,6 @@ class Setup(BaseSetup):
 
         self.fcorehole = data.fcorehole
         self.lcorehole = data.lcorehole
-        if data.phicorehole_g is not None:
-            if self.lcorehole == 0:
-                self.calculate_oscillator_strengths(phi_jg)
-            else:
-                self.A_ci = None
 
         # Construct splines:
         self.vbar = rgd.spline(vbar_g, rcutfilter)
@@ -1224,26 +1217,6 @@ class Setup(BaseSetup):
                 basis_functions_J.append(basis_function)
         basis = PartialWaveBasis(self.symbol, basis_functions_J, n_J)
         return basis
-
-    def calculate_oscillator_strengths(self, phi_jg):
-        # XXX implement oscillator strengths for lcorehole != 0
-        assert self.lcorehole == 0
-        self.A_ci = np.zeros((3, self.ni))
-        nj = len(phi_jg)
-        i = 0
-        for j in range(nj):
-            l = self.l_j[j]
-            if l == 1:
-                a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                                       n=1) / (4 * pi)
-
-                for m in range(3):
-                    c = (m + 1) % 3
-                    self.A_ci[c, i] = a
-                    i += 1
-            else:
-                i += 2 * l + 1
-        assert i == self.ni
 
 
 class PartialWaveBasis(Basis):  # yuckkk

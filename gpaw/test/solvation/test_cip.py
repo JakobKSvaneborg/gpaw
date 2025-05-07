@@ -13,6 +13,7 @@ from gpaw.solvation import (
     SurfaceInteraction)
 
 
+@pytest.mark.slow
 @pytest.mark.old_gpaw_only
 def test_cip(in_tmp_dir):
     # Solvent parameters

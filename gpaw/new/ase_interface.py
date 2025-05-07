@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from functools import cached_property
 from pathlib import Path
 from pprint import pformat
 from types import SimpleNamespace
@@ -45,6 +44,7 @@ def GPAW(
     convergence: dict[str, Any] | None = None,
     eigensolver: dict[str, Any] | None = None,
     environment: Environment | None = None,
+    extensions: list | None = None,
     experimental: dict[str, Any] | None = None,
     external: dict[str, Any] | None = None,
     gpts: None | Sequence[int] | None = None,
@@ -171,6 +171,7 @@ class ASECalculator:
         self._atoms = atoms
         self.timer = Timer()
         self.hooks: dict[str, Callable] = {}
+        self._wfs_dft = -1, -1
 
     @property
     def dft(self) -> DFTCalculation:
@@ -243,6 +244,7 @@ class ASECalculator:
             return
 
         if not self.dft.ibzwfs.has_wave_functions():
+            # We have started from a gpw-file without wave functions
             self.create_new_calculation(atoms)
 
         assert self.hooks.keys() <= {'scf_step', 'converged'}
@@ -586,18 +588,22 @@ class ASECalculator:
         for name in properties:
             self.calculate_property(atoms, name)
 
-    @cached_property
+    @property
     def wfs(self):
-        from gpaw.new.backwards_compatibility import FakeWFS
-        return FakeWFS(self.dft.ibzwfs,
-                       self.dft.density,
-                       self.dft.potential,
-                       self.dft.setups,
-                       self.comm,
-                       self.dft.scf_loop.occ_calc,
-                       self.dft.scf_loop.hamiltonian,
-                       self.atoms,
-                       scale_pw_coefs=True)
+        wfs, dft = self._wfs_dft
+        if dft is not self._dft:
+            from gpaw.new.backwards_compatibility import FakeWFS
+            wfs = FakeWFS(self.dft.ibzwfs,
+                          self.dft.density,
+                          self.dft.potential,
+                          self.dft.setups,
+                          self.comm,
+                          self.dft.scf_loop.occ_calc,
+                          self.dft.scf_loop.hamiltonian,
+                          self.atoms,
+                          scale_pw_coefs=True)
+            self._wfs_dft = wfs, self._dft
+        return wfs
 
     @property
     def density(self):

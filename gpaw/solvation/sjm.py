@@ -31,6 +31,7 @@ from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
 from scipy.stats import linregress
+from gpaw.new.input_parameters import register
 
 
 def SJM(*args, **kwargs):
@@ -38,12 +39,13 @@ def SJM(*args, **kwargs):
     if GPAW_NEW:
         from gpaw.new.ase_interface import GPAW
         from gpaw.new.sjm import SJM
+        environment = SJM(cavity=kwargs.pop('cavity'),
+                          dielectric=kwargs.pop('dielectric'),
+                          interactions=kwargs.pop('interactions', None),
+                          **kwargs.pop('sj'))
         return GPAW(
             *args, **kwargs,
-            environment=SJM(cavity=kwargs.pop('cavity'),
-                            dielectric=kwargs.pop('dielectric'),
-                            interactions=kwargs.pop('interactions', None),
-                            **kwargs.pop('sj')))
+            environment=environment)
     return OldSJM(*args, **kwargs)
 
 
@@ -1046,6 +1048,7 @@ def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
     return ans[0]
 
 
+@register
 class SJMPower12Potential(Power12Potential):
     r"""Inverse power-law potential.
     Inverse power law potential for SJM, inherited from the
@@ -1090,6 +1093,12 @@ class SJMPower12Potential(Power12Potential):
         self.H2O_layer = H2O_layer
         self.unsolv_backside = unsolv_backside
         self.communicator = communicator
+
+    def todict(self):
+        return {
+            **super().todict(),
+            'H2O_layer': self.H2O_layer,
+            'unsolv_backside': self.unsolv_backside}
 
     def __str__(self):
         s = Power12Potential.__str__(self)

@@ -5,9 +5,9 @@ from ase.data.vdw import vdw_radii
 from gpaw.solvation.gridmem import NeedsGD
 from gpaw.fd_operators import Gradient
 from gpaw.io.logger import indent
+from gpaw.new.input_parameters import register
 
-
-BAD_RADIUS_MESSAGE = "All atomic radii have to be finite and >= zero."
+BAD_RADIUS_MESSAGE = 'All atomic radii have to be finite and >= zero.'
 
 
 def set_log_and_check_radii(obj, atoms, log):
@@ -84,6 +84,14 @@ class Cavity(NeedsGD):
         self.volume_calculator = volume_calculator
         self.V = None  # global Volume
         self.A = None  # global Surface
+
+    def todict(self):
+        dct = {}
+        if self.surface_calculator is not None:
+            dct['surface_calculator'] = self.surface_calculator
+        if self.volume_calculator is not None:
+            dct['volume_calculator'] = self.volume_calculator
+        return dct
 
     def write(self, writer):
         pass
@@ -196,6 +204,7 @@ class Cavity(NeedsGD):
         log(f'Solvation cavity volume: {V}')
 
 
+@register
 class EffectivePotentialCavity(Cavity):
     """Cavity built from effective potential and Boltzmann distribution.
 
@@ -220,6 +229,12 @@ class EffectivePotentialCavity(Cavity):
         self.effective_potential = effective_potential
         self.temperature = float(temperature)
         self.minus_beta = -1. / (kB * temperature / Hartree)
+
+    def todict(self):
+        return {
+            'effective_potential': self.effective_potential.todict(),
+            'temperature': self.temperature,
+            **super().todict()}
 
     def write(self, writer):
         writer.write(effective_potential=self.effective_potential,
@@ -399,6 +414,9 @@ class Power12Potential(Potential):
         Potential.__init__(self)
         if atomic_radii is None:
             atomic_radii = get_vdw_radii
+        elif isinstance(atomic_radii, dict):
+            def atomic_radii(atoms, radii=atomic_radii):
+                return [radii[symbol] for symbol in atoms.symbols]
         self.atomic_radii = atomic_radii
         self.u0 = float(u0)
         self.pbc_cutoff = float(pbc_cutoff)
@@ -409,6 +427,15 @@ class Power12Potential(Potential):
         self.del_u_del_r_vg = None
         self.atomic_radii_output = None
         self.symbols = None
+
+    def todict(self):
+        return {
+            'atomic_radii': {
+                symbol: r for symbol, r in zip(
+                    self.symbols, self.atomic_radii_output)},
+            'u0': self.u0,
+            'pbc_cutoff': self.pbc_cutoff,
+            'tiny': self.tiny}
 
     def estimate_memory(self, mem):
         Potential.estimate_memory(self, mem)
@@ -916,6 +943,7 @@ class SurfaceCalculator(NeedsGD):
         raise NotImplementedError()
 
 
+@register
 class GradientSurface(SurfaceCalculator):
     """Class for getting the surface area from the gradient of the cavity.
 
@@ -932,6 +960,9 @@ class GradientSurface(SurfaceCalculator):
         self.gradient_out = None
         self.norm_grad_out = None
         self.div_tmp = None
+
+    def todict(self):
+        return {'nn': self.nn}
 
     def write(self, writer):
         writer.write(

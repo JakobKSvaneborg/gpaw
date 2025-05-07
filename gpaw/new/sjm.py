@@ -8,22 +8,24 @@ from gpaw.new.environment import Environment, FixedPotentialJellium, Jellium
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.pw.poisson import PWPoissonSolver
 from gpaw.new.solvation import Solvation
+from gpaw.new.input_parameters import register
 
 
+@register
 class SJM:
     def __init__(self,
                  *,
                  cavity,
                  dielectric,
                  interactions,
-                 jelliumregion,
+                 jelliumregion: dict | None = None,
                  target_potential: float | None,  # eV
                  excess_electrons: float = 0.0,
                  tol: float = 0.001):  # eV
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions
-        self.jelliumregion = jelliumregion
+        self.jelliumregion = jelliumregion or {}
         self.target_potential = target_potential
         self.excess_electrons = excess_electrons
         self.tol = tol
@@ -60,6 +62,16 @@ class SJM:
                 workfunction=self.target_potential,
                 tolerance=self.tol)
         return SJMEnvironment(solvation, jellium)
+
+    def todict(self):
+        return dict(
+            cavity=self.cavity.todict(),
+            dielectric=self.dielectric.todict(),
+            interactions=[i.todict() for i in self.interactions],
+            jelliumregion=self.jelliumregion,
+            target_potential=self.target_potential,
+            excess_electrons=self.excess_electrons,
+            tol=self.tol)
 
 
 class SJMEnvironment(Environment):

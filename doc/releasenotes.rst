@@ -10,6 +10,11 @@ Git master branch
 
 :git:`master <>`.
 
+* The XAS code has been expanded to allow for calculations of core holes
+  with 𝑙≠0.
+
+* :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
+
 * The fluctuation-dissipation theorem has been added to the SJM.
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.

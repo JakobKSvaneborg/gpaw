@@ -20,6 +20,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  relpos_ac,
                  atomdist,
                  environment,
+                 extensions,
                  soc=False,
                  xp=np):
         self.xp = xp
@@ -28,6 +29,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                          external_potential=external_potential,
                          relpos_ac=relpos_ac,
                          environment=environment,
+                         extensions=extensions,
                          soc=soc)
 
         self.vbar_ag = setups.create_local_potentials(
@@ -150,6 +152,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                 e_stress)
 
     def move(self, relpos_ac, atomdist):
+        super().move(relpos_ac, atomdist)
         self.poisson_solver.move(relpos_ac, atomdist)
         self.vbar_ag.move(relpos_ac, atomdist)
         self.vbar_g.data[:] = 0.0
@@ -194,7 +197,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                                                    nt_g),
             density.nct_aX.derivative(vt_g),
             Ftauct_av,
-            self.vbar_ag.derivative(nt_g))
+            self.vbar_ag.derivative(nt_g),
+            self.extensions_force_av)
 
     def stress(self, ibzwfs, density, potential):
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
