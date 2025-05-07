@@ -253,7 +253,7 @@ if gpu:
     )
     if not has_std_flag:
         print("Adding gpu compile argument: '-std=c++17'")
-        gpu_compile_args.append('-std=c++17')
+        gpu_compile_args += ['-std=c++17']
 
     # GPU code needs to link to c++ stdlib
     libraries += ['stdc++']
