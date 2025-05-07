@@ -1,9 +1,7 @@
 import pytest
 
-from gpaw import GPAW, FD
-from ase import Atoms
+from gpaw import GPAW
 import numpy as np
-from gpaw.directmin.etdm_fdpw import FDPWETDM
 from ase.dft.bandgap import bandgap
 from ase.units import Ha
 

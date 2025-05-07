@@ -1,11 +1,7 @@
 import pytest
 
-from gpaw import GPAW, PW
-from ase import Atoms
+from gpaw import GPAW
 import numpy as np
-from gpaw.directmin.etdm_fdpw import FDPWETDM
-from gpaw.directmin.tools import excite
-from gpaw.mom import prepare_mom_calculation
 
 
 @pytest.mark.old_gpaw_only

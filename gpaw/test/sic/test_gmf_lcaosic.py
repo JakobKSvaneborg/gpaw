@@ -1,11 +1,6 @@
 import pytest
 
-from gpaw import GPAW, LCAO
-from gpaw.directmin.etdm_lcao import LCAOETDM
-from gpaw.directmin.tools import excite
-from gpaw.directmin.derivatives import Davidson
-from gpaw.mom import prepare_mom_calculation
-from ase import Atoms
+from gpaw import GPAW
 import numpy as np
 
 

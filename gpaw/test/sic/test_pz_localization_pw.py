@@ -1,9 +1,6 @@
 import pytest
 
-from gpaw import GPAW, PW, restart
-from ase import Atoms
-import numpy as np
-from gpaw.directmin.etdm_fdpw import FDPWETDM
+from gpaw import GPAW
 
 
 @pytest.mark.old_gpaw_only
