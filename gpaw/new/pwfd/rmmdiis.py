@@ -78,12 +78,12 @@ class RMMDIIS(PWFDEigensolver):
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
 
-        work1_nX = psit_nX.new_buffer(self.data_buffers[0])
+        work1_nX = psit_nX.create_work_buffer(self.data_buffers[0])
         ekin_n = psit_nX.norm2('kinetic')
         sliced_preconditioner(psit_nX, residual_nX, work1_nX, self.preconditioner)
         P_ani = wfs.pt_aiX.integrate(residual_nX)
         
-        work2_nX = psit_nX.new_buffer(self.data_buffers[1])
+        work2_nX = psit_nX.create_work_buffer(self.data_buffers[1])
         blocksize = work1_nX.data.shape[0]
         P1_ani = P_ani.layout.empty(blocksize)
         P2_ani = P_ani.layout.empty(blocksize)
