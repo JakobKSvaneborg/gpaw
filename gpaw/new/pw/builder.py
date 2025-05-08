@@ -157,7 +157,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             soc=self.soc,
             xp=self.xp,
             environment=env,
-            extensions=self.get_extensions(log))
+            extensions=self.get_extensions())
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:

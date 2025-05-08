@@ -212,8 +212,17 @@ eigensolvers = {
     'scissors': Scissors}
 
 
-class Extension:
-    pass
+class Extension(Parameter):
+    @classmethod
+    def from_param(self, extension):
+        if isinstance(extension, dict):
+            dct = extension.copy()
+            name = dct.pop('name')
+            if name == 'd3':
+                from gpaw.new.extensions import D3
+                return D3(**dct)
+            1 / 0
+        return extension
 
 
 class Mixer(Parameter):
@@ -453,7 +462,7 @@ class Parameters:
         self.h = h
         self.hund = hund
         self.experimental = experimental or {}
-        self.extensions = list(extensions or [])
+        self.extensions = [Extension.from_param(ext) for ext in extensions]
         self.kpts = KPoints.from_param(kpts or (1, 1, 1))
         self.magmoms = np.array(magmoms) if magmoms is not None else None
         self.maxiter = maxiter
