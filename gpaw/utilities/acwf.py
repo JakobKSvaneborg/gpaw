@@ -118,6 +118,7 @@ def work(structure: str,
         params['mode'] = dict(name='pw', ecut=1000)
     else:
         params['mode'] = 'lcao'
+        params['basis'] = 'dzp'
         params['h'] = 0.12
     if setup_name:
         params['setups'] = {symbol: setup_name}
@@ -126,7 +127,8 @@ def work(structure: str,
         symbol,
         **params)
     if world.rank == 0:
-        Path(f'{mode}-{structure}.json').write_text(json.dumps(data))
+        Path(f'{mode}-{structure}.json').write_text(
+            json.dumps(data, indent=1))
 
 
 def create_folders() -> None:
