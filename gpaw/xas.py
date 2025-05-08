@@ -1,20 +1,99 @@
 import pickle
-from math import log, pi
+from math import log, pi, sqrt, ceil
+from typing import List, Tuple, Union
 
 import numpy as np
-from gpaw.overlap import Overlap
+
 from ase.units import Hartree
+
+from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
+from gpaw.gaunt import gaunt
+from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
 import gpaw.mpi as mpi
 
 
+def dipole_matrix_elements(setup):
+    """calculate length form dipole matrix elements of setup-states
+    with the core-state"""
+    l_core = setup.data.lcorehole
+    lmax = max(setup.lmax, l_core)  # include the f states
+    G_LLL = gaunt(lmax)
+
+    # map m, l quantum numbers to L
+    M = {0: [0]}
+    for l in range(1, lmax + 1):
+        M[l] = range(M[l - 1][-1] + 1, M[l - 1][-1] + (l * 2) + 2)
+
+    phi_jg = setup.data.phi_jg
+    nj = len(phi_jg)
+
+    A_cmi = np.zeros((3, len(M[l_core]), setup.ni))
+
+    i = 0
+    for j in range(nj):
+        l = setup.l_j[j]
+        a = setup.rgd.integrate(phi_jg[j] * setup.data.phicorehole_g,
+                                n=1) / (4 * pi)
+
+        for L2 in M[l]:
+            for L0 in M[1]:
+                for m, L1 in enumerate(M[l_core]):
+                    G = sqrt(4 * pi / 3) * G_LLL[L2, L0, L1]
+
+                    c = L0 % 3
+                    A_cmi[c, m, i] = G * a
+
+            i += 1
+    assert i == setup.ni
+
+    return A_cmi
+
+
+def logger(txt, mode, spin, nocc, center, setup):
+    spin_txt = 'up'
+    if spin == 1:
+        spin_txt = 'down'
+
+    txt('\nXAS - Calculating matrix elements\n')
+    txt('Mode:            ', mode)
+    txt('Spin:            ', spin_txt, f'({spin})')
+    txt('Occupied states: ', nocc)
+    txt('Center:          ', center)
+    txt('Element:         ', setup.symbol)
+    txt('Setup:')
+    setup.print_info(txt)
+
+
 class XAS:
-    def __init__(self, paw, mode='xas', center=None, spin=0):
+    def __init__(self, paw=None, *args, **kwargs):
+        if paw is not None:
+            self.__full_init__(paw, *args, **kwargs)
+
+    def __full_init__(self, paw, mode='xas', center=None,
+                      spin=0, relative_index_lumo=0):
+        """_summary_
+
+        Args:
+            paw (_type_): GPAW calculator object, with core-hole
+            mode (str, optional): xas, xes or all . Defaults to 'xas'.
+            center (int, optional): index of atome with corehole.
+            Defaults to None.
+            spin (int, optional): spinprogjection. Defaults to 0.
+            nocc_cor (int, optional): correction for number of occupied states
+            used in e.g. XCH XAS simulations. Defaults to 0.
+        """
+
+        self.log = paw.log
         wfs = paw.wfs
+        self.world = paw.world
+        kd = wfs.kd
+        bd = wfs.bd
+        gd = wfs.gd
         self.orthogonal = wfs.gd.orthogonal
         self.cell_cv = np.array(wfs.gd.cell_cv)
-        assert wfs.world.size == 1  # assert not mpi.parallel
-        # assert wfs.gd.orthogonal
+
+        my_atom_indices = wfs.atom_partition.my_indices
 
         # to allow spin polarized calclulation
         nkpts = len(wfs.kd.ibzk_kc)
@@ -23,6 +102,8 @@ class XAS:
         # if mode is not 'xes' and spin == 1:
         #     raise RuntimeError(
         #         'The core hole is always in spin 0: please use spin=0')
+        kd_rank = kd.comm.rank
+        kd_size = kd.comm.size
 
         if wfs.nspins == 1:
             if spin != 0:
@@ -30,6 +111,7 @@ class XAS:
                     'use spin=0 for a spin paired calculation')
             nocc = wfs.setups.nvalence // 2
             self.list_kpts = range(nkpts)
+
         else:
             self.list_kpts = []
 
@@ -42,15 +124,17 @@ class XAS:
             for i, kpt in enumerate(wfs.kpt_u):
                 if kpt.s == spin:
                     self.list_kpts.append(i)
-                print(self.list_kpts)
-            assert len(self.list_kpts) == nkpts
 
             # find number of occupied orbitals, if no fermi smearing
             nocc = 0.0
             for i in self.list_kpts:
                 nocc += sum(wfs.kpt_u[i].f_n)
+
+            nocc = kd.comm.sum_scalar(nocc)
             nocc = int(nocc + 0.5)
-            print('nocc', nocc)
+
+        nocc += relative_index_lumo
+        self.nocc = nocc
 
         # look for the center with the corehole
         if center is not None:
@@ -61,49 +145,220 @@ class XAS:
                 if setup.phicorehole_g is not None:
                     break
 
-        A_ci = setup.A_ci
+        assert setup.phicorehole_g is not None, 'There is no corehole'
+
+        A_cmi = dipole_matrix_elements(setup)
+        bd_rank = bd.comm.rank
+        bd_size = bd.comm.size
 
         # xas, xes or all modes
         if mode == 'xas':
-            n_start = nocc
-            n_end = wfs.bd.nbands
+            if bd_rank == 0:
+                n_start = nocc
+            else:
+                n_start = 0
+            n_end = ceil(wfs.bd.nbands / bd_size)
             n = wfs.bd.nbands - nocc
-        elif mode == 'xes':
+            n_diff0 = n_end - nocc
+            assert n_diff0 > 0, 'Over band parellaised'
+            n_diff = n_end - n_start
+            i_n = n_diff0 + n_diff * (bd_size - 1) - n
+        elif mode == 'xes':  # FIX XES later
+            assert bd_size == 1, "'xes' does not suport band paralisation"
             n_start = 0
             n_end = nocc
-            n = nocc
+            n = n_diff = nocc
+
         elif mode == 'all':
             n_start = 0
-            n_end = wfs.bd.nbands
+            n_end = ceil(wfs.bd.nbands / bd_size)
+            n_diff = n_diff0 = n_end - n_start
             n = wfs.bd.nbands
+            i_n = n_diff * bd_size - n
         else:
             raise RuntimeError(
                 "wrong keyword for 'mode', use 'xas', 'xes' or 'all'")
 
         self.n = n
+        l_core = setup.data.lcorehole
+        self.eps_kn = np.zeros((nkpts, n))
+        self.sigma_cmkn = np.zeros((3, l_core * 2 + 1, nkpts, n), complex)
 
-        self.eps_n = np.empty(nkpts * n)
-        self.sigma_cn = np.empty((3, nkpts * n), complex)
         n1 = 0
+        if bd_rank != 0:
+            n1 += n_diff0 + n_diff * (bd_rank - 1)
+        k = kd_rank * (nkpts // kd_size)
+
         for kpt in wfs.kpt_u:
             if kpt.s != spin:
                 continue
 
-            n2 = n1 + n
-            self.eps_n[n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
-            P_ni = kpt.P_ani[a][n_start:n_end]
-            a_cn = np.inner(A_ci, P_ni)
-            weight = kpt.weight * wfs.nspins / 2
-            print('weight', weight)
-            print(a_cn.shape, self.sigma_cn.shape)
-            self.sigma_cn[:, n1:n2] = weight**0.5 * a_cn  # .real
-            n1 = n2
+            n2 = n1 + n_diff
+            if bd_size != 1 and bd_rank == bd_size - 1:
+                n2 -= i_n
+            self.eps_kn[k, n1:n2] = kpt.eps_n[n_start:n_end] * Hartree
+
+            if a in my_atom_indices:
+                P_ni = kpt.P_ani[a][n_start:n_end]
+                a_cmn = np.inner(A_cmi, P_ni)
+                weight = kpt.weight * wfs.nspins / 2
+                self.sigma_cmkn[:, :, k, n1:n2] = weight**0.5 * a_cmn  # .real
+
+            k += 1
+
+        kd.comm.sum(self.sigma_cmkn)
+        kd.comm.sum(self.eps_kn)
+
+        bd.comm.sum(self.sigma_cmkn)
+        bd.comm.sum(self.eps_kn)
+
+        gd.comm.sum(self.sigma_cmkn)
 
         self.symmetry = wfs.kd.symmetry
 
+        logger(self.log, mode, spin, nocc, a, setup)
+
+    def write(self, fname: str):
+        """Write matrix elements out to a file"""
+        if self.world.rank == 0:
+            self.log(f'Writing to {fname}\n')
+            with open(fname, mode='wb') as f:
+                np.savez_compressed(
+                    f, eps_kn=self.eps_kn, sigma_cmkn=self.sigma_cmkn,
+                    orthogonal=self.orthogonal)
+        self.world.barrier()
+
+    @classmethod
+    def restart(cls, fname: str):
+        """Read from a matrix elements file"""
+        self = XAS()
+        with open(fname, mode='rb') as f:
+            data = dict(np.load(f)).values()
+            self.eps_kn, self.sigma_cmkn, self.orthogonal = data
+        return self
+
+    def projection(self, proj=None, proj_xyz=True):
+        if proj_xyz:
+            proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
+        else:
+            proj_3 = np.array([], float)
+
+        if proj is not None:
+            assert self.orthogonal
+            proj_2 = np.array(proj, float)
+            if len(proj_2.shape) == 1:
+                proj_2 = np.array([proj], float)
+
+            for i, p in enumerate(proj_2):
+                if sum(p**2)**0.5 != 1.0:
+                    print('proj_2 %s not normalized' % i)
+                    proj_2[i] /= sum(p**2)**0.5
+
+            proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
+
+            for i, p in enumerate(proj_3):
+                proj_tmp[i, :] = proj_3[i, :]
+
+            for i, p in enumerate(proj_2):
+                proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
+
+            proj_3 = proj_tmp.copy()
+
+        return proj_3
+
+    def get_oscillator_strength(
+            self, dks: Union[float, List], kpoint=None,
+            proj=None, proj_xyz: bool = True,
+            w: Array1D = None,
+            raw: bool = False) -> Tuple[Array1D, ArrayND]:
+        """Calculate stick spectra.
+
+        Parameters:
+
+        dks:
+          Energy of first transition. Can be a list for spin-orbit split
+          spectra.
+        kpoint:
+          select a specific k-point to calculate spectrum for
+        proj:
+          a list of vectors to project the transition dipole on. Default
+          is None then only x,y,z components are calculated.  a_stick and
+          a_c squares of the transition moments in resp. direction
+        proj_xyz:
+          if True keep projections in x, y and z. a_stck and a_c will have
+          length 3 + len(proj). if False only those projections
+          defined by proj keyword, a_stick and a_c will have length len(proj)
+
+        Symmtrization has been moved inside get_spectra because we want to
+        symmtrice squares of transition dipoles.
+
+        Returns:
+            energies: 1D array [n]
+            oscillator strengths: 3D array [c, m, n]
+        """
+        proj_3 = self.projection(proj=proj, proj_xyz=proj_xyz)
+
+        sigma2_cmkn = np.zeros((proj_3.shape[0],
+                                self.sigma_cmkn.shape[1],
+                                self.sigma_cmkn.shape[2],
+                                self.sigma_cmkn.shape[3]), float)
+
+        for i, p in enumerate(proj_3):
+            for m in range(self.sigma_cmkn.shape[1]):
+                for k in range(self.sigma_cmkn.shape[2]):
+                    s_tmp = np.dot(p, self.sigma_cmkn[:, m, k, :])
+                    sigma2_cmkn[i, m, k, :] += (s_tmp *
+                                                np.conjugate(s_tmp)).real
+
+        eps_kn0 = np.min(self.eps_kn)
+        k_pts = sigma2_cmkn.shape[2]
+        n = sigma2_cmkn.shape[3]
+
+        if isinstance(dks, float) or isinstance(dks, int):
+            dks = [dks]
+
+        energy_kn = np.zeros((k_pts, n * len(dks)))
+        f_cmkn = np.zeros((sigma2_cmkn.shape[0],
+                           sigma2_cmkn.shape[1],
+                           k_pts, n * len(dks)))
+
+        if w is None:
+            w = np.ones(len(dks))
+        elif isinstance(w, float) or isinstance(w, int):
+            w = [w]
+
+        for i in range(len(dks)):
+            shift = dks[i] - eps_kn0
+            ienergy_kn = self.eps_kn + shift
+
+            if_cmkn = w[i] * 2 * sigma2_cmkn[:, :, :, :] * ienergy_kn / Hartree
+
+            energy_kn[:, i * n:(1 + i) * n] = ienergy_kn
+            f_cmkn[:, :, :, i * n:(1 + i) * n] = if_cmkn
+
+        if kpoint is not None:
+            energy_n = energy_kn[kpoint, :]
+            f_cmn = f_cmkn[:, :, kpoint, :]
+        else:
+            energy_n = np.zeros((k_pts * n * len(dks)))
+            f_cmn = np.zeros((sigma2_cmkn.shape[0],
+                              sigma2_cmkn.shape[1],
+                              k_pts * n * len(dks)))
+
+            for k in range(k_pts):
+                energy_n[n * k * len(dks):
+                         (k + 1) * n * len(dks)] = energy_kn[k, :]
+                f_cmn[:, :, n * k * len(dks):
+                      (k + 1) * n * len(dks)] = f_cmkn[:, :, k, :]
+        if raw:
+            return energy_n, f_cmn
+
+        return energy_n, f_cmn.sum(axis=1)
+
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
-                    N=1000, kpoint=None,
-                    proj=None, proj_xyz=True, stick=False):
+                    N=1000, kpoint=None, proj=None, proj_xyz=True,
+                    stick=False, dks: Union[float, List] = [0],
+                    w: Array1D = None):
         """Calculate spectra.
 
         Parameters:
@@ -135,115 +390,99 @@ class XAS:
           if False return broadened spectrum, if True return stick spectrum
 
         Symmtrization has been moved inside get_spectra because we want to
-        symmtrice squares of transition dipoles."""
+        symmtrice squares of transition dipoles.
 
-        # eps_n = self.eps_n[k_in*self.n: (k_in+1)*self.n -1]
+        Returns:
+            energies: 1D array
+            oscillator strengths: 3D array
+        """
+        energy_n, f_cmn = self.get_oscillator_strength(
+            kpoint=kpoint, proj=proj, proj_xyz=proj_xyz, dks=dks, w=w,
+            raw=True)
 
-        # proj keyword, check normalization of incoming vectors
-        if proj_xyz:
-            proj_3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
-        else:
-            proj_3 = np.array([], float)
-
-        if proj is not None:
-            assert self.orthogonal
-            proj_2 = np.array(proj, float)
-            if len(proj_2.shape) == 1:
-                proj_2 = np.array([proj], float)
-
-            for i, p in enumerate(proj_2):
-                if sum(p ** 2) ** 0.5 != 1.0:
-                    print('proj_2 %s not normalized' % i)
-                    proj_2[i] /= sum(p ** 2) ** 0.5
-
-            proj_tmp = np.zeros((proj_3.shape[0] + proj_2.shape[0], 3), float)
-
-            for i, p in enumerate(proj_3):
-                proj_tmp[i, :] = proj_3[i, :]
-
-            for i, p in enumerate(proj_2):
-                proj_tmp[proj_3.shape[0] + i, :] = proj_2[i, :]
-
-            proj_3 = proj_tmp.copy()
-
-        # now symmetrize
-        sigma2_cn = np.zeros((proj_3.shape[0], self.sigma_cn.shape[1]), float)
-
-        if self.symmetry is not None:
-            for i, p in enumerate(proj_3):
-                for op_cc in self.symmetry.op_scc:
-                    op_vv = np.dot(np.linalg.inv(self.cell_cv),
-                                   np.dot(op_cc, self.cell_cv))
-                    s_tmp = np.dot(p, np.dot(op_vv, self.sigma_cn))
-                    sigma2_cn[i, :] += (s_tmp * np.conjugate(s_tmp)).real
-            sigma2_cn /= len(self.symmetry.op_scc)
-
-        else:
-            for i, p in enumerate(proj_3):
-                s_tmp = np.dot(p, self.sigma_cn)
-                sigma2_cn[i, :] += (s_tmp * np.conjugate(s_tmp)).real
-
-        eps_n = self.eps_n[:]
-
-        if kpoint is not None:
-            eps_start = kpoint * self.n
-            eps_end = (kpoint + 1) * self.n
-        else:
-            eps_start = 0
-            eps_end = len(self.eps_n)
-
-        # return stick spectrum if stick=True
         if stick:
-            e_stick = eps_n[eps_start:eps_end]
-            a_stick = sigma2_cn[:, eps_start:eps_end]
+            return energy_n, f_cmn.sum(axis=1)
 
-            return e_stick, a_stick
-
-        # else return broadened spectrum
         else:
             if E_in is not None:
-                e = np.array(E_in)
+                energy_i = np.array(E_in)
             else:
-                emin = min(eps_n) - 2 * fwhm
-                emax = max(eps_n) + 2 * fwhm
-                e = emin + np.arange(N + 1) * ((emax - emin) / N)
-
-            a_c = np.zeros((len(sigma2_cn), len(e)))
+                emin = min(energy_n) - 2 * fwhm
+                emax = max(energy_n) + 2 * fwhm
+                energy_i = emin + np.arange(N + 1) * ((emax - emin) / N)
 
             if linbroad is None:
-                # constant broadening fwhm
-                alpha = 4 * log(2) / fwhm**2
+                return self.constant_broadening(
+                    fwhm, energy_n, f_cmn, energy_i)
 
-                for n, eps in enumerate(eps_n[eps_start:eps_end]):
-                    x = -alpha * (e - eps)**2
-                    x = np.clip(x, -100.0, 100.0)
-                    a_c += np.outer(sigma2_cn[:, n + eps_start],
-                                    (alpha / pi)**0.5 * np.exp(x))
             else:
+                return self.variable_broadening(
+                    fwhm, linbroad, energy_n, f_cmn, energy_i)
 
-                # constant broadening fwhm until linbroad[1] and a
-                # constant broadening over linbroad[2] with fwhm2=
-                # linbroad[0]
-                fwhm2 = linbroad[0]
-                lin_e1 = linbroad[1]
-                lin_e2 = linbroad[2]
-                print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
-                for n, eps in enumerate(eps_n):
-                    if eps < lin_e1:
-                        alpha = 4 * log(2) / fwhm**2
-                    elif eps <= lin_e2:
-                        fwhm_lin = (fwhm + (eps - lin_e1) *
-                                    (fwhm2 - fwhm) / (lin_e2 - lin_e1))
-                        alpha = 4 * log(2) / fwhm_lin**2
-                    elif eps >= lin_e2:
-                        alpha = 4 * log(2) / fwhm2**2
+    def variable_broadening(
+            self, fwhm: float, linbroad: List[float],
+            eps_n: Array1D, f_cmn: Array3D,
+            e: Array1D) -> Tuple[Array1D, Array2D]:
+        """mpirun -n 6 python3 -m pytest  test_xas_parallel.py
+        fwhm:
+          the full width half maximum in eV for gaussian broadening
+        linbroad:
+          a list of three numbers, the first fwhm2, the second the value
+          where the linear increase starts and the third the value where
+          the broadening has reached fwhm2. example [0.5, 540, 550]
+        """
+        f_c = np.zeros((f_cmn.shape[0], len(e)))
 
-                    x = -alpha * (e - eps)**2
-                    x = np.clip(x, -100.0, 100.0)
-                    a_c += np.outer(sigma2_cn[:, n],
-                                    (alpha / pi)**0.5 * np.exp(x))
+        # constant broadening fwhm until linbroad[1] and a
+        # constant broadening over linbroad[2] with fwhm2=
+        # linbroad[0]
+        fwhm2 = linbroad[0]
+        lin_e1 = linbroad[1]
+        lin_e2 = linbroad[2]
+        print('fwhm', fwhm, fwhm2, lin_e1, lin_e2)
 
-            return e, a_c
+        f_cn = f_cmn.sum(axis=1)
+
+        # Fold
+        for n, eps in enumerate(eps_n):
+            if eps < lin_e1:
+                alpha = 4 * log(2) / fwhm**2
+            elif eps <= lin_e2:
+                fwhm_lin = (fwhm + (eps - lin_e1) *
+                            (fwhm2 - fwhm) / (lin_e2 - lin_e1))
+                alpha = 4 * log(2) / fwhm_lin**2
+            elif eps >= lin_e2:
+                alpha = 4 * log(2) / fwhm2**2
+
+            x = -alpha * (e - eps)**2
+            x = np.clip(x, -100.0, 100.0)
+            f_c += np.outer(f_cn[:, n],
+                            (alpha / pi)**0.5 * np.exp(x))
+
+        return e, f_c
+
+    def constant_broadening(
+            self, fwhm: float, eps_n: Array1D, f_cmn,
+            energy_i: Array1D) -> Tuple[Array1D, Array2D]:
+        """
+        fwhm:
+          the full width half maximum in eV for gaussian broadening
+        """
+
+        # constant broadening fwhm
+        # alpha = 1 / (2 sigma^2) with fwhm = 2 sqrt{2 log 2} sigma
+        alpha = 4 * log(2) / fwhm**2
+
+        f_cn = f_cmn.sum(axis=1)
+
+        # Fold
+        f_ci = np.zeros((3, len(energy_i)))
+        for n, eps in enumerate(eps_n):
+            x = -alpha * (energy_i - eps) ** 2
+            x = np.clip(x, -100.0, 100.0)
+            f_ci += np.outer(f_cn[:, n], (alpha / pi)**0.5 * np.exp(x))
+
+        return energy_i, f_ci
 
 
 class RecursionMethod:
@@ -400,7 +639,9 @@ class RecursionMethod:
         for a, setup in enumerate(self.wfs.setups):
             if setup.phicorehole_g is not None:
                 break
-        A_ci = setup.A_ci
+
+        A_cmi = dipole_matrix_elements(setup)
+        A_ci = A_cmi[:, 0, :]
 
         #
         # proj keyword

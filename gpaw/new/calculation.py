@@ -269,8 +269,10 @@ class DFTCalculation:
 
         pot_calc = self.pot_calc
         Q_aL = self.density.calculate_compensation_charge_coefficients()
-        Fcc_av, Fnct_av, Ftauct_av, Fvbar_av = pot_calc.force_contributions(
-            Q_aL, self.density, self.potential)
+        Fcc_av, Fnct_av, Ftauct_av, Fvbar_av, Fext_av = \
+            pot_calc.force_contributions(Q_aL,
+                                         self.density,
+                                         self.potential)
 
         # Force from compensation charges:
         F_av += Fcc_av
@@ -292,6 +294,9 @@ class DFTCalculation:
 
         domain_comm = Q_aL.layout.atomdist.comm
         domain_comm.sum(F_av)
+
+        # Force from extensions (only from rank 0)
+        F_av += Fext_av
 
         F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
         self.comm.broadcast(F_av, 0)

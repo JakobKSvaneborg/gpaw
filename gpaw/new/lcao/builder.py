@@ -1,5 +1,5 @@
 import numpy as np
-from gpaw.core.matrix import Matrix
+from gpaw.core.matrix import Matrix, MatrixWithNoData
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
 from gpaw.new.fd.builder import FDDFTComponentsBuilder
@@ -106,19 +106,17 @@ def create_lcao_ibzwfs(basis,
     nao = setups.nao
 
     def create_wfs(spin, q, k, kpt_c, weight):
-        C_nM = Matrix(nbands, 2 * nao if ncomponents == 4 else nao,
-                      dtype,
-                      dist=(band_comm, band_comm.size, 1))
+        shape = (nbands, 2 * nao if ncomponents == 4 else nao)
         if coefficients is not None:
+            C_nM = Matrix(*shape,
+                          dtype=dtype,
+                          dist=(band_comm, band_comm.size, 1))
             n1, n2 = C_nM.dist.my_row_range()
             C_nM.data[:] = coefficients.proxy(spin, k)[n1:n2]
         else:
-            # We set the first element to NaN as a hack so that the
-            # code can later tell that the data is not initialized.
-            # We could set /all/ the elements, but what we care about is
-            # only this piece of information.  Maybe we can find a better
-            # solution.
-            pass  # C_nM.data[:1, :1] = np.nan
+            C_nM = MatrixWithNoData(*shape,
+                                    dtype=dtype,
+                                    dist=(band_comm, band_comm.size, 1))
         return LCAOWaveFunctions(
             setups=setups,
             tci_derivatives=tci_derivatives,

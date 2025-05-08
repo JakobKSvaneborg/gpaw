@@ -542,7 +542,7 @@ files = ['gpaw-analyse-basis', 'gpaw-basis',
          'gpaw-setup', 'gpaw-upfplot']
 scripts = [str(Path('tools') / script) for script in files]
 
-
+data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
 setup(name='gpaw',
       version=version,
       description=description,
@@ -569,7 +569,7 @@ setup(name='gpaw',
                    'kaleido',
                    'graphviz',
                    'scikit-image',
-                   'git+https://gitlab.com/gpaw/gpaw-web-page-data.git#egg=make-pip-installable'],
+                   f'gpaw-web-page-data @ {data}'],
           'devel': ['flake8',
                     'mypy',
                     'pytest>=7.0.0',
