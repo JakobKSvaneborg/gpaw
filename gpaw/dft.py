@@ -9,7 +9,6 @@ import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from numpy.typing import DTypeLike
-
 from gpaw.mpi import MPIComm
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
@@ -120,7 +119,24 @@ class LCAO(Mode):
 
 
 class FD(Mode):
-    pass
+    qspiral = None
+
+    def __init__(self,
+                 *,
+                 nn=3,
+                 interpolation: int | str | None = None,
+                 dtype: DTypeLike | None = None,
+                 force_complex_dtype: bool = False):
+        self.nn = nn
+        super().__init__(interpolation=interpolation,
+                         dtype=dtype,
+                         force_complex_dtype=force_complex_dtype)
+
+    def todict(self):
+        dct = super().todict()
+        if self.nn != 3:
+            dct['nn'] = self.nn
+        return dct
 
 
 class Eigensolver(Parameter):

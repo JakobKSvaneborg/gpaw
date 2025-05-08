@@ -17,11 +17,10 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                  params,
                  *,
                  comm,
-                 distribution=None,
-                 interpolation=3):
-        super().__init__(atoms, params, comm=comm)
-        assert interpolation == 3
-        self.distribution = distribution
+                 log):
+        super().__init__(atoms, params, comm=comm, log=log)
+        assert params.mode.interpolation == 3
+        self.distribution = params.mode.distribution
         self.basis = None
 
     def create_wf_description(self):

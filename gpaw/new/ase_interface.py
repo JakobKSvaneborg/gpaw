@@ -344,7 +344,7 @@ class ASECalculator:
 
         flags = GPWFlags(include_projections=include_projections,
                          precision=precision, include_wfs=mode == 'all')
-        write_gpw(filename, self.atoms, self.params, self.dft, flags=flags)
+        write_gpw(filename, self.dft, flags=flags)
 
     @property
     def environment(self):

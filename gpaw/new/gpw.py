@@ -100,8 +100,6 @@ class GPWFlags:
 
 
 def write_gpw(filename: str | Path,
-              atoms,
-              params,
               dft: DFTCalculation,
               flags: GPWFlags) -> None:
 
@@ -120,14 +118,14 @@ def write_gpw(filename: str | Path,
                      bohr=Bohr,
                      precision=flags.precision)
 
-        write_atoms(writer.child('atoms'), atoms)
+        write_atoms(writer.child('atoms'), dft.atoms)
 
         results = {key: value * units[key]
                    for key, value in dft.results.items()}
         writer.child('results').write(**results)
 
-        p = {k: v.todict() if hasattr(v, 'todict') else v
-             for k, v in params.items() if k not in ['parallel']}
+        p = dft.params.todict()
+        p.pop('parallel', None)
         # ULM does not know about numpy dtypes:
         if 'dtype' in p:
             p['dtype'] = np.dtype(p['dtype']).name
@@ -140,7 +138,7 @@ def write_gpw(filename: str | Path,
         wf_writer = writer.child('wave_functions')
         dft.ibzwfs.write(wf_writer, flags=flags)
 
-        if flags.include_wfs and params.mode['name'] == 'pw':
+        if flags.include_wfs and dft.params.mode.name == 'pw':
             write_wave_function_indices(wf_writer,
                                         dft.ibzwfs,
                                         dft.density.nt_sR.desc)
@@ -356,7 +354,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
 
     potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, vHt_x, e_stress)
 
-    ibzwfs = builder.read_ibz_wave_functions(reader, log)
+    ibzwfs = builder.read_ibz_wave_functions(reader)
 
     dft = DFTCalculation(
         atoms, ibzwfs, density, potential,

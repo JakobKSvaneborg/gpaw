@@ -519,13 +519,13 @@ def create_uniform_grid(mode: str,
                         cell,
                         pbc,
                         symmetries,
-                        h: float = 0.0,
+                        h: float | None = None,
                         interpolation: str = None,
                         ecut: float = None,
                         comm: MPIComm = serial_comm) -> UGDesc:
     """Create grid in a backwards compatible way."""
     cell = cell / Bohr
-    if h != 0.0:
+    if h is not None:
         h /= Bohr
 
     realspace = (mode != 'pw' and interpolation != 'fft')

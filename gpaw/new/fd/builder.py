@@ -14,14 +14,14 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  params,
                  *,
                  comm,
-                 nn=3,
-                 interpolation=3):
+                 log):
         super().__init__(atoms,
                          params,
-                         comm=comm)
+                         comm=comm, log=log)
         assert not self.soc
-        self.kin_stencil_range = nn
-        self.interpolation_stencil_range = interpolation
+        assert self.qspiral_v is None
+        self.kin_stencil_range = params.mode.nn
+        self.interpolation_stencil_range = params.mode.interpolation
 
         self._nct_aR = None
         self._tauct_aR = None
@@ -58,8 +58,8 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.grid, self.relpos_ac, atomdist=self.atomdist)
         return self._tauct_aR
 
-    def create_potential_calculator(self, log):
-        env = self.create_environment(self.fine_grid, log)
+    def create_potential_calculator(self):
+        env = self.create_environment(self.fine_grid)
         poisson_solver = env.create_poisson_solver(
             grid=self.fine_grid, xp=self.xp, **self.params.poissonsolver)
         return FDPotentialCalculator(
@@ -67,7 +67,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             relpos_ac=self.relpos_ac, atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
             environment=env,
-            extensions=self.get_extensions(log),
+            extensions=self.get_extensions(),
             xp=self.xp)
 
     def create_hamiltonian_operator(self):
@@ -86,8 +86,8 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         basis_set.lcao_to_grid(C_nM.data, psit_nR.data[:mynbands], q)
         return psit_nR.to_xp(self.xp)
 
-    def read_ibz_wave_functions(self, reader, log):
-        ibzwfs = super().read_ibz_wave_functions(reader, log)
+    def read_ibz_wave_functions(self, reader):
+        ibzwfs = super().read_ibz_wave_functions(reader)
 
         if 'coefficients' in reader.wave_functions:
             name = 'coefficients'
