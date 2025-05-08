@@ -29,7 +29,7 @@ class Logger:
         elif not hasattr(comm, 'rank'):
             comm = world.new_communicator(list(comm))
 
-        self.comm: MPIComm = comm
+        self.comm: MPIComm = comm  # type: ignore
 
         self.fd: IO[str]
 

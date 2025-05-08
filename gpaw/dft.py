@@ -8,7 +8,6 @@ import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from gpaw.mpi import MPIComm
-from gpaw.new.gpw import read_gpw
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from numpy.typing import DTypeLike
@@ -588,6 +587,7 @@ def GPAW(
 
     """
     from gpaw.new.ase_interface import ASECalculator
+    from gpaw.new.gpw import read_gpw
 
     if txt == '?':
         txt = '-' if filename is None else None

@@ -459,7 +459,7 @@ def ____create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     return bz
 
 
-def calculate_number_of_bands(nbands: int | str | None,
+def calculate_number_of_bands(nbands: int | str,
                               setups: Setups,
                               charge: float,
                               initial_magmom_av: Array2D,

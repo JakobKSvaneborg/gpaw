@@ -8,10 +8,8 @@ from gpaw.new.environment import Environment, FixedPotentialJellium, Jellium
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.pw.poisson import PWPoissonSolver
 from gpaw.new.solvation import Solvation
-from gpaw.new.input_parameters import register
 
 
-@register
 class SJM:
     def __init__(self,
                  *,

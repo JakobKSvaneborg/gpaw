@@ -1,7 +1,6 @@
 import numpy as np
 from ase.units import Bohr, Hartree
 
-from gpaw.new.input_parameters import register
 from gpaw.solvation.gridmem import NeedsGD
 
 
@@ -75,7 +74,6 @@ class Interaction(NeedsGD):
         pass
 
 
-@register
 class SurfaceInteraction(Interaction):
     """An interaction with energy proportional to the cavity surface area."""
 

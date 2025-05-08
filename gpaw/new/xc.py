@@ -28,7 +28,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
     exx_fraction = 0.0
     exx_omega = 0.0
     if isinstance(xc, (str, dict)):
-        xc = XC(xc, xp=xp)
+        xc = XC(xc)
 
     if xc.type == 'HYB':
         assert isinstance(xc, HybridXC)

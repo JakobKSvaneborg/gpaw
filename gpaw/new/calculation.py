@@ -399,7 +399,7 @@ class DFTCalculation:
             log=None) -> DFTCalculation:
         """Create new DFTCalculation object."""
 
-        if params.mode['name'] != 'pw':
+        if params.mode.name != 'pw':
             raise ReuseWaveFunctionsError
 
         ibzwfs = self.ibzwfs
