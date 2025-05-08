@@ -434,7 +434,7 @@ class PWLFC:  # (BaseLFC)
             G_Gv = xp.asarray(self.pw.G_plus_k_Gv[G1:G2],
                               dtype=as_real_dtype(self.dtype))
             if self.real:
-                d_GI = xp.empty(f_GI.shape, as_real_dtype(self.dtype))
+                d_GI = xp.empty_like(f_GI)
                 for v in range(3):
                     d_GI[::2] = f_GI[1::2] * G_Gv[:, v, np.newaxis]
                     d_GI[1::2] = f_GI[::2] * G_Gv[:, v, np.newaxis]
