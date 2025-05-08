@@ -143,26 +143,24 @@ def block_step(psit_nX,
     """
     buff_nX = work1_nX
     dR_nX = work2_nX
-    # ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
 
     Ht(PR_nX, out=dR_nX)
-    #P_ani = pt_aiX.integrate(PR_nX)
     calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,
                         dH, dS_aii, P1_ani, P2_ani)
-    preconditioner(psit_nX, dR_nX, out=buff_nX, ekin_n=ekin_n)
-    tmp = dR_nX
-    dR_nX = buff_nX
-    buff_nX = tmp
+    preconditioner(psit_nX, PR_nX, out=buff_nX,
+                   ekin_n=ekin_n, inverse=True)
     a_n = psit_nX.xp.asarray(
-        [-d_X.integrate(r_X) for d_X, r_X in zip(dR_nX, PR_nX)]) #  XXX PR_nX should be R_nX
+        [-d_X.integrate(r_X) for d_X, r_X in zip(dR_nX, buff_nX)])
     b_n = dR_nX.norm2()
+
+    preconditioner(psit_nX, dR_nX, out=buff_nX, ekin_n=ekin_n)
     shape = (len(a_n),) + (1,) * (psit_nX.data.ndim - 1)
     lambda_n = (a_n / b_n).reshape(shape)
     PR_nX.data *= lambda_n
     psit_nX.data += PR_nX.data
-    dR_nX.data *= lambda_n
+    buff_nX.data *= lambda_n
     #R_nX.data += dR_nX.data
-    PR_nX.data += dR_nX.data
+    PR_nX.data += buff_nX.data
     if trial_step is None:
         PR_nX.data *= lambda_n
     else:

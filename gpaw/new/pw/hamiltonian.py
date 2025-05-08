@@ -10,6 +10,7 @@ from gpaw.gpu import cupy as cp
 from gpaw.new import trace, zips
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.c import pw_precond, pw_insert_gpu
+from gpaw.purepython import inverse_pw_precond
 from gpaw.utilities import as_complex_dtype
 
 
@@ -102,7 +103,8 @@ class PWHamiltonian(Hamiltonian):
 def precondition(psit_nG: PWArray,
                  residual_nG: PWArray,
                  out: PWArray,
-                 ekin_n=None) -> None:
+                 ekin_n=None,
+                 inverse=False) -> None:
     """Preconditioner for KS equation.
 
     From:
@@ -122,11 +124,19 @@ def precondition(psit_nG: PWArray,
         for r_G, o_G, ekin in zips(residual_nG.data,
                                    out.data,
                                    ekin_n):
-            pw_precond(G2_G, r_G, ekin, o_G)
+            if inverse:
+                inverse_pw_precond(G2_G, r_G, ekin, o_G)
+            else:
+                pw_precond(G2_G, r_G, ekin, o_G)
     else:
-        out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
-                               G2_G[np.newaxis],
-                               residual_nG.data)
+        if inverse:
+            out.data[:] = invserse_gpu_rec(ekin_n[:, np.newaxis],
+                                           G2_G[np.newaxis],
+                                           residual_nG.data)
+        else:
+            out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
+                                G2_G[np.newaxis],
+                                residual_nG.data)
     return ekin_n
 
 
@@ -137,6 +147,14 @@ def gpu_prec(ekin, G2, residual):
     a = 27.0 + x * (18.0 + x * (12.0 + x * 8.0))
     xx = x * x
     return -4.0 / 3 / ekin * a / (a + 16.0 * xx * xx) * residual
+
+@trace(gpu=True)
+@cp.fuse()
+def invserse_gpu_rec(ekin, G2, residual):
+    x = 1 / ekin / 3 * G2
+    a = 27.0 + x * (18.0 + x * (12.0 + x * 8.0))
+    xx = x * x
+    return -3.0 / 4.0 * ekin / a * (a + 16.0 * xx * xx) * residual
 
 
 def spinor_precondition(psit_nsG, residual_nsG, out):
