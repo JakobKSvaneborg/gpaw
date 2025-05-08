@@ -1,12 +1,10 @@
 import pytest
-from gpaw.new.input_parameters import register
-from gpaw.new.extensions import ExtensionParameter, Extension
+from gpaw.new.extensions import Extension
 from ase.units import Hartree, Bohr
 import numpy as np
 
 
-@register
-class Spring(ExtensionParameter):
+class Spring:
     def __init__(self, *, a1, a2, l, k):
         self.a1, self.a2, self.l, self.k = a1, a2, l, k
 

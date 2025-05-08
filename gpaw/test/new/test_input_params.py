@@ -1,5 +1,7 @@
-from gpaw.new.input_parameters import parameter_functions
+from gpaw.dft import Parameters
+import pytest
 
 
-def test_order():
-    assert list(parameter_functions) == sorted(parameter_functions)
+def test_params():
+    with pytest.raises():
+        Parameters()

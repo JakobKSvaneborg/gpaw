@@ -3,7 +3,7 @@ from ase.build import molecule
 from gpaw.calculator import (GPAW as OldGPAW,
                              DeprecatedParameterWarning as OldDPW)
 from gpaw.new.ase_interface import GPAW as NewGPAW
-from gpaw.new.input_parameters import DeprecatedParameterWarning as NewDPW
+from gpaw.dft import DeprecatedParameterWarning as NewDPW
 import pytest
 
 

@@ -88,6 +88,12 @@ class DFTCalculation:
         self.energies = energies or DFTEnergies()
         self.forces_have_been_printed = False
 
+    def __getattr__(self, name):
+        for ext in self.pot_calc.extensions:
+            if ext.name == name:
+                return ext
+        raise AttributeError
+
     @classmethod
     def from_parameters(cls,
                         atoms: Atoms,
