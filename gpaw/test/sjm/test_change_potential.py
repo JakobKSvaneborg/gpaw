@@ -3,6 +3,7 @@ from .base_calc import calculator
 from ase.build import fcc111
 
 
+@pytest.mark.skip('https://gitlab.com/gpaw/gpaw/-/issues/1381')
 @pytest.mark.old_gpaw_only
 def test_change_potential():
     atoms = fcc111('H', size=(1, 1, 1), a=2.5)
