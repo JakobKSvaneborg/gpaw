@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import importlib
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Sequence, Union, Any
+from typing import IO, TYPE_CHECKING, Any, Sequence, Union
 
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
+from numpy.typing import DTypeLike
+
 from gpaw.mpi import MPIComm
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
-from numpy.typing import DTypeLike
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
@@ -61,14 +63,16 @@ class Parameter:
 class Mode(Parameter):
     def __init__(self,
                  *,
+                 interpolation: int | str | None = None,
                  dtype: DTypeLike | None = None,
                  force_complex_dtype: bool = False):
         self.dtype = dtype
         self.force_complex_dtype = force_complex_dtype
+        self.interpolation = interpolation
         self.name = self.__class__.__name__.lower()
 
     def todict(self) -> dict:
-        dct = self._not_none('dtype')
+        dct = self._not_none('dtype', 'interpolation')
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
         return dct
@@ -79,8 +83,15 @@ class Mode(Parameter):
             mode = {'name': mode}
         if isinstance(mode, dict):
             mode = mode.copy()
-            return {'pw': PW}[mode.pop('name')](**mode)
+            return {'pw': PW,
+                    'lcao': LCAO,
+                    'fd': FD}[mode.pop('name')](**mode)
         return mode
+
+    def dft_components_builder(self, atoms, params, *, log=None, comm=None):
+        module = importlib.import_module(f'gpaw.new.{self.name}.builder')
+        return getattr(module, f'{self.name.upper()}DFTComponentsBuilder')(
+            atoms, params, log=log, comm=comm)
 
 
 class PW(Mode):
@@ -89,24 +100,26 @@ class PW(Mode):
                  *,
                  qspiral=None,
                  dedecut=None,
+                 interpolation: int | str | None = None,
                  dtype: DTypeLike | None = None,
                  force_complex_dtype: bool = False):
         self.ecut = ecut
         self.qspiral = qspiral
         self.dedecut = dedecut
-        super().__init__(dtype=dtype,
+        super().__init__(interpolation=interpolation,
+                         dtype=dtype,
                          force_complex_dtype=force_complex_dtype)
 
     def todict(self):
         return {**super().todict(),
                 **self._not_none('ecut', 'qspiral', 'dedecut')}
 
-    def dft_components_builder(self, atoms, params, *, log=None, comm=None):
-        from gpaw.new.pw.builder import PWDFTComponentsBuilder
-        return PWDFTComponentsBuilder(atoms, params, log=log, comm=comm)
-
 
 class LCAO(Mode):
+    pass
+
+
+class FD(Mode):
     pass
 
 
@@ -345,7 +358,7 @@ class MonkhorstPack(KPoints):
         if self.density is not None:
             dct['density'] = self.density
         if self.gamma is not None:
-            dct['gama'] = self.gamma
+            dct['gamma'] = self.gamma
         return dct
 
     @classmethod
