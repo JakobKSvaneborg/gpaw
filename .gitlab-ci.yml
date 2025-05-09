@@ -5,12 +5,12 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
-  # CI for branches inside the GPAW namespace will run on camd-runner2
+  # CI for branches inside the GPAW namespace will run on lyn/torden
   # because the GPAW project settings define the CI variable
   # DEFAULT_RUNNER_TAG: "linux".
   # Forks will instead get this definition which allows running
   # pipelines on shared runners.
-  DEFAULT_RUNNER_TAG: "xeon40"
+  DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
 
   # OpenMPI binds processes to specific physical cores (cf. mpiexec
@@ -42,8 +42,6 @@ stages:
 
 .build:
   stage: build
-  tags:
-    - xeon40
   before_script:
     - !reference [default, before_script]
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
@@ -606,8 +604,6 @@ docs:
 nightly-all:
   image: $IMAGE_MAIN_LATEST
   stage: build
-  tags:
-    - xeon40
   script:
     - echo This is only a dummy job used to trigger other jobs
   rules:
