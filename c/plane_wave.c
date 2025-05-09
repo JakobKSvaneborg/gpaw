@@ -73,7 +73,10 @@ PyObject *pw_precond(PyObject *self, PyObject *args)
 PyObject *pwlfc_expand(PyObject *self, PyObject *args)
 {
     PyArrayObject *f_Gs_obj;
-    PyArrayObject *emiGR_Ga_obj;
+    //PyArrayObject *emiGR_Ga_obj;
+    PyArrayObject *GK_Gv_obj;
+    PyArrayObject *pos_avT_obj;
+    PyArrayObject *eikR_a_obj;
     PyArrayObject *Y_GL_obj;
     PyArrayObject *l_s_obj;
     PyArrayObject *a_J_obj;
@@ -81,24 +84,30 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     int cc;
     PyArrayObject *f_GI_obj;
 
-    if (!PyArg_ParseTuple(args, "OOOOOOiO",
-                          &f_Gs_obj, &emiGR_Ga_obj, &Y_GL_obj,
+    if (!PyArg_ParseTuple(args, "OOOOOOOOiO",
+                          &f_Gs_obj, &GK_Gv_obj, &pos_avT_obj,
+                          &eikR_a_obj, &Y_GL_obj,
                           &l_s_obj, &a_J_obj, &s_J_obj,
                           &cc, &f_GI_obj))
         return NULL;
 
     double *f_Gs = PyArray_DATA(f_Gs_obj);
-    double complex *emiGR_Ga = PyArray_DATA(emiGR_Ga_obj);
+    double *GK_Gv = PyArray_DATA(GK_Gv_obj);
+    double *pos_avT = PyArray_DATA(pos_avT_obj);
+    double complex *eikR_a = PyArray_DATA(eikR_a_obj);
+    
+    //double complex *emiGR_Ga = PyArray_DATA(emiGR_Ga_obj);
+    
     double *Y_GL = PyArray_DATA(Y_GL_obj);
     npy_int32 *l_s = PyArray_DATA(l_s_obj);
     npy_int32 *a_J = PyArray_DATA(a_J_obj);
     npy_int32 *s_J = PyArray_DATA(s_J_obj);
     double *f_GI = PyArray_DATA(f_GI_obj);
 
-    int nG = PyArray_DIM(emiGR_Ga_obj, 0);
+    int nG = PyArray_DIM(GK_Gv_obj, 0);
     int nJ = PyArray_DIM(a_J_obj, 0);
     int nL = PyArray_DIM(Y_GL_obj, 1);
-    int natoms = PyArray_DIM(emiGR_Ga_obj, 1);
+    int natoms = PyArray_DIM(pos_avT_obj, 1);
     int nsplines = PyArray_DIM(f_Gs_obj, 1);
 
     double complex imag_powers[4] = {1.0, -I, -1.0, I};
@@ -108,7 +117,12 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
                 int l = l_s[s];
-                double complex f1 = (emiGR_Ga[a_J[J]] *
+                double complex emiGR = 0;
+                for (int v = 0; v < 3; v++) {
+                    emiGR += GK_Gv[v] * pos_avT[v * natoms + a_J[J]];
+                }
+                emiGR = exp(-I * emiGR) * eikR_a[a_J[J]];
+                double complex f1 = (emiGR *
                                      f_Gs[s] *
                                      imag_powers[l % 4]);
                 for (int m = 0; m < 2 * l + 1; m++) {
@@ -118,7 +132,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
                 }
             }
             f_Gs += nsplines;
-            emiGR_Ga += natoms;
+            GK_Gv += 3;
             Y_GL += nL;
         }
     else {
@@ -127,7 +141,12 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
                 int l = l_s[s];
-                double complex f1 = (emiGR_Ga[a_J[J]] *
+                double complex emiGR = 0;
+                for (int v = 0; v < 3; v++) {
+                    emiGR += GK_Gv[v] * pos_avT[v * natoms + a_J[J]];
+                }
+                emiGR = exp(-I * emiGR) * eikR_a[a_J[J]];
+                double complex f1 = (emiGR *
                                      f_Gs[s] *
                                      imag_powers[l % 4]);
                 for (int m = 0; m < 2 * l + 1; m++) {
@@ -138,7 +157,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
                 }
             }
             f_Gs += nsplines;
-            emiGR_Ga += natoms;
+            GK_Gv += 3;
             Y_GL += nL;
             f_GI += nI;
         }
