@@ -222,14 +222,14 @@ class PWLFC:  # (BaseLFC)
             as_real_dtype(self.dtype))
 
         self.pos_avT = xp.asarray(self.pos_av.T,
-                                    as_real_dtype(self.dtype))
+                                  as_real_dtype(self.dtype))
         self.G_plus_k_Gv_gpu = self.xp.asarray(self.pw.G_plus_k_Gv,
-                                                as_real_dtype(self.dtype))
+                                               as_real_dtype(self.dtype))
         Gk_Gv = self.pw.G_plus_k_Gv
         GkR_Ga = Gk_Gv @ self.pos_av.T
         self.emiGR_Ga = (xp.exp(-1j * GkR_Ga)
-                            * self.eikR_a).astype(
-                                as_complex_dtype(self.dtype))
+                         * self.eikR_a).astype(
+                             as_complex_dtype(self.dtype))
 
         rank_a = atomdist.rank_a
 
@@ -284,14 +284,8 @@ class PWLFC:  # (BaseLFC)
             f_GI = xp.empty((2 * (G2 - G1), self.nI),
                             as_real_dtype(self.dtype))
 
-        #if False:
-        #    from gpaw.purepython import pwlfc_expand
-        #    pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
-        #                 self.l_s, self.a_J, self.s_J,
-        #                 cc, f_GI)
         if xp is np:
             # Fast C-code:
-            #breakpoint()
             pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
                          self.l_s, self.a_J, self.s_J,
                          cc, f_GI)
@@ -324,7 +318,7 @@ class PWLFC:  # (BaseLFC)
             yield 0, nG
 
     @trace
-    def get_emiGR_Ga(self, G1, G2):        
+    def get_emiGR_Ga(self, G1, G2):
         if self.emiGR_Ga is None:
             Gk_Gv = self.G_plus_k_Gv_gpu[G1:G2]
             GkR_Ga = Gk_Gv @ self.pos_avT
