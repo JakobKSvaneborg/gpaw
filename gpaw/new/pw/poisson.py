@@ -276,9 +276,13 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         self.eps = eps
         self.maxiter = maxiter
         self.zero_vacuum = zero_vacuum
+        self.drho_g = None
+        self.dphi_g = None
         if zero_vacuum:
-            self.drhot_g = pw.empty()
-
+            drho_g = dipole_layer(grid).fft(pw=pw)
+            self.dphi_g = pw.zeros()
+            self._solve(self.dphi_g, drho_g)
+            self.drho_g = drho_g
 
     def __str__(self) -> str:
         txt = ('conjugate gradient poisson solver:\n'
@@ -326,9 +330,13 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
 
             eps_gradients.append(epsg_ug.fft(pw=self.pw).data)
 
-        return np.sum([G * epsg
-                       for G, epsg in zip([Gx, Gy, Gz], eps_gradients)],
-                      axis=0)
+        ophi_g = np.sum([G * epsg
+                         for G, epsg in zip([Gx, Gy, Gz], eps_gradients)],
+                        axis=0)
+        if self.drho_g is not None:
+            slope = self.drho_g.integrate(phi_q)
+            ophi_g += self.dphi_g * slope
+        return ophi_g
 
     def _solve(self,
                vHt_g,
@@ -352,7 +360,7 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
             warnings.warn(
                 f'Conjugate gradient did not converge (info={info})')
 
-        if self.zero_vacuum:
+        if 0:  # self.zero_vacuum:
             self.correct_slope(vHt_g)
 
         epot = 0.5 * vHt_g.integrate(rhot_g)
@@ -373,3 +381,15 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
             vHt0_r.data -= vHt0_r.data[:, :, -1].mean()
             vHt0_r.fft(out=vHt0_g)
         vHt_g.scatter_from(vHt0_g)
+
+
+def dipole_layer(grid: UGDesc):
+    a_r = grid.empty()
+    h = grid.cell_cv[2, 2]
+    z_r = grid.xyz()[2]
+    z_r += h / 2
+    z_r %= h
+    z_r -= h / 2
+    alpha = 3.0
+    a_r.data[:] = 4 * alpha**1.5 / np.pi**0.5 * np.exp(-alpha * z_r**2)
+    return a_r

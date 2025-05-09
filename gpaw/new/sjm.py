@@ -178,7 +178,9 @@ def diplayer():
     G = Symbol('G', positive=True)
     b = Symbol('b', positive=True)
     m = integrate(sin(G * z) * z * exp(-b * z**2), (z, 0, oo))
-    print(m)  # -b*cos(G*b)/G + sin(G*b)/G**2
+    print(m)
+    m = integrate(z**2 * exp(-b * z**2), (z, 0, oo))
+    print(m)
 
 
 def saw_tooth(pw: PWDesc, width: float = 0.5) -> PWArray:
