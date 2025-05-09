@@ -20,10 +20,21 @@ parallel_i = parallel_options(fix_sl_auto=True)
 
 
 @pytest.fixture(scope='module')
-def initialize_system(gpw_files):
+def nacl_spin(gpw_files):
+    return gpw_files['nacl_spin']
+
+
+@pytest.fixture(scope='module')
+def nacl_nospin(gpw_files):
+    return gpw_files['nacl_nospin']
+
+
+@pytest.fixture(scope='module')
+@only_on_master(world)
+def initialize_system(nacl_nospin):
     comm = serial_comm
-    calc = GPAW(gpw_files['nacl_nospin'], communicator=comm)
-    fdm = calculate_time_propagation(gpw_files['nacl_nospin'],
+    calc = GPAW(nacl_nospin, communicator=comm)
+    fdm = calculate_time_propagation(nacl_nospin,
                                      kick=np.ones(3) * 1e-5,
                                      communicator=comm,
                                      do_fdm=True)
@@ -278,10 +289,11 @@ def test_read_ksd(ksd_reference):
 
 
 @pytest.fixture(scope='module')
+@only_on_master(world)
 @workdir('spinpol', mkdir=True)
-def initialize_system_spinpol(gpw_files):
+def initialize_system_spinpol(nacl_spin):
     comm = serial_comm
-    calculate_time_propagation(gpw_files['nacl_spin'],
+    calculate_time_propagation(nacl_spin,
                                kick=np.ones(3) * 1e-5,
                                communicator=comm,
                                do_fdm=True)
