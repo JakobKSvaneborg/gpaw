@@ -20,7 +20,6 @@ parallel_i = parallel_options(fix_sl_auto=True)
 
 
 @pytest.fixture(scope='module')
-@only_on_master(world)
 def initialize_system(gpw_files):
     comm = serial_comm
     calc = GPAW(gpw_files['nacl_nospin'], communicator=comm)
@@ -279,7 +278,6 @@ def test_read_ksd(ksd_reference):
 
 
 @pytest.fixture(scope='module')
-@only_on_master(world)
 @workdir('spinpol', mkdir=True)
 def initialize_system_spinpol(gpw_files):
     comm = serial_comm
