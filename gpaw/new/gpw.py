@@ -360,7 +360,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         atoms, ibzwfs, density, potential,
         builder.setups,
         builder.create_scf_loop(),
-        pot_calc=builder.create_potential_calculator(log),
+        pot_calc=builder.create_potential_calculator(),
         params=params,
         energies=energies,
         log=log)

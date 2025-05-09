@@ -36,7 +36,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             self.setups,
             self.atoms)
 
-    def read_ibz_wave_functions(self, reader, log):
+    def read_ibz_wave_functions(self, reader):
         kpt_comm, band_comm, domain_comm = (self.communicators[x]
                                             for x in 'kbd')
 
@@ -74,11 +74,11 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
         return ibzwfs
 
-    def create_ibz_wave_functions(self, basis, potential, *, log):
+    def create_ibz_wave_functions(self, basis, potential):
         from gpaw.new.lcao.builder import create_lcao_ibzwfs
 
         if self.params.random:
-            return self.create_random_ibz_wave_functions(log)
+            return self.create_random_ibz_wave_functions()
 
         # sl_default = self.params.parallel['sl_default']
         # sl_lcao = self.params.parallel['sl_lcao'] or sl_default
@@ -91,13 +91,13 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             self.relpos_ac, self.grid, self.dtype,
             lcaonbands, self.ncomponents, self.atomdist, self.nelectrons)
 
-        log('\nDiagonalizing LCAO Hamiltonian', flush=True)
+        self.log('\nDiagonalizing LCAO Hamiltonian', flush=True)
 
         hamiltonian = LCAOHamiltonian(basis)
         LCAOEigensolver(basis).iterate(
             lcao_ibzwfs, None, potential, hamiltonian)
 
-        log('Converting LCAO to grid', flush=True)
+        self.log('Converting LCAO to grid', flush=True)
 
         def create_wfs(spin, q, k, kpt_c, weight):
             lcaowfs = lcao_ibzwfs.wfs_qs[q][spin]
@@ -138,8 +138,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             kpt_band_comm=self.communicators['D'],
             comm=self.communicators['w'])
 
-    def create_random_ibz_wave_functions(self, log):
-        log('Initializing wave functions with random numbers')
+    def create_random_ibz_wave_functions(self):
+        self.log('Initializing wave functions with random numbers')
 
         def create_wfs(spin, q, k, kpt_c, weight):
             desc = self.wf_desc.new(kpt=kpt_c)

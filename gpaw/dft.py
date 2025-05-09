@@ -60,18 +60,20 @@ class Parameter:
 
 
 class Mode(Parameter):
+    qspiral = None
+
     def __init__(self,
                  *,
-                 interpolation: int | str | None = None,
-                 dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
+                 interpolation: int | str,
+                 dtype: DTypeLike | None,
+                 force_complex_dtype: bool):
         self.dtype = dtype
         self.force_complex_dtype = force_complex_dtype
         self.interpolation = interpolation
         self.name = self.__class__.__name__.lower()
 
     def todict(self) -> dict:
-        dct = self._not_none('dtype', 'interpolation')
+        dct = self._not_none('dtype')
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
         return dct
@@ -99,7 +101,7 @@ class PW(Mode):
                  *,
                  qspiral=None,
                  dedecut=None,
-                 interpolation: int | str | None = None,
+                 interpolation: int | str = 'fft',
                  dtype: DTypeLike | None = None,
                  force_complex_dtype: bool = False):
         self.ecut = ecut
@@ -110,8 +112,10 @@ class PW(Mode):
                          force_complex_dtype=force_complex_dtype)
 
     def todict(self):
-        return {**super().todict(),
-                **self._not_none('ecut', 'qspiral', 'dedecut')}
+        dct = super().todict()
+        dct |= self._not_none('ecut', 'qspiral', 'dedecut')
+        if self.interpolation != 'fft':
+            dct['interpolation'] = self.interpolation
 
 
 class LCAO(Mode):
@@ -119,8 +123,6 @@ class LCAO(Mode):
 
 
 class FD(Mode):
-    qspiral = None
-
     def __init__(self,
                  *,
                  nn=3,

@@ -126,7 +126,7 @@ class DFTCalculation:
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
-            basis_set, potential, log=log)
+            basis_set, potential)
 
         if ibzwfs.wfs_qs[0][0]._eig_n is not None:
             nelectrons = (density.nvalence - density.charge +
