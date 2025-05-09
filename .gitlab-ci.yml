@@ -609,6 +609,7 @@ nightly-all:
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
       when: manual
+      allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
