@@ -75,7 +75,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     PyArrayObject *f_Gs_obj;
     //PyArrayObject *emiGR_Ga_obj;
     PyArrayObject *GK_Gv_obj;
-    PyArrayObject *pos_avT_obj;
+    PyArrayObject *pos_av_obj;
     PyArrayObject *eikR_a_obj;
     PyArrayObject *Y_GL_obj;
     PyArrayObject *l_s_obj;
@@ -85,7 +85,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     PyArrayObject *f_GI_obj;
 
     if (!PyArg_ParseTuple(args, "OOOOOOOOiO",
-                          &f_Gs_obj, &GK_Gv_obj, &pos_avT_obj,
+                          &f_Gs_obj, &GK_Gv_obj, &pos_av_obj,
                           &eikR_a_obj, &Y_GL_obj,
                           &l_s_obj, &a_J_obj, &s_J_obj,
                           &cc, &f_GI_obj))
@@ -93,7 +93,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
 
     double *f_Gs = PyArray_DATA(f_Gs_obj);
     double *GK_Gv = PyArray_DATA(GK_Gv_obj);
-    double *pos_avT = PyArray_DATA(pos_avT_obj);
+    double *pos_av = PyArray_DATA(pos_av_obj);
     double complex *eikR_a = PyArray_DATA(eikR_a_obj);
     
     //double complex *emiGR_Ga = PyArray_DATA(emiGR_Ga_obj);
@@ -107,7 +107,6 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     int nG = PyArray_DIM(GK_Gv_obj, 0);
     int nJ = PyArray_DIM(a_J_obj, 0);
     int nL = PyArray_DIM(Y_GL_obj, 1);
-    int natoms = PyArray_DIM(pos_avT_obj, 1);
     int nsplines = PyArray_DIM(f_Gs_obj, 1);
 
     double complex imag_powers[4] = {1.0, -I, -1.0, I};
@@ -119,9 +118,9 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
                 int l = l_s[s];
                 double complex emiGR = 0;
                 for (int v = 0; v < 3; v++) {
-                    emiGR += GK_Gv[v] * pos_avT[v * natoms + a_J[J]];
+                    emiGR += GK_Gv[v] * pos_av[v + 3 * a_J[J]];
                 }
-                emiGR = exp(-I * emiGR) * eikR_a[a_J[J]];
+                emiGR = cexp(-I * emiGR) * eikR_a[a_J[J]];
                 double complex f1 = (emiGR *
                                      f_Gs[s] *
                                      imag_powers[l % 4]);
@@ -143,9 +142,9 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
                 int l = l_s[s];
                 double complex emiGR = 0;
                 for (int v = 0; v < 3; v++) {
-                    emiGR += GK_Gv[v] * pos_avT[v * natoms + a_J[J]];
+                    emiGR += GK_Gv[v] * pos_av[v + 3 * a_J[J]];
                 }
-                emiGR = exp(-I * emiGR) * eikR_a[a_J[J]];
+                emiGR = cexp(-I * emiGR) * eikR_a[a_J[J]];
                 double complex f1 = (emiGR *
                                      f_Gs[s] *
                                      imag_powers[l % 4]);

@@ -263,8 +263,8 @@ class PWLFC:  # (BaseLFC)
             G2 = self.Y_GL.shape[0]
 
         emiGR_Ga = self.get_emiGR_Ga(G1, G2)
-        Gk_Gv, pos_avT, eikR_a \
-            = (self.G_plus_k_Gv_gpu[G1:G2], self.pos_avT,
+        Gk_Gv, pos_av, eikR_a \
+            = (self.G_plus_k_Gv_gpu[G1:G2], self.pos_av,
                xp.asarray(self.eikR_a, dtype=as_complex_dtype(self.dtype)))
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
@@ -291,7 +291,8 @@ class PWLFC:  # (BaseLFC)
         #                 cc, f_GI)
         if xp is np:
             # Fast C-code:
-            pwlfc_expand(f_Gs, Gk_Gv, pos_avT, eikR_a, Y_GL,
+            #breakpoint()
+            pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
                          self.l_s, self.a_J, self.s_J,
                          cc, f_GI)
         elif cupy_is_fake:
