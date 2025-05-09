@@ -15,13 +15,12 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  *,
                  comm,
                  log):
+        self.interpolation_stencil_range = params.interpolation or 3
         super().__init__(atoms,
                          params,
                          comm=comm, log=log)
         assert not self.soc
         assert self.qspiral_v is None
-        self.kin_stencil_range = params.mode.nn
-        self.interpolation_stencil_range = params.mode.interpolation
 
         self._nct_aR = None
         self._tauct_aR = None
@@ -37,7 +36,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.atoms.pbc,
             self.ibz.symmetries,
             h=self.params.h,
-            interpolation='not fft',
+            interpolation=self.interpolation_stencil_range,
             comm=self.communicators['d'])
         fine_grid = grid.new(size=grid.size_c * 2)
         # decomposition=[2 * d for d in grid.decomposition]
@@ -73,7 +72,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     def create_hamiltonian_operator(self):
         return FDHamiltonian(self.wf_desc,
-                             kin_stencil=self.kin_stencil_range,
+                             kin_stencil=self.params.mode.nn,
                              xp=self.xp)
 
     def convert_wave_functions_from_uniform_grid(self,

@@ -19,16 +19,13 @@ def test_gpu(dtype, gpu, mode, random):
     atoms.positions[1, 0] = 0.75
     atoms.center(vacuum=1.0)
     if mode == 'fd':
-        poisson = FDPoissonSolver()
         h = 0.17
     else:
-        poisson = None
         h = None
     dft = DFT(
         atoms,
         mode={'name': mode,
               'force_complex_dtype': dtype == complex},
-        poissonsolver=poisson,
         random=random,
         h=h,
         convergence={'density': 1e-8},
@@ -40,7 +37,7 @@ def test_gpu(dtype, gpu, mode, random):
     if mode == 'pw':
         assert energy == pytest.approx(-16.032945, abs=1e-6)
     else:
-        assert energy == pytest.approx(5.071972893296197, abs=1e-6)
+        assert energy == pytest.approx(5.072459253483825, abs=1e-6)
 
 
 @pytest.mark.gpu

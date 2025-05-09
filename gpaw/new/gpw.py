@@ -345,7 +345,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
                  'band', 'stress', 'spinorbit']
         ec = {name: reader.hamiltonian.get(f'e_{name}', np.nan) / ha
               for name in NAMES}
-        ec['kinetic_correction'] = ec.pop('kinetic') - ec['band']
+        ec['kinetic_correction'] = ec['kinetic'] - ec['band']
         ec['extrapolation'] = (ec.pop('total_extrapolated') -
                                ec.pop('total_free'))
         e_stress = ec.pop('stress', np.nan) / ha

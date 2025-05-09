@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Sequence, Union
+from typing import IO, TYPE_CHECKING, Any, Sequence
 
 import numpy as np
 from ase import Atoms
@@ -18,7 +18,8 @@ if TYPE_CHECKING:
 
 PARAMETER_NAMES = [
     'mode', 'basis', 'charge', 'convergence', 'eigensolver',
-    'experimental', 'gpts', 'h', 'hund', 'extensions', 'kpts',
+    'experimental', 'gpts', 'h', 'hund', 'extensions',
+    'external', 'interpolation', 'kpts',
     'magmoms', 'maxiter', 'mixer', 'nbands', 'occupations',
     'parallel', 'poissonsolver', 'random', 'setups', 'soc',
     'spinpol', 'symmetry', 'xc']
@@ -64,12 +65,10 @@ class Mode(Parameter):
 
     def __init__(self,
                  *,
-                 interpolation: int | str,
-                 dtype: DTypeLike | None,
-                 force_complex_dtype: bool):
+                 dtype: DTypeLike | None = None,
+                 force_complex_dtype: bool = False):
         self.dtype = dtype
         self.force_complex_dtype = force_complex_dtype
-        self.interpolation = interpolation
         self.name = self.__class__.__name__.lower()
 
     def todict(self) -> dict:
@@ -86,7 +85,8 @@ class Mode(Parameter):
             mode = mode.copy()
             return {'pw': PW,
                     'lcao': LCAO,
-                    'fd': FD}[mode.pop('name')](**mode)
+                    'fd': FD,
+                    'tb': TB}[mode.pop('name')](**mode)
         return mode
 
     def dft_components_builder(self, atoms, params, *, log=None, comm=None):
@@ -101,37 +101,39 @@ class PW(Mode):
                  *,
                  qspiral=None,
                  dedecut=None,
-                 interpolation: int | str = 'fft',
                  dtype: DTypeLike | None = None,
                  force_complex_dtype: bool = False):
         self.ecut = ecut
         self.qspiral = qspiral
         self.dedecut = dedecut
-        super().__init__(interpolation=interpolation,
-                         dtype=dtype,
+        super().__init__(dtype=dtype,
                          force_complex_dtype=force_complex_dtype)
 
     def todict(self):
         dct = super().todict()
         dct |= self._not_none('ecut', 'qspiral', 'dedecut')
-        if self.interpolation != 'fft':
-            dct['interpolation'] = self.interpolation
+        return dct
 
 
 class LCAO(Mode):
-    pass
+    distribution = '?'
+
+    def __init__(self,
+                 *,
+                 dtype: DTypeLike | None = None,
+                 force_complex_dtype: bool = False):
+        super().__init__(dtype=dtype,
+                         force_complex_dtype=force_complex_dtype)
 
 
 class FD(Mode):
     def __init__(self,
                  *,
                  nn=3,
-                 interpolation: int | str | None = None,
                  dtype: DTypeLike | None = None,
                  force_complex_dtype: bool = False):
         self.nn = nn
-        super().__init__(interpolation=interpolation,
-                         dtype=dtype,
+        super().__init__(dtype=dtype,
                          force_complex_dtype=force_complex_dtype)
 
     def todict(self):
@@ -141,14 +143,24 @@ class FD(Mode):
         return dct
 
 
+class TB(Mode):
+    distribution = '?'
+
+
 class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
         if isinstance(eigensolver, str):
-            return eigensolvers[eigensolver]()
+            eigensolver = {'name': eigensolver}
+        elif not isinstance(eigensolver, dict):
+            return eigensolver
         if 'name' in eigensolver:
             eigensolver = eigensolver.copy()
-            return eigensolvers[eigensolver.pop('name')](**eigensolver)
+            name = eigensolver.pop('name')
+            if name == 'dav':
+                name = 'davidson'
+                warnings.warn('Please use "davidson" instead of "dav"')
+            return eigensolvers[name](**eigensolver)
         return DefaultEigensolver(eigensolver)
 
 
@@ -212,7 +224,8 @@ class RMMDIIS(Eigensolver):
 
 class LCAOEigensolver(Eigensolver):
     def build_lcao(self, basis, relpos_ac, cell_cv, symmetries):
-        return LCAOEigensolver(basis)
+        from gpaw.new.lcao.eigensolver import LCAOEigensolver as LCAOES
+        return LCAOES(basis)
 
 
 class HybridLCAOEigensolver(LCAOEigensolver):
@@ -254,6 +267,31 @@ class Extension(Parameter):
                 return D3(**dct)
             1 / 0
         return extension
+
+
+class Environment(Parameter):
+    @classmethod
+    def from_param(self, env):
+        if env is None:
+            return Environment()
+        if isinstance(env, dict):
+            dct = env.copy()
+            name = dct.pop('name')
+            if name == 'sjm':
+                from gpaw.new.sjm import SJM
+                return SJM(**dct)
+            1 / 0
+        return env
+
+    def build(self,
+              setups,
+              grid,
+              relpos_ac,
+              log,
+              comm,
+              nn):
+        from gpaw.new.environment import Environment as E
+        return E(len(setups))
 
 
 class Mixer(Parameter):
@@ -324,10 +362,21 @@ class Symmetry(Parameter):
 
     @classmethod
     def from_param(cls, s):
+        if isinstance(s, str):
+            if s == 'off':
+                return Symmetry(point_group=False, time_reversal=False)
+            if s == 'on':
+                return Symmetry()
+            1 / 0
         return Symmetry(**(s or {}))
 
     def todict(self):
-        return ...
+        dct = self._not_none('rotations', 'translations', 'atommaps',
+                             'extra_ids', 'tolerance')
+        for name in ['point_group', 'symmorphic', 'time_reversal']:
+            if not getattr(self, name):
+                dct[name] = False
+        return dct
 
     def build(self,
               atoms: Atoms,
@@ -415,11 +464,14 @@ class Parameters:
         charge: float = 0.0,
         convergence: dict | None = None,
         eigensolver: str | dict | Eigensolver | None = None,
+        environment=None,
         gpts: Sequence[int] | None = None,
         h: float = 0.0,
         hund: bool = False,
         experimental: dict | None = None,
         extensions: Sequence[Extension] = (),
+        external=None,
+        interpolation: int = 0,
         kpts: Sequence[int] | dict | MonkhorstPack | None = None,
         magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
         maxiter: int = 0,
@@ -485,15 +537,20 @@ class Parameters:
             warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                           stacklevel=3)
         self.mode = Mode.from_param(mode)
-        self.basis = {None: basis} if isinstance(basis, str) else basis
+        basis = basis or {}
+        self.basis = ({'default': basis} if not isinstance(basis, dict)
+                      else basis)
         self.charge = charge
         self.convergence = convergence or {}
         self.eigensolver = Eigensolver.from_param(eigensolver or {})
+        self.environment = Environment.from_param(environment)
         self.gpts = np.array(gpts) if gpts is not None else None
         self.h = h
         self.hund = hund
         self.experimental = experimental or {}
         self.extensions = [Extension.from_param(ext) for ext in extensions]
+        self.external = external,
+        self.interpolation = interpolation
         self.kpts = KPoints.from_param(kpts or (1, 1, 1))
         self.magmoms = np.array(magmoms) if magmoms is not None else None
         self.maxiter = maxiter
@@ -503,10 +560,12 @@ class Parameters:
         self.parallel = parallel or {}
         self.poissonsolver = PoissonSolver.from_param(poissonsolver or {})
         self.random = random
-        self.setups = {None: setups} if isinstance(setups, str) else setups
+        setups = setups or 'paw'
+        self.setups = ({'default': setups} if isinstance(setups, str)
+                       else setups)
         self.soc = soc
         self.spinpol = spinpol
-        self.symmetry = Symmetry.from_param(symmetry)
+        self.symmetry = Symmetry.from_param(symmetry or 'on')
         self.xc = XC.from_param(xc)
         _fix_legacy_stuff(self)
 
@@ -566,11 +625,14 @@ def DFT(
     charge: float = 0.0,
     convergence: dict | None = None,
     eigensolver: dict | Eigensolver | None = None,
+    environment=None,
     experimental: dict | None = None,
     gpts: Sequence[int] | None = None,
     h: float = 0.0,
     hund: bool = False,
     extensions: Sequence[Extension] = (),
+    external=None,
+    interpolation: int = 0,
     kpts: Sequence[int] | dict | MonkhorstPack | None = None,
     magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
     maxiter: int = 0,
@@ -585,7 +647,7 @@ def DFT(
     spinpol: bool = False,
     symmetry: str | dict | Symmetry = '',
     xc: str | dict | XC = 'LDA',
-    txt: str | Path | IO[str] | None = '?',
+    txt: str | Path | IO[str] | None = '-',
     communicator: MPIComm | Sequence[int] | None = None):
     """asdg
     """
@@ -595,17 +657,20 @@ def DFT(
 
 
 def GPAW(
-    filename: Union[str, Path, IO[str]] = None,
+    filename: str | Path | IO[str] | None = None,
     *,
     basis: str | dict[str | int | None, str] = '',
     charge: float = 0.0,
     convergence: dict | None = None,
     eigensolver: dict | Eigensolver | None = None,
+    environment=None,
     gpts: Sequence[int] | None = None,
     h: float = 0.0,
     hund: bool = False,
     experimental: dict | None = None,
     extensions: Sequence[Extension] = (),
+    external=None,
+    interpolation: int = 0,
     kpts: Sequence[int] | dict | MonkhorstPack | None = None,
     magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
     maxiter: int = 0,
@@ -658,4 +723,7 @@ def GPAW(
 
 def _fix_legacy_stuff(params):
     if not isinstance(params.mode, Mode):
-        params.mode = Mode.from_param(params.mode.todict())
+        dct = params.mode.todict()
+        if 'interpolation' in dct:
+            params.interpolation = dct.pop('interpolation')
+        params.mode = Mode.from_param(dct)

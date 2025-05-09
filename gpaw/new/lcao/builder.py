@@ -19,7 +19,6 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                  comm,
                  log):
         super().__init__(atoms, params, comm=comm, log=log)
-        assert params.mode.interpolation == 3
         self.distribution = params.mode.distribution
         self.basis = None
 
@@ -52,13 +51,13 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                              self.grid.cell_cv,
                              self.ibz.symmetries)
 
-    def read_ibz_wave_functions(self, reader, log):
+    def read_ibz_wave_functions(self, reader):
         c = 1
         if reader.version >= 0 and reader.version < 4:
             c = reader.bohr**1.5
 
         basis = self.create_basis_set()
-        potential = self.create_potential_calculator(log)
+        potential = self.create_potential_calculator()
         if 'coefficients' in reader.wave_functions:
             coefficients = reader.wave_functions.proxy('coefficients')
             coefficients.scale = c
@@ -76,7 +75,6 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                                   basis,
                                   potential,
                                   *,
-                                  log=None,
                                   coefficients=None):
         ibzwfs, _ = create_lcao_ibzwfs(
             basis,

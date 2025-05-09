@@ -25,8 +25,6 @@ from gpaw.typing import Array1D
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
-    interpolation = 'fft'
-
     def __init__(self,
                  atoms,
                  params,
@@ -54,7 +52,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.atoms.pbc,
             self.ibz.symmetries,
             h=self.params.h,
-            interpolation='fft',
+            interpolation=self.params.interpolation,
             ecut=self.ecut,
             comm=self.communicators['d'])
         fine_grid = grid.new(size=grid.size_c * 2)

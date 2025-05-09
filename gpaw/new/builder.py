@@ -354,23 +354,10 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
     def create_environment(self, grid):
-        if self.params.extensions:
-            (env,) = self.params.extensions
-            return env.build(
-                setups=self.setups,
-                grid=grid, relpos_ac=self.relpos_ac, log=self.log,
-                comm=self.communicators['w'],
-                nn=self.params.poissonsolver.get('nn', 3))
-
-        if 0:  # self.params.solvation:
-            from gpaw.new.solvation import Solvation
-            return Solvation(**self.params.solvation,
-                             setups=self.setups,
-                             grid=grid, relpos_ac=self.relpos_ac, log=self.log,
-                             comm=self.communicators['w'],
-                             nn=self.params.poissonsolver.get('nn', 3))
-        from gpaw.new.environment import Environment
-        return Environment(len(self.atoms))
+        return self.params.environment.build(
+            setups=self.setups,
+            grid=grid, relpos_ac=self.relpos_ac, log=self.log,
+            comm=self.communicators['w'])
 
 
 def create_communicators(comm: MPIComm = None,
@@ -520,7 +507,7 @@ def create_uniform_grid(mode: str,
                         pbc,
                         symmetries,
                         h: float | None = None,
-                        interpolation: str = None,
+                        interpolation: int = 0,
                         ecut: float = None,
                         comm: MPIComm = serial_comm) -> UGDesc:
     """Create grid in a backwards compatible way."""
@@ -528,7 +515,7 @@ def create_uniform_grid(mode: str,
     if h is not None:
         h /= Bohr
 
-    realspace = (mode != 'pw' and interpolation != 'fft')
+    realspace = (mode != 'pw' and interpolation != 0)
     if realspace:
         zerobc = [not periodic for periodic in pbc]
     else:
