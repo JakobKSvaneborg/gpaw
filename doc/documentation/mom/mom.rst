@@ -94,7 +94,7 @@ Given the wavefunction overlaps `|O_{nm}^{(k)}|`, the optimal permutation can be
 ``scipy.optimize.linear_sum_assignment``. The figure shows the absolute values of the overlap
 matrix for a fictional system with 8 bands and the initial occupations `f_n^0`.
 
-.. image:: O_nm_P_nm.png 
+.. image:: O_nm_P_nm.png
    :align: center
 
 From the visual representation of the overlap matrix in the left panel of the figure above it is immediately clear
@@ -251,10 +251,6 @@ References
 .. [#momgpaw2] G. Levi, A. V. Ivanov, H. Jónsson
                :doi:`Variational Density Functional Calculations of Excited States via Direct Optimization <10.1021/acs.jctc.0c00597>`,
                *J. Chem. Theory Comput.*, **16** 6968–6982 (2020).
-
-.. [#momgpaw3] G. Levi, A. V. Ivanov, H. Jónsson
-               :doi:`Variational Calculations of Excited States Via Direct Optimization of Orbitals in DFT <10.1039/D0FD00064G>`,
-               *Faraday Discuss.*, **224** 448-466 (2020).
 
 .. [#spinpur]  T. Ziegler, A. Rauk, E. J. Baerends
                :doi:`On the calculation of multiplet energies by the hartree-fock-slater method <10.1007/BF00551551>`

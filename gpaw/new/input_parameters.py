@@ -45,6 +45,7 @@ class InputParameters:
     convergence: dict[str, Any]
     eigensolver: dict[str, Any]
     environment: Environment
+    extensions: list | None
     experimental: dict[str, Any]
     external: dict[str, Any]
     gpts: None | Sequence[int]
@@ -168,6 +169,11 @@ def environment(value=None):
 @input_parameter
 def experimental(value=None):
     return value or {}
+
+
+@input_parameter
+def extensions(value=None):
+    return value or []
 
 
 @input_parameter
