@@ -108,22 +108,26 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     int nJ = PyArray_DIM(a_J_obj, 0);
     int nL = PyArray_DIM(Y_GL_obj, 1);
     int nsplines = PyArray_DIM(f_Gs_obj, 1);
+    int na = PyArray_DIM(eikR_a_obj, 0);
 
+    double complex *work_a = malloc(sizeof(double complex) * na);
     double complex imag_powers[4] = {1.0, -I, -1.0, I};
 
     if (PyArray_ITEMSIZE(f_GI_obj) == 16)
         for(int G = 0; G < nG; G++) {
+            for (int a = 0; a < na; a++) {
+                work_a[a] = 0;
+                for (int v = 0; v < 3; v++) {
+                    work_a[a] += GK_Gv[v] * pos_av[v + 3 * a];
+                }
+                work_a[a] = cexp(-I * work_a[a]) * eikR_a[a];
+            }
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
                 int l = l_s[s];
-                double complex emiGR = 0;
-                for (int v = 0; v < 3; v++) {
-                    emiGR += GK_Gv[v] * pos_av[v + 3 * a_J[J]];
-                }
-                emiGR = cexp(-I * emiGR) * eikR_a[a_J[J]];
-                double complex f1 = (emiGR *
-                                     f_Gs[s] *
-                                     imag_powers[l % 4]);
+                double complex f1 = (work_a[a_J[J]] * 
+                                     eikR_a[a_J[J]] *
+                                     f_Gs[s] * imag_powers[l % 4]);
                 for (int m = 0; m < 2 * l + 1; m++) {
                     double complex f = f1 * Y_GL[l * l + m];
                     *f_GI++ = creal(f);
@@ -137,17 +141,19 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     else {
         int nI = PyArray_DIM(f_GI_obj, 1);
         for(int G = 0; G < nG; G++) {
+            for (int a = 0; a < na; a++) {
+                work_a[a] = 0;
+                for (int v = 0; v < 3; v++) {
+                    work_a[a] += GK_Gv[v] * pos_av[v + 3 * a];
+                }
+                work_a[a] = cexp(-I * work_a[a]) * eikR_a[a];
+            }
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
                 int l = l_s[s];
-                double complex emiGR = 0;
-                for (int v = 0; v < 3; v++) {
-                    emiGR += GK_Gv[v] * pos_av[v + 3 * a_J[J]];
-                }
-                emiGR = cexp(-I * emiGR) * eikR_a[a_J[J]];
-                double complex f1 = (emiGR *
-                                     f_Gs[s] *
-                                     imag_powers[l % 4]);
+                double complex f1 = (work_a[a_J[J]] * 
+                    eikR_a[a_J[J]] *
+                    f_Gs[s] * imag_powers[l % 4]);
                 for (int m = 0; m < 2 * l + 1; m++) {
                     double complex f = f1 * Y_GL[l * l + m];
                     f_GI[0] = creal(f);
@@ -162,6 +168,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
         }
     }
 
+    free(work_a);
     Py_RETURN_NONE;
 }
 
