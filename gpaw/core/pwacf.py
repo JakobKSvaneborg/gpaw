@@ -257,9 +257,11 @@ class PWLFC:  # (BaseLFC)
         if G2 is None:
             G2 = self.Y_GL.shape[0]
 
-        Gk_Gv, pos_av, eikR_a \
-            = (self.G_plus_k_Gv_gpu[G1:G2], self.pos_av,
-               xp.asarray(self.eikR_a, dtype=as_complex_dtype(self.dtype)))
+        Gk_Gv = self.G_plus_k_Gv_gpu[G1:G2]
+        pos_av = self.pos_av
+        eikR_a = xp.asarray(self.eikR_a,
+                            dtype=as_complex_dtype(self.dtype))
+
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 

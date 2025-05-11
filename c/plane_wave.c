@@ -111,15 +111,24 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     int na = PyArray_DIM(eikR_a_obj, 0);
 
     double complex *work_a = malloc(sizeof(double complex) * na);
+    double *workD_a = (double*) work_a;
     double complex imag_powers[4] = {1.0, -I, -1.0, I};
 
     if (PyArray_ITEMSIZE(f_GI_obj) == 16)
         for(int G = 0; G < nG; G++) {
             for (int a = 0; a < na; a++) {
-                work_a[a] = (cexp(-I * (GK_Gv[0] * pos_av[0 + 3 * a] +
+                /*work_a[a] = (cexp(-I * (GK_Gv[0] * pos_av[0 + 3 * a] +
                                         GK_Gv[1] * pos_av[1 + 3 * a] +
                                         GK_Gv[2] * pos_av[2 + 3 * a])) *
                              eikR_a[a]);
+                */
+                workD_a[2 * a] = cos(GK_Gv[0] * pos_av[0 + 3 * a] +
+                    GK_Gv[1] * pos_av[1 + 3 * a] +
+                    GK_Gv[2] * pos_av[2 + 3 * a]);
+                workD_a[2 * a + 1] = -sin(GK_Gv[0] * pos_av[0 + 3 * a] +
+                    GK_Gv[1] * pos_av[1 + 3 * a] +
+                    GK_Gv[2] * pos_av[2 + 3 * a]);
+                work_a[a] *= eikR_a[a];
             }
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
@@ -140,10 +149,13 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
         int nI = PyArray_DIM(f_GI_obj, 1);
         for(int G = 0; G < nG; G++) {
             for (int a = 0; a < na; a++) {
-                work_a[a] = (cexp(-I * (GK_Gv[0] * pos_av[0 + 3 * a] +
-                                        GK_Gv[1] * pos_av[1 + 3 * a] +
-                                        GK_Gv[2] * pos_av[2 + 3 * a])) *
-                             eikR_a[a]);
+                workD_a[2 * a] = cos(GK_Gv[0] * pos_av[0 + 3 * a] +
+                    GK_Gv[1] * pos_av[1 + 3 * a] +
+                    GK_Gv[2] * pos_av[2 + 3 * a]);
+                workD_a[2 * a + 1] = -sin(GK_Gv[0] * pos_av[0 + 3 * a] +
+                    GK_Gv[1] * pos_av[1 + 3 * a] +
+                    GK_Gv[2] * pos_av[2 + 3 * a]);
+                work_a[a] *= eikR_a[a];
             }
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
