@@ -27,7 +27,7 @@ from importlib.machinery import PathFinder, ModuleSpec
 from gpaw import GPAW_NO_C_EXTENSION, GPAW_MPI4PY
 import gpaw.cgpaw as cgpaw
 
-if not GPAW_NO_C_EXTENSION and getattr(cgpaw, 'version', 0) != 9:
+if not GPAW_NO_C_EXTENSION and getattr(cgpaw, 'version', 0) != 10:
     raise ImportError('Please recompile GPAW''s C-extensions!')
 
 
