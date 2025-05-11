@@ -225,11 +225,6 @@ class PWLFC:  # (BaseLFC)
                                   as_real_dtype(self.dtype))
         self.G_plus_k_Gv_gpu = self.xp.asarray(self.pw.G_plus_k_Gv,
                                                as_real_dtype(self.dtype))
-        #Gk_Gv = xp.asarray(self.pw.G_plus_k_Gv)
-        #GkR_Ga = xp.asarray(Gk_Gv @ self.pos_av.T)
-        #self.emiGR_Ga = (xp.exp(-1j * GkR_Ga)
-        #                 * self.eikR_a).astype(
-        #                     as_complex_dtype(self.dtype))
 
         rank_a = atomdist.rank_a
 
@@ -262,7 +257,6 @@ class PWLFC:  # (BaseLFC)
         if G2 is None:
             G2 = self.Y_GL.shape[0]
 
-        #emiGR_Ga = self.get_emiGR_Ga(G1, G2)
         Gk_Gv, pos_av, eikR_a \
             = (self.G_plus_k_Gv_gpu[G1:G2], self.pos_av,
                xp.asarray(self.eikR_a, dtype=as_complex_dtype(self.dtype)))
