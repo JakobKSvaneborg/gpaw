@@ -124,8 +124,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
                 int l = l_s[s];
-                double complex f1 = (work_a[a_J[J]] * 
-                                     eikR_a[a_J[J]] *
+                double complex f1 = (work_a[a_J[J]] *
                                      f_Gs[s] * imag_powers[l % 4]);
                 for (int m = 0; m < 2 * l + 1; m++) {
                     double complex f = f1 * Y_GL[l * l + m];
@@ -150,8 +149,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
                 int s = s_J[J];
                 int l = l_s[s];
                 double complex f1 = (work_a[a_J[J]] * 
-                    eikR_a[a_J[J]] *
-                    f_Gs[s] * imag_powers[l % 4]);
+                                     f_Gs[s] * imag_powers[l % 4]);
                 for (int m = 0; m < 2 * l + 1; m++) {
                     double complex f = f1 * Y_GL[l * l + m];
                     f_GI[0] = creal(f);
