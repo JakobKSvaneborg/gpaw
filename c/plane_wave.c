@@ -116,11 +116,10 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     if (PyArray_ITEMSIZE(f_GI_obj) == 16)
         for(int G = 0; G < nG; G++) {
             for (int a = 0; a < na; a++) {
-                work_a[a] = 0;
-                for (int v = 0; v < 3; v++) {
-                    work_a[a] += GK_Gv[v] * pos_av[v + 3 * a];
-                }
-                work_a[a] = cexp(-I * work_a[a]) * eikR_a[a];
+                work_a[a] = (cexp(-I * (GK_Gv[0] * pos_av[0 + 3 * a] +
+                                        GK_Gv[1] * pos_av[1 + 3 * a] +
+                                        GK_Gv[2] * pos_av[2 + 3 * a])) *
+                             eikR_a[a]);
             }
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
@@ -142,11 +141,10 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
         int nI = PyArray_DIM(f_GI_obj, 1);
         for(int G = 0; G < nG; G++) {
             for (int a = 0; a < na; a++) {
-                work_a[a] = 0;
-                for (int v = 0; v < 3; v++) {
-                    work_a[a] += GK_Gv[v] * pos_av[v + 3 * a];
-                }
-                work_a[a] = cexp(-I * work_a[a]) * eikR_a[a];
+                work_a[a] = (cexp(-I * (GK_Gv[0] * pos_av[0 + 3 * a] +
+                                        GK_Gv[1] * pos_av[1 + 3 * a] +
+                                        GK_Gv[2] * pos_av[2 + 3 * a])) *
+                             eikR_a[a]);
             }
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
