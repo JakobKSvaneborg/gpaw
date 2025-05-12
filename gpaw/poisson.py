@@ -107,9 +107,10 @@ class _PoissonSolver:
     def estimate_memory(self, mem):
         raise NotImplementedError()
 
-    def build(self, grid):
+    def build(self, grid, xp):
         from gpaw.new.poisson import PoissonSolverWrapper
         self.set_grid_descriptor(grid._gd)
+        self.xp = xp
         return PoissonSolverWrapper(self)
 
 

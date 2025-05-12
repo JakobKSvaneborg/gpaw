@@ -272,6 +272,7 @@ class ASECalculator:
             self.log(f'\nMax RSS: {mib:.3f}  # MiB')
         except NameError:
             pass
+        self.log.close()
 
     def get_potential_energy(self,
                              atoms: Atoms | None = None,
