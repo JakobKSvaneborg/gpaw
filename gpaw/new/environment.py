@@ -15,8 +15,8 @@ class Environment:
         self.natoms = natoms
         self.charge = 0.0
 
-    def create_poisson_solver(self, *, grid, xp, solver) -> PoissonSolver:
-        return solver.build(grid=grid, xp=xp)
+    def create_poisson_solver(self, *, grid, solver) -> PoissonSolver:
+        return solver.build(grid=grid)
 
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,

@@ -28,23 +28,6 @@ class DeprecatedParameterWarning(FutureWarning):
     """Warning class for when a parameter or its value is deprecated."""
 
 
-class XC:
-    def __init__(self, name, **kwargs):
-        self.name = name
-        self.kwargs = kwargs
-
-    def functional(self, collinear):
-        from gpaw.xc import XC as xc
-        return xc({'name': self.name, **self.kwargs},
-                  collinear=collinear)
-
-    @classmethod
-    def from_param(cls, xc):
-        if isinstance(xc, str):
-            xc = {'name': xc}
-        return XC(**xc)
-
-
 class Parameter:
     def __repr__(self):
         args = ', '.join(f'{k}={v!r}' for k, v in self.todict().items())
@@ -57,6 +40,26 @@ class Parameter:
             if value is not None:
                 dct[key] = value
         return dct
+
+
+class XC(Parameter):
+    def __init__(self, name, **kwargs):
+        self.name = name
+        self.kwargs = kwargs
+
+    def todict(self):
+        return {'name': self.name, **self.kwargs}
+
+    def functional(self, collinear):
+        from gpaw.xc import XC as xc
+        return xc({'name': self.name, **self.kwargs},
+                  collinear=collinear)
+
+    @classmethod
+    def from_param(cls, xc):
+        if isinstance(xc, str):
+            xc = {'name': xc}
+        return XC(**xc)
 
 
 class Mode(Parameter):
@@ -332,11 +335,9 @@ class PoissonSolver(Parameter):
         return ps
 
     def build(self, *, grid, xp=np):
-        from gpaw.new.poisson import PoissonSolverWrapper
         from gpaw.poisson import PoissonSolver as make_poisson_solver
         solver = make_poisson_solver(**self.params, xp=xp)
-        solver.set_grid_descriptor(grid._gd)
-        return PoissonSolverWrapper(solver)
+        return solver.build(grid)
 
 
 def array_or_none(a):
@@ -367,6 +368,8 @@ class Symmetry(Parameter):
 
     @classmethod
     def from_param(cls, s):
+        if isinstance(s, Symmetry):
+            return s
         if isinstance(s, str):
             if s == 'off':
                 return Symmetry(point_group=False, time_reversal=False)
@@ -409,6 +412,8 @@ class BZSampling(Parameter):
         if isinstance(kpts, BZSampling):
             return kpts
         if isinstance(kpts, dict):
+            if 'kpts' in kpts:
+                return KPoints(kpts['kpts'])
             kpts = kpts.copy()
             kpts.pop('name', '')
         else:
@@ -506,14 +511,16 @@ class Parameters:
 
         >>> p = Parameters(mode=PW(400))
         >>> p
+        mode=PW(ecut=400)
         >>> p.charge
         0.0
         >>> p.xc
+        XC(name='LDA')
         >>> atoms = Atoms()
         >>> dft = p.dft_calculation(atoms)
         >>> atoms.calc = p.ase_calculator(atoms)
 
-        """ + DOCS
+        """
 
         self._non_defaults = []
         for key, value in locals().items():
@@ -743,3 +750,8 @@ def _fix_legacy_stuff(params):
         if 'interpolation' in dct:
             params.interpolation = dct.pop('interpolation')
         params.mode = Mode.from_param(dct)
+
+
+Parameters.__init__.__doc__ += DOCS
+DFT.__doc__ += DOCS
+GPAW.__doc__ += DOCS

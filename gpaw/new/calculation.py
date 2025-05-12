@@ -435,7 +435,7 @@ class DFTCalculation:
         log('Interpolating wave functions to new cell')
 
         scf_loop = builder.create_scf_loop()
-        pot_calc = builder.create_potential_calculator(log)
+        pot_calc = builder.create_potential_calculator()
 
         density = self.density.new(builder.grid,
                                    builder.interpolation_desc,

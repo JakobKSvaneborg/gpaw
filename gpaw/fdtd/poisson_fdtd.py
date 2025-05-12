@@ -244,7 +244,8 @@ class FDTDPoissonSolver:
 
     # Generated classical GridDescriptors, after spacing and cell are known
     def initialize_clgd(self):
-        N_c = get_number_of_grid_points(self.cl.cell, self.cl.spacing)
+        N_c = [get_number_of_grid_points(self.cl.cell, d)
+               for d in self.cl.spacing]
         self.cl.spacing = np.diag(self.cl.cell) / N_c
         self.cl.gd = GridDescriptor(N_c, self.cl.cell, False, self.cl.dcomm,
                                     self.cl.dparsize)
