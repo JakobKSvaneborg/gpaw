@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Sequence
+from typing import IO, TYPE_CHECKING, Any, Sequence, Union
 
 import numpy as np
 from ase import Atoms
@@ -17,11 +17,10 @@ if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
 
 PARAMETER_NAMES = [
-    'mode', 'basis', 'charge', 'convergence', 'eigensolver',
-    'experimental', 'gpts', 'h', 'hund', 'extensions',
-    'external', 'interpolation', 'kpts',
-    'magmoms', 'maxiter', 'mixer', 'nbands', 'occupations',
-    'parallel', 'poissonsolver', 'random', 'setups', 'soc',
+    'mode', 'basis', 'charge', 'convergence', 'eigensolver', 'environment',
+    'experimental', 'extensions', 'external', 'gpts', 'h', 'hund',
+    'interpolation', 'kpts', 'magmoms', 'maxiter', 'mixer', 'nbands',
+    'occupations', 'parallel', 'poissonsolver', 'random', 'setups', 'soc',
     'spinpol', 'symmetry', 'xc']
 
 
@@ -288,8 +287,7 @@ class Environment(Parameter):
               grid,
               relpos_ac,
               log,
-              comm,
-              nn):
+              comm):
         from gpaw.new.environment import Environment as E
         return E(len(setups))
 
@@ -333,6 +331,13 @@ class PoissonSolver(Parameter):
             return PoissonSolver(ps)
         return ps
 
+    def build(self, *, grid, xp=np):
+        from gpaw.new.poisson import PoissonSolverWrapper
+        from gpaw.poisson import PoissonSolver as make_poisson_solver
+        solver = make_poisson_solver(**self.params, xp=xp)
+        solver.set_grid_descriptor(grid._gd)
+        return PoissonSolverWrapper(solver)
+
 
 def array_or_none(a):
     if a is None:
@@ -367,7 +372,7 @@ class Symmetry(Parameter):
                 return Symmetry(point_group=False, time_reversal=False)
             if s == 'on':
                 return Symmetry()
-            1 / 0
+            raise ValueError()
         return Symmetry(**(s or {}))
 
     def todict(self):
@@ -398,18 +403,37 @@ class Symmetry(Parameter):
             _backwards_compatible=_backwards_compatible)
 
 
-class KPoints(Parameter):
+class BZSampling(Parameter):
     @classmethod
     def from_param(cls, kpts):
-        if isinstance(kpts, KPoints):
+        if isinstance(kpts, BZSampling):
             return kpts
         if isinstance(kpts, dict):
             kpts = kpts.copy()
             kpts.pop('name', '')
-        return MonkhorstPack.from_param(kpts)
+        else:
+            kpts = np.array(kpts)
+            if kpts.ndim == 1:
+                kpts = {'size': kpts}
+            else:
+                return KPoints(kpts)
+        return MonkhorstPack(**kpts)
 
 
-class MonkhorstPack(KPoints):
+class KPoints(BZSampling):
+    def __init__(self,
+                 kpts: Sequence[Sequence[float]]):
+        self.kpts = kpts
+
+    def todict(self):
+        return {'kpts': self.kpts}
+
+    def build(self, atoms):
+        from gpaw.new.brillouin import BZPoints
+        return BZPoints(self.kpts)
+
+
+class MonkhorstPack(BZSampling):
     def __init__(self,
                  size: Sequence[int] | None = None,
                  density: float | None = None,
@@ -428,16 +452,6 @@ class MonkhorstPack(KPoints):
             dct['gamma'] = self.gamma
         return dct
 
-    @classmethod
-    def from_param(cls,
-                   kpts: Sequence[int] | dict | MonkhorstPack
-                   ) -> MonkhorstPack:
-        if isinstance(kpts, MonkhorstPack):
-            return kpts
-        if isinstance(kpts, dict):
-            return MonkhorstPack(**kpts)
-        return MonkhorstPack(size=kpts)
-
     def build(self, atoms):
         from gpaw.new.brillouin import MonkhorstPackKPoints
         size, offset = kpts2sizeandoffsets(**self.todict(), atoms=atoms)
@@ -453,6 +467,8 @@ mode:
 basis:
     Basis-set.
 """
+
+KptsType = Union[Sequence[int], dict, Sequence[Sequence[float]]]
 
 
 class Parameters:
@@ -472,7 +488,7 @@ class Parameters:
         extensions: Sequence[Extension] = (),
         external=None,
         interpolation: int = 0,
-        kpts: Sequence[int] | dict | MonkhorstPack | None = None,
+        kpts: KptsType | MonkhorstPack | None = None,
         magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
         maxiter: int = 0,
         mixer: dict | Mixer | None = None,
@@ -551,7 +567,7 @@ class Parameters:
         self.extensions = [Extension.from_param(ext) for ext in extensions]
         self.external = external,
         self.interpolation = interpolation
-        self.kpts = KPoints.from_param(kpts or (1, 1, 1))
+        self.kpts = BZSampling.from_param((1, 1, 1) if kpts is None else kpts)
         self.magmoms = np.array(magmoms) if magmoms is not None else None
         self.maxiter = maxiter
         self.mixer = Mixer.from_param(mixer or {})
@@ -707,7 +723,7 @@ def GPAW(
 
     if filename is not None:
         args = Parameters(mode='pw', **kwargs)._non_defaults
-        if set(args) >= {'mode', 'parallel'}:
+        if set(args) > {'mode', 'parallel'}:
             raise ValueError(
                 'Illegal argument(s) when reading from a file: '
                 f'{", ".join(args)}')

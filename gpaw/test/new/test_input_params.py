@@ -3,5 +3,5 @@ import pytest
 
 
 def test_params():
-    with pytest.raises():
+    with pytest.raises(TypeError):
         Parameters()

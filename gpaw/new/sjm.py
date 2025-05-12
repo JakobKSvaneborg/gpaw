@@ -33,14 +33,13 @@ class SJM:
               grid,
               relpos_ac,
               log,
-              comm,
-              nn) -> SJMEnvironment:
+              comm) -> SJMEnvironment:
         solvation = Solvation(
             cavity=self.cavity,
             dielectric=self.dielectric,
             interactions=self.interactions,
             setups=setups, grid=grid, relpos_ac=relpos_ac,
-            log=log, comm=comm, nn=nn)
+            log=log, comm=comm, nn=3)
         h = grid.cell_cv[2, 2] * Bohr
         z1 = relpos_ac[:, 2].max() * h + 3.0
         z2 = self.jelliumregion.get('top', h - 1.0)

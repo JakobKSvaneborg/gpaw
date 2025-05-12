@@ -638,8 +638,7 @@ class ASECalculator:
                                      builder.interpolation_desc,
                                      builder.atomdist,
                                      comm1, comm2)
-        ibzwfs = builder.create_ibz_wave_functions(basis_set, potential,
-                                                   log=log)
+        ibzwfs = builder.create_ibz_wave_functions(basis_set, potential)
         ibzwfs.fermi_levels = dft.ibzwfs.fermi_levels
 
         scf_loop = builder.create_scf_loop()
@@ -652,7 +651,7 @@ class ASECalculator:
             self.atoms, ibzwfs, density, potential,
             builder.setups,
             scf_loop,
-            builder.create_potential_calculator(log=log),
+            builder.create_potential_calculator(),
             log,
             params=params,
             energies=self.dft.energies)

@@ -19,18 +19,19 @@ def test_gpu(dtype, gpu, mode, random):
     atoms.positions[1, 0] = 0.75
     atoms.center(vacuum=1.0)
     if mode == 'fd':
-        h = 0.17
+        kwargs = {'poissonsolver': FDPoissonSolver(),
+                  'h': 0.17}
     else:
-        h = None
+        kwargs = {}
     dft = DFT(
         atoms,
         mode={'name': mode,
               'force_complex_dtype': dtype == complex},
         random=random,
-        h=h,
         convergence={'density': 1e-8},
         parallel={'gpu': gpu},
-        setups='paw')
+        setups='paw',
+        **kwargs)
     dft.converge()
     dft.energy()
     energy = dft.results['energy'] * Ha
