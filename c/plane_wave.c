@@ -73,7 +73,6 @@ PyObject *pw_precond(PyObject *self, PyObject *args)
 PyObject *pwlfc_expand(PyObject *self, PyObject *args)
 {
     PyArrayObject *f_Gs_obj;
-    //PyArrayObject *emiGR_Ga_obj;
     PyArrayObject *GK_Gv_obj;
     PyArrayObject *pos_av_obj;
     PyArrayObject *eikR_a_obj;
@@ -96,8 +95,6 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     double *pos_av = PyArray_DATA(pos_av_obj);
     double complex *eikR_a = PyArray_DATA(eikR_a_obj);
     
-    //double complex *emiGR_Ga = PyArray_DATA(emiGR_Ga_obj);
-    
     double *Y_GL = PyArray_DATA(Y_GL_obj);
     npy_int32 *l_s = PyArray_DATA(l_s_obj);
     npy_int32 *a_J = PyArray_DATA(a_J_obj);
@@ -117,17 +114,11 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     if (PyArray_ITEMSIZE(f_GI_obj) == 16)
         for(int G = 0; G < nG; G++) {
             for (int a = 0; a < na; a++) {
-                /*work_a[a] = (cexp(-I * (GK_Gv[0] * pos_av[0 + 3 * a] +
-                                        GK_Gv[1] * pos_av[1 + 3 * a] +
-                                        GK_Gv[2] * pos_av[2 + 3 * a])) *
-                             eikR_a[a]);
-                */
-                workD_a[2 * a] = cos(GK_Gv[0] * pos_av[0 + 3 * a] +
-                    GK_Gv[1] * pos_av[1 + 3 * a] +
-                    GK_Gv[2] * pos_av[2 + 3 * a]);
-                workD_a[2 * a + 1] = -sin(GK_Gv[0] * pos_av[0 + 3 * a] +
-                    GK_Gv[1] * pos_av[1 + 3 * a] +
-                    GK_Gv[2] * pos_av[2 + 3 * a]);
+                double f0 = (GK_Gv[0] * pos_av[0 + 3 * a] +
+                             GK_Gv[1] * pos_av[1 + 3 * a] +
+                             GK_Gv[2] * pos_av[2 + 3 * a]);
+                workD_a[2 * a] = cos(f0);
+                workD_a[2 * a + 1] = -sin(f0);
                 work_a[a] *= eikR_a[a];
             }
             for (int J = 0; J < nJ; J++) {
@@ -149,12 +140,11 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
         int nI = PyArray_DIM(f_GI_obj, 1);
         for(int G = 0; G < nG; G++) {
             for (int a = 0; a < na; a++) {
-                workD_a[2 * a] = cos(GK_Gv[0] * pos_av[0 + 3 * a] +
-                    GK_Gv[1] * pos_av[1 + 3 * a] +
-                    GK_Gv[2] * pos_av[2 + 3 * a]);
-                workD_a[2 * a + 1] = -sin(GK_Gv[0] * pos_av[0 + 3 * a] +
-                    GK_Gv[1] * pos_av[1 + 3 * a] +
-                    GK_Gv[2] * pos_av[2 + 3 * a]);
+                double f0 = (GK_Gv[0] * pos_av[0 + 3 * a] +
+                             GK_Gv[1] * pos_av[1 + 3 * a] +
+                             GK_Gv[2] * pos_av[2 + 3 * a]);
+                workD_a[2 * a] = cos(f0);
+                workD_a[2 * a + 1] = -sin(f0);
                 work_a[a] *= eikR_a[a];
             }
             for (int J = 0; J < nJ; J++) {
