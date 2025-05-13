@@ -9,10 +9,11 @@ from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 def SolvationGPAW(*args, **kwargs):
     if GPAW_NEW:
         from gpaw.new.ase_interface import GPAW
-        solvation = dict(cavity=kwargs.pop('cavity'),
+        solvation = dict(name='solvation',
+                         cavity=kwargs.pop('cavity'),
                          dielectric=kwargs.pop('dielectric'),
                          interactions=kwargs.pop('interactions', None))
-        return GPAW(*args, **kwargs, solvation=solvation)
+        return GPAW(*args, **kwargs, environment=solvation)
     return OldSolvationGPAW(*args, **kwargs)
 
 

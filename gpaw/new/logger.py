@@ -48,6 +48,9 @@ class Logger:
 
         self.indentation = ''
 
+    def __del__(self):
+        self.close()
+
     def close(self) -> None:
         if self.close_fd:
             self.fd.close()

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 PARAMETER_NAMES = [
     'mode', 'basis', 'charge', 'convergence', 'eigensolver', 'environment',
-    'experimental', 'extensions', 'external', 'gpts', 'h', 'hund',
+    'experimental', 'extensions', 'gpts', 'h', 'hund',
     'interpolation', 'kpts', 'magmoms', 'maxiter', 'mixer', 'nbands',
     'occupations', 'parallel', 'poissonsolver', 'random', 'setups', 'soc',
     'spinpol', 'symmetry', 'xc']
@@ -40,26 +40,6 @@ class Parameter:
             if value is not None:
                 dct[key] = value
         return dct
-
-
-class XC(Parameter):
-    def __init__(self, name, **kwargs):
-        self.name = name
-        self.kwargs = kwargs
-
-    def todict(self):
-        return {'name': self.name, **self.kwargs}
-
-    def functional(self, collinear):
-        from gpaw.xc import XC as xc
-        return xc({'name': self.name, **self.kwargs},
-                  collinear=collinear)
-
-    @classmethod
-    def from_param(cls, xc):
-        if isinstance(xc, str):
-            xc = {'name': xc}
-        return XC(**xc)
 
 
 class Mode(Parameter):
@@ -162,7 +142,9 @@ class Eigensolver(Parameter):
             if name == 'dav':
                 name = 'davidson'
                 warnings.warn('Please use "davidson" instead of "dav"')
-            return eigensolvers[name](**eigensolver)
+            if name in eigensolvers:
+                return eigensolvers[name](**eigensolver)
+            raise ValueError(f'Unknown eigensolver: {name}')
         return DefaultEigensolver(eigensolver)
 
 
@@ -175,6 +157,8 @@ class DefaultEigensolver(Eigensolver):
 
 
 class Davidson(Eigensolver):
+    name = 'davidson'
+
     def __init__(self, niter: int = 2):
         self.niter = niter
 
@@ -200,6 +184,8 @@ class Davidson(Eigensolver):
 
 
 class RMMDIIS(Eigensolver):
+    name = 'rmm-diis'
+
     def __init__(self, niter: int = 2):
         self.niter = niter
 
@@ -225,6 +211,8 @@ class RMMDIIS(Eigensolver):
 
 
 class LCAOEigensolver(Eigensolver):
+    name = 'lcao'
+
     def build_lcao(self, basis, relpos_ac, cell_cv, symmetries):
         from gpaw.new.lcao.eigensolver import LCAOEigensolver as LCAOES
         return LCAOES(basis)
@@ -237,6 +225,8 @@ class HybridLCAOEigensolver(LCAOEigensolver):
 
 
 class Scissors(LCAOEigensolver):
+    name = 'scissors'
+
     def __init__(self, shifts: list):
         self.shifts = shifts
 
@@ -282,7 +272,10 @@ class Environment(Parameter):
             if name == 'sjm':
                 from gpaw.new.sjm import SJM
                 return SJM(**dct)
-            1 / 0
+            if name == 'solvation':
+                from gpaw.new.solvation import SolvationInput
+                return SolvationInput(**dct)
+            raise ValueError(f'Unknown environment: {name}')
         return env
 
     def build(self,
@@ -291,8 +284,8 @@ class Environment(Parameter):
               relpos_ac,
               log,
               comm):
-        from gpaw.new.environment import Environment as E
-        return E(len(setups))
+        from gpaw.new.environment import Environment as Env
+        return Env(len(setups))
 
 
 class Mixer(Parameter):
@@ -304,6 +297,8 @@ class Mixer(Parameter):
 
     @classmethod
     def from_param(cls, mixer):
+        if isinstance(mixer, Mixer):
+            return mixer
         return Mixer(mixer)
 
 
@@ -469,6 +464,28 @@ class MonkhorstPack(BZSampling):
         return MonkhorstPackKPoints(size, offset)
 
 
+class XC(Parameter):
+    def __init__(self, name, **kwargs):
+        self.name = name
+        self.kwargs = kwargs
+
+    def todict(self):
+        return {'name': self.name, **self.kwargs}
+
+    def functional(self, collinear):
+        from gpaw.xc import XC as xc
+        return xc({'name': self.name, **self.kwargs},
+                  collinear=collinear)
+
+    @classmethod
+    def from_param(cls, xc):
+        if isinstance(xc, XC):
+            return xc
+        if isinstance(xc, str):
+            xc = {'name': xc}
+        return XC(**xc)
+
+
 KptsType = Union[Sequence[int], dict, Sequence[Sequence[float]]]
 
 
@@ -487,7 +504,6 @@ class Parameters:
         hund: bool = False,
         experimental: dict | None = None,
         extensions: Sequence[Extension] = (),
-        external=None,
         interpolation: int = 0,
         kpts: KptsType | MonkhorstPack | None = None,
         magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
@@ -514,8 +530,8 @@ class Parameters:
         XC(name='LDA')
         >>> from ase.build import molecule
         >>> atoms = molecule('H2', vacuum=3.0)
-        >>> dft = p.dft_calculation(atoms, log='h2.txt')
-        >>> atoms.calc = p.ase_calculator(atoms)
+        >>> dft = p.dft_calculation(atoms, txt='h2.txt')
+        >>> atoms.calc = dft.ase_calculator()
 
         Parameters
         ==========
@@ -524,22 +540,6 @@ class Parameters:
         basis:
             Basis-set.
         """
-
-        self._non_defaults = []
-        for key, value in locals().items():
-            if key in ['gpts', 'kpts', 'magmoms']:
-                is_default = value is None
-            elif key == 'xc':
-                is_default = value == 'LDA'
-            elif key != 'self':
-                is_default = not value
-            else:
-                continue
-            if not is_default:
-                self._non_defaults.append(key)
-
-        if h != 0.0 and gpts is not None:
-            raise ValueError("""You can't use both "gpts" and "h"!""")
 
         if experimental is None:
             experimental = {}
@@ -562,6 +562,23 @@ class Parameters:
         if unknown:
             warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                           stacklevel=3)
+
+        self._non_defaults = []
+        for key, value in locals().items():
+            if key in ['gpts', 'kpts', 'magmoms']:
+                is_default = value is None
+            elif key == 'xc':
+                is_default = value == 'LDA'
+            elif key != 'self':
+                is_default = not value
+            else:
+                continue
+            if not is_default:
+                self._non_defaults.append(key)
+
+        if h != 0.0 and gpts is not None:
+            raise ValueError("""You can't use both "gpts" and "h"!""")
+
         self.mode = Mode.from_param(mode)
         basis = basis or {}
         self.basis = ({'default': basis} if not isinstance(basis, dict)
@@ -575,7 +592,6 @@ class Parameters:
         self.hund = hund
         self.experimental = experimental or {}
         self.extensions = [Extension.from_param(ext) for ext in extensions]
-        self.external = external,
         self.interpolation = interpolation
         self.kpts = BZSampling.from_param((1, 1, 1) if kpts is None else kpts)
         self.magmoms = np.array(magmoms) if magmoms is not None else None
@@ -595,6 +611,12 @@ class Parameters:
         self.xc = XC.from_param(xc)
         _fix_legacy_stuff(self)
 
+        for key in self.parallel:
+            if key not in PARALLEL_KEYS:
+                raise ValueError(
+                    f'Unknown key: {key!r}.  '
+                    f'Must be one of {", ".join(PARALLEL_KEYS)}')
+
     def __repr__(self):
         lines = []
         for key in self._non_defaults:
@@ -606,17 +628,15 @@ class Parameters:
     def kwargs(self):
         return {key: self.__dict__[key] for key in self._non_defaults}
 
-    def todict(self, everything=False):
+    def todict(self):
         dct = {}
-        if everything:
-            keys = (key for key in self.__dict__ if key[0] != '_')
-        else:
-            keys = self._non_defaults
-        for key in keys:
+        for key in self._non_defaults:
             value = self._value(key)
             if hasattr(value, 'todict'):
-                name = value.__class__.__name__.lower()
-                value = {'name': name} | value.todict()
+                name = getattr(value, 'name', None)
+                value = value.todict()
+                if name is not None:
+                    value['name'] = name
             dct[key] = value
         return dct
 
@@ -643,6 +663,12 @@ class Parameters:
         ...
 
 
+PARALLEL_KEYS = {
+    'kpt', 'domain', 'band', 'order', 'stridebands', 'augment_grids',
+    'sl_auto', 'sl_default', 'sl_diagonalize', 'sl_inverse_cholesky',
+    'sl_lcao', 'sl_lrtddft', 'use_elpa', 'elpasolver', 'buffer_size', 'gpu'}
+
+
 def DFT(
     atoms,
     *,
@@ -657,7 +683,6 @@ def DFT(
     h: float = 0.0,
     hund: bool = False,
     extensions: Sequence[Extension] = (),
-    external=None,
     interpolation: int = 0,
     kpts: Sequence[int] | dict | MonkhorstPack | None = None,
     magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
@@ -695,7 +720,6 @@ def GPAW(
     hund: bool = False,
     experimental: dict | None = None,
     extensions: Sequence[Extension] = (),
-    external=None,
     interpolation: int = 0,
     kpts: Sequence[int] | dict | MonkhorstPack | None = None,
     magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
@@ -713,7 +737,8 @@ def GPAW(
     symmetry: str | dict | Symmetry = '',
     xc: str | dict | XC = 'LDA',
     txt: str | Path | IO[str] | None = '?',
-    communicator: MPIComm | Sequence[int] | None = None) -> ASECalculator:
+    communicator: MPIComm | Sequence[int] | None = None,
+    object_hooks=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
     """
@@ -739,7 +764,8 @@ def GPAW(
                 f'{", ".join(args)}')
         atoms, dft, params, _ = read_gpw(filename,
                                          log=log,
-                                         parallel=parallel)
+                                         parallel=parallel,
+                                         object_hooks=object_hooks)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 

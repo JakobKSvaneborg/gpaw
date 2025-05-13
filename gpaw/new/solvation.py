@@ -5,6 +5,23 @@ from gpaw.new.c import add_to_density
 from gpaw.new.environment import Environment
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
+from gpaw.dft import Parameter
+
+
+class SolvationInput(Parameter):
+    def __init__(self, cavity, dielectric, interactions=None):
+        self.cavity = cavity
+        self.dielectric = dielectric
+        self.interactions = interactions or []
+
+    def build(self,
+              setups,
+              grid,
+              relpos_ac,
+              log,
+              comm):
+        return Solvation(self.cavity, self.dielectric, self.interactions,
+                         setups, grid, relpos_ac, log, comm)
 
 
 class Solvation(Environment):
@@ -13,7 +30,7 @@ class Solvation(Environment):
                  cavity,
                  dielectric,
                  interactions=None,
-                 setups, grid, relpos_ac, log, comm, nn):
+                 setups, grid, relpos_ac, log, comm):
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions or []
@@ -36,7 +53,7 @@ class Solvation(Environment):
         self.cavity.update_atoms(self.atoms, log)
         for ia in self.interactions:
             ia.update_atoms(self.atoms, log)
-        self.grad_v = [Gradient(grid, v, 1.0, nn) for v in range(3)]
+        self.grad_v = [Gradient(grid, v, 1.0, nn=3) for v in range(3)]
         self.vt_ia_r = grid.empty()  # self.finegd.zeros()
         self.e_interactions = np.nan
         super().__init__(len(self.atoms))

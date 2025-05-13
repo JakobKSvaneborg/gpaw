@@ -39,7 +39,7 @@ class SJM:
             dielectric=self.dielectric,
             interactions=self.interactions,
             setups=setups, grid=grid, relpos_ac=relpos_ac,
-            log=log, comm=comm, nn=3)
+            log=log, comm=comm)
         h = grid.cell_cv[2, 2] * Bohr
         z1 = relpos_ac[:, 2].max() * h + 3.0
         z2 = self.jelliumregion.get('top', h - 1.0)

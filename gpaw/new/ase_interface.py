@@ -729,7 +729,7 @@ class ASECalculator:
             **eigensolver)
 
     def todict(self):
-        return dict(self.params.items())
+        return self.params.todict()
 
     def get_nonselfconsistent_energies(self, type='beefvdw'):
         from gpaw.xc.bee import BEEFEnsemble

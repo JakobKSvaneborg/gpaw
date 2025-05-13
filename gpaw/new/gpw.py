@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, Union
+from typing import IO, Any, Union, Callable
 
 import ase.io.ulm as ulm
 import gpaw
@@ -183,10 +183,12 @@ def read_gpw(filename: Union[str, Path, IO[str]],
              log: Union[Logger, str, Path, IO[str]] = None,
              comm=None,
              parallel: dict[str, Any] = None,
-             dtype=None) -> tuple[Atoms,
-                                  DFTCalculation,
-                                  Parameters,
-                                  DFTComponentsBuilder]:
+             dtype=None,
+             object_hooks: dict[str, Callable[[dict], Any]] | None = None
+             ) -> tuple[Atoms,
+                        DFTCalculation,
+                        Parameters,
+                        DFTComponentsBuilder]:
     """
     Read gpw file
 
@@ -222,6 +224,11 @@ def read_gpw(filename: Union[str, Path, IO[str]],
 
     for old_keyword in ['fixdensity', 'txt']:
         kwargs.pop(old_keyword, None)
+
+    if object_hooks:
+        for key, hook in object_hooks.items():
+            if key in kwargs:
+                kwargs[key] = hook(kwargs[key])
 
     params = Parameters(**kwargs)
     builder = params.dft_component_builder(atoms, log=log)

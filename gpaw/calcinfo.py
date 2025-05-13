@@ -38,14 +38,14 @@ class CalcInfo:
         params.update(updated_params)
         return get_calculation_info(self.atoms, **params)
 
-    def get_dft_calc(self) -> DFTCalculation:
+    def dft_calculation(self) -> DFTCalculation:
         return DFTCalculation.from_parameters(self.atoms.copy(),
                                               Parameters(**self.input_params),
                                               comm=self.comm,
                                               log=self.log)
 
     def get_ase_calc(self):
-        return self.get_dft_calc().get_ase_calc()
+        return self.dft_calculation().ase_calculator()
 
 
 def get_calculation_info(atoms: Atoms,

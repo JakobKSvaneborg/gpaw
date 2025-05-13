@@ -119,8 +119,15 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     assert movedE == pytest.approx(movedE0 + 1 / 2 * ktot * (l - 2)**2)
     assert movedF[0, 2] == pytest.approx(movedF0[0, 2] - ktot * (l - 2))
 
+    def hook(extensions):
+        return [Spring(**ext) for ext in extensions]
+
     # 4. Test restarting from a file
-    atoms, calc = restart('calc.gpw', Class=GPAW)
+    atoms, calc = restart(
+        'calc.gpw',
+        Class=GPAW,
+        object_hooks={'extensions': hook})
+
     # Make sure the cached energies and forces are correct
     # without a new calculation
     assert E == pytest.approx(atoms.get_potential_energy())
@@ -153,7 +160,9 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     for _, _ in zip(relax.irun(), range(3)):
         pass
     calc.write('restart_relax.gpw')
-    atoms, calc = restart('restart_relax.gpw', Class=GPAW)
+    atoms, calc = restart('restart_relax.gpw',
+                          Class=GPAW,
+                          object_hooks={'extensions': hook})
     relax = BFGS(atoms, restart='relax_restart')
     relax.run()
 

@@ -145,7 +145,7 @@ class DFTCalculation:
                    builder.setups, scf_loop, pot_calc, log,
                    params=params, energies=energies)
 
-    def get_ase_calc(self):
+    def ase_calculator(self):
         """Create ASE-compatible GPAW calculator.
         """
         from gpaw.new.ase_interface import ASECalculator

@@ -11,7 +11,6 @@ from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
-from gpaw.new.external_potential import create_external_potential
 from gpaw.new.gpw import as_double_precision
 from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
@@ -148,8 +147,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.setups,
             self.xc,
             self.create_poisson_solver(env),
-            external_potential=create_external_potential(
-                {}),  # self.params.external),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
