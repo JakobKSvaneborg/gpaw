@@ -21,7 +21,6 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
                                     void* Gk_Gv,
                                     void* pos_av,
                                     void* eikR_a,
-                                    void* emiGR_Ga,
                                     void* Y_GL,
                                     int* l_s,
                                     int* a_J,
@@ -265,7 +264,7 @@ PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
     PyObject *f_GI_obj;
     PyObject *I_J_obj;
 
-    if (!PyArg_ParseTuple(args, "OOOOOOiOO",
+    if (!PyArg_ParseTuple(args, "OOOOOOOOiOO",
                           &f_Gs_obj, &Gk_Gv_obj, &pos_av_obj,
                           &eikR_a_obj, &Y_GL_obj,
                           &l_s_obj, &a_J_obj, &s_J_obj,
@@ -277,12 +276,12 @@ PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
     int *a_J = (int*)Array_DATA(a_J_obj);
     int *s_J = (int*)Array_DATA(s_J_obj);
     void *f_GI = (void*)Array_DATA(f_GI_obj);
-    int nG = Array_DIM(emiGR_Ga_obj, 0);
+    int nG = Array_DIM(Gk_Gv_obj, 0);
     int *I_J = (int*)Array_DATA(I_J_obj);
     int nJ = Array_DIM(a_J_obj, 0);
     int nL = Array_DIM(Y_GL_obj, 1);
     int nI = Array_DIM(f_GI_obj, 1);
-    int natoms = Array_DIM(emiGR_Ga_obj, 1);
+    int natoms = Array_DIM(pos_av_obj, 0);
     int nsplines = Array_DIM(f_Gs_obj, 1);
     void* Gk_Gv = (void*)Array_DATA(Gk_Gv_obj);
     void* pos_av = (void*)Array_DATA(pos_av_obj);

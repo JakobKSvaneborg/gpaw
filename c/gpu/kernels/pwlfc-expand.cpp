@@ -686,7 +686,7 @@ template <typename Tcomplex, typename Treal, bool strided, bool cc>
 __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 				       Treal* Gk_Gv,
 					   Treal* pos_av,
-					   Tcomplex* eikR_a
+					   Tcomplex* eikR_a,
 					   Treal *Y_GL,
 				       int* l_s,
 				       int* a_J,
@@ -725,11 +725,11 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 	Treal GkPos = (Gk_Gv[0] * pos_av[0] +
 		       	   Gk_Gv[1] * pos_av[1] +
 		           Gk_Gv[2] * pos_av[2]);
-	Tcomplex emiGR = {cos(GkPos), -sin(GkPos)} * eikR_a[a_J[J]];
+	Tcomplex emiGR = {cos(GkPos), -sin(GkPos)};
 	int s = s_J[J];
 	int l = l_s[s];
 	Y_GL += G*nL + l*l;
-	Tcomplex f1 = emiGR * imag_powers[l % 4] * f_Gs[s];
+	Tcomplex f1 = emiGR * eikR_a[a_J[J]] * imag_powers[l % 4] * f_Gs[s];
 	if constexpr(strided) {
 		f_GI += G*nI*2 + I_J[J];
 		for (int m = 0; m < 2 * l + 1; m++) {
@@ -993,7 +993,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 				    void* f_Gs,
 					void* Gk_Gv,
 					void* pos_av,
-					void* eikR_a
+					void* eikR_a,
 				    void *Y_GL,
 				    int* l_s,
 				    int* a_J,
@@ -1020,7 +1020,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 			(double*) f_Gs,				       
 			(double*) Gk_Gv,
 			(double*) pos_av,
-			(gpuDoubleComplex*) eikR_a
+			(gpuDoubleComplex*) eikR_a,
 			(double*) Y_GL,
 			l_s,
 			a_J,
@@ -1046,7 +1046,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 			(double*) f_Gs,				       
 			(double*) Gk_Gv,
 			(double*) pos_av,
-			(gpuDoubleComplex*) eikR_a
+			(gpuDoubleComplex*) eikR_a,
 			(double*) Y_GL,
 			l_s,
 			a_J,
@@ -1071,7 +1071,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 			(float*) f_Gs,				       
 			(float*) Gk_Gv,
 			(float*) pos_av,
-			(gpuFloatComplex*) eikR_a
+			(gpuFloatComplex*) eikR_a,
 			(float*) Y_GL,
 			l_s,
 			a_J,
@@ -1096,7 +1096,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 			(float*) f_Gs,		       
 			(float*) Gk_Gv,
 			(float*) pos_av,
-			(gpuFloatComplex*) eikR_a
+			(gpuFloatComplex*) eikR_a,
 			(float*) Y_GL,
 			l_s,
 			a_J,
