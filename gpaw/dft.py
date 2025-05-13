@@ -753,8 +753,5 @@ def _fix_legacy_stuff(params):
     if not isinstance(params.eigensolver, Eigensolver):
         params.eigensolver = Eigensolver.from_param(
             params.eigensolver.todict())
-
-
-Parameters.__init__.__doc__ += DOCS
-DFT.__doc__ += DOCS
-GPAW.__doc__ += DOCS
+    if not isinstance(params.mixer, Mixer):
+        params.mixer = Mixer.from_param(params.mixer.todict())
