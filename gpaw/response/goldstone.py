@@ -142,16 +142,41 @@ class RefinedFMGoldstoneScaling(HXCScaling):
         return self._base_scaling.m_G
 
     def _calculate_scaling(self, dyson_equations: DysonEquations) -> float:
-        """Calculate the scaling coefficient λ.
-
-        First we calculate the base scaling based on a^(+-)(ω=0). Secondly, we
-        extract the spectral maximum and refine the scaling such that the
-        maximum is located at ω=0.
-        """
+        """Calculate the scaling coefficient λ."""
+        # First we calculate the base scaling based on a^(+-)(ω=0)
         assert self._base_scaling is not None
         self._base_scaling.calculate_scaling(dyson_equations)
-        # Refinement is to-do for now XXX
-        return self._base_scaling.lambd
+        base_lambd = self._base_scaling.lambd
+
+        # Secondly, we extract the spectral peak position and refine the
+        # scaling such that the maximum is located at ω=0. To do so, we perform
+        # a parabolic fit to the five points with lowest |ω|.
+        omega_W = dyson_equations.zd.omega_w
+        wblocks = dyson_equations.zblocks
+        fiveW_w = np.argpartition(np.abs(omega_W), 5)[:5]
+        omega_w = omega_W[fiveW_w]
+
+        def near_acoustic_spectrum(lambd):
+            a_w = np.empty(5, dtype=float)
+            for w, W in enumerate(fiveW_w):
+                wrank, myw = wblocks.find_global_index(W)
+                if wblocks.blockcomm.rank == wrank:
+                    a_w[w] = calculate_acoustic_spectrum(
+                        lambd, dyson_equations[myw], self.m_G)
+                wblocks.blockcomm.broadcast(a_w[w:w + 1], wrank)
+            return a_w
+
+        def abs_acoustic_magnon_frequency(lambd):
+            a_w = near_acoustic_spectrum(lambd)
+            a, b, c = np.polyfit(omega_w, a_w, 2)
+            omega0 = -b / (2 * a)
+            return abs(omega0)
+
+        # Minimize the (absolute) peak frequency |ω_0| to obtain the refined λ.
+        res = minimize(abs_acoustic_magnon_frequency, x0=[base_lambd],
+                       bounds=[(base_lambd * 0.975, base_lambd * 1.025)])
+        assert res.success
+        return res.x[0]
 
 
 class AFMGoldstoneScaling(GoldstoneScaling):

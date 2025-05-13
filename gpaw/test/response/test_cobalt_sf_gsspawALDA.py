@@ -103,11 +103,11 @@ def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
 
     # Compare scaling coefficient to reference
     assert base_scaling.lambd == pytest.approx(1.0541, abs=0.001)
-    assert refi_scaling.lambd == pytest.approx(1.05, abs=0.001)
+    assert refi_scaling.lambd == pytest.approx(1.0526, abs=0.001)
     # Test that Re ξ^++(q=0,ω) ≾ 1 at ω=0
     w0 = np.argmin(np.abs(frq_w))
     assert xi0_w[w0] == pytest.approx(0.987, abs=0.01)
-    assert rxi0_w[w0] == pytest.approx(1.0, abs=0.01)
+    assert rxi0_w[w0] == pytest.approx(0.986, abs=0.01)
 
     # Compare magnon peaks to reference data
     refs_mqa = [
@@ -154,7 +154,7 @@ def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
                 if q == 0 and m == 0 and Astr == 'rAmaj':
                     # Check that the gap error is completely removed when using
                     # the refined scaling
-                    assert wpeak == pytest.approx(0.0)
+                    assert wpeak == pytest.approx(0.0, abs=1e-4)  # eV
 
 
 def get_mode_projections(chiks, xi, Amaj, *, lambd, nmodes):
