@@ -291,8 +291,7 @@ class PWLFC:  # (BaseLFC)
                          self.l_s._data, self.a_J._data, self.s_J._data,
                          cc, f_GI._data)
         else:
-            emiGR_Ga = self.get_emiGR_Ga(G1, G2)
-            pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
+            pwlfc_expand_gpu(f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
                              self.l_s, self.a_J, self.s_J,
                              cc, f_GI, self.I_J)
         return f_GI

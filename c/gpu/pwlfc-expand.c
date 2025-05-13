@@ -17,7 +17,10 @@ void calculate_residual_launch_kernel(int dtypenum,
                                       void* wf_nG);
 
 void pwlfc_expand_gpu_launch_kernel(int dtypenum,
-                                    void* f_Gs,
+                                    void* f_Gs,       
+                                    void* Gk_Gv,
+                                    void* pos_av,
+                                    void* eikR_a,
                                     void* emiGR_Ga,
                                     void* Y_GL,
                                     int* l_s,
@@ -251,7 +254,9 @@ PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
 PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
 {
     PyObject *f_Gs_obj;
-    PyObject *emiGR_Ga_obj;
+    PyObject *Gk_Gv_obj;
+    PyObject *pos_av_obj;
+    PyObject *eikR_a_obj;
     PyObject *Y_GL_obj;
     PyObject *l_s_obj;
     PyObject *a_J_obj;
@@ -261,7 +266,8 @@ PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
     PyObject *I_J_obj;
 
     if (!PyArg_ParseTuple(args, "OOOOOOiOO",
-                          &f_Gs_obj, &emiGR_Ga_obj, &Y_GL_obj,
+                          &f_Gs_obj, &Gk_Gv_obj, &pos_av_obj,
+                          &eikR_a_obj, &Y_GL_obj,
                           &l_s_obj, &a_J_obj, &s_J_obj,
                           &cc, &f_GI_obj, &I_J_obj))
         return NULL;
@@ -278,13 +284,16 @@ PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
     int nI = Array_DIM(f_GI_obj, 1);
     int natoms = Array_DIM(emiGR_Ga_obj, 1);
     int nsplines = Array_DIM(f_Gs_obj, 1);
-    void* emiGR_Ga = (void*)Array_DATA(emiGR_Ga_obj);
+    void* Gk_Gv = (void*)Array_DATA(Gk_Gv_obj);
+    void* pos_av = (void*)Array_DATA(pos_av_obj);
+    void* eikR_a = (void*)Array_DATA(eikR_a_obj);
     int dtype = get_dtype(f_GI_obj);
     if (PyErr_Occurred())
     {
         return NULL;
     }
-    pwlfc_expand_gpu_launch_kernel(dtype, f_Gs, emiGR_Ga, Y_GL, l_s, a_J, s_J, f_GI,
+    pwlfc_expand_gpu_launch_kernel(dtype, f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
+                                   l_s, a_J, s_J, f_GI,
                                    I_J, nG, nJ, nL, nI, natoms, nsplines, cc);
     Py_RETURN_NONE;
 }
