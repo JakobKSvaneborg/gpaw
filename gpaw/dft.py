@@ -376,6 +376,9 @@ class Symmetry(Parameter):
             if s == 'on':
                 return Symmetry()
             raise ValueError()
+        if 'name' in s:
+            s = s.copy()
+            del s['name']
         return Symmetry(**(s or {}))
 
     def todict(self):
@@ -466,13 +469,6 @@ class MonkhorstPack(BZSampling):
         return MonkhorstPackKPoints(size, offset)
 
 
-DOCS = """
-mode:
-    PW, LCAO or FD mode.
-basis:
-    Basis-set.
-"""
-
 KptsType = Union[Sequence[int], dict, Sequence[Sequence[float]]]
 
 
@@ -516,10 +512,17 @@ class Parameters:
         0.0
         >>> p.xc
         XC(name='LDA')
-        >>> atoms = Atoms()
-        >>> dft = p.dft_calculation(atoms)
+        >>> from ase.build import molecule
+        >>> atoms = molecule('H2', vacuum=3.0)
+        >>> dft = p.dft_calculation(atoms, log='h2.txt')
         >>> atoms.calc = p.ase_calculator(atoms)
 
+        Parameters
+        ==========
+        mode:
+            PW, LCAO or FD mode.
+        basis:
+            Basis-set.
         """
 
         self._non_defaults = []

@@ -109,8 +109,8 @@ class _PoissonSolver:
 
     def build(self, grid, xp):
         from gpaw.new.poisson import PoissonSolverWrapper
-        self.set_grid_descriptor(grid._gd)
         self.xp = xp
+        self.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(self)
 
 

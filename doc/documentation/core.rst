@@ -11,38 +11,34 @@ Introduction to GPAW internals
 
 .. contents::
 
-DFT components
-==============
-
-The components needed for a DFT calculation are created by a "builder" that
-can be made with the :func:`~gpaw.new.builder.builder` function, an ASE
-:class:`ase.Atoms` object and some input parameters:
-
->>> from ase import Atoms
->>> atoms = Atoms('Li', cell=[2, 2, 2], pbc=True)
->>> from gpaw.new.builder import builder
->>> params = {'mode': 'pw', 'kpts': (5, 5, 5)}
->>> b = builder(atoms, params)
-
-There are builders for each of the modes: PW, FD and LCAO.
-
-The :class:`~gpaw.new.input_parameters.InputParameters` object takes care of
-user parameters:
+DFT input parameters
+====================
+The :class:`~gpaw.dft.Parameters` object takes care of
+input parameters:
 
 * checks for errors
 * does normalization
 * handles backwards compatibility and deprecation warnings
 
-Normally, you will not need to create a DFT-components builder yourself.  It
-will happen automatically when you create a DFT-calculation object like this:
 
 >>> from gpaw.new.calculation import DFTCalculation
 >>> calculation = DFTCalculation.from_parameters(atoms, params)
 
 or when you create an ASE-calculator interface:
 
+>>> from ase import Atoms
+>>> atoms = Atoms('Li', cell=[2, 2, 2], pbc=True)
 >>> from gpaw.new.ase_interface import GPAW
 >>> atoms.calc = GPAW(**params, txt='li.txt')
+
+
+DFT components builders
+=======================
+
+The components needed for a DFT calculation are created by a "builder" that
+can be made from an ASE
+:class:`ase.Atoms` object and some input parameters.
+There are builders for each of the modes: PW, FD and LCAO.
 
 
 Full picture
@@ -443,7 +439,6 @@ DFT
 .. autoclass:: gpaw.new.density.Density
     :members:
     :undoc-members:
-.. autofunction:: gpaw.new.builder.builder
 .. autoclass:: gpaw.new.ibzwfs.IBZWaveFunctions
     :members:
     :undoc-members:
@@ -456,7 +451,7 @@ DFT
 .. autoclass:: gpaw.new.scf.SCFLoop
     :members:
     :undoc-members:
-.. autoclass:: gpaw.new.input_parameters.InputParameters
+.. autoclass:: gpaw.dft.Parameters
     :members:
     :undoc-members:
 .. autoclass:: gpaw.new.pwfd.wave_functions.PWFDWaveFunctions
