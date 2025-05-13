@@ -86,6 +86,11 @@ class NewFMGoldstoneScaling(FMGoldstoneScaling):
     @classmethod
     def from_xi_calculator(cls, xi_calc: SelfEnhancementCalculator):
         """Construct scaling object with |m> consistent with a xi_calc."""
+        return cls(m_G=cls.calculate_m(xi_calc))
+
+    @staticmethod
+    def calculate_m(xi_calc: SelfEnhancementCalculator):
+        """Calculate the normalized spin-polarization |m>."""
         from gpaw.response.localft import (LocalFTCalculator,
                                            add_spin_polarization)
         localft_calc = LocalFTCalculator.from_rshe_parameters(
@@ -93,7 +98,7 @@ class NewFMGoldstoneScaling(FMGoldstoneScaling):
             rshelmax=xi_calc.rshelmax, rshewmin=xi_calc.rshewmin)
         qpd = xi_calc.get_pw_descriptor(q_c=[0., 0., 0.])
         nz_G = localft_calc(qpd, add_spin_polarization)
-        return cls(m_G=nz_G / np.linalg.norm(nz_G))
+        return nz_G / np.linalg.norm(nz_G)
 
     def find_goldstone_scaling(self, dyson_equation):
         assert self.m_G is not None, \
