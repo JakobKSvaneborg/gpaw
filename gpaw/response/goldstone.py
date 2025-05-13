@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.optimize import minimize
 
-from gpaw.response.dyson import HXCScaling, DysonEquation
+from gpaw.response.dyson import HXCScaling, DysonEquation, DysonEquations
 
 if TYPE_CHECKING:
     from gpaw.response.chiks import SelfEnhancementCalculator
@@ -113,6 +113,45 @@ class NewFMGoldstoneScaling(FMGoldstoneScaling):
         res = minimize(acoustic_antispectrum, x0=[1.], bounds=[(0.1, 10.)])
         assert res.success
         return res.x[0]
+
+
+class RefinedFMGoldstoneScaling(HXCScaling):
+    """Ensures that a^(+-)(ω) has a maximum in ω=0."""
+
+    def __init__(self,
+                 lambd: float | None = None,
+                 base_scaling: NewFMGoldstoneScaling | None = None):
+        """Construct the scaling object.
+
+        If the λ-parameter hasn't yet been calculated, we use a base scaling
+        class, which calculates λ approximately (and gives us access to |m>),
+        thus providing a starting point for the refinement.
+        """
+        super().__init__(lambd=lambd)
+        self._base_scaling = base_scaling
+
+    @classmethod
+    def from_xi_calculator(cls, xi_calc: SelfEnhancementCalculator):
+        return cls(
+            base_scaling=NewFMGoldstoneScaling.from_xi_calculator(xi_calc))
+
+    @property
+    def m_G(self):
+        assert self._base_scaling is not None
+        assert self._base_scaling.m_G is not None
+        return self._base_scaling.m_G
+
+    def _calculate_scaling(self, dyson_equations: DysonEquations) -> float:
+        """Calculate the scaling coefficient λ.
+
+        First we calculate the base scaling based on a^(+-)(ω=0). Secondly, we
+        extract the spectral maximum and refine the scaling such that the
+        maximum is located at ω=0.
+        """
+        assert self._base_scaling is not None
+        self._base_scaling.calculate_scaling(dyson_equations)
+        # Refinement is to-do for now XXX
+        return self._base_scaling.lambd
 
 
 class AFMGoldstoneScaling(GoldstoneScaling):
