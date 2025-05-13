@@ -47,11 +47,11 @@ def system_diamond():
 systems = {'C60': system_C60,
            'diamond': system_diamond}
 
-benchmarks =  {'C60_pw': ('C60', 'pw.high:gamma'),
-               'C60_lcao': ('C60', 'lcao.dzp'),
-               'C60_lowpw_gpu': ('C60', 'pw.low:gamma:gpu'),
-               'C60_lowpw_float_gpu': ('C60', 'pw.low.float32:gamma:gpu'),
-               'diamond_pw': ('diamond', 'pw.high:kpts')}
+benchmarks =  {'C60_pw': 'C60-pw.high:gamma',
+               'C60_lcao': 'C60-lcao.dzp',
+               'C60_lowpw_gpu': 'C60-pw.low:gamma:gpu',
+               'C60_lowpw_float_gpu': 'C60-pw.low.float32:gamma:gpu',
+               'diamond_pw': 'diamond-pw.high:kpts'}
 
         
 def parse_system(name):
