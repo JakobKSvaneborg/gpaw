@@ -18,6 +18,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, Array3D, ArrayND, Vector
+from gpaw.utilities import as_real_dtype
 
 
 class PWFDWaveFunctions(WaveFunctions, XP):
@@ -211,9 +212,10 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         P2_ani = P_ani.new()
         psit2_nX = psit_nX.new(data=work_array_nX)
-
-        dS_aii = self.setups.get_overlap_corrections(P_ani.layout.atomdist,
-                                                     self.xp)
+        dS_aii = self.setups.get_overlap_corrections(
+            P_ani.layout.atomdist,
+            self.xp,
+            dtype=as_real_dtype(P_ani.data.dtype))
 
         # We are actually calculating S^*:
         S = psit_nX.matrix_elements(psit_nX, domain_sum=False, cc=True)
@@ -495,6 +497,9 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
     def morph(self, desc, relpos_ac, atomdist):
         desc = desc.new(kpt=self.psit_nX.desc.kpt_c)
+        if not hasattr(self.psit_nX, 'morph'):
+            from gpaw.new.calculation import ReuseWaveFunctionsError
+            raise ReuseWaveFunctionsError
         psit_nX = self.psit_nX.morph(desc)
 
         # Save memory:

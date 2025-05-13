@@ -91,7 +91,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return self.interpolation_desc.new(ecut=8 * self.ecut)
 
     @cached_property
-    def fast_poisson_solver(self):
+    def fast_poisson_solver(self) -> bool:
         fast = self.params.poissonsolver.get('fast', False)
         if fast:
             # Only works for gaussian compensation charges at the moment:
@@ -118,7 +118,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.interpolation_desc, self.relpos_ac, self.atomdist)
         return self._tauct_ag
 
-    def create_poisson_solver(self):
+    def create_poisson_solver(self, env):
         psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
         psparams.pop('fast', False)
 
@@ -131,6 +131,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         ps = make_poisson_solver(pw,
                                  grid,
                                  self.params.charge,
+                                 env,
                                  **psparams)
 
         if self.fast_poisson_solver:
@@ -150,13 +151,14 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.interpolation_desc,
             self.setups,
             self.xc,
-            self.create_poisson_solver(),
+            self.create_poisson_solver(env),
             external_potential=create_external_potential(self.params.external),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
             xp=self.xp,
-            environment=env)
+            environment=env,
+            extensions=self.get_extensions(log))
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:

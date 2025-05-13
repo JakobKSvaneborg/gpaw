@@ -3,6 +3,7 @@ from ase import Atoms
 from gpaw.new.ase_interface import GPAW
 from gpaw.lcao.scissors import non_self_consistent_scissors_shift as nsc_shift
 from gpaw.spinorbit import soc_eigenstates
+from gpaw.mpi import world
 
 
 def test_scissors():
@@ -16,9 +17,13 @@ def test_scissors():
                    eigensolver={'name': 'scissors',
                                 'shifts': [(-d, d, 2)]},
                    symmetry='off',
+                   parallel={'domain': 1,
+                             'band': world.size,
+                             'sl_auto': True},
                    txt=None)
     h2.get_potential_energy()
     eigs1 = h2.calc.get_eigenvalues()
+
     i, ii, iii, iv = eigs1
     assert ii - i == pytest.approx(d, abs=0.01)
     assert iv - iii == pytest.approx(d, abs=0.01)

@@ -28,6 +28,7 @@ T = 298.15
 atomic_radii = lambda atoms: [vdw_radii[n] for n in atoms.numbers]
 
 
+@pytest.mark.slow
 def test_solvation_forces():
     atoms = Atoms('NaCl', positions=((5.6, 5.6, 6.8), (5.6, 5.6, 8.8)))
     atoms.set_cell((11.2, 11.2, 14.4))

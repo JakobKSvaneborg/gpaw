@@ -1,16 +1,19 @@
+import warnings
 from functools import cached_property
 from math import pi
 
 import numpy as np
 from ase.units import Bohr, Ha
-from gpaw.core import PWDesc, UGDesc, PWArray
+from gpaw.core import PWArray, PWDesc, UGDesc
 from gpaw.new.poisson import PoissonSolver
+from scipy.sparse.linalg import LinearOperator, cg
 from scipy.special import erf
 
 
 def make_poisson_solver(pw: PWDesc,
                         grid: UGDesc,
                         charge: float,
+                        environment=None,
                         strength: float = 1.0,
                         dipolelayer: bool = False,
                         **kwargs) -> PoissonSolver:
@@ -21,7 +24,15 @@ def make_poisson_solver(pw: PWDesc,
 
     if dipolelayer:
         return DipoleLayerPWPoissonSolver(ps, grid, **kwargs)
+
     assert not kwargs
+
+    if hasattr(environment, 'dielectric'):
+        return ConjugateGradientPoissonSolver(
+            pw, grid, environment.dielectric, zero_vacuum=True)
+        from gpaw.new.sjm import SJMPWPoissonSolver
+        return SJMPWPoissonSolver(pw, environment.dielectric)
+
     return ps
 
 
@@ -51,7 +62,7 @@ class PWPoissonSolver(PoissonSolver):
     def solve(self,
               vHt_g: PWArray,
               rhot_g: PWArray) -> float:
-        """Solve Poisson equeation.
+        """Solve Poisson equation.
 
         Places result in vHt_g ndarray.
         """
@@ -63,7 +74,7 @@ class PWPoissonSolver(PoissonSolver):
                rhot_g) -> float:
         vHt_g.data[:] = 2 * pi * self.strength * rhot_g.data
         if self.pw.comm.rank == 0:
-            # Use uniform backgroud charge in case we have a charged system:
+            # Use uniform background charge in case we have a charged system:
             vHt_g.data[0] = 0.0
         if not isinstance(self.ekin_g, vHt_g.xp.ndarray):
             self.ekin_g = vHt_g.xp.array(self.ekin_g)
@@ -82,7 +93,7 @@ class ChargedPWPoissonSolver(PWPoissonSolver):
                  eps: float = 1e-5):
         """Reciprocal-space Poisson solver for charged molecules.
 
-        * Add a compensating Guassian-shaped charge to the density
+        * Add a compensating Gaussian-shaped charge to the density
           in order to make the total charge neutral (placed in the
           middle of the unit cell
 
@@ -107,7 +118,7 @@ class ChargedPWPoissonSolver(PWPoissonSolver):
         ----------
         alpha : float
         charge_g : np.ndarray
-            Guassian-shaped charge in reciprocal space
+            Gaussian-shaped charge in reciprocal space
         potential_g : PWArray
              Potential in reciprocal space created by charge_g
         """
@@ -175,10 +186,12 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
     def __init__(self,
                  ps: PWPoissonSolver,
                  grid: UGDesc,
-                 width: float = 1.0):  # Ångström
+                 width: float = 1.0,  # Ångström
+                 zero_vacuum=False):
         self.ps = ps
         self.grid = grid
         self.width = width / Bohr
+        self.zero_vacuum = zero_vacuum
         (self.axis,) = np.where(~grid.pbc_c)[0]
         self.correction = np.nan
         self.pw = ps.pw
@@ -187,12 +200,15 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
               vHt_g: PWArray,
               rhot_g: PWArray) -> float:
         epot = self.ps.solve(vHt_g, rhot_g)
-
         dip_v = -rhot_g.moment()
         c = self.axis
         L = self.grid.cell_cv[c, c]
         self.correction = 2 * np.pi * dip_v[c] * L / self.grid.volume
         vHt_g.data -= 2 * self.correction * self.sawtooth_g.data
+        if self.zero_vacuum:
+            v0 = vHt_g.boundary_value(self.axis)
+            if vHt_g.desc.comm.rank == 0:
+                vHt_g.data[0] += self.correction - v0
         return epot + 2 * np.pi * dip_v[c]**2 / self.grid.volume
 
     def dipole_layer_correction(self) -> float:
@@ -224,3 +240,133 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
         result_g = self.ps.pw.empty()
         result_g.scatter_from(sawtooth_g)
         return result_g
+
+
+class ConjugateGradientPoissonSolver(PWPoissonSolver):
+    """Poisson solver using conjugate gradient method in reciprocal space.
+    """
+
+    def __init__(self,
+                 pw: PWDesc,
+                 grid,
+                 dielectric,
+                 charge: float = 0.0,
+                 strength: float = 1.0,
+                 eps=1e-4,
+                 maxiter=15,
+                 zero_vacuum=False):
+        """Initialize the conjugate gradient Poisson solver.
+
+        Parameters:
+        -----------
+        pw : PWDesc
+            Plane wave descriptor
+        charge : float, optional
+            Total charge of the system
+        strength : float, optional
+            Scaling factor for the potential
+        eps : float, optional
+            Convergence threshold for conjugate gradient algorithm
+        maxiter : int, optional
+            Maximum number of iterations for the conjugate gradient algorithm
+        """
+        super().__init__(pw, charge, strength)
+        self.dielectric = dielectric
+        self.grid = grid
+        self.eps = eps
+        self.maxiter = maxiter
+        self.zero_vacuum = zero_vacuum
+
+    def __str__(self) -> str:
+        txt = ('conjugate gradient poisson solver:\n'
+               f'  ecut: {self.pw.ecut * Ha}  # eV\n'
+               f'  eps: {self.eps}\n'
+               f'  maxiter: {self.maxiter}\n')
+        if self.strength != 1.0:
+            txt += f'  strength: {self.strength}\n'
+        if self.charge != 0.0:
+            txt += f'  uniform background charge: {self.charge}  # electrons\n'
+        return txt
+
+    def get_description(self):
+        return 'Conjugate Gradient Poisson Solver'
+
+    def operator(self, phi_q):
+        """Apply the generalized Poisson operator in reciprocal space.
+
+        Parameters:
+        -----------
+        phi_q : ndarray
+            Input potential in reciprocal space
+
+        Returns:
+        --------
+        ndarray
+            Result of operator application
+        """
+        G_Qv = self.pw.G_plus_k_Gv
+        Gx, Gy, Gz = G_Qv.T
+        grid = self.grid  # dielectric.eps_gradeps[0].desc
+
+        gradients = []
+        for G_component in [Gx, Gy, Gz]:
+            grad_pw = PWArray(pw=self.pw)
+            grad_pw.data[:] = G_component * phi_q
+            gradients.append(grad_pw)
+
+        eps_gradients = []
+        for grad_pw in gradients:
+            grad_real = grad_pw.ifft(grid=grid).data
+
+            epsg_ug = grid.zeros()
+            epsg_ug.data[:] = grad_real * self.dielectric.eps_gradeps[0].data
+
+            eps_gradients.append(epsg_ug.fft(pw=self.pw).data)
+
+        return np.sum([G * epsg
+                       for G, epsg in zip([Gx, Gy, Gz], eps_gradients)],
+                      axis=0)
+
+    def _solve(self,
+               vHt_g,
+               rhot_g) -> float:
+        vHt_g.data[:] = 4 * np.pi * self.strength * rhot_g.data
+        if self.pw.comm.rank == 0:
+            vHt_g.data[0] = 0.0
+
+        N = len(vHt_g.data)
+        op = LinearOperator((N, N),
+                            matvec=self.operator,
+                            dtype=vHt_g.data.dtype)
+        M = LinearOperator((N, N),
+                           matvec=lambda x: 0.5 * x / self.ekin_g,
+                           dtype=vHt_g.data.dtype)
+
+        vHt_g.data[:], info = cg(op, vHt_g.data,
+                                 rtol=self.eps, maxiter=self.maxiter, M=M)
+
+        if info != 0:
+            warnings.warn(
+                f'Conjugate gradient did not converge (info={info})')
+
+        if self.zero_vacuum:
+            self.correct_slope(vHt_g)
+
+        epot = 0.5 * vHt_g.integrate(rhot_g)
+        return epot
+
+    def correct_slope(self, vHt_g: PWArray):
+        from gpaw.new.sjm import modified_saw_tooth
+        eps_r = self.grid.from_data(self.dielectric.eps_gradeps[0])
+        eps0_r = eps_r.gather()
+        vHt0_g = vHt_g.gather()
+        if eps0_r is not None:
+            saw_tooth_z = modified_saw_tooth(eps0_r)
+            vHt0_r = vHt0_g.ifft(grid=self.grid.new(comm=None))
+            s1, s2 = saw_tooth_z[[2, 10]]
+            v1, v2 = vHt0_r.data[:, :, [2, 10]].mean(axis=(0, 1))
+            vHt0_r.data -= (v2 - v1) / (s2 - s1) * saw_tooth_z[np.newaxis,
+                                                               np.newaxis]
+            vHt0_r.data -= vHt0_r.data[:, :, -1].mean()
+            vHt0_r.fft(out=vHt0_g)
+        vHt_g.scatter_from(vHt0_g)

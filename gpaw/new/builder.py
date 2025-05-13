@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import os
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
 from typing import Any
@@ -14,6 +13,7 @@ from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
 from gpaw.core.domain import Domain
+from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
@@ -25,7 +25,7 @@ from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.input_parameters import InputParameters
+from gpaw.new.input_parameters import InputParameters, fromdict
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
@@ -36,12 +36,28 @@ from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.xc import XC
-from gpaw import GPAW_USE_GPUS
+from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
+
+
+FAKE_CUPY_WARNING = """
+ ----------------------------------------------------------
+|                         WARNING                          |
+| -------------------------------------------------------- |
+|  GPU calculation requested, but calculations are run on  |
+|    CPUs with the `cupy` substitute `gpaw.gpu.cpupy`.     |
+| This is most likely not the desired behavior, except for |
+| testing purposes. Please check if you have inadvertently |
+|    set the environment variable `GPAW_CPUPY`, consult    |
+| `gpaw info` for `cupy` availability, and reconfigure and |
+|               recompile GPAW if necessary.               |
+ ----------------------------------------------------------
+"""
 
 
 def builder(atoms: Atoms,
             params: dict[str, Any] | InputParameters,
-            comm=None) -> DFTComponentsBuilder:
+            comm=None,
+            log=None) -> DFTComponentsBuilder:
     """Create DFT-components builder.
 
     * pw
@@ -50,8 +66,11 @@ def builder(atoms: Atoms,
     * tb
     * atom
     """
+    comm = comm or world
     if isinstance(params, dict):
         params = InputParameters(params)
+    if not isinstance(log, Logger):
+        log = Logger(log, comm)
 
     mode = params.mode.copy()
     name = mode.pop('name')
@@ -59,8 +78,11 @@ def builder(atoms: Atoms,
     assert name in {'pw', 'lcao', 'fd', 'tb', 'atom'}
     mod = importlib.import_module(f'gpaw.new.{name}.builder')
     name = name.title() if name == 'atom' else name.upper()
-    return getattr(mod, f'{name}DFTComponentsBuilder')(
-        atoms, params, comm=comm or world, **mode)
+    Builder = getattr(mod, f'{name}DFTComponentsBuilder')
+    builder = Builder(atoms, params, comm=comm, **mode)
+    if builder.xp is fake_cupy:
+        log(FAKE_CUPY_WARNING)
+    return builder
 
 
 class DFTComponentsBuilder:
@@ -174,16 +196,15 @@ class DFTComponentsBuilder:
     def __repr__(self):
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
 
-    @cached_property
-    def nelectrons(self) -> float:
-        return self.setups.nvalence - (self.params.charge -
-                                       self.background_charge)
+    def get_extensions(self, log):
+        return [fromdict(ext).build(self.atoms,
+                                    self.communicators,
+                                    log) for ext in
+                self.params.extensions]
 
     @cached_property
-    def background_charge(self) -> float:
-        if self.params.background_charge:
-            return self.params.background_charge['charge']
-        return 0.0
+    def nelectrons(self) -> float:
+        return self.setups.nvalence - self.params.charge
 
     @cached_property
     def atomdist(self) -> AtomDistribution:
@@ -218,10 +239,15 @@ class DFTComponentsBuilder:
         """
         if self.params.parallel.get('gpu', GPAW_USE_GPUS):
             from gpaw.gpu import cupy_is_fake
-            if cupy_is_fake and not os.environ.get('GPAW_CPUPY'):
+            if cupy_is_fake and not GPAW_CPUPY:
+                parallel_source = ('the `parallel` parameter'
+                                   if self.params.parallel.get('gpu') else
+                                   'the environment variable `GPAW_USE_GPUS`')
                 raise ValueError(
-                    'Please set GPAW_CPUPY=1 if you really want to do GPU '
-                    'calculations with GPAW''s fake cupy library '
+                    f'GPU calculation is requested via {parallel_source}, '
+                    'but the requisite CuPy library is not found; '
+                    'please set GPAW_CPUPY=1 if you really want to do "GPU" '
+                    'calculations with GPAW\'s fake CuPy library '
                     '(gpaw.gpu.cpupy)')
             return True
         return False
@@ -380,12 +406,14 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
     def create_environment(self, grid, log):
-        if self.params.background_charge:
-            from gpaw.new.environment import Jellium
-            from gpaw.jellium import create_background_charge
-            bc = create_background_charge(**self.params.background_charge)
-            bc.set_grid_descriptor(grid._gd)
-            return Jellium(bc, len(self.atoms), grid)
+        if self.params.environment is not None:
+            env = fromdict(self.params.environment)
+            return env.build(
+                setups=self.setups,
+                grid=grid, relpos_ac=self.relpos_ac, log=log,
+                comm=self.communicators['w'],
+                nn=self.params.poissonsolver.get('nn', 3))
+
         if self.params.solvation:
             from gpaw.new.solvation import Solvation
             return Solvation(**self.params.solvation,

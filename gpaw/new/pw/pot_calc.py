@@ -1,7 +1,7 @@
 import numpy as np
 from gpaw.core import PWDesc
 from gpaw.mpi import broadcast_float
-from gpaw.new import zips, spinsum
+from gpaw.new import zips, spinsum, trace
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.stress import calculate_stress
 from gpaw.setup import Setups
@@ -20,6 +20,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  relpos_ac,
                  atomdist,
                  environment,
+                 extensions,
                  soc=False,
                  xp=np):
         self.xp = xp
@@ -28,6 +29,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                          external_potential=external_potential,
                          relpos_ac=relpos_ac,
                          environment=environment,
+                         extensions=extensions,
                          soc=soc)
 
         self.vbar_ag = setups.create_local_potentials(
@@ -92,6 +94,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         _, _, _, e_xc, _, _ = self._interpolate_and_calculate_xc(xc, density)
         return e_xc
 
+    @trace
     def calculate_pseudo_potential(self, density, ibzwfs, vHt_h=None):
         nt_sr, nt0_g, taut_sr, e_xc, vxct_sr, dedtaut_sr = (
             self._interpolate_and_calculate_xc(self.xc, density))
@@ -109,9 +112,10 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         else:
             vt0_g = None
 
-        self.environment.update1(nt0_g)
+        self.environment.update1pw(nt0_g)
 
         Q_aL = density.calculate_compensation_charge_coefficients()
+
         e_coulomb, vHt_h, V_aL = self.poisson_solver.solve(
             nt0_g, Q_aL, vt0_g, vHt_h)
 
@@ -148,6 +152,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                 e_stress)
 
     def move(self, relpos_ac, atomdist):
+        super().move(relpos_ac, atomdist)
         self.poisson_solver.move(relpos_ac, atomdist)
         self.vbar_ag.move(relpos_ac, atomdist)
         self.vbar_g.data[:] = 0.0
@@ -192,7 +197,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                                                    nt_g),
             density.nct_aX.derivative(vt_g),
             Ftauct_av,
-            self.vbar_ag.derivative(nt_g))
+            self.vbar_ag.derivative(nt_g),
+            self.extensions_force_av)
 
     def stress(self, ibzwfs, density, potential):
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)

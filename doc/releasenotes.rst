@@ -10,6 +10,13 @@ Git master branch
 
 :git:`master <>`.
 
+* The XAS code has been expanded to allow for calculations of core holes
+  with 𝑙≠0.
+
+* :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
+
+* The fluctuation-dissipation theorem has been added to the SJM.
+
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
 
 * The constant inner potential DFT method has been included SJM.
@@ -25,6 +32,16 @@ Git master branch
 * Non self-consistent calculation of HSE06 eigenvalues for arbitrary
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
   :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
+
+* Experimental: Support for using MPI4PY_.  Set ``GPAW_MPI4PY=1`` to use this.
+
+* Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
+
+* Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
+  See :ref:`manual_convergence`.
+
+
+.. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
 
 
 Version 25.1.0

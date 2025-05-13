@@ -62,7 +62,6 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
         ibzwfs = PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
-            nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,
             create_wfs_func=create_wfs,
             kpt_comm=self.communicators['k'],
@@ -91,9 +90,13 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             self.relpos_ac, self.grid, self.dtype,
             lcaonbands, self.ncomponents, self.atomdist, self.nelectrons)
 
+        log('\nDiagonalizing LCAO Hamiltonian', flush=True)
+
         hamiltonian = LCAOHamiltonian(basis)
         LCAOEigensolver(basis).iterate(
             lcao_ibzwfs, None, potential, hamiltonian)
+
+        log('Converting LCAO to grid', flush=True)
 
         def create_wfs(spin, q, k, kpt_c, weight):
             lcaowfs = lcao_ibzwfs.wfs_qs[q][spin]
@@ -128,7 +131,6 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
         return PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
-            nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,
             create_wfs_func=create_wfs,
             kpt_comm=self.communicators['k'],
@@ -162,7 +164,6 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
         return PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
-            nelectrons=self.nelectrons,
             ncomponents=self.ncomponents,
             create_wfs_func=create_wfs,
             kpt_comm=self.communicators['k'],

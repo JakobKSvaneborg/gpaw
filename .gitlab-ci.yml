@@ -5,13 +5,21 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
-  # CI for branches inside the GPAW namespace will run on camd-runner2
+  # CI for branches inside the GPAW namespace will run on lyn/torden
   # because the GPAW project settings define the CI variable
   # DEFAULT_RUNNER_TAG: "linux".
-  # Forks will instead get this definition which allows running 
+  # Forks will instead get this definition which allows running
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
 
+  # OpenMPI binds processes to specific physical cores (cf. mpiexec
+  # manpage) when there are <= 2 cores.  This will cause it to
+  # oversubscribe the /same/ physical cores when running simultaneous
+  # size==2 jobs.  We therefore tell GPAW to tell mpiexec not to do
+  # this.  This problem was not observed on camd-runner2 because it
+  # uses hyperthreading and so was equipped to redistribute the load.
+  GPAW_MPI_OPTIONS: "--bind-to none"
 
 default:
   before_script:
@@ -19,6 +27,7 @@ default:
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
+    - pip freeze
   interruptible: true
   tags:
     - $DEFAULT_RUNNER_TAG
@@ -79,7 +88,6 @@ stages:
       - "*.log"
     expire_in: 30 mins
 
-
 .test:
   stage: test
   before_script:
@@ -133,6 +141,10 @@ build:
     - pip install --user --log build.log --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-oldest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-latest:
@@ -168,9 +180,14 @@ build-latest:
       EOF
     - cat siteconfig.py
     - pip install --user --upgrade numpy scipy
+    - pip install --user --upgrade mpi4py
     - pip install --user --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-latest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-cuda:
@@ -187,6 +204,10 @@ build-cuda:
       gpu_compile_args = ['-O3',
                           '-g']
       libraries += ['cudart', 'cublas']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
@@ -212,6 +233,10 @@ build-hip-cuda:
                              '-Wno-implicit-int',
                              ]
       undef_macros += ['GPAW_GPU_AWARE_MPI']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
@@ -369,7 +394,7 @@ test-latest:
       EOF
 
     - >
-      pytest -v -m ci -m gpu
+      pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
 
   artifacts:
@@ -556,6 +581,7 @@ docs:
     - build-latest
   script:
     - pip install scikit-image
+    - pip install -e git+https://gitlab.com/gpaw/gpaw-web-page-data.git#egg=gpaw-web-page-data
     - cd doc
     - make
     - make doctest
@@ -575,15 +601,28 @@ docs:
     expire_in: 1 week
 
 
+nightly-all:
+  image: $IMAGE_MAIN_LATEST
+  stage: build
+  script:
+    - echo This is only a dummy job used to trigger other jobs
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: manual
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+
 gpwfiles:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
   needs:
     - build-latest
+    - nightly-all
   stage: precalculate
   tags:
-    - xeon24
+    - xeon40
   before_script:
     - !reference [default, before_script]
   script:
@@ -594,7 +633,7 @@ gpwfiles:
     expire_in: 30 mins
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
+      when: on_success
       allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
@@ -610,7 +649,7 @@ gpwfiles:
     - build-latest
     - gpwfiles
   tags:
-    - xeon24
+    - xeon40
   before_script:
     - !reference [default, before_script]
     - pip install pytest-instafail pytest-xdist
@@ -620,7 +659,7 @@ gpwfiles:
       pytest --instafail -r s --durations 30
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
+      when: on_success
       allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
   #  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -718,7 +757,7 @@ pages:
   dependencies:
     - nightly-mpi-1
   tags:
-    - xeon24
+    - xeon40
   script:
     - mv htmlcov/ public
   artifacts:

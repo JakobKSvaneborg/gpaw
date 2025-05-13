@@ -330,15 +330,11 @@ class AtomPAW(GPAW):
         """Create BasisFunctions object with pseudo wave functions."""
         from gpaw.basis_data import Basis, BasisFunction
         assert self.wfs.nspins == 1
-
         d = self.wfs.gd.r_g[0]
         ng = self.wfs.gd.N + 1
         rgd = EquidistantRadialGridDescriptor(d, ng)
-        basis = Basis(self.symbol, basis_name, readxml=False, rgd=rgd)
-        basis.generatorattrs = {}  # attrs of the setup maybe
-        basis.generatordata = 'AtomPAW'  # version info too?
 
-        bf_j = basis.bf_j
+        bf_j = []
         for l, n, f, eps, psit_G in self.state_iter():
             n = [N for N, L in zip(n_j, l_j) if L == l][n]
             bf_g = rgd.empty()
@@ -353,4 +349,6 @@ class AtomPAW(GPAW):
             bf = BasisFunction(n, l, self.wfs.gd.r_g[-1], bf_g,
                                f'{n}{"spdfgh"[l]} e={eps:.3f} f={f:.3f}')
             bf_j.append(bf)
-        return basis
+
+        return Basis(self.symbol, basis_name, rgd=rgd,
+                     generatordata='AtomPAW', bf_j=bf_j)

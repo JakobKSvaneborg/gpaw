@@ -61,12 +61,13 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def create_potential_calculator(self, log):
         env = self.create_environment(self.fine_grid, log)
         poisson_solver = env.create_poisson_solver(
-            self.fine_grid, xp=self.xp, **self.params.poissonsolver)
+            grid=self.fine_grid, xp=self.xp, **self.params.poissonsolver)
         return FDPotentialCalculator(
             self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
             relpos_ac=self.relpos_ac, atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
             environment=env,
+            extensions=self.get_extensions(log),
             xp=self.xp)
 
     def create_hamiltonian_operator(self):
