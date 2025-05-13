@@ -38,7 +38,7 @@ def system_magic_graphene():
     atoms = graphene(vacuum=5)
     transa_cc = np.array([[29, -30, 0], [59, 29, 0], [0, 0, 1]])
     transb_cc = np.array([[30, -29, 0], [59, 30, 0], [0, 0, 1]])
-    atoms = make_heterostructure(atoms_a, atoms_b,
+    atoms = make_heterostructure(atoms, atoms,
                                  transa_cc=transa_cc,
                                  transb_cc=transb_cc,
                                  straina_vv=np.eye(3),
@@ -51,7 +51,7 @@ def system_6000_bl_graphene():
     atoms = graphene(vacuum=5)
     transa_cc = np.array([[23, 45, 0], [-22, 23, 0], [0, 0, 1]])
     transb_cc = np.array([[22, 45, 0], [-23, 22, 0], [0, 0, 1]])
-    atoms = make_heterostructure(atoms_a, atoms_b,
+    atoms = make_heterostructure(atoms, atoms,
                                  transa_cc=transa_cc,
                                  transb_cc=transb_cc,
                                  straina_vv=np.eye(3),
