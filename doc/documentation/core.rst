@@ -409,22 +409,14 @@ Core
    :members:
    :undoc-members:
 
-.. autoclass:: gpaw.new.symmetry.Symmetries
-   :members:
-   :undoc-members:
-.. autoclass:: gpaw.new.brillouin.IBZ
-   :members:
-   :undoc-members:
-.. autoclass:: gpaw.new.brillouin.BZPoints
-   :members:
-   :undoc-members:
-.. autoclass:: gpaw.new.brillouin.MonkhorstPackKPoints
-   :members:
-   :undoc-members:
 
-.. autoclass:: gpaw.new.environment.Environment
-   :members:
-   :undoc-members:
+Input-parameter objects
+-----------------------
+
+.. autoclass:: gpaw.dft.PW
+.. autoclass:: gpaw.dft.LCAO
+.. autoclass:: gpaw.dft.FD
+.. autoclass:: gpaw.dft.Mode
 
 
 DFT
@@ -462,6 +454,23 @@ DFT
     :undoc-members:
 .. autofunction:: gpaw.new.ase_interface.GPAW
 .. autofunction:: gpaw.new.pwfd.move_wfs.move_wave_functions
+
+.. autoclass:: gpaw.new.symmetry.Symmetries
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.IBZ
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.BZPoints
+   :members:
+   :undoc-members:
+.. autoclass:: gpaw.new.brillouin.MonkhorstPackKPoints
+   :members:
+   :undoc-members:
+
+.. autoclass:: gpaw.new.environment.Environment
+   :members:
+   :undoc-members:
 
 
 FFTW

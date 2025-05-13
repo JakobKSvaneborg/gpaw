@@ -397,7 +397,9 @@ class FDTDPoissonSolver:
         for w in range(3):
             self.qm.cell[w, w] = v2[w] - v1[w]
 
-        N_c = get_number_of_grid_points(self.qm.cell, qmh)
+        from gpaw.utilities import h2gpts
+        N_c = h2gpts(qmh, self.qm.cell, 4)
+        # N_c = get_number_of_grid_points(self.qm.cell, qmh)
         self.qm.spacing = np.diag(self.qm.cell) / N_c
 
         # Classical corner indices must be divisible with numb
