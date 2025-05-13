@@ -32,6 +32,32 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        **general_parameter_sets}
 
 
+def system_magic_graphene():
+    from gpaw.benchmark.generate_twisted import make_heterostructure
+    from ase.build import graphene
+    atoms = graphene(vacuum=5)
+    transa_cc = np.array([[29, -30, 0], [59, 29, 0], [0, 0, 1]])
+    transb_cc = np.array([[30, -29, 0], [59, 30, 0], [0, 0, 1]])
+    atoms = make_heterostructure(atoms_a, atoms_b,
+                                 transa_cc=transa_cc,
+                                 transb_cc=transb_cc,
+                                 straina_vv=np.eye(3),
+                                 interlayer_dist=3.35)
+    return atoms
+
+def system_6000_bl_graphene():
+    from gpaw.benchmark.generate_twisted import make_heterostructure
+    from ase.build import graphene
+    atoms = graphene(vacuum=5)
+    transa_cc = np.array([[23, 45, 0], [-22, 23, 0], [0, 0, 1]])
+    transb_cc = np.array([[22, 45, 0], [-23, 22, 0], [0, 0, 1]])
+    atoms = make_heterostructure(atoms_a, atoms_b,
+                                 transa_cc=transa_cc,
+                                 transb_cc=transb_cc,
+                                 straina_vv=np.eye(3),
+                                 interlayer_dist=3.35)
+    return atoms
+
 def system_C60():
     from ase.build import molecule
     atoms = molecule('C60')
