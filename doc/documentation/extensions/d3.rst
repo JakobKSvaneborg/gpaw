@@ -7,7 +7,8 @@ D3 correction
 Setup
 -----
 
-If GPAW is setup on Niflheim with the ``GPAW_venv.py`` script, then it must be run with the ``--dftd3`` flag to work like this::
+If GPAW is setup on Niflheim with the ``GPAW_venv.py`` script, 
+then it must be run with the ``--dftd3`` flag to work like this::
 
     $ python3 gpaw_venv.py --dftd3 <venv-name>
 
@@ -15,25 +16,42 @@ If GPAW is setup on Niflheim with the ``GPAW_venv.py`` script, then it must be r
 Usage
 -----
 
+The D3 extension has one mandatory keyword, ``xc`` which is that exchange-correlation
+functional to use.
+
+An example of a system where the D3 correction adds meaningful correction 
+is in the case of 2D bilayer systems. 
+
+.. literalinclude:: d3_bilayer.py
+    :language: python 
+
+
+.. note::
+    D3 requires the system to be either not periodic or periodic in all three directions. 
+    If the system is only periodic in one or two directions a warning will appear and it will 
+    assume that system is periodic in all three directions.
 
 
 Output
 ------
 
-The energy contribution from the D3 correction can by found in the output file just after the list of iterations::
+The energy contribution from the D3 correction can by found in the output 
+file just after the list of iterations. For the above example the relevant part of 
+the output file will look as following::
     
-    Energy contributions relative to reference atoms: (reference = -78.729696)
+    Energy contributions relative to reference atoms: (reference = -702828.048343)
     
-    kinetic:           0.043838
-    coulomb:          -0.051940
-    zero:              0.023001
+    kinetic:          71.457107
+    coulomb:         -50.449930
+    zero:             -0.629602
     external:          0.000000
-    xc:                0.010893
-    entropy:           0.000000
+    xc:              -44.310857
+    entropy:          -0.001037
     spinorbit:         0.000000
     --------extensions:---------
-    D3 (xc=PBE):       0.000000
+    D3 (xc=PBE):      -1.446148
     ----------------------------
-    Free energy:       0.025792
-    Extrapolated:      0.025792
+    Free energy:     -25.380467
+    Extrapolated:    -25.379948
+
 
