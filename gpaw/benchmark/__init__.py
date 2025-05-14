@@ -58,6 +58,12 @@ def system_6000_bl_graphene():
                                  interlayer_dist=3.35)
     return atoms
 
+def system_H2():
+    from ase.build import molecule
+    atoms = molecule('H2')
+    atoms.center(vacuum=3)
+    return atoms
+
 def system_C60():
     from ase.build import molecule
     atoms = molecule('C60')
@@ -71,7 +77,8 @@ def system_diamond():
 
 
 systems = {'C60': system_C60,
-           'diamond': system_diamond}
+           'diamond': system_diamond,
+           'H2': system_H2}
 
 benchmarks =  {'C60_pw': 'C60-pw.high:gamma',
                'C60_lcao': 'C60-lcao.dzp',
@@ -127,24 +134,25 @@ def parse_parameters(parameter_sets):
 def benchmarks_error(name):
     err = f'Cannot find benckmark with name {name}\n\n'
     err += 'Available benchmarks\n'
-    header = '{:15s} | {:15s} | {:15s}\n'.format('name','system', 'parameter sets')
+    header = '{:20s} | {:35s}\n'.format('name','system-parameter sets')
     err += header + '-' * len(header) + '\n'
 
-    for benchmark, (system, parameter_set) in benchmarks.items():
-        err += f'{benchmark:15s} | {system:15s} | {parameter_set:15s}\n'
+    for benchmark, system_and_parameter_set in benchmarks.items():
+        err += f'{benchmark:20s} | {system_and_parameter_set:35s}\n'
     return err
 
 
 def benchmark_atoms_and_calc(name):
     from gpaw.new.ase_interface import GPAW
-    if '-' in name:
-        system, parameter_sets = name.split('-')
-    else:
-        try:
-            system, parameter_sets = benchmarks[name]
-        except KeyError:
-            print(benchmarks_error(name))
-            raise
+
+    # Replace nickname with long name
+    if '-' not in name:
+        if name in benchmarks:
+            nickname, name = name, benchmarks[name]
+        else:
+            raise Exception(benchmarks_error(name))
+
+    system, parameter_sets = name.split('-')
     atoms = parse_system(system)
     parameters = parse_parameters(parameter_sets)
     pp(parameters, indent=4, sort_dicts=True)
@@ -153,6 +161,7 @@ def benchmark_atoms_and_calc(name):
 
 
 def benchmark_main(name):
+    print('Running benchmark', name)
     atoms, calc = benchmark_atoms_and_calc(name)
     E = atoms.get_potential_energy()
     F = atoms.get_forces()
