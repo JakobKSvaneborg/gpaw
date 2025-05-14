@@ -4,4 +4,36 @@
 D3 correction
 =============
 
-Manual for the D3 correction
+Setup
+-----
+
+If GPAW is setup on Niflheim with the ``GPAW_venv.py`` script, then it must be run with the ``--dftd3`` flag to work like this::
+
+    $ python3 gpaw_venv.py --dftd3 <venv-name>
+
+
+Usage
+-----
+
+
+
+Output
+------
+
+The energy contribution from the D3 correction can by found in the output file just after the list of iterations::
+    
+    Energy contributions relative to reference atoms: (reference = -78.729696)
+    
+    kinetic:           0.043838
+    coulomb:          -0.051940
+    zero:              0.023001
+    external:          0.000000
+    xc:                0.010893
+    entropy:           0.000000
+    spinorbit:         0.000000
+    --------extensions:---------
+    D3 (xc=PBE):       0.000000
+    ----------------------------
+    Free energy:       0.025792
+    Extrapolated:      0.025792
+

@@ -41,7 +41,7 @@ For a full list of paramters in old GPAW see :ref:`parameters`.
       - description
     * - ``d3``
       - ``Work in progress``
-      - ``Work in progress``
+      - ``None``
       - :ref:`d3correction`
 
 End of table
