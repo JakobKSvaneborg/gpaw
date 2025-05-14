@@ -228,7 +228,10 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if object_hooks:
         for key, hook in object_hooks.items():
             if key in kwargs:
-                kwargs[key] = hook(kwargs[key])
+                if key != 'extensions':
+                    kwargs[key] = hook(kwargs[key])
+                else:
+                    kwargs[key] = [hook(x) for x in kwargs[key]]
 
     params = Parameters(**kwargs)
     builder = params.dft_component_builder(atoms, log=log)

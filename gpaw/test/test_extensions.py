@@ -119,8 +119,8 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     assert movedE == pytest.approx(movedE0 + 1 / 2 * ktot * (l - 2)**2)
     assert movedF[0, 2] == pytest.approx(movedF0[0, 2] - ktot * (l - 2))
 
-    def hook(extensions):
-        return [Spring(**ext) for ext in extensions]
+    def hook(extension):
+        return Spring(**extension)
 
     # 4. Test restarting from a file
     atoms, calc = restart(

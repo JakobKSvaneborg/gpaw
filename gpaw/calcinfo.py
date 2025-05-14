@@ -44,7 +44,7 @@ class CalcInfo:
                                               comm=self.comm,
                                               log=self.log)
 
-    def get_ase_calc(self):
+    def ase_calculator(self):
         return self.dft_calculation().ase_calculator()
 
 
@@ -99,9 +99,9 @@ def get_calculation_info(atoms: Atoms,
     ----------------
     update_params
         Update input parameters and return new CalcInfo object
-    get_dft_calc
+    dft_calculation
         Return DFTCalculation object with the given input parameters
-    get_ase_calc
+    ase_calculator
         Return ASECalculation object with the given input parameters
     """
     if 'txt' in param_kwargs:

@@ -7,10 +7,12 @@ from gpaw.jellium import create_background_charge
 from gpaw.new.environment import Environment, FixedPotentialJellium, Jellium
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.pw.poisson import PWPoissonSolver
-from gpaw.new.solvation import Solvation
+from gpaw.new.solvation import SolvationEnvironment
 
 
 class SJM:
+    name = 'sjm'
+
     def __init__(self,
                  *,
                  cavity,
@@ -34,7 +36,7 @@ class SJM:
               relpos_ac,
               log,
               comm) -> SJMEnvironment:
-        solvation = Solvation(
+        solvation = SolvationEnvironment(
             cavity=self.cavity,
             dielectric=self.dielectric,
             interactions=self.interactions,

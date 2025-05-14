@@ -273,8 +273,8 @@ class Environment(Parameter):
                 from gpaw.new.sjm import SJM
                 return SJM(**dct)
             if name == 'solvation':
-                from gpaw.new.solvation import SolvationInput
-                return SolvationInput(**dct)
+                from gpaw.new.solvation import Solvation
+                return Solvation(**dct)
             raise ValueError(f'Unknown environment: {name}')
         return env
 
@@ -564,15 +564,15 @@ class Parameters:
                           stacklevel=3)
 
         self._non_defaults = []
-        for key, value in locals().items():
+        _locals = locals()
+        for key in PARAMETER_NAMES:
+            value = _locals[key]
             if key in ['gpts', 'kpts', 'magmoms']:
                 is_default = value is None
             elif key == 'xc':
                 is_default = value == 'LDA'
-            elif key != 'self':
-                is_default = not value
             else:
-                continue
+                is_default = not value
             if not is_default:
                 self._non_defaults.append(key)
 

@@ -130,6 +130,9 @@ class VolumeInteraction(Interaction):
         Interaction.__init__(self)
         self.pressure = float(pressure)
 
+    def todict(self):
+        return {'pressure': self.pressure}
+
     def update(self, atoms, density, cavity):
         if cavity is None:
             return False
