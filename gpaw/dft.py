@@ -538,7 +538,58 @@ class Parameters:
         mode:
             PW, LCAO or FD mode.
         basis:
-            Basis-set.
+            Basis-set.  Used for LCAO calculations and wave-function initial
+            guess for PW and FD calculations.  Default is to use the PAW
+            pseudo partial-waves.
+        charge:
+            Total charge of the system in units of `|e|`.
+        convergence:
+            SCF-convergence criteria.
+        eigensolver:
+            Eigensolver.  Default for PW and FD mode is ``'davidson'``.
+        environment:
+            ...
+        gpts:
+            Number of real-space grid-points for wave-functions
+            (three integers).
+        h:
+            grid-spaving for wave-function grid (Å).
+        hund:
+            Use Hund's rule for initial magnetic moments.
+        experimental:
+            Experimental stuff.
+        extensions:
+            Extensions (D3, ...).
+        interpolation:
+            ...
+        kpts:
+            Brilluin-zone sampling.  Default is `\Gamma`-point only.
+        magmoms:
+            Initial magnetic moments for non-collinear calculations.
+        maxiter:
+            Maximum number of allowed SCF-iterations.  Default is 333.
+        mixer:
+            Density-mixing scheme.
+        nbands:
+            Number of bands.
+        occupations:
+            ...
+        parallel:
+            ...
+        poissonsolver:
+            ...
+        random:
+            Use random numbers for initial wave functions.
+        setups:
+            ...
+        soc:
+            Enable spin-orbit coupling.
+        spinpol:
+            Force spin-polarized calculation.
+        symmetry:
+            Use of symmetry.  Default is to use ...
+        xc:
+            XC-functional.  Default is LDA.
         """
 
         if experimental is None:
@@ -700,7 +751,19 @@ def DFT(
     xc: str | dict | XC = 'LDA',
     txt: str | Path | IO[str] | None = '-',
     communicator: MPIComm | Sequence[int] | None = None):
-    """asdg
+    """Create a DFTCalculation object.
+
+    Parameters
+    ==========
+    atoms:
+        ASE-Atoms object.
+    txt:
+        Text log-file.  Use ``None`` for no loggin and ``'-'`` for using
+        standard out.
+    communicator:
+        MPI-communicator.  Default is to use ``gpaw.mpi.world``.
+
+    See :class:`gpaw.dft.Parameters` for the complete list of parameters.
     """
     params = Parameters(**{k: v for k, v in locals().items()
                            if k in PARAMETER_NAMES})
@@ -741,6 +804,19 @@ def GPAW(
     object_hooks=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
+    Parameters
+    ==========
+    filename:
+        Name of gpw-file to restart from.
+    txt:
+        Text log-file.  Use ``None`` for no loggin and ``'-'`` for using
+        standard out.
+    communicator:
+        MPI-communicator.  Default is to use ``gpaw.mpi.world``.
+    object_hooks:
+        Dictionart of hook-functions to create custom parameter-objects.
+
+    See :class:`gpaw.dft.Parameters` for the complete list of parameters.
     """
     from gpaw.new.ase_interface import ASECalculator
     from gpaw.new.gpw import read_gpw
