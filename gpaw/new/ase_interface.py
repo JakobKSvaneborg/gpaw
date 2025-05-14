@@ -106,14 +106,7 @@ class ASECalculator:
         return self._atoms
 
     def __repr__(self):
-        params = []
-        for key, value in self.params.items():
-            val = repr(value)
-            if len(val) > 40:
-                val = '...'
-            params.append((key, val))
-        p = ', '.join(f'{key}: {val}' for key, val in params)
-        return f'ASECalculator({p})'
+        return f'ASECalculator({self.params!r})'
 
     def iconverge(self, atoms: Atoms | None):
         """Iterate to self-consistent solution.

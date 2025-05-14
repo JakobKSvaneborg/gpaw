@@ -8,12 +8,13 @@ Introduction to GPAW internals
     from gpaw.core.matrix import *
     from gpaw.core.atom_arrays import *
     from gpaw.new.symmetry import Symmetries
+    from gpaw.dft import Parameters
 
 .. contents::
 
 .. warning::
 
-   This page describes :ref:`new-gpaw`!
+   This page describes :ref:`newgpaw`!
 
 
 Full picture
@@ -31,7 +32,7 @@ created with the :func:`gpaw.dft.GPAW` function:
 ...               pbc=True)
 >>> atoms.calc = GPAW(mode=PW(ecut=400.0), txt='h2.txt')
 >>> atoms.calc
-ASECalculator(mode: {'name': 'pw'})
+ASECalculator(mode=PW(ecut=400.0))
 
 The ``atoms.calc`` object manages a
 :class:`gpaw.new.calculation.DFTCalculation` object that does the actual work.
