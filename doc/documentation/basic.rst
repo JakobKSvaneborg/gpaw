@@ -184,10 +184,10 @@ given in the following sections.
       - ``str``
       - ``'LDA'``
       - :ref:`manual_xc`
-    * - ``d3``
-      - ``Work in progress``
-      - ``Work in progress``
-      - :ref:`d3correction`
+    * - ``extensions``
+      - ``List[ExtensionParameter]``
+      - ``None``
+      - :ref:`extensions`
 
 
 *seq*: A sequence of three ``int``'s.
