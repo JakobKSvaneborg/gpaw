@@ -11,34 +11,9 @@ Introduction to GPAW internals
 
 .. contents::
 
-DFT input parameters
-====================
-The :class:`~gpaw.dft.Parameters` object takes care of
-input parameters:
+.. warning::
 
-* checks for errors
-* does normalization
-* handles backwards compatibility and deprecation warnings
-
-
->>> from gpaw.new.calculation import DFTCalculation
->>> calculation = DFTCalculation.from_parameters(atoms, params)
-
-or when you create an ASE-calculator interface:
-
->>> from ase import Atoms
->>> atoms = Atoms('Li', cell=[2, 2, 2], pbc=True)
->>> from gpaw.new.ase_interface import GPAW
->>> atoms.calc = GPAW(**params, txt='li.txt')
-
-
-DFT components builders
-=======================
-
-The components needed for a DFT calculation are created by a "builder" that
-can be made from an ASE
-:class:`ase.Atoms` object and some input parameters.
-There are builders for each of the modes: PW, FD and LCAO.
+   This page describes :ref:`new-gpaw`!
 
 
 Full picture
@@ -46,13 +21,15 @@ Full picture
 
 The :class:`ase.Atoms` object has an
 :class:`gpaw.new.ase_interface.ASECalculator` object attached
-created with the :func:`gpaw.new.ase_interface.GPAW` function:
+created with the :func:`gpaw.dft.GPAW` function:
 
+>>> from ase import Atoms
+>>> from gpaw.dft import GPAW, PW
 >>> atoms = Atoms('H2',
 ...               positions=[(0, 0, 0), (0, 0, 0.75)],
 ...               cell=[2, 2, 3],
 ...               pbc=True)
->>> atoms.calc = GPAW(mode='pw', txt='h2.txt')
+>>> atoms.calc = GPAW(mode=PW(ecut=400.0), txt='h2.txt')
 >>> atoms.calc
 ASECalculator(mode: {'name': 'pw'})
 
@@ -128,6 +105,38 @@ Overview:
         * ...
 
 See also: :download:`code.svg`.
+
+There are three ways to create a :class:`~gpaw.new.calculation.DFTCalculation`
+object:
+
+* Via the the :func:`gpaw.dft.GPAW` function which will create an
+  :class:`gpaw.new.ase_interface.ASECalculator` object that has a
+  ``dft`` attribute::
+
+    atoms.calc = GPAW(<parameters>)
+    atoms.get_potential_energy()
+    dft = atoms.calc.dft
+
+* Directly using the :class:`~gpaw.new.calculation.DFTCalculation`
+  constructor (not recommended)::
+
+    dft = DFTCalculation(...)
+
+* Using the :func:`gpaw.dft.DFT` function::
+
+    dft = DFT(atoms, <parameters>)
+
+* Via the :class:`~gpaw.dft.Parameters` object::
+
+    dft = Parameters(<parameters>).dft_calculation(atoms)
+
+  The :class:`~gpaw.dft.Parameters` is used by both the
+  :func:`gpaw.dft.DFT` and :func:`gpaw.dft.GPAW` functions to
+  handle:
+
+  * error checking
+  * normalization
+  * backwards compatibility and deprecation warnings
 
 
 Naming convention for arrays
@@ -452,7 +461,8 @@ DFT
 .. autoclass:: gpaw.new.ase_interface.ASECalculator
     :members:
     :undoc-members:
-.. autofunction:: gpaw.new.ase_interface.GPAW
+.. autofunction:: gpaw.dft.DFT
+.. autofunction:: gpaw.dft.GPAW
 .. autofunction:: gpaw.new.pwfd.move_wfs.move_wave_functions
 
 .. autoclass:: gpaw.new.symmetry.Symmetries
