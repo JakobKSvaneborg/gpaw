@@ -62,6 +62,7 @@ def test_wannier90(gpw_files, mode, in_tmp_dir, wannier90):
     check_wavefunctions()
 
 
+@pytest.mark.skip('https://gitlab.com/gpaw/gpaw/-/issues/1380')
 @pytest.mark.wannier
 @pytest.mark.serial
 @pytest.mark.skipif(': 3.' not in out(),
