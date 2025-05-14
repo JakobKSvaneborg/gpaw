@@ -409,6 +409,8 @@ class BZSampling(Parameter):
     def from_param(cls, kpts):
         if isinstance(kpts, BZSampling):
             return kpts
+        if hasattr(kpts, 'kpts'):
+            return KPoints(kpts.kpts)
         if isinstance(kpts, dict):
             if 'kpts' in kpts:
                 return KPoints(kpts['kpts'])
