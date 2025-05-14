@@ -565,7 +565,7 @@ class Parameters:
         interpolation:
             ...
         kpts:
-            Brilluin-zone sampling.  Default is `\Gamma`-point only.
+            Brilluin-zone sampling.  Default is Γ-point only.
         magmoms:
             Initial magnetic moments for non-collinear calculations.
         maxiter:
