@@ -442,6 +442,9 @@ class BSEBackend:
         possible though - the Hamiltonian, for example, is always
         denoted H_kmmKmm - also for calculations without SOC. G is reciprocal
         lattice index.
+
+        The parameter 'irreducible' puts V=0 such that the BSE kernel only
+        contians W. It is used for BSE+ calculations.
         """
         qpd0 = SingleQPWDescriptor.from_q(self.q_c, self.ecut, self.gs.gd)
 
@@ -912,6 +915,7 @@ class BSEBackend:
         nG = rho_RG.shape[-1]
         nR = self.nS - len(exclude_S)
         nr = -(-nR // world.size)
+        # nr is the local size of the array
 
         self.context.print('Calculating response function at %s frequency '
                            'points' % len(w_w))
@@ -925,43 +929,36 @@ class BSEBackend:
                 overlap_tt = np.linalg.inv(tmp)
                 C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis] *\
                     A_GT.T[:, np.newaxis]
-                C_tGG1 = None
             else:
                 C_tGG = None
-                C_tGG1 = None
+            C_tGG1 = None
         else:
             A_Gt = rho_RG.T @ v_Rt
             B_Gt = (rho_RG.T * df_R[np.newaxis]) @ v_Rt
-            if world.size == 1:
-                C_tGG1 = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
-                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
-            else:
-                nR = self.nS - len(exclude_S)
-                nr = -(-nR // world.size)
-                grid = BlacsGrid(world, world.size, 1)
-                desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-                C_tGG = desc.empty(dtype=complex)
-                np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
-                          out=C_tGG.reshape((-1, nG, nG)))
-                desc1 = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-                C_tGG1 = desc1.empty(dtype=complex)
-                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
-                          out=C_tGG1.reshape((-1, nG, nG)))
+            grid = BlacsGrid(world, world.size, 1)
+            desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
+            C_tGG = desc.empty(dtype=complex)
+            np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
+                      out=C_tGG.reshape((-1, nG, nG)))
+            desc1 = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
+            C_tGG1 = desc1.empty(dtype=complex)
+            np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
+                      out=C_tGG1.reshape((-1, nG, nG)))
 
         eta /= Hartree
 
-        if world.size > 1 and self.use_tammdancoff is True:
+        if world.size > 1 and self.use_tammdancoff:
             self.blocks = Blocks1D(world, len(w_T))
             w_t = w_T[self.blocks.myslice]
             print(f'shape is {C_tGG.shape}')
             C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
         elif (
-            world.rank == 0 and self.use_tammdancoff is False
+            world.rank == 0 and not self.use_tammdancoff
         ) or world.size == 1:
             w_t = w_T
             C_tGG = C_tGG[:nR].reshape((nR, nG, nG))
 
-        if self.use_tammdancoff is True or world.rank == 0:
+        if self.use_tammdancoff or world.rank == 0:
             tmp_tw = 1 / (w_w[None, :] / Hartree - w_t[:, None] + 1j * eta)
             n_tmp_tw = - 1 / (w_w[None, :] / Hartree + w_t[:, None] + 1j * eta)
 
@@ -974,7 +971,7 @@ class BSEBackend:
 
             chi_wGG_local *= 1 / self.gs.volume
 
-        if world.size > 1 and self.use_tammdancoff is True:
+        if world.size > 1 and self.use_tammdancoff:
             chi_wGG = np.zeros_like(chi_wGG_local)
             world.sum(chi_wGG_local)
             chi_wGG = chi_wGG_local
@@ -1381,6 +1378,8 @@ class BSE_Plus:
             self.n1_chi0 = self.n1_BSE
             self.m2_chi0 = self.m2_BSE + 1
 
+        assert truncation in [None, '2D']
+
         assert self.m2_chi0 < self.m2_chi0_full, \
             'Large chi0 calculation should contain more ' \
             'bands than the BSE calculation'
@@ -1425,6 +1424,8 @@ class BSE_Plus:
         del chi0calc_full, dyson_eqs_full, chi0_full_wGG
 
         if self.truncation == '2D':
+            pbc_c = self.gs.pbc
+            assert sum(pbc_c) == 2
             coulomb_kernel_bare = CoulombKernel.from_gs(
                 self.gs, truncation=None)
             v_G_bare = coulomb_kernel_bare.V(chi0_data_full.qpd, q_v=None)
@@ -1437,7 +1438,6 @@ class BSE_Plus:
             chi_irr_BSE_WGG = chi_irr_BSE_WGG * \
                 v_G_bare[np.newaxis, np.newaxis, :]
             cell_cv = self.gs.gd.cell_cv
-            pbc_c = self.gs.pbc
             V = np.abs(np.linalg.det(cell_cv[~pbc_c][:, ~pbc_c]))
             V *= Bohr
         elif self.truncation is None and optical:
@@ -1472,7 +1472,7 @@ class BSE_Plus:
             del chi_BSE_plus_WGG
         del chi_BSE_plus_wGG, chi0_limited_wGG
 
-        if chi_BSE is True:
+        if chi_BSE:
             chi_BSE_wGG = \
                 np.linalg.solve(eye - chi_irr_BSE_wGG @ np.diag(self.v_G),
                                 chi_irr_BSE_wGG)
@@ -1487,7 +1487,7 @@ class BSE_Plus:
                 del chi_BSE_WGG
             del chi_BSE_wGG
 
-        if chi_RPA is True:
+        if chi_RPA:
             chi_full_wGG = \
                 np.linalg.solve(eye - chi0_full_wGG @ np.diag(self.v_G),
                                 chi0_full_wGG)
