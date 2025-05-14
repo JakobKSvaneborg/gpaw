@@ -323,7 +323,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     kpt_band_comm.broadcast(D_asp.data, 0)
     kpt_band_comm.broadcast(dH_asp.data, 0)
 
-    if reader.version >= 4:
+    # if reader.version >= 4:
+    if 'electrostatic_potential' in reader.hamiltonian:
         if comm.rank == 0:
             vHt_x_array = reader.hamiltonian.electrostatic_potential / ha
             if singlep:
