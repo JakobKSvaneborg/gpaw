@@ -75,7 +75,7 @@ class SJM:
 
 class SJMEnvironment(Environment):
     def __init__(self,
-                 solvation: Solvation,
+                 solvation: SolvationEnvironment,
                  jellium: Jellium):
         super().__init__(solvation.natoms)
         self.solvation = solvation
