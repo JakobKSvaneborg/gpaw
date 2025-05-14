@@ -41,7 +41,11 @@ def test_h(gpaw_new, mode, in_tmp_dir):
     atoms.write('h.traj')
     if gpaw_new:
         atoms.calc.write('h.gpw')
-        GPAW('h.gpw')
+
+        def hook(dct):
+            return SJM(**sjm, **solvation)
+
+        GPAW('h.gpw', object_hooks={'environment': hook})
 
     if 0:
         v = atoms.calc.get_electrostatic_potential()

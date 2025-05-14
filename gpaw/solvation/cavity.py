@@ -10,7 +10,9 @@ BAD_RADIUS_MESSAGE = 'All atomic radii have to be finite and >= zero.'
 
 
 def set_log_and_check_radii(obj, atoms, log):
-    radii = np.array(obj.atomic_radii(atoms), dtype=float)
+    radii = np.array(
+        [obj.atomic_radii.get(symbol, vdw_radii[Z])
+         for symbol, Z in zip(atoms.symbols, atoms.numbers)], dtype=float)
     obj.atomic_radii_output = radii.copy()
     obj.symbols = atoms.get_chemical_symbols()
     log_radii, a_index, na = np.unique(radii, return_index=True,
@@ -79,6 +81,10 @@ class Cavity(NeedsGD):
         self.g_g = None
         self.del_g_del_n_g = None
         self.grad_g_vg = None
+        if isinstance(surface_calculator, dict):
+            surface_calculator = GradientSurface(**surface_calculator)
+        if isinstance(volume_calculator, dict):
+            volume_calculator = KB51Volume(**volume_calculator)
         self.surface_calculator = surface_calculator
         self.volume_calculator = volume_calculator
         self.V = None  # global Volume
@@ -87,10 +93,16 @@ class Cavity(NeedsGD):
     def todict(self):
         dct = {}
         if self.surface_calculator is not None:
-            dct['surface_calculator'] = self.surface_calculator
+            dct['surface_calculator'] = self.surface_calculator.todict()
         if self.volume_calculator is not None:
-            dct['volume_calculator'] = self.volume_calculator
+            dct['volume_calculator'] = self.volume_calculator.todict()
         return dct
+
+    @classmethod
+    def from_dict(cls, dct):
+        if not isinstance(dct, dict):
+            return dct
+        return EffectivePotentialCavity(**dct)
 
     def write(self, writer):
         pass
@@ -210,12 +222,11 @@ class EffectivePotentialCavity(Cavity):
     A. Held and M. Walter, J. Chem. Phys. 141, 174108 (2014).
     """
 
-    def __init__(
-        self,
-        effective_potential,
-        temperature,
-        surface_calculator=None, volume_calculator=None
-    ):
+    def __init__(self,
+                 effective_potential,
+                 temperature,
+                 surface_calculator=None,
+                 volume_calculator=None):
         """Constructor for the EffectivePotentialCavity class.
 
         Additional arguments not present in base Cavity class:
@@ -224,13 +235,15 @@ class EffectivePotentialCavity(Cavity):
                                in Kelvin.
         """
         Cavity.__init__(self, surface_calculator, volume_calculator)
-        self.effective_potential = effective_potential
+        self.effective_potential = Potential.from_dict(effective_potential)
         self.temperature = float(temperature)
         self.minus_beta = -1. / (kB * temperature / Hartree)
 
     def todict(self):
         return {
-            'effective_potential': self.effective_potential.todict(),
+            'effective_potential': {
+                'name': self.effective_potential.__class__.__name__,
+                **self.effective_potential.todict()},
             'temperature': self.temperature,
             **super().todict()}
 
@@ -335,6 +348,18 @@ class Potential(NeedsGD):
         self.del_u_del_n_g = None
         self.grad_u_vg = None
 
+    @classmethod
+    def from_dict(self, dct):
+        if not isinstance(dct, dict):
+            return dct
+        dct = dct.copy()
+        name = dct.pop('name')
+        if name == 'Power12Potential':
+            return Power12Potential(**dct)
+        assert name == 'SJMPower12Potential'
+        from gpaw.solvation.sjm import SJMPower12Potential
+        return SJMPower12Potential(**dct)
+
     @property
     def depends_on_el_density(self):
         """Return whether the cavity depends on the electron density."""
@@ -410,12 +435,7 @@ class Power12Potential(Potential):
     def __init__(self, atomic_radii=None, u0=0.180, pbc_cutoff=1e-6,
                  tiny=1e-10):
         Potential.__init__(self)
-        if atomic_radii is None:
-            atomic_radii = get_vdw_radii
-        elif isinstance(atomic_radii, dict):
-            def atomic_radii(atoms, radii=atomic_radii):
-                return [radii[symbol] for symbol in atoms.symbols]
-        self.atomic_radii = atomic_radii
+        self.atomic_radii = atomic_radii or {}
         self.u0 = float(u0)
         self.pbc_cutoff = float(pbc_cutoff)
         self.tiny = float(tiny)
@@ -428,9 +448,7 @@ class Power12Potential(Potential):
 
     def todict(self):
         return {
-            'atomic_radii': {
-                symbol: r for symbol, r in zip(
-                    self.symbols, self.atomic_radii_output)},
+            'atomic_radii': self.atomic_radii,
             'u0': self.u0,
             'pbc_cutoff': self.pbc_cutoff,
             'tiny': self.tiny}
@@ -1062,6 +1080,10 @@ class KB51Volume(VolumeCalculator):
         VolumeCalculator.__init__(self)
         self.compressibility = float(compressibility)
         self.temperature = float(temperature)
+
+    def todict(self):
+        return {'compressibility': self.compressibility,
+                'temperature': self.temperature}
 
     def __str__(self):
         s = VolumeCalculator.__str__(self)

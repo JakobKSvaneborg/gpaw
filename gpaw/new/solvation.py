@@ -5,6 +5,9 @@ from gpaw.new.c import add_to_density
 from gpaw.new.environment import Environment
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
+from gpaw.solvation.cavity import Cavity
+from gpaw.solvation.dielectric import Dielectric
+from gpaw.solvation.interactions import Interaction
 from gpaw.dft import Parameter
 
 
@@ -12,14 +15,18 @@ class Solvation(Parameter):
     name = 'solvation'
 
     def __init__(self, cavity, dielectric, interactions=None):
-        self.cavity = cavity
-        self.dielectric = dielectric
-        self.interactions = interactions or []
+        print(cavity)
+        self.cavity = Cavity.from_dict(cavity)
+        self.dielectric = Dielectric.from_dict(dielectric)
+        self.interactions = [Interaction.from_dict(i)
+                             for i in interactions or []]
 
     def todict(self):
         return {'cavity': self.cavity.todict(),
                 'dielectric': self.dielectric.todict(),
-                'interactions': [i.todict() for i in self.interactions]}
+                'interactions': [
+                    {'name': i.__class__.__name__, **i.todict()}
+                    for i in self.interactions]}
 
     def build(self,
               setups,
