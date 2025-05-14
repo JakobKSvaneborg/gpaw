@@ -22,3 +22,26 @@ To explicitly use the old backend, use::
 
 Default is to use old GPAW unless the environment variable
 :envvar:`GPAW_NEW` is set.
+
+.. _newparameters:
+
+---------------------------
+Parameters only in new GPAW
+---------------------------
+
+For a full list of paramters in old GPAW see :ref:`parameters`.
+
+.. list-table::
+    :header-rows: 1
+    :widths: 1 1 1 2
+
+    * - keyword
+      - type
+      - default value
+      - description
+    * - ``d3``
+      - ``Work in progress``
+      - ``Work in progress``
+      - :ref:`d3correction`
+
+End of table
