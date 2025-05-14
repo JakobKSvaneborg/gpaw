@@ -5,6 +5,8 @@ import numpy as np
 
 
 class Spring:
+    name = 'spring'
+
     def __init__(self, *, a1, a2, l, k):
         self.a1, self.a2, self.l, self.k = a1, a2, l, k
 
@@ -13,8 +15,10 @@ class Spring:
         log('Building Spring')
 
         class EnergyAdder(Extension):
+            name = 'spring'
+
             @property
-            def name(_self):
+            def _name(_self):
                 return f'Spring k={self.k}'
 
             def __init__(self):
@@ -34,7 +38,7 @@ class Spring:
                 return self.F_av
 
             def get_energy_contributions(self):
-                return {self.name: self.E}
+                return {self._name: self.E}
 
             def move_atoms(self, relpos_ac):
                 atoms.set_scaled_positions(relpos_ac)
@@ -120,7 +124,9 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     assert movedF[0, 2] == pytest.approx(movedF0[0, 2] - ktot * (l - 2))
 
     def hook(extension):
-        return Spring(**extension)
+        kwargs = extension.copy()
+        del kwargs['name']
+        return Spring(**kwargs)
 
     # 4. Test restarting from a file
     atoms, calc = restart(
@@ -169,3 +175,4 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     assert relax.nsteps + 3 == nsteps
     assert atoms.get_distance(0, 1) == pytest.approx(L, abs=1e-2)
     assert atoms.get_potential_energy() == pytest.approx(Egs, abs=1e-4)
+    print(calc.dft.spring)

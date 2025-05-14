@@ -257,7 +257,7 @@ class Extension(Parameter):
             if name == 'd3':
                 from gpaw.new.extensions import D3
                 return D3(**dct)
-            1 / 0
+            raise ValueError(name)
         return extension
 
 
@@ -640,11 +640,11 @@ class Parameters:
         self.convergence = convergence or {}
         self.eigensolver = Eigensolver.from_param(eigensolver or {})
         self.environment = Environment.from_param(environment)
+        self.experimental = experimental or {}
+        self.extensions = [Extension.from_param(ext) for ext in extensions]
         self.gpts = np.array(gpts) if gpts is not None else None
         self.h = h
         self.hund = hund
-        self.experimental = experimental or {}
-        self.extensions = [Extension.from_param(ext) for ext in extensions]
         self.interpolation = interpolation
         self.kpts = BZSampling.from_param((1, 1, 1) if kpts is None else kpts)
         self.magmoms = np.array(magmoms) if magmoms is not None else None
@@ -690,6 +690,9 @@ class Parameters:
                 value = value.todict()
                 if name is not None:
                     value['name'] = name
+            elif key == 'extensions':
+                value = [{'name': x.name, **x.todict()}
+                         for x in self.extensions]
             dct[key] = value
         return dct
 

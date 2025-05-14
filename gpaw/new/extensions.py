@@ -22,6 +22,8 @@ class Extension:
 
 
 class D3(ExtensionParameter):
+    name = 'd3'
+
     def __init__(self, *, xc, **kwargs):
         self.xc = xc
         self.kwargs = kwargs
@@ -41,6 +43,8 @@ class D3(ExtensionParameter):
         # created.
 
         class D3Extension(Extension):
+            name = 'd3'
+
             def __init__(self):
                 super().__init__()
                 self.stress_vv = np.zeros((3, 3)) * np.nan
