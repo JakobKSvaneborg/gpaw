@@ -7,7 +7,7 @@ import numpy as np
 
 
 @pytest.mark.do
-def test_hess_numerically_lcao(in_tmp_dir):
+def test_hess_numerically_lcao(in_tmp_dir, gpw_files):
     """
     Test complex numerical Hessian
     w.r.t rotation parameters in LCAO
@@ -16,26 +16,11 @@ def test_hess_numerically_lcao(in_tmp_dir):
     :return:
     """
 
-    # XXX(rg): reference orbitals missing with gpwfile
-    calc = GPAW(xc='PBE',
-                mode=LCAO(force_complex_dtype=True),
-                h=0.25,
-                basis='dz(dzp)',
-                spinpol=False,
-                eigensolver={'name': 'etdm-lcao',
-                             'representation': 'u-invar'},
-                occupations={'name': 'fixed-uniform'},
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                symmetry='off',
-                )
-
-    atoms = Atoms('H', positions=[[0, 0, 0]])
-    atoms.center(vacuum=5.0)
-    atoms.set_pbc(False)
+    calc = GPAW(gpw_files['h_hess_num_lcao'])
+    calc.set_positions()
+    calc.wfs.eigensolver.initialize_dm_helper(calc.wfs, calc.hamiltonian, calc.density, calc.log)
+    atoms = calc.atoms
     atoms.calc = calc
-    atoms.get_potential_energy()
-
     numder = Derivatives(calc.wfs.eigensolver, calc.wfs)
 
     hess_n = numder.get_numerical_derivatives(
