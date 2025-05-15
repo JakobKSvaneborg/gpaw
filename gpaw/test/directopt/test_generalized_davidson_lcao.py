@@ -16,6 +16,7 @@ def test_generalized_davidson_lcao(in_tmp_dir):
     :return:
     """
 
+    # XXX(rg): Davidson is not compatible with GPW File
     calc = GPAW(xc='PBE',
                 mode=LCAO(force_complex_dtype=True),
                 h=0.25,

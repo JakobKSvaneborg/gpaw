@@ -5,40 +5,18 @@ from ase import Atoms
 import numpy as np
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.do
-def test_constraints_directopt_lcao_sic(in_tmp_dir):
+def test_constraints_directopt_lcao_sic(in_tmp_dir, gpw_files):
     """
     test Perdew-Zunger Self-Interaction
     Correction  in LCAO mode using DirectMin
     :param in_tmp_dir:
     :return:
     """
-
-    # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * 104.51
-    H2O = Atoms('OH2',
-                positions=[(0, 0, 0),
-                           (d, 0, 0),
-                           (d * np.cos(t), d * np.sin(t), 0)])
-    H2O.center(vacuum=4.0)
-
-    calc = GPAW(mode=LCAO(force_complex_dtype=True),
-                h=0.22,
-                occupations={'name': 'fixed-uniform'},
-                eigensolver={'name': 'etdm-lcao',
-                             'localizationtype': 'PM_PZ',
-                             'localizationseed': 42,
-                             'subspace_convergence': 1e-3,
-                             'functional': {'name': 'PZ-SIC',
-                                            'scaling_factor': (0.5, 0.5)}},
-                convergence={'eigenstates': 1e-4},
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                symmetry='off'
-                )
+    calc = GPAW(gpw_files['h2o_cdo_lcao_sic'])
+    H2O = calc.atoms
     H2O.calc = calc
-    H2O.get_potential_energy()
 
     test_restart = True
     if test_restart:

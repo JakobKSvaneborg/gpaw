@@ -5,6 +5,7 @@ from gpaw.directmin.derivatives import Davidson
 from ase import Atoms
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.do
 def test_break_instability_lcao(in_tmp_dir):
     atoms = Atoms('H2', positions=[(0, 0, 0), (0, 0, 2.0)])
