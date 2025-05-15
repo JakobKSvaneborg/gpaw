@@ -670,6 +670,28 @@ class GPWFiles(CachedFilesHandler):
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
+
+    @gpwfile
+    def h2_break_ilcao(self):
+        atoms = Atoms('H2', positions=[(0, 0, 0), (0, 0, 2.0)])
+        atoms.center(vacuum=2.0)
+        atoms.set_pbc(False)
+        calc = GPAW(xc='PBE',
+                    mode='lcao',
+                    h=0.24,
+                    basis='sz(dzp)',
+                    spinpol=True,
+                    eigensolver='etdm-lcao',
+                    convergence={'density': 1.0e-2,
+                                 'eigenstates': 1.0e-2},
+                    occupations={'name': 'fixed-uniform'},
+                    mixer={'backend': 'no-mixing'},
+                    nbands='nao',
+                    symmetry='off')
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+
     @gpwfile
     def h2_mom_do_pwh(self):
         d = 1.4 * Bohr
