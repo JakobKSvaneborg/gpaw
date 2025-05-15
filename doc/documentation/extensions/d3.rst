@@ -1,14 +1,22 @@
 .. _d3correction:
 
 =============
-D3 correction
+D3 Correction
 =============
+
+The ``D3`` extension is an implementation Stefan Grimme's DFT-D3 code. More information 
+about the theory and supported functionals can be 
+found `here <https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>`_. 
+The D3 correction helps to capture long range effects that are not 
+present in most functionals. Because of this it becomes 
+important in systems where for example the Van der Waals force 
+plays a major role.
 
 Setup
 -----
 
 If GPAW is setup on Niflheim with the ``GPAW_venv.py`` script, 
-then it must be run with the ``--dftd3`` flag to work like this::
+then it must be installed with the ``--dftd3`` flag to work::
 
     $ python3 gpaw_venv.py --dftd3 <venv-name>
 
@@ -16,11 +24,12 @@ then it must be run with the ``--dftd3`` flag to work like this::
 Usage
 -----
 
-The D3 extension has one mandatory keyword, ``xc`` which is that exchange-correlation
+The D3 extension has one mandatory keyword, ``xc``, which is what exchange-correlation
 functional to use.
 
-An example of a system where the D3 correction adds meaningful correction 
-is in the case of 2D bilayer systems. 
+An example of a system where the D3 correction adds a meaningful correction 
+is in the case of 2D bilayer systems because of the Van der Waals interaction 
+between the two layers.
 
 .. literalinclude:: d3_bilayer.py
     :language: python 
@@ -37,8 +46,9 @@ Output
 
 The energy contribution from the D3 correction can by found in the output 
 file just after the list of iterations. For the above example the relevant part of 
-the output file will look as following::
+the ``out.txt`` file will look as following::
     
+    ...
     Energy contributions relative to reference atoms: (reference = -702828.048343)
     
     kinetic:          71.457107
@@ -53,5 +63,4 @@ the output file will look as following::
     ----------------------------
     Free energy:     -25.380467
     Extrapolated:    -25.379948
-
-
+    ...
