@@ -16,6 +16,7 @@ def test_hess_numerically_lcao(in_tmp_dir):
     :return:
     """
 
+    # XXX(rg): reference orbitals missing with gpwfile
     calc = GPAW(xc='PBE',
                 mode=LCAO(force_complex_dtype=True),
                 h=0.25,

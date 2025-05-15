@@ -22,6 +22,7 @@ def test_hess_numerically_pw(in_tmp_dir):
     atoms.center(vacuum=5.0)
     atoms.set_pbc(False)
 
+    # XXX(rg): reference orbitals missing with gpwfile
     calc = GPAW(xc='PBE',
                 mode=PW(300, force_complex_dtype=False),
                 h=0.25,
