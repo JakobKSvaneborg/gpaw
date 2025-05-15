@@ -597,6 +597,64 @@ class GPWFiles(CachedFilesHandler):
         return atm.calc
 
     @gpwfile
+    def h2o_mom_do_pw(self):
+        atm = self.h2o_maker(vacuum=4.0)
+        calc = GPAW(mode=PW(300),
+                    spinpol=True,
+                    symmetry='off',
+                    eigensolver={'name': 'etdm-fdpw', 'converge_unocc': True},
+                    mixer={'backend': 'no-mixing'},
+                    occupations={'name': 'fixed-uniform'},
+                    convergence={'eigenstates': 1e-4},
+                    txt=None)
+        atm.calc = calc
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
+    def co_mom_do_lcao_forces(self):
+        L = 4.0
+        d = 1.13
+        atoms = Atoms('CO',
+                      [[0.5 * L, 0.5 * L, 0.5 * L - 0.5 * d],
+                       [0.5 * L, 0.5 * L, 0.5 * L + 0.5 * d]])
+        atoms.set_cell([L, L, L])
+        atoms.set_pbc(True)
+        calc = GPAW(mode='lcao',
+                    basis='dzp',
+                    h=0.22,
+                    xc='PBE',
+                    spinpol=True,
+                    symmetry='off',
+                    occupations={'name': 'fixed-uniform'},
+                    eigensolver={'name': 'etdm-lcao',
+                                 'linesearch_algo': 'max-step'},
+                    mixer={'backend': 'no-mixing'},
+                    nbands='nao',
+                    convergence={'density': 1.0e-4,
+                                 'eigenstates': 4.0e-8})
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+
+    @gpwfile
+    def h2o_mom_do_lcao(self):
+        atm = self.h2o_maker(vacuum=4.0)
+        atm.calc = GPAW(mode=LCAO(),
+                    basis='dzp',
+                    h=0.22,
+                    occupations={'name': 'fixed-uniform'},
+                    eigensolver='etdm-lcao',
+                    mixer={'backend': 'no-mixing'},
+                    nbands='nao',
+                    symmetry='off',
+                    spinpol=True,
+                    convergence={'density': 1.0e-4,
+                                 'eigenstates': 4.0e-8})
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
     def h2o_pz_localization_pw(self):
         atm = self.h2o_maker(vacuum=3.0,
                              t = np.pi / 180 * (104.51 + 2.0),
@@ -622,6 +680,60 @@ class GPWFiles(CachedFilesHandler):
                  converge_unocc=False))
         atm.get_potential_energy()
         return atm.calc
+
+    @gpwfile
+    def c2h4_do_lcao(self):
+        atoms = Atoms('C2H4',
+                      [[6.68748500e-01, 2.00680000e-04, 5.55800000e-05],
+                       [-6.68748570e-01, -2.00860000e-04, -5.51500000e-05],
+                       [4.48890600e-01, -5.30146300e-01, 9.32670330e-01],
+                       [4.48878120e-01, -5.30176640e-01, -9.32674730e-01],
+                       [-1.24289513e+00, 1.46164400e-02, 9.32559990e-01],
+                       [-1.24286000e+00, -1.46832100e-02, -9.32554970e-01]])
+        atoms.center(vacuum=4)
+        eigensolver = LCAOETDM(searchdir_algo={'name': 'l-sr1p'},
+                               linesearch_algo={'name': 'max-step'})
+        calc = GPAW(mode='lcao',
+                    basis='dzp',
+                    h=0.24,
+                    xc='PBE',
+                    symmetry='off',
+                    occupations={'name': 'fixed-uniform'},
+                    eigensolver=eigensolver,
+                    mixer={'backend': 'no-mixing'},
+                    nbands='nao',
+                    convergence={'density': 1.0e-4,
+                                 'eigenstates': 4.0e-8})
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+
+    @gpwfile
+    def h3_orthonorm_lcao(self):
+        atoms = Atoms('H3', positions=[(0, 0, 0),
+                                       (0.59, 0, 0),
+                                       (1.1, 0, 0)])
+        atoms.set_initial_magnetic_moments([1, 0, 0])
+
+        atoms.center(vacuum=2.0)
+        atoms.set_pbc(False)
+        calc = GPAW(mode='lcao',
+                    basis='sz(dzp)',
+                    h=0.3,
+                    spinpol=True,
+                    convergence={'energy': np.inf,
+                                 'eigenstates': np.inf,
+                                 'density': np.inf,
+                                 'minimum iterations': 1},
+                    eigensolver={'name': 'etdm-lcao'},
+                    occupations={'name': 'fixed-uniform'},
+                    mixer={'backend': 'no-mixing'},
+                    nbands='nao',
+                    symmetry='off',
+                    txt=None)
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
 
     @gpwfile
     def h2_sic_scfsic(self):
@@ -690,6 +802,28 @@ class GPWFiles(CachedFilesHandler):
                     mixer={'backend': 'no-mixing'},
                     nbands='nao',
                     symmetry='off')
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+
+    @gpwfile
+    def h_do_gdavid_lcao(self):
+        calc = GPAW(xc='PBE',
+                    mode=LCAO(force_complex_dtype=True),
+                    h=0.25,
+                    basis='dz(dzp)',
+                    spinpol=False,
+                    eigensolver={'name': 'etdm-lcao',
+                                 'representation': 'u-invar'},
+                    occupations={'name': 'fixed-uniform'},
+                    mixer={'backend': 'no-mixing'},
+                    nbands='nao',
+                    symmetry='off',
+                    )
+
+        atoms = Atoms('H', positions=[[0, 0, 0]])
+        atoms.center(vacuum=5.0)
+        atoms.set_pbc(False)
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc

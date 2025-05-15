@@ -9,6 +9,7 @@ from ase import Atoms
 @pytest.mark.do
 def test_break_instability_lcao(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['h2_break_ilcao'])
+    # XXX(rg): Remove hack after tchem-gl-13
     calc.set_positions()
     calc.wfs.eigensolver.initialize_dm_helper(calc.wfs, calc.hamiltonian, calc.density, calc.log)
     atoms = calc.atoms

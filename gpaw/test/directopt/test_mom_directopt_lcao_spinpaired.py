@@ -9,32 +9,11 @@ from gpaw.directmin.tools import excite
 
 @pytest.mark.mom
 @pytest.mark.do
-def test_mom_directopt_lcao_spinpaired(in_tmp_dir):
-    atoms = Atoms('C2H4',
-                  [[6.68748500e-01, 2.00680000e-04, 5.55800000e-05],
-                   [-6.68748570e-01, -2.00860000e-04, -5.51500000e-05],
-                   [4.48890600e-01, -5.30146300e-01, 9.32670330e-01],
-                   [4.48878120e-01, -5.30176640e-01, -9.32674730e-01],
-                   [-1.24289513e+00, 1.46164400e-02, 9.32559990e-01],
-                   [-1.24286000e+00, -1.46832100e-02, -9.32554970e-01]])
-    atoms.center(vacuum=4)
-
-    eigensolver = LCAOETDM(searchdir_algo={'name': 'l-sr1p'},
-                           linesearch_algo={'name': 'max-step'})
-
-    calc = GPAW(mode='lcao',
-                basis='dzp',
-                h=0.24,
-                xc='PBE',
-                symmetry='off',
-                occupations={'name': 'fixed-uniform'},
-                eigensolver=eigensolver,
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                convergence={'density': 1.0e-4,
-                             'eigenstates': 4.0e-8})
+def test_mom_directopt_lcao_spinpaired(in_tmp_dir, gpw_files):
+    delta = 0.01
+    calc = GPAW(gpw_files['c2h4_do_lcao'])
+    atoms = calc.atoms
     atoms.calc = calc
-    atoms.get_potential_energy()
 
     f_sn = excite(calc, 0, 0, spin=(0, 0))
     f_sn[0] /= 2
