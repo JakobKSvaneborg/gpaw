@@ -649,6 +649,27 @@ class GPWFiles(CachedFilesHandler):
         return atm.calc
 
     @gpwfile
+    def h_hess_num_lcao(self):
+        calc = GPAW(xc='PBE',
+                    mode=LCAO(force_complex_dtype=True),
+                    h=0.25,
+                    basis='dz(dzp)',
+                    spinpol=False,
+                    eigensolver={'name': 'etdm-lcao',
+                                 'representation': 'u-invar'},
+                    occupations={'name': 'fixed-uniform'},
+                    mixer={'backend': 'no-mixing'},
+                    nbands='nao',
+                    symmetry='off',
+                    )
+        atoms = Atoms('H', positions=[[0, 0, 0]])
+        atoms.center(vacuum=5.0)
+        atoms.set_pbc(False)
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+
+    @gpwfile
     def silicon_pdens_tool(self):
         # used by response code's pdens tool test
         pw = 200
