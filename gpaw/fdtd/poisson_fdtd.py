@@ -16,7 +16,7 @@ from gpaw.poisson import PoissonSolver
 from gpaw.poisson_moment import MomentCorrectionPoissonSolver
 from gpaw.tddft import TDDFT, DipoleMomentWriter, RestartFileWriter
 from gpaw.transformers import Transformer
-from gpaw.utilities.gpts import get_number_of_grid_points
+from gpaw.utilities import h2gpts
 
 # QSFDTD is a wrapper class to make calculations
 # easier, something like this:
@@ -244,7 +244,7 @@ class FDTDPoissonSolver:
 
     # Generated classical GridDescriptors, after spacing and cell are known
     def initialize_clgd(self):
-        N_c = get_number_of_grid_points(self.cl.cell, self.cl.spacing)
+        N_c = h2gpts(self.cl.spacing, self.cl.cell, 4)
         self.cl.spacing = np.diag(self.cl.cell) / N_c
         self.cl.gd = GridDescriptor(N_c, self.cl.cell, False, self.cl.dcomm,
                                     self.cl.dparsize)
@@ -396,7 +396,8 @@ class FDTDPoissonSolver:
         for w in range(3):
             self.qm.cell[w, w] = v2[w] - v1[w]
 
-        N_c = get_number_of_grid_points(self.qm.cell, qmh)
+        N_c = h2gpts(qmh, self.qm.cell, 4)
+        # N_c = get_number_of_grid_points(self.qm.cell, qmh)
         self.qm.spacing = np.diag(self.qm.cell) / N_c
 
         # Classical corner indices must be divisible with numb
@@ -450,7 +451,7 @@ class FDTDPoissonSolver:
             np.diag([(self.shift_indices_2[w] - self.shift_indices_1[w]) *
                      self.cl.spacing[w] for w in range(3)])
         self.qm.spacing = self.cl.spacing / self.hratios
-        N_c = get_number_of_grid_points(self.qm.cell, self.qm.spacing)
+        N_c = h2gpts(self.qm.spacing, self.qm.cell, 4)
 
         atoms_out.set_cell(np.diag(self.qm.cell) * Bohr)
         atoms_out.positions = atoms_in.get_positions() - self.qm.corner1 * Bohr
@@ -496,8 +497,7 @@ class FDTDPoissonSolver:
         msg("  Spacings in classical grid:  " +
             "(%10.5f %10.5f %10.5f)"
             % (tuple(np.diag(self.cl.cell) *
-                     Bohr / get_number_of_grid_points(self.cl.cell,
-                                                      self.cl.spacing))))
+                     Bohr / h2gpts(self.cl.spacing, self.cl.cell, 4))))
         # msg("  Ratios of cl/qm spacings:    " +
         #    "(%10i %10i %10i)" % (tuple(self.hratios)))
         # msg("                             = (%10.2f %10.2f %10.2f)" %
@@ -513,7 +513,7 @@ class FDTDPoissonSolver:
         # that of self.cl.gd. Finally, map the points between
         # clgd and coarsened subgrid.
         subcell_cv = np.diag(self.qm.corner2 - self.qm.corner1)
-        N_c = get_number_of_grid_points(subcell_cv, self.cl.spacing)
+        N_c = h2gpts(self.cl.spacing, subcell_cv, 4)
         N_c = self.shift_indices_2 - self.shift_indices_1
         self.cl.subgds = []
         self.cl.subgds.append(GridDescriptor(N_c, subcell_cv, False,

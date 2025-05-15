@@ -7,12 +7,12 @@ from gpaw.jellium import create_background_charge
 from gpaw.new.environment import Environment, FixedPotentialJellium, Jellium
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.pw.poisson import PWPoissonSolver
-from gpaw.new.solvation import Solvation
-from gpaw.new.input_parameters import register
+from gpaw.new.solvation import SolvationEnvironment, Solvation
 
 
-@register
-class SJM:
+class SJM(Solvation):
+    name = 'sjm'
+
     def __init__(self,
                  *,
                  cavity,
@@ -22,9 +22,7 @@ class SJM:
                  target_potential: float | None,  # eV
                  excess_electrons: float = 0.0,
                  tol: float = 0.001):  # eV
-        self.cavity = cavity
-        self.dielectric = dielectric
-        self.interactions = interactions
+        super().__init__(cavity, dielectric, interactions)
         self.jelliumregion = jelliumregion or {}
         self.target_potential = target_potential
         self.excess_electrons = excess_electrons
@@ -35,14 +33,10 @@ class SJM:
               grid,
               relpos_ac,
               log,
-              comm,
-              nn) -> SJMEnvironment:
-        solvation = Solvation(
-            cavity=self.cavity,
-            dielectric=self.dielectric,
-            interactions=self.interactions,
+              comm) -> SJMEnvironment:
+        solvation = super().build(
             setups=setups, grid=grid, relpos_ac=relpos_ac,
-            log=log, comm=comm, nn=nn)
+            log=log, comm=comm)
         h = grid.cell_cv[2, 2] * Bohr
         z1 = relpos_ac[:, 2].max() * h + 3.0
         z2 = self.jelliumregion.get('top', h - 1.0)
@@ -64,19 +58,18 @@ class SJM:
         return SJMEnvironment(solvation, jellium)
 
     def todict(self):
-        return dict(
-            cavity=self.cavity.todict(),
-            dielectric=self.dielectric.todict(),
-            interactions=[i.todict() for i in self.interactions],
+        dct = super().todict()
+        dct.update(
             jelliumregion=self.jelliumregion,
             target_potential=self.target_potential,
             excess_electrons=self.excess_electrons,
             tol=self.tol)
+        return dct
 
 
 class SJMEnvironment(Environment):
     def __init__(self,
-                 solvation: Solvation,
+                 solvation: SolvationEnvironment,
                  jellium: Jellium):
         super().__init__(solvation.natoms)
         self.solvation = solvation

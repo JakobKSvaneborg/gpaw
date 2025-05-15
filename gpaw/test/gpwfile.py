@@ -555,7 +555,7 @@ class GPWFiles(CachedFilesHandler):
         calc = GPAW(mode='pw',
                     xc='LDA',
                     occupations=FermiDirac(width=0.001),
-                    kpts=kpts,
+                    kpts=kpts.kpts,
                     txt=self.folder / 'si_noisy_kpoints.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
@@ -601,7 +601,6 @@ class GPWFiles(CachedFilesHandler):
 
         calc = GPAW(mode='fd',
                     txt=self.folder / 'si_corehole_pw.txt',
-                    nbands=None,
                     h=0.25,
                     occupations=FermiDirac(width=0.05),
                     setups='si_corehole_pw_hch1s',
@@ -1028,7 +1027,7 @@ class GPWFiles(CachedFilesHandler):
 
         gs_calc = GPAW(
             txt=self.folder / 'nacl_fd.txt',
-            mode='fd', nbands=4, eigensolver='cg',
+            mode='fd', nbands=4,  # eigensolver='cg',
             gpts=(32, 32, 44), xc='LDA', symmetry={'point_group': False},
             setups={'Na': '1'})
         atoms.calc = gs_calc

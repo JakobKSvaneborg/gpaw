@@ -1,6 +1,5 @@
 import pytest
 from ase.build import fcc111
-from ase.data.vdw import vdw_radii
 from gpaw import FermiDirac
 from gpaw.mpi import size
 from gpaw.new.ase_interface import GPAW
@@ -14,14 +13,13 @@ from gpaw.solvation.sjm import SJMPower12Potential
 def test_sjm(gpaw_new, in_tmp_dir):
     if gpaw_new and size > 1:
         pytest.skip('SJM with new-GPAW only works in serial!')
+    if not gpaw_new:
+        pytest.skip('https://gitlab.com/gpaw/gpaw/-/issues/1381')
     # Solvent parameters
     u0 = 0.180  # eV
-    epsinf = 78.36  # Dielectric constant of water at 298 K
+    epsinf = 78.36  # dielectric constant of water at 298 K
     gamma = 0.00114843767916  # 18.4*1e-3 * Pascal* m
     T = 298.15  # K
-
-    def atomic_radii(atoms):
-        return [vdw_radii[n] for n in atoms.numbers]
 
     # Structure is created
     atoms = fcc111('Au', size=(1, 1, 3))
@@ -51,7 +49,7 @@ def test_sjm(gpaw_new, in_tmp_dir):
 
     solvation = dict(
         cavity=EffectivePotentialCavity(
-            effective_potential=SJMPower12Potential(atomic_radii, u0),
+            effective_potential=SJMPower12Potential(u0=u0),
             temperature=T,
             surface_calculator=GradientSurface()),
         dielectric=LinearDielectric(epsinf=epsinf),
@@ -90,8 +88,3 @@ def test_sjm(gpaw_new, in_tmp_dir):
         import numpy as np
         plt.plot(np.linspace(0, atoms.cell[2, 2], v.shape[2], 0), v[0, 0])
         plt.show()
-
-
-if __name__ == '__main__':
-    import sys
-    test_sjm(int(sys.argv[1]))

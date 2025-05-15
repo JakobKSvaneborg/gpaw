@@ -20,6 +20,7 @@ GPAW calculator:
    hyperfine
    lcao/lcao
    mom/mom
+   do/do
    do-gmf/do-gmf
    smearing
    ofdft/ofdft

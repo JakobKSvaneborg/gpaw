@@ -1,7 +1,6 @@
 from gpaw.utilities.adjust_cell import adjust_cell
 from ase.build import molecule
 from ase.units import Pascal, m
-from ase.data.vdw import vdw_radii
 from gpaw.solvation import (
     SolvationGPAW,
     EffectivePotentialCavity,
@@ -11,9 +10,6 @@ from gpaw.solvation import (
     SurfaceInteraction)
 
 
-vdw_radii = vdw_radii.copy()
-
-
 def test_solvation_swap_atoms():
     h = 0.3
     vac = 3.0
@@ -21,10 +17,8 @@ def test_solvation_swap_atoms():
     epsinf = 80.
     st = 18.4 * 1e-3 * Pascal * m
     T = 298.15
-    vdw_radii[1] = 1.09
 
-    def atomic_radii(atoms):
-        return [vdw_radii[n] for n in atoms.numbers]
+    atomic_radii = {'H': 1.09}
 
     convergence = {
         'energy': 0.1 / 8.,

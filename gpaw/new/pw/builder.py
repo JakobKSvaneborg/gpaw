@@ -11,7 +11,6 @@ from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
-from gpaw.new.external_potential import create_external_potential
 from gpaw.new.gpw import as_double_precision
 from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
@@ -25,20 +24,16 @@ from gpaw.typing import Array1D
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
-    interpolation = 'fft'
-
     def __init__(self,
                  atoms,
                  params,
                  *,
-                 comm,
-                 ecut=340,
-                 dtype=None,
-                 qspiral=None,
-                 dedecut=None):
-        self.ecut = ecut / Ha
-        super().__init__(atoms, params, dtype=dtype,
-                         comm=comm, qspiral=qspiral)
+                 comm=None,
+                 log=None):
+        mode = params.mode
+        self.ecut = mode.ecut / Ha
+        # mode.dedecut ???
+        super().__init__(atoms, params, comm=comm, log=log)
 
         self._nct_ag = None
         self._tauct_ag = None
@@ -56,7 +51,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.atoms.pbc,
             self.ibz.symmetries,
             h=self.params.h,
-            interpolation='fft',
+            interpolation=self.params.interpolation,
             ecut=self.ecut,
             comm=self.communicators['d'])
         fine_grid = grid.new(size=grid.size_c * 2)
@@ -92,7 +87,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     @cached_property
     def fast_poisson_solver(self) -> bool:
-        fast = self.params.poissonsolver.get('fast', False)
+        fast = self.params.poissonsolver.params.get('fast', False)
         if fast:
             # Only works for gaussian compensation charges at the moment:
             fast = False
@@ -119,7 +114,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return self._tauct_ag
 
     def create_poisson_solver(self, env):
-        psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
+        psparams = self.params.poissonsolver.params.copy() or {'strength': 1.0}
         psparams.pop('fast', False)
 
         if self.fast_poisson_solver:
@@ -144,20 +139,20 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.setups,
             ps, self.relpos_ac, self.atomdist, self.xp)
 
-    def create_potential_calculator(self, log):
-        env = self.create_environment(self.fine_grid, log)
+    def create_potential_calculator(self):
+        env = self.create_environment(self.fine_grid)
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
             self.interpolation_desc,
             self.setups,
             self.xc,
             self.create_poisson_solver(env),
-            external_potential=create_external_potential(self.params.external),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
             xp=self.xp,
-            environment=env)
+            environment=env,
+            extensions=self.get_extensions())
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:
@@ -211,8 +206,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     psit_R.fft(out=psit_G)
             return psit_nsG
 
-    def read_ibz_wave_functions(self, reader, log):
-        ibzwfs = super().read_ibz_wave_functions(reader, log)
+    def read_ibz_wave_functions(self, reader):
+        ibzwfs = super().read_ibz_wave_functions(reader)
 
         if 'coefficients' not in reader.wave_functions:
             return ibzwfs
