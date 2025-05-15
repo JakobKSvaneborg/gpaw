@@ -7,28 +7,11 @@ from ase import Atoms
 import numpy as np
 
 
-# @pytest.mark.new_gpaw_ready
 @pytest.mark.do
-def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
-    # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * 104.51
-    atoms = Atoms('OH2',
-                  positions=[(0, 0, 0),
-                             (d, 0, 0),
-                             (d * np.cos(t), d * np.sin(t), 0)])
-    atoms.center(vacuum=4.0)
-
-    calc = GPAW(mode=PW(300),
-                spinpol=True,
-                symmetry='off',
-                eigensolver={'name': 'etdm-fdpw', 'converge_unocc': True},
-                mixer={'backend': 'no-mixing'},
-                occupations={'name': 'fixed-uniform'},
-                convergence={'eigenstates': 1e-4},
-                txt=None)
+def test_mom_directopt_pw(in_tmp_dir, gpaw_new, gpw_files):
+    calc = GPAW(gpw_files['h2o_mom_do_pw'])
+    atoms = calc.atoms
     atoms.calc = calc
-    atoms.get_potential_energy()
     calc.write('h2o.gpw', mode='all')
 
     for canonical in [True, False]:
