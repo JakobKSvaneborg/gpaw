@@ -9,7 +9,9 @@ import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from numpy.typing import DTypeLike
+
 from gpaw.mpi import MPIComm
+from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
 
@@ -85,6 +87,13 @@ class PW(Mode):
                  dedecut=None,
                  dtype: DTypeLike | None = None,
                  force_complex_dtype: bool = False):
+        """PW-mode.
+
+        Parameters
+        ==========
+        ecut:
+            Plane-wave cutoff energy in eV.
+        """
         self.ecut = ecut
         self.qspiral = qspiral
         self.dedecut = dedecut
@@ -490,6 +499,11 @@ class XC(Parameter):
 
 KptsType = Union[Sequence[int], dict, Sequence[Sequence[float]]]
 
+PARALLEL_KEYS = {
+    'kpt', 'domain', 'band', 'order', 'stridebands', 'augment_grids',
+    'sl_auto', 'sl_default', 'sl_diagonalize', 'sl_inverse_cholesky',
+    'sl_lcao', 'sl_lrtddft', 'use_elpa', 'elpasolver', 'buffer_size', 'gpu'}
+
 
 class Parameters:
     def __init__(
@@ -577,7 +591,8 @@ class Parameters:
         occupations:
             ...
         parallel:
-            ...
+            Parallelization strategy.  Example:  Force parallelization
+            over ``'kpt`` with ``{'band': 1, 'domain': 1}``.
         poissonsolver:
             ...
         random:
@@ -591,7 +606,7 @@ class Parameters:
         symmetry:
             Use of symmetry.  Default is to use ...
         xc:
-            XC-functional.  Default is LDA.
+            XC-functional.  Default is PZ-LDA.
         """
 
         if experimental is None:
@@ -611,7 +626,7 @@ class Parameters:
             warnings.warn('Please use new "magmoms" parameter.',
                           DeprecatedParameterWarning)
             magmoms = experimental.pop('magmoms')
-        unknown = experimental.keys() - {'backwards_compatible'}
+        unknown = experimental.keys() - {'backwards_compatible', 'ccirs'}
         if unknown:
             warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                           stacklevel=3)
@@ -710,19 +725,13 @@ class Parameters:
     def dft_calculation(self,
                         atoms,
                         txt: str | Path | IO[str] | None = '-',
-                        communicator: MPIComm | Sequence[int] | None = None):
-        from gpaw.new.calculation import DFTCalculation
+                        communicator: MPIComm | Sequence[int] | None = None
+                        ) -> DFTCalculation:
         log = Logger(txt, communicator)
         return DFTCalculation.from_parameters(atoms, self, log.comm, log)
 
     def dft_info(self, atoms):
         ...
-
-
-PARALLEL_KEYS = {
-    'kpt', 'domain', 'band', 'order', 'stridebands', 'augment_grids',
-    'sl_auto', 'sl_default', 'sl_diagonalize', 'sl_inverse_cholesky',
-    'sl_lcao', 'sl_lrtddft', 'use_elpa', 'elpasolver', 'buffer_size', 'gpu'}
 
 
 def DFT(
@@ -755,8 +764,10 @@ def DFT(
     symmetry: str | dict | Symmetry = '',
     xc: str | dict | XC = 'LDA',
     txt: str | Path | IO[str] | None = '-',
-    communicator: MPIComm | Sequence[int] | None = None):
+    communicator: MPIComm | Sequence[int] | None = None) -> DFTCalculation:
     """Create a DFTCalculation object.
+
+    See :class:`gpaw.dft.Parameters` for the complete list of parameters.
 
     Parameters
     ==========
@@ -768,7 +779,6 @@ def DFT(
     communicator:
         MPI-communicator.  Default is to use ``gpaw.mpi.world``.
 
-    See :class:`gpaw.dft.Parameters` for the complete list of parameters.
     """
     params = Parameters(**{k: v for k, v in locals().items()
                            if k in PARAMETER_NAMES})
@@ -809,19 +819,19 @@ def GPAW(
     object_hooks=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
+    See :class:`gpaw.dft.Parameters` for the complete list of parameters.
+
     Parameters
     ==========
     filename:
         Name of gpw-file to restart from.
     txt:
-        Text log-file.  Use ``None`` for no loggin and ``'-'`` for using
-        standard out.
+        Text log-file.  Use ``None`` for no loggin and ``'-'``
+        for using standard out.
     communicator:
         MPI-communicator.  Default is to use ``gpaw.mpi.world``.
     object_hooks:
         Dictionart of hook-functions to create custom parameter-objects.
-
-    See :class:`gpaw.dft.Parameters` for the complete list of parameters.
     """
     from gpaw.new.ase_interface import ASECalculator
     from gpaw.new.gpw import read_gpw

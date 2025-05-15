@@ -427,10 +427,16 @@ Input-parameter objects
 .. autoclass:: gpaw.dft.LCAO
 .. autoclass:: gpaw.dft.FD
 .. autoclass:: gpaw.dft.Mode
+.. autoclass:: gpaw.dft.Extension
+.. autoclass:: gpaw.dft.MonkhorstPack
+.. autoclass:: gpaw.dft.Mixer
+.. autoclass:: gpaw.dft.Occupations
+.. autoclass:: gpaw.dft.PoissonSolver
+.. autoclass:: gpaw.dft.XC
 
 
-DFT
----
+DFT-components
+--------------
 
 .. autoclass:: gpaw.new.calculation.DFTCalculation
     :members:
