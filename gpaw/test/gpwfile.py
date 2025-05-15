@@ -4,12 +4,14 @@ from pathlib import Path
 import numpy as np
 
 from ase import Atom, Atoms
+from ase.units import Bohr
 from ase.build import bulk, molecule
 from ase.lattice.compounds import L1_2
 from ase.lattice.hexagonal import Graphene
 from gpaw import Davidson, FermiDirac, GPAW, Mixer, PW, FD, LCAO
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.etdm_lcao import LCAOETDM
+from gpaw.xc.hybrid import HybridXC
 from gpaw.directmin.tools import excite
 from gpaw.directmin.derivatives import Davidson as SICDavidson
 from gpaw.mom import prepare_mom_calculation
@@ -647,6 +649,49 @@ class GPWFiles(CachedFilesHandler):
         atm.calc = calc
         atm.get_potential_energy()
         return atm.calc
+
+    @gpwfile
+    def h_hess_num_pw(self):
+        calc = GPAW(xc='PBE',
+                mode=PW(300, force_complex_dtype=False),
+                h=0.25,
+                convergence={'energy': np.inf,
+                             'eigenstates': np.inf,
+                             'density': np.inf,
+                             'minimum iterations': 1},
+                spinpol=False,
+                eigensolver=FDPWETDM(converge_unocc=True),
+                occupations={'name': 'fixed-uniform'},
+                mixer={'backend': 'no-mixing'},
+                nbands=2,
+                symmetry='off',
+                )
+        atoms = Atoms('H', positions=[[0, 0, 0]])
+        atoms.center(vacuum=5.0)
+        atoms.set_pbc(False)
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+    @gpwfile
+    def h2_mom_do_pwh(self):
+        d = 1.4 * Bohr
+        h2 = Atoms('H2',
+                   positions=[[-d / 2, 0, 0],
+                              [d / 2, 0, 0]])
+        h2.center(vacuum=3)
+        calc = GPAW(mode=PW(300),
+                    # h=0.3,
+                    xc={'name': 'HSE06', 'backend': 'pw'},
+                    eigensolver={'name': 'etdm-fdpw',
+                                 'converge_unocc': True},
+                    mixer={'backend': 'no-mixing'},
+                    occupations={'name': 'fixed-uniform'},
+                    symmetry='off',
+                    nbands=2,
+                    convergence={'eigenstates': 4.0e-6})
+        h2.calc = calc
+        h2.get_potential_energy()
+        return h2.calc
 
     @gpwfile
     def h_hess_num_lcao(self):
