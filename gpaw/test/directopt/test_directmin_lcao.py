@@ -9,8 +9,9 @@ from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.typing import RNG
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.do
-def test_directmin_lcao(in_tmp_dir):
+def test_directmin_lcao(in_tmp_dir, gpw_files):
     """
     test exponential transformation
     direct minimization method for KS-DFT in LCAO
@@ -29,8 +30,16 @@ def test_directmin_lcao(in_tmp_dir):
     def check_niter(niter: int, check: NiterCheck) -> None:
         assert check.func(niter), f'failed {check.assertion} (niter = {niter})'
 
+    calc = GPAW(gpw_files['h2o_do_lcao'])
+    H2O = calc.atoms
+    H2O.calc = calc
+    e = H2O.get_potential_energy()
+    f = H2O.get_forces()
+
     target_pot_en = -13.643156256566218
     abs_force_tol, abs_en_tol = 1e-2, 1.0e-4
+    assert e == pytest.approx(target_pot_en, abs=abs_en_tol)
+
     lcaoetdm_kwargs = dict(representation='u-invar',
                            matrix_exp='egdecomp-u-invar',
                            need_init_orbs=False,
@@ -40,26 +49,6 @@ def test_directmin_lcao(in_tmp_dir):
     ] = [(None, is_approx_3),
          (np.random.default_rng(8), is_le_12)]
 
-    # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * 104.51
-    H2O = Atoms('OH2',
-                positions=[(0, 0, 0),
-                           (d, 0, 0),
-                           (d * np.cos(t), d * np.sin(t), 0)])
-    H2O.center(vacuum=5.0)
-
-    calc = GPAW(mode=LCAO(),
-                basis='dzp',
-                occupations={'name': 'fixed-uniform'},
-                eigensolver='etdm',
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                symmetry='off')
-    H2O.calc = calc
-    e = H2O.get_potential_energy()
-
-    assert e == pytest.approx(target_pot_en, abs=abs_en_tol)
 
     f2 = np.array([[-1.11463, -1.23723, 0.0],
                    [1.35791, 0.00827, 0.0],
