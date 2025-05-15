@@ -9,7 +9,7 @@ import numpy as np
 
 
 @pytest.mark.do
-def test_hess_numerically_pw(in_tmp_dir):
+def test_hess_numerically_pw(in_tmp_dir, gpw_files):
     """
     Test complex numerical Hessian
     w.r.t rotation parameters in LCAO
@@ -18,27 +18,9 @@ def test_hess_numerically_pw(in_tmp_dir):
     :return:
     """
 
-    atoms = Atoms('H', positions=[[0, 0, 0]])
-    atoms.center(vacuum=5.0)
-    atoms.set_pbc(False)
-
-    # XXX(rg): reference orbitals missing with gpwfile
-    calc = GPAW(xc='PBE',
-                mode=PW(300, force_complex_dtype=False),
-                h=0.25,
-                convergence={'energy': np.inf,
-                             'eigenstates': np.inf,
-                             'density': np.inf,
-                             'minimum iterations': 1},
-                spinpol=False,
-                eigensolver=FDPWETDM(converge_unocc=True),
-                occupations={'name': 'fixed-uniform'},
-                mixer={'backend': 'no-mixing'},
-                nbands=2,
-                symmetry='off',
-                )
+    calc = GPAW(gpw_files['h_hess_num_pw'])
+    atoms = calc.atoms
     atoms.calc = calc
-    atoms.get_potential_energy()
 
     calc.set(eigensolver=FDPWETDM(excited_state=True))
     f_sn = [calc.get_occupation_numbers(spin=s).copy() / 2
