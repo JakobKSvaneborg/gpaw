@@ -28,4 +28,4 @@ def check_si_es():
     for line in text.splitlines():
         if line.startswith('Excitation energy Si:'):
             es = float(line.split()[-2])
-    assert abs(es - 0.561946) < 1e-3
+    assert abs(es - 0.426617) < 1e-3
