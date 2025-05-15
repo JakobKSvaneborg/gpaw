@@ -213,6 +213,19 @@ class GPWFiles(CachedFilesHandler):
         return H2O
 
     @gpwfile
+    def h2o_do_lcao(self):
+        atm = self.h2o_maker(vacuum=5.0, eps=0.00)
+        atm.calc = GPAW(mode=LCAO(),
+                basis='dzp',
+                occupations={'name': 'fixed-uniform'},
+                eigensolver='etdm',
+                mixer={'backend': 'no-mixing'},
+                nbands='nao',
+                symmetry='off')
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
     def h2o_fdsic(self):
         atm = self.h2o_maker(vacuum=4.0,
                              t = np.pi / 180 * (104.51 + 2.0),
