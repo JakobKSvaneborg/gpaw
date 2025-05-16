@@ -28,10 +28,11 @@ def make_poisson_solver(pw: PWDesc,
     assert not kwargs
 
     if hasattr(environment, 'dielectric'):
-        return ConjugateGradientPoissonSolver(
-            pw, grid, environment.dielectric, zero_vacuum=True)
+        if 1:
+            return ConjugateGradientPoissonSolver(
+                pw, grid, environment.dielectric, zero_vacuum=True)
         from gpaw.new.sjm import SJMPWPoissonSolver
-        return SJMPWPoissonSolver(pw, environment.dielectric)
+        return SJMPWPoissonSolver(pw, environment.dielectric, grid)
 
     return ps
 
@@ -276,15 +277,9 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         self.eps = eps
         self.maxiter = maxiter
         self.drho_g = None
-        self.dphi_g = None
-        self.zero_vacuum = False
+        self.zero_vacuum = zero_vacuum
         if zero_vacuum:
-            drho_g = dipole_layer(grid).fft(pw=pw)
-            self.dphi_g = pw.zeros()
-            self._solve(self.dphi_g, drho_g)
-            self.drho_g = drho_g
-            self.v0, self.v1 = xy_average_at_boundary(self.dphi_g)
-            self.zero_vacuum = True
+            self.drho_g = dipole_layer(grid).fft(pw=pw)
 
     def __str__(self) -> str:
         txt = ('conjugate gradient poisson solver:\n'
@@ -300,7 +295,7 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
     def get_description(self):
         return 'Conjugate Gradient Poisson Solver'
 
-    def operator(self, phi_q):
+    def operator(self, phi_G):
         """Apply the generalized Poisson operator in reciprocal space.
 
         Parameters:
@@ -313,28 +308,19 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         ndarray
             Result of operator application
         """
-        G_Qv = self.pw.G_plus_k_Gv
-        Gx, Gy, Gz = G_Qv.T
+        G_vG = self.pw.G_plus_k_Gv.T
         grid = self.grid
+        pw = self.pw
+        eps_R = self.dielectric.eps_gradeps[0]
 
-        gradients = []
-        for G_component in [Gx, Gy, Gz]:
-            grad_pw = PWArray(pw=self.pw)
-            grad_pw.data[:] = G_component * phi_q
-            gradients.append(grad_pw)
+        ophi_G = np.zeros_like(phi_G)
+        for G_G in G_vG:
+            grad_G = pw.from_data(G_G * phi_G)
+            grad_R = grad_G.ifft(grid=grid)
+            grad_R.data *= eps_R
+            ophi_G += grad_R.fft(pw=self.pw).data * G_G
 
-        eps_gradients = []
-        for grad_pw in gradients:
-            grad_real = grad_pw.ifft(grid=grid).data
-
-            epsg_ug = grid.zeros()
-            epsg_ug.data[:] = grad_real * self.dielectric.eps_gradeps[0]
-
-            eps_gradients.append(epsg_ug.fft(pw=self.pw).data)
-
-        return np.sum([G * epsg
-                       for G, epsg in zip([Gx, Gy, Gz], eps_gradients)],
-                      axis=0)
+        return ophi_G
 
     def _solve(self,
                vHt_g,
@@ -359,9 +345,14 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
                 f'Conjugate gradient did not converge (info={info})')
 
         if self.zero_vacuum:
+            self.zero_vacuum = False
+            dphi_g = self.pw.zeros()
+            self._solve(dphi_g, self.drho_g)
+            v0s, v1s = xy_average_at_boundary(dphi_g)
             v0, v1 = xy_average_at_boundary(vHt_g)
-            vHt_g.data -= self.dphi_g.data * (v1 / self.v1)
-            vHt_g.data[0] -= v0 - (v1 / self.v1) * self.v0
+            vHt_g.data -= dphi_g.data * (v1 / v1s)
+            vHt_g.data[0] -= v0 - (v1 / v1s) * v0s
+            self.zero_vacuum = True
 
         epot = 0.5 * vHt_g.integrate(rhot_g)
         return epot
