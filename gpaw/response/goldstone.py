@@ -148,9 +148,8 @@ class RefinedFMGoldstoneScaling(HXCScaling):
         self._base_scaling.calculate_scaling(dyson_equations)
         base_lambd = self._base_scaling.lambd
 
-        # Secondly, we extract the spectral peak position and refine the
-        # scaling such that the maximum is located at ω=0. To do so, we perform
-        # a parabolic fit to the five points with lowest |ω|.
+        # Secondly, we extract the spectral peak position by performing a
+        # parabolic fit to the five points with lowest |ω|.
         omega_W = dyson_equations.zd.omega_w
         wblocks = dyson_equations.zblocks
         fiveW_w = np.argpartition(np.abs(omega_W), 5)[:5]
@@ -166,16 +165,22 @@ class RefinedFMGoldstoneScaling(HXCScaling):
                 wblocks.blockcomm.broadcast(a_w[w:w + 1], wrank)
             return a_w
 
-        def abs_acoustic_magnon_frequency(lambd):
+        def acoustic_magnon_frequency(lambd):
             a_w = near_acoustic_spectrum(lambd)
             a, b, c = np.polyfit(omega_w, a_w, 2)
-            omega0 = -b / (2 * a)
-            return abs(omega0)
+            return -b / (2 * a)
 
-        # Minimize the (absolute) peak frequency |ω_0| to obtain the refined λ.
-        res = minimize(abs_acoustic_magnon_frequency, x0=[base_lambd],
+        # Lastly, we minimize the (absolute) peak frequency |ω_0| to obtain the
+        # refined λ. To do so efficiently, we define a (hyperbolic) cost
+        # function which is linear in |ω_0| in the meV range, but parabolic in
+        # the μeV range, such that derivatives remain smooth at the minimum.
+
+        def cost_function(lambd):
+            return np.sqrt(5e-5 + acoustic_magnon_frequency(lambd)**2)
+
+        res = minimize(cost_function, x0=[base_lambd],
                        bounds=[(base_lambd * 0.975, base_lambd * 1.025)])
-        assert res.success
+        assert res.success, res
         return res.x[0]
 
 
