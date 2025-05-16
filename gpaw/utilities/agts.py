@@ -8,7 +8,8 @@ def workflow():
     for mode in ['pw', 'lcao']:
         with run(function=work, args=['FCC', 'Al'], kwargs={'mode': mode},
                  cores=8, name=f'Al-{mode}'):
-            run(function=check_lattice_constant, args=[mode])
+            run(function=check_lattice_constant, args=[mode],
+                name=f'check-{mode}')
 
 
 def check_lattice_constant(mode: str) -> None:
