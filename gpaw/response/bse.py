@@ -834,6 +834,18 @@ class BSEBackend:
 
         return w_T, C_T
 
+    def _cache_eig_data(self, irreducible, optical, w_w):
+        if (not hasattr(self, 'eig_data')
+            or self.eig_data_irreducible != irreducible
+            or self.eig_data_optical != optical):
+            bsematrix = self.get_bse_matrix(optical=optical,
+                                            irreducible=irreducible)
+            self.context.print('Calculating response function at %s frequency '
+                               'points' % len(w_w))
+            self.eig_data = self.diagonalize_bse_matrix(bsematrix)
+            self.eig_data_irreducible = irreducible
+            self.eig_data_optical = optical
+
     @timer('get_vchi')
     def get_vchi(self, w_w=None, eta=0.1, optical=True, write_eig=None,
                  mode_c=None, irreducible=False):
@@ -841,14 +853,7 @@ class BSEBackend:
 
         vchi_w = np.zeros(len(w_w), dtype=complex)
 
-        if not hasattr(self, 'eig_data'):
-            bsematrix = self.get_bse_matrix(optical=optical,
-                                            irreducible=irreducible)
-            self.context.print('Calculating response function at %s frequency '
-                               'points' % len(w_w))
-            self.eig_data = self.diagonalize_bse_matrix(bsematrix)
-        else:
-            pass
+        self._cache_eig_data(irreducible, optical, w_w)
 
         w_T, C_T = self.get_spectral_weights(self.eig_data,
                                              self.df_S, mode_c)
@@ -892,18 +897,7 @@ class BSEBackend:
                     irreducible=False):
         """Returns chi_wGG'"""
 
-        if (not hasattr(self, 'eig_data')
-            or self.eig_data_irreducible != irreducible
-                or self.eig_data_optical != optical):
-            bsematrix = self.get_bse_matrix(optical=optical,
-                                            irreducible=irreducible)
-            self.context.print('Calculating response function at %s frequency '
-                               'points' % len(w_w))
-            self.eig_data = self.diagonalize_bse_matrix(bsematrix)
-            self.eig_data_irreducible = irreducible
-            self.eig_data_optical = optical
-        else:
-            pass
+        self._cache_eig_data(irreducible, optical, w_w)
 
         w_T, v_Rt, exclude_S = \
             self.eig_data[0], self.eig_data[1], self.eig_data[2]
@@ -919,6 +913,8 @@ class BSEBackend:
 
         self.context.print('Calculating response function at %s frequency '
                            'points' % len(w_w))
+        self.blocks = Blocks1D(world, len(w_T))
+        w_t = w_T[self.blocks.myslice]
 
         if not self.use_tammdancoff:
             if world.rank == 0:
@@ -929,12 +925,20 @@ class BSEBackend:
                 overlap_tt = np.linalg.inv(tmp)
                 C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis] *\
                     A_GT.T[:, np.newaxis]
+                C_tGG = C_tGG[:nR].reshape((nR, nG, nG))
+                flat_C_tGG = C_tGG.ravel()
             else:
-                C_tGG = None
+                flat_C_tGG = np.empty(nR * nG * nG, dtype=complex)
+            world.broadcast(flat_C_tGG, 0)
+            C_tGG = flat_C_tGG.reshape((nR, nG, nG))[self.blocks.myslice]
             C_tGG1 = None
         else:
             A_Gt = rho_RG.T @ v_Rt
             B_Gt = (rho_RG.T * df_R[np.newaxis]) @ v_Rt
+            '''The following computes
+               C_tGG1 = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
+               C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
+               '''
             grid = BlacsGrid(world, world.size, 1)
             desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
             C_tGG = desc.empty(dtype=complex)
@@ -944,44 +948,26 @@ class BSEBackend:
             C_tGG1 = desc1.empty(dtype=complex)
             np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
                       out=C_tGG1.reshape((-1, nG, nG)))
+            print(f'shape is {C_tGG.shape}')
+            C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
+            C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
+                (C_tGG1.shape[0], nG, nG))
 
         eta /= Hartree
 
-        if world.size > 1 and self.use_tammdancoff:
-            self.blocks = Blocks1D(world, len(w_T))
-            w_t = w_T[self.blocks.myslice]
-            print(f'shape is {C_tGG.shape}')
-            C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
-        elif (
-            world.rank == 0 and not self.use_tammdancoff
-        ) or world.size == 1:
-            w_t = w_T
-            C_tGG = C_tGG[:nR].reshape((nR, nG, nG))
-
-        if self.use_tammdancoff or world.rank == 0:
+        if C_tGG is not None:
             tmp_tw = 1 / (w_w[None, :] / Hartree - w_t[:, None] + 1j * eta)
-            n_tmp_tw = - 1 / (w_w[None, :] / Hartree + w_t[:, None] + 1j * eta)
-
             chi_wGG_local = np.einsum('tw,tAB->wAB', tmp_tw, C_tGG)
 
             if C_tGG1 is not None:
-                C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
-                    (C_tGG1.shape[0], nG, nG))
+                n_tmp_tw = - 1 / (w_w[None, :] / Hartree
+                                  + w_t[:, None] + 1j * eta)
                 chi_wGG_local += np.einsum('tw,tAB->wAB', n_tmp_tw, C_tGG1)
 
             chi_wGG_local *= 1 / self.gs.volume
 
-        if world.size > 1 and self.use_tammdancoff:
-            chi_wGG = np.zeros_like(chi_wGG_local)
-            world.sum(chi_wGG_local)
-            chi_wGG = chi_wGG_local
-        else:
-            if world.rank == 0:
-                flat_chi_wGG = chi_wGG_local.ravel()
-            else:
-                flat_chi_wGG = np.empty(len(w_w) * nG * nG, dtype=complex)
-            world.broadcast(flat_chi_wGG, 0)
-            chi_wGG = flat_chi_wGG.reshape((len(w_w), nG, nG))
+        world.sum(chi_wGG_local)
+        chi_wGG = chi_wGG_local
 
         return np.swapaxes(chi_wGG, -1, -2)
 
