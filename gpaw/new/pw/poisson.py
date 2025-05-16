@@ -275,14 +275,16 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         self.grid = grid
         self.eps = eps
         self.maxiter = maxiter
-        self.zero_vacuum = zero_vacuum
         self.drho_g = None
         self.dphi_g = None
+        self.zero_vacuum = False
         if zero_vacuum:
             drho_g = dipole_layer(grid).fft(pw=pw)
             self.dphi_g = pw.zeros()
             self._solve(self.dphi_g, drho_g)
             self.drho_g = drho_g
+            self.v0, self.v1 = xy_average_at_boundary(self.dphi_g)
+            self.zero_vacuum = True
 
     def __str__(self) -> str:
         txt = ('conjugate gradient poisson solver:\n'
@@ -330,13 +332,9 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
 
             eps_gradients.append(epsg_ug.fft(pw=self.pw).data)
 
-        ophi_g = np.sum([G * epsg
-                         for G, epsg in zip([Gx, Gy, Gz], eps_gradients)],
-                        axis=0)
-        if self.drho_g is not None:
-            slope = self.drho_g.integrate(phi_q)
-            ophi_g += self.dphi_g * slope
-        return ophi_g
+        return np.sum([G * epsg
+                       for G, epsg in zip([Gx, Gy, Gz], eps_gradients)],
+                      axis=0)
 
     def _solve(self,
                vHt_g,
@@ -360,8 +358,10 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
             warnings.warn(
                 f'Conjugate gradient did not converge (info={info})')
 
-        if 0:  # self.zero_vacuum:
-            self.correct_slope(vHt_g)
+        if self.zero_vacuum:
+            v0, v1 = xy_average_at_boundary(vHt_g)
+            vHt_g.data -= self.dphi_g.data * (v1 / self.v1)
+            vHt_g.data[0] -= v0 - (v1 / self.v1) * self.v0
 
         epot = 0.5 * vHt_g.integrate(rhot_g)
         return epot
@@ -383,13 +383,31 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         vHt_g.scatter_from(vHt0_g)
 
 
-def dipole_layer(grid: UGDesc):
+def dipole_layer(grid: UGDesc, z0: float = 2.0):
     a_r = grid.empty()
+    z_r = grid.xyz()[:, :, :, 2]
+    n = z_r.shape[2]
     h = grid.cell_cv[2, 2]
-    z_r = grid.xyz()[2]
-    z_r += h / 2
+    d = h / n
+    z0 = round(z0 / d) * d
+    z_r += h / 2 - z0
     z_r %= h
     z_r -= h / 2
-    alpha = 3.0
-    a_r.data[:] = 4 * alpha**1.5 / np.pi**0.5 * np.exp(-alpha * z_r**2)
+    alpha = 6.0 / z0**2
+    a_r.data[:] = 4 * alpha**1.5 / np.pi**0.5 * z_r * np.exp(-alpha * z_r**2)
     return a_r
+
+
+def xy_average_at_boundary(f_G: PWArray) -> tuple[float, float]:
+    """Calculate average value and derivative at boundary of box."""
+    pw = f_G.desc
+    m0_G, m1_G = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
+    mask_G = m0_G & m1_G
+    f_q = f_G.data[mask_G]
+    value = f_q.real.sum() * 2
+    derivative = pw.G_plus_k_Gv[mask_G, 2] @ f_q.imag
+    if pw.comm.rank == 0:
+        value -= f_q[0].real
+    result = np.array([value, derivative])
+    pw.comm.sum(result)
+    return result

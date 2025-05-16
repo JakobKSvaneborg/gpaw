@@ -30,7 +30,7 @@ def test_sjm():
     rhot_r = grid.zeros()
     rhot_r.data[:] = rhot
     eps_r = grid.zeros()
-    eps_r.data[:] = 1.0#eps
+    eps_r.data[:] = eps
     print(rhot_r.integrate())
     pw = PWDesc(ecut=grid.ekin_max(), cell=grid.cell)
     ps = SJMPWPoissonSolver(pw, dielectric=None)
@@ -44,7 +44,7 @@ def test_sjm():
     vt2_g = pw.zeros()
     ps2.solve(vt2_g, rhot_g)
     vt2_r = vt2_g.ifft(grid=grid)
-    if 1:
+    if 0:
         import matplotlib.pyplot as plt
         plt.plot(z, rhot_r.data[0, 0])
         plt.plot(z, vt_r.data[0, 0])
