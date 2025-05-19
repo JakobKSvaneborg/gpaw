@@ -201,7 +201,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         rhot_nG = self.pw.empty(mynbands1)
         vrhot_G = self.pw.empty()
 
-        if psi1 is not psi2 or comm.size > 1:
+        if not same or comm.size > 1:
             psit1_nR = self.grid_local.empty(mynbands1)
         else:
             psit1_nR = None
