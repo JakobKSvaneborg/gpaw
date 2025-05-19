@@ -10,7 +10,7 @@ from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
-from gpaw.new import zips
+from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.typing import Array1D
@@ -320,9 +320,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.ghat_aLX.add_to(rhot_nR, Q_anL)
         fft(rhot_nR, rhot_nG, plan=self.plan)
         e = 0.0
-        for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
-                                                       rhot_nG,
-                                                       psi1.f_n)):
+        for n1, (rhot_R, rhot_G, f1) in enumerate(zip(rhot_nR,
+                                                      rhot_nG,
+                                                      psi1.f_n)):
             vrhot_G.data = rhot_G.data * self.v_G.data
             if psi2.f_n is not None:
                 e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
