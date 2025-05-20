@@ -8,6 +8,12 @@ from gpaw.core import PWArray, PWDesc, UGDesc
 from gpaw.new.poisson import PoissonSolver
 from scipy.sparse.linalg import LinearOperator, cg
 from scipy.special import erf
+from gpaw import get_scipy_version
+
+if get_scipy_version() >= [1, 14]:
+    RTOL = 'rtol'
+else:
+    RTOL = 'tol'
 
 
 def make_poisson_solver(pw: PWDesc,
@@ -337,8 +343,8 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
                            matvec=lambda x: 0.5 * x / self.ekin_g,
                            dtype=complex)
 
-        vHt_g.data[:], info = cg(op, vHt_g.data,
-                                 rtol=self.eps, maxiter=self.maxiter, M=M)
+        vHt_g.data[:], info = cg(op, vHt_g.data, maxiter=self.maxiter, M=M,
+                                 **{RTOL: self.eps})
 
         if info != 0:
             warnings.warn(
