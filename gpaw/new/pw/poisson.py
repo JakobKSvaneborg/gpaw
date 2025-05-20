@@ -280,8 +280,17 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         super().__init__(pw, charge, strength)
         self.dielectric = dielectric
         self.grid = grid
+        self.pw0 = pw.new(comm=None)
+        self.grid0 = grid.new(comm=None)
+        if pw.comm.rank == 0:
+            self.ekin_g = self.pw0.ekin_G.copy()
+            self.ekin_g[0] = 1.0
+
         self.eps = eps
         self.maxiter = maxiter
+
+        self.eps0_R = None
+
         self.drho_g = None
         self.zero_vacuum = zero_vacuum
         if zero_vacuum:
@@ -314,17 +323,16 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         ndarray
             Result of operator application
         """
-        G_vG = self.pw.G_plus_k_Gv.T
-        grid = self.grid
-        pw = self.pw
-        eps_R = self.dielectric.eps_gradeps[0]
+        pw = self.pw0
+        grid = self.grid0
+        G_vG = pw.G_plus_k_Gv.T
 
         ophi_G = np.zeros_like(phi_G)
         for G_G in G_vG:
             grad_G = pw.from_data(G_G * phi_G)
             grad_R = grad_G.ifft(grid=grid)
-            grad_R.data *= eps_R
-            ophi_G += grad_R.fft(pw=self.pw).data * G_G
+            grad_R.data *= self.eps0_R.data
+            ophi_G += grad_R.fft(pw=pw).data * G_G
 
         return ophi_G
 
@@ -332,23 +340,28 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
                vHt_g,
                rhot_g) -> float:
         vHt_g.data[:] = 4 * np.pi * self.strength * rhot_g.data
+        eps_R = self.grid.from_data(self.dielectric.eps_gradeps[0])
+        self.eps0_R = eps_R.gather()
+
+        vHt0_g = vHt_g.gather()
+
         if self.pw.comm.rank == 0:
-            vHt_g.data[0] = 0.0
+            vHt0_g.data[0] = 0.0
 
-        N = len(vHt_g.data)
-        op = LinearOperator((N, N),
-                            matvec=self.operator,
-                            dtype=complex)
-        M = LinearOperator((N, N),
-                           matvec=lambda x: 0.5 * x / self.ekin_g,
-                           dtype=complex)
+            N = len(vHt0_g.data)
+            op = LinearOperator((N, N),
+                                matvec=self.operator,
+                                dtype=complex)
+            M = LinearOperator((N, N),
+                               matvec=lambda x: 0.5 * x / self.ekin_g,
+                               dtype=complex)
+            vHt0_g.data[:], info = cg(
+                op, vHt0_g.data, maxiter=self.maxiter, M=M, **{RTOL: self.eps})
+            if info != 0:
+                warnings.warn(
+                    f'Conjugate gradient did not converge (info={info})')
 
-        vHt_g.data[:], info = cg(op, vHt_g.data, maxiter=self.maxiter, M=M,
-                                 **{RTOL: self.eps})
-
-        if info != 0:
-            warnings.warn(
-                f'Conjugate gradient did not converge (info={info})')
+        vHt_g.scatter_from(vHt0_g)
 
         if self.zero_vacuum:
             self.zero_vacuum = False
