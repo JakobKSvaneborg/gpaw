@@ -395,7 +395,7 @@ def dipole_layer(grid: UGDesc, z0: float = 2.0):
     return a_r
 
 
-def xy_average_at_boundary(f_G: PWArray) -> tuple[float, float]:
+def xy_average_at_boundary(f_G: PWArray) -> np.ndarray:
     """Calculate average value and derivative at boundary of box."""
     pw = f_G.desc
     m0_G, m1_G = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0

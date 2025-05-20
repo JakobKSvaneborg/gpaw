@@ -10,7 +10,7 @@ from gpaw.solvation.sjm import SJM as OldSJM
 from gpaw.solvation.sjm import SJMPower12Potential
 
 
-@pytest.mark.parrametrize('mode', ['pw', 'fd'])
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_sjm(gpaw_new, in_tmp_dir, mode):
     if gpaw_new and size > 1:
         pytest.skip('SJM with new-GPAW only works in serial!')
