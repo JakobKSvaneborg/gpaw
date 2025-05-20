@@ -52,7 +52,8 @@ def test_sjm(gpaw_new, in_tmp_dir, mode):
 
     solvation = dict(
         cavity=EffectivePotentialCavity(
-            effective_potential=SJMPower12Potential(u0=u0),
+            effective_potential=SJMPower12Potential(u0=u0,
+                                                    unsolv_backside=False),
             temperature=T,
             surface_calculator=GradientSurface()),
         dielectric=LinearDielectric(epsinf=epsinf),
