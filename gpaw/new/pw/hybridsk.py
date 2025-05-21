@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cached_property
-from math import nan, pi
-from pathlib import Path
+from math import pi
 from time import time
-from typing import IO
 
 import numpy as np
 from ase.units import Ha
@@ -14,17 +11,13 @@ from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
-from gpaw.new.c import add_to_density
-from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pw.hybrids import fft, truncated_coulomb
-from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
+from gpaw.new.pw.nschse import ibz2bz
 
 
 @dataclass
@@ -48,7 +41,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                  log,
                  kpt_comm,
                  comm):
-        super().__init__(grid, pw)
+        super().__init__(grid.new(dtype=complex), pw)
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
@@ -108,8 +101,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
             assert wfs.psit_nX.data is psit2_nG.data
 
             # We are doing a subspace diagonalization ...
-            evv, evc, ekin = self.apply(spin, D_aii, pt_aiG,
-                                        psit2_nG, Htpsit2_nG)
+            evv, evc, ekin = self._apply(spin, D_aii, pt_aiG,
+                                         psit2_nG, Htpsit2_nG)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
@@ -123,14 +116,14 @@ class PWHybridHamiltonianK(PWHamiltonian):
         # We are applying the exchange operator (defined by psit1_nG,
         # P1_ani, f1_n and D_aii) to another set of wave functions
         # (psit2_nG):
-        self.apply1(spin, D_aii, pt_aiG, psit2_nG, Htpsit2_nG)
+        self._apply(spin, D_aii, pt_aiG, psit2_nG, Htpsit2_nG)
 
-    def apply(self,
-              spin: int,
-              D_aii,
-              pt_aiG,
-              psit_nG: PWArray,
-              Htpsit_nG: PWArray) -> tuple[float, float, float]:
+    def _apply(self,
+               spin: int,
+               D_aii,
+               pt_aiG,
+               psit_nG: PWArray,
+               Htpsit_nG: PWArray) -> tuple[float, float, float]:
         comm = self.comm
         band_comm = psit_nG.comm
 
@@ -161,7 +154,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
 
         Returned eigenvalues are in eV.
         """
-        ut2_nR = self.grid.empty(len(psit2_nG))
+        ut2_nR = self.grid_local.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
         pw2 = psit2_nG.desc

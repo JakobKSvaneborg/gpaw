@@ -171,7 +171,9 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             else:
                 return PWHybridHamiltonianK(
                     self.grid, self.wf_desc, self.xc, self.setups,
-                    self.relpos_ac, self.atomdist, self.log, self.comm)
+                    self.relpos_ac, self.atomdist, self.log,
+                    self.communicators['k'],
+                    self.communicators['w'])
         return SpinorPWHamiltonian(self.qspiral_v)
 
     def convert_wave_functions_from_uniform_grid(self,

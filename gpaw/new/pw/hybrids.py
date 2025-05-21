@@ -255,7 +255,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             ifft(psi1.psit_nG, psit1_nR, self.plan)
 
         e = 0.0
-        for n2, (psit2_R, out_G) in enumerate(zips(psi2.psit_nR, Htpsit_nG)):
+        for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
             rhot_nR.data[:] = psit1_nR.data * psit2_R.data.conj()
             for a, Q1_niL in Q1_aniL.items():
                 P2_i = psi2.P_ani[a][n2]
@@ -291,9 +291,9 @@ class PWHybridHamiltonian(PWHamiltonian):
                 1.0, rhot_nG.data)
 
         e = 0.0
-        for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
-                                                       rhot_nG,
-                                                       psi1.f_n)):
+        for n1, (rhot_R, rhot_G, f1) in enumerate(zip(rhot_nR,
+                                                      rhot_nG,
+                                                      psi1.f_n)):
             vrhot_G.data = rhot_G.data * self.v_G.data
             if psi2.f_n is not None:
                 e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
@@ -338,10 +338,10 @@ class PWHybridHamiltonian(PWHamiltonian):
 
 
 def ifft(psit_nG, out_nR, plan):
-    for psit_G, out_R in zips(psit_nG, out_nR):
+    for psit_G, out_R in zip(psit_nG, out_nR):
         psit_G.ifft(out=out_R, plan=plan)
 
 
 def fft(rhot_nR, rhot_nG, plan):
-    for rhot_R, rhot_G in zips(rhot_nR, rhot_nG):
+    for rhot_R, rhot_G in zip(rhot_nR, rhot_nG):
         rhot_R.fft(out=rhot_G, plan=plan)
