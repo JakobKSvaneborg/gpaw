@@ -164,18 +164,6 @@ def saw_tooth_sympy():
     print(m)  # -b*cos(G*b)/G + sin(G*b)/G**2
 
 
-def diplayer():
-    """Fourier-transform."""
-    from sympy import Symbol, integrate, sin, exp, var, oo
-    z = var('z')
-    G = Symbol('G', positive=True)
-    b = Symbol('b', positive=True)
-    m = integrate(sin(G * z) * z * exp(-b * z**2), (z, 0, oo))
-    print(m)
-    m = integrate(z**2 * exp(-b * z**2), (z, 0, oo))
-    print(m)
-
-
 def saw_tooth(pw: PWDesc, width: float = 0.5) -> PWArray:
     """Saw-tooth in reciprocal space with a slope of 1."""
     assert np.allclose(pw.cell_cv[:2, 2], 0.0)
@@ -204,7 +192,3 @@ def saw_tooth(pw: PWDesc, width: float = 0.5) -> PWArray:
     st_g = pw.zeros()
     st_g.data[mask_g] = st_i
     return st_g
-
-
-if __name__ == '__main__':
-    diplayer()
