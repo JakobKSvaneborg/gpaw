@@ -186,7 +186,18 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
         log(header1.rstrip())
         log(header2.rstrip())
 
-    c = {k: 'c' if v else ' ' for k, v in converged_items.items()}
+    if log.use_colors:
+        green = '\x1b[32m'
+        reset = '\x1b[0m'
+    else:
+        green = ''
+        reset = ''
+
+    def C(fmt: str, name: str) -> str:
+        txt = fmt.format(entries.get(name, ''))
+        if converged_items.get(name):
+            return green + txt + reset + 'c '
+        return txt + '  '
 
     # Iterations and time.
     now = time.localtime()
@@ -194,19 +205,17 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
             .format(ctx.niter, *now[3:6]))
 
     # Energy.
-    line += '{:>12s}{:1s} '.format(entries.get('energy', ''),
-                                   c.get('energy', ''))
+    line += C('{:>12s}', 'energy')
 
     # Eigenstates.
-    line += '{:>6s}{:1s} '.format(entries['eigenstates'], c['eigenstates'])
+    line += C('{:>6s}', 'eigenstates')
 
     # Density.
-    line += '{:>5s}{:1s} '.format(entries.get('density', ''),
-                                  c.get('density', ''))
+    line += C('{:>5s}', 'density')
 
     # Custom criteria (optional).
     for name in custom:
-        line += f'{entries[name]:>5s}{c[name]:s} '
+        line += C('{:>5s}', name)
 
     # Magnetic moment (optional).
     if ctx.wfs.nspins == 2 or not ctx.wfs.collinear:

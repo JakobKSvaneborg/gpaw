@@ -5,6 +5,12 @@ import os
 import sys
 from pathlib import Path
 from typing import IO, Any
+try:
+    from _colorize import can_colorize, ANSIColors
+except ImportError:
+    def can_colorize(file):
+        return file.isatty()
+
 
 from gpaw.mpi import MPIComm, world
 
@@ -42,6 +48,7 @@ class Logger:
             self.close_fd = False
 
         self.indentation = ''
+        self.use_colors = can_colorize(self.fd)
 
     def __del__(self) -> None:
         if self.close_fd:
@@ -54,10 +61,14 @@ class Logger:
         yield
         self.indentation = self.indentation[2:]
 
-    def __call__(self, *args, end=None, flush=False) -> None:
+    def __call__(self, *args, end=None, flush=False, color='') -> None:
         if not self.fd.closed:
             i = self.indentation
             text = ' '.join(str(arg) for arg in args)
             if i:
                 text = i + text.replace('\n', '\n' + i)
+            if color and self.use_colors:
+                text = (getattr(ANSIColors, color.upper()) +
+                        text +
+                        ANSIColors.RESET)
             print(text, file=self.fd, end=end, flush=flush)
