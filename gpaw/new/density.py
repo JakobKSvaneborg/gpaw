@@ -34,7 +34,7 @@ class Density:
                    taut_sR,
                    D_asii,
                    charge,
-                   setups.nvalence,
+                   setups.nvalence + setups.core_charge,
                    [xp.asarray(setup.Delta_iiL) for setup in setups],
                    [setup.Delta0 for setup in setups],
                    [unpack_hermitian(setup.N0_p) for setup in setups],
