@@ -37,11 +37,10 @@ class RMMDIIS(PWFDEigensolver):
             optimized step lengths.
         """
 
-        if niter != 1:
-            warnings.warn(f'Ignoring niter={niter} in RMMDIIS')
         super().__init__(hamiltonian, converge_bands,
                          max_buffer_mem=max_buffer_mem)
         self.trial_step = trial_step
+        self.niter = niter
 
     def __str__(self):
         return pformat(dict(name='RMMDIIS',
@@ -50,7 +49,7 @@ class RMMDIIS(PWFDEigensolver):
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
         self._allocate_work_arrays(ibzwfs, shape=(1,))
-        self._allocate_buffer_arrays(ibzwfs, shape=(2,))
+        self._allocate_buffer_arrays(ibzwfs, shape=(2, self.niter))
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
@@ -73,18 +72,17 @@ class RMMDIIS(PWFDEigensolver):
 
         wfs.subspace_diagonalize(Ht, dH,
                                  psit2_nX=residual_nX,
-                                 data_buffer=self.data_buffers[0])
+                                 data_buffer=self.data_buffers[0, 0])
         calculate_residuals(wfs.psit_nX, residual_nX, wfs.pt_aiX,
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
 
-        work1_nX = psit_nX.create_work_buffer(self.data_buffers[0])
+        work_nX = psit_nX.create_work_buffer(self.data_buffers[0, 0])
         ekin_n = psit_nX.norm2('kinetic')
-        sliced_preconditioner(psit_nX, residual_nX, work1_nX, self.preconditioner)
+        sliced_preconditioner(psit_nX, residual_nX, work_nX, self.preconditioner)
         P_ani = wfs.pt_aiX.integrate(residual_nX)
-        
-        work2_nX = psit_nX.create_work_buffer(self.data_buffers[1])
-        blocksize = work1_nX.data.shape[0]
+
+        blocksize = work_nX.data.shape[0]
         P1_ani = P_ani.layout.empty(blocksize)
         P2_ani = P_ani.layout.empty(blocksize)
         if weight_n is None:
@@ -105,13 +103,12 @@ class RMMDIIS(PWFDEigensolver):
                 n2 = mynbands
                 P1_ani = P1_ani[:, :n2 - n1]
                 P2_ani = P2_ani[:, :n2 - n1]
-            block_step(
+            self.block_step(
                 psit_nX[n1:n2],
                 residual_nX[n1:n2],
                 sP_ani, wfs.myeig_n[n1:n2], Ht, dH, dS_aii,
                 self.trial_step,
-                work1_nX[:n2 - n1],
-                work2_nX[:n2 - n1],
+                self.data_buffers,
                 P1_ani, P2_ani,
                 ekin_n[n1:n2],
                 wfs.pt_aiX,
@@ -121,48 +118,87 @@ class RMMDIIS(PWFDEigensolver):
         wfs.orthonormalize(residual_nX)
         return error
 
+    def block_step(self,
+                   psit_nX,
+                   PR_nX,
+                   P_ani,
+                   eig_n,
+                   Ht,
+                   dH,
+                   dS_aii,
+                   trial_step,
+                   data_buffers,
+                   P1_ani,
+                   P2_ani,
+                   ekin_n,
+                   pt_aiX,
+                   preconditioner) -> None:
+        """See here:
 
-def block_step(psit_nX,
-               PR_nX,
-               P_ani,
-               eig_n,
-               Ht,
-               dH,
-               dS_aii,
-               trial_step,
-               work1_nX,
-               work2_nX,
-               P1_ani,
-               P2_ani,
-               ekin_n,
-               pt_aiX,
-               preconditioner) -> None:
-    """See here:
+                https://gpaw.readthedocs.io/documentation/rmm-diis.html
+        """
+        xp = psit_nX.xp
+        
+        # RMM Part:
+        buff_nX = psit_nX.create_work_buffer(self.data_buffers[0, 0])
+        dR_nX = psit_nX.create_work_buffer(self.data_buffers[1, 0])
 
-            https://gpaw.readthedocs.io/documentation/rmm-diis.html
-    """
-    buff_nX = work1_nX
-    dR_nX = work2_nX
+        Ht(PR_nX, out=dR_nX)
+        calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,
+                            dH, dS_aii, P1_ani, P2_ani)
+        preconditioner(psit_nX, PR_nX, out=buff_nX,
+                       ekin_n=ekin_n, inverse=True)
+        a_n = psit_nX.xp.asarray(
+            [-d_X.integrate(r_X).real for d_X, r_X in zip(dR_nX, buff_nX)])
+        b_n = dR_nX.norm2()
 
-    Ht(PR_nX, out=dR_nX)
-    calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,
-                        dH, dS_aii, P1_ani, P2_ani)
-    preconditioner(psit_nX, PR_nX, out=buff_nX,
-                   ekin_n=ekin_n, inverse=True)
-    a_n = psit_nX.xp.asarray(
-        [-d_X.integrate(r_X) for d_X, r_X in zip(dR_nX, buff_nX)])
-    b_n = dR_nX.norm2()
-
-    preconditioner(psit_nX, dR_nX, out=buff_nX, ekin_n=ekin_n)
-    shape = (len(a_n),) + (1,) * (psit_nX.data.ndim - 1)
-    lambda_n = (a_n / b_n).reshape(shape)
-    PR_nX.data *= lambda_n
-    psit_nX.data += PR_nX.data
-    buff_nX.data *= lambda_n
-    #R_nX.data += dR_nX.data
-    PR_nX.data += buff_nX.data
-    if trial_step is None:
+        preconditioner(psit_nX, dR_nX, out=buff_nX, ekin_n=ekin_n)
+        shape = (len(a_n),) + (1,) * (psit_nX.data.ndim - 1)
+        lambda_n = (a_n / b_n).reshape(shape)
         PR_nX.data *= lambda_n
-    else:
-        PR_nX.data *= trial_step
-    psit_nX.data += PR_nX.data
+        #psit_nX.data += PR_nX.data
+        buff_nX.data *= lambda_n
+        PR_nX.data += buff_nX.data
+        
+        R_mnX = [PR_nX, dR_nX]
+        psits_mnX = [psit_nX, buff_nX]
+        
+        # DIIS Part:
+        blocksize = psit_nX.data.shape[0]
+        
+        A_nmm = -xp.ones((blocksize, self.niter + 1, self.niter + 1), dtype=complex)
+        A_nmm[:, -1, -1] = 0
+        b_nm = -xp.ones((blocksize, self.niter + 1), dtype=complex)
+        for i in range(2, self.niter+1):
+            for m1 in range(i):
+                for m2 in range(i): # It is symmetric, no need to double count
+                    for b in range(blocksize):
+                        A_nmm[b, m1, m2] = R_mnX[m1][b].integrate(R_mnX[m2][b])
+            b_nm[:, :i] = 0
+            lambda_nm = xp.linalg.solve(A_nmm[:, :i+1, :i+1], b_nm[:, :i+1])[:, :i]
+            psit_new_nX = psit_nX.create_work_buffer(self.data_buffers[0, i-1])
+            R_new_nX = psit_nX.create_work_buffer(self.data_buffers[1, i-1])
+            psit_new_nX.data[:] = 0
+            R_new_nX.data[:] = 0
+            for m in range(i):
+                psit_new_nX.data += lambda_nm[:, m, None] * psits_mnX[m].data
+                R_new_nX.data += lambda_nm[:, m, None] * R_mnX[m].data
+            
+            preconditioner(psit_nX, R_new_nX, out=R_new_nX, ekin_n=ekin_n)
+            psit_new_nX.data += R_new_nX.data * lambda_n
+
+            Ht(psit_new_nX, out=R_new_nX)
+            P_ani = pt_aiX.integrate(R_new_nX)
+            calculate_residuals(R_new_nX, R_new_nX, pt_aiX, P_ani, eig_n,
+                                dH, dS_aii, P1_ani, P2_ani)
+            R_mnX.append(R_new_nX)
+            psits_mnX.append(psit_new_nX)
+        
+        psit_nX.data[:] = psits_mnX[-1].data
+
+        # Final trial step
+        if trial_step is None:
+            PR_nX.data *= lambda_n
+        else:
+            PR_nX.data *= trial_step
+        psit_nX.data += PR_nX.data
