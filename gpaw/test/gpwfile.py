@@ -72,6 +72,43 @@ def gpwfile(meth):
     return meth
 
 
+def random_degenerate_unitary_rotation(calc):
+    def group_eigenvalues(eps_n, tol=1e-4):
+        chunks_dl = []
+        n_l = []
+        chunks_dl.append(n_l)
+        for n in range(len(eps_n)):
+            if len(n_l) == 0:
+                n_l.append(n)
+            else:
+                E = eps_n[n_l[0]]
+                if abs(E - eps_n[n]) > tol:  # New subspace
+                    # New subspace
+                    n_l = []
+                    chunks_dl.append(n_l)
+                n_l.append(n)
+        return chunks_dl
+  
+    # Random unitary matrix
+    def randU_nn(n, unitary=False):
+        A_nn = np.random.rand(n, n)
+        if unitary:
+            A_nn = A_nn + 1j * np.random.rand(n, n)
+        return np.linalg.qr(A_nn)[0]
+
+    for kpt in calc.wfs.kpt_u:
+        unitary = np.iscomplexobj(kpt.psit_nG) or np.iscomplexobj(kpt.C_nM)
+        eig_dl = group_eigenvalues(kpt.eps_n)
+        for n_l in eig_dl:
+            U_nn = randU_nn(len(n_l), unitary=unitary)
+            if kpt.psit_nG is not None:
+                kpt.psit_nG[n_l, ...] = (U_nn @ kpt.psit_nG[n_l].reshape((len(n_l), -1))).reshape(kpt.psit_nG[n_l].shape)
+            else:
+                kpt.C_nM[n_l] = U_nn @ kpt.C_nM[n_l]
+
+            for a, P_ni in kpt.P_ani.items():
+                P_ni[n_l] = U_nn @ P_ni[n_l]
+
 class GPWFiles(CachedFilesHandler):
     """Create gpw-files."""
 
@@ -80,6 +117,7 @@ class GPWFiles(CachedFilesHandler):
 
     def _calculate_and_write(self, name, work_path):
         calc = getattr(self, name)()
+        random_degenerate_unitary_rotation(calc)
         calc.write(work_path, mode='all')
 
     @gpwfile
