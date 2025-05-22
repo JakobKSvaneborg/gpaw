@@ -97,7 +97,7 @@ def random_degenerate_unitary_rotation(calc):
         return np.linalg.qr(A_nn)[0]
 
     for kpt in calc.wfs.kpt_u:
-        unitary = np.iscomplexobj(kpt.psit_nG) or np.iscomplexobj(kpt.C_nM)
+        unitary = np.iscomplexobj(kpt.P_ani[0])
         eig_dl = group_eigenvalues(kpt.eps_n)
         for n_l in eig_dl:
             U_nn = randU_nn(len(n_l), unitary=unitary)
@@ -107,7 +107,7 @@ def random_degenerate_unitary_rotation(calc):
                 kpt.C_nM[n_l] = U_nn @ kpt.C_nM[n_l]
 
             for a, P_ni in kpt.P_ani.items():
-                P_ni[n_l] = U_nn @ P_ni[n_l]
+                P_ni[n_l] = (U_nn @ P_ni[n_l].reshape((len(n_l), -1))).reshape(P_ni[n_l].shape)
 
 class GPWFiles(CachedFilesHandler):
     """Create gpw-files."""
