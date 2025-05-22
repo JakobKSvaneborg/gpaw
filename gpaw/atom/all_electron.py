@@ -848,7 +848,10 @@ class ValenceData:
     def from_setupdata_onthefly_potentials(cls, setupdata):
         vr_g, r2dvdr_g, scalarrel = cls.calculate_potential_data(setupdata)
         return cls.from_setupdata_and_potentials(
-            setupdata, vr_g=vr_g, r2dvdr_g=r2dvdr_g, scalarrel=scalarrel)
+            setupdata, vr_g=vr_g,
+            # To comply with the assertion in `.__post_init__()`
+            r2dvdr_g=r2dvdr_g if scalarrel else None,
+            scalarrel=scalarrel)
 
     @classmethod
     def from_setupdata_and_potentials(cls, setupdata, *, vr_g, r2dvdr_g,
@@ -859,7 +862,7 @@ class ValenceData:
         def multiply_r(array_jg):
             return array_jg * setupdata.rgd.r_g[None, :]
 
-        return ValenceData(
+        return cls(
             xcname=setupdata.setupname,
             symbol=setupdata.symbol,
             rgd=setupdata.rgd,
