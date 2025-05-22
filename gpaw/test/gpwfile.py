@@ -101,10 +101,10 @@ def random_degenerate_unitary_rotation(calc):
         eig_dl = group_eigenvalues(kpt.eps_n)
         for n_l in eig_dl:
             nl = len(n_l)
-            shape = kpt.psit_nG[n_l].shape
             U_nn = randU_nn(len(n_l), unitary=unitary)
             if kpt.psit_nG is not None:
                 psit_nX = U_nn @ kpt.psit_nG[n_l].reshape((nl, -1))
+                shape = kpt.psit_nG[n_l].shape
                 kpt.psit_nG[n_l] = psit_nX.reshape(shape)
             else:
                 kpt.C_nM[n_l] = U_nn @ kpt.C_nM[n_l]
