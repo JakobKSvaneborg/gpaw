@@ -88,7 +88,7 @@ def random_degenerate_unitary_rotation(calc):
                     chunks_dl.append(n_l)
                 n_l.append(n)
         return chunks_dl
-  
+
     # Random unitary matrix
     def randU_nn(n, unitary=False):
         A_nn = np.random.rand(n, n)
@@ -100,14 +100,19 @@ def random_degenerate_unitary_rotation(calc):
         unitary = np.iscomplexobj(kpt.P_ani[0])
         eig_dl = group_eigenvalues(kpt.eps_n)
         for n_l in eig_dl:
+            nl = len(n_l)
+            shape = kpt.psit_nG[n_l].shape
             U_nn = randU_nn(len(n_l), unitary=unitary)
             if kpt.psit_nG is not None:
-                kpt.psit_nG[n_l, ...] = (U_nn @ kpt.psit_nG[n_l].reshape((len(n_l), -1))).reshape(kpt.psit_nG[n_l].shape)
+                psit_nX = U_nn @ kpt.psit_nG[n_l].reshape((nl, -1))
+                kpt.psit_nG[n_l] = psit_nX.reshape(shape)
             else:
                 kpt.C_nM[n_l] = U_nn @ kpt.C_nM[n_l]
 
             for a, P_ni in kpt.P_ani.items():
-                P_ni[n_l] = (U_nn @ P_ni[n_l].reshape((len(n_l), -1))).reshape(P_ni[n_l].shape)
+                P_nx = U_nn @ P_ni[n_l].reshape((nl, -1))
+                P_ni[n_l] = P_nx.reshape(P_ni[n_l].shape)
+
 
 class GPWFiles(CachedFilesHandler):
     """Create gpw-files."""
