@@ -6,7 +6,6 @@ from gpaw.tddft.laser import CWField
 import pytest
 
 
-@pytest.mark.old_gpaw_only
 def test_tddft_be_nltd_ip(in_tmp_dir, gpw_files):
     atoms = Atoms('Be', [(0, 0, 0)], pbc=False)
     atoms.center(vacuum=6)

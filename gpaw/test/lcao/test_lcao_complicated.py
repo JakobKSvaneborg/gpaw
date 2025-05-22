@@ -22,7 +22,6 @@ from gpaw.utilities import compiled_with_sl
 # Written November 24, 2011, r8567
 
 
-@pytest.mark.old_gpaw_only
 def test_lcao_complicated():
     system = fcc111('Au', size=(1, 3, 1))
     system.numbers[0] = 8
