@@ -141,19 +141,15 @@ class PWHybridHamiltonianK(PWHamiltonian):
                     data = (psit_nG, P_ani, spin)
             psit_nG, P_ani, s = broadcast(data, rank * band_comm.size, comm)
             tb += time()
-            self.apply1(psit_nG, P_ani, s)
+            self._apply1(psit_nG, P_ani, s)
         t2 = time()
         self.log(f'  Seconds: {t2 - t1:.3f} '
                  f'(wave-function broadcasting: {tb:.3f} seconds)')
 
-    def apply1(self,
-               psit2_nG: PWArray,
-               P2_ani: AtomArrays,
-               spin: int) -> np.ndarray:
-        """Calculate eigenvalues at one k-point.
-
-        Returned eigenvalues are in eV.
-        """
+    def _apply1(self,
+                psit2_nG: PWArray,
+                P2_ani: AtomArrays,
+                spin: int) -> np.ndarray:
         ut2_nR = self.grid_local.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
@@ -161,7 +157,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
         for psit1 in self.mypsits:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
-                v_G = truncated_coulomb(pw, self.hse06_omega)
+                v_G = truncated_coulomb(pw, self.exx_omega)
                 eig_n += self._exx_part(v_G, psit1, ut2_nR, P2_ani)
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
