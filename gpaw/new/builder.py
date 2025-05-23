@@ -451,7 +451,7 @@ def ____create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     return bz
 
 
-def calculate_number_of_bands(nbands: int | str,
+def calculate_number_of_bands(nbands: int | str | None,
                               setups: Setups,
                               charge: float,
                               initial_magmom_av: Array2D,
@@ -464,20 +464,20 @@ def calculate_number_of_bands(nbands: int | str,
     if orbital_free:
         return 1
 
-    if isinstance(nbands, str):
+    if nbands is None:
+        # Number of bound partial waves:
+        nbandsmax = sum(setup.get_default_nbands()
+                        for setup in setups)
+        N = int(np.ceil(1.2 * (nvalence + M) / 2)) + 4
+        N = min(N, nbandsmax)
+        if is_lcao and N > nao:
+            N = nao
+    elif isinstance(nbands, str):
         if nbands == 'nao':
             N = nao
         elif nbands[-1] == '%':
             cfgbands = (nvalence + M) / 2
             N = int(np.ceil(float(nbands[:-1]) / 100 * cfgbands))
-        elif nbands == 'default':
-            # Number of bound partial waves:
-            nbandsmax = sum(setup.get_default_nbands()
-                            for setup in setups)
-            N = int(np.ceil(1.2 * (nvalence + M) / 2)) + 4
-            N = min(N, nbandsmax)
-            if is_lcao and N > nao:
-                N = nao
         else:
             raise ValueError('Integer expected: Only use a string '
                              'if giving a percentage of occupied bands')

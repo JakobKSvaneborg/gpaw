@@ -519,7 +519,7 @@ class Parameters:
         extensions: Sequence[Extension] | None = None,
         gpts: Sequence[int] | None = None,
         h: float | None = None,
-        hund: bool | None = False,
+        hund: bool | None = None,
         interpolation: int | None = None,
         kpts: KptsType | MonkhorstPack | None = None,
         magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
@@ -610,9 +610,10 @@ class Parameters:
         """
         soc, magmoms = _parse_experimental(experimental)
         self._non_defaults = [
-            key for key, value in locals() if value is not None]
+            key for key, value in locals().items()
+            if value is not None and key != 'self']
 
-        if h != 0.0 and gpts is not None:
+        if h is not None and gpts is not None:
             raise ValueError("""You can't use both "gpts" and "h"!""")
 
         self.mode = Mode.from_param(mode)
@@ -747,32 +748,32 @@ def _fix_legacy_stuff(params):
 def DFT(
     atoms,
     *,
-    mode,
-    basis: str | dict[str | int | None, str] = '',
-    charge: float = 0.0,
+    mode: str | dict | Mode,
+    basis: str | dict[str | int | None, str] | None = None,
+    charge: float | None = None,
     convergence: dict | None = None,
-    eigensolver: dict | Eigensolver | None = None,
+    eigensolver: str | dict | Eigensolver | None = None,
     environment=None,
     experimental: dict | None = None,
+    extensions: Sequence[Extension] | None = None,
     gpts: Sequence[int] | None = None,
-    h: float = 0.0,
-    hund: bool = False,
-    extensions: Sequence[Extension] = (),
-    interpolation: int = 0,
-    kpts: Sequence[int] | dict | MonkhorstPack | None = None,
+    h: float | None = None,
+    hund: bool | None = None,
+    interpolation: int | None = None,
+    kpts: KptsType | MonkhorstPack | None = None,
     magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
-    maxiter: int = 0,
+    maxiter: int | None = None,
     mixer: dict | Mixer | None = None,
-    nbands: int | str = '',
+    nbands: int | str | None = None,
     occupations: dict | Occupations | None = None,
     parallel: dict | None = None,
     poissonsolver: dict | PoissonSolver | None = None,
-    random: bool = False,
-    setups: str | dict = '',
-    soc: bool = False,
-    spinpol: bool = False,
-    symmetry: str | dict | Symmetry = '',
-    xc: str | dict | XC = 'LDA',
+    random: bool | None = None,
+    setups: str | dict | None = None,
+    soc: bool | None = None,
+    spinpol: bool | None = None,
+    symmetry: str | dict | Symmetry | None = None,
+    xc: str | dict | XC | None = None,
     txt: str | Path | IO[str] | None = '-',
     communicator: MPIComm | Sequence[int] | None = None) -> DFTCalculation:
     """Create a DFTCalculation object.
@@ -798,32 +799,32 @@ def DFT(
 def GPAW(
     filename: str | Path | IO[str] | None = None,
     *,
-    basis: str | dict[str | int | None, str] = '',
-    charge: float = 0.0,
+    basis: str | dict[str | int | None, str] | None = None,
+    charge: float | None = None,
     convergence: dict | None = None,
-    eigensolver: dict | Eigensolver | None = None,
+    eigensolver: str | dict | Eigensolver | None = None,
     environment=None,
-    gpts: Sequence[int] | None = None,
-    h: float = 0.0,
-    hund: bool = False,
     experimental: dict | None = None,
-    extensions: Sequence[Extension] = (),
-    interpolation: int = 0,
-    kpts: Sequence[int] | dict | MonkhorstPack | None = None,
+    extensions: Sequence[Extension] | None = None,
+    gpts: Sequence[int] | None = None,
+    h: float | None = None,
+    hund: bool | None = None,
+    interpolation: int | None = None,
+    kpts: KptsType | MonkhorstPack | None = None,
     magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
-    maxiter: int = 0,
+    maxiter: int | None = None,
     mixer: dict | Mixer | None = None,
-    mode: str | dict | Mode = '',
-    nbands: int | str = '',
+    mode: str | dict | Mode | None = None,
+    nbands: int | str | None = None,
     occupations: dict | Occupations | None = None,
     parallel: dict | None = None,
     poissonsolver: dict | PoissonSolver | None = None,
-    random: bool = False,
-    setups: str | dict = '',
-    soc: bool = False,
-    spinpol: bool = False,
-    symmetry: str | dict | Symmetry = '',
-    xc: str | dict | XC = 'LDA',
+    random: bool | None = None,
+    setups: str | dict | None = None,
+    soc: bool | None = None,
+    spinpol: bool | None = None,
+    symmetry: str | dict | Symmetry | None = None,
+    xc: str | dict | XC | None = None,
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Sequence[int] | None = None,
     object_hooks=None) -> ASECalculator:
@@ -851,7 +852,7 @@ def GPAW(
 
     log = Logger(txt, communicator)
 
-    if mode == '':
+    if mode is None:
         del mode
 
     kwargs = {key: value for key, value in locals().items()
