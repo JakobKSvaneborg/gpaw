@@ -18,7 +18,7 @@ def non_self_consistent_scissors_shift(
         dft: DFTCalculation) -> np.ndarray:
     """Apply non self-consistent scissors shift.
 
-    Return eigenvalues ase a::
+    Return eigenvalues as a::
 
       (nspins, nibzkpts, nbands)
 

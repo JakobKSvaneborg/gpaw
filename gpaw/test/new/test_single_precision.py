@@ -74,7 +74,7 @@ def run_single_precision(dtype, gpu):
 
     assert atoms.calc.wfs.dtype == dtype
 
-    assert e_pot == pytest.approx(expected_e, rel=1e-3), e_pot - expected_e
+    assert e_pot == pytest.approx(expected_e, rel=1e-3)
 
 
 if __name__ == '__main__':

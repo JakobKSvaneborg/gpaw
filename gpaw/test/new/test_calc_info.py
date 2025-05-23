@@ -23,14 +23,14 @@ def test_calc_info():
     assert info.nspins == 2
     assert info.nbands == 8
     assert info.wf_description is None
-    assert info.get_dft_calc() is not None
+    assert info.dft_calculation() is not None
 
-    atoms.calc = info.get_ase_calc()
+    atoms.calc = info.ase_calculator()
     atoms.get_potential_energy()
 
     info2 = info.update_params(mode={'name': 'pw'})
     assert info2.wf_description is not None
-    atoms.calc = info2.get_ase_calc()
+    atoms.calc = info2.ase_calculator()
 
     with pytest.raises(TypeError):
         get_calculation_info(atoms, atoms)
