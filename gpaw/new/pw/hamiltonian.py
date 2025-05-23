@@ -135,8 +135,8 @@ def precondition(psit_nG: PWArray,
                                            residual_nG.data)
         else:
             out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
-                                G2_G[np.newaxis],
-                                residual_nG.data)
+                                   G2_G[np.newaxis],
+                                   residual_nG.data)
     return ekin_n
 
 
@@ -147,6 +147,7 @@ def gpu_prec(ekin, G2, residual):
     a = 27.0 + x * (18.0 + x * (12.0 + x * 8.0))
     xx = x * x
     return -4.0 / 3 / ekin * a / (a + 16.0 * xx * xx) * residual
+
 
 @trace(gpu=True)
 @cp.fuse()

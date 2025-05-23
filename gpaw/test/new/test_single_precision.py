@@ -60,7 +60,7 @@ def run_single_precision(dtype, gpu):
                       parallel={'gpu': gpu}
                       )
     atoms.get_potential_energy()
-    
+
     atoms.calc.dft.params.convergence = {'energy': 1e-4,
                                          'density': 1e-4,
                                          'eigenstates': 1e-7}

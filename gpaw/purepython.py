@@ -99,6 +99,7 @@ def pw_precond(G2_G: Array1D,
     xx = x * x
     o_G[:] = -4.0 / 3 / ekin * a / (a + 16.0 * xx * xx) * r_G
 
+
 def inverse_pw_precond(G2_G: Array1D,
                        r_G: Array1D,
                        ekin: float,
