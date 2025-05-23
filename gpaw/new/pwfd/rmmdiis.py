@@ -151,14 +151,12 @@ class RMMDIIS(PWFDEigensolver):
         a_n = psit_nX.xp.asarray(
             [-d_X.integrate(r_X).real for d_X, r_X in zip(dR_nX, buff_nX)])
         b_n = dR_nX.norm2()
-
-        preconditioner(psit_nX, dR_nX, out=buff_nX, ekin_n=ekin_n)
         shape = (len(a_n),) + (1,) * (psit_nX.data.ndim - 1)
         lambda_n = (a_n / b_n).reshape(shape)
-        PR_nX.data *= lambda_n
-        #psit_nX.data += PR_nX.data
-        buff_nX.data *= lambda_n
-        PR_nX.data += buff_nX.data
+
+        dR_nX.data[:] = lambda_n * dR_nX.data
+        dR_nX.data[:] += buff_nX.data
+        buff_nX.data[:] = psit_nX.data + PR_nX.data * lambda_n
         
         R_mnX = [PR_nX, dR_nX]
         psits_mnX = [psit_nX, buff_nX]
@@ -167,36 +165,45 @@ class RMMDIIS(PWFDEigensolver):
         blocksize = psit_nX.data.shape[0]
         
         A_nmm = -xp.ones((blocksize, self.niter + 1, self.niter + 1), dtype=complex)
-        A_nmm[:, -1, -1] = 0
         b_nm = -xp.ones((blocksize, self.niter + 1), dtype=complex)
+        for m1, R1_nX in enumerate(R_mnX):
+            for m2, R2_nX in enumerate(R_mnX):
+                for b in range(blocksize):
+                    A_nmm[b, m1, m2] = R1_nX[b].integrate(R2_nX[b])
+
         for i in range(2, self.niter+1):
-            for m1 in range(i):
-                for m2 in range(i): # It is symmetric, no need to double count
-                    for b in range(blocksize):
-                        A_nmm[b, m1, m2] = R_mnX[m1][b].integrate(R_mnX[m2][b])
+            for m in range(i):
+                for b in range(blocksize):
+                    A_nmm[b, m, i-1] = R_mnX[m][b].integrate(R_mnX[i-1][b])
+                    A_nmm[b, i-1, m] = A_nmm[b, m, i-1].conj()
+            A_nmm[:, i, i] = 0
             b_nm[:, :i] = 0
-            lambda_nm = xp.linalg.solve(A_nmm[:, :i+1, :i+1], b_nm[:, :i+1])[:, :i]
+            lambda_nm = xp.linalg.solve(A_nmm[:, :i + 1, :i + 1],
+                                        b_nm[:, :i + 1])[:, :i]
+            
             psit_new_nX = psit_nX.create_work_buffer(self.data_buffers[0, i-1])
-            R_new_nX = psit_nX.create_work_buffer(self.data_buffers[1, i-1])
             psit_new_nX.data[:] = 0
+            R_new_nX = psit_nX.create_work_buffer(self.data_buffers[1, i-1])
             R_new_nX.data[:] = 0
             for m in range(i):
                 psit_new_nX.data += lambda_nm[:, m, None] * psits_mnX[m].data
                 R_new_nX.data += lambda_nm[:, m, None] * R_mnX[m].data
             
+            # XXX: In-place preconditioning only works for PW
             preconditioner(psit_nX, R_new_nX, out=R_new_nX, ekin_n=ekin_n)
             psit_new_nX.data += R_new_nX.data * lambda_n
 
             Ht(psit_new_nX, out=R_new_nX)
-            P_ani = pt_aiX.integrate(R_new_nX)
-            calculate_residuals(R_new_nX, R_new_nX, pt_aiX, P_ani, eig_n,
+            P_ani = pt_aiX.integrate(psit_new_nX)
+            calculate_residuals(psit_new_nX, R_new_nX, pt_aiX, P_ani, eig_n,
                                 dH, dS_aii, P1_ani, P2_ani)
             R_mnX.append(R_new_nX)
             psits_mnX.append(psit_new_nX)
         
         psit_nX.data[:] = psits_mnX[-1].data
 
-        # Final trial step
+        # NUTS Part:
+        preconditioner(psit_nX, R_mnX[-1], out=PR_nX, ekin_n=ekin_n)
         if trial_step is None:
             PR_nX.data *= lambda_n
         else:
