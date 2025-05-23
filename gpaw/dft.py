@@ -687,9 +687,7 @@ def _parse_experimental(experimental: dict | None,
                         soc: bool | None,
                         magmoms) -> tuple:
     if experimental is None:
-        experimental = {}
-    else:
-        experimental = experimental.copy()
+        return soc, magmoms
     if experimental.pop('niter_fixdensity', None) is not None:
         warnings.warn('Ignoring "niter_fixdensity".')
     if 'reuse_wfs_method' in experimental:
