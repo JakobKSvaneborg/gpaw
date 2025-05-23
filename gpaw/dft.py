@@ -608,7 +608,7 @@ class Parameters:
         xc:
             XC-functional.  Default is PZ-LDA.
         """
-        soc, magmoms = _parse_experimental(experimental)
+        soc, magmoms = _parse_experimental(experimental, soc, magmoms)
         self._non_defaults = [
             key for key, value in locals().items()
             if value is not None and key != 'self']
@@ -705,9 +705,9 @@ class Parameters:
         ...
 
 
-def _parse_experimental(experimental: dict | None) -> tuple:
-    soc = None
-    magmoms = None
+def _parse_experimental(experimental: dict | None,
+                        soc: bool | None,
+                        magmoms) -> tuple:
     if experimental is None:
         experimental = {}
     else:
@@ -720,10 +720,12 @@ def _parse_experimental(experimental: dict | None) -> tuple:
     if 'soc' in experimental:
         warnings.warn('Please use new "soc" parameter.',
                       DeprecatedParameterWarning)
+        assert soc is None
         soc = experimental.pop('soc')
     if 'magmoms' in experimental:
         warnings.warn('Please use new "magmoms" parameter.',
                       DeprecatedParameterWarning)
+        assert magmoms is None
         magmoms = experimental.pop('magmoms')
     unknown = experimental.keys() - {'backwards_compatible', 'ccirs'}
     if unknown:
