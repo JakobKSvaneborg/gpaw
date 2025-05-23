@@ -1,4 +1,3 @@
-from gpaw.new.input_parameters import register
 from ase.units import Hartree, Bohr
 from ase.calculators.calculator import PropertyNotImplementedError
 import numpy as np
@@ -6,6 +5,7 @@ from gpaw.mpi import serial_comm, broadcast_exception, broadcast_float
 import uuid
 from pathlib import Path
 import os
+from gpaw.dft import Extension as ExtensionParameter
 
 
 class Extension:
@@ -21,13 +21,9 @@ class Extension:
         raise NotImplementedError
 
 
-class ExtensionParameter:
-    def build(self, atoms, domain_comm) -> Extension:
-        raise NotImplementedError
-
-
-@register
 class D3(ExtensionParameter):
+    name = 'd3'
+
     def __init__(self, *, xc, **kwargs):
         self.xc = xc
         self.kwargs = kwargs
@@ -47,6 +43,8 @@ class D3(ExtensionParameter):
         # created.
 
         class D3Extension(Extension):
+            name = 'd3'
+
             def __init__(self):
                 super().__init__()
                 self.stress_vv = np.zeros((3, 3)) * np.nan

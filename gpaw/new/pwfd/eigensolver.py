@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from functools import partial
 from typing import Callable
 
@@ -16,43 +15,6 @@ from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.utilities.blas import axpy
 from gpaw.utilities import as_real_dtype
-
-
-def create_eigensolver(nbands,
-                       wf_desc,
-                       band_comm,
-                       comm,
-                       hamiltonian,
-                       converge_bands,
-                       setups,
-                       atoms,
-                       name='dav',
-                       **kwargs):
-    if name in ['cg', 'direct']:
-        warnings.warn(f'{name} not implemented.  Using dav instead')
-        name = 'dav'
-    if name == 'dav':
-        from gpaw.new.pwfd.davidson import Davidson
-        return Davidson(
-            nbands,
-            wf_desc,
-            band_comm,
-            hamiltonian,
-            converge_bands,
-            **kwargs)
-    if name == 'rmm-diis':
-        from gpaw.new.pwfd.rmmdiis import RMMDIIS
-        return RMMDIIS(
-            nbands,
-            wf_desc,
-            band_comm,
-            hamiltonian,
-            converge_bands,
-            **kwargs)
-    if name == 'etdm-fdpw':
-        from gpaw.new.pwfd.etdm import ETDM
-        return ETDM(**kwargs)
-    raise ValueError
 
 
 class PWFDEigensolver(Eigensolver):
