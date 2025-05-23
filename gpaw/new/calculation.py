@@ -419,9 +419,6 @@ class DFTCalculation:
         if ibzwfs.domain_comm.size != 1:
             raise ReuseWaveFunctionsError
 
-        if not self.density.nt_sR.desc.pbc_c.all():
-            raise ReuseWaveFunctionsError
-
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
