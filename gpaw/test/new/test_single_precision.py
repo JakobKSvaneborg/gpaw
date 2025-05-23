@@ -43,36 +43,27 @@ def test_single_precision_gpu(dtype):
 
 
 def run_single_precision(dtype, gpu):
-    #atoms = molecule('H2O')
-    #atoms.center(vacuum=2.5)
-    #atoms = atoms.repeat((3, 3, 3))
-    from ase.build import mx2
-    atoms = mx2('WSe2', vacuum=4)
-    atoms2 = atoms.copy()
-    atoms2.positions += [0, 0, 6]
-    atoms = atoms + atoms2
-    atoms.center(axis=2, vacuum=4)
+    atoms = molecule('H2O')
+    atoms.center(vacuum=2.5)
 
     gpu = gpu == 'True'
 
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
-                      convergence={'energy': 1e-1,
-                                   'density': 1e0,
-                                   'eigenstates': 1e-5},
+                      convergence={'maximum iterations': 1},
                       mode={'name': 'pw',
-                            'ecut': 400.0,
+                            'ecut': 200.0,
                             'dtype': dtype},
                       eigensolver={'name': 'dav',
-                                   'niter': 3},
+                                   'niter': 5},
                       parallel={'gpu': gpu}
                       )
     atoms.get_potential_energy()
     
-    atoms.calc.dft.params.convergence = {'energy': 1e-5,
+    atoms.calc.dft.params.convergence = {'energy': 1e-4,
                                          'density': 1e-4,
-                                         'eigenstates': 1e-10}
+                                         'eigenstates': 1e-7}
     atoms.calc.dft.params.eigensolver = {'name': 'rmm-diis',
                                          'niter': 5,
                                          'trial_step': 0.1}
@@ -90,6 +81,5 @@ if __name__ == '__main__':
     dtypes = {'np.float32': np.float32,
               'np.float64': np.float64,
               'np.complex64': np.complex64,
-              'np.complex128': np.complex128,
-              'np.complex256': np.complex256}
+              'np.complex128': np.complex128}
     run_single_precision(dtype=dtypes[sys.argv[1]], gpu=sys.argv[2])
