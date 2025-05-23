@@ -60,7 +60,7 @@ def run_single_precision(dtype, gpu):
                       random=True,
                       convergence={'energy': 1e-1,
                                    'density': 1e0,
-                                   'eigenstates': 1e-1},
+                                   'eigenstates': 1e-5},
                       mode={'name': 'pw',
                             'ecut': 400.0,
                             'dtype': dtype},
@@ -72,10 +72,10 @@ def run_single_precision(dtype, gpu):
     
     atoms.calc.dft.params.convergence = {'energy': 1e-5,
                                          'density': 1e-4,
-                                         'eigenstates': 1e-7}
+                                         'eigenstates': 1e-10}
     atoms.calc.dft.params.eigensolver = {'name': 'rmm-diis',
-                                         'niter': 2,
-                                         'trial_step': 0.15}
+                                         'niter': 5,
+                                         'trial_step': 0.1}
     atoms.calc.create_new_calculation_from_old(atoms)
     e_pot = atoms.get_potential_energy()
 
