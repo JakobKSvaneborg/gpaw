@@ -1,22 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import pi
+from math import nan
 from time import time
 
 import numpy as np
-from ase.units import Ha
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.mpi import broadcast
-from gpaw.new import zips as zip
+# from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pw.hybrids import fft, truncated_coulomb
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.setup import Setups
-from gpaw.utilities import pack_density, unpack_hermitian
+from gpaw.utilities import unpack_hermitian
 from gpaw.new.pw.nschse import ibz2bz
 
 
@@ -35,7 +33,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                  grid: UGDesc,
                  pw: PWDesc,
                  xc,
-                 setups,
+                 setups: Setups,
                  relpos_ac,
                  atomdist,
                  log,
@@ -80,6 +78,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
         assert isinstance(Htpsit2_nG, PWArray)
         assert len(ibzwfs.ibz) % self.kpt_comm.size == 0
 
+        self.nbzk = len(ibzwfs.ibz.bz)
+
         D_aii = D_asii[:, spin].copy()
         if ibzwfs.nspins == 1:
             D_aii = D_aii.copy()
@@ -101,8 +101,9 @@ class PWHybridHamiltonianK(PWHamiltonian):
             assert wfs.psit_nX.data is psit2_nG.data
 
             # We are doing a subspace diagonalization ...
-            evv, evc, ekin = self._apply(spin, D_aii, pt_aiG,
-                                         psit2_nG, Htpsit2_nG)
+            evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
+                                          psit2_nG, Htpsit2_nG,
+                                          wfs.occ_n)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
@@ -116,19 +117,21 @@ class PWHybridHamiltonianK(PWHamiltonian):
         # We are applying the exchange operator (defined by psit1_nG,
         # P1_ani, f1_n and D_aii) to another set of wave functions
         # (psit2_nG):
-        self._apply(spin, D_aii, pt_aiG, psit2_nG, Htpsit2_nG)
+        self._apply1(spin, D_aii, pt_aiG, psit2_nG, Htpsit2_nG)
 
-    def _apply(self,
-               spin: int,
-               D_aii,
-               pt_aiG,
-               psit_nG: PWArray,
-               Htpsit_nG: PWArray) -> tuple[float, float, float]:
+    def _apply1(self,
+                spin: int,
+                D_aii,
+                pt_aiG,
+                psit_nG: PWArray,
+                Htpsit_nG: PWArray,
+                f_n: np.ndarray | None = None) -> tuple[float, float, float]:
         comm = self.comm
         band_comm = psit_nG.comm
 
         P_ani = pt_aiG.integrate(psit_nG)
 
+        e = 0.0
         tb = 0.0
         t1 = time()
         for rank in range(self.kpt_comm.size):
@@ -141,41 +144,52 @@ class PWHybridHamiltonianK(PWHamiltonian):
                     data = (psit_nG, P_ani, spin)
             psit_nG, P_ani, s = broadcast(data, rank * band_comm.size, comm)
             tb += time()
-            self._apply1(psit_nG, P_ani, s)
+            e += self._apply2(psit_nG, P_ani, s, Htpsit_nG, f_n)
         t2 = time()
         self.log(f'  Seconds: {t2 - t1:.3f} '
                  f'(wave-function broadcasting: {tb:.3f} seconds)')
 
-    def _apply1(self,
+        if f_n is None:
+            return nan, nan, nan
+
+        e = comm.sum_scalar(e)
+        evv = -0.5 * e
+        ekin = e
+        evc = 0.0
+        return evv, evc, ekin
+
+    def _apply2(self,
                 psit2_nG: PWArray,
                 P2_ani: AtomArrays,
-                spin: int) -> np.ndarray:
+                spin: int,
+                Htpsit2_nG,
+                f2_n: np.ndarray | None) -> np.ndarray:
         ut2_nR = self.grid_local.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
+        e = 0.0
         pw2 = psit2_nG.desc
         for psit1 in self.mypsits:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = truncated_coulomb(pw, self.exx_omega)
-                eig_n += self._exx_part(v_G, psit1, ut2_nR, P2_ani)
-        eig_n *= -self.exx_fraction / self.nbzk
-        self.comm.sum(eig_n)
+                e += self._apply3(v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, f2_n)
+        e *= -self.exx_fraction / self.nbzk
+        return self.comm.sum_scalar(e)
 
-        return (deig_n + eig_n) * Ha
-
-    def _exx_part(self,
-                  v_G: PWArray,
-                  psit1: Psit,
-                  ut2_nR: UGArray,
-                  P2_ani: AtomArrays) -> np.ndarray:
-        """EXX contribution from one k-point in the BZ."""
+    def _apply3(self,
+                v_G: PWArray,
+                psit1: Psit,
+                ut2_nR: UGArray,
+                P2_ani: AtomArrays,
+                Htpsit2_nG: PWArray,
+                f2_n: np.ndarray | None) -> np.ndarray:
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
         ghat_aLG = self.setups.create_compensation_charges(
             v_G.desc, self.relpos_ac)
-        e_n = np.zeros(len(ut2_nR))
+        e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
             rhot_nR = ut2_nR.copy()
             rhot_nR.data *= ut1_R.conj()
@@ -186,5 +200,6 @@ class PWHybridHamiltonianK(PWHamiltonian):
             fft(rhot_nR, rhot_nG, plan=self.plan)
             ghat_aLG.add_to(rhot_nG, Q_anL)
             rhot_nG.data *= v_G.data.real**0.5
-            e_n += rhot_nG.norm2() * f1_n[n1]
-        return e_n
+            if f2_n is not None:
+                e += rhot_nG.norm2() @ f2_n * f1_n[n1]
+        return e
