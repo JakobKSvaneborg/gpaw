@@ -6,6 +6,7 @@ from gpaw import GPAW
 from gpaw.xas import XAS
 
 
+@pytest.mark.old_gpaw_only
 def test_corehole_h2o(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     if mpi.size != 1:  # 1 core only for now
         return
