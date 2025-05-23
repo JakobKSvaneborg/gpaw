@@ -175,4 +175,3 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     assert relax.nsteps + 3 == nsteps
     assert atoms.get_distance(0, 1) == pytest.approx(L, abs=1e-2)
     assert atoms.get_potential_energy() == pytest.approx(Egs, abs=1e-4)
-    print(calc.dft.spring)

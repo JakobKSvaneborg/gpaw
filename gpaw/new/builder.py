@@ -479,8 +479,10 @@ def calculate_number_of_bands(nbands: int | str | None,
             cfgbands = (nvalence + M) / 2
             N = int(np.ceil(float(nbands[:-1]) / 100 * cfgbands))
         else:
-            raise ValueError('Integer expected: Only use a string '
-                             'if giving a percentage of occupied bands')
+            url = 'https://gpaw.readthedocs.io/documentation/basic.html'
+            raise ValueError(
+                f'Bad value for nbands: {nbands!r}.  '
+                f'See {url}#manual-nbands for help')
     elif nbands <= 0:
         N = max(1, int(nvalence + M + 0.5) // 2 + (-nbands))
     else:
@@ -507,7 +509,7 @@ def create_uniform_grid(mode: str,
                         pbc,
                         symmetries,
                         h: float | None = None,
-                        interpolation: int = 0,
+                        interpolation: int | str | None = None,
                         ecut: float = None,
                         comm: MPIComm = serial_comm) -> UGDesc:
     """Create grid in a backwards compatible way."""
@@ -515,7 +517,7 @@ def create_uniform_grid(mode: str,
     if h is not None:
         h /= Bohr
 
-    realspace = (mode != 'pw' and interpolation != 0)
+    realspace = (mode != 'pw' and interpolation != 'fft')
     if realspace:
         zerobc = [not periodic for periodic in pbc]
     else:

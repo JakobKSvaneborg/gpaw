@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Sequence, Union
+from typing import IO, TYPE_CHECKING, Any, Sequence, Union, Literal
 
 import numpy as np
 from ase import Atoms
@@ -520,7 +520,7 @@ class Parameters:
         gpts: Sequence[int] | None = None,
         h: float | None = None,
         hund: bool | None = None,
-        interpolation: int | None = None,
+        interpolation: int | Literal['fft'] | None = None,
         kpts: KptsType | MonkhorstPack | None = None,
         magmoms: Sequence[float] | Sequence[Sequence[float]] | None = None,
         maxiter: int | None = None,
@@ -656,18 +656,14 @@ class Parameters:
                     f'Unknown key: {key!r}.  '
                     f'Must be one of {", ".join(PARALLEL_KEYS)}')
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         lines = []
         for key in self._non_defaults:
             value = self._value(key)
             lines.append(f'{key}={value!r}')
         return ',\n'.join(lines)
 
-    @property
-    def kwargs(self):
-        return {key: self.__dict__[key] for key in self._non_defaults}
-
-    def todict(self):
+    def todict(self) -> dict:
         dct = {}
         for key in self._non_defaults:
             value = self._value(key)
@@ -734,7 +730,7 @@ def _parse_experimental(experimental: dict | None,
     return soc, magmoms
 
 
-def _fix_legacy_stuff(params):
+def _fix_legacy_stuff(params: Parameters) -> None:
     if not isinstance(params.mode, Mode):
         dct = params.mode.todict()
         if 'interpolation' in dct:
@@ -748,7 +744,7 @@ def _fix_legacy_stuff(params):
 
 
 def DFT(
-    atoms,
+    atoms: Atoms,
     *,
     mode: str | dict | Mode,
     basis: str | dict[str | int | None, str] | None = None,
