@@ -14,6 +14,8 @@ from gpaw.mpi import MPIComm
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
+from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
+from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
@@ -165,58 +167,38 @@ class DefaultEigensolver(Eigensolver):
         return self.params
 
 
-class Davidson(Eigensolver):
+class PWFDEigensolverParamater(Eigensolver):
+    def __init__(self, niter: int = 2):
+        self.niter = niter
+
+    def todict(self):
+        return {'niter': self.niter}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              create_preconditioner,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            create_preconditioner,
+            converge_bands,
+            niter=self.niter)
+
+
+class Davidson(PWFDEigensolverParamater):
     name = 'davidson'
-
-    def __init__(self, niter: int = 2):
-        self.niter = niter
-
-    def todict(self):
-        return {'niter': self.niter}
-
-    def build(self,
-              nbands,
-              wf_desc,
-              band_comm,
-              create_preconditioner,
-              converge_bands,
-              setups,
-              atoms):
-        from gpaw.new.pwfd.davidson import Davidson
-        return Davidson(
-            nbands,
-            wf_desc,
-            band_comm,
-            create_preconditioner,
-            converge_bands,
-            niter=self.niter)
+    cls = DavidsonEigensolver
 
 
-class RMMDIIS(Eigensolver):
+class RMMDIIS(PWFDEigensolverParamater):
     name = 'rmm-diis'
-
-    def __init__(self, niter: int = 2):
-        self.niter = niter
-
-    def todict(self):
-        return {'niter': self.niter}
-
-    def build(self,
-              nbands,
-              wf_desc,
-              band_comm,
-              create_preconditioner,
-              converge_bands,
-              setups,
-              atoms):
-        from gpaw.new.pwfd.rmmdiis import RMMDIIS
-        return RMMDIIS(
-            nbands,
-            wf_desc,
-            band_comm,
-            create_preconditioner,
-            converge_bands,
-            niter=self.niter)
+    cls = RMMDIISEigensolver
 
 
 class LCAOEigensolver(Eigensolver):
