@@ -178,7 +178,7 @@ class PWFDEigensolverParamater(Eigensolver):
               nbands,
               wf_desc,
               band_comm,
-              create_preconditioner,
+              hamiltonian,
               converge_bands,
               setups,
               atoms):
@@ -186,7 +186,7 @@ class PWFDEigensolverParamater(Eigensolver):
             nbands,
             wf_desc,
             band_comm,
-            create_preconditioner,
+            hamiltonian,
             converge_bands,
             niter=self.niter)
 
