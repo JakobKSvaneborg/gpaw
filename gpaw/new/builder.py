@@ -451,7 +451,7 @@ def ____create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     return bz
 
 
-def calculate_number_of_bands(nbands: int | str,
+def calculate_number_of_bands(nbands: int | str | None,
                               setups: Setups,
                               charge: float,
                               initial_magmom_av: Array2D,
@@ -464,23 +464,25 @@ def calculate_number_of_bands(nbands: int | str,
     if orbital_free:
         return 1
 
-    if isinstance(nbands, str):
+    if nbands is None:
+        # Number of bound partial waves:
+        nbandsmax = sum(setup.get_default_nbands()
+                        for setup in setups)
+        N = int(np.ceil(1.2 * (nvalence + M) / 2)) + 4
+        N = min(N, nbandsmax)
+        if is_lcao and N > nao:
+            N = nao
+    elif isinstance(nbands, str):
         if nbands == 'nao':
             N = nao
         elif nbands[-1] == '%':
             cfgbands = (nvalence + M) / 2
             N = int(np.ceil(float(nbands[:-1]) / 100 * cfgbands))
-        elif nbands == 'default':
-            # Number of bound partial waves:
-            nbandsmax = sum(setup.get_default_nbands()
-                            for setup in setups)
-            N = int(np.ceil(1.2 * (nvalence + M) / 2)) + 4
-            N = min(N, nbandsmax)
-            if is_lcao and N > nao:
-                N = nao
         else:
-            raise ValueError('Integer expected: Only use a string '
-                             'if giving a percentage of occupied bands')
+            url = 'https://gpaw.readthedocs.io/documentation/basic.html'
+            raise ValueError(
+                f'Bad value for nbands: {nbands!r}.  '
+                f'See {url}#manual-nbands for help')
     elif nbands <= 0:
         N = max(1, int(nvalence + M + 0.5) // 2 + (-nbands))
     else:
@@ -507,7 +509,7 @@ def create_uniform_grid(mode: str,
                         pbc,
                         symmetries,
                         h: float | None = None,
-                        interpolation: int = 0,
+                        interpolation: int | str | None = None,
                         ecut: float = None,
                         comm: MPIComm = serial_comm) -> UGDesc:
     """Create grid in a backwards compatible way."""
@@ -515,7 +517,7 @@ def create_uniform_grid(mode: str,
     if h is not None:
         h /= Bohr
 
-    realspace = (mode != 'pw' and interpolation != 0)
+    realspace = (mode != 'pw' and interpolation != 'fft')
     if realspace:
         zerobc = [not periodic for periodic in pbc]
     else:

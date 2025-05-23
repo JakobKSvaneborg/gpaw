@@ -52,7 +52,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.atoms.pbc,
             self.ibz.symmetries,
             h=self.params.h,
-            interpolation=self.params.interpolation,
+            interpolation=self.params.interpolation or 'fft',
             ecut=self.ecut,
             comm=self.communicators['d'])
         fine_grid = grid.new(size=grid.size_c * 2)

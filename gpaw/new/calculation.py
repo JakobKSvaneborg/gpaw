@@ -89,10 +89,12 @@ class DFTCalculation:
         self.forces_have_been_printed = False
 
     def __getattr__(self, name):
-        for ext in self.pot_calc.extensions:
-            if ext.name == name:
-                return ext
-        raise AttributeError
+        matches = [ext
+                   for ext in self.pot_calc.extensions
+                   if ext.name == name]
+        if len(matches) != 1:
+            raise AttributeError
+        return matches[0]
 
     @classmethod
     def from_parameters(cls,
@@ -415,9 +417,6 @@ class DFTCalculation:
 
         ibzwfs = self.ibzwfs
         if ibzwfs.domain_comm.size != 1:
-            raise ReuseWaveFunctionsError
-
-        if not self.density.nt_sR.desc.pbc_c.all():
             raise ReuseWaveFunctionsError
 
         check_atoms_too_close(atoms)
