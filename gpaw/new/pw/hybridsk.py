@@ -187,8 +187,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
-        ghat_aLG = self.setups.create_compensation_charges(
-            v_G.desc, self.relpos_ac)
+        pw = v_G.desc
+        ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
             rhot_nR = ut2_nR.copy()
@@ -199,7 +199,15 @@ class PWHybridHamiltonianK(PWHamiltonian):
             rhot_nG = v_G.desc.empty(len(rhot_nR))
             fft(rhot_nR, rhot_nG, plan=self.plan)
             ghat_aLG.add_to(rhot_nG, Q_anL)
-            rhot_nG.data *= v_G.data.real**0.5
-            if f2_n is not None:
-                e += rhot_nG.norm2() @ f2_n * f1_n[n1]
+            if f2_n is None:
+                rhot_nG.data *= v_G.data
+            else:
+                for rhot_G, f2 in zip(rhot_nG, f2_n):
+                    a_G = rhot_G.copy()
+                    rhot_G.data *= v_G.data
+                    e += a_G.integrate(rhot_G) * f2 * f1_n[n1]
+            rhot_nG.ifft(out=rhot_nR)
+            rhot_nR.data *= ut1_R.data
+            rhot_nG.fft(out=rhot_nR)
+            Htpsit2_nG += rhot_nR * f1_n[n1]
         return e
