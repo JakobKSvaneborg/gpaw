@@ -1,11 +1,9 @@
 import pytest
 from ase import Atoms
-
 from gpaw import GPAW
-from gpaw.mpi import size
 
 
-def test_noncollinear_o2(gpaw_new):
+def test_noncollinear_GGA():
     a = Atoms('H', [[0, 0, 0]], magmoms=[1])
     a.center(vacuum=2.5)
     a.calc = GPAW(mode='pw',

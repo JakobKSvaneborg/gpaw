@@ -731,7 +731,8 @@ class GPAW(Calculator):
             xc = self.hamiltonian.xc
 
         if not collinear and xc.type != 'LDA':
-            raise ValueError('Only LDA supported for SC Non-collinear calculations')
+            raise ValueError('Only LDA supported for '
+                             'SC Non-collinear calculations')
 
         if par.fixdensity:
             warnings.warn(
