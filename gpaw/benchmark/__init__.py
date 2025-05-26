@@ -16,7 +16,8 @@ pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
 
 pw_parameter_subsets = {'high': {'mode': {'ecut': 800}},
                         'low': {'mode': {'ecut': 400}},
-                        'float32': {'mode': {'dtype': np.float32}}}
+                        'float32': {'mode': {'dtype': np.float32},
+                                    'convergence': {'maximum iterations': 30}}}
 
 lcao_default_parameters = {'mode': {'name': 'lcao'}}
 
@@ -37,7 +38,11 @@ eigensolver_parameter_subsets = {'RMMDIIS': {'eigensolver': 'rmm-diis'},
 
 gpu_default_parameters = {'parallel': {'gpu': True}, 'random': True}
 
-def get_domainband(size):
+
+def get_domainband(size=None):
+    if size is None:
+        size = world.size
+
     mid = int(np.sqrt(size))
     while size % mid:
         mid -= 1
@@ -47,13 +52,13 @@ def get_domainband(size):
 
 
 parallel_parameter_subsets = {'scalapack': {'parallel': {'sl_auto': True}},
-                              'domainband': {'parallel': get_domainband(world.size)}}
+                              'domainband': {'parallel': get_domainband()}}
 
 
 gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'lcao': (lcao_default_parameters,
                                 lcao_parameter_subsets),
-                        'eigensolver': ({}, eigensolver_parameter_subsets),
+                       'eigensolver': ({}, eigensolver_parameter_subsets),
                        'kpts': ({}, kpts_parameter_subsets),
                        'gpu': (gpu_default_parameters, {}),
                        'xc': ({}, xc_parameter_subsets),
