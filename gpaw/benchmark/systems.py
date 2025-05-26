@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def system_magic_graphene():
     from gpaw.benchmark.generate_twisted import make_heterostructure
     from ase.build import graphene
@@ -62,12 +63,10 @@ def system_diamond():
     return atoms
 
 
-
 def system_MoS2_tube():
     from math import pi
     import numpy as np
     from ase.build import mx2
-    from gpaw import GPAW, Davidson
 
     # Create tube of MoS2:
     atoms = mx2('MoS2', size=(3, 2, 1))
@@ -92,8 +91,8 @@ systems = {'C60': system_C60,
            'MoS2_tube': system_MoS2_tube,
            'C6000': system_6000_bl_graphene,
            '676_graphene': system_676_bl_graphene,
-           'magic_graphene': system_magic_graphene} 
+           'magic_graphene': system_magic_graphene}
+
 
 def parse_system(name):
     return systems[name]()
-

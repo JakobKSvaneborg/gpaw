@@ -47,15 +47,18 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
 low_req = {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}
 low_req_gpu = {'mincores': 1, 'maxcores': 4, 'minmem': '4G'}
 
-benchmarks = {'C60_pw': ('C60-pw.high:gamma', low_req),
-              'C60_lcao': ('C60-lcao.dzp', low_req),
-              'C60_lowpw_gpu': ('C60-pw.low:gamma:gpu', low_req_gpu),
-              'C60_lowpw_float_gpu': ('C60-pw.low.float32:gamma:gpu', low_req_gpu), 
-              'MoS2_tube': ('MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack',
-                            low_req),
-              '676_graphene': ('676_graphene-pw:kpts.gamma:xc.PBE:parallel.scalapack',
-                               low_req),
-              'diamond_pw': ('diamond-pw.high:kpts', low_req)}
+b = {'C60_pw': ('C60-pw.high:gamma', low_req),
+     'C60_lcao': ('C60-lcao.dzp', low_req),
+     'C60_lowpw_gpu': ('C60-pw.low:gamma:gpu', low_req_gpu),
+     'C60_lowpw_float_gpu': ('C60-pw.low.float32:gamma:gpu',
+                             low_req_gpu),
+     'MoS2_tube': ('MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack',
+                   low_req),
+     '676_graphene': ('676_graphene-pw:kpts.gamma:xc.PBE:parallel.scalapack',
+                      low_req),
+     'diamond_pw': ('diamond-pw.high:kpts', low_req)}
+
+benchmarks = b
 
 
 def recursive_update(d, u):
@@ -200,6 +203,7 @@ def benchmark_main(name):
         results.results = gs_and_move_atoms(name)
     if world.rank == 0:
         results.write_json(f'{name}-benchmark.json')
+
 
 def parse_mem(memstr):
     mul = {'G': 1024**3,
