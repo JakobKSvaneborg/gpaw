@@ -1,8 +1,7 @@
-import hashlib
-
 import numpy as np
 
 from ase.units import Hartree, Bohr
+
 
 def split_formula(formula):
     """Count elements in a chemical formula.
@@ -136,6 +135,7 @@ def normalize(U):
     for col in U.T:
         col /= np.linalg.norm(col)
 
+
 def gram_schmidt(U):
     """Orthonormalize columns of U according to the Gram-Schmidt procedure."""
     for i, col in enumerate(U.T):
@@ -191,6 +191,7 @@ def tri2full(H_nn, UL='L', map=np.conj):
 
     for n in range(N - 1):
         map(H_nn[n + 1:, n], H_nn[n, n + 1:])
+
 
 def cutoff2gridspacing(E):
     """Convert planewave energy cutoff to a real-space gridspacing."""
