@@ -1,11 +1,14 @@
 import numpy as np
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 import pytest
+from gpaw import GPAW, FermiDirac
 from gpaw.response.pair import get_gs_and_context
 from gpaw.mpi import world
 from gpaw.response.bse import BSE, BSE_Plus
 from gpaw.response.df import Chi0DysonEquations
 from gpaw.response.coulomb_kernels import CoulombKernel
+from gpaw.test.gpwfile import random_degenerate_unitary_rotation
+from ase.build import bulk
 
 
 @pytest.mark.response
@@ -16,18 +19,34 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
     assertion work.
     """
     monkeypatch.chdir(in_tmp_dir)
-    gs, context = get_gs_and_context(
-        gpw_files['sic_pw'], txt=None, world=world, timer=None)
+    calc = GPAW(mode='pw',
+                kpts={'size': (2, 2, 2), 'gamma': True},
+                occupations=FermiDirac(0.01),
+                nbands=10,
+                symmetry='off',
+                convergence={'bands': -4, 'density': 1e-7,
+                             'eigenstates': 1e-10})
 
-    ecut = 25
+    a = 5.431
+    atoms = bulk('Si', 'diamond', a=a)
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    calc.write('Si.gpw', 'all')
+    calc = GPAW('Si.gpw')
+    random_degenerate_unitary_rotation(calc)
+    calc.write('rotated.gpw', mode='all')
+    calc = 'rotated.gpw'
+    gs, context = get_gs_and_context(
+        calc, txt=None, world=world, timer=None)
+    ecut = 20
     eshift = 0.2
     eta = 0.1
     q_c = [0.0, 0.0, 0.0]
-    bse_valence_bands = range(2, 4)
-    bse_conduction_bands = range(4, 6)
-    bse_nbands = 8
-    rpa_nbands = 8
-    bse = BSE(gpw_files['sic_pw'], ecut=ecut,
+    bse_valence_bands = range(0, 4)
+    bse_conduction_bands = range(4, 8)
+    bse_nbands = 10
+    rpa_nbands = 10
+    bse = BSE(calc, ecut=ecut,
               q_c=q_c,
               valence_bands=bse_valence_bands,
               conduction_bands=bse_conduction_bands,
@@ -40,7 +59,7 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
 
     chi0calc_small = Chi0Calculator(gs, context,
                                     wd=wd,
-                                    nbands=slice(2, 6),
+                                    nbands=slice(0, 8),
                                     intraband=False,
                                     hilbert=False,
                                     eta=eta,
@@ -56,11 +75,11 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
                                     ecut=ecut,
                                     eshift=eshift)
 
-    bse_plus = BSE_Plus(bse_gpw=gpw_files['sic_pw'],
+    bse_plus = BSE_Plus(bse_gpw=calc,
                         bse_valence_bands=bse_valence_bands,
                         bse_conduction_bands=bse_conduction_bands,
                         bse_nbands=bse_nbands,
-                        rpa_gpw=gpw_files['sic_pw'],
+                        rpa_gpw=calc,
                         rpa_nbands=rpa_nbands,
                         w_w=w_w,
                         eshift=eshift,
@@ -114,7 +133,7 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
         chi_RPA_WGG_from_df /= sqrtV_G * sqrtV_G[:, np.newaxis]
 
         assert chi_BSE_WGG_from_bse == pytest.approx(chi_BSE_WGG,
-                                                     rel=5e-2, abs=5e-2)
+                                                     rel=8e-2, abs=8e-2)
 
         assert chi_RPA_WGG_from_df == pytest.approx(chi_RPA_WGG,
                                                     rel=1e-3, abs=1e-4)
@@ -134,35 +153,34 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
         assert chi_BSE_plus_WGG_manuel == pytest.approx(chi_BSE_plus_WGG,
                                                         rel=1e-3, abs=1e-4)
 
-        ref_BSE_plus = [(-0.03866123981119081 - 0.012431845959995384j),
-                        (-0.001468787321063665 - 0.005796628395921135j),
-                        (-0.004831149141277804 - 0.0004347779371199299j)]
+        ref_BSE_plus = [(-0.033315642421628745 - 0.025836336756360122j),
+                        (-1.9089679632375633e-06 - 0.014016992849787593j),
+                        (0.00017364808582158713 - 0.0008411354658348707j)]
 
-        ref_BSE = [(-0.039297750442039384 - 0.016818859003497222j),
-                   (-3.8830032755043055e-05 - 0.003898875874925174j),
-                   (-0.003886695127264322 - 0.0010300379528653868j)]
+        ref_BSE = [(-0.033585336180110614 - 0.02637670921698286j),
+                   (-6.417710913846958e-08 - 0.01685348600618172j),
+                   (3.521402023928122e-05 - 0.00039258798618966857j)]
 
-        ref_RPA = [(-0.02720499748611053 - 0.008582830585622356j),
-                   (-0.0016731747949697202 - 0.00548611228460725j),
-                   (-0.007730855345424257 - 0.001235218714692861j)]
+        ref_RPA = [(-0.036080842971265584 - 0.06601130969506512j),
+                   (-1.9785235796656932e-06 - 0.012059352300284204j),
+                   (0.00023134668887131937 - 0.00041661801604023766j)]
 
         for i in range(3):
-            print(chi_RPA_WGG[i, i, i + 1])
             assert np.allclose(chi_BSE_plus_WGG[i, i, i + 1],
-                               ref_BSE_plus[i], rtol=1e-2, atol=1e-2)
+                               ref_BSE_plus[i], rtol=1e-2, atol=1e-3)
             assert np.allclose(chi_BSE_WGG[i, i, i + 1],
-                               ref_BSE[i], rtol=1e-2, atol=1e-2)
+                               ref_BSE[i], rtol=1e-2, atol=1e-3)
             assert np.allclose(chi_RPA_WGG[i, i, i + 1],
-                               ref_RPA[i], rtol=1e-2, atol=1e-2)
+                               ref_RPA[i], rtol=1e-2, atol=1e-3)
 
     # assertion error if more bands in the bse calculation
     with pytest.raises(AssertionError, match=r'Large chi0 calculation*'):
         rpa_nbands = 5
-        BSE_Plus(bse_gpw=gpw_files['sic_pw'],
+        BSE_Plus(bse_gpw=calc,
                  bse_valence_bands=bse_valence_bands,
                  bse_conduction_bands=bse_conduction_bands,
                  bse_nbands=bse_nbands,
-                 rpa_gpw=gpw_files['sic_pw'],
+                 rpa_gpw=calc,
                  rpa_nbands=rpa_nbands,
                  w_w=w_w,
                  eshift=eshift,
@@ -173,11 +191,11 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
     # assertion error if truncation is not none or 2d
     with pytest.raises(AssertionError):
         rpa_nbands = 8
-        BSE_Plus(bse_gpw=gpw_files['sic_pw'],
+        BSE_Plus(bse_gpw=calc,
                  bse_valence_bands=bse_valence_bands,
                  bse_conduction_bands=bse_conduction_bands,
                  bse_nbands=bse_nbands,
-                 rpa_gpw=gpw_files['sic_pw'],
+                 rpa_gpw=calc,
                  rpa_nbands=rpa_nbands,
                  w_w=w_w,
                  truncation='3D',
@@ -188,11 +206,11 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
 
     # assertion error if truncation is 2d but system has pbc_c > 2.
     with pytest.raises(AssertionError):
-        bse_plus = BSE_Plus(bse_gpw=gpw_files['sic_pw'],
+        bse_plus = BSE_Plus(bse_gpw=calc,
                             bse_valence_bands=bse_valence_bands,
                             bse_conduction_bands=bse_conduction_bands,
                             bse_nbands=bse_nbands,
-                            rpa_gpw=gpw_files['sic_pw'],
+                            rpa_gpw=calc,
                             rpa_nbands=rpa_nbands,
                             w_w=w_w,
                             truncation='2D',
