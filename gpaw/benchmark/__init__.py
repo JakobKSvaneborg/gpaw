@@ -32,8 +32,8 @@ xc_parameter_subsets = {'PBE': {'xc': 'PBE'},
 
 gpu_default_parameters = {'parallel': {'gpu': True}, 'random': True}
 
-parallel_parameter_subsets =  {'parallel': {'scalapack':
-                                           {'parallel': {'sl_auto': True}}}}
+parallel_parameter_subsets = {'parallel': {'scalapack':
+                              {'parallel': {'sl_auto': True}}}}
 
 gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'lcao': (lcao_default_parameters,
@@ -44,20 +44,18 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'parallel': ({}, parallel_parameter_subsets)}
 
 
-benchmarks = {'C60_pw': ('C60-pw.high:gamma',
-                         {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}),
-              'C60_lcao': ('C60-lcao.dzp',
-                           {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}),
-              'C60_lowpw_gpu': ('C60-pw.low:gamma:gpu',
-                                {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}),
-              'C60_lowpw_float_gpu': ('C60-pw.low.float32:gamma:gpu', 
-                                      {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}),
+low_req = {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}
+low_req_gpu = {'mincores': 1, 'maxcores': 4, 'minmem': '4G'}
+
+benchmarks = {'C60_pw': ('C60-pw.high:gamma', low_req),
+              'C60_lcao': ('C60-lcao.dzp', low_req),
+              'C60_lowpw_gpu': ('C60-pw.low:gamma:gpu', low_req_gpu),
+              'C60_lowpw_float_gpu': ('C60-pw.low.float32:gamma:gpu', low_req_gpu), 
               'MoS2_tube': ('MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack',
-                            {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}),
-              '676_graphene': ('676_graphene-pw:kpts.gamma:xc.PBE:parallel.scalapack', 
-                               {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}),
-              'diamond_pw': ('diamond-pw.high:kpts',
-                             {'mincores': 1, 'maxcores': 56, 'minmem': '1G'})}
+                            low_req),
+              '676_graphene': ('676_graphene-pw:kpts.gamma:xc.PBE:parallel.scalapack',
+                               low_req),
+              'diamond_pw': ('diamond-pw.high:kpts', low_req)}
 
 
 def recursive_update(d, u):

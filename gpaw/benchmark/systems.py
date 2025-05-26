@@ -1,3 +1,5 @@
+import numpy as np
+
 def system_magic_graphene():
     from gpaw.benchmark.generate_twisted import make_heterostructure
     from ase.build import graphene
