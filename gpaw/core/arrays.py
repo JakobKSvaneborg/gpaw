@@ -20,6 +20,15 @@ DomainType = TypeVar('DomainType', bound=Domain)
 
 
 class XArrayWithNoData:
+    def __init__(self,
+                 comm,
+                 dims,
+                 desc):
+        self.comm = comm
+        self.dims = dims
+        self.desc = desc
+        self.data = None
+
     def morph(self):
         from gpaw.new.calculation import ReuseWaveFunctionsError
         raise ReuseWaveFunctionsError
