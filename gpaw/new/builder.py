@@ -2,13 +2,12 @@ from __future__ import annotations
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
 from typing import Any, TYPE_CHECKING
-
+import warnings 
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from ase.geometry.cell import cell_to_cellpar
 from ase.units import Bohr
-from gpaw import GPAW_CPUPY, GPAW_USE_GPUS
 from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
@@ -33,7 +32,6 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
-from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
