@@ -90,7 +90,7 @@ def system_MoS2_tube():
 def system_magbulk():
     from ase.build import bulk
     atoms = bulk('Fe') * 2
-    atoms.set_initial_magnetic_moments([3]*len(atoms))
+    atoms.set_initial_magnetic_moments([3] * len(atoms))
     return atoms
 
 

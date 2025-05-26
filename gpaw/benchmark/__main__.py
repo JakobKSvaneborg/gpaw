@@ -26,7 +26,7 @@ the long names. Users can then use this information to build their own \
 benchmark calculation parameter sets for particular systems.\
 """
 
-view_benchmark_help= """\
+view_benchmark_help = """\
 Usage `python -m gpaw.benchmark view benchmarkfile.json`.
 
 Will display a pretty formatted version of the benchmark run.\
