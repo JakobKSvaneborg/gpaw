@@ -186,17 +186,10 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
         log(header1.rstrip())
         log(header2.rstrip())
 
-    if log.use_colors:
-        green = '\x1b[32m'
-        reset = '\x1b[0m'
-    else:
-        green = ''
-        reset = ''
-
     def C(fmt: str, name: str) -> str:
         txt = fmt.format(entries.get(name, ''))
         if converged_items.get(name):
-            return green + txt + reset + 'c '
+            return log.green + txt + log.reset + 'c '
         return txt + '  '
 
     # Iterations and time.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import io
 import os
 import sys
 from pathlib import Path
@@ -42,7 +43,14 @@ class Logger:
             self.close_fd = False
 
         self.indentation = ''
-        self.use_colors = self.fd.isatty()
+
+        self.use_colors = can_colorize(file=self.fd)
+        if self.use_colors:
+            self.green = '\x1b[32m'
+            self.reset = '\x1b[0m'
+        else:
+            self.green = ''
+            self.reset = ''
 
     def __del__(self) -> None:
         if self.close_fd:
@@ -63,3 +71,38 @@ class Logger:
         if i:
             text = i + text.replace('\n', '\n' + i)
         print(text, file=self.fd, end=end, flush=flush)
+
+
+def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:
+    """Code from Python 3.14b1: cpython/Lib/_colorize.py."""
+    if file is None:
+        file = sys.stdout
+
+    if not sys.flags.ignore_environment:
+        if os.environ.get("PYTHON_COLORS") == "0":
+            return False
+        if os.environ.get("PYTHON_COLORS") == "1":
+            return True
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    if os.environ.get("TERM") == "dumb":
+        return False
+
+    if not hasattr(file, "fileno"):
+        return False
+
+    if sys.platform == "win32":
+        try:
+            import nt
+
+            if not nt._supports_virtual_terminal():
+                return False
+        except (ImportError, AttributeError):
+            return False
+
+    try:
+        return os.isatty(file.fileno())
+    except io.UnsupportedOperation:
+        return hasattr(file, "isatty") and file.isatty()
