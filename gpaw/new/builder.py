@@ -2,8 +2,9 @@ from __future__ import annotations
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
 from typing import Any, TYPE_CHECKING
-import warnings 
+import warnings
 import numpy as np
+from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from ase.geometry.cell import cell_to_cellpar
