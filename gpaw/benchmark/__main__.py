@@ -37,12 +37,9 @@ if __name__ == '__main__':
     run_parser.add_argument('benchmarks', nargs='*', help=benchmarks_help)
     list_parser = subparsers.add_parser('list', help=list_benchmark_help)
 
-    #parser.add_argument('benchmark')
-    #parser.add_argument('--version', action='version',
-    #                    version=version)
     args = parser.parse_args()
-    print(args)
     if args.command == 'run':
         for benchmark in args.benchmarks:
             benchmark_main(benchmark)
-
+    else:
+        raise ValueError(f'Invalid command {args.command}.')
