@@ -42,7 +42,7 @@ Git master branch
 
 * Converged numbers in GPAW's text output are now colored green.
   This behavior can be controlled by setting different environment
-  variables: ``NO_COLOR``, ``FORCE_COLOR`` and :envvar:`PYTHON_COLORS`.
+  variables: ``NO_COLOR``, ``FORCE_COLOR`` and :envvar:`python:PYTHON_COLORS`.
   See also `controlling color`_.
 
 .. _controlling color: https://docs.python.org/3/using/cmdline.html#controlling-color
