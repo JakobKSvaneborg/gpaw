@@ -36,7 +36,7 @@ eigensolver_parameter_subsets = {'RMMDIIS': {'eigensolver': 'rmm-diis'},
                                  'DAV3': {'eigensolver': {'name': 'dav',
                                                           'niter': 3}}}
 
-gpu_default_parameters = {'parallel': {'gpu': True}, 'random': True}
+#gpu_default_parameters = {'parallel': {'gpu': True}, 'random': True}
 
 
 def get_domainband(size=None):
@@ -60,44 +60,44 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                                 lcao_parameter_subsets),
                        'eigensolver': ({}, eigensolver_parameter_subsets),
                        'kpts': ({}, kpts_parameter_subsets),
-                       'gpu': (gpu_default_parameters, {}),
+                        #'gpu': (gpu_default_parameters, {}),
                        'xc': ({}, xc_parameter_subsets),
                        'parallel': ({}, parallel_parameter_subsets)}
 
 
 benchmarks_str = """\
-C60_pw               C60-pw.high:kpts.gamma                                       low_req
-C60_lcao             C60-lcao.dzp                                                 low_req
-C60_lowpw_gpu        C60-pw.low:kpts.gamma:gpu                                    low_req
-C60_lowpw_float_gpu  C60-pw.low.float32:kpts.gamma:gpu                            low_req
-MoS2_tube            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack         low_req
-676_graphene         C676-pw:kpts.gamma:xc.PBE:parallel.scalapack                 high_req
-diamond_pw           diamond-pw.high:kpts.density6                                low_req
-pw_C6000             C6000-pw.high:kpts.gamma:parallel.domainband.scalapack       veryhigh_req
-pw_C676              C676-pw.high:kpts.gamma:parallel.scalapack:xc.PBE            high_req
-pw_magbulk           magbulk-pw.high:kpts.density6                                high_req
-pw_C60_DIIS32        C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    low_req
-pw_C676_DIIS32       C676-pw.low.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    high_req
-pw_slab              metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3     high_req\
+C60_pw               C60-pw.high:kpts.gamma                                       1-56:4G:1GPU
+C60_lcao             C60-lcao.dzp                                                 1-56:4G
+C60_lowpw            C60-pw.low:kpts.gamma                                        1-56:4G:1GPU
+C60_lowpw_float      C60-pw.low.float32:kpts.gamma                                1-56:4G:1GPU
+MoS2_tube            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack         56-192:100G:4-16GPU
+676_graphene         C676-pw:kpts.gamma:xc.PBE:parallel.scalapack                 56-192:100G:4-16GPU
+pw_C6000             C6000-pw.high:kpts.gamma:parallel.domainband.scalapack       192-:800G:12-GPU
+pw_C676              C676-pw.high:kpts.gamma:parallel.scalapack:xc.PBE            56-:500G:4-GPU
+pw_magbulk           magbulk-pw.high:kpts.density6                                1-56:4G:1-4GPU
+pw_C60_DIIS32        C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    1-56:4G:1GPU
+pw_C676_DIIS32       C676-pw.low.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    56-:100G:1-4GPU
+pw_slab              metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3     56-:100G:2-GPU
 """
 
 
-low_req = {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}
-low_req_gpu = {'mincores': 1, 'maxcores': 4, 'minmem': '4G'}
-high_req = {'mincores': 96, 'minmem': '300G'}
-veryhigh_req = {'mincores': 96*2, 'minmem': '700G'}
+def parse_range(s):
+    if '-' not in s:
+        return int(s), int(s)
+    min_str, max_str = s.split('-')
+    ...    
 
-requirements = {'low_req': low_req,
-                'low_req_gpu': low_req_gpu,
-                'high_req': high_req,
-                'veryhigh_req': veryhigh_req}
+def parse_requirement(req):
+    syntax = req.split(':')
+    min_cores, max_cores = parse_range(syntax[0])
+
 
 benchmarks = {}
 benchmarks_reqs = {}
 for benchmark_line in benchmarks_str.split('\n'):
     nickname, definition, req = benchmark_line.split()
     benchmarks[nickname] = definition
-    benchmarks_reqs[nickname] = requirements[req]
+    benchmarks_reqs[nickname] = parse_requirement(req)
 
 
 def recursive_update(d, u):
@@ -286,7 +286,7 @@ def parse_mem(memstr):
     return float(memstr[:-1]) * mul
 
 
-def get_benchmarks(memory='8G', cores=16, gpu=False):
+def get_benchmarks(memory='8G', cores=16): # gpu=False):
     for benchmark, long_name in benchmarks.items():
         requirements = benchmarks_reqs[benchmark]
         if cores < requirements.get('mincores', 1):
@@ -295,8 +295,8 @@ def get_benchmarks(memory='8G', cores=16, gpu=False):
             continue
         if parse_mem(memory) <= parse_mem(requirements.get('minmem', np.inf)):
             continue
-        if ('gpu' in long_name) != gpu:
-            continue
+        #if ('gpu' in long_name) != gpu:
+        #    continue
         yield benchmark
 
 
