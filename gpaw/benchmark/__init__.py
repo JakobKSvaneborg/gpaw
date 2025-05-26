@@ -62,9 +62,11 @@ requirements = {'low_req': low_req,
                 'high_req': high_req}
 
 benchmarks = {}
+benchmarks_reqs = {}
 for benchmark_line in benchmarks_str.split('\n'):
-    for nickname, definition, req in benchmark_line.split():
-        benchmarks[nickname] = definition, requirements[req]
+    nickname, definition, req = benchmark_line.split()
+    benchmarks[nickname] = definition
+    benchmarks_reqs[nickname] = requirements[req]
 
 
 def recursive_update(d, u):
@@ -219,7 +221,8 @@ def parse_mem(memstr):
 
 
 def get_benchmarks(memory='8G', cores=16, gpu=False):
-    for benchmark, (long_name, requirements) in benchmarks.items():
+    for benchmark, long_name in benchmarks.items():
+        requirements = benchmarks_reqs[benchmark]
         if cores < requirements.get('mincores', 1):
             continue
         if cores > requirements.get('maxcores', np.inf):
