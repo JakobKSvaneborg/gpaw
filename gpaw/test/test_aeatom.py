@@ -22,7 +22,7 @@ def test_aeatom():
             errors.append(abs(e / e0 - 1))
 
         # Finite-difference:
-        channel.solve2(-Z)
+        channel.solve2(-Z, scalar_relativistic=False)
         for n in range(7):
             e = channel.e_n[n]
             e0 = -0.5 * Z**2 / (n + channel.l + 1)**2
