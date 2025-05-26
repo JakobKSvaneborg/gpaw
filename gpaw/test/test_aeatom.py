@@ -14,15 +14,17 @@ def test_aeatom():
 
     errors = []
     for channel in aea.channels:
+        vr_g = channel.basis.rgd.empty()
+        vr_g[:] = -Z
         # Basis set of Gaussians:
-        channel.solve(-Z)
+        channel.solve(vr_g)
         for n in range(7):
             e = channel.e_n[n]
             e0 = -0.5 * Z**2 / (n + channel.l + 1)**2
             errors.append(abs(e / e0 - 1))
 
         # Finite-difference:
-        channel.solve2(-Z, scalar_relativistic=False)
+        channel.solve2(vr_g, scalar_relativistic=False, Z=Z)
         for n in range(7):
             e = channel.e_n[n]
             e0 = -0.5 * Z**2 / (n + channel.l + 1)**2
@@ -37,7 +39,9 @@ def test_aeatom():
 
     errors = []
     for channel in aea.channels:
-        channel.solve(-Z)
+        vr_g = channel.basis.rgd.empty()
+        vr_g[:] = -Z
+        channel.solve(vr_g)
         for n in range(7):
             e = channel.e_n[n]
             if channel.k > 0:
