@@ -4,7 +4,7 @@ from pprint import pp
 import numpy as np
 from gpaw.mpi import world
 from time import time
-from json import dumps
+from json import dumps, loads
 from pathlib import Path
 
 from gpaw.benchmark.systems import parse_system
@@ -45,6 +45,7 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
 
 
 benchmarks_str = """\
+H2                   H2-lcao.dzp                                           low_req
 C60_pw               C60-pw.high:kpts.gamma                                low_req
 C60_lcao             C60-lcao.dzp                                          low_req
 C60_lowpw_gpu        C60-pw.low:kpts.gamma:gpu                             low_req_gpu
@@ -108,25 +109,33 @@ def parse_parameters(parameter_sets):
     return kwargs
 
 
+def list_benchmarks():
+    lst = ''
+    header = '{:20s} | {:35s}\n'.format('name', 'system-parameter sets')
+    lst += header + '-' * len(header) + '\n'
+
+    for benchmark, system_and_parameter_set in benchmarks.items():
+        lst += f'{benchmark:20s} | {system_and_parameter_set:35s}\n'
+
+    return lst
+
+
 def benchmarks_error(name):
     err = f'Cannot find benckmark with name {name}\n\n'
     err += 'Available benchmarks\n'
-    header = '{:20s} | {:35s}\n'.format('name', 'system-parameter sets')
-    err += header + '-' * len(header) + '\n'
-
-    for benchmark, system_and_parameter_set in benchmarks.items():
-        err += f'{benchmark:20s} | {system_and_parameter_set:35s}\n'
+    err += list_benchmarks()
     return err
 
 
-def shell_command(cmd):
+def shell_command(cmd, cwd=None):
     import subprocess
     try:
-        output = subprocess.run(cmd.split(' '),
+        output = subprocess.run(cmd,
                                 capture_output=True,
                                 text=True,
                                 check=True,
-                                shell=True).stdout
+                                shell=True,
+                                cwd=cwd).stdout
     except subprocess.CalledProcessError as e:
         output = f'{e.output} {e.stderr}'
 
@@ -134,11 +143,16 @@ def shell_command(cmd):
 
 
 def gather_system_information():
+    import gpaw
     return {'processor': shell_command('lscpu'),
             'memory': shell_command('lsmem'),
             'mpi-ranks': world.size,
+            'date': shell_command('date'),
             'nvidia-smi': shell_command('nvidia-smi'),
             'rocm-smi': shell_command('rocm-smi'),
+            'git-hash': shell_command('git rev-parse --verify HEAD'),
+            'git-status': shell_command('git status',
+                                        cwd=Path(gpaw.__file__).parent),
             'hostname': shell_command('hostname')}
 
 
@@ -155,26 +169,32 @@ def benchmark_atoms_and_calc(name):
     system, parameter_sets = name.split('-')
     atoms = parse_system(system)
     parameters = parse_parameters(parameter_sets)
-    pp(parameters, indent=4, sort_dicts=True)
-    atoms.calc = GPAW(**parameters)
+    if world.rank == 0:
+        pp(parameters, indent=4, sort_dicts=True)
+    atoms.calc = GPAW(**parameters, txt=f'{name}.log')
     return atoms, atoms.calc
 
 
 def gs_and_move_atoms(name):
     atoms, calc = benchmark_atoms_and_calc(name)
-    E = atoms.get_potential_energy()
-    F = atoms.get_forces()
+    with Walltime('First step') as step1:
+        E = atoms.get_potential_energy()
+        F = atoms.get_forces()
     atoms.positions += 0.1 * F
-    atoms.get_potential_energy()
+    with Walltime('Second step') as step2:
+        atoms.get_potential_energy()
+        F = atoms.get_forces()
+
     return {'energy': E,
-            'forces': F.tolist()}
+            'forces': F.tolist(),
+            **step1.todict(),
+            **step2.todict()}
 
 
-class Benchmark:
-    def __init__(self, system_info):
+class Walltime:
+    def __init__(self, name):
+        self.name = name
         self.error = None
-        self.system_info = system_info
-        self.results = None
 
     def __enter__(self):
         self.start = time()
@@ -190,10 +210,23 @@ class Benchmark:
         return self.end - self.start
 
     def todict(self):
-        return {'system_info': self.system_info,
-                'walltime': self.walltime,
-                'error': self.error,
-                'results': self.results}
+        return {self.name: {'walltime': self.walltime,
+                            'error': self.error}}
+
+
+class Benchmark(Walltime):
+    def __init__(self, system_info, **kwargs):
+        super().__init__('Benchmark')
+        self.system_info = system_info
+        self.results = None
+        self.kwargs = kwargs
+
+    def todict(self):
+        dct = super().todict()
+        dct[self.name].update({'system_info': self.system_info,
+                               'results': self.results,
+                               **self.kwargs})
+        return dct
 
     def write_json(self, fname):
         Path(fname).write_text(dumps(self.todict()))
@@ -206,8 +239,11 @@ def benchmark_main(name):
     else:
         system_info = None
 
+    benchmark_info = {'name': name,
+                      'longname': benchmarks[name]}
+
     world.barrier()
-    with Benchmark(system_info) as results:
+    with Benchmark(system_info, **benchmark_info) as results:
         results.results = gs_and_move_atoms(name)
     if world.rank == 0:
         results.write_json(f'{name}-benchmark.json')
@@ -232,3 +268,30 @@ def get_benchmarks(memory='8G', cores=16, gpu=False):
         if ('gpu' in long_name) != gpu:
             continue
         yield benchmark
+
+
+def sprint(s, summary=False):
+    if len(s) > 60:
+        if summary:
+            print(' '.join(s.replace('\n',' ').replace('\t', ' ').split())[:60], '...')
+        else:
+            print()
+            print(s)
+    else:
+        print(s.rstrip())
+
+
+def mypp(dct, indent=0, summary=True):
+    for key, value in dct.items():
+        print(' ' * indent + key + ': ', end='')
+        if isinstance(value, str):
+            sprint(value, summary=summary)
+        elif isinstance(value, dict):
+            print()
+            mypp(value, indent=indent + 4, summary=summary)
+        else:
+            print(value)
+
+def view_benchmark(fname):
+    dct = loads(Path(fname).read_text())
+    mypp(dct)

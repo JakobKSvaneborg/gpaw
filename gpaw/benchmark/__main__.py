@@ -26,20 +26,32 @@ the long names. Users can then use this information to build their own \
 benchmark calculation parameter sets for particular systems.\
 """
 
+view_benchmark_help= """\
+Usage `python -m gpaw.benchmark view benchmarkfile.json`.
+
+Will display a pretty formatted version of the benchmark run.\
+"""
+
 version = "May 2025"
 
 if __name__ == '__main__':
-    from gpaw.benchmark import benchmark_main
+    from gpaw.benchmark import benchmark_main, list_benchmarks, view_benchmark
     parser = argparse.ArgumentParser(prog='gpaw.benchmark',
                                      description=description)
     subparsers = parser.add_subparsers(help='subcommand help', dest='command')
     run_parser = subparsers.add_parser('run', help=run_benchmark_help)
     run_parser.add_argument('benchmarks', nargs='*', help=benchmarks_help)
     list_parser = subparsers.add_parser('list', help=list_benchmark_help)
+    view_parser = subparsers.add_parser('view', help=view_benchmark_help)
+    view_parser.add_argument('benchmarkfile')
 
     args = parser.parse_args()
     if args.command == 'run':
         for benchmark in args.benchmarks:
             benchmark_main(benchmark)
+    elif args.command == 'list':
+        print(list_benchmarks())
+    elif args.command == 'view':
+        view_benchmark(args.benchmarkfile)
     else:
         raise ValueError(f'Invalid command {args.command}.')
