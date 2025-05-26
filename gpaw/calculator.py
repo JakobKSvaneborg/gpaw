@@ -730,6 +730,9 @@ class GPAW(Calculator):
         else:
             xc = self.hamiltonian.xc
 
+        if not collinear and xc.type != 'LDA':
+            raise ValueError('....')
+
         if par.fixdensity:
             warnings.warn(
                 ('The fixdensity keyword has been deprecated. '
