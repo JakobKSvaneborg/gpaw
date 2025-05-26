@@ -21,3 +21,7 @@ calc = GPAW(mode=PW(400),
 
 bilayer.calc = calc
 energy = bilayer.get_potential_energy()
+
+# Acces the D3 correction energy
+d3_corr = bilayer.calc.dft.d3.get_energy()
+print(f'D3 correction: {d3_corr:.3f} eV')
