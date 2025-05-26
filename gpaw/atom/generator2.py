@@ -307,8 +307,8 @@ class PAWWaves:
 
 
 class PAWSetupGenerator:
-    def __init__(self, aea, projectors,
-                 scalar_relativistic=False,
+    def __init__(self, aea, projectors, *,
+                 scalar_relativistic=None,
                  core_hole=None,
                  fd=None,
                  yukawa_gamma=0.0,
@@ -372,7 +372,8 @@ class PAWSetupGenerator:
 
         aea.initialize()
         aea.run()
-        aea.scalar_relativistic = scalar_relativistic
+        if scalar_relativistic is not None:
+            aea.scalar_relativistic = bool(scalar_relativistic)
         aea.refine()
 
         self.rgd = aea.rgd
@@ -1349,7 +1350,7 @@ def generate(symbol,
              r0, v0,
              nderiv0,
              xc='LDA',
-             scalar_relativistic=False,
+             scalar_relativistic=True,
              pseudize=('poly', 4),
              configuration=None,
              alpha=None,
@@ -1361,8 +1362,10 @@ def generate(symbol,
              ecut=None,
              omega=None):
     aea = AllElectronAtom(symbol, xc, Z=Z,
-                          configuration=configuration)
-    gen = PAWSetupGenerator(aea, projectors, scalar_relativistic, core_hole,
+                          configuration=configuration,
+                          scalar_relativistic=scalar_relativistic)
+    gen = PAWSetupGenerator(aea, projectors,
+                            core_hole=core_hole,
                             fd=output,
                             yukawa_gamma=yukawa_gamma,
                             ecut=ecut,
