@@ -117,6 +117,7 @@ class D3(ExtensionParameter):
                 return {f'D3 (xc={self.xc})': _self.E}
 
             def get_energy(self) -> float:
+                """Returns the total energy contribution from D3 in eV"""
                 return self.E * Hartree
 
             def force_contribution(self):
