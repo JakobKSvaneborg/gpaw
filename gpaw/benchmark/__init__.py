@@ -44,21 +44,27 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'parallel': ({}, parallel_parameter_subsets)}
 
 
+benchmarks_str = """\
+C60_pw               C60-pw.high:kpts.gamma                                low_req
+C60_lcao             C60-lcao.dzp                                          low_req
+C60_lowpw_gpu        C60-pw.low:kpts.gamma:gpu                             low_req_gpu
+C60_lowpw_float_gpu  C60-pw.low.float32:kpts.gamma:gpu                     low_req_gpu
+MoS2_tube            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack  low_req
+676_graphene         676_graphene-pw:kpts.gamma:xc.PBE:parallel.scalapack  high_req
+diamond_pw           diamond-pw.high:kpts.density6                         low_req"""
+
 low_req = {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}
 low_req_gpu = {'mincores': 1, 'maxcores': 4, 'minmem': '4G'}
+high_req = {'high_req': 96, 'maxcores': 96, 'minmem': '4G'}
 
-b = {'C60_pw': ('C60-pw.high:gamma', low_req),
-     'C60_lcao': ('C60-lcao.dzp', low_req),
-     'C60_lowpw_gpu': ('C60-pw.low:gamma:gpu', low_req_gpu),
-     'C60_lowpw_float_gpu': ('C60-pw.low.float32:gamma:gpu',
-                             low_req_gpu),
-     'MoS2_tube': ('MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack',
-                   low_req),
-     '676_graphene': ('676_graphene-pw:kpts.gamma:xc.PBE:parallel.scalapack',
-                      low_req),
-     'diamond_pw': ('diamond-pw.high:kpts', low_req)}
+requirements = {'low_req': low_req,
+                'low_req_gpu': low_req_gpu,
+                'high_req': high_req}
 
-benchmarks = b
+benchmarks = {}
+for benchmark_line in benchmarks_str.split('\n'):
+    for nickname, definition, req in benchmark_line.split():
+        benchmarks[nickname] = definition, requirements[req]
 
 
 def recursive_update(d, u):
@@ -159,7 +165,7 @@ def gs_and_move_atoms(name):
     atoms.positions += 0.1 * F
     atoms.get_potential_energy()
     return {'energy': E,
-            'forces': F}
+            'forces': F.tolist()}
 
 
 class Benchmark:
