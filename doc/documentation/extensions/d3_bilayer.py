@@ -24,4 +24,3 @@ energy = bilayer.get_potential_energy()
 
 # Acces the D3 correction energy
 d3_correction = bilayer.calc.dft.d3.get_energy()
-print(f'D3 correction: {d3_correction:.3f} eV')
