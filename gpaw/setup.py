@@ -1516,7 +1516,7 @@ def types2atomtypes(symbols, types, default):
     if isinstance(types, str):
         return [types] * natoms
 
-    # If present, None will map to the default type,
+    # If present, 'default' will map to the default type,
     # else use the input default
     type_a = [types.get('default', default)] * natoms
 
