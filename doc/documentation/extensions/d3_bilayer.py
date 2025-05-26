@@ -1,6 +1,6 @@
 from gpaw.new.ase_interface import GPAW
-from gpaw import PW
 from gpaw.new.extensions import D3
+from gpaw import PW
 from ase.build import mx2
 
 MoS2 = mx2('MoS2', a=3.2)
@@ -23,5 +23,5 @@ bilayer.calc = calc
 energy = bilayer.get_potential_energy()
 
 # Acces the D3 correction energy
-d3_corr = bilayer.calc.dft.d3.get_energy()
-print(f'D3 correction: {d3_corr:.3f} eV')
+d3_correction = bilayer.calc.dft.d3.get_energy()
+print(f'D3 correction: {d3_correction:.3f} eV')

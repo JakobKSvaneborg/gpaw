@@ -36,17 +36,17 @@ between the two layers.
 
 
 .. note::
-    D3 requires the system to be either not periodic or periodic in all three directions. 
+    D3 requires the system to either not be periodic or periodic in all three directions. 
     If the system is only periodic in one or two directions a warning will appear and it will 
-    assume that system is periodic in all three directions.
+    assume that the system is periodic in all three directions.
 
 
 Output
 ------
 
-The energy contribution from the D3 correction can by found in the output 
-file just after the list of iterations. For the above example the relevant part of 
-the ``out.txt`` file will look as following::
+The D3 correction is accessed by calling the ``get_energy()`` method. The result can also be found 
+in the output file just after the list of iterations. For the above example the relevant 
+part of the ``out.txt`` file will look as following::
     
     ...
     Energy contributions relative to reference atoms: (reference = -702828.048343)
