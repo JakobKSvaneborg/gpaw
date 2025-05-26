@@ -1,4 +1,3 @@
-from gpaw.new.input_parameters import register
 from ase.units import Hartree, Bohr
 from ase.calculators.calculator import PropertyNotImplementedError
 import numpy as np
@@ -6,6 +5,7 @@ from gpaw.mpi import serial_comm, broadcast_exception, broadcast_float
 import uuid
 from pathlib import Path
 import os
+from gpaw.dft import Extension as ExtensionParameter
 
 
 class Extension:
@@ -21,13 +21,9 @@ class Extension:
         raise NotImplementedError
 
 
-class ExtensionParameter:
-    def build(self, atoms, domain_comm) -> Extension:
-        raise NotImplementedError
-
-
-@register
 class D3(ExtensionParameter):
+    name = 'd3'
+
     def __init__(self, *, xc, **kwargs):
         self.xc = xc
         self.kwargs = kwargs
@@ -35,7 +31,7 @@ class D3(ExtensionParameter):
     def todict(self) -> dict:
         return {'xc': self.xc, **self.kwargs}
 
-    def build(self, atoms, communicators):
+    def build(self, atoms, communicators, log):
         atoms = atoms.copy()
         world = communicators['w']
         from ase.calculators.dftd3 import PureDFTD3
@@ -47,6 +43,8 @@ class D3(ExtensionParameter):
         # created.
 
         class D3Extension(Extension):
+            name = 'd3'
+
             def __init__(self):
                 super().__init__()
                 self.stress_vv = np.zeros((3, 3)) * np.nan
@@ -86,7 +84,8 @@ class D3(ExtensionParameter):
                 # neither are absolute folders due to 80 character limit.
                 # The only way out, is to chdir to a temporary folder here.
                 os.chdir(directory)
-
+                log('Evaluating D3 corrections at temporary'
+                    f' folder {directory}')
                 atoms.calc = PureDFTD3(xc=self.xc,
                                        directory='.',
                                        comm=serial_comm,
@@ -111,11 +110,16 @@ class D3(ExtensionParameter):
                     os.unlink('dftd3_gradient')
                     os.rmdir(directory.absolute())
                 except OSError as e:
-                    print(e)
+                    log('Unable to remove files and folder', e)
                 atoms.calc = None
 
             def get_energy_contributions(_self) -> dict[str, float]:
+                """Returns the energy contributions from D3 in Hartree"""
                 return {f'D3 (xc={self.xc})': _self.E}
+
+            def get_energy(self) -> float:
+                """Returns the energy contribution from D3 in eV"""
+                return self.E * Hartree
 
             def force_contribution(self):
                 return self.F_av

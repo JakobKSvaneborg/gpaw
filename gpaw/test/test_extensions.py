@@ -1,24 +1,27 @@
 import pytest
-from gpaw.new.input_parameters import register
-from gpaw.new.extensions import ExtensionParameter, Extension
+from gpaw.new.extensions import Extension
 from ase.units import Hartree, Bohr
 import numpy as np
 
 
-@register
-class Spring(ExtensionParameter):
+class Spring:
+    name = 'spring'
+
     def __init__(self, *, a1, a2, l, k):
         self.a1, self.a2, self.l, self.k = a1, a2, l, k
 
-    def build(self, atoms, domain_comm):
+    def build(self, atoms, domain_comm, log):
         atoms = atoms.copy()
+        log('Building Spring')
 
         class EnergyAdder(Extension):
+            name = 'spring'
+
             @property
-            def name(_self):
+            def _name(_self):
                 return f'Spring k={self.k}'
 
-            def __init__(self, atoms):
+            def __init__(self):
                 self._calculate(atoms)
 
             def _calculate(_self, atoms):
@@ -35,13 +38,13 @@ class Spring(ExtensionParameter):
                 return self.F_av
 
             def get_energy_contributions(self):
-                return {self.name: self.E}
+                return {self._name: self.E}
 
             def move_atoms(self, relpos_ac):
                 atoms.set_scaled_positions(relpos_ac)
                 self._calculate(atoms)
 
-        return EnergyAdder(atoms)
+        return EnergyAdder()
 
     def todict(self):
         return dict(a1=self.a1, a2=self.a2, l=self.l, k=self.k)
@@ -120,8 +123,18 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     assert movedE == pytest.approx(movedE0 + 1 / 2 * ktot * (l - 2)**2)
     assert movedF[0, 2] == pytest.approx(movedF0[0, 2] - ktot * (l - 2))
 
+    def hook(extensions):
+        return [Spring(**{k: v for k, v in dct.items() if k != 'name'})
+                if dct['name'] == 'spring'
+                else dct
+                for dct in extensions]
+
     # 4. Test restarting from a file
-    atoms, calc = restart('calc.gpw', Class=GPAW)
+    atoms, calc = restart(
+        'calc.gpw',
+        Class=GPAW,
+        object_hooks={'extensions': hook})
+
     # Make sure the cached energies and forces are correct
     # without a new calculation
     assert E == pytest.approx(atoms.get_potential_energy())
@@ -154,7 +167,9 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     for _, _ in zip(relax.irun(), range(3)):
         pass
     calc.write('restart_relax.gpw')
-    atoms, calc = restart('restart_relax.gpw', Class=GPAW)
+    atoms, calc = restart('restart_relax.gpw',
+                          Class=GPAW,
+                          object_hooks={'extensions': hook})
     relax = BFGS(atoms, restart='relax_restart')
     relax.run()
 
