@@ -13,5 +13,5 @@ def test_noncollinear_o2(gpaw_new):
                   symmetry='off',
                   txt=None,
                   experimental={'magmoms': [[0, 0.5, 0.5]]})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match='Only LDA supported'):
         a.get_potential_energy()
