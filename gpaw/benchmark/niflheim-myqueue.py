@@ -9,7 +9,7 @@ platforms = [('xeon24el8_test', 24, 24, 0, '10m'),
              ('epyc96', 96 * 2, 96 * 2, 0, '30m')]
 
 for partition, ncores, nprocs, ngpus, time in platforms:
-    for benchmark in get_benchmarks(cores=nprocs, memory='10000G'):
+    for benchmark in get_benchmarks(cores=nprocs, memory='10000G', gpus=ngpus):
         print(partition, ncores, nprocs, ngpus, time, benchmark)
 asd
 niflheim_target_nodes = {'C60_pw': ('xeon24el8_test', 24, 24, 0, '10m'),

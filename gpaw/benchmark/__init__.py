@@ -77,23 +77,38 @@ pw_C676              C676-pw.high:kpts.gamma:parallel.scalapack:xc.PBE          
 pw_magbulk           magbulk-pw.high:kpts.density6                                1-56:4G:1-4GPU
 pw_C60_DIIS32        C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    1-56:4G:1GPU
 pw_C676_DIIS32       C676-pw.low.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    56-:100G:1-4GPU
-pw_slab              metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3     56-:100G:2-GPU
+pw_slab              metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3     56-:100G:2-GPU\
 """
 
 
 def parse_range(s):
-    s.replace('GPU', '')
+    s = s.replace('GPU', '')
     if '-' not in s:
         return int(s), int(s)
     min_str, max_str = s.split('-')
-    return int(min_str), int(max_str)
+    if min_str:
+        a = int(min_str)
+    else:
+        a = 0
+    if max_str:
+        b = int(max_str)
+    else:
+        b = np.inf
+    return a, b
+
+
+def parse_mem(memstr):
+    mul = {'G': 1024**3,
+           'M': 1024**2,
+           'K': 1024**1}[memstr[-1]]
+    return float(memstr[:-1]) * mul
 
 
 def parse_requirement(req):
     syntax = req.split(':')
     min_cores, max_cores = parse_range(syntax[0])
     min_mem = parse_mem(syntax[1])
-    if len(req) == 3:
+    if len(syntax) == 3:
         min_gpus, max_gpus = parse_range(syntax[2])
     else:
         min_gpus, max_gpus = (0, 0)
@@ -101,7 +116,7 @@ def parse_requirement(req):
             'maxcores': max_cores,
             'minmem': min_mem,
             'mingpus': min_gpus,
-            'maxgpus': max_gpus]
+            'maxgpus': max_gpus}
 
 
 benchmarks = {}
@@ -291,18 +306,11 @@ def benchmark_main(name):
         results.write_json(f'{name}-benchmark.json')
 
 
-def parse_mem(memstr):
-    mul = {'G': 1024**3,
-           'M': 1024**2,
-           'K': 1024**1}[memstr[-1]]
-    return float(memstr[:-1]) * mul
-
-
 def get_benchmarks(memory='8G', cores=16, gpus=0):
     for benchmark, long_name in benchmarks.items():
         requirements = benchmarks_reqs[benchmark]
         if gpus > 0:
-            if gpus < requirements.get('mingpus', 1)
+            if gpus < requirements.get('mingpus', 1):
                 continue
             if gpus > requirements.get('maxgpus', np.inf):
                 continue
@@ -311,7 +319,7 @@ def get_benchmarks(memory='8G', cores=16, gpus=0):
                 continue
             if cores > requirements.get('maxcores', np.inf):
                 continue
-        if parse_mem(memory) <= parse_mem(requirements.get('minmem', np.inf)):
+        if parse_mem(memory) <= requirements.get('minmem', np.inf):
             continue
         yield benchmark
 
