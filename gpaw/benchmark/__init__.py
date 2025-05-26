@@ -7,7 +7,7 @@ from time import time
 from json import dumps
 from pathlib import Path
 
-from gpaw.benchmarks.systems import parse_system
+from gpaw.benchmark.systems import parse_system
 
 # A parameter set is a 2-tuple with dictionary for gpaw-parameters,
 # and additional dictionary with named sub parameter sets
@@ -27,13 +27,13 @@ kpts_parameter_sets = {'gamma': {'kpts': (1, 1, 1)},
                        'density6': {'kpts': {'density': 6}},
                        '411': ({'kpts': (4, 1, 1)})}
 
-xc_parameters_sets = {'PBE': {'xc': 'PBE'},
+xc_parameter_sets = {'PBE': {'xc': 'PBE'},
                       'LDA': {'xc': 'LDA'}}
 
 gpu_default_parameters = {'parallel': {'gpu': True}, 'random': True}
 
-parallel_parameters_sets =  {'parallel': {'scalapack':
-                                         {'parallel': {'sl_auto': True}}}
+parallel_parameter_sets =  {'parallel': {'scalapack':
+                                         {'parallel': {'sl_auto': True}}}}
 
 gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'lcao': (lcao_default_parameters,
@@ -41,8 +41,7 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'kpts': ({}, kpts_parameter_sets),
                        'gpu': (gpu_default_parameters, {}),
                        'xc': ({}, xc_parameter_sets),
-                       'parallel': ({}, parallel_parameter_sets),
-                       **general_parameter_sets}
+                       'parallel': ({}, parallel_parameter_sets)}
 
 
 benchmarks = {'C60_pw': 'C60-pw.high:gamma',
