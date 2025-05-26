@@ -1,7 +1,6 @@
 from gpaw import GPAW
 from ase.build import molecule
 from ase.units import mol, kJ, kcal, Pascal, m
-from ase.data.vdw import vdw_radii
 from ase.parallel import parprint
 from gpaw.solvation import (
     SolvationGPAW,             # the solvation calculator
@@ -24,17 +23,7 @@ u0 = 0.180  # eV
 epsinf = 78.36  # dimensionless
 gamma = 18.4 * 1e-3 * Pascal * m  # convert from dyne / cm to eV / Angstrom**2
 T = 298.15  # Kelvin
-vdw_radii = vdw_radii.copy()
-vdw_radii[1] = 1.09
-
-# atomic_radii expected by gpaw.solvation.Power12Potential have to be a
-# callable mapping an Atoms object to an iterable of floats representing
-# the atomic radii of the atoms in the same order as in the Atoms object
-# (in Angstrom)
-
-
-def atomic_radii(atoms):
-    return [vdw_radii[n] for n in atoms.numbers]
+atomic_radii = {'H': 1.09}
 
 
 # create Atoms object for ethanol and add vacuum

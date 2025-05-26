@@ -1,11 +1,19 @@
+import warnings
 from functools import cached_property
 from math import pi
 
 import numpy as np
 from ase.units import Bohr, Ha
-from gpaw.core import PWDesc, UGDesc, PWArray
+from gpaw.core import PWArray, PWDesc, UGDesc
 from gpaw.new.poisson import PoissonSolver
+from scipy.sparse.linalg import LinearOperator, cg
 from scipy.special import erf
+from gpaw import get_scipy_version
+
+if get_scipy_version() >= [1, 14]:
+    RTOL = 'rtol'
+else:
+    RTOL = 'tol'
 
 
 def make_poisson_solver(pw: PWDesc,
@@ -26,8 +34,11 @@ def make_poisson_solver(pw: PWDesc,
     assert not kwargs
 
     if hasattr(environment, 'dielectric'):
+        if 1:
+            return ConjugateGradientPoissonSolver(
+                pw, grid, environment.dielectric, zero_vacuum=True)
         from gpaw.new.sjm import SJMPWPoissonSolver
-        return SJMPWPoissonSolver(pw, environment.dielectric)
+        return SJMPWPoissonSolver(pw, environment.dielectric, grid)
 
     return ps
 
@@ -236,3 +247,177 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
         result_g = self.ps.pw.empty()
         result_g.scatter_from(sawtooth_g)
         return result_g
+
+
+class ConjugateGradientPoissonSolver(PWPoissonSolver):
+    """Poisson solver using conjugate gradient method in reciprocal space.
+    """
+
+    def __init__(self,
+                 pw: PWDesc,
+                 grid,
+                 dielectric,
+                 charge: float = 0.0,
+                 strength: float = 1.0,
+                 eps=1e-4,
+                 maxiter=15,
+                 zero_vacuum=False):
+        """Initialize the conjugate gradient Poisson solver.
+
+        Parameters:
+        -----------
+        pw : PWDesc
+            Plane wave descriptor
+        charge : float, optional
+            Total charge of the system
+        strength : float, optional
+            Scaling factor for the potential
+        eps : float, optional
+            Convergence threshold for conjugate gradient algorithm
+        maxiter : int, optional
+            Maximum number of iterations for the conjugate gradient algorithm
+        """
+        super().__init__(pw, charge, strength)
+        self.dielectric = dielectric
+        self.grid = grid
+        self.pw0 = pw.new(comm=None)
+        self.grid0 = grid.new(comm=None)
+        if pw.comm.rank == 0:
+            self.ekin_g = self.pw0.ekin_G.copy()
+            self.ekin_g[0] = 1.0
+
+        self.eps = eps
+        self.maxiter = maxiter
+
+        self.eps0_R = None
+
+        self.drho_g = None
+        self.zero_vacuum = zero_vacuum
+        if zero_vacuum:
+            self.drho_g = dipole_layer(grid).fft(pw=pw)
+
+    def __str__(self) -> str:
+        txt = ('conjugate gradient poisson solver:\n'
+               f'  ecut: {self.pw.ecut * Ha}  # eV\n'
+               f'  eps: {self.eps}\n'
+               f'  maxiter: {self.maxiter}\n')
+        if self.strength != 1.0:
+            txt += f'  strength: {self.strength}\n'
+        if self.charge != 0.0:
+            txt += f'  uniform background charge: {self.charge}  # electrons\n'
+        return txt
+
+    def get_description(self):
+        return 'Conjugate Gradient Poisson Solver'
+
+    def operator(self, phi_G):
+        """Apply the generalized Poisson operator in reciprocal space.
+
+        Parameters:
+        -----------
+        phi_q : ndarray
+            Input potential in reciprocal space
+
+        Returns:
+        --------
+        ndarray
+            Result of operator application
+        """
+        pw = self.pw0
+        grid = self.grid0
+        G_vG = pw.G_plus_k_Gv.T
+
+        ophi_G = np.zeros_like(phi_G)
+        for G_G in G_vG:
+            grad_G = pw.from_data(G_G * phi_G)
+            grad_R = grad_G.ifft(grid=grid)
+            grad_R.data *= self.eps0_R.data
+            ophi_G += grad_R.fft(pw=pw).data * G_G
+
+        return ophi_G
+
+    def _solve(self,
+               vHt_g,
+               rhot_g) -> float:
+        vHt_g.data[:] = 4 * np.pi * self.strength * rhot_g.data
+        eps_R = self.grid.from_data(self.dielectric.eps_gradeps[0])
+        self.eps0_R = eps_R.gather()
+
+        vHt0_g = vHt_g.gather()
+
+        if self.pw.comm.rank == 0:
+            vHt0_g.data[0] = 0.0
+
+            N = len(vHt0_g.data)
+            op = LinearOperator((N, N),
+                                matvec=self.operator,
+                                dtype=complex)
+            M = LinearOperator((N, N),
+                               matvec=lambda x: 0.5 * x / self.ekin_g,
+                               dtype=complex)
+            vHt0_g.data[:], info = cg(
+                op, vHt0_g.data, maxiter=self.maxiter, M=M, **{RTOL: self.eps})
+            if info != 0:
+                warnings.warn(
+                    f'Conjugate gradient did not converge (info={info})')
+
+        vHt_g.scatter_from(vHt0_g)
+
+        if self.zero_vacuum:
+            self.zero_vacuum = False
+            dphi_g = self.pw.zeros()
+            self._solve(dphi_g, self.drho_g)
+            v0s, v1s = xy_average_at_boundary(dphi_g)
+            v0, v1 = xy_average_at_boundary(vHt_g)
+            vHt_g.data -= dphi_g.data * (v1 / v1s)
+            vHt_g.data[0] -= v0 - (v1 / v1s) * v0s
+            self.zero_vacuum = True
+
+        epot = 0.5 * vHt_g.integrate(rhot_g)
+        return epot
+
+    def correct_slope(self, vHt_g: PWArray):
+        from gpaw.new.sjm import modified_saw_tooth
+        eps_r = self.grid.from_data(self.dielectric.eps_gradeps[0])
+        eps0_r = eps_r.gather()
+        vHt0_g = vHt_g.gather()
+        if eps0_r is not None:
+            saw_tooth_z = modified_saw_tooth(eps0_r)
+            vHt0_r = vHt0_g.ifft(grid=self.grid.new(comm=None))
+            s1, s2 = saw_tooth_z[[2, 10]]
+            v1, v2 = vHt0_r.data[:, :, [2, 10]].mean(axis=(0, 1))
+            vHt0_r.data -= (v2 - v1) / (s2 - s1) * saw_tooth_z[np.newaxis,
+                                                               np.newaxis]
+            vHt0_r.data -= vHt0_r.data[:, :, -1].mean()
+            vHt0_r.fft(out=vHt0_g)
+        vHt_g.scatter_from(vHt0_g)
+
+
+def dipole_layer(grid: UGDesc, z0: float = 2.0):
+    a_r = grid.empty()
+    z_r = grid.xyz()[:, :, :, 2]
+    n = z_r.shape[2]
+    h = grid.cell_cv[2, 2]
+    d = h / n
+    z0 = round(z0 / d) * d
+    z_r += h / 2 - z0
+    z_r %= h
+    z_r -= h / 2
+    alpha = 6.0 / z0**2
+    a_r.data[:] = 4 * alpha**1.5 / np.pi**0.5 * z_r * np.exp(-alpha * z_r**2)
+    return a_r
+
+
+def xy_average_at_boundary(f_G: PWArray) -> np.ndarray:
+    """Calculate average value and derivative at boundary of box."""
+    pw = f_G.desc
+    m0_G, m1_G = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
+    mask_G = m0_G & m1_G
+    f_q = f_G.data[mask_G]
+    value = f_q.real.sum() * 2
+    derivative = pw.G_plus_k_Gv[mask_G, 2] @ f_q.imag
+    if pw.comm.rank == 0:
+        value -= f_q[0].real
+    result = np.array([value, derivative])
+    pw.comm.sum(result)
+    return result

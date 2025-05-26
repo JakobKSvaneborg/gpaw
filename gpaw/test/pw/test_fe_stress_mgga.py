@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from ase.io.ulm import ulmopen
 from ase.parallel import parprint
 
 from gpaw import GPAW
@@ -7,6 +8,9 @@ from gpaw import GPAW
 
 @pytest.mark.mgga
 def test_pw_fe_stress_mgga(gpw_files, gpaw_new):
+    if gpaw_new and ulmopen(gpw_files['fe_pw_distorted']).version < 4:
+        pytest.skip('Unsupported new-GPAW + old gpw-file combo')
+
     fe = GPAW(gpw_files['fe_pw_distorted']).get_atoms()
 
     # Trigger nasty bug (fixed in !486):
