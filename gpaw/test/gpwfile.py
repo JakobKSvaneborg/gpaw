@@ -1411,6 +1411,7 @@ class GPWFiles(CachedFilesHandler):
         a = 2.867
         mm = 2.21
         atoms = bulk('Fe', 'bcc', a=a)
+        atoms.rattle(0.01, seed=42)
         atoms.set_initial_magnetic_moments([mm])
         atoms.center()
         tag = '_nosym' if symmetry == 'off' else ''
