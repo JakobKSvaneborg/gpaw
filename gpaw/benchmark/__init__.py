@@ -82,14 +82,26 @@ pw_slab              metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3   
 
 
 def parse_range(s):
+    s.replace('GPU', '')
     if '-' not in s:
         return int(s), int(s)
     min_str, max_str = s.split('-')
-    ...    
+    return int(min_str), int(max_str)
+
 
 def parse_requirement(req):
     syntax = req.split(':')
     min_cores, max_cores = parse_range(syntax[0])
+    min_mem = parse_mem(syntax[1])
+    if len(req) == 3:
+        min_gpus, max_gpus = parse_range(syntax[2])
+    else:
+        min_gpus, max_gpus = (0, 0)
+    return {'mincores': min_cores,
+            'maxcores': max_cores,
+            'minmem': min_mem,
+            'mingpus': min_gpus,
+            'maxgpus': max_gpus]
 
 
 benchmarks = {}
@@ -286,17 +298,21 @@ def parse_mem(memstr):
     return float(memstr[:-1]) * mul
 
 
-def get_benchmarks(memory='8G', cores=16): # gpu=False):
+def get_benchmarks(memory='8G', cores=16, gpus=0):
     for benchmark, long_name in benchmarks.items():
         requirements = benchmarks_reqs[benchmark]
-        if cores < requirements.get('mincores', 1):
-            continue
-        if cores > requirements.get('maxcores', np.inf):
-            continue
+        if gpus > 0:
+            if gpus < requirements.get('mingpus', 1)
+                continue
+            if gpus > requirements.get('maxgpus', np.inf):
+                continue
+        else:
+            if cores < requirements.get('mincores', 1):
+                continue
+            if cores > requirements.get('maxcores', np.inf):
+                continue
         if parse_mem(memory) <= parse_mem(requirements.get('minmem', np.inf)):
             continue
-        #if ('gpu' in long_name) != gpu:
-        #    continue
         yield benchmark
 
 
