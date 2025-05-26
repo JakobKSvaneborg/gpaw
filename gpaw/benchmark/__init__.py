@@ -69,7 +69,7 @@ benchmarks_str = """\
 C60_pw               C60-pw.high:kpts.gamma                                       1-56:4G:1GPU
 C60_lcao             C60-lcao.dzp                                                 1-56:4G
 C60_lowpw            C60-pw.low:kpts.gamma                                        1-56:4G:1GPU
-C60_lowpw_float      C60-pw.low.float32:kpts.gamma                                1-56:4G:1GPU
+C60_lowpw_float      C60-pw.low.float32:kpts.gamma                                0:4G:1GPU
 MoS2_tube            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack         56-192:100G:4-16GPU
 676_graphene         C676-pw:kpts.gamma:xc.PBE:parallel.scalapack                 56-192:100G:4-16GPU
 pw_C6000             C6000-pw.high:kpts.gamma:parallel.domainband.scalapack       192-:800G:12-GPU

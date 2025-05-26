@@ -5,7 +5,7 @@ from os import makedirs
 
 platforms = [('xeon24el8_test', 24, 24, 0, '10m'),
              ('a100', 8, 1, 1, '10m'),
-             ('sm3090_devel', 8, 1, 1, '10m'),
+             ('sm3090el8', 8, 1, 1, '10m'),
              ('epyc96', 96, 96, 0, '30m'),
              ('epyc96', 96 * 2, 96 * 2, 0, '30m')]
 
