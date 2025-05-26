@@ -25,19 +25,35 @@ lcao_parameter_subsets = {'sz': {'basis': 'sz(dzp)'},
 
 kpts_parameter_subsets = {'gamma': {'kpts': (1, 1, 1)},
                           'density6': {'kpts': {'density': 6}},
+                          'density10': {'kpts': {'density': 10}},
                           '411': ({'kpts': (4, 1, 1)})}
 
 xc_parameter_subsets = {'PBE': {'xc': 'PBE'},
                         'LDA': {'xc': 'LDA'}}
 
+eigensolver_parameter_subsets = {'RMMDIIS': {'eigensolver': 'rmm-diis'},
+                                 'DAV3': {'eigensolver': {'name': 'dav',
+                                                          'niter': 3}}}
+
 gpu_default_parameters = {'parallel': {'gpu': True}, 'random': True}
 
-parallel_parameter_subsets = {'parallel': {'scalapack':
-                              {'parallel': {'sl_auto': True}}}}
+def get_domainband(size):
+    mid = int(np.sqrt(size))
+    while size % mid:
+        mid -= 1
+        assert mid > 0
+    return {'band': size // mid,
+            'domain': mid}
+
+
+parallel_parameter_subsets = {'scalapack': {'parallel': {'sl_auto': True}},
+                              'domainband': {'parallel': get_domainband(world.size)}}
+
 
 gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'lcao': (lcao_default_parameters,
                                 lcao_parameter_subsets),
+                        'eigensolver': ({}, eigensolver_parameter_subsets),
                        'kpts': ({}, kpts_parameter_subsets),
                        'gpu': (gpu_default_parameters, {}),
                        'xc': ({}, xc_parameter_subsets),
@@ -45,22 +61,31 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
 
 
 benchmarks_str = """\
-H2                   H2-lcao.dzp                                           low_req
-C60_pw               C60-pw.high:kpts.gamma                                low_req
-C60_lcao             C60-lcao.dzp                                          low_req
-C60_lowpw_gpu        C60-pw.low:kpts.gamma:gpu                             low_req_gpu
-C60_lowpw_float_gpu  C60-pw.low.float32:kpts.gamma:gpu                     low_req_gpu
-MoS2_tube            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack  low_req
-676_graphene         676_graphene-pw:kpts.gamma:xc.PBE:parallel.scalapack  high_req
-diamond_pw           diamond-pw.high:kpts.density6                         low_req"""
+C60_pw               C60-pw.high:kpts.gamma                                       low_req
+C60_lcao             C60-lcao.dzp                                                 low_req
+C60_lowpw_gpu        C60-pw.low:kpts.gamma:gpu                                    low_req
+C60_lowpw_float_gpu  C60-pw.low.float32:kpts.gamma:gpu                            low_req
+MoS2_tube            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack         low_req
+676_graphene         C676-pw:kpts.gamma:xc.PBE:parallel.scalapack                 high_req
+diamond_pw           diamond-pw.high:kpts.density6                                low_req
+pw_C6000             C6000-pw.high:kpts.gamma:parallel.domainband.scalapack       veryhigh_req
+pw_C676              C676-pw.high:kpts.gamma:parallel.scalapack:xc.PBE            high_req
+pw_magbulk           magbulk-pw.high:kpts.density6                                high_req
+pw_C60_DIIS32        C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    low_req
+pw_C676_DIIS32       C676-pw.low.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    high_req
+pw_slab              metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3     high_req\
+"""
+
 
 low_req = {'mincores': 16, 'maxcores': 256, 'minmem': '4G'}
 low_req_gpu = {'mincores': 1, 'maxcores': 4, 'minmem': '4G'}
-high_req = {'high_req': 96, 'maxcores': 96, 'minmem': '4G'}
+high_req = {'mincores': 96, 'minmem': '300G'}
+veryhigh_req = {'mincores': 96*2, 'minmem': '700G'}
 
 requirements = {'low_req': low_req,
                 'low_req_gpu': low_req_gpu,
-                'high_req': high_req}
+                'high_req': high_req,
+                'veryhigh_req': veryhigh_req}
 
 benchmarks = {}
 benchmarks_reqs = {}

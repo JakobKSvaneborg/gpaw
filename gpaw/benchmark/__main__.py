@@ -43,6 +43,7 @@ if __name__ == '__main__':
     run_parser.add_argument('benchmarks', nargs='*', help=benchmarks_help)
     list_parser = subparsers.add_parser('list', help=list_benchmark_help)
     view_parser = subparsers.add_parser('view', help=view_benchmark_help)
+    test_parser = subparsers.add_parser('test', help='')
     view_parser.add_argument('benchmarkfile')
 
     args = parser.parse_args()
@@ -53,5 +54,10 @@ if __name__ == '__main__':
         print(list_benchmarks())
     elif args.command == 'view':
         view_benchmark(args.benchmarkfile)
+    elif args.command == 'test':
+        from gpaw.benchmark import benchmarks, benchmark_atoms_and_calc
+        for benchmark in benchmarks:
+            print(benchmark)
+            benchmark_atoms_and_calc(benchmark)
     else:
         raise ValueError(f'Invalid command {args.command}.')

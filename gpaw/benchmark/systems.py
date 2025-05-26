@@ -84,13 +84,30 @@ def system_MoS2_tube():
     atoms.center(vacuum=6, axis=[1, 2])
     atoms.pbc = True
 
+    return atoms
+
+
+def system_magbulk():
+    from ase.build import bulk
+    atoms = bulk('Fe') * 2
+    atoms.set_initial_magnetic_moments([3]*len(atoms))
+    return atoms
+
+
+def system_metalslab():
+    from ase.build import fcc111
+    slab = fcc111('Al', size=(3, 4, 8), vacuum=6.0)
+    return slab
+
 
 systems = {'C60': system_C60,
            'diamond': system_diamond,
            'H2': system_H2,
            'MoS2_tube': system_MoS2_tube,
            'C6000': system_6000_bl_graphene,
-           '676_graphene': system_676_bl_graphene,
+           'C676': system_676_bl_graphene,
+           'magbulk': system_magbulk,
+           'metalslab': system_metalslab,
            'magic_graphene': system_magic_graphene}
 
 
