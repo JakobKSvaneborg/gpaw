@@ -798,7 +798,7 @@ class GPAW(Calculator):
         else:
             nspins = 1
             self.log('Non-collinear calculation.')
-            self.log('Magnetic moment: ({:.6f}, {:.6f}, {:.6f})\n'
+            self.log('Initial magnetic moment: ({:.6f}, {:.6f}, {:.6f})\n'
                      .format(*magmom_av.sum(0)))
 
         self.create_symmetry(magmom_av, cell_cv, reading)
