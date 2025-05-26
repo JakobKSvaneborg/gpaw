@@ -792,7 +792,7 @@ class GPAW(Calculator):
 
             if spinpol:
                 self.log('Spin-polarized calculation.')
-                self.log(f'Magnetic moment: {magmom_av.sum():.6f}\n')
+                self.log(f'Initial magnetic moment: {magmom_av.sum():.6f}\n')
             else:
                 self.log('Spin-paired calculation\n')
         else:
