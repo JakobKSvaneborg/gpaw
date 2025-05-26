@@ -13,6 +13,6 @@ niflheim_target_nodes = {'C60_pw': ('xeon24el8_test', 24, 24, 0, '10m'),
 def workflow():
     for key in niflheim_target_nodes:
         name, cores, procs, gpus, time = niflheim_target_nodes[key]
-        run(function=benchmark_main, args=key,
+        run(function=benchmark_main, args=(key,),
             nodename=name, cores=cores, processes=procs,
             gpus= gpus, tmax=time, name=key)
