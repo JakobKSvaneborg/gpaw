@@ -220,7 +220,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if dtype is not None:
         kwargs['dtype'] = dtype
 
-    # kwargs['nbands'] = reader.wave_functions.eigenvalues.shape[-1]
+    kwargs['nbands'] = reader.wave_functions.eigenvalues.shape[-1]
 
     for old_keyword in ['fixdensity', 'txt']:
         kwargs.pop(old_keyword, None)
