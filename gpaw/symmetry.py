@@ -597,8 +597,7 @@ class CLICommand:
     def run(args):
         import sys
         from gpaw.new.symmetry import create_symmetries_object
-        from gpaw.new.builder import create_kpts
-        from gpaw.new.input_parameters import kpts
+        from gpaw.dft import MonkhorstPack
         from ase.cli.run import str2dict
         from ase.db import connect
         from ase.io import read
@@ -617,7 +616,7 @@ class CLICommand:
         print(txt)
         if args.k_points:
             k = str2dict('kpts=' + args.k_points)['kpts']
-            bz = create_kpts(kpts(k), atoms)
+            bz = MonkhorstPack.from_param(k).build(atoms)
             ibz = bz.reduce(symmetries)
             txt = str(ibz)
             if not args.verbose:

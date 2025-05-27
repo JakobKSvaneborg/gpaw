@@ -3,6 +3,7 @@ from gpaw import GPAW
 import pytest
 
 
+@pytest.mark.legacy
 def test_eigen_cg():
     a = 4.05
     d = a / 2**0.5

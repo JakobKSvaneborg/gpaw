@@ -7,6 +7,7 @@ from ase.parallel import paropen
 
 
 atoms = bulk('Si', 'diamond', a=5.44, cubic=True)
+atoms.cell[0, 0] += 1e-3
 
 # Step: Set up the GPAW calculator
 calc = GPAW(mode={'name': 'pw',    # Use plane wave mode

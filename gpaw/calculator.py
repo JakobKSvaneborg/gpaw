@@ -730,6 +730,10 @@ class GPAW(Calculator):
         else:
             xc = self.hamiltonian.xc
 
+        if not collinear and xc.type != 'LDA':
+            raise ValueError('Only LDA supported for '
+                             'SC Non-collinear calculations')
+
         if par.fixdensity:
             warnings.warn(
                 ('The fixdensity keyword has been deprecated. '
@@ -792,13 +796,13 @@ class GPAW(Calculator):
 
             if spinpol:
                 self.log('Spin-polarized calculation.')
-                self.log(f'Magnetic moment: {magmom_av.sum():.6f}\n')
+                self.log(f'Initial magnetic moment: {magmom_av.sum():.6f}\n')
             else:
                 self.log('Spin-paired calculation\n')
         else:
             nspins = 1
             self.log('Non-collinear calculation.')
-            self.log('Magnetic moment: ({:.6f}, {:.6f}, {:.6f})\n'
+            self.log('Initial magnetic moment: ({:.6f}, {:.6f}, {:.6f})\n'
                      .format(*magmom_av.sum(0)))
 
         self.create_symmetry(magmom_av, cell_cv, reading)
