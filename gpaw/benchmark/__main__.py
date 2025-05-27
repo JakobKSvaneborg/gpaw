@@ -36,10 +36,10 @@ version = "May 2025"
 
 if __name__ == '__main__':
     from gpaw.benchmark import (benchmark_main,
-                               list_benchmarks,
-                               view_benchmark,
-                               parse_name,
-                               gather_benchmarks)
+                                list_benchmarks,
+                                view_benchmark,
+                                parse_name,
+                                gather_benchmarks)
     parser = argparse.ArgumentParser(prog='gpaw.benchmark',
                                      description=description)
     subparsers = parser.add_subparsers(help='subcommand help', dest='command')
@@ -70,5 +70,6 @@ if __name__ == '__main__':
             benchmark_atoms_and_calc(long_name, calc_info)
     else:
         if args.command is None:
-            raise ValueError('Run `python -m gpaw.benchmark --help` for how to use the program.')
+            raise ValueError('Run `python -m gpaw.benchmark '
+                             '--help` for how to use the program.')
         raise ValueError(f'Invalid command {args.command}.')

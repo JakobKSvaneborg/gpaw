@@ -20,9 +20,8 @@ def workflow():
                 name=f'{benchmark}-{partition}-{nprocs}',
                 folder=f'{partition}-{nprocs}')
             if ngpus == 0:
-                run(function=benchmark_main, args=(benchmark+'#old',),
+                run(function=benchmark_main, args=(f'{benchmark}#old',),
                     nodename=partition, cores=ncores, processes=nprocs,
                     gpus=ngpus, tmax=time,
                     name=f'{benchmark}-{partition}-{nprocs}-old',
                     folder=f'{partition}-{nprocs}')
-

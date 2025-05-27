@@ -37,8 +37,6 @@ eigensolver_parameter_subsets = {'RMMDIIS': {'eigensolver': 'rmm-diis'},
                                  'DAV3': {'eigensolver': {'name': 'dav',
                                                           'niter': 3}}}
 
-#gpu_default_parameters = {'parallel': {'gpu': True}, 'random': True}
-
 
 def get_domainband(size=None):
     if size is None:
@@ -61,25 +59,12 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                                 lcao_parameter_subsets),
                        'eigensolver': ({}, eigensolver_parameter_subsets),
                        'kpts': ({}, kpts_parameter_subsets),
-                        #'gpu': (gpu_default_parameters, {}),
                        'xc': ({}, xc_parameter_subsets),
                        'parallel': ({}, parallel_parameter_subsets)}
 
 
-benchmarks_str = """\
-C60_pw               C60-pw.high:kpts.gamma                                       1-56:4G:1GPU
-C60_lcao             C60-lcao.dzp                                                 1-56:4G
-C60_lowpw            C60-pw.low:kpts.gamma                                        1-56:4G:1GPU
-C60_lowpw_float      C60-pw.low.float32:kpts.gamma                                0:4G:1GPU
-MoS2_tube            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack         56-192:100G:4-16GPU
-676_graphene         C676-pw:kpts.gamma:xc.PBE:parallel.scalapack                 56-192:100G:4-16GPU
-pw_C6000             C6000-pw.low:kpts.gamma:parallel.domainband.scalapack        192-:800G:12-GPU
-pw_C676              C676-pw.high:kpts.gamma:parallel.scalapack:xc.PBE            56-:500G:4-GPU
-pw_magbulk           magbulk-pw.high:kpts.density6                                1-56:4G:1-4GPU
-pw_C60_DIIS32        C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    0:4G:1GPU
-pw_C676_DIIS32       C676-pw.low.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    0:100G:1-4GPU
-pw_slab              metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3     56-:100G:2-GPU\
-"""
+with open('benchmarks.txt', 'r') as f:
+    benchmarks_str = f.read()
 
 
 def parse_range(s):
@@ -198,15 +183,6 @@ def shell_command(cmd, cwd=None):
         output = f'{e.output} {e.stderr}'
 
     return output
-
-
-def supports_old_gpaw(parameters):
-    flag = True
-    if 'dtype' in mode:
-        flag = False
-    if 'gpu' in parallel:
-        flag = False
-    return flag
 
 
 def gather_system_information():
@@ -372,7 +348,10 @@ def get_benchmarks(memory='8G', cores=16, gpus=0):
 def sprint(s, summary=False):
     if len(s) > 60:
         if summary:
-            print(' '.join(s.replace('\n',' ').replace('\t', ' ').split())[:60], '...')
+            print(
+                ' '.join(
+                    s.replace('\n', ' ').replace('\t', ' ').split()
+                )[:60], '...')
         else:
             print()
             print(s)
@@ -404,7 +383,7 @@ def parse_git_status(text):
     for line in text.split('\n'):
         if line.startswith('On branch'):
             return line.split()[-1]
-    return '???' 
+    return '???'
 
 
 def parse_processor(text):
@@ -412,6 +391,7 @@ def parse_processor(text):
         if line.startswith('Model name:'):
             return line.split('Model name:')[-1].strip()
     return 'No "Model name:" found'
+
 
 def benchmark_from_dict(dct):
     dct = dct['Benchmark']
@@ -430,8 +410,9 @@ def benchmark_from_dict(dct):
                'branch': parse_git_status(system_info['git-status'])}
     return summary
 
+
 def gather_benchmarks(directories):
-    lst = [] 
+    lst = []
     for fname in directories:
         try:
             dct = load_benchmark(fname)
@@ -439,4 +420,4 @@ def gather_benchmarks(directories):
         except Exception as e:
             print(e)
     print(lst)
-    return lst 
+    return lst
