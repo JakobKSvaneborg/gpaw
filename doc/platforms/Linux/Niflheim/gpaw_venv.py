@@ -194,7 +194,10 @@ def main():
     parser.add_argument('--dftd3', action='store_true',
                         help='Also build DFTD3.')
     parser.add_argument('--gpaw-branch', default='master',
-                        help='Check out a particular GPAW branch')
+                        help='Check out a particular gpaw branch')
+    parser.add_argument('--run-benchmarks', action='store_true',
+                        help='Also submit the GPAW benchmark suite'
+                             ' with the checked out branch.')
     parser.add_argument('--recompile', action='store_true',
                         help='Recompile the GPAW C-extensions in an '
                         'exising venv.')
@@ -212,8 +215,15 @@ def main():
 
     intel_only = args.toolchain == 'intel'
 
+    def run_benchmarks():
+        benchmarkworkflow = gpaw / 'gpaw/benchmark/niflheim-myqueue.py'
+        run(f'. {activate} && mkdir benchmarks-{args.gpaw_branch} && cd benchmarks-{args.gpaw_branch} && mq workflow {benchmarkworkflow}')
+
     if args.recompile:
         compile_gpaw_c_code(gpaw, activate, intel_only)
+        if args.run_benchmarks:
+            run_benchmarks()
+
         return 0
 
     # Sanity checks
@@ -335,6 +345,9 @@ def main():
 
     # Run tests:
     run(f'. {activate} && ase info && gpaw test')
+
+    if args.run_benchmarks:
+        run_benchmarks()
 
     return 0
 
