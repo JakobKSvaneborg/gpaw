@@ -63,7 +63,7 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'parallel': ({}, parallel_parameter_subsets)}
 
 
-with open('benchmarks.txt', 'r') as f:
+with open('benchmarks.csv', 'r') as f:
     benchmarks_str = f.read()
 
 
@@ -108,7 +108,10 @@ def parse_requirement(req):
 benchmarks = {}
 benchmarks_reqs = {}
 for benchmark_line in benchmarks_str.split('\n'):
-    nickname, definition, req = benchmark_line.split()
+    nickname, definition, req = benchmark_line.split(',')
+    nickname = nickname.strip()
+    definition = definition.strip()
+    req = req.strip()
     benchmarks[nickname] = definition
     benchmarks_reqs[nickname] = parse_requirement(req)
 
