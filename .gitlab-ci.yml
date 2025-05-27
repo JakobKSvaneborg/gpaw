@@ -262,6 +262,7 @@ build-lumi-g:
   extends:
     - .build
     - .lumi-g-job
+  when: manual
   script:
     - module load buildtools-python/24.03-cray-python3.11
     - |
