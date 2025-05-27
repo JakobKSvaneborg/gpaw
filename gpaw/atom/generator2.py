@@ -308,7 +308,6 @@ class PAWWaves:
 
 class PAWSetupGenerator:
     def __init__(self, aea, projectors, *,
-                 scalar_relativistic=None,
                  core_hole=None,
                  fd=None,
                  yukawa_gamma=0.0,
@@ -372,8 +371,6 @@ class PAWSetupGenerator:
 
         aea.initialize()
         aea.run()
-        if scalar_relativistic is not None:
-            aea.scalar_relativistic = bool(scalar_relativistic)
         aea.refine()
 
         self.rgd = aea.rgd
