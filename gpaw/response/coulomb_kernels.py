@@ -3,7 +3,7 @@
 import warnings
 import numpy as np
 from ase.dft import monkhorst_pack
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.dyson import PWKernel
 from gpaw.kpt_descriptor import to1bz
 

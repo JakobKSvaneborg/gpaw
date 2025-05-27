@@ -3,45 +3,12 @@ import numpy as np
 
 from ase.units import Hartree
 
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.pair_integrator import DynamicPairFunction
 from gpaw.response.pw_parallelization import (Blocks1D,
                                               PlaneWaveBlockDistributor)
-
-
-class SingleQPWDescriptor(PWDescriptor):
-
-    @staticmethod
-    def from_q(q_c, ecut, gd, gammacentered=False):
-        """Construct a plane wave descriptor for q_c with a given cutoff."""
-        qd = KPointDescriptor([q_c])
-        return SingleQPWDescriptor(ecut, gd, complex, qd,
-                                   gammacentered=gammacentered)
-
-    @property
-    def q_c(self):
-        return self.kd.bzk_kc[0]
-
-    @property
-    def optical_limit(self):
-        return np.allclose(self.q_c, 0.0)
-
-    def copy(self):
-        return self.copy_with()
-
-    def copy_with(self, ecut=None, gd=None, gammacentered=None):
-        if ecut is None:
-            ecut = self.ecut
-        if gd is None:
-            gd = self.gd
-        if gammacentered is None:
-            gammacentered = self.gammacentered
-
-        return SingleQPWDescriptor.from_q(
-            self.q_c, ecut, gd, gammacentered=gammacentered)
 
 
 class LatticePeriodicPairFunction(DynamicPairFunction):
