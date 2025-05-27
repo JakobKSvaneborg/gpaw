@@ -15,7 +15,7 @@ class OccupationNumberCalculator:
                  ncomponents,
                  nelectrons,
                  rcell):
-        if dct is None:
+        if not dct:
             if pbc.any():
                 dct = {'name': 'fermi-dirac',
                        'width': 0.1}  # eV
@@ -63,10 +63,11 @@ class OccupationNumberCalculator:
                   nelectrons: float,
                   eigenvalues: ArrayLike2D,
                   weights: list[float],
-                  fermi_levels_guess: list[float] = None
+                  fermi_levels_guess: list[float] = None,
+                  fix_fermi_level: bool = False
                   ) -> tuple[Array2D, list[float], float]:
         occs, fls, e = self.occ.calculate(nelectrons, eigenvalues, weights,
-                                          fermi_levels_guess)
+                                          fermi_levels_guess, fix_fermi_level)
         return occs, fls, e
 
     def initialize_reference_orbitals(self):

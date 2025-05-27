@@ -708,8 +708,9 @@ to their default values.
 E.g., ``convergence={'energy': 0.0001}`` will set the convergence criterion
 of energy to 0.1 meV and place all other criteria at their defaults.
 
-Additional keywords, including ``'forces'``, ``'work function'``,
-and ``'minimum iterations'``, can be set.
+Additional keywords, including ``'eigenvalues'``, ``'forces'``,
+``'work function'``, and ``'minimum iterations'``, can be set.
+Among these ``'eigenvalues'`` is only implemented in :ref:`newgpaw`.
 You can also write your own criteria, and change other things about
 how the default criteria operate. See :ref:`custom_convergence` for
 details on additional keywords and customization.
@@ -1223,6 +1224,14 @@ Parallelization settings that would be employed when run on
         {'a': '1', 'b': True}
 
     See also Python's :option:`python:-X` option.
+
+-----------------------------------
+On-going refactoring and “New” GPAW
+-----------------------------------
+
+Some features may be only available with either “new” or “old” GPAW.
+This refers to on-going efforts to refactor the computational backend.
+See :ref:`newgpaw` for further information.
 
 
 .. [#LDA]    J. P. Perdew and Y. Wang,

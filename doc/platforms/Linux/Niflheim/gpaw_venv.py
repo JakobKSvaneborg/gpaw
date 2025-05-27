@@ -10,8 +10,8 @@ import subprocess
 from pathlib import Path
 from sys import version_info
 
-if version_info < (3, 8):
-    raise ValueError('Please use Python-3.8 or later')
+if version_info < (3, 9):
+    raise ValueError('Please use Python-3.9 or later')
 
 # Python version in the venv that we are creating
 version = '3.11'
@@ -53,7 +53,7 @@ toolchains = {
 module_cmds_all = """\
 module purge
 unset PYTHONPATH
-module load GPAW-setups/24.1.0
+module load GPAW-setups/24.11.0
 module load ELPA/2023.05.001-{fullchain}
 module load Wannier90/3.1.0-{fullchain}
 module load Python-bundle-PyPI/2023.06-{corechain}
@@ -77,8 +77,12 @@ module load libvdwxc/0.4.0-{fullchain}
 }
 
 module_cmds_arch_dependent = """\
-if [ "$CPU_ARCH" == "icelake" ];\
+if ( [ "$CPU_ARCH" == "icelake" ] || [ "$CPU_ARCH" == "skylake_el8" ] )\
+ && [ {fullchain} == "foss-2023a" ];\
 then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
+if [ "$SLURM_JOB_PARTITION" == "a100" ] \
+ || [ "$SLURM_JOB_PARTITION" == "sm3090el8" ];\
+then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 """
 
 
@@ -110,7 +114,7 @@ def run(cmd: str, **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, shell=True, check=True, **kwargs)
 
 
-def compile_gpaw_c_code(gpaw: Path, activate: Path) -> None:
+def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     """Compile for all architectures: xeon24, xeon40, ..."""
     # Remove targets:
     for path in gpaw.glob('build/lib.linux-x86_64-*/_gpaw.*.so'):
@@ -118,6 +122,8 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path) -> None:
 
     # Compile:
     for host in nifllogin:
+        if host == 'fjorm' and intel_only:
+            continue
         run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
 
     # Clean up:
@@ -202,8 +208,10 @@ def main():
     activate = venv / 'bin/activate'
     gpaw = venv / 'gpaw'
 
+    intel_only = args.toolchain == 'intel'
+
     if args.recompile:
-        compile_gpaw_c_code(gpaw, activate)
+        compile_gpaw_c_code(gpaw, activate, intel_only)
         return 0
 
     # Sanity checks
@@ -282,7 +290,7 @@ def main():
         f'gpaw/doc/platforms/Linux/Niflheim/siteconfig-{args.toolchain}.py')
     Path('gpaw/siteconfig.py').write_text(siteconfig.read_text())
 
-    compile_gpaw_c_code(gpaw, activate)
+    compile_gpaw_c_code(gpaw, activate, intel_only)
 
     for fro, to in [('ivybridge', 'sandybridge'),
                     ('nahelem', 'icelake')]:
@@ -299,7 +307,7 @@ def main():
     Path(f'lib/python{version}/site-packages/niflheim.pth').write_text(pth)
 
     # Install extra basis-functions:
-    run(f'. {activate} && gpaw install-data --basis --version=20000 '
+    run(f'. {activate} && gpaw install-data --basis --version=0.9.20000 '
         f'{venv} --no-register')
 
     extra = activate_extra.format(venv=venv)

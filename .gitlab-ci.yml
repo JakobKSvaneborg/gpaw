@@ -5,6 +5,21 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
+  # CI for branches inside the GPAW namespace will run on lyn/torden
+  # because the GPAW project settings define the CI variable
+  # DEFAULT_RUNNER_TAG: "linux".
+  # Forks will instead get this definition which allows running
+  # pipelines on shared runners.
+  DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+
+  # OpenMPI binds processes to specific physical cores (cf. mpiexec
+  # manpage) when there are <= 2 cores.  This will cause it to
+  # oversubscribe the /same/ physical cores when running simultaneous
+  # size==2 jobs.  We therefore tell GPAW to tell mpiexec not to do
+  # this.  This problem was not observed on camd-runner2 because it
+  # uses hyperthreading and so was equipped to redistribute the load.
+  GPAW_MPI_OPTIONS: "--bind-to none"
 
 default:
   before_script:
@@ -12,7 +27,10 @@ default:
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
+    - pip freeze
   interruptible: true
+  tags:
+    - $DEFAULT_RUNNER_TAG
 
 
 stages:
@@ -20,6 +38,7 @@ stages:
   - precalculate
   - test
   - deploy
+
 
 .build:
   stage: build
@@ -69,7 +88,6 @@ stages:
       - "*.log"
     expire_in: 30 mins
 
-
 .test:
   stage: test
   before_script:
@@ -88,42 +106,51 @@ stages:
   rules:
     - if: ($GITLAB_USER_LOGIN == "jensj" || $GITLAB_USER_LOGIN == "mikaelkuisma" || $GITLAB_USER_LOGIN == "trossi") && ($CI_PIPELINE_SOURCE == "push")
       allow_failure: true
+  id_tokens:
+    CI_JOB_JWT:
+      aud: https://gitlab.com
 
 
 .lumi-g-job:
   extends: .lumi-job
   variables:
     LUMI_PROJECT: "project_465000939"
-    SCHEDULER_PARAMETERS: "-A $LUMI_PROJECT -N 1 --ntasks-per-node=1 --gpus-per-node=1 --mem=4G -t 00:10:00 -p small-g"
+    SCHEDULER_PARAMETERS: "-A $LUMI_PROJECT -N 1 --ntasks-per-node=1 --gpus-per-node=1 -t 00:10:00 -p small-g"
   before_script:
     - export EBU_USER_PREFIX=/projappl/$LUMI_PROJECT/EasyBuild
-    - module load LUMI/22.12 partition/G
-    - module load cpeGNU/22.12
-    - module load cray-fftw/3.3.10.1
-    - module load cray-python/3.9.13.1
-    - module load CuPy/12.2.0-cpeGNU-22.12  # from EBU_USER_PREFIX
-    - module load libxc/6.2.2-cpeGNU-22.12  # from EBU_USER_PREFIX
-    - export GPAW_SETUP_PATH=/projappl/$LUMI_PROJECT/gpaw-setups-0.9.20000
+    - module load cray-python/3.11.7
+    - module load LUMI/24.03
+    - module load partition/G
+    - module load cpeGNU/24.03
+    - module load rocm/6.0.3
+    - module load cray-fftw/3.3.10.7
+    - module load CuPy/13.2.0-cpeGNU-24.03-rocm             # from EBU_USER_PREFIX
+    - module load ELPA/2024.05.001-cpeGNU-24.03-rocm        # from EBU_USER_PREFIX
+    - module load libxc/6.2.2-cpeGNU-24.03                  # from EBU_USER_PREFIX
+    - export GPAW_SETUP_PATH=/projappl/$LUMI_PROJECT/gpaw-setups-24.1.0
+    - export MPICH_GPU_SUPPORT_ENABLED=1
     - !reference [default, before_script]
 
 
 build:
   image: $IMAGE_MAIN_OLDEST
-  extends: .build
-  tags:
-    - linux
+  extends:
+    - .build
   script:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-oldest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-latest:
   image: $IMAGE_MAIN_LATEST
-  extends: .build
-  tags:
-    - linux
+  extends:
+    - .build
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -153,9 +180,14 @@ build-latest:
       EOF
     - cat siteconfig.py
     - pip install --user --upgrade numpy scipy
+    - pip install --user --upgrade mpi4py
     - pip install --user --editable .
     - gpaw -P 1 info
     - gpaw-python -m gpaw info
+  cache:
+    key: cache-build-latest
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-cuda:
@@ -163,8 +195,6 @@ build-cuda:
   extends:
     - .build
     - .gpu-job
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -174,6 +204,10 @@ build-cuda:
       gpu_compile_args = ['-O3',
                           '-g']
       libraries += ['cudart', 'cublas']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
@@ -184,8 +218,6 @@ build-hip-cuda:
   extends:
     - .build
     - .gpu-job
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -201,6 +233,10 @@ build-hip-cuda:
                              '-Wno-implicit-int',
                              ]
       undef_macros += ['GPAW_GPU_AWARE_MPI']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
@@ -208,9 +244,8 @@ build-hip-cuda:
 
 build-minimal:
   image: $IMAGE_MAIN_OLDEST
-  extends: .build
-  tags:
-    - linux
+  extends:
+    - .build
   script:
     - |
       cat << EOF > siteconfig.py
@@ -228,6 +263,7 @@ build-lumi-g:
     - .build
     - .lumi-g-job
   script:
+    - module load buildtools-python/24.03-cray-python3.11
     - |
       cat << EOF > siteconfig.py
       parallel_python_interpreter = True
@@ -244,6 +280,7 @@ build-lumi-g:
           '-fPIC',
           '-Wall',
           '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
+          '-Wno-deprecated-declarations',  # PySys_SetArgv() etc deprecated in Python 3.11
           '-Werror',
           ]
       extra_link_args = ['-fopenmp']
@@ -269,22 +306,20 @@ build-lumi-g:
       libraries += ['amdhip64', 'hipblas']
       EOF
     - cat siteconfig.py
-    - pip install --user --no-deps git+https://gitlab.com/ase/ase.git@master
-    - pip install --user --no-deps --log build.log --editable .
+    - pip install --user --no-deps ase==3.23.0
+    - pip install --user --no-deps -v --log build.log --editable .
     - gpaw info
 
 
 prepare-libxc:
   image: $IMAGE_MAIN_OLDEST
   stage: build
-  tags:
-    - linux
   variables:
     PREFIX: $PYTHONUSERBASE
   before_script:
     - export PREFIX=`realpath $PREFIX`
   script:
-    - git clone -b 6.2.2 https://gitlab.com/libxc/libxc.git
+    - git clone -b 7.0.0 https://gitlab.com/libxc/libxc.git
     - cd libxc
     - autoreconf -i
     - >
@@ -308,8 +343,6 @@ build-libxc:
     - .build
   needs:
     - prepare-libxc
-  tags:
-    - linux
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -329,8 +362,6 @@ test-oldest:
     - .test
   needs:
     - build
-  tags:
-    - linux
   script:
     - gpaw info
     - >
@@ -352,8 +383,6 @@ test-latest:
     - .test
   needs:
     - build-latest
-  tags:
-    - linux
   script:
     - gpaw info
 
@@ -365,7 +394,7 @@ test-latest:
       EOF
 
     - >
-      pytest -v -m ci -m gpu
+      pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
 
   artifacts:
@@ -381,11 +410,9 @@ test-latest-new:
     - .test
   needs:
     - build-latest
-  tags:
-    - linux
   script:
     - gpaw info
-    - GPAW_NEW=1 pytest -v -m "ci and not later"
+    - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
 
 
 test-minimal:
@@ -394,8 +421,6 @@ test-minimal:
     - .test
   needs:
     - build-minimal
-  tags:
-    - linux
   script:
     - gpaw info
     - >
@@ -463,14 +488,26 @@ test-lumi-g:
     - pytest -v -m gpu
 
 
+test-lumi-g-mpi:
+  extends:
+    - .test
+    - .lumi-g-job
+  needs:
+    - build-lumi-g
+  variables:
+    SCHEDULER_PARAMETERS: "-A $LUMI_PROJECT -N 1 --ntasks-per-node=2 --gpus-per-node=2 -t 00:10:00 -p small-g"
+  script:
+    - rocm-smi || true  # rocm-smi yields non-zero return code
+    - gpaw info
+    - srun pytest -v -m gpu
+
+
 test-libxc:
   image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
   needs:
     - build-libxc
-  tags:
-    - linux
   script:
     - gpaw info
     - pytest -v -m libxc
@@ -480,8 +517,6 @@ check-agts:
   stage: test
   needs:
     - build
-  tags:
-    - linux
   script:
     # - pip install --user git+https://gitlab.com/myqueue/myqueue.git@master
     - pip install --user myqueue
@@ -495,8 +530,6 @@ check-agts:
 lint:
   image: $IMAGE_MAIN_LATEST
   stage: build
-  tags:
-    - linux
   script:
     - echo "png check"
     - >
@@ -534,8 +567,6 @@ lint:
 typecheck:
   image: $IMAGE_MAIN_LATEST
   stage: build
-  tags:
-    - linux
   script:
     - pip install mypy
     - python --version
@@ -544,14 +575,13 @@ typecheck:
 
 
 docs:
-  image: $IMAGE_MAIN_OLDEST
+  image: $IMAGE_MAIN_LATEST
   stage: test
   needs:
-    - build
-  tags:
-    - linux
+    - build-latest
   script:
     - pip install scikit-image
+    - pip install -e git+https://gitlab.com/gpaw/gpaw-web-page-data.git#egg=gpaw-web-page-data
     - cd doc
     - make
     - make doctest
@@ -571,15 +601,28 @@ docs:
     expire_in: 1 week
 
 
+nightly-all:
+  image: $IMAGE_MAIN_LATEST
+  stage: build
+  script:
+    - echo This is only a dummy job used to trigger other jobs
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: manual
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+
 gpwfiles:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
   needs:
     - build-latest
+    - nightly-all
   stage: precalculate
   tags:
-    - xeon24
+    - xeon40
   before_script:
     - !reference [default, before_script]
   script:
@@ -590,7 +633,7 @@ gpwfiles:
     expire_in: 30 mins
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
+      when: on_success
       allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
@@ -606,7 +649,7 @@ gpwfiles:
     - build-latest
     - gpwfiles
   tags:
-    - xeon24
+    - xeon40
   before_script:
     - !reference [default, before_script]
     - pip install pytest-instafail pytest-xdist
@@ -616,7 +659,7 @@ gpwfiles:
       pytest --instafail -r s --durations 30
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
+      when: on_success
       allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
   #  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -642,6 +685,10 @@ nightly-mpi-2:
     GPAW_MPI_NPROCS: "2"
   extends:
     - .nightly
+  script:
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m
+      pytest --instafail -r s --durations 30 -m "not slow"
 
 
 nightly-mpi-4:
@@ -669,7 +716,7 @@ nightly-mpi-8:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey)"
+      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-1-new:
@@ -680,7 +727,7 @@ nightly-mpi-1-new:
     - pytest -n 4 --cache-clear -m generate_gpw_files
     - >
       pytest -n 4 --instafail -r s --durations 30 -m
-      "not (later or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey)"
+      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-2-new:
@@ -710,7 +757,7 @@ pages:
   dependencies:
     - nightly-mpi-1
   tags:
-    - xeon24
+    - xeon40
   script:
     - mv htmlcov/ public
   artifacts:

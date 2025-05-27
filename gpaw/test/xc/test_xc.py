@@ -2,6 +2,9 @@ import pytest
 import numpy as np
 from gpaw.xc.libxc import LibXC, short_names
 from gpaw.xc.kernel import XCKernel, codes
+from gpaw.xc import libraries
+
+HAS_LIBXC_7 = int((libraries['libxc'] or '0.0').split('.')[0]) >= 7
 
 
 @pytest.mark.ci
@@ -11,7 +14,7 @@ def test_xc_xc():
     modes = []
     for name, value in short_names.items():
         try:
-            if 'MGGA' in value:
+            if 'MGGA' in value and not HAS_LIBXC_7:
                 with pytest.warns(UserWarning,
                                   match='should be compiled with'):
                     LibXC(name)

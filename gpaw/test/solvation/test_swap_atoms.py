@@ -1,7 +1,6 @@
 from gpaw.utilities.adjust_cell import adjust_cell
 from ase.build import molecule
 from ase.units import Pascal, m
-from ase.data.vdw import vdw_radii
 from gpaw.solvation import (
     SolvationGPAW,
     EffectivePotentialCavity,
@@ -11,9 +10,6 @@ from gpaw.solvation import (
     SurfaceInteraction)
 
 
-vdw_radii = vdw_radii.copy()
-
-
 def test_solvation_swap_atoms():
     h = 0.3
     vac = 3.0
@@ -21,10 +17,8 @@ def test_solvation_swap_atoms():
     epsinf = 80.
     st = 18.4 * 1e-3 * Pascal * m
     T = 298.15
-    vdw_radii[1] = 1.09
 
-    def atomic_radii(atoms):
-        return [vdw_radii[n] for n in atoms.numbers]
+    atomic_radii = {'H': 1.09}
 
     convergence = {
         'energy': 0.1 / 8.,
@@ -48,7 +42,13 @@ def test_solvation_swap_atoms():
     atoms.calc = calc
     atoms.get_potential_energy()
     atoms.get_forces()
-    eps_gradeps = calc.hamiltonian.dielectric.eps_gradeps
+
+    def env(calc):
+        if calc.old:
+            return calc.hamiltonian
+        return calc.environment
+
+    eps_gradeps = env(calc).dielectric.eps_gradeps
 
     # same molecules, different cell, reallocate
     atoms = molecule('H2O')
@@ -57,16 +57,17 @@ def test_solvation_swap_atoms():
     atoms.calc = calc
     atoms.get_potential_energy()
     atoms.get_forces()
-    assert calc.hamiltonian.dielectric.eps_gradeps is not eps_gradeps
-    eps_gradeps = calc.hamiltonian.dielectric.eps_gradeps
+
+    assert env(calc).dielectric.eps_gradeps is not eps_gradeps
+    eps_gradeps = env(calc).dielectric.eps_gradeps
 
     # small position change, no reallocate
     atoms.positions[0][0] = atoms.positions[0][0] + 1e-2
     atoms.get_potential_energy()
     atoms.get_forces()
-    assert calc.hamiltonian.dielectric.eps_gradeps is eps_gradeps
-    eps_gradeps = calc.hamiltonian.dielectric.eps_gradeps
-    radii = calc.hamiltonian.cavity.effective_potential.r12_a
+    assert env(calc).dielectric.eps_gradeps is eps_gradeps
+    eps_gradeps = env(calc).dielectric.eps_gradeps
+    radii = env(calc).cavity.effective_potential.r12_a
 
     # completely different atoms object, reallocate, read new radii
     atoms = molecule('NH3')
@@ -74,5 +75,5 @@ def test_solvation_swap_atoms():
     atoms.calc = calc
     atoms.get_potential_energy()
     atoms.get_forces()
-    assert calc.hamiltonian.dielectric.eps_gradeps is not eps_gradeps
-    assert calc.hamiltonian.cavity.effective_potential.r12_a is not radii
+    assert env(calc).dielectric.eps_gradeps is not eps_gradeps
+    assert env(calc).cavity.effective_potential.r12_a is not radii

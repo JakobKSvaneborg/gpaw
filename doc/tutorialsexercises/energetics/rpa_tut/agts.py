@@ -16,7 +16,7 @@ def workflow():
     with r3:
         run(script='extrapolate.py')
 
-    with r1, r2, r3:
+    with r3:  # r1, r2, r3:
         run(shell='rm', args=['N.gpw', 'N2.gpw'])  # clean up
 
     deps = []

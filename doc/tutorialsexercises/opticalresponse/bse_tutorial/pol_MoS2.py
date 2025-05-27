@@ -17,10 +17,10 @@ df = DielectricFunction('gs_MoS2.gpw',
 df.get_polarizability(filename='pol_rpa_MoS2.csv')
 
 bse = BSE('gs_MoS2.gpw',
-          spinors=True,
+          add_soc=True,
           ecut=ecut,
-          valence_bands=[8],
-          conduction_bands=[9],
+          valence_bands=[16, 17],
+          conduction_bands=[18, 19],
           nbands=50,
           mode='BSE',
           txt='bse_MoS2.txt')
@@ -31,10 +31,10 @@ bse.get_polarizability(filename='pol_bse_MoS2.csv',
                        w_w=np.linspace(0, 5, 5001))
 
 bse = BSE('gs_MoS2.gpw',
-          spinors=True,
+          add_soc=True,
           ecut=ecut,
-          valence_bands=[8],
-          conduction_bands=[9],
+          valence_bands=[16, 17],
+          conduction_bands=[18, 19],
           truncation='2D',
           nbands=50,
           mode='BSE',

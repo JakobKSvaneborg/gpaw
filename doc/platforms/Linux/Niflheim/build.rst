@@ -32,7 +32,7 @@ and run it like this::
 
 .. tip::
 
-    You will need Python 3.8 or later.  You can install that with::
+    You will need Python 3.9 or later.  You can install that with::
 
         $ module load Python
 
@@ -50,8 +50,8 @@ The ``gpaw_venv.py`` script does the following:
   matplotlib, pytest-xdist, myqueue, ase-ext, spglib
 * enable tab-completion for command-line tools:
   `ase <https://wiki.fysik.dtu.dk/ase/cmdline.html>`__,
-  `gpaw <https://wiki.fysik.dtu.dk/gpaw/documentation/cmdline.html>`__,
-  `mq <https://myqueue.readthedocs.io/en/latest/cli.html>`__
+  `gpaw <https://gpaw.readthedocs.io/documentation/cmdline.html>`__,
+  `mq <https://myqueue.readthedocs.io/cli.html>`__
 
 
 Using the venv

@@ -96,7 +96,7 @@ def test_moment():
     assert abs(f.integrate()) < 1e-14
     assert f.moment() == pytest.approx([0, moment, 0])
 
-    pw = PWDesc(cell=f.desc.cell, ecut=700, comm=world)
+    pw = PWDesc(cell=f.desc.cell, ecut=f.desc.ekin_max(), comm=world)
     f2 = f.fft(pw=pw)
 
     assert abs(f2.integrate()) < 1e-14

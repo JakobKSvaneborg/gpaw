@@ -10,6 +10,7 @@ def xc1(name):
     return dict(name=name, stencil=1)
 
 
+@pytest.mark.slow
 @pytest.mark.libxc
 @pytest.mark.hybrids
 def test_exx_exx(in_tmp_dir):

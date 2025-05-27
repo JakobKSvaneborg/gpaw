@@ -18,7 +18,8 @@ from gpaw.atom.basis import BasisMaker
 
 
 def test_lcao_largecellforce(gpaw_new):
-    hbasis = BasisMaker('H').generate(1, 0, energysplit=1.8, tailnorm=0.03**.5)
+    hbasis = BasisMaker.from_symbol('H').generate(1, 0, energysplit=1.8,
+                                                  tailnorm=0.03**.5)
     basis = {'H': hbasis}
 
     atom = Atoms('H')
@@ -55,8 +56,8 @@ def test_lcao_largecellforce(gpaw_new):
                  [0, 0, -4.616840606709416]])
 
     if fd:
-        from ase.calculators.test import numeric_force
-        ref = [[0, 0, numeric_force(system, a, 2, d=0.002)] for a in range(4)]
+        from gpaw.test import calculate_numerical_forces
+        ref = calculate_numerical_forces(system, 0.002, icarts=[2])
         print('Calced')
         print(F_ac)
         print('FD')

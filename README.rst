@@ -9,13 +9,13 @@ projector-augmented wave (PAW) method and the atomic simulation environment
 (ASE_). It uses plane-waves, atom-centered basis-functions or real-space
 uniform grids combined with multigrid methods.
 
-Webpage: https://wiki.fysik.dtu.dk/gpaw
+Webpage: https://gpaw.readthedocs.io/
 
 
 Requirements
 ------------
 
-* Python_ 3.8 or later
+* Python_ 3.9 or later
 * ASE_
 * NumPy_
 * SciPy_
@@ -38,12 +38,12 @@ Installation
 Create a virtual environment, activate it, install::
 
     $ python3 -m venv venv
-    $ source venv/bin/activare
+    $ source venv/bin/activate
     $ python3 -m pip install gpaw
 
 For more details, please see:
 
-    https://wiki.fysik.dtu.dk/gpaw/install.html
+    https://gpaw.readthedocs.io/install.html
 
 
 Test your installation
@@ -99,7 +99,7 @@ look at the GPAW exercises_ and tutorials_.
 
 
 .. _Python: https://www.python.org/
-.. _ASE: https://wiki.fysik.dtu.dk/ase
+.. _ASE: https://wiki.fysik.dtu.dk/ase/
 .. _NumPy: https://docs.scipy.org/doc/numpy/reference/
 .. _SciPy: https://docs.scipy.org/doc/scipy/reference/
 .. _LibXC: https://libxc.gitlab.io/
@@ -111,6 +111,6 @@ look at the GPAW exercises_ and tutorials_.
 .. _gpaw-users: https://listserv.fysik.dtu.dk/mailman/listinfo/gpaw-users
 .. _Matrix: https://app.element.io/#/room/#gpaw:matrix.org
 .. _gitlab-issues: https://gitlab.com/gpaw/gpaw/issues
-.. _exercises: https://wiki.fysik.dtu.dk/gpaw/exercises/exercises.html
-.. _tutorials: https://wiki.fysik.dtu.dk/gpaw/tutorials/tutorials.html
-.. _releasenotes: https://wiki.fysik.dtu.dk/gpaw/releasenotes.html
+.. _exercises: https://gpaw.readthedocs.io/exercises/exercises.html
+.. _tutorials: https://gpaw.readthedocs.io/tutorials/tutorials.html
+.. _releasenotes: https://gpaw.readthedocs.io/releasenotes.html

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 from typing import NamedTuple, Dict, List
 
 import numpy as np
@@ -47,7 +48,7 @@ def calculate_paw_stuff(wfs, dens) -> List[PAWThings]:
             for VV_aii in VV_saii]
 
 
-def pawexxvv(M_pp, D_ii):
+def python_pawexxvv(M_pp, D_ii):
     """PAW correction for valence-valence EXX energy."""
     ni = len(D_ii)
     V_ii = np.empty((ni, ni))
@@ -61,3 +62,15 @@ def pawexxvv(M_pp, D_ii):
                     V += M_pp[p13, p24] * D_ii[i3, i4]
             V_ii[i1, i2] = V
     return V_ii
+
+
+pawexxvv = python_pawexxvv
+
+
+if not TYPE_CHECKING:
+    try:
+        from _gpaw import pawexxvv  # noqa: F811
+    except ImportError:
+        import warnings
+        warnings.warn('Please recompile GPAW binary. Using python '
+                      'version of pawexxvv instead of faster c version.')

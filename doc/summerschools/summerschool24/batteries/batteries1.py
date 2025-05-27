@@ -229,7 +229,7 @@ gra = Graphite('C', latticeconstant={'a': a, 'c': c})
 
 # %%
 """
-Then we create the GPAW calculator object. The parameters are explained [here](https://wiki.fysik.dtu.dk/gpaw/documentation/basic.html#parameters), see especially the section regarding [mode](https://wiki.fysik.dtu.dk/gpaw/documentation/basic.html#manual-mode). This graphite structure has a small unit cell, thus plane wave mode, `mode=PW()`, will be faster than the grid mode, `mode='fd'`. Plane wave mode also lets us calculate the strain on the unit cell - useful for optimizing the lattice parameters.
+Then we create the GPAW calculator object. The parameters are explained [here](https://gpaw.readthedocs.io/documentation/basic.html#parameters), see especially the section regarding [mode](https://gpaw.readthedocs.io/documentation/basic.html#manual-mode). This graphite structure has a small unit cell, thus plane wave mode, `mode=PW()`, will be faster than the grid mode, `mode='fd'`. Plane wave mode also lets us calculate the strain on the unit cell - useful for optimizing the lattice parameters.
 
 We will start by using the LDA exchange-correlation functional. Later you will try other functionals.
 """
@@ -347,7 +347,7 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
 
 # %%
 """
-The following cell submits a calculation using [`myqueue`](https://myqueue.readthedocs.io/en/latest/).
+The following cell submits a calculation using [`myqueue`](https://myqueue.readthedocs.io/).
 
 """
 

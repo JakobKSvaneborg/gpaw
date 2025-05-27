@@ -29,7 +29,7 @@ def dipole_matrix_elements_from_calc(calc: ASECalculator,
     n1, n2:
         Band range.
     """
-    ibzwfs = calc.dft.state.ibzwfs
+    ibzwfs = calc.dft.ibzwfs
 
     assert ibzwfs.ibz.bz.gamma_only
 
@@ -39,7 +39,7 @@ def dipole_matrix_elements_from_calc(calc: ASECalculator,
     for wfs in wfs_s:
         if isinstance(wfs, LCAOWaveFunctions):
             basis = calc.dft.scf_loop.hamiltonian.basis
-            grid = calc.dft.state.density.nt_sR.desc
+            grid = calc.dft.density.nt_sR.desc
             wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
         wfs12 = wfs.collect(n1, n2)
         if wfs12 is not None:

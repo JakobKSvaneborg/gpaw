@@ -8,7 +8,7 @@ from gpaw.fdtd.polarizable_material import (PermittivityPlus,
 from gpaw.mpi import world
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_fdtd_ed_wrapper(in_tmp_dir):
     # This test does the same calculation as ed.py, but using
     # QSFDTD wrapper instead

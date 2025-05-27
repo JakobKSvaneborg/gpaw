@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import numbers
-from typing import Sequence, overload
+from typing import Sequence, overload, Literal
 
 import numpy as np
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp, XP
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
-from gpaw.typing import Array1D, ArrayLike1D, Literal
+from gpaw.typing import Array1D, ArrayLike1D
 from gpaw.new.c import dH_aii_times_P_ani_gpu
+from gpaw.utilities import as_real_dtype
 
 
 class AtomArraysLayout(XP):
@@ -47,6 +48,9 @@ class AtomArraysLayout(XP):
             self.myindices.append((a, I1, I2))
             self.mysize += I2 - I1
             I1 = I2
+
+    def __len__(self):
+        return len(self.shape_a)
 
     def __repr__(self):
         return (f'AtomArraysLayout({self.shape_a}, {self.atomdist}, '
@@ -112,6 +116,9 @@ class AtomDistribution:
         self.rank_a = np.array(ranks)
         # convert from np.int64 -> int:
         self.indices = [int(a) for a in np.where(self.rank_a == comm.rank)[0]]
+
+    def __len__(self) -> int:
+        return len(self.rank_a)
 
     @classmethod
     def from_number_of_atoms(cls,
@@ -216,7 +223,9 @@ class AtomArrays:
         for a, I1, I2 in layout.myindices:
             self._arrays[a] = self.data[..., I1:I2].reshape(
                 self.mydims + layout.shape_a[a])
-        self.natoms: int = len(layout.shape_a)
+
+    def __len__(self) -> int:
+        return len(self.layout)
 
     def my_slice(self) -> tuple[int, int]:
         mydims0 = (self.dims[0] + self.comm.size - 1) // self.comm.size
@@ -280,15 +289,26 @@ class AtomArrays:
         return self.new(layout=self.layout.new(xp=cp),
                         data=cp.asarray(self.data))
 
+    @overload
+    def __getitem__(self, a: int) -> np.ndarray:
+        ...
+
+    @overload
+    def __getitem__(self, a: tuple) -> AtomArrays:
+        ...
+
     def __getitem__(self, a):
         if isinstance(a, numbers.Integral):
             return self._arrays[a]
-        if len(self.dims) == 1:
-            a0, a1 = a
-            assert a0 == slice(None)
-            a_ai = AtomArrays(self.layout, data=self.data[a1].copy())
-            return a_ai
-        1 / 0
+        assert len(self.dims) >= 1
+        a0, a1 = a
+        assert a0 == slice(None)
+        data = self.data[a1]
+        a_ai = AtomArrays(self.layout, dims=data.shape[:-1], data=data)
+        return a_ai
+
+    def copy(self):
+        return self.new(data=self.data.copy())
 
     def get(self, a):
         return self._arrays.get(a)
@@ -365,6 +385,7 @@ class AtomArrays:
         comm = self.layout.atomdist.comm
         xp = self.layout.xp
         if comm.size == 1:
+            assert data is not None
             self.data[:] = data
             return
 
@@ -457,20 +478,21 @@ class AtomArrays:
         layout = self.layout.new(atomdist=atomdist)
         new = layout.empty(self.dims)
         comm = atomdist.comm
+        xp = self.layout.xp
         requests = []
         for a, I1, I2 in self.layout.myindices:
             r = layout.atomdist.rank_a[a]
             if r == comm.rank:
                 new[a][:] = self[a]
             else:
-                requests.append(comm.send(np.ascontiguousarray(self[a]),
+                requests.append(comm.send(xp.ascontiguousarray(self[a]),
                                           r, block=False))
 
         for a, I1, I2 in layout.myindices:
             r = self.layout.atomdist.rank_a[a]
             if r != comm.rank:
                 target = new[a]
-                buf = np.empty_like(target)
+                buf = xp.empty_like(target)
                 comm.receive(buf, r)
                 target[:] = buf
 
@@ -526,5 +548,6 @@ class AtomArrays:
         if index is not None:
             data = data[index]
         if self.data.size > 0:
-            dH_aii_times_P_ani_gpu(data, ni_a,
-                                   self.data, out_ani.data)
+            realdtype = as_real_dtype(self.data.dtype)
+            dH_aii_times_P_ani_gpu(xp.asarray(data, dtype=realdtype),
+                                   ni_a, self.data, out_ani.data)

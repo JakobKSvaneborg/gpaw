@@ -186,3 +186,46 @@ PyObject *plane_wave_grid(PyObject *self, PyObject *args)
   }
   Py_RETURN_NONE;
 }
+
+
+PyObject* pawexxvv(PyObject *self, PyObject *args)
+{
+  PyArrayObject* M_pp_obj;
+  PyArrayObject* D_ii_obj;
+  if (!PyArg_ParseTuple(args, "OO", &M_pp_obj, &D_ii_obj))
+      return NULL;
+
+  if ((PyArray_ITEMSIZE(M_pp_obj) != 8) ||
+      (PyArray_ITEMSIZE(D_ii_obj) != 8))
+  {
+      PyErr_SetString(PyExc_RuntimeError, "Real inputs expected.");
+      return NULL;
+  }
+  int NI = PyArray_DIM(D_ii_obj, 0);
+  int NP = PyArray_DIM(M_pp_obj, 0);
+
+  double* M_pp = PyArray_DATA(M_pp_obj);
+  double* D_ii = PyArray_DATA(D_ii_obj);
+
+  PyArrayObject* V_ii_obj = (PyArrayObject*) PyArray_NewLikeArray(D_ii_obj, NPY_KEEPORDER, NULL, 1);
+  double* V_ii = PyArray_DATA(V_ii_obj);
+  for (int i1=0; i1<NI; i1++)
+  {
+      for (int i2=0; i2<NI; i2++)
+      {
+          double V = 0.0;
+          for (int i3=0; i3<NI; i3++)
+          {
+              int p13 = (MIN(i3,i1) * (2 * NI - 1 - MIN(i3, i1)) / 2) + MAX(i3, i1);
+              for (int i4=0; i4<NI; i4++)
+              {
+                  int p24 = (MIN(i2, i4) * (2 * NI - 1 - MIN(i2, i4)) / 2) + MAX(i2, i4);
+                  V += M_pp[p13 * NP + p24] * D_ii[i3 * NI + i4];
+              }
+          }
+          V_ii[i1 * NI + i2] = V;
+      }
+  }
+  return (PyObject*) V_ii_obj;
+}
+

@@ -18,6 +18,9 @@ Set the location of setups as described here:
 Spectrum calculation using unoccupied states
 ============================================
 
+1s Transition potential
+-----------------------
+
 We do a "ground state" calculation with a core hole. Use a lot of
 unoccupied states.
 
@@ -42,6 +45,30 @@ Plot the spectrum:
 .. figure:: xas_h2o_spectrum.png
    :width: 400 px
 
+2p Transition potential
+-----------------------
+The 2p transitions are calculated similar to the 1s
+spectrum, involving a ground state calculation that includes a core hole.
+The dipole matrix elements can be written out, allowing
+to restart the XAS calculation without using the calculator object.
+These files are much smaller than `.gpw` files.
+
+.. literalinclude:: run_2p.py
+
+The 2p calculations require to take spin-orbit
+splitting into account. This is due to the non-zero angular momentum
+of the initial state. The spin-orbit splitting can be determined
+experimentally or calculated theoretically; we have utilized
+the experimental value here.
+
+.. literalinclude:: plot_2p.py
+
+.. figure:: xas_h2s_spectrum.png
+   :width: 400 px
+
+There are some limitations to using this method for 2p transitions, as 
+𝑙≠0, and it is based on the single-particle picture.
+This is particularly relevant for transition metals as Ti [Joh25]_.
 
 Haydock recursion method
 ========================
@@ -70,17 +97,17 @@ and fwhm is the FWHM of the Gaussian broadening.
 ::
 
   sys.setrecursionlimit(10000)
-  
+
   name='diamond333_hch_600_1400a.rec'
   x_start=-20
   x_end=100
   dx=0.01
   x_rec = x_start + npy.arange(0, x_end - x_start ,dx)
-  
+
   r = RecursionMethod(filename=name)
   y = r.get_spectra(x_rec, delta=0.4, fwhm=0.4 )
   y2 = sum(y)
-  
+
   p.plot(x_rec + 273.44,y2)
   p.show()
 
@@ -100,7 +127,7 @@ XES
 To compute XES, first do a ground state calcualtion with an 0.0 core
 hole (an 'xes1s' setup as created above ). The system will not be
 charged so the setups can be placed on all atoms one wants to
-calculte XES for. Since XES probes the occupied states no unoccupied
+calculate XES for. Since XES probes the occupied states no unoccupied
 states need to be determined. Calculate the spectrum with
 
 ::
@@ -137,3 +164,7 @@ and plot it
 .. [Nil04] *Chemical bonding on surfaces probed by X-ray emission
    spectroscopy and density functional theory*, A. Nilsson and
    L. G. M. Pettersson, Surf. Sci. Rep. 55 (2004) 49-167
+
+.. [Joh25] *Explicit core-hole single-particle methods for L- and M- edge X-ray
+   absorption and electron energy-loss spectra*
+   E. A. B. Johnsen,  N. Horiuchi, T. Susi, and M. Walter (2025).  arXiv. https://arxiv.org/abs/2504.08458

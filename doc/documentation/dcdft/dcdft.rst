@@ -91,5 +91,5 @@ to calculate the Delta factors.
 
 * How well do the obtained values agree with the references?
   Do you think they can be further improved
-  (hint: check out https://wiki.fysik.dtu.dk/gpaw/setups/dcdft.html)?
+  (hint: check out https://gpaw.readthedocs.io/setups/dcdft.html)?
   Do you agree with Karl Popper?

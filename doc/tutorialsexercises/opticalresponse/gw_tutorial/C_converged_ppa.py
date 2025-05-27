@@ -13,10 +13,9 @@ atoms = bulk('C', 'diamond', a=a)
 
 k = 8
 
-calc = GPAW(mode=PW(600, force_complex_dtype=True),
+calc = GPAW(mode=PW(600),
             parallel={'domain': 1},
             kpts={'size': (k, k, k), 'gamma': True},
-            dtype=complex,
             xc='LDA',
             occupations=FermiDirac(0.001),
             txt='C_converged_ppa.txt')

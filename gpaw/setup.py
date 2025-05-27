@@ -27,7 +27,7 @@ class WrongMagmomForHundsRuleError(ValueError):
 
 def create_setup(symbol, xc='LDA', lmax=0,
                  type='paw', basis=None, setupdata=None,
-                 filter=None, world=None):
+                 filter=None, world=None, backwards_compatible=True):
     if isinstance(xc, str):
         xc = XC(xc)
 
@@ -77,15 +77,22 @@ def create_setup(symbol, xc='LDA', lmax=0,
                                  'functional.  This calculation would use '
                                  'the %s functional.' % xc.get_setup_name())
         else:
-            setupdata = SetupData(symbol, xc.get_setup_name(),
-                                  type, True,
-                                  world=world)
+            setupdata = SetupData.find_and_read_path(symbol,
+                                                     xc.get_setup_name(),
+                                                     setuptype=type,
+                                                     world=world)
+
     if hasattr(setupdata, 'build'):
         # It is not so nice that we have hubbard_u floating around here.
         # For example, none of the other setup types are aware
         # of hubbard u, so they silently ignore it!
-        setup = LeanSetup(setupdata.build(xc, lmax, basis, filter),
-                          hubbard_u=hubbard_u)
+        if isinstance(setupdata, SetupData):
+            kwargs = dict(backwards_compatible=backwards_compatible)
+        else:
+            kwargs = {}
+        setup = LeanSetup(
+            setupdata.build(xc, lmax, basis, filter, **kwargs),
+            hubbard_u=hubbard_u)
         return setup
     else:
         return setupdata
@@ -161,10 +168,12 @@ class BaseSetup:
         # projectors.  This should be the correct behaviour for all the
         # currently supported PAW/pseudopotentials.
         partial_waves_j = []
-        for n, phit in zips(self.n_j, self.pseudo_partial_waves_j,
-                            strict=False):
+        for n, phit in zip(self.n_j, self.pseudo_partial_waves_j):
             if n > 0:
                 partial_waves_j.append(phit)
+
+        assert all(n > 0 for n in self.n_j[:len(partial_waves_j)])
+
         return partial_waves_j
 
     def calculate_initial_occupation_numbers(self, magmom, hund, charge,
@@ -386,7 +395,7 @@ class BaseSetup:
         ni = len(L_i)
         # j_i is the list of j values
         # L_i is the list of L (=l**2+m for 0<=m<2*l+1) values
-        # https://wiki.fysik.dtu.dk/gpaw/devel/overview.html
+        # https://gpaw.readthedocs.io/devel/overview.html
 
         G_LLL = gaunt(max(self.l_j))
 
@@ -608,8 +617,6 @@ class LeanSetup(BaseSetup):
 
         # XAS stuff
         self.phicorehole_g = s.phicorehole_g  # should be optional
-        if s.phicorehole_g is not None:
-            self.A_ci = s.A_ci  # oscillator strengths
 
         # Required to get all electron density
         self.rgd = s.rgd
@@ -715,7 +722,8 @@ class Setup(BaseSetup):
     ``tauct``  Pseudo core kinetic energy density
     ========== ============================================
     """
-    def __init__(self, data, xc, lmax=0, basis=None, filter=None):
+    def __init__(self, data, xc, lmax=0, basis=None, filter=None,
+                 backwards_compatible=True):
         self.type = data.name
 
         if not data.is_compatible(xc):
@@ -824,16 +832,12 @@ class Setup(BaseSetup):
 
         self.fcorehole = data.fcorehole
         self.lcorehole = data.lcorehole
-        if data.phicorehole_g is not None:
-            if self.lcorehole == 0:
-                self.calculate_oscillator_strengths(phi_jg)
-            else:
-                self.A_ci = None
 
         # Construct splines:
         self.vbar = rgd.spline(vbar_g, rcutfilter)
 
-        rcore, nc_g, nct_g, nct = self.construct_core_densities(data)
+        rcore, nc_g, nct_g, nct = self.construct_core_densities(
+            data, backwards_compatible)
         self.rcore = rcore
         self.nct = nct
 
@@ -1162,9 +1166,12 @@ class Setup(BaseSetup):
             assert not np.any(np.isnan(rxnabla_iiv))
         return rxnabla_iiv
 
-    def construct_core_densities(self, setupdata):
+    def construct_core_densities(self, setupdata, backwards_compatible=True):
         rcore = self.data.find_core_density_cutoff(setupdata.nc_g)
-        nct = self.rgd.spline(setupdata.nct_g, rcore)
+        nct = self.rgd.spline(
+            setupdata.nct_g, rcore,
+            points=None if backwards_compatible else 256,
+            backwards_compatible=backwards_compatible)
         return rcore, setupdata.nc_g, setupdata.nct_g, nct
 
     def create_basis_functions(self, phit_jg, rcut2, gcut2):
@@ -1211,33 +1218,14 @@ class Setup(BaseSetup):
         basis = PartialWaveBasis(self.symbol, basis_functions_J, n_J)
         return basis
 
-    def calculate_oscillator_strengths(self, phi_jg):
-        # XXX implement oscillator strengths for lcorehole != 0
-        assert self.lcorehole == 0
-        self.A_ci = np.zeros((3, self.ni))
-        nj = len(phi_jg)
-        i = 0
-        for j in range(nj):
-            l = self.l_j[j]
-            if l == 1:
-                a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                                       n=1) / (4 * pi)
-
-                for m in range(3):
-                    c = (m + 1) % 3
-                    self.A_ci[c, i] = a
-                    i += 1
-            else:
-                i += 2 * l + 1
-        assert i == self.ni
-
 
 class PartialWaveBasis(Basis):  # yuckkk
     def __init__(self, symbol, phit_J, n_J):
-        Basis.__init__(self, symbol, 'partial-waves', readxml=False)
         self._basis_functions_J = phit_J
-        self.bf_j = [BasisFunction(n, phit.get_angular_momentum_number())
-                     for n, phit in zip(n_J, phit_J)]
+        super().__init__(
+            symbol, 'partial-waves',
+            bf_j=[BasisFunction(n, phit.get_angular_momentum_number())
+                  for n, phit in zip(n_J, phit_J)])
 
     def tosplines(self):
         return self._basis_functions_J
@@ -1262,7 +1250,9 @@ class Setups(list):
     """
 
     def __init__(self, Z_a, setup_types, basis_sets, xc, *,
-                 filter=None, world=None):
+                 filter=None,
+                 world=None,
+                 backwards_compatible=True):
         list.__init__(self)
         symbols = [chemical_symbols[Z] for Z in Z_a]
         type_a = types2atomtypes(symbols, setup_types, default='paw')
@@ -1325,10 +1315,11 @@ class Setups(list):
                 # (meaning we load the basis set now from a file) or an actual
                 # pre-created Basis object (meaning we just pass it along)
                 if isinstance(basis, str):
-                    basis = Basis(symbol, basis, world=world)
+                    basis = Basis.find(symbol, basis, world=world)
                 setup = create_setup(symbol, xc, 2, type,
                                      basis, setupdata=setupdata,
-                                     filter=filter, world=world)
+                                     filter=filter, world=world,
+                                     backwards_compatible=backwards_compatible)
                 self.setups[id] = setup
                 natoms[id] = 0
             natoms[id] += 1
@@ -1349,6 +1340,8 @@ class Setups(list):
             self.nao += n * setup.nao
 
         self.dS = OverlapCorrections(self)
+
+        self.backwards_compatible = backwards_compatible
 
     def __str__(self):
         # Write PAW setup information in order of appearance:
@@ -1407,10 +1400,16 @@ class Setups(list):
                 spline_aj.append([])
             else:
                 spline_aj.append([setup.nct])
+        if self.backwards_compatible and hasattr(domain, 'ecut'):
+            integrals = None
+        else:
+            # 0.0 will skip normalization:
+            integrals = [setup.Nct if abs(setup.Nct) > 1e-12 else 0.0
+                         for setup in self]
         return domain.atom_centered_functions(
             spline_aj, positions,
             atomdist=atomdist,
-            integral=[setup.Nct for setup in self],
+            integrals=integrals,
             cut=True, xp=xp)
 
     def create_pseudo_core_ked(self,
@@ -1430,20 +1429,25 @@ class Setups(list):
             atomdist=atomdist,
             xp=xp)
 
-    def create_compensation_charges(self, domain, positions, atomdist,
+    def create_compensation_charges(self, domain, positions, atomdist=None,
                                     xp=np):
+        if self.backwards_compatible and hasattr(domain, 'ecut'):
+            integral = None
+        else:
+            integral = sqrt(4 * pi)
         return domain.atom_centered_functions(
             [setup.ghat_l for setup in self], positions,
             atomdist=atomdist,
-            integral=sqrt(4 * pi),
+            integrals=integral,
             xp=xp)
 
-    def get_overlap_corrections(self, atomdist, xp):
+    def get_overlap_corrections(self, atomdist, xp, dtype=np.float64):
         if atomdist is getattr(self, '_atomdist', None):
-            return self.dS_aii
+            if self.dS_aii.data.dtype == dtype:
+                return self.dS_aii
         self._atomdist = atomdist
         dS_aii = AtomArraysLayout([setup.dO_ii.shape for setup in self],
-                                  atomdist=atomdist).empty()
+                                  atomdist=atomdist, dtype=dtype).empty()
         for a, dS_ii in dS_aii.items():
             dS_ii[:] = self[a].dO_ii
         self.dS_aii = dS_aii.to_xp(xp)
@@ -1512,7 +1516,7 @@ def types2atomtypes(symbols, types, default):
     if isinstance(types, str):
         return [types] * natoms
 
-    # If present, None will map to the default type,
+    # If present, 'default' will map to the default type,
     # else use the input default
     type_a = [types.get('default', default)] * natoms
 

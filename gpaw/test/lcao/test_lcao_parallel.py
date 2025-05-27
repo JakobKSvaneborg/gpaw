@@ -6,7 +6,6 @@ from gpaw.utilities import devnull
 from gpaw import GPAW, FermiDirac, KohnShamConvergenceError
 from gpaw.utilities import compiled_with_sl
 from gpaw.mpi import world
-from gpaw.forces import calculate_forces
 from ase.build import molecule
 
 # Calculates energy and forces for various parallelizations
@@ -15,14 +14,12 @@ pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
 
 
-@pytest.mark.later  # doesn't work with new GPAW yet
 def test_lcao_lcao_parallel():
     tolerance = 4e-5
 
     parallel = dict()
 
     basekwargs = dict(mode='lcao',
-                      maxiter=3,
                       nbands=6,
                       parallel=parallel)
 
@@ -49,8 +46,7 @@ def test_lcao_lcao_parallel():
             pass
 
         E = calc.hamiltonian.e_total_free
-        F_av = calculate_forces(calc.wfs, calc.density,
-                                calc.hamiltonian)
+        F_av = calc.get_forces()
 
         nonlocal Eref, Fref_av
         if Eref is None:
@@ -121,7 +117,6 @@ def test_lcao_lcao_parallel():
     parallel = dict()
 
     basekwargs = dict(mode='lcao',
-                      maxiter=3,
                       nbands=6,
                       parallel=parallel)
 

@@ -18,7 +18,7 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
     kpts = find_high_symmetry_monkhorst_pack(gpwname, 6.0)
 
     # Calculate the wave functions on the new kpts grid
-    calc = GPAW(gpwname).fixed_density(kpts=kpts)
+    calc = GPAW(gpwname).fixed_density(kpts=kpts, update_fermi_level=True)
     calc.write('Na', 'all')
 
     # Excited state calculation
@@ -62,17 +62,17 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
 
     # tetra and point integrators should produce similar results:
     # confirm this by comparing the 2 integration methods
-    assert wpeakT0 == pytest.approx(wpeakP0, abs=0.05)
+    assert wpeakT0 == pytest.approx(wpeakP0, abs=0.08)
     assert wpeakT1 == pytest.approx(wpeakP1, abs=0.12)
 
     # ensure the wpeak for point & tetra integration do not change
     assert wpeakP0 == pytest.approx(3.4811, abs=0.02)
     assert wpeakP1 == pytest.approx(3.8076, abs=0.02)
-    assert wpeakT0 == pytest.approx(3.5033, abs=0.02)
-    assert wpeakT1 == pytest.approx(3.8230, abs=0.13)
+    assert wpeakT0 == pytest.approx(3.54, abs=0.02)
+    assert wpeakT1 == pytest.approx(3.79, abs=0.13)
 
     # ensure the Ipeak for point & tetra integration do not change
     assert IpeakP0 == pytest.approx(8.6311, abs=1.)
     assert IpeakP1 == pytest.approx(7.7766, abs=1.)
-    assert IpeakT0 == pytest.approx(8.3715, abs=1.)
-    assert IpeakT1 == pytest.approx(7.7335, abs=1.)
+    assert IpeakT0 == pytest.approx(8.77, abs=1.)
+    assert IpeakT1 == pytest.approx(7.51, abs=1.)

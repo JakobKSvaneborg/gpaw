@@ -193,7 +193,8 @@ class TetrahedronMethod(OccupationNumberCalculator):
                    eig_qn,
                    weight_q,
                    f_qn,
-                   fermi_level_guess=nan) -> Tuple[float, float]:
+                   fermi_level_guess=nan,
+                   fix_fermi_level=False) -> Tuple[float, float]:
         if np.isnan(fermi_level_guess):
             zero = ZeroWidth(self.parallel_layout)
             fermi_level_guess, _ = zero._calculate(
@@ -224,7 +225,11 @@ class TetrahedronMethod(OccupationNumberCalculator):
                     dn = dn1 + dn2
                 return n - nelectrons, dn
 
-            fermi_level, niter = findroot(func, x)
+            if fix_fermi_level:
+                func(x)
+                fermi_level = x
+            else:
+                fermi_level, niter = findroot(func, x)
 
             def w(de_in):
                 return weights(de_in, self.i_ktq, self.improved)

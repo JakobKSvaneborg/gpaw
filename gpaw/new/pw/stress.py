@@ -6,33 +6,31 @@ from typing import TYPE_CHECKING
 import numpy as np
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.gpu import synchronize, as_np
-from gpaw.new.calculation import DFTState
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
 from gpaw.core import PWArray
+from gpaw.utilities import as_real_dtype
 if TYPE_CHECKING:
     from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 
 
 def calculate_stress(pot_calc: PlaneWavePotentialCalculator,
-                     state: DFTState,
+                     ibzwfs, density, potential,
                      vt_g: PWArray,
                      nt_g: PWArray,
                      dedtaut_g: PWArray | None) -> Array2D:
     """Calculate symmetrized stress tensor."""
-    ibzwfs = state.ibzwfs
-    density = state.density
-    potential = state.potential
     comm = ibzwfs.comm
     xp = density.nt_sR.xp
     dom = density.nt_sR.desc
 
     ibzwfs.make_sure_wfs_are_read_from_gpw_file()
     s_vv = get_wfs_stress(ibzwfs, potential.dH_asii)
-    s_vv += pot_calc.xc.stress_contribution(state, pot_calc.interpolate)
+    s_vv += pot_calc.xc.stress_contribution(
+        ibzwfs, density, pot_calc.interpolate)
 
-    if state.ibzwfs.kpt_comm.rank == 0 and state.ibzwfs.band_comm.rank == 0:
+    if ibzwfs.kpt_comm.rank == 0 and ibzwfs.band_comm.rank == 0:
         vHt_h = potential.vHt_x
         assert vHt_h is not None
         pw = vHt_h.desc
@@ -41,9 +39,9 @@ def calculate_stress(pot_calc: PlaneWavePotentialCalculator,
         s_vv += (xp.einsum('Gz, Gv, Gw -> vw', vHt2_hz, G_Gv, G_Gv) *
                  pw.dv / (2 * np.pi))
         Q_aL = density.calculate_compensation_charge_coefficients()
-        s_vv += pot_calc.ghat_aLh.stress_contribution(vHt_h, Q_aL)
-        if state.ibzwfs.domain_comm.rank == 0:
-            s_vv -= xp.eye(3) * potential.energies['stress']
+        s_vv += pot_calc.poisson_solver.stress_contribution(vHt_h, Q_aL)
+        if ibzwfs.domain_comm.rank == 0:
+            s_vv -= xp.eye(3) * potential.e_stress
         s_vv += pot_calc.vbar_ag.stress_contribution(nt_g)
         s_vv += density.nct_aX.stress_contribution(vt_g)
 
@@ -72,6 +70,8 @@ def calculate_stress(pot_calc: PlaneWavePotentialCalculator,
     # Make sure all agree on the result (redundant calculation on
     # different cores involving BLAS might give slightly different
     # results):
+
+    sigma_vv += pot_calc.extensions_stress_contribution
     comm.broadcast(sigma_vv, 0)
     return sigma_vv
 
@@ -93,12 +93,13 @@ def get_kinetic_stress(wfs: PWFDWaveFunctions,
     psit_nG = wfs.psit_nX
     pw = psit_nG.desc
     xp = psit_nG.xp
-    psit_nGz = psit_nG.data.view(float).reshape(psit_nG.data.shape + (2,))
+    psit_nGz = psit_nG.data.view(
+        as_real_dtype(pw.dtype)).reshape(psit_nG.data.shape + (2,))
     psit2_G = xp.einsum('n, nGz, nGz -> G', occ_n, psit_nGz, psit_nGz)
     Gk_Gv = xp.asarray(pw.G_plus_k_Gv)
     sigma_vv = xp.einsum('G, Gv, Gw -> vw', psit2_G, Gk_Gv, Gk_Gv)
     x = pw.dv
-    if pw.dtype == float:
+    if np.issubdtype(pw.dtype, np.floating):
         x *= 2
     return -x * sigma_vv
 

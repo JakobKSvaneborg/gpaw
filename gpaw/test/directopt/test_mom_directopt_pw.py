@@ -1,13 +1,13 @@
 import pytest
 
 from gpaw import GPAW, PW, restart
-from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.tools import excite
 from ase import Atoms
 import numpy as np
 
 
+# @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
     # Water molecule:
@@ -22,11 +22,11 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
     calc = GPAW(mode=PW(300),
                 spinpol=True,
                 symmetry='off',
-                eigensolver=FDPWETDM(converge_unocc=True),
+                eigensolver={'name': 'etdm-fdpw', 'converge_unocc': True},
                 mixer={'backend': 'no-mixing'},
                 occupations={'name': 'fixed-uniform'},
-                convergence={'eigenstates': 1e-4}
-                )
+                convergence={'eigenstates': 1e-4},
+                txt=None)
     atoms.calc = calc
     atoms.get_potential_energy()
     calc.write('h2o.gpw', mode='all')
@@ -39,10 +39,11 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
             momevery = np.inf
         else:
             momevery = 3
-        calc.set(eigensolver=FDPWETDM(excited_state=True,
-                                      momevery=momevery,
-                                      restart_canonical=canonical,
-                                      printinnerloop=True))
+        calc.set(eigensolver=dict(name='etdm-fdpw',
+                                  excited_state=True,
+                                  momevery=momevery,
+                                  restart_canonical=canonical,
+                                  printinnerloop=True))
         f_sn = excite(calc, 0, 0, (0, 0))
         prepare_mom_calculation(calc, atoms, f_sn)
 
@@ -79,10 +80,8 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
     numeric = False
     if numeric:
         calc.observers = []
-        from ase.calculators.test import numeric_force
-        f_num = np.array([[numeric_force(atoms, a, i)
-                          for i in range(3)]
-                         for a in range(len(atoms))])
+        from gpaw.test import calculate_numerical_forces
+        f_num = calculate_numerical_forces(atoms, 0.001)
         print('Numerical forces')
         print(f_num)
         print(f - f_num, np.abs(f - f_num).max())
@@ -91,6 +90,8 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
 
     # Test restart and fixed occupations
     atoms, calc = restart('h2o.gpw', txt='-')
+    if gpaw_new:
+        return
     atoms.calc.results.pop('energy')
     atoms.calc.scf.converged = False
     e2 = atoms.get_potential_energy()
@@ -107,3 +108,7 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
     niter = calc.get_number_of_iterations()
     assert niter == pytest.approx(4, abs=3)
     assert e == pytest.approx(e2, abs=1.0e-3)
+
+
+if __name__ == '__main__':
+    test_mom_directopt_pw(1, 1)

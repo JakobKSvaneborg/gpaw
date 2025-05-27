@@ -8,6 +8,7 @@ from gpaw import GPAW
 from gpaw.xc.hybrid import HybridXC
 
 
+@pytest.mark.slow
 @pytest.mark.libxc
 @pytest.mark.hybrids
 def test_exx_coarse(in_tmp_dir):

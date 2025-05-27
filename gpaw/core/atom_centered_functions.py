@@ -8,7 +8,7 @@ from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.mpi import MPIComm, serial_comm
-from gpaw.new import zips
+from gpaw.new import zips, trace
 from gpaw.spline import Spline
 from gpaw.typing import Array1D, ArrayLike2D
 from gpaw.gpu import XP
@@ -28,14 +28,14 @@ def to_spline(l: int,
 class AtomCenteredFunctions(XP):
     def __init__(self,
                  functions,
-                 fracpos_ac: ArrayLike2D,
+                 relpos_ac: ArrayLike2D,
                  atomdist: AtomDistribution | None = None,
                  xp=None):
         XP.__init__(self, xp or np)
         self.functions = [[to_spline(*f) if isinstance(f, tuple) else f
                            for f in funcs]
                           for funcs in functions]
-        self.fracpos_ac = np.array(fracpos_ac)
+        self.relpos_ac = np.array(relpos_ac)
         self._atomdist = atomdist
 
         self._layout = None
@@ -70,13 +70,20 @@ class AtomCenteredFunctions(XP):
         """Create AtomsArray for coefficients."""
         return self.layout.empty(dims, comm)
 
-    def move(self, fracpos_ac, atomdist):
+    def move(self,
+             relpos_ac: np.ndarray,
+             atomdist: AtomDistribution) -> AtomDistribution:
         """Move atoms to new positions."""
-        self.fracpos_ac = np.array(fracpos_ac)
+        self.relpos_ac = np.array(relpos_ac)
         self._atomdist = atomdist
         if self._lfc is not None:
             self._layout = self._layout.new(atomdist=atomdist)
-            self._lfc.set_positions(fracpos_ac, atomdist)
+            migration = self._lfc.set_positions(relpos_ac, atomdist)
+            if migration:
+                atomdist = AtomDistribution(
+                    [sphere.rank for sphere in self._lfc.sphere_a],
+                    atomdist.comm)
+        return atomdist
 
     def add_to(self, functions, coefs=1.0):
         """Add atom-centered functions multiplied by *coefs* to *functions*."""
@@ -86,14 +93,16 @@ class AtomCenteredFunctions(XP):
         else:
             self._lfc.add(functions.data, coefs, q=0)
 
-    def integrate(self, functions, out=None):
+    @trace
+    def integrate(self, functions, out=None, add_to=False):
         """Calculate integrals of atom-centered functions multiplied by
         *functions*.
         """
         self._lazy_init()
         if out is None:
+            assert not add_to
             out = self.layout.empty(functions.dims, functions.comm)
-        self._lfc.integrate(functions.data, out, q=0)
+        self._lfc.integrate(functions.data, out, q=0, add_to=add_to)
         return out
 
     def derivative(self, functions, out=None):
@@ -116,28 +125,28 @@ class AtomCenteredFunctions(XP):
 class UGAtomCenteredFunctions(AtomCenteredFunctions):
     def __init__(self,
                  functions,
-                 fracpos_ac,
+                 relpos_ac,
                  grid,
                  *,
                  atomdist=None,
-                 integral=None,
+                 integrals=None,
                  cut=False,
                  xp=np):
         AtomCenteredFunctions.__init__(self,
                                        functions,
-                                       fracpos_ac,
+                                       relpos_ac,
                                        atomdist, xp=xp)
         self.grid = grid
-        self.integral = integral
+        self.integrals = integrals
         self.cut = cut
 
     def new(self, grid, atomdist):
         return UGAtomCenteredFunctions(
             self.functions,
-            self.fracpos_ac,
+            self.relpos_ac,
             grid,
             atomdist=atomdist,
-            integral=self.integral,
+            integrals=self.integrals,
             cut=self.cut,
             xp=self.xp)
 
@@ -148,11 +157,11 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
         kd = KPointDescriptor(np.array([self.grid.kpt]))
         self._lfc = LFC(gd, self.functions, kd,
                         dtype=self.grid.dtype,
-                        integral=self.integral,
+                        integral=self.integrals,
                         forces=True,
                         cut=self.cut,
                         xp=self.xp)
-        self._lfc.set_positions(self.fracpos_ac)
+        self._lfc.set_positions(self.relpos_ac)
 
         if self._atomdist is None:
             self._atomdist = AtomDistribution(

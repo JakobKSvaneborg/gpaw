@@ -9,7 +9,7 @@ import scipy.linalg as sla
 
 import gpaw.utilities.blas as blas
 from gpaw import debug, get_scipy_version
-from gpaw.gpu import cupy as cp, cupy_eigh, XP
+from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
 
@@ -52,10 +52,32 @@ def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int]:
     return nprow, npcol, blocksize
 
 
+class MatrixWithNoData:
+    def __init__(self,
+                 M: int,
+                 N: int,
+                 *,
+                 dtype=None,
+                 dist: MatrixDistribution | tuple | None = None):
+        self.shape = (M, N)
+        self.dtype = dtype
+        self.data = np.empty((0, 0), dtype)
+        dist = dist or ()
+        if isinstance(dist, tuple):
+            kwargs = {key: val for key, val in zip(['comm', 'r', 'c', 'b'],
+                                                   dist)}
+            dist = create_distribution(M, N, **kwargs)
+        self.dist = dist
+
+    def create(self) -> Matrix:
+        return Matrix(*self.shape, dtype=self.dtype, dist=self.dist)
+
+
 class Matrix(XP):
     def __init__(self,
                  M: int,
                  N: int,
+                 *,
                  dtype=None,
                  data: ArrayLike2D | None = None,
                  dist: MatrixDistribution | tuple | None = None,
@@ -91,7 +113,8 @@ class Matrix(XP):
             else:
                 dtype = data.dtype
         self.dtype = np.dtype(dtype)
-        assert dtype == float or dtype == complex, dtype
+        assert np.dtype(self.dtype) in \
+            [np.float32, np.float64, np.complex64, np.complex128], dtype
 
         self.xp: ModuleType
         if xp is None:
@@ -172,7 +195,7 @@ class Matrix(XP):
             assert beta == 0.0
             M = A.shape[0] if opa == 'N' else A.shape[1]
             N = B.shape[1] if opb == 'N' else B.shape[0]
-            out = Matrix(M, N, A.dtype, dist=dist.new(M, N))
+            out = Matrix(M, N, dtype=A.dtype, dist=dist.new(M, N))
         elif not isinstance(out, Matrix):
             out = out.matrix
 
@@ -362,7 +385,7 @@ class Matrix(XP):
 
         if rows * columns == 1:
             if self.dist.comm.rank == 0:
-                if cc and H.dtype == complex:
+                if cc and np.issubdtype(H.dtype, np.complexfloating):
                     np.negative(H.data.imag, H.data.imag)
                 if debug:
                     H.data[np.triu_indices(H.shape[0], 1)] = 42.0
@@ -489,7 +512,7 @@ class Matrix(XP):
 
     def complex_conjugate(self) -> None:
         """Inplace complex conjugation."""
-        if self.dtype == complex:
+        if np.issubdtype(self.dtype, np.complexfloating):
             self.xp.negative(self.data.imag, self.data.imag)
 
     def add_hermitian_conjugate(self, scale: float = 1.0) -> None:
@@ -735,7 +758,13 @@ class BLACSDistribution(MatrixDistribution):
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
-            ok = a.dist.simple and b.dist.simple and c.dist.simple
+            # XXX: Not 100% sure what the requirements for "ok" are
+            # however, requiring square matrices seems necessary
+            # in the current implementation. Maybe this should be
+            # looked into more. For now, we just use the more general
+            # scalapack function when matrices are not square.
+            ok = a.dist.simple and b.dist.simple and c.dist.simple \
+                and a.shape[0] == a.shape[1] and b.shape[0] == b.shape[1]
             if ok:
                 # Special cases that don't need scalapack - most likely also
                 # faster:
@@ -780,8 +809,8 @@ def cublas_mmm(alpha, a, opa, b, opb, beta, c):
         return
     if a.size == 0 and beta == 1.0:
         return
-    cp.cublas.gemm(opa.replace('C', 'H'), opb.replace('C', 'H'),
-                   a, b, c, alpha, beta)
+    gpu_gemm(opa.replace('C', 'H'), opb.replace('C', 'H'),
+             a, b, c, alpha, beta)
 
 
 class CuPyDistribution(MatrixDistribution):
@@ -828,9 +857,9 @@ class CuPyDistribution(MatrixDistribution):
             if opa == 'N':
                 assert opb == 'C' or opb == 'T' and a.dtype == float
                 if a is b:
-                    cp.cublas.gemm('N', 'H',
-                                   a.data, a.data, c.data,
-                                   alpha, beta)
+                    gpu_gemm('N', 'H',
+                             a.data, a.data, c.data,
+                             alpha, beta)
                     # cp.cublas.syrk('N', a.data, c.data, alpha, beta, True)
                 else:
                     if beta == 1.0 and a.shape[1] == 0:
@@ -838,12 +867,12 @@ class CuPyDistribution(MatrixDistribution):
                     if c.data.size > 0:
                         assert beta in [0.0, 1.0]
                         # CuPy doesn't have dsyrk, so we roll our own:
-                        cp.cublas.gemm('N', 'H',
-                                       a.data, b.data, c.data,
-                                       0.5 * alpha, beta)
-                        cp.cublas.gemm('N', 'H',
-                                       b.data, a.data, c.data,
-                                       0.5 * alpha, 1.0)
+                        gpu_gemm('N', 'H',
+                                 a.data, b.data, c.data,
+                                 0.5 * alpha, beta)
+                        gpu_gemm('N', 'H',
+                                 b.data, a.data, c.data,
+                                 0.5 * alpha, 1.0)
             else:
                 1 / 0
                 assert opa == 'C' and opb == 'N'
@@ -1038,6 +1067,8 @@ def mmm_nc(a, b, out, alpha, beta, mmm):
             m2 = min(m1 + m, M)
             if m2 > m1:
                 rrequest = comm.receive(buf1[:m2 - m1], rrank, 11, False)
+                # XXX: BUFFER OVERFLOW WHEN M < N!!!!
+                # SO WE GET SEGGFAULT
             if mym > 0:
                 srequest = comm.send(b.data, srank, 11, False)
 

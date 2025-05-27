@@ -11,7 +11,7 @@ for a number of different queuing systems available on HPC
 installations.  It supports submitting individual jobs as well as
 complete workflows.
 
-.. _MyQueue: https://myqueue.readthedocs.io/en/latest/
+.. _MyQueue: https://myqueue.readthedocs.io/
 
 
 Using MyQueue

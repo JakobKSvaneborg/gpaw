@@ -16,7 +16,7 @@ class Observer:
 class WritableObserver(Observer):
 
     def __init__(self, w, interval=1):
-        Observer.__init__(self, interval)
+        super().__init__(interval)
         self.w = w
 
     def __del__(self):

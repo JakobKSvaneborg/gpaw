@@ -7,7 +7,7 @@ from gpaw.fdtd.polarizable_material import PermittivityPlus, PolarizableMaterial
 import pytest
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_fdtd_ed_shapes(in_tmp_dir):
     # Whole simulation cell (Angstroms)
     cell = [40, 40, 20]

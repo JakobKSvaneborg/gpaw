@@ -7,10 +7,10 @@ from gpaw.cli.main import commands
 def test_complete():
     try:
         update(path, commands, test=True)
-    except ValueError:
+    except ValueError as e:
         raise ValueError(
             'Please update gpaw/cli/complete.py using '
-            '"python3 -m gpaw.test.test_complete".')
+            '"python3 -m gpaw.test.test_complete".') from e
 
 
 if __name__ == '__main__':

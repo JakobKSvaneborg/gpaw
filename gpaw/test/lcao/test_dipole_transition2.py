@@ -8,7 +8,7 @@ from gpaw.lcao.dipoletransition import get_dipole_transitions
 from gpaw.lrtddft.kssingle import KSSingles
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_dipole_transition(gpw_files, tmp_path_factory):
     """Check dipole matrix-elements for Li."""
     calc = GPAW(gpw_files['bcc_li_lcao'], parallel=dict(sl_auto=True))

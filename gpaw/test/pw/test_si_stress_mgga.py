@@ -1,13 +1,17 @@
 import numpy as np
 import pytest
-from ase.calculators.test import numeric_force
+from ase.io.ulm import ulmopen
 from ase.parallel import parprint
 
 from gpaw import GPAW
+from gpaw.test import calculate_numerical_forces
 
 
 @pytest.mark.mgga
 def test_pw_si_stress_mgga(gpw_files, gpaw_new):
+    if gpaw_new and ulmopen(gpw_files['si_pw_distorted']).version < 4:
+        pytest.skip('Unsupported new-GPAW + old gpw-file combo')
+
     si = GPAW(gpw_files['si_pw_distorted']).get_atoms()
 
     # Trigger nasty bug (fixed in !486):
@@ -32,6 +36,6 @@ def test_pw_si_stress_mgga(gpw_files, gpaw_new):
     f = si.get_forces()[1, 1]
     fref = -2.066952082010687
     if 0:
-        fref = numeric_force(si, 1, 1)
+        fref = calculate_numerical_forces(si, 0.001, [1], [1])[0, 0]
     print(f, fref, f - fref)
     assert abs(f - fref) < 0.0005

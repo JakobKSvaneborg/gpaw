@@ -117,7 +117,10 @@ class KohnShamKPointPairExtractor:
         assert isinstance(context, ResponseContext)
         self.context = context
 
-        self.calc_parallel = self.check_calc_parallelisation()
+        if self.gs.is_parallelized():
+            assert self.context.comm is self.gs.world
+            # We assume no grid-parallelization in `map_who_has()`
+            assert self.gs.gd.comm.size == 1
 
         self.transitions_blockcomm = transitions_blockcomm
         self.kpts_blockcomm = kpts_blockcomm
@@ -128,45 +131,6 @@ class KohnShamKPointPairExtractor:
         # Prepare to redistribute kptdata
         self.rrequests = []
         self.srequests = []
-
-        # Count bands so it is possible to remove null transitions
-        self.nocc1 = None  # number of completely filled bands
-        self.nocc2 = None  # number of non-empty bands
-        self.count_occupied_bands()
-
-    def check_calc_parallelisation(self):
-        """Check how ground state calculation is distributed in memory"""
-        if self.gs.world.size == 1:
-            return False
-        else:
-            assert self.context.comm.rank == self.gs.world.rank
-            assert self.gs.gd.comm.size == 1
-            return True
-
-    def count_occupied_bands(self):
-        """Count number of occupied and unoccupied bands in ground state
-        calculation. Can be used to omit null-transitions between two occupied
-        bands or between two unoccupied bands."""
-
-        nocc1, nocc2 = self.gs.count_occupied_bands(ftol=1e-9)
-        nocc1 = int(nocc1)
-        nocc2 = int(nocc2)
-
-        # Collect nocc for all k-points
-        nocc1 = self.gs.kd.comm.min_scalar(nocc1)
-        nocc2 = self.gs.kd.comm.max_scalar(nocc2)
-
-        # Sum over band distribution
-        nocc1 = self.gs.bd.comm.sum_scalar(nocc1)
-        nocc2 = self.gs.bd.comm.sum_scalar(nocc2)
-
-        self.nocc1 = int(nocc1)
-        self.nocc2 = int(nocc2)
-        self.context.print('Number of completely filled bands:',
-                           self.nocc1, flush=False)
-        self.context.print('Number of partially filled bands:',
-                           self.nocc2, flush=False)
-        self.context.print('Total number of bands:', self.gs.bd.nbands)
 
     @timer('Get Kohn-Sham pairs')
     def get_kpoint_pairs(self, k1_pc, k2_pc,
@@ -220,7 +184,7 @@ class KohnShamKPointPairExtractor:
     def extract_kptdata(self, k_pc, n_t, s_t):
         """Extract the input data needed to construct the IrreducibleKPoints.
         """
-        if self.calc_parallel:
+        if self.gs.is_parallelized():
             return self.parallel_extract_kptdata(k_pc, n_t, s_t)
         else:
             return self.serial_extract_kptdata(k_pc, n_t, s_t)
@@ -398,7 +362,7 @@ class KohnShamKPointPairExtractor:
 
     def create_get_extraction_info(self):
         """Creator component of the extraction information factory."""
-        if self.calc_parallel:
+        if self.gs.is_parallelized():
             return self.get_parallel_extraction_info
         else:
             return self.get_serial_extraction_info
@@ -556,26 +520,17 @@ class KohnShamKPointPairExtractor:
                         eps_r1rh, f_r1rh, P_r1rhI, psit_r1rhG):
         """From the extracted data, collect the IrreducibleKPoint data arrays
         """
-        kpt0 = self.gs.kpt_u[0]
         # Allocate data arrays
         maxh_r1 = [max(h_rh) for h_rh in h_r1rh if h_rh]
         if maxh_r1:
             nh = max(maxh_r1) + 1
-            Ph = kpt0.projections.new(nbands=nh, bcomm=None)
-        else:  # Carry around empty array
+        else:  # Carry around empty arrays
             assert self.tblocks.a == self.tblocks.b
             nh = 0
-            # We have to initialize the projections by hand, because
-            # Projections.new() interprets nbands == 0 to imply that it should
-            # inherit the preexisting number of bands...
-            proj = kpt0.projections
-            Ph = Projections(nh, proj.nproj_a, proj.atom_partition,
-                             serial_comm, proj.collinear, proj.spin,
-                             proj.matrix.dtype)
         eps_h = np.empty(nh)
         f_h = np.empty(nh)
-        assert self.gs.dtype == kpt0.psit.array.dtype
-        psit_hG = np.empty((nh, self.gs.global_pd.ng_q[myik]), self.gs.dtype)
+        Ph = self.new_projections(nh)
+        psit_hG = self.new_wfs(nh, self.gs.global_pd.ng_q[myik])
 
         # Store extracted data in the arrays
         for (h_rh, eps_rh,
@@ -589,6 +544,18 @@ class KohnShamKPointPairExtractor:
 
         return eps_h, f_h, Ph, psit_hG
 
+    def new_projections(self, nh):
+        proj = self.gs.kpt_u[0].projections
+        # We have to initialize the projections by hand, because
+        # Projections.new() interprets nbands == 0 to imply that it should
+        # inherit the preexisting number of bands...
+        return Projections(nh, proj.nproj_a, proj.atom_partition, serial_comm,
+                           proj.collinear, proj.spin, proj.matrix.dtype)
+
+    def new_wfs(self, nh, nG):
+        assert self.gs.dtype == self.gs.kpt_u[0].psit.array.dtype
+        return np.empty((nh, nG), self.gs.dtype)
+
     def serial_extract_kptdata(self, k_pc, n_t, s_t):
         """Extract the k-point data from a serial calculator.
 
@@ -599,13 +566,10 @@ class KohnShamKPointPairExtractor:
             # No data to extract
             return None
 
-        gs = self.gs
-        kpt_u = gs.kpt_u
-
         # Find k-point indeces
         k_c = k_pc[self.kpts_blockcomm.rank]
         K = self.gs.kpoints.kptfinder.find(k_c)
-        ik = gs.kd.bz2ibz_k[K]
+        ik = self.gs.kd.bz2ibz_k[K]
 
         (myu_eu, myn_eurn, nh,
          h_eurn, h_myt) = self.get_serial_extraction_protocol(ik, n_t, s_t)
@@ -613,13 +577,12 @@ class KohnShamKPointPairExtractor:
         # Allocate transfer arrays
         eps_h = np.empty(nh)
         f_h = np.empty(nh)
-        Ph = kpt_u[0].projections.new(nbands=nh, bcomm=None)
-        psit_hG = np.empty((nh, gs.pd.ng_q[ik]),
-                           dtype=kpt_u[0].psit.array.dtype)
+        Ph = self.new_projections(nh)
+        psit_hG = self.new_wfs(nh, self.gs.pd.ng_q[ik])
 
         # Extract data from the ground state
         for myu, myn_rn, h_rn in zip(myu_eu, myn_eurn, h_eurn):
-            kpt = kpt_u[myu]
+            kpt = self.gs.kpt_u[myu]
             with self.context.timer('Extracting eps, f and P_I from wfs'):
                 eps_h[h_rn] = kpt.eps_n[myn_rn]
                 f_h[h_rn] = kpt.f_n[myn_rn] / kpt.weight

@@ -137,14 +137,16 @@ class GPWFiles(CachedFilesHandler):
         magmoms = None if calc_type == 'col' else [mm * easy_axis]
         soc = True if calc_type == 'ncolsoc' else False
 
-        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 280}, xc='LDA',
+        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 280},
+                          xc='LDA',
                           kpts={'size': (4, 4, 4), 'gamma': True},
                           parallel={'domain': 1, 'band': 1},
                           mixer={'beta': 0.5},
                           symmetry=symmetry,
                           occupations={'name': 'fermi-dirac', 'width': 0.05},
                           convergence={'density': 1e-4},
-                          magmoms=magmoms, soc=soc,
+                          magmoms=magmoms,
+                          soc=soc,
                           txt=self.folder / f'fcc_Ni_{calc_type}.txt')
         Ni.get_potential_energy()
         return Ni.calc
@@ -541,18 +543,22 @@ class GPWFiles(CachedFilesHandler):
         return si.calc
 
     @gpwfile
-    def si_qpoint_rounding_bug(self):
+    def si_noisy_kpoints(self):
         # Test system for guarding against inconsistent kpoints as in #1178.
         from ase.calculators.calculator import kpts2kpts
         atoms = bulk('Si')
-        kpts = kpts2kpts(kpts={'gamma': True, 'size': (6, 1, 1)}, atoms=atoms)
+        kpts = kpts2kpts(kpts={'size': (2, 2, 2), 'gamma': True}, atoms=atoms)
 
         # Error happened when qpoint was ~1e-17 yet was not considered gamma.
         # Add a bit of noise on purpose so we are sure to hit such a case,
         # even if the underlying implementation changes:
-        kpts.kpts += np.linspace(1e-16, 1e-15, 18).reshape(6, 3)
+        kpts.kpts += np.linspace(1e-16, 1e-15, 24).reshape(8, 3)
 
-        calc = GPAW(mode=PW(340), kpts=kpts)
+        calc = GPAW(mode='pw',
+                    xc='LDA',
+                    occupations=FermiDirac(width=0.001),
+                    kpts=kpts.kpts,
+                    txt=self.folder / 'si_noisy_kpoints.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
         return calc
@@ -597,7 +603,6 @@ class GPWFiles(CachedFilesHandler):
 
         calc = GPAW(mode='fd',
                     txt=self.folder / 'si_corehole_pw.txt',
-                    nbands=None,
                     h=0.25,
                     occupations=FermiDirac(width=0.05),
                     setups='si_corehole_pw_hch1s',
@@ -744,6 +749,19 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         scalapack = atoms.calc.wfs.bd.comm.size
         atoms.calc.diagonalize_full_hamiltonian(nbands=8, scalapack=scalapack)
+        return atoms.calc
+
+    @gpwfile
+    def c2_gw_more_bands(self):
+        a = 3.567
+        atoms = bulk('C', 'diamond', a=a)
+        atoms.calc = GPAW(mode=PW(400),
+                          parallel={'domain': 1},
+                          kpts={'size': (2, 2, 2), 'gamma': True},
+                          xc='LDA',
+                          occupations=FermiDirac(0.001))
+        atoms.get_potential_energy()
+        atoms.calc.diagonalize_full_hamiltonian(nbands=128)
         return atoms.calc
 
     @gpwfile
@@ -1011,7 +1029,7 @@ class GPWFiles(CachedFilesHandler):
 
         gs_calc = GPAW(
             txt=self.folder / 'nacl_fd.txt',
-            mode='fd', nbands=4, eigensolver='cg',
+            mode='fd', nbands=4,  # eigensolver='cg',
             gpts=(32, 32, 44), xc='LDA', symmetry={'point_group': False},
             setups={'Na': '1'})
         atoms.calc = gs_calc
@@ -1213,8 +1231,7 @@ class GPWFiles(CachedFilesHandler):
     def p4_pw_spinpol(self):
         return self._p4(spinpol=True)
 
-    @gpwfile
-    def ni_pw_kpts333(self):
+    def _ni_pw_kpts333(self, setups={'Ni': '10'}):
         from ase.dft.kpoints import monkhorst_pack
         # from gpaw.mpi import serial_comm
         Ni = bulk('Ni', 'fcc')
@@ -1226,7 +1243,7 @@ class GPWFiles(CachedFilesHandler):
                     txt=self.folder / 'ni_pw_kpts333.txt',
                     kpts=kpts,
                     occupations=FermiDirac(0.001),
-                    setups={'Ni': '10'},
+                    setups=setups,
                     parallel=dict(domain=1),  # >1 fails on 8 cores
                     # communicator=serial_comm
                     )
@@ -1235,6 +1252,14 @@ class GPWFiles(CachedFilesHandler):
         Ni.get_potential_energy()
         calc.diagonalize_full_hamiltonian()
         return calc
+
+    @gpwfile
+    def ni_pw(self):
+        return self._ni_pw_kpts333(setups={})
+
+    @gpwfile
+    def ni_pw_kpts333(self):
+        return self._ni_pw_kpts333()
 
     @gpwfile
     def c_pw(self):
@@ -1301,12 +1326,16 @@ class GPWFiles(CachedFilesHandler):
                    scaled_positions=[[0.5, 0.5, 0.5]],
                    pbc=False)
 
-        Tl.calc = GPAWNew(mode={'name': 'pw', 'ecut': 300}, xc='LDA',
-                          occupations={'name': 'fermi-dirac', 'width': 0.01},
-                          symmetry='off',
-                          convergence={'density': 1e-6},
-                          magmoms=[[0, 0, 0.5]], soc=True,
-                          txt=self.folder / 'Tl_box_pw.txt')
+        Tl.calc = GPAWNew(
+            mode={'name': 'pw', 'ecut': 300},
+            xc='LDA',
+            occupations={'name': 'fermi-dirac', 'width': 0.01},
+            symmetry='off',
+            convergence={'density': 1e-6},
+            parallel={'domain': 1, 'band': 1},
+            magmoms=[[0, 0, 0.5]],
+            soc=True,
+            txt=self.folder / 'Tl_box_pw.txt')
         Tl.get_potential_energy()
         return Tl.calc
 
@@ -1382,6 +1411,9 @@ class GPWFiles(CachedFilesHandler):
         a = 2.867
         mm = 2.21
         atoms = bulk('Fe', 'bcc', a=a)
+        # It is necessary to rattle the atoms to make sure that all tests pass
+        # on all machines - see https://gitlab.com/gpaw/gpaw/-/issues/1397
+        atoms.rattle(0.01, seed=42)
         atoms.set_initial_magnetic_moments([mm])
         atoms.center()
         tag = '_nosym' if symmetry == 'off' else ''

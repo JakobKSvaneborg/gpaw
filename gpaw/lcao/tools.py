@@ -21,7 +21,7 @@ def get_bf_centers(atoms, basis=None):
     if calc is None or isinstance(calc, SinglePointCalculator):
         symbols = atoms.get_chemical_symbols()
         basis_a = types2atomtypes(symbols, basis, 'dzp')
-        nao_a = [Basis(symbol, type).nao
+        nao_a = [Basis.find(symbol, type).nao
                  for symbol, type in zip(symbols, basis_a)]
     else:
         if not calc.initialized:
@@ -266,10 +266,10 @@ def get_lcao_hamiltonian(calc):
     from gpaw.new.ase_interface import ASECalculator
     if not isinstance(calc, ASECalculator):
         return old_get_lcao_hamiltonian(calc)
-    state = calc.dft.state
-    ibzwfs = state.ibzwfs
-    ham = calc.dft.scf_loop.hamiltonian
-    matcalc = ham.create_hamiltonian_matrix_calculator(state)
+    dft = calc.dft
+    ibzwfs = dft.ibzwfs
+    ham = dft.scf_loop.hamiltonian
+    matcalc = ham.create_hamiltonian_matrix_calculator(dft.potential)
     nM = ham.basis.Mmax
     nK = len(ibzwfs.ibz)
     H_skMM = np.zeros((ibzwfs.nspins, nK, nM, nM), ibzwfs.dtype)
@@ -383,10 +383,10 @@ def basis_subset(symbol, largebasis, smallbasis):
     Determine which basis function indices from ``largebasis`` are also
     present in smallbasis.
     """
-    blarge = Basis(symbol, largebasis)
+    blarge = Basis.find(symbol, largebasis)
     zeta_large, pol_large = zeta_pol(blarge)
 
-    bsmall = Basis(symbol, smallbasis)
+    bsmall = Basis.find(symbol, smallbasis)
     zeta_small, pol_small = zeta_pol(bsmall)
 
     assert zeta_small <= zeta_large

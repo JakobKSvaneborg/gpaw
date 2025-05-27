@@ -222,8 +222,12 @@ class GPAW(Calculator):
             bs_calc = gs_calc.fixed_density(kpts=<path>,
                                             symmetry='off')
             bs = bs_calc.get_band_structure()
+
+        Parameters
+        ==========
+        update_fermi_level:
+            Update or keep the old Fermi-level.
         """
-        assert not update_fermi_level  # for now ...
 
         for key in kwargs:
             if key not in {'nbands', 'occupations', 'poissonsolver', 'kpts',
@@ -248,6 +252,7 @@ class GPAW(Calculator):
                                                    calc.wfs.kptband_comm)
         calc.density.fixed = True
         calc.wfs.fermi_levels = self.wfs.fermi_levels
+        calc.scf.fix_fermi_level = not update_fermi_level
         if calc.hamiltonian.xc.type == 'GLLB':
             new_response = calc.hamiltonian.xc.response
             old_response = self.hamiltonian.xc.response
@@ -725,6 +730,10 @@ class GPAW(Calculator):
         else:
             xc = self.hamiltonian.xc
 
+        if not collinear and xc.type != 'LDA':
+            raise ValueError('Only LDA supported for '
+                             'SC Non-collinear calculations')
+
         if par.fixdensity:
             warnings.warn(
                 ('The fixdensity keyword has been deprecated. '
@@ -787,13 +796,13 @@ class GPAW(Calculator):
 
             if spinpol:
                 self.log('Spin-polarized calculation.')
-                self.log(f'Magnetic moment: {magmom_av.sum():.6f}\n')
+                self.log(f'Initial magnetic moment: {magmom_av.sum():.6f}\n')
             else:
                 self.log('Spin-paired calculation\n')
         else:
             nspins = 1
             self.log('Non-collinear calculation.')
-            self.log('Magnetic moment: ({:.6f}, {:.6f}, {:.6f})\n'
+            self.log('Initial magnetic moment: ({:.6f}, {:.6f}, {:.6f})\n'
                      .format(*magmom_av.sum(0)))
 
         self.create_symmetry(magmom_av, cell_cv, reading)
@@ -1938,9 +1947,29 @@ class GPAW(Calculator):
             self.wfs.world.broadcast(eps_n, 0)
         return eps_n * Ha
 
-    def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True):
-        """Return occupation array."""
+    def get_occupation_numbers(self,
+                               kpt: int = 0,
+                               spin: int = 0,
+                               broadcast: bool = True,
+                               raw: bool = False) -> np.ndarray:
+        """Return occupation array.
+
+        Parameters
+        ==========
+        kpt:
+            Index of IBZ k-point.
+        spin:
+            Spin-channel index.
+        broadcast:
+            Broadcast result to all MPI-ranks.
+        raw:
+            Return numbers in the [0,1] range without spin-degeneracy
+            or k-point weights.
+        """
         f_n = self.wfs.collect_occupations(kpt, spin)
+        if raw:
+            weight = self.wfs.kd.weight_k[kpt] * 2 / self.wfs.nspins
+            f_n /= weight
         if broadcast:
             if self.wfs.world.rank != 0:
                 f_n = np.empty(self.wfs.bd.nbands)

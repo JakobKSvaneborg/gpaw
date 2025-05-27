@@ -9,7 +9,8 @@ from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.gpu import cupy as cp
 from gpaw.new import trace, zips
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.c import pw_precond
+from gpaw.new.c import pw_precond, pw_insert_gpu
+from gpaw.utilities import as_complex_dtype
 
 
 class PWHamiltonian(Hamiltonian):
@@ -31,7 +32,7 @@ class PWHamiltonian(Hamiltonian):
         out_nG = out
         xp = psit_nG.xp
         pw = psit_nG.desc
-        if xp is not np and pw.comm.size == 1 and pw.dtype == complex:
+        if xp is not np and pw.comm.size == 1:
             return apply_local_potential_gpu(vt_R, psit_nG, out_nG)
         vt_R = vt_R.gather(broadcast=True)
         tmp_R = self.grid_local.empty(xp=xp)
@@ -88,11 +89,11 @@ class PWHamiltonian(Hamiltonian):
 
     def calculate_kinetic_energy(self, wfs, skip_sum=False):
         e_kin = 0.0
-        for f, psit_R in zip(wfs.myocc_n, wfs.psit_nX):
+        for f, psit_G in zip(wfs.myocc_n, wfs.psit_nX):
             if f > 1.0e-10:
-                e_kin += f * psit_R.norm2('kinetic', skip_sum=skip_sum)
+                e_kin += f * psit_G.norm2('kinetic', skip_sum=skip_sum)
         if not skip_sum:
-            e_kin = psit_R.desc.comm.sum_scalar(e_kin)
+            e_kin = psit_G.desc.comm.sum_scalar(e_kin)
             e_kin = wfs.band_comm.sum_scalar(e_kin)
         return e_kin * wfs.spin_degeneracy
 
@@ -100,7 +101,8 @@ class PWHamiltonian(Hamiltonian):
 @trace
 def precondition(psit_nG: PWArray,
                  residual_nG: PWArray,
-                 out: PWArray) -> None:
+                 out: PWArray,
+                 ekin_n=None) -> None:
     """Preconditioner for KS equation.
 
     From:
@@ -114,20 +116,22 @@ def precondition(psit_nG: PWArray,
 
     xp = psit_nG.xp
     G2_G = xp.asarray(psit_nG.desc.ekin_G * 2)
-    ekin_n = psit_nG.norm2('kinetic')
+    if ekin_n is None:
+        ekin_n = psit_nG.norm2('kinetic')
 
     if xp is np:
         for r_G, o_G, ekin in zips(residual_nG.data,
                                    out.data,
                                    ekin_n):
             pw_precond(G2_G, r_G, ekin, o_G)
-        return
+    else:
+        out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
+                               G2_G[np.newaxis],
+                               residual_nG.data)
+    return ekin_n
 
-    out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
-                           G2_G[np.newaxis],
-                           residual_nG.data)
 
-
+@trace(gpu=True)
 @cp.fuse()
 def gpu_prec(ekin, G2, residual):
     x = 1 / ekin / 3 * G2
@@ -192,36 +196,51 @@ class SpinorPWHamiltonian(Hamiltonian):
         return spinor_precondition
 
 
-def apply_local_potential_gpu(vt_R, psit_nG, out_nG):
+@trace
+def apply_local_potential_gpu(vt_R,
+                              psit_nG,
+                              out_nG,
+                              blocksize=50):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
     e_kin_G = cp.asarray(pw.ekin_G)
     mynbands = psit_nG.mydims[0]
-    plan = vt_R.desc.fft_plans(xp=cp, dtype=complex)
-    Q_G = plan.indices(pw)
-    shape = tuple(vt_R.desc.size_c)
-    blocksize = 10
-    psit_bR = None
+    size_c = vt_R.desc.size_c
+    w = trace(gpu=True)
+    if np.issubdtype(pw.dtype, np.floating):
+        shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
+        ifftn = w(cupyx.scipy.fft.irfftn)
+        fftn = w(cupyx.scipy.fft.rfftn)
+    else:
+        shape = tuple(size_c)
+        ifftn = w(cupyx.scipy.fft.ifftn)
+        fftn = w(cupyx.scipy.fft.fftn)
+    Q_G = cp.asarray(pw.indices(shape))
+    psit_bQ = None
     for b1 in range(0, mynbands, blocksize):
         b2 = min(b1 + blocksize, mynbands)
         nb = b2 - b1
-        if psit_bR is None:
-            psit_bR = cp.empty((nb,) + shape, complex)
+        if psit_bQ is None:
+            psit_bQ = cp.empty((nb,) + shape, as_complex_dtype(pw.dtype))
         elif nb < blocksize:
-            psit_bR = psit_bR[:nb]
-        psit_bR[:] = 0.0
-        psit_bR.reshape((nb, -1))[:, Q_G] = psit_nG.data[b1:b2]
-        psit_bR[:] = cupyx.scipy.fft.ifftn(
-            psit_bR,
-            shape,
+            psit_bQ = psit_bQ[:nb]
+        psit_bQ[:] = 0.0
+        pw_insert_gpu(psit_nG.data[b1:b2],
+                      Q_G,
+                      1.0,
+                      psit_bQ.reshape((nb, -1)),
+                      *size_c)
+        psit_bR = ifftn(
+            psit_bQ,
+            tuple(size_c),
             norm='forward',
             overwrite_x=True)
         psit_bR *= vt_R.data
-        psit_bR[:] = cupyx.scipy.fft.fftn(
+        vtpsit_bQ = fftn(
             psit_bR,
-            shape,
+            tuple(size_c),
             norm='forward',
             overwrite_x=True)
         out_nG.data[b1:b2] = psit_nG.data[b1:b2]
         out_nG.data[b1:b2] *= e_kin_G
-        out_nG.data[b1:b2] += psit_bR.reshape((nb, -1))[:, Q_G]
+        out_nG.data[b1:b2] += vtpsit_bQ.reshape((nb, -1))[:, Q_G]

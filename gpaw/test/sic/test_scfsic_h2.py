@@ -4,7 +4,7 @@ from ase import Atoms
 from gpaw import GPAW, restart
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_sic_scfsic_h2(in_tmp_dir):
     a = 6.0
     atom = Atoms('H', magmoms=[1.0], cell=(a, a, a))

@@ -5,6 +5,7 @@ from gpaw import GPAW
 from gpaw.bfield import BField
 
 
+@pytest.mark.old_gpaw_only  # use extension=[BField(...)]
 @pytest.mark.serial
 def test_b_field(gpaw_new):
     """Hydrogen atom in a magnetic field."""
@@ -42,7 +43,7 @@ def test_b_field(gpaw_new):
 
     if gpaw_new:
         totmom_v, magmom_av = (
-            atom.calc.dft.state.density.calculate_magnetic_moments())
+            atom.calc.dft.density.calculate_magnetic_moments())
     else:
         totmom_v, magmom_av = atom.calc.density.estimate_magnetic_moments()
     assert totmom_v == pytest.approx([1, 0, 0], abs=1e-5)

@@ -17,6 +17,7 @@ htmlcov/
 
 # If you build the documentation in the source tree, you will create a
 # lot of files that we don't want to see with "git status":
+*.html
 *.png
 *.gif
 *.pov
@@ -36,6 +37,7 @@ htmlcov/
 N.LDA
 *.gpw
 *.npy
+*.npz
 theme.css
 *.svg
 *.json
@@ -45,6 +47,7 @@ doc/setups/[A-Z]*.rst
 *.ipynb
 !*.master.ipynb
 !doc/devel/gpaw-logo.svg
+!doc/templates/breadcrumbs.html
 
 # If you run the tests, these may write out files
 *.gpw

@@ -3,7 +3,7 @@ from ase.db import connect
 import random
 
 in_db = connect('organometal.master.db')
-out_db = connect('organometal.db')
+out_db = connect('organometal.db', append=False)
 
 preserved_names = ['MAPbI3', 'FASnBr2Cl', 'FASnBr3', 'FASnCl3']
 rows = [row for row in in_db.select(project='organometal')]

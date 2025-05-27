@@ -6,7 +6,7 @@ from gpaw import GPAW
 from gpaw.external import StepPotentialz
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_He():
     a = 3
     b = 3 * a

@@ -60,7 +60,7 @@ def test_response_na_plasmons_tetrahedron(in_tmp_dir, scalapack):
     df3NLFCx, df3LFCx = df3.get_dielectric_function(direction='x')
 
     # point integration 4 blocks with large eta (smearing)
-    kwargs.update({'integrationmode': None, 'eta': 4.25})
+    kwargs.update({'integrationmode': 'point integration', 'eta': 4.25})
     df4 = DielectricFunction('gs_Na.gpw',
                              rate=0.001,
                              nblocks=4,

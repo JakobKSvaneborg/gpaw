@@ -7,7 +7,7 @@ import numpy as np
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.brillouin import BZPoints
-from gpaw.new.builder import builder
+from gpaw.dft import Parameters
 
 
 def create_nodes(obj, *objects, include):
@@ -187,7 +187,7 @@ def code():
     fd.get_potential_energy(a)
     pw.get_potential_energy(a)
     lcao.get_potential_energy(a)
-    ibzwfs = fd.dft.state.ibzwfs
+    ibzwfs = fd.dft.ibzwfs
     ibzwfs.wfs_qs = ibzwfs.wfs_qs[0][0]
 
     colors = {'BZPoints': '#ddffdd',
@@ -206,7 +206,7 @@ def code():
         return mod.startswith('gpaw.new')
 
     things = [pw, lcao,
-              lcao.dft.state.ibzwfs.wfs_qs[0][0],
+              lcao.dft.ibzwfs.wfs_qs[0][0],
               BZPoints(np.zeros((5, 3)))]
     nodes = create_nodes(a0, *things, include=include)
     plot_graph('code', nodes, colors,
@@ -214,15 +214,15 @@ def code():
 
     # scf.svg:
     nodes = create_nodes(
-        fd.dft.state.density.nct_aX,
-        pw.dft.state.density.nct_aX,
+        fd.dft.density.nct_aX,
+        pw.dft.density.nct_aX,
         include=lambda obj: obj.__class__.__name__.startswith('Atom'))
     plot_graph('acf', nodes, {'AtomCenteredFunctions': '#ddffff'})
 
     # da.svg:
     nodes = create_nodes(
-        fd.dft.state.ibzwfs.wfs_qs.psit_nX,
-        pw.dft.state.ibzwfs.wfs_qs[0][0].psit_nX,
+        fd.dft.ibzwfs.wfs_qs.psit_nX,
+        pw.dft.ibzwfs.wfs_qs[0][0].psit_nX,
         include=lambda obj:
             getattr(obj, '__module__', '').startswith('gpaw.core') and
             obj.__class__.__name__ != '_lru_cache_wrapper')
@@ -234,7 +234,7 @@ def builders():
     b = []
     a = ase.Atoms('H', cell=[2, 2, 2], pbc=1)
     for mode in ['fd', 'pw', 'lcao']:
-        b.append(builder(a, {'mode': mode}))
+        b.append(Parameters(mode=mode).dft_component_builder(a))
     nodes = create_nodes(
         *b,
         include=lambda obj:

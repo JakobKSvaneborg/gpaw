@@ -6,7 +6,6 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import create_setup
 from gpaw.core import UGDesc
 from gpaw.xc import XC
-from gpaw.new.external_potential import ExternalPotential
 
 
 @pytest.mark.soc
@@ -35,12 +34,13 @@ def test_energy_from_complex_densmat():
 
     def calc_energies(D_sii):
         _, energies = calculate_non_local_potential1(
-            setup, xc, ExternalPotential(), D_sii, np.zeros(1), soc)
+            setup, xc, D_sii, np.zeros(1), soc)
         return energies
 
     energies1 = calc_energies(D_sii)
 
-    assert energies1['kinetic'] == pytest.approx(0.04340694003, abs=err)
+    assert energies1['kinetic_correction'] == pytest.approx(
+        0.04340694003, abs=err)
     assert energies1['coulomb'] == pytest.approx(-5.5575386716, abs=err)
     assert energies1['zero'] == pytest.approx(-2.432694074696, abs=err)
     assert energies1['xc'] == pytest.approx(1.5938337327, abs=err)
@@ -61,7 +61,8 @@ def test_energy_from_complex_densmat():
 
     energies2 = calc_energies(D_sii)
 
-    assert energies2['kinetic'] == pytest.approx(energies1['kinetic'], abs=err)
+    assert energies2['kinetic_correction'] == pytest.approx(
+        energies1['kinetic_correction'], abs=err)
     assert energies2['coulomb'] == pytest.approx(energies1['coulomb'], abs=err)
     assert energies2['zero'] == pytest.approx(energies1['zero'], abs=err)
     assert energies2['xc'] == pytest.approx(energies1['xc'], abs=err)
@@ -71,7 +72,8 @@ def test_energy_from_complex_densmat():
 
     energies3 = calc_energies(D_sii.real)
 
-    assert energies3['kinetic'] == pytest.approx(0.0446930609623, abs=err)
+    assert energies3['kinetic_correction'] == pytest.approx(
+        0.0446930609623, abs=err)
     assert energies3['coulomb'] == pytest.approx(energies1['coulomb'], abs=err)
     assert energies3['zero'] == pytest.approx(energies1['zero'], abs=err)
     assert energies3['xc'] == pytest.approx(energies1['xc'], abs=err)

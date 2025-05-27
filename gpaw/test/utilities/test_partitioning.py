@@ -8,7 +8,7 @@ from gpaw.analyse.wignerseitz import WignerSeitz
 import pytest
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_utilities_partitioning(in_tmp_dir):
     h = 0.4
     gpwname = 'H2O' + str(h) + '.gpw'

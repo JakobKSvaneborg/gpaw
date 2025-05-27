@@ -27,7 +27,6 @@ def test_noncollinear_o2(in_tmp_dir, gpaw_new):
     f = a.get_forces()
     e = a.calc.get_eigenvalues(0, 0)[10]
     p = a.calc.get_pseudo_wave_function(10, periodic=True)
-
     assert abs(f - f0).max() < 0.01
     assert e == pytest.approx(e0, abs=0.002)
     assert abs(p0)**2 == pytest.approx((abs(p)**2).sum(axis=0), abs=1e-4)

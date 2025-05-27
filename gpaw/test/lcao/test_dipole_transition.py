@@ -9,7 +9,7 @@ from gpaw.utilities.dipole import dipole_matrix_elements_from_calc
 from gpaw.lrtddft.kssingle import KSSingles
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_dipole_transition(gpw_files, tmp_path_factory):
     """Check dipole matrix-elements for H20."""
     calc = GPAW(gpw_files['h2o_lcao'])

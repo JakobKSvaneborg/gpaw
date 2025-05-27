@@ -145,6 +145,7 @@ def generate_nblocks_n():
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parametrize(
     'system,qrel,gammacentered',
     product(generate_system_s(), generate_qrel_q(), generate_gc_g()))
@@ -250,6 +251,7 @@ def test_chiks(in_tmp_dir, gpw_files, system, qrel, gammacentered):
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parametrize(
     'system,qrel',
     product(generate_system_s(spincomponents=['00']), generate_qrel_q()))
@@ -306,6 +308,7 @@ def test_chiks_vs_chi0(in_tmp_dir, gpw_files, system, qrel):
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.parametrize(
     'system,qrel,gammacentered',
     product(generate_system_s(spincomponents=['+-']),

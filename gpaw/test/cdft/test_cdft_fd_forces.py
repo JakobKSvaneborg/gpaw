@@ -6,7 +6,7 @@ from gpaw import GPAW, Mixer
 from gpaw.cdft.cdft import CDFT
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 def test_cdft_fd_forces(in_tmp_dir):
 
     sys = Atoms('N2', positions=([0., 0., 0.], [0., 0., 1]))

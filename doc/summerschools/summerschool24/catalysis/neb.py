@@ -155,9 +155,10 @@ it as a script in the end.
 ### Parallelisation
 
 The NEB should be parallelised over images. An example can be found in [this
-GPAW tutorial](https://wiki.fysik.dtu.dk/gpaw/tutorialsexercises/moleculardynamics/neb/neb.html). The
+GPAW tutorial](https://gpaw.readthedocs.io/tutorialsexercises/moleculardynamics/neb/neb.html). The
 script enumerates the cpu's and uses this number (``rank``) along with the
 total number of cpu's (``size``) to distribute the tasks.
+Note that the NEB class now needs to be initialized by using ```NEB(images,parallel=True)```.
 """
 
 # %%

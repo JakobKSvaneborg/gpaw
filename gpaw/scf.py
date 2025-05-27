@@ -18,6 +18,7 @@ class SCFLoop:
         self.reset()
         self.converged = False
         self.eigensolver_name = None
+        self.fix_fermi_level = False
 
     def __str__(self):
         s = 'Convergence criteria:\n'
@@ -129,7 +130,7 @@ class SCFLoop:
             kin_en_using_band = False
         else:
             wfs.eigensolver.iterate(ham, wfs)
-            e_entropy = wfs.calculate_occupation_numbers(dens.fixed)
+            e_entropy = wfs.calculate_occupation_numbers(self.fix_fermi_level)
             kin_en_using_band = True
 
         if hasattr(wfs.eigensolver, 'e_sic'):
@@ -193,13 +194,15 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
             .format(ctx.niter, *now[3:6]))
 
     # Energy.
-    line += '{:>12s}{:1s} '.format(entries['energy'], c['energy'])
+    line += '{:>12s}{:1s} '.format(entries.get('energy', ''),
+                                   c.get('energy', ''))
 
     # Eigenstates.
     line += '{:>6s}{:1s} '.format(entries['eigenstates'], c['eigenstates'])
 
     # Density.
-    line += '{:>5s}{:1s} '.format(entries['density'], c['density'])
+    line += '{:>5s}{:1s} '.format(entries.get('density', ''),
+                                  c.get('density', ''))
 
     # Custom criteria (optional).
     for name in custom:
@@ -257,6 +260,6 @@ Here are some tips:
 
 See details here:
 
-    https://wiki.fysik.dtu.dk/gpaw/documentation/convergence.html
+    https://gpaw.readthedocs.io/documentation/convergence.html
 
 """

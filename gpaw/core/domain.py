@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence, Literal
+from typing import TYPE_CHECKING, Sequence, Literal, Generic, TypeVar
 
 import numpy as np
 from ase.geometry.cell import cellpar_to_cell
@@ -31,7 +31,10 @@ def normalize_cell(cell: ArrayLike) -> Array2D:
     return cellpar_to_cell(cell)
 
 
-class Domain:
+XArray = TypeVar('XArray', bound='DistributedArrays')
+
+
+class Domain(Generic[XArray]):
     itemsize: int
 
     def __init__(self,
@@ -51,8 +54,10 @@ class Domain:
         self.orthogonal = not (self.cell_cv -
                                np.diag(self.cell_cv.diagonal())).any()
 
-        assert dtype in [None, float, complex]
+        assert np.dtype(dtype) in \
+            [None, np.float32, np.float64, np.complex64, np.complex128], dtype
 
+        # XXX: Gotta be careful about precision here:
         if kpt is not None:
             if dtype is None:
                 dtype = complex
@@ -114,12 +119,12 @@ class Domain:
 
     def empty(self,
               shape: int | tuple[int, ...] = (),
-              comm: MPIComm = serial_comm, xp=None) -> DistributedArrays:
+              comm: MPIComm = serial_comm, xp=None) -> XArray:
         raise NotImplementedError
 
     def zeros(self,
               shape: int | tuple[int, ...] = (),
-              comm: MPIComm = serial_comm, xp=None) -> DistributedArrays:
+              comm: MPIComm = serial_comm, xp=None) -> XArray:
         array = self.empty(shape, comm, xp=xp)
         array.data[:] = 0.0
         return array

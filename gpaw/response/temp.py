@@ -1,7 +1,7 @@
 import numpy as np
 from functools import cached_property
 from gpaw.response.pw_parallelization import Blocks1D
-from gpaw.response.gamma_int import GammaIntegrator
+from gpaw.response.gamma_int import GammaIntegral
 
 
 class DielectricFunctionCalculator:
@@ -12,15 +12,10 @@ class DielectricFunctionCalculator:
         self.optical_limit = chi0.optical_limit
         self.chi0 = chi0
         self.xckernel = xckernel
-        wblocks1d = Blocks1D(chi0.body.blockdist.blockcomm, len(chi0.wd))
-        self.wblocks1d = wblocks1d
+        self.wblocks = Blocks1D(chi0.body.blockdist.blockcomm, len(chi0.wd))
         # Generate fine grid in vicinity of gamma
-        if chi0.optical_limit and wblocks1d.nlocal:
-            self.gamma_int = GammaIntegrator(
-                truncation=self.coulomb.truncation,
-                kd=coulomb.kd, qpd=self.qpd,
-                chi0_wvv=chi0.chi0_Wvv[wblocks1d.myslice],
-                chi0_wxvG=chi0.chi0_WxvG[wblocks1d.myslice])
+        if chi0.optical_limit and self.wblocks.nlocal:
+            self.gamma_int = GammaIntegral(self.coulomb, self.qpd)
         else:
             self.gamma_int = None
 
@@ -39,39 +34,36 @@ class DielectricFunctionCalculator:
         else:
             return self.xckernel.calculate(self.qpd)
 
+    @cached_property
+    def chi0_wGG(self):
+        return self.chi0.body.copy_array_with_distribution('wGG')
+
     def get_epsinv_wGG(self, only_correlation=True):
         """
         Calculates inverse dielectric matrix for all frequencies.
         """
-        chi0_wGG = self.chi0.body.copy_array_with_distribution('wGG')
         epsinv_wGG = []
-        for iw, chi0_GG in enumerate(chi0_wGG):
-            epsinv_GG = self.get_epsinv_GG(chi0_GG, iw)
+        for w in range(self.wblocks.nlocal):
+            epsinv_GG = self.single_frequency_epsinv_GG(w)
             if only_correlation:
                 epsinv_GG -= self.I_GG
             epsinv_wGG.append(epsinv_GG)
         return np.asarray(epsinv_wGG)
 
-    def get_epsinv_GG(self, chi0_GG, iw=None):
+    def single_frequency_epsinv_GG(self, w):
         """
         Calculates inverse dielectric matrix for single frequency
         """
+        _dfc = _DielectricFunctionCalculator(self.sqrtV_G,
+                                             self.chi0_wGG[w],
+                                             self.mode,
+                                             self.fxc_GG)
         if self.optical_limit:
-            return self._get_epsinvGamma_GG(chi0_GG, iw)
-        dfc = _DielectricFunctionCalculator(self.sqrtV_G,
-                                            chi0_GG,
-                                            self.mode,
-                                            self.fxc_GG)
-        return dfc.get_epsinv_GG()
-
-    def _get_epsinvGamma_GG(self, chi0_GG, iw):
-        dfc = _DielectricFunctionCalculator(self.sqrtV_G,
-                                            chi0_GG,
-                                            self.mode,
-                                            self.fxc_GG)
-        return dfc.get_epsinvGamma_GG(self.gamma_int,
-                                      self.qpd, iw,
-                                      self.coulomb)
+            W = self.wblocks.a + w
+            _dfc = _GammaDielectricFunctionCalculator(
+                _dfc, self.gamma_int,
+                self.chi0.chi0_Wvv[W], self.chi0.chi0_WxvG[W])
+        return _dfc.get_epsinv_GG()
 
 
 class _DielectricFunctionCalculator:
@@ -84,6 +76,10 @@ class _DielectricFunctionCalculator:
         self.fxc_GG = fxc_GG
         self.chi0_GG = chi0_GG
         self.mode = mode
+
+    def new_with(self, *, sqrtV_G, chi0_GG):
+        return _DielectricFunctionCalculator(
+            sqrtV_G, chi0_GG, self.mode, fxc_GG=self.fxc_GG)
 
     def _chiVVfxc_GG(self):
         assert self.mode != 'GW'
@@ -124,16 +120,25 @@ class _DielectricFunctionCalculator:
         eps_GG = self.get_eps_GG()
         return np.linalg.inv(eps_GG)
 
-    def get_epsinvGamma_GG(self, gamma_int, qpd, iw, coulomb):
+
+class _GammaDielectricFunctionCalculator:
+
+    def __init__(self, _dfc, gamma_int, chi0_vv, chi0_xvG):
+        self._dfc = _dfc
+        self.gamma_int = gamma_int
+
+        self.chi0_vv = chi0_vv
+        self.chi0_xvG = chi0_xvG
+
+    @property
+    def chi0_GG(self):
+        return self._dfc.chi0_GG
+
+    def get_epsinv_GG(self):
         # Get average epsinv over small region around Gamma
         epsinv_GG = np.zeros(self.chi0_GG.shape, complex)
-        for iqf in range(len(gamma_int.qf_qv)):
-            # Note! set_appendages changes (0,0), (0,:), (:,0)
-            # elements of chi0_GG
-            gamma_int.set_appendages(self.chi0_GG, iw, iqf)
-            sqrtV_G = coulomb.sqrtV(
-                qpd=qpd, q_v=gamma_int.qf_qv[iqf])
-            dfc = _DielectricFunctionCalculator(
-                sqrtV_G, self.chi0_GG, mode=self.mode, fxc_GG=self.fxc_GG)
-            epsinv_GG += dfc.get_epsinv_GG() * gamma_int.weight_q
+        for qweight, sqrtV_G, chi0_mapping in self.gamma_int:
+            chi0p_GG = chi0_mapping(self.chi0_GG, self.chi0_vv, self.chi0_xvG)
+            _dfc = self._dfc.new_with(sqrtV_G=sqrtV_G, chi0_GG=chi0p_GG)
+            epsinv_GG += qweight * _dfc.get_epsinv_GG()
         return epsinv_GG

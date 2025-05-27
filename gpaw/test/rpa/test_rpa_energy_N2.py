@@ -1,4 +1,7 @@
 import pytest
+
+from ase.units import Hartree
+
 from gpaw import GPAW
 from gpaw.mpi import serial_comm
 from gpaw.xc.rpa import RPACorrelation
@@ -16,7 +19,12 @@ def test_rpa_rpa_energy_N2(in_tmp_dir, gpw_files, scalapack):
     E_n2_hf = nsc_energy(N2_calc, 'EXX')
 
     rpa = RPACorrelation(N2_calc, nfrequencies=8, ecut=[ecut])
-    E_n2_rpa = rpa.calculate()
+    data = rpa.calculate_all_contributions()
+    energy_w = data.energy_wi[:, 0]  # we only have 1 ecut
+    assert energy_w == pytest.approx(
+        [-1.7415, -1.7336, -1.4659, -0.4209, -0.0295, -0.0010]
+        + [0.0] * 2, abs=0.001)
+    E_n2_rpa = data.energy_i * Hartree
 
     N_calc = GPAW(gpw_files['n_pw'], communicator=serial_comm)
     E_n_pbe = N_calc.get_potential_energy()

@@ -1,3 +1,5 @@
+import pickle
+
 from myqueue.workflow import run
 
 
@@ -13,7 +15,21 @@ def workflow():
         with run(script='C_frequency_conv_plot.py'):
             run(script='C_equal_test.py', deps=[r])
 
+    with run(script='C_converged_mpa.py'):
+        run(function=check_mpa)
+
     with run(script='MoS2_gs_GW.py', tmax='2h'):
         with run(script='MoS2_GWG.py', cores=8, tmax='20m'):
             run(script='MoS2_bs_plot.py')
             run(script='check_gw.py')
+
+
+def check_mpa():
+    """Check numbers in ReST file."""
+    gap_references = [7.19, 7.23]
+    for npols in [1, 8]:
+        with open(f'C-g0w0_mp{npols}_results_GW.pckl', 'rb') as f:
+            results = pickle.load(f)
+        gap = results['qp'][0, 0, 1] - results['qp'][0, 0, 0]
+        print(npols, gap)
+        assert abs(gap - gap_references.pop(0)) < 0.005

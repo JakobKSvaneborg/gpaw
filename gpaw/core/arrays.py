@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar, Callable
+from typing import TYPE_CHECKING, Generic, TypeVar, Callable, Literal
 
 import gpaw.fftw as fftw
 import numpy as np
@@ -8,7 +8,7 @@ from ase.io.ulm import NDArrayReader
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.mpi import MPIComm
-from gpaw.typing import Array1D, Literal, Self, ArrayND
+from gpaw.typing import Array1D, Self, ArrayND
 from gpaw.gpu import XP
 
 if TYPE_CHECKING:
@@ -230,6 +230,12 @@ class DistributedArrays(Generic[DomainType], XP):
                     plan2: fftw.FFTPlans | None = None,
                     grid: UGDesc | None = None,
                     out: UGArray | None = None) -> UGArray:
+        raise NotImplementedError
+
+    def integrate(self, other: Self | None = None) -> np.ndarray:
+        raise NotImplementedError
+
+    def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
         raise NotImplementedError
 
 

@@ -7,21 +7,21 @@ from gpaw.grid_descriptor import GridDescriptor
 from gpaw.mpi import world
 
 
-def test_strange_cell():
+@pytest.mark.parametrize('cell, size',
+                         [([8.7, 5.7, 7.7, 28, 120, 95], [60, 40, 54]),
+                          ([2, 2, 2, 120.1, 120.1, 90], [20, 20, 20])])
+def test_strange_cell(cell, size):
     """Make sure x-derivative is correct even in a strange cell.
 
     See issue #1102.
     """
-    grid = UGDesc(
-        cell=[8.7, 5.7, 7.7, 28, 120, 95],
-        size=(60, 40, 54))
-    with pytest.raises(ValueError):
-        grad = Gradient(grid._gd, v=0)
-    grad = Gradient(grid._gd, v=0, allow_bad_cells=True)
+    grid = UGDesc(cell=cell, size=size)
+    grad = Gradient(grid._gd, v=0)
     a, b = grid.empty(2)
     a.data[:] = grid.xyz()[:, :, :, 0]
     grad.apply(a.data, b.data)
-    assert b.data[30, 20, 27] == pytest.approx(1.0)
+    n1, n2, n3 = grid.size_c // 2
+    assert b.data[n1, n2, n3] == pytest.approx(1.0)
 
 
 def test_fd_ops_gradient():

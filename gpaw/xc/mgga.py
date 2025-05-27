@@ -5,8 +5,9 @@ from scipy.special import eval_legendre
 
 from gpaw.xc.gga import (add_gradient_correction, gga_vars,
                          GGARadialExpansion, GGARadialCalculator,
-                         get_gradient_ops)
-from gpaw.xc.lda import calculate_paw_correction
+                         get_gradient_ops, stress_gga_term)
+from gpaw.xc.lda import (calculate_paw_correction, stress_integral,
+                         stress_lda_term)
 from gpaw.xc.functional import XCFunctional
 from gpaw.sphere.lebedev import weight_n
 
@@ -133,7 +134,33 @@ class MGGA(XCFunctional):
                 self.dedtaut_sG[s] * (taut_sG[s] -
                                       self.tauct_G / self.wfs.nspins))
 
-    def stress_tensor_contribution(self, n_sg):
+    def stress_mgga_term(self, taut_sg, dedtaut_sg):
+        nspins = len(taut_sg)
+        tau_swG = self.wfs.calculate_kinetic_energy_density_crossterms()
+        tau_cross_g = self.gd.empty()
+        P = 0
+        for taut_g, dedtaut_g in zip(taut_sg, dedtaut_sg):
+            P -= stress_integral(self.gd, taut_g, dedtaut_g)
+        stress_vv = P * np.eye(3)
+        for s in range(nspins):
+            w = 0
+            for v1 in range(3):
+                for v2 in range(v1, 3):
+                    self.distribute_and_interpolate(
+                        tau_swG[s, w], tau_cross_g)
+                    stress_contrib = stress_integral(
+                        self.gd, tau_cross_g, dedtaut_sg[s]
+                    )
+                    stress_vv[v1, v2] -= stress_contrib
+                    if v1 != v2:
+                        stress_vv[v2, v1] -= stress_contrib
+                    w += 1
+        self.dedtaut_sG = self.wfs.gd.empty(self.wfs.nspins)
+        for s in range(self.wfs.nspins):
+            self.restrict_and_collect(dedtaut_sg[s], self.dedtaut_sG[s])
+        return stress_vv
+
+    def stress_tensor_contribution(self, n_sg, skip_sum=False):
         sigma_xg, dedsigma_xg, gradn_svg = gga_vars(self.gd, self.grad_v, n_sg)
         taut_sG = self.wfs.calculate_kinetic_energy_density()
         if taut_sG is None:
@@ -150,45 +177,13 @@ class MGGA(XCFunctional):
         self.kernel.calculate(e_g, n_sg, v_sg, sigma_xg, dedsigma_xg,
                               taut_sg, dedtaut_sg)
 
-        def integrate(a1_g, a2_g=None):
-            return self.gd.integrate(a1_g, a2_g, global_integral=False)
+        stress_vv = stress_lda_term(self.gd, e_g, n_sg, v_sg)
+        stress_vv[:] += stress_gga_term(self.gd, sigma_xg, gradn_svg,
+                                        dedsigma_xg)
+        stress_vv[:] += self.stress_mgga_term(taut_sg, dedtaut_sg)
 
-        P = integrate(e_g)
-        for v_g, n_g in zip(v_sg, n_sg):
-            P -= integrate(v_g, n_g)
-        for sigma_g, dedsigma_g in zip(sigma_xg, dedsigma_xg):
-            P -= 2 * integrate(sigma_g, dedsigma_g)
-        for taut_g, dedtaut_g in zip(taut_sg, dedtaut_sg):
-            P -= integrate(taut_g, dedtaut_g)
-
-        tau_svvG = self.wfs.calculate_kinetic_energy_density_crossterms()
-
-        stress_vv = P * np.eye(3)
-        for v1 in range(3):
-            for v2 in range(3):
-                stress_vv[v1, v2] -= integrate(gradn_svg[0, v1] *
-                                               gradn_svg[0, v2],
-                                               dedsigma_xg[0]) * 2
-                if nspins == 2:
-                    stress_vv[v1, v2] -= integrate(gradn_svg[0, v1] *
-                                                   gradn_svg[1, v2],
-                                                   dedsigma_xg[1]) * 2
-                    stress_vv[v1, v2] -= integrate(gradn_svg[1, v1] *
-                                                   gradn_svg[1, v2],
-                                                   dedsigma_xg[2]) * 2
-        tau_cross_g = self.gd.empty()
-        for s in range(nspins):
-            for v1 in range(3):
-                for v2 in range(3):
-                    self.distribute_and_interpolate(
-                        tau_svvG[s, v1, v2], tau_cross_g)
-                    stress_vv[v1, v2] -= integrate(tau_cross_g, dedtaut_sg[s])
-
-        self.dedtaut_sG = self.wfs.gd.empty(self.wfs.nspins)
-        for s in range(self.wfs.nspins):
-            self.restrict_and_collect(dedtaut_sg[s], self.dedtaut_sG[s])
-
-        self.gd.comm.sum(stress_vv)
+        if not skip_sum:
+            self.gd.comm.sum(stress_vv)
         return stress_vv
 
     def apply_orbital_dependent_hamiltonian(self, kpt, psit_xG,

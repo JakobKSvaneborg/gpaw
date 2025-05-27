@@ -5,11 +5,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Load data
-rc_r = np.load('rc_r.npy')
-m_r = np.load('m_r.npy')
-EZ_r = np.load('EZ_r.npy')
-rc = np.load('rc.npy')
-magmom = np.load('magmom.npy')
+rc_r = np.load('Fe_rc_r.npy')
+m_r = np.load('Fe_m_r.npy')
+EZ_r = np.load('Fe_EZ_r.npy')
+rc = np.load('Fe_rc.npy')
+magmom = np.load('Fe_magmom.npy')
 
 # Plot data
 rlabel = r'$r_\mathrm{c}$ [$\mathrm{\AA}$]'

@@ -3,7 +3,7 @@
 
 """Utility functions and classes."""
 
-import atexit
+import io
 import os
 import re
 import sys
@@ -13,14 +13,14 @@ from math import sqrt
 from pathlib import Path
 from typing import Union
 
+import gpaw.cgpaw as cgpaw
+import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.data import covalent_radii
 from ase.neighborlist import neighbor_list
-
-import gpaw.cgpaw as cgpaw
-import gpaw.mpi as mpi
-from gpaw import debug
+from gpaw import GPAW_NO_C_EXTENSION, debug
+from gpaw.typing import DTypeLike
 
 # Code will crash for setups without any projectors.  Setups that have
 # no projectors therefore receive a dummy projector as a hacky
@@ -368,7 +368,7 @@ def load_balance(paw, atoms):
     print("    standard deviation:     %5.1f" % stddev_atoms)
 
 
-if not debug:
+if not debug and not GPAW_NO_C_EXTENSION:
     hartree = cgpaw.hartree  # noqa
     pack_density = cgpaw.pack
 
@@ -422,8 +422,17 @@ def file_barrier(path: Union[str, Path], world=None):
     world.barrier()
 
 
-devnull = open(os.devnull, 'w')
-atexit.register(devnull.close)
+class _NullIO(io.BufferedIOBase):
+    # Implement as few methods as possible in order to be the target of
+    # TextIOWrapper.  Python docs are not very specific.
+    def writable(self):
+        return True
+
+    def flush(self):
+        pass
+
+
+devnull = io.TextIOWrapper(_NullIO())  # type: ignore
 
 
 def convert_string_to_fd(name, world=None):
@@ -441,3 +450,40 @@ def convert_string_to_fd(name, world=None):
     if isinstance(name, (str, Path)):
         return open(name, 'w')
     return name  # we assume name is already a file-descriptor
+
+
+_complex_float = {
+    np.float32: np.complex64,
+    np.float64: np.complex128,
+    np.complex64: np.complex64,
+    np.complex128: np.complex128,
+    float: complex,
+    complex: complex}
+
+_real_float = {
+    np.complex64: np.float32,
+    np.complex128: np.float64,
+    np.float32: np.float32,
+    np.float64: np.float64,
+    complex: float,
+    float: float}
+
+
+def as_complex_dtype(dtype: DTypeLike) -> np.dtype:
+    """Convert dtype to complex dtype.
+
+    >>> [as_complex_dtype(dt) for dt in
+    ...  [np.float32, np.float64, complex]]
+    [dtype('complex64'), dtype('complex128'), dtype('complex128')]
+    """
+    return np.dtype(_complex_float[np.dtype(dtype).type])
+
+
+def as_real_dtype(dtype: DTypeLike) -> np.dtype:
+    """Convert dtype to real dtype.
+
+    >>> [as_real_dtype(dt) for dt in
+    ...  [np.float32, np.float64, complex]]
+    [dtype('float32'), dtype('float64'), dtype('float64')]
+    """
+    return np.dtype(_real_float[np.dtype(dtype).type])

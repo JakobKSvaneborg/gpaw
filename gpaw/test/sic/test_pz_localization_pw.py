@@ -6,7 +6,7 @@ import numpy as np
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 
 
-@pytest.mark.later
+@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_pz_localization_pw(in_tmp_dir):
     """

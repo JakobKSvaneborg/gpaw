@@ -1,6 +1,7 @@
+import numpy as np
+import pytest
 from ase import Atoms
 from gpaw import GPAW
-import pytest
 
 
 def test_generic_IP_oxygen():
@@ -16,6 +17,14 @@ def test_generic_IP_oxygen():
     O.calc = GPAW(mode='fd', gpts=(32, 36, 32), nbands=4, charge=1)
 
     e1 = O.get_potential_energy()
+
+    h0 = -26.43361787
+    l0 = np.inf
+    h1 = -35.55077324
+    l1 = -20.81227577
+    assert O.calc.get_homo_lumo(0) == pytest.approx([h0, l0])
+    assert O.calc.get_homo_lumo(1) == pytest.approx([h1, l1])
+    assert O.calc.get_homo_lumo() == pytest.approx([h0, l1])
 
     print(e1 - e0)
     assert abs(e1 - e0 - 13.989) < 0.04

@@ -16,17 +16,17 @@ class Potential:
                  vt_sR: UGArray,
                  dH_asii: AtomArrays,
                  dedtaut_sR: UGArray | None,
-                 energies: dict[str, float],
-                 vHt_x: XArray | None = None):
+                 vHt_x: XArray | None = None,
+                 e_stress: float = np.nan):
         self.vt_sR = vt_sR
         self.dH_asii = dH_asii
         self.dedtaut_sR = dedtaut_sR
-        self.energies = energies
         self.vHt_x = vHt_x  # initial guess for Hartree potential
+        self.e_stress = e_stress  # idotropic contribution to stress tensor
 
     def __repr__(self):
         return (f'Potential({self.vt_sR}, {self.dH_asii}, '
-                f'{self.dedtaut_sR}, {self.energies})')
+                f'{self.dedtaut_sR})')
 
     def __str__(self) -> str:
         return (f'potential:\n'
@@ -65,31 +65,28 @@ class Potential:
             self.dH_asii.redist(atomdist, comm1, comm2),
             None if self.dedtaut_sR is None else self.dedtaut_sR.redist(
                 grid, comm1, comm2),
-            self.energies.copy(),
             None if self.vHt_x is None else self.vHt_x.redist(
                 desc, comm1, comm2))
 
-    def _write_gpw(self, writer, ibzwfs):
-        from gpaw.new.calculation import combine_energies
-        energies = combine_energies(self, ibzwfs)
-        energies['band'] = ibzwfs.energies['band']
-        if 'stress' in self.energies:
-            energies['stress'] = self.energies['stress']
+    def write_to_gpw(self, writer, flags):
         dH_asp = self.dH_asii.to_cpu().to_lower_triangle().gather()
         vt_sR = self.vt_sR.to_xp(np).gather()
-        assert self.vHt_x is not None
-        vHt_x = self.vHt_x.to_xp(np).gather()
         if self.dedtaut_sR is not None:
             dedtaut_sR = self.dedtaut_sR.to_xp(np).gather()
+        if self.vHt_x is not None:
+            vHt_x = self.vHt_x.to_xp(np).gather()
         if dH_asp is None:
             return
+
         writer.write(
-            potential=vt_sR.data * Ha,
-            electrostatic_potential=vHt_x.data * Ha,
-            atomic_hamiltonian_matrices=dH_asp.data * Ha,
-            **{f'e_{name}': val * Ha for name, val in energies.items()})
+            potential=flags.to_storage_dtype(vt_sR.data * Ha),
+            atomic_hamiltonian_matrices=dH_asp.data * Ha)
+        if self.vHt_x is not None:
+            vHt_x_data = flags.to_storage_dtype(vHt_x.data * Ha)
+            writer.write(electrostatic_potential=vHt_x_data)
         if self.dedtaut_sR is not None:
-            writer.write(mgga_potential=dedtaut_sR.data * Bohr**3)
+            dedtaut_sR_data = flags.to_storage_dtype(dedtaut_sR.data * Bohr**3)
+            writer.write(mgga_potential=dedtaut_sR_data)
 
     def get_vacuum_level(self) -> float:
         grid = self.vt_sR.desc
@@ -104,8 +101,7 @@ class Potential:
         elif isinstance(self.vHt_x, PWArray):
             vHt_g = self.vHt_x.gather()
             if vHt_g is not None:
-                vHt_r = vHt_g.ifft(grid=grid.new(comm=None,
-                                                 size=grid.size_c * 2))
+                vHt_r = vHt_g.ifft(grid=vHt_g.desc.minimal_uniform_grid())
             else:
                 vHt_r = None
         else:

@@ -129,7 +129,7 @@ def write_header(log, world):
     log('gpaw:  ', line)
 
     # Find C-code:
-    c = getattr(cgpaw._gpaw, '__file__', None)
+    c = getattr(cgpaw._gpaw, '__file__', '')
     if not c:
         c = sys.executable
     line = os.path.normpath(c)

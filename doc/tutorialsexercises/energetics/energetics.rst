@@ -8,7 +8,6 @@ Energetics
    :maxdepth: 2
 
    cohesive_energy/cohesive_energy
-   ../H2/atomization
    hubbardu/hubbardu
    defects/defects
    rpa_tut/rpa_tut

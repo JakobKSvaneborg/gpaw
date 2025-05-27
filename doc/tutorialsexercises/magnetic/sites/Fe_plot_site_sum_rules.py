@@ -6,10 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Load data
-rc_r = np.load('rc_r.npy')
-EZ_r = np.load('EZ_r.npy')
-sp_EZ_r = np.load('sp_EZ_r.npy')
-EZ_nr = np.load('EZ_nr.npy')
+rc_r = np.load('Fe_rc_r.npy')
+EZ_r = np.load('Fe_EZ_r.npy')
+sp_EZ_r = np.load('Fe_sp_EZ_r.npy')
+EZ_nr = np.load('Fe_EZ_nr.npy')
 
 # Plot data
 fig, ax = plt.subplots()

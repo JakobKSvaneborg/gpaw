@@ -87,8 +87,8 @@ def elf_from_dft_calculation(dft: DFTCalculation | ASECalculator,
     """
     if isinstance(dft, ASECalculator):
         dft = dft.dft
-    density = dft.state.density
-    density.update_ked(dft.state.ibzwfs)
+    density = dft.density
+    density.update_ked(dft.ibzwfs)
     taut_sR = density.taut_sR
     assert taut_sR is not None
     nt_sR = density.nt_sR

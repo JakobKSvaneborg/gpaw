@@ -16,9 +16,8 @@ if TYPE_CHECKING:
 
 
 def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
+            bands: slice,
             spin: int,
-            ni: int,
-            nf: int,
             timer: Timer | None = None) -> ArrayND:
     """
     Compute momentum matrix elements.
@@ -27,17 +26,17 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     ----------
     gs
         Ground state adapter.
+    bands
+        Range of band indices.
     spin
         Spin channel index (for spin-polarized systems 0 or 1).
-    ni, nf
-        First and last band to compute the mml (0 to nb).
     timer
-        Timer to keep track of time.
+        Timer for monitoring code performance.
 
     Returns
     -------
-    p_kvnn
-        Momentum matrix elements in atomic units gathered on master.
+    p_qvnn
+        Momentum matrix elements for each local q-point.
     """
 
     # Start the timer
@@ -45,27 +44,15 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
         timer = Timer()
     parprint(f'Calculating momentum matrix elements for spin channel {spin}.')
 
-    # Specify desired range and number of bands in calculation
-    bands = slice(ni, nf)
-    nb = nf - ni
-
     # Spin input
     assert spin < gs.ns, 'Wrong spin input'
 
-    # Parallelisation and memory estimate
-    ibzwfs = gs.ibzwfs
-    kpt_comm = ibzwfs.kpt_comm
-    rank = kpt_comm.rank
-    master = (rank == 0)
-
-    nk = len(ibzwfs.rank_k)  # Total number of k-points
-    k_q = np.array(list(ibzwfs.q_k.keys()), int)  # k-index for each q-index
-    nq = len(k_q)  # Number of k-points (q-indices) for each core
-    est_mem = 2 * 3 * nk * nb**2 * 16 / 2**20
-    parprint(f'At least {est_mem:.2f} MB of memory is required on master.')
-
     # Allocate the matrix elements
-    p_qvnn = np.empty((nq, 3, nb, nb), dtype=complex)
+    ibzwfs = gs.ibzwfs
+    master = (ibzwfs.kpt_comm.rank == 0)
+    nb = bands.stop - bands.start
+    nq = len(ibzwfs.q_k.keys())  # Number of k-points (q-indices) for each core
+    p_qvnn = np.empty([nq, 3, nb, nb], dtype=complex)
 
     # Initial call to print 0 % progress
     if master:
@@ -76,14 +63,13 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
         wfs = gs.get_wfs(wfs_s, spin)
 
         with timer('Contribution from pseudo wave functions'):
-            G_plus_k_Gv, u_nG = gs.get_plane_wave_coefficients(
-                wfs, bands=bands, spin=spin)
+            G_plus_k_Gv, u_nG = gs.get_plane_wave_coefficients(wfs,
+                                                               bands, spin)
             p_vnn = np.einsum('Gv,mG,nG->vmn',
                               G_plus_k_Gv, u_nG.conj(), u_nG) * gs.ucvol
 
         with timer('Contribution from PAW corrections'):
-            P_ani = gs.get_wave_function_projections(
-                wfs, bands=bands, spin=spin)
+            P_ani = gs.get_wave_function_projections(wfs, bands, spin)
             for P_ni, nabla_iiv in zip(P_ani.values(), gs.nabla_aiiv):
                 p_vnn -= 1j * np.einsum('mi,nj,ijv->vmn',
                                         P_ni.conj(), P_ni, nabla_iiv)
@@ -95,35 +81,35 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
 
     if master:
         pb.finish()
-
-    with timer('Gather the data to master'):
-        if not master:
-            kpt_comm.send(np.array(nq, int), 0)
-            kpt_comm.send(k_q, 0)
-            kpt_comm.send(p_qvnn, 0)
-        else:
-            p_kvnn = np.empty((nk, 3, nb, nb), complex)
-            p_kvnn[k_q] = p_qvnn
-            for gather_rank in range(1, kpt_comm.size):
-                _nq = np.empty(1, int)  # We can only communicate numpy arrays
-                kpt_comm.receive(_nq, gather_rank)
-                nq = _nq[0]
-
-                k_q = np.empty(nq, int)
-                kpt_comm.receive(k_q, gather_rank)
-
-                p_qvnn = np.empty((nq, 3, nb, nb), complex)
-                kpt_comm.receive(p_qvnn, gather_rank)
-                p_kvnn[k_q] = p_qvnn
-
-    # Print the timing
-    if master:
         timer.write()
 
-    if rank == 0:
-        return p_kvnn
+    return p_qvnn
+
+
+def gather_to_master(p_qvnn, ibzwfs):
+    kpt_comm = ibzwfs.kpt_comm
+    master = (kpt_comm.rank == 0)
+    shape = p_qvnn.shape[1:4]
+
+    if not master:
+        kpt_comm.send(p_qvnn, 0)
+        return np.empty((0,) + shape, complex)
     else:
-        return np.array([], dtype=complex)
+        rank_k = ibzwfs.rank_k
+        nk = len(rank_k)
+
+        p_kvnn = np.empty((nk,) + shape, complex)
+
+        k_q = np.where(rank_k == 0)[0]
+        p_kvnn[k_q] = p_qvnn
+        for gather_rank in range(1, kpt_comm.size):
+            k_q = np.where(rank_k == gather_rank)[0]
+            nq = len(k_q)
+
+            p_qvnn = np.zeros((nq,) + shape, complex)
+            kpt_comm.receive(p_qvnn, gather_rank)
+            p_kvnn[k_q] = p_qvnn
+        return p_kvnn
 
 
 def make_nlodata(calc: ASECalculator | str | Path,
@@ -162,12 +148,15 @@ def make_nlodata(calc: ASECalculator | str | Path,
         'Point group symmetry should be off.'
 
     gs: CollinearGSInfo | NoncollinearGSInfo
-    if calc.dft.state.density.collinear:
+    if calc.dft.density.collinear:
         from gpaw.nlopt.adapters import CollinearGSInfo
         gs = CollinearGSInfo(calc)
     else:
         from gpaw.nlopt.adapters import NoncollinearGSInfo
         gs = NoncollinearGSInfo(calc)
+
+    # Start the timer
+    timer = Timer()
 
     # Parse spin string
     ns = gs.ns
@@ -187,32 +176,37 @@ def make_nlodata(calc: ASECalculator | str | Path,
     ni = int(ni) if ni is not None else 0
     nf = int(nf) if nf is not None else nb_full
     nf = nb_full + nf if (nf <= 0) else nf
+    bands = slice(ni, nf)
 
-    # Start the timer
-    timer = Timer()
+    # Memory estimate
+    nk = len(ibzwfs.rank_k)  # Total number of k-points
+    est_mem = 2 * 3 * nk * (nf - ni)**2 * 16 / 2**30
+    parprint(f'At least {est_mem:.2f} GB of memory is required on master.')
 
     # Get the energy and Fermi-Dirac occupations (data is only in master)
     with timer('Get energies and fermi levels'):
-
         E_skn, f_skn = ibzwfs.get_all_eigs_and_occs()
-
         w_sk = np.array([ibzwfs.ibz.weight_k for _ in range(gs.ndensities)])
         w_sk *= gs.bzvol * ibzwfs.spin_degeneracy
 
     # Compute the momentum matrix elements
     with timer('Compute the momentum matrix elements'):
-        p_skvnn = []
+        p_sqvnn = []
         for spin in spins:
-            p_kvnn = get_mml(gs=gs, ni=ni, nf=nf,
-                             spin=spin, timer=timer)
-            p_skvnn.append(p_kvnn)
+            p_qvnn = get_mml(gs, bands, spin, timer)
+            p_sqvnn.append(p_qvnn)
         if not gs.collinear:
-            p_skvnn = [p_skvnn[0] + p_skvnn[1]]
+            p_sqvnn = [p_sqvnn[0] + p_sqvnn[1]]
+    with timer('Gather the data to master'):
+        p_skvnn = []
+        for p_qvnn in p_sqvnn:
+            p_kvnn = gather_to_master(p_qvnn, ibzwfs)
+            p_skvnn.append(p_kvnn)
 
     # Save the output to the file
     return NLOData(w_sk=w_sk,
-                   f_skn=f_skn[:, :, ni:nf],
-                   E_skn=E_skn[:, :, ni:nf],
+                   f_skn=f_skn[:, :, bands],
+                   E_skn=E_skn[:, :, bands],
                    p_skvnn=np.array(p_skvnn, complex),
                    comm=ibzwfs.kpt_comm)
 

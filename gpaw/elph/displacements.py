@@ -118,7 +118,7 @@ class DisplacementRunner(Displacement):
         # Effective potential (in Hartree) and projector coefficients
         # Note: Need to use coarse grid, because we project onto basis later
         if isinstance(calc, ASECalculator):
-            potential = calc.dft.state.potential
+            potential = calc.dft.potential
             Vt_sG = potential.vt_sR.gather(broadcast=True).data
             dH_all_asp = {a: pack_hermitian(dH_ii)
                           for a, dH_ii

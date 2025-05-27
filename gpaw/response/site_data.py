@@ -91,10 +91,10 @@ def get_site_radii_range(gs):
 def maximize_site_magnetization(gs, indices=None):
     """Find the allowed site radii which maximize the site magnetization.
 
-    Assumes that m(rc) is maximized for some rc beloning to the interior of the
-    allowed cutoff radii for each atom. Physically, m(rc) has such a maximum
-    only if the spin-polarization of the interstitial region is anti-parallel
-    to the site in its near vicinity.
+    Assumes that m(rc) is maximized for some rc belonging to the interior of
+    the allowed cutoff radii for each atom. Physically, m(rc) has such a
+    maximum only if the spin-polarization of the interstitial region is
+    anti-parallel to the site in its near vicinity.
 
     Returns
     -------

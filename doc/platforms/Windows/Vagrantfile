@@ -76,7 +76,7 @@ SCRIPT
     windows.vm.provision :shell, :inline => "cmd /c 'cd c:\\& 7za x gpaw-setups-0.9.9672.tar.gz'"
     windows.vm.provision :shell, :inline => "cmd /c 'cd c:\\& 7za x gpaw-setups-0.9.9672.tar'"
     windows.vm.provision :shell, :inline => "cmd /c 'cd c:\\& xcopy /e /i gpaw-setups-0.9.9672 gpaw-setups'"
-    windows.vm.provision :shell, :inline => "cmd /c 'wget --quiet --no-check-certificate https://wiki.fysik.dtu.dk/gpaw/gpaw-0.11.0.12735.tar.gz -O c:\\gpaw-0.11.0.12735.tar.gz'"
+    windows.vm.provision :shell, :inline => "cmd /c 'wget --quiet --no-check-certificate https://gpaw.readthedocs.io/gpaw-0.11.0.12735.tar.gz -O c:\\gpaw-0.11.0.12735.tar.gz'"
     windows.vm.provision :shell, :inline => "cmd /c 'cd c:\\& 7za x gpaw-0.11.0.12735.tar.gz'"
     windows.vm.provision :shell, :inline => "cmd /c 'cd c:\\dist& copy gpaw-0.11.0.12735.tar c:\\'"
     windows.vm.provision :shell, :inline => "cmd /c 'cd c:\\& 7za x gpaw-0.11.0.12735.tar'"

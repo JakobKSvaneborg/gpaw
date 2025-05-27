@@ -662,7 +662,7 @@ class DielectricFunction(DielectricFunctionCalculator):
                  intraband=True, nblocks=1, world=mpi.world, txt=sys.stdout,
                  truncation=None,
                  qsymmetry=True,
-                 integrationmode=None, rate=0.0,
+                 integrationmode='point integration', rate=0.0,
                  eshift: float | None = None):
         """Creates a DielectricFunction object.
 
@@ -696,11 +696,20 @@ class DielectricFunction(DielectricFunctionCalculator):
             None for no truncation.
             '2D' for standard analytical truncation scheme.
             Non-periodic directions are determined from k-point grid
+        integrationmode: str
+            if == 'tetrahedron integration' then tetrahedron
+            integration is performed
+            if == 'point integration' then point integration is used
         eshift: float
             Shift unoccupied bands
         """
         gs, context = get_gs_and_context(calc, txt, world, timer=None)
         wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
+
+        if integrationmode is None:
+            raise DeprecationWarning(
+                "Please use `integrationmode='point integration'` instead")
+            integrationmode = 'point integration'
 
         chi0calc = Chi0Calculator(
             gs, context, nblocks=nblocks,

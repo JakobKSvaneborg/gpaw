@@ -12,8 +12,7 @@ from gpaw.xc.fxc import FXCCorrelation
     ('h2_pw280_fulldiag', dict(xc='rAPBE'), -0.74555, 1e-3),
     ('h_pw280_fulldiag', dict(xc='rALDA'), 0.002757, 1e-4),
     ('h_pw280_fulldiag', dict(xc='rAPBE', nblocks=min(4, world.size)),
-     0.01365, 1e-4),
-])
+     0.01365, 1e-4)])
 def test_ralda_energy_H2(in_tmp_dir, gpw_files, scalapack, gpw,
                          kwargs,
                          ref_energy, abstol):
