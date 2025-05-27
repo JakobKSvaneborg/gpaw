@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import Any, Union
+from typing import Any, TYPE_CHECKING
 
 import numpy as np
 from ase import Atoms
@@ -18,7 +18,6 @@ from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
@@ -27,6 +26,8 @@ from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 from gpaw.utilities.partition import AtomPartition
+if TYPE_CHECKING:
+    from gpaw.dft import Parameters
 
 
 class ReuseWaveFunctionsError(Exception):
@@ -69,7 +70,7 @@ class DFTCalculation:
                  scf_loop: SCFLoop,
                  pot_calc,
                  log: Logger,
-                 params: InputParameters,
+                 params: Parameters,
                  energies: DFTEnergies | None = None):
         self.atoms = atoms
         self.ibzwfs = ibzwfs
@@ -87,28 +88,28 @@ class DFTCalculation:
         self.energies = energies or DFTEnergies()
         self.forces_have_been_printed = False
 
+    def __getattr__(self, name):
+        matches = [ext
+                   for ext in self.pot_calc.extensions
+                   if ext.name == name]
+        if len(matches) != 1:
+            raise AttributeError
+        return matches[0]
+
     @classmethod
     def from_parameters(cls,
                         atoms: Atoms,
-                        params: Union[dict, InputParameters],
+                        params: Parameters,
                         comm=None,
-                        log=None,
-                        builder=None) -> DFTCalculation:
+                        log=None) -> DFTCalculation:
         """Create DFTCalculation object from parameters and atoms."""
-        from gpaw.new.builder import builder as create_builder
-
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
-
-        if params is None:
-            params = {}
-        if isinstance(params, dict):
-            params = InputParameters(params)
 
         if not isinstance(log, Logger):
             log = Logger(log, comm or world)
 
-        builder = builder or create_builder(atoms, params, log.comm, log)
+        builder = params.dft_component_builder(atoms, log=log)
 
         basis_set = builder.create_basis_set()
 
@@ -117,7 +118,7 @@ class DFTCalculation:
         # FIX this!
         scf_loop = builder.create_scf_loop()
 
-        pot_calc = builder.create_potential_calculator(log)
+        pot_calc = builder.create_potential_calculator()
 
         density = builder.density_from_superposition(basis_set)
         if len(atoms) == 0:
@@ -127,7 +128,7 @@ class DFTCalculation:
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
-            basis_set, potential, log=log)
+            basis_set, potential)
 
         if ibzwfs.wfs_qs[0][0]._eig_n is not None:
             nelectrons = (density.nvalence - density.charge +
@@ -146,7 +147,7 @@ class DFTCalculation:
                    builder.setups, scf_loop, pot_calc, log,
                    params=params, energies=energies)
 
-    def get_ase_calc(self):
+    def ase_calculator(self):
         """Create ASE-compatible GPAW calculator.
         """
         from gpaw.new.ase_interface import ASECalculator
@@ -407,25 +408,21 @@ class DFTCalculation:
 
     def new(self,
             atoms: Atoms,
-            params: InputParameters,
+            params: Parameters,
             log=None) -> DFTCalculation:
         """Create new DFTCalculation object."""
-        from gpaw.new.builder import builder as create_builder
 
-        if params.mode['name'] != 'pw':
+        if params.mode.name != 'pw':
             raise ReuseWaveFunctionsError
 
         ibzwfs = self.ibzwfs
         if ibzwfs.domain_comm.size != 1:
             raise ReuseWaveFunctionsError
 
-        if not self.density.nt_sR.desc.pbc_c.all():
-            raise ReuseWaveFunctionsError
-
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
-        builder = create_builder(atoms, params, self.comm, log)
+        builder = params.dft_component_builder(atoms, log=log)
 
         kpt_kc = builder.ibz.kpt_kc
         old_kpt_kc = ibzwfs.ibz.kpt_kc
@@ -437,7 +434,7 @@ class DFTCalculation:
         log('Interpolating wave functions to new cell')
 
         scf_loop = builder.create_scf_loop()
-        pot_calc = builder.create_potential_calculator(log)
+        pot_calc = builder.create_potential_calculator()
 
         density = self.density.new(builder.grid,
                                    builder.interpolation_desc,

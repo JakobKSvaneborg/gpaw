@@ -3,7 +3,6 @@ from typing import Union
 
 from ase import Atoms
 
-from gpaw.new.builder import builder
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.ibzwfs import IBZ
 from gpaw.new.logger import Logger
@@ -11,6 +10,7 @@ from gpaw.core import UGDesc
 from gpaw.core.domain import Domain
 from gpaw.setup import Setups
 from gpaw.mpi import MPIComm
+from gpaw.dft import Parameters
 
 
 @dataclass
@@ -38,14 +38,14 @@ class CalcInfo:
         params.update(updated_params)
         return get_calculation_info(self.atoms, **params)
 
-    def get_dft_calc(self) -> DFTCalculation:
+    def dft_calculation(self) -> DFTCalculation:
         return DFTCalculation.from_parameters(self.atoms.copy(),
-                                              self.input_params,
+                                              Parameters(**self.input_params),
                                               comm=self.comm,
                                               log=self.log)
 
-    def get_ase_calc(self):
-        return self.get_dft_calc().get_ase_calc()
+    def ase_calculator(self):
+        return self.dft_calculation().ase_calculator()
 
 
 def get_calculation_info(atoms: Atoms,
@@ -99,9 +99,9 @@ def get_calculation_info(atoms: Atoms,
     ----------------
     update_params
         Update input parameters and return new CalcInfo object
-    get_dft_calc
+    dft_calculation
         Return DFTCalculation object with the given input parameters
-    get_ase_calc
+    ase_calculator
         Return ASECalculation object with the given input parameters
     """
     if 'txt' in param_kwargs:
@@ -112,7 +112,8 @@ def get_calculation_info(atoms: Atoms,
         comm = param_kwargs.pop('comm')
     else:
         comm = None
-    dft_builder = builder(atoms, params=param_kwargs, comm=comm, log=log)
+    dft_builder = Parameters(**param_kwargs).dft_component_builder(
+        atoms, comm=comm, log=log)
     dft_params = CalcInfo(atoms=atoms,
                           input_params=param_kwargs,
                           ibz=dft_builder.ibz,
