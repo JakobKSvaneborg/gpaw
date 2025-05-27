@@ -77,7 +77,7 @@ class Logger:
         i = self.indentation
         text = ' '.join(str(arg) for arg in args)
         if i:
-            text = i + text.replace('\n', '\n' + i)
+            text = (i + text.replace('\n', '\n' + i)).rstrip(' ')
         print(text, file=self.fd, end=end, flush=flush)
 
 
