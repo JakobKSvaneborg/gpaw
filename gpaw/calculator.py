@@ -844,7 +844,8 @@ class GPAW(Calculator):
         M = np.linalg.norm(magmom_av.sum(0))
 
         if reading:
-            nbands = self.reader.wave_functions.eigenvalues.shape[-1]
+            shape = self.reader.wave_functions.eigenvalues.shape
+            nbands = shape[-1] // (1 if len(shape) == 3 else 2)
         else:
             nbands = par.nbands
 
