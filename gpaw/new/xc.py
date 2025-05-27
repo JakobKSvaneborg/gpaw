@@ -28,7 +28,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
     exx_fraction = 0.0
     exx_omega = 0.0
     if isinstance(xc, (str, dict)):
-        xc = XC(xc, xp=xp)
+        xc = XC(xc)
 
     if xc.type == 'HYB':
         assert isinstance(xc, HybridXC)
@@ -62,6 +62,7 @@ class Functional:
         self.setup_name = self.xc.get_setup_name()
         self.name = self.xc.name
         self.type = self.xc.type
+        self.xc.xp = xp
         self.xc.set_grid_descriptor(grid._gd)
         self.exx_fraction = 0.0
         self.exx_omega = 0.0
