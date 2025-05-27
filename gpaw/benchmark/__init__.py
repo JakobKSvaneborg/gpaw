@@ -17,7 +17,8 @@ pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
 pw_parameter_subsets = {'high': {'mode': {'ecut': 800}},
                         'low': {'mode': {'ecut': 400}},
                         'float32': {'mode': {'dtype': np.float32},
-                                    'convergence': {'maximum iterations': 30}}}
+                                    'convergence': {'maximum iterations': 30},
+                                    'random': True}}
 
 lcao_default_parameters = {'mode': {'name': 'lcao'}}
 
