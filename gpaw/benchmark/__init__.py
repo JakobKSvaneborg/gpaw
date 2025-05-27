@@ -234,7 +234,7 @@ def parse_name(name):
     """
     names = name.split('#')
     if len(names) > 1:
-        calc_info = names[2]
+        calc_info = names[1]
         assert calc_info in {'new', 'old'}
         assert len(names) == 2
     else:
