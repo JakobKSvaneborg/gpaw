@@ -72,11 +72,11 @@ C60_lowpw            C60-pw.low:kpts.gamma                                      
 C60_lowpw_float      C60-pw.low.float32:kpts.gamma                                0:4G:1GPU
 MoS2_tube            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack         56-192:100G:4-16GPU
 676_graphene         C676-pw:kpts.gamma:xc.PBE:parallel.scalapack                 56-192:100G:4-16GPU
-pw_C6000             C6000-pw.high:kpts.gamma:parallel.domainband.scalapack       192-:800G:12-GPU
+pw_C6000             C6000-pw.low:kpts.gamma:parallel.domainband.scalapack        192-:800G:12-GPU
 pw_C676              C676-pw.high:kpts.gamma:parallel.scalapack:xc.PBE            56-:500G:4-GPU
 pw_magbulk           magbulk-pw.high:kpts.density6                                1-56:4G:1-4GPU
-pw_C60_DIIS32        C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    1-56:4G:1GPU
-pw_C676_DIIS32       C676-pw.low.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    56-:100G:1-4GPU
+pw_C60_DIIS32        C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    0:4G:1GPU
+pw_C676_DIIS32       C676-pw.low.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS    0:100G:1-4GPU
 pw_slab              metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3     56-:100G:2-GPU\
 """
 
@@ -199,6 +199,15 @@ def shell_command(cmd, cwd=None):
     return output
 
 
+def supports_old_gpaw(parameters):
+    flag = True
+    if 'dtype' in mode:
+        flag = False
+    if 'gpu' in parallel:
+        flag = False
+    return flag
+
+
 def gather_system_information():
     import gpaw
     return {'processor': shell_command('lscpu'),
@@ -214,7 +223,14 @@ def gather_system_information():
 
 
 def benchmark_atoms_and_calc(name):
-    from gpaw.new.ase_interface import GPAW
+    if '#' in name:
+        name, version = name.split('#')
+        if version == 'old':
+            from gpaw import GPAW
+        else:
+            from gpaw.new.ase_interface import GPAW
+    else:
+        from gpaw.new.ase_interface import GPAW
 
     # Replace nickname with long name
     if '-' not in name:
