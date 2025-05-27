@@ -95,7 +95,7 @@ class DistributedArrays(Generic[DomainType], XP):
         for index in range(self.dims[0]):
             yield self[index]
 
-    def flat(self):
+    def flat(self) -> Self:
         if self.dims == ():
             yield self
         else:

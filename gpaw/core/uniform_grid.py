@@ -476,10 +476,10 @@ class UGArray(DistributedArrays[UGDesc]):
         out:
             Target PWArray object.
         """
-        assert self.dims == ()
+        assert not self.desc.zerobc_c.any()
         if out is None:
             assert pw is not None
-            out = pw.empty(xp=self.xp)
+            out = pw.empty(dims=self.dims, xp=self.xp)
         if pw is None:
             pw = out.desc
         if pw.dtype != self.desc.dtype:
@@ -488,9 +488,12 @@ class UGArray(DistributedArrays[UGDesc]):
         input = self
         if self.desc.comm.size > 1:
             input = input.gather()
-        if self.desc.comm.rank == 0:
+        rank = self.desc.comm.rank
+        if rank == 0:
             plan = plan or self.desc.fft_plans(xp=self.xp)
-            coefs = plan.fft_sphere(input.data, pw)
+            for f, g in zip(input.flat(), out._arrays):
+                coefs = plan.fft_sphere(f.data, pw)
+                .........
         else:
             coefs = None
 

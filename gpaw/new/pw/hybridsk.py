@@ -208,6 +208,6 @@ class PWHybridHamiltonianK(PWHamiltonian):
                     e += a_G.integrate(rhot_G) * f2 * f1_n[n1]
             rhot_nG.ifft(out=rhot_nR)
             rhot_nR.data *= ut1_R.data
-            rhot_nG.fft(out=rhot_nR)
+            rhot_nR.fft(out=rhot_nG)
             Htpsit2_nG += rhot_nR * f1_n[n1]
         return e
