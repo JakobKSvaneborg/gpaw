@@ -22,3 +22,15 @@ To explicitly use the old backend, use::
 
 Default is to use old GPAW unless the environment variable
 :envvar:`GPAW_NEW` is set.
+
+
+.. _extensions:
+
+----------
+Extensions
+----------
+
+.. toctree::
+    :maxdepth: 1
+
+    extensions/d3

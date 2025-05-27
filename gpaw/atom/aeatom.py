@@ -96,7 +96,7 @@ class GaussianBasis:
         return V_bb
 
 
-def coefs(rgd, l, vr_g, e, scalar_relativistic=False, Z=None):
+def coefs(rgd, l, vr_g, e, scalar_relativistic=True, Z=None):
     r_g = rgd.r_g
 
     x0_g = 2 * (e * r_g - vr_g) * r_g
@@ -147,7 +147,7 @@ class Channel:
         self.C_nb = C_bn.T
         self.phi_ng = self.basis.expand(self.C_nb[:len(self.f_n)])
 
-    def solve2(self, vr_g, scalar_relativistic=False, Z=None, rgd=None):
+    def solve2(self, vr_g, scalar_relativistic=True, Z=None, rgd=None):
         rgd = rgd or self.basis.rgd
         r_g = rgd.r_g
         l = self.l
@@ -233,7 +233,7 @@ class Channel:
         return np.dot(f_n, self.e_n[:len(f_n)])
 
     def integrate_outwards(self, u_g, rgd, vr_g, g0, e,
-                           scalar_relativistic=False, Z=None, pt_g=None):
+                           scalar_relativistic=True, Z=None, pt_g=None):
         l = self.l
         r_g = rgd.r_g
 
@@ -291,7 +291,7 @@ class Channel:
         return dudr, phi0
 
     def integrate_inwards(self, u_g, rgd, vr_g, g0, e,
-                          scalar_relativistic=False, Z=None, gmax=None):
+                          scalar_relativistic=True, Z=None, gmax=None):
         l = self.l
         r_g = rgd.r_g
 
@@ -387,7 +387,8 @@ class AllElectronAtom:
                  configuration=None,
                  ee_interaction=True,
                  Z=None,
-                 log=None):
+                 log=None,
+                 scalar_relativistic=True):
         """All-electron calculation for spherically symmetric atom.
 
         symbol: str (or int)
@@ -423,7 +424,7 @@ class AllElectronAtom:
         else:
             self.configuration = None
 
-        self.scalar_relativistic = False
+        self.scalar_relativistic = bool(scalar_relativistic)
 
         if isinstance(xc, str):
             self.xc = XC(xc)
@@ -844,7 +845,12 @@ class CLICommand:
         add('-n', '--ngrid', help='Specify number of grid points.')
         add('-R', '--rcut', help='Radial cutoff.')
         add('-r', '--refine', action='store_true')
-        add('-s', '--scalar-relativistic', action='store_true')
+        add('-s', '--scalar-relativistic',
+            action='store_const', const=True,
+            help='Use scalar-relativistic setups (default).')
+        add('-S', '--non-relativistic',
+            action='store_const', const=False, dest='scalar_relativistic',
+            help='Don\'t use non-relativistic setups.')
         add('--no-ee-interaction', action='store_true',
             help='Turn off electron-electron interaction.')
 
@@ -887,11 +893,13 @@ def main(args):
                 f = 1
             nlfs.append((n, l, f, s))
 
-    aea = AllElectronAtom(symbol,
-                          xc=args.xc_functional,
-                          spinpol=args.spin_polarized,
-                          dirac=args.dirac,
-                          ee_interaction=not args.no_ee_interaction)
+    aea_kwargs = dict(xc=args.xc_functional,
+                      spinpol=args.spin_polarized,
+                      dirac=args.dirac,
+                      ee_interaction=not args.no_ee_interaction)
+    if args.scalar_relativistic is not None:
+        aea_kwargs['scalar_relativistic'] = args.scalar_relativistic
+    aea = AllElectronAtom(symbol, **aea_kwargs)
 
     kwargs = {}
     if args.exponents:
@@ -913,11 +921,7 @@ def main(args):
     aea.initialize(**kwargs)
     aea.run()
 
-    if args.refine:
-        aea.refine()
-
-    if args.scalar_relativistic:
-        aea.scalar_relativistic = True
+    if args.refine or args.scalar_relativistic:
         aea.refine()
 
     if args.logarithmic_derivatives:
