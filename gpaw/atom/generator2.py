@@ -955,12 +955,13 @@ class PAWSetupGenerator:
         e0 = e
         ch = Channel(l)
         while True:
-            duodr, a = ch.integrate_outwards(u_g, rgd, vtr_g, g1, e)
+            duodr, a = ch.integrate_outwards(u_g, rgd, vtr_g, g1, e,
+                                             scalar_relativistic=False)
 
             for n in range(N):
-                duodr_n[n], a_n[n] = ch.integrate_outwards(u_ng[n], rgd,
-                                                           vtr_g, g1, e,
-                                                           pt_g=pt_ng[n])
+                duodr_n[n], a_n[n] = ch.integrate_outwards(
+                    u_ng[n], rgd, vtr_g, g1, e,
+                    scalar_relativistic=False, pt_g=pt_ng[n])
 
             A_nn = (dH_nn - e * dS_nn) / (4 * pi)
             B_nn = rgd.integrate(pt_ng[:, None] * u_ng, -1)
@@ -972,7 +973,8 @@ class PAWSetupGenerator:
             duodr -= np.dot(duodr_n, d_n)
             uo = u_g[g1]
 
-            duidr = ch.integrate_inwards(u_g, rgd, vtr_g, g1, e, gmax=g2)
+            duidr = ch.integrate_inwards(u_g, rgd, vtr_g, g1, e, gmax=g2,
+                                         scalar_relativistic=False)
             ui = u_g[g1]
             A = duodr / uo - duidr / ui
             u_g[g1:] *= uo / ui
@@ -1012,14 +1014,15 @@ class PAWSetupGenerator:
         d0 = 42.0
         offset = 0
         for e in energies:
-            dudr = ch.integrate_outwards(u_g, rgd, self.vtr_g, gcut, e)[0]
+            dudr = ch.integrate_outwards(u_g, rgd, self.vtr_g, gcut, e,
+                                         scalar_relativistic=False)[0]
             u = u_g[gcut]
 
             if N:
                 for n in range(N):
-                    dudr_n[n] = ch.integrate_outwards(u_ng[n], rgd,
-                                                      self.vtr_g, gcut, e,
-                                                      pt_g=pt_ng[n])[0]
+                    dudr_n[n] = ch.integrate_outwards(
+                        u_ng[n], rgd, self.vtr_g, gcut, e,
+                        scalar_relativistic=False, pt_g=pt_ng[n])[0]
 
                 A_nn = (dH_nn - e * dS_nn) / (4 * pi)
                 B_nn = rgd.integrate(pt_ng[:, None] * u_ng, -1)
