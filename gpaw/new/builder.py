@@ -172,7 +172,7 @@ class DFTComponentsBuilder:
                 'GPAW requires 3 lattice vectors.  '
                 f'Your system has {number_of_lattice_vectors}.')
         angles = cell_to_cellpar(cell)[3:]
-        if (angles < 40.0).any():
+        if not all(40.0 < a < 140.0 for a in angles):
             a, b, c = angles
             warnings.warn(
                 'The angles between your unit-cell vectors are '
