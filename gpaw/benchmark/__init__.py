@@ -217,7 +217,8 @@ def gather_system_information():
             'date': shell_command('date'),
             'nvidia-smi': shell_command('nvidia-smi'),
             'rocm-smi': shell_command('rocm-smi'),
-            'git-hash': shell_command('git rev-parse --verify HEAD'),
+            'git-hash': shell_command('git rev-parse --verify HEAD',
+                                      cwd=Path(gpaw.__file__).parent),
             'git-status': shell_command('git status',
                                         cwd=Path(gpaw.__file__).parent),
             'hostname': shell_command('hostname')}
