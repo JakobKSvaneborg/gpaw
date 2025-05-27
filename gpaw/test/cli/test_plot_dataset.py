@@ -96,6 +96,7 @@ def test_gpaw_plot_dataset(
     args.append(setup_file)
 
     if use_cli:
+        # Not much we can do about the subcommand, just see if it works
         gpaw_plot_cmd = [sys.executable, '-m', 'gpaw', '-T', 'plot-dataset']
         subprocess.check_call(gpaw_plot_cmd + args)
     else:
@@ -105,14 +106,13 @@ def test_gpaw_plot_dataset(
             axs = CLICommand.run(parser.parse_args(args))
         # All plots should be on the same figure
         assert len({id(ax.get_figure()) for ax in axs}) == 1
+        # Check we have as many plots as expected
+        assert len(axs) == expected_nplots, repr([ax.get_title() for ax in axs])
 
-    # Check output and inspect the figure where possible
+    # Check existence of output file
     new_files = set(os.listdir(os.curdir))
     assert new_files == old_files | expected_files
     assert new_files - old_files == expected_files
-    if use_cli:
-        return
-    assert len(axs) == expected_nplots, repr([ax.get_title() for ax in axs])
 
 
 @pytest.mark.serial
