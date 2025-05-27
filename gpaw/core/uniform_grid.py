@@ -488,16 +488,14 @@ class UGArray(DistributedArrays[UGDesc]):
         input = self
         if self.desc.comm.size > 1:
             input = input.gather()
-        rank = self.desc.comm.rank
-        if rank == 0:
+        if self.desc.comm.rank == 0:
             plan = plan or self.desc.fft_plans(xp=self.xp)
-            for f, g in zip(input.flat(), out._arrays):
-                coefs = plan.fft_sphere(f.data, pw)
-                .........
+            for i, o in zip(input.flat(), out.flat()):
+                coefs = plan.fft_sphere(i.data, pw)
+                o.scatter_from(coefs)
         else:
-            coefs = None
-
-        out.scatter_from(coefs)
+            for o in out.flat():
+                o.scatter_from(None)
 
         return out
 

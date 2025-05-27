@@ -209,5 +209,5 @@ class PWHybridHamiltonianK(PWHamiltonian):
             rhot_nG.ifft(out=rhot_nR)
             rhot_nR.data *= ut1_R.data
             rhot_nR.fft(out=rhot_nG)
-            Htpsit2_nG += rhot_nR * f1_n[n1]
+            Htpsit2_nG.data += rhot_nG.data * f1_n[n1]
         return e
