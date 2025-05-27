@@ -28,6 +28,7 @@ def print_cell(gd, pbc_c, log):
 
 def print_positions(atoms, log, magmom_av):
     log(plot(atoms))
+    log('\nAtomic positions and initial magnetic moments')
     log('\nPositions:')
     symbols = atoms.get_chemical_symbols()
     for a, pos_v in enumerate(atoms.get_positions()):

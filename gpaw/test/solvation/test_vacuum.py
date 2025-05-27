@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 from ase.build import molecule
-from ase.data.vdw import vdw_radii
 
 from gpaw import GPAW
 from gpaw.solvation import (EffectivePotentialCavity, LinearDielectric,
@@ -20,8 +19,7 @@ def test_solvation_vacuum():
     u0 = 0.180
     T = 298.15
 
-    def atomic_radii(atoms):
-        return [1.09 if Z == 1 else vdw_radii[Z] for Z in atoms.numbers]
+    atomic_radii = {'H': 1.09}
 
     atoms = molecule('H2O')
     adjust_cell(atoms, vac, h)
