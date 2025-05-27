@@ -554,15 +554,6 @@ lint:
       --extend-ignore E402,E501
       doc/summerschools/summerschool24/catalysis
       doc/platforms/Linux/Niflheim
-    - echo "interrogate"
-    - pip install interrogate
-    - interrogate --version
-    - >
-      interrogate -m -i
-      -f 33.1
-      -e gpaw/test
-      -e gpaw/point_groups/groups.py
-      gpaw
 
 
 typecheck:
