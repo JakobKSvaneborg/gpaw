@@ -35,7 +35,11 @@ Will display a pretty formatted version of the benchmark run.\
 version = "May 2025"
 
 if __name__ == '__main__':
-    from gpaw.benchmark import benchmark_main, list_benchmarks, view_benchmark
+    from gpaw.benchmark import (benchmark_main,
+                               list_benchmarks,
+                               view_benchmark,
+                               parse_name,
+                               gather_benchmarks)
     parser = argparse.ArgumentParser(prog='gpaw.benchmark',
                                      description=description)
     subparsers = parser.add_subparsers(help='subcommand help', dest='command')
@@ -43,6 +47,7 @@ if __name__ == '__main__':
     run_parser.add_argument('benchmarks', nargs='*', help=benchmarks_help)
     list_parser = subparsers.add_parser('list', help=list_benchmark_help)
     view_parser = subparsers.add_parser('view', help=view_benchmark_help)
+    gather_parser = subparsers.add_parser('gather', help='')
     test_parser = subparsers.add_parser('test', help='')
     view_parser.add_argument('benchmarkfile')
 
@@ -54,10 +59,15 @@ if __name__ == '__main__':
         print(list_benchmarks())
     elif args.command == 'view':
         view_benchmark(args.benchmarkfile)
+    elif args.command == 'gather':
+        gather_benchmarks(args.benchmarkfile)
     elif args.command == 'test':
         from gpaw.benchmark import benchmarks, benchmark_atoms_and_calc
         for benchmark in benchmarks:
             print(benchmark)
-            benchmark_atoms_and_calc(benchmark)
+            _, long_name, calc_info = parse_name(benchmark)
+            benchmark_atoms_and_calc(long_name, calc_info)
     else:
+        if args.command is None:
+            raise ValueError('Run `python -m gpaw.benchmark --help` for how to use the program.')
         raise ValueError(f'Invalid command {args.command}.')

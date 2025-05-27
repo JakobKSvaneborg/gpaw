@@ -222,34 +222,58 @@ def gather_system_information():
             'hostname': shell_command('hostname')}
 
 
-def benchmark_atoms_and_calc(name):
-    if '#' in name:
-        name, version = name.split('#')
-        if version == 'old':
-            from gpaw import GPAW
-        else:
-            from gpaw.new.ase_interface import GPAW
-    else:
-        from gpaw.new.ase_interface import GPAW
+def parse_name(name):
+    """Parse (either long or nickname input) possibly containing calc info
 
+    The name can be
+        C60_pw
+        C60_pw#new
+        C60-pw.high:kpts.density6
+        C60-pw.high:kpts.density6#new
+    """
+    names = name.split('#')
+    if len(names) > 1:
+        calc_info = names[2]
+        assert calc_info in {'new', 'old'}
+        assert len(names) == 2
+    else:
+        # Default behaviour is new calculation
+        calc_info = 'new'
+
+    name = names[0]
     # Replace nickname with long name
     if '-' not in name:
         if name in benchmarks:
-            name = benchmarks[name]
+            short_name = name
+            long_name = benchmarks[name]
         else:
             raise Exception(benchmarks_error(name))
+    else:
+        short_name = 'N/A'
+        long_name = name
 
-    system, parameter_sets = name.split('-')
+    return short_name, long_name, calc_info
+
+
+def benchmark_atoms_and_calc(long_name, calc_info):
+    if calc_info == 'new':
+        from gpaw.new.ase_interface import GPAW
+    elif calc_info == 'old':
+        from gpaw import GPAW
+    else:
+        raise Exception(f'Unknown calc info {calc_info}')
+
+    system, parameter_sets = long_name.split('-')
     atoms = parse_system(system)
     parameters = parse_parameters(parameter_sets)
     if world.rank == 0:
         pp(parameters, indent=4, sort_dicts=True)
-    atoms.calc = GPAW(**parameters, txt=f'{name}.log')
+    atoms.calc = GPAW(**parameters, txt=f'{long_name}-{calc_info}.log')
     return atoms, atoms.calc
 
 
-def gs_and_move_atoms(name):
-    atoms, calc = benchmark_atoms_and_calc(name)
+def gs_and_move_atoms(long_name, calc_info):
+    atoms, calc = benchmark_atoms_and_calc(long_name, calc_info)
     with Walltime('First step') as step1:
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
@@ -306,18 +330,21 @@ class Benchmark(Walltime):
 
 
 def benchmark_main(name):
+    short_name, long_name, calc_info = parse_name(name)
+
     if world.rank == 0:
         system_info = gather_system_information()
         print('Running benchmark', name)
     else:
         system_info = None
 
-    benchmark_info = {'name': name,
-                      'longname': benchmarks[name]}
+    benchmark_info = {'shortname': short_name,
+                      'longname': long_name,
+                      'calcinfo': calc_info}
 
     world.barrier()
     with Benchmark(system_info, **benchmark_info) as results:
-        results.results = gs_and_move_atoms(name)
+        results.results = gs_and_move_atoms(long_name, calc_info)
     if world.rank == 0:
         results.write_json(f'{name}-benchmark.json')
 
@@ -365,3 +392,7 @@ def mypp(dct, indent=0, summary=True):
 def view_benchmark(fname):
     dct = loads(Path(fname).read_text())
     mypp(dct)
+
+
+def gather_benchmarks():
+    pass
