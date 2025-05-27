@@ -107,7 +107,8 @@ def test_gpaw_plot_dataset(
         # All plots should be on the same figure
         assert len({id(ax.get_figure()) for ax in axs}) == 1
         # Check we have as many plots as expected
-        assert len(axs) == expected_nplots, repr([ax.get_title() for ax in axs])
+        assert len(axs) == expected_nplots, (
+            repr([ax.get_title() for ax in axs]))
 
     # Check existence of output file
     new_files = set(os.listdir(os.curdir))
