@@ -40,12 +40,14 @@ Git master branch
 * Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
   See :ref:`manual_convergence`.
 
-* Converged numbers in GPAW's text output are now colored green.
+* Converged numbers in GPAW's text output are now colored green
+  when using :ref:`newgpaw` and running in an interactive terminal.
   This behavior can be controlled by setting different environment
-  variables: ``NO_COLOR``, ``FORCE_COLOR`` and :envvar:`python:PYTHON_COLORS`.
-  See also `controlling color`_.
+  variables: ``NO_COLOR``, ``FORCE_COLOR`` and
+  :envvar:`python:PYTHON_COLORS`.  See also `controlling color`_.
 
-.. _controlling color: https://docs.python.org/3/using/cmdline.html#controlling-color
+.. _controlling color: https://docs.python.org/3/using/cmdline.html
+                       #controlling-color
 .. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
 
 
