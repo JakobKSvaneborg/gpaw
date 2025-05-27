@@ -28,7 +28,8 @@ commands = {
          '--dirac', '-p', '--plot', '-e', '--exponents', '-l',
          '--logarithmic-derivatives', '-n', '--ngrid', '-R',
          '--rcut', '-r', '--refine', '-s',
-         '--scalar-relativistic', '--no-ee-interaction'],
+         '--scalar-relativistic', '-S', '--non-relativistic',
+         '--no-ee-interaction'],
     'basis':
         ['--name', '-s', '--search', '-t', '--type', '-E',
          '--energy-shift', '-T', '--tail-norm', '--rcut-max',
