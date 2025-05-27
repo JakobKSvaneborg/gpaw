@@ -40,6 +40,7 @@ Git master branch
 * Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
   See :ref:`manual_convergence`.
 
+* Removed the entire gpaw.dfpt module.
 
 .. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
 
