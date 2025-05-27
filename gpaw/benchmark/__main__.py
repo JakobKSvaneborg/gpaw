@@ -48,6 +48,7 @@ if __name__ == '__main__':
     list_parser = subparsers.add_parser('list', help=list_benchmark_help)
     view_parser = subparsers.add_parser('view', help=view_benchmark_help)
     gather_parser = subparsers.add_parser('gather', help='')
+    gather_parser.add_argument('benchmarks', nargs='*', help=benchmarks_help)
     test_parser = subparsers.add_parser('test', help='')
     view_parser.add_argument('benchmarkfile')
 
@@ -60,7 +61,7 @@ if __name__ == '__main__':
     elif args.command == 'view':
         view_benchmark(args.benchmarkfile)
     elif args.command == 'gather':
-        gather_benchmarks(args.benchmarkfile)
+        gather_benchmarks(args.benchmarks)
     elif args.command == 'test':
         from gpaw.benchmark import benchmarks, benchmark_atoms_and_calc
         for benchmark in benchmarks:

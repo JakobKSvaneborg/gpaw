@@ -390,10 +390,52 @@ def mypp(dct, indent=0, summary=True):
         else:
             print(value)
 
+
+def load_benchmark(fname):
+    return loads(Path(fname).read_text())
+
+
 def view_benchmark(fname):
-    dct = loads(Path(fname).read_text())
-    mypp(dct)
+    mypp(load_benchmark(fname))
 
 
-def gather_benchmarks():
-    pass
+def parse_git_status(text):
+    for line in text.split('\n'):
+        if line.startswith('On branch'):
+            return line.split()[-1]
+    return '???' 
+
+
+def parse_processor(text):
+    for line in text.split('\n'):
+        if line.startswith('Model name:'):
+            return line.split('Model name:')[-1].strip()
+    return 'No "Model name:" found'
+
+def benchmark_from_dict(dct):
+    dct = dct['Benchmark']
+    results = dct['results']
+    system_info = dct['system_info']
+
+    summary = {'walltime': dct['walltime'],
+               'shortname': dct['shortname'],
+               'processor': parse_processor(system_info['processor']),
+               'longname': dct['longname'],
+               'hostname': system_info['hostname'].strip(),
+               'calcinfo': dct['calcinfo'],
+               'First step': results['First step']['walltime'],
+               'Second step': results['Second step']['walltime'],
+               'githash': system_info['git-hash'].strip(),
+               'branch': parse_git_status(system_info['git-status'])}
+    return summary
+
+def gather_benchmarks(directories):
+    lst = [] 
+    for fname in directories:
+        try:
+            dct = load_benchmark(fname)
+            lst.append(benchmark_from_dict(dct))
+        except Exception as e:
+            print(e)
+    print(lst)
+    return lst 
