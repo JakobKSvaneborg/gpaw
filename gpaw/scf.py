@@ -186,7 +186,8 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
         log(header1.rstrip())
         log(header2.rstrip())
 
-    def C(fmt: str, name: str) -> str:
+    def format_conv(fmt: str, name: str) -> str:
+        """Add "c" to number and color it green if converged."""
         txt = fmt.format(entries.get(name, ''))
         if converged_items.get(name):
             return log.green + txt + log.reset + 'c '
@@ -198,17 +199,17 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
             .format(ctx.niter, *now[3:6]))
 
     # Energy.
-    line += C('{:>12s}', 'energy')
+    line += format_conv('{:>12s}', 'energy')
 
     # Eigenstates.
-    line += C('{:>6s}', 'eigenstates')
+    line += format_conv('{:>6s}', 'eigenstates')
 
     # Density.
-    line += C('{:>5s}', 'density')
+    line += format_conv('{:>5s}', 'density')
 
     # Custom criteria (optional).
     for name in custom:
-        line += C('{:>5s}', name)
+        line += format_conv('{:>5s}', name)
 
     # Magnetic moment (optional).
     if ctx.wfs.nspins == 2 or not ctx.wfs.collinear:
