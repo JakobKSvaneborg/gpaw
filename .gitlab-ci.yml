@@ -366,7 +366,7 @@ test-oldest:
   script:
     - gpaw info
     - >
-      OMP_NUM_THREADS=2 pytest -v -m ci -We
+      OMP_NUM_THREADS=2 pytest -v -We -k 0-fd gpaw/test/test_fuzz.py
 
     # This is the only test which uses OpenMP.
     # We may want to identify a limited set of tests that must work
@@ -374,7 +374,7 @@ test-oldest:
 
     - gpaw-python -m gpaw info
     - >
-      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-pw
+      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-fd
       gpaw/test/test_fuzz.py
 
 

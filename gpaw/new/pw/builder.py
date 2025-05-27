@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import warnings
 from functools import cached_property
 
 import numpy as np
@@ -38,6 +40,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         self._nct_ag = None
         self._tauct_ag = None
 
+        nthreads = int(os.environ.get('OMP_NUM_THREADS', '') or '1')
+        if nthreads > 1:
+            warnings.warn(
+                'Using OMP_NUM_THREADS>1 in PW-mode is not useful!')
         # We should just distribute the atom evenly, but that is not compatible
         # with LCAO initialization!
         # return AtomDistribution.from_number_of_atoms(len(self.relpos_ac),
