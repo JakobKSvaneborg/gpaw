@@ -63,8 +63,7 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'parallel': ({}, parallel_parameter_subsets)}
 
 
-with open('benchmarks.csv', 'r') as f:
-    benchmarks_str = f.read()
+benchmarks_str = (Path(__file__).parent / 'benchmarks.csv').read_text()
 
 
 def parse_range(s):
