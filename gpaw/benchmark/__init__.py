@@ -9,9 +9,6 @@ from pathlib import Path
 
 from gpaw.benchmark.systems import parse_system
 
-# A parameter set is a 2-tuple with dictionary for gpaw-parameters,
-# and additional dictionary with named sub parameter sets
-
 pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
 
 pw_parameter_subsets = {'high': {'mode': {'ecut': 800}},
@@ -39,6 +36,10 @@ eigensolver_parameter_subsets = {'RMMDIIS': {'eigensolver': 'rmm-diis'},
 
 
 def get_domainband(size=None):
+    """Divide a world size to domain and bands (as square as possible)
+
+    If size is None then use the mpi.world.size.
+    """
     if size is None:
         size = world.size
 
@@ -53,7 +54,8 @@ def get_domainband(size=None):
 parallel_parameter_subsets = {'scalapack': {'parallel': {'sl_auto': True}},
                               'domainband': {'parallel': get_domainband()}}
 
-
+# A parameter set is a 2-tuple with dictionary for gpaw-parameters,
+# and additional dictionary with named sub parameter sets
 gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'lcao': (lcao_default_parameters,
                                 lcao_parameter_subsets),
@@ -67,6 +69,14 @@ benchmarks_str = (Path(__file__).parent / 'benchmarks.csv').read_text()
 
 
 def parse_range(s):
+    """Parse a CPU or GPU range string.
+
+    Returns a two tuple of lower and upper bound.
+    Examples:
+        0-1
+        5
+        -4GPU
+    """
     s = s.replace('GPU', '')
     if '-' not in s:
         return int(s), int(s)
@@ -83,6 +93,8 @@ def parse_range(s):
 
 
 def parse_mem(memstr):
+    """Memory string contains G, M or K as the last character.
+    """
     mul = {'G': 1024**3,
            'M': 1024**2,
            'K': 1024**1}[memstr[-1]]
@@ -90,6 +102,9 @@ def parse_mem(memstr):
 
 
 def parse_requirement(req):
+    """Parses the requirement string, which is a colon separated list of
+    core_range:memory[:gpu_range]
+    """
     syntax = req.split(':')
     min_cores, max_cores = parse_range(syntax[0])
     min_mem = parse_mem(syntax[1])
@@ -104,6 +119,8 @@ def parse_requirement(req):
             'maxgpus': max_gpus}
 
 
+# Parse the benchmark definitions from the benchmarks_str into
+# the benchmarks dictionary.
 benchmarks = {}
 benchmarks_reqs = {}
 for benchmark_line in benchmarks_str.split('\n'):
@@ -236,6 +253,9 @@ def parse_name(name):
 
 
 def benchmark_atoms_and_calc(long_name, calc_info):
+    """Create atoms and calculator ibject from long name and calculator
+    info (new/old)
+    """
     if calc_info == 'new':
         from gpaw.new.ase_interface import GPAW
     elif calc_info == 'old':
@@ -253,6 +273,12 @@ def benchmark_atoms_and_calc(long_name, calc_info):
 
 
 def gs_and_move_atoms(long_name, calc_info):
+    """Main GPAW benchmark function
+
+    Calculates one geometry step, and takes 0.1 * F step towards
+    the minimum. The timings for first and second stops are recorded,
+    to simulate a typical geometry relaxation step.
+    """
     atoms, calc = benchmark_atoms_and_calc(long_name, calc_info)
     with Walltime('First step') as step1:
         E = atoms.get_potential_energy()
@@ -310,6 +336,8 @@ class Benchmark(Walltime):
 
 
 def benchmark_main(name):
+    # Run the gs_and_move_atoms benchmars for 'name' where
+    # name can be either a short name or a long name.
     short_name, long_name, calc_info = parse_name(name)
 
     if world.rank == 0:
@@ -326,6 +354,7 @@ def benchmark_main(name):
     with Benchmark(system_info, **benchmark_info) as results:
         results.results = gs_and_move_atoms(long_name, calc_info)
     if world.rank == 0:
+        # Finally, write all of the results to a json file
         results.write_json(f'{name}-benchmark.json')
 
 
@@ -374,6 +403,7 @@ def mypp(dct, indent=0, summary=True):
 
 
 def load_benchmark(fname):
+    # Load a json file
     return loads(Path(fname).read_text())
 
 
@@ -382,6 +412,8 @@ def view_benchmark(fname):
 
 
 def parse_git_status(text):
+    """Parse the branch from git status output
+    """
     for line in text.split('\n'):
         if line.startswith('On branch'):
             return line.split()[-1]
@@ -389,6 +421,8 @@ def parse_git_status(text):
 
 
 def parse_processor(text):
+    """Parse the processor model from lscpu
+    """
     for line in text.split('\n'):
         if line.startswith('Model name:'):
             return line.split('Model name:')[-1].strip()
@@ -396,6 +430,8 @@ def parse_processor(text):
 
 
 def benchmark_from_dict(dct):
+    """Create a summary dictionary from the full json output of the benchmark.
+    """
     dct = dct['Benchmark']
     results = dct['results']
     system_info = dct['system_info']
