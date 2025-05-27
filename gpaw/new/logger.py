@@ -4,6 +4,7 @@ import contextlib
 import io
 import os
 import sys
+from functools import cache
 from pathlib import Path
 from typing import IO, Any, Sequence
 
@@ -83,25 +84,42 @@ class Logger:
 
 def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:
     """Code from Python 3.14b1: cpython/Lib/_colorize.py."""
+    ok = _can_colorize()
+    if ok is not None:
+        return ok
+
     if file is None:
         file = sys.stdout
 
+    if not hasattr(file, 'fileno'):
+        return False
+
+    try:
+        return os.isatty(file.fileno())
+    except io.UnsupportedOperation:
+        return hasattr(file, 'isatty') and file.isatty()
+
+
+@cache
+def _can_colorize() -> bool | None:
+    """Check standard envvars for colors.
+
+    See https://docs.python.org/3/using/cmdline.html#controlling-color
+
+    Returns None if undecided.
+    """
     if not sys.flags.ignore_environment:
-        if os.environ.get("PYTHON_COLORS") == "0":
+        if os.environ.get('PYTHON_COLORS') == '0':
             return False
-        if os.environ.get("PYTHON_COLORS") == "1":
+        if os.environ.get('PYTHON_COLORS') == '1':
             return True
-    if os.environ.get("NO_COLOR"):
+    if os.environ.get('NO_COLOR'):
         return False
-    if os.environ.get("FORCE_COLOR"):
+    if os.environ.get('FORCE_COLOR'):
         return True
-    if os.environ.get("TERM") == "dumb":
+    if os.environ.get('TERM') == 'dumb':
         return False
-
-    if not hasattr(file, "fileno"):
-        return False
-
-    if sys.platform == "win32":
+    if sys.platform == 'win32':
         try:
             import nt
 
@@ -109,8 +127,4 @@ def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:
                 return False
         except (ImportError, AttributeError):
             return False
-
-    try:
-        return os.isatty(file.fileno())
-    except io.UnsupportedOperation:
-        return hasattr(file, "isatty") and file.isatty()
+    return None
