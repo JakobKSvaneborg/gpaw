@@ -254,7 +254,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
     def create_hamiltonian_operator(self):
         return TBHamiltonian(self.basis)
 
-    def create_potential_calculator(self, log):
+    def create_potential_calculator(self):
         xc = DummyXC()
         return TBPotentialCalculator(xc, self.setups, self.atoms,
                                      self.communicators['d'])
@@ -270,7 +270,6 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                                   basis: BasisFunctions,
                                   potential,
                                   *,
-                                  log=None,
                                   coefficients=None):
         assert self.communicators['w'].size == 1
 

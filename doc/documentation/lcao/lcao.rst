@@ -62,26 +62,30 @@ Basis-set generation
 --------------------
 
 In order to perform an LCAO calculation, a basis-set must be generated
-for every element in your system. This can be done by using the
-:command:`gpaw-basis` tool, located in your
-:file:`{gpaw-directory}/tools` directory. For example, typing::
+for every element in your system.  This can be done by using the
+:command:`gpaw basis` subcommand.  For example, typing::
 
-  $ gpaw-basis H Cl
+  $ gpaw basis --search H.PBE Cl.PBE
 
 will generate the basis-set files :file:`H.dzp.basis` and
 :file:`Cl.dzp.basis` for hydrogen and chlorine with sensible default
-parameters. Note that :file:`dzp` stands for ``double zeta polarized``
-which is the default basis-set type. The basis-set should be placed in
+parameters, based on the installed PAW dataset files :file:`H.PBE.gz` and
+:file:`Cl.PBE.gz`.  Note that :file:`dzp` stands for ``double zeta polarized``
+which is the default basis-set type.  The basis-set should be placed in
 the same directory as the GPAW setups
 (see :ref:`installation of paw datasets` for details).
-For a complete list of the parameters do::
 
-  $ gpaw-basis --help
+Note that standard versions of the basis-set files are probably already
+included in said directory for newer GPAW installations.  However, should one
+want to further customize the basis sets (e.g. by changing the polarization
+function) or need to re-generate missing files, this command can be used for
+that.  For a complete list of the parameters do::
 
-For technical reasons, the basis set generator always generates the
-corresponding PAW, even if the latter exists on the user's system.
-Use the ``--save-setup`` option to save the calculated setup along with the
-basis set.
+  $ gpaw basis --help
+
+See also the :command:`gpaw dataset` subcommand for
+:ref:`generating the PAW setup files <generation_of_setups>` used by basis-set
+generation.
 
 
 Running a calculation

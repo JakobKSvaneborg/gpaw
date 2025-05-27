@@ -51,7 +51,8 @@ def run_single_precision(dtype, gpu):
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
-                      convergence={'energy': 1e-5},
+                      convergence={'energy': 1e-5,
+                                   'forces': 1e-3},
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
@@ -63,7 +64,7 @@ def run_single_precision(dtype, gpu):
 
     assert atoms.calc.wfs.dtype == dtype
 
-    assert e_pot == pytest.approx(expected_e, rel=1e-3), e_pot - expected_e
+    assert e_pot == pytest.approx(expected_e, rel=1e-3)
 
 
 if __name__ == '__main__':

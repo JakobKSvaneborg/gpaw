@@ -137,14 +137,16 @@ class GPWFiles(CachedFilesHandler):
         magmoms = None if calc_type == 'col' else [mm * easy_axis]
         soc = True if calc_type == 'ncolsoc' else False
 
-        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 280}, xc='LDA',
+        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 280},
+                          xc='LDA',
                           kpts={'size': (4, 4, 4), 'gamma': True},
                           parallel={'domain': 1, 'band': 1},
                           mixer={'beta': 0.5},
                           symmetry=symmetry,
                           occupations={'name': 'fermi-dirac', 'width': 0.05},
                           convergence={'density': 1e-4},
-                          magmoms=magmoms, soc=soc,
+                          magmoms=magmoms,
+                          soc=soc,
                           txt=self.folder / f'fcc_Ni_{calc_type}.txt')
         Ni.get_potential_energy()
         return Ni.calc
@@ -555,7 +557,7 @@ class GPWFiles(CachedFilesHandler):
         calc = GPAW(mode='pw',
                     xc='LDA',
                     occupations=FermiDirac(width=0.001),
-                    kpts=kpts,
+                    kpts=kpts.kpts,
                     txt=self.folder / 'si_noisy_kpoints.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
@@ -601,7 +603,6 @@ class GPWFiles(CachedFilesHandler):
 
         calc = GPAW(mode='fd',
                     txt=self.folder / 'si_corehole_pw.txt',
-                    nbands=None,
                     h=0.25,
                     occupations=FermiDirac(width=0.05),
                     setups='si_corehole_pw_hch1s',
@@ -1028,7 +1029,7 @@ class GPWFiles(CachedFilesHandler):
 
         gs_calc = GPAW(
             txt=self.folder / 'nacl_fd.txt',
-            mode='fd', nbands=4, eigensolver='cg',
+            mode='fd', nbands=4,  # eigensolver='cg',
             gpts=(32, 32, 44), xc='LDA', symmetry={'point_group': False},
             setups={'Na': '1'})
         atoms.calc = gs_calc
@@ -1410,6 +1411,9 @@ class GPWFiles(CachedFilesHandler):
         a = 2.867
         mm = 2.21
         atoms = bulk('Fe', 'bcc', a=a)
+        # It is necessary to rattle the atoms to make sure that all tests pass
+        # on all machines - see https://gitlab.com/gpaw/gpaw/-/issues/1397
+        atoms.rattle(0.01, seed=42)
         atoms.set_initial_magnetic_moments([mm])
         atoms.center()
         tag = '_nosym' if symmetry == 'off' else ''
