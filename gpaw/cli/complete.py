@@ -65,7 +65,7 @@ commands = {
     'plot-basis':
         ['--write'],
     'plot-dataset':
-        ['-b', '--basis-set', '-p', '--potential-components', '-l',
+        ['-p', '--potential-components', '-l',
          '--logarithmic-derivatives', '-s', '--separate-figures',
          '-S', '--search', '-o', '--outfile', '--write'],
     'python':
