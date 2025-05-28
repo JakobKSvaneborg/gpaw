@@ -23,10 +23,12 @@ class XArrayWithNoData:
     def __init__(self,
                  comm,
                  dims,
-                 desc):
+                 desc,
+                 xp):
         self.comm = comm
         self.dims = dims
         self.desc = desc
+        self.xp = xp
         self.data = None
 
     def morph(self):

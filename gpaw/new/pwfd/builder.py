@@ -44,7 +44,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             psit_nG = XArrayWithNoData(
                 comm=band_comm,
                 dims=(self.nbands,),
-                desc=self.wf_desc.new(kpt=kpt_c))
+                desc=self.wf_desc.new(kpt=kpt_c),
+                xp=self.xp)
             wfs = PWFDWaveFunctions(
                 spin=spin,
                 q=q,
