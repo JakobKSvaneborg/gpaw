@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, Callable
 
 import numpy as np
 from ase import Atoms
 from ase.units import Ha
+
 from gpaw import __version__
 from gpaw.core import UGArray
+from gpaw.core.arrays import XArrayWithNoData
+from gpaw.dft import GPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
@@ -22,8 +24,6 @@ from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
-from gpaw.dft import Parameters, GPAW
-
 
 LOGO = """\
   ___ ___ ___ _ _ _
@@ -559,7 +559,7 @@ class ASECalculator:
         xc = create_functional(xcparams, pot_calc.fine_grid)
         if xc.type == 'MGGA' and density.taut_sR is None:
             dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-            if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, SimpleNamespace):
+            if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, XArrayWithNoData):
                 builder = self.params.dft_component_builder(self.atoms,
                                                             log=dft.log)
                 basis_set = builder.create_basis_set()

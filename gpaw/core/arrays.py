@@ -19,6 +19,23 @@ from gpaw.new import prod
 DomainType = TypeVar('DomainType', bound=Domain)
 
 
+class XArrayWithNoData:
+    def __init__(self,
+                 comm,
+                 dims,
+                 desc,
+                 xp):
+        self.comm = comm
+        self.dims = dims
+        self.desc = desc
+        self.xp = xp
+        self.data = None
+
+    def morph(self):
+        from gpaw.new.calculation import ReuseWaveFunctionsError
+        raise ReuseWaveFunctionsError
+
+
 class DistributedArrays(Generic[DomainType], XP):
     desc: DomainType
 
