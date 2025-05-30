@@ -330,6 +330,7 @@ def read_setup_file(dataset: str) -> SetupData:
         generator, = (minidom.parseString(read_maybe_unzipping(dataset))
                       .getElementsByTagName('generator'))
         text, = generator.childNodes
+        assert isinstance(text, minidom.Text)
         setup.generatordata = textwrap.dedent(text.data).strip('\n')
     return setup
 

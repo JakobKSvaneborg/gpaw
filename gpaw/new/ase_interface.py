@@ -424,7 +424,7 @@ class ASECalculator:
     def get_pseudo_density(self,
                            spin=None,
                            gridrefinement=1,
-                           broadcast=True) -> Array3D:
+                           broadcast=True) -> Array3D | None:
         assert spin is None
         nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
