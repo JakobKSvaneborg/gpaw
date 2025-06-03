@@ -5,15 +5,50 @@ from gpaw.new.c import add_to_density
 from gpaw.new.environment import Environment
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
+from gpaw.solvation.cavity import Cavity
+from gpaw.solvation.dielectric import Dielectric
+from gpaw.solvation.interactions import Interaction
+from gpaw.dft import Parameter
 
 
-class Solvation(Environment):
+class Solvation(Parameter):
+    name = 'solvation'
+
+    def __init__(self, cavity, dielectric, interactions=None):
+        print(cavity)
+        self.cavity = Cavity.from_dict(cavity)
+        self.dielectric = Dielectric.from_dict(dielectric)
+        self.interactions = [Interaction.from_dict(i)
+                             for i in interactions or []]
+
+    def todict(self):
+        return {'cavity': self.cavity.todict(),
+                'dielectric': self.dielectric.todict(),
+                'interactions': [
+                    {'name': i.__class__.__name__, **i.todict()}
+                    for i in self.interactions]}
+
+    def build(self,
+              setups,
+              grid,
+              relpos_ac,
+              log,
+              comm):
+        return SolvationEnvironment(
+            cavity=self.cavity,
+            dielectric=self.dielectric,
+            interactions=self.interactions,
+            setups=setups, grid=grid, relpos_ac=relpos_ac,
+            log=log, comm=comm)
+
+
+class SolvationEnvironment(Environment):
     def __init__(self,
                  *,
                  cavity,
                  dielectric,
                  interactions=None,
-                 setups, grid, relpos_ac, log, comm, nn):
+                 setups, grid, relpos_ac, log, comm):
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions or []
@@ -36,7 +71,7 @@ class Solvation(Environment):
         self.cavity.update_atoms(self.atoms, log)
         for ia in self.interactions:
             ia.update_atoms(self.atoms, log)
-        self.grad_v = [Gradient(grid, v, 1.0, nn) for v in range(3)]
+        self.grad_v = [Gradient(grid, v, 1.0, n=3) for v in range(3)]
         self.vt_ia_r = grid.empty()  # self.finegd.zeros()
         self.e_interactions = np.nan
         super().__init__(len(self.atoms))

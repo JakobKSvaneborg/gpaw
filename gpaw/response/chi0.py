@@ -14,7 +14,7 @@ from gpaw.response.symmetrize import (BodySymmetryOperators,
 from gpaw.response.chi0_data import (Chi0Data, Chi0BodyData,
                                      Chi0OpticalExtensionData)
 from gpaw.response.frequencies import FrequencyDescriptor
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.hilbert import HilbertTransform
 from gpaw.response import timer
 from gpaw.response.pw_parallelization import PlaneWaveBlockDistributor
@@ -97,7 +97,7 @@ class Chi0Calculator:
 
         # chi0_body: Chi0BodyData from gpaw.response.chi0_data
         chi0_body = self.chi0_body_calc.calculate(q_c)
-        # SingleQPWDescriptor from gpaw.response.pair_functions
+        # SingleQPWDescriptor from gpaw.response.qpd
         qpd = chi0_body.qpd
 
         # Calculate optical extension
@@ -168,7 +168,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
                 'bands if there is no band gap'
 
     def create_chi0_body(self, q_c: list | np.ndarray) -> Chi0BodyData:
-        # qpd: SingleQPWDescriptor from gpaw.response.pair_functions
+        # qpd: SingleQPWDescriptor from gpaw.response.qpd
         qpd = self.get_pw_descriptor(q_c)
         return self._create_chi0_body(qpd)
 
@@ -192,7 +192,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
             Momentum vector.
         """
         # Construct the output data structure
-        # qpd: SingleQPWDescriptor from gpaw.response.pair_functions
+        # qpd: SingleQPWDescriptor from gpaw.response.qpd
         qpd = self.get_pw_descriptor(q_c)
         self.print_info(qpd)
         # chi0_body: Chi0BodyData from gpaw.response.chi0_data

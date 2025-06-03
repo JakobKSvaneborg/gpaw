@@ -207,3 +207,4 @@ def test_d3_isolated_atom(dftd3):
     atoms.calc = calc
     atoms.get_potential_energy()
     assert np.allclose(atoms.get_forces(), 0, atol=1e-5)
+    print(calc.dft.d3)

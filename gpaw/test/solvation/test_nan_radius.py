@@ -1,7 +1,7 @@
 import gpaw.solvation as solv
 from ase import Atoms
 import numpy as np
-from gpaw.solvation.cavity import BAD_RADIUS_MESSAGE
+import pytest
 
 
 def test_solvation_nan_radius():
@@ -9,15 +9,7 @@ def test_solvation_nan_radius():
     atoms.center(vacuum=3.0)
     kwargs = solv.get_HW14_water_kwargs()
 
-    def rfun(a):
-        return [np.nan]
-
-    kwargs['cavity'].effective_potential.atomic_radii = rfun
+    kwargs['cavity'].effective_potential.atomic_radii = {'H': np.nan}
     atoms.calc = solv.SolvationGPAW(mode='fd', xc='LDA', h=0.24, **kwargs)
-    try:
+    with pytest.raises(ValueError):
         atoms.get_potential_energy()
-    except ValueError as error:
-        if not error.args[0] == BAD_RADIUS_MESSAGE:
-            raise
-    else:
-        raise AssertionError("Expected ValueError")

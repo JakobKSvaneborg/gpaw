@@ -34,7 +34,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  weight: float = 1.0,
                  ncomponents: int = 1,
                  qspiral_v: Vector | None = None):
-        assert isinstance(atomdist, AtomDistribution)
+        # assert isinstance(atomdist, AtomDistribution)
         self.psit_nX = psit_nX
         nbands = psit_nX.dims[0]
         super().__init__(setups=setups,
@@ -497,9 +497,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
     def morph(self, desc, relpos_ac, atomdist):
         desc = desc.new(kpt=self.psit_nX.desc.kpt_c)
-        if not hasattr(self.psit_nX, 'morph'):
-            from gpaw.new.calculation import ReuseWaveFunctionsError
-            raise ReuseWaveFunctionsError
         psit_nX = self.psit_nX.morph(desc)
 
         # Save memory:

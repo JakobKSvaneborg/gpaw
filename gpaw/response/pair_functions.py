@@ -3,8 +3,7 @@ import numpy as np
 
 from ase.units import Hartree
 
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.pair_integrator import DynamicPairFunction
