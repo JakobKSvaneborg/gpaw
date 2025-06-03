@@ -450,7 +450,7 @@ class BSEBackend:
 
         self.ikq_k = self.kd.find_k_plus_q(self.q_c)
         if irreducible:
-            self.v_G = np.zeros(qpd0.NG)
+            self.v_G = np.zeros(qpd0.ng_q[0])
         else:
             self.v_G = self.coulomb.V(qpd=qpd0, q_v=None)
 

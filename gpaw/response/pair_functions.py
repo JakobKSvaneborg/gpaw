@@ -11,42 +11,6 @@ from gpaw.response.pw_parallelization import (Blocks1D,
                                               PlaneWaveBlockDistributor)
 
 
-class SingleQPWDescriptor(PWDescriptor):
-
-    @staticmethod
-    def from_q(q_c, ecut, gd, gammacentered=False):
-        """Construct a plane wave descriptor for q_c with a given cutoff."""
-        qd = KPointDescriptor([q_c])
-        return SingleQPWDescriptor(ecut, gd, complex, qd,
-                                   gammacentered=gammacentered)
-
-    @property
-    def NG(self):
-        return self.ng_q[0]
-
-    @property
-    def q_c(self):
-        return self.kd.bzk_kc[0]
-
-    @property
-    def optical_limit(self):
-        return np.allclose(self.q_c, 0.0)
-
-    def copy(self):
-        return self.copy_with()
-
-    def copy_with(self, ecut=None, gd=None, gammacentered=None):
-        if ecut is None:
-            ecut = self.ecut
-        if gd is None:
-            gd = self.gd
-        if gammacentered is None:
-            gammacentered = self.gammacentered
-
-        return SingleQPWDescriptor.from_q(
-            self.q_c, ecut, gd, gammacentered=gammacentered)
-
-
 class LatticePeriodicPairFunction(DynamicPairFunction):
     r"""Data object for lattice periodic pair functions.
 
