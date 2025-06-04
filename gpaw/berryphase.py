@@ -27,7 +27,7 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     assert len(calc.symmetry.op_scc) == 1  # does not work with symmetry
     gap = bandgap(calc)[0]
 
-    if gap < 1e-15:
+    if gap == 0.0:
         raise ZeroBandgap('Berry-phase calculation '
                           'requires non-zero band gap.')
 
