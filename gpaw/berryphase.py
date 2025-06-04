@@ -17,6 +17,8 @@ from gpaw.mpi import rank, serial_comm, world
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.utilities.blas import gemmdot
 
+class ZeroBandgap(Exception):
+    pass
 
 def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     if isinstance(calc, str):
@@ -24,7 +26,10 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
 
     assert len(calc.symmetry.op_scc) == 1  # does not work with symmetry
     gap = bandgap(calc)[0]
-    assert gap != 0.0
+
+    if gap < 1e-15:
+        raise ZeroBandgap('Berry-phase calculation '
+                          'requires non-zero band gap.')
 
     M = np.round(calc.get_magnetic_moment())
     assert np.allclose(M, calc.get_magnetic_moment(), atol=0.05), \
