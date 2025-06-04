@@ -124,6 +124,8 @@ def parse_requirement(req):
 benchmarks = {}
 benchmarks_reqs = {}
 for benchmark_line in benchmarks_str.split('\n'):
+    if len(benchmark_line.split(',')) != 3:
+        continue
     nickname, definition, req = benchmark_line.split(',')
     nickname = nickname.strip()
     definition = definition.strip()
@@ -284,6 +286,7 @@ def gs_and_move_atoms(long_name, calc_info):
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
     atoms.positions += 0.1 * F
+    atoms.wrap()
     with Walltime('Second step') as step2:
         atoms.get_potential_energy()
         F = atoms.get_forces()
