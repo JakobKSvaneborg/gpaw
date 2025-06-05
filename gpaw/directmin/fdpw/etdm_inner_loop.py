@@ -349,7 +349,6 @@ class ETDMInnerLoop:
                         self.precond[k] = np.zeros_like(hess)
                         for i in range(hess.shape[0]):
                             if abs(hess[i]) < 1.0e-4:
-                                print(self.dtype, hess.shape, hess.dtype)
                                 self.precond[k][i] = 1.0 + 1.0j
                             else:
                                 self.precond[k][i] = \
