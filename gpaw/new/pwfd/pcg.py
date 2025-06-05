@@ -122,23 +122,33 @@ class NotDavidson(PWFDEigensolver):
         traceold = np.sum(psit_nX.matrix_elements(residual_nX).data)
 
         P_nX = psit_nX.new()
-        P_nX.data[:] = np.random.rand(*P_nX.data.shape) * 1e-8
+        P_nX.data[:] = residual_nX.data * 1e-6
         blocksize = 100
         C_X = np.zeros((blocksize, blocksize)) # The alphas
         C_W = np.zeros_like(C_X) # The betas
         C_P = np.zeros_like(C_X) # The gammas
 
         for i in range(self.niter):
-            Ht(psit_nX, out=residual_nX) # H psi
+            #Ht(psit_nX, out=residual_nX) # H psi
             # (X @ (X.T @ AX)).T = ((X.T @ AX).T @ X.T) = (AX.T @ X) @ X.T
-            residual_nX.matrix_elements(psit_nX).multiply(psit_nX, out=psit2_nX)
-            residual_nX.data -= psit2_nX.data
-            self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
+            #residual_nX.matrix_elements(psit_nX).multiply(psit_nX, out=psit2_nX)
+            #residual_nX.data -= psit2_nX.data
+            #self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
             # W -= (X @ (X.T @ W)).T = ((X.T @ W).T @ X.T) = (W.T @ X) @ X.T
-            residual_nX.data[:] = psit2_nX.data
-            psit2_nX.matrix_elements(psit_nX).multiply(residual_nX, out=psit2_nX, beta=1.0, alpha=-1.0)
-            W = psit2_nX.data.T
+            #residual_nX.data[:] = psit2_nX.data
+            #psit2_nX.matrix_elements(psit_nX).multiply(residual_nX, out=psit2_nX, beta=1.0, alpha=-1.0)
+            #W = psit2_nX.data.T
             # P -= (X @ (X.T @ P)).T = ((X.T @ P).T @ X.T) = (P.T @ X) @ X.T
+            
+            calculate_residuals(wfs.psit_nX,
+                                residual_nX,
+                                wfs.pt_aiX,
+                                wfs.P_ani,
+                                wfs.myeig_n,
+                                dH, dS_aii, P2_ani, P3_ani)
+            error = (weight_n @ as_np(residual_nX.norm2())).sum()
+            
+            
             P_nX.matrix_elements(psit_nX).multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
             P = P_nX.data.T
             X = psit_nX.data.T
@@ -163,35 +173,35 @@ class NotDavidson(PWFDEigensolver):
                 S2 = np.column_stack([X2[:, block_slice], W2[:, block_slice], P2[:, block_slice]])
                 # We only need the smallest algebraic eigenvector for this
                 # But also this is the tiniest ass eigenvalue problem of 3 blocksize x 3 blocksize...
-                thetamin, cmin = sp.linalg.eigh(S.T @ S2, S.T @ S)
-                thetamin = thetamin[0]
+                _, cmin = sp.linalg.eigh(S.T.conj() @ S2, S.T.conj() @ S)
                 cmin = cmin[:, :blocksize]
                 # Ye olde updates
                 C_X[:blocksize, :blocksize] = cmin[:blocksize, :blocksize]
                 C_W[:blocksize, :blocksize] = cmin[blocksize:2 * blocksize, :blocksize]
                 C_P[:blocksize, :blocksize] = cmin[2 * blocksize:3 * blocksize, :blocksize] if i != 0 else 0.0
-                P[:, block_slice] = W[:, block_slice] @ C_W[:blocksize, :blocksize]+ P[:, block_slice] @ C_P[:blocksize, :blocksize]
-                X[:, block_slice] = X[:, block_slice] @ C_X[:blocksize, :blocksize]+ P[:, block_slice]
+                P[:, block_slice] = W[:, block_slice] @ C_W[:blocksize, :blocksize] + P[:, block_slice] @ C_P[:blocksize, :blocksize]
+                X[:, block_slice] = X[:, block_slice] @ C_X[:blocksize, :blocksize] + P[:, block_slice]
                 j += blocksize
             psit_nX.data[:] = X.T
+            P_nX.data[:] = P.T
             # RR step?
             if i % 1 == 0:
-                #wfs.orthonormalize(residual_nX)
-                tmp, _ = np.linalg.qr(psit_nX.data)
-                psit_nX.data[:] = tmp
+                wfs.orthonormalize(residual_nX)
+                #tmp, _ = np.linalg.qr(psit_nX.data)
+                #psit_nX.data[:] = tmp
             if i % 1 == 0:
                 Ht(psit_nX, out=residual_nX)
                 vecs = psit_nX.matrix_elements(residual_nX)
                 vals = vecs.eigh()
+                wfs._eig_n = as_np(vals)
                 vecs.multiply(psit_nX, out=psit2_nX)
                 psit_nX.data[:] = psit2_nX.data
 
                 Ht(psit_nX, out=residual_nX)
-                breakpoint()
                 tracenew = np.sum(psit_nX.matrix_elements(residual_nX).data)
                 convergence_marker = np.abs(tracenew - traceold) / np.abs(traceold)
                 print(i, convergence_marker)
-                if convergence_marker < 1e-8:
+                if convergence_marker < 1e-0:
                     break
                 traceold = tracenew
         
