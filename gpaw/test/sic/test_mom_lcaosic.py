@@ -3,6 +3,7 @@ import pytest
 from gpaw import GPAW
 import numpy as np
 
+
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_mom_lcaosic(in_tmp_dir, gpw_files):

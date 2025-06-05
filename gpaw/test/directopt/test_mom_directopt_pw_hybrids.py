@@ -2,12 +2,9 @@ import pytest
 
 import numpy as np
 
-from ase import Atoms
-from ase.units import Bohr
 
 from gpaw import GPAW, PW
 from gpaw.mom import prepare_mom_calculation
-from gpaw.mpi import world
 
 
 @pytest.mark.do

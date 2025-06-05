@@ -1,9 +1,8 @@
 import pytest
 import numpy as np
 
-from gpaw import GPAW, LCAO
+from gpaw import GPAW
 from gpaw.directmin.derivatives import Derivatives
-from ase import Atoms
 
 
 @pytest.mark.do

@@ -1,9 +1,8 @@
 import pytest
 
-from gpaw import GPAW, PW, restart
+from gpaw import GPAW, restart
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.tools import excite
-from ase import Atoms
 import numpy as np
 
 

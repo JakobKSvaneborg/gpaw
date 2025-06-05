@@ -2,7 +2,6 @@ import pytest
 
 from gpaw import GPAW
 from gpaw.directmin.derivatives import Davidson
-from ase import Atoms
 
 
 @pytest.mark.old_gpaw_only
@@ -11,7 +10,10 @@ def test_break_instability_lcao(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['h2_break_ilcao'])
     # XXX(rg): Remove hack after tchem-gl-13
     calc.set_positions()
-    calc.wfs.eigensolver.initialize_dm_helper(calc.wfs, calc.hamiltonian, calc.density, calc.log)
+    calc.wfs.eigensolver.initialize_dm_helper(calc.wfs,
+                                              calc.hamiltonian,
+                                              calc.density,
+                                              calc.log)
     atoms = calc.atoms
     atoms.calc = calc
     e_symm = atoms.get_potential_energy()

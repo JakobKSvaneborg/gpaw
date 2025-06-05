@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from ase import Atoms
 from gpaw import GPAW, restart
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.etdm_lcao import LCAOETDM
@@ -14,7 +13,8 @@ def test_mom_directopt_lcao_forces(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['co_mom_do_lcao_forces'])
     # XXX(rg): Remove hack after tchem-gl-13
     # calc.set_positions()
-    # calc.wfs.eigensolver.initialize_dm_helper(calc.wfs, calc.hamiltonian, calc.density, calc.log)
+    # calc.wfs.eigensolver.initialize_dm_helper(calc.wfs,
+    # calc.hamiltonian, calc.density, calc.log)
     atoms = calc.atoms
     atoms.calc = calc
 

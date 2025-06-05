@@ -1,12 +1,11 @@
 import pytest
 
-from gpaw import GPAW, LCAO
+from gpaw import GPAW
 from gpaw.directmin.tools import excite
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import rotate_orbitals
 
-from ase import Atoms
 import numpy as np
 
 
@@ -16,7 +15,10 @@ def test_mom_directopt_lcao(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['h2o_mom_do_lcao'])
     # XXX(rg): Remove hack after tchem-gl-13
     calc.set_positions()
-    calc.wfs.eigensolver.initialize_dm_helper(calc.wfs, calc.hamiltonian, calc.density, calc.log)
+    calc.wfs.eigensolver.initialize_dm_helper(
+        calc.wfs, calc.hamiltonian,
+        calc.density, calc.log
+    )
     H2O = calc.atoms
     H2O.calc = calc
 

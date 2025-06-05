@@ -1,7 +1,6 @@
 import pytest
 
 from gpaw import GPAW
-from ase import Atoms
 
 
 @pytest.mark.do

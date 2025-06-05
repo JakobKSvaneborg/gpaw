@@ -1,8 +1,7 @@
 import pytest
 import numpy as np
 
-from ase import Atoms
-from gpaw import GPAW, PW
+from gpaw import GPAW
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.derivatives import Derivatives
 from gpaw.mom import prepare_mom_calculation
@@ -20,7 +19,10 @@ def test_gradient_numerically_pw(in_tmp_dir, gpw_files):
     tol_between_methods = dict(abs=1.0e-4)
     tol_between_rngs = dict(abs=1.0e-4)
 
-    for calc in [GPAW(gpw_files['h3_do_num_pw_complex']), GPAW(gpw_files['h3_do_num_pw'])]:
+    for calc in [
+        GPAW(gpw_files["h3_do_num_pw_complex"]),
+        GPAW(gpw_files["h3_do_num_pw"]),
+    ]:
         atoms = calc.atoms
         atoms.calc = calc
         # Repeated for False

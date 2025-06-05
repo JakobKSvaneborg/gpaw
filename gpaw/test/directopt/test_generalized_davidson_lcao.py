@@ -1,7 +1,6 @@
 import pytest
 
-from ase import Atoms
-from gpaw import GPAW, LCAO
+from gpaw import GPAW
 from gpaw.directmin.derivatives import Davidson
 import numpy as np
 
@@ -19,7 +18,8 @@ def test_generalized_davidson_lcao(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['h_do_gdavid_lcao'])
     # XXX(rg): Remove hack after tchem-gl-13
     calc.set_positions()
-    calc.wfs.eigensolver.initialize_dm_helper(calc.wfs, calc.hamiltonian, calc.density, calc.log)
+    calc.wfs.eigensolver.initialize_dm_helper(calc.wfs, calc.hamiltonian,
+                                              calc.density, calc.log)
     atoms = calc.atoms
     atoms.calc = calc
 

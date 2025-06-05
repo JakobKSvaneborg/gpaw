@@ -1,11 +1,8 @@
 import pytest
 
-from gpaw import GPAW, LCAO
+from gpaw import GPAW
 from gpaw.directmin.tools import excite
 from gpaw.directmin.etdm_lcao import LCAOETDM
-
-from ase import Atoms
-import numpy as np
 
 
 @pytest.mark.do
