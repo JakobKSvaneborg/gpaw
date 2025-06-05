@@ -1,7 +1,6 @@
 import pytest
 
-from ase import Atoms
-from gpaw import GPAW, LCAO
+from gpaw import GPAW
 from gpaw.directmin.derivatives import Derivatives
 import numpy as np
 
@@ -18,7 +17,10 @@ def test_hess_numerically_lcao(in_tmp_dir, gpw_files):
 
     calc = GPAW(gpw_files['h_hess_num_lcao'])
     calc.set_positions()
-    calc.wfs.eigensolver.initialize_dm_helper(calc.wfs, calc.hamiltonian, calc.density, calc.log)
+    calc.wfs.eigensolver.initialize_dm_helper(
+        calc.wfs, calc.hamiltonian,
+        calc.density, calc.log
+    )
     atoms = calc.atoms
     atoms.calc = calc
     numder = Derivatives(calc.wfs.eigensolver, calc.wfs)

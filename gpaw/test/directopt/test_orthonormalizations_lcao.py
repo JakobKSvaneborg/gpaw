@@ -3,7 +3,6 @@ import pytest
 import numpy as np
 
 from gpaw import GPAW
-from ase import Atoms
 
 
 @pytest.mark.do

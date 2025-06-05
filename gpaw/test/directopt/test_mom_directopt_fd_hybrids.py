@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 
 from ase import Atoms
+from ase.units import Bohr
 
 from gpaw import GPAW, FD
 from gpaw.directmin.etdm_fdpw import FDPWETDM

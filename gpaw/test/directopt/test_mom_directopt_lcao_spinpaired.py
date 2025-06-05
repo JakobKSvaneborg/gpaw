@@ -1,16 +1,13 @@
 import numpy as np
 import pytest
-from ase import Atoms
 from gpaw import GPAW
 from gpaw.mom import prepare_mom_calculation
-from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import excite
 
 
 @pytest.mark.mom
 @pytest.mark.do
 def test_mom_directopt_lcao_spinpaired(in_tmp_dir, gpw_files):
-    delta = 0.01
     calc = GPAW(gpw_files['c2h4_do_lcao'])
     atoms = calc.atoms
     atoms.calc = calc

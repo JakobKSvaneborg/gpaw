@@ -1,7 +1,6 @@
 import pytest
 
-from gpaw import GPAW, LCAO
-from ase import Atoms
+from gpaw import GPAW
 import numpy as np
 from gpaw.mpi import world
 

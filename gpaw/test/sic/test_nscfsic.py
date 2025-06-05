@@ -5,6 +5,7 @@ from ase import Atoms
 from gpaw import GPAW
 from gpaw.utilities.sic import NSCFSIC
 
+
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
 @pytest.mark.serial

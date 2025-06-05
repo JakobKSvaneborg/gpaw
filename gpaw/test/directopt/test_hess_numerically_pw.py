@@ -1,11 +1,9 @@
 import pytest
 
-from ase import Atoms
-from gpaw import GPAW, PW
+from gpaw import GPAW
 from gpaw.directmin.derivatives import Derivatives
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.mom import prepare_mom_calculation
-import numpy as np
 
 
 @pytest.mark.do

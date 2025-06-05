@@ -2,9 +2,8 @@ from typing import Callable, Collection, NamedTuple, Tuple, Union
 
 import numpy as np
 import pytest
-from ase import Atoms
 
-from gpaw import GPAW, LCAO
+from gpaw import GPAW
 from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.typing import RNG
 
@@ -48,7 +47,6 @@ def test_directmin_lcao(in_tmp_dir, gpw_files):
         Tuple[Union[RNG, None], NiterCheck]
     ] = [(None, is_approx_3),
          (np.random.default_rng(8), is_le_12)]
-
 
     f2 = np.array([[-1.11463, -1.23723, 0.0],
                    [1.35791, 0.00827, 0.0],
