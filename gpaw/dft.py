@@ -15,6 +15,7 @@ from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
+from gpaw.new.pwfd.pcg import NotDavidson as NotDavidsonEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
 
 if TYPE_CHECKING:
@@ -194,7 +195,10 @@ class PWFDEigensolverParamater(Eigensolver):
 class Davidson(PWFDEigensolverParamater):
     name = 'davidson'
     cls = DavidsonEigensolver
-
+    
+class NotDavidson(PWFDEigensolverParamater):
+    name = 'not-dav'
+    cls = NotDavidsonEigensolver
 
 class RMMDIIS(PWFDEigensolverParamater):
     name = 'rmm-diis'
@@ -234,6 +238,7 @@ class Scissors(LCAOEigensolver):
 eigensolvers = {
     'davidson': Davidson,
     'rmm-diis': RMMDIIS,
+    'not-dav': NotDavidson,
     'lcao': LCAOEigensolver,
     'hybrid-lcao': HybridLCAOEigensolver,
     'scissors': Scissors}
