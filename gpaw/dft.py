@@ -200,6 +200,33 @@ class RMMDIIS(PWFDEigensolverParamater):
     name = 'rmm-diis'
     cls = RMMDIISEigensolver
 
+    def __init__(self,
+                 niter: int = 1,
+                 trial_step: float | None = None):
+        self.niter = niter
+        self.trial_step = trial_step
+
+    def todict(self):
+        return {'niter': self.niter,
+                'trial_step': self.trial_step}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              create_preconditioner,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            create_preconditioner,
+            converge_bands,
+            niter=self.niter,
+            trial_step=self.trial_step)
+
 
 class LCAOEigensolver(Eigensolver):
     name = 'lcao'

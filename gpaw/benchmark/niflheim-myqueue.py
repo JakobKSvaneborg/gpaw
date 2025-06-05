@@ -2,11 +2,11 @@ from gpaw.benchmark import benchmark_main, get_benchmarks
 from os import makedirs
 
 platforms = [('xeon24el8_test', 24, 24, 0, '10m'),
-             ('a100', 8, 1, 1, '30m'),
-             ('a100', 128, 4, 4, '30m'),
-             ('sm3090el8', 8, 1, 1, '30m'),
-             ('epyc96', 96, 96, 0, '1h'),
-             ('epyc96', 96 * 2, 96 * 2, 0, '1h')]
+             ('a100', 8, 1, 1, '1h'),
+             ('a100', 128, 4, 4, '1h'),
+             ('sm3090el8', 8, 1, 1, '1h'),
+             ('epyc96', 96, 96, 0, '2h'),
+             ('epyc96', 96 * 2, 96 * 2, 0, '4h')]
 
 
 def workflow():

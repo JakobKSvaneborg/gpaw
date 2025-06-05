@@ -30,9 +30,14 @@ kpts_parameter_subsets = {'gamma': {'kpts': (1, 1, 1)},
 xc_parameter_subsets = {'PBE': {'xc': 'PBE'},
                         'LDA': {'xc': 'LDA'}}
 
-eigensolver_parameter_subsets = {'RMMDIIS': {'eigensolver': 'rmm-diis'},
-                                 'DAV3': {'eigensolver': {'name': 'dav',
-                                                          'niter': 3}}}
+eigensolver_parameter_subsets = {'RMMDIIS':
+                                 {'eigensolver':
+                                  {'name': 'rmm-diis',
+                                   'trial_step': 0.1}},
+                                 'DAV3':
+                                 {'eigensolver':
+                                  {'name': 'dav',
+                                   'niter': 3}}}
 
 
 def get_domainband(size=None):
