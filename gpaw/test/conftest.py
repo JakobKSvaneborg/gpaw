@@ -359,7 +359,13 @@ def extract_lagrange_section(log_output: str) -> str:
         A Lagrange elements block.
     """
     float_pattern = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
-    data_line_pattern = r"^\s*" + float_pattern + r"(?:\s+" + float_pattern + r")*\s*\n"
+    data_line_pattern = (
+        r"^\s*" +
+        float_pattern +
+        r"(?:\s+" +
+        float_pattern +
+        r")*\s*\n"
+    )
 
     # Pattern to find the blocks:
     # - Group 1 captures the entire block (trigger + data lines)
@@ -388,7 +394,9 @@ def extract_lagrange_section(log_output: str) -> str:
     return ext_log
 
 
-def mk_arr_from_str(log_out: str, row_elems: int = 3, skip_rows: int = 0) -> str:
+def mk_arr_from_str(log_out: str,
+                    row_elems: int = 3,
+                    skip_rows: int = 0) -> str:
     if skip_rows > 0:
         ldat = log_out.split("\n")[skip_rows:]
         ldat = "\n".join(ldat)

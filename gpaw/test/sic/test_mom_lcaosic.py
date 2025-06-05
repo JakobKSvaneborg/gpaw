@@ -11,6 +11,7 @@ from gpaw.test.conftest import (mk_arr_from_str,
                                 extract_lagrange_section,
                                 MockWorld)
 
+
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_mom_lcaosic(in_tmp_dir, gpw_files):
