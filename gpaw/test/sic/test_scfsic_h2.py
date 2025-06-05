@@ -1,7 +1,6 @@
 import pytest
-from ase import Atoms
 
-from gpaw import GPAW, restart
+from gpaw import GPAW
 
 
 @pytest.mark.old_gpaw_only

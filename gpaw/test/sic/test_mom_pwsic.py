@@ -1,7 +1,7 @@
 import io
 import pytest
 
-from gpaw import GPAW, PW
+from gpaw import GPAW
 import numpy as np
 
 import numpy.testing as npt
