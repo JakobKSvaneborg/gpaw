@@ -46,7 +46,7 @@ pygments_style = 'sphinx'
 autoclass_content = 'both'
 modindex_common_prefix = ['gpaw.']
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3.10', None),
+    'python': ('https://docs.python.org/3.13', None),
     'ase': ('https://wiki.fysik.dtu.dk/ase', None),
     'numpy': ('https://numpy.org/doc/stable', None),
     'cupy': ('https://docs.cupy.dev/en/stable', None),

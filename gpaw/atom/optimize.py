@@ -373,11 +373,9 @@ class DatasetOptimizer:
 
 def ip(symbol, fd, setup):
     xc = 'LDA'
-    aea = AllElectronAtom(symbol, log=fd)
+    aea = AllElectronAtom(symbol, log=fd, scalar_relativistic=True)
     aea.initialize()
     aea.run()
-    aea.refine()
-    aea.scalar_relativistic = True
     aea.refine()
     energy = aea.ekin + aea.eH + aea.eZ + aea.exc
     eigs = []
@@ -389,12 +387,10 @@ def ip(symbol, fd, setup):
             eigs.append((e, n, l))
             n += 1
     e0, n0, l0 = max(eigs)
-    aea = AllElectronAtom(symbol, log=fd)
+    aea = AllElectronAtom(symbol, log=fd, scalar_relativistic=True)
     aea.add(n0, l0, -1)
     aea.initialize()
     aea.run()
-    aea.refine()
-    aea.scalar_relativistic = True
     aea.refine()
     IP = aea.ekin + aea.eH + aea.eZ + aea.exc - energy
     IP *= Ha
