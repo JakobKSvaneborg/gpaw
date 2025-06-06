@@ -1,5 +1,6 @@
 from gpaw.benchmark import benchmark_main, get_benchmarks
-from os import makedirs
+from pathlib import Path
+from os import getcwd
 
 platforms = [('xeon24el8_test', 24, 24, 0, '10m'),
              ('a100', 8, 1, 1, '1h'),
@@ -12,9 +13,10 @@ platforms = [('xeon24el8_test', 24, 24, 0, '10m'),
 def workflow():
     from myqueue.workflow import run
     for partition, ncores, nprocs, ngpus, time in platforms:
+        path = Path(getcwd())
         for benchmark in get_benchmarks(
                 cores=nprocs, memory='10000G', gpus=ngpus):
-            makedirs(f'./{partition}-{nprocs}', exist_ok=True)
+            (path / f'{partition}-{nprocs}').mkdir(exist_ok=True)
             run(function=benchmark_main, args=(benchmark,),
                 nodename=partition, cores=ncores, processes=nprocs,
                 gpus=ngpus, tmax=time,
