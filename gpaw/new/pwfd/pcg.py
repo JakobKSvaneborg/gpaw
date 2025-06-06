@@ -117,10 +117,12 @@ class NotDavidson(PWFDEigensolver):
         error_old = (weight_n @ as_np(residual_nX.norm2())).sum()
 
         P_nX = psit_nX.new()
-        blocksize = 32
+        blocksize = 128
         C_X = np.zeros((blocksize, blocksize), dtype=complex) # The alphas
         C_W = np.zeros_like(C_X) # The betas
         C_P = np.zeros_like(C_X) # The gammas
+
+        flag = False
 
         for i in range(self.niter):           
             self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
@@ -180,32 +182,33 @@ class NotDavidson(PWFDEigensolver):
                     P[:, block_slice] = W[:, block_slice] @ C_W[:blocksize, :blocksize]
                 X[:, block_slice] = X[:, block_slice] @ C_X[:blocksize, :blocksize] + P[:, block_slice]
                 j += blocksize
+
             psit_nX.data[:] = X.T
+            wfs.pt_aiX.integrate(psit_nX, out=P_ani)
             P_nX.data[:] = P.T
+
             # RR step?
-            if i % 1 == 0:
-                wfs.orthonormalize(residual_nX)
-                #tmp, _ = np.linalg.qr(psit_nX.data)
-                #psit_nX.data[:] = tmp
-            if i % 1 == 0:
-                #Ht(psit_nX, out=residual_nX)
-                #vecs = psit_nX.matrix_elements(residual_nX)
-                #vals = vecs.eigh()
-                #wfs._eig_n = as_np(vals)
-                #vecs.multiply(psit_nX, out=psit2_nX)
-                #psit_nX.data[:] = psit2_nX.data
-                M_nn = psit_nX.matrix_elements(psit_nX)
-                M_nn.tril2full()
-                M2_nn = psit_nX.matrix_elements(psit_nX, function=Ht)
-                M2_nn.tril2full()
-                wfs._eig_n[:] = M2_nn.eigh(M_nn)
-                M2_nn.multiply(psit_nX, out=psit2_nX)
-                psit_nX.data[:] = psit2_nX.data
-                M2_nn.multiply(P_ani, out=P3_ani)
-                P_ani, P3_ani = P3_ani, P_ani
-                wfs._P_ani = P_ani
-                #wfs._eig_n = np.diag(np.linalg.solve(M_nn.data,
-                #                                     M2_nn.data)).real
+            if i % 5 == 0:
+                wfs.orthonormalized = False
+                wfs.orthonormalize(residual_nX.data)
+
+            M_nn = psit_nX.matrix_elements(psit_nX)
+            P_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
+            P3_ani.matrix.multiply(P_ani, opb='C', symmetric=True, beta=1,
+                                   out=M_nn)
+            M_nn.tril2full()
+            M2_nn = psit_nX.matrix_elements(psit_nX, function=Ht)
+            dH(P_ani, out_ani=P2_ani)
+            P_ani.matrix.multiply(P2_ani, opb='C', symmetric=False, beta=1,
+                                  out=M2_nn)
+            M2_nn.tril2full()
+            wfs._eig_n[:] = as_np(M2_nn.eigh(M_nn))
+            M2_nn.complex_conjugate()
+            M2_nn.multiply(psit_nX, out=psit2_nX)
+            psit_nX.data[:] = psit2_nX.data
+            M2_nn.multiply(P_ani, out=P3_ani)
+            P_ani, P3_ani = P3_ani, P_ani
+            wfs._P_ani = P_ani
 
             Ht(psit_nX, out=residual_nX)
             calculate_residuals(wfs.psit_nX,
@@ -217,12 +220,14 @@ class NotDavidson(PWFDEigensolver):
             error_new = (weight_n @ as_np(residual_nX.norm2())).sum()
             print(i, error_new)
 
-            if error_new < 1e-10:
-                break
+            if error_new < 1e-30:
+                flag = True
             error_old = error_new
         
-        if debug:
-            psit_nX.sanity_check()
+        #if debug:
+        #    psit_nX.sanity_check()
+        wfs.orthonormalized = False
+        wfs.orthonormalize(residual_nX.data)
 
         error = error_new
         return error
