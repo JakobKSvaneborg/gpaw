@@ -18,7 +18,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  *,
                  relpos_ac,
                  atomdist,
-                 atomic_constraints,
                  environment,
                  extensions,
                  soc=False,
@@ -27,7 +26,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self.pw = pw
         super().__init__(xc, poisson_solver, setups,
                          relpos_ac=relpos_ac,
-                         atomic_constraints=atomic_constraints,
                          environment=environment,
                          extensions=extensions,
                          soc=soc)

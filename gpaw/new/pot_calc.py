@@ -13,7 +13,6 @@ x   r or h
 from __future__ import annotations
 from collections import defaultdict
 from typing import DefaultDict, TYPE_CHECKING
-from typing import DefaultDict
 import functools
 import operator
 
@@ -28,24 +27,15 @@ from gpaw.spinorbit import soc as soc_terms
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_hermitian, pack_density, unpack_hermitian
 from gpaw.new.logger import indent
-from gpaw.mpi import MPIComm, serial_comm
+from gpaw.mpi import MPIComm
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.environment import Environment
-from gpaw.new.external_potential import ExternalPotential
-from gpaw.new.logger import indent
-from gpaw.new.potential import Potential
-from gpaw.spinorbit import soc as soc_terms
-from gpaw.utilities import pack_hermitian, pack_density, unpack_hermitian
 
 if TYPE_CHECKING:
     from gpaw.core.arrays import DistributedArrays
     from gpaw.core.atom_arrays import AtomArrays
     from gpaw.core.uniform_grid import UGArray
-    from gpaw.mpi import MPIComm
     from gpaw.new.constraints import SpinDirectionConstraint
-    from gpaw.new.xc import Functional
-    from gpaw.setup import Setup
-    from gpaw.typing import Array1D, Array2D, Array3D
 
 
 class PotentialCalculator:
@@ -55,7 +45,6 @@ class PotentialCalculator:
                  setups: list[Setup],
                  *,
                  relpos_ac: Array2D,
-                 atomic_constraints: list[SpinDirectionConstraint] | None,
                  environment: Environment,
                  extensions: list | None = None,
                  soc: bool = False):
@@ -63,7 +52,6 @@ class PotentialCalculator:
         self.xc = xc
         self.setups = setups
         self.relpos_ac = relpos_ac
-        self.atomic_constraints = atomic_constraints
         self.soc = soc
         self.environment = environment or Environment(len(relpos_ac))
         self.extensions: list = extensions or []
@@ -163,7 +151,7 @@ class PotentialCalculator:
             self.xc,
             V_aL,
             self.soc,
-            self.atomic_constraints,
+            self.extensions,
             kpt_band_comm)
 
         for ext in self.extensions:
@@ -189,7 +177,7 @@ def calculate_non_local_potential(setups,
                                   xc,
                                   V_aL,
                                   soc: bool,
-                                  atomic_constraints,
+                                  extensions,
                                   kpt_band_comm: MPIComm
                                   ) -> tuple[AtomArrays,
                                              dict[str, float]]:
@@ -204,7 +192,7 @@ def calculate_non_local_potential(setups,
             V_L = V_aL[a]
             setup = setups[a]
             dH_sii, corrections = calculate_non_local_potential1(
-                setup, xc, D_sii, V_L, soc, atomic_constraints, a)
+                setup, xc, D_sii, V_L, soc, extensions, a)
             dH_asii[a][:] = dH_sii
             for key, e in corrections.items():
                 energy_corrections[key] += e
@@ -230,7 +218,7 @@ def calculate_non_local_potential1(setup: Setup,
                                    D_sii: Array3D,
                                    V_L: Array1D,
                                    soc: bool,
-                                   atomic_constraints,
+                                   extensions,
                                    atom_index) -> tuple[Array3D,
                                                         dict[str, float]]:
     ncomponents = len(D_sii)
@@ -266,11 +254,9 @@ def calculate_non_local_potential1(setup: Setup,
         e_xc += eU
         dH_sii += dHU_sii
 
-    for atomic_constraint in atomic_constraints:
-        eL, dHL_vii = atomic_constraint.calculate(D_sii[1:4].real, atom_index,
-                                                  setup.l_j, setup.N0_q)
-        e_xc += eL
-        dH_sii[1:4] += dHL_vii
+    for extension in extensions:
+        e_xc += extension.update_non_local_hamiltonian(
+            D_sii, setup, atom_index, dH_sii)
 
     e_kinetic -= (D_sii * dH_sii).sum().real
 

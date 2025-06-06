@@ -155,7 +155,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.create_poisson_solver(env),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
-            atomic_constraints=self.params.atomic_constraints,
             soc=self.soc,
             xp=self.xp,
             environment=env,

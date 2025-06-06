@@ -21,7 +21,6 @@ class FDPotentialCalculator(PotentialCalculator):
                  poisson_solver,
                  *,
                  relpos_ac,
-                 atomic_constraints: list[SpinDirectionConstraint] | None,
                  atomdist,
                  interpolation_stencil_range=3,
                  environment=None,
@@ -49,7 +48,6 @@ class FDPotentialCalculator(PotentialCalculator):
 
         super().__init__(xc, poisson_solver, setups,
                          relpos_ac=relpos_ac,
-                         atomic_constraints=atomic_constraints,
                          environment=environment,
                          extensions=extensions)
 

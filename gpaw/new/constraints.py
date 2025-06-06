@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from gpaw.new.extensions import Extension
 
 import numpy as np
 from ase.units import Ha
@@ -8,13 +9,23 @@ if TYPE_CHECKING:
     from gpaw.typing import Array1D, Array3D
 
 
-class SpinDirectionConstraint:
+class SpinDirectionConstraint(Extension):
     def __init__(self,
                  constraint: dict[int, Array1D],
                  penalty: float = 0.8):
         self.constraint = {a: np.array(u_v) / np.linalg.norm(u_v)
                            for a, u_v in constraint.items()}
         self.penalty = penalty / Ha
+
+    def update_non_local_hamiltonian(self,
+                                     D_sii,
+                                     setup,
+                                     atom_index,
+                                     dH_sii) -> float:
+        eL, dHL_vii = self.calculate(D_sii[1:4].real, atom_index,
+                                     setup.l_j, setup.N0_q)
+        dH_sii[1:4] += dHL_vii
+        return eL
 
     def calculate(self,
                   M_vii: Array3D,

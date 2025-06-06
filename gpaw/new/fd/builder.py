@@ -65,7 +65,6 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return FDPotentialCalculator(
             self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
             relpos_ac=self.relpos_ac, atomdist=self.atomdist,
-            atomic_constraints=self.params.atomic_constraints,
             interpolation_stencil_range=self.interpolation_stencil_range,
             environment=env,
             extensions=self.get_extensions(),

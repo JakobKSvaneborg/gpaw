@@ -17,11 +17,6 @@ from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
-from gpaw.new.constraints import SpinDirectionConstraint
-from gpaw.new.environment import Environment
-from gpaw.new.gpw import GPWFlags, read_gpw, write_gpw
-from gpaw.new.input_parameters import InputParameters
-from gpaw.new.input_parameters import parameter_functions as parameter_names
 from gpaw.new.gpw import GPWFlags, write_gpw
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize

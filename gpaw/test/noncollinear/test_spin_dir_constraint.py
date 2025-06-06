@@ -17,7 +17,7 @@ def test_spin_dir_constraint_H():
                  cell=[c, c, c], pbc=False)
 
     # Constrain spin to point along x direction
-    constraints = [SpinDirectionConstraint({0: [1., 0., 0.]}, 2.)]
+    constraint = SpinDirectionConstraint({0: [1.0, 0.0, 0.0]}, 2.0)
 
     # Initialize spin along [1 1 1]
     calc = GPAW(
@@ -25,7 +25,7 @@ def test_spin_dir_constraint_H():
         nbands=1, symmetry='off',
         soc=True, magmoms=np.array([[1, 1, 1]]) / np.sqrt(3),
         parallel={'domain': 1, 'band': 1},
-        atomic_constraints=constraints)
+        extensions=[constraint])
 
     atom.calc = calc
     atom.get_potential_energy()
@@ -51,7 +51,7 @@ def test_spin_dir_constraint_derivative():
     l_j = [0, 1]
 
     # Initialize constraint
-    constraint = SpinDirectionConstraint({0: [0, 0, 1]}, 2.)
+    constraint = SpinDirectionConstraint({0: [0, 0, 1]}, 2.0)
 
     # Generate some radial inner products
     N0_q = np.zeros(len(l_j) * (len(l_j) + 1) // 2)
