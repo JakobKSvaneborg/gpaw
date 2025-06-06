@@ -1,18 +1,25 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
-from gpaw.new.extensions import Extension
 
 import numpy as np
 from ase.units import Ha
-
-if TYPE_CHECKING:
-    from gpaw.typing import Array1D, Array3D
+from gpaw.new.extensions import Extension
+from gpaw.typing import Array1D, Array3D, Vector
 
 
 class SpinDirectionConstraint(Extension):
     def __init__(self,
-                 constraint: dict[int, Array1D],
+                 constraint: dict[int, Vector],
                  penalty: float = 0.8):
+        """Spin-direction constraint.
+
+        Parameters
+        ==========
+        constraint:
+            Dictionary mapping atom numbers to directions.
+            Example: ``{0: (0, 0, 1), 1: (1, 0, 0), ...}``.
+        penalty:
+            Strength of penalty term in eV.
+        """
         self.constraint = {a: np.array(u_v) / np.linalg.norm(u_v)
                            for a, u_v in constraint.items()}
         self.penalty = penalty / Ha
@@ -36,7 +43,7 @@ class SpinDirectionConstraint(Extension):
         dHL_vii = np.zeros_like(M_vii)
 
         if a not in self.constraint:
-            return 0., dHL_vii
+            return 0.0, dHL_vii
         u_v = self.constraint[a]
 
         smm_v = np.zeros(3)  # Spin magnetic moment
@@ -64,6 +71,6 @@ class SpinDirectionConstraint(Extension):
         dHL_vii *= 2 * self.penalty
 
         if not return_energy:
-            return 0., dHL_vii
+            return 0.0, dHL_vii
         else:
             return self.penalty * (smm_v @ smm_v - (u_v @ smm_v)**2), dHL_vii
