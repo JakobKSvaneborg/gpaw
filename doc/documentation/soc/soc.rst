@@ -26,9 +26,9 @@ Reminder, the atomic spin density matrices are defined through
 
 .. math::
 
-    D^a_{x,i_1i_2}&=\phantom{-\I}\sum_{\vec{k}n}f_{\vec{k}n}\left({\braket{\widetilde{\psi}_{\vec{k}\uparrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\downarrow n}}+\braket{\widetilde{\psi}_{\vec{k}\downarrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\uparrow n}}}\right), \\
-    D^a_{y,i_1i_2}&=-\I\sum_{\vec{k}n}f_{\vec{k}n}\left({\braket{\widetilde{\psi}_{\vec{k}\uparrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\downarrow n}}-\braket{\widetilde{\psi}_{\vec{k}\downarrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\uparrow n}}}\right), \\
-    D^a_{z,i_1i_2}&=\phantom{-\I}\sum_{\vec{k}n}f_{\vec{k}n}\left({\braket{\widetilde{\psi}_{\vec{k}\uparrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\uparrow n}}-\braket{\widetilde{\psi}_{\vec{k}\downarrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\downarrow n}}}\right).
+    D^a_{x,i_1i_2}&=\sum_{\vec{k}n}f_{\vec{k}n}\left({\braket{\widetilde{\psi}_{\vec{k}\uparrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\downarrow n}}+\braket{\widetilde{\psi}_{\vec{k}\downarrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\uparrow n}}}\right), \\
+    D^a_{y,i_1i_2}&=-i\sum_{\vec{k}n}f_{\vec{k}n}\left({\braket{\widetilde{\psi}_{\vec{k}\uparrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\downarrow n}}-\braket{\widetilde{\psi}_{\vec{k}\downarrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\uparrow n}}}\right), \\
+    D^a_{z,i_1i_2}&=\sum_{\vec{k}n}f_{\vec{k}n}\left({\braket{\widetilde{\psi}_{\vec{k}\uparrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\uparrow n}}-\braket{\widetilde{\psi}_{\vec{k}\downarrow n}}{\widetilde{p}^a_{i_1}}\braket{\widetilde{p}^a_{i_2}}{\widetilde{\psi}_{\vec{k}\downarrow n}}}\right).
 
 If we only wish to constrain the PAW part of the magnetic moment at site `a`, we can write (neglecting the negative sign as is standard in GPAW)
 
@@ -71,12 +71,12 @@ we can use the chain rule to get the additions to the atomic Hamiltonians
 .. math::
 
     H^a_{x,i_1i_2}=\frac{\partial E_\mathrm{cDFT}}{\partial D^a_{x,i_1i_2}}=2\Lambda\mu_\mathrm{B}&
-    \brK{\vphantom{\frac{1}{1}}
-    \left({1-\hat{u}_{a,x}^2}\right)m_{a,x}-\hat{u}_{a,x}\left({\hat{u}_{a,y}m_{a,y}+\hat{u}_{a,z}m_{a,z}}\right)}N_{i_1i_2}, \\
-    H^a_{y,i_1i_2}=\frac{\partial E_\mathrm{cDFT}}{\partial D^a_{y,i_1i_2}}=2\Lambda\mu_\mathrm{B}&\brK{\vphantom{\frac{1}{1}}
-    \left({1-\hat{u}_{a,y}^2}\right)m_{a,y}-\hat{u}_{a,y}\left({\hat{u}_{a,x}m_{a,x}+\hat{u}_{a,z}m_{a,z}}\right)}N_{i_1i_2}, \\
-    H^a_{z,i_1i_2}=\frac{\partial E_\mathrm{cDFT}}{\partial D^a_{z,i_1i_2}}=2\Lambda\mu_\mathrm{B}&\brK{\vphantom{\frac{1}{1}}
-    \left({1-\hat{u}_{a,z}^2}\right)m_{a,z}-\hat{u}_{a,z}\left({\hat{u}_{a,x}m_{a,x}+\hat{u}_{a,y}m_{a,y}}\right)}N_{i_1i_2},
+    \left[{\vphantom{\frac{1}{1}}
+    \left({1-\hat{u}_{a,x}^2}\right)m_{a,x}-\hat{u}_{a,x}\left({\hat{u}_{a,y}m_{a,y}+\hat{u}_{a,z}m_{a,z}}\right)}\right]N_{i_1i_2}, \\
+    H^a_{y,i_1i_2}=\frac{\partial E_\mathrm{cDFT}}{\partial D^a_{y,i_1i_2}}=2\Lambda\mu_\mathrm{B}&\left[{\vphantom{\frac{1}{1}}
+    \left({1-\hat{u}_{a,y}^2}\right)m_{a,y}-\hat{u}_{a,y}\left({\hat{u}_{a,x}m_{a,x}+\hat{u}_{a,z}m_{a,z}}\right)}\right]N_{i_1i_2}, \\
+    H^a_{z,i_1i_2}=\frac{\partial E_\mathrm{cDFT}}{\partial D^a_{z,i_1i_2}}=2\Lambda\mu_\mathrm{B}&\left[{\vphantom{\frac{1}{1}}
+    \left({1-\hat{u}_{a,z}^2}\right)m_{a,z}-\hat{u}_{a,z}\left({\hat{u}_{a,x}m_{a,x}+\hat{u}_{a,y}m_{a,y}}\right)}\right]N_{i_1i_2},
 
 .. autoclass:: gpaw.new.constraints.SpinDirectionConstraint
 
