@@ -16,10 +16,10 @@ def test_pw_h(in_tmp_dir):
     #e0 = a.get_potential_energy()
     #e0 = world.sum_scalar(e0) / world.size
 
-    a.calc = GPAW(mode=PW(250),
+    a.calc = GPAW(mode={'name': 'pw', 'ecut': 250, 'force_complex_dtype': True},
                   random=True,
                   eigensolver={'name': 'not-dav',
-                               'niter': 10},
+                               'niter': 9},
                   basis='szp(dzp)',
                   convergence={'eigenvalues': 1e-4},)
                   #txt='%d.txt' % world.size)

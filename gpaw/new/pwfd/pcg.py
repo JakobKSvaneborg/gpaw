@@ -104,6 +104,7 @@ class NotDavidson(PWFDEigensolver):
                                      cc=True)
 
         Ht = partial(Ht, out=residual_nX)
+        Ht(psit_nX, out=residual_nX)
         calculate_residuals(wfs.psit_nX,
                             residual_nX,
                             wfs.pt_aiX,
@@ -111,55 +112,45 @@ class NotDavidson(PWFDEigensolver):
                             wfs.myeig_n,
                             dH, dS_aii, P2_ani, P3_ani)
 
-        def copy(C_nn: Array2D) -> None:
-            domain_comm.sum(M_nn.data, 0)
-            if domain_comm.rank == 0:
-                M_nn.redist(M0_nn)
-                if band_comm.rank == 0:
-                    C_nn[:] = M0_nn.data
-
-        Ht(psit_nX, out=residual_nX)
-        traceold = np.sum(psit_nX.matrix_elements(residual_nX).data)
+        if weight_n is None:
+            weight_n = xp.ones(B)
+        error_old = (weight_n @ as_np(residual_nX.norm2())).sum()
 
         P_nX = psit_nX.new()
-        P_nX.data[:] = residual_nX.data * 1e-6
-        blocksize = 100
-        C_X = np.zeros((blocksize, blocksize)) # The alphas
+        blocksize = 32
+        C_X = np.zeros((blocksize, blocksize), dtype=complex) # The alphas
         C_W = np.zeros_like(C_X) # The betas
         C_P = np.zeros_like(C_X) # The gammas
 
-        for i in range(self.niter):
-            #Ht(psit_nX, out=residual_nX) # H psi
-            # (X @ (X.T @ AX)).T = ((X.T @ AX).T @ X.T) = (AX.T @ X) @ X.T
-            #residual_nX.matrix_elements(psit_nX).multiply(psit_nX, out=psit2_nX)
-            #residual_nX.data -= psit2_nX.data
-            #self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
-            # W -= (X @ (X.T @ W)).T = ((X.T @ W).T @ X.T) = (W.T @ X) @ X.T
-            #residual_nX.data[:] = psit2_nX.data
-            #psit2_nX.matrix_elements(psit_nX).multiply(residual_nX, out=psit2_nX, beta=1.0, alpha=-1.0)
-            #W = psit2_nX.data.T
-            # P -= (X @ (X.T @ P)).T = ((X.T @ P).T @ X.T) = (P.T @ X) @ X.T
+        for i in range(self.niter):           
+            self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
+            wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
+
+            residual_nX.data[:] = psit2_nX.data
+            M_nn = residual_nX.matrix_elements(psit_nX)
+            P2_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
+                                   out=M_nn)
             
-            calculate_residuals(wfs.psit_nX,
-                                residual_nX,
-                                wfs.pt_aiX,
-                                wfs.P_ani,
-                                wfs.myeig_n,
-                                dH, dS_aii, P2_ani, P3_ani)
-            error = (weight_n @ as_np(residual_nX.norm2())).sum()
+            M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
             
+            wfs.pt_aiX.integrate(P_nX, out=P3_ani)
+            M_nn = P_nX.matrix_elements(psit_nX)
+            P3_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
+                                   out=M_nn)
+
+            M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
             
-            P_nX.matrix_elements(psit_nX).multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
-            P = P_nX.data.T
             X = psit_nX.data.T
+            W = residual_nX.data.T
+            P = P_nX.data.T
             j = 0
             
             X2_nX = psit_nX.new()
-            W2_nX = psit2_nX.new()
+            W2_nX = residual_nX.new()
             P2_nX = P_nX.new()
             Ht(psit_nX, out=X2_nX)
-            Ht(psit2_nX, out=W2_nX)
-            Ht(P_nX, out=P2_nX)      
+            Ht(residual_nX, out=W2_nX)
+            Ht(P_nX, out=P2_nX)
             X2 = X2_nX.data.T
             W2 = W2_nX.data.T
             P2 = P2_nX.data.T
@@ -169,8 +160,12 @@ class NotDavidson(PWFDEigensolver):
                 # This keeps the block size constant except for the last block
                 blocksize = block_slice.stop - block_slice.start
 
-                S = np.column_stack([X[:, block_slice], W[:, block_slice], P[:, block_slice]])
-                S2 = np.column_stack([X2[:, block_slice], W2[:, block_slice], P2[:, block_slice]])
+                if i > 0:
+                    S = np.column_stack([X[:, block_slice], W[:, block_slice], P[:, block_slice]])
+                    S2 = np.column_stack([X2[:, block_slice], W2[:, block_slice], P2[:, block_slice]])
+                else:
+                    S = np.column_stack([X[:, block_slice], W[:, block_slice]])
+                    S2 = np.column_stack([X2[:, block_slice], W2[:, block_slice]])
                 # We only need the smallest algebraic eigenvector for this
                 # But also this is the tiniest ass eigenvalue problem of 3 blocksize x 3 blocksize...
                 _, cmin = sp.linalg.eigh(S.T.conj() @ S2, S.T.conj() @ S)
@@ -178,8 +173,11 @@ class NotDavidson(PWFDEigensolver):
                 # Ye olde updates
                 C_X[:blocksize, :blocksize] = cmin[:blocksize, :blocksize]
                 C_W[:blocksize, :blocksize] = cmin[blocksize:2 * blocksize, :blocksize]
-                C_P[:blocksize, :blocksize] = cmin[2 * blocksize:3 * blocksize, :blocksize] if i != 0 else 0.0
-                P[:, block_slice] = W[:, block_slice] @ C_W[:blocksize, :blocksize] + P[:, block_slice] @ C_P[:blocksize, :blocksize]
+                if i > 0:
+                    C_P[:blocksize, :blocksize] = cmin[2 * blocksize:3 * blocksize, :blocksize]
+                    P[:, block_slice] = W[:, block_slice] @ C_W[:blocksize, :blocksize] + P[:, block_slice] @ C_P[:blocksize, :blocksize]
+                else:
+                    P[:, block_slice] = W[:, block_slice] @ C_W[:blocksize, :blocksize]
                 X[:, block_slice] = X[:, block_slice] @ C_X[:blocksize, :blocksize] + P[:, block_slice]
                 j += blocksize
             psit_nX.data[:] = X.T
@@ -190,26 +188,44 @@ class NotDavidson(PWFDEigensolver):
                 #tmp, _ = np.linalg.qr(psit_nX.data)
                 #psit_nX.data[:] = tmp
             if i % 1 == 0:
-                Ht(psit_nX, out=residual_nX)
-                vecs = psit_nX.matrix_elements(residual_nX)
-                vals = vecs.eigh()
-                wfs._eig_n = as_np(vals)
-                vecs.multiply(psit_nX, out=psit2_nX)
+                #Ht(psit_nX, out=residual_nX)
+                #vecs = psit_nX.matrix_elements(residual_nX)
+                #vals = vecs.eigh()
+                #wfs._eig_n = as_np(vals)
+                #vecs.multiply(psit_nX, out=psit2_nX)
+                #psit_nX.data[:] = psit2_nX.data
+                M_nn = psit_nX.matrix_elements(psit_nX)
+                M_nn.tril2full()
+                M2_nn = psit_nX.matrix_elements(psit_nX, function=Ht)
+                M2_nn.tril2full()
+                wfs._eig_n[:] = M2_nn.eigh(M_nn)
+                M2_nn.multiply(psit_nX, out=psit2_nX)
                 psit_nX.data[:] = psit2_nX.data
+                M2_nn.multiply(P_ani, out=P3_ani)
+                P_ani, P3_ani = P3_ani, P_ani
+                wfs._P_ani = P_ani
+                #wfs._eig_n = np.diag(np.linalg.solve(M_nn.data,
+                #                                     M2_nn.data)).real
 
-                Ht(psit_nX, out=residual_nX)
-                tracenew = np.sum(psit_nX.matrix_elements(residual_nX).data)
-                convergence_marker = np.abs(tracenew - traceold) / np.abs(traceold)
-                print(i, convergence_marker)
-                if convergence_marker < 1e-0:
-                    break
-                traceold = tracenew
+            Ht(psit_nX, out=residual_nX)
+            calculate_residuals(wfs.psit_nX,
+                                residual_nX,
+                                wfs.pt_aiX,
+                                wfs.P_ani,
+                                wfs.myeig_n,
+                                dH, dS_aii, P2_ani, P3_ani)
+            error_new = (weight_n @ as_np(residual_nX.norm2())).sum()
+            print(i, error_new)
+
+            if error_new < 1e-10:
+                break
+            error_old = error_new
         
         if debug:
             psit_nX.sanity_check()
 
-        error = convergence_marker
-        return 0
+        error = error_new
+        return error
 
 '''
 @profile
