@@ -5,6 +5,7 @@ from gpaw import GPAW
 from gpaw.bfield import BField
 
 
+@pytest.mark.old_gpaw_only  # use extension=[BField(...)]
 @pytest.mark.serial
 def test_b_field(gpaw_new):
     """Hydrogen atom in a magnetic field."""

@@ -73,8 +73,9 @@ def info() -> None:
                 githash = ''
             else:
                 githash = f'-{githash:.10}'
-            results.append((name + '-' + module.__version__ + githash,
-                            module.__file__.rsplit('/', 1)[0] + '/'))
+            results.append(
+                (name + '-' + module.__version__ + githash,
+                 module.__file__.rsplit('/', 1)[0] + '/'))  # type: ignore
 
     libs = gpaw.get_libraries()
 

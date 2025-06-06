@@ -1,8 +1,10 @@
 from ase import Atoms
 from gpaw import GPAW, PW
 from gpaw.mpi import world
+import pytest
 
 
+@pytest.mark.legacy
 def test_pw_direct():
     if world.size == 1:
         atoms = Atoms('H', cell=(2, 2, 2), pbc=True)

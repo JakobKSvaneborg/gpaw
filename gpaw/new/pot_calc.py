@@ -13,11 +13,22 @@ x   r or h
 from __future__ import annotations
 from collections import defaultdict
 from typing import DefaultDict, TYPE_CHECKING
+from typing import DefaultDict
+import functools
+import operator
 
 import numpy as np
 
 from gpaw.mpi import serial_comm
 from gpaw.new import trace, zips
+from gpaw.new.potential import Potential
+from gpaw.new.xc import Functional
+from gpaw.setup import Setup
+from gpaw.spinorbit import soc as soc_terms
+from gpaw.typing import Array1D, Array2D, Array3D
+from gpaw.utilities import pack_hermitian, pack_density, unpack_hermitian
+from gpaw.new.logger import indent
+from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.environment import Environment
 from gpaw.new.external_potential import ExternalPotential
@@ -46,16 +57,16 @@ class PotentialCalculator:
                  relpos_ac: Array2D,
                  atomic_constraints: list[SpinDirectionConstraint] | None,
                  environment: Environment,
-                 external_potential: ExternalPotential | None = None,
+                 extensions: list | None = None,
                  soc: bool = False):
         self.poisson_solver = poisson_solver
         self.xc = xc
         self.setups = setups
-        self.external_potential = external_potential or ExternalPotential()
         self.relpos_ac = relpos_ac
         self.atomic_constraints = atomic_constraints
         self.soc = soc
         self.environment = environment or Environment(len(relpos_ac))
+        self.extensions: list = extensions or []
 
     def __str__(self):
         return (f'{self.poisson_solver}\n'
@@ -72,6 +83,24 @@ class PotentialCalculator:
                                               AtomArrays,
                                               float]:
         raise NotImplementedError
+
+    def move(self, relpos_ac, atomdist):
+        for ext in self.extensions:
+            ext.move_atoms(relpos_ac)
+
+    @property
+    def extensions_force_av(self):
+        if not self.extensions:
+            return np.zeros((len(self.setups), 3))
+        return functools.reduce(operator.add, [ext.force_contribution()
+                                for ext in self.extensions])
+
+    @property
+    def extensions_stress_contribution(self):
+        if not self.extensions:
+            return np.zeros((3, 3))
+        return functools.reduce(operator.add, [ext.stress_contribution()
+                                for ext in self.extensions])
 
     def calculate_charges(self, vHt_x):
         raise NotImplementedError
@@ -132,11 +161,16 @@ class PotentialCalculator:
             self.setups,
             density,
             self.xc,
-            self.external_potential,
             V_aL,
             self.soc,
             self.atomic_constraints,
             kpt_band_comm)
+
+        for ext in self.extensions:
+            dct = ext.get_energy_contributions()
+            for name, e in dct.items():
+                assert name not in energies
+                energies[name] = e
 
         energies['spinorbit'] = 0.0
         for key, e in corrections.items():
@@ -153,7 +187,6 @@ class PotentialCalculator:
 def calculate_non_local_potential(setups,
                                   density,
                                   xc,
-                                  ext_pot,
                                   V_aL,
                                   soc: bool,
                                   atomic_constraints,
@@ -171,7 +204,7 @@ def calculate_non_local_potential(setups,
             V_L = V_aL[a]
             setup = setups[a]
             dH_sii, corrections = calculate_non_local_potential1(
-                setup, xc, ext_pot, D_sii, V_L, soc, atomic_constraints, a)
+                setup, xc, D_sii, V_L, soc, atomic_constraints, a)
             dH_asii[a][:] = dH_sii
             for key, e in corrections.items():
                 energy_corrections[key] += e
@@ -194,7 +227,6 @@ def calculate_non_local_potential(setups,
 
 def calculate_non_local_potential1(setup: Setup,
                                    xc: Functional,
-                                   ext_pot,
                                    D_sii: Array3D,
                                    V_L: Array1D,
                                    soc: bool,
@@ -225,7 +257,7 @@ def calculate_non_local_potential1(setup: Setup,
     dH_sp[:ndensities] = dH_p
     e_xc = xc.calculate_paw_correction(setup, D_sp, dH_sp)
 
-    e_external = ext_pot.add_paw_correction(setup.Delta_pL[:, 0], dH_sp)
+    # e_external = ext_pot.add_paw_correction(setup.Delta_pL[:, 0], dH_sp)
 
     dH_sii = unpack_hermitian(dH_sp)
 
@@ -246,5 +278,5 @@ def calculate_non_local_potential1(setup: Setup,
                     'coulomb': e_coulomb,
                     'zero': e_zero,
                     'xc': e_xc,
-                    'external': e_external,
+                    'external': 0.0,  # e_external,
                     'spinorbit': e_soc}

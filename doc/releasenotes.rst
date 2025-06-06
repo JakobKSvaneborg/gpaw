@@ -10,6 +10,11 @@ Git master branch
 
 :git:`master <>`.
 
+* The XAS code has been expanded to allow for calculations of core holes
+  with 𝑙≠0.
+
+* :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
+
 * The fluctuation-dissipation theorem has been added to the SJM.
 
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
@@ -35,7 +40,17 @@ Git master branch
 * Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
   See :ref:`manual_convergence`.
 
+* Removed the entire gpaw.dfpt module.
 
+* Converged numbers in GPAW's text output are now colored green
+  when using :ref:`newgpaw` and running in an interactive terminal.
+  This behavior can be controlled by setting different environment
+  variables: ``NO_COLOR``, ``FORCE_COLOR`` and
+  :envvar:`python:PYTHON_COLORS`.  See also `controlling color`_.
+
+
+.. _controlling color: https://docs.python.org/3/using/cmdline.html
+                       #controlling-color
 .. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
 
 

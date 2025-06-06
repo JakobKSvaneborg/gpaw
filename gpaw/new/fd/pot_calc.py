@@ -25,6 +25,7 @@ class FDPotentialCalculator(PotentialCalculator):
                  atomdist,
                  interpolation_stencil_range=3,
                  environment=None,
+                 extensions=None,
                  xp=np):
         self.fine_grid = fine_grid
         self.grid = wf_grid
@@ -49,7 +50,8 @@ class FDPotentialCalculator(PotentialCalculator):
         super().__init__(xc, poisson_solver, setups,
                          relpos_ac=relpos_ac,
                          atomic_constraints=atomic_constraints,
-                         environment=environment)
+                         environment=environment,
+                         extensions=extensions)
 
     def __str__(self):
         txt = super().__str__()
@@ -143,6 +145,7 @@ class FDPotentialCalculator(PotentialCalculator):
                 np.nan)
 
     def move(self, relpos_ac, atomdist):
+        super().move(relpos_ac, atomdist)
         self.ghat_aLr.move(relpos_ac, atomdist)
         self.vbar_ar.move(relpos_ac, atomdist)
         self.vbar_ar.to_uniform_grid(out=self.vbar_r)
@@ -172,4 +175,5 @@ class FDPotentialCalculator(PotentialCalculator):
         return (force_av,
                 density.nct_aX.derivative(vt_R),
                 Ftauct_av,
-                self.vbar_ar.derivative(nt_r))
+                self.vbar_ar.derivative(nt_r),
+                self.extensions_force_av)
