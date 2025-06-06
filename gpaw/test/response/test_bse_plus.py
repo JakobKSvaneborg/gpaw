@@ -1,14 +1,11 @@
 import numpy as np
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 import pytest
-from gpaw import GPAW, FermiDirac
 from gpaw.response.pair import get_gs_and_context
 from gpaw.mpi import world
 from gpaw.response.bse import BSE, BSE_Plus
 from gpaw.response.df import Chi0DysonEquations
 from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.test.gpwfile import random_degenerate_unitary_rotation
-from ase.build import bulk
 
 
 @pytest.mark.response
@@ -19,23 +16,7 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
     assertion work.
     """
     monkeypatch.chdir(in_tmp_dir)
-    calc = GPAW(mode='pw',
-                kpts={'size': (2, 2, 2), 'gamma': True},
-                occupations=FermiDirac(0.01),
-                nbands=10,
-                symmetry='off',
-                convergence={'bands': -4, 'density': 1e-7,
-                             'eigenstates': 1e-10})
-
-    a = 5.431
-    atoms = bulk('Si', 'diamond', a=a)
-    atoms.calc = calc
-    atoms.get_potential_energy()
-    calc.write('Si.gpw', 'all')
-    calc = GPAW('Si.gpw')
-    random_degenerate_unitary_rotation(calc)
-    calc.write('rotated.gpw', mode='all')
-    calc = 'rotated.gpw'
+    calc = gpw_files['si_pw_nbands10_converged']
     gs, context = get_gs_and_context(
         calc, txt=None, world=world, timer=None)
     ecut = 20
