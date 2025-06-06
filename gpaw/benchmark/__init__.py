@@ -8,6 +8,7 @@ from json import dumps, loads
 from pathlib import Path
 
 from gpaw.benchmark.systems import parse_system
+from gpaw.utilities.memory import maxrss
 
 pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
 
@@ -306,6 +307,7 @@ class Walltime:
     def __init__(self, name):
         self.name = name
         self.error = None
+        self.max_rss = None
 
     def __enter__(self):
         self.start = time()
@@ -315,6 +317,7 @@ class Walltime:
         if exc_type is not None:
             self.error = (exc_type, exc_value, exc_traceback)
         self.end = time()
+        self.max_rss = maxrss()
 
     @property
     def walltime(self):
@@ -322,7 +325,8 @@ class Walltime:
 
     def todict(self):
         return {self.name: {'walltime': self.walltime,
-                            'error': self.error}}
+                            'error': self.error,
+                            'max_rss': self.max_rss}}
 
 
 class Benchmark(Walltime):
