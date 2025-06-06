@@ -1,15 +1,12 @@
 from __future__ import annotations
+
 from math import pi
-from typing import TYPE_CHECKING
 
 import numpy as np
 
-from gpaw.new import zips, spinsum, trace
+from gpaw.core import UGDesc
+from gpaw.new import spinsum, trace, zips
 from gpaw.new.pot_calc import PotentialCalculator
-
-if TYPE_CHECKING:
-    from gpaw.core import UGDesc
-    from gpaw.new.constraints import SpinDirectionConstraint
 
 
 class FDPotentialCalculator(PotentialCalculator):
