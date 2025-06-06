@@ -26,7 +26,7 @@ def test_real_to_complex_fft():
     # Check multiple FFT's:
     a2 = a.desc.empty(2)
     a2.data[:] = 1.0
-    b2 = a2.fft(pw=pw.new(dtype=float))
+    a2.fft(pw=pw.new(dtype=float))
 
 
 @pytest.mark.ci

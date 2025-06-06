@@ -270,7 +270,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P_ani.matrix.multiply(P2_ani, opb='C', symmetric=True,
                               out=H, beta=1.0)
         domain_comm.sum(H.data, 0)
-
         if domain_comm.rank == 0:
             slcomm, r, c, b = scalapack_parameters
             if r == c == 1:

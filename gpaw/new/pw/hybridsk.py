@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from math import nan
 from time import time
 
@@ -15,17 +14,8 @@ from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pw.hybrids import fft, truncated_coulomb
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
-from gpaw.new.pw.nschse import ibz2bz
-
-
-@dataclass
-class Psit:
-    ut_nR: UGArray
-    P_ani: AtomArrays
-    f_n: np.ndarray
-    kpt_c: np.ndarray
-    Q_aniL: dict[int, np.ndarray]
-    spin: int
+from gpaw.new.pw.nschse import ibz2bz, Psit
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 
 
 class PWHybridHamiltonianK(PWHamiltonian):
@@ -65,7 +55,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
         self.ghat_aLG = setups.create_compensation_charges(
             pw, relpos_ac, atomdist)
 
-        self.mypsits = []
+        self.mypsits: list[Psit] = []
         self.nocc = -1
 
     def apply_orbital_dependent(self,
@@ -76,6 +66,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                                 Htpsit2_nG: XArray) -> None:
         assert isinstance(psit2_nG, PWArray)
         assert isinstance(Htpsit2_nG, PWArray)
+        assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
         assert len(ibzwfs.ibz) % self.kpt_comm.size == 0
 
         self.nbzk = len(ibzwfs.ibz.bz)
@@ -153,8 +144,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
             return nan, nan, nan
 
         e = comm.sum_scalar(e)
-        evv = -0.5 * e
-        ekin = e
+        evv = 0.5 * e
+        ekin = -e
         evc = 0.0
         return evv, evc, ekin
 
@@ -163,7 +154,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 P2_ani: AtomArrays,
                 spin: int,
                 Htpsit2_nG,
-                f2_n: np.ndarray | None) -> np.ndarray:
+                f2_n: np.ndarray | None) -> float:
         ut2_nR = self.grid_local.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
@@ -183,7 +174,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 ut2_nR: UGArray,
                 P2_ani: AtomArrays,
                 Htpsit2_nG: PWArray,
-                f2_n: np.ndarray | None) -> np.ndarray:
+                f2_n: np.ndarray | None) -> float:
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
@@ -205,9 +196,9 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 for rhot_G, f2 in zip(rhot_nG, f2_n):
                     a_G = rhot_G.copy()
                     rhot_G.data *= v_G.data
-                    e += a_G.integrate(rhot_G) * f2 * f1_n[n1]
+                    e += a_G.integrate(rhot_G).real * f2 * f1_n[n1]
             rhot_nG.ifft(out=rhot_nR)
             rhot_nR.data *= ut1_R.data
             rhot_nR.fft(out=rhot_nG)
-            Htpsit2_nG.data += rhot_nG.data * f1_n[n1]
+            Htpsit2_nG.data -= rhot_nG.data * (self.exx_fraction * f1_n[n1])
         return e
