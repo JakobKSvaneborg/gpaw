@@ -48,6 +48,10 @@ Git master branch
   variables: ``NO_COLOR``, ``FORCE_COLOR`` and
   :envvar:`python:PYTHON_COLORS`.  See also `controlling color`_.
 
+* Constraining spins within PAW spheres along specified directions in
+  noncollinear calculations is now possible:
+  :ref:`spin direction constrained dft`.
+
 
 .. _controlling color: https://docs.python.org/3/using/cmdline.html
                        #controlling-color
