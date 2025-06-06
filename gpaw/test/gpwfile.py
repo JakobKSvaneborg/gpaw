@@ -609,12 +609,12 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def si_pw_nbands10_converged(self):
         calc = GPAW(mode='pw',
-                kpts={'size': (2, 2, 2), 'gamma': True},
-                occupations=FermiDirac(0.01),
-                nbands=10,
-                symmetry='off',
-                convergence={'bands': -4, 'density': 1e-7,
-                             'eigenstates': 1e-10})
+                    kpts={'size': (2, 2, 2), 'gamma': True},
+                    occupations=FermiDirac(0.01),
+                    nbands=10,
+                    symmetry='off',
+                    convergence={'bands': -4, 'density': 1e-7,
+                                 'eigenstates': 1e-10})
 
         atoms = bulk('Si', 'diamond', a=5.431)
         atoms.calc = calc
