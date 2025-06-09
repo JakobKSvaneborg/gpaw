@@ -765,24 +765,33 @@ class PWArray(DistributedArrays[PWDesc]):
         return self.desc.comm.sum_scalar(value)
 
     def morph(self, pw: PWDesc) -> PWArray:
-        pw0 = self.desc
+        """"""
+        in_xG = self.gather()
+        if in_xG is not None:
+            pwin = in_xG.desc
+            pwout = pw.new(comm=None)
+
+            d = {}
+            for G, i_c in enumerate(pwout.indices_cG.T):
+                d[tuple(i_c)] = G
+            G_G0 = []
+            G0_G = []
+            for G0, i_c in enumerate(pwin.indices_cG.T):
+                G = d.get(tuple(i_c), -1)
+                if G != -1:
+                    G_G0.append(G)
+                    G0_G.append(G0)
+            out0_xG = pwout.zeros(self.dims,
+                                  comm=self.comm,
+                                  xp=self.xp)
+            out0_xG.data[..., G_G0] = in_xG.data[..., G0_G]
+        else:
+            out0_xG = None
+
         out_xG = pw.zeros(self.dims,
                           comm=self.comm,
                           xp=self.xp)
-        assert isinstance(out_xG, PWArray)  # MYPY!!!!
-
-        d = {}
-        for G, i_c in enumerate(pw.indices_cG.T):
-            d[tuple(i_c)] = G
-        G_G0 = []
-        G0_G = []
-        for G0, i_c in enumerate(pw0.indices_cG.T):
-            G = d.get(tuple(i_c), -1)
-            if G != -1:
-                G_G0.append(G)
-                G0_G.append(G0)
-
-        out_xG.data[..., G_G0] = self.data[..., G0_G]
+        out_xG.scatter_from(out0_xG)
         return out_xG
 
     def add_ked(self,
