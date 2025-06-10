@@ -70,7 +70,6 @@ class NotDavidson(PWFDEigensolver):
 
         psit_nX = wfs.psit_nX
         B = psit_nX.dims[0]  # number of bands
-        eig_N = xp.empty(2 * B)
         b = psit_nX.mydims[0]
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
@@ -91,18 +90,6 @@ class NotDavidson(PWFDEigensolver):
 
         M0_nn = M_nn.new(dist=(band_comm, 1, 1))
 
-        if domain_comm.rank == 0:
-            eig_N[:B] = xp.asarray(wfs.eig_n)
-
-        @trace
-        def me(a, b, function=None):
-            """Matrix elements"""
-            return a.matrix_elements(b,
-                                     domain_sum=False,
-                                     out=M_nn,
-                                     function=function,
-                                     cc=True)
-
         Ht = partial(Ht, out=residual_nX)
         Ht(psit_nX, out=residual_nX)
         calculate_residuals(wfs.psit_nX,
@@ -117,25 +104,14 @@ class NotDavidson(PWFDEigensolver):
         error_old = (weight_n @ as_np(residual_nX.norm2())).sum()
 
         P_nX = psit_nX.new()
-        blocksize = 1
+        blocksize = 16
         C_X = np.zeros((blocksize, blocksize), dtype=complex) # The alphas
         C_W = np.zeros_like(C_X) # The betas
         C_P = np.zeros_like(C_X) # The gammas
 
         flag = False
 
-        for i in range(self.niter):
-            # Alternative residual calculation:
-            '''
-            Ht(psit_nX, out=residual_nX)
-            dH(P_ani, out_ani=P2_ani)
-            M_nn = residual_nX.matrix_elements(psit_nX, symmetric=False, cc=True)
-            P2_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
-                                   out=M_nn)
-            M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
-
-            #'''
-            # Buisness as usual            
+        for i in range(self.niter):        
             self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
             P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
@@ -243,31 +219,22 @@ class NotDavidson(PWFDEigensolver):
             wfs.pt_aiX.integrate(psit_nX, out=P_ani)
             P_nX.data[:] = P.T
 
-            # RR step?
-            if i % 1 == 5:
+            # RR step (only for high niters)
+            if i % 5 == 0 and i > 0:
                 wfs.orthonormalized = False
                 wfs.orthonormalize(residual_nX.data)
 
-                # M_nn = psit_nX.matrix_elements(psit_nX)
-                # P_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
-                # P3_ani.matrix.multiply(P_ani, opb='C', symmetric=True, beta=1,
-                #                        out=M_nn)
-                # M_nn.tril2full()e
-
-                M2_nn = psit_nX.matrix_elements(psit_nX, function=Ht)
+                M2_nn = psit_nX.matrix_elements(psit_nX, function=Ht,
+                                                cc=True)
                 dH(P_ani, out_ani=P2_ani)
                 P_ani.matrix.multiply(P2_ani, opb='C', symmetric=False, beta=1,
                                       out=M2_nn)
-                # M2_nn.tril2full()
                 wfs._eig_n[:] = as_np(M2_nn.eigh())
                 M2_nn.tril2full()
-                # M2_nn.complex_conjugate()
                 M2_nn.multiply(psit_nX, out=psit2_nX)
                 psit_nX.data[:] = psit2_nX.data
                 M2_nn.multiply(P_ani, out=P3_ani)
                 P_ani.data[:] = P3_ani.data
-                # P_ani, P3_ani = P3_ani, P_ani
-                # wfs._P_ani = P_ani
 
             Ht(psit_nX, out=residual_nX)
             calculate_residuals(wfs.psit_nX,
@@ -284,10 +251,12 @@ class NotDavidson(PWFDEigensolver):
                 flag = True
             error_old = error_new
         
-        #if debug:
-        #    psit_nX.sanity_check()
+        
         wfs.orthonormalized = False
         wfs.orthonormalize(residual_nX.data)
+        
+        if debug:
+            psit_nX.sanity_check()
 
         error = error_new
         return error

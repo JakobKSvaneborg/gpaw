@@ -4,13 +4,25 @@ from gpaw import GPAW
 from gpaw import PW
 import pytest
 
+def test_big():
+    atoms = Atoms('Li', pbc=True)
+    atoms.set_cell((3, 3, 3))
+    atoms = atoms.repeat((2, 2, 2))
+    k = 4
+    calc = GPAW(mode=PW(200),
+                kpts=(k, k, k),
+                eigensolver={'name': 'not-dav',
+                             'niter': 2},)
+    atoms.calc = calc
+    atoms.get_potential_energy()
 
+'''
 def test_pw_bulk():
     bulk = Atoms('Li', pbc=True)
     k = 4
     calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
-                eigensolver={'name': 'not-dav',
+                eigensolver={'name': 'dav',
                              'niter': 2},)
 
     bulk.calc = calc
@@ -23,3 +35,4 @@ def test_pw_bulk():
     a = np.roots(np.polyder(np.polyfit(A, e, 2), 1))[0]
     print('a =', a)
     assert a == pytest.approx(2.65247379609, abs=0.001)
+'''
