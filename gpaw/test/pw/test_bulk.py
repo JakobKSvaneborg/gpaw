@@ -11,7 +11,7 @@ def test_pw_bulk():
     calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
                 eigensolver={'name': 'not-dav',
-                             'niter': 10},)
+                             'niter': 2},)
 
     bulk.calc = calc
     e = []
