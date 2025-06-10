@@ -555,8 +555,6 @@ class LCAOETDM:
 
     def localize(self, wfs, dens, ham, log):
         if self.need_localization:
-            localizationtype = \
-                self.localizationtype.replace('-', '').lower().split('_')
             localize_orbitals(
                 wfs, dens, ham, log, self.localizationtype,
                 seed=self.localizationseed)

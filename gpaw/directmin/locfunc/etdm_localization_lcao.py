@@ -1,7 +1,7 @@
-import numpy as np
 import time
 from ase.units import Hartree
 from gpaw.directmin.derivatives import get_approx_analytical_hessian
+
 
 class LCAOETDMLocalize:
     """Class for performing PZ-SIC localization for LCAO-ETDM."""
@@ -51,7 +51,9 @@ class LCAOETDMLocalize:
         eg_calls_in_loop = final_eg_count - original_eg_count
 
         self.solver.release_subspace()
-        self.solver.dm_helper.set_reference_orbitals(self.wfs, self.solver.n_dim)
+        self.solver.dm_helper.set_reference_orbitals(
+            self.wfs, self.solver.n_dim
+        )
         self.solver.searchdir_algo.reset()
         for k, kpt in enumerate(self.wfs.kpt_u):
             self.solver.hess[k] = get_approx_analytical_hessian(
@@ -62,11 +64,16 @@ class LCAOETDMLocalize:
         self.log('Total number of e/g calls: %d' % eg_calls_in_loop)
         self.solver.subspace_iters = 0
 
-
     def log_header(self):
         self.log('\nINNER LOOP:')
-        self.log('                      Kohn-Sham          SIC        Total             ')
-        self.log('           time         energy:      energy:      energy:       G_max:')
+        self.log(
+            '                      Kohn-Sham'
+            '          SIC        Total             '
+        )
+        self.log(
+            '           time         energy:'
+            '      energy:      energy:       G_max:'
+        )
 
     def log_iteration(self, niter, e_total, g_max):
         t = time.localtime()

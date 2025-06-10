@@ -55,7 +55,8 @@ def localize_orbitals(
                 log('Perdew-Zunger localization finished', flush=True)
             else:
                 dm = LCAOETDMLocalize(
-                    wfs.eigensolver, wfs, log, tol=wfs.eigensolver.subspace_convergence)
+                    wfs.eigensolver, wfs, log,
+                    tol=wfs.eigensolver.subspace_convergence)
                 dm.run(ham, dens)
         elif name == 'ks':
             log('ETDM minimization using occupied and virtual orbitals',
