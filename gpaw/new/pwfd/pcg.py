@@ -117,7 +117,7 @@ class NotDavidson(PWFDEigensolver):
         error_old = (weight_n @ as_np(residual_nX.norm2())).sum()
 
         P_nX = psit_nX.new()
-        blocksize = 128
+        blocksize = 64
         C_X = np.zeros((blocksize, blocksize), dtype=complex) # The alphas
         C_W = np.zeros_like(C_X) # The betas
         C_P = np.zeros_like(C_X) # The gammas
@@ -127,25 +127,28 @@ class NotDavidson(PWFDEigensolver):
         for i in range(self.niter):           
             self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
+            P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
 
             residual_nX.data[:] = psit2_nX.data
             M_nn = residual_nX.matrix_elements(psit_nX)
-            P2_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
+            P3_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
                                    out=M_nn)
-            
             M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
             
-            wfs.pt_aiX.integrate(P_nX, out=P3_ani)
+            wfs.pt_aiX.integrate(P_nX, out=P2_ani)
+            P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
             M_nn = P_nX.matrix_elements(psit_nX)
             P3_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
                                    out=M_nn)
-
             M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
             
             X = psit_nX.data.T
             W = residual_nX.data.T
             P = P_nX.data.T
             j = 0
+            
+            wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
+            wfs.pt_aiX.integrate(P_nX, out=P3_ani)
             
             X2_nX = psit_nX.new()
             W2_nX = residual_nX.new()
@@ -157,20 +160,62 @@ class NotDavidson(PWFDEigensolver):
             W2 = W2_nX.data.T
             P2 = P2_nX.data.T
             
+            Pbuf1_abi = P_ani.layout.empty(3*blocksize)
+            Pbuf2_abi = P_ani.layout.empty(3*blocksize)
+            
+            
             while j < b:
                 block_slice = slice(j, min(j + blocksize, b))
                 # This keeps the block size constant except for the last block
                 blocksize = block_slice.stop - block_slice.start
 
+                PX_abi = P_ani[:, block_slice]
+                PW_abi = P2_ani[:, block_slice]
+                PP_abi = P3_ani[:, block_slice]
+
                 if i > 0:
                     S = np.column_stack([X[:, block_slice], W[:, block_slice], P[:, block_slice]])
                     S2 = np.column_stack([X2[:, block_slice], W2[:, block_slice], P2[:, block_slice]])
+                    H_bb = S.T.conj() @ S2 * psit_nX.dv
+                    Pbuf1_abi[:, :blocksize].data[:] = PX_abi.data
+                    Pbuf1_abi[:, blocksize:2 * blocksize].data[:] = PW_abi.data
+                    Pbuf1_abi[:, 2 * blocksize:3 * blocksize].data[:] = PP_abi.data
+                    dH(PX_abi, Pbuf2_abi[:, :blocksize])
+                    dH(PW_abi, Pbuf2_abi[:, blocksize:2 * blocksize])
+                    dH(PP_abi, Pbuf2_abi[:, 2 * blocksize:3 * blocksize])
+                    Pbuf1_bx = Pbuf1_abi[:, :3 * blocksize].matrix.data
+                    Pbuf2_bx = Pbuf2_abi[:, :3 * blocksize].matrix.data
+                    H_bb += Pbuf1_bx.conj() @ Pbuf2_bx.T
+                                        
+                    M_bb = S.T.conj() @ S * psit_nX.dv
+                    PX_abi.block_diag_multiply(dS_aii, out_ani=Pbuf2_abi[:, :blocksize])
+                    PW_abi.block_diag_multiply(dS_aii, out_ani=Pbuf2_abi[:, blocksize:2 * blocksize])
+                    PP_abi.block_diag_multiply(dS_aii, out_ani=Pbuf2_abi[:, 2 * blocksize:3 * blocksize])
+                    Pbuf2_bx = Pbuf2_abi[:, :3 * blocksize].matrix.data
+                    M_bb += Pbuf1_bx.conj() @ Pbuf2_bx.T
+                    
+
                 else:
                     S = np.column_stack([X[:, block_slice], W[:, block_slice]])
                     S2 = np.column_stack([X2[:, block_slice], W2[:, block_slice]])
+                    H_bb = S.T.conj() @ S2 * psit_nX.dv
+                    Pbuf1_abi[:, :blocksize].data[:] = PX_abi.data
+                    Pbuf1_abi[:, blocksize:2 * blocksize].data[:] = PW_abi.data
+                    dH(PX_abi, Pbuf2_abi[:, :blocksize])
+                    dH(PW_abi, Pbuf2_abi[:, blocksize:2 * blocksize])
+                    Pbuf1_bx = Pbuf1_abi[:, :2 * blocksize].matrix.data
+                    Pbuf2_bx = Pbuf2_abi[:, :2 * blocksize].matrix.data
+                    H_bb += Pbuf1_bx.conj() @ Pbuf2_bx.T
+                                        
+                    M_bb = S.T.conj() @ S * psit_nX.dv
+                    PX_abi.block_diag_multiply(dS_aii, out_ani=Pbuf2_abi[:, :blocksize])
+                    PW_abi.block_diag_multiply(dS_aii, out_ani=Pbuf2_abi[:, blocksize:2 * blocksize])
+                    Pbuf2_bx = Pbuf2_abi[:, :2 * blocksize].matrix.data
+                    M_bb += Pbuf1_bx.conj() @ Pbuf2_bx.T
+                
                 # We only need the smallest algebraic eigenvector for this
                 # But also this is the tiniest ass eigenvalue problem of 3 blocksize x 3 blocksize...
-                _, cmin = sp.linalg.eigh(S.T.conj() @ S2, S.T.conj() @ S)
+                _, cmin = sp.linalg.eigh(H_bb, M_bb)
                 cmin = cmin[:, :blocksize]
                 # Ye olde updates
                 C_X[:blocksize, :blocksize] = cmin[:blocksize, :blocksize]
@@ -188,29 +233,32 @@ class NotDavidson(PWFDEigensolver):
             P_nX.data[:] = P.T
 
             # RR step?
-            if i % 5 == 0:
+            if i % 1 == 0:
                 wfs.orthonormalized = False
                 wfs.orthonormalize(residual_nX.data)
 
-            M_nn = psit_nX.matrix_elements(psit_nX)
-            P_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
-            P3_ani.matrix.multiply(P_ani, opb='C', symmetric=True, beta=1,
-                                   out=M_nn)
-            M_nn.tril2full()
-            M2_nn = psit_nX.matrix_elements(psit_nX, function=Ht)
-            dH(P_ani, out_ani=P2_ani)
-            P_ani.matrix.multiply(P2_ani, opb='C', symmetric=False, beta=1,
-                                  out=M2_nn)
-            M2_nn.tril2full()
-            wfs._eig_n[:] = as_np(M2_nn.eigh(M_nn))
-            M2_nn.complex_conjugate()
-            M2_nn.multiply(psit_nX, out=psit2_nX)
-            psit_nX.data[:] = psit2_nX.data
-            M2_nn.multiply(P_ani, out=P3_ani)
-            P_ani, P3_ani = P3_ani, P_ani
-            wfs._P_ani = P_ani
+                # M_nn = psit_nX.matrix_elements(psit_nX)
+                # P_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
+                # P3_ani.matrix.multiply(P_ani, opb='C', symmetric=True, beta=1,
+                #                        out=M_nn)
+                # M_nn.tril2full()e
 
-            Ht(psit_nX, out=residual_nX)
+                M2_nn = psit_nX.matrix_elements(psit_nX, function=Ht)
+                dH(P_ani, out_ani=P2_ani)
+                P_ani.matrix.multiply(P2_ani, opb='C', symmetric=False, beta=1,
+                                      out=M2_nn)
+                # M2_nn.tril2full()
+                wfs._eig_n[:] = as_np(M2_nn.eigh())
+                M2_nn.tril2full()
+                # M2_nn.complex_conjugate()
+                M2_nn.multiply(psit_nX, out=psit2_nX)
+                psit_nX.data[:] = psit2_nX.data
+                M2_nn.multiply(P_ani, out=P3_ani)
+                P_ani.data[:] = P3_ani.data
+                # P_ani, P3_ani = P3_ani, P_ani
+                # wfs._P_ani = P_ani
+
+            Ht(psit_nX)
             calculate_residuals(wfs.psit_nX,
                                 residual_nX,
                                 wfs.pt_aiX,
@@ -220,7 +268,8 @@ class NotDavidson(PWFDEigensolver):
             error_new = (weight_n @ as_np(residual_nX.norm2())).sum()
             print(i, error_new)
 
-            if error_new < 1e-30:
+            if error_new < 1e-6:
+                break
                 flag = True
             error_old = error_new
         
