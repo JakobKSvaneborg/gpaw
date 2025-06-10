@@ -58,6 +58,12 @@ class PWHybridHamiltonianK(PWHamiltonian):
         self.mypsits: list[Psit] = []
         self.nocc = -1
 
+    def update_wave_functions(self,
+                              ibzwfs: PWFDIBZWaveFunctions):
+        self.mypsits, self.nocc = ibz2bz(
+            ibzwfs, self.setups, self.relpos_ac, self.cgrid, self.plan,
+            self.log)
+
     def apply_orbital_dependent(self,
                                 ibzwfs: IBZWaveFunctions,
                                 D_asii,
@@ -84,13 +90,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
         else:  # no break
             1 / 0
 
-        if len(self.mypsits) == 0:
-            self.mypsits, self.nocc = ibz2bz(
-                ibzwfs, self.setups, self.relpos_ac, self.cgrid, self.plan,
-                self.log)
-
-            assert wfs.psit_nX.data is psit2_nG.data
-
+        if wfs.psit_nX.data is psit2_nG.data:
+            assert len(self.mypsits) > 0
             # We are doing a subspace diagonalization ...
             evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
                                           psit2_nG, Htpsit2_nG,

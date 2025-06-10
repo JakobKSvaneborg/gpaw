@@ -65,6 +65,7 @@ class PWFDEigensolver(Eigensolver):
         wfs = ibzwfs.wfs_qs[0][0]
         dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
                                                     wfs.xp)
+        hamiltonian.update_wave_functions(ibzwfs)
         apply = partial(hamiltonian.apply,
                         potential.vt_sR,
                         potential.dedtaut_sR,

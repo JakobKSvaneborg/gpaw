@@ -157,7 +157,7 @@ class PotentialCalculator:
 
         energies['spinorbit'] = 0.0
         for key, e in corrections.items():
-            if 0:
+            if 1:
                 print(f'{key:10} {energies[key]:15.9f} {e:15.9f}')
             energies[key] += e
 
