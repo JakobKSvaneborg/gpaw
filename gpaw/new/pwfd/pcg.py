@@ -104,10 +104,13 @@ class NotDavidson(PWFDEigensolver):
         error_old = (weight_n @ as_np(residual_nX.norm2())).sum()
 
         P_nX = psit_nX.new()
-        blocksize = 16
+        blocksize = 4
         C_X = np.zeros((blocksize, blocksize), dtype=complex) # The alphas
         C_W = np.zeros_like(C_X) # The betas
         C_P = np.zeros_like(C_X) # The gammas
+        X2_nX = psit_nX.new()
+        W2_nX = residual_nX.new()
+        P2_nX = P_nX.new()
 
         flag = False
 
@@ -137,9 +140,6 @@ class NotDavidson(PWFDEigensolver):
             wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
             wfs.pt_aiX.integrate(P_nX, out=P3_ani)
             
-            X2_nX = psit_nX.new()
-            W2_nX = residual_nX.new()
-            P2_nX = P_nX.new()
             Ht(psit_nX, out=X2_nX)
             Ht(residual_nX, out=W2_nX)
             Ht(P_nX, out=P2_nX)
@@ -149,7 +149,6 @@ class NotDavidson(PWFDEigensolver):
             
             Pbuf1_abi = P_ani.layout.empty(3*blocksize)
             Pbuf2_abi = P_ani.layout.empty(3*blocksize)
-            
             
             while j < b:
                 block_slice = slice(j, min(j + blocksize, b))
@@ -180,8 +179,6 @@ class NotDavidson(PWFDEigensolver):
                     PP_abi.block_diag_multiply(dS_aii, out_ani=Pbuf2_abi[:, 2 * blocksize:3 * blocksize])
                     Pbuf2_bx = Pbuf2_abi[:, :3 * blocksize].matrix.data
                     M_bb += Pbuf1_bx.conj() @ Pbuf2_bx.T
-                    
-
                 else:
                     S = np.column_stack([X[:, block_slice], W[:, block_slice]])
                     S2 = np.column_stack([X2[:, block_slice], W2[:, block_slice]])
@@ -220,7 +217,7 @@ class NotDavidson(PWFDEigensolver):
             P_nX.data[:] = P.T
 
             # RR step (only for high niters)
-            if i % 5 == 0 and i > 0:
+            if (i + 1) % 3 == 0 and i < self.niter - 1:
                 wfs.orthonormalized = False
                 wfs.orthonormalize(residual_nX.data)
 
@@ -244,7 +241,6 @@ class NotDavidson(PWFDEigensolver):
                                 wfs.myeig_n,
                                 dH, dS_aii, P2_ani, P3_ani)
             error_new = (weight_n @ as_np(residual_nX.norm2())).sum()
-            print(i, error_new)
 
             if error_new < 1e-30:
                 break
