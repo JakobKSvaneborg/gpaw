@@ -557,15 +557,9 @@ class LCAOETDM:
         if self.need_localization:
             localizationtype = \
                 self.localizationtype.replace('-', '').lower().split('_')
-            do_oo_subspace = 'pz' in localizationtype
             localize_orbitals(
                 wfs, dens, ham, log, self.localizationtype,
                 seed=self.localizationseed)
-            if do_oo_subspace:
-                assert self.dm_helper.func.name == 'PZ-SIC', \
-                    'PZ-SIC localization requested, but functional ' \
-                    'settings do not use PZ-SIC.'
-                self.lock_subspace('oo')
             self.need_localization = False
 
     def lock_subspace(self, subspace='oo'):
@@ -674,21 +668,16 @@ class LCAOETDM:
                 a_vec_u[k] += alpha * p_vec_u[k]
             self.alpha = alpha
             self.g_vec_u = g_vec_u
-            self.iters += 1
+            if self.subspace_optimization:
+                self.subspace_iters = 1
+            else:
+                self.iters = 1
 
             # and 'shift' phi, der_phi for the next iteration
             phi_2i[1], der_phi_2i[1] = phi_2i[0], der_phi_2i[0]
             phi_2i[0], der_phi_2i[0] = phi_alpha, der_phi_alpha,
 
             if self.subspace_optimization:
-                if self.get_grad_norm() < self.subspace_convergence:
-                    self.release_subspace()
-                    self.dm_helper.set_reference_orbitals(wfs, self.n_dim)
-                    self.searchdir_algo.reset()
-                    for k, kpt in enumerate(wfs.kpt_u):
-                        self.hess[k] = get_approx_analytical_hessian(
-                            kpt, self.dtype, ind_up=self.ind_up[k])
-                        wfs.atomic_correction.calculate_projections(wfs, kpt)
                 self.error = np.inf  # Do not consider this converged!
 
     def get_grad_norm(self):
