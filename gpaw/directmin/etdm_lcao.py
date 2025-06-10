@@ -667,7 +667,7 @@ class LCAOETDM:
             self.alpha = alpha
             self.g_vec_u = g_vec_u
             if self.subspace_optimization:
-                self.subspace_iters = 1
+                self.subspace_iters += 1
             else:
                 self.iters = 1
 
