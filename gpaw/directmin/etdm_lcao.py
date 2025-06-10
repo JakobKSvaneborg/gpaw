@@ -669,7 +669,7 @@ class LCAOETDM:
             if self.subspace_optimization:
                 self.subspace_iters += 1
             else:
-                self.iters = 1
+                self.iters += 1
 
             # and 'shift' phi, der_phi for the next iteration
             phi_2i[1], der_phi_2i[1] = phi_2i[0], der_phi_2i[0]
