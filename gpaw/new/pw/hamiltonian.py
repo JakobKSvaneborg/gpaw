@@ -22,6 +22,9 @@ class PWHamiltonian(Hamiltonian):
         # cache them:
         self.pw_cache = {}
 
+    def update_wave_functions(self, ibzwfs):
+        return
+
     @trace
     def apply_local_potential(self,
                               vt_R: UGArray,
