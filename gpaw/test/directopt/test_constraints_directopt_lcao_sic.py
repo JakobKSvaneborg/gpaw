@@ -3,6 +3,7 @@ import pytest
 from gpaw import GPAW, LCAO
 from ase import Atoms
 import numpy as np
+from gpaw.mpi import world
 
 
 @pytest.mark.do
@@ -13,6 +14,9 @@ def test_constraints_directopt_lcao_sic(in_tmp_dir):
     :param in_tmp_dir:
     :return:
     """
+
+    if world.size == 8:
+        pytest.skip('See #1406')
 
     # Water molecule:
     d = 0.9575
