@@ -31,6 +31,7 @@ class LCAOETDMLocalize:
         self.solver.dm_helper.set_reference_orbitals(
             self.wfs, self.solver.n_dim)
 
+        original_eg_count = self.solver.eg_count
 
         counter = 0
         converged = False
@@ -46,6 +47,9 @@ class LCAOETDMLocalize:
             if g_max < self.tol or counter >= self.maxiter:
                 converged = True
 
+        final_eg_count = self.solver.eg_count
+        eg_calls_in_loop = final_eg_count - original_eg_count
+
         self.solver.release_subspace()
         self.solver.dm_helper.set_reference_orbitals(self.wfs, self.solver.n_dim)
         self.solver.searchdir_algo.reset()
@@ -55,7 +59,7 @@ class LCAOETDMLocalize:
             self.wfs.atomic_correction.calculate_projections(self.wfs, kpt)
 
         self.log('Perdew-Zunger localization finished', flush=True)
-        self.log('Total number of e/g calls: %d' % self.solver.subspace_iters)
+        self.log('Total number of e/g calls: %d' % eg_calls_in_loop)
         self.solver.subspace_iters = 0
 
 
