@@ -254,7 +254,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
           <𝜓 |p> ΔH  <p |𝜓>
             m  i   ij  j  n
         """
-        self.orthonormalize(work_array)
         psit_nX = self.psit_nX
         P_ani = self.P_ani
         psit2_nX = psit_nX.new(data=work_array)

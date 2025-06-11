@@ -18,6 +18,7 @@ def test_h2(in_tmp_dir, c=False):
         kpts={'size': (1, 1, 1), 'gamma': True},
         convergence={'density': 1e-6},
         eigensolver={'name': 'davidson', 'niter': 1},
+        nbands=1,
         # spinpol=True,
         # txt='H2.txt',
         setups='ae',
