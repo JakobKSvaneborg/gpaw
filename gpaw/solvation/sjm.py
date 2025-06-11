@@ -1476,7 +1476,7 @@ class SJMDipoleCorrection(DipoleCorrection):
             elcorr2 = elcorr[gd.beg_c[2]:gd.end_c[2]]
             vHt_g2[:, :] += elcorr2
 
-            # Collect the potential to measure the slope on
+            # Collect the potential to measure the slope on the boundary
             # This is not particularly memory friendy
             VHt_g = gd.collect(vHt_g2, broadcast=True)
             VHt_z = VHt_g.mean(0).mean(0)
