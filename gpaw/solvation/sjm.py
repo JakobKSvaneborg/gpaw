@@ -1430,10 +1430,9 @@ class SJMDipoleCorrection(DipoleCorrection):
         on the degree of solvation of the electron density.
         """
 
-
         gd = self.poissonsolver.gd
         # Maximum slope allowed on the cell boundary
-        slope_lim = 1e-12
+        slope_lim = 1e-15
 
         # Set slope to value that make the while loop run at least once
         slope = slope_lim * 10
@@ -1469,21 +1468,29 @@ class SJMDipoleCorrection(DipoleCorrection):
             # Apply the correction magnitude to the sawtooth
             elcorr = -2 * self.correction * sawtooth_z
 
-            # parallelize the correction potential - is this needed?
+            # parallelize the correction potential - this is
+            # needed because this is what will be added to the
+            # potential later on
             elcorr2 = elcorr[gd.beg_c[2]:gd.end_c[2]]
             vHt_g2[:, :] += elcorr2
 
-            # Get the potential to measure the slope on
+            # Collect the potential to measure the slope on
+            # This is not particularly memory friendy
             VHt_g = gd.collect(vHt_g2, broadcast=True)
             VHt_z = VHt_g.mean(0).mean(0)
-            slope_l = (VHt_z[4] - VHt_z[10]) / gd.h_cv[2][2]
-            slope_r = (VHt_z[-1] - VHt_z[-5]) / gd.h_cv[2][2]
+
+            # The slope on the left will be used as a probe as it
+            # is the most sensitive to the correction potential (no solvent)
+            slope_l = (VHt_z[3] - VHt_z[8]) / (gd.h_cv[2][2] * Bohr)
+            slope_r = (VHt_z[-3] - VHt_z[-8]) / (gd.h_cv[2][2] * Bohr)
             slope = slope_l
 
             from gpaw.mpi import world
             if world.rank == 0:
-                print(f'Slope: {slope:.13f} eV/Angstrom', slope_r,count,self.corrterm,self.last_corrterm)
+                print(f'Slope:',slope_l, slope_r,count,self.corrterm,self.last_corrterm, gd.h_cv[2][2]*Bohr)
 
+            # Optimize the corrterm based on the slope using a simple
+            # linear rootfinder
             if abs(slope) > slope_lim:
                 if self.last_corrterm is None:
                     self.last_corrterm = self.corrterm
