@@ -11,8 +11,11 @@ def test_big():
     k = 4
     calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
+                random=True,
                 eigensolver={'name': 'not-dav',
-                             'niter': 2},)
+                             'niter': 5},
+                parallel={'band': 2,
+                          'domain': 1})
     atoms.calc = calc
     atoms.get_potential_energy()
 

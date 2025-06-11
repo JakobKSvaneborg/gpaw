@@ -28,8 +28,9 @@ class NotDavidson(PWFDEigensolver):
             preconditioner_factory,
             converge_bands)
         self.niter = niter
-        self.blocksize = 64
-        self.M_nn: Matrix
+        self.blocksize = 32
+        self.MW_nn: Matrix
+        self.MP_nn: Matrix
 
     def __str__(self):
         return pformat(dict(name='Davidson',
@@ -108,19 +109,19 @@ class NotDavidson(PWFDEigensolver):
         P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
 
         residual_nX.data[:] = psit2_nX.data
-        residual_nX.matrix_elements(psit_nX, cc=True, out=MW_nn)
+        residual_nX.matrix_elements(psit_nX, cc=True, out=MW_nn,
+                                    domain_sum=False)
         Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
                                   out=MW_nn)
-        # M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
-
-        if weight_n is None:
-            weight_n = xp.ones(B)
-        error_old = (weight_n @ as_np(residual_nX.norm2())).sum()
+        domain_comm.sum(MW_nn.data)
 
         buff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
         Hbuff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
 
         for i in range(self.niter):
+            MW_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
+            MW_nn.multiply(P_ani, out=P2_ani, beta=1.0, alpha=-1.0)
+            
             for j in range(0, b, self.blocksize):
                 block_slice = slice(j, min(j + self.blocksize, b))
                 # This keeps the block size constant except for the last block
@@ -132,17 +133,13 @@ class NotDavidson(PWFDEigensolver):
 
                 buff_bX.data[:blocksize] = psit_nX.data[block_slice]
                 Pbuf_abi.matrix.data[:blocksize] = P_ani.matrix.data[block_slice]
-                buff_bX.data[blocksize:2 * blocksize] = residual_nX.data[block_slice] \
-                    - MW_nn.data[block_slice] @ psit_nX.data
-                Pbuf_abi.matrix.data[blocksize:2 * blocksize] = P2_ani.matrix.data[block_slice] \
-                    - MW_nn.data[block_slice] @ P_ani.matrix.data
+                buff_bX.data[blocksize:2 * blocksize] = residual_nX.data[block_slice]
+                Pbuf_abi.matrix.data[blocksize:2 * blocksize] = P2_ani.matrix.data[block_slice]
 
                 if i > 0:
                     nblocksizes = 3 * blocksize
-                    buff_bX.data[2*blocksize:3 * blocksize] = P_nX.data[block_slice] \
-                        - MP_nn.data[block_slice] @ psit_nX.data
-                    Pbuf_abi.matrix.data[2*blocksize:3 * blocksize] = P3_ani.matrix.data[block_slice] \
-                        - MP_nn.data[block_slice] @ P_ani.matrix.data
+                    buff_bX.data[2*blocksize:3 * blocksize] = P_nX.data[block_slice]
+                    Pbuf_abi.matrix.data[2*blocksize:3 * blocksize] = P3_ani.matrix.data[block_slice]
                 else:
                     nblocksizes = 2 * blocksize
 
@@ -151,18 +148,21 @@ class NotDavidson(PWFDEigensolver):
 
                 Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
                 S_bb[:] = buff_bX.matrix.data[:nblocksizes].conj() @ buff_bX.matrix.data[:nblocksizes].T * psit_nX.dv
-                domain_comm.sum(S_bb)
                 S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ HPbuf_abi.matrix.data[:nblocksizes].T
+                domain_comm.sum(S_bb)
                 
                 Ht(buff_bX[:nblocksizes], out=Hbuff_bX[:nblocksizes])
                 dH(Pbuf_abi[:, :nblocksizes], out_ani=HPbuf_abi[:, :nblocksizes])
                 H_bb[:] = buff_bX.matrix.data[:nblocksizes].conj() @ Hbuff_bX.matrix.data[:nblocksizes].T * psit_nX.dv
-                domain_comm.sum(H_bb)
                 H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ HPbuf_abi.matrix.data[:nblocksizes].T
+                domain_comm.sum(H_bb)
 
                 # We only need the smallest algebraic eigenvector for this
                 # But also this is the tiniest ass eigenvalue problem of 3 * blocksize x 3 * blocksize...
-                _, cmin = sp.linalg.eigh(H_bb, S_bb)
+                if xp is np:
+                    _, cmin = sp.linalg.eigh(H_bb, S_bb)
+                else:
+                    _, cmin = xp.linalg.eigh(H_bb, S_bb)
                 cmin = cmin[:, :blocksize]  # ... Transpose?
                 # Ye olde updates
                 C_X[:] = cmin[:blocksize, :blocksize].T
@@ -181,27 +181,12 @@ class NotDavidson(PWFDEigensolver):
                 P_ani.matrix.data[block_slice] = C_X @ Pbuf_abi.matrix.data[:blocksize] \
                     + P3_ani.matrix.data[block_slice]
 
-            P3_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-            P_nX.matrix_elements(psit_nX, cc=True, out=MP_nn)
-            Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
-                                      out=MP_nn)
+            wfs.orthonormalized = False
 
-            # RR step (only for high niters)
-            if (i + 1) % 3 == 0 and i < self.niter - 1 and False:
-                wfs.orthonormalized = False
-                wfs.orthonormalize(residual_nX.data)
-
-                M2_nn = psit_nX.matrix_elements(psit_nX, function=Ht,
-                                                cc=True)
-                dH(P_ani, out_ani=P2_ani)
-                P_ani.matrix.multiply(P2_ani, opb='C', symmetric=False, beta=1,
-                                      out=M2_nn)
-                wfs._eig_n[:] = as_np(M2_nn.eigh())
-                M2_nn.tril2full()
-                M2_nn.multiply(psit_nX, out=psit2_nX)
-                psit_nX.data[:] = psit2_nX.data
-                M2_nn.multiply(P_ani, out=P3_ani)
-                P_ani.data[:] = P3_ani.data
+            # Subspace diagonialization needed every once in a while
+            if (i + 1) % 3 == 0:
+                wfs.subspace_diagonalize(Ht, dH,
+                                         work_array=residual_nX.data)
 
             Ht(psit_nX, out=residual_nX)
             calculate_residuals(wfs.psit_nX,
@@ -210,28 +195,36 @@ class NotDavidson(PWFDEigensolver):
                                 wfs.P_ani,
                                 wfs.myeig_n,
                                 dH, dS_aii, P2_ani, Ptemp_ani)
-            error_new = (weight_n @ as_np(residual_nX.norm2())).sum()
+            
+            if i < self.niter - 1:
+                P3_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
+                P_nX.matrix_elements(psit_nX, cc=True, out=MP_nn,
+                                     domain_sum=False)
+                Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
+                                          out=MP_nn)
+                domain_comm.sum(MP_nn.data)
+                MP_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
+                MP_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
 
-            self.preconditioner(psit_nX, residual_nX, out=residual_nX)
-            wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
-            P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-            residual_nX.matrix_elements(psit_nX, cc=True, out=MW_nn)
-            Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
-                                      out=MW_nn)
+                self.preconditioner(psit_nX, residual_nX, out=residual_nX)
+                wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
+                P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
+                residual_nX.matrix_elements(psit_nX, cc=True, out=MW_nn,
+                                            domain_sum=False)
+                Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
+                                          out=MW_nn)
+                domain_comm.sum(MW_nn.data)
 
-            if error_new < 1e-30:
-                break
-                flag = True
-            error_old = error_new
-        
-        
-        wfs.orthonormalized = False
+        if weight_n is None:
+            error = np.inf
+        else:
+            error = (weight_n @ as_np(residual_nX.norm2())).sum()
+
         wfs.orthonormalize(residual_nX.data)
         
         if debug:
             psit_nX.sanity_check()
 
-        error = error_new
         return error
 
 '''
