@@ -1432,7 +1432,7 @@ class SJMDipoleCorrection(DipoleCorrection):
 
         gd = self.poissonsolver.gd
         # Maximum slope allowed on the cell boundary
-        slope_lim = 1e-15
+        slope_lim = 1e-13
 
         # Set slope to value that make the while loop run at least once
         slope = slope_lim * 10
