@@ -1421,44 +1421,79 @@ class SJMDipoleCorrection(DipoleCorrection):
         self.pwsolve(pot, dens)
 
     def fd_solv_solve(self, vHt_g, rhot_g, **kwargs):
+        """
+        Solve the Poisson equation with a dipole correction.
+        This is an iterative method that adds a correction potential
+        until the slope of the potential is below slope_lim.
+        The while loop below always converges after 3 attempts but the
+        resulting corrterm is varying during the scf cycle, i.e. it depends
+        on the degree of solvation of the electron density.
+        """
+
 
         gd = self.poissonsolver.gd
-        slope_lim = 1e-8
+        # Maximum slope allowed on the cell boundary
+        slope_lim = 1e-12
+
+        # Set slope to value that make the while loop run at least once
         slope = slope_lim * 10
 
+        # Calcutlate dipole moment
         dipmom = gd.calculate_dipole_moment(rhot_g)[2]
 
+        # Remove the correction potential from the previous iteration
         if self.elcorr is not None:
             vHt_g[:, :] -= self.elcorr
 
+        # Solve the Poisson equation without the correction potential
         iters2 = self.poissonsolver.solve(vHt_g, rhot_g, **kwargs)
+
+        # Define the base shape of the correction potential
         sawtooth_z = self.sjm_sawtooth(dirichlet=self.dirichlet)
         L = gd.cell_cv[2, 2]
 
+        count = 0
+
+        # Scale the correction potential until the slope of the potential
+        # at the left cell boundary is below slope_lim.
         while abs(slope) > slope_lim:
+            count += 1
+
+            # define the potential on the grid we will mess with in the loop
             vHt_g2 = vHt_g.copy()
+
+            # Define the actual correction to the potential
             self.correction = 2 * np.pi * dipmom * L / \
                 gd.volume * self.corrterm
-            elcorr = -2 * self.correction
 
-            elcorr *= sawtooth_z
+            # Apply the correction magnitude to the sawtooth
+            elcorr = -2 * self.correction * sawtooth_z
+
+            # parallelize the correction potential - is this needed?
             elcorr2 = elcorr[gd.beg_c[2]:gd.end_c[2]]
             vHt_g2[:, :] += elcorr2
 
+            # Get the potential to measure the slope on
             VHt_g = gd.collect(vHt_g2, broadcast=True)
             VHt_z = VHt_g.mean(0).mean(0)
-            slope = VHt_z[2] - VHt_z[10]
+            slope_l = (VHt_z[4] - VHt_z[10]) / gd.h_cv[2][2]
+            slope_r = (VHt_z[-1] - VHt_z[-5]) / gd.h_cv[2][2]
+            slope = slope_l
+
+            from gpaw.mpi import world
+            if world.rank == 0:
+                print(f'Slope: {slope:.13f} eV/Angstrom', slope_r,count,self.corrterm,self.last_corrterm)
 
             if abs(slope) > slope_lim:
-                if self.last_corrterm is not None:
+                if self.last_corrterm is None:
+                    self.last_corrterm = self.corrterm
+                    self.corrterm -= slope * 10.
+                else:
                     ds = (slope - self.last_slope) / \
                         (self.corrterm - self.last_corrterm)
                     con = slope - (ds * self.corrterm)
                     self.last_corrterm = self.corrterm
                     self.corrterm = -con / ds
-                else:
-                    self.last_corrterm = self.corrterm
-                    self.corrterm -= slope * 10.
                 self.last_slope = slope
             else:
                 vHt_g[:, :] += elcorr2
