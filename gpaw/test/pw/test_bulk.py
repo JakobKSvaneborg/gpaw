@@ -1,21 +1,23 @@
 import numpy as np
 from ase import Atoms
+from ase.build import bulk
 from gpaw import GPAW
 from gpaw import PW
 import pytest
 
 def test_big():
-    atoms = Atoms('Li', pbc=True)
-    atoms.set_cell((3, 3, 3))
-    atoms = atoms.repeat((2, 2, 2))
+    atoms = bulk('Fe')
+    atoms.set_initial_magnetic_moments([1])
+    atoms = atoms.repeat((3, 3, 3))
+    
     k = 4
     calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
                 random=True,
-                eigensolver={'name': 'not-dav',
+                eigensolver={'name': 'dav',
                              'niter': 5},
-                parallel={'band': 2,
-                          'domain': 1})
+                parallel={'band': 1,
+                          'domain': 6})
     atoms.calc = calc
     atoms.get_potential_energy()
 

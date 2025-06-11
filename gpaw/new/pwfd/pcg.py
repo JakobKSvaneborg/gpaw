@@ -50,13 +50,9 @@ class NotDavidson(PWFDEigensolver):
         xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
 
-        self.MW_nn = Matrix(B, B, dtype=dtype,
-                            dist=(band_comm, band_comm.size),
-                            xp=xp)
-        
-        self.MP_nn = Matrix(B, B, dtype=dtype,
-                            dist=(band_comm, band_comm.size),
-                            xp=xp)
+        self.M_nn = Matrix(B, B, dtype=dtype,
+                           dist=(band_comm, band_comm.size),
+                           xp=xp)
 
         self.C_X = xp.zeros((self.blocksize, self.blocksize), dtype=complex) # The alphas
         self.C_W = xp.zeros_like(self.C_X) # The betas
@@ -67,10 +63,9 @@ class NotDavidson(PWFDEigensolver):
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
                  Ht, dH, dS_aii, weight_n):
-        MW_nn = self.MW_nn
-        MP_nn = self.MP_nn
+        M_nn = self.M_nn
 
-        xp = MW_nn.xp
+        xp = M_nn.xp
 
         psit_nX = wfs.psit_nX
         B = psit_nX.dims[0]  # number of bands
@@ -109,27 +104,27 @@ class NotDavidson(PWFDEigensolver):
         P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
 
         residual_nX.data[:] = psit2_nX.data
-        residual_nX.matrix_elements(psit_nX, cc=True, out=MW_nn,
+        residual_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
                                     domain_sum=False)
         Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
-                                  out=MW_nn)
-        domain_comm.sum(MW_nn.data)
+                                  out=M_nn)
+        domain_comm.sum(M_nn.data)
 
         buff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
         Hbuff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
 
         for i in range(self.niter):
-            MW_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
-            MW_nn.multiply(P_ani, out=P2_ani, beta=1.0, alpha=-1.0)
+            M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
+            M_nn.multiply(P_ani, out=P2_ani, beta=1.0, alpha=-1.0)
             
             for j in range(0, b, self.blocksize):
                 block_slice = slice(j, min(j + self.blocksize, b))
                 # This keeps the block size constant except for the last block
                 blocksize = block_slice.stop - block_slice.start
 
-                C_X = self.C_X.ravel()[:blocksize*blocksize].reshape(blocksize, blocksize)
-                C_W = self.C_W.ravel()[:blocksize*blocksize].reshape(blocksize, blocksize)
-                C_P = self.C_P.ravel()[:blocksize*blocksize].reshape(blocksize, blocksize)
+                C_X = self.C_X.ravel()[:blocksize**2].reshape(blocksize, blocksize)
+                C_W = self.C_W.ravel()[:blocksize**2].reshape(blocksize, blocksize)
+                C_P = self.C_P.ravel()[:blocksize**2].reshape(blocksize, blocksize)
 
                 buff_bX.data[:blocksize] = psit_nX.data[block_slice]
                 Pbuf_abi.matrix.data[:blocksize] = P_ani.matrix.data[block_slice]
@@ -143,8 +138,8 @@ class NotDavidson(PWFDEigensolver):
                 else:
                     nblocksizes = 2 * blocksize
 
-                H_bb = self.H_bb.ravel()[:nblocksizes*nblocksizes].reshape(nblocksizes, nblocksizes)
-                S_bb = self.S_bb.ravel()[:nblocksizes*nblocksizes].reshape(nblocksizes, nblocksizes)
+                H_bb = self.H_bb.ravel()[:nblocksizes**2].reshape(nblocksizes, nblocksizes)
+                S_bb = self.S_bb.ravel()[:nblocksizes**2].reshape(nblocksizes, nblocksizes)
 
                 Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
                 S_bb[:] = buff_bX.matrix.data[:nblocksizes].conj() @ buff_bX.matrix.data[:nblocksizes].T * psit_nX.dv
@@ -163,7 +158,7 @@ class NotDavidson(PWFDEigensolver):
                     _, cmin = sp.linalg.eigh(H_bb, S_bb)
                 else:
                     _, cmin = xp.linalg.eigh(H_bb, S_bb)
-                cmin = cmin[:, :blocksize]  # ... Transpose?
+                cmin = cmin[:, :blocksize]
                 # Ye olde updates
                 C_X[:] = cmin[:blocksize, :blocksize].T
                 C_W[:] = cmin[blocksize:2 * blocksize, :blocksize].T
@@ -184,7 +179,7 @@ class NotDavidson(PWFDEigensolver):
             wfs.orthonormalized = False
 
             # Subspace diagonialization needed every once in a while
-            if (i + 1) % 3 == 0:
+            if (i + 1) % 3 == 0 or i == self.niter - 1:
                 wfs.subspace_diagonalize(Ht, dH,
                                          work_array=residual_nX.data)
 
@@ -198,93 +193,29 @@ class NotDavidson(PWFDEigensolver):
             
             if i < self.niter - 1:
                 P3_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-                P_nX.matrix_elements(psit_nX, cc=True, out=MP_nn,
+                P_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
                                      domain_sum=False)
                 Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
-                                          out=MP_nn)
-                domain_comm.sum(MP_nn.data)
-                MP_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
-                MP_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
+                                          out=M_nn)
+                domain_comm.sum(M_nn.data)
+                M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
+                M_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
 
                 self.preconditioner(psit_nX, residual_nX, out=residual_nX)
                 wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
                 P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-                residual_nX.matrix_elements(psit_nX, cc=True, out=MW_nn,
+                residual_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
                                             domain_sum=False)
                 Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
-                                          out=MW_nn)
-                domain_comm.sum(MW_nn.data)
+                                          out=M_nn)
+                domain_comm.sum(M_nn.data)
 
         if weight_n is None:
             error = np.inf
         else:
             error = (weight_n @ as_np(residual_nX.norm2())).sum()
-
-        wfs.orthonormalize(residual_nX.data)
         
         if debug:
             psit_nX.sanity_check()
 
         return error
-
-'''
-@profile
-def ppcg(A, k=6, T=None, X=None, blocksize=60, rr_interval=5, qr_interval=5):
-    
-    if T is None:
-        # vals, vecs = np.linalg.eigh(A)
-        # T = np.linalg.inv(A)
-        # T = np.eye(len(A))#np.diag(np.diag(A))
-        T = np.diag(1 / np.diag(A))
-    n = len(A)
-    if X is None:
-        X, _ = np.linalg.qr(np.random.rand(len(A), k))
-
-    # Strictly speaking, for the first iteration, this shouldn't exist...
-    P = np.random.rand(n, k) * 1e-8
-
-    C_X = np.zeros((k, k)) # The alphas
-    C_W = np.zeros_like(C_X) # The betas
-    C_P = np.zeros_like(C_X) # The gammas
-    traceold = np.sum(np.diag(X.T @ A @ X))
-    for iconvergence in range(500):
-        AX = A @ X # H psi
-        # XXT = X @ X.T
-        W = T @ (AX - X @ (X.T @ AX))
-        W -= X @ (X.T @ W)
-        P -= X @ (X.T @ P) if P is not None else P
-        j = 0
-        while j < k:
-            block_slice = slice(j, min(j + blocksize, k))
-            # This keeps the block size constant except for the last block
-            blocksize = block_slice.stop - block_slice.start
-
-            S = np.column_stack([X[:, block_slice], W[:, block_slice], P[:, block_slice]])
-            # We only need the smallest algebraic eigenvector for this
-            # But also this is the tiniest ass eigenvalue problem of 3 blocksize x 3 blocksize...
-            thetamin, cmin = eigh(S.T @ A @ S, S.T @ S)
-            thetamin = thetamin[0]
-            cmin = cmin[:, :blocksize]
-            # Ye olde updates
-            C_X[block_slice, block_slice] = cmin[:blocksize, :blocksize]
-            C_W[block_slice, block_slice] = cmin[blocksize:2 * blocksize, :blocksize]
-            C_P[block_slice, block_slice] = cmin[2 * blocksize:3 * blocksize, :blocksize] if iconvergence != 0 else 0.0
-            P[:, block_slice] = W[:, block_slice] @ C_W[:blocksize, block_slice]+ P[:, block_slice] @ C_P[block_slice, block_slice]
-            X[:, block_slice] = X[:, block_slice] @ C_X[block_slice, block_slice]+ P[:, block_slice]
-            j += blocksize
-        # RR step?
-        if iconvergence % qr_interval == 0:
-            X, _ = np.linalg.qr(X)
-        if iconvergence % rr_interval == 0:
-            vals, vecs = eigh(X.T @ A @ X)
-            X = X @ vecs
-
-            tracenew = np.sum(np.diag(X.T @ A @ X))
-            convergence_marker = np.abs(tracenew - traceold) / traceold
-            print(iconvergence, convergence_marker)
-            if convergence_marker < 1e-8:
-                break
-            traceold = tracenew
-
-    return vals, X
-'''
