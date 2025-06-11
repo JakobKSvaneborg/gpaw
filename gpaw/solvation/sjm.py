@@ -1436,10 +1436,10 @@ class SJMDipoleCorrection(DipoleCorrection):
         # Maximum slope allowed on the cell boundary
         slope_lim = 1e-13
 
-        # Set slope to value that make the while loop run at least once
+        # Set slope to value that makes the while loop run at least once
         slope = slope_lim * 10
 
-        # Calcutlate dipole moment
+        # Calculate dipole moment
         dipmom = gd.calculate_dipole_moment(rhot_g)[2]
 
         # Remove the correction potential from the previous iteration
