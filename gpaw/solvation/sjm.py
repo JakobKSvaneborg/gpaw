@@ -1481,13 +1481,10 @@ class SJMDipoleCorrection(DipoleCorrection):
 
             # The slope on the left will be used as a probe as it
             # is the most sensitive to the correction potential (no solvent)
-            slope_l = (VHt_z[3] - VHt_z[8]) / (gd.h_cv[2][2] * Bohr)
-            slope_r = (VHt_z[-3] - VHt_z[-8]) / (gd.h_cv[2][2] * Bohr)
-            slope = slope_l
-
-            from gpaw.mpi import world
-            if world.rank == 0:
-                print(f'Slope:',slope_l, slope_r,count,self.corrterm,self.last_corrterm, gd.h_cv[2][2]*Bohr)
+            # Ideally we would be able to get abs(slope_l) + abs(slope_r) = 0
+            # but this is not possible with the current implementation
+            # However, the remaining slope is minimal
+            slope = (VHt_z[3] - VHt_z[8]) / (gd.h_cv[2][2] * Bohr)
 
             # Optimize the corrterm based on the slope using a simple
             # linear rootfinder
