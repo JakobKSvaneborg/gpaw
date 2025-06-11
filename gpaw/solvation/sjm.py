@@ -1422,12 +1422,14 @@ class SJMDipoleCorrection(DipoleCorrection):
 
     def fd_solv_solve(self, vHt_g, rhot_g, **kwargs):
         """
-        Solve the Poisson equation with a dipole correction.
         This is an iterative method that adds a correction potential
-        until the slope of the potential is below slope_lim.
+        until the slope of the potential at the cell boundary is below
+        slope_lim.
         The while loop below always converges after 3 attempts but the
         resulting corrterm is varying during the scf cycle, i.e. it depends
         on the degree of solvation of the electron density.
+        Also the dipole correction should not add significat computational load
+        as the poisson equation is only solved once per scf cycle.
         """
 
         gd = self.poissonsolver.gd
