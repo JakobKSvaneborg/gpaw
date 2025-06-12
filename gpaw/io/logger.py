@@ -21,6 +21,9 @@ class GPAWLogger:
         self._fd = None
         self.oldfd = 42
         self.iocontext = IOContext()
+        self.use_colors = False
+        self.green = ''
+        self.reset = ''
 
     @property
     def fd(self):

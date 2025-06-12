@@ -40,7 +40,21 @@ Git master branch
 * Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
   See :ref:`manual_convergence`.
 
+* Removed the entire gpaw.dfpt module.
 
+* Converged numbers in GPAW's text output are now colored green
+  when using :ref:`newgpaw` and running in an interactive terminal.
+  This behavior can be controlled by setting different environment
+  variables: ``NO_COLOR``, ``FORCE_COLOR`` and
+  :envvar:`python:PYTHON_COLORS`.  See also `controlling color`_.
+
+* Constraining spins within PAW spheres along specified directions in
+  noncollinear calculations is now possible:
+  :ref:`spin direction constrained dft`.
+
+
+.. _controlling color: https://docs.python.org/3/using/cmdline.html
+                       #controlling-color
 .. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
 
 

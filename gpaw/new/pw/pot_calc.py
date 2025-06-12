@@ -16,7 +16,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  xc,
                  poisson_solver,
                  *,
-                 external_potential,
                  relpos_ac,
                  atomdist,
                  environment,
@@ -26,7 +25,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self.xp = xp
         self.pw = pw
         super().__init__(xc, poisson_solver, setups,
-                         external_potential=external_potential,
                          relpos_ac=relpos_ac,
                          environment=environment,
                          extensions=extensions,
@@ -130,7 +128,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             vt_sR.data[1] = vt_sR.data[0]
         vt_sR.data[density.ndensities:] = 0.0
 
-        e_external = self.external_potential.update_potential(vt_sR, density)
+        # e_external = self.external_potential.update_potential(vt_sR, density)
+        e_external = 0.0
 
         vtmp_R = vt_sR.desc.empty(xp=self.xp)
         for spin, (vt_R, vxct_r) in enumerate(zips(vt_sR, vxct_sr)):

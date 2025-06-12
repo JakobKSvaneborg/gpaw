@@ -31,7 +31,6 @@ from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
 from scipy.stats import linregress
-from gpaw.new.input_parameters import register
 
 
 def SJM(*args, **kwargs):
@@ -1048,7 +1047,6 @@ def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
     return ans[0]
 
 
-@register
 class SJMPower12Potential(Power12Potential):
     r"""Inverse power-law potential.
     Inverse power law potential for SJM, inherited from the
