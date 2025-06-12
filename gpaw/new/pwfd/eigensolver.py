@@ -72,8 +72,8 @@ class PWFDEigensolver(Eigensolver):
 
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
-        wfs_error = np.float64(0.0)
-        eig_error = np.float64(0.0)
+        wfs_error = 0.0
+        eig_error = 0.0
         # Loop over k-points:
         with broadcast_exception(ibzwfs.kpt_comm):
             for wfs, weight_n in zips(ibzwfs, weight_un):
