@@ -179,7 +179,7 @@ class NotDavidson(PWFDEigensolver):
             wfs.orthonormalized = False
 
             # Subspace diagonialization needed every once in a while
-            if (i + 1) % 3 == 0 or i == self.niter - 1:
+            if (i + 1) % 3 == 0 :
                 wfs.subspace_diagonalize(Ht, dH,
                                          work_array=residual_nX.data)
 
@@ -190,6 +190,17 @@ class NotDavidson(PWFDEigensolver):
                                 wfs.P_ani,
                                 wfs.myeig_n,
                                 dH, dS_aii, P2_ani, Ptemp_ani)
+            
+            if weight_n is None:
+                error = np.inf
+                b_error = np.inf
+            else:
+                error = (weight_n @ as_np(residual_nX.norm2())).sum()
+                b_error = band_comm.sum_scalar(error)
+            
+            if b_error < 1e-9:
+                print(f'Converged in {i + 1} iterations')
+                break
             
             if i < self.niter - 1:
                 P3_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
@@ -209,11 +220,10 @@ class NotDavidson(PWFDEigensolver):
                 Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
                                           out=M_nn)
                 domain_comm.sum(M_nn.data)
-
-        if weight_n is None:
-            error = np.inf
-        else:
-            error = (weight_n @ as_np(residual_nX.norm2())).sum()
+        
+        if not wfs.orthonormalized:
+            wfs.subspace_diagonalize(Ht, dH,
+                                     work_array=residual_nX.data)
         
         if debug:
             psit_nX.sanity_check()
