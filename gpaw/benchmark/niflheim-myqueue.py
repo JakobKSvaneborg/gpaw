@@ -12,8 +12,8 @@ platforms = [('xeon24el8_test', 24, 24, 0, '10m'),
 
 def workflow():
     from myqueue.workflow import run
+    path = Path(getcwd())
     for partition, ncores, nprocs, ngpus, time in platforms:
-        path = Path(getcwd())
         for benchmark in get_benchmarks(
                 cores=nprocs, memory='10000G', gpus=ngpus):
             (path / f'{partition}-{nprocs}').mkdir(exist_ok=True)
