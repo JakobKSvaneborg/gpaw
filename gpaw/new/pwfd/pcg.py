@@ -28,12 +28,13 @@ class NotDavidson(PWFDEigensolver):
             preconditioner_factory,
             converge_bands)
         self.niter = niter
-        self.blocksize = 32
+        self.blocksize = 128
         self.MW_nn: Matrix
         self.MP_nn: Matrix
+        self.tolerance: float
 
     def __str__(self):
-        return pformat(dict(name='Davidson',
+        return pformat(dict(name='Not Davidson',
                             niter=self.niter,
                             converge_bands=self.converge_bands))
 
@@ -49,16 +50,20 @@ class NotDavidson(PWFDEigensolver):
         B = ibzwfs.nbands
         xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
+        if dtype == np.complex64 or dtype == np.float32:
+            self.tolerance = 1e-7
+        else:
+            self.tolerance = 1e-14
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
                            xp=xp)
 
-        self.C_X = xp.zeros((self.blocksize, self.blocksize), dtype=complex) # The alphas
+        self.C_X = xp.zeros((self.blocksize, self.blocksize), dtype=dtype) # The alphas
         self.C_W = xp.zeros_like(self.C_X) # The betas
         self.C_P = xp.zeros_like(self.C_X) # The gammas
-        self.H_bb = xp.zeros((3 * self.blocksize, 3 * self.blocksize), dtype=complex)
-        self.S_bb = xp.zeros((3 * self.blocksize, 3 * self.blocksize), dtype=complex)
+        self.H_bb = xp.zeros((3 * self.blocksize, 3 * self.blocksize), dtype=dtype)
+        self.S_bb = xp.zeros((3 * self.blocksize, 3 * self.blocksize), dtype=dtype)
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
@@ -140,39 +145,49 @@ class NotDavidson(PWFDEigensolver):
 
                 H_bb = self.H_bb.ravel()[:nblocksizes**2].reshape(nblocksizes, nblocksizes)
                 S_bb = self.S_bb.ravel()[:nblocksizes**2].reshape(nblocksizes, nblocksizes)
+                
+                MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
+                               data=H_bb,
+                               xp=xp)
+                MS_bb = Matrix(M=nblocksizes, N=nblocksizes,
+                               data=S_bb,
+                               xp=xp)
 
                 Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
-                S_bb[:] = buff_bX.matrix.data[:nblocksizes].conj() @ buff_bX.matrix.data[:nblocksizes].T * psit_nX.dv
+                buff_bX[:nblocksizes].matrix_elements(buff_bX[:nblocksizes], cc=False, out=MS_bb,
+                                        domain_sum=False)
+                #S_bb[:] = buff_bX.matrix.data[:nblocksizes].conj() @ buff_bX.matrix.data[:nblocksizes].T * psit_nX.dv
                 S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ HPbuf_abi.matrix.data[:nblocksizes].T
                 domain_comm.sum(S_bb)
                 
                 Ht(buff_bX[:nblocksizes], out=Hbuff_bX[:nblocksizes])
                 dH(Pbuf_abi[:, :nblocksizes], out_ani=HPbuf_abi[:, :nblocksizes])
-                H_bb[:] = buff_bX.matrix.data[:nblocksizes].conj() @ Hbuff_bX.matrix.data[:nblocksizes].T * psit_nX.dv
+                Hbuff_bX[:nblocksizes].matrix_elements(buff_bX[:nblocksizes], cc=False, out=MH_bb,
+                                         domain_sum=False)
+                #HPbuf_abi.matrix.multiply(Pbuf_abi, opb='C', symmetric=False, beta=1,
+                #                          out=MH_bb)
+                #H_bb[:] = buff_bX.matrix.data[:nblocksizes].conj() @ Hbuff_bX.matrix.data[:nblocksizes].T * psit_nX.dv
                 H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ HPbuf_abi.matrix.data[:nblocksizes].T
                 domain_comm.sum(H_bb)
 
                 # We only need the smallest algebraic eigenvector for this
                 # But also this is the tiniest ass eigenvalue problem of 3 * blocksize x 3 * blocksize...
-                if xp is np:
-                    _, cmin = sp.linalg.eigh(H_bb, S_bb)
-                else:
-                    _, cmin = xp.linalg.eigh(H_bb, S_bb)
-                cmin = cmin[:, :blocksize]
+                MH_bb.eigh(MS_bb)
+                cmin = H_bb[:blocksize, :]
                 # Ye olde updates
-                C_X[:] = cmin[:blocksize, :blocksize].T
-                C_W[:] = cmin[blocksize:2 * blocksize, :blocksize].T
+                C_X[:] = cmin[:blocksize, :blocksize]
+                C_W[:] = cmin[:blocksize, blocksize:2 * blocksize]
                 if i > 0:
-                    C_P[:] = cmin[2 * blocksize:3 * blocksize, :blocksize].T
-                    P_nX.data[block_slice] = C_W @ buff_bX.data[blocksize:2 * blocksize] \
-                        + C_P @ buff_bX.data[2*blocksize:3 * blocksize]
+                    C_P[:] = cmin[:blocksize, 2 * blocksize:3 * blocksize]
+                    P_nX.matrix.data[block_slice] = C_W @ buff_bX.matrix.data[blocksize:2 * blocksize] \
+                        + C_P @ buff_bX.matrix.data[2*blocksize:3 * blocksize]
                     P3_ani.matrix.data[block_slice] = C_W @ Pbuf_abi.matrix.data[blocksize:2 * blocksize] \
                         + C_P @ Pbuf_abi.matrix.data[2*blocksize:3 * blocksize]
                 else:
-                    P_nX.data[block_slice] = C_W @ buff_bX.data[blocksize:2 * blocksize]
+                    P_nX.matrix.data[block_slice] = C_W @ buff_bX.matrix.data[blocksize:2 * blocksize]
                     P3_ani.matrix.data[block_slice] = C_W @ Pbuf_abi.matrix.data[blocksize:2 * blocksize]
-                psit_nX.data[block_slice] = C_X @ buff_bX.data[:blocksize] \
-                    + P_nX.data[block_slice]
+                psit_nX.matrix.data[block_slice] = C_X @ buff_bX.matrix.data[:blocksize] \
+                    + P_nX.matrix.data[block_slice]
                 P_ani.matrix.data[block_slice] = C_X @ Pbuf_abi.matrix.data[:blocksize] \
                     + P3_ani.matrix.data[block_slice]
 
@@ -198,7 +213,7 @@ class NotDavidson(PWFDEigensolver):
                 error = (weight_n @ as_np(residual_nX.norm2())).sum()
                 b_error = band_comm.sum_scalar(error)
             
-            if b_error < 1e-9:
+            if b_error < self.tolerance:
                 print(f'Converged in {i + 1} iterations')
                 break
             
