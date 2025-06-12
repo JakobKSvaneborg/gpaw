@@ -28,7 +28,7 @@ class NotDavidson(PWFDEigensolver):
             preconditioner_factory,
             converge_bands)
         self.niter = niter
-        self.blocksize = 128
+        self.blocksize = 100
         self.MW_nn: Matrix
         self.MP_nn: Matrix
         self.tolerance: float
@@ -50,10 +50,7 @@ class NotDavidson(PWFDEigensolver):
         B = ibzwfs.nbands
         xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
-        if dtype == np.complex64 or dtype == np.float32:
-            self.tolerance = 1e-7
-        else:
-            self.tolerance = 1e-14
+        self.tolerance = np.finfo(dtype).eps
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -95,6 +92,9 @@ class NotDavidson(PWFDEigensolver):
         domain_comm = psit_nX.desc.comm
         band_comm = psit_nX.comm
         is_domain_band_master = domain_comm.rank == 0 and band_comm.rank == 0
+        
+        if weight_n is None:
+            weight_n = np.ones(b)
 
         Ht = partial(Ht, out=residual_nX)
         Ht(psit_nX, out=residual_nX)
@@ -117,15 +117,20 @@ class NotDavidson(PWFDEigensolver):
 
         buff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
         Hbuff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
+        
+        active_indicies = np.arange(b)
 
         for i in range(self.niter):
             M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
             M_nn.multiply(P_ani, out=P2_ani, beta=1.0, alpha=-1.0)
             
-            for j in range(0, b, self.blocksize):
-                block_slice = slice(j, min(j + self.blocksize, b))
-                # This keeps the block size constant except for the last block
+            active_bs = len(active_indicies)
+            
+            for j in range(0, active_bs, self.blocksize):
+                block_slice = slice(j, min(j + self.blocksize, active_bs))
                 blocksize = block_slice.stop - block_slice.start
+                block_slice = active_indicies[block_slice]
+                # This keeps the block size constant except for the last block
 
                 C_X = self.C_X.ravel()[:blocksize**2].reshape(blocksize, blocksize)
                 C_W = self.C_W.ravel()[:blocksize**2].reshape(blocksize, blocksize)
@@ -194,7 +199,7 @@ class NotDavidson(PWFDEigensolver):
             wfs.orthonormalized = False
 
             # Subspace diagonialization needed every once in a while
-            if (i + 1) % 3 == 0 :
+            if (i + 1) % 5 == 0 :
                 wfs.subspace_diagonalize(Ht, dH,
                                          work_array=residual_nX.data)
 
@@ -206,14 +211,12 @@ class NotDavidson(PWFDEigensolver):
                                 wfs.myeig_n,
                                 dH, dS_aii, P2_ani, Ptemp_ani)
             
-            if weight_n is None:
-                error = np.inf
-                b_error = np.inf
-            else:
-                error = (weight_n @ as_np(residual_nX.norm2())).sum()
-                b_error = band_comm.sum_scalar(error)
+            error_ns = as_np(residual_nX.norm2())
+            active_indicies = np.where(np.greater(error_ns, self.tolerance))[0]
+            error = (weight_n @ error_ns).sum()
+            b_error = band_comm.sum_scalar(error)
             
-            if b_error < self.tolerance:
+            if len(active_indicies) == 0:
                 print(f'Converged in {i + 1} iterations')
                 break
             
@@ -236,9 +239,10 @@ class NotDavidson(PWFDEigensolver):
                                           out=M_nn)
                 domain_comm.sum(M_nn.data)
         
-        if not wfs.orthonormalized:
-            wfs.subspace_diagonalize(Ht, dH,
-                                     work_array=residual_nX.data)
+        #if not wfs.orthonormalized:
+            #wfs.subspace_diagonalize(Ht, dH,
+            #                         work_array=residual_nX.data)
+            #wfs.orthonormalize(residual_nX.data)
         
         if debug:
             psit_nX.sanity_check()

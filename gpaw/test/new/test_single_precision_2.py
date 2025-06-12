@@ -7,6 +7,7 @@ from ase.build import molecule
 
 from gpaw.new.ase_interface import GPAW
 from gpaw.gpu import cupy_is_fake
+from gpaw.mixer import FFTMixer
 
 
 @pytest.mark.serial
@@ -47,23 +48,28 @@ def run_single_precision(dtype, gpu):
     #atoms.center(vacuum=2.5)
 
     from ase.build import mx2
-    atoms = mx2('WSe2', vacuum=2.5)
+    atoms = mx2('TaSe2', a=3.4)
     atoms2 = atoms.copy()
-    atoms2.positions[:, 2] += 3.5 + 0.5
+    atoms2.positions[:, 2] += 3.5 + 0.2
     atoms = atoms + atoms2
-    atoms.center(axis=2, vacuum=4.5)
+    atoms = atoms.repeat((2, 2, 1))
+    atoms.center(axis=2, vacuum=6)
 
     gpu = gpu == 'True'
 
-    atoms.calc = GPAW(xc={'name': 'LDA'},
+    atoms.calc = GPAW(xc={'name': 'PBE'},
                       symmetry='off',
                       random=True,
-                      convergence={'minimum iterations': 80},
+                      convergence={'maximum iterations': 80,
+                                   'eigenstates': 1e-6},
                       mode={'name': 'pw',
-                            'ecut': 200.0,
+                            'ecut': 400.0,
                             'dtype': dtype},
-                      eigensolver={'name': 'not-dav',
-                                   'niter': 3},
+                      mixer=FFTMixer(0.1),
+                      eigensolver={'name': 'dav',
+                                   'niter': 5},
+                      occupations={'name': 'fermi-dirac',
+                                   'width': 0.05},
                       parallel={'gpu': gpu}
                       )
     atoms.get_potential_energy()

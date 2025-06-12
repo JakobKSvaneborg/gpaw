@@ -359,7 +359,10 @@ class PWArray(DistributedArrays[PWDesc]):
         """
         if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
             if (self.data[..., 0].imag != 0.0).any():
-                raise ValueError
+                if self.xp.allclose(self.data[..., 0].imag, 0.0, atol=1e-6):
+                    self.data[..., 0].imag = 0
+                else:
+                    raise ValueError(f'Imag value of {self.xp.max(self.xp.abs(self.data[..., 0].imag))}')
 
     def _arrays(self):
         shape = self.data.shape
