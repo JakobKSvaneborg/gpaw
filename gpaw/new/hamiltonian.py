@@ -42,3 +42,6 @@ class Hamiltonian:
 
     def create_preconditioner(self, blocksize, xp=np):
         raise NotImplementedError
+
+    def update_wave_functions(self, ibzwfs):
+        return
