@@ -44,13 +44,10 @@ def test_single_precision_gpu(dtype):
 
 
 def run_single_precision(dtype, gpu):
-    #atoms = molecule('H2O')
-    #atoms.center(vacuum=2.5)
-
     from ase.build import mx2
     atoms = mx2('TaSe2', a=3.4)
     atoms2 = atoms.copy()
-    atoms2.positions[:, 2] += 3.5 + 0.2
+    atoms2.positions[:, 2] += 3.5 + 0.4
     atoms = atoms + atoms2
     atoms = atoms.repeat((2, 2, 1))
     atoms.center(axis=2, vacuum=6)
@@ -60,13 +57,14 @@ def run_single_precision(dtype, gpu):
     atoms.calc = GPAW(xc={'name': 'PBE'},
                       symmetry='off',
                       random=True,
+                      nbands=200,
                       convergence={'maximum iterations': 80,
-                                   'eigenstates': 1e-6},
+                                   'eigenstates': 1e-8},
                       mode={'name': 'pw',
                             'ecut': 400.0,
                             'dtype': dtype},
                       mixer=FFTMixer(0.1),
-                      eigensolver={'name': 'dav',
+                      eigensolver={'name': 'not-dav',
                                    'niter': 5},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},

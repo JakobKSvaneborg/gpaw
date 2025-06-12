@@ -51,6 +51,7 @@ class NotDavidson(PWFDEigensolver):
         xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
         self.tolerance = np.finfo(dtype).eps
+        self.breakout_tolerance = np.finfo(dtype).eps * np.sqrt(B)
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -145,6 +146,7 @@ class NotDavidson(PWFDEigensolver):
                     nblocksizes = 3 * blocksize
                     buff_bX.data[2*blocksize:3 * blocksize] = P_nX.data[block_slice]
                     Pbuf_abi.matrix.data[2*blocksize:3 * blocksize] = P3_ani.matrix.data[block_slice]
+                    
                 else:
                     nblocksizes = 2 * blocksize
 
@@ -159,6 +161,11 @@ class NotDavidson(PWFDEigensolver):
                                xp=xp)
 
                 Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
+                buff_bX[:nblocksizes].matrix_elements(buff_bX[:nblocksizes], cc=False, out=MS_bb,
+                                        domain_sum=False)
+                S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ HPbuf_abi.matrix.data[:nblocksizes].T
+                domain_comm.sum(S_bb)
+                
                 buff_bX[:nblocksizes].matrix_elements(buff_bX[:nblocksizes], cc=False, out=MS_bb,
                                         domain_sum=False)
                 #S_bb[:] = buff_bX.matrix.data[:nblocksizes].conj() @ buff_bX.matrix.data[:nblocksizes].T * psit_nX.dv
@@ -179,10 +186,12 @@ class NotDavidson(PWFDEigensolver):
                 # But also this is the tiniest ass eigenvalue problem of 3 * blocksize x 3 * blocksize...
                 MH_bb.eigh(MS_bb)
                 cmin = H_bb[:blocksize, :]
+                if xp.isnan(cmin).any():
+                    continue
                 # Ye olde updates
                 C_X[:] = cmin[:blocksize, :blocksize]
                 C_W[:] = cmin[:blocksize, blocksize:2 * blocksize]
-                if i > 0:
+                if nblocksizes == 3 * blocksize:
                     C_P[:] = cmin[:blocksize, 2 * blocksize:3 * blocksize]
                     P_nX.matrix.data[block_slice] = C_W @ buff_bX.matrix.data[blocksize:2 * blocksize] \
                         + C_P @ buff_bX.matrix.data[2*blocksize:3 * blocksize]
@@ -216,7 +225,7 @@ class NotDavidson(PWFDEigensolver):
             error = (weight_n @ error_ns).sum()
             b_error = band_comm.sum_scalar(error)
             
-            if len(active_indicies) == 0:
+            if len(active_indicies) == 0 or b_error < self.breakout_tolerance:
                 print(f'Converged in {i + 1} iterations')
                 break
             
