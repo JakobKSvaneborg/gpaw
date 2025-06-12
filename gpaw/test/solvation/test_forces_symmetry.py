@@ -1,5 +1,4 @@
 from ase import Atoms
-from ase.data.vdw import vdw_radii
 import pytest
 from ase.units import Pascal, m
 from gpaw.solvation import (
@@ -22,10 +21,6 @@ epsinf = 80.
 T = 298.15
 
 
-def atomic_radii(atoms):
-    return [vdw_radii[n] for n in atoms.numbers]
-
-
 def test_solvation_forces_symmetry():
     xy_cell = np.ceil((min_vac * 2.) / h / 8.) * 8. * h
     z_cell = np.ceil((min_vac * 2. + d) / h / 8.) * 8. * h
@@ -43,7 +38,7 @@ def test_solvation_forces_symmetry():
         h=h,
         setups={'Na': '1'},
         cavity=EffectivePotentialCavity(
-            effective_potential=Power12Potential(atomic_radii, u0),
+            effective_potential=Power12Potential(u0=u0),
             temperature=T,
             volume_calculator=KB51Volume(),
             surface_calculator=GradientSurface()),
@@ -57,7 +52,7 @@ def test_solvation_forces_symmetry():
 
     difference = F[0][2] + F[1][2]
     print(difference)
-    assert difference == pytest.approx(.0, abs=.02)
-    F[0][2] = F[1][2] = .0
+    assert difference == pytest.approx(.0, abs=0.02)
+    F[0][2] = F[1][2] = 0.0
     print(np.abs(F))
     assert np.abs(F) == pytest.approx(.0, abs=1e-10)

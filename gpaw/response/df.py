@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from gpaw.response.groundstate import CellDescriptor
     from gpaw.response.frequencies import FrequencyDescriptor
-    from gpaw.response.pair_functions import SingleQPWDescriptor
+    from gpaw.response.qpd import SingleQPWDescriptor
 
 
 """
@@ -674,8 +674,9 @@ class DielectricFunction(DielectricFunctionCalculator):
             Can be an array of frequencies to evaluate the response function at
             or dictionary of parameters for build-in nonlinear grid
             (see :ref:`frequency grid`).
-        ecut: float
-            Plane-wave cut-off.
+        ecut: float | dict
+            Plane-wave cut-off or dictionary for anoptional planewave
+            descriptor. See response/qpd.py for details.
         hilbert: bool
             Use hilbert transform.
         nbands: int
@@ -747,7 +748,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         df_NLFC_w: np.ndarray
             Dielectric function without local field corrections.
         df_LFC_w: np.ndarray
-            Dielectric functio with local field corrections.
+            Dielectric function with local field corrections.
         """
         df = self.get_inverse_dielectric_function(
             *args, truncation=self.truncation,

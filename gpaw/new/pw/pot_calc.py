@@ -16,18 +16,18 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  xc,
                  poisson_solver,
                  *,
-                 external_potential,
                  relpos_ac,
                  atomdist,
                  environment,
+                 extensions,
                  soc=False,
                  xp=np):
         self.xp = xp
         self.pw = pw
         super().__init__(xc, poisson_solver, setups,
-                         external_potential=external_potential,
                          relpos_ac=relpos_ac,
                          environment=environment,
+                         extensions=extensions,
                          soc=soc)
 
         self.vbar_ag = setups.create_local_potentials(
@@ -128,7 +128,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             vt_sR.data[1] = vt_sR.data[0]
         vt_sR.data[density.ndensities:] = 0.0
 
-        e_external = self.external_potential.update_potential(vt_sR, density)
+        # e_external = self.external_potential.update_potential(vt_sR, density)
+        e_external = 0.0
 
         vtmp_R = vt_sR.desc.empty(xp=self.xp)
         for spin, (vt_R, vxct_r) in enumerate(zips(vt_sR, vxct_sr)):
@@ -150,6 +151,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                 e_stress)
 
     def move(self, relpos_ac, atomdist):
+        super().move(relpos_ac, atomdist)
         self.poisson_solver.move(relpos_ac, atomdist)
         self.vbar_ag.move(relpos_ac, atomdist)
         self.vbar_g.data[:] = 0.0
@@ -194,7 +196,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                                                    nt_g),
             density.nct_aX.derivative(vt_g),
             Ftauct_av,
-            self.vbar_ag.derivative(nt_g))
+            self.vbar_ag.derivative(nt_g),
+            self.extensions_force_av)
 
     def stress(self, ibzwfs, density, potential):
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
