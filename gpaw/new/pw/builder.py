@@ -183,7 +183,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         # psit_nG via PWAtomCenteredFunctions.
         # XXX
 
-        lcao_dtype = complex if np.issubdtype(self.dtype, np.complexfloating) else float
+        lcao_dtype = complex if \
+            np.issubdtype(self.dtype, np.complexfloating) else float
 
         grid = self.grid.new(kpt=kpt_c, dtype=lcao_dtype)
         pw = self.wf_desc.new(kpt=kpt_c, dtype=lcao_dtype)
@@ -203,9 +204,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
                 psit_R.fft(out=psit_G)
-            
+
             if self.dtype != lcao_dtype:
-                psit2_nG = pw_correct.empty(self.nbands, self.communicators['b'])
+                psit2_nG = pw_correct.empty(self.nbands,
+                                            self.communicators['b'])
                 psit2_nG.data[:] = psit_nG.data
                 return psit2_nG.to_xp(self.xp)
             return psit_nG.to_xp(self.xp)

@@ -82,7 +82,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         # sl_default = self.params.parallel['sl_default']
         # sl_lcao = self.params.parallel['sl_lcao'] or sl_default
 
-        lcao_dtype = complex if np.issubdtype(self.dtype, np.complexfloating) else float
+        lcao_dtype = complex if \
+            np.issubdtype(self.dtype, np.complexfloating) else float
 
         lcaonbands = min(self.nbands,
                          basis.Mmax * (2 if self.ncomponents == 4 else 1))
