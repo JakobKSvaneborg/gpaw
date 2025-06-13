@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import textwrap
+import os
 from ast import literal_eval
 from collections.abc import Callable, Iterable
 from types import SimpleNamespace
@@ -9,10 +10,12 @@ from typing import Any, TYPE_CHECKING
 from xml.dom import minidom
 from warnings import warn
 
+import numpy as np
+
 from .. import typing
 from ..basis_data import Basis, BasisPlotter
-from ..setup_data import SetupData
-from .aeatom import colors
+from ..setup_data import SetupData, read_maybe_unzipping, search_for_file
+from .aeatom import AllElectronAtom, colors
 from .generator2 import (PAWSetupGenerator, parameters,
                          generate, plot_log_derivs)
 from .radialgd import AERadialGridDescriptor
@@ -41,17 +44,24 @@ def plot_partial_waves(ax: 'Axes',
                        cutoff: float,
                        iterator: Iterable[_PartialWaveItem]) -> None:
     r_g = rgd.r_g
-    i = 0
-    for l, n, rcut, e, phi_g, phit_g in sorted(iterator):
-        if n == -1:
-            gc = rgd.ceil(rcut)
-            label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
-        else:
-            gc = len(rgd)
-            label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-        ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=colors[i], label=label)
-        ax.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=colors[i])
-        i += 1
+    group_by_l: dict[int, list[_PartialWaveItem]] = {}
+    bg_color = _get_patch_color(ax)
+    for item in sorted(iterator):
+        group_by_l.setdefault(item[0], []).append(item)
+    for l, items in group_by_l.items():
+        weights = _get_blend_weights(len(items))
+        for weight, (_, n, rcut, e, phi_g, phit_g) in zip(weights, items):
+            if n == -1:
+                gc = rgd.ceil(rcut)
+                label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
+            else:
+                gc = len(rgd)
+                label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
+            color = _blend_colors(colors[l],
+                                  background=bg_color,
+                                  foreground_weight=weight)
+            ax.plot(r_g[:gc], (phi_g * r_g)[:gc], color=color, label=label)
+            ax.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=color)
     ax.axis(xmin=0, xmax=3 * cutoff)
     ax.set_title(f'Partial waves: {symbol} {name}')
     ax.set_xlabel('radius [Bohr]')
@@ -66,18 +76,52 @@ def plot_projectors(ax: 'Axes',
                     cutoff: float,
                     iterator: Iterable[_ProjectorItem]) -> None:
     r_g = rgd.r_g
-    i = 0
-    for l, n, e, pt_g in sorted(iterator):
-        if n == -1:
-            label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
-        else:
-            label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-        ax.plot(r_g, pt_g * r_g, color=colors[i], label=label)
-        i += 1
+    group_by_l: dict[int, list[_ProjectorItem]] = {}
+    bg_color = _get_patch_color(ax)
+    for item in sorted(iterator):
+        group_by_l.setdefault(item[0], []).append(item)
+    for l, items in group_by_l.items():
+        weights = _get_blend_weights(len(items))
+        for weight, (_, n, e, pt_g) in zip(weights, items):
+            if n == -1:
+                label = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
+            else:
+                label = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
+            ax.plot(r_g, pt_g * r_g,
+                    color=_blend_colors(colors[l],
+                                        background=bg_color,
+                                        foreground_weight=weight),
+                    label=label)
     ax.axis(xmin=0, xmax=cutoff)
     ax.set_title(f'Projectors: {symbol} {name}')
     ax.set_xlabel('radius [Bohr]')
     ax.set_ylabel(r'$r\tilde{p}(r)$')
+    ax.legend()
+
+
+def plot_potential_components(ax: 'Axes',
+                              symbol: str,
+                              name: str,
+                              rgd: AERadialGridDescriptor,
+                              cutoff: float,
+                              components: dict[str, typing.Array1D]) -> None:
+    assert components
+    radial_grid = rgd.r_g
+    for color, (key, label) in zip(
+            colors,
+            [('xc', 'xc'), ('zero', '0'), ('hartree', 'H'),
+             ('pseudo', 'ps'), ('all_electron', 'ae')]):
+        if key in components:
+            ax.plot(radial_grid, components[key], color=color, label=label)
+    arrays = [array for key, array in components.items()
+              if key != 'all_electron']
+    ax.axis(xmin=0,
+            xmax=2 * cutoff,
+            ymin=min(array[1:].min() for array in arrays),
+            ymax=max(0, *(array[1:].max() for array in arrays)))
+    ax.set_title(f'Potential components: {symbol} {name}')
+    ax.set_xlabel('radius [Bohr]')
+    ax.set_ylabel('potential [Ha]')
     ax.legend()
 
 
@@ -113,7 +157,40 @@ def _get_setup_cutoff(setup: SetupData) -> float:
     return min(radii)
 
 
-def get_ppw_params_paw_setup_generator(
+def _normalize_with_radial_grid(array: typing.Array1D,
+                                rgd: AERadialGridDescriptor) -> typing.Array1D:
+    result = rgd.zeros()
+    result[0] = np.nan
+    result[1:] = array[1:] / rgd.r_g[1:]
+    return result
+
+
+def _get_blend_weights(n: int, attenuation: float = .5) -> typing.Array1D:
+    return (1 - attenuation) ** np.arange(n)
+
+
+def _get_patch_color(ax: 'Axes') -> tuple[float, float, float]:
+    from matplotlib.colors import to_rgb
+    try:
+        color = ax.patch.get_facecolor()
+        if color is None:
+            color = 'w'
+    except AttributeError:
+        color = 'w'
+    return to_rgb(color)
+
+
+def _blend_colors(color, background='w', foreground_weight=1.):
+    # Too troublesome to type this and refactor to have `mypy`
+    # understand what we're doing, not worth it
+    from matplotlib.colors import to_rgb
+
+    color = np.array(to_rgb(color))
+    background = np.array(to_rgb(background))
+    return color * foreground_weight + background * (1 - foreground_weight)
+
+
+def get_plot_pwaves_params_from_generator(
     gen: PAWSetupGenerator,
 ) -> tuple[str, str,
            AERadialGridDescriptor, float,
@@ -127,7 +204,7 @@ def get_ppw_params_paw_setup_generator(
                                             waves.phi_ng, waves.phit_ng)))
 
 
-def get_ppw_params_setup_data(
+def get_plot_pwaves_params_from_setup(
     setup: SetupData,
 ) -> tuple[str, str,
            AERadialGridDescriptor, float,
@@ -139,7 +216,7 @@ def get_ppw_params_setup_data(
                 setup.phi_jg, setup.phit_jg))
 
 
-def get_pp_params_paw_setup_generator(
+def get_plot_projs_params_from_generator(
     gen: PAWSetupGenerator,
 ) -> tuple[str, str, AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
     return (*_get_gen_symbol_and_name(gen),
@@ -150,13 +227,79 @@ def get_pp_params_paw_setup_generator(
              for n, e, pt_g in zip(waves.n_n, waves.e_n, waves.pt_ng)))
 
 
-def get_pp_params_setup_data(
+def get_plot_projs_params_from_setup(
     setup: SetupData,
 ) -> tuple[str, str, AERadialGridDescriptor, float, Iterable[_ProjectorItem]]:
     return (*_get_setup_symbol_and_name(setup),
             setup.rgd,
             _get_setup_cutoff(setup),
             zip(setup.l_j, setup.n_j, setup.eps_j, setup.pt_jg))
+
+
+def get_plot_pot_comps_params_from_generator(
+    gen: PAWSetupGenerator,
+) -> tuple[str, str, AERadialGridDescriptor, float, dict[str, typing.Array1D]]:
+    assert gen.vtr_g is not None  # Appease `mypy`
+
+    rgd = gen.rgd
+    normalize = functools.partial(_normalize_with_radial_grid, rgd=rgd)
+    zero = normalize(gen.v0r_g)
+    hartree = normalize(gen.vHtr_g)
+    pseudo = normalize(gen.vtr_g)
+    all_electron = normalize(gen.aea.vr_sg[0])
+    components = {'xc': gen.vxct_g,
+                  'zero': zero,
+                  'hartree': hartree,
+                  'pseudo': pseudo,
+                  'all_electron': all_electron}
+    return (*_get_gen_symbol_and_name(gen), rgd, gen.rcmax, components)
+
+
+def get_plot_pot_comps_params_from_setup(
+    setup: SetupData,
+) -> tuple[str, str, AERadialGridDescriptor, float, dict[str, typing.Array1D]]:
+    prefactor = (4 * np.pi) ** -.5
+    zero = setup.vbar_g * prefactor
+    if setup.vt_g is None:
+        pseudo = None
+    else:
+        pseudo = setup.vt_g * prefactor
+    symbol, xc_name = _get_setup_symbol_and_name(setup)
+    rgd = setup.rgd
+    normalize = functools.partial(_normalize_with_radial_grid, rgd=rgd)
+
+    # Reconstruct the AEA object
+    # (Note: this misses the empty bound states from projectors)
+    aea = AllElectronAtom(symbol, xc_name,
+                          Z=setup.Z,
+                          configuration=list(zip(setup.n_j, setup.l_j,
+                                                 setup.f_j, setup.eps_j)))
+    if setup.has_corehole:
+        aea.add(setup.ncorehole, setup.lcorehole, -setup.fcorehole)
+    aea.initialize(rgd.N)
+    aea.run()
+    aea.scalar_relativistic = setup.type == 'scalar-relativistic'
+    aea.refine()
+    all_electron = normalize(aea.vr_sg[0])
+    components = {'zero': zero, 'all_electron': all_electron}
+
+    # FIXME: inconsistent with the `PAWSetupGenerator` results
+    # # Re-calculate the XC and Hartree parts
+    # from ..xc import XC
+    # from .all_electron import calculate_density, calculate_potentials
+
+    # n_g = calculate_density(setup.f_j,
+    #                         setup.phi_jg * rgd.r_g[None, :],
+    #                         rgd.r_g)
+    # n_g += setup.nc_g * prefactor
+    # _, vHr_g, xc, _ = calculate_potentials(rgd, XC(xc_name), n_g,
+    #                                        setup.Z)
+    # hartree = normalize(vHr_g)
+    # components.update(xc=xc, hartree=hartree)
+
+    if pseudo is not None:
+        components['pseudo'] = pseudo
+    return (symbol, xc_name, rgd, _get_setup_cutoff(setup), components)
 
 
 def reconstruct_paw_gen(setup: SetupData,
@@ -169,20 +312,25 @@ def reconstruct_paw_gen(setup: SetupData,
 
 
 def read_basis_file(basis: str) -> Basis:
-    symbol, *chunks, end = basis.split('.')
+    symbol, *chunks, end = os.path.basename(basis).split('.')
+    if end == 'gz':
+        *chunks, end = chunks
     assert end == 'basis'
     name = '.'.join(chunks)
     return Basis.read_xml(symbol, name, basis)
 
 
 def read_setup_file(dataset: str) -> SetupData:
-    symbol, *_, setupname = dataset.split('.')
-    setup = SetupData(symbol, setupname, readxml=False)
-    with open(dataset, mode='rb') as fobj:
-        setup.read_xml(fobj.read())
+    symbol, *name, xc = os.path.basename(dataset).split('.')
+    if xc == 'gz':
+        *name, xc = name
+    setup = SetupData(symbol, xc, readxml=False)
+    setup.read_xml(read_maybe_unzipping(dataset))
     if not setup.generatordata:
-        generator, = minidom.parse(dataset).getElementsByTagName('generator')
+        generator, = (minidom.parseString(read_maybe_unzipping(dataset))
+                      .getElementsByTagName('generator'))
         text, = generator.childNodes
+        assert isinstance(text, minidom.Text)
         setup.generatordata = textwrap.dedent(text.data).strip('\n')
     return setup
 
@@ -245,7 +393,6 @@ def plot_dataset(
     plot_projectors: bool = True,
     plot_logarithmic_derivatives: str | None = None,
     separate_figures: bool = False,
-    reconstruct_generator: bool = False,
     savefig: str | None = None,
 ) -> tuple[list['Axes'], str | None]:
     """
@@ -271,30 +418,35 @@ def plot_dataset(
             msg = ('cannot reconstruct the `PAWSetupGenerator` object '
                    f'({data_status} `setup.generatordata`), '
                    'so the logarithmic derivatives and/or '
-                   'potential components cannot be plotted')
+                   '(some of) the potential components cannot be plotted')
             warn(msg, stacklevel=2)
             plot_logarithmic_derivatives = None
-            plot_potential_components = False
 
     plots: list[Callable] = []
 
     if gen is None:
-        symbol, name, rgd, cutoff, ppw_iter = get_ppw_params_setup_data(setup)
-        *_, pp_iter = get_pp_params_setup_data(setup)
+        (symbol, name,
+         rgd, cutoff, ppw_iter) = get_plot_pwaves_params_from_setup(setup)
+        *_, pp_iter = get_plot_projs_params_from_setup(setup)
+        *_, pot_comps = get_plot_pot_comps_params_from_setup(setup)
     else:
         # TODO: maybe we can compare the `ppw_iter` and `pp_iter`
         # between the stored and regenerated values for verification
         (symbol, name,
-         rgd, cutoff, ppw_iter) = get_ppw_params_paw_setup_generator(gen)
-        *_, pp_iter = get_pp_params_paw_setup_generator(gen)
+         rgd, cutoff, ppw_iter) = get_plot_pwaves_params_from_generator(gen)
+        *_, pp_iter = get_plot_projs_params_from_generator(gen)
+        *_, pot_comps = get_plot_pot_comps_params_from_generator(gen)
 
     if plot_logarithmic_derivatives:
         assert gen is not None
         plots.append(functools.partial(
             plot_log_derivs, gen, plot_logarithmic_derivatives, True))
     if plot_potential_components:
-        assert gen is not None
-        plots.append(gen.plot_potential_components)
+        plots.append(functools.partial(
+            # Name clash with local variable
+            globals()['plot_potential_components'],
+            symbol=symbol, name=name, rgd=rgd, cutoff=cutoff,
+            components=pot_comps))
     if plot_partial_waves:
         plots.append(functools.partial(
             # Name clash with local variable
@@ -327,15 +479,15 @@ def plot_dataset(
     return ax_objs, savefig
 
 
-def main(args: SimpleNamespace) -> None:
+def main(args: SimpleNamespace) -> list['Axes']:
     from matplotlib import pyplot as plt
 
+    if args.search:
+        args.dataset, _ = search_for_file(args.dataset)
     setup = read_setup_file(args.dataset)
-    basis = None if args.basis_set is None else read_basis_file(args.basis_set)
     sep_figs = args.outfile is None and args.separate_figures
     ax_objs, fname = plot_dataset(
         setup,
-        basis=basis,
         separate_figures=sep_figs,
         plot_potential_components=args.potential_components,
         plot_logarithmic_derivatives=args.logarithmic_derivatives,
@@ -344,6 +496,7 @@ def main(args: SimpleNamespace) -> None:
 
     if fname is None:
         plt.show()
+    return ax_objs
 
 
 class CLICommand:
@@ -353,9 +506,6 @@ class CLICommand:
     @staticmethod
     def add_arguments(parser):
         add = parser.add_argument
-        add('-b', '--basis-set',
-            metavar='FILE',
-            help='Load and plot the basis set from an XML file')
         add('-p', '--potential-components',
             action='store_true',
             help='Plot the potential components '
@@ -371,6 +521,10 @@ class CLICommand:
             help='If not plotting to a file, '
             'plot the plots in separate figure windows/tabs, '
             'instead of as subplots/panels in the same figure')
+        add('-S', '--search',
+            action='store_true',
+            help='Look into the installed datasets (see `gpaw info`) for the '
+            'XML file, instead of treating it as a path')
         add('-o', '--outfile', '--write',
             metavar='FILE',
             help='Write the plots to FILE instead of `plt.show()`-ing them')
@@ -378,6 +532,4 @@ class CLICommand:
             metavar='FILE',
             help='XML file from which to read the PAW dataset')
 
-    @staticmethod
-    def run(args):
-        main(args)
+    run = staticmethod(main)

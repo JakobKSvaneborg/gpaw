@@ -45,7 +45,7 @@ def test_nice_error_message(noprojs_gpw):
         wfs.P_ani
 
 
-def test_fixed_density_bandstructure(tmp_path, noprojs_gpw):
+def test_fixed_density_bandstructure(noprojs_gpw):
     calc = GPAW(noprojs_gpw, parallel=parallel)
 
     fixed_calc = calc.fixed_density(
