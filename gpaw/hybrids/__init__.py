@@ -1,21 +1,19 @@
-from typing import Tuple
-
 from .wrapper import HybridXC
 
 __all__ = ['HybridXC']
 
 
-def parse_name(name: str) -> Tuple[str, float, float]:
+def parse_name(name: str) -> tuple[str, float, float, bool]:
     if name == 'EXX':
-        return 'null', 1.0, 0.0
+        return 'null', 1.0, 0.0, False
     if name == 'PBE0':
-        return 'HYB_GGA_XC_PBEH', 0.25, 0.0
+        return 'HYB_GGA_XC_PBEH', 0.25, 0.0, False
     if name == 'HSE03':
-        return 'HYB_GGA_XC_HSE03', 0.25, 0.106
+        return 'HYB_GGA_XC_HSE03', 0.25, 0.106, False
     if name == 'HSE06':
-        return 'HYB_GGA_XC_HSE06', 0.25, 0.11
+        return 'HYB_GGA_XC_HSE06', 0.25, 0.11, False
     if name == 'B3LYP':
-        return 'HYB_GGA_XC_B3LYP', 0.2, 0.0
+        return 'HYB_GGA_XC_B3LYP', 0.2, 0.0, False
     if name == 'YS-PBE0':
-        return 'GGA_X_SFAT_PBE', 0.25, 1.5 * 0.11
+        return 'GGA_X_SFAT_PBE', 0.25, 1.5 * 0.11, True
     assert False

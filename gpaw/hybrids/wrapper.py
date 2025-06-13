@@ -82,8 +82,8 @@ class HybridXC:
                                             Htpsit_xG=None, dH_asp=None):
         wfs = self.wfs
         if self.coulomb is None:
-            self.coulomb = coulomb_interaction(self.omega, self.yukawa,
-                                               wfs.gd, wfs.kd)
+            self.coulomb = coulomb_interaction(
+                self.omega, wfs.gd, wfs.kd, yukawa=self.yukawa)
             self.description += '\n' + self.coulomb.get_description()
             self.sym = Symmetry(wfs.kd)
 

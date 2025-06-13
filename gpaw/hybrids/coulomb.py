@@ -5,7 +5,7 @@ import numpy as np
 from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb as WSTC
 
 
-def coulomb_interaction(omega, yukawa, gd, kd):
+def coulomb_interaction(omega, gd, kd, *, yukawa=False):
     if omega:
         return ShortRangeCoulomb(omega, yukawa)
     return WSTC(gd.cell_cv, kd.N_c)
