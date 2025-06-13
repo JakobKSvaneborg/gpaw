@@ -455,6 +455,7 @@ def benchmark_from_dict(dct):
                'calcinfo': dct['calcinfo'],
                'First step': results['First step']['walltime'],
                'Second step': results['Second step']['walltime'],
+               'max_rss': dct['max_rss'],
                'githash': system_info['git-hash'].strip(),
                'branch': parse_git_status(system_info['git-status'])}
     return summary
