@@ -106,7 +106,6 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     int nJ = PyArray_DIM(a_J_obj, 0);
     int nL = PyArray_DIM(Y_GL_obj, 1);
     int nsplines = PyArray_DIM(f_Gs_obj, 1);
-    int na = PyArray_DIM(eikR_a_obj, 0);
 
     double complex imag_powers[4] = {1.0, -I, -1.0, I};
 
