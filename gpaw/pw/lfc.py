@@ -33,7 +33,6 @@ class PWLFC(BaseLFC):
         # These will be filled in later:
         self.Y_qGL = []
         self.emiGR_qGa = []
-        self.GkR_qGv = []
         self.f_qGs = []
         self.l_s = None
         self.a_J = None
@@ -134,10 +133,8 @@ class PWLFC(BaseLFC):
         self.pos_av = np.dot(spos_ac, self.pd.gd.cell_cv)
 
         del self.emiGR_qGa[:]
-        del self.GkR_qGv[:]
         G_Qv = self.pd.G_Qv
         for Q_G in self.pd.myQ_qG:
-            self.GkR_qGv.append(G_Qv[Q_G])
             GR_Ga = np.dot(G_Qv[Q_G], self.pos_av.T)
             self.emiGR_qGa.append(np.exp(-1j * GR_Ga))
 
@@ -173,9 +170,7 @@ class PWLFC(BaseLFC):
         if G2 is None:
             G2 = self.Y_qGL[q].shape[0]
 
-        GkR_Gv = self.GkR_qGv[q][G1:G2]
-        pos_av = self.pos_av
-        eikR_a = np.ones_like(self.eikR_qa[q], dtype=complex)
+        emiGR_Ga = self.emiGR_qGa[q][G1:G2]
         f_Gs = self.f_qGs[q][G1:G2]
         Y_GL = self.Y_qGL[q][G1:G2]
 
@@ -195,13 +190,11 @@ class PWLFC(BaseLFC):
 
         if True:
             # Fast C-code:
-            cgpaw.pwlfc_expand(f_Gs, GkR_Gv, pos_av,
-                               eikR_a, Y_GL,
-                               self.l_s, self.a_J, self.s_J,
-                               cc, f_GI)
+            cgpaw.pwlfc_expand_old(f_Gs, emiGR_Ga, Y_GL,
+                                   self.l_s, self.a_J, self.s_J,
+                                   cc, f_GI)
             return f_GI
 
-        emiGR_Ga = self.emiGR_qGa[q][G1:G2]
         # Equivalent slow Python code:
         f_GI = np.empty((G2 - G1, self.nI), complex)
         I1 = 0
