@@ -110,7 +110,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
 
     double complex imag_powers[4] = {1.0, -I, -1.0, I};
 
-    double complex emiGR;
+    double complex emiGR = 0;
 
     if (PyArray_ITEMSIZE(f_GI_obj) == 16)
         for(int G = 0; G < nG; G++) {
