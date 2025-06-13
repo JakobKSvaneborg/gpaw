@@ -31,10 +31,12 @@ def create_basis(ibz: IBZ,
     kd.set_communicator(kpt_comm)
     if GPAW_NO_C_EXTENSION:
         return SimpleBasis(grid, setups, relpos_ac)
+    basis_dtype = complex if \
+        np.issubdtype(dtype, np.complexfloating) else float
     basis = BasisFunctions(grid._gd,
                            [setup.basis_functions_J for setup in setups],
                            kd,
-                           dtype=dtype,
+                           dtype=basis_dtype,
                            cut=True)
     basis.set_positions(relpos_ac)
     myM = (basis.Mmax + band_comm.size - 1) // band_comm.size
