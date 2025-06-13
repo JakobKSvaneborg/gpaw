@@ -10,7 +10,7 @@ from gpaw.bztools import convex_hull_volume
 from gpaw.response import timer
 from gpaw.response.pair import KPointPairFactory
 from gpaw.response.frequencies import NonLinearFrequencyDescriptor
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.integrators import (
     Integrand, PointIntegrator, TetrahedronIntegrator, Domain)
@@ -363,15 +363,19 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         timeordered : bool
             Flag for calculating the time ordered chi0 component. Used for
             G0W0, which performs its own hilbert transform.
-        ecut : float
-            Plane-wave energy cutoff in eV.
+        ecut : float | dict
+            Plane-wave energy cutoff in eV or dictionary for the plane-wave
+            descriptor type. See response/qpd.py for details.
         eta : float
             Artificial broadening of the chi0 component in eV.
         """
         super().__init__(gs, context, **kwargs)
 
-        self.ecut = ecut / Ha
+        if not isinstance(ecut, dict):
+            ecut /= Ha
+        self.ecut = ecut
         self.nbands = nbands or self.gs.nbands
+
         self.wd = wd
         self.context.print(self.wd, flush=False)
         self.eta = eta / Ha
@@ -438,7 +442,10 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
 
     def get_response_info_string(self, qpd, tab=''):
         nw = len(self.wd)
-        ecut = self.ecut * Ha
+        if not isinstance(self.ecut, dict):
+            ecut = self.ecut * Ha
+        else:
+            ecut = self.ecut
         nbands = self.nbands
         ngmax = qpd.ngmax
         eta = self.eta * Ha

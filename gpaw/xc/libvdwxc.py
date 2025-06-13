@@ -367,8 +367,6 @@ class VDWXC(XCFunctional):
     def set_grid_descriptor(self, gd):
         XCFunctional.set_grid_descriptor(self, gd)
         self.semilocal_xc.set_grid_descriptor(gd)
-        # If gd changes, libvdwxc changes
-        self.libvdwxc = None
 
     def get_description(self):
         lines = []

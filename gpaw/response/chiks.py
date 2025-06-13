@@ -20,7 +20,8 @@ from gpaw.response.matrix_elements import (PlaneWaveMatrixElementCalculator,
                                            TransversePairPotentialCalculator)
 from gpaw.response.pair_integrator import PairFunctionIntegrator
 from gpaw.response.pair_transitions import PairTransitions
-from gpaw.response.pair_functions import SingleQPWDescriptor, Chi
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.pair_functions import Chi
 
 
 class RealAxisWarning(UserWarning):

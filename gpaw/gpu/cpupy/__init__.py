@@ -1,3 +1,4 @@
+from __future__ import annotations
 from types import SimpleNamespace
 
 import numpy as np
@@ -11,11 +12,24 @@ __version__ = 'fake'
 
 __all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
 
+FAKE_CUPY_WARNING = """
+ ----------------------------------------------------------
+|                         WARNING                          |
+| -------------------------------------------------------- |
+|  GPU calculation requested, but calculations are run on  |
+|    CPUs with the `cupy` substitute `gpaw.gpu.cpupy`.     |
+| This is most likely not the desired behavior, except for |
+| testing purposes. Please check if you have inadvertently |
+|    set the environment variable `GPAW_CPUPY`, consult    |
+| `gpaw info` for `cupy` availability, and reconfigure and |
+|               recompile GPAW if necessary.               |
+ ----------------------------------------------------------
+"""
 
 pi = np.pi
 
 
-def empty(*args, **kwargs):
+def empty(*args, **kwargs) -> ndarray:
     return ndarray(np.empty(*args, **kwargs))
 
 

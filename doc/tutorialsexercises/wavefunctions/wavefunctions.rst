@@ -10,7 +10,7 @@ Wave functions and charge transfer
    plotting/plot_wave_functions
    wavefunctions/wavefunctions
    ps2ae/ps2ae
-   all-electron/all_electron_density
+   all_electron/all_electron_density
    charge/charge
    wannier90/wannier90_tutorial
    wannier/wannier

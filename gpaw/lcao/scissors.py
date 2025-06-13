@@ -18,7 +18,7 @@ def non_self_consistent_scissors_shift(
         dft: DFTCalculation) -> np.ndarray:
     """Apply non self-consistent scissors shift.
 
-    Return eigenvalues ase a::
+    Return eigenvalues as a::
 
       (nspins, nibzkpts, nbands)
 
@@ -211,9 +211,9 @@ class MyMatCalc:
         for homo, lumo, natoms in self.shifts:
             a2 = a1 + natoms
             M2 = M1 + sum(setup.nao for setup in wfs.setups[a1:a2])
-            A_Mm = Matrix(M, M2 - M1, Z_MM.dtype, dist=dist)
+            A_Mm = Matrix(M, M2 - M1, dtype=Z_MM.dtype, dist=dist)
             A_Mm.data[:] = Z_MM.data[:, M1:M2]
-            Q_nm = Matrix(n, M2 - M1, Q_nM.dtype, dist=dist)
+            Q_nm = Matrix(n, M2 - M1, dtype=Q_nM.dtype, dist=dist)
             Q_nm.data[:] = Q_nM.data[:, M1:M2]
 
             Q2_nm = Q_nm.copy()
