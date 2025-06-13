@@ -16,7 +16,7 @@ def test_pwlfc_expand():
     GN = 3000
     aN = 5
     sN = 7
-    LN = (sN+1)**2
+    LN = (sN + 1)**2
 
     f_Gs = rng.randn(GN, sN)
     Gk_Gv = rng.randn(GN, 3)
