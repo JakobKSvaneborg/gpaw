@@ -26,7 +26,7 @@ class QEHChiCalc(ChiCalc):
                  direction: str = 'x'):
 
         ''' GPAW superclass for interfacing with QEH
-        building block calculatotions.
+        building block calculations.
 
         Parameters
         ----------
@@ -130,3 +130,6 @@ class QEHChiCalc(ChiCalc):
         G_Gv = qpd.get_reciprocal_vectors(add_q=False)
 
         return chi_wGG, G_Gv, wblocks
+
+    def get_atoms(self):
+        return self.df.gs.atoms

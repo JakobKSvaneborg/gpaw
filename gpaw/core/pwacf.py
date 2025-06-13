@@ -217,8 +217,8 @@ class PWLFC:  # (BaseLFC)
             self.eikR_a = xp.asarray(
                 np.exp(2j * pi * (spos_ac @ self.pw.kpt_c)),
                 dtype=as_complex_dtype(self.dtype))
-        self.pos_av = np.dot(spos_ac, self.pw.cell).astype(
-            as_real_dtype(self.dtype))
+        self.pos_av = xp.asarray(np.dot(spos_ac, self.pw.cell),
+                                 dtype=as_real_dtype(self.dtype))
 
         self.pos_avT = xp.asarray(self.pos_av.T,
                                   as_real_dtype(self.dtype))
@@ -256,7 +256,11 @@ class PWLFC:  # (BaseLFC)
         if G2 is None:
             G2 = self.Y_GL.shape[0]
 
-        emiGR_Ga = self.get_emiGR_Ga(G1, G2)
+        Gk_Gv = self.G_plus_k_Gv_gpu[G1:G2]
+        pos_av = self.pos_av
+        eikR_a = xp.asarray(self.eikR_a,
+                            dtype=as_complex_dtype(self.dtype))
+
         f_Gs = self.f_Gs[G1:G2]
         Y_GL = self.Y_GL[G1:G2]
 
@@ -277,15 +281,16 @@ class PWLFC:  # (BaseLFC)
 
         if xp is np:
             # Fast C-code:
-            pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
+            pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
                          self.l_s, self.a_J, self.s_J,
                          cc, f_GI)
         elif cupy_is_fake:
-            pwlfc_expand(f_Gs._data, emiGR_Ga._data, Y_GL._data,
+            pwlfc_expand(f_Gs._data, Gk_Gv._data, pos_av._data,
+                         eikR_a._data, Y_GL._data,
                          self.l_s._data, self.a_J._data, self.s_J._data,
                          cc, f_GI._data)
         else:
-            pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
+            pwlfc_expand_gpu(f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
                              self.l_s, self.a_J, self.s_J,
                              cc, f_GI, self.I_J)
         return f_GI

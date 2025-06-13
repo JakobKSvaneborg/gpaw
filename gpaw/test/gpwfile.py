@@ -1411,6 +1411,9 @@ class GPWFiles(CachedFilesHandler):
         a = 2.867
         mm = 2.21
         atoms = bulk('Fe', 'bcc', a=a)
+        # It is necessary to rattle the atoms to make sure that all tests pass
+        # on all machines - see https://gitlab.com/gpaw/gpaw/-/issues/1397
+        atoms.rattle(0.01, seed=42)
         atoms.set_initial_magnetic_moments([mm])
         atoms.center()
         tag = '_nosym' if symmetry == 'off' else ''

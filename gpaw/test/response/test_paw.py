@@ -6,7 +6,7 @@ from ase.units import Ha
 from ase.data import chemical_symbols
 
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.groundstate import ResponsePAWDataset
 from gpaw.response.paw import (calculate_pair_density_correction,
                                calculate_matrix_element_correction)

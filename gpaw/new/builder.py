@@ -1,12 +1,13 @@
 from __future__ import annotations
-
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
 from typing import Any, TYPE_CHECKING
-
+import warnings
 import numpy as np
+from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
+from ase.geometry.cell import cell_to_cellpar
 from ase.units import Bohr
 from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
@@ -16,7 +17,7 @@ from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (broadcast, MPIComm, Parallelization, serial_comm,
+from gpaw.mpi import (MPIComm, Parallelization, broadcast, serial_comm,
                       synchronize_atoms, world)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
@@ -32,7 +33,6 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
-from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -66,6 +66,10 @@ class DFTComponentsBuilder:
         self.spin_degeneracy = self.ncomponents % 2 + 1
 
         xcfunc = params.xc.functional(collinear=(self.ncomponents < 4))
+
+        if self.ncomponents == 4 and xcfunc.type != 'LDA':
+            raise ValueError('Only LDA supported for '
+                             'SC Non-collinear calculations')
 
         self._backwards_comatible = params.experimental.get(
             'backwards_compatible', True)
@@ -171,6 +175,17 @@ class DFTComponentsBuilder:
             raise ValueError(
                 'GPAW requires 3 lattice vectors.  '
                 f'Your system has {number_of_lattice_vectors}.')
+        angles = cell_to_cellpar(cell)[3:]
+        if not all(40.0 < a < 140.0 for a in angles):
+            a, b, c = angles
+            warnings.warn(
+                'The angles between your unit-cell vectors are '
+                f'{a:.1}, {b:.1} and {c:.1} degrees.  '
+                'Results may be wrong!  '
+                'Please Niggli-reduce your unit-cell so that the angle '
+                'are closer to 90 degrees:\n\n'
+                '  from ase.build import niggli_reduce\n'
+                '  nigli_reduce(atoms)\n')
 
     @cached_property
     def wf_desc(self) -> Domain:

@@ -131,6 +131,7 @@ def block_step(psit_nX,
 
             https://gpaw.readthedocs.io/documentation/rmm-diis.html
     """
+    xp = psit_nX.xp
     PR_nX = work1_nX
     dR_nX = work2_nX
     ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
@@ -139,8 +140,8 @@ def block_step(psit_nX,
     P_ani = pt_aiX.integrate(PR_nX)
     calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,
                         dH, dS_aii, P1_ani, P2_ani)
-    a_n = psit_nX.xp.asarray(
-        [-d_X.integrate(r_X) for d_X, r_X in zip(dR_nX, R_nX)])
+    a_n = xp.asarray([-d_X.integrate(r_X)
+                      for d_X, r_X in zip(dR_nX, R_nX)])
     b_n = dR_nX.norm2()
     shape = (len(a_n),) + (1,) * (psit_nX.data.ndim - 1)
     lambda_n = (a_n / b_n).reshape(shape)

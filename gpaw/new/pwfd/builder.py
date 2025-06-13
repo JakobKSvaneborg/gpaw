@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from math import pi
 
 import numpy as np
@@ -8,6 +7,7 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.core.arrays import XArrayWithNoData
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
@@ -41,12 +41,11 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                                             for x in 'kbd')
 
         def create_wfs(spin: int, q: int, k: int, kpt_c, weight: float):
-            psit_nG = SimpleNamespace(
+            psit_nG = XArrayWithNoData(
                 comm=band_comm,
                 dims=(self.nbands,),
                 desc=self.wf_desc.new(kpt=kpt_c),
-                data=None,
-                xp=np)
+                xp=self.xp)
             wfs = PWFDWaveFunctions(
                 spin=spin,
                 q=q,
@@ -83,12 +82,15 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         # sl_default = self.params.parallel['sl_default']
         # sl_lcao = self.params.parallel['sl_lcao'] or sl_default
 
+        lcao_dtype = complex if \
+            np.issubdtype(self.dtype, np.complexfloating) else float
+
         lcaonbands = min(self.nbands,
                          basis.Mmax * (2 if self.ncomponents == 4 else 1))
         lcao_ibzwfs, _ = create_lcao_ibzwfs(
             basis,
             self.ibz, self.communicators, self.setups,
-            self.relpos_ac, self.grid, self.dtype,
+            self.relpos_ac, self.grid, lcao_dtype,
             lcaonbands, self.ncomponents, self.atomdist, self.nelectrons)
 
         self.log('\nDiagonalizing LCAO Hamiltonian', flush=True)
@@ -115,7 +117,6 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             if mylcaonbands < mynbands:
                 psit_nX[mylcaonbands:].randomize(
                     seed=self.communicators['w'].rank)
-
             wfs = PWFDWaveFunctions(
                 psit_nX=psit_nX,
                 spin=spin,

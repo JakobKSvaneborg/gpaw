@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import warnings
 from functools import cached_property
 
 import numpy as np
@@ -38,6 +40,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         self._nct_ag = None
         self._tauct_ag = None
 
+        nthreads = int(os.environ.get('OMP_NUM_THREADS', '') or '1')
+        if nthreads > 1:
+            warnings.warn(
+                'Using OMP_NUM_THREADS>1 in PW-mode is not useful!')
         # We should just distribute the atom evenly, but that is not compatible
         # with LCAO initialization!
         # return AtomDistribution.from_number_of_atoms(len(self.relpos_ac),
@@ -177,8 +183,13 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         # psit_nG via PWAtomCenteredFunctions.
         # XXX
 
-        grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
-        pw = self.wf_desc.new(kpt=kpt_c)
+        lcao_dtype = complex if \
+            np.issubdtype(self.dtype, np.complexfloating) else float
+
+        grid = self.grid.new(kpt=kpt_c, dtype=lcao_dtype)
+        pw = self.wf_desc.new(kpt=kpt_c, dtype=lcao_dtype)
+        if self.dtype != lcao_dtype:
+            pw_correct = self.wf_desc.new(kpt=kpt_c, dtype=self.dtype)
 
         if np.issubdtype(self.dtype, np.complexfloating):
             emikr_R = grid.eikr(-kpt_c)
@@ -193,6 +204,12 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
                 psit_R.fft(out=psit_G)
+
+            if self.dtype != lcao_dtype:
+                psit2_nG = pw_correct.empty(self.nbands,
+                                            self.communicators['b'])
+                psit2_nG.data[:] = psit_nG.data
+                return psit2_nG.to_xp(self.xp)
             return psit_nG.to_xp(self.xp)
         else:
             psit_nsG = pw.empty((self.nbands, 2), self.communicators['b'])

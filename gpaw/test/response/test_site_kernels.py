@@ -548,7 +548,7 @@ def get_pw_descriptor(atoms, calc, q_c, ecut=50., gammacentered=False):
 
     Works on a bare calculator instance without any actual data in it."""
     from ase.units import Ha
-    from gpaw.response.pair_functions import SingleQPWDescriptor
+    from gpaw.response.qpd import SingleQPWDescriptor
 
     # Create the plane wave descriptor
     q_c = np.asarray(q_c, dtype=float)
