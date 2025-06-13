@@ -14,8 +14,7 @@ pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
 
 pw_parameter_subsets = {'high': {'mode': {'ecut': 800}},
                         'low': {'mode': {'ecut': 400}},
-                        'float32': {'mode': {'dtype': np.float32},
-                                    'convergence': {'maximum iterations': 30}}}
+                        'float32': {'mode': {'dtype': np.float32}}}
 
 lcao_default_parameters = {'mode': {'name': 'lcao'}}
 
@@ -130,7 +129,10 @@ benchmarks = {}
 benchmarks_reqs = {}
 for benchmark_line in benchmarks_str.split('\n'):
     if len(benchmark_line.split(',')) != 3:
-        continue
+        if not benchmark_line:
+            continue
+        else:
+            raise ValueError(f'Wrongly formated csv line: {benchmark_line}')
     nickname, definition, req = benchmark_line.split(',')
     nickname = nickname.strip()
     definition = definition.strip()
