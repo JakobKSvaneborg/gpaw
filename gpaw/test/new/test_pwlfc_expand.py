@@ -1,16 +1,14 @@
 import numpy as np
 import pytest
-from time import time
-from gpaw.utilities import as_real_dtype, as_complex_dtype
 
 seed = 42
 
+
 def test_pwlfc_expand():
     from gpaw.new.c import pwlfc_expand as c_call
-    from gpaw.new.c import pwlfc_expand_unsorted as c2_call
     from gpaw.purepython import pwlfc_expand as pp_call
     assert pp_call is not c_call
-    
+
     cc = False
     dtype = np.complex128
 
@@ -20,7 +18,6 @@ def test_pwlfc_expand():
     LN = 7
     sN = 7
 
-    rdtype = as_real_dtype(dtype)
     f_Gs = rng.randn(GN, sN)
     Gk_Gv = rng.randn(GN, 3)
     pos_av = rng.randn(aN, 3)
@@ -32,7 +29,7 @@ def test_pwlfc_expand():
     l_s = np.arange(sN, dtype=np.int32)
     a_J = []
     s_J = []
-    
+
     for a in range(aN):
         for s in range(sN):
             a_J.append(a)
@@ -40,7 +37,7 @@ def test_pwlfc_expand():
     JN = len(a_J)
     a_J = np.asarray(a_J, dtype=np.int32)
     s_J = np.asarray(s_J, dtype=np.int32)
-    
+
     I_J = np.zeros(JN, dtype=np.int32)
     I1 = 0
     for J, (a, s) in enumerate(zip(a_J, s_J)):
@@ -49,24 +46,17 @@ def test_pwlfc_expand():
         I_J[J] = I1
         I1 = I2
     IN = I2
-    
-    f_kernel_GI = np.zeros((gN, IN), dtype=dtype)
-    f_cupy_GI = np.zeros((gN, IN), dtype=dtype)
 
-    then = time()
-    for i in range(10000):
-        c_call(f_Gs, Gk_Gv, pos_av,
+    f_c_GI = np.zeros((gN, IN), dtype=dtype)
+    f_pp_GI = np.zeros((gN, IN), dtype=dtype)
+
+    c_call(f_Gs, Gk_Gv, pos_av,
+           eikR_a, Y_GL,
+           l_s, a_J, s_J,
+           cc, f_c_GI)
+    pp_call(f_Gs, Gk_Gv, pos_av,
             eikR_a, Y_GL,
             l_s, a_J, s_J,
-            cc, f_kernel_GI)
-    mid = time()
-    for i in range(10000):
-        c2_call(f_Gs, Gk_Gv, pos_av,
-                eikR_a, Y_GL,
-                l_s, a_J, s_J,
-                cc, f_cupy_GI)
-    now = time()
-    print('c:', mid - then)
-    print('c2:', now - mid)
+            cc, f_pp_GI)
 
-    assert f_kernel_GI == pytest.approx(f_cupy_GI, abs=1e-6)
+    assert f_c_GI == pytest.approx(f_pp_GI, abs=1e-6)

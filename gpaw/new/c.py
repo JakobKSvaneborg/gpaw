@@ -11,7 +11,7 @@ GPU_ENABLED = getattr(cgpaw, 'GPU_ENABLED', False)
 
 if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
     from gpaw.cgpaw import (add_to_density, pw_insert, pw_precond,  # noqa
-                            pwlfc_expand, pwlfc_expand_unsorted, symmetrize_ft)
+                            pwlfc_expand, symmetrize_ft)
 
     if GPU_ENABLED:
         from gpaw.cgpaw import add_to_density_gpu  # noqa
