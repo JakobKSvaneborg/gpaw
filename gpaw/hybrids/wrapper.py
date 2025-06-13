@@ -26,7 +26,7 @@ class HybridXC:
             self.name = xcname
             xcname, fraction, omega, yukawa = parse_name(xcname)
         else:
-            if fraction is None or omega is None or yukawa is None:
+            if fraction is None or omega is None:
                 raise ValueError
             self.name = f'{xcname}-{fraction:.3f}-{omega:.3f}'
 
