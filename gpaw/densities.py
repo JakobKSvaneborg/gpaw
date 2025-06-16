@@ -125,12 +125,15 @@ class Densities:
             electrons_s -= add(R_v, n_sR, phi_j, phit_j, nc, nct, rcut, D_sii)
 
             if not skip_core:
+                found = 0.0
                 # Add missing charge to grid point closest to atom:
                 R_c = np.around(grid.size * relpos_c).astype(int) % grid.size
                 R_c -= grid.start_c
                 if (R_c >= 0).all() and (R_c < grid.mysize_c).all():
                     for n_R, e in zips(n_sR.data, electrons_s):
                         n_R[tuple(R_c)] += e / grid.dv
+                    found = 1.0
+                assert grid.comm.sum_scalar(found) == 1.0
 
         return n_sR.scaled(Bohr, Bohr**-3)
 
