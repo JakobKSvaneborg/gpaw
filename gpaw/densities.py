@@ -97,6 +97,7 @@ class Densities:
         nspins = ncomponents % 3
         grid = n_sR.desc
 
+        electrons_as = np.zeros((len(self.relpos_ac), nspins))
         splines = {}
         for a, D_sii in self.D_asii.items():
             D_sii = D_sii.real
@@ -123,17 +124,18 @@ class Densities:
             # Add PAW correction:
             R_v = relpos_c @ grid.cell_cv
             electrons_s -= add(R_v, n_sR, phi_j, phit_j, nc, nct, rcut, D_sii)
+            electrons_as[a] = electrons_s
 
-            if not skip_core:
-                found = 0.0
-                # Add missing charge to grid point closest to atom:
-                R_c = np.around(grid.size * relpos_c).astype(int) % grid.size
+        if not skip_core:
+            # Add missing charge to grid-points closest to atoms:
+            grid.comm.sum(electrons_as)
+            R_ac = np.around(grid.size * self.relpos_ac).astype(int)
+            R_ac %= grid.size
+            for R_c, electrons_s in zip(R_ac, electrons_as):
                 R_c -= grid.start_c
                 if (R_c >= 0).all() and (R_c < grid.mysize_c).all():
                     for n_R, e in zips(n_sR.data, electrons_s):
                         n_R[tuple(R_c)] += e / grid.dv
-                    found = 1.0
-                assert grid.comm.sum_scalar(found) == 1.0
 
         return n_sR.scaled(Bohr, Bohr**-3)
 
