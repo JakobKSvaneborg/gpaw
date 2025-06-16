@@ -50,8 +50,8 @@ class NotDavidson(PWFDEigensolver):
         B = ibzwfs.nbands
         xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
-        self.tolerance = np.finfo(dtype).eps
-        self.breakout_tolerance = np.finfo(dtype).eps * np.sqrt(B)
+        self.tolerance = 0 * np.finfo(dtype).eps * 1e-4
+        self.breakout_tolerance = np.finfo(dtype).eps * np.sqrt(B) * 1e-2
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -78,8 +78,7 @@ class NotDavidson(PWFDEigensolver):
         psit3_nX = psit_nX.new(data=self.work_arrays[1, :b])
 
         wfs.subspace_diagonalize(Ht, dH,
-                                 work_array=psit2_nX.data,
-                                 Htpsit_nX=psit3_nX)
+                                 psit2_nX=psit2_nX)
         residual_nX = psit3_nX  # will become (H-e*S)|psit> later
         P_nX = psit2_nX
 
@@ -105,6 +104,12 @@ class NotDavidson(PWFDEigensolver):
                             wfs.P_ani,
                             wfs.myeig_n,
                             dH, dS_aii, P2_ani, P3_ani)
+        
+        error_ns = as_np(residual_nX.norm2())
+        active_indicies = np.where(np.greater(error_ns, self.tolerance))[0]
+        error = (weight_n @ error_ns).sum()
+        b_error = band_comm.sum_scalar(error)
+        
         self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
         wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
         P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
@@ -118,8 +123,6 @@ class NotDavidson(PWFDEigensolver):
 
         buff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
         Hbuff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
-        
-        active_indicies = np.arange(b)
 
         for i in range(self.niter):
             M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
@@ -210,7 +213,7 @@ class NotDavidson(PWFDEigensolver):
             # Subspace diagonialization needed every once in a while
             if (i + 1) % 5 == 0 :
                 wfs.subspace_diagonalize(Ht, dH,
-                                         work_array=residual_nX.data)
+                                         psit2_nX=residual_nX)
 
             Ht(psit_nX, out=residual_nX)
             calculate_residuals(wfs.psit_nX,
@@ -221,7 +224,9 @@ class NotDavidson(PWFDEigensolver):
                                 dH, dS_aii, P2_ani, Ptemp_ani)
             
             error_ns = as_np(residual_nX.norm2())
-            active_indicies = np.where(np.greater(error_ns, self.tolerance))[0]
+            active_indicies = np.logical_and(np.greater(error_ns, self.tolerance),
+                                             np.greater(error_ns, np.max(error_ns) * 0.1))
+            active_indicies = np.where(active_indicies)[0]
             error = (weight_n @ error_ns).sum()
             b_error = band_comm.sum_scalar(error)
             
