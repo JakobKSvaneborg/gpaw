@@ -453,7 +453,7 @@ def parse_nvidia_smi(dct, out):
                 while n := next(parts):
                     if n in {'|', 'On', 'Off'}:
                         break
-                    yield n 
+                    yield n
             dct[' '.join(get_gpu())] += 1
 
 
@@ -468,7 +468,9 @@ def parse_gpu(nvidia, rocm):
     gpus = defaultdict(int)
     parse_nvidia_smi(gpus, nvidia)
     parse_rocm_smi(gpus, rocm)
-    return ' '.join((f'{number}x ({name})' if number > 1 else name) for name, number in gpus.items())
+    return ' '.join((f'{number}x ({name})'
+                     if number > 1 else name) for name, number in gpus.items())
+
 
 def benchmark_from_dict(dct):
     """Create a summary dictionary from the full json output of the benchmark.
@@ -480,7 +482,8 @@ def benchmark_from_dict(dct):
     summary = {'walltime': dct['walltime'],
                'shortname': dct['shortname'],
                'processor': parse_processor(system_info['processor']),
-               'gpu': parse_gpu(system_info['nvidia-smi'], system_info['rocm-smi']),
+               'gpu': parse_gpu(system_info['nvidia-smi'],
+                                system_info['rocm-smi']),
                'longname': dct['longname'],
                'hostname': system_info['hostname'].strip(),
                'calcinfo': dct['calcinfo'],
