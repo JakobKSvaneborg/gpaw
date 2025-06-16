@@ -442,6 +442,10 @@ def parse_processor(text):
     return 'No "Model name:" found'
 
 
+def parse_processor(nvidia, rocm):
+    print(nvidia, rocm)
+    asd
+
 def benchmark_from_dict(dct):
     """Create a summary dictionary from the full json output of the benchmark.
     """
@@ -452,6 +456,7 @@ def benchmark_from_dict(dct):
     summary = {'walltime': dct['walltime'],
                'shortname': dct['shortname'],
                'processor': parse_processor(system_info['processor']),
+               'gpu': parse_gpu(system_info['nvidia-smi'], system_info['rocm-smi']),
                'longname': dct['longname'],
                'hostname': system_info['hostname'].strip(),
                'calcinfo': dct['calcinfo'],
