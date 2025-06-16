@@ -81,11 +81,13 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
 
     def multiply(self, C_nM: Matrix) -> PWArray:
         self._lazy_init()
+        lfc = self._lfc
+        assert lfc is not None
         psit_nG = self.pw.empty(C_nM.shape[0], comm=C_nM.dist.comm, xp=self.xp)
-        for G1, G2 in self._lfc.block():
-            f_GI = self._lfc.expand(G1, G2, cc=False)
+        for G1, G2 in lfc.block():
+            f_GI = lfc.expand(G1, G2, cc=False)
             g_nG = psit_nG.data[:, G1:G2]
-            if self._lfc.real:
+            if lfc.real:
                 g_nG = g_nG.view(f_GI.dtype)
             if self.xp is np:
                 mmm(1.0 / self.pw.dv, C_nM.data, 'N', f_GI, 'T', 0.0, g_nG)
