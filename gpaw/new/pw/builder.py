@@ -182,7 +182,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         # Replace this with code that goes directly from C_nM to
         # psit_nG via PWAtomCenteredFunctions.
         # XXX
-        if 1:
+
+        if self.ncomponents < 4:
             from gpaw.core.pwacf import PWAtomCenteredFunctions
             pw = self.wf_desc.new(kpt=kpt_c)
             phit_aJG = PWAtomCenteredFunctions(
