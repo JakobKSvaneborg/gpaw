@@ -84,16 +84,14 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
         psit_nG = self.pw.empty(C_nM.shape[0], comm=C_nM.dist.comm, xp=self.xp)
         for G1, G2 in self._lfc.block():
             f_GI = self._lfc.expand(G1, G2, cc=False)
+            g_nG = psit_nG.data[:, G1:G2]
             if self._lfc.real:
-                G1 *= 2
-                G2 *= 2
+                g_nG = g_nG.view(f_GI.dtype)
             if self.xp is np:
-                mmm(1.0 / self.pw.dv, C_nM.data, 'N', f_GI, 'T',
-                    0.0, psit_nG.data[:, G1:G2])
+                mmm(1.0 / self.pw.dv, C_nM.data, 'N', f_GI, 'T', 0.0, g_nG)
             else:
                 gpu_gemm('N', 'T',
-                         C_nM.data, f_GI, psit_nG.data[:, G1:G2],
-                         1.0 / self.pw.dv, 0.0)
+                         C_nM.data, f_GI, g_nG, 1.0 / self.pw.dv, 0.0)
         return psit_nG
 
 
