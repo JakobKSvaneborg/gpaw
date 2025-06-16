@@ -241,6 +241,7 @@ News
    contact
    faq
    devel/devel
+   benchmarks/benchmarks
    summerschools/summerschools
    workshops/workshops
    bugs
