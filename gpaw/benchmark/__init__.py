@@ -455,6 +455,7 @@ def benchmark_from_dict(dct):
                'longname': dct['longname'],
                'hostname': system_info['hostname'].strip(),
                'calcinfo': dct['calcinfo'],
+               'mpi-ranks': system_info['mpi-ranks'],
                'First step': results['First step']['walltime'],
                'Second step': results['Second step']['walltime'],
                'max_rss': dct['max_rss'],
@@ -463,13 +464,13 @@ def benchmark_from_dict(dct):
     return summary
 
 
-def gather_benchmarks(directories):
+def gather_benchmarks(directories, output_file):
     lst = []
     for fname in directories:
         try:
             dct = load_benchmark(fname)
             lst.append(benchmark_from_dict(dct))
         except Exception as e:
-            print(e)
-    print(lst)
+            print(str(e))
+    Path(output_file).write_text(dumps(lst, indent=4))
     return lst
