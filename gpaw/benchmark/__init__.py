@@ -6,6 +6,7 @@ from gpaw.mpi import world
 from time import time
 from json import dumps, loads
 from pathlib import Path
+from collections import defaultdict
 
 from gpaw.benchmark.systems import parse_system
 from gpaw.utilities.memory import maxrss
@@ -442,9 +443,32 @@ def parse_processor(text):
     return 'No "Model name:" found'
 
 
-def parse_processor(nvidia, rocm):
-    print(nvidia, rocm)
-    asd
+def parse_nvidia_smi(dct, out):
+    if 'command not found' in out:
+        return
+    for line in out.split('\n'):
+        if 'NVIDIA ' in line:
+            def get_gpu():
+                parts = iter(line.split()[3:])
+                while n := next(parts):
+                    if n in {'|', 'On', 'Off'}:
+                        break
+                    yield n 
+            dct[' '.join(get_gpu())] += 1
+
+
+def parse_rocm_smi(dct, out):
+    if 'command not found' in out:
+        return
+
+    raise NotImplementedError
+
+
+def parse_gpu(nvidia, rocm):
+    gpus = defaultdict(int)
+    parse_nvidia_smi(gpus, nvidia)
+    parse_rocm_smi(gpus, rocm)
+    return ' '.join((f'{number}x ({name})' if number > 1 else name) for name, number in gpus.items())
 
 def benchmark_from_dict(dct):
     """Create a summary dictionary from the full json output of the benchmark.
