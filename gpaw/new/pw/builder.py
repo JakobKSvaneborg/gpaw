@@ -182,6 +182,17 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         # Replace this with code that goes directly from C_nM to
         # psit_nG via PWAtomCenteredFunctions.
         # XXX
+        if 1:
+            from gpaw.core.pwacf import PWAtomCenteredFunctions
+            pw = self.wf_desc.new(kpt=kpt_c)
+            phit_aJG = PWAtomCenteredFunctions(
+                [setup.basis_functions_J for setup in self.setups],
+                self.relpos_ac,
+                pw,
+                atomdist=self.atomdist,
+                xp=self.xp)
+            psit_nG = phit_aJG.multiply(C_nM)
+            return psit_nG
 
         lcao_dtype = complex if \
             np.issubdtype(self.dtype, np.complexfloating) else float
