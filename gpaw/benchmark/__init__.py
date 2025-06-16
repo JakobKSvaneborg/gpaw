@@ -8,14 +8,13 @@ from json import dumps, loads
 from pathlib import Path
 
 from gpaw.benchmark.systems import parse_system
+from gpaw.utilities.memory import maxrss
 
 pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
 
 pw_parameter_subsets = {'high': {'mode': {'ecut': 800}},
                         'low': {'mode': {'ecut': 400}},
-                        'float32': {'mode': {'dtype': np.float32},
-                                    'convergence': {'maximum iterations': 30},
-                                    'random': True}}
+                        'float32': {'mode': {'dtype': np.float32}}}
 
 lcao_default_parameters = {'mode': {'name': 'lcao'}}
 
@@ -30,9 +29,14 @@ kpts_parameter_subsets = {'gamma': {'kpts': (1, 1, 1)},
 xc_parameter_subsets = {'PBE': {'xc': 'PBE'},
                         'LDA': {'xc': 'LDA'}}
 
-eigensolver_parameter_subsets = {'RMMDIIS': {'eigensolver': 'rmm-diis'},
-                                 'DAV3': {'eigensolver': {'name': 'dav',
-                                                          'niter': 3}}}
+eigensolver_parameter_subsets = {'RMMDIIS':
+                                 {'eigensolver':
+                                  {'name': 'rmm-diis',
+                                   'trial_step': 0.1}},
+                                 'DAV3':
+                                 {'eigensolver':
+                                  {'name': 'dav',
+                                   'niter': 3}}}
 
 
 def get_domainband(size=None):
@@ -124,6 +128,11 @@ def parse_requirement(req):
 benchmarks = {}
 benchmarks_reqs = {}
 for benchmark_line in benchmarks_str.split('\n'):
+    if len(benchmark_line.split(',')) != 3:
+        if not benchmark_line:
+            continue
+        else:
+            raise ValueError(f'Wrongly formated csv line: {benchmark_line}')
     nickname, definition, req = benchmark_line.split(',')
     nickname = nickname.strip()
     definition = definition.strip()
@@ -284,6 +293,7 @@ def gs_and_move_atoms(long_name, calc_info):
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
     atoms.positions += 0.1 * F
+    atoms.wrap()
     with Walltime('Second step') as step2:
         atoms.get_potential_energy()
         F = atoms.get_forces()
@@ -298,6 +308,7 @@ class Walltime:
     def __init__(self, name):
         self.name = name
         self.error = None
+        self.max_rss = None
 
     def __enter__(self):
         self.start = time()
@@ -307,6 +318,7 @@ class Walltime:
         if exc_type is not None:
             self.error = (exc_type, exc_value, exc_traceback)
         self.end = time()
+        self.max_rss = maxrss()
 
     @property
     def walltime(self):
@@ -314,7 +326,8 @@ class Walltime:
 
     def todict(self):
         return {self.name: {'walltime': self.walltime,
-                            'error': self.error}}
+                            'error': self.error,
+                            'max_rss': self.max_rss}}
 
 
 class Benchmark(Walltime):
@@ -444,6 +457,7 @@ def benchmark_from_dict(dct):
                'calcinfo': dct['calcinfo'],
                'First step': results['First step']['walltime'],
                'Second step': results['Second step']['walltime'],
+               'max_rss': dct['max_rss'],
                'githash': system_info['git-hash'].strip(),
                'branch': parse_git_status(system_info['git-status'])}
     return summary

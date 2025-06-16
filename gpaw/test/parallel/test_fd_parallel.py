@@ -8,7 +8,6 @@ from gpaw import GPAW, FermiDirac
 from gpaw import KohnShamConvergenceError
 from gpaw.utilities import compiled_with_sl
 from gpaw.mpi import world
-from gpaw.forces import calculate_forces
 
 # Calculates energy and forces for various parallelizations
 
@@ -16,7 +15,6 @@ pytestmark = pytest.mark.skipif(world.size != 4,
                                 reason='world.size != 4')
 
 
-@pytest.mark.old_gpaw_only
 def test_parallel_fd_parallel():
     tolerance = 4e-5
 
@@ -24,7 +22,7 @@ def test_parallel_fd_parallel():
 
     basekwargs = dict(mode='fd',
                       eigensolver='rmm-diis',
-                      maxiter=3,
+                      convergence={'maximum iterations': 3},
                       nbands=6,
                       parallel=parallel)
 
@@ -51,8 +49,7 @@ def test_parallel_fd_parallel():
             pass
 
         E = calc.hamiltonian.e_total_free
-        F_av = calculate_forces(calc.wfs, calc.density,
-                                calc.hamiltonian)
+        F_av = calc.get_forces()
 
         nonlocal Eref, Fref_av
         if Eref is None:
@@ -124,7 +121,7 @@ def test_parallel_fd_parallel():
 
     basekwargs = dict(mode='fd',
                       eigensolver='rmm-diis',
-                      maxiter=3,
+                      convergence={'maximum iterations': 3},
                       nbands=6,
                       parallel=parallel)
 

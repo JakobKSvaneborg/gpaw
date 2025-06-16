@@ -15,6 +15,20 @@ def system_magic_graphene():
     return atoms
 
 
+def system_2188_bl_graphene():
+    from gpaw.benchmark.generate_twisted import make_heterostructure
+    from ase.build import graphene
+    atoms = graphene(vacuum=5)
+    transa_cc = np.array([[27, 13, 0], [14, 27, 0], [0, 0, 1]])
+    transb_cc = np.array([[27, 24, 0], [13, 27, 0], [0, 0, 1]])
+    atoms = make_heterostructure(atoms, atoms,
+                                 transa_cc=transa_cc,
+                                 transb_cc=transb_cc,
+                                 straina_vv=np.eye(3),
+                                 interlayer_dist=3.35)
+    return atoms
+
+
 def system_6000_bl_graphene():
     from gpaw.benchmark.generate_twisted import make_heterostructure
     from ase.build import graphene
@@ -105,6 +119,7 @@ systems = {'C60': system_C60,
            'H2': system_H2,
            'MoS2_tube': system_MoS2_tube,
            'C6000': system_6000_bl_graphene,
+           'C2188': system_2188_bl_graphene,
            'C676': system_676_bl_graphene,
            'magbulk': system_magbulk,
            'metalslab': system_metalslab,
