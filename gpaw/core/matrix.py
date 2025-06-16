@@ -565,9 +565,15 @@ class Matrix(XP):
         self.data.ravel()[n1::N + 1] += d
 
     def to_cpu(self):
-        if isinstance(self.data, np.ndarray):
+        return self.to_xp(np)
+
+    def to_xp(self, xp):
+        if xp is self.xp:
+            assert xp is np, 'cp -> cp should not be needed!'
             return self
-        return Matrix(*self.shape, data=cp.asnumpy(self.data))
+        if xp is np:
+            return Matrix(*self.shape, data=cp.asnumpy(self.data))
+        return Matrix(*self.shape, data=cp.asarray(self.data))
 
 
 def _matrix(M):

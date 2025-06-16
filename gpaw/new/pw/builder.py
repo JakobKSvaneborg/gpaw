@@ -191,7 +191,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 pw,
                 atomdist=self.atomdist,
                 xp=self.xp)
-            psit_nG = phit_aJG.multiply(C_nM)
+            psit_nG = phit_aJG.multiply(C_nM.to_xp(self.xp))
             return psit_nG
 
         lcao_dtype = complex if \
