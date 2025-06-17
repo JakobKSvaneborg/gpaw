@@ -38,7 +38,7 @@ Path('table.csv').write_text(
 
 X = [id[0] + ((' ' + id[3]) if id[3].endswith('G') else '')
      for id in sorted(data)]
-fig, axs = plt.subplots(3, 1, sharex=True)  # , figsize=(8, 8))
+fig, axs = plt.subplots(3, 1, sharex=True, figsize=(8, 8))
 for n, (name, ax) in enumerate(zip(['First step',
                                     'Second step',
                                     'max_rss'],
@@ -58,5 +58,5 @@ for n, (name, ax) in enumerate(zip(['First step',
         ax.set_xticks(range(len(X)), X, rotation=60, ha='right')
         ax.legend()
 
-# plt.savefig('table.png')
-plt.show()
+plt.savefig('table.png')
+# plt.show()
