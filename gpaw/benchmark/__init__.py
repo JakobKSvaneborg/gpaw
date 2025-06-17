@@ -292,7 +292,11 @@ def gs_and_move_atoms(long_name, calc_info):
     with Walltime('First step') as step1:
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
-    atoms.positions += 0.1 * F
+    if abs(F).max() < 0.00001:
+        S = atoms.get_stress(voigt=False)
+        atoms.set_cell(atoms.cell @ (np.eye(3) + 0.1 * S), scale_atoms=True)
+    else:
+        atoms.positions += 0.1 * F
     atoms.wrap()
     with Walltime('Second step') as step2:
         atoms.get_potential_energy()
