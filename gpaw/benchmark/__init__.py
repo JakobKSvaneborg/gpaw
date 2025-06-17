@@ -444,13 +444,16 @@ def parse_processor(text):
 
 
 def parse_nvidia_smi(dct, out):
+    """Parse output from nvidia-smi command.
+
+    Gets the name of the GPU from out, and accumulates to dct
+    how many there are."""
     if 'command not found' in out:
         return
     for line in out.split('\n'):
         if 'NVIDIA ' in line:
             def get_gpu():
-                parts = iter(line.split()[3:])
-                while n := next(parts):
+                for n in line.split()[3:]:
                     if n in {'|', 'On', 'Off'}:
                         break
                     yield n
