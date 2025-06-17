@@ -698,8 +698,6 @@ nightly-mpi-8:
     GPAW_NEW: "1"
   extends:
     - .nightly
-  needs:
-    - gpwfiles
   script:
     - gpaw info
     - >
