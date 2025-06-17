@@ -192,7 +192,11 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 pw,
                 atomdist=self.atomdist,
                 xp=self.xp)
-            psit_nG = phit_aJG.multiply(C_nM.to_xp(self.xp))
+            psit_nG = pw.empty(self.nbands,
+                               comm=self.communicators['b'],
+                               xp=self.xp)
+            mynbands, M = C_nM.dist.shape
+            phit_aJG.multiply(C_nM.to_xp(self.xp), out_nG=psit_nG[:mynbands])
             return psit_nG
 
         lcao_dtype = complex if \
