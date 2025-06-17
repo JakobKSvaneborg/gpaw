@@ -50,8 +50,37 @@ class NotDavidson(PWFDEigensolver):
         B = ibzwfs.nbands
         xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
-        self.tolerance = 0 * np.finfo(dtype).eps * 1e-4
-        self.breakout_tolerance = np.finfo(dtype).eps * np.sqrt(B) * 1e-2
+        G_max = np.prod(ibzwfs.get_max_shape())
+        
+        # --------------- Convergence parameters ---------------
+        # Mostly relevant for single precision, however the
+        # breakout_tolerance could be used to speed up convergence
+        # in double precision.
+        #
+        # tol_factor : 
+        #   Freeze bands with residual < tol_factor * max(residual_ns).
+        #   improves numerical stability at the cost of
+        #   convergence speed - up to a certain point.
+        #   Probably best to not use this one.
+        self.tol_factor = 0 # np.finfo(dtype).eps
+        # tolerance :
+        #   Freeze bands with residual < tolerance
+        #   improves numerical stability at the cost of
+        #   minimum achievable residual.
+        self.tolerance = 1e5 * np.finfo(dtype).eps**2 * np.sqrt(G_max)
+        # breakout_tolerance :
+        #   Stop iteration if sum(residual_ns) < breakout_tolerance
+        #   breakout_tolerance saves time at the cost of minimum
+        #   achievable residual. Can also be used to improve numerical
+        #   stability.
+        self.breakout_tolerance = 1e5 * np.finfo(dtype).eps**2 * np.sqrt(B * G_max)
+        # initial_tolerance :
+        #   Only do subspace diagonalization if
+        #   sum(residual_ns) < initial_breakout_tolerance
+        #   This value can be lower, since the first iteration
+        #   is more numerically stable.
+        print(self.tolerance)
+        self.initial_tolerance_factor = self.tolerance
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -106,9 +135,21 @@ class NotDavidson(PWFDEigensolver):
                             dH, dS_aii, P2_ani, P3_ani)
         
         error_ns = as_np(residual_nX.norm2())
-        active_indicies = np.where(np.greater(error_ns, self.tolerance))[0]
+        active_indicies = np.logical_and(np.greater(error_ns,
+                                                    self.initial_tolerance_factor * self.tolerance),
+                                         np.greater(error_ns,
+                                                    np.max(error_ns) * self.tol_factor))
+        #active_indicies = np.where(np.greater(
+        #    error_ns, np.max(error_ns) * self.tol_factor))[0]
+        active_indicies = np.where(active_indicies)[0]
         error = (weight_n @ error_ns).sum()
         b_error = band_comm.sum_scalar(error)
+        if len(active_indicies) == 0  \
+            or b_error < self.breakout_tolerance \
+            * self.initial_tolerance_factor:
+                print(f'No active bands.')
+                return error
+        old_error = b_error
         
         self.preconditioner(psit_nX, residual_nX, out=psit2_nX)
         wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
@@ -224,15 +265,20 @@ class NotDavidson(PWFDEigensolver):
                                 dH, dS_aii, P2_ani, Ptemp_ani)
             
             error_ns = as_np(residual_nX.norm2())
-            active_indicies = np.logical_and(np.greater(error_ns, self.tolerance),
-                                             np.greater(error_ns, np.max(error_ns) * 0.1))
-            active_indicies = np.where(active_indicies)[0]
+            if (i + 1) % 5 == 0 :
+                active_indicies = np.logical_and(np.greater(error_ns, self.tolerance),
+                                                 np.greater(error_ns,
+                                                            np.max(error_ns) * self.tol_factor))
+                active_indicies = np.where(active_indicies)[0]
             error = (weight_n @ error_ns).sum()
             b_error = band_comm.sum_scalar(error)
             
-            if len(active_indicies) == 0 or b_error < self.breakout_tolerance:
+            if len(active_indicies) == 0 \
+                    or b_error < self.breakout_tolerance:
                 print(f'Converged in {i + 1} iterations')
                 break
+            
+            old_error = b_error
             
             if i < self.niter - 1:
                 P3_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)

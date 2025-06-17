@@ -5,6 +5,7 @@ import sys
 
 from ase.build import molecule
 
+from gpaw.dft import RMMDIIS
 from gpaw.new.ase_interface import GPAW
 from gpaw.gpu import cupy_is_fake
 from gpaw.mixer import FFTMixer
@@ -45,40 +46,47 @@ def test_single_precision_gpu(dtype):
 
 def run_single_precision(dtype, gpu):
     from ase.build import mx2
-    atoms = mx2('TaSe2', a=3.4)
-    atoms2 = atoms.copy()
-    atoms2.positions[:, 2] += 3.5 + 3.0
+    atoms = mx2('TaSe2', a=3.3)
+    atoms2 = mx2('MoS2', a=3.3)
+    atoms2.positions[:, 2] += 3.5 + 4.5
     atoms = atoms + atoms2
-    atoms = atoms.repeat((1, 1, 1))
-    atoms.center(axis=2, vacuum=6)
+    atoms = atoms.repeat((6, 6, 1))
+    atoms.center(axis=2, vacuum=5)
 
     gpu = gpu == 'True'
 
     atoms.calc = GPAW(xc={'name': 'PBE'},
                       symmetry='off',
                       random=True,
-                      nbands=200,
-                      convergence={'maximum iterations': 2,
-                                   'eigenstates': 1e-80},
+                      #nbands=500,
+                      convergence={'maximum iterations': 6,
+                                   'eigenstates': 1e-5},
                       mode={'name': 'pw',
-                            'ecut': 400.0,
+                            'ecut': 600.0,
                             'dtype': dtype},
                       mixer=FFTMixer(0.1),
-                      eigensolver={'name': 'dav',
-                                   'niter': 3},
+                      eigensolver={'name': 'not-dav',
+                                   'niter': 15},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}
                       )
     atoms.get_potential_energy()
 
+    atoms.calc.dft.params.eigensolver = RMMDIIS(niter=1,
+                                                trial_step=0.15)
+    atoms.calc.dft.params.convergence = {'eigenstates': 1e-8,
+                                         'maximum iterations': 100}
+    atoms.calc.create_new_calculation_from_old(atoms)
+    atoms.get_potential_energy()
+
+    return
     atoms.calc = GPAW(xc={'name': 'PBE'},
                       symmetry='off',
-                      nbands=200,
                       convergence={'maximum iterations': 160,
                                    'eigenstates': 1e-80},
                       mode={'name': 'pw',
-                            'ecut': 400.0,
+                            'ecut': 600.0,
                             'dtype': dtype},
                       mixer=FFTMixer(0.1),
                       eigensolver={'name': 'rmm-diis',
