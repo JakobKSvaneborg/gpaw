@@ -710,9 +710,8 @@ nightly-mpi-1-new:
   extends:
     - .nightly-mpi-new
   script:
-    - echo $PATH
-    - which gpaw
     - gpaw info
+    - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
