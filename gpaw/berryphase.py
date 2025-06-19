@@ -270,7 +270,7 @@ def _get_phases(gpw_wfs: Path, cleanup: bool = False):
         gpw_wfs.unlink()
 
     phases_c = {
-        "phase_c": atomic_phase_c,
+        "phase_c": phase_c,
         "electronic_phase_c": electronic_phase_c,
         "atomic_phase_c": atomic_phase_c,
         "dipole_phase_c": dipole_phase_c,
