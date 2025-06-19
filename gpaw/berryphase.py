@@ -414,8 +414,7 @@ def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
     else:
         b_c = G_c
     phase_shifted_dO_aii = get_phase_shifted_overlap_coefficients(
-        dO_aii, calc.spos_ac, -b_c
-    )
+        dO_aii, calc.spos_ac, -b_c)
 
     soc_kpts = soc_eigenstates(calc, scale=scale, theta=theta, phi=phi)
 
