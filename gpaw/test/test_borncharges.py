@@ -3,13 +3,13 @@ from gpaw.borncharges import born_charges_wf
 from ase.build import mx2
 
 calc_params = {
-    'mode': {'name': 'pw', 'encut': 300},
+    'mode': {'name': 'pw', 'ecut': 600},
     'xc': 'PBE',
     'basis': 'dzp',
-    'kpts': {'density': 3.0},
+    'kpts': {'density': 6.0},
     'occupations': {'name': 'fermi-dirac', 'width': 0.05},
     'symmetry': 'off',
-    'convergence': {'density': 1e-4},
+    'convergence': {'density': 1e-6},
     'txt': 'test.txt'
 }
 

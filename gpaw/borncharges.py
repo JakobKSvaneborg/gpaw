@@ -9,6 +9,7 @@ from pathlib import Path
 def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
 
     params = atoms.calc.parameters
+    params['txt'] = 'born.txt'
 
     # generate displacement dictionary
     disps_av = _all_disp(atoms, delta)
@@ -21,11 +22,10 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
         atoms_d = displace_atom(atoms, ia, iv, sign, delta)
         gpw_wfs = Path(dlabel + '.gpw')
         berryname = Path(dlabel + '-berryphases.json')
-        parprint(dlabel, atoms_d.positions)
         if not berryname.is_file():
             if not gpw_wfs.is_file():
                 gpw_wfs = _get_wavefunctions(atoms_d, params,
-                                             serial_comm, gpw_wfs)
+                                             world, gpw_wfs)
             # dict with entries phase_c, electronic_phase_c
             # atomic_phase_c, dipole_moment_c
             phase_c = polarization_phase(gpw_wfs, comm=world)
@@ -44,7 +44,7 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
             with open(berryname, 'r') as fd:
                 phase_c = read_json(fd)
 
-        phase_c[dlabel] = phase_c
+        phases_c[dlabel] = phase_c['phase_c']
 
     results = born_charges(atoms, disps_av, phases_c)
     with paropen(out, 'w') as fd:
@@ -65,10 +65,10 @@ def born_charges(atoms, disps_av, phases_c):
 
     # obtain phi(dr) map
     phi_ascv = np.zeros((natoms, 2, 3, 3), float)
-    for disp_av, phase_c in zip(disps_av, phases_c):
-        ia, iv, sign, delta = disp_av
+    for dlabel in disps_av:
+        ia, iv, sign, delta = disps_av[dlabel]
         isign = [None, 1, 0][sign]
-        phi_ascv[ia, isign, :, iv] = phase_c
+        phi_ascv[ia, isign, :, iv] = phases_c[dlabel]
 
     # calculate dphi / dr
     # exploit +- displacement
