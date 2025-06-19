@@ -5,10 +5,11 @@ from glob import glob
 
 import numpy as np
 from gpaw import GPAW
-from gpaw.mpi import world
-from gpaw.berryphase import get_polarization_phase
+from gpaw.mpi import world, serial_comm
+from gpaw.berryphase import polarization_phase
 from ase.parallel import paropen
 from ase.units import Bohr
+from pathlib import Path
 
 
 def get_wavefunctions(atoms, name, params):
@@ -68,16 +69,16 @@ def borncharges(calc, delta=0.01):
                 prefix = 'born-{}-{}{}{}'.format(delta, a,
                                                  'xyz'[v],
                                                  ' +-'[sign])
-                name = prefix + '.gpw'
-                berryname = prefix + '-berryphases.json'
-                if not exists(name) and not exists(berryname):
-                    calc = get_wavefunctions(atoms, name, params)
+                gpw_wfs = Path(prefix + '.gpw')
+                berryname = Path(prefix + '-berryphases.json')
+                if not gpw_wfs.isfile() and not berryname.isfile():
+                    calc = get_wavefunctions(atoms, gpw_wfs, params)
 
                 try:
-                    phase_c = get_polarization_phase(name)
+                    phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
                 except ValueError:
                     calc = get_wavefunctions(atoms, name, params)
-                    phase_c = get_polarization_phase(name)
+                    phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
 
                 phase_scv[s, :, v] = phase_c
 
