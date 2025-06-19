@@ -3,7 +3,7 @@ from gpaw.borncharges import born_charges_wf
 from ase.build import mx2
 
 calc_params = {
-    'mode': {'name': 'lcao'},
+    'mode': {'name': 'pw', 'encut': 300},
     'xc': 'PBE',
     'basis': 'dzp',
     'kpts': {'density': 3.0},
