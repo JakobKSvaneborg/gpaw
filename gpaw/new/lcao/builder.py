@@ -1,13 +1,12 @@
 import numpy as np
-from gpaw.core.matrix import Matrix
+from gpaw.core.matrix import Matrix, MatrixWithNoData
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
 from gpaw.new.fd.builder import FDDFTComponentsBuilder
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
-from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
-from gpaw.new.lcao.hybrids import HybridLCAOEigensolver, HybridXCFunctional
+from gpaw.new.lcao.hybrids import HybridXCFunctional
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.utilities.timing import NullTimer
 
@@ -18,11 +17,9 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                  params,
                  *,
                  comm,
-                 distribution=None,
-                 interpolation=3):
-        super().__init__(atoms, params, comm=comm)
-        assert interpolation == 3
-        self.distribution = distribution
+                 log):
+        super().__init__(atoms, params, comm=comm, log=log)
+        self.distribution = params.mode.distribution
         self.basis = None
 
     def create_wf_description(self):
@@ -41,24 +38,26 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
         return LCAOHamiltonian(self.basis)
 
     def create_eigensolver(self, hamiltonian):
-        if self.params.xc['name'] in ['HSE06', 'PBE0', 'EXX']:
-            return HybridLCAOEigensolver(self.basis,
-                                         self.relpos_ac,
-                                         self.grid.cell_cv)
-        if self.params.eigensolver.get('name') == 'scissors':
-            from gpaw.lcao.scissors import ScissorsLCAOEigensolver
-            return ScissorsLCAOEigensolver(self.basis,
-                                           self.params.eigensolver['shifts'],
-                                           self.ibz.symmetries)
-        return LCAOEigensolver(self.basis)
+        from gpaw.dft import DefaultEigensolver
+        es = self.params.eigensolver
+        if isinstance(es, DefaultEigensolver):
+            if self.params.xc.name in ['HSE06', 'PBE0', 'EXX']:
+                name = 'hybrid'
+            else:
+                name = 'lcao'
+            es = es.from_param({'name': name, **es.params})
+        return es.build_lcao(self.basis,
+                             self.relpos_ac,
+                             self.grid.cell_cv,
+                             self.ibz.symmetries)
 
-    def read_ibz_wave_functions(self, reader, log):
+    def read_ibz_wave_functions(self, reader):
         c = 1
         if reader.version >= 0 and reader.version < 4:
             c = reader.bohr**1.5
 
         basis = self.create_basis_set()
-        potential = self.create_potential_calculator(log)
+        potential = self.create_potential_calculator()
         if 'coefficients' in reader.wave_functions:
             coefficients = reader.wave_functions.proxy('coefficients')
             coefficients.scale = c
@@ -76,7 +75,6 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                                   basis,
                                   potential,
                                   *,
-                                  log=None,
                                   coefficients=None):
         ibzwfs, _ = create_lcao_ibzwfs(
             basis,
@@ -105,19 +103,17 @@ def create_lcao_ibzwfs(basis,
     nao = setups.nao
 
     def create_wfs(spin, q, k, kpt_c, weight):
-        C_nM = Matrix(nbands, 2 * nao if ncomponents == 4 else nao,
-                      dtype,
-                      dist=(band_comm, band_comm.size, 1))
+        shape = (nbands, 2 * nao if ncomponents == 4 else nao)
         if coefficients is not None:
+            C_nM = Matrix(*shape,
+                          dtype=dtype,
+                          dist=(band_comm, band_comm.size, 1))
             n1, n2 = C_nM.dist.my_row_range()
             C_nM.data[:] = coefficients.proxy(spin, k)[n1:n2]
         else:
-            # We set the first element to NaN as a hack so that the
-            # code can later tell that the data is not initialized.
-            # We could set /all/ the elements, but what we care about is
-            # only this piece of information.  Maybe we can find a better
-            # solution.
-            pass  # C_nM.data[:1, :1] = np.nan
+            C_nM = MatrixWithNoData(*shape,
+                                    dtype=dtype,
+                                    dist=(band_comm, band_comm.size, 1))
         return LCAOWaveFunctions(
             setups=setups,
             tci_derivatives=tci_derivatives,

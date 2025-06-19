@@ -30,8 +30,7 @@ def test_mom_directopt_lcao_forces(in_tmp_dir, gpw_files):
     calc.wfs.occupations.initialize_reference_orbitals()
     for kpt in calc.wfs.kpt_u:
         f_n = calc.get_occupation_numbers(spin=kpt.s)
-        unoccupied = [True for _ in range(len(f_n))]
-        P = calc.wfs.occupations.calculate_weights(kpt, 1.0, unoccupied)
+        P = calc.wfs.occupations.calculate_weights(kpt, 1.0)
         assert (np.allclose(P, f_n))
 
     calc.write('co.gpw', mode='all')

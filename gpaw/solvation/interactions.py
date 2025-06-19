@@ -1,7 +1,6 @@
 import numpy as np
 from ase.units import Bohr, Hartree
 
-from gpaw.new.input_parameters import register
 from gpaw.solvation.gridmem import NeedsGD
 
 
@@ -27,6 +26,20 @@ class Interaction(NeedsGD):
         self.E = None
         self.delta_E_delta_n_g = None
         self.delta_E_delta_g_g = None
+
+    @classmethod
+    def from_dict(self, dct):
+        if not isinstance(dct, dict):
+            return dct
+        dct = dct.copy()
+        name = dct.pop('name')
+        if name == 'SurfaceInteraction':
+            return SurfaceInteraction(**dct)
+        if name == 'VolumeInteraction':
+            return VolumeInteraction(**dct)
+        if name == 'LeakedDensityInteraction':
+            return LeakedDensityInteraction(**dct)
+        raise ValueError(name)
 
     def write(self, writer):
         pass
@@ -75,7 +88,6 @@ class Interaction(NeedsGD):
         pass
 
 
-@register
 class SurfaceInteraction(Interaction):
     """An interaction with energy proportional to the cavity surface area."""
 
@@ -132,6 +144,9 @@ class VolumeInteraction(Interaction):
         Interaction.__init__(self)
         self.pressure = float(pressure)
 
+    def todict(self):
+        return {'pressure': self.pressure}
+
     def update(self, atoms, density, cavity):
         if cavity is None:
             return False
@@ -168,6 +183,9 @@ class LeakedDensityInteraction(Interaction):
         """
         Interaction.__init__(self)
         self.voltage = float(voltage)
+
+    def todict(self):
+        return {'voltage': self.voltage}
 
     def update(self, atoms, density, cavity):
         E0 = self.voltage / Hartree

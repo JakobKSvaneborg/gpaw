@@ -50,11 +50,9 @@ def truncated_coulomb(pw: PWDesc,
     v_G = pw.empty()
     G2_G = pw.ekin_G * 2
     v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
-    if G2_G[0] < 1e-10:
-        v_G.data[1:] /= G2_G[1:]
-        v_G.data[0] = pi / omega**2
-    else:
-        v_G.data /= G2_G
+    ok_G = G2_G > 1e-10
+    v_G.data[ok_G] /= G2_G[ok_G]
+    v_G.data[~ok_G] = pi / omega**2
     return v_G
 
 
@@ -136,8 +134,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         assert isinstance(psit2_nG, PWArray)
         assert isinstance(Htpsit2_nG, PWArray)
         wfs = ibzwfs.wfs_qs[0][spin]
-        D_aii = D_asii[:, spin]
+        D_aii = D_asii[:, spin].copy()
         if ibzwfs.nspins == 1:
+            D_aii = D_aii.copy()
             D_aii.data *= 0.5
         psi1 = Psi(wfs.psit_nX, wfs.P_ani, wfs.myocc_n)
         pt_aiG = wfs.pt_aiX

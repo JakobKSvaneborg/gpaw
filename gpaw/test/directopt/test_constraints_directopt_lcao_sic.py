@@ -2,6 +2,7 @@ import pytest
 
 from gpaw import GPAW
 import numpy as np
+from gpaw.mpi import world
 
 
 @pytest.mark.old_gpaw_only
@@ -13,6 +14,8 @@ def test_constraints_directopt_lcao_sic(in_tmp_dir, gpw_files):
     :param in_tmp_dir:
     :return:
     """
+    if world.size == 8:
+        pytest.skip('See #1406')
     calc = GPAW(gpw_files['h2o_cdo_lcao_sic'])
     H2O = calc.atoms
     H2O.calc = calc
