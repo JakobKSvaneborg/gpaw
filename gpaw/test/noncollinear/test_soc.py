@@ -58,7 +58,7 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     GPAW(gpw_wfs)
 
     if mpi.size == 1:
-        phases_c = polarization_phase(gpw_wfs, comm=mpi.serial_comm)
+        phases_c = polarization_phase(gpw_wfs, comm=mpi.world)
         phi_c = phases_c["electronic_phase_c"]
         check_pol(phi_c)
 

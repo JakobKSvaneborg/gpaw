@@ -99,7 +99,7 @@ def load_renormalized_data(name):
 def test_polarization_phase(in_tmp_dir, gpw_files):
     pi2 = 2.0 * np.pi
     phases_c = polarization_phase(gpw_files["mos2_pw_nosym"],
-                                  comm=mpi.serial_comm)
+                                  comm=mpi.world)
 
     phases_test = {
         "phase_c": pi2 * np.array([8.66037602, 3.33962524, 8.54861146e-15]),
