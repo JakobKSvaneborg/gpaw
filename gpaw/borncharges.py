@@ -6,7 +6,7 @@ from ase.io.jsonio import write_json, read_json
 from pathlib import Path
 
 
-def born_charges_wf(calc, delta=0.01, cleanup=False):
+def born_charges_wf(calc, delta=0.01, cleanup=False, out='born_charges.json'):
 
     params = calc.parameters
     atoms = calc.atoms
@@ -47,7 +47,11 @@ def born_charges_wf(calc, delta=0.01, cleanup=False):
 
         phase_c[dlabel] = phase_c
 
-    return born_charges(atoms, disps_av, phases_c)
+    results = born_charges(atoms, disps_av, phases_c)
+    with paropen(out, 'w') as fd:
+        write_json(fd, results)
+
+    return results
 
 
 def born_charges(atoms, disps_av, phases_c):
