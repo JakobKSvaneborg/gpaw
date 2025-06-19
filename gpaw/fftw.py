@@ -12,6 +12,7 @@ from types import ModuleType
 
 import numpy as np
 from scipy.fft import fftn, ifftn, irfftn, rfftn
+import cupy
 
 import gpaw.cgpaw as cgpaw
 from gpaw.utilities import as_complex_dtype, as_real_dtype
@@ -319,7 +320,8 @@ class CuPyFFTPlans(FFTPlans):
             if is_hip:
                 out_Q = rfftn_patch(in_R)
             else:
-                out_Q = cupyx.scipy.fft.rfftn(in_R)
+                out_Q = cupyx.scipy.fft.rfftn(cupy.require(in_R, requirements='O'))
+
         Q_G = self.indices(pw)
         coef_G = out_Q.ravel()[Q_G] * (1 / in_R.size)
         return coef_G
