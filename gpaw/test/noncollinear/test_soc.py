@@ -30,7 +30,8 @@ def check_pol(phi_c):
     assert abs(pol_c[1] - 1 / 3) < 0.01
 
 
-params = dict(mode={"name": "pw", "ecut": 350}, kpts={"size": (3, 3, 1), "gamma": True})
+params = dict(mode={"name": "pw", "ecut": 350},
+              kpts={"size": (3, 3, 1), "gamma": True})
 
 
 @pytest.mark.soc
@@ -42,7 +43,8 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     a.center(vacuum=3, axis=2)
 
     if gpaw_new:
-        kwargs = {**params, "symmetry": "off", "magmoms": np.zeros((3, 3)), "soc": True}
+        kwargs = {**params, "symmetry": "off",
+                  "magmoms": np.zeros((3, 3)), "soc": True}
     else:
         kwargs = {
             **params,
@@ -65,7 +67,8 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
 
 
 @pytest.mark.soc
-@pytest.mark.skipif(mpi.size > 2, reason="Does not work with more than 2 cores")
+@pytest.mark.skipif(mpi.size > 2,
+                    reason="Does not work with more than 2 cores")
 def test_non_collinear_plus_soc():
     a = mx2("MoS2")
     a.center(vacuum=3, axis=2)
