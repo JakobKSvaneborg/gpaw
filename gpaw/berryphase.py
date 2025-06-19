@@ -226,7 +226,6 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
             calc = calc.fixed_density(symmetry="off", txt="fixdens.txt")
     else:
         parprint("Calculating wavefunctions")
-        assert "gpaw" == calc_params.pop("name")
         calc = GPAW(**calc_params, communicator=comm)
         atoms.calc = calc
         atoms.get_potential_energy()

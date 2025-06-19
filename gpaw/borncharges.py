@@ -6,10 +6,9 @@ from ase.io.jsonio import write_json, read_json
 from pathlib import Path
 
 
-def born_charges_wf(calc, delta=0.01, cleanup=False, out='born_charges.json'):
+def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
 
-    params = calc.parameters
-    atoms = calc.atoms
+    params = atoms.calc.parameters
 
     # generate displacement dictionary
     disps_av = _all_disp(atoms, delta)
@@ -23,8 +22,8 @@ def born_charges_wf(calc, delta=0.01, cleanup=False, out='born_charges.json'):
         gpw_wfs = Path(dlabel + '.gpw')
         berryname = Path(dlabel + '-berryphases.json')
 
-        if not berryname.isfile():
-            if not gpw_wfs.isfile():
+        if not berryname.is_file():
+            if not gpw_wfs.is_file():
                 gpw_wfs = _get_wavefunctions(atoms_d, params,
                                              serial_comm, gpw_wfs)
             # dict with entries phase_c, electronic_phase_c
@@ -36,7 +35,7 @@ def born_charges_wf(calc, delta=0.01, cleanup=False, out='born_charges.json'):
                 write_json(fd, phase_c)
 
             if cleanup:
-                if berryname.isfile():
+                if berryname.is_file():
                     # remove gpw file
                     if world.rank == 0:
                         gpw_wfs.unlink()
