@@ -11,15 +11,14 @@ from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 
 from gpaw import GPAW
 from gpaw.ibz2bz import get_overlap
-from gpaw.ibz2bz import (get_overlap_coefficients,
-                         get_phase_shifted_overlap_coefficients)
+from gpaw.ibz2bz import get_overlap_coefficients, get_phase_shifted_overlap_coefficients
 from gpaw.mpi import rank, serial_comm, world
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.utilities.blas import gemmdot
 
 
 def get_berry_phases(calc, spin=0, dir=0, check2d=False):
-    if isinstance(calc, str):
+    if isinstance(calc, (str, Path)):
         calc = GPAW(calc, communicator=serial_comm, txt=None)
 
     assert len(calc.symmetry.op_scc) == 1  # does not work with symmetry
@@ -27,8 +26,9 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     assert gap != 0.0
 
     M = np.round(calc.get_magnetic_moment())
-    assert np.allclose(M, calc.get_magnetic_moment(), atol=0.05), \
-        print(M, calc.get_magnetic_moment())
+    assert np.allclose(M, calc.get_magnetic_moment(), atol=0.05), print(
+        M, calc.get_magnetic_moment()
+    )
     nvalence = calc.wfs.setups.nvalence
     nocc_s = [int((nvalence + M) / 2), int((nvalence - M) / 2)]
     nocc = nocc_s[spin]
@@ -83,6 +83,8 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     phases = []
     if check2d:
         phases2d = []
+    # plane average of overlaps M_nm = <u_nk | u_mk+q>
+    # on k-plane with normal vector in dir
     for indices_k in indices_kk:
         M_knn = []
         for j in range(size[dir]):
@@ -92,6 +94,8 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
                 k2 = indices_k[j + 1]
             else:
                 k2 = indices_k[0]
+                # pbc:
+                # psi_k(r) = psi_k+G(r) -> u_k(r) = e^-iGr u_k+G(r)
                 G_c[dir] = 1
             u1_nR = np.array(u_knR[k1])
             u2_nR = np.array(u_knR[k2])
@@ -99,24 +103,31 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
             k2_c = kpts_kc[k2] + G_c
 
             if np.any(G_c):
-                emiGr_R = np.exp(-2j * np.pi *
-                                 np.dot(np.indices(N_c).T, G_c / N_c).T)
+                # pick up e^iGr
+                emiGr_R = np.exp(-2j * np.pi * np.dot(np.indices(N_c).T, G_c / N_c).T)
                 u2_nR = u2_nR * emiGr_R
 
             bG_c = k2_c - k1_c
 
             phase_shifted_dO_aii = get_phase_shifted_overlap_coefficients(
-                dO_aii, calc.spos_ac, -bG_c)
-            M_nn = get_overlap(bands,
-                               wfs.gd,
-                               u1_nR,
-                               u2_nR,
-                               proj_k[k1],
-                               proj_k[k2],
-                               phase_shifted_dO_aii)
+                dO_aii, calc.spos_ac, -bG_c
+            )
+
+            # < u_nk | u_mk+1 >
+            M_nn = get_overlap(
+                bands,
+                wfs.gd,
+                u1_nR,
+                u2_nR,
+                proj_k[k1],
+                proj_k[k2],
+                phase_shifted_dO_aii,
+            )
             M_knn.append(M_nn)
-        det = np.linalg.det(M_knn)
-        phases.append(np.imag(np.log(np.prod(det))))
+
+        # det_k = det(k, nbands, nbands)
+        det_k = np.linalg.det(M_knn)
+        phases.append(np.imag(np.log(np.prod(det_k))))
         if check2d:
             # In the case of 2D systems we can check the
             # result
@@ -124,19 +135,21 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
             k1_c = kpts_kc[k1]
             G_c = [0, 0, 1]
             u1_nR = u_knR[k1]
-            emiGr_R = np.exp(-2j * np.pi *
-                             np.dot(np.indices(N_c).T, G_c / N_c).T)
+            emiGr_R = np.exp(-2j * np.pi * np.dot(np.indices(N_c).T, G_c / N_c).T)
             u2_nR = u1_nR * emiGr_R
 
             phase_shifted_dO_aii = get_phase_shifted_overlap_coefficients(
-                dO_aii, calc.spos_ac, -bG_c)
-            M_nn = get_overlap(bands,
-                               calc.wfs.gd,
-                               u1_nR,
-                               u2_nR,
-                               proj_k[k1],
-                               proj_k[k1],
-                               phase_shifted_dO_aii)
+                dO_aii, calc.spos_ac, -bG_c
+            )
+            M_nn = get_overlap(
+                bands,
+                calc.wfs.gd,
+                u1_nR,
+                u2_nR,
+                proj_k[k1],
+                proj_k[k1],
+                phase_shifted_dO_aii,
+            )
 
             phase2d = np.imag(np.log(np.linalg.det(M_nn)))
             phases2d.append(phase2d)
@@ -146,6 +159,7 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
         delta = phases[p] - phases[p + 1]
         phases[p + 1] += np.round(delta / (2 * np.pi)) * 2 * np.pi
 
+    # plane average over all perpendicular kpoints to direction dir
     phase = np.sum(phases) / nkperp
     if check2d:
         for p in range(nkperp - 1):
@@ -156,23 +170,22 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
 
         diff = abs(phase - phase2d)
         if diff > 0.01:
-            msg = 'Warning wrong phase: phase={}, 2dphase={}'
+            msg = "Warning wrong phase: phase={}, 2dphase={}"
             print(msg.format(phase, phase2d))
 
     return indices_kk, phases
 
 
-def get_polarization_phase(calc,
-                           name: str | None = None) -> np.ndarray:
+def get_polarization_phase(calc, name: str | None = None) -> np.ndarray:
     if isinstance(calc, (str, Path)):
         if name is None:
             name = splitext(calc)[0]
-            berryname = f'{name}-berryphases.json'
+            berryname = f"{name}-berryphases.json"
         else:
             berryname = name
     else:
         assert calc.world.size == 1
-        berryname = name or 'berryphases.json'
+        berryname = name or "berryphases.json"
 
     phase_c = np.zeros((3,), float)
     if not exists(berryname) and world.rank == 0:
@@ -191,23 +204,22 @@ def get_polarization_phase(calc,
         # Ionic contribution
         Z_a = []
         for num in calc.atoms.get_atomic_numbers():
-            for ida, setup in zip(calc.wfs.setups.id_a,
-                                  calc.wfs.setups):
+            for ida, setup in zip(calc.wfs.setups.id_a, calc.wfs.setups):
                 if abs(ida[0] - num) < 1e-5:
                     break
             Z_a.append(setup.Nv)
-        data['Z_a'] = Z_a
-        data['spos_ac'] = calc.spos_ac.tolist()
+        data["Z_a"] = Z_a
+        data["spos_ac"] = calc.spos_ac.tolist()
         if not calc.wfs.collinear:
-            data['non-collinear'] = True
+            data["non-collinear"] = True
 
-        with open(berryname, 'w') as fd:
+        with open(berryname, "w") as fd:
             json.dump(data, fd, indent=True)
 
     world.barrier()
     # Read data and calculate phase
     if world.rank == 0:
-        print(f'Reading berryphases {berryname}')
+        print(f"Reading berryphases {berryname}")
     with open(berryname) as fd:
         data = json.load(fd)
 
@@ -218,24 +230,19 @@ def get_polarization_phase(calc,
             phase_c[c] += np.sum(phases) / len(phases)
 
     # We should not multiply by two below if non-collinear
-    nc = 'non-collinear' in data.keys()
+    nc = "non-collinear" in data.keys()
     phase_c = phase_c * (2 - nc) / nspins
 
-    Z_a = data['Z_a']
-    spos_ac = data['spos_ac']
+    Z_a = data["Z_a"]
+    spos_ac = data["spos_ac"]
     phase_c += 2 * np.pi * np.dot(Z_a, spos_ac)
 
     return phase_c
 
 
-def parallel_transport(calc,
-                       direction=0,
-                       name=None,
-                       scale=1.0,
-                       bands=None,
-                       theta=0.0,
-                       phi=0.0,
-                       comm=None):
+def parallel_transport(
+    calc, direction=0, name=None, scale=1.0, bands=None, theta=0.0, phi=0.0, comm=None
+):
     """
     Parallel transport.
     The parallel transport algorithm corresponds to the construction
@@ -277,8 +284,7 @@ def parallel_transport(calc,
 
     # Parallelization stuff
     myKsize = -(-Npar // (comm.size))
-    myKrange = range(rank * myKsize,
-                     min((rank + 1) * myKsize, Npar))
+    myKrange = range(rank * myKsize, min((rank + 1) * myKsize, Npar))
     myKsize = len(myKrange)
 
     # Get array of k-point indices of the path. q index is loc direction
@@ -305,12 +311,10 @@ def parallel_transport(calc,
     else:
         b_c = G_c
     phase_shifted_dO_aii = get_phase_shifted_overlap_coefficients(
-        dO_aii, calc.spos_ac, -b_c)
+        dO_aii, calc.spos_ac, -b_c
+    )
 
-    soc_kpts = soc_eigenstates(calc,
-                               scale=scale,
-                               theta=theta,
-                               phi=phi)
+    soc_kpts = soc_eigenstates(calc, scale=scale, theta=theta, phi=phi)
 
     def projections(bz_index):
         proj = soc_kpts[bz_index].projections
@@ -319,8 +323,7 @@ def parallel_transport(calc,
         return new_proj
 
     def wavefunctions(bz_index):
-        return soc_kpts[bz_index].wavefunctions(
-            calc, periodic=True)
+        return soc_kpts[bz_index].wavefunctions(calc, periodic=True)
 
     phi_km = np.zeros((Npar, len(bands)), float)
     S_km = np.zeros((Npar, len(bands)), float)
@@ -340,13 +343,9 @@ def parallel_transport(calc,
             u2_nsG = wavefunctions(iq2)
             proj2 = projections(iq2)
 
-            M_mm = get_overlap(bands,
-                               calc.wfs.gd,
-                               u1_nsG,
-                               u2_nsG,
-                               proj1,
-                               proj2,
-                               phase_shifted_dO_aii)
+            M_mm = get_overlap(
+                bands, calc.wfs.gd, u1_nsG, u2_nsG, proj1, proj2, phase_shifted_dO_aii
+            )
 
             V_mm, sing_m, W_mm = np.linalg.svd(M_mm)
             U_mm = np.dot(V_mm, W_mm).conj()
@@ -376,13 +375,9 @@ def parallel_transport(calc,
         u2_nsG[:] *= np.exp(-1.0j * gemmdot(G_v, r_g, beta=0.0))
         proj2 = projections(iq0)
 
-        M_mm = get_overlap(bands,
-                           calc.wfs.gd,
-                           u1_nsG,
-                           u2_nsG,
-                           proj1,
-                           proj2,
-                           phase_shifted_dO_aii)
+        M_mm = get_overlap(
+            bands, calc.wfs.gd, u1_nsG, u2_nsG, proj1, proj2, phase_shifted_dO_aii
+        )
 
         V_mm, sing_m, W_mm = np.linalg.svd(M_mm)
         U_mm = np.dot(V_mm, W_mm).conj()
@@ -403,13 +398,7 @@ def parallel_transport(calc,
         u2_nsG[:] *= np.exp(1.0j * gemmdot(G_v, r_g, beta=0.0))
         u1_nsG = wavefunctions(iq0)
         proj1 = projections(iq0)
-        M_mm = get_overlap(bands,
-                           calc.wfs.gd,
-                           u1_nsG,
-                           u2_nsG,
-                           proj1,
-                           proj2,
-                           dO_aii)
+        M_mm = get_overlap(bands, calc.wfs.gd, u1_nsG, u2_nsG, proj1, proj2, dO_aii)
 
         l_m, l_mm = np.linalg.eig(M_mm)
         phi_km[k] = np.angle(l_m)
@@ -419,7 +408,7 @@ def parallel_transport(calc,
             iq = qpts_q[q]
             U_mm = U_qmm[q]
             v_mn = soc_kpts[iq].v_mn
-            v_nm = np.einsum('xm, mn -> nx', U_mm, v_mn[bands])
+            v_nm = np.einsum("xm, mn -> nx", U_mm, v_mn[bands])
             A_mm += np.dot(v_nm[::2].T.conj(), v_nm[::2])
             A_mm -= np.dot(v_nm[1::2].T.conj(), v_nm[1::2])
         A_mm /= Nloc
@@ -429,12 +418,14 @@ def parallel_transport(calc,
     comm.sum(S_km)
 
     if not calc.density.collinear:
-        warnings.warn('WARNING: Spin projections are not meaningful ' +
-                      'for non-collinear calculations')
+        warnings.warn(
+            "WARNING: Spin projections are not meaningful "
+            + "for non-collinear calculations"
+        )
 
     if name is not None:
         if comm.rank == 0:
-            np.savez(f'phases_{name}.npz', phi_km=phi_km, S_km=S_km)
+            np.savez(f"phases_{name}.npz", phi_km=phi_km, S_km=S_km)
         comm.barrier()
 
     return phi_km, S_km
