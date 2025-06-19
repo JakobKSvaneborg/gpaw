@@ -194,7 +194,7 @@ def get_polarization_phase(calc, name: str | None = None) -> np.ndarray:
 
     phase_c = np.zeros((3,), float)
     if not exists(berryname) and world.rank == 0:
-        # Calculate and save berry phases
+        # calculate and save phases
         if isinstance(calc, (str, Path)):
             calc = GPAW(calc, communicator=serial_comm)
         assert len(calc.symmetry.op_scc) == 1

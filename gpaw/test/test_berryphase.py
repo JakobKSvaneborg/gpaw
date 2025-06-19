@@ -5,6 +5,7 @@ import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.berryphase import (get_berry_phases, get_polarization_phase,
                              parallel_transport)
+from c2db.recipes.borncharges import polarization_phase
 
 # Values from an earlier test
 ref_phi_mos2_km = np.array(
@@ -96,11 +97,13 @@ def load_renormalized_data(name):
     return phi_km, S_km
 
 
-def test_pol(in_tmp_dir, gpw_files):
+def test_electronic_polarization_phase(in_tmp_dir, gpw_files):
 
     # It is ugly to convert to string. But this is required in
     # get_polarization_phase. Should be changed in the future...
-    phi_c = get_polarization_phase(str(gpw_files['mos2_pw_nosym']))
+    #phi_c = get_polarization_phase(str(gpw_files['mos2_pw_nosym']))
+    phases_c = polarization_phase(gpw_files['mos2_pw_nosym'], comm=mpi.serial_comm)
+    phi_c = phases_c['electronic_phase_c']
 
     # Only should test modulo 2pi
     phi = phi_c / (2 * np.pi)
