@@ -29,6 +29,10 @@ FAKE_CUPY_WARNING = """
 pi = np.pi
 
 
+def require(a, requirements=None):
+    return ndarray(np.require(a._data, requirements=requirements))
+
+
 def empty(*args, **kwargs) -> ndarray:
     return ndarray(np.empty(*args, **kwargs))
 
