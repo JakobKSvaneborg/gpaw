@@ -677,10 +677,6 @@ nightly-mpi-2:
     GPAW_MPI_NPROCS: "2"
   extends:
     - .nightly
-  script:
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30 -m "not slow"
 
 
 nightly-mpi-4:
@@ -704,7 +700,6 @@ nightly-mpi-8:
     - .nightly
   script:
     - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
@@ -716,9 +711,9 @@ nightly-mpi-1-new:
     - .nightly-mpi-new
   script:
     - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - pytest --cache-show
     - >
-      pytest -n 4 --instafail -r s --durations 30 -m
+      pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 

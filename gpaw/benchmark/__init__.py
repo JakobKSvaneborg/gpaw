@@ -6,16 +6,16 @@ from gpaw.mpi import world
 from time import time
 from json import dumps, loads
 from pathlib import Path
+from collections import defaultdict
 
 from gpaw.benchmark.systems import parse_system
+from gpaw.utilities.memory import maxrss
 
 pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
 
 pw_parameter_subsets = {'high': {'mode': {'ecut': 800}},
                         'low': {'mode': {'ecut': 400}},
-                        'float32': {'mode': {'dtype': np.float32},
-                                    'convergence': {'maximum iterations': 30},
-                                    'random': True}}
+                        'float32': {'mode': {'dtype': np.float32}}}
 
 lcao_default_parameters = {'mode': {'name': 'lcao'}}
 
@@ -30,9 +30,14 @@ kpts_parameter_subsets = {'gamma': {'kpts': (1, 1, 1)},
 xc_parameter_subsets = {'PBE': {'xc': 'PBE'},
                         'LDA': {'xc': 'LDA'}}
 
-eigensolver_parameter_subsets = {'RMMDIIS': {'eigensolver': 'rmm-diis'},
-                                 'DAV3': {'eigensolver': {'name': 'dav',
-                                                          'niter': 3}}}
+eigensolver_parameter_subsets = {'RMMDIIS':
+                                 {'eigensolver':
+                                  {'name': 'rmm-diis',
+                                   'trial_step': 0.1}},
+                                 'DAV3':
+                                 {'eigensolver':
+                                  {'name': 'dav',
+                                   'niter': 3}}}
 
 
 def get_domainband(size=None):
@@ -124,6 +129,11 @@ def parse_requirement(req):
 benchmarks = {}
 benchmarks_reqs = {}
 for benchmark_line in benchmarks_str.split('\n'):
+    if len(benchmark_line.split(',')) != 3:
+        if not benchmark_line:
+            continue
+        else:
+            raise ValueError(f'Wrongly formated csv line: {benchmark_line}')
     nickname, definition, req = benchmark_line.split(',')
     nickname = nickname.strip()
     definition = definition.strip()
@@ -284,6 +294,7 @@ def gs_and_move_atoms(long_name, calc_info):
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
     atoms.positions += 0.1 * F
+    atoms.wrap()
     with Walltime('Second step') as step2:
         atoms.get_potential_energy()
         F = atoms.get_forces()
@@ -298,6 +309,7 @@ class Walltime:
     def __init__(self, name):
         self.name = name
         self.error = None
+        self.max_rss = None
 
     def __enter__(self):
         self.start = time()
@@ -307,6 +319,7 @@ class Walltime:
         if exc_type is not None:
             self.error = (exc_type, exc_value, exc_traceback)
         self.end = time()
+        self.max_rss = maxrss()
 
     @property
     def walltime(self):
@@ -314,7 +327,8 @@ class Walltime:
 
     def todict(self):
         return {self.name: {'walltime': self.walltime,
-                            'error': self.error}}
+                            'error': self.error,
+                            'max_rss': self.max_rss}}
 
 
 class Benchmark(Walltime):
@@ -429,6 +443,38 @@ def parse_processor(text):
     return 'No "Model name:" found'
 
 
+def parse_nvidia_smi(dct, out):
+    """Parse output from nvidia-smi command.
+
+    Gets the name of the GPU from out, and accumulates to dct
+    how many there are."""
+    if 'command not found' in out:
+        return
+    for line in out.split('\n'):
+        if 'NVIDIA ' in line:
+            def get_gpu():
+                for n in line.split()[3:]:
+                    if n in {'|', 'On', 'Off'}:
+                        break
+                    yield n
+            dct[' '.join(get_gpu())] += 1
+
+
+def parse_rocm_smi(dct, out):
+    if 'command not found' in out:
+        return
+
+    raise NotImplementedError
+
+
+def parse_gpu(nvidia, rocm):
+    gpus = defaultdict(int)
+    parse_nvidia_smi(gpus, nvidia)
+    parse_rocm_smi(gpus, rocm)
+    return ' '.join((f'{number}x ({name})'
+                     if number > 1 else name) for name, number in gpus.items())
+
+
 def benchmark_from_dict(dct):
     """Create a summary dictionary from the full json output of the benchmark.
     """
@@ -439,23 +485,27 @@ def benchmark_from_dict(dct):
     summary = {'walltime': dct['walltime'],
                'shortname': dct['shortname'],
                'processor': parse_processor(system_info['processor']),
+               'gpu': parse_gpu(system_info['nvidia-smi'],
+                                system_info['rocm-smi']),
                'longname': dct['longname'],
                'hostname': system_info['hostname'].strip(),
                'calcinfo': dct['calcinfo'],
+               'mpi-ranks': system_info['mpi-ranks'],
                'First step': results['First step']['walltime'],
                'Second step': results['Second step']['walltime'],
+               'max_rss': dct['max_rss'],
                'githash': system_info['git-hash'].strip(),
                'branch': parse_git_status(system_info['git-status'])}
     return summary
 
 
-def gather_benchmarks(directories):
+def gather_benchmarks(directories, output_file):
     lst = []
     for fname in directories:
         try:
             dct = load_benchmark(fname)
             lst.append(benchmark_from_dict(dct))
         except Exception as e:
-            print(e)
-    print(lst)
+            print(str(e))
+    Path(output_file).write_text(dumps(lst, indent=4))
     return lst

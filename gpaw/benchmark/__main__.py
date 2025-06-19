@@ -32,6 +32,8 @@ Usage `python -m gpaw.benchmark view benchmarkfile.json`.
 Will display a pretty formatted version of the benchmark run.\
 """
 
+benchmarks_output_help = 'Output JSON with all the gathered information.'
+
 version = "May 2025"
 
 if __name__ == '__main__':
@@ -49,6 +51,8 @@ if __name__ == '__main__':
     view_parser = subparsers.add_parser('view', help=view_benchmark_help)
     gather_parser = subparsers.add_parser('gather', help='')
     gather_parser.add_argument('benchmarks', nargs='*', help=benchmarks_help)
+    gather_parser.add_argument('-o', '--output', help=benchmarks_output_help,
+                               default='benchmarks.json')
     test_parser = subparsers.add_parser('test', help='')
     view_parser.add_argument('benchmarkfile')
 
@@ -61,7 +65,7 @@ if __name__ == '__main__':
     elif args.command == 'view':
         view_benchmark(args.benchmarkfile)
     elif args.command == 'gather':
-        gather_benchmarks(args.benchmarks)
+        gather_benchmarks(args.benchmarks, args.output)
     elif args.command == 'test':
         from gpaw.benchmark import benchmarks, benchmark_atoms_and_calc
         for benchmark in benchmarks:
