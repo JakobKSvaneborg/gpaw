@@ -1,9 +1,6 @@
 from __future__ import annotations
-import json
 import warnings
-from os.path import exists, splitext
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from ase.dft.bandgap import bandgap
@@ -16,8 +13,13 @@ from gpaw.mpi import rank, serial_comm, world
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.utilities.blas import gemmdot
 
+from ase import Atoms
+from ase.parallel import parprint
+
+
 class ZeroBandgap(Exception):
     pass
+
 
 def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     if isinstance(calc, (str, Path)):
@@ -27,8 +29,7 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     gap = bandgap(calc)[0]
 
     if gap == 0.0:
-        raise ZeroBandgap('Berry-phase calculation '
-                          'requires non-zero band gap.')
+        raise ZeroBandgap("Berry-phase calculation requires non-zero band gap.")
 
     M = np.round(calc.get_magnetic_moment())
     assert np.allclose(M, calc.get_magnetic_moment(), atol=0.05), print(
@@ -181,68 +182,175 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     return indices_kk, phases
 
 
-def get_polarization_phase(calc, name: str | None = None) -> np.ndarray:
-    if isinstance(calc, (str, Path)):
-        if name is None:
-            name = splitext(calc)[0]
-            berryname = f"{name}-berryphases.json"
-        else:
-            berryname = name
+def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
+    """
+
+    Polarization phase based on evaluation of
+    Berry-phase and ionic polarization
+
+    according to https://arxiv.org/pdf/1202.1831 the polarization is
+
+    p = 1/V sum_a q_a * r_a - 2 * i * e / (2 * pi)^3 sum_n(occ) B_n
+
+    The first term given with the volume of the cell is V, and q_a, r_a
+    the charges and positions of the atoms is the ionic contribution.
+
+    The second term gives the electronic contribution, with the berry phase
+
+    B_n = int_BZ dk <u_nk| i d/dk | u_nk>
+
+    and the cell periodic part of the Bloch functions u_nk.
+    The factor 2 comes from the spin degeneracy of the double occupied bands.
+
+    """
+
+    # calculation in serial only on master
+    if comm.rank == 0:
+        phases_c = _get_phases(gpw_wfs, cleanup=cleanup)
     else:
-        assert calc.world.size == 1
-        berryname = name or "berryphases.json"
+        phases_c = {
+            "phase_c": np.empty(3),
+            "electronic_phase_c": np.empty(3),
+            "atomic_phase_c": np.empty(3),
+            "dipole_phase_c": np.empty(3),
+        }
+
+    # broadcast
+    for key in phases_c:
+        comm.broadcast(phases_c[key], 0)
+
+    return phases_c
+
+
+def _get_wavefunctions(
+    atoms: Atoms, calc_params: dict, comm, gpw_wfs: Path = Path("wfs.gpw")
+):
+    check_distance_to_non_pbc_boundary(atoms)
+
+    if gpw_wfs.is_file():
+        calc = GPAW(gpw_wfs, communicator=comm)
+        sym_off = len(calc.symmetry.op_scc) == 1
+        if not sym_off:
+            parprint(f"Fixdensity calculation from {gpw_wfs}")
+            calc = calc.fixed_density(symmetry="off", txt="fixdens.txt")
+    else:
+        parprint("Calculating wavefunctions")
+        assert "gpaw" == calc_params.pop("name")
+        calc = GPAW(**calc_params, communicator=comm)
+        atoms.calc = calc
+        atoms.get_potential_energy()
+
+        # write wavefunctions
+        calc.write(gpw_wfs, "all")
+
+    return gpw_wfs
+
+
+def _get_phases(gpw_wfs: Path, cleanup: bool = False):
+    parprint(f"Reading wfs from {gpw_wfs}")
+    calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
+    atoms = calc.get_atoms()
+
+    parprint("Calculating polarization")
+    electronic_phase_c = get_electronic_polarization_phase(calc)
+    # valence electron number for each atom
+    Nv_a = [setup.Nv for setup in calc.setups]
+    atomic_phase_c = get_atomic_polarization_phase(Nv_a, calc.spos_ac)
+    dipole_v = calc.get_dipole_moment()
+    cell_cv = atoms.get_cell()
+    dipole_phase_c = get_dipole_polarization_phase(dipole_v, cell_cv)
+
+    # total phase
+    pbc_c = atoms.get_pbc()
+    phase_c = electronic_phase_c + atomic_phase_c
+    phase_c[~pbc_c] = dipole_phase_c[~pbc_c]
+
+    # remove file gpw_wfs
+    if cleanup:
+        gpw_wfs.unlink()
+
+    phases_c = {
+        "phase_c": atomic_phase_c,
+        "electronic_phase_c": electronic_phase_c,
+        "atomic_phase_c": atomic_phase_c,
+        "dipole_phase_c": dipole_phase_c,
+    }
+
+    return phases_c
+
+
+def atomic_phase(atoms: Atoms):
+    # routine to check born charge implementation
+    # no charge neutrality -> acoustic sum rule not valid
+    check_distance_to_non_pbc_boundary(atoms)
+
+    Nv_a = atoms.numbers
+    spos_ac = atoms.get_scaled_positions()
+    atomic_phase_c = get_atomic_polarization_phase(Nv_a, spos_ac)
+
+    results = {
+        "phase_c": atomic_phase_c,
+        "atomic_phase_c": atomic_phase_c,
+    }
+
+    return results
+
+
+def check_distance_to_non_pbc_boundary(atoms, eps=1):
+    dist_a = distance_to_non_pbc_boundary(atoms)
+    if dist_a is not None and np.any(dist_a < eps):
+        raise AtomsTooCloseToBoundary(
+            "The atoms are too close to a non-pbc boundary "
+            "which creates problems when using a dipole correction. "
+            f"Please center the atoms in the unit-cell. Distances: {dist_a}."
+        )
+
+
+def distance_to_non_pbc_boundary(atoms):
+    pbc_c = atoms.get_pbc()
+    if pbc_c.all():
+        return None
+    cell_cv = atoms.get_cell()
+    pos_ac = atoms.get_scaled_positions()
+    pos_ac -= np.round(pos_ac)
+    posnonpbc_av = np.dot(pos_ac[:, ~pbc_c], cell_cv[~pbc_c])
+    dist_to_cell_edge_a = np.linalg.norm(posnonpbc_av, axis=1)
+    return dist_to_cell_edge_a
+
+
+class AtomsTooCloseToBoundary(Exception):
+    pass
+
+
+def get_electronic_polarization_phase(calc):
+    from gpaw.berryphase import get_berry_phases
+
+    assert calc.world.size == 1
 
     phase_c = np.zeros((3,), float)
-    if not exists(berryname) and world.rank == 0:
-        # calculate and save phases
-        if isinstance(calc, (str, Path)):
-            calc = GPAW(calc, communicator=serial_comm)
-        assert len(calc.symmetry.op_scc) == 1
-        nspins = calc.wfs.nspins
-        data: dict[int | str, Any] = {}
-        for c in [0, 1, 2]:
-            data[c] = {}
-            for spin in range(nspins):
-                indices_kk, phases = get_berry_phases(calc, dir=c, spin=spin)
-                data[c][spin] = phases
-
-        # Ionic contribution
-        Z_a = []
-        for num in calc.atoms.get_atomic_numbers():
-            for ida, setup in zip(calc.wfs.setups.id_a, calc.wfs.setups):
-                if abs(ida[0] - num) < 1e-5:
-                    break
-            Z_a.append(setup.Nv)
-        data["Z_a"] = Z_a
-        data["spos_ac"] = calc.spos_ac.tolist()
-        if not calc.wfs.collinear:
-            data["non-collinear"] = True
-
-        with open(berryname, "w") as fd:
-            json.dump(data, fd, indent=True)
-
-    world.barrier()
-    # Read data and calculate phase
-    if world.rank == 0:
-        print(f"Reading berryphases {berryname}")
-    with open(berryname) as fd:
-        data = json.load(fd)
-
+    # calculate and save berry phases
+    nspins = calc.get_number_of_spins()
     for c in [0, 1, 2]:
-        nspins = len(data[str(c)])
         for spin in range(nspins):
-            phases = data[str(c)][str(spin)]
+            _, phases = get_berry_phases(calc, dir=c, spin=spin)
             phase_c[c] += np.sum(phases) / len(phases)
 
-    # We should not multiply by two below if non-collinear
-    nc = "non-collinear" in data.keys()
+    # non-collinear
+    nc = 1 - calc.wfs.collinear
+    # we should not multiply by two below if non-collinear
     phase_c = phase_c * (2 - nc) / nspins
 
-    Z_a = data["Z_a"]
-    spos_ac = data["spos_ac"]
-    phase_c += 2 * np.pi * np.dot(Z_a, spos_ac)
-
     return phase_c
+
+
+def get_atomic_polarization_phase(Nv_a, spos_ac):
+    return 2 * np.pi * np.dot(Nv_a, spos_ac)
+
+
+def get_dipole_polarization_phase(dipole_v, cell_cv):
+    B_cv = np.linalg.inv(cell_cv).T * 2 * np.pi
+    dipole_phase_c = np.dot(B_cv, dipole_v)
+    return dipole_phase_c
 
 
 def parallel_transport(
