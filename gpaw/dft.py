@@ -16,7 +16,6 @@ from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
-from gpaw.new.pwfd.etdm import ETDMEigensolver
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
@@ -259,41 +258,12 @@ class Scissors(LCAOEigensolver):
                                        symmetries)
 
 
-class ETDM(Eigensolver):
-    def __init__(self,
-                 excited_state: bool = False,
-                 converge_unocc: bool = False):
-        self.excited_state = excited_state
-        self.converge_unocc = converge_unocc
-
-    def todict(self):
-        dct = {}
-        if self.excited_state:
-            dct['excited_state'] = True
-        if self.converge_unocc:
-            dct['converge_unocc'] = True
-        return dct
-
-    def build(self,
-              nbands,
-              wf_desc,
-              band_comm,
-              create_preconditioner,
-              converge_bands,
-              setups,
-              atoms):
-        return ETDMEigensolver(
-            excited_state=self.excited_state,
-            converge_unocc=self.converge_unocc)
-
-
 eigensolvers = {
     'davidson': Davidson,
     'rmm-diis': RMMDIIS,
     'lcao': LCAOEigensolver,
     'hybrid-lcao': HybridLCAOEigensolver,
-    'scissors': Scissors,
-    'etdm-fdpw': ETDM}
+    'scissors': Scissors}
 
 
 class Extension(Parameter):
