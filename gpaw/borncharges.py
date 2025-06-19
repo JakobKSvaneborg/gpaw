@@ -1,10 +1,7 @@
-from glob import glob
-
 import numpy as np
 from gpaw.mpi import world, serial_comm
 from gpaw.berryphase import polarization_phase, _get_wavefunctions
-from ase.parallel import paropen
-from ase.units import Bohr
+from ase.parallel import paropen, parprint
 from ase.io.jsonio import write_json, read_json
 from pathlib import Path
 
@@ -22,35 +19,34 @@ def born_charges_wf(calc, delta=0.01, cleanup=False):
     phases_c = {}
     for dlabel in disps_av:
         ia, iv, sign, delta = disps_av[dlabel]
-        atoms_d = displace_atoms(atoms, ia, iv, sign, delta) 
+        atoms_d = displace_atom(atoms, ia, iv, sign, delta)
         gpw_wfs = Path(dlabel + '.gpw')
         berryname = Path(dlabel + '-berryphases.json')
 
         if not berryname.isfile():
             if not gpw_wfs.isfile():
-                gpw_wfs = _get_wavefunctions(atoms, params,
+                gpw_wfs = _get_wavefunctions(atoms_d, params,
                                              serial_comm, gpw_wfs)
             # dict with entries phase_c, electronic_phase_c
-            # atomic_phase_c, dipole_moment_c 
+            # atomic_phase_c, dipole_moment_c
             phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
 
+            # only master rank should write
             with paropen(berryname, 'w') as fd:
                 write_json(fd, phase_c)
+
+            if cleanup:
+                if berryname.isfile():
+                    # remove gpw file
+                    if world.rank == 0:
+                        gpw_wfs.unlink()
         else:
-            with paropen(berryname, 'r') as fd:
+            # all ranks can read
+            with open(berryname, 'r') as fd:
                 phase_c = read_json(fd)
 
         phase_c[dlabel] = phase_c
-             
-    if cleanup:
-        world.barrier()
-        if world.rank == 0:
-            files = glob('disp*.gpw')
-            for f in files:
-                f = Path(f)
-                if f.isfile():
-                    f.unlink()
-    
+
     return born_charges(atoms, disps_av, phases_c)
 
 
