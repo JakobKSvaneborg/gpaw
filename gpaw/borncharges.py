@@ -21,14 +21,14 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
         atoms_d = displace_atom(atoms, ia, iv, sign, delta)
         gpw_wfs = Path(dlabel + '.gpw')
         berryname = Path(dlabel + '-berryphases.json')
-
+        parprint(dlabel, atoms_d.positions)
         if not berryname.is_file():
             if not gpw_wfs.is_file():
                 gpw_wfs = _get_wavefunctions(atoms_d, params,
                                              serial_comm, gpw_wfs)
             # dict with entries phase_c, electronic_phase_c
             # atomic_phase_c, dipole_moment_c
-            phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
+            phase_c = polarization_phase(gpw_wfs, comm=world)
 
             # only master rank should write
             with paropen(berryname, 'w') as fd:
