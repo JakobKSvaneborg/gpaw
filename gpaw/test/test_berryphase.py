@@ -106,8 +106,7 @@ def test_polarization_phase(in_tmp_dir, gpw_files):
         "electronic_phase_c": pi2 * np.array([0.66037602, -0.66037476, 1.0]),
         "atomic_phase_c": pi2 * np.array([8.0, 4.0, 13.0]),
         "dipole_phase_c": pi2
-        * np.array([7.23912394e-01, -7.23912423e-01, 8.54861146e-15]),
-    }
+        * np.array([7.23912394e-01, -7.23912423e-01, 8.54861146e-15])}
 
     err = []
     # test all components
