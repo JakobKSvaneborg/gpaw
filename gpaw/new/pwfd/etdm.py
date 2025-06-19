@@ -14,7 +14,7 @@ from gpaw.new.pwfd.lbfgs import LBFGS
 from gpaw.new.energies import DFTEnergies
 
 
-class ETDMEigensolver(Eigensolver):
+class ETDM(Eigensolver):
     def __init__(self,
                  *,
                  excited_state: bool = False,
@@ -24,10 +24,10 @@ class ETDMEigensolver(Eigensolver):
         self.converge_unocc = converge_unocc
         self.dS_aii: AtomArrays
         self.nocc_s: list[int] = []
-        # self.preconditioner
+        self.preconditioner
 
-    def new(self, **params) -> ETDMEigensolver:
-        return ETDMEigensolver(**params)
+    def new(self, **params) -> ETDM:
+        return ETDM(**params)
 
     def iterate(self,
                 ibzwfs: IBZWaveFunctions,
