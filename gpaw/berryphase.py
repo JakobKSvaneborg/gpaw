@@ -188,19 +188,23 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
     Polarization phase based on evaluation of
     Berry-phase and ionic polarization
 
-    according to https://arxiv.org/pdf/1202.1831 the polarization is
+    Electrical polarization
+    [Raffaele Resta and David Vanderbilt in
+    Physics of Ferroelectrics]:
 
-    p = 1/V sum_a q_a * r_a - 2 * i * e / (2 * pi)^3 sum_n(occ) B_n
+    P_v  = e/(2 * pi)^3 sum_n phi_nv + e/vol sum_a Z_a * r_av
 
-    The first term given with the volume of the cell is V, and q_a, r_a
-    the charges and positions of the atoms is the ionic contribution.
+    with Berry phase in cartesian coordinates
 
-    The second term gives the electronic contribution, with the berry phase
+    phi_nv = Im(int_BZ dk^2 dk_v <u_nk | d/dk_v | u_nk>)
 
-    B_n = int_BZ dk <u_nk| i d/dk | u_nk>
+           = Im( ln prod_{j=0}^{M-1} <u_n,k_j | u_n,k_j+1> )
 
-    and the cell periodic part of the Bloch functions u_nk.
-    The factor 2 comes from the spin degeneracy of the double occupied bands.
+    evaluated for each dimension as the product of bloch function overlaps.
+
+    Here we evaluate the polarization phase given by
+
+    phi_v = 2 * pi * vol * P_v
 
     """
 
