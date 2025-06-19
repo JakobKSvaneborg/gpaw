@@ -20,10 +20,7 @@ script :download:`gs_BaTiO3.py`. We can then run the script
 .. literalinclude:: polarization_BaTiO3.py
 
 which calculates the polarization. It will take a few minutes on a single CPU,
-but can also be parallelized. It generates a .json file that contains the
-polarization and will read if the script is run again. It is thus possible to
-submit the polarization script and print the polarization by rerunning the
-script above in the terminal. The calculation adds the contribution from the
+but can also be parallelized. The calculation adds the contribution from the
 electrons and the nucleii, which implies that the result is independent of the
 positions of the atoms relative to the unit cell. The results should be 0.27
 `C/m^2` for LDA and 0.45 `C/m^2` for PBE , which agrees with the values from
