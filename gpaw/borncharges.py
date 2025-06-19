@@ -1,25 +1,12 @@
 import json
-from os.path import exists, splitext, isfile
-from os import remove
 from glob import glob
 
 import numpy as np
-from gpaw import GPAW
 from gpaw.mpi import world, serial_comm
-from gpaw.berryphase import polarization_phase
+from gpaw.berryphase import polarization_phase, _get_wavefunctions
 from ase.parallel import paropen
 from ase.units import Bohr
 from pathlib import Path
-
-
-def get_wavefunctions(atoms, name, params):
-    params['symmetry'] = {'point_group': False,
-                          'time_reversal': False}
-    tmp = splitext(name)[0]
-    atoms.calc = GPAW(txt=tmp + '.txt', **params)
-    atoms.get_potential_energy()
-    atoms.calc.write(name, 'all')
-    return atoms.calc
 
 
 def borncharges(calc, delta=0.01):
@@ -72,21 +59,20 @@ def borncharges(calc, delta=0.01):
                 gpw_wfs = Path(prefix + '.gpw')
                 berryname = Path(prefix + '-berryphases.json')
                 if not gpw_wfs.isfile() and not berryname.isfile():
-                    calc = get_wavefunctions(atoms, gpw_wfs, params)
-
+                    gpw_wfs = _get_wavefunctions(atoms, params,
+                                                 serial_comm, gpw_wfs)
                 try:
                     phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
                 except ValueError:
-                    calc = get_wavefunctions(atoms, name, params)
+                    gpw_wfs = _get_wavefunctions(atoms, params,
+                                                 serial_comm, gpw_wfs)
                     phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
 
                 phase_scv[s, :, v] = phase_c
 
-                if exists(berryname):  # Calculation done?
+                if berryname.isfile():  # Calculation done?
                     if world.rank == 0:
-                        # Remove gpw file
-                        if isfile(name):
-                            remove(name)
+                        gpw_wfs.unlink()
 
         dphase_cv = (phase_scv[1] - phase_scv[0])
         dphase_cv -= np.round(dphase_cv / (2 * np.pi)) * 2 * np.pi
@@ -109,5 +95,6 @@ def borncharges(calc, delta=0.01):
     if world.rank == 0:
         files = glob('born-*.gpw')
         for f in files:
-            if isfile(f):
-                remove(f)
+            f = Path(f)
+            if f.isfile():
+                f.unlink()

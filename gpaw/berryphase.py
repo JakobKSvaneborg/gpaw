@@ -214,9 +214,8 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
     return phases_c
 
 
-def _get_wavefunctions(
-    atoms: Atoms, calc_params: dict, comm, gpw_wfs: Path = Path("wfs.gpw")
-):
+def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
+                       gpw_wfs: Path = Path("wfs.gpw")):
     check_distance_to_non_pbc_boundary(atoms)
 
     if gpw_wfs.is_file():
