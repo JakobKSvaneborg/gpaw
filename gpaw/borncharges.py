@@ -1,4 +1,3 @@
-import json
 from glob import glob
 
 import numpy as np
@@ -6,95 +5,132 @@ from gpaw.mpi import world, serial_comm
 from gpaw.berryphase import polarization_phase, _get_wavefunctions
 from ase.parallel import paropen
 from ase.units import Bohr
+from ase.io.jsonio import write_json, read_json
 from pathlib import Path
 
 
-def borncharges(calc, delta=0.01):
+def born_charges_wf(calc, delta=0.01, cleanup=False):
+
     params = calc.parameters
     atoms = calc.atoms
-    cell_cv = atoms.get_cell() / Bohr
+
+    # generate displacement dictionary
+    disps_av = _all_disp(atoms, delta)
+
+    # carry out polarization phase calculation
+    # for each displacement
+    phases_c = {}
+    for dlabel in disps_av:
+        ia, iv, sign, delta = disps_av[dlabel]
+        atoms_d = displace_atoms(atoms, ia, iv, sign, delta) 
+        gpw_wfs = Path(dlabel + '.gpw')
+        berryname = Path(dlabel + '-berryphases.json')
+
+        if not berryname.isfile():
+            if not gpw_wfs.isfile():
+                gpw_wfs = _get_wavefunctions(atoms, params,
+                                             serial_comm, gpw_wfs)
+            # dict with entries phase_c, electronic_phase_c
+            # atomic_phase_c, dipole_moment_c 
+            phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
+
+            with paropen(berryname, 'w') as fd:
+                write_json(fd, phase_c)
+        else:
+            with paropen(berryname, 'r') as fd:
+                phase_c = read_json(fd)
+
+        phase_c[dlabel] = phase_c
+             
+    if cleanup:
+        world.barrier()
+        if world.rank == 0:
+            files = glob('disp*.gpw')
+            for f in files:
+                f = Path(f)
+                if f.isfile():
+                    f.unlink()
+    
+    return born_charges(atoms, disps_av, phases_c)
+
+
+def born_charges(atoms, disps_av, phases_c):
+
+    natoms = len(atoms)
+    cell_cv = atoms.get_cell()
     vol = abs(np.linalg.det(cell_cv))
     sym_a = atoms.get_chemical_symbols()
 
-    Z_a = []
-    for num in calc.atoms.get_atomic_numbers():
-        for ida, setup in zip(calc.wfs.setups.id_a,
-                              calc.wfs.setups):
-            if abs(ida[0] - num) < 1e-5:
-                break
-        Z_a.append(setup.Nv)
-    Z_a = np.array(Z_a)
+    ndisp = len(disps_av)
+    parprint('Not using symmetry: ndisp:', ndisp)
 
-    # List for atomic indices
-    indices = list(range(len(sym_a)))
+    # obtain phi(dr) map
+    phi_ascv = np.zeros((natoms, 2, 3, 3), float)
+    for disp_av, phase_c in zip(disps_av, phases_c):
+        ia, iv, sign, delta = disp_av
+        isign = [None, 1, 0][sign]
+        phi_ascv[ia, isign, :, iv] = phase_c
 
-    pos_av = atoms.get_positions()
-    avg_v = np.sum(pos_av, axis=0) / len(pos_av)
-    pos_av -= avg_v
-    atoms.set_positions(pos_av)
-    Z_avv = []
-    norm_c = np.linalg.norm(cell_cv, axis=1)
-    proj_cv = cell_cv / norm_c[:, np.newaxis]
+    # calculate dphi / dr
+    # exploit +- displacement
+    dphi_acv = phi_ascv[:, 1] - phi_ascv[:, 0]
+    # mod 2 pi
+    mod_acv = np.round(dphi_acv / (2 * np.pi)) * 2 * np.pi
+    dphi_acv -= mod_acv
+    # transform to cartesian
+    dphi_avv = np.array([np.dot(dphi_cv.T, cell_cv).T for dphi_cv in dphi_acv])
+    dphi_dr_avv = dphi_avv / (2.0 * delta)
 
-    B_cv = np.linalg.inv(cell_cv).T * 2 * np.pi
-    area_c = np.zeros((3,), float)
-    area_c[[2, 1, 0]] = [np.linalg.norm(np.cross(B_cv[i], B_cv[j]))
-                         for i in range(3)
-                         for j in range(3) if i < j]
+    # calculate polarization change and born charges
+    dP_dr_avv = dphi_dr_avv / (2 * np.pi * vol)
+    Z_avv = dP_dr_avv * vol
 
-    if world.rank == 0:
-        print('Atomnum Atom Direction Displacement')
-    for a in indices:
-        phase_scv = np.zeros((2, 3, 3), float)
-        for v in range(3):
-            for s, sign in enumerate([-1, 1]):
-                if world.rank == 0:
-                    print(sym_a[a], a, v, s)
-                # Update atomic positions
-                atoms.positions = pos_av
-                atoms.positions[a, v] = pos_av[a, v] + sign * delta
-                prefix = 'born-{}-{}{}{}'.format(delta, a,
-                                                 'xyz'[v],
-                                                 ' +-'[sign])
-                gpw_wfs = Path(prefix + '.gpw')
-                berryname = Path(prefix + '-berryphases.json')
-                if not gpw_wfs.isfile() and not berryname.isfile():
-                    gpw_wfs = _get_wavefunctions(atoms, params,
-                                                 serial_comm, gpw_wfs)
-                try:
-                    phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
-                except ValueError:
-                    gpw_wfs = _get_wavefunctions(atoms, params,
-                                                 serial_comm, gpw_wfs)
-                    phase_c = polarization_phase(gpw_wfs, comm=serial_comm)
+    # check acoustic sum rule: sum_a Z_aij = 0 for all i,j
+    asr_vv = np.sum(Z_avv, axis=0)
+    asr_dev = np.abs(asr_vv).max() / natoms
+    assert asr_dev < 1e-1, f'Acoustic sum rule violated: {asr_vv}'
 
-                phase_scv[s, :, v] = phase_c
+    # correct to match acoustic sum rule
+    Z_avv -= asr_vv[None, :, :] / natoms
 
-                if berryname.isfile():  # Calculation done?
-                    if world.rank == 0:
-                        gpw_wfs.unlink()
+    results = {'Z_avv': Z_avv, 'sym_a': sym_a}
 
-        dphase_cv = (phase_scv[1] - phase_scv[0])
-        dphase_cv -= np.round(dphase_cv / (2 * np.pi)) * 2 * np.pi
-        dP_cv = (area_c[:, np.newaxis] / (2 * np.pi)**3 *
-                 dphase_cv)
-        dP_vv = np.dot(proj_cv.T, dP_cv)
-        Z_vv = dP_vv * vol / (2 * delta / Bohr)
-        Z_avv.append(Z_vv)
+    return results
 
-    data = {'Z_avv': [Z_aa.tolist() for Z_aa in Z_avv],
-            'indices_a': indices,
-            'sym_a': sym_a}
 
-    filename = f'borncharges-{delta}.json'
+def _cartesian_label(ia, iv, sign):
+    """Generate name from (ia, iv, sign).
+    ia ... atomic_index
+    iv ... cartesian_index
+    sign ... +-
+    """
 
-    with paropen(filename, 'w') as fd:
-        json.dump(data, fd)
+    sym_v = 'xyz'[iv]
+    sym_s = ' +-'[sign]
+    return f'{ia}{sym_v}{sym_s}'
 
-    world.barrier()
-    if world.rank == 0:
-        files = glob('born-*.gpw')
-        for f in files:
-            f = Path(f)
-            if f.isfile():
-                f.unlink()
+
+def _all_avs(atoms):
+    """Generate ia, iv, sign for all displacements."""
+    for ia in range(len(atoms)):
+        for iv in range(3):
+            for sign in [-1, 1]:
+                yield (ia, iv, sign)
+
+
+def _all_disp(atoms, delta):
+    all_disp = {}
+    for dd, avs in enumerate(_all_avs(atoms)):
+        dd = int(dd)
+        lavs = _cartesian_label(*avs)
+        label = f'disp_{dd:03d}_' + lavs
+        all_disp[label] = (*avs, delta)
+    return all_disp
+
+
+def displace_atom(atoms, ia, iv, sign, delta):
+    new_atoms = atoms.copy()
+    pos_av = new_atoms.get_positions()
+    pos_av[ia, iv] += sign * delta
+    new_atoms.set_positions(pos_av)
+    return new_atoms
