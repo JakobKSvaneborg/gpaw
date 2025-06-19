@@ -12,7 +12,6 @@ from types import ModuleType
 
 import numpy as np
 from scipy.fft import fftn, ifftn, irfftn, rfftn
-import cupy
 
 import gpaw.cgpaw as cgpaw
 from gpaw.utilities import as_complex_dtype, as_real_dtype
@@ -246,7 +245,7 @@ class CuPyFFTPlans(FFTPlans):
 
     @trace(gpu=True)
     def ifft(self):
-        from gpaw.gpu import cupyx
+        from gpaw.gpu import cupyx, cupy
         if self.tmp_R.dtype == float:
             if is_hip:
                 self.tmp_R[:] = irfftn_patch(self.tmp_Q, self.tmp_R.shape) \
