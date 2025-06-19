@@ -245,7 +245,7 @@ class CuPyFFTPlans(FFTPlans):
 
     @trace(gpu=True)
     def ifft(self):
-        from gpaw.gpu import cupyx, cupy
+        from gpaw.gpu import cupyx
         if self.tmp_R.dtype == float:
             if is_hip:
                 self.tmp_R[:] = irfftn_patch(self.tmp_Q, self.tmp_R.shape) \
@@ -312,14 +312,15 @@ class CuPyFFTPlans(FFTPlans):
 
     @trace
     def fft_sphere(self, in_R, pw):
-        from gpaw.gpu import cupyx
+        from gpaw.gpu import cupyx, cupy
         if np.issubdtype(self.dtype, np.complexfloating):
             out_Q = cupyx.scipy.fft.fftn(in_R)
         else:
             if is_hip:
                 out_Q = rfftn_patch(in_R)
             else:
-                out_Q = cupyx.scipy.fft.rfftn(cupy.require(in_R, requirements='O'))
+                out_Q = cupyx.scipy.fft.rfftn(cupy.require(in_R,
+                                                           requirements='O'))
 
         Q_G = self.indices(pw)
         coef_G = out_Q.ravel()[Q_G] * (1 / in_R.size)
