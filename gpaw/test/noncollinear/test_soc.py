@@ -46,11 +46,8 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
         kwargs = {**params, "symmetry": "off",
                   "magmoms": np.zeros((3, 3)), "soc": True}
     else:
-        kwargs = {
-            **params,
-            "symmetry": "off",
-            "experimental": {"magmoms": np.zeros((3, 3)), "soc": True},
-        }
+        kwargs = {**params, "symmetry": "off",
+                  "experimental": {"magmoms": np.zeros((3, 3)), "soc": True}}
 
     a.calc = GPAW(convergence={"bands": 28}, **kwargs)
     a.get_potential_energy()
@@ -73,13 +70,9 @@ def test_non_collinear_plus_soc():
     a = mx2("MoS2")
     a.center(vacuum=3, axis=2)
 
-    a.calc = GPAW(
-        experimental={"magmoms": np.zeros((3, 3)), "soc": False},
-        convergence={"bands": 28},
-        symmetry="off",
-        parallel={"domain": 1},
-        **params,
-    )
+    a.calc = GPAW(experimental={"magmoms": np.zeros((3, 3)), "soc": False},
+                  convergence={"bands": 28}, symmetry="off",
+                  parallel={"domain": 1}, **params)
     a.get_potential_energy()
 
     bzwfs = soc_eigenstates(a.calc, n2=28)
