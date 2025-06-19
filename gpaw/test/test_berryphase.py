@@ -9,15 +9,12 @@ from gpaw.berryphase import (get_berry_phases,
 
 # Values from an earlier test
 ref_phi_mos2_km = np.array(
-    [
-        [2.72907676e-04, 2.99369724e00, 4.51932187e00, 5.94725651e00],
-        [4.84334561e-03, 2.42519044e00, 4.43335136e00, 5.75115262e00],
-        [2.99682618e-02, 2.26119678e00, 4.30480687e00, 5.78042986e00],
-        [4.84334561e-03, 2.42519044e00, 4.43335136e00, 5.75115262e00],
-        [2.72907676e-04, 2.99369724e00, 4.51932187e00, 5.94725651e00],
-        [3.75847658e-03, 2.67197983e00, 4.36511629e00, 5.60446187e00],
-    ]
-)
+    [[2.72907676e-04, 2.99369724e00, 4.51932187e00, 5.94725651e00],
+     [4.84334561e-03, 2.42519044e00, 4.43335136e00, 5.75115262e00],
+     [2.99682618e-02, 2.26119678e00, 4.30480687e00, 5.78042986e00],
+     [4.84334561e-03, 2.42519044e00, 4.43335136e00, 5.75115262e00],
+     [2.72907676e-04, 2.99369724e00, 4.51932187e00, 5.94725651e00],
+     [3.75847658e-03, 2.67197983e00, 4.36511629e00, 5.60446187e00]])
 
 
 def test_parallel_transport_mos2(in_tmp_dir, gpw_files):
@@ -39,16 +36,12 @@ def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files["i2sb2_pw_nosym"], txt=None,
                 communicator=mpi.serial_comm)
     nelec = int(calc.get_number_of_electrons())
-    parallel_transport(
-        calc,
-        name="i2sb2",
-        scale=1,
-        # To calculate the valence bands berry
-        # phases, we only need the top valence
-        # group of bands. This corresponds to 2x8
-        # bands, see c2db (x2 for spin)
-        bands=range(nelec - 2 * 8, nelec),
-    )
+    parallel_transport(calc, name="i2sb2", scale=1,
+                       # To calculate the valence bands berry
+                       # phases, we only need the top valence
+                       # group of bands. This corresponds to 2x8
+                       # bands, see c2db (x2 for spin)
+                       bands=range(nelec - 2 * 8, nelec))
 
     # Load phase-ordered data
     phi_km, S_km = load_renormalized_data("i2sb2")
@@ -72,30 +65,19 @@ def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
     phi_qm = phi_km[bands]
     S_qm = S_km[bands]
     Svalues = S_qm[phi_qm > 3.0]
-    assert Svalues == pytest.approx(
-        np.array(
-            [
-                -1,
-                1,  # k=0
-                -1,
-                1,  # k=1
-                1,
-                -1,  # k=2
-                1,
-                -1,
-            ]
-        ),  # k=3
-        abs=0.01,
-    )
+    assert Svalues == pytest.approx(np.array([-1, 1,    # k=0
+                                              -1, 1,    # k=1
+                                              1, -1,    # k=2
+                                              1, -1]),  # k=3
+                                    abs=0.01)
     # Test also the berry phases for the same bands
     phivalues = phi_qm[phi_qm > 3.0]
     print(phivalues)
     # We test that the values don't change too much. This will
     # also guarantee that the results agree qualitatively with
     # the c2db plot
-    assert phivalues == pytest.approx(
-        [3.115, 5.309, 3.970, 4.455, 3.970, 4.455, 3.115, 5.309], abs=0.05
-    )
+    assert phivalues == pytest.approx([3.115, 5.309, 3.970, 4.455,
+                                       3.970, 4.455, 3.115, 5.309], abs=0.05)
 
 
 def load_renormalized_data(name):
