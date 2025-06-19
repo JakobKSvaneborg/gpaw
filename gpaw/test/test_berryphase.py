@@ -3,7 +3,9 @@ import pytest
 
 import gpaw.mpi as mpi
 from gpaw import GPAW
-from gpaw.berryphase import get_berry_phases, polarization_phase, parallel_transport
+from gpaw.berryphase import (get_berry_phases,
+                             polarization_phase,
+                             parallel_transport)
 
 # Values from an earlier test
 ref_phi_mos2_km = np.array(
@@ -34,7 +36,8 @@ def test_parallel_transport_mos2(in_tmp_dir, gpw_files):
 
 def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
     # Calculate the berry phases and spin projections
-    calc = GPAW(gpw_files["i2sb2_pw_nosym"], txt=None, communicator=mpi.serial_comm)
+    calc = GPAW(gpw_files["i2sb2_pw_nosym"], txt=None,
+                communicator=mpi.serial_comm)
     nelec = int(calc.get_number_of_electrons())
     parallel_transport(
         calc,
@@ -113,7 +116,8 @@ def load_renormalized_data(name):
 
 def test_polarization_phase(in_tmp_dir, gpw_files):
     pi2 = 2.0 * np.pi
-    phases_c = polarization_phase(gpw_files["mos2_pw_nosym"], comm=mpi.serial_comm)
+    phases_c = polarization_phase(gpw_files["mos2_pw_nosym"],
+                                  comm=mpi.serial_comm)
 
     phases_test = {
         "phase_c": pi2 * np.array([8.66037602, 3.33962524, 8.54861146e-15]),
@@ -174,4 +178,5 @@ def test_assertions(in_tmp_dir, gpw_files):
         ind, phases = get_berry_phases(calc)
 
     with pytest.raises(AssertionError):
-        phi_km, S_km = parallel_transport(calc, direction=0, name="mos2", scale=0)
+        phi_km, S_km = parallel_transport(calc, direction=0,
+                                          name="mos2", scale=0)
