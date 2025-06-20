@@ -1,23 +1,33 @@
 from gpaw import GPAW
 from gpaw.borncharges import born_charges_wf
+import pytest
 import numpy as np
+from glob import glob
 
 
-def test_born_charges_wf(in_tmp_dir, gpw_files):
-    gpw_file = gpw_files["mos2_pw_nosym"]
+@pytest.mark.parametrize('use_gpw', [False, True])
+def test_born_charges_wf(in_tmp_dir, gpw_files, use_gpw, cleanup=True):
+    gpw_file = gpw_files["hbn_pw"]
     calc = GPAW(gpw_file, txt=None)
     atoms = calc.get_atoms()
 
-    Z_avv_test = np.array([[[-1.0732e+00, -2.7710e-04, +4.9039e-10],
-                            [+1.9594e-04, -1.0803e+00, -4.0036e-10],
-                            [-1.0843e-07, +1.1073e-06, -1.1197e-01]],
-                           [[+5.3664e-01, +1.3854e-04, -6.1787e-03],
-                            [-9.7972e-05, +5.4017e-01, +3.5707e-03],
-                            [+1.0937e-03, +2.6839e-04, +5.5989e-02]],
-                           [[+5.3664e-01, +1.3855e-04, +6.1787e-03],
-                            [-9.7970e-05, +5.4017e-01, -3.5707e-03],
-                            [-1.0936e-03, -2.6950e-04, +5.5989e-02]]])
+    Z_t = np.array([[[-2.83053644e+00, +8.72216542e-05, -1.24768192e-06],
+                     [+3.14174433e-06, -2.83058107e+00, +5.61120199e-07],
+                     [-3.44269736e-06, -3.10374132e-06, -3.42142396e-01]],
+                    [[+2.83053644e+00, -8.72216542e-05, +1.24768192e-06],
+                     [-3.14174433e-06, +2.83058107e+00, -5.61120199e-07],
+                     [+3.44269736e-06, +3.10374132e-06, +3.42142396e-01]]])
 
-    Z_avv = born_charges_wf(atoms, gpw_file=gpw_file)['Z_avv']
+    if use_gpw:
+        # use the restart file
+        Z_avv = born_charges_wf(atoms, gpw_file=gpw_file,
+                                cleanup=cleanup)['Z_avv']
+    else:
+        atoms.calc = calc
+        Z_avv = born_charges_wf(atoms, cleanup=cleanup)['Z_avv']
 
-    assert np.allclose(Z_avv, Z_avv_test, atol=1e-4)
+    assert np.allclose(Z_avv, Z_t, atol=1e-4)
+
+    if cleanup:
+        flist = glob('disp*.gpw')
+        assert len(flist) == 0
