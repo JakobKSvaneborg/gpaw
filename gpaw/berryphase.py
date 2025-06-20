@@ -233,10 +233,9 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
                 # restart from existing gpw_file
                 calc = GPAW(gpw_file, communicator=comm)
                 sym_off = len(calc.symmetry.op_scc) == 1
-                if not sym_off:
-                    # recalculate fix-density with symmetry off
-                    parprint(f"Fixdensity calculation from {gpw_wfs}")
-                    calc = calc.fixed_density(symmetry="off", txt="fixed.txt")
+                # symmetry off?
+                # otherwise calculate wfs at new positions anyway
+                if sym_off:
                     new = False
 
         if new:
@@ -244,9 +243,10 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
             calc_params.update({'symmetry': 'off'})
             calc = GPAW(**calc_params, communicator=comm)
 
-            # run calculation
-            atoms.calc = calc
-            atoms.get_potential_energy()
+        # set calculator to atoms
+        # run calculation
+        atoms.calc = calc
+        atoms.get_potential_energy()
 
         # write wavefunctions
         calc.write(gpw_wfs, "all")

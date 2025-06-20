@@ -1,12 +1,13 @@
 import numpy as np
-from gpaw.mpi import world, serial_comm
+from gpaw.mpi import world
 from gpaw.berryphase import polarization_phase, _get_wavefunctions
 from ase.parallel import paropen, parprint
 from ase.io.jsonio import write_json, read_json
 from pathlib import Path
 
 
-def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
+def born_charges_wf(atoms, delta=0.01, cleanup=False,
+                    out='born_charges.json', gpw_file=None):
 
     params = atoms.calc.parameters
     params['txt'] = 'born.txt'
@@ -24,8 +25,8 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
         berryname = Path(dlabel + '_berry-phases.json')
         if not berryname.is_file():
             if not gpw_wfs.is_file():
-                gpw_wfs = _get_wavefunctions(atoms_d, params,
-                                             world, gpw_wfs)
+                gpw_wfs = _get_wavefunctions(atoms_d, params, world,
+                                             gpw_wfs, gpw_file=gpw_file)
             # dict with entries phase_c, electronic_phase_c
             # atomic_phase_c, dipole_moment_c
             phase_c = polarization_phase(gpw_wfs, comm=world)
