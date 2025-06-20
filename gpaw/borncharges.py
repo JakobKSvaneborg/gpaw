@@ -1,15 +1,13 @@
 import numpy as np
 from gpaw.mpi import world
-from gpaw.berryphase import polarization_phase, _get_wavefunctions
+from gpaw.berryphase import polarization_phase, _get_wavefunctions, ionic_phase
 from ase.parallel import paropen, parprint
 from ase.io.jsonio import write_json, read_json
 from pathlib import Path
 
 
-def born_charges_wf(atoms, delta=0.01, cleanup=False,
+def born_charges_wf(atoms, delta=0.01, cleanup=False, ionic_only=False,
                     out='born_charges.json', gpw_file=None):
-
-    params = atoms.calc.parameters
 
     # generate displacement dictionary
     disps_av = _all_disp(atoms, delta)
@@ -20,41 +18,51 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False,
     for dlabel in disps_av:
         ia, iv, sign, delta = disps_av[dlabel]
         atoms_d = displace_atom(atoms, ia, iv, sign, delta)
-        gpw_wfs = Path(dlabel + '.gpw')
-        berryname = Path(dlabel + '_berry-phases.json')
-        if not berryname.is_file():
-            if not gpw_wfs.is_file():
-                gpw_wfs = _get_wavefunctions(atoms_d, params, world,
-                                             gpw_wfs, gpw_file=gpw_file)
-            # dict with entries phase_c, electronic_phase_c
-            # atomic_phase_c, dipole_moment_c
-            phase_c = polarization_phase(gpw_wfs, comm=world)
 
-            # only master rank should write
-            with paropen(berryname, 'w') as fd:
-                write_json(fd, phase_c)
+        if not ionic_only:
+            # calculation parameters
+            params = atoms.calc.parameters
 
+            # proper polarization phase calculation
+            gpw_wfs = Path(dlabel + '.gpw')
+            berryname = Path(dlabel + '_berry-phases.json')
+            if not berryname.is_file():
+                if not gpw_wfs.is_file():
+                    gpw_wfs = _get_wavefunctions(atoms_d, params, world,
+                                                 gpw_wfs, gpw_file=gpw_file)
+                # dict with entries phase_c, electronic_phase_c
+                # atomic_phase_c, dipole_moment_c
+                phase_c = polarization_phase(gpw_wfs, comm=world)
+
+                # only master rank should write
+                with paropen(berryname, 'w') as fd:
+                    write_json(fd, phase_c)
+
+            else:
+                # all ranks can read
+                with open(berryname, 'r') as fd:
+                    phase_c = read_json(fd)
+
+            if cleanup:
+                if berryname.is_file():
+                    # remove gpw file
+                    if world.rank == 0:
+                        gpw_wfs.unlink()
         else:
-            # all ranks can read
-            with open(berryname, 'r') as fd:
-                phase_c = read_json(fd)
-
-        if cleanup:
-            if berryname.is_file():
-                # remove gpw file
-                if world.rank == 0:
-                    gpw_wfs.unlink()
+            # only atomic contribution considered
+            # for unexpensive testing only
+            phase_c = ionic_phase(atoms_d)
 
         phases_c[dlabel] = phase_c['phase_c']
 
-    results = born_charges(atoms, disps_av, phases_c)
+    results = born_charges(atoms, disps_av, phases_c, check=(not ionic_only))
     with paropen(out, 'w') as fd:
         write_json(fd, results)
 
     return results
 
 
-def born_charges(atoms, disps_av, phases_c):
+def born_charges(atoms, disps_av, phases_c, check=True):
 
     natoms = len(atoms)
     cell_cv = atoms.get_cell()
@@ -85,13 +93,14 @@ def born_charges(atoms, disps_av, phases_c):
     dP_dr_avv = dphi_dr_avv / (2 * np.pi * vol)
     Z_avv = dP_dr_avv * vol
 
-    # check acoustic sum rule: sum_a Z_aij = 0 for all i,j
-    asr_vv = np.sum(Z_avv, axis=0)
-    asr_dev = np.abs(asr_vv).max() / natoms
-    assert asr_dev < 1e-1, f'Acoustic sum rule violated: {asr_vv}'
+    if check:
+        # check acoustic sum rule: sum_a Z_aij = 0 for all i,j
+        asr_vv = np.sum(Z_avv, axis=0)
+        asr_dev = np.abs(asr_vv).max() / natoms
+        assert asr_dev < 1e-1, f'Acoustic sum rule violated: {asr_vv}'
 
-    # correct to match acoustic sum rule
-    Z_avv -= asr_vv[None, :, :] / natoms
+        # correct to match acoustic sum rule
+        Z_avv -= asr_vv[None, :, :] / natoms
 
     results = {'Z_avv': Z_avv, 'sym_a': sym_a}
 

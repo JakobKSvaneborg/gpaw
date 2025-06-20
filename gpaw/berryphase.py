@@ -288,7 +288,7 @@ def _get_phases(gpw_wfs: Path, cleanup: bool = False):
     return phases_c
 
 
-def atomic_phase(atoms: Atoms):
+def ionic_phase(atoms: Atoms):
     # routine to check born charge implementation
     # no charge neutrality -> acoustic sum rule not valid
     check_distance_to_non_pbc_boundary(atoms)

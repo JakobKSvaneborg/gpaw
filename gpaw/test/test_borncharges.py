@@ -1,8 +1,10 @@
-from gpaw import GPAW
-from gpaw.borncharges import born_charges_wf
 import pytest
 import numpy as np
 from glob import glob
+
+from ase.build import mx2, molecule
+from gpaw import GPAW
+from gpaw.borncharges import born_charges_wf
 
 
 @pytest.mark.parametrize('use_gpw', [False, True])
@@ -31,3 +33,17 @@ def test_born_charges_wf(in_tmp_dir, gpw_files, use_gpw, cleanup=True):
     if cleanup:
         flist = glob('disp*.gpw')
         assert len(flist) == 0
+
+
+@pytest.mark.parametrize('atoms', [mx2('MoS2', vacuum=7.5),
+                                   molecule('H2', cell=[10, 10, 10])])
+def test_born_charges_ionic_wf(in_tmp_dir, atoms):
+
+    atoms.center()
+
+    Z_a = atoms.numbers
+    Z_t = np.array([za * np.eye(3) for za in Z_a])
+
+    Z_avv = born_charges_wf(atoms, ionic_only=True)['Z_avv']
+
+    assert np.allclose(Z_avv, Z_t)
