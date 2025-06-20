@@ -21,7 +21,7 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
         ia, iv, sign, delta = disps_av[dlabel]
         atoms_d = displace_atom(atoms, ia, iv, sign, delta)
         gpw_wfs = Path(dlabel + '.gpw')
-        berryname = Path(dlabel + '-berryphases.json')
+        berryname = Path(dlabel + '_berry-phases.json')
         if not berryname.is_file():
             if not gpw_wfs.is_file():
                 gpw_wfs = _get_wavefunctions(atoms_d, params,
@@ -34,15 +34,16 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False, out='born_charges.json'):
             with paropen(berryname, 'w') as fd:
                 write_json(fd, phase_c)
 
-            if cleanup:
-                if berryname.is_file():
-                    # remove gpw file
-                    if world.rank == 0:
-                        gpw_wfs.unlink()
         else:
             # all ranks can read
             with open(berryname, 'r') as fd:
                 phase_c = read_json(fd)
+
+        if cleanup:
+            if berryname.is_file():
+                # remove gpw file
+                if world.rank == 0:
+                    gpw_wfs.unlink()
 
         phases_c[dlabel] = phase_c['phase_c']
 

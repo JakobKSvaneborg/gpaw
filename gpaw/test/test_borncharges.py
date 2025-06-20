@@ -3,19 +3,17 @@ from gpaw.borncharges import born_charges_wf
 from ase.build import mx2
 
 calc_params = {
-    'mode': {'name': 'pw', 'ecut': 600},
+    'mode': {'name': 'pw', 'ecut': 400},
     'xc': 'PBE',
-    'basis': 'dzp',
-    'kpts': {'density': 6.0},
+    'kpts': {'density': 3.0},
     'occupations': {'name': 'fermi-dirac', 'width': 0.05},
     'symmetry': 'off',
-    'convergence': {'density': 1e-6},
-    'txt': 'test.txt'
+    'convergence': {'density': 1e-4},
 }
 
 atoms = mx2('MoS2', vacuum=5.0)
 atoms.center()
 
-calc = GPAW(**calc_params)
+calc = GPAW(**calc_params, txt=None)
 atoms.calc = calc
-results = born_charges_wf(atoms)
+results = born_charges_wf(atoms, cleanup=True)
