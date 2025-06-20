@@ -1,4 +1,5 @@
 # web-page: born_charges_BaTiO3.csv
+# --- literalinclude import-start ---
 from ase.io.jsonio import read_json
 import numpy as np
 
@@ -11,7 +12,6 @@ sym_a = results['sym_a']
 for sym, Z_vv in zip(sym_a, Z_avv):
     print(sym)
     print(np.round(Z_vv, 2))
-
 # --- literalinclude import-end ---
 csv_file = 'born_charges_BaTiO3.csv'
 

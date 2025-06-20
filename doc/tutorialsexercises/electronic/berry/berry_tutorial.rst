@@ -49,10 +49,11 @@ above the calculation is performed with the script
 
 .. literalinclude:: born_BaTiO3.py
 
-Again the results are written to a .json file and the Born effective charges
+The results are written to the ``born_charges.json`` file and the Born effective charges
 can be viewed with the script
 
 .. literalinclude:: get_borncharges.py
+    :start-after: literalinclude import-start
     :end-before: literalinclude import-end
 
 Due to symmetry all the tensors are diagonal. Note, however, the large
