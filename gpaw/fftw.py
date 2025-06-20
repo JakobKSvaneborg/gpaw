@@ -319,7 +319,7 @@ class CuPyFFTPlans(FFTPlans):
             if is_hip:
                 out_Q = rfftn_patch(in_R)
             else:
-                in_R = in_R if in_R.data.ptr % 16 else in_R.copy()
+                in_R = in_R if in_R.data.ptr % 16 == 0 else in_R.copy()
                 out_Q = cupyx.scipy.fft.rfftn(in_R)
 
         Q_G = self.indices(pw)
