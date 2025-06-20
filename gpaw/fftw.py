@@ -319,8 +319,8 @@ class CuPyFFTPlans(FFTPlans):
             if is_hip:
                 out_Q = rfftn_patch(in_R)
             else:
-                out_Q = cupyx.scipy.fft.rfftn(cupy.require(in_R,
-                                                           requirements='O'))
+                in_R = in_R if in_R.data.ptr % 16 else in_R.copy()
+                out_Q = cupyx.scipy.fft.rfftn(in_R)
 
         Q_G = self.indices(pw)
         coef_G = out_Q.ravel()[Q_G] * (1 / in_R.size)
