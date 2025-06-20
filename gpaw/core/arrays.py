@@ -31,7 +31,7 @@ class XArrayWithNoData:
         self.xp = xp
         self.data = None
 
-    def morph(self):
+    def morph(self, desc):
         from gpaw.new.calculation import ReuseWaveFunctionsError
         raise ReuseWaveFunctionsError
 
