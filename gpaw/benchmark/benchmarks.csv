@@ -4,7 +4,8 @@ C60_lowpw,            C60-pw.low:kpts.gamma,                                    
 C60_lowpw_float,      C60-pw.low.float32:kpts.gamma,                                0:4G:1GPU
 MoS2_tube,            MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack,         56-192:100G:4-16GPU
 676_graphene,         C676-pw:kpts.gamma:xc.PBE:parallel.scalapack,                 56-192:100G:4-16GPU
-pw_C6000,             C6000-pw.low:kpts.gamma:parallel.domainband.scalapack,        192-:800G:12-GPU
+pw_C6000,             C6000-pw.low:kpts.gamma:parallel.domainband.scalapack,        576-:5000G:12-GPU
+pw_C2188,             C2188-pw.low:kpts.gamma:parallel.domainband.scalapack,        192-:1200G:4-GPU
 pw_C676,              C676-pw.high:kpts.gamma:parallel.scalapack:xc.PBE,            56-:500G:4-GPU
 pw_magbulk,           magbulk-pw.high:kpts.density6,                                1-56:4G:1-4GPU
 pw_C60_DIIS32,        C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS,    0:4G:1GPU

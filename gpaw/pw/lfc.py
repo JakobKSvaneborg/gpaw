@@ -190,9 +190,9 @@ class PWLFC(BaseLFC):
 
         if True:
             # Fast C-code:
-            cgpaw.pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
-                               self.l_s, self.a_J, self.s_J,
-                               cc, f_GI)
+            cgpaw.pwlfc_expand_old(f_Gs, emiGR_Ga, Y_GL,
+                                   self.l_s, self.a_J, self.s_J,
+                                   cc, f_GI)
             return f_GI
 
         # Equivalent slow Python code:
