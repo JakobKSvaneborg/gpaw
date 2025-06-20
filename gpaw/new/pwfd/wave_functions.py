@@ -273,7 +273,9 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             slcomm, r, c, b = scalapack_parameters
             if r == c == 1:
                 slcomm = None
+            print(H.data)
             self._eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)))
+            print(self._eig_n);import sys;sys.exit(0)
             H.complex_conjugate()
             # H.data[n, :] now contains the nth eigenvector and eps_n[n]
             # the nth eigenvalue

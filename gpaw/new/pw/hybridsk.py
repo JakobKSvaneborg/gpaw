@@ -57,12 +57,14 @@ class PWHybridHamiltonianK(PWHamiltonian):
 
         self.mypsits: list[Psit] = []
         self.nocc = -1
+        self.nbzk = 0
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions):
         self.mypsits, self.nocc = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.cgrid, self.plan,
             self.log)
+        self.nbzk = len(ibzwfs.ibz.bz)
 
     def apply_orbital_dependent(self,
                                 ibzwfs: IBZWaveFunctions,
@@ -96,6 +98,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
             evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
                                           psit2_nG, Htpsit2_nG,
                                           wfs.occ_n)
+            print(evv)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
@@ -185,6 +188,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
             rhot_nR = ut2_nR.copy()
+            # print(ut1_nR.data[:, 6, 6])
+            # print(ut2_nR.data[:, 6, 6])
             rhot_nR.data *= ut1_R.conj()
             Q_anL = {}
             for a, Q1_niL in Q1_aniL.items():
@@ -198,10 +203,14 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 for rhot_G, f2 in zip(rhot_nG, f2_n):
                     a_G = rhot_G.copy()
                     rhot_G.data *= v_G.data
-                    e += a_G.integrate(rhot_G).real * f2 * f1_n[n1]
+                    # print(v_G.data.shape)
+                    # print(rhot_G.data[0])
+                    e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
+                    e += e12
+                    # print(n1, f2, f1_n[n1], e12);asdf
             rhot_nG.ifft(out=rhot_nR)
             rhot_nR.data *= ut1_R.data
-            x = self.exx_fraction * f1_n[n1]
+            x = self.exx_fraction * f1_n[n1] / self.nbzk
             for v2_R, Htpsit2_G in zip(rhot_nR, Htpsit2_nG):
                 v2_R.fft(out=v2_G)
                 Htpsit2_G.data -= v2_G.data * x
