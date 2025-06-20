@@ -53,12 +53,15 @@ Again the results are written to a .json file and the Born effective charges
 can be viewed with the script
 
 .. literalinclude:: get_borncharges.py
+    :end-before: literalinclude import-end
 
 Due to symmetry all the tensors are diagonal. Note, however, the large
 differences between the components for each of the O atoms. The Born effective
 charges tell us how the atoms are affected by an external electric field.
 
 .. csv-table::
+  :align: center
+  :header: Ba, , , ,Ti, , , ,O, , , ,O, , , ,O, , ,
   :file: born_charges_BaTiO3.csv
 
 Topological properties of stanene from parallel transport
