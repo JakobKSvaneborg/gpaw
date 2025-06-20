@@ -312,14 +312,20 @@ class CuPyFFTPlans(FFTPlans):
 
     @trace
     def fft_sphere(self, in_R, pw):
-        from gpaw.gpu import cupyx, cupy
+        from gpaw.gpu import cupyx
         if np.issubdtype(self.dtype, np.complexfloating):
             out_Q = cupyx.scipy.fft.fftn(in_R)
         else:
             if is_hip:
                 out_Q = rfftn_patch(in_R)
             else:
-                in_R = in_R if in_R.data.ptr % 16 == 0 else in_R.copy()
+                # CuPy bug? rfftn fails on non-aligned arrays
+                # To that end, make a copy. However, display a warning.
+                if in_R.data.ptr % 16:
+                    in_R = in_R.copy()
+                    from warnings import warn
+                    warn('Circumventing GPU array alignment problem '
+                         'with copy at rfftn.')
                 out_Q = cupyx.scipy.fft.rfftn(in_R)
 
         Q_G = self.indices(pw)
