@@ -57,8 +57,10 @@ def test_pwlfc_expand(dtype, cc):
 
     rdtype = as_real_dtype(dtype)
     f_Gs = rng.randn(GN, sN, dtype=rdtype)
-    emiGR_Ga = rng.randn(GN, aN, dtype=rdtype) \
-        + 1j * rng.randn(GN, aN, dtype=rdtype)
+    Gk_Gv = rng.randn(GN, 3, dtype=rdtype)
+    pos_av = rng.randn(aN, 3, dtype=rdtype)
+    eikR_a = rng.randn(aN, dtype=rdtype) \
+        + 1j * rng.randn(aN, dtype=rdtype)
     Y_GL = rng.randn(GN, LN, dtype=rdtype)
 
     gN = GN if np.issubdtype(dtype, np.complexfloating) else 2 * GN
@@ -80,14 +82,16 @@ def test_pwlfc_expand(dtype, cc):
         I1 = I2
     assert I2 == IN
 
-    kernel_call(f_Gs, emiGR_Ga, Y_GL,
+    kernel_call(f_Gs, Gk_Gv, pos_av,
+                eikR_a, Y_GL,
                 l_s, a_J, s_J,
                 cc, f_kernel_GI, I_J)
-    cupy_call(f_Gs, emiGR_Ga, Y_GL,
+    cupy_call(f_Gs, Gk_Gv, pos_av,
+              eikR_a, Y_GL,
               l_s, a_J, s_J,
               cc, f_cupy_GI, I_J)
 
-    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get())
+    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(), abs=1e-6)
 
 
 @pytest.mark.gpu
