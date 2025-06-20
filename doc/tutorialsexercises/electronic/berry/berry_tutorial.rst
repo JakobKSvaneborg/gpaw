@@ -58,6 +58,8 @@ Due to symmetry all the tensors are diagonal. Note, however, the large
 differences between the components for each of the O atoms. The Born effective
 charges tell us how the atoms are affected by an external electric field.
 
+.. csv-table::
+  :file: born_charges_BaTiO3.csv
 
 Topological properties of stanene from parallel transport
 =========================================================
