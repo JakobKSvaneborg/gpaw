@@ -1,8 +1,7 @@
-import json
+from ase.io.jsonio import read_json
 import numpy as np
 
-with open('borncharges-0.01.json') as fd:
-    Z_avv = json.load(fd)['Z_avv']
+Z_avv = read_json('born_charges.json')['Z_avv']
 for a, Z_vv in enumerate(Z_avv):
     print(a)
     print(np.round(Z_vv, 2))
