@@ -220,9 +220,10 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
 
     check_distance_to_non_pbc_boundary(atoms)
 
+    txt = 'berry.txt'
     if gpw_wfs.is_file():
         # wfs are already calculated
-        calc = GPAW(gpw_wfs, communicator=comm)
+        calc = GPAW(gpw_wfs, communicator=comm, txt=txt)
         # check that symmetry 'off'
         assert (len(calc.symmetry.op_scc) == 1)
     else:
@@ -231,7 +232,7 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
         if gpw_file is not None:
             if gpw_file.is_file():
                 # restart from existing gpw_file
-                calc = GPAW(gpw_file, communicator=comm)
+                calc = GPAW(gpw_file, communicator=comm, txt=txt)
                 sym_off = len(calc.symmetry.op_scc) == 1
                 # symmetry off?
                 # otherwise calculate wfs at new positions anyway
@@ -241,11 +242,10 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
         if new:
             parprint("Calculating wavefunctions with symmetry off")
             calc_params.update({'symmetry': 'off'})
-            calc = GPAW(**calc_params, communicator=comm)
+            calc = GPAW(**calc_params, communicator=comm, txt=txt)
 
         # set calculator to atoms
         # run calculation
-        calc.set(txt='berry.text')
         atoms.calc = calc
         atoms.get_potential_energy()
 
