@@ -215,18 +215,37 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
 
 
 def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
-                       gpw_wfs: Path = Path("wfs.gpw")):
+                       gpw_wfs: Path = Path("wfs.gpw"),
+                       gpw_file: Path = None):
+
     check_distance_to_non_pbc_boundary(atoms)
 
     if gpw_wfs.is_file():
+        # wfs are already calculated
         calc = GPAW(gpw_wfs, communicator=comm)
-        sym_off = len(calc.symmetry.op_scc) == 1
-        if not sym_off:
-            parprint(f"Fixdensity calculation from {gpw_wfs}")
-            calc = calc.fixed_density(symmetry="off", txt="fixdens.txt")
+        # check that symmetry 'off'
+        assert (len(calc.symmetry.op_scc) == 1)
     else:
-        parprint("Calculating wavefunctions with symmetry off")
-        calc = GPAW(**calc_params, symmetry='off', communicator=comm)
+        # check if gpw with a converged calculation was provided
+        new = True
+        if gpw_file is not None:
+            if gpw_file.is_file():
+                # restart from existing gpw_file
+                calc = GPAW(gpw_file, communicator=comm)
+                sym_off = len(calc.symmetry.op_scc) == 1
+                # symmetry off?
+                # otherwise calculate wfs at new positions anyway
+                if sym_off:
+                    new = False
+
+        if new:
+            parprint("Calculating wavefunctions with symmetry off")
+            calc_params.update({'symmetry': 'off'})
+            calc = GPAW(**calc_params, communicator=comm)
+
+        # set calculator to atoms
+        # run calculation
+        calc.set(txt='berry.text')
         atoms.calc = calc
         atoms.get_potential_energy()
 
