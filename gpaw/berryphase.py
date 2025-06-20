@@ -245,6 +245,7 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
 
         # set calculator to atoms
         # run calculation
+        calc.set(txt='berry.text')
         atoms.calc = calc
         atoms.get_potential_energy()
 

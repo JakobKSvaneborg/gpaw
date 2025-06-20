@@ -10,7 +10,6 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False,
                     out='born_charges.json', gpw_file=None):
 
     params = atoms.calc.parameters
-    params['txt'] = 'born.txt'
 
     # generate displacement dictionary
     disps_av = _all_disp(atoms, delta)
