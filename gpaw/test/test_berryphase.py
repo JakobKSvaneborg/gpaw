@@ -9,21 +9,21 @@ from gpaw.berryphase import (get_berry_phases,
 
 # Values from an earlier test
 ref_phi_mos2_km = np.array(
-    [[2.72907676e-04, 2.99369724e00, 4.51932187e00, 5.94725651e00],
-     [4.84334561e-03, 2.42519044e00, 4.43335136e00, 5.75115262e00],
-     [2.99682618e-02, 2.26119678e00, 4.30480687e00, 5.78042986e00],
-     [4.84334561e-03, 2.42519044e00, 4.43335136e00, 5.75115262e00],
-     [2.72907676e-04, 2.99369724e00, 4.51932187e00, 5.94725651e00],
-     [3.75847658e-03, 2.67197983e00, 4.36511629e00, 5.60446187e00]])
+    [[2.72907676e-04, 2.99369724e+00, 4.51932187e+00, 5.94725651e+00],
+     [4.84334561e-03, 2.42519044e+00, 4.43335136e+00, 5.75115262e+00],
+     [2.99682618e-02, 2.26119678e+00, 4.30480687e+00, 5.78042986e+00],
+     [4.84334561e-03, 2.42519044e+00, 4.43335136e+00, 5.75115262e+00],
+     [2.72907676e-04, 2.99369724e+00, 4.51932187e+00, 5.94725651e+00],
+     [3.75847658e-03, 2.67197983e+00, 4.36511629e+00, 5.60446187e+00]])
 
 
 def test_parallel_transport_mos2(in_tmp_dir, gpw_files):
     # Calculate the berry phases and spin projections
-    gpw = gpw_files["mos2_pw_nosym"]
-    parallel_transport(str(gpw), name="mos2", scale=1)
+    gpw = gpw_files['mos2_pw_nosym']
+    parallel_transport(str(gpw), name='mos2', scale=1)
 
     # Load phase-ordered data
-    phi_km, S_km = load_renormalized_data("mos2")
+    phi_km, S_km = load_renormalized_data('mos2')
 
     # Test that the berry phases do not change (assuming that they
     # were correct to begin with)
@@ -33,10 +33,10 @@ def test_parallel_transport_mos2(in_tmp_dir, gpw_files):
 
 def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
     # Calculate the berry phases and spin projections
-    calc = GPAW(gpw_files["i2sb2_pw_nosym"], txt=None,
+    calc = GPAW(gpw_files['i2sb2_pw_nosym'], txt=None,
                 communicator=mpi.serial_comm)
     nelec = int(calc.get_number_of_electrons())
-    parallel_transport(calc, name="i2sb2", scale=1,
+    parallel_transport(calc, name='i2sb2', scale=1,
                        # To calculate the valence bands berry
                        # phases, we only need the top valence
                        # group of bands. This corresponds to 2x8
@@ -44,7 +44,7 @@ def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
                        bands=range(nelec - 2 * 8, nelec))
 
     # Load phase-ordered data
-    phi_km, S_km = load_renormalized_data("i2sb2")
+    phi_km, S_km = load_renormalized_data('i2sb2')
 
     # # For the spin test below to make sense, please compare this
     # # plot to the berry phase plot at the c2db website
@@ -81,9 +81,9 @@ def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
 
 
 def load_renormalized_data(name):
-    data = np.load(f"phases_{name}.npz")
-    phi_km = data["phi_km"]
-    S_km = data["S_km"]
+    data = np.load(f'phases_{name}.npz')
+    phi_km = data['phi_km']
+    S_km = data['S_km']
 
     # Phases are only well-defined modulo 2pi
     phi_km %= 2 * np.pi
@@ -98,14 +98,14 @@ def load_renormalized_data(name):
 
 def test_polarization_phase(in_tmp_dir, gpw_files):
     pi2 = 2.0 * np.pi
-    phases_c = polarization_phase(gpw_files["mos2_pw_nosym"],
+    phases_c = polarization_phase(gpw_files['mos2_pw_nosym'],
                                   comm=mpi.world)
 
     phases_test = {
-        "phase_c": pi2 * np.array([8.66037602, 3.33962524, 8.54861146e-15]),
-        "electronic_phase_c": pi2 * np.array([0.66037602, -0.66037476, 1.0]),
-        "atomic_phase_c": pi2 * np.array([8.0, 4.0, 13.0]),
-        "dipole_phase_c": pi2
+        'phase_c': pi2 * np.array([8.66037602, 3.33962524, 8.54861146e-15]),
+        'electronic_phase_c': pi2 * np.array([0.66037602, -0.66037476, 1.0]),
+        'atomic_phase_c': pi2 * np.array([8.0, 4.0, 13.0]),
+        'dipole_phase_c': pi2
         * np.array([7.23912394e-01, -7.23912423e-01, 8.54861146e-15])}
 
     err = []
@@ -122,7 +122,7 @@ def test_polarization_phase(in_tmp_dir, gpw_files):
 
 
 def test_berry_phases(in_tmp_dir, gpw_files):
-    calc = GPAW(gpw_files["mos2_pw_nosym"], communicator=mpi.serial_comm)
+    calc = GPAW(gpw_files['mos2_pw_nosym'], communicator=mpi.serial_comm)
 
     ind, phases = get_berry_phases(calc)
 
@@ -147,7 +147,7 @@ def test_assertions(in_tmp_dir, gpw_files):
     with symmetry enabled
     """
 
-    gpw_file = gpw_files["mos2_pw"]
+    gpw_file = gpw_files['mos2_pw']
     with pytest.raises(AssertionError):
         polarization_phase(gpw_file, comm=mpi.serial_comm)
 
@@ -158,4 +158,4 @@ def test_assertions(in_tmp_dir, gpw_files):
 
     with pytest.raises(AssertionError):
         phi_km, S_km = parallel_transport(calc, direction=0,
-                                          name="mos2", scale=0)
+                                          name='mos2', scale=0)
