@@ -31,12 +31,11 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
 
     if gap == 0.0:
         raise ZeroBandgap(
-            "Berry-phase calculation requires non-zero band gap.")
+            'Berry-phase calculation requires non-zero band gap.')
 
-    M = np.round(calc.get_magnetic_moment())
-    assert np.allclose(M, calc.get_magnetic_moment(), atol=0.05), print(
-        M, calc.get_magnetic_moment()
-    )
+    M_raw = calc.get_magnetic_moment()
+    M = np.round(M_raw)
+    assert np.allclose(M, M_raw, atol=0.05), f'Non-integer magmom {M_raw}'
     nvalence = calc.wfs.setups.nvalence
     nocc_s = [int((nvalence + M) / 2), int((nvalence - M) / 2)]
     nocc = nocc_s[spin]
@@ -164,7 +163,7 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
 
         diff = abs(phase - phase2d)
         if diff > 0.01:
-            msg = "Warning wrong phase: phase={}, 2dphase={}"
+            msg = 'Warning wrong phase: phase={}, 2dphase={}'
             print(msg.format(phase, phase2d))
 
     return indices_kk, phases
@@ -201,10 +200,10 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
         phases_c = _get_phases(gpw_wfs, cleanup=cleanup)
     else:
         phases_c = {
-            "phase_c": np.empty(3),
-            "electronic_phase_c": np.empty(3),
-            "atomic_phase_c": np.empty(3),
-            "dipole_phase_c": np.empty(3),
+            'phase_c': np.empty(3),
+            'electronic_phase_c': np.empty(3),
+            'atomic_phase_c': np.empty(3),
+            'dipole_phase_c': np.empty(3),
         }
 
     # broadcast
@@ -215,7 +214,7 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
 
 
 def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
-                       gpw_wfs: Path = Path("wfs.gpw"),
+                       gpw_wfs: Path = Path('wfs.gpw'),
                        gpw_file: Path = None):
 
     check_distance_to_non_pbc_boundary(atoms)
@@ -240,7 +239,7 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
                     new = False
 
         if new:
-            parprint("Calculating wavefunctions with symmetry off")
+            parprint('Calculating wavefunctions with symmetry off')
             calc_params.update({'symmetry': 'off'})
             calc = GPAW(**calc_params, communicator=comm, txt=txt)
 
@@ -250,17 +249,17 @@ def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
         atoms.get_potential_energy()
 
         # write wavefunctions
-        calc.write(gpw_wfs, "all")
+        calc.write(gpw_wfs, 'all')
 
     return gpw_wfs
 
 
 def _get_phases(gpw_wfs: Path, cleanup: bool = False):
-    parprint(f"Reading wfs from {gpw_wfs}")
+    parprint(f'Reading wfs from {gpw_wfs}')
     calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
     atoms = calc.get_atoms()
 
-    parprint("Calculating polarization")
+    parprint('Calculating polarization')
     electronic_phase_c = get_electronic_polarization_phase(calc)
     # valence electron number for each atom
     Nv_a = [setup.Nv for setup in calc.setups]
@@ -279,10 +278,10 @@ def _get_phases(gpw_wfs: Path, cleanup: bool = False):
         gpw_wfs.unlink()
 
     phases_c = {
-        "phase_c": phase_c,
-        "electronic_phase_c": electronic_phase_c,
-        "atomic_phase_c": atomic_phase_c,
-        "dipole_phase_c": dipole_phase_c,
+        'phase_c': phase_c,
+        'electronic_phase_c': electronic_phase_c,
+        'atomic_phase_c': atomic_phase_c,
+        'dipole_phase_c': dipole_phase_c,
     }
 
     return phases_c
@@ -298,8 +297,8 @@ def ionic_phase(atoms: Atoms):
     atomic_phase_c = get_atomic_polarization_phase(Nv_a, spos_ac)
 
     results = {
-        "phase_c": atomic_phase_c,
-        "atomic_phase_c": atomic_phase_c,
+        'phase_c': atomic_phase_c,
+        'atomic_phase_c': atomic_phase_c,
     }
 
     return results
@@ -309,9 +308,9 @@ def check_distance_to_non_pbc_boundary(atoms, eps=1):
     dist_a = distance_to_non_pbc_boundary(atoms)
     if dist_a is not None and np.any(dist_a < eps):
         raise AtomsTooCloseToBoundary(
-            "The atoms are too close to a non-pbc boundary "
-            "which creates problems when using a dipole correction. "
-            f"Please center the atoms in the unit-cell. Distances: {dist_a}."
+            'The atoms are too close to a non-pbc boundary '
+            'which creates problems when using a dipole correction. '
+            f'Please center the atoms in the unit-cell. Distances: {dist_a}.'
         )
 
 
@@ -527,7 +526,7 @@ def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
             iq = qpts_q[q]
             U_mm = U_qmm[q]
             v_mn = soc_kpts[iq].v_mn
-            v_nm = np.einsum("xm, mn -> nx", U_mm, v_mn[bands])
+            v_nm = np.einsum('xm, mn -> nx', U_mm, v_mn[bands])
             A_mm += np.dot(v_nm[::2].T.conj(), v_nm[::2])
             A_mm -= np.dot(v_nm[1::2].T.conj(), v_nm[1::2])
         A_mm /= Nloc
@@ -537,12 +536,12 @@ def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
     comm.sum(S_km)
 
     if not calc.density.collinear:
-        warnings.warn("WARNING: Spin projections are not meaningful "
-                      + "for non-collinear calculations")
+        warnings.warn('WARNING: Spin projections are not meaningful '
+                      + 'for non-collinear calculations')
 
     if name is not None:
         if comm.rank == 0:
-            np.savez(f"phases_{name}.npz", phi_km=phi_km, S_km=S_km)
+            np.savez(f'phases_{name}.npz', phi_km=phi_km, S_km=S_km)
         comm.barrier()
 
     return phi_km, S_km
