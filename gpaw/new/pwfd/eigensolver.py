@@ -22,7 +22,7 @@ class PWFDEigensolver(Eigensolver):
                  hamiltonian,
                  converge_bands: int | str = 'occupied',
                  blocksize: int = 10,
-                 max_buffer_mem: int = 200 * 1024 ** 2):
+                 max_buffer_mem: int | None = 200 * 1024 ** 2):
         self.converge_bands = converge_bands
         self.blocksize = blocksize
         self.preconditioner: Callable
@@ -31,9 +31,9 @@ class PWFDEigensolver(Eigensolver):
         self.data_buffers: np.ndarray
 
         # Maximal memory to be used for the eigensolver
-        # should be infinite if hamiltonian is not band-local
-        self.max_buffer_mem = max_buffer_mem \
-            if hamiltonian.band_local else 'infinite'
+        # should be infinite if hamiltonian is not band-local (hybrids)
+        self.max_buffer_mem = (
+            max_buffer_mem if hamiltonian.band_local else None)
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -47,7 +47,7 @@ class PWFDEigensolver(Eigensolver):
         dtype_size = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype.itemsize
         domain_size = ibzwfs.domain_comm.size
 
-        if isinstance(self.max_buffer_mem, int):
+        if self.max_buffer_mem is not None:
             # Buffer size needs to ensure that the number of bands
             # of the buffer is a multiple of domain_size.
             buffer_size_per_domain = max(self.max_buffer_mem,

@@ -398,7 +398,7 @@ def soc_eigenstates_raw(ibzwfs: Iterable[Tuple[int, WaveFunction]],
             bzwf = bzwf.redistribute_atoms(atom_partition)
 
             bzwf.add_soc(dVL_avii, s_vss, C_ss)
-            bzwfs[K] = bzwf
+            bzwfs[int(K)] = bzwf  # MYPY: signedinteger[_32Bit | _64Bit] -> int
 
     return bzwfs
 

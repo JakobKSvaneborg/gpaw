@@ -416,8 +416,8 @@ class DFTCalculation:
             raise ReuseWaveFunctionsError
 
         ibzwfs = self.ibzwfs
-        if ibzwfs.domain_comm.size != 1:
-            raise ReuseWaveFunctionsError
+        # if ibzwfs.domain_comm.size != 1:
+        #     raise ReuseWaveFunctionsError
 
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)

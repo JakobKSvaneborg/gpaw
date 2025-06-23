@@ -169,8 +169,11 @@ class DefaultEigensolver(Eigensolver):
 
 
 class PWFDEigensolverParamater(Eigensolver):
-    def __init__(self, niter: int = 2):
+    def __init__(self,
+                 niter: int = 2,
+                 max_buffer_mem: int = 200 * 1024**2):
         self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
 
     def todict(self):
         return {'niter': self.niter}
@@ -189,7 +192,8 @@ class PWFDEigensolverParamater(Eigensolver):
             band_comm,
             hamiltonian,
             converge_bands,
-            niter=self.niter)
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem)
 
 
 class Davidson(PWFDEigensolverParamater):
@@ -206,12 +210,15 @@ class RMMDIIS(PWFDEigensolverParamater):
 
     def __init__(self,
                  niter: int = 1,
+                 max_buffer_mem: int = 200 * 1024**2,
                  trial_step: float | None = None):
         self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
         self.trial_step = trial_step
 
     def todict(self):
         return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
                 'trial_step': self.trial_step}
 
     def build(self,
@@ -229,6 +236,7 @@ class RMMDIIS(PWFDEigensolverParamater):
             create_preconditioner,
             converge_bands,
             niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
             trial_step=self.trial_step)
 
 

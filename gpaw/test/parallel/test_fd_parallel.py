@@ -5,7 +5,6 @@ from ase.build import molecule
 from gpaw.utilities import devnull
 
 from gpaw import GPAW, FermiDirac
-from gpaw import KohnShamConvergenceError
 from gpaw.utilities import compiled_with_sl
 from gpaw.mpi import world
 
@@ -42,11 +41,7 @@ def test_parallel_fd_parallel():
         else:
             system.set_cell(cell)
         system.set_pbc(pbc)
-
-        try:
-            system.get_potential_energy()
-        except KohnShamConvergenceError:
-            pass
+        system.get_potential_energy()
 
         E = calc.hamiltonian.e_total_free
         F_av = calc.get_forces()
