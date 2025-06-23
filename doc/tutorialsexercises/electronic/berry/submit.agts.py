@@ -8,7 +8,7 @@ def workflow():
         with run(script='polarization_BaTiO3.py', tmax='1h', cores=8):
             run(function=check1)
             with run(script='born_BaTiO3.py', cores=8, tmax='10h'):
-                 run(script='get_borncharges.py')
+                run(script='get_borncharges.py')
         with run(script='parallel_BaTiO3.py', tmax='1h', cores=8):
             run(function=check2)
 
