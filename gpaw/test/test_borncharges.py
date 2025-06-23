@@ -17,7 +17,7 @@ def test_born_charges_wf(in_tmp_dir, gpw_files, cleanup=True):
 
     Z_avv = born_charges_wf(atoms, calc, cleanup=cleanup)['Z_avv']
 
-    assert np.allclose(Z_avv, Z_t, atol=1e-2)
+    assert Z_t == pytest.approx(Z_avv, abs=1e-2)
 
     if cleanup:
         flist = glob('disp*.gpw')
@@ -36,4 +36,4 @@ def test_born_charges_ionic_wf(in_tmp_dir, atoms):
     # we do not need a calculator
     Z_avv = born_charges_wf(atoms, None, ionic_only=True)['Z_avv']
 
-    assert np.allclose(Z_avv, Z_t)
+    assert Z_t == pytest.approx(Z_avv)
