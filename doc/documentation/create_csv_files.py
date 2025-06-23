@@ -16,6 +16,7 @@ for cls in [UGDesc,
         for name, meth in cls.__dict__.items():
             if name[0] != '_':
                 try:
+                    print(name)
                     doc = meth.__doc__.splitlines()[0]
                 except AttributeError:
                     doc = '...'

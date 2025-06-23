@@ -765,7 +765,7 @@ class PWArray(DistributedArrays[PWDesc]):
         return self.desc.comm.sum_scalar(value)
 
     def morph(self, pw: PWDesc) -> PWArray:
-        """"""
+        """Transform expansion to new cell."""
         in_xG = self.gather()
         if in_xG is not None:
             pwin = in_xG.desc
