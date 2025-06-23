@@ -245,7 +245,7 @@ class VelocityGaugeWriter(TDDFTObserver):
 
     def _write_v(self, paw):
         time = paw.time
-        v_v = self._calculate_v(paw)
+        v_v = [v.real for v in self._calculate_v(paw)]
         line = ('%20.8lf %22.12le %22.12le %22.12le %22.12le\n'
                 % (time, 0.0, v_v[0], v_v[1], v_v[2]))
         self._write(line)
