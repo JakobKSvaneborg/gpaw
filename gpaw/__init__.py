@@ -306,7 +306,7 @@ if debug:
             a.fill(-42)
         return a
 
-    np.empty = empty
+    np.empty = empty  # type: ignore[misc]
     np.empty_like = empty_like
 
 if TYPE_CHECKING:

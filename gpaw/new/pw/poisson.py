@@ -199,7 +199,8 @@ class DipoleLayerPWPoissonSolver(PoissonSolver):
         self.grid = grid
         self.width = width / Bohr
         self.zero_vacuum = zero_vacuum
-        (self.axis,) = np.where(~grid.pbc_c)[0]
+        assert grid.pbc_c.sum() == 2
+        self.axis = np.where(~grid.pbc_c)[0][0]
         self.correction = np.nan
         self.pw = ps.pw
 
