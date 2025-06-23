@@ -172,9 +172,11 @@ class NotDavidson(PWFDEigensolver):
             active_bs = len(active_indicies)
 
             for j in range(0, active_bs, self.blocksize):
-                block_slice = slice(j, min(j + self.blocksize, active_bs))
-                blocksize = block_slice.stop - block_slice.start
-                block_slice = active_indicies[block_slice]
+                block_slice_base = \
+                    slice(j, min(j + self.blocksize, active_bs))
+                blocksize = \
+                    block_slice_base.stop - block_slice_base.start
+                block_slice = active_indicies[block_slice_base]
                 # This keeps the block size constant except for the last block
 
                 C_X = self.C_X.ravel()[:blocksize**2].reshape(
