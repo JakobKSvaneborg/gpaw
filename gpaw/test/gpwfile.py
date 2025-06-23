@@ -1746,7 +1746,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         return atoms.calc
 
-    def _hbn_pw(self, symmetry=None):
+    def _hbn_pw(self, symmetry={}):
         atoms = Graphene(symbol='B',
                          latticeconstant={'a': 2.5, 'c': 1.0},
                          size=(1, 1, 1))
@@ -1771,7 +1771,7 @@ class GPWFiles(CachedFilesHandler):
 
     @gpwfile
     def hbn_pw_nosym(self):
-        return self._hbn_pw(symmetry='off')
+        return self._hbn_pw(symmetry={'symmetry':'off'})
 
     @gpwfile
     def graphene_pw(self):

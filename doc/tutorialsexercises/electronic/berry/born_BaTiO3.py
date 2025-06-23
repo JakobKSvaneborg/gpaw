@@ -6,4 +6,4 @@ gpw_file = Path('BaTiO3+wfs.gpw')
 calc = GPAW(gpw_file, txt=None)
 atoms = calc.get_atoms()
 
-born_charges_wf(atoms, calc)
+born_charges_wf(atoms, calc, cleanup=True)
