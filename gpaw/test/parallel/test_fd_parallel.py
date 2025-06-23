@@ -5,7 +5,6 @@ from ase.build import molecule
 from gpaw.utilities import devnull
 
 from gpaw import GPAW, FermiDirac
-from gpaw import KohnShamConvergenceError
 from gpaw.utilities import compiled_with_sl
 from gpaw.mpi import world
 
