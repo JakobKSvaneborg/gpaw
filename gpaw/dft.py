@@ -199,10 +199,12 @@ class PWFDEigensolverParamater(Eigensolver):
 class Davidson(PWFDEigensolverParamater):
     name = 'davidson'
     cls = DavidsonEigensolver
-    
+
+
 class NotDavidson(PWFDEigensolverParamater):
     name = 'not-dav'
     cls = NotDavidsonEigensolver
+
 
 class RMMDIIS(PWFDEigensolverParamater):
     name = 'rmm-diis'

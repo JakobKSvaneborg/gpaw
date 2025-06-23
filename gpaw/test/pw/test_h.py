@@ -1,7 +1,6 @@
 from ase.build import molecule
 from gpaw import GPAW, PW
 from gpaw.mpi import world
-from gpaw.new.pwfd.pcg import NotDavidson
 
 
 def test_pw_h(in_tmp_dir):
@@ -22,8 +21,8 @@ def test_pw_h(in_tmp_dir):
                                'niter': 18},
                   basis='szp(dzp)',
                   maxiter=50,
-                  convergence={'eigenvalues': 1e-4},)
-                  #txt='%d.txt' % world.size)
+                  convergence={'eigenvalues': 1e-4},
+                  txt='%d.txt' % world.size)
     e = a.get_potential_energy()
     f = a.get_forces()
     assert abs(e - e0) < 7e-5, abs(e - e0)

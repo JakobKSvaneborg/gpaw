@@ -3,8 +3,6 @@ import numpy as np
 import subprocess
 import sys
 
-from ase.build import molecule
-
 from gpaw.dft import RMMDIIS
 from gpaw.new.ase_interface import GPAW
 from gpaw.gpu import cupy_is_fake
@@ -50,7 +48,7 @@ def run_single_precision(dtype, gpu):
     atoms2 = mx2('MoS2', a=3.3)
     atoms2.positions[:, 2] += 3.5 + 5
     atoms = atoms + atoms2
-    atoms = atoms.repeat((6, 6, 1))
+    atoms = atoms.repeat((1, 1, 1))
     atoms.center(axis=2, vacuum=5.5)
 
     gpu = gpu == 'True'
@@ -58,7 +56,6 @@ def run_single_precision(dtype, gpu):
     atoms.calc = GPAW(xc={'name': 'PBE'},
                       symmetry='off',
                       random=True,
-                      #nbands=500,
                       convergence={'maximum iterations': 200,
                                    'eigenstates': 1e-7},
                       mode={'name': 'pw',
@@ -98,15 +95,6 @@ def run_single_precision(dtype, gpu):
                       parallel={'gpu': gpu}
                       )
     atoms.get_potential_energy()
-    
-    return
-    e_pot = atoms.get_potential_energy()
-
-    expected_e = 9.595593485742606
-
-    assert atoms.calc.wfs.dtype == dtype
-
-    assert e_pot == pytest.approx(expected_e, rel=1e-3), e_pot - expected_e
 
 
 if __name__ == '__main__':
