@@ -103,6 +103,7 @@ class DistributedArrays(Generic[DomainType], XP):
             Array to use for storage.
         """
         assert isinstance(data_buffer, self.xp.ndarray)
+        assert len(self.dims) >= 1
         data_buffer = data_buffer.view(self.data.dtype)
         datasize = data_buffer.size
         X = self.data.shape[1:]
