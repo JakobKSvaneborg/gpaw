@@ -299,10 +299,10 @@ class NotDavidson(PWFDEigensolver):
                                           out=M_nn)
                 domain_comm.sum(M_nn.data)
         
-        #if not wfs.orthonormalized:
+        if not wfs.orthonormalized:
             #wfs.subspace_diagonalize(Ht, dH,
             #                         work_array=residual_nX.data)
-            #wfs.orthonormalize(residual_nX.data)
+            wfs.orthonormalize(residual_nX)
         
         if debug:
             psit_nX.sanity_check()

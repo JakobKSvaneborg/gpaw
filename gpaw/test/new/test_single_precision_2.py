@@ -48,10 +48,10 @@ def run_single_precision(dtype, gpu):
     from ase.build import mx2
     atoms = mx2('TaSe2', a=3.3)
     atoms2 = mx2('MoS2', a=3.3)
-    atoms2.positions[:, 2] += 3.5 + 4.5
+    atoms2.positions[:, 2] += 3.5 + 5
     atoms = atoms + atoms2
     atoms = atoms.repeat((6, 6, 1))
-    atoms.center(axis=2, vacuum=5)
+    atoms.center(axis=2, vacuum=5.5)
 
     gpu = gpu == 'True'
 
@@ -59,22 +59,23 @@ def run_single_precision(dtype, gpu):
                       symmetry='off',
                       random=True,
                       #nbands=500,
-                      convergence={'maximum iterations': 6,
-                                   'eigenstates': 1e-5},
+                      convergence={'maximum iterations': 200,
+                                   'eigenstates': 1e-7},
                       mode={'name': 'pw',
                             'ecut': 600.0,
                             'dtype': dtype},
                       mixer=FFTMixer(0.1),
                       eigensolver={'name': 'not-dav',
-                                   'niter': 15},
+                                   'niter': 3},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}
                       )
     atoms.get_potential_energy()
+    return
 
-    atoms.calc.dft.params.eigensolver = RMMDIIS(niter=1,
-                                                trial_step=0.15)
+    atoms.calc.dft.params.eigensolver = RMMDIIS(niter=2,
+                                                trial_step=0.1)
     atoms.calc.dft.params.convergence = {'eigenstates': 1e-8,
                                          'maximum iterations': 100}
     atoms.calc.create_new_calculation_from_old(atoms)
