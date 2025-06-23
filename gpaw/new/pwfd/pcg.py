@@ -22,7 +22,8 @@ class NotDavidson(PWFDEigensolver):
                  preconditioner_factory,
                  converge_bands='occupied',
                  niter=2,
-                 scalapack_parameters=None):
+                 scalapack_parameters=None,
+                 max_buffer_mem: int = 200 * 1024 ** 2):
         super().__init__(
             preconditioner_factory,
             converge_bands)
