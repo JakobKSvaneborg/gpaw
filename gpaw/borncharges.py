@@ -30,8 +30,8 @@ def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
 
                     # run calculations
                     atoms_d.calc = calc
-                    atoms_d.get_potential_energy()
                     assert is_symmetry_off(atoms_d.calc), 'Set symmetry off'
+                    atoms_d.get_potential_energy()
 
                     # write wavefunctions
                     atoms_d.calc.write(gpw_wfs, 'all')
@@ -69,7 +69,16 @@ def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
 
 
 def is_symmetry_off(calc):
-    return len(calc.symmetry.op_scc) == 1
+    params = calc.parameters
+    if calc.old:
+        if 'symmetry' in params:
+            return params['symmetry'] == 'off'
+        else:
+            return False
+    else:
+        # new:
+        return (not params.symmetry.point_group and
+                not params.symmetry.time_reversal)
 
 
 def born_charges(atoms, disps_av, phases_c, check=True):

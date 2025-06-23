@@ -24,6 +24,15 @@ def test_born_charges_wf(in_tmp_dir, gpw_files, cleanup=True):
         assert len(flist) == 0
 
 
+def test_born_charges_symmetry(gpw_files):
+    gpw_file = gpw_files["hbn_pw"]
+    calc = GPAW(gpw_file, txt=None)
+    atoms = calc.get_atoms()
+
+    with pytest.raises(AssertionError):
+        born_charges_wf(atoms, calc)
+
+
 @pytest.mark.parametrize('atoms', [mx2('MoS2', vacuum=7.5),
                                    molecule('H2', cell=[10, 10, 10])])
 def test_born_charges_ionic_wf(in_tmp_dir, atoms):
