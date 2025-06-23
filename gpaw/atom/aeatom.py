@@ -476,9 +476,19 @@ class AllElectronAtom:
         self.f_lsn = {}
 
         if configuration is None:
-            configuration = configurations[self.symbol][1]
+            configs = configurations[self.symbol][1]
+        elif isinstance(configuration, str):
+            configs = []
+            if configuration[0] == '[':
+                symbol, configuration = configuration[1:].split(']')
+                configs = configurations[symbol][1]
+            for nlf in configuration.split(','):
+                configs.append((int(nlf[0]),
+                                'spdfg'.index(nlf[1]),
+                                int(nlf[2:]),
+                                -1.0))
 
-        for n, l, f, e in configuration:
+        for n, l, f, e in configs:
 
             if l not in self.f_lsn:
                 self.f_lsn[l] = [[] for s in range(self.nspins)]

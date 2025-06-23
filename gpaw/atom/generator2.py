@@ -1272,7 +1272,7 @@ def get_parameters(symbol, args):
         extra = {}
 
     if args.configuration:
-        configuration = eval(args.configuration)
+        configuration = args.configuration
     else:
         configuration = None
 
