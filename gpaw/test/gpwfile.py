@@ -1771,7 +1771,7 @@ class GPWFiles(CachedFilesHandler):
 
     @gpwfile
     def hbn_pw_nosym(self):
-        return self._hbn_pw(symmetry={'symmetry':'off'})
+        return self._hbn_pw(symmetry={'symmetry': 'off'})
 
     @gpwfile
     def graphene_pw(self):
