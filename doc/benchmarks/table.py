@@ -25,6 +25,7 @@ def main(files: list[Path]):
                     data[id][version] = (d['First step'],
                                          d['Second step'],
                                          d['max_rss'])
+                    print(id, version)
     versions.sort()
     rows = [['number',
              'name', 'processor', 'cores',
