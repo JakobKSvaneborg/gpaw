@@ -27,7 +27,6 @@ There will be some natural pauses while you wait for calculations to finish. If 
 # magic: %matplotlib notebook
 from ase import Atom
 from ase.visualize import view
-import matplotlib.pyplot as plt
 from ase.io import read, write
 from ase.mep import NEB
 from ase.optimize import BFGS
@@ -173,11 +172,10 @@ Submit the calculation to the HPC cluster. Do this by first building a complete 
 # optimizer.run(fmax=0.10)
 
 # teacher
-from ase.io import read, write
+from ase.io import read
 from ase.mep import NEB
 from ase.optimize import BFGS
-from ase.parallel import paropen
-from gpaw import GPAW, FermiDirac, Mixer, PW
+from gpaw import GPAW, PW
 from ase.constraints import FixAtoms
 
 initial=read('NEB_init.traj')
@@ -513,10 +511,9 @@ fepo4_1li = read('fepo4_1li.traj')
 #         print(e, file=result)
 
 # teacher
-from ase.parallel import paropen
 from ase.io import read
 from ase.dft.bee import BEEFEnsemble
-from gpaw import GPAW, FermiDirac, Mixer, PW
+from gpaw import GPAW, PW
 
 #Read in the structure you made and wrote to file above
 fepo4_1li=read('fepo4_1li.traj')
