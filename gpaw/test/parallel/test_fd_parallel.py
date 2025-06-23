@@ -42,11 +42,7 @@ def test_parallel_fd_parallel():
         else:
             system.set_cell(cell)
         system.set_pbc(pbc)
-
-        try:
-            system.get_potential_energy()
-        except KohnShamConvergenceError:
-            pass
+        system.get_potential_energy()
 
         E = calc.hamiltonian.e_total_free
         F_av = calc.get_forces()
