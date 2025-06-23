@@ -1746,8 +1746,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         return atoms.calc
 
-    @gpwfile
-    def hbn_pw(self):
+    def _hbn_pw(self, symmetry=None):
         atoms = Graphene(symbol='B',
                          latticeconstant={'a': 2.5, 'c': 1.0},
                          size=(1, 1, 1))
@@ -1761,9 +1760,18 @@ class GPWFiles(CachedFilesHandler):
                           occupations=FermiDirac(0.001),
                           parallel={'domain': 1},
                           convergence={'bands': 26},
-                          kpts={'size': (3, 3, 1), 'gamma': True})
+                          kpts={'size': (3, 3, 1), 'gamma': True},
+                          symmetry=symmetry)
         atoms.get_potential_energy()
         return atoms.calc
+
+    @gpwfile
+    def hbn_pw(self):
+        return self._hbn_pw()
+
+    @gpwfile
+    def hbn_pw_nosym(self):
+        return self._hbn_pw(symmetry='off')
 
     @gpwfile
     def graphene_pw(self):

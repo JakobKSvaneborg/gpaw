@@ -213,47 +213,6 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
     return phases_c
 
 
-def _get_wavefunctions(atoms: Atoms, calc_params: dict, comm,
-                       gpw_wfs: Path = Path('wfs.gpw'),
-                       gpw_file: Path = None):
-
-    check_distance_to_non_pbc_boundary(atoms)
-
-    txt = 'berry.txt'
-    if gpw_wfs.is_file():
-        # wfs are already calculated
-        calc = GPAW(gpw_wfs, communicator=comm, txt=txt)
-        # check that symmetry 'off'
-        assert (len(calc.symmetry.op_scc) == 1)
-    else:
-        # check if gpw with a converged calculation was provided
-        new = True
-        if gpw_file is not None:
-            if gpw_file.is_file():
-                # restart from existing gpw_file
-                calc = GPAW(gpw_file, communicator=comm, txt=txt)
-                sym_off = len(calc.symmetry.op_scc) == 1
-                # symmetry off?
-                # otherwise calculate wfs at new positions anyway
-                if sym_off:
-                    new = False
-
-        if new:
-            parprint('Calculating wavefunctions with symmetry off')
-            calc_params.update({'symmetry': 'off'})
-            calc = GPAW(**calc_params, communicator=comm, txt=txt)
-
-        # set calculator to atoms
-        # run calculation
-        atoms.calc = calc
-        atoms.get_potential_energy()
-
-        # write wavefunctions
-        calc.write(gpw_wfs, 'all')
-
-    return gpw_wfs
-
-
 def _get_phases(gpw_wfs: Path, cleanup: bool = False):
     parprint(f'Reading wfs from {gpw_wfs}')
     calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
@@ -290,7 +249,6 @@ def _get_phases(gpw_wfs: Path, cleanup: bool = False):
 def ionic_phase(atoms: Atoms):
     # routine to check born charge implementation
     # no charge neutrality -> acoustic sum rule not valid
-    check_distance_to_non_pbc_boundary(atoms)
 
     Nv_a = atoms.numbers
     spos_ac = atoms.get_scaled_positions()
@@ -302,32 +260,6 @@ def ionic_phase(atoms: Atoms):
     }
 
     return results
-
-
-def check_distance_to_non_pbc_boundary(atoms, eps=1):
-    dist_a = distance_to_non_pbc_boundary(atoms)
-    if dist_a is not None and np.any(dist_a < eps):
-        raise AtomsTooCloseToBoundary(
-            'The atoms are too close to a non-pbc boundary '
-            'which creates problems when using a dipole correction. '
-            f'Please center the atoms in the unit-cell. Distances: {dist_a}.'
-        )
-
-
-def distance_to_non_pbc_boundary(atoms):
-    pbc_c = atoms.get_pbc()
-    if pbc_c.all():
-        return None
-    cell_cv = atoms.get_cell()
-    pos_ac = atoms.get_scaled_positions()
-    pos_ac -= np.round(pos_ac)
-    posnonpbc_av = np.dot(pos_ac[:, ~pbc_c], cell_cv[~pbc_c])
-    dist_to_cell_edge_a = np.linalg.norm(posnonpbc_av, axis=1)
-    return dist_to_cell_edge_a
-
-
-class AtomsTooCloseToBoundary(Exception):
-    pass
 
 
 def get_electronic_polarization_phase(calc):

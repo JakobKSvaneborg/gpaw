@@ -1,13 +1,13 @@
 import numpy as np
 from gpaw.mpi import world
-from gpaw.berryphase import polarization_phase, _get_wavefunctions, ionic_phase
+from gpaw.berryphase import polarization_phase, ionic_phase
 from ase.parallel import paropen, parprint
 from ase.io.jsonio import write_json, read_json
 from pathlib import Path
 
 
-def born_charges_wf(atoms, delta=0.01, cleanup=False, ionic_only=False,
-                    out='born_charges.json', gpw_file=None):
+def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
+                    ionic_only=False, out='born_charges.json'):
 
     # generate displacement dictionary
     disps_av = _all_disp(atoms, delta)
@@ -18,18 +18,24 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False, ionic_only=False,
     for dlabel in disps_av:
         ia, iv, sign, delta = disps_av[dlabel]
         atoms_d = displace_atom(atoms, ia, iv, sign, delta)
+        check_distance_to_non_pbc_boundary(atoms_d)
 
         if not ionic_only:
-            # calculation parameters
-            params = atoms.calc.parameters
 
             # proper polarization phase calculation
             gpw_wfs = Path(dlabel + '.gpw')
             berryname = Path(dlabel + '_berry-phases.json')
             if not berryname.is_file():
                 if not gpw_wfs.is_file():
-                    gpw_wfs = _get_wavefunctions(atoms_d, params, world,
-                                                 gpw_wfs, gpw_file=gpw_file)
+
+                    # run calculations
+                    atoms_d.calc = calc
+                    atoms_d.get_potential_energy()
+                    assert is_symmetry_off(atoms_d.calc), 'Set symmetry off'
+
+                    # write wavefunctions
+                    atoms_d.calc.write(gpw_wfs, 'all')
+
                 # dict with entries phase_c, electronic_phase_c
                 # atomic_phase_c, dipole_moment_c
                 phase_c = polarization_phase(gpw_wfs, comm=world)
@@ -60,6 +66,10 @@ def born_charges_wf(atoms, delta=0.01, cleanup=False, ionic_only=False,
         write_json(fd, results)
 
     return results
+
+
+def is_symmetry_off(calc):
+    return len(calc.symmetry.op_scc) == 1
 
 
 def born_charges(atoms, disps_av, phases_c, check=True):
@@ -143,6 +153,32 @@ def displace_atom(atoms, ia, iv, sign, delta):
     pos_av[ia, iv] += sign * delta
     new_atoms.set_positions(pos_av)
     return new_atoms
+
+
+def check_distance_to_non_pbc_boundary(atoms, eps=1):
+    dist_a = distance_to_non_pbc_boundary(atoms)
+    if dist_a is not None and np.any(dist_a < eps):
+        raise AtomsTooCloseToBoundary(
+            'The atoms are too close to a non-pbc boundary '
+            'which creates problems when using a dipole correction. '
+            f'Please center the atoms in the unit-cell. Distances: {dist_a}.'
+        )
+
+
+def distance_to_non_pbc_boundary(atoms):
+    pbc_c = atoms.get_pbc()
+    if pbc_c.all():
+        return None
+    cell_cv = atoms.get_cell()
+    pos_ac = atoms.get_scaled_positions()
+    pos_ac -= np.round(pos_ac)
+    posnonpbc_av = np.dot(pos_ac[:, ~pbc_c], cell_cv[~pbc_c])
+    dist_to_cell_edge_a = np.linalg.norm(posnonpbc_av, axis=1)
+    return dist_to_cell_edge_a
+
+
+class AtomsTooCloseToBoundary(Exception):
+    pass
 
 
 def main():
