@@ -23,7 +23,7 @@ class NotDavidson(PWFDEigensolver):
                  hamiltonian,
                  converge_bands='occupied',
                  niter=4,
-                 include_P_update=False,
+                 include_P_update=True,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         super().__init__(
@@ -38,7 +38,7 @@ class NotDavidson(PWFDEigensolver):
         self.wf_grid = wf_grid
         self.band_comm = band_comm
         self.niter = niter
-        self.blocksize = 300
+        self.blocksize = 3000
         self.nblocksizes = 3 * self.blocksize if include_P_update else 2 * self.blocksize
         self.MW_nn: Matrix
         self.MP_nn: Matrix
@@ -98,6 +98,10 @@ class NotDavidson(PWFDEigensolver):
         #   This value can be lower, since the first iteration
         #   is more numerically stable.
         self.initial_tolerance_factor = self.tolerance
+        if not self.include_P_update:
+            self.tolerance *= 1e-5
+            self.breakout_tolerance *= 1e-2
+            self.initial_tolerance_factor *= 1e2
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -250,13 +254,6 @@ class NotDavidson(PWFDEigensolver):
                         HPbuf_abi.matrix.data[:nblocksizes].T
                     domain_comm.sum(S_bb)
 
-                    buff_bX[:nblocksizes].matrix_elements(
-                        buff_bX[:nblocksizes], cc=False, out=MS_bb,
-                        domain_sum=False)
-                    S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T
-                    domain_comm.sum(S_bb)
-
                     Ht(buff_bX[:nblocksizes], out=Hbuff_bX[:nblocksizes])
                     dH(Pbuf_abi[:, :nblocksizes],
                        out_ani=HPbuf_abi[:, :nblocksizes])
@@ -269,16 +266,37 @@ class NotDavidson(PWFDEigensolver):
 
                     MH_bb.eigh(MS_bb)
                     cmin = H_bb[:blocksize, :]
+                    # print('W_block: ', xp.linalg.norm(cmin[:, blocksize:2*blocksize]))
+                    # print('P_block: ', xp.linalg.norm(cmin[:, 2*blocksize:3*blocksize]))
 
                     # Ye olde updates
                     buff_bX.matrix.data[:blocksize] = \
                         cmin[:, :blocksize] @ buff_bX.matrix.data[:blocksize]
                     Pbuf_abi.matrix.data[:blocksize] = \
                         cmin[:, :blocksize] @ Pbuf_abi.matrix.data[:blocksize]
+                    #buff_bX.matrix.data[blocksize:2*blocksize] = \
+                    #    cmin[:, blocksize:] @ buff_bX.matrix.data[blocksize:nblocksizes]
+                    #Pbuf_abi.matrix.data[blocksize:2*blocksize] = \
+                    #    cmin[:, blocksize:] @ Pbuf_abi.matrix.data[blocksize:nblocksizes]
+                    
+                    P = buff_bX.matrix.data[2*blocksize:3*blocksize]
+                    PP = Pbuf_abi.matrix.data[2*blocksize:3*blocksize]
+                    W = buff_bX.matrix.data[blocksize:2*blocksize]
+                    WP = Pbuf_abi.matrix.data[blocksize:2*blocksize]
+                    print('W: ', xp.linalg.norm(W, axis=1).mean())
+                    print('P: ', xp.linalg.norm(P, axis=1).mean())
+                    print('W/P: ', (xp.linalg.norm(W, axis=1) / xp.linalg.norm(P, axis=1)).mean())
+                    alpha = cmin[:, blocksize:2*blocksize]
                     buff_bX.matrix.data[blocksize:2*blocksize] = \
-                        cmin[:, blocksize:] @ buff_bX.matrix.data[blocksize:nblocksizes]
+                        alpha @ W
                     Pbuf_abi.matrix.data[blocksize:2*blocksize] = \
-                        cmin[:, blocksize:] @ Pbuf_abi.matrix.data[blocksize:nblocksizes]
+                        alpha @ WP
+                    if cmin.shape[1] > 2*blocksize:
+                        beta = cmin[:, 2*blocksize:3*blocksize]
+                        buff_bX.matrix.data[blocksize:2*blocksize] += \
+                            beta @ P
+                        Pbuf_abi.matrix.data[blocksize:2*blocksize] += \
+                            beta @ PP
                     
                     if self.include_P_update:
                         P_nX.matrix.data[block_slice] = \
@@ -297,7 +315,7 @@ class NotDavidson(PWFDEigensolver):
 
             with tracectx('Residual'):
                 # Subspace diagonialization needed every once in a while
-                if (i + 1) % 5 == 0:
+                if (i + 1) % 3 == 0:
                     wfs.subspace_diagonalize(Ht, dH,
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
@@ -332,9 +350,9 @@ class NotDavidson(PWFDEigensolver):
                     with tracectx('P-update'):
                         P3_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
                         P_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
-                                            domain_sum=False)
+                                             domain_sum=False)
                         Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False,
-                                                beta=1, out=M_nn)
+                                                  beta=1, out=M_nn)
                         domain_comm.sum(M_nn.data)
                         M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
                         M_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
@@ -347,7 +365,7 @@ class NotDavidson(PWFDEigensolver):
                     residual_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
                                                 domain_sum=False)
                     Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False,
-                                            beta=1, out=M_nn)
+                                              beta=1, out=M_nn)
                     domain_comm.sum(M_nn.data)
 
         if not wfs.orthonormalized:
