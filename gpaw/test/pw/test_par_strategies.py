@@ -40,19 +40,20 @@ def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
                       txt='hli.txt',
                       parallel=parallel,
                       kpts={'size': kpoints},
-                      convergence={'maximum iterations': 4},
+                      convergence={'density': 1e-10},
                       occupations=FermiDirac(width=0.1))
 
     e = atoms.get_potential_energy()
-    assert e == pytest.approx(-5.218064604018109, abs=1e-9)
+    assert e == pytest.approx(-5.223884150559942)
 
     f = atoms.get_forces()
-    assert f == pytest.approx(np.array([[0, 0, -7.85130336e-01],
-                                        [0, 0, 8.00667631e-01]]))
+    assert f == pytest.approx(np.array([[0, 0, -0.7764730467642895],
+                                        [0, 0, 0.7764271988722802]]))
 
     s = atoms.get_stress()
     assert s == pytest.approx(
-        [3.98105501e-03, 3.98105501e-03, -4.98044912e-03, 0, 0, 0])
+        [0.004285230772033691, 0.00428523077203369, 0.0004509512807725299,
+         0, 0, 0])
 
     atoms.calc.write('hli.gpw', mode='all')
     GPAW('hli.gpw', txt=None)

@@ -89,8 +89,8 @@ class NotDavidson(PWFDEigensolver):
 
         self.C_X = xp.zeros((self.blocksize, self.blocksize),
                             dtype=dtype)  # The alphas
-        self.C_W = xp.zeros_like(self.C_X)  # The betas
-        self.C_P = xp.zeros_like(self.C_X)  # The gammas
+        self.C_W = self.C_X.copy()  # The betas
+        self.C_P = self.C_X.copy()  # The gammas
         self.H_bb = xp.zeros((3 * self.blocksize, 3 * self.blocksize),
                              dtype=dtype)
         self.S_bb = xp.zeros((3 * self.blocksize, 3 * self.blocksize),
