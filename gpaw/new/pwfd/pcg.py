@@ -118,8 +118,10 @@ class NotDavidson(PWFDEigensolver):
         P2_ani = P_ani.new()
         P3_ani = P_ani.new()
         Ptemp_ani = P_ani.new()
-        Pbuf_abi = P_ani.layout.empty(3 * self.blocksize)
-        HPbuf_abi = P_ani.layout.empty(3 * self.blocksize)
+        Pbuf_abi = P_ani.layout.empty((3 * self.blocksize, )
+                                      + psit_nX.dims[1:])
+        HPbuf_abi = P_ani.layout.empty((3 * self.blocksize, )
+                                       + psit_nX.dims[1:])
 
         domain_comm = psit_nX.desc.comm
         band_comm = psit_nX.comm
@@ -136,16 +138,18 @@ class NotDavidson(PWFDEigensolver):
                             wfs.myeig_n,
                             dH, dS_aii, P2_ani, P3_ani)
 
-        error_ns = as_np(residual_nX.norm2())
+        error_n = as_np(residual_nX.norm2())
+        if len(error_n.shape) > 1:
+            error_n = error_n.sum(axis=1)
         active_indicies = np.logical_and(
-            np.greater(error_ns,
+            np.greater(error_n,
                        self.initial_tolerance_factor * self.tolerance),
-            np.greater(error_ns,
-                       np.max(error_ns) * self.tol_factor))
+            np.greater(error_n,
+                       np.max(error_n) * self.tol_factor))
         # active_indicies = np.where(np.greater(
         #     error_ns, np.max(error_ns) * self.tol_factor))[0]
         active_indicies = np.where(active_indicies)[0]
-        error = (weight_n @ error_ns).sum()
+        error = weight_n @ error_n
         b_error = band_comm.sum_scalar(error)
         if len(active_indicies) == 0  \
                 or b_error < self.breakout_tolerance \
@@ -164,8 +168,10 @@ class NotDavidson(PWFDEigensolver):
                                   out=M_nn)
         domain_comm.sum(M_nn.data)
 
-        buff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
-        Hbuff_bX = psit_nX.desc.empty(3 * self.blocksize, xp=psit_nX.xp)
+        buff_bX = psit_nX.desc.empty((3 * self.blocksize, ) +
+                                     psit_nX.dims[1:], xp=psit_nX.xp)
+        Hbuff_bX = psit_nX.desc.empty((3 * self.blocksize, ) +
+                                      psit_nX.dims[1:], xp=psit_nX.xp)
 
         for i in range(self.niter):
             M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
@@ -179,7 +185,6 @@ class NotDavidson(PWFDEigensolver):
                 blocksize = \
                     block_slice_base.stop - block_slice_base.start
                 block_slice = active_indicies[block_slice_base]
-                # This keeps the block size constant except for the last block
 
                 C_X = self.C_X.ravel()[:blocksize**2].reshape(
                     blocksize, blocksize)
@@ -284,12 +289,14 @@ class NotDavidson(PWFDEigensolver):
                                 wfs.myeig_n,
                                 dH, dS_aii, P2_ani, Ptemp_ani)
 
-            error_ns = as_np(residual_nX.norm2())
+            error_n = as_np(residual_nX.norm2())
+            if len(error_n.shape) > 1:
+                error_n = error_n.sum(axis=1)
             active_indicies = np.logical_and(
-                np.greater(error_ns, self.tolerance),
-                np.greater(error_ns, np.max(error_ns) * self.tol_factor))
+                np.greater(error_n, self.tolerance),
+                np.greater(error_n, np.max(error_n) * self.tol_factor))
             active_indicies = np.where(active_indicies)[0]
-            error = (weight_n @ error_ns).sum()
+            error = weight_n @ error_n
             b_error = band_comm.sum_scalar(error)
 
             if len(active_indicies) == 0 \

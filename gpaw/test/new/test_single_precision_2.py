@@ -50,7 +50,7 @@ def run_single_precision(dtype, gpu):
     atoms = atoms + atoms2
     atoms = atoms.repeat((1, 1, 1))
     atoms.center(axis=2, vacuum=5.5)
-    # atoms.set_initial_magnetic_moments([1,] * 6)
+    # atoms.set_initial_magnetic_moments([1, ] * 6)
 
     gpu = gpu == 'True'
 
@@ -60,11 +60,11 @@ def run_single_precision(dtype, gpu):
                       convergence={'maximum iterations': 200,
                                    'eigenstates': 1e-7},
                       mode={'name': 'pw',
-                            'ecut': 600.0,
+                            'ecut': 400.0,
                             'dtype': dtype},
                       mixer=MixerFull(0.05),
                       eigensolver={'name': 'not-dav',
-                                   'niter': 3},
+                                   'niter': 4},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}
