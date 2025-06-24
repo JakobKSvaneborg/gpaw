@@ -168,11 +168,54 @@ class DefaultEigensolver(Eigensolver):
 
 
 class PWFDEigensolverParamater(Eigensolver):
-    def __init__(self, niter: int = 2):
+    def __init__(self,
+                 niter: int = 2,
+                 max_buffer_mem: int = 200 * 1024**2):
         self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
 
     def todict(self):
         return {'niter': self.niter}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              hamiltonian,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            hamiltonian,
+            converge_bands,
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem)
+
+
+class Davidson(PWFDEigensolverParamater):
+    name = 'davidson'
+    cls = DavidsonEigensolver
+
+
+class RMMDIIS(PWFDEigensolverParamater):
+    name = 'rmm-diis'
+    cls = RMMDIISEigensolver
+
+    def __init__(self,
+                 niter: int = 1,
+                 max_buffer_mem: int = 200 * 1024**2,
+                 trial_step: float | None = None):
+        self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
+        self.trial_step = trial_step
+
+    def todict(self):
+        return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
+                'trial_step': self.trial_step}
 
     def build(self,
               nbands,
@@ -188,17 +231,9 @@ class PWFDEigensolverParamater(Eigensolver):
             band_comm,
             create_preconditioner,
             converge_bands,
-            niter=self.niter)
-
-
-class Davidson(PWFDEigensolverParamater):
-    name = 'davidson'
-    cls = DavidsonEigensolver
-
-
-class RMMDIIS(PWFDEigensolverParamater):
-    name = 'rmm-diis'
-    cls = RMMDIISEigensolver
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
+            trial_step=self.trial_step)
 
 
 class LCAOEigensolver(Eigensolver):

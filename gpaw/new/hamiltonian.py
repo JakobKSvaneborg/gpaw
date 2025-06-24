@@ -6,6 +6,10 @@ from gpaw.core.arrays import DistributedArrays as XArray
 
 
 class Hamiltonian:
+    band_local = True
+    # Used for knowing if wavefunctions can be sliced
+    # along bands, when applying the hamiltonian.
+
     def apply(self,
               vt_sR: UGArray,
               dedtaut_sR: UGArray | None,

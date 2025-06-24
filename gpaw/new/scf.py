@@ -7,18 +7,19 @@ from types import SimpleNamespace
 from typing import Any, Callable
 
 import numpy as np
+
+from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import (Criterion, check_convergence,
                                        dict2criterion)
+from gpaw.new.energies import DFTEnergies
+from gpaw.new.logger import indent
+from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
-from gpaw.new.logger import indent
-from gpaw import KohnShamConvergenceError
-from gpaw.new.energies import DFTEnergies
-from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class TooFewBandsError(KohnShamConvergenceError):
-    """Not enough bands for CBM+x convergence cfriterium."""
+    """Not enough bands for CBM+x convergence criterion."""
 
 
 class SCFLoop:

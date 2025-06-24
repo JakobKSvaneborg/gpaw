@@ -23,9 +23,6 @@ for d in [1, 2, 4, 8]:
                 True,
                 marks=[pytest.mark.gpu])])
 def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
-    if (gpu or gpaw_new) and d > 1:
-        pytest.skip()
-
     ecut = 200
     kpoints = [1, 1, 4]
     atoms = Atoms('HLi',

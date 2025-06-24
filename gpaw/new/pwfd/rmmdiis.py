@@ -4,7 +4,6 @@ import warnings
 from pprint import pformat
 
 import numpy as np
-from gpaw.core import PWDesc
 from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
@@ -16,12 +15,12 @@ class RMMDIIS(PWFDEigensolver):
                  nbands: int,
                  wf_grid,
                  band_comm,
-                 preconditioner_factory,
+                 hamiltonian,
                  converge_bands='occupied',
-                 blocksize=None,
                  niter: int = 1,
                  trial_step: float | None = None,
-                 scalapack_parameters=None):
+                 scalapack_parameters=None,
+                 max_buffer_mem: int = 200 * 1024 ** 2):
         """RMM-DIIS eigensolver.
 
         Solution steps are:
@@ -40,14 +39,8 @@ class RMMDIIS(PWFDEigensolver):
 
         if niter != 1:
             warnings.warn(f'Ignoring niter={niter} in RMMDIIS')
-        if blocksize is None:
-            if isinstance(wf_grid, PWDesc):
-                S = wf_grid.comm.size
-                # Use a multiple of S for maximum efficiency
-                blocksize = int(np.ceil(10 / S)) * S
-            else:
-                blocksize = 10
-        super().__init__(preconditioner_factory, converge_bands, blocksize)
+        super().__init__(hamiltonian, converge_bands,
+                         max_buffer_mem=max_buffer_mem)
         self.trial_step = trial_step
 
     def __str__(self):
@@ -56,7 +49,8 @@ class RMMDIIS(PWFDEigensolver):
 
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)
-        self._allocate_work_arrays(ibzwfs, shape=(2,))
+        self._allocate_work_arrays(ibzwfs, shape=(1,))
+        self._allocate_buffer_arrays(ibzwfs, shape=(2,))
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
@@ -71,31 +65,36 @@ class RMMDIIS(PWFDEigensolver):
         psit_nX = wfs.psit_nX
         mynbands = psit_nX.mydims[0]
 
-        work_nX = psit_nX.new(data=self.work_arrays[0, :mynbands])
-        residual_nX = psit_nX.new(data=self.work_arrays[1, :mynbands])
+        residual_nX = psit_nX.new(data=self.work_arrays[0, :mynbands])
 
         P_ani = wfs.P_ani
         work1_ani = P_ani.new()
         work2_ani = P_ani.new()
 
         wfs.subspace_diagonalize(Ht, dH,
-                                 work_array=work_nX.data,
-                                 Htpsit_nX=residual_nX)
+                                 psit2_nX=residual_nX,
+                                 data_buffer=self.data_buffers[0])
         calculate_residuals(wfs.psit_nX, residual_nX, wfs.pt_aiX,
                             wfs.P_ani, wfs.myeig_n,
                             dH, dS_aii, work1_ani, work2_ani)
 
-        n = min(self.blocksize, mynbands)
-        work2_nX = work_nX.desc.empty(n, xp=psit_nX.xp)
-        P1_ani = P_ani.layout.empty(n)
-        P2_ani = P_ani.layout.empty(n)
-
+        work1_nX = psit_nX.create_work_buffer(self.data_buffers[0])
+        work2_nX = psit_nX.create_work_buffer(self.data_buffers[1])
+        blocksize = work1_nX.data.shape[0]
+        P1_ani = P_ani.layout.empty(blocksize)
+        P2_ani = P_ani.layout.empty(blocksize)
         if weight_n is None:
             error = np.inf
         else:
             error = weight_n @ as_np(residual_nX.norm2())
-        for n1 in range(0, mynbands, self.blocksize):
-            n2 = n1 + self.blocksize
+
+        comm = psit_nX.comm
+        blocksize_world = comm.sum_scalar(blocksize)
+        totalbands = comm.sum_scalar(mynbands)
+        for i1, N1 in enumerate(
+                range(0, totalbands, blocksize_world)):
+            n1 = i1 * blocksize
+            n2 = n1 + blocksize
             if n2 > mynbands:
                 n2 = mynbands
                 P1_ani = P1_ani[:, :n2 - n1]
@@ -105,13 +104,13 @@ class RMMDIIS(PWFDEigensolver):
                 residual_nX[n1:n2],
                 wfs.pt_aiX, wfs.myeig_n[n1:n2], Ht, dH, dS_aii,
                 self.trial_step,
-                work_nX[:n2 - n1],
+                work1_nX[:n2 - n1],
                 work2_nX[:n2 - n1],
                 P1_ani, P2_ani,
                 self.preconditioner)
         wfs._P_ani = None
         wfs.orthonormalized = False
-        wfs.orthonormalize(work_nX.data)
+        wfs.orthonormalize(residual_nX)
         return error
 
 
