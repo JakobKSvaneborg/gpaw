@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import subprocess
 import sys
+import os
 
 # from gpaw.dft import RMMDIIS
 from gpaw.new.ase_interface import GPAW
@@ -48,23 +49,24 @@ def run_single_precision(dtype, gpu):
     atoms2 = mx2('MoS2', a=3.3)
     atoms2.positions[:, 2] += 3.5 + 5
     atoms = atoms + atoms2
-    atoms = atoms.repeat((1, 1, 1))
+    atoms = atoms.repeat((12, 12, 1))
     atoms.center(axis=2, vacuum=5.5)
     # atoms.set_initial_magnetic_moments([1, ] * 6)
 
     gpu = gpu == 'True'
 
-    atoms.calc = GPAW(xc={'name': 'PBE'},
+    atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
-                      convergence={'maximum iterations': 200,
+                      convergence={'maximum iterations': 3,
                                    'eigenstates': 1e-7},
                       mode={'name': 'pw',
-                            'ecut': 400.0,
+                            'ecut': 200.0,
                             'dtype': dtype},
                       mixer=MixerFull(0.05),
+                      poissonsolver={'fast': False},
                       eigensolver={'name': 'not-dav',
-                                   'niter': 4},
+                                   'niter': 2},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}
@@ -77,4 +79,10 @@ if __name__ == '__main__':
               'np.float64': np.float64,
               'np.complex64': np.complex64,
               'np.complex128': np.complex128}
-    run_single_precision(dtype=dtypes[sys.argv[1]], gpu=sys.argv[2])
+    if os.environ.get('GPAW_TRACE') == '1':
+        from gpaw.new.timer import global_timer
+        from gpaw.utilities.timing import GPUProfiler
+        with global_timer.context(GPUProfiler("gpu")) as timer:
+            run_single_precision(dtype=dtypes[sys.argv[1]], gpu=sys.argv[2])
+    else:   
+        run_single_precision(dtype=dtypes[sys.argv[1]], gpu=sys.argv[2])
