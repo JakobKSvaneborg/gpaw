@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 
 def compare(files: list[str]) -> None:
     paths = [Path(f) for f in files]
-    data = defaultdict(dict)
+    data: defaultdict[
+        tuple[str, str, str, str],
+        dict[str, tuple[float, float, float]]] = defaultdict(dict)
     versions = []
     refname = f'{paths[0].stem}-new'
     for path in paths:
