@@ -3,10 +3,10 @@ import numpy as np
 import subprocess
 import sys
 
-from gpaw.dft import RMMDIIS
+# from gpaw.dft import RMMDIIS
 from gpaw.new.ase_interface import GPAW
 from gpaw.gpu import cupy_is_fake
-from gpaw.mixer import FFTMixer
+from gpaw.mixer import MixerFull
 
 
 @pytest.mark.serial
@@ -50,6 +50,7 @@ def run_single_precision(dtype, gpu):
     atoms = atoms + atoms2
     atoms = atoms.repeat((1, 1, 1))
     atoms.center(axis=2, vacuum=5.5)
+    # atoms.set_initial_magnetic_moments([1,] * 6)
 
     gpu = gpu == 'True'
 
@@ -61,35 +62,9 @@ def run_single_precision(dtype, gpu):
                       mode={'name': 'pw',
                             'ecut': 600.0,
                             'dtype': dtype},
-                      mixer=FFTMixer(0.1),
+                      mixer=MixerFull(0.05),
                       eigensolver={'name': 'not-dav',
                                    'niter': 3},
-                      occupations={'name': 'fermi-dirac',
-                                   'width': 0.05},
-                      parallel={'gpu': gpu}
-                      )
-    atoms.get_potential_energy()
-    return
-
-    atoms.calc.dft.params.eigensolver = RMMDIIS(niter=2,
-                                                trial_step=0.1)
-    atoms.calc.dft.params.convergence = {'eigenstates': 1e-8,
-                                         'maximum iterations': 100}
-    atoms.calc.create_new_calculation_from_old(atoms)
-    atoms.get_potential_energy()
-
-    return
-    atoms.calc = GPAW(xc={'name': 'PBE'},
-                      symmetry='off',
-                      convergence={'maximum iterations': 160,
-                                   'eigenstates': 1e-80},
-                      mode={'name': 'pw',
-                            'ecut': 600.0,
-                            'dtype': dtype},
-                      mixer=FFTMixer(0.1),
-                      eigensolver={'name': 'rmm-diis',
-                                   'niter': 3,
-                                   'trial_step': 0.1},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}

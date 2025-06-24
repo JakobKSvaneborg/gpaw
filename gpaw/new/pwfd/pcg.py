@@ -47,6 +47,7 @@ class NotDavidson(PWFDEigensolver):
         band_comm = wfs.band_comm
 
         B = ibzwfs.nbands
+        extra_dims = np.prod(wfs.psit_nX.dims[1:])
         xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
         G_max = np.prod(ibzwfs.get_max_shape())
@@ -73,7 +74,8 @@ class NotDavidson(PWFDEigensolver):
         #   achievable residual. Can also be used to improve numerical
         #   stability.
         self.breakout_tolerance = \
-            1e5 * np.finfo(dtype).eps**2 * np.sqrt(B * G_max)
+            1e5 * np.finfo(dtype).eps**2 * np.sqrt(
+                B * extra_dims * G_max)
         # initial_tolerance :
         #   Only do subspace diagonalization if
         #   sum(residual_ns) < initial_breakout_tolerance
@@ -186,18 +188,19 @@ class NotDavidson(PWFDEigensolver):
                 C_P = self.C_P.ravel()[:blocksize**2].reshape(
                     blocksize, blocksize)
 
-                buff_bX.data[:blocksize] = psit_nX.data[block_slice]
+                buff_bX.matrix.data[:blocksize] = \
+                    psit_nX.matrix.data[block_slice]
                 Pbuf_abi.matrix.data[:blocksize] = \
                     P_ani.matrix.data[block_slice]
-                buff_bX.data[blocksize:2 * blocksize] = \
-                    residual_nX.data[block_slice]
+                buff_bX.matrix.data[blocksize:2 * blocksize] = \
+                    residual_nX.matrix.data[block_slice]
                 Pbuf_abi.matrix.data[blocksize:2 * blocksize] = \
                     P2_ani.matrix.data[block_slice]
 
                 if i > 0:
                     nblocksizes = 3 * blocksize
-                    buff_bX.data[2 * blocksize:3 * blocksize] = \
-                        P_nX.data[block_slice]
+                    buff_bX.matrix.data[2 * blocksize:3 * blocksize] = \
+                        P_nX.matrix.data[block_slice]
                     Pbuf_abi.matrix.data[2 * blocksize:3 * blocksize] = \
                         P3_ani.matrix.data[block_slice]
 
@@ -282,11 +285,10 @@ class NotDavidson(PWFDEigensolver):
                                 dH, dS_aii, P2_ani, Ptemp_ani)
 
             error_ns = as_np(residual_nX.norm2())
-            if (i + 1) % 5 == 0:
-                active_indicies = np.logical_and(
-                    np.greater(error_ns, self.tolerance),
-                    np.greater(error_ns, np.max(error_ns) * self.tol_factor))
-                active_indicies = np.where(active_indicies)[0]
+            active_indicies = np.logical_and(
+                np.greater(error_ns, self.tolerance),
+                np.greater(error_ns, np.max(error_ns) * self.tol_factor))
+            active_indicies = np.where(active_indicies)[0]
             error = (weight_n @ error_ns).sum()
             b_error = band_comm.sum_scalar(error)
 
