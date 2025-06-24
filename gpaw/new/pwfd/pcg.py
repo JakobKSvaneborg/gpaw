@@ -219,9 +219,9 @@ class NotDavidson(PWFDEigensolver):
                     nblocksizes = 2 * blocksize
 
                 H_bb = self.H_bb.ravel()[:nblocksizes**2].reshape(
-                    nblocksizes, nblocksizes)
+                    (nblocksizes, nblocksizes))
                 S_bb = self.S_bb.ravel()[:nblocksizes**2].reshape(
-                    nblocksizes, nblocksizes)
+                    (nblocksizes, nblocksizes))
 
                 MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
                                data=H_bb,
