@@ -19,14 +19,22 @@ class NotDavidson(PWFDEigensolver):
                  nbands: int,
                  wf_grid,
                  band_comm,
-                 preconditioner_factory,
+                 hamiltonian,
                  converge_bands='occupied',
                  niter=4,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         super().__init__(
-            preconditioner_factory,
+            hamiltonian,
             converge_bands)
+
+        if not hamiltonian.band_local:
+            raise NotImplementedError(
+                'NotDavidson only implemented for band local XCs')
+
+        self.nbands = nbands
+        self.wf_grid = wf_grid
+        self.band_comm = band_comm
         self.niter = niter
         self.blocksize = 100
         self.MW_nn: Matrix
@@ -62,7 +70,7 @@ class NotDavidson(PWFDEigensolver):
         #   improves numerical stability at the cost of
         #   convergence speed - up to a certain point.
         #   Probably best to not use this one.
-        self.tol_factor = 0 # np.finfo(dtype).eps
+        self.tol_factor = 0  # np.finfo(dtype).eps
         # tolerance :
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
@@ -145,13 +153,11 @@ class NotDavidson(PWFDEigensolver):
             np.greater(error_n,
                        self.initial_tolerance_factor * self.tolerance),
             np.greater(error_n,
-                       np.max(error_n) * self.tol_factor))
-        # active_indicies = np.where(np.greater(
-        #     error_ns, np.max(error_ns) * self.tol_factor))[0]
+                       np.max(error_n, initial=0) * self.tol_factor))
         active_indicies = np.where(active_indicies)[0]
         error = weight_n @ error_n
         b_error = band_comm.sum_scalar(error)
-        if len(active_indicies) == 0  \
+        if band_comm.sum_scalar(len(active_indicies)) == 0  \
                 or b_error < self.breakout_tolerance \
                 * self.initial_tolerance_factor:
             print('No active bands.')
@@ -187,11 +193,11 @@ class NotDavidson(PWFDEigensolver):
                 block_slice = active_indicies[block_slice_base]
 
                 C_X = self.C_X.ravel()[:blocksize**2].reshape(
-                    blocksize, blocksize)
+                    (blocksize, blocksize))
                 C_W = self.C_W.ravel()[:blocksize**2].reshape(
-                    blocksize, blocksize)
+                    (blocksize, blocksize))
                 C_P = self.C_P.ravel()[:blocksize**2].reshape(
-                    blocksize, blocksize)
+                    (blocksize, blocksize))
 
                 buff_bX.matrix.data[:blocksize] = \
                     psit_nX.matrix.data[block_slice]
@@ -294,12 +300,13 @@ class NotDavidson(PWFDEigensolver):
                 error_n = error_n.sum(axis=1)
             active_indicies = np.logical_and(
                 np.greater(error_n, self.tolerance),
-                np.greater(error_n, np.max(error_n) * self.tol_factor))
+                np.greater(error_n, np.max(error_n, initial=0) * 
+                           self.tol_factor))
             active_indicies = np.where(active_indicies)[0]
             error = weight_n @ error_n
             b_error = band_comm.sum_scalar(error)
 
-            if len(active_indicies) == 0 \
+            if band_comm.sum_scalar(len(active_indicies)) == 0 \
                     or b_error < self.breakout_tolerance:
                 print(f'Converged in {i + 1} iterations')
                 break
