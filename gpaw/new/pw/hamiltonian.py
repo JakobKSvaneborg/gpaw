@@ -113,7 +113,6 @@ def precondition(psit_nG: PWArray,
 
       Kresse and Furthmüller, Phys. Rev. B 54, 11169 (1996)
     """
-
     xp = psit_nG.xp
     G2_G = xp.asarray(psit_nG.desc.ekin_G * 2)
     if ekin_n is None:
@@ -200,7 +199,7 @@ class SpinorPWHamiltonian(Hamiltonian):
 def apply_local_potential_gpu(vt_R,
                               psit_nG,
                               out_nG,
-                              blocksize=50):
+                              blocksize=10):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
     e_kin_G = cp.asarray(pw.ekin_G)
