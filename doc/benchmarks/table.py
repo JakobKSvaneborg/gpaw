@@ -1,7 +1,9 @@
 # creates: table.csv, table.png
-from pathlib import Path
 import json
+import sys
 from collections import defaultdict
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 
 
@@ -42,7 +44,7 @@ def main(files: list[Path]):
 
     X = [id[0] + ((' ' + id[3]) if id[3].endswith('G') else '')
          for id in sorted(data)]
-    fig, axs = plt.subplots(3, 1, figsize=(8, 8))  # , sharex=True)
+    fig, axs = plt.subplots(3, 1, figsize=(9, 9))
     for n, (name, ax) in enumerate(zip(['First step',
                                         'Second step',
                                         'max_rss'],
@@ -59,14 +61,18 @@ def main(files: list[Path]):
             ax.plot(Y, 'x-', label=version)
         ax.set_ylabel(name + ' [%]')
         if n == 2:
-            ax.set_xticks(range(len(X)), X, rotation=60, ha='right')
+            ax.set_xticks(range(len(X)), X, rotation=70, ha='center')
             ax.legend()
+        else:
+            ax.set_xticklabels([])
 
+    plt.tight_layout()
     plt.savefig('table.png')
-    # plt.show()
+    if sys.stdout.isatty():
+        plt.show()
 
 
-# main(Path().glob('*.json'))
-
-import sys
-main([Path(p) for p in sys.argv[1:]])
+if len(sys.argv) == 1:
+    main(Path('25.1.0.json'), Path('master.json'))
+else:
+    main([Path(p) for p in sys.argv[1:]])
