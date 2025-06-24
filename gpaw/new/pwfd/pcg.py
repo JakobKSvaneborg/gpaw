@@ -300,7 +300,7 @@ class NotDavidson(PWFDEigensolver):
                 error_n = error_n.sum(axis=1)
             active_indicies = np.logical_and(
                 np.greater(error_n, self.tolerance),
-                np.greater(error_n, np.max(error_n, initial=0) * 
+                np.greater(error_n, np.max(error_n, initial=0) *
                            self.tol_factor))
             active_indicies = np.where(active_indicies)[0]
             error = weight_n @ error_n
