@@ -21,7 +21,7 @@ class NotDavidson(PWFDEigensolver):
                  band_comm,
                  preconditioner_factory,
                  converge_bands='occupied',
-                 niter=2,
+                 niter=4,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         super().__init__(
@@ -62,19 +62,19 @@ class NotDavidson(PWFDEigensolver):
         #   improves numerical stability at the cost of
         #   convergence speed - up to a certain point.
         #   Probably best to not use this one.
-        self.tol_factor = 0  # np.finfo(dtype).eps
+        self.tol_factor = 0 # np.finfo(dtype).eps
         # tolerance :
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
         #   minimum achievable residual.
-        self.tolerance = 1e5 * np.finfo(dtype).eps**2 * np.sqrt(G_max)
+        self.tolerance = 5e5 * np.finfo(dtype).eps**2 * np.sqrt(G_max)
         # breakout_tolerance :
         #   Stop iteration if sum(residual_ns) < breakout_tolerance
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
         self.breakout_tolerance = \
-            1e5 * np.finfo(dtype).eps**2 * np.sqrt(
+            5e5 * np.finfo(dtype).eps**2 * np.sqrt(
                 B * extra_dims * G_max)
         # initial_tolerance :
         #   Only do subspace diagonalization if
