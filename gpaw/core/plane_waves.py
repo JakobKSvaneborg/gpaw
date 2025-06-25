@@ -344,7 +344,7 @@ class PWArray(DistributedArrays[PWDesc]):
             data = self.xp.empty_like(self.data)
         else:
             if dims is None:
-                # Number of plane-waves depends on the k-point.  We therfore
+                # Number of plane-waves depends on the k-point.  We therefore
                 # allow for data to be bigger than needed:
                 data = data.ravel()[:self.data.size].reshape(self.data.shape)
             else:
@@ -361,7 +361,7 @@ class PWArray(DistributedArrays[PWDesc]):
         return a
 
     def sanity_check(self) -> None:
-        """Sanity check for real-valed PW expansions.
+        """Sanity check for real-valued PW expansions.
 
         Make sure the G=(0,0,0) coefficient doesn't have an imaginary part.
         """
@@ -592,6 +592,10 @@ class PWArray(DistributedArrays[PWDesc]):
                                     out: Matrix,
                                     symmetric: bool) -> None:
         if self.desc.dtype == self.real_dtype:
+            if symmetric:
+                # Upper triangle could contain garbadge that will overflow
+                # when multiplied by 2
+                out.data[np.triu_indices(M1.shape[0], 1)] = 42.0
             out.data *= 2.0
             if self.desc.comm.rank == 0:
                 correction = M1.data[:, :1] @ M2.data[:, :1].T
