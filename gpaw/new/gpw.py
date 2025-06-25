@@ -381,8 +381,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
 
     if reader.version < 4 and 'magmoms' in results:
         magmom_a = results['magmoms']
-        magmom_av = np.zeros((len(magmom_a), 3))
-        magmom_av[:, 2] = magmom_a
+        magmom_av = np.pad(magmom_a[:, np.newaxis], [(0, 0), (2, 0)])
         results['non_collinear_magmoms'] = magmom_av
 
     dft.results = results
