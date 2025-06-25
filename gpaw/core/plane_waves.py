@@ -592,7 +592,11 @@ class PWArray(DistributedArrays[PWDesc]):
                                     out: Matrix,
                                     symmetric: bool) -> None:
         if self.desc.dtype == self.real_dtype:
+            if symmetric:
+                out.data[np.triu_indices(M1.shape[0], 1)] = 42.0
+
             out.data *= 2.0
+            # assert np.isfinite(out.data).all()
             if self.desc.comm.rank == 0:
                 correction = M1.data[:, :1] @ M2.data[:, :1].T
                 if symmetric:
