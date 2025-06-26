@@ -89,6 +89,8 @@ class Psi:
 
 
 class PWHybridHamiltonian(PWHamiltonian):
+    band_local = False
+
     def __init__(self,
                  grid: UGDesc,
                  pw: PWDesc,

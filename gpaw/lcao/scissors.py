@@ -223,7 +223,7 @@ class MyMatCalc:
             R_mm.data *= (homo - lumo)
             R_mm.add_to_diagonal(lumo)
             B_mM = R_mm.multiply(A_Mm, opb='C')
-            A_Mm.multiply(B_mM, beta=1, out=H_MM)
+            A_Mm.multiply(B_mM, beta=1.0, out=H_MM)
 
             a1 = a2
             M1 = M2
