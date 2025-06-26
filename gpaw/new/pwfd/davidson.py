@@ -172,7 +172,12 @@ class Davidson(PWFDEigensolver):
                         if is_domain_band_master:
                             H_NN.data[:B, :B] = xp.diag(eig_N[:B])
                             S_NN.data[:B, :B] = xp.eye(B)
+                            print(H_NN.data)
+                            print(S_NN.data)
                             eig_N[:] = H_NN.eigh(S_NN)
+                            print(eig_N, self.niter)
+                            import sys
+                            sys.exit(0)
                             wfs._eig_n = as_np(eig_N[:B])
                 if domain_comm.rank == 0:
                     band_comm.broadcast(wfs.eig_n, 0)
