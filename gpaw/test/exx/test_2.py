@@ -13,7 +13,7 @@ def exx(n, xc):
         symmetry='off',
         kpts={'size': (1, 1, 2 // n), 'gamma': True},
         convergence={'density': 1e-6},
-        txt='f{n}.txt',
+        txt=f'{n}.txt',
         xc=xc)
     e = a.get_potential_energy()
     print(e / n)

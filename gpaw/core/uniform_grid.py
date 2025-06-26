@@ -462,9 +462,9 @@ class UGArray(DistributedArrays[UGDesc]):
                           _ _
            _    1  / _  -iG.r   _
          C(G) = -- |dr e      f(r),
-                V  /
+                Ω  /
 
-        where `C(\bG)` are the plane wave coefficients and V is the cell
+        where `C(\bG)` are the plane wave coefficients and Ω is the cell
         volume.
 
         Parameters

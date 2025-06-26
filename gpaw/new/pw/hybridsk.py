@@ -188,8 +188,6 @@ class PWHybridHamiltonianK(PWHamiltonian):
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
             rhot_nR = ut2_nR.copy()
-            # print(ut1_nR.data[:, 6, 6])
-            # print(ut2_nR.data[:, 6, 6])
             rhot_nR.data *= ut1_R.conj()
             Q_anL = {}
             for a, Q1_niL in Q1_aniL.items():
@@ -203,11 +201,9 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 for rhot_G, f2 in zip(rhot_nG, f2_n):
                     a_G = rhot_G.copy()
                     rhot_G.data *= v_G.data
-                    # print(v_G.data.shape)
-                    # print(rhot_G.data[0])
                     e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
                     e += e12
-                    # print(n1, f2, f1_n[n1], e12);asdf
+            np.negative(rhot_nG.data.imag, rhot_nG.data.imag)
             rhot_nG.ifft(out=rhot_nR)
             rhot_nR.data *= ut1_R.data
             x = self.exx_fraction * f1_n[n1] / self.nbzk
