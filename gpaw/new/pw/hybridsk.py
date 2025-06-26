@@ -204,7 +204,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                     e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
                     e += e12
             rhot_nG.ifft(out=rhot_nR)
-            np.negative(rhot_nR.data.imag, rhot_nR.data.imag)
+            # np.negative(rhot_nR.data.imag, rhot_nR.data.imag)
             rhot_nR.data *= ut1_R.data
             x = self.exx_fraction * f1_n[n1] / self.nbzk
             for v2_R, Htpsit2_G in zip(rhot_nR, Htpsit2_nG):
