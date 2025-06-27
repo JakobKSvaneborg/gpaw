@@ -82,6 +82,7 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
     def multiply(self,
                  C_nM: Matrix,
                  out_nG: PWArray) -> None:
+        """Convert from LCAO expansion to PW expansion."""
         self._lazy_init()
         lfc = self._lfc
         assert lfc is not None
