@@ -7,7 +7,7 @@ import os
 # from gpaw.dft import RMMDIIS
 from gpaw.new.ase_interface import GPAW
 from gpaw.gpu import cupy_is_fake
-from gpaw.mixer import MixerFull
+from gpaw.mixer import FFTMixerFull
 
 
 @pytest.mark.serial
@@ -45,13 +45,13 @@ def test_single_precision_gpu(dtype):
 
 def run_single_precision(dtype, gpu):
     from ase.build import mx2
-    atoms = mx2('HH2', a=3.3)
-    atoms2 = mx2('HH2', a=3.3)
-    atoms2.positions[:, 2] += 3.5 + 5
-    atoms = atoms + atoms2
+    atoms = mx2('TeSe2', a=3.3)
+    # atoms2 = mx2('MoS2', a=3.3)
+    # atoms2.positions[:, 2] += 3.5 + 5
+    # atoms = atoms + atoms2
     atoms = atoms.repeat((1, 1, 1))
     atoms.center(axis=2, vacuum=5.5)
-    # atoms.set_initial_magnetic_moments([1, ] * 6)
+    atoms.set_initial_magnetic_moments([1, ] * 3)
 
     gpu = gpu == 'True'
 
@@ -63,10 +63,10 @@ def run_single_precision(dtype, gpu):
                       mode={'name': 'pw',
                             'ecut': 400.0,
                             'dtype': dtype},
-                      mixer=MixerFull(0.05),
+                      mixer=FFTMixerFull(0.05),
                       poissonsolver={'fast': False},
                       eigensolver={'name': 'not-dav',
-                                   'niter': 2},
+                                   'niter': 5},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}
@@ -84,5 +84,5 @@ if __name__ == '__main__':
         from gpaw.utilities.timing import GPUProfiler
         with global_timer.context(GPUProfiler("gpu")) as timer:
             run_single_precision(dtype=dtypes[sys.argv[1]], gpu=sys.argv[2])
-    else:   
+    else:
         run_single_precision(dtype=dtypes[sys.argv[1]], gpu=sys.argv[2])
