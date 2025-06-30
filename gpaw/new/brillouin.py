@@ -62,6 +62,12 @@ class BZPoints:
                    sym_K, time_reversal_K)
 
 
+class BZBandPath(BZPoints):
+    def __init__(self, band_path):
+        self.band_path = band_path
+        super().__init__(band_path.kpts)
+
+
 class MonkhorstPackKPoints(BZPoints):
     def __init__(self, size, shift=(0, 0, 0)):
         self.size_c = size
