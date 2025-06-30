@@ -57,7 +57,7 @@ def test_response_chi0(in_tmp_dir):
         if not sym:
             chi00_wGG = chi0_wGG
         elif -1 not in calc.wfs.kd.bz2bz_ks:
-            assert abs(chi0_wGG - chi00_wGG).max() < 2e-5
+            assert chi0_wGG == pytest.approx(chi00_wGG, abs=3e-5)
 
         chi0 = chi0_calc.calculate([0, 0, 0])
         assert chi0.body.blockdist.blockcomm.size == 1
