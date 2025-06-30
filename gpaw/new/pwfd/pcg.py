@@ -53,8 +53,8 @@ class NotDavidson(PWFDEigensolver):
             value will be modified to a multiple of the number of domain
             ranks.
         include_CG : bool, optional
-            Include CG in the solver. Default is True. Can be helpfull to turn off
-            for single precision calculations or if memory is an issue.
+            Include CG in the solver. Default is True. Can be helpfull to turn
+            off for single precision calculations or if memory is an issue.
         tolerances : tuple[float], optional
             Advanced setting, tolerances for the solver. Use at your own risk.
         scalapack_parameters : dict, optional

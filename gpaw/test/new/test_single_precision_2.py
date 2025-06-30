@@ -51,7 +51,7 @@ def run_single_precision(dtype, gpu):
     # atoms = atoms + atoms2
     atoms = atoms.repeat((3, 3, 1))
     atoms.center(axis=2, vacuum=5.5)
-    atoms.set_initial_magnetic_moments([1, ] * 9*3)
+    # atoms.set_initial_magnetic_moments([1, ] * 9 * 3)
 
     gpu = gpu == 'True'
 
