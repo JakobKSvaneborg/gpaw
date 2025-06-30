@@ -10,6 +10,8 @@ def exx(n, xc):
     a *= (1, 1, n)
     a.calc = GPAW(
         mode=PW(400, force_complex_dtype=1),
+        # eigensolver={'name': 'davidson', 'niter': 1},
+        eigensolver={'name': 'rmm-diis'},
         symmetry='off',
         setups='ae',
         kpts={'size': (1, 1, 2 // n), 'gamma': True},

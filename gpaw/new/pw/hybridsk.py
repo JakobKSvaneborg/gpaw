@@ -65,6 +65,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
             ibzwfs, self.setups, self.relpos_ac, self.cgrid, self.plan,
             self.log)
         self.nbzk = len(ibzwfs.ibz.bz)
+        self.xc.energies = {'hybrid_xc': 0.0,
+                            'hybrid_kinetic_correction': 0.0}
 
     def apply_orbital_dependent(self,
                                 ibzwfs: IBZWaveFunctions,
@@ -77,8 +79,6 @@ class PWHybridHamiltonianK(PWHamiltonian):
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
         assert len(ibzwfs.ibz) % self.kpt_comm.size == 0
 
-        self.nbzk = len(ibzwfs.ibz.bz)
-
         D_aii = D_asii[:, spin].copy()
         if ibzwfs.nspins == 1:
             D_aii = D_aii.copy()
@@ -88,6 +88,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
             wfs = wfs_s[spin]
             if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
                 pt_aiG = wfs.pt_aiX
+                weight = wfs.weight
                 break
         else:  # no break
             1 / 0
@@ -98,11 +99,11 @@ class PWHybridHamiltonianK(PWHamiltonian):
             evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
                                           psit2_nG, Htpsit2_nG,
                                           wfs.occ_n)
-            print(evv)
+            # print(psit2_nG.desc.kpt_c, evv)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
-                e *= ibzwfs.spin_degeneracy
-                if spin == 0:
+                e *= ibzwfs.spin_degeneracy * weight
+                if spin == 77777777777777777777777777777:
                     self.xc.energies[name] = e
                 else:
                     self.xc.energies[name] += e
@@ -204,7 +205,6 @@ class PWHybridHamiltonianK(PWHamiltonian):
                     e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
                     e += e12
             rhot_nG.ifft(out=rhot_nR)
-            # np.negative(rhot_nR.data.imag, rhot_nR.data.imag)
             rhot_nR.data *= ut1_R.data
             x = self.exx_fraction * f1_n[n1] / self.nbzk
             for v2_R, Htpsit2_G in zip(rhot_nR, Htpsit2_nG):
