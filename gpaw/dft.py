@@ -440,6 +440,8 @@ class BZSampling(Parameter):
         if isinstance(kpts, dict):
             if 'kpts' in kpts:
                 return KPoints(kpts['kpts'])
+            if 'path' in kpts:
+                return BandPath(**kpts)
             kpts = kpts.copy()
             kpts.pop('name', '')
         else:
@@ -490,6 +492,23 @@ class MonkhorstPack(BZSampling):
             if not periodic and n != 1:
                 raise ValueError('K-points can only be used with PBCs!')
         return MonkhorstPackKPoints(size, offset)
+
+
+class BandPath(BZSampling):
+    def __init__(self,
+                 path: str,
+                 npoints: int):
+        self.path = path
+        self.npoints = npoints
+
+    def todict(self):
+        return {'path': self.path, 'npoints': self.npoints}
+
+    def build(self, atoms):
+        from gpaw.new.brillouin import BZBandPath
+        return BZBandPath(atoms.cell.bandpath(self.path,
+                                              npoints=self.npoints,
+                                              pbc=atoms.pbc))
 
 
 class XC(Parameter):
