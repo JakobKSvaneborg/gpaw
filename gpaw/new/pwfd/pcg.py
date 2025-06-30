@@ -146,8 +146,6 @@ class NotDavidson(PWFDEigensolver):
             self.tolerance = self.tolerances[1]
             self.breakout_tolerance = self.tolerances[2]
             self.initial_tolerance_factor = self.tolerances[3]
-        
-        print(np.finfo(dtype).eps)
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -217,23 +215,27 @@ class NotDavidson(PWFDEigensolver):
                 return error
 
             buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
-            sliced_preconditioner(psit_nX, residual_nX, buffer=buffer_array_nX,
-                                  precon=self.preconditioner)
-            wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
-            P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-            residual_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
-                                        domain_sum=False)
-            Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False, beta=1,
-                                      out=M_nn)
-            domain_comm.sum(M_nn.data)
 
             buff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
                                          psit_nX.dims[1:], xp=psit_nX.xp)
             Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
                                           psit_nX.dims[1:], xp=psit_nX.xp)
 
+        cc = False
+
         for i in range(self.niter):
             with tracectx('Residual'):
+                sliced_preconditioner(psit_nX, residual_nX,
+                                      buffer=buffer_array_nX,
+                                      precon=self.preconditioner)
+                wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
+                P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
+                residual_nX.matrix_elements(psit_nX, cc=cc, out=M_nn,
+                                            domain_sum=False)
+                Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False,
+                                          beta=1, out=M_nn)
+                domain_comm.sum(M_nn.data)
+
                 M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
                 M_nn.multiply(P_ani, out=P2_ani, beta=1.0, alpha=-1.0)
 
@@ -279,7 +281,7 @@ class NotDavidson(PWFDEigensolver):
 
                     Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
                     buff_bX[:nblocksizes].matrix_elements(
-                        buff_bX[:nblocksizes], cc=False, out=MS_bb,
+                        buff_bX[:nblocksizes], cc=cc, out=MS_bb,
                         domain_sum=False)
                     S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ \
                         HPbuf_abi.matrix.data[:nblocksizes].T
@@ -289,7 +291,7 @@ class NotDavidson(PWFDEigensolver):
                     dH(Pbuf_abi[:, :nblocksizes],
                        out_ani=HPbuf_abi[:, :nblocksizes])
                     Hbuff_bX[:nblocksizes].matrix_elements(
-                        buff_bX[:nblocksizes], cc=False, out=MH_bb,
+                        buff_bX[:nblocksizes], cc=cc, out=MH_bb,
                         domain_sum=False)
                     H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ \
                         HPbuf_abi.matrix.data[:nblocksizes].T
@@ -327,7 +329,7 @@ class NotDavidson(PWFDEigensolver):
 
             with tracectx('Residual'):
                 # Subspace diagonialization needed every once in a while
-                if (i + 1) % 3 == 0:
+                if (i + 1) % 5 == 0:
                     wfs.subspace_diagonalize(Ht, dH,
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
@@ -361,7 +363,7 @@ class NotDavidson(PWFDEigensolver):
                 if self.include_CG:
                     with tracectx('P-update'):
                         P3_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-                        P_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
+                        P_nX.matrix_elements(psit_nX, cc=cc, out=M_nn,
                                              domain_sum=False)
                         Ptemp_ani.matrix.multiply(P_ani, opb='C',
                                                   symmetric=False,
@@ -369,18 +371,6 @@ class NotDavidson(PWFDEigensolver):
                         domain_comm.sum(M_nn.data)
                         M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
                         M_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
-
-                with tracectx('Residual'):
-                    sliced_preconditioner(psit_nX, residual_nX,
-                                          buffer=buffer_array_nX,
-                                          precon=self.preconditioner)
-                    wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
-                    P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-                    residual_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
-                                                domain_sum=False)
-                    Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False,
-                                              beta=1, out=M_nn)
-                    domain_comm.sum(M_nn.data)
 
         if not wfs.orthonormalized:
             wfs.orthonormalize(residual_nX)
