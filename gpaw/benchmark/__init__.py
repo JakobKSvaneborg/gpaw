@@ -6,6 +6,7 @@ from gpaw.mpi import world
 from time import time
 from json import dumps, loads
 from pathlib import Path
+from collections import defaultdict
 
 from gpaw.benchmark.systems import parse_system
 from gpaw.utilities.memory import maxrss
@@ -38,6 +39,47 @@ eigensolver_parameter_subsets = {'RMMDIIS':
                                   {'name': 'dav',
                                    'niter': 3}}}
 
+benchmarks_list = [
+    ('C60_pw',
+     'C60-pw.high:kpts.gamma',
+     '1-56:4G:1GPU'),
+    ('C60_lcao',
+     'C60-lcao.dzp',
+     '1-56:4G'),
+    ('C60_lowpw',
+     'C60-pw.low:kpts.gamma',
+     '1-56:4G:1GPU'),
+    ('C60_lowpw_float',
+     'C60-pw.low.float32:kpts.gamma',
+     '0:4G:1GPU'),
+    ('MoS2_tube',
+     'MoS2_tube-pw.high:kpts.411:xc.PBE:parallel.scalapack',
+     '56-192:100G:4-16GPU'),
+    ('676_graphene',
+     'C676-pw:kpts.gamma:xc.PBE:parallel.scalapack',
+     '56-192:100G:4-16GPU'),
+    ('pw_C6000',
+     'C6000-pw.low:kpts.gamma:parallel.domainband.scalapack',
+     '576-:5000G:12-GPU'),
+    ('pw_C2188',
+     'C2188-pw.low:kpts.gamma:parallel.domainband.scalapack',
+     '192-:1200G:4-GPU'),
+    ('pw_C676',
+     'C676-pw.high:kpts.gamma:parallel.scalapack:xc.PBE',
+     '56-:500G:4-GPU'),
+    ('pw_magbulk',
+     'magbulk-pw.high:kpts.density6',
+     '1-56:4G:1-4GPU'),
+    ('pw_C60_DIIS32',
+     'C60-pw.high.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS',
+     '0:4G:1GPU'),
+    ('pw_C676_DIIS32',
+     'C676-pw.low.float32:kpts.gamma:xc.PBE:eigensolver.RMMDIIS',
+     '0:100G:1-4GPU'),
+    ('pw_slab',
+     'metalslab-pw.high:kpts.density10:xc.PBE:eigensolver.DAV3',
+     '56-:100G:2-GPU')]
+
 
 def get_domainband(size=None):
     """Divide a world size to domain and bands (as square as possible)
@@ -67,9 +109,6 @@ gpaw_parameter_sets = {'pw': (pw_default_parameters, pw_parameter_subsets),
                        'kpts': ({}, kpts_parameter_subsets),
                        'xc': ({}, xc_parameter_subsets),
                        'parallel': ({}, parallel_parameter_subsets)}
-
-
-benchmarks_str = (Path(__file__).parent / 'benchmarks.csv').read_text()
 
 
 def parse_range(s):
@@ -127,16 +166,7 @@ def parse_requirement(req):
 # the benchmarks dictionary.
 benchmarks = {}
 benchmarks_reqs = {}
-for benchmark_line in benchmarks_str.split('\n'):
-    if len(benchmark_line.split(',')) != 3:
-        if not benchmark_line:
-            continue
-        else:
-            raise ValueError(f'Wrongly formated csv line: {benchmark_line}')
-    nickname, definition, req = benchmark_line.split(',')
-    nickname = nickname.strip()
-    definition = definition.strip()
-    req = req.strip()
+for nickname, definition, req in benchmarks_list:
     benchmarks[nickname] = definition
     benchmarks_reqs[nickname] = parse_requirement(req)
 
@@ -292,7 +322,11 @@ def gs_and_move_atoms(long_name, calc_info):
     with Walltime('First step') as step1:
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
-    atoms.positions += 0.1 * F
+    if abs(F).max() < 0.0001:
+        S = atoms.get_stress(voigt=False)
+        atoms.set_cell(atoms.cell @ (np.eye(3) - 0.02 * S), scale_atoms=True)
+    else:
+        atoms.positions += 0.1 * F
     atoms.wrap()
     with Walltime('Second step') as step2:
         atoms.get_potential_energy()
@@ -442,6 +476,38 @@ def parse_processor(text):
     return 'No "Model name:" found'
 
 
+def parse_nvidia_smi(dct, out):
+    """Parse output from nvidia-smi command.
+
+    Gets the name of the GPU from out, and accumulates to dct
+    how many there are."""
+    if 'command not found' in out:
+        return
+    for line in out.split('\n'):
+        if 'NVIDIA ' in line:
+            def get_gpu():
+                for n in line.split()[3:]:
+                    if n in {'|', 'On', 'Off'}:
+                        break
+                    yield n
+            dct[' '.join(get_gpu())] += 1
+
+
+def parse_rocm_smi(dct, out):
+    if 'command not found' in out:
+        return
+
+    raise NotImplementedError
+
+
+def parse_gpu(nvidia, rocm):
+    gpus = defaultdict(int)
+    parse_nvidia_smi(gpus, nvidia)
+    parse_rocm_smi(gpus, rocm)
+    return ' '.join((f'{number}x ({name})'
+                     if number > 1 else name) for name, number in gpus.items())
+
+
 def benchmark_from_dict(dct):
     """Create a summary dictionary from the full json output of the benchmark.
     """
@@ -452,6 +518,8 @@ def benchmark_from_dict(dct):
     summary = {'walltime': dct['walltime'],
                'shortname': dct['shortname'],
                'processor': parse_processor(system_info['processor']),
+               'gpu': parse_gpu(system_info['nvidia-smi'],
+                                system_info['rocm-smi']),
                'longname': dct['longname'],
                'hostname': system_info['hostname'].strip(),
                'calcinfo': dct['calcinfo'],

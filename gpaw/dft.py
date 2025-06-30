@@ -168,8 +168,11 @@ class DefaultEigensolver(Eigensolver):
 
 
 class PWFDEigensolverParamater(Eigensolver):
-    def __init__(self, niter: int = 2):
+    def __init__(self,
+                 niter: int = 2,
+                 max_buffer_mem: int = 200 * 1024**2):
         self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
 
     def todict(self):
         return {'niter': self.niter}
@@ -178,7 +181,7 @@ class PWFDEigensolverParamater(Eigensolver):
               nbands,
               wf_desc,
               band_comm,
-              create_preconditioner,
+              hamiltonian,
               converge_bands,
               setups,
               atoms):
@@ -186,9 +189,10 @@ class PWFDEigensolverParamater(Eigensolver):
             nbands,
             wf_desc,
             band_comm,
-            create_preconditioner,
+            hamiltonian,
             converge_bands,
-            niter=self.niter)
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem)
 
 
 class Davidson(PWFDEigensolverParamater):
@@ -202,12 +206,15 @@ class RMMDIIS(PWFDEigensolverParamater):
 
     def __init__(self,
                  niter: int = 1,
+                 max_buffer_mem: int = 200 * 1024**2,
                  trial_step: float | None = None):
         self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
         self.trial_step = trial_step
 
     def todict(self):
         return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
                 'trial_step': self.trial_step}
 
     def build(self,
@@ -225,6 +232,7 @@ class RMMDIIS(PWFDEigensolverParamater):
             create_preconditioner,
             converge_bands,
             niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
             trial_step=self.trial_step)
 
 
@@ -432,6 +440,8 @@ class BZSampling(Parameter):
         if isinstance(kpts, dict):
             if 'kpts' in kpts:
                 return KPoints(kpts['kpts'])
+            if 'path' in kpts:
+                return BandPath(**kpts)
             kpts = kpts.copy()
             kpts.pop('name', '')
         else:
@@ -482,6 +492,23 @@ class MonkhorstPack(BZSampling):
             if not periodic and n != 1:
                 raise ValueError('K-points can only be used with PBCs!')
         return MonkhorstPackKPoints(size, offset)
+
+
+class BandPath(BZSampling):
+    def __init__(self,
+                 path: str,
+                 npoints: int):
+        self.path = path
+        self.npoints = npoints
+
+    def todict(self):
+        return {'path': self.path, 'npoints': self.npoints}
+
+    def build(self, atoms):
+        from gpaw.new.brillouin import BZBandPath
+        return BZBandPath(atoms.cell.bandpath(self.path,
+                                              npoints=self.npoints,
+                                              pbc=atoms.pbc))
 
 
 class XC(Parameter):

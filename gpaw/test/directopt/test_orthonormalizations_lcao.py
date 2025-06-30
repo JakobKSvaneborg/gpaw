@@ -3,41 +3,19 @@ import pytest
 import numpy as np
 
 from gpaw import GPAW
-from ase import Atoms
 
 
 @pytest.mark.do
-def test_orthonormalizations_lcao(in_tmp_dir):
+def test_orthonormalizations_lcao(in_tmp_dir, gpw_files):
     """
     Test Loewdin and Gram-Schmidt orthonormalization
     of orbitals in LCAO
     :param in_tmp_dir:
     :return:
     """
-
-    atoms = Atoms('H3', positions=[(0, 0, 0),
-                                   (0.59, 0, 0),
-                                   (1.1, 0, 0)])
-    atoms.set_initial_magnetic_moments([1, 0, 0])
-
-    atoms.center(vacuum=2.0)
-    atoms.set_pbc(False)
-    calc = GPAW(mode='lcao',
-                basis='sz(dzp)',
-                h=0.3,
-                spinpol=True,
-                convergence={'energy': np.inf,
-                             'eigenstates': np.inf,
-                             'density': np.inf,
-                             'minimum iterations': 1},
-                eigensolver={'name': 'etdm-lcao'},
-                occupations={'name': 'fixed-uniform'},
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                symmetry='off',
-                txt=None)
+    calc = GPAW(gpw_files['h3_orthonorm_lcao'])
+    atoms = calc.atoms
     atoms.calc = calc
-    atoms.get_potential_energy()
 
     for type in ['loewdin', 'gramschmidt']:
         atoms.positions[0] += 0.1
