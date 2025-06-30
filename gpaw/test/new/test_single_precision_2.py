@@ -49,15 +49,16 @@ def run_single_precision(dtype, gpu):
     # atoms2 = mx2('MoS2', a=3.3)
     # atoms2.positions[:, 2] += 3.5 + 5
     # atoms = atoms + atoms2
-    atoms = atoms.repeat((1, 1, 1))
+    atoms = atoms.repeat((3, 3, 1))
     atoms.center(axis=2, vacuum=5.5)
-    atoms.set_initial_magnetic_moments([1, ] * 3)
+    atoms.set_initial_magnetic_moments([1, ] * 9*3)
 
     gpu = gpu == 'True'
 
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
+                      kpts={'size': (3, 3, 1), 'gamma': True},
                       convergence={'maximum iterations': 300,
                                    'eigenstates': 1e-7},
                       mode={'name': 'pw',

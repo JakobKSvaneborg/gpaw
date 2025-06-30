@@ -49,9 +49,12 @@ class NotDavidson(PWFDEigensolver):
             Number of iterations. Default is 4.
         blocksize : int, optional
             Block size for the diagonal slicing. Default is 256, lower values
-            are more efficient on CPUs with many cores but not on GPUs.
+            are more efficient on CPUs with many cores but not on GPUs. The
+            value will be modified to a multiple of the number of domain
+            ranks.
         include_CG : bool, optional
-            Include CG in the solver. Default is False.
+            Include CG in the solver. Default is True. Can be helpfull to turn off
+            for single precision calculations or if memory is an issue.
         tolerances : tuple[float], optional
             Advanced setting, tolerances for the solver. Use at your own risk.
         scalapack_parameters : dict, optional
@@ -132,10 +135,10 @@ class NotDavidson(PWFDEigensolver):
         #   This value can be lower, since the first iteration
         #   is more numerically stable.
         self.initial_tolerance_factor = self.tolerance
-        if self.include_CG:
+        if not self.include_CG:
             self.tolerance *= 1e-5
-            self.breakout_tolerance *= 1e-2
-            self.initial_tolerance_factor *= 1e2
+            self.breakout_tolerance *= 1e-3
+            self.initial_tolerance_factor = 1
 
         if self.tolerances is not None:
             assert len(self.tolerances) == 4
