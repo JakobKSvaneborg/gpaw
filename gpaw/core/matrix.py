@@ -573,17 +573,15 @@ class Matrix(XP):
         if xp is self.xp:
             assert xp is np, 'cp -> cp should not be needed!'
             return self
-        assert self.dist.comm.size == 1
         if xp is np:
-            return Matrix(*self.shape, data=cp.asnumpy(self.data))
-        return Matrix(*self.shape, data=cp.asarray(self.data))
+            return self.dist.matrix(data=cp.asnumpy(self.data))
+        return self.dist.matrix(data=cp.asarray(self.data))
 
     def to_dtype(self, dtype) -> Matrix:
         """Convert to new data type."""
         if dtype == self.dtype:
             return self
-        assert self.dist.comm.size == 1
-        return Matrix(*self.shape, data=self.data.astype(dtype))
+        return self.dist.matrix(data=self.data.astype(dtype))
 
 
 def _matrix(M):
