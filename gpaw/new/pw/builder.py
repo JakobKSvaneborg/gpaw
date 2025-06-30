@@ -179,7 +179,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                                  basis_set,
                                                  kpt_c,
                                                  q):
-        if self.params.experimental.get('fast_pw_init', False):
+        if self.params.experimental.get('fast_pw_init', True):
             if self.ncomponents < 4:
                 from gpaw.core.pwacf import PWAtomCenteredFunctions
                 pw = self.wf_desc.new(kpt=kpt_c)
