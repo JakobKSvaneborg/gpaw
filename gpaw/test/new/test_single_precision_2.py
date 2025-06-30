@@ -58,7 +58,6 @@ def run_single_precision(dtype, gpu):
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
-                      kpts={'size': (3, 3, 1), 'gamma': True},
                       convergence={'maximum iterations': 300,
                                    'eigenstates': 1e-7},
                       mode={'name': 'pw',
