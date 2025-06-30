@@ -120,14 +120,14 @@ class NotDavidson(PWFDEigensolver):
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
         #   minimum achievable residual.
-        self.tolerance = 5e5 * np.finfo(dtype).eps**2 * np.sqrt(G_max)
+        self.tolerance = 1e5 * np.finfo(dtype).eps**2 * np.sqrt(G_max)
         # breakout_tolerance :
         #   Stop iteration if sum(residual_ns) < breakout_tolerance
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
         self.breakout_tolerance = \
-            5e5 * np.finfo(dtype).eps**2 * np.sqrt(
+            5e6 * np.finfo(dtype).eps**2 * np.sqrt(
                 B * extra_dims * G_max)
         # initial_tolerance :
         #   Only do subspace diagonalization if
