@@ -146,6 +146,8 @@ class NotDavidson(PWFDEigensolver):
             self.tolerance = self.tolerances[1]
             self.breakout_tolerance = self.tolerances[2]
             self.initial_tolerance_factor = self.tolerances[3]
+        
+        print(np.finfo(dtype).eps)
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
