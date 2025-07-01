@@ -1,6 +1,5 @@
 import numpy as np
 from gpaw.solvation.gridmem import NeedsGD
-from gpaw.new.input_parameters import register
 
 
 class Dielectric(NeedsGD):
@@ -31,6 +30,12 @@ class Dielectric(NeedsGD):
 
     def todict(self):
         return {'epsinf': self.epsinf}
+
+    @classmethod
+    def from_dict(self, dct):
+        if not isinstance(dct, dict):
+            return dct
+        return LinearDielectric(**dct)
 
     def estimate_memory(self, mem):
         nbytes = self.gd.bytecount()
@@ -83,7 +88,6 @@ class Dielectric(NeedsGD):
         writer.write(name=self.__class__.__name__, epsinf=self._epsinf)
 
 
-@register
 class LinearDielectric(Dielectric):
     """Dielectric depending (affine) linearly on the cavity.
 

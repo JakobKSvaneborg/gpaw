@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import warnings
 from functools import cached_property
 
 import numpy as np
@@ -11,7 +13,6 @@ from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
-from gpaw.new.external_potential import create_external_potential
 from gpaw.new.gpw import as_double_precision
 from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
@@ -25,24 +26,24 @@ from gpaw.typing import Array1D
 
 
 class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
-    interpolation = 'fft'
-
     def __init__(self,
                  atoms,
                  params,
                  *,
-                 comm,
-                 ecut=340,
-                 dtype=None,
-                 qspiral=None,
-                 dedecut=None):
-        self.ecut = ecut / Ha
-        super().__init__(atoms, params, dtype=dtype,
-                         comm=comm, qspiral=qspiral)
+                 comm=None,
+                 log=None):
+        mode = params.mode
+        self.ecut = mode.ecut / Ha
+        # mode.dedecut ???
+        super().__init__(atoms, params, comm=comm, log=log)
 
         self._nct_ag = None
         self._tauct_ag = None
 
+        nthreads = int(os.environ.get('OMP_NUM_THREADS', '') or '1')
+        if nthreads > 1:
+            warnings.warn(
+                'Using OMP_NUM_THREADS>1 in PW-mode is not useful!')
         # We should just distribute the atom evenly, but that is not compatible
         # with LCAO initialization!
         # return AtomDistribution.from_number_of_atoms(len(self.relpos_ac),
@@ -56,7 +57,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.atoms.pbc,
             self.ibz.symmetries,
             h=self.params.h,
-            interpolation='fft',
+            interpolation=self.params.interpolation or 'fft',
             ecut=self.ecut,
             comm=self.communicators['d'])
         fine_grid = grid.new(size=grid.size_c * 2)
@@ -92,7 +93,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     @cached_property
     def fast_poisson_solver(self) -> bool:
-        fast = self.params.poissonsolver.get('fast', False)
+        fast = self.params.poissonsolver.params.get('fast', False)
         if fast:
             # Only works for gaussian compensation charges at the moment:
             fast = False
@@ -119,7 +120,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return self._tauct_ag
 
     def create_poisson_solver(self, env):
-        psparams = self.params.poissonsolver.copy() or {'strength': 1.0}
+        psparams = self.params.poissonsolver.params.copy() or {'strength': 1.0}
         psparams.pop('fast', False)
 
         if self.fast_poisson_solver:
@@ -144,21 +145,20 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.setups,
             ps, self.relpos_ac, self.atomdist, self.xp)
 
-    def create_potential_calculator(self, log):
-        env = self.create_environment(self.fine_grid, log)
+    def create_potential_calculator(self):
+        env = self.create_environment(self.fine_grid)
         return PlaneWavePotentialCalculator(
             self.grid, self.fine_grid,
             self.interpolation_desc,
             self.setups,
             self.xc,
             self.create_poisson_solver(env),
-            external_potential=create_external_potential(self.params.external),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
             xp=self.xp,
             environment=env,
-            extensions=self.get_extensions(log))
+            extensions=self.get_extensions())
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:
@@ -179,12 +179,31 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                                  basis_set,
                                                  kpt_c,
                                                  q):
-        # Replace this with code that goes directly from C_nM to
-        # psit_nG via PWAtomCenteredFunctions.
-        # XXX
+        if self.params.experimental.get('fast_pw_init', True):
+            if self.ncomponents < 4:
+                from gpaw.core.pwacf import PWAtomCenteredFunctions
+                pw = self.wf_desc.new(kpt=kpt_c)
+                phit_aJG = PWAtomCenteredFunctions(
+                    [setup.basis_functions_J for setup in self.setups],
+                    self.relpos_ac,
+                    pw,
+                    atomdist=self.atomdist,
+                    xp=self.xp)
+                psit_nG = pw.empty(self.nbands,
+                                   comm=self.communicators['b'],
+                                   xp=self.xp)
+                mynbands, M = C_nM.dist.shape
+                phit_aJG.multiply(C_nM.to_xp(self.xp).to_dtype(pw.dtype),
+                                  out_nG=psit_nG[:mynbands])
+                return psit_nG
 
-        grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
-        pw = self.wf_desc.new(kpt=kpt_c)
+        lcao_dtype = complex if \
+            np.issubdtype(self.dtype, np.complexfloating) else float
+
+        grid = self.grid.new(kpt=kpt_c, dtype=lcao_dtype)
+        pw = self.wf_desc.new(kpt=kpt_c, dtype=lcao_dtype)
+        if self.dtype != lcao_dtype:
+            pw_correct = self.wf_desc.new(kpt=kpt_c, dtype=self.dtype)
 
         if np.issubdtype(self.dtype, np.complexfloating):
             emikr_R = grid.eikr(-kpt_c)
@@ -199,6 +218,12 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
                 psit_R.fft(out=psit_G)
+
+            if self.dtype != lcao_dtype:
+                psit2_nG = pw_correct.empty(self.nbands,
+                                            self.communicators['b'])
+                psit2_nG.data[:] = psit_nG.data
+                return psit2_nG.to_xp(self.xp)
             return psit_nG.to_xp(self.xp)
         else:
             psit_nsG = pw.empty((self.nbands, 2), self.communicators['b'])
@@ -212,8 +237,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     psit_R.fft(out=psit_G)
             return psit_nsG
 
-    def read_ibz_wave_functions(self, reader, log):
-        ibzwfs = super().read_ibz_wave_functions(reader, log)
+    def read_ibz_wave_functions(self, reader):
+        ibzwfs = super().read_ibz_wave_functions(reader)
 
         if 'coefficients' not in reader.wave_functions:
             return ibzwfs

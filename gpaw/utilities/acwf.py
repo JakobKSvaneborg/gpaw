@@ -15,7 +15,7 @@ from ase.data import atomic_numbers
 from gpaw.atom.check import all_names
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
-from gpaw.new.builder import builder as create_builder
+from gpaw.dft import Parameters
 
 
 def eos(atoms: Atoms,
@@ -31,16 +31,16 @@ def eos(atoms: Atoms,
         e = atoms.get_potential_energy()
         energies.append(e)
 
-    strain, e0, d2eds2 = fit(strains, energies)
+    strain0, e0, d2eds2 = fit(strains, energies)
     v0 = abs(np.linalg.det(cell_cv))
-    volume = v0 * (1 + strain)**3
+    volume = v0 * (1 + strain0)**3
 
     return dict(
         volume=volume,
         strains=strains.tolist(),
         energies=energies,
         energy=e0,
-        strain=strain,
+        strain=strain0,
         d2eds2=d2eds2)
 
 
@@ -81,7 +81,7 @@ def fit(strains: np.ndarray,
 def run_eos_calculation(structure: str, symbol: str, **params) -> dict:
     """Create GPAW calculator and do EOS calculation."""
     atoms = reference_structure(symbol, structure)
-    builder = create_builder(atoms, params)
+    builder = Parameters(**params).dft_component_builder(atoms, log=None)
     params['kpts'] = builder.ibz.bz.size_c  # type: ignore
     params['gpts'] = builder.grid.size
     params.pop('h', None)

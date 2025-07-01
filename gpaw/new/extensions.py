@@ -1,4 +1,3 @@
-from gpaw.new.input_parameters import register
 from ase.units import Hartree, Bohr
 from ase.calculators.calculator import PropertyNotImplementedError
 import numpy as np
@@ -6,13 +5,14 @@ from gpaw.mpi import serial_comm, broadcast_exception, broadcast_float
 import uuid
 from pathlib import Path
 import os
+from gpaw.dft import Extension as ExtensionParameter
 
 
 class Extension:
     name = 'unnamed extension'
 
     def get_energy_contributions(self) -> dict[str, float]:
-        raise NotImplementedError
+        return {}
 
     def force_contribution(self):
         raise NotImplementedError
@@ -20,14 +20,20 @@ class Extension:
     def move_atoms(self, relpos_ac) -> None:
         raise NotImplementedError
 
+    def update_non_local_hamiltonian(self,
+                                     D_sii,
+                                     setup,
+                                     atom_index,
+                                     dH_sii) -> float:
+        return 0.0
 
-class ExtensionParameter:
-    def build(self, atoms, domain_comm) -> Extension:
-        raise NotImplementedError
+    def build(self, atoms, comms, log):
+        return self
 
 
-@register
 class D3(ExtensionParameter):
+    name = 'd3'
+
     def __init__(self, *, xc, **kwargs):
         self.xc = xc
         self.kwargs = kwargs
@@ -47,6 +53,8 @@ class D3(ExtensionParameter):
         # created.
 
         class D3Extension(Extension):
+            name = 'd3'
+
             def __init__(self):
                 super().__init__()
                 self.stress_vv = np.zeros((3, 3)) * np.nan
@@ -116,7 +124,12 @@ class D3(ExtensionParameter):
                 atoms.calc = None
 
             def get_energy_contributions(_self) -> dict[str, float]:
+                """Returns the energy contributions from D3 in Hartree"""
                 return {f'D3 (xc={self.xc})': _self.E}
+
+            def get_energy(self) -> float:
+                """Returns the energy contribution from D3 in eV"""
+                return self.E * Hartree
 
             def force_contribution(self):
                 return self.F_av

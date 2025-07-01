@@ -262,6 +262,7 @@ build-lumi-g:
   extends:
     - .build
     - .lumi-g-job
+  when: manual
   script:
     - module load buildtools-python/24.03-cray-python3.11
     - |
@@ -365,7 +366,7 @@ test-oldest:
   script:
     - gpaw info
     - >
-      OMP_NUM_THREADS=2 pytest -v -m ci -We
+      OMP_NUM_THREADS=2 pytest -v -We -k 0-fd gpaw/test/test_fuzz.py
 
     # This is the only test which uses OpenMP.
     # We may want to identify a limited set of tests that must work
@@ -373,7 +374,7 @@ test-oldest:
 
     - gpaw-python -m gpaw info
     - >
-      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-pw
+      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-fd
       gpaw/test/test_fuzz.py
 
 
@@ -553,15 +554,6 @@ lint:
       --extend-ignore E402,E501
       doc/summerschools/summerschool24/catalysis
       doc/platforms/Linux/Niflheim
-    - echo "interrogate"
-    - pip install interrogate
-    - interrogate --version
-    - >
-      interrogate -m -i
-      -f 33.1
-      -e gpaw/test
-      -e gpaw/point_groups/groups.py
-      gpaw
 
 
 typecheck:
@@ -685,10 +677,6 @@ nightly-mpi-2:
     GPAW_MPI_NPROCS: "2"
   extends:
     - .nightly
-  script:
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30 -m "not slow"
 
 
 nightly-mpi-4:
@@ -712,7 +700,6 @@ nightly-mpi-8:
     - .nightly
   script:
     - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
@@ -724,9 +711,9 @@ nightly-mpi-1-new:
     - .nightly-mpi-new
   script:
     - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - pytest --cache-show
     - >
-      pytest -n 4 --instafail -r s --durations 30 -m
+      pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 

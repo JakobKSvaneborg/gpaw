@@ -50,11 +50,9 @@ def truncated_coulomb(pw: PWDesc,
     v_G = pw.empty()
     G2_G = pw.ekin_G * 2
     v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
-    if G2_G[0] < 1e-10:
-        v_G.data[1:] /= G2_G[1:]
-        v_G.data[0] = pi / omega**2
-    else:
-        v_G.data /= G2_G
+    ok_G = G2_G > 1e-10
+    v_G.data[ok_G] /= G2_G[ok_G]
+    v_G.data[~ok_G] = pi / omega**2
     return v_G
 
 
@@ -91,6 +89,8 @@ class Psi:
 
 
 class PWHybridHamiltonian(PWHamiltonian):
+    band_local = False
+
     def __init__(self,
                  grid: UGDesc,
                  pw: PWDesc,

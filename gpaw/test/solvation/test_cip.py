@@ -5,7 +5,6 @@ from ase.build import fcc111
 from gpaw import FermiDirac
 
 # Import solvation modules
-from ase.data.vdw import vdw_radii
 from gpaw.solvation import (
     EffectivePotentialCavity,
     LinearDielectric,
@@ -21,9 +20,6 @@ def test_cip(in_tmp_dir):
     epsinf = 78.36  # Dielectric constant of water at 298 K
     gamma = 0.00114843767916  # 18.4*1e-3 * Pascal* m
     T = 298.15   # K
-
-    def atomic_radii(atoms):
-        return [vdw_radii[n] for n in atoms.numbers]
 
     # Structure is created
     atoms = fcc111('Au', size=(1, 1, 4))
@@ -54,7 +50,7 @@ def test_cip(in_tmp_dir):
         convergence=convergence,
         occupations=FermiDirac(0.1),
         cavity=EffectivePotentialCavity(
-            effective_potential=SJMPower12Potential(atomic_radii, u0),
+            effective_potential=SJMPower12Potential(u0=u0),
             temperature=T,
             surface_calculator=GradientSurface()),
         dielectric=LinearDielectric(epsinf=epsinf),
@@ -90,7 +86,7 @@ def test_cip(in_tmp_dir):
                convergence=convergence,
                occupations=FermiDirac(0.1),
                cavity=EffectivePotentialCavity(
-                   effective_potential=SJMPower12Potential(atomic_radii, u0),
+                   effective_potential=SJMPower12Potential(u0=u0),
                    temperature=T,
                    surface_calculator=GradientSurface()),
                dielectric=LinearDielectric(epsinf=epsinf),

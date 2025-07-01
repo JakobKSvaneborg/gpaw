@@ -1,4 +1,4 @@
-# creates: O_nm.png_P_nm.png
+# creates: O_nm_P_nm.png
 import numpy as np
 
 

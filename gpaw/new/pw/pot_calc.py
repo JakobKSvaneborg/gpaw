@@ -16,7 +16,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  xc,
                  poisson_solver,
                  *,
-                 external_potential,
                  relpos_ac,
                  atomdist,
                  environment,
@@ -26,7 +25,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self.xp = xp
         self.pw = pw
         super().__init__(xc, poisson_solver, setups,
-                         external_potential=external_potential,
                          relpos_ac=relpos_ac,
                          environment=environment,
                          extensions=extensions,
@@ -130,7 +128,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             vt_sR.data[1] = vt_sR.data[0]
         vt_sR.data[density.ndensities:] = 0.0
 
-        e_external = self.external_potential.update_potential(vt_sR, density)
+        # e_external = self.external_potential.update_potential(vt_sR, density)
+        e_external = 0.0
 
         vtmp_R = vt_sR.desc.empty(xp=self.xp)
         for spin, (vt_R, vxct_r) in enumerate(zips(vt_sR, vxct_sr)):
@@ -185,6 +184,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         return self._vt_g, self._nt_g, self._dedtaut_g
 
     def force_contributions(self, Q_aL, density, potential):
+        if potential.vHt_x is None:
+            raise RuntimeError(ERROR.format(thing='forces'))
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
         if dedtaut_g is None:
             Ftauct_av = None
@@ -201,6 +202,14 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             self.extensions_force_av)
 
     def stress(self, ibzwfs, density, potential):
+        if potential.vHt_x is None:
+            raise RuntimeError(ERROR.format(thing='stress'))
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
         return calculate_stress(self, ibzwfs, density, potential,
                                 vt_g, nt_g, dedtaut_g)
+
+
+ERROR = (
+    'Unable to calculate {thing}.  Are you restartting from an old '
+    'gpw-file?  In that case, calculate the {thing} before writing '
+    'the gpw-file or switch to new GPAW.')
