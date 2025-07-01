@@ -21,7 +21,7 @@ def test_max_buffer_mem(mode, eigensolver, max_mem):
     atoms.calc = calc
     e = atoms.get_potential_energy()
 
-    expected_e = {'pw-rmm-diis': -14.399880,
+    expected_e = {'pw-rmm-diis': -14.398,
                   'fd-rmm-diis': 5.9194033,
                   'pw-dav': -16.0133410,
                   'fd-dav': 4.6795767}

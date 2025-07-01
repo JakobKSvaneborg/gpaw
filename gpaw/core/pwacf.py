@@ -4,8 +4,10 @@ from math import pi
 from typing import TYPE_CHECKING
 
 import numpy as np
+
 from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.core.atom_centered_functions import AtomCenteredFunctions
+from gpaw.core.matrix import Matrix
 from gpaw.core.uniform_grid import UGArray
 from gpaw.ffbt import rescaled_fourier_bessel_transform
 from gpaw.gpu import cupy_is_fake, gpu_gemm
@@ -13,13 +15,13 @@ from gpaw.gpu import cupy_is_fake, gpu_gemm
 from gpaw.new import prod, trace, tracectx
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
 from gpaw.spherical_harmonics import Y, nablarlYL
-from gpaw.utilities.blas import mmm
-from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
+from gpaw.utilities import as_complex_dtype, as_real_dtype
+from gpaw.utilities.blas import mmm
 
 if TYPE_CHECKING:
-    from gpaw.core.plane_waves import PWDesc
+    from gpaw.core.plane_waves import PWDesc, PWArray
 
 
 class PWAtomCenteredFunctions(AtomCenteredFunctions):
@@ -76,6 +78,24 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
     def change_cell(self, new_pw):
         self.pw = new_pw
         self._lfc = None
+
+    def multiply(self,
+                 C_nM: Matrix,
+                 out_nG: PWArray) -> None:
+        """Convert from LCAO expansion to PW expansion."""
+        self._lazy_init()
+        lfc = self._lfc
+        assert lfc is not None
+        for G1, G2 in lfc.block():
+            f_GI = lfc.expand(G1, G2, cc=False)
+            a_nG = out_nG.data[:, G1:G2]
+            if lfc.real:
+                a_nG = a_nG.view(f_GI.dtype)
+            if self.xp is np:
+                mmm(1.0 / self.pw.dv, C_nM.data, 'N', f_GI, 'T', 0.0, a_nG)
+            else:
+                gpu_gemm('N', 'T',
+                         C_nM.data, f_GI, a_nG, 1.0 / self.pw.dv, 0.0)
 
 
 class PWLFC:  # (BaseLFC)
