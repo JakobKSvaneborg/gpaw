@@ -3,7 +3,6 @@ from ase import Atoms
 from gpaw.tddft import TDDFT
 from gpaw.tddft.abc import LinearAbsorbingBoundary
 from gpaw.tddft.laser import CWField
-import pytest
 
 
 def test_tddft_be_nltd_ip(in_tmp_dir, gpw_files):

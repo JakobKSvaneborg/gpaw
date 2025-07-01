@@ -1,6 +1,5 @@
 """Check that the LCAODOS works."""
 
-import pytest
 from ase.build import molecule
 
 from gpaw import GPAW
