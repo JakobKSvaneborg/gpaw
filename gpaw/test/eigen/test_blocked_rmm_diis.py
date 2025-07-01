@@ -4,7 +4,6 @@ from gpaw import GPAW, Mixer, RMMDIIS
 import pytest
 
 
-@pytest.mark.old_gpaw_only
 def test_eigen_blocked_rmm_diis(in_tmp_dir):
     a = 4.0
     n = 20
