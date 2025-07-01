@@ -74,7 +74,9 @@ class ResponseGroundStateAdapter:
         self.pbc = self.atoms.pbc
         self.volume = self.gd.volume
 
-        self.nvalence = wfs.nvalence
+        self.nvalence = int(round(wfs.nvalence))
+        assert self.nvalence == wfs.nvalence
+
         self.nocc1, self.nocc2 = self.count_occupied_bands()
 
         self.ibz2bz = IBZ2BZMaps.from_calculator(calc)
