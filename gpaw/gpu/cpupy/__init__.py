@@ -153,6 +153,14 @@ def fuse():
     return lambda func: func
 
 
+def isfinite(a):
+    return ndarray(np.isfinite(a._data))
+
+
+def isnan(a):
+    return ndarray(np.isnan(a._data))
+
+
 class ndarray:
     def __init__(self, data):
         if isinstance(data, (float, complex, int, np.int32, np.int64,
