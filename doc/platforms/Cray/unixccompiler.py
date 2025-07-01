@@ -14,9 +14,9 @@ the "typical" Unix-style command-line C compiler:
 """
 __revision__ = "$Id: unixccompiler.py 54954 2007-04-25 06:42:41Z neal.norwitz $"
 
-import os, sys
+import os
+import sys
 from types import StringType, NoneType
-from copy import copy
 
 from distutils import sysconfig
 from distutils.dep_util import newer
