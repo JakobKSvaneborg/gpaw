@@ -1395,8 +1395,7 @@ class CLICommand:
             help='Exchange-Correlation functional (default value LDA)',
             metavar='<XC>')
         add('-C', '--configuration',
-            help='e.g. for Li: "[(1, 0, 2, -1.878564), (2, 0, 1, -0.10554),'
-            ' (2, 1, 0, 0.0)]"')
+            help='Example for Nd: "[Xe]6s1,5d1,4f4".')
         add('-P', '--projectors',
             help='Projector functions - use comma-separated - ' +
             'nl values, where n can be principal quantum number ' +
