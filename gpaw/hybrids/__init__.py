@@ -4,6 +4,15 @@ __all__ = ['HybridXC']
 
 
 def parse_name(name: str) -> tuple[str, float, float, bool]:
+    """Parse known hybrid functional names.
+
+    Returns:
+
+    * libxc-name of semi-local functional
+    * exact-exchange fraction
+    * damping coefficient
+    * Yukawa screening
+    """
     if name == 'EXX':
         return 'null', 1.0, 0.0, False
     if name == 'PBE0':
@@ -16,4 +25,4 @@ def parse_name(name: str) -> tuple[str, float, float, bool]:
         return 'HYB_GGA_XC_B3LYP', 0.2, 0.0, False
     if name == 'YS-PBE0':
         return 'GGA_X_SFAT_PBE', 0.25, 1.5 * 0.11, True
-    assert False
+    raise ValueError(f'Unknown hybrid functional: {name}')
