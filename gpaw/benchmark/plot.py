@@ -3,10 +3,10 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-
 
 def compare(files: list[str]) -> None:
+    import matplotlib.pyplot as plt
+
     paths = [Path(f) for f in files]
     data: defaultdict[
         tuple[str, str, str, str],
