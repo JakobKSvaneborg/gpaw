@@ -12,6 +12,9 @@ def parse_name(name: str) -> tuple[str, float, float, bool]:
     * exact-exchange fraction
     * damping coefficient
     * Yukawa screening
+
+    >>> parse_name('YS-PBE0')
+    ('GGA_X_SFAT_PBE', 0.25, 0.165, True)
     """
     if name == 'EXX':
         return 'null', 1.0, 0.0, False
