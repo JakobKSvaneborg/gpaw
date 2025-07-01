@@ -9,9 +9,9 @@ c = 2.953
 a = crystal(['Ti', 'O'], basis=[(0, 0, 0), (0.3, 0.3, 0.0)],
             spacegroup=136, cellpar=[aa, aa, c, 90, 90, 90])
 
-name_calc = 'calc_BSE_plus'
-name_bse_plus = 'fixed_density_calc_BSE_Plus'
-name_rpa = 'fixed_density_calc_rpa'
+name_calc = 'calc_TiO2_BSE_plus'
+name_bse_plus = 'fixed_density_calc_TiO2_bse'
+name_rpa = 'fixed_density_calc_TiO2_rpa'
 
 calc = GPAW(mode=PW(800),
             xc='PBE',
