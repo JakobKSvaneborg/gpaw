@@ -1,10 +1,7 @@
-from gpaw.utilities.folder import Folder
-
 import numpy as np
-
 import pytest
 
-import matplotlib.pyplot as plt
+from gpaw.utilities.folder import Folder
 
 
 def test_vering_fold():
@@ -28,9 +25,3 @@ def test_vering_fold():
 
         i2 = np.where(x_c > 8)
         assert max(y_c[i2]) > max(y_v[i2])
-
-        # XXX Remove later
-        plt.plot(x_c, y_c)
-        plt.plot(x_v, y_v)
-
-        # plt.show()

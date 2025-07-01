@@ -317,7 +317,7 @@ class Subdiagonalization(BasisTransform):
         for index in show:
             groups[eps[index]].append(index)
 
-        self.groups = groups
+        self.groups = groups  # type: ignore[assignment]
         return self.groups
 
     def group_symmetries(self, decimals: int = 1, cutoff: float = 0.9):
@@ -336,7 +336,9 @@ class Subdiagonalization(BasisTransform):
         groups = defaultdict(set)
         blocks = self.blocks
         # Loop over pair of blocks.
-        for b1, b2 in zip(*np.triu_indices(len(blocks), k=1)):
+        for bb1, bb2 in zip(*np.triu_indices(len(blocks), k=1)):
+            b1 = int(bb1)
+            b2 = int(bb2)
             if len(blocks[b1]) != len(blocks[b2]):
                 # Blocks with different dimensions not compatible.
                 continue

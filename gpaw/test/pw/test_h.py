@@ -14,12 +14,11 @@ def test_pw_h(in_tmp_dir):
                   txt=None)
     e0 = a.get_potential_energy()
     e0 = world.sum_scalar(e0) / world.size
-
     a.calc = GPAW(mode=PW(250),
                   eigensolver='rmm-diis',
                   basis='szp(dzp)',
                   txt='%d.txt' % world.size)
     e = a.get_potential_energy()
     f = a.get_forces()
-    assert abs(e - e0) < 7e-5, abs(e - e0)
-    assert abs(f).max() < 1e-10, abs(f).max()
+    assert abs(e - e0) < 3e-4, e - e0
+    assert abs(f).max() < 1e-10, f

@@ -593,7 +593,13 @@ class PAWXMLParser(xml.sax.handler.ContentHandler):
         elif name == 'core_hole_state':
             setup.has_corehole = True
             setup.fcorehole = float(attrs['removed'])
-            setup.lcorehole = 'spdf'.find(attrs['state'][1])
+            full_state = attrs['state']
+            state_l = full_state.lstrip('0123456789')
+            assert state_l
+            state_n = full_state[:-len(state_l)]
+            assert state_n
+            setup.ncorehole = int(state_n)
+            setup.lcorehole = 'spdf'.find(state_l)
             setup.core_hole_e = float(attrs['eig'])
             setup.core_hole_e_kin = float(attrs['ekin'])
             self.data = []

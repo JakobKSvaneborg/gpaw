@@ -1,7 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
-from gpaw.poisson import PoissonSolver as make_poisson_solver
+from gpaw.new.poisson import PoissonSolver
 from gpaw.core import UGArray, UGDesc, PWArray
 from ase.units import Ha
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -16,10 +15,8 @@ class Environment:
         self.natoms = natoms
         self.charge = 0.0
 
-    def create_poisson_solver(self, *, grid, xp, **kwargs) -> PoissonSolver:
-        solver = make_poisson_solver(**kwargs, xp=xp)
-        solver.set_grid_descriptor(grid._gd)
-        return PoissonSolverWrapper(solver)
+    def create_poisson_solver(self, *, grid, xp, solver) -> PoissonSolver:
+        return solver.build(grid=grid, xp=xp)
 
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,

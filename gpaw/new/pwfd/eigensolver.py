@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from functools import partial
 from typing import Callable
 
@@ -18,58 +17,52 @@ from gpaw.utilities.blas import axpy
 from gpaw.utilities import as_real_dtype
 
 
-def create_eigensolver(nbands,
-                       wf_desc,
-                       band_comm,
-                       comm,
-                       create_preconditioner,
-                       converge_bands,
-                       setups,
-                       atoms,
-                       name='dav',
-                       **kwargs):
-    if name in ['cg', 'direct']:
-        warnings.warn(f'{name} not implemented.  Using dav instead')
-        name = 'dav'
-    if name == 'dav':
-        from gpaw.new.pwfd.davidson import Davidson
-        return Davidson(
-            nbands,
-            wf_desc,
-            band_comm,
-            create_preconditioner,
-            converge_bands,
-            **kwargs)
-    if name == 'rmm-diis':
-        from gpaw.new.pwfd.rmmdiis import RMMDIIS
-        return RMMDIIS(
-            nbands,
-            wf_desc,
-            band_comm,
-            create_preconditioner,
-            converge_bands,
-            **kwargs)
-    if name == 'etdm-fdpw':
-        from gpaw.new.pwfd.etdm import ETDM
-        return ETDM(**kwargs)
-    raise ValueError
-
-
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
-                 preconditioner_factory,
+                 hamiltonian,
                  converge_bands: int | str = 'occupied',
-                 blocksize: int = 10):
+                 blocksize: int = 10,
+                 max_buffer_mem: int | None = 200 * 1024 ** 2):
         self.converge_bands = converge_bands
         self.blocksize = blocksize
         self.preconditioner: Callable
-        self.preconditioner_factory = preconditioner_factory
+        self.preconditioner_factory = hamiltonian.create_preconditioner
         self.work_arrays: np.ndarray
+        self.data_buffers: np.ndarray
+
+        # Maximal memory to be used for the eigensolver
+        # should be infinite if hamiltonian is not band-local (hybrids)
+        self.max_buffer_mem = (
+            max_buffer_mem if hamiltonian.band_local else None)
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
         self.preconditioner = self.preconditioner_factory(self.blocksize,
                                                           xp=ibzwfs.xp)
+
+    def _allocate_buffer_arrays(self, ibzwfs, shape):
+        G_max = np.prod(ibzwfs.get_max_shape())
+        b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
+        nbands = ibzwfs.nbands
+        dtype_size = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype.itemsize
+        domain_size = ibzwfs.domain_comm.size
+
+        if self.max_buffer_mem is not None:
+            # Buffer size needs to ensure that the number of bands
+            # of the buffer is a multiple of domain_size.
+            buffer_size_per_domain = max(self.max_buffer_mem,
+                                         domain_size * G_max * dtype_size,
+                                         nbands * dtype_size) \
+                // (domain_size * G_max * dtype_size)
+            buffer_size = min(buffer_size_per_domain * domain_size
+                              * G_max * dtype_size,
+                              b * G_max * dtype_size)
+        else:
+            buffer_size = max(b * G_max * dtype_size,
+                              nbands * dtype_size)
+
+        self.data_buffers = ibzwfs.xp.empty(shape + (buffer_size,),
+                                            np.byte)
 
     def _allocate_work_arrays(self, ibzwfs, shape):
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)

@@ -28,9 +28,14 @@ commands = {
          '--dirac', '-p', '--plot', '-e', '--exponents', '-l',
          '--logarithmic-derivatives', '-n', '--ngrid', '-R',
          '--rcut', '-r', '--refine', '-s',
-         '--scalar-relativistic', '--no-ee-interaction'],
+         '--scalar-relativistic', '-S', '--non-relativistic',
+         '--no-ee-interaction'],
     'basis':
-        ['--name', '--type'],
+        ['--name', '-s', '--search', '-t', '--type', '-E',
+         '--energy-shift', '-T', '--tail-norm', '--rcut-max',
+         '--rcut-pol-rel', '--rchar-pol-rel',
+         '--vconf-amplitude', '--vconf-rstart-rel',
+         '--vconf-sharp-confinement', '--lpol', '--jvalues'],
     'completion':
         [],
     'dataset':
@@ -60,9 +65,9 @@ commands = {
     'plot-basis':
         ['--write'],
     'plot-dataset':
-        ['-b', '--basis-set', '-p', '--potential-components', '-l',
+        ['-p', '--potential-components', '-l',
          '--logarithmic-derivatives', '-s', '--separate-figures',
-         '-o', '--outfile', '--write'],
+         '-S', '--search', '-o', '--outfile', '--write'],
     'python':
         ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
          '--module', '-m'],

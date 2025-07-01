@@ -327,20 +327,28 @@ class PWArray(DistributedArrays[PWDesc]):
                           data=data)
 
     def new(self,
-            data=None) -> PWArray:
+            data=None,
+            dims=None) -> PWArray:
         """Create new PWArray object of same kind.
 
         Parameters
         ----------
         data:
             Array to use for storage.
+        dims:
+            Extra dimensions (bands, spin, etc.), required if
+            data does not fit the full array.
         """
         if data is None:
+            assert dims is None
             data = self.xp.empty_like(self.data)
         else:
-            # Number of plane-waves depends on the k-point.  We therfore
-            # allow for data to be bigger than needed:
-            data = data.ravel()[:self.data.size].reshape(self.data.shape)
+            if dims is None:
+                # Number of plane-waves depends on the k-point.  We therefore
+                # allow for data to be bigger than needed:
+                data = data.ravel()[:self.data.size].reshape(self.data.shape)
+            else:
+                return PWArray(self.desc, dims, self.comm, data)
         return PWArray(self.desc,
                        self.dims,
                        self.comm,
@@ -353,7 +361,7 @@ class PWArray(DistributedArrays[PWDesc]):
         return a
 
     def sanity_check(self) -> None:
-        """Sanity check for real-valed PW expansions.
+        """Sanity check for real-valued PW expansions.
 
         Make sure the G=(0,0,0) coefficient doesn't have an imaginary part.
         """
@@ -584,6 +592,10 @@ class PWArray(DistributedArrays[PWDesc]):
                                     out: Matrix,
                                     symmetric: bool) -> None:
         if self.desc.dtype == self.real_dtype:
+            if symmetric:
+                # Upper triangle could contain garbadge that will overflow
+                # when multiplied by 2
+                out.data[np.triu_indices(M1.shape[0], 1)] = 42.0
             out.data *= 2.0
             if self.desc.comm.rank == 0:
                 correction = M1.data[:, :1] @ M2.data[:, :1].T
@@ -765,24 +777,33 @@ class PWArray(DistributedArrays[PWDesc]):
         return self.desc.comm.sum_scalar(value)
 
     def morph(self, pw: PWDesc) -> PWArray:
-        pw0 = self.desc
+        """Transform expansion to new cell."""
+        in_xG = self.gather()
+        if in_xG is not None:
+            pwin = in_xG.desc
+            pwout = pw.new(comm=None)
+
+            d = {}
+            for G, i_c in enumerate(pwout.indices_cG.T):
+                d[tuple(i_c)] = G
+            G_G0 = []
+            G0_G = []
+            for G0, i_c in enumerate(pwin.indices_cG.T):
+                G = d.get(tuple(i_c), -1)
+                if G != -1:
+                    G_G0.append(G)
+                    G0_G.append(G0)
+            out0_xG = pwout.zeros(self.dims,
+                                  comm=self.comm,
+                                  xp=self.xp)
+            out0_xG.data[..., G_G0] = in_xG.data[..., G0_G]
+        else:
+            out0_xG = None
+
         out_xG = pw.zeros(self.dims,
                           comm=self.comm,
                           xp=self.xp)
-        assert isinstance(out_xG, PWArray)  # MYPY!!!!
-
-        d = {}
-        for G, i_c in enumerate(pw.indices_cG.T):
-            d[tuple(i_c)] = G
-        G_G0 = []
-        G0_G = []
-        for G0, i_c in enumerate(pw0.indices_cG.T):
-            G = d.get(tuple(i_c), -1)
-            if G != -1:
-                G_G0.append(G)
-                G0_G.append(G0)
-
-        out_xG.data[..., G_G0] = self.data[..., G0_G]
+        out_xG.scatter_from(out0_xG)
         return out_xG
 
     def add_ked(self,

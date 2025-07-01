@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from math import pi
 
 import numpy as np
 
 from gpaw.core import UGDesc
-from gpaw.new import zips, spinsum, trace
+from gpaw.new import spinsum, trace, zips
 from gpaw.new.pot_calc import PotentialCalculator
 
 

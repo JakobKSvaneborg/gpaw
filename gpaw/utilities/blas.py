@@ -298,7 +298,7 @@ def rk(alpha, a, beta, c, trans='c'):
 
         assert (a.dtype == float and c.dtype == float or
                 a.dtype == complex and c.dtype == complex)
-        assert a.flags.c_contiguous
+        assert a.flags.c_contiguous, (a.shape, a.strides, a.dtype)
         assert a.ndim > 1
         if trans == 'n':
             assert c.shape == (a.shape[1], a.shape[1])
