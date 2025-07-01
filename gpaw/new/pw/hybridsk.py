@@ -99,6 +99,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
             evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
                                           psit2_nG, Htpsit2_nG,
                                           wfs.occ_n)
+            print(evv)
+            import sys; sys.exit(0)
             # print(psit2_nG.desc.kpt_c, evv)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:

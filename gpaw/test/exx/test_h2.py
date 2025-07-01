@@ -19,13 +19,21 @@ def test_h2(in_tmp_dir, dtype):
         symmetry='off',
         # kpts={'size': (1, 1, 2)},  # 'gamma': not True},
         convergence={'density': 1e-6},
-        eigensolver={'name': 'dav', 'niter': 1},
+        eigensolver={'name': 'davidson', 'niter': 1},
         nbands=1,
         # spinpol=True,
-        # txt='H2.txt',
+        txt='H2.txt',
         # setups='ae',
         xc='HSE06')
     e = a.get_potential_energy()
     eigs = a.calc.get_eigenvalues()
     assert e == pytest.approx(-60.161445)
     assert eigs == pytest.approx([-54.15957])
+
+
+if __name__ == '__main__':
+    import sys
+    if sys.argv[1] == 'f':
+        test_h2(1, float)
+    else:
+        test_h2(1, complex)

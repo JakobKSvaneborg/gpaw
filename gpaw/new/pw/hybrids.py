@@ -148,6 +148,8 @@ class PWHybridHamiltonian(PWHamiltonian):
             # We are doing a subspace diagonalization ...
             evv, evc, ekin = self.apply1(D_aii, pt_aiG,
                                          psi1, psi1, Htpsit2_nG)
+            print(evv)
+            import sys; sys.exit(0)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
