@@ -757,7 +757,9 @@ def _parse_experimental(experimental: dict | None,
                       DeprecatedParameterWarning)
         assert magmoms is None
         magmoms = experimental.pop('magmoms')
-    unknown = experimental.keys() - {'backwards_compatible', 'ccirs'}
+    unknown = experimental.keys() - {'backwards_compatible',
+                                     'ccirs',
+                                     'fast_pw_init'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)

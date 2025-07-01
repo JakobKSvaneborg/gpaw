@@ -179,9 +179,23 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                                  basis_set,
                                                  kpt_c,
                                                  q):
-        # Replace this with code that goes directly from C_nM to
-        # psit_nG via PWAtomCenteredFunctions.
-        # XXX
+        if self.params.experimental.get('fast_pw_init', True):
+            if self.ncomponents < 4:
+                from gpaw.core.pwacf import PWAtomCenteredFunctions
+                pw = self.wf_desc.new(kpt=kpt_c)
+                phit_aJG = PWAtomCenteredFunctions(
+                    [setup.basis_functions_J for setup in self.setups],
+                    self.relpos_ac,
+                    pw,
+                    atomdist=self.atomdist,
+                    xp=self.xp)
+                psit_nG = pw.empty(self.nbands,
+                                   comm=self.communicators['b'],
+                                   xp=self.xp)
+                mynbands, M = C_nM.dist.shape
+                phit_aJG.multiply(C_nM.to_xp(self.xp).to_dtype(pw.dtype),
+                                  out_nG=psit_nG[:mynbands])
+                return psit_nG
 
         lcao_dtype = complex if \
             np.issubdtype(self.dtype, np.complexfloating) else float
