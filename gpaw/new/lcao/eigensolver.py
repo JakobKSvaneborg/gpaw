@@ -4,6 +4,7 @@ from gpaw.new.eigensolver import Eigensolver, calculate_weights
 from gpaw.new.lcao.hamiltonian import HamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.energies import DFTEnergies
+from gpaw.core.matrix import MatrixWithNoData
 
 
 class LCAOEigensolver(Eigensolver):
@@ -47,6 +48,8 @@ class LCAOEigensolver(Eigensolver):
         wfs._eig_n = np.empty(wfs.nbands)
         wfs._eig_n[:] = eig_M[:N]
         comm = C_Mn.dist.comm
+        if isinstance(wfs.C_nM, MatrixWithNoData):
+            wfs.C_nM = wfs.C_nM.create()
         if comm.size == 1:
             wfs.C_nM.data[:] = C_Mn.data.T[:N]
         else:

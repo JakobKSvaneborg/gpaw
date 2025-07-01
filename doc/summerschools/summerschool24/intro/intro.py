@@ -187,7 +187,6 @@ but it is a lot more powerful and efficient.
 """
 
 # %%
-import numpy as np
 x = np.array([1, 2, 3])
 print(x)
 print(x.mean())
@@ -262,7 +261,6 @@ print(np.allclose(D2, D1))
 # This line MUST appear before you import matplotlib or a package
 # using matplotlib (e.g. ase)
 # magic: %matplotlib notebook
-import matplotlib.pyplot as plt
 import numpy as np
 
 # %%
@@ -400,7 +398,7 @@ https://wiki.fysik.dtu.dk/ase/ase/optimize.html
 from ase import Atoms
 from ase.calculators.emt import EMT
 from ase.constraints import FixAtoms
-from ase.optimize import QuasiNewton, BFGS, FIRE
+from ase.optimize import QuasiNewton
 from ase.build import fcc111, add_adsorbate
 from ase.visualize import view
 

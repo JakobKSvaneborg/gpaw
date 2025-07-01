@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from ase import Atoms
 from gpaw import GPAW, restart
 from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.etdm_lcao import LCAOETDM
@@ -9,32 +8,15 @@ from gpaw.directmin.tools import excite
 
 @pytest.mark.mom
 @pytest.mark.do
-def test_mom_directopt_lcao_forces(in_tmp_dir):
-    L = 4.0
-    d = 1.13
+def test_mom_directopt_lcao_forces(in_tmp_dir, gpw_files):
     delta = 0.01
-
-    atoms = Atoms('CO',
-                  [[0.5 * L, 0.5 * L, 0.5 * L - 0.5 * d],
-                   [0.5 * L, 0.5 * L, 0.5 * L + 0.5 * d]])
-    atoms.set_cell([L, L, L])
-    atoms.set_pbc(True)
-
-    calc = GPAW(mode='lcao',
-                basis='dzp',
-                h=0.22,
-                xc='PBE',
-                spinpol=True,
-                symmetry='off',
-                occupations={'name': 'fixed-uniform'},
-                eigensolver={'name': 'etdm-lcao',
-                             'linesearch_algo': 'max-step'},
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                convergence={'density': 1.0e-4,
-                             'eigenstates': 4.0e-8})
+    calc = GPAW(gpw_files['co_mom_do_lcao_forces'])
+    # XXX(rg): Remove hack after tchem-gl-13
+    # calc.set_positions()
+    # calc.wfs.eigensolver.initialize_dm_helper(calc.wfs,
+    # calc.hamiltonian, calc.density, calc.log)
+    atoms = calc.atoms
     atoms.calc = calc
-    atoms.get_potential_energy()
 
     f_sn = excite(calc, 0, 0, spin=(0, 0))
 
@@ -48,8 +30,7 @@ def test_mom_directopt_lcao_forces(in_tmp_dir):
     calc.wfs.occupations.initialize_reference_orbitals()
     for kpt in calc.wfs.kpt_u:
         f_n = calc.get_occupation_numbers(spin=kpt.s)
-        unoccupied = [True for _ in range(len(f_n))]
-        P = calc.wfs.occupations.calculate_weights(kpt, 1.0, unoccupied)
+        P = calc.wfs.occupations.calculate_weights(kpt, 1.0)
         assert (np.allclose(P, f_n))
 
     calc.write('co.gpw', mode='all')

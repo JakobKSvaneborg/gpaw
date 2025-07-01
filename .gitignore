@@ -37,6 +37,7 @@ htmlcov/
 N.LDA
 *.gpw
 *.npy
+*.npz
 theme.css
 *.svg
 *.json

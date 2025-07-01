@@ -17,7 +17,7 @@ from gpaw.new import prod, trace, zips
 from gpaw.new.potential import Potential
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
-from gpaw.typing import Array2D, Array3D, ArrayND, Vector
+from gpaw.typing import Array2D, Array3D, Vector
 from gpaw.utilities import as_real_dtype
 
 
@@ -34,7 +34,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  weight: float = 1.0,
                  ncomponents: int = 1,
                  qspiral_v: Vector | None = None):
-        assert isinstance(atomdist, AtomDistribution)
+        # assert isinstance(atomdist, AtomDistribution)
         self.psit_nX = psit_nX
         nbands = psit_nX.dims[0]
         super().__init__(setups=setups,
@@ -178,7 +178,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         occ_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.psit_nX.add_ked(occ_n, taut_sR[self.spin])
 
-    def orthonormalize(self, work_array_nX: ArrayND = None):
+    def orthonormalize(self, psit2_nX):
         r"""Orthonormalize wave functions.
 
         Computes the overlap matrix:::
@@ -211,7 +211,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P_ani = self.P_ani
 
         P2_ani = P_ani.new()
-        psit2_nX = psit_nX.new(data=work_array_nX)
+        if psit2_nX is None:
+            psit2_nX = psit_nX.new()
         dS_aii = self.setups.get_overlap_corrections(
             P_ani.layout.atomdist,
             self.xp,
@@ -238,8 +239,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def subspace_diagonalize(self,
                              Ht,
                              dH,
-                             work_array: ArrayND = None,
-                             Htpsit_nX=None,
+                             psit2_nX=None,
+                             data_buffer=None,
                              scalapack_parameters=(None, 1, 1, None)):
         """
 
@@ -254,10 +255,9 @@ class PWFDWaveFunctions(WaveFunctions, XP):
           <𝜓 |p> ΔH  <p |𝜓>
             m  i   ij  j  n
         """
-        self.orthonormalize(work_array)
+        self.orthonormalize(psit2_nX)
         psit_nX = self.psit_nX
         P_ani = self.P_ani
-        psit2_nX = psit_nX.new(data=work_array)
         P2_ani = P_ani.new()
         domain_comm = psit_nX.desc.comm
 
@@ -284,11 +284,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         domain_comm.broadcast(H.data, 0)
         domain_comm.broadcast(self._eig_n, 0)
-        if Htpsit_nX is not None:
-            H.multiply(psit2_nX, out=Htpsit_nX)
-
-        H.multiply(psit_nX, out=psit2_nX)
-        psit_nX.data[:] = psit2_nX.data
+        H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
+        H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
         H.multiply(P_ani, out=P2_ani)
         P_ani.data[:] = P2_ani.data
 

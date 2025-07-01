@@ -2,7 +2,6 @@ import warnings
 
 import pytest
 from ase.build import molecule
-from ase.data.vdw import vdw_radii
 
 from gpaw.solvation import (EffectivePotentialCavity, LinearDielectric,
                             Power12Potential, SolvationGPAW)
@@ -14,12 +13,7 @@ vac = 3.0
 u0 = 0.180
 epsinf = 80.0
 T = 298.15
-vdw_radii = vdw_radii.copy()
-vdw_radii[1] = 1.09
-
-
-def atomic_radii(atoms):
-    return [vdw_radii[n] for n in atoms.numbers]
+atomic_radii = {'H': 1.09}
 
 
 convergence = {
@@ -36,7 +30,7 @@ def test_solvation_pbc():
 
     with warnings.catch_warnings():
         # Ignore production code warning for ADM12PoissonSolver
-        warnings.simplefilter("ignore")
+        warnings.simplefilter('ignore')
         psolver = ADM12PoissonSolver(eps=1e-7)
 
     atoms.calc = SolvationGPAW(

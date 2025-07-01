@@ -5,7 +5,6 @@ from gpaw.tddft import TDDFT, DipoleMomentWriter
 from gpaw.mpi import world
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.gllb
 @pytest.mark.libxc
 def test_tddft_fxc_linearize(in_tmp_dir, gpw_files):

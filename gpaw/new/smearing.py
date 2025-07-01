@@ -15,7 +15,7 @@ class OccupationNumberCalculator:
                  ncomponents,
                  nelectrons,
                  rcell):
-        if dct is None:
+        if not dct:
             if pbc.any():
                 dct = {'name': 'fermi-dirac',
                        'width': 0.1}  # eV
