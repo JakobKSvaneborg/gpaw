@@ -4,11 +4,11 @@ from ase.units import Ha
 
 # Contributions to free energy:
 NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
-         'spinorbit']
+         'spinorbit', 'hybrid_xc']
 
 # Other allowed names:
 OTHERS = {'band', 'kinetic_correction', 'extrapolation',
-          'hybrid_kinetic_correction', 'hybrid_xc'}
+          'hybrid_kinetic_correction'}
 
 
 class DFTEnergies:
@@ -38,8 +38,6 @@ class DFTEnergies:
         if self._total_free is None:
             energies = self._energies.copy()
             energies['kinetic'] = self.kinetic
-            if 'hybrid_xc' in energies:
-                energies['xc'] += energies['hybrid_xc']
             self._total_free = sum(energies.get(name, 0.0) for name in energies
                                    if name not in OTHERS)
         return self._total_free

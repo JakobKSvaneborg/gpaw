@@ -3,6 +3,7 @@ from ase import Atoms
 from gpaw import GPAW, PW
 
 
+@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 def test_h2(in_tmp_dir, c=False):
     L = 2.6

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from math import nan
-from time import time
 
 import numpy as np
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
@@ -56,15 +55,16 @@ class PWHybridHamiltonianK(PWHamiltonian):
             pw, relpos_ac, atomdist)
 
         self.mypsits: list[Psit] = []
-        self.nocc = -1
+        # self.nocc = -1
         self.nbzk = 0
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions):
-        self.mypsits, self.nocc = ibz2bz(
+        self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.cgrid, self.plan,
-            self.log)
+            self.log if self.nbzk == 0 else None)
         self.nbzk = len(ibzwfs.ibz.bz)
+        self.log('update')
         self.xc.energies = {'hybrid_xc': 0.0,
                             'hybrid_kinetic_correction': 0.0}
 
@@ -128,22 +128,15 @@ class PWHybridHamiltonianK(PWHamiltonian):
         P_ani = pt_aiG.integrate(psit_nG)
 
         e = 0.0
-        tb = 0.0
-        t1 = time()
         for rank in range(self.kpt_comm.size):
             data = None
-            tb -= time()
             if rank == self.kpt_comm.rank:
                 psit_nG = psit_nG.gather()
                 P_ani = P_ani.gather()
                 if psit_nG is not None:
                     data = (psit_nG, P_ani, spin)
             psit_nG, P_ani, s = broadcast(data, rank * band_comm.size, comm)
-            tb += time()
             e += self._apply2(psit_nG, P_ani, s, Htpsit_nG, f_n)
-        t2 = time()
-        self.log(f'  Seconds: {t2 - t1:.3f} '
-                 f'(wave-function broadcasting: {tb:.3f} seconds)')
 
         if f_n is None:
             return nan, nan, nan
