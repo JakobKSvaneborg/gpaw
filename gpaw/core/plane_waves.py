@@ -365,6 +365,8 @@ class PWArray(DistributedArrays[PWDesc]):
 
         Make sure the G=(0,0,0) coefficient doesn't have an imaginary part.
         """
+        if self.xp.isnan(self.data).any():
+            raise ValueError('NaN value')
         if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
             if (self.data[..., 0].imag != 0.0).any():
                 if self.xp.allclose(self.data[..., 0].imag, 0.0, atol=1e-6):

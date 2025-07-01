@@ -23,7 +23,8 @@ class NotDavidson(PWFDEigensolver):
                  hamiltonian,
                  converge_bands='occupied',
                  niter=4,
-                 blocksize=256,
+                 blocksize=128,
+                 rr_modulo=10,
                  include_CG=True,
                  tolerances: tuple[float] | None = None,
                  scalapack_parameters=None,
@@ -52,6 +53,8 @@ class NotDavidson(PWFDEigensolver):
             are more efficient on CPUs with many cores but not on GPUs. The
             value will be modified to a multiple of the number of domain
             ranks.
+        rr_modulo : int, optional
+            How often to perform subspace diagonalization. Default is 5.
         include_CG : bool, optional
             Include CG in the solver. Default is True. Can be helpfull to turn
             off for single precision calculations or if memory is an issue.
@@ -75,6 +78,7 @@ class NotDavidson(PWFDEigensolver):
         self.band_comm = band_comm
         self.niter = niter
         self.blocksize = blocksize
+        self.rr_modulo = rr_modulo
         self.nblocksizes = 3 * self.blocksize if include_CG \
             else 2 * self.blocksize
         self.tolerances = tolerances
@@ -120,25 +124,21 @@ class NotDavidson(PWFDEigensolver):
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
         #   minimum achievable residual.
-        self.tolerance = 1e5 * np.finfo(dtype).eps**2 * np.sqrt(G_max)
+        self.tolerance = np.finfo(dtype).eps**2 * G_max
         # breakout_tolerance :
         #   Stop iteration if sum(residual_ns) < breakout_tolerance
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
         self.breakout_tolerance = \
-            5e6 * np.finfo(dtype).eps**2 * np.sqrt(
+            np.finfo(dtype).eps**2 * (
                 B * extra_dims * G_max)
         # initial_tolerance :
         #   Only do subspace diagonalization if
         #   sum(residual_ns) < initial_breakout_tolerance
         #   This value can be lower, since the first iteration
         #   is more numerically stable.
-        self.initial_tolerance_factor = self.tolerance
-        if not self.include_CG:
-            self.tolerance *= 1e-5
-            self.breakout_tolerance *= 1e-3
-            self.initial_tolerance_factor = 1
+        self.initial_tolerance_factor = 0
 
         if self.tolerances is not None:
             assert len(self.tolerances) == 4
@@ -162,6 +162,9 @@ class NotDavidson(PWFDEigensolver):
 
         with tracectx('Initialize'):
             M_nn = self.M_nn
+            # Y1_nn = M_nn.new()
+            # Y2_nn = M_nn.new()
+
             xp = M_nn.xp
 
             psit_nX = wfs.psit_nX
@@ -179,6 +182,7 @@ class NotDavidson(PWFDEigensolver):
             P2_ani = P_ani.new()
             P3_ani = P_ani.new()
             Ptemp_ani = P_ani.new()
+            P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
             Pbuf_abi = P_ani.layout.empty((self.nblocksizes, )
                                           + psit_nX.dims[1:])
             HPbuf_abi = Pbuf_abi.new()
@@ -221,7 +225,7 @@ class NotDavidson(PWFDEigensolver):
             Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
                                           psit_nX.dims[1:], xp=psit_nX.xp)
 
-        cc = False
+        flag = False
 
         for i in range(self.niter):
             with tracectx('Residual'):
@@ -229,11 +233,10 @@ class NotDavidson(PWFDEigensolver):
                                       buffer=buffer_array_nX,
                                       precon=self.preconditioner)
                 wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
-                P2_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-                residual_nX.matrix_elements(psit_nX, cc=cc, out=M_nn,
+                residual_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
                                             domain_sum=False)
-                Ptemp_ani.matrix.multiply(P_ani, opb='C', symmetric=False,
-                                          beta=1, out=M_nn)
+                P2_ani.matrix.multiply(Ptemp_ani, opb='C', symmetric=False,
+                                       beta=1, out=M_nn)
                 domain_comm.sum(M_nn.data)
 
                 M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
@@ -281,24 +284,40 @@ class NotDavidson(PWFDEigensolver):
 
                     Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
                     buff_bX[:nblocksizes].matrix_elements(
-                        buff_bX[:nblocksizes], cc=cc, out=MS_bb,
+                        buff_bX[:nblocksizes], cc=True, out=MS_bb,
                         domain_sum=False)
-                    S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T
+                    S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
+                        HPbuf_abi.matrix.data[:nblocksizes].T.conj()
                     domain_comm.sum(S_bb)
 
                     Ht(buff_bX[:nblocksizes], out=Hbuff_bX[:nblocksizes])
                     dH(Pbuf_abi[:, :nblocksizes],
                        out_ani=HPbuf_abi[:, :nblocksizes])
-                    Hbuff_bX[:nblocksizes].matrix_elements(
-                        buff_bX[:nblocksizes], cc=cc, out=MH_bb,
+                    buff_bX[:nblocksizes].matrix_elements(
+                        Hbuff_bX[:nblocksizes], cc=True, out=MH_bb,
                         domain_sum=False)
-                    H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes].conj() @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T
+                    H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
+                        HPbuf_abi.matrix.data[:nblocksizes].T.conj()
                     domain_comm.sum(H_bb)
 
+                    if nblocksizes > 2 * blocksize:
+                        pos_defness = xp.linalg.eigh(S_bb)[0][0]
+                        if pos_defness < \
+                                np.finfo(S_bb.dtype).eps * nblocksizes:
+                            nblocksizes = 2 * blocksize
+                            MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
+                                           data=H_bb[:nblocksizes,
+                                                     :nblocksizes],
+                                           xp=xp)
+                            MS_bb = Matrix(M=nblocksizes, N=nblocksizes,
+                                           data=S_bb[:nblocksizes,
+                                                     :nblocksizes],
+                                           xp=xp)
                     MH_bb.eigh(MS_bb)
-                    cmin = H_bb[:blocksize, :]
+                    cmin = H_bb[:blocksize, :nblocksizes].conj()
+                    if not xp.isfinite(H_bb).all():
+                        flag = True
+                        continue
 
                     # Ye olde updates
                     buff_bX.matrix.data[:blocksize] = \
@@ -326,14 +345,24 @@ class NotDavidson(PWFDEigensolver):
                         + Pbuf_abi.matrix.data[blocksize:2 * blocksize]
 
             wfs.orthonormalized = False
+            if flag:
+                print('Encountered singular matrix in iteration %d' % i)
+                break
 
             with tracectx('Residual'):
                 # Subspace diagonialization needed every once in a while
-                if (i + 1) % 5 == 0:
+                if (i + 1) % self.rr_modulo == 0:
                     wfs.subspace_diagonalize(Ht, dH,
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
                 else:
+                    if xp.isnan(psit_nX.data).any():
+                        raise ValueError('NaN in wave function')
+                    wfs.orthonormalize(residual_nX)
+                    # approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
+                    #                       Y2_nn, dS_aii, domain_comm)
+                    if xp.isnan(psit_nX.data).any():
+                        raise ValueError('NaN in wave function')
                     Ht(psit_nX, out=residual_nX)
 
                 calculate_residuals(wfs.psit_nX,
@@ -346,6 +375,7 @@ class NotDavidson(PWFDEigensolver):
                 error_n = as_np(residual_nX.norm2())
                 if len(error_n.shape) > 1:
                     error_n = error_n.sum(axis=1)
+
                 active_indicies = np.logical_and(
                     np.greater(error_n, self.tolerance),
                     np.greater(error_n, np.max(error_n, initial=0) *
@@ -354,23 +384,26 @@ class NotDavidson(PWFDEigensolver):
                 error = weight_n @ error_n
                 b_error = band_comm.sum_scalar(error)
 
-            if band_comm.sum_scalar(len(active_indicies)) == 0 \
-                    or b_error < self.breakout_tolerance:
-                print(f'Converged in {i + 1} iterations')
-                break
+                if band_comm.sum_scalar(len(active_indicies)) == 0 \
+                        or b_error < self.breakout_tolerance:
+                    print(f'Converged in {i + 1} iterations')
+                    break
 
             if i < self.niter - 1:
+                P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
                 if self.include_CG:
                     with tracectx('P-update'):
-                        P3_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-                        P_nX.matrix_elements(psit_nX, cc=cc, out=M_nn,
+                        P_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
                                              domain_sum=False)
-                        Ptemp_ani.matrix.multiply(P_ani, opb='C',
-                                                  symmetric=False,
-                                                  beta=1, out=M_nn)
+                        P3_ani.matrix.multiply(Ptemp_ani, opb='C',
+                                               symmetric=False,
+                                               beta=1, out=M_nn)
                         domain_comm.sum(M_nn.data)
                         M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
                         M_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
+
+        if xp.isnan(psit_nX.data).any():
+            raise ValueError('NaN in wave function')
 
         if not wfs.orthonormalized:
             wfs.orthonormalize(residual_nX)
@@ -379,3 +412,52 @@ class NotDavidson(PWFDEigensolver):
             psit_nX.sanity_check()
 
         return error
+
+
+def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
+                          dS_aii, domain_comm):
+    """
+    Approximate orthonormalization of wave functions.
+
+    This function approximates orthonormalization of wave functions
+    using a Taylor series expansion of the inverse square root.
+
+    Parameters
+    ----------
+    wfs : PWFDWaveFunctions
+        Wave functions to be orthonormalized.
+    residual_nX : Matrix
+        Residual matrix to be used as temporary storage.
+    Y1_nn, Y2_nn, Y3_nn : Matrix
+        Temporary matrices.
+    dS_aii : Matrix
+        PAW overlap matrix.
+    domain_comm : MPI communicator
+        Communicator for domain parallelization.
+    """
+    if wfs.orthonormalized:
+        return
+    P_ani = wfs.P_ani
+    P2_ani = P_ani.new()
+    P_ani.block_diag_multiply(dS_aii, out_ani=P2_ani)
+    psit_nX = wfs.psit_nX
+    psit_nX.matrix_elements(psit_nX, cc=True, out=Y1_nn,
+                            domain_sum=False)
+    P_ani.matrix.multiply(P2_ani, opb='C',
+                          symmetric=False,
+                          beta=1, out=Y1_nn)
+    domain_comm.sum(Y1_nn.data)
+
+    Y1_nn.add_to_diagonal(-1.0)
+    Y1_nn.multiply(Y1_nn, out=Y2_nn)
+    Y2_nn.multiply(Y1_nn, out=Y3_nn)
+    Y1_nn.data[:] = -(1 / 2) * Y1_nn.data[:] + \
+        (3 / 8) * Y2_nn.data[:] + \
+        -(5 / 16) * Y3_nn.data[:]
+
+    residual_nX.data[:] = psit_nX.data[:]
+    P2_ani.data[:] = P_ani.data[:]
+
+    Y1_nn.multiply(residual_nX, out=psit_nX, beta=1)
+    Y1_nn.multiply(P2_ani, out=P_ani, beta=1)
+    wfs.orthonormalized = True

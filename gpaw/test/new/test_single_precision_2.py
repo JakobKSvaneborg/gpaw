@@ -45,11 +45,11 @@ def test_single_precision_gpu(dtype):
 
 def run_single_precision(dtype, gpu):
     from ase.build import mx2
-    atoms = mx2('TeSe2', a=3.3)
+    atoms = mx2('MoS2', a=3.14)
     # atoms2 = mx2('MoS2', a=3.3)
     # atoms2.positions[:, 2] += 3.5 + 5
     # atoms = atoms + atoms2
-    atoms = atoms.repeat((3, 3, 1))
+    # atoms = atoms.repeat((5, 5, 1))
     atoms.center(axis=2, vacuum=5.5)
     # atoms.set_initial_magnetic_moments([1, ] * 9 * 3)
 
@@ -66,7 +66,7 @@ def run_single_precision(dtype, gpu):
                       mixer=FFTMixerFull(0.05),
                       poissonsolver={'fast': False},
                       eigensolver={'name': 'not-dav',
-                                   'niter': 5},
+                                   'niter': 4},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}
