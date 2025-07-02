@@ -4,6 +4,7 @@ from functools import partial
 from pprint import pformat
 
 import numpy as np
+import cupy as cp
 from gpaw import debug
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
@@ -301,9 +302,11 @@ class NotDavidson(PWFDEigensolver):
                     domain_comm.sum(H_bb)
 
                     if nblocksizes > 2 * blocksize:
-                        pos_defness = as_np(xp.linalg.eigh(S_bb)[0][0])
+                        pos_defness = xp.linalg.eigh(S_bb)[0][0]
+                        if xp is cp:
+                            pos_defness = pos_defness.get()
                         if pos_defness < \
-                                np.finfo(S_bb.dtype).eps:  # * nblocksizes:
+                                np.finfo(S_bb.dtype).eps * nblocksizes**0.5:
                             nblocksizes = 2 * blocksize
                             MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
                                            data=H_bb[:nblocksizes,
@@ -358,9 +361,11 @@ class NotDavidson(PWFDEigensolver):
                 else:
                     if xp.isnan(psit_nX.data).any():
                         raise ValueError('NaN in wave function')
-                    # wfs.orthonormalize(residual_nX)
-                    approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
-                                          Y2_nn, dS_aii, domain_comm)
+                    if b_error < 0:
+                        approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
+                                              Y2_nn, dS_aii, domain_comm)
+                    else:
+                        wfs.orthonormalize(residual_nX)
                     if xp.isnan(psit_nX.data).any():
                         raise ValueError('NaN in wave function')
                     Ht(psit_nX, out=residual_nX)
