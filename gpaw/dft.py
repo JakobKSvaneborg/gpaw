@@ -204,7 +204,7 @@ class Davidson(PWFDEigensolverParamater):
 class NotDavidson(PWFDEigensolverParamater):
     name = 'not-dav'
     cls = NotDavidsonEigensolver
-    
+
     def __init__(self,
                  niter: int = 3,
                  max_buffer_mem: int = 200 * 1024**2,
