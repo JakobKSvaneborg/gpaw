@@ -4,7 +4,6 @@ from functools import partial
 from pprint import pformat
 
 import numpy as np
-import cupy as cp
 from gpaw import debug
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
@@ -303,7 +302,7 @@ class NotDavidson(PWFDEigensolver):
 
                     if nblocksizes > 2 * blocksize:
                         pos_defness = xp.linalg.eigh(S_bb)[0][0]
-                        if xp is cp:
+                        if xp is not np:
                             pos_defness = pos_defness.get()
                         if pos_defness < \
                                 np.finfo(S_bb.dtype).eps * nblocksizes**0.5:
@@ -457,12 +456,12 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
     Y1_nn.add_to_diagonal(-1.0)
     Y1_nn.multiply(Y1_nn, out=Y2_nn)
     Y2_nn.multiply(Y1_nn, out=Y3_nn)
-    Y1_nn.data[:] = -(1 / 2) * Y1_nn.data[:] + \
-        (3 / 8) * Y2_nn.data[:] + \
-        -(5 / 16) * Y3_nn.data[:]
+    Y1_nn.data[:] = -(1 / 2) * Y1_nn.data + \
+        (3 / 8) * Y2_nn.data + \
+        -(5 / 16) * Y3_nn.data
 
-    residual_nX.data[:] = psit_nX.data[:]
-    P2_ani.data[:] = P_ani.data[:]
+    residual_nX.data[:] = psit_nX.data
+    P2_ani.data[:] = P_ani.data
 
     Y1_nn.multiply(residual_nX, out=psit_nX, beta=1)
     Y1_nn.multiply(P2_ani, out=P_ani, beta=1)
