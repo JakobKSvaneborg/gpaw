@@ -1136,10 +1136,20 @@ class Parallelization:
     def autofinalize(self):
         if self.kpt is None:
             self.set(kpt=self.get_optimal_kpt_parallelization())
-        if self.domain is None:
+        if self.domain is None and self.band is not None:
             self.set(domain=self.navail)
-        if self.band is None:
+        if self.band is None and self.domain is not None:
             self.set(band=self.navail)
+        if self.domain is None and self.band is None:
+            # Balance the two communicators
+            rootavail = int(self.navail**0.5)
+            for i in range(rootavail):
+                print(rootavail - i)
+                nbands = rootavail - i
+                if self.navail % nbands == 0:
+                    self.set(domain=self.navail // nbands,
+                             band=nbands)
+                    break
 
         if self.navail > 1:
             assignments = dict(kpt=self.kpt,
