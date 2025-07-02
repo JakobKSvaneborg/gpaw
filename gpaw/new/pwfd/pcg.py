@@ -317,7 +317,7 @@ class NotDavidson(PWFDEigensolver):
 
                         # SVD approach
                         if xp.linalg.matrix_rank(
-                                S_bb,
+                                S_bb, hermitian=True,
                                 tol=np.finfo(S_bb.dtype).eps) < nblocksizes:
                             # Insufficient numerical precision for CG,
                             # thus we only do the steepest descent step

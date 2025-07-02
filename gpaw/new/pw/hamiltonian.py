@@ -199,7 +199,7 @@ class SpinorPWHamiltonian(Hamiltonian):
 def apply_local_potential_gpu(vt_R,
                               psit_nG,
                               out_nG,
-                              blocksize=50):
+                              blocksize=10):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
     e_kin_G = cp.asarray(pw.ekin_G)
