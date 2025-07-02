@@ -57,7 +57,6 @@ def run_single_precision(dtype, gpu):
 
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
-                      random=True,
                       convergence={'maximum iterations': 300,
                                    'eigenstates': 1e-7},
                       mode={'name': 'pw',
@@ -66,7 +65,7 @@ def run_single_precision(dtype, gpu):
                       mixer=FFTMixerFull(0.05),
                       poissonsolver={'fast': False},
                       eigensolver={'name': 'not-dav',
-                                   'niter': 4},
+                                   'niter': 3},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}

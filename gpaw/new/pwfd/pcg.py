@@ -12,7 +12,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.pwfd.davidson import sliced_preconditioner
 # from gpaw.typing import Array2D
-from gpaw.new import tracectx
+from gpaw.new import tracectx, trace
 
 
 class NotDavidson(PWFDEigensolver):
@@ -24,7 +24,7 @@ class NotDavidson(PWFDEigensolver):
                  converge_bands='occupied',
                  niter=4,
                  blocksize=128,
-                 rr_modulo=10,
+                 rr_modulo=5,
                  include_CG=True,
                  tolerances: tuple[float] | None = None,
                  scalapack_parameters=None,
@@ -162,8 +162,8 @@ class NotDavidson(PWFDEigensolver):
 
         with tracectx('Initialize'):
             M_nn = self.M_nn
-            # Y1_nn = M_nn.new()
-            # Y2_nn = M_nn.new()
+            Y1_nn = M_nn.new()
+            Y2_nn = M_nn.new()
 
             xp = M_nn.xp
 
@@ -301,9 +301,9 @@ class NotDavidson(PWFDEigensolver):
                     domain_comm.sum(H_bb)
 
                     if nblocksizes > 2 * blocksize:
-                        pos_defness = xp.linalg.eigh(S_bb)[0][0]
+                        pos_defness = as_np(xp.linalg.eigh(S_bb)[0][0])
                         if pos_defness < \
-                                np.finfo(S_bb.dtype).eps * nblocksizes:
+                                np.finfo(S_bb.dtype).eps:  # * nblocksizes:
                             nblocksizes = 2 * blocksize
                             MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
                                            data=H_bb[:nblocksizes,
@@ -358,9 +358,9 @@ class NotDavidson(PWFDEigensolver):
                 else:
                     if xp.isnan(psit_nX.data).any():
                         raise ValueError('NaN in wave function')
-                    wfs.orthonormalize(residual_nX)
-                    # approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
-                    #                       Y2_nn, dS_aii, domain_comm)
+                    # wfs.orthonormalize(residual_nX)
+                    approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
+                                          Y2_nn, dS_aii, domain_comm)
                     if xp.isnan(psit_nX.data).any():
                         raise ValueError('NaN in wave function')
                     Ht(psit_nX, out=residual_nX)
@@ -414,6 +414,7 @@ class NotDavidson(PWFDEigensolver):
         return error
 
 
+@trace
 def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
                           dS_aii, domain_comm):
     """

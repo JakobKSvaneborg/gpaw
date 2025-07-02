@@ -178,6 +178,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         occ_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.psit_nX.add_ked(occ_n, taut_sR[self.spin])
 
+    @trace
     def orthonormalize(self, psit2_nX):
         r"""Orthonormalize wave functions.
 
