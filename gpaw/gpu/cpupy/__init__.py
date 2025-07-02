@@ -381,6 +381,3 @@ class ndarray:
 
     def any(self):
         return ndarray(self._data.any())
-    
-    def all(self):
-        return ndarray(self._data.all())
