@@ -138,7 +138,11 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 if psit_nG is not None:
                     data = (psit_nG, P_ani, spin)
             psit_nG, P_ani, s = broadcast(data, rank * band_comm.size, comm)
-            e += self._apply2(psit_nG, P_ani, s, Htpsit_nG, f_n)
+            V_ani = P_ani.new()
+            V_ani.data[:] = 0.0
+            e += self._apply2(psit_nG, P_ani, s, Htpsit_nG, V_ani, f_n)
+            print(V_ani.data)
+            pt_aiG.add_to(Htpsit_nG, V_ani)
 
         if f_n is None:
             return nan, nan, nan
@@ -154,6 +158,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 P2_ani: AtomArrays,
                 spin: int,
                 Htpsit2_nG,
+                V2_ani,
                 f2_n: np.ndarray | None) -> float:
         ut2_nR = self.grid_local.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
@@ -164,7 +169,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = truncated_coulomb(pw, self.exx_omega)
-                e += self._apply3(v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, f2_n)
+                e += self._apply3(
+                    v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n)
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
 
@@ -174,6 +180,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 ut2_nR: UGArray,
                 P2_ani: AtomArrays,
                 Htpsit2_nG: PWArray,
+                V2_ani,
                 f2_n: np.ndarray | None) -> float:
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
@@ -199,10 +206,14 @@ class PWHybridHamiltonianK(PWHamiltonian):
                     rhot_G.data *= v_G.data
                     e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
                     e += e12
+            V2_anL = ghat_aLG.integrate(rhot_nG)
             rhot_nG.ifft(out=rhot_nR)
             rhot_nR.data *= ut1_R.data
             x = self.exx_fraction * f1_n[n1] / self.nbzk
             for v2_R, Htpsit2_G in zip(rhot_nR, Htpsit2_nG):
                 v2_R.fft(out=v2_G)
                 Htpsit2_G.data -= v2_G.data * x
+            for a, Q1_niL in Q1_aniL.items():
+                print(a, n1, f1_n[n1], V2_anL[a][:, 0], Q1_niL[n1, 0, 0])
+                V2_ani[a][:] -= x * V2_anL[a] @ Q1_niL[n1].T
         return e
