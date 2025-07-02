@@ -204,6 +204,49 @@ class Davidson(PWFDEigensolverParamater):
 class NotDavidson(PWFDEigensolverParamater):
     name = 'not-dav'
     cls = NotDavidsonEigensolver
+    
+    def __init__(self,
+                 niter: int = 3,
+                 max_buffer_mem: int = 200 * 1024**2,
+                 blocksize=128,
+                 rr_modulo=5,
+                 include_CG=True,
+                 tolerances: tuple[float] | None = None):
+        self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
+        self.blocksize = blocksize
+        self.rr_modulo = rr_modulo
+        self.include_CG = include_CG
+        self.tolerances = tolerances
+
+    def todict(self):
+        return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
+                'blocksize': self.blocksize,
+                'rr_modulo': self.rr_modulo,
+                'include_CG': self.include_CG,
+                'tolerances': self.tolerances}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              hamiltonian,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            hamiltonian,
+            converge_bands,
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
+            blocksize=self.blocksize,
+            rr_modulo=self.rr_modulo,
+            include_CG=self.include_CG,
+            tolerances=self.tolerances)
 
 
 class RMMDIIS(PWFDEigensolverParamater):
