@@ -378,3 +378,9 @@ class ndarray:
 
     def fill(self, val):
         self._data.fill(val)
+
+    def any(self):
+        return ndarray(self._data.any())
+    
+    def all(self):
+        return ndarray(self._data.all())
