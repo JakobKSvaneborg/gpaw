@@ -22,7 +22,7 @@ class NotDavidson(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 niter=4,
+                 niter=2,
                  blocksize=128,
                  rr_modulo=5,
                  include_CG=True,
@@ -30,7 +30,9 @@ class NotDavidson(PWFDEigensolver):
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         """
-        Initialize Projected Preconditioned Conjugate Gradient eigensolver.
+        Initialize Projected Preconditioned Conjugate Gradient eigensolver,
+        a.k.a. PPCG or Not-Davidson solver.
+
         See https://doi.org/10.1016/j.jcp.2015.02.030 for details.
 
         Parameters
@@ -79,8 +81,6 @@ class NotDavidson(PWFDEigensolver):
         self.niter = niter
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
-        self.nblocksizes = 3 * self.blocksize if include_CG \
-            else 2 * self.blocksize
         self.tolerances = tolerances
         self.MW_nn: Matrix
         self.MP_nn: Matrix
@@ -104,6 +104,10 @@ class NotDavidson(PWFDEigensolver):
         band_comm = wfs.band_comm
 
         B = ibzwfs.nbands
+        b = wfs.psit_nX.mydims[0]
+        self.blocksize = min(self.blocksize, b)
+        self.nblocksizes = 3 * self.blocksize \
+            if self.include_CG else 2 * self.blocksize
         extra_dims = np.prod(wfs.psit_nX.dims[1:])
         xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
@@ -138,7 +142,7 @@ class NotDavidson(PWFDEigensolver):
         #   sum(residual_ns) < initial_breakout_tolerance
         #   This value can be lower, since the first iteration
         #   is more numerically stable.
-        self.initial_tolerance_factor = 0
+        self.initial_tolerance_factor = 1e-2
 
         if self.tolerances is not None:
             assert len(self.tolerances) == 4
@@ -216,6 +220,8 @@ class NotDavidson(PWFDEigensolver):
                     or b_error < self.breakout_tolerance * \
                     self.initial_tolerance_factor:
                 print('No active bands.')
+                if debug:
+                    psit_nX.sanity_check()
                 return error
 
             buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
@@ -285,7 +291,7 @@ class NotDavidson(PWFDEigensolver):
                     Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
                     buff_bX[:nblocksizes].matrix_elements(
                         buff_bX[:nblocksizes], cc=True, out=MS_bb,
-                        domain_sum=False)
+                        domain_sum=False, symmetric=False)
                     S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
                         HPbuf_abi.matrix.data[:nblocksizes].T.conj()
                     domain_comm.sum(S_bb)
@@ -295,17 +301,26 @@ class NotDavidson(PWFDEigensolver):
                        out_ani=HPbuf_abi[:, :nblocksizes])
                     buff_bX[:nblocksizes].matrix_elements(
                         Hbuff_bX[:nblocksizes], cc=True, out=MH_bb,
-                        domain_sum=False)
+                        domain_sum=False, symmetric=False)
                     H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
                         HPbuf_abi.matrix.data[:nblocksizes].T.conj()
                     domain_comm.sum(H_bb)
 
                     if nblocksizes > 2 * blocksize:
-                        pos_defness = xp.linalg.eigh(S_bb)[0][0]
-                        if xp is not np:
-                            pos_defness = pos_defness.get()
-                        if pos_defness < \
-                                np.finfo(S_bb.dtype).eps * nblocksizes**0.5:
+                        # Eigh approach
+                        # A, B = xp.linalg.eigh(S_bb)
+                        # pos_defness = A[0]
+                        # if xp is not np:
+                        #     pos_defness = pos_defness.get()
+                        # if pos_defness < \
+                        #         np.finfo(S_bb.dtype).eps:
+
+                        # SVD approach
+                        if xp.linalg.matrix_rank(
+                                S_bb,
+                                tol=np.finfo(S_bb.dtype).eps) < nblocksizes:
+                            # Insufficient numerical precision for CG,
+                            # thus we only do the steepest descent step
                             nblocksizes = 2 * blocksize
                             MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
                                            data=H_bb[:nblocksizes,
@@ -315,7 +330,18 @@ class NotDavidson(PWFDEigensolver):
                                            data=S_bb[:nblocksizes,
                                                      :nblocksizes],
                                            xp=xp)
-                    MH_bb.eigh(MS_bb)
+                            MH_bb.eigh(MS_bb)
+                        else:
+                            # Do the full PPCG update
+
+                            # print(f'pos_defness {pos_defness}')
+                            # SMHalf = B @ xp.diag(A**(-0.5)) @ B.T.conj()
+                            # H_bb[:] = SMHalf @ H_bb @ SMHalf
+                            # MH_bb.eigh()
+                            # H_bb[:] = H_bb @ SMHalf
+                            MH_bb.eigh(MS_bb)
+                    else:
+                        MH_bb.eigh(MS_bb)
                     cmin = H_bb[:blocksize, :nblocksizes].conj()
                     if not xp.isfinite(H_bb).all():
                         flag = True
@@ -348,6 +374,8 @@ class NotDavidson(PWFDEigensolver):
 
             wfs.orthonormalized = False
             if flag:
+                # Sometimes we can survive this, but we really shouldn't
+                # get here.
                 print('Encountered singular matrix in iteration %d' % i)
                 break
 
@@ -358,15 +386,13 @@ class NotDavidson(PWFDEigensolver):
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
                 else:
-                    if xp.isnan(psit_nX.data).any():
-                        raise ValueError('NaN in wave function')
-                    if b_error < 0:
+                    if b_error < 1e-1:
+                        # Approximate orthonormalization only if
+                        # the residual is small
                         approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
                                               Y2_nn, dS_aii, domain_comm)
                     else:
                         wfs.orthonormalize(residual_nX)
-                    if xp.isnan(psit_nX.data).any():
-                        raise ValueError('NaN in wave function')
                     Ht(psit_nX, out=residual_nX)
 
                 calculate_residuals(wfs.psit_nX,
@@ -390,7 +416,7 @@ class NotDavidson(PWFDEigensolver):
 
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
                         or b_error < self.breakout_tolerance:
-                    print(f'Converged in {i + 1} iterations')
+                    # We have converged. Break out of the loop
                     break
 
             if i < self.niter - 1:
@@ -398,16 +424,14 @@ class NotDavidson(PWFDEigensolver):
                 if self.include_CG:
                     with tracectx('P-update'):
                         P_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
-                                             domain_sum=False)
+                                             domain_sum=False,
+                                             symmetric=False)
                         P3_ani.matrix.multiply(Ptemp_ani, opb='C',
                                                symmetric=False,
                                                beta=1, out=M_nn)
                         domain_comm.sum(M_nn.data)
                         M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
                         M_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
-
-        if xp.isnan(psit_nX.data).any():
-            raise ValueError('NaN in wave function')
 
         if not wfs.orthonormalized:
             wfs.orthonormalize(residual_nX)
@@ -447,7 +471,8 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
     P_ani.block_diag_multiply(dS_aii, out_ani=P2_ani)
     psit_nX = wfs.psit_nX
     psit_nX.matrix_elements(psit_nX, cc=True, out=Y1_nn,
-                            domain_sum=False)
+                            domain_sum=False,
+                            symmetric=False)
     P_ani.matrix.multiply(P2_ani, opb='C',
                           symmetric=False,
                           beta=1, out=Y1_nn)
@@ -465,4 +490,4 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
 
     Y1_nn.multiply(residual_nX, out=psit_nX, beta=1)
     Y1_nn.multiply(P2_ani, out=P_ani, beta=1)
-    wfs.orthonormalized = True
+    # wfs.orthonormalized = True

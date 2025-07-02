@@ -45,27 +45,28 @@ def test_single_precision_gpu(dtype):
 
 def run_single_precision(dtype, gpu):
     from ase.build import mx2
-    atoms = mx2('MoS2', a=3.14)
+    atoms = mx2('MoFe2', a=3.14)
     # atoms2 = mx2('MoS2', a=3.3)
     # atoms2.positions[:, 2] += 3.5 + 5
     # atoms = atoms + atoms2
-    # atoms = atoms.repeat((5, 5, 1))
+    atoms = atoms.repeat((1, 1, 1))
     atoms.center(axis=2, vacuum=5.5)
-    # atoms.set_initial_magnetic_moments([1, ] * 9 * 3)
+    # atoms.set_initial_magnetic_moments([1, ] * len(atoms))
 
     gpu = gpu == 'True'
 
     atoms.calc = GPAW(xc={'name': 'LDA'},
-                      symmetry='off',
-                      convergence={'maximum iterations': 300,
-                                   'eigenstates': 1e-7},
+                      # kpts=(6, 6, 1),
+                      # symmetry='off',
+                      convergence={'maximum iterations': 300},
                       mode={'name': 'pw',
                             'ecut': 400.0,
                             'dtype': dtype},
-                      mixer=FFTMixerFull(0.05),
+                      mixer=FFTMixerFull(0.07),
                       poissonsolver={'fast': False},
                       eigensolver={'name': 'not-dav',
-                                   'niter': 3},
+                                   'niter': 2,
+                                   'include_CG': True},
                       occupations={'name': 'fermi-dirac',
                                    'width': 0.05},
                       parallel={'gpu': gpu}

@@ -206,7 +206,7 @@ class NotDavidson(PWFDEigensolverParamater):
     cls = NotDavidsonEigensolver
 
     def __init__(self,
-                 niter: int = 3,
+                 niter: int = 2,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=128,
                  rr_modulo=5,
