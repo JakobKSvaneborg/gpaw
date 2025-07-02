@@ -61,7 +61,7 @@ def non_self_consistent_energy(calc: ASECalculator | str | Path,
                for kpt in wfs.kpt_u)
     nocc = kd.comm.max_scalar(wfs.bd.comm.sum_scalar(int(nocc)))
 
-    xcname, exx_fraction, omega = parse_name(xcname)
+    xcname, exx_fraction, omega, yukawa = parse_name(xcname)
 
     xc = XC(xcname)
     exc = 0.0
@@ -72,7 +72,7 @@ def non_self_consistent_energy(calc: ASECalculator | str | Path,
         dens.interpolate_pseudo_density()
     exc += xc.calculate(dens.finegd, dens.nt_sg)
 
-    coulomb = coulomb_interaction(omega, wfs.gd, kd)
+    coulomb = coulomb_interaction(omega, wfs.gd, kd, yukawa=yukawa)
     sym = Symmetry(kd)
 
     paw_s = calculate_paw_stuff(wfs, dens)

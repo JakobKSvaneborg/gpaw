@@ -5,7 +5,6 @@ from gpaw import GPAW, LCAO
 from gpaw.mixer import FFTMixer
 
 
-@pytest.mark.old_gpaw_only
 def test_lcao_fftmixer():
     bulk = Atoms('Li', pbc=True,
                  cell=[2.6, 2.6, 2.6])

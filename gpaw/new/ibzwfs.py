@@ -485,7 +485,7 @@ class IBZWaveFunctions(Generic[WFT]):
                 return
             if hasattr(psit_nX.data, 'fd'):  # fd=file-descriptor
                 self.read_from_file_init_wfs_dm = True
-                psit_nX.data = psit_nX.data[:]  # read
+                psit_nX.data = np.ascontiguousarray(psit_nX.data[:])  # read
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
         """Return HOMO and LUMO eigenvalues."""

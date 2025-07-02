@@ -52,6 +52,7 @@ Git master branch
   noncollinear calculations is now possible:
   :ref:`spin direction constrained dft`.
 
+* Preliminary implementation of YS-PBE0 hybrid functional.
 
 .. _controlling color: https://docs.python.org/3/using/cmdline.html
                        #controlling-color

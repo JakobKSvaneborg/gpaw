@@ -184,6 +184,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         return self._vt_g, self._nt_g, self._dedtaut_g
 
     def force_contributions(self, Q_aL, density, potential):
+        if potential.vHt_x is None:
+            raise RuntimeError(ERROR.format(thing='forces'))
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
         if dedtaut_g is None:
             Ftauct_av = None
@@ -200,6 +202,14 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             self.extensions_force_av)
 
     def stress(self, ibzwfs, density, potential):
+        if potential.vHt_x is None:
+            raise RuntimeError(ERROR.format(thing='stress'))
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
         return calculate_stress(self, ibzwfs, density, potential,
                                 vt_g, nt_g, dedtaut_g)
+
+
+ERROR = (
+    'Unable to calculate {thing}.  Are you restartting from an old '
+    'gpw-file?  In that case, calculate the {thing} before writing '
+    'the gpw-file or switch to new GPAW.')

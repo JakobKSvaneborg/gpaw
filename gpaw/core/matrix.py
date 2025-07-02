@@ -627,10 +627,24 @@ class Matrix(XP):
         assert M == N
         self.data.ravel()[n1::N + 1] += d
 
-    def to_cpu(self):
-        if isinstance(self.data, np.ndarray):
+    def to_cpu(self) -> Matrix:
+        """Create new matrix object with values transfered from GPU to CPU."""
+        return self.to_xp(np)
+
+    def to_xp(self, xp) -> Matrix:
+        """Create new matrix object with data on GPU or CPU."""
+        if xp is self.xp:
+            assert xp is np, 'cp -> cp should not be needed!'
             return self
-        return Matrix(*self.shape, data=cp.asnumpy(self.data))
+        if xp is np:
+            return self.dist.matrix(data=cp.asnumpy(self.data))
+        return self.dist.matrix(data=cp.asarray(self.data))
+
+    def to_dtype(self, dtype) -> Matrix:
+        """Convert to new data type."""
+        if dtype == self.dtype:
+            return self
+        return self.dist.matrix(data=self.data.astype(dtype))
 
 
 def _matrix(M):
