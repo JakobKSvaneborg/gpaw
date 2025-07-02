@@ -14,14 +14,9 @@ def test_pw_h(in_tmp_dir):
                   txt=None)
     e0 = a.get_potential_energy()
     e0 = world.sum_scalar(e0) / world.size
-    a.calc = GPAW(mode={'name': 'pw',
-                        'ecut': 250,
-                        'force_complex_dtype': True},
-                  eigensolver={'name': 'not-dav',
-                               'niter': 18},
+    a.calc = GPAW(mode=PW(250),
+                  eigensolver='rmm-diis',
                   basis='szp(dzp)',
-                  maxiter=50,
-                  convergence={'eigenvalues': 1e-4},
                   txt='%d.txt' % world.size)
     e = a.get_potential_energy()
     f = a.get_forces()
