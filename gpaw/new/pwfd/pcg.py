@@ -24,7 +24,7 @@ class NotDavidson(PWFDEigensolver):
                  hamiltonian,
                  converge_bands='occupied',
                  niter=2,
-                 blocksize=128,
+                 blocksize=None,
                  rr_modulo=5,
                  include_CG=True,
                  tolerances: tuple[float] | None = None,
@@ -52,10 +52,11 @@ class NotDavidson(PWFDEigensolver):
         niter : int, optional
             Number of iterations. Default is 4.
         blocksize : int, optional
-            Block size for the diagonal slicing. Default is 256, lower values
+            Block size for the diagonal slicing. Lower values
             are more efficient on CPUs with many cores but not on GPUs. The
             value will be modified to a multiple of the number of domain
             ranks.
+            Default is 64 on cpu and 128 on gpu.
         rr_modulo : int, optional
             How often to perform subspace diagonalization. Default is 5.
         include_CG : bool, optional
@@ -69,15 +70,9 @@ class NotDavidson(PWFDEigensolver):
             Maximum memory in bytes for buffer. Default is 200 * 1024 ** 2.
         """
 
-        if isinstance(wf_grid, PWDesc):
-            S = wf_grid.comm.size
-            # Use a multiple of S for maximum efficiency
-            blocksize = int(np.ceil(blocksize / S)) * S
-
         super().__init__(
             hamiltonian,
-            converge_bands,
-            blocksize=blocksize,)
+            converge_bands)
 
         if not hamiltonian.band_local:
             raise NotImplementedError(
@@ -100,6 +95,19 @@ class NotDavidson(PWFDEigensolver):
                             converge_bands=self.converge_bands))
 
     def _initialize(self, ibzwfs):
+        xp = ibzwfs.xp
+
+        if self.blocksize is None:
+            if xp == np:
+                self.blocksize = 64  # Could be lower, maybe 32
+            else:
+                self.blocksize = 128
+
+        if isinstance(self.wf_grid, PWDesc):
+            S = self.wf_grid.comm.size
+            # Use a multiple of S for maximum efficiency
+            self.blocksize = int(np.ceil(self.blocksize / S)) * S
+
         super()._initialize(ibzwfs)
         if self.include_CG:
             self._allocate_work_arrays(ibzwfs, shape=(2,))
@@ -118,7 +126,6 @@ class NotDavidson(PWFDEigensolver):
         self.nblocksizes = 3 * self.blocksize \
             if self.include_CG else 2 * self.blocksize
         extra_dims = np.prod(wfs.psit_nX.dims[1:])
-        xp = ibzwfs.xp
         dtype = wfs.psit_nX.desc.dtype
         G_max = np.prod(ibzwfs.get_max_shape())
 

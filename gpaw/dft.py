@@ -208,7 +208,7 @@ class NotDavidson(PWFDEigensolverParamater):
     def __init__(self,
                  niter: int = 2,
                  max_buffer_mem: int = 200 * 1024**2,
-                 blocksize=128,
+                 blocksize=None,
                  rr_modulo=5,
                  include_CG=True,
                  tolerances: tuple[float] | None = None):
