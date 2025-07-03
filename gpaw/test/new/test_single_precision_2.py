@@ -7,7 +7,7 @@ import os
 # from gpaw.dft import RMMDIIS
 from gpaw.new.ase_interface import GPAW
 from gpaw.gpu import cupy_is_fake
-from gpaw.mixer import FFTMixerFull
+# from gpaw.mixer import FFTMixerFull
 
 
 @pytest.mark.serial
@@ -44,26 +44,28 @@ def test_single_precision_gpu(dtype):
 
 
 def run_single_precision(dtype, gpu):
-    from ase.build import mx2
-    atoms = mx2('MoFe2', a=3.14)
+    # from ase.build import mx2
+    # atoms = mx2('MoS2', a=3.14)
     # atoms2 = mx2('MoS2', a=3.3)
     # atoms2.positions[:, 2] += 3.5 + 5
     # atoms = atoms + atoms2
-    atoms = atoms.repeat((1, 1, 1))
-    atoms.center(axis=2, vacuum=5.5)
+    # atoms = atoms.repeat((1, 1, 1))
+    from ase.build import molecule
+    atoms = molecule('H2O', vacuum=2)
+    # atoms.center(axis=2, vacuum=5.5)
     # atoms.set_initial_magnetic_moments([1, ] * len(atoms))
 
     gpu = gpu == 'True'
 
     atoms.calc = GPAW(xc={'name': 'LDA'},
+                      random=True,
                       # kpts=(6, 6, 1),
-                      # symmetry='off',
+                      symmetry='off',
                       convergence={'maximum iterations': 300},
                       mode={'name': 'pw',
                             'ecut': 400.0,
                             'dtype': dtype},
-                      mixer=FFTMixerFull(0.07),
-                      poissonsolver={'fast': False},
+                      # mixer=FFTMixerFull(0.07),
                       eigensolver={'name': 'not-dav',
                                    'niter': 2,
                                    'include_CG': True},

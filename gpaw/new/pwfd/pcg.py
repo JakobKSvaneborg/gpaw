@@ -250,7 +250,7 @@ class NotDavidson(PWFDEigensolver):
 
             active_bs = len(active_indicies)
 
-            with tracectx('Blockdiagonal Update'):
+            with tracectx('Block-diagonal Update'):
                 for j in range(0, active_bs, self.blocksize):
                     block_slice_base = \
                         slice(j, min(j + self.blocksize, active_bs))
@@ -309,16 +309,11 @@ class NotDavidson(PWFDEigensolver):
                     if nblocksizes > 2 * blocksize:
                         # Eigh approach
                         # A, B = xp.linalg.eigh(S_bb)
-                        # pos_defness = A[0]
-                        # if xp is not np:
-                        #     pos_defness = pos_defness.get()
-                        # if pos_defness < \
-                        #         np.finfo(S_bb.dtype).eps:
-
-                        # SVD approach
-                        if xp.linalg.matrix_rank(
-                                S_bb, hermitian=True,
-                                tol=np.finfo(S_bb.dtype).eps) < nblocksizes:
+                        pos_defness = xp.linalg.eigvalsh(S_bb)[0]
+                        if xp is not np:
+                            pos_defness = pos_defness.get()
+                        if pos_defness < \
+                                np.finfo(S_bb.dtype).eps:
                             # Insufficient numerical precision for CG,
                             # thus we only do the steepest descent step
                             nblocksizes = 2 * blocksize
@@ -376,7 +371,7 @@ class NotDavidson(PWFDEigensolver):
             if flag:
                 # Sometimes we can survive this, but we really shouldn't
                 # get here.
-                print('Encountered singular matrix in iteration %d' % i)
+                print(f'Encountered singular matrix in iteration {i + 1}')
                 break
 
             with tracectx('Residual'):
