@@ -143,14 +143,17 @@ class GPWFiles(CachedFilesHandler):
         magmoms = None if calc_type == 'col' else [mm * easy_axis]
         soc = True if calc_type == 'ncolsoc' else False
 
-        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 280},
+        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 380},
                           xc='LDA',
+                          nbands='200%',
                           kpts={'size': (4, 4, 4), 'gamma': True},
                           parallel={'domain': 1, 'band': 1},
                           mixer={'beta': 0.5},
                           symmetry=symmetry,
                           occupations={'name': 'fermi-dirac', 'width': 0.05},
-                          convergence={'density': 1e-4},
+                          convergence={'density': 1e-8,
+                                       'bands': 'CBM+10',
+                                       'eigenstates': 1e-12},
                           magmoms=magmoms,
                           soc=soc,
                           txt=self.folder / f'fcc_Ni_{calc_type}.txt')

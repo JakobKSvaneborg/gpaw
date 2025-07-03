@@ -31,6 +31,7 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
     calc1 = GPAW(mode=PW(200),
                  nbands=4,
                  kpts=(8, 8, 8),
+                 convergence={'eigenstates': 1e-6},
                  parallel={'domain': 1},
                  xc='LDA')
 
