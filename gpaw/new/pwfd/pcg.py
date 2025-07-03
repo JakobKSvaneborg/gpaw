@@ -12,6 +12,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.pwfd.davidson import sliced_preconditioner
 # from gpaw.typing import Array2D
+from gpaw.core import PWDesc
 from gpaw.new import tracectx, trace
 
 
@@ -67,9 +68,16 @@ class NotDavidson(PWFDEigensolver):
         max_buffer_mem : int, optional
             Maximum memory in bytes for buffer. Default is 200 * 1024 ** 2.
         """
+
+        if isinstance(wf_grid, PWDesc):
+            S = wf_grid.comm.size
+            # Use a multiple of S for maximum efficiency
+            blocksize = int(np.ceil(blocksize / S)) * S
+
         super().__init__(
             hamiltonian,
-            converge_bands)
+            converge_bands,
+            blocksize=blocksize,)
 
         if not hamiltonian.band_local:
             raise NotImplementedError(
@@ -105,7 +113,8 @@ class NotDavidson(PWFDEigensolver):
 
         B = ibzwfs.nbands
         b = wfs.psit_nX.mydims[0]
-        self.blocksize = min(self.blocksize, b)
+        self.blocksize = max(min(self.blocksize, b),
+                             1)
         self.nblocksizes = 3 * self.blocksize \
             if self.include_CG else 2 * self.blocksize
         extra_dims = np.prod(wfs.psit_nX.dims[1:])
@@ -219,7 +228,6 @@ class NotDavidson(PWFDEigensolver):
             if band_comm.sum_scalar(len(active_indicies)) == 0  \
                     or b_error < self.breakout_tolerance * \
                     self.initial_tolerance_factor:
-                print('No active bands.')
                 if debug:
                     psit_nX.sanity_check()
                 return error
@@ -407,7 +415,6 @@ class NotDavidson(PWFDEigensolver):
                                self.tol_factor))
                 active_indicies = np.where(active_indicies)[0]
                 error = weight_n @ error_n
-                b_error = band_comm.sum_scalar(error)
 
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
                         or b_error < self.breakout_tolerance:
