@@ -148,8 +148,6 @@ class PWHybridHamiltonian(PWHamiltonian):
             # We are doing a subspace diagonalization ...
             evv, evc, ekin = self.apply1(D_aii, pt_aiG,
                                          psi1, psi1, Htpsit2_nG)
-            print(evv)
-            import sys; sys.exit(0)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
@@ -232,8 +230,6 @@ class PWHybridHamiltonian(PWHamiltonian):
                 else:
                     psi1, psi = psi, psi1
 
-        print(B_ani)
-
         pt_aiG.add_to(Htpsit_nG, B_ani)
 
         if same:
@@ -285,7 +281,6 @@ class PWHybridHamiltonian(PWHamiltonian):
                                           vrhot_G,
                                           Q_anL, Q1_aniL, B_ani, n2)
         fft(rhot_nR, rhot_nG, plan=self.plan)
-        print(Q_anL.data)
         if self.pw.dtype == float:
             # Note that G runs over
             # G0.real, G0.imag, G1.real, G1.imag, ...
@@ -312,7 +307,6 @@ class PWHybridHamiltonian(PWHamiltonian):
             A1 = 0
             for a, Q1_niL in Q1_aniL.items():
                 A2 = A1 + Q1_niL.shape[2]
-                print(a, n1, n2, Q1_niL[n1, 0, 0], f1, A1_A[A1])
                 B_ani[a][n2] -= Q1_niL[n1] @ (f1 * A1_A[A1:A2])
                 A1 = A2
         ifft(rhot_nG, rhot_nR, plan=self.plan)

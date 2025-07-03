@@ -6,15 +6,16 @@ import numpy as np
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
+from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
 # from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pw.hybrids import fft, truncated_coulomb
+from gpaw.new.pw.nschse import Psit, ibz2bz
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
-from gpaw.new.pw.nschse import ibz2bz, Psit
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 
 
 class PWHybridHamiltonianK(PWHamiltonian):
@@ -64,7 +65,6 @@ class PWHybridHamiltonianK(PWHamiltonian):
             ibzwfs, self.setups, self.relpos_ac, self.cgrid, self.plan,
             self.log if self.nbzk == 0 else None)
         self.nbzk = len(ibzwfs.ibz.bz)
-        self.log('update')
         self.xc.energies = {'hybrid_xc': 0.0,
                             'hybrid_kinetic_correction': 0.0}
 
@@ -99,16 +99,10 @@ class PWHybridHamiltonianK(PWHamiltonian):
             evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
                                           psit2_nG, Htpsit2_nG,
                                           wfs.occ_n)
-            print(evv)
-            import sys; sys.exit(0)
-            # print(psit2_nG.desc.kpt_c, evv)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy * weight
-                if spin == 77777777777777777777777777777:
-                    self.xc.energies[name] = e
-                else:
-                    self.xc.energies[name] += e
+                self.xc.energies[name] += e
             self.xc.energies['hybrid_xc'] += self.exx_cc
             return
 
@@ -129,6 +123,23 @@ class PWHybridHamiltonianK(PWHamiltonian):
 
         P_ani = pt_aiG.integrate(psit_nG)
 
+        V_ani = P_ani.new()
+
+        evv = 0.0
+        evc = 0.0
+        ekin = 0.0
+        for a, D_ii in D_aii.items():
+            VV_ii = pawexxvv(self.VV_app[a], D_ii)
+            VC_ii = self.VC_aii[a]
+            V_ii = -VC_ii - 2 * VV_ii
+            V_ani[a] = P_ani[a] @ V_ii
+            if f_n is not None:
+                ec = (D_ii * VC_ii).sum()
+                ev = (D_ii * VV_ii).sum()
+                ekin += ec + 2 * ev
+                evv -= ev
+                evc -= ec
+
         e = 0.0
         for rank in range(self.kpt_comm.size):
             data = None
@@ -138,19 +149,16 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 if psit_nG is not None:
                     data = (psit_nG, P_ani, spin)
             psit_nG, P_ani, s = broadcast(data, rank * band_comm.size, comm)
-            V_ani = P_ani.new()
-            V_ani.data[:] = 0.0
             e += self._apply2(psit_nG, P_ani, s, Htpsit_nG, V_ani, f_n)
-            print(V_ani.data)
             pt_aiG.add_to(Htpsit_nG, V_ani)
 
         if f_n is None:
             return nan, nan, nan
 
         e = comm.sum_scalar(e)
-        evv = 0.5 * e
-        ekin = -e
-        evc = 0.0
+        evv += 0.5 * e
+        ekin -= e
+
         return evv, evc, ekin
 
     def _apply2(self,
@@ -214,6 +222,5 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 v2_R.fft(out=v2_G)
                 Htpsit2_G.data -= v2_G.data * x
             for a, Q1_niL in Q1_aniL.items():
-                print(a, n1, f1_n[n1], V2_anL[a][:, 0], Q1_niL[n1, 0, 0])
                 V2_ani[a][:] -= x * V2_anL[a] @ Q1_niL[n1].T
         return e

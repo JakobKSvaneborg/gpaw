@@ -1,6 +1,6 @@
 import pytest
 from ase import Atoms
-from gpaw import GPAW, PW
+from gpaw.dft import GPAW, PW
 
 
 @pytest.mark.new_gpaw_ready
@@ -14,6 +14,7 @@ def test_h2(in_tmp_dir, dtype):
               pbc=1)
     a.center()
 
+    t = 'f' if dtype == float else 'c'
     a.calc = GPAW(
         mode=PW(400, force_complex_dtype=dtype == complex),
         symmetry='off',
@@ -22,7 +23,7 @@ def test_h2(in_tmp_dir, dtype):
         eigensolver={'name': 'davidson', 'niter': 1},
         nbands=1,
         # spinpol=True,
-        txt='H2.txt',
+        txt=f'H2-{t}.txt',
         # setups='ae',
         xc='HSE06')
     e = a.get_potential_energy()
