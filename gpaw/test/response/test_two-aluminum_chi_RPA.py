@@ -29,9 +29,13 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
     atoms2 = atoms1.repeat((2, 1, 1))
 
     calc1 = GPAW(mode=PW(200),
-                 nbands=4,
-                 kpts=(8, 8, 8),
-                 convergence={'eigenstates': 1e-6},
+                 nbands=12,
+                 gpts=(12, 12, 12),
+                 kpts={'size': (8, 8, 8),
+                       'gamma': True},  # (8, 8, 8),
+                 convergence={'density': 1e-5,
+                              'eigenstates': 1e-7,
+                              'bands': 8},
                  parallel={'domain': 1},
                  xc='LDA')
 
@@ -41,8 +45,13 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
     t2 = time.time()
 
     calc2 = GPAW(mode=PW(200),
-                 nbands=8,
-                 kpts=(4, 8, 8),
+                 nbands=24,
+                 gpts=(24, 12, 12),
+                 kpts={'size': (4, 8, 8),
+                       'gamma': True},  # (4, 8, 8),
+                 convergence={'density': 1e-5,
+                              'eigenstates': 1e-7,
+                              'bands': 16},
                  parallel={'domain': 1},
                  xc='LDA')
 
@@ -53,16 +62,16 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
 
     # Excited state calculation
     q1_qc = [np.array([1 / 8., 0., 0.]), np.array([3 / 8., 0., 0.])]
-    q2_qc = [np.array([1 / 4., 0., 0.]), np.array([- 1 / 4., 0., 0.])]
+    q2_qc = [np.array([1 / 4., 0., 0.]), np.array([-1 / 4., 0., 0.])]
     w = np.linspace(0, 24, 241)
 
     # Calculate susceptibility using Al1
-    calculate_chi(calc1, q1_qc, w, filename_prefix='Al1')
+    calculate_chi(calc1, q1_qc, w, 8, filename_prefix='Al1')
 
     t4 = time.time()
 
     # Calculate susceptibility using Al2
-    calculate_chi(calc2, q2_qc, w, filename_prefix='Al2')
+    calculate_chi(calc2, q2_qc, w, 16, filename_prefix='Al2')
 
     t5 = time.time()
 
@@ -98,12 +107,12 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
     assert Ipeak12 == pytest.approx(Ipeak22, abs=1.0)
 
 
-def calculate_chi(calc, q_qc, w,
+def calculate_chi(calc, q_qc, w, nbands,
                   eta=0.2, ecut=50,
                   spincomponent='00', fxc=None,
                   filename_prefix=None, reduced_ecut=25):
     gs = ResponseGroundStateAdapter(calc)
-    chiks_calc = ChiKSCalculator(gs, ecut=ecut)
+    chiks_calc = ChiKSCalculator(gs, ecut=ecut, nbands=nbands)
     chi_factory = ChiFactory(chiks_calc)
 
     if filename_prefix is None:
