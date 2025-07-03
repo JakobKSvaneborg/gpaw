@@ -22,12 +22,12 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new):
         xc='HSE06')
     if gpaw_new:
         kwargs |= dict(spinpol=False,
-                       setups='ae',
+                       # setups='ae',
                        eigensolver='rmm-diis')
 
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
-        txt='H2.txt',
+        txt='H2-new.txt',
         **kwargs)
     e1 = a.get_potential_energy()
     eps1 = a.calc.get_eigenvalues(1)[0]
@@ -44,7 +44,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new):
     a *= (1, 1, 2)
     a.calc = GPAW(
         kpts={'size': (1, 1, 2), 'gamma': True},
-        txt='H4.txt',
+        txt='H4-new.txt',
         **kwargs)
     e2 = a.get_potential_energy()
     eps2 = a.calc.get_eigenvalues(0)[0]
@@ -60,10 +60,13 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new):
 
 
 if __name__ == '__main__':
-    from cProfile import Profile
-    prof = Profile()
-    prof.enable()
-    test_exx_double_cell(1)
-    prof.disable()
-    from gpaw.mpi import rank, size
-    prof.dump_stats(f'prof-{size}.{rank}')
+    if 0:
+        from cProfile import Profile
+        prof = Profile()
+        prof.enable()
+        test_exx_double_cell(1)
+        prof.disable()
+        from gpaw.mpi import rank, size
+        prof.dump_stats(f'prof-{size}.{rank}')
+    else:
+        test_exx_double_cell(1, 1)

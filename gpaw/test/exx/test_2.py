@@ -9,14 +9,14 @@ def exx(n, xc):
               pbc=1)
     a *= (1, 1, n)
     a.calc = GPAW(
-        mode=PW(400, force_complex_dtype=1),
-        # eigensolver={'name': 'davidson', 'niter': 1},
-        eigensolver={'name': 'rmm-diis'},
+        mode=PW(400, force_complex_dtype=0),
+        eigensolver={'name': 'davidson', 'niter': 1},
+        # eigensolver={'name': 'rmm-diis'},
         symmetry='off',
-        setups='ae',
-        kpts={'size': (1, 1, 2 // n), 'gamma': True},
+        # setups='ae',
+        # kpts={'size': (1, 1, 4 // n), 'gamma': True},
         convergence={'density': 1e-6},
-        txt=f'{n}.txt',
+        txt=f'n{n}.txt',
         xc=xc)
     e = a.get_potential_energy()
     print(e / n)

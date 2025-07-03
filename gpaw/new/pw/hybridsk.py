@@ -202,7 +202,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
             rhot_nR.data *= ut1_R.conj()
             Q_anL = {}
             for a, Q1_niL in Q1_aniL.items():
-                Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
+                Q_anL[a] = P2_ani[a] @ Q1_niL[n1].conj()
             rhot_nG = pw.empty(len(rhot_nR))
             fft(rhot_nR, rhot_nG, plan=self.plan)
             ghat_aLG.add_to(rhot_nG, Q_anL)
