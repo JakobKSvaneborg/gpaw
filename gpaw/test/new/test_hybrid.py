@@ -34,10 +34,10 @@ def test_hse06(gpaw_new, ccirs):
             pytest.skip('CCIRS only for new GPAW')
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
-    atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not True),
+    atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not not True),
                       xc='HSE06',
                       experimental=experimental,
-                      eigensolver=eigensolver,
+                      eigensolver='rmm-diis',#eigensolver,
                       nbands=4)
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
@@ -50,7 +50,7 @@ def test_h(gpaw_new):
         pytest.skip('Only band-parallelization!')
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
-    atoms.calc = GPAW(mode='pw',
+    atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not not True),
                       xc='HSE06',
                       nbands=2,
                       convergence={'energy': 1e-4})
