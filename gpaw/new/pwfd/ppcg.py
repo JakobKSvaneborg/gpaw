@@ -16,7 +16,7 @@ from gpaw.core import PWDesc
 from gpaw.new import tracectx, trace
 
 
-class PPCGEigensolver(PWFDEigensolver):
+class PPCG(PWFDEigensolver):
     def __init__(self,
                  nbands: int,
                  wf_grid,
