@@ -1,4 +1,6 @@
 import numpy as np
+from scipy import sparse
+from scipy.sparse import linalg
 from gpaw.core.matrix import Matrix, MatrixWithNoData
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
@@ -171,11 +173,18 @@ def tci_helper(basis,
     P_qaMi = [{a: P_aqMi[a][q] for a in my_atom_indices}
               for q in range(len(S0_qMM))]
 
-    for a, P_qMi in P_aqMi.items():
-        dO_ii = setups[a].dO_ii
-        for P_Mi, S_MM in zips(P_qMi, S0_qMM):
-            S_MM += P_Mi[M1:M2].conj() @ dO_ii @ P_Mi.T
+    # for a, P_qMi in P_aqMi.items():
+    #     dO_ii = setups[a].dO_ii
+    #     for P_Mi, S_MM in zips(P_qMi, S0_qMM):
+    #         S_MM += P_Mi[M1:M2].conj() @ dO_ii @ P_Mi.T
+    add_atomic_overlap_corrections(P_qaMi=P_qaMi,
+                                   S0_qMM=S0_qMM,
+                                   setups=setups,
+                                   M1=M1,
+                                   M2=M2)
     domain_comm.sum(S0_qMM)
+
+
 
     # self.atomic_correction= self.atomic_correction_cls.new_from_wfs(self)
     # self.atomic_correction.add_overlap_correction(newS_qMM)
@@ -195,3 +204,32 @@ def tci_helper(basis,
     tci_derivatives = TCIDerivatives(manytci, atomdist, nao)
 
     return S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives
+
+
+def add_atomic_overlap_corrections(
+        P_qaMi: list[dict[int, "Array2D"]],
+        S0_qMM: list["Array2D"],
+        setups: "Setups",
+        M1: int,
+        M2: int,
+        sparse_corrections: bool = True):
+
+    for P_aMi, S_MM in zips(P_qaMi, S0_qMM):
+        # No atoms on this rank
+        if len(P_aMi) == 0:
+            continue
+
+        if sparse_corrections:
+            dO_II = sparse.block_diag(
+                [setups[a].dO_ii for a in P_aMi],
+                format='csr')
+            P_MI = sparse.hstack(
+                [sparse.coo_matrix(P_Mi) for P_Mi in P_aMi.values()],
+                format='csr')
+            S_MM += P_MI[M1:M2].conj().dot(dO_II.dot(P_MI.T)).todense()
+        else:
+            dO_II = linalg.block_diag(
+                *[setups[a].dO_ii for a in P_aMi])
+            P_MI = np.hstack(
+                [P_Mi for P_Mi in P_aMi.values()])
+            S_MM += P_MI[M1:M2].conj() @ dO_II @ P_MI.T
