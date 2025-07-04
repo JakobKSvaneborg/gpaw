@@ -50,7 +50,7 @@ class PPCG(PWFDEigensolver):
             Which bands to converge ('occupied' or 'unoccupied'). Default is
             'occupied'.
         niter : int, optional
-            Number of iterations. Default is 4.
+            Number of iterations. Default is 2.
         blocksize : int, optional
             Block size for the diagonal slicing. Lower values
             are more efficient on CPUs with many cores but not on GPUs. The
@@ -60,7 +60,7 @@ class PPCG(PWFDEigensolver):
         rr_modulo : int, optional
             How often to perform subspace diagonalization. Default is 5.
         include_cg : bool, optional
-            Include CG in the solver. Default is True. Can be helpfull to turn
+            Include CG in the solver. Default is True. Can be helpful to turn
             off for single precision calculations or if memory is an issue.
         tolerances : tuple[float, float, float, float], optional
             Advanced setting, tolerances for the solver. Use at your own risk.
