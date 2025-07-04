@@ -261,7 +261,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P2_ani = P_ani.new()
         domain_comm = psit_nX.desc.comm
 
-        Ht = partial(Ht, out=psit2_nX, spin=self.spin)
+        Ht = partial(Ht, out=psit2_nX, spin=self.spin, calculate_energy=True)
         H = psit_nX.matrix_elements(psit_nX,
                                     function=Ht,
                                     domain_sum=False,

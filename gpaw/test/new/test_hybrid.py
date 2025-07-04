@@ -37,7 +37,7 @@ def test_hse06(gpaw_new, ccirs):
     atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not not True),
                       xc='HSE06',
                       experimental=experimental,
-                      eigensolver='rmm-diis',#eigensolver,
+                      eigensolver=eigensolver,
                       nbands=4)
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
@@ -53,6 +53,8 @@ def test_h(gpaw_new):
     atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not not True),
                       xc='HSE06',
                       nbands=2,
+                      eigensolver=dict(name='davidson', niter=2),
+                      # eigensolver='rmm-diis',
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)

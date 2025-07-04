@@ -132,7 +132,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                                 D_asii,
                                 psit2_nG: XArray,
                                 spin: int,
-                                Htpsit2_nG: XArray) -> None:
+                                Htpsit2_nG: XArray,
+                                calculate_energy: bool = False) -> None:
         assert isinstance(psit2_nG, PWArray)
         assert isinstance(Htpsit2_nG, PWArray)
         wfs = ibzwfs.wfs_qs[0][spin]

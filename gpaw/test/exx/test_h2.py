@@ -24,12 +24,11 @@ def test_h2(in_tmp_dir, dtype, n=2):
         convergence={'density': 1e-6},
         # eigensolver={'name': 'davidson', 'niter': 1},
         eigensolver={'name': 'rmm-diis', 'niter': 1},
-        nbands=n*2,
+        nbands=n * 2,
         # spinpol=True,
         txt=f'H2-{t}R{n}.txt',
         # setups='ae',
-        xc='HSE06'
-        )
+        xc='HSE06')
     e = a.get_potential_energy()
     eigs = a.calc.get_eigenvalues()
     print(e / n)
