@@ -16,7 +16,7 @@ from gpaw.core import PWDesc
 from gpaw.new import tracectx, trace
 
 
-class NotDavidson(PWFDEigensolver):
+class PPCGEigensolver(PWFDEigensolver):
     def __init__(self,
                  nbands: int,
                  wf_grid,
@@ -76,7 +76,7 @@ class NotDavidson(PWFDEigensolver):
 
         if not hamiltonian.band_local:
             raise NotImplementedError(
-                'NotDavidson only implemented for band local XCs')
+                'PPCG only implemented for band local XCs')
 
         self.nbands = nbands
         self.wf_grid = wf_grid
@@ -213,7 +213,15 @@ class NotDavidson(PWFDEigensolver):
             if weight_n is None:
                 weight_n = np.ones(b)
 
+            buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
+
+            buff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
+                                         psit_nX.dims[1:], xp=psit_nX.xp)
+            Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
+                                          psit_nX.dims[1:], xp=psit_nX.xp)
             Ht = partial(Ht, out=residual_nX)
+
+        with tracectx('Residual'):
             calculate_residuals(wfs.psit_nX,
                                 residual_nX,
                                 wfs.pt_aiX,
@@ -238,13 +246,6 @@ class NotDavidson(PWFDEigensolver):
                 if debug:
                     psit_nX.sanity_check()
                 return error
-
-            buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
-
-            buff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
-                                         psit_nX.dims[1:], xp=psit_nX.xp)
-            Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
-                                          psit_nX.dims[1:], xp=psit_nX.xp)
 
         flag = False
 
@@ -383,10 +384,7 @@ class NotDavidson(PWFDEigensolver):
                         + Pbuf_abi.matrix.data[blocksize:2 * blocksize]
 
             wfs.orthonormalized = False
-            if flag:
-                # Sometimes we can survive this, but we really shouldn't
-                # get here.
-                print(f'Encountered singular matrix in iteration {i + 1}')
+            if flag or i >= self.niter - 1:
                 break
 
             with tracectx('Residual'):
@@ -396,9 +394,9 @@ class NotDavidson(PWFDEigensolver):
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
                 else:
-                    if b_error < 1e-1:
+                    if b_error < 1e-2:
                         # Approximate orthonormalization only if
-                        # the residual is small
+                        # the residual is small.
                         approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
                                               Y2_nn, dS_aii, domain_comm)
                     else:
@@ -428,19 +426,18 @@ class NotDavidson(PWFDEigensolver):
                     # We have converged. Break out of the loop
                     break
 
-            if i < self.niter - 1:
-                P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-                if self.include_CG:
-                    with tracectx('P-update'):
-                        P_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
-                                             domain_sum=False,
-                                             symmetric=False)
-                        P3_ani.matrix.multiply(Ptemp_ani, opb='C',
-                                               symmetric=False,
-                                               beta=1, out=M_nn)
-                        domain_comm.sum(M_nn.data)
-                        M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
-                        M_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
+            P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
+            if self.include_CG:
+                with tracectx('P-update'):
+                    P_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
+                                         domain_sum=False,
+                                         symmetric=False)
+                    P3_ani.matrix.multiply(Ptemp_ani, opb='C',
+                                           symmetric=False,
+                                           beta=1, out=M_nn)
+                    domain_comm.sum(M_nn.data)
+                    M_nn.multiply(psit_nX, out=P_nX, beta=1.0, alpha=-1.0)
+                    M_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
 
         if not wfs.orthonormalized:
             wfs.orthonormalize(residual_nX)
