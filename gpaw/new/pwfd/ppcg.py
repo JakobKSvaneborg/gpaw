@@ -394,6 +394,8 @@ class PPCG(PWFDEigensolver):
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
                 else:
+                    # In theory we could skip orthonormalization,
+                    # but this sometimes causes issues so we do it.
                     if b_error < 1e-2:
                         # Approximate orthonormalization only if
                         # the residual is small.
@@ -424,6 +426,11 @@ class PPCG(PWFDEigensolver):
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
                         or b_error < self.breakout_tolerance:
                     # We have converged. Break out of the loop
+                    # Maybe one should allow one extra iteration, by
+                    # setting:
+                    # flag = True
+                    # instead of break
+                    # since we already calculated the rediduals.
                     break
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
