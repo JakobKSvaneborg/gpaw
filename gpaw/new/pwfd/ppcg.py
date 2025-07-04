@@ -154,10 +154,9 @@ class PPCG(PWFDEigensolver):
         self.breakout_tolerance = \
             np.finfo(dtype).eps**2 * (
                 B * extra_dims * G_max)
-        # initial_tolerance :
-        #   Only do subspace diagonalization if
-        #   sum(residual_ns) < initial_breakout_tolerance
-        #   This value can be lower, since the first iteration
+        # initial_tolerance_factor :
+        #   Modify the tolerance for the first iteration
+        #   This value can be small since the first iteration
         #   is more numerically stable.
         self.initial_tolerance_factor = 1e-2
 
@@ -431,7 +430,7 @@ class PPCG(PWFDEigensolver):
                     # setting:
                     # flag = True
                     # instead of break
-                    # since we already calculated the rediduals.
+                    # since we already calculated the residuals.
                     break
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
