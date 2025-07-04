@@ -184,8 +184,6 @@ def tci_helper(basis,
                                    M2=M2)
     domain_comm.sum(S0_qMM)
 
-
-
     # self.atomic_correction= self.atomic_correction_cls.new_from_wfs(self)
     # self.atomic_correction.add_overlap_correction(newS_qMM)
 
@@ -207,9 +205,9 @@ def tci_helper(basis,
 
 
 def add_atomic_overlap_corrections(
-        P_qaMi: list[dict[int, "Array2D"]],
-        S0_qMM: list["Array2D"],
-        setups: "Setups",
+        P_qaMi,
+        S0_qMM,
+        setups,
         M1: int,
         M2: int,
         sparse_corrections: bool = True):
