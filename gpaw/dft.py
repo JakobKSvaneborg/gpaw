@@ -210,13 +210,13 @@ class PPCG(PWFDEigensolverParamater):
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
-                 include_CG=True,
+                 include_cg=True,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
         self.max_buffer_mem = max_buffer_mem
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
-        self.include_CG = include_CG
+        self.include_cg = include_cg
         self.tolerances = tolerances
 
     def todict(self):
@@ -224,7 +224,7 @@ class PPCG(PWFDEigensolverParamater):
                 'max_buffer_mem': self.max_buffer_mem,
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
-                'include_CG': self.include_CG,
+                'include_cg': self.include_cg,
                 'tolerances': self.tolerances}
 
     def build(self,
@@ -245,7 +245,7 @@ class PPCG(PWFDEigensolverParamater):
             max_buffer_mem=self.max_buffer_mem,
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
-            include_CG=self.include_CG,
+            include_cg=self.include_cg,
             tolerances=self.tolerances)
 
 

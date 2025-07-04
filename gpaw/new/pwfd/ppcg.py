@@ -26,8 +26,8 @@ class PPCG(PWFDEigensolver):
                  niter=2,
                  blocksize=None,
                  rr_modulo=5,
-                 include_CG=True,
-                 tolerances: tuple[float] | None = None,
+                 include_cg=True,
+                 tolerances: tuple[float, ...] | None = None,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         """
@@ -59,10 +59,10 @@ class PPCG(PWFDEigensolver):
             Default is 64 on cpu and 128 on gpu.
         rr_modulo : int, optional
             How often to perform subspace diagonalization. Default is 5.
-        include_CG : bool, optional
+        include_cg : bool, optional
             Include CG in the solver. Default is True. Can be helpfull to turn
             off for single precision calculations or if memory is an issue.
-        tolerances : tuple[float], optional
+        tolerances : tuple[float, float, float, float], optional
             Advanced setting, tolerances for the solver. Use at your own risk.
         scalapack_parameters : dict, optional
             Parameters for scalapack solver.
@@ -76,7 +76,8 @@ class PPCG(PWFDEigensolver):
 
         if not hamiltonian.band_local:
             raise NotImplementedError(
-                'PPCG only implemented for band local XCs')
+                'PPCG only implemented for band local XCs,'
+                'use davidson instead')
 
         self.nbands = nbands
         self.wf_grid = wf_grid
@@ -87,7 +88,7 @@ class PPCG(PWFDEigensolver):
         self.tolerances = tolerances
         self.MW_nn: Matrix
         self.MP_nn: Matrix
-        self.include_CG = include_CG
+        self.include_cg = include_cg
 
     def __str__(self):
         return pformat(dict(name='Not Davidson',
@@ -109,7 +110,7 @@ class PPCG(PWFDEigensolver):
             self.blocksize = int(np.ceil(self.blocksize / S)) * S
 
         super()._initialize(ibzwfs)
-        if self.include_CG:
+        if self.include_cg:
             self._allocate_work_arrays(ibzwfs, shape=(2,))
         else:
             self._allocate_work_arrays(ibzwfs, shape=(1,))
@@ -124,7 +125,7 @@ class PPCG(PWFDEigensolver):
         self.blocksize = max(min(self.blocksize, b),
                              1)
         self.nblocksizes = 3 * self.blocksize \
-            if self.include_CG else 2 * self.blocksize
+            if self.include_cg else 2 * self.blocksize
         extra_dims = np.prod(wfs.psit_nX.dims[1:])
         dtype = wfs.psit_nX.desc.dtype
         G_max = np.prod(ibzwfs.get_max_shape())
@@ -191,7 +192,7 @@ class PPCG(PWFDEigensolver):
             b = psit_nX.mydims[0]
 
             residual_nX = psit_nX.new(data=self.work_arrays[0, :b])
-            if self.include_CG:
+            if self.include_cg:
                 P_nX = psit_nX.new(data=self.work_arrays[1, :b])
 
             wfs.subspace_diagonalize(Ht, dH,
@@ -283,7 +284,7 @@ class PPCG(PWFDEigensolver):
                     Pbuf_abi.matrix.data[blocksize:2 * blocksize] = \
                         P2_ani.matrix.data[block_slice]
 
-                    if i > 0 and self.include_CG:
+                    if i > 0 and self.include_cg:
                         nblocksizes = 3 * blocksize
                         buff_bX.matrix.data[2 * blocksize:3 * blocksize] = \
                             P_nX.matrix.data[block_slice]
@@ -370,7 +371,7 @@ class PPCG(PWFDEigensolver):
                         cmin[:, blocksize:] @ Pbuf_abi.matrix.data[
                             blocksize:nblocksizes]
 
-                    if self.include_CG:
+                    if self.include_cg:
                         P_nX.matrix.data[block_slice] = \
                             buff_bX.matrix.data[blocksize:2 * blocksize]
                         P3_ani.matrix.data[block_slice] = \
@@ -434,7 +435,7 @@ class PPCG(PWFDEigensolver):
                     break
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-            if self.include_CG:
+            if self.include_cg:
                 with tracectx('P-update'):
                     P_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
                                          domain_sum=False,
