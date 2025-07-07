@@ -97,11 +97,14 @@ def negative(a, b):
     np.negative(a._data, b._data)
 
 
-def einsum(indices, *args):
+def einsum(indices, *args, **kwargs):
+    for k in kwargs:
+        kwargs[k] = kwargs[k]._data
     return ndarray(
         np.einsum(
             indices,
-            *(arg._data for arg in args)))
+            *(arg._data for arg in args),
+            **kwargs))
 
 
 def diag(a):

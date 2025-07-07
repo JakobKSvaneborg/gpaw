@@ -404,6 +404,8 @@ class PPCG(PWFDEigensolver):
                     else:
                         wfs.orthonormalize(residual_nX)
                     Ht(psit_nX, out=residual_nX)
+                    update_eigenvalues(wfs, residual_nX, P_ani, Ptemp_ani, dH,
+                                       domain_comm)
 
                 calculate_residuals(wfs.psit_nX,
                                     residual_nX,
@@ -504,3 +506,20 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
     Y1_nn.multiply(residual_nX, out=psit_nX, beta=1)
     Y1_nn.multiply(P2_ani, out=P_ani, beta=1)
     # wfs.orthonormalized = True
+
+
+def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
+    psit_nX = wfs.psit_nX
+    xp = psit_nX.xp
+    dH(P_ani, out_ani=P2_ani)
+    eigs1_n = xp.zeros(wfs.myeig_n.shape, dtype=psit_nX.data.dtype)
+    eigs2_n = xp.zeros(wfs.myeig_n.shape, dtype=psit_nX.data.dtype)
+    subscripts = 'nX, nX -> n'
+    xp.einsum(subscripts, Hpsit_nX.matrix.data,
+              psit_nX.matrix.data.conj(), out=eigs1_n)
+    eigs1_n *= psit_nX.dv
+    xp.einsum(subscripts, P2_ani.matrix.data,
+              P_ani.matrix.data.conj(), out=eigs2_n)
+    eigs1_n += eigs2_n
+    domain_comm.sum(eigs1_n)
+    wfs.myeig_n[:] = as_np(eigs1_n.real)
