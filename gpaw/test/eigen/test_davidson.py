@@ -23,7 +23,7 @@ def test_eigen_davidson():
     e0 = bulk.get_potential_energy()
     calc = GPAW(**base_params,
                 convergence={**base_convergence, 'bands': 5},
-                eigensolver='dav')
+                eigensolver='davidson')
     bulk.calc = calc
     e1 = bulk.get_potential_energy()
     assert e0 == pytest.approx(e1, abs=5.0e-5)

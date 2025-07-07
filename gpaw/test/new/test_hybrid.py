@@ -25,10 +25,10 @@ def test_hse06(gpaw_new, ccirs):
         experimental = {'ccirs': ccirs}
         # Low max_buffer_mem to test that this value is overwritten due to
         # the non band-local hybrid-xc hamiltonian.
-        eigensolver = {'name': 'dav',
+        eigensolver = {'name': 'davidson',
                        'max_buffer_mem': 1024 * 4}
     else:
-        eigensolver = 'dav'
+        eigensolver = 'davidson'
         experimental = {}
         if ccirs:
             pytest.skip('CCIRS only for new GPAW')

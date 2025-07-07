@@ -26,7 +26,7 @@ def test_pw_davidson_pw():
                 convergence={'eigenstates': 7.2e-9,
                              'energy': 1e-5,
                              'bands': 5},
-                eigensolver='dav')
+                eigensolver='davidson')
     bulk.calc = calc
     e1 = bulk.get_potential_energy()
     niter1 = calc.get_number_of_iterations()
