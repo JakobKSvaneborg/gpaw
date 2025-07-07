@@ -57,23 +57,23 @@ def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch):
                                     eshift=eshift)
 
     bseplus = BSEPlus(bse_gpw=calc,
-                        bse_valence_bands=bse_valence_bands,
-                        bse_conduction_bands=bse_conduction_bands,
-                        bse_nbands=bse_nbands,
-                        rpa_gpw=calc,
-                        rpa_nbands=rpa_nbands,
-                        w_w=w_w,
-                        eshift=eshift,
-                        eta=eta,
-                        q_c=q_c,
-                        ecut=ecut)
+                      bse_valence_bands=bse_valence_bands,
+                      bse_conduction_bands=bse_conduction_bands,
+                      bse_nbands=bse_nbands,
+                      rpa_gpw=calc,
+                      rpa_nbands=rpa_nbands,
+                      w_w=w_w,
+                      eshift=eshift,
+                      eta=eta,
+                      q_c=q_c,
+                      ecut=ecut)
 
     bseplus.get_chi_wGG(optical=True,
-                         chi_BSE=True,
-                         chi_RPA=True,
-                         bsep_name='chi_BSEPlus_3bands',
-                         bse_name='chi_BSE',
-                         rpa_name='chi_RPA')
+                        chi_BSE=True,
+                        chi_RPA=True,
+                        bsep_name='chi_BSEPlus_3bands',
+                        bse_name='chi_BSE',
+                        rpa_name='chi_RPA')
     if world.rank == 0:
         chi_BSEPlus_WGG = np.load("chi_BSEPlus_3bands.npy")
         chi_BSE_WGG = np.load("chi_BSE.npy")
@@ -132,11 +132,11 @@ def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch):
                             chi_irr_BSEPlus_WGG)
 
         assert chi_BSEPlus_WGG_manual == pytest.approx(chi_BSEPlus_WGG,
-                                                        rel=1e-3, abs=1e-4)
+                                                       rel=1e-3, abs=1e-4)
 
         ref_BSEPlus = [(-0.033315642421628745 - 0.025836336756360122j),
-                        (-1.9089679632375633e-06 - 0.014016992849787593j),
-                        (0.00017364808582158713 - 0.0008411354658348707j)]
+                       (-1.9089679632375633e-06 - 0.014016992849787593j),
+                       (0.00017364808582158713 - 0.0008411354658348707j)]
 
         ref_BSE = [(-0.033585336180110614 - 0.02637670921698286j),
                    (-6.417710913846958e-08 - 0.01685348600618172j),
@@ -158,46 +158,46 @@ def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch):
     with pytest.raises(AssertionError, match=r'Large chi0 calculation*'):
         rpa_nbands = 5
         BSEPlus(bse_gpw=calc,
-                 bse_valence_bands=bse_valence_bands,
-                 bse_conduction_bands=bse_conduction_bands,
-                 bse_nbands=bse_nbands,
-                 rpa_gpw=calc,
-                 rpa_nbands=rpa_nbands,
-                 w_w=w_w,
-                 eshift=eshift,
-                 eta=eta,
-                 q_c=q_c,
-                 ecut=ecut)
+                bse_valence_bands=bse_valence_bands,
+                bse_conduction_bands=bse_conduction_bands,
+                bse_nbands=bse_nbands,
+                rpa_gpw=calc,
+                rpa_nbands=rpa_nbands,
+                w_w=w_w,
+                eshift=eshift,
+                eta=eta,
+                q_c=q_c,
+                ecut=ecut)
 
     # assertion error if truncation is not none or 2d
     with pytest.raises(AssertionError):
         rpa_nbands = 8
         BSEPlus(bse_gpw=calc,
-                 bse_valence_bands=bse_valence_bands,
-                 bse_conduction_bands=bse_conduction_bands,
-                 bse_nbands=bse_nbands,
-                 rpa_gpw=calc,
-                 rpa_nbands=rpa_nbands,
-                 w_w=w_w,
-                 truncation='3D',
-                 eshift=eshift,
-                 eta=eta,
-                 q_c=q_c,
-                 ecut=ecut)
+                bse_valence_bands=bse_valence_bands,
+                bse_conduction_bands=bse_conduction_bands,
+                bse_nbands=bse_nbands,
+                rpa_gpw=calc,
+                rpa_nbands=rpa_nbands,
+                w_w=w_w,
+                truncation='3D',
+                eshift=eshift,
+                eta=eta,
+                q_c=q_c,
+                ecut=ecut)
 
     # assertion error if truncation is 2d but system has pbc_c > 2.
     with pytest.raises(AssertionError):
         bseplus = BSEPlus(bse_gpw=calc,
-                            bse_valence_bands=bse_valence_bands,
-                            bse_conduction_bands=bse_conduction_bands,
-                            bse_nbands=bse_nbands,
-                            rpa_gpw=calc,
-                            rpa_nbands=rpa_nbands,
-                            w_w=w_w,
-                            truncation='2D',
-                            eshift=eshift,
-                            eta=eta,
-                            q_c=q_c,
-                            ecut=ecut)
+                          bse_valence_bands=bse_valence_bands,
+                          bse_conduction_bands=bse_conduction_bands,
+                          bse_nbands=bse_nbands,
+                          rpa_gpw=calc,
+                          rpa_nbands=rpa_nbands,
+                          w_w=w_w,
+                          truncation='2D',
+                          eshift=eshift,
+                          eta=eta,
+                          q_c=q_c,
+                          ecut=ecut)
 
         bseplus.get_chi_wGG(optical=True)

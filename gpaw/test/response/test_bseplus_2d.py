@@ -58,17 +58,17 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files):
                                     eshift=eshift)
 
     bseplus = BSEPlus(bse_gpw=gpw_files['mos2_5x5_pw'],
-                        bse_valence_bands=bse_valence_bands,
-                        bse_conduction_bands=bse_conduction_bands,
-                        bse_nbands=bse_nbands,
-                        rpa_gpw=gpw_files['mos2_5x5_pw'],
-                        rpa_nbands=rpa_nbands,
-                        w_w=w_w,
-                        eshift=eshift,
-                        eta=eta,
-                        q_c=q_c,
-                        ecut=ecut,
-                        truncation='2D')
+                      bse_valence_bands=bse_valence_bands,
+                      bse_conduction_bands=bse_conduction_bands,
+                      bse_nbands=bse_nbands,
+                      rpa_gpw=gpw_files['mos2_5x5_pw'],
+                      rpa_nbands=rpa_nbands,
+                      w_w=w_w,
+                      eshift=eshift,
+                      eta=eta,
+                      q_c=q_c,
+                      ecut=ecut,
+                      truncation='2D')
 
     bseplus.get_chi_wGG(optical=True)
 
@@ -127,7 +127,7 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files):
         chi_BSEPlus_WGG_manual *= V / (np.pi * 4)
 
         assert chi_BSEPlus_WGG_manual == pytest.approx(chi_BSEPlus_WGG,
-                                                        rel=1e-3, abs=1e-4)
+                                                       rel=1e-3, abs=1e-4)
 
         ref = [(3.397365320873605e-08 - 0.0011565040523532147j),
                (0.0808651014210496 + 8.040955353014965e-05j),

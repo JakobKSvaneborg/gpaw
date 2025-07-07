@@ -20,20 +20,20 @@ gap, _, _ = bandgap(GPAW(calc_rpa), direct=True)
 eshift = 2.53 - gap  # G0W0 bandgap according to C2DB
 
 bseplus = BSEPlus(bse_gpw=calc_bse,
-                    bse_valence_bands=bse_valence_bands,
-                    bse_conduction_bands=bse_conduction_bands,
-                    bse_nbands=bse_nbands,
-                    rpa_gpw=calc_rpa,
-                    rpa_nbands=rpa_nbands,
-                    w_w=w_w,
-                    eshift=eshift,
-                    bse_add_soc=True,
-                    eta=eta,
-                    q_c=q_c,
-                    truncation='2D',
-                    ecut=ecut)
+                  bse_valence_bands=bse_valence_bands,
+                  bse_conduction_bands=bse_conduction_bands,
+                  bse_nbands=bse_nbands,
+                  rpa_gpw=calc_rpa,
+                  rpa_nbands=rpa_nbands,
+                  w_w=w_w,
+                  eshift=eshift,
+                  bse_add_soc=True,
+                  eta=eta,
+                  q_c=q_c,
+                  truncation='2D',
+                  ecut=ecut)
 
 bseplus.get_chi_wGG(optical=False, chi_BSE=True, chi_RPA=True,
-                     bsep_name='chi_MoS2_BSEPlus',
-                     bse_name='chi_MoS2_BSE',
-                     rpa_name='chi_MoS2_RPA')
+                    bsep_name='chi_MoS2_BSEPlus',
+                    bse_name='chi_MoS2_BSE',
+                    rpa_name='chi_MoS2_RPA')

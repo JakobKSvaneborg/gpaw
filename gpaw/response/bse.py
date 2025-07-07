@@ -1321,6 +1321,17 @@ class BSEPlus:
                                           eshift=self.eshift)
         return chi0calc_limited
 
+    def get_chi_RPA(self, chi0calc, q_c, coulomb_kernel, xc_kernel,
+                    CellDescriptor, direction):
+        self.chi0_data = chi0calc.calculate(q_c)
+        dyson_eqs = Chi0DysonEquations(self.chi0_data, coulomb_kernel,
+                                       xc_kernel, CellDescriptor)
+        self.v_G = coulomb_kernel.V(self.chi0_data.qpd)
+        chi0_wGG = dyson_eqs.get_chi0_wGG(direction)
+        chi0_WGG = dyson_eqs.wblocks.all_gather(chi0_wGG)
+        del chi0calc, dyson_eqs, chi0_wGG
+        return chi0_WGG
+
     def __init__(self,
                  bse_gpw,
                  bse_valence_bands,
@@ -1336,6 +1347,46 @@ class BSEPlus:
                  direction=0,
                  truncation=None,
                  ecut=10):
+
+        """ BSE+ calculation of chi. BSE+ offers a way to improve
+        the convergence of the BSE by including transitions outside
+        the active BSE electron-hole subspace at the RPA level in
+        the irreducible polarizability. It saves the chi matrix
+        calculated with the BSE+, BSE and RPA as npy-files.
+
+        Parameters
+        ----------
+        bse_gpw: Path or str
+            Name of the calculator that the BSE calculation should be
+            made from (typically a fixed density calculator with less
+            kpts)
+        bse_valence_bands: range or list of integers
+            Number of valence bands to be included in the bse calculation
+        bse_conduction_bands: range or list of integers
+            Number of conduction bands to be included in the bse calculation
+        bse_nbands: integer
+            Number of bands used for the screened interaction
+        rpa_nbands: integer
+            Number of bands to be included in the RPA calculation.
+        w_w: list of floats
+            Dielectric function is calculated at these frequencies (eV)
+        eshift: float
+            Scissors operator opening the gap (eV)
+        bse_add_soc: bool
+            If True the calculation will included non-self-consitent SOC in the
+            underlying BSE calculation. SOC is not implemented in the RPA code.
+        eta: float
+            Lorentzian broadening of the spectrum (eV)
+        q_c: list of three floats
+            Wavevector in reduced units on which the response is calculated
+        direction: int
+            If q_c = [0, 0, 0] this gives the direction in cartesian
+            coordinates - 0=x, 1=y, 2=z
+        truncation: str or None
+            Coulomb truncation scheme. Can be None or 2D.
+        ecut: float
+            Plane wave cutoff energy (eV)
+         """
 
         self.bse_gpw = bse_gpw
         self.bse_valence_bands = bse_valence_bands
@@ -1389,32 +1440,22 @@ class BSEPlus:
         chi0calc_limited = self.create_chi0_limited_calculator()
         coulomb_kernel = CoulombKernel.from_gs(self.gs,
                                                truncation=self.truncation)
-        chi0_data_limited = chi0calc_limited.calculate(self.q_c)
-        dyson_eqs_limited = Chi0DysonEquations(chi0_data_limited,
-                                               coulomb_kernel, xc_kernel,
-                                               self.gs.cd)
-        chi0_limited_wGG = dyson_eqs_limited.get_chi0_wGG(self.rpa_direction)
-        chi0_limited_WGG = dyson_eqs_limited.wblocks.all_gather(
-            chi0_limited_wGG)
-        del chi0calc_limited, dyson_eqs_limited, chi0_data_limited,
-        chi0_limited_wGG
+        chi0_limited_WGG = self.get_chi_RPA(chi0calc_limited, self.q_c,
+                                            coulomb_kernel, xc_kernel,
+                                            self.gs.cd, self.rpa_direction)
 
         # chi0 fully converged
         chi0calc_full = self.create_chi0_full_calculator()
-        chi0_data_full = chi0calc_full.calculate(self.q_c)
-        dyson_eqs_full = Chi0DysonEquations(chi0_data_full, coulomb_kernel,
-                                            xc_kernel, self.gs.cd)
-        self.v_G = coulomb_kernel.V(chi0_data_full.qpd)
-        chi0_full_wGG = dyson_eqs_full.get_chi0_wGG(self.rpa_direction)
-        chi0_full_WGG = dyson_eqs_full.wblocks.all_gather(chi0_full_wGG)
-        del chi0calc_full, dyson_eqs_full, chi0_full_wGG
+        chi0_full_WGG = self.get_chi_RPA(chi0calc_full, self.q_c,
+                                         coulomb_kernel, xc_kernel,
+                                         self.gs.cd, self.rpa_direction)
 
         if self.truncation == '2D':
             pbc_c = self.gs.pbc
             assert sum(pbc_c) == 2
             coulomb_kernel_bare = CoulombKernel.from_gs(
                 self.gs, truncation=None)
-            v_G_bare = coulomb_kernel_bare.V(chi0_data_full.qpd, q_v=None)
+            v_G_bare = coulomb_kernel_bare.V(self.chi0_data.qpd, q_v=None)
             self.v_G = self.v_G / v_G_bare
             if optical:
                 v_G_bare[0] = 0.0
@@ -1429,7 +1470,7 @@ class BSEPlus:
         elif self.truncation is None and optical:
             self.v_G[0] = 0.0
 
-        del chi0_data_full
+        del self.chi0_data
 
         if comm is None:
             comm = world
