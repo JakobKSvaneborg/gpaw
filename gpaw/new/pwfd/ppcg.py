@@ -91,7 +91,7 @@ class PPCG(PWFDEigensolver):
         self.include_cg = include_cg
 
     def __str__(self):
-        return pformat(dict(name='Not Davidson',
+        return pformat(dict(name='PPCG',
                             niter=self.niter,
                             converge_bands=self.converge_bands))
 
@@ -100,7 +100,7 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 64  # Could be lower, maybe 32
+                self.blocksize = 32  # Could be lower, maybe 32
             else:
                 self.blocksize = 128
 
@@ -396,7 +396,7 @@ class PPCG(PWFDEigensolver):
                 else:
                     # In theory we could skip orthonormalization,
                     # but this sometimes causes issues so we do it.
-                    if b_error < 1e-2:
+                    if b_error < 1e-3:
                         # Approximate orthonormalization only if
                         # the residual is small.
                         approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
