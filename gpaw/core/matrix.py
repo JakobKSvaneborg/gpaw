@@ -9,7 +9,8 @@ import scipy.linalg as sla
 
 import gpaw.utilities.blas as blas
 from gpaw import debug, get_scipy_version
-from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
+from gpaw.gpu import cupy as cp, XP, gpu_gemm
+from gpaw.gpu.eigh import gpu_eigh
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
 
@@ -455,7 +456,7 @@ class Matrix(XP):
                 if S is None:
                     if self.xp is not np:
                         assert isinstance(H.data, cp.ndarray)
-                        eps[:], H.data.T[:] = cupy_eigh(H.data, UPLO='L')
+                        eps[:], H.data.T[:] = gpu_eigh(H.data, UPLO='L')
                     else:
                         eps[:], H.data.T[:] = sla.eigh(
                             H.data,
@@ -966,7 +967,7 @@ class CuPyDistribution(MatrixDistribution):
         tmp = H.new()
         self.multiply(1.0, L, 'N', H, 'N', 0.0, tmp)
         self.multiply(1.0, tmp, 'N', L, 'C', 0.0, H, symmetric=True)
-        eig_M, Ct_MM = cupy_eigh(H.data, UPLO='L')
+        eig_M, Ct_MM = gpu_eigh(H.data, UPLO='L')
         assert Ct_MM.flags.f_contiguous
         Ct = H.new(data=Ct_MM.T)
         self.multiply(1.0, L, 'C', Ct, 'T', 0.0, H)
