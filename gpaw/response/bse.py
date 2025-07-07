@@ -1275,7 +1275,7 @@ class VChi:
         return self.w_w, array
 
 
-class BSE_Plus:
+class BSEPlus:
 
     def create_chi0_full_calculator(self):
         chi0calc_full = Chi0Calculator(self.gs, self.context,
@@ -1372,7 +1372,7 @@ class BSE_Plus:
 
     def get_chi_wGG(self, optical=True, xc_kernel=None, comm=None,
                     chi_BSE=False, chi_RPA=False,
-                    bsep_name='chi_BSE_Plus',
+                    bsep_name='chi_BSEPlus',
                     bse_name='chi_BSE',
                     rpa_name='chi_RPA'):
 
@@ -1440,23 +1440,23 @@ class BSE_Plus:
         chi0_full_wGG = chi0_full_WGG[self.blocks.myslice]
         chi0_limited_wGG = chi0_limited_WGG[self.blocks.myslice]
 
-        chi_irr_BSE_plus_wGG = \
+        chi_irr_BSEPlus_wGG = \
             chi_irr_BSE_wGG - chi0_limited_wGG + chi0_full_wGG
-        eye = np.eye(chi_irr_BSE_plus_wGG.shape[1])
+        eye = np.eye(chi_irr_BSEPlus_wGG.shape[1])
 
-        chi_BSE_plus_wGG = \
-            np.linalg.solve(eye - chi_irr_BSE_plus_wGG @ np.diag(self.v_G),
-                            chi_irr_BSE_plus_wGG)
+        chi_BSEPlus_wGG = \
+            np.linalg.solve(eye - chi_irr_BSEPlus_wGG @ np.diag(self.v_G),
+                            chi_irr_BSEPlus_wGG)
 
         if self.truncation == '2D':
-            chi_BSE_plus_wGG *= V / (4 * np.pi)
+            chi_BSEPlus_wGG *= V / (4 * np.pi)
 
-        chi_BSE_plus_WGG = self.blocks.gather(chi_BSE_plus_wGG, 0)
+        chi_BSEPlus_WGG = self.blocks.gather(chi_BSEPlus_wGG, 0)
 
         if world.rank == 0:
-            np.save(bsep_name + '.npy', chi_BSE_plus_WGG)
-            del chi_BSE_plus_WGG
-        del chi_BSE_plus_wGG, chi0_limited_wGG
+            np.save(bsep_name + '.npy', chi_BSEPlus_WGG)
+            del chi_BSEPlus_WGG
+        del chi_BSEPlus_wGG, chi0_limited_wGG
 
         if chi_BSE:
             chi_BSE_wGG = \

@@ -1,6 +1,6 @@
 from gpaw import GPAW
 import numpy as np
-from gpaw.response.bse import BSE_Plus
+from gpaw.response.bse import BSEPlus
 from ase.dft.bandgap import bandgap
 
 calc_bse = 'fixed_density_calc_TiO2_bse.gpw'
@@ -18,7 +18,7 @@ w_w = np.linspace(0, 50, 5001)
 gap, _, _ = bandgap(GPAW(calc_rpa), direct=True)
 eshift = 3.3 - gap
 
-bse_plus = BSE_Plus(bse_gpw=calc_bse,
+bseplus = BSEPlus(bse_gpw=calc_bse,
                     bse_valence_bands=bse_valence_bands,
                     bse_conduction_bands=bse_conduction_bands,
                     bse_nbands=bse_nbands,
@@ -30,9 +30,9 @@ bse_plus = BSE_Plus(bse_gpw=calc_bse,
                     q_c=q_c,
                     ecut=ecut)
 
-bse_plus.get_chi_wGG(optical=True,
+bseplus.get_chi_wGG(optical=True,
                      chi_BSE=True,
                      chi_RPA=True,
-                     bsep_name='chi_TiO2_BSE_Plus',
+                     bsep_name='chi_TiO2_BSEPlus',
                      bse_name='chi_TiO2_BSE',
                      rpa_name='chi_TiO2_RPA')

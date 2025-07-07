@@ -3,17 +3,17 @@ from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 import pytest
 from gpaw.response.pair import get_gs_and_context
 from gpaw.mpi import world
-from gpaw.response.bse import BSE, BSE_Plus
+from gpaw.response.bse import BSE, BSEPlus
 from gpaw.response.df import Chi0DysonEquations
 from gpaw.response.coulomb_kernels import CoulombKernel
 from ase.units import Bohr
 
 
 @pytest.mark.response
-def test_bse_plus_2d(in_tmp_dir, gpw_files):
+def test_BSEPlus_2d(in_tmp_dir, gpw_files):
     """
-    This test makes a BSE plus calculation with the BSE_Plus class and
-    manually to test that the BSE_Plus code is working. It tests that the
+    This test makes a BSEPlus calculation with the BSEPlus class and
+    manually to test that the BSEPlus code is working. It tests that the
     assertions work.
     """
     gs, context = get_gs_and_context(
@@ -57,7 +57,7 @@ def test_bse_plus_2d(in_tmp_dir, gpw_files):
                                     ecut=ecut,
                                     eshift=eshift)
 
-    bse_plus = BSE_Plus(bse_gpw=gpw_files['mos2_5x5_pw'],
+    bseplus = BSEPlus(bse_gpw=gpw_files['mos2_5x5_pw'],
                         bse_valence_bands=bse_valence_bands,
                         bse_conduction_bands=bse_conduction_bands,
                         bse_nbands=bse_nbands,
@@ -70,10 +70,10 @@ def test_bse_plus_2d(in_tmp_dir, gpw_files):
                         ecut=ecut,
                         truncation='2D')
 
-    bse_plus.get_chi_wGG(optical=True)
+    bseplus.get_chi_wGG(optical=True)
 
     if world.rank == 0:
-        chi_BSE_plus_WGG = np.load("chi_BSE_Plus.npy")
+        chi_BSEPlus_WGG = np.load("chi_BSEPlus.npy")
 
     coulomb_kernel = CoulombKernel.from_gs(gs, truncation='2D')
 
@@ -111,22 +111,22 @@ def test_bse_plus_2d(in_tmp_dir, gpw_files):
         chi0_large_WGG = chi0_large_WGG * v_G_bare[np.newaxis, np.newaxis, :]
         chi_irr_BSE_WGG = chi_irr_BSE_WGG * v_G_bare[np.newaxis, np.newaxis, :]
 
-        chi_irr_BSE_plus_WGG = \
+        chi_irr_BSEPlus_WGG = \
             chi_irr_BSE_WGG - chi0_small_WGG + chi0_large_WGG
 
-        eye = np.eye(len(chi_irr_BSE_plus_WGG[1]))
+        eye = np.eye(len(chi_irr_BSEPlus_WGG[1]))
 
-        chi_BSE_plus_WGG_manuel = \
-            np.linalg.solve(eye - chi_irr_BSE_plus_WGG @ np.diag(v_G),
-                            chi_irr_BSE_plus_WGG)
+        chi_BSEPlus_WGG_manual = \
+            np.linalg.solve(eye - chi_irr_BSEPlus_WGG @ np.diag(v_G),
+                            chi_irr_BSEPlus_WGG)
         cell_cv = gs.gd.cell_cv
         pbc_c = gs.pbc
         V = np.abs(np.linalg.det(cell_cv[~pbc_c][:, ~pbc_c]))
         V *= Bohr
 
-        chi_BSE_plus_WGG_manuel *= V / (np.pi * 4)
+        chi_BSEPlus_WGG_manual *= V / (np.pi * 4)
 
-        assert chi_BSE_plus_WGG_manuel == pytest.approx(chi_BSE_plus_WGG,
+        assert chi_BSEPlus_WGG_manual == pytest.approx(chi_BSEPlus_WGG,
                                                         rel=1e-3, abs=1e-4)
 
         ref = [(3.397365320873605e-08 - 0.0011565040523532147j),
@@ -136,4 +136,4 @@ def test_bse_plus_2d(in_tmp_dir, gpw_files):
                (-0.0221078136579067 + 0.00854914022562708j)]
 
         for i, r in enumerate(ref):
-            assert np.allclose(chi_BSE_plus_WGG[i, i, i + 1], r)
+            assert np.allclose(chi_BSEPlus_WGG[i, i, i + 1], r)

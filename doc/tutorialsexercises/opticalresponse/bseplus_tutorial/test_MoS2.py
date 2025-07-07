@@ -9,7 +9,7 @@ from gpaw.test import findpeak
 def test():
     """Test data in eels_MoS2.png and eels_MoS2_low_frequencies.png figure"""
     # Load data
-    chi_bsep = np.load('chi_MoS2_BSE_plus.npy')
+    chi_bsep = np.load('chi_MoS2_BSEPlus.npy')
     chi_bse = np.load('chi_MoS2_BSE.npy')
     chi_rpa = np.load('chi_MoS2_RPA.npy')
     w = np.linspace(0, 50, 5001)

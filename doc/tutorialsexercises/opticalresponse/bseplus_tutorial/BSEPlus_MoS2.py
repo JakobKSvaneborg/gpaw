@@ -1,5 +1,5 @@
 from gpaw import GPAW
-from gpaw.response.bse import BSE_Plus
+from gpaw.response.bse import BSEPlus
 import numpy as np
 from ase.dft.bandgap import bandgap
 
@@ -19,7 +19,7 @@ w_w = np.linspace(0, 50, 5001)
 gap, _, _ = bandgap(GPAW(calc_rpa), direct=True)
 eshift = 2.53 - gap  # G0W0 bandgap according to C2DB
 
-bse_plus = BSE_Plus(bse_gpw=calc_bse,
+bseplus = BSEPlus(bse_gpw=calc_bse,
                     bse_valence_bands=bse_valence_bands,
                     bse_conduction_bands=bse_conduction_bands,
                     bse_nbands=bse_nbands,
@@ -33,7 +33,7 @@ bse_plus = BSE_Plus(bse_gpw=calc_bse,
                     truncation='2D',
                     ecut=ecut)
 
-bse_plus.get_chi_wGG(optical=False, chi_BSE=True, chi_RPA=True,
-                     bsep_name='chi_MoS2_BSE_plus',
+bseplus.get_chi_wGG(optical=False, chi_BSE=True, chi_RPA=True,
+                     bsep_name='chi_MoS2_BSEPlus',
                      bse_name='chi_MoS2_BSE',
                      rpa_name='chi_MoS2_RPA')

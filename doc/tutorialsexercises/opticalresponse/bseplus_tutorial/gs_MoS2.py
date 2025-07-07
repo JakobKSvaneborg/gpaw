@@ -4,7 +4,7 @@ from ase.io import read
 
 slab = read('MoS2.json')
 
-name_calc = 'calc_MoS2_BSE_plus'
+name_calc = 'calc_MoS2_BSEPlus'
 calc_bse = 'fixed_density_calc_MoS2_bse'
 calc_rpa = 'fixed_density_calc_MoS2_rpa'
 

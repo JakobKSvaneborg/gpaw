@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-chi_bsep = np.load('chi_MoS2_BSE_plus.npy')
+chi_bsep = np.load('chi_MoS2_BSEPlus.npy')
 chi_bse = np.load('chi_MoS2_BSE.npy')
 chi_rpa = np.load('chi_MoS2_RPA.npy')
 x = np.linspace(0, 50, 5001)

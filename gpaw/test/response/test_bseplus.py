@@ -3,16 +3,16 @@ from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 import pytest
 from gpaw.response.pair import get_gs_and_context
 from gpaw.mpi import world
-from gpaw.response.bse import BSE, BSE_Plus
+from gpaw.response.bse import BSE, BSEPlus
 from gpaw.response.df import Chi0DysonEquations
 from gpaw.response.coulomb_kernels import CoulombKernel
 
 
 @pytest.mark.response
-def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
+def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch):
     """
-    This test makes a BSE plus calculation with the BSE_Plus class and
-    manually to test that the BSE_Plus code is working. It tests that the
+    This test makes a BSE plus calculation with the BSEPlus class and
+    manually to test that the BSEPlus code is working. It tests that the
     assertion work.
     """
     monkeypatch.chdir(in_tmp_dir)
@@ -56,7 +56,7 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
                                     ecut=ecut,
                                     eshift=eshift)
 
-    bse_plus = BSE_Plus(bse_gpw=calc,
+    bseplus = BSEPlus(bse_gpw=calc,
                         bse_valence_bands=bse_valence_bands,
                         bse_conduction_bands=bse_conduction_bands,
                         bse_nbands=bse_nbands,
@@ -68,14 +68,14 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
                         q_c=q_c,
                         ecut=ecut)
 
-    bse_plus.get_chi_wGG(optical=True,
+    bseplus.get_chi_wGG(optical=True,
                          chi_BSE=True,
                          chi_RPA=True,
-                         bsep_name='chi_BSE_Plus_3bands',
+                         bsep_name='chi_BSEPlus_3bands',
                          bse_name='chi_BSE',
                          rpa_name='chi_RPA')
     if world.rank == 0:
-        chi_BSE_plus_WGG = np.load("chi_BSE_Plus_3bands.npy")
+        chi_BSEPlus_WGG = np.load("chi_BSEPlus_3bands.npy")
         chi_BSE_WGG = np.load("chi_BSE.npy")
         chi_RPA_WGG = np.load("chi_RPA.npy")
 
@@ -122,19 +122,19 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
     v_G[0] = 0.0
 
     if world.rank == 0:
-        chi_irr_BSE_plus_WGG = \
+        chi_irr_BSEPlus_WGG = \
             chi_irr_BSE_WGG - chi0_small_WGG + chi0_large_WGG
 
-        eye = np.eye(len(chi_irr_BSE_plus_WGG[1]))
+        eye = np.eye(len(chi_irr_BSEPlus_WGG[1]))
 
-        chi_BSE_plus_WGG_manuel = \
-            np.linalg.solve(eye - chi_irr_BSE_plus_WGG @ np.diag(v_G),
-                            chi_irr_BSE_plus_WGG)
+        chi_BSEPlus_WGG_manual = \
+            np.linalg.solve(eye - chi_irr_BSEPlus_WGG @ np.diag(v_G),
+                            chi_irr_BSEPlus_WGG)
 
-        assert chi_BSE_plus_WGG_manuel == pytest.approx(chi_BSE_plus_WGG,
+        assert chi_BSEPlus_WGG_manual == pytest.approx(chi_BSEPlus_WGG,
                                                         rel=1e-3, abs=1e-4)
 
-        ref_BSE_plus = [(-0.033315642421628745 - 0.025836336756360122j),
+        ref_BSEPlus = [(-0.033315642421628745 - 0.025836336756360122j),
                         (-1.9089679632375633e-06 - 0.014016992849787593j),
                         (0.00017364808582158713 - 0.0008411354658348707j)]
 
@@ -147,8 +147,8 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
                    (0.00023134668887131937 - 0.00041661801604023766j)]
 
         for i in range(3):
-            assert np.allclose(chi_BSE_plus_WGG[i, i, i + 1],
-                               ref_BSE_plus[i], rtol=1e-2, atol=1e-3)
+            assert np.allclose(chi_BSEPlus_WGG[i, i, i + 1],
+                               ref_BSEPlus[i], rtol=1e-2, atol=1e-3)
             assert np.allclose(chi_BSE_WGG[i, i, i + 1],
                                ref_BSE[i], rtol=1e-2, atol=1e-3)
             assert np.allclose(chi_RPA_WGG[i, i, i + 1],
@@ -157,7 +157,7 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
     # assertion error if more bands in the bse calculation
     with pytest.raises(AssertionError, match=r'Large chi0 calculation*'):
         rpa_nbands = 5
-        BSE_Plus(bse_gpw=calc,
+        BSEPlus(bse_gpw=calc,
                  bse_valence_bands=bse_valence_bands,
                  bse_conduction_bands=bse_conduction_bands,
                  bse_nbands=bse_nbands,
@@ -172,7 +172,7 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
     # assertion error if truncation is not none or 2d
     with pytest.raises(AssertionError):
         rpa_nbands = 8
-        BSE_Plus(bse_gpw=calc,
+        BSEPlus(bse_gpw=calc,
                  bse_valence_bands=bse_valence_bands,
                  bse_conduction_bands=bse_conduction_bands,
                  bse_nbands=bse_nbands,
@@ -187,7 +187,7 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
 
     # assertion error if truncation is 2d but system has pbc_c > 2.
     with pytest.raises(AssertionError):
-        bse_plus = BSE_Plus(bse_gpw=calc,
+        bseplus = BSEPlus(bse_gpw=calc,
                             bse_valence_bands=bse_valence_bands,
                             bse_conduction_bands=bse_conduction_bands,
                             bse_nbands=bse_nbands,
@@ -200,4 +200,4 @@ def test_bse_plus(in_tmp_dir, gpw_files, monkeypatch):
                             q_c=q_c,
                             ecut=ecut)
 
-        bse_plus.get_chi_wGG(optical=True)
+        bseplus.get_chi_wGG(optical=True)

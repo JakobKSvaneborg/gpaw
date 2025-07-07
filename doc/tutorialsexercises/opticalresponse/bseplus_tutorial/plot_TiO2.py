@@ -12,7 +12,7 @@ def eels(chi_real, chi_im):
     return (-eps**(-1)).imag
 
 
-chi_bsep = np.load('chi_TiO2_BSE_Plus.npy')
+chi_bsep = np.load('chi_TiO2_BSEPlus.npy')
 chi_bse = np.load('chi_TiO2_BSE.npy')
 chi_rpa = np.load('chi_TiO2_RPA.npy')
 x = np.linspace(0, 50, 5001)
