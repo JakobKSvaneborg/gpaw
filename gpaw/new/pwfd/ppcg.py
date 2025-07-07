@@ -12,7 +12,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.pwfd.davidson import sliced_preconditioner
 # from gpaw.typing import Array2D
-from gpaw.core import PWDesc
+from gpaw.core import PWDesc, PWArray
 from gpaw.new import tracectx, trace
 
 
@@ -512,12 +512,18 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     psit_nX = wfs.psit_nX
     xp = psit_nX.xp
     dH(P_ani, out_ani=P2_ani)
-    eigs1_n = xp.zeros(wfs.myeig_n.shape, dtype=psit_nX.data.dtype)
-    eigs2_n = xp.zeros(wfs.myeig_n.shape, dtype=psit_nX.data.dtype)
+    eigs1_n = xp.zeros(wfs.myeig_n.shape, dtype=psit_nX.matrix.data.dtype)
+    eigs2_n = xp.zeros(wfs.myeig_n.shape, dtype=psit_nX.matrix.data.dtype)
     subscripts = 'nX, nX -> n'
     xp.einsum(subscripts, Hpsit_nX.matrix.data,
               psit_nX.matrix.data.conj(), out=eigs1_n)
     eigs1_n *= psit_nX.dv
+    if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
+            isinstance(psit_nX, PWArray):
+        eigs1_n *= 2
+        if domain_comm.rank == 0:
+            eigs1_n -= psit_nX.matrix.data[:, 0] * \
+                Hpsit_nX.matrix.data[:, 0] * psit_nX.dv
     xp.einsum(subscripts, P2_ani.matrix.data,
               P_ani.matrix.data.conj(), out=eigs2_n)
     eigs1_n += eigs2_n
