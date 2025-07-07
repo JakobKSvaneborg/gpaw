@@ -69,12 +69,13 @@ def test_2d_non_self_consistent():
     n = 2
     a.calc = NewGPAW(
         mode=PW(200),
+        convergence={'density': 1e-5},
         kpts=(n, n, 1),
         txt=None)
     a.get_potential_energy()
 
     eref_kn = np.array(
-        [[-6.0937903, 31.82737621, 36.83364518, 53.28369147],
+        [[-6.0938938, 31.82737621, 36.83364518, 53.28369147],
          [13.0202785, 28.45570036, 38.86882486, 43.44290272]])
 
     if a.calc.dft.comm.size == 1:
