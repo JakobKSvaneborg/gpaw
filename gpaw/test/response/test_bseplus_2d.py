@@ -70,7 +70,7 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files):
                       ecut=ecut,
                       truncation='2D')
 
-    bseplus.get_chi_wGG(optical=True)
+    bseplus.calculate_chi_wGG(optical=True)
 
     if world.rank == 0:
         chi_BSEPlus_WGG = np.load("chi_BSEPlus.npy")

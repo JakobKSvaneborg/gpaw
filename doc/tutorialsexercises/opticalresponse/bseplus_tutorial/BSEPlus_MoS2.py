@@ -33,7 +33,7 @@ bseplus = BSEPlus(bse_gpw=calc_bse,
                   truncation='2D',
                   ecut=ecut)
 
-bseplus.get_chi_wGG(optical=False, chi_BSE=True, chi_RPA=True,
-                    bsep_name='chi_MoS2_BSEPlus',
-                    bse_name='chi_MoS2_BSE',
-                    rpa_name='chi_MoS2_RPA')
+bseplus.calculate_chi_wGG(optical=False, chi_BSE=True, chi_RPA=True,
+                          bsep_name='chi_MoS2_BSEPlus',
+                          save_chi_BSE='chi_MoS2_BSE',
+                          save_chi_RPA='chi_MoS2_RPA')

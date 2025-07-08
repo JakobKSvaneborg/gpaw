@@ -68,12 +68,10 @@ def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch):
                       q_c=q_c,
                       ecut=ecut)
 
-    bseplus.get_chi_wGG(optical=True,
-                        chi_BSE=True,
-                        chi_RPA=True,
-                        bsep_name='chi_BSEPlus_3bands',
-                        bse_name='chi_BSE',
-                        rpa_name='chi_RPA')
+    bseplus.calculate_chi_wGG(optical=True,
+                              bsep_name='chi_BSEPlus_3bands',
+                              save_chi_BSE='chi_BSE',
+                              save_chi_RPA='chi_RPA')
     if world.rank == 0:
         chi_BSEPlus_WGG = np.load("chi_BSEPlus_3bands.npy")
         chi_BSE_WGG = np.load("chi_BSE.npy")
@@ -200,4 +198,4 @@ def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch):
                           q_c=q_c,
                           ecut=ecut)
 
-        bseplus.get_chi_wGG(optical=True)
+        bseplus.calculate_chi_wGG(optical=True)

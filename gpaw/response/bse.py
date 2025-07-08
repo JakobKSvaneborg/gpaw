@@ -1421,11 +1421,9 @@ class BSEPlus:
             'Large chi0 calculation should contain more ' \
             'bands than the BSE calculation'
 
-    def get_chi_wGG(self, optical=True, xc_kernel=None, comm=None,
-                    chi_BSE=False, chi_RPA=False,
-                    bsep_name='chi_BSEPlus',
-                    bse_name='chi_BSE',
-                    rpa_name='chi_RPA'):
+    def calculate_chi_wGG(self, optical=True, xc_kernel=None, comm=None,
+                          bsep_name='chi_BSEPlus',
+                          save_chi_BSE=False, save_chi_RPA=False):
 
         # irreducibale bse chi
         bse = self.create_bse_calculator()
@@ -1499,7 +1497,7 @@ class BSEPlus:
             del chi_BSEPlus_WGG
         del chi_BSEPlus_wGG, chi0_limited_wGG
 
-        if chi_BSE:
+        if save_chi_BSE:
             chi_BSE_wGG = \
                 np.linalg.solve(eye - chi_irr_BSE_wGG @ np.diag(self.v_G),
                                 chi_irr_BSE_wGG)
@@ -1510,11 +1508,12 @@ class BSEPlus:
             chi_BSE_WGG = self.blocks.gather(chi_BSE_wGG, 0)
 
             if world.rank == 0:
-                np.save(bse_name + '.npy', chi_BSE_WGG)
+                np.save('chi_BSE.npy' if save_chi_BSE is True else
+                        save_chi_BSE, chi_BSE_WGG)
                 del chi_BSE_WGG
             del chi_BSE_wGG
 
-        if chi_RPA:
+        if save_chi_RPA:
             chi_full_wGG = \
                 np.linalg.solve(eye - chi0_full_wGG @ np.diag(self.v_G),
                                 chi0_full_wGG)
@@ -1525,8 +1524,7 @@ class BSEPlus:
             chi_full_WGG = self.blocks.gather(chi_full_wGG, 0)
 
             if world.rank == 0:
-                np.save(rpa_name + '.npy', chi_full_WGG)
+                np.save('chi_RPA.npy' if save_chi_RPA is True else
+                        save_chi_RPA, chi_full_WGG)
                 del chi_full_WGG
             del chi_full_wGG
-
-        return
