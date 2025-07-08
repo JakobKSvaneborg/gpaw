@@ -1,6 +1,5 @@
 import numpy as np
 from scipy import sparse
-from scipy.sparse import linalg
 from gpaw.core.matrix import Matrix, MatrixWithNoData
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
@@ -205,8 +204,7 @@ def add_atomic_overlap_corrections(
         S0_qMM,
         setups,
         M1: int,
-        M2: int
-        ):
+        M2: int):
     for P_aMi, S_MM in zips(P_qaMi, S0_qMM):
         # No atoms on this rank
         if len(P_aMi) == 0:
