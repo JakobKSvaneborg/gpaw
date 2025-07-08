@@ -168,7 +168,7 @@ class SimplePAWPoissonSolver(PAWPoissonSolver):
         return e_coulomb, vHt_g, V_aL
 
     def force_contribution(self, Q_aL, vHt_g, nt_g):
-        force_av = np.zeros((len(Q_aL), 3))
+        force_av = self.xp.zeros((len(Q_aL), 3))
 
         F_avL = self.ghat_aLg.derivative(vHt_g)
         for a, dF_vL in F_avL.items():

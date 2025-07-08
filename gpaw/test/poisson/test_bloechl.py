@@ -13,6 +13,8 @@ from gpaw.new.pw.paw_poisson import (SimplePAWPoissonSolver,
                                      SlowPAWPoissonSolver)
 from gpaw.new.pw.poisson import PWPoissonSolver
 from gpaw.mpi import world
+from gpaw.gpu import cupy as cp
+from gpaw.gpu.mpi import CuPyMPI
 
 
 def g(rc, rgd):
@@ -55,8 +57,12 @@ def force(charges, a):
     return (em - ep) / (2 * eps)
 
 
-def test_psolve():
+@pytest.mark.parametrize('xp',
+                         [np,
+                          pytest.param(cp, marks=pytest.mark.gpu)])
+def test_psolve(xp):
     """Unit-test for Blöchl's fast Poisson-solver."""
+    comm = CuPyMPI(world)
     rgd = RGD(0.01, 500)
     rc1 = 0.6
     rc2 = 0.7
@@ -64,11 +70,11 @@ def test_psolve():
     g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
     v = 7.5
     gcut = 25.0
-    pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12], comm=world)
+    pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12], comm=comm)
     relpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
                           [0.5, 0.5, (v + d12) / (2 * v + d12)]])
-    g_aig = pw.atom_centered_functions(g_ai, positions=relpos_ac)
-    nt_g = pw.zeros()
+    g_aig = pw.atom_centered_functions(g_ai, positions=relpos_ac, xp=xp)
+    nt_g = pw.zeros(xp=xp)
     C_ai = g_aig.empty()
     if 0 in C_ai:
         C_ai[0] = 0.9
@@ -89,35 +95,37 @@ def test_psolve():
 
     ps = PWPoissonSolver(pw)
     spps = SimplePAWPoissonSolver(
-        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist)
+        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist, xp=xp)
     Q_aL = spps.ghat_aLg.empty()
     Q_aL.data[:] = 0.0
     for a, C_i in C_ai.items():
         Q_aL[a][0] = -C_i[0]
     nt0_g = nt_g.gather()
-    vt1_g = pw.zeros()
-    vt10_g = vt1_g.gather()
+    vt10_g = pw.zeros(xp=xp).gather()
     e1, vHt_g, V1_aL = spps.solve(nt0_g, Q_aL, vt10_g)
     F1_av = spps.force_contribution(Q_aL, vHt_g, nt_g)
-    world.sum(F1_av)
+    comm.sum(F1_av)
     assert e1 == pytest.approx(e0, abs=1e-9)
     print('simple', e1, e1 - e0)
     print(F1_av)
-    assert F1_av == pytest.approx(np.array([[0, 0, f0], [0, 0, f1]]))
+    assert np.asarray(F1_av) == pytest.approx(np.array([[0, 0, f0],
+                                                        [0, 0, f1]]))
 
     pps = BloechlPAWPoissonSolver(
-        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist)
-    vt2_g = pw.zeros()
-    vt20_g = vt2_g.gather()
+        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist, xp=xp)
+    vt20_g = pw.zeros(xp=xp).gather()
     e2, vHt_g, V2_aL = pps.solve(nt0_g, Q_aL, vt20_g)
     F2_av = pps.force_contribution(Q_aL, vHt_g, nt_g)
-    world.sum(F2_av)
+    comm.sum(F2_av)
     assert e2 == pytest.approx(e0, abs=1e-8)
     print('\nfast  ', e2, e2 - e0)
-    assert V2_aL.data[::9] == pytest.approx(V1_aL.data[::9], abs=1e-7)
-    if world.rank == 0:
+    assert np.asarray(V2_aL.data[::9]) == pytest.approx(
+        np.asarray(V1_aL.data[::9]), abs=1e-7)
+    if comm.rank == 0:
+        vt10_g = vt10_g.to_xp(np)
+        vt20_g = vt20_g.to_xp(np)
         assert vt20_g.data[:5] == pytest.approx(vt10_g.data[:5], abs=1e-10)
-    assert F1_av == pytest.approx(F2_av, abs=3e-6)
+    assert np.asarray(F1_av) == pytest.approx(np.asarray(F2_av), abs=3e-6)
 
     if 0:
         ps = PWPoissonSolver(pw.new(gcut=2 * gcut))
