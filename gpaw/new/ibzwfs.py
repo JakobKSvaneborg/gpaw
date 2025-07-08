@@ -78,7 +78,6 @@ class IBZWaveFunctions(Generic[WFT]):
                kpt_band_comm: MPIComm = serial_comm,
                comm: MPIComm = serial_comm,
                ) -> Self:
-        """Collection of wave function objects for k-points in the IBZ."""
         rank_k = ibz.ranks(kpt_comm)
         mask_k = (rank_k == kpt_comm.rank)
         k_q = np.arange(len(ibz))[mask_k]

@@ -56,7 +56,6 @@ class PWHybridHamiltonianK(PWHamiltonian):
             pw, relpos_ac, atomdist)
 
         self.mypsits: list[Psit] = []
-        # self.nocc = -1
         self.nbzk = 0
 
     def update_wave_functions(self,
@@ -200,7 +199,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
             rhot_nR.data *= ut1_R.conj()
             Q_anL = {}
             for a, Q1_niL in Q1_aniL.items():
-                Q_anL[a] = P2_ani[a] @ Q1_niL[n1].conj()
+                Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
             rhot_nG = pw.empty(len(rhot_nR))
             fft(rhot_nR, rhot_nG, plan=self.plan)
             ghat_aLG.add_to(rhot_nG, Q_anL)
@@ -220,5 +219,5 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 v2_R.fft(out=v2_G)
                 Htpsit2_G.data -= v2_G.data * x
             for a, Q1_niL in Q1_aniL.items():
-                V2_ani[a][:] -= x * V2_anL[a] @ Q1_niL[n1].T
+                V2_ani[a][:] -= x * V2_anL[a] @ Q1_niL[n1].T.conj()
         return e

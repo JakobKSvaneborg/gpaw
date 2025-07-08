@@ -144,8 +144,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         psi1 = Psi(wfs.psit_nX, wfs.P_ani, wfs.myocc_n)
         pt_aiG = wfs.pt_aiX
 
-        # We should pass a flag instead of this:
-        if psi1.psit_nG.data is psit2_nG.data:
+        if calculate_energy:
             # We are doing a subspace diagonalization ...
             evv, evc, ekin = self.apply1(D_aii, pt_aiG,
                                          psi1, psi1, Htpsit2_nG)
@@ -297,7 +296,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                                                       psi1.f_n)):
             vrhot_G.data = rhot_G.data * self.v_G.data
             if psi2.f_n is not None:
-                e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
+                e12 = rhot_G.integrate(vrhot_G).real
+                e += f1 * psi2.f_n[n2] * e12
             rhot_G.data[:] = vrhot_G.data
 
             if self.pw.dtype == float:
