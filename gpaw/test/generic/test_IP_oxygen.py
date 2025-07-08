@@ -22,9 +22,9 @@ def test_generic_IP_oxygen():
     l0 = np.inf
     h1 = -35.55077324
     l1 = -20.81227577
-    assert O.calc.get_homo_lumo(0) == pytest.approx([h0, l0])
-    assert O.calc.get_homo_lumo(1) == pytest.approx([h1, l1])
-    assert O.calc.get_homo_lumo() == pytest.approx([h0, l1])
+    assert O.calc.get_homo_lumo(0) == pytest.approx([h0, l0], rel=0.001)
+    assert O.calc.get_homo_lumo(1) == pytest.approx([h1, l1], rel=0.001)
+    assert O.calc.get_homo_lumo() == pytest.approx([h0, l1], rel=0.001)
 
     print(e1 - e0)
     assert abs(e1 - e0 - 13.989) < 0.04

@@ -178,6 +178,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         occ_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.psit_nX.add_ked(occ_n, taut_sR[self.spin])
 
+    @trace
     def orthonormalize(self, psit2_nX):
         r"""Orthonormalize wave functions.
 
@@ -239,10 +240,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def subspace_diagonalize(self,
                              Ht,
                              dH,
-                             psit2_nX=None,
+                             psit2_nX,
                              data_buffer=None,
                              scalapack_parameters=(None, 1, 1, None)):
         """
+        If data_buffer is None, psit2_nX will be used as a buffer
+        for the wave functions.
 
         Ht(in, out):::
 
@@ -284,10 +287,16 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         domain_comm.broadcast(H.data, 0)
         domain_comm.broadcast(self._eig_n, 0)
-        H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
-        H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
-        H.multiply(P_ani, out=P2_ani)
-        P_ani.data[:] = P2_ani.data
+        if data_buffer is None:
+            H.multiply(psit_nX, out=psit2_nX)
+            psit_nX.data[:] = psit2_nX.data
+            H.multiply(P_ani, out=P2_ani)
+            P_ani.data[:] = P2_ani.data
+        else:
+            H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
+            H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
+            H.multiply(P_ani, out=P2_ani)
+            P_ani.data[:] = P2_ani.data
 
     def force_contribution(self,
                            potential: Potential,

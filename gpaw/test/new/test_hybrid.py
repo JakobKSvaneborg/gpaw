@@ -52,6 +52,7 @@ def test_h(gpaw_new):
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(mode='pw',
                       xc='HSE06',
+                      eigensolver='dav',
                       nbands=2,
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()

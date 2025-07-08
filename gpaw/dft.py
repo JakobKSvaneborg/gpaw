@@ -15,6 +15,7 @@ from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
+from gpaw.new.pwfd.ppcg import PPCG as PPCGEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
 
 if TYPE_CHECKING:
@@ -200,6 +201,54 @@ class Davidson(PWFDEigensolverParamater):
     cls = DavidsonEigensolver
 
 
+class PPCG(PWFDEigensolverParamater):
+    name = 'ppcg'
+    cls = PPCGEigensolver
+
+    def __init__(self,
+                 niter: int = 2,
+                 max_buffer_mem: int = 200 * 1024**2,
+                 blocksize=None,
+                 rr_modulo=5,
+                 include_cg=True,
+                 tolerances: tuple[float] | None = None):
+        self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
+        self.blocksize = blocksize
+        self.rr_modulo = rr_modulo
+        self.include_cg = include_cg
+        self.tolerances = tolerances
+
+    def todict(self):
+        return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
+                'blocksize': self.blocksize,
+                'rr_modulo': self.rr_modulo,
+                'include_cg': self.include_cg,
+                'tolerances': self.tolerances}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              hamiltonian,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            hamiltonian,
+            converge_bands,
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
+            blocksize=self.blocksize,
+            rr_modulo=self.rr_modulo,
+            include_cg=self.include_cg,
+            tolerances=self.tolerances)
+
+
 class RMMDIIS(PWFDEigensolverParamater):
     name = 'rmm-diis'
     cls = RMMDIISEigensolver
@@ -269,6 +318,8 @@ class Scissors(LCAOEigensolver):
 eigensolvers = {
     'davidson': Davidson,
     'rmm-diis': RMMDIIS,
+    'not-dav': PPCG,
+    'ppcg': PPCG,
     'lcao': LCAOEigensolver,
     'hybrid-lcao': HybridLCAOEigensolver,
     'scissors': Scissors}
