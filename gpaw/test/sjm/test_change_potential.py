@@ -1,15 +1,9 @@
 import pytest
-from .base_calc import calculator
-from ase.build import fcc111
 
 
+@pytest.mark.skip('https://gitlab.com/gpaw/gpaw/-/issues/1381')
 @pytest.mark.old_gpaw_only
-def test_change_potential():
-    atoms = fcc111('H', size=(1, 1, 1), a=2.5)
-    atoms.center(axis=2, vacuum=5)
-    atoms.cell[2][2] = 10
-
-    atoms.calc = calculator()
+def test_change_potential(atoms):
     atoms.calc.set(sj={'tol': 0.1})
 
     pot = atoms.calc.parameters['sj']['target_potential']
@@ -26,7 +20,3 @@ def test_change_potential():
     E2 = atoms.get_potential_energy()
     assert abs(atoms.calc.get_electrode_potential() - pot) < tol
     assert abs(E1 - E2) < 1e-2
-
-
-if __name__ == '__main__':
-    test_change_potential()

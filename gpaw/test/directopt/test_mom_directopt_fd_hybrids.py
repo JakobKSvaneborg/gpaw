@@ -27,6 +27,7 @@ def test_mom_directopt_fd_hybrids(in_tmp_dir):
     e_ref_es = 21.861924
     eig_ref_es = np.array([-15.98483801, -3.4381461])
 
+    # XXX(rg): Fails with gpwfile, see tchem-gl-14
     calc = GPAW(mode=FD(),
                 h=0.3,
                 xc=HybridXC('PBE0', unocc=True),

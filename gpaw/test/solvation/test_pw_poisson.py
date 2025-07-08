@@ -270,7 +270,7 @@ def test_cg_poisson_solver_constant_dielectric(density_generator):
 
     class MockDielectric:
         def __init__(self, eps_gradeps):
-            self.eps_gradeps = eps_gradeps
+            self.eps_gradeps = [e.data for e in eps_gradeps]
 
     solver = ConjugateGradientPoissonSolver(
         pw, grid, MockDielectric(eps_gradeps),
@@ -315,7 +315,7 @@ def test_cg_poisson_solver_variable_dielectric(density_generator):
 
     class MockDielectric:
         def __init__(self, eps_gradeps):
-            self.eps_gradeps = eps_gradeps
+            self.eps_gradeps = [e.data for e in eps_gradeps]
 
     solver = ConjugateGradientPoissonSolver(
         pw=pw, grid=grid,

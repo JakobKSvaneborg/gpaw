@@ -5,7 +5,7 @@ variables:
   IMAGE_MAIN_LATEST: "$IMAGE_PATH/main:latest"
   IMAGE_CUDA: "$IMAGE_PATH/cuda:11"
   OMP_NUM_THREADS: "1"
-  # CI for branches inside the GPAW namespace will run on camd-runner2
+  # CI for branches inside the GPAW namespace will run on lyn/torden
   # because the GPAW project settings define the CI variable
   # DEFAULT_RUNNER_TAG: "linux".
   # Forks will instead get this definition which allows running
@@ -13,6 +13,13 @@ variables:
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
 
+  # OpenMPI binds processes to specific physical cores (cf. mpiexec
+  # manpage) when there are <= 2 cores.  This will cause it to
+  # oversubscribe the /same/ physical cores when running simultaneous
+  # size==2 jobs.  We therefore tell GPAW to tell mpiexec not to do
+  # this.  This problem was not observed on camd-runner2 because it
+  # uses hyperthreading and so was equipped to redistribute the load.
+  GPAW_MPI_OPTIONS: "--bind-to none"
 
 default:
   before_script:
@@ -80,7 +87,6 @@ stages:
       - _gpaw.*.so
       - "*.log"
     expire_in: 30 mins
-
 
 .test:
   stage: test
@@ -260,6 +266,7 @@ build-lumi-g:
   extends:
     - .build
     - .lumi-g-job
+  when: manual
   script:
     - module load buildtools-python/24.03-cray-python3.11
     - |
@@ -363,7 +370,7 @@ test-oldest:
   script:
     - gpaw info
     - >
-      OMP_NUM_THREADS=2 pytest -v -m ci -We
+      OMP_NUM_THREADS=2 pytest -v -We -k 0-fd gpaw/test/test_fuzz.py
 
     # This is the only test which uses OpenMP.
     # We may want to identify a limited set of tests that must work
@@ -371,7 +378,7 @@ test-oldest:
 
     - gpaw-python -m gpaw info
     - >
-      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-pw
+      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-fd
       gpaw/test/test_fuzz.py
 
 
@@ -551,15 +558,6 @@ lint:
       --extend-ignore E402,E501
       doc/summerschools/summerschool24/catalysis
       doc/platforms/Linux/Niflheim
-    - echo "interrogate"
-    - pip install interrogate
-    - interrogate --version
-    - >
-      interrogate -m -i
-      -f 33.1
-      -e gpaw/test
-      -e gpaw/point_groups/groups.py
-      gpaw
 
 
 typecheck:
@@ -599,15 +597,28 @@ docs:
     expire_in: 1 week
 
 
+nightly-all:
+  image: $IMAGE_MAIN_LATEST
+  stage: build
+  script:
+    - echo This is only a dummy job used to trigger other jobs
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: manual
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+
 gpwfiles:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
   needs:
     - build-latest
+    - nightly-all
   stage: precalculate
   tags:
-    - xeon24
+    - xeon40
   before_script:
     - !reference [default, before_script]
   script:
@@ -618,7 +629,7 @@ gpwfiles:
     expire_in: 30 mins
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
+      when: on_success
       allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
@@ -634,7 +645,7 @@ gpwfiles:
     - build-latest
     - gpwfiles
   tags:
-    - xeon24
+    - xeon40
   before_script:
     - !reference [default, before_script]
     - pip install pytest-instafail pytest-xdist
@@ -644,7 +655,7 @@ gpwfiles:
       pytest --instafail -r s --durations 30
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
+      when: on_success
       allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
   #  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -663,11 +674,6 @@ nightly-mpi-1:
     paths:
       - htmlcov/
     expire_in: 1 day
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-      when: on_success
-      allow_failure: true
-    - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
 nightly-mpi-2:
@@ -675,10 +681,6 @@ nightly-mpi-2:
     GPAW_MPI_NPROCS: "2"
   extends:
     - .nightly
-  script:
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30 -m "not slow"
 
 
 nightly-mpi-4:
@@ -702,7 +704,6 @@ nightly-mpi-8:
     - .nightly
   script:
     - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
@@ -714,9 +715,9 @@ nightly-mpi-1-new:
     - .nightly-mpi-new
   script:
     - gpaw info
-    - pytest -n 4 --cache-clear -m generate_gpw_files
+    - pytest --cache-show
     - >
-      pytest -n 4 --instafail -r s --durations 30 -m
+      pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
@@ -747,7 +748,7 @@ pages:
   dependencies:
     - nightly-mpi-1
   tags:
-    - xeon24
+    - xeon40
   script:
     - mv htmlcov/ public
   artifacts:

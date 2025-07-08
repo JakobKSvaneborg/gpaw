@@ -98,21 +98,19 @@ Adding additional packages
 
 In order to add more Python packages to your venv, you need to activate it
 and then you can ``pip install`` packages.  Here is how
-to install ASR_::
+to install ASR-Lib_::
 
-    $ git clone https://gitlab.com/asr-dev/asr.git
-    $ cd asr
-    $ git checkout old-master
-    $ pip install .
+    $ git clone https://gitlab.com/asr-dev/asr-lib.git
+    $ pip install asr-lib/
 
 .. warning::
 
-    Pip may need co compile some code.
+    Pip may need to compile some code.
     It is therefore safest to use the ``thul`` login node to pip install
     software as it is the oldest CPU architcture and the other login nodes
     will understand its code.
 
-.. _ASR: https://asr.readthedocs.io/en/latest/
+.. _ASR-Lib: https://asr-lib.fysik.dtu.dk/
 
 
 Full script

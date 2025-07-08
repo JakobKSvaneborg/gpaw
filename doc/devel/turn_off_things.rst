@@ -12,7 +12,7 @@ No PAW corrections
   Use ``setups='ae'``.  See :ref:`ae hydrogen atom` and
   :git:`gpaw/ae.py`.
 
-* For aluminium we have the Appelbaum-Hamann local pseudo potential.
+* For silicon we have the Appelbaum-Hamann local pseudo potential.
   Use ``setups='ah'``.  See :git:`gpaw/test/pseudopotential/test_ah.py`
   and :git:`gpaw/ah.py`.
 

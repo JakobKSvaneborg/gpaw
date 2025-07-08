@@ -319,7 +319,15 @@ class CuPyFFTPlans(FFTPlans):
             if is_hip:
                 out_Q = rfftn_patch(in_R)
             else:
+                # CuPy bug? rfftn fails on non-aligned arrays
+                # To that end, make a copy. However, display a warning.
+                if in_R.data.ptr % 16:
+                    in_R = in_R.copy()
+                    from warnings import warn
+                    warn('Circumventing GPU array alignment problem '
+                         'with copy at rfftn.')
                 out_Q = cupyx.scipy.fft.rfftn(in_R)
+
         Q_G = self.indices(pw)
         coef_G = out_Q.ravel()[Q_G] * (1 / in_R.size)
         return coef_G
