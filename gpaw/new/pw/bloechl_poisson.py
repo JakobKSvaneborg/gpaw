@@ -180,7 +180,8 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         else:
             e_coulomb2 = 0.0
 
-        vHt_g.data[0] = -vhat_g.data[0]
+        if comm.rank == 0:
+            vHt_g.data[0] = -vhat_g.data[0]
         V_aL = self.ghat_aLg.integrate(vHt_g)
         self.vhat_aLg.integrate(nt_g, V_aL, add_to=True)
 
