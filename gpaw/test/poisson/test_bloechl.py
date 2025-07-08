@@ -12,6 +12,7 @@ from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.paw_poisson import (SimplePAWPoissonSolver,
                                      SlowPAWPoissonSolver)
 from gpaw.new.pw.poisson import PWPoissonSolver
+from gpaw.mpi import world
 
 
 def g(rc, rgd):
@@ -33,6 +34,27 @@ def c(r, rc1, rc2):
     return y
 
 
+def energy(charges):
+    e0 = 0.0
+    for q1, r1, p1 in charges:
+        for q2, r2, p2 in charges:
+            d = abs(p1 - p2)
+            e12 = 0.5 * q1 * q2 * c(d, r1, r2) / (4 * np.pi)**2
+            # print(q1, q2, rc1, rc2, d, e12)
+            e0 += e12
+    return e0
+
+
+def force(charges, a):
+    eps = 1e-5
+    charges[a::2, 2] += eps
+    ep = energy(charges)
+    charges[a::2, 2] -= 2 * eps
+    em = energy(charges)
+    charges[a::2, 2] += eps
+    return (em - ep) / (2 * eps)
+
+
 def test_psolve():
     """Unit-test for Blöchl's fast Poisson-solver."""
     rgd = RGD(0.01, 500)
@@ -41,29 +63,29 @@ def test_psolve():
     d12 = 1.35
     g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
     v = 7.5
-    gcut = 25.0
-    pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12])
+    gcut = 35.0
+    pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12], comm=world)
     relpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
                           [0.5, 0.5, (v + d12) / (2 * v + d12)]])
     g_aig = pw.atom_centered_functions(g_ai, positions=relpos_ac)
     nt_g = pw.zeros()
     C_ai = g_aig.empty()
-    C_ai.data[:] = [0.9, 0.7]
+    if 0 in C_ai:
+        C_ai[0] = 0.9
+    if 1 in C_ai:
+        C_ai[1] = 0.7
     C_ai.data *= 1.0 / (4.0 * np.pi)**0.5
     g_aig.add_to(nt_g, C_ai)
 
-    charges = [(0.9, rc1, 0.0),
-               (0.7, rc2, d12),
-               (-0.9, 0.3, 0.0),
-               (-0.7, 0.4, d12)]
-    e0 = 0.0
-    for q1, r1, p1 in charges:
-        for q2, r2, p2 in charges:
-            d = abs(p1 - p2)
-            e12 = 0.5 * q1 * q2 * c(d, r1, r2) / (4 * np.pi)**2
-            # print(q1, q2, rc1, rc2, d, e12)
-            e0 += e12
-    print(e0)
+    charges = np.array(
+        [(0.9, rc1, 0.0),
+         (0.7, rc2, d12),
+         (-0.9, 0.3, 0.0),
+         (-0.7, 0.4, d12)])
+    e0 = energy(charges)
+    f0 = force(charges, 0)
+    f1 = force(charges, 1)
+    print(e0, f0, f1)
 
     ps = PWPoissonSolver(pw)
     spps = SimplePAWPoissonSolver(
@@ -73,7 +95,7 @@ def test_psolve():
     for a, C_i in C_ai.items():
         Q_aL[a][0] = -C_i[0]
     vt1_g = pw.zeros()
-    e1, vHt_g, V1_aL = spps.solve(nt_g, Q_aL, vt1_g)
+    e1, vHt_g, V1_aL = spps.solve(nt_g.gather(), Q_aL, vt1_g.gather())
     F1_av = spps.force_contribution(Q_aL, vHt_g, nt_g)
     assert e1 == pytest.approx(e0, abs=1e-9)
     print('simple', e1, e1 - e0)
@@ -82,7 +104,7 @@ def test_psolve():
     pps = BloechlPAWPoissonSolver(
         pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist)
     vt2_g = pw.zeros()
-    e2, vHt_g, V2_aL = pps.solve(nt_g, Q_aL, vt2_g)
+    e2, vHt_g, V2_aL = pps.solve(nt_g.gather(), Q_aL, vt2_g.gather())
     F2_av = pps.force_contribution(Q_aL, vHt_g, nt_g)
     assert e2 == pytest.approx(e0, abs=1e-8)
     print('\nfast  ', e2, e2 - e0)
