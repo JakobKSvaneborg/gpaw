@@ -454,6 +454,7 @@ class FDPWETDM:
         self.total_eg_count_outer_iloop = 0
 
         self.initialized = True
+        wfs.read_from_file_init_wfs_dm = False
 
     def initial_sort_orbitals(self, wfs):
         occ_name = getattr(wfs.occupations, "name", None)
