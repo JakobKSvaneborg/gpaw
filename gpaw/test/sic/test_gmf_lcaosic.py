@@ -7,9 +7,9 @@ import numpy as np
 import numpy.testing as npt
 from gpaw.io.logger import GPAWLogger
 from gpaw.wavefunctions.base import eigenvalue_string
-from gpaw.test.conftest import (mk_arr_from_str,
-                                extract_lagrange_section,
-                                MockWorld)
+from gpaw.test.sic._utils import (mk_arr_from_str,
+                                  extract_lagrange_section,
+                                  MockWorld)
 from gpaw.mpi import rank
 
 

@@ -60,7 +60,6 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir, gpw_files):
     e_es = h2.get_potential_energy()
     eig_es = calc.get_eigenvalues()
     assert e_es == pytest.approx(e_ref_es, abs=1.0e-3)
-    # XXX(rg): Flaky on CI, locally abs=0.1 is fine
     assert eig_es == pytest.approx(eig_ref_es, abs=0.1)
     if calc.old:
         f_es = calc.get_forces()
