@@ -339,7 +339,7 @@ class FDPWETDM:
         self.initialize_eigensolver(wfs, ham)
         self.initialize_orbitals(wfs, ham)
 
-        if not wfs.read_from_file_init_wfs_dm:
+        if not wfs.read_from_file_init_wfs_dm or self.excited_state:
             wfs.calculate_occupation_numbers(dens.fixed)
 
         self.initial_sort_orbitals(wfs)
