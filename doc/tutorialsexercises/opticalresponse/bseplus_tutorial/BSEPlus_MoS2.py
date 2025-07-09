@@ -17,7 +17,7 @@ rpa_nbands = 170
 w_w = np.linspace(0, 50, 5001)
 
 gap, _, _ = bandgap(GPAW(calc_rpa), direct=True)
-eshift = 2.53 - gap  # G0W0 bandgap according to C2DB
+eshift = 2.61 - gap
 
 bseplus = BSEPlus(bse_gpw=calc_bse,
                   bse_valence_bands=bse_valence_bands,
@@ -33,7 +33,7 @@ bseplus = BSEPlus(bse_gpw=calc_bse,
                   truncation='2D',
                   ecut=ecut)
 
-bseplus.calculate_chi_wGG(optical=False, chi_BSE=True, chi_RPA=True,
+bseplus.calculate_chi_wGG(optical=False,
                           bsep_name='chi_MoS2_BSEPlus',
                           save_chi_BSE='chi_MoS2_BSE',
                           save_chi_RPA='chi_MoS2_RPA')
