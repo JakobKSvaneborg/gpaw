@@ -22,8 +22,10 @@ Takes 1 Numpy array as input (in_matrix) and outputs eigvals, eigvecs tuple.
 CLINKAGE PyObject* eigh_magma_cpu(PyObject* self, PyObject* args);
 
 /* Solves symmetric/Hermitian eigenvalue problem on the GPU.
-Takes 3 CuPy arrays as input (in_matrix, out_eigvals, out_eigvecs)
+Takes CuPy arrays as input (inout_matrix, out_eigvals)
 and assumes them to already be the correct size.
+inout_matrix gets replaced by eigenvectors: caller is responsible for taking a
+copy beforehand if this is not desirable.
 */
 CLINKAGE PyObject* eigh_magma_gpu(PyObject* self, PyObject* args);
 

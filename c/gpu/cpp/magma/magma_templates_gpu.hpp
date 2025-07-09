@@ -4,6 +4,44 @@
 #include "../template_utils.hpp"
 #include "../../gpu-runtime.h"
 
+// Templated in-place transpose, works for both real and complex matrices
+template<typename T>
+void magmablas_Xtranspose_inplace(magma_int_t matrix_size, T* matrix, magma_int_t lda, magma_queue_t queue)
+{
+    if constexpr (std::is_same_v<T, float>)
+    {
+        magmablas_stranspose_inplace(matrix_size, matrix, lda, queue);
+    }
+    else if constexpr (std::is_same_v<T, double>)
+    {
+        magmablas_dtranspose_inplace(matrix_size, matrix, lda, queue);
+    }
+    else if constexpr (std::is_same_v<T, magmaComplex<float>>)
+    {
+        magmablas_ctranspose_inplace(matrix_size, matrix, lda, queue);
+    }
+    else if constexpr (std::is_same_v<T, magmaComplex<double>>)
+    {
+        magmablas_ztranspose_inplace(matrix_size, matrix, lda, queue);
+    }
+    else gpaw::static_no_match();
+}
+
+// Templated in-place Hermitian conjugation
+template<typename RealT>
+void magmablas_Xtranspose_conj_inplace(magma_int_t matrix_size, magmaComplex<RealT>* matrix, magma_int_t lda, magma_queue_t queue)
+{
+    if constexpr (std::is_same_v<RealT, float>)
+    {
+        magmablas_ctranspose_conj_inplace(matrix_size, matrix, lda, queue);
+    }
+    else if constexpr (std::is_same_v<RealT, double>)
+    {
+        magmablas_ztranspose_conj_inplace(matrix_size, matrix, lda, queue);
+    }
+    else gpaw::static_no_match();
+}
+
 template<typename T>
 magma_int_t magma_Xsyevd_gpu(magma_vec_t jobz, magma_uplo_t uplo, magma_int_t n, T* matrix,
     magma_int_t lda, T* eigvals, T* wA, magma_int_t ldwa, T* work, magma_int_t lwork, magma_int_t* iwork,
@@ -105,16 +143,12 @@ magma_int_t magma_Xheevd_gpu(const MagmaEighContext& context, magmaComplex<RealT
 template<typename T>
 EighErrorType magma_symmetric_solver_gpu(
     const MagmaEighContext& context,
-    const T* const in_matrix,
-    T* inout_eigvals,
-    T* inout_eigvecs)
+    T* inout_matrix,
+    T* inout_eigvals)
 {
     static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>, "Only float and double are supported");
 
     const size_t n = context.matrix_size;
-
-    // Magma overrides the input arrays with eigenvectors, so we operate on a copy
-    gpuMemcpy(inout_eigvecs, in_matrix, n*n*sizeof(T), gpuMemcpyDeviceToDevice);
 
     // Query
     SyevdWorkspace_gpu<T> workspace;
@@ -128,7 +162,14 @@ EighErrorType magma_symmetric_solver_gpu(
     T* h_eigvals;
     MAGMA_CHECK(magma_host_malloc(&h_eigvals, n));
 
-    const magma_int_t status = magma_Xsyevd_gpu<T>(context, inout_eigvecs, h_eigvals, workspace, false);
+    const magma_int_t status = magma_Xsyevd_gpu<T>(context, inout_matrix, h_eigvals, workspace, false);
+
+    magma_device_t device;
+    magma_getdevice(&device);
+    magma_queue_t queue;
+    magma_queue_create(device, &queue);
+
+    magmablas_Xtranspose_inplace<T>(context.matrix_size, inout_matrix, context.matrix_lda, queue);
 
     // Copy eigenvalues back to device
     gpuMemcpy(inout_eigvals, h_eigvals, n*sizeof(T), gpuMemcpyHostToDevice);
@@ -144,16 +185,12 @@ EighErrorType magma_symmetric_solver_gpu(
 template<typename T>
 EighErrorType magma_hermitian_solver_gpu(
     const MagmaEighContext& context,
-    const magmaComplex<T>* const in_matrix,
-    T* inout_eigvals,
-    magmaComplex<T>* inout_eigvecs)
+    magmaComplex<T>* inout_matrix,
+    T* inout_eigvals)
 {
     static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>, "Only float and double are supported");
 
     const size_t n = context.matrix_size;
-
-    // Magma overrides the input arrays with eigenvectors, so we operate on a copy
-    gpuMemcpy(inout_eigvecs, in_matrix, n*n*sizeof(magmaComplex<T>), gpuMemcpyDeviceToDevice);
 
     // Query
     HeevdWorkspace_gpu<T> workspace;
@@ -168,7 +205,14 @@ EighErrorType magma_hermitian_solver_gpu(
     T* h_eigvals;
     MAGMA_CHECK(magma_host_malloc(&h_eigvals, n));
 
-    const magma_int_t status = magma_Xheevd_gpu<T>(context, inout_eigvecs, h_eigvals, workspace, false);
+    const magma_int_t status = magma_Xheevd_gpu<T>(context, inout_matrix, h_eigvals, workspace, false);
+
+    magma_device_t device;
+    magma_getdevice(&device);
+    magma_queue_t queue;
+    magma_queue_create(device, &queue);
+
+    magmablas_Xtranspose_conj_inplace<T>(context.matrix_size, inout_matrix, context.matrix_lda, queue);
 
     // Copy eigenvalues back to device
     gpuMemcpy(inout_eigvals, h_eigvals, n*sizeof(T), gpuMemcpyHostToDevice);
@@ -178,6 +222,8 @@ EighErrorType magma_hermitian_solver_gpu(
     MAGMA_CHECK(magma_host_free(workspace.wA));
     MAGMA_CHECK(magma_host_free(workspace.iwork));
     MAGMA_CHECK(magma_host_free(workspace.work));
+
+    magma_queue_destroy(queue);
 
     return interpret_magma_status(status);
 }

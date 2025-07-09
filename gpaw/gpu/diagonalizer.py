@@ -10,6 +10,11 @@ from dataclasses import dataclass
 @dataclass
 class DiagonalizerOptions:
     uplo: str = 'L'
+    inplace: bool = False
+    """If inplace is True, allows the diagonalizer to modify the input matrix
+    in-place and replace it with the result eigenvectors.
+    NB: CuPy diagonalizer ignores this option.
+    """
 
 
 class GPUDiagonalizer(ABC):
@@ -17,7 +22,7 @@ class GPUDiagonalizer(ABC):
 
     @abstractmethod
     def eigh(self,
-             inOutMatrix: cp.ndarray,
+             inout_matrix: cp.ndarray,
              options: DiagonalizerOptions
              ) -> tuple[cp.ndarray, cp.ndarray]:
         """"""
@@ -28,7 +33,7 @@ class CPUPYDiagonalizer(GPUDiagonalizer):
     """For cpupy"""
 
     def eigh(self,
-             inOutMatrix: cp.ndarray,
+             inout_matrix: cp.ndarray,
              options: DiagonalizerOptions
              ) -> tuple[cp.ndarray, cp.ndarray]:
         """"""
@@ -38,7 +43,7 @@ class CPUPYDiagonalizer(GPUDiagonalizer):
 
         from scipy.linalg import eigh as scipy_eigh
 
-        eigs, evals = scipy_eigh(cp.asnumpy(inOutMatrix),
+        eigs, evals = scipy_eigh(cp.asnumpy(inout_matrix),
                                  lower=(options.uplo == 'L'),
                                  check_finite=False)
 
@@ -50,9 +55,10 @@ class CuPyDiagonalizer(GPUDiagonalizer):
 
     @trace(gpu=True)
     def eigh(self,
-             inOutMatrix: cp.ndarray,
+             inout_matrix: cp.ndarray,
              options: DiagonalizerOptions
              ) -> tuple[cp.ndarray, cp.ndarray]:
         """"""
 
-        return cp.linalg.eigh(inOutMatrix, options.uplo)
+        # CuPy has no support for in-place eigh
+        return cp.linalg.eigh(inout_matrix, options.uplo)

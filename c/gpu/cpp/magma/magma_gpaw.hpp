@@ -70,6 +70,8 @@ struct MagmaEighContext
     magma_uplo_t uplo;
     magma_int_t matrix_size;
     magma_int_t matrix_lda;
+    // Replace the input matrix with result eigenvectors?
+    bool in_place;
 };
 
 enum class EighErrorType
@@ -148,5 +150,6 @@ EighErrorType magma_eigh_cpu(const MagmaEighContext& context, const void* const 
 
 /* Entry point to Magma single-GPU eigensolvers.
 * The pointers must point to accessible memory on the device.
+* This is an in-place solver: inout_matrix gets replaced by eigenvectors.
 */
-EighErrorType magma_eigh_gpu(const MagmaEighContext& context, const void* const in_matrix, void* inout_eigvals, void* inout_eigvecs);
+EighErrorType magma_eigh_gpu(const MagmaEighContext& context, void* inout_matrix, void* inout_eigvals);
