@@ -263,11 +263,11 @@ class AtomArrays:
         data:
             Array to use for storage.
         """
-        if xp is np:
+        if xp is not None:
             assert layout is None
             assert data is None
-            assert self.layout.xp is cp
-            layout = self.layout.new(xp=np)
+            if self.layout.xp is not xp:
+                layout = self.layout.new(xp=xp)
         return AtomArrays(layout or self.layout,
                           self.dims,
                           self.comm,
