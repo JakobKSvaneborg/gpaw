@@ -413,10 +413,10 @@ class LCAOETDM:
                 self.randomize_orbitals_kpt(wfs, kpt)
             self.randomizeorbitals = None
 
-        wfs.calculate_occupation_numbers(dens.fixed)
+        if not wfs.coefficients_read_from_file:
+            wfs.calculate_occupation_numbers(dens.fixed)
 
-        # MOM
-        self.initial_sort_orbitals_mom(wfs)
+        self.initial_sort_orbitals(wfs)
 
         # initialize matrices
         self.set_variable_matrices(wfs.kpt_u)
@@ -884,7 +884,7 @@ class LCAOETDM:
 
             if sort_eigenvalues:
                 sort_orbitals_according_to_energies(
-                    ham, wfs, self.constraints, use_eps=True)
+                    ham, wfs, self.constraints)
 
             self.set_ref_orbitals_and_a_vec(wfs)
 
@@ -1020,12 +1020,16 @@ class LCAOETDM:
             wfs.occupations.initialize_reference_orbitals()
             wfs.calculate_occupation_numbers(dens.fixed)
 
-    def initial_sort_orbitals_mom(self, wfs):
+    def initial_sort_orbitals(self, wfs):
         occ_name = getattr(wfs.occupations, "name", None)
         if occ_name == 'mom':
+            update_mom = True
             self.initial_occupation_numbers = wfs.occupations.numbers.copy()
-            sort_orbitals_according_to_occ(
-                wfs, self.constraints, update_mom=True)
+        else:
+            update_mom = False
+        sort_orbitals_according_to_occ(wfs,
+                                       self.constraints,
+                                       update_mom=update_mom)
 
     def check_mom(self, wfs, dens):
         occ_name = getattr(wfs.occupations, "name", None)
