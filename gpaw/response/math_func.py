@@ -1,3 +1,4 @@
+# flake8: noqa
 from math import pi
 
 import numpy as np
