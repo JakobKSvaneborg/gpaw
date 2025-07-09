@@ -120,7 +120,6 @@ def test_psolve(xp):
     assert e2 == pytest.approx(e0, abs=1e-8)
     print('\nfast  ', e2, e2 - e0)
     assert xp.allclose(V2_aL.data[::9], V1_aL.data[::9])
-    print(abs(V2_aL.data - V1_aL.data))
     if comm.rank == 0:
         vt10_g = vt10_g.to_xp(np)
         vt20_g = vt20_g.to_xp(np)

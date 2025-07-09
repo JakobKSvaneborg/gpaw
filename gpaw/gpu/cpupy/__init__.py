@@ -141,7 +141,7 @@ def tri(n, k=0, dtype=float):
 
 
 def allclose(a, b, **kwargs):
-    return np.allclose(a._data, b._data, **kwargs)
+    return np.allclose(asarray(a)._data, asarray(b)._data, **kwargs)
 
 
 def moveaxis(a, source, destination):
