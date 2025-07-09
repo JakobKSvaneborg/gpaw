@@ -157,8 +157,12 @@ class DFTComponentsBuilder:
                           self.log) for ext in self.params.extensions]
 
     @cached_property
+    def charge(self) -> float:
+        return self.setups.core_charge + self.params.charge
+
+    @cached_property
     def nelectrons(self) -> float:
-        return self.setups.nvalence - self.params.charge
+        return self.setups.nvalence - self.charge
 
     @cached_property
     def atomdist(self) -> AtomDistribution:
@@ -255,7 +259,7 @@ class DFTComponentsBuilder:
             basis_set=basis_set,
             magmom_av=self.initial_magmom_av,
             ncomponents=self.ncomponents,
-            charge=self.params.charge,
+            charge=self.charge,
             hund=self.params.hund,
             mgga=self.xc.type == 'MGGA')
 

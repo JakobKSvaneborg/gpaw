@@ -48,6 +48,16 @@ Git master branch
   variables: ``NO_COLOR``, ``FORCE_COLOR`` and
   :envvar:`python:PYTHON_COLORS`.  See also `controlling color`_.
 
+* Constraining spins within PAW spheres along specified directions in
+  noncollinear calculations is now possible:
+  :ref:`spin direction constrained dft`.
+
+* Preliminary implementation of YS-PBE0 hybrid functional.
+
+* Experimental: Implemented the PPCG eigensolver in :ref:`newgpaw` for
+  use with plane-waves and finite-difference. This eigensolver is
+  particularly stable for single precision wave-functions.
+  See https://doi.org/10.1016/j.jcp.2015.02.030 for details.
 
 .. _controlling color: https://docs.python.org/3/using/cmdline.html
                        #controlling-color

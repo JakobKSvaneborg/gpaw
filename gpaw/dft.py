@@ -15,6 +15,7 @@ from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
+from gpaw.new.pwfd.ppcg import PPCG as PPCGEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
 
 if TYPE_CHECKING:
@@ -168,11 +169,102 @@ class DefaultEigensolver(Eigensolver):
 
 
 class PWFDEigensolverParamater(Eigensolver):
-    def __init__(self, niter: int = 2):
+    def __init__(self,
+                 niter: int = 2,
+                 max_buffer_mem: int = 200 * 1024**2):
         self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
 
     def todict(self):
         return {'niter': self.niter}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              hamiltonian,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            hamiltonian,
+            converge_bands,
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem)
+
+
+class Davidson(PWFDEigensolverParamater):
+    name = 'davidson'
+    cls = DavidsonEigensolver
+
+
+class PPCG(PWFDEigensolverParamater):
+    name = 'ppcg'
+    cls = PPCGEigensolver
+
+    def __init__(self,
+                 niter: int = 2,
+                 max_buffer_mem: int = 200 * 1024**2,
+                 blocksize=None,
+                 rr_modulo=5,
+                 include_cg=True,
+                 tolerances: tuple[float] | None = None):
+        self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
+        self.blocksize = blocksize
+        self.rr_modulo = rr_modulo
+        self.include_cg = include_cg
+        self.tolerances = tolerances
+
+    def todict(self):
+        return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
+                'blocksize': self.blocksize,
+                'rr_modulo': self.rr_modulo,
+                'include_cg': self.include_cg,
+                'tolerances': self.tolerances}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              hamiltonian,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            hamiltonian,
+            converge_bands,
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
+            blocksize=self.blocksize,
+            rr_modulo=self.rr_modulo,
+            include_cg=self.include_cg,
+            tolerances=self.tolerances)
+
+
+class RMMDIIS(PWFDEigensolverParamater):
+    name = 'rmm-diis'
+    cls = RMMDIISEigensolver
+
+    def __init__(self,
+                 niter: int = 1,
+                 max_buffer_mem: int = 200 * 1024**2,
+                 trial_step: float | None = None):
+        self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
+        self.trial_step = trial_step
+
+    def todict(self):
+        return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
+                'trial_step': self.trial_step}
 
     def build(self,
               nbands,
@@ -188,17 +280,9 @@ class PWFDEigensolverParamater(Eigensolver):
             band_comm,
             create_preconditioner,
             converge_bands,
-            niter=self.niter)
-
-
-class Davidson(PWFDEigensolverParamater):
-    name = 'davidson'
-    cls = DavidsonEigensolver
-
-
-class RMMDIIS(PWFDEigensolverParamater):
-    name = 'rmm-diis'
-    cls = RMMDIISEigensolver
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
+            trial_step=self.trial_step)
 
 
 class LCAOEigensolver(Eigensolver):
@@ -234,6 +318,8 @@ class Scissors(LCAOEigensolver):
 eigensolvers = {
     'davidson': Davidson,
     'rmm-diis': RMMDIIS,
+    'not-dav': PPCG,
+    'ppcg': PPCG,
     'lcao': LCAOEigensolver,
     'hybrid-lcao': HybridLCAOEigensolver,
     'scissors': Scissors}
@@ -405,6 +491,8 @@ class BZSampling(Parameter):
         if isinstance(kpts, dict):
             if 'kpts' in kpts:
                 return KPoints(kpts['kpts'])
+            if 'path' in kpts:
+                return BandPath(**kpts)
             kpts = kpts.copy()
             kpts.pop('name', '')
         else:
@@ -455,6 +543,23 @@ class MonkhorstPack(BZSampling):
             if not periodic and n != 1:
                 raise ValueError('K-points can only be used with PBCs!')
         return MonkhorstPackKPoints(size, offset)
+
+
+class BandPath(BZSampling):
+    def __init__(self,
+                 path: str,
+                 npoints: int):
+        self.path = path
+        self.npoints = npoints
+
+    def todict(self):
+        return {'path': self.path, 'npoints': self.npoints}
+
+    def build(self, atoms):
+        from gpaw.new.brillouin import BZBandPath
+        return BZBandPath(atoms.cell.bandpath(self.path,
+                                              npoints=self.npoints,
+                                              pbc=atoms.pbc))
 
 
 class XC(Parameter):
@@ -703,7 +808,9 @@ def _parse_experimental(experimental: dict | None,
                       DeprecatedParameterWarning)
         assert magmoms is None
         magmoms = experimental.pop('magmoms')
-    unknown = experimental.keys() - {'backwards_compatible', 'ccirs'}
+    unknown = experimental.keys() - {'backwards_compatible',
+                                     'ccirs',
+                                     'fast_pw_init'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)

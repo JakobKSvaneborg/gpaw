@@ -18,6 +18,7 @@ from gpaw import GPAW, Davidson, MixerSum
      # pw + lcao extrapolation is currently broken (PWLFC lacks integrate2):
      # dict(mode='pw', experimental={'reuse_wfs_method': 'lcao'}),
      dict(mode='fd', h=0.3,
+          eigensolver=Davidson(3),
           experimental={'reuse_wfs_method': 'lcao'}),
      dict(mode='lcao', basis='sz(dzp)', h=0.3)])
 def test_generic_move_across_cell(gpaw_new, params):

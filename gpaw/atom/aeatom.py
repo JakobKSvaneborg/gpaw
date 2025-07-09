@@ -91,11 +91,11 @@ class GaussianBasis:
         self.K_bb = np.dot(np.dot(Q_Bb.T, K_BB), Q_Bb)
 
         r_g = rgd.r_g
-        with seterr(divide='ignore'):
-            # Avoid errors in debug mode from division by zero:
-            gaussians_Bg = np.exp(-np.outer(alpha_B, r_g**2)) * r_g**l
         prefactors_B = (2 * (2 * alpha_B)**(l + 1.5) / gamma(l + 1.5))**0.5
-        self.basis_bg = np.dot(Q_Bb.T, prefactors_B[:, None] * gaussians_Bg)
+        with seterr(divide='ignore', invalid='ignore'):
+            # Avoid errors division by zero when l<0.0:
+            gaussians_Bg = np.exp(-np.outer(alpha_B, r_g**2)) * r_g**l
+            self.basis_bg = Q_Bb.T @ (prefactors_B[:, None] * gaussians_Bg)
 
     def __len__(self):
         return self.nbasis
@@ -476,9 +476,21 @@ class AllElectronAtom:
         self.f_lsn = {}
 
         if configuration is None:
-            configuration = configurations[self.symbol][1]
+            configs = configurations[self.symbol][1]
+        elif isinstance(configuration, str):
+            configs = []
+            if configuration[0] == '[':
+                symbol, configuration = configuration[1:].split(']')
+                configs = configurations[symbol][1]
+            for nlf in configuration.split(','):
+                configs.append((int(nlf[0]),
+                                'spdfg'.index(nlf[1]),
+                                int(nlf[2:]),
+                                -1.0))
+        else:
+            configs = configuration
 
-        for n, l, f, e in configuration:
+        for n, l, f, e in configs:
 
             if l not in self.f_lsn:
                 self.f_lsn[l] = [[] for s in range(self.nspins)]

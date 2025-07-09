@@ -131,7 +131,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         pw = self.electrostatic_potential_desc
         ps = make_poisson_solver(pw,
                                  grid,
-                                 self.params.charge,
+                                 self.charge,
                                  env,
                                  **psparams)
 
@@ -179,12 +179,31 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                                  basis_set,
                                                  kpt_c,
                                                  q):
-        # Replace this with code that goes directly from C_nM to
-        # psit_nG via PWAtomCenteredFunctions.
-        # XXX
+        if self.params.experimental.get('fast_pw_init', True):
+            if self.ncomponents < 4:
+                from gpaw.core.pwacf import PWAtomCenteredFunctions
+                pw = self.wf_desc.new(kpt=kpt_c)
+                phit_aJG = PWAtomCenteredFunctions(
+                    [setup.basis_functions_J for setup in self.setups],
+                    self.relpos_ac,
+                    pw,
+                    atomdist=self.atomdist,
+                    xp=self.xp)
+                psit_nG = pw.empty(self.nbands,
+                                   comm=self.communicators['b'],
+                                   xp=self.xp)
+                mynbands, M = C_nM.dist.shape
+                phit_aJG.multiply(C_nM.to_xp(self.xp).to_dtype(pw.dtype),
+                                  out_nG=psit_nG[:mynbands])
+                return psit_nG
 
-        grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
-        pw = self.wf_desc.new(kpt=kpt_c)
+        lcao_dtype = complex if \
+            np.issubdtype(self.dtype, np.complexfloating) else float
+
+        grid = self.grid.new(kpt=kpt_c, dtype=lcao_dtype)
+        pw = self.wf_desc.new(kpt=kpt_c, dtype=lcao_dtype)
+        if self.dtype != lcao_dtype:
+            pw_correct = self.wf_desc.new(kpt=kpt_c, dtype=self.dtype)
 
         if np.issubdtype(self.dtype, np.complexfloating):
             emikr_R = grid.eikr(-kpt_c)
@@ -199,6 +218,12 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
                 psit_R.fft(out=psit_G)
+
+            if self.dtype != lcao_dtype:
+                psit2_nG = pw_correct.empty(self.nbands,
+                                            self.communicators['b'])
+                psit2_nG.data[:] = psit_nG.data
+                return psit2_nG.to_xp(self.xp)
             return psit_nG.to_xp(self.xp)
         else:
             psit_nsG = pw.empty((self.nbands, 2), self.communicators['b'])

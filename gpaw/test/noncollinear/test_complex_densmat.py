@@ -34,7 +34,7 @@ def test_energy_from_complex_densmat():
 
     def calc_energies(D_sii):
         _, energies = calculate_non_local_potential1(
-            setup, xc, D_sii, np.zeros(1), soc)
+            setup, xc, D_sii, np.zeros(1), soc, [], 0)
         return energies
 
     energies1 = calc_energies(D_sii)

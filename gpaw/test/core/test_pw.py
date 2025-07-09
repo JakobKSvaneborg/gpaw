@@ -164,3 +164,13 @@ def test_random():
     a = pw.empty(2)
     a.randomize()
     assert world.rank != 0 or (a.data[:, 0].imag == 0.0).all()
+
+
+def test_morph():
+    pw1 = PWDesc(ecut=20, cell=[1, 1, 1], comm=world)
+    a = pw1.empty()
+    a.randomize()
+    pw2 = PWDesc(ecut=20, cell=[1, 1, 1.1], comm=world)
+    b = a.morph(pw2)
+    c = b.morph(pw1)
+    assert (a.data == c.data).all()

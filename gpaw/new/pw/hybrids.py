@@ -20,16 +20,18 @@ from gpaw.utilities.blas import mmm
 
 def coulomb(pw: PWDesc,
             grid: UGDesc,
-            omega: float) -> PWArray:
+            omega: float,
+            yukawa: bool = False) -> PWArray:
     if omega == 0.0:
         wstc = WignerSeitzTruncatedCoulomb(
             pw.cell_cv, np.array([1, 1, 1]))
         return wstc.get_potential_new(pw, grid)
-    return truncated_coulomb(pw, omega)
+    return truncated_coulomb(pw, omega, yukawa)
 
 
 def truncated_coulomb(pw: PWDesc,
-                      omega: float = 0.11) -> PWArray:
+                      omega: float = 0.11,
+                      yukawa: bool = False) -> PWArray:
     """Fourier transform of truncated Coulomb.
 
     Real space:::
@@ -49,12 +51,13 @@ def truncated_coulomb(pw: PWDesc,
     """
     v_G = pw.empty()
     G2_G = pw.ekin_G * 2
-    v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
-    if G2_G[0] < 1e-10:
-        v_G.data[1:] /= G2_G[1:]
-        v_G.data[0] = pi / omega**2
+    if yukawa:
+        v_G.data[:] = 4 * pi / (G2_G + omega**2)
     else:
-        v_G.data /= G2_G
+        v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
+        ok_G = G2_G > 1e-10
+        v_G.data[ok_G] /= G2_G[ok_G]
+        v_G.data[~ok_G] = pi / omega**2
     return v_G
 
 
@@ -91,6 +94,8 @@ class Psi:
 
 
 class PWHybridHamiltonian(PWHamiltonian):
+    band_local = False
+
     def __init__(self,
                  grid: UGDesc,
                  pw: PWDesc,
@@ -104,6 +109,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
+        self.exx_yukawa = xc.exx_yukawa
         self.xc = xc
 
         # Stuff for PAW core-core, core-valence and valence-valence correctios:

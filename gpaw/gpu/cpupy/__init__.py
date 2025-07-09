@@ -29,6 +29,10 @@ FAKE_CUPY_WARNING = """
 pi = np.pi
 
 
+def require(a, requirements=None):
+    return ndarray(np.require(a._data, requirements=requirements))
+
+
 def empty(*args, **kwargs) -> ndarray:
     return ndarray(np.empty(*args, **kwargs))
 
@@ -93,11 +97,14 @@ def negative(a, b):
     np.negative(a._data, b._data)
 
 
-def einsum(indices, *args):
+def einsum(indices, *args, **kwargs):
+    for k in kwargs:
+        kwargs[k] = kwargs[k]._data
     return ndarray(
         np.einsum(
             indices,
-            *(arg._data for arg in args)))
+            *(arg._data for arg in args),
+            **kwargs))
 
 
 def diag(a):
@@ -147,6 +154,14 @@ def vdot(a, b):
 
 def fuse():
     return lambda func: func
+
+
+def isfinite(a):
+    return ndarray(np.isfinite(a._data))
+
+
+def isnan(a):
+    return ndarray(np.isnan(a._data))
 
 
 class ndarray:
@@ -366,3 +381,6 @@ class ndarray:
 
     def fill(self, val):
         self._data.fill(val)
+
+    def any(self):
+        return ndarray(self._data.any())
