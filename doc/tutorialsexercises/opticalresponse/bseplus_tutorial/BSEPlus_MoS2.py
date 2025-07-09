@@ -17,7 +17,7 @@ rpa_nbands = 170
 w_w = np.linspace(0, 50, 5001)
 
 gap, _, _ = bandgap(GPAW(calc_rpa), direct=True)
-eshift = 2.61 - gap
+eshift = 2.51 - gap
 
 bseplus = BSEPlus(bse_gpw=calc_bse,
                   bse_valence_bands=bse_valence_bands,

@@ -57,7 +57,7 @@ This calculation will run 2 hours with 80 cores.
 
 .. literalinclude:: BSEPlus_MoS2.py
 
-We can then plot the resulting EELS spectrum. We create two plots, one showing a broad frequency range and anothe zoomed in on the x-axis to visualize the spin-orbit-split exciton below the band edge. The results are shown together with the experimental data which can be downloaded from here :download:`MoS2_q_0p046Ainv.csv` [#Hong]_ (data for low frequency plot), :download:`MoS2_q_0p060Ainv.csv` [#Koster]_ (data for high frequency plot).
+We can then plot the resulting EELS spectrum. We create two plots, one showing a broad frequency range and anothe zoomed in on the x-axis to visualize the spin-orbit-split exciton below the band edge. The results are shown together with the experimental data which can be downloaded from here :download:`MoS2_q_0p015Ainv.csv` [#Hong]_ (data for low frequency plot), :download:`MoS2_q_0p060Ainv.csv` [#Koster]_ (data for high frequency plot). Note that in the low-frequency region we have chosen a smaller value for q for the experimental data as larger q values appeared noisy.
 
 
 .. literalinclude:: plot_MoS2.py
