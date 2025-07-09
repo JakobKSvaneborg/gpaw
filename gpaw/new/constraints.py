@@ -24,6 +24,9 @@ class SpinDirectionConstraint(Extension):
                            for a, u_v in constraint.items()}
         self.penalty = penalty / Ha
 
+    def todict(self):
+        ...
+
     def update_non_local_hamiltonian(self,
                                      D_sii,
                                      setup,
