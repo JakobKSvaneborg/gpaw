@@ -334,6 +334,9 @@ class Extension(Parameter):
             if name == 'd3':
                 from gpaw.new.extensions import D3
                 return D3(**dct)
+            if name == 'spin_direction_constraint':
+                from gpaw.new.constraints import SpinDirectionConstraint
+                return SpinDirectionConstraint(**dct)
             raise ValueError(name)
         return extension
 
