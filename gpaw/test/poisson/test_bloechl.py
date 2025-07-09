@@ -108,8 +108,8 @@ def test_psolve(xp):
     assert e1 == pytest.approx(e0, abs=1e-9)
     print('simple', e1, e1 - e0)
     print(F1_av)
-    assert np.asarray(F1_av) == pytest.approx(np.array([[0, 0, f0],
-                                                        [0, 0, f1]]))
+    assert xp.allclose(F1_av, [[0, 0, f0],
+                               [0, 0, f1]])
 
     pps = BloechlPAWPoissonSolver(
         pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist, xp=xp)
@@ -119,13 +119,13 @@ def test_psolve(xp):
     comm.sum(F2_av)
     assert e2 == pytest.approx(e0, abs=1e-8)
     print('\nfast  ', e2, e2 - e0)
-    assert np.asarray(V2_aL.data[::9]) == pytest.approx(
-        np.asarray(V1_aL.data[::9]), abs=1e-7)
+    assert xp.allclose(V2_aL.data[::9], V1_aL.data[::9])
+    print(abs(V2_aL.data - V1_aL.data))
     if comm.rank == 0:
         vt10_g = vt10_g.to_xp(np)
         vt20_g = vt20_g.to_xp(np)
         assert vt20_g.data[:5] == pytest.approx(vt10_g.data[:5], abs=1e-10)
-    assert np.asarray(F1_av) == pytest.approx(np.asarray(F2_av), abs=3e-6)
+    assert xp.allclose(F1_av, F2_av, atol=3e-6)
 
     if 0:
         ps = PWPoissonSolver(pw.new(gcut=2 * gcut))
