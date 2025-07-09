@@ -267,7 +267,7 @@ class AtomArrays:
             assert layout is None
             assert data is None
             if self.layout.xp is not xp:
-                layout = self.layout.new(xp=np)
+                layout = self.layout.new(xp=xp)
         return AtomArrays(layout or self.layout,
                           self.dims,
                           self.comm,
