@@ -65,20 +65,12 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
 
     assert abs(e2 - 2 * e1) < 0.002
 
-    # comp
+    print(eig1_kn)
+    print(eig2_kn)
+    # compare occupied eigenvalues:
     if use_sym:
-       eig1 = [
-    assert abs(eps1 - eps2) < 0.001
-
-
-if __name__ == '__main__':
-    if 0:
-        from cProfile import Profile
-        prof = Profile()
-        prof.enable()
-        test_exx_double_cell(1)
-        prof.disable()
-        from gpaw.mpi import rank, size
-        prof.dump_stats(f'prof-{size}.{rank}')
+        eigs1 = [eig1_kn[0, 0], eig1_kn[1, 0], eig1_kn[0, 1]]
     else:
-        test_exx_double_cell(1, 1)
+        eigs1 = [eig1_kn[1, 0], eig1_kn[2, 0], eig1_kn[1, 1]]
+    eigs2 = [eig2_kn[0, 0], eig2_kn[1, 0], eig2_kn[0, 1]]
+    assert eigs1 == pytest.approx(eigs2, abs=1e-5)
