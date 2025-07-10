@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 from gpaw.new.magma import eigh_magma_cpu
-from gpaw.gpu.magma_diagonalizers import MagmaDiagonalizerSingleGPU
-from gpaw.gpu.diagonalizer import DiagonalizerOptions
+from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
+from gpaw.gpu.diagonalization.diagonalizer import DiagonalizerOptions
 from gpaw.cgpaw import have_magma
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
@@ -119,10 +119,10 @@ def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
     # For checking that we don't modify this in-place
     matrix_original = cp.copy(matrix)
 
-    diagonalizer = MagmaDiagonalizerSingleGPU()
+    diagonalizer = MagmaDiagonalizer()
     options = DiagonalizerOptions(uplo=uplo)
 
-    eigvals, eigvecs = diagonalizer.eigh(matrix, options)
+    eigvals, eigvecs = diagonalizer.eigh_non_distributed(matrix, options)
     eigvals_cp, eigvecs_cp = cp.linalg.eigh(matrix, UPLO=uplo)
 
     atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
@@ -156,11 +156,11 @@ def test_eigh_magma_inplace(eigh_test_matrix: cp.ndarray,
     matrix = eigh_test_matrix(matrix_size, dtype=dtype, backend='cupy')
     matrix_original = cp.copy(matrix)
 
-    diagonalizer = MagmaDiagonalizerSingleGPU()
+    diagonalizer = MagmaDiagonalizer()
     options = DiagonalizerOptions(uplo='L', inplace=True)
 
     eigvals_cp, eigvecs_cp = cp.linalg.eigh(matrix, UPLO=options.uplo)
-    eigvals, eigvecs = diagonalizer.eigh(matrix, options)
+    eigvals, eigvecs = diagonalizer.eigh_non_distributed(matrix, options)
 
     atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
     rtol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5

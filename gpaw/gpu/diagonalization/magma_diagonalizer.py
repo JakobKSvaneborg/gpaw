@@ -1,4 +1,4 @@
-from gpaw.gpu.diagonalizer import GPUDiagonalizer, DiagonalizerOptions
+from gpaw.gpu.diagonalization.diagonalizer import NonDistributedDiagonalizer, DiagonalizerOptions
 from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
@@ -8,7 +8,7 @@ from gpaw.cgpaw import have_magma
 especially not distributed multi-GPU!
 """
 
-class MagmaDiagonalizerSingleGPU(GPUDiagonalizer):
+class MagmaDiagonalizer(NonDistributedDiagonalizer):
     """Single-GPU eigensolver using the MAGMA library. Note that this cannot
     be used if GPAW has not been compiled with MAGMA support.
     We check this in the constructor which fails with assert if MAGMA is not
@@ -24,10 +24,10 @@ class MagmaDiagonalizerSingleGPU(GPUDiagonalizer):
         for fake CuPy everywhere.
         """
         assert have_magma, "Must compile GPAW with MAGMA support"
-        #assert not cupy_is_fake, "Can't use MAGMA solvers with fake CuPy"
+        assert not cupy_is_fake, "Can't use MAGMA solvers with fake CuPy"
 
     @trace(gpu=True)
-    def eigh(self,
+    def eigh_non_distributed(self,
              inout_matrix: cp.ndarray,
              options: DiagonalizerOptions
              ) -> tuple[cp.ndarray, cp.ndarray]:
@@ -50,38 +50,27 @@ class MagmaDiagonalizerSingleGPU(GPUDiagonalizer):
             Matrix containing orthonormal eigenvectors.
             Eigenvector corresponding to ``w[i]`` is in column ``v[:,i]``.
         """
-        assert isinstance(inout_matrix, cp.ndarray)
-        assert (inout_matrix.ndim == 2
-                and inout_matrix.shape[0] == inout_matrix.shape[1]
-        )
 
-        ## PLAN: do distribution logic and input/output allocations on Python side
+        assert isinstance(inout_matrix, cp.ndarray)
+        shape = inout_matrix.shape
+
+        assert (inout_matrix.ndim == 2 and shape[0] == shape[1])
 
         # Alloc output arrays with CUPY.
         # Eigenvectors are real for symmetric/Hermitian matrices
         eigval_dtype = as_real_dtype(inout_matrix.dtype)
-        eigvals = cp.empty((inout_matrix.shape[0]), dtype=eigval_dtype)
+        eigvals = cp.empty((shape[0]), dtype=eigval_dtype)
 
         if options.inplace:
             eigvecs = inout_matrix
         else:
             eigvecs = cp.copy(inout_matrix)
 
-        # In-place eigensolver. Will throw if matrix dtype is unsupported
+        # This import only works if GPAW was compiled with MAGMA.
+        # Doing the import here prevents crashes if importing this .py
+        # module when MAGMA was not enabled during compilation.
         from gpaw.cgpaw import _eigh_magma_gpu
 
         _eigh_magma_gpu(eigvecs, options.uplo, eigvals)
 
         return eigvals, eigvecs
-
-        # # MAGMA eigenvectors are on rows, np/cp has them on columns.
-        # # FIXME: how to avoid an intermediate copy when conj-transposing?
-        # if options.inplace:
-        #     _eigh_magma_gpu(inout_matrix, options.uplo, eigvals)
-        #     inout_matrix = cp.conjugate(inout_matrix).T
-        #     return eigvals, inout_matrix
-        # else:
-        #     eigvecs = cp.copy(inout_matrix)
-        #     _eigh_magma_gpu(eigvecs, options.uplo, eigvals)
-        #     return eigvals, cp.conjugate(eigvecs).T
-

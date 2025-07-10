@@ -17,6 +17,9 @@ is_hip = False
 device_id = None
 """Device id"""
 
+device_count: int = 0
+"""Number of GPUs visible to this process"""
+
 
 def gpu_gemm(*args, **kwargs):
     raise NotImplementedError('gpu_gemm: You are not using GPAW with GPUs.')

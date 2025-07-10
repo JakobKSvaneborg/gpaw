@@ -10,9 +10,9 @@ import scipy.linalg as sla
 import gpaw.utilities.blas as blas
 from gpaw import debug, get_scipy_version
 from gpaw.gpu import cupy as cp, XP, gpu_gemm
-from gpaw.gpu.eigh import gpu_eigh
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
+from gpaw.gpu.diagonalization import suggest_diagonalizer
 
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
@@ -177,6 +177,11 @@ class Matrix(XP):
             other = other.data
         self.data += other
         return self
+
+    def is_distributed(self) -> bool:
+        """True if this matrix has nontrivial BLACS or GPU distribution.
+        """
+        return self.dist is None or self.dist.is_distributed()
 
     def multiply(self,
                  other,
@@ -439,6 +444,50 @@ class Matrix(XP):
             assert self.dist.comm.size == slcomm.size
             H = self
 
+        # ---- GPU case
+        if self.xp is not np:
+            assert isinstance(H.data, cp.ndarray)
+
+            if cc and np.issubdtype(H.dtype, np.complexfloating):
+                cp.negative(H.data.imag, H.data.imag)
+            if debug:
+                H.data[cp.triu_indices(H.shape[0], 1)] = 42.0
+
+            if H.is_distributed():
+                """Currently no support for diagonalizing multi-CPU
+                distributed matrices on GPU. So we move the full matrix
+                on one rank and do the diagonalization in serial,
+                possibly using multiple GPUs available to the root rank.
+                """
+                # TODO: actually handle this case. Not used currently
+                raise NotImplementedError("Distributed eigh with GPUs is WIP")
+
+
+            # Now the full matrix is on one GPU
+            assert H.shape[0] == H.shape[1], "eigh() needs a square matrix"
+
+            # Handle generalized eigenproblem
+            if S is not None:
+                assert self.dist.comm.size == 1
+                S.invcholesky()
+                self.tril2full()
+                eigs = self.eighg(S)
+                self.data[:] = self.data.T.copy()
+                return eigs
+
+            # TODO some way for the caller to specify options/backend
+            diagonalizer, options = suggest_diagonalizer(H)
+            eigvals, H = diagonalizer.eigh(H, options)
+
+            # Back to original layout
+            if redist:
+                H.redist(self)
+
+            # GPU case done, return here for clarity
+            return eigvals
+
+
+        # ---- CPU case
         if limit == H.shape[0]:
             limit = None
 
@@ -454,24 +503,13 @@ class Matrix(XP):
                 if debug:
                     H.data[np.triu_indices(H.shape[0], 1)] = 42.0
                 if S is None:
-                    if self.xp is not np:
-                        assert isinstance(H.data, cp.ndarray)
-                        eps[:], H.data.T[:] = gpu_eigh(H.data, UPLO='L')
-                    else:
-                        eps[:], H.data.T[:] = sla.eigh(
-                            H.data,
-                            lower=True,
-                            overwrite_a=True,
-                            check_finite=debug,
-                            driver='evx' if H.data.size == 1 else 'evd')
+                    eps[:], H.data.T[:] = sla.eigh(
+                        H.data,
+                        lower=True,
+                        overwrite_a=True,
+                        check_finite=debug,
+                        driver='evx' if H.data.size == 1 else 'evd')
                 else:
-                    if self.xp is cp:
-                        assert self.dist.comm.size == 1
-                        S.invcholesky()
-                        self.tril2full()
-                        eigs = self.eighg(S)
-                        self.data[:] = self.data.T.copy()
-                        return eigs
                     if debug:
                         S.data[self.xp.triu_indices(H.shape[0], 1)] = 42.0
                     eps, evecs = sla.eigh(
@@ -702,6 +740,9 @@ class MatrixDistribution:
     def matrix(self, dtype=None, data=None):
         return Matrix(*self.full_shape, dtype=dtype, data=data, dist=self)
 
+    def is_distributed(self) -> bool:
+        raise NotImplementedError
+
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         raise NotImplementedError
 
@@ -741,6 +782,9 @@ class NoDistribution(MatrixDistribution):
 
     def __str__(self):
         return 'NoDistribution({}x{})'.format(*self.shape)
+
+    def is_distributed(self) -> bool:
+        return False
 
     def global_index(self, n):
         return n
@@ -834,6 +878,9 @@ class BLACSDistribution(MatrixDistribution):
                                  self.rows, self.columns,
                                  self.blocksize)
 
+    def is_distributed(self) -> bool:
+        return self.shape != self.full_shape
+
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
             ok = a.dist.simple and b.dist.simple and c.dist.simple
@@ -914,6 +961,9 @@ class CuPyDistribution(MatrixDistribution):
                                 self.rows, self.columns,
                                 self.blocksize)
 
+    def is_distributed(self) -> bool:
+        return self.shape != self.full_shape
+
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
         if self.comm.size > 1:
             if opa == 'N' and opb == 'N':
@@ -967,7 +1017,12 @@ class CuPyDistribution(MatrixDistribution):
         tmp = H.new()
         self.multiply(1.0, L, 'N', H, 'N', 0.0, tmp)
         self.multiply(1.0, tmp, 'N', L, 'C', 0.0, H, symmetric=True)
-        eig_M, Ct_MM = gpu_eigh(H.data, UPLO='L')
+
+        diagonalizer, options = suggest_diagonalizer(H)
+        options.inplace = False
+        eig_M, Ct = diagonalizer.eigh(H, options)
+        Ct_MM = Ct.data
+
         assert Ct_MM.flags.f_contiguous
         Ct = H.new(data=Ct_MM.T)
         self.multiply(1.0, L, 'C', Ct, 'T', 0.0, H)
