@@ -1,14 +1,18 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW, PW
+from gpaw.mpi import size
 
 
 @pytest.mark.libxc
 @pytest.mark.hybrids
 @pytest.mark.new_gpaw_ready
-def test_exx_double_cell(in_tmp_dir, gpaw_new):
+@pytest.mark.parametrize('use_sym', [False, True])
+def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     if gpaw_new and size > 1:
         pytest.skip('No parallelization!')
+    if not gpaw_new and use_sym:
+        pytest.skip('Does not work')
 
     L = 2.6
     a = Atoms('H2',
@@ -19,10 +23,11 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new):
 
     kwargs = dict(
         mode=PW(400),
-        symmetry='off',
         convergence={'density': 1e-6},
         spinpol=True,
         xc='HSE06')
+    if not use_sym:
+        kwargs['symmetry'] = 'off'
     if gpaw_new:
         kwargs |= dict(spinpol=False,
                        # setups='ae',
@@ -33,7 +38,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new):
         txt='H2-new.txt',
         **kwargs)
     e1 = a.get_potential_energy()
-    eps1 = a.calc.get_eigenvalues(1)[0]
+    eig1_kn = a.calc.eigenvalues()[0]
     if not gpaw_new:
         f1 = a.get_forces()
         assert abs(f1[1, 0] - 9.60644) < 0.0005
@@ -50,7 +55,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new):
         txt='H4-new.txt',
         **kwargs)
     e2 = a.get_potential_energy()
-    eps2 = a.calc.get_eigenvalues(0)[0]
+    eig2_kn = a.calc.eigenvalues()[0]
     if not gpaw_new:
         f2 = a.get_forces()
 
@@ -59,6 +64,10 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new):
         assert abs(f2).max() < 0.00085
 
     assert abs(e2 - 2 * e1) < 0.002
+
+    # comp
+    if use_sym:
+       eig1 = [
     assert abs(eps1 - eps2) < 0.001
 
 
