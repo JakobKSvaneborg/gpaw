@@ -6,6 +6,7 @@ import numpy as np
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
+from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
 # from gpaw.new import zips as zip
@@ -106,7 +107,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
     def _apply1(self,
                 spin: int,
                 D_aii,
-                pt_aiG,
+                pt_aiG: PWAtomCenteredFunctions,
                 psit_nG: PWArray,
                 Htpsit_nG: PWArray,
                 f_n: np.ndarray,
@@ -137,8 +138,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
         for rank in range(self.kpt_comm.size):
             data = None
             if rank == self.kpt_comm.rank:
-                psit_nG = psit_nG.gather()
-                P_ani = P_ani.gather()
+                psit_nG = psit_nG.gathergather()
+                P_ani = P_ani.gathergather()
                 if psit_nG is not None:
                     data = (psit_nG, P_ani, spin)
             psit_nG, P_ani, s = broadcast(data, rank * band_comm.size, comm)
