@@ -7,6 +7,9 @@ from gpaw import GPAW, PW
 @pytest.mark.hybrids
 @pytest.mark.new_gpaw_ready
 def test_exx_double_cell(in_tmp_dir, gpaw_new):
+    if gpaw_new and size > 1:
+        pytest.skip('No parallelization!')
+
     L = 2.6
     a = Atoms('H2',
               [[0, 0, 0], [0.5, 0.5, 0]],
