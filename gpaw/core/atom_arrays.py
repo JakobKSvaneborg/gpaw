@@ -377,6 +377,18 @@ class AtomArrays:
 
         return aa
 
+    def gathergather(self):
+        a_ani = self.gather()  # gather a
+        print(self.layout.atomdist.comm.rank, a_ani)
+        sdæflkhj
+        if a_xX is not None:
+            m_xX = a_xX.matrix.gather()  # gather x
+            if m_xX.dist.comm.rank == 0:
+                data = m_xX.data
+                if a_xX.data.dtype != data.dtype:
+                    data = data.view(complex)
+                return self.desc.new(comm=None).from_data(data)
+
     def scatter_from(self,
                      data: np.ndarray | AtomArrays | None = None) -> None:
         """Scatter atoms."""

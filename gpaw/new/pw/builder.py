@@ -165,7 +165,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if self.ncomponents < 4:
             if self.xc.exx_fraction == 0.0:
                 return PWHamiltonian(self.grid, self.wf_desc, self.xp)
-            if 0:#self.dtype is float:
+            if self.dtype is float:
                 assert self.communicators['d'].size == 1
                 assert self.communicators['k'].size == 1
                 assert self.nbands % self.communicators['b'].size == 0
