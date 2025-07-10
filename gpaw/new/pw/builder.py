@@ -132,7 +132,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         pw = self.electrostatic_potential_desc
         ps = make_poisson_solver(pw,
                                  grid,
-                                 self.params.charge,
+                                 self.charge,
                                  env,
                                  **psparams)
 

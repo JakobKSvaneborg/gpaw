@@ -69,6 +69,7 @@ def test_h(gpaw_new, dtype):
     atoms.calc = GPAW(mode=dict(name='pw',
                                 force_complex_dtype=dtype is complex),
                       xc='HSE06',
+                      eigensolver='dav',
                       nbands=2,
                       eigensolver=dict(name='davidson', niter=2),
                       # eigensolver='rmm-diis',

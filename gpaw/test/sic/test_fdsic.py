@@ -1,9 +1,18 @@
+import io
 import pytest
 
 from gpaw import GPAW
 import numpy as np
 from ase.dft.bandgap import bandgap
 from ase.units import Ha
+
+import numpy.testing as npt
+from gpaw.io.logger import GPAWLogger
+from gpaw.wavefunctions.base import eigenvalue_string
+from gpaw.test.sic._utils import (mk_arr_from_str,
+                                  extract_lagrange_section,
+                                  MockWorld)
+from gpaw.mpi import rank
 
 
 @pytest.mark.slow
@@ -52,3 +61,41 @@ def test_fdsic(in_tmp_dir, gpw_files):
     assert niter == pytest.approx(4, abs=3)
     assert e == pytest.approx(e_old, abs=1e-3)
     assert f == pytest.approx(f_num, abs=5e-2)
+
+    if rank == 0:
+        logger = GPAWLogger(MockWorld(rank=0))
+        string_io = io.StringIO()
+        logger.fd = string_io
+        calc.wfs.summary_func(logger)
+        lstr = extract_lagrange_section(string_io.getvalue())
+
+        expect_lagrange_str = """\
+        Band         L_ii   Occupancy   Band      L_ii   Occupancy
+           0    -21.19082    1.00000    0    -21.19081    1.00000
+           1    -20.53526    1.00000    1    -20.53521    1.00000
+           2    -13.88424    1.00000    2    -13.88428    1.00000
+           3    -13.83555    1.00000    3    -13.83554    1.00000
+           4     -0.58073    0.00000    4     -0.58073    0.00000
+           5      1.21087    0.00000    5      1.21087    0.00000
+        """
+        expect_eigen_str = """\
+        Band  Eigenvalues  Occupancy  Eigenvalues  Occupancy
+           0    -28.89620    1.00000    -28.89620    1.00000
+           1    -16.92142    1.00000    -16.92142    1.00000
+           2    -12.82836    1.00000    -12.82835    1.00000
+           3    -10.79987    1.00000    -10.79987    1.00000
+           4     -0.58369    0.00000     -0.58369    0.00000
+           5      1.21382    0.00000      1.21382    0.00000
+        """
+
+        npt.assert_allclose(
+            mk_arr_from_str(expect_lagrange_str, 6),
+            mk_arr_from_str(lstr, 6),
+            atol=0.3,
+        )
+
+        npt.assert_allclose(
+            mk_arr_from_str(expect_eigen_str, 5),
+            mk_arr_from_str(eigenvalue_string(calc.wfs), 5, skip_rows=1),
+            atol=0.3,
+        )
