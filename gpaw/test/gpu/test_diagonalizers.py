@@ -3,6 +3,7 @@ import pytest
 from typing import TYPE_CHECKING, Type
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp, cupy_is_fake
+from gpaw.cgpaw import have_magma
 from gpaw.gpu.diagonalization import CPUPYDiagonalizer, CuPyDiagonalizer, DiagonalizerOptions
 from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
 from gpaw.test.gpu import assert_eigenpairs
@@ -37,6 +38,9 @@ def test_matrix_diagonalizer(fixt_raw_hermitian_matrix: cp.ndarray,
         pytest.skip("CuPy is fake")
     elif not cupy_is_fake and diagonalizer_class is CPUPYDiagonalizer:
         pytest.skip("Not testing cpupy when running with real CuPy")
+
+    if not have_magma and diagonalizer_class is MagmaDiagonalizer:
+        pytest.skip("No MAGMA")
 
     raw_matrix = fixt_raw_hermitian_matrix(matrix_size, dtype=dtype, backend='cupy')
     matrix = Matrix(matrix_size, matrix_size, dtype=dtype, data=raw_matrix)
