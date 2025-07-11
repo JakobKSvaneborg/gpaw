@@ -63,11 +63,16 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
 
         if not inout_matrix.is_distributed():
 
-            # Currently always inplace!
-            # NOTE old version had transpose so I guess we need it here too...
+            # NOTE: Very confusing that matrix.eigh wants to give the eigenvector matrix
+            # as transposed, according to the old version. So we do the same here...
+            if options.inplace:
+                eigvals, inout_matrix.data.T[:] = self.eigh_non_distributed(inout_matrix.data, options)
+                eigvecs = inout_matrix
+            else:
+                eigvals, eigvecs = self.eigh_non_distributed(inout_matrix.data, options)
+                eigvecs = inout_matrix.new(data=eigvecs.T)
 
-            eigvals, inout_matrix.data.T[:] = self.eigh_non_distributed(inout_matrix.data, options)
-            return eigvals, inout_matrix
+            return eigvals, eigvecs
 
         else:
             raise NotImplementedError("GPU distributed eigh")
