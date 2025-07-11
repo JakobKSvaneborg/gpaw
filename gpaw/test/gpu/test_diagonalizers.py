@@ -12,11 +12,10 @@ if TYPE_CHECKING:
     from gpaw.gpu.diagonalization import GPUDiagonalizer
 
 
+# TODO: test with distributed matrices.
+# The diagonalizers should still work but operate in serial
+
 @pytest.mark.gpu
-# @pytest.mark.parametrize("matrix_size, dtype, uplo, inplace",
-#                          [(4, np.float32, 'L', False),
-#                           (8, np.complex128, 'U', False),
-#                           (8, np.complex128, 'L', True)])
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
                                    np.complex64, np.complex128])
 @pytest.mark.parametrize("matrix_size", [4])

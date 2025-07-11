@@ -19,35 +19,6 @@ from gpaw.test.gpu import assert_eigenpairs
 # We also check unitarity/orthonormality of the eigenvector matrix.
 
 
-@pytest.mark.skipif(not have_magma, reason="No MAGMA")
-@pytest.mark.parametrize("matrix_size, dtype, uplo",
-                         [(2, np.float32, 'L'),
-                          (3, np.float64, 'U'),
-                          (2, np.complex64, 'U'),
-                          (4, np.complex128, 'L')])
-def test_eigh_magma_cpu(fixt_raw_hermitian_matrix: np.ndarray,
-                        matrix_size: int,
-                        dtype: np.dtype,
-                        uplo: str) -> None:
-    """Compare eigh output of Numpy and MAGMA"""
-
-    matrix = fixt_raw_hermitian_matrix(matrix_size, dtype=dtype, backend='numpy')
-    eigvals, eigvecs = eigh_magma_cpu(matrix, uplo)
-
-    eigvals_np, eigvecs_np = np.linalg.eigh(matrix, UPLO=uplo)
-
-    atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-6
-    rtol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
-
-    np.testing.assert_allclose(eigvals, eigvals_np, atol=atol)
-    assert_eigenpairs(matrix, eigvals, eigvecs, rtol=rtol, atol=atol)
-
-    # check orthonormality
-    np.testing.assert_allclose(np.identity(matrix_size),
-                               eigvecs.conjugate().T @ eigvecs,
-                               rtol=rtol, atol=atol)
-
-
 # MAGMA seems to do small matrices (N <= 128) on the CPU.
 # So need a large matrix for honest GPU tests
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")

@@ -16,17 +16,38 @@
 #include <magma_v2.h>
 #include <Python.h>
 
-/* Solves symmetric/Hermitian eigenvalue problem on the CPU.
-Takes 1 Numpy array as input (in_matrix) and outputs eigvals, eigvecs tuple.
-*/
-CLINKAGE PyObject* eigh_magma_cpu(PyObject* self, PyObject* args);
+/* Solves symmetric/Hermitian eigenvalue on GPU, using Numpy arrays as input
+and output. In other words, all input and output arrays are in CPU memory and
+contiguous. Multiple GPUs can be used if requested, in which case MAGMA handles
+the distribution to GPUs internally. Note that multi-GPU use is limited to
+one compute node, as MAGMA has no support for SCALAPACK-like distributed
+functionality.
 
-/* Solves symmetric/Hermitian eigenvalue problem on the GPU.
-Takes CuPy arrays as input (inout_matrix, out_eigvals)
-and assumes them to already be the correct size.
-inout_matrix gets replaced by eigenvectors: caller is responsible for taking a
-copy beforehand if this is not desirable.
+In practice this is wrapper around magma_zheevd() and magma_zheevd_m(),
+and their SYEVD counterparts. Eigenvectors will be returned in MAGMA/SCALAPACK Fortran-like convention.
+
+Syntax when calling from Python:
+    eigh_magma_numpy(inout_matrix: np.ndarray, out_eigvals: np.ndarray, uplo: str, num_gpus: int) -> None
+
+`inout_matrix` gets overwritten by the eigenvectors. Both arrays must be
+allocated to correct size before calling this function.
 */
-CLINKAGE PyObject* eigh_magma_gpu(PyObject* self, PyObject* args);
+CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args);
+
+/* Solves symmetric/Hermitian eigenvalue on single GPU, using CuPy arrays as input
+and output. Differences to `eigh_magma_numpy` are:
+    1. Input and output are directly in GPU memory
+    2. Only supports single-GPU solving
+
+In practice this is wrapper around magma_zheevd_gpu(), and its SYEVD counterparts.
+Eigenvectors will be returned in MAGMA/SCALAPACK Fortran-like convention.
+
+Syntax when calling from Python:
+    eigh_magma_cupy(inout_matrix: cp.ndarray, out_eigvals: np.ndarray, uplo: str) -> None
+
+`inout_matrix` gets overwritten by the eigenvectors. Both arrays must be
+allocated to correct size before calling this function.
+*/
+CLINKAGE PyObject* eigh_magma_cupy(PyObject* self, PyObject* args);
 
 #endif

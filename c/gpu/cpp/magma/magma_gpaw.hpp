@@ -70,8 +70,8 @@ struct MagmaEighContext
     magma_uplo_t uplo;
     magma_int_t matrix_size;
     magma_int_t matrix_lda;
-    // Replace the input matrix with result eigenvectors?
-    bool in_place;
+    // How many GPUs to use. Only for the version that has input/output on HOST
+    magma_int_t num_gpus;
 };
 
 enum class EighErrorType
@@ -142,10 +142,10 @@ inline EighErrorType interpret_magma_status(magma_int_t status)
 // Functions called from Python operate on Python array objects and pass their data pointers to type-erased solvers.
 // Inside the entry functions we cast back to the correct types.
 
-/* Entry point to Magma CPU eigensolvers.
+/* Entry point to Magma eigensolver where the input/output is in HOST memory.
 * The pointers must point to accessible memory locations of correct size.
 */
-EighErrorType magma_eigh_cpu(const MagmaEighContext& context, const void* const in_matrix, void* inout_eigvals, void* inout_eigvecs);
+EighErrorType magma_eigh_host(const MagmaEighContext& context, void* inout_matrix, void* inout_eigvals);
 
 
 /* Entry point to Magma single-GPU eigensolvers.

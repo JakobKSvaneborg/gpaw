@@ -69,8 +69,8 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         # This import only works if GPAW was compiled with MAGMA.
         # Doing the import here prevents crashes if importing this .py
         # module when MAGMA was not enabled during compilation.
-        from gpaw.cgpaw import _eigh_magma_gpu
+        from gpaw.cgpaw import _eigh_magma_cupy
 
-        _eigh_magma_gpu(eigvecs, options.uplo, eigvals)
+        _eigh_magma_cupy(eigvecs, eigvals, options.uplo)
 
         return eigvals, eigvecs

@@ -58,26 +58,34 @@ static MagmaPythonContext decide_solver_type(int matrix_numpy_dtype)
     return context;
 }
 
-CLINKAGE PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
 {
-    PyObject *in_matrix_obj;
+    PyObject *inout_matrix;
+    PyObject* inout_eigvals;
     char* in_uplo;
-    if (!PyArg_ParseTuple(args, "Os", &in_matrix_obj, &in_uplo))
+    int num_gpus;
+    if (!PyArg_ParseTuple(args, "OOs", &inout_matrix, &inout_eigvals, &in_uplo, &num_gpus))
     {
         return NULL;
     }
 
-    if (!PyArray_Check(in_matrix_obj))
+    if (!PyArray_Check(inout_matrix) || !PyArray_Check(inout_eigvals))
     {
-        PyErr_SetString(PyExc_TypeError, "Input must be a numpy array");
+        PyErr_SetString(PyExc_TypeError, "Inputs must be numpy arrays");
         return NULL;
     }
 
-    PyArrayObject* in_matrix = reinterpret_cast<PyArrayObject*>(in_matrix_obj);
-    assert(in_matrix && gpaw::Array_NDIM(in_matrix) == 2);
-    assert(gpaw::Array_DIM(in_matrix, 0) == gpaw::Array_DIM(in_matrix, 1));
+    PyArrayObject* inout_matrix_numpy = reinterpret_cast<PyArrayObject*>(inout_matrix);
+    assert(inout_matrix_numpy && gpaw::Array_NDIM(inout_matrix_numpy) == 2);
+    assert(gpaw::Array_DIM(inout_matrix_numpy, 0) == gpaw::Array_DIM(inout_matrix_numpy, 1));
 
-    const int matrix_numpy_dtype = PyArray_TYPE(in_matrix);
+    const int matrix_numpy_dtype = PyArray_TYPE(inout_matrix_numpy);
+    const int64_t matrix_size = gpaw::Array_DIM(inout_matrix_numpy, 0);
+
+    PyArrayObject* inout_eigvals_numpy = reinterpret_cast<PyArrayObject*>(inout_eigvals);
+
+    assert(gpaw::Array_NDIM(inout_eigvals_numpy) == 1);
+    assert(gpaw::Array_DIM(inout_eigvals_numpy, 0) == matrix_size);
 
     MagmaPythonContext python_context = decide_solver_type(matrix_numpy_dtype);
     if (python_context.solver_type == EighSolverType::eNone)
@@ -87,39 +95,21 @@ CLINKAGE PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    // Figure out input array dimensions and make output arrays of correct shape
-
-    const npy_intp size_np = PyArray_DIM(in_matrix, 0);
-
-    if (size_np <= 0)
-    {
-        PyErr_WarnEx(PyExc_RuntimeWarning,
-            "Empty array?",
-            1
-        );
-        return NULL;
-    }
-
-    const npy_intp* dims = PyArray_DIMS(in_matrix);
-
-    PyObject* eigvals = PyArray_SimpleNew(1, &size_np, python_context.numpy_eigval_dtype);
-    PyObject* eigvecs = PyArray_SimpleNew(2, dims, python_context.numpy_eigvec_dtype);
-
-    assert(eigvals);
-    assert(eigvecs);
-
     MagmaEighContext solver_context;
     solver_context.solver_type = python_context.solver_type;
-    solver_context.matrix_size = static_cast<magma_int_t>(size_np);
+    solver_context.matrix_size = static_cast<magma_int_t>(matrix_size);
     solver_context.matrix_lda = solver_context.matrix_size;
     solver_context.uplo = get_magma_uplo(in_uplo);
     solver_context.jobz = MagmaVec; // Always do eigenvectors
 
-    const EighErrorType status = magma_eigh_cpu(
+    assert(num_gpus > 0);
+    // TODO validate this
+    solver_context.num_gpus = num_gpus;
+
+    const EighErrorType status = magma_eigh_host(
         solver_context,
-        PyArray_DATA(in_matrix),
-        PyArray_DATA((PyArrayObject*)eigvals),
-        PyArray_DATA((PyArrayObject*)eigvecs)
+        PyArray_DATA(inout_matrix_numpy),
+        PyArray_DATA(inout_eigvals_numpy)
     );
 
     assert(status != EighErrorType::eInvalidArgument && "Invalid input to MAGMA solver");
@@ -131,12 +121,7 @@ CLINKAGE PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
         );
     }
 
-    PyObject* result = PyTuple_Pack(2, eigvals, eigvecs);
-
-    Py_DECREF(eigvals);
-    Py_DECREF(eigvecs);
-
-    return result;
+    Py_RETURN_NONE;
 }
 
 // CUPY doesn't provide a nice C-interface to array creation like Numpy, so need to do tricks.
@@ -145,14 +130,14 @@ CLINKAGE PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
 // underlying memory pointers to an internal function that does the work, ie.
 // calls MAGMA. Output is written to the buffers that were passed from Python.
 
-CLINKAGE PyObject* eigh_magma_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* eigh_magma_cupy(PyObject* self, PyObject* args)
 {
     // Must be allocated on Python side. Asserts below verify that the dtypes and sizes are OK
     PyObject* inout_matrix_cupy;
     PyObject* inout_eigvals_cupy;
     char* in_uplo;
 
-    if (!PyArg_ParseTuple(args, "OsO", &inout_matrix_cupy, &in_uplo, &inout_eigvals_cupy))
+    if (!PyArg_ParseTuple(args, "OOs", &inout_matrix_cupy, &inout_eigvals_cupy, &in_uplo))
     {
         return NULL;
     }
@@ -182,6 +167,8 @@ CLINKAGE PyObject* eigh_magma_gpu(PyObject* self, PyObject* args)
     solver_context.matrix_lda = solver_context.matrix_size;
     solver_context.uplo = get_magma_uplo(in_uplo);
     solver_context.jobz = MagmaVec; // Always do eigenvectors
+    // This only supports single GPU
+    solver_context.num_gpus = 1;
 
     const EighErrorType status = magma_eigh_gpu(
         solver_context,
