@@ -1,9 +1,8 @@
-.. module:: gpaw.response.bse
 .. _bseplus tutorial:
 
-==================
-The BSE+ equations
-==================
+=====================
+Using the BSE+ method
+=====================
 
 In this tutorial, we calculate the BSE+ [#Sondersted]_  q-resolved electron energy loss spectrum (q-EELS) of TiO2 and MoS2, as well as the refractive index for TiO2.
 
