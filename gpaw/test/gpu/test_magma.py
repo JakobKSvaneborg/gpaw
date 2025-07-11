@@ -7,6 +7,7 @@ from gpaw.gpu.diagonalization.diagonalizer import DiagonalizerOptions
 from gpaw.cgpaw import have_magma
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
+from gpaw.test.gpu import assert_eigenpairs
 
 
 # Comparing eigenvectors from different solvers is challenging because of
@@ -18,68 +19,19 @@ from gpaw.gpu import cupy_is_fake
 # We also check unitarity/orthonormality of the eigenvector matrix.
 
 
-def assert_eigenpairs(A, eigvals, eigvecs, rtol=1e-12, atol=1e-12) -> None:
-    """Checks that A @ v == lam*v and asserts on failure."""
-
-    xp = cp if isinstance(A, cp.ndarray) else np
-
-    for i in range(eigvecs.shape[1]):
-        v = eigvecs[:, i]
-        lam = eigvals[i]
-        lhs = A @ v
-        rhs = lam * v
-
-        xp.testing.assert_allclose(lhs, rhs, rtol=rtol, atol=atol)
-    #
-
-
-@pytest.fixture
-def eigh_test_matrix():
-    """Symmetric if dtype is real, Hermitian otherwise."""
-    def _generate(n: int, dtype: np.dtype = np.float64,
-                  backend: str = 'numpy', seed: int = 42):
-
-        assert backend in ['numpy', 'cupy']
-
-        if backend == 'cupy':
-            xp = cp
-        else:
-            xp = np
-
-        rng = xp.random.default_rng(seed)
-
-        if not np.issubdtype(dtype, np.complexfloating):
-            # Real dtype, return symmetric matrix
-            A = rng.random((n, n), dtype=dtype)
-            return (A + A.T) / 2
-
-        else:
-            # Only 32/64 bit precision implemented
-            assert dtype == np.complex64 or dtype == np.complex128
-            dtype_real = np.float32 if dtype == np.complex64 else np.float64
-            # Create Hermitian matrix
-            A = (
-                rng.random((n, n), dtype=dtype_real)
-                + 1j * rng.random((n, n), dtype=dtype_real)
-            )
-            return (A + A.T.conj()) / 2
-
-    return _generate
-
-
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")
 @pytest.mark.parametrize("matrix_size, dtype, uplo",
                          [(2, np.float32, 'L'),
                           (3, np.float64, 'U'),
                           (2, np.complex64, 'U'),
                           (4, np.complex128, 'L')])
-def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
+def test_eigh_magma_cpu(fixt_raw_hermitian_matrix: np.ndarray,
                         matrix_size: int,
                         dtype: np.dtype,
                         uplo: str) -> None:
     """Compare eigh output of Numpy and MAGMA"""
 
-    matrix = eigh_test_matrix(matrix_size, dtype=dtype, backend='numpy')
+    matrix = fixt_raw_hermitian_matrix(matrix_size, dtype=dtype, backend='numpy')
     eigvals, eigvecs = eigh_magma_cpu(matrix, uplo)
 
     eigvals_np, eigvecs_np = np.linalg.eigh(matrix, UPLO=uplo)
@@ -108,13 +60,13 @@ def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
                           (256, np.float64, 'U'),
                           (150, np.complex64, 'U'),
                           (140, np.complex128, 'L')])
-def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
+def test_eigh_magma_gpu(fixt_raw_hermitian_matrix: cp.ndarray,
                         matrix_size: int,
                         dtype: np.dtype,
                         uplo: str):
     """Compare eigh output of CUPY and MAGMA (GPU)"""
 
-    matrix = eigh_test_matrix(matrix_size, dtype=dtype, backend='cupy')
+    matrix = fixt_raw_hermitian_matrix(matrix_size, dtype=dtype, backend='cupy')
 
     # For checking that we don't modify this in-place
     matrix_original = cp.copy(matrix)
@@ -148,12 +100,12 @@ def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
                          [(4, np.float64),
                           (16, np.complex128),
                           (32, np.complex64)])
-def test_eigh_magma_inplace(eigh_test_matrix: cp.ndarray,
+def test_eigh_magma_inplace(fixt_raw_hermitian_matrix: cp.ndarray,
                         matrix_size: int,
                         dtype: np.dtype):
     """Test the inplace option in magma eigensolvers"""
 
-    matrix = eigh_test_matrix(matrix_size, dtype=dtype, backend='cupy')
+    matrix = fixt_raw_hermitian_matrix(matrix_size, dtype=dtype, backend='cupy')
     matrix_original = cp.copy(matrix)
 
     diagonalizer = MagmaDiagonalizer()
