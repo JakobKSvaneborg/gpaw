@@ -514,9 +514,8 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     dH(P_ani, out_ani=P2_ani)
     if xp is np:
         # Numpy got the goods
-        np.vecdot(Hpsit_nX.matrix.data,
-                  psit_nX.matrix.data,
-                  out=eigs_n)
+        eigs_n = np.vecdot(Hpsit_nX.matrix.data,
+                           psit_nX.matrix.data)
     else:
         # Cupy aint got nothing...
         xp.conjugate(Hpsit_nX.matrix.data, out=Hpsit_nX.matrix.data)
