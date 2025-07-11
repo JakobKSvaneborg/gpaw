@@ -7,6 +7,8 @@ from gpaw.typing import Array1D, Array3D, Vector
 
 
 class SpinDirectionConstraint(Extension):
+    name = 'spin_direction_constraint'
+
     def __init__(self,
                  constraint: dict[int, Vector],
                  penalty: float = 0.8):
@@ -23,6 +25,11 @@ class SpinDirectionConstraint(Extension):
         self.constraint = {a: np.array(u_v) / np.linalg.norm(u_v)
                            for a, u_v in constraint.items()}
         self.penalty = penalty / Ha
+
+    def todict(self):
+        return dict(constraint=dict((a, u_v.tolist())
+                                    for a, u_v in self.constraint.items()),
+                    penalty=self.penalty * Ha)
 
     def update_non_local_hamiltonian(self,
                                      D_sii,
