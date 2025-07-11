@@ -162,7 +162,6 @@ Make a script that calculates the interlayer distance with EMT in the cell below
 # This script will calculate the energy of graphite for a series of inter-layer distances.
 from ase.calculators.emt import EMT
 from ase.lattice.hexagonal import Graphite
-from ase.eos import EquationOfState
 import numpy as np
 
 # ccdist is already defined in the previous cell
@@ -421,8 +420,7 @@ In the end try to compare the different functionals with experimental values:
 # Teacher
 
 from ase import Atoms
-from gpaw import GPAW, FermiDirac, PW
-from ase.optimize import QuasiNewton
+from gpaw import GPAW, PW
 from ase.build import bulk
 from ase.calculators.dftd3 import DFTD3
 from ase.filters import StrainFilter
@@ -575,7 +573,6 @@ In the calculation of the intercalated Li we used a graphene layer with 8 Carbon
 """
 
 # %%
-from ase import Atoms
 from ase.visualize import view
 
 ccdist = 1.40

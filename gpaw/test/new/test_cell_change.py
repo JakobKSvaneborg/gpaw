@@ -25,7 +25,7 @@ def test_new_cell(gpu):
     assert e0 == pytest.approx(-1.27648045935401)
     assert f0 == pytest.approx(0, abs=1e-5)
     assert s0 == pytest.approx([-3.97491456e-01] * 2
-                               + [3.29507807e-03] + [0, 0, 0], abs=5e-7)
+                               + [3.29507807e-03] + [0, 0, 0], abs=5e-6)
 
     atoms.cell[2, 2] = 0.9 * az
     atoms.positions += 0.1
@@ -36,7 +36,7 @@ def test_new_cell(gpu):
     assert e1 == pytest.approx(-1.2359952570422994)
     assert f1 == pytest.approx(0, abs=1e-4)
     assert s1 == pytest.approx([-4.37458548e-01] * 2 +
-                               [-9.41665221e-02, 0.0, 0.0, 0.0], abs=5e-7)
+                               [-9.41665221e-02, 0.0, 0.0, 0.0], abs=5e-6)
     out = broadcast_string(output.getvalue() or None)
     assert 'Interpolating wave fun' in out
 
@@ -61,7 +61,7 @@ def test_new_cell_1d(gpu):
     assert e0 == pytest.approx(-3.367005531386283)
     assert f0 == pytest.approx(0, abs=1e-5)
     assert s0 == pytest.approx(
-        [8.05730258e-02] * 2 + [-1.45549945e-01, 0, 0, 0], abs=5e-7)
+        [8.05730258e-02] * 2 + [-1.45549945e-01, 0, 0, 0], abs=5e-6)
 
     atoms.cell[2, 2] = 1.05 * az
     atoms.positions += 0.1

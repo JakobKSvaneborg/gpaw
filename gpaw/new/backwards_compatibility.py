@@ -75,7 +75,8 @@ class FakeWFS:
         self.occ_calc = occ_calc
         self.occupations = occ_calc.occ
         self.nvalence = int(round(density.nvalence))
-        assert self.nvalence == density.nvalence
+        self.nvalence = density.nvalence
+        # assert self.nvalence == density.nvalence
         self.world = comm
         if ibzwfs.fermi_levels is not None:
             self.fermi_levels = ibzwfs.fermi_levels

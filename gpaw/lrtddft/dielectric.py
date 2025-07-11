@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 
 import gpaw
@@ -89,9 +88,6 @@ def dielectric(exlist,
     =============== ===================================================
     all energies in [eV]
     """
-
-    # output
-    out = sys.stdout
 
     with open(filename, 'w') as out:
         if comment:

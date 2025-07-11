@@ -84,6 +84,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
                     symmetry='off',
                     parallel={'band': band, 'domain': domain},
                     kpts=(2, 1, 1),
+                    convergence={'density': 1e-6},
                     mode=mode)
         atoms.calc = calc
         return calc
@@ -106,6 +107,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     # 3. Calculate a reference result without extensions
     calc = GPAW(mode=mode,
                 kpts=(2, 1, 1),
+                convergence={'density': 1e-6},
                 symmetry='off')
     atoms.calc = calc
 

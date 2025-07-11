@@ -29,6 +29,8 @@ def test_spin_dir_constraint_H():
 
     atom.calc = calc
     atom.get_potential_energy()
+    calc.write('h2.gpw')
+    GPAW('h2.gpw')
 
     # Assert that spin points along x
     smm_v = calc.dft.density.calculate_magnetic_moments()[0]

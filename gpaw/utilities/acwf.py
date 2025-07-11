@@ -154,7 +154,7 @@ def collect_data() -> None:
 def reference_structure(symbol: str,
                         name: str) -> Atoms:
     """Create one of the ACWF structures with the WIEN2K volume."""
-    atoms = acwf_structures[name]
+    atoms = acwf_structures[name].copy()
     x = (volumes[symbol][name] / atoms.get_volume())**(1 / 3)
     if symbol == 'O' and name in ['X4O10', 'XO']:
         x *= 2**(1 / 3)

@@ -61,7 +61,9 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
 
     assert f0 == pytest.approx(f, abs=1e-2)
     assert energy == pytest.approx(e0, abs=1.0e-4)
-    assert calc.wfs.kpt_u[0].eps_n[5] > calc.wfs.kpt_u[0].eps_n[6]
+    assert calc.wfs.kpt_u[0].f_n[6] == 1.0
+    assert calc.wfs.kpt_u[0].f_n[5] == 0.0
+    assert calc.wfs.kpt_u[0].eps_n[6] > calc.wfs.kpt_u[0].eps_n[5]
 
     calc.write('ethylene.gpw', mode='all')
     from gpaw import restart
@@ -72,7 +74,9 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
 
     assert niter == pytest.approx(3, abs=1)
     assert f0 == pytest.approx(f2, abs=1e-2)
-    assert calc.wfs.kpt_u[0].eps_n[5] > calc.wfs.kpt_u[0].eps_n[6]
+    assert calc.wfs.kpt_u[0].f_n[6] == 1.0
+    assert calc.wfs.kpt_u[0].f_n[5] == 0.0
+    assert calc.wfs.kpt_u[0].eps_n[6] > calc.wfs.kpt_u[0].eps_n[5]
 
 
 if __name__ == '__main__':

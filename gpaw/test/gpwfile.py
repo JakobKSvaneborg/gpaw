@@ -143,14 +143,17 @@ class GPWFiles(CachedFilesHandler):
         magmoms = None if calc_type == 'col' else [mm * easy_axis]
         soc = True if calc_type == 'ncolsoc' else False
 
-        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 280},
+        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 380},
                           xc='LDA',
+                          nbands='200%',
                           kpts={'size': (4, 4, 4), 'gamma': True},
                           parallel={'domain': 1, 'band': 1},
                           mixer={'beta': 0.5},
                           symmetry=symmetry,
                           occupations={'name': 'fermi-dirac', 'width': 0.05},
-                          convergence={'density': 1e-4},
+                          convergence={'density': 1e-8,
+                                       'bands': 'CBM+10',
+                                       'eigenstates': 1e-12},
                           magmoms=magmoms,
                           soc=soc,
                           txt=self.folder / f'fcc_Ni_{calc_type}.txt')
@@ -1761,8 +1764,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         return atoms.calc
 
-    @gpwfile
-    def hbn_pw(self):
+    def _hbn_pw(self, symmetry={}):
         atoms = Graphene(symbol='B',
                          latticeconstant={'a': 2.5, 'c': 1.0},
                          size=(1, 1, 1))
@@ -1776,9 +1778,18 @@ class GPWFiles(CachedFilesHandler):
                           occupations=FermiDirac(0.001),
                           parallel={'domain': 1},
                           convergence={'bands': 26},
-                          kpts={'size': (3, 3, 1), 'gamma': True})
+                          kpts={'size': (3, 3, 1), 'gamma': True},
+                          symmetry=symmetry)
         atoms.get_potential_energy()
         return atoms.calc
+
+    @gpwfile
+    def hbn_pw(self):
+        return self._hbn_pw()
+
+    @gpwfile
+    def hbn_pw_nosym(self):
+        return self._hbn_pw(symmetry='off')
 
     @gpwfile
     def graphene_pw(self):
