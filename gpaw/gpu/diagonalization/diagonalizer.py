@@ -63,8 +63,11 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
 
         if not inout_matrix.is_distributed():
 
-            eigvals, eigvecs = self.eigh_non_distributed(inout_matrix.data, options)
-            return eigvals, inout_matrix.new(data=eigvecs)
+            # Currently always inplace!
+            # NOTE old version had transpose so I guess we need it here too...
+
+            eigvals, inout_matrix.data.T[:] = self.eigh_non_distributed(inout_matrix.data, options)
+            return eigvals, inout_matrix
 
         else:
             raise NotImplementedError("GPU distributed eigh")
@@ -107,6 +110,8 @@ class CPUPYDiagonalizer(NonDistributedDiagonalizer):
         eigvals, eigvecs = scipy_eigh(cp.asnumpy(inout_matrix),
                                         lower=(options.uplo == 'L'),
                                         check_finite=False)
+
+        eigvals, eigvecs = cp.ndarray(eigvals), cp.ndarray(eigvecs)
 
         if options.inplace:
             inout_matrix = eigvecs

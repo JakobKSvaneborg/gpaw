@@ -477,6 +477,7 @@ class Matrix(XP):
 
             # TODO some way for the caller to specify options/backend
             diagonalizer, options = suggest_diagonalizer(H)
+            options.uplo = 'L'
             eigvals, H = diagonalizer.eigh(H, options)
 
             # Back to original layout
@@ -1020,6 +1021,7 @@ class CuPyDistribution(MatrixDistribution):
 
         diagonalizer, options = suggest_diagonalizer(H)
         options.inplace = False
+        options.uplo = 'L'
         eig_M, Ct = diagonalizer.eigh(H, options)
         Ct_MM = Ct.data
 
