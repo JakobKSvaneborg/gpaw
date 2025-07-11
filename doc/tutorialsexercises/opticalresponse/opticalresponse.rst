@@ -21,4 +21,5 @@ Optical response
    eels/eels
    gw_tutorial/gw_tutorial
    bse_tutorial/bse_tutorial
+   bseplus_tutorial/bseplus_tutorial
    xas/xas
