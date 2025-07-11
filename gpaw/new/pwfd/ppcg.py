@@ -56,7 +56,7 @@ class PPCG(PWFDEigensolver):
             are more efficient on CPUs with many cores but not on GPUs. The
             value will be modified to a multiple of the number of domain
             ranks.
-            Default is 64 on cpu and 128 on gpu.
+            Default is 48 on cpu and 128 on gpu.
         rr_modulo : int, optional
             How often to perform subspace diagonalization. Default is 5.
         include_cg : bool, optional
@@ -512,9 +512,17 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     psit_nX = wfs.psit_nX
     xp = psit_nX.xp
     dH(P_ani, out_ani=P2_ani)
-    subscripts = 'nX, nX -> n'
-    eigs_n = xp.einsum(subscripts, Hpsit_nX.matrix.data,
-                       psit_nX.matrix.data.conj())
+    if xp is np:
+        # Numpy got the goods
+        np.vecdot(Hpsit_nX.matrix.data,
+                  psit_nX.matrix.data,
+                  out=eigs_n)
+    else:
+        # Cupy aint got nothing...
+        xp.conjugate(Hpsit_nX.matrix.data, out=Hpsit_nX.matrix.data)
+        eigs_n = xp.einsum('nX, nX -> n', Hpsit_nX.matrix.data,
+                           psit_nX.matrix.data)
+        xp.conjugate(Hpsit_nX.matrix.data, out=Hpsit_nX.matrix.data)
     eigs_n *= psit_nX.dv
     if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
             isinstance(psit_nX, PWArray):
@@ -522,7 +530,8 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
         if domain_comm.rank == 0:
             eigs_n -= psit_nX.matrix.data[:, 0] * \
                 Hpsit_nX.matrix.data[:, 0] * psit_nX.dv
-    eigs_n += xp.einsum(subscripts, P2_ani.matrix.data,
-                        P_ani.matrix.data.conj())
+    
+    eigs_n += xp.einsum('nX, nX -> n', P2_ani.matrix.data.conj(),
+                        P_ani.matrix.data)
     domain_comm.sum(eigs_n)
     wfs.myeig_n[:] = as_np(eigs_n.real)
