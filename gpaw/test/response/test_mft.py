@@ -236,6 +236,7 @@ def test_Co_hcp(in_tmp_dir, gpw_files):
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 def test_NiO_withU(in_tmp_dir):
 
     a0 = 4.17
