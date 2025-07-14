@@ -140,12 +140,12 @@ class PPCG(PWFDEigensolver):
         #   improves numerical stability at the cost of
         #   convergence speed - up to a certain point.
         #   Probably best to not use this one.
-        self.tol_factor = np.finfo(dtype).eps**0.5
+        self.tol_factor = 0 # np.finfo(dtype).eps**0.5
         # tolerance :
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
         #   minimum achievable residual.
-        self.tolerance = np.finfo(dtype).eps * G_max**0.5
+        self.tolerance = np.finfo(dtype).eps**2 * G_max**0.5
         # breakout_tolerance :
         #   Stop iteration if sum(residual_ns) < breakout_tolerance
         #   breakout_tolerance saves time at the cost of minimum
@@ -153,7 +153,7 @@ class PPCG(PWFDEigensolver):
         #   stability.
         self.breakout_tolerance = \
             np.finfo(dtype).eps**2 * (
-                B * extra_dims * G_max**0.5)
+                B * extra_dims * G_max)**0.5
         # initial_tolerance_factor :
         #   Modify the tolerance for the first iteration
         #   This value can be small since the first iteration
@@ -171,10 +171,13 @@ class PPCG(PWFDEigensolver):
                            dist=(band_comm, band_comm.size),
                            xp=xp)
 
+        inner_dtype = np.float64 if np.issubdtype(dtype, np.floating) else np.complex128
+        self.buffer_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
+                                  dtype=dtype)
         self.H_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
-                             dtype=dtype)
+                             dtype=inner_dtype)
         self.S_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
-                             dtype=dtype)
+                             dtype=inner_dtype)
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
@@ -256,7 +259,8 @@ class PPCG(PWFDEigensolver):
                                       precon=self.preconditioner)
                 wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
                 residual_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
-                                            domain_sum=False)
+                                            domain_sum=False,
+                                            symmetric=False)
                 P2_ani.matrix.multiply(Ptemp_ani, opb='C', symmetric=False,
                                        beta=1, out=M_nn)
                 domain_comm.sum(M_nn.data)
@@ -296,6 +300,8 @@ class PPCG(PWFDEigensolver):
                         (nblocksizes, nblocksizes))
                     S_bb = self.S_bb.ravel()[:nblocksizes**2].reshape(
                         (nblocksizes, nblocksizes))
+                    buffer_bb = self.buffer_bb.ravel()[:nblocksizes**2].reshape(
+                        (nblocksizes, nblocksizes))
 
                     MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
                                    data=H_bb,
@@ -303,34 +309,56 @@ class PPCG(PWFDEigensolver):
                     MS_bb = Matrix(M=nblocksizes, N=nblocksizes,
                                    data=S_bb,
                                    xp=xp)
+                    MBuf_bb = Matrix(M=nblocksizes, N=nblocksizes,
+                                     data=buffer_bb,
+                                     xp=xp)
 
                     Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
                     buff_bX[:nblocksizes].matrix_elements(
-                        buff_bX[:nblocksizes], cc=True, out=MS_bb,
+                        buff_bX[:nblocksizes], cc=True, out=MBuf_bb,
                         domain_sum=False, symmetric=True)
+                    S_bb[:] = buffer_bb[:]
                     S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T.conj()
+                        HPbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
+                    S_bb[:] += HPbuf_abi.matrix.data[:nblocksizes] @ \
+                        Pbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
                     domain_comm.sum(S_bb)
+                    norm_facts = (1 / S_bb.diagonal()[blocksize:])**0.25
+                    S_bb[blocksize:, :] *= norm_facts[:, None]
+                    S_bb[:, blocksize:] *= norm_facts[None, :]
+                    buff_bX.matrix.data[blocksize:nblocksizes, :] *= norm_facts[:, None]
+                    Pbuf_abi.matrix.data[blocksize:nblocksizes, :] *= norm_facts[:, None]
+
+                    S_bb[xp.triu_indices(nblocksizes, k=1)] = 42
+                    # S_bb[blocksize:, :blocksize] = 0
+                    # S_bb[:blocksize, :blocksize] = xp.eye(blocksize)
 
                     Ht_H = partial(Ht, out=Hbuff_bX[:nblocksizes])
                     dH(Pbuf_abi[:, :nblocksizes],
                        out_ani=HPbuf_abi[:, :nblocksizes])
                     buff_bX[:nblocksizes].matrix_elements(
                         buff_bX[:nblocksizes], function=Ht_H,
-                        cc=True, out=MH_bb,
+                        cc=True, out=MBuf_bb,
                         domain_sum=False, symmetric=True)
+                    H_bb[:] = buffer_bb[:]
                     H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T.conj()
+                        HPbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
+                    H_bb[:] += HPbuf_abi.matrix.data[:nblocksizes] @ \
+                        Pbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
                     domain_comm.sum(H_bb)
+                    H_bb[xp.triu_indices(nblocksizes, k=1)] = 42
 
                     if nblocksizes > 2 * blocksize:
                         # Eigh approach
-                        # A, B = xp.linalg.eigh(S_bb)
+                        # A, temp_bb = xp.linalg.eigh(S_bb, 'L')
+                        # if xp is not np:
+                        #     pos_defness = A.get()[0]
+                        # Eigvalsh approach
                         pos_defness = xp.linalg.eigvalsh(S_bb)[0]
                         if xp is not np:
                             pos_defness = pos_defness.get()
                         if pos_defness < \
-                                np.finfo(S_bb.dtype).eps:
+                                np.finfo(buffer_bb.dtype).eps:
                             # Insufficient numerical precision for CG,
                             # thus we only do the steepest descent step
                             nblocksizes = 2 * blocksize
@@ -342,20 +370,27 @@ class PPCG(PWFDEigensolver):
                                            data=S_bb[:nblocksizes,
                                                      :nblocksizes],
                                            xp=xp)
+                            
+                            # Use inverse cholesky to orthogonalize
                             MH_bb.eigh(MS_bb)
                         else:
                             # Do the full PPCG update
 
-                            # print(f'pos_defness {pos_defness}')
-                            # SMHalf = B @ xp.diag(A**(-0.5)) @ B.T.conj()
+                            # Use eigenvectors to orthogonalize
+                            # SMHalf = temp_bb @ xp.diag(A**(-0.5)) @ temp_bb.T.conj()
+                            # assert xp.linalg.norm(SMHalf @ SMHalf @ S_bb - xp.eye(nblocksizes)) < 100, \
+                            #     f'error: {xp.linalg.norm(SMHalf @ SMHalf @ S_bb - xp.eye(nblocksizes))}'
                             # H_bb[:] = SMHalf @ H_bb @ SMHalf
                             # MH_bb.eigh()
                             # H_bb[:] = H_bb @ SMHalf
+                            
+                            # Use inverse cholesky to orthogonalize
                             MH_bb.eigh(MS_bb)
                     else:
                         MH_bb.eigh(MS_bb)
                     cmin = H_bb[:blocksize, :nblocksizes].conj()
                     if not xp.isfinite(H_bb).all():
+                        print('H is not finite')
                         flag = True
                         continue
 
@@ -388,16 +423,22 @@ class PPCG(PWFDEigensolver):
             if flag or i >= self.niter - 1:
                 break
 
+            print('b_error', b_error)
             with tracectx('Residual'):
                 # Subspace diagonialization needed every once in a while
                 if (i + 1) % self.rr_modulo == 0:
+                    if b_error < 1e-2:
+                        # Approximate orthonormalization only if
+                        # the residual is small.
+                        approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
+                                              Y2_nn, dS_aii, domain_comm)
                     wfs.subspace_diagonalize(Ht, dH,
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
                 else:
                     # In theory we could skip orthonormalization,
                     # but this sometimes causes issues so we do it.
-                    if b_error < 1e-3:
+                    if b_error < 1e-2:
                         # Approximate orthonormalization only if
                         # the residual is small.
                         approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
@@ -425,6 +466,7 @@ class PPCG(PWFDEigensolver):
                                self.tol_factor))
                 active_indicies = np.where(active_indicies)[0]
                 error = weight_n @ error_n
+                b_error = band_comm.sum_scalar(error)
 
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
                         or b_error < self.breakout_tolerance:
@@ -450,7 +492,15 @@ class PPCG(PWFDEigensolver):
                     M_nn.multiply(P_ani, out=P3_ani, beta=1.0, alpha=-1.0)
 
         if not wfs.orthonormalized:
-            wfs.orthonormalize(residual_nX)
+            # wfs.orthonormalize(residual_nX)
+            if b_error < 1e-2:
+                print('b_error', b_error)
+                # Approximate orthonormalization only if
+                # the residual is small.
+                approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
+                                      Y2_nn, dS_aii, domain_comm)
+            else:
+                wfs.orthonormalize(residual_nX)
 
         if debug:
             psit_nX.sanity_check()
@@ -507,7 +557,7 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
 
     Y1_nn.multiply(residual_nX, out=psit_nX, beta=1)
     Y1_nn.multiply(P2_ani, out=P_ani, beta=1)
-    # wfs.orthonormalized = True
+    wfs.orthonormalized = True
 
 
 def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
