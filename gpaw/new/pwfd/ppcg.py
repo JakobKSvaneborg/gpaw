@@ -140,12 +140,12 @@ class PPCG(PWFDEigensolver):
         #   improves numerical stability at the cost of
         #   convergence speed - up to a certain point.
         #   Probably best to not use this one.
-        self.tol_factor = 0  # np.finfo(dtype).eps
+        self.tol_factor = np.finfo(dtype).eps**0.5
         # tolerance :
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
         #   minimum achievable residual.
-        self.tolerance = np.finfo(dtype).eps**2 * G_max
+        self.tolerance = np.finfo(dtype).eps * G_max**0.5
         # breakout_tolerance :
         #   Stop iteration if sum(residual_ns) < breakout_tolerance
         #   breakout_tolerance saves time at the cost of minimum
@@ -153,12 +153,12 @@ class PPCG(PWFDEigensolver):
         #   stability.
         self.breakout_tolerance = \
             np.finfo(dtype).eps**2 * (
-                B * extra_dims * G_max)
+                B * extra_dims * G_max**0.5)
         # initial_tolerance_factor :
         #   Modify the tolerance for the first iteration
         #   This value can be small since the first iteration
         #   is more numerically stable.
-        self.initial_tolerance_factor = 1e-2
+        self.initial_tolerance_factor = 1
 
         if self.tolerances is not None:
             assert len(self.tolerances) == 4
@@ -219,7 +219,7 @@ class PPCG(PWFDEigensolver):
                                          psit_nX.dims[1:], xp=psit_nX.xp)
             Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
                                           psit_nX.dims[1:], xp=psit_nX.xp)
-            Ht = partial(Ht, out=residual_nX)
+            Ht_R = partial(Ht, out=residual_nX)
 
         with tracectx('Residual'):
             calculate_residuals(wfs.psit_nX,
@@ -232,7 +232,7 @@ class PPCG(PWFDEigensolver):
             error_n = as_np(residual_nX.norm2())
             if len(error_n.shape) > 1:
                 error_n = error_n.sum(axis=1)
-            active_indicies = np.logical_and(
+            active_indicies = np.logical_or(
                 np.greater(error_n,
                            self.initial_tolerance_factor * self.tolerance),
                 np.greater(error_n,
@@ -307,17 +307,18 @@ class PPCG(PWFDEigensolver):
                     Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
                     buff_bX[:nblocksizes].matrix_elements(
                         buff_bX[:nblocksizes], cc=True, out=MS_bb,
-                        domain_sum=False, symmetric=False)
+                        domain_sum=False, symmetric=True)
                     S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
                         HPbuf_abi.matrix.data[:nblocksizes].T.conj()
                     domain_comm.sum(S_bb)
 
-                    Ht(buff_bX[:nblocksizes], out=Hbuff_bX[:nblocksizes])
+                    Ht_H = partial(Ht, out=Hbuff_bX[:nblocksizes])
                     dH(Pbuf_abi[:, :nblocksizes],
                        out_ani=HPbuf_abi[:, :nblocksizes])
                     buff_bX[:nblocksizes].matrix_elements(
-                        Hbuff_bX[:nblocksizes], cc=True, out=MH_bb,
-                        domain_sum=False, symmetric=False)
+                        buff_bX[:nblocksizes], function=Ht_H,
+                        cc=True, out=MH_bb,
+                        domain_sum=False, symmetric=True)
                     H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
                         HPbuf_abi.matrix.data[:nblocksizes].T.conj()
                     domain_comm.sum(H_bb)
@@ -418,7 +419,7 @@ class PPCG(PWFDEigensolver):
                 if len(error_n.shape) > 1:
                     error_n = error_n.sum(axis=1)
 
-                active_indicies = np.logical_and(
+                active_indicies = np.logical_or(
                     np.greater(error_n, self.tolerance),
                     np.greater(error_n, np.max(error_n, initial=0) *
                                self.tol_factor))
@@ -487,11 +488,12 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
     psit_nX = wfs.psit_nX
     psit_nX.matrix_elements(psit_nX, cc=True, out=Y1_nn,
                             domain_sum=False,
-                            symmetric=False)
+                            symmetric=True)
     P_ani.matrix.multiply(P2_ani, opb='C',
-                          symmetric=False,
+                          symmetric=True,
                           beta=1, out=Y1_nn)
     domain_comm.sum(Y1_nn.data)
+    Y1_nn.tril2full()
 
     Y1_nn.add_to_diagonal(-1.0)
     Y1_nn.multiply(Y1_nn, out=Y2_nn)
@@ -512,16 +514,18 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     psit_nX = wfs.psit_nX
     xp = psit_nX.xp
     dH(P_ani, out_ani=P2_ani)
+    real_dtype = psit_nX.real_dtype
+    a_nX = psit_nX.matrix.data.view(real_dtype)
+    h_nX = Hpsit_nX.matrix.data.view(real_dtype)
     if xp is np:
         # Numpy got the goods
-        eigs_n = np.vecdot(Hpsit_nX.matrix.data,
-                           psit_nX.matrix.data)
+        eigs_n = np.vecdot(h_nX,
+                           a_nX)
     else:
         # Cupy aint got nothing...
-        xp.conjugate(Hpsit_nX.matrix.data, out=Hpsit_nX.matrix.data)
-        eigs_n = xp.einsum('nX, nX -> n', Hpsit_nX.matrix.data,
-                           psit_nX.matrix.data)
-        xp.conjugate(Hpsit_nX.matrix.data, out=Hpsit_nX.matrix.data)
+        eigs_n = xp.einsum('nX, nX -> n',
+                           h_nX,
+                           a_nX)
     eigs_n *= psit_nX.dv
     if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
             isinstance(psit_nX, PWArray):
@@ -529,8 +533,10 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
         if domain_comm.rank == 0:
             eigs_n -= psit_nX.matrix.data[:, 0] * \
                 Hpsit_nX.matrix.data[:, 0] * psit_nX.dv
-    
-    eigs_n += xp.einsum('nX, nX -> n', P2_ani.matrix.data.conj(),
-                        P_ani.matrix.data)
+    p2_nX = P2_ani.matrix.data.view(real_dtype)
+    p_nX = P_ani.matrix.data.view(real_dtype)
+    eigs_n += xp.einsum('nX, nX -> n',
+                        p2_nX,
+                        p_nX)
     domain_comm.sum(eigs_n)
-    wfs.myeig_n[:] = as_np(eigs_n.real)
+    wfs.myeig_n[:] = as_np(eigs_n)

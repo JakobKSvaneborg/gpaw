@@ -638,7 +638,9 @@ class PWArray(DistributedArrays[PWDesc]):
                                          dtype=self.real_dtype)
                 pw_norm_gpu(result_x, self._arrays())
             else:
-                result_x = self.xp.einsum('xG, xG -> x', a_xG, a_xG)
+                # Consider using np.vecdot
+                result_x = self.xp.vecdot(a_xG, a_xG)
+                # result_x = self.xp.einsum('xG, xG -> x', a_xG, a_xG)
         elif kind == 'kinetic':
             x, G2 = a_xG.shape
             if self.xp is not np:
