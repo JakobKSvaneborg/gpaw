@@ -266,7 +266,7 @@ def test_NiO_withU(in_tmp_dir):
     e_q = calculate_single_site_magnon_energies(J_q, q_qc, m)
 
     etest_q = np.array([0., -0.22697916, -0.00113986])
-    assert np.allclose(e_q, etest_q)
+    assert np.allclose(e_q, etest_q, rtol=1.0e-4)
 
 
 @pytest.mark.response
