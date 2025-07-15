@@ -201,9 +201,16 @@ class DistributedArrays(Generic[DomainType], XP):
 
             M1 = self.matrix
             M2 = other.matrix
+            perm = self.xp.argsort(
+                self.xp.linalg.norm(M1.data, axis=0) * \
+                self.xp.linalg.norm(M2.data, axis=0))            
+            M1.data[:] = M1.data[:, perm]
+            M2.data[:] = M2.data[:, perm]
             out = M1.multiply(M2, opb='C', alpha=self.dv,
                               symmetric=symmetric, out=out)
-
+            perm = self.xp.argsort(perm)
+            M1.data[:] = M1.data[:, perm]
+            M2.data[:] = M2.data[:, perm]
             # Plane-wave expansion of real-valued
             # functions needs a correction:
             self._matrix_elements_correction(M1, M2, out, symmetric)
