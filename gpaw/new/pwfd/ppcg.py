@@ -390,7 +390,7 @@ class PPCG(PWFDEigensolver):
                         if xp is not np:
                             pos_defness = pos_defness.get()
                         if pos_defness < \
-                                np.finfo(S_bb.dtype).eps:
+                                np.finfo(psit_nX.data.dtype).eps:
                             # Insufficient numerical precision for CG,
                             # thus we only do the steepest descent step
                             nblocksizes = 2 * blocksize
@@ -426,30 +426,31 @@ class PPCG(PWFDEigensolver):
                         flag = True
                         continue
 
-                    # Ye olde updates
-                    buff_bX.matrix.data[:blocksize] = \
-                        cmin[:, :blocksize] @ buff_bX.matrix.data[:blocksize]
-                    Pbuf_abi.matrix.data[:blocksize] = \
-                        cmin[:, :blocksize] @ Pbuf_abi.matrix.data[:blocksize]
-                    buff_bX.matrix.data[blocksize:2 * blocksize] = \
-                        cmin[:, blocksize:] @ buff_bX.matrix.data[
-                            blocksize:nblocksizes]
-                    Pbuf_abi.matrix.data[blocksize:2 * blocksize] = \
-                        cmin[:, blocksize:] @ Pbuf_abi.matrix.data[
-                            blocksize:nblocksizes]
+                    with tracectx('rotations', gpu=xp is not np):
+                        # Ye olde updates
+                        buff_bX.matrix.data[:blocksize] = \
+                            cmin[:, :blocksize] @ buff_bX.matrix.data[:blocksize]
+                        Pbuf_abi.matrix.data[:blocksize] = \
+                            cmin[:, :blocksize] @ Pbuf_abi.matrix.data[:blocksize]
+                        buff_bX.matrix.data[blocksize:2 * blocksize] = \
+                            cmin[:, blocksize:] @ buff_bX.matrix.data[
+                                blocksize:nblocksizes]
+                        Pbuf_abi.matrix.data[blocksize:2 * blocksize] = \
+                            cmin[:, blocksize:] @ Pbuf_abi.matrix.data[
+                                blocksize:nblocksizes]
 
-                    if self.include_cg:
-                        P_nX.matrix.data[block_slice] = \
-                            buff_bX.matrix.data[blocksize:2 * blocksize]
-                        P3_ani.matrix.data[block_slice] = \
-                            Pbuf_abi.matrix.data[blocksize:2 * blocksize]
+                        if self.include_cg:
+                            P_nX.matrix.data[block_slice] = \
+                                buff_bX.matrix.data[blocksize:2 * blocksize]
+                            P3_ani.matrix.data[block_slice] = \
+                                Pbuf_abi.matrix.data[blocksize:2 * blocksize]
 
-                    psit_nX.matrix.data[block_slice] = \
-                        buff_bX.matrix.data[:blocksize] \
-                        + buff_bX.matrix.data[blocksize:2 * blocksize]
-                    P_ani.matrix.data[block_slice] = \
-                        Pbuf_abi.matrix.data[:blocksize] \
-                        + Pbuf_abi.matrix.data[blocksize:2 * blocksize]
+                        psit_nX.matrix.data[block_slice] = \
+                            buff_bX.matrix.data[:blocksize] \
+                            + buff_bX.matrix.data[blocksize:2 * blocksize]
+                        P_ani.matrix.data[block_slice] = \
+                            Pbuf_abi.matrix.data[:blocksize] \
+                            + Pbuf_abi.matrix.data[blocksize:2 * blocksize]
 
             wfs.orthonormalized = False
             if flag or i >= self.niter - 1:

@@ -203,7 +203,7 @@ class DistributedArrays(Generic[DomainType], XP):
             M2 = other.matrix
             n = M1.data.shape[0]
             X = M1.data.shape[1]
-            blocksize = 2048
+            blocksize = max(1024, int(np.sqrt(X)))
 
             m1 = Matrix(n,
                         min(blocksize, X),
