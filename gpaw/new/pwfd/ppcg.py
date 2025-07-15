@@ -435,7 +435,6 @@ class PPCG(PWFDEigensolver):
             if flag or i >= self.niter - 1:
                 break
 
-            print('b_error', b_error)
             with tracectx('Residual'):
                 # Subspace diagonialization needed every once in a while
                 if (i + 1) % self.rr_modulo == 0:
@@ -520,7 +519,6 @@ class PPCG(PWFDEigensolver):
         if not wfs.orthonormalized:
             # wfs.orthonormalize(residual_nX)
             if b_error < 1e-2:
-                print('b_error', b_error)
                 # Approximate orthonormalization only if
                 # the residual is small.
                 approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
