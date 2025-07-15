@@ -597,16 +597,8 @@ class SiteSpinPairEnergyCalculator(SiteMatrixElementCalculator):
         # Add usual PAW correction to d^(xc,ap)
         super()._add_paw_correction(P1_Amyti, P2_Amyti, matrix_element)
         # If relevant, add Hubbard correction to the matrix element
-        if self.gs_is_hubbard_corrected:
+        if self.gs.pawdatasets.includes_hubbard_corrections:
             self._add_hubbard_correction(P1_Amyti, P2_Amyti, matrix_element)
-
-    @property
-    def gs_is_hubbard_corrected(self):
-        hubbard_u = False
-        for setup in self.gs.pawdatasets.by_atom:
-            if setup.hubbard_u is not None:
-                hubbard_u = True
-        return hubbard_u
 
     def _add_hubbard_correction(self, P1_Amyti, P2_Amyti,
                                 matrix_element: SiteMatrixElement):
