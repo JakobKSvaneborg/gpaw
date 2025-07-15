@@ -247,7 +247,8 @@ def test_NiO_withU(in_tmp_dir):
                 xc='LDA',
                 setups={'Ni': ':d,4.0'},
                 kpts={'size': (2, 2, 2), 'gamma': True},
-                occupations=FermiDirac(0.001))
+                occupations=FermiDirac(0.001),
+                parallel=dict(domain=1))
 
     a.calc = calc
     a.get_potential_energy()
