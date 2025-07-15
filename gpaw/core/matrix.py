@@ -13,6 +13,8 @@ from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
 
+from gpaw.new import tracectx, trace
+
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
 
@@ -391,9 +393,10 @@ class Matrix(XP):
                                     overwrite_a=True,
                                     check_finite=debug)
             else:
-                S.tril2full()
-                L_nn = cp.linalg.cholesky(S.data)
-                S.data[:] = cp.linalg.inv(L_nn)
+                with tracectx('inv cholesky', gpu=True):
+                    S.tril2full()
+                    L_nn = cp.linalg.cholesky(S.data)
+                    S.data[:] = cp.linalg.inv(L_nn)
 
         if S is not self:
             S.redist(self)

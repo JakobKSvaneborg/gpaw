@@ -27,6 +27,7 @@ class PPCG(PWFDEigensolver):
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
+                 promote_inner_dtype=False,
                  tolerances: tuple[float, ...] | None = None,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
@@ -62,6 +63,9 @@ class PPCG(PWFDEigensolver):
         include_cg : bool, optional
             Include CG in the solver. Default is True. Can be helpful to turn
             off for single precision calculations or if memory is an issue.
+        promote_inner_dtype : bool, optional
+            Promote inner dtype to double precision. Default is False.
+            Only relevant for single precision calculations.
         tolerances : tuple[float, float, float, float], optional
             Advanced setting, tolerances for the solver. Use at your own risk.
         scalapack_parameters : dict, optional
@@ -89,6 +93,7 @@ class PPCG(PWFDEigensolver):
         self.MW_nn: Matrix
         self.MP_nn: Matrix
         self.include_cg = include_cg
+        self.promote_inner_dtype = promote_inner_dtype
 
     def __str__(self):
         return pformat(dict(name='PPCG',
@@ -171,9 +176,16 @@ class PPCG(PWFDEigensolver):
                            dist=(band_comm, band_comm.size),
                            xp=xp)
 
-        inner_dtype = np.float64 if np.issubdtype(dtype, np.floating) else np.complex128
-        self.buffer_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
-                                  dtype=dtype)
+        if dtype != np.float32 and dtype != np.complex64:
+            self.promote_inner_dtype = False
+
+        if self.promote_inner_dtype:
+            inner_dtype = np.float64 if np.issubdtype(dtype, np.floating) else np.complex128
+            self.buffer_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
+                                    dtype=dtype)
+        else:
+            inner_dtype = dtype
+
         self.H_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
                              dtype=inner_dtype)
         self.S_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
@@ -313,9 +325,7 @@ class PPCG(PWFDEigensolver):
                     H_bb = self.H_bb.ravel()[:nblocksizes**2].reshape(
                         (nblocksizes, nblocksizes))
                     S_bb = self.S_bb.ravel()[:nblocksizes**2].reshape(
-                        (nblocksizes, nblocksizes))
-                    buffer_bb = self.buffer_bb.ravel()[:nblocksizes**2].reshape(
-                        (nblocksizes, nblocksizes))
+                        (nblocksizes, nblocksizes))                        
 
                     MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
                                    data=H_bb,
@@ -323,19 +333,25 @@ class PPCG(PWFDEigensolver):
                     MS_bb = Matrix(M=nblocksizes, N=nblocksizes,
                                    data=S_bb,
                                    xp=xp)
-                    MBuf_bb = Matrix(M=nblocksizes, N=nblocksizes,
-                                     data=buffer_bb,
-                                     xp=xp)
+                    
+                    if self.promote_inner_dtype:
+                        buffer_bb = self.buffer_bb.ravel()[:nblocksizes**2].reshape(
+                            (nblocksizes, nblocksizes))
+                        MBuf_bb = Matrix(M=nblocksizes, N=nblocksizes,
+                                        data=buffer_bb,
+                                        xp=xp)
+                    else:
+                        MBuf_bb = MS_bb
 
                     Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
                     buff_bX[:nblocksizes].matrix_elements(
                         buff_bX[:nblocksizes], cc=True, out=MBuf_bb,
                         domain_sum=False, symmetric=True)
-                    S_bb[:] = buffer_bb[:]
-                    S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
-                    S_bb[:] += HPbuf_abi.matrix.data[:nblocksizes] @ \
-                        Pbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
+                    HPbuf_abi[:, :nblocksizes].matrix.multiply(
+                        Pbuf_abi[:, :nblocksizes], out=MBuf_bb,
+                        symmetric=True, beta=1, opb='C')
+                    if self.promote_inner_dtype:
+                        S_bb[:] = buffer_bb[:]
                     domain_comm.sum(S_bb)
                     norm_facts = (1 / S_bb.diagonal()[blocksize:])**0.25
                     S_bb[blocksize:, :] *= norm_facts[:, None]
@@ -346,6 +362,9 @@ class PPCG(PWFDEigensolver):
                     # S_bb[blocksize:, :blocksize] = 0
                     # S_bb[:blocksize, :blocksize] = xp.eye(blocksize)
 
+                    if not self.promote_inner_dtype:
+                        MBuf_bb = MH_bb
+
                     Ht_H = partial(Ht, out=Hbuff_bX[:nblocksizes])
                     dH(Pbuf_abi[:, :nblocksizes],
                        out_ani=HPbuf_abi[:, :nblocksizes])
@@ -353,11 +372,11 @@ class PPCG(PWFDEigensolver):
                         buff_bX[:nblocksizes], function=Ht_H,
                         cc=True, out=MBuf_bb,
                         domain_sum=False, symmetric=True)
-                    H_bb[:] = buffer_bb[:]
-                    H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
-                    H_bb[:] += HPbuf_abi.matrix.data[:nblocksizes] @ \
-                        Pbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
+                    HPbuf_abi[:, :nblocksizes].matrix.multiply(
+                        Pbuf_abi[:, :nblocksizes], out=MBuf_bb,
+                        symmetric=True, beta=1, opb='C')
+                    if self.promote_inner_dtype:
+                        H_bb[:] = buffer_bb[:]
                     domain_comm.sum(H_bb)
 
                     if nblocksizes > 2 * blocksize:
@@ -366,11 +385,12 @@ class PPCG(PWFDEigensolver):
                         # if xp is not np:
                         #     pos_defness = A.get()[0]
                         # Eigvalsh approach
-                        pos_defness = xp.linalg.eigvalsh(S_bb)[0]
+                        with tracectx('eigvalsh', gpu=xp is not np):
+                            pos_defness = xp.linalg.eigvalsh(S_bb)[0]
                         if xp is not np:
                             pos_defness = pos_defness.get()
                         if pos_defness < \
-                                np.finfo(buffer_bb.dtype).eps:
+                                np.finfo(S_bb.dtype).eps:
                             # Insufficient numerical precision for CG,
                             # thus we only do the steepest descent step
                             nblocksizes = 2 * blocksize
