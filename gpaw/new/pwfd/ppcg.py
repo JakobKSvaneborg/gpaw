@@ -225,12 +225,26 @@ class PPCG(PWFDEigensolver):
             Ht_R = partial(Ht, out=residual_nX)
 
         with tracectx('Residual'):
+            '''
             calculate_residuals(wfs.psit_nX,
                                 residual_nX,
                                 wfs.pt_aiX,
                                 wfs.P_ani,
                                 wfs.myeig_n,
                                 dH, dS_aii, P2_ani, P3_ani)
+            #'''
+            #'''
+            dH(P_ani, out_ani=P2_ani)
+            calc_resid_M_nn(psit_nX,
+                            residual_nX,
+                            M_nn,
+                            P_ani,
+                            P2_ani,
+                            Ptemp_ani,
+                            wfs.pt_aiX,
+                            dS_aii,
+                            domain_comm)
+            #'''
 
             error_n = as_np(residual_nX.norm2())
             if len(error_n.shape) > 1:
@@ -248,9 +262,9 @@ class PPCG(PWFDEigensolver):
                     self.initial_tolerance_factor:
                 if debug:
                     psit_nX.sanity_check()
-                return error
-
-        flag = False
+                flag = True
+            else:
+                flag = False
 
         for i in range(self.niter):
             with tracectx('Residual'):
@@ -329,7 +343,6 @@ class PPCG(PWFDEigensolver):
                     buff_bX.matrix.data[blocksize:nblocksizes, :] *= norm_facts[:, None]
                     Pbuf_abi.matrix.data[blocksize:nblocksizes, :] *= norm_facts[:, None]
 
-                    S_bb[xp.triu_indices(nblocksizes, k=1)] = 42
                     # S_bb[blocksize:, :blocksize] = 0
                     # S_bb[:blocksize, :blocksize] = xp.eye(blocksize)
 
@@ -346,7 +359,6 @@ class PPCG(PWFDEigensolver):
                     H_bb[:] += HPbuf_abi.matrix.data[:nblocksizes] @ \
                         Pbuf_abi.matrix.data[:nblocksizes].T.conj() * 0.5
                     domain_comm.sum(H_bb)
-                    H_bb[xp.triu_indices(nblocksizes, k=1)] = 42
 
                     if nblocksizes > 2 * blocksize:
                         # Eigh approach
@@ -449,12 +461,26 @@ class PPCG(PWFDEigensolver):
                     update_eigenvalues(wfs, residual_nX, P_ani, Ptemp_ani, dH,
                                        domain_comm)
 
+                '''
                 calculate_residuals(wfs.psit_nX,
                                     residual_nX,
                                     wfs.pt_aiX,
                                     wfs.P_ani,
                                     wfs.myeig_n,
                                     dH, dS_aii, P2_ani, Ptemp_ani)
+                #'''
+                #'''
+                dH(P_ani, out_ani=P2_ani)
+                calc_resid_M_nn(psit_nX,
+                                residual_nX,
+                                M_nn,
+                                P_ani,
+                                P2_ani,
+                                Ptemp_ani,
+                                wfs.pt_aiX,
+                                dS_aii,
+                                domain_comm)
+                #'''
 
                 error_n = as_np(residual_nX.norm2())
                 if len(error_n.shape) > 1:
@@ -473,10 +499,10 @@ class PPCG(PWFDEigensolver):
                     # We have converged. Break out of the loop
                     # Maybe one should allow one extra iteration, by
                     # setting:
-                    # flag = True
+                    flag = True
                     # instead of break
                     # since we already calculated the residuals.
-                    break
+                    # break
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
             if self.include_cg:
@@ -559,7 +585,7 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
     Y1_nn.multiply(P2_ani, out=P_ani, beta=1)
     wfs.orthonormalized = True
 
-
+@trace
 def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     psit_nX = wfs.psit_nX
     xp = psit_nX.xp
@@ -591,3 +617,21 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
                         p_nX)
     domain_comm.sum(eigs_n)
     wfs.myeig_n[:] = as_np(eigs_n)
+
+@trace
+def calc_resid_M_nn(psit_nX, Hpsit_nX, M_nn,
+                    P_ani, HP_ani, buf_ani, pt_aiX,
+                    dS_aii, domain_comm):
+    xp = psit_nX.xp
+    psit_nX.matrix_elements(Hpsit_nX, cc=True, out=M_nn,
+                            domain_sum=False,
+                            symmetric=True)
+    P_ani.matrix.multiply(HP_ani, opb='C',
+                          symmetric=True,
+                          beta=1, out=M_nn)
+    domain_comm.sum(M_nn.data)
+    M_nn.tril2full()
+    M_nn.multiply(psit_nX, out=Hpsit_nX, beta=1.0, alpha=-1.0)
+    P_ani.block_diag_multiply(dS_aii, out_ani=buf_ani)
+    M_nn.multiply(buf_ani, out=HP_ani, beta=1.0, alpha=-1.0)
+    pt_aiX.add_to(Hpsit_nX, HP_ani)
