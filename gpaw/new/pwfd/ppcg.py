@@ -576,6 +576,7 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
         eigs_n = xp.einsum('nX, nX -> n',
                            h_nX,
                            a_nX)
+    eigs_n = xp.asarray(eigs_n, dtype=np.float64)
     eigs_n *= psit_nX.dv
     if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
             isinstance(psit_nX, PWArray):
