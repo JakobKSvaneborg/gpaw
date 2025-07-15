@@ -201,17 +201,33 @@ class DistributedArrays(Generic[DomainType], XP):
 
             M1 = self.matrix
             M2 = other.matrix
-            perm = self.xp.argsort(
-                self.xp.linalg.norm(M1.data, axis=0) * \
-                self.xp.linalg.norm(M2.data, axis=0))            
-            M1.data[:] = M1.data[:, perm]
-            M2.data[:] = M2.data[:, perm]
-            out = M1.multiply(M2, opb='C', alpha=self.dv,
-                              symmetric=symmetric, out=out)
-            perm = self.xp.argsort(perm)
-            M1.data[:] = M1.data[:, perm]
-            M2.data[:] = M2.data[:, perm]
-            # Plane-wave expansion of real-valued
+            n = M1.data.shape[0]
+            X = M1.data.shape[1]
+            blocksize = 2048
+
+            m1 = Matrix(n,
+                        min(blocksize, X),
+                        data=M1.data[:, 0:blocksize],
+                        xp=self.xp)
+            m2 = Matrix(n,
+                        min(blocksize, X),
+                        data=M2.data[:, 0:blocksize],
+                        xp=self.xp)
+            out = m1.multiply(m2, opb='C', alpha=self.dv,
+                              symmetric=symmetric, out=out,
+                              beta=0)
+            for ind in range(blocksize, X, blocksize):
+                m1 = Matrix(n,
+                            min(blocksize, X - ind),
+                            data=M1.data[:, ind:ind + blocksize],
+                            xp=self.xp)
+                m2 = Matrix(n,
+                            min(blocksize, X - ind),
+                            data=M2.data[:, ind:ind + blocksize],
+                            xp=self.xp)
+                out = m1.multiply(m2, opb='C', alpha=self.dv,
+                                  symmetric=symmetric, out=out,
+                                  beta=1)
             # functions needs a correction:
             self._matrix_elements_correction(M1, M2, out, symmetric)
         else:
