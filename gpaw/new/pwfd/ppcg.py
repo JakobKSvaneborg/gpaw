@@ -420,7 +420,11 @@ class PPCG(PWFDEigensolver):
                             MH_bb.eigh(MS_bb)
                     else:
                         MH_bb.eigh(MS_bb)
-                    cmin = H_bb[:blocksize, :nblocksizes].conj()
+                    if self.promote_inner_dtype:
+                        buffer_bb[:] = H_bb.conj()
+                        cmin = buffer_bb[:blocksize, :nblocksizes]
+                    else:
+                        cmin = H_bb[:blocksize, :nblocksizes].conj()
                     if not xp.isfinite(H_bb).all():
                         print('H is not finite')
                         flag = True
