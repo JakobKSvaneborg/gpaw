@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from functools import cached_property
 from typing import Any, Iterable, Sequence
+from fractions import Fraction
 
 import numpy as np
 from ase import Atoms
@@ -12,7 +13,6 @@ from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
 from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
-from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
 
 
@@ -271,7 +271,8 @@ class Symmetries:
 
     def lcm(self) -> list[int]:
         """Find least common multiple compatible with translations."""
-        return [np.lcm.reduce([frac(t, tol=1e-4)[1] for t in t_s])
+        return [np.lcm.reduce([Fraction(t).limit_denominator(1000).denominator
+                               for t in t_s])
                 for t_s in self.translation_sc.T]
 
     @cached_property
@@ -589,3 +590,13 @@ def safe_id(magmom_av, tolerance=1e-3):
             quantized = a
         id_a.append(quantized)
     return id_a
+
+
+if __name__ == '__main__':
+    import sys
+    from ase.io import read
+    atoms = read(sys.argv[1])
+    s = create_symmetries_object(atoms,
+                                 symmorphic=False,
+                                 _backwards_compatible=True)
+    print(s)
