@@ -26,7 +26,6 @@ def test_jellium(in_tmp_dir, gpaw_new):
         mode='fd',
         poissonsolver={'dipolelayer': 'xy'},
         xc='LDA_X+LDA_C_WIGNER',
-        eigensolver='dav',
         kpts=[k, k, 1],
         h=h,
         maxiter=300,
