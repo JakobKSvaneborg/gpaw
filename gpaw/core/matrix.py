@@ -12,8 +12,7 @@ from gpaw import debug, get_scipy_version
 from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
-
-from gpaw.new import tracectx, trace
+from gpaw.new import tracectx
 
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
