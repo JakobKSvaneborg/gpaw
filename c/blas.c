@@ -156,7 +156,7 @@ PyObject* r2k(PyObject *self, PyObject *args)
         k = PyArray_DIMS(a)[1];
         for (int d = 2; d < PyArray_NDIM(a); d++)
             k *= PyArray_DIMS(a)[d];
-        lda = MAX(k, 1);
+        lda = MAX(MAX(1, k), PyArray_STRIDES(a)[0] / PyArray_ITEMSIZE(a));
     } else {
         k = PyArray_DIMS(a)[0];
         lda = MAX(n, 1);
