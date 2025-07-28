@@ -105,6 +105,12 @@ class DummyFunctions(DistributedArrays[NoGrid]):
     def to_xp(self, xp):
         return self
 
+    def gather(self):
+        return self
+
+    def scatter_from(self, a):
+        pass
+
 
 class PSCoreDensities:
     xp = np
@@ -115,6 +121,9 @@ class PSCoreDensities:
 
     def to_uniform_grid(self, out, scale):
         pass
+
+    def new(self, desc, atomdist):
+        return self
 
 
 class TBPotentialCalculator(PotentialCalculator):
@@ -183,6 +192,7 @@ class TBSCFLoop:
         self.occ_calc = occ_calc
         self.eigensolver = eigensolver
         self.comm = comm
+        self.convergence = {}
 
     def iterate(self,
                 ibzwfs,
