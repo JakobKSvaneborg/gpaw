@@ -377,17 +377,13 @@ class AtomArrays:
 
         return aa
 
-    def gathergather(self):
-        a_ani = self.gather()  # gather a
-        print(self.layout.atomdist.comm.rank, a_ani)
-        sdæflkhj
-        if a_xX is not None:
-            m_xX = a_xX.matrix.gather()  # gather x
-            if m_xX.dist.comm.rank == 0:
-                data = m_xX.data
-                if a_xX.data.dtype != data.dtype:
-                    data = data.view(complex)
-                return self.desc.new(comm=None).from_data(data)
+    def gathergather(self) -> AtomArrays | None:
+        """Gather all atoms and extra dimensions on master."""
+        a_axi = self.gather()  # gather a (atoms)
+        if a_axi is not None:
+            m_xI = a_axi.matrix.gather()  # gather x
+            if m_xI.dist.comm.rank == 0:
+                return AtomArrays(a_axi.layout, self.dims, data=m_xI.data)
 
     def scatter_from(self,
                      data: np.ndarray | AtomArrays | None = None) -> None:

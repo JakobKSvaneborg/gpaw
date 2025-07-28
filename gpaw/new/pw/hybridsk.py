@@ -114,6 +114,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 calculate_energy: bool) -> tuple[float, float, float]:
         comm = self.comm
         band_comm = psit_nG.comm
+        domain_comm = psit_nG.desc.comm
 
         P_ani = pt_aiG.integrate(psit_nG)
 
@@ -142,7 +143,10 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 P_ani = P_ani.gathergather()
                 if psit_nG is not None:
                     data = (psit_nG, P_ani, spin)
-            psit_nG, P_ani, s = broadcast(data, rank * band_comm.size, comm)
+            psit_nG, P_ani, s = broadcast(
+                data,
+                rank * band_comm.size * domain_comm.size,
+                comm)
             e += self._apply2(psit_nG, P_ani, s, Htpsit_nG, V_ani, f_n,
                               calculate_energy)
             pt_aiG.add_to(Htpsit_nG, V_ani)
