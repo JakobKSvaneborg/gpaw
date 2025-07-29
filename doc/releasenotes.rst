@@ -10,14 +10,20 @@ Git master branch
 
 :git:`master <>`.
 
+
+Version 25.7.0
+==============
+
+July 29, 2025: :git:`25.7.0 <../25.7.0>`
+
+* Minimum version requirements: Python 3.9, ASE 3.25.0.
+
 * The XAS code has been expanded to allow for calculations of core holes
   with 𝑙≠0.
 
 * :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
 
 * The fluctuation-dissipation theorem has been added to the SJM.
-
-* Minimum version requirements: Python 3.9, ASE 3.23.0.
 
 * The constant inner potential DFT method has been included SJM.
 
@@ -64,9 +70,17 @@ Git master branch
   BSE by including excitations outside of the active space of BSE at the RPA
   level.
 
+* D3
+
+* memory
+
+* gpaw-data
+
+
 .. _controlling color: https://docs.python.org/3/using/cmdline.html
                        #controlling-color
 .. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
+
 
 Version 25.1.0
 ==============
