@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 import gpaw.cgpaw as cgpaw
 import numpy as np
 import scipy.linalg as sla
@@ -304,7 +304,6 @@ class Matrix(XP):
             return
 
         if n1 == 1 and d2.blocksize is None:
-            # Redist: no distribution -> row-wise dist
             assert d1.blocksize is None
             assert d1.columns == 1
             comm = d1.comm
@@ -353,6 +352,38 @@ class Matrix(XP):
             S = self
 
         return S
+
+    @staticmethod
+    def scatter(data: Array2D,
+                dist: tuple[_Communicator, int, int, Optional[int]],
+                root: int = 0) -> Matrix:
+        """Construct a distributed Matrix object by scattering a raw 2D array
+        from 'root' rank. The 'dist' argument must specify the communicator
+        and wanted distribution in same way as in the Matrix constructor
+        Empty 'dist' argument is not allowed!
+        """
+
+        assert len(data.shape) == 2
+        assert dist is not None and len(dist) >= 3
+
+        # Some acrobatics needed to bypass limitations in Matrix.redist()
+
+        rows, cols = data.shape[0], data.shape[1]
+        xp = cp if isinstance(data, cp.ndarray) else np
+        comm = dist[0]
+
+        non_distributed_matrix = Matrix(rows, cols,
+                                        dtype=data.dtype,
+                                        dist=(comm, 1, 1),
+                                        xp=xp)
+
+        if comm.rank == root:
+            non_distributed_matrix.data[:] = data[:]
+
+        matrix = Matrix(rows, cols, dtype=data.dtype, xp=xp, dist=dist)
+
+        non_distributed_matrix.redist(matrix)
+        return matrix
 
     def inv(self, uplo='L'):
         """Inplace inversion."""
@@ -458,22 +489,11 @@ class Matrix(XP):
             if debug:
                 H.data[cp.triu_indices(H.shape[0], 1)] = 42.0
 
-            if H.is_distributed():
-                """Currently no support for diagonalizing multi-CPU
-                distributed matrices on GPU. So we move the full matrix
-                on one rank and do the diagonalization in serial,
-                possibly using multiple GPUs available to the root rank.
-                """
-                # TODO: actually handle this case. Not used currently
-                raise NotImplementedError("Distributed eigh with GPUs is WIP")
-
-
-            # Now the full matrix is on one GPU
-            assert H.shape[0] == H.shape[1], "eigh() needs a square matrix"
-
             # Handle generalized eigenproblem
             if S is not None:
-                assert self.dist.comm.size == 1
+                if self.is_distributed():
+                    raise NotImplementedError("GPU generalized eigh "
+                                              "for distributed matrices")
                 S.invcholesky()
                 self.tril2full()
                 eigs = self.eighg(S)
@@ -493,7 +513,6 @@ class Matrix(XP):
 
             # GPU case done, return here for clarity
             return eigvals
-
 
         # ---- CPU case
         if limit == H.shape[0]:
