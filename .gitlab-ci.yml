@@ -457,8 +457,8 @@ test-cuda-mpi:
   script:
     - nvidia-smi
     - gpaw info
-    - mpirun -np 2 pytest -v -m gpu
-    - mpirun -np 4 pytest -v -m gpu
+    - mpirun -np 2 pytest -v -m -x gpu
+    - mpirun -np 4 pytest -v -m -x gpu
     # mpirun -np 2 gpaw-python doesn't work, see #1052
     # - mpirun -np 2 gpaw-python -m pytest -v -m gpu
 
