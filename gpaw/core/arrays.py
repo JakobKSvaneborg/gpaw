@@ -201,15 +201,17 @@ class DistributedArrays(Generic[DomainType], XP):
 
             M1 = self.matrix
             M2 = other.matrix
-            n = M1.data.shape[0]
-            X = M1.data.shape[1]
+            n = M1.shape[0]
+            m = M2.shape[0]
+            X = M1.shape[1]
+            assert M2.shape[1] == X
             blocksize = max(1024, int(np.sqrt(X)))
 
             m1 = Matrix(n,
                         min(blocksize, X),
                         data=M1.data[:, 0:blocksize],
                         xp=self.xp)
-            m2 = Matrix(n,
+            m2 = Matrix(m,
                         min(blocksize, X),
                         data=M2.data[:, 0:blocksize],
                         xp=self.xp)
@@ -221,7 +223,7 @@ class DistributedArrays(Generic[DomainType], XP):
                             min(blocksize, X - ind),
                             data=M1.data[:, ind:ind + blocksize],
                             xp=self.xp)
-                m2 = Matrix(n,
+                m2 = Matrix(m,
                             min(blocksize, X - ind),
                             data=M2.data[:, ind:ind + blocksize],
                             xp=self.xp)
