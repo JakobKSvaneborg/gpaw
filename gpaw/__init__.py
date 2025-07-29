@@ -10,7 +10,7 @@ from typing import List, Any, TYPE_CHECKING
 import warnings
 
 
-__version__ = '25.7.0'
+__version__ = '25.7.1b1'
 __ase_version_required__ = '3.25.0'
 
 __all__ = ['GPAW',
