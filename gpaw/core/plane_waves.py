@@ -517,7 +517,7 @@ class PWArray(DistributedArrays[PWDesc]):
                        out.data, rsize_r, roffset_r)
 
     def scatter_from(self, data: Array1D | PWArray | None = None) -> None:
-        """Scatter data from rank-0 to all ranks."""
+        """Scatter plane-wave coefficients from rank-0 to all ranks."""
         if isinstance(data, PWArray):
             data = data.data
         comm = self.desc.comm
@@ -538,6 +538,13 @@ class PWArray(DistributedArrays[PWDesc]):
             for to in self._arrays():
                 comm.scatter(None, buf, 0)
                 to[:] = buf[:len(to)]
+
+    def scatter_everything_from(self, data: PWArray) -> None:
+        """Scatter everything from rank-0 to all ranks."""
+        if self.comm.size == 1:
+            self.scatter_from(data)
+            return
+        1 / 0
 
     def scatter_from_all(self, a_G: PWArray) -> None:
         """Scatter all coefficients from rank r to self on other cores."""

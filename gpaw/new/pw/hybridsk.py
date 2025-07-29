@@ -118,7 +118,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
 
         P_ani = pt_aiG.integrate(psit_nG)
 
-        V_ani = P_ani.new()
+        V0_ani = P_ani.new()
 
         evv = 0.0
         evc = 0.0
@@ -127,7 +127,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
             VV_ii = pawexxvv(self.VV_app[a], D_ii)
             VC_ii = self.VC_aii[a]
             V_ii = -VC_ii - 2 * VV_ii
-            V_ani[a] = P_ani[a] @ V_ii
+            V0_ani[a] = P_ani[a] @ V_ii
             if calculate_energy:
                 ec = (D_ii * VC_ii).sum()
                 ev = (D_ii * VV_ii).sum()
@@ -136,20 +136,31 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 evc -= ec
 
         e = 0.0
-        for rank in range(self.kpt_comm.size):
+        for krank in range(self.kpt_comm.size):
             data = None
-            if rank == self.kpt_comm.rank:
+            if krank == self.kpt_comm.rank:
                 psit_nG = psit_nG.gathergather()
                 P_ani = P_ani.gathergather()
                 if psit_nG is not None:
                     data = (psit_nG, P_ani, spin)
-            psit_nG, P_ani, s = broadcast(
-                data,
-                rank * band_comm.size * domain_comm.size,
-                comm)
-            e += self._apply2(psit_nG, P_ani, s, Htpsit_nG, V_ani, f_n,
+
+            rank = krank * band_comm.size * domain_comm.size
+            psit_nG, P_ani, s = broadcast(data, rank, comm)
+            V_nG = psit_nG.new()
+            V_nG.data[:] = 0.0
+            V_ani = P_ani.new()
+            V_ani.data[:] = 0.0
+            e += self._apply2(psit_nG, P_ani, s, V_nG, V_ani, f_n,
                               calculate_energy)
-            pt_aiG.add_to(Htpsit_nG, V_ani)
+            comm.sum(V_nG.data, root=rank)
+            comm.sum(V_ani.data, root=rank)
+            if krank == self.kpt_comm.rank:
+                V2_nG = Htpsit_nG.new()
+                V2_nG.scatter_everything_from(V_nG)
+                V2_ani = V0_ani.new()
+                V2_ani.scatter_everything_from(V_ani)
+                Htpsit_nG.data += V2_nG.data
+                pt_aiG.add_to(Htpsit_nG, V2_ani)
 
         if not calculate_energy:
             return nan, nan, nan
@@ -180,6 +191,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 e += self._apply3(
                     v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
                     calculate_energy)
+
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
 
