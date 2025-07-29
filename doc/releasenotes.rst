@@ -54,10 +54,19 @@ Git master branch
 
 * Preliminary implementation of YS-PBE0 hybrid functional.
 
+* Experimental: Implemented the PPCG eigensolver in :ref:`newgpaw` for
+  use with plane-waves and finite-difference. This eigensolver is
+  particularly stable for single precision wave-functions.
+  See https://doi.org/10.1016/j.jcp.2015.02.030 for details.
+
+* Added a new method and a tutorial for accurate dielectric functions,
+  :ref:`BSE+ <bseplus tutorial>`, which improves the convergence of the
+  BSE by including excitations outside of the active space of BSE at the RPA
+  level.
+
 .. _controlling color: https://docs.python.org/3/using/cmdline.html
                        #controlling-color
 .. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
-
 
 Version 25.1.0
 ==============

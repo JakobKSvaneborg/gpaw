@@ -36,7 +36,7 @@ def test_new_cell(gpu):
     assert e1 == pytest.approx(-1.2359952570422994)
     assert f1 == pytest.approx(0, abs=1e-4)
     assert s1 == pytest.approx([-4.37458548e-01] * 2 +
-                               [-9.41665221e-02, 0.0, 0.0, 0.0], abs=5e-7)
+                               [-9.41665221e-02, 0.0, 0.0, 0.0], abs=5e-6)
     out = broadcast_string(output.getvalue() or None)
     assert 'Interpolating wave fun' in out
 

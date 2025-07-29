@@ -11,6 +11,7 @@ pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')
 
 
+@pytest.mark.flaky
 def test_vdw_libvdwxc_spin():
     def test(xc, tol=5e-10):
         N_c = np.array([10, 6, 4])

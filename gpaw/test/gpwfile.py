@@ -143,14 +143,17 @@ class GPWFiles(CachedFilesHandler):
         magmoms = None if calc_type == 'col' else [mm * easy_axis]
         soc = True if calc_type == 'ncolsoc' else False
 
-        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 280},
+        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 380},
                           xc='LDA',
+                          nbands='200%',
                           kpts={'size': (4, 4, 4), 'gamma': True},
                           parallel={'domain': 1, 'band': 1},
                           mixer={'beta': 0.5},
                           symmetry=symmetry,
                           occupations={'name': 'fermi-dirac', 'width': 0.05},
-                          convergence={'density': 1e-4},
+                          convergence={'density': 1e-8,
+                                       'bands': 'CBM+10',
+                                       'eigenstates': 1e-12},
                           magmoms=magmoms,
                           soc=soc,
                           txt=self.folder / f'fcc_Ni_{calc_type}.txt')
@@ -1257,6 +1260,21 @@ class GPWFiles(CachedFilesHandler):
                     occupations=FermiDirac(width=0.001),
                     kpts=kpts.kpts,
                     txt=self.folder / 'si_noisy_kpoints.txt')
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return calc
+
+    @gpwfile
+    def si_pw_nbands10_converged(self):
+        calc = GPAW(mode='pw',
+                    kpts={'size': (2, 2, 2), 'gamma': True},
+                    occupations=FermiDirac(0.01),
+                    nbands=10,
+                    symmetry='off',
+                    convergence={'bands': -4, 'density': 1e-7,
+                                 'eigenstates': 1e-10})
+
+        atoms = bulk('Si', 'diamond', a=5.431)
         atoms.calc = calc
         atoms.get_potential_energy()
         return calc

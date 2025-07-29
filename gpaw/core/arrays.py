@@ -10,6 +10,7 @@ from gpaw.core.matrix import Matrix
 from gpaw.mpi import MPIComm
 from gpaw.typing import Array1D, Self, ArrayND
 from gpaw.gpu import XP
+from gpaw.new import trace
 
 if TYPE_CHECKING:
     from gpaw.core.uniform_grid import UGArray, UGDesc
@@ -141,7 +142,7 @@ class DistributedArrays(Generic[DomainType], XP):
         for index in range(self.dims[0]):
             yield self[index]
 
-    def flat(self):
+    def flat(self) -> Self:
         if self.dims == ():
             yield self
         else:
@@ -172,6 +173,7 @@ class DistributedArrays(Generic[DomainType], XP):
 
         return self._matrix
 
+    @trace
     def matrix_elements(self,
                         other: Self,
                         *,

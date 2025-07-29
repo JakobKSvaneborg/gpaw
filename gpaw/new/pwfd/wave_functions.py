@@ -178,6 +178,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         occ_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.psit_nX.add_ked(occ_n, taut_sR[self.spin])
 
+    @trace
     def orthonormalize(self, psit2_nX):
         r"""Orthonormalize wave functions.
 
@@ -239,10 +240,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def subspace_diagonalize(self,
                              Ht,
                              dH,
-                             psit2_nX=None,
+                             psit2_nX,
                              data_buffer=None,
                              scalapack_parameters=(None, 1, 1, None)):
         """
+        If data_buffer is None, psit2_nX will be used as a buffer
+        for the wave functions.
 
         Ht(in, out):::
 
@@ -261,7 +264,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P2_ani = P_ani.new()
         domain_comm = psit_nX.desc.comm
 
-        Ht = partial(Ht, out=psit2_nX, spin=self.spin)
+        Ht = partial(Ht, out=psit2_nX, spin=self.spin, calculate_energy=True)
         H = psit_nX.matrix_elements(psit_nX,
                                     function=Ht,
                                     domain_sum=False,
@@ -270,12 +273,13 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P_ani.matrix.multiply(P2_ani, opb='C', symmetric=True,
                               out=H, beta=1.0)
         domain_comm.sum(H.data, 0)
-
         if domain_comm.rank == 0:
             slcomm, r, c, b = scalapack_parameters
             if r == c == 1:
                 slcomm = None
+            # print(H.data)
             self._eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)))
+            # print(self._eig_n)
             H.complex_conjugate()
             # H.data[n, :] now contains the nth eigenvector and eps_n[n]
             # the nth eigenvalue
@@ -284,10 +288,16 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         domain_comm.broadcast(H.data, 0)
         domain_comm.broadcast(self._eig_n, 0)
-        H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
-        H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
-        H.multiply(P_ani, out=P2_ani)
-        P_ani.data[:] = P2_ani.data
+        if data_buffer is None:
+            H.multiply(psit_nX, out=psit2_nX)
+            psit_nX.data[:] = psit2_nX.data
+            H.multiply(P_ani, out=P2_ani)
+            P_ani.data[:] = P2_ani.data
+        else:
+            H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
+            H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
+            H.multiply(P_ani, out=P2_ani)
+            P_ani.data[:] = P2_ani.data
 
     def force_contribution(self,
                            potential: Potential,

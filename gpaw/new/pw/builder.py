@@ -17,6 +17,7 @@ from gpaw.new.gpw import as_double_precision
 from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
+from gpaw.new.pw.hybridsk import PWHybridHamiltonianK
 from gpaw.new.pw.paw_poisson import SlowPAWPoissonSolver
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
@@ -167,11 +168,18 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             assert self.communicators['d'].size == 1
             assert self.communicators['k'].size == 1
             assert self.nbands % self.communicators['b'].size == 0
-            return PWHybridHamiltonian(
-                self.grid, self.wf_desc, self.xc, self.setups,
-                self.relpos_ac, self.atomdist,
-                comp_charge_in_real_space=self.params.experimental.get(
-                    'ccirs'))
+            if self.dtype is float:
+                return PWHybridHamiltonian(
+                    self.grid, self.wf_desc, self.xc, self.setups,
+                    self.relpos_ac, self.atomdist,
+                    comp_charge_in_real_space=self.params.experimental.get(
+                        'ccirs'))
+            else:
+                return PWHybridHamiltonianK(
+                    self.grid, self.wf_desc, self.xc, self.setups,
+                    self.relpos_ac, self.atomdist, self.log,
+                    self.communicators['k'],
+                    self.communicators['w'])
         return SpinorPWHamiltonian(self.qspiral_v)
 
     def convert_wave_functions_from_uniform_grid(self,

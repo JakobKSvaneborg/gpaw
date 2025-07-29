@@ -29,6 +29,7 @@ def hook(parser, args):
     parser.suggest_on_error = True
     parser.add_argument('-P', '--parallel', type=int, metavar='N',
                         help='Run on N CPUs.')
+    parser.color = True
     args = parser.parse_args(args)
 
     if args.command == 'python':
