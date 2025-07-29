@@ -1,8 +1,8 @@
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.new.timer import trace
+from gpaw.utilities import as_real_dtype
 
-from copy import copy
 from warnings import warn
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -31,9 +31,9 @@ class GPUDiagonalizer(ABC):
 
     @abstractmethod
     def eigh(self,
-            inout_matrix: "Matrix",
-            options: DiagonalizerOptions
-            ) -> tuple[cp.ndarray, "Matrix"]:
+             inout_matrix: "Matrix",
+             options: DiagonalizerOptions
+             ) -> tuple[cp.ndarray, "Matrix"]:
         """Eigensolver that is aware of matrix internal distribution.
         """
         pass
@@ -45,57 +45,65 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
 
     @abstractmethod
     def eigh_non_distributed(self,
-                            inout_matrix: cp.ndarray,
-                            options: DiagonalizerOptions
-                            ) -> tuple[cp.ndarray, cp.ndarray]:
+                             inout_matrix: cp.ndarray,
+                             options: DiagonalizerOptions
+                             ) -> tuple[cp.ndarray, cp.ndarray]:
         """Solve eigenvalues and eigenvectors of a GPU matrix, represented by
         CuPy array.
         """
         pass
 
     def eigh(self,
-            inout_matrix: "Matrix",
-            options: DiagonalizerOptions
-            ) -> tuple[cp.ndarray, "Matrix"]:
+             inout_matrix: "Matrix",
+             options: DiagonalizerOptions
+             ) -> tuple[cp.ndarray, "Matrix"]:
         """"""
 
         assert isinstance(inout_matrix.data, cp.ndarray)
+        assert inout_matrix.shape[0] == inout_matrix.shape[1]
 
-        if not inout_matrix.is_distributed():
+        needs_redist = inout_matrix.is_distributed()
 
-            # NOTE: Very confusing that matrix.eigh wants to give the eigenvector matrix
-            # as transposed, according to the old version. So we do the same here...
-            if options.inplace:
-                eigvals, inout_matrix.data.T[:] = self.eigh_non_distributed(inout_matrix.data, options)
-                eigvecs = inout_matrix
-            else:
-                eigvals, eigvecs = self.eigh_non_distributed(inout_matrix.data, options)
-                eigvecs = inout_matrix.new(data=eigvecs.T)
+        if needs_redist:
+            # We will do eigh on a non-distributed copy
+            matrix_non_distributed = inout_matrix.gather(0, broadcast=False)
+        else:
+            matrix_non_distributed = inout_matrix
 
+        # avoid unnecessary copies for eigenvector output
+        if needs_redist or options.inplace:
+            eigvecs = matrix_non_distributed
+        else:
+            eigvecs = matrix_non_distributed.new()
+
+        comm = matrix_non_distributed.dist.comm
+        if comm.rank == 0:
+            eigvals, eigvecs.data[:] = (
+                self.eigh_non_distributed(matrix_non_distributed.data, options)
+            )
+
+            # NOTE: Very confusing that matrix.eigh wants to give the
+            # eigenvector matrix as transposed, according to the old version.
+            # So we do the same here...
+            eigvecs.data = eigvecs.data.T
+        else:
+            # Other ranks need to alloc recv buffers for eigenvalues (real!)
+            eigvals = cp.empty(inout_matrix.shape[0],
+                               dtype=as_real_dtype(inout_matrix.dtype))
+
+        comm.broadcast(eigvals, 0)
+
+        if not needs_redist:
             return eigvals, eigvecs
 
+        # distribute back to the original layout
+        if options.inplace:
+            out_eigvecs = inout_matrix
         else:
-            raise NotImplementedError("GPU distributed eigh")
-            # TODO make the following work
+            out_eigvecs = inout_matrix.new()
 
-            original_dist = copy(inout_matrix.dist)
-            matrix_non_distributed = inout_matrix.gather(root=0)
-
-            if inout_matrix.dist.comm.rank == 0:
-
-                cupy_matrix = matrix_non_distributed.data
-
-                eigvals, eigvecs = self.eigh_non_distributed(cupy_matrix, options)
-                eigvecs = matrix_non_distributed.new(dist='inherit', data=eigvecs)
-
-            inout_matrix.new()
-            eigvecs.redist(matrix_non_distributed)
-            eigvecs.dist.comm.broadcast(eigvals, 0)
-
-            if options.inplace:
-                inout_matrix = eigvecs
-
-        return eigvals, eigvecs
+        eigvecs.redist(out_eigvecs)
+        return eigvals, out_eigvecs
 
 
 class CPUPYDiagonalizer(NonDistributedDiagonalizer):
