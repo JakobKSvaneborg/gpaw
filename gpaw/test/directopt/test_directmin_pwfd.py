@@ -80,4 +80,4 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
 
 
 if __name__ == '__main__':
-    test_directmin_pw(1, 'fd')
+    test_directmin_pw(1, 'pw', 1)
