@@ -47,6 +47,8 @@ Force: -0.639 eV/Å
 News
 ====
 
+* :ref:`GPAW version 25.7.0 <releasenotes>` released (Jul 29, 2025).
+
 * :ref:`GPAW version 25.1.0 <releasenotes>` released (Jan 6, 2025).
 
 * :ref:`PAW-potentials for lanthanides <setup releases>` added (Nov 28, 2024).
