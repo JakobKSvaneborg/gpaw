@@ -597,7 +597,7 @@ def main() -> None:
     from ase.io import read
     parser = argparse.ArgumentParser(
         description='Analyze symmetry.')
-    parser.color = True
+    parser.color = True  # type: ignore
     parser.add_argument('-t', '--tolerance', type=float, default=0.001,
                         help='Default is 0.001 Å.')
     parser.add_argument(
