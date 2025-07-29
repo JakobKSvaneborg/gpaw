@@ -7,10 +7,11 @@ import gpaw.gpu.cpupy.cublas as cublas
 import gpaw.gpu.cpupy.fft as fft
 import gpaw.gpu.cpupy.linalg as linalg
 import gpaw.gpu.cpupy.random as random
+import gpaw.gpu.cpupy.testing as testing
 
 __version__ = 'fake'
 
-__all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
+__all__ = ['linalg', 'cublas', 'fft', 'random', 'testing', '__version__']
 
 FAKE_CUPY_WARNING = """
  ----------------------------------------------------------
