@@ -71,7 +71,7 @@ July 29, 2025: :git:`25.7.0 <../25.7.0>`
   level.
 
 * The :ref:`d3correction` can now be added to a :ref:`newgpaw`
-  DFT calculation via the new `extensions` keyword.
+  DFT calculation via the new ``extensions`` keyword.
 
 * Smaller memory footprint for PW-mode calculations.
 
