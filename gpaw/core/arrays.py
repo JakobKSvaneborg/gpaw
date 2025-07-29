@@ -201,24 +201,28 @@ class DistributedArrays(Generic[DomainType], XP):
 
             M1 = self.matrix
             M2 = other.matrix
+
             n = M1.shape[0]
             m = M2.shape[0]
             X = M1.shape[1]
             assert M2.shape[1] == X
             blocksize = max(1024, int(np.sqrt(X)))
 
-            for ind in range(0, X, blocksize):
+            for ind in range(0, max(X, 1), blocksize):
                 m1 = Matrix(n,
                             min(blocksize, X - ind),
                             data=M1.data[:, ind:ind + blocksize],
-                            xp=self.xp)
+                            xp=self.xp,
+                            dist=(comm, -1, 1))
                 m2 = Matrix(m,
                             min(blocksize, X - ind),
                             data=M2.data[:, ind:ind + blocksize],
-                            xp=self.xp)
-                out = m1.multiply(m2, opb='C', alpha=self.dv,
-                                  symmetric=symmetric, out=out,
-                                  beta=0.0 if ind == 0 else 1.0)
+                            xp=self.xp,
+                            dist=(comm, -1, 1))
+                m1.multiply(m2, opb='C', alpha=self.dv,
+                            symmetric=symmetric, out=out,
+                            beta=0 if ind == 0 else 1)
+
             # functions needs a correction:
             self._matrix_elements_correction(M1, M2, out, symmetric)
         else:
