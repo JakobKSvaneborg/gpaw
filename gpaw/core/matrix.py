@@ -181,7 +181,10 @@ class Matrix(XP):
     def is_distributed(self) -> bool:
         """True if this matrix has nontrivial BLACS or GPU distribution.
         """
-        return self.dist is None or self.dist.is_distributed()
+        if self.dist is None:
+            return False
+
+        return self.dist.rows > 1 or self.dist.columns > 1
 
     def multiply(self,
                  other,
@@ -272,7 +275,8 @@ class Matrix(XP):
         return out
 
     def redist(self, other: Matrix) -> None:
-        """Redistribute to other BLACS layout."""
+        """Redistribute to other BLACS layout.
+        `other` is the output, newly distributed matrix."""
         if self is other:
             return
         d1 = self.dist
@@ -300,6 +304,7 @@ class Matrix(XP):
             return
 
         if n1 == 1 and d2.blocksize is None:
+            # Redist: no distribution -> row-wise dist
             assert d1.blocksize is None
             assert d1.columns == 1
             comm = d1.comm
@@ -743,9 +748,6 @@ class MatrixDistribution:
     def matrix(self, dtype=None, data=None):
         return Matrix(*self.full_shape, dtype=dtype, data=data, dist=self)
 
-    def is_distributed(self) -> bool:
-        raise NotImplementedError
-
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         raise NotImplementedError
 
@@ -785,9 +787,6 @@ class NoDistribution(MatrixDistribution):
 
     def __str__(self):
         return 'NoDistribution({}x{})'.format(*self.shape)
-
-    def is_distributed(self) -> bool:
-        return False
 
     def global_index(self, n):
         return n
@@ -881,9 +880,6 @@ class BLACSDistribution(MatrixDistribution):
                                  self.rows, self.columns,
                                  self.blocksize)
 
-    def is_distributed(self) -> bool:
-        return self.shape != self.full_shape
-
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
             ok = a.dist.simple and b.dist.simple and c.dist.simple
@@ -963,9 +959,6 @@ class CuPyDistribution(MatrixDistribution):
                                 self.comm,
                                 self.rows, self.columns,
                                 self.blocksize)
-
-    def is_distributed(self) -> bool:
-        return self.shape != self.full_shape
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
         if self.comm.size > 1:
