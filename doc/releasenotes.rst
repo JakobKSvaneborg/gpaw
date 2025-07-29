@@ -70,11 +70,13 @@ July 29, 2025: :git:`25.7.0 <../25.7.0>`
   BSE by including excitations outside of the active space of BSE at the RPA
   level.
 
-* D3
+* The :ref:`d3correction` can now be added to a :ref:`newgpaw`
+  DFT calculation via the new `extensions` keyword.
 
-* memory
+* Smaller memory footprint for PW-mode calculations.
 
-* gpaw-data
+* PAW-potentials can now be installed via a PyPI package:
+  `gpaw-data <https://pypi.org/project/gpaw-data/>`__.
 
 
 .. _controlling color: https://docs.python.org/3/using/cmdline.html
