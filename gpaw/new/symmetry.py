@@ -592,11 +592,26 @@ def safe_id(magmom_av, tolerance=1e-3):
     return id_a
 
 
-if __name__ == '__main__':
-    import sys
+def main() -> None:
+    import argparse
     from ase.io import read
-    atoms = read(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        description='Analyze symmetry.')
+    parser.color = True
+    parser.add_argument('-t', '--tolerance', type=float, default=0.001,
+                        help='Default is 0.001 Å.')
+    parser.add_argument(
+        'filename',
+        help='Atomic structure (any file-format that ASE can read).')
+    args = parser.parse_args()
+    atoms = read(args.filename)
+    if isinstance(atoms, list):
+        atoms = atoms[-1]
     s = create_symmetries_object(atoms,
                                  symmorphic=False,
-                                 _backwards_compatible=True)
+                                 tolerance=args.tolerance)
     print(s)
+
+
+if __name__ == '__main__':
+    main()
