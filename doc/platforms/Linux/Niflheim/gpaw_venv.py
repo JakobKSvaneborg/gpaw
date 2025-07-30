@@ -84,6 +84,7 @@ then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
 if [ "$SLURM_JOB_PARTITION" == "a100" ] \
  || [ "$SLURM_JOB_PARTITION" == "a100_week" ]
  || [ "$SLURM_JOB_PARTITION" == "sm3090el8" ]
+ || [ "$SLURM_JOB_PARTITION" == "sm3090el8_768" ]
  || [ "$SLURM_JOB_PARTITION" == "sm3090_devel" ]
  || [ "$SLURM_JOB_PARTITION" == "h200" ];\
 then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
