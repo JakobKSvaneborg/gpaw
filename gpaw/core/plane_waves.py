@@ -352,8 +352,7 @@ class PWArray(DistributedArrays[PWDesc]):
         return PWArray(self.desc,
                        self.dims,
                        self.comm,
-                       data,
-                       dtype=self.dtype)
+                       data)
 
     def copy(self):
         """Create a copy (surprise!)."""
