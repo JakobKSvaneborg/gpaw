@@ -206,7 +206,7 @@ class DistributedArrays(Generic[DomainType], XP):
             m = M2.shape[0]
             X = M1.shape[1]
             assert M2.shape[1] == X
-            blocksize = max(1024, int(np.sqrt(X)))
+            blocksize = max(4096, int(np.sqrt(X)))
 
             for ind in range(0, max(X, 1), blocksize):
                 m1 = Matrix(n,
