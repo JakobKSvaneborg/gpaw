@@ -514,10 +514,10 @@ class PWArray(DistributedArrays[PWDesc]):
             comm, N, ng, myng, maxmyng)
 
         # Complete implementation
-        # comm.alltoallv(self.data, ssize_r, soffset_r,
-        #                out.data, rsize_r, roffset_r)
+        comm.alltoallv(self.data, ssize_r, soffset_r,
+                       out.data, rsize_r, roffset_r)
         
-        # ''' Manual implementation
+        ''' Manual implementation
         for recv_rank in range(comm.size):
             if recv_rank != comm.rank:
                 if recv_rank < N:
