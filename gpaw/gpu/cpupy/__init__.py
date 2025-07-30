@@ -170,6 +170,10 @@ def isnan(a):
 
 
 class ndarray:
+
+    _is_cpupy_array = True
+    # Marker to distinguish real and fake cp.ndarray objects on C side
+
     def __init__(self, data):
         if isinstance(data, (float, complex, int, np.int32, np.int64,
                              np.bool_, np.float64, np.float32,
