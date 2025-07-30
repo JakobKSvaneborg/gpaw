@@ -15,13 +15,7 @@ if TYPE_CHECKING:
     from gpaw.gpu.diagonalization import GPUDiagonalizer
     from gpaw.mpi import MPIComm
 
-
-# TODO: test with distributed matrices.
-# The diagonalizers should still work but operate in serial
-
 # Currently GPU distribution works only with blocksize = None, columns = 1
-
-comm = world if GPU_AWARE_MPI else CuPyMPI(world)
 
 @pytest.mark.gpu
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
@@ -33,23 +27,29 @@ comm = world if GPU_AWARE_MPI else CuPyMPI(world)
                          [CPUPYDiagonalizer,
                           CuPyDiagonalizer,
                           MagmaDiagonalizer])
+# Test both the "safe" CuPyMPI communicator and direct GPU-aware MPI (world)
 @pytest.mark.parametrize("distribution",
-                         [(comm, -1, 1, None)])
+                         [(CuPyMPI(world), -1, 1, None),
+                          (world, -1, 1, None)])
 def test_matrix_diagonalizer(fixt_raw_hermitian_matrix: cp.ndarray,
                diagonalizer_class: Type["GPUDiagonalizer"],
                matrix_size: int,
                # dist as in Matrix class: (comm, rows, cols, blocksize)
-               distribution: Optional[tuple["MPIComm", int, int,
-                                            Optional[int]]],
+               distribution: tuple["MPIComm", int, int, Optional[int]],
                dtype: np.dtype,
                uplo: str,
                inplace: bool):
     """"""
 
+    comm = distribution[0]
+
     if cupy_is_fake and diagonalizer_class is not CPUPYDiagonalizer:
         pytest.skip("CuPy is fake")
     elif not cupy_is_fake and diagonalizer_class is CPUPYDiagonalizer:
         pytest.skip("Not testing cpupy when running with real CuPy")
+
+    if not GPU_AWARE_MPI and not isinstance(comm, CuPyMPI):
+        pytest.skip("No GPU-aware MPI")
 
     if not have_magma and diagonalizer_class is MagmaDiagonalizer:
         pytest.skip("No MAGMA")

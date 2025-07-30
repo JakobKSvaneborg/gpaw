@@ -78,14 +78,14 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
 
         comm = matrix_non_distributed.dist.comm
         if comm.rank == 0:
-            eigvals, eigvecs.data[:] = (
-                self.eigh_non_distributed(matrix_non_distributed.data, options)
-            )
 
             # NOTE: Very confusing that matrix.eigh wants to give the
             # eigenvector matrix as transposed, according to the old version.
-            # So we do the same here...
-            eigvecs.data = eigvecs.data.T
+            # So we do the same here... And ensure it remains C-contiguous
+            eigvals, eigvecs.data.T[:] = (
+                self.eigh_non_distributed(matrix_non_distributed.data, options)
+            )
+
         else:
             # Other ranks need to alloc recv buffers for eigenvalues (real!)
             eigvals = cp.empty(inout_matrix.shape[0],
