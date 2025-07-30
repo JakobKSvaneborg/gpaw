@@ -112,13 +112,6 @@ class PW(Mode):
 class LCAO(Mode):
     distribution = '?'
 
-    def __init__(self,
-                 *,
-                 dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
-        super().__init__(dtype=dtype,
-                         force_complex_dtype=force_complex_dtype)
-
 
 class FD(Mode):
     def __init__(self,
@@ -139,6 +132,21 @@ class FD(Mode):
 
 class TB(Mode):
     distribution = '?'
+
+    def __init__(self,
+                 *,
+                 x=1.0,
+                 dtype: DTypeLike | None = None,
+                 force_complex_dtype: bool = False):
+        self.x = x
+        super().__init__(dtype=dtype,
+                         force_complex_dtype=force_complex_dtype)
+
+    def todict(self):
+        dct = super().todict()
+        if self.x != 1.0:
+            dct['x'] = self.x
+        return dct
 
 
 class Eigensolver(Parameter):
