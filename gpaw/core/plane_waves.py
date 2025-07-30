@@ -517,20 +517,20 @@ class PWArray(DistributedArrays[PWDesc]):
         comm.alltoallv(self.data, ssize_r, soffset_r,
                        out.data, rsize_r, roffset_r)
         
-        ''' Manual implementation
-        for recv_rank in range(comm.size):
-            if recv_rank != comm.rank:
-                if recv_rank < N:
-                    comm.send(self.data[recv_rank], recv_rank, block=True)
-            else:
-                for send_rank in range(comm.size):
-                    if comm.rank < N:
-                        src = out.data[roffset_r[send_rank]:roffset_r[send_rank] + rsize_r[send_rank]]
-                        if send_rank != comm.rank:
-                            comm.receive(src, send_rank, block=True)
-                        else:
-                            src[:] = self.data[comm.rank]
-        comm.barrier()
+        # ''' Manual implementation
+        # for recv_rank in range(comm.size):
+        #     if recv_rank != comm.rank:
+        #         if recv_rank < N:
+        #             comm.send(self.data[recv_rank], recv_rank, block=True)
+        #     else:
+        #         for send_rank in range(comm.size):
+        #             if comm.rank < N:
+        #                 src = out.data[roffset_r[send_rank]:roffset_r[send_rank] + rsize_r[send_rank]]
+        #                 if send_rank != comm.rank:
+        #                     comm.receive(src, send_rank, block=True)
+        #                 else:
+        #                     src[:] = self.data[comm.rank]
+        # comm.barrier()
         # '''
 
     def scatter_from(self, data: Array1D | PWArray | None = None) -> None:
