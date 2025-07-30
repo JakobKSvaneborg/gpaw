@@ -1,7 +1,6 @@
 """Tests for MAGMA eigensolver wrappers"""
 import numpy as np
 import pytest
-from gpaw.new.magma import eigh_magma_cpu
 from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
 from gpaw.gpu.diagonalization.diagonalizer import DiagonalizerOptions
 from gpaw.cgpaw import have_magma
