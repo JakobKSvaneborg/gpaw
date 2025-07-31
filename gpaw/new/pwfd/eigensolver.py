@@ -173,6 +173,6 @@ def calculate_residuals(psit_nX,
         np.einsum(subscripts, P2_ani.data, eig_n, out=P2_ani.data,
                   dtype=P2_ani.data.dtype, casting='same_kind')
     else:
-        P2_ani.data[:] = xp.einsum(subscripts, P2_ani.data, eig_n)
+        P2_ani.matrix.data *= eig_n[:, None]
     P1_ani.data -= P2_ani.data
     pt_aiX.add_to(residual_nX, P1_ani)

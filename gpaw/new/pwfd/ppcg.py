@@ -579,15 +579,9 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     real_dtype = psit_nX.real_dtype
     a_nX = psit_nX.matrix.data.view(real_dtype)
     h_nX = Hpsit_nX.matrix.data.view(real_dtype)
-    if xp is np:
-        # Numpy got the goods
-        eigs_n = np.vecdot(h_nX,
-                           a_nX)
-    else:
-        # Cupy aint got nothing...
-        eigs_n = xp.einsum('nX, nX -> n',
-                           h_nX,
-                           a_nX)
+    eigs_n = xp.einsum('nX, nX -> n',
+                        h_nX,
+                        a_nX)
     eigs_n = xp.asarray(eigs_n, dtype=np.float64)
     eigs_n *= psit_nX.dv
     if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
