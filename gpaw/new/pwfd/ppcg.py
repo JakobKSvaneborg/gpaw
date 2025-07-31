@@ -238,6 +238,9 @@ class PPCG(PWFDEigensolver):
                                           psit_nX.dims[1:], xp=psit_nX.xp)
 
         with tracectx('Residual'):
+            if xp is not np:
+                mempool = xp.get_default_memory_pool()
+                mempool.free_all_blocks()
             calculate_residuals(wfs.psit_nX,
                                 residual_nX,
                                 wfs.pt_aiX,
