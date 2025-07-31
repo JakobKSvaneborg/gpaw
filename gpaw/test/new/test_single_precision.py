@@ -66,6 +66,7 @@ def run_single_precision(dtype, gpu):
                       convergence={'energy': 1e-5,
                                    'forces': 1e-3,
                                    'eigenstates': 1e-6},
+                      eigensolver={'name': 'ppcg'},
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
