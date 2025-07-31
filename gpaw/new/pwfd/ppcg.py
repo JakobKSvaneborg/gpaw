@@ -244,7 +244,7 @@ class PPCG(PWFDEigensolver):
                 print('Total Bytes: ', mempool.total_bytes())
                 mempool.free_all_blocks()
 
-                pinned_mempool = cupy.get_default_pinned_memory_pool()
+                pinned_mempool = xp.get_default_pinned_memory_pool()
                 print('pinned_mempool: ', mempool.total_bytes())
                 pinned_mempool.free_all_blocks()
 
