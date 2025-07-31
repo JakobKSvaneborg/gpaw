@@ -34,7 +34,7 @@ else:
             raise ImportError
 
         import cupy
-        cupy.cuda.set_allocator(cupy.cuda.malloc_managed)
+        # cupy.cuda.set_allocator(cupy.cuda.malloc_managed)
         # Cupy gemm wrapper (does extra copying):
         # from cupy import cublas
         # gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811

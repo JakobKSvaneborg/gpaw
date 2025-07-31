@@ -541,7 +541,7 @@ class AtomArrays:
                 out_ni[:] = P_ni @ dX_ii
             return
 
-        ni_a = xp.array(
+        ni_a = xp.asarray(
             [I2 - I1 for a, I1, I2 in self.layout.myindices],
             dtype=np.int32)
         data = block_diag_matrix_axii.data

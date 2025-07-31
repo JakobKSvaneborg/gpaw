@@ -20,15 +20,16 @@
 
 template <typename Tcomplex, typename Treal>
 __global__ void calculate_residual_kernel(int nG, int nn,
-					       				  Tcomplex* residual_nG,
-										  Treal* eps_n,
-										  Tcomplex* wf_nG)
+	       				  Tcomplex* residual_nG,
+	    			          Treal* eps_n,
+					  Tcomplex* wf_nG)
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
     int g = threadIdx.y + blockIdx.y * blockDim.y;
     if ((g < nG) && (n < nn))
     {
-		residual_nG[n*nG + g] = residual_nG[n*nG + g] - wf_nG[n*nG + g] * eps_n[n];
+        long ind = long(n) * long(nG) + long(g);
+        residual_nG[ind] = residual_nG[ind] - wf_nG[ind] * eps_n[n];
     }
 }
 
