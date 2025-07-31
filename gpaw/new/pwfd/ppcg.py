@@ -245,7 +245,7 @@ class PPCG(PWFDEigensolver):
                 mempool.free_all_blocks()
 
                 pinned_mempool = xp.get_default_pinned_memory_pool()
-                print('pinned_mempool: ', mempool.total_bytes())
+                print('pinned_mempool: ', mempool.n_free_blocks())
                 pinned_mempool.free_all_blocks()
 
             calculate_residuals(wfs.psit_nX,
