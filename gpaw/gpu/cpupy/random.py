@@ -9,6 +9,6 @@ class RNG:
     def __init__(self, rng):
         self.rng = rng
 
-    def random(self, shape=None, dtype=float):
+    def random(self, shape=None, dtype=float, out=None):
         from gpaw.gpu.cpupy import ndarray
-        return ndarray(self.rng.random(shape, dtype=dtype))
+        return ndarray(self.rng.random(shape, dtype=dtype, out=out))
