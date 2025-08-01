@@ -579,10 +579,11 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     real_dtype = psit_nX.real_dtype
     a_nX = psit_nX.matrix.data.view(real_dtype)
     h_nX = Hpsit_nX.matrix.data.view(real_dtype)
-    eigs_n = xp.einsum('nX, nX -> n',
-                        h_nX,
-                        a_nX)
-    eigs_n = xp.asarray(eigs_n, dtype=np.float64)
+    eigs_n = xp.zeros(h_nX[0], dtype=np.float64)
+    for ind in range(h_nX[1], 4048):
+        eigs_n += xp.einsum('nX, nX -> n',
+                            h_nX[:, ind:ind + 4048],
+                            a_nX[:, ind:ind + 4048])
     eigs_n *= psit_nX.dv
     if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
             isinstance(psit_nX, PWArray):
