@@ -11,4 +11,5 @@ class RNG:
 
     def random(self, shape=None, dtype=float, out=None):
         from gpaw.gpu.cpupy import ndarray
-        return ndarray(self.rng.random(shape, dtype=dtype, out=out))
+        np_out = None if out is None else out._data
+        return ndarray(self.rng.random(shape, dtype=dtype, out=np_out))
