@@ -6,7 +6,7 @@ from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new import zips
 from gpaw.new.density import Density
-from gpaw.new.eigensolver import Eigensolver
+from gpaw.new.pwfd.eigensolver import PWFDEigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.potential import Potential
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -14,9 +14,10 @@ from gpaw.new.pwfd.lbfgs import LBFGS
 from gpaw.new.energies import DFTEnergies
 
 
-class ETDM(Eigensolver):
+class ETDM(PWFDEigensolver):
     def __init__(self,
                  *,
+                 hamiltonian,
                  excited_state: bool = False,
                  converge_unocc: bool = False):
         self.search_dir = LBFGS()
@@ -24,7 +25,7 @@ class ETDM(Eigensolver):
         self.converge_unocc = converge_unocc
         self.dS_aii: AtomArrays
         self.nocc_s: list[int] = []
-        self.preconditioner = None
+        super().__init__(hamiltonian)
 
     def new(self, **params) -> ETDM:
         return ETDM(**params)
@@ -38,9 +39,9 @@ class ETDM(Eigensolver):
                 energies) -> tuple[float, float, DFTEnergies]:
 
         if len(self.nocc_s) == 0:
+            self._initialize(ibzwfs)
             xp = ibzwfs.xp
             self.nocc_s = find_number_of_ocupied_bands(ibzwfs)
-            self.preconditioner = hamiltonian.create_preconditioner(10, xp=xp)
             self.dS_aii = pot_calc.setups.get_overlap_corrections(
                 density.D_asii.layout.atomdist, xp)
 

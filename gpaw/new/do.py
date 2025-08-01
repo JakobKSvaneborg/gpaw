@@ -18,4 +18,5 @@ class DirectOptimization(Eigensolver):
               converge_bands,
               setups,
               atoms):
-        return ETDM(converge_unocc=self.converge_unocc)
+        return ETDM(converge_unocc=self.converge_unocc,
+                    hamiltonian=hamiltonian)
