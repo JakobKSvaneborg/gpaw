@@ -516,7 +516,7 @@ class PWArray(DistributedArrays[PWDesc]):
         # Complete implementation
         comm.alltoallv(self.data, ssize_r, soffset_r,
                        out.data, rsize_r, roffset_r)
-        
+
         # ''' Manual implementation
         # for recv_rank in range(comm.size):
         #     if recv_rank != comm.rank:
@@ -525,7 +525,9 @@ class PWArray(DistributedArrays[PWDesc]):
         #     else:
         #         for send_rank in range(comm.size):
         #             if comm.rank < N:
-        #                 src = out.data[roffset_r[send_rank]:roffset_r[send_rank] + rsize_r[send_rank]]
+        #                 src = out.data[
+        #                       roffset_r[send_rank]:roffset_r[send_rank]
+        #                                 + rsize_r[send_rank]]
         #                 if send_rank != comm.rank:
         #                     comm.receive(src, send_rank, block=True)
         #                 else:
