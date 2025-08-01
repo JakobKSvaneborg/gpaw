@@ -636,7 +636,7 @@ class Parameters:
         XC(name='LDA')
         >>> from ase.build import molecule
         >>> atoms = molecule('H2', vacuum=3.0)
-        >>> dft = p.dft_calculation(atoms, txt='h2.txt')
+        >>> dft = p.dft_calculation(atoms, txt=None)
         >>> atoms.calc = dft.ase_calculator()
 
         Parameters
