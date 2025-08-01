@@ -144,6 +144,16 @@ class TB(Mode):
 class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
+        from gpaw.new.do import DirectOptimization
+        eigensolvers = {
+            'davidson': Davidson,
+            'rmm-diis': RMMDIIS,
+            'etdm-fdpw': DirectOptimization,
+            'ppcg': PPCG,
+            'lcao': LCAOEigensolver,
+            'hybrid-lcao': HybridLCAOEigensolver,
+            'scissors': Scissors}
+
         if isinstance(eigensolver, str):
             eigensolver = {'name': eigensolver}
         elif not isinstance(eigensolver, dict):
@@ -313,16 +323,6 @@ class Scissors(LCAOEigensolver):
         return ScissorsLCAOEigensolver(basis,
                                        self.shifts,
                                        symmetries)
-
-
-eigensolvers = {
-    'davidson': Davidson,
-    'rmm-diis': RMMDIIS,
-    'not-dav': PPCG,
-    'ppcg': PPCG,
-    'lcao': LCAOEigensolver,
-    'hybrid-lcao': HybridLCAOEigensolver,
-    'scissors': Scissors}
 
 
 class Extension(Parameter):
