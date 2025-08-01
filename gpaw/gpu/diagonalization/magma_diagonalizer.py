@@ -62,18 +62,16 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
 
         xp = cp if isinstance(inout_matrix, cp.ndarray) else np
 
-        # Alloc output arrays.
         # Eigenvectors are real for symmetric/Hermitian matrices
         eigval_dtype = as_real_dtype(inout_matrix.dtype)
-        eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
 
         if options.inplace:
             eigvecs = inout_matrix
         else:
             eigvecs = xp.copy(inout_matrix)
 
+        # Handle multi-GPU with CuPy input. Magma needs the input on _host_
         if options.gpus_per_process > 1 and xp is not np:
-            # MAGMA multi-GPU requires that the matrix is on host
             host_matrix = cp.asnumpy(inout_matrix)
             eigvals = np.empty((shape[0]), dtype=eigval_dtype)
             self._eigh_magma_numpy(host_matrix,
@@ -81,9 +79,10 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
                                    options.uplo,
                                    options.gpus_per_process)
 
-            eigvecs[:] = host_matrix[:]
-            return cp.ndarray(eigvals), eigvecs
+            eigvecs[:] = cp.asarray(host_matrix)
+            return cp.asarray(eigvals), eigvecs
 
+        eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
         if xp is np:
             self._eigh_magma_numpy(eigvecs, eigvals, options.uplo, options.gpus_per_process)
         else:

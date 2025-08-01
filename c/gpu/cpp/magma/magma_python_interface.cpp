@@ -65,7 +65,7 @@ CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
     PyObject* inout_eigvals;
     char* in_uplo;
     int num_gpus;
-    if (!PyArg_ParseTuple(args, "OOs", &inout_matrix, &inout_eigvals, &in_uplo, &num_gpus))
+    if (!PyArg_ParseTuple(args, "OOsi", &inout_matrix, &inout_eigvals, &in_uplo, &num_gpus))
     {
         return NULL;
     }
@@ -105,11 +105,11 @@ CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
 
     assert(num_gpus > 0);
     const magma_int_t available_gpus = magma_num_gpus();
-    solver_context.num_gpus = available_gpus >= num_gpus ? num_gpus : available_gpus;
+    solver_context.num_gpus = (available_gpus >= num_gpus) ? num_gpus : available_gpus;
 
     if (num_gpus != solver_context.num_gpus)
     {
-        printf("WARNING: Requested %d GPUs but MAGMA can only use %d\n",
+        printf("WARNING: Requested %d GPUs but MAGMA only sees %d\n",
             static_cast<int>(num_gpus), static_cast<int>(available_gpus));
     }
 

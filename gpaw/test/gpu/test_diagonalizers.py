@@ -37,8 +37,6 @@ def diagonalizer_tester_common(
     eigvals_ref, eigvecs_ref = cp.linalg.eigh(raw_matrix, UPLO=options.uplo)
 
     diagonalizer = diagonalizer_class()
-    options = DiagonalizerOptions(uplo=options.uplo, inplace=options.inplace)
-
     eigvals, eigvecs = diagonalizer.eigh(matrix, options)
 
     if options.inplace:
