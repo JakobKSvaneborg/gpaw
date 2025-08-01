@@ -75,22 +75,67 @@ magma_int_t magma_Xheevd(magma_vec_t jobz, magma_uplo_t uplo, magma_int_t n, mag
     else gpaw::static_no_match();
 }
 
-/* Templated magma syevd. Overrides the input matrix.
+// Templated magma_ssyevd_m or magma_dsyevd_m
+template<typename T>
+magma_int_t magma_Xsyevd_m(magma_int_t ngpu, magma_vec_t jobz, magma_uplo_t uplo, magma_int_t n, T* matrix,
+    magma_int_t lda, T* eigvals, T* work, magma_int_t lwork, magma_int_t* iwork, magma_int_t liwork, magma_int_t* info)
+{
+    if constexpr (std::is_same_v<T, float>)
+    {
+        return magma_ssyevd_m(ngpu, jobz, uplo, n, matrix, lda, eigvals, work, lwork, iwork, liwork, info);
+    }
+    else if constexpr (std::is_same_v<T, double>)
+    {
+        return magma_dsyevd_m(ngpu, jobz, uplo, n, matrix, lda, eigvals, work, lwork, iwork, liwork, info);
+    }
+    else gpaw::static_no_match();
+}
+
+// Templated magma_cheevd_m or magma_zheevd_m
+template<typename RealT>
+magma_int_t magma_Xheevd_m(magma_int_t ngpu, magma_vec_t jobz, magma_uplo_t uplo, magma_int_t n, magmaComplex<RealT>* matrix,
+    magma_int_t lda, RealT* eigvals, magmaComplex<RealT>* work, magma_int_t lwork, RealT* rwork, magma_int_t lrwork,
+    magma_int_t* iwork, magma_int_t liwork, magma_int_t* info)
+{
+    if constexpr (std::is_same_v<RealT, float>)
+    {
+        return magma_cheevd_m(ngpu, jobz, uplo, n, matrix, lda, eigvals, work, lwork, rwork, lrwork, iwork, liwork, info);
+    }
+    else if constexpr (std::is_same_v<RealT, double>)
+    {
+        return magma_zheevd_m(ngpu, jobz, uplo, n, matrix, lda, eigvals, work, lwork, rwork, lrwork, iwork, liwork, info);
+    }
+    else gpaw::static_no_match();
+}
+
+
+/* Convenience wrapper around magma syevd. Overrides the input matrix.
 If do_workspace_query is set, does instead a workspace query and fills in the optimal work sizes in the input workspace struct.
+This chooses between single-GPU and multi-GPU versions based on the context argument.
 */
 template<typename T>
 magma_int_t magma_Xsyevd(const MagmaEighContext& context, T* matrix, T* eigvals, SyevdWorkspace<T> &workspace, bool do_workspace_query)
 {
     magma_int_t info;
+    const bool is_multigpu = (context.num_gpus > 1);
 
     if (do_workspace_query)
     {
         T work_temp;
         magma_int_t iwork_temp;
 
-        magma_Xsyevd<T>(context.jobz, context.uplo, context.matrix_size, nullptr, context.matrix_lda,
-            nullptr, &work_temp, -1, &iwork_temp, -1, &info
-        );
+        if (is_multigpu)
+        {
+            magma_Xsyevd_m<T>(context.num_gpus, context.jobz, context.uplo, context.matrix_size, nullptr, context.matrix_lda,
+                nullptr, &work_temp, -1, &iwork_temp, -1, &info
+            );
+        }
+        else
+        {
+            magma_Xsyevd<T>(context.jobz, context.uplo, context.matrix_size, nullptr, context.matrix_lda,
+                nullptr, &work_temp, -1, &iwork_temp, -1, &info
+            );
+        }
 
         workspace.lwork = static_cast<magma_int_t>(work_temp);
         workspace.liwork = static_cast<magma_int_t>(iwork_temp);
@@ -98,19 +143,31 @@ magma_int_t magma_Xsyevd(const MagmaEighContext& context, T* matrix, T* eigvals,
         return info;
     }
 
-    return magma_Xsyevd<T>(context.jobz, context.uplo, context.matrix_size, matrix, context.matrix_lda,
-        eigvals, workspace.work, workspace.lwork, workspace.iwork, workspace.liwork, &info
-    );
+    if (is_multigpu)
+    {
+        return magma_Xsyevd_m<T>(context.num_gpus, context.jobz, context.uplo, context.matrix_size, matrix, context.matrix_lda,
+            eigvals, workspace.work, workspace.lwork, workspace.iwork, workspace.liwork, &info
+        );
+    }
+    else
+    {
+        return magma_Xsyevd<T>(context.jobz, context.uplo, context.matrix_size, matrix, context.matrix_lda,
+            eigvals, workspace.work, workspace.lwork, workspace.iwork, workspace.liwork, &info
+        );
+    }
+
 }
 
 /* Templated magma heevd. Overrides the input matrix.
 If do_workspace_query is set, does instead a workspace query and fills in the optimal work sizes in the input workspace struct.
+This chooses between single-GPU and multi-GPU versions based on the context argument.
 */
 template<typename RealT>
 magma_int_t magma_Xheevd(const MagmaEighContext& context, magmaComplex<RealT>* matrix, RealT* eigvals,
     HeevdWorkspace<RealT> &workspace, bool do_workspace_query)
 {
     magma_int_t info;
+    const bool is_multigpu = (context.num_gpus > 1);
 
     if (do_workspace_query)
     {
@@ -118,9 +175,18 @@ magma_int_t magma_Xheevd(const MagmaEighContext& context, magmaComplex<RealT>* m
         RealT rwork_temp;
         magma_int_t iwork_temp;
 
-        magma_Xheevd<RealT>(context.jobz, context.uplo, context.matrix_size, nullptr, context.matrix_lda,
-            nullptr, &work_temp, -1, &rwork_temp, -1, &iwork_temp, -1, &info
-        );
+        if (is_multigpu)
+        {
+            magma_Xheevd_m<RealT>(context.num_gpus, context.jobz, context.uplo, context.matrix_size, nullptr, context.matrix_lda,
+                nullptr, &work_temp, -1, &rwork_temp, -1, &iwork_temp, -1, &info
+            );
+        }
+        else
+        {
+            magma_Xheevd<RealT>(context.jobz, context.uplo, context.matrix_size, nullptr, context.matrix_lda,
+                nullptr, &work_temp, -1, &rwork_temp, -1, &iwork_temp, -1, &info
+            );
+        }
 
         workspace.lwork = static_cast<magma_int_t>(MAGMA_Z_REAL(work_temp));
         workspace.lrwork = static_cast<magma_int_t>(rwork_temp);
@@ -129,9 +195,18 @@ magma_int_t magma_Xheevd(const MagmaEighContext& context, magmaComplex<RealT>* m
         return info;
     }
 
-    return magma_Xheevd<RealT>(context.jobz, context.uplo, context.matrix_size, matrix, context.matrix_lda,
-        eigvals, workspace.work, workspace.lwork, workspace.rwork, workspace.lrwork, workspace.iwork, workspace.liwork, &info
-    );
+    if (is_multigpu)
+    {
+        return magma_Xheevd_m<RealT>(context.num_gpus, context.jobz, context.uplo, context.matrix_size, matrix, context.matrix_lda,
+            eigvals, workspace.work, workspace.lwork, workspace.rwork, workspace.lrwork, workspace.iwork, workspace.liwork, &info
+        );
+    }
+    else
+    {
+        return magma_Xheevd<RealT>(context.jobz, context.uplo, context.matrix_size, matrix, context.matrix_lda,
+            eigvals, workspace.work, workspace.lwork, workspace.rwork, workspace.lrwork, workspace.iwork, workspace.liwork, &info
+        );
+    }
 }
 
 template<typename T>

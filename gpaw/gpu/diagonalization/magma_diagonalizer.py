@@ -1,4 +1,6 @@
-from gpaw.gpu.diagonalization.diagonalizer import NonDistributedDiagonalizer, DiagonalizerOptions
+import numpy as np
+from gpaw.gpu.diagonalization.diagonalizer import (NonDistributedDiagonalizer,
+                                                   DiagonalizerOptions)
 from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
@@ -18,6 +20,8 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
     it are created.
     """
 
+    from gpaw.cgpaw import _eigh_magma_cupy, _eigh_magma_numpy
+
     def __init__(self):
         """Constructor, asserts that both MAGMA and CuPy are available.
         This makes implementation details easier as we don't have to check
@@ -28,49 +32,61 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
 
     @trace(gpu=True)
     def eigh_non_distributed(self,
-             inout_matrix: cp.ndarray,
+             inout_matrix: cp.ndarray | np.ndarray,
              options: DiagonalizerOptions
-             ) -> tuple[cp.ndarray, cp.ndarray]:
+             ) -> tuple[cp.ndarray, cp.ndarray] | tuple[np.ndarray, np.ndarray]:
         """
-        Wrapper for MAGMA symmetric/Hermitian eigensolvers, GPU version.
+        Wrapper for MAGMA symmetric/Hermitian eigensolvers.
 
         Parameters
         ----------
-        inout_matrix : (N, N) cupy.ndarray
+        inout_matrix : (N, N) Numpy or CuPy ndarray
             The matrix to diagonalize. Must be symmetric or Hermitian.
             May be modified in-place depending on the `options` parameter.
+            Type (CuPy or Numpy) of this array determines type of the output
+            arrays.
         options : DiagonalizerOptions
             Options for the diagonalizer.
 
         Returns
         -------
-        w : (N,) cupy.ndarray
-            Eigenvalues in ascending order
-        v : (N, N) cupy.ndarray
+        w : (N,) ndarray
+            Eigenvalues in ascending order.
+        v : (N, N) ndarray
             Matrix containing orthonormal eigenvectors.
             Eigenvector corresponding to ``w[i]`` is in column ``v[:,i]``.
         """
 
-        assert isinstance(inout_matrix, cp.ndarray)
         shape = inout_matrix.shape
-
         assert (inout_matrix.ndim == 2 and shape[0] == shape[1])
 
-        # Alloc output arrays with CUPY.
+        xp = cp if isinstance(inout_matrix, cp.ndarray) else np
+
+        # Alloc output arrays.
         # Eigenvectors are real for symmetric/Hermitian matrices
         eigval_dtype = as_real_dtype(inout_matrix.dtype)
-        eigvals = cp.empty((shape[0]), dtype=eigval_dtype)
+        eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
 
         if options.inplace:
             eigvecs = inout_matrix
         else:
-            eigvecs = cp.copy(inout_matrix)
+            eigvecs = xp.copy(inout_matrix)
 
-        # This import only works if GPAW was compiled with MAGMA.
-        # Doing the import here prevents crashes if importing this .py
-        # module when MAGMA was not enabled during compilation.
-        from gpaw.cgpaw import _eigh_magma_cupy
+        if options.gpus_per_process > 1 and xp is not np:
+            # MAGMA multi-GPU requires that the matrix is on host
+            host_matrix = cp.asnumpy(inout_matrix)
+            eigvals = np.empty((shape[0]), dtype=eigval_dtype)
+            self._eigh_magma_numpy(host_matrix,
+                                   eigvals,
+                                   options.uplo,
+                                   options.gpus_per_process)
 
-        _eigh_magma_cupy(eigvecs, eigvals, options.uplo)
+            eigvecs[:] = host_matrix[:]
+            return cp.ndarray(eigvals), eigvecs
+
+        if xp is np:
+            self._eigh_magma_numpy(eigvecs, eigvals, options.uplo, options.gpus_per_process)
+        else:
+            self._eigh_magma_cupy(eigvecs, eigvals, options.uplo)
 
         return eigvals, eigvecs

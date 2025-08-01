@@ -4,6 +4,7 @@
 
 #include <cassert>
 
+
 static magma_uplo_t get_magma_uplo(char* in_uplo_str)
 {
     assert((strcmp(in_uplo_str, "L") == 0 || strcmp(in_uplo_str, "U") == 0)
@@ -103,8 +104,15 @@ CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
     solver_context.jobz = MagmaVec; // Always do eigenvectors
 
     assert(num_gpus > 0);
-    // TODO validate this
-    solver_context.num_gpus = num_gpus;
+    const magma_int_t available_gpus = magma_num_gpus();
+    solver_context.num_gpus = available_gpus >= num_gpus ? num_gpus : available_gpus;
+
+    if (num_gpus != solver_context.num_gpus)
+    {
+        printf("WARNING: Requested %d GPUs but MAGMA can only use %d\n",
+            static_cast<int>(num_gpus), static_cast<int>(available_gpus));
+    }
+
 
     const EighErrorType status = magma_eigh_host(
         solver_context,

@@ -21,7 +21,7 @@ and output. In other words, all input and output arrays are in CPU memory and
 contiguous. Multiple GPUs can be used if requested, in which case MAGMA handles
 the distribution to GPUs internally. Note that multi-GPU use is limited to
 one compute node, as MAGMA has no support for SCALAPACK-like distributed
-functionality.
+functionality. Therefore this should be called from only one MPI process.
 
 In practice this is wrapper around magma_zheevd() and magma_zheevd_m(),
 and their SYEVD counterparts. Eigenvectors will be returned in MAGMA/SCALAPACK Fortran-like convention.

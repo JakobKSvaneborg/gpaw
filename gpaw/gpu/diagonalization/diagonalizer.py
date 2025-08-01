@@ -23,6 +23,7 @@ class DiagonalizerOptions:
     is a concern. NB: Not all backends guarantee memory savings.
     """
     gpus_per_process: int = 1
+    """For multi-GPU."""
 
 
 class GPUDiagonalizer(ABC):
