@@ -19,16 +19,16 @@
 #define NMIN   1.0E-10
 
 template <typename Tcomplex, typename Treal>
-__global__ void calculate_residual_kernel(int nG, int nn,
-	       				  Tcomplex* residual_nG,
-	    			          Treal* eps_n,
-					  Tcomplex* wf_nG)
+__global__ void calculate_residual_kernel(long nG, long nn,
+	       				                  Tcomplex* residual_nG,
+	    			                      Treal* eps_n,
+					                      Tcomplex* wf_nG)
 {
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
-    int g = threadIdx.y + blockIdx.y * blockDim.y;
+    long n = threadIdx.x + blockIdx.x * blockDim.x;
+    long g = threadIdx.y + blockIdx.y * blockDim.y;
     if ((g < nG) && (n < nn))
     {
-        long ind = long(n) * long(nG) + long(g);
+        long ind = n * nG + g;
         residual_nG[ind] = residual_nG[ind] - wf_nG[ind] * eps_n[n];
     }
 }
@@ -76,8 +76,8 @@ __global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, in
 extern "C"
 void calculate_residual_launch_kernel(
 				      int dtypenum,
-					  int nG,
-				      int nn,
+					  long nG,
+				      long nn,
 				      void* residual_nG,
 				      void* eps_n,
 				      void* wf_nG)
@@ -478,8 +478,8 @@ __global__ void pw_insert_many(int nb,
 }
 
 template <typename Tcomplex, typename Treal>
-__global__ void add_to_density(int nb,
-			       int nR,
+__global__ void add_to_density(long nb,
+			       long nR,
 			       double* f_n,
 			       Tcomplex* psit_nR,
 			       double* rho_R)
@@ -492,7 +492,7 @@ __global__ void add_to_density(int nb,
 	double rho = 0.0;
 	for (int b=0; b< nb; b++)
 	{
-	    int idx = b * nR + R;
+	    long idx = b * nR + R;
 	    if constexpr(realtype) {
 	    	rho += f_n[b] * double(psit_nR[idx] * psit_nR[idx]);
 	    } else {
@@ -523,8 +523,8 @@ extern "C" void gpawDeviceSynchronize()
 
 
 extern "C"
-void add_to_density_gpu_launch_kernel(int nb,
-				      int nR,
+void add_to_density_gpu_launch_kernel(long nb,
+				      long nR,
 				      double* f_n,
 				      void* psit_nR,
 				      double* rho_R,
@@ -810,7 +810,7 @@ if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
 
 // One block will always sum one G-vector. Thus, no block wide reduce.
 template <unsigned int blockSize, typename Treal>
-__global__ void pw_norm_kinetic_kernel(int nx, int nG,
+__global__ void pw_norm_kinetic_kernel(int nx, long nG,
                                        Treal* result_x,
                                        Treal* C_xG,
                                        Treal* kin_G)
@@ -840,7 +840,7 @@ __global__ void pw_norm_kinetic_kernel(int nx, int nG,
 }
 
 template <unsigned int blockSize, typename Treal>
-__global__ void pw_norm_kernel(int nx, int nG,
+__global__ void pw_norm_kernel(int nx, long nG,
                                Treal* result_x,
                                Treal* C_xG)
 {
@@ -927,7 +927,7 @@ void dH_aii_times_P_ani_launch_kernel(int dtypenum,
 }
 
 extern "C" void pw_norm_gpu_launch_kernel(int dtypenum,
-										  int nx, int nG,
+										  int nx, long nG,
                                           void* result_x,
                                           void* C_xG)
 {
@@ -955,7 +955,7 @@ extern "C" void pw_norm_gpu_launch_kernel(int dtypenum,
 }
 
 extern "C" void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
-												  int nx, int nG,
+												  int nx, long nG,
                                                   void* result_x,
                                                   void* C_xG,
                                                   void* kin_G)

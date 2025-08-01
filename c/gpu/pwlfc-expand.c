@@ -10,8 +10,8 @@
 #include <stdio.h>
 
 void calculate_residual_launch_kernel(int dtypenum,
-                                      int nG,
-                                      int nn,
+                                      long nG,
+                                      long nn,
                                       void* residual_ng, 
                                       void* eps_n, 
                                       void* wf_nG);
@@ -47,12 +47,12 @@ void pw_insert_gpu_launch_kernel(
                              int rx, int ry, int rz);
 
 void pw_norm_gpu_launch_kernel(int dtypenum,
-                               int nx, int nG,
+                               int nx, long nG,
                                void* result_x,
                                void* C_xG);
 
 void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
-                                       int nx, int nG,
+                                       int nx, long nG,
                                        void* result_x,
                                        void* C_xG,
                                        void* kin_G);
@@ -66,8 +66,8 @@ void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int m, 
                                               void* array_nQ);
 
-void add_to_density_gpu_launch_kernel(int nb,
-                                      int nR,
+void add_to_density_gpu_launch_kernel(long nb,
+                                      long nR,
                                       void* f_n,
                                       void* psit_nR,
                                       void* rho_R,
@@ -363,7 +363,7 @@ PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
 
     // Make sure dimensions match
     int nx = Array_DIM(result_x_obj, 0);
-    int nG = Array_DIM(C_xG_obj, 1);
+    long nG = Array_DIM(C_xG_obj, 1);
     assert(Array_DIM(C_xG_obj, 0) == nx);
 
     if (PyErr_Occurred())
@@ -400,7 +400,7 @@ PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
 
     // Make sure dimensions match
     int nx = Array_DIM(result_x_obj, 0);
-    int nG = Array_DIM(C_xG_obj, 1);
+    long nG = Array_DIM(C_xG_obj, 1);
     assert(Array_DIM(kin_G_obj, 0) == nG);
     assert(Array_DIM(C_xG_obj, 0) == nx);
 
@@ -457,8 +457,8 @@ PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
     double *f_n = Array_DATA(f_n_obj);
     void *psit_nR = (void*) Array_DATA(psit_nR_obj);
     void *rho_R = (void*) Array_DATA(rho_R_obj);
-    int nb = Array_SIZE(f_n_obj);
-    int nR = Array_SIZE(psit_nR_obj) / nb;
+    long nb = Array_SIZE(f_n_obj);
+    long nR = Array_SIZE(psit_nR_obj) / nb;
     
     // If running on same precision, then this should be the case
     // assert_corresponding_real(dtypenum, rho_R_obj);
@@ -483,8 +483,8 @@ PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
     void *residual_nG = Array_DATA(residual_nG_obj);
     void* eps_n = Array_DATA(eps_n_obj);
     void *wf_nG = Array_DATA(wf_nG_obj);
-    int nn = Array_DIM(residual_nG_obj, 0);
-    int nG = 1;
+    long nn = Array_DIM(residual_nG_obj, 0);
+    long nG = 1;
     for (int d=1; d<Array_NDIM(residual_nG_obj); d++)
     {
         nG *= Array_DIM(residual_nG_obj, d);
