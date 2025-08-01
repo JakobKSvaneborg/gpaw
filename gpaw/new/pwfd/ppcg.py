@@ -23,7 +23,7 @@ class PPCG(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 niter=2,
+                 niter=(2, 10),
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
@@ -50,8 +50,13 @@ class PPCG(PWFDEigensolver):
         converge_bands : str, optional
             Which bands to converge ('occupied' or 'unoccupied'). Default is
             'occupied'.
-        niter : int, optional
-            Number of iterations. Default is 2.
+        niter : int | typle[int, int], optional
+            Number of iterations. Default is 2. If specified as a tuple,
+            the first value is the minimum number of iterations and the
+            second value is the maximum number of iterations. Where the
+            eigensolver will stop if the residual is below a tolerance,
+            and performed at least the minimum number of iterations,
+            otherwise the maximum number of iterations is used.
         blocksize : int, optional
             Block size for the diagonal slicing. Lower values
             are more efficient on CPUs with many cores but not on GPUs. The
@@ -156,9 +161,7 @@ class PPCG(PWFDEigensolver):
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
-        self.breakout_tolerance = \
-            np.finfo(dtype).eps**2 * (
-                B * extra_dims * G_max)**0.5
+        self.breakout_tolerance = 1e-7
         # initial_tolerance_factor :
         #   Modify the tolerance for the first iteration
         #   This value can be small since the first iteration
@@ -236,6 +239,13 @@ class PPCG(PWFDEigensolver):
                                          psit_nX.dims[1:], xp=psit_nX.xp)
             Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
                                           psit_nX.dims[1:], xp=psit_nX.xp)
+            
+            if isinstance(self.niter, int):
+                niter = self.niter
+                min_niter = self.niter
+            else:
+                niter = self.niter[1]
+                min_niter = self.niter[0]
 
         with tracectx('Residual'):
             calculate_residuals(wfs.psit_nX,
@@ -255,17 +265,17 @@ class PPCG(PWFDEigensolver):
                            np.max(error_n, initial=0) * self.tol_factor))
             active_indicies = np.where(active_indicies)[0]
             error = weight_n @ error_n
-            b_error = band_comm.sum_scalar(error)
+            b_error = band_comm.sum_scalar(error) / \
+                band_comm.sum_scalar(weight_n.sum())
             if band_comm.sum_scalar(len(active_indicies)) == 0  \
-                    or b_error < self.breakout_tolerance * \
-                    self.initial_tolerance_factor:
+                    or b_error < self.breakout_tolerance and min_niter <= 1:
                 if debug:
                     psit_nX.sanity_check()
                 flag = True
             else:
                 flag = False
 
-        for i in range(self.niter):
+        for i in range(niter):
             with tracectx('Residual'):
                 sliced_preconditioner(psit_nX, residual_nX,
                                       buffer=buffer_array_nX,
@@ -432,7 +442,8 @@ class PPCG(PWFDEigensolver):
                             + Pbuf_abi.matrix.data[block:2 * block]
 
             wfs.orthonormalized = False
-            if flag or i >= self.niter - 1:
+            if flag or i >= niter - 1:
+                print('Breaking out at iteration', i + 1)
                 break
 
             with tracectx('Residual'):
@@ -478,10 +489,11 @@ class PPCG(PWFDEigensolver):
                                self.tol_factor))
                 active_indicies = np.where(active_indicies)[0]
                 error = weight_n @ error_n
-                b_error = band_comm.sum_scalar(error)
+                b_error = band_comm.sum_scalar(error) / \
+                    band_comm.sum_scalar(weight_n.sum())
 
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
-                        or b_error < self.breakout_tolerance:
+                        or (b_error < self.breakout_tolerance and i + 2 >= min_niter):
                     # We have converged. Break out of the loop
                     # Maybe one should allow one extra iteration, by
                     # setting:
@@ -579,8 +591,8 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     real_dtype = psit_nX.real_dtype
     a_nX = psit_nX.matrix.data.view(real_dtype)
     h_nX = Hpsit_nX.matrix.data.view(real_dtype)
-    eigs_n = xp.zeros(h_nX[0], dtype=np.float64)
-    for ind in range(h_nX[1], 4048):
+    eigs_n = xp.zeros(h_nX.shape[0], dtype=np.float64)
+    for ind in range(0, h_nX.shape[1], 4048):
         eigs_n += xp.einsum('nX, nX -> n',
                             h_nX[:, ind:ind + 4048],
                             a_nX[:, ind:ind + 4048])
