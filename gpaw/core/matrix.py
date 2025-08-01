@@ -184,7 +184,7 @@ class Matrix(XP):
         if self.dist is None:
             return False
 
-        return self.dist.rows > 1 or self.dist.columns > 1
+        return self.dist.shape != self.shape
 
     def multiply(self,
                  other,
@@ -486,7 +486,9 @@ class Matrix(XP):
 
             if cc and np.issubdtype(H.dtype, np.complexfloating):
                 cp.negative(H.data.imag, H.data.imag)
-            if debug:
+            if debug and not H.is_distributed():
+                # Set upper triangle to a cool number.
+                # But no easy way of doing this for distributed matrices
                 H.data[cp.triu_indices(H.shape[0], 1)] = 42.0
 
             # Handle generalized eigenproblem

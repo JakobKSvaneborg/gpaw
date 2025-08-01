@@ -15,11 +15,6 @@ def suggest_diagonalizer(matrix: "Matrix")-> tuple[GPUDiagonalizer, Diagonalizer
     given matrix.
     """
 
-    if matrix.is_distributed():
-        # Not implemented with GPUs, dunno what to do
-        raise NotImplementedError("BLACS distribution not supported with GPUs," \
-            "can't suggest a diagonalizer!")
-
     if cupy_is_fake:
         return CPUPYDiagonalizer(), DiagonalizerOptions()
 
