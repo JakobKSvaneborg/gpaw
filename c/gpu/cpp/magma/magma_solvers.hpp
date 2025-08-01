@@ -79,13 +79,6 @@ EighErrorType magma_symmetric_solver_gpu(
 
     const magma_int_t status = magma_Xsyevd_gpu<T>(context, inout_matrix, h_eigvals, workspace, false);
 
-    magma_device_t device;
-    magma_getdevice(&device);
-    magma_queue_t queue;
-    magma_queue_create(device, &queue);
-
-    magmablas_Xtranspose_inplace<T>(context.matrix_size, inout_matrix, context.matrix_lda, queue);
-
     // Copy eigenvalues back to device
     gpuMemcpy(inout_eigvals, h_eigvals, n*sizeof(T), gpuMemcpyHostToDevice);
 
@@ -122,13 +115,6 @@ EighErrorType magma_hermitian_solver_gpu(
 
     const magma_int_t status = magma_Xheevd_gpu<T>(context, inout_matrix, h_eigvals, workspace, false);
 
-    magma_device_t device;
-    magma_getdevice(&device);
-    magma_queue_t queue;
-    magma_queue_create(device, &queue);
-
-    magmablas_Xtranspose_conj_inplace<T>(context.matrix_size, inout_matrix, context.matrix_lda, queue);
-
     // Copy eigenvalues back to device
     gpuMemcpy(inout_eigvals, h_eigvals, n*sizeof(T), gpuMemcpyHostToDevice);
 
@@ -137,8 +123,6 @@ EighErrorType magma_hermitian_solver_gpu(
     MAGMA_CHECK(magma_host_free(workspace.wA));
     MAGMA_CHECK(magma_host_free(workspace.iwork));
     MAGMA_CHECK(magma_host_free(workspace.work));
-
-    magma_queue_destroy(queue);
 
     return interpret_magma_status(status);
 }

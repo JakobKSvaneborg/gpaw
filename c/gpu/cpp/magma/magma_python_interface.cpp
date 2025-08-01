@@ -120,6 +120,7 @@ CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
         PyArray_DATA(inout_eigvals_numpy)
     );
 
+
     assert(status != EighErrorType::eInvalidArgument && "Invalid input to MAGMA solver");
     if (status == EighErrorType::eFailedToConverge)
     {

@@ -70,8 +70,8 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         else:
             eigvecs = xp.copy(inout_matrix)
 
-        # Handle multi-GPU with CuPy input. Magma needs the input on _host_
         if options.gpus_per_process > 1 and xp is not np:
+            # Handle multi-GPU with CuPy input. Magma needs the input on _host_
             host_matrix = cp.asnumpy(inout_matrix)
             eigvals = np.empty((shape[0]), dtype=eigval_dtype)
             self._eigh_magma_numpy(host_matrix,
@@ -80,12 +80,16 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
                                    options.gpus_per_process)
 
             eigvecs[:] = cp.asarray(host_matrix)
-            return cp.asarray(eigvals), eigvecs
+            eigvals = cp.asarray(eigvals)
 
-        eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
-        if xp is np:
-            self._eigh_magma_numpy(eigvecs, eigvals, options.uplo, options.gpus_per_process)
         else:
-            self._eigh_magma_cupy(eigvecs, eigvals, options.uplo)
+            eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
+            if xp is np:
+                self._eigh_magma_numpy(eigvecs, eigvals, options.uplo, options.gpus_per_process)
+            else:
+                self._eigh_magma_cupy(eigvecs, eigvals, options.uplo)
+
+        # Transform to Numpy convention (conjugate transpose)
+        xp.conjugate(eigvecs, out=eigvecs.T)
 
         return eigvals, eigvecs
