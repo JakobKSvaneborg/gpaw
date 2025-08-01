@@ -24,7 +24,7 @@ class ETDM(Eigensolver):
         self.converge_unocc = converge_unocc
         self.dS_aii: AtomArrays
         self.nocc_s: list[int] = []
-        self.preconditioner
+        self.preconditioner = None
 
     def new(self, **params) -> ETDM:
         return ETDM(**params)
@@ -54,9 +54,10 @@ class ETDM(Eigensolver):
 
             for wfs in ibzwfs:
                 wfs._P_ani = None
+                tmp_nX = wfs.psit_nX.new()
                 wfs.orthonormalized = False
-                wfs.orthonormalize()
-                wfs.subspace_diagonalize(Ht, dH)
+                wfs.orthonormalize(tmp_nX)
+                wfs.subspace_diagonalize(Ht, dH, tmp_nX)
 
             energies, potential = update_density_and_potential(
                 density, potential, pot_calc, ibzwfs, hamiltonian)
