@@ -71,7 +71,7 @@ class PPCG(PWFDEigensolver):
         promote_inner_dtype : bool, optional
             Promote inner dtype to double precision. Default is False.
             Only relevant for single precision calculations.
-        tolerances : tuple[float, float, float, float], optional
+        tolerances : tuple[float, float, float], optional
             Advanced setting, tolerances for the solver. Use at your own risk.
         scalapack_parameters : dict, optional
             Parameters for scalapack solver.
@@ -161,18 +161,12 @@ class PPCG(PWFDEigensolver):
         #   achievable residual. Can also be used to improve numerical
         #   stability.
         self.breakout_tolerance = 1e-7
-        # initial_tolerance_factor :
-        #   Modify the tolerance for the first iteration
-        #   This value can be small since the first iteration
-        #   is more numerically stable.
-        self.initial_tolerance_factor = 1
 
         if self.tolerances is not None:
-            assert len(self.tolerances) == 4
+            assert len(self.tolerances) == 3
             self.tol_factor = self.tolerances[0]
             self.tolerance = self.tolerances[1]
             self.breakout_tolerance = self.tolerances[2]
-            self.initial_tolerance_factor = self.tolerances[3]
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -258,8 +252,7 @@ class PPCG(PWFDEigensolver):
             if len(error_n.shape) > 1:
                 error_n = error_n.sum(axis=1)
             active_indicies = np.logical_or(
-                np.greater(error_n,
-                           self.initial_tolerance_factor * self.tolerance),
+                np.greater(error_n, self.tolerance),
                 np.greater(error_n,
                            np.max(error_n, initial=0) * self.tol_factor))
             active_indicies = np.where(active_indicies)[0]
@@ -494,13 +487,11 @@ class PPCG(PWFDEigensolver):
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
                         or (b_error < self.breakout_tolerance
                             and i + 2 >= min_niter):
-                    # We have converged. Break out of the loop
-                    # Maybe one should allow one extra iteration, by
-                    # setting:
+                    # Set 'flag = True', causing the loop to break
+                    # at the next iteration. This gives us one more
+                    # cheap iteration (since we already calculated
+                    # the residual).
                     flag = True
-                    # instead of break
-                    # since we already calculated the residuals.
-                    # break
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
             if self.include_cg:
@@ -589,20 +580,3 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     wfs.myeig_n[:] = as_np(
         wfs.psit_nX.approx_eigenvalues(Hpsit_nX, P_ani, P2_ani))
 
-
-@trace
-def calc_resid_M_nn(psit_nX, Hpsit_nX, M_nn,
-                    P_ani, HP_ani, buf_ani, pt_aiX,
-                    dS_aii, domain_comm):
-    psit_nX.matrix_elements(Hpsit_nX, cc=True, out=M_nn,
-                            domain_sum=False,
-                            symmetric=True)
-    P_ani.matrix.multiply(HP_ani, opb='C',
-                          symmetric=True,
-                          beta=1, out=M_nn)
-    domain_comm.sum(M_nn.data)
-    M_nn.tril2full()
-    M_nn.multiply(psit_nX, out=Hpsit_nX, beta=1.0, alpha=-1.0)
-    P_ani.block_diag_multiply(dS_aii, out_ani=buf_ani)
-    M_nn.multiply(buf_ani, out=HP_ani, beta=1.0, alpha=-1.0)
-    pt_aiX.add_to(Hpsit_nX, HP_ani)
