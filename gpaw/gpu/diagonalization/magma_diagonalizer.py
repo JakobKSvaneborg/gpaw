@@ -10,6 +10,7 @@ from gpaw.cgpaw import have_magma
 especially not distributed multi-GPU!
 """
 
+
 class MagmaDiagonalizer(NonDistributedDiagonalizer):
     """Single-GPU eigensolver using the MAGMA library. Note that this cannot
     be used if GPAW has not been compiled with MAGMA support.
@@ -32,9 +33,10 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
 
     @trace(gpu=True)
     def eigh_non_distributed(self,
-             inout_matrix: cp.ndarray | np.ndarray,
-             options: DiagonalizerOptions
-             ) -> tuple[cp.ndarray, cp.ndarray] | tuple[np.ndarray, np.ndarray]:
+                             inout_matrix: cp.ndarray | np.ndarray,
+                             options: DiagonalizerOptions
+                             ) -> (tuple[cp.ndarray, cp.ndarray]
+                                   | tuple[np.ndarray, np.ndarray]):
         """
         Wrapper for MAGMA symmetric/Hermitian eigensolvers.
 

@@ -36,7 +36,9 @@ def test_eigh_magma_gpu(fixt_raw_hermitian_matrix: cp.ndarray,
                         uplo: str):
     """Compare eigh output of CUPY and MAGMA (GPU)"""
 
-    matrix = fixt_raw_hermitian_matrix(matrix_size, dtype=dtype, backend='cupy')
+    matrix = fixt_raw_hermitian_matrix(matrix_size,
+                                       dtype=dtype,
+                                       backend='cupy')
 
     # For checking that we don't modify this in-place
     matrix_original = cp.copy(matrix)
@@ -71,11 +73,13 @@ def test_eigh_magma_gpu(fixt_raw_hermitian_matrix: cp.ndarray,
                           (16, np.complex128),
                           (32, np.complex64)])
 def test_eigh_magma_inplace(fixt_raw_hermitian_matrix: cp.ndarray,
-                        matrix_size: int,
-                        dtype: np.dtype):
+                            matrix_size: int,
+                            dtype: np.dtype):
     """Test the inplace option in magma eigensolvers"""
 
-    matrix = fixt_raw_hermitian_matrix(matrix_size, dtype=dtype, backend='cupy')
+    matrix = fixt_raw_hermitian_matrix(matrix_size,
+                                       dtype=dtype,
+                                       backend='cupy')
     matrix_original = cp.copy(matrix)
 
     diagonalizer = MagmaDiagonalizer()

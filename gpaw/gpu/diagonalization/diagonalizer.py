@@ -6,8 +6,8 @@ from gpaw.utilities import as_real_dtype
 from warnings import warn
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix
 
@@ -111,9 +111,9 @@ class CPUPYDiagonalizer(NonDistributedDiagonalizer):
     """For cpupy"""
 
     def eigh_non_distributed(self,
-             inout_matrix: cp.ndarray,
-             options: DiagonalizerOptions
-             ) -> tuple[cp.ndarray, cp.ndarray]:
+                             inout_matrix: cp.ndarray,
+                             options: DiagonalizerOptions
+                             ) -> tuple[cp.ndarray, cp.ndarray]:
         """"""
 
         if not cupy_is_fake:
@@ -122,8 +122,8 @@ class CPUPYDiagonalizer(NonDistributedDiagonalizer):
         from scipy.linalg import eigh as scipy_eigh
 
         eigvals, eigvecs = scipy_eigh(cp.asnumpy(inout_matrix),
-                                        lower=(options.uplo == 'L'),
-                                        check_finite=False)
+                                      lower=(options.uplo == 'L'),
+                                      check_finite=False)
 
         eigvals, eigvecs = cp.ndarray(eigvals), cp.ndarray(eigvecs)
 
@@ -131,6 +131,7 @@ class CPUPYDiagonalizer(NonDistributedDiagonalizer):
             inout_matrix = eigvecs
 
         return eigvals, eigvecs
+
 
 class CuPyDiagonalizer(NonDistributedDiagonalizer):
     """"""
@@ -140,12 +141,11 @@ class CuPyDiagonalizer(NonDistributedDiagonalizer):
         """
         assert not cupy_is_fake, "Can't use CuPy diagonalizer with fake CuPy"
 
-
     @trace(gpu=True)
     def eigh_non_distributed(self,
-             inout_matrix: cp.ndarray,
-             options: DiagonalizerOptions
-             ) -> tuple[cp.ndarray, cp.ndarray]:
+                             inout_matrix: cp.ndarray,
+                             options: DiagonalizerOptions
+                             ) -> tuple[cp.ndarray, cp.ndarray]:
         """CuPy does not support distributed matrices so this operates
         in serial. No memory savings with the 'inplace' option either.
         """

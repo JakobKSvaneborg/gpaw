@@ -1,5 +1,7 @@
-from gpaw.gpu.diagonalization.diagonalizer import (GPUDiagonalizer, DiagonalizerOptions,
-                                   CPUPYDiagonalizer, CuPyDiagonalizer)
+from gpaw.gpu.diagonalization.diagonalizer import (GPUDiagonalizer,
+                                                   DiagonalizerOptions,
+                                                   CPUPYDiagonalizer,
+                                                   CuPyDiagonalizer)
 from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
 from gpaw.gpu import cupy_is_fake, is_hip, device_count
 from gpaw.cgpaw import have_magma
@@ -10,8 +12,9 @@ if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix
 
 
-def suggest_diagonalizer(matrix: "Matrix")-> tuple[GPUDiagonalizer, DiagonalizerOptions]:
-    """Tries to choose a good gpu diagonalizer backend and options for the
+def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
+                                                    DiagonalizerOptions]:
+    """Attempts to choose a good GPU diagonalizer backend and options for the
     given matrix.
     """
 

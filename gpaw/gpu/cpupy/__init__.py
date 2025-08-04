@@ -50,7 +50,7 @@ def ones(*args, **kwargs):
     return ndarray(np.ones(*args, **kwargs))
 
 
-def copy(a: ndarray, order: str ='K') -> ndarray:
+def copy(a: ndarray, order: str = 'K') -> ndarray:
     return ndarray(data=np.copy(a._data, order))
 
 

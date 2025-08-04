@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING, Type, Optional
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp, cupy_is_fake, device_count
 from gpaw.cgpaw import have_magma
-from gpaw.gpu.diagonalization import CPUPYDiagonalizer, CuPyDiagonalizer, DiagonalizerOptions
+from gpaw.gpu.diagonalization import (CPUPYDiagonalizer, CuPyDiagonalizer,
+                                      DiagonalizerOptions)
 from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
 from gpaw.test.gpu import assert_eigenpairs
 from gpaw.mpi import world
@@ -78,13 +79,14 @@ def diagonalizer_tester_common(
                          [(CuPyMPI(world), -1, 1, None),
                           (world, -1, 1, None)])
 def test_gpu_diagonalizer(fixt_raw_hermitian_matrix: cp.ndarray,
-               diagonalizer_class: Type["GPUDiagonalizer"],
-               matrix_size: int,
-               # dist as in Matrix class: (comm, rows, cols, blocksize)
-               distribution: tuple["MPIComm", int, int, Optional[int]],
-               dtype: np.dtype,
-               uplo: str,
-               inplace: bool):
+                          diagonalizer_class: Type["GPUDiagonalizer"],
+                          matrix_size: int,
+                          # dist as in Matrix class: (comm, rows, cols, block)
+                          distribution: tuple["MPIComm", int, int,
+                                              Optional[int]],
+                          dtype: np.dtype,
+                          uplo: str,
+                          inplace: bool):
     """Test GPU eigensystem solvers."""
 
     comm = distribution[0]
@@ -118,13 +120,13 @@ def test_gpu_diagonalizer(fixt_raw_hermitian_matrix: cp.ndarray,
                          [(CuPyMPI(world), -1, 1, None),
                           (world, -1, 1, None)])
 def test_multigpu(fixt_raw_hermitian_matrix: cp.ndarray,
-               diagonalizer_class: Type["GPUDiagonalizer"],
-               matrix_size: int,
-               # dist as in Matrix class: (comm, rows, cols, blocksize)
-               distribution: tuple["MPIComm", int, int, Optional[int]],
-               dtype: np.dtype,
-               uplo: str,
-               inplace: bool):
+                  diagonalizer_class: Type["GPUDiagonalizer"],
+                  matrix_size: int,
+                  # dist as in Matrix class: (comm, rows, cols, blocksize)
+                  distribution: tuple["MPIComm", int, int, Optional[int]],
+                  dtype: np.dtype,
+                  uplo: str,
+                  inplace: bool):
     """Test multi-GPU diagonalization. Will attempt to utilize all available
     GPUs"""
 
@@ -138,8 +140,8 @@ def test_multigpu(fixt_raw_hermitian_matrix: cp.ndarray,
         pytest.skip("No GPU-aware MPI")
 
     raw_matrix: cp.ndarray = fixt_raw_hermitian_matrix(matrix_size,
-                                                        dtype=dtype,
-                                                        backend='cupy')
+                                                       dtype=dtype,
+                                                       backend='cupy')
 
     matrix = Matrix.scatter(raw_matrix, distribution, 0)
 

@@ -3,6 +3,7 @@
 import numpy as np
 from gpaw.gpu import cupy as cp
 
+
 def assert_eigenpairs(A, eigvals, eigvecs, rtol=1e-12, atol=1e-12) -> None:
     """Checks that A @ v == lam*v and asserts on failure."""
 

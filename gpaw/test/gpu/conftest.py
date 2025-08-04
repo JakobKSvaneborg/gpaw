@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 from gpaw.gpu import cupy as cp
 
+
 @pytest.fixture(scope="function")
 def fixt_raw_hermitian_matrix():
     """Symmetric if dtype is real, Hermitian otherwise.
