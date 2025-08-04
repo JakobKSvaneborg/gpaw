@@ -929,24 +929,46 @@ class CuPyDistribution(MatrixDistribution):
 
         if symmetric:
             if opa == 'N':
-                assert opb == 'C' or opb == 'T' and a.dtype == float
+                lda = a.data.strides[0] // a.data.itemsize
+                ldb = b.data.strides[0] // b.data.itemsize
+                ldc = c.data.strides[0] // c.data.itemsize
+                assert opb == 'C' or opb == 'T' and np.issubdtype(a.dtype, np.floating)
                 if a is b:
-                    gpu_gemm('N', 'H',
-                             a.data, a.data, c.data,
-                             alpha, beta)
-                    # cp.cublas.syrk('N', a.data, c.data, alpha, beta, True)
+                    # gpu_gemm('N', 'H',
+                    #          a.data, a.data, c.data,
+                    #          alpha, beta)
+                    cgpaw.r2k_gpu(0.5*alpha,
+                                  a.data,
+                                  b.data,
+                                  beta,
+                                  c.data,
+                                  lda,
+                                  ldb,
+                                  ldc)
                 else:
                     if beta == 1.0 and a.shape[1] == 0:
                         return
                     if c.data.size > 0:
                         assert beta in [0.0, 1.0]
                         # CuPy doesn't have dsyrk, so we roll our own:
+                        '''
                         gpu_gemm('N', 'H',
                                  a.data, b.data, c.data,
                                  0.5 * alpha, beta)
                         gpu_gemm('N', 'H',
                                  b.data, a.data, c.data,
                                  0.5 * alpha, 1.0)
+                        #'''
+                        #'''
+                        cgpaw.r2k_gpu(0.5*alpha,
+                                      a.data,
+                                      b.data,
+                                      beta,
+                                      c.data,
+                                      lda,
+                                      ldb,
+                                      ldc)
+                        #'''
             else:
                 1 / 0
                 assert opa == 'C' and opb == 'N'

@@ -36,6 +36,7 @@
 
 #define Array_NDIM(a) PyArray_NDIM((PyArrayObject*)a)
 #define Array_DIM(a,d)  PyArray_DIM((PyArrayObject*)a,d)
+#define Array_STRIDE(a,d) PyArray_STRIDE((PyArrayObject*)a,d)
 #define Array_ITEMSIZE(a) PyArray_ITEMSIZE((PyArrayObject*)a)
 #define Array_BYTES(a) PyArray_BYTES((PyArrayObject*)a)
 #define Array_DATA(a) PyArray_DATA((PyArrayObject*)a)

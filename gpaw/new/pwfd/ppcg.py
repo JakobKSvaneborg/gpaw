@@ -110,9 +110,9 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 48  # Could be lower, maybe 32
+                self.blocksize = 96  # Could be lower, maybe 64
             else:
-                self.blocksize = 128
+                self.blocksize = 256
 
         if isinstance(self.wf_grid, PWDesc):
             S = self.wf_grid.comm.size

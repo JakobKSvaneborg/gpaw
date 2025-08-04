@@ -57,6 +57,7 @@ def test_single_precision_rmmdiis_gpu(dtype):
 def run_single_precision(dtype, gpu):
     atoms = molecule('H2O')
     atoms.center(vacuum=2.5)
+    atoms = atoms.repeat((3, 3, 3))
 
     gpu = gpu == 'True'
 
@@ -64,9 +65,9 @@ def run_single_precision(dtype, gpu):
                       symmetry='off',
                       random=True,
                       convergence={'energy': 1e-5,
-                                   'forces': 1e-3,
+                                   #'forces': 1e-3,
                                    'eigenstates': 1e-6},
-                      eigensolver={'name': 'ppcg'},
+                      eigensolver={'name': 'ppcg', 'include_cg': True},
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},

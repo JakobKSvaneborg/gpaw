@@ -98,6 +98,9 @@
 #define gpublasDdot               cublasDdot
 #define gpublasZdotc              cublasZdotc
 #define gpublasZdotu              cublasZdotu
+#define gpublasSsyr2k             cublasSsyr2k
+#define gpublasCher2k             cublasCher2k
+
 
 #define GPUBLAS_OP_N                     CUBLAS_OP_N
 #define GPUBLAS_OP_T                     CUBLAS_OP_T

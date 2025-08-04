@@ -202,6 +202,8 @@ __host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipConj(XXXhipDoubl
 #define gpublasDdot               hipblasDdot
 #define gpublasZdotc              hipblasZdotc
 #define gpublasZdotu              hipblasZdotu
+#define gpublasSsyr2k             hipblasSsyr2k
+#define gpublasCher2k             hipblasCher2k
 
 #define GPUBLAS_OP_N                     HIPBLAS_OP_N
 #define GPUBLAS_OP_T                     HIPBLAS_OP_T
