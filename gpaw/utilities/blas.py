@@ -16,6 +16,7 @@ import gpaw.cgpaw as cgpaw
 import numpy as np
 import scipy.linalg.blas as blas
 from gpaw import debug
+from gpaw.gpu import cupy_is_fake
 from gpaw.new import prod
 from gpaw.typing import Array2D, ArrayND
 from gpaw.utilities import is_contiguous
@@ -364,9 +365,13 @@ def r2k(alpha, a, b, beta, c, trans='c'):
 
 def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     """Launch CPU or GPU version of r2k()."""
+    if cupy_is_fake:
+        return r2k(alpha, a._data, b._data, beta, c._data, trans)
+
     assert a.shape == b.shape
     assert c.shape[0] == a.shape[0]
     assert c.shape[1] == a.shape[0]
+    # There should be more asserts here.
 
     if a.shape[1] == 0:
         if beta:
