@@ -156,7 +156,7 @@ class ASECalculator:
         if converged:
             return
 
-        if not self.dft.ibzwfs.has_wave_functions():
+        if 0:  # not self.dft.ibzwfs.has_wave_functions():
             # We have started from a gpw-file without wave functions
             self.create_new_calculation(atoms)
 

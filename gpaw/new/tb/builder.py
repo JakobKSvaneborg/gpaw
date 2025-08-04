@@ -246,6 +246,14 @@ class DummyBasis:
 
 
 class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
+    def fix_setups(self):
+        for setup in self.setups.setups.values():
+            try:
+                setup.vt_g
+            except AttributeError:
+                setup.vt_g, setup.W = calculate_pseudo_potential(
+                    setup, self.xc.xc)
+
     def check_cell(self, cell):
         pass
 
@@ -264,6 +272,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         return PSCoreDensities(self.grid, self.relpos_ac)
 
     def create_basis_set(self):
+        self.fix_setups()
         self.basis = DummyBasis(self.setups)
         return self.basis
 
@@ -272,12 +281,6 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
 
     def create_potential_calculator(self):
         xc = DummyXC(self.xc)
-        for setup in self.setups.setups.values():
-            try:
-                setup.vt_g
-            except AttributeError:
-                setup.vt_g, setup.W = calculate_pseudo_potential(
-                    setup, self.xc.xc)
         return TBPotentialCalculator(xc, self.setups, self.atoms,
                                      self.communicators['d'])
 
