@@ -144,6 +144,16 @@ class TB(Mode):
 class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
+        from gpaw.new.do import DirectOptimization
+        eigensolvers = {
+            'davidson': Davidson,
+            'rmm-diis': RMMDIIS,
+            'etdm-fdpw': DirectOptimization,
+            'ppcg': PPCG,
+            'lcao': LCAOEigensolver,
+            'hybrid-lcao': HybridLCAOEigensolver,
+            'scissors': Scissors}
+
         if isinstance(eigensolver, str):
             eigensolver = {'name': eigensolver}
         elif not isinstance(eigensolver, dict):
@@ -313,16 +323,6 @@ class Scissors(LCAOEigensolver):
         return ScissorsLCAOEigensolver(basis,
                                        self.shifts,
                                        symmetries)
-
-
-eigensolvers = {
-    'davidson': Davidson,
-    'rmm-diis': RMMDIIS,
-    'not-dav': PPCG,
-    'ppcg': PPCG,
-    'lcao': LCAOEigensolver,
-    'hybrid-lcao': HybridLCAOEigensolver,
-    'scissors': Scissors}
 
 
 class Extension(Parameter):
@@ -636,7 +636,7 @@ class Parameters:
         XC(name='LDA')
         >>> from ase.build import molecule
         >>> atoms = molecule('H2', vacuum=3.0)
-        >>> dft = p.dft_calculation(atoms, txt='h2.txt')
+        >>> dft = p.dft_calculation(atoms, txt=None)
         >>> atoms.calc = dft.ase_calculator()
 
         Parameters

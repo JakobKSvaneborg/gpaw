@@ -160,7 +160,8 @@ class SpinorPWHamiltonian(Hamiltonian):
               D_asii,
               psit_nsG: XArray,
               out: XArray,
-              spin: int) -> XArray:
+              spin: int,
+              calculate_energy: bool = False) -> XArray:
         assert dedtaut_xR is None
         out_nsG = out
         pw = psit_nsG.desc

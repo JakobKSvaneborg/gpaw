@@ -179,7 +179,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self.psit_nX.add_ked(occ_n, taut_sR[self.spin])
 
     @trace
-    def orthonormalize(self, psit2_nX):
+    def orthonormalize(self, psit2_nX=None):
         r"""Orthonormalize wave functions.
 
         Computes the overlap matrix:::
@@ -264,7 +264,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P2_ani = P_ani.new()
         domain_comm = psit_nX.desc.comm
 
-        Ht = partial(Ht, out=psit2_nX, spin=self.spin)
+        Ht = partial(Ht, out=psit2_nX, spin=self.spin, calculate_energy=True)
         H = psit_nX.matrix_elements(psit_nX,
                                     function=Ht,
                                     domain_sum=False,
@@ -273,7 +273,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P_ani.matrix.multiply(P2_ani, opb='C', symmetric=True,
                               out=H, beta=1.0)
         domain_comm.sum(H.data, 0)
-
         if domain_comm.rank == 0:
             slcomm, r, c, b = scalapack_parameters
             if r == c == 1:

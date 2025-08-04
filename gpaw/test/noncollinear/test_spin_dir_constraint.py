@@ -10,7 +10,7 @@ from gpaw.new.ase_interface import GPAW
 
 @pytest.mark.soc
 @pytest.mark.skipif(world.size > 1, reason='Gamma-point calculation.')
-def test_spin_dir_constraint_H():
+def test_spin_dir_constraint_H(in_tmp_dir):
 
     c = 2.5  # Å
     atom = Atoms('H', scaled_positions=[[0.5, 0.5, 0.5]],
@@ -21,9 +21,12 @@ def test_spin_dir_constraint_H():
 
     # Initialize spin along [1 1 1]
     calc = GPAW(
-        mode={'name': 'pw', 'ecut': 400}, xc='LDA',
-        nbands=1, symmetry='off',
-        soc=True, magmoms=np.array([[1, 1, 1]]) / np.sqrt(3),
+        mode={'name': 'pw', 'ecut': 400},
+        xc='LDA',
+        nbands=1,
+        symmetry='off',
+        soc=True,
+        magmoms=np.array([[1, 1, 1]]) / np.sqrt(3),
         parallel={'domain': 1, 'band': 1},
         extensions=[constraint])
 
