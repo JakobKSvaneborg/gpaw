@@ -364,10 +364,27 @@ def r2k(alpha, a, b, beta, c, trans='c'):
 
 def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     """Launch CPU or GPU version of r2k()."""
-    cgpaw.r2k_gpu(alpha, a.data.ptr, a.shape,
-                  b.data.ptr, b.shape, beta,
-                  c.data.ptr, c.shape,
-                  a.dtype)
+    assert a.shape == b.shape
+    assert c.shape[0] == a.shape[0]
+    assert c.shape[1] == a.shape[0]
+    
+    if a.shape[1] == 0:
+        if beta:
+            c *= beta
+        else:
+            c[:] = 0
+        
+    lda = a.strides[0] // a.itemsize
+    ldb = b.strides[0] // b.itemsize
+    ldc = c.strides[0] // c.itemsize
+    cgpaw.r2k_gpu(alpha,
+                  a,
+                  b,
+                  beta,
+                  c,
+                  lda,
+                  ldb,
+                  ldc)
 
 
 def gpu_dotc(a, b):
