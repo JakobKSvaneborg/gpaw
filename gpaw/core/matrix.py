@@ -935,9 +935,6 @@ class CuPyDistribution(MatrixDistribution):
                 assert opb == 'C' or opb == 'T' \
                     and np.issubdtype(a.dtype, np.floating)
                 if a is b:
-                    # gpu_gemm('N', 'H',
-                    #          a.data, a.data, c.data,
-                    #          alpha, beta)
                     cgpaw.r2k_gpu(0.5 * alpha,
                                   a.data,
                                   b.data,
@@ -952,14 +949,6 @@ class CuPyDistribution(MatrixDistribution):
                     if c.data.size > 0:
                         assert beta in [0.0, 1.0]
                         # CuPy doesn't have dsyrk, so we roll our own:
-                        '''
-                        gpu_gemm('N', 'H',
-                                 a.data, b.data, c.data,
-                                 0.5 * alpha, beta)
-                        gpu_gemm('N', 'H',
-                                 b.data, a.data, c.data,
-                                 0.5 * alpha, 1.0)
-                        '''
                         cgpaw.r2k_gpu(0.5 * alpha,
                                       a.data,
                                       b.data,

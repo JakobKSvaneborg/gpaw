@@ -22,6 +22,7 @@
 
 #ifdef __cplusplus
 #define gpuDoubleComplex          XXXhipDoubleComplex
+#define gpuFloatComplex           XXXhipFloatComplex
 #define gpuCreal                  XXXhipCreal
 #define gpuCimag                  XXXhipCimag
 #define gpuCadd                   XXXhipCadd
@@ -33,6 +34,7 @@
 #define gpuConj                   XXXhipConj
 #else
 #define gpuDoubleComplex          hipDoubleComplex
+#define gpuFloatComplex           hipFloatComplex
 #define gpuCreal                  hipCreal
 #define gpuCimag                  hipCimag
 #define gpuCadd                   hipCadd
@@ -43,7 +45,6 @@
 #define gpuCmulf                  hipCmulf
 #define gpuConj                   hipConj
 #endif
-#define gpuFloatComplex           XXXhipFloatComplex
 #define gpublasDoubleComplex      hipblasDoubleComplex
 #define make_gpuDoubleComplex     make_hipDoubleComplex
 #define make_gpuFloatComplex      make_hipFloatComplex
