@@ -579,4 +579,3 @@ def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
     dH(P_ani, out_ani=P2_ani)
     wfs.myeig_n[:] = as_np(
         wfs.psit_nX.approx_eigenvalues(Hpsit_nX, P_ani, P2_ani))
-

@@ -204,6 +204,7 @@ class Davidson(PWFDEigensolverParamater):
 class PPCG(PWFDEigensolverParamater):
     name = 'ppcg'
     cls = PPCGEigensolver
+    niter: int | tuple[int, int]
 
     def __init__(self,
                  niter: int | tuple[int, int] = (1, 5),
