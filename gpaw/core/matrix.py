@@ -505,7 +505,6 @@ class Matrix(XP):
             # TODO some way for the caller to specify options/backend
             diagonalizer, options = suggest_diagonalizer(H)
             options.uplo = 'L'
-            # NOTE: this was always inplace before, so doing the same here.
             options.inplace = True
             eigvals, H = diagonalizer.eigh(H, options)
 

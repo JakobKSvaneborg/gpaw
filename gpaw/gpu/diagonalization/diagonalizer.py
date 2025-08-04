@@ -108,16 +108,14 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
 
 
 class CPUPYDiagonalizer(NonDistributedDiagonalizer):
-    """For cpupy"""
+    """Diagonalizer that copies the matrix to CPU and calls scipy.linalg.eigh.
+    """
 
     def eigh_non_distributed(self,
                              inout_matrix: cp.ndarray,
                              options: DiagonalizerOptions
                              ) -> tuple[cp.ndarray, cp.ndarray]:
         """"""
-
-        if not cupy_is_fake:
-            warn("Using CPUPYDiagonalizer with real CuPy -- why??")
 
         from scipy.linalg import eigh as scipy_eigh
 
