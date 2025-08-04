@@ -15,7 +15,7 @@ from gpaw.core.matrix import Matrix
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.lfc import BasisFunctions
 from gpaw.mpi import MPIComm, serial_comm
-from gpaw.new import zips
+from gpaw.new import zips as zip
 from gpaw.new.lcao.builder import LCAODFTComponentsBuilder, create_lcao_ibzwfs
 from gpaw.new.lcao.hamiltonian import CollinearHamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
@@ -153,6 +153,9 @@ class TBPotentialCalculator(PotentialCalculator):
 
         V_aL = AtomArraysLayout([9] * len(self.atoms),
                                 self.domain_comm).zeros()
+        for a, V_L in V_aL.items():
+            V_L[0] = self.setups[a].W
+
         return ({'kinetic': 0.0,
                  'coulomb': 0.0,
                  'zero': 0.0,
@@ -182,8 +185,11 @@ class DummyXC:
     xc = None
     exx_fraction = 0.0
 
+    def __init__(self, xc):
+        self.xc = xc
+
     def calculate_paw_correction(self, setup, D_sp, dH_sp):
-        return 0.0
+        return self.xc.calculate_paw_correction(setup, D_sp, dH_sp)
 
 
 class TBSCFLoop:
@@ -265,7 +271,13 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         return TBHamiltonian(self.basis)
 
     def create_potential_calculator(self):
-        xc = DummyXC()
+        xc = DummyXC(self.xc)
+        for setup in self.setups.setups.values():
+            try:
+                setup.vt_g
+            except AttributeError:
+                setup.vt_g, setup.W = calculate_pseudo_potential(
+                    setup, self.xc.xc)
         return TBPotentialCalculator(xc, self.setups, self.atoms,
                                      self.communicators['d'])
 
@@ -292,19 +304,15 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         vtphit: dict[Setup, list[Spline]] = {}
 
         for setup in self.setups.setups.values():
-            try:
-                vt_r = setup.vt_g
-            except AttributeError:
-                vt_r = calculate_pseudo_potential(setup, self.xc.xc)[0]
-
+            vt_r = setup.vt_g
             vt_r[-1] = 0.0  # ???
             vt = setup.rgd.spline(vt_r, points=300)
             vtphit_j = []
             for phit in setup.basis_functions_J:
                 rc = phit.get_cutoff()
                 r_g = np.linspace(0, rc, 150)
-                vt_g = vt.map(r_g) / (4 * pi)**0.5
                 phit_g = phit.map(r_g)
+                vt_g = vt.map(r_g) / (4 * pi)**0.5
                 vtphit_j.append(Spline.from_data(phit.l, rc, vt_g * phit_g))
             vtphit[setup] = vtphit_j
 
@@ -321,7 +329,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         manytci.Pindices = manytci.Mindices
         my_atom_indices = basis.my_atom_indices
 
-        for wfs, V_MM in zips(ibzwfs, manytci.P_qIM(my_atom_indices)):
+        for wfs, V_MM in zip(ibzwfs, manytci.P_qIM(my_atom_indices)):
             V_MM = V_MM.toarray()
             V_MM += V_MM.T.conj().copy()
             V_MM *= self.params.mode.x
@@ -364,7 +372,7 @@ def pairpot(atoms):
     force_av = np.zeros((len(atoms), 3))
     stress_vv = np.zeros((3, 3))
 
-    for i, j, d, D_v in zips(*neighbor_list('ijdD', atoms, rcutmax)):
+    for i, j, d, D_v in zip(*neighbor_list('ijdD', atoms, rcutmax)):
         d0 = r0[(symbol_a[i], symbol_a[j])]
         e0 = 6.0 / d0
         x = d0 / d
