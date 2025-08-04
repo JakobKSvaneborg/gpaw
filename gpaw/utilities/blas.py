@@ -367,13 +367,13 @@ def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     assert a.shape == b.shape
     assert c.shape[0] == a.shape[0]
     assert c.shape[1] == a.shape[0]
-    
+
     if a.shape[1] == 0:
         if beta:
             c *= beta
         else:
             c[:] = 0
-        
+
     lda = a.strides[0] // a.itemsize
     ldb = b.strides[0] // b.itemsize
     ldc = c.strides[0] // c.itemsize
