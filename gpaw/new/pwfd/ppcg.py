@@ -343,7 +343,7 @@ class PPCG(PWFDEigensolver):
                     if self.promote_inner_dtype:
                         S_bb[:] = buffer_bb[:]
                     domain_comm.sum(S_bb)
-                    norm_facts = (1 / S_bb.diagonal()[block:])**0.25
+                    norm_facts = (1 / xp.diag(S_bb)[block:])**0.25
                     S_bb[block:, :] *= norm_facts[:, None]
                     S_bb[:, block:] *= norm_facts[None, :]
                     buff_bX.matrix.data[block:nblocks, :] \
