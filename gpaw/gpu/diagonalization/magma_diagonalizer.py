@@ -74,6 +74,7 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             # Handle multi-GPU with CuPy input. Magma needs the input on _host_
             host_matrix = cp.asnumpy(inout_matrix)
             eigvals = np.empty((shape[0]), dtype=eigval_dtype)
+
             self._eigh_magma_numpy(host_matrix,
                                    eigvals,
                                    options.uplo,
@@ -85,7 +86,8 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         else:
             eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
             if xp is np:
-                self._eigh_magma_numpy(eigvecs, eigvals, options.uplo, options.gpus_per_process)
+                self._eigh_magma_numpy(eigvecs, eigvals, options.uplo,
+                                       options.gpus_per_process)
             else:
                 self._eigh_magma_cupy(eigvecs, eigvals, options.uplo)
 

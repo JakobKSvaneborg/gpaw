@@ -4,6 +4,13 @@
 
 #include <cassert>
 
+struct MagmaStaticData
+{
+    magma_int_t num_gpus = -1;
+};
+
+static MagmaStaticData gpaw_magma_static_data;
+
 
 static magma_uplo_t get_magma_uplo(char* in_uplo_str)
 {
@@ -59,6 +66,23 @@ static MagmaPythonContext decide_solver_type(int matrix_numpy_dtype)
     return context;
 }
 
+CLINKAGE void gpaw_magma_init()
+{
+    MAGMA_CHECK(magma_init());
+
+    // Cache things like number of GPUs available to MAGMA
+    magma_int_t ndevices;
+    magma_device_t devices[ MagmaMaxGPUs ];
+    magma_getdevices(devices, MagmaMaxGPUs, &ndevices);
+
+    gpaw_magma_static_data.num_gpus = ndevices;
+}
+
+CLINKAGE void gpaw_magma_finalize()
+{
+    MAGMA_CHECK(magma_finalize());
+}
+
 CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
 {
     PyObject *inout_matrix;
@@ -104,15 +128,16 @@ CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
     solver_context.jobz = MagmaVec; // Always do eigenvectors
 
     assert(num_gpus > 0);
-    const magma_int_t available_gpus = magma_num_gpus();
-    solver_context.num_gpus = (available_gpus >= num_gpus) ? num_gpus : available_gpus;
+    solver_context.num_gpus = num_gpus;
 
-    if (num_gpus != solver_context.num_gpus)
+    if (num_gpus > gpaw_magma_static_data.num_gpus)
     {
-        printf("WARNING: Requested %d GPUs but MAGMA only sees %d\n",
-            static_cast<int>(num_gpus), static_cast<int>(available_gpus));
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg),
+            "Requested %d GPUs to a MAGMA routine but MAGMA only sees %d.\n",
+           num_gpus, static_cast<int>(gpaw_magma_static_data.num_gpus));
+        PyErr_SetString(PyExc_ValueError, error_msg);
     }
-
 
     const EighErrorType status = magma_eigh_host(
         solver_context,

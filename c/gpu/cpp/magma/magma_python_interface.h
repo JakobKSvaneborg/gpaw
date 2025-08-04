@@ -16,6 +16,9 @@
 #include <magma_v2.h>
 #include <Python.h>
 
+CLINKAGE void gpaw_magma_init();
+CLINKAGE void gpaw_magma_finalize();
+
 /* Solves symmetric/Hermitian eigenvalue on GPU, using Numpy arrays as input
 and output. In other words, all input and output arrays are in CPU memory and
 contiguous. Multiple GPUs can be used if requested, in which case MAGMA handles
