@@ -932,12 +932,13 @@ class CuPyDistribution(MatrixDistribution):
                 lda = a.data.strides[0] // a.data.itemsize
                 ldb = b.data.strides[0] // b.data.itemsize
                 ldc = c.data.strides[0] // c.data.itemsize
-                assert opb == 'C' or opb == 'T' and np.issubdtype(a.dtype, np.floating)
+                assert opb == 'C' or opb == 'T' \
+                    and np.issubdtype(a.dtype, np.floating)
                 if a is b:
                     # gpu_gemm('N', 'H',
                     #          a.data, a.data, c.data,
                     #          alpha, beta)
-                    cgpaw.r2k_gpu(0.5*alpha,
+                    cgpaw.r2k_gpu(0.5 * alpha,
                                   a.data,
                                   b.data,
                                   beta,
@@ -958,9 +959,8 @@ class CuPyDistribution(MatrixDistribution):
                         gpu_gemm('N', 'H',
                                  b.data, a.data, c.data,
                                  0.5 * alpha, 1.0)
-                        #'''
-                        #'''
-                        cgpaw.r2k_gpu(0.5*alpha,
+                        '''
+                        cgpaw.r2k_gpu(0.5 * alpha,
                                       a.data,
                                       b.data,
                                       beta,
@@ -968,7 +968,6 @@ class CuPyDistribution(MatrixDistribution):
                                       lda,
                                       ldb,
                                       ldc)
-                        #'''
             else:
                 1 / 0
                 assert opa == 'C' and opb == 'N'
