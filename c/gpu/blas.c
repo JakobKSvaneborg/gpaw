@@ -361,7 +361,7 @@ static void _r2k_gpu(int n, int k,
                     &beta,
                     (double*) c_gpu, ldc));
     } else if (dtypenum == NP_DOUBLE_COMPLEX) {
-        gpuDoubleComplex alpha_gpu = {alpha.real, alpha.imag};
+        gpublasDoubleComplex alpha_gpu = {alpha.real, alpha.imag};
         gpublasSafeCall(
                 gpublasZher2k(_gpaw_gpublas_handle,
                     GPUBLAS_FILL_MODE_UPPER, GPUBLAS_OP_C, n, k,
@@ -382,16 +382,16 @@ static void _r2k_gpu(int n, int k,
                     &beta_gpu,
                     (float*) c_gpu, ldc));
     } else if (dtypenum == NP_FLOAT_COMPLEX) {
-        gpuFloatComplex alpha_gpu = {alpha.real, alpha.imag};
+        gpublasComplex alpha_gpu = {alpha.real, alpha.imag};
         float beta_gpu = beta;
         gpublasSafeCall(
                 gpublasCher2k(_gpaw_gpublas_handle,
                     GPUBLAS_FILL_MODE_UPPER, GPUBLAS_OP_C, n, k,
                     &alpha_gpu,
-                    (gpuFloatComplex*) a_gpu, lda,
-                    (gpuFloatComplex*) b_gpu, ldb,
+                    (gpublasComplex*) a_gpu, lda,
+                    (gpublasComplex*) b_gpu, ldb,
                     &beta_gpu,
-                    (gpuFloatComplex*) c_gpu, ldc));
+                    (gpublasComplex*) c_gpu, ldc));
     } else {
         PyErr_SetString(PyExc_TypeError, "Unsupported dtype");
         return;

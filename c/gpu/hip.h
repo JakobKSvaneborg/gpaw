@@ -46,6 +46,7 @@
 #define gpuConj                   hipConj
 #endif
 #define gpublasDoubleComplex      hipblasDoubleComplex
+#define gpublasComplex            hipblasComplex
 #define make_gpuDoubleComplex     make_hipDoubleComplex
 #define make_gpuFloatComplex      make_hipFloatComplex
 
