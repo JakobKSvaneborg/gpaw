@@ -136,7 +136,6 @@ class PPCG(PWFDEigensolver):
                              1)
         self.nblocksizes = 3 * self.blocksize \
             if self.include_cg else 2 * self.blocksize
-        extra_dims = np.prod(wfs.psit_nX.dims[1:])
         dtype = wfs.psit_nX.desc.dtype
         G_max = np.prod(ibzwfs.get_max_shape())
 
@@ -239,7 +238,7 @@ class PPCG(PWFDEigensolver):
                                          psit_nX.dims[1:], xp=psit_nX.xp)
             Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
                                           psit_nX.dims[1:], xp=psit_nX.xp)
-            
+
             if isinstance(self.niter, int):
                 niter = self.niter
                 min_niter = self.niter
@@ -493,7 +492,8 @@ class PPCG(PWFDEigensolver):
                     band_comm.sum_scalar(weight_n.sum())
 
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
-                        or (b_error < self.breakout_tolerance and i + 2 >= min_niter):
+                        or (b_error < self.breakout_tolerance
+                            and i + 2 >= min_niter):
                     # We have converged. Break out of the loop
                     # Maybe one should allow one extra iteration, by
                     # setting:
