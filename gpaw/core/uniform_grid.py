@@ -17,6 +17,7 @@ from gpaw.typing import (Array1D, Array2D, Array3D, Array4D, ArrayLike1D,
                          ArrayLike2D, Vector)
 from gpaw.new.c import add_to_density, add_to_density_gpu, symmetrize_ft
 from gpaw.fd_operators import Gradient
+from gpaw.utilities import as_real_dtype
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go
@@ -743,6 +744,25 @@ class UGArray(DistributedArrays[UGDesc]):
         out.data[:] = plan2.tmp_R
         out.data *= (1.0 / self.data.size)
         return out
+
+    def approx_eigenvalues(self, Hpsit_nX, P_ani, HP_ani):
+        xp = self.xp
+        real_dtype = as_real_dtype(self.desc.dtype)
+        a_nX = self.matrix.data.view(real_dtype)
+        h_nX = Hpsit_nX.matrix.data.view(real_dtype)
+        eigs_n = xp.zeros(h_nX.shape[0], dtype=np.float64)
+        for ind in range(0, h_nX.shape[1], 4048):
+            eigs_n += xp.einsum('nX, nX -> n',
+                                h_nX[:, ind:ind + 4048],
+                                a_nX[:, ind:ind + 4048])
+        eigs_n *= self.dv
+        p2_nX = HP_ani.matrix.data.view(real_dtype)
+        p_nX = P_ani.matrix.data.view(real_dtype)
+        eigs_n += xp.einsum('nX, nX -> n',
+                            p2_nX,
+                            p_nX)
+        self.desc.comm.sum(eigs_n)
+        return eigs_n
 
     def abs_square(self,
                    weights: Array1D,

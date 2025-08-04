@@ -630,6 +630,30 @@ class PWArray(DistributedArrays[PWDesc]):
                     correction *= self.dv
                     out.data -= correction
 
+    def approx_eigenvalues(self, Hpsit_nX, P_ani, HP_ani):
+        xp = self.xp
+        real_dtype = self.real_dtype
+        a_nX = self.matrix.data.view(real_dtype)
+        h_nX = Hpsit_nX.matrix.data.view(real_dtype)
+        eigs_n = xp.zeros(h_nX.shape[0], dtype=np.float64)
+        for ind in range(0, h_nX.shape[1], 4048):
+            eigs_n += xp.einsum('nX, nX -> n',
+                                h_nX[:, ind:ind + 4048],
+                                a_nX[:, ind:ind + 4048])
+        eigs_n *= self.dv
+        if np.issubdtype(self.matrix.data.dtype, np.floating):
+            eigs_n *= 2
+            if self.desc.comm.rank == 0:
+                eigs_n -= self.matrix.data[:, 0] * \
+                    Hpsit_nX.matrix.data[:, 0] * self.dv
+        p2_nX = HP_ani.matrix.data.view(real_dtype)
+        p_nX = P_ani.matrix.data.view(real_dtype)
+        eigs_n += xp.einsum('nX, nX -> n',
+                            p2_nX,
+                            p_nX)
+        self.desc.comm.sum(eigs_n)
+        return eigs_n
+
     def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
         r"""Calculate integral over cell.
 

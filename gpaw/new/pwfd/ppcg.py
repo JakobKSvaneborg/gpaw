@@ -12,7 +12,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.pwfd.davidson import sliced_preconditioner
 # from gpaw.typing import Array2D
-from gpaw.core import PWDesc, PWArray
+from gpaw.core import PWDesc
 from gpaw.new import tracectx, trace
 
 
@@ -585,31 +585,9 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
 
 @trace
 def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
-    psit_nX = wfs.psit_nX
-    xp = psit_nX.xp
     dH(P_ani, out_ani=P2_ani)
-    real_dtype = psit_nX.real_dtype
-    a_nX = psit_nX.matrix.data.view(real_dtype)
-    h_nX = Hpsit_nX.matrix.data.view(real_dtype)
-    eigs_n = xp.zeros(h_nX.shape[0], dtype=np.float64)
-    for ind in range(0, h_nX.shape[1], 4048):
-        eigs_n += xp.einsum('nX, nX -> n',
-                            h_nX[:, ind:ind + 4048],
-                            a_nX[:, ind:ind + 4048])
-    eigs_n *= psit_nX.dv
-    if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
-            isinstance(psit_nX, PWArray):
-        eigs_n *= 2
-        if domain_comm.rank == 0:
-            eigs_n -= psit_nX.matrix.data[:, 0] * \
-                Hpsit_nX.matrix.data[:, 0] * psit_nX.dv
-    p2_nX = P2_ani.matrix.data.view(real_dtype)
-    p_nX = P_ani.matrix.data.view(real_dtype)
-    eigs_n += xp.einsum('nX, nX -> n',
-                        p2_nX,
-                        p_nX)
-    domain_comm.sum(eigs_n)
-    wfs.myeig_n[:] = as_np(eigs_n)
+    wfs.myeig_n[:] = as_np(
+        wfs.psit_nX.approx_eigenvalues(Hpsit_nX, P_ani, P2_ani))
 
 
 @trace

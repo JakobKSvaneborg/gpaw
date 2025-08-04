@@ -300,6 +300,9 @@ class DistributedArrays(Generic[DomainType], XP):
     def integrate(self, other: Self | None = None) -> np.ndarray:
         raise NotImplementedError
 
+    def approx_eigenvalues(self, Hpsit_nX, P_ani, HP_ani):
+        raise NotImplementedError
+
     def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
         raise NotImplementedError
 
