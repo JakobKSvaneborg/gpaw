@@ -123,7 +123,7 @@ class CPUPYDiagonalizer(NonDistributedDiagonalizer):
                                       lower=(options.uplo == 'L'),
                                       check_finite=False)
 
-        eigvals, eigvecs = cp.ndarray(eigvals), cp.ndarray(eigvecs)
+        eigvals, eigvecs = cp.asarray(eigvals), cp.asarray(eigvecs)
 
         if options.inplace:
             inout_matrix = eigvecs
