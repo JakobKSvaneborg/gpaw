@@ -258,7 +258,7 @@ class PPCG(PWFDEigensolver):
             active_indicies = np.where(active_indicies)[0]
             error = weight_n @ error_n
             b_error = band_comm.sum_scalar(error) / \
-                band_comm.sum_scalar(weight_n.sum())
+                max(band_comm.sum_scalar(weight_n.sum()), 0.5)
             if band_comm.sum_scalar(len(active_indicies)) == 0  \
                     or b_error < self.breakout_tolerance and min_niter <= 1:
                 if debug:
@@ -435,7 +435,6 @@ class PPCG(PWFDEigensolver):
 
             wfs.orthonormalized = False
             if flag or i >= niter - 1:
-                print('Breaking out at iteration', i + 1)
                 break
 
             with tracectx('Residual'):
@@ -482,7 +481,7 @@ class PPCG(PWFDEigensolver):
                 active_indicies = np.where(active_indicies)[0]
                 error = weight_n @ error_n
                 b_error = band_comm.sum_scalar(error) / \
-                    band_comm.sum_scalar(weight_n.sum())
+                    max(band_comm.sum_scalar(weight_n.sum()), 0.5)
 
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
                         or (b_error < self.breakout_tolerance
