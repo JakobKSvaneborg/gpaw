@@ -206,7 +206,7 @@ class PPCG(Eigensolver):
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int | tuple[int, int] = (1, 5),
+                 niter: int | tuple[int, int] = (2, 3),
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
