@@ -21,8 +21,6 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
     it are created.
     """
 
-    from gpaw.cgpaw import _eigh_magma_cupy, _eigh_magma_numpy
-
     def __init__(self):
         """Constructor, asserts that both MAGMA and CuPy are available.
         This makes implementation details easier as we don't have to check
@@ -59,6 +57,8 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             Eigenvector corresponding to ``w[i]`` is in column ``v[:,i]``.
         """
 
+        from gpaw.cgpaw import _eigh_magma_cupy, _eigh_magma_numpy
+
         shape = inout_matrix.shape
         assert (inout_matrix.ndim == 2 and shape[0] == shape[1])
 
@@ -77,10 +77,10 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             host_matrix = cp.asnumpy(inout_matrix)
             eigvals = np.empty((shape[0]), dtype=eigval_dtype)
 
-            self._eigh_magma_numpy(host_matrix,
-                                   eigvals,
-                                   options.uplo,
-                                   options.gpus_per_process)
+            _eigh_magma_numpy(host_matrix,
+                              eigvals,
+                              options.uplo,
+                              options.gpus_per_process)
 
             eigvecs[:] = cp.asarray(host_matrix)
             eigvals = cp.asarray(eigvals)
@@ -88,12 +88,12 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         else:
             eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
             if xp is np:
-                self._eigh_magma_numpy(eigvecs, eigvals, options.uplo,
-                                       options.gpus_per_process)
+                _eigh_magma_numpy(eigvecs, eigvals, options.uplo,
+                                  options.gpus_per_process)
             else:
-                self._eigh_magma_cupy(eigvecs, eigvals, options.uplo)
+                _eigh_magma_cupy(eigvecs, eigvals, options.uplo)
 
         # Transform to Numpy convention (conjugate transpose)
         xp.conjugate(eigvecs, out=eigvecs.T)
 
-        return eigvals, eigvecs
+        return eigvals, eigvecs  # type: ignore
