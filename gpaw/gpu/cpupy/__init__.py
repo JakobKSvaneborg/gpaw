@@ -51,7 +51,7 @@ def ones(*args, **kwargs):
 
 
 def copy(a: ndarray, order: str = 'K') -> ndarray:
-    return ndarray(data=np.copy(a._data, order))
+    return ndarray(data=np.copy(a._data, order))  # type: ignore
 
 
 def asnumpy(a, out=None):
