@@ -379,7 +379,8 @@ class PPCG(PWFDEigensolver):
                         if xp is not np:
                             pos_defness = pos_defness.get()
                         if pos_defness < \
-                                np.finfo(psit_nX.data.dtype).eps * nblocks**0.5:
+                                np.finfo(psit_nX.data.dtype).eps * \
+                                nblocks**0.5:
                             # Insufficient numerical precision for CG,
                             # thus we only do the steepest descent step
                             nblocks = 2 * block
