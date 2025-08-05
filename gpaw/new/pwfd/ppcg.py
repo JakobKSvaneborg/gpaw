@@ -23,7 +23,7 @@ class PPCG(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 niter=(2, 10),
+                 niter=(2, 3),
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
@@ -62,7 +62,7 @@ class PPCG(PWFDEigensolver):
             are more efficient on CPUs with many cores but not on GPUs. The
             value will be modified to a multiple of the number of domain
             ranks.
-            Default is 48 on cpu and 128 on gpu.
+            Default is 96 on cpu and 256 on gpu.
         rr_modulo : int, optional
             How often to perform subspace diagonalization. Default is 5.
         include_cg : bool, optional
@@ -225,9 +225,6 @@ class PPCG(PWFDEigensolver):
 
             if weight_n is None:
                 weight_n = np.ones(b)
-                intial_step = True
-            else:
-                intial_step = False
 
             buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
 
