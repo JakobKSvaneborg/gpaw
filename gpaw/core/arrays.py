@@ -210,9 +210,9 @@ class DistributedArrays(Generic[DomainType], XP):
             # Slice the inner product into blocks, to improve
             # numerical stability. This is especially important
             # for single precision.
-            if self.dtype in (np.float32, np.complex64):
+            if self.data.dtype in (np.float32, np.complex64):
                 blocksize = 16384  # 2**14
-            elif self.dtype in (np.float64, np.complex128):
+            elif self.data.dtype in (np.float64, np.complex128):
                 blocksize = 268435456  # 2**28
 
             for ind in range(0, max(X, 1), blocksize):
