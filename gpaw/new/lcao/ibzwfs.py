@@ -6,7 +6,7 @@ from gpaw.new.density import Density
 
 class LCAOIBZWaveFunctions(IBZWaveFunctions):
     def has_wave_functions(self):
-        return False
+        return True
         # return not isinstance(self.wfs_qs[0][0].C_nM, MatrixWithNoData)
 
     def move(self, relpos_ac, atomdist):
