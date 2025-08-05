@@ -1,12 +1,13 @@
 from math import pi
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.density import Density
-from gpaw.core.matrix import MatrixWithNoData
+# from gpaw.core.matrix import MatrixWithNoData
 
 
 class LCAOIBZWaveFunctions(IBZWaveFunctions):
     def has_wave_functions(self):
-        return not isinstance(self.wfs_qs[0][0].C_nM, MatrixWithNoData)
+        return False
+        # return not isinstance(self.wfs_qs[0][0].C_nM, MatrixWithNoData)
 
     def move(self, relpos_ac, atomdist):
         from gpaw.new.lcao.builder import tci_helper
