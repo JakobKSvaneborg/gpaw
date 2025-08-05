@@ -3,7 +3,6 @@ from gpaw.gpu import cupy_is_fake
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
 
-from warnings import warn
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
