@@ -519,7 +519,7 @@ class PPCG(PWFDEigensolver):
         if debug:
             psit_nX.sanity_check()
 
-        return np.inf if intial_step else error
+        return error
 
 
 @trace
