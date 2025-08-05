@@ -69,6 +69,7 @@ def test_h(gpaw_new, dtype):
     atoms.calc = GPAW(mode=dict(name='pw',
                                 force_complex_dtype=dtype is complex),
                       xc='HSE06',
+                      eigensolver='davidson',
                       nbands=2,
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()

@@ -20,6 +20,7 @@ from gpaw.gpu import cupy_is_fake
 from gpaw.new import prod
 from gpaw.typing import Array2D, ArrayND
 from gpaw.utilities import is_contiguous
+from gpaw.new.timer import trace
 
 
 def is_finite(array, tril=False):
@@ -363,6 +364,7 @@ def r2k(alpha, a, b, beta, c, trans='c'):
     cgpaw.r2k(alpha, a, b, beta, c, trans)
 
 
+@trace(gpu=True)
 def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     """Launch CPU or GPU version of r2k()."""
     if cupy_is_fake:
@@ -371,13 +373,17 @@ def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     assert a.shape == b.shape
     assert c.shape[0] == a.shape[0]
     assert c.shape[1] == a.shape[0]
-    # There should be more asserts here.
+    assert a.strides[-1] == a.itemsize or a.size == 0
+    assert b.strides[-1] == b.itemsize or b.size == 0
+    assert c.strides[1] == c.itemsize or c.size == 0
+    assert a.ndim > 1
 
-    if a.shape[1] == 0:
+    if a.size == 0 and b.size == 0:
         if beta:
             c *= beta
         else:
             c[:] = 0
+        return
 
     lda = a.strides[0] // a.itemsize
     ldb = b.strides[0] // b.itemsize

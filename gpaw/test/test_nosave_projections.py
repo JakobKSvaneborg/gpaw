@@ -15,8 +15,8 @@ def noprojs_gpw(module_tmp_path, request):
         kwargs = dict(mode=mode, gpts=(8, 8, 8))
     else:
         kwargs = dict(mode={'name': 'pw', 'ecut': 200.0})
-    atoms.calc = GPAW(kpts=[2, 2, 2], txt=None, parallel=parallel,
-                      convergence={'density': 1e6, 'eigenstates': 1e6},
+    atoms.calc = GPAW(kpts=[2, 2, 2], txt=None, parallel=parallel, 
+                      convergence={'density': 1e-3, 'eigenstates': 1e-3},
                       **kwargs)
     atoms.get_potential_energy()
     gpw_path = module_tmp_path / f'gs_noprojs_{mode}.gpw'

@@ -225,6 +225,9 @@ class PPCG(PWFDEigensolver):
 
             if weight_n is None:
                 weight_n = np.ones(b)
+                intial_step = True
+            else:
+                intial_step = False
 
             buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
 
@@ -519,7 +522,7 @@ class PPCG(PWFDEigensolver):
         if debug:
             psit_nX.sanity_check()
 
-        return error
+        return np.inf if intial_step else error
 
 
 @trace
