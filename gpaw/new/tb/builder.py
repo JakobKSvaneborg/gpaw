@@ -332,16 +332,18 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         manytci.Pindices = manytci.Mindices
         my_atom_indices = basis.my_atom_indices
 
+        fudge_factor = 0.75
+
         for wfs, V_MM in zip(ibzwfs, manytci.P_qIM(my_atom_indices)):
             V_MM = V_MM.toarray()
             V_MM += V_MM.T.conj().copy()
-            V_MM *= self.params.mode.x
+            V_MM *= fudge_factor
             M1 = 0
             for m in manytci.Mindices.nm_a:
                 M2 = M1 + m
-                V_MM[M1:M2, M1:M2] *= 0.5 / self.params.mode.x
+                V_MM[M1:M2, M1:M2] *= 0.5 / fudge_factor
                 M1 = M2
-            wfs.V_MM = Matrix(M2, M2, data=V_MM)
+            wfs.V_MM = Matrix(M2, M2, data=V_MM.conj())
 
         return ibzwfs
 
