@@ -415,9 +415,7 @@ extern PyTypeObject lxcXCFunctionalType;
 
 static void gpaw_module_cleanup(void *m)
 {
-#ifdef GPAW_WITH_MAGMA
-    gpaw_magma_finalize();
-#endif
+    // Relic from the distant past
 }
 
 static struct PyModuleDef moduledef = {
@@ -498,12 +496,6 @@ static PyObject* moduleinit(void)
 
 #ifdef GPAW_WITH_MAGMA
     PyObject_SetAttrString(m, "have_magma", Py_True);
-
-    /* NB: Magma init must  come AFTER cudaSetValidDevices and
-    * cudaSetDeviceFlags. Doing it here is fine for now, but could become a
-    * problem if GPU init is moved more to Python side. */
-    gpaw_magma_init();
-
 #else
     PyObject_SetAttrString(m, "have_magma", Py_False);
 #endif

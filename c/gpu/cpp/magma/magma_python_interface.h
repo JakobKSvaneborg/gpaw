@@ -16,6 +16,9 @@
 #include <magma_v2.h>
 #include <Python.h>
 
+/* Initializes MAGMA library. Must be called come AFTER any calls to cudaSetValidDevices
+* and cudaSetDeviceFlags. Call only if GPUs are available.
+*/
 CLINKAGE void gpaw_magma_init();
 CLINKAGE void gpaw_magma_finalize();
 
