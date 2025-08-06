@@ -53,6 +53,7 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         """
         pass
 
+    @trace(gpu=True)
     def eigh(self,
              inout_matrix: "Matrix",
              options: DiagonalizerOptions
@@ -110,6 +111,7 @@ class CPUPYDiagonalizer(NonDistributedDiagonalizer):
     """Diagonalizer that copies the matrix to CPU and calls scipy.linalg.eigh.
     """
 
+    @trace
     def eigh_non_distributed(self,
                              inout_matrix: cp.ndarray,
                              options: DiagonalizerOptions
