@@ -9,7 +9,7 @@ from ase.neighborlist import neighbor_list
 from ase.units import Bohr, Ha
 
 from gpaw.core.arrays import DistributedArrays
-from gpaw.core.atom_arrays import AtomArraysLayout
+from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.lcao.tci import TCIExpansions
@@ -71,7 +71,8 @@ class NoGrid(Domain):
         return DummyFunctions(self, shape, comm)
 
     def ranks_from_fractional_positions(self, relpos_ac):
-        return np.zeros(len(relpos_ac), int)
+        return AtomDistribution.from_number_of_atoms(
+            len(relpos_ac), self.comm).rank_a
 
 
 class DummyFunctions(DistributedArrays[NoGrid]):
@@ -152,7 +153,7 @@ class TBPotentialCalculator(PotentialCalculator):
         self.stress_vv = stress_vv / vol * Bohr**atoms.pbc.sum() / Ha
 
         V_aL = AtomArraysLayout([9] * len(self.atoms),
-                                self.domain_comm).zeros()
+                                density.D_asii.layout.atomdist).zeros()
         for a, V_L in V_aL.items():
             V_L[0] = self.setups[a].W
 
@@ -234,7 +235,7 @@ class TBSCFLoop:
 
 class DummyBasis:
     def __init__(self, setups):
-        self.my_atom_indices = np.arange(len(setups))
+        self.my_atom_indices = np.arange(len(setups))#wrong!!!!
         self.Mstart = 0
         self.Mstop = setups.nao
 
@@ -296,7 +297,9 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                                   potential,
                                   *,
                                   coefficients=None):
-        assert self.communicators['w'].size == 1
+        domain_comm = self.communicators['d']
+        # assert domain_comm.size == 1
+        assert self.communicators['b'].size == 1
 
         ibzwfs, tciexpansions = create_lcao_ibzwfs(
             basis,
@@ -343,7 +346,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                 M2 = M1 + m
                 V_MM[M1:M2, M1:M2] *= 0.5 / fudge_factor
                 M1 = M2
-            wfs.V_MM = Matrix(M2, M2, data=V_MM.conj())
+            wfs.V_MM = Matrix(M2, M2, data=V_MM.conj() / domain_comm.size)
 
         return ibzwfs
 
