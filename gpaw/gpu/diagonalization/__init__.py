@@ -18,17 +18,31 @@ def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
     given matrix.
     """
 
-    if cupy_is_fake:
+    matrix_size = matrix.shape[0]
+
+    if cupy_is_fake or matrix_size < 400:
         return CPUPYDiagonalizer(), DiagonalizerOptions()
 
-    matrix_size = matrix.shape[0]
-    if is_hip and have_magma and matrix_size > 128:
-        # MAGMA should be faster than CuPy's version (which is rocSolver).
-        # For large enough matrices it's also beneficial to use multiple GPUs
+    if not is_hip:
+        return CuPyDiagonalizer(), DiagonalizerOptions()
+
+    if is_hip and have_magma:
 
         options = DiagonalizerOptions()
         if device_count > 1:
-            options.gpus_per_process = device_count
+            # Multi-gpu can be faster for large matrices.
+            # The following does some rudimentary GPU count selection.
+            # TODO: improve this when we have more benchmarks
+
+            # Tested for N <= 24k
+            if matrix_size > 16000:
+                options.gpus_per_process = min(device_count, 4)
+            elif matrix_size > 10000:
+                options.gpus_per_process = min(device_count, 3)
+            elif matrix_size > 5000:
+                options.gpus_per_process = min(device_count, 2)
+            else:
+                options.gpus_per_process = 1
 
         return MagmaDiagonalizer(), options
 
