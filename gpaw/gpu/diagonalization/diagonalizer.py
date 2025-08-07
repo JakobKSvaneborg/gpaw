@@ -5,6 +5,7 @@ from gpaw.utilities import as_real_dtype
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from copy import copy
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -68,8 +69,12 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         if needs_redist:
             # We will do eigh on a non-distributed copy
             matrix_non_distributed = inout_matrix.gather(0, broadcast=False)
+            # Can always do in-place for the internal eigh
+            options_non_distributed = copy(options)
+            options_non_distributed.inplace = True
         else:
             matrix_non_distributed = inout_matrix
+            options_non_distributed = options
 
         # avoid unnecessary copies for eigenvector output
         if needs_redist or options.inplace:
@@ -84,7 +89,8 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
             # eigenvector matrix as transposed, according to the old version.
             # So we do the same here... And ensure it remains C-contiguous
             eigvals, eigvecs.data.T[:] = (
-                self.eigh_non_distributed(matrix_non_distributed.data, options)
+                self.eigh_non_distributed(matrix_non_distributed.data,
+                                          options_non_distributed)
             )
 
         else:
@@ -122,7 +128,8 @@ class CPUPYDiagonalizer(NonDistributedDiagonalizer):
 
         eigvals, eigvecs = scipy_eigh(cp.asnumpy(inout_matrix),
                                       lower=(options.uplo == 'L'),
-                                      check_finite=False)
+                                      check_finite=False,
+                                      overwrite_a=options.inplace)
 
         eigvals, eigvecs = cp.asarray(eigvals), cp.asarray(eigvecs)
 
