@@ -472,9 +472,9 @@ class UGArray(DistributedArrays[UGDesc]):
                           _ _
            _    1  / _  -iG.r   _
          C(G) = -- |dr e      f(r),
-                V  /
+                Ω  /
 
-        where `C(\bG)` are the plane wave coefficients and V is the cell
+        where `C(\bG)` are the plane wave coefficients and Ω is the cell
         volume.
 
         Parameters
@@ -486,10 +486,10 @@ class UGArray(DistributedArrays[UGDesc]):
         out:
             Target PWArray object.
         """
-        assert self.dims == ()
+        assert not self.desc.zerobc_c.any()
         if out is None:
             assert pw is not None
-            out = pw.empty(xp=self.xp)
+            out = pw.empty(dims=self.dims, xp=self.xp)
         if pw is None:
             pw = out.desc
         if pw.dtype != self.desc.dtype:
@@ -500,11 +500,12 @@ class UGArray(DistributedArrays[UGDesc]):
             input = input.gather()
         if self.desc.comm.rank == 0:
             plan = plan or self.desc.fft_plans(xp=self.xp)
-            coefs = plan.fft_sphere(input.data, pw)
+            for i, o in zip(input.flat(), out.flat()):
+                coefs = plan.fft_sphere(i.data, pw)
+                o.scatter_from(coefs)
         else:
-            coefs = None
-
-        out.scatter_from(coefs)
+            for o in out.flat():
+                o.scatter_from(None)
 
         return out
 

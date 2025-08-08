@@ -15,6 +15,7 @@ from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.utilities.blas import axpy
 from gpaw.utilities import as_real_dtype
+from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class PWFDEigensolver(Eigensolver):
@@ -72,7 +73,7 @@ class PWFDEigensolver(Eigensolver):
 
     @trace
     def iterate(self,
-                ibzwfs,
+                ibzwfs: IBZWaveFunctions,
                 density,
                 potential,
                 hamiltonian: Hamiltonian,
@@ -96,6 +97,10 @@ class PWFDEigensolver(Eigensolver):
         wfs = ibzwfs.wfs_qs[0][0]
         dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
                                                     wfs.xp)
+
+        ibzwfs.orthonormalize()
+        hamiltonian.update_wave_functions(ibzwfs)
+
         apply = partial(hamiltonian.apply,
                         potential.vt_sR,
                         potential.dedtaut_sR,
