@@ -625,7 +625,7 @@ class Parameters:
         spinpol: bool | None = None,
         symmetry: str | dict | Symmetry | None = None,
         xc: str | dict | XC | None = None):
-        """DFT-parameters object.
+        r"""DFT-parameters object.
 
         >>> p = Parameters(mode=PW(400))
         >>> p
@@ -659,7 +659,17 @@ class Parameters:
             Number of real-space grid-points for wave-functions
             (three integers).
         h:
-            grid-spaving for wave-function grid (Å).
+            Grid-spacing for wave-function grid (Å).  Default value is
+            0.2 Å for LCAO or FD mode calculations.  For a PW-mode
+            calculation, we use the formula `h=γh_0` with `γ \simeq 1.4` and:
+
+            .. math::
+
+               h_0 = \frac{\pi}{\sqrt{8E_c}}.
+
+            Ideally, we would use `\gamma=1`, but in practice, 1.4 is
+            a good compromise between accuracy and efficiency.
+            In eV and Å units we have `h_0=3.07/\sqrt{E_c}`.
         hund:
             Use Hund's rule for initial magnetic moments.
         experimental:
