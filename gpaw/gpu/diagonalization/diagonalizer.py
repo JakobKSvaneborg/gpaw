@@ -146,7 +146,8 @@ class CPUPYDiagonalizer(NonDistributedDiagonalizer):
         eigvals, eigvecs = scipy_eigh(cp.asnumpy(inout_matrix),
                                       lower=(options.uplo == 'L'),
                                       check_finite=False,
-                                      overwrite_a=options.inplace)
+                                      # overwrite_a=options.inplace  # unsafe?
+                                      )
 
         eigvals, eigvecs = cp.asarray(eigvals), cp.asarray(eigvecs)
 
