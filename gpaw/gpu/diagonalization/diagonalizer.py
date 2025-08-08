@@ -70,17 +70,16 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         if needs_redist:
             # We will do eigh on a non-distributed copy
 
-            """Problem: Can't gather/scatter if ratio N / mpi_size is too
+            """Problem: Can't gather/scatter if ratio N^2 / mpi_size is too
             large, because the 'count' parameter in MPI comms overflows!
             Temporary 'solution': Estimate it here and warn if a crash is to
             be expected.
             FIXME: use large-count versions of MPI comms (MPI-4)
             """
             nm = inout_matrix.dist.shape[0] * inout_matrix.dist.shape[1]
-            mpi_size = inout_matrix.dist.comm.size
 
             # GPAW sends messages as MPI_BYTE
-            msg_size = (nm * inout_matrix.dtype.itemsize) / mpi_size
+            msg_size = nm * inout_matrix.dtype.itemsize
 
             if msg_size > (2**31 - 1):
                 warn("Matrix may be too large to gather over MPI! "
