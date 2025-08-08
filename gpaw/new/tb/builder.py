@@ -234,8 +234,8 @@ class TBSCFLoop:
 
 
 class DummyBasis:
-    def __init__(self, setups):
-        self.my_atom_indices = np.arange(len(setups))#wrong!!!!
+    def __init__(self, setups, atomdist):
+        self.my_atom_indices = atomdist.indices
         self.Mstart = 0
         self.Mstop = setups.nao
 
@@ -274,7 +274,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
 
     def create_basis_set(self):
         self.fix_setups()
-        self.basis = DummyBasis(self.setups)
+        self.basis = DummyBasis(self.setups, self.atomdist)
         return self.basis
 
     def create_hamiltonian_operator(self):
@@ -297,8 +297,6 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                                   potential,
                                   *,
                                   coefficients=None):
-        domain_comm = self.communicators['d']
-        # assert domain_comm.size == 1
         assert self.communicators['b'].size == 1
 
         ibzwfs, tciexpansions = create_lcao_ibzwfs(
@@ -334,7 +332,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
             kpt_qc, self.dtype, NullTimer())
 
         manytci.Pindices = manytci.Mindices
-        my_atom_indices = basis.my_atom_indices
+        my_atom_indices = self.atomdist.indices
 
         fudge_factor = 0.75
 
@@ -347,7 +345,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                 M2 = M1 + m
                 V_MM[M1:M2, M1:M2] *= 0.5 / fudge_factor
                 M1 = M2
-            wfs.V_MM = Matrix(M2, M2, data=V_MM.conj() / domain_comm.size)
+            wfs.V_MM = Matrix(M2, M2, data=V_MM.conj())
 
         return ibzwfs
 
