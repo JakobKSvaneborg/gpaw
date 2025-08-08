@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from copy import copy
 from typing import TYPE_CHECKING
+from warnings import warn
 
 if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix
@@ -68,6 +69,23 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
 
         if needs_redist:
             # We will do eigh on a non-distributed copy
+
+            """Problem: Can't gather/scatter if ratio N / mpi_size is too
+            large, because the 'count' parameter in MPI comms overflows!
+            Temporary 'solution': Estimate it here and warn if a crash is to
+            be expected.
+            FIXME: use large-count versions of MPI comms (MPI-4)
+            """
+            nm = inout_matrix.dist.shape[0] * inout_matrix.dist.shape[1]
+            mpi_size = inout_matrix.dist.comm.size
+
+            # GPAW sends messages as MPI_BYTE
+            msg_size = (nm * inout_matrix.dtype.itemsize) / mpi_size
+
+            if msg_size > (2**31 - 1):
+                warn("Matrix may be too large to gather over MPI! "
+                     "If you crash here, try running with more MPI processes")
+
             matrix_non_distributed = inout_matrix.gather(0, broadcast=False)
             # Can always do in-place for the internal eigh
             options_non_distributed = copy(options)
