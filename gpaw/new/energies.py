@@ -68,7 +68,7 @@ class DFTEnergies:
             log(f'{name + ":":10}   {e * Ha:14.6f}')
         extensions = self.extensions_energies
         if extensions:
-            log('--------extensions:---------')
+            log('--------extensions----------')
             for name, e in extensions:
                 log(f'{name + ":":12} {e * Ha:14.6f}')
         log('----------------------------')
