@@ -26,8 +26,6 @@ def diagonalizer_tester_common(
 
     if cupy_is_fake and diagonalizer_class is not CPUPYDiagonalizer:
         pytest.skip("CuPy is fake")
-    elif not cupy_is_fake and diagonalizer_class is CPUPYDiagonalizer:
-        pytest.skip("Not testing cpupy when running with real CuPy")
 
     if not have_magma and diagonalizer_class is MagmaDiagonalizer:
         pytest.skip("No MAGMA")
