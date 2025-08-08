@@ -22,14 +22,14 @@ def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
     options = DiagonalizerOptions()
 
     if cupy_is_fake:
-        return CPUPYDiagonalizer, options
+        return CPUPYDiagonalizer(), options
 
     if not is_hip:
         # NVIDIA GPU. CuPy calls cuSolver which is typically very fast
         if matrix_size < 128:
-            return CPUPYDiagonalizer, options
+            return CPUPYDiagonalizer(), options
         else:
-            return CuPyDiagonalizer, options
+            return CuPyDiagonalizer(), options
 
     # AMD GPU. Prefer CPU for small matrices, MAGMA for larger ones
     if matrix_size < 400:
@@ -55,4 +55,4 @@ def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
 
     else:
         # No MAGMA on AMD, just use the CPU
-        return CPUPYDiagonalizer, options
+        return CPUPYDiagonalizer(), options
