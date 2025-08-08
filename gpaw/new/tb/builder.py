@@ -322,9 +322,10 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                 vtphit_j.append(Spline.from_data(phit.l, rc, vt_g * phit_g))
             vtphit[setup] = vtphit_j
 
+        setup_I = list(self.setups.setups.values())
         vtciexpansions = TCIExpansions([s.basis_functions_J
-                                        for s in self.setups],
-                                       [vtphit[s] for s in self.setups],
+                                        for s in setup_I],
+                                       [vtphit[s] for s in setup_I],
                                        tciexpansions.I_a)
 
         kpt_qc = np.array([wfs.kpt_c for wfs in ibzwfs])
