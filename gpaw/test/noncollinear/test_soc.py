@@ -92,3 +92,8 @@ def test_soc_non_self_consistent():
     bzwfs = soc_eigenstates(a.calc, n2=14)
     eigs = bzwfs.eigenvalues()[8]
     check(eigs, 0.15, 0.007)
+
+    # Ignoring XC should not make a big difference:
+    bzwfs = soc_eigenstates(a.calc, n2=14, ignore_xc_potential=True)
+    eigs = bzwfs.eigenvalues()[8]
+    check(eigs, 0.15, 0.007)
