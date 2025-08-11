@@ -169,6 +169,7 @@ def tci_helper(basis,
         np.negative(T0_qMM.imag, T0_qMM.imag)
 
     P_aqMi = manytci.P_aqMi(my_atom_indices)
+    print(my_atom_indices, [P_qMi.shape for P_qMi in P_aqMi.values()])
     P_qaMi = [{a: P_aqMi[a][q] for a in my_atom_indices}
               for q in range(len(S0_qMM))]
 

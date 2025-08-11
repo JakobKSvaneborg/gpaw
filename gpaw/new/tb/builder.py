@@ -234,10 +234,12 @@ class TBSCFLoop:
 
 
 class DummyBasis:
-    def __init__(self, setups, atomdist):
+    def __init__(self, setups, atomdist, band_comm):
         self.my_atom_indices = atomdist.indices
-        self.Mstart = 0
-        self.Mstop = setups.nao
+        Mmax = setups.nao
+        myM = (Mmax + band_comm.size - 1) // band_comm.size
+        self.Mstart = min(band_comm.rank * myM, Mmax)
+        self.Mstop = min((band_comm.rank + 1) * myM, Mmax)
 
     def add_to_density(self, nt_sR, f_asi):
         pass
@@ -274,7 +276,9 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
 
     def create_basis_set(self):
         self.fix_setups()
-        self.basis = DummyBasis(self.setups, self.atomdist)
+        self.basis = DummyBasis(self.setups,
+                                self.atomdist,
+                                self.communicators['b'])
         return self.basis
 
     def create_hamiltonian_operator(self):
@@ -297,7 +301,7 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                                   potential,
                                   *,
                                   coefficients=None):
-        assert self.communicators['b'].size == 1
+        # assert self.communicators['b'].size == 1
 
         ibzwfs, tciexpansions = create_lcao_ibzwfs(
             basis,
@@ -333,10 +337,12 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
 
         manytci.Pindices = manytci.Mindices
         my_atom_indices = self.atomdist.indices
-
+        print(manytci.Mindices, my_atom_indices)
         fudge_factor = 0.75
 
+        # print(manytci.P_aqMi(my_atom_indices))
         for wfs, V_MM in zip(ibzwfs, manytci.P_qIM(my_atom_indices)):
+            print(V_MM)
             V_MM = V_MM.toarray()
             V_MM += V_MM.T.conj().copy()
             V_MM *= fudge_factor
