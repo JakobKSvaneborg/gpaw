@@ -349,13 +349,13 @@ class PPCG(PWFDEigensolver):
                     # makes the diagonal elements closer to 1, by the a
                     # factor of sqrt(X), with X being the previous diagonal.
                     # This value performed best of the ones attempted.
-                    norm_facts = xp.diag(S_bb)[block:]**(-0.25)
-                    S_bb[block:, :] *= norm_facts[:, None]
-                    S_bb[:, block:] *= norm_facts[None, :]
+                    diag_scale_b = xp.diag(S_bb)[block:]**(-0.25)
+                    S_bb[block:, :] *= diag_scale_b[:, None]
+                    S_bb[:, block:] *= diag_scale_b[None, :]
                     buff_bX.matrix.data[block:nblocks, :] \
-                        *= norm_facts[:, None]
+                        *= diag_scale_b[:, None]
                     Pbuf_abi.matrix.data[block:nblocks, :] \
-                        *= norm_facts[:, None]
+                        *= diag_scale_b[:, None]
 
                     if not self.promote_inner_dtype:
                         MBuf_bb = MH_bb
