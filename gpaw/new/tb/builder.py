@@ -301,8 +301,6 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                                   potential,
                                   *,
                                   coefficients=None):
-        # assert self.communicators['b'].size == 1
-
         ibzwfs, tciexpansions = create_lcao_ibzwfs(
             basis,
             self.ibz, self.communicators, self.setups,
@@ -337,21 +335,26 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
 
         manytci.Pindices = manytci.Mindices
         my_atom_indices = self.atomdist.indices
-        print(manytci.Mindices, my_atom_indices)
         fudge_factor = 0.75
 
-        # print(manytci.P_aqMi(my_atom_indices))
+        domain_comm = self.communicators['d']
+
         for wfs, V_MM in zip(ibzwfs, manytci.P_qIM(my_atom_indices)):
-            print(V_MM)
-            V_MM = V_MM.toarray()
-            V_MM += V_MM.T.conj().copy()
-            V_MM *= fudge_factor
-            M1 = 0
+            wfs.V_MM = wfs.T_MM.new()
+            M1, M2 = wfs.V_MM.dist.my_row_range()
+            V_mM = wfs.V_MM.data
+            V_mM[:] = V_MM.T[M1:M2].toarray()
+            domain_comm.sum(V_mM)
+            wfs.V_MM.add_hermitian_conjugate()
+            V_mM *= fudge_factor / domain_comm.size
+            MM1 = 0
             for m in manytci.Mindices.nm_a:
-                M2 = M1 + m
-                V_MM[M1:M2, M1:M2] *= 0.5 / fudge_factor
-                M1 = M2
-            wfs.V_MM = Matrix(M2, M2, data=V_MM.conj())
+                MM2 = MM1 + m
+                m1 = max(MM1 - M1, 0)
+                m2 = min(MM2 - M1, M2 - M1)
+                if m2 > m1:
+                    V_mM[m1:m2, MM1:MM2] *= 0.5 / fudge_factor
+                MM1 = MM2
 
         return ibzwfs
 
