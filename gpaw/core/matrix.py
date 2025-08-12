@@ -486,9 +486,10 @@ class Matrix(XP):
             self.dist.comm.broadcast(eps, 0)
         else:
             if slcomm.rank < rows * columns:
-                assert cc
                 assert S is None
                 array = H.data.copy()
+                if not cc and np.issubdtype(H.dtype, np.complexfloating):
+                    np.negative(array.imag, array.imag)
                 info = cgpaw.scalapack_diagonalize_dc(array, H.dist.desc, 'U',
                                                       H.data, eps)
                 assert info == 0, info
@@ -560,7 +561,7 @@ class Matrix(XP):
         LH = L.multiply(H)
         LH.multiply(L, opb='C', out=H)
         r, c, b = suggest_blocking(M, comm.size)
-        eig_n = H.eigh(scalapack=(self.comm, r, c, b))
+        eig_n = H.eigh(scalapack=(comm, r, c, b))
         L.multiply(H, opa='C', out=LH)
         H.data[:] = LH.data
 
