@@ -302,10 +302,10 @@ class Gradient(FDOperator):
         dtype: float or complex
             Data-type to work on.
         """
-        if not isinstance(grid, GridDescriptor):
-            assert dtype == grid.dtype
-            return grid.gradient_operator(v, scale=scale, n=n, xp=xp)
-        gd = grid
+        if isinstance(grid, GridDescriptor):
+            gd = grid
+        else:
+            gd = grid._gd
 
         M_dc = find_neighbors(gd.h_cv)
         h_dv = M_dc @ gd.h_cv  # vectors pointing at neighbor grid-points
