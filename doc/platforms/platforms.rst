@@ -61,7 +61,6 @@ AIX:
 
    AIX/ibmsc
    AIX/jump
-   AIX/seaborg
 
 BGQ:
 
