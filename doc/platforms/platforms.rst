@@ -54,14 +54,6 @@ MacOSX:
    MacOSX/homebrew
    MacOSX/anaconda
 
-Bull:
-
-.. toctree::
-   :maxdepth: 1
-
-   Bull/curie
-   Bull/curie_gpu
-
 Cray:
 
 .. toctree::
