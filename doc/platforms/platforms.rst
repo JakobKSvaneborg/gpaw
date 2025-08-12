@@ -54,13 +54,6 @@ MacOSX:
    MacOSX/homebrew
    MacOSX/anaconda
 
-AIX:
-
-.. toctree::
-   :maxdepth: 1
-
-   AIX/ibmsc
-
 BGQ:
 
 .. toctree::
