@@ -10,6 +10,8 @@ Git master branch
 
 :git:`master <>`.
 
+* :envvar:`GPAW_DEBUG` ...
+
 
 Version 25.7.0
 ==============
