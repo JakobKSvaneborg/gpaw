@@ -294,7 +294,7 @@ class UGDesc(Domain['UGArray']):
                           n=1,
                           xp=np):
         return Gradient(self._gd, v,
-                        scale=scale, n=n, dtype=self.desc.dtype, xp=xp)
+                        scale=scale, n=n, dtype=self.dtype, xp=xp)
 
 
 class UGArray(DistributedArrays[UGDesc]):

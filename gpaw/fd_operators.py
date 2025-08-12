@@ -302,7 +302,7 @@ class Gradient(FDOperator):
         dtype: float or complex
             Data-type to work on.
         """
-        if hasattr(grid, '_gd'):
+        if not isinstance(grid, GridDescriptor):
             assert dtype == grid.dtype
             return grid.gradient_operator(v, scale=scale, n=n, xp=xp)
         gd = grid
