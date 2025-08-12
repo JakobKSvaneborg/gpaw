@@ -64,10 +64,3 @@ Cray:
    Cray/louhi
    Cray/sisu
    Cray/hermit
-
-HP:
-
-.. toctree::
-   :maxdepth: 1
-
-   HP/xc
