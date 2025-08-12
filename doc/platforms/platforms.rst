@@ -71,10 +71,3 @@ HP:
    :maxdepth: 1
 
    HP/xc
-
-Solaris:
-
-.. toctree::
-   :maxdepth: 1
-
-   Solaris/corona
