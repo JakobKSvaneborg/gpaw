@@ -54,13 +54,6 @@ MacOSX:
    MacOSX/homebrew
    MacOSX/anaconda
 
-BGQ:
-
-.. toctree::
-   :maxdepth: 2
-
-   BGQ/mira
-
 BSD:
 
 .. toctree::
