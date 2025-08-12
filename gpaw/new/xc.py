@@ -66,7 +66,8 @@ class Functional:
         self.name = self.xc.name
         self.type = self.xc.type
         self.xc.xp = xp
-        self.xc.set_grid_descriptor(grid._gd)
+        if grid.size != (0, 0, 0):  # not TB-mode
+            self.xc.set_grid_descriptor(grid._gd)
         self.exx_fraction = 0.0
         self.exx_omega = 0.0
         self.exx_yukawa = False
@@ -173,7 +174,8 @@ class GGAFunctional(LDAFunctional):
                  xp=np):
         super().__init__(xc, grid, xp)
         # xc already has Gradient.apply bound methods!!!
-        self.grad_v = [grad.__self__ for grad in xc.grad_v]  # type: ignore
+        if grid.size != (0, 0, 0):  # not TB-mode
+            self.grad_v = [grad.__self__ for grad in xc.grad_v]  # type: ignore
 
     def _evaluate_xc_cpu(self, args):
         if 'vdW' not in self.name:

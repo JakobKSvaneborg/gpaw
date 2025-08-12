@@ -287,6 +287,15 @@ class UGDesc(Domain['UGArray']):
         b2_c = np.pi**2 / (self.cell_cv**2).sum(1)
         return 0.5 * (self.size_c**2 * b2_c).min()
 
+    def gradient_operator(self,
+                          v: int,
+                          *,
+                          scale=1.0,
+                          n=1,
+                          xp=np):
+        return Gradient(self._gd, v,
+                        scale=scale, n=n, dtype=self.desc.dtype, xp=xp)
+
 
 class UGArray(DistributedArrays[UGDesc]):
     def __init__(self,
@@ -837,9 +846,7 @@ class UGArray(DistributedArrays[UGDesc]):
     def add_ked(self,
                 occ_n: Array1D,
                 taut_R: UGArray) -> None:
-        grad_v = [
-            Gradient(self.desc._gd, v, n=3, dtype=self.desc.dtype)
-            for v in range(3)]
+        grad_v = [self.desc.gradient_operator(v, n=3) for v in range(3)]
         tmp_R = self.desc.empty()
         for f, psit_R in zips(occ_n, self):
             for grad in grad_v:
