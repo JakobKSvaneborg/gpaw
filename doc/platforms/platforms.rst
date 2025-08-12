@@ -60,7 +60,6 @@ AIX:
    :maxdepth: 1
 
    AIX/ibmsc
-   AIX/jump
 
 BGQ:
 
