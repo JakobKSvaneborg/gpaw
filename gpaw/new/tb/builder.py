@@ -64,7 +64,7 @@ class NoGrid(Domain):
             pbc_c=self.pbc_c,
             N_c=[0, 0, 0],
             dv=0.0)
-        self.size = (0, 0, 0)
+        self.size = np.array([0, 0, 0])
         self.zerobc_c = np.zeros(3, bool)
 
     def empty(self, shape=(), comm=serial_comm, xp=None):
