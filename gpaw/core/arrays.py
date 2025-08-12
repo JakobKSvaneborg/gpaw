@@ -211,9 +211,17 @@ class DistributedArrays(Generic[DomainType], XP):
             # numerical stability. This is especially important
             # for single precision.
             if self.data.dtype in (np.float32, np.complex64):
-                blocksize = 16384  # 2**14
+                blocksize = 16384
+                # 16384 = 2**14. Large enough that the extra
+                # overhead is negligible, yet still comparable
+                # to the square root of the mantisa of float32
+                # (2**24)**0.5.
             elif self.data.dtype in (np.float64, np.complex128):
-                blocksize = 268435456  # 2**28
+                blocksize = 268435456
+                # Double is simply just the blocksize of 
+                # single precision squared 2**28. Most likely,
+                # we will end up slicing the matrix into blocks
+                # for double precision.
 
             for ind in range(0, max(X, 1), blocksize):
                 m1 = Matrix(n,
@@ -305,9 +313,6 @@ class DistributedArrays(Generic[DomainType], XP):
         raise NotImplementedError
 
     def integrate(self, other: Self | None = None) -> np.ndarray:
-        raise NotImplementedError
-
-    def approx_eigenvalues(self, Hpsit_nX, P_ani, HP_ani):
         raise NotImplementedError
 
     def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:

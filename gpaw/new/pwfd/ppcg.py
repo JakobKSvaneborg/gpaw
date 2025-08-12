@@ -12,9 +12,9 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.pwfd.davidson import sliced_preconditioner
 # from gpaw.typing import Array2D
-from gpaw.core import PWDesc
+from gpaw.core import PWDesc, PWArray
 from gpaw.new import tracectx, trace
-
+from gpaw.utilities import as_real_dtype
 
 class PPCG(PWFDEigensolver):
     def __init__(self,
@@ -263,9 +263,9 @@ class PPCG(PWFDEigensolver):
                     or b_error < self.breakout_tolerance and min_niter <= 1:
                 if debug:
                     psit_nX.sanity_check()
-                flag = True
+                break_after_update = True
             else:
-                flag = False
+                break_after_update = False
 
         for i in range(niter):
             with tracectx('Residual'):
@@ -405,7 +405,7 @@ class PPCG(PWFDEigensolver):
                         cmin = H_bb[:block, :nblocks].conj()
                     if not xp.isfinite(H_bb).all():
                         print('H is not finite')
-                        flag = True
+                        break_after_update = True
                         continue
 
                     with tracectx('rotations', gpu=xp is not np):
@@ -435,7 +435,7 @@ class PPCG(PWFDEigensolver):
                             + Pbuf_abi.matrix.data[block:2 * block]
 
             wfs.orthonormalized = False
-            if flag or i >= niter - 1:
+            if break_after_update or i >= niter - 1:
                 break
 
             with tracectx('Residual'):
@@ -487,11 +487,11 @@ class PPCG(PWFDEigensolver):
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
                         or (b_error < self.breakout_tolerance
                             and i + 2 >= min_niter):
-                    # Set 'flag = True', causing the loop to break
-                    # at the next iteration. This gives us one more
-                    # cheap iteration (since we already calculated
-                    # the residual).
-                    flag = True
+                    # Set 'break_after_update = True', causing the 
+                    # loop to break at the next iteration. This gives us
+                    # one more cheap iteration (since we already
+                    # calculated the residual).
+                    break_after_update = True
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
             if self.include_cg:
@@ -575,7 +575,29 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
 
 
 @trace
-def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
-    dH(P_ani, out_ani=P2_ani)
-    wfs.myeig_n[:] = as_np(
-        wfs.psit_nX.approx_eigenvalues(Hpsit_nX, P_ani, P2_ani))
+def update_eigenvalues(wfs, Hpsit_nX, P_ani, HP_ani, dH, domain_comm):
+    dH(P_ani, out_ani=HP_ani)
+    psit_nX = wfs.psit_nX
+    xp = psit_nX.xp
+    real_dtype = as_real_dtype(psit_nX.matrix.data.dtype)
+    a_nX = psit_nX.matrix.data.view(real_dtype)
+    h_nX = Hpsit_nX.matrix.data.view(real_dtype)
+    eigs_n = xp.zeros(h_nX.shape[0], dtype=np.float64)
+    for ind in range(0, h_nX.shape[1], 4048):
+        eigs_n += xp.einsum('nX, nX -> n',
+                            h_nX[:, ind:ind + 4048],
+                            a_nX[:, ind:ind + 4048])
+    eigs_n *= psit_nX.dv
+    if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
+            isinstance(psit_nX, PWArray):
+        eigs_n *= 2
+        if psit_nX.desc.comm.rank == 0:
+            eigs_n -= psit_nX.matrix.data[:, 0] * \
+                Hpsit_nX.matrix.data[:, 0] * psit_nX.dv
+    p2_nX = HP_ani.matrix.data.view(real_dtype)
+    p_nX = P_ani.matrix.data.view(real_dtype)
+    eigs_n += xp.einsum('nX, nX -> n',
+                        p2_nX,
+                        p_nX)
+    domain_comm.sum(eigs_n)
+    wfs.myeig_n[:] = as_np(eigs_n)
