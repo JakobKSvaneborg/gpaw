@@ -112,13 +112,6 @@ class PW(Mode):
 class LCAO(Mode):
     distribution = '?'
 
-    def __init__(self,
-                 *,
-                 dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
-        super().__init__(dtype=dtype,
-                         force_complex_dtype=force_complex_dtype)
-
 
 class FD(Mode):
     def __init__(self,

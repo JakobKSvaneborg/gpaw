@@ -233,7 +233,7 @@ def calculate_non_local_potential1(setup: Setup,
 
     dH_sp = np.zeros_like(D_sp, dtype=float if ncomponents < 4 else complex)
 
-    e_soc = 0.
+    e_soc = 0.0
     if soc:
         dHsoc_sii = soc_terms(setup, xc.xc, D_sp)
         e_soc += (D_sii[1:4] * dHsoc_sii).sum().real
