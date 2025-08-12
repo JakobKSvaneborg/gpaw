@@ -218,7 +218,7 @@ class DistributedArrays(Generic[DomainType], XP):
                 # (2**24)**0.5.
             elif self.data.dtype in (np.float64, np.complex128):
                 blocksize = 268435456
-                # Double is simply just the blocksize of 
+                # Double is simply just the blocksize of
                 # single precision squared 2**28. Most likely,
                 # we will end up slicing the matrix into blocks
                 # for double precision.

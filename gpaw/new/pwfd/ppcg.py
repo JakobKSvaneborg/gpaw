@@ -16,6 +16,7 @@ from gpaw.core import PWDesc, PWArray
 from gpaw.new import tracectx, trace
 from gpaw.utilities import as_real_dtype
 
+
 class PPCG(PWFDEigensolver):
     def __init__(self,
                  nbands: int,
@@ -23,7 +24,8 @@ class PPCG(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 niter=(2, 3),
+                 niter=2,
+                 min_niter=None,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
@@ -51,12 +53,15 @@ class PPCG(PWFDEigensolver):
             Which bands to converge ('occupied' or 'unoccupied'). Default is
             'occupied'.
         niter : int | typle[int, int], optional
-            Number of iterations. Default is 2. If specified as a tuple,
-            the first value is the minimum number of iterations and the
-            second value is the maximum number of iterations. Where the
-            eigensolver will stop if the residual is below a tolerance,
-            and performed at least the minimum number of iterations,
-            otherwise the maximum number of iterations is used.
+            Maximum number of iterations. Default is 2.
+        min_niter : int | None, optional
+            If specified as an int, the value is the minimum number of
+            iterations. Where the eigensolver will stop if the residual
+            is below a tolerance, and performed at least the minimum number
+            of iterations, otherwise the niter mnumber of iterations is used.
+            If specified as None, the minimum number of iterations is set
+            to niter.
+            Default is None.
         blocksize : int, optional
             Block size for the diagonal slicing. Lower values
             are more efficient on CPUs with many cores but not on GPUs. The
@@ -92,6 +97,7 @@ class PPCG(PWFDEigensolver):
         self.wf_grid = wf_grid
         self.band_comm = band_comm
         self.niter = niter
+        self.min_niter = min_niter if min_niter is not None else niter
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
         self.tolerances = tolerances
@@ -233,13 +239,6 @@ class PPCG(PWFDEigensolver):
             Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
                                           psit_nX.dims[1:], xp=psit_nX.xp)
 
-            if isinstance(self.niter, int):
-                niter = self.niter
-                min_niter = self.niter
-            else:
-                niter = self.niter[1]
-                min_niter = self.niter[0]
-
         with tracectx('Residual'):
             calculate_residuals(wfs.psit_nX,
                                 residual_nX,
@@ -260,14 +259,15 @@ class PPCG(PWFDEigensolver):
             b_error = band_comm.sum_scalar(error) / \
                 max(band_comm.sum_scalar(weight_n.sum()), 0.5)
             if band_comm.sum_scalar(len(active_indicies)) == 0  \
-                    or b_error < self.breakout_tolerance and min_niter <= 1:
+                    or b_error < self.breakout_tolerance and \
+                    self.min_niter <= 1:
                 if debug:
                     psit_nX.sanity_check()
                 break_after_update = True
             else:
                 break_after_update = False
 
-        for i in range(niter):
+        for i in range(self.niter):
             with tracectx('Residual'):
                 sliced_preconditioner(psit_nX, residual_nX,
                                       buffer=buffer_array_nX,
@@ -343,7 +343,13 @@ class PPCG(PWFDEigensolver):
                     if self.promote_inner_dtype:
                         S_bb[:] = buffer_bb[:]
                     domain_comm.sum(S_bb)
-                    norm_facts = (1 / xp.diag(S_bb)[block:])**0.25
+
+                    # Scale the diagonal elements, to improve numerical
+                    # stability. Here, we use the expontent -0.25, which
+                    # makes the diagonal elements closer to 1, by the a
+                    # factor of sqrt(X), with X being the previous diagonal.
+                    # This value performed best of the ones attempted.
+                    norm_facts = xp.diag(S_bb)[block:]**(-0.25)
                     S_bb[block:, :] *= norm_facts[:, None]
                     S_bb[:, block:] *= norm_facts[None, :]
                     buff_bX.matrix.data[block:nblocks, :] \
@@ -435,7 +441,7 @@ class PPCG(PWFDEigensolver):
                             + Pbuf_abi.matrix.data[block:2 * block]
 
             wfs.orthonormalized = False
-            if break_after_update or i >= niter - 1:
+            if break_after_update or i >= self.niter - 1:
                 break
 
             with tracectx('Residual'):
@@ -486,8 +492,8 @@ class PPCG(PWFDEigensolver):
 
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
                         or (b_error < self.breakout_tolerance
-                            and i + 2 >= min_niter):
-                    # Set 'break_after_update = True', causing the 
+                            and i + 2 >= self.min_niter):
+                    # Set 'break_after_update = True', causing the
                     # loop to break at the next iteration. This gives us
                     # one more cheap iteration (since we already
                     # calculated the residual).

@@ -17,7 +17,6 @@ from gpaw.typing import (Array1D, Array2D, Array3D, Array4D, ArrayLike1D,
                          ArrayLike2D, Vector)
 from gpaw.new.c import add_to_density, add_to_density_gpu, symmetrize_ft
 from gpaw.fd_operators import Gradient
-from gpaw.utilities import as_real_dtype
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go

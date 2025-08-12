@@ -211,18 +211,20 @@ class Davidson(PWFDEigensolverParamater):
     cls = DavidsonEigensolver
 
 
-class PPCG(Eigensolver):
+class PPCG(PWFDEigensolverParamater):
     name = 'ppcg'
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int | tuple[int, int] = (2, 3),
+                 niter: int = 2,
+                 min_niter: int | None = None,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
+        self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
@@ -231,6 +233,7 @@ class PPCG(Eigensolver):
 
     def todict(self):
         return {'niter': self.niter,
+                'min_niter': self.min_niter,
                 'max_buffer_mem': self.max_buffer_mem,
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
@@ -252,6 +255,7 @@ class PPCG(Eigensolver):
             hamiltonian,
             converge_bands,
             niter=self.niter,
+            min_niter=self.min_niter,
             max_buffer_mem=self.max_buffer_mem,
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
