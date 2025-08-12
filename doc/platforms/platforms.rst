@@ -54,13 +54,6 @@ MacOSX:
    MacOSX/homebrew
    MacOSX/anaconda
 
-BSD:
-
-.. toctree::
-   :maxdepth: 1
-
-   BSD/FreeBSD
-
 Bull:
 
 .. toctree::
