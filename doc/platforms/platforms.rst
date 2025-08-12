@@ -32,7 +32,6 @@ Linux:
    Linux/monolith
    Linux/nemo
    Linux/sepeli
-   Linux/sun_chpc
    Linux/supernova
    Linux/uranus
    Linux/odyssey
