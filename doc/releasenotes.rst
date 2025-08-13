@@ -10,6 +10,10 @@ Git master branch
 
 :git:`master <>`.
 
+* New GPAW: LCAO and finite-difference mode TDDFT have been ported into a common
+  RT-TDDFT interface with a subset of features so far. ECN and SICN propagators are
+  available.
+
 
 Version 25.7.0
 ==============
