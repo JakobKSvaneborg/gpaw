@@ -181,9 +181,6 @@ class Matrix(XP):
     def is_distributed(self) -> bool:
         """True if this matrix has nontrivial BLACS or GPU distribution.
         """
-        if self.dist is None:
-            return False
-
         return self.dist.shape != self.shape
 
     def multiply(self,
