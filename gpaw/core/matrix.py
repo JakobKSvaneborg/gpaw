@@ -8,7 +8,7 @@ import numpy as np
 import scipy.linalg as sla
 
 import gpaw.utilities.blas as blas
-from gpaw import debug, get_scipy_version
+from gpaw import debug
 from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
@@ -531,39 +531,17 @@ class Matrix(XP):
         M, N = self.shape
         assert M == N
         comm = self.dist.comm
-
-        if 0:
-            H_MM = self.data
-            L_MM = L.data
-            tmp_MM = np.empty_like(H_MM)
-            blas.mmm(1.0, L_MM, 'N', H_MM, 'N', 0.0, tmp_MM)
-            blas.r2k(0.5, tmp_MM, L_MM, 0.0, H_MM)
-            if get_scipy_version() >= [1, 9]:
-                driver = 'evx' if M == 1 else 'evd'
-            else:
-                driver = None
-            eig_n, Ct_Mn = sla.eigh(
-                H_MM,
-                overwrite_a=True,
-                check_finite=debug,
-                driver=driver)
-            assert Ct_Mn.flags.f_contiguous
-            blas.mmm(1.0, L_MM, 'C', Ct_Mn.T, 'T', 0.0, H_MM)
-            return eig_n
-
-        if comm2.rank > 0:
-            eig_n = np.empty(M)
-            comm2.broadcast(eig_n, 0)
-            comm2.broadcast(self.data, 0)
-            return eig_n
-
         H = self
-        LH = L.multiply(H)
-        LH.multiply(L, opb='C', out=H)
-        r, c, b = suggest_blocking(M, comm.size)
-        eig_n = H.eigh(scalapack=(comm, r, c, b))
-        L.multiply(H, opa='C', out=LH)
-        H.data[:] = LH.data
+
+        if comm2.rank == 0:
+            LH = L.multiply(H)
+            LH.multiply(L, opb='C', out=H)
+            r, c, b = suggest_blocking(M, comm.size)
+            eig_n = H.eigh(scalapack=(comm, r, c, b))
+            L.multiply(H, opa='C', opb='T', out=LH)
+            H.data[:] = LH.data
+        else:
+            eig_n = np.empty(M)
 
         comm2.broadcast(eig_n, 0)
         comm2.broadcast(H.data, 0)
