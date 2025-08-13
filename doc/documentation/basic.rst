@@ -1204,7 +1204,7 @@ See also :meth:`~gpaw.calculator.GPAW.attach`.
 Debug mode
 ----------
 
-.. envvar::GPAW_DEBUG
+.. envvar:: GPAW_DEBUG
 
    Run GPAW in debug-mode, e.g. check consistency of arrays passed
    to C-extensions.
