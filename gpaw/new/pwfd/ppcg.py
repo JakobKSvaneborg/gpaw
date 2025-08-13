@@ -166,7 +166,7 @@ class PPCG(PWFDEigensolver):
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
-        self.breakout_tolerance = 5e-6
+        self.breakout_tolerance = 1e-8
 
         if self.tolerances is not None:
             assert len(self.tolerances) == 3
@@ -497,6 +497,7 @@ class PPCG(PWFDEigensolver):
                     # loop to break at the next iteration. This gives us
                     # one more cheap iteration (since we already
                     # calculated the residual).
+                    print('breaking after update: ', i+2)
                     break_after_update = True
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
