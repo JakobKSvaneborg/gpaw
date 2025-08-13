@@ -144,7 +144,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load rocm/6.2.2
   module load cray-fftw/3.3.10.7
   module load buildtools-python/24.03-cray-python3.11
-  module load CuPy/13.4.1-cpeGNU-24.03-rocm6.2.2        # from EBU_USER_PREFIX
+  module load CuPy/13.4.1-cpeGNU-24.03-rocm-6.2.2       # from EBU_USER_PREFIX
   module load magma/2.8.0-cpeGNU-24.03-rocm6.2.2        # from EBU_USER_PREFIX
   module load libxc/7.0.0-cpeGNU-24.03                  # from EBU_USER_PREFIX
   export MPICH_GPU_SUPPORT_ENABLED=1
