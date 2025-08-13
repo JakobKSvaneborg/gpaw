@@ -272,7 +272,8 @@ class BSEBackend:
                  integrate_gamma='reciprocal',
                  mode='BSE',
                  q_c=[0.0, 0.0, 0.0],
-                 direction=0):
+                 direction=0,
+                 discard_inplane_offdiagonal=False):
 
         integrate_gamma = GammaIntegrationMode(integrate_gamma)
 
@@ -751,7 +752,6 @@ class BSEBackend:
     @timer('calculate_screened_potential')
     def calculate_screened_potential(self):
         """Calculate W_GG(q)."""
-
         pawcorr_q = []
         W_qGG = []
         qpd_q = []
@@ -762,6 +762,14 @@ class BSEBackend:
             chi0 = self._chi0calc.calculate(q_c)
             W_wGG = self._wcalc.calculate_W_wGG(chi0)
             W_GG = W_wGG[0]
+            if self.discard_inplane_offdiagonal:
+                G_Gv = chi0.qpd.get_reciprocal_vectors(add_q=False)
+                Gxy_Gv = G_Gv[:, :2]
+                mask_GG = np.all(np.isclose(Gxy_Gv[:, None, :],
+                                 Gxy_Gv[None, :, :],
+                                 rtol=0.0, atol=1e-12),
+                                 axis=-1)
+                W_GG = W_GG * mask_GG[None, :, :]
             # This is such a terrible way to access the paw
             # corrections. Attributes should not be groped like
             # this... Change in the future! XXX
