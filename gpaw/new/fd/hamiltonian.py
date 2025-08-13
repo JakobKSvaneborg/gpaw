@@ -55,7 +55,7 @@ class FDHamiltonian(Hamiltonian):
         from gpaw.preconditioner import Preconditioner as PC
         pc = PC(self._gd, self.kin, self.grid.dtype, blocksize, xp=xp)
 
-        def apply(psit, residuals, out):
+        def apply(psit, residuals, out, ekin_n=None):
             kpt = SimpleNamespace(phase_cd=psit.desc.phase_factor_cd)
             pc(residuals.data, kpt, out=out.data)
 

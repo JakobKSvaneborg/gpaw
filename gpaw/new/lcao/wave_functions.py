@@ -138,8 +138,8 @@ class LCAOWaveFunctions(WaveFunctions):
             # As a hack, builder.py injects a NaN in the first element of
             # C_nM.data in order for us to be able to tell that the
             # data is uninitialized:
-            # if np.isnan(self.C_nM.data.flat[0]):
-            #   raise RuntimeError('There are no projections or wavefunctions')
+            if not isinstance(self.C_nM, Matrix):
+                raise RuntimeError('There are no projections or wavefunctions')
 
             for a, P_Mi in self.P_aMi.items():
                 self._P_ani[a][:] = self.C_nM.data @ P_Mi
@@ -185,17 +185,17 @@ class LCAOWaveFunctions(WaveFunctions):
             f_n = self.weight * self.spin_degeneracy * self.myocc_n
             if eigs:
                 f_n *= self.myeig_n
-            C_nM = self.C_nM.data
+            TempC_nM = self.C_nM.copy()
+            TempC_nM.data *= f_n[:, None]
+            rho_MM = TempC_nM.multiply(self.C_nM, opa='C')
             if transposed:
-                rho_MM = (C_nM.T * f_n) @ C_nM.conj()
-            else:
-                rho_MM = (C_nM.T.conj() * f_n) @ C_nM
-            self.band_comm.sum(rho_MM)
+                rho_MM.complex_conjugate()
+            rho_MM_data = rho_MM.data
         else:
-            rho_MM = np.empty_like(self.T_MM.data)
-        self.domain_comm.broadcast(rho_MM, 0)
+            rho_MM_data = np.empty_like(self.T_MM.data)
+        self.domain_comm.broadcast(rho_MM_data, 0)
 
-        return rho_MM
+        return rho_MM_data
 
     def to_uniform_grid_wave_functions(self,
                                        grid,

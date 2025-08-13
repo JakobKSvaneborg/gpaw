@@ -10,7 +10,7 @@ from gpaw.bztools import convex_hull_volume
 from gpaw.response import timer
 from gpaw.response.pair import KPointPairFactory
 from gpaw.response.frequencies import NonLinearFrequencyDescriptor
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.integrators import (
     Integrand, PointIntegrator, TetrahedronIntegrator, Domain)
@@ -28,20 +28,33 @@ class Chi0Integrand(Integrand):
                  optical: bool,
                  qpd: SingleQPWDescriptor,
                  generator: KPointDomainGenerator,
+                 n1: int,
+                 n2: int,
                  m1: int,
                  m2: int):
+        """
+        n1 : int
+            Lower occupied band index.
+        n2 : int
+            Upper occupied band index.
+        m1 : int
+            Lower unoccupied band index.
+        m2 : int
+            Upper unoccupied band index.
+        """
+
+        assert m1 <= m2
+        assert n1 < n2 <= chi0calc.gs.nocc2
+        assert n1 <= chi0calc.gs.nocc1
+        assert chi0calc.gs.nocc1 <= m1
+        self.m1 = m1
+        self.m2 = m2
+        self.n1 = n1
+        self.n2 = n2
 
         self._chi0calc = chi0calc
 
-        # In a normal response calculation, we include transitions from all
-        # completely and partially unoccupied bands to range(m1, m2)
-
         self.gs: ResponseGroundStateAdapter = chi0calc.gs
-        self.n1 = 0
-        self.n2 = self.gs.nocc2
-        assert m1 <= m2
-        self.m1 = m1
-        self.m2 = m2
 
         self.context: ResponseContext = chi0calc.context
         self.kptpair_factory: KPointPairFactory = chi0calc.kptpair_factory
@@ -103,8 +116,8 @@ class Chi0Integrand(Integrand):
         K = self.gs.kpoints.kptfinder.find(k_c)
         # assert point.K == K, (point.K, K)
 
-        weight = np.sqrt(self.generator.get_kpoint_weight(k_c) /
-                         self.generator.how_many_symmetries())
+        weight = np.sqrt(self.generator.get_kpoint_weight(k_c)
+                         / self.generator.how_many_symmetries())
 
         # Here we're again setting pawcorr willy-nilly
         if self._chi0calc.pawcorr is None:
@@ -271,8 +284,8 @@ class Chi0ComponentCalculator:
         else:
             factor = 1
 
-        prefactor = (2 * factor * generator.how_many_symmetries() /
-                     (self.gs.nspins * (2 * np.pi)**3))  # Remember prefactor
+        prefactor = (2 * factor * generator.how_many_symmetries()
+                     / (self.gs.nspins * (2 * np.pi)**3))  # Remember prefactor
 
         if self.integrationmode == 'point integration':
             nbzkpts = self.gs.kd.nbzkpts
@@ -345,24 +358,26 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
             component is evaluated, and the reactive part is calculated via a
             hilbert transform. Only works for frequencies on the real axis and
             requires a nonlinear frequency grid.
-        nbands : int
+        nbands : int or slice
             Number of bands to include.
         timeordered : bool
             Flag for calculating the time ordered chi0 component. Used for
             G0W0, which performs its own hilbert transform.
-        ecut : float
-            Plane-wave energy cutoff in eV.
+        ecut : float | dict
+            Plane-wave energy cutoff in eV or dictionary for the plane-wave
+            descriptor type. See response/qpd.py for details.
         eta : float
             Artificial broadening of the chi0 component in eV.
         """
         super().__init__(gs, context, **kwargs)
 
-        self.ecut = ecut / Ha
+        if not isinstance(ecut, dict):
+            ecut /= Ha
+        self.ecut = ecut
         self.nbands = nbands or self.gs.nbands
 
         self.wd = wd
         self.context.print(self.wd, flush=False)
-
         self.eta = eta / Ha
         self.hilbert = hilbert
         self.task = self.construct_integral_task()
@@ -425,12 +440,12 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
     def get_pw_descriptor(self, q_c):
         return SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
 
-    def get_band_transitions(self):
-        return self.gs.nocc1, self.nbands  # m1, m2
-
     def get_response_info_string(self, qpd, tab=''):
         nw = len(self.wd)
-        ecut = self.ecut * Ha
+        if not isinstance(self.ecut, dict):
+            ecut = self.ecut * Ha
+        else:
+            ecut = self.ecut
         nbands = self.nbands
         ngmax = qpd.ngmax
         eta = self.eta * Ha

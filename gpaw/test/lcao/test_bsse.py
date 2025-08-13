@@ -15,7 +15,7 @@ def test_lcao_bsse():
     i.e. the ghost orbital should have a coefficient of 0.
     """
 
-    b = BasisMaker('H').generate(1, 0, energysplit=0.005)
+    b = BasisMaker.from_symbol('H').generate(1, 0, energysplit=0.005)
 
     system = molecule('H2')
     system.center(vacuum=6.0)

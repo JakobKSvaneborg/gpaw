@@ -116,6 +116,21 @@ class WaveFunctions:
         raise NotImplementedError
 
     @property
+    def has_eigs(self) -> bool:
+        # Checks if eigenvalues have been calculated,
+        # that is, one scf step has been performed.
+        return self._eig_n is not None
+
+    @property
+    def has_occs(self) -> bool:
+        # Checks if occupations have been calculated,
+        # that is, one scf step has been performed.
+        # XXX: In theory, this should be the same as has_eigs,
+        # however, there seems to be a discrepancy during
+        # fixed density calculations.
+        return self._occ_n is not None
+
+    @property
     def eig_n(self) -> Array1D:
         if self._eig_n is None:
             raise ValueError

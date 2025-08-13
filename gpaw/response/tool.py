@@ -6,7 +6,7 @@ from scipy.optimize import leastsq
 from ase.units import Ha
 import gpaw.mpi as mpi
 from gpaw.response.integrators import Domain
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.pair import KPointPairFactory, get_gs_and_context
 
 

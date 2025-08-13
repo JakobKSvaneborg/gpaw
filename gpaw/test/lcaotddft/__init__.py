@@ -72,6 +72,7 @@ def check_txt_data(ref_fpath, data_fpath, atol):
     ref = np.loadtxt(ref_fpath, encoding='utf-8')
     data = np.loadtxt(data_fpath, encoding='utf-8')
     err = calculate_error(data, ref)
+    print('err', err, atol)
     assert err < atol
 
 

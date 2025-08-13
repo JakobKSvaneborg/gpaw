@@ -19,7 +19,7 @@ from gpaw.utilities.progressbar import ProgressBar
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.pair import phase_shifted_fft_indices
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.screened_interaction import (initialize_w_calculator,
                                                 GammaIntegrationMode)
@@ -1027,7 +1027,8 @@ class G0W0Calculator:
         """Calculates the screened potential for a specified q-point."""
 
         chi0calc.chi0_body_calc.print_info(chi0.qpd)
-        chi0calc.update_chi0(chi0, m1, m2, range(self.wcalc.gs.nspins))
+        chi0calc.update_chi0(chi0, m1=m1, m2=m2,
+                             spins=range(self.wcalc.gs.nspins))
 
         Wdict = {}
 

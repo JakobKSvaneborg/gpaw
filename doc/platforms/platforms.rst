@@ -36,6 +36,7 @@ Linux:
    Linux/supernova
    Linux/uranus
    Linux/odyssey
+   Linux/Mahti/Mahti
 
 WSL:
 

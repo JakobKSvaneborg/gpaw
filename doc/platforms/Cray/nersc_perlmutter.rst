@@ -44,6 +44,12 @@ To install, run the following commands::
 **Note:** This will install GPAW version 23.9.1
 
 
+..
+    XXX: Should the version be bumped or is there a platform-specific
+    reason to keep it pinned at 23.9.1?  If we're bumping to >= 25.1.1,
+    it will become unnecessary for the user to run `gpaw install-data`
+
+
 Run
 ---
 

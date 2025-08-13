@@ -5,7 +5,8 @@ from ase.units import Bohr
 
 class DipoleCorrection:
     """Dipole-correcting wrapper around another PoissonSolver."""
-    def __init__(self, poissonsolver, direction, width=1.0):
+    def __init__(self, poissonsolver, direction, width=1.0,
+                 zero_vacuum=False):
         """Construct dipole correction object.
 
         poissonsolver:
@@ -19,7 +20,7 @@ class DipoleCorrection:
         self.c = direction
         self.poissonsolver = poissonsolver
         self.width = width / Bohr
-
+        self.zero_vacuum = zero_vacuum
         self.correction = None  # shift in potential
         self.sawtooth_q = None  # Fourier transformed sawtooth
 
@@ -84,6 +85,8 @@ class DipoleCorrection:
         gd = self.poissonsolver.gd
         drhot_g, dvHt_g, self.correction = dipole_correction(
             self.c, gd, rhot_g)
+        if self.zero_vacuum:
+            dvHt_g += self.correction
         vHt_g -= dvHt_g
         iters = self.poissonsolver.solve(vHt_g, rhot_g + drhot_g, **kwargs)
         vHt_g += dvHt_g
@@ -130,6 +133,12 @@ class DipoleCorrection:
 
     def estimate_memory(self, mem):
         self.poissonsolver.estimate_memory(mem)
+
+    def build(self, grid, xp):
+        from gpaw.new.poisson import PoissonSolverWrapper
+        self.xp = xp
+        self.set_grid_descriptor(grid._gd)
+        return PoissonSolverWrapper(self)
 
 
 def dipole_correction(c, gd, rhot_g, center=False, origin_c=None):

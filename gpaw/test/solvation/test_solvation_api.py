@@ -5,7 +5,6 @@
 import pytest
 from ase.build import molecule
 from ase.units import Pascal, m, Bohr
-from ase.data.vdw import vdw_radii
 from ase.parallel import parprint
 from gpaw.solvation import (
     # calculator
@@ -70,11 +69,8 @@ def test_solvation_api():
     # effective potential cavity params (examples)
     # --------------------------------------------
     u0 = 0.180  # eV
-    vdw_radii2 = vdw_radii.copy()
-    vdw_radii2[1] = 1.09
 
-    def atomic_radii(atoms):
-        return [vdw_radii2[n] for n in atoms.numbers]
+    atomic_radii = {'H': 1.09}
 
     # density cavity params (examples)
     # --------------------------------

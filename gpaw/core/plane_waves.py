@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
 
 
-class PWDesc(Domain):
+class PWDesc(Domain['PWArray']):
     itemsize = 16
 
     def __init__(self,
@@ -97,7 +97,7 @@ class PWDesc(Domain):
     def __repr__(self) -> str:
         m = self.myshape[0]
         n = self.shape[0]
-        return Domain.__repr__(self).replace(
+        return super().__repr__().replace(
             'Domain(',
             f'PWDesc(ecut={self.ecut} <coefs={m}/{n}>, ')
 
@@ -327,20 +327,28 @@ class PWArray(DistributedArrays[PWDesc]):
                           data=data)
 
     def new(self,
-            data=None) -> PWArray:
+            data=None,
+            dims=None) -> PWArray:
         """Create new PWArray object of same kind.
 
         Parameters
         ----------
         data:
             Array to use for storage.
+        dims:
+            Extra dimensions (bands, spin, etc.), required if
+            data does not fit the full array.
         """
         if data is None:
+            assert dims is None
             data = self.xp.empty_like(self.data)
         else:
-            # Number of plane-waves depends on the k-point.  We therfore
-            # allow for data to be bigger than needed:
-            data = data.ravel()[:self.data.size].reshape(self.data.shape)
+            if dims is None:
+                # Number of plane-waves depends on the k-point.  We therefore
+                # allow for data to be bigger than needed:
+                data = data.ravel()[:self.data.size].reshape(self.data.shape)
+            else:
+                return PWArray(self.desc, dims, self.comm, data)
         return PWArray(self.desc,
                        self.dims,
                        self.comm,
@@ -353,13 +361,17 @@ class PWArray(DistributedArrays[PWDesc]):
         return a
 
     def sanity_check(self) -> None:
-        """Sanity check for real-valed PW expansions.
+        """Sanity check for real-valued PW expansions.
 
         Make sure the G=(0,0,0) coefficient doesn't have an imaginary part.
         """
+        if self.xp.isnan(self.data).any():
+            raise ValueError('NaN value')
         if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
             if (self.data[..., 0].imag != 0.0).any():
-                raise ValueError
+                val = self.xp.max(self.xp.abs(self.data[..., 0].imag))
+                raise ValueError(
+                    f'Imag value of {val}')
 
     def _arrays(self):
         shape = self.data.shape
@@ -584,6 +596,10 @@ class PWArray(DistributedArrays[PWDesc]):
                                     out: Matrix,
                                     symmetric: bool) -> None:
         if self.desc.dtype == self.real_dtype:
+            if symmetric:
+                # Upper triangle could contain garbadge that will overflow
+                # when multiplied by 2
+                out.data[np.triu_indices(M1.shape[0], 1)] = 42.0
             out.data *= 2.0
             if self.desc.comm.rank == 0:
                 correction = M1.data[:, :1] @ M2.data[:, :1].T
@@ -628,7 +644,8 @@ class PWArray(DistributedArrays[PWDesc]):
             if self.xp is not np:
                 result_x = self.xp.empty((x,), dtype=self.real_dtype)
                 pw_norm_kinetic_gpu(result_x, self._arrays(),
-                                    self.xp.asarray(self.desc.ekin_G))
+                                    self.xp.asarray(self.desc.ekin_G,
+                                                    dtype=self.real_dtype))
             else:
                 a_xGz = a_xG.reshape((x, G2 // 2, 2))
                 result_x = self.xp.einsum('xGz, xGz, G -> x',
@@ -713,11 +730,26 @@ class PWArray(DistributedArrays[PWDesc]):
         if seed is None:
             seed = self.comm.rank + self.desc.comm.rank * self.comm.size
         rng = self.xp.random.default_rng(seed)
-        a = self.data.view(self.real_dtype)
-        rng.random(a.shape, out=a, dtype=self.real_dtype)
-        a -= 0.5
-        if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
-            a[..., 1] = 0.0
+
+        batches = self.data.size // 5_000_000 + 1
+        arrays = self.xp.array_split(self.data, batches)
+        is_real = self.desc.dtype == self.real_dtype
+        ekin_G = self.xp.asarray(self.desc.ekin_G)
+        for a in arrays:
+            # numpy does not require shape, cupy does
+            # cupy just makes all elements equal to one random number
+            aview = a.view(dtype=self.real_dtype)
+            rng.random(aview.shape, out=aview, dtype=self.real_dtype)
+
+            # Uniform distribution inside unit circle
+            a[:] = a.real**0.5 * self.xp.exp(2j * self.xp.pi * a.imag)
+
+            # Damp high spatial frequencies
+            a[..., :] *= 0.5 / (1.00 + ekin_G[..., :])
+
+            # Make sure gamma point G=0 does not have imaginary part
+            if is_real and self.desc.comm.rank == 0:
+                a[..., 0].imag = 0.0
 
     def moment(self):
         pw = self.desc
@@ -731,31 +763,51 @@ class PWArray(DistributedArrays[PWDesc]):
                     b_G[m0_G & m1_G]]
             d_c = [b_s[1:] @ (1.0 / np.arange(1, len(b_s)))
                    for b_s in b_cs]
-            m_v = np.dot(d_c, pw.cell_cv) / pi * pw.dv
+            m_v = d_c @ pw.cell_cv / pi * pw.dv
         else:
             m_v = np.empty(3)
         pw.comm.broadcast(m_v, 0)
         return m_v
 
+    def boundary_value(self, axis: int) -> float:
+        """Calculate average value at boundary of box."""
+        assert axis == 2
+        pw = self.desc
+        m0_G, m1_G = pw.indices_cG[:2, pw.ng1:pw.ng2] == 0
+        assert self.desc.dtype == self.real_dtype
+        value = self.data.real[m0_G & m1_G].sum() * 2
+        if self.desc.comm.rank == 0:
+            value -= self.data[0].real
+        return self.desc.comm.sum_scalar(value)
+
     def morph(self, pw: PWDesc) -> PWArray:
-        pw0 = self.desc
+        """Transform expansion to new cell."""
+        in_xG = self.gather()
+        if in_xG is not None:
+            pwin = in_xG.desc
+            pwout = pw.new(comm=None)
+
+            d = {}
+            for G, i_c in enumerate(pwout.indices_cG.T):
+                d[tuple(i_c)] = G
+            G_G0 = []
+            G0_G = []
+            for G0, i_c in enumerate(pwin.indices_cG.T):
+                G = d.get(tuple(i_c), -1)
+                if G != -1:
+                    G_G0.append(G)
+                    G0_G.append(G0)
+            out0_xG = pwout.zeros(self.dims,
+                                  comm=self.comm,
+                                  xp=self.xp)
+            out0_xG.data[..., G_G0] = in_xG.data[..., G0_G]
+        else:
+            out0_xG = None
+
         out_xG = pw.zeros(self.dims,
                           comm=self.comm,
                           xp=self.xp)
-        assert isinstance(out_xG, PWArray)  # MYPY!!!!
-
-        d = {}
-        for G, i_c in enumerate(pw.indices_cG.T):
-            d[tuple(i_c)] = G
-        G_G0 = []
-        G0_G = []
-        for G0, i_c in enumerate(pw0.indices_cG.T):
-            G = d.get(tuple(i_c), -1)
-            if G != -1:
-                G_G0.append(G)
-                G0_G.append(G0)
-
-        out_xG.data[..., G_G0] = self.data[..., G0_G]
+        out_xG.scatter_from(out0_xG)
         return out_xG
 
     def add_ked(self,
@@ -935,7 +987,7 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
         b2 = min(b1 + B, N)
         nb = b2 - b1
         if psit_bR is None:
-            psit_bR = cp.empty((nb,) + shape, complex)
+            psit_bR = cp.empty((nb,) + shape, psit_nG.data.dtype)
         elif nb < B:
             psit_bR = psit_bR[:nb]
         psit_bR[:] = 0.0
@@ -951,4 +1003,6 @@ def abs_square_gpu(psit_nG, weight_n, nt_R):
             shape,
             norm='forward',
             overwrite_x=True)
-        add_to_density_gpu(weight_n[b1:b2], psit_bR, nt_R.data)
+        add_to_density_gpu(weight_n[b1:b2],
+                           psit_bR,
+                           nt_R.data)

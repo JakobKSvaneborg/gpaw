@@ -178,7 +178,7 @@ and fast convergence of the L-BFGS algorithm [#Nocedal]_. Apart from the L-BFGS
 algorithm, one can use a limited-memory symmetric rank-one (L-SR1, default memory 20)
 quasi-Newton algorithm, which has also been shown to have good convergence performance
 and is especially recommended for calculations of excited states [#Levi2020]_
-(see also :ref:`mom` ).
+(see also :ref:`do` ).
 There is also an option to use a conjugate gradient algorithm, but it is less efficient.
 
 

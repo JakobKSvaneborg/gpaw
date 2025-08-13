@@ -67,8 +67,8 @@ class NonSelfConsistentHSE06:
         xp = np
         self.plan = self.grid.fft_plans(xp=xp)
 
-        self.mypsits = ibz2bz(ibzwfs, setups, relpos_ac, self.grid, self.plan,
-                              self.log)
+        self.mypsits, self.nocc = ibz2bz(
+            ibzwfs, setups, relpos_ac, self.grid, self.plan, self.log)
 
         self.ghat_aLR = setups.create_compensation_charges(
             self.grid, relpos_ac)
@@ -92,10 +92,10 @@ class NonSelfConsistentHSE06:
     def calculate(self,
                   ibzwfs: PWFDIBZWaveFunctions,
                   na: int = 0,
-                  nb: int = 0) -> np.ndarray:
+                  nb: int = 0) -> tuple[np.ndarray, np.ndarray]:
         """Calculate eigenvalues at several k-points.
 
-        Returned eigenvalues are in eV.
+        Returns DFT and HSE06 eigenvalues in eV.
         """
         nb = nb if nb > 0 else ibzwfs.nbands + nb
 
@@ -116,30 +116,46 @@ class NonSelfConsistentHSE06:
         self.log('  k-points:', len(kpt_comm_rank_k))
         self.log(f'  Bands: {na}-{nb - 1} (inclusive)')
 
+        tb = 0.0
         t1 = time()
-        eig_ksn = []
+        eig_ksn = []  # self-consistent DFT eigenvalues
+        deig_ksn = []  # HSE06 eigenvalue changes
         for k, kpt_comm_rank in enumerate(kpt_comm_rank_k):
             eig_sn = []
+            deig_sn = []
             for spin in range(ibzwfs.nspins):
                 data = None
+                tb -= time()
                 if kpt_comm_rank == kpt_comm.rank:
                     q = ibzwfs.q_k[k]
                     wfs = ibzwfs.wfs_qs[q][spin].collect(na, nb)
                     if wfs is not None:
-                        data = (wfs.psit_nX, wfs.P_ani, wfs.eig_n, spin)
-                args = broadcast(data, comm_rank_k[k], comm)
-                eig_n = self.calculate_one_kpt(*args)
+                        data = (wfs.psit_nX, wfs.P_ani, wfs.eig_n * Ha, spin)
+                psit_nG, P_ani, eig_n, spin = broadcast(
+                    data, comm_rank_k[k], comm)
+                tb += time()
                 eig_sn.append(eig_n)
+                deig_n = self.calculate_one_kpt(psit_nG, P_ani, spin)
+                deig_sn.append(deig_n)
             eig_ksn.append(eig_sn)
+            deig_ksn.append(deig_sn)
         t2 = time()
-        self.log(f'  Seconds: {t2 - t1:.3f}')
+        self.log(f'  Seconds: {t2 - t1:.3f} '
+                 f'(wave-function broadcasting: {tb:.3f} seconds)')
 
-        return np.array(eig_ksn).transpose((1, 0, 2))
+        eig_skn = np.array(eig_ksn).transpose((1, 0, 2))
+        deig_skn = np.array(deig_ksn).transpose((1, 0, 2))
+
+        self.log('HSE06-eigenvalue shifts:')
+        self.log(f'  min: {deig_skn.min():.3f} eV')
+        self.log(f'  ave: {deig_skn.mean():.3f} eV')
+        self.log(f'  max: {deig_skn.max():.3f} eV')
+
+        return eig_skn, eig_skn + deig_skn
 
     def calculate_one_kpt(self,
                           psit2_nG: PWArray,
                           P2_ani: AtomArrays,
-                          eig0_n: np.ndarray,
                           spin: int) -> np.ndarray:
         """Calculate eigenvalues at one k-point.
 
@@ -159,7 +175,7 @@ class NonSelfConsistentHSE06:
         self.dE_asii.layout.atomdist.comm.sum(deig_n)
 
         pw2 = psit2_nG.desc
-        eig_n = np.zeros_like(eig0_n)
+        eig_n = np.zeros(len(psit2_nG))
         for psit1 in self.mypsits:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
@@ -168,7 +184,7 @@ class NonSelfConsistentHSE06:
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
 
-        return (deig_n + eig_n + eig0_n) * Ha
+        return (deig_n + eig_n) * Ha
 
     def _exx_part(self,
                   v_G: PWArray,
@@ -230,8 +246,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            relpos_ac: np.ndarray,
            grid: UGDesc,
            plan,  # FFT-plan
-           log: Logger) -> list[Psit]:
+           log: Logger | None = None) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
+    log = log or Logger(None)
     nocc = number_of_non_empty_bands(ibzwfs)
     ibz = ibzwfs.ibz
     log(ibz)
@@ -326,7 +343,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     t2 = time()
     log(f'{t2 - t1:.3f} seconds')
 
-    return mypsits
+    return mypsits, nocc
 
 
 def nsc_corrections(density: Density,

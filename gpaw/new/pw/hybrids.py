@@ -10,7 +10,7 @@ from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
-from gpaw.new import zips
+from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.typing import Array1D
@@ -20,16 +20,18 @@ from gpaw.utilities.blas import mmm
 
 def coulomb(pw: PWDesc,
             grid: UGDesc,
-            omega: float) -> PWArray:
+            omega: float,
+            yukawa: bool = False) -> PWArray:
     if omega == 0.0:
         wstc = WignerSeitzTruncatedCoulomb(
             pw.cell_cv, np.array([1, 1, 1]))
         return wstc.get_potential_new(pw, grid)
-    return truncated_coulomb(pw, omega)
+    return truncated_coulomb(pw, omega, yukawa)
 
 
 def truncated_coulomb(pw: PWDesc,
-                      omega: float = 0.11) -> PWArray:
+                      omega: float = 0.11,
+                      yukawa: bool = False) -> PWArray:
     """Fourier transform of truncated Coulomb.
 
     Real space:::
@@ -49,12 +51,13 @@ def truncated_coulomb(pw: PWDesc,
     """
     v_G = pw.empty()
     G2_G = pw.ekin_G * 2
-    v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
-    if G2_G[0] < 1e-10:
-        v_G.data[1:] /= G2_G[1:]
-        v_G.data[0] = pi / omega**2
+    if yukawa:
+        v_G.data[:] = 4 * pi / (G2_G + omega**2)
     else:
-        v_G.data /= G2_G
+        v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
+        ok_G = G2_G > 1e-10
+        v_G.data[ok_G] /= G2_G[ok_G]
+        v_G.data[~ok_G] = pi / omega**2
     return v_G
 
 
@@ -91,6 +94,8 @@ class Psi:
 
 
 class PWHybridHamiltonian(PWHamiltonian):
+    band_local = False
+
     def __init__(self,
                  grid: UGDesc,
                  pw: PWDesc,
@@ -104,6 +109,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
+        self.exx_yukawa = xc.exx_yukawa
         self.xc = xc
 
         # Stuff for PAW core-core, core-valence and valence-valence correctios:
@@ -132,18 +138,19 @@ class PWHybridHamiltonian(PWHamiltonian):
                                 D_asii,
                                 psit2_nG: XArray,
                                 spin: int,
-                                Htpsit2_nG: XArray) -> None:
+                                Htpsit2_nG: XArray,
+                                calculate_energy: bool = False) -> None:
         assert isinstance(psit2_nG, PWArray)
         assert isinstance(Htpsit2_nG, PWArray)
         wfs = ibzwfs.wfs_qs[0][spin]
-        D_aii = D_asii[:, spin]
+        D_aii = D_asii[:, spin].copy()
         if ibzwfs.nspins == 1:
+            D_aii = D_aii.copy()
             D_aii.data *= 0.5
         psi1 = Psi(wfs.psit_nX, wfs.P_ani, wfs.myocc_n)
         pt_aiG = wfs.pt_aiX
 
-        # We should pass a flag instead of this:
-        if psi1.psit_nG.data is psit2_nG.data:
+        if calculate_energy:
             # We are doing a subspace diagonalization ...
             evv, evc, ekin = self.apply1(D_aii, pt_aiG,
                                          psi1, psi1, Htpsit2_nG)
@@ -200,7 +207,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         rhot_nG = self.pw.empty(mynbands1)
         vrhot_G = self.pw.empty()
 
-        if psi1 is not psi2 or comm.size > 1:
+        if not same or comm.size > 1:
             psit1_nR = self.grid_local.empty(mynbands1)
         else:
             psit1_nR = None
@@ -254,7 +261,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             ifft(psi1.psit_nG, psit1_nR, self.plan)
 
         e = 0.0
-        for n2, (psit2_R, out_G) in enumerate(zips(psi2.psit_nR, Htpsit_nG)):
+        for n2, (psit2_R, out_G) in enumerate(zip(psi2.psit_nR, Htpsit_nG)):
             rhot_nR.data[:] = psit1_nR.data * psit2_R.data.conj()
             for a, Q1_niL in Q1_aniL.items():
                 P2_i = psi2.P_ani[a][n2]
@@ -290,12 +297,13 @@ class PWHybridHamiltonian(PWHamiltonian):
                 1.0, rhot_nG.data)
 
         e = 0.0
-        for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
-                                                       rhot_nG,
-                                                       psi1.f_n)):
+        for n1, (rhot_R, rhot_G, f1) in enumerate(zip(rhot_nR,
+                                                      rhot_nG,
+                                                      psi1.f_n)):
             vrhot_G.data = rhot_G.data * self.v_G.data
             if psi2.f_n is not None:
-                e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
+                e12 = rhot_G.integrate(vrhot_G).real
+                e += f1 * psi2.f_n[n2] * e12
             rhot_G.data[:] = vrhot_G.data
 
             if self.pw.dtype == float:
@@ -319,9 +327,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.ghat_aLX.add_to(rhot_nR, Q_anL)
         fft(rhot_nR, rhot_nG, plan=self.plan)
         e = 0.0
-        for n1, (rhot_R, rhot_G, f1) in enumerate(zips(rhot_nR,
-                                                       rhot_nG,
-                                                       psi1.f_n)):
+        for n1, (rhot_R, rhot_G, f1) in enumerate(zip(rhot_nR,
+                                                      rhot_nG,
+                                                      psi1.f_n)):
             vrhot_G.data = rhot_G.data * self.v_G.data
             if psi2.f_n is not None:
                 e += f1 * psi2.f_n[n2] * rhot_G.integrate(vrhot_G).real
@@ -337,10 +345,10 @@ class PWHybridHamiltonian(PWHamiltonian):
 
 
 def ifft(psit_nG, out_nR, plan):
-    for psit_G, out_R in zips(psit_nG, out_nR):
+    for psit_G, out_R in zip(psit_nG, out_nR):
         psit_G.ifft(out=out_R, plan=plan)
 
 
 def fft(rhot_nR, rhot_nG, plan):
-    for rhot_R, rhot_G in zips(rhot_nR, rhot_nG):
+    for rhot_R, rhot_G in zip(rhot_nR, rhot_nG):
         rhot_R.fft(out=rhot_G, plan=plan)

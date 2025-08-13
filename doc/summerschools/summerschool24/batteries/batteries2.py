@@ -221,7 +221,6 @@ You will use the ensemble capability of the BEEF-vdW functional. You will need t
 """
 
 # %%
-from ase.dft.bee import BEEFEnsemble
 
 ens = BEEFEnsemble(calc)
 dE = ens.get_ensemble_energies(2000)
@@ -246,7 +245,7 @@ You now have what you need to make a full script. Make it in the cell below and 
 # %%
 # %%writefile 'fepo4.py'
 from ase.parallel import paropen
-from ase.io import read, write
+from ase.io import write
 from ase.dft.bee import BEEFEnsemble
 from gpaw import GPAW, FermiDirac, Mixer, PW
 
@@ -391,8 +390,6 @@ cell = lifepo4_wo_li.get_cell()
 # lifepo4 = lifepo4_wo_li.copy()
 
 # Teacher:
-from numpy import identity
-from ase import Atom
 
 lifepo4 = lifepo4_wo_li.copy()
 cell = lifepo4.get_cell()
@@ -457,7 +454,6 @@ params_GPAW = {...}
 # teacher
 from ase.parallel import paropen
 from ase.io import read
-from ase.io.trajectory import Trajectory
 from ase.dft.bee import BEEFEnsemble
 from gpaw import GPAW, FermiDirac, Mixer, PW
 

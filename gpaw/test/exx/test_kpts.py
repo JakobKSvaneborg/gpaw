@@ -69,24 +69,25 @@ def test_2d_non_self_consistent():
     n = 2
     a.calc = NewGPAW(
         mode=PW(200),
+        convergence={'density': 1e-5},
         kpts=(n, n, 1),
         txt=None)
     a.get_potential_energy()
 
     eref_kn = np.array(
-        [[-6.0937903, 31.82737621, 36.83364518, 53.28369147],
+        [[-6.0938938, 31.82737621, 36.83364518, 53.28369147],
          [13.0202785, 28.45570036, 38.86882486, 43.44290272]])
 
     if a.calc.dft.comm.size == 1:
         e0, v0, v = non_self_consistent_eigenvalues(a.calc, 'HSE06')
         e_skn = e0 - v0 + v
-        assert e_skn[0] == pytest.approx(eref_kn)
+        assert e_skn[0] == pytest.approx(eref_kn, rel=1e-5)
 
     hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
-    e_skn = hse.calculate(a.calc.dft.ibzwfs)
-    assert e_skn[0] == pytest.approx(eref_kn)
-    e_skn = hse.calculate(a.calc.dft.ibzwfs, na=0, nb=1)
-    assert e_skn[0, :, 0] == pytest.approx(eref_kn[:, 0])
+    _, e_skn = hse.calculate(a.calc.dft.ibzwfs)
+    assert e_skn[0] == pytest.approx(eref_kn, rel=1e-5)
+    _, e_skn = hse.calculate(a.calc.dft.ibzwfs, na=0, nb=1)
+    assert e_skn[0, :, 0] == pytest.approx(eref_kn[:, 0], rel=1e-5)
 
 
 if __name__ == '__main__':

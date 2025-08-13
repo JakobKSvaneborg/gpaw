@@ -137,6 +137,7 @@ class OldTDDFT(GPAW):
 
         self.time = 0.0
         self.kick_strength = np.array([0.0, 0.0, 0.0], dtype=float)
+        self.kick_gauge = ''
         self.niter = 0
         self.dm_file = None  # XXX remove and use observer instead
 

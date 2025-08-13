@@ -1,11 +1,23 @@
+from ase.data import chemical_symbols
 from ase.units import Bohr, Hartree
-
-from gpaw.calculator import GPAW
+from gpaw import GPAW_NEW
+from gpaw.calculator import GPAW as OldGPAW
 from gpaw.io import Reader
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 
 
-class SolvationGPAW(GPAW):
+def SolvationGPAW(*args, **kwargs):
+    if GPAW_NEW:
+        from gpaw.new.ase_interface import GPAW
+        solvation = dict(name='solvation',
+                         cavity=kwargs.pop('cavity'),
+                         dielectric=kwargs.pop('dielectric'),
+                         interactions=kwargs.pop('interactions', None))
+        return GPAW(*args, **kwargs, environment=solvation)
+    return OldSolvationGPAW(*args, **kwargs)
+
+
+class OldSolvationGPAW(OldGPAW):
     """Subclass of gpaw.GPAW calculator with continuum solvent model.
 
     See also Section III of
@@ -30,7 +42,7 @@ class SolvationGPAW(GPAW):
 
         self.stuff_for_hamiltonian = (cavity, dielectric, interactions)
 
-        GPAW.__init__(self, restart, **gpaw_kwargs)
+        OldGPAW.__init__(self, restart, **gpaw_kwargs)
 
         self.log('Implicit solvation parameters:')
         for stuff in self.stuff_for_hamiltonian:
@@ -49,8 +61,13 @@ class SolvationGPAW(GPAW):
             if 'name' in impl_in.cavity.effective_potential:
                 efpot = impl_in.cavity.effective_potential
 
-                def atomic_radii(atoms):
-                    return efpot.atomic_radii
+                atomic_radii = {}
+                for Z, r in zip(reader.atoms.numbers, efpot.atomic_radii):
+                    symbol = chemical_symbols[Z]
+                    if symbol in atomic_radii:
+                        assert atomic_radii[symbol] == r
+                    else:
+                        atomic_radii[symbol] = r
 
                 if efpot.name == 'SJMPower12Potential':
                     from gpaw.solvation.sjm import SJMPower12Potential
@@ -97,11 +114,11 @@ class SolvationGPAW(GPAW):
 
             self.stuff_for_hamiltonian = (cavity, dielectric, interactions)
 
-        reader = GPAW.read(self, filename)
+        reader = OldGPAW.read(self, filename)
         return reader
 
     def _write(self, writer, mode):
-        GPAW._write(self, writer, mode)
+        OldGPAW._write(self, writer, mode)
         stuff = self.stuff_for_hamiltonian
         writer.child('implicit_solvent').write(cavity=stuff[0],
                                                dielectric=stuff[1],
@@ -133,7 +150,7 @@ class SolvationGPAW(GPAW):
         xc.set_grid_descriptor(self.hamiltonian.finegd)
 
     def initialize_positions(self, atoms=None):
-        spos_ac = GPAW.initialize_positions(self, atoms)
+        spos_ac = OldGPAW.initialize_positions(self, atoms)
         self.hamiltonian.update_atoms(self.atoms, self.log)
         return spos_ac
 

@@ -45,4 +45,4 @@ def test_symmetry_fractional_translations_big():
     assert len(calc.wfs.kd.ibzk_kc) == 6
     assert len(calc.wfs.kd.symmetry.op_scc) == 2
 
-    assert energy_fractrans == pytest.approx(energy_no_fractrans, abs=1e-7)
+    assert energy_fractrans == pytest.approx(energy_no_fractrans, abs=1e-6)

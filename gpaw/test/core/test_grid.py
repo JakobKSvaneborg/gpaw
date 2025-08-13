@@ -23,6 +23,11 @@ def test_real_to_complex_fft():
     for (i, j, k), coef in coefs.items():
         assert coef == coefs[(-i, -j, -k)].conj()
 
+    # Check multiple FFT's:
+    a2 = a.desc.empty(2)
+    a2.data[:] = 1.0
+    a2.fft(pw=pw.new(dtype=float))
+
 
 @pytest.mark.ci
 def test_redist():

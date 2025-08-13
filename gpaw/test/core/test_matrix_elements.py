@@ -1,6 +1,7 @@
 import pytest
 
 from gpaw.core import PWDesc, UGDesc
+from gpaw.core.matrix import Matrix
 from gpaw.mpi import world
 
 
@@ -36,8 +37,11 @@ def test_me(domain_comm, band_comm, dtype, nbands, function):
     desc = desc.new(comm=domain_comm, dtype=dtype)
     f = desc.empty(nbands, comm=band_comm)
     f.randomize()
+
     M = f.matrix_elements(f, function=function)
-    print(M)
+    out = Matrix(nbands, nbands, dist=(band_comm, -1, 1), dtype=dtype)
+    out.data[:] = 1e308  # will overflow when multiplied by 2
+    f.matrix_elements(f, function=function, out=out)
 
     f1 = f.gathergather()
     M2 = M.gather()
