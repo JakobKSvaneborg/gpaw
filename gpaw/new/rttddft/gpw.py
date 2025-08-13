@@ -12,8 +12,8 @@ import gpaw.mpi as mpi
 from gpaw.dft import Parameters
 from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.gpw import GPWFlags, write_dft_state, read_dft_state
-from gpaw.new.calculation import DFTState
 from gpaw.new.rttddft.history import RTTDDFTHistory
+from gpaw.new.rttddft.state import RTTDDFTState
 from gpaw.new.logger import Logger
 
 
@@ -21,7 +21,7 @@ def write_rttddft(filename: str | Path,
                   atoms: Atoms,
                   dft_params: Parameters,
                   td_params: dict[str, Any],
-                  state: DFTState,
+                  state: RTTDDFTState,
                   history: RTTDDFTHistory) -> None:
     flags = GPWFlags(include_wfs=True, include_projections=True,
                      precision='double')
@@ -49,7 +49,12 @@ def write_rttddft(filename: str | Path,
                           ha=Ha,
                           bohr=Bohr)
         statewriter.child('parameters').write(**dft_params.todict())
-        write_dft_state(statewriter, dft_params, state, flags)
+        write_dft_state(statewriter, dft_params,
+                        ibzwfs=state.ibzwfs,
+                        density=state.density,
+                        potential=state.potential,
+                        energies=state.energies,
+                        flags=flags)
 
         historywriter = writer.child('history')
         historywriter.write(**history.todict())
@@ -63,7 +68,7 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
                  comm=None,
                  parallel: dict[str, Any] = None,
                  ) -> tuple[Atoms,
-                            DFTState,
+                            RTTDDFTState,
                             RTTDDFTHistory,
                             Parameters,
                             dict[str, Any],
@@ -96,12 +101,14 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
     dft_params.symmetry.point_group = False
 
     # Read state arrays and create the builder
-    builder, dft_params, state = read_dft_state(
+    builder, dft_params, dft_state = read_dft_state(
         reader.state, atoms=atoms, params=dft_params,
         comm=comm, singlep=False, log=log)
+    ibzwfs, density, potential, energies = dft_state
+    state = RTTDDFTState(*dft_state)
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = state.ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = ibzwfs.wfs_qs[0][0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:

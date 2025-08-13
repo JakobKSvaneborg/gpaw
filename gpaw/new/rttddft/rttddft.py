@@ -12,7 +12,6 @@ from gpaw.dft import Parameters
 from gpaw.external import ExternalPotential, ConstantElectricField
 from gpaw.mpi import broadcast, world
 from gpaw.new.ase_interface import ASECalculator
-from gpaw.new.calculation import DFTState
 from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import read_gpw
@@ -25,6 +24,7 @@ from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
 from gpaw.new.rttddft.history import RTTDDFTHistory
+from gpaw.new.rttddft.state import RTTDDFTState
 from gpaw.tddft.units import (asetime_to_autime,
                               autime_to_asetime, au_to_eA)
 from gpaw.typing import Vector
@@ -52,7 +52,7 @@ class RTTDDFTResult(NamedTuple):
     @classmethod
     def from_state(cls,
                    time: float,
-                   state: DFTState,
+                   state: RTTDDFTState,
                    pot_calc: PotentialCalculator) -> RTTDDFTResult:
         relpos_ac = pot_calc.relpos_ac
         dipolemoment = state.density.calculate_dipole_moment(relpos_ac)
@@ -62,7 +62,7 @@ class RTTDDFTResult(NamedTuple):
 
 class RTTDDFT:
     def __init__(self,
-                 state: DFTState,
+                 state: RTTDDFTState,
                  pot_calc: PotentialCalculator,
                  hamiltonian,
                  history: RTTDDFTHistory,
@@ -122,7 +122,8 @@ class RTTDDFT:
         assert calc.dft is not None
         dft = calc.dft
 
-        state = dft.get_state()
+        state = RTTDDFTState(dft.ibzwfs, dft.density,
+                             dft.potential, dft.energies)
         pot_calc = dft.pot_calc
         hamiltonian = dft.scf_loop.hamiltonian
         history = RTTDDFTHistory()
@@ -140,7 +141,8 @@ class RTTDDFT:
                                            comm=world,
                                            force_complex_dtype=True)
 
-        state = dft.get_state()
+        state = RTTDDFTState(dft.ibzwfs, dft.density,
+                             dft.potential, dft.energies)
         pot_calc = dft.pot_calc
         hamiltonian = builder.create_hamiltonian_operator()
         history = RTTDDFTHistory()

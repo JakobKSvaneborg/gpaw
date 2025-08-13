@@ -34,8 +34,9 @@ from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.calculation import DFTState, DFTCalculation, units
+from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
+from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.utilities import unpack_hermitian, unpack_density
@@ -131,27 +132,36 @@ def write_gpw(filename: str | Path,
             p['dtype'] = np.dtype(p['dtype']).name
         writer.child('parameters').write(**p)
 
-        write_dft_state(writer, dft.params, dft, flags)
+        write_dft_state(writer, dft.params,
+                        ibzwfs=dft.ibzwfs,
+                        density=dft.density,
+                        potential=dft.potential,
+                        energies=dft.energies,
+                        flags=flags)
 
     comm.barrier()
 
 
 def write_dft_state(writer: ulm.Writer | ulm.DummyWriter,
                     params,
-                    dft: DFTCalculation | DFTState,
+                    *,
+                    ibzwfs: IBZWaveFunctions,
+                    density: Density,
+                    potential: Potential,
+                    energies: DFTEnergies,
                     flags: GPWFlags) -> None:
     """ Common function shared between DFTCalculation and RTTDDFT. """
-    dft.density.write_to_gpw(writer.child('density'), flags)
-    dft.potential.write_to_gpw(writer.child('hamiltonian'), flags)
-    writer.write(e_stress=dft.potential.e_stress * Ha)
-    dft.energies.write_to_gpw(writer.child('energy_contributions'))
+    density.write_to_gpw(writer.child('density'), flags)
+    potential.write_to_gpw(writer.child('hamiltonian'), flags)
+    writer.write(e_stress=potential.e_stress * Ha)
+    energies.write_to_gpw(writer.child('energy_contributions'))
     wf_writer = writer.child('wave_functions')
-    dft.ibzwfs.write(wf_writer, flags=flags)
+    ibzwfs.write(wf_writer, flags=flags)
 
     if flags.include_wfs and params.mode.name == 'pw':
         write_wave_function_indices(wf_writer,
-                                    dft.ibzwfs,
-                                    dft.density.nt_sR.desc)
+                                    ibzwfs,
+                                    density.nt_sR.desc)
 
 
 def write_wave_function_indices(writer, ibzwfs, grid):
@@ -243,14 +253,15 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     builder, params, state = read_dft_state(
         reader, atoms=atoms, params=params, comm=comm,
         singlep=singlep, log=log, **kwargs)
+    ibzwfs, density, potential, energies = state
 
     dft = DFTCalculation(
-        atoms, state.ibzwfs, state.density, state.potential,
+        atoms, ibzwfs, density, potential,
         builder.setups,
         builder.create_scf_loop(),
         pot_calc=builder.create_potential_calculator(),
         params=params,
-        energies=state.energies,
+        energies=energies,
         log=log)
 
     results = {key: value / units[key]
@@ -267,7 +278,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     dft.results = results
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = state.ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = ibzwfs.wfs_qs[0][0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:
@@ -286,7 +297,10 @@ def read_dft_state(reader: ulm.Reader,
                    **kwargs,
                    ) -> tuple[DFTComponentsBuilder,
                               Parameters,
-                              DFTState]:
+                              tuple[IBZWaveFunctions,
+                                    Density,
+                                    Potential,
+                                    DFTEnergies]]:
     bohr = reader.bohr
     ha = reader.ha
 
@@ -423,9 +437,7 @@ def read_dft_state(reader: ulm.Reader,
 
     ibzwfs = builder.read_ibz_wave_functions(reader)
 
-    state = DFTState(ibzwfs, density, potential, energies)
-
-    return builder, params, state
+    return builder, params, (ibzwfs, density, potential, energies)
 
 
 def convert_to_new_packing_convention(a_asp, density=False):

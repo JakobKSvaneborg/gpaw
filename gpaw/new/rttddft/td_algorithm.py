@@ -3,9 +3,9 @@ from __future__ import annotations
 from abc import ABC
 from typing import Any, Union
 
-from gpaw.new.calculation import DFTState
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pot_calc import PotentialCalculator
+from gpaw.new.rttddft.state import RTTDDFTState
 from gpaw.new.rttddft.wf_propagator import build_wf_propagator
 
 
@@ -47,7 +47,7 @@ class TDAlgorithm(ABC):
 
     def propagate(self,
                   time_step: float,
-                  state: DFTState,
+                  state: RTTDDFTState,
                   pot_calc: PotentialCalculator,
                   hamiltonian: Hamiltonian):
         """ One propagation step, i.e.
@@ -67,7 +67,7 @@ class TDAlgorithm(ABC):
         raise NotImplementedError
 
     def update_time_dependent_operators(self,
-                                        state: DFTState,
+                                        state: RTTDDFTState,
                                         pot_calc: PotentialCalculator):
         # Update density
         state.density.update(state.ibzwfs)
@@ -78,7 +78,7 @@ class TDAlgorithm(ABC):
 
     def propagate_wfs(self,
                       time_step: float,
-                      state: DFTState,
+                      state: RTTDDFTState,
                       hamiltonian: Hamiltonian):
         wf_propagator = build_wf_propagator(self.implementation,
                                             hamiltonian, state)
@@ -111,7 +111,7 @@ class ECNAlgorithm(TDAlgorithm):
 
     def propagate(self,
                   time_step: float,
-                  state: DFTState,
+                  state: RTTDDFTState,
                   pot_calc: PotentialCalculator,
                   hamiltonian: Hamiltonian):
         # Propagate wave functions one timestep; ψ(t) -> ψ(t + dt)
@@ -142,7 +142,7 @@ class SICNAlgorithm(TDAlgorithm):
 
     def propagate(self,
                   time_step: float,
-                  state: DFTState,
+                  state: RTTDDFTState,
                   pot_calc: PotentialCalculator,
                   hamiltonian: Hamiltonian):
         # Copy wave functions

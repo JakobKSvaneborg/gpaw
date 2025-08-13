@@ -8,13 +8,13 @@ from numpy.linalg import solve
 
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.uniform_grid import UGArray, UGDesc
-from gpaw.new.calculation import DFTState
 from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.new.rttddft.state import RTTDDFTState
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.tddft.solvers.cscg import CSCG
 from gpaw.utilities.timing import nulltimer
@@ -22,7 +22,7 @@ from gpaw.utilities.timing import nulltimer
 
 def build_wf_propagator(name: str,
                         hamiltonian: Hamiltonian,
-                        state: DFTState) -> WaveFunctionPropagator:
+                        state: RTTDDFTState) -> WaveFunctionPropagator:
     cls = determine_wf_propagator_class(name, hamiltonian)
     return cls(hamiltonian=hamiltonian, state=state)
 
@@ -68,7 +68,7 @@ class WaveFunctionPropagator(ABC):
 
     def __init__(self,
                  hamiltonian: Hamiltonian,
-                 state: DFTState):
+                 state: RTTDDFTState):
         raise NotImplementedError
 
     def propagate(self,
@@ -95,7 +95,7 @@ class LCAONumpyPropagator(WaveFunctionPropagator):
 
     def __init__(self,
                  hamiltonian: Hamiltonian,
-                 state: DFTState):
+                 state: RTTDDFTState):
         assert isinstance(hamiltonian, LCAOHamiltonian)
         ham_calc = hamiltonian.create_hamiltonian_matrix_calculator(
             state.potential)
@@ -124,7 +124,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
 
     def __init__(self,
                  hamiltonian: Hamiltonian,
-                 state: DFTState):
+                 state: RTTDDFTState):
         """
         Parameters
         ----------
