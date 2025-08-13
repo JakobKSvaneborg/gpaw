@@ -270,6 +270,7 @@ class BSEBackend:
                  gw_kn=None,
                  truncation=None,
                  integrate_gamma='reciprocal',
+                 q0_correction=None,
                  mode='BSE',
                  q_c=[0.0, 0.0, 0.0],
                  direction=0,
@@ -284,6 +285,9 @@ class BSEBackend:
         self.add_soc = add_soc
         self.scale = scale
         self.discard_inplane_offdiagonal = discard_inplane_offdiagonal
+        if q0_correction is None:
+            q0_correction = (truncation == '2D')
+        self.q0_correction = q0_correction
         assert mode in ['RPA', 'BSE']
 
         if deps_max is None:
@@ -747,7 +751,8 @@ class BSEBackend:
         return initialize_w_calculator(
             self._chi0calc, self.wcontext,
             coulomb=self.coulomb,
-            integrate_gamma=self.integrate_gamma)
+            integrate_gamma=self.integrate_gamma,
+            q0_correction=self.q0_correction)
 
     @timer('calculate_screened_potential')
     def calculate_screened_potential(self):
@@ -1151,6 +1156,10 @@ class BSE(BSEBackend):
         truncation: str or None
             Coulomb truncation scheme. Can be None or 2D.
         integrate_gamma: dict
+        q0_correction: bool or None
+            Whether to use analytical correction at q=0 in the
+            calculation of W, applicable for 2D systems.
+            If None, its value will be inferred from 'truncation'.
         txt: str
             txt output
         mode: str
