@@ -106,6 +106,7 @@ def test_2d():
     dft = DFT(
         atoms,
         mode={'name': 'pw'},
+        mixer={'backend': 'fft'},  # avoid FD-stencil in mixer-metric
         spinpol=True,
         xc='LDA',
         convergence={'density': 1e-8},
