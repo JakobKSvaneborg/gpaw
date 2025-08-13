@@ -1420,7 +1420,7 @@ Mar 7, 2012: :git:`0.9.0 <../0.9.0>`.
 * Much improved :ref:`cli` now based on the `new tool`_ in ASE.
 
 
-.. _new tool: https://wiki.fysik.dtu.dk/ase/ase/cmdline.html
+.. _new tool: https://ase-lib.org/ase/cmdline.html
 
 
 Version 0.8.0

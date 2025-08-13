@@ -26,7 +26,7 @@ First step is an isolated nitrogen atom which has a magnetic moment of 3.
 More information:
 [Atoms][1] and [GPAW parameters][2].
 
-[1]: https://wiki.fysik.dtu.dk/ase/ase/atoms.html#ase.Atoms
+[1]: https://ase-lib.org/ase/atoms.html#ase.Atoms
 [2]: https://gpaw.readthedocs.io/documentation/basic.html#parameters
 """
 
@@ -52,7 +52,7 @@ Clean slab
 
 We use the [ase.build.hcp0001()][3] function to build the Ru(0001) surface.
 
-[3]: https://wiki.fysik.dtu.dk/ase/ase/build/surface.html#ase.build.hcp0001
+[3]: https://ase-lib.org/ase/build/surface.html#ase.build.hcp0001
 """
 
 # %%
@@ -95,7 +95,7 @@ nslab.center(vacuum=vacuum, axis=2)  # 2: z-axis
 """
 Alternatively, you can just use the [add_adsorbate()][4] function:
 
-[4]: https://wiki.fysik.dtu.dk/ase/ase/build/surface.html#ase.build.add_adsorbate
+[4]: https://ase-lib.org/ase/build/surface.html#ase.build.add_adsorbate
 """
 
 # %%
@@ -140,8 +140,8 @@ adsorbate.  We use
 [ase.constraints.FixAtoms][6]
 for this task.
 
-[5]: https://wiki.fysik.dtu.dk/ase/ase/optimize.html#module-ase.optimize
-[6]: https://wiki.fysik.dtu.dk/ase/ase/constraints.html#ase.constraints.FixAtoms
+[5]: https://ase-lib.org/ase/optimize.html#module-ase.optimize
+[6]: https://ase-lib.org/ase/constraints.html#ase.constraints.FixAtoms
 """
 
 # %%
@@ -257,7 +257,7 @@ def adsorb(db, height=1.2, nlayers=3, nkpts=7, ecut=400):
 # %%
 """
 Read more about ASE databases
-[here](https://wiki.fysik.dtu.dk/ase/ase/db/db.html#module-ase.db).
+[here](https://ase-lib.org/ase/db/db.html#module-ase.db).
 """
 
 # %%
@@ -282,7 +282,7 @@ for ecut in range(350, 801, 50):  # plane-wave cutoff
 # %%
 """
 You can inspect database file with the
-[command line tool](https://wiki.fysik.dtu.dk/ase/ase/db/db.html#ase-db)
+[command line tool](https://ase-lib.org/ase/db/db.html#ase-db)
 `ase db` like this:
 """
 

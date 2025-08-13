@@ -18,7 +18,7 @@ Below, there will be Python code examples starting with ``>>>`` (and
 Python interpreter and try some of the examples below.
 
 .. _Python: https://www.python.org
-.. _Atomic Simulation Environment: https://wiki.fysik.dtu.dk/ase
+.. _Atomic Simulation Environment: https://ase-lib.org
 
 The units used by the GPAW calculator correspond to the :mod:`ASE
 conventions <ase.units>`, most importantly electron volts and

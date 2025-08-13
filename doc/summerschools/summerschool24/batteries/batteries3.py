@@ -38,7 +38,7 @@ from ase.constraints import FixAtoms
 """
 ## Transport barrier of Li in graphite
 
-You will now calculate the energy barrier for Li diffusion in the graphite anode. You will do this using the [Nudged Elastic Band (NEB) method](https://wiki.fysik.dtu.dk/ase/ase/neb.html#module-ase.neb)
+You will now calculate the energy barrier for Li diffusion in the graphite anode. You will do this using the [Nudged Elastic Band (NEB) method](https://ase-lib.org/ase/neb.html#module-ase.neb)
 
 You can use your work from Day 2, but for simplicity you are advised to load in the initial atomic configuration from file.
 """
@@ -56,7 +56,7 @@ view(initial)
 
 # %%
 """
-You will now make a final structure, where the Li atom has been moved to a neighbouring equivalent site. The [`get_positions`](https://wiki.fysik.dtu.dk/ase/ase/atoms.html?highlight=get_positions#ase.Atoms.get_positions), [`set_positions`](https://wiki.fysik.dtu.dk/ase/ase/atoms.html?highlight=get_positions#ase.Atoms.set_positions) and [`get_cell`](https://wiki.fysik.dtu.dk/ase/ase/atoms.html?highlight=get_positions#ase.Atoms.get_cell) functions are highly useful for such a task. HINT: Displace the Li atom $\frac{1}{n} (\vec{a}+\vec{b})$
+You will now make a final structure, where the Li atom has been moved to a neighbouring equivalent site. The [`get_positions`](https://ase-lib.org/ase/atoms.html?highlight=get_positions#ase.Atoms.get_positions), [`set_positions`](https://ase-lib.org/ase/atoms.html?highlight=get_positions#ase.Atoms.set_positions) and [`get_cell`](https://ase-lib.org/ase/atoms.html?highlight=get_positions#ase.Atoms.get_cell) functions are highly useful for such a task. HINT: Displace the Li atom $\frac{1}{n} (\vec{a}+\vec{b})$
 """
 
 # %%
@@ -109,11 +109,11 @@ view(images)
 
 # %%
 """
-It turns out, that while running the NEB calculation, the largest amount of resources will be spend translating the carbon layer without any noticeable buckling. You will thus [constrain](https://wiki.fysik.dtu.dk/ase/ase/constraints.html#constraints) the positions of the carbon atoms to save computational time.
+It turns out, that while running the NEB calculation, the largest amount of resources will be spend translating the carbon layer without any noticeable buckling. You will thus [constrain](https://ase-lib.org/ase/constraints.html#constraints) the positions of the carbon atoms to save computational time.
 
 Each image in the NEB requires a unique calculator.
 
-This very simple case is highly symmetric. To better illustrate how the NEB method works, the symmetry is broken using the [rattle](https://wiki.fysik.dtu.dk/ase/ase/atoms.html#ase.Atoms.rattle) function.
+This very simple case is highly symmetric. To better illustrate how the NEB method works, the symmetry is broken using the [rattle](https://ase-lib.org/ase/atoms.html#ase.Atoms.rattle) function.
 """
 
 # %%
@@ -274,7 +274,7 @@ Now inspect how the TS image has developed.
 
 # %%
 """
-For more complicated MEP's, use the [climbing image method](https://wiki.fysik.dtu.dk/ase/ase/neb.html?highlight=neb#climbing-image) to determine the transition state. Why is it not required here?
+For more complicated MEP's, use the [climbing image method](https://ase-lib.org/ase/neb.html?highlight=neb#climbing-image) to determine the transition state. Why is it not required here?
 """
 
 # %%
@@ -290,7 +290,7 @@ TS_image = images[3]
 
 # %%
 """
-Now calculate the energy of the initial state (IS) image and the transition state (TS) image using [`get_potential_energy()`](https://wiki.fysik.dtu.dk/ase/ase/atoms.html?highlight=get_potential_energy#ase.Atoms.get_potential_energy)
+Now calculate the energy of the initial state (IS) image and the transition state (TS) image using [`get_potential_energy()`](https://ase-lib.org/ase/atoms.html?highlight=get_potential_energy#ase.Atoms.get_potential_energy)
 """
 
 # %%
@@ -628,7 +628,7 @@ print(li_cost)
 """
 If time permits, you will now do a similar calculation but this time with LiFePO$_4$ contraining one vacancy. Once again you should assume that the cell dimension remain unchanged compaired to LiFePO$_4$.
 
-There are numerous ways to obtain this structure. You can get inspiration from the way LiFePO$_4$ was made on Exercise day 3, use the [`del` or `pop()` methods](https://wiki.fysik.dtu.dk/ase/ase/atoms.html?highlight=pop#list-methods), or even use the GUI to delete an atom and save the structure afterwards.
+There are numerous ways to obtain this structure. You can get inspiration from the way LiFePO$_4$ was made on Exercise day 3, use the [`del` or `pop()` methods](https://ase-lib.org/ase/atoms.html?highlight=pop#list-methods), or even use the GUI to delete an atom and save the structure afterwards.
 """
 
 # %%
