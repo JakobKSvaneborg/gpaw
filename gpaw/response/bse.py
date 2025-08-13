@@ -283,7 +283,7 @@ class BSEBackend:
         self.context = context
         self.add_soc = add_soc
         self.scale = scale
-
+        self.discard_inplane_offdiagonal = discard_inplane_offdiagonal
         assert mode in ['RPA', 'BSE']
 
         if deps_max is None:
