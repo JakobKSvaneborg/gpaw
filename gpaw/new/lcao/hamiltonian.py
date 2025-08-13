@@ -99,6 +99,7 @@ class NonCollinearHamiltonianMatrixCalculator(HamiltonianMatrixCalculator):
         V_sMM[0] += wfs.T_MM
 
         assert wfs.domain_comm.size == 1
+        assert wfs.band_comm.size == 1
 
         for V_MM in V_sMM:
             wfs.domain_comm.sum(V_MM.data, 0)
