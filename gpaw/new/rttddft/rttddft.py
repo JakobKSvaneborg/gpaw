@@ -8,6 +8,7 @@ from ase import Atoms
 from ase.units import Bohr, Hartree
 from ase.io.ulm import Reader
 
+from gpaw.dft import Parameters
 from gpaw.external import ExternalPotential, ConstantElectricField
 from gpaw.mpi import broadcast, world
 from gpaw.new.ase_interface import ASECalculator
@@ -17,7 +18,6 @@ from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import read_gpw
 from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.input_parameters import InputParameters
 from gpaw.new.lcao.hamiltonian import LCAOKickHamiltonian, LCAOHamiltonian
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
@@ -68,7 +68,7 @@ class RTTDDFT:
                  history: RTTDDFTHistory,
                  td_algorithm: TDAlgorithmLike = None,
                  *,
-                 dft_params: InputParameters):
+                 dft_params: Parameters):
         if world.size > 1:
             raise NotImplementedError('Parallel execution not implemented')
 

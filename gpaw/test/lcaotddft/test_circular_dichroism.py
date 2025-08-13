@@ -68,6 +68,7 @@ def initialize_system(request):
         td_calc.propagate(100, 2)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
                                         in_tmp_dir):

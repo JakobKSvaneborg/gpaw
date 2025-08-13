@@ -9,17 +9,17 @@ from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
 import gpaw
 import gpaw.mpi as mpi
+from gpaw.dft import Parameters
 from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.gpw import GPWFlags, write_dft_state, read_dft_state
 from gpaw.new.calculation import DFTState
-from gpaw.new.input_parameters import InputParameters
 from gpaw.new.rttddft.history import RTTDDFTHistory
 from gpaw.new.logger import Logger
 
 
 def write_rttddft(filename: str | Path,
                   atoms: Atoms,
-                  dft_params: InputParameters,
+                  dft_params: Parameters,
                   td_params: dict[str, Any],
                   state: DFTState,
                   history: RTTDDFTHistory) -> None:
@@ -48,9 +48,8 @@ def write_rttddft(filename: str | Path,
         statewriter.write(version=6,  # Corresponding to DFT version
                           ha=Ha,
                           bohr=Bohr)
-        p = {k: v for k, v in dft_params.items()}
-        statewriter.child('parameters').write(**p)
-        write_dft_state(statewriter, atoms, dft_params, state, flags)
+        statewriter.child('parameters').write(**dft_params.todict())
+        write_dft_state(statewriter, dft_params, state, flags)
 
         historywriter = writer.child('history')
         historywriter.write(**history.todict())
@@ -66,7 +65,7 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
                  ) -> tuple[Atoms,
                             DFTState,
                             RTTDDFTHistory,
-                            InputParameters,
+                            Parameters,
                             dict[str, Any],
                             DFTComponentsBuilder]:
     """
@@ -90,16 +89,16 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
     # Read state parameters
     kwargs = reader.state.parameters.asdict()
     kwargs['parallel'] = parallel
-    dft_params = InputParameters(kwargs, warn=False)
+    dft_params = Parameters(**kwargs)
 
     # In RTTDDFT we always force complex dtype and disable symmetries
-    dft_params.mode['force_complex_dtype'] = True
-    dft_params.symmetry = {'point_group': False}
+    dft_params.mode.force_complex_dtype = True
+    dft_params.symmetry.point_group = False
 
     # Read state arrays and create the builder
     builder, dft_params, state = read_dft_state(
         reader.state, atoms=atoms, params=dft_params,
-        comm=comm, singlep=False)
+        comm=comm, singlep=False, log=log)
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
         data = state.ibzwfs.wfs_qs[0][0].psit_nX.data

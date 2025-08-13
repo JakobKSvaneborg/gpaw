@@ -522,8 +522,6 @@ class ASECalculator:
     @property
     def density(self):
         from gpaw.new.backwards_compatibility import FakeDensity
-        if isinstance(self.dft.pot_calc, SimpleNamespace):
-            self.dft.pot_calc.setups = self.dft.setups
         return FakeDensity(ibzwfs=self.dft.ibzwfs,
                            density=self.dft.density,
                            potential=self.dft.potential,

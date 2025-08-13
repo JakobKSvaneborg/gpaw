@@ -201,6 +201,8 @@ class RTTDDFTAdapter:
     def __getattr__(self, attr):
         if attr in ['niter', 'time', 'kick_strength']:
             return getattr(self._rttddft.history, attr)
+        if attr in ['kick_gauge']:
+            return 'length'
         elif attr in ['setups']:
             return getattr(self._rttddft.pot_calc, attr)
         else:

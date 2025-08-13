@@ -474,7 +474,8 @@ class DFTCalculation:
             params=params, energies=energies)
 
     def get_state(self):
-        return DFTState(self.ibzwfs, self.density, self.potential)
+        return DFTState(self.ibzwfs, self.density, self.potential,
+                        self.energies)
 
     @property
     def state(self):
