@@ -774,7 +774,7 @@ class BSEBackend:
                                  Gxy_Gv[None, :, :],
                                  rtol=0.0, atol=1e-12),
                                  axis=-1)
-                W_GG = W_GG * mask_GG[None, :, :]
+                W_GG = W_GG * mask_GG
             # This is such a terrible way to access the paw
             # corrections. Attributes should not be groped like
             # this... Change in the future! XXX
