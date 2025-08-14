@@ -18,12 +18,16 @@
 
 /* Solves symmetric/Hermitian eigenvalue problem on the CPU.
 Takes 1 Numpy array as input (in_matrix) and outputs eigvals, eigvecs tuple.
+Input conventions are as in Numpy, but output eigenvectors are still in Magma
+conventions => take conjugate transpose on Python side to get them in Numpy convention.
 */
 CLINKAGE PyObject* eigh_magma_cpu(PyObject* self, PyObject* args);
 
 /* Solves symmetric/Hermitian eigenvalue problem on the GPU.
 Takes 3 CuPy arrays as input (in_matrix, out_eigvals, out_eigvecs)
 and assumes them to already be the correct size.
+Input conventions are as in Numpy, but output eigenvectors are still in Magma
+conventions => take conjugate transpose on Python side to get them in Numpy convention.
 */
 CLINKAGE PyObject* eigh_magma_gpu(PyObject* self, PyObject* args);
 

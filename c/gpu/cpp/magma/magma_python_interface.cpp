@@ -4,12 +4,16 @@
 
 #include <cassert>
 
+/* Converts uplo string 'U'/'L' to appropriate Magma type.
+This also takes care of convention difference between Numpy/Cupy arrays (C-style, row major)
+and Magma arrays (Fortran/LAPACK style, column major).
+So 'L' in Python conventions actually means MagmaUpper. */
 static magma_uplo_t get_magma_uplo(char* in_uplo_str)
 {
     assert((strcmp(in_uplo_str, "L") == 0 || strcmp(in_uplo_str, "U") == 0)
         && "Invalid UPLO");
 
-    return strcmp(in_uplo_str, "L") == 0 ? MagmaLower : MagmaUpper;
+    return strcmp(in_uplo_str, "L") == 0 ? MagmaUpper : MagmaLower;
 }
 
 struct MagmaPythonContext

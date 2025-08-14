@@ -1,6 +1,9 @@
 """Tests for MAGMA eigensolver wrappers"""
 import numpy as np
 import pytest
+from typing import Union
+
+import scipy.linalg
 from gpaw.new.magma import eigh_magma_cpu, eigh_magma_gpu
 from gpaw.cgpaw import have_magma
 from gpaw.gpu import cupy as cp
@@ -33,7 +36,11 @@ def assert_eigenpairs(A, eigvals, eigvecs, rtol=1e-12, atol=1e-12) -> None:
 
 @pytest.fixture
 def eigh_test_matrix():
-    """Symmetric if dtype is real, Hermitian otherwise."""
+    """Generates a random n-by-n matrix. NOT symmetric/hermitian:
+    eigh() solvers read only upper/lower half of the matrix, so by passing
+    a non-Hermitian matrix we can test that our wrappers correctly interpret
+    the input (ie. test the 'uplo' argument).
+    """
     def _generate(n: int, dtype: np.dtype = np.float64,
                   backend: str = 'numpy', seed: int = 42):
 
@@ -47,24 +54,39 @@ def eigh_test_matrix():
         rng = xp.random.default_rng(seed)
 
         if not np.issubdtype(dtype, np.complexfloating):
-            # Real dtype, return symmetric matrix
             A = rng.random((n, n), dtype=dtype)
-            return (A + A.T) / 2
-
+            return A
         else:
             # Only 32/64 bit precision implemented
             assert dtype == np.complex64 or dtype == np.complex128
             dtype_real = np.float32 if dtype == np.complex64 else np.float64
-            # Create Hermitian matrix
             A = (
                 rng.random((n, n), dtype=dtype_real)
                 + 1j * rng.random((n, n), dtype=dtype_real)
             )
-            return (A + A.T.conj()) / 2
+            return A
 
     return _generate
 
 
+def fill_uplo(matrix: Union[np.ndarray, cp.ndarray],
+              from_uplo: str) -> Union[np.ndarray, cp.ndarray]:
+    """Fills in lower/upper half of the input matrix so that it becomes
+    Hermitian. If 'from_uplo' == 'U', fills in the lower half, and vice
+    versa for 'L'."""
+
+    xp = cp if isinstance(matrix, cp.ndarray) else np
+
+    # Get upper or lower part only, zero elsewhere
+    if from_uplo == 'U':
+        m = xp.triu(matrix)
+    else:
+        m = xp.tril(matrix)
+
+    return m + m.T.conj() - xp.diag(xp.real(xp.diag(m)))
+
+
+@pytest.mark.gpu
 @pytest.mark.skipif(not have_magma, reason="No MAGMA")
 @pytest.mark.parametrize("matrix_size, dtype, uplo",
                          [(2, np.float32, 'L'),
@@ -86,7 +108,10 @@ def test_eigh_magma_cpu(eigh_test_matrix: np.ndarray,
     rtol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
 
     np.testing.assert_allclose(eigvals, eigvals_np, atol=atol)
-    assert_eigenpairs(arr, eigvals, eigvecs, rtol=rtol, atol=atol)
+
+    # Test that the results really solve the intended eigenproblem
+    true_matrix = fill_uplo(arr, uplo)
+    assert_eigenpairs(true_matrix, eigvals, eigvecs, rtol=rtol, atol=atol)
 
     # check orthonormality
     np.testing.assert_allclose(np.identity(matrix_size),
@@ -121,7 +146,9 @@ def test_eigh_magma_gpu(eigh_test_matrix: cp.ndarray,
     rtol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
 
     cp.testing.assert_allclose(eigvals, eigvals_cp, atol=atol, rtol=rtol)
-    assert_eigenpairs(arr, eigvals, eigvecs, rtol=rtol, atol=atol)
+
+    true_matrix = fill_uplo(arr, uplo)
+    assert_eigenpairs(true_matrix, eigvals, eigvecs, rtol=rtol, atol=atol)
 
     # check orthonormality
     cp.testing.assert_allclose(cp.identity(matrix_size),
