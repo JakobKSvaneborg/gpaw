@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 from typing import Union
 
-import scipy.linalg
 from gpaw.new.magma import eigh_magma_cpu, eigh_magma_gpu
 from gpaw.cgpaw import have_magma
 from gpaw.gpu import cupy as cp
