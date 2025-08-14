@@ -282,7 +282,7 @@ class WCalculator(WBaseCalculator):
                 # The q0 correction returns only correlation results
                 # and thus we add the Coulomb interaction here manually
                 if not only_correlation:
-                    W_GG[0,0] += V0
+                    W_GG[0, 0] += V0
                     W_GG[1:, 1:] += np.diag(sqrtV_G[1:]**2)
 
             elif (self.integrate_gamma.is_analytical and chi0.optical_limit) \
