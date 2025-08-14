@@ -25,8 +25,8 @@ def test_solvation_vacuum():
     adjust_cell(atoms, vac, h)
 
     convergence = {
-        'energy': energy_eps,
-        'forces': forces_eps,
+        'energy': energy_eps * 0.1,
+        'forces': forces_eps * 0.1,
         'density': 10.0,
         'eigenstates': 10.0}
 

@@ -47,6 +47,7 @@ if os.getenv('CPU_ARCH') == 'icelake':
     gpu_compile_args = ['-O3',
                         '-g',
                         '-gencode', 'arch=compute_80,code=sm_80']
+    # '-gencode', 'arch=compute_90,code=sm_90']
 
     libraries += ['cudart', 'cublas']
 elif os.getenv('CPU_ARCH') == 'skylake_el8':

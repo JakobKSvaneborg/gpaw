@@ -22,7 +22,7 @@ New release
 
 * Send announcement email to the ``gpaw-users`` mailing list::
 
-    $ git shortlog -s -n 25.1.0.. | python3 -c "
+    $ git shortlog -s -n 25.7.0.. | python3 -c "
     import sys
     names = [line.split(maxsplit=1)[1].strip() for line in sys.stdin]
     for name in sorted(names):

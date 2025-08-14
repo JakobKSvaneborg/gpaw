@@ -370,13 +370,14 @@ class PWLFC:  # (BaseLFC)
                 G1 *= 2
                 G2 *= 2
 
-            if self.xp is np:
-                mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
-                    1.0, a_xG[:, G1:G2])
-            else:
-                gpu_gemm('N', 'T',
-                         c_xI, f_GI, a_xG[:, G1:G2],
-                         1.0 / self.pw.dv, 1.0)
+            with tracectx('gemm'):
+                if self.xp is np:
+                    mmm(1.0 / self.pw.dv, c_xI, 'N', f_GI, 'T',
+                        1.0, a_xG[:, G1:G2])
+                else:
+                    gpu_gemm('N', 'T',
+                             c_xI, f_GI, a_xG[:, G1:G2],
+                             1.0 / self.pw.dv, 1.0)
 
     @trace
     def integrate(self, a_xG, c_axi=None, q=-1, add_to=False):

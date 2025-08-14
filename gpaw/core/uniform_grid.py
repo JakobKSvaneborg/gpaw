@@ -287,6 +287,15 @@ class UGDesc(Domain['UGArray']):
         b2_c = np.pi**2 / (self.cell_cv**2).sum(1)
         return 0.5 * (self.size_c**2 * b2_c).min()
 
+    def gradient_operator(self,
+                          v: int,
+                          *,
+                          scale=1.0,
+                          n=1,
+                          xp=np):
+        return Gradient(self._gd, v,
+                        scale=scale, n=n, dtype=self.dtype, xp=xp)
+
 
 class UGArray(DistributedArrays[UGDesc]):
     def __init__(self,
@@ -472,9 +481,9 @@ class UGArray(DistributedArrays[UGDesc]):
                           _ _
            _    1  / _  -iG.r   _
          C(G) = -- |dr e      f(r),
-                V  /
+                Ω  /
 
-        where `C(\bG)` are the plane wave coefficients and V is the cell
+        where `C(\bG)` are the plane wave coefficients and Ω is the cell
         volume.
 
         Parameters
@@ -486,10 +495,10 @@ class UGArray(DistributedArrays[UGDesc]):
         out:
             Target PWArray object.
         """
-        assert self.dims == ()
+        assert not self.desc.zerobc_c.any()
         if out is None:
             assert pw is not None
-            out = pw.empty(xp=self.xp)
+            out = pw.empty(dims=self.dims, xp=self.xp)
         if pw is None:
             pw = out.desc
         if pw.dtype != self.desc.dtype:
@@ -500,11 +509,12 @@ class UGArray(DistributedArrays[UGDesc]):
             input = input.gather()
         if self.desc.comm.rank == 0:
             plan = plan or self.desc.fft_plans(xp=self.xp)
-            coefs = plan.fft_sphere(input.data, pw)
+            for i, o in zip(input.flat(), out.flat()):
+                coefs = plan.fft_sphere(i.data, pw)
+                o.scatter_from(coefs)
         else:
-            coefs = None
-
-        out.scatter_from(coefs)
+            for o in out.flat():
+                o.scatter_from(None)
 
         return out
 
@@ -836,9 +846,7 @@ class UGArray(DistributedArrays[UGDesc]):
     def add_ked(self,
                 occ_n: Array1D,
                 taut_R: UGArray) -> None:
-        grad_v = [
-            Gradient(self.desc._gd, v, n=3, dtype=self.desc.dtype)
-            for v in range(3)]
+        grad_v = [self.desc.gradient_operator(v, n=3) for v in range(3)]
         tmp_R = self.desc.empty()
         for f, psit_R in zips(occ_n, self):
             for grad in grad_v:

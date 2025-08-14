@@ -15,7 +15,7 @@ release cycle. As a rule of thumb, if you get a segfault, start by checking
 that all array arguments passed from Python to C functions have the correct
 shapes and types.
 
-Apart from running GPAW in :ref:`debug mode <command line options>`,
+Apart from running GPAW in :ref:`debug mode`,
 please familiarize yourself with the
 :ref:`debugging tools <debugging>` for the Python and C code.
 

@@ -15,6 +15,7 @@ from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
+from gpaw.new.pwfd.ppcg import PPCG as PPCGEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
 
 if TYPE_CHECKING:
@@ -111,13 +112,6 @@ class PW(Mode):
 class LCAO(Mode):
     distribution = '?'
 
-    def __init__(self,
-                 *,
-                 dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
-        super().__init__(dtype=dtype,
-                         force_complex_dtype=force_complex_dtype)
-
 
 class FD(Mode):
     def __init__(self,
@@ -143,6 +137,16 @@ class TB(Mode):
 class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
+        from gpaw.new.do import DirectOptimization
+        eigensolvers = {
+            'davidson': Davidson,
+            'rmm-diis': RMMDIIS,
+            'etdm-fdpw': DirectOptimization,
+            'ppcg': PPCG,
+            'lcao': LCAOEigensolver,
+            'hybrid-lcao': HybridLCAOEigensolver,
+            'scissors': Scissors}
+
         if isinstance(eigensolver, str):
             eigensolver = {'name': eigensolver}
         elif not isinstance(eigensolver, dict):
@@ -198,6 +202,54 @@ class PWFDEigensolverParamater(Eigensolver):
 class Davidson(PWFDEigensolverParamater):
     name = 'davidson'
     cls = DavidsonEigensolver
+
+
+class PPCG(PWFDEigensolverParamater):
+    name = 'ppcg'
+    cls = PPCGEigensolver
+
+    def __init__(self,
+                 niter: int = 2,
+                 max_buffer_mem: int = 200 * 1024**2,
+                 blocksize=None,
+                 rr_modulo=5,
+                 include_cg=True,
+                 tolerances: tuple[float] | None = None):
+        self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
+        self.blocksize = blocksize
+        self.rr_modulo = rr_modulo
+        self.include_cg = include_cg
+        self.tolerances = tolerances
+
+    def todict(self):
+        return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
+                'blocksize': self.blocksize,
+                'rr_modulo': self.rr_modulo,
+                'include_cg': self.include_cg,
+                'tolerances': self.tolerances}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              hamiltonian,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            hamiltonian,
+            converge_bands,
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
+            blocksize=self.blocksize,
+            rr_modulo=self.rr_modulo,
+            include_cg=self.include_cg,
+            tolerances=self.tolerances)
 
 
 class RMMDIIS(PWFDEigensolverParamater):
@@ -266,14 +318,6 @@ class Scissors(LCAOEigensolver):
                                        symmetries)
 
 
-eigensolvers = {
-    'davidson': Davidson,
-    'rmm-diis': RMMDIIS,
-    'lcao': LCAOEigensolver,
-    'hybrid-lcao': HybridLCAOEigensolver,
-    'scissors': Scissors}
-
-
 class Extension(Parameter):
     @classmethod
     def from_param(self, extension):
@@ -283,6 +327,9 @@ class Extension(Parameter):
             if name == 'd3':
                 from gpaw.new.extensions import D3
                 return D3(**dct)
+            if name == 'spin_direction_constraint':
+                from gpaw.new.constraints import SpinDirectionConstraint
+                return SpinDirectionConstraint(**dct)
             raise ValueError(name)
         return extension
 
@@ -571,7 +618,7 @@ class Parameters:
         spinpol: bool | None = None,
         symmetry: str | dict | Symmetry | None = None,
         xc: str | dict | XC | None = None):
-        """DFT-parameters object.
+        r"""DFT-parameters object.
 
         >>> p = Parameters(mode=PW(400))
         >>> p
@@ -582,7 +629,7 @@ class Parameters:
         XC(name='LDA')
         >>> from ase.build import molecule
         >>> atoms = molecule('H2', vacuum=3.0)
-        >>> dft = p.dft_calculation(atoms, txt='h2.txt')
+        >>> dft = p.dft_calculation(atoms, txt=None)
         >>> atoms.calc = dft.ase_calculator()
 
         Parameters
@@ -605,7 +652,17 @@ class Parameters:
             Number of real-space grid-points for wave-functions
             (three integers).
         h:
-            grid-spaving for wave-function grid (Å).
+            Grid-spacing for wave-function grid (Å).  Default value is
+            0.2 Å for LCAO or FD mode calculations.  For a PW-mode
+            calculation, we use the formula `h=γh_0` with `γ \simeq 1.4` and:
+
+            .. math::
+
+               h_0 = \frac{\pi}{\sqrt{8E_c}}.
+
+            Ideally, we would use `\gamma=1`, but in practice, 1.4 is
+            a good compromise between accuracy and efficiency.
+            In eV and Å units we have `h_0=3.07/\sqrt{E_c}`.
         hund:
             Use Hund's rule for initial magnetic moments.
         experimental:

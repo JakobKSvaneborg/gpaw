@@ -2,9 +2,9 @@
 # Copyright (C) 2014 R. Warmbier Materials for Energy Research Group,
 # Wits University
 # Please see the accompanying LICENSE file for further information.
+from fractions import Fraction
 from typing import Tuple
 
-from ase.utils import gcd
 import numpy as np
 
 import gpaw.cgpaw as cgpaw
@@ -12,21 +12,16 @@ import gpaw.mpi as mpi
 
 
 def frac(f: float,
-         n: int = 2 * 3 * 4 * 5,
+         *,
+         max_denominator: int = 50,
          tol: float = 1e-6) -> Tuple[int, int]:
     """Convert to fraction.
 
     >>> frac(0.5)
     (1, 2)
     """
-    if f == 0:
-        return 0, 1
-    x = n * f
-    if abs(x - round(x)) > n * tol:
-        raise ValueError
-    x = int(round(x))
-    d = gcd(x, n)
-    return x // d, n // d
+    fr = Fraction(f).limit_denominator(max_denominator)
+    return fr.numerator, fr.denominator
 
 
 def sfrac(f: float) -> str:
@@ -596,11 +591,13 @@ class CLICommand:
     @staticmethod
     def run(args):
         import sys
-        from gpaw.new.symmetry import create_symmetries_object
-        from gpaw.dft import MonkhorstPack
+
         from ase.cli.run import str2dict
         from ase.db import connect
         from ase.io import read
+
+        from gpaw.dft import MonkhorstPack
+        from gpaw.new.symmetry import create_symmetries_object
 
         if args.filename == '-':
             atoms = next(connect(sys.stdin).select()).toatoms()

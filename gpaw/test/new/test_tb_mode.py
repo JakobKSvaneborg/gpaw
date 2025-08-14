@@ -5,7 +5,7 @@ from gpaw.new.ase_interface import GPAW
 from gpaw.test.xc.test_qna_stress import numeric_stress
 
 
-@pytest.mark.serial
+# @pytest.mark.serial
 def test_tb_mode_molecule():
     atoms = Atoms('LiH',
                   [[0, 0.1, 0.2],
@@ -20,7 +20,7 @@ def test_tb_mode_molecule():
     # assert abs(f1 - f2).max() < 0.0005
 
 
-@pytest.mark.serial
+# @pytest.mark.serial
 def test_tb_mode_bulk():
     a = 2.0
     atoms = Atoms('Li',
