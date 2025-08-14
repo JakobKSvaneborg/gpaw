@@ -63,6 +63,11 @@ def eigh_test_matrix():
                 rng.random((n, n), dtype=dtype_real)
                 + 1j * rng.random((n, n), dtype=dtype_real)
             )
+            # Set imaginary parts to zero on the diagonal. Most Hermitian
+            # solvers seem to ignore them, but at least old Cupy-11 gives
+            # different eigenvalues if the diagonal is not real.
+            xp.fill_diagonal(A.imag, 0)
+
             return A
 
     return _generate
