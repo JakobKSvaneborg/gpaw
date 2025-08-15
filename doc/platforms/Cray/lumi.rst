@@ -93,9 +93,9 @@ Developer installation
 Developer installation on LUMI-G
 --------------------------------
 
-For ROCm, it is **strongly** recommended to use the newer `rocm/6.2.2` module over the default `rocm/6.0.3`.
+For ROCm, it is **strongly** recommended to use the newer ``rocm/6.2.2`` module over the default ``rocm/6.0.3``.
 The 6.0.3 module is known to be buggy and cause failures in eg. certain FFT routines. The instructions here are written
-for `rocm/6.2.2` which generally works better with GPAW.
+for ``rocm/6.2.2`` which generally works better with GPAW.
 
 First, install required libraries as EasyBuild modules
 (see `LUMI EasyBuild documentation`_ for detailed description).
@@ -115,7 +115,7 @@ Do the following in a clean terminal session and exit afterwards!
   eb magma-2.8.0-cpeGNU-24.03-rocm6.2.2.eb -r
   eb libxc-7.0.0-cpeGNU-24.03.eb -r
 
-If you need ELPA, an experimental EasyBuild recipe for it that uses `rocm/6.2.2` can be found attached in
+If you need ELPA, an experimental EasyBuild recipe for it that uses ``rocm/6.2.2`` can be found attached in
 `this merge request <https://gitlab.com/gpaw/gpaw/-/merge_requests/2724>`_.
 
 Exit the terminal now and open a clean terminal.
@@ -169,8 +169,8 @@ Alternatively, download the siteconfig files from here:
 :download:`siteconfig-lumi-gpu.py`,
 :download:`siteconfig-lumi-gpu-elpa.py`.
 
-For ELPA, remember to also add `module load ELPA/2024.05.001-cpeGNU-24.03-rocm6.2.2` in your
-`venv-gpaw-gpu/bin/activate` file.
+For ELPA, remember to also add ``module load ELPA/2024.05.001-cpeGNU-24.03-rocm6.2.2`` in your
+``venv-gpaw-gpu/bin/activate`` file.
 
 
 Usage on LUMI-G
