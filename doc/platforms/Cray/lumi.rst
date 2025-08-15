@@ -5,7 +5,7 @@ The ``lumi.csc.fi`` supercomputer
 =================================
 
 .. note::
-   These instructions are up-to-date as of October 2024.
+   These instructions are up-to-date as of August 2025.
 
 It is recommended to perform the installations under
 the ``/projappl/project_...`` directory (see `LUMI storage documentation`_).
@@ -93,6 +93,10 @@ Developer installation
 Developer installation on LUMI-G
 --------------------------------
 
+For ROCm, it is **strongly** recommended to use the newer ``rocm/6.2.2`` module over the default ``rocm/6.0.3``.
+The 6.0.3 module is known to be buggy and cause failures in eg. certain FFT routines. The instructions here are written
+for ``rocm/6.2.2`` which generally works better with GPAW.
+
 First, install required libraries as EasyBuild modules
 (see `LUMI EasyBuild documentation`_ for detailed description).
 
@@ -107,9 +111,12 @@ Do the following in a clean terminal session and exit afterwards!
   module load EasyBuild-user
 
   # Install
-  eb CuPy-13.2.0-cpeGNU-24.03-rocm.eb -r
-  eb ELPA-2024.05.001-cpeGNU-24.03-rocm.eb -r
-  eb libxc-6.2.2-cpeGNU-24.03.eb -r
+  eb CuPy-13.4.1-cpeGNU-24.03-rocm-6.2.2.eb -r
+  eb magma-2.8.0-cpeGNU-24.03-rocm6.2.2.eb -r
+  eb libxc-7.0.0-cpeGNU-24.03.eb -r
+
+If you need ELPA, an experimental EasyBuild recipe for it that uses ``rocm/6.2.2`` can be found attached in
+`this merge request <https://gitlab.com/gpaw/gpaw/-/merge_requests/2724>`_.
 
 Exit the terminal now and open a clean terminal.
 The above EasyBuild setup is needed only once.
@@ -133,12 +140,13 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load LUMI/24.03
   module load partition/G
   module load cpeGNU/24.03
-  module load rocm/6.0.3
+  module load SuiteSparse/5.13.0-cpeGNU-24.03-OpenMP    # Dependency of hipSolver for ROCm 6.2
+  module load rocm/6.2.2
   module load cray-fftw/3.3.10.7
   module load buildtools-python/24.03-cray-python3.11
-  module load CuPy/13.2.0-cpeGNU-24.03-rocm             # from EBU_USER_PREFIX
-  module load ELPA/2024.05.001-cpeGNU-24.03-rocm        # from EBU_USER_PREFIX
-  module load libxc/6.2.2-cpeGNU-24.03                  # from EBU_USER_PREFIX
+  module load CuPy/13.4.1-cpeGNU-24.03-rocm-6.2.2       # from EBU_USER_PREFIX
+  module load magma/2.8.0-cpeGNU-24.03-rocm6.2.2        # from EBU_USER_PREFIX
+  module load libxc/7.0.0-cpeGNU-24.03                  # from EBU_USER_PREFIX
   export MPICH_GPU_SUPPORT_ENABLED=1
   EOF
   cat venv-gpaw-gpu/bin/activate.old >> venv-gpaw-gpu/bin/activate
@@ -160,6 +168,9 @@ Note that above the siteconfig file is taken from the git clone.
 Alternatively, download the siteconfig files from here:
 :download:`siteconfig-lumi-gpu.py`,
 :download:`siteconfig-lumi-gpu-elpa.py`.
+
+For ELPA, remember to also add ``module load ELPA/2024.05.001-cpeGNU-24.03-rocm6.2.2`` in your
+``venv-gpaw-gpu/bin/activate`` file.
 
 
 Usage on LUMI-G
@@ -213,7 +224,7 @@ Do the following in a clean terminal session and exit afterwards!
   module load EasyBuild-user
 
   # Install
-  eb libxc-6.2.2-cpeGNU-24.03.eb -r
+  eb libxc-7.0.0-cpeGNU-24.03.eb -r
 
 Exit the terminal now and open a clean terminal.
 The above EasyBuild setup is needed only once.
@@ -239,7 +250,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load cpeGNU/24.03
   module load cray-fftw/3.3.10.7
   module load buildtools-python/24.03-cray-python3.11
-  module load libxc/6.2.2-cpeGNU-24.03                  # from EBU_USER_PREFIX
+  module load libxc/7.0.0-cpeGNU-24.03                  # from EBU_USER_PREFIX
   EOF
   cat venv-gpaw-cpu/bin/activate.old >> venv-gpaw-cpu/bin/activate
 
