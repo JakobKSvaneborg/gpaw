@@ -155,6 +155,25 @@ class SolvationEnvironment(Environment):
 
         return F_av
 
+    def write_sjm_traces(self, path='sjm_traces', style='z',props=['cavity']):
+                         #props=('potential', 'cavity', 'background_charge')):
+        """Write traces of quantities in `props` to file on disk; traces will
+        be stored within specified path. Default is to save as vertical traces
+        (style 'z'), but can also save as cube (specify `style='cube'`)."""
+        data = {'cavity': self.cavity.g_g,}
+                #'background_charge': self.density.background_charge.mask_g,
+                #'potential': (self.hamiltonian.vHt_g * Ha -
+                #              self.get_fermi_level())}
+        import os
+        if not os.path.exists(path) and self.comm.rank == 0:
+            os.makedirs(path)
+        for prop in props:
+            if style == 'z':
+                _write_trace_in_z(self.cavity.gd, data[prop], prop + '.txt', path)
+            elif style == 'cube':
+                _write_property_on_grid(self.cavity.gd, data[prop], self.atoms,
+                                        prop + '.cube', path)
+
 
 def add_el_force_correction(nt_r, vHt_r, grad_v, cavity, dielectric, F_av):
     if not cavity.depends_on_atomic_positions:
@@ -183,3 +202,28 @@ def grad_squared(a_r, grad_v):
         grad(a_r, tmp_r)
         add_to_density(1, tmp_r.data, b_r.data)
     return b_r
+
+def _write_property_on_grid(grid, _property, atoms, name, dir):
+    """Writes out a property (like electrostatic potential, cavity, or
+    background charge) on the grid, as a cube file. `grid` is the
+    grid descriptor, typically self.density.finegd. `property` is the property
+    to be output, on the same grid."""
+    _property = grid.collect(_property, broadcast=True)
+    np.save('test',_property)
+    print(atoms)
+    #import os
+    #from ase.io import write
+    #write(os.path.join(dir, name), atoms)#, data=prop)
+
+def _write_trace_in_z(grid, _property, name, dir):
+    """Writes out a property (like electrostatic potential, cavity, or
+    background charge) as a function of the z coordinate only. `grid` is the
+    grid descriptor, typically self.density.finegd. `property` is the property
+    to be output, on the same grid."""
+    _property = grid.collect(_property, broadcast=True)
+    property_z = _property.mean(0).mean(0)
+    from ase.parallel import paropen
+    import os
+    with paropen(os.path.join(dir, name), 'w') as f:
+        for i, val in enumerate(property_z):
+            f.write(f'{(i + 1) * grid.h_cv[2][2] * Bohr:f} {val:1.8f}\n')
