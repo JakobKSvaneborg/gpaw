@@ -469,6 +469,14 @@ class Power12Potential(Potential):
             return False
         self.r12_a = (self.atomic_radii_output / Bohr) ** 12
         r_cutoff = (self.r12_a.max() * self.u0 / self.pbc_cutoff) ** (1. / 12.)
+
+        pbc_pos = get_pbc_positions(atoms, r_cutoff)
+        if self.pos_aav is not None:
+            diff = np.sum(np.sum((self.pos_aav[key] - pbc_pos[key])**2)
+                          for key in self.pos_aav)
+            if diff < 1e-10:
+                return False
+
         self.pos_aav = get_pbc_positions(atoms, r_cutoff)
         self.u_g.fill(.0)
         self.grad_u_vg.fill(.0)
