@@ -19,7 +19,7 @@ class SJM(Solvation):
                  dielectric,
                  interactions,
                  jelliumregion: dict | None = None,
-                 target_potential: float | None,  # eV
+                 target_potential: float | None = None,  # eV
                  excess_electrons: float = 0.0,
                  tol: float = 0.001):  # eV
         super().__init__(cavity, dielectric, interactions)
