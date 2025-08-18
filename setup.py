@@ -1,16 +1,25 @@
 #!/usr/bin/env python
 # Copyright (C) 2003-2020  CAMP
 # Please see the accompanying LICENSE file for further information.
+from __future__ import annotations
 
+import functools
 import os
 import re
 import shlex
 import sys
+import tempfile
+import textwrap
+import traceback
 import warnings
 from pathlib import Path
 from subprocess import run
 from sysconfig import get_config_var, get_platform
+from typing import Any, Callable
 
+from distutils.ccompiler import new_compiler, CCompiler
+from distutils.errors import CCompilerError
+from distutils.sysconfig import customize_compiler
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.command.develop import develop as _develop
@@ -75,14 +84,17 @@ gpu_include_dirs = []
 parallel_python_interpreter = False
 compiler = None
 mpi = None
-noblas = False
-nolibxc = False
 fftw = False
 scalapack = False
 libvdwxc = False
 elpa = False
 gpu = False
+magma = False
 intelmkl = False
+
+# If these are not defined, we try to resolve default values for them
+noblas = None
+nolibxc = None
 
 # Advanced:
 # If these are defined, they replace
@@ -233,6 +245,140 @@ if gpu:
         gpu_compile_args += ['-fPIC']
 
 
+def set_compiler_executables(cc: CCompiler) -> None:
+    # Override the compiler executables
+    # A hack to change the used compiler and linker, inspired by
+    # https://shwina.github.io/custom-compiler-linker-extensions/
+    for (name, my_args) in [('compiler', compiler_args),
+                            ('compiler_so', compiler_args),
+                            ('linker_so', linker_so_args),
+                            ('linker_exe', linker_exe_args)]:
+        new_args = []
+        old_args = getattr(cc, name)
+        # Set executable
+        if compiler is not None:
+            new_args += [compiler]
+        else:
+            new_args += [old_args[0]]
+        # Set args
+        if my_args is not None:
+            new_args += my_args
+        else:
+            new_args += old_args[1:]
+        cc.set_executable(name, new_args)
+
+
+def get_compiler() -> CCompiler:
+    compiler = new_compiler()
+    customize_compiler(compiler)
+    set_compiler_executables(compiler)
+    for name, dirs in [  # Convert Path objects to str
+        ('library_dirs', library_dirs),
+        ('include_dirs', include_dirs),
+        ('runtime_library_dirs', runtime_library_dirs),
+    ]:
+        dirs = [str(dname) for dname in dirs]
+        getattr(compiler, 'set_' + name)(dirs)
+    compiler.set_libraries(libraries)
+    for macro, value in define_macros:
+        if macro in undef_macros:
+            continue
+        compiler.define_macro(macro, value)
+    for macro in undef_macros:
+        compiler.undefine_macro(macro)
+    return compiler
+
+
+def try_compiling(
+    func: Callable[..., Any],
+    catch_exceptions: (
+        type[Exception] | tuple[type[Exception], ...]) = CCompilerError,
+) -> Callable[[], bool]:
+    @functools.wraps(func)
+    def wrapper():
+        try:
+            c_program = textwrap.dedent(func.__doc__)
+            compiler = get_compiler()
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmpdir = os.path.abspath(tmpdir)
+                c_file_path = os.path.join(tmpdir, 'test.c')
+                c_out_path = os.path.join(tmpdir, 'a.out')
+                with open(c_file_path, mode='w') as fobj:
+                    print(c_program, file=fobj)
+                obj_files = compiler.compile([c_file_path],
+                                             output_dir=tmpdir,
+                                             extra_preargs=extra_compile_args)
+                compiler.link_executable(obj_files,
+                                         c_out_path,
+                                         extra_preargs=extra_link_args)
+        except catch_exceptions as e:
+            traceback.print_exception(type(e), e, e.__traceback__,
+                                      file=sys.stderr)
+            return False
+        else:
+            return True
+
+    return wrapper
+
+
+@try_compiling
+def test_libxc() -> bool:
+    """
+    #include "xc.h"
+
+    void no_op(int _) { return; }  // Suppress -Wunused-variable
+
+    int main(int argc, char *argv[]) {
+        // Compiler would fail if `XC_MAJOR_VERSION` isn't defined
+        no_op(XC_MAJOR_VERSION);
+        return 0;
+    }
+    """
+
+
+@try_compiling
+def test_blas() -> bool:
+    """
+    // For some reasons GPAW doesn't seem to use any of the BLAS header
+    // files (e.g. 'cblas.h' and 'f77blas.h'), but instead declares
+    // them explicitly (e.g. 'c/blas.c');
+    // do as the Romans do
+    #ifdef GPAW_NO_UNDERSCORE_BLAS
+    #  define dnrm2_  dnrm2
+    #endif
+
+    double dnrm2_(int n, double *vec, int stride);
+
+    void no_op(double _) { return; }  // Suppress -Wunused-variable
+
+    int main(int argc, char *argv[]) {
+        // Linker would fail if `dnrm2_()` isn't found
+        double vec[2] = { 3., 4. };
+        no_op(dnrm2_(2, vec, 1));
+    }
+    """
+
+
+class MissingLibraryWarning(UserWarning):
+    pass
+
+
+# Automated checks: resolve defaults for `noblas` and `nolibxc` where
+# appropriate
+
+if noblas is None:
+    noblas = not test_blas()
+    if noblas:
+        warnings.warn('cannot link against BLAS (see above error), '
+                      'setting `noblas = True`',
+                      MissingLibraryWarning)
+if nolibxc is None:
+    nolibxc = not test_libxc()
+    if nolibxc:
+        warnings.warn('cannot link against LibXC (see above error), '
+                      'setting `nolibxc = True`',
+                      MissingLibraryWarning)
+
 for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                    (nolibxc, 'GPAW_WITHOUT_LIBXC'),
                    (mpi, 'PARALLEL'),
@@ -241,6 +387,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                    (libvdwxc, 'GPAW_WITH_LIBVDWXC'),
                    (elpa, 'GPAW_WITH_ELPA'),
                    (intelmkl, 'GPAW_WITH_INTEL_MKL'),
+                   (magma, 'GPAW_WITH_MAGMA'),
                    (gpu, 'GPAW_GPU'),
                    (gpu, 'GPAW_GPU_AWARE_MPI'),
                    (gpu and gpu_target == 'cuda',
@@ -261,13 +408,27 @@ if gpu:
     sources += Path('c/gpu').glob('*.c')
 sources += Path('c/xc').glob('*.c')
 sources.remove(Path('c/main.c'))  # For gpaw-python executable only
-if nolibxc:
+if nolibxc:  # Cleanup: remove stale refrerences to LibXC
     for name in ['libxc.c', 'm06l.c',
                  'tpss.c', 'revtpss.c', 'revtpss_c_pbe.c',
                  'xc_mgga.c']:
         sources.remove(Path(f'c/xc/{name}'))
-    if 'xc' in libraries:
+    # Dynamic link
+    try:
         libraries.remove('xc')
+    except ValueError:
+        pass
+    # Static link
+    for libxc in [
+        static_lib for static_lib in extra_link_args
+        if os.path.basename(static_lib) == 'libxc.a'
+    ]:
+        extra_link_args.remove(libxc)
+if noblas:  # Cleanup: remove stale refrerences to BLAS
+    try:  # Dynamic link
+        libraries.remove('blas')
+    except ValueError:
+        pass
 
 # Make build process deterministic (for "reproducible build")
 sources = [str(source) for source in sources]
@@ -320,26 +481,7 @@ class build_ext(_build_ext):
         super().run()
 
     def build_extensions(self):
-        # Override the compiler executables
-        # A hack to change the used compiler and linker, inspired by
-        # https://shwina.github.io/custom-compiler-linker-extensions/
-        for (name, my_args) in [('compiler', compiler_args),
-                                ('compiler_so', compiler_args),
-                                ('linker_so', linker_so_args),
-                                ('linker_exe', linker_exe_args)]:
-            new_args = []
-            old_args = getattr(self.compiler, name)
-            # Set executable
-            if compiler is not None:
-                new_args += [compiler]
-            else:
-                new_args += [old_args[0]]
-            # Set args
-            if my_args is not None:
-                new_args += my_args
-            else:
-                new_args += old_args[1:]
-            self.compiler.set_executable(name, new_args)
+        set_compiler_executables(self.compiler)
 
         super().build_extensions()
 
@@ -400,7 +542,7 @@ files = ['gpaw-analyse-basis', 'gpaw-basis',
          'gpaw-setup', 'gpaw-upfplot']
 scripts = [str(Path('tools') / script) for script in files]
 
-
+data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
 setup(name='gpaw',
       version=version,
       description=description,
@@ -420,17 +562,18 @@ setup(name='gpaw',
                         'numpy',
                         'scipy>=1.6.0',
                         'gpaw-data'],
-      extras_require={'docs': ['sphinx-rtd-theme',
-                               'sphinxcontrib-jquery',
-                               'plotly',
-                               'kaleido',
-                               'graphviz',
-                               'scikit-image'],
-                      'devel': ['flake8',
-                                'mypy',
-                                'pytest>=7.0.0',
-                                'pytest-xdist',
-                                'interrogate']},
+      extras_require={
+          'docs': ['sphinx-rtd-theme',
+                   'sphinxcontrib-jquery',
+                   'plotly',
+                   'kaleido',
+                   'graphviz',
+                   'scikit-image',
+                   f'gpaw-web-page-data @ {data}'],
+          'devel': ['flake8',
+                    'mypy',
+                    'pytest>=7.0.0',
+                    'pytest-xdist']},
       ext_modules=extensions,
       scripts=scripts,
       cmdclass=cmdclass,

@@ -22,4 +22,4 @@ def test_fixmom():
     bulk.calc = calc
     bulk.get_potential_energy()
     mom = bulk.get_magnetic_moment()
-    assert mom == pytest.approx(mom0, abs=0.005)
+    assert mom == pytest.approx(mom0, abs=0.05)

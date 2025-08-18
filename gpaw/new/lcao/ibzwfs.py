@@ -4,6 +4,9 @@ from gpaw.new.density import Density
 
 
 class LCAOIBZWaveFunctions(IBZWaveFunctions):
+    def has_wave_functions(self):
+        return True
+
     def move(self, relpos_ac, atomdist):
         from gpaw.new.lcao.builder import tci_helper
 

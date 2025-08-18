@@ -39,13 +39,15 @@ Force: -0.639 eV/Å
     :target: https://pypi.org/project/gpaw/
 
 .. _Python: https://www.python.org
-.. _ASE: https://wiki.fysik.dtu.dk/ase
+.. _ASE: https://ase-lib.org
 
 
 .. _news:
 
 News
 ====
+
+* :ref:`GPAW version 25.7.0 <releasenotes>` released (Jul 29, 2025).
 
 * :ref:`GPAW version 25.1.0 <releasenotes>` released (Jan 6, 2025).
 
@@ -241,6 +243,7 @@ News
    contact
    faq
    devel/devel
+   benchmarks/benchmarks
    summerschools/summerschools
    workshops/workshops
    bugs

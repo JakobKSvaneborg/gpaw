@@ -5,9 +5,7 @@ from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import as_double_precision
-from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
-from gpaw.poisson import PoissonSolver as make_poisson_solver
 
 
 class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -16,14 +14,13 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  params,
                  *,
                  comm,
-                 nn=3,
-                 interpolation=3):
+                 log):
+        self.interpolation_stencil_range = params.interpolation or 3
         super().__init__(atoms,
                          params,
-                         comm=comm)
+                         comm=comm, log=log)
         assert not self.soc
-        self.kin_stencil_range = nn
-        self.interpolation_stencil_range = interpolation
+        assert self.qspiral_v is None
 
         self._nct_aR = None
         self._tauct_aR = None
@@ -39,7 +36,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.atoms.pbc,
             self.ibz.symmetries,
             h=self.params.h,
-            interpolation='not fft',
+            interpolation=self.interpolation_stencil_range,
             comm=self.communicators['d'])
         fine_grid = grid.new(size=grid.size_c * 2)
         # decomposition=[2 * d for d in grid.decomposition]
@@ -60,22 +57,22 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.grid, self.relpos_ac, atomdist=self.atomdist)
         return self._tauct_aR
 
-    def create_poisson_solver(self) -> PoissonSolver:
-        solver = make_poisson_solver(**self.params.poissonsolver, xp=self.xp)
-        solver.set_grid_descriptor(self.fine_grid._gd)
-        return PoissonSolverWrapper(solver)
-
     def create_potential_calculator(self):
-        poisson_solver = self.create_poisson_solver()
+        env = self.create_environment(self.fine_grid)
+        poisson_solver = env.create_poisson_solver(
+            grid=self.fine_grid, xp=self.xp,
+            solver=self.params.poissonsolver)
         return FDPotentialCalculator(
             self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
             relpos_ac=self.relpos_ac, atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
+            environment=env,
+            extensions=self.get_extensions(),
             xp=self.xp)
 
     def create_hamiltonian_operator(self):
         return FDHamiltonian(self.wf_desc,
-                             kin_stencil=self.kin_stencil_range,
+                             kin_stencil=self.params.mode.nn,
                              xp=self.xp)
 
     def convert_wave_functions_from_uniform_grid(self,

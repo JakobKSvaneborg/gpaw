@@ -14,8 +14,6 @@ import gpaw.cgpaw as cgpaw
 @pytest.mark.slow
 @pytest.mark.parametrize('xc', ['mBEEF', 'BEEF-vdW', 'mBEEF-vdW'])
 def test_beef(in_tmp_dir, xc, gpaw_new):
-    if xc == 'mBEEF-vdW' and gpaw_new:
-        pytest.skip('mBEEF-vdW not implemented')
     if xc[0] == 'm':
         assert cgpaw.lxcXCFuncNum('MGGA_X_MBEEF') is not None
 

@@ -41,7 +41,7 @@ class SimpleStm(STM):
             self.gd = self.calc.wfs.gd
             self.offset_c = [int(not a) for a in self.gd.pbc_c]
 
-            STM.__init__(self, self.atoms)
+            super().__init__(self.atoms)
 
     def calculate_ldos(self, bias):
         """bias is the n, k, s list/tuple."""

@@ -78,8 +78,15 @@ module load libvdwxc/0.4.0-{fullchain}
 
 module_cmds_arch_dependent = """\
 if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2023a" ];\
+then module load CuPy/13.0.0-{fullchain}-CUDA-12.1.1;fi
+if [ "$CPU_ARCH" == "skylake_el8" ] && [ {fullchain} == "foss-2023a" ];\
 then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
-if [ "$SLURM_JOB_PARTITION" == "a100" ];\
+if [ "$SLURM_JOB_PARTITION" == "a100" ] \
+ || [ "$SLURM_JOB_PARTITION" == "a100_week" ] \
+ || [ "$SLURM_JOB_PARTITION" == "sm3090el8" ] \
+ || [ "$SLURM_JOB_PARTITION" == "sm3090el8_768" ] \
+ || [ "$SLURM_JOB_PARTITION" == "sm3090_devel" ] \
+ || [ "$SLURM_JOB_PARTITION" == "h200" ];\
 then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 """
 
@@ -191,6 +198,11 @@ def main():
                         help='Default is foss.')
     parser.add_argument('--dftd3', action='store_true',
                         help='Also build DFTD3.')
+    parser.add_argument('--gpaw-branch', default='master',
+                        help='Check out a particular gpaw branch')
+    parser.add_argument('--run-benchmarks', action='store_true',
+                        help='Also submit the GPAW benchmark suite'
+                             ' with the checked out branch.')
     parser.add_argument('--recompile', action='store_true',
                         help='Recompile the GPAW C-extensions in an '
                         'exising venv.')
@@ -208,8 +220,15 @@ def main():
 
     intel_only = args.toolchain == 'intel'
 
+    def run_benchmarks():
+        benchmarkworkflow = gpaw / 'gpaw/benchmark/niflheim-myqueue.py'
+        run(f'. {activate} && mkdir benchmarks-{args.gpaw_branch} && cd benchmarks-{args.gpaw_branch} && mq workflow {benchmarkworkflow}')
+
     if args.recompile:
         compile_gpaw_c_code(gpaw, activate, intel_only)
+        if args.run_benchmarks:
+            run_benchmarks()
+
         return 0
 
     # Sanity checks
@@ -266,8 +285,9 @@ def main():
                      'scikit-learn']
     run(f'. {activate} && pip install -q -U ' + ' '.join(packages))
 
-    for name in ['ase', 'gpaw']:
-        run(f'git clone -q https://gitlab.com/{name}/{name}.git')
+    run('git clone -q https://gitlab.com/ase/ase.git')
+    branch = '' if args.gpaw_branch == 'master' else f'-b {args.gpaw_branch} '
+    run(f'git clone -q {branch}https://gitlab.com/gpaw/gpaw.git')
 
     run(f'. {activate} && pip install -q -e ase/')
 
@@ -330,6 +350,9 @@ def main():
 
     # Run tests:
     run(f'. {activate} && ase info && gpaw test')
+
+    if args.run_benchmarks:
+        run_benchmarks()
 
     return 0
 

@@ -1,13 +1,12 @@
-# Copyright (C) 2003  CAMP
-# Please see the accompanying LICENSE file for further information.
-
 """Finite difference operators.
 
 This file defines a series of finite difference operators used in grid mode.
 """
+from __future__ import annotations
 
 from math import factorial as fact
 from math import pi
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.geometry.minkowski_reduction import reduction_full
@@ -17,7 +16,11 @@ from scipy.spatial import Voronoi
 import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.gpu import cupy_is_fake
+from gpaw.grid_descriptor import GridDescriptor
 from gpaw.typing import Array2D, ArrayLike2D
+
+if TYPE_CHECKING:
+    from gpaw.core import UGDesc
 
 # Expansion coefficients for finite difference Laplacian.  The numbers are
 # from J. R. Chelikowsky et al., Phys. Rev. B 50, 11355 (1994):
@@ -280,7 +283,7 @@ def find_neighbors(h_cv: ArrayLike2D) -> Array2D:
 
 class Gradient(FDOperator):
     def __init__(self,
-                 gd,
+                 grid: UGDesc | GridDescriptor,
                  v: int,
                  scale=1.0,
                  n=1,
@@ -299,6 +302,10 @@ class Gradient(FDOperator):
         dtype: float or complex
             Data-type to work on.
         """
+        if isinstance(grid, GridDescriptor):
+            gd = grid
+        else:
+            gd = grid._gd
 
         M_dc = find_neighbors(gd.h_cv)
         h_dv = M_dc @ gd.h_cv  # vectors pointing at neighbor grid-points

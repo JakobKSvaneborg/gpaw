@@ -65,18 +65,16 @@ class ElectronPhononMatrix:
         indices: list
             List of atoms (indices) to use. Default: Use all.
         """
+        if not load_sc_as_needed:
+            assert indices is None, "Use 'load_sc_as_needed' with 'indices'"
+
         self.timer = Timer()
 
         self.atoms = atoms
         if indices is None:
-            self.indices = np.arange(len(atoms))
-        else:
-            self.indices = indices
-        if isinstance(self.indices, np.ndarray):
-            self.indices = self.indices.tolist()
-
-        if not load_sc_as_needed:
-            assert indices is None, "Use 'load_sc_as_needed' with 'indices'"
+            indices = np.arange(len(atoms))
+        if isinstance(indices, np.ndarray):
+            self.indices = indices.tolist()
 
         self._set_supercell_cache(supercell_cache, load_sc_as_needed)
 

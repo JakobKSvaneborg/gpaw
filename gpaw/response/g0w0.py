@@ -19,7 +19,7 @@ from gpaw.utilities.progressbar import ProgressBar
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.pair import phase_shifted_fft_indices
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.screened_interaction import (initialize_w_calculator,
                                                 GammaIntegrationMode)

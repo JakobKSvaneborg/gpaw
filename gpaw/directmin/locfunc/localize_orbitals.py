@@ -1,4 +1,5 @@
 from gpaw.directmin.locfunc.etdm_localization_fdpw import FDPWETDMLocalize
+from gpaw.directmin.locfunc.etdm_localization_lcao import LCAOETDMLocalize
 from gpaw.directmin.fdpw.er_localization import ERLocalization as ERL
 from gpaw.directmin.functional.fdpw import get_functional \
     as get_functional_fdpw
@@ -52,6 +53,11 @@ def localize_orbitals(
                     PZC, wfs, maxiter=200, g_tol=tol, randval=0.1)
                 dm.run(wfs, dens, log=log)
                 log('Perdew-Zunger localization finished', flush=True)
+            else:
+                dm = LCAOETDMLocalize(
+                    wfs.eigensolver, wfs, log,
+                    tol=wfs.eigensolver.subspace_convergence)
+                dm.run(ham, dens)
         elif name == 'ks':
             log('ETDM minimization using occupied and virtual orbitals',
                 flush=True)

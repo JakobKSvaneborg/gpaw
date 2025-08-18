@@ -17,13 +17,19 @@ commands = [
     ('python', 'gpaw.cli.python'),
     ('sbatch', 'gpaw.cli.sbatch'),
     ('dataset', 'gpaw.atom.generator2'),
+    ('plot-dataset', 'gpaw.atom.plot_dataset'),
+    ('basis', 'gpaw.atom.basisfromfile'),
+    ('plot-basis', 'gpaw.basis_data'),
     ('symmetry', 'gpaw.symmetry'),
     ('install-data', 'gpaw.cli.install_data')]
 
 
 def hook(parser, args):
+    parser.color = True
+    parser.suggest_on_error = True
     parser.add_argument('-P', '--parallel', type=int, metavar='N',
                         help='Run on N CPUs.')
+    parser.color = True
     args = parser.parse_args(args)
 
     if args.command == 'python':
@@ -53,8 +59,6 @@ def hook(parser, args):
             if sys.version_info >= (3, 11):
                 # Don't prepend a potentially unsafe path to sys.path
                 pyargs.append('-P')
-            if args.command == 'python' and args.debug:
-                pyargs.append('-d')
             arguments = ['mpiexec',
                          *os.environ.get('GPAW_MPI_OPTIONS', '').split(),
                          '-np',

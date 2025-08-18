@@ -20,10 +20,7 @@ script :download:`gs_BaTiO3.py`. We can then run the script
 .. literalinclude:: polarization_BaTiO3.py
 
 which calculates the polarization. It will take a few minutes on a single CPU,
-but can also be parallelized. It generates a .json file that contains the
-polarization and will read if the script is run again. It is thus possible to
-submit the polarization script and print the polarization by rerunning the
-script above in the terminal. The calculation adds the contribution from the
+but can also be parallelized. The calculation adds the contribution from the
 electrons and the nucleii, which implies that the result is independent of the
 positions of the atoms relative to the unit cell. The results should be 0.27
 `C/m^2` for LDA and 0.45 `C/m^2` for PBE , which agrees with the values from
@@ -52,15 +49,21 @@ above the calculation is performed with the script
 
 .. literalinclude:: born_BaTiO3.py
 
-Again the results are written to a .json file and the Born effective charges
+The results are written to the ``born_charges.json`` file and the Born effective charges
 can be viewed with the script
 
 .. literalinclude:: get_borncharges.py
+    :start-after: literalinclude import-start
+    :end-before: literalinclude import-end
 
 Due to symmetry all the tensors are diagonal. Note, however, the large
 differences between the components for each of the O atoms. The Born effective
 charges tell us how the atoms are affected by an external electric field.
 
+.. csv-table::
+  :align: center
+  :header: Ba, , , ,Ti, , , ,O, , , ,O, , , ,O, , ,
+  :file: born_charges_BaTiO3.csv
 
 Topological properties of stanene from parallel transport
 =========================================================

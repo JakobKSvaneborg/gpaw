@@ -371,7 +371,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
         N = self.bd.mynbands
         S = self.gd.comm.size
         Gpsit_xG = np.empty((S,) + psit_xG.shape[1:], dtype=psit_xG.dtype)
-        taut_vvR = self.gd.zeros((3, 3), global_array=True)
+        taut_wR = self.gd.zeros((6,), global_array=True)
         G_Gv = self.pd.get_reciprocal_vectors(q=kpt.q)
         comm = self.gd.comm
 
@@ -388,19 +388,21 @@ class PWWaveFunctions(FDPWWaveFunctions):
                                            local=True, safe=True)
             if len(a_vR) == 3:
                 f = kpt.f_n[n1 + comm.rank]
+                w = 0
                 for v1 in range(3):
-                    for v2 in range(3):
+                    for v2 in range(v1, 3):
                         # imaginary parts should cancel
-                        taut_vvR[v1, v2] += f * (a_vR[v1].conj()
-                                                 * a_vR[v2]).real
+                        taut_wR[w] += f * (a_vR[v1].conj()
+                                           * a_vR[v2]).real
+                        w += 1
             elif len(a_vR) == 0:
                 pass
             else:
                 raise RuntimeError('Parallelization issue')
 
-        comm.sum(taut_vvR)
-        taut_vvR = self.gd.distribute(taut_vvR)
-        taut_xR[kpt.s, :, :] += taut_vvR
+        comm.sum(taut_wR)
+        taut_wR = self.gd.distribute(taut_wR)
+        taut_xR[kpt.s, :] += taut_wR
 
     def calculate_kinetic_energy_density(self):
         if self.kpt_u[0].f_n is None:
@@ -419,7 +421,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
         if self.kpt_u[0].f_n is None:
             return None
 
-        taut_svvR = self.gd.zeros((self.nspins, 3, 3))
+        taut_svvR = self.gd.zeros((self.nspins, 6))
         for kpt in self.kpt_u:
             self.add_to_ke_crossterms_kpt(kpt, kpt.psit_nG, taut_svvR)
 

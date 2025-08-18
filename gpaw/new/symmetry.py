@@ -11,8 +11,7 @@ from gpaw import debug
 from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
 from gpaw.rotation import rotation
-from gpaw.symmetry import Symmetry as OldSymmetry
-from gpaw.symmetry import frac
+from gpaw.symmetry import Symmetry as OldSymmetry, frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
 
 
@@ -423,7 +422,7 @@ class SymmetrizationPlan:
                                       np.linalg.inv(symmetries.cell_cv),
                                       symmetries.rotation_scc,
                                       symmetries.cell_cv)
-        lmax = max(max(l_j) for l_j in l_aj)
+        lmax = max((max(l_j) for l_j in l_aj), default=-1)
         self.rotation_lsmm = [
             np.array([rotation(l, r_vv) for r_vv in self.rotation_svv])
             for l in range(lmax + 1)]
@@ -589,3 +588,28 @@ def safe_id(magmom_av, tolerance=1e-3):
             quantized = a
         id_a.append(quantized)
     return id_a
+
+
+def main() -> None:
+    import argparse
+    from ase.io import read
+    parser = argparse.ArgumentParser(
+        description='Analyze symmetry.')
+    parser.color = True  # type: ignore
+    parser.add_argument('-t', '--tolerance', type=float, default=0.001,
+                        help='Default is 0.001 Å.')
+    parser.add_argument(
+        'filename',
+        help='Atomic structure (any file-format that ASE can read).')
+    args = parser.parse_args()
+    atoms = read(args.filename)
+    if isinstance(atoms, list):
+        atoms = atoms[-1]
+    s = create_symmetries_object(atoms,
+                                 symmorphic=False,
+                                 tolerance=args.tolerance)
+    print(s)
+
+
+if __name__ == '__main__':
+    main()

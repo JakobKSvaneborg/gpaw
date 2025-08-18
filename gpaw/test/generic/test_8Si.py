@@ -25,7 +25,7 @@ def test_generic_8Si():
                 occupations=FermiDirac(width=0.01),
                 poissonsolver=PoissonSolver('fd', nn='M', relax='J'),
                 kpts=(2, 2, 2),
-                convergence={'energy': 1e-7}
+                convergence={'energy': 1e-8}
                 )
     bulk.calc = calc
     f1 = bulk.get_forces()[0, 2]

@@ -2,6 +2,9 @@
 Atomic Density Functional Theory
 """
 
+from __future__ import annotations
+from dataclasses import dataclass
+from functools import cached_property
 from math import log, pi, sqrt
 
 import numpy as np
@@ -19,12 +22,63 @@ from gpaw.mpi import serial_comm
 alpha = 1 / 137.036
 
 
+def get_r2dvdr(rgd, vr_g):
+    r2dvdr_g = np.zeros(rgd.N)
+    rgd.derivative(vr_g, r2dvdr_g)
+    r2dvdr_g *= rgd.r_g
+    r2dvdr_g -= vr_g
+    return r2dvdr_g
+
+
+def calculate_hartree(rgd, n, Z):
+    vHr = np.zeros(rgd.N)
+    hartree(0, n * rgd.r_g * rgd.dr_g, rgd.r_g, vHr)
+
+    # add potential from nuclear point charge (v = -Z / r)
+    vHr -= Z
+    return vHr
+
+
+def calculate_xc(rgd, xc, n_g):
+    vxc_g = np.zeros(rgd.N)
+
+    if xc.type == 'GLLB':
+        # Wait, the xc functional necessarily needs to see the density!
+        # ☠☠☠ XXX From where does it have the density? XXX ☠☠☠
+        Exc = xc.get_xc_potential_and_energy_1d(vxc_g)
+    else:
+        Exc = xc.calculate_spherical(
+            rgd, n_g.reshape((1, -1)), vxc_g.reshape((1, -1)))
+    return vxc_g, Exc
+
+
+def calculate_potentials(rgd, xc, n_g, Z, tw_coeff=None):
+    vHr_g = calculate_hartree(rgd, n_g, Z)
+    vxc_g, Exc = calculate_xc(rgd, xc, n_g)
+    vr_g = vHr_g + vxc_g * rgd.r_g
+
+    if tw_coeff is not None:
+        vr_g /= tw_coeff
+
+    return vr_g, vHr_g, vxc_g, Exc
+
+
+def calculate_density(f_j, u_jg, r_g):
+    n_g = np.dot(f_j, np.where(abs(u_jg) < 1e-160, 0, u_jg)**2) / (4 * pi)
+    n_g[1:] /= r_g[1:]**2
+    n_g[0] = n_g[1]
+    return n_g
+
+
 class AllElectron(IOContext):
     """Object for doing an atomic DFT calculation."""
 
+    default_gpernode = 150
+
     def __init__(self, symbol, xcname='LDA', scalarrel=True,
                  corehole=None, configuration=None, nofiles=True,
-                 txt='-', gpernode=150, orbital_free=False, tw_coeff=1.):
+                 txt='-', gpernode=default_gpernode,
+                 orbital_free=False, tw_coeff=1.):
         """Do an atomic DFT calculation.
 
         Example::
@@ -75,6 +129,8 @@ class AllElectron(IOContext):
         maxnodes = max([n - l - 1 for n, l in zip(self.n_j, self.l_j)])
         self.N = (maxnodes + 1) * gpernode
         self.beta = 0.4
+        self.rgd = AERadialGridDescriptor(self.beta / self.N, 1.0 / self.N,
+                                          self.N)
 
         self.orbital_free = orbital_free
         self.tw_coeff = tw_coeff
@@ -144,9 +200,7 @@ class AllElectron(IOContext):
 
         t = self.text
         N = self.N
-        beta = self.beta
         t(N, 'radial gridpoints.')
-        self.rgd = AERadialGridDescriptor(beta / N, 1.0 / N, N)
         g = np.arange(N, dtype=float)
         self.r = self.rgd.r_g
         self.dr = self.rgd.dr_g
@@ -208,30 +262,13 @@ class AllElectron(IOContext):
         vrold = None
 
         while True:
-            # calculate hartree potential
-            hartree(0, n * r * dr, r, vHr)
+            tw_coeff = self.tw_coeff if self.orbital_free else None
 
-            # add potential from nuclear point charge (v = -Z / r)
-            vHr -= Z
-
-            # calculated exchange correlation potential and energy
-            self.vXC[:] = 0.0
-
-            if self.xc.type == 'GLLB':
-                # Update the potential to self.vXC an the energy to self.Exc
-                Exc = self.xc.get_xc_potential_and_energy_1d(self.vXC)
-            else:
-                Exc = self.xc.calculate_spherical(self.rgd,
-                                                  n.reshape((1, -1)),
-                                                  self.vXC.reshape((1, -1)))
+            vr[:], vHr[:], self.vXC[:], Exc = calculate_potentials(
+                rgd=self.rgd, xc=self.xc, n_g=n, Z=Z, tw_coeff=tw_coeff)
 
             # calculate new total Kohn-Sham effective potential and
             # admix with old version
-
-            vr[:] = (vHr + self.vXC * r)
-
-            if self.orbital_free:
-                vr /= self.tw_coeff
 
             if niter > 0:
                 vr[:] = mix * vr + (1 - mix) * vrold
@@ -358,13 +395,8 @@ class AllElectron(IOContext):
             print(r, a, file=f)
 
     def calculate_density(self):
-        """Return the electron charge density divided by 4 pi"""
-        n = np.dot(self.f_j,
-                   np.where(abs(self.u_j) < 1e-160, 0,
-                            self.u_j)**2) / (4 * pi)
-        n[1:] /= self.r[1:]**2
-        n[0] = n[1]
-        return n
+        """Return the electron charge density divided by 4 pi."""
+        return calculate_density(self.f_j, self.u_j, self.r)
 
     def calculate_kinetic_energy_density(self):
         """Return the kinetic energy density"""
@@ -489,10 +521,8 @@ class AllElectron(IOContext):
         c10 = -self.d2gdr2 * r**2  # first part of c1 vector
 
         if self.scalarrel:
-            self.r2dvdr = np.zeros(self.N)
-            self.rgd.derivative(vr, self.r2dvdr)
-            self.r2dvdr *= r
-            self.r2dvdr -= vr
+            assert self.N == self.rgd.N
+            self.r2dvdr = get_r2dvdr(self.rgd, vr)
         else:
             self.r2dvdr = None
 
@@ -528,61 +558,6 @@ class AllElectron(IOContext):
             self.e_j[j] = e
             u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
 
-    def solve_confined(self, j, rc, vconf=None):
-        """Solve the Schroedinger equation in a confinement potential.
-
-        Solves the Schroedinger equation like the solve method, but with a
-        number of differences.  Before invoking this method, run solve() to
-        get initial guesses.
-
-        Parameters:
-            j: solves only for the state given by j
-            rc: solution cutoff. Solution will be zero outside this.
-            vconf: added to the potential (use this as confinement potential)
-
-        Returns: a tuple containing the solution u and its energy e.
-
-        Unlike the solve method, this method will not alter any attributes of
-        this object.
-        """
-        r = self.r
-        dr = self.dr
-        vr = self.vr.copy()
-        if vconf is not None:
-            vr += vconf * r
-
-        c2 = -(r / dr)**2
-        c10 = -self.d2gdr2 * r**2  # first part of c1 vector
-
-        if j is None:
-            n, l, e, u = 3, 2, -0.15, self.u_j[-1].copy()
-        else:
-            n = self.n_j[j]
-            l = self.l_j[j]
-            e = self.e_j[j]
-            u = self.u_j[j].copy()
-
-        nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
-                               self.scalarrel, rc=rc, beta=self.beta)
-        assert nn == n - l - 1  # run() should have been called already
-
-        # adjust eigenenergy until u is smooth at the turning point
-        de = 1.0
-        while abs(de) > 1e-9:
-            norm = np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr)
-            u *= 1.0 / sqrt(norm)
-            de = 0.5 * A / norm
-            x = abs(de / e)
-            if x > 0.1:
-                de *= 0.1 / x
-            e -= de
-            assert e < 0.0
-
-            nn, A = shoot_confined(u, l, vr, e, self.r2dvdr, r, dr, c10, c2,
-                                   self.scalarrel, rc=rc, beta=self.beta)
-        u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
-        return u, e
-
     def kin(self, l, u, e=None):  # XXX move to Generator
         r = self.r[1:]
         dr = self.dr[1:]
@@ -606,39 +581,6 @@ class AllElectron(IOContext):
         kr[1:-1] += fp[:-1] * u[2:]
         kr[0] = 0.0
         return kr
-
-    def r2g(self, r):
-        """Convert radius to index of the radial grid."""
-        return int(r * self.N / (self.beta + r))
-
-    def get_confinement_potential(self, alpha, ri, rc):
-        r"""Create a smooth confinement potential.
-
-        Returns a (potential) function which is zero inside the radius ri
-        and goes to infinity smoothly at rc, after which point it is nan.
-        The potential is given by::
-
-                   alpha         /   rc - ri \
-          V(r) = --------   exp ( - --------- )   for   ri < r < rc
-                  rc - r         \    r - ri /
-
-        """
-        i_ri = self.r2g(ri)
-        i_rc = self.r2g(rc)
-        if self.r[i_rc] == rc:
-            # Avoid division by zero in the odd case that rc coincides
-            # exactly with a grid point (which actually happens sometimes)
-            i_rc -= 1
-
-        potential = np.zeros(np.shape(self.r))
-        r = self.r[i_ri + 1:i_rc + 1]
-        exponent = - (rc - ri) / (r - ri)
-        denom = rc - r
-        value = np.exp(exponent) / denom
-        potential[i_ri + 1:i_rc + 1] = value
-        potential[i_rc + 1:] = np.inf
-
-        return alpha * potential
 
     def __del__(self):
         self.close()
@@ -756,6 +698,7 @@ def shoot_confined(u, l, vr, e, r2dvdr, r, dr, c10, c2, scalarrel,
                    gmax=None, rc=10., beta=7.):
     """This method is used by the solve_confined method."""
     # XXX much of this is pasted from the ordinary shoot method
+    assert l < 3
 
     if scalarrel:
         x = 0.5 * alpha**2  # x = 1 / (2c^2)
@@ -835,6 +778,198 @@ guess for the density).
     A = (dudrplus - dudrminus) * utp
 
     return nodes, A
+
+
+@dataclass
+class ValenceData:
+    symbol: str
+    xcname: str
+
+    rgd: AERadialGridDescriptor
+
+    n_j: list[int]
+    l_j: list[int]
+    e_j: list[float]
+    f_j: list[float]
+
+    scalarrel: bool
+
+    phi_jg: list[np.ndarray]
+    phit_jg: list[np.ndarray]
+    pt_jg: list[np.ndarray]
+    rcut_j: list[float]
+
+    vr_g: np.ndarray
+    r2dvdr_g: np.ndarray | None  # Actually: None means not scalarrel
+
+    def __post_init__(self):
+        assert self.scalarrel == (self.r2dvdr_g is not None)
+        jattributes = 'n_j l_j e_j f_j rcut_j'.split()
+
+        for attr in jattributes:
+            thing_j = getattr(self, attr)
+            assert len(thing_j) == self.nj, (attr, len(thing_j), self.nj)
+
+        err = abs(self.rgd.beta / len(self.rgd.r_g) - self.rgd.a)
+        assert err < 1e-15, f'Inconsistent rgd spacing, {err=}'
+
+    @property
+    def nj(self):
+        return len(self.l_j)
+
+    @classmethod
+    def calculate_potential_data(cls, setupdata):
+        sqrt4pi = np.sqrt(4.0 * np.pi)
+        rgd = setupdata.rgd
+        xc = XC(setupdata.setupname)
+
+        # XXX GLLB needs special initialization I think.
+        assert 'GLLB' not in setupdata.setupname
+
+        if setupdata.orbital_free:
+            raise RuntimeError('Setup is orbital-free')
+
+        # f_j includes only valence states, so we need to add also
+        # all-electron core density.
+        n_g = calculate_density(setupdata.f_j,
+                                setupdata.phi_jg * rgd.r_g[None, :],
+                                rgd.r_g)
+        n_g += setupdata.nc_g / sqrt4pi
+
+        vr_g = calculate_potentials(rgd, xc, n_g, setupdata.Z,
+                                    tw_coeff=None)[0]
+        r2dvdr_g = get_r2dvdr(rgd, vr_g)
+
+        assert setupdata.type in {'scalar-relativistic', 'non-relativistic'}
+        scalarrel = setupdata.type == 'scalar-relativistic'
+        return vr_g, r2dvdr_g, scalarrel
+
+    @classmethod
+    def from_setupdata_onthefly_potentials(cls, setupdata):
+        vr_g, r2dvdr_g, scalarrel = cls.calculate_potential_data(setupdata)
+        return cls.from_setupdata_and_potentials(
+            setupdata, vr_g=vr_g,
+            # To comply with the assertion in `.__post_init__()`
+            r2dvdr_g=r2dvdr_g if scalarrel else None,
+            scalarrel=scalarrel)
+
+    @classmethod
+    def from_setupdata_and_potentials(cls, setupdata, *, vr_g, r2dvdr_g,
+                                      scalarrel):
+
+        assert len(setupdata.phi_jg) == len(setupdata.l_j)
+
+        def multiply_r(array_jg):
+            return array_jg * setupdata.rgd.r_g[None, :]
+
+        return cls(
+            xcname=setupdata.setupname,
+            symbol=setupdata.symbol,
+            rgd=setupdata.rgd,
+            n_j=setupdata.n_j,
+            l_j=setupdata.l_j,
+            e_j=setupdata.eps_j,
+            f_j=setupdata.f_j,
+            rcut_j=setupdata.rcut_j,
+            phi_jg=multiply_r(setupdata.phi_jg),
+            phit_jg=multiply_r(setupdata.phit_jg),
+            pt_jg=multiply_r(setupdata.pt_jg),
+            vr_g=vr_g,
+            r2dvdr_g=r2dvdr_g,
+            scalarrel=scalarrel,
+        )
+
+    @property
+    def N(self):
+        return len(self.rgd.r_g)
+
+    @cached_property
+    def d2gdr2_g(self):
+        return self.rgd.d2gdr2()
+
+    def solve_confined(self, j, rc, vconf=None):
+        """Solve the Schroedinger equation in a confinement potential.
+
+        Solves the Schroedinger equation like the solve method, but with a
+        number of differences.  Before invoking this method, run solve() to
+        get initial guesses.
+
+        Parameters:
+            j: solves only for the state given by j
+            rc: solution cutoff. Solution will be zero outside this.
+            vconf: added to the potential (use this as confinement potential)
+
+        Returns: a tuple containing the solution u and its energy e.
+
+        Unlike the solve method, this method will not alter any attributes of
+        this object.
+        """
+        r = self.rgd.r_g
+        dr = self.rgd.dr_g
+        vr = self.vr_g.copy()
+        if vconf is not None:
+            vr += vconf * r
+
+        c2 = -(r / dr)**2
+        c10 = -self.d2gdr2_g * r**2  # first part of c1 vector
+
+        if j is None:
+            n, l, e, u = 3, 2, -0.15, self.phi_jg[-1].copy()
+        else:
+            n = self.n_j[j]
+            l = self.l_j[j]
+            e = self.e_j[j]
+            u = self.phi_jg[j].copy()
+
+        nn, A = shoot_confined(u, l, vr, e, self.r2dvdr_g, r, dr, c10, c2,
+                               self.scalarrel, rc=rc, beta=self.rgd.beta)
+        assert nn == n - l - 1  # run() should have been called already
+
+        # adjust eigenenergy until u is smooth at the turning point
+        de = 1.0
+        while abs(de) > 1e-9:
+            norm = np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr)
+            u *= 1.0 / sqrt(norm)
+            de = 0.5 * A / norm
+            x = abs(de / e)
+            if x > 0.1:
+                de *= 0.1 / x
+            e -= de
+            assert e < 0.0
+
+            nn, A = shoot_confined(u, l, vr, e, self.r2dvdr_g, r, dr, c10, c2,
+                                   self.scalarrel, rc=rc, beta=self.rgd.beta)
+        u *= 1.0 / sqrt(np.dot(np.where(abs(u) < 1e-160, 0, u)**2, dr))
+        return u, e
+
+    def get_confinement_potential(self, alpha, ri, rc):
+        r"""Create a smooth confinement potential.
+
+        Returns a (potential) function which is zero inside the radius ri
+        and goes to infinity smoothly at rc, after which point it is nan.
+        The potential is given by::
+
+                   alpha         /   rc - ri \
+          V(r) = --------   exp ( - --------- )   for   ri < r < rc
+                  rc - r         \    r - ri /
+
+        """
+        i_ri = self.rgd.floor(ri)
+        i_rc = self.rgd.floor(rc)
+        if self.rgd.r_g[i_rc] == rc:
+            # Avoid division by zero in the odd case that rc coincides
+            # exactly with a grid point (which actually happens sometimes)
+            i_rc -= 1
+
+        potential = np.zeros(np.shape(self.rgd.r_g))
+        r = self.rgd.r_g[i_ri + 1:i_rc + 1]
+        exponent = - (rc - ri) / (r - ri)
+        denom = rc - r
+        value = np.exp(exponent) / denom
+        potential[i_ri + 1:i_rc + 1] = value
+        potential[i_rc + 1:] = np.inf
+
+        return alpha * potential
 
 
 if __name__ == '__main__':

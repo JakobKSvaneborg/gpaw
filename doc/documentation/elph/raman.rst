@@ -5,7 +5,7 @@ Raman spectroscopy
 ========================
 
 GPAW offers two ways of calculating Raman intensities. One can use the `ASE Raman
-<https://wiki.fysik.dtu.dk/ase/ase/vibrations/raman.html>`_ utility together
+<https://ase-lib.org/ase/vibrations/raman.html>`_ utility together
 with the GPAW LRTDDFT module as shown in the Resonant Raman tutorial :ref:`resonant_raman_water`.
 
 GPAW also implements Raman spectroscopy for zone-center phonons of extended systems

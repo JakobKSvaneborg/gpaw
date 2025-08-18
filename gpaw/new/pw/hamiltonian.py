@@ -10,6 +10,7 @@ from gpaw.gpu import cupy as cp
 from gpaw.new import trace, zips
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.c import pw_precond, pw_insert_gpu
+from gpaw.utilities import as_complex_dtype
 
 
 class PWHamiltonian(Hamiltonian):
@@ -100,7 +101,8 @@ class PWHamiltonian(Hamiltonian):
 @trace
 def precondition(psit_nG: PWArray,
                  residual_nG: PWArray,
-                 out: PWArray) -> None:
+                 out: PWArray,
+                 ekin_n=None) -> None:
     """Preconditioner for KS equation.
 
     From:
@@ -111,23 +113,24 @@ def precondition(psit_nG: PWArray,
 
       Kresse and Furthmüller, Phys. Rev. B 54, 11169 (1996)
     """
-
     xp = psit_nG.xp
     G2_G = xp.asarray(psit_nG.desc.ekin_G * 2)
-    ekin_n = psit_nG.norm2('kinetic')
+    if ekin_n is None:
+        ekin_n = psit_nG.norm2('kinetic')
 
     if xp is np:
         for r_G, o_G, ekin in zips(residual_nG.data,
                                    out.data,
                                    ekin_n):
             pw_precond(G2_G, r_G, ekin, o_G)
-        return
+    else:
+        out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
+                               G2_G[np.newaxis],
+                               residual_nG.data)
+    return ekin_n
 
-    out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
-                           G2_G[np.newaxis],
-                           residual_nG.data)
 
-
+@trace(gpu=True)
 @cp.fuse()
 def gpu_prec(ekin, G2, residual):
     x = 1 / ekin / 3 * G2
@@ -157,7 +160,8 @@ class SpinorPWHamiltonian(Hamiltonian):
               D_asii,
               psit_nsG: XArray,
               out: XArray,
-              spin: int) -> XArray:
+              spin: int,
+              calculate_energy: bool = False) -> XArray:
         assert dedtaut_xR is None
         out_nsG = out
         pw = psit_nsG.desc
@@ -192,6 +196,7 @@ class SpinorPWHamiltonian(Hamiltonian):
         return spinor_precondition
 
 
+@trace
 def apply_local_potential_gpu(vt_R,
                               psit_nG,
                               out_nG,
@@ -201,21 +206,22 @@ def apply_local_potential_gpu(vt_R,
     e_kin_G = cp.asarray(pw.ekin_G)
     mynbands = psit_nG.mydims[0]
     size_c = vt_R.desc.size_c
-    if pw.dtype == float:
+    w = trace(gpu=True)
+    if np.issubdtype(pw.dtype, np.floating):
         shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
-        ifftn = cupyx.scipy.fft.irfftn
-        fftn = cupyx.scipy.fft.rfftn
+        ifftn = w(cupyx.scipy.fft.irfftn)
+        fftn = w(cupyx.scipy.fft.rfftn)
     else:
         shape = tuple(size_c)
-        ifftn = cupyx.scipy.fft.ifftn
-        fftn = cupyx.scipy.fft.fftn
+        ifftn = w(cupyx.scipy.fft.ifftn)
+        fftn = w(cupyx.scipy.fft.fftn)
     Q_G = cp.asarray(pw.indices(shape))
     psit_bQ = None
     for b1 in range(0, mynbands, blocksize):
         b2 = min(b1 + blocksize, mynbands)
         nb = b2 - b1
         if psit_bQ is None:
-            psit_bQ = cp.empty((nb,) + shape, complex)
+            psit_bQ = cp.empty((nb,) + shape, as_complex_dtype(pw.dtype))
         elif nb < blocksize:
             psit_bQ = psit_bQ[:nb]
         psit_bQ[:] = 0.0

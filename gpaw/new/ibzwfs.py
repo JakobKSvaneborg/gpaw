@@ -10,6 +10,7 @@ from gpaw.gpu import as_np, synchronize
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
+from gpaw.new.timer import trace
 from gpaw.new.brillouin import IBZ
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.potential import Potential
@@ -28,7 +29,6 @@ class IBZWaveFunctions(Generic[WFT]):
     def __init__(self,
                  ibz: IBZ,
                  *,
-                 nelectrons: float,
                  ncomponents: int,
                  wfs_qs: list[list[WFT]],
                  kpt_comm: MPIComm = serial_comm,
@@ -39,7 +39,6 @@ class IBZWaveFunctions(Generic[WFT]):
         self.kpt_comm = kpt_comm
         self.kpt_band_comm = kpt_band_comm
         self.comm = comm
-        self.nelectrons = nelectrons
         self.ncomponents = ncomponents
         self.collinear = (ncomponents != 4)
         self.spin_degeneracy = ncomponents % 2 + 1
@@ -73,14 +72,12 @@ class IBZWaveFunctions(Generic[WFT]):
     def create(cls,
                *,
                ibz: IBZ,
-               nelectrons: float,
                ncomponents: int,
                create_wfs_func,
                kpt_comm: MPIComm = serial_comm,
                kpt_band_comm: MPIComm = serial_comm,
                comm: MPIComm = serial_comm,
                ) -> Self:
-        """Collection of wave function objects for k-points in the IBZ."""
         rank_k = ibz.ranks(kpt_comm)
         mask_k = (rank_k == kpt_comm.rank)
         k_q = np.arange(len(ibz))[mask_k]
@@ -97,7 +94,6 @@ class IBZWaveFunctions(Generic[WFT]):
             wfs_qs.append(wfs_s)
 
         return cls(ibz,
-                   nelectrons=nelectrons,
                    ncomponents=ncomponents,
                    wfs_qs=wfs_qs,
                    kpt_comm=kpt_comm,
@@ -113,8 +109,8 @@ class IBZWaveFunctions(Generic[WFT]):
             return 'fd'
         return 'lcao'
 
-    def has_wave_functions(self):
-        return True
+    def has_wave_functions(self) -> bool:
+        raise NotImplementedError
 
     def get_max_shape(self, global_shape: bool = False) -> tuple[int, ...]:
         """Find the largest wave function array shape.
@@ -151,7 +147,6 @@ class IBZWaveFunctions(Generic[WFT]):
                 '  # (' +
                 ('' if self.collinear else 'non-') + 'collinear spins)\n'
                 f'bands: {self.nbands}\n'
-                f'valence electrons: {self.nelectrons}\n'
                 f'spin-degeneracy: {self.spin_degeneracy}\n'
                 f'dtype: {self.dtype}\n\n'
                 'memory:\n'
@@ -177,14 +172,16 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.orthonormalize(work_array_nX)
 
+    @trace
     def calculate_occs(self,
                        occ_calc,
+                       nelectrons: float,
                        fix_fermi_level=False) -> tuple[float, float, float]:
         degeneracy = self.spin_degeneracy
 
         # u index is q and s combined
         occ_un, fermi_levels, e_entropy = occ_calc.calculate(
-            nelectrons=self.nelectrons / degeneracy,
+            nelectrons=nelectrons / degeneracy,
             eigenvalues=[wfs.eig_n * Ha for wfs in self],
             weights=[wfs.weight for wfs in self],
             fermi_levels_guess=(None
@@ -487,7 +484,7 @@ class IBZWaveFunctions(Generic[WFT]):
                 return
             if hasattr(psit_nX.data, 'fd'):  # fd=file-descriptor
                 self.read_from_file_init_wfs_dm = True
-                psit_nX.data = psit_nX.data[:]  # read
+                psit_nX.data = np.ascontiguousarray(psit_nX.data[:])  # read
 
     def get_homo_lumo(self, spin: int = None) -> Array1D:
         """Return HOMO and LUMO eigenvalues."""

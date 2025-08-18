@@ -62,6 +62,52 @@ __host__ __device__ static __inline__ gpuDoubleComplex gpuCmulD(
     return make_gpuDoubleComplex(gpuCreal(x) * y, gpuCimag(x) * y);
 }
 
+#ifdef __cplusplus
+__host__ __device__ static __inline__ gpuDoubleComplex operator*(
+        gpuDoubleComplex x, double y)
+{
+    return gpuCmulD(x, y);
+}
+
+__host__ __device__ static __inline__ gpuFloatComplex operator*(
+        gpuFloatComplex x, float y)
+{
+    return make_gpuFloatComplex(x.x * y, x.y * y);
+}
+
+__host__ __device__ static __inline__ gpuDoubleComplex operator*(
+        gpuDoubleComplex x, gpuDoubleComplex y)
+{
+    return gpuCmul(x, y);
+}
+
+__host__ __device__ static __inline__ gpuFloatComplex operator*(
+        gpuFloatComplex x, gpuFloatComplex y)
+{
+    return gpuCmulf(x, y);
+}
+__host__ __device__ static __inline__ gpuDoubleComplex operator-(
+        gpuDoubleComplex x, gpuDoubleComplex y)
+{
+    return gpuCsub(x, y);
+}
+__host__ __device__ static __inline__ gpuFloatComplex operator-(
+        gpuFloatComplex x, gpuFloatComplex y)
+{
+    return gpuCsubf(x, y);
+}
+__host__ __device__ static __inline__ gpuDoubleComplex operator+(
+        gpuDoubleComplex x, gpuDoubleComplex y)
+{
+    return gpuCadd(x, y);
+}
+__host__ __device__ static __inline__ gpuFloatComplex operator+(
+        gpuFloatComplex x, gpuFloatComplex y)
+{
+    return gpuCaddf(x, y);
+}
+#endif
+
 __host__ __device__ static __inline__ gpuDoubleComplex gpuCneg(
         gpuDoubleComplex x)
 {

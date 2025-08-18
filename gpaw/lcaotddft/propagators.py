@@ -64,10 +64,10 @@ class Propagator:
 class LCAOPropagator(Propagator):
 
     def __init__(self):
-        Propagator.__init__(self)
+        super().__init__()
 
     def initialize(self, paw):
-        Propagator.initialize(self, paw)
+        super().initialize(paw)
         self.wfs = paw.wfs
         self.density = paw.density
         self.hamiltonian = paw.td_hamiltonian
@@ -77,7 +77,7 @@ class ReplayPropagator(LCAOPropagator):
 
     def __init__(self, filename, update='all'):
         from gpaw.lcaotddft.wfwriter import WaveFunctionReader
-        LCAOPropagator.__init__(self)
+        super().__init__()
         self.filename = filename
         self.update_mode = update
         self.reader = WaveFunctionReader(self.filename)
@@ -174,10 +174,11 @@ class ReplayPropagator(LCAOPropagator):
 class ECNPropagator(LCAOPropagator):
 
     def __init__(self):
-        LCAOPropagator.__init__(self)
+        super().__init__()
+        self.have_velocity_operator_matrix = False
 
     def initialize(self, paw, hamiltonian=None):
-        LCAOPropagator.initialize(self, paw)
+        super().initialize(paw)
         if hamiltonian is not None:
             self.hamiltonian = hamiltonian
 
@@ -233,6 +234,60 @@ class ECNPropagator(LCAOPropagator):
             self.MM2mm = Redistributor(ksl.block_comm,
                                        self.MM_descriptor,
                                        self.mm_block_descriptor)
+
+    def calculate_velocity_operator_matrix(self):
+        if getattr(self, 'have_velocity_operator_matrix', False):
+            return
+        ksl = self.wfs.ksl
+
+        gcomm = self.wfs.gd.comm
+        manytci = self.wfs.manytci
+        Vkick_qvmM = manytci.O_qMM_T_qMM(gcomm,
+                                         ksl.Mstart,
+                                         ksl.Mstop,
+                                         ignore_upper=ksl.using_blacs,
+                                         derivative=True)[0] * (-1j)
+
+        my_atoms = self.wfs.atom_partition.my_indices
+        dnabla_vaii = {v: {a: -self.wfs.setups[a].nabla_iiv[:, :, v] * (-1j)
+                       for a in my_atoms} for v in range(3)}
+        for kpt in self.wfs.kpt_u:
+            assert kpt.k == 0
+
+        for v in range(3):
+            self.wfs.atomic_correction.calculate(0, dnabla_vaii[v],
+                                                 Vkick_qvmM[kpt.q][v],
+                                                 ksl.Mstart, ksl.Mstop)
+
+        if ksl.using_blacs:
+            for Vkick_vmM in Vkick_qvmM:
+                for Vkick_mM in Vkick_vmM:
+                    scalapack_tri2full(ksl.mMdescriptor, Vkick_mM)
+
+        q = 0
+        if ksl.using_blacs:
+            Vkick_vmm = self.wfs.ksl.distribute_overlap_matrix(
+                Vkick_qvmM[kpt.q]
+            )
+        else:
+            gcomm.sum(Vkick_qvmM[q])
+            Vkick_vmm = Vkick_qvmM[q]
+
+        for kpt in self.wfs.kpt_u:
+            assert kpt.q == 0
+            kpt.Vkick_vmm = Vkick_vmm
+
+        self.have_velocity_operator_matrix = True
+
+    def velocity_gauge_kick(self, magnitude, direction, time):
+        self.calculate_velocity_operator_matrix()
+        for kpt in self.wfs.kpt_u:
+            kpt.A_MM = (
+                -magnitude * np.einsum('v,vMN->MN', direction, kpt.Vkick_vmm)
+            )
+
+        # Update Hamiltonian (and density)
+        self.hamiltonian.update()
 
     def kick(self, ext, time):
         # Propagate
@@ -335,10 +390,10 @@ class ECNPropagator(LCAOPropagator):
 class SICNPropagator(ECNPropagator):
 
     def __init__(self):
-        ECNPropagator.__init__(self)
+        super().__init__()
 
     def initialize(self, paw):
-        ECNPropagator.initialize(self, paw)
+        super().initialize(paw)
         # Allocate kpt.C2_nM arrays
         for kpt in self.wfs.kpt_u:
             kpt.C2_nM = np.empty_like(kpt.C_nM)
@@ -402,16 +457,10 @@ class SelfConsistentPropagator(SICNPropagator):
     after kick while SCPC will preserve the dipole oscillations.
     """
     def __init__(self, tolerance=1e-8, max_pc_iterations=20):
-        SICNPropagator.__init__(self)
+        super().__init__()
         self.tolerance = tolerance
         self.max_pc_iterations = max_pc_iterations
         self.last_pc_iterations = 0
-
-    def initialize(self, paw):
-        super().initialize(paw)
-        # Allocate kpt.C2_nM arrays
-        for kpt in self.wfs.kpt_u:
-            kpt.C2_nM = np.empty_like(kpt.C_nM)
 
     def propagate(self, time, time_step):
         """
@@ -454,27 +503,28 @@ class SelfConsistentPropagator(SICNPropagator):
                 self.propagate_wfs(kpt.C2_nM, kpt.C_nM, kpt.S_MM, kpt.H0_MM,
                                    time_step)
                 kpt.H0_MM = None
-            PCprev_dip = self.density.calculate_dipole_moment()
+
+            prev_dipole_v = self.density.calculate_dipole_moment()
             # 4. Calculate new Hamiltonian (and density)
             self.hamiltonian.update()
-            PCnew_dip = self.density.calculate_dipole_moment()
-            if np.sum(np.abs(PCnew_dip - PCprev_dip)) < self.tolerance:
+            dipole_v = self.density.calculate_dipole_moment()
+            if np.sum(np.abs(dipole_v - prev_dipole_v)) < self.tolerance:
                 break
         if last_pc_iterations == self.max_pc_iterations - 1:
-            raise RuntimeError('The SCPC propagator required too',
-                               ' many iterations to reached the',
-                               ' demanded accuracy.')
+            raise RuntimeError('The SCPC propagator required too ',
+                               'many iterations to reach the ',
+                               'demanded accuracy.')
         return time + time_step
 
     def todict(self):
         return {'name': 'scpc', 'tolerance': self.tolerance,
-                'PCmax': self.PCmax}
+                'max_pc_iterations': self.max_pc_iterations}
 
 
 class TaylorPropagator(Propagator):
 
     def __init__(self):
-        Propagator.__init__(self)
+        super().__init__()
         raise NotImplementedError('TaylorPropagator not implemented')
 
     def initialize(self, paw):
