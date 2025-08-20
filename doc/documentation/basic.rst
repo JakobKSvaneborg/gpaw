@@ -72,6 +72,7 @@ Here, we want to use one electronic band, the Perdew, Burke, Ernzerhof
 (PBE)\ [#PBE]_ exchange-correlation functional and 24 grid points in
 each direction.
 
+.. _parameters:
 
 ----------
 Parameters
@@ -183,6 +184,10 @@ given in the following sections.
       - ``str``
       - ``'LDA'``
       - :ref:`manual_xc`
+    * - ``extensions``
+      - ``List[ExtensionParameter]``
+      - ``[]``
+      - :ref:`extensions`
 
 
 *seq*: A sequence of three ``int``'s.
@@ -708,8 +713,9 @@ to their default values.
 E.g., ``convergence={'energy': 0.0001}`` will set the convergence criterion
 of energy to 0.1 meV and place all other criteria at their defaults.
 
-Additional keywords, including ``'forces'``, ``'work function'``,
-and ``'minimum iterations'``, can be set.
+Additional keywords, including ``'eigenvalues'``, ``'forces'``,
+``'work function'``, and ``'minimum iterations'``, can be set.
+Among these ``'eigenvalues'`` is only implemented in :ref:`newgpaw`.
 You can also write your own criteria, and change other things about
 how the default criteria operate. See :ref:`custom_convergence` for
 details on additional keywords and customization.
@@ -720,7 +726,7 @@ criteria.  However, with the ``'bands'`` set to ``'all'``, it is
 possible to force convergence also for the unoccupied states.  One can
 also use ``{'bands': 200}`` to converge the lowest 200 bands. One can
 also write ``{'bands': -10}`` to converge all bands except the last
-10. It is often hard to converge the last few bands in a calculation.
+10.  It is often hard to converge the last few bands in a calculation.
 Finally, one can also use ``{'bands': 'CBM+5.0'}`` to specify that bands
 up to the conduction band minimum plus 5.0 eV should be converged
 (for a metal, CBM is taken as the Fermi level).
@@ -1223,6 +1229,14 @@ Parallelization settings that would be employed when run on
         {'a': '1', 'b': True}
 
     See also Python's :option:`python:-X` option.
+
+-----------------------------------
+On-going refactoring and “New” GPAW
+-----------------------------------
+
+Some features may be only available with either “new” or “old” GPAW.
+This refers to on-going efforts to refactor the computational backend.
+See :ref:`newgpaw` for further information.
 
 
 .. [#LDA]    J. P. Perdew and Y. Wang,

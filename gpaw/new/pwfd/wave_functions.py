@@ -17,7 +17,8 @@ from gpaw.new import prod, trace, zips
 from gpaw.new.potential import Potential
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
-from gpaw.typing import Array2D, Array3D, ArrayND, Vector
+from gpaw.typing import Array2D, Array3D, Vector
+from gpaw.utilities import as_real_dtype
 
 
 class PWFDWaveFunctions(WaveFunctions, XP):
@@ -28,12 +29,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  q: int,
                  k: int,
                  setups: Setups,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  atomdist: AtomDistribution,
                  weight: float = 1.0,
                  ncomponents: int = 1,
                  qspiral_v: Vector | None = None):
-        assert isinstance(atomdist, AtomDistribution)
+        # assert isinstance(atomdist, AtomDistribution)
         self.psit_nX = psit_nX
         nbands = psit_nX.dims[0]
         super().__init__(setups=setups,
@@ -42,7 +43,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                          q=q,
                          k=k,
                          kpt_c=psit_nX.desc.kpt_c,
-                         fracpos_ac=fracpos_ac,
+                         relpos_ac=relpos_ac,
                          atomdist=atomdist,
                          weight=weight,
                          ncomponents=ncomponents,
@@ -60,7 +61,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def from_wfs(cls,
                  wfs: PWFDWaveFunctions,
                  psit_nX: XArray,
-                 fracpos_ac=None,
+                 relpos_ac=None,
                  atomdist=None) -> PWFDWaveFunctions:
         return cls(
             psit_nX,
@@ -68,7 +69,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             q=wfs.q,
             k=wfs.k,
             setups=wfs.setups,
-            fracpos_ac=wfs.fracpos_ac if fracpos_ac is None else fracpos_ac,
+            relpos_ac=wfs.relpos_ac if relpos_ac is None else relpos_ac,
             atomdist=atomdist or wfs.atomdist,
             weight=wfs.weight,
             ncomponents=wfs.ncomponents,
@@ -105,7 +106,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         if self._pt_aiX is None:
             self._pt_aiX = self.psit_nX.desc.atom_centered_functions(
                 [setup.pt_j for setup in self.setups],
-                self.fracpos_ac,
+                self.relpos_ac,
                 atomdist=self.atomdist,
                 qspiral_v=self.qspiral_v,
                 xp=self.psit_nX.xp)
@@ -130,20 +131,20 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         return self._P_ani
 
     def move(self,
-             fracpos_ac: Array2D,
+             relpos_ac: Array2D,
              atomdist: AtomDistribution,
              move_wave_functions: Callable[..., None]) -> None:
         if self.psit_nX.data is not None:
             move_wave_functions(
-                self.fracpos_ac,
-                fracpos_ac,
+                self.relpos_ac,
+                relpos_ac,
                 self.P_ani,
                 self.psit_nX,
                 self.setups)
-        super().move(fracpos_ac, atomdist, move_wave_functions)
+        super().move(relpos_ac, atomdist, move_wave_functions)
         self.orthonormalized = False
         assert self.pt_aiX is not None
-        self.pt_aiX.move(fracpos_ac, atomdist)
+        self.pt_aiX.move(relpos_ac, atomdist)
 
     def add_to_density(self,
                        nt_sR: UGArray,
@@ -177,7 +178,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         occ_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.psit_nX.add_ked(occ_n, taut_sR[self.spin])
 
-    def orthonormalize(self, work_array_nX: ArrayND = None):
+    @trace
+    def orthonormalize(self, psit2_nX=None):
         r"""Orthonormalize wave functions.
 
         Computes the overlap matrix:::
@@ -210,10 +212,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P_ani = self.P_ani
 
         P2_ani = P_ani.new()
-        psit2_nX = psit_nX.new(data=work_array_nX)
-
-        dS_aii = self.setups.get_overlap_corrections(P_ani.layout.atomdist,
-                                                     self.xp)
+        if psit2_nX is None:
+            psit2_nX = psit_nX.new()
+        dS_aii = self.setups.get_overlap_corrections(
+            P_ani.layout.atomdist,
+            self.xp,
+            dtype=as_real_dtype(P_ani.data.dtype))
 
         # We are actually calculating S^*:
         S = psit_nX.matrix_elements(psit_nX, domain_sum=False, cc=True)
@@ -236,10 +240,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def subspace_diagonalize(self,
                              Ht,
                              dH,
-                             work_array: ArrayND = None,
-                             Htpsit_nX=None,
+                             psit2_nX,
+                             data_buffer=None,
                              scalapack_parameters=(None, 1, 1, None)):
         """
+        If data_buffer is None, psit2_nX will be used as a buffer
+        for the wave functions.
 
         Ht(in, out):::
 
@@ -252,14 +258,13 @@ class PWFDWaveFunctions(WaveFunctions, XP):
           <𝜓 |p> ΔH  <p |𝜓>
             m  i   ij  j  n
         """
-        self.orthonormalize(work_array)
+        self.orthonormalize(psit2_nX)
         psit_nX = self.psit_nX
         P_ani = self.P_ani
-        psit2_nX = psit_nX.new(data=work_array)
         P2_ani = P_ani.new()
         domain_comm = psit_nX.desc.comm
 
-        Ht = partial(Ht, out=psit2_nX, spin=self.spin)
+        Ht = partial(Ht, out=psit2_nX, spin=self.spin, calculate_energy=True)
         H = psit_nX.matrix_elements(psit_nX,
                                     function=Ht,
                                     domain_sum=False,
@@ -268,7 +273,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P_ani.matrix.multiply(P2_ani, opb='C', symmetric=True,
                               out=H, beta=1.0)
         domain_comm.sum(H.data, 0)
-
         if domain_comm.rank == 0:
             slcomm, r, c, b = scalapack_parameters
             if r == c == 1:
@@ -282,13 +286,16 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         domain_comm.broadcast(H.data, 0)
         domain_comm.broadcast(self._eig_n, 0)
-        if Htpsit_nX is not None:
-            H.multiply(psit2_nX, out=Htpsit_nX)
-
-        H.multiply(psit_nX, out=psit2_nX)
-        psit_nX.data[:] = psit2_nX.data
-        H.multiply(P_ani, out=P2_ani)
-        P_ani.data[:] = P2_ani.data
+        if data_buffer is None:
+            H.multiply(psit_nX, out=psit2_nX)
+            psit_nX.data[:] = psit2_nX.data
+            H.multiply(P_ani, out=P2_ani)
+            P_ani.data[:] = P2_ani.data
+        else:
+            H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
+            H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
+            H.multiply(P_ani, out=P2_ani)
+            P_ani.data[:] = P2_ani.data
 
     def force_contribution(self,
                            potential: Potential,
@@ -339,8 +346,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def collect(self,
                 n1: int = 0,
                 n2: int = 0) -> PWFDWaveFunctions | None:
-        """Collect range of bands to master of band and domain
-        communicators."""
+        """Collect range of bands to master of band and domain comms."""
         # Also collect projections instead of recomputing XXX
         n2 = n2 if n2 > 0 else self.nbands + n2
         spinors = (2,) if self.ncomponents == 4 else ()
@@ -375,10 +381,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 ba = 0
                 na = nb
             if domain_comm.rank == 0:
-                return PWFDWaveFunctions.from_wfs(
+                wfs = PWFDWaveFunctions.from_wfs(
                     self,
                     psit_nX,
                     atomdist=self.atomdist.gather())
+                wfs._eig_n = self.eig_n[n1:n2]
+                return wfs
         else:
             rank = band_comm.rank
             ranka, ba = max((rank1, b1), (rank, 0))
@@ -406,7 +414,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                                  q=q,
                                  k=k,
                                  setups=self.setups,
-                                 fracpos_ac=self.fracpos_ac,
+                                 relpos_ac=self.relpos_ac,
                                  atomdist=self.atomdist.gather(),
                                  weight=weight,
                                  ncomponents=self.ncomponents,
@@ -417,10 +425,10 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         :::
 
-           _    /  _ ~ ~ _   ---  a  a  _a
-           μ  = | dr 𝜓 𝜓 r + >   P  P  Δμ
-            mn  /     m n    ---  im jn  ij
-                             aij
+           _    / ~ ~ _ _   ---  a  a  _a
+           μ  = | 𝜓 𝜓 rdr + >   P  P  Δμ
+            mn  /  m n      ---  im jn  ij
+                            aij
 
         Returns
         -------
@@ -431,7 +439,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         dipole_nnv = np.zeros((self.nbands, self.nbands, 3))
 
-        position_av = self.fracpos_ac @ cell_cv
+        position_av = self.relpos_ac @ cell_cv
 
         R_aiiv = []
         for setup, position_v in zips(self.setups, position_av):
@@ -492,7 +500,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self.psit_nX.ifft(out=psit_nR)
         return PWFDWaveFunctions.from_wfs(self, psit_nR)
 
-    def morph(self, desc, fracpos_ac, atomdist):
+    def morph(self, desc, relpos_ac, atomdist):
         desc = desc.new(kpt=self.psit_nX.desc.kpt_c)
         psit_nX = self.psit_nX.morph(desc)
 
@@ -502,4 +510,4 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self._pt_aiX = None
 
         return PWFDWaveFunctions.from_wfs(self, psit_nX,
-                                          fracpos_ac=fracpos_ac)
+                                          relpos_ac=relpos_ac)

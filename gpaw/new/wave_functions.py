@@ -20,7 +20,7 @@ class WaveFunctions:
                  *,
                  setups: Setups,
                  nbands: int,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  atomdist: AtomDistribution,
                  spin: int = 0,
                  q: int = 0,
@@ -43,7 +43,7 @@ class WaveFunctions:
         self.ncomponents = ncomponents
         self.dtype = dtype
         self.kpt_c = kpt_c
-        self.fracpos_ac = fracpos_ac
+        self.relpos_ac = relpos_ac
         self.atomdist = atomdist
         self.domain_comm = domain_comm
         self.band_comm = band_comm
@@ -89,10 +89,10 @@ class WaveFunctions:
         raise NotImplementedError
 
     def move(self,
-             fracpos_ac: Array2D,
+             relpos_ac: Array2D,
              atomdist: AtomDistribution,
              move_wave_functions) -> None:
-        self.fracpos_ac = fracpos_ac
+        self.relpos_ac = relpos_ac
         self.atomdist = atomdist
         self._P_ani = None
         self._eig_n = None
@@ -102,6 +102,21 @@ class WaveFunctions:
                 n1: int = 0,
                 n2: int = 0) -> WaveFunctions | None:
         raise NotImplementedError
+
+    @property
+    def has_eigs(self) -> bool:
+        # Checks if eigenvalues have been calculated,
+        # that is, one scf step has been performed.
+        return self._eig_n is not None
+
+    @property
+    def has_occs(self) -> bool:
+        # Checks if occupations have been calculated,
+        # that is, one scf step has been performed.
+        # XXX: In theory, this should be the same as has_eigs,
+        # however, there seems to be a discrepancy during
+        # fixed density calculations.
+        return self._occ_n is not None
 
     @property
     def eig_n(self) -> Array1D:

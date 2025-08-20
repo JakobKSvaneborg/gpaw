@@ -714,7 +714,6 @@ def apply_prec(prec, x, const=1.0, wfs=None, mode=None):
                 psit_G = kpt.psit.array[i]
                 ekin = prec.calculate_kinetic_energy(psit_G, kpt)
                 y[k][i] = - const * prec(z, kpt, ekin) / deg
-
     else:
         deg = (3.0 - wfs.kd.nspins)
         for k, kpt in enumerate(wfs.kpt_u):

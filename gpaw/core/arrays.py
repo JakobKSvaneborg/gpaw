@@ -10,6 +10,7 @@ from gpaw.core.matrix import Matrix
 from gpaw.mpi import MPIComm
 from gpaw.typing import Array1D, Self, ArrayND
 from gpaw.gpu import XP
+from gpaw.new import trace
 
 if TYPE_CHECKING:
     from gpaw.core.uniform_grid import UGArray, UGDesc
@@ -17,6 +18,23 @@ if TYPE_CHECKING:
 from gpaw.new import prod
 
 DomainType = TypeVar('DomainType', bound=Domain)
+
+
+class XArrayWithNoData:
+    def __init__(self,
+                 comm,
+                 dims,
+                 desc,
+                 xp):
+        self.comm = comm
+        self.dims = dims
+        self.desc = desc
+        self.xp = xp
+        self.data = None
+
+    def morph(self, desc):
+        from gpaw.new.calculation import ReuseWaveFunctionsError
+        raise ReuseWaveFunctionsError
 
 
 class DistributedArrays(Generic[DomainType], XP):
@@ -72,8 +90,37 @@ class DistributedArrays(Generic[DomainType], XP):
         XP.__init__(self, xp)
         self._matrix: Matrix | None = None
 
-    def new(self, data=None) -> DistributedArrays:
+    def new(self, data=None, dims=None) -> DistributedArrays:
         raise NotImplementedError
+
+    def create_work_buffer(self, data_buffer: np.ndarray):
+        """Create new Distributed array object of same
+        kind, to be used as a buffer array when doing
+        sliced operations.
+
+        Parameters
+        ----------
+        data_buffer:
+            Array to use for storage.
+        """
+        assert isinstance(data_buffer, self.xp.ndarray)
+        assert len(self.dims) >= 1
+        data_buffer = data_buffer.view(self.data.dtype)
+        datasize = data_buffer.size
+        X = self.data.shape[1:]
+        nX = int(np.prod(X))
+        # Choose mybands, s.t. they fit into
+        # data_buffer. Hence, datasize divided by nX
+        # rounded down.
+        mybands = min(datasize // nX,
+                      self.data.shape[0])
+        data = data_buffer[:mybands * nX].reshape(
+            (mybands,) + X)
+        totalbands = self.comm.sum_scalar(mybands)
+        # Dims is (totalbands,) + self.dims[1:], where
+        # self.dims[1:] is extra dimensions, such as spin.
+        return self.new(data=data,
+                        dims=(totalbands,) + self.dims[1:])
 
     def copy(self):
         return self.new(data=self.data.copy())
@@ -95,7 +142,7 @@ class DistributedArrays(Generic[DomainType], XP):
         for index in range(self.dims[0]):
             yield self[index]
 
-    def flat(self):
+    def flat(self) -> Self:
         if self.dims == ():
             yield self
         else:
@@ -126,6 +173,7 @@ class DistributedArrays(Generic[DomainType], XP):
 
         return self._matrix
 
+    @trace
     def matrix_elements(self,
                         other: Self,
                         *,
@@ -156,9 +204,9 @@ class DistributedArrays(Generic[DomainType], XP):
             out = M1.multiply(M2, opb='C', alpha=self.dv,
                               symmetric=symmetric, out=out)
 
-            # Plane-wave expansion of real-valued functions needs a correction:
+            # Plane-wave expansion of real-valued
+            # functions needs a correction:
             self._matrix_elements_correction(M1, M2, out, symmetric)
-
         else:
             if symmetric:
                 _parallel_me_sym(self, out, function)
@@ -170,7 +218,6 @@ class DistributedArrays(Generic[DomainType], XP):
 
         if domain_sum:
             self.domain_comm.sum(out.data)
-
         return out
 
     def _matrix_elements_correction(self,
@@ -232,13 +279,19 @@ class DistributedArrays(Generic[DomainType], XP):
                     out: UGArray | None = None) -> UGArray:
         raise NotImplementedError
 
+    def integrate(self, other: Self | None = None) -> np.ndarray:
+        raise NotImplementedError
+
+    def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
+        raise NotImplementedError
+
 
 def _parallel_me(psit1_nX: DistributedArrays,
                  psit2_nX: DistributedArrays,
                  M_nn: Matrix) -> None:
 
-    comm = psit1_nX.comm
-    nbands = psit1_nX.dims[0]
+    comm = psit2_nX.comm
+    nbands = psit2_nX.dims[0]
 
     psit1_nX = psit1_nX[:]
 

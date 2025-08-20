@@ -121,7 +121,6 @@ def semi_homogenous_partition(npoles: int) -> Array1D:
     # Calculate the grid spacing
     # Round up to the next power of 2. This will determine the minimum spacing
     dw = 1 / 2**np.ceil(np.log2(npoles))
-    dw_n = np.zeros(npoles)
 
     # Get the previous power of two, by searching down,
     # e.g. lp(4) = 2, lp(7)=4, lp(8)=4, lp(9)=8

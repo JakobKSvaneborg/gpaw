@@ -2,7 +2,6 @@ import numpy as np
 
 from ase.optimize import BFGS
 from ase import Atoms
-from ase.data.vdw import vdw_radii
 
 from gpaw import restart
 from gpaw.solvation.sjm import SJM, SJMPower12Potential
@@ -11,12 +10,7 @@ from gpaw.solvation import (
     EffectivePotentialCavity,
     LinearDielectric,
     GradientSurface,
-    SurfaceInteraction
-)
-
-
-def atomic_radii(atoms):
-    return [vdw_radii[n] for n in atoms.numbers]
+    SurfaceInteraction)
 
 
 # Solvent parameters
@@ -60,7 +54,7 @@ calc = SJM(mode='fd',
            xc='PBE',
            occupations=FermiDirac(0.1),
            cavity=EffectivePotentialCavity(
-               effective_potential=SJMPower12Potential(atomic_radii, u0,
+               effective_potential=SJMPower12Potential(u0=u0,
                                                        H2O_layer=True),
                temperature=T,
                surface_calculator=GradientSurface()),

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import sys
 from functools import partial
 from math import exp, log, pi, sqrt
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 from ase.data import atomic_numbers, chemical_symbols
@@ -9,8 +11,9 @@ from ase.units import Ha
 from gpaw import __version__ as version
 from gpaw.atom.aeatom import (AllElectronAtom, Channel, GaussianBasis, colors,
                               parse_ld_str)
-from gpaw.basis_data import Basis, BasisFunction, BasisPlotter
+from gpaw.basis_data import Basis, BasisFunction
 from gpaw.gaunt import gaunt
+from gpaw.setup_data import SetupData
 from gpaw.typing import Array2D
 from gpaw.utilities import pack_hermitian
 from gpaw.xc.ri.ribasis import generate_ri_basis
@@ -19,12 +22,17 @@ from scipy.linalg import eigh
 from scipy.optimize import fsolve
 from scipy.special import erf
 
+if TYPE_CHECKING:
+    from matplotlib import pyplot as plt
+
 
 class DatasetGenerationError(Exception):
     pass
 
 
-parameters = {
+parameters: dict[str,
+                 Union[tuple[str, float | list[float]],
+                       tuple[str, float | list[float], dict[str, Any]]]] = {
     # 1-2:
     'H1': ('1s,s,p', 0.9),
     'He2': ('1s,s,p', 1.5),
@@ -120,16 +128,16 @@ parameters = {
     'Ba2': ('6s,s,6p,5d', 3.9),
     'Ba10': ('5s,6s,5p,6p,5d,d,F', 2.2),
     # 57-71:
-    'La11': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.5),
-    'Ce12': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.4),
-    'Pr13': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.3),
-    'Nd14': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.3),
-    'Pm15': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.3),
+    'La11': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
+    'Ce12': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
+    'Pr13': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
+    'Nd14': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
+    'Pm15': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Sm16': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Eu17': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Gd18': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Tb19': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
-    'Dy20': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.1),
+    'Dy20': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Ho21': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Er22': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
     'Tm23': ('5s,6s,5p,6p,5d,d,4f,f,G', 2.2),
@@ -299,8 +307,7 @@ class PAWWaves:
 
 
 class PAWSetupGenerator:
-    def __init__(self, aea, projectors,
-                 scalar_relativistic=False,
+    def __init__(self, aea, projectors, *,
                  core_hole=None,
                  fd=None,
                  yukawa_gamma=0.0,
@@ -364,7 +371,6 @@ class PAWSetupGenerator:
 
         aea.initialize()
         aea.run()
-        aea.scalar_relativistic = scalar_relativistic
         aea.refine()
 
         self.rgd = aea.rgd
@@ -732,7 +738,9 @@ class PAWSetupGenerator:
         e_b, _ = eigh(H_bb, S_bb)
         return e_b
 
-    def test_convergence(self):
+    def test_convergence(self,
+                         ax: 'plt.Axes',
+                         show: bool = True) -> None:
         rgd = self.rgd
         r_g = rgd.r_g
         G_k, nt_k = self.rgd.fft(self.nt_g * r_g)
@@ -751,8 +759,6 @@ class PAWSetupGenerator:
         egg = 0.5 * rgd.integrate(self.ghat_g * rgd.poisson(self.ghat_g), -1)
         ekin = self.aea.ekin - self.ekincore - self.waves_l[0].dekin_nn[0, 0]
         evt = rgd.integrate(self.nt_g * self.vtr_g, -1)
-
-        import matplotlib.pyplot as plt
 
         errors = 10.0**np.arange(-4, 0) / Ha
         self.log('\nConvergence of energy:')
@@ -775,85 +781,62 @@ class PAWSetupGenerator:
                 ecut = 0.5 * G**2
                 h = pi / G
                 self.log(f' {ecut * Ha:6.1f} ({h:4.2f})', end='')
-            plt.semilogy(G_k, abs(e_k - e_k[-1]) * Ha, label=label)
+            ax.semilogy(G_k, abs(e_k - e_k[-1]) * Ha, label=label)
         self.log()
-        plt.axis(xmax=20)
-        plt.xlabel('G')
-        plt.ylabel('[eV]')
-        plt.legend()
-        plt.show()
+        ax.axis(xmax=20)
+        ax.set_xlabel('G')
+        ax.set_ylabel('[eV]')
+        ax.legend()
+        if show:
+            plt.show()
 
-    def plot(self):
-        import matplotlib.pyplot as plt
-        r_g = self.rgd.r_g
+    def plot(
+        self,
+        *,
+        potential_components: 'plt.Axes' | None = None,
+        partial_waves: 'plt.Axes' | None = None,
+        projectors: 'plt.Axes' | None = None,
+    ) -> None:
+        if potential_components is not None:
+            from .plot_dataset import (
+                plot_potential_components,
+                get_plot_pot_comps_params_from_generator as get_pc_args)
+            plot_potential_components(potential_components, *get_pc_args(self))
+        if partial_waves is not None:
+            from .plot_dataset import (
+                plot_partial_waves,
+                get_plot_pwaves_params_from_generator as get_ppw_args)
 
-        plt.figure()
-        plt.plot(r_g, self.vxct_g, label='xc')
-        plt.plot(r_g[1:], self.v0r_g[1:] / r_g[1:], label='0')
-        plt.plot(r_g[1:], self.vHtr_g[1:] / r_g[1:], label='H')
-        plt.plot(r_g[1:], self.vtr_g[1:] / r_g[1:], label='ps')
-        plt.plot(r_g[1:], self.aea.vr_sg[0, 1:] / r_g[1:], label='ae')
-        plt.axis(xmin=0,
-                 xmax=2 * self.rcmax,
-                 ymin=self.vtr_g[1] / r_g[1],
-                 ymax=max(0, (self.v0r_g[1:] / r_g[1:]).max()))
-        plt.xlabel('radius [Bohr]')
-        plt.ylabel('potential [Ha]')
-        plt.legend()
+            plot_partial_waves(partial_waves, *get_ppw_args(self))
+        if projectors is not None:
+            from .plot_dataset import (
+                plot_projectors,
+                get_plot_projs_params_from_generator as get_pp_args)
 
-        plt.figure()
-        i = 0
-        for l, waves in enumerate(self.waves_l):
-            for n, e, phi_g, phit_g in zip(waves.n_n, waves.e_n,
-                                           waves.phi_ng, waves.phit_ng):
-                if n == -1:
-                    gc = self.rgd.ceil(waves.rcut)
-                    name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
-                else:
-                    gc = len(self.rgd)
-                    name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-                plt.plot(r_g[:gc], (phi_g * r_g)[:gc], color=colors[i],
-                         label=name)
-                plt.plot(r_g[:gc], (phit_g * r_g)[:gc], '--', color=colors[i])
-                i += 1
-        plt.axis(xmin=0, xmax=3 * self.rcmax)
-        plt.xlabel('radius [Bohr]')
-        plt.ylabel(r'$r\phi_{n\ell}(r)$')
-        plt.legend()
-
-        plt.figure()
-        i = 0
-        for l, waves in enumerate(self.waves_l):
-            for n, e, pt_g in zip(waves.n_n, waves.e_n, waves.pt_ng):
-                if n == -1:
-                    name = '*{} ({:.2f} Ha)'.format('spdf'[l], e)
-                else:
-                    name = '%d%s (%.2f Ha)' % (n, 'spdf'[l], e)
-                plt.plot(r_g, pt_g * r_g, color=colors[i], label=name)
-                i += 1
-        plt.axis(xmin=0, xmax=self.rcmax)
-        plt.legend()
+            plot_projectors(projectors, *get_pp_args(self))
 
     def create_basis_set(self, tailnorm=0.0005, scale=200.0, splitnorm=0.16,
                          tag=None, ri=None):
         rgd = self.rgd
         name = 'dzp' if not tag else f'{tag}.dzp'
-        self.basis = Basis(self.aea.symbol, name, readxml=False, rgd=rgd)
 
-        # We print text to sdtout and put it in the basis-set file
+        # We print text to stdout and put it in the basis-set file
         txt = 'Basis functions:\n'
 
         # Bound states:
+        bf_j = []
         for l, waves in enumerate(self.waves_l):
             for i, n in enumerate(waves.n_n):
                 if n > 0:
                     tn = tailnorm
                     if waves.f_n[i] == 0:
                         tn = min(0.05, tn * 20)  # no need for long tail
+                    if l == 3:
+                        tn = 0.01
                     phit_g, ronset, rc, de = self.create_basis_function(
                         l, i, tn, scale)
                     bf = BasisFunction(n, l, rc, phit_g, 'bound state')
-                    self.basis.append(bf)
+                    bf_j.append(bf)
 
                     txt += '%d%s bound state:\n' % (n, 'spdf'[l])
                     txt += ('  cutoff: %.3f to %.3f Bohr (tail-norm=%f)\n' %
@@ -870,7 +853,7 @@ class PAWSetupGenerator:
             if n0 is None:
                 continue
 
-            for bf in self.basis.bf_j:
+            for bf in bf_j:
                 if bf.l == l and bf.n == n0:
                     break
 
@@ -888,7 +871,7 @@ class PAWSetupGenerator:
 
             phit2_g = self.pseudizer(phit_g, gc, l, 2)[0]  # "split valence"
             bf = BasisFunction(n, l, rc, phit_g - phit2_g, 'split valence')
-            self.basis.append(bf)
+            bf_j.append(bf)
 
             txt += '%d%s split valence:\n' % (n0, 'spdf'[l])
             txt += f'  cutoff: {rc:.3f} Bohr (tail-norm={splitnorm:f})\n'
@@ -905,23 +888,24 @@ class PAWSetupGenerator:
             phit_g[gcpol:] = 0.0
 
             bf = BasisFunction(None, lpol, rcpol, phit_g, 'polarization')
-            self.basis.append(bf)
+            bf_j.append(bf)
             txt += f'l={lpol} polarization functions:\n'
             txt += f'  cutoff: {rcpol:.3f} Bohr '
             txt += f'(r^{lpol} exp(-{alpha:.3f}*r^2))\n'
 
         self.log(txt)
 
-        # Write basis-set file:
-        self.basis.generatordata = txt
-        self.basis.generatorattrs.update(dict(tailnorm=tailnorm,
-                                              scale=scale,
-                                              splitnorm=splitnorm))
+        basis = Basis(self.aea.symbol, name, rgd=rgd, bf_j=bf_j,
+                      generatordata=txt,
+                      generatorattrs=dict(tailnorm=tailnorm,
+                                          scale=scale,
+                                          splitnorm=splitnorm))
 
         if ri:
-            generate_ri_basis(self.basis, ri)
+            basis = generate_ri_basis(basis, ri)
 
-        return self.basis
+        self.basis = basis
+        return basis
 
     def create_basis_function(self, l, n, tailnorm, scale):
         rgd = self.rgd
@@ -955,12 +939,13 @@ class PAWSetupGenerator:
         e0 = e
         ch = Channel(l)
         while True:
-            duodr, a = ch.integrate_outwards(u_g, rgd, vtr_g, g1, e)
+            duodr, a = ch.integrate_outwards(u_g, rgd, vtr_g, g1, e,
+                                             scalar_relativistic=False)
 
             for n in range(N):
-                duodr_n[n], a_n[n] = ch.integrate_outwards(u_ng[n], rgd,
-                                                           vtr_g, g1, e,
-                                                           pt_g=pt_ng[n])
+                duodr_n[n], a_n[n] = ch.integrate_outwards(
+                    u_ng[n], rgd, vtr_g, g1, e,
+                    scalar_relativistic=False, pt_g=pt_ng[n])
 
             A_nn = (dH_nn - e * dS_nn) / (4 * pi)
             B_nn = rgd.integrate(pt_ng[:, None] * u_ng, -1)
@@ -972,7 +957,8 @@ class PAWSetupGenerator:
             duodr -= np.dot(duodr_n, d_n)
             uo = u_g[g1]
 
-            duidr = ch.integrate_inwards(u_g, rgd, vtr_g, g1, e, gmax=g2)
+            duidr = ch.integrate_inwards(u_g, rgd, vtr_g, g1, e, gmax=g2,
+                                         scalar_relativistic=False)
             ui = u_g[g1]
             A = duodr / uo - duidr / ui
             u_g[g1:] *= uo / ui
@@ -1012,14 +998,15 @@ class PAWSetupGenerator:
         d0 = 42.0
         offset = 0
         for e in energies:
-            dudr = ch.integrate_outwards(u_g, rgd, self.vtr_g, gcut, e)[0]
+            dudr = ch.integrate_outwards(u_g, rgd, self.vtr_g, gcut, e,
+                                         scalar_relativistic=False)[0]
             u = u_g[gcut]
 
             if N:
                 for n in range(N):
-                    dudr_n[n] = ch.integrate_outwards(u_ng[n], rgd,
-                                                      self.vtr_g, gcut, e,
-                                                      pt_g=pt_ng[n])[0]
+                    dudr_n[n] = ch.integrate_outwards(
+                        u_ng[n], rgd, self.vtr_g, gcut, e,
+                        scalar_relativistic=False, pt_g=pt_ng[n])[0]
 
                 A_nn = (dH_nn - e * dS_nn) / (4 * pi)
                 B_nn = rgd.integrate(pt_ng[:, None] * u_ng, -1)
@@ -1040,8 +1027,6 @@ class PAWSetupGenerator:
 
     def make_paw_setup(self, tag=None):
         aea = self.aea
-
-        from gpaw.setup_data import SetupData
         setup = SetupData(aea.symbol, aea.xc.name, tag, readxml=False,
                           generator_version=3)
 
@@ -1287,7 +1272,7 @@ def get_parameters(symbol, args):
         extra = {}
 
     if args.configuration:
-        configuration = eval(args.configuration)
+        configuration = args.configuration
     else:
         configuration = None
 
@@ -1336,7 +1321,7 @@ def get_parameters(symbol, args):
                 r0=r0, v0=None, nderiv0=nderiv0,
                 pseudize=pseudize, rcore=rcore,
                 core_hole=args.core_hole,
-                output=args.output,
+                output=None,  # args.output,
                 yukawa_gamma=args.gamma,
                 ecut=args.ecut,
                 omega=args.omega)
@@ -1349,7 +1334,7 @@ def generate(symbol,
              r0, v0,
              nderiv0,
              xc='LDA',
-             scalar_relativistic=False,
+             scalar_relativistic=True,
              pseudize=('poly', 4),
              configuration=None,
              alpha=None,
@@ -1360,11 +1345,11 @@ def generate(symbol,
              yukawa_gamma=0.0,
              ecut=None,
              omega=None):
-    if isinstance(output, str):
-        output = open(output, 'w')
     aea = AllElectronAtom(symbol, xc, Z=Z,
-                          configuration=configuration)
-    gen = PAWSetupGenerator(aea, projectors, scalar_relativistic, core_hole,
+                          configuration=configuration,
+                          scalar_relativistic=scalar_relativistic)
+    gen = PAWSetupGenerator(aea, projectors,
+                            core_hole=core_hole,
                             fd=output,
                             yukawa_gamma=yukawa_gamma,
                             ecut=ecut,
@@ -1410,15 +1395,16 @@ class CLICommand:
             help='Exchange-Correlation functional (default value LDA)',
             metavar='<XC>')
         add('-C', '--configuration',
-            help='e.g. for Li: "[(1, 0, 2, -1.878564), (2, 0, 1, -0.10554),'
-            ' (2, 1, 0, 0.0)]"')
+            help='Example for Nd: "[Xe]6s1,5d1,4f4".')
         add('-P', '--projectors',
             help='Projector functions - use comma-separated - ' +
             'nl values, where n can be principal quantum number ' +
             '(integer) or energy (floating point number). ' +
             'Example: 2s,0.5s,2p,0.5p,0.0d.')
         add('-r', '--radius',
-            help='1.2 or 1.2,1.1,1.1.  Units: Bohr.')
+            help='Cutoff radius for all projectors or comma-separated list '
+            'of radii for each angular momentum channel.  '
+            'Example: 1.2 or 1.2,1.1,1.1.  Units: Bohr.')
         add('-0', '--zero-potential',
             metavar='nderivs,radius',
             help='Parameters for zero potential.')
@@ -1428,25 +1414,54 @@ class CLICommand:
         add('-z', '--pseudize',
             metavar='type,nderivs',
             help='Parameters for pseudizing wave functions.')
-        add('-p', '--plot', action='store_true')
+        add('-p', '--plot',
+            const=True,
+            default=False,
+            metavar='FILE',
+            nargs='?',
+            help='Show plots of the setup; '
+            'if a filename is supplied, write the plots thereto instead of '
+            '`plt.show()`-ing them')
+        add('-S', '--separate-figures',
+            action='store_true',
+            help='If not plotting to a file, '
+            'plot the plots in separate figure windows/tabs, '
+            'instead of as subplots/panels in the same figure')
         add('-l', '--logarithmic-derivatives',
             metavar='spdfg,e1:e2:de,radius',
             help='Plot logarithmic derivatives. ' +
             'Example: -l spdf,-1:1:0.05,1.3. ' +
             'Energy range and/or radius can be left out.')
-        add('-w', '--write', action='store_true')
-        add('-s', '--scalar-relativistic', action='store_true')
-        add('-n', '--no-check', action='store_true')
-        add('-t', '--tag', type=str)
-        add('-a', '--alpha', type=float)
-        add('-g', '--gamma', type=float, default=0.0)
-        add('-b', '--create-basis-set', action='store_true')
+        add('-w', '--write', action='store_true',
+            help='Write setup to file <symbol>.<XC> '
+            'or, with --tag, <symbol>.<TAG>.<XC>.')
+        add('-s', '--scalar-relativistic', action='store_true',
+            help='Perform a scalar-relativistic calculation.  '
+            'Default is a non-scalar-relativistic.')
+        add('-n', '--no-check', action='store_true',
+            help='Disable error checks.  This allows saving files that would '
+            'normally be considered invalid.')
+        add('-t', '--tag', type=str, help='Include TAG in output filename.')
+        add('-a', '--alpha', type=float,
+            help='Decay of shape function exp(-alpha r²) used for '
+            'compensation charges.  Default is based on --radius.')
+        add('-g', '--gamma', type=float, default=0.0,
+            help='Yukawa gamma parameter for range-separated functionals.  '
+            'Default is zero (no range separation).')
+        add('-b', '--create-basis-set', action='store_true',
+            help='Create a rudimentary basis set.')
         add('--nlcc', action='store_true',
             help='Use NLCC-style pseudo core density '
             '(for vdW-DF functionals).')
-        add('--core-hole')
-        add('-e', '--electrons', type=int)
-        add('-o', '--output')
+        add('--core-hole', metavar='STATE,OCC',
+            help='State and occupation of core hole.  Default is no '
+            'core hole.  Example: "3s,0.5."')
+        add('-e', '--electrons', type=int,
+            help='Number of valence electrons.  Requires a corresponding '
+            'entry in the global parameters dictionary (read source code).')
+        # --output does not currently work since it never closes or flushes.
+        # add('-o', '--output', metavar='FILE',
+        #     help='Write log to FILE.')
         add('--ecut', type=float, help='Minimize Fourier components above '
             'ECUT for pseudo wave functions.')
         add('--ri', type=str,
@@ -1464,51 +1479,60 @@ def main(args):
     kwargs = get_parameters(args.symbol, args)
     gen = generate(**kwargs)
 
+    should_plot_dataset = args.logarithmic_derivatives or args.plot
+
     if not args.no_check:
         if not gen.check_all():
             raise DatasetGenerationError
 
-    if args.create_basis_set or args.write:
-        if args.create_basis_set:
-            basis = gen.create_basis_set(tag=args.tag, ri=args.ri)
-            basis.write_xml()
+    if args.create_basis_set:
+        basis = gen.create_basis_set(tag=args.tag, ri=args.ri)
+        basis.write_xml()  # XXX: should this only happen if `.write`?
+    else:
+        basis = None
 
+    if args.write or should_plot_dataset:
+        setup = gen.make_paw_setup(args.tag)
+        parameters = []
+        for key, value in kwargs.items():
+            if value is not None:
+                parameters.append(f'{key}={value!r}')
+        setup.generatordata = ',\n    '.join(parameters)
         if args.write:
-            setup = gen.make_paw_setup(args.tag)
-            parameters = []
-            for key, value in kwargs.items():
-                if value is not None:
-                    parameters.append(f'{key}={value!r}')
-            setup.generatordata = ',\n    '.join(parameters)
             setup.write_xml()
+    else:
+        setup = None
 
     if not args.create_basis_set and args.ri:
         raise ValueError('Basis set must be created in order to create the '
                          'RI-basis set as well')
 
-    if args.logarithmic_derivatives or args.plot:
-        if args.plot:
-            import matplotlib.pyplot as plt
-        if args.logarithmic_derivatives:
-            plot_log_derivs(gen, args.logarithmic_derivatives, args.plot)
+    if should_plot_dataset:
+        from matplotlib import pyplot as plt
+        from .plot_dataset import plot_dataset
 
-        if args.plot:
-            gen.plot()
+        assert setup is not None
+        ax_objs, plot_fname = plot_dataset(
+            setup,
+            basis=basis,
+            gen=gen,
+            plot_potential_components=bool(args.plot),
+            plot_partial_waves=bool(args.plot),
+            plot_projectors=bool(args.plot),
+            plot_logarithmic_derivatives=args.logarithmic_derivatives,
+            separate_figures=args.separate_figures,
+            savefig=(None if args.plot in (True, False) else args.plot),
+        )
+        if ax_objs and plot_fname is None:
+            plt.show()
 
-            if args.create_basis_set:
-                gen.basis.generatordata = ''  # we already printed this
-                BasisPlotter(show=True).plot(gen.basis)
 
-        if args.plot:
-            try:
-                plt.show()
-            except KeyboardInterrupt:
-                pass
-
-
-def plot_log_derivs(gen, ld_str: str, plot: bool):
+def plot_log_derivs(gen: PAWSetupGenerator,
+                    ld_str: str,
+                    plot: bool,
+                    ax: 'plt.Axes') -> None:
     """Make nice log-derivs plot."""
-    import matplotlib.pyplot as plt
+
     r = 1.1 * gen.rcmax
     emin = min(min(wave.e_n) for wave in gen.waves_l) - 0.8
     emax = max(max(wave.e_n) for wave in gen.waves_l) + 0.8
@@ -1517,6 +1541,7 @@ def plot_log_derivs(gen, ld_str: str, plot: bool):
     de = energies[1] - emin
 
     error = 0.0
+    aea = gen.aea
     for l in lvalues:
         efix = []
         # Fixed points:
@@ -1525,7 +1550,7 @@ def plot_log_derivs(gen, ld_str: str, plot: bool):
         if l == gen.l0:
             efix.append(0.0)
 
-        ld1 = gen.aea.logarithmic_derivative(l, energies, r)
+        ld1 = aea.logarithmic_derivative(l, energies, r)
         ld2 = gen.logarithmic_derivative(l, energies, r)
         for e in efix:
             i = int((e - emin) / de)
@@ -1533,18 +1558,18 @@ def plot_log_derivs(gen, ld_str: str, plot: bool):
                 ld1 -= round(ld1[i] - ld2[i])
                 if plot:
                     ldfix = ld1[i]
-                    plt.plot([energies[i]], [ldfix],
-                             'x' + colors[l])
+                    ax.plot([energies[i]], [ldfix], 'x' + colors[l])
 
         if plot:
-            plt.plot(energies, ld1, colors[l], label='spdfg'[l])
-            plt.plot(energies, ld2, '--' + colors[l])
+            ax.plot(energies, ld1, colors[l], label='spdfg'[l])
+            ax.plot(energies, ld2, '--' + colors[l])
 
         error = abs(ld1 - ld2).sum() * de
         print('Logarithmic derivative error:', l, error)
 
     if plot:
-        plt.xlabel('energy [Ha]')
-        plt.ylabel(r'$\arctan(d\log\phi_{\ell\epsilon}(r)/dr)/\pi'
-                   r'|_{r=r_c}$')
-        plt.legend(loc='best')
+        ax.set_title(f'Logarithmic derivatives: {aea.symbol} {aea.xc.name}')
+        ax.set_xlabel('energy [Ha]')
+        ax.set_ylabel(r'$\arctan(d\log\phi_{\ell\epsilon}(r)/dr)/\pi'
+                      r'|_{r=r_c}$')
+        ax.legend(loc='best')

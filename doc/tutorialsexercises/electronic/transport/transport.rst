@@ -101,7 +101,7 @@ for the transmission, then run ``tcalc.get_transmission()``::
     T_e = tcalc.get_transmission()
 
 Try to plot the transmission function (e.g. using
-``pylab.plot(tcalc.energies, T_e)``).
+``plt.plot(tcalc.energies, T_e)``).
 
 The projected density of states (pdos) for the two hydrogen TB sites
 can be calculated using::

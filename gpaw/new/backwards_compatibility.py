@@ -54,11 +54,18 @@ class FakeWFS:
         self.density = density
         self.potential = potential
         self.hamiltonian = hamiltonian
-        self.kd = KPointDescriptor(ibzwfs.ibz.bz.kpt_Kc,
-                                   ibzwfs.nspins)
-        self.kd.set_symmetry(atoms,
-                             ibzwfs.ibz.symmetries.symmetry)
-        self.kd.set_communicator(ibzwfs.kpt_comm)
+        ibz = ibzwfs.ibz
+        self.kd = kd = KPointDescriptor(ibz.bz.kpt_Kc, ibzwfs.nspins)
+        kd.ibzk_kc = ibz.kpt_kc
+        kd.weight_k = ibz.weight_k
+        kd.sym_k = ibz.s_K
+        kd.time_reversal_k = ibz.time_reversal_K
+        kd.bz2ibz_k = ibz.bz2ibz_K
+        kd.ibz2bz_k = ibz.ibz2bz_k
+        kd.bz2bz_ks = ibz.bz2bz_Ks
+        kd.nibzkpts = len(ibz)
+        kd.symmetry = ibz.symmetries._old_symmetry
+        kd.set_communicator(ibzwfs.kpt_comm)
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
         self.grid = density.nt_sR.desc
         self.gd = self.grid._gd
@@ -67,8 +74,9 @@ class FakeWFS:
         # self.setups.set_symmetry(ibzwfs.ibz.symmetries.symmetry)
         self.occ_calc = occ_calc
         self.occupations = occ_calc.occ
-        self.nvalence = int(round(ibzwfs.nelectrons))
-        assert self.nvalence == ibzwfs.nelectrons
+        self.nvalence = int(round(density.nvalence))
+        self.nvalence = density.nvalence
+        # assert self.nvalence == density.nvalence
         self.world = comm
         if ibzwfs.fermi_levels is not None:
             self.fermi_levels = ibzwfs.fermi_levels
@@ -110,10 +118,14 @@ class FakeWFS:
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
         desc = self.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
-        self.hamiltonian.apply_local_potential(
-            self.potential.vt_sR[kpt.s],
+        self.hamiltonian.apply(
+            self.potential.vt_sR,
+            None,
+            self.ibzwfs,  # needed for hybrids
+            getattr(ham, 'D_asii', None),  # needed for hybrids
             desc.from_data(data=a1),
-            desc.from_data(data=a2))
+            desc.from_data(data=a2),
+            kpt.s)
 
     def calculate_occupation_numbers(self, fixed):
         self.ibzwfs.calculate_occs(
@@ -136,7 +148,7 @@ class FakeWFS:
         from gpaw.matrix import Matrix
         return Matrix(
             self.bd.nbands, self.bd.nbands,
-            self.dtype,
+            dtype=self.dtype,
             dist=(self.bd.comm, self.bd.comm.size))
 
     @property
@@ -228,21 +240,25 @@ class KPT:
         self.pd = pd
         self.gd = gd
 
-        I1 = 0
-        nproj_a = []
-        for a, shape in enumerate(wfs.P_ani.layout.shape_a):
-            I2 = I1 + prod(shape)
-            nproj_a.append(I2 - I1)
-            I1 = I2
+        try:
+            I1 = 0
+            nproj_a = []
+            for a, shape in enumerate(wfs.P_ani.layout.shape_a):
+                I2 = I1 + prod(shape)
+                nproj_a.append(I2 - I1)
+                I1 = I2
+        except RuntimeError:
+            pass
+        else:
+            self.projections = Projections(
+                wfs.nbands,
+                nproj_a,
+                atom_partition,
+                wfs.P_ani.comm,
+                wfs.ncomponents < 4,
+                wfs.spin,
+                data=wfs.P_ani.data)
 
-        self.projections = Projections(
-            wfs.nbands,
-            nproj_a,
-            atom_partition,
-            wfs.P_ani.comm,
-            wfs.ncomponents < 4,
-            wfs.spin,
-            data=wfs.P_ani.data)
         self.s = wfs.spin if wfs.ncomponents < 4 else None
         self.k = wfs.k
         self.q = wfs.q
@@ -277,6 +293,8 @@ class KPT:
 
     @property
     def psit_nG(self):
+        if not hasattr(self, 'psit_nX'):
+            return None
         data = self.psit_nX.data
         if self.scale == 1:
             return data
@@ -346,7 +364,8 @@ class FakeDensity:
 
 class FakeHamiltonian:
     def __init__(self, ibzwfs, density, potential, pot_calc,
-                 e_total_free=np.nan):
+                 e_total_free=np.nan,
+                 e_xc=np.nan):
         self.pot_calc = pot_calc
         self.ibzwfs = ibzwfs
         self.density = density
@@ -357,12 +376,11 @@ class FakeHamiltonian:
             pass
         self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
-        self.e_xc = potential.energies['xc']
+        self.e_xc = e_xc
 
     def update(self, dens, wfs, kin_en_using_band=True):
-        potential, _ = self.pot_calc.calculate(
+        self.potential, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
-        self.potential.update_from(potential)
 
         energies = self.potential.energies
         self.e_xc = energies['xc']
@@ -375,6 +393,7 @@ class FakeHamiltonian:
         else:
             self.e_kinetic0 = self.ibzwfs.calculate_kinetic_energy(
                 wfs.hamiltonian, self.density)
+            self.ibzwfs.energies['exx_kinetic'] = 0.0
             energies['kinetic'] = self.e_kinetic0
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):

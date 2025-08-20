@@ -24,12 +24,23 @@ Setup releases
    * - Date
      - Tarfile
      -
+   * - Nov 27 2024
+     - 24.11.0_
+     - PAW potentials for lanthanides added.
+       They have been generated with the following command::
+
+         $ gpaw dataset La -sw -r2.2 -P5s,6s,5p,6p,5d,d,4f,f,G -fPBE -b
+
+       and similarly for Ce, Pr, Nd, Pm, Sm, Eu, Gd,
+       Tb, Dy, Ho, Er, Tm, Yb and Lu.
+       There are also LDA versions of the potentials.
+
    * - Feb 22 2024
      - 24.1.0_
      - New 14 electron Cr PAW potential added.
-       For high accuracy, it is recommented over the old 6-electron version
+       For high accuracy, it is recommended over the old 6-electron version
        (which is still the default).  You can use it by
-       specifying ``setups={'Cr': '14'}`` (see also :ref:manual_setups).
+       specifying ``setups={'Cr': '14'}`` (see also :ref:`manual_setups`).
        It has been generated with the following command::
 
          $ gpaw dataset Cr -sw -r2.0 -P3s,4s,3p,4p,3d,d,F -fPBE -t 14 -b
@@ -67,7 +78,10 @@ Li_ Be_                                         B_  C_  N_  O_  F_  Ne_
 Na_ Mg_                                         Al_ Si_ P_  S_  Cl_ Ar_
 K_  Ca_ Sc_ Ti_ V_  Cr_ Mn_ Fe_ Co_ Ni_ Cu_ Zn_ Ga_ Ge_ As_ Se_ Br_ Kr_
 Rb_ Sr_ Y_  Zr_ Nb_ Mo_ Tc  Ru_ Rh_ Pd_ Ag_ Cd_ In_ Sn_ Sb_ Te_ I_  Xe_
-Cs_ Ba_ La  Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
+Cs_ Ba_     Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
+\
+\
+        La_ Ce_ Pr_ Nd_ Pm_ Sm_ Eu_ Gd_ Tb_ Dy_ Ho_ Er_ Tm_ Yb_ Lu_
 === === === === === === === === === === === === === === === === === ===
 
 .. toctree::
@@ -84,11 +98,13 @@ Cs_ Ba_ La  Hf_ Ta_ W_  Re_ Os_ Ir_ Pt_ Au_ Hg_ Tl_ Pb_ Bi_ Po  At  Rn_
 Installation of PAW datasets
 ============================
 
-The PAW datasets can be installed automatically or manually.
+A basic PAW dataset has been installed as part of the default
+installation;
+additional PAW datasets can be installed automatically or manually.
 
 To install them automatically, run :command:`gpaw install-data
-{<dir>}`.  This downloads and unpacks the newest package into
-:file:`{<dir>}/gpaw-setups-{<version>}`.  When prompted, answer
+--{<dataset>} {<dir>}`.  This downloads and unpacks the newest package
+into :file:`{<dir>}/{<name>}-{<version>}`.  When prompted, answer
 yes (y) to register the path in the GPAW configuration file.
 
 To manually install the setups, do as follows:
@@ -136,6 +152,43 @@ Advanced topics
    pawxml
 
 
+.. _acwf benchmark:
+
+ACWF-benchmark
+==============
+
+Equation-of-state calculations for the 10 reference systems from
+the `AiiDA common workflows (ACWF) benchmark <ACWF>`_:
+DIAMOND, FCC, SC, BCC, XO3, XO, X4O6, XO2, X4O10, X2O.
+
+See :git:`gpaw/utilities/acwf.py` for how to run these calculation.
+
+The following table shows the errors in lattice constant in %
+compared to accurate Wien2k results.  Calculations are done for:
+
+* PW-mode calculations with ``ecut=1000`` (columns 3-5)
+* LCAO-mode calculations with ``h=0.12`` (columns 6-8)
+
+The coulumns are:
+
+1. atomic number
+2. PAW-potential name
+3. number of errors (out of the 10 systems) (PW)
+4. maxium absolute error (PW)
+5. mean absolute error (PW)
+6. number of errors (out of the 10 systems) (LCAO)
+7. maxium absolute error (LCAO)
+8. mean absolute error (LCAO)
+
+.. csv-table::
+   :file: acwf.csv
+   :header: number, name, errors, max, mean, errors, max, mean
+
+.. _ACWF: https://acwf-verification.materialscloud.org/
+
+
+.. _24.11.0:
+    https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-24.11.0.tar.gz
 .. _24.1.0:
     https://wiki.fysik.dtu.dk/gpaw-files/gpaw-setups-24.1.0.tar.gz
 .. _0.9.20000:
@@ -206,6 +259,21 @@ Advanced topics
 .. _Xe: Xe.html
 .. _Cs: Cs.html
 .. _Ba: Ba.html
+.. _La: La.html
+.. _Ce: Ce.html
+.. _Pr: Pr.html
+.. _Nd: Nd.html
+.. _Pm: Pm.html
+.. _Sm: Sm.html
+.. _Eu: Eu.html
+.. _Gd: Gd.html
+.. _Tb: Tb.html
+.. _Dy: Dy.html
+.. _Ho: Ho.html
+.. _Er: Er.html
+.. _Tm: Tm.html
+.. _Yb: Yb.html
+.. _Lu: Lu.html
 .. _Hf: Hf.html
 .. _Ta: Ta.html
 ..  _W:  W.html

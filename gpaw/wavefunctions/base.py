@@ -521,35 +521,36 @@ class WaveFunctions:
                 writer.fill(self.collect_occupations(k, s) / weight)
 
     def read(self, reader):
-        r = reader.wave_functions
+        wfs_reader = reader.wave_functions
         # Backward compatibility:
         # Take parameters from main reader
-        if 'ha' not in r:
-            r.ha = reader.ha
-        if 'version' not in r:
-            r.version = reader.version
+        if 'ha' not in wfs_reader:
+            wfs_reader.ha = reader.ha
+        if 'version' not in wfs_reader:
+            wfs_reader.version = reader.version
 
         if reader.version >= 3:
-            self.fermi_levels = r.fermi_levels / r.ha
+            self.fermi_levels = wfs_reader.fermi_levels / wfs_reader.ha
         else:
             o = reader.occupations
             self.fermi_levels = np.array(
                 [o.fermilevel + o.split / 2,
-                 o.fermilevel - o.split / 2]) / r.ha
+                 o.fermilevel - o.split / 2]) / wfs_reader.ha
             if self.occupations.name != 'fixmagmom':
                 assert o.split == 0.0
                 self.fermi_levels = self.fermi_levels[:1]
 
         if reader.version >= 2:
-            kpts = r.kpts
+            kpts = wfs_reader.kpts
             assert np.allclose(kpts.ibzkpts, self.kd.ibzk_kc)
             assert np.allclose(kpts.bzkpts, self.kd.bzk_kc)
             assert (kpts.bz2ibz == self.kd.bz2ibz_k).all()
             assert np.allclose(kpts.weights, self.kd.weight_k)
 
-        self.read_projections(r)
-        self.read_eigenvalues(r, r.version <= 0)
-        self.read_occupations(r, r.version <= 0)
+        if 'projections' in wfs_reader:
+            self.read_projections(wfs_reader)
+        self.read_eigenvalues(wfs_reader, wfs_reader.version <= 0)
+        self.read_occupations(wfs_reader, wfs_reader.version <= 0)
 
     def read_projections(self, reader):
         nslice = self.bd.get_slice()
@@ -663,13 +664,13 @@ class WaveFunctions:
                 log(' Band         L_ii   Occupancy  '
                     ' Band      L_ii   Occupancy')
 
-                lagr_0 = np.sort(pot.lagr_diag_s[0])
+                lagr_0 = pot.lagr_diag_s[0]
                 lagr_labeled_0 = {}
                 for c, x in enumerate(pot.lagr_diag_s[0]):
                     lagr_labeled_0[str(round(x, 12))] = c
 
                 if self.kd.comm.size == 1:
-                    lagr_1 = np.sort(pot.lagr_diag_s[1])
+                    lagr_1 = pot.lagr_diag_s[1]
                     lagr_labeled_1 = {}
                     for c, x in enumerate(
                             pot.lagr_diag_s[1]):
@@ -678,7 +679,6 @@ class WaveFunctions:
                     lagr_labeled_1 = {}
                     for c, x in enumerate(lagr_1):
                         lagr_labeled_1[str(round(x, 12))] = c
-                    lagr_1 = np.sort(lagr_1)
 
                 for x, y in zip(lagr_0, lagr_1):
                     i0 = lagr_labeled_0[str(round(x, 12))]

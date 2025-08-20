@@ -58,9 +58,9 @@ class HydrogenAllElectronSetup(BaseSetup):
 
     def build(self, basis):
         if basis is None:
-            basis = Basis('H', 'sz(dzp)')
+            basis = Basis.find('H', 'sz(dzp)')
         elif isinstance(basis, str):
-            basis = Basis('H', basis)
+            basis = Basis.find('H', basis)
 
         self.basis = basis
         self.basis_functions_J = self.basis.tosplines()

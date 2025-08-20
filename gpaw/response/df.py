@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from gpaw.response.groundstate import CellDescriptor
     from gpaw.response.frequencies import FrequencyDescriptor
-    from gpaw.response.pair_functions import SingleQPWDescriptor
+    from gpaw.response.qpd import SingleQPWDescriptor
 
 
 """
@@ -662,7 +662,7 @@ class DielectricFunction(DielectricFunctionCalculator):
                  intraband=True, nblocks=1, world=mpi.world, txt=sys.stdout,
                  truncation=None,
                  qsymmetry=True,
-                 integrationmode=None, rate=0.0,
+                 integrationmode='point integration', rate=0.0,
                  eshift: float | None = None):
         """Creates a DielectricFunction object.
 
@@ -674,8 +674,9 @@ class DielectricFunction(DielectricFunctionCalculator):
             Can be an array of frequencies to evaluate the response function at
             or dictionary of parameters for build-in nonlinear grid
             (see :ref:`frequency grid`).
-        ecut: float
-            Plane-wave cut-off.
+        ecut: float | dict
+            Plane-wave cut-off or dictionary for anoptional planewave
+            descriptor. See response/qpd.py for details.
         hilbert: bool
             Use hilbert transform.
         nbands: int
@@ -695,11 +696,20 @@ class DielectricFunction(DielectricFunctionCalculator):
             None for no truncation.
             '2D' for standard analytical truncation scheme.
             Non-periodic directions are determined from k-point grid
+        integrationmode: str
+            if == 'tetrahedron integration' then tetrahedron
+            integration is performed
+            if == 'point integration' then point integration is used
         eshift: float
             Shift unoccupied bands
         """
         gs, context = get_gs_and_context(calc, txt, world, timer=None)
         wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
+
+        if integrationmode is None:
+            raise DeprecationWarning(
+                "Please use `integrationmode='point integration'` instead")
+            integrationmode = 'point integration'
 
         chi0calc = Chi0Calculator(
             gs, context, nblocks=nblocks,
@@ -738,7 +748,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         df_NLFC_w: np.ndarray
             Dielectric function without local field corrections.
         df_LFC_w: np.ndarray
-            Dielectric functio with local field corrections.
+            Dielectric function with local field corrections.
         """
         df = self.get_inverse_dielectric_function(
             *args, truncation=self.truncation,

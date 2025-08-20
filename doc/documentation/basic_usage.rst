@@ -11,3 +11,4 @@ Basic usage
    parallel_runs/parallel_runs
    convergence
    restart_files
+   newgpaw

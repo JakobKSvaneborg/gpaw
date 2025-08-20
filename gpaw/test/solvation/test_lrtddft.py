@@ -7,6 +7,7 @@ from gpaw.lrtddft import LrTDDFT
 from gpaw import PoissonSolver
 
 
+@pytest.mark.old_gpaw_only
 def test_solvation_lrtddft():
     h = 0.3
     vac = 3.0

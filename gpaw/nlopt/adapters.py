@@ -25,7 +25,7 @@ class GSInfo:
     """
     def __init__(self,
                  calc: ASECalculator):
-        assert calc.params.mode['name'] == 'pw', \
+        assert calc.params.mode.name == 'pw', \
             'Calculator must be in plane wave mode.'
 
         dft = calc.dft

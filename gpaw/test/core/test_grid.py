@@ -23,6 +23,11 @@ def test_real_to_complex_fft():
     for (i, j, k), coef in coefs.items():
         assert coef == coefs[(-i, -j, -k)].conj()
 
+    # Check multiple FFT's:
+    a2 = a.desc.empty(2)
+    a2.data[:] = 1.0
+    a2.fft(pw=pw.new(dtype=float))
+
 
 @pytest.mark.ci
 def test_redist():
@@ -96,7 +101,7 @@ def test_moment():
     assert abs(f.integrate()) < 1e-14
     assert f.moment() == pytest.approx([0, moment, 0])
 
-    pw = PWDesc(cell=f.desc.cell, ecut=700, comm=world)
+    pw = PWDesc(cell=f.desc.cell, ecut=f.desc.ekin_max(), comm=world)
     f2 = f.fft(pw=pw)
 
     assert abs(f2.integrate()) < 1e-14

@@ -2,11 +2,13 @@
 #define GPU_HIP_H
 
 #include <hip/hip_runtime.h>
+#include <hip/hip_complex.h>
 #include <hipblas/hipblas.h>
 
 #define gpuMemcpyKind             hipMemcpyKind
 #define gpuMemcpyDeviceToHost     hipMemcpyDeviceToHost
 #define gpuMemcpyHostToDevice     hipMemcpyHostToDevice
+#define gpuMemcpyDeviceToDevice   hipMemcpyDeviceToDevice
 #define gpuSuccess                hipSuccess
 #define gpuEventDefault           hipEventDefault
 #define gpuEventBlockingSync      hipEventBlockingSync
@@ -17,15 +19,124 @@
 #define gpuError_t                hipError_t
 #define gpuDeviceProp             hipDeviceProp_t
 
+
+#ifdef __cplusplus
+#define gpuDoubleComplex          XXXhipDoubleComplex
+#define gpuCreal                  XXXhipCreal
+#define gpuCimag                  XXXhipCimag
+#define gpuCadd                   XXXhipCadd
+#define gpuCaddf                  XXXhipCaddf
+#define gpuCsub                   XXXhipCsub
+#define gpuCsubf                  XXXhipCsubf
+#define gpuCmul                   XXXhipCmul
+#define gpuCmulf                  XXXhipCmulf
+#define gpuConj                   XXXhipConj
+#else
 #define gpuDoubleComplex          hipDoubleComplex
-#define gpublasDoubleComplex      hipblasDoubleComplex
-#define make_gpuDoubleComplex     make_hipDoubleComplex
 #define gpuCreal                  hipCreal
 #define gpuCimag                  hipCimag
 #define gpuCadd                   hipCadd
+#define gpuCaddf                  hipCaddf
 #define gpuCsub                   hipCsub
+#define gpuCsubf                  hipCsubf
 #define gpuCmul                   hipCmul
+#define gpuCmulf                  hipCmulf
 #define gpuConj                   hipConj
+#endif
+#define gpuFloatComplex           XXXhipFloatComplex
+#define gpublasDoubleComplex      hipblasDoubleComplex
+#define make_gpuDoubleComplex     make_hipDoubleComplex
+#define make_gpuFloatComplex      make_hipFloatComplex
+
+#ifdef __cplusplus
+struct XXXhipDoubleComplex
+{
+   union
+   {
+      hipDoubleComplex number;
+      struct
+      {
+        double x;
+        double y;
+      };
+   };
+   __host__ __device__ XXXhipDoubleComplex(const double& x, const double& y) : x(x), y(y) {};
+   __host__ __device__ XXXhipDoubleComplex(const hipDoubleComplex& number) : number(number) {};
+   //__host__ __device__ operator=(const XXXhipDoubleComplex& other) { this.number = other.number; }
+   __host__ __device__ XXXhipDoubleComplex() {};
+};
+
+
+struct XXXhipFloatComplex
+{
+   union
+   {
+      hipFloatComplex number;
+      struct
+      {
+        float x;
+        float y;
+      };
+   };
+   __host__ __device__ XXXhipFloatComplex(const float& x, const float& y) : x(x), y(y) {};
+   __host__ __device__ XXXhipFloatComplex(const hipFloatComplex& number) : number(number) {};
+   __host__ __device__ XXXhipFloatComplex() {};
+};
+
+
+__host__ __device__ static __inline__ double XXXhipCreal(XXXhipDoubleComplex z)
+{
+    return hipCreal(z.number);
+}
+
+__host__ __device__ static __inline__ double XXXhipCimag(XXXhipDoubleComplex z)
+{
+    return hipCimag(z.number);
+}
+
+__host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipCadd(XXXhipDoubleComplex z1,
+                                                          XXXhipDoubleComplex z2)
+{
+    return XXXhipDoubleComplex(hipCadd(z1.number, z2.number));
+}
+
+__host__ __device__ static __inline__ XXXhipFloatComplex XXXhipCaddf(XXXhipFloatComplex z1,
+                                                                     XXXhipFloatComplex z2)
+{
+    return XXXhipFloatComplex(hipCaddf(z1.number, z2.number));
+}
+
+__host__ __device__ static __inline__ XXXhipFloatComplex XXXhipCmulf(XXXhipFloatComplex z1,
+                                                                     XXXhipFloatComplex z2)
+{
+    return XXXhipFloatComplex(hipCmulf(z1.number, z2.number));
+}
+
+__host__ __device__ static __inline__ XXXhipFloatComplex XXXhipCsubf(XXXhipFloatComplex z1,
+                                                                     XXXhipFloatComplex z2)
+{
+    return XXXhipFloatComplex(hipCsubf(z1.number, z2.number));
+}
+
+
+__host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipCmul(XXXhipDoubleComplex z1,
+                                                                     XXXhipDoubleComplex z2)
+{
+    return XXXhipDoubleComplex(hipCmul(z1.number, z2.number));
+}
+
+__host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipCsub(XXXhipDoubleComplex z1,
+                                                                     XXXhipDoubleComplex z2)
+{
+    return XXXhipDoubleComplex(hipCsub(z1.number, z2.number));
+}
+
+__host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipConj(XXXhipDoubleComplex z1)
+{
+    return XXXhipDoubleComplex(hipConj(z1.number));
+}
+#endif
+
 
 #define gpuCheckLastError()       gpuSafeCall(hipGetLastError())
 #define gpuGetErrorString(err)    hipGetErrorString(err)

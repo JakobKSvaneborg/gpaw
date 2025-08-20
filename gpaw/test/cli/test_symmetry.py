@@ -5,7 +5,6 @@ from gpaw.cli.main import main
 result = """\
 symmetry:
   number of symmetries: 48
-  number of symmetries with translation: 0
 
 bz sampling:
   number of bz points: 512

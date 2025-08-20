@@ -2,9 +2,9 @@
 # Copyright (C) 2014 R. Warmbier Materials for Energy Research Group,
 # Wits University
 # Please see the accompanying LICENSE file for further information.
+from fractions import Fraction
 from typing import Tuple
 
-from ase.utils import gcd
 import numpy as np
 
 import gpaw.cgpaw as cgpaw
@@ -12,21 +12,16 @@ import gpaw.mpi as mpi
 
 
 def frac(f: float,
-         n: int = 2 * 3 * 4 * 5,
+         *,
+         max_denominator: int = 50,
          tol: float = 1e-6) -> Tuple[int, int]:
     """Convert to fraction.
 
     >>> frac(0.5)
     (1, 2)
     """
-    if f == 0:
-        return 0, 1
-    x = n * f
-    if abs(x - round(x)) > n * tol:
-        raise ValueError
-    x = int(round(x))
-    d = gcd(x, n)
-    return x // d, n // d
+    fr = Fraction(f).limit_denominator(max_denominator)
+    return fr.numerator, fr.denominator
 
 
 def sfrac(f: float) -> str:
@@ -251,63 +246,11 @@ class Symmetry:
         Returns the irreducible k-points and the weights and other stuff.
 
         """
-        nbzkpts = len(bzk_kc)
-        U_scc = self.op_scc
-        nsym = len(U_scc)
-
-        time_reversal = self.time_reversal and not self.has_inversion
-        bz2bz_ks = map_k_points_fast(bzk_kc, U_scc, time_reversal,
-                                     comm, self.tol)
-
-        bz2bz_k = -np.ones(nbzkpts + 1, int)
-        ibz2bz_k = []
-        for k in range(nbzkpts - 1, -1, -1):
-            # Reverse order looks more natural
-            if bz2bz_k[k] == -1:
-                bz2bz_k[bz2bz_ks[k]] = k
-                ibz2bz_k.append(k)
-        ibz2bz_k = np.array(ibz2bz_k[::-1])
-        bz2bz_k = bz2bz_k[:-1].copy()
-
-        bz2ibz_k = np.empty(nbzkpts, int)
-        bz2ibz_k[ibz2bz_k] = np.arange(len(ibz2bz_k))
-        bz2ibz_k = bz2ibz_k[bz2bz_k]
-
-        weight_k = np.bincount(bz2ibz_k) * (1.0 / nbzkpts)
-
-        # Symmetry operation mapping IBZ to BZ:
-        sym_k = np.empty(nbzkpts, int)
-        for k in range(nbzkpts):
-            # We pick the first one found:
-            try:
-                sym_k[k] = np.where(bz2bz_ks[bz2bz_k[k]] == k)[0][0]
-            except IndexError:
-                print(nbzkpts)
-                print(k)
-                print(bz2bz_k)
-                print(bz2bz_ks[bz2bz_k[k]])
-                print(np.shape(np.where(bz2bz_ks[bz2bz_k[k]] == k)))
-                print(bz2bz_k[k])
-                print(bz2bz_ks[bz2bz_k[k]] == k)
-                raise
-
-        # Time-reversal symmetry used on top of the point group operation:
-        if time_reversal:
-            time_reversal_k = sym_k >= nsym
-            sym_k %= nsym
-        else:
-            time_reversal_k = np.zeros(nbzkpts, bool)
-
-        assert (ibz2bz_k[bz2ibz_k] == bz2bz_k).all()
-        for k in range(nbzkpts):
-            sign = 1 - 2 * time_reversal_k[k]
-            dq_c = (np.dot(U_scc[sym_k[k]], bzk_kc[bz2bz_k[k]]) -
-                    sign * bzk_kc[k])
-            dq_c -= dq_c.round()
-            assert abs(dq_c).max() < 1e-10
-
-        return (bzk_kc[ibz2bz_k], weight_k,
-                sym_k, time_reversal_k, bz2ibz_k, ibz2bz_k, bz2bz_ks)
+        return reduce_kpts(bzk_kc,
+                           self.op_scc,
+                           self.time_reversal and not self.has_inversion,
+                           comm,
+                           self.tol)
 
     def check_grid(self, N_c) -> bool:
         """Check that symmetries are commensurate with grid."""
@@ -382,13 +325,13 @@ class Symmetry:
 
     def symmetrize_forces(self, F0_av):
         """Symmetrize forces."""
-        F_ac = np.zeros_like(F0_av)
+        F_av = np.zeros_like(F0_av)
         for map_a, op_cc in zip(self.a_sa, self.op_scc):
             op_vv = np.dot(np.linalg.inv(self.cell_cv),
                            np.dot(op_cc, self.cell_cv))
             for a1, a2 in enumerate(map_a):
-                F_ac[a2] += np.dot(F0_av[a1], op_vv)
-        return F_ac / len(self.op_scc)
+                F_av[a2] += np.dot(F0_av[a1], op_vv)
+        return F_av / len(self.op_scc)
 
     def __str__(self):
         n = len(self.op_scc)
@@ -461,6 +404,68 @@ def map_k_points(bzk_kc, U_scc, time_reversal, comm=None, tol=1e-11):
                        np.ascontiguousarray(U_scc), tol, bz2bz_ks, ka, kb)
     comm.sum(bz2bz_ks)
     return bz2bz_ks
+
+
+def reduce_kpts(bzk_kc,
+                U_scc,
+                use_time_reversal,
+                comm,
+                tol):
+    nbzkpts = len(bzk_kc)
+    nsym = len(U_scc)
+
+    bz2bz_ks = map_k_points_fast(bzk_kc, U_scc, use_time_reversal,
+                                 comm, tol)
+
+    bz2bz_k = -np.ones(nbzkpts + 1, int)
+    ibz2bz_k = []
+    for k in range(nbzkpts - 1, -1, -1):
+        # Reverse order looks more natural
+        if bz2bz_k[k] == -1:
+            bz2bz_k[bz2bz_ks[k]] = k
+            ibz2bz_k.append(k)
+    ibz2bz_k = np.array(ibz2bz_k[::-1])
+    bz2bz_k = bz2bz_k[:-1].copy()
+
+    bz2ibz_k = np.empty(nbzkpts, int)
+    bz2ibz_k[ibz2bz_k] = np.arange(len(ibz2bz_k))
+    bz2ibz_k = bz2ibz_k[bz2bz_k]
+
+    weight_k = np.bincount(bz2ibz_k) * (1.0 / nbzkpts)
+
+    # Symmetry operation mapping IBZ to BZ:
+    sym_k = np.empty(nbzkpts, int)
+    for k in range(nbzkpts):
+        # We pick the first one found:
+        try:
+            sym_k[k] = np.where(bz2bz_ks[bz2bz_k[k]] == k)[0][0]
+        except IndexError:
+            print(nbzkpts)
+            print(k)
+            print(bz2bz_k)
+            print(bz2bz_ks[bz2bz_k[k]])
+            print(np.shape(np.where(bz2bz_ks[bz2bz_k[k]] == k)))
+            print(bz2bz_k[k])
+            print(bz2bz_ks[bz2bz_k[k]] == k)
+            raise
+
+    # Time-reversal symmetry used on top of the point group operation:
+    if use_time_reversal:
+        time_reversal_k = sym_k >= nsym
+        sym_k %= nsym
+    else:
+        time_reversal_k = np.zeros(nbzkpts, bool)
+
+    assert (ibz2bz_k[bz2ibz_k] == bz2bz_k).all()
+    for k in range(nbzkpts):
+        sign = 1 - 2 * time_reversal_k[k]
+        dq_c = (np.dot(U_scc[sym_k[k]], bzk_kc[bz2bz_k[k]]) -
+                sign * bzk_kc[k])
+        dq_c -= dq_c.round()
+        assert abs(dq_c).max() < 1e-10
+
+    return (bzk_kc[ibz2bz_k], weight_k,
+            sym_k, time_reversal_k, bz2ibz_k, ibz2bz_k, bz2bz_ks)
 
 
 def map_k_points_fast(bzk_kc, U_scc, time_reversal, comm=None, tol=1e-7):
@@ -586,12 +591,13 @@ class CLICommand:
     @staticmethod
     def run(args):
         import sys
-        from gpaw.new.symmetry import create_symmetries_object
-        from gpaw.new.builder import create_kpts
-        from gpaw.new.input_parameters import kpts
+
         from ase.cli.run import str2dict
         from ase.db import connect
         from ase.io import read
+
+        from gpaw.dft import MonkhorstPack
+        from gpaw.new.symmetry import create_symmetries_object
 
         if args.filename == '-':
             atoms = next(connect(sys.stdin).select()).toatoms()
@@ -599,16 +605,16 @@ class CLICommand:
             atoms = read(args.filename)
         symmetries = create_symmetries_object(
             atoms,
-            parameters={'tolerance': args.tolerance,
-                        'symmorphic': args.symmorphic})
+            tolerance=args.tolerance,
+            symmorphic=args.symmorphic)
         txt = str(symmetries)
         if not args.verbose:
             txt = txt.split('  rotations', 1)[0]
         print(txt)
         if args.k_points:
             k = str2dict('kpts=' + args.k_points)['kpts']
-            bz = create_kpts(kpts(k), atoms)
-            ibz = symmetries.reduce(bz)
+            bz = MonkhorstPack.from_param(k).build(atoms)
+            ibz = bz.reduce(symmetries)
             txt = str(ibz)
             if not args.verbose:
                 txt = txt.split('  points and weights:', 1)[0]

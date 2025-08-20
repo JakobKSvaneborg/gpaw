@@ -16,6 +16,7 @@ except ImportError:
 
 ArrayLike1D = ArrayLike
 ArrayLike2D = ArrayLike
+ArrayLike3D = ArrayLike
 
 ArrayND = np.ndarray
 Array1D = ArrayND

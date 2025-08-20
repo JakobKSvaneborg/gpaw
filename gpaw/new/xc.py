@@ -16,6 +16,7 @@ from gpaw.typing import Array2D
 from gpaw.xc import XC
 from gpaw.xc.functional import XCFunctional as OldXCFunctional
 from gpaw.xc.gga import add_gradient_correction
+from gpaw.xc.libvdwxc import VDWXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.vdw import VDWFunctionalBase
 from gpaw.hybrids import HybridXC
@@ -26,13 +27,15 @@ def create_functional(xc: OldXCFunctional | str | dict,
                       xp=np) -> Functional:
     exx_fraction = 0.0
     exx_omega = 0.0
+    exx_yukawa = False
     if isinstance(xc, (str, dict)):
-        xc = XC(xc, xp=xp)
+        xc = XC(xc)
 
     if xc.type == 'HYB':
         assert isinstance(xc, HybridXC)
         exx_fraction = xc.exx_fraction
         exx_omega = xc.omega
+        exx_yukawa = xc.yukawa
         xc = xc.xc
 
     if xc.type == 'LDA':
@@ -46,6 +49,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
 
     functional.exx_fraction = exx_fraction
     functional.exx_omega = exx_omega
+    functional.exx_yukawa = exx_yukawa
 
     return functional
 
@@ -61,12 +65,23 @@ class Functional:
         self.setup_name = self.xc.get_setup_name()
         self.name = self.xc.name
         self.type = self.xc.type
-        self.xc.set_grid_descriptor(grid._gd)
+        self.xc.xp = xp
+        if grid.size.any():  # not TB-mode
+            self.xc.set_grid_descriptor(grid._gd)
         self.exx_fraction = 0.0
         self.exx_omega = 0.0
+        self.exx_yukawa = False
+        self.energies: dict[str, float] = {}
 
     def __str__(self):
         return f'name: {self.xc.get_description()}'
+
+    def calculate(self,
+                  nt_sr: UGArray,
+                  taut_sr: UGArray | None = None) -> tuple[float,
+                                                           UGArray,
+                                                           UGArray | None]:
+        raise NotImplementedError
 
     def calculate_paw_correction(self, setup, d, h=None):
         return self.xc.calculate_paw_correction(setup, d, h)
@@ -81,7 +96,16 @@ class Functional:
         args, kwargs = self._args(ibzwfs, density, interpolate)
         if ibzwfs.kpt_band_comm.rank == 0:
             if self.xp is np:
-                self.xc.kernel.calculate(*[array.data for array in args])
+                if isinstance(self.xc, VDWXC):
+                    xck = self.xc.semilocal_xc.kernel
+                    xck.calculate(*[array.data for array in args])
+                    wrapper = self.xc.redist_wrapper
+                    stress_vv = wrapper.calculate(args[1].data, args[3].data,
+                                                  args[2].data, args[4].data,
+                                                  get_stress=True)[1]
+                    return stress_vv + self._stress(*args, **kwargs)
+                else:
+                    self.xc.kernel.calculate(*[array.data for array in args])
             # Special GPU cases:
             elif self.name == 'LDA':
                 e_r, nt_sr, vt_sr = args
@@ -150,7 +174,24 @@ class GGAFunctional(LDAFunctional):
                  xp=np):
         super().__init__(xc, grid, xp)
         # xc already has Gradient.apply bound methods!!!
-        self.grad_v = [grad.__self__ for grad in xc.grad_v]  # type: ignore
+        if grid.size.any():  # not TB-mode
+            self.grad_v = [grad.__self__ for grad in xc.grad_v]  # type: ignore
+
+    def _evaluate_xc_cpu(self, args):
+        if 'vdW' not in self.name:
+            self.xc.kernel.calculate(*args)
+        elif isinstance(self.xc, VDWXC):
+            libvdwxc = self.xc.libvdwxc
+            nspins = args[1].shape[0]
+            if libvdwxc is None or self.xc._nspins != nspins:
+                self.xc._nspins = nspins
+                self.xc.initialize_backend(self.xc.gd)
+            self.xc.semilocal_xc.kernel.calculate(*args)
+            self.xc.calculate_vdw(*args[:5])
+        else:
+            assert isinstance(self.xc, VDWFunctionalBase)
+            self.xc.kernel.calculate(*args)
+            self.xc.calculate_correlation(*args[:5])
 
     def calculate(self,
                   nt_sr: UGArray,
@@ -166,12 +207,7 @@ class GGAFunctional(LDAFunctional):
         if self.xp is np:
             args = [a.data
                     for a in [e_r, nt_sr, vxct_sr, sigma_xr, dedsigma_xr]]
-            if 'vdW' not in self.name:
-                self.xc.kernel.calculate(*args)
-            else:
-                assert isinstance(self.xc, VDWFunctionalBase)
-                self.xc.calculate_exchange(*args)
-                self.xc.calculate_correlation(*args)
+            self._evaluate_xc_cpu(args)
         else:
             if self.name != 'PBE':
                 raise ValueError(f'{self.name} not supported on GPU')
@@ -276,9 +312,11 @@ class MGGAFunctional(GGAFunctional):
                   taut_sr: UGArray | None = None) -> tuple[float,
                                                            UGArray,
                                                            UGArray | None]:
-        assert 'vdW' not in self.name, 'Not implemented'
         gradn_svr, sigma_xr = gradient_and_sigma(self.grad_v, nt_sr)
-        assert isinstance(self.xc, MGGA), self.xc
+        if isinstance(self.xc, VDWXC):
+            assert isinstance(self.xc.semilocal_xc, MGGA), self.xc.semilocal_xc
+        else:
+            assert isinstance(self.xc, MGGA), self.xc
         e_r = self.grid.empty()
         if taut_sr is None:
             taut_sr = nt_sr.new(zeroed=True)
@@ -286,9 +324,10 @@ class MGGAFunctional(GGAFunctional):
         vxct_sr = taut_sr.new()
         vxct_sr.data[:] = 0.0
         dedsigma_xr = sigma_xr.new()
-        self.xc.kernel.calculate(e_r.data, nt_sr.data, vxct_sr.data,
-                                 sigma_xr.data, dedsigma_xr.data,
-                                 taut_sr.data, dedtaut_sr.data)
+        args = [e_r, nt_sr, vxct_sr, sigma_xr, dedsigma_xr,
+                taut_sr, dedtaut_sr]
+        args = [array.data for array in args]
+        self._evaluate_xc_cpu(args)
         add_gradient_correction([grad.apply for grad in self.grad_v],
                                 gradn_svr.data, sigma_xr.data,
                                 dedsigma_xr.data, vxct_sr.data)

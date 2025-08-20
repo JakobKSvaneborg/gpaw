@@ -45,7 +45,6 @@ https://wiki.fysik.dtu.dk/ase/ase/atoms.html
 import numpy as np
 from ase import Atoms
 from ase.build import bulk
-from ase.visualize import view
 
 # %%
 Si = bulk('Si', 'diamond', a=5.4) # student:

@@ -23,7 +23,7 @@ class PAWPoissonSolver:
         return self.poisson_solver.dipole_layer_correction()
 
     def move(self,
-             fracpos_ac: np.ndarray,
+             relpos_ac: np.ndarray,
              atomdist: AtomDistribution) -> None:
         raise NotImplementedError
 
@@ -38,13 +38,13 @@ class PAWPoissonSolver:
 
 
 class SlowPAWPoissonSolver(PAWPoissonSolver):
-    """Solve Poisson-equation of very fine grid."""
+    """Solve Poisson-equation on very fine grid."""
     def __init__(self,
                  pwg: PWDesc,
                  # cutoff_a,
                  setups: Setups,
                  poisson_solver,
-                 fracpos_ac: np.ndarray,
+                 relpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
                  xp=np):
         super().__init__(poisson_solver)
@@ -53,19 +53,19 @@ class SlowPAWPoissonSolver(PAWPoissonSolver):
         self.pwg0 = pwg.new(comm=None)  # not distributed
         self.pwh = poisson_solver.pw
         self.ghat_aLh = setups.create_compensation_charges(
-            self.pwh, fracpos_ac, atomdist, xp)
+            self.pwh, relpos_ac, atomdist, xp)
         self.h_g, self.g_r = self.pwh.map_indices(self.pwg0)
         if xp is cp:
             self.h_g = cp.asarray(self.h_g)
             self.g_r = [cp.asarray(g) for g in self.g_r]
 
     def move(self,
-             fracpos_ac: np.ndarray,
+             relpos_ac: np.ndarray,
              atomdist: AtomDistribution) -> None:
-        self.ghat_aLh.move(fracpos_ac, atomdist)
+        self.ghat_aLh.move(relpos_ac, atomdist)
 
     def solve(self,
-              nt_g: PWArray,
+              nt0_g: PWArray,
               Q_aL: AtomArrays,
               vt0_g: PWArray,
               vHt_h: PWArray | None = None) -> tuple[float,
@@ -78,9 +78,9 @@ class SlowPAWPoissonSolver(PAWPoissonSolver):
         if pwg.comm.rank == 0:
             for rank, g in enumerate(self.g_r):
                 if rank == 0:
-                    charge_h.data[self.h_g] += nt_g.data[g]
+                    charge_h.data[self.h_g] += nt0_g.data[g]
                 else:
-                    pwg.comm.send(nt_g.data[g], rank)
+                    pwg.comm.send(nt0_g.data[g], rank)
         else:
             data = self.xp.empty(len(self.h_g), complex)
             pwg.comm.receive(data, 0)
@@ -125,7 +125,7 @@ class SimplePAWPoissonSolver(PAWPoissonSolver):
                  pwg: PWDesc,
                  cutoff_a,
                  poisson_solver,
-                 fracpos_ac: np.ndarray,
+                 relpos_ac: np.ndarray,
                  atomdist: AtomDistribution,
                  xp=np):
         self.xp = xp
@@ -146,14 +146,16 @@ class SimplePAWPoissonSolver(PAWPoissonSolver):
             ghat_al.append(ghat_l)
 
         self.ghat_aLg = pwg.atom_centered_functions(
-            ghat_al, fracpos_ac, atomdist=atomdist, xp=xp)
+            ghat_al, relpos_ac, atomdist=atomdist, xp=xp)
 
     def solve(self,
-              nt_g: PWArray,
+              nt0_g: PWArray,
               Q_aL: AtomArrays,
               vt0_g: PWArray,
               vHt_g: PWArray | None = None):
-        charge_g = nt_g.copy()
+
+        charge_g = self.pwg.empty(xp=self.xp)
+        charge_g.scatter_from(nt0_g)
         self.ghat_aLg.add_to(charge_g, Q_aL)
         pwg = self.pwg
         if vHt_g is None:
@@ -166,7 +168,7 @@ class SimplePAWPoissonSolver(PAWPoissonSolver):
         return e_coulomb, vHt_g, V_aL
 
     def force_contribution(self, Q_aL, vHt_g, nt_g):
-        force_av = np.zeros((len(Q_aL), 3))
+        force_av = self.xp.zeros((len(Q_aL), 3))
 
         F_avL = self.ghat_aLg.derivative(vHt_g)
         for a, dF_vL in F_avL.items():

@@ -24,7 +24,7 @@ class LCAOWaveFunctions(WaveFunctions):
                  S_MM: Matrix,
                  T_MM: Matrix,
                  P_aMi,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  atomdist: AtomDistribution,
                  kpt_c=(0.0, 0.0, 0.0),
                  domain_comm: MPIComm = serial_comm,
@@ -40,7 +40,7 @@ class LCAOWaveFunctions(WaveFunctions):
                          k=k,
                          kpt_c=kpt_c,
                          weight=weight,
-                         fracpos_ac=fracpos_ac,
+                         relpos_ac=relpos_ac,
                          atomdist=atomdist,
                          ncomponents=ncomponents,
                          dtype=C_nM.dtype,
@@ -62,14 +62,14 @@ class LCAOWaveFunctions(WaveFunctions):
         self._L_MM = None
 
     def move(self,
-             fracpos_ac: Array2D,
+             relpos_ac: Array2D,
              atomdist: AtomDistribution,
              move_wave_functions) -> None:
-        self._update_phases(fracpos_ac)
-        super().move(fracpos_ac, atomdist, move_wave_functions)
+        self._update_phases(relpos_ac)
+        super().move(relpos_ac, atomdist, move_wave_functions)
         self._L_MM = None
 
-    def _update_phases(self, fracpos_ac):
+    def _update_phases(self, relpos_ac):
         """Complex-rotate coefficients compensating discontinuous phase shift.
 
         This changes the coefficients to counteract the phase discontinuity
@@ -86,7 +86,7 @@ class LCAOWaveFunctions(WaveFunctions):
         C_nM = self.C_nM.data
         if C_nM.dtype == float:
             return
-        diff_ac = (fracpos_ac - self.fracpos_ac).round()
+        diff_ac = (relpos_ac - self.relpos_ac).round()
         if not diff_ac.any():
             return
         phase_a = np.exp(2j * np.pi * diff_ac @ self.kpt_c)
@@ -138,8 +138,8 @@ class LCAOWaveFunctions(WaveFunctions):
             # As a hack, builder.py injects a NaN in the first element of
             # C_nM.data in order for us to be able to tell that the
             # data is uninitialized:
-            # if np.isnan(self.C_nM.data.flat[0]):
-            #   raise RuntimeError('There are no projections or wavefunctions')
+            if not isinstance(self.C_nM, Matrix):
+                raise RuntimeError('There are no projections or wavefunctions')
 
             for a, P_Mi in self.P_aMi.items():
                 self._P_ani[a][:] = self.C_nM.data @ P_Mi
@@ -185,17 +185,17 @@ class LCAOWaveFunctions(WaveFunctions):
             f_n = self.weight * self.spin_degeneracy * self.myocc_n
             if eigs:
                 f_n *= self.myeig_n
-            C_nM = self.C_nM.data
+            TempC_nM = self.C_nM.copy()
+            TempC_nM.data *= f_n[:, None]
+            rho_MM = TempC_nM.multiply(self.C_nM, opa='C')
             if transposed:
-                rho_MM = (C_nM.T * f_n) @ C_nM.conj()
-            else:
-                rho_MM = (C_nM.T.conj() * f_n) @ C_nM
-            self.band_comm.sum(rho_MM)
+                rho_MM.complex_conjugate()
+            rho_MM_data = rho_MM.data
         else:
-            rho_MM = np.empty_like(self.T_MM.data)
-        self.domain_comm.broadcast(rho_MM, 0)
+            rho_MM_data = np.empty_like(self.T_MM.data)
+        self.domain_comm.broadcast(rho_MM_data, 0)
 
-        return rho_MM
+        return rho_MM_data
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
@@ -204,7 +204,10 @@ class LCAOWaveFunctions(WaveFunctions):
         psit_nR = grid.zeros(self.nbands, self.band_comm)
         basis.lcao_to_grid(self.C_nM.data, psit_nR.data, self.q)
 
-        return PWFDWaveFunctions.from_wfs(self, psit_nR)
+        wfs = PWFDWaveFunctions.from_wfs(self, psit_nR)
+        if self._eig_n is not None:
+            wfs._eig_n = self._eig_n.copy()
+        return wfs
 
     def collect(self,
                 n1: int = 0,
@@ -223,7 +226,7 @@ class LCAOWaveFunctions(WaveFunctions):
             S_MM=self.S_MM,
             T_MM=self.T_MM,
             P_aMi=self.P_aMi,
-            fracpos_ac=self.fracpos_ac,
+            relpos_ac=self.relpos_ac,
             atomdist=self.atomdist.gather(),
             kpt_c=self.kpt_c,
             spin=self.spin,
@@ -256,7 +259,7 @@ class LCAOWaveFunctions(WaveFunctions):
                                  S_MM=None,
                                  T_MM=None,
                                  P_aMi=None,
-                                 fracpos_ac=self.fracpos_ac,
+                                 relpos_ac=self.relpos_ac,
                                  atomdist=self.atomdist.gather(),
                                  kpt_c=kpt_c,
                                  spin=spin,

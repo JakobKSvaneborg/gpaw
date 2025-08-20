@@ -242,31 +242,18 @@ class PairFunctionIntegrator(ABC):
     def get_band_and_spin_transitions(self, spincomponent, nbands=None,
                                       bandsummation='pairwise'):
         """Get band and spin transitions (n, s) -> (n', s') to integrate."""
-        nspins = self.gs.nspins
-        gsnbands, nocc1, nocc2 = self.get_band_information()
-
         # Defaults to inclusion of all bands in the ground state calculator
         if nbands is None:
-            nbands = gsnbands
-        assert nbands <= gsnbands
-
-        transitions = PairTransitions.from_transitions_domain_arguments(
-            spincomponent, nbands, nocc1, nocc2, nspins, bandsummation)
-
-        return transitions
-
-    def get_band_information(self):
-        """Get information about band occupation."""
-        nbands = self.gs.bd.nbands
-        nocc1 = self.kptpair_extractor.nocc1
-        nocc2 = self.kptpair_extractor.nocc2
-
-        return nbands, nocc1, nocc2
+            nbands = self.gs.nbands
+        assert nbands <= self.gs.nbands
+        return PairTransitions.from_transitions_domain_arguments(
+            spincomponent, nbands, self.gs.nocc1, self.gs.nocc2,
+            self.gs.nspins, bandsummation)
 
     def get_basic_info_string(self):
         """Get basic information about the ground state and parallelization."""
         nspins = self.gs.nspins
-        nbands, nocc1, nocc2 = self.get_band_information()
+        nbands, nocc1, nocc2 = self.gs.nbands, self.gs.nocc1, self.gs.nocc2
         nk = self.gs.kd.nbzkpts
         nik = self.gs.kd.nibzkpts
 

@@ -5,6 +5,7 @@ import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from gpaw.mpi import MPIComm
 from gpaw.typing import Array1D, ArrayLike2D
+from gpaw.symmetry import reduce_kpts
 if TYPE_CHECKING:
     from gpaw.new.symmetry import Symmetries
 
@@ -24,6 +25,47 @@ class BZPoints:
         if self.gamma_only:
             return 'BZPoints([<gamma only>])'
         return f'BZPoints([<{len(self)} points>])'
+
+    def reduce(self,
+               symmetries: Symmetries,
+               *,
+               comm: MPIComm = None,
+               strict: bool = True,
+               use_time_reversal=True,
+               tolerance=1e-7) -> IBZ:
+        """Find irreducible set of k-points."""
+        if not use_time_reversal and len(symmetries) == 1:
+            N = len(self)
+            return IBZ(symmetries,
+                       self,
+                       ibz2bz=np.arange(N),
+                       bz2ibz=np.arange(N),
+                       weights=np.ones(N) / N,
+                       bz2bz_Ks=np.arange(N).reshape((N, 1)),
+                       s_K=np.zeros(N, int),
+                       time_reversal_K=np.zeros(N, bool))
+
+        if symmetries.has_inversion:
+            use_time_reversal = False
+        (_, weight_k, sym_K, time_reversal_K, bz2ibz_K, ibz2bz_k,
+         bz2bz_Ks) = reduce_kpts(self.kpt_Kc,
+                                 symmetries.rotation_scc,
+                                 use_time_reversal,
+                                 comm,
+                                 tolerance)
+
+        if strict and -1 in bz2bz_Ks:
+            raise ValueError(
+                'Your k-points are not as symmetric as your crystal!')
+
+        return IBZ(symmetries, self, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks,
+                   sym_K, time_reversal_K)
+
+
+class BZBandPath(BZPoints):
+    def __init__(self, band_path):
+        self.band_path = band_path
+        super().__init__(band_path.kpts)
 
 
 class MonkhorstPackKPoints(BZPoints):
@@ -46,7 +88,8 @@ class IBZ:
     def __init__(self,
                  symmetries: Symmetries,
                  bz: BZPoints,
-                 ibz2bz, bz2ibz, weights, bz2bz_Ks=None):
+                 ibz2bz, bz2ibz, weights,
+                 bz2bz_Ks=None, s_K=None, time_reversal_K=None):
         self.symmetries = symmetries
         self.bz = bz
         self.weight_k = weights
@@ -54,6 +97,8 @@ class IBZ:
         self.ibz2bz_k = ibz2bz
         self.bz2ibz_K = bz2ibz
         self.bz2bz_Ks = bz2bz_Ks
+        self.s_K = s_K
+        self.time_reversal_K = time_reversal_K
 
     def __len__(self):
         """Number of k-points in the IBZ."""

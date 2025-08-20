@@ -10,7 +10,88 @@ Git master branch
 
 :git:`master <>`.
 
+
+Version 25.7.0
+==============
+
+July 29, 2025: :git:`25.7.0 <../25.7.0>`
+
+* Minimum version requirements: Python 3.9, ASE 3.25.0.
+
+* The XAS code has been expanded to allow for calculations of core holes
+  with 𝑙≠0.
+
+* :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
+
+* The fluctuation-dissipation theorem has been added to the SJM.
+
+* The constant inner potential DFT method has been included SJM.
+
+* Sign of electron chemical potential in SJM text output has been corrected.
+  The resulting (Grand) energies are not affected by this change.
+
+* Preliminary support for ``wasm32`` architecture (web-browsers).
+
+* Experimental support for calculations with wave-functions in
+  single precision.
+
+* Non self-consistent calculation of HSE06 eigenvalues for arbitrary
+  **k**-points has been implemented.  See :ref:`hse06 on lda` and
+  :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
+
+* Experimental: Support for using MPI4PY_.  Set ``GPAW_MPI4PY=1`` to use this.
+
+* Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
+
+* Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
+  See :ref:`manual_convergence`.
+
+* Removed the entire gpaw.dfpt module.
+
+* Converged numbers in GPAW's text output are now colored green
+  when using :ref:`newgpaw` and running in an interactive terminal.
+  This behavior can be controlled by setting different environment
+  variables: ``NO_COLOR``, ``FORCE_COLOR`` and
+  :envvar:`python:PYTHON_COLORS`.  See also `controlling color`_.
+
+* Constraining spins within PAW spheres along specified directions in
+  noncollinear calculations is now possible:
+  :ref:`spin direction constrained dft`.
+
+* Preliminary implementation of YS-PBE0 hybrid functional.
+
+* Experimental: Implemented the PPCG eigensolver in :ref:`newgpaw` for
+  use with plane-waves and finite-difference. This eigensolver is
+  particularly stable for single precision wave-functions.
+  See https://doi.org/10.1016/j.jcp.2015.02.030 for details.
+
+* Added a new method and a tutorial for accurate dielectric functions,
+  :ref:`BSE+ <bseplus tutorial>`, which improves the convergence of the
+  BSE by including excitations outside of the active space of BSE at the RPA
+  level.
+
+* The :ref:`d3correction` can now be added to a :ref:`newgpaw`
+  DFT calculation via the new ``extensions`` keyword.
+
+* Smaller memory footprint for PW-mode calculations.
+
+* PAW-potentials can now be installed via a PyPI package:
+  `gpaw-data <https://pypi.org/project/gpaw-data/>`__.
+
+
+.. _controlling color: https://docs.python.org/3/using/cmdline.html
+                       #controlling-color
+.. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
+
+
+Version 25.1.0
+==============
+
+January 6, 2025: :git:`25.1.0 <../25.1.0>`
+
 * Minimum version requirements: Python 3.9, ASE 3.23.0.
+
+* PAW potentials for lanthanides have been added to our :ref:`setup releases`.
 
 * Updated development-workflow documentation:
   :ref:`a good mr`, :ref:`get your mr merged`.
@@ -45,10 +126,15 @@ Git master branch
 
 * Updated :ref:`scissors operator`.
 
-* New experimental parameter: `experimental={'backwards_compatible': False}`.
+* New experimental parameter:
+  ``experimental={'backwards_compatible': False}``.
   This will make calculations slightly more accurate, but also give slightly
   different numbers.  See :mr:`2537` for an example of the changes.
   Default is backwards compatible.
+
+* New GPAW only: The :meth:`~gpaw.new.ase_interface.ASECalculator.write`
+  method of the GPAW calculator object can now write smaller gpw-files
+  by using ``precision='single'`` and ``include_projections=False``.
 
 
 Version 24.6.0

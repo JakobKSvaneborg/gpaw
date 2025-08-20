@@ -121,7 +121,7 @@ As in the case of RPA the converged result is obtained by extrapolation using th
 
 .. literalinclude:: CO.ralda_05_extrapolate.py
 
-If pylab is installed, the plot=False can be change to plot=True to visualize the quality of the extrapolation. The final results are displayed below
+If graphic backend (e.g. matplotlib) is installed, the plot=False can be change to plot=True to visualize the quality of the extrapolation. The final results are displayed below
 
 ======   =====   =====   ======       ============
 PBE      HF      RPA     rAPBE        Experimental

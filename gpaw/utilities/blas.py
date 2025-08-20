@@ -226,6 +226,14 @@ def gpu_gemv(alpha, a, x, beta, y, trans='t'):
                    trans)
 
 
+which_axpy = {
+    np.float32: blas.saxpy,
+    np.float64: blas.daxpy,
+    np.complex64: blas.caxpy,
+    np.complex128: blas.zaxpy
+}
+
+
 def axpy(alpha, x, y):
     """alpha x plus y.
 
@@ -240,10 +248,7 @@ def axpy(alpha, x, y):
     assert y.flags.contiguous
     x = x.ravel()
     y = y.ravel()
-    if x.dtype == float:
-        z = blas.daxpy(x, y, a=alpha)
-    else:
-        z = blas.zaxpy(x, y, a=alpha)
+    z = which_axpy[np.dtype(x.dtype).type](x, y, a=alpha)
     assert z is y, (x, y, x.shape, y.shape)
 
 
@@ -293,7 +298,7 @@ def rk(alpha, a, beta, c, trans='c'):
 
         assert (a.dtype == float and c.dtype == float or
                 a.dtype == complex and c.dtype == complex)
-        assert a.flags.c_contiguous
+        assert a.flags.c_contiguous, (a.shape, a.strides, a.dtype)
         assert a.ndim > 1
         if trans == 'n':
             assert c.shape == (a.shape[1], a.shape[1])

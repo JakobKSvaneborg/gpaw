@@ -2,7 +2,7 @@ import pytest
 from ase import Atoms
 from ase.units import Ha
 
-from gpaw.new.calculation import DFTCalculation
+from gpaw.dft import DFT
 from gpaw.mpi import size
 from gpaw.poisson import FDPoissonSolver
 from gpaw.new.c import GPU_AWARE_MPI
@@ -19,29 +19,26 @@ def test_gpu(dtype, gpu, mode, random):
     atoms.positions[1, 0] = 0.75
     atoms.center(vacuum=1.0)
     if mode == 'fd':
-        poisson = FDPoissonSolver()
-        h = 0.17
+        kwargs = {'poissonsolver': FDPoissonSolver(),
+                  'h': 0.17}
     else:
-        poisson = None
-        h = None
-    dft = DFTCalculation.from_parameters(
+        kwargs = {}
+    dft = DFT(
         atoms,
-        dict(mode={'name': mode,
-                   'force_complex_dtype': dtype == complex},
-             poissonsolver=poisson,
-             random=random,
-             h=h,
-             convergence={'density': 1e-8},
-             parallel={'gpu': gpu},
-             setups='paw'),
-        log='-')
+        mode={'name': mode,
+              'force_complex_dtype': dtype == complex},
+        random=random,
+        convergence={'density': 1e-8},
+        parallel={'gpu': gpu},
+        setups='paw',
+        **kwargs)
     dft.converge()
-    dft.energies()
+    dft.energy()
     energy = dft.results['energy'] * Ha
     if mode == 'pw':
         assert energy == pytest.approx(-16.032945, abs=1e-6)
     else:
-        assert energy == pytest.approx(5.071972893296197, abs=1e-6)
+        assert energy == pytest.approx(5.07197289, abs=1e-6)
 
 
 @pytest.mark.gpu
@@ -76,21 +73,20 @@ def test_gpu_k(gpu, par, mode, xc):
         poisson = None
         h = None
 
-    dft = DFTCalculation.from_parameters(
+    dft = DFT(
         atoms,
-        dict(mode={'name': mode},
-             spinpol=True,
-             xc=xc,
-             h=h,
-             convergence={'density': 1e-8},
-             kpts=(4, 1, 1),
-             poissonsolver=poisson,
-             parallel={'gpu': gpu,
-                       par: size},
-             setups='paw'),
-        log='-')
+        mode={'name': mode},
+        spinpol=True,
+        xc=xc,
+        h=h,
+        convergence={'density': 1e-8},
+        kpts=(4, 1, 1),
+        poissonsolver=poisson,
+        parallel={'gpu': gpu,
+                  par: size},
+        setups='paw')
     dft.converge()
-    dft.energies()
+    dft.energy()
     if mode == 'pw':
         dft.forces()
         dft.stress()
@@ -107,18 +103,17 @@ def test_2d():
     atoms = Atoms('H', pbc=[True, True, False], cell=[1, 1, 5])
     atoms.center(axis=2)
 
-    dft = DFTCalculation.from_parameters(
+    dft = DFT(
         atoms,
-        dict(mode={'name': 'pw'},
-             spinpol=True,
-             xc='LDA',
-             convergence={'density': 1e-8},
-             kpts=(2, 2, 1),
-             parallel={'gpu': True}),
-        log='-')
+        mode={'name': 'pw'},
+        spinpol=True,
+        xc='LDA',
+        convergence={'density': 1e-8},
+        kpts=(2, 2, 1),
+        parallel={'gpu': True})
     dft.converge()
     assert dft.potential.get_vacuum_level() == pytest.approx(2.9436, 1e-2)
-    dft.energies()
+    dft.energy()
     dft.forces()
     dft.stress()
     E = dft.results['energy']

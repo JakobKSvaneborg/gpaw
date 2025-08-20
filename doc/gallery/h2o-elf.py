@@ -1,4 +1,4 @@
-# creates: h2o-elf.png
+# creates: h2o-elf.html
 import plotly.graph_objects as go
 from ase.build import molecule
 from ase.units import Bohr
@@ -31,4 +31,4 @@ fig.update_layout(
                zaxis_visible=False,
                camera=dict(up=dict(x=0.8, y=0.4, z=0.8),
                            eye=dict(x=0.5, y=0.3, z=0.1))))
-fig.write_image('h2o-elf.png')
+fig.write_html('h2o-elf.html')

@@ -9,13 +9,13 @@ from ase.neighborlist import neighbor_list
 from ase.units import Bohr, Ha
 
 from gpaw.core.arrays import DistributedArrays
-from gpaw.core.atom_arrays import AtomArraysLayout
+from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.lfc import BasisFunctions
 from gpaw.mpi import MPIComm, serial_comm
-from gpaw.new import zips
+from gpaw.new import zips as zip
 from gpaw.new.lcao.builder import LCAODFTComponentsBuilder, create_lcao_ibzwfs
 from gpaw.new.lcao.hamiltonian import CollinearHamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
@@ -64,14 +64,15 @@ class NoGrid(Domain):
             pbc_c=self.pbc_c,
             N_c=[0, 0, 0],
             dv=0.0)
-        self.size = (0, 0, 0)
+        self.size = np.array([0, 0, 0])
         self.zerobc_c = np.zeros(3, bool)
 
     def empty(self, shape=(), comm=serial_comm, xp=None):
         return DummyFunctions(self, shape, comm)
 
-    def ranks_from_fractional_positions(self, fracpos_ac):
-        return np.zeros(len(fracpos_ac), int)
+    def ranks_from_fractional_positions(self, relpos_ac):
+        return AtomDistribution.from_number_of_atoms(
+            len(relpos_ac), self.comm).rank_a
 
 
 class DummyFunctions(DistributedArrays[NoGrid]):
@@ -105,16 +106,25 @@ class DummyFunctions(DistributedArrays[NoGrid]):
     def to_xp(self, xp):
         return self
 
+    def gather(self):
+        return self
+
+    def scatter_from(self, a):
+        pass
+
 
 class PSCoreDensities:
     xp = np
 
-    def __init__(self, grid, fracpos_ac):
-        self.layout = AtomArraysLayout([1] * len(fracpos_ac),
+    def __init__(self, grid, relpos_ac):
+        self.layout = AtomArraysLayout([1] * len(relpos_ac),
                                        grid.comm)
 
     def to_uniform_grid(self, out, scale):
         pass
+
+    def new(self, desc, atomdist):
+        return self
 
 
 class TBPotentialCalculator(PotentialCalculator):
@@ -124,7 +134,8 @@ class TBPotentialCalculator(PotentialCalculator):
                  atoms,
                  domain_comm):
         super().__init__(xc, None, setups,
-                         fracpos_ac=atoms.get_scaled_positions())
+                         relpos_ac=atoms.get_scaled_positions(),
+                         environment=None)
         self.atoms = atoms.copy()
         self.domain_comm = domain_comm
         self.force_av = None
@@ -142,7 +153,10 @@ class TBPotentialCalculator(PotentialCalculator):
         self.stress_vv = stress_vv / vol * Bohr**atoms.pbc.sum() / Ha
 
         V_aL = AtomArraysLayout([9] * len(self.atoms),
-                                self.domain_comm).zeros()
+                                density.D_asii.layout.atomdist).zeros()
+        for a, V_L in V_aL.items():
+            V_L[0] = self.setups[a].W
+
         return ({'kinetic': 0.0,
                  'coulomb': 0.0,
                  'zero': 0.0,
@@ -151,10 +165,11 @@ class TBPotentialCalculator(PotentialCalculator):
                 vt_sR,
                 None,
                 DummyFunctions(density.nt_sR.desc),
-                V_aL)
+                V_aL,
+                np.nan)
 
-    def _move(self, fracpos_ac, ndensities):
-        self.atoms.set_scaled_positions(fracpos_ac)
+    def _move(self, relpos_ac, ndensities):
+        self.atoms.set_scaled_positions(relpos_ac)
         self.force_av = None
         self.stress_vv = None
 
@@ -171,8 +186,11 @@ class DummyXC:
     xc = None
     exx_fraction = 0.0
 
+    def __init__(self, xc):
+        self.xc = xc
+
     def calculate_paw_correction(self, setup, D_sp, dH_sp):
-        return 0.0
+        return self.xc.calculate_paw_correction(setup, D_sp, dH_sp)
 
 
 class TBSCFLoop:
@@ -181,36 +199,47 @@ class TBSCFLoop:
         self.occ_calc = occ_calc
         self.eigensolver = eigensolver
         self.comm = comm
+        self.convergence = {}
 
     def iterate(self,
                 ibzwfs,
                 density,
                 potential,
+                energies,
                 pot_calc,
                 convergence=None,
                 maxiter=None,
                 calculate_forces=None,
                 log=None):
         self.eigensolver.iterate(ibzwfs, density, potential, self.hamiltonian)
-        ibzwfs.calculate_occs(self.occ_calc)
+        e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
+            self.occ_calc,
+            nelectrons=density.nvalence - density.charge)
+
+        energies.set(band=e_band,
+                     entropy=e_entropy,
+                     extrapolation=e_extrapolation)
+
         yield SCFContext(
             log,
             1,
+            energies,
             ibzwfs, density, potential,
-            0.0, 0.0,
+            0.0, 0.0, 0.0,
             self.comm, calculate_forces,
             pot_calc, False)
 
-        new_potential, _ = pot_calc.calculate(
-            density, None, potential.vHt_x)
-        potential.update_from(new_potential)
+        # potential, _, _ = pot_calc.calculate(
+        #     density, None, potential.vHt_x)
 
 
 class DummyBasis:
-    def __init__(self, setups):
-        self.my_atom_indices = np.arange(len(setups))
-        self.Mstart = 0
-        self.Mstop = setups.nao
+    def __init__(self, setups, atomdist, band_comm):
+        self.my_atom_indices = atomdist.indices
+        Mmax = setups.nao
+        myM = (Mmax + band_comm.size - 1) // band_comm.size
+        self.Mstart = min(band_comm.rank * myM, Mmax)
+        self.Mstop = min((band_comm.rank + 1) * myM, Mmax)
 
     def add_to_density(self, nt_sR, f_asi):
         pass
@@ -220,6 +249,14 @@ class DummyBasis:
 
 
 class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
+    def fix_setups(self):
+        for setup in self.setups.setups.values():
+            try:
+                setup.vt_g
+            except AttributeError:
+                setup.vt_g, setup.W = calculate_pseudo_potential(
+                    setup, self.xc.xc)
+
     def check_cell(self, cell):
         pass
 
@@ -232,20 +269,23 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         return grid, grid
 
     def get_pseudo_core_densities(self):
-        return PSCoreDensities(self.grid, self.fracpos_ac)
+        return PSCoreDensities(self.grid, self.relpos_ac)
 
     def get_pseudo_core_ked(self):
-        return PSCoreDensities(self.grid, self.fracpos_ac)
+        return PSCoreDensities(self.grid, self.relpos_ac)
 
     def create_basis_set(self):
-        self.basis = DummyBasis(self.setups)
+        self.fix_setups()
+        self.basis = DummyBasis(self.setups,
+                                self.atomdist,
+                                self.communicators['b'])
         return self.basis
 
     def create_hamiltonian_operator(self):
         return TBHamiltonian(self.basis)
 
     def create_potential_calculator(self):
-        xc = DummyXC()
+        xc = DummyXC(self.xc)
         return TBPotentialCalculator(xc, self.setups, self.atoms,
                                      self.communicators['d'])
 
@@ -260,57 +300,61 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
                                   basis: BasisFunctions,
                                   potential,
                                   *,
-                                  log=None,
                                   coefficients=None):
-        assert self.communicators['w'].size == 1
-
         ibzwfs, tciexpansions = create_lcao_ibzwfs(
             basis,
             self.ibz, self.communicators, self.setups,
-            self.fracpos_ac, self.grid, self.dtype,
+            self.relpos_ac, self.grid, self.dtype,
             self.nbands, self.ncomponents, self.atomdist, self.nelectrons)
 
         vtphit: dict[Setup, list[Spline]] = {}
 
         for setup in self.setups.setups.values():
-            try:
-                vt_r = setup.vt_g
-            except AttributeError:
-                vt_r = calculate_pseudo_potential(setup, self.xc.xc)[0]
-
+            vt_r = setup.vt_g
             vt_r[-1] = 0.0  # ???
             vt = setup.rgd.spline(vt_r, points=300)
             vtphit_j = []
             for phit in setup.basis_functions_J:
                 rc = phit.get_cutoff()
                 r_g = np.linspace(0, rc, 150)
-                vt_g = vt.map(r_g) / (4 * pi)**0.5
                 phit_g = phit.map(r_g)
+                vt_g = vt.map(r_g) / (4 * pi)**0.5
                 vtphit_j.append(Spline.from_data(phit.l, rc, vt_g * phit_g))
             vtphit[setup] = vtphit_j
 
+        setup_I = list(self.setups.setups.values())
         vtciexpansions = TCIExpansions([s.basis_functions_J
-                                        for s in self.setups],
-                                       [vtphit[s] for s in self.setups],
+                                        for s in setup_I],
+                                       [vtphit[s] for s in setup_I],
                                        tciexpansions.I_a)
 
         kpt_qc = np.array([wfs.kpt_c for wfs in ibzwfs])
         manytci = vtciexpansions.get_manytci_calculator(
-            self.setups, self.grid._gd, self.fracpos_ac,
+            self.setups, self.grid._gd, self.relpos_ac,
             kpt_qc, self.dtype, NullTimer())
 
         manytci.Pindices = manytci.Mindices
-        my_atom_indices = basis.my_atom_indices
+        my_atom_indices = self.atomdist.indices
+        fudge_factor = 0.75
 
-        for wfs, V_MM in zips(ibzwfs, manytci.P_qIM(my_atom_indices)):
-            V_MM = V_MM.toarray()
-            V_MM += V_MM.T.conj().copy()
-            M1 = 0
+        domain_comm = self.communicators['d']
+
+        for wfs, V_MM in zip(ibzwfs, manytci.P_qIM(my_atom_indices)):
+            wfs.V_MM = wfs.T_MM.new()
+            M1, M2 = wfs.V_MM.dist.my_row_range()
+            V_mM = wfs.V_MM.data
+            V_mM[:] = V_MM.T[M1:M2].toarray()
+            domain_comm.sum(V_mM)
+            wfs.V_MM.add_hermitian_conjugate()
+            V_mM *= fudge_factor / domain_comm.size
+            MM1 = 0
             for m in manytci.Mindices.nm_a:
-                M2 = M1 + m
-                V_MM[M1:M2, M1:M2] *= 0.5
-                M1 = M2
-            wfs.V_MM = Matrix(M2, M2, data=V_MM)
+                MM2 = MM1 + m
+                m1 = max(MM1 - M1, 0)
+                m2 = min(MM2 - M1, M2 - M1)
+                if m2 > m1:
+                    V_mM[m1:m2, MM1:MM2] *= 0.5 / fudge_factor
+                MM1 = MM2
 
         return ibzwfs
 
@@ -344,7 +388,7 @@ def pairpot(atoms):
     force_av = np.zeros((len(atoms), 3))
     stress_vv = np.zeros((3, 3))
 
-    for i, j, d, D_v in zips(*neighbor_list('ijdD', atoms, rcutmax)):
+    for i, j, d, D_v in zip(*neighbor_list('ijdD', atoms, rcutmax)):
         d0 = r0[(symbol_a[i], symbol_a[j])]
         e0 = 6.0 / d0
         x = d0 / d

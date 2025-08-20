@@ -19,7 +19,7 @@ def test_pckl(in_tmp_dir):
         q=0,
         k=0,
         setups=Setups([1], {}, {}, 'LDA'),
-        fracpos_ac=np.zeros((1, 3)),
+        relpos_ac=np.zeros((1, 3)),
         atomdist=AtomDistribution([0]))
     wfs2 = pickle.loads(pickle.dumps(wfs1))
     assert wfs2.psit_nX.data[0, 0] == 117

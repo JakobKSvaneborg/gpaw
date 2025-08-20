@@ -1,9 +1,11 @@
 sphinx
 sphinx-rtd-theme
 sphinxcontrib-jquery
+sphinx-charts
 pillow
 graphviz
 pytest
 plotly
 kaleido
 scikit-image
+gpaw-web-page-data @ git+https://gitlab.com/gpaw/gpaw-web-page-data.git

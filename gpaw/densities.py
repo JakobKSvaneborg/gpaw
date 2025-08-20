@@ -12,7 +12,7 @@ from gpaw.setup import Setups
 from gpaw.spherical_harmonics import Y
 from gpaw.spline import Spline
 from gpaw.typing import Array1D, Array3D, Vector, Array2D
-from gpaw.new import zips
+from gpaw.new import zips as zip
 
 if TYPE_CHECKING:
     from gpaw.new.calculation import DFTCalculation
@@ -22,11 +22,11 @@ class Densities:
     def __init__(self,
                  nt_sR: UGArray,
                  D_asii: AtomArrays,
-                 fracpos_ac: Array2D,
+                 relpos_ac: Array2D,
                  setups: Setups):
         self.nt_sR = nt_sR
         self.D_asii = D_asii
-        self.fracpos_ac = fracpos_ac
+        self.relpos_ac = relpos_ac
         self.setups = setups
 
     @classmethod
@@ -34,7 +34,7 @@ class Densities:
         density = calculation.density
         return cls(density.nt_sR,
                    density.D_asii,
-                   calculation.fracpos_ac,
+                   calculation.relpos_ac,
                    calculation.setups)
 
     def pseudo_densities(self,
@@ -63,7 +63,7 @@ class Densities:
 
             ghat_aLR = self.setups.create_compensation_charges(
                 nt_sR.desc,
-                self.fracpos_ac,
+                self.relpos_ac,
                 self.D_asii.layout.atomdist)
             ghat_aLR.add_to(nt_sR, cc_asL)
 
@@ -97,10 +97,11 @@ class Densities:
         nspins = ncomponents % 3
         grid = n_sR.desc
 
+        electrons_as = np.zeros((len(self.relpos_ac), ncomponents))
         splines = {}
         for a, D_sii in self.D_asii.items():
             D_sii = D_sii.real
-            fracpos_c = self.fracpos_ac[a]
+            relpos_c = self.relpos_ac[a]
             setup = self.setups[a]
             if setup not in splines:
                 phi_j, phit_j, nc, nct = setup.get_partial_waves()[:4]
@@ -121,15 +122,19 @@ class Densities:
                                                      setup.Delta_iiL[:, :, 0])
 
             # Add PAW correction:
-            R_v = fracpos_c @ grid.cell_cv
+            R_v = relpos_c @ grid.cell_cv
             electrons_s -= add(R_v, n_sR, phi_j, phit_j, nc, nct, rcut, D_sii)
+            electrons_as[a] = electrons_s
 
-            if not skip_core:
-                # Add missing charge to grid point closest to atom:
-                R_c = np.around(grid.size * fracpos_c).astype(int) % grid.size
+        if not skip_core:
+            # Add missing charge to grid-points closest to atoms:
+            grid.comm.sum(electrons_as)
+            R_ac = np.around(grid.size * self.relpos_ac).astype(int)
+            R_ac %= grid.size
+            for R_c, electrons_s in zip(R_ac, electrons_as):
                 R_c -= grid.start_c
                 if (R_c >= 0).all() and (R_c < grid.mysize_c).all():
-                    for n_R, e in zips(n_sR.data, electrons_s):
+                    for n_R, e in zip(n_sR.data, electrons_s):
                         n_R[tuple(R_c)] += e / grid.dv
 
         return n_sR.scaled(Bohr, Bohr**-3)
@@ -191,11 +196,11 @@ def add(R_v: Vector,
                 l_j = [phi.l for phi in phi_j]
 
                 i1 = 0
-                for l1, phi1_r, phit1_r in zips(l_j, phi_jr, phit_jr):
+                for l1, phi1_r, phit1_r in zip(l_j, phi_jr, phit_jr):
                     i2 = 0
                     i1b = i1 + 2 * l1 + 1
                     D_smi = D_sii[:, i1:i1b]
-                    for l2, phi2_r, phit2_r in zips(l_j, phi_jr, phit_jr):
+                    for l2, phi2_r, phit2_r in zip(l_j, phi_jr, phit_jr):
                         i2b = i2 + 2 * l2 + 1
                         D_smm = D_smi[:, :, i2:i2b]
                         b_sr = np.einsum(

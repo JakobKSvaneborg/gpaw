@@ -58,11 +58,11 @@ class ConstantElectricField(ExternalPotential):
         L_c = grid.cell_cv @ self.direction_v
         (axis,) = np.where(abs(L_c) > self.tolerance)[0]
         # assert not grid.pbc_c[axis]
-        fracpos_r = np.linspace(grid.start_c[axis],
-                                grid.end_c[axis],
-                                grid.mysize_c[axis],
-                                endpoint=False) / grid.size_c[axis]
-        v_r = L_c[axis] * (fracpos_r - 0.5) * self.strength
+        relpos_r = np.linspace(grid.start_c[axis],
+                               grid.end_c[axis],
+                               grid.mysize_c[axis],
+                               endpoint=False) / grid.size_c[axis]
+        v_r = L_c[axis] * (relpos_r - 0.5) * self.strength
         if grid.start_c[axis] == 0:
             v_r[0] = 0.0
         vt_sR.data += v_r.reshape([1] +

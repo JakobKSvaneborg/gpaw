@@ -178,7 +178,7 @@ and fast convergence of the L-BFGS algorithm [#Nocedal]_. Apart from the L-BFGS
 algorithm, one can use a limited-memory symmetric rank-one (L-SR1, default memory 20)
 quasi-Newton algorithm, which has also been shown to have good convergence performance
 and is especially recommended for calculations of excited states [#Levi2020]_
-(see also :ref:`mom` ).
+(see also :ref:`do` ).
 There is also an option to use a conjugate gradient algorithm, but it is less efficient.
 
 
@@ -223,9 +223,9 @@ matrix exponential:
    .. math::
 
      \exp(A) = \begin{pmatrix}
-     \cos(P) & P^{-1/2} \sin(P^{1/2}) A_{ov}\\
+     \cos(P^{1/2}) & P^{-1/2} \sin(P^{1/2}) A_{ov}\\
      -A_{ov}^{\dagger} P^{-1/2} \sin(P^{1/2}) & I_{M-N} +
-      A_{ov}^{\dagger}\cos(P^{1/2} - I_N) P^{-1} A_{ov} )
+      A_{ov}^{\dagger}(\cos(P^{1/2}) - I_N) P^{-1} A_{ov}
      \end{pmatrix}
 
    where :math:`P = A_{ov}A_{ov}^{\dagger}`

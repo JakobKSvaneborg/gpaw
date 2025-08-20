@@ -24,13 +24,13 @@ class ElectrostaticPotential:
                  W_aL: AtomArrays,
                  Q_aL: AtomArrays,
                  D_asii: AtomArrays,
-                 fracpos_ac: ArrayLike2D,
+                 relpos_ac: ArrayLike2D,
                  setups: Setups):
         self.vHt_x = vHt_x
         self.W_aL = W_aL
         self.Q_aL = Q_aL
         self.D_asii = D_asii
-        self.fracpos_ac = fracpos_ac
+        self.relpos_ac = relpos_ac
         self.setups = setups
 
         # Caching of interpolated pseudo-potential:
@@ -40,13 +40,13 @@ class ElectrostaticPotential:
     @classmethod
     def from_calculation(cls, calculation: DFTCalculation):
         density = calculation.density
-        potential, W_aL = calculation.pot_calc.calculate(density)
+        potential, _, W_aL = calculation.pot_calc.calculate(density)
         Q_aL = density.calculate_compensation_charge_coefficients()
         return cls(potential.vHt_x,
                    W_aL,
                    Q_aL,
                    density.D_asii,
-                   calculation.fracpos_ac,
+                   calculation.relpos_ac,
                    calculation.setups)
 
     def atomic_potentials(self) -> Array1D:
@@ -120,6 +120,6 @@ class ElectrostaticPotential:
             dv_g[-1] = 0.0
             dv_a.append([rgd.spline(dv_g, points=npoints)])
 
-        dv_aR = vHt_R.desc.atom_centered_functions(dv_a, self.fracpos_ac)
+        dv_aR = vHt_R.desc.atom_centered_functions(dv_a, self.relpos_ac)
         dv_aR.add_to(vHt_R)
         return vHt_R.scaled(Bohr, Ha)

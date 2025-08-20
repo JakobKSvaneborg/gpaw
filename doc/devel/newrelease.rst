@@ -11,7 +11,7 @@ New release
 
 * Upload to PyPI::
 
-      $ python3 setup.py sdist
+      $ python3 -m build
       $ twine upload dist/*
 
 * Push and make a tag.
@@ -22,7 +22,7 @@ New release
 
 * Send announcement email to the ``gpaw-users`` mailing list::
 
-    $ git shortlog -s -n 24.6.0.. | python3 -c "
+    $ git shortlog -s -n 25.7.0.. | python3 -c "
     import sys
     names = [line.split(maxsplit=1)[1].strip() for line in sys.stdin]
     for name in sorted(names):

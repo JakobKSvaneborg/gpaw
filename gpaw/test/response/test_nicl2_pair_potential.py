@@ -13,6 +13,7 @@ from gpaw.test.response.test_parallel_kptpair_extraction import \
 
 
 @pytest.mark.response
+@pytest.mark.kspair
 @pytest.mark.old_gpaw_only
 def test_nicl2_pair_potential(gpw_files):
     """Test that the transverse pair potential vanishes in vacuum."""
@@ -34,7 +35,7 @@ def test_nicl2_pair_potential(gpw_files):
     # Set up extractor and transitions
     tcomm, kcomm = block_partition(context.comm, nblocks)
     extractor = initialize_extractor(gs, context, tcomm, kcomm)
-    transitions = initialize_transitions(extractor, '+-', nbands=20)
+    transitions = initialize_transitions(gs, '+-', nbands=20)
 
     # Set up calculator
     pair_potential_calc = TransversePairPotentialCalculator(gs, context,

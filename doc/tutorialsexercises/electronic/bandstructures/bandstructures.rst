@@ -49,3 +49,16 @@ Here is a zoom in on the VBM to see the effect of including
 
 .. literalinclude:: soc.py
     :start-after: web-page
+
+
+.. _hse06 on lda:
+
+Non self-consistent HSE06
+=========================
+
+.. literalinclude:: hse06.py
+.. figure:: hse06.png
+.. literalinclude:: plot_hse06.py
+.. autoclass:: gpaw.new.pw.nschse.NonSelfConsistentHSE06
+   :members:
+.. autofunction:: gpaw.new.pw.hybrids.truncated_coulomb

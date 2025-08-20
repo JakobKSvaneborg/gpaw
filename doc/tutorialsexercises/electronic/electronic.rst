@@ -7,7 +7,6 @@ Electronic structure
 .. toctree::
    :maxdepth: 2
 
-   pdos/pdos
    dos/dos
    bandstructures/bandstructures
    band_structure/bands

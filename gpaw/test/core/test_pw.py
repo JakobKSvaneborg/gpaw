@@ -97,7 +97,7 @@ def test_pw_integrate(xp, grid):
     gg = g.new()
     gg.scatter_from(f.gather(broadcast=True)
                     .ifft(grid=g.desc.new(comm=None)))
-    assert (g.data == gg.data).all()
+    assert xp.allclose(g.data, gg.data, rtol=1e-14)
 
     i1 = g.integrate()
     i2 = f.integrate()
@@ -164,3 +164,13 @@ def test_random():
     a = pw.empty(2)
     a.randomize()
     assert world.rank != 0 or (a.data[:, 0].imag == 0.0).all()
+
+
+def test_morph():
+    pw1 = PWDesc(ecut=20, cell=[1, 1, 1], comm=world)
+    a = pw1.empty()
+    a.randomize()
+    pw2 = PWDesc(ecut=20, cell=[1, 1, 1.1], comm=world)
+    b = a.morph(pw2)
+    c = b.morph(pw1)
+    assert (a.data == c.data).all()
