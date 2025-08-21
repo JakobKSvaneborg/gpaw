@@ -5,6 +5,7 @@ from gpaw.response.heisenberg import get_q0_index
 plt.rcParams['mathtext.fontset'] = 'cm'
 plt.rcParams['mathtext.rm'] = 'serif'
 
+
 def get_magnon_dispersion(J_qab, m_a, q0):
     # Magnon energies obtained from PRB 88 134427
     J0_ab = J_qab[q0]
@@ -17,13 +18,14 @@ def get_magnon_dispersion(J_qab, m_a, q0):
     E_qn, _ = np.linalg.eig(H_qab)
     return np.sort(E_qn, axis=1)
 
+
 # Load LDA MFT data
 q_qc = np.load('q_qc.npy')
 q0 = get_q0_index(q_qc)
 pathq_q = np.load('pathq_q.npy')
 J_qab = np.load('J_qab.npy')
 m_a = np.load('m_a.npy')
-m_a = 2 * np.sign(m_a) # Treat as exact spin=1 system
+m_a = 2 * np.sign(m_a)  # Treat as exact spin=1 system
 
 # Plot LDA dispersion
 E_qn = get_magnon_dispersion(J_qab, m_a, q0)
@@ -32,7 +34,7 @@ plt.plot(pathq_q, E_qn[:, 1].real * 1000, '-', c='C0', label='LDA')
 # Load LDA+U MFT data
 J_qab = np.load('J_U_qab.npy')
 m_a = np.load('m_U_a.npy')
-m_a = 2 * np.sign(m_a) # Treat as exact spin=1 system
+m_a = 2 * np.sign(m_a)  # Treat as exact spin=1 system
 
 # Plot LDA+U dispersion
 E_qn = get_magnon_dispersion(J_qab, m_a, q0)
