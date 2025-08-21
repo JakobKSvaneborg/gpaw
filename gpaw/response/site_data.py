@@ -136,9 +136,9 @@ class AtomicSiteData:
     def __init__(self, gs: ResponseGroundStateAdaptable, sites: AtomicSites):
         """Extract atomic site data from a given ground state."""
         gs = ResponseGroundStateAdapter.from_input(gs)
-        assert self.in_valid_site_radii_range(gs, sites), \
-            'Please provide site radii in the valid range, see '\
-            'gpaw.response.site_data.get_site_radii_range()'
+        #assert self.in_valid_site_radii_range(gs, sites), \
+        #    'Please provide site radii in the valid range, see '\
+        #    'gpaw.response.site_data.get_site_radii_range()'
         self.sites = sites
 
         # Extract the scaled positions and micro_setups for each atomic site

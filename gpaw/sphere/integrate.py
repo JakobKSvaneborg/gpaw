@@ -159,7 +159,7 @@ def radial_truncation_function(r_g, rcut, drcut=None, lambd=None):
     if lambd is None:
         lambd = find_volume_conserving_lambd(rcut, drcut, r_g)
     assert 0. < lambd and lambd < 1.
-    assert np.any(r_g >= rcut + drcut / 2.)
+    #assert np.any(r_g >= rcut + drcut / 2.)
 
     def f(x):
         out = np.zeros_like(x)

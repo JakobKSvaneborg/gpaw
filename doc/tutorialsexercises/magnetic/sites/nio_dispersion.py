@@ -7,8 +7,7 @@ from gpaw.mpi import rank
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext
 from gpaw.response.mft import HeisenbergExchangeCalculator
 from gpaw.response.site_data import (AtomicSites, get_site_radii_range,
-                                     calculate_site_magnetization,
-                                     calculate_site_zeeman_energy)
+                                     calculate_site_magnetization)
 
 # Setting up the AFM NiO
 a0 = 4.17
@@ -75,7 +74,6 @@ _, r_a = get_site_radii_range(gs)
 r0 = np.min([r_a[0], r_a[1]])
 sites = AtomicSites(indices=[0, 1], radii=[[r0], [r0]])
 m_a = calculate_site_magnetization(gs, sites)[:, 0]
-delta_a = 2 * calculate_site_zeeman_energy(gs, sites)[:, 0] / m_a
 
 # Compute the isotropic exchange coupling along the chosen bandpath
 jcalc = HeisenbergExchangeCalculator(gs,
@@ -90,15 +88,13 @@ context.write_timer()
 if rank == 0:
     np.save('J_qab.npy', J_qab)
     np.save('m_a.npy', m_a)
-    np.save('delta_a.npy', delta_a)
 
-
-# Redo everything with U = 2.5 eV
+# Redo everything with U = 5.5 eV
 calc = GPAW(mode=PW(1000),
             xc='LDA',
             occupations=FermiDirac(width=0.001),
             nbands=80,
-            setups={'Ni': ':d,2.5'},
+            setups={'Ni': ':d,5.5'},
             convergence={'density': 1.0e-6, 'bands': Nb},
             kpts={'size': (Nk, Nk, Nk), 'gamma': True},
             parallel={'domain': 1},
@@ -109,6 +105,7 @@ bulk.get_potential_energy()
 
 context = ResponseContext(txt='mft_U.txt')
 gs = ResponseGroundStateAdapter(calc)
+m_a = calculate_site_magnetization(gs, sites)[:, 0]
 jcalc = HeisenbergExchangeCalculator(gs,
                                      sites,
                                      context=context,
@@ -120,4 +117,3 @@ context.write_timer()
 if rank == 0:
     np.save('J_U_qab.npy', J_qab)
     np.save('m_U_a.npy', m_a)
-    np.save('delta_U_a.npy', delta_a)

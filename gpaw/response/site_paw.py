@@ -134,7 +134,10 @@ def calculate_nonlocal_hubbard_potential(D_sp, pawdata):
     N1_mm, dHU_ii = aoom(
         D_sii[1], hubbardl, l_j, pawdata.n_j, pawdata.N0_q, scale)
     M_mm = N0_mm.T - N1_mm.T  # ρ^(↑↑) - ρ^(↓↓)
-
+    
+    # Multiply with (e_z ⋅ u) to get the nonlocal magnetization *magnitude* 
+    M_mm *= np.sign(np.trace(M_mm))
+    
     # Loop over radial function indices for partial waves i and i' and map each
     # l-specific (m,m') subspace to the global partial wave indices (i,i')
     for j1, l1 in enumerate(l_j):
@@ -144,13 +147,8 @@ def calculate_nonlocal_hubbard_potential(D_sp, pawdata):
             if not (l1 == l2 == hubbardl):
                 continue  # no correction
             # Apply scaling to appropriately account for the norm of
-            # bounded/unbounded radial functions
-            m_mm = M_mm * dHU_ii[i1_m, i2_m]
-            # Multiply with (e_z ⋅ u) to get the nonlocal magnetization
-            # *magnitude*
-            eig_n, _ = np.linalg.eigh(m_mm)
-            if np.max(eig_n) < 0:
-                m_mm *= -1
-            # Add nonlocal Hubbard potential to the output
-            WzU_ii[i1_m, i2_m] = -hubbardU * m_mm / 2
+            # bounded/unbounded radial functions and add to output
+            WzU_ii[i1_m, i2_m] = M_mm * dHU_ii[i1_m, i2_m]
+            
+    WzU_ii *= -hubbardU / 2
     return WzU_ii
