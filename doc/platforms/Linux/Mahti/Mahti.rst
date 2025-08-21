@@ -51,7 +51,7 @@ Do the following in a new terminal session.
     source venv-gpaw-cpu/bin/activate
 
     # Clone GPAW development repository
-    git clone git@gitlab.com:gpaw/gpaw.git
+    git clone https://gitlab.com/gpaw/gpaw.git
     cd gpaw
     rm -rf build _gpaw.*.so gpaw.egg-info
 
