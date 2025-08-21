@@ -31,4 +31,12 @@ include_dirs += [f'{dpath}/include']
 library_dirs += [f'{dpath}/lib']
 extra_link_args += [f'-Wl,-rpath,{dpath}/lib']
 
+# libvdwxc
+libvdwxc = True
+libraries += ['vdwxc']
+dpath = '/appl/spack/v018/install-tree/gcc-11.3.0/libvdwxc-0.4.0-pvk3of/'
+include_dirs += [f'{dpath}/include']
+library_dirs += [f'{dpath}/lib']
+extra_link_args += [f'-Wl,-rpath,{dpath}/lib']
+
 define_macros += [('GPAW_ASYNC', 1)]
