@@ -32,4 +32,3 @@ library_dirs += [f'{dpath}/lib']
 extra_link_args += [f'-Wl,-rpath,{dpath}/lib']
 
 define_macros += [('GPAW_ASYNC', 1)]
-define_macros += [('GPAW_MPI_INPLACE,', 1)]
