@@ -1,5 +1,6 @@
 from __future__ import annotations
 import contextlib
+import atexit
 from time import time
 from typing import TYPE_CHECKING
 from types import ModuleType
@@ -217,6 +218,7 @@ else:
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
             cgpaw.gpaw_gpu_init()
+            atexit.register(cgpaw.gpaw_gpu_delete)
 
             # Generate a device id
             import os

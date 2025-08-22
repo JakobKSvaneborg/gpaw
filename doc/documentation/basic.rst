@@ -1198,16 +1198,23 @@ example saves a differently named restart file every 5 iterations::
 See also :meth:`~gpaw.calculator.GPAW.attach`.
 
 
+.. _debug mode:
+
+----------
+Debug mode
+----------
+
+.. envvar:: GPAW_DEBUG
+
+   Run GPAW in debug-mode, e.g. check consistency of arrays passed
+   to C-extensions.
+
+
 .. _command line options:
 
 --------------------
 Command-line options
 --------------------
-
-I order to run GPAW in debug-mode, e.g. check consistency of arrays passed
-to C-extensions, use Python's :option:`python:-d` option:
-
-    $ python3 -d script.py
 
 If you run Python through the ``gpaw python`` command, then you can run your
 script in dry-run mode like this::
