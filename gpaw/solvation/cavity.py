@@ -399,12 +399,7 @@ class Potential(NeedsGD):
             if not np.sum(np.array(list(self.pos_aav.values())) -
                           np.array(list(new_pos_aav.values()))):
                 return True
-#            diff = np.sum(np.sum((self.pos_aav[key] - new_pos_aav[key])**2)
-#                          for key in self.pos_aav)
-#            if diff < 1e-10:
-#                return True
         self.pos_aav = new_pos_aav
-        print(self.pos_aav.keys())
 
     def get_del_r_vg(self, atom_index, density):
         """Return spatial derivatives with respect to atomic position."""
