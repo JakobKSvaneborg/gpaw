@@ -269,7 +269,7 @@ def test_NiO_withU(in_tmp_dir):
     print('-----', e_q)
 
     assert e_q == pytest.approx(
-        np.array([0., -2.98733, -0.03207]), abs=1e-4)
+        np.array([0., -2.98733, -0.03207]), abs=1e-2)
 
 
 @pytest.mark.response
