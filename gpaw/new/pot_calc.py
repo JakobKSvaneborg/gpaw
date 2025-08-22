@@ -25,7 +25,6 @@ from gpaw.core.uniform_grid import UGArray
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.energies import DFTEnergies
-from gpaw.new.environment import Environment
 from gpaw.new.logger import indent
 from gpaw.new.potential import Potential
 from gpaw.new.xc import Functional
@@ -42,7 +41,6 @@ class PotentialCalculator:
                  setups: list[Setup],
                  *,
                  relpos_ac: Array2D,
-                 environment: Environment,
                  extensions: list | None = None,
                  soc: bool = False):
         self.poisson_solver = poisson_solver
@@ -50,7 +48,6 @@ class PotentialCalculator:
         self.setups = setups
         self.relpos_ac = relpos_ac
         self.soc = soc
-        self.environment = environment or Environment(len(relpos_ac))
         self.extensions: list = extensions or []
 
     def __str__(self):
