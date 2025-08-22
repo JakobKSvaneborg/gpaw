@@ -5,7 +5,7 @@ from gpaw.mpi import serial_comm, broadcast_exception, broadcast_float
 import uuid
 from pathlib import Path
 import os
-from gpaw.dft import Extension as ExtensionParameter
+from gpaw.dft import ExtensionInput
 from gpaw.new.poisson import PoissonSolver
 from gpaw.new.ibzwfs import IBZWaveFunctions
 
@@ -35,6 +35,7 @@ class Extension:
         return 0.0
 
     def build(self, atoms, comms, log):
+        1 / 0
         return self
 
     def create_poisson_solver(self, *, grid, xp, solver) -> PoissonSolver:
@@ -63,7 +64,7 @@ class Extension:
         return 0.0
 
 
-class D3(ExtensionParameter):
+class D3(ExtensionInput):
     name = 'd3'
 
     def __init__(self, *, xc, **kwargs):
@@ -178,7 +179,7 @@ class D3(ExtensionParameter):
         return D3Extension()
 
 
-class Jellium(Environment):
+class Jellium(ExtensionInput):
     def __init__(self,
                  jellium,
                  natoms: int,

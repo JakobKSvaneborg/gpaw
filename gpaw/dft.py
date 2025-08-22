@@ -318,9 +318,9 @@ class Scissors(LCAOEigensolver):
                                        symmetries)
 
 
-class Extension(Parameter):
+class ExtensionInput(Parameter):
     @classmethod
-    def from_param(self, extension):
+    def from_input(self, extension: ExtensionInput | dict):
         if isinstance(extension, dict):
             dct = extension.copy()
             name = dct.pop('name')
@@ -577,7 +577,7 @@ class Parameters:
         convergence: dict | None = None,
         eigensolver: str | dict | Eigensolver | None = None,
         experimental: dict | None = None,
-        extensions: Sequence[Extension] | None = None,
+        extensions: Sequence[ExtensionInput] | None = None,
         gpts: Sequence[int] | None = None,
         h: float | None = None,
         hund: bool | None = None,
@@ -693,7 +693,7 @@ class Parameters:
         self.convergence = convergence or {}
         self.eigensolver = Eigensolver.from_param(eigensolver or {})
         self.experimental = experimental or {}
-        self.extensions = [Extension.from_param(ext)
+        self.extensions = [ExtensionInput.from_input(ext)
                            for ext in extensions or []]
         self.gpts = np.array(gpts) if gpts is not None else None
         self.h = h
@@ -820,7 +820,7 @@ def DFT(
     convergence: dict | None = None,
     eigensolver: str | dict | Eigensolver | None = None,
     experimental: dict | None = None,
-    extensions: Sequence[Extension] | None = None,
+    extensions: Sequence[ExtensionInput] | None = None,
     gpts: Sequence[int] | None = None,
     h: float | None = None,
     hund: bool | None = None,
@@ -869,7 +869,7 @@ def GPAW(
     convergence: dict | None = None,
     eigensolver: str | dict | Eigensolver | None = None,
     experimental: dict | None = None,
-    extensions: Sequence[Extension] | None = None,
+    extensions: Sequence[ExtensionInput] | None = None,
     gpts: Sequence[int] | None = None,
     h: float | None = None,
     hund: bool | None = None,

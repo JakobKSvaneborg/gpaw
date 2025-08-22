@@ -2,13 +2,12 @@ import numpy as np
 from ase.units import Ha, Bohr
 from gpaw.fd_operators import Gradient
 from gpaw.new.c import add_to_density
-from gpaw.new.environment import Environment
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from gpaw.solvation.cavity import Cavity
 from gpaw.solvation.dielectric import Dielectric
 from gpaw.solvation.interactions import Interaction
-from gpaw.dft import Parameter
+from gpaw.dft import Parameter, Extension
 
 
 class Solvation(Parameter):
@@ -34,7 +33,7 @@ class Solvation(Parameter):
               relpos_ac,
               log,
               comm):
-        return SolvationEnvironment(
+        return SolvationExtension(
             cavity=self.cavity,
             dielectric=self.dielectric,
             interactions=self.interactions,
@@ -42,7 +41,7 @@ class Solvation(Parameter):
             log=log, comm=comm)
 
 
-class SolvationEnvironment(Environment):
+class SolvationExtension(Extension):
     def __init__(self,
                  *,
                  cavity,
