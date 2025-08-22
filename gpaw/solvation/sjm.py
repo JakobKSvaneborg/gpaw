@@ -25,7 +25,7 @@ from gpaw.hamiltonian import RealSpaceHamiltonian
 from gpaw.io.logger import indent
 from gpaw.jellium import Jellium, JelliumSlab
 from gpaw.solvation.calculator import OldSolvationGPAW
-from gpaw.solvation.cavity import Power12Potential, get_pbc_positions
+from gpaw.solvation.cavity import Power12Potential
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from scipy.ndimage import uniform_filter1d
@@ -1118,16 +1118,9 @@ class SJMPower12Potential(Power12Potential):
         self.r12_a = (self.atomic_radii_output / Bohr) ** 12
         r_cutoff = (self.r12_a.max() * self.u0 / self.pbc_cutoff) ** (1. / 12.)
 
-        # The following check prevents that new GPAW redefines the cavity at
-        # each scf iteration, which is an unnecessary overhead.
-        pbc_pos = get_pbc_positions(atoms, r_cutoff)
-        if self.pos_aav is not None:
-            diff = np.sum(np.sum((self.pos_aav[key] - pbc_pos[key])**2)
-                          for key in self.pos_aav)
-            if diff < 1e-10:
-                return False
+        if self.check_for_position_changes(atoms, r_cutoff):
+            return False
 
-        self.pos_aav = get_pbc_positions(atoms, r_cutoff)
         self.u_g.fill(.0)
         self.grad_u_vg.fill(.0)
         na = np.newaxis
@@ -1140,6 +1133,7 @@ class SJMPower12Potential(Power12Potential):
                     self.u_g[:, :, z] = np.inf
                     self.grad_u_vg[:, :, :, z] = 0
 
+        ghost_aav = {}
         if self.H2O_layer:
             # Add ghost coordinates and indices to pos_aav dictionary if
             # a water layer is present.
@@ -1245,13 +1239,13 @@ class SJMPower12Potential(Power12Potential):
 
                 r12_add = []
                 for i in range(len(O_layer)):
-                    self.pos_aav[len(atoms) + i] = [O_layer[i]]
+                    ghost_aav[len(atoms) + i] = [O_layer[i]]
                     r12_add.append(self.r12_a[water_oxygen_ind[0]])
                 r12_add = np.array(r12_add)
                 # r12_a must have same dimensions as pos_aav items
                 self.r12_a = np.concatenate((self.r12_a, r12_add))
 
-        for index, pos_av in self.pos_aav.items():
+        for index, pos_av in {**self.pos_aav, **ghost_aav}.items():
             pos_av = np.array(pos_av)
             r12 = self.r12_a[index]
             for pos_v in pos_av:

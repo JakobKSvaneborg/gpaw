@@ -391,6 +391,21 @@ class Potential(NeedsGD):
         """
         raise NotImplementedError()
 
+    # The following check prevents that new GPAW redefines the cavity at
+    # each scf iteration, which is an unnecessary overhead.
+    def check_for_position_changes(self, atoms, r_cutoff):
+        new_pos_aav = get_pbc_positions(atoms, r_cutoff)
+        if self.pos_aav is not None:
+            if not np.sum(np.array(list(self.pos_aav.values())) -
+                          np.array(list(new_pos_aav.values()))):
+                return True
+#            diff = np.sum(np.sum((self.pos_aav[key] - new_pos_aav[key])**2)
+#                          for key in self.pos_aav)
+#            if diff < 1e-10:
+#                return True
+        self.pos_aav = new_pos_aav
+        print(self.pos_aav.keys())
+
     def get_del_r_vg(self, atom_index, density):
         """Return spatial derivatives with respect to atomic position."""
         raise NotImplementedError()
@@ -470,14 +485,9 @@ class Power12Potential(Potential):
         self.r12_a = (self.atomic_radii_output / Bohr) ** 12
         r_cutoff = (self.r12_a.max() * self.u0 / self.pbc_cutoff) ** (1. / 12.)
 
-        pbc_pos = get_pbc_positions(atoms, r_cutoff)
-        if self.pos_aav is not None:
-            diff = np.sum(np.sum((self.pos_aav[key] - pbc_pos[key])**2)
-                          for key in self.pos_aav)
-            if diff < 1e-10:
-                return False
+        if self.check_for_position_changes(atoms, r_cutoff):
+            return False
 
-        self.pos_aav = get_pbc_positions(atoms, r_cutoff)
         self.u_g.fill(.0)
         self.grad_u_vg.fill(.0)
         na = np.newaxis
