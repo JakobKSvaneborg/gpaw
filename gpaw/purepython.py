@@ -14,6 +14,10 @@ def gpaw_gpu_init():
     pass
 
 
+def gpaw_gpu_delete():
+    pass
+
+
 def get_num_threads():
     return 1
 
@@ -121,9 +125,12 @@ def pw_insert_gpu(psit_nG,
                                    n, m)
 
 
-def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
-                 l_s, a_J, s_J,
-                 cc, f_GI):
+def pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a,
+                 Y_GL, l_s, a_J, s_J,
+                 cc, f_GI, xp=np):
+    emiGR_Ga = Gk_Gv @ pos_av.T
+    emiGR_Ga = \
+        (xp.cos(emiGR_Ga) - 1j * xp.sin(emiGR_Ga)) * eikR_a
     real = np.issubdtype(f_GI.dtype, np.floating)
     I1 = 0
     for J, (a, s) in enumerate(zip(a_J, s_J)):
@@ -143,12 +150,12 @@ def pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
         I1 = I2
 
 
-def pwlfc_expand_gpu(f_Gs, emiGR_Ga, Y_GL,
-                     l_s, a_J, s_J,
+def pwlfc_expand_gpu(f_Gs, Gk_Gv, pos_av, eikR_a,
+                     Y_GL, l_s, a_J, s_J,
                      cc, f_GI, I_J):
-    pwlfc_expand(f_Gs, emiGR_Ga, Y_GL,
-                 l_s, a_J, s_J,
-                 cc, f_GI)
+    pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a,
+                 Y_GL, l_s, a_J, s_J,
+                 cc, f_GI, xp=cp)
 
 
 def dH_aii_times_P_ani_gpu(dH_aii, ni_a,

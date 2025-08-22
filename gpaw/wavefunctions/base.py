@@ -664,13 +664,13 @@ class WaveFunctions:
                 log(' Band         L_ii   Occupancy  '
                     ' Band      L_ii   Occupancy')
 
-                lagr_0 = np.sort(pot.lagr_diag_s[0])
+                lagr_0 = pot.lagr_diag_s[0]
                 lagr_labeled_0 = {}
                 for c, x in enumerate(pot.lagr_diag_s[0]):
                     lagr_labeled_0[str(round(x, 12))] = c
 
                 if self.kd.comm.size == 1:
-                    lagr_1 = np.sort(pot.lagr_diag_s[1])
+                    lagr_1 = pot.lagr_diag_s[1]
                     lagr_labeled_1 = {}
                     for c, x in enumerate(
                             pot.lagr_diag_s[1]):
@@ -679,7 +679,6 @@ class WaveFunctions:
                     lagr_labeled_1 = {}
                     for c, x in enumerate(lagr_1):
                         lagr_labeled_1[str(round(x, 12))] = c
-                    lagr_1 = np.sort(lagr_1)
 
                 for x, y in zip(lagr_0, lagr_1):
                     i0 = lagr_labeled_0[str(round(x, 12))]

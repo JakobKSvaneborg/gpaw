@@ -214,12 +214,12 @@ class PZSICLCAO:
         F_MM = np.zeros(shape=(n_set, n_set),
                         dtype=self.dtype)
         # get orbital-density
-        timer.start('Construct Density, Charge, adn DM')
+        timer.start('Construct Density, Charge, and DM')
         nt_G, Q_aL, D_ap = \
             self.get_density(f_n,
                              C_nM, kpt,
                              wfs, setup, m)
-        timer.stop('Construct Density, Charge, adn DM')
+        timer.stop('Construct Density, Charge, and DM')
 
         # calculate sic energy,
         # sic pseudo-potential and Hartree

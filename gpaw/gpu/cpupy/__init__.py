@@ -1,3 +1,4 @@
+from __future__ import annotations
 from types import SimpleNamespace
 
 import numpy as np
@@ -11,11 +12,28 @@ __version__ = 'fake'
 
 __all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
 
+FAKE_CUPY_WARNING = """
+ ----------------------------------------------------------
+|                         WARNING                          |
+| -------------------------------------------------------- |
+|  GPU calculation requested, but calculations are run on  |
+|    CPUs with the `cupy` substitute `gpaw.gpu.cpupy`.     |
+| This is most likely not the desired behavior, except for |
+| testing purposes. Please check if you have inadvertently |
+|    set the environment variable `GPAW_CPUPY`, consult    |
+| `gpaw info` for `cupy` availability, and reconfigure and |
+|               recompile GPAW if necessary.               |
+ ----------------------------------------------------------
+"""
 
 pi = np.pi
 
 
-def empty(*args, **kwargs):
+def require(a, requirements=None):
+    return ndarray(np.require(a._data, requirements=requirements))
+
+
+def empty(*args, **kwargs) -> ndarray:
     return ndarray(np.empty(*args, **kwargs))
 
 
@@ -79,11 +97,14 @@ def negative(a, b):
     np.negative(a._data, b._data)
 
 
-def einsum(indices, *args):
+def einsum(indices, *args, **kwargs):
+    for k in kwargs:
+        kwargs[k] = kwargs[k]._data
     return ndarray(
         np.einsum(
             indices,
-            *(arg._data for arg in args)))
+            *(arg._data for arg in args),
+            **kwargs))
 
 
 def diag(a):
@@ -120,7 +141,7 @@ def tri(n, k=0, dtype=float):
 
 
 def allclose(a, b, **kwargs):
-    return np.allclose(a._data, b._data, **kwargs)
+    return np.allclose(asarray(a)._data, asarray(b)._data, **kwargs)
 
 
 def moveaxis(a, source, destination):
@@ -133,6 +154,14 @@ def vdot(a, b):
 
 def fuse():
     return lambda func: func
+
+
+def isfinite(a):
+    return ndarray(np.isfinite(a._data))
+
+
+def isnan(a):
+    return ndarray(np.isnan(a._data))
 
 
 class ndarray:
@@ -352,3 +381,6 @@ class ndarray:
 
     def fill(self, val):
         self._data.fill(val)
+
+    def any(self):
+        return ndarray(self._data.any())

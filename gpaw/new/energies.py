@@ -4,11 +4,11 @@ from ase.units import Ha
 
 # Contributions to free energy:
 NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
-         'spinorbit']
+         'spinorbit', 'hybrid_xc']
 
 # Other allowed names:
 OTHERS = {'band', 'kinetic_correction', 'extrapolation',
-          'hybrid_kinetic_correction', 'hybrid_xc'}
+          'hybrid_kinetic_correction'}
 
 
 class DFTEnergies:
@@ -18,7 +18,7 @@ class DFTEnergies:
         self.set(**energies)
 
     def set(self, **energies: float) -> None:
-        assert energies.keys() <= set(NAMES) | OTHERS, energies
+        # assert energies.keys() <= set(NAMES) | OTHERS, energies
         self._energies.update(energies)
         self._total_free = None
 
@@ -38,9 +38,8 @@ class DFTEnergies:
         if self._total_free is None:
             energies = self._energies.copy()
             energies['kinetic'] = self.kinetic
-            if 'hybrid_xc' in energies:
-                energies['xc'] += energies['hybrid_xc']
-            self._total_free = sum(energies.get(name, 0.0) for name in NAMES)
+            self._total_free = sum(energies.get(name, 0.0) for name in energies
+                                   if name not in OTHERS)
         return self._total_free
 
     @property
@@ -51,14 +50,27 @@ class DFTEnergies:
         s = ', '.join(f'{k}={v}' for k, v in self._energies.items())
         return f'DFTEnergies({s})'
 
+    @property
+    def extensions_energies(self) -> list[tuple[str, float]]:
+        return [(name, self._energies.get(name, 0.0))
+                for name in self._energies
+                if name not in OTHERS and name not in NAMES]
+
     def summary(self, log) -> None:
         for name in NAMES:
+            if name in OTHERS:
+                continue
             e = self._energies.get(name)
             if e is None:
                 if name != 'kinetic':
                     continue
                 e = self.kinetic
             log(f'{name + ":":10}   {e * Ha:14.6f}')
+        extensions = self.extensions_energies
+        if extensions:
+            log('--------extensions----------')
+            for name, e in extensions:
+                log(f'{name + ":":12} {e * Ha:14.6f}')
         log('----------------------------')
         log(f'Free energy: {self.total_free * Ha:14.6f}')
         log(f'Extrapolated:{self.total_extrapolated * Ha:14.6f}\n')

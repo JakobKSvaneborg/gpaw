@@ -263,11 +263,11 @@ class AtomArrays:
         data:
             Array to use for storage.
         """
-        if xp is np:
+        if xp is not None:
             assert layout is None
             assert data is None
-            assert self.layout.xp is cp
-            layout = self.layout.new(xp=np)
+            if self.layout.xp is not xp:
+                layout = self.layout.new(xp=xp)
         return AtomArrays(layout or self.layout,
                           self.dims,
                           self.comm,
@@ -289,15 +289,26 @@ class AtomArrays:
         return self.new(layout=self.layout.new(xp=cp),
                         data=cp.asarray(self.data))
 
+    @overload
+    def __getitem__(self, a: int) -> np.ndarray:
+        ...
+
+    @overload
+    def __getitem__(self, a: tuple) -> AtomArrays:
+        ...
+
     def __getitem__(self, a):
         if isinstance(a, numbers.Integral):
             return self._arrays[a]
-        if len(self.dims) == 1:
-            a0, a1 = a
-            assert a0 == slice(None)
-            a_ai = AtomArrays(self.layout, data=self.data[a1].copy())
-            return a_ai
-        1 / 0
+        assert len(self.dims) >= 1
+        a0, a1 = a
+        assert a0 == slice(None)
+        data = self.data[a1]
+        a_ai = AtomArrays(self.layout, dims=data.shape[:-1], data=data)
+        return a_ai
+
+    def copy(self):
+        return self.new(data=self.data.copy())
 
     def get(self, a):
         return self._arrays.get(a)

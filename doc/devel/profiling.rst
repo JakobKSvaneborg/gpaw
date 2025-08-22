@@ -63,7 +63,7 @@ the :mod:`pstats` documentation if you want to do more fancy things.
 .. tip::
 
    Since the :mod:`cProfile` module does not time calls to C-code, it
-   is a good idea to run the code in debug mode - this will wrap
+   is a good idea to run the code in :ref:`debug mode` - this will wrap
    calls to C-code in Python functions::
 
      $ python3 -d script.py

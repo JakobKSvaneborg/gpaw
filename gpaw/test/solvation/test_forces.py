@@ -25,20 +25,20 @@ h = 0.2
 u0 = 0.180
 epsinf = 80.
 T = 298.15
-atomic_radii = lambda atoms: [vdw_radii[n] for n in atoms.numbers]
 
 
+@pytest.mark.slow
 def test_solvation_forces():
     atoms = Atoms('NaCl', positions=((5.6, 5.6, 6.8), (5.6, 5.6, 8.8)))
     atoms.set_cell((11.2, 11.2, 14.4))
 
-
     atoms.calc = SolvationGPAW(
         mode='fd',
         mixer=Mixer(0.5, 7, 50.0),
+        eigensolver='dav',
         xc='oldPBE', h=h, setups={'Na': '1'},
         cavity=EffectivePotentialCavity(
-            effective_potential=Power12Potential(atomic_radii, u0),
+            effective_potential=Power12Potential(u0=u0),
             temperature=T,
             volume_calculator=KB51Volume(),
             surface_calculator=GradientSurface()),
@@ -47,18 +47,14 @@ def test_solvation_forces():
         interactions=[
             VolumeInteraction(pressure=-1e9 * Pascal),
             SurfaceInteraction(surface_tension=100. * 1e-3 * Pascal * m),
-            LeakedDensityInteraction(voltage=10.)
-        ]
-    )
-
+            LeakedDensityInteraction(voltage=10.)])
 
     def vac(atoms):
         return min(
             atoms.positions[0][2],
-            14.4 - atoms.positions[1][2]
-        )
+            14.4 - atoms.positions[1][2])
 
-    step = .05
+    step = 0.05
     if not SKIP_ENERGY_CALCULATION:
         d = []
         E = []
@@ -213,15 +209,13 @@ def test_solvation_forces():
     kernel = {
         1: np.array((0.5, 0, -0.5)),
         2: np.array((-1. / 12., 2. / 3., 0, -2. / 3., 1. / 12.)),
-        3: np.array((1. / 60., -0.15, 0.75, 0, -0.75, 0.15, -1. / 60.)),
-    }
+        3: np.array((1. / 60., -0.15, 0.75, 0, -0.75, 0.15, -1. / 60.))}
 
     dEdz = np.convolve(E, kernel[stencil] / step, 'valid')
 
     err = np.maximum(
         np.abs(-dEdz - FNa[stencil:-stencil]),
-        np.abs(-dEdz - FCl[stencil:-stencil])
-    )
+        np.abs(-dEdz - FCl[stencil:-stencil]))
 
     # test forces against -dE / dd finite difference
     print(err)
@@ -239,8 +233,7 @@ def test_solvation_forces():
             assert FNa_check == pytest.approx(FCl_check, abs=F_max_err)
             err = np.maximum(
                 np.abs(-dEdz[index - stencil] - FNa_check),
-                np.abs(-dEdz[index - stencil] - FCl_check)
-            )
+                np.abs(-dEdz[index - stencil] - FCl_check))
             print(err)
             assert err == pytest.approx(.0, abs=F_max_err)
 

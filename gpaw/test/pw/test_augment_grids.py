@@ -1,4 +1,3 @@
-
 import numpy as np
 import pytest
 from ase import Atoms
@@ -9,6 +8,7 @@ from gpaw.new.calculation import DFTCalculation
 from gpaw.mpi import rank
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.stress
 def test_pw_augment_grids(in_tmp_dir, gpaw_new):
     ecut = 200

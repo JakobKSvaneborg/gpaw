@@ -65,6 +65,7 @@ PyObject* exterior_electron_density_region(PyObject *self, PyObject *args);
 PyObject* plane_wave_grid(PyObject *self, PyObject *args);
 PyObject* tci_overlap(PyObject *self, PyObject *args);
 PyObject *pwlfc_expand(PyObject *self, PyObject *args);
+PyObject *pwlfc_expand_old(PyObject *self, PyObject *args);
 PyObject *pw_insert(PyObject *self, PyObject *args);
 PyObject *pw_precond(PyObject *self, PyObject *args);
 PyObject *fd_precond(PyObject *self, PyObject *args);
@@ -239,6 +240,7 @@ static PyMethodDef functions[] = {
     {"eed_region", exterior_electron_density_region, METH_VARARGS, 0},
     {"plane_wave_grid", plane_wave_grid, METH_VARARGS, 0},
     {"pwlfc_expand", pwlfc_expand, METH_VARARGS, 0},
+    {"pwlfc_expand_old", pwlfc_expand_old, METH_VARARGS, 0},
     {"pw_insert", pw_insert, METH_VARARGS, 0},
     {"pw_precond", pw_precond, METH_VARARGS, 0},
     {"fd_precond", fd_precond, METH_VARARGS, 0},
@@ -516,7 +518,7 @@ static PyObject* moduleinit(void)
     PyObject_SetAttrString(m, "have_magma", Py_False);
 #endif
     // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
-    PyObject_SetAttrString(m, "version", PyLong_FromLong(9));
+    PyObject_SetAttrString(m, "version", PyLong_FromLong(10));
 
     Py_INCREF(&LFCType);
     Py_INCREF(&OperatorType);

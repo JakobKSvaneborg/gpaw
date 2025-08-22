@@ -73,27 +73,10 @@ class PWDescriptor:
             self.only_one_k_point = (kd.nbzkpts == 1)
 
         # Map from vectors inside sphere to fft grid:
-        self.Q_qG = []
-        G2_qG = []
         Q_Q = np.arange(len(i_Qc), dtype=np.int32)
 
-        self.ng_q = []
-        for q, K_v in enumerate(self.K_qv):
-            G2_Q = ((self.G_Qv + K_v)**2).sum(axis=1)
-            if gammacentered:
-                mask_Q = ((self.G_Qv**2).sum(axis=1) <= 2 * ecut)
-            else:
-                mask_Q = (G2_Q <= 2 * ecut)
-
-            if self.dtype == float:
-                mask_Q &= ((i_Qc[:, 2] > 0) |
-                           (i_Qc[:, 1] > 0) |
-                           ((i_Qc[:, 0] >= 0) & (i_Qc[:, 1] == 0)))
-            Q_G = Q_Q[mask_Q]
-            self.Q_qG.append(Q_G)
-            G2_qG.append(G2_Q[Q_G])
-            ng = len(Q_G)
-            self.ng_q.append(ng)
+        self.ng_q, self.Q_qG, G2_qG = \
+            self.setup_pw_grid(i_Qc, Q_Q)
 
         self.ngmin = min(self.ng_q)
         self.ngmax = max(self.ng_q)
@@ -131,6 +114,29 @@ class PWDescriptor:
             self.tmp_G = None
 
         self._new = _new
+
+    def setup_pw_grid(self, i_Qc, Q_Q):
+        ng_q = []
+        Q_qG = []
+        G2_qG = []
+        for q, K_v in enumerate(self.K_qv):
+            G2_Q = ((self.G_Qv + K_v)**2).sum(axis=1)
+            if self.gammacentered:
+                mask_Q = ((self.G_Qv**2).sum(axis=1) <= 2 * self.ecut)
+            else:
+                mask_Q = (G2_Q <= 2 * self.ecut)
+
+            if self.dtype == float:
+                mask_Q &= ((i_Qc[:, 2] > 0) |
+                           (i_Qc[:, 1] > 0) |
+                           ((i_Qc[:, 0] >= 0) & (i_Qc[:, 1] == 0)))
+            Q_G = Q_Q[mask_Q]
+            Q_qG.append(Q_G)
+            G2_qG.append(G2_Q[Q_G])
+            ng = len(Q_G)
+            ng_q.append(ng)
+
+        return ng_q, Q_qG, G2_qG
 
     def get_reciprocal_vectors(self, q=0, add_q=True):
         """Returns reciprocal lattice vectors plus q, G + q,
