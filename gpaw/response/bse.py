@@ -91,6 +91,10 @@ class BSEMatrix:
         v_rt = desc.empty(dtype=complex)
         if backend == 'mkl':
             bse.context.print('  Using mkl...')
+            bse.context.print('You are using a general eigensolver '
+                              'to solve a Hermitian eigenvalue problem. '
+                              'You may get better performance by using ' 
+                              '`backend = \'scalapack\'`')
             w_T = np.empty(nR, dtype=complex)
             mkl_scalapack_diagonalize_non_symmetric(desc, H_rr, v_rt, w_T)
             w_T = w_T.real
