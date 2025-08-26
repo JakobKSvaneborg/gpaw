@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
+
 from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
@@ -107,9 +109,9 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             data = reader.wave_functions.proxy(name, *index)
             data.scale = c
             if self.communicators['w'].size == 1 and not singlep:
-                wfs.psit_nX = UGArray(grid, self.nbands, data=None)
-                # psit_nX could be complex, while data is real
-                wfs.psit_nX.data[:] = data
+                # Cast to the right dtype
+                wfs.psit_nX = UGArray(grid, self.nbands,
+                                      data=np.array(data, dtype=grid.dtype))
             else:
                 band_comm = self.communicators['b']
                 wfs.psit_nX = UGArray(
