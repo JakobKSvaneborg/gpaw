@@ -8,7 +8,7 @@ import numpy as np
 import scipy.linalg as sla
 
 import gpaw.utilities.blas as blas
-from gpaw import debug, get_scipy_version
+from gpaw import debug
 from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
@@ -468,7 +468,7 @@ class Matrix(XP):
                         assert self.dist.comm.size == 1
                         S.invcholesky()
                         self.tril2full()
-                        eigs = self.eighg(S)
+                        eigs = self.dist.eighl(self, S)
                         self.data[:] = self.data.T.copy()
                         return eigs
                     if debug:
@@ -486,9 +486,10 @@ class Matrix(XP):
             self.dist.comm.broadcast(eps, 0)
         else:
             if slcomm.rank < rows * columns:
-                assert cc
                 assert S is None
                 array = H.data.copy()
+                if not cc and np.issubdtype(H.dtype, np.complexfloating):
+                    np.negative(array.imag, array.imag)
                 info = cgpaw.scalapack_diagonalize_dc(array, H.dist.desc, 'U',
                                                       H.data, eps)
                 assert info == 0, info
@@ -504,7 +505,9 @@ class Matrix(XP):
 
         return eps
 
-    def eighg(self, L: Matrix, comm2: MPIComm = serial_comm) -> Array1D:
+    def eighl(self,
+              L: Matrix,
+              comm2: MPIComm = serial_comm) -> Array1D:
         """Solve generalized eigenvalue problem.
 
         With `H` being self, we solve for the eigenvectors `C` and the
@@ -528,49 +531,20 @@ class Matrix(XP):
         M, N = self.shape
         assert M == N
         comm = self.dist.comm
+        H = self
 
         if comm2.rank == 0:
-            if comm.size == 1:
-                H = self
-                L0 = L
-            else:
-                # TODO: Use scalapack
-                H = self.new(dist=(comm,))
-                self.redist(H)
-                L0 = self.new(dist=(comm,))
-                L.redist(L0)
-            if comm.rank == 0:
-                if self.xp is not np:
-                    return self.dist.eighg(self, L0)
-                tmp_MM = np.empty_like(H.data)
-                L_MM = L0.data
-                blas.mmm(1.0, L_MM, 'N', H.data, 'N', 0.0, tmp_MM)
-                blas.r2k(0.5, tmp_MM, L_MM, 0.0, H.data)
-                # Ht_MM = L_MM @ H.data @ L_MM.conj().T
-                if get_scipy_version() >= [1, 9]:
-                    driver = 'evx' if M == 1 else 'evd'
-                else:
-                    driver = None
-                eig_n, Ct_Mn = sla.eigh(
-                    H.data,
-                    overwrite_a=True,
-                    check_finite=debug,
-                    driver=driver)
-                assert Ct_Mn.flags.f_contiguous
-                blas.mmm(1.0, L_MM, 'C', Ct_Mn.T, 'T', 0.0, H.data)
-                # H.data[:] = L_MM.T.conj() @ Ct_Mn
-            else:
-                eig_n = np.empty(M)
-
-            if comm.size > 1:
-                H.redist(self)
-                comm.broadcast(eig_n, 0)
-
-        if comm2.rank > 0:
+            LH = L.multiply(H)
+            LH.multiply(L, opb='C', out=H)
+            r, c, b = suggest_blocking(M, comm.size)
+            eig_n = H.eigh(scalapack=(comm, r, c, b))
+            L.multiply(H, opa='C', opb='T', out=LH)
+            H.data[:] = LH.data
+        else:
             eig_n = np.empty(M)
-        comm2.broadcast(eig_n, 0)
-        comm2.broadcast(self.data, 0)
 
+        comm2.broadcast(eig_n, 0)
+        comm2.broadcast(H.data, 0)
         return eig_n
 
     def complex_conjugate(self) -> None:
@@ -704,7 +678,7 @@ class MatrixDistribution:
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         raise NotImplementedError
 
-    def eighg(self, H, L):
+    def eighl(self, H, L):
         raise NotImplementedError
 
     def new(self, M, N):
@@ -955,7 +929,7 @@ class CuPyDistribution(MatrixDistribution):
         else:
             cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c.data)
 
-    def eighg(self, H, L):
+    def eighl(self, H, L):
         """
         :::
 

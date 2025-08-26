@@ -14,6 +14,10 @@ def gpaw_gpu_init():
     pass
 
 
+def gpaw_gpu_delete():
+    pass
+
+
 def get_num_threads():
     return 1
 
