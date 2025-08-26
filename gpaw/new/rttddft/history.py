@@ -61,7 +61,8 @@ class RTTDDFTHistory:
 
         Returns
         -------
-        The new simulation time in atomic units.
+        float
+            The new simulation time in atomic units.
         """
         self._niter += 1
         self._time += time_step

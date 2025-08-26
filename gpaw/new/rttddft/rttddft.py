@@ -61,6 +61,25 @@ class RTTDDFTResult(NamedTuple):
 
 
 class RTTDDFT:
+
+    """Real-time time-propagation TDDFT calculator.
+
+
+    Parameters
+    ----------
+    state
+        State containing wave functions and potentials.
+    pot_calc
+        Potential calculator.
+    hamiltonian
+        Time-dependent Hamiltonian object.
+    history
+        History object.
+    td_algorithm
+        Propagation algorithm for the state.
+    dft_params
+        Parameters used in underlying DFT calculation.
+    """
     def __init__(self,
                  state: RTTDDFTState,
                  pot_calc: PotentialCalculator,
@@ -338,7 +357,7 @@ class RTTDDFT:
         return kick_hamiltonian
 
     def ipropagate(self,
-                   time_step: float = 10.0,
+                   time_step: float = 1e-3,
                    maxiter: int = 2000,
                    ) -> Generator[RTTDDFTResult, None, None]:
         """Propagate the electronic system.
