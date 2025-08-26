@@ -199,10 +199,16 @@ class RTTDDFTAdapter:
             self.call_observers(self.niter)
 
     def __getattr__(self, attr):
-        if attr in ['niter', 'time', 'kick_strength']:
+        if attr in ['niter', 'time']:
             return getattr(self._rttddft.history, attr)
-        if attr in ['kick_gauge']:
-            return 'length'
+        if attr in ['kick_strength', 'kick_gauge']:
+            try:
+                # Return last kick
+                kick = self._rttddft.history.kicks[-1]
+                return kick.strength if attr == 'kick_strength' else kick.gauge
+            except IndexError:
+                # There have been no kicks
+                return None
         elif attr in ['setups']:
             return getattr(self._rttddft.pot_calc, attr)
         else:

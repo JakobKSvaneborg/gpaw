@@ -1,76 +1,103 @@
 from __future__ import annotations
+from dataclasses import asdict, dataclass
+from typing import Any, Union
 
 import numpy as np
 
 from gpaw.typing import Vector
 
 
+RTTDDFTKickLike = Union['RTTDDFTKick', dict[str, Any]]
+
+
 class RTTDDFTHistory:
 
-    kick_strength: Vector | None  # Kick strength in atomic units
-    niter: int  # Number of propagation steps
-    time: float  # Simulation time in atomic units
+    """ Representation of the history of a RT-TDDFT calculation.
+    The class stores the curent time and the number of propagation steps,
+    as well as a list of previous kicks.
+    """
 
-    def __init__(self):
-        """Object that keeps track of the RT-TDDFT history, that is
+    def __init__(self) -> None:
+        self._kicks: list[RTTDDFTKick] = []
+        self._niter: int = 0
+        self._time: float = 0.0
 
-        - Has a kick been performed?
-        - The number of propagation states performed
-        """
-        self.kick_strength = None
-        self.niter = 0
-        self.time = 0.0
+    @property
+    def time(self) -> float:
+        """ Current simulation time in atomic units. """
+        return self._time
+
+    @property
+    def niter(self) -> int:
+        """ Number of propagation steps. """
+        return self._niter
+
+    @property
+    def kicks(self) -> list[RTTDDFTKick]:
+        """ Kicks that have been done. """
+        return self._kicks
 
     def absorption_kick(self,
                         kick_strength: Vector):
-        """ Store the kick strength in history
-
-        At most one kick can be done, and it must happen before any
-        propagation steps
+        """ Store the kick strength in history.
 
         Parameters
         ----------
         kick_strength
-            Strength of the kick in atomic units
+            Strength of the kick in atomic units.
         """
-        assert self.niter == 0, 'Cannot kick if already propagated'
-        assert self.kick_strength is None, 'Cannot kick if already kicked'
-        self.kick_strength = np.array(kick_strength, dtype=float)
+        kick = RTTDDFTKick(self.time, np.array(kick_strength, dtype=float))
+        self._kicks.append(kick)
 
     def propagate(self,
                   time_step: float) -> float:
         """ Increment the number of propagation steps and simulation time
-        in history
+        in history.
 
         Parameters
         ----------
         time_step
-            Time step in atomic units
+            Time step in atomic units.
 
         Returns
         -------
-        The new simulation time in atomic units
+        The new simulation time in atomic units.
         """
-        self.niter += 1
-        self.time += time_step
+        self._niter += 1
+        self._time += time_step
 
         return self.time
 
     def todict(self):
-        kick_strength = self.kick_strength
-        if kick_strength is not None:
-            kick_strength = kick_strength.tolist()
-        return {'niter': self.niter, 'time': self.time,
-                'kick_strength': kick_strength}
+        kicks = [kick.todict() for kick in self.kicks]
+        return {'niter': self.niter, 'time': self.time, 'kicks': kicks}
 
     @classmethod
     def from_values(cls,
-                    kick_strength: Vector | None,
+                    kicks: list[RTTDDFTKickLike],
                     niter: int,
                     time: float) -> RTTDDFTHistory:
         history = cls()
-        if kick_strength is not None:
-            history.absorption_kick(kick_strength)
-        history.niter = niter
-        history.time = time
+        history._kicks += [kick if isinstance(kick, RTTDDFTKick)
+                           else RTTDDFTKick(**kick) for kick in kicks]
+        history._niter = niter
+        history._time = time
         return history
+
+
+@dataclass
+class RTTDDFTKick:
+
+    """ Class representing a kick in RTTDDFT history.
+    """
+
+    time: float  # Simulation time
+    strength: Vector  # Kick strength in atomic units
+    gauge: str = 'length'
+
+    def __post_init__(self):
+        if self.gauge not in ['length', 'velocity']:
+            raise ValueError('Only length and velocity gauge supported')
+
+    def todict(self):
+        return asdict(self)
