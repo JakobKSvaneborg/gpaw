@@ -20,12 +20,13 @@ def calculate_time_propagation(gpw_fpath, *,
                                communicator=world,
                                write_and_continue=False,
                                force_new_dm_file=False,
+                               restarting=False,
                                parallel={}):
-    td_calc = TDDFT(gpw_fpath,
-                    propagator=propagator,
-                    communicator=communicator,
-                    parallel=parallel,
-                    txt='td.out')
+    kw = dict(communicator=communicator, parallel=parallel, txt='td.out')
+    if not restarting:
+        kw['propagator'] = propagator
+    td_calc = TDDFT(gpw_fpath, **kw)
+
     DipoleMomentWriter(td_calc, 'dm.dat',
                        force_new_file=force_new_dm_file)
     if kick is not None:
@@ -183,7 +184,8 @@ def test_restart(time_propagation_reference,
     calculate_time_propagation(module_tmp_path / 'td.gpw',
                                kick=None,
                                force_new_dm_file=True,
-                               parallel=parallel)
+                               parallel=parallel,
+                               restarting=True)
     rtol = 1e-8
     if 'band' in parallel:
         rtol = 5e-4

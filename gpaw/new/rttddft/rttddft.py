@@ -34,7 +34,7 @@ from gpaw.utilities.timing import nulltimer
 class RTTDDFTResult(NamedTuple):
 
     """ Results are stored in atomic units, but displayed to the user in
-    ASE units
+    ASE units.
     """
 
     time: float  # Time in atomic units
@@ -101,7 +101,7 @@ class RTTDDFT:
 
     @property
     def atoms(self) -> Atoms:
-        """ Get ASE atoms object """
+        """ Get ASE atoms object. """
         grid = self.state.density.grid
         symbols = [setup.symbol for setup in self.pot_calc.setups]
         cell_cv = grid.cell_cv * Bohr
@@ -118,6 +118,15 @@ class RTTDDFT:
     def from_dft_calculation(cls,
                              calc: ASECalculator,
                              td_algorithm: TDAlgorithmLike = None):
+        """ Set up the RTTDDFT object from a DFT calculation file.
+
+        Parameters
+        ----------
+        filepath
+            Filename of the DFT calculation file.
+        td_algorithm
+            Propagation algorithm for the state.
+        """
 
         assert calc.dft is not None
         dft = calc.dft
@@ -136,6 +145,15 @@ class RTTDDFT:
     def from_dft_file(cls,
                       filepath: str,
                       td_algorithm: TDAlgorithmLike = None):
+        """ Set up the RTTDDFT object from a DFT calculation file.
+
+        Parameters
+        ----------
+        filepath
+            Filename of the DFT calculation file.
+        td_algorithm
+            Propagation algorithm for the state.
+        """
         _, dft, params, builder = read_gpw(filepath,
                                            log='-',
                                            comm=world,
@@ -154,6 +172,13 @@ class RTTDDFT:
     @classmethod
     def from_rttddft_file(cls,
                           filepath: str):
+        """ Set up the RTTDDFT object from a restart file.
+
+        Parameters
+        ----------
+        filepath
+            Filename of the restart file.
+        """
         _, state, history, dft_params, params, builder = read_rttddft(
             filepath, log='-', comm=world)
 
@@ -167,6 +192,21 @@ class RTTDDFT:
     def from_file(cls,
                   filepath: str,
                   **kwargs):
+        """ Set up the RTTDDFT object from a file.
+
+        The file can be a DFT calculation file or a RTTDDFT restart file.
+        This is inferred from the file contents.
+        See :meth:`~from_dft_file` and :meth:`~from_rttddft_file`.
+
+        Parameters
+        ----------
+        filepath
+            Filename.
+        kwargs
+            Parameters passed to the :meth:`~from_dft_file` if
+            :attr:`filepath` is a DFT calculation file. No parameters
+            are allowed for RTTDDFT restart files.
+        """
         if world.rank == 0:
             with Reader(filepath) as reader:
                 tag = reader.get_tag()
@@ -178,13 +218,22 @@ class RTTDDFT:
         if tag == 'gpaw':
             return cls.from_dft_file(filepath, **kwargs)
         if tag == 'gpaw-rttddft':
-            kwargs.pop('td_algorithm', None)  # Should we raise a warning?
+            if kwargs.pop('td_algorithm', None) is not None:
+                raise ValueError('Parameter td_algorithm may not be '
+                                 'given when restarting.')
             return cls.from_rttddft_file(filepath, **kwargs)
 
         raise ValueError(f'Unknown file. Tag {tag}')
 
     def write(self,
               filename: str):
+        """ Write a restart file.
+
+        Parameters
+        ----------
+        filename
+            Filename of the restart file.
+        """
         write_rttddft(filename,
                       self.atoms,
                       self.dft_params,
@@ -199,7 +248,7 @@ class RTTDDFT:
         Parameters
         ----------
         kick_strength
-            Strength of the kick in atomic units
+            Strength of the kick in atomic units.
         """
         with self.timer('Kick'):
             kick_strength = np.array(kick_strength, dtype=float)
@@ -218,6 +267,7 @@ class RTTDDFT:
 
             kw = dict()
             if self.mode == 'fd':
+                # Different behavior between LCAO and FD. See #1423
                 kw['nkicks'] = int(round(magnitude / 1.0e-4))
                 if kw['nkicks'] < 1:
                     kw['nkicks'] = 1
@@ -231,40 +281,18 @@ class RTTDDFT:
         """Kick with any external potential.
 
         Note that unless this function is called by absorption_kick, the kick
-        is not logged in history
+        is not logged in history.
 
         Parameters
         ----------
         ext
-            External potential
+            External potential.
+        nkicks
+            Propagate the wave functions nkicks times, using a kick
+            that is scaled down by 1/nkicks. Propagating the kick in
+            several steps improves the accuracy of the propagator.
         """
-        with self.timer('Kick'):
-            self.log('----  Applying kick')
-            self.log(f'----  {ext}')
-            self.kick_ext = ext
-
-            # For the kick, the propagator is always ECN
-            td_algorithm = create_td_algorithm('ecn')
-            hamiltonian = self.kick_hamiltonian(ext)
-
-            assert isinstance(self.pot_calc, FDPotentialCalculator)
-            for l in range(nkicks):
-                td_algorithm.propagate_wfs(1 / nkicks,
-                                           state=self.state,
-                                           hamiltonian=hamiltonian)
-            td_algorithm.update_time_dependent_operators(self.state,
-                                                         self.pot_calc)
-
-            return RTTDDFTResult.from_state(time=0,
-                                            pot_calc=self.pot_calc,
-                                            state=self.state)
-
-    def kick_hamiltonian(self,
-                         ext: ExternalPotential) -> Hamiltonian:
-        """ Wave function propagator
-
-        Corresponding to the mode and type of parallelization
-        """
+        # Construct the kick hamiltonian
         kick_hamiltonian: Hamiltonian
         assert isinstance(self.pot_calc, FDPotentialCalculator)
         if self.mode == 'lcao':
@@ -287,6 +315,26 @@ class RTTDDFT:
 
         else:
             raise RuntimeError(f'Mode {self.mode} is unexpected')
+
+        with self.timer('Kick'):
+            self.log('----  Applying kick')
+            self.log(f'----  {ext}')
+            self.kick_ext = ext
+
+            # For the kick, the propagator is always ECN
+            td_algorithm = create_td_algorithm('ecn')
+
+            for l in range(nkicks):
+                td_algorithm.propagate_wfs(1 / nkicks,
+                                           state=self.state,
+                                           hamiltonian=kick_hamiltonian)
+            td_algorithm.update_time_dependent_operators(self.state,
+                                                         self.pot_calc)
+
+            return RTTDDFTResult.from_state(time=self.history.time,
+                                            pot_calc=self.pot_calc,
+                                            state=self.state)
+
         return kick_hamiltonian
 
     def ipropagate(self,
@@ -298,9 +346,9 @@ class RTTDDFT:
         Parameters
         ----------
         time_step
-            Time step in ASE time units Å√(u/eV)
-        iterations
-            Number of propagation steps
+            Time step in ASE time units Å√(u/eV).
+        maxiter
+            Number of propagation steps.
         """
 
         time_step = time_step * asetime_to_autime
