@@ -38,27 +38,37 @@ if elpa:
     include_dirs.append(os.path.join(elpa, 'include', 'elpa-' + elpaversion))
 
 # Now add a EasyBuild "cover-all-bases" library_dirs
-library_dirs = os.getenv('LD_LIBRARY_PATH').split(':')
+library_dirs += os.getenv('LD_LIBRARY_PATH').split(':')
 
-if os.getenv('CPU_ARCH') == 'icelake':
-    gpu = True
-    gpu_target = 'cuda'
-    gpu_compiler = 'nvcc'
-    gpu_compile_args = ['-O3',
-                        '-g',
-                        '-gencode', 'arch=compute_80,code=sm_80']
-    # '-gencode', 'arch=compute_90,code=sm_90']
+# CuPy and CUDA:
+cupy = os.getenv('EBROOTCUPY')
+cuda = os.getenv('EBROOTCUDA')
+if cupy:
+    assert cuda
+    cpuarch = os.getenv('CPU_ARCH')
+    if cpuarch == 'icelake':
+        gpu = True
+        gpu_target = 'cuda'
+        gpu_compiler = 'nvcc'
+        gpu_compile_args = ['-O3',
+                            '-g',
+                            '-gencode', 'arch=compute_80,code=sm_80']
+        # '-gencode', 'arch=compute_90,code=sm_90']
 
-    libraries += ['cudart', 'cublas']
-elif os.getenv('CPU_ARCH') == 'skylake_el8':
-    gpu = True
-    gpu_target = 'cuda'
-    gpu_compiler = 'nvcc'
-    gpu_compile_args = ['-O3',
-                        '-g',
-                        '-gencode', 'arch=compute_86,code=sm_86']
+        libraries += ['cudart', 'cublas']
+        library_dirs += [os.path.join(cupy, 'lib'), os.path.join(cuda, 'lib')]
+    elif cpuarch == 'skylake_el8':
+        gpu = True
+        gpu_target = 'cuda'
+        gpu_compiler = 'nvcc'
+        gpu_compile_args = ['-O3',
+                            '-g',
+                            '-gencode', 'arch=compute_86,code=sm_86']
 
-    libraries += ['cudart', 'cublas']
-    undef_macros += ['GPAW_GPU_AWARE_MPI']
+        libraries += ['cudart', 'cublas']
+        library_dirs += [os.path.join(cupy, 'lib'), os.path.join(cuda, 'lib')]
+        undef_macros += ['GPAW_GPU_AWARE_MPI']
+    else:
+        raise RuntimeError(f'CuPy loaded but unknown $CPU_ARCH={cpuarch}')
 else:
     gpu = False
