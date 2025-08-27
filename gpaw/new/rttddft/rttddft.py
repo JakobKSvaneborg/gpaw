@@ -223,7 +223,7 @@ class RTTDDFT:
             Filename.
         kwargs
             Parameters passed to the :meth:`~from_dft_file` if
-            :attr:`filepath` is a DFT calculation file. No parameters
+            `filepath` is a DFT calculation file. No parameters
             are allowed for RTTDDFT restart files.
         """
         if world.rank == 0:

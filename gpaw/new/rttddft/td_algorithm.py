@@ -50,19 +50,18 @@ class TDAlgorithm(ABC):
                   state: RTTDDFTState,
                   pot_calc: PotentialCalculator,
                   hamiltonian: Hamiltonian):
-        """ One propagation step, i.e.
+        r""" Perform one propagation step, i.e.
 
-        ::
 
-                                 0+
-                     ^        -1 /                  ^        -1
-          U(0+, 0) = T exp[-iS   | δ(τ) H(r) dτ ] = T exp[-iS  H(r)]
-                                 /
-                                 0
+        (1) Calculate propagator :math:`U[H(t)]`
+        (2) Update wavefunctions :math:`ψ_n(t+\Delta t) = U[H(t)] ψ_n(t)`
+        (3) Update density and hamiltonian :math:`H(t+dt)`
 
-        (1) Calculate propagator U[H(t)]
-        (2) Update wavefunctions ψ_n(t+dt) ← U[H(t)] ψ_n(t)
-        (3) Update density and hamiltonian H(t+dt)
+        .. math::
+
+            U(0^+, 0) = \hat{T} \mathrm{exp}\left[ -i S^{-1}
+            \int_t^{t+\Delta t} \mathrm{d}\tau \hat{H}(\tau)
+            \right]
         """
         raise NotImplementedError
 

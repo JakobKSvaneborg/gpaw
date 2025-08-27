@@ -4,18 +4,68 @@
 New real-time TDDFT implementation
 ==================================
 
-There is an ongoing effort in refactoring the real-time TDDFT codes.
-There are two old implementations, one for :ref:`LCAO mode <lcao>`
+There is an ongoing effort in refactoring the real-time TDDFT codes
+to comply with the :ref:`new GPAW <newgpaw>` backend.
+There are two old rt-TDDFT implementations, one for :ref:`LCAO mode <lcao>`
 and one for :ref:`FD mode <manual_stencils>`.
 This page documents the new :class:`gpaw.new.rttddft.RTTDDFT` interface which is
 common for both modes.
+See :ref:`lcaotddft` and :ref:`timepropagation` for the old rt-TDDFT implementations.
 
-See :ref:`lcaotddft` and :ref:`timepropagation` for the old RT-TDDFT implementations.
+The new rt-TDDFT implementation can be used either through the new interface, or through
+the backwards compatible interfaces.
 
-:class:`gpaw.lcaotddft.dipolemomentwriter.DipoleMomentWriter`
+Ported features
+---------------
+The following features from the old code have been ported
 
-Example usage
-=============
+* Reading and writing of restart files
+* Delta-kicks
+* The Explicit Crank-Nicolson and Semi-implicit Crank-Nicolson propagators
+* The :class:`gpaw.lcaotddft.dipolemomentwriter.DipoleMomentWriter` (through the
+  backwards compatible interface).
+
+The following features are still to be ported
+
+* Logging
+* Parallel execution
+* Time-dependent potentials
+* The radiation-reaction potential
+* Linearization of the xc functional
+* Scaling factor for the dynamic part of the hamiltonian
+
+
+Backwards compatible interfaces
+-------------------------------
+
+By setting the environment variable :envvar:`GPAW_NEW` the old interfaces use
+the new backend::
+
+  from gpaw.tddft import TDDFT
+  td_calc = TDDFT(...)
+
+or::
+
+  from gpaw.lcaotddft import LCAOTDDFT
+  td_calc = LCAOTDDFT(...)
+
+New interface
+-------------
+The new interface can be used directly. The :class:`gpaw.new.rttddft.RTTDDFT`
+can be initialized from
+
+* A DFT calculation (:func:`~gpaw.new.rttddft.RTTDDFT.from_dft_calculation`)
+* A DFT file (:func:`~gpaw.new.rttddft.RTTDDFT.from_dft_file`)
+* A rt-TDDFT restart file (:func:`~gpaw.new.rttddft.RTTDDFT.from_rttddft_file`)
+
+When starting from a DFT calculation or DFT file, the propagation algorithm
+can be specified using the :code:`td_algorithm` keyword.
+
+* :code:`ecn` for the :class:`gpaw.new.rttddft.td_algorithm.ECNAlgorithm`.
+* :code:`sicn` for the :class:`gpaw.new.rttddft.td_algorithm.SICNAlgorithm`.
+
+Example
+-------
 
 First we do a standard ground-state calculation with the ``GPAW`` calculator
 in :ref:`LCAO mode <lcao>`:
@@ -69,5 +119,24 @@ Code documentation
 .. automodule:: gpaw.new.rttddft.history
    :members:
 
+.. class:: TDAlgorithmLike
+
+   Instance of :class:`gpaw.new.rttddft.td_algorithm.TDAlgorithm` or
+   a string or dict that describes the :class:`gpaw.new.rttddft.td_algorithm.TDAlgorithm`.
+
+   Allowed strings are
+
+   * `ecn` for the :class:`gpaw.new.rttddft.td_algorithm.ECNAlgorithm`.
+   * `sicn` for the :class:`gpaw.new.rttddft.td_algorithm.SICNAlgorithm`.
+
+   Allowed dictionaries are on the form :code:`{'name': name, ...}`
+   where `name` is one of the allowed strings.
+
 .. automodule:: gpaw.new.rttddft.td_algorithm
    :members:
+   :undoc-members:
+
+.. autoclass:: gpaw.new.rttddft.state.RTTDDFTState
+   :members:
+
+.. autoclass:: gpaw.external.ExternalPotential
