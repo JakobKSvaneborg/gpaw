@@ -212,7 +212,7 @@ PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
 PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
 PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 
-PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
+PyObject* flush_pending_decrefs(PyObject* self, PyObject* args);
 
 #ifdef GPAW_WITH_MAGMA
     // Include just the C99-compliant interface, implementation is C++
@@ -398,7 +398,7 @@ static PyMethodDef functions[] = {
     {"_eigh_magma_gpu", eigh_magma_gpu, METH_VARARGS, 0},
     #endif // GPAW_WITH_MAGMA
 
-    {"flush_pending_decrefs", flush_pending_decrefs, METH_VARARGS, 0},
+    {"flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
 
 #endif // GPAW_GPU
 
