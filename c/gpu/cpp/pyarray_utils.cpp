@@ -19,10 +19,15 @@ int64_t Array_DIM(PyObject* obj, int32_t dim)
     PyObject* shape = PyObject_GetAttrString(obj, "shape");
     if (shape == NULL) return -1;
     PyObject* pydim = PyTuple_GetItem(shape, dim);
-    Py_DECREF(shape);
-    if (pydim == NULL) return -1;
+    if (pydim == NULL)
+    {
+        Py_DECREF(shape);
+        return -1;
+    }
+
     const int64_t value = static_cast<int64_t>(PyLong_AS_LONG(pydim));
 
+    Py_DECREF(shape);
     return value;
 }
 
@@ -31,13 +36,12 @@ int64_t Array_ITEMSIZE(PyObject* obj)
     PyObject* dtype = PyObject_GetAttrString(obj, "dtype");
     if (dtype == NULL) return -1;
     PyObject* itemsize_obj = PyObject_GetAttrString(dtype, "itemsize");
+    Py_DECREF(dtype);
     if (itemsize_obj == NULL) return -1;
 
     int64_t itemsize = static_cast<int64_t>(PyLong_AS_LONG(itemsize_obj));
 
     Py_DECREF(itemsize_obj);
-    Py_DECREF(dtype);
-
     return itemsize;
 }
 
