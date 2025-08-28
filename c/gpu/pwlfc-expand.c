@@ -12,12 +12,12 @@
 void calculate_residual_launch_kernel(int dtypenum,
                                       int nG,
                                       int nn,
-                                      void* residual_ng, 
-                                      void* eps_n, 
+                                      void* residual_ng,
+                                      void* eps_n,
                                       void* wf_nG);
 
 void pwlfc_expand_gpu_launch_kernel(int dtypenum,
-                                    void* f_Gs,       
+                                    void* f_Gs,
                                     void* Gk_Gv,
                                     void* pos_av,
                                     void* eikR_a,
@@ -61,9 +61,9 @@ void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int nb,
                                               int nx,
                                               int ny,
-                                              int nz, 
-                                              int n, 
-                                              int m, 
+                                              int nz,
+                                              int n,
+                                              int m,
                                               void* array_nQ);
 
 void add_to_density_gpu_launch_kernel(int nb,
@@ -76,8 +76,8 @@ void add_to_density_gpu_launch_kernel(int nb,
 
 void dH_aii_times_P_ani_launch_kernel(int dtypenum,
                                       int nA, int nn,
-                                      int nI, npy_int32* ni_a, 
-                                      void* dH_aii_dev, 
+                                      int nI, npy_int32* ni_a,
+                                      void* dH_aii_dev,
                                       void* P_ani_dev,
                                       void* outP_ani_dev);
 
@@ -100,7 +100,7 @@ static int get_dtype(void* array)
     // array     float32 complex64 float64 complex128
 
     int dtypenum = Array_TYPE(array);
-    assert(dtypenum == NP_FLOAT || dtypenum == NP_DOUBLE || 
+    assert(dtypenum == NP_FLOAT || dtypenum == NP_DOUBLE ||
            dtypenum == NP_FLOAT_COMPLEX || dtypenum == NP_DOUBLE_COMPLEX);
     return dtypenum;
 }
@@ -123,7 +123,7 @@ PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
 {
     PyObject* n_obj;
     PyObject* v_obj;
-    PyObject* e_obj; 
+    PyObject* e_obj;
     if (!PyArg_ParseTuple(args, "OOO",
                           &n_obj, &v_obj, &e_obj))
         return NULL;
@@ -156,7 +156,7 @@ PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
     PyObject* v_obj;
     PyObject* sigma_obj;
     PyObject* dedsigma_obj;
-    PyObject* e_obj; 
+    PyObject* e_obj;
     if (!PyArg_ParseTuple(args, "OOOOO",
                           &n_obj, &v_obj, &e_obj, &sigma_obj, &dedsigma_obj))
         return NULL;
@@ -180,7 +180,7 @@ PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
     {
         return NULL;
     }
-    evaluate_pbe_launch_kernel(nspin, ng, 
+    evaluate_pbe_launch_kernel(nspin, ng,
                                n_ptr,
                                v_ptr,
                                e_ptr,
@@ -207,7 +207,7 @@ PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
     }
 
     void* dH_aii_dev = Array_DATA(dH_aii_obj);
-    if (!dH_aii_dev) 
+    if (!dH_aii_dev)
     {
 	PyErr_SetString(PyExc_RuntimeError, "Error in input dH_aii.");
         return NULL;
@@ -219,13 +219,13 @@ PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
     void* outP_ani_dev = Array_DATA(outP_ani_obj);
-    if (!outP_ani_dev) 
+    if (!outP_ani_dev)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error in output outP_ani.");
         return NULL;
     }
     npy_int32* ni_a = Array_DATA(ni_a_obj);
-    if (!ni_a) 
+    if (!ni_a)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error in input ni_a.");
         return NULL;
@@ -354,7 +354,7 @@ PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
     void *C_xG = Array_DATA(C_xG_obj);
     int dtypenum = get_dtype(C_xG_obj);
 
-    // Make sure number of dimensions are correct    
+    // Make sure number of dimensions are correct
     assert(Array_NDIM(C_xG_obj) == 2);
     assert(Array_NDIM(result_x_obj) == 1);
 
@@ -389,7 +389,7 @@ PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
     void *kin_G = Array_DATA(kin_G_obj);
     int dtypenum = get_dtype(C_xG_obj);
 
-    // Make sure number of dimensions are correct    
+    // Make sure number of dimensions are correct
     assert(Array_NDIM(C_xG_obj) == 2);
     assert(Array_NDIM(result_x_obj) == 1);
     assert(Array_NDIM(kin_G_obj) == 1);
@@ -459,17 +459,17 @@ PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
     void *rho_R = (void*) Array_DATA(rho_R_obj);
     int nb = Array_SIZE(f_n_obj);
     int nR = Array_SIZE(psit_nR_obj) / nb;
-    
+
     // If running on same precision, then this should be the case
     // assert_corresponding_real(dtypenum, rho_R_obj);
     // However, we always have the density as double:
     assert(get_dtype(rho_R_obj) == NP_DOUBLE);
-    
+
     if (PyErr_Occurred())
     {
         return NULL;
     }
-    add_to_density_gpu_launch_kernel(nb, nR, f_n, psit_nR, rho_R, dtypenum); 
+    add_to_density_gpu_launch_kernel(nb, nR, f_n, psit_nR, rho_R, dtypenum);
     Py_RETURN_NONE;
 }
 
