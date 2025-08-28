@@ -1,10 +1,12 @@
-#include "gpaw.hpp"
+#include "../../gpaw_utils.h"
 
 #include "../gpu.h"
 #include "../gpu-complex.h"
 
 #include "pyarray_utils.hpp"
 
+CLINKAGE
+{
 void calculate_residual_launch_kernel(int dtypenum,
                                       int nG,
                                       int nn,
@@ -88,6 +90,8 @@ void evaluate_lda_launch_kernel(int nspin, int ng,
                                 double* n,
                                 double* v,
                                 double* e);
+
+} // CLINKAGE
 
 static int get_dtype(PyObject* array)
 {

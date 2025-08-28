@@ -3,7 +3,7 @@
 
 // C99 compliant header that can safely be included from main GPAW.
 
-#include "../gpaw.hpp"
+#include "../../../gpaw_utils.h"
 
 // MAGMA needs stdbool.h but it is not properly included by their own headers.
 // Can remove this include once it's fixed in MAGMA.
