@@ -14,6 +14,24 @@ std::mutex g_pending_decrefs_mutex;
 // volatile?!
 std::vector<PyObject*> g_pending_decrefs;
 
+CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
+{
+    std::vector<PyObject*> local_pending_decrefs;
+    {
+        std::lock_guard<std::mutex> lock(g_pending_decrefs_mutex);
+        local_pending_decrefs.swap(g_pending_decrefs);
+    }
+
+    for (PyObject* obj : local_pending_decrefs)
+    {
+        Py_DECREF(obj);
+    }
+
+    printf("pending decrefs flushed\n");
+
+    Py_RETURN_NONE;
+}
+
 int32_t Array_NDIM(PyObject* obj)
 {
     // return len(obj.shape)
