@@ -3,11 +3,7 @@
 
 // C99 compliant header that can safely be included from main GPAW.
 
-#ifdef __cplusplus
-    #define CLINKAGE extern "C"
-#else
-    #define CLINKAGE
-#endif
+#include "../gpaw.hpp"
 
 // MAGMA needs stdbool.h but it is not properly included by their own headers.
 // Can remove this include once it's fixed in MAGMA.

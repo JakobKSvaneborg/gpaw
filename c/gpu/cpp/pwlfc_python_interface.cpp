@@ -1,13 +1,7 @@
-//#include "../extensions.h"
-
-// #define GPAW_ARRAY_DISABLE_NUMPY
-// #define GPAW_ARRAY_ALLOW_CUPY
-// #include "../array.h"
-// #undef GPAW_ARRAY_DISABLE_NUMPY
+#include "gpaw.hpp"
 
 #include "../gpu.h"
 #include "../gpu-complex.h"
-//#include <stdio.h>
 
 #include "pyarray_utils.hpp"
 
@@ -121,7 +115,7 @@ static void assert_corresponding_real(int dtypenum, PyObject* array)
     return;
 }
 
-PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
 {
     PyObject* n_obj;
     PyObject* v_obj;
@@ -152,7 +146,7 @@ PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
 {
     PyObject* n_obj;
     PyObject* v_obj;
@@ -191,7 +185,7 @@ PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
 {
     PyObject* dH_aii_obj;
     PyObject* ni_a_obj;
@@ -252,7 +246,7 @@ PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
 }
 
 
-PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
 {
     PyObject *f_Gs_obj;
     PyObject *Gk_Gv_obj;
@@ -299,7 +293,7 @@ PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
 {
     PyObject *c_nG_obj, *Q_G_obj, *tmp_nQ_obj;
     double scale;
@@ -345,7 +339,7 @@ PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
 {
     PyObject *result_x_obj, *C_xG_obj;
     if (!PyArg_ParseTuple(args, "OO",
@@ -379,7 +373,7 @@ PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
 {
     PyObject *result_x_obj, *C_xG_obj, *kin_G_obj;
     if (!PyArg_ParseTuple(args, "OOO",
@@ -418,7 +412,7 @@ PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
 {
     PyObject *array_nQ_obj;
     int n;
@@ -448,7 +442,7 @@ PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
 
 
 
-PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
 {
     PyObject *f_n_obj, *psit_nR_obj, *rho_R_obj;
     if (!PyArg_ParseTuple(args, "OOO",
@@ -476,7 +470,7 @@ PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
 }
 
 
-PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
 {
     PyObject *residual_nG_obj, *eps_n_obj, *wf_nG_obj;
     if (!PyArg_ParseTuple(args, "OOO",
