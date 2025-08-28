@@ -1,7 +1,11 @@
 #include "pyarray_utils.hpp"
-
+#include "template_utils.hpp"
 namespace gpaw
 {
+
+#ifdef GPAW_GPU_ARRAY_DEBUG
+    static int g_arrays_in_use = 0;
+#endif
 
 int32_t Array_NDIM(PyObject* obj)
 {
@@ -92,6 +96,11 @@ bool Array_ISCOMPLEX(PyObject* obj)
 // Numpy overloads
 
 
+bool Array_CHECK(PyArrayObject* a)
+{
+    return true;
+}
+
 int32_t Array_NDIM(PyArrayObject* a)
 {
     return static_cast<int32_t>(PyArray_NDIM(a));
@@ -127,13 +136,58 @@ bool Array_ISCOMPLEX(PyArrayObject* a)
     return PyArray_ISCOMPLEX(a);
 }
 
-void unlock_gpu_array(PyObject* obj)
-{
-    // TODO ensure we never try to "unlock" arrays that were never locked in the first place.
-    // for now, an assert hack that just checks that the object is an array
-    assert(Array_DATA<void>(obj) != nullptr);
 
-    Py_DECREF(obj);
+ArrayBorrowList::ArrayBorrowList()
+{
 }
+
+ArrayBorrowList::ArrayBorrowList(size_t reserve_count)
+{
+    borrowed_objects.reserve(reserve_count);
+}
+
+void ArrayBorrowList::add(PyObject* obj)
+{
+    assert(Array_DATA<void>(obj) != nullptr && "Tried to borrow from invalid array");
+    borrowed_objects.push_back(obj);
+}
+
+void ArrayBorrowList::commit()
+{
+    for (PyObject* obj : borrowed_objects)
+    {
+        Py_INCREF(obj);
+    }
+}
+
+void ArrayBorrowList::flush()
+{
+    for (PyObject* obj : borrowed_objects)
+    {
+        Py_DECREF(obj);
+    }
+    borrowed_objects.clear();
+}
+
+void ArrayBorrowList::schedule_array_unuse(gpuStream_t stream)
+{
+    if (borrowed_objects.empty())
+    {
+        return;
+    }
+
+    auto wrapper = [vec_copy = std::move(borrowed_objects)]() mutable
+    {
+        for (PyObject* obj : vec_copy)
+        {
+            Py_DECREF(obj);
+        }
+        vec_copy.clear();
+    };
+
+    gpu_host_callback(stream, wrapper);
+    borrowed_objects.clear();
+}
+
 
 } // namespace gpaw

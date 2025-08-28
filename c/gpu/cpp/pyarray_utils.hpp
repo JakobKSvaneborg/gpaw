@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../gpu-runtime.h"
+
 #include <Python.h>
 
 // gpaw_so.c handles array importing at the module level (needed for proper numpy init),
@@ -10,6 +12,7 @@
 
 #include <cstdint>
 #include <cassert>
+#include <vector>
 
 // Utility functions for working with Python arrays.
 // Needed when working with Cupy arrays in particular, which do not define a nice C-interface.
@@ -85,18 +88,30 @@ bool Array_ISCOMPLEX(PyArrayObject* a);
 //~ End Numpy
 
 
+class ArrayBorrowList
+{
+public:
+    ArrayBorrowList();
+    ArrayBorrowList(size_t reserve_count);
+    void add(PyObject* obj);
+    // "Commits" the borrowing. This is where all stored objects get their ref counts increased
+    void commit();
+    void flush();
+    void schedule_array_unuse(gpuStream_t stream);
+
+protected:
+    std::vector<PyObject*> borrowed_objects;
+};
+
 template<typename T>
-T* lock_gpu_array(PyObject* obj)
+T* borrow_array(PyObject* obj, ArrayBorrowList& borrow_list)
 {
     T* data = Array_DATA<T>(obj);
     if (data)
     {
-        // would be great if cupy had a "writeable" flag like Numpy! But for now just increase ref count
-        Py_INCREF(obj);
+        borrow_list.add(obj);
     }
     return data;
 }
-
-void unlock_gpu_array(PyObject* obj);
 
 } // namespace gpaw
