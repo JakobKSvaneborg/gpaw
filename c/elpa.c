@@ -201,12 +201,21 @@ PyObject* pyelpa_general_diagonalize(PyObject *self, PyObject *args)
     void *q = (void *)PyArray_DATA(C_obj);
 
     if (PyObject_IsTrue(is_complex_obj)) {
+#if ELPA_API_VERSION > 20250000
+        elpa_generalized_eigenvectors_double_complex(handle, a, b, ev, q,
+                                                     is_already_decomposed, &err);
+#else
         elpa_generalized_eigenvectors_dc(handle, a, b, ev, q,
                                          is_already_decomposed, &err);
-
+#endif
     } else {
+#if ELPA_API_VERSION > 20250000
+        elpa_generalized_eigenvectors_double(handle, a, b, ev, q,
+                                             is_already_decomposed, &err);
+#else
         elpa_generalized_eigenvectors_d(handle, a, b, ev, q,
                                         is_already_decomposed, &err);
+#endif
     }
     return checkerr(err);
 }

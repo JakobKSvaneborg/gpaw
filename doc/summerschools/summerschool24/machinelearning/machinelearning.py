@@ -28,7 +28,7 @@ It contains information about organometallic perovskites, and the goal is to
 predict properties for these. Along with the perovskite compounds, there are
 also reference calculations of the elements in their standard states. We
 start by connecting to the database (more info on the `ase db` module can be
-found [here](https://wiki.fysik.dtu.dk/ase/ase/db/db.html#module-ase.db)),
+found [here](https://ase-lib.org/ase/db/db.html#module-ase.db)),
 and inspecting a single row:
 """
 

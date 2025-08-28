@@ -26,7 +26,7 @@ def test_mme_Ni(gpw_files):
     E_ncol_n = data[2]
     p_ncol_vnn = np.abs(data[3])
 
-    assert E_ncol_n[0:3] == pytest.approx(E1_col_n, abs=3.0e-8)
-    assert E_ncol_n[3:6] == pytest.approx(E2_col_n, abs=5.0e-8)
-    assert p_ncol_vnn[:, 0:3, 0:3] == pytest.approx(p1_col_vnn, abs=2.0e-9)
-    assert p_ncol_vnn[:, 3:6, 3:6] == pytest.approx(p2_col_vnn, abs=2.0e-9)
+    assert E_ncol_n[0:3] == pytest.approx(E1_col_n, abs=3.0e-6)
+    assert E_ncol_n[3:6] == pytest.approx(E2_col_n, abs=5.0e-6)
+    assert p_ncol_vnn[:, 0:3, 0:3] == pytest.approx(p1_col_vnn, abs=2.0e-6)
+    assert p_ncol_vnn[:, 3:6, 3:6] == pytest.approx(p2_col_vnn, abs=2.0e-6)

@@ -33,6 +33,10 @@ libraries += ['xc']
 
 define_macros += [('GPAW_ASYNC', 1)]
 
+# Use MAGMA eigensolvers (defines GPAW_WITH_MAGMA)
+magma = True
+libraries += ['magma']
+
 # hip
 gpu = True
 gpu_target = 'hip-amd'

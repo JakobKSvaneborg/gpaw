@@ -4,7 +4,7 @@ from functools import cached_property
 
 import numpy as np
 import pytest
-from gpaw import setup_paths, GPAW_NEW
+from gpaw import setup_paths, GPAW_NEW, debug
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -312,6 +312,7 @@ class GPAWPlugin:
         from gpaw.mpi import size
         terminalreporter.section('GPAW-MPI stuff')
         terminalreporter.write(f'size: {size}\n')
+        terminalreporter.write(f'debug-mode: {debug}\n')
 
 
 @pytest.fixture

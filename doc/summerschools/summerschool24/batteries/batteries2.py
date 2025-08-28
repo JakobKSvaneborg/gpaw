@@ -49,7 +49,7 @@ from ase import Atoms
 
 # %%
 """
-First we will construct an atoms object for FePO$_4$. ASE can read files from in a large number of different [formats](https://wiki.fysik.dtu.dk/ase/ase/io/io.html?highlight=read%20formats#file-input-and-output). However, in this case you will build it from scratch using the below information:
+First we will construct an atoms object for FePO$_4$. ASE can read files from in a large number of different [formats](https://ase-lib.org/ase/io/io.html?highlight=read%20formats#file-input-and-output). However, in this case you will build it from scratch using the below information:
 """
 
 # %%
@@ -148,7 +148,7 @@ for atom in fepo4:
 
 # %%
 """
-Now examine the initial magnetic moments of the system using an [appropriate method](https://wiki.fysik.dtu.dk/ase/ase/atoms.html?highlight=get_initial#list-of-all-methods).
+Now examine the initial magnetic moments of the system using an [appropriate method](https://ase-lib.org/ase/atoms.html?highlight=get_initial#list-of-all-methods).
 """
 
 # %%
@@ -204,7 +204,7 @@ params_GPAW['setups']      = {'Fe': ':d,4.3'}             # U=4.3 applied to d o
 
 # %%
 """
-Make a GPAW calculator and attach it to the atoms object. Here you will use [get_potential_energy](https://wiki.fysik.dtu.dk/ase/ase/atoms.html#ase.Atoms.get_potential_energy) to start the calculation.
+Make a GPAW calculator and attach it to the atoms object. Here you will use [get_potential_energy](https://ase-lib.org/ase/atoms.html#ase.Atoms.get_potential_energy) to start the calculation.
 """
 
 # %%
@@ -376,7 +376,7 @@ You should now add Li into the structure using the fractional coordinates below:
 
 # %%
 """
-Add Li atoms into the structure, e.g., by following the example in [this ASE tutorial](https://wiki.fysik.dtu.dk/ase/gettingstarted/manipulating_atoms/manipulating_atoms.html?highlight=set_cell#manipulating-atoms).
+Add Li atoms into the structure, e.g., by following the example in [this ASE tutorial](https://ase-lib.org/gettingstarted/manipulating_atoms/manipulating_atoms.html?highlight=set_cell#manipulating-atoms).
 """
 
 # %%

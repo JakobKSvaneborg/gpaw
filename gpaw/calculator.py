@@ -2239,6 +2239,13 @@ class GPAW(Calculator):
         from gpaw.response.groundstate import ResponseGroundStateAdapter
         return ResponseGroundStateAdapter(self)
 
+    def eigenvalues(self):
+        return np.array(
+            [[self.get_eigenvalues(kpt=kpt, spin=spin)
+
+              for kpt in range(len(self.get_ibz_k_points()))]
+             for spin in range(self.get_number_of_spins())])
+
 
 class DeprecatedParameterWarning(FutureWarning):
     """Warning class for when a parameter or its value is deprecated."""

@@ -18,7 +18,7 @@ from collections import defaultdict
 from typing import DefaultDict
 
 import numpy as np
-
+from ase.units import Ha
 from gpaw.core.arrays import DistributedArrays
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.uniform_grid import UGArray
@@ -159,8 +159,8 @@ class PotentialCalculator:
 
         energies['spinorbit'] = 0.0
         for key, e in corrections.items():
-            if 0:
-                print(f'{key:10} {energies[key]:15.9f} {e:15.9f}')
+            if False:
+                print(f'{key:10} {energies[key] * Ha:15.9f} {e * Ha:15.9f}')
             energies[key] += e
 
         return (Potential(vt_sR, dH_asii, dedtaut_sR, vHt_x, e_stress),
@@ -233,7 +233,7 @@ def calculate_non_local_potential1(setup: Setup,
 
     dH_sp = np.zeros_like(D_sp, dtype=float if ncomponents < 4 else complex)
 
-    e_soc = 0.
+    e_soc = 0.0
     if soc:
         dHsoc_sii = soc_terms(setup, xc.xc, D_sp)
         e_soc += (D_sii[1:4] * dHsoc_sii).sum().real

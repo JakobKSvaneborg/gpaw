@@ -293,6 +293,8 @@ class KPT:
 
     @property
     def psit_nG(self):
+        if not hasattr(self, 'psit_nX'):
+            return None
         data = self.psit_nX.data
         if self.scale == 1:
             return data
