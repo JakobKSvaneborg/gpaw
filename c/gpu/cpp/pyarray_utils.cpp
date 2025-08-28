@@ -178,10 +178,14 @@ void ArrayBorrowList::schedule_array_unuse(gpuStream_t stream)
 
     auto wrapper = [vec_copy = std::move(borrowed_objects)]() mutable
     {
+
+        PyGILState_STATE gil_state = PyGILState_Ensure();
         for (PyObject* obj : vec_copy)
         {
             Py_DECREF(obj);
         }
+        PyGILState_Release(gil_state);
+
         vec_copy.clear();
     };
 
