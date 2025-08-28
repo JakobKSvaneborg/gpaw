@@ -164,6 +164,9 @@ __host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipConj(XXXhipDoubl
 #define gpuStreamSynchronize(stream) \
         gpuSafeCall(hipStreamSynchronize(stream))
 
+#define gpuLaunchHostFunc(stream, fn, userData) \
+        gpuSafeCall(hipLaunchHostFunc(stream, fn, userData))
+
 #define gpuEventCreate(event)     gpuSafeCall(hipEventCreate(event))
 #define gpuEventCreateWithFlags(event, flags) \
         gpuSafeCall(hipEventCreateWithFlags(event, flags))

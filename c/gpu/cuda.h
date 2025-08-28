@@ -60,6 +60,9 @@
 #define gpuStreamSynchronize(stream) \
         gpuSafeCall(cudaStreamSynchronize(stream))
 
+#define gpuLaunchHostFunc(stream, fn, userData) \
+        gpuSafeCall(cudaLaunchHostFunc(stream, fn, userData))
+
 #define gpuEventCreate(event)     gpuSafeCall(cudaEventCreate(event))
 #define gpuEventCreateWithFlags(event, flags) \
         gpuSafeCall(cudaEventCreateWithFlags(event, flags))

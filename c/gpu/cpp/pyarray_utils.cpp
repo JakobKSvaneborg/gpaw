@@ -127,4 +127,13 @@ bool Array_ISCOMPLEX(PyArrayObject* a)
     return PyArray_ISCOMPLEX(a);
 }
 
+void unlock_gpu_array(PyObject* obj)
+{
+    // TODO ensure we never try to "unlock" arrays that were never locked in the first place.
+    // for now, an assert hack that just checks that the object is an array
+    assert(Array_DATA<void>(obj) != nullptr);
+
+    Py_DECREF(obj);
+}
+
 } // namespace gpaw

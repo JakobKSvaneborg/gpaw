@@ -5,6 +5,27 @@
 
 #include "pyarray_utils.hpp"
 
+#include <functional>
+#include <memory>
+
+template <typename F>
+void gpu_host_callback(gpuStream_t stream, F&& func)
+{
+    // Need to wrap an arbitrary function/lambda in a format that gpuLaunchHostFunc can accept
+
+    using FuncType = std::function<void()>;
+    auto *heapFunc = new FuncType(std::forward<F>(func));
+
+    auto trampoline = [](void *data)
+    {
+        std::unique_ptr<FuncType> fn(static_cast<FuncType*>(data));
+        (*fn)();
+    };
+
+    gpuLaunchHostFunc(stream, trampoline, heapFunc);
+}
+
+
 CLINKAGE
 {
 void calculate_residual_launch_kernel(int dtypenum,
@@ -138,15 +159,26 @@ CLINKAGE PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
     {
         ng *= gpaw::Array_DIM(n_obj, d);
     }
-    double* n_ptr = gpaw::Array_DATA<double>(n_obj);
-    double* v_ptr = gpaw::Array_DATA<double>(v_obj);
-    double* e_ptr = gpaw::Array_DATA<double>(e_obj);
+    double* n_ptr = gpaw::lock_gpu_array<double>(n_obj);
+    double* v_ptr = gpaw::lock_gpu_array<double>(v_obj);
+    double* e_ptr = gpaw::lock_gpu_array<double>(e_obj);
+
+    // FIXME: if early reset, must also unlock the arrays... So need a better system eventually
     if (PyErr_Occurred())
     {
         return NULL;
     }
     evaluate_lda_launch_kernel(nspin, ng,
                                n_ptr, v_ptr, e_ptr);
+
+    auto callback = [n_obj, v_obj, e_obj]()
+    {
+        gpaw::unlock_gpu_array(n_obj);
+        gpaw::unlock_gpu_array(v_obj);
+        gpaw::unlock_gpu_array(e_obj);
+    };
+    gpu_host_callback(0, callback);
+
     Py_RETURN_NONE;
 }
 

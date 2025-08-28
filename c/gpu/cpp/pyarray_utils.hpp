@@ -9,6 +9,7 @@
 #include <numpy/arrayobject.h>
 
 #include <cstdint>
+#include <cassert>
 
 // Utility functions for working with Python arrays.
 // Needed when working with Cupy arrays in particular, which do not define a nice C-interface.
@@ -81,7 +82,21 @@ int64_t Array_SIZE(PyArrayObject* a);
 int64_t Array_NBYTES(PyArrayObject* a);
 int Array_TYPE(PyArrayObject* a);
 bool Array_ISCOMPLEX(PyArrayObject* a);
-
 //~ End Numpy
+
+
+template<typename T>
+T* lock_gpu_array(PyObject* obj)
+{
+    T* data = Array_DATA<T>(obj);
+    if (data)
+    {
+        // would be great if cupy had a "writeable" flag like Numpy! But for now just increase ref count
+        Py_INCREF(obj);
+    }
+    return data;
+}
+
+void unlock_gpu_array(PyObject* obj);
 
 } // namespace gpaw
