@@ -1,11 +1,18 @@
 #include "pyarray_utils.hpp"
 #include "template_utils.hpp"
+
+
+#include <mutex>
 namespace gpaw
 {
 
 #ifdef GPAW_GPU_ARRAY_DEBUG
-    static int g_arrays_in_use = 0;
+static int g_arrays_in_use = 0;
 #endif
+
+std::mutex g_pending_decrefs_mutex;
+// volatile?!
+std::vector<PyObject*> g_pending_decrefs;
 
 int32_t Array_NDIM(PyObject* obj)
 {
@@ -176,6 +183,7 @@ void ArrayBorrowList::schedule_array_unuse(gpuStream_t stream)
         return;
     }
 
+    /*
     auto wrapper = [vec_copy = std::move(borrowed_objects)]() mutable
     {
 
@@ -185,6 +193,17 @@ void ArrayBorrowList::schedule_array_unuse(gpuStream_t stream)
             Py_DECREF(obj);
         }
         PyGILState_Release(gil_state);
+    };
+    */
+
+    auto wrapper = [vec_copy = std::move(borrowed_objects)]() mutable
+    {
+
+        std::lock_guard<std::mutex> lock(g_pending_decrefs_mutex);
+        for (PyObject* obj : vec_copy)
+        {
+            g_pending_decrefs.push_back(obj);
+        }
     };
 
     gpu_host_callback(stream, wrapper);
