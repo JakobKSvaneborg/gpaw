@@ -185,8 +185,6 @@ void ArrayBorrowList::schedule_array_unuse(gpuStream_t stream)
             Py_DECREF(obj);
         }
         PyGILState_Release(gil_state);
-
-        vec_copy.clear();
     };
 
     gpu_host_callback(stream, wrapper);
