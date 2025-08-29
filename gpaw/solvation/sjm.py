@@ -362,6 +362,11 @@ class OldSJM(OldSolvationGPAW):
             self.log.print_dict({i: p[i] for i in sj_changes})
             self.log()
 
+        if 'dirichlet' in sj_changes:
+            if self.wfs is not None:
+                raise InputError('Cannot change the poissonsolver boundary '
+                                 'after the calculation has been initialized.')
+
         if 'target_potential' in sj_changes and p.target_potential is not None:
             # If target potential is changed by the user and the slope is
             # known, a step towards the new potential is taken right away.

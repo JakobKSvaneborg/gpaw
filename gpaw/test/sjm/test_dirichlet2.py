@@ -11,8 +11,7 @@ def test_dirichlet(atoms):
     tol = atoms.calc.parameters['sj']['tol']
 
     atoms.calc = calculator()
-    atoms.calc.set(sj={'tol': 0.01})
-    atoms.calc.set(sj={'dirichlet': True})
+    atoms.calc.set(sj={'tol': 0.01, 'dirichlet': True})
     E2 = atoms.get_potential_energy()
 
     assert abs(atoms.calc.get_electrode_potential() - pot) < tol
