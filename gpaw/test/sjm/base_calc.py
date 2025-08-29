@@ -13,7 +13,6 @@ epsinf = 78.36
 gamma = 0.00114843767916
 T = 298.15
 
-
 def calculator():
     return SJM(
         sj={'target_potential': 4.5,
