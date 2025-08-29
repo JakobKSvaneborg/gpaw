@@ -264,7 +264,6 @@ class OldSJM(OldSolvationGPAW):
                  'phi_pzc': None,
                  'filter': 10}})
 
-#    _sj_default_parameters.update({'dirichlet': False})
     default_parameters = copy.deepcopy(OldSolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
     default_parameters['convergence'].update({'work function': 0.001})
