@@ -1343,10 +1343,10 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
     def get_workfunctions(self, wfs):
         """
         Wrapper around RealSpaceHamiltonian.get_workfunctions which
-        which only triggers if dirichlet boundary conditions are used.
+        only triggers if dirichlet boundary conditions are used.
         It will correctly identify the two work functions in that case,
         where the right one is equal to the Fermi level as the vacuum
-        level there is the zero of the potential.
+        level there defines the potential reference.
         """
         if not self.dirichlet:
             return super().get_workfunctions(wfs)
