@@ -362,10 +362,9 @@ class OldSJM(OldSolvationGPAW):
             self.log.print_dict({i: p[i] for i in sj_changes})
             self.log()
 
-        if 'dirichlet' in sj_changes:
-            if self.wfs is not None:
-                raise InputError('Cannot change the poissonsolver boundary '
-                                 'after the calculation has been initialized.')
+        if 'dirichlet' in sj_changes and self.wfs is not None:
+            raise InputError('Cannot change the poissonsolver boundary '
+                             'after the calculation has been initialized.')
 
         if 'target_potential' in sj_changes and p.target_potential is not None:
             # If target potential is changed by the user and the slope is
@@ -730,9 +729,8 @@ class OldSJM(OldSolvationGPAW):
         grid = self.density.finegd
         data = {'cavity': self.hamiltonian.cavity.g_g,
                 'background_charge': self.density.background_charge.mask_g,
-                'potential': (self.hamiltonian.vHt_g * Ha)
-                }
-#                              - self.get_fermi_level())
+                'potential': (self.hamiltonian.vHt_g * Ha
+                              - self.get_fermi_level())}
         if not os.path.exists(path) and gpaw.mpi.world.rank == 0:
             os.makedirs(path)
         for prop in props:
@@ -1514,7 +1512,7 @@ class SJMDipoleCorrection(DipoleCorrection):
         for i, eps in enumerate(eps_z):
             saw[i + 1] = saw[i] + step / eps
         saw /= saw[-1] + step / eps_z[-1] - saw[0]
-        print(dirichlet)
+
         if dirichlet:
             saw -= saw[-1]
         else:
