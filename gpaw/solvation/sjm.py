@@ -728,8 +728,8 @@ class OldSJM(OldSolvationGPAW):
         grid = self.density.finegd
         data = {'cavity': self.hamiltonian.cavity.g_g,
                 'background_charge': self.density.background_charge.mask_g,
-                'potential': (self.hamiltonian.vHt_g * Ha
-                              - self.get_fermi_level())}
+                'potential': (self.hamiltonian.vHt_g * Ha -
+                              self.get_fermi_level())}
         if not os.path.exists(path) and gpaw.mpi.world.rank == 0:
             os.makedirs(path)
         for prop in props:
