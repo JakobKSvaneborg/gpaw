@@ -28,6 +28,15 @@ class Dielectric(NeedsGD):
         self.del_eps_del_g_g = None
         self.cavity = None
 
+    def todict(self):
+        return {'epsinf': self.epsinf}
+
+    @classmethod
+    def from_dict(self, dct):
+        if not isinstance(dct, dict):
+            return dct
+        return LinearDielectric(**dct)
+
     def estimate_memory(self, mem):
         nbytes = self.gd.bytecount()
         mem.subnode('Permittivity', nbytes)

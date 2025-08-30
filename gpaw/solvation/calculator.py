@@ -1,5 +1,5 @@
+from ase.data import chemical_symbols
 from ase.units import Bohr, Hartree
-
 from gpaw import GPAW_NEW
 from gpaw.calculator import GPAW as OldGPAW
 from gpaw.io import Reader
@@ -9,10 +9,11 @@ from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 def SolvationGPAW(*args, **kwargs):
     if GPAW_NEW:
         from gpaw.new.ase_interface import GPAW
-        solvation = dict(cavity=kwargs.pop('cavity'),
+        solvation = dict(name='solvation',
+                         cavity=kwargs.pop('cavity'),
                          dielectric=kwargs.pop('dielectric'),
                          interactions=kwargs.pop('interactions', None))
-        return GPAW(*args, **kwargs, solvation=solvation)
+        return GPAW(*args, **kwargs, environment=solvation)
     return OldSolvationGPAW(*args, **kwargs)
 
 
@@ -60,8 +61,13 @@ class OldSolvationGPAW(OldGPAW):
             if 'name' in impl_in.cavity.effective_potential:
                 efpot = impl_in.cavity.effective_potential
 
-                def atomic_radii(atoms):
-                    return efpot.atomic_radii
+                atomic_radii = {}
+                for Z, r in zip(reader.atoms.numbers, efpot.atomic_radii):
+                    symbol = chemical_symbols[Z]
+                    if symbol in atomic_radii:
+                        assert atomic_radii[symbol] == r
+                    else:
+                        atomic_radii[symbol] = r
 
                 if efpot.name == 'SJMPower12Potential':
                     from gpaw.solvation.sjm import SJMPower12Potential

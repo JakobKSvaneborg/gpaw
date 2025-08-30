@@ -7,7 +7,7 @@ import numpy as np
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.brillouin import BZPoints
-from gpaw.new.builder import builder
+from gpaw.dft import Parameters
 
 
 def create_nodes(obj, *objects, include):
@@ -234,7 +234,7 @@ def builders():
     b = []
     a = ase.Atoms('H', cell=[2, 2, 2], pbc=1)
     for mode in ['fd', 'pw', 'lcao']:
-        b.append(builder(a, {'mode': mode}))
+        b.append(Parameters(mode=mode).dft_component_builder(a))
     nodes = create_nodes(
         *b,
         include=lambda obj:

@@ -22,6 +22,7 @@ def test_reuse_wfs_celldisp(in_tmp_dir):
         calc = GPAW(mode='pw',
                     txt=f'gpaw-{reuse}.txt',
                     nbands=1,
+                    eigensolver='davidson',
                     experimental=dict(
                         reuse_wfs_method='paw' if reuse else None),
                     kpts=[[-0.3, 0.4, 0.2]],

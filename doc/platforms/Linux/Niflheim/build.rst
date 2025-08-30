@@ -49,7 +49,7 @@ The ``gpaw_venv.py`` script does the following:
 * install some other Python packages from PyPI: sklearn, graphviz,
   matplotlib, pytest-xdist, myqueue, ase-ext, spglib
 * enable tab-completion for command-line tools:
-  `ase <https://wiki.fysik.dtu.dk/ase/cmdline.html>`__,
+  `ase <https://ase-lib.org/cmdline.html>`__,
   `gpaw <https://gpaw.readthedocs.io/documentation/cmdline.html>`__,
   `mq <https://myqueue.readthedocs.io/cli.html>`__
 
@@ -98,21 +98,19 @@ Adding additional packages
 
 In order to add more Python packages to your venv, you need to activate it
 and then you can ``pip install`` packages.  Here is how
-to install ASR_::
+to install ASR-Lib_::
 
-    $ git clone https://gitlab.com/asr-dev/asr.git
-    $ cd asr
-    $ git checkout old-master
-    $ pip install .
+    $ git clone https://gitlab.com/asr-dev/asr-lib.git
+    $ pip install asr-lib/
 
 .. warning::
 
-    Pip may need co compile some code.
+    Pip may need to compile some code.
     It is therefore safest to use the ``thul`` login node to pip install
     software as it is the oldest CPU architcture and the other login nodes
     will understand its code.
 
-.. _ASR: https://asr.readthedocs.io/en/latest/
+.. _ASR-Lib: https://asr-lib.fysik.dtu.dk/
 
 
 Full script

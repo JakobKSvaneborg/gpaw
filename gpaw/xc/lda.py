@@ -7,6 +7,20 @@ from gpaw.sphere.lebedev import Y_nL, weight_n
 from gpaw.xc.functional import XCFunctional
 
 
+def stress_integral(gd, a1_g, a2_g=None):
+    return gd.integrate(a1_g, a2_g, global_integral=False)
+
+
+def stress_lda_term(gd, e_g, n_sg, v_sg):
+    if e_g is None:
+        P = 0
+    else:
+        P = stress_integral(gd, e_g)
+    for v_g, n_g in zip(v_sg, n_sg):
+        P -= stress_integral(gd, v_g, n_g)
+    return P * np.eye(3)
+
+
 class LDARadialExpansion:
     def __init__(self, rcalc, collinear=True):
         self.rcalc = rcalc
@@ -119,12 +133,10 @@ class LDA(XCFunctional):
         v_sg = self.gd.zeros(nspins)
         e_g = self.gd.empty()
         self.calculate_impl(self.gd, n_sg, v_sg, e_g)
-        stress = self.gd.integrate(e_g, global_integral=False)
-        for v_g, n_g in zip(v_sg, n_sg):
-            stress -= self.gd.integrate(v_g, n_g, global_integral=False)
+        stress_vv = stress_lda_term(self.gd, e_g, n_sg, v_sg)
         if not skip_sum:
-            stress = self.gd.comm.sum_scalar(stress)
-        return np.eye(3) * stress
+            self.gd.comm.sum(stress_vv)
+        return stress_vv
 
 
 class PurePythonLDAKernel:

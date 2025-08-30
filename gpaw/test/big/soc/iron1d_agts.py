@@ -50,7 +50,8 @@ def go() -> None:
     params = dict(mode=PW(500),
                   xc='PBE',
                   kpts=[7, 1, 1],
-                  convergence={'eigenstates': 1e-10})
+                  convergence={'eigenstates': 1e-10,
+                               'bands': 9})
     A, _ = soc(params)
     params['symmetry'] = 'off'
     B, calc = soc(params)
@@ -64,3 +65,7 @@ def go() -> None:
 def workflow():
     from myqueue.workflow import run
     run(function=go, cores=4)
+
+
+if __name__ == '__main__':
+    go()
