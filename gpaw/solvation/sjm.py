@@ -10,6 +10,7 @@ and includes the Fluctuation Dissipation Theorem.
 import copy
 import os
 import textwrap
+from collections import deque
 
 import ase.io
 import gpaw.mpi
@@ -536,8 +537,8 @@ class OldSJM(OldSolvationGPAW):
             previous_electrons = p.previous_electrons
             previous_potentials = p.previous_potentials
         else:
-            previous_electrons = []
-            previous_potentials = []
+            previous_electrons = deque(maxlen=p.slope_regression_depth)
+            previous_potentials = deque(maxlen=p.slope_regression_depth)
 
         rerun = False
         while iteration <= p.max_iters:
@@ -614,13 +615,11 @@ class OldSJM(OldSolvationGPAW):
             previous_potentials.append(float(true_potential))
 
             if len(previous_electrons) > 1:
-                slope = _calculate_slope(previous_electrons,
-                                         previous_potentials,
-                                         p.slope_regression_depth)
 
-                nreg = len(previous_electrons[-p.slope_regression_depth:])
-                self.log(f'Slope regressed from last {nreg:d} attempts is '
-                         f'{slope:.4f} V/electron,')
+                slope = linregress(previous_electrons,
+                                   previous_potentials)[0]
+                self.log(f'Slope regressed from last {len(previous_electrons)}'
+                         f'attempts is {slope:.4f} V/electron,')
                 area = np.linalg.det(atoms.cell[:2, :2])
                 # get capacitance in muF/cm^2
                 capacitance = - _e * 1e22 / (area * slope)
@@ -1031,16 +1030,6 @@ def _write_property_on_grid(grid, property, atoms, name, dir):
     to be output, on the same grid."""
     property = grid.collect(property, broadcast=True)
     ase.io.write(os.path.join(dir, name), atoms, data=property)
-
-
-def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
-    """Calculates the slope of potential versus number of electrons;
-    regresses based on (up to) last four data points to smooth noise."""
-    # debug
-
-    ans = linregress(previous_electrons[-n_prev_pot:],
-                     previous_potentials[-n_prev_pot:])
-    return ans[0]
 
 
 class SJMPower12Potential(Power12Potential):
