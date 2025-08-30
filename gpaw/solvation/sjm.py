@@ -10,6 +10,7 @@ and includes the Fluctuation Dissipation Theorem.
 import copy
 import os
 import textwrap
+import warnings
 
 import ase.io
 import gpaw.mpi
@@ -1092,6 +1093,11 @@ class SJMPower12Potential(Power12Potential):
         # The following guarantees backwards compatibility
         self.H2O_layer = {}
         if H2O_layer is not False:
+            if not isinstance(H2O_layer, dict):
+                warnings.warn('The provided syntax for cleaning the interface '
+                              'is deprecated. Please use a dictionary with '
+                              'keys "style" and "nox". See documentation for '
+                              'details.', DeprecationWarning)
             if H2O_layer is True:
                 H2O_layer = {}
             elif isinstance(H2O_layer, int):
