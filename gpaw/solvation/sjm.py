@@ -615,13 +615,13 @@ class OldSJM(OldSolvationGPAW):
             previous_potentials.append(float(true_potential))
 
             if len(previous_electrons) > 1:
-
                 slope = linregress(previous_electrons,
                                    previous_potentials)[0]
                 self.log(f'Slope regressed from last {len(previous_electrons)}'
                          f'attempts is {slope:.4f} V/electron,')
-                area = np.linalg.det(atoms.cell[:2, :2])
+
                 # get capacitance in muF/cm^2
+                area = np.linalg.det(atoms.cell[:2, :2])
                 capacitance = - _e * 1e22 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
                          'muF/cm^2')
