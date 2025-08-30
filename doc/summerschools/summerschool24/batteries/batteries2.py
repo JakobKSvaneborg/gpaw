@@ -49,7 +49,7 @@ from ase import Atoms
 
 # %%
 """
-First we will construct an atoms object for FePO$_4$. ASE can read files from in a large number of different [formats](https://wiki.fysik.dtu.dk/ase/ase/io/io.html?highlight=read%20formats#file-input-and-output). However, in this case you will build it from scratch using the below information:
+First we will construct an atoms object for FePO$_4$. ASE can read files from in a large number of different [formats](https://ase-lib.org/ase/io/io.html?highlight=read%20formats#file-input-and-output). However, in this case you will build it from scratch using the below information:
 """
 
 # %%
@@ -148,7 +148,7 @@ for atom in fepo4:
 
 # %%
 """
-Now examine the initial magnetic moments of the system using an [appropriate method](https://wiki.fysik.dtu.dk/ase/ase/atoms.html?highlight=get_initial#list-of-all-methods).
+Now examine the initial magnetic moments of the system using an [appropriate method](https://ase-lib.org/ase/atoms.html?highlight=get_initial#list-of-all-methods).
 """
 
 # %%
@@ -204,7 +204,7 @@ params_GPAW['setups']      = {'Fe': ':d,4.3'}             # U=4.3 applied to d o
 
 # %%
 """
-Make a GPAW calculator and attach it to the atoms object. Here you will use [get_potential_energy](https://wiki.fysik.dtu.dk/ase/ase/atoms.html#ase.Atoms.get_potential_energy) to start the calculation.
+Make a GPAW calculator and attach it to the atoms object. Here you will use [get_potential_energy](https://ase-lib.org/ase/atoms.html#ase.Atoms.get_potential_energy) to start the calculation.
 """
 
 # %%
@@ -221,7 +221,6 @@ You will use the ensemble capability of the BEEF-vdW functional. You will need t
 """
 
 # %%
-from ase.dft.bee import BEEFEnsemble
 
 ens = BEEFEnsemble(calc)
 dE = ens.get_ensemble_energies(2000)
@@ -246,7 +245,7 @@ You now have what you need to make a full script. Make it in the cell below and 
 # %%
 # %%writefile 'fepo4.py'
 from ase.parallel import paropen
-from ase.io import read, write
+from ase.io import write
 from ase.dft.bee import BEEFEnsemble
 from gpaw import GPAW, FermiDirac, Mixer, PW
 
@@ -377,7 +376,7 @@ You should now add Li into the structure using the fractional coordinates below:
 
 # %%
 """
-Add Li atoms into the structure, e.g., by following the example in [this ASE tutorial](https://wiki.fysik.dtu.dk/ase/gettingstarted/manipulating_atoms/manipulating_atoms.html?highlight=set_cell#manipulating-atoms).
+Add Li atoms into the structure, e.g., by following the example in [this ASE tutorial](https://ase-lib.org/gettingstarted/manipulating_atoms/manipulating_atoms.html?highlight=set_cell#manipulating-atoms).
 """
 
 # %%
@@ -391,8 +390,6 @@ cell = lifepo4_wo_li.get_cell()
 # lifepo4 = lifepo4_wo_li.copy()
 
 # Teacher:
-from numpy import identity
-from ase import Atom
 
 lifepo4 = lifepo4_wo_li.copy()
 cell = lifepo4.get_cell()
@@ -457,7 +454,6 @@ params_GPAW = {...}
 # teacher
 from ase.parallel import paropen
 from ase.io import read
-from ase.io.trajectory import Trajectory
 from ase.dft.bee import BEEFEnsemble
 from gpaw import GPAW, FermiDirac, Mixer, PW
 

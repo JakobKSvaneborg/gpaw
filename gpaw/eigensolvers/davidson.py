@@ -45,7 +45,7 @@ class Davidson(Eigensolver):
         return f'Davidson(niter={self.niter})'
 
     def todict(self):
-        return {'name': 'dav', 'niter': self.niter}
+        return {'name': 'davidson', 'niter': self.niter}
 
     def initialize(self, wfs, dist_backend='scalapack'):
         # dist_backend keyword exists due to this class having

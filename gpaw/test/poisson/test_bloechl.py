@@ -12,6 +12,9 @@ from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.paw_poisson import (SimplePAWPoissonSolver,
                                      SlowPAWPoissonSolver)
 from gpaw.new.pw.poisson import PWPoissonSolver
+from gpaw.mpi import world
+from gpaw.gpu import cupy as cp
+from gpaw.gpu.mpi import CuPyMPI
 
 
 def g(rc, rgd):
@@ -33,29 +36,7 @@ def c(r, rc1, rc2):
     return y
 
 
-def test_psolve():
-    """Unit-test for Blöchl's fast Poisson-solver."""
-    rgd = RGD(0.01, 500)
-    rc1 = 0.6
-    rc2 = 0.7
-    d12 = 1.35
-    g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
-    v = 7.5
-    gcut = 25.0
-    pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12])
-    relpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
-                          [0.5, 0.5, (v + d12) / (2 * v + d12)]])
-    g_aig = pw.atom_centered_functions(g_ai, positions=relpos_ac)
-    nt_g = pw.zeros()
-    C_ai = g_aig.empty()
-    C_ai.data[:] = [0.9, 0.7]
-    C_ai.data *= 1.0 / (4.0 * np.pi)**0.5
-    g_aig.add_to(nt_g, C_ai)
-
-    charges = [(0.9, rc1, 0.0),
-               (0.7, rc2, d12),
-               (-0.9, 0.3, 0.0),
-               (-0.7, 0.4, d12)]
+def energy(charges):
     e0 = 0.0
     for q1, r1, p1 in charges:
         for q2, r2, p2 in charges:
@@ -63,32 +44,87 @@ def test_psolve():
             e12 = 0.5 * q1 * q2 * c(d, r1, r2) / (4 * np.pi)**2
             # print(q1, q2, rc1, rc2, d, e12)
             e0 += e12
-    print(e0)
+    return e0
+
+
+def force(charges, a):
+    eps = 1e-5
+    charges[a + 2, 2] += eps
+    ep = energy(charges)
+    charges[a + 2, 2] -= 2 * eps
+    em = energy(charges)
+    charges[a + 2, 2] += eps
+    return (em - ep) / (2 * eps)
+
+
+@pytest.mark.parametrize('xp',
+                         [np,
+                          pytest.param(cp, marks=pytest.mark.gpu)])
+def test_psolve(xp):
+    """Unit-test for Blöchl's fast Poisson-solver."""
+    comm = CuPyMPI(world)
+    rgd = RGD(0.01, 500)
+    rc1 = 0.6
+    rc2 = 0.7
+    d12 = 1.35
+    g_ai = [[g(rc1, rgd)], [g(rc2, rgd)]]
+    v = 7.5
+    gcut = 25.0
+    pw = PWDesc(gcut=gcut, cell=[2 * v, 2 * v, 2 * v + d12], comm=comm)
+    relpos_ac = np.array([[0.5, 0.5, v / (2 * v + d12)],
+                          [0.5, 0.5, (v + d12) / (2 * v + d12)]])
+    g_aig = pw.atom_centered_functions(g_ai, positions=relpos_ac, xp=xp)
+    nt_g = pw.zeros(xp=xp)
+    C_ai = g_aig.empty()
+    if 0 in C_ai:
+        C_ai[0] = 0.9
+    if 1 in C_ai:
+        C_ai[1] = 0.7
+    C_ai.data *= 1.0 / (4.0 * np.pi)**0.5
+    g_aig.add_to(nt_g, C_ai)
+
+    charges = np.array(
+        [(0.9, rc1, 0.0),
+         (0.7, rc2, d12),
+         (-0.9, 0.3, 0.0),
+         (-0.7, 0.4, d12)])
+    e0 = energy(charges)
+    f0 = force(charges, 0)
+    f1 = force(charges, 1)
+    print(e0, f0, f1)
 
     ps = PWPoissonSolver(pw)
     spps = SimplePAWPoissonSolver(
-        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist)
+        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist, xp=xp)
     Q_aL = spps.ghat_aLg.empty()
     Q_aL.data[:] = 0.0
     for a, C_i in C_ai.items():
         Q_aL[a][0] = -C_i[0]
-    vt1_g = pw.zeros()
-    e1, vHt_g, V1_aL = spps.solve(nt_g, Q_aL, vt1_g)
+    nt0_g = nt_g.gather()
+    vt10_g = pw.zeros(xp=xp).gather()
+    e1, vHt_g, V1_aL = spps.solve(nt0_g, Q_aL, vt10_g)
     F1_av = spps.force_contribution(Q_aL, vHt_g, nt_g)
+    comm.sum(F1_av)
     assert e1 == pytest.approx(e0, abs=1e-9)
     print('simple', e1, e1 - e0)
-    print(spps.force_contribution(Q_aL, vHt_g, nt_g))
+    print(F1_av)
+    assert xp.allclose(F1_av, [[0, 0, f0],
+                               [0, 0, f1]])
 
     pps = BloechlPAWPoissonSolver(
-        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist)
-    vt2_g = pw.zeros()
-    e2, vHt_g, V2_aL = pps.solve(nt_g, Q_aL, vt2_g)
+        pw, [0.3, 0.4], ps, relpos_ac, g_aig.atomdist, xp=xp)
+    vt20_g = pw.zeros(xp=xp).gather()
+    e2, vHt_g, V2_aL = pps.solve(nt0_g, Q_aL, vt20_g)
     F2_av = pps.force_contribution(Q_aL, vHt_g, nt_g)
+    comm.sum(F2_av)
     assert e2 == pytest.approx(e0, abs=1e-8)
     print('\nfast  ', e2, e2 - e0)
-    assert V2_aL.data[::9] == pytest.approx(V1_aL.data[::9], abs=1e-7)
-    assert vt2_g.data[:5] == pytest.approx(vt1_g.data[:5], abs=1e-10)
-    assert F1_av == pytest.approx(F2_av, abs=3e-6)
+    assert xp.allclose(V2_aL.data[::9], V1_aL.data[::9])
+    if comm.rank == 0:
+        vt10_g = vt10_g.to_xp(np)
+        vt20_g = vt20_g.to_xp(np)
+        assert vt20_g.data[:5] == pytest.approx(vt10_g.data[:5], abs=1e-10)
+    assert xp.allclose(F1_av, F2_av, atol=3e-6)
 
     if 0:
         ps = PWPoissonSolver(pw.new(gcut=2 * gcut))

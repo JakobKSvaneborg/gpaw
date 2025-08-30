@@ -15,7 +15,7 @@ def get_eigensolver(eigensolver, mode, convergence=None):
         if mode.name == 'lcao':
             eigensolver = 'lcao'
         else:
-            eigensolver = 'dav'
+            eigensolver = 'davidson'
 
     if isinstance(eigensolver, str):
         eigensolver = {'name': eigensolver}
@@ -29,6 +29,7 @@ def get_eigensolver(eigensolver, mode, convergence=None):
         eigensolver = {'rmm-diis': RMMDIIS,
                        'cg': CG,
                        'dav': Davidson,
+                       'davidson': Davidson,
                        'lcao': DirectLCAO,
                        'direct': DirectPW,
                        'etdm-lcao': LCAOETDM,

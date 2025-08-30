@@ -10,8 +10,8 @@ from typing import List, Any, TYPE_CHECKING
 import warnings
 
 
-__version__ = '25.1.1b1'
-__ase_version_required__ = '3.23.0'
+__version__ = '25.7.1b1'
+__ase_version_required__ = '3.25.0'
 
 __all__ = ['GPAW',
            'Mixer', 'MixerSum', 'MixerDif', 'MixerSum2',
@@ -28,7 +28,8 @@ boolean_envvars = {
     'GPAW_USE_GPUS',
     'GPAW_TRACE',
     'GPAW_NO_C_EXTENSION',
-    'GPAW_MPI4PY'}
+    'GPAW_MPI4PY',
+    'GPAW_DEBUG'}
 allowed_envvars = {
     *boolean_envvars,
     'GPAW_MPI_OPTIONS',
@@ -38,15 +39,17 @@ allowed_envvars = {
 is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
 
-# When type-checking or running pytest, we want the debug-wrappers enabled:
-debug: bool = (TYPE_CHECKING or
-               'pytest' in sys.modules or
-               bool(sys.flags.debug))
 
-if debug:
-    for var in os.environ:
-        if var.startswith('GPAW') and var not in allowed_envvars:
-            warnings.warn(f'Unknown GPAW environment varable: {var}')
+def _get_gpaw_env_vars(attr: str) -> bool | str:
+    if attr in boolean_envvars:
+        return bool(int(os.environ.get(attr) or 0))
+    if attr in allowed_envvars and attr in os.environ:
+        return os.environ[attr]
+    raise _module_attr_error(attr)
+
+
+# When type-checking, we want the debug-wrappers enabled:
+debug = TYPE_CHECKING or _get_gpaw_env_vars('GPAW_DEBUG')
 
 
 @contextlib.contextmanager
@@ -206,14 +209,6 @@ def _lazy_import(attr: str) -> Any:
     return getattr(importlib.import_module(module), target)
 
 
-def _get_gpaw_env_vars(attr: str) -> bool | str:
-    if attr in boolean_envvars:
-        return bool(int(os.environ.get(attr) or 0))
-    if attr in allowed_envvars and attr in os.environ:
-        return os.environ[attr]
-    raise _module_attr_error(attr)
-
-
 all_lazy_imports = dict(
     Mixer='gpaw.mixer.Mixer',
     MixerSum='gpaw.mixer.MixerSum',
@@ -306,7 +301,7 @@ if debug:
             a.fill(-42)
         return a
 
-    np.empty = empty
+    np.empty = empty  # type: ignore[misc]
     np.empty_like = empty_like
 
 if TYPE_CHECKING:
@@ -315,6 +310,8 @@ elif GPAW_NEW:
     all_lazy_imports['GPAW'] = 'gpaw.new.ase_interface.GPAW'
 else:
     all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
+
+all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
 
 
 def restart(filename, Class=None, **kwargs):

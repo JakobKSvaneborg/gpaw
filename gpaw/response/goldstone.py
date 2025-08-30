@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.optimize import minimize
 
-from gpaw.response.dyson import HXCScaling, DysonEquation
+from gpaw.response.dyson import HXCScaling, DysonEquation, DysonEquations
 
 if TYPE_CHECKING:
     from gpaw.response.chiks import SelfEnhancementCalculator
@@ -86,6 +86,11 @@ class NewFMGoldstoneScaling(FMGoldstoneScaling):
     @classmethod
     def from_xi_calculator(cls, xi_calc: SelfEnhancementCalculator):
         """Construct scaling object with |m> consistent with a xi_calc."""
+        return cls(m_G=cls.calculate_m(xi_calc))
+
+    @staticmethod
+    def calculate_m(xi_calc: SelfEnhancementCalculator):
+        """Calculate the normalized spin-polarization |m>."""
         from gpaw.response.localft import (LocalFTCalculator,
                                            add_spin_polarization)
         localft_calc = LocalFTCalculator.from_rshe_parameters(
@@ -93,7 +98,7 @@ class NewFMGoldstoneScaling(FMGoldstoneScaling):
             rshelmax=xi_calc.rshelmax, rshewmin=xi_calc.rshewmin)
         qpd = xi_calc.get_pw_descriptor(q_c=[0., 0., 0.])
         nz_G = localft_calc(qpd, add_spin_polarization)
-        return cls(m_G=nz_G / np.linalg.norm(nz_G))
+        return nz_G / np.linalg.norm(nz_G)
 
     def find_goldstone_scaling(self, dyson_equation):
         assert self.m_G is not None, \
@@ -107,6 +112,75 @@ class NewFMGoldstoneScaling(FMGoldstoneScaling):
         # Maximize a^(+-)(ω=0)
         res = minimize(acoustic_antispectrum, x0=[1.], bounds=[(0.1, 10.)])
         assert res.success
+        return res.x[0]
+
+
+class RefinedFMGoldstoneScaling(HXCScaling):
+    """Ensures that a^(+-)(ω) has a maximum in ω=0."""
+
+    def __init__(self,
+                 lambd: float | None = None,
+                 base_scaling: NewFMGoldstoneScaling | None = None):
+        """Construct the scaling object.
+
+        If the λ-parameter hasn't yet been calculated, we use a base scaling
+        class, which calculates λ approximately (and gives us access to |m>),
+        thus providing a starting point for the refinement.
+        """
+        super().__init__(lambd=lambd)
+        self._base_scaling = base_scaling
+
+    @classmethod
+    def from_xi_calculator(cls, xi_calc: SelfEnhancementCalculator):
+        return cls(
+            base_scaling=NewFMGoldstoneScaling.from_xi_calculator(xi_calc))
+
+    @property
+    def m_G(self):
+        assert self._base_scaling is not None
+        assert self._base_scaling.m_G is not None
+        return self._base_scaling.m_G
+
+    def _calculate_scaling(self, dyson_equations: DysonEquations) -> float:
+        """Calculate the scaling coefficient λ."""
+        # First we calculate the base scaling based on a^(+-)(ω=0)
+        assert self._base_scaling is not None
+        self._base_scaling.calculate_scaling(dyson_equations)
+        base_lambd = self._base_scaling.lambd
+
+        # Secondly, we extract the spectral peak position by performing a
+        # parabolic fit to the five points with lowest |ω|.
+        omega_W = dyson_equations.zd.omega_w
+        wblocks = dyson_equations.zblocks
+        fiveW_w = np.argpartition(np.abs(omega_W), 5)[:5]
+        omega_w = omega_W[fiveW_w]
+
+        def near_acoustic_spectrum(lambd):
+            a_w = np.empty(5, dtype=float)
+            for w, W in enumerate(fiveW_w):
+                wrank, myw = wblocks.find_global_index(W)
+                if wblocks.blockcomm.rank == wrank:
+                    a_w[w] = calculate_acoustic_spectrum(
+                        lambd, dyson_equations[myw], self.m_G)
+                wblocks.blockcomm.broadcast(a_w[w:w + 1], wrank)
+            return a_w
+
+        def acoustic_magnon_frequency(lambd):
+            a_w = near_acoustic_spectrum(lambd)
+            a, b, c = np.polyfit(omega_w, a_w, 2)
+            return -b / (2 * a)
+
+        # Lastly, we minimize the (absolute) peak frequency |ω_0| to obtain the
+        # refined λ. To do so efficiently, we define a (hyperbolic) cost
+        # function which is linear in |ω_0| in the meV range, but parabolic in
+        # the μeV range, such that derivatives remain smooth at the minimum.
+
+        def cost_function(lambd):
+            return np.sqrt(5e-5 + acoustic_magnon_frequency(lambd)**2)
+
+        res = minimize(cost_function, x0=[base_lambd],
+                       bounds=[(base_lambd * 0.975, base_lambd * 1.025)])
+        assert res.success, res
         return res.x[0]
 
 

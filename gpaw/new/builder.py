@@ -1,13 +1,13 @@
 from __future__ import annotations
-
-import importlib
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any
-
+from typing import Any, TYPE_CHECKING
+import warnings
 import numpy as np
+from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
+from ase.geometry.cell import cell_to_cellpar
 from ase.units import Bohr
 from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
@@ -17,7 +17,7 @@ from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (broadcast, MPIComm, Parallelization, serial_comm,
+from gpaw.mpi import (MPIComm, Parallelization, broadcast, serial_comm,
                       synchronize_atoms, world)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
@@ -25,77 +25,33 @@ from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.input_parameters import InputParameters
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
 from gpaw.new.smearing import OccupationNumberCalculator
-from gpaw.new.symmetry import create_symmetries_object
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
-from gpaw.xc import XC
-from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
-
-
-FAKE_CUPY_WARNING = """
- ----------------------------------------------------------
-|                         WARNING                          |
-| -------------------------------------------------------- |
-|  GPU calculation requested, but calculations are run on  |
-|    CPUs with the `cupy` substitute `gpaw.gpu.cpupy`.     |
-| This is most likely not the desired behavior, except for |
-| testing purposes. Please check if you have inadvertently |
-|    set the environment variable `GPAW_CPUPY`, consult    |
-| `gpaw info` for `cupy` availability, and reconfigure and |
-|               recompile GPAW if necessary.               |
- ----------------------------------------------------------
-"""
-
-
-def builder(atoms: Atoms,
-            params: dict[str, Any] | InputParameters,
-            comm=None,
-            log=None) -> DFTComponentsBuilder:
-    """Create DFT-components builder.
-
-    * pw
-    * lcao
-    * fd
-    * tb
-    * atom
-    """
-    comm = comm or world
-    if isinstance(params, dict):
-        params = InputParameters(params)
-    if not isinstance(log, Logger):
-        log = Logger(log, comm)
-
-    mode = params.mode.copy()
-    name = mode.pop('name')
-    mode.pop('force_complex_dtype', False)
-    assert name in {'pw', 'lcao', 'fd', 'tb', 'atom'}
-    mod = importlib.import_module(f'gpaw.new.{name}.builder')
-    name = name.title() if name == 'atom' else name.upper()
-    Builder = getattr(mod, f'{name}DFTComponentsBuilder')
-    builder = Builder(atoms, params, comm=comm, **mode)
-    if builder.xp is fake_cupy:
-        log(FAKE_CUPY_WARNING)
-    return builder
+if TYPE_CHECKING:
+    from gpaw.dft import Parameters
 
 
 class DFTComponentsBuilder:
     def __init__(self,
                  atoms: Atoms,
-                 params: InputParameters,
-                 dtype: None | DTypeLike = None,
+                 params: Parameters,
                  *,
-                 comm):
+                 log=None,
+                 comm=None):
 
         self.atoms = atoms.copy()
-        self.mode = params.mode['name']
+        self.mode = params.mode.name
         self.params = params
+        if not isinstance(log, Logger):
+            log = Logger(log, comm)
+        self.log = log
+        comm = log.comm
 
         parallel = params.parallel
 
@@ -108,11 +64,12 @@ class DFTComponentsBuilder:
         self.soc = params.soc
         self.nspins = self.ncomponents % 3
         self.spin_degeneracy = self.ncomponents % 2 + 1
-        if isinstance(params.xc, (dict, str)):
-            self._xc = XC(params.xc, collinear=(self.ncomponents < 4),
-                          xp=self.xp)
-        else:
-            self._xc = params.xc
+
+        xcfunc = params.xc.functional(collinear=(self.ncomponents < 4))
+
+        if self.ncomponents == 4 and xcfunc.type != 'LDA':
+            raise ValueError('Only LDA supported for '
+                             'SC Non-collinear calculations')
 
         self._backwards_comatible = params.experimental.get(
             'backwards_compatible', True)
@@ -121,7 +78,7 @@ class DFTComponentsBuilder:
             atoms.numbers,
             params.setups,
             params.basis,
-            self._xc,  # .get_setup_name(),
+            xcfunc,
             world=comm,
             backwards_compatible=self._backwards_comatible)
         if params.hund:
@@ -129,15 +86,13 @@ class DFTComponentsBuilder:
             for a, setup in enumerate(self.setups):
                 self.initial_magmom_av[a, 2] = setup.get_hunds_rule_moment(c)
 
-        symmetries = create_symmetries_object(
+        symmetries = params.symmetry.build(
             atoms,
             setup_ids=self.setups.id_a,
             magmoms=self.initial_magmom_av,
-            **{k: v for k, v in params.symmetry.items()
-               if k != 'time_reversal'},
             _backwards_compatible=self._backwards_comatible)
 
-        use_time_reversal = params.symmetry.get('time_reversal', True)
+        use_time_reversal = params.symmetry.time_reversal
 
         symmetries._old_symmetry.time_reversal = use_time_reversal  # legacy
         self.setups.set_symmetry(symmetries._old_symmetry)  # legacy
@@ -145,14 +100,14 @@ class DFTComponentsBuilder:
         if self.ncomponents == 4:
             assert (len(symmetries) == 1 and not use_time_reversal)
 
-        bz = create_kpts(params.kpts, atoms)
+        bz = params.kpts.build(atoms)
         self.ibz = bz.reduce(
             symmetries,
             strict=False,
             comm=comm,
             use_time_reversal=use_time_reversal)
 
-        d = parallel.get('domain', 1 if self._xc.type == 'HYB' else None)
+        d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
         self.communicators = create_communicators(comm, len(self.ibz),
@@ -171,8 +126,8 @@ class DFTComponentsBuilder:
             self.nbands *= 2
 
         self.dtype: DTypeLike
-        if dtype is None:
-            if self.params.mode.get('force_complex_dtype', False):
+        if params.mode.dtype is None:
+            if self.params.mode.force_complex_dtype:
                 self.dtype = complex
             else:
                 if self.ibz.bz.gamma_only and self.ncomponents < 4:
@@ -180,7 +135,7 @@ class DFTComponentsBuilder:
                 else:
                     self.dtype = complex
         else:
-            self.dtype = dtype
+            self.dtype = params.mode.dtype
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
@@ -188,7 +143,7 @@ class DFTComponentsBuilder:
         self.relpos_ac %= 1
         self.relpos_ac %= 1  # yes, we need to do this twice!
 
-        self.xc = self.create_xc_functional()
+        self.xc = create_functional(xcfunc, self.fine_grid, self.xp)
 
         self.interpolation_desc: Domain
         self.electrostatic_potential_desc: Domain
@@ -196,9 +151,18 @@ class DFTComponentsBuilder:
     def __repr__(self):
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
 
+    def get_extensions(self):
+        return [ext.build(self.atoms,
+                          self.communicators,
+                          self.log) for ext in self.params.extensions]
+
+    @cached_property
+    def charge(self) -> float:
+        return self.setups.core_charge + self.params.charge
+
     @cached_property
     def nelectrons(self) -> float:
-        return self.setups.nvalence - self.params.charge
+        return self.setups.nvalence - self.charge
 
     @cached_property
     def atomdist(self) -> AtomDistribution:
@@ -209,15 +173,23 @@ class DFTComponentsBuilder:
     def create_uniform_grids(self):
         raise NotImplementedError
 
-    def create_xc_functional(self):
-        return create_functional(self._xc, self.fine_grid, self.xp)
-
     def check_cell(self, cell):
         number_of_lattice_vectors = cell.rank
         if number_of_lattice_vectors < 3:
             raise ValueError(
                 'GPAW requires 3 lattice vectors.  '
                 f'Your system has {number_of_lattice_vectors}.')
+        angles = cell_to_cellpar(cell)[3:]
+        if not all(40.0 < a < 140.0 for a in angles):
+            a, b, c = angles
+            warnings.warn(
+                'The angles between your unit-cell vectors are '
+                f'{a:.1}, {b:.1} and {c:.1} degrees.  '
+                'Results may be wrong!  '
+                'Please Niggli-reduce your unit-cell so that the angle '
+                'are closer to 90 degrees:\n\n'
+                '  from ase.build import niggli_reduce\n'
+                '  nigli_reduce(atoms)\n')
 
     @cached_property
     def wf_desc(self) -> Domain:
@@ -251,6 +223,8 @@ class DFTComponentsBuilder:
         """Array module: Numpy or Cupy."""
         if self.gpu:
             from gpaw.gpu import cupy
+            if cupy is fake_cupy:
+                self.log(fake_cupy.FAKE_CUPY_WARNING)
             return cupy
         return np
 
@@ -285,13 +259,13 @@ class DFTComponentsBuilder:
             basis_set=basis_set,
             magmom_av=self.initial_magmom_av,
             ncomponents=self.ncomponents,
-            charge=self.params.charge,
+            charge=self.charge,
             hund=self.params.hund,
             mgga=self.xc.type == 'MGGA')
 
     def create_occupation_number_calculator(self):
         return OccupationNumberCalculator(
-            self.params.occupations,
+            self.params.occupations.params,
             self.atoms.pbc,
             self.ibz,
             self.nbands,
@@ -303,9 +277,7 @@ class DFTComponentsBuilder:
 
     def create_ibz_wave_functions(self,
                                   basis: BasisFunctions,
-                                  potential: Potential,
-                                  *,
-                                  log: Logger) -> IBZWaveFunctions:
+                                  potential: Potential) -> IBZWaveFunctions:
         raise NotImplementedError
 
     def create_hamiltonian_operator(self):
@@ -321,7 +293,8 @@ class DFTComponentsBuilder:
 
         mixer = MixerWrapper(
             get_mixer_from_keywords(self.atoms.pbc.any(),
-                                    self.ncomponents, **self.params.mixer),
+                                    self.ncomponents,
+                                    **self.params.mixer.params),
             self.ncomponents,
             self.grid._gd,
             world=self.communicators['w'])
@@ -333,10 +306,10 @@ class DFTComponentsBuilder:
                         if key != 'bands'},
                        self.params.maxiter)
 
-    def read_ibz_wave_functions(self, reader, log):
+    def read_ibz_wave_functions(self, reader):
         raise NotImplementedError
 
-    def create_potential_calculator(self, log):
+    def create_potential_calculator(self):
         raise NotImplementedError
 
     def read_wavefunction_values(self,
@@ -399,23 +372,11 @@ class DFTComponentsBuilder:
             ibzwfs.fermi_levels = np.array(
                 [reader.occupations.fermilevel / ha])
 
-    def create_environment(self, grid, log):
-        if self.params.environment is not None:
-            return self.params.environment.build(
-                setups=self.setups,
-                grid=grid, relpos_ac=self.relpos_ac, log=log,
-                comm=self.communicators['w'],
-                nn=self.params.poissonsolver.get('nn', 3))
-
-        if self.params.solvation:
-            from gpaw.new.solvation import Solvation
-            return Solvation(**self.params.solvation,
-                             setups=self.setups,
-                             grid=grid, relpos_ac=self.relpos_ac, log=log,
-                             comm=self.communicators['w'],
-                             nn=self.params.poissonsolver.get('nn', 3))
-        from gpaw.new.environment import Environment
-        return Environment(len(self.atoms))
+    def create_environment(self, grid):
+        return self.params.environment.build(
+            setups=self.setups,
+            grid=grid, relpos_ac=self.relpos_ac, log=self.log,
+            comm=self.communicators['w'])
 
 
 def create_communicators(comm: MPIComm = None,
@@ -494,7 +455,7 @@ def normalize_initial_magmoms(
     return magmom_av, ncomponents
 
 
-def create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
+def ____create_kpts(kpts: dict[str, Any], atoms: Atoms) -> BZPoints:
     if 'kpts' in kpts:
         bz = BZPoints(kpts['kpts'])
     elif 'path' in kpts:
@@ -522,16 +483,7 @@ def calculate_number_of_bands(nbands: int | str | None,
     if orbital_free:
         return 1
 
-    if isinstance(nbands, str):
-        if nbands == 'nao':
-            N = nao
-        elif nbands[-1] == '%':
-            cfgbands = (nvalence + M) / 2
-            N = int(np.ceil(float(nbands[:-1]) / 100 * cfgbands))
-        else:
-            raise ValueError('Integer expected: Only use a string '
-                             'if giving a percentage of occupied bands')
-    elif nbands is None:
+    if nbands is None:
         # Number of bound partial waves:
         nbandsmax = sum(setup.get_default_nbands()
                         for setup in setups)
@@ -539,6 +491,17 @@ def calculate_number_of_bands(nbands: int | str | None,
         N = min(N, nbandsmax)
         if is_lcao and N > nao:
             N = nao
+    elif isinstance(nbands, str):
+        if nbands == 'nao':
+            N = nao
+        elif nbands[-1] == '%':
+            cfgbands = (nvalence + M) / 2
+            N = int(np.ceil(float(nbands[:-1]) / 100 * cfgbands))
+        else:
+            url = 'https://gpaw.readthedocs.io/documentation/basic.html'
+            raise ValueError(
+                f'Bad value for nbands: {nbands!r}.  '
+                f'See {url}#manual-nbands for help')
     elif nbands <= 0:
         N = max(1, int(nvalence + M + 0.5) // 2 + (-nbands))
     else:
@@ -564,8 +527,8 @@ def create_uniform_grid(mode: str,
                         cell,
                         pbc,
                         symmetries,
-                        h: float = None,
-                        interpolation: str = None,
+                        h: float | None = None,
+                        interpolation: int | str | None = None,
                         ecut: float = None,
                         comm: MPIComm = serial_comm) -> UGDesc:
     """Create grid in a backwards compatible way."""

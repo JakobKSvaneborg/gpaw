@@ -46,8 +46,8 @@ pygments_style = 'sphinx'
 autoclass_content = 'both'
 modindex_common_prefix = ['gpaw.']
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3.10', None),
-    'ase': ('https://wiki.fysik.dtu.dk/ase', None),
+    'python': ('https://docs.python.org/3.13', None),
+    'ase': ('https://ase-lib.org', None),
     'numpy': ('https://numpy.org/doc/stable', None),
     'cupy': ('https://docs.cupy.dev/en/stable', None),
     'scipy': ('https://docs.scipy.org/doc/scipy', None),
@@ -78,6 +78,7 @@ nitpick_ignore = [('py:class', 'gpaw.calculator.GPAW'),
                   ('py:class', 'DTypeLike'),
                   ('py:class', 'ModuleType'),
                   ('py:class', 'IO'),
+                  ('py:class', 'KptsType'),
                   ('py:class', 'gpaw.gpu.cpupy.ndarray')]
 html_theme = 'sphinx_rtd_theme'
 # html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]

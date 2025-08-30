@@ -1,6 +1,7 @@
-from gpaw.solvation.gridmem import NeedsGD
-from ase.units import Bohr, Hartree
 import numpy as np
+from ase.units import Bohr, Hartree
+
+from gpaw.solvation.gridmem import NeedsGD
 
 
 class Interaction(NeedsGD):
@@ -25,6 +26,20 @@ class Interaction(NeedsGD):
         self.E = None
         self.delta_E_delta_n_g = None
         self.delta_E_delta_g_g = None
+
+    @classmethod
+    def from_dict(self, dct):
+        if not isinstance(dct, dict):
+            return dct
+        dct = dct.copy()
+        name = dct.pop('name')
+        if name == 'SurfaceInteraction':
+            return SurfaceInteraction(**dct)
+        if name == 'VolumeInteraction':
+            return VolumeInteraction(**dct)
+        if name == 'LeakedDensityInteraction':
+            return LeakedDensityInteraction(**dct)
+        raise ValueError(name)
 
     def write(self, writer):
         pass
@@ -90,6 +105,9 @@ class SurfaceInteraction(Interaction):
         Interaction.__init__(self)
         self.surface_tension = float(surface_tension)
 
+    def todict(self):
+        return {'surface_tension': self.surface_tension}
+
     def write(self, writer):
         writer.write(name='SurfaceInteraction',
                      surface_tension=self.surface_tension)
@@ -125,6 +143,9 @@ class VolumeInteraction(Interaction):
         """
         Interaction.__init__(self)
         self.pressure = float(pressure)
+
+    def todict(self):
+        return {'pressure': self.pressure}
 
     def update(self, atoms, density, cavity):
         if cavity is None:
@@ -162,6 +183,9 @@ class LeakedDensityInteraction(Interaction):
         """
         Interaction.__init__(self)
         self.voltage = float(voltage)
+
+    def todict(self):
+        return {'voltage': self.voltage}
 
     def update(self, atoms, density, cavity):
         E0 = self.voltage / Hartree

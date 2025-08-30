@@ -3,7 +3,7 @@ from ase import Atoms
 
 from gpaw import GPAW
 from gpaw.calculator import DeprecatedParameterWarning as OldDPW
-from gpaw.new.input_parameters import DeprecatedParameterWarning as NewDPW
+from gpaw.dft import DeprecatedParameterWarning as NewDPW
 
 
 @pytest.mark.ci

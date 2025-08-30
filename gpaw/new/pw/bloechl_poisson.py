@@ -180,11 +180,12 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         else:
             e_coulomb2 = 0.0
 
-        vHt_g.data[0] = -vhat_g.data[0]
+        if comm.rank == 0:
+            vHt_g.data[0] = -vhat_g.data[0]
         V_aL = self.ghat_aLg.integrate(vHt_g)
         self.vhat_aLg.integrate(nt_g, V_aL, add_to=True)
 
-        Q_all_aL = Q_aL.gather(broadcast=True)
+        Q_all_aL = Q_aL.to_cpu().gather(broadcast=True)
         dV_all_aL = Q_all_aL.new()
         dV_all_aL.data[:] = 0.0
 
@@ -194,8 +195,8 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
             ex1, ex2 = self.expansions
             I1 = self.I_a[a1]
             I2 = self.I_a[a2]
-            v_LL = self.xp.asarray(ex1.tsoe_II[I1, I2].evaluate(d, rlY_lm) +
-                                   ex2.tsoe_II[I1, I2].evaluate(d, rlY_lm))
+            v_LL = (ex1.tsoe_II[I1, I2].evaluate(d, rlY_lm) +
+                    ex2.tsoe_II[I1, I2].evaluate(d, rlY_lm))
             vQ2_L = v_LL @ Q_all_aL[a2]
             dV_all_aL[a1] += vQ2_L / 2
             dV_all_aL[a2] += Q_all_aL[a1] @ v_LL / 2
@@ -203,9 +204,9 @@ class BloechlPAWPoissonSolver(PAWPoissonSolver):
         e_coulomb3 *= -0.5
 
         comm.sum(dV_all_aL.data)
-        dV_aL = Q_aL.new()
+        dV_aL = Q_aL.new(xp=np)
         dV_aL.scatter_from(dV_all_aL)
-        V_aL.data += dV_aL.data
+        V_aL.data += self.xp.asarray(dV_aL.data)
 
         vHt0_g = vHt_g.gather()
         if comm.rank == 0:

@@ -21,6 +21,9 @@ class GPAWLogger:
         self._fd = None
         self.oldfd = 42
         self.iocontext = IOContext()
+        self.use_colors = False
+        self.green = ''
+        self.reset = ''
 
     @property
     def fd(self):
@@ -45,7 +48,7 @@ class GPAWLogger:
     def __call__(self, *args, **kwargs):
         flush = kwargs.pop('flush', False)
         print(*args, file=self._fd, **kwargs)
-        if flush:
+        if flush and self._fd:
             self._fd.flush()
 
     def flush(self):
@@ -89,6 +92,8 @@ class GPAWLogger:
         self.close()
 
     def close(self):
+        if not self._fd:
+            return
         if gpaw.dry_run or self._fd.closed:
             return
 

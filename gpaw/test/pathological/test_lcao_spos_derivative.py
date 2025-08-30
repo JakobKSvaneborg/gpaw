@@ -1,11 +1,9 @@
 import numpy as np
-import pytest
 from ase.build import bulk
 
 from gpaw import GPAW, FermiDirac, Mixer
 
 
-@pytest.mark.old_gpaw_only
 def test_pathological_lcao_spos_derivative(in_tmp_dir):
     atoms = bulk('Si', 'diamond', a=5.4834322363595565)
     atoms *= (3, 3, 3)

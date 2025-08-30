@@ -4,12 +4,13 @@ from functools import cached_property
 
 import numpy as np
 import pytest
-from gpaw import setup_paths, GPAW_NEW
+from gpaw import setup_paths, GPAW_NEW, debug
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
 from gpaw.test.mmefile import MMEFiles
 from gpaw.utilities import devnull
+import subprocess
 
 
 @contextmanager
@@ -29,6 +30,15 @@ def execute_in_tmp_path(request, tmp_path_factory):
         yield path
     finally:
         os.chdir(cwd)
+
+
+@pytest.fixture(scope='module')
+def dftd3():
+    from ase.calculators.dftd3 import PureDFTD3
+    try:
+        subprocess.call(PureDFTD3().command)
+    except FileNotFoundError:
+        pytest.skip('dftd3 command not found')
 
 
 @pytest.fixture(scope='function')
@@ -177,6 +187,70 @@ def gpw_files(request):
 
     * Distorted bulk Si, TPSS: ``si_pw_distorted``
 
+    * C2H4 molecule (ethene) with direct optimization,
+      in with finite difference: ``c2h4_do_fd``
+
+    * C2H4 molecule (ethene) with direct optimization with
+      plane wave mode: ``c2h4_do_pw``
+
+    * H3 molecule, numerical, plane wave,
+      complex: ``h3_do_num_pw_complex``
+
+    * H3 molecule, numerical, PW: ``h3_do_num_pw``
+
+    * H3 molecule, steepest descent, LCAO: ``h3_do_sd_lcao``
+
+    * H3 molecule, numerical, LCAO: ``h3_do_num_lcao``
+
+    * H2O molecule, GMF, LCAO: ``h2o_do_gmf_lcao``
+
+    * H2O molecule, LCAO: ``h2o_do_lcao``
+
+    * H2O molecule, constrained direct optimization,
+      LCAO: ``h2o_cdo_lcao``
+
+    * H2O molecule, constrained direct optimization,
+      LCAO, SIC: ``h2o_cdo_lcao_sic``
+
+    * H2O molecule, FD, SIC: ``h2o_fdsic``
+
+    * H2O molecule, LCAO, SIC: ``h2o_lcaosic``
+
+    * H2O molecule, MOM, LCAO, SIC: ``h2o_mom_lcaosic``
+
+    * H2O molecule, GMF, LCAO, SIC: ``h2o_gmf_lcaosic``
+
+    * H2O molecule, MOM, PW, SIC: ``h2o_mom_pwsic``
+
+    * H2O molecule, PW, SIC: ``h2o_pwsic``
+
+    * H2O molecule, MOM, direct optimization, PW: ``h2o_mom_do_pw``
+
+    * CO molecule, MOM, direct optimization,
+      LCAO: ``co_mom_do_lcao_forces``
+
+    * H2O molecule, MOM, direct optimization, LCAO: ``h2o_mom_do_lcao``
+
+    * H2O molecule, PZ localization, PW: ``h2o_pz_localization_pw``
+
+    * C2H4 molecule (ethene), direct optimization, LCAO: ``c2h4_do_lcao``
+
+    * H3 molecule, orthonorm, LCAO: ``h3_orthonorm_lcao``
+
+    * H2 molecule, SIC, SCFSIC: ``h2_sic_scfsic``
+
+    * H atom with magnetic moment: ``h_magmom``
+
+    * H atom, hessian, numerical, PW: ``h_hess_num_pw``
+
+    * H2 molecule breaking, iLCAO: ``h2_break_ilcao``
+
+    * H atom, generalized davidson, LCAO: ``h_do_gdavid_lcao``
+
+    * H2 molecule, MOM, direct optimization, PWH: ``h2_mom_do_pwh``
+
+    * H atom, hessian, numerical, LCAO: ``h_hess_num_lcao``
+
     Files always include wave functions.
     """
     cache = request.config.cache
@@ -238,6 +312,7 @@ class GPAWPlugin:
         from gpaw.mpi import size
         terminalreporter.section('GPAW-MPI stuff')
         terminalreporter.write(f'size: {size}\n')
+        terminalreporter.write(f'debug-mode: {debug}\n')
 
 
 @pytest.fixture
