@@ -1162,11 +1162,10 @@ class SJMPower12Potential(Power12Potential):
                 if nH >= 2:
                     i_all_ox_in_h2o.append(ox)
 
-            # If the number of waters in the water layer is given as an input
-            # (H2O_layer=i) then only the uppermost i water molecules are
-            # regarded for unsolvating the interface (this is relevant if
-            # water is adsorbed on the surface)
-            # if not isinstance(self.H2O_layer, (bool, str)):
+            # If nox is given as an int as is recommended in the case of
+            # multiple water layers or adsorbed water, then only the nox
+            # water molecule counter from the top will define the highest
+            # z-value where the interface is cleaned from implicit solvent
             nox = self.H2O_layer['nox']
             i_ox_in_h2o = []
             if nox != 'all':
