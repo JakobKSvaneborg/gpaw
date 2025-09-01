@@ -1,9 +1,8 @@
 #include "../../gpaw_utils.h"
-
 #include "../gpu.h"
 #include "../gpu-complex.h"
-
 #include "pyarray_utils.hpp"
+#include "array_life_support.hpp"
 
 CLINKAGE
 {
