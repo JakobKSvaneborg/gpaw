@@ -1,13 +1,16 @@
-from ase.units import Hartree, Bohr
-from ase.calculators.calculator import PropertyNotImplementedError
-import numpy as np
-from gpaw.mpi import serial_comm, broadcast_exception, broadcast_float
+import os
 import uuid
 from pathlib import Path
-import os
+
+import numpy as np
+from ase.calculators.calculator import PropertyNotImplementedError
+from ase.units import Bohr, Ha
+
+from gpaw.core import PWArray, UGArray, UGDesc
 from gpaw.dft import ExtensionInput
-from gpaw.new.poisson import PoissonSolver
+from gpaw.mpi import broadcast_exception, broadcast_float, serial_comm
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.poisson import PoissonSolver
 
 
 class Extension:
@@ -136,16 +139,16 @@ class D3(ExtensionInput):
 
                 # XXX params.xc should be taken directly from the calculator.
                 # XXX What if this is changed via set?
-                _self.F_av = atoms.get_forces() / Hartree * Bohr
+                _self.F_av = atoms.get_forces() / Ha * Bohr
 
                 try:
                     # Copy needed because array is not c-contigous
                     _self.stress_vv = atoms.get_stress(voigt=False).copy() \
-                        / Hartree * Bohr**3
+                        / Ha * Bohr**3
                 except PropertyNotImplementedError:
                     _self.stress_vv = np.zeros((3, 3)) * np.nan
 
-                _self.E = atoms.get_potential_energy() / Hartree
+                _self.E = atoms.get_potential_energy() / Ha
                 try:
                     os.unlink('ase_dftd3.out')
                     os.unlink('ase_dftd3.POSCAR')
@@ -162,7 +165,7 @@ class D3(ExtensionInput):
 
             def get_energy(self) -> float:
                 """Returns the energy contribution from D3 in eV"""
-                return self.E * Hartree
+                return self.E * Ha
 
             def force_contribution(self):
                 return self.F_av

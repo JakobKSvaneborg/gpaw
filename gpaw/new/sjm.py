@@ -4,10 +4,10 @@ import numpy as np
 from ase.units import Bohr
 from gpaw.core import UGArray, PWDesc, PWArray
 from gpaw.jellium import create_background_charge
-from gpaw.new.environment import Environment, FixedPotentialJellium, Jellium
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.pw.poisson import PWPoissonSolver
-from gpaw.new.solvation import SolvationEnvironment, Solvation
+from gpaw.new.solvation import SolvationExtension, Solvation
+from gpaw.new.extensions import Extension, Jellium, FixedPotentialJellium
 
 
 class SJM(Solvation):
@@ -33,7 +33,7 @@ class SJM(Solvation):
               grid,
               relpos_ac,
               log,
-              comm) -> SJMEnvironment:
+              comm) -> SJMExtension:
         solvation = super().build(
             setups=setups, grid=grid, relpos_ac=relpos_ac,
             log=log, comm=comm)
@@ -55,7 +55,7 @@ class SJM(Solvation):
                 grid=grid,
                 workfunction=self.target_potential,
                 tolerance=self.tol)
-        return SJMEnvironment(solvation, jellium)
+        return SJMExtension(solvation, jellium)
 
     def todict(self):
         dct = super().todict()
@@ -67,9 +67,9 @@ class SJM(Solvation):
         return dct
 
 
-class SJMEnvironment(Environment):
+class SJMExtension(Extension):
     def __init__(self,
-                 solvation: SolvationEnvironment,
+                 solvation: SolvationExtension,
                  jellium: Jellium):
         super().__init__(solvation.natoms)
         self.solvation = solvation

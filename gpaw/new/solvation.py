@@ -7,10 +7,11 @@ from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from gpaw.solvation.cavity import Cavity
 from gpaw.solvation.dielectric import Dielectric
 from gpaw.solvation.interactions import Interaction
-from gpaw.dft import Parameter, Extension
+from gpaw.dft import ExtensionInput
+from gpaw.new.extensions import Extension
 
 
-class Solvation(Parameter):
+class Solvation(ExtensionInput):
     name = 'solvation'
 
     def __init__(self, cavity, dielectric, interactions=None):

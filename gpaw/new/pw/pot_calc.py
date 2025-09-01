@@ -18,7 +18,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
                  *,
                  relpos_ac,
                  atomdist,
-                 environment,
                  extensions,
                  soc=False,
                  xp=np):
@@ -26,7 +25,6 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self.pw = pw
         super().__init__(xc, poisson_solver, setups,
                          relpos_ac=relpos_ac,
-                         environment=environment,
                          extensions=extensions,
                          soc=soc)
 
@@ -110,7 +108,8 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         else:
             vt0_g = None
 
-        self.environment.update1pw(nt0_g)
+        for ext in self.extensions:
+            ext.update1pw(nt0_g)
 
         Q_aL = density.calculate_compensation_charge_coefficients()
 
