@@ -138,23 +138,23 @@ CLINKAGE PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
         ng *= gpaw::Array_DIM(n_obj, d);
     }
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    double* n_ptr = gpaw::borrow_array<double>(n_obj, borrow_list);
-    double* v_ptr = gpaw::borrow_array<double>(v_obj, borrow_list);
-    double* e_ptr = gpaw::borrow_array<double>(e_obj, borrow_list);
+    double* n_ptr = pinner.borrow_array_data<double>(n_obj);
+    double* v_ptr = pinner.borrow_array_data<double>(v_obj);
+    double* e_ptr = pinner.borrow_array_data<double>(e_obj);
 
     if (PyErr_Occurred())
     {
         return NULL;
     }
 
-    borrow_list.commit();
+    pinner.commit();
 
     evaluate_lda_launch_kernel(nspin, ng,
                                n_ptr, v_ptr, e_ptr);
 
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
 
     Py_RETURN_NONE;
 }
@@ -181,19 +181,19 @@ CLINKAGE PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
         ng *= gpaw::Array_DIM(n_obj, d);
     }
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    double* n_ptr = gpaw::borrow_array<double>(n_obj, borrow_list);
-    double* v_ptr = gpaw::borrow_array<double>(v_obj, borrow_list);
-    double* e_ptr = gpaw::borrow_array<double>(e_obj, borrow_list);
-    double* sigma_ptr = gpaw::borrow_array<double>(sigma_obj, borrow_list);
-    double* dedsigma_ptr = gpaw::borrow_array<double>(dedsigma_obj, borrow_list);
+    double* n_ptr = pinner.borrow_array_data<double>(n_obj);
+    double* v_ptr = pinner.borrow_array_data<double>(v_obj);
+    double* e_ptr = pinner.borrow_array_data<double>(e_obj);
+    double* sigma_ptr = pinner.borrow_array_data<double>(sigma_obj);
+    double* dedsigma_ptr = pinner.borrow_array_data<double>(dedsigma_obj);
     if (PyErr_Occurred())
     {
         return NULL;
     }
 
-    borrow_list.commit();
+    pinner.commit();
 
     evaluate_pbe_launch_kernel(nspin, ng,
                                n_ptr,
@@ -203,7 +203,7 @@ CLINKAGE PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
                                dedsigma_ptr);
 
 
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
 
     Py_RETURN_NONE;
 }
@@ -225,27 +225,27 @@ CLINKAGE PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
         Py_RETURN_NONE;
     }
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    void* dH_aii_dev = gpaw::borrow_array<void>(dH_aii_obj, borrow_list);
+    void* dH_aii_dev = pinner.borrow_array_data<void>(dH_aii_obj);
     if (!dH_aii_dev)
     {
 	PyErr_SetString(PyExc_RuntimeError, "Error in input dH_aii.");
         return NULL;
     }
-    void* P_ani_dev = gpaw::borrow_array<void>(P_ani_obj, borrow_list);
+    void* P_ani_dev = pinner.borrow_array_data<void>(P_ani_obj);
     if (!P_ani_dev)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error in input P_ani.");
         return NULL;
     }
-    void* outP_ani_dev = gpaw::borrow_array<void>(outP_ani_obj, borrow_list);
+    void* outP_ani_dev = pinner.borrow_array_data<void>(outP_ani_obj);
     if (!outP_ani_dev)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error in output outP_ani.");
         return NULL;
     }
-    npy_int32* ni_a = gpaw::borrow_array<npy_int32>(ni_a_obj, borrow_list);
+    npy_int32* ni_a = pinner.borrow_array_data<npy_int32>(ni_a_obj);
     if (!ni_a)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error in input ni_a.");
@@ -266,11 +266,11 @@ CLINKAGE PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    borrow_list.commit();
+    pinner.commit();
 
     dH_aii_times_P_ani_launch_kernel(dtypenum, nA, nn, nI, ni_a, dH_aii_dev, P_ani_dev, outP_ani_dev);
 
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
 
     Py_RETURN_NONE;
 }
@@ -300,37 +300,37 @@ CLINKAGE PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    void *f_Gs = gpaw::borrow_array<void>(f_Gs_obj, borrow_list);
-    void *Y_GL = gpaw::borrow_array<void>(Y_GL_obj, borrow_list);
-    int *l_s = gpaw::borrow_array<int>(l_s_obj, borrow_list);
-    int *a_J = gpaw::borrow_array<int>(a_J_obj, borrow_list);
-    int *s_J = gpaw::borrow_array<int>(s_J_obj, borrow_list);
-    void *f_GI = gpaw::borrow_array<void>(f_GI_obj, borrow_list);
+    void *f_Gs = pinner.borrow_array_data<void>(f_Gs_obj);
+    void *Y_GL = pinner.borrow_array_data<void>(Y_GL_obj);
+    int *l_s = pinner.borrow_array_data<int>(l_s_obj);
+    int *a_J = pinner.borrow_array_data<int>(a_J_obj);
+    int *s_J = pinner.borrow_array_data<int>(s_J_obj);
+    void *f_GI = pinner.borrow_array_data<void>(f_GI_obj);
     int nG = gpaw::Array_DIM(Gk_Gv_obj, 0);
-    int *I_J = gpaw::borrow_array<int>(I_J_obj, borrow_list);
+    int *I_J = pinner.borrow_array_data<int>(I_J_obj);
     int nJ = gpaw::Array_DIM(a_J_obj, 0);
     int nL = gpaw::Array_DIM(Y_GL_obj, 1);
     int nI = gpaw::Array_DIM(f_GI_obj, 1);
     int natoms = gpaw::Array_DIM(pos_av_obj, 0);
     int nsplines = gpaw::Array_DIM(f_Gs_obj, 1);
-    void* Gk_Gv = gpaw::borrow_array<void>(Gk_Gv_obj, borrow_list);
-    void* pos_av = gpaw::borrow_array<void>(pos_av_obj, borrow_list);
-    void* eikR_a = gpaw::borrow_array<void>(eikR_a_obj, borrow_list);
+    void* Gk_Gv = pinner.borrow_array_data<void>(Gk_Gv_obj);
+    void* pos_av = pinner.borrow_array_data<void>(pos_av_obj);
+    void* eikR_a = pinner.borrow_array_data<void>(eikR_a_obj);
     int dtype = get_dtype(f_GI_obj);
     if (PyErr_Occurred())
     {
         return NULL;
     }
 
-    borrow_list.commit();
+    pinner.commit();
 
     pwlfc_expand_gpu_launch_kernel(dtype, f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
                                    l_s, a_J, s_J, f_GI,
                                    I_J, nG, nJ, nL, nI, natoms, nsplines, cc);
 
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
 
     Py_RETURN_NONE;
 }
@@ -349,11 +349,11 @@ CLINKAGE PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    npy_int32 *Q_G = gpaw::borrow_array<npy_int32>(Q_G_obj, borrow_list);
-    void *c_nG = gpaw::borrow_array<void>(c_nG_obj, borrow_list);
-    void *tmp_nQ = gpaw::borrow_array<void>(tmp_nQ_obj, borrow_list);
+    npy_int32 *Q_G = pinner.borrow_array_data<npy_int32>(Q_G_obj);
+    void *c_nG = pinner.borrow_array_data<void>(c_nG_obj);
+    void *tmp_nQ = pinner.borrow_array_data<void>(tmp_nQ_obj);
     int nG = 0;
     int nQ = 0;
     int nb = 0;
@@ -378,7 +378,7 @@ CLINKAGE PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
     int dtypenum = get_dtype(c_nG_obj);
     assert(dtypenum == get_dtype(tmp_nQ_obj));
 
-    borrow_list.commit();
+    pinner.commit();
 
     pw_insert_gpu_launch_kernel(dtypenum,
                                 nb, nG, nQ,
@@ -387,7 +387,7 @@ CLINKAGE PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
                                 scale,
                                 tmp_nQ, rx, ry, rz);
 
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
 
     Py_RETURN_NONE;
 }
@@ -402,10 +402,10 @@ CLINKAGE PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    void *result_x = gpaw::borrow_array<void>(result_x_obj, borrow_list);
-    void *C_xG = gpaw::borrow_array<void>(C_xG_obj, borrow_list);
+    void *result_x = pinner.borrow_array_data<void>(result_x_obj);
+    void *C_xG = pinner.borrow_array_data<void>(C_xG_obj);
     int dtypenum = get_dtype(C_xG_obj);
 
     // Make sure number of dimensions are correct
@@ -425,14 +425,14 @@ CLINKAGE PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    borrow_list.commit();
+    pinner.commit();
 
     pw_norm_gpu_launch_kernel(dtypenum,
                               nx, nG,
                               result_x,
                               C_xG);
 
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
 
     Py_RETURN_NONE;
 }
@@ -445,11 +445,11 @@ CLINKAGE PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
         return NULL;
 
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    void *result_x = gpaw::borrow_array<void>(result_x_obj, borrow_list);
-    void *C_xG = gpaw::borrow_array<void>(C_xG_obj, borrow_list);
-    void *kin_G = gpaw::borrow_array<void>(kin_G_obj, borrow_list);
+    void *result_x = pinner.borrow_array_data<void>(result_x_obj);
+    void *C_xG = pinner.borrow_array_data<void>(C_xG_obj);
+    void *kin_G = pinner.borrow_array_data<void>(kin_G_obj);
     int dtypenum = get_dtype(C_xG_obj);
 
     // Make sure number of dimensions are correct
@@ -472,7 +472,7 @@ CLINKAGE PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    borrow_list.commit();
+    pinner.commit();
 
     pw_norm_kinetic_gpu_launch_kernel(dtypenum,
                                       nx, nG,
@@ -480,7 +480,7 @@ CLINKAGE PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
                                       C_xG,
                                       kin_G);
 
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
     Py_RETURN_NONE;
 }
 
@@ -494,9 +494,9 @@ CLINKAGE PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
         return NULL;
 
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    void *array_nQ = gpaw::borrow_array<void>(array_nQ_obj, borrow_list);
+    void *array_nQ = pinner.borrow_array_data<void>(array_nQ_obj);
     if (gpaw::Array_NDIM(array_nQ_obj) != 4)
     {
         PyErr_SetString(PyExc_RuntimeError, "array_nQ must be of (nb, NGx, NGy, NGz)-shape.");
@@ -512,11 +512,11 @@ CLINKAGE PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
     }
     int dtypenum = get_dtype(array_nQ_obj);
 
-    borrow_list.commit();
+    pinner.commit();
 
     pw_amend_insert_realwf_gpu_launch_kernel(dtypenum, nb, nx, ny, nz, n, m, array_nQ);
 
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
     Py_RETURN_NONE;
 }
 
@@ -530,11 +530,11 @@ CLINKAGE PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
         return NULL;
     int dtypenum = get_dtype(psit_nR_obj);
 
-    gpaw::ArrayBorrowList borrow_list;
+    gpaw::PyObjectPinner pinner;
 
-    double *f_n = gpaw::borrow_array<double>(f_n_obj, borrow_list);
-    void *psit_nR = gpaw::borrow_array<void>(psit_nR_obj, borrow_list);
-    void *rho_R = gpaw::borrow_array<void>(rho_R_obj, borrow_list);
+    double *f_n = pinner.borrow_array_data<double>(f_n_obj);
+    void *psit_nR = pinner.borrow_array_data<void>(psit_nR_obj);
+    void *rho_R = pinner.borrow_array_data<void>(rho_R_obj);
     int nb = gpaw::Array_SIZE(f_n_obj);
     int nR = gpaw::Array_SIZE(psit_nR_obj) / nb;
 
@@ -548,10 +548,10 @@ CLINKAGE PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
         return NULL;
     }
 
-    borrow_list.commit();
+    pinner.commit();
 
     add_to_density_gpu_launch_kernel(nb, nR, f_n, psit_nR, rho_R, dtypenum);
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
 
     Py_RETURN_NONE;
 }
@@ -564,10 +564,10 @@ CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
                           &residual_nG_obj, &eps_n_obj, &wf_nG_obj))
         return NULL;
 
-    gpaw::ArrayBorrowList borrow_list;
-    void *residual_nG = gpaw::borrow_array<void>(residual_nG_obj, borrow_list);
-    void* eps_n = gpaw::borrow_array<void>(eps_n_obj, borrow_list);
-    void *wf_nG = gpaw::borrow_array<void>(wf_nG_obj, borrow_list);
+    gpaw::PyObjectPinner pinner;
+    void *residual_nG = pinner.borrow_array_data<void>(residual_nG_obj);
+    void* eps_n = pinner.borrow_array_data<void>(eps_n_obj);
+    void *wf_nG = pinner.borrow_array_data<void>(wf_nG_obj);
     int nn = gpaw::Array_DIM(residual_nG_obj, 0);
     int nG = 1;
     for (int d=1; d<gpaw::Array_NDIM(residual_nG_obj); d++)
@@ -581,10 +581,10 @@ CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
     int dtypenum = get_dtype(residual_nG_obj);
     assert_corresponding_real(dtypenum, eps_n_obj);
 
-    borrow_list.commit();
+    pinner.commit();
 
     calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG);
-    borrow_list.schedule_array_unuse(0);
+    pinner.schedule_unpin(0);
 
     Py_RETURN_NONE;
 }

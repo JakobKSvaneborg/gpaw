@@ -32,7 +32,7 @@ void TFree(T* ptr)
 template <typename F>
 void gpu_host_callback(gpuStream_t stream, F&& func)
 {
-    // Need to wrap an arbitrary function/lambda in a format that gpuLaunchHostFunc can accept
+    // Need to wrap the input function in a format that gpuLaunchHostFunc can accept
 
     using FuncType = std::function<void()>;
     auto *heapFunc = new FuncType(std::forward<F>(func));
@@ -41,6 +41,7 @@ void gpu_host_callback(gpuStream_t stream, F&& func)
     {
         std::unique_ptr<FuncType> fn(static_cast<FuncType*>(data));
         (*fn)();
+        // heapFunc deleted when the unique_ptr goes out of scope
     };
 
     gpuLaunchHostFunc(stream, trampoline, heapFunc);

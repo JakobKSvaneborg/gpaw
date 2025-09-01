@@ -8,24 +8,30 @@
 namespace gpaw
 {
 
+namespace life_support
+{
+// Global cache for storing objects that have pending unpin/decref
+static std::vector<PyObject*> g_pending_decrefs; // should this be volatile?!
+static std::mutex g_pending_decrefs_mutex;
+
 #ifdef GPAW_GPU_ARRAY_DEBUG
-static int g_arrays_in_use = 0;
+static size_t g_arrays_in_use = 0;
 #endif
 
-std::mutex g_pending_decrefs_mutex;
-std::vector<PyObject*> g_pending_decrefs; // should this be volatile?!
+} // namespace life_support
+
 
 CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
 {
-    if (g_pending_decrefs.empty())
+    if (life_support::g_pending_decrefs.empty())
     {
         Py_RETURN_NONE;
     }
 
     std::vector<PyObject*> local_pending_decrefs;
     {
-        std::lock_guard<std::mutex> lock(g_pending_decrefs_mutex);
-        local_pending_decrefs.swap(g_pending_decrefs);
+        std::lock_guard<std::mutex> lock(life_support::g_pending_decrefs_mutex);
+        local_pending_decrefs.swap(life_support::g_pending_decrefs);
     }
 
     for (PyObject* obj : local_pending_decrefs)
@@ -36,57 +42,54 @@ CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-ArrayBorrowList::ArrayBorrowList()
+
+PyObjectPinner::PyObjectPinner()
 {
 }
 
-ArrayBorrowList::ArrayBorrowList(size_t reserve_count)
+PyObjectPinner::PyObjectPinner(size_t reserve_count)
 {
-    borrowed_objects.reserve(reserve_count);
+    objects.reserve(reserve_count);
 }
 
-void ArrayBorrowList::add(PyObject* obj)
+void PyObjectPinner::commit()
 {
-    assert(Array_DATA<void>(obj) != nullptr && "Tried to borrow from invalid array");
-    borrowed_objects.push_back(obj);
-}
+#ifdef GPAW_GPU_ARRAY_DEBUG
+    assert(!has_committed && "Can't commit object pinning twice");
+    has_committed = true;
+#endif
 
-void ArrayBorrowList::commit()
-{
-    for (PyObject* obj : borrowed_objects)
+    for (PyObject* obj : objects)
     {
         Py_INCREF(obj);
     }
 }
 
-void ArrayBorrowList::flush()
+void PyObjectPinner::schedule_unpin(gpuStream_t stream)
 {
-    for (PyObject* obj : borrowed_objects)
-    {
-        Py_DECREF(obj);
-    }
-    borrowed_objects.clear();
-}
 
-void ArrayBorrowList::schedule_array_unuse(gpuStream_t stream)
-{
-    if (borrowed_objects.empty())
+#ifdef GPAW_GPU_ARRAY_DEBUG
+    assert(has_committed && "You are calling schedule_unpin() without committing the pinning first");
+#endif
+
+    if (objects.empty())
     {
         return;
     }
 
-    auto wrapper = [vec_copy = std::move(borrowed_objects)]() mutable
+    // Move the stored pointers to a lambda so the callback works even if this calling object has been destroyed
+    auto wrapper = [vec_copy = std::move(objects)]() mutable
     {
-
-        std::lock_guard<std::mutex> lock(g_pending_decrefs_mutex);
+        // Add our pointers to the global cache of pending unpins
+        std::lock_guard<std::mutex> lock(life_support::g_pending_decrefs_mutex);
         for (PyObject* obj : vec_copy)
         {
-            g_pending_decrefs.push_back(obj);
+            life_support::g_pending_decrefs.push_back(obj);
         }
     };
 
     gpu_host_callback(stream, wrapper);
-    borrowed_objects.clear();
+    assert(objects.empty());
 }
 
 } // namespace gpaw
