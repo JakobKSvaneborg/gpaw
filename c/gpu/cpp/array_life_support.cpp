@@ -89,7 +89,6 @@ void PyObjectPinner::schedule_unpin(gpuStream_t stream)
     };
 
     gpu_host_callback(stream, wrapper);
-    assert(objects.empty());
 }
 
 } // namespace gpaw
