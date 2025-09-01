@@ -18,7 +18,7 @@ CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
 {
     if (g_pending_decrefs.empty())
     {
-        return;
+        Py_RETURN_NONE;
     }
 
     std::vector<PyObject*> local_pending_decrefs;
