@@ -17,8 +17,6 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
 
-from gpaw.cgpaw import flush_pending_decrefs
-
 
 class TooFewBandsError(KohnShamConvergenceError):
     """Not enough bands for CBM+x convergence criterion."""
@@ -112,8 +110,6 @@ class SCFLoop:
 
             if log:
                 write_iteration(cc, converged_items, entries, ctx, log)
-
-            flush_pending_decrefs()
 
             if converged:
                 converged = pot_calc.environment.post_scf_convergence(

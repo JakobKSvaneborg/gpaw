@@ -16,6 +16,11 @@ std::vector<PyObject*> g_pending_decrefs;
 
 CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
 {
+    if (g_pending_decrefs.empty())
+    {
+        return;
+    }
+
     std::vector<PyObject*> local_pending_decrefs;
     {
         std::lock_guard<std::mutex> lock(g_pending_decrefs_mutex);
@@ -26,8 +31,6 @@ CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
     {
         Py_DECREF(obj);
     }
-
-    printf("pending decrefs flushed\n");
 
     Py_RETURN_NONE;
 }

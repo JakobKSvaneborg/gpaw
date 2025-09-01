@@ -398,7 +398,7 @@ static PyMethodDef functions[] = {
     {"_eigh_magma_gpu", eigh_magma_gpu, METH_VARARGS, 0},
     #endif // GPAW_WITH_MAGMA
 
-    {"flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
+    {"_flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
 
 #endif // GPAW_GPU
 
