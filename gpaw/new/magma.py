@@ -2,12 +2,14 @@ import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy as cp, cupy_is_fake
 import numpy as np
 from gpaw.gpu.cpupy import asnumpy
+from gpaw.utilities import as_real_dtype
 
 
 def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray,
                                                            np.ndarray]:
     """
     Wrapper for MAGMA symmetric/Hermitian eigensolvers, CPU version.
+    Same conventions for input/output as in numpy.linalg.eigh().
 
     Parameters
     ----------
@@ -28,14 +30,8 @@ def eigh_magma_cpu(matrix: np.ndarray, UPLO: str) -> tuple[np.ndarray,
 
     assert cgpaw.have_magma, "Must compile with MAGMA support"
 
-    if matrix.dtype == np.complex128:
-        eigvals, eigvects = cgpaw.eigh_magma_zheevd(matrix, UPLO)
-
-    elif matrix.dtype == np.float64:
-        eigvals, eigvects = cgpaw.eigh_magma_dsyevd(matrix, UPLO)
-
-    else:
-        raise TypeError("Unsupported matrix dtype")
+    # The internal function handles output array creation
+    eigvals, eigvects = cgpaw._eigh_magma_cpu(matrix, UPLO)
 
     # MAGMA eigenvectors are on rows, numpy/cupy has them on columns
     return eigvals, np.conjugate(eigvects).T
@@ -45,6 +41,7 @@ def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray,
                                                            cp.ndarray]:
     """
     Wrapper for MAGMA symmetric/Hermitian eigensolvers, GPU version.
+    Same conventions for input/output as in numpy.linalg.eigh().
 
     Parameters
     ----------
@@ -72,26 +69,16 @@ def eigh_magma_gpu(matrix: cp.ndarray, UPLO: str) -> tuple[cp.ndarray,
 
     # Alloc output arrays with CUPY.
     # Necessary because the C code has no easy access to CUPY array creation
-
     eigvects = cp.empty_like(matrix)
+
     # Only symmetric/Hermitian matrices supported for now,
     # so eigenvalues are always real
-    eigvals = cp.empty((matrix.shape[0],), dtype=np.float64)
+    eigval_dtype = as_real_dtype(matrix.dtype)
 
-    if matrix.dtype == np.complex128:
-        cgpaw.eigh_magma_zheevd_gpu(matrix,
-                                    UPLO,
-                                    eigvals,
-                                    eigvects)
+    eigvals = cp.empty((matrix.shape[0]), dtype=eigval_dtype)
 
-    elif matrix.dtype == np.float64:
-        cgpaw.eigh_magma_dsyevd_gpu(matrix,
-                                    UPLO,
-                                    eigvals,
-                                    eigvects)
-
-    else:
-        raise TypeError("Unsupported matrix dtype")
+    # Will throw if matrix dtype is unsupported
+    cgpaw._eigh_magma_gpu(matrix, UPLO, eigvals, eigvects)
 
     # MAGMA eigenvectors are on rows, numpy/cupy has them on columns
     return eigvals, cp.conjugate(eigvects).T
