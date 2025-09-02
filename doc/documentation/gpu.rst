@@ -175,7 +175,7 @@ object can do its operations on the GPU.
 
 
 Building GPAW with MAGMA support
-==============================
+================================
 
 .. _MAGMA: https://icl.utk.edu/magma/
 
