@@ -274,8 +274,6 @@ class DFTComponentsBuilder:
             np.linalg.inv(self.atoms.cell.complete()).T)
 
     def create_poisson_solver(self, extensions):
-        psparams = self.params.poissonsolver.params
-        assert not psparams
         poisson_solvers = []
         for ext in extensions:
             ps = ext.create_poisson_solver(
@@ -287,6 +285,8 @@ class DFTComponentsBuilder:
         if not poisson_solvers:
             raise NotImplementedError
         assert len(poisson_solvers) == 1
+        psparams = self.params.poissonsolver.params
+        assert not psparams
         return poisson_solvers[0]
 
     def create_ibz_wave_functions(self,

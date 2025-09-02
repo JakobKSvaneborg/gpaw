@@ -10,9 +10,9 @@ class Spring:
     def __init__(self, *, a1, a2, l, k):
         self.a1, self.a2, self.l, self.k = a1, a2, l, k
 
-    def build(self, atoms, domain_comm, log):
-        atoms = atoms.copy()
-        log('Building Spring')
+    def build(self, builder):
+        atoms = builder.atoms.copy()
+        builder.log('Building Spring')
 
         class EnergyAdder(Extension):
             name = 'spring'

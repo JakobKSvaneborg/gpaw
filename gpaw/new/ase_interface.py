@@ -340,10 +340,6 @@ class ASECalculator:
                          precision=precision, include_wfs=mode == 'all')
         write_gpw(filename, self.dft, flags=flags)
 
-    @property
-    def environment(self):
-        return self.dft.pot_calc.environment
-
     # Old API:
 
     implemented_properties = ['energy', 'free_energy',
@@ -391,7 +387,7 @@ class ASECalculator:
     def get_number_of_electrons(self):
         density = self.dft.density
         return (density.nvalence - density.charge +
-                self.dft.pot_calc.environment.charge)
+                self.dft.pot_calc.charge)
 
     def get_number_of_bands(self):
         return self.dft.ibzwfs.nbands

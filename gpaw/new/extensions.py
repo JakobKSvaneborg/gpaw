@@ -41,7 +41,6 @@ class Extension:
         return 0.0
 
     def build(self, builder):
-        1 / 0
         return self
 
     def create_poisson_solver(self,
@@ -198,9 +197,12 @@ class Jellium(ExtensionInput):
     def todict(self):
         return {'charge': self.charge}
 
-    def build(self, builder: DFTComponentsBuilder):
-        mask_r = builder.fine_grid.empty()
+    def update_mask(self, mask_r) -> None:
         mask_r.data[:] = 1.0
+
+    def build(self, builder: DFTComponentsBuilder):
+        mask_r = builder.fine_grid.zeros()
+        self.update_mask(mask_r)
         # PW-mode needs this one:
         pw = builder.electrostatic_potential_desc
         return JelliumExtension(mask_r, charge=self.charge, pw=pw)
