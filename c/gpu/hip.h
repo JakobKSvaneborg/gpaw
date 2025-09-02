@@ -138,6 +138,7 @@ __host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipConj(XXXhipDoubl
 #endif
 
 
+#define gpuGetLastError()         hipGetLastError()
 #define gpuCheckLastError()       gpuSafeCall(hipGetLastError())
 #define gpuGetErrorString(err)    hipGetErrorString(err)
 

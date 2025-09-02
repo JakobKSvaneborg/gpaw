@@ -34,6 +34,7 @@
 #define gpuCmulf                  cuCmulf
 #define gpuConj                   cuConj
 
+#define gpuGetLastError()         cudaGetLastError()
 #define gpuCheckLastError()       gpuSafeCall(cudaGetLastError())
 #define gpuGetErrorString(err)    cudaGetErrorString(err)
 

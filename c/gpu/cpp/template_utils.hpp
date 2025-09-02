@@ -4,7 +4,9 @@
 #error "Need C++"
 #endif
 
+#include "../../gpaw_utils.h"
 #include "../gpu-runtime.h"
+
 #include <functional>
 #include <memory>
 
@@ -45,6 +47,37 @@ void gpu_host_callback(gpuStream_t stream, F&& func)
     };
 
     gpuLaunchHostFunc(stream, trampoline, heapFunc);
+}
+
+#define GPAW_LAUNCH_KERNEL(kernel, blocks, threads, shmem, stream, ...) \
+    gpaw::launch_kernel_impl(#kernel, __FILE__, __LINE__, kernel, blocks, threads, shmem, stream, __VA_ARGS__)
+
+template<typename Kernel, typename... Args>
+void launch_kernel_impl(
+    const char *kernel_name,
+    const char *file,
+    int32_t line,
+    Kernel kernel,
+    dim3 blocks,
+    dim3 threads,
+    size_t shmem_bytes,
+    gpuStream_t stream,
+    Args... args
+)
+{
+    // NB: kernel error checking is different in CUDA/HIP, and changes in ROCm 7.0.
+    // So this should be revisited at some point.
+    gpuLaunchKernel(kernel, blocks, threads, shmem_bytes, stream, std::forward<Args>(args)...);
+    // Check kernel launch
+    gpuError_t status = gpuGetLastError();
+    if (status != gpuSuccess)
+    {
+        printf("Kernel launch error with \"%s\" in %s at line %d:\n%s\n",
+            kernel_name, file, line, gpuGetErrorString(status)
+        );
+        fflush(stdout);
+        gpaw_set_runtime_error(gpuGetErrorString(status));
+    }
 }
 
 } // namespace gpaw
