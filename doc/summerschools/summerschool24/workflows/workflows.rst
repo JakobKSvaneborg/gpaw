@@ -119,10 +119,10 @@ ASE concepts like atoms and calculators.  What the function does is:
  * Attach a GPAW calculator to the atoms
  * Create a
    `Frechet cell filter
-   <https://wiki.fysik.dtu.dk/ase/ase/filters.html#the-frechetcellfilter-class>`_
+   <https://ase-lib.org/ase/filters.html#the-frechetcellfilter-class>`_
    which exposes the cell degrees
    of freedom and stresses to an optimizer
- * Run a `BFGS <https://wiki.fysik.dtu.dk/ase/ase/optimize.html#bfgs>`_
+ * Run a `BFGS <https://ase-lib.org/ase/optimize.html#bfgs>`_
    optimization algorithm on the Frechet cell filter.
 
 It also tells the optimizer to write a trajectory file, ``opt.traj``.

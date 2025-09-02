@@ -399,7 +399,7 @@ test-latest:
       EOF
 
     - >
-      pytest -v -m "ci or gpu"
+      GPAW_DEBUG=1 pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
 
   artifacts:
@@ -417,7 +417,7 @@ test-latest-new:
     - build-latest
   script:
     - gpaw info
-    - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
+    - GPAW_DEBUG=1 GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
 
 
 test-minimal:
@@ -686,6 +686,7 @@ nightly-mpi-2:
 nightly-mpi-4:
   variables:
     GPAW_MPI_NPROCS: "4"
+    GPAW_DEBUG: "1"
   extends:
     - .nightly
 
@@ -733,6 +734,7 @@ nightly-mpi-4-new:
     - .nightly-mpi-new
   variables:
     GPAW_MPI_NPROCS: "4"
+    GPAW_DEBUG: "1"
 
 
 nightly-mpi-8-new:

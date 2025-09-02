@@ -323,7 +323,8 @@ def create_parameters(modes: list[str],
             else:
                 kpts = kpt
                 ktag = f'-k{"x".join(str(k) for k in kpt)}'
-            yield {'mode': mode,
+            yield {'eigensolver': 'davidson' if mode == 'pw' else None,
+                   'mode': mode,
                    'kpts': kpts}, f'-m{mode} {ktag}'
 
 

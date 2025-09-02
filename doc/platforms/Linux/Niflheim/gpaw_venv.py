@@ -77,11 +77,16 @@ module load libvdwxc/0.4.0-{fullchain}
 }
 
 module_cmds_arch_dependent = """\
-if ( [ "$CPU_ARCH" == "icelake" ] || [ "$CPU_ARCH" == "skylake_el8" ] )\
- && [ {fullchain} == "foss-2023a" ];\
+if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2023a" ];\
+then module load CuPy/13.0.0-{fullchain}-CUDA-12.1.1;fi
+if [ "$CPU_ARCH" == "skylake_el8" ] && [ {fullchain} == "foss-2023a" ];\
 then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
 if [ "$SLURM_JOB_PARTITION" == "a100" ] \
- || [ "$SLURM_JOB_PARTITION" == "sm3090el8" ];\
+ || [ "$SLURM_JOB_PARTITION" == "a100_week" ] \
+ || [ "$SLURM_JOB_PARTITION" == "sm3090el8" ] \
+ || [ "$SLURM_JOB_PARTITION" == "sm3090el8_768" ] \
+ || [ "$SLURM_JOB_PARTITION" == "sm3090_devel" ] \
+ || [ "$SLURM_JOB_PARTITION" == "h200" ];\
 then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 """
 
@@ -217,7 +222,10 @@ def main():
 
     def run_benchmarks():
         benchmarkworkflow = gpaw / 'gpaw/benchmark/niflheim-myqueue.py'
-        run(f'. {activate} && mkdir benchmarks-{args.gpaw_branch} && cd benchmarks-{args.gpaw_branch} && mq workflow {benchmarkworkflow}')
+        run(f'. {activate} && '
+            f'mkdir benchmarks-{args.gpaw_branch} && '
+            f'cd benchmarks-{args.gpaw_branch} && '
+            f'mq workflow {benchmarkworkflow}')
 
     if args.recompile:
         compile_gpaw_c_code(gpaw, activate, intel_only)
@@ -327,19 +335,10 @@ def main():
 
     # Tab completion:
     for cmd in ['ase', 'gpaw', 'mq', 'pip']:
-        if cmd == 'gpaw':
-            # Currently, running the "gpaw" command writes warning message
-            # to stdout, so "gpaw completion" does not work!
-            continue
         txt = run(f'. {activate} && {cmd} completion' +
                   (' --bash' if cmd == 'pip' else ''),
                   capture_output=True).stdout.decode()
         extra += txt
-
-    # gpaw-hack:
-    python = venv / 'bin/python3'
-    complete = venv / 'gpaw/gpaw/cli/complete.py'
-    extra += f'complete -o default -C "{python} {complete}" gpaw\n'
 
     activate.write_text(activate.read_text() + extra)
 

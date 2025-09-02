@@ -264,9 +264,9 @@ individual atoms in the ``slab`` object by clicking on them.
 
 You might also find the
 [`get_center_of_mass()`](
-    https://wiki.fysik.dtu.dk/ase/ase/atoms.html#ase.Atoms.get_center_of_mass)
+    https://ase-lib.org/ase/atoms.html#ase.Atoms.get_center_of_mass)
 and
-[`rotate()`](https://wiki.fysik.dtu.dk/ase/ase/atoms.html#ase.Atoms.rotate)
+[`rotate()`](https://ase-lib.org/ase/atoms.html#ase.Atoms.rotate)
 methods useful.
 """
 
