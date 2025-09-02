@@ -57,17 +57,29 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.grid, self.relpos_ac, atomdist=self.atomdist)
         return self._tauct_aR
 
+    def create_poisson_solver(self, extensions):
+        from gpaw.poisson import PoissonSolver as make_poisson_solver
+        try:
+            solver = super().create_poisson_solver(extensions)
+        except NotImplementedError:
+            solver = make_poisson_solver(
+                **self.params.poissonsolver.params,
+                xp=self.xp).build(self.fine_grid, self.xp)
+        return solver
+
     def create_potential_calculator(self):
-        env = self.create_environment(self.fine_grid)
-        poisson_solver = env.create_poisson_solver(
-            grid=self.fine_grid, xp=self.xp,
-            solver=self.params.poissonsolver)
+        extensions = self.get_extensions()
+        poisson_solver = self.create_poisson_solver(extensions)
         return FDPotentialCalculator(
-            self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
-            relpos_ac=self.relpos_ac, atomdist=self.atomdist,
+            self.grid,
+            self.fine_grid,
+            self.setups,
+            self.xc,
+            poisson_solver,
+            relpos_ac=self.relpos_ac,
+            atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
-            environment=env,
-            extensions=self.get_extensions(),
+            extensions=extensions,
             xp=self.xp)
 
     def create_hamiltonian_operator(self):

@@ -5,10 +5,10 @@ from pathlib import Path
 import numpy as np
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.units import Bohr, Ha
-
-from gpaw.core import PWArray, UGArray, UGDesc
+from gpaw.core import PWArray, PWDesc, UGArray
 from gpaw.dft import ExtensionInput
 from gpaw.mpi import broadcast_exception, broadcast_float, serial_comm
+from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.poisson import PoissonSolver
 
@@ -37,13 +37,17 @@ class Extension:
                                      dH_sii) -> float:
         return 0.0
 
-    def build(self, atoms, comms, log):
+    def build(self, builder):
         1 / 0
         return self
 
-    def create_poisson_solver(self, *, grid, xp, solver) -> PoissonSolver:
-        1 / 0
-        return solver.build(grid=grid, xp=xp)
+    def create_poisson_solver(self,
+                              grid,
+                              pw,
+                              *,
+                              charge,
+                              xp) -> PoissonSolver | None:
+        return None
 
     def post_scf_convergence(self,
                              ibzwfs: IBZWaveFunctions,
@@ -77,10 +81,11 @@ class D3(ExtensionInput):
     def todict(self) -> dict:
         return {'xc': self.xc, **self.kwargs}
 
-    def build(self, atoms, communicators, log):
-        atoms = atoms.copy()
-        world = communicators['w']
+    def build(self, builder: DFTComponentsBuilder):
         from ase.calculators.dftd3 import PureDFTD3
+        atoms = builder.atoms.copy()
+        world = builder.communicators['w']
+        log = builder.log
 
         # Since DFTD3 is filesystem based, and GPAW has no such requirements
         # we need to be absolutely sure that there are no race-conditions
@@ -184,43 +189,56 @@ class D3(ExtensionInput):
 
 class Jellium(ExtensionInput):
     def __init__(self,
-                 jellium,
-                 natoms: int,
-                 grid: UGDesc):
-        super().__init__(natoms)
-        self.grid = grid
-        self.charge = jellium.charge
-        self.mask_r = grid.from_data(jellium.mask_g / jellium.volume)
-        self.mask_g: PWArray | str = 'undefined'
+                 charge: float):
+        self.charge = charge
+
+    def todict(self):
+        return {'charge': self.charge}
+
+    def build(self, builder: DFTComponentsBuilder):
+        mask_r = builder.fine_grid.empty()
+        mask_r.data[:] = 1.0
+        # PW-mode needs this one:
+        pw = builder.electrostatic_potential_desc
+        return JelliumExtension(self.charge, mask_r,
+                                pw if isinstance(pw, PWDesc) else None)
+
+
+class JelliumExtension(Extension):
+    def __init__(self,
+                 charge: float,
+                 mask_r: UGArray,
+                 pw: PWDesc | None = None):
+        self.charge = charge
+        self.mask_r = mask_r
+        mask_r.data *= 1.0 / mask_r.integrate()
+        self.mask_g = None
+        if pw is not None:
+            mask_r = mask_r.gather()
+            if mask_r is not None:
+                self.mask_g = mask_r.fft(pw=pw)
 
     def update1(self, nt_r: UGArray) -> None:
         nt_r.data -= self.mask_r.data * self.charge
 
     def update1pw(self, nt_g: PWArray | None) -> None:
-        if self.mask_g == 'undefined':
-            mask_r = self.mask_r.gather()
-            if nt_g is not None:
-                self.mask_g = mask_r.fft(pw=nt_g.desc)
-            else:
-                self.mask_g = 'ready'
         if nt_g is None:
-            return
-        assert not isinstance(self.mask_g, str)
+            return  # only rank-0 needs to do anything
+        assert self.mask_g is not None
         nt_g.data -= self.mask_g.data * self.charge
 
 
-class FixedPotentialJellium(Jellium):
+class FixedPotentialJelliumExtension(JelliumExtension):
     def __init__(self,
-                 jellium,
-                 natoms: int,
-                 grid: UGDesc,
-                 workfunction: float,  # eV
-                 tolerance: float = 0.001):  # eV
+                 mask_r: UGArray,
+                 workfunction_target: float,  # eV
+                 tolerance: float = 0.001,  # eV
+                 pw: PWDesc | None = None):
         """Adjust jellium charge to get the desired Fermi-level."""
-        super().__init__(jellium, natoms, grid)
-        self.workfunction = workfunction / Ha
+        super().__init__(np.nan, mask_r, pw)
+        self.workfunction_target = workfunction_target / Ha
         self.tolerance = tolerance / Ha
-        # Charge, Fermi-level history:
+        # (Charge, Fermi-level) history:
         self.history: list[tuple[float, float]] = []
 
     def post_scf_convergence(self,
@@ -231,12 +249,12 @@ class FixedPotentialJellium(Jellium):
                              log) -> bool:
         fl1 = ibzwfs.fermi_level
         log(f'charge: {self.charge:.6f} |e|, Fermi-level: {fl1 * Ha:.3f} eV')
-        fl = -self.workfunction
+        fl = -self.workfunction_target
         if abs(fl1 - fl) <= self.tolerance:
             return True
         self.history.append((self.charge, fl1))
         if len(self.history) == 1:
-            area = abs(np.linalg.det(self.grid.cell_cv[:2, :2]))
+            area = abs(np.linalg.det(self.mask_r.desc.cell_cv[:2, :2]))
             dc = -(fl1 - fl) * area * 0.02
         else:
             (c2, fl2), (c1, fl1) = self.history[-2:]

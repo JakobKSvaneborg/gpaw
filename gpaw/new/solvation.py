@@ -9,6 +9,7 @@ from gpaw.solvation.dielectric import Dielectric
 from gpaw.solvation.interactions import Interaction
 from gpaw.dft import ExtensionInput
 from gpaw.new.extensions import Extension
+from gpaw.new.builder import DFTComponentsBuilder
 
 
 class Solvation(ExtensionInput):
@@ -28,18 +29,16 @@ class Solvation(ExtensionInput):
                     {'name': i.__class__.__name__, **i.todict()}
                     for i in self.interactions]}
 
-    def build(self,
-              setups,
-              grid,
-              relpos_ac,
-              log,
-              comm):
+    def build(self, builder: DFTComponentsBuilder):
         return SolvationExtension(
             cavity=self.cavity,
             dielectric=self.dielectric,
             interactions=self.interactions,
-            setups=setups, grid=grid, relpos_ac=relpos_ac,
-            log=log, comm=comm)
+            setups=builder.setups,
+            grid=builder.fine_grid,
+            relpos_ac=builder.relpos_ac,
+            log=builder.log,
+            comm=builder.communicators['w'])
 
 
 class SolvationExtension(Extension):
@@ -79,7 +78,12 @@ class SolvationExtension(Extension):
     def interaction_energy(self):
         return self.e_interactions * Ha
 
-    def create_poisson_solver(self, grid, *, xp, **kwargs) -> PoissonSolver:
+    def create_poisson_solver(self,
+                              grid,
+                              pw,
+                              *,
+                              charge,
+                              xp) -> PoissonSolver:
         psolver = WeightedFDPoissonSolver()
         psolver.set_dielectric(self.dielectric)
         psolver.set_grid_descriptor(self.grid._gd)

@@ -381,11 +381,6 @@ class PoissonSolver(Parameter):
             return PoissonSolver(ps)
         return ps
 
-    def build(self, *, grid, xp=np):
-        from gpaw.poisson import PoissonSolver as make_poisson_solver
-        solver = make_poisson_solver(**self.params, xp=xp)
-        return solver.build(grid, xp)
-
 
 def array_or_none(a):
     if a is None:
