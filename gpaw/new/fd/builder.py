@@ -62,8 +62,11 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         try:
             solver = super().create_poisson_solver(extensions)
         except NotImplementedError:
+            psparams = self.params.poissonsolver.params
+            if not isinstance(psparams, dict):
+                psparams = {'name': psparams}
             solver = make_poisson_solver(
-                **self.params.poissonsolver.params,
+                **psparams,
                 xp=self.xp).build(self.fine_grid, self.xp)
         return solver
 
