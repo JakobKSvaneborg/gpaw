@@ -6,6 +6,7 @@ import numpy as np
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.units import Bohr, Ha
 from gpaw.core import PWArray, PWDesc, UGArray
+from gpaw.core.domain import Domain
 from gpaw.dft import ExtensionInput
 from gpaw.mpi import broadcast_exception, broadcast_float, serial_comm
 from gpaw.new.builder import DFTComponentsBuilder
@@ -200,20 +201,20 @@ class Jellium(ExtensionInput):
         mask_r.data[:] = 1.0
         # PW-mode needs this one:
         pw = builder.electrostatic_potential_desc
-        return JelliumExtension(self.charge, mask_r,
-                                pw if isinstance(pw, PWDesc) else None)
+        return JelliumExtension(mask_r, charge=self.charge, pw=pw)
 
 
 class JelliumExtension(Extension):
     def __init__(self,
-                 charge: float,
                  mask_r: UGArray,
-                 pw: PWDesc | None = None):
+                 *,
+                 charge: float,
+                 pw: Domain):
         self.charge = charge
         self.mask_r = mask_r
         mask_r.data *= 1.0 / mask_r.integrate()
         self.mask_g = None
-        if pw is not None:
+        if isinstance(pw, PWDesc):
             mask_r = mask_r.gather()
             if mask_r is not None:
                 self.mask_g = mask_r.fft(pw=pw)
@@ -231,11 +232,12 @@ class JelliumExtension(Extension):
 class FixedPotentialJelliumExtension(JelliumExtension):
     def __init__(self,
                  mask_r: UGArray,
+                 *,
+                 pw: Domain,
                  workfunction_target: float,  # eV
-                 tolerance: float = 0.001,  # eV
-                 pw: PWDesc | None = None):
+                 tolerance: float = 0.001):  # eV
         """Adjust jellium charge to get the desired Fermi-level."""
-        super().__init__(np.nan, mask_r, pw)
+        super().__init__(mask_r, charge=np.nan, pw=pw)
         self.workfunction_target = workfunction_target / Ha
         self.tolerance = tolerance / Ha
         # (Charge, Fermi-level) history:

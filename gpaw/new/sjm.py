@@ -3,9 +3,8 @@ from __future__ import annotations
 import numpy as np
 from ase.units import Bohr
 from gpaw.core import PWArray, PWDesc, UGArray
-from gpaw.jellium import create_background_charge
 from gpaw.new.extensions import (Extension, FixedPotentialJelliumExtension,
-                                 Jellium)
+                                 JelliumExtension)
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.pw.poisson import PWPoissonSolver
 from gpaw.new.solvation import Solvation, SolvationExtension
@@ -35,23 +34,23 @@ class SJM(Solvation):
         grid = builder.fine_grid
         relpos_ac = builder.relpos_ac
         h = grid.cell_cv[2, 2] * Bohr
-        z1 = relpos_ac[:, 2].max() * h + 3.0
-        z2 = self.jelliumregion.get('top', h - 1.0)
-        background = create_background_charge(charge=self.excess_electrons,
-                                              z1=z1,
-                                              z2=z2)
-        background.set_grid_descriptor(grid._gd)
+        z1 = relpos_ac[:, 2].max() * h + 3.0  # Å
+        z2 = self.jelliumregion.get('top', h - 1.0)  # Å
+        mask_r = grid.empty()
+        R_rv = grid.xyz()
+        mask_r.data[:] = np.logical_and(R_rv[:, :, :, 2] > z1 / Bohr,
+                                        R_rv[:, :, :, 2] < z2 / Bohr)
         if self.target_potential is None:
-            jellium = Jellium(background,
-                              natoms=len(relpos_ac),
-                              grid=grid)
+            jellium = JelliumExtension(
+                mask_r,
+                charge=self.excess_electrons,
+                pw=builder.electrostatic_potential_desc)
         else:
             jellium = FixedPotentialJelliumExtension(
-                background,
-                natoms=len(relpos_ac),
-                grid=grid,
-                workfunction=self.target_potential,
-                tolerance=self.tol)
+                mask_r,
+                workfunction_target=self.target_potential,
+                tolerance=self.tol,
+                pw=builder.electrostatic_potential_desc)
         return SJMExtension(solvation, jellium)
 
     def todict(self):
@@ -67,8 +66,7 @@ class SJM(Solvation):
 class SJMExtension(Extension):
     def __init__(self,
                  solvation: SolvationExtension,
-                 jellium: Jellium):
-        super().__init__(solvation.natoms)
+                 jellium: JelliumExtension):
         self.solvation = solvation
         self.jellium = jellium
         self.charge = jellium.charge
