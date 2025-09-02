@@ -487,6 +487,8 @@ class AllElectronAtom:
                                 'spdfg'.index(nlf[1]),
                                 int(nlf[2:]),
                                 -1.0))
+        else:
+            configs = configuration
 
         for n, l, f, e in configs:
 

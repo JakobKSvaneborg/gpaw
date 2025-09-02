@@ -518,7 +518,7 @@ static PyObject* moduleinit(void)
     PyObject_SetAttrString(m, "have_magma", Py_False);
 #endif
     // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
-    PyObject_SetAttrString(m, "version", PyLong_FromLong(10));
+    PyObject_SetAttrString(m, "version", PyLong_FromLong(11));
 
     Py_INCREF(&LFCType);
     Py_INCREF(&OperatorType);
