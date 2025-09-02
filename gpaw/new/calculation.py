@@ -123,7 +123,7 @@ class DFTCalculation:
         density = builder.density_from_superposition(basis_set)
         if len(atoms) == 0:
             density.nt_sR.data[:] = 1.0
-        density.normalize(pot_calc.environment.charge)
+        density.normalize(pot_calc.charge)
 
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
@@ -131,8 +131,7 @@ class DFTCalculation:
             basis_set, potential)
 
         if ibzwfs.wfs_qs[0][0]._eig_n is not None:
-            nelectrons = (density.nvalence - density.charge +
-                          pot_calc.environment.charge)
+            nelectrons = density.nvalence - density.charge + pot_calc.charge
             ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
@@ -440,7 +439,7 @@ class DFTCalculation:
                                    builder.interpolation_desc,
                                    builder.relpos_ac,
                                    builder.atomdist)
-        density.normalize(pot_calc.environment.charge)
+        density.normalize(pot_calc.charge)
 
         # Make sure all have exactly the same density.
         # Not quite sure it is needed???

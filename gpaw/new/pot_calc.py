@@ -54,6 +54,10 @@ class PotentialCalculator:
         return (f'{self.poisson_solver}\n'
                 f'xc functional:\n{indent(self.xc)}\n')
 
+    @property
+    def charge(self):
+        return sum(ext.charge for ext in self.extensions)
+
     def calculate_pseudo_potential(self,
                                    density,
                                    ibzwfs,

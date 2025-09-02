@@ -21,6 +21,7 @@ class Extension:
     """
 
     name = 'unnamed extension'
+    charge = 0.0
 
     def get_energy_contributions(self) -> dict[str, float]:
         return {}
