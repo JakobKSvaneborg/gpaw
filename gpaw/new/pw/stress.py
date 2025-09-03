@@ -70,8 +70,6 @@ def calculate_stress(pot_calc: PlaneWavePotentialCalculator,
     # Make sure all agree on the result (redundant calculation on
     # different cores involving BLAS might give slightly different
     # results):
-
-    sigma_vv += pot_calc.extensions_stress_contribution
     comm.broadcast(sigma_vv, 0)
     return sigma_vv
 

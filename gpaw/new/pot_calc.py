@@ -12,8 +12,6 @@ x   r or h
 
 from __future__ import annotations
 
-import functools
-import operator
 from collections import defaultdict
 from typing import DefaultDict
 
