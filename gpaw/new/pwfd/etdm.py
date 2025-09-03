@@ -99,6 +99,7 @@ class ETDM(PWFDEigensolver):
             psit_nX = wfs.psit_nX[:nocc]
             psit_unX.append(psit_nX)
 
+        # precondition gradient
         pg_unX = []
         for psit_nX, grad_nX in zips(psit_unX, self.grad_unX):
             pg_nX = grad_nX.new()
@@ -108,35 +109,43 @@ class ETDM(PWFDEigensolver):
 
         p_unX = self.search_dir.update(psit_unX, pg_unX)
         for wfs, p_nX in zips(ibzwfs, p_unX):
+            # why no dS_aii term? what happens to paw correction?
             project_gradient(p_nX, wfs)
 
+        # total projected search_direction length
         slength = sum(p_nX.norm2().sum() for p_nX in p_unX)**0.5
         max_step = 0.2
         alpha = max_step / slength if slength > max_step else 1.0
 
+        # update wavefunctions coefficents
         for psit_nX, p_nX in zips(psit_unX, p_unX):
             psit_nX.data += alpha * p_nX.data
 
+        # update wavefunctions
         for wfs in ibzwfs:
             wfs._P_ani = None
             wfs.orthonormalized = False
             wfs.orthonormalize()
 
+        # update density
         energies, potential = update_density_and_potential(
             density, potential, pot_calc, ibzwfs, hamiltonian)
 
+        # update hamiltonian
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
 
         error = 0.0
+        # from updated hamiltonian and wfs calculate new (projected) residual
         for psit_nX, grad_nX, wfs in zips(psit_unX, self.grad_unX, ibzwfs):
             Ht(psit_nX, out=grad_nX, spin=wfs.spin)
             apply_non_local_hamiltonian(grad_nX, wfs, potential)
             project_gradient(grad_nX, wfs, self.dS_aii)
             weight_n = (wfs.weight * wfs.spin_degeneracy *
                         wfs.myocc_n[:nocc])
+            # sum weigthed residual
             error += grad_nX.norm2() @ weight_n
             grad_nX.data *= weight_n[:, np.newaxis]
 

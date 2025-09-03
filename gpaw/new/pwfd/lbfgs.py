@@ -45,9 +45,6 @@ class LBFGS:
                  memory=3):
         self.memory = memory
         self.iters = 0
-        self.kp = None
-        self.p = None
-        self.k = None
         self.s_k = {i: None for i in range(memory)}
         self.y_k = {i: None for i in range(memory)}
         self.rho_k = np.zeros(shape=memory)
@@ -72,6 +69,9 @@ class LBFGS:
             self.k += 1
             self.p += 1
             self.kp[self.k] = self.p
+            # first direction: -gradient
+            # here for probabilities 0 < g_k < 1: (gradient - 1.0) ?
+            # why not (1. - g_k1.x_unX) ?
             return (g_k1 * -1.0).x_unX
 
         if self.p == self.memory:
