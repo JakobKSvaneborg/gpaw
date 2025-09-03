@@ -279,7 +279,8 @@ class DFTComponentsBuilder:
             ps = ext.create_poisson_solver(
                 self.fine_grid,
                 pw=self.electrostatic_potential_desc,
-                charge=self.charge)
+                charge=self.charge,
+                xp=self.xp)
             if ps is not None:
                 poisson_solvers.append(ps)
         if not poisson_solvers:
