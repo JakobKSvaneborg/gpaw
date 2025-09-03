@@ -42,6 +42,8 @@ class Solvation(ExtensionInput):
 
 
 class SolvationExtension(Extension):
+    name = 'solvation'
+
     def __init__(self,
                  *,
                  cavity,
@@ -67,13 +69,14 @@ class SolvationExtension(Extension):
                            scaled_positions=relpos_ac,
                            cell=grid.cell * Bohr,
                            pbc=grid.pbc)
+        self.natoms = len(self.atoms)
         self.cavity.update_atoms(self.atoms, log)
         for ia in self.interactions:
             ia.update_atoms(self.atoms, log)
         self.grad_v = [Gradient(grid, v, 1.0, n=3) for v in range(3)]
         self.vt_ia_r = grid.empty()  # self.finegd.zeros()
         self.e_interactions = np.nan
-        super().__init__(len(self.atoms))
+        # super().__init__(len(self.atoms))
 
     def interaction_energy(self):
         return self.e_interactions * Ha
@@ -134,7 +137,7 @@ class SolvationExtension(Extension):
         self.atoms = None
         return self.e_interactions
 
-    def forces(self, nt_r, vHt_r):
+    def force_contribution(self, nt_r, vHt_r):
         F_av = np.zeros((self.natoms, 3))
         add_el_force_correction(
             nt_r, vHt_r, self.grad_v, self.cavity, self.dielectric, F_av)

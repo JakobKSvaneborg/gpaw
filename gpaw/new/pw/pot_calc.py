@@ -191,6 +191,10 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         else:
             Ftauct_av = density.tauct_aX.derivative(dedtaut_g)
 
+        ext_force_av = np.zeros((len(self.setups), 3))
+        for ext in self.extensions:
+            ext_force_av += ext.force_contribution(nt_g, potential.vHt_x)
+
         return (
             self.poisson_solver.force_contribution(Q_aL,
                                                    potential.vHt_x,
@@ -198,17 +202,20 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
             density.nct_aX.derivative(vt_g),
             Ftauct_av,
             self.vbar_ag.derivative(nt_g),
-            self.extensions_force_av)
+            ext_force_av)
 
     def stress(self, ibzwfs, density, potential):
         if potential.vHt_x is None:
             raise RuntimeError(ERROR.format(thing='stress'))
         vt_g, nt_g, dedtaut_g = self._force_stress_helper(density, potential)
-        return calculate_stress(self, ibzwfs, density, potential,
-                                vt_g, nt_g, dedtaut_g)
+        stress_vv = calculate_stress(self, ibzwfs, density, potential,
+                                     vt_g, nt_g, dedtaut_g)
+        for ext in self.extensions:
+            stress_vv += ext.stress_contribution()
+        return stress_vv
 
 
 ERROR = (
-    'Unable to calculate {thing}.  Are you restartting from an old '
+    'Unable to calculate {thing}.  Are you restarting from an old '
     'gpw-file?  In that case, calculate the {thing} before writing '
     'the gpw-file or switch to new GPAW.')

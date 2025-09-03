@@ -168,11 +168,12 @@ class FDPotentialCalculator(PotentialCalculator):
         for a, dF_vL in F_avL.items():
             force_av[a] += dF_vL @ Q_aL[a]
 
+        ext_force_av = np.zeros((len(self.setups), 3))
         for ext in self.extensions:
-            force_av += ext.forces_contribution(nt_r, potential.vHt_x)
+            ext_force_av += ext.force_contribution(nt_r, potential.vHt_x)
 
         return (force_av,
                 density.nct_aX.derivative(vt_R),
                 Ftauct_av,
                 self.vbar_ar.derivative(nt_r),
-                self.extensions_force_av)
+                ext_force_av)

@@ -27,8 +27,11 @@ class Extension:
     def get_energy_contributions(self) -> dict[str, float]:
         return {}
 
-    def force_contribution(self):
-        raise NotImplementedError
+    def force_contribution(self, nt_r, vHt_r):
+        return 0.0
+
+    def stress_contribution(self):
+        return 0.0
 
     def move_atoms(self, relpos_ac) -> None:
         raise NotImplementedError
@@ -174,7 +177,7 @@ class D3(ExtensionInput):
                 """Returns the energy contribution from D3 in eV"""
                 return self.E * Ha
 
-            def force_contribution(self):
+            def force_contribution(self, nt_r, vHt_r):
                 return self.F_av
 
             def stress_contribution(self):

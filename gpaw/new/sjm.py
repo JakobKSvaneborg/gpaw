@@ -81,7 +81,7 @@ class SJMExtension(Extension):
             # return SJMPWPoissonSolver(pw, environment.dielectric, grid)
 
         ps = self.solvation.create_poisson_solver(
-            grid, charge=charge, xp=xp).solver
+            grid, pw, charge=charge, xp=xp).solver
         return SJMPoissonSolver(ps, self.solvation.dielectric)
 
     def post_scf_convergence(self,

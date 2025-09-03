@@ -46,7 +46,7 @@ def test_solvation_swap_atoms():
     def env(calc):
         if calc.old:
             return calc.hamiltonian
-        return calc.environment
+        return calc.dft.solvation
 
     eps_gradeps = env(calc).dielectric.eps_gradeps
 
