@@ -12,6 +12,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.lbfgs import LBFGS
 from gpaw.new.energies import DFTEnergies
+from gpaw.new import trace
 
 
 class ETDM(PWFDEigensolver):
@@ -30,6 +31,7 @@ class ETDM(PWFDEigensolver):
     def new(self, **params) -> ETDM:
         return ETDM(**params)
 
+    @trace
     def iterate(self,
                 ibzwfs: IBZWaveFunctions,
                 density: Density,
@@ -211,6 +213,7 @@ class ETDM(PWFDEigensolver):
             print(error)
 
 
+@trace
 def apply_non_local_hamiltonian(Htpsit_nX,
                                 wfs,
                                 potential: Potential,
@@ -224,6 +227,7 @@ def apply_non_local_hamiltonian(Htpsit_nX,
     wfs.pt_aiX.add_to(Htpsit_nX, c_ani)
 
 
+@trace
 def project_gradient(grad_nX: XArray,
                      wfs,
                      dS_aii=None):
@@ -240,7 +244,7 @@ def project_gradient(grad_nX: XArray,
             c_ani[a] = M_nn @ P_ni[:nocc] @ -dS_aii[a]
         wfs.pt_aiX.add_to(grad_nX, c_ani)
 
-
+@trace
 def update_density_and_potential(density,
                                  potential,
                                  pot_calc,
