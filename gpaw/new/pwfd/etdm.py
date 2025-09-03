@@ -244,6 +244,7 @@ def project_gradient(grad_nX: XArray,
             c_ani[a] = M_nn @ P_ni[:nocc] @ -dS_aii[a]
         wfs.pt_aiX.add_to(grad_nX, c_ani)
 
+
 @trace
 def update_density_and_potential(density,
                                  potential,
