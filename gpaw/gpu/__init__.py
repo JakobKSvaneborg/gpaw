@@ -1,5 +1,6 @@
 from __future__ import annotations
 import contextlib
+import atexit
 from time import time
 from typing import TYPE_CHECKING
 from types import ModuleType
@@ -7,8 +8,10 @@ from collections.abc import Iterable
 from gpaw.new.timer import trace
 
 import numpy as np
+import warnings
 
 from gpaw.cgpaw import have_magma
+from gpaw import debug
 
 cupy_is_fake = True
 """True if :mod:`cupy` has been replaced by ``gpaw.gpu.cpupy``"""
@@ -216,6 +219,7 @@ else:
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
             cgpaw.gpaw_gpu_init()
+            atexit.register(cgpaw.gpaw_gpu_delete)
 
             # Generate a device id
             import os
@@ -285,6 +289,20 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     HIP native solver is questionably slow so for now do it on the CPU if
     MAGMA is not available.
     """
+
+    if debug and np.issubdtype(a.dtype, np.complexfloating):
+        # Check that the diagonal is real. If not:
+        # 1) matrix cannot be Hermitian
+        # 2) eigh backends may behave differently => hard-to-detect bugs
+        diagonal = cupy.diag(a)
+        atol = 1e-6 if a.dtype is np.complex64 else 1e-12
+        try:
+            cupy.testing.assert_allclose(diagonal.imag,
+                                         cupy.zeros(diagonal.shape),
+                                         atol=atol)
+        except AssertionError:
+            warnings.warn("Using eigh() on matrix that has complex diagonal")
+
     from scipy.linalg import eigh
     if not is_hip:
         return cupy.linalg.eigh(a, UPLO=UPLO)
