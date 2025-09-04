@@ -14,11 +14,11 @@ Mahti has several versions of GPAW available as modules. You can load the
 most recent module with ``module load gpaw``, and browse other available versions
 with ``module spider gpaw``.
 
-Currently the most up-to-date module is for GPAW version 25.1.0 with **CPU support only**.
-A manual installation is needed for GPU support.
+Currently the pre-installed modules have **CPU support only**.
+A manual (developer) installation is needed for GPU support.
 
-Manual installation on Mahti
-============================
+Developer installation on Mahti
+===============================
 
 GPAW for CPUs
 -------------
@@ -57,8 +57,9 @@ Do the following in a new terminal session.
 
     export GPAW_CONFIG=$(readlink -f doc/platforms/Linux/Mahti/siteconfig-mahti-cpu.py)
 
-    # Install GPAW. Leave out '-e' if you don't want an editable install
-    pip install -v --log build-cpu.log -e .
+    # Install GPAW, with a constraint to ensure we use system-provided packages.
+    # Leave the '-e' out if you don't want an editable install
+    pip install --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
 
 The above gets ``siteconfig.py`` from the cloned Git repository.
 Alternatively, you can download it from here:
