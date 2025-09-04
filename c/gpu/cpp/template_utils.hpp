@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <memory>
+#include <type_traits>
 
 namespace gpaw
 {
@@ -50,11 +51,10 @@ void gpu_host_callback(gpuStream_t stream, F&& func)
 }
 
 #define GPAW_LAUNCH_KERNEL(kernel, blocks, threads, shmem, stream, ...) \
-    gpaw::launch_kernel_impl(#kernel, __FILE__, __LINE__, kernel, blocks, threads, shmem, stream, __VA_ARGS__)
+    gpaw::launch_kernel_impl(__FILE__, __LINE__, kernel, blocks, threads, shmem, stream, __VA_ARGS__)
 
 template<typename Kernel, typename... Args>
 void launch_kernel_impl(
-    const char *kernel_name,
     const char *file,
     int32_t line,
     Kernel kernel,
@@ -65,6 +65,9 @@ void launch_kernel_impl(
     Args... args
 )
 {
+    static_assert(std::is_invocable_r_v<Kernel, Args...>, "Incorrect kernel signature");
+    static_assert(std::is_void_v<std::invoke_result_t<Kernel, Args...>>, "Kernel return type must be void");
+
     // NB: kernel error checking is different in CUDA/HIP, and changes in ROCm 7.0.
     // So this should be revisited at some point.
     gpuLaunchKernel(kernel, blocks, threads, shmem_bytes, stream, std::forward<Args>(args)...);
@@ -72,8 +75,8 @@ void launch_kernel_impl(
     gpuError_t status = gpuGetLastError();
     if (status != gpuSuccess)
     {
-        printf("Kernel launch error with \"%s\" in %s at line %d:\n%s\n",
-            kernel_name, file, line, gpuGetErrorString(status)
+        printf("Kernel launch error in %s at line %d:\n%s\n",
+            file, line, gpuGetErrorString(status)
         );
         fflush(stdout);
         gpaw_set_runtime_error(gpuGetErrorString(status));
