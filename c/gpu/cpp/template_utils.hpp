@@ -78,6 +78,11 @@ void launch_kernel_impl(
         printf("Kernel launch error in %s at line %d:\n%s\n",
             file, line, gpuGetErrorString(status)
         );
+        printf("\nLaunch params were:\n");
+        printf("\tblocks (%u, %u, %u)\n", blocks.x, blocks.y, blocks.z);
+        printf("\tthreads (%u, %u, %u)\n", threads.x, threads.y, threads.z);
+        printf("\tshmem %zu\n", shmem_bytes);
+        printf("\tstream %d\n", static_cast<int>(gpuStream_t));
         fflush(stdout);
         gpaw_set_runtime_error(gpuGetErrorString(status));
     }
