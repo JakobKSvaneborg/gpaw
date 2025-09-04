@@ -38,7 +38,7 @@ def test_Fe_site_magnetization(gpw_files):
         AtomicSiteData(
             gs, AtomicSites(indices=[0],  # Too small radii
                             radii=[np.linspace(rmin * 0.8, rmin, 5)]))
-    with pytest.raises(AssertionError):
+    with pytest.warns(UserWarning, match='Some radii'):
         AtomicSiteData(
             gs, AtomicSites(indices=[0],  # Too large radii
                             radii=[np.linspace(rmax, rmax * 1.2, 5)]))
