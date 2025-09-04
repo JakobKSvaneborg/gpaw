@@ -65,8 +65,8 @@ void launch_kernel_impl(
     Args... args
 )
 {
-    static_assert(std::is_invocable_r_v<Kernel, Args...>, "Incorrect kernel signature");
-    static_assert(std::is_void_v<std::invoke_result_t<Kernel, Args...>>, "Kernel return type must be void");
+    static_assert(std::is_invocable_r_v<void, Kernel, Args...>,
+        "Incorrect kernel signature, must be void(Args...)");
 
     // NB: kernel error checking is different in CUDA/HIP, and changes in ROCm 7.0.
     // So this should be revisited at some point.
