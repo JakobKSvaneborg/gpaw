@@ -1,3 +1,4 @@
+# web-page: nio_dispersion.png
 import numpy as np
 import matplotlib.pyplot as plt
 from gpaw.response.heisenberg import get_q0_index
@@ -64,5 +65,4 @@ plt.ylabel(r'$\omega\;\mathrm{[meV]}$', size=18)
 plt.axis([pathq_q[0], pathq_q[-1], 0, 200])
 plt.legend()
 plt.tight_layout()
-
-plt.show()
+plt.savefig('nio_dispersion.png')

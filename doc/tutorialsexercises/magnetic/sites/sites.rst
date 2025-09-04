@@ -306,7 +306,7 @@ in the local site formulation and results in a U-dependent correction to the spi
 pair energy site matrix element defined above.
 
 The effect of U is be illustrated by the anti-ferromagnet NiO here. The exchange
-constants with and without Hubbard corrections can be calculated with the script 
+constants with and without Hubbard corrections can be calculated with the script
 :download:`nio_dispersion.py`, which takes roughly 10 hours on 120 CPUs. The
 spin-wave dipsersions with and without U is calculated and plotted with the script
 :download:`plot_nio_dispersion.py` and are show below. Experimentally, the magnon
