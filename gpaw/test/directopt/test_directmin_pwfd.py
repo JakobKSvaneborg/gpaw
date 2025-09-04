@@ -5,6 +5,7 @@ from gpaw import GPAW, PW, FD
 from ase import Atoms
 from gpaw.mpi import world
 
+
 @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
@@ -52,14 +53,13 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
                 spinpol=True,
                 symmetry='off',
                 nbands=-5,
-                convergence={'eigenstates': 4.0e-6},
-                )
+                convergence={'eigenstates': 4.0e-6})
     atoms.calc = calc
 
-    from gpaw.new.timer import global_timer
-    from gpaw.utilities.timing import Profiler
-    with global_timer.context(Profiler("cpu")) as timer:
-        energy = atoms.get_potential_energy()
+    # from gpaw.new.timer import global_timer
+    # from gpaw.utilities.timing import Profiler
+    # with global_timer.context(Profiler("cpu")) as timer:
+    energy = atoms.get_potential_energy()
 
     f = atoms.get_forces()
 
