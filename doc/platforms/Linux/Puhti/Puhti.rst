@@ -17,7 +17,7 @@ with ``module spider gpaw``.
 Currently the most up-to-date module is for GPAW version 24.6.0 with **CPU support only**.
 A manual installation is needed for GPU support.
 
-Manual installation on Puhti
+Developer installation on Puhti
 ============================
 
 GPAW for CPUs
