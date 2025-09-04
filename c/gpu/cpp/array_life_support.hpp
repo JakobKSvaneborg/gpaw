@@ -5,6 +5,13 @@
 
 #include <vector>
 
+/* Implements a "life support" system for Python objects, so that they remain
+alive for as long as GPAW's homebrew GPU kernels are using them. Needed because
+we often get pointers to existing GPU arrays as inputs from Python side and
+use those pointers in kernels. But kernels are asynchronous wrt. the CPU host,
+so without proper reference count management Python could destroy the arrays
+while kernels are still using them. */
+
 namespace gpaw
 {
 
