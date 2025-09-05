@@ -12,6 +12,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.lbfgs import LBFGS
 from gpaw.new.energies import DFTEnergies
+from gpaw.new import trace
 
 
 class ETDM(PWFDEigensolver):
@@ -30,6 +31,7 @@ class ETDM(PWFDEigensolver):
     def new(self, **params) -> ETDM:
         return ETDM(**params)
 
+    @trace
     def iterate(self,
                 ibzwfs: IBZWaveFunctions,
                 density: Density,
@@ -39,19 +41,26 @@ class ETDM(PWFDEigensolver):
                 energies) -> tuple[float, float, DFTEnergies]:
 
         if len(self.nocc_s) == 0:
+            # init: setup preconditioner
             self._initialize(ibzwfs)
+            # xp: type of distributed wfs array
+            # np -> numpy
+            # cp -> cupy
             xp = ibzwfs.xp
-            self.nocc_s = find_number_of_ocupied_bands(ibzwfs)
+            self.nocc_s = find_number_of_occupied_bands(ibzwfs)
             self.dS_aii = pot_calc.setups.get_overlap_corrections(
                 density.D_asii.layout.atomdist, xp)
 
         dH = potential.dH
+        # H_KS = - 1/2 nabla^2 + veff(r) + dExc/dtau O_tau
+        #                        vt_sR     dedtaut_sR (projection |tau><tau|)
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
 
         if len(self.grad_unX) == 0:
+            # build first gradient vector
 
             for wfs in ibzwfs:
                 wfs._P_ani = None
@@ -73,7 +82,13 @@ class ETDM(PWFDEigensolver):
                 grad_nX = psit_nX.new()
                 Ht(psit_nX, out=grad_nX, spin=wfs.spin)
                 apply_non_local_hamiltonian(grad_nX, wfs, potential)
+                # gradient grad_nX from residual
+                # | R_nX > = H_KS | psit_nX >
+                #          - Re(M_nn) | psit_nX >
+                #          - sum_a M_nn @ P_ani @ dS_aii
+                # with M_nn < psit_nX | H_KS | psit_nX >
                 project_gradient(grad_nX, wfs, self.dS_aii)
+                # weights according to kpt, spin and occupation f_n
                 weight_n = (wfs.weight * wfs.spin_degeneracy *
                             wfs.myocc_n[:nocc])
                 grad_nX.data *= weight_n[:, np.newaxis]
@@ -85,6 +100,7 @@ class ETDM(PWFDEigensolver):
             psit_nX = wfs.psit_nX[:nocc]
             psit_unX.append(psit_nX)
 
+        # precondition gradient
         pg_unX = []
         for psit_nX, grad_nX in zips(psit_unX, self.grad_unX):
             pg_nX = grad_nX.new()
@@ -94,49 +110,66 @@ class ETDM(PWFDEigensolver):
 
         p_unX = self.search_dir.update(psit_unX, pg_unX)
         for wfs, p_nX in zips(ibzwfs, p_unX):
+            # why no dS_aii term? what happens to paw correction?
             project_gradient(p_nX, wfs)
 
+        # total projected search_direction length
         slength = sum(p_nX.norm2().sum() for p_nX in p_unX)**0.5
         max_step = 0.2
         alpha = max_step / slength if slength > max_step else 1.0
 
+        # update wavefunctions coefficents
         for psit_nX, p_nX in zips(psit_unX, p_unX):
             psit_nX.data += alpha * p_nX.data
 
+        # update wavefunctions
         for wfs in ibzwfs:
             wfs._P_ani = None
             wfs.orthonormalized = False
             wfs.orthonormalize()
 
+        # update density
         energies, potential = update_density_and_potential(
             density, potential, pot_calc, ibzwfs, hamiltonian)
 
+        # update hamiltonian
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
 
         error = 0.0
+        # from updated hamiltonian and wfs calculate new (projected) residual
         for psit_nX, grad_nX, wfs in zips(psit_unX, self.grad_unX, ibzwfs):
             Ht(psit_nX, out=grad_nX, spin=wfs.spin)
             apply_non_local_hamiltonian(grad_nX, wfs, potential)
             project_gradient(grad_nX, wfs, self.dS_aii)
             weight_n = (wfs.weight * wfs.spin_degeneracy *
                         wfs.myocc_n[:nocc])
+            # sum weigthed residual
             error += grad_nX.norm2() @ weight_n
             grad_nX.data *= weight_n[:, np.newaxis]
 
         return 0.0, error, energies
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
-        if not self.converge_unocc:
-            return
 
-        # dH = potential.dH
+        dH = potential.dH
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
+
+        # calculate new eigenvalues
+        for wfs in ibzwfs:
+            wfs._P_ani = None
+            tmp_nX = wfs.psit_nX.new()
+            wfs.orthonormalized = False
+            wfs.orthonormalize(tmp_nX)
+            wfs.subspace_diagonalize(Ht, dH, tmp_nX)
+
+        if not self.converge_unocc:
+            return
 
         grad_unX = []
         psit_unX = []
@@ -188,6 +221,7 @@ class ETDM(PWFDEigensolver):
             print(error)
 
 
+@trace
 def apply_non_local_hamiltonian(Htpsit_nX,
                                 wfs,
                                 potential: Potential,
@@ -201,6 +235,7 @@ def apply_non_local_hamiltonian(Htpsit_nX,
     wfs.pt_aiX.add_to(Htpsit_nX, c_ani)
 
 
+@trace
 def project_gradient(grad_nX: XArray,
                      wfs,
                      dS_aii=None):
@@ -218,6 +253,7 @@ def project_gradient(grad_nX: XArray,
         wfs.pt_aiX.add_to(grad_nX, c_ani)
 
 
+@trace
 def update_density_and_potential(density,
                                  potential,
                                  pot_calc,
@@ -232,7 +268,7 @@ def update_density_and_potential(density,
     return energies, potential
 
 
-def find_number_of_ocupied_bands(ibzwfs: IBZWaveFunctions) -> list[int]:
+def find_number_of_occupied_bands(ibzwfs: IBZWaveFunctions) -> list[int]:
     nocc_s = [-1] * ibzwfs.nspins
     for wfs in ibzwfs:
         nocc = (wfs.occ_n > 0.5).sum()
