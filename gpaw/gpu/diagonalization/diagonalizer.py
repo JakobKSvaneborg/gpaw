@@ -57,7 +57,7 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         """
         pass
 
-    def check_matrix(mat: Union[cp.ndarray, np.ndarray]):
+    def check_matrix(self, mat: Union[cp.ndarray, np.ndarray]):
         """"""
 
         xp = cp if isinstance(mat, cp.ndarray) else np
