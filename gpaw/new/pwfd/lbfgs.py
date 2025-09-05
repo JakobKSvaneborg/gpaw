@@ -69,9 +69,6 @@ class LBFGS:
             self.k += 1
             self.p += 1
             self.kp[self.k] = self.p
-            # first direction: -gradient
-            # here for probabilities 0 < g_k < 1: (gradient - 1.0) ?
-            # why not (1. - g_k1.x_unX) ?
             return (g_k1 * -1.0).x_unX
 
         if self.p == self.memory:
