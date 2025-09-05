@@ -70,8 +70,6 @@ def diagonalizer_tester_common(
                                    rtol=rtol, atol=atol)
 
 
-
-
 # Currently GPU distribution works only with blocksize = None, columns = 1
 @pytest.mark.gpu
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,

@@ -57,7 +57,6 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         """
         pass
 
-
     def check_matrix(mat: Union[cp.ndarray, np.ndarray]):
         """"""
 
@@ -66,13 +65,9 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         # Check that the diagonal is real
         diagonal = xp.diag(mat)
         atol = 1e-6 if mat.dtype is np.complex64 else 1e-12
-        try:
-            xp.testing.assert_allclose(diagonal.imag,
-                                       xp.zeros(diagonal.shape),
-                                       atol=atol)
-        except AssertionError:
-            warn("Using eigh() on matrix that has complex diagonal")
 
+        if not xp.allclose(diagonal.imag, xp.zeros(diagonal.shape), atol=atol):
+            warn("Using eigh() on matrix that has complex diagonal")
 
     @trace(gpu=True)
     def eigh(self,
@@ -121,12 +116,12 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         comm = matrix_non_distributed.dist.comm
         if comm.rank == 0:
 
+            if debug:
+                self.check_matrix(matrix_non_distributed.data)
+
             # NOTE: Very confusing that matrix.eigh wants to give the
             # eigenvector matrix as transposed, according to the old version.
             # So we do the same here... And ensure it remains C-contiguous
-
-            if debug:
-                self.check_matrix(matrix_non_distributed.data)
 
             eigvals, eigvecs.data.T[:] = (
                 self.eigh_non_distributed(matrix_non_distributed.data,
