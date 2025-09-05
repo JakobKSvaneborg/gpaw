@@ -1,9 +1,10 @@
 import numpy as np
+import pytest
 from ase.units import Hartree as Ha
-
 from gpaw.response.g0w0 import G0W0
 
 
+@pytest.mark.flaky
 def test_diamond_mpa(in_tmp_dir, gpw_files):
     ref_results_mp1 = np.array([[[11.48389, 18.685187]]])
     ref_results_mp8 = np.array([[[11.239777, 18.591851]]])

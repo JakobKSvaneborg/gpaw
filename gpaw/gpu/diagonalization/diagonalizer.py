@@ -2,11 +2,13 @@ from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
+from gpaw import debug
 
+import numpy as np
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from copy import copy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 from warnings import warn
 
 if TYPE_CHECKING:
@@ -54,6 +56,23 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         CuPy array.
         """
         pass
+
+
+    def check_matrix(mat: Union[cp.ndarray, np.ndarray]):
+        """"""
+
+        xp = cp if isinstance(mat, cp.ndarray) else np
+
+        # Check that the diagonal is real
+        diagonal = xp.diag(mat)
+        atol = 1e-6 if mat.dtype is np.complex64 else 1e-12
+        try:
+            xp.testing.assert_allclose(diagonal.imag,
+                                       xp.zeros(diagonal.shape),
+                                       atol=atol)
+        except AssertionError:
+            warn("Using eigh() on matrix that has complex diagonal")
+
 
     @trace(gpu=True)
     def eigh(self,
@@ -105,6 +124,10 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
             # NOTE: Very confusing that matrix.eigh wants to give the
             # eigenvector matrix as transposed, according to the old version.
             # So we do the same here... And ensure it remains C-contiguous
+
+            if debug:
+                self.check_matrix(matrix_non_distributed.data)
+
             eigvals, eigvecs.data.T[:] = (
                 self.eigh_non_distributed(matrix_non_distributed.data,
                                           options_non_distributed)

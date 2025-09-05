@@ -144,6 +144,7 @@ inline EighErrorType interpret_magma_status(magma_int_t status)
 
 /* Entry point to Magma eigensolver where the input/output is in HOST memory.
 * The pointers must point to accessible memory locations of correct size.
+* The input/output matrices are in Magma conventions, NOT in Numpy/Python style conventions.
 */
 EighErrorType magma_eigh_host(const MagmaEighContext& context, void* inout_matrix, void* inout_eigvals);
 
@@ -151,5 +152,6 @@ EighErrorType magma_eigh_host(const MagmaEighContext& context, void* inout_matri
 /* Entry point to Magma single-GPU eigensolvers.
 * The pointers must point to accessible memory on the device.
 * This is an in-place solver: inout_matrix gets replaced by eigenvectors.
+* The input/output matrices are in Magma conventions, NOT in Numpy/Python style conventions.
 */
 EighErrorType magma_eigh_gpu(const MagmaEighContext& context, void* inout_matrix, void* inout_eigvals);

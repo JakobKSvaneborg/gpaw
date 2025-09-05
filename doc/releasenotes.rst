@@ -10,6 +10,12 @@ Git master branch
 
 :git:`master <>`.
 
+* :ref:`debug mode` is now enabled by setting the environment variable
+  :envvar:`GPAW_DEBUG` to ``1``.  Using the ``-d`` option of the
+  Python interpreter is no longer supported.
+
+* MFT calculations for magnons can now be performed with LDA+U. See
+  :ref:`mft`
 
 Version 25.7.0
 ==============

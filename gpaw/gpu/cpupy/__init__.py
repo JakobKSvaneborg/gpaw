@@ -145,6 +145,10 @@ def tri(n, k=0, dtype=float):
     return ndarray(np.tri(n, k=k, dtype=dtype))
 
 
+def fill_diagonal(a, val, wrap=False):
+    np.fill_diagonal(a._data, val, wrap=wrap)
+
+
 def allclose(a, b, **kwargs):
     return np.allclose(asarray(a)._data, asarray(b)._data, **kwargs)
 

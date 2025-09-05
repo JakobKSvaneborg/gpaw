@@ -37,6 +37,9 @@ Syntax when calling from Python:
 
 `inout_matrix` gets overwritten by the eigenvectors. Both arrays must be
 allocated to correct size before calling this function.
+
+Input conventions are as in Numpy, but output eigenvectors are still in Magma
+conventions => take conjugate transpose on Python side to get them in Numpy convention.
 */
 CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args);
 
@@ -53,6 +56,8 @@ Syntax when calling from Python:
 
 `inout_matrix` gets overwritten by the eigenvectors. Both arrays must be
 allocated to correct size before calling this function.
+Input conventions are as in Cupy, but output eigenvectors are still in Magma
+conventions => take conjugate transpose on Python side to get them in Cupy convention.
 */
 CLINKAGE PyObject* eigh_magma_cupy(PyObject* self, PyObject* args);
 
