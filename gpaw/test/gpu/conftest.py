@@ -5,9 +5,11 @@ from gpaw.gpu import cupy as cp
 
 
 @pytest.fixture(scope="function")
-def fixt_raw_hermitian_matrix():
-    """Symmetric if dtype is real, Hermitian otherwise.
-    This is a 'raw' numpy or cupy array, NOT gpaw Matrix object.
+def fixt_eigh_test_matrix():
+    """Generates a random n-by-n matrix. NOT symmetric/hermitian:
+    eigh() solvers read only upper/lower half of the matrix, so by passing
+    a non-Hermitian matrix we can test that our wrappers correctly interpret
+    the input (ie. test the 'uplo' argument).
     """
     def _generate(n: int, dtype: np.dtype = np.float64,
                   backend: str = 'numpy', seed: int = 42):
@@ -22,19 +24,21 @@ def fixt_raw_hermitian_matrix():
         rng = xp.random.default_rng(seed)
 
         if not np.issubdtype(dtype, np.complexfloating):
-            # Real dtype, return symmetric matrix
             A = rng.random((n, n), dtype=dtype)
-            return (A + A.T) / 2
-
+            return A
         else:
             # Only 32/64 bit precision implemented
             assert dtype == np.complex64 or dtype == np.complex128
             dtype_real = np.float32 if dtype == np.complex64 else np.float64
-            # Create Hermitian matrix
             A = (
                 rng.random((n, n), dtype=dtype_real)
                 + 1j * rng.random((n, n), dtype=dtype_real)
             )
-            return (A + A.T.conj()) / 2
+            # Set imaginary parts to zero on the diagonal. Most Hermitian
+            # solvers seem to ignore them, but at least old Cupy-11 gives
+            # different eigenvalues if the diagonal is not real.
+            xp.fill_diagonal(A.imag, 0)
+
+            return A
 
     return _generate

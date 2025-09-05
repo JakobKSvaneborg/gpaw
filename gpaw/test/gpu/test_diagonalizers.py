@@ -76,7 +76,7 @@ def diagonalizer_tester_common(
 @pytest.mark.parametrize("distribution",
                          [(CuPyMPI(world), -1, 1, None),
                           (world, -1, 1, None)])
-def test_gpu_diagonalizer(fixt_raw_hermitian_matrix: cp.ndarray,
+def test_gpu_diagonalizer(fixt_eigh_test_matrix: cp.ndarray,
                           diagonalizer_class: Type["GPUDiagonalizer"],
                           matrix_size: int,
                           # dist as in Matrix class: (comm, rows, cols, block)
@@ -92,9 +92,9 @@ def test_gpu_diagonalizer(fixt_raw_hermitian_matrix: cp.ndarray,
         pytest.skip("No GPU-aware MPI")
 
     # Matrix data to be wrapped in a distributed Matrix class
-    raw_matrix: cp.ndarray = fixt_raw_hermitian_matrix(matrix_size,
-                                                       dtype=dtype,
-                                                       backend='cupy')
+    raw_matrix: cp.ndarray = fixt_eigh_test_matrix(matrix_size,
+                                                   dtype=dtype,
+                                                   backend='cupy')
 
     matrix = Matrix.scatter(raw_matrix, distribution, 0)
 
@@ -117,7 +117,7 @@ def test_gpu_diagonalizer(fixt_raw_hermitian_matrix: cp.ndarray,
 @pytest.mark.parametrize("distribution",
                          [(CuPyMPI(world), -1, 1, None),
                           (world, -1, 1, None)])
-def test_multigpu(fixt_raw_hermitian_matrix: cp.ndarray,
+def test_multigpu(fixt_eigh_test_matrix: cp.ndarray,
                   diagonalizer_class: Type["GPUDiagonalizer"],
                   matrix_size: int,
                   # dist as in Matrix class: (comm, rows, cols, blocksize)
@@ -137,9 +137,9 @@ def test_multigpu(fixt_raw_hermitian_matrix: cp.ndarray,
     if not GPU_AWARE_MPI and not isinstance(comm, CuPyMPI):
         pytest.skip("No GPU-aware MPI")
 
-    raw_matrix: cp.ndarray = fixt_raw_hermitian_matrix(matrix_size,
-                                                       dtype=dtype,
-                                                       backend='cupy')
+    raw_matrix: cp.ndarray = fixt_eigh_test_matrix(matrix_size,
+                                                   dtype=dtype,
+                                                   backend='cupy')
 
     matrix = Matrix.scatter(raw_matrix, distribution, 0)
 
