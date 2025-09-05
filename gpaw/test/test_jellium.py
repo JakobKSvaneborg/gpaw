@@ -38,7 +38,7 @@ def test_jellium(in_tmp_dir, gpaw_new):
     if gpaw_new:
         class MyJellium(Jellium):
             def update_mask(self, mask_r: UGArray) -> None:
-                z = mask_r.desc.xyz()[0, 0, :, 2]
+                z = mask_r.desc.xyz()[0, 0, :, 2] * Bohr
                 mask_r.data[:] = np.logical_and(z > z1, z < z2)
 
         surf.calc = GPAW(**params, extensions=[MyJellium(charge=ne)])
@@ -46,7 +46,7 @@ def test_jellium(in_tmp_dir, gpaw_new):
         bc = JelliumSlab(ne, z1=z1, z2=z2)
         surf.calc = GPAW(**params, background_charge=bc)
 
-    _ = surf.get_potential_energy()
+    surf.get_potential_energy()
 
     # Get the work function
     v_r = surf.calc.get_electrostatic_potential()

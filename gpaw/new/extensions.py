@@ -193,6 +193,8 @@ class D3(ExtensionInput):
 
 
 class Jellium(ExtensionInput):
+    name = 'jellium'
+
     def __init__(self,
                  charge: float):
         self.charge = charge
