@@ -122,11 +122,17 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
 
     def create_poisson_solver(self, extensions):
         try:
-            return super().create_poisson_solver(extensions)
+            ps = super().create_poisson_solver(extensions)
         except NotImplementedError:
             pass
+        else:
+            return SlowPAWPoissonSolver(
+                self.interpolation_desc,
+                self.setups,
+                ps, self.relpos_ac, self.atomdist, self.xp)
 
-        psparams = self.params.poissonsolver.params.copy() or {'strength': 1.0}
+        psparams = (self.params.poissonsolver.params.copy() or
+                    {'strength': 1.0})
         psparams.pop('fast', False)
 
         if self.fast_poisson_solver:

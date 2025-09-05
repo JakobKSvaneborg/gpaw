@@ -34,7 +34,7 @@ class Extension:
         return 0.0
 
     def move_atoms(self, relpos_ac) -> None:
-        raise NotImplementedError
+        return
 
     def update_non_local_hamiltonian(self,
                                      D_sii,
@@ -244,9 +244,10 @@ class FixedPotentialJelliumExtension(JelliumExtension):
                  *,
                  pw: Domain,
                  workfunction_target: float,  # eV
+                 excess_electrons_guess=0.0,
                  tolerance: float = 0.001):  # eV
         """Adjust jellium charge to get the desired Fermi-level."""
-        super().__init__(mask_r, charge=np.nan, pw=pw)
+        super().__init__(mask_r, charge=excess_electrons_guess or 0.0, pw=pw)
         self.workfunction_target = workfunction_target / Ha
         self.tolerance = tolerance / Ha
         # (Charge, Fermi-level) history:

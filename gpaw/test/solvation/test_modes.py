@@ -41,7 +41,7 @@ def test_h(gpaw_new, mode, in_tmp_dir):
     atoms.write('h.traj')
     if gpaw_new:
         atoms.calc.write('h.gpw')
-        GPAW('h.gpw')
+        GPAW('h.gpw', object_hooks={'extensions': lambda exts: []})
 
     if 0:
         v = atoms.calc.get_electrostatic_potential()

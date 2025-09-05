@@ -16,7 +16,6 @@ class Solvation(ExtensionInput):
     name = 'solvation'
 
     def __init__(self, cavity, dielectric, interactions=None):
-        print(cavity)
         self.cavity = Cavity.from_dict(cavity)
         self.dielectric = Dielectric.from_dict(dielectric)
         self.interactions = [Interaction.from_dict(i)

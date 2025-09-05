@@ -44,13 +44,14 @@ class SJM(Solvation):
             jellium = JelliumExtension(
                 mask_r,
                 charge=self.excess_electrons,
-                pw=builder.electrostatic_potential_desc)
+                pw=builder.interpolation_desc)
         else:
             jellium = FixedPotentialJelliumExtension(
                 mask_r,
                 workfunction_target=self.target_potential,
+                excess_electrons_guess=self.excess_electrons,
                 tolerance=self.tol,
-                pw=builder.electrostatic_potential_desc)
+                pw=builder.interpolation_desc)
         return SJMExtension(solvation, jellium)
 
     def todict(self):
@@ -100,8 +101,9 @@ class SJMExtension(Extension):
         self.jellium.update1(nt_r)
 
     def update1pw(self, nt_g):
-        nt_r = self.jellium.grid.empty()
-        nt_r.scatter_from(nt_g.ifft(grid=self.jellium.grid.new(comm=None))
+        grid = self.jellium.mask_r.desc
+        nt_r = grid.empty()
+        nt_r.scatter_from(nt_g.ifft(grid=grid.new(comm=None))
                           if nt_g is not None else None)
         self.solvation.update1(nt_r)
         self.jellium.update1pw(nt_g)
