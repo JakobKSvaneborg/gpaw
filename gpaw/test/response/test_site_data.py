@@ -34,7 +34,7 @@ def test_Fe_site_magnetization(gpw_files):
     rmax_expected = np.sqrt(3) * 2.867 / 2. - augr * Bohr
     assert abs(rmax - rmax_expected) < 1e-6
     # Test that an error is raised outside the valid range
-    with pytest.raises(AssertionError):
+    with pytest.warns(UserWarning, match='Some radii'):
         AtomicSiteData(
             gs, AtomicSites(indices=[0],  # Too small radii
                             radii=[np.linspace(rmin * 0.8, rmin, 5)]))
