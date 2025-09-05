@@ -62,17 +62,7 @@ static void maybeSynchronize(PyObject* a)
 #ifdef GPAW_GPU_AWARE_MPI
     if (!PyArray_Check(a))
     {
-        // Check if the object is a fake CuPy ndarray (used when no GPU is available => device error if attempting to sync).
-        PyObject* cpupy_marker = PyObject_GetAttrString(a, "_is_cpupy_array");
-        if (!cpupy_marker)
-        {
-            PyErr_Clear();
-            gpawDeviceSynchronize();
-        }
-        else
-        {
-            Py_DECREF(cpupy_marker);
-        }
+      gpawDeviceSynchronize();
     }
 #endif
 }
