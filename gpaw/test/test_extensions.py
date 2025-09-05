@@ -34,7 +34,7 @@ class Spring:
                 _self.F_av[self.a1, :] = -v * F
                 _self.F_av[self.a2, :] = v * F
 
-            def force_contribution(self):
+            def force_contribution(self, nt_r, vHt_r):
                 return self.F_av
 
             def get_energy_contributions(self):
