@@ -7,7 +7,7 @@ from gpaw.cgpaw import have_magma
 from gpaw.gpu.diagonalization import (CPUPYDiagonalizer, CuPyDiagonalizer,
                                       DiagonalizerOptions)
 from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
-from gpaw.test.gpu import assert_eigenpairs
+from gpaw.test.gpu import assert_eigenpairs, fill_uplo
 from gpaw.mpi import world
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.gpu.mpi import CuPyMPI
@@ -53,12 +53,23 @@ def diagonalizer_tester_common(
 
     cp.testing.assert_allclose(eigvals, eigvals_ref, atol=atol, rtol=rtol)
 
+    # Test that the results really solve the intended eigenproblem
+    true_matrix = fill_uplo(raw_matrix, options.uplo)
+
     if matrix.dist.comm.rank == 0:
         # TODO: use Matrix.multiply and other direct Matrix routines.
         # The function below operates on raw xp.ndarrays, and we need to
         # transpose eigvecs back to original convention => very confusing
-        assert_eigenpairs(raw_matrix, eigvals, eigvecs.data.T,
+        true_eigvecs = eigvecs.data.T
+        assert_eigenpairs(true_matrix, eigvals, true_eigvecs,
                           rtol=rtol, atol=atol)
+
+        # check orthonormality
+        cp.testing.assert_allclose(cp.eye(matrix.shape[0]),
+                                   true_eigvecs.T.conj() @ true_eigvecs,
+                                   rtol=rtol, atol=atol)
+
+
 
 
 # Currently GPU distribution works only with blocksize = None, columns = 1
