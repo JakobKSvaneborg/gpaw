@@ -65,6 +65,8 @@ class SJM(Solvation):
 
 
 class SJMExtension(Extension):
+    name = 'sjm'
+
     def __init__(self,
                  solvation: SolvationExtension,
                  jellium: JelliumExtension):

@@ -278,7 +278,7 @@ class DFTComponentsBuilder:
         for ext in extensions:
             ps = ext.create_poisson_solver(
                 self.fine_grid,
-                pw=self.interpolation_desc,
+                pw=self.electrostatic_potential_desc,
                 charge=self.charge,
                 xp=self.xp)
             if ps is not None:
