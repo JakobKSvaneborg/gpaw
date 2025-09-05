@@ -64,7 +64,6 @@ class ETDM(PWFDEigensolver):
 
             for wfs in ibzwfs:
                 wfs._P_ani = None
-                # why orthonormalize uninitialized tmp_nX?
                 tmp_nX = wfs.psit_nX.new()
                 wfs.orthonormalized = False
                 wfs.orthonormalize(tmp_nX)
@@ -154,14 +153,23 @@ class ETDM(PWFDEigensolver):
         return 0.0, error, energies
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
-        if not self.converge_unocc:
-            return
 
-        # dH = potential.dH
+        dH = potential.dH
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
+
+        # calculate new eigenvalues
+        for wfs in ibzwfs:
+            wfs._P_ani = None
+            tmp_nX = wfs.psit_nX.new()
+            wfs.orthonormalized = False
+            wfs.orthonormalize(tmp_nX)
+            wfs.subspace_diagonalize(Ht, dH, tmp_nX)
+
+        if not self.converge_unocc:
+            return
 
         grad_unX = []
         psit_unX = []

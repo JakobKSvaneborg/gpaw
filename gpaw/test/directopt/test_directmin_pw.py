@@ -40,13 +40,11 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
     f = atoms.get_forces()
 
     assert energy == pytest.approx(e0, abs=1.0e-4)
+    assert f0 == pytest.approx(f, abs=1e-2)
 
     if gpaw_new:
-        # forces fail assertion
         # restart fails because of missing 'converge_unocc'
         return
-
-    assert f0 == pytest.approx(f, abs=1e-2)
 
     calc.write('H2.gpw', mode='all')
     from gpaw import restart
