@@ -175,7 +175,7 @@ object can do its operations on the GPU.
 
 
 Building GPAW with MAGMA support
-==============================
+================================
 
 .. _MAGMA: https://icl.utk.edu/magma/
 
@@ -195,11 +195,11 @@ You may also need to modify ``library_dirs``, ``runtime_library_dirs`` and
 You will also need to ensure the CUDA/HIP compiler standard is set to C++17 or newer (``-std=c++17``).
 Modern CUDA/HIP installations do this automatically, and GPAW installation also adds this flag.
 In case you still face issues:
-   1. If your ``siteconfig.py`` adds ``'-std=...''`` to ``gpu_compile_args``, update the standard there.
-   GPAW will not override a user-defined standard.
-   2. If using HIP to compile CUDA code (`hipcc` as a wrapper to `nvcc`), you may need to set the standard through an environment variable:
-   ``export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"``.
-   However, we generally recommend using `nvcc` and the CUDA toolkit directly if building for Nvidia GPUs.
+1. If your ``siteconfig.py`` adds ``'-std=...''`` to ``gpu_compile_args``, update the standard there.
+GPAW will not override a user-defined standard.
+1. If using HIP to compile CUDA code (`hipcc` as a wrapper to `nvcc`), you may need to set the standard through an environment variable:
+``export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"``.
+However, we generally recommend using `nvcc` and the CUDA toolkit directly if building for Nvidia GPUs.
 
 You can use the ``gpaw.cgpaw.have_magma`` flag to check if MAGMA is available
 within your GPAW installation. GPAW eigensystem routines will default to the MAGMA implementation

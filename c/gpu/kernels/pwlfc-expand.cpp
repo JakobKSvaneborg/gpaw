@@ -427,6 +427,10 @@ void evaluate_lda_launch_kernel(int nspin, int ng,
 				double* v,
 				double* e)
 {
+    if (!ng)
+    {
+        return;
+    }
     if (nspin == 1)
     {
 		GPAW_LAUNCH_KERNEL(evaluate_ldaorgga_kernel<1, false>,
@@ -523,6 +527,7 @@ void add_to_density_gpu_launch_kernel(int nb,
 				      double* rho_R,
 				      int dtypenum)
 {
+    if (!nR) return;
     if (dtypenum==NP_DOUBLE_COMPLEX)
     {
         GPAW_LAUNCH_KERNEL(add_to_density<gpuDoubleComplex, double>, dim3((nR+255)/256), dim3(256), 0, 0,
@@ -557,6 +562,7 @@ void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int m,
                                               void* array_nQ)
 {
+    if ((!nb) || (!max(n,m))) return;
 	if (dtypenum == NP_DOUBLE_COMPLEX)
 	{
 		GPAW_LAUNCH_KERNEL(pw_amend_insert_realwf<gpuDoubleComplex>,
@@ -588,6 +594,7 @@ void pw_insert_gpu_launch_kernel(
 			     void* tmp_nQ,
                  int rx, int ry, int rz)
 {
+    if ((!nG) || (!nb)) return;
     if (nb == 1)
     {
 	if (dtypenum == NP_DOUBLE_COMPLEX) { // Double Complex
@@ -856,6 +863,7 @@ void dH_aii_times_P_ani_launch_kernel(int dtypenum,
 				      void* P_ani_dev,
 				      void* outP_ani_dev)
 {
+    if (!nn) return;
     if (dtypenum == NP_DOUBLE_COMPLEX)
     {
 		GPAW_LAUNCH_KERNEL(dH_aii_times_P_ani<gpuDoubleComplex, double>,
@@ -908,6 +916,8 @@ extern "C" void pw_norm_gpu_launch_kernel(int dtypenum,
                                           void* result_x,
                                           void* C_xG)
 {
+    if (!nx)
+        return;
 	if (dtypenum == NP_DOUBLE_COMPLEX) {
 		GPAW_LAUNCH_KERNEL(pw_norm_kernel<512, double>,
 						dim3(nx, 1),
@@ -935,6 +945,7 @@ extern "C" void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
                                                   void* C_xG,
                                                   void* kin_G)
 {
+    if (!nx) return;
 	if (dtypenum == NP_DOUBLE_COMPLEX) {
 		GPAW_LAUNCH_KERNEL(pw_norm_kinetic_kernel<512, double>,
                     dim3(nx, 1),
@@ -982,6 +993,7 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 				    int nsplines,
 				    bool cc)
 {
+    if ((!nG) || (!nJ)) return;
     if (dtypenum == NP_DOUBLE_COMPLEX) // Double Complex
     {
 	auto kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, false, false>;
