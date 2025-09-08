@@ -159,6 +159,7 @@ class SolvationExtension(Extension):
                         ia.get_del_r_vg(a, density))
                     F_v -= del_E_del_r_vr.integrate(skip_sum=True)
 
+        nt_r.desc.comm.sum(F_av)
         return F_av
 
 
