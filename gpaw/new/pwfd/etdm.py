@@ -51,7 +51,6 @@ class ETDM(PWFDEigensolver):
             self.dS_aii = pot_calc.setups.get_overlap_corrections(
                 density.D_asii.layout.atomdist, xp)
 
-        dH = potential.dH
         # H_KS = - 1/2 nabla^2 + veff(r) + dExc/dtau O_tau
         #                        vt_sR     dedtaut_sR (projection |tau><tau|)
         Ht = partial(hamiltonian.apply,
@@ -67,8 +66,9 @@ class ETDM(PWFDEigensolver):
                 tmp_nX = wfs.psit_nX.new()
                 wfs.orthonormalized = False
                 wfs.orthonormalize(tmp_nX)
-                wfs.subspace_diagonalize(Ht, dH, tmp_nX)
+                wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX)
 
+            # update density and hamiltonian
             energies, potential = update_density_and_potential(
                 density, potential, pot_calc, ibzwfs, hamiltonian)
             Ht = partial(hamiltonian.apply,
@@ -83,10 +83,6 @@ class ETDM(PWFDEigensolver):
                 Ht(psit_nX, out=grad_nX, spin=wfs.spin)
                 apply_non_local_hamiltonian(grad_nX, wfs, potential)
                 # gradient grad_nX from residual
-                # | R_nX > = H_KS | psit_nX >
-                #          - Re(M_nn) | psit_nX >
-                #          - sum_a M_nn @ P_ani @ dS_aii
-                # with M_nn < psit_nX | H_KS | psit_nX >
                 project_gradient(grad_nX, wfs, self.dS_aii)
                 # weights according to kpt, spin and occupation f_n
                 weight_n = (wfs.weight * wfs.spin_degeneracy *
@@ -110,7 +106,9 @@ class ETDM(PWFDEigensolver):
 
         p_unX = self.search_dir.update(psit_unX, pg_unX)
         for wfs, p_nX in zips(ibzwfs, p_unX):
-            # why no dS_aii term? what happens to paw correction?
+            # projecting search direction on tangent space at psi
+            # is slightly different from project gradient
+            # as it doesn't apply overlap matrix because of S^{-1}
             project_gradient(p_nX, wfs)
 
         # total projected search_direction length
@@ -154,7 +152,6 @@ class ETDM(PWFDEigensolver):
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
 
-        dH = potential.dH
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
@@ -166,13 +163,18 @@ class ETDM(PWFDEigensolver):
             tmp_nX = wfs.psit_nX.new()
             wfs.orthonormalized = False
             wfs.orthonormalize(tmp_nX)
-            wfs.subspace_diagonalize(Ht, dH, tmp_nX)
+            wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX)
 
-        if not self.converge_unocc:
-            return
+        #if not self.converge_unocc:
+        #    return
+
+        # reset search direction
+        self.search_dir = LBFGS()
 
         grad_unX = []
         psit_unX = []
+
+        # build first gradient
         for wfs in ibzwfs:
             nocc = self.nocc_s[wfs.spin]
             psit_nX = wfs.psit_nX[nocc:]
@@ -239,12 +241,19 @@ def apply_non_local_hamiltonian(Htpsit_nX,
 def project_gradient(grad_nX: XArray,
                      wfs,
                      dS_aii=None):
+
+    # gradient grad_nX from residual
+    # | g_nX > = H_KS | psit_nX >
+    #          - Re(M_nn) | psit_nX >
+    #          - sum_a M_nn @ P_ani @ dS_aii
+    # with M_nn < psit_nX | H_KS | psit_nX >
     nocc = len(grad_nX)
     psit_nX = wfs.psit_nX[:nocc]
 
     M_nn = grad_nX.integrate(psit_nX)
     M_nn += M_nn.T.conj()
     M_nn *= 0.5
+
     grad_nX.data -= M_nn @ psit_nX.data
     if dS_aii:
         c_ani = {}
