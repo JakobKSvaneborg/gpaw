@@ -165,8 +165,8 @@ class ETDM(PWFDEigensolver):
             wfs.orthonormalize(tmp_nX)
             wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX)
 
-        #if not self.converge_unocc:
-        #    return
+        # if not self.converge_unocc:
+        #     return
 
         # reset search direction
         self.search_dir = LBFGS()
