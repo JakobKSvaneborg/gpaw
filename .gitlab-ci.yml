@@ -215,6 +215,7 @@ build-cuda:
 
 build-hip-cuda:
   image: $IMAGE_CUDA
+  when: manual
   extends:
     - .build
     - .gpu-job
