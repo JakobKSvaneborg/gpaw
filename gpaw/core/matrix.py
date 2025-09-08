@@ -139,7 +139,7 @@ class Matrix(XP):
         if data is None:
             self.data = self.xp.empty(dist.shape, self.dtype)
         else:
-            assert data.shape == dist.shape, (data.shape, dist.shape, dist)
+            assert data.shape == dist.shape, (data.shape, dist.shape)
             self.data = data
 
     def __repr__(self):
@@ -295,7 +295,6 @@ class Matrix(XP):
 
         if n1 == 1 and d2.blocksize is None:
             assert d1.blocksize is None
-            assert d1.columns == 1
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]

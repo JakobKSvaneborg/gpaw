@@ -539,12 +539,17 @@ class PWArray(DistributedArrays[PWDesc]):
                 comm.scatter(None, buf, 0)
                 to[:] = buf[:len(to)]
 
-    def scatter_everything_from(self, data: PWArray) -> None:
+    def scatter_everything_from(self, array: PWArray, comm: MPIComm) -> None:
         """Scatter everything from rank-0 to all ranks."""
-        if self.comm.size == 1:
-            self.scatter_from(data)
-            return
-        1 / 0
+        assert len(self.dims) == 1
+        shape = (self.dims[0], self.desc.shape[0])
+        fro = Matrix(*shape,
+                     data=array.data)
+        print(comm.size, self.comm.size, self.desc.comm.size)
+        to = Matrix(*shape,
+                    data=self.data,
+                    dist=(comm, self.comm.size, self.desc.comm.size))
+        fro.redist(to)
 
     def scatter_from_all(self, a_G: PWArray) -> None:
         """Scatter all coefficients from rank r to self on other cores."""

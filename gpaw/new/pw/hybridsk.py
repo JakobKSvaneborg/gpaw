@@ -29,6 +29,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                  atomdist,
                  log,
                  kpt_comm,
+                 domain_band_comm,
                  comm):
         super().__init__(grid.new(dtype=complex), pw)
         self.pw = pw
@@ -36,6 +37,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
         self.exx_omega = xc.exx_omega
         self.xc = xc
         self.kpt_comm = kpt_comm
+        self.domain_band_comm = domain_band_comm
         self.comm = comm
         self.log = log
         self.cgrid = grid.new(dtype=complex, comm=None)
@@ -61,6 +63,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions):
+        """Compute BZ from IBZ and distribute."""
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.cgrid, self.plan,
             self.log if self.nbzk == 0 else None)
@@ -154,9 +157,11 @@ class PWHybridHamiltonianK(PWHamiltonian):
                               calculate_energy)
             comm.sum(V_nG.data, root=rank)
             comm.sum(V_ani.data, root=rank)
+            print(comm.rank, V_nG)
             if krank == self.kpt_comm.rank:
                 V2_nG = Htpsit_nG.new()
-                V2_nG.scatter_everything_from(V_nG)
+                V2_nG.scatter_everything_from(V_nG, self.domain_band_comm)
+                print(comm.rank, V2_nG)
                 V2_ani = V0_ani.new()
                 V2_ani.scatter_everything_from(V_ani)
                 Htpsit_nG.data += V2_nG.data

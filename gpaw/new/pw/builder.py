@@ -179,6 +179,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     self.grid, self.wf_desc, self.xc, self.setups,
                     self.relpos_ac, self.atomdist, self.log,
                     self.communicators['k'],
+                    self.communicators['K'],
                     self.communicators['w'])
         return SpinorPWHamiltonian(self.qspiral_v)
 
