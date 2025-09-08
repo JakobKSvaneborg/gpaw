@@ -36,7 +36,7 @@ eigensolver_parameter_subsets = {'RMMDIIS':
                                    'trial_step': 0.1}},
                                  'DAV3':
                                  {'eigensolver':
-                                  {'name': 'dav',
+                                  {'name': 'davidson',
                                    'niter': 3}}}
 
 benchmarks_list = [

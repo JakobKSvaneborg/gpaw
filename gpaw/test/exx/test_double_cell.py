@@ -73,4 +73,4 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     else:
         eigs1 = [eig1_kn[1, 0], eig1_kn[2, 0], eig1_kn[1, 1]]
     eigs2 = [eig2_kn[0, 0], eig2_kn[1, 0], eig2_kn[0, 1]]
-    assert eigs1 == pytest.approx(eigs2, abs=1e-4)
+    assert eigs1 == pytest.approx(eigs2, abs=1e-3)

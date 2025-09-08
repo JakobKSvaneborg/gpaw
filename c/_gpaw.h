@@ -27,6 +27,15 @@ PyObject* craypat_region_begin(PyObject *self, PyObject *args);
 PyObject* craypat_region_end(PyObject *self, PyObject *args);
 #endif
 
+// Deliberate choice to put all MAGMA eigensolvers under the "GPU" flag,
+// even though this includes CPU-only routines too (essentially SCALAPACK solvers).
+// The reasoning is that only the "kernels" folder is currently compiled
+// as C++, and our MAGMA wrappers make use of C++ features
+#if defined(GPAW_WITH_MAGMA) && !defined(GPAW_GPU)
+#warning "GPAW must be built with GPU support in order to use MAGMA routines. Disabling MAGMA"
+#undef GPAW_WITH_MAGMA
+#endif
+
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args);
 PyObject* pawexxvv(PyObject* self, PyObject* args);
 PyObject* symmetrize(PyObject *self, PyObject *args);
@@ -203,17 +212,13 @@ PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
 PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
 PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 
+#ifdef GPAW_WITH_MAGMA
+    // Include just the C99-compliant interface, implementation is C++
+    #include "gpu/cpp/magma/magma_python_interface.h"
+#endif // GPAW_WITH_MAGMA
+
 #endif // GPAW_GPU
 
-#ifdef GPAW_WITH_MAGMA
-#include "magma_gpaw.h"
-PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args);
-PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args);
-#ifdef GPAW_GPU
-PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args);
-PyObject* eigh_magma_zheevd_gpu(PyObject* self, PyObject* args);
-#endif
-#endif // GPAW_WITH_MAGMA
 
 static PyMethodDef functions[] = {
     {"pawexxvv", pawexxvv, METH_VARARGS, 0},
@@ -386,17 +391,12 @@ static PyMethodDef functions[] = {
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
+    #ifdef GPAW_WITH_MAGMA
+    {"_eigh_magma_cpu", eigh_magma_cpu, METH_VARARGS, 0},
+    {"_eigh_magma_gpu", eigh_magma_gpu, METH_VARARGS, 0},
+    #endif // GPAW_WITH_MAGMA
+
 #endif // GPAW_GPU
-
-#ifdef GPAW_WITH_MAGMA
-{"eigh_magma_dsyevd", eigh_magma_dsyevd, METH_VARARGS, 0},
-{"eigh_magma_zheevd", eigh_magma_zheevd, METH_VARARGS, 0},
-#ifdef GPAW_GPU
-{"eigh_magma_dsyevd_gpu", eigh_magma_dsyevd_gpu, METH_VARARGS, 0},
-{"eigh_magma_zheevd_gpu", eigh_magma_zheevd_gpu, METH_VARARGS, 0},
-#endif
-#endif // GPAW_WITH_MAGMA
-
 
     {0, 0, 0, 0}
 };

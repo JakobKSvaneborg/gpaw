@@ -70,9 +70,9 @@ def compare(files: list[str]) -> None:
 
     plt.tight_layout()
     plt.savefig('table.png')
-    if sys.stdout.isatty():
-        plt.show()
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
     compare(sys.argv[1:])
+    plt.show()

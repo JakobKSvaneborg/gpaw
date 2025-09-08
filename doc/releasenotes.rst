@@ -10,14 +10,26 @@ Git master branch
 
 :git:`master <>`.
 
+* :ref:`debug mode` is now enabled by setting the environment variable
+  :envvar:`GPAW_DEBUG` to ``1``.  Using the ``-d`` option of the
+  Python interpreter is no longer supported.
+
+* MFT calculations for magnons can now be performed with LDA+U. See
+  :ref:`mft`
+
+Version 25.7.0
+==============
+
+July 29, 2025: :git:`25.7.0 <../25.7.0>`
+
+* Minimum version requirements: Python 3.9, ASE 3.25.0.
+
 * The XAS code has been expanded to allow for calculations of core holes
   with 𝑙≠0.
 
 * :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
 
 * The fluctuation-dissipation theorem has been added to the SJM.
-
-* Minimum version requirements: Python 3.9, ASE 3.23.0.
 
 * The constant inner potential DFT method has been included SJM.
 
@@ -58,6 +70,20 @@ Git master branch
   use with plane-waves and finite-difference. This eigensolver is
   particularly stable for single precision wave-functions.
   See https://doi.org/10.1016/j.jcp.2015.02.030 for details.
+
+* Added a new method and a tutorial for accurate dielectric functions,
+  :ref:`BSE+ <bseplus tutorial>`, which improves the convergence of the
+  BSE by including excitations outside of the active space of BSE at the RPA
+  level.
+
+* The :ref:`d3correction` can now be added to a :ref:`newgpaw`
+  DFT calculation via the new ``extensions`` keyword.
+
+* Smaller memory footprint for PW-mode calculations.
+
+* PAW-potentials can now be installed via a PyPI package:
+  `gpaw-data <https://pypi.org/project/gpaw-data/>`__.
+
 
 .. _controlling color: https://docs.python.org/3/using/cmdline.html
                        #controlling-color
@@ -1400,7 +1426,7 @@ Mar 7, 2012: :git:`0.9.0 <../0.9.0>`.
 * Much improved :ref:`cli` now based on the `new tool`_ in ASE.
 
 
-.. _new tool: https://wiki.fysik.dtu.dk/ase/ase/cmdline.html
+.. _new tool: https://ase-lib.org/ase/cmdline.html
 
 
 Version 0.8.0

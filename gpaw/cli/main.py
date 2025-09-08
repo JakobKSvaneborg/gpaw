@@ -59,8 +59,6 @@ def hook(parser, args):
             if sys.version_info >= (3, 11):
                 # Don't prepend a potentially unsafe path to sys.path
                 pyargs.append('-P')
-            if args.command == 'python' and args.debug:
-                pyargs.append('-d')
             arguments = ['mpiexec',
                          *os.environ.get('GPAW_MPI_OPTIONS', '').split(),
                          '-np',
