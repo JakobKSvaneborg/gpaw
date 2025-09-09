@@ -238,7 +238,7 @@ __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']
 
 def synchronize():
     if not cupy_is_fake:
-        cupy.cuda.get_current_stream().synchronize()
+        cupy.cuda.runtime.deviceSynchronize()
 
 
 def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
