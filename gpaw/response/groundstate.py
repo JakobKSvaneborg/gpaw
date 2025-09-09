@@ -39,6 +39,13 @@ class PAWDatasetCollection:
         self.by_atom = by_atom
         self.id_by_atom = id_by_atom
 
+    @property
+    def includes_hubbard_corrections(self):
+        for setup in self.by_atom:
+            if setup.hubbard_u is not None:
+                return True
+        return False
+
 
 GPAWCalculator = Union[OldGPAW, NewGPAW]
 GPWFilename = Union[Path, str]

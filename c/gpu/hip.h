@@ -138,6 +138,7 @@ __host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipConj(XXXhipDoubl
 #endif
 
 
+#define gpuGetLastError()         hipGetLastError()
 #define gpuCheckLastError()       gpuSafeCall(hipGetLastError())
 #define gpuGetErrorString(err)    hipGetErrorString(err)
 
@@ -163,6 +164,9 @@ __host__ __device__ static __inline__ XXXhipDoubleComplex XXXhipConj(XXXhipDoubl
         gpuSafeCall(hipStreamWaitEvent(stream, event, flags))
 #define gpuStreamSynchronize(stream) \
         gpuSafeCall(hipStreamSynchronize(stream))
+
+#define gpuLaunchHostFunc(stream, fn, userData) \
+        gpuSafeCall(hipLaunchHostFunc(stream, fn, userData))
 
 #define gpuEventCreate(event)     gpuSafeCall(hipEventCreate(event))
 #define gpuEventCreateWithFlags(event, flags) \

@@ -34,6 +34,7 @@
 #define gpuCmulf                  cuCmulf
 #define gpuConj                   cuConj
 
+#define gpuGetLastError()         cudaGetLastError()
 #define gpuCheckLastError()       gpuSafeCall(cudaGetLastError())
 #define gpuGetErrorString(err)    cudaGetErrorString(err)
 
@@ -59,6 +60,9 @@
         gpuSafeCall(cudaStreamWaitEvent(stream, event, flags))
 #define gpuStreamSynchronize(stream) \
         gpuSafeCall(cudaStreamSynchronize(stream))
+
+#define gpuLaunchHostFunc(stream, fn, userData) \
+        gpuSafeCall(cudaLaunchHostFunc(stream, fn, userData))
 
 #define gpuEventCreate(event)     gpuSafeCall(cudaEventCreate(event))
 #define gpuEventCreateWithFlags(event, flags) \
