@@ -295,7 +295,8 @@ class Matrix(XP):
 
         if n1 == 1 and d2.blocksize is None:
             assert d1.blocksize is None
-            comm = d1.comm
+            assert d2.columns == 1
+            comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
                 m = (M + comm.size - 1) // comm.size
