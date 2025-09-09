@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../gpu-runtime.h"
+
 #include <Python.h>
 
 // gpaw_so.c handles array importing at the module level (needed for proper numpy init),
@@ -9,11 +11,13 @@
 #include <numpy/arrayobject.h>
 
 #include <cstdint>
+#include <cassert>
 
 // Utility functions for working with Python arrays.
 // Needed when working with Cupy arrays in particular, which do not define a nice C-interface.
 // For Numpy (PyArrayObject) these are wrappers around the Numpy Array API.
-// Many of the Numpy built-in functions return integers as 'npy_intp' which is signed integer with same size as 'size_t'.
+// Many of the Numpy built-in functions return integers as 'npy_intp,
+//  which the docs define as "signed integer with same size as 'size_t'".
 // Here we cast npy_intp to int64_t which should be more than enough for any practical size.
 // For routines returning 'int' we often cast to 'int32_t' for explicity (with some exceptions)
 
@@ -32,6 +36,7 @@ T* Array_DATA(PyObject* obj)
     }
 
     PyObject* ptr_data = PyObject_GetAttrString(ndarray_data, "ptr");
+    Py_DECREF(ndarray_data);
     if (ptr_data == nullptr)
     {
         return nullptr;
@@ -39,7 +44,6 @@ T* Array_DATA(PyObject* obj)
 
     T* ptr = reinterpret_cast<T*>(PyLong_AS_LONG(ptr_data));
     Py_DECREF(ptr_data);
-    Py_DECREF(ndarray_data);
     return ptr;
 }
 
@@ -80,7 +84,6 @@ int64_t Array_SIZE(PyArrayObject* a);
 int64_t Array_NBYTES(PyArrayObject* a);
 int Array_TYPE(PyArrayObject* a);
 bool Array_ISCOMPLEX(PyArrayObject* a);
-
 //~ End Numpy
 
 } // namespace gpaw

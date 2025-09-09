@@ -1,6 +1,10 @@
 #ifndef GPU_RUNTIME_H
 #define GPU_RUNTIME_H
 
+#include "../gpaw_utils.h"
+
+#include <stdio.h>
+
 #ifdef GPAW_CUDA
 #include "cuda.h"
 #endif
@@ -18,7 +22,7 @@ static inline int __gpuSafeCall(gpuError_t err,
         char str[100];
         snprintf(str, 100, "%s(%i): GPU error: %s.\n",
         file, line, gpuGetErrorString(err));
-        PyErr_SetString(PyExc_RuntimeError, str);
+        gpaw_set_runtime_error(str);
         fprintf(stderr, "%s", str);
     }
     return err;
@@ -70,7 +74,7 @@ static inline gpublasStatus_t __gpublasSafeCall(gpublasStatus_t err,
         "%s(%i): GPU BLAS error: UNKNOWN ERROR '%X'.\n",
         file, line, err);
         }
-        PyErr_SetString(PyExc_RuntimeError, str);
+        gpaw_set_runtime_error(str);
         fprintf(stderr, "%s", str);
     }
     return err;
