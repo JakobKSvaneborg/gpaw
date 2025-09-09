@@ -28,7 +28,7 @@ from gpaw.new.rttddft.state import RTTDDFTState
 from gpaw.tddft.units import (asetime_to_autime,
                               autime_to_asetime, au_to_eA)
 from gpaw.typing import Vector
-from gpaw.utilities.timing import nulltimer
+from gpaw.utilities.timing import nulltimer, reconstruct_atoms
 
 
 class RTTDDFTResult(NamedTuple):
@@ -122,11 +122,8 @@ class RTTDDFT:
     def atoms(self) -> Atoms:
         """ Get ASE atoms object. """
         grid = self.state.density.grid
-        symbols = [setup.symbol for setup in self.pot_calc.setups]
-        cell_cv = grid.cell_cv * Bohr
-        positions_av = self.pot_calc.relpos_ac @ cell_cv
-        pbc_c = grid.pbc_c
-        return Atoms(symbols, positions_av, cell=cell_cv, pbc=pbc_c)
+        return reconstruct_atoms(grid, self.pot_calc.setups,
+                                 self.pot_calc.relpos_ac)
 
     @property
     def td_params(self):
