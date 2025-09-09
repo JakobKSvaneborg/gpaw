@@ -510,4 +510,5 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self._pt_aiX = None
 
         return PWFDWaveFunctions.from_wfs(self, psit_nX,
-                                          relpos_ac=relpos_ac)
+                                          relpos_ac=relpos_ac,
+                                          )#atomdist=atomdist)
