@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from ase.units import Bohr, Hartree
 from ase.neighborlist import natural_cutoffs, build_neighbor_list
@@ -136,9 +137,10 @@ class AtomicSiteData:
     def __init__(self, gs: ResponseGroundStateAdaptable, sites: AtomicSites):
         """Extract atomic site data from a given ground state."""
         gs = ResponseGroundStateAdapter.from_input(gs)
-        assert self.in_valid_site_radii_range(gs, sites), \
-            'Please provide site radii in the valid range, see '\
-            'gpaw.response.site_data.get_site_radii_range()'
+        if not self.in_valid_site_radii_range(gs, sites):
+            warnings.warn('Some radii is outsite the valid range. Results '
+                          'may be less accurate beyond this range, see '
+                          'gpaw.response.site_data.get_site_radii_range()')
         self.sites = sites
 
         # Extract the scaled positions and micro_setups for each atomic site

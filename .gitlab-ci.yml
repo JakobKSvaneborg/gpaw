@@ -215,6 +215,7 @@ build-cuda:
 
 build-hip-cuda:
   image: $IMAGE_CUDA
+  when: manual
   extends:
     - .build
     - .gpu-job
@@ -225,7 +226,8 @@ build-hip-cuda:
       gpu_target = 'hip-cuda'
       gpu_compiler = 'hipcc'
       gpu_compile_args = ['-O3',
-                          '-g']
+                          '-g',
+                          '-v']
       libraries += ['cudart', 'hipblas']
 
       # Suppress warnings from hip-cuda headers
@@ -239,6 +241,9 @@ build-hip-cuda:
       libraries += ['magma']
       EOF
     - cat siteconfig.py
+     # Set env variable for HIPCC because otherwise it fails to pass the -std
+    # flag to underlying nvcc/cicc... and may default to c++14.
+    - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
     - pip install -v --user --log build.log --editable .
 
 
