@@ -226,7 +226,7 @@ class JelliumExtension(Extension):
         if isinstance(pw, PWDesc):
             mask_r = mask_r.gather()
             if mask_r is not None:
-                self.mask_g = mask_r.fft(pw=pw)
+                self.mask_g = mask_r.fft(pw=pw.new(comm=None))
 
     def update1(self, nt_r: UGArray) -> None:
         nt_r.data -= self.mask_r.data * self.charge
