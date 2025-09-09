@@ -28,7 +28,8 @@ from gpaw.new.rttddft.state import RTTDDFTState
 from gpaw.tddft.units import (asetime_to_autime,
                               autime_to_asetime, au_to_eA)
 from gpaw.typing import Vector
-from gpaw.utilities.timing import nulltimer, reconstruct_atoms
+from gpaw.utilities import reconstruct_atoms
+from gpaw.utilities.timing import nulltimer
 
 
 class RTTDDFTResult(NamedTuple):
