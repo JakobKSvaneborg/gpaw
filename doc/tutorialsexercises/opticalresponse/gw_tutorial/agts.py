@@ -23,6 +23,8 @@ def workflow():
             run(script='MoS2_bs_plot.py')
             run(script='check_gw.py')
 
+    with run(script='C_lcao_groundstate.py', cores=24, tmax='1h'):
+        pass
 
 def check_mpa():
     """Check numbers in ReST file."""
