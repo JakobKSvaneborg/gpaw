@@ -5,7 +5,7 @@ atoms = molecule('Na2')
 atoms.center(vacuum=8.0)
 
 # Ground-state calculation
-from gpaw import GPAW
+from gpaw.new.ase_interface import GPAW
 calc = GPAW(mode='lcao', h=0.3, basis='dzp',
             setups={'Na': '1'},
             convergence={'density': 1e-12},

@@ -12,9 +12,6 @@ This page documents the new :class:`gpaw.new.rttddft.RTTDDFT` interface which is
 common for both modes.
 See :ref:`lcaotddft` and :ref:`timepropagation` for the old rt-TDDFT implementations.
 
-The new rt-TDDFT implementation can be used either through the new interface, or through
-the backwards compatible interfaces.
-
 Ported features
 ---------------
 The following features from the old code have been ported
@@ -22,8 +19,6 @@ The following features from the old code have been ported
 * Reading and writing of restart files
 * Delta-kicks
 * The Explicit Crank-Nicolson and Semi-implicit Crank-Nicolson propagators
-* The :class:`gpaw.lcaotddft.dipolemomentwriter.DipoleMomentWriter` (through the
-  backwards compatible interface).
 
 The following features are still to be ported
 
@@ -35,22 +30,8 @@ The following features are still to be ported
 * Scaling factor for the dynamic part of the hamiltonian
 
 
-Backwards compatible interfaces
--------------------------------
-
-By setting the environment variable :envvar:`GPAW_NEW` the old interfaces use
-the new backend::
-
-  from gpaw.tddft import TDDFT
-  td_calc = TDDFT(...)
-
-or::
-
-  from gpaw.lcaotddft import LCAOTDDFT
-  td_calc = LCAOTDDFT(...)
-
-New interface
--------------
+User interface
+--------------
 The new interface can be used directly. The :class:`gpaw.new.rttddft.RTTDDFT`
 can be initialized from
 

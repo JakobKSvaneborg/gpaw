@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 from functools import cached_property
 from types import SimpleNamespace
 from typing import Any
@@ -42,6 +44,11 @@ class RTTDDFTAdapter:
         if world.size > 1:
             raise NotImplementedError
         self.tddft_initialized = False
+
+        msg = ('Using compabilitity wrapper for RTTDDFT. The recommended '
+               'way of using the new RTTDDFT interface outside of tests '
+               'is via gpaw.new.rttddft.RTTDDFT.')
+        warnings.warn(msg)
 
     @property
     def world(self):
