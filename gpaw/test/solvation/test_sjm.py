@@ -66,7 +66,7 @@ def test_sjm(gpaw_new, in_tmp_dir, mode):
     else:
         atoms.calc = GPAW(
             **params,
-            environment=SJM(**sj, **solvation))
+            extensions=[SJM(**sj, **solvation)])
         atoms.get_potential_energy()
         pot = -atoms.calc.get_fermi_level()
 
@@ -77,8 +77,8 @@ def test_sjm(gpaw_new, in_tmp_dir, mode):
     atoms.calc.write(f'Au-{gpaw_new}-{mode}.gpw')
     if gpaw_new:
         calc = GPAW(f'Au-{gpaw_new}-{mode}.gpw')
-        print(atoms.calc.environment)
-        print(calc.environment)
+        print(atoms.calc.dft.sjm)
+        print(calc.dft.sjm)
 
     if 0:  # gpaw_new:
         import matplotlib.pyplot as plt

@@ -120,8 +120,19 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.interpolation_desc, self.relpos_ac, self.atomdist)
         return self._tauct_ag
 
-    def create_poisson_solver(self, env):
-        psparams = self.params.poissonsolver.params.copy() or {'strength': 1.0}
+    def create_poisson_solver(self, extensions):
+        try:
+            ps = super().create_poisson_solver(extensions)
+        except NotImplementedError:
+            pass
+        else:
+            return SlowPAWPoissonSolver(
+                self.interpolation_desc,
+                self.setups,
+                ps, self.relpos_ac, self.atomdist, self.xp)
+
+        psparams = (self.params.poissonsolver.params.copy() or
+                    {'strength': 1.0})
         psparams.pop('fast', False)
 
         if self.fast_poisson_solver:
@@ -133,7 +144,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         ps = make_poisson_solver(pw,
                                  grid,
                                  self.charge,
-                                 env,
                                  **psparams)
 
         if self.fast_poisson_solver:
@@ -147,19 +157,19 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             ps, self.relpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self):
-        env = self.create_environment(self.fine_grid)
+        extensions = self.get_extensions()
         return PlaneWavePotentialCalculator(
-            self.grid, self.fine_grid,
+            self.grid,
+            self.fine_grid,
             self.interpolation_desc,
             self.setups,
             self.xc,
-            self.create_poisson_solver(env),
+            self.create_poisson_solver(extensions),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
             xp=self.xp,
-            environment=env,
-            extensions=self.get_extensions())
+            extensions=extensions)
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:

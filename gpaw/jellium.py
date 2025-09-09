@@ -3,7 +3,6 @@ from math import pi
 
 import numpy as np
 from ase.units import Bohr
-from gpaw.new.environment import Jellium as JelliumEnv
 
 
 def create_background_charge(**kwargs):
@@ -57,16 +56,6 @@ class Jellium():
         rhot_g = pd.gd.zeros()
         self.add_charge_to(rhot_g)
         rhot_q += pd.fft(rhot_g)
-
-    def build(self,
-              setups,
-              grid,
-              relpos_ac,
-              log,
-              comm,
-              **kwargs) -> JelliumEnv:
-        self.set_grid_descriptor(grid._gd)
-        return JelliumEnv(self, len(relpos_ac), grid)
 
 
 class JelliumSlab(Jellium):
