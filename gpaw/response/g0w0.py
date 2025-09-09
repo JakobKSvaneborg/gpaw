@@ -1155,6 +1155,7 @@ class G0W0(G0W0Calculator):
                  q0_correction=False,
                  do_GW_too=False,
                  output_prefix=None,
+                 wf_ecut_eV = None, 
                  **kwargs):
         """G0W0 calculator wrapper.
 
@@ -1275,6 +1276,8 @@ class G0W0(G0W0Calculator):
             This is to allow multiple processes to work on same cache
             (given by filename-prefix), while writing to different out
             files.
+        wf_ecut_eV: None | float 
+            Plane wave cut-off energy in eV for transforming LCAO wavefunction to PW representation 
         """
         if fxc_mode:
             assert fxc_modes is None
@@ -1304,8 +1307,7 @@ class G0W0(G0W0Calculator):
         output_prefix = filename or output_prefix
         context = ResponseContext(txt=output_prefix + '.txt',
                                   comm=world, timer=timer)
-        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
-
+        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile, wf_ecut_eV=wf_ecut_eV, chi0_ecut_eV = ecut)
         # Check if nblocks is compatible, adjust if not
         if nblocksmax:
             nblocks = get_max_nblocks(context.comm, gpwfile, ecut)

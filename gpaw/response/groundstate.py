@@ -16,6 +16,8 @@ from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
 from gpaw.wavefunctions.lcao import LCAOWaveFunctions
 
+from gpaw.response.lcao_pw_helpers  import  pw_ecut_from_lcao_grid
+
 if TYPE_CHECKING:
     from gpaw.setup import Setups, LeanSetup
 
@@ -46,7 +48,7 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 
 class ResponseGroundStateAdapter:
-    def __init__(self, calc: GPAWCalculator):
+    def __init__(self, calc: GPAWCalculator, wf_ecut_eV = None, chi0_ecut_eV = None):
 
         wfs = calc.wfs  # wavefunction object from gpaw.wavefunctions
         
@@ -54,7 +56,10 @@ class ResponseGroundStateAdapter:
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None
-            wfs.planewavefy(ecut=500/Ha)
+            ecut_pw_Ha = pw_ecut_from_lcao_grid(wfs.gd)
+            ecut_pw_eV = ecut_pw_Ha*Ha
+            print(f"LCAO→PW energy cutoff ecut_pw_eV: {ecut_pw_eV:.1f} eV")
+            wfs.planewavefy(ecut=ecut_pw_Ha)
 
 
         self.atoms = calc.atoms
@@ -106,14 +111,16 @@ class ResponseGroundStateAdapter:
             return ResponseGroundStateAdapter.from_gpw_file(gpw=gs)
         raise ValueError('Expected ResponseGroundStateAdaptable, got', gs)
 
+
     @classmethod
-    def from_gpw_file(cls, gpw: GPWFilename) -> ResponseGroundStateAdapter:
+    def from_gpw_file(cls, gpw, wf_ecut_eV=None, chi0_ecut_eV=None) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
         from gpaw import GPAW, disable_dry_run
         assert Path(gpw).is_file()
         with disable_dry_run():
             calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
-        return cls(calc)
+        return cls(calc, wf_ecut_eV=wf_ecut_eV, chi0_ecut_eV=chi0_ecut_eV)
+
 
     @property
     def pd(self):

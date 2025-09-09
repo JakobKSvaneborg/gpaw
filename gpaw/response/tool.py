@@ -9,7 +9,6 @@ from gpaw.response.integrators import Domain
 from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.pair import KPointPairFactory, get_gs_and_context
 
-
 def check_degenerate_bands(filename, etol):
 
     from gpaw import GPAW
@@ -287,3 +286,4 @@ def plot_setticks(x=True, y=True):
         ax.yaxis.set_minor_locator(plt.MultipleLocator(dy_minor))
     else:
         plt.minorticks_off()
+
