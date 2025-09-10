@@ -9,7 +9,7 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
-# from gpaw.new import zips as zip
+from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pw.hybrids import fft, truncated_coulomb
@@ -99,7 +99,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
 
         evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
                                       psit2_nG, Htpsit2_nG,
-                                      wfs.occ_n, calculate_energy)
+                                      wfs.myocc_n, calculate_energy)
         if calculate_energy:
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
@@ -137,6 +137,9 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 ekin += ec + 2 * ev
                 evv -= ev
                 evc -= ec
+        evv = domain_comm.sum_scalar(evv)
+        evc = domain_comm.sum_scalar(evc)
+        ekin = domain_comm.sum_scalar(ekin)
 
         e = 0.0
         for krank in range(self.kpt_comm.size):
@@ -144,22 +147,24 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 data = None
                 if krank == self.kpt_comm.rank:
                     if brank == band_comm.rank:
-                        psit_nG = psit_nG.gather()
-                        P_ani = P_ani.gather()
-                        if psit_nG is not None:
-                            psit_nG = psit_nG[:]
-                            P_ani = AtomArrays(P_ani.layout,
-                                               dims=(len(P_ani.data),),
-                                               data=P_ani.data)
-                            data = (psit_nG, P_ani, spin)
+                        psit2_nG = psit_nG.gather()
+                        P2_ani = P_ani.gather()
+                        if psit2_nG is not None:
+                            # Remove band_comm so that data can be pickled
+                            # when calling broadcast(data, ...) later:
+                            psit2_nG = psit2_nG[:]
+                            P2_ani = AtomArrays(P2_ani.layout,
+                                                dims=(len(P2_ani.data),),
+                                                data=P2_ani.data)
+                            data = (psit2_nG, P2_ani, f_n, spin)
 
                 rank = (brank + krank * band_comm.size) * domain_comm.size
-                psit_nG, P_ani, s = broadcast(data, rank, comm)
-                V_nG = psit_nG.new()
+                psit2_nG, P2_ani, f2_n, s = broadcast(data, rank, comm)
+                V_nG = psit2_nG.new()
                 V_nG.data[:] = 0.0
-                V_ani = P_ani.new()
+                V_ani = P2_ani.new()
                 V_ani.data[:] = 0.0
-                e += self._apply2(psit_nG, P_ani, s, V_nG, V_ani, f_n,
+                e += self._apply2(psit2_nG, P2_ani, s, V_nG, V_ani, f2_n,
                                   calculate_energy)
                 comm.sum(V_nG.data, root=rank)
                 comm.sum(V_ani.data, root=rank)
@@ -176,7 +181,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
         if not calculate_energy:
             return nan, nan, nan
 
-        e = comm.sum_scalar(e)
+        # e = comm.sum_scalar(e) / domain_comm.size / band_comm.size
         evv += 0.5 * e
         ekin -= e
 

@@ -47,6 +47,7 @@ def test_hse06(gpaw_new, ccirs, dtype):
                       xc='HSE06',
                       experimental=experimental,
                       eigensolver=eigensolver,
+                      parallel={'domain': min(2, size)},
                       nbands=4)
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
