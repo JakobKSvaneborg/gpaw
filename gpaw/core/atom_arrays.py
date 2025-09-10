@@ -385,6 +385,7 @@ class AtomArrays:
             m_xI = a_axi.matrix.gather()  # gather x
             if m_xI.dist.comm.rank == 0:
                 return AtomArrays(a_axi.layout, self.dims, data=m_xI.data)
+        return None
 
     def scatter_from(self,
                      data: np.ndarray | AtomArrays | None = None) -> None:

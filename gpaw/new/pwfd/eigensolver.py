@@ -111,7 +111,7 @@ class PWFDEigensolver(Eigensolver):
         wfs_error = 0.0
         eig_error = 0.0
         # Loop over k-points:
-        if 1:#with broadcast_exception(ibzwfs.kpt_comm):
+        with broadcast_exception(ibzwfs.kpt_comm):
             for wfs, weight_n in zips(ibzwfs, weight_un):
                 dH = partial(potential.dH, spin=wfs.spin)
                 Ht = partial(apply, spin=wfs.spin)

@@ -29,7 +29,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                  atomdist,
                  log,
                  kpt_comm,
-                 domain_band_comm,
+                 band_comm,
                  comm):
         super().__init__(grid.new(dtype=complex), pw)
         self.pw = pw
@@ -37,7 +37,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
         self.exx_omega = xc.exx_omega
         self.xc = xc
         self.kpt_comm = kpt_comm
-        self.domain_band_comm = domain_band_comm
+        self.band_comm = band_comm
         self.comm = comm
         self.log = log
         self.cgrid = grid.new(dtype=complex, comm=None)
@@ -116,7 +116,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 f_n: np.ndarray,
                 calculate_energy: bool) -> tuple[float, float, float]:
         comm = self.comm
-        band_comm = psit_nG.comm
+        band_comm = self.band_comm
         domain_comm = psit_nG.desc.comm
 
         P_ani = pt_aiG.integrate(psit_nG)
@@ -147,6 +147,10 @@ class PWHybridHamiltonianK(PWHamiltonian):
                         psit_nG = psit_nG.gather()
                         P_ani = P_ani.gather()
                         if psit_nG is not None:
+                            psit_nG = psit_nG[:]
+                            P_ani = AtomArrays(P_ani.layout,
+                                               dims=(len(P_ani.data),),
+                                               data=P_ani.data)
                             data = (psit_nG, P_ani, spin)
 
                 rank = (brank + krank * band_comm.size) * domain_comm.size

@@ -26,7 +26,7 @@ def test_hse06(gpaw_new, ccirs, dtype):
     if gpaw_new:
         if dtype is float and size > 4:
             pytest.skip('Only band-parallelization!')
-        elif dtype is complex and size > 1:
+        elif 0:#dtype is complex and size > 1:
             pytest.skip('No parallelization!')
         if ccirs and dtype is complex:
             pytest.skip('not implemented')
@@ -61,7 +61,7 @@ def test_h(gpaw_new, dtype):
     if gpaw_new:
         if dtype is float and size > 2:
             pytest.skip('Only band-parallelization!')
-        elif dtype is complex and size > 1:
+        elif 0:#dtype is complex and size > 1:
             pytest.skip('No parallelization!')
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
@@ -77,4 +77,4 @@ def test_h(gpaw_new, dtype):
 
 
 if __name__ == '__main__':
-    test_hse06(1, True)
+    test_hse06(1, not True, complex)
