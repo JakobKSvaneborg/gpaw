@@ -21,8 +21,6 @@ import gpaw
 from ._broadcast_imports import world as _world
 
 
-import cupy
-
 MASTER = 0
 
 
@@ -34,16 +32,20 @@ from cupy.cuda.memory import _malloc
 
 class RegisteredPointer:
     def __init__(self, a):
+        import cupy
         if isinstance(a, cupy.ndarray):
             self.a = a
-            from cupy.cuda.memory import Memory, MemoryPointer
-            mem = Memory(a.nbytes + 8) # Direct malloc
-            memptr = MemoryPointer(mem, 8)
-            self.array = cupy.ndarray(a.shape,
-                                      memptr=memptr,
-                                      dtype=a.dtype,
-                                      strides=a.strides)
-            self.array[...] = a
+            if 1:
+                from cupy.cuda.memory import Memory, MemoryPointer
+                mem = Memory(a.nbytes) # Direct malloc
+                memptr = MemoryPointer(mem, 0)
+                self.array = cupy.ndarray(a.shape,
+                                          memptr=memptr,
+                                          dtype=a.dtype,
+                                          strides=a.strides)
+                self.array[...] = a
+            else:
+                self.array = a.copy()  # This SEGFAULTS!
         else:
             self.array, self.a = a, a
 
@@ -51,8 +53,19 @@ class RegisteredPointer:
         return self.array
 
     def __exit__(self, *args):
+        import cupy
         if isinstance(self.a, cupy.ndarray):
             self.a[...] = self.array
+
+class _RegisteredPointer:
+    def __init__(self, a):
+        self.a = a
+
+    def __enter__(self):
+        return self.a
+
+    def __exit__(self, *args):
+        pass
 
 @contextmanager
 def broadcast_exception(comm):
