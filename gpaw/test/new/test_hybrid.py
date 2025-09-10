@@ -28,7 +28,6 @@ def test_hse06(gpaw_new, ccirs, dtype):
             pytest.skip('Only band-parallelization!')
         elif dtype is complex and size > 1:
             pytest.skip('No parallelization!')
-    if gpaw_new:
         if ccirs and dtype is complex:
             pytest.skip('not implemented')
         experimental = {'ccirs': ccirs}

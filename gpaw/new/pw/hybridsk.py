@@ -140,32 +140,34 @@ class PWHybridHamiltonianK(PWHamiltonian):
 
         e = 0.0
         for krank in range(self.kpt_comm.size):
-            data = None
-            if krank == self.kpt_comm.rank:
-                psit_nG = psit_nG.gathergather()
-                P_ani = P_ani.gathergather()
-                if psit_nG is not None:
-                    data = (psit_nG, P_ani, spin)
+            for brank in range(band_comm.size):
+                data = None
+                if krank == self.kpt_comm.rank:
+                    if brank == band_comm.rank:
+                        psit_nG = psit_nG.gather()
+                        P_ani = P_ani.gather()
+                        if psit_nG is not None:
+                            data = (psit_nG, P_ani, spin)
 
-            rank = krank * band_comm.size * domain_comm.size
-            psit_nG, P_ani, s = broadcast(data, rank, comm)
-            V_nG = psit_nG.new()
-            V_nG.data[:] = 0.0
-            V_ani = P_ani.new()
-            V_ani.data[:] = 0.0
-            e += self._apply2(psit_nG, P_ani, s, V_nG, V_ani, f_n,
-                              calculate_energy)
-            comm.sum(V_nG.data, root=rank)
-            comm.sum(V_ani.data, root=rank)
-            print(comm.rank, V_nG)
-            if krank == self.kpt_comm.rank:
-                V2_nG = Htpsit_nG.new()
-                V2_nG.scatter_everything_from(V_nG, self.domain_band_comm)
-                print(comm.rank, V2_nG)
-                V2_ani = V0_ani.new()
-                V2_ani.scatter_everything_from(V_ani)
-                Htpsit_nG.data += V2_nG.data
-                pt_aiG.add_to(Htpsit_nG, V2_ani)
+                rank = (brank + krank * band_comm.size) * domain_comm.size
+                psit_nG, P_ani, s = broadcast(data, rank, comm)
+                V_nG = psit_nG.new()
+                V_nG.data[:] = 0.0
+                V_ani = P_ani.new()
+                V_ani.data[:] = 0.0
+                e += self._apply2(psit_nG, P_ani, s, V_nG, V_ani, f_n,
+                                  calculate_energy)
+                comm.sum(V_nG.data, root=rank)
+                comm.sum(V_ani.data, root=rank)
+                if krank == self.kpt_comm.rank:
+                    if brank == band_comm.rank:
+                        V2_nG = Htpsit_nG.new()
+                        V2_nG.scatter_from(V_nG)
+                        V2_ani = V0_ani.new()
+                        V2_ani.scatter_from(V_ani)
+                        V2_ani.data += V0_ani.data
+                        Htpsit_nG.data += V2_nG.data
+                        pt_aiG.add_to(Htpsit_nG, V2_ani)
 
         if not calculate_energy:
             return nan, nan, nan
