@@ -26,8 +26,6 @@ def test_hse06(gpaw_new, ccirs, dtype):
     if gpaw_new:
         if dtype is float and size > 4:
             pytest.skip('Only band-parallelization!')
-        elif 0:#dtype is complex and size > 1:
-            pytest.skip('No parallelization!')
         if ccirs and dtype is complex:
             pytest.skip('not implemented')
         experimental = {'ccirs': ccirs}
@@ -42,13 +40,14 @@ def test_hse06(gpaw_new, ccirs, dtype):
             pytest.skip('CCIRS only for new GPAW')
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
-    atoms.calc = GPAW(mode=dict(name='pw',
-                                force_complex_dtype=dtype is complex),
-                      xc='HSE06',
-                      experimental=experimental,
-                      eigensolver=eigensolver,
-                      parallel={'domain': min(2, size)},
-                      nbands=4)
+    atoms.calc = GPAW(
+        mode=dict(name='pw',
+                  force_complex_dtype=dtype is complex),
+        xc='HSE06',
+        experimental=experimental,
+        eigensolver=eigensolver,
+        parallel={'domain': min(2, size) if dtype is complex else 1},
+        nbands=4)
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
     assert e == pytest.approx(-5.633278, abs=1e-3)
@@ -62,8 +61,6 @@ def test_h(gpaw_new, dtype):
     if gpaw_new:
         if dtype is float and size > 2:
             pytest.skip('Only band-parallelization!')
-        elif 0:#dtype is complex and size > 1:
-            pytest.skip('No parallelization!')
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(mode=dict(name='pw',

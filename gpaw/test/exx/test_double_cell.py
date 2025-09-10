@@ -1,7 +1,6 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW, PW
-from gpaw.mpi import size
 
 
 @pytest.mark.libxc
@@ -9,10 +8,7 @@ from gpaw.mpi import size
 @pytest.mark.new_gpaw_ready
 @pytest.mark.parametrize('use_sym', [False, True])
 def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
-    if 0:#gpaw_new and size > 1:
-        pytest.skip('No parallelization!')
-    #if not gpaw_new and use_sym:
-    if use_sym:
+    if not gpaw_new and use_sym:
         pytest.skip('Does not work')
 
     L = 2.6
