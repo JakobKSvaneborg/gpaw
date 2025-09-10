@@ -45,9 +45,9 @@ class RTTDDFTAdapter:
             raise NotImplementedError
         self.tddft_initialized = False
 
-        msg = ('Using compabilitity wrapper for RTTDDFT. The recommended '
-               'way of using the new RTTDDFT interface outside of tests '
-               'is via gpaw.new.rttddft.RTTDDFT.')
+        msg = ('Using compabilitity wrapper for RTTDDFT. Some options will '
+               'be ignored. The recommended way of using the new RTTDDFT '
+               'interface outside of tests is via gpaw.new.rttddft.RTTDDFT.')
         warnings.warn(msg)
 
     @property
