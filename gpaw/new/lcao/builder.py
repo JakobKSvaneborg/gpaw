@@ -3,28 +3,42 @@ from scipy import sparse
 from gpaw.core.matrix import Matrix, MatrixWithNoData
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
-from gpaw.new.fd.builder import FDDFTComponentsBuilder
+from gpaw.new.builder import DFTComponentsBuilder
+from gpaw.new.pw.builder import PWDFTComponentsBuilder
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.lcao.hybrids import HybridXCFunctional
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.utilities.timing import NullTimer
+from gpaw.dft import Parameters
 
 
-class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
+class LCAODFTComponentsBuilder(DFTComponentsBuilder):
     def __init__(self,
                  atoms,
                  params,
                  *,
                  comm,
                  log):
+        pwparams = Parameters(**(params.todict() | {'mode': 'pw'}))
+        self.builder = PWDFTComponentsBuilder(
+            atoms, pwparams, comm=comm, log=log)
         super().__init__(atoms, params, comm=comm, log=log)
         self.distribution = params.mode.distribution
         self.basis = None
 
-    def create_wf_description(self):
-        raise NotImplementedError
+    def create_uniform_grids(self):
+        return self.builder.create_uniform_grids()
+
+    def create_potential_calculator(self):
+        return self.builder.create_potential_calculator()
+
+    def get_pseudo_core_densities(self):
+        return self.builder.get_pseudo_core_densities()
+
+    def get_pseudo_core_ked(self):
+        return self.builder.get_pseudo_core_ked()
 
     def create_xc_functional(self):
         if self.params.xc['name'] in ['HSE06', 'PBE0', 'EXX']:
@@ -32,7 +46,7 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
         return super().create_xc_functional()
 
     def create_basis_set(self):
-        self.basis = FDDFTComponentsBuilder.create_basis_set(self)
+        self.basis = super().create_basis_set()
         return self.basis
 
     def create_hamiltonian_operator(self):
