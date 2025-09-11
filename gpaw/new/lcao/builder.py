@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from scipy import sparse
 from gpaw.core.matrix import Matrix, MatrixWithNoData
@@ -20,18 +21,19 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
                  *,
                  comm,
                  log):
+        from gpaw.new.pw.builder import PWDFTComponentsBuilder
+        from gpaw.new.fd.builder import FDDFTComponentsBuilder
+        self.builder: PWDFTComponentsBuilder | FDDFTComponentsBuilder
         if params.experimental.get('pw_pot_calc'):
-            from gpaw.new.pw.builder import PWDFTComponentsBuilder
-            pwparams = Parameters(**(params.todict() | {'mode': 'pw'}))
+            xparams = Parameters(**(params.todict() | {'mode': 'pw'}))
             self.builder = PWDFTComponentsBuilder(
-                atoms, pwparams, comm=comm, log=log)
+                atoms, xparams, comm=comm, log=log)
         else:
-            from gpaw.new.fd.builder import FDDFTComponentsBuilder
-            fdparams = Parameters(**(params.todict() | {'mode': 'fd'}))
+            xparams = Parameters(**(params.todict() | {'mode': 'fd'}))
             self.builder = FDDFTComponentsBuilder(
-                atoms, fdparams, comm=comm, log=log)
+                atoms, xparams, comm=comm, log=log)
         super().__init__(atoms, params, comm=comm, log=log)
-        self.distribution = params.mode.distribution
+        self.distribution = params.mode.distribution  # type: ignore
         self.basis = None
         self.electrostatic_potential_desc = (
             self.builder.electrostatic_potential_desc)
