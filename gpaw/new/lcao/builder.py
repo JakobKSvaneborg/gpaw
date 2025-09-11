@@ -4,7 +4,6 @@ from gpaw.core.matrix import Matrix, MatrixWithNoData
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.pw.builder import PWDFTComponentsBuilder
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
@@ -17,13 +16,20 @@ from gpaw.dft import Parameters
 class LCAODFTComponentsBuilder(DFTComponentsBuilder):
     def __init__(self,
                  atoms,
-                 params,
+                 params: Parameters,
                  *,
                  comm,
                  log):
-        pwparams = Parameters(**(params.todict() | {'mode': 'pw'}))
-        self.builder = PWDFTComponentsBuilder(
-            atoms, pwparams, comm=comm, log=log)
+        if params.experimental.get('pw_pot_calc'):
+            from gpaw.new.pw.builder import PWDFTComponentsBuilder
+            pwparams = Parameters(**(params.todict() | {'mode': 'pw'}))
+            self.builder = PWDFTComponentsBuilder(
+                atoms, pwparams, comm=comm, log=log)
+        else:
+            from gpaw.new.fd.builder import FDDFTComponentsBuilder
+            fdparams = Parameters(**(params.todict() | {'mode': 'fd'}))
+            self.builder = FDDFTComponentsBuilder(
+                atoms, fdparams, comm=comm, log=log)
         super().__init__(atoms, params, comm=comm, log=log)
         self.distribution = params.mode.distribution
         self.basis = None
