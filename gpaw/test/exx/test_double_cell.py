@@ -1,6 +1,7 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW, PW
+from gpaw.mpi import size
 
 
 @pytest.mark.libxc
@@ -33,6 +34,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
         txt='H2-new.txt',
+        parallel={'kpt': 1},
         **kwargs)
     e1 = a.get_potential_energy()
     eig1_kn = a.calc.eigenvalues()[0]
