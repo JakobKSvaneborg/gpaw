@@ -20,6 +20,8 @@ from gpaw.utilities import unpack_hermitian
 
 
 class PWHybridHamiltonianK(PWHamiltonian):
+    band_local = False
+
     def __init__(self,
                  grid: UGDesc,
                  pw: PWDesc,
