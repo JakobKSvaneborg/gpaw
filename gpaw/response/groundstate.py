@@ -63,10 +63,8 @@ class ResponseGroundStateAdapter:
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None
-            ecut_pw_Ha = pw_ecut_from_lcao_grid(wfs.gd)
-            ecut_pw_eV = ecut_pw_Ha*Ha
-            print(f"LCAO→PW energy cutoff ecut_pw_eV: {ecut_pw_eV:.1f} eV")
-            wfs.planewavefy(ecut=ecut_pw_Ha)
+            ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
+            wfs.planewavefy(ecut=ecut_pw/Ha)
 
 
         self.atoms = calc.atoms
