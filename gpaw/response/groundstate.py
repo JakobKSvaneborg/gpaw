@@ -55,7 +55,7 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 
 class ResponseGroundStateAdapter:
-    def __init__(self, calc: GPAWCalculator, wf_ecut_eV = None, chi0_ecut_eV = None):
+    def __init__(self, calc: GPAWCalculator):
 
         wfs = calc.wfs  # wavefunction object from gpaw.wavefunctions
         
@@ -120,13 +120,13 @@ class ResponseGroundStateAdapter:
 
 
     @classmethod
-    def from_gpw_file(cls, gpw, wf_ecut_eV=None, chi0_ecut_eV=None) -> ResponseGroundStateAdapter:
+    def from_gpw_file(cls, gpw) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
         from gpaw import GPAW, disable_dry_run
         assert Path(gpw).is_file()
         with disable_dry_run():
             calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
-        return cls(calc, wf_ecut_eV=wf_ecut_eV, chi0_ecut_eV=chi0_ecut_eV)
+        return cls(calc)
 
 
     @property
