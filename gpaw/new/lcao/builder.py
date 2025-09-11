@@ -37,6 +37,7 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
         self.basis = None
         self.electrostatic_potential_desc = (
             self.builder.electrostatic_potential_desc)
+        self.interpolation_desc = self.builder.interpolation_desc
 
     def create_uniform_grids(self):
         return self.builder.create_uniform_grids()
