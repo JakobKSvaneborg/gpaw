@@ -639,6 +639,7 @@ class BSEBackend:
     @timer('add_direct_kernel')
     def add_direct_kernel(self, kptpair_factory, pair_calc, screened_potential,
                           update_progress, H_kmmKmm):
+        D_kmmKmm = np.zeros_like(H_kmmKmm)
         kpf = kptpair_factory
         for ik1, iK1 in enumerate(self.myKrange):
             kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
@@ -685,12 +686,15 @@ class BSEBackend:
                     screened_potential.W_qGG[iq],
                     rho4_nnG,
                     optimize='optimal')
+
                 # Only include 0.5*W for spinpaired calculations without soc
                 H_kmmKmm[ik1, :, :, iK2] -= W_mmmm * (self.add_soc + 1) / 2
+                D_kmmKmm[ik1, :, :, iK2] = W_mmmm * (self.add_soc + 1) / 2
                 self.context.timer.stop('Screened exchange')
 
             if iK1 % (self.myKsize // 5 + 1) == 0:
                 update_progress(iK1=iK1)
+        np.save('D_kmmKmm.npy', D_kmmKmm)
 
     @timer('add_indirect_kernel')
     def add_indirect_kernel(self, kptpair_factory, rhoex_KmmG, H_kmmKmm):
