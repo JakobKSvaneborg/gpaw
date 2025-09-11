@@ -33,6 +33,8 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
         super().__init__(atoms, params, comm=comm, log=log)
         self.distribution = params.mode.distribution
         self.basis = None
+        self.electrostatic_potential_desc = (
+            self.builder.electrostatic_potential_desc)
 
     def create_uniform_grids(self):
         return self.builder.create_uniform_grids()
