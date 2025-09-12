@@ -19,7 +19,7 @@ from ase.parallel import world as aseworld
 import gpaw
 
 from ._broadcast_imports import world as _world
-
+from gpaw.gpu import is_hip, cupy
 
 MASTER = 0
 
@@ -30,11 +30,24 @@ def is_contiguous(*args, **kwargs):
 
 
 class RegisteredPointer:
+    """This is a workaround for the MPI race condition in LUMI with MI250X.
+
+       MPI Transferred data will be corrupted including data which is never
+       even sent trough MPI. If one performs a direct hipMalloc (as done
+       by doing Memory, and doing GPU-GPU transfer, this works around this
+       behaviour (for a currently unknown reason, but perhaps open-mpi or hip
+       has problems identifying GPU pointers, but the reason could also be
+       somewhere in GPAW equally well).
+    """
     def __init__(self, a, _input=True, _output=True):
-        import cupy
+        # Cuda just works
+        if not is_hip:
+            self.array = a
+            return
+
+        self.a = a
         self._output = _output
         if isinstance(a, cupy.ndarray):
-            self.a = a
             if 1:
                 from cupy.cuda.memory import Memory, MemoryPointer
                 mem = Memory(a.nbytes)  # Direct malloc
@@ -48,13 +61,15 @@ class RegisteredPointer:
             else:
                 self.array = a.copy()  # This SEGFAULTS!
         else:
-            self.array, self.a = a, a
+            self.array = a
 
     def __enter__(self):
         return self.array
 
     def __exit__(self, *args):
-        import cupy
+        if not is_hip:
+            return
+
         if self._output and isinstance(self.a, cupy.ndarray):
             self.a[...] = self.array
 

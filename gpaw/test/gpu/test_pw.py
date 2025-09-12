@@ -102,7 +102,6 @@ def test_gpu_k(gpu, par, mode, xc):
 def test_2d():
     atoms = Atoms('H', pbc=[True, True, False], cell=[1, 1, 5])
     atoms.center(axis=2)
-    #atoms.translate([0,0,1e-8])
     dft = DFT(
         atoms,
         mode={'name': 'pw'},
