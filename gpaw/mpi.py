@@ -49,7 +49,6 @@ class RegisteredPointer:
         self._output = _output
         if isinstance(a, cupy.ndarray):
             if 1:
-                print('wrapping')
                 from cupy.cuda.memory import Memory, MemoryPointer
                 mem = Memory(a.nbytes)  # Direct malloc
                 memptr = MemoryPointer(mem, 0)

@@ -13,6 +13,8 @@ import warnings
 from gpaw.cgpaw import have_magma
 from gpaw import debug
 
+device_id = None
+
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
     import gpaw.gpu.cpupyx as cupyx
@@ -31,7 +33,6 @@ else:
     except ImportError:
         cupy_is_fake = True
         is_hip = False
-        device_id = None
         import gpaw.gpu.cpupy as cupy
         import gpaw.gpu.cpupyx as cupyx
         from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm  # noqa
@@ -194,6 +195,16 @@ if not TYPE_CHECKING:
             cupy.fft.fftshift = fftshift_patch
             cupy.fft.ifftshift = ifftshift_patch
 
+
+def set_device(log):
+    global device_id
+    from gpaw.mpi import rank
+    if cupy_is_fake:
+        device_id = 'CPU emulation of GPU'
+        log(f'mpi rank {rank} has no GPU device!', parallel=True)
+        return
+
+    if device_id is None:
         # Check the number of devices
         # Do not fail when calling `gpaw info` on a login node without GPUs
         try:
@@ -208,7 +219,6 @@ if not TYPE_CHECKING:
         if device_count > 0:
             # select GPU device (round-robin based on MPI rank)
             # if not set, all MPI ranks will use the same default device
-            from gpaw.mpi import rank
             runtime.setDevice(rank % device_count)
 
             # initialise C parameters and memory buffers
@@ -221,6 +231,8 @@ if not TYPE_CHECKING:
             nodename = os.uname()[1]
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
+
+    log(f'mpi rank {rank} has GPU device {device_id}', parallel=True)
 
 
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']

@@ -44,16 +44,19 @@ class DFTComponentsBuilder:
                  *,
                  log=None,
                  comm=None):
+        from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
         self.mode = params.mode.name
         self.params = params
         if not isinstance(log, Logger):
             log = Logger(log, comm)
+
         self.log = log
         comm = log.comm
 
         parallel = params.parallel
+        parallel['gpu'] and set_device(log)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
