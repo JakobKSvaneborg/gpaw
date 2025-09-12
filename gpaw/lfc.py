@@ -1250,6 +1250,18 @@ class GPUBasisFunctions:
     def Mmax(self):
         return self._lfc.Mmax
 
+    @property
+    def Mstart(self):
+        return self._lfc.Mstart
+
+    @property
+    def Mstop(self):
+        return self._lfc.Mstop
+
+    @property
+    def my_atom_indices(self):
+        return self._lfc.my_atom_indices
+
     def construct_density(self, rho_MM, nt_G, q):
         _rho_MM = self.xp.asnumpy(rho_MM)
         _nt_G = self.xp.asnumpy(nt_G)
@@ -1261,7 +1273,7 @@ class GPUBasisFunctions:
 
     def set_matrix_distribution(self, Mstart, Mstop):
         self._lfc.set_matrix_distribution(Mstart, Mstop)
-    
+
     def add_to_density(self, nt_sG, f_asi):
         _nt_sG = self.xp.asnumpy(nt_sG)
         self._lfc.add_to_density(_nt_sG, f_asi)
