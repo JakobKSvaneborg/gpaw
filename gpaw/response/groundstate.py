@@ -16,7 +16,7 @@ from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
 from gpaw.wavefunctions.lcao import LCAOWaveFunctions
 
-from gpaw.response.lcao_pw_helpers  import  pw_ecut_from_lcao_grid
+from gpaw.utilities.gpts  import  pw_ecut_from_lcao_grid
 
 if TYPE_CHECKING:
     from gpaw.setup import Setups, LeanSetup
