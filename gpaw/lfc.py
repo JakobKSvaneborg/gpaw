@@ -1259,6 +1259,8 @@ class GPUBasisFunctions:
     def set_positions(self, *args, **kwargs):
         self._lfc.set_positions(*args, **kwargs)
 
+    def set_matrix_distribution(self, Mstart, Mstop):
+        self._lfc.set_matrix_distribution(Mstart, Mstop)
 
 def BasisFunctions(*args, xp=np, **kwargs):
     if xp is np:
