@@ -1261,6 +1261,11 @@ class GPUBasisFunctions:
 
     def set_matrix_distribution(self, Mstart, Mstop):
         self._lfc.set_matrix_distribution(Mstart, Mstop)
+    
+    def add_to_density(self, nt_sG, f_asi):
+        _nt_sG = self.xp.asnumpy(nt_sG)
+        self._lfc.add_to_density(_nt_sG, f_asi)
+        nt_sG[:] = self.xp.asarray(_nt_sG)
 
 def BasisFunctions(*args, xp=np, **kwargs):
     if xp is np:
