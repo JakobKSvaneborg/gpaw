@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "../cpp/gpu_core.hpp"
+#include "gpaw_utils.h"
 
 #define BETA   0.066725
 #define GAMMA  0.031091
@@ -74,8 +75,7 @@ __global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, in
 }
 
 
-extern "C"
-void calculate_residual_launch_kernel(
+CLINKAGE void calculate_residual_launch_kernel(
 				      int dtypenum,
 					  int nG,
 				      int nn,
@@ -417,8 +417,7 @@ template <int nspin, bool gga> __global__ void evaluate_ldaorgga_kernel(int ng,
     }
 }
 
-extern "C"
-void evaluate_pbe_launch_kernel(int nspin, int ng,
+CLINKAGE void evaluate_pbe_launch_kernel(int nspin, int ng,
 				double* n,
 				double* v,
 				double* e,
@@ -464,8 +463,7 @@ void evaluate_pbe_launch_kernel(int nspin, int ng,
     }
 }
 
-extern "C"
-void evaluate_lda_launch_kernel(int nspin, int ng,
+CLINKAGE void evaluate_lda_launch_kernel(int nspin, int ng,
 				double* n,
 				double* v,
 				double* e,
@@ -575,14 +573,13 @@ __global__ void pw_insert(int nG,
 	tmp_Q[Q_G[G]] = c_G[G] * scale;
 }
 
-extern "C" void gpawDeviceSynchronize()
+CLINKAGE void gpawDeviceSynchronize()
 {
     gpuDeviceSynchronize();
 }
 
 
-extern "C"
-void add_to_density_gpu_launch_kernel(int nb,
+CLINKAGE void add_to_density_gpu_launch_kernel(int nb,
 					int nR,
 					double* f_n,
 					void* psit_nR,
@@ -622,8 +619,7 @@ void add_to_density_gpu_launch_kernel(int nb,
     }
 }
 
-extern "C"
-void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
+CLINKAGE void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
 											  int nb,
                                               int nx,
                                               int ny,
@@ -679,8 +675,7 @@ void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
 	}
 }
 
-extern "C"
-void pw_insert_gpu_launch_kernel(
+CLINKAGE void pw_insert_gpu_launch_kernel(
 			     int dtypenum,
 			     int nb,
 			     int nG,
@@ -999,8 +994,7 @@ __global__ void pw_norm_kernel(int nx, int nG,
     if (tid == 0) result_x[x] = sdata[0];
 }
 
-extern "C"
-void dH_aii_times_P_ani_launch_kernel(int dtypenum,
+CLINKAGE void dH_aii_times_P_ani_launch_kernel(int dtypenum,
 					int nA, int nn,
 					int nI, npy_int32* ni_a,
 					void* dH_aii_dev,
@@ -1073,7 +1067,7 @@ void dH_aii_times_P_ani_launch_kernel(int dtypenum,
 	else assert(false);
 }
 
-extern "C" void pw_norm_gpu_launch_kernel(int dtypenum,
+CLINKAGE void pw_norm_gpu_launch_kernel(int dtypenum,
 										int nx, int nG,
 										void* result_x,
 										void* C_xG,
@@ -1115,7 +1109,7 @@ extern "C" void pw_norm_gpu_launch_kernel(int dtypenum,
 	} else assert(false);
 }
 
-extern "C" void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
+CLINKAGE void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
 												int nx, int nG,
 												void* result_x,
 												void* C_xG,
@@ -1162,8 +1156,7 @@ extern "C" void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
 }
 
 
-extern "C"
-void pwlfc_expand_gpu_launch_kernel(int dtypenum,
+CLINKAGE void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 				    void* f_Gs,
 					void* Gk_Gv,
 					void* pos_av,
