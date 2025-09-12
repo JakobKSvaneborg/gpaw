@@ -33,6 +33,12 @@ def execute_in_tmp_path(request, tmp_path_factory):
 
 
 @pytest.fixture(scope='module')
+def set_device():
+    from gpaw.gpu import set_device
+    set_device()
+
+
+@pytest.fixture(scope='module')
 def dftd3():
     from ase.calculators.dftd3 import PureDFTD3
     try:

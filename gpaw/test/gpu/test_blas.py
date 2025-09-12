@@ -10,7 +10,7 @@ from gpaw.utilities.blas import (gpu_axpy, gpu_dotc, gpu_dotu, gpu_gemm,
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_blas(dtype):
+def test_blas(dtype, set_device):
     N = 100
     rng = np.random.default_rng(seed=42)
     a = np.zeros((N, N), dtype=dtype)
