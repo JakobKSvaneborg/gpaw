@@ -30,6 +30,7 @@ def is_contiguous(*args, **kwargs):
 
 from cupy.cuda.memory import _malloc
 
+
 class RegisteredPointer:
     def __init__(self, a):
         import cupy
@@ -37,8 +38,8 @@ class RegisteredPointer:
             self.a = a
             if 1:
                 from cupy.cuda.memory import Memory, MemoryPointer
-                mem = Memory(a.nbytes) # Direct malloc
-                memptr = MemoryPointer(mem, 0)
+                mem = Memory(a.nbytes + 4) # Direct malloc
+                memptr = MemoryPointer(mem, 4)
                 self.array = cupy.ndarray(a.shape,
                                           memptr=memptr,
                                           dtype=a.dtype,
@@ -204,8 +205,8 @@ class _Communicator:
             assert tc == int or tc == float
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            with RegisteredPointer(a) as a:
-                self.comm.product(a, root)
+            #with RegisteredPointer(a) as a:
+            self.comm.product(a, root)
 
     def max(self, a, root=-1):
         """Find maximal value by an MPI reduce operation of numerical data.
@@ -234,8 +235,8 @@ class _Communicator:
             assert tc == int or tc == float
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            with RegisteredPointer(a) as a:
-                self.comm.max(a, root)
+            #with RegisteredPointer(a) as a:
+            self.comm.max(a, root)
 
     def max_scalar(self, a, root=-1):
         assert isinstance(a, (int, float, np.int64))
@@ -268,8 +269,8 @@ class _Communicator:
             assert tc == int or tc == float
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            with RegisteredPointer(a) as a:
-                self.comm.min(a, root)
+            #with RegisteredPointer(a) as a:
+            self.comm.min(a, root)
 
     def min_scalar(self, a, root=-1):
         assert isinstance(a, (int, float))
@@ -323,8 +324,8 @@ class _Communicator:
             assert a.flags.c_contiguous
         assert b.flags.c_contiguous
         assert 0 <= root < self.size
-        with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
-            self.comm.scatter(a, b, root)
+        #with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
+        self.comm.scatter(a, b, root)
 
     def alltoallv(self, sbuffer, scounts, sdispls, rbuffer, rcounts, rdispls):
         """All-to-all in a group.
@@ -366,9 +367,9 @@ class _Communicator:
         assert np.all(0 <= rdispls)
         assert np.all(sdispls + scounts <= sbuffer.size)
         assert np.all(rdispls + rcounts <= rbuffer.size)
-        with RegisteredPointer(sbuffer) as sbuffer, RegisteredPointer(rbuffer) as rbuffer:
-            self.comm.alltoallv(sbuffer, scounts, sdispls,
-                                rbuffer, rcounts, rdispls)
+        #with RegisteredPointer(sbuffer) as sbuffer, RegisteredPointer(rbuffer) as rbuffer:
+        self.comm.alltoallv(sbuffer, scounts, sdispls,
+                            rbuffer, rcounts, rdispls)
 
     def all_gather(self, a, b):
         """Gather data from all ranks onto all processes in a group.
@@ -413,8 +414,8 @@ class _Communicator:
         assert b.dtype == a.dtype
         assert (b.shape[0] == self.size and a.shape == b.shape[1:] or
                 a.size * self.size == b.size)
-        with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
-            self.comm.all_gather(a, b)
+        #with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
+        self.comm.all_gather(a, b)
 
     def gather(self, a, root, b=None):
         """Gather data from all ranks onto a single process in a group.
@@ -465,12 +466,12 @@ class _Communicator:
             assert b.flags.c_contiguous and b.dtype == a.dtype
             assert (b.shape[0] == self.size and a.shape == b.shape[1:] or
                     a.size * self.size == b.size)
-            with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
-                self.comm.gather(a, root, b)
+            #with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
+            self.comm.gather(a, root, b)
         else:
             assert b is None
-            with RegisteredPointer(a) as a:
-                self.comm.gather(a, root)
+            #with RegisteredPointer(a) as a:
+            self.comm.gather(a, root)
 
     def broadcast(self, a, root):
         """Share data from a single process to all ranks in a group.
@@ -515,8 +516,8 @@ class _Communicator:
         """
         assert 0 <= root < self.size
         assert is_contiguous(a)
-        with RegisteredPointer(a) as a:
-            self.comm.broadcast(a, root)
+        #with RegisteredPointer(a) as a:
+        self.comm.broadcast(a, root)
 
     def sendreceive(self, a, dest, b, src, sendtag=123, recvtag=123):
         assert 0 <= dest < self.size
@@ -525,8 +526,8 @@ class _Communicator:
         assert 0 <= src < self.size
         assert src != self.rank
         assert is_contiguous(b)
-        with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
-            return self.comm.sendreceive(a, dest, b, src, sendtag, recvtag)
+        #with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
+        return self.comm.sendreceive(a, dest, b, src, sendtag, recvtag)
 
     def send(self, a, dest, tag=123, block=True):
         assert 0 <= dest < self.size
@@ -534,22 +535,22 @@ class _Communicator:
         assert is_contiguous(a)
         if not block:
             pass  # assert sys.getrefcount(a) > 3
-        with RegisteredPointer(a) as a:
-            return self.comm.send(a, dest, tag, True)
+        #with RegisteredPointer(a) as a:
+        return self.comm.send(a, dest, tag, True)
 
     def ssend(self, a, dest, tag=123):
         assert 0 <= dest < self.size
         assert dest != self.rank
         assert is_contiguous(a)
-        with RegisteredPointer(a) as a:
-            return self.comm.ssend(a, dest, tag)
+        #with RegisteredPointer(a) as a:
+        return self.comm.ssend(a, dest, tag)
 
     def receive(self, a, src, tag=123, block=True):
         assert 0 <= src < self.size
         assert src != self.rank
         assert is_contiguous(a)
-        with RegisteredPointer(a) as a:
-            return self.comm.receive(a, src, tag, True)
+        #with RegisteredPointer(a) as a:
+        return self.comm.receive(a, src, tag, True)
 
     def test(self, request):
         """Test whether a non-blocking MPI operation has completed. A boolean

@@ -37,7 +37,7 @@ T* Array_DATA(PyObject* obj)
         return nullptr;
     }
 
-    T* ptr = reinterpret_cast<T*>(PyLong_AS_LONG(ptr_data));
+    T* ptr = reinterpret_cast<T*>(PyLong_AsVoidPtr(ptr_data));
     Py_DECREF(ptr_data);
     Py_DECREF(ndarray_data);
     return ptr;
