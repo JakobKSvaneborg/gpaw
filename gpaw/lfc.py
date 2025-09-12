@@ -1252,6 +1252,8 @@ class GPUBasisFunctions:
         self._lfc.construct_density(_rho_MM, _nt_G)
         nt_G[:] = self.xp.asarray(_nt_G)
 
+    def set_positions(self, *args, **kwargs):
+        self._lfc.set_positions(*args, **kwargs)
 
 def BasisFunctions(*args, xp=np, **kwargs):
     if xp is np:
