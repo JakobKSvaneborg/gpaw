@@ -340,10 +340,6 @@ class ASECalculator:
                          precision=precision, include_wfs=mode == 'all')
         write_gpw(filename, self.dft, flags=flags)
 
-    @property
-    def environment(self):
-        return self.dft.pot_calc.environment
-
     # Old API:
 
     implemented_properties = ['energy', 'free_energy',
@@ -391,7 +387,7 @@ class ASECalculator:
     def get_number_of_electrons(self):
         density = self.dft.density
         return (density.nvalence - density.charge +
-                self.dft.pot_calc.environment.charge)
+                self.dft.pot_calc.charge)
 
     def get_number_of_bands(self):
         return self.dft.ibzwfs.nbands
@@ -620,17 +616,17 @@ class ASECalculator:
         builder = params.dft_component_builder(self.atoms, log=log)
         basis_set = builder.create_basis_set()
         dft = self.dft
-        comm1 = dft.ibzwfs.kpt_band_comm
-        comm2 = builder.communicators['D']
+        kbcomm1 = dft.ibzwfs.kpt_band_comm
+        kbcomm2 = builder.communicators['D']
         potential = dft.potential.redist(
             builder.grid,
             builder.electrostatic_potential_desc,
             builder.atomdist,
-            comm1, comm2)
+            kbcomm1, kbcomm2)
         density = dft.density.redist(builder.grid,
                                      builder.interpolation_desc,
                                      builder.atomdist,
-                                     comm1, comm2)
+                                     kbcomm1, kbcomm2)
         ibzwfs = builder.create_ibz_wave_functions(basis_set, potential)
         ibzwfs.fermi_levels = dft.ibzwfs.fermi_levels
 
