@@ -1246,6 +1246,10 @@ class GPUBasisFunctions:
         self.xp = cupy
         self._lfc = _BasisFunctions(*args, **kwargs)
 
+    @property
+    def Mmax(self):
+        return self._lfc.Mmax
+
     def construct_density(self, rho_MM, nt_G, q):
         _rho_MM = self.xp.asnumpy(rho_MM)
         _nt_G = self.xp.asnumpy(nt_G)
@@ -1254,6 +1258,7 @@ class GPUBasisFunctions:
 
     def set_positions(self, *args, **kwargs):
         self._lfc.set_positions(*args, **kwargs)
+
 
 def BasisFunctions(*args, xp=np, **kwargs):
     if xp is np:
