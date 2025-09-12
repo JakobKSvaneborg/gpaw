@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     import gpaw.gpu.cpupyx as cupyx
     cupy_is_fake = True
     is_hip = False
+
     def gpu_gemm(*args, **kwargs):
         raise ValueError('GPU gemm not available while type checking')
 else:

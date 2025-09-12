@@ -832,7 +832,10 @@ if gpaw.debug:
         world = _Communicator(_world)
 else:
     serial_comm = _serial_comm  # type: ignore
-    world = _Communicator(_world)
+    if is_hip:
+        world = _Communicator(_world)
+    else:
+        world = _world
 
 rank = world.rank
 size = world.size
