@@ -686,6 +686,9 @@ class MatrixDistribution:
     def new(self, M, N):
         raise NotImplementedError
 
+    def to_cp(self) -> CuPyDistribution:
+        raise NotImplementedError
+
     def my_row_range(self) -> tuple[int, int]:
         """Return indices for range of my rows.
 
@@ -717,7 +720,7 @@ class NoDistribution(MatrixDistribution):
     def __str__(self):
         return 'NoDistribution({}x{})'.format(*self.shape)
 
-    def to_cp(self):
+    def to_cp(self) -> CuPyDistribution:
         return CuPyDistribution(*self.shape, serial_comm, 1, 1, None)
 
     def global_index(self, n):
