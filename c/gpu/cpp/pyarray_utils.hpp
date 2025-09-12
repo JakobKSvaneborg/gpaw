@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <cassert>
+#include <type_traits>
 
 // Utility functions for working with Python arrays.
 // Needed when working with Cupy arrays in particular, which do not define a nice C-interface.
@@ -24,10 +25,52 @@
 namespace gpaw
 {
 
+// Returns true if the current thread has GIL
+inline bool check_gil() noexcept
+{
+    return PyGILState_Check();
+}
+
+// Check that the current thread is holding GIL and abort on failure
+#define ASSERT_GIL()    __assert_gil(__FILE__, __LINE__)
+static inline void __assert_gil(const char *file, int line)
+{
+    if (!check_gil())
+    {
+        char msg[100];
+        snprintf(msg, 100, "ENSURE_GIL() failed at %s:%d\n", file, line);
+        gpaw_abort(msg);
+    }
+}
+
+// RAII helper for scoped GIL acquisition
+class GilGuard
+{
+public:
+    GilGuard()
+    {
+        gil_state = PyGILState_Ensure();
+    }
+
+    ~GilGuard()
+    {
+        PyGILState_Release(gil_state);
+    }
+
+    GilGuard(const GilGuard&) = delete;
+    GilGuard& operator=(const GilGuard&) = delete;
+
+private:
+    PyGILState_STATE gil_state;
+};
+
+
 // Get pointer to the array data
 template<typename T>
 T* Array_DATA(PyObject* obj)
 {
+    static_assert(!std::is_pointer<T>::value, "T must be a scalar type");
+
     // Equivalent to obj.data.ptr
     PyObject* ndarray_data = PyObject_GetAttrString(obj, "data");
     if (ndarray_data == nullptr)

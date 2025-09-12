@@ -18,7 +18,10 @@
 #define gpuEvent_t                hipEvent_t
 #define gpuError_t                hipError_t
 #define gpuDeviceProp             hipDeviceProp_t
-
+#define gpuPointerAttributes      hipPointerAttribute_t
+#define gpuPointerGetAttributes   hipPointerGetAttributes
+#define gpuMemoryTypeHost         hipMemoryTypeHost
+#define gpuMemoryTypeDevice       hipMemoryTypeDevice
 
 #ifdef __cplusplus
 #define gpuDoubleComplex          XXXhipDoubleComplex

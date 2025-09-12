@@ -200,9 +200,9 @@ PyObject* eigh_magma_gpu(PyObject* self, PyObject* args)
 
     const EighErrorType status = magma_eigh_gpu(
         solver_context,
-        gpaw::Array_DATA<const void*>(in_matrix_cupy),
-        gpaw::Array_DATA<void*>(inout_eigvals_cupy),
-        gpaw::Array_DATA<void*>(inout_eigvecs_cupy)
+        gpaw::Array_DATA<void>(in_matrix_cupy),
+        gpaw::Array_DATA<void>(inout_eigvals_cupy),
+        gpaw::Array_DATA<void>(inout_eigvecs_cupy)
     );
 
     assert(status != EighErrorType::eInvalidArgument && "Invalid input to MAGMA solver");

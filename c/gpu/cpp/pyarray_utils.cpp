@@ -1,5 +1,5 @@
 #include "pyarray_utils.hpp"
-#include "template_utils.hpp"
+#include "utils.hpp"
 
 namespace gpaw
 {

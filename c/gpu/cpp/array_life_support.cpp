@@ -1,6 +1,7 @@
 #include "array_life_support.hpp"
 #include "pyarray_utils.hpp"
-#include "template_utils.hpp"
+#include "utils.hpp"
+#include "gpu_core.hpp"
 
 #include <Python.h>
 #include <mutex>
@@ -13,10 +14,6 @@ namespace life_support
 // Global cache for storing objects that have pending unpin/decref
 static std::vector<PyObject*> g_pending_decrefs; // should this be volatile?!
 static std::mutex g_pending_decrefs_mutex;
-
-#ifdef GPAW_GPU_ARRAY_DEBUG
-static size_t g_arrays_in_use = 0;
-#endif
 
 } // namespace life_support
 
