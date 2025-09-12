@@ -56,7 +56,7 @@ class DFTComponentsBuilder:
         comm = log.comm
 
         parallel = params.parallel
-        parallel['gpu'] and set_device(log)
+        self.gpu and set_device(log)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)

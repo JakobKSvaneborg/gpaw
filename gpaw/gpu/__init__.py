@@ -18,6 +18,8 @@ device_id = None
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
     import gpaw.gpu.cpupyx as cupyx
+    cupy_is_fake = True
+    is_hip = False
 else:
     # First try to import GPU libraries and set important booleans
     # is_hip and cupy_is_fake.
