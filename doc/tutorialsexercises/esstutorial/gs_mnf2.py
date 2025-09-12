@@ -27,7 +27,7 @@ calc = GPAW(mode=PW(400),
             nbands=80,
             kpts={'size': (4, 4, 4), 'gamma': True},
             txt='gs_afm.txt',
-)
+            )
 
 # Attach calculator and do the calculation
 mnf2.calc = calc
