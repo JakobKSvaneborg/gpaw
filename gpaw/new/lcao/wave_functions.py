@@ -128,7 +128,8 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             natoms=len(self.setups))
         return AtomArraysLayout([setup.ni for setup in self.setups],
                                 atomdist=atomdist,
-                                dtype=self.dtype)
+                                dtype=self.dtype,
+                                xp=self.xp)
 
     @property
     def P_ani(self):

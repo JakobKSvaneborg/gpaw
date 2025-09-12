@@ -1265,7 +1265,7 @@ class GPUBasisFunctions:
     def construct_density(self, rho_MM, nt_G, q):
         _rho_MM = self.xp.asnumpy(rho_MM)
         _nt_G = self.xp.asnumpy(nt_G)
-        self._lfc.construct_density(_rho_MM, _nt_G)
+        self._lfc.construct_density(_rho_MM, _nt_G, q)
         nt_G[:] = self.xp.asarray(_nt_G)
 
     def set_positions(self, *args, **kwargs):
@@ -1280,7 +1280,7 @@ class GPUBasisFunctions:
         nt_sG[:] = self.xp.asarray(_nt_sG)
 
     def calculate_potential_matrices(self, vt_G):
-        _vt_G = self.xp.asnumpy(nt_sG)
+        _vt_G = self.xp.asnumpy(vt_G)
         Vt_xMM = self._lfc.calculate_potential_matrices(_vt_G)
         return self.xp.asarray(Vt_xMM)
 
