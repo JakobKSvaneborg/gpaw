@@ -518,7 +518,11 @@ class ASECalculator:
     @property
     def density(self):
         from gpaw.new.backwards_compatibility import FakeDensity
-        return FakeDensity(self.dft)
+        return FakeDensity(ibzwfs=self.dft.ibzwfs,
+                           density=self.dft.density,
+                           potential=self.dft.potential,
+                           pot_calc=self.dft.pot_calc,
+                           densities=self.dft.densities())
 
     @property
     def hamiltonian(self):
@@ -610,6 +614,7 @@ class ASECalculator:
                       txt='-',
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
+        kwargs.pop('communicator', None)  # Ignore silently
         kwargs = {**self.params.todict(), **kwargs}
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)

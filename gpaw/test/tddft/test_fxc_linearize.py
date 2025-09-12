@@ -7,6 +7,7 @@ from gpaw.mpi import world
 
 @pytest.mark.gllb
 @pytest.mark.libxc
+@pytest.mark.old_gpaw_only
 def test_tddft_fxc_linearize(in_tmp_dir, gpw_files):
 
     fxc = 'LDA'
