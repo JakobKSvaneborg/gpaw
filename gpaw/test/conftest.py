@@ -35,7 +35,10 @@ def execute_in_tmp_path(request, tmp_path_factory):
 @pytest.fixture(scope='module')
 def set_device():
     from gpaw.gpu import set_device
-    set_device()
+    def log(*args, **kwargs):
+        kwargs.pop('parallel', None)
+        print(*args, **kwargs)
+    set_device(log)
 
 
 @pytest.fixture(scope='module')
