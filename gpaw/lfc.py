@@ -959,7 +959,7 @@ class LocalizedFunctionsCollection(BaseLFC):
         return self.sphere_a[a].get_function_count()
 
 
-class BasisFunctions(LocalizedFunctionsCollection):
+class _BasisFunctions(LocalizedFunctionsCollection):
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
                  integral=None, forces=None, xp=np):
         LocalizedFunctionsCollection.__init__(self, gd, spline_aj,
@@ -1238,6 +1238,28 @@ class BasisFunctions(LocalizedFunctionsCollection):
             M1 = max(0, M1)
             F_av[a, :] = 2.0 * F_vM[:, M1:M2].sum(axis=1)
         return F_av
+
+
+class GPUBasisFunctions:
+    def __init__(self, *args, **kwargs):
+        from gpaw.gpu import cupy
+        assert kwargs['xp'] == cupy
+        kwargs['xp'] = np
+        self.xp = kwargs['xp']
+        self._lfc = BasisFunctions(*args, **kwargs) 
+
+    def construct_density(self, rho_MM, nt_G, q):
+        _rho_MM = self.xp.asnumpy(rho_MM)
+        _nt_G = self.xp.asnumpy(nt_G)
+        self._lfc.construct_density(_rho_MM, _nt_G)
+        nt_G[:] = self.xp.asarray(_nt_G)
+
+def BasisFunctions(*args, **kwargs):
+    xp = kwargs.pop('xp', np)
+    if xp is np:
+        return _BasisFunctions(*args, **kwargs)
+    else:
+        return GPUBasisFunctions(*args, **kwargs)
 
 
 def LFC(gd, spline_aj, kd=None,
