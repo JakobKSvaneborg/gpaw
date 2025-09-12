@@ -1246,6 +1246,7 @@ class GPUBasisFunctions:
         self.xp = cupy
         self._lfc = _BasisFunctions(*args, **kwargs)
 
+
     def construct_density(self, rho_MM, nt_G, q):
         _rho_MM = self.xp.asnumpy(rho_MM)
         _nt_G = self.xp.asnumpy(nt_G)
@@ -1254,6 +1255,9 @@ class GPUBasisFunctions:
 
     def set_positions(self, *args, **kwargs):
         self._lfc.set_positions(*args, **kwargs)
+
+    def set_matrix_distribution(self, Mstart, Mstop):
+        self._lfc.set_matrix_distribution(Mstart, Mstop)
 
 def BasisFunctions(*args, xp=np, **kwargs):
     if xp is np:
