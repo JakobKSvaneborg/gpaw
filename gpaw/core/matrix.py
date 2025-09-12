@@ -133,6 +133,8 @@ class Matrix(XP):
             dist = create_distribution(M, N, xp=self.xp, **kwargs)
         else:
             assert self.shape == dist.full_shape
+            if xp is cp:
+                dist = dist.to_cp()
         self.dist = dist
 
         self.data: Array2D
@@ -715,6 +717,9 @@ class NoDistribution(MatrixDistribution):
     def __str__(self):
         return 'NoDistribution({}x{})'.format(*self.shape)
 
+    def to_cp(self):
+        return CuPyDistribution(*self.shape, serial_comm, 1, 1, None)
+
     def global_index(self, n):
         return n
 
@@ -876,6 +881,9 @@ class CuPyDistribution(MatrixDistribution):
         M, N = self.full_shape
         m, N = self.shape
         return f'CuPyDistribution(global={M}x{N}, local={m}x{N})'
+
+    def to_cp(self):
+        return self
 
     def global_index(self, n):
         1 / 0
