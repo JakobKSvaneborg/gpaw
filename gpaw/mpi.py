@@ -835,7 +835,7 @@ else:
     if is_hip:
         world = _Communicator(_world)
     else:
-        world = _world
+        world = _world  # type: ignore
 
 rank = world.rank
 size = world.size
