@@ -15,11 +15,11 @@ import numpy as np
 import warnings
 from ase.parallel import MPI as ASE_MPI
 from ase.parallel import world as aseworld
+from gpaw.gpu import is_hip, cupy
 
 import gpaw
 
 from ._broadcast_imports import world as _world
-from gpaw.gpu import is_hip, cupy
 
 MASTER = 0
 
@@ -49,9 +49,10 @@ class RegisteredPointer:
         self._output = _output
         if isinstance(a, cupy.ndarray):
             if 1:
+                print('wrapping')
                 from cupy.cuda.memory import Memory, MemoryPointer
                 mem = Memory(a.nbytes)  # Direct malloc
-                memptr = MemoryPointer(mem)
+                memptr = MemoryPointer(mem, 0)
                 self.array = cupy.ndarray(a.shape,
                                           memptr=memptr,
                                           dtype=a.dtype,
@@ -118,6 +119,9 @@ class _Communicator:
         ``parent``    Parent MPI-communicator.
         ============  ======================================================
         """
+        if comm is _world:
+            print('DEBUG: Wrapped _Communicator:'
+                  f' {comm.rank}/{comm.size}.', flush=True)
         self.comm = comm
         self.size = comm.size
         self.rank = comm.rank
@@ -475,11 +479,12 @@ class _Communicator:
             assert b.flags.c_contiguous and b.dtype == a.dtype
             assert (b.shape[0] == self.size and a.shape == b.shape[1:] or
                     a.size * self.size == b.size)
-            # with RegisteredPointer(a) as a, RegisteredPointer(b) as b:
+            #  with RegisteredPointer(a, _input=True, _output=False) as a,
+            #       RegisteredPointer(b, _input=False, _output=True) as b:
             self.comm.gather(a, root, b)
         else:
             assert b is None
-            # with RegisteredPointer(a) as a:
+            #  with RegisteredPointer(a, _input=True, _output=False) as a:
             self.comm.gather(a, root)
 
     def broadcast(self, a, root):
@@ -595,7 +600,7 @@ class _Communicator:
             Request e.g. returned from send/receive when block=False is used.
 
         """
-        pass #self.comm.wait(request)
+        pass  # self.comm.wait(request)
 
     def waitall(self, requests):
         """Wait for non-blocking MPI operations to complete before returning.
@@ -607,7 +612,7 @@ class _Communicator:
             multiple send/receive calls where block=False was used.
 
         """
-        pass #self.comm.waitall(requests)
+        pass  # self.comm.waitall(requests)
 
     def abort(self, errcode):
         """Terminate MPI execution environment of all tasks in the group.
@@ -829,7 +834,6 @@ if gpaw.debug:
 else:
     serial_comm = _serial_comm  # type: ignore
     world = _Communicator(_world)
-    #world = _world  # type: ignore
 
 rank = world.rank
 size = world.size

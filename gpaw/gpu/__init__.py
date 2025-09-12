@@ -13,34 +13,34 @@ import warnings
 from gpaw.cgpaw import have_magma
 from gpaw import debug
 
-cupy_is_fake = True
-"""True if :mod:`cupy` has been replaced by ``gpaw.gpu.cpupy``"""
-
-is_hip = False
-"""True if we are using HIP"""
-
-device_id = None
-"""Device id"""
-
-
-def gpu_gemm(*args, **kwargs):
-    raise NotImplementedError('gpu_gemm: You are not using GPAW with GPUs.')
-
-
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
     import gpaw.gpu.cpupyx as cupyx
 else:
+    # First try to import GPU libraries and set important booleans
+    # is_hip and cupy_is_fake.
     try:
         import gpaw.cgpaw as cgpaw
         if not hasattr(cgpaw, 'gpaw_gpu_init'):
             raise ImportError
-
         import cupy
-        # Cupy gemm wrapper (does extra copying):
-        # from cupy import cublas
-        # gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811
+        import cupyx
+        from cupy.cuda import runtime
+        is_hip = runtime.is_hip
+        cupy_is_fake = False
+    except ImportError:
+        cupy_is_fake = True
+        is_hip = False
+        device_id = None
+        import gpaw.gpu.cpupy as cupy
+        import gpaw.gpu.cpupyx as cupyx
+        from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm  # noqa
 
+
+# Now that we have established all of the important global booleans
+# we can start importing other GPAW things relying it
+if not TYPE_CHECKING:
+    if not cupy_is_fake:
         # Homerolled gemm wrapper and helper functions:
         from cupy.cublas import (_get_scalar_ptr, _trans_to_cublas_op,
                                  _change_order_if_necessary, device)
@@ -172,8 +172,6 @@ else:
                 cupy._core.elementwise_copy(c, out)
             return out
 
-        import cupyx
-        from cupy.cuda import runtime
         numpy2 = np.__version__.split('.')[0] == '2'
 
         def fftshift_patch(x, axes=None):
@@ -195,9 +193,6 @@ else:
         if numpy2:
             cupy.fft.fftshift = fftshift_patch
             cupy.fft.ifftshift = ifftshift_patch
-
-        is_hip = runtime.is_hip
-        cupy_is_fake = False
 
         # Check the number of devices
         # Do not fail when calling `gpaw info` on a login node without GPUs
@@ -226,11 +221,6 @@ else:
             nodename = os.uname()[1]
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
-
-    except ImportError:
-        import gpaw.gpu.cpupy as cupy
-        import gpaw.gpu.cpupyx as cupyx
-        from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm  # noqa
 
 
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']
