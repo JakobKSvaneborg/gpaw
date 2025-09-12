@@ -549,7 +549,7 @@ class _Communicator:
         if not block:
             pass  # assert sys.getrefcount(a) > 3
         # with RegisteredPointer(a) as a:
-        return self.comm.send(a, dest, tag, True)
+        return self.comm.send(a, dest, tag, block)
 
     def ssend(self, a, dest, tag=123):
         assert 0 <= dest < self.size
@@ -563,7 +563,7 @@ class _Communicator:
         assert src != self.rank
         assert is_contiguous(a)
         # with RegisteredPointer(a) as a:
-        return self.comm.receive(a, src, tag, True)
+        return self.comm.receive(a, src, tag, block)
 
     def test(self, request):
         """Test whether a non-blocking MPI operation has completed. A boolean
@@ -599,7 +599,7 @@ class _Communicator:
             Request e.g. returned from send/receive when block=False is used.
 
         """
-        pass  # self.comm.wait(request)
+        self.comm.wait(request)
 
     def waitall(self, requests):
         """Wait for non-blocking MPI operations to complete before returning.
@@ -611,7 +611,7 @@ class _Communicator:
             multiple send/receive calls where block=False was used.
 
         """
-        pass  # self.comm.waitall(requests)
+        self.comm.waitall(requests)
 
     def abort(self, errcode):
         """Terminate MPI execution environment of all tasks in the group.
