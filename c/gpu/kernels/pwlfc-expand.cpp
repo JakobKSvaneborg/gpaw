@@ -4,7 +4,7 @@
 #include <cassert>
 
 #include "../cpp/gpu_core.hpp"
-#include "gpaw_utils.h"
+#include "../../gpaw_utils.h"
 
 #define BETA   0.066725
 #define GAMMA  0.031091
