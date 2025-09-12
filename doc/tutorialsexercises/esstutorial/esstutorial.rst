@@ -15,17 +15,17 @@ state calculation
 .. literalinclude:: gs_fe.py
 
 It may also be downloaded here :download:`gs_fe.py`.
-First, an ``Atoms`` object containing one Fe atom with in a bcc
+First, an ``Atoms`` object containing one Fe atom in a bcc
 unit cell, is created. We initialize a magnetic moment of 2 Bohr
 magnetons on the Fe atom and use periodic boundary conditions
-(``pbc=True`` ). Next, a GPAW calculator is with plane waves
+(``pbc=True`` ). Next, a GPAW calculator with plane waves
 and k-point sampling is constructed and attached to the ``Atoms``
 object (bcc iron). The calculation is initialized with the call
 to ``get_potential_energy()`` and the calculator will know that
 it should do a spin-polarized calculation because of the initial
 magnetic moment. The magnetization density and total magnetic
-moment are, however, outputs from the calculations, which will
-determine them self-consistently.
+moment are, however, outputs from the calculations and will be
+determined self-consistently.
 
 The script can be run with the command::
 
@@ -72,7 +72,7 @@ Magnon dispersion and exchange constants of altermagnetic MnF2
 
 The next material to consider is the anti-ferromagnet MnF2. We will
 refer to it is a compensated magnet, since it has recently been reclassified
-as being altermagnet. We will not go into *that* discussion but will
+as being altermagnetic. We will not go into *that* discussion but will
 calculate the magnon dispersion and show that certain (lack of) symmetries
 renders the magnon dispersion non-degenerate in most of the Brillouin zone.
 To start with we perform a ground state calculation in the spin-compensated
@@ -84,9 +84,9 @@ It may be downloaded here :download:`gs_mnf2.py` Similar to the case of bcc
 iron we define a list of atoms and attach a
 calculator (GPAW), which can perform the DFT calculation. However, instead
 of setting up the structure (list of atoms) explicitly, we use the method
-``crystal``, which will generate the unit cell with all the atoms at the
-positions from the space group, certain cell parameters and Wyckoff
-positions. The result is a list of atoms with six atoms and we initialize
+``crystal()``, which will generate the structure from the space group,
+certain cell parameters and the Wyckoff positions. The
+result is a list of atoms object with six atoms and we initialize
 the magnetic moments in a spin compensated state. We also include a Hubbard
 correction (LDA+U) on the Mn *d*-orbitals with a U of 6 eV
 (``setups={'Mn': ':d,6.0'}``). Run the calculation. It will take about 1-2
@@ -99,14 +99,14 @@ view or it may be repeated in different directions.
    expectations? What is the (Kohn-Sham) band gap?
 
 Now modify the script ``gs_mnf2.py`` such that the system is initialized
-with ferromagnetic alignment. Run the calculation and make sure to rename
-the output files such that the ones that were already calculated are not
-overwritten.
+with ferromagnetic alignment of magnetic moments. Run the calculation and
+make sure to rename the output files such that the ones that were already
+calculated are not overwritten.
 
  * What is the total magnetic moment? How does the local magnetic moments
    compare to the anti-ferromagnetic calculation? The local and total
    moments should convince you that it is reasonable to model this as a
-   pure `S=5/2` (disregarding the F atoms).
+   pure `S=5/2` magnetic lattice (disregarding the F atoms).
 
  * What is the energy difference per Mn atom compared to the
    anti-ferromagnetic calculations performed previously?
@@ -123,10 +123,10 @@ overwritten.
    inter-sublattice one, (between the two atoms in the unit cell), and use
    the DFT energy difference calculated above to provide an estimate of the
    interactions. One must assume classical spins (S=5/2) and the number of
-   neighbours relevant for this exchange interaction.
+   sites connected to a particular atom by this exchange interaction is eight.
    
 We will now perform a more systematic evaluation of the exchange constants
-and resulting magnon dispersion. These can be calculated from DFTusing the
+and resulting magnon dispersion. These can be calculated from DFT using the
 so-called magnetic force theorem (MFT) [1]_. The present implementation is
 based on plane waves and for technical reasons it is easiest to evaluate the
 Heisenberg parameters in `q`-space [2]_. Thus we obtain `J^{ab}(\mathbf{q})`,
@@ -137,11 +137,12 @@ constants and calculates the magnon dispersion along a specified path. Run
 the calculation, it will take 4-5 minutes on six cores. The results can be
 plotted with :download:`plot_mft.py`.
 
- * How does the magnon band width compare to the experimental one [3]_?
+ * How does the magnon band width compare with the experimental one [3]_?
 
  * Identify the path segments where the degeneracy between the two bands is
    lifted by the altermagnetic (lack of) symmetries. What is the magnitude
-   of magnon splitting?
+   of magnon splitting? You may want to zoom in on particular region, which
+   can be done interactively in the window.
 
 The magnon dispersion is sampled very roughly. This is because we can only
 sample `q`-points, which are on the original `4\times4\times4` regular
@@ -157,7 +158,8 @@ get all interactions in a range of 4 unit cells. The script will take 15-20
 minutes on 6 cores. While waiting you may try to calculate and plot the magnon
 dispersion resulting from a single inter-sublattice `J` as estimated from
 two single DFT calculations (FM and AFM) above. You can, for example, show it
-together with the MFT calculation obtained from ``mft_q.py``. Once the
+together with the MFT calculation obtained from ``mft_q.py`` and plotted with
+``plot_mft.py``. Once the
 calculation has finished we can extract specific exchange constants with
 the script :download:`get_Jij.py`. This essentially calculates:
 
@@ -167,9 +169,9 @@ the script :download:`get_Jij.py`. This essentially calculates:
 where both `\mathbf{R}_i` and `\mathbf{q}` are given in reduced coordinates
 in the script. Inspect the output
 
- * Which is the nearest neighbour exchange constant?
+ * What is the largest exchange constant? Is the nearest neighbour one?
 
- * How does the estimate from two DFT calculations (FM and AFM) above
+ * How does the estimate from the two DFT calculations (FM and AFM) above
    compare to the present results?
 
  * Can you identify the symmetry breaking exchange paths?
