@@ -11,7 +11,8 @@ void calculate_residual_launch_kernel(int dtypenum,
                                       int nn,
                                       void* residual_ng,
                                       void* eps_n,
-                                      void* wf_nG);
+                                      void* wf_nG,
+                                      gpuStream_t stream = 0);
 
 void pwlfc_expand_gpu_launch_kernel(int dtypenum,
                                     void* f_Gs,
@@ -30,7 +31,8 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
                                     int nI,
                                     int natoms,
                                     int nsplines,
-                                    bool cc);
+                                    bool cc,
+                                    gpuStream_t stream = 0);
 
 void pw_insert_gpu_launch_kernel(
                              int dtypenum,
@@ -41,18 +43,21 @@ void pw_insert_gpu_launch_kernel(
                              npy_int32* Q_G,
                              double scale,
                              void* tmp_nQ,
-                             int rx, int ry, int rz);
+                             int rx, int ry, int rz,
+                             gpuStream_t stream = 0);
 
 void pw_norm_gpu_launch_kernel(int dtypenum,
                                int nx, int nG,
                                void* result_x,
-                               void* C_xG);
+                               void* C_xG,
+                               gpuStream_t stream = 0);
 
 void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
                                        int nx, int nG,
                                        void* result_x,
                                        void* C_xG,
-                                       void* kin_G);
+                                       void* kin_G,
+                                       gpuStream_t stream = 0);
 
 void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int nb,
@@ -61,14 +66,16 @@ void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int nz,
                                               int n,
                                               int m,
-                                              void* array_nQ);
+                                              void* array_nQ,
+                                              gpuStream_t stream = 0);
 
 void add_to_density_gpu_launch_kernel(int nb,
                                       int nR,
                                       void* f_n,
                                       void* psit_nR,
                                       void* rho_R,
-                                      int dtypenum);
+                                      int dtypenum,
+                                      gpuStream_t stream = 0);
 
 
 void dH_aii_times_P_ani_launch_kernel(int dtypenum,
@@ -76,19 +83,22 @@ void dH_aii_times_P_ani_launch_kernel(int dtypenum,
                                       int nI, npy_int32* ni_a,
                                       void* dH_aii_dev,
                                       void* P_ani_dev,
-                                      void* outP_ani_dev);
+                                      void* outP_ani_dev,
+                                      gpuStream_t stream = 0);
 
 void evaluate_pbe_launch_kernel(int nspin, int ng,
                                 double* n,
                                 double* v,
                                 double* e,
                                 double* sigma,
-                                double* dedsigma);
+                                double* dedsigma,
+                                gpuStream_t stream = 0);
 
 void evaluate_lda_launch_kernel(int nspin, int ng,
                                 double* n,
                                 double* v,
-                                double* e);
+                                double* e,
+                                gpuStream_t stream = 0);
 
 } // CLINKAGE
 
