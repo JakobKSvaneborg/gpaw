@@ -128,12 +128,14 @@ class LCAOHamiltonian(Hamiltonian):
     def create_hamiltonian_matrix_calculator(self,
                                              potential,
                                              ) -> HamiltonianMatrixCalculator:
-        V_sxMM = [self.basis.calculate_potential_matrices(vt_R.data)
+        xp = potential.vt_sR.xp
+        V_sxMM = [xp.asarray(self.basis.calculate_potential_matrices(vt_R.data))
                   for vt_R in potential.vt_sR.to_xp(np)]
 
         dH_saii = [{a: dH_sii[s]
                     for a, dH_sii
-                    in potential.dH_asii.to_xp(np).items()}
+                    # in potential.dH_asii.to_xp(np).items()}
+                    in potential.dH_asii.items()}
                    for s in range(len(V_sxMM))]
 
         matcalc = CollinearHamiltonianMatrixCalculator(V_sxMM, dH_saii,

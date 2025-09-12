@@ -1243,10 +1243,8 @@ class _BasisFunctions(LocalizedFunctionsCollection):
 class GPUBasisFunctions:
     def __init__(self, *args, **kwargs):
         from gpaw.gpu import cupy
-        assert kwargs['xp'] == cupy
-        kwargs['xp'] = np
-        self.xp = kwargs['xp']
-        self._lfc = BasisFunctions(*args, **kwargs) 
+        self.xp = cupy
+        self._lfc = _BasisFunctions(*args, **kwargs)
 
     def construct_density(self, rho_MM, nt_G, q):
         _rho_MM = self.xp.asnumpy(rho_MM)
@@ -1254,8 +1252,8 @@ class GPUBasisFunctions:
         self._lfc.construct_density(_rho_MM, _nt_G)
         nt_G[:] = self.xp.asarray(_nt_G)
 
-def BasisFunctions(*args, **kwargs):
-    xp = kwargs.pop('xp', np)
+
+def BasisFunctions(*args, xp=np, **kwargs):
     if xp is np:
         return _BasisFunctions(*args, **kwargs)
     else:

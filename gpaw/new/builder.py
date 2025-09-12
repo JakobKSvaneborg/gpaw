@@ -245,7 +245,8 @@ class DFTComponentsBuilder:
                             self.relpos_ac,
                             self.communicators['w'],
                             self.communicators['k'],
-                            self.communicators['b'])
+                            self.communicators['b'],
+                            self.xp)
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(

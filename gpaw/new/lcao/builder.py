@@ -107,7 +107,7 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
             self.ibz, self.communicators, self.setups,
             self.relpos_ac, self.grid, self.dtype,
             self.nbands, self.ncomponents, self.atomdist, self.nelectrons,
-            coefficients)
+            coefficients, self.xp)
         return ibzwfs
 
 
@@ -115,7 +115,8 @@ def create_lcao_ibzwfs(basis,
                        ibz, communicators, setups,
                        relpos_ac, grid, dtype,
                        nbands, ncomponents, atomdist, nelectrons,
-                       coefficients=None):
+                       coefficients=None,
+                       xp=np):
     kpt_band_comm = communicators['D']
     kpt_comm = communicators['k']
     band_comm = communicators['b']
@@ -124,7 +125,7 @@ def create_lcao_ibzwfs(basis,
     S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives = tci_helper(
         basis, ibz, domain_comm, band_comm, kpt_comm,
         relpos_ac, atomdist,
-        grid, dtype, setups)
+        grid, dtype, setups, xp)
 
     nao = setups.nao
 
@@ -139,7 +140,8 @@ def create_lcao_ibzwfs(basis,
         else:
             C_nM = MatrixWithNoData(*shape,
                                     dtype=dtype,
-                                    dist=(band_comm, band_comm.size, 1))
+                                    dist=(band_comm, band_comm.size, 1),
+                                    xp=xp)
         return LCAOWaveFunctions(
             setups=setups,
             tci_derivatives=tci_derivatives,
@@ -175,7 +177,8 @@ def tci_helper(basis,
                relpos_ac, atomdist,
                grid,
                dtype,
-               setups):
+               setups,
+               xp):
     rank_k = ibz.ranks(kpt_comm)
     here_k = rank_k == kpt_comm.rank
     kpt_qc = ibz.kpt_kc[here_k]
@@ -220,6 +223,11 @@ def tci_helper(basis,
         T_MM.tril2full()
 
     tci_derivatives = TCIDerivatives(manytci, atomdist, nao)
+
+    S_qMM = [S_MM.to_xp(xp) for S_MM in S_qMM]
+    T_qMM = [T_MM.to_xp(xp) for T_MM in T_qMM]
+    P_qaMi = [{a: xp.asarray(P_Mi) for a, P_Mi in P_aMi.items()}
+              for P_aMi in P_qaMi]
 
     return S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives
 

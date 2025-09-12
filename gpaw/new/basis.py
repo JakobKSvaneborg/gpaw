@@ -16,7 +16,8 @@ def create_basis(ibz: IBZ,
                  relpos_ac,
                  comm=serial_comm,
                  kpt_comm=serial_comm,
-                 band_comm=serial_comm):
+                 band_comm=serial_comm,
+                 xp=np):
     kd = KPointDescriptor(ibz.bz.kpt_Kc, nspins)
 
     kd.ibzk_kc = ibz.kpt_kc
@@ -37,7 +38,8 @@ def create_basis(ibz: IBZ,
                            [setup.basis_functions_J for setup in setups],
                            kd,
                            dtype=basis_dtype,
-                           cut=True)
+                           cut=True,
+                           xp=xp)
     basis.set_positions(relpos_ac)
     myM = (basis.Mmax + band_comm.size - 1) // band_comm.size
     basis.set_matrix_distribution(

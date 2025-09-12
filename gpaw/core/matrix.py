@@ -58,7 +58,8 @@ class MatrixWithNoData:
                  N: int,
                  *,
                  dtype=None,
-                 dist: MatrixDistribution | tuple | None = None):
+                 dist: MatrixDistribution | tuple | None = None,
+                 xp=np):
         self.shape = (M, N)
         self.dtype = dtype
         self.data = np.empty((0, 0), dtype)
@@ -68,9 +69,10 @@ class MatrixWithNoData:
                                                    dist)}
             dist = create_distribution(M, N, **kwargs)
         self.dist = dist
+        self.xp = xp
 
     def create(self) -> Matrix:
-        return Matrix(*self.shape, dtype=self.dtype, dist=self.dist)
+        return Matrix(*self.shape, dtype=self.dtype, dist=self.dist, xp=self.xp)
 
 
 class Matrix(XP):
@@ -429,7 +431,7 @@ class Matrix(XP):
                   columns != self.dist.columns or
                   blocksize != self.dist.blocksize)
 
-        if redist:
+        if 0:  # redist:
             H = self.new(dist=dist)
             self.redist(H)
             if S is not None:
