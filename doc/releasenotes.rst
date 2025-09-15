@@ -17,6 +17,9 @@ Git master branch
 * MFT calculations for magnons can now be performed with LDA+U. See
   :ref:`mft`
 
+* pw_pot_calc ...
+
+
 Version 25.7.0
 ==============
 
