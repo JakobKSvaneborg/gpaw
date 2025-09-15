@@ -25,6 +25,9 @@ def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int]:
     (3, 2, 2)
     """
 
+    if ncpus == 1:
+        return 1, 1, None
+
     nprow = ncpus
     npcol = 1
 
@@ -432,7 +435,7 @@ class Matrix(XP):
                   columns != self.dist.columns or
                   blocksize != self.dist.blocksize)
 
-        if 0:  # redist:
+        if redist:
             H = self.new(dist=dist)
             self.redist(H)
             if S is not None:
