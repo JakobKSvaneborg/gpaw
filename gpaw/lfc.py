@@ -959,7 +959,7 @@ class LocalizedFunctionsCollection(BaseLFC):
         return self.sphere_a[a].get_function_count()
 
 
-class _BasisFunctions(LocalizedFunctionsCollection):
+class BasisFunctions(LocalizedFunctionsCollection):
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
                  integral=None, forces=None, xp=np):
         LocalizedFunctionsCollection.__init__(self, gd, spline_aj,
@@ -1027,6 +1027,11 @@ class _BasisFunctions(LocalizedFunctionsCollection):
                    a,i
 
         """
+        if self.xp is not np:
+            _nt_sG = self.xp.asnumpy(nt_sG)
+        else:
+            _nt_sG = nt_sG
+
         assert np.all(self.gd.n_c == nt_sG.shape[1:])
         nspins = len(nt_sG)
         f_sM = np.empty((nspins, self.Mmax))
@@ -1036,8 +1041,11 @@ class _BasisFunctions(LocalizedFunctionsCollection):
             M2 = M1 + sphere.Mmax
             f_sM[:, M1:M2] = f_asi[a]
 
-        for nt_G, f_M in zip(nt_sG, f_sM):
+        for nt_G, f_M in zip(_nt_sG, f_sM):
             self.lfc.construct_density1(f_M, nt_G)
+
+        if self.xp is not np:
+            nt_sG[:] = self.xp.asarray(_nt_sG)
 
     def construct_density(self, rho_MM, nt_G, q):
         """Calculate electron density from density matrix.
@@ -1054,7 +1062,14 @@ class _BasisFunctions(LocalizedFunctionsCollection):
                    --     M1       M1M2   M2
                   M1,M2
         """
-        self.lfc.construct_density(rho_MM, nt_G, q, self.Mstart, self.Mstop)
+        if self.xp is not np:
+            rho_MM = self.xp.asnumpy(rho_MM)
+            _nt_G = self.xp.asnumpy(nt_G)
+        else:
+            _nt_G = nt_G
+        self.lfc.construct_density(rho_MM, _nt_G, q, self.Mstart, self.Mstop)
+        if self.xp is not np:
+            nt_G[:] = self.xp.asarray(_nt_G)
 
     def integrate2(self, a_xG, c_xM, q=-1):
         """Calculate integrals of arrays times localized functions.
@@ -1084,6 +1099,9 @@ class _BasisFunctions(LocalizedFunctionsCollection):
                       /
 
         Overwrites the elements of the target matrix Vt_MM. """
+        if self.xp is not np:
+            vt_G = self.xp.asnumpy(vt_G)
+
         assert np.all(vt_G.shape == self.gd.n_c), (vt_G.shape, self.gd.n_c)
         if self.gamma and self.dtype == float:
             Vt_xMM = np.zeros((1, self.Mstop - self.Mstart, self.Mmax))
@@ -1095,6 +1113,9 @@ class _BasisFunctions(LocalizedFunctionsCollection):
                                self.Mmax))
             self.lfc.calculate_potential_matrices(vt_G, Vt_xMM, self.x_W,
                                                   self.Mstart, self.Mstop)
+        if self.xp is not np:
+            Vt_xMM = self.xp.asarray(Vt_xMM)
+
         return Vt_xMM
 
     def calculate_potential_matrix(self, vt_G, Vt_MM, q):
@@ -1238,58 +1259,6 @@ class _BasisFunctions(LocalizedFunctionsCollection):
             M1 = max(0, M1)
             F_av[a, :] = 2.0 * F_vM[:, M1:M2].sum(axis=1)
         return F_av
-
-
-class GPUBasisFunctions:
-    def __init__(self, *args, **kwargs):
-        from gpaw.gpu import cupy
-        self.xp = cupy
-        self._lfc = _BasisFunctions(*args, **kwargs)
-
-    @property
-    def Mmax(self):
-        return self._lfc.Mmax
-
-    @property
-    def Mstart(self):
-        return self._lfc.Mstart
-
-    @property
-    def Mstop(self):
-        return self._lfc.Mstop
-
-    @property
-    def my_atom_indices(self):
-        return self._lfc.my_atom_indices
-
-    def construct_density(self, rho_MM, nt_G, q):
-        _rho_MM = self.xp.asnumpy(rho_MM)
-        _nt_G = self.xp.asnumpy(nt_G)
-        self._lfc.construct_density(_rho_MM, _nt_G, q)
-        nt_G[:] = self.xp.asarray(_nt_G)
-
-    def set_positions(self, *args, **kwargs):
-        self._lfc.set_positions(*args, **kwargs)
-
-    def set_matrix_distribution(self, Mstart, Mstop):
-        self._lfc.set_matrix_distribution(Mstart, Mstop)
-
-    def add_to_density(self, nt_sG, f_asi):
-        _nt_sG = self.xp.asnumpy(nt_sG)
-        self._lfc.add_to_density(_nt_sG, f_asi)
-        nt_sG[:] = self.xp.asarray(_nt_sG)
-
-    def calculate_potential_matrices(self, vt_G):
-        _vt_G = self.xp.asnumpy(vt_G)
-        Vt_xMM = self._lfc.calculate_potential_matrices(_vt_G)
-        return self.xp.asarray(Vt_xMM)
-
-
-def BasisFunctions(*args, xp=np, **kwargs):
-    if xp is np:
-        return _BasisFunctions(*args, **kwargs)
-    else:
-        return GPUBasisFunctions(*args, **kwargs)
 
 
 def LFC(gd, spline_aj, kd=None,
