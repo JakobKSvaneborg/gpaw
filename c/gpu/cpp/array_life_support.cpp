@@ -54,12 +54,12 @@ void PyObjectPinner::commit()
 #ifdef GPAW_GPU_ARRAY_DEBUG
     assert(!has_committed && "Can't commit object pinning twice");
     has_committed = true;
-#endif
 
     for (PyObject* obj : objects)
     {
         Py_INCREF(obj);
     }
+#endif
 }
 
 void PyObjectPinner::schedule_unpin(gpuStream_t stream)
@@ -67,7 +67,6 @@ void PyObjectPinner::schedule_unpin(gpuStream_t stream)
 
 #ifdef GPAW_GPU_ARRAY_DEBUG
     assert(has_committed && "You are calling schedule_unpin() without committing the pinning first");
-#endif
 
     if (objects.empty())
     {
@@ -86,6 +85,7 @@ void PyObjectPinner::schedule_unpin(gpuStream_t stream)
     };
 
     gpu_host_callback(stream, wrapper);
+#endif
 }
 
 } // namespace gpaw
