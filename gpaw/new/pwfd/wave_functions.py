@@ -511,4 +511,4 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         return PWFDWaveFunctions.from_wfs(self, psit_nX,
                                           relpos_ac=relpos_ac,
-                                          )#atomdist=atomdist)
+                                          atomdist=atomdist)
