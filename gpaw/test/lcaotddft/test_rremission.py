@@ -8,6 +8,7 @@ from gpaw.tddft.spectrum import read_td_file_data
 from gpaw.tddft.units import as_to_au
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_rremission(gpw_files, in_tmp_dir):
     dt = 40

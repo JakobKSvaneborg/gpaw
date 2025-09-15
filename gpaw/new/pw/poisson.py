@@ -19,7 +19,6 @@ else:
 def make_poisson_solver(pw: PWDesc,
                         grid: UGDesc,
                         charge: float,
-                        environment=None,
                         strength: float = 1.0,
                         dipolelayer: bool = False,
                         **kwargs) -> PoissonSolver:
@@ -32,13 +31,6 @@ def make_poisson_solver(pw: PWDesc,
         return DipoleLayerPWPoissonSolver(ps, grid, **kwargs)
 
     assert not kwargs
-
-    if hasattr(environment, 'dielectric'):
-        if 1:
-            return ConjugateGradientPoissonSolver(
-                pw, grid, environment.dielectric, zero_vacuum=True)
-        from gpaw.new.sjm import SJMPWPoissonSolver
-        return SJMPWPoissonSolver(pw, environment.dielectric, grid)
 
     return ps
 
@@ -282,6 +274,7 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         self.dielectric = dielectric
         self.grid = grid
         self.pw0 = pw.new(comm=None)
+        self.pwg0 = self.pw0
         self.grid0 = grid.new(comm=None)
         if pw.comm.rank == 0:
             self.ekin_g = self.pw0.ekin_G.copy()

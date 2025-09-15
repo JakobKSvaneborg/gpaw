@@ -427,7 +427,7 @@ Input-parameter objects
 .. autoclass:: gpaw.dft.LCAO
 .. autoclass:: gpaw.dft.FD
 .. autoclass:: gpaw.dft.Mode
-.. autoclass:: gpaw.dft.Extension
+.. autoclass:: gpaw.dft.ExtensionInput
 .. autoclass:: gpaw.dft.MonkhorstPack
 .. autoclass:: gpaw.dft.Mixer
 .. autoclass:: gpaw.dft.Occupations
@@ -485,7 +485,7 @@ DFT-components
    :members:
    :undoc-members:
 
-.. autoclass:: gpaw.new.environment.Environment
+.. autoclass:: gpaw.new.extensions.Extension
    :members:
    :undoc-members:
 

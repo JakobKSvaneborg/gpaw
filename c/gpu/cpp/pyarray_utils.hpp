@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../gpu-runtime.h"
+
 #include <Python.h>
 
 // gpaw_so.c handles array importing at the module level (needed for proper numpy init),
@@ -9,21 +11,66 @@
 #include <numpy/arrayobject.h>
 
 #include <cstdint>
+#include <cassert>
+#include <type_traits>
 
 // Utility functions for working with Python arrays.
 // Needed when working with Cupy arrays in particular, which do not define a nice C-interface.
 // For Numpy (PyArrayObject) these are wrappers around the Numpy Array API.
-// Many of the Numpy built-in functions return integers as 'npy_intp' which is signed integer with same size as 'size_t'.
+// Many of the Numpy built-in functions return integers as 'npy_intp,
+//  which the docs define as "signed integer with same size as 'size_t'".
 // Here we cast npy_intp to int64_t which should be more than enough for any practical size.
 // For routines returning 'int' we often cast to 'int32_t' for explicity (with some exceptions)
 
 namespace gpaw
 {
 
+// Returns true if the current thread has GIL
+inline bool check_gil() noexcept
+{
+    return PyGILState_Check();
+}
+
+// Check that the current thread is holding GIL and abort on failure
+#define ASSERT_GIL()    __assert_gil(__FILE__, __LINE__)
+static inline void __assert_gil(const char *file, int line)
+{
+    if (!check_gil())
+    {
+        char msg[100];
+        snprintf(msg, 100, "ENSURE_GIL() failed at %s:%d\n", file, line);
+        gpaw_abort(msg);
+    }
+}
+
+// RAII helper for scoped GIL acquisition
+class GilGuard
+{
+public:
+    GilGuard()
+    {
+        gil_state = PyGILState_Ensure();
+    }
+
+    ~GilGuard()
+    {
+        PyGILState_Release(gil_state);
+    }
+
+    GilGuard(const GilGuard&) = delete;
+    GilGuard& operator=(const GilGuard&) = delete;
+
+private:
+    PyGILState_STATE gil_state;
+};
+
+
 // Get pointer to the array data
 template<typename T>
 T* Array_DATA(PyObject* obj)
 {
+    static_assert(!std::is_pointer<T>::value, "T must be a scalar type");
+
     // Equivalent to obj.data.ptr
     PyObject* ndarray_data = PyObject_GetAttrString(obj, "data");
     if (ndarray_data == nullptr)
@@ -32,6 +79,7 @@ T* Array_DATA(PyObject* obj)
     }
 
     PyObject* ptr_data = PyObject_GetAttrString(ndarray_data, "ptr");
+    Py_DECREF(ndarray_data);
     if (ptr_data == nullptr)
     {
         return nullptr;
@@ -39,7 +87,6 @@ T* Array_DATA(PyObject* obj)
 
     T* ptr = reinterpret_cast<T*>(PyLong_AsVoidPtr(ptr_data));
     Py_DECREF(ptr_data);
-    Py_DECREF(ndarray_data);
     return ptr;
 }
 
@@ -80,7 +127,6 @@ int64_t Array_SIZE(PyArrayObject* a);
 int64_t Array_NBYTES(PyArrayObject* a);
 int Array_TYPE(PyArrayObject* a);
 bool Array_ISCOMPLEX(PyArrayObject* a);
-
 //~ End Numpy
 
 } // namespace gpaw
