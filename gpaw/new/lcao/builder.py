@@ -1,17 +1,18 @@
 from __future__ import annotations
+
 import numpy as np
-from scipy import sparse
 from gpaw.core.matrix import Matrix, MatrixWithNoData
+from gpaw.dft import Parameters
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.lcao.hybrids import HybridXCFunctional
+from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.utilities.timing import NullTimer
-from gpaw.dft import Parameters
+from scipy import sparse
 
 
 class LCAODFTComponentsBuilder(DFTComponentsBuilder):
@@ -24,9 +25,11 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
         mode_dict = params.mode.todict()
         if params.experimental.get('pw_pot_calc'):
             mode_dict['name'] = 'pw'
-            mode_dict['ecut'] = 340.0
+            assert params.gpts is None
+            h = params.h or 0.2
+            mode_dict['ecut'] = 340.0 / (h / 0.2)**2
         else:
-            mode_dict['name'] = 'pw'
+            mode_dict['name'] = 'fd'
 
         try:
             mode = params.mode
