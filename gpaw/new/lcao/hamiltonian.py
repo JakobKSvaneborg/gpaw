@@ -46,8 +46,9 @@ class CollinearHamiltonianMatrixCalculator(HamiltonianMatrixCalculator):
         if wfs.dtype == complex:
             phase_x = np.exp(-2j * np.pi *
                              self.basis.sdisp_xc[1:] @ wfs.kpt_c)
-            V_MM.data += np.einsum('x, xMN -> MN',
-                                   2 * phase_x, V_xMM[1:],
+            xp = V_MM.xp
+            V_MM.data += xp.einsum('x, xMN -> MN',
+                                   xp.asarray(2 * phase_x), V_xMM[1:],
                                    optimize=True)
         return V_MM
 
@@ -58,6 +59,7 @@ class CollinearHamiltonianMatrixCalculator(HamiltonianMatrixCalculator):
                                           ) -> Matrix:
         if V_xMM is None:
             V_xMM = self.V_sxMM[wfs.spin]
+
         if dH_aii is None:
             dH_aii = self.dH_saii[wfs.spin]
 
@@ -133,7 +135,6 @@ class LCAOHamiltonian(Hamiltonian):
 
         dH_saii = [{a: dH_sii[s]
                     for a, dH_sii
-                    # in potential.dH_asii.to_xp(np).items()}
                     in potential.dH_asii.items()}
                    for s in range(len(V_sxMM))]
 

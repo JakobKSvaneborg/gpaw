@@ -211,7 +211,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                    comm=self.communicators['b'],
                                    xp=self.xp)
                 mynbands, M = C_nM.dist.shape
-                phit_aJG.multiply(C_nM.to_xp(self.xp).to_dtype(pw.dtype),
+                phit_aJG.multiply(C_nM.to_dtype(pw.dtype),
                                   out_nG=psit_nG[:mynbands])
                 return psit_nG
 
