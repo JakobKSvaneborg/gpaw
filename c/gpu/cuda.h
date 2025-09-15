@@ -18,6 +18,10 @@
 #define gpuEvent_t                cudaEvent_t
 #define gpuError_t                cudaError_t
 #define gpuDeviceProp             cudaDeviceProp
+#define gpuPointerAttributes      cudaPointerAttributes
+#define gpuPointerGetAttributes   cudaPointerGetAttributes
+#define gpuMemoryTypeHost         cudaMemoryTypeHost
+#define gpuMemoryTypeDevice       cudaMemoryTypeDevice
 
 #define gpuDoubleComplex          cuDoubleComplex
 #define gpuFloatComplex           cuFloatComplex
