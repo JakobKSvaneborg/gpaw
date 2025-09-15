@@ -166,6 +166,11 @@ CLINKAGE PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
 
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -198,6 +203,7 @@ CLINKAGE PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
     double* e_ptr = pinner.borrow_array_data<double>(e_obj);
     double* sigma_ptr = pinner.borrow_array_data<double>(sigma_obj);
     double* dedsigma_ptr = pinner.borrow_array_data<double>(dedsigma_obj);
+
     if (PyErr_Occurred())
     {
         return NULL;
@@ -212,8 +218,12 @@ CLINKAGE PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
                                sigma_ptr,
                                dedsigma_ptr);
 
-
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }
@@ -282,6 +292,11 @@ CLINKAGE PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
 
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -342,6 +357,11 @@ CLINKAGE PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
 
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -399,6 +419,11 @@ CLINKAGE PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
 
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -443,6 +468,11 @@ CLINKAGE PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
                               C_xG);
 
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }
@@ -491,6 +521,12 @@ CLINKAGE PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
                                       kin_G);
 
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -527,6 +563,12 @@ CLINKAGE PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
     pw_amend_insert_realwf_gpu_launch_kernel(dtypenum, nb, nx, ny, nz, n, m, array_nQ);
 
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -563,6 +605,11 @@ CLINKAGE PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
     add_to_density_gpu_launch_kernel(nb, nR, f_n, psit_nR, rho_R, dtypenum);
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -595,6 +642,11 @@ CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
 
     calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG);
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }
