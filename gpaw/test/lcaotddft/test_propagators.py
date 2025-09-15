@@ -5,6 +5,7 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.dipolemomentwriter import VelocityGaugeWriter
 
 
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 @pytest.mark.parametrize('propagator', ['sicn', 'ecn'])
 def test_propagators(propagator, gpw_files, in_tmp_dir):
