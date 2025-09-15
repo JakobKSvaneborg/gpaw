@@ -16,7 +16,7 @@ from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
 
-def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int]:
+def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int | None]:
     """Suggest blocking of ``NxN`` matrix.
 
     Returns rows, columns, blocksize tuple.
