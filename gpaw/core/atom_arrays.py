@@ -52,10 +52,6 @@ class AtomArraysLayout(XP):
             I1 = I2
 
     def __eq__(self, other: AtomArraysLayout) -> bool:
-        print(self.shape_a,other.shape_a,
-                self.atomdist, other.atomdist,
-                self.dtype, other.dtype,
-                self.xp, other.xp)
         return (self.shape_a == other.shape_a and
                 self.atomdist == other.atomdist and
                 self.dtype == other.dtype and
