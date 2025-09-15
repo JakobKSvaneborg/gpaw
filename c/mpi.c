@@ -227,6 +227,7 @@ static void mpi_ensure_initialized(void)
 #ifdef _OPENMP
         use_threads = 1;
 #endif
+
         if (!use_threads) {
             ierr = MPI_Init(NULL, NULL);
             if (ierr == MPI_SUCCESS)
@@ -676,9 +677,9 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
       din[0] = PyComplex_RealAsDouble(obj);
       din[1] = PyComplex_ImagAsDouble(obj);
       if (root == -1)
-	MPI_Allreduce(&din, &dout, 2, MPI_DOUBLE, MPI_SUM, self->comm);
+	MPI_Allreduce(&din, &dout, 2, MPI_DOUBLE, operation, self->comm);
       else
-	MPI_Reduce(&din, &dout, 2, MPI_DOUBLE, MPI_SUM, root, self->comm);
+	MPI_Reduce(&din, &dout, 2, MPI_DOUBLE, operation, root, self->comm);
       return PyComplex_FromDoubles(dout[0], dout[1]);
     }
   else if (PyComplex_Check(obj))
@@ -720,12 +721,18 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
 	  MPI_Allreduce(MPI_IN_PLACE, Array_BYTES(aobj), n, datatype,
 			operation, self->comm);
 #else
+          if (!PyArray_Check(a))
+          {
+              PyErr_SetString(PyExc_RuntimeError,
+                              "GPU array and GPAW_MPI_INPLACE not set.");
+              return NULL;
+          }
 	  char* b = GPAW_MALLOC(char, n * elemsize);
-      MPI_Allreduce(Array_BYTES(aobj), b, n, datatype, operation,
-                    self->comm);
-      assert(Array_NBYTES(aobj) == n * elemsize);
-      memcpy(Array_BYTES(aobj), b, n * elemsize);
-      free(b);
+          MPI_Allreduce(Array_BYTES(aobj), b, n, datatype, operation,
+                        self->comm);
+          assert(Array_NBYTES(aobj) == n * elemsize);
+          memcpy(Array_BYTES(aobj), b, n * elemsize);
+          free(b);
 #endif
 	}
       else
@@ -740,7 +747,13 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
 	      MPI_Reduce(MPI_IN_PLACE, Array_BYTES(aobj), n,
 			 datatype, operation, root, self->comm);
 #else
-	      b = GPAW_MALLOC(char, n * elemsize);
+      	      if (!PyArray_Check(a))
+              {
+                  PyErr_SetString(PyExc_RuntimeError,
+		                  "GPU array and GPAW_MPI_INPLACE not set.");
+                  return NULL;
+              }
+              b = GPAW_MALLOC(char, n * elemsize);
 	      MPI_Reduce(Array_BYTES(aobj), b, n, datatype,
 			 operation, root, self->comm);
 	      assert(Array_NBYTES(aobj) == n * elemsize);
@@ -800,9 +813,9 @@ static PyObject * mpi_reduce_scalar(MPIObject *self, PyObject *args, PyObject *k
       din[0] = PyComplex_RealAsDouble(obj);
       din[1] = PyComplex_ImagAsDouble(obj);
       if (root == -1)
-	MPI_Allreduce(&din, &dout, 2, MPI_DOUBLE, MPI_SUM, self->comm);
+	MPI_Allreduce(&din, &dout, 2, MPI_DOUBLE, operation, self->comm);
       else
-	MPI_Reduce(&din, &dout, 2, MPI_DOUBLE, MPI_SUM, root, self->comm);
+	MPI_Reduce(&din, &dout, 2, MPI_DOUBLE, operation, root, self->comm);
       return PyComplex_FromDoubles(dout[0], dout[1]);
     }
   else if (PyComplex_Check(obj))
