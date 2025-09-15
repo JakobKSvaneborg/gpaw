@@ -116,9 +116,9 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 96  # Could be lower, maybe 64
+                self.blocksize = 256  # Could be lower, maybe 64
             else:
-                self.blocksize = 256
+                self.blocksize = 1024
 
         if isinstance(self.wf_grid, PWDesc):
             S = self.wf_grid.comm.size
@@ -166,7 +166,7 @@ class PPCG(PWFDEigensolver):
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
-        self.breakout_tolerance = 1e-8
+        self.breakout_tolerance = 1e-7
 
         if self.tolerances is not None:
             assert len(self.tolerances) == 3
