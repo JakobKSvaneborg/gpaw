@@ -624,7 +624,7 @@ class Parameters:
             (three integers).
         h:
             Grid-spacing for wave-function grid (Å).  Default value is
-            0.2 Å for LCAO or FD mode calculations.  For a PW-mode
+            0.2 Å for LCAO and FD mode calculations.  For a PW-mode
             calculation, we use the formula `h=γh_0` with `γ \simeq 1.4` and:
 
             .. math::

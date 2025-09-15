@@ -21,17 +21,21 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
                  *,
                  comm,
                  log):
-        from gpaw.new.pw.builder import PWDFTComponentsBuilder
-        from gpaw.new.fd.builder import FDDFTComponentsBuilder
-        self.builder: PWDFTComponentsBuilder | FDDFTComponentsBuilder
+        mode_dict = params.mode.todict()
         if params.experimental.get('pw_pot_calc'):
-            xparams = Parameters(**(params.todict() | {'mode': 'pw'}))
-            self.builder = PWDFTComponentsBuilder(
-                atoms, xparams, comm=comm, log=log)
+            mode_dict['name'] = 'pw'
+            mode_dict['ecut'] = 340.0
         else:
-            xparams = Parameters(**(params.todict() | {'mode': 'fd'}))
-            self.builder = FDDFTComponentsBuilder(
-                atoms, xparams, comm=comm, log=log)
+            mode_dict['name'] = 'pw'
+
+        try:
+            mode = params.mode
+            params.mode = mode.from_param(mode_dict)
+            self.builder = params.mode.dft_components_builder(
+                atoms, params, log=log)
+        finally:
+            params.mode = mode
+
         super().__init__(atoms, params, comm=comm, log=log)
         self.distribution = params.mode.distribution  # type: ignore
         self.basis = None
