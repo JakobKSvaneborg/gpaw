@@ -68,7 +68,7 @@ if cupy:
         libraries += ['cudart', 'cublas']
         library_dirs += [os.path.join(cupy, 'lib'), os.path.join(cuda, 'lib')]
         if os.getenv('EBVERSIONFOSS') < '2025a':
-            undef_macros += ['GPAW_GPU_AWARE_MPI']    # Not needed with newest toolchains    
+            undef_macros += ['GPAW_GPU_AWARE_MPI']    # Not needed with newest toolchains
     else:
         raise RuntimeError(f'CuPy loaded but unknown $CPU_ARCH={cpuarch}')
 else:
