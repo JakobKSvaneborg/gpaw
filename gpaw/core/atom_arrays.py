@@ -51,7 +51,9 @@ class AtomArraysLayout(XP):
             self.mysize += I2 - I1
             I1 = I2
 
-    def __eq__(self, other: AtomArraysLayout) -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AtomArraysLayout):
+            return NotImplemented
         return (self.shape_a == other.shape_a and
                 self.atomdist == other.atomdist and
                 self.dtype == other.dtype and
@@ -128,7 +130,9 @@ class AtomDistribution:
     def __len__(self) -> int:
         return len(self.rank_a)
 
-    def __eq__(self, other: AtomDistribution) -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AtomDistribution):
+            return NotImplemented
         return (self.rank_a == other.rank_a).all()
 
     @classmethod
