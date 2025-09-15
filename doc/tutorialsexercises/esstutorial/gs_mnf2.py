@@ -33,5 +33,5 @@ calc = GPAW(mode=PW(400),
 mnf2.calc = calc
 mnf2.get_potential_energy()
 
-# Save everything (also wavefunction) to .gpw file
+# Save everything (also wavefunctions) to .gpw file
 calc.write('gs_afm.gpw', mode='all')
