@@ -37,6 +37,14 @@ else:
             raise ImportError
 
         import cupy
+        from cupy_backends.cuda.api.runtime import CUDARuntimeError \
+            as CUDAError
+        try:
+            if not cupy.cuda.runtime.getDeviceCount() > 0:
+                raise ImportError('No GPUs')
+        except CUDAError:
+            raise ImportError('No GPU backend')
+
         # Cupy gemm wrapper (does extra copying):
         # from cupy import cublas
         # gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811
