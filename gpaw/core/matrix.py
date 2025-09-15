@@ -72,7 +72,8 @@ class MatrixWithNoData:
         self.xp = xp
 
     def create(self) -> Matrix:
-        return Matrix(*self.shape, dtype=self.dtype, dist=self.dist, xp=self.xp)
+        return Matrix(
+            *self.shape, dtype=self.dtype, dist=self.dist, xp=self.xp)
 
 
 class Matrix(XP):

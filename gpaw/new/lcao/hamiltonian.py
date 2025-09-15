@@ -128,7 +128,6 @@ class LCAOHamiltonian(Hamiltonian):
     def create_hamiltonian_matrix_calculator(self,
                                              potential,
                                              ) -> HamiltonianMatrixCalculator:
-        xp = potential.vt_sR.xp
         V_sxMM = [self.basis.calculate_potential_matrices(vt_R.data)
                   for vt_R in potential.vt_sR]
 
