@@ -45,9 +45,6 @@ class LBFGS:
                  memory=3):
         self.memory = memory
         self.iters = 0
-        self.kp = None
-        self.p = None
-        self.k = None
         self.s_k = {i: None for i in range(memory)}
         self.y_k = {i: None for i in range(memory)}
         self.rho_k = np.zeros(shape=memory)

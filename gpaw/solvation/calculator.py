@@ -13,7 +13,7 @@ def SolvationGPAW(*args, **kwargs):
                          cavity=kwargs.pop('cavity'),
                          dielectric=kwargs.pop('dielectric'),
                          interactions=kwargs.pop('interactions', None))
-        return GPAW(*args, **kwargs, environment=solvation)
+        return GPAW(*args, **kwargs, extensions=[solvation])
     return OldSolvationGPAW(*args, **kwargs)
 
 

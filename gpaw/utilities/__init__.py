@@ -17,6 +17,7 @@ import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
+from ase.units import Bohr
 from ase.data import covalent_radii
 from ase.neighborlist import neighbor_list
 from gpaw import GPAW_NO_C_EXTENSION, debug
@@ -487,3 +488,13 @@ def as_real_dtype(dtype: DTypeLike) -> np.dtype:
     [dtype('float32'), dtype('float64'), dtype('float64')]
     """
     return np.dtype(_real_float[np.dtype(dtype).type])
+
+
+def reconstruct_atoms(grid, setups, relpos_ac) -> Atoms:
+    """ Reconstruct an atoms object from grid, setups and positions. """
+    cell_cv = grid.cell_cv * Bohr
+    positions_av = relpos_ac @ cell_cv
+    symbols = [setup.symbol for setup in setups]
+    pbc_c = grid.pbc_c
+
+    return Atoms(symbols, positions_av, cell=cell_cv, pbc=pbc_c)
