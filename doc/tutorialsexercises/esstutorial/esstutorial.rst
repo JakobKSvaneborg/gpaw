@@ -80,7 +80,7 @@ state. This can be done with the script:
 
 .. literalinclude:: gs_mnf2.py
 
-It may be downloaded here :download:`gs_mnf2.py` Similar to the case of bcc
+It may be downloaded here :download:`gs_mnf2.py`. Similar to the case of bcc
 iron we define a list of atoms and attach a
 calculator (GPAW), which can perform the DFT calculation. However, instead
 of setting up the structure (list of atoms) explicitly, we use the method
@@ -89,8 +89,8 @@ certain cell parameters and the Wyckoff positions. The
 result is a list of atoms object with six atoms and we initialize
 the magnetic moments in a spin compensated state. We also include a Hubbard
 correction (LDA+U) on the Mn *d*-orbitals with a U of 6 eV
-(``setups={'Mn': ':d,6.0'}``). Run the calculation. It will take about 1-2
-minutes on six cores, Inspect the output written to ``gs_afm.txt``. If you
+(``setups={'Mn': ':d,6.0'}``). Run the calculation. It will take less that 1
+minute on 12 cores. Inspect the output written to ``gs_afm.txt``. If you
 would like to visualize the structure you may do ``ase gui gs_afm.gpw`` or
 ``ase gui gs_afm.gpw``. The unit cell may be rotated in the gui for better
 view or it may be repeated in different directions.
@@ -114,7 +114,7 @@ calculated are not overwritten.
  * Let us assume that the system can be modelled by an isotropic Heisenberg
    model of the form
 
-   .. math:: -\frac{1}{2}\sum_{abij}J_{ij}^{ab}
+   .. math:: H=-\frac{1}{2}\sum_{abij}J_{ij}^{ab}
 	     \mathbf{S}_i^a\cdot\mathbf{S}_j^b
 
    Here `\mathbf{S}_i^a` is the spin operator of magnetic atom `a` in unit
@@ -122,19 +122,19 @@ calculated are not overwritten.
    `ia` to `jb`. Assume that the only exchange interaction is the closest
    inter-sublattice one, (between the two atoms in the unit cell), and use
    the DFT energy difference calculated above to provide an estimate of the
-   interactions. One must assume classical spins (S=5/2) and the number of
-   sites connected to a particular atom by this exchange interaction is eight.
+   interactions. One must assume classical spins of `S=5/2`.
    
 We will now perform a more systematic evaluation of the exchange constants
 and resulting magnon dispersion. These can be calculated from DFT using the
 so-called magnetic force theorem (MFT) [1]_. The present implementation is
 based on plane waves and for technical reasons it is easiest to evaluate the
-Heisenberg parameters in `q`-space [2]_. Thus we obtain `J^{ab}(\mathbf{q})`,
-but this is often convenient since these functions are precisely
-what is required to calculate the magnon dispersion. The script
-:download:`mft_q.py` computes the Fourier transformed exchange
+Heisenberg parameters in `q`-space [2]_. Details on the theory and
+implementations can be found here :ref:`mft`. We thus obtain
+`J^{ab}(\mathbf{q})` directly, but this is often convenient since these
+functions are precisely what is required to calculate the magnon dispersion.
+The script :download:`mft_q.py` computes the Fourier transformed exchange
 constants and calculates the magnon dispersion along a specified path. Run
-the calculation, it will take 4-5 minutes on six cores. The results can be
+the calculation, it will take 2-3 minutes on 12 cores. The results can be
 plotted with :download:`plot_mft.py`.
 
  * How does the magnon band width compare with the experimental one [3]_?
@@ -154,8 +154,8 @@ with much better resolution. The exchange constants in real space will also
 enable us to analyse which interactions induce the magnon splitting.  The
 script :download:`mft_allbz.py` computes `J^{ab}(\mathbf{q})` on the entire
 `4\times4\times4` mesh. This will allow us Fourier transform the results and
-get all interactions in a range of 4 unit cells. The script will take 15-20
-minutes on 6 cores. While waiting you may try to calculate and plot the magnon
+get all interactions in a range of 4 unit cells. The script will take 10
+minutes on 12 cores. While waiting you may try to calculate and plot the magnon
 dispersion resulting from a single inter-sublattice `J` as estimated from
 two single DFT calculations (FM and AFM) above. You can, for example, show it
 together with the MFT calculation obtained from ``mft_q.py`` and plotted with
