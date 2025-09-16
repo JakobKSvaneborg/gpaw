@@ -10,7 +10,7 @@ from ase.units import Ha
 from gpaw.calculator import GPAW as GPAWOld
 from gpaw import GPAW
 from gpaw.new.ase_interface import ASECalculator
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import serial_comm
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC

@@ -3,7 +3,7 @@ import pickle
 
 from ase.units import Hartree, Bohr
 
-from gpaw.kpt_descriptor import to1bz
+from gpaw.old.kpt_descriptor import to1bz
 from gpaw.new.ase_interface import GPAW
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.old.pw.descriptor import PWDescriptor

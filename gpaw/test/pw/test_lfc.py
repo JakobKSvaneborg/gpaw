@@ -3,7 +3,7 @@ import pytest
 
 import gpaw.mpi as mpi
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC

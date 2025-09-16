@@ -10,7 +10,7 @@ from ase.units import Ha
 from gpaw import GPAW
 import gpaw.mpi as mpi
 from gpaw.old.pw.descriptor import PWDescriptor
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LFC
 from gpaw.atom.radialgd import AERadialGridDescriptor

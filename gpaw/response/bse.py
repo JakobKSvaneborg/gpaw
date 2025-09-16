@@ -9,7 +9,7 @@ import numpy as np
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsGrid, Redistributor, BlacsDescriptor
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import world, serial_comm
 from gpaw.response import ResponseContext
 from gpaw.response.groundstate import CellDescriptor

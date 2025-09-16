@@ -6,7 +6,7 @@ from ase import Atoms
 from ase.units import Bohr
 
 from gpaw.new.ase_interface import ASECalculator as GPAW
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.old.projections import Projections
 from gpaw.setup import Setup
 from gpaw.typing import Array2D, Array3D, Array4D, ArrayLike1D

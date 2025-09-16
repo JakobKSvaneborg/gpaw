@@ -10,7 +10,7 @@ from ase.units import Bohr
 from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.densities import Densities
 from gpaw.fftw import MEASURE
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
 from gpaw.new.density import Density
 from gpaw.new.gpw import GPWFlags

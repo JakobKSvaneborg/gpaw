@@ -2,8 +2,8 @@ import numpy as np
 from ase.units import Bohr
 
 from gpaw.fd_operators import Laplace, Gradient
-from gpaw.kpoint import KPoint
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpoint import KPoint
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.mpi import serial_comm
 from gpaw.preconditioner import Preconditioner
