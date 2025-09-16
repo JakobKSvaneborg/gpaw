@@ -124,9 +124,9 @@ class Matrix(XP):
 
         self.xp: ModuleType
         if xp is None:
-            if isinstance(dist, CuPyDistribution):
-                xp = cp
-            elif data is not None and not isinstance(data, np.ndarray):
+            if data is not None:
+                xp = np if isinstance(data, np.ndarray) else cp
+            elif isinstance(dist, CuPyDistribution):
                 xp = cp
             else:
                 xp = np
@@ -139,8 +139,7 @@ class Matrix(XP):
             dist = create_distribution(M, N, xp=self.xp, **kwargs)
         else:
             assert self.shape == dist.full_shape
-            if xp is cp:
-                dist = dist.to_cp()
+            dist = dist.to_xp(xp)
         self.dist = dist
 
         self.data: Array2D
@@ -427,6 +426,8 @@ class Matrix(XP):
         limit:
             Number of eigenvector and values to find.  Defaults to all.
         """
+        if self.xp is cp:
+            scalapack = None, 1, 1, None
         slcomm, rows, columns, blocksize = scalapack
         slcomm = slcomm or self.dist.comm
         dist = (slcomm, rows, columns, blocksize)
@@ -567,9 +568,7 @@ class Matrix(XP):
                 self.data *= scale
             self.data += self.data.conj().T
             return
-        tmp = self.copy()
-        cgpaw.pblas_tran(*self.shape, scale, tmp.data, scale, self.data,
-                         self.dist.desc, self.dist.desc, True)
+        self.dist.add_hermitian_conjugate(self, scale)
 
     def tril2full(self) -> None:
         """Fill in upper triangle from lower triangle.
@@ -652,7 +651,8 @@ def create_distribution(M: int,
                         b: int | None = None,
                         xp=None) -> MatrixDistribution:
     if xp is cp:
-        assert b is None
+        # assert b is None
+        b = None
         if r == 1 and c == 1:
             pass  # comm = None
         comm = comm or serial_comm
@@ -692,7 +692,7 @@ class MatrixDistribution:
     def new(self, M, N):
         raise NotImplementedError
 
-    def to_cp(self) -> CuPyDistribution:
+    def to_xp(self, xp) -> MatrixDistribution:
         raise NotImplementedError
 
     def my_row_range(self) -> tuple[int, int]:
@@ -726,7 +726,9 @@ class NoDistribution(MatrixDistribution):
     def __str__(self):
         return 'NoDistribution({}x{})'.format(*self.shape)
 
-    def to_cp(self) -> CuPyDistribution:
+    def to_xp(self, xp) -> MatrixDistribution:
+        if xp is np:
+            return self
         return CuPyDistribution(*self.shape, serial_comm, 1, 1, None)
 
     def global_index(self, n):
@@ -863,6 +865,20 @@ class BLACSDistribution(MatrixDistribution):
                              opb, opa)
         return c
 
+    def add_hermitian_conjugate(self,
+                                a: Matrix,
+                                scale: float) -> None:
+        tmp = a.copy()
+        cgpaw.pblas_tran(*self.full_shape, scale, tmp.data, scale, a.data,
+                         self.desc, self.desc, True)
+
+    def to_xp(self, xp) -> MatrixDistribution:
+        if xp is np:
+            return self
+        return CuPyDistribution(
+            *self.full_shape,
+            self.comm, self.rows, self.columns, self.blocksize)
+
 
 def cublas_mmm(alpha, a, opa, b, opb, beta, c):
     if c.size == 0:
@@ -891,8 +907,14 @@ class CuPyDistribution(MatrixDistribution):
         m, N = self.shape
         return f'CuPyDistribution(global={M}x{N}, local={m}x{N})'
 
-    def to_cp(self):
-        return self
+    def to_xp(self, xp):
+        if xp is not np:
+            return self
+        if self.comm.size == 1:
+            return NoDistribution(*self.full_shape)
+        return BLACSDistribution(
+            *self.full_shape,
+            self.comm, self.rows, self.columns, self.blocksize)
 
     def global_index(self, n):
         1 / 0
@@ -914,6 +936,14 @@ class CuPyDistribution(MatrixDistribution):
                         return mmm_nc_sym(a, b, c, alpha, cublas_mmm)
                 else:
                     return mmm_nc(a, b, c, alpha, beta, cublas_mmm)
+            if opa == 'C' and opb == 'T' and beta == 0.0:
+                a = a.gather()
+                b = b.gather()
+                c0 = b.new()
+                if self.comm.rank == 0:
+                    cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c0.data)
+                c0.redist(c)
+                return c
             1 / 0
 
         if symmetric:
@@ -945,6 +975,13 @@ class CuPyDistribution(MatrixDistribution):
 
         else:
             cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c.data)
+
+    def add_hermitian_conjugate(self,
+                                a: Matrix,
+                                scale: float) -> None:
+        b = a.to_cpu()
+        b.add_hermitian_conjugate(scale)
+        a.data[:] = b.to_xp(cp).data
 
     def eighl(self, H, L):
         """
