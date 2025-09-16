@@ -65,7 +65,7 @@ class ResponseGroundStateAdapter:
 
         # Also a GridDescriptor, with a finer grid...
         self.finegd = calc.density.finegd
-        self.bd = wfs.bd  # BandDescriptor from gpaw.band_descriptor
+        self.bd = wfs.bd  # BandDescriptor from gpaw.old.band_descriptor
         self.nspins = wfs.nspins  # number of spins: int
         self.dtype = wfs.dtype  # data type of wavefunctions, real or complex
 

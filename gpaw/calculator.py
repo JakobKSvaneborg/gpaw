@@ -14,7 +14,7 @@ from ase.calculators.calculator import Calculator, kpts2ndarray
 from ase.units import Bohr, Ha
 from ase.utils import plural
 from ase.utils.timing import Timer
-from gpaw.band_descriptor import BandDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.convergence_criteria import dict2criterion
 from gpaw.old.density import RealSpaceDensity
 from gpaw.dos import DOSCalculator

@@ -7,7 +7,7 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 
-from gpaw.band_descriptor import BandDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.densities import Densities
 from gpaw.fftw import MEASURE
 from gpaw.kpt_descriptor import KPointDescriptor

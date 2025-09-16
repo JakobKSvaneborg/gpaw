@@ -6,7 +6,7 @@ from ase.units import Bohr, Ha
 from ase.utils.timing import timer
 import numpy as np
 
-from gpaw.band_descriptor import BandDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
 from gpaw.lfc import BasisFunctions
 from gpaw.old.matrix_descriptor import MatrixDescriptor
