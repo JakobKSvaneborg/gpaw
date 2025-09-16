@@ -1,19 +1,15 @@
-from time import localtime
 import pickle
 
 import numpy as np
 from ase.units import Ha
 from ase.calculators.singlepoint import SinglePointCalculator
-from ase.utils import IOContext
 
 from gpaw.utilities import pack_density
 from gpaw.utilities.tools import tri2full
 from gpaw.utilities.blas import rk, mmm, mmmx
 from gpaw.basis_data import Basis
 from gpaw.setup import types2atomtypes
-from gpaw.coulomb import CoulombNEW as Coulomb
-from gpaw.mpi import world, rank, serial_comm
-from gpaw import GPAW
+from gpaw.mpi import world, rank
 
 
 def get_bf_centers(atoms, basis=None):
@@ -545,102 +541,3 @@ def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
             P_aqp = {a: np.dot(Uisq_qp, Px_pp) for a, Px_pp in P_app.items()}
             with open(writeoptimizedpairs, 'wb') as fd:
                 pickle.dump((g_qG, P_aqp), fd, 2)
-
-
-def makeV(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
-          rotationfile='eps_q__U_pq.pckl', coulombfile='V_qq.pckl',
-          log='V_qq.log', fft=False):
-
-    with IOContext() as io:
-        log = io.openfile(log, comm=serial_comm)
-        _makeV(gpwfile=gpwfile, orbitalfile=orbitalfile,
-               rotationfile=rotationfile, coulombfile=coulombfile,
-               log=log, fft=fft)
-
-
-def _makeV(gpwfile, orbitalfile, rotationfile, coulombfile, log, fft):
-    # Extract data from files
-    calc = GPAW(gpwfile, txt=None, communicator=serial_comm)
-    coulomb = Coulomb(calc.wfs.gd, calc.wfs.setups, calc.spos_ac, fft)
-    with open(orbitalfile, 'rb') as fd:
-        w_wG, P_awi = pickle.load(fd)
-    with open(rotationfile, 'rb') as fd:
-        eps_q, U_pq = pickle.load(fd)
-    del calc
-
-    # Make rotation matrix divided by sqrt of norm
-    Nq = len(eps_q)
-    Ni = len(w_wG)
-    Uisq_iqj = (U_pq / np.sqrt(eps_q)).reshape(
-        Ni, Ni, Nq).swapaxes(1, 2).copy()
-    del eps_q, U_pq
-
-    # Determine number of opt. pairorb on each cpu
-    Ncpu = world.size
-    nq, R = divmod(Nq, Ncpu)
-    nq_r = nq * np.ones(Ncpu, int)
-    if R > 0:
-        nq_r[-R:] += 1
-
-    # Determine number of opt. pairorb on this cpu
-    nq1 = nq_r[world.rank]
-    q1end = nq_r[:world.rank + 1].sum()
-    q1start = q1end - nq1
-    V_qq = np.zeros((Nq, nq1), float)
-
-    def make_optimized(qstart, qend):
-        g_qG = np.zeros((qend - qstart,) + w_wG.shape[1:], float)
-        P_aqp = {}
-        for a, P_wi in P_awi.items():
-            ni = P_wi.shape[1]
-            nii = ni * (ni + 1) // 2
-            P_aqp[a] = np.zeros((qend - qstart, nii), float)
-        for w1, w1_G in enumerate(w_wG):
-            U = Uisq_iqj[w1, qstart: qend].copy()
-            mmmx(1, U, 'N', w1_G * w_wG, 'N', 1, g_qG)
-            for a, P_wi in P_awi.items():
-                P_wp = np.array([pack_density(np.outer(P_wi[w1], P_wi[w2]))
-                                 for w2 in range(Ni)])
-                mmm(1., U, 'N', P_wp, 'N', 1.0, P_aqp[a])
-        return g_qG, P_aqp
-
-    g1_qG, P1_aqp = make_optimized(q1start, q1end)
-    for block, nq2 in enumerate(nq_r):
-        if block == world.rank:
-            g2_qG, P2_aqp = g1_qG, P1_aqp
-            q2start, q2end = q1start, q1end
-        else:
-            q2end = nq_r[:block + 1].sum()
-            q2start = q2end - nq2
-            g2_qG, P2_aqp = make_optimized(q2start, q2end)
-
-        for q1, q2 in np.ndindex(nq1, nq2):
-            P1_ap = {a: P_qp[q1] for a, P_qp in P1_aqp.items()}
-            P2_ap = {a: P_qp[q2] for a, P_qp in P2_aqp.items()}
-            V_qq[q2 + q2start, q1] = coulomb.calculate(g1_qG[q1], g2_qG[q2],
-                                                       P1_ap, P2_ap)
-            if q2 == 0 and world.rank == 0:
-                T = localtime()
-                log.write(
-                    'Block %i/%i is %4.1f percent done at %02i:%02i:%02i\n' %
-                    (block + 1, world.size,
-                     100.0 * q1 / nq1, T[3], T[4], T[5]))
-                log.flush()
-
-    # Collect V_qq array on master node
-    if world.rank == 0:
-        T = localtime()
-        log.write('Starting collect at %02i:%02i:%02i\n' % (
-            T[3], T[4], T[5]))
-        log.flush()
-
-    V_qq = collect_orbitals(V_qq, coords=nq_r, root=0)
-    if world.rank == 0:
-        # V can be slightly asymmetric due to numerics
-        V_qq = 0.5 * (V_qq + V_qq.T)
-        V_qq.dump(coulombfile)
-
-        T = localtime()
-        log.write('Finished at %02i:%02i:%02i\n' % (
-            T[3], T[4], T[5]))
-        log.flush()
