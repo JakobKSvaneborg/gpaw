@@ -23,7 +23,7 @@ from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.utilities import pack_density
 from gpaw.utilities.timing import nulltimer
 from gpaw.old.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
-                                       UniformGridWaveFunctions)
+                                           UniformGridWaveFunctions)
 
 
 class PT:

@@ -56,7 +56,7 @@ class ResponseGroundStateAdapter:
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
 
         self.atoms = calc.atoms
-        self.kd = wfs.kd  # KPointDescriptor object from gpaw.old.kpt_descriptor.
+        self.kd = wfs.kd  # KPointDescriptor object
         self.world = calc.world  # _Communicator object from gpaw.mpi
 
         # GridDescriptor from gpaw.old.grid_descriptor.
@@ -71,8 +71,8 @@ class ResponseGroundStateAdapter:
 
         self.spos_ac = calc.spos_ac  # scaled position vector: np.ndarray
 
-        self.kpt_u = wfs.kpt_u  # kpoints: list of Kpoint from gpaw.old.kpoint
-        self.kpt_qs = wfs.kpt_qs  # kpoints: list of Kpoint from gpaw.old.kpoint
+        self.kpt_u = wfs.kpt_u  # list of Kpoint from gpaw.old.kpoint
+        self.kpt_qs = wfs.kpt_qs  # list of Kpoint from gpaw.old.kpoint
 
         self.fermi_level = wfs.fermi_level  # float
         self.atoms = calc.atoms  # ASE Atoms object

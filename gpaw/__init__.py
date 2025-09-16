@@ -225,9 +225,9 @@ all_lazy_imports = dict(
     FermiDirac='gpaw.occupations.FermiDirac',
     MethfesselPaxton='gpaw.occupations.MethfesselPaxton',
     MarzariVanderbilt='gpaw.occupations.MarzariVanderbilt',
-    FD='gpaw.wavefunctions.fd.FD',
-    LCAO='gpaw.wavefunctions.lcao.LCAO',
-    PW='gpaw.wavefunctions.pw.PW')
+    FD='gpaw.old.wavefunctions.fd.FD',
+    LCAO='gpaw.old.wavefunctions.lcao.LCAO',
+    PW='gpaw.old.wavefunctions.pw.PW')
 
 
 # Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
