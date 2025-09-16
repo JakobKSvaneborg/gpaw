@@ -95,7 +95,8 @@ def test_pwlfc_expand(dtype, cc):
         tol = 1e-6
     else:
         tol = 1e-12
-    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(), rel=tol, abs=tol)
+    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(),
+                                              rel=tol, abs=tol)
 
 
 @pytest.mark.gpu
