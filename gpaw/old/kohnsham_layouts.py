@@ -1,19 +1,25 @@
 # Copyright (C) 2010  CAMd
 # Copyright (C) 2010  Argonne National Laboratory
 # Please see the accompanying LICENSE file for further information.
-import numpy as np
-from scipy.linalg import eigh
+import re
 
+import numpy as np
 from gpaw import debug
-from gpaw.old.matrix_descriptor import MatrixDescriptor
-from gpaw.mpi import broadcast_exception
 from gpaw.blacs import BlacsGrid, Redistributor
-from gpaw.utilities import uncamelcase
+from gpaw.mpi import broadcast_exception
+from gpaw.old.matrix_descriptor import MatrixDescriptor
 from gpaw.utilities.blas import mmm, r2k
 from gpaw.utilities.scalapack import (pblas_simple_gemm, pblas_tran,
                                       scalapack_tri2full)
-from gpaw.utilities.tools import tri2full
 from gpaw.utilities.timing import nulltimer
+from gpaw.utilities.tools import tri2full
+from scipy.linalg import eigh
+
+
+def uncamelcase(name):
+    """Convert a CamelCase name to a string of space-seperated words."""
+    words = re.split('([A-Z]{1}[a-z]+)', name)
+    return ' '.join([word for word in words if word != ''])
 
 
 def get_KohnSham_layouts(sl, mode, gd, bd, block_comm, dtype,
