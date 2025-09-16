@@ -147,18 +147,17 @@ class PWHybridHamiltonianK(PWHamiltonian):
         for krank in range(self.kpt_comm.size):
             for brank in range(band_comm.size):
                 data = None
-                if krank == self.kpt_comm.rank:
-                    if brank == band_comm.rank:
-                        psit2_nG = psit_nG.gather()
-                        P2_ani = P_ani.gather()
-                        if psit2_nG is not None:
-                            # Remove band_comm so that data can be pickled
-                            # when calling broadcast(data, ...) later:
-                            psit2_nG = psit2_nG[:]
-                            P2_ani = AtomArrays(P2_ani.layout,
-                                                dims=(len(P2_ani.data),),
-                                                data=P2_ani.data)
-                            data = (psit2_nG, P2_ani, f_n, spin)
+                if krank == self.kpt_comm.rank and brank == band_comm.rank:
+                    psit2_nG = psit_nG.gather()
+                    P2_ani = P_ani.gather()
+                    if psit2_nG is not None:
+                        # Remove band_comm so that data can be pickled
+                        # when calling broadcast(data, ...) later:
+                        psit2_nG = psit2_nG[:]
+                        P2_ani = AtomArrays(P2_ani.layout,
+                                            dims=(len(P2_ani.data),),
+                                            data=P2_ani.data)
+                        data = (psit2_nG, P2_ani, f_n, spin)
 
                 rank = (brank + krank * band_comm.size) * domain_comm.size
                 psit2_nG, P2_ani, f2_n, s = broadcast(data, rank, comm)

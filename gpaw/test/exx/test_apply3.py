@@ -1,7 +1,7 @@
-from gpaw.new.pw.hybridsk import PWHybridHamiltonianK
+from gpaw.new.pw.hybridsk import PWHybridHamiltonianK, Psit
 from gpaw.core import UGDesc, PWDesc
 from gpaw.setup import Setups
-from gpaw.core.atom_arrays import AtomDistribution
+from gpaw.core.atom_arrays import AtomDistribution, AtomArraysLayout
 import numpy as np
 from gpaw.mpi import world
 
@@ -25,13 +25,26 @@ def test_apply3():
         kpt_comm=world,
         band_comm=world,
         comm=world)
+    pwk = pw.new(kpt=[0.5, 0.5, 0.0])
+    n1 = 15
+    n2 = 153
+    psit1 = Psit(
+        ut_nR=grid.empty(n1).data,
+        P_ani=AtomArraysLayout().empty(n1),
+        f_n=np.ones(n1),
+        kpt_c=np.ndarray([0.6, 0.6, 0.6]),
+        Q_aniL={a: np.ones((n1, 13, 9), complex) for a inb range(N)},
+        spin=0)
+    v_G = pwg.empty()
+    v_G.data[:] = 1.0 / pwg.ekin_G # real?  Use np.ndarray
+    ut2_nR = grid.empty(n2)
     ham._apply3(
-        v_G: PWArray,
-        psit1: Psit,
-        ut2_nR: UGArray,
-        P2_ani: AtomArrays,
-        Htpsit2_nG: PWArray,
+        v_G.
+        psit1,
+        ut2_nR,
+        P2_ani,
+        Htpsit2_nG,
         V2_ani,
-        f2_n: np.ndarray,
-        calculate_energy: bool) -> float:
+        f2_n=np.ones(n2),
+        calculate_energy=True)
     
