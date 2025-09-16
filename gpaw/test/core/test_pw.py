@@ -128,7 +128,7 @@ def test_grr():
     pw = PWDesc(ecut=340 / Ha, cell=grid.cell, comm=world)
     print(pw.G_plus_k_Gv.shape)
     from gpaw.old.grid_descriptor import GridDescriptor
-    from gpaw.pw.descriptor import PWDescriptor
+    from gpaw.old.pw.descriptor import PWDescriptor
     g = GridDescriptor((9, 9, 12), [2 / Bohr, 2 / Bohr, 2.737166 / Bohr])
     p = PWDescriptor(340 / Ha, g)
     print(p.get_reciprocal_vectors().shape)

@@ -4,7 +4,7 @@ from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.projections import Projections
 from gpaw.utilities.partition import AtomPartition
 from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
 
 
 class KPoint:

@@ -8,8 +8,8 @@ from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.kpoint import KPoint
 from gpaw.symmetry import Symmetry
 from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.lfc import PWLFC
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
 from gpaw.projections import Projections
 from gpaw.mpi import world
 from gpaw.spline import Spline

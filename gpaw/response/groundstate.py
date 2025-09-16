@@ -132,7 +132,7 @@ class ResponseGroundStateAdapter:
         on all k-points in the case where calc is parallelized over k-points,
         see gpaw.response.kspair
         """
-        from gpaw.pw.descriptor import PWDescriptor
+        from gpaw.old.pw.descriptor import PWDescriptor
 
         assert self.gd.comm.size == 1
         kd = self.kd.copy()  # global KPointDescriptor without a comm

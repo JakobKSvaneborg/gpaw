@@ -5,7 +5,7 @@ from ase.units import Ha
 
 from gpaw.old.density import Density
 from gpaw.external import NoExternalPotential
-from gpaw.pw.hamiltonian import ReciprocalSpaceHamiltonian
+from gpaw.old.pw.hamiltonian import ReciprocalSpaceHamiltonian
 from gpaw.typing import Array1D, Array2D, ArrayLike1D
 
 

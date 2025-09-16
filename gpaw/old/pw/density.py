@@ -2,8 +2,8 @@ from math import pi
 import numpy as np
 
 from gpaw.old.density import Density
-from gpaw.pw.descriptor import PWDescriptor, PWMapping
-from gpaw.pw.lfc import PWLFC
+from gpaw.old.pw.descriptor import PWDescriptor, PWMapping
+from gpaw.old.pw.lfc import PWLFC
 
 
 class PseudoCoreKineticEnergyDensityLFC(PWLFC):

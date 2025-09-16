@@ -6,7 +6,7 @@ from ase.units import Hartree, Bohr
 from gpaw.kpt_descriptor import to1bz
 from gpaw.new.ase_interface import GPAW
 from gpaw.spinorbit import soc_eigenstates
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
 import gpaw.mpi as mpi
 
 

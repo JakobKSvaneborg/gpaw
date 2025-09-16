@@ -34,8 +34,8 @@ from gpaw.matrix import suggest_blocking
 from gpaw.occupations import ParallelLayout, create_occ_calc
 from gpaw.output import (print_cell, print_parallelization_details,
                          print_positions)
-from gpaw.pw.density import ReciprocalSpaceDensity
-from gpaw.pw.hamiltonian import ReciprocalSpaceHamiltonian
+from gpaw.old.pw.density import ReciprocalSpaceDensity
+from gpaw.old.pw.hamiltonian import ReciprocalSpaceHamiltonian
 from gpaw.scf import SCFLoop, SCFEvent
 from gpaw.setup import Setups
 from gpaw.stress import calculate_stress

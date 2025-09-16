@@ -11,7 +11,7 @@ from gpaw.fftw import get_efficient_fft_size
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.utilities import h2gpts
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.mpi import serial_comm
 from gpaw.setup import Setup
 from gpaw.spline import Spline

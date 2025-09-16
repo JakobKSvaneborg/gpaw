@@ -10,8 +10,8 @@ from gpaw.band_descriptor import BandDescriptor
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
 from gpaw.lfc import BasisFunctions
 from gpaw.matrix_descriptor import MatrixDescriptor
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.lfc import PWLFC
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
 from gpaw.typing import Array2D
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import axpy
@@ -154,10 +154,10 @@ class Preconditioner:
             out = np.empty_like(R_xG)
         G2_G = self.G2_qG[kpt.q]
         if R_xG.ndim == 1:
-            cgpaw.pw_precond(G2_G, R_xG, ekin_x, out)
+            cgpaw.old.pw_precond(G2_G, R_xG, ekin_x, out)
         else:
             for PR_G, R_G, ekin in zip(out, R_xG, ekin_x):
-                cgpaw.pw_precond(G2_G, R_G, ekin, PR_G)
+                cgpaw.old.pw_precond(G2_G, R_G, ekin, PR_G)
         return out
 
 
