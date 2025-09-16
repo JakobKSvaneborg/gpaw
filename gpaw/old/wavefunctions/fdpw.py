@@ -6,8 +6,8 @@ from gpaw.lfc import BasisFunctions
 from gpaw.old.matrix import Matrix, matrix_matrix_multiply as mmm
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.timing import nulltimer
-from gpaw.wavefunctions.base import WaveFunctions
-from gpaw.wavefunctions.lcao import LCAOWaveFunctions, update_phases
+from gpaw.old.wavefunctions.base import WaveFunctions
+from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions, update_phases
 
 
 class NullWfsMover:

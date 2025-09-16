@@ -7,7 +7,7 @@ from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.kpoint import KPoint
 from gpaw.symmetry import Symmetry
-from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC
 from gpaw.old.projections import Projections

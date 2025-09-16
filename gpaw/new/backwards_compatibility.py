@@ -22,7 +22,7 @@ from gpaw.old.projections import Projections
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.utilities import pack_density
 from gpaw.utilities.timing import nulltimer
-from gpaw.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
+from gpaw.old.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
                                        UniformGridWaveFunctions)
 
 
@@ -181,7 +181,7 @@ class FakeWFS:
 
     def make_preconditioner(self, blocksize):
         if self.mode == 'pw':
-            from gpaw.wavefunctions.pw import Preconditioner
+            from gpaw.old.wavefunctions.pw import Preconditioner
             return Preconditioner(self.pd.G2_qG, self.pd,
                                   _scale=self.ngpts**2)
         from gpaw.preconditioner import Preconditioner

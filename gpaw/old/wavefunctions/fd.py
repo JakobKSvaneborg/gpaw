@@ -10,9 +10,9 @@ from gpaw.preconditioner import Preconditioner
 from gpaw.old.projections import Projections
 from gpaw.transformers import Transformer
 from gpaw.utilities.blas import axpy
-from gpaw.wavefunctions.arrays import UniformGridWaveFunctions
-from gpaw.wavefunctions.fdpw import FDPWWaveFunctions
-from gpaw.wavefunctions.mode import Mode
+from gpaw.old.wavefunctions.arrays import UniformGridWaveFunctions
+from gpaw.old.wavefunctions.fdpw import FDPWWaveFunctions
+from gpaw.old.wavefunctions.mode import Mode
 import gpaw.cgpaw as cgpaw
 
 

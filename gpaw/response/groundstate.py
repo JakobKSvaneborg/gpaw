@@ -53,7 +53,7 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator):
-        wfs = calc.wfs  # wavefunction object from gpaw.wavefunctions
+        wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
 
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object from gpaw.kpt_descriptor.

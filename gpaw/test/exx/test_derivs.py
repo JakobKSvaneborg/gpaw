@@ -12,7 +12,7 @@ from gpaw.old.pw.lfc import PWLFC
 from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb as WSTC
 from gpaw.spline import Spline
 from gpaw.symmetry import Symmetry
-from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
 
 
 class AP:

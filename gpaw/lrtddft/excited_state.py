@@ -14,7 +14,7 @@ from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft.finite_differences import FiniteDifference
 from gpaw.lrtddft.excitation import ExcitationLogger
 from gpaw.utilities.blas import axpy
-from gpaw.wavefunctions.lcao import LCAOWaveFunctions
+from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
 
 
 class ExcitedState(GPAW):

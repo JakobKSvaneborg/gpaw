@@ -16,9 +16,9 @@ from gpaw.typing import Array2D
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import axpy
 from gpaw.utilities.progressbar import ProgressBar
-from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
-from gpaw.wavefunctions.fdpw import FDPWWaveFunctions
-from gpaw.wavefunctions.mode import Mode
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.old.wavefunctions.fdpw import FDPWWaveFunctions
+from gpaw.old.wavefunctions.mode import Mode
 import gpaw
 import gpaw.cgpaw as cgpaw
 import gpaw.fftw as fftw

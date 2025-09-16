@@ -45,7 +45,7 @@ from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.utilities.grid import GridRedistributor
 from gpaw.utilities.memory import MemNode, maxrss
 from gpaw.utilities.partition import AtomPartition
-from gpaw.wavefunctions.mode import create_wave_function_mode
+from gpaw.old.wavefunctions.mode import create_wave_function_mode
 from gpaw.xc import XC
 from gpaw.xc.kernel import XCKernel
 from gpaw.xc.sic import SIC
