@@ -186,7 +186,7 @@ class _Communicator:
             tc = a.dtype
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            with RegisteredPointer(a, enabled=True,
+            with RegisteredPointer(a, enabled=True, # XXX
                                    _input=True,
                                    _output=((root == -1) or
                                             (root == self.rank))) as a:

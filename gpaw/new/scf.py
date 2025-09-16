@@ -80,6 +80,9 @@ class SCFLoop:
             dens_error = 0.0
 
         for self.niter in itertools.count(start=1):
+            import os
+            if self.comm.rank == 0:
+                os.system('rocm-smi')
             eig_error, wfs_error, energies = self.eigensolver.iterate(
                 ibzwfs, density, potential,
                 self.hamiltonian, pot_calc, energies)
