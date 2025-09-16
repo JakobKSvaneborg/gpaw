@@ -992,8 +992,7 @@ Jan 11, 2019: :git:`1.5.0 <../1.5.0>`
   cover: :ref:`catalysis`, :ref:`magnetism`, :ref:`machinelearning`,
   :ref:`excited states`, :ref:`batteries` and :ref:`intro`.
 
-* New experimental local **k**-point refinement feature:
-  :git:`gpaw/test/test_kpt_refine.py`.
+* New experimental local **k**-point refinement feature.
 
 * A module and tutorial have been added for calculating electrostatic
   corrections to DFT total energies for charged systems involving localized
