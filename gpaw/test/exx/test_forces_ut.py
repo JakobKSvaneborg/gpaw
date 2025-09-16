@@ -10,7 +10,7 @@ from gpaw.symmetry import Symmetry
 from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.mpi import world
 from gpaw.spline import Spline
 from gpaw.hybrids.energy import calculate_energy

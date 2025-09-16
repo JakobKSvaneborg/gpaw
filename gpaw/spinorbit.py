@@ -15,7 +15,7 @@ from gpaw.kpoint import KPoint
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import broadcast_array, serial_comm
 from gpaw.occupations import OccupationNumberCalculator, ParallelLayout
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.setup import Setup
 from gpaw.typing import Array1D, Array2D, Array3D, Array4D, ArrayND
 from gpaw.utilities.partition import AtomPartition

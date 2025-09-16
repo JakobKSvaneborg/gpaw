@@ -1,7 +1,7 @@
 import numpy as np
 
 from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.utilities.partition import AtomPartition
 from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
 from gpaw.old.pw.descriptor import PWDescriptor

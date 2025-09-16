@@ -2,7 +2,7 @@ from collections.abc import Sequence
 import numpy as np
 from gpaw.utilities.blas import gemmdot
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 
 
 class IBZ2BZMaps(Sequence):

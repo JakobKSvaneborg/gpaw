@@ -3,7 +3,7 @@
 
 """This module defines a ``KPoint`` class."""
 from typing import Optional
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 
 
 class KPoint:

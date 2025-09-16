@@ -38,7 +38,7 @@ from gpaw.old.pw.density import ReciprocalSpaceDensity
 from gpaw.old.pw.hamiltonian import ReciprocalSpaceHamiltonian
 from gpaw.scf import SCFLoop, SCFEvent
 from gpaw.setup import Setups
-from gpaw.stress import calculate_stress
+from gpaw.old.stress import calculate_stress
 from gpaw.symmetry import Symmetry
 from gpaw.typing import Array1D
 from gpaw.utilities import check_atoms_too_close, compiled_with_sl

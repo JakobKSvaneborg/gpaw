@@ -7,7 +7,7 @@ from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.mpi import serial_comm
 from gpaw.preconditioner import Preconditioner
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.transformers import Transformer
 from gpaw.utilities.blas import axpy
 from gpaw.wavefunctions.arrays import UniformGridWaveFunctions

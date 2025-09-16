@@ -18,7 +18,7 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.utilities import pack_density
 from gpaw.utilities.timing import nulltimer
