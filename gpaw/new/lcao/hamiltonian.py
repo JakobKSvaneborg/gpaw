@@ -5,11 +5,12 @@ from gpaw.core.matrix import Matrix
 from gpaw.external import ExternalPotential
 from gpaw.lfc import BasisFunctions
 from gpaw.new import zips
-from gpaw.new.calculation import DFTState
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.hamiltonian import Hamiltonian
+from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.typing import Array2D, Array3D
+from gpaw.utilities import unpack_hermitian
 
 
 class HamiltonianMatrixCalculator:
@@ -146,32 +147,43 @@ class LCAOHamiltonian(Hamiltonian):
 
         return NonCollinearHamiltonianMatrixCalculator(matcalc)
 
-    def create_kick_matrix_calculator(self,
-                                      state: DFTState,
-                                      ext: ExternalPotential,
-                                      pot_calc: FDPotentialCalculator
-                                      ) -> HamiltonianMatrixCalculator:
-        from gpaw.utilities import unpack_hermitian
+
+class LCAOKickHamiltonian(LCAOHamiltonian):
+
+    def __init__(self,
+                 basis: BasisFunctions,
+                 ibzwfs: LCAOIBZWaveFunctions,
+                 ext: ExternalPotential,
+                 pot_calc: FDPotentialCalculator):
+        """ Factory class for creating a Hamiltonian-like object
+        representing a potential kick """
+        super().__init__(basis=basis)
+
         vext_r = pot_calc.vbar_r.new()
         finegd = vext_r.desc._gd
 
         vext_r.data = ext.get_potential(finegd)
         vext_R = pot_calc.restrict(vext_r)
 
-        nspins = state.ibzwfs.nspins
+        self.nspins = ibzwfs.nspins
 
         V_MM = self.basis.calculate_potential_matrices(vext_R.data)
-        V_sxMM = [V_MM for s in range(nspins)]
 
         W_aL = pot_calc.ghat_aLr.integrate(vext_r)
 
-        assert state.ibzwfs.ibz.bz.gamma_only
-        setups_a = state.ibzwfs.wfs_qs[0][0].setups
+        assert ibzwfs.ibz.bz.gamma_only
+        setups_a = ibzwfs.wfs_qs[0][0].setups
 
-        dH_saii = [{a: unpack_hermitian(setups_a[a].Delta_pL @ W_L)
-                    for (a, W_L) in W_aL.items()}
-                   for s in range(nspins)]
+        self.V_sxMM = [V_MM for s in range(self.nspins)]
+        self.dH_saii = [{a: unpack_hermitian(setups_a[a].Delta_pL @ W_L)
+                         for (a, W_L) in W_aL.items()}
+                        for s in range(self.nspins)]
 
-        return CollinearHamiltonianMatrixCalculator(V_sxMM, dH_saii,
+    def create_hamiltonian_matrix_calculator(self,
+                                             potential,
+                                             ) -> HamiltonianMatrixCalculator:
+        # The supplied potential is ignored.
+        # We are kicking with the potential stored by the init
+        return CollinearHamiltonianMatrixCalculator(self.V_sxMM, self.dH_saii,
                                                     self.basis,
                                                     include_kinetic=False)

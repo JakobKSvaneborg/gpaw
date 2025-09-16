@@ -242,6 +242,26 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         add_force_contributions(self, potential, F_av)
         return F_av
 
+    def copy(self) -> LCAOWaveFunctions:
+        wfs = LCAOWaveFunctions(setups=self.setups,
+                                tci_derivatives=self.tci_derivatives,
+                                basis=self.basis,
+                                C_nM=self.C_nM.copy(),  # Copy buffer
+                                S_MM=self.S_MM,
+                                T_MM=self.T_MM,
+                                P_aMi=self.P_aMi,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist,
+                                kpt_c=self.kpt_c,
+                                spin=self.spin,
+                                q=self.q,
+                                k=self.k,
+                                weight=self.weight,
+                                ncomponents=self.ncomponents)
+        wfs._eig_n = self._eig_n
+        wfs._occ_n = self._occ_n
+        return wfs
+
     def send(self, rank, comm):
         stuff = (self.kpt_c,
                  self.C_nM.data,

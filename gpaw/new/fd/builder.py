@@ -126,7 +126,9 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             data = reader.wave_functions.proxy(name, *index)
             data.scale = c
             if self.communicators['w'].size == 1 and not singlep:
-                wfs.psit_nX = UGArray(grid, self.nbands, data=data)
+                # Cast to the right dtype
+                wfs.psit_nX = UGArray(grid, self.nbands,
+                                      data=np.array(data, dtype=grid.dtype))
             else:
                 band_comm = self.communicators['b']
                 wfs.psit_nX = UGArray(

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from functools import cached_property
 from typing import Any, TYPE_CHECKING
 
 import numpy as np
@@ -25,7 +24,6 @@ from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
-from gpaw.utilities.partition import AtomPartition
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -398,12 +396,6 @@ class DFTCalculation:
         if broadcast:
             psit_nR = bcast(psit_nR, 0, self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
-
-    @cached_property
-    def _atom_partition(self):
-        # Backwards compatibility helper
-        atomdist = self.density.D_asii.layout.atomdist
-        return AtomPartition(atomdist.comm, atomdist.rank_a)
 
     def new(self,
             atoms: Atoms,

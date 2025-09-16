@@ -10,6 +10,9 @@ Git master branch
 
 :git:`master <>`.
 
+* New GPAW: LCAO and finite-difference mode TDDFT have been ported into a common
+  RT-TDDFT interface with a subset of features so far. ECN and SICN propagators are
+  available.
 * :ref:`debug mode` is now enabled by setting the environment variable
   :envvar:`GPAW_DEBUG` to ``1``.  Using the ``-d`` option of the
   Python interpreter is no longer supported.

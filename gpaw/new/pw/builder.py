@@ -175,10 +175,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         if self.ncomponents < 4:
             if self.xc.exx_fraction == 0.0:
                 return PWHamiltonian(self.grid, self.wf_desc, self.xp)
-            assert self.communicators['d'].size == 1
-            assert self.communicators['k'].size == 1
-            assert self.nbands % self.communicators['b'].size == 0
             if self.dtype is float:
+                assert self.communicators['d'].size == 1
+                assert self.communicators['k'].size == 1
+                assert self.nbands % self.communicators['b'].size == 0
                 return PWHybridHamiltonian(
                     self.grid, self.wf_desc, self.xc, self.setups,
                     self.relpos_ac, self.atomdist,
@@ -189,6 +189,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                     self.grid, self.wf_desc, self.xc, self.setups,
                     self.relpos_ac, self.atomdist, self.log,
                     self.communicators['k'],
+                    self.communicators['b'],
                     self.communicators['w'])
         return SpinorPWHamiltonian(self.qspiral_v)
 
