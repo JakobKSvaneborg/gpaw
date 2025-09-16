@@ -9,7 +9,7 @@ import numpy as np
 from gpaw.band_descriptor import BandDescriptor
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
 from gpaw.lfc import BasisFunctions
-from gpaw.matrix_descriptor import MatrixDescriptor
+from gpaw.old.matrix_descriptor import MatrixDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC
 from gpaw.typing import Array2D

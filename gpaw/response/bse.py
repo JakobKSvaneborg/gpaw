@@ -129,7 +129,7 @@ def parallel_delete(A_nn: np.ndarray,
     grid_desc: BlacsDescriptor for A_nn
     new_grid: BlacsGrid on which A_nn will be returned; optional.
     If None, the output grid will be determined automatically
-    by the gpaw.matrix.suggest_blocking function.
+    by the gpaw.old.matrix.suggest_blocking function.
     -------------------
     Returns:
     A_rs: np.ndarray
@@ -139,7 +139,7 @@ def parallel_delete(A_nn: np.ndarray,
     have been deleted.
     new_grid is the grid on which it is distributed.
     """
-    from gpaw.matrix import suggest_blocking
+    from gpaw.old.matrix import suggest_blocking
     N = grid_desc.N
     assert N == grid_desc.M, 'Matrix must be square'
 

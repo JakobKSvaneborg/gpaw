@@ -5,7 +5,7 @@ import numpy as np
 from scipy.linalg import eigh
 
 from gpaw import debug
-from gpaw.matrix_descriptor import MatrixDescriptor
+from gpaw.old.matrix_descriptor import MatrixDescriptor
 from gpaw.mpi import broadcast_exception
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.utilities import uncamelcase

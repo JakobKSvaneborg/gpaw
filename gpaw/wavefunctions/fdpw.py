@@ -3,7 +3,7 @@ from ase.utils.timing import timer
 
 from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.lfc import BasisFunctions
-from gpaw.matrix import Matrix, matrix_matrix_multiply as mmm
+from gpaw.old.matrix import Matrix, matrix_matrix_multiply as mmm
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.timing import nulltimer
 from gpaw.wavefunctions.base import WaveFunctions

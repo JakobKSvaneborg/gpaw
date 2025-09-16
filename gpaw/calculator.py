@@ -29,7 +29,7 @@ from gpaw.io.logger import GPAWLogger
 from gpaw.jellium import create_background_charge
 from gpaw.kohnsham_layouts import get_KohnSham_layouts
 from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.matrix import suggest_blocking
+from gpaw.old.matrix import suggest_blocking
 from gpaw.occupations import ParallelLayout, create_occ_calc
 from gpaw.output import (print_cell, print_parallelization_details,
                          print_positions)

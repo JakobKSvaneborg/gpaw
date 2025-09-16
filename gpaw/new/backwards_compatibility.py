@@ -159,7 +159,7 @@ class FakeWFS:
 
     @cached_property
     def work_matrix_nn(self):
-        from gpaw.matrix import Matrix
+        from gpaw.old.matrix import Matrix
         return Matrix(
             self.bd.nbands, self.bd.nbands,
             dtype=self.dtype,

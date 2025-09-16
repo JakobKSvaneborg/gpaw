@@ -17,7 +17,7 @@ from gpaw.utilities import (unpack_density, unpack_atomic_matrices,
                             pack_atomic_matrices)
 from gpaw.utilities.partition import AtomPartition
 from gpaw.utilities.timing import nulltimer
-from gpaw.arraydict import ArrayDict
+from gpaw.old.arraydict import ArrayDict
 
 
 class CompensationChargeExpansionCoefficients:
