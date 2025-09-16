@@ -499,7 +499,7 @@ class LCAOforces:
         self.atom_indices = bfs.atom_indices
         self.dH_asp = hamiltonian.dH_asp
 
-        from gpaw.kohnsham_layouts import BlacsOrbitalLayouts
+        from gpaw.old.kohnsham_layouts import BlacsOrbitalLayouts
         self.isblacs = isinstance(self.ksl, BlacsOrbitalLayouts)
 
         if not self.isblacs:

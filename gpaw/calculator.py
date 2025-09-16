@@ -20,14 +20,14 @@ from gpaw.old.density import RealSpaceDensity
 from gpaw.dos import DOSCalculator
 from gpaw.eigensolvers import get_eigensolver
 from gpaw.external import PointChargePotential
-from gpaw.forces import calculate_forces
+from gpaw.old.forces import calculate_forces
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.old.hamiltonian import RealSpaceHamiltonian
 from gpaw.hybrids import HybridXC
 from gpaw.io import Reader, Writer
 from gpaw.io.logger import GPAWLogger
 from gpaw.jellium import create_background_charge
-from gpaw.kohnsham_layouts import get_KohnSham_layouts
+from gpaw.old.kohnsham_layouts import get_KohnSham_layouts
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.old.matrix import suggest_blocking
 from gpaw.occupations import ParallelLayout, create_occ_calc
