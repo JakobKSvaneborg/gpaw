@@ -154,10 +154,10 @@ class Preconditioner:
             out = np.empty_like(R_xG)
         G2_G = self.G2_qG[kpt.q]
         if R_xG.ndim == 1:
-            cgpaw.old.pw_precond(G2_G, R_xG, ekin_x, out)
+            cgpaw.pw_precond(G2_G, R_xG, ekin_x, out)
         else:
             for PR_G, R_G, ekin in zip(out, R_xG, ekin_x):
-                cgpaw.old.pw_precond(G2_G, R_G, ekin, PR_G)
+                cgpaw.pw_precond(G2_G, R_G, ekin, PR_G)
         return out
 
 

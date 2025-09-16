@@ -7,9 +7,9 @@ from ase.units import Ha
 from ase.utils.timing import timer
 
 from gpaw.matrix import matrix_matrix_multiply as mmm
-from gpaw.utilities.mblas import multi_axpy
-from gpaw.xc.hybrid import HybridXC
 from gpaw.mpi import broadcast_exception
+from gpaw.utilities.blas import axpy
+from gpaw.xc.hybrid import HybridXC
 
 
 def reshape(a_x, shape):
@@ -156,7 +156,8 @@ class Eigensolver:
 
         From R=Ht*psit calculate R=H*psit-eps*S*psit."""
 
-        multi_axpy(-eps_n, psit.array, R.array)
+        for a, x, y in zip(-eps_n, psit.array, R.array):
+            axpy(a, x, y)
 
         ham.dH(P, out=C)
         for a, I1, I2 in P.indices:
