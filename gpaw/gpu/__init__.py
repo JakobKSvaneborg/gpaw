@@ -42,7 +42,8 @@ else:
         from cupy.cuda import runtime
         is_hip = runtime.is_hip
         cupy_is_fake = False
-    except ImportError:
+    except ImportError as e:
+        print('Cannot properly load CuPy', e)
         cupy_is_fake = True
         is_hip = False
         import gpaw.gpu.cpupy as cupy
@@ -243,6 +244,7 @@ def set_device(log):
             nodename = os.uname()[1]
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
+            print(f'Device count on {nodename}', device_count)
 
     log(f'mpi rank {rank} has GPU device {device_id}', parallel=True)
 
@@ -254,7 +256,6 @@ __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
 try:
     from gpaw.cgpaw import _flush_pending_decrefs
 
-    @trace
     def flush_pinned_arrays() -> None:
         """Flushes the list of arrays that are currently pinned by GPAW's
         'GPU array life support' system.
@@ -347,7 +348,7 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
     if not is_hip:
         return cupy.linalg.eigh(a, UPLO=UPLO)
 
-    elif have_magma and a.ndim == 2 and a.shape[0] > 128:
+    elif have_magma and a.ndim == 2 and a.shape[0] > 1000028:
         # import here to avoid circular import.
         # magma needs cupy (possibly fake),
         # which must be imported from this file
@@ -356,6 +357,7 @@ def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
         return eigh_magma_gpu(a, UPLO)
 
     else:
+        print('CPU eigh fallback')
         # fallback to CPU
         eigs, evals = eigh(cupy.asnumpy(a),
                            lower=(UPLO == 'L'),
