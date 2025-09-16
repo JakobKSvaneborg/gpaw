@@ -139,7 +139,7 @@ class Matrix(XP):
             dist = create_distribution(M, N, xp=self.xp, **kwargs)
         else:
             assert self.shape == dist.full_shape
-            dist = dist.to_xp(xp)
+            dist = dist.to_xp(xp)  # make sure xp and dist match
         self.dist = dist
 
         self.data: Array2D
@@ -427,7 +427,9 @@ class Matrix(XP):
             Number of eigenvector and values to find.  Defaults to all.
         """
         if self.xp is cp:
+            # use MAGMA here?
             scalapack = None, 1, 1, None
+
         slcomm, rows, columns, blocksize = scalapack
         slcomm = slcomm or self.dist.comm
         dist = (slcomm, rows, columns, blocksize)
@@ -651,10 +653,7 @@ def create_distribution(M: int,
                         b: int | None = None,
                         xp=None) -> MatrixDistribution:
     if xp is cp:
-        # assert b is None
-        b = None
-        if r == 1 and c == 1:
-            pass  # comm = None
+        b = None  # blocking not implemented
         comm = comm or serial_comm
         return CuPyDistribution(M, N, comm,
                                 r if r != -1 else comm.size,
@@ -711,6 +710,11 @@ class MatrixDistribution:
         n1 = self.comm.rank * b
         n2 = min(n1 + b, M)
         return n1, n2
+
+    def add_hermitian_conjugate(self,
+                                a: Matrix,
+                                scale: float) -> None:
+        raise NotImplementedError
 
 
 class NoDistribution(MatrixDistribution):
@@ -937,6 +941,7 @@ class CuPyDistribution(MatrixDistribution):
                 else:
                     return mmm_nc(a, b, c, alpha, beta, cublas_mmm)
             if opa == 'C' and opb == 'T' and beta == 0.0:
+                # Quick'n'dirty hack:
                 a = a.gather()
                 b = b.gather()
                 c0 = b.new()
@@ -979,6 +984,7 @@ class CuPyDistribution(MatrixDistribution):
     def add_hermitian_conjugate(self,
                                 a: Matrix,
                                 scale: float) -> None:
+        # Quick'n'dirty hack:
         b = a.to_cpu()
         b.add_hermitian_conjugate(scale)
         a.data[:] = b.to_xp(cp).data
