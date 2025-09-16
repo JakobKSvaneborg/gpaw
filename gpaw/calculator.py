@@ -21,7 +21,7 @@ from gpaw.dos import DOSCalculator
 from gpaw.eigensolvers import get_eigensolver
 from gpaw.external import PointChargePotential
 from gpaw.forces import calculate_forces
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.hamiltonian import RealSpaceHamiltonian
 from gpaw.hybrids import HybridXC
 from gpaw.io import Reader, Writer
@@ -1234,7 +1234,7 @@ class GPAW(Calculator):
 
             xc_redist = None
             if self.parallel['augment_grids']:
-                from gpaw.grid_descriptor import BadGridError
+                from gpaw.old.grid_descriptor import BadGridError
                 try:
                     aux_gd = gd.new_descriptor(comm=self.world)
                 except BadGridError as err:

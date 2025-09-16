@@ -1,7 +1,7 @@
 import numpy as np
 from math import pi
 from gpaw.coulomb import Coulomb
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.mpi import world
 from gpaw.utilities.gauss import coordinates
 import pytest

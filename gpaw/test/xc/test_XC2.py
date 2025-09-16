@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.xc import XC
 
 

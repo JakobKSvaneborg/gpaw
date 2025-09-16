@@ -2,7 +2,7 @@ import pytest
 from ase import Atoms
 from gpaw import GPAW
 import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.pw.descriptor import PWDescriptor
 from gpaw.pw.poisson import ChargedReciprocalSpacePoissonSolver as CRSPC
 

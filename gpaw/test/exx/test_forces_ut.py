@@ -4,7 +4,7 @@ from ase import Atoms
 from ase.units import Ha, Bohr
 
 from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.kpoint import KPoint
 from gpaw.symmetry import Symmetry
 from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions

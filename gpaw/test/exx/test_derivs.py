@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.hybrids.kpts import PWKPoint
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import world

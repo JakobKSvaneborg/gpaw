@@ -1,5 +1,5 @@
 import pytest
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw import PoissonSolver
 from gpaw.spline import Spline
 from gpaw.lfc import LocalizedFunctionsCollection as LFC

@@ -59,7 +59,7 @@ class ResponseGroundStateAdapter:
         self.kd = wfs.kd  # KPointDescriptor object from gpaw.kpt_descriptor.
         self.world = calc.world  # _Communicator object from gpaw.mpi
 
-        # GridDescriptor from gpaw.grid_descriptor.
+        # GridDescriptor from gpaw.old.grid_descriptor.
         # Describes a grid in real space
         self.gd = wfs.gd
 

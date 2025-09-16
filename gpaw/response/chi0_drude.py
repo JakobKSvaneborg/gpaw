@@ -183,7 +183,7 @@ class PlasmaFrequencyIntegrand(Integrand):
         # kd: KPointDescriptor object from gpaw.kpt_descriptor
         kd = gs.kd
         k_v = point.kpt_c  # XXX v/c discrepancy
-        # gd: GridDescriptor from gpaw.grid_descriptor
+        # gd: GridDescriptor from gpaw.old.grid_descriptor
         k_c = np.dot(self.cell_cv, k_v) / (2 * np.pi)
         K1 = gs.kpoints.kptfinder.find(k_c)
         ik = kd.bz2ibz_k[K1]

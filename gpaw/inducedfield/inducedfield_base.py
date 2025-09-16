@@ -5,7 +5,7 @@ import gpaw.mpi as mpi
 from gpaw.tddft.units import eV_to_aufrequency
 from gpaw.poisson import PoissonSolver
 from gpaw.fd_operators import Gradient
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.utilities.extend_grid import extended_grid_descriptor, \
     extend_array, deextend_array, move_atoms
 

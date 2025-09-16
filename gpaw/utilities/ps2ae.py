@@ -8,7 +8,7 @@ from ase.units import Bohr, Ha
 from gpaw.calculator import GPAW
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.utilities import h2gpts
 from gpaw.pw.descriptor import PWDescriptor

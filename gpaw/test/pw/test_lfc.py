@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 import gpaw.mpi as mpi
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.pw.descriptor import PWDescriptor

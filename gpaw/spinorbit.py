@@ -9,7 +9,7 @@ import numpy as np
 from ase.units import Bohr, Ha, alpha
 
 from gpaw.band_descriptor import BandDescriptor
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.ibz2bz import IBZ2BZMaps
 from gpaw.kpoint import KPoint
 from gpaw.kpt_descriptor import KPointDescriptor
