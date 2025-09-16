@@ -22,8 +22,12 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
                  *,
                  comm,
                  log):
+        """Builder of DFT stuff for an LCAO calculation."""
+
         mode_dict = params.mode.todict()
         if params.experimental.get('pw_pot_calc'):
+            # Do interpolation and solve Poisson equation like it's done
+            # for PW-mode (do it in reciprocal space using FFTs)
             mode_dict['name'] = 'pw'
             assert params.gpts is None
             h = params.h or 0.2
@@ -231,6 +235,7 @@ def tci_helper(basis,
 
     tci_derivatives = TCIDerivatives(manytci, atomdist, nao)
 
+    # Copy to GPU if needed:
     S_qMM = [S_MM.to_xp(xp) for S_MM in S_qMM]
     T_qMM = [T_MM.to_xp(xp) for T_MM in T_qMM]
     P_qaMi = [{a: xp.asarray(P_Mi) for a, P_Mi in P_aMi.items()}
