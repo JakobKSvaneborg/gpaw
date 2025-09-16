@@ -42,10 +42,6 @@ class RegisteredPointer:
     def __init__(self, a, _input=True, _output=True, enabled=True):
         enabled = enabled and is_hip  # Disable extra transfer on cuda
 
-        # Debugging for LUMI now
-        if not is_hip:
-            asd
-
         self.enabled = enabled
         if not enabled:
             self.array = a
@@ -55,7 +51,6 @@ class RegisteredPointer:
         self._output = _output
         if isinstance(a, cupy.ndarray):
             if 1:
-                #print('explicit malloc')
                 from cupy.cuda.memory import Memory, MemoryPointer
                 mem = Memory(a.nbytes)  # Direct malloc
                 memptr = MemoryPointer(mem, 0)
@@ -186,7 +181,10 @@ class _Communicator:
             tc = a.dtype
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            with RegisteredPointer(a, enabled=True, # XXX
+            # Right now comm.sum is the only place where one needs this
+            # extra malloc + intradevice memory copies for hip
+            # gpu-aware MPI
+            with RegisteredPointer(a, enabled=True,
                                    _input=True,
                                    _output=((root == -1) or
                                             (root == self.rank))) as a:
@@ -342,8 +340,9 @@ class _Communicator:
             assert a.flags.c_contiguous
         assert b.flags.c_contiguous
         assert 0 <= root < self.size
-        with RegisteredPointer(a, enabled=False) as a, RegisteredPointer(b, enabled=False) as b:
-            self.comm.scatter(a, b, root)
+        # with (RegisteredPointer(a, enabled=False) as a,
+        #       RegisteredPointer(b, enabled=False) as b):
+        self.comm.scatter(a, b, root)
 
     def alltoallv(self, sbuffer, scounts, sdispls, rbuffer, rcounts, rdispls):
         """All-to-all in a group.
@@ -385,10 +384,10 @@ class _Communicator:
         assert np.all(0 <= rdispls)
         assert np.all(sdispls + scounts <= sbuffer.size)
         assert np.all(rdispls + rcounts <= rbuffer.size)
-        with RegisteredPointer(sbuffer, enabled=False) as sbuffer,\
-             RegisteredPointer(rbuffer, enabled=False) as rbuffer:
-            self.comm.alltoallv(sbuffer, scounts, sdispls,
-                                rbuffer, rcounts, rdispls)
+        # with (RegisteredPointer(sbuffer, enabled=False) as sbuffer,
+        #       RegisteredPointer(rbuffer, enabled=False) as rbuffer):
+        self.comm.alltoallv(sbuffer, scounts, sdispls,
+                            rbuffer, rcounts, rdispls)
 
     def all_gather(self, a, b):
         """Gather data from all ranks onto all processes in a group.
@@ -433,8 +432,9 @@ class _Communicator:
         assert b.dtype == a.dtype
         assert (b.shape[0] == self.size and a.shape == b.shape[1:] or
                 a.size * self.size == b.size)
-        with RegisteredPointer(a, enabled=False) as a, RegisteredPointer(b, enabled=False) as b:
-            self.comm.all_gather(a, b)
+        # with (RegisteredPointer(a, enabled=False) as a,
+        #       RegisteredPointer(b, enabled=False) as b):
+        self.comm.all_gather(a, b)
 
     def gather(self, a, root, b=None):
         """Gather data from all ranks onto a single process in a group.
@@ -485,9 +485,9 @@ class _Communicator:
             assert b.flags.c_contiguous and b.dtype == a.dtype
             assert (b.shape[0] == self.size and a.shape == b.shape[1:] or
                     a.size * self.size == b.size)
-            with RegisteredPointer(a, enabled=False) as a,\
-                 RegisteredPointer(b, enabled=False) as b:
-                self.comm.gather(a, root, b)
+            # with (RegisteredPointer(a, enabled=False) as a,\
+            #       RegisteredPointer(b, enabled=False) as b):
+            self.comm.gather(a, root, b)
         else:
             assert b is None
             with RegisteredPointer(a, enabled=False) as a:
@@ -546,8 +546,9 @@ class _Communicator:
         assert 0 <= src < self.size
         assert src != self.rank
         assert is_contiguous(b)
-        with RegisteredPointer(a, enabled=True) as a, RegisteredPointer(b, enabled=True) as b:
-            return self.comm.sendreceive(a, dest, b, src, sendtag, recvtag)
+        # with (RegisteredPointer(a, enabled=True) as a,
+        #       RegisteredPointer(b, enabled=True) as b):
+        return self.comm.sendreceive(a, dest, b, src, sendtag, recvtag)
 
     def send(self, a, dest, tag=123, block=True):
         assert 0 <= dest < self.size
