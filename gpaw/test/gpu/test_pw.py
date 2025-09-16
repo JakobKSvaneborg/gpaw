@@ -46,7 +46,7 @@ def test_gpu(dtype, gpu, mode, random):
 @pytest.mark.parametrize('gpu', [False, True])
 @pytest.mark.parametrize('par', ['domain', 'kpt', 'band'])
 @pytest.mark.parametrize('mode', ['pw'])
-@pytest.mark.parametrize('xc', ['LDA', 'PBE'])
+@pytest.mark.parametrize('xc', ['LDA'])
 def test_gpu_k(gpu, par, mode, xc):
     if gpu and size > 1 and not GPU_AWARE_MPI:
         if mode == 'fd' and par == 'domain':

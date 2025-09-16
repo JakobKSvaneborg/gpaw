@@ -40,9 +40,14 @@ class RegisteredPointer:
        somewhere in GPAW equally well).
     """
     def __init__(self, a, _input=True, _output=True, enabled=True):
-        # Cuda just works
+        enabled = enabled and is_hip  # Disable extra transfer on cuda
+
+        # Debugging for LUMI now
+        if not is_hip:
+            asd
+
         self.enabled = enabled
-        if not enabled or not is_hip:
+        if not enabled:
             self.array = a
             return
 
@@ -50,6 +55,7 @@ class RegisteredPointer:
         self._output = _output
         if isinstance(a, cupy.ndarray):
             if 1:
+                #print('explicit malloc')
                 from cupy.cuda.memory import Memory, MemoryPointer
                 mem = Memory(a.nbytes)  # Direct malloc
                 memptr = MemoryPointer(mem, 0)
@@ -68,7 +74,7 @@ class RegisteredPointer:
         return self.array
 
     def __exit__(self, *args):
-        if not self.enabled or is_hip:
+        if not self.enabled:
             return
 
         if self._output and isinstance(self.a, cupy.ndarray):
@@ -217,7 +223,7 @@ class _Communicator:
             assert tc == int or tc == float
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            with RegisteredPointer(a, enabled=True) as a:
+            with RegisteredPointer(a, enabled=False) as a:
                 self.comm.product(a, root)
 
     def max(self, a, root=-1):
@@ -247,7 +253,7 @@ class _Communicator:
             assert tc == int or tc == float
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            with RegisteredPointer(a, enabled=True) as a:
+            with RegisteredPointer(a, enabled=False) as a:
                 self.comm.max(a, root)
 
     def max_scalar(self, a, root=-1):
@@ -281,7 +287,7 @@ class _Communicator:
             assert tc == int or tc == float
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            with RegisteredPointer(a, enabled=True) as a:
+            with RegisteredPointer(a, enabled=False) as a:
                 self.comm.min(a, root)
 
     def min_scalar(self, a, root=-1):
@@ -336,7 +342,7 @@ class _Communicator:
             assert a.flags.c_contiguous
         assert b.flags.c_contiguous
         assert 0 <= root < self.size
-        with RegisteredPointer(a, enabled=True) as a, RegisteredPointer(b, enabled=True) as b:
+        with RegisteredPointer(a, enabled=False) as a, RegisteredPointer(b, enabled=False) as b:
             self.comm.scatter(a, b, root)
 
     def alltoallv(self, sbuffer, scounts, sdispls, rbuffer, rcounts, rdispls):
@@ -379,8 +385,8 @@ class _Communicator:
         assert np.all(0 <= rdispls)
         assert np.all(sdispls + scounts <= sbuffer.size)
         assert np.all(rdispls + rcounts <= rbuffer.size)
-        with RegisteredPointer(sbuffer, enabled=True) as sbuffer,\
-             RegisteredPointer(rbuffer, enabled=True) as rbuffer:
+        with RegisteredPointer(sbuffer, enabled=False) as sbuffer,\
+             RegisteredPointer(rbuffer, enabled=False) as rbuffer:
             self.comm.alltoallv(sbuffer, scounts, sdispls,
                                 rbuffer, rcounts, rdispls)
 
@@ -427,7 +433,7 @@ class _Communicator:
         assert b.dtype == a.dtype
         assert (b.shape[0] == self.size and a.shape == b.shape[1:] or
                 a.size * self.size == b.size)
-        with RegisteredPointer(a, enabled=True) as a, RegisteredPointer(b, enabled=True) as b:
+        with RegisteredPointer(a, enabled=False) as a, RegisteredPointer(b, enabled=False) as b:
             self.comm.all_gather(a, b)
 
     def gather(self, a, root, b=None):
@@ -479,12 +485,12 @@ class _Communicator:
             assert b.flags.c_contiguous and b.dtype == a.dtype
             assert (b.shape[0] == self.size and a.shape == b.shape[1:] or
                     a.size * self.size == b.size)
-            with RegisteredPointer(a, enabled=True) as a,\
-                 RegisteredPointer(b, enabled=True) as b:
+            with RegisteredPointer(a, enabled=False) as a,\
+                 RegisteredPointer(b, enabled=False) as b:
                 self.comm.gather(a, root, b)
         else:
             assert b is None
-            with RegisteredPointer(a, enabled=True) as a:
+            with RegisteredPointer(a, enabled=False) as a:
                 self.comm.gather(a, root)
 
     def broadcast(self, a, root):
@@ -549,21 +555,21 @@ class _Communicator:
         assert is_contiguous(a)
         if not block:
             pass  # assert sys.getrefcount(a) > 3
-        with RegisteredPointer(a, enabled=True) as a:
+        with RegisteredPointer(a, enabled=False) as a:
             return self.comm.send(a, dest, tag, block)
 
     def ssend(self, a, dest, tag=123):
         assert 0 <= dest < self.size
         assert dest != self.rank
         assert is_contiguous(a)
-        with RegisteredPointer(a, enabled=True) as a:
+        with RegisteredPointer(a, enabled=False) as a:
             return self.comm.ssend(a, dest, tag)
 
     def receive(self, a, src, tag=123, block=True):
         assert 0 <= src < self.size
         assert src != self.rank
         assert is_contiguous(a)
-        with RegisteredPointer(a, enabled=True) as a:
+        with RegisteredPointer(a, enabled=False) as a:
             return self.comm.receive(a, src, tag, block)
 
     def test(self, request):
