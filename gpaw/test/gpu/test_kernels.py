@@ -91,8 +91,12 @@ def test_pwlfc_expand(dtype, cc):
               l_s, a_J, s_J,
               cc, f_cupy_GI, I_J)
 
-    tol = 1e-5 if dtype in {np.float32, np.complex64} else 1e-10
-    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(), abs=tol)
+    if dtype in {np.float32, np.complex64}:
+        tol = 1e-6
+    else:
+        tol = 1e-12
+    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(),
+                                              rel=tol, abs=tol)
 
 
 @pytest.mark.gpu
