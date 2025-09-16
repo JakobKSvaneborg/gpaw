@@ -1,4 +1,4 @@
-from gpaw.hamiltonian import RealSpaceHamiltonian
+from gpaw.old.hamiltonian import RealSpaceHamiltonian
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from gpaw.fd_operators import Gradient
 from gpaw.io.logger import indent
@@ -224,7 +224,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         return gs
 
     def summary(self, wfs, log):
-        # This is almost duplicate code to gpaw/hamiltonian's
+        # This is almost duplicate code to gpaw.old.hamiltonian's
         # Hamiltonian.summary, but with the cavity and interactions added.
 
         log('Energy contributions relative to reference atoms:',

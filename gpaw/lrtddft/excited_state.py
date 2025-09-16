@@ -9,7 +9,7 @@ from ase.calculators.calculator import Calculator
 import gpaw.mpi as mpi
 from gpaw.calculator import GPAW
 from gpaw import __version__, restart
-from gpaw.density import RealSpaceDensity
+from gpaw.old.density import RealSpaceDensity
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft.finite_differences import FiniteDifference
 from gpaw.lrtddft.excitation import ExcitationLogger

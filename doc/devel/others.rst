@@ -21,7 +21,7 @@ Miscellaneous objects and functions
 
 .. autofunction:: gpaw.forces.calculate_forces
 
-.. autoclass:: gpaw.grid_descriptor.GridDescriptor
+.. autoclass:: gpaw.old.grid_descriptor.GridDescriptor
     :members:
 
 .. autoclass:: gpaw.scf.SCFLoop

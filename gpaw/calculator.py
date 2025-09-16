@@ -16,13 +16,13 @@ from ase.utils import plural
 from ase.utils.timing import Timer
 from gpaw.band_descriptor import BandDescriptor
 from gpaw.convergence_criteria import dict2criterion
-from gpaw.density import RealSpaceDensity
+from gpaw.old.density import RealSpaceDensity
 from gpaw.dos import DOSCalculator
 from gpaw.eigensolvers import get_eigensolver
 from gpaw.external import PointChargePotential
 from gpaw.forces import calculate_forces
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.hamiltonian import RealSpaceHamiltonian
+from gpaw.old.hamiltonian import RealSpaceHamiltonian
 from gpaw.hybrids import HybridXC
 from gpaw.io import Reader, Writer
 from gpaw.io.logger import GPAWLogger

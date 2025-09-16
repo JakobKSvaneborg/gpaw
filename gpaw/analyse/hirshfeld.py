@@ -3,7 +3,7 @@ import numpy as np
 from ase.units import Bohr
 from ase.utils.timing import Timer
 
-from gpaw.density import RealSpaceDensity
+from gpaw.old.density import RealSpaceDensity
 from gpaw.lfc import BasisFunctions
 from gpaw.setup import Setups
 from gpaw.xc import XC
