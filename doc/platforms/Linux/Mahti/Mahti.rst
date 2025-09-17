@@ -50,6 +50,9 @@ Do the following in a new terminal session.
     # Activate venv
     source venv-gpaw-cpu/bin/activate
 
+    # Freeze the system-provided packages
+    pip freeze | tee $(dirname $(which pip))/../constraints.txt
+
     # Clone GPAW development repository
     git clone https://gitlab.com/gpaw/gpaw.git
     cd gpaw
