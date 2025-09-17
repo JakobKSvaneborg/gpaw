@@ -724,7 +724,7 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
           if (!PyArray_Check(a))
           {
               PyErr_SetString(PyExc_RuntimeError,
-                              "GPU array and GPAW_MPI_INPLACE not set.");
+                              "With define GPAW_MPI_INPLACE not set, only NumPy arrays may be MPI allreduced.");
               return NULL;
           }
 	  char* b = GPAW_MALLOC(char, n * elemsize);
@@ -750,7 +750,7 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
       	      if (!PyArray_Check(a))
               {
                   PyErr_SetString(PyExc_RuntimeError,
-		                  "GPU array and GPAW_MPI_INPLACE not set.");
+                                  "With define GPAW_MPI_INPLACE not set, only NumPy arrays may be MPI allreduced.");
                   return NULL;
               }
               b = GPAW_MALLOC(char, n * elemsize);
