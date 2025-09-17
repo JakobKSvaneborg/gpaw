@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generator, NamedTuple
+from typing import Generator
 
 import numpy as np
 
@@ -25,40 +25,10 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
 from gpaw.new.rttddft.history import RTTDDFTHistory
 from gpaw.new.rttddft.state import RTTDDFTState
-from gpaw.tddft.units import (asetime_to_autime,
-                              autime_to_asetime, au_to_eA)
+from gpaw.tddft.units import asetime_to_autime, autime_to_asetime
 from gpaw.typing import Vector
 from gpaw.utilities import reconstruct_atoms
 from gpaw.utilities.timing import nulltimer
-
-
-class RTTDDFTResult(NamedTuple):
-
-    """ Results are stored in atomic units, but displayed to the user in
-    ASE units.
-    """
-
-    time: float  # Time in atomic units
-    dipolemoment: Vector  # Dipole moment in atomic units
-
-    def __repr__(self):
-        timestr = f'{self.time * autime_to_asetime:.3f} Å√(u/eV)'
-        dmstr = ', '.join([f'{dm * au_to_eA:10.4g}'
-                           for dm in self.dipolemoment])
-        dmstr = f'[{dmstr}]'
-
-        return (f'{self.__class__.__name__}: '
-                f'(time: {timestr}, dipolemoment: {dmstr} eÅ)')
-
-    @classmethod
-    def from_state(cls,
-                   time: float,
-                   state: RTTDDFTState,
-                   pot_calc: PotentialCalculator) -> RTTDDFTResult:
-        relpos_ac = pot_calc.relpos_ac
-        dipolemoment = state.density.calculate_dipole_moment(relpos_ac)
-
-        return RTTDDFTResult(time=time, dipolemoment=dipolemoment)
 
 
 class RTTDDFT:
@@ -348,16 +318,12 @@ class RTTDDFT:
             td_algorithm.update_time_dependent_operators(self.state,
                                                          self.pot_calc)
 
-            return RTTDDFTResult.from_state(time=self.history.time,
-                                            pot_calc=self.pot_calc,
-                                            state=self.state)
-
         return kick_hamiltonian
 
     def ipropagate(self,
                    time_step: float = 1e-3,
                    maxiter: int = 2000,
-                   ) -> Generator[RTTDDFTResult, None, None]:
+                   ) -> Generator[float, None, None]:
         """Propagate the electronic system.
 
         Parameters
@@ -366,6 +332,10 @@ class RTTDDFT:
             Time step in ASE time units Å√(u/eV).
         maxiter
             Number of propagation steps.
+
+        Yields
+        ------
+        Current time in ASE time units Å√(u/eV) for every step.
         """
 
         time_step = time_step * asetime_to_autime
@@ -377,6 +347,4 @@ class RTTDDFT:
                                         hamiltonian=self.hamiltonian)
             time = self.history.propagate(time_step)
 
-            yield RTTDDFTResult.from_state(time=time,
-                                           pot_calc=self.pot_calc,
-                                           state=self.state)
+            yield time * autime_to_asetime

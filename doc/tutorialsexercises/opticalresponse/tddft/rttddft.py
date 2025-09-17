@@ -21,25 +21,26 @@ energy = atoms.get_potential_energy()
 calc.write('gs.gpw', mode='all')
 # P2
 # Time-propagation calculation
-from ase.parallel import paropen
 from gpaw.new.rttddft import RTTDDFT
+from gpaw.new.rttddft.writers import DipoleMomentWriter
+
+dt = 1e-3  # Time step in ASE units Å sqrt(u/eV). Rougly equal to 10as
 
 # Read converged ground-state file
 td_calc = RTTDDFT.from_file('gs.gpw', td_algorithm='sicn')
 
-# Kick
-td_calc.absorption_kick([0.0, 0.0, 1e-5])
+# Open dipole moment file
+with DipoleMomentWriter('dm.dat') as dmwriter:
+    # Optionally, write start
+    dmwriter.write_start(td_calc.history)
 
-dt = 1e-3  # Time step in ASE units Å sqrt(u/eV). Rougly equal to 10as
-# Open dipole moment file for writing and propagate
-with paropen('dm.dat', 'w') as fp:
-    fp.write('# %15s %15s %22s %22s %22s\n' %
-             ('time', 'norm', 'dmx', 'dmy', 'dmz'))
-    fp.write('# Kick = [%22.12le, %22.12le, %22.12le]; \n'
-             % tuple(td_calc.history.kicks[0].strength))
-    for result in td_calc.ipropagate(dt, 3000):
-        fp.write('%20.8lf %20.8le %22.12le %22.12le %22.12le\n' %
-                 (result.time, 0, *result.dipolemoment))
+    # Kick and write the dipole moment
+    td_calc.absorption_kick([0.0, 0.0, 1e-5])
+    dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
+
+    # Propagate for 3000 steps
+    for _ in td_calc.ipropagate(dt, 3000):
+        dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
 
 # Save the state for restarting later
 td_calc.write('td.gpw')
