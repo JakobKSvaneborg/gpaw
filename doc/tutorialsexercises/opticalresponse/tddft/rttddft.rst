@@ -53,8 +53,8 @@ in :ref:`LCAO mode <lcao>`:
 
 Some important points are:
 
-* The grid spacing is only used to calculate the Hamiltonian matrix and
-  therefore a coarser grid than usual can be used.
+* :ref:`LCAO mode <lcao>`, the grid spacing is only used to calculate
+  the Hamiltonian matrix and therefore a coarser grid than usual can be used.
 * Completely unoccupied bands should be left out of the calculation,
   since they are not needed.
 * The density convergence criterion should be a few orders of magnitude
@@ -64,7 +64,6 @@ Some important points are:
   in order to guarantee the convergence of the potential with respect to
   the vacuum size.
   See the documentation on :ref:`advancedpoisson`.
-  Currently, only the default Poisson solver works.
 * Point group symmetries are disabled in TDDFT, since the symmetry is
   broken by the time-dependent potential.
   The TDDFT calculation will refuse to start if the ground state

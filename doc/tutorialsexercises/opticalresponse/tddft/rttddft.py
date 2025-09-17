@@ -4,10 +4,16 @@ from ase.build import molecule
 atoms = molecule('Na2')
 atoms.center(vacuum=8.0)
 
+# Poisson solver with multipole corrections up to l=2
+poissonsolver = {'name': 'MomentCorrectionPoissonSolver',
+                 'moment_corrections': 1 + 3 + 5,
+                 'poissonsolver': 'fast'}
+
 # Ground-state calculation
 from gpaw.new.ase_interface import GPAW
 calc = GPAW(mode='lcao', h=0.3, basis='dzp',
             setups={'Na': '1'},
+            poissonsolver=poissonsolver,
             convergence={'density': 1e-12},
             symmetry={'point_group': False})
 atoms.calc = calc
