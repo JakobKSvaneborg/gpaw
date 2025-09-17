@@ -159,10 +159,10 @@ Then, the following steps build GPAW in a Python virtual environment:
 
   # Install GPAW development version
   git clone git@gitlab.com:gpaw/gpaw.git
-  export GPAW_CONFIG=$(readlink -f gpaw/doc/platforms/Cray/siteconfig-lumi-gpu.py)
-  # or:
-  # export GPAW_CONFIG=$(readlink -f gpaw/doc/platforms/Cray/siteconfig-lumi-gpu-elpa.py)
   cd gpaw
+  export GPAW_CONFIG=$(readlink -f doc/platforms/Cray/siteconfig-lumi-gpu.py)
+  # or:
+  # export GPAW_CONFIG=$(readlink -f doc/platforms/Cray/siteconfig-lumi-gpu-elpa.py)
   rm -rf build _gpaw.*.so gpaw.egg-info
   pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-gpu.log .
   cd ..
@@ -265,8 +265,8 @@ Then, the following steps build GPAW in a Python virtual environment:
 
   # Install GPAW development version
   git clone git@gitlab.com:gpaw/gpaw.git
-  export GPAW_CONFIG=$(readlink -f gpaw/doc/platforms/Cray/siteconfig-lumi-cpu.py)
   cd gpaw
+  export GPAW_CONFIG=$(readlink -f doc/platforms/Cray/siteconfig-lumi-cpu.py)
   rm -rf build _gpaw.*.so gpaw.egg-info
   pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log .
   cd ..
