@@ -42,7 +42,7 @@ else:
         from cupy.cuda import runtime
         is_hip = runtime.is_hip
         cupy_is_fake = False
-    except ImportError as e:
+    except ImportError:
         cupy_is_fake = True
         is_hip = False
         import gpaw.gpu.cpupy as cupy
