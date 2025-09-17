@@ -10,7 +10,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.potential import Potential
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.etdm.lbfgs_adapter import LBFGSAdapter
+from gpaw.new.etdm.searchdir import LBFGSAdapter
 from gpaw.new.energies import DFTEnergies
 
 
