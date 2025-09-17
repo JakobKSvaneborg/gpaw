@@ -5,7 +5,7 @@ Mahti (mahti.csc.fi)
 ====================
 
 .. note::
-   These instructions are up-to-date as of July 2025.
+   These instructions are up-to-date as of September 2025.
 
 Stable GPAW releases
 ====================
