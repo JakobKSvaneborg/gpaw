@@ -56,12 +56,12 @@ Do the following in a new terminal session.
     # Clone GPAW development repository
     git clone https://gitlab.com/gpaw/gpaw.git
     cd gpaw
-    rm -rf build _gpaw.*.so gpaw.egg-info
 
     export GPAW_CONFIG=$(readlink -f doc/platforms/Linux/Mahti/siteconfig-mahti-cpu.py)
 
     # Install GPAW, with a constraint to ensure we use system-provided packages.
     # Leave the '-e' out if you don't want an editable install
+    rm -rf build _gpaw.*.so gpaw.egg-info
     pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
 
 The above gets ``siteconfig.py`` from the cloned Git repository.
