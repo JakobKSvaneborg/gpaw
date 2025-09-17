@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from functools import cached_property
 from typing import Any, TYPE_CHECKING
 
 import numpy as np
@@ -25,7 +24,6 @@ from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
-from gpaw.utilities.partition import AtomPartition
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -123,7 +121,7 @@ class DFTCalculation:
         density = builder.density_from_superposition(basis_set)
         if len(atoms) == 0:
             density.nt_sR.data[:] = 1.0
-        density.normalize(pot_calc.environment.charge)
+        density.normalize(pot_calc.charge)
 
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
@@ -131,8 +129,7 @@ class DFTCalculation:
             basis_set, potential)
 
         if ibzwfs.wfs_qs[0][0]._eig_n is not None:
-            nelectrons = (density.nvalence - density.charge +
-                          pot_calc.environment.charge)
+            nelectrons = density.nvalence - density.charge + pot_calc.charge
             ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
@@ -400,12 +397,6 @@ class DFTCalculation:
             psit_nR = bcast(psit_nR, 0, self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    @cached_property
-    def _atom_partition(self):
-        # Backwards compatibility helper
-        atomdist = self.density.D_asii.layout.atomdist
-        return AtomPartition(atomdist.comm, atomdist.rank_a)
-
     def new(self,
             atoms: Atoms,
             params: Parameters,
@@ -440,7 +431,7 @@ class DFTCalculation:
                                    builder.interpolation_desc,
                                    builder.relpos_ac,
                                    builder.atomdist)
-        density.normalize(pot_calc.environment.charge)
+        density.normalize(pot_calc.charge)
 
         # Make sure all have exactly the same density.
         # Not quite sure it is needed???

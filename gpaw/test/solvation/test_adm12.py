@@ -40,6 +40,7 @@ convergence = {
 }
 
 
+@pytest.mark.old_gpaw_only
 def test_solvation_adm12():
     atoms = molecule('H2O')
     adjust_cell(atoms, vac, h)

@@ -2,7 +2,7 @@
 
 #include "magma_gpaw.hpp"
 #include "magma_template_wrappers.hpp"
-#include "../template_utils.hpp"
+#include "../utils.hpp"
 
 
 template<typename T>

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "magma_gpaw.hpp"
-#include "../template_utils.hpp"
-#include "../../gpu-runtime.h"
+#include "../utils.hpp"
+#include "../gpu_core.hpp"
 
 // Templated in-place transpose, works for both real and complex matrices
 template<typename T>

@@ -1,6 +1,7 @@
 #include "magma_python_interface.h"
 #include "../pyarray_utils.hpp"
 #include "magma_gpaw.hpp"
+#include "../../../gpaw_utils.h"
 
 #include <cassert>
 
@@ -162,12 +163,6 @@ CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-// CUPY doesn't provide a nice C-interface to array creation like Numpy, so need to do tricks.
-// We require that the user allocates and passes valid CUPY arrays from the
-// Python side for both inputs AND outputs. We parse them here and pass the
-// underlying memory pointers to an internal function that does the work, ie.
-// calls MAGMA. Output is written to the buffers that were passed from Python.
-
 CLINKAGE PyObject* eigh_magma_cupy(PyObject* self, PyObject* args)
 {
     // Must be allocated on Python side. Asserts below verify that the dtypes and sizes are OK
@@ -210,8 +205,8 @@ CLINKAGE PyObject* eigh_magma_cupy(PyObject* self, PyObject* args)
 
     const EighErrorType status = magma_eigh_gpu(
         solver_context,
-        gpaw::Array_DATA<void*>(inout_matrix_cupy),
-        gpaw::Array_DATA<void*>(inout_eigvals_cupy)
+        gpaw::Array_DATA<void>(inout_matrix_cupy),
+        gpaw::Array_DATA<void>(inout_eigvals_cupy)
     );
 
     assert(status != EighErrorType::eInvalidArgument && "Invalid input to MAGMA solver");
