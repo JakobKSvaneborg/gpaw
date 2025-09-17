@@ -244,7 +244,7 @@ class Profiler(Timer):
         Timer.start(self, name)
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "B","""
-            f""" "pid": {self.pid}, "tid": {self.ranktxt}, """
+            f""" "pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)} }},\n""")
 
     def stop(self, name=None):
@@ -252,7 +252,7 @@ class Profiler(Timer):
             name = self.running[-1]
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "E", """
-            f""""pid": {self.pid}, "tid": {self.ranktxt}, """
+            f""""pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)}}},\n""")
         Timer.stop(self, name)
 
