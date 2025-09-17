@@ -43,7 +43,6 @@ else:
         is_hip = runtime.is_hip
         cupy_is_fake = False
     except ImportError as e:
-        print('Cannot properly load CuPy', e)
         cupy_is_fake = True
         is_hip = False
         import gpaw.gpu.cpupy as cupy
