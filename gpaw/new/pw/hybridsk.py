@@ -206,14 +206,15 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = truncated_coulomb(pw, self.exx_omega)
                 e += self._apply3(
-                    v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
+                    pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
                     calculate_energy)
 
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
 
     def _apply3(self,
-                v_G: PWArray,
+                pw: PWDesc,
+                v_G: np.ndarray,
                 psit1: Psit,
                 ut2_nR: UGArray,
                 P2_ani: AtomArrays,
@@ -224,7 +225,6 @@ class PWHybridHamiltonianK(PWHamiltonian):
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
-        pw = v_G.desc
         ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
         v2_G = Htpsit2_nG.desc.empty()
         e = 0.0
@@ -235,14 +235,14 @@ class PWHybridHamiltonianK(PWHamiltonian):
             for a, Q1_niL in Q1_aniL.items():
                 Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
             rhot_nG = pw.empty(len(rhot_nR))
-            fft(rhot_nR, rhot_nG, plan=self.plan)
+            rhot_nR.fft(out=rhot_nG, plan=self.plan)
             ghat_aLG.add_to(rhot_nG, Q_anL)
             if not calculate_energy:
-                rhot_nG.data *= v_G.data
+                rhot_nG.data *= v_G
             else:
                 for rhot_G, f2 in zip(rhot_nG, f2_n):
                     a_G = rhot_G.copy()
-                    rhot_G.data *= v_G.data
+                    rhot_G.data *= v_G
                     e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
                     e += e12
             V2_anL = ghat_aLG.integrate(rhot_nG)

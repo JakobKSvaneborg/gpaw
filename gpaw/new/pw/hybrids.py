@@ -31,7 +31,7 @@ def coulomb(pw: PWDesc,
 
 def truncated_coulomb(pw: PWDesc,
                       omega: float = 0.11,
-                      yukawa: bool = False) -> PWArray:
+                      yukawa: bool = False) -> np.ndarray:
     """Fourier transform of truncated Coulomb.
 
     Real space:::
@@ -49,15 +49,14 @@ def truncated_coulomb(pw: PWDesc,
 
     (G+k=0 limit is pi/ω^2).
     """
-    v_G = pw.empty()
     G2_G = pw.ekin_G * 2
     if yukawa:
-        v_G.data[:] = 4 * pi / (G2_G + omega**2)
+        v_G = 4 * pi / (G2_G + omega**2)
     else:
-        v_G.data[:] = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
+        v_G = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
         ok_G = G2_G > 1e-10
-        v_G.data[ok_G] /= G2_G[ok_G]
-        v_G.data[~ok_G] = pi / omega**2
+        v_G[ok_G] /= G2_G[ok_G]
+        v_G[~ok_G] = pi / omega**2
     return v_G
 
 

@@ -33,6 +33,8 @@ def test_hse06(gpaw_new, ccirs, dtype):
         # the non band-local hybrid-xc hamiltonian.
         eigensolver = {'name': 'davidson',
                        'max_buffer_mem': 1024 * 4}
+        if ccirs:
+            pytest.skip('CCIRS only for new GPAW????????????????????????')
     else:
         eigensolver = 'davidson'
         experimental = {}
