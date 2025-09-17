@@ -695,7 +695,8 @@ class BSEBackend:
 
             if iK1 % (self.myKsize // 5 + 1) == 0:
                 update_progress(iK1=iK1)
-        np.save('D_kmmKmm.npy', D_kmmKmm)
+        
+        np.save(f'D{world.rank}_kmmKmm_ecut{self.ecut}.npy', D_kmmKmm)
 
     @timer('add_indirect_kernel')
     def add_indirect_kernel(self, kptpair_factory, rhoex_KmmG, H_kmmKmm):
