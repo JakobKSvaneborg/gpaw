@@ -61,7 +61,7 @@ Do the following in a new terminal session.
 
     # Install GPAW, with a constraint to ensure we use system-provided packages.
     # Leave the '-e' out if you don't want an editable install
-    pip install --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
+    pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
 
 The above gets ``siteconfig.py`` from the cloned Git repository.
 Alternatively, you can download it from here:
