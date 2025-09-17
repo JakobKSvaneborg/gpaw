@@ -131,7 +131,7 @@ def precondition(psit_nG: PWArray,
 
 
 @trace(gpu=True)
-@cp.fuse
+@cp.fuse()
 def gpu_prec(ekin, G2, residual):
     x = 1 / ekin / 3 * G2
     a = 27.0 + x * (18.0 + x * (12.0 + x * 8.0))
