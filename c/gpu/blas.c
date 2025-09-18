@@ -347,8 +347,8 @@ PyObject* rk_gpu(PyObject *self, PyObject *args)
 
 static void _r2k_gpu(int n, int k,
                      Py_complex alpha, void *a_gpu,
-                     int lda, int ldb,
-                     void *b_gpu, double beta,
+                     int lda, void *b_gpu, 
+                     int ldb, double beta,
                      void *c_gpu, int ldc, int dtypenum)
 {
     if (dtypenum == NP_DOUBLE) {
@@ -421,7 +421,7 @@ PyObject* r2k_gpu(PyObject *self, PyObject *args)
     for (int d = 2; d < Array_NDIM(a_obj); d++)
         k *= Array_DIM(a_obj, d);
 
-    _r2k_gpu(n, k, alpha, a_gpu, lda, ldb, b_gpu, beta, c_gpu, ldc, dtypenum);
+    _r2k_gpu(n, k, alpha, a_gpu, lda, b_gpu, ldb, beta, c_gpu, ldc, dtypenum);
 
     if (PyErr_Occurred())
         return NULL;

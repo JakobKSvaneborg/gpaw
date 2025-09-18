@@ -7,12 +7,15 @@ from gpaw.calculator import DeprecatedParameterWarning
 
 @pytest.mark.ci
 @pytest.mark.mgga
-def test_fixdensity(in_tmp_dir, gpaw_new):
+@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
+def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
+    if not gpaw_new and eigensolver == 'ppcg':
+        pytest.skip('PPCG only implemented for new GPAW')
     a = 2.5
     slab = Atoms('Li', cell=(a, a, 2 * a), pbc=1)
     slab.calc = GPAW(mode='fd',
-                     random=True,
-                     eigensolver='davidson',
+                     random=True,  # Better for MGGAs
+                     eigensolver=eigensolver,
                      xc='revTPSS',
                      h=0.12,
                      kpts=(3, 3, 1), txt='li-1.txt',
