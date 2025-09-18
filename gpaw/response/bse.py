@@ -274,10 +274,12 @@ class BSEBackend:
                  mode='BSE',
                  q_c=[0.0, 0.0, 0.0],
                  direction=0,
-                 discard_inplane_offdiagonal=False):
+                 discard_inplane_offdiagonal=False,
+                 save_W=False,
+                 ):
 
         integrate_gamma = GammaIntegrationMode(integrate_gamma)
-
+        self.save_W = save_W
         self.gs = gs
         self.q_c = q_c
         self.direction = direction
@@ -695,8 +697,8 @@ class BSEBackend:
 
             if iK1 % (self.myKsize // 5 + 1) == 0:
                 update_progress(iK1=iK1)
-        
-        np.save(f'D{world.rank}_kmmKmm_ecut{self.ecut}.npy', D_kmmKmm)
+        if self.save_W:
+            np.save(f'D{world.rank}_kmmKmm_ecut{self.ecut}.npy', D_kmmKmm)
 
     @timer('add_indirect_kernel')
     def add_indirect_kernel(self, kptpair_factory, rhoex_KmmG, H_kmmKmm):
