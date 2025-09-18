@@ -295,6 +295,16 @@ class DistributedArrays(Generic[DomainType], XP):
     def redist(self,
                domain,
                comm1: MPIComm, comm2: MPIComm) -> DistributedArrays:
+        """Redistribute to new domain.
+
+        The "world" is spanned by::
+
+            (self.desc.comm, comm1)
+
+        and::
+
+            (domain.comm, comm2).
+        """
         result = domain.empty(self.dims)
         if comm1.rank == 0:
             a = self.gather()

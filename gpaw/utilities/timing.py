@@ -51,7 +51,8 @@ nulltimer = NullTimer()
 
 
 class DebugTimer(Timer):
-    def __init__(self, print_levels=1000, comm=mpi.world, txt=sys.stdout):
+    def __init__(self, print_levels=1000, comm=None, txt=sys.stdout):
+        comm = comm or mpi.world
         Timer.__init__(self, print_levels)
         ndigits = 1 + int(math.log10(comm.size))
         self.srank = '%0*d' % (ndigits, comm.rank)
@@ -198,12 +199,12 @@ class ParallelTimer(DebugTimer):
 
 
 class Profiler(Timer):
-    def __init__(self, prefix, comm=mpi.world):
+    def __init__(self, prefix, comm=None):
         import atexit
 
         self.prefix = prefix
-        self.comm = comm
-        self.ranktxt = ranktxt(comm)
+        self.comm = comm or mpi.world
+        self.ranktxt = ranktxt(self.comm)
         fname = f'{prefix}.{self.ranktxt}.json'
         self.txt = open(fname, 'w', buffering=-1)
         self.pid = 0  # os.getpid() creates more confusing output
@@ -243,7 +244,7 @@ class Profiler(Timer):
         Timer.start(self, name)
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "B","""
-            f""" "pid": {self.pid}, "tid": {self.ranktxt}, """
+            f""" "pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)} }},\n""")
 
     def stop(self, name=None):
@@ -251,14 +252,14 @@ class Profiler(Timer):
             name = self.running[-1]
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "E", """
-            f""""pid": {self.pid}, "tid": {self.ranktxt}, """
+            f""""pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)}}},\n""")
         Timer.stop(self, name)
 
 
 class GPUProfiler(Profiler, GPUTimerBase):
-    def __init__(self, prefix, comm=mpi.world):
-        Profiler.__init__(self, prefix, comm=comm)
+    def __init__(self, prefix, comm=None):
+        Profiler.__init__(self, prefix, comm=comm or mpi.world)
         GPUTimerBase.__init__(self)
 
     def synchronize(self):

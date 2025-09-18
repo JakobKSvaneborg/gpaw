@@ -54,7 +54,7 @@ where `\mathbf{R}_i` refers to the Bravais lattice point corresponding to the
 
 Magnetic force theorem (MFT)
 ----------------------------
-   
+
 In reference [#Durhuus]_, it is shown how the Kohn-Sham Hamiltonian in the
 local spin-density approximation can be mapped onto a classical isotropic
 Heisenberg model based on the magnetic force theorem. To do so, it is assumed
@@ -78,7 +78,7 @@ constants can be calculated in a linear response formulation of the magnetic
 force theorem,
 
 .. math::
-   
+
    \bar{J}^{ab}(\mathbf{q}) = - \frac{2}{\Omega_{\mathrm{cell}}}
    B^{\mathrm{xc}\dagger} K^{a\dagger}(\mathbf{q})
    \chi_{\mathrm{KS}}^{'+-}(\mathbf{q}) K^{b}(\mathbf{q}) B^{\mathrm{xc}},
@@ -313,16 +313,16 @@ Now it is your own turn to experiment with GPAW's MFT module. To get you
 started, here are some suggestions:
 
 1) Compute and plot the iron magnon dispersion as a function of
-   
+
   a) The parallelepipedic site volume
   b) The cylindrical site orientation, height and radius
-     
+
 2) Compute and plot the cobalt magnon dispersion
-   
+
   a) Using a cylindrical site geometry for one cobalt atom and a spherical
      geometry for the other
   b) Using two equivalent parallelepipeds for the two cobalt sites
-     
+
 3) Compute and plot the magnon dispersion of your favorite ferromagnet
 
 
@@ -333,4 +333,4 @@ References
 	   *J. Phys.: Condens. Matter* **35**, 105802 (2023)
 
 .. [#Skovhus] T. Skovhus and T. Olsen,
-           *Phys. Rev. B* **103**, 245110 (2021)
+	   *Phys. Rev. B* **103**, 245110 (2021)

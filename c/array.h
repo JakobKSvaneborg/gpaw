@@ -65,8 +65,10 @@ static inline int Array_NDIM(PyObject* obj)
     // return len(obj.shape)
     PyObject* shape = PyObject_GetAttrString(obj, "shape");
     if (shape == NULL) return -1;
+
+    int ndim = PyTuple_Size(shape);
     Py_DECREF(shape);
-    return PyTuple_Size(shape);
+    return ndim;
 }
 
 static inline int Array_DIM(PyObject* obj, int dim)
@@ -78,12 +80,16 @@ static inline int Array_DIM(PyObject* obj, int dim)
     }
     #endif
     PyObject* shape = PyObject_GetAttrString(obj, "shape");
-
     if (shape == NULL) return -1;
+
     PyObject* pydim = PyTuple_GetItem(shape, dim);
-    Py_DECREF(shape);
-    if (pydim == NULL) return -1;
+    if (pydim == NULL)
+    {
+        Py_DECREF(shape);
+        return -1;
+    }
     int value = (int) PyLong_AS_LONG(pydim);
+    Py_DECREF(shape);
     return value;
 }
 
@@ -98,11 +104,13 @@ static inline char* Array_BYTES(PyObject* obj)
     // Equivalent to obj.data.ptr
     PyObject* ndarray_data = PyObject_GetAttrString(obj, "data");
     if (ndarray_data == NULL) return NULL;
+
     PyObject* ptr_data = PyObject_GetAttrString(ndarray_data, "ptr");
+    Py_DECREF(ndarray_data);
     if (ptr_data == NULL) return NULL;
+
     char* ptr = (char*) PyLong_AS_LONG(ptr_data);
     Py_DECREF(ptr_data);
-    Py_DECREF(ndarray_data);
     return ptr;
 }
 
@@ -147,11 +155,13 @@ static inline int Array_ITEMSIZE(PyObject* obj)
     #endif
     PyObject* dtype = PyObject_GetAttrString(obj, "dtype");
     if (dtype == NULL) return -1;
+
     PyObject* itemsize_obj = PyObject_GetAttrString(dtype, "itemsize");
+    Py_DECREF(dtype);
     if (itemsize_obj == NULL) return -1;
+
     int itemsize = (int) PyLong_AS_LONG(itemsize_obj);
     Py_DECREF(itemsize_obj);
-    Py_DECREF(dtype);
     return itemsize;
 }
 

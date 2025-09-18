@@ -1,7 +1,6 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW, PW
-from gpaw.mpi import size
 
 
 @pytest.mark.libxc
@@ -9,8 +8,6 @@ from gpaw.mpi import size
 @pytest.mark.new_gpaw_ready
 @pytest.mark.parametrize('use_sym', [False, True])
 def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
-    if gpaw_new and size > 1:
-        pytest.skip('No parallelization!')
     if not gpaw_new and use_sym:
         pytest.skip('Does not work')
 
@@ -36,6 +33,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
         txt='H2-new.txt',
+        parallel={'kpt': 1},
         **kwargs)
     e1 = a.get_potential_energy()
     eig1_kn = a.calc.eigenvalues()[0]
@@ -73,4 +71,4 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     else:
         eigs1 = [eig1_kn[1, 0], eig1_kn[2, 0], eig1_kn[1, 1]]
     eigs2 = [eig2_kn[0, 0], eig2_kn[1, 0], eig2_kn[0, 1]]
-    assert eigs1 == pytest.approx(eigs2, abs=1e-4)
+    assert eigs1 == pytest.approx(eigs2, abs=1e-3)

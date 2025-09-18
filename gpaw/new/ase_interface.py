@@ -340,10 +340,6 @@ class ASECalculator:
                          precision=precision, include_wfs=mode == 'all')
         write_gpw(filename, self.dft, flags=flags)
 
-    @property
-    def environment(self):
-        return self.dft.pot_calc.environment
-
     # Old API:
 
     implemented_properties = ['energy', 'free_energy',
@@ -391,7 +387,7 @@ class ASECalculator:
     def get_number_of_electrons(self):
         density = self.dft.density
         return (density.nvalence - density.charge +
-                self.dft.pot_calc.environment.charge)
+                self.dft.pot_calc.charge)
 
     def get_number_of_bands(self):
         return self.dft.ibzwfs.nbands
@@ -522,15 +518,20 @@ class ASECalculator:
     @property
     def density(self):
         from gpaw.new.backwards_compatibility import FakeDensity
-        return FakeDensity(self.dft)
+        return FakeDensity(ibzwfs=self.dft.ibzwfs,
+                           density=self.dft.density,
+                           potential=self.dft.potential,
+                           pot_calc=self.dft.pot_calc,
+                           densities=self.dft.densities())
 
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
         return FakeHamiltonian(
             self.dft.ibzwfs, self.dft.density, self.dft.potential,
-            self.dft.pot_calc, self.dft.results.get('free_energy'),
-            self.dft.energies._energies['xc'])
+            self.dft.pot_calc,
+            e_total_free=self.dft.results.get('free_energy'),
+            e_xc=self.dft.energies._energies['xc'])
 
     @property
     def spos_ac(self):
@@ -614,23 +615,24 @@ class ASECalculator:
                       txt='-',
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
+        kwargs.pop('communicator', None)  # Ignore silently
         kwargs = {**self.params.todict(), **kwargs}
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)
         builder = params.dft_component_builder(self.atoms, log=log)
         basis_set = builder.create_basis_set()
         dft = self.dft
-        comm1 = dft.ibzwfs.kpt_band_comm
-        comm2 = builder.communicators['D']
+        kbcomm1 = dft.ibzwfs.kpt_band_comm
+        kbcomm2 = builder.communicators['D']
         potential = dft.potential.redist(
             builder.grid,
             builder.electrostatic_potential_desc,
             builder.atomdist,
-            comm1, comm2)
+            kbcomm1, kbcomm2)
         density = dft.density.redist(builder.grid,
                                      builder.interpolation_desc,
                                      builder.atomdist,
-                                     comm1, comm2)
+                                     kbcomm1, kbcomm2)
         ibzwfs = builder.create_ibz_wave_functions(basis_set, potential)
         ibzwfs.fermi_levels = dft.ibzwfs.fermi_levels
 
