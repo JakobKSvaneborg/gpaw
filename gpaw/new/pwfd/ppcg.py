@@ -67,7 +67,7 @@ class PPCG(PWFDEigensolver):
             are more efficient on CPUs with many cores but not on GPUs. The
             value will be modified to a multiple of the number of domain
             ranks.
-            Default is 96 on cpu and 256 on gpu.
+            Default is 192 on cpu and 1024 on gpu.
         rr_modulo : int, optional
             How often to perform subspace diagonalization. Default is 5.
         include_cg : bool, optional
@@ -78,6 +78,8 @@ class PPCG(PWFDEigensolver):
             Only relevant for single precision calculations.
         tolerances : tuple[float, float, float], optional
             Advanced setting, tolerances for the solver. Use at your own risk.
+            Fist two tolerances controls freezing of converged bands, the last
+            tolerance controls the early breakout criterion.
         scalapack_parameters : dict, optional
             Parameters for scalapack solver.
         max_buffer_mem : int, optional
@@ -116,7 +118,7 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 256  # Could be lower, maybe 64
+                self.blocksize = 192
             else:
                 self.blocksize = 1024
 
