@@ -497,7 +497,6 @@ class PPCG(PWFDEigensolver):
                     # loop to break at the next iteration. This gives us
                     # one more cheap iteration (since we already
                     # calculated the residual).
-                    print('breaking after update: ', i+2)
                     break_after_update = True
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
