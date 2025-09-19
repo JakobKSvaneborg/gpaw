@@ -14,6 +14,8 @@ def test_h2():
     h2.center(vacuum=2.5)
     h2.calc = GPAW(
         mode='lcao',
+        basis='dzp',
         parallel={'gpu': True},
         experimental={'pw_pot_calc': True})
-    h2.get_potential_energy()
+    e = h2.get_potential_energy()
+    assert e == pytest.approx(-6.514335)
