@@ -348,7 +348,6 @@ def r2k(alpha, a, b, beta, c, trans='c'):
     # Get a flattened view of the last dimensions
     a = a.reshape(a.shape[0], -1)
     b = b.reshape(b.shape[0], -1)
-    c = c.reshape(c.shape[0], -1)
     if debug:
         assert beta == 0.0 or is_finite(c, tril=True)
         assert (a.dtype == float and b.dtype == float and c.dtype == float or
@@ -555,7 +554,6 @@ if not hasattr(cgpaw, 'mmm'):
 elif not debug:
     mmm = cgpaw.mmm  # noqa
     rk = cgpaw.rk  # noqa
-    r2k = cgpaw.r2k  # noqa
     gemmdot = _gemmdot
 
 else:
