@@ -5,7 +5,7 @@ The ``lumi.csc.fi`` supercomputer
 =================================
 
 .. note::
-   These instructions are up-to-date as of August 2025.
+   These instructions are up-to-date as of September 2025.
 
 It is recommended to perform the installations under
 the ``/projappl/project_...`` directory (see `LUMI storage documentation`_).
@@ -157,14 +157,18 @@ Then, the following steps build GPAW in a Python virtual environment:
   # Freeze the system-provided packages
   pip freeze | tee $(dirname $(which pip))/../constraints.txt
 
-  # Install GPAW development version
+  # Clone GPAW development repository
   git clone git@gitlab.com:gpaw/gpaw.git
-  export GPAW_CONFIG=$(readlink -f gpaw/doc/platforms/Cray/siteconfig-lumi-gpu.py)
-  # or:
-  # export GPAW_CONFIG=$(readlink -f gpaw/doc/platforms/Cray/siteconfig-lumi-gpu-elpa.py)
   cd gpaw
+
+  export GPAW_CONFIG=$(readlink -f doc/platforms/Cray/siteconfig-lumi-gpu.py)
+  # or:
+  # export GPAW_CONFIG=$(readlink -f doc/platforms/Cray/siteconfig-lumi-gpu-elpa.py)
+
+  # Install GPAW, with a constraint to ensure we use system-provided packages.
+  # Leave the '-e' out if you don't want an editable install
   rm -rf build _gpaw.*.so gpaw.egg-info
-  pip install --constraint $(dirname $(which pip))/../constraints.txt -v --log build-gpu.log .
+  pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-gpu.log -e .
   cd ..
 
 Note that above the siteconfig file is taken from the git clone.
@@ -263,12 +267,15 @@ Then, the following steps build GPAW in a Python virtual environment:
   # Freeze the system-provided packages
   pip freeze | tee $(dirname $(which pip))/../constraints.txt
 
-  # Install GPAW development version
+  # Clone GPAW development repository
   git clone git@gitlab.com:gpaw/gpaw.git
-  export GPAW_CONFIG=$(readlink -f gpaw/doc/platforms/Cray/siteconfig-lumi-cpu.py)
   cd gpaw
+  export GPAW_CONFIG=$(readlink -f doc/platforms/Cray/siteconfig-lumi-cpu.py)
+
+  # Install GPAW, with a constraint to ensure we use system-provided packages.
+  # Leave the '-e' out if you don't want an editable install
   rm -rf build _gpaw.*.so gpaw.egg-info
-  pip install --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log .
+  pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
   cd ..
 
 Note that above the siteconfig file is taken from the git clone.
