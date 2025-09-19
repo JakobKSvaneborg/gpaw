@@ -314,7 +314,8 @@ def main():
     compile_gpaw_c_code(gpaw, activate, intel_only)
 
     for fro, to in [('ivybridge', 'sandybridge'),
-                    ('nahelem', 'icelake')]:
+                    ('nahelem', 'icelake'),
+                    ('sapphirelake', 'icelake')]:
         f = gpaw / f'build/lib.linux-x86_64-{fro}-{fversion}'
         t = gpaw / f'build/lib.linux-x86_64-{to}-{fversion}'
         f.symlink_to(t)

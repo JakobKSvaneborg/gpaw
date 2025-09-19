@@ -45,28 +45,22 @@ cupy = os.getenv('EBROOTCUPY')
 cuda = os.getenv('EBROOTCUDA')
 if cupy:
     assert cuda
+    gpu = True
+    gpu_target = 'cuda'
+    gpu_compiler = 'nvcc'
+    libraries += ['cudart', 'cublas']
+    library_dirs += [os.path.join(cupy, 'lib'), os.path.join(cuda, 'lib')]
+
     cpuarch = os.getenv('CPU_ARCH')
-    if cpuarch == 'icelake':
-        gpu = True
-        gpu_target = 'cuda'
-        gpu_compiler = 'nvcc'
+    if cpuarch == 'icelake':  # Also covers sapphirelake
         gpu_compile_args = ['-O3',
                             '-g',
-                            '-gencode', 'arch=compute_80,code=sm_80']
-        # '-gencode', 'arch=compute_90,code=sm_90']
-
-        libraries += ['cudart', 'cublas']
-        library_dirs += [os.path.join(cupy, 'lib'), os.path.join(cuda, 'lib')]
+                            '-gencode', 'arch=compute_80,code=sm_80',
+                            '-gencode', 'arch=compute_90,code=sm_90']
     elif cpuarch == 'skylake_el8':
-        gpu = True
-        gpu_target = 'cuda'
-        gpu_compiler = 'nvcc'
         gpu_compile_args = ['-O3',
                             '-g',
                             '-gencode', 'arch=compute_86,code=sm_86']
-
-        libraries += ['cudart', 'cublas']
-        library_dirs += [os.path.join(cupy, 'lib'), os.path.join(cuda, 'lib')]
         if os.getenv('EBVERSIONFOSS') < '2025a':
             undef_macros += ['GPAW_GPU_AWARE_MPI']    # Not needed with newest toolchains
     else:
