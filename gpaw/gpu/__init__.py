@@ -275,6 +275,16 @@ def synchronize():
         cupy.cuda.runtime.deviceSynchronize()
 
 
+@contextlib.contextmanager
+def as_numpy(a: np.ndarray | cupy.ndarray) -> np.ndarray:
+    if isinstance(a, np.ndarray):
+        yield a
+        return
+    b = a.get()
+    yield b
+    a[:] = cupy.asarray()
+
+
 def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
     """Transfer array to CPU (if not already there).
 
