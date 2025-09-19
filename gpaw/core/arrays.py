@@ -220,8 +220,8 @@ class DistributedArrays(Generic[DomainType], XP):
                 blocksize = 268435456
                 # Double is simply just the blocksize of
                 # single precision squared 2**28. Most likely,
-                # we will end up slicing the matrix into blocks
-                # for double precision.
+                # we will never end up slicing the matrix into
+                # blocks for double precision.
 
             for ind in range(0, max(X, 1), blocksize):
                 m1 = Matrix(n,
