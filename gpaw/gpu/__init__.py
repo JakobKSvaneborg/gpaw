@@ -282,7 +282,7 @@ def as_numpy(a: np.ndarray | cupy.ndarray) -> np.ndarray:
         return
     b = a.get()
     yield b
-    a[:] = cupy.asarray()
+    a[:] = cupy.asarray(b)
 
 
 def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:

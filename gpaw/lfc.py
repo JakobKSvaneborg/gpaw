@@ -6,7 +6,7 @@ from ase.units import Bohr
 import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.grid_descriptor import GridDescriptor, GridBoundsError
-from gpaw.gpu import cupy_is_fake, as_numpy, to_np, to_xp
+from gpaw.gpu import cupy_is_fake, as_numpy, as_np, as_xp
 from gpaw.new import trace
 from gpaw.utilities import smallest_safe_grid_spacing
 
@@ -1055,7 +1055,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
                    --     M1       M1M2   M2
                   M1,M2
         """
-        rho_MM = to_np(rho_MM)
+        rho_MM = as_np(rho_MM)
         with as_numpy(nt_G) as nt_G:
             self.lfc.construct_density(
                 rho_MM, nt_G, q, self.Mstart, self.Mstop)
@@ -1088,7 +1088,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
                       /
 
         Overwrites the elements of the target matrix Vt_MM. """
-        vt_G = to_np(vt_G)
+        vt_G = as_np(vt_G)
 
         assert np.all(vt_G.shape == self.gd.n_c), (vt_G.shape, self.gd.n_c)
         if self.gamma and self.dtype == float:
@@ -1102,7 +1102,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
             self.lfc.calculate_potential_matrices(vt_G, Vt_xMM, self.x_W,
                                                   self.Mstart, self.Mstop)
 
-        return to_xp(Vt_xMM, self.xp)
+        return as_xp(Vt_xMM, self.xp)
 
     def calculate_potential_matrix(self, vt_G, Vt_MM, q):
         """Calculate lower part of potential matrix.
