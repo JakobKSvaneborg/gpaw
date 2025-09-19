@@ -170,7 +170,7 @@ def calculate_residuals(psit_nX,
     dH(P_ani, P1_ani)
     P_ani.block_diag_multiply(dS_aii, out_ani=P2_ani)
 
-    P2_ani.matrix.data *= eig_n[:, None]
+    P2_ani.matrix.data *= eig_n[:, np.newaxis]
 
     P1_ani.data -= P2_ani.data
     pt_aiX.add_to(residual_nX, P1_ani)
