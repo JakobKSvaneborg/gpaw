@@ -46,6 +46,16 @@ def test_eigh():
     assert abs(X) == pytest.approx(np.eye(2))
 
 
+@pytest.mark.gpu
+@pytest.mark.serial
+def test_to_cp():
+    H1 = Matrix(2, 2, data=np.array([[2, 42.1 + 42.1j], [0.1 - 0.1j, 3]]))
+    H2 = H1.to_xp(cp)
+    H3 = H2.copy()
+    HH = H2.multiply(H3)
+    HH.eigh()
+
+
 def op(a: np.ndarray, o: str) -> np.ndarray:
     if o == 'N':
         return a

@@ -2,7 +2,7 @@ from __future__ import annotations
 import contextlib
 import atexit
 from time import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 from types import ModuleType
 from collections.abc import Iterable
 from gpaw.new.timer import trace
@@ -278,6 +278,18 @@ except ImportError:
 def synchronize():
     if not cupy_is_fake:
         cupy.cuda.runtime.deviceSynchronize()
+
+
+@contextlib.contextmanager
+def as_numpy(a: np.ndarray | cupy.ndarray
+             ) -> Generator[np.ndarray, None, None]:
+    """Copy array to CPU and back to GPU when done."""
+    if isinstance(a, np.ndarray):
+        yield a
+        return
+    b = a.get()
+    yield b
+    a[:] = cupy.asarray(b)
 
 
 def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
