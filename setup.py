@@ -258,6 +258,7 @@ if gpu:
     # GPU code needs to link to c++ stdlib
     libraries += ['stdc++']
 
+
 def set_compiler_executables(cc: CCompiler) -> None:
     # Override the compiler executables
     # A hack to change the used compiler and linker, inspired by

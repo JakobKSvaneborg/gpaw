@@ -20,6 +20,7 @@ static std::mutex g_pending_decrefs_mutex;
 
 CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
 {
+#ifdef GPAW_GPU_LIFETIME_GUARD
     if (life_support::g_pending_decrefs.empty())
     {
         Py_RETURN_NONE;
@@ -35,6 +36,7 @@ CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
     {
         Py_DECREF(obj);
     }
+#endif
 
     Py_RETURN_NONE;
 }
@@ -46,7 +48,9 @@ PyObjectPinner::PyObjectPinner()
 
 PyObjectPinner::PyObjectPinner(size_t reserve_count)
 {
+#ifdef GPAW_GPU_LIFETIME_GUARD
     objects.reserve(reserve_count);
+#endif
 }
 
 void PyObjectPinner::commit()
@@ -55,11 +59,12 @@ void PyObjectPinner::commit()
     assert(!has_committed && "Can't commit object pinning twice");
     has_committed = true;
 #endif
-
+#ifdef GPAW_GPU_LIFETIME_GUARD
     for (PyObject* obj : objects)
     {
         Py_INCREF(obj);
     }
+#endif
 }
 
 void PyObjectPinner::schedule_unpin(gpuStream_t stream)
@@ -69,6 +74,7 @@ void PyObjectPinner::schedule_unpin(gpuStream_t stream)
     assert(has_committed && "You are calling schedule_unpin() without committing the pinning first");
 #endif
 
+#ifdef GPAW_GPU_LIFETIME_GUARD
     if (objects.empty())
     {
         return;
@@ -86,6 +92,7 @@ void PyObjectPinner::schedule_unpin(gpuStream_t stream)
     };
 
     gpu_host_callback(stream, wrapper);
+#endif
 }
 
 } // namespace gpaw
