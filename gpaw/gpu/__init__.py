@@ -243,7 +243,6 @@ def set_device(log):
             nodename = os.uname()[1]
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
-            print(f'Device count on {nodename}', device_count)
 
     log(f'mpi rank {rank} has GPU device {device_id}', parallel=True)
 

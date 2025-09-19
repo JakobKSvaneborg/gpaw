@@ -121,9 +121,6 @@ class _Communicator:
         ``parent``    Parent MPI-communicator.
         ============  ======================================================
         """
-        if comm is _world:
-            print('DEBUG: Wrapped _Communicator:'
-                  f' {comm.rank}/{comm.size}.', flush=True)
         self.comm = comm
         self.size = comm.size
         self.rank = comm.rank
