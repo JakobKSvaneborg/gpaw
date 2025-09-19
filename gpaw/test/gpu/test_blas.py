@@ -42,81 +42,67 @@ def test_blas(dtype, set_device):
     x_gpu = cp.asarray(x)
     y_gpu = cp.asarray(y)
 
+    def approx(y):
+        return pytest.approx(y, rel=1e-14, abs=1e-14)
+
     # axpy
     y += 0.5 * x
-    check_cpu = y.sum()
-
     gpu_axpy(0.5, x_gpu, y_gpu)
-    check_gpu = y_gpu.sum().get()
-
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    assert approx(y) == y_gpu.get()
 
     # mmm
     mmm(0.5, a, 'N', b, 'N', 0.2, c)
-    check_cpu = c.sum()
-
     gpu_mmm(0.5, a_gpu, 'N', b_gpu, 'N', 0.2, c_gpu)
-    check_gpu = c_gpu.sum().get()
-
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    assert approx(c_gpu.get()) == c
 
     # gemm
     c *= 0.2
     c += 0.5 * b @ a
-    check_cpu = c.sum()
-
     gpu_gemm(0.5, a_gpu, b_gpu, 0.2, c_gpu)
-    check_gpu = c_gpu.sum().get()
-
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    assert approx(a_gpu.get()) == a
 
     # gemv
     y *= 0.2
     y += 0.5 * a @ x
-    check_cpu = y.sum()
-
     gpu_gemv(0.5, a_gpu, x_gpu, 0.2, y_gpu)
-    check_gpu = y_gpu.sum().get()
-
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    assert approx(y_gpu.get()) == y
 
     # rk
     rk(0.5, a, 0.2, c)
-    check_cpu = c.sum()
-
     gpu_rk(0.5, a_gpu, 0.2, c_gpu)
-    check_gpu = c_gpu.sum().get()
-
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    assert approx(c_gpu.get()) == c
 
     # r2k
+    c_gpu_ref = c_gpu.copy()
+    c_ref = c.copy()
     r2k(0.5, a, b, 0.2, c)
-    check_cpu = c.sum()
-
     gpu_r2k(0.5, a_gpu, b_gpu, 0.2, c_gpu)
-    check_gpu = c_gpu.sum().get()
+    assert approx(c_gpu.get()) == c
 
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    # r2k sliced
+    bs = 11
+    for i in range(0, (N + bs - 1) // bs):
+        gpu_r2k(0.5, a_gpu[:, i * bs:(i + 1) * bs],
+                b_gpu[::, i * bs:(i + 1) * bs],
+                0.2 if (i == 0) else 1.0, c_gpu_ref)
+        r2k(0.5, a[:, i * bs:(i + 1) * bs],
+            b[:, i * bs:(i + 1) * bs],
+            0.2 if (i == 0) else 1.0, c_ref)
+
+    assert approx(c_gpu_ref.get()) == c
+    assert approx(c_ref) == c
 
     # dotc
     check_cpu = x.conj() @ y
-
     check_gpu = gpu_dotc(x_gpu, y_gpu)
-
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    assert check_cpu == approx(check_gpu)
 
     # dotu
     check_cpu = x @ y
-
     check_gpu = gpu_dotu(x_gpu, y_gpu)
-
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    assert check_cpu == approx(check_gpu)
 
     # scal
     a *= 0.5
-    check_cpu = a.sum()
-
     gpu_scal(0.5, a_gpu)
-    check_gpu = a_gpu.sum().get()
-
-    assert check_cpu == pytest.approx(check_gpu, rel=1e-14)
+    assert approx(a_gpu.get()) == a

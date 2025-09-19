@@ -953,30 +953,31 @@ class CuPyDistribution(MatrixDistribution):
 
         if symmetric:
             if opa == 'N':
-                assert opb == 'C' or opb == 'T' and a.dtype == float
+                assert opb == 'C' or opb == 'T' \
+                    and np.issubdtype(a.dtype, np.floating)
                 if a is b:
-                    gpu_gemm('N', 'H',
-                             a.data, a.data, c.data,
-                             alpha, beta)
-                    # cp.cublas.syrk('N', a.data, c.data, alpha, beta, True)
+                    blas.gpu_r2k(0.5 * alpha,
+                                 a.data,
+                                 a.data,
+                                 beta,
+                                 c.data)
                 else:
                     if beta == 1.0 and a.shape[1] == 0:
                         return
                     if c.data.size > 0:
                         assert beta in [0.0, 1.0]
                         # CuPy doesn't have dsyrk, so we roll our own:
-                        gpu_gemm('N', 'H',
-                                 a.data, b.data, c.data,
-                                 0.5 * alpha, beta)
-                        gpu_gemm('N', 'H',
-                                 b.data, a.data, c.data,
-                                 0.5 * alpha, 1.0)
+                        blas.gpu_r2k(0.5 * alpha,
+                                     a.data,
+                                     b.data,
+                                     beta,
+                                     c.data)
             else:
                 1 / 0
                 assert opa == 'C' and opb == 'N'
                 assert a is not b
                 raise NotImplementedError
-                blas.r2k(0.5 * alpha, a.data, b.data, beta, c.data, 'n')
+                blas.gpu_r2k(0.5 * alpha, a.data, b.data, beta, c.data, 'n')
 
         else:
             cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c.data)

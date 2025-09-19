@@ -119,6 +119,12 @@ if not TYPE_CHECKING:
                 assert out.ndim == 2
                 assert out.shape == (m, n)
                 assert out.dtype == dtype
+            if a.size == 0 or b.size == 0:
+                if beta == 0.0:
+                    out[:] = 0
+                else:
+                    out *= beta
+                return out
 
             alpha, alpha_ptr = _get_scalar_ptr(alpha, a.dtype)
             beta, beta_ptr = _get_scalar_ptr(beta, a.dtype)
