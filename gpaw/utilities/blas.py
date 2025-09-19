@@ -346,6 +346,8 @@ def r2k(alpha, a, b, beta, c, trans='c'):
     Only the lower triangle of ``c`` will contain sensible numbers.
     """
     # Get a flattened view of the last dimensions
+    if c.size == 0:
+        return
     a = a.reshape(a.shape[0], -1)
     b = b.reshape(b.shape[0], -1)
     if debug:
