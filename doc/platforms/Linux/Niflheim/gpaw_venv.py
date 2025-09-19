@@ -313,8 +313,7 @@ def main():
 
     compile_gpaw_c_code(gpaw, activate, intel_only)
 
-    for fro, to in [('ivybridge', 'sandybridge'),
-                    ('nahelem', 'icelake'),
+    for fro, to in [('nahelem', 'icelake'),
                     ('sapphirelake', 'icelake')]:
         f = gpaw / f'build/lib.linux-x86_64-{fro}-{fversion}'
         t = gpaw / f'build/lib.linux-x86_64-{to}-{fversion}'
