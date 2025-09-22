@@ -19,7 +19,7 @@ from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw.utilities.blas import mmm
-
+from gpaw.cgpaw import pwlfc_expand_old
 if TYPE_CHECKING:
     from gpaw.core.plane_waves import PWDesc, PWArray
 
@@ -245,6 +245,10 @@ class PWLFC:  # (BaseLFC)
         self.G_plus_k_Gv = self.xp.asarray(self.pw.G_plus_k_Gv,
                                            as_real_dtype(self.dtype))
 
+        if xp is np:
+            GkR_Ga = self.G_plus_k_Gv @ self.pos_avT
+            self.emiGR_Ga = np.exp(-1j * GkR_Ga) * self.eikR_a
+
         rank_a = atomdist.rank_a
 
         self.my_atom_indices = []
@@ -301,9 +305,12 @@ class PWLFC:  # (BaseLFC)
 
         if xp is np:
             # Fast C-code:
-            pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
-                         self.l_s, self.a_J, self.s_J,
-                         cc, f_GI)
+            pwlfc_expand_old(f_Gs, self.emiGR_Ga[G1:G2], Y_GL,
+                             self.l_s, self.a_J, self.s_J,
+                             cc, f_GI)
+            # pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
+            #              self.l_s, self.a_J, self.s_J,
+            #              cc, f_GI)
         elif cupy_is_fake:
             pwlfc_expand(f_Gs._data, Gk_Gv._data, pos_av._data,
                          eikR_a._data, Y_GL._data,
@@ -333,13 +340,6 @@ class PWLFC:  # (BaseLFC)
         else:
             yield 0, nG
 
-    @trace
-    def get_emiGR_Ga(self, G1, G2):
-        Gk_Gv = self.G_plus_k_Gv[G1:G2]
-        GkR_Ga = Gk_Gv @ self.pos_avT
-        return self.xp.exp(-1j * GkR_Ga) * self.eikR_a
-
-    @trace
     def add(self, a_xG, c_axi=1.0, q=None):
         if self.nI == 0:
             return
@@ -546,7 +546,11 @@ class PWLFC:  # (BaseLFC)
                                     G_Gv, a_xG, c_axi, Z_LvG):
         xp = self.xp
         f_IG = xp.empty((self.nI, G2 - G1), as_complex_dtype(self.dtype))
-        emiGR_Ga = self.get_emiGR_Ga(G1, G2)
+        if xp is np:
+            emiGR_Ga = self.emiGR_Ga[G1:G2]
+        else:
+            GkR_Ga = self.G_plus_k_Gv @ self.pos_avT
+            emiGR_Ga = np.exp(-1j * GkR_Ga) * self.eikR_a
         Y_LG = self.Y_GL.T
         for a, l, I1, I2, f_G, dfdGoG_G in things:
             L1 = l**2
