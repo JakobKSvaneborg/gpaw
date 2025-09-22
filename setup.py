@@ -208,6 +208,9 @@ for key in ['libraries', 'library_dirs', 'include_dirs',
 
 
 if parallel_python_interpreter:
+    warn_deprecated("Option `parallel_python_interpreter` is deprecated "
+                    "along with the `gpaw-python` interpreter. "
+                    "Please modify your siteconfig.py accordingly.")
     parallel_python_exefile = None
     if not mpi:
         raise_error('MPI is needed for parallel_python_interpreter.'

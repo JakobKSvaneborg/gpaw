@@ -25,6 +25,9 @@ Git master branch
   finer grid.  This is equivalent to the way things are done in PW-mode.
   Turn this on by using ``experimental={'pw_pot_calc': True}``.
 
+* The parallel `gpaw-python` interpreter is deprecated and will be removed in a
+  future release. You can use `gpaw python` as a replacement. Option
+  `parallel_python_interpreter` in `siteconfig.py` also raises a deprecation warning.
 
 Version 25.7.0
 ==============
