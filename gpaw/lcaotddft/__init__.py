@@ -17,16 +17,19 @@ from gpaw.typing import Any, Vector
 
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
     if GPAW_NEW:
-        from gpaw.new.rttddft import RTTDDFT
-        assert kwargs.get('propagator', None) in [None, 'ecn'], \
-            'Not implemented yet'
-        assert kwargs.get('rremisison', None) in [None], 'Not implemented yet'
-        assert kwargs.get('fxc', None) in [None], 'Not implemented yet'
-        assert kwargs.get('scale', None) in [None], 'Not implemented yet'
-        assert kwargs.get('parallel', None) in [None], 'Not implemented yet'
-        assert kwargs.get('communicator', None) in [None], \
-            'Not implemented yet'
-        new_tddft = RTTDDFT.from_dft_file(filename)
+        from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
+        kwargs.pop('txt', None)  # Ignore silently
+        kwargs.pop('parallel', None)  # Ignore silently
+        kwargs.pop('communicator', None)  # Ignore silently
+        assert kwargs.pop('td_potential', None) in [None], \
+            'td_potential not implemented yet'
+        assert kwargs.pop('rremission', None) in [None], \
+            'rremission not implemented yet'
+        assert kwargs.pop('fxc', None) in [None], \
+            'fxc not implemented yet'
+        assert kwargs.pop('scale', None) in [None], \
+            'scale not implemented yet'
+        new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
         return new_tddft
     return OldLCAOTDDFT(filename, **kwargs)
 

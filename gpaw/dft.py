@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
 
 PARAMETER_NAMES = [
-    'mode', 'basis', 'charge', 'convergence', 'eigensolver', 'environment',
+    'mode', 'basis', 'charge', 'convergence', 'eigensolver',
     'experimental', 'extensions', 'gpts', 'h', 'hund',
     'interpolation', 'kpts', 'magmoms', 'maxiter', 'mixer', 'nbands',
     'occupations', 'parallel', 'poissonsolver', 'random', 'setups', 'soc',
@@ -210,12 +210,14 @@ class PPCG(PWFDEigensolverParamater):
 
     def __init__(self,
                  niter: int = 2,
+                 min_niter: int | None = None,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
+        self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
@@ -224,6 +226,7 @@ class PPCG(PWFDEigensolverParamater):
 
     def todict(self):
         return {'niter': self.niter,
+                'min_niter': self.min_niter,
                 'max_buffer_mem': self.max_buffer_mem,
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
@@ -245,6 +248,7 @@ class PPCG(PWFDEigensolverParamater):
             hamiltonian,
             converge_bands,
             niter=self.niter,
+            min_niter=self.min_niter,
             max_buffer_mem=self.max_buffer_mem,
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
@@ -318,9 +322,9 @@ class Scissors(LCAOEigensolver):
                                        symmetries)
 
 
-class Extension(Parameter):
+class ExtensionInput(Parameter):
     @classmethod
-    def from_param(self, extension):
+    def from_input(self, extension: ExtensionInput | dict):
         if isinstance(extension, dict):
             dct = extension.copy()
             name = dct.pop('name')
@@ -330,35 +334,14 @@ class Extension(Parameter):
             if name == 'spin_direction_constraint':
                 from gpaw.new.constraints import SpinDirectionConstraint
                 return SpinDirectionConstraint(**dct)
-            raise ValueError(name)
-        return extension
-
-
-class Environment(Parameter):
-    @classmethod
-    def from_param(self, env):
-        if env is None:
-            return Environment()
-        if isinstance(env, dict):
-            dct = env.copy()
-            name = dct.pop('name')
             if name == 'sjm':
                 from gpaw.new.sjm import SJM
                 return SJM(**dct)
             if name == 'solvation':
                 from gpaw.new.solvation import Solvation
                 return Solvation(**dct)
-            raise ValueError(f'Unknown environment: {name}')
-        return env
-
-    def build(self,
-              setups,
-              grid,
-              relpos_ac,
-              log,
-              comm):
-        from gpaw.new.environment import Environment as Env
-        return Env(len(setups))
+            raise ValueError(f'Unknown extension: {name}')
+        return extension
 
 
 class Mixer(Parameter):
@@ -401,11 +384,6 @@ class PoissonSolver(Parameter):
         if isinstance(ps, dict):
             return PoissonSolver(ps)
         return ps
-
-    def build(self, *, grid, xp=np):
-        from gpaw.poisson import PoissonSolver as make_poisson_solver
-        solver = make_poisson_solver(**self.params, xp=xp)
-        return solver.build(grid, xp)
 
 
 def array_or_none(a):
@@ -597,9 +575,8 @@ class Parameters:
         charge: float | None = None,
         convergence: dict | None = None,
         eigensolver: str | dict | Eigensolver | None = None,
-        environment=None,
         experimental: dict | None = None,
-        extensions: Sequence[Extension] | None = None,
+        extensions: Sequence[ExtensionInput] | None = None,
         gpts: Sequence[int] | None = None,
         h: float | None = None,
         hund: bool | None = None,
@@ -646,14 +623,12 @@ class Parameters:
             SCF-convergence criteria.
         eigensolver:
             Eigensolver.  Default for PW and FD mode is ``'davidson'``.
-        environment:
-            ...
         gpts:
             Number of real-space grid-points for wave-functions
             (three integers).
         h:
             Grid-spacing for wave-function grid (Å).  Default value is
-            0.2 Å for LCAO or FD mode calculations.  For a PW-mode
+            0.2 Å for LCAO and FD mode calculations.  For a PW-mode
             calculation, we use the formula `h=γh_0` with `γ \simeq 1.4` and:
 
             .. math::
@@ -716,9 +691,8 @@ class Parameters:
         self.charge = charge or 0.0
         self.convergence = convergence or {}
         self.eigensolver = Eigensolver.from_param(eigensolver or {})
-        self.environment = Environment.from_param(environment)
         self.experimental = experimental or {}
-        self.extensions = [Extension.from_param(ext)
+        self.extensions = [ExtensionInput.from_input(ext)
                            for ext in extensions or []]
         self.gpts = np.array(gpts) if gpts is not None else None
         self.h = h
@@ -816,7 +790,8 @@ def _parse_experimental(experimental: dict | None,
         magmoms = experimental.pop('magmoms')
     unknown = experimental.keys() - {'backwards_compatible',
                                      'ccirs',
-                                     'fast_pw_init'}
+                                     'fast_pw_init',
+                                     'pw_pot_calc'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)
@@ -844,9 +819,8 @@ def DFT(
     charge: float | None = None,
     convergence: dict | None = None,
     eigensolver: str | dict | Eigensolver | None = None,
-    environment=None,
     experimental: dict | None = None,
-    extensions: Sequence[Extension] | None = None,
+    extensions: Sequence[ExtensionInput] | None = None,
     gpts: Sequence[int] | None = None,
     h: float | None = None,
     hund: bool | None = None,
@@ -894,9 +868,8 @@ def GPAW(
     charge: float | None = None,
     convergence: dict | None = None,
     eigensolver: str | dict | Eigensolver | None = None,
-    environment=None,
     experimental: dict | None = None,
-    extensions: Sequence[Extension] | None = None,
+    extensions: Sequence[ExtensionInput] | None = None,
     gpts: Sequence[int] | None = None,
     h: float | None = None,
     hund: bool | None = None,

@@ -18,10 +18,15 @@
 #define gpuEvent_t                cudaEvent_t
 #define gpuError_t                cudaError_t
 #define gpuDeviceProp             cudaDeviceProp
+#define gpuPointerAttributes      cudaPointerAttributes
+#define gpuPointerGetAttributes   cudaPointerGetAttributes
+#define gpuMemoryTypeHost         cudaMemoryTypeHost
+#define gpuMemoryTypeDevice       cudaMemoryTypeDevice
 
 #define gpuDoubleComplex          cuDoubleComplex
 #define gpuFloatComplex           cuFloatComplex
 #define gpublasDoubleComplex      cuDoubleComplex
+#define gpublasComplex            cuFloatComplex
 #define make_gpuDoubleComplex     make_cuDoubleComplex
 #define make_gpuFloatComplex      make_cuFloatComplex
 #define gpuCreal                  cuCreal
@@ -34,6 +39,7 @@
 #define gpuCmulf                  cuCmulf
 #define gpuConj                   cuConj
 
+#define gpuGetLastError()         cudaGetLastError()
 #define gpuCheckLastError()       gpuSafeCall(cudaGetLastError())
 #define gpuGetErrorString(err)    cudaGetErrorString(err)
 
@@ -59,6 +65,9 @@
         gpuSafeCall(cudaStreamWaitEvent(stream, event, flags))
 #define gpuStreamSynchronize(stream) \
         gpuSafeCall(cudaStreamSynchronize(stream))
+
+#define gpuLaunchHostFunc(stream, fn, userData) \
+        gpuSafeCall(cudaLaunchHostFunc(stream, fn, userData))
 
 #define gpuEventCreate(event)     gpuSafeCall(cudaEventCreate(event))
 #define gpuEventCreateWithFlags(event, flags) \
@@ -98,6 +107,9 @@
 #define gpublasDdot               cublasDdot
 #define gpublasZdotc              cublasZdotc
 #define gpublasZdotu              cublasZdotu
+#define gpublasSsyr2k             cublasSsyr2k
+#define gpublasCher2k             cublasCher2k
+
 
 #define GPUBLAS_OP_N                     CUBLAS_OP_N
 #define GPUBLAS_OP_T                     CUBLAS_OP_T

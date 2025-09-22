@@ -25,7 +25,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
         S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives = tci_helper(
             basis, self.ibz, self.domain_comm, self.band_comm, self.kpt_comm,
             relpos_ac, atomdist,
-            self.grid, self.dtype, setups)
+            self.grid, self.dtype, setups, self.xp)
 
         for wfs in self:
             wfs.tci_derivatives = tci_derivatives

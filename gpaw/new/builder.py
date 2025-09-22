@@ -44,16 +44,20 @@ class DFTComponentsBuilder:
                  *,
                  log=None,
                  comm=None):
+        from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
         self.mode = params.mode.name
         self.params = params
         if not isinstance(log, Logger):
             log = Logger(log, comm)
+
         self.log = log
         comm = log.comm
 
         parallel = params.parallel
+        if self.gpu:
+            set_device(log)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
@@ -152,9 +156,7 @@ class DFTComponentsBuilder:
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
 
     def get_extensions(self):
-        return [ext.build(self.atoms,
-                          self.communicators,
-                          self.log) for ext in self.params.extensions]
+        return [ext.build(self) for ext in self.params.extensions]
 
     @cached_property
     def charge(self) -> float:
@@ -247,7 +249,8 @@ class DFTComponentsBuilder:
                             self.relpos_ac,
                             self.communicators['w'],
                             self.communicators['k'],
-                            self.communicators['b'])
+                            self.communicators['b'],
+                            self.xp)
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(
@@ -274,6 +277,23 @@ class DFTComponentsBuilder:
             self.ncomponents,
             self.nelectrons,
             np.linalg.inv(self.atoms.cell.complete()).T)
+
+    def create_poisson_solver(self, extensions):
+        poisson_solvers = []
+        for ext in extensions:
+            ps = ext.create_poisson_solver(
+                self.fine_grid,
+                pw=self.electrostatic_potential_desc,
+                charge=self.charge,
+                xp=self.xp)
+            if ps is not None:
+                poisson_solvers.append(ps)
+        if not poisson_solvers:
+            raise NotImplementedError
+        assert len(poisson_solvers) == 1
+        psparams = self.params.poissonsolver.params
+        assert not psparams
+        return poisson_solvers[0]
 
     def create_ibz_wave_functions(self,
                                   basis: BasisFunctions,
@@ -371,12 +391,6 @@ class DFTComponentsBuilder:
             # old gpw-file
             ibzwfs.fermi_levels = np.array(
                 [reader.occupations.fermilevel / ha])
-
-    def create_environment(self, grid):
-        return self.params.environment.build(
-            setups=self.setups,
-            grid=grid, relpos_ac=self.relpos_ac, log=self.log,
-            comm=self.communicators['w'])
 
 
 def create_communicators(comm: MPIComm = None,

@@ -499,8 +499,9 @@ class UGArray(DistributedArrays[UGDesc]):
         if out is None:
             assert pw is not None
             out = pw.empty(dims=self.dims, xp=self.xp)
-        if pw is None:
+        else:
             pw = out.desc
+        assert self.desc.comm.size == pw.comm.size
         if pw.dtype != self.desc.dtype:
             raise TypeError(
                 f'Type mismatch: {self.desc.dtype} -> {pw.dtype}')

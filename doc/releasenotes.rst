@@ -10,9 +10,20 @@ Git master branch
 
 :git:`master <>`.
 
+* New GPAW: LCAO and finite-difference mode TDDFT have been ported into a common
+  RT-TDDFT interface with a subset of features so far. ECN and SICN propagators are
+  available.
 * :ref:`debug mode` is now enabled by setting the environment variable
   :envvar:`GPAW_DEBUG` to ``1``.  Using the ``-d`` option of the
   Python interpreter is no longer supported.
+
+* MFT calculations for magnons can now be performed with LDA+U. See
+  :ref:`mft`
+
+* LCAO calculations can now be done using FFTs to reciprocal space in order
+  to 1) solve the Poisson equation and 2) interpolate the density to a
+  finer grid.  This is equivalent to the way things are done in PW-mode.
+  Turn this on by using ``experimental={'pw_pot_calc': True}``.
 
 
 Version 25.7.0

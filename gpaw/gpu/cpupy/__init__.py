@@ -7,10 +7,11 @@ import gpaw.gpu.cpupy.cublas as cublas
 import gpaw.gpu.cpupy.fft as fft
 import gpaw.gpu.cpupy.linalg as linalg
 import gpaw.gpu.cpupy.random as random
+import gpaw.gpu.cpupy.testing as testing
 
 __version__ = 'fake'
 
-__all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
+__all__ = ['linalg', 'cublas', 'fft', 'random', 'testing', '__version__']
 
 FAKE_CUPY_WARNING = """
  ----------------------------------------------------------
@@ -97,14 +98,15 @@ def negative(a, b):
     np.negative(a._data, b._data)
 
 
-def einsum(indices, *args, **kwargs):
+def einsum(indices, *args, optimize=False, **kwargs):
     for k in kwargs:
         kwargs[k] = kwargs[k]._data
     return ndarray(
         np.einsum(
             indices,
             *(arg._data for arg in args),
-            **kwargs))
+            **kwargs,
+            optimize=optimize))
 
 
 def diag(a):
@@ -138,6 +140,10 @@ def triu_indices(n, k=0, m=None):
 
 def tri(n, k=0, dtype=float):
     return ndarray(np.tri(n, k=k, dtype=dtype))
+
+
+def fill_diagonal(a, val, wrap=False):
+    np.fill_diagonal(a._data, val, wrap=wrap)
 
 
 def allclose(a, b, **kwargs):

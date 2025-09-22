@@ -397,6 +397,21 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         return None
 
+    def copy(self) -> PWFDWaveFunctions:
+        wfs = PWFDWaveFunctions(self.psit_nX.copy(),
+                                spin=self.spin,
+                                q=self.q,
+                                k=self.k,
+                                setups=self.setups,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist,
+                                weight=self.weight,
+                                ncomponents=self.ncomponents,
+                                qspiral_v=self.qspiral_v)
+        wfs._eig_n = self._eig_n
+        wfs._occ_n = self._occ_n
+        return wfs
+
     def send(self, rank, comm):
         stuff = (self.kpt_c,
                  self.psit_nX.data,
@@ -510,4 +525,5 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self._pt_aiX = None
 
         return PWFDWaveFunctions.from_wfs(self, psit_nX,
-                                          relpos_ac=relpos_ac)
+                                          relpos_ac=relpos_ac,
+                                          atomdist=atomdist)

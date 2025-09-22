@@ -244,6 +244,20 @@ if gpu:
             gpu_compile_args += ['-Xcompiler']
         gpu_compile_args += ['-fPIC']
 
+    # Some C++ code (eg. magma wrappers) requires C++17 standard.
+    # Add the flag here, but don't override any user-specified option.
+    # GPAW C++ files that require C++17 are encouraged to #error
+    # with a sensible message if the standard is too low.
+    has_std_flag = (
+        any(re.match(r'-std=.+', arg) for arg in gpu_compile_args)
+    )
+    if not has_std_flag:
+        print("Adding gpu compile argument: '-std=c++17'")
+        gpu_compile_args += ['-std=c++17']
+
+    # GPU code needs to link to c++ stdlib
+    libraries += ['stdc++']
+
 
 def set_compiler_executables(cc: CCompiler) -> None:
     # Override the compiler executables
@@ -476,6 +490,7 @@ class build_ext(_build_ext):
                                 gpu_include_dirs + self.include_dirs,
                                 define_macros, undef_macros,
                                 self.build_temp)
+
             self.link_objects += objects
 
         super().run()
