@@ -6,6 +6,7 @@ from __future__ import annotations
 import functools
 import os
 import re
+import runpy
 import shlex
 import sys
 import tempfile
@@ -25,22 +26,13 @@ from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.command.develop import develop as _develop
 from setuptools.command.install import install as _install
 
-#from config import (build_gpu, build_interpreter, check_dependencies,
-#                    write_configuration)
-#xxxx
-import runpy
-dct = runpy.run_path(Path(__file__).parent / 'config.py')
 
-build_gpu = dct['build_gpu']
-build_interpreter = dct['build_interpreter']
-check_dependencies = dct['check_dependencies']
-write_configuration = dct['write_configuration']
-#print(dct)
-#xxx
+config = runpy.run_path(Path(__file__).parent / 'config.py')
 
-python_min_version = (3, 9)
-assert sys.version_info >= python_min_version, sys.version_info
-python_requires = '>=' + '.'.join(str(num) for num in python_min_version)
+build_gpu = config['build_gpu']
+build_interpreter = config['build_interpreter']
+check_dependencies = config['check_dependencies']
+write_configuration = config['write_configuration']
 
 
 def warn_deprecated(msg):
@@ -56,14 +48,6 @@ def raise_error(msg):
 def config_args(key):
     return shlex.split(get_config_var(key))
 
-
-# Get the current version number:
-txt = Path('gpaw/__init__.py').read_text()
-version = re.search("__version__ = '(.*)'", txt)[1]
-ase_version_required = re.search("__ase_version_required__ = '(.*)'", txt)[1]
-
-description = 'GPAW: DFT and beyond within the projector-augmented wave method'
-long_description = Path('README.rst').read_text()
 
 # Deprecation check
 for i, arg in enumerate(sys.argv):
@@ -568,8 +552,7 @@ files = ['gpaw-analyse-basis', 'gpaw-basis',
 scripts = [str(Path('tools') / script) for script in files]
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(#  long_description=long_description,
-      # platforms=['unix'],
+setup(# platforms=['unix'],
       # package_data={'gpaw': ['py.typed']},
       ext_modules=extensions,
       # scripts=scripts,
