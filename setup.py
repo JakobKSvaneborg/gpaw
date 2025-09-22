@@ -25,8 +25,18 @@ from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.command.develop import develop as _develop
 from setuptools.command.install import install as _install
 
-from config import (build_gpu, build_interpreter, check_dependencies,
-                    write_configuration)
+#from config import (build_gpu, build_interpreter, check_dependencies,
+#                    write_configuration)
+#xxxx
+import runpy
+dct = runpy.run_path(Path(__file__).parent / 'config.py')
+
+build_gpu = dct['build_gpu']
+build_interpreter = dct['build_interpreter']
+check_dependencies = dct['check_dependencies']
+write_configuration = dct['write_configuration']
+#print(dct)
+#xxx
 
 python_min_version = (3, 9)
 assert sys.version_info >= python_min_version, sys.version_info
@@ -558,44 +568,10 @@ files = ['gpaw-analyse-basis', 'gpaw-basis',
 scripts = [str(Path('tools') / script) for script in files]
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(name='gpaw',
-      version=version,
-      description=description,
-      long_description=long_description,
-      maintainer='GPAW-community',
-      maintainer_email='gpaw-users@listserv.fysik.dtu.dk',
-      url='https://gpaw.readthedocs.io/',
-      license='GPLv3+',
-      platforms=['unix'],
-      packages=find_packages(),
-      package_data={'gpaw': ['py.typed']},
-      entry_points={
-          'console_scripts': ['gpaw = gpaw.cli.main:main']},
-      setup_requires=['numpy'],
-      python_requires=python_requires,
-      install_requires=[f'ase>={ase_version_required}',
-                        'numpy',
-                        'scipy>=1.6.0',
-                        'gpaw-data'],
-      extras_require={
-          'docs': ['sphinx-rtd-theme',
-                   'sphinxcontrib-jquery',
-                   'plotly',
-                   'kaleido',
-                   'graphviz',
-                   'scikit-image',
-                   f'gpaw-web-page-data @ {data}'],
-          'devel': ['flake8',
-                    'mypy',
-                    'pytest>=7.0.0',
-                    'pytest-xdist']},
+setup(#  long_description=long_description,
+      # platforms=['unix'],
+      # package_data={'gpaw': ['py.typed']},
       ext_modules=extensions,
-      scripts=scripts,
+      # scripts=scripts,
       cmdclass=cmdclass,
-      classifiers=[
-          'Development Status :: 6 - Mature',
-          'License :: OSI Approved :: '
-          'GNU General Public License v3 or later (GPLv3+)',
-          'Operating System :: OS Independent',
-          'Programming Language :: Python :: 3',
-          'Topic :: Scientific/Engineering :: Physics'])
+)
