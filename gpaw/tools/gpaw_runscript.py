@@ -1,63 +1,63 @@
-#!/usr/bin/env python3
-
 import os
-import stat
 import sys
 import re
 from optparse import OptionParser
 
 from gpaw.utilities.hardware import ComputeCluster
 
-defaults = { 'err'   : None,
-             'mail'  : None,
-             'mem'   : None,
-             'name'  : None,
-             'depth' : 1,
-             'cores' : 2,
-             'out'   : None,
-             'arch'  : 'pbs',
-             'script': 'run.py',
-             'time'  : 86400, # one day in seconds
-             'wd'    : None,
-             'queue' : None,
-             'smt'   : False,
-             }
+defaults = {
+    'err': None,
+    'mail': None,
+    'mem': None,
+    'name': None,
+    'depth': 1,
+    'cores': 2,
+    'out': None,
+    'arch': 'pbs',
+    'script': 'run.py',
+    'time': 86400,  # one day in seconds
+    'wd': None,
+    'queue': None,
+    'smt': False,
+}
 
-platforms = { 'aix5' : 'loadleveler' }
 
-env = {'GPAW_MAIL'       : None,
-       'MODULEPATH'      : None,
-       'LOADEDMODULES'   : None,
-       }
+platforms = {'aix5': 'loadleveler'}
+
+
+env = {'GPAW_MAIL': None,
+       'MODULEPATH': None,
+       'LOADEDMODULES': None}
+
 
 set = defaults
 
-#......................................................
-# functions
 
 def s_from_dhms(time):
     """return seconds from dhms"""
-    dhms_s = { 's' : 1, 'm' : 60, 'h' : 3600, 'd' : 86400 }
+    dhms_s = {'s': 1, 'm': 60, 'h': 3600, 'd': 86400}
     time = time.lower()
-    word_list = re.findall('\d*[^\d]*',time)
-    seconds=0
+    word_list = re.findall(r'\d*[^\d]*', time)
+    seconds = 0
     for word in word_list:
         if word != '':
             sec = 1
             for t in list(dhms_s.keys()):
-                nw = word.replace(t,'')
+                nw = word.replace(t, '')
                 if nw != word:
                     sec = dhms_s[t]
                     word = nw
                     break
             try:
                 seconds += int(word) * sec
-            except:
+            except ValueError:
                 raise RuntimeError('unknown format in timestring ' + time)
     return seconds
 
+
 def minutes(secs):
     return int(secs // 60)
+
 
 def unique_name(name):
     import string
@@ -102,8 +102,6 @@ def main():
         "-s", "--smt", dest='smt', action='count',
         help='Simultaneous Multi-Threading (host specific)')
     opt, args = parser.parse_args()
-    ##print "opt=",opt
-    ##print "args=",args
 
     if opt.mail:
         set['mail'] = str(opt.mail)

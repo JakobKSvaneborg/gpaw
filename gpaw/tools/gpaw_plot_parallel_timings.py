@@ -3,25 +3,6 @@ from optparse import OptionParser
 import matplotlib.pyplot as plt
 
 
-# We will read/store absolute timings T1 and T2, which are probably 1e9.
-# For the plot we want timings relative to some starting point.
-class Call:
-    def __init__(self, name, T1, level, rankno):
-        self.name = name
-        self.level = level  # nesting level
-        self.T1 = T1
-        self.T2 = None
-        self.rankno = rankno
-
-    @property
-    def t1(self):
-        return self.T1 - alignments[self.rankno]
-
-    @property
-    def t2(self):
-        return self.T2 - alignments[self.rankno]
-
-
 class Function:
     thecolors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow',
                  'darkred', 'indigo', 'springgreen', 'purple']
@@ -60,6 +41,24 @@ def main():
         help='disable interactive legend')
 
     opts, fnames = p.parse_args()
+
+    # We will read/store absolute timings T1 and T2, which are probably 1e9.
+    # For the plot we want timings relative to some starting point.
+    class Call:
+        def __init__(self, name, T1, level, rankno):
+            self.name = name
+            self.level = level  # nesting level
+            self.T1 = T1
+            self.T2 = None
+            self.rankno = rankno
+
+        @property
+        def t1(self):
+            return self.T1 - alignments[self.rankno]
+
+        @property
+        def t2(self):
+            return self.T2 - alignments[self.rankno]
 
     if opts.interval:
         plotstarttime, plotendtime = map(float, opts.interval.split(':'))
@@ -133,7 +132,6 @@ def main():
     tmp_tmin = min([call.t1 for call in firstcallsbyrank])
     alignments = [a + tmp_tmin for a in alignments]  # Now timings start at 0
     tmax = max([call.t2 for call in lastcallsbyrank])
-
 
     if plotendtime is None:
         plotendtime = tmax
