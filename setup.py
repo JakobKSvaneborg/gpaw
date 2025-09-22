@@ -546,15 +546,7 @@ cmdclass = {'build_ext': build_ext,
             'install': install,
             'develop': develop}
 
-files = ['gpaw-analyse-basis', 'gpaw-basis',
-         'gpaw-plot-parallel-timings', 'gpaw-runscript',
-         'gpaw-setup', 'gpaw-upfplot']
-scripts = [str(Path('tools') / script) for script in files]
-
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(# platforms=['unix'],
-      # package_data={'gpaw': ['py.typed']},
-      ext_modules=extensions,
-      # scripts=scripts,
-      cmdclass=cmdclass,
-)
+setup(ext_modules=extensions,
+      cmdclass=cmdclass)
+# platforms=['unix'],
