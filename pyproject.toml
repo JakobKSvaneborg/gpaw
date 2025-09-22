@@ -30,12 +30,12 @@ dependencies = [
 
 [project.scripts]
 gpaw = 'gpaw.cli.main:main'
-# gpaw-analyse-basis = 'gpaw-analyse-basis'
-
-#files = ['gpaw-analyse-basis', 'gpaw-basis',
-#         'gpaw-plot-parallel-timings', 'gpaw-runscript',
-#         'gpaw-setup', 'gpaw-upfplot']
-#scripts = [str(Path('tools') / script) for script in files]
+gpaw-analyse-basis = 'gpaw.lcao.analyse_basis:main'
+gpaw-basis = 'gpaw.atom.gpaw_basis:main'
+# gpaw-plot-parallel-timings =
+# gpaw-runscript =
+gpaw-setup = 'gpaw.atom.gpaw_setup:main'
+gpaw-upfplot = 'gpaw.upf:main_plot'
 
 [project.optional-dependencies]
 docs = [
