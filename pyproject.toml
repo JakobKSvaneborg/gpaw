@@ -33,7 +33,7 @@ gpaw = 'gpaw.cli.main:main'
 gpaw-analyse-basis = 'gpaw.lcao.analyse_basis:main'
 gpaw-basis = 'gpaw.atom.gpaw_basis:main'
 gpaw-plot-parallel-timings = 'gpaw.tools.gpaw_plot_parallel_timings:main'
-# gpaw-runscript =
+gpaw-runscript = 'gpaw.tools.gpaw_runscript:main'
 gpaw-setup = 'gpaw.atom.gpaw_setup:main'
 gpaw-upfplot = 'gpaw.upf:main_plot'
 
