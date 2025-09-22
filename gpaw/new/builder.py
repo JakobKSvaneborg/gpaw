@@ -69,7 +69,12 @@ class DFTComponentsBuilder:
         self.nspins = self.ncomponents % 3
         self.spin_degeneracy = self.ncomponents % 2 + 1
 
-        xcfunc = params.xc.functional(collinear=(self.ncomponents < 4))
+        self.relpos_ac = self.atoms.get_scaled_positions()
+        self.relpos_ac %= 1
+        self.relpos_ac %= 1  # yes, we need to do this twice!
+
+        xcfunc = params.xc.functional(collinear=(self.ncomponents < 4),
+                                      self.relpos_ac)
 
         if self.ncomponents == 4 and xcfunc.type != 'LDA':
             raise ValueError('Only LDA supported for '
@@ -142,10 +147,6 @@ class DFTComponentsBuilder:
             self.dtype = params.mode.dtype
 
         self.grid, self.fine_grid = self.create_uniform_grids()
-
-        self.relpos_ac = self.atoms.get_scaled_positions()
-        self.relpos_ac %= 1
-        self.relpos_ac %= 1  # yes, we need to do this twice!
 
         self.xc = create_functional(xcfunc, self.fine_grid, self.xp)
 
