@@ -113,6 +113,9 @@ def parse_arguments(argv):
     # With gpaw-python BLAS symbols are in global scope and we need to
     # ensure that NumPy and SciPy use symbols from their own dependencies
     if is_gpaw_python:
+        warnings.warn("`gpaw-python` is deprecated. Please use `gpaw python` "
+                      "or plain `python` instead.", FutureWarning)
+
         old_dlopen_flags = sys.getdlopenflags()
         sys.setdlopenflags(old_dlopen_flags | os.RTLD_DEEPBIND)
 
