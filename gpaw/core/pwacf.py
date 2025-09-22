@@ -240,13 +240,11 @@ class PWLFC:  # (BaseLFC)
         self.pos_av = xp.asarray(np.dot(spos_ac, self.pw.cell),
                                  dtype=as_real_dtype(self.dtype))
 
-        self.pos_avT = xp.asarray(self.pos_av.T,
-                                  as_real_dtype(self.dtype))
         self.G_plus_k_Gv = self.xp.asarray(self.pw.G_plus_k_Gv,
                                            as_real_dtype(self.dtype))
 
         if xp is np:
-            GkR_Ga = self.G_plus_k_Gv @ self.pos_avT
+            GkR_Ga = self.G_plus_k_Gv @ self.pos_av.T
             self.emiGR_Ga = np.exp(-1j * GkR_Ga) * self.eikR_a
 
         rank_a = atomdist.rank_a
@@ -549,8 +547,8 @@ class PWLFC:  # (BaseLFC)
         if xp is np:
             emiGR_Ga = self.emiGR_Ga[G1:G2]
         else:
-            GkR_Ga = self.G_plus_k_Gv @ self.pos_avT
-            emiGR_Ga = np.exp(-1j * GkR_Ga) * self.eikR_a
+            GkR_Ga = self.G_plus_k_Gv[G1:G2] @ self.pos_av.T
+            emiGR_Ga = xp.exp(-1j * GkR_Ga) * self.eikR_a
         Y_LG = self.Y_GL.T
         for a, l, I1, I2, f_G, dfdGoG_G in things:
             L1 = l**2
