@@ -74,7 +74,7 @@ class DFTComponentsBuilder:
         self.relpos_ac %= 1  # yes, we need to do this twice!
 
         xcfunc = params.xc.functional(collinear=(self.ncomponents < 4),
-                                      self.relpos_ac)
+                                      atoms=self.atoms)
 
         if self.ncomponents == 4 and xcfunc.type != 'LDA':
             raise ValueError('Only LDA supported for '
