@@ -71,6 +71,7 @@ class PotentialCalculator:
     def move(self, relpos_ac, atomdist):
         for ext in self.extensions:
             ext.move_atoms(relpos_ac)
+        getattr(self.xc.xc, 'move', lambda relpos_ac: None)(relpos_ac)
 
     def calculate_charges(self, vHt_x):
         raise NotImplementedError
@@ -225,7 +226,7 @@ def calculate_non_local_potential1(setup: Setup,
         dH_sp[1:4] = pack_hermitian(dHsoc_sii)
 
     dH_sp[:ndensities] = dH_p
-    e_xc = xc.calculate_paw_correction(setup, D_sp, dH_sp)
+    e_xc = xc.calculate_paw_correction(setup, D_sp, dH_sp, a=atom_index)
 
     # e_external = ext_pot.add_paw_correction(setup.Delta_pL[:, 0], dH_sp)
 
