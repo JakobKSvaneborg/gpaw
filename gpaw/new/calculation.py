@@ -444,6 +444,7 @@ class DFTCalculation:
 
         potential, energies, _ = pot_calc.calculate(density)
 
+        ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         old_ibzwfs = ibzwfs
 
         def create_wfs(spin, q, k, kpt_c, weight):
