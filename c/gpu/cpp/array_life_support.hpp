@@ -50,7 +50,7 @@ public:
         {
             objects.push_back(obj);
         }
-    #endif GPAW_GPU_LIFETIME_GUARD
+    #endif
         return data;
     }
 

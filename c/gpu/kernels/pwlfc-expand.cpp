@@ -21,7 +21,9 @@
 #define THIRD  0.33333333333333333
 #define NMIN   1.0E-10
 
-template <typename Tcomplex, typename Trealm, typename Tindex>
+typedef long gpaw_index_t;
+
+template <typename Tcomplex, typename Treal, typename Tindex>
 __global__ void calculate_residual_kernel(Tindex nG, Tindex nn,
 					       				  Tcomplex* residual_nG,
 										  Treal* eps_n,
@@ -76,7 +78,7 @@ __global__ void pw_amend_insert_realwf(Tindex nb,
 }
 
 
-CLINKAGE void calculate_residual_launch_kernel(
+template <typename indextype> void dispatch_calculate_residual_kernel(
 				      int dtypenum,
 					  int nG,
 				      int nn,
@@ -85,11 +87,6 @@ CLINKAGE void calculate_residual_launch_kernel(
 				      void* wf_nG,
 					  gpuStream_t stream)
 {
-    if ((nG == 0) || (nn == 0))
-    {
-        return;
-    }
-
 	const dim3 blocks((nn+15)/16, (nG+15)/16);
 	const dim3 threads(16, 16);
 	const int shmem = 0;
@@ -97,7 +94,7 @@ CLINKAGE void calculate_residual_launch_kernel(
     if (dtypenum==NP_DOUBLE_COMPLEX)
     {
 		gpaw::launch_kernel(
-			calculate_residual_kernel<gpuDoubleComplex, double>,
+			calculate_residual_kernel<gpuDoubleComplex, double, indextype>,
 			blocks,
 			threads,
 			shmem,
@@ -112,7 +109,7 @@ CLINKAGE void calculate_residual_launch_kernel(
     else if (dtypenum==NP_FLOAT_COMPLEX)
     {
 		gpaw::launch_kernel(
-			calculate_residual_kernel<gpuFloatComplex, float>,
+			calculate_residual_kernel<gpuFloatComplex, float, indextype>,
 			blocks,
 			threads,
 			shmem,
@@ -127,7 +124,7 @@ CLINKAGE void calculate_residual_launch_kernel(
 	else if (dtypenum==NP_FLOAT)
 	{
 		gpaw::launch_kernel(
-			calculate_residual_kernel<float, float>,
+			calculate_residual_kernel<float, float, indextype>,
 			blocks,
 			threads,
 			shmem,
@@ -142,7 +139,7 @@ CLINKAGE void calculate_residual_launch_kernel(
 	else if (dtypenum==NP_DOUBLE)
 	{
 		gpaw::launch_kernel(
-			calculate_residual_kernel<double, double>,
+			calculate_residual_kernel<double, double, indextype>,
 			blocks,
 			threads,
 			shmem,
@@ -158,6 +155,33 @@ CLINKAGE void calculate_residual_launch_kernel(
 	{
 		assert(false);
 	}
+}
+
+
+
+CLINKAGE void calculate_residual_launch_kernel(
+				      int dtypenum,
+					  int nG,
+				      int nn,
+				      void* residual_nG,
+				      void* eps_n,
+				      void* wf_nG,
+					  gpuStream_t stream,
+                      bool index_32_bit)
+{
+    if ((nG == 0) || (nn == 0))
+    {
+        return;
+    }
+
+    if (index_32_bit)
+    {
+        dispatch_calculate_residual_kernel<int>(dtypenum, nG, nn, residual_nG, eps_n, wf_nG, stream);
+    }
+    else
+    {
+        dispatch_calculate_residual_kernel<long>(dtypenum, nG, nn, residual_nG, eps_n, wf_nG, stream);
+    }
 }
 
 
@@ -596,22 +620,22 @@ CLINKAGE void add_to_density_gpu_launch_kernel(int nb,
 
     if (dtypenum==NP_DOUBLE_COMPLEX)
     {
-		gpaw::launch_kernel(add_to_density<gpuDoubleComplex, double>, blocks, threads, shmem, stream,
+		gpaw::launch_kernel(add_to_density<gpuDoubleComplex, double, gpaw_index_t>, blocks, threads, shmem, stream,
 			nb, nR, f_n, static_cast<gpuDoubleComplex*>(psit_nR), rho_R);
     }
     else if (dtypenum==NP_FLOAT_COMPLEX)
     {
-		gpaw::launch_kernel(add_to_density<gpuFloatComplex, float>, blocks, threads, shmem, stream,
+		gpaw::launch_kernel(add_to_density<gpuFloatComplex, float, gpaw_index_t>, blocks, threads, shmem, stream,
 			nb, nR, f_n, static_cast<gpuFloatComplex*>(psit_nR), rho_R);
     }
 	else if (dtypenum==NP_FLOAT)
     {
-        gpaw::launch_kernel(add_to_density<float, float>, blocks, threads, shmem, stream,
+        gpaw::launch_kernel(add_to_density<float, float, gpaw_index_t>, blocks, threads, shmem, stream,
 			nb, nR, f_n, static_cast<float*>(psit_nR), rho_R);
     }
 	else if (dtypenum==NP_DOUBLE)
     {
-        gpaw::launch_kernel(add_to_density<double, double>, blocks, threads, shmem, stream,
+        gpaw::launch_kernel(add_to_density<double, double, gpaw_index_t>, blocks, threads, shmem, stream,
 			nb, nR, f_n, static_cast<double*>(psit_nR), rho_R);
     }
     else
@@ -639,7 +663,7 @@ CLINKAGE void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
 	if (dtypenum == NP_DOUBLE_COMPLEX)
 	{
 		gpaw::launch_kernel(
-			pw_amend_insert_realwf<gpuDoubleComplex>,
+			pw_amend_insert_realwf<gpuDoubleComplex, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -656,7 +680,7 @@ CLINKAGE void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
 	else if (dtypenum == NP_FLOAT_COMPLEX)
 	{
 		gpaw::launch_kernel(
-			pw_amend_insert_realwf<gpuFloatComplex>,
+			pw_amend_insert_realwf<gpuFloatComplex, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -736,7 +760,7 @@ CLINKAGE void pw_insert_gpu_launch_kernel(
 			if (dtypenum == NP_DOUBLE_COMPLEX)
 			{
 				gpaw::launch_kernel(
-					pw_insert_many<gpuDoubleComplex, double>,
+					pw_insert_many<gpuDoubleComplex, double, gpaw_index_t>,
 					blocks,
 					threads,
 					shmem,
@@ -753,7 +777,7 @@ CLINKAGE void pw_insert_gpu_launch_kernel(
 			else if (dtypenum == NP_FLOAT_COMPLEX)
 			{
 				gpaw::launch_kernel(
-					pw_insert_many<gpuFloatComplex, float>,
+					pw_insert_many<gpuFloatComplex, float, gpaw_index_t>,
 					blocks,
 					threads,
 					shmem,
@@ -789,7 +813,7 @@ CLINKAGE void pw_insert_gpu_launch_kernel(
 		if (dtypenum == NP_DOUBLE_COMPLEX)
 		{
 			gpaw::launch_kernel(
-				pw_amend_insert_realwf<gpuDoubleComplex>,
+				pw_amend_insert_realwf<gpuDoubleComplex, gpaw_index_t>,
 				blocks,
 				threads,
 				shmem,
@@ -800,7 +824,7 @@ CLINKAGE void pw_insert_gpu_launch_kernel(
 		else if (dtypenum == NP_FLOAT_COMPLEX)
 		{
 			gpaw::launch_kernel(
-				pw_amend_insert_realwf<gpuFloatComplex>,
+				pw_amend_insert_realwf<gpuFloatComplex, gpaw_index_t>,
 				blocks,
 				threads,
 				shmem,
@@ -946,13 +970,13 @@ __global__ void pw_norm_kinetic_kernel(Tindex nx, Tindex nG,
 	// Double check this line (and next)
 	extern __shared__ __align__(sizeof(double)) unsigned char my_sdata[];
 	Treal *sdata = reinterpret_cast<Treal *>(my_sdata);
-    unsigned Tindex tid = threadIdx.x;
+    Tindex tid = threadIdx.x;
 
     sdata[tid] = 0;
-    unsigned Tindex x = blockIdx.x;
+    Tindex x = blockIdx.x;
 
     Treal* C_G = C_xG + (x * nG * 2); // C_xG is a Treal complex array
-    unsigned Tindex i = tid;
+    Tindex i = tid;
     while (i < nG)
     {
         Treal kin_i = kin_G[i] * (C_G[i*2] * C_G[i*2] + C_G[i*2+1] * C_G[i*2+1]);
@@ -974,13 +998,13 @@ __global__ void pw_norm_kernel(Tindex nx, Tindex nG,
 {
     extern __shared__ __align__(sizeof(double)) unsigned char my_sdata[];
 	Treal *sdata = reinterpret_cast<Treal *>(my_sdata);
-    unsigned Tindex tid = threadIdx.x;
+    Tindex tid = threadIdx.x;
 
     sdata[tid] = 0;
-    unsigned Tindex x = blockIdx.x;
+    Tindex x = blockIdx.x;
 
     Treal* C_G = C_xG + (x * nG * 2); // C_xG is a double complex array
-    unsigned Tindex i = tid;
+    Tindex i = tid;
     while (i < nG)
     {
         Treal kin_i = C_G[i*2] * C_G[i*2] + C_G[i*2+1] * C_G[i*2+1];
@@ -1012,7 +1036,7 @@ CLINKAGE void dH_aii_times_P_ani_launch_kernel(int dtypenum,
     if (dtypenum == NP_DOUBLE_COMPLEX)
     {
 		gpaw::launch_kernel(
-			dH_aii_times_P_ani<gpuDoubleComplex, double>,
+			dH_aii_times_P_ani<gpuDoubleComplex, double, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -1026,7 +1050,7 @@ CLINKAGE void dH_aii_times_P_ani_launch_kernel(int dtypenum,
     else if (dtypenum == NP_FLOAT_COMPLEX)
 	{
 		gpaw::launch_kernel(
-			dH_aii_times_P_ani<gpuFloatComplex, float>,
+			dH_aii_times_P_ani<gpuFloatComplex, float, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -1040,7 +1064,7 @@ CLINKAGE void dH_aii_times_P_ani_launch_kernel(int dtypenum,
 	else if (dtypenum == NP_DOUBLE)
     {
 		gpaw::launch_kernel(
-			dH_aii_times_P_ani<double, double>,
+			dH_aii_times_P_ani<double, double, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -1054,7 +1078,7 @@ CLINKAGE void dH_aii_times_P_ani_launch_kernel(int dtypenum,
 	else if (dtypenum == NP_FLOAT)
 	{
 		gpaw::launch_kernel(
-			dH_aii_times_P_ani<float, float>,
+			dH_aii_times_P_ani<float, float, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -1083,7 +1107,7 @@ CLINKAGE void pw_norm_gpu_launch_kernel(int dtypenum,
 	if (dtypenum == NP_DOUBLE_COMPLEX)
 	{
 		gpaw::launch_kernel(
-			pw_norm_kernel<512, double>,
+			pw_norm_kernel<512, double, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -1097,7 +1121,7 @@ CLINKAGE void pw_norm_gpu_launch_kernel(int dtypenum,
 	else if (dtypenum == NP_FLOAT_COMPLEX)
 	{
 		gpaw::launch_kernel(
-			pw_norm_kernel<512, float>,
+			pw_norm_kernel<512, float, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -1126,7 +1150,7 @@ CLINKAGE void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
 	if (dtypenum == NP_DOUBLE_COMPLEX)
 	{
 		gpaw::launch_kernel(
-			pw_norm_kinetic_kernel<512, double>,
+			pw_norm_kinetic_kernel<512, double, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -1141,7 +1165,7 @@ CLINKAGE void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
 	else if (dtypenum == NP_FLOAT_COMPLEX)
 	{
 		gpaw::launch_kernel(
-			pw_norm_kinetic_kernel<512, float>,
+			pw_norm_kinetic_kernel<512, float, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -1187,10 +1211,10 @@ CLINKAGE void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 
 	if (dtypenum == NP_DOUBLE_COMPLEX)
 	{
-		auto kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, false, false>;
+		auto kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, gpaw_index_t, false, false>;
 		if (cc)
 		{
-			kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, false, true>;
+			kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, gpaw_index_t, false, true>;
 		}
 
 		gpaw::launch_kernel(
@@ -1219,10 +1243,10 @@ CLINKAGE void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 	}
 	else if (dtypenum == NP_DOUBLE)
 	{
-		auto kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, true, false>;
+		auto kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, gpaw_index_t, true, false>;
 		if (cc)
 		{
-			kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, true, true>;
+			kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, gpaw_index_t, true, true>;
 		}
 
 		gpaw::launch_kernel(
@@ -1251,10 +1275,10 @@ CLINKAGE void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 	}
 	else if (dtypenum == NP_FLOAT_COMPLEX)
 	{
-		auto kernel = pwlfc_expand_kernel<gpuFloatComplex, float, false, false>;
+		auto kernel = pwlfc_expand_kernel<gpuFloatComplex, float, gpaw_index_t, false, false>;
 		if (cc)
 		{
-			kernel = pwlfc_expand_kernel<gpuFloatComplex, float, false, true>;
+			kernel = pwlfc_expand_kernel<gpuFloatComplex, float, gpaw_index_t, false, true>;
 		}
 
 		gpaw::launch_kernel(
@@ -1283,10 +1307,10 @@ CLINKAGE void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 	}
 	else if (dtypenum == NP_FLOAT)
 	{
-		auto kernel = pwlfc_expand_kernel<gpuFloatComplex, float, true, false>;
+		auto kernel = pwlfc_expand_kernel<gpuFloatComplex, float, gpaw_index_t, true, false>;
 		if (cc)
 		{
-			kernel = pwlfc_expand_kernel<gpuFloatComplex, float, true, true>;
+			kernel = pwlfc_expand_kernel<gpuFloatComplex, float, gpaw_index_t, true, true>;
 		}
 
 		gpaw::launch_kernel(
