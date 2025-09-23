@@ -21,14 +21,14 @@
 #define THIRD  0.33333333333333333
 #define NMIN   1.0E-10
 
-template <typename Tcomplex, typename Treal>
-__global__ void calculate_residual_kernel(int nG, int nn,
+template <typename Tcomplex, typename Trealm, typename Tindex>
+__global__ void calculate_residual_kernel(Tindex nG, Tindex nn,
 					       				  Tcomplex* residual_nG,
 										  Treal* eps_n,
 										  Tcomplex* wf_nG)
 {
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
-    int g = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex n = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex g = threadIdx.y + blockIdx.y * blockDim.y;
     if ((g < nG) && (n < nn))
     {
 		residual_nG[n*nG + g] = residual_nG[n*nG + g] - wf_nG[n*nG + g] * eps_n[n];
@@ -38,11 +38,12 @@ __global__ void calculate_residual_kernel(int nG, int nn,
 // This is the [i,j,0] slice of contiguous array
 #define MAT(array, nx, ny, nz, b, i, j) (array[(b) * (nx) * (ny) * (nz) + (i) * (ny) * (nz) + (j) * (nz)])
 
-template <typename Tcomplex>
-__global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, int m, Tcomplex* array_nQ)
+template <typename Tcomplex, typename Tindex>
+__global__ void pw_amend_insert_realwf(Tindex nb,
+	Tindex nx, Tindex ny, Tindex nz, Tindex n, Tindex m, Tcomplex* array_nQ)
 {
-    int b = threadIdx.x + blockIdx.x * blockDim.x;
-    int i = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex b = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex i = threadIdx.y + blockIdx.y * blockDim.y;
     if (b < nb)
     {
         // t[0, -m:] = t[0, m:0:-1].conj()
@@ -55,7 +56,7 @@ __global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, in
 
         if (i < n)
         {
-            for (int j=0; j<m; j++)
+            for (Tindex j=0; j<m; j++)
             {
                 // t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
                 Tcomplex value = MAT(array_nQ, nx, ny, nz, b, nx - n + i, m - j);
@@ -511,17 +512,17 @@ CLINKAGE void evaluate_lda_launch_kernel(int nspin, int ng,
     }
 }
 
-template <typename Tcomplex, typename Treal>
-__global__ void pw_insert_many(int nb,
-				  int nG,
-				  int nQ,
+template <typename Tcomplex, typename Treal, typename Tindex>
+__global__ void pw_insert_many(Tindex nb,
+				  Tindex nG,
+				  Tindex nQ,
 				  Tcomplex* c_nG,
 				  npy_int32* Q_G,
 				  Treal scale,
 				  Tcomplex* tmp_nQ)
 {
-    int G = threadIdx.x + blockIdx.x * blockDim.x;
-    int b = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex G = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex b = threadIdx.y + blockIdx.y * blockDim.y;
     __shared__ npy_int32 locQ_G[16];
     if (threadIdx.y == 0)
 	locQ_G[threadIdx.x] = Q_G[G];
@@ -534,22 +535,22 @@ __global__ void pw_insert_many(int nb,
     }
 }
 
-template <typename Tcomplex, typename Treal>
-__global__ void add_to_density(int nb,
-			       int nR,
+template <typename Tcomplex, typename Treal, typename Tindex>
+__global__ void add_to_density(Tindex nb,
+			       Tindex nR,
 			       double* f_n,
 			       Tcomplex* psit_nR,
 			       double* rho_R)
 {
     constexpr bool realtype = std::is_same<Tcomplex, Treal>::value;
 
-    int R = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex R = threadIdx.x + blockIdx.x * blockDim.x;
     if (R < nR)
     {
 	double rho = 0.0;
-	for (int b=0; b< nb; b++)
+	for (Tindex b=0; b< nb; b++)
 	{
-	    int idx = b * nR + R;
+	    Tindex idx = b * nR + R;
 	    if constexpr(realtype) {
 	    	rho += f_n[b] * double(psit_nR[idx] * psit_nR[idx]);
 	    } else {
@@ -810,7 +811,7 @@ CLINKAGE void pw_insert_gpu_launch_kernel(
     }
 }
 
-template <typename Tcomplex, typename Treal, bool strided, bool cc>
+template <typename Tcomplex, typename Treal, typename Tindex, bool strided, bool cc>
 __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 				       Treal* Gk_Gv,
 					   Treal* pos_av,
@@ -821,16 +822,16 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 				       int* s_J,
 				       int* I_J,
 				       Treal* f_GI,
-				       int nG,
-				       int nJ,
-				       int nL,
-				       int nI,
+				       Tindex nG,
+				       Tindex nJ,
+				       Tindex nL,
+				       Tindex nI,
 				       int natoms,
 				       int nsplines)
 
 {
-    int G = threadIdx.x + blockIdx.x * blockDim.x;
-    int J = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex G = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex J = threadIdx.y + blockIdx.y * blockDim.y;
 
 	__shared__ Tcomplex imag_powers[4];
 	if (threadIdx.y == 0 && threadIdx.x == 0)
@@ -854,13 +855,13 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 		       	   Gk_Gv[1] * pos_av[1] +
 		           Gk_Gv[2] * pos_av[2]);
 	Tcomplex emiGR = {cos(GkPos), -sin(GkPos)};
-	int s = s_J[J];
-	int l = l_s[s];
+	Tindex s = s_J[J];
+	Tindex l = l_s[s];
 	Y_GL += G*nL + l*l;
 	Tcomplex f1 = emiGR * eikR_a[a_J[J]] * imag_powers[l % 4] * f_Gs[s];
 	if constexpr(strided) {
 		f_GI += G*nI*2 + I_J[J];
-		for (int m = 0; m < 2 * l + 1; m++) {
+		for (Tindex m = 0; m < 2 * l + 1; m++) {
 	    	Tcomplex f = f1 * Y_GL[m];
 	    	f_GI[0] = f.x;
 			if constexpr(cc)
@@ -871,7 +872,7 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 		}
 	} else {
 		f_GI += (G*nI + I_J[J])*2;
-	    for (int m = 0; m < 2 * l + 1; m++) {
+	    for (Tindex m = 0; m < 2 * l + 1; m++) {
 	        Tcomplex f = f1 * Y_GL[m];
 	        *f_GI++ = f.x;
 			if constexpr(cc)
@@ -884,22 +885,22 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
     }
 }
 
-template <typename Tcomplex, typename Treal>
-__global__ void dH_aii_times_P_ani(int nA, int nn, int nI,
+template <typename Tcomplex, typename Treal, typename Tindex>
+__global__ void dH_aii_times_P_ani(Tindex nA, Tindex nn, Tindex nI,
 				      npy_int32* ni_a,
 					  Treal* dH_aii_dev,
 				      Tcomplex* P_ani_dev,
 				      Tcomplex* outP_ani_dev)
 {
-    int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex n1 = threadIdx.x + blockIdx.x * blockDim.x;
     if (n1 < nn) {
 	Treal* dH_ii = dH_aii_dev;
-	int I = 0;
-	for (int a=0; a< nA; a++)
+	Tindex I = 0;
+	for (Tindex a=0; a< nA; a++)
 	{
-	    int ni = ni_a[a];
-	    int Istart = I;
-	    for (int i=0; i< ni; i++)
+	    Tindex ni = ni_a[a];
+	    Tindex Istart = I;
+	    for (Tindex i=0; i< ni; i++)
 	    {
 		Tcomplex* outP_ni = outP_ani_dev + n1 * nI + I;
 		Tcomplex result;
@@ -909,7 +910,7 @@ __global__ void dH_aii_times_P_ani(int nA, int nn, int nI,
 			result = {0.0, 0.0};
 		}
 		Tcomplex* P_ni = P_ani_dev + n1 * nI + Istart;
-		for (int i2=0; i2 < ni; i2++)
+		for (Tindex i2=0; i2 < ni; i2++)
 		{
 		   result = result + *P_ni * dH_ii[i2 * ni + i];
 		   P_ni++;
@@ -936,8 +937,8 @@ if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
 
 
 // One block will always sum one G-vector. Thus, no block wide reduce.
-template <unsigned int blockSize, typename Treal>
-__global__ void pw_norm_kinetic_kernel(int nx, int nG,
+template <unsigned int blockSize, typename Treal, typename Tindex>
+__global__ void pw_norm_kinetic_kernel(Tindex nx, Tindex nG,
                                        Treal* result_x,
                                        Treal* C_xG,
                                        Treal* kin_G)
@@ -945,13 +946,13 @@ __global__ void pw_norm_kinetic_kernel(int nx, int nG,
 	// Double check this line (and next)
 	extern __shared__ __align__(sizeof(double)) unsigned char my_sdata[];
 	Treal *sdata = reinterpret_cast<Treal *>(my_sdata);
-    unsigned int tid = threadIdx.x;
+    unsigned Tindex tid = threadIdx.x;
 
     sdata[tid] = 0;
-    unsigned int x = blockIdx.x;
+    unsigned Tindex x = blockIdx.x;
 
     Treal* C_G = C_xG + (x * nG * 2); // C_xG is a Treal complex array
-    unsigned int i = tid;
+    unsigned Tindex i = tid;
     while (i < nG)
     {
         Treal kin_i = kin_G[i] * (C_G[i*2] * C_G[i*2] + C_G[i*2+1] * C_G[i*2+1]);
@@ -966,20 +967,20 @@ __global__ void pw_norm_kinetic_kernel(int nx, int nG,
     if (tid == 0) result_x[x] = sdata[0];
 }
 
-template <unsigned int blockSize, typename Treal>
-__global__ void pw_norm_kernel(int nx, int nG,
+template <unsigned int blockSize, typename Treal, typename Tindex>
+__global__ void pw_norm_kernel(Tindex nx, Tindex nG,
                                Treal* result_x,
                                Treal* C_xG)
 {
     extern __shared__ __align__(sizeof(double)) unsigned char my_sdata[];
 	Treal *sdata = reinterpret_cast<Treal *>(my_sdata);
-    unsigned int tid = threadIdx.x;
+    unsigned Tindex tid = threadIdx.x;
 
     sdata[tid] = 0;
-    unsigned int x = blockIdx.x;
+    unsigned Tindex x = blockIdx.x;
 
     Treal* C_G = C_xG + (x * nG * 2); // C_xG is a double complex array
-    unsigned int i = tid;
+    unsigned Tindex i = tid;
     while (i < nG)
     {
         Treal kin_i = C_G[i*2] * C_G[i*2] + C_G[i*2+1] * C_G[i*2+1];
