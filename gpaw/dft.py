@@ -544,10 +544,10 @@ class XC(Parameter):
     def todict(self):
         return {'name': self.name, **self.kwargs}
 
-    def functional(self, collinear):
+    def functional(self, *, collinear: bool, atoms: Atoms | None = None):
         from gpaw.xc import XC as xc
         return xc({'name': self.name, **self.kwargs},
-                  collinear=collinear)
+                  collinear=collinear, atoms=atoms)
 
     @classmethod
     def from_param(cls, xc):
