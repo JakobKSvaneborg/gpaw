@@ -24,6 +24,7 @@ variables:
 default:
   before_script:
     - export PYTHONUSERBASE=`realpath $PYTHONUSERBASE`
+    - export GPAW_MPI4PY=1
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
     - export PYTEST_ADDOPTS="--color=yes"
