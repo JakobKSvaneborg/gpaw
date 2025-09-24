@@ -631,7 +631,7 @@ class _Communicator:
         This method corresponds to MPI_Comm_compare."""
         if isinstance(self.comm, SerialCommunicator):
             return self.comm.compare(othercomm.comm)  # argh!
-        result = self.comm.compare(othercomm.get_c_object())
+        result = self.comm.compare(othercomm.comm)
         assert result in ['ident', 'congruent', 'similar', 'unequal']
         return result
 
@@ -649,7 +649,7 @@ class _Communicator:
         assert all(rank < self.size for rank in ranks)
         if isinstance(self.comm, SerialCommunicator):
             return self.comm.translate_ranks(other.comm, ranks)  # argh!
-        otherranks = self.comm.translate_ranks(other.get_c_object(), ranks)
+        otherranks = self.comm.translate_ranks(other.comm, ranks)
         assert all(-1 <= rank for rank in otherranks)
         assert ranks.dtype == otherranks.dtype
         return otherranks

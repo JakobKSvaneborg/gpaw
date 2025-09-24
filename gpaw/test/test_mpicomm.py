@@ -27,8 +27,9 @@ def test_mpicomm():
     assert world.parent is None
     assert comm.parent is world
     if hasmpi:
-        assert comm.parent.get_c_object() is world.get_c_object()
-        assert comm.get_c_object().parent is world.get_c_object()
+        # Compare pointers (as PyLongs)
+        assert comm.parent.get_c_object() == world.get_c_object()
+        # assert comm.get_c_object().parent is world.get_c_object()
 
     commranks = np.arange(world.rank % 2, world.size, 2)
     assert np.all(comm.get_members() == commranks)
