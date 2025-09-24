@@ -10,7 +10,6 @@ import traceback
 from contextlib import contextmanager
 from typing import Any
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
 import warnings
 from ase.parallel import MPI as ASE_MPI

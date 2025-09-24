@@ -1,10 +1,11 @@
 try:
-    from mpi4py.MPI import Request, SUM, MAX, MIN, IN_PLACE, IDENT, CONGRUENT, SIMILAR, UNEQUAL, _addressof
+    from mpi4py.MPI import (Request, SUM, MAX, MIN, IN_PLACE, IDENT,
+                            CONGRUENT, SIMILAR, UNEQUAL, _addressof)
 except ImportError:
     pass
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
+
 
 class MPI4PYWrapper:
     def __init__(self, comm, parent=None):
@@ -23,7 +24,7 @@ class MPI4PYWrapper:
 
     def max_scalar(self, a, root=-1):
         return self.sum_scalar(a, root=-1, _op=MAX)
-    
+
     def min_scalar(self, a, root=-1):
         return self.sum_scalar(a, root=-1, _op=MIN)
 
@@ -132,8 +133,10 @@ class MPI4PYWrapper:
             raise ValueError(f'Unknown compare code {code}')
 
     def translate_ranks(self, other, ranks):
-        return np.array(self.comm.Get_group().Translate_ranks(ranks, other.comm.Get_group()))
-    
+        return np.array(
+            self.comm.Get_group().Translate_ranks(ranks,
+                                                  other.comm.Get_group()))
+
     def get_members(self):
         from gpaw.mpi import world
         return self.translate_ranks(world, np.arange(self.size))

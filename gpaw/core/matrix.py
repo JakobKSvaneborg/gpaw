@@ -779,8 +779,7 @@ class BLACSDistribution(MatrixDistribution):
                 context = cgpaw.new_blacs_context(comm.get_c_object(),
                                                   c, r, 'R')
             except AttributeError:
-                raise AttributeError('BLACS is not available')
-                #pass
+                pass
             else:
                 _global_blacs_context_store[key] = context
 
