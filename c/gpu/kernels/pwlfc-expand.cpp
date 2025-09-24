@@ -22,9 +22,9 @@
 #define NMIN   1.0E-10
 
 #ifdef GPAW_64_BIT_INDEXING
-typedef uint64_t gpaw_index_t;
+typedef int64_t gpaw_index_t;
 #else
-typedef unsigned int gpaw_index_t;
+typedef int gpaw_index_t;
 #endif
 
 template <typename Tcomplex, typename Treal, typename Tindex>
