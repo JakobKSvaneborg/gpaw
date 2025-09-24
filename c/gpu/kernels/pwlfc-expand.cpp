@@ -82,19 +82,6 @@ __global__ void pw_amend_insert_realwf(Tindex nb,
 }
 
 
-template <typename indextype> void dispatch_calculate_residual_kernel(
-				      int dtypenum,
-					  int nG,
-				      int nn,
-				      void* residual_nG,
-				      void* eps_n,
-				      void* wf_nG,
-					  gpuStream_t stream)
-{
-}
-
-
-
 CLINKAGE void calculate_residual_launch_kernel(
 				      int dtypenum,
 					  int nG,

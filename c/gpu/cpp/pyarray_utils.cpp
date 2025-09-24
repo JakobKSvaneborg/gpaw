@@ -6,7 +6,6 @@ namespace gpaw
 
 bool Array_32BIT(PyObject* obj)
 {
-    // Equivalent to obj.data.ptr
     PyObject* index_32_bits = PyObject_GetAttrString(obj, "_index_32_bits");
     if (index_32_bits == nullptr)
     {
