@@ -21,7 +21,11 @@
 #define THIRD  0.33333333333333333
 #define NMIN   1.0E-10
 
-typedef long gpaw_index_t;
+#ifdef GPAW_64_BIT_INDEXING
+typedef uint64_t gpaw_index_t;
+#else
+typedef unsigned int gpaw_index_t;
+#endif
 
 template <typename Tcomplex, typename Treal, typename Tindex>
 __global__ void calculate_residual_kernel(Tindex nG, Tindex nn,
@@ -87,6 +91,24 @@ template <typename indextype> void dispatch_calculate_residual_kernel(
 				      void* wf_nG,
 					  gpuStream_t stream)
 {
+}
+
+
+
+CLINKAGE void calculate_residual_launch_kernel(
+				      int dtypenum,
+					  int nG,
+				      int nn,
+				      void* residual_nG,
+				      void* eps_n,
+				      void* wf_nG,
+					  gpuStream_t stream)
+{
+    if ((nG == 0) || (nn == 0))
+    {
+        return;
+    }
+
 	const dim3 blocks((nn+15)/16, (nG+15)/16);
 	const dim3 threads(16, 16);
 	const int shmem = 0;
@@ -94,7 +116,7 @@ template <typename indextype> void dispatch_calculate_residual_kernel(
     if (dtypenum==NP_DOUBLE_COMPLEX)
     {
 		gpaw::launch_kernel(
-			calculate_residual_kernel<gpuDoubleComplex, double, indextype>,
+			calculate_residual_kernel<gpuDoubleComplex, double, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -109,7 +131,7 @@ template <typename indextype> void dispatch_calculate_residual_kernel(
     else if (dtypenum==NP_FLOAT_COMPLEX)
     {
 		gpaw::launch_kernel(
-			calculate_residual_kernel<gpuFloatComplex, float, indextype>,
+			calculate_residual_kernel<gpuFloatComplex, float, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -124,7 +146,7 @@ template <typename indextype> void dispatch_calculate_residual_kernel(
 	else if (dtypenum==NP_FLOAT)
 	{
 		gpaw::launch_kernel(
-			calculate_residual_kernel<float, float, indextype>,
+			calculate_residual_kernel<float, float, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -139,7 +161,7 @@ template <typename indextype> void dispatch_calculate_residual_kernel(
 	else if (dtypenum==NP_DOUBLE)
 	{
 		gpaw::launch_kernel(
-			calculate_residual_kernel<double, double, indextype>,
+			calculate_residual_kernel<double, double, gpaw_index_t>,
 			blocks,
 			threads,
 			shmem,
@@ -155,33 +177,6 @@ template <typename indextype> void dispatch_calculate_residual_kernel(
 	{
 		assert(false);
 	}
-}
-
-
-
-CLINKAGE void calculate_residual_launch_kernel(
-				      int dtypenum,
-					  int nG,
-				      int nn,
-				      void* residual_nG,
-				      void* eps_n,
-				      void* wf_nG,
-					  gpuStream_t stream,
-                      bool index_32_bit)
-{
-    if ((nG == 0) || (nn == 0))
-    {
-        return;
-    }
-
-    if (index_32_bit)
-    {
-        dispatch_calculate_residual_kernel<int>(dtypenum, nG, nn, residual_nG, eps_n, wf_nG, stream);
-    }
-    else
-    {
-        dispatch_calculate_residual_kernel<long>(dtypenum, nG, nn, residual_nG, eps_n, wf_nG, stream);
-    }
 }
 
 

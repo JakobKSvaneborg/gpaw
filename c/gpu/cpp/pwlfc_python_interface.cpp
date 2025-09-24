@@ -12,8 +12,7 @@ void calculate_residual_launch_kernel(int dtypenum,
                                       void* residual_ng,
                                       void* eps_n,
                                       void* wf_nG,
-                                      gpuStream_t stream,
-                                      bool index_32_bits);
+                                      gpuStream_t stream);
 
 void pwlfc_expand_gpu_launch_kernel(int dtypenum,
                                     void* f_Gs,
@@ -642,9 +641,7 @@ CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
 
     pinner.commit();
 
-    bool index_32_bits = gpaw::Array_32BIT(residual_nG_obj) && gpaw::Array_32BIT(eps_n_obj) && gpaw::Array_32BIT(wf_nG_obj);
-
-    calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG, 0, index_32_bits);
+    calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG, 0);
     pinner.schedule_unpin(0);
 
     if (PyErr_Occurred())
