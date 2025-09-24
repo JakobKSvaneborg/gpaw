@@ -15,30 +15,33 @@ from gpaw.new.c import GPU_AWARE_MPI
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('random', [False, True])
 def test_gpu(dtype, gpu, mode, random):
-    atoms = Atoms('H2')
-    atoms.positions[1, 0] = 0.75
-    atoms.center(vacuum=1.0)
-    if mode == 'fd':
-        kwargs = {'poissonsolver': FDPoissonSolver(),
-                  'h': 0.17}
-    else:
-        kwargs = {}
-    dft = DFT(
-        atoms,
-        mode={'name': mode,
-              'force_complex_dtype': dtype == complex},
-        random=random,
-        convergence={'density': 1e-8},
-        parallel={'gpu': gpu},
-        setups='paw',
-        **kwargs)
-    dft.converge()
-    dft.energy()
-    energy = dft.results['energy'] * Ha
-    if mode == 'pw':
-        assert energy == pytest.approx(-16.032945, abs=1e-6)
-    else:
-        assert energy == pytest.approx(5.07197289, abs=1e-6)
+    from cupy.cuda.stream import Stream
+    stream = Stream(non_blocking=False)
+    with stream:
+        atoms = Atoms('H2')
+        atoms.positions[1, 0] = 0.75
+        atoms.center(vacuum=1.0)
+        if mode == 'fd':
+            kwargs = {'poissonsolver': FDPoissonSolver(),
+                      'h': 0.17}
+        else:
+            kwargs = {}
+        dft = DFT(
+            atoms,
+            mode={'name': mode,
+                  'force_complex_dtype': dtype == complex},
+            random=random,
+            convergence={'density': 1e-8},
+            parallel={'gpu': gpu},
+            setups='paw',
+            **kwargs)
+        dft.converge()
+        dft.energy()
+        energy = dft.results['energy'] * Ha
+        if mode == 'pw':
+            assert energy == pytest.approx(-16.032945, abs=1e-6)
+        else:
+            assert energy == pytest.approx(5.07197289, abs=1e-6)
 
 
 @pytest.mark.gpu

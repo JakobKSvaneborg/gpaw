@@ -21,6 +21,25 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
                                 pw_insert_gpu, pwlfc_expand_gpu,
                                 pw_norm_kinetic_gpu, pw_norm_gpu)
 
+        from cupy.cuda.stream import get_current_stream
+        import functools
+        def s(fun):
+            @functools.wraps(fun)
+            def wrapper(*args):
+                return fun(*args, get_current_stream().ptr)
+            return wrapper
+
+        add_to_density_gpu = s(add_to_density_gpu)
+        calculate_residuals_gpu = s(calculate_residuals_gpu)
+        dH_aii_times_P_ani_gpu = s(dH_aii_times_P_ani_gpu)
+        evaluate_lda_gpu = s(evaluate_lda_gpu)
+        evaluate_pbe_gpu = s(evaluate_pbe_gpu)
+        pw_amend_insert_realwf_gpu = s(pw_amend_insert_realwf_gpu)
+        pw_insert_gpu = s(pw_insert_gpu)
+        pwlfc_expand_gpu = s(pwlfc_expand_gpu)
+        pw_norm_kinetic_gpu = s(pw_norm_kinetic_gpu)
+        pw_norm_gpu = s(pw_norm_gpu)
+
         w = trace(gpu=True)
         add_to_density_gpu = w(add_to_density_gpu)
         calculate_residuals_gpu = w(calculate_residuals_gpu)
@@ -32,6 +51,8 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
         pwlfc_expand_gpu = w(pwlfc_expand_gpu)
         pw_norm_kinetic_gpu = w(pw_norm_kinetic_gpu)
         pw_norm_gpu = w(pw_norm_gpu)
+
+
     else:
         from gpaw.purepython import (add_to_density_gpu,
                                      calculate_residuals_gpu,  # noqa
