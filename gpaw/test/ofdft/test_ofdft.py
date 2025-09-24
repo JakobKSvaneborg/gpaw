@@ -38,7 +38,9 @@ def test_ofdft_ofdft(in_tmp_dir):
                     txt='-',
                     xc=xcname,
                     setups=setups,
-                    eigensolver='cg', mixer=mixer, charge=charge)
+                    eigensolver='rmm-diis',
+                    mixer=mixer,
+                    charge=charge)
 
         atom.calc = calc
 

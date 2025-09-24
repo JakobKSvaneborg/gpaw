@@ -277,7 +277,8 @@ class DFTComponentsBuilder:
             self.initial_magmom_av.sum(0),
             self.ncomponents,
             self.nelectrons,
-            np.linalg.inv(self.atoms.cell.complete()).T)
+            np.linalg.inv(self.atoms.cell.complete()).T,
+            orbital_free=any(setup.orbital_free for setup in self.setups))
 
     def create_poisson_solver(self, extensions):
         poisson_solvers = []

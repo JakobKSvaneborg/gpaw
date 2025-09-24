@@ -14,13 +14,17 @@ class OccupationNumberCalculator:
                  magmom_v,
                  ncomponents,
                  nelectrons,
-                 rcell):
+                 rcell,
+                 orbital_free: bool = False):
         if not dct:
-            if pbc.any():
-                dct = {'name': 'fermi-dirac',
-                       'width': 0.1}  # eV
+            if not orbital_free:
+                if pbc.any():
+                    dct = {'name': 'fermi-dirac',
+                           'width': 0.1}  # eV
+                else:
+                    dct = {'width': 0.0}
             else:
-                dct = {'width': 0.0}
+                dct = {'name': 'orbital-free'}
 
         if dct.get('fixmagmom'):
             if ncomponents == 1:
