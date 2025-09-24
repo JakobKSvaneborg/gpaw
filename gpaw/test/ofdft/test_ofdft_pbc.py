@@ -24,7 +24,7 @@ def test_ofdft_ofdft_pbc(in_tmp_dir):
                 xc=xcname,
                 setups={'C': g},
                 maxiter=120,
-                eigensolver='cg',
+                eigensolver='rmm-diis',
                 mixer=mixer)
 
     atoms.calc = calc
