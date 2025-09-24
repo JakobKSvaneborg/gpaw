@@ -162,9 +162,6 @@ class QNA(GGA):
         self.Pa = LFC(gd, spline_j)
         self._pos_set = False
 
-    def move(self, relpos_ac):
-        self.set_positions(relpos_ac)
-
     def set_positions(self, spos_ac, atom_partition=None):
         self.Pa.set_positions(spos_ac)
         self._pos_set = True
