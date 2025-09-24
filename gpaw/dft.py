@@ -210,12 +210,14 @@ class PPCG(PWFDEigensolverParamater):
 
     def __init__(self,
                  niter: int = 2,
+                 min_niter: int | None = None,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
+        self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
@@ -224,6 +226,7 @@ class PPCG(PWFDEigensolverParamater):
 
     def todict(self):
         return {'niter': self.niter,
+                'min_niter': self.min_niter,
                 'max_buffer_mem': self.max_buffer_mem,
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
@@ -245,6 +248,7 @@ class PPCG(PWFDEigensolverParamater):
             hamiltonian,
             converge_bands,
             niter=self.niter,
+            min_niter=self.min_niter,
             max_buffer_mem=self.max_buffer_mem,
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
@@ -624,7 +628,7 @@ class Parameters:
             (three integers).
         h:
             Grid-spacing for wave-function grid (Å).  Default value is
-            0.2 Å for LCAO or FD mode calculations.  For a PW-mode
+            0.2 Å for LCAO and FD mode calculations.  For a PW-mode
             calculation, we use the formula `h=γh_0` with `γ \simeq 1.4` and:
 
             .. math::
@@ -786,7 +790,8 @@ def _parse_experimental(experimental: dict | None,
         magmoms = experimental.pop('magmoms')
     unknown = experimental.keys() - {'backwards_compatible',
                                      'ccirs',
-                                     'fast_pw_init'}
+                                     'fast_pw_init',
+                                     'pw_pot_calc'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)

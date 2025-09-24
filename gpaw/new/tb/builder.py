@@ -16,7 +16,8 @@ from gpaw.lcao.tci import TCIExpansions
 from gpaw.lfc import BasisFunctions
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips as zip
-from gpaw.new.lcao.builder import LCAODFTComponentsBuilder, create_lcao_ibzwfs
+from gpaw.new.builder import DFTComponentsBuilder
+from gpaw.new.lcao.builder import create_lcao_ibzwfs
 from gpaw.new.lcao.hamiltonian import CollinearHamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
@@ -247,7 +248,7 @@ class DummyBasis:
         pass
 
 
-class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
+class TBDFTComponentsBuilder(DFTComponentsBuilder):
     def fix_setups(self):
         for setup in self.setups.setups.values():
             try:
@@ -294,6 +295,15 @@ class TBDFTComponentsBuilder(LCAODFTComponentsBuilder):
         eigensolver = self.create_eigensolver(hamiltonian)
         return TBSCFLoop(hamiltonian, occ_calc, eigensolver,
                          self.communicators['w'])
+
+    def create_eigensolver(self, hamiltonian):
+        es = self.params.eigensolver
+        name = 'lcao'
+        es = es.from_param({'name': name, **es.params})
+        return es.build_lcao(self.basis,
+                             self.relpos_ac,
+                             self.grid.cell_cv,
+                             self.ibz.symmetries)
 
     def create_ibz_wave_functions(self,
                                   basis: BasisFunctions,

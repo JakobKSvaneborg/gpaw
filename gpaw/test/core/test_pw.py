@@ -84,7 +84,7 @@ def grids():
 @pytest.mark.gpu
 @pytest.mark.parametrize('xp', [np, cp])
 @pytest.mark.parametrize('grid', grids())
-def test_pw_integrate(xp, grid):
+def test_pw_integrate(xp, grid, set_device):
     g = grid
     a = g.desc.cell[0, 0]
     ecut = 0.5 * (2 * np.pi / a)**2 * 1.01

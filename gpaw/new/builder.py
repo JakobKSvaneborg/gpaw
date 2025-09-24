@@ -44,16 +44,20 @@ class DFTComponentsBuilder:
                  *,
                  log=None,
                  comm=None):
+        from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
         self.mode = params.mode.name
         self.params = params
         if not isinstance(log, Logger):
             log = Logger(log, comm)
+
         self.log = log
         comm = log.comm
 
         parallel = params.parallel
+        if self.gpu:
+            set_device(log)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
@@ -245,7 +249,8 @@ class DFTComponentsBuilder:
                             self.relpos_ac,
                             self.communicators['w'],
                             self.communicators['k'],
-                            self.communicators['b'])
+                            self.communicators['b'],
+                            self.xp)
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(
