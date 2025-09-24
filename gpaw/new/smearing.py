@@ -65,7 +65,7 @@ class OccupationNumberCalculator:
 
     def calculate(self,
                   nelectrons: float,
-                  eigenvalues: ArrayLike2D,
+                  eigenvalues: list[list[float]],
                   weights: list[float],
                   fermi_levels_guess: list[float] = None,
                   fix_fermi_level: bool = False
