@@ -802,7 +802,7 @@ class SerialCommunicator:
     def get_c_object(self):
         if gpaw.dry_run:
             return None  # won't actually be passed to C
-        return _world
+        return _world.get_c_object()
 
 
 _serial_comm = SerialCommunicator()
