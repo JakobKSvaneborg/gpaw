@@ -125,8 +125,9 @@ PyObject* pyelpa_set_comm(PyObject *self, PyObject *args)
                          &gpaw_comm_obj))
         return NULL;
     elpa_t handle = unpack_handle(handle_obj);
-    MPIObject *gpaw_comm = (MPIObject *)gpaw_comm_obj;
-    MPI_Comm comm = gpaw_comm->comm;
+    //MPIObject *gpaw_comm = (MPIObject *)gpaw_comm_obj;
+    //MPI_Comm comm = gpaw_comm->comm;
+    MPI_Comm comm = *((MPI_Comm*) PyLong_AsVoidPtr(comm_obj));
     int fcomm = MPI_Comm_c2f(comm);
     int err;
     elpa_set(handle, "mpi_comm_parent", fcomm, &err);

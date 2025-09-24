@@ -686,10 +686,10 @@ class _Communicator:
         implementation which returns itself; thus, always call
         comm.get_c_object() and pass the resulting object to the C code.
         """
-        c_obj = self.comm.get_c_object()
-        if isinstance(c_obj, cgpaw.Communicator):
-            return c_obj
-        return c_obj.get_c_object()
+        # c_obj = self.comm.get_c_object()
+        # if isinstance(c_obj, cgpaw.Communicator):
+        #     return c_obj
+        return self.comm.get_c_object()
 
 
 MPIComm = _Communicator  # for type hints

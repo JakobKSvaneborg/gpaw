@@ -472,8 +472,8 @@ PyObject* NewWOperatorObject(PyObject *obj, PyObject *args)
 
   MPI_Comm comm = MPI_COMM_NULL;
   if (comm_obj != Py_None)
-    comm = ((MPIObject*)comm_obj)->comm;
-
+    //comm = ((MPIObject*)comm_obj)->comm;
+    comm = *((MPI_Comm*) PyLong_AsVoidPtr(comm_obj));
   self->bc = bc_init(LONGP(size), padding, padding, nb, comm, real, cfd);
 
   return (PyObject*) self;
