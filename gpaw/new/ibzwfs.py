@@ -140,20 +140,27 @@ class IBZWaveFunctions(Generic[WFT]):
         ncores = (self.kpt_comm.size *
                   self.domain_comm.size *
                   self.band_comm.size)
+        nproj = sum(len(setup.pt_j) for setup in wfs.setups)
+        nprojunique = sum(len(setup.pt_j)
+                          for setup in wfs.setups.setups.values())
+        nbytesproj = (len(self.ibz) * nprojunique * wfs.bytes_per_band)
         return (f'{self.ibz.symmetries}\n'
                 f'{self.ibz}\n'
                 f'{wfs._short_string(shape)}\n'
                 f'spin-components: {self.ncomponents}'
-                '  # (' +
+                ' (' +
                 ('' if self.collinear else 'non-') + 'collinear spins)\n'
                 f'bands: {self.nbands}\n'
+                f'projectors: {nproj}\n'
                 f'spin-degeneracy: {self.spin_degeneracy}\n'
                 f'dtype: {self.dtype}\n\n'
                 'memory:\n'
                 f'    storage: {"CPU" if self.xp is np else "GPU"}\n'
-                f'    wave functions: {nbytes:_}  # bytes '
-                f' ({nbytes // ncores:_} per core)\n\n'
-                'parallelization:\n'
+                f'    wave functions: {nbytes:_} bytes '
+                f'({nbytes // ncores:_} per core)\n'
+                f'    projectors: {nbytesproj:_} bytes '
+                f'({nbytesproj * self.band_comm.size // ncores:_} per core)\n'
+                '\nparallelization:\n'
                 f'    kpt:    {self.kpt_comm.size}\n'
                 f'    domain: {self.domain_comm.size}\n'
                 f'    band:   {self.band_comm.size}\n')
