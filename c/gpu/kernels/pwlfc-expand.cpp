@@ -527,8 +527,8 @@ __global__ void pw_insert_many(Tindex nb,
 				  Treal scale,
 				  Tcomplex* tmp_nQ)
 {
-    Tindex G = (Tindex) threadIdx.x + (Tindex) tblockIdx.x * (Tindex) tblockDim.x;
-    Tindex b = (Tindex) threadIdx.y + (Tindex) tblockIdx.y * (Tindex) tblockDim.y;
+    Tindex G = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
+    Tindex b = (Tindex) threadIdx.y + (Tindex) blockIdx.y * (Tindex) blockDim.y;
     __shared__ npy_int32 locQ_G[16];
     if (threadIdx.y == 0)
 	locQ_G[threadIdx.x] = Q_G[G];
