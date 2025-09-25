@@ -374,7 +374,7 @@ def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     """Launch CPU or GPU version of r2k()."""
     if cupy_is_fake:
         return r2k(alpha, a._data, b._data, beta, c._data, trans)
-    
+
     from cupy.cuda.stream import get_current_stream
 
     assert a.shape == b.shape
@@ -424,6 +424,9 @@ def gpu_dotc(a, b):
                 (is_contiguous(a, complex) and is_contiguous(b, complex)))
         assert a.shape == b.shape
 
+        from cupy.cuda.stream import get_current_stream
+        assert get_current_stream().ptr == 0
+
     return cgpaw.dotc_gpu(a.data.ptr, a.shape,
                           b.data.ptr, a.dtype)
 
@@ -445,6 +448,9 @@ def gpu_dotu(a, b):
         assert ((is_contiguous(a, float) and is_contiguous(b, float)) or
                 (is_contiguous(a, complex) and is_contiguous(b, complex)))
         assert a.shape == b.shape
+
+        from cupy.cuda.stream import get_current_stream
+        assert get_current_stream().ptr == 0
 
     return cgpaw.dotu_gpu(a.data.ptr, a.shape,
                           b.data.ptr, a.dtype)

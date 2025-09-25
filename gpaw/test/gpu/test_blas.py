@@ -11,6 +11,9 @@ from gpaw.utilities.blas import (gpu_axpy, gpu_dotc, gpu_dotu, gpu_gemm,
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_blas(dtype, set_device):
+    from cupy.cuda.stream import Stream
+    stream = Stream(null=True)
+    stream.use()
     N = 100
     rng = np.random.default_rng(seed=42)
     a = np.zeros((N, N), dtype=dtype)
@@ -94,6 +97,9 @@ def test_blas(dtype, set_device):
 
         assert approx(c_gpu_ref.get()) == c
         assert approx(c_ref) == c
+
+    # One more call to set cublas stream back to null
+    gpu_r2k(0.5, a_gpu, b_gpu, 0.2, c_gpu)
 
     # dotc
     check_cpu = x.conj() @ y

@@ -23,6 +23,7 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
 
         from cupy.cuda.stream import get_current_stream
         import functools
+
         def s(fun):
             @functools.wraps(fun)
             def wrapper(*args):
@@ -51,8 +52,6 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
         pwlfc_expand_gpu = w(pwlfc_expand_gpu)
         pw_norm_kinetic_gpu = w(pw_norm_kinetic_gpu)
         pw_norm_gpu = w(pw_norm_gpu)
-
-
     else:
         from gpaw.purepython import (add_to_density_gpu,
                                      calculate_residuals_gpu,  # noqa
