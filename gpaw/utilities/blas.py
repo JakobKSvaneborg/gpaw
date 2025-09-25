@@ -374,6 +374,8 @@ def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     """Launch CPU or GPU version of r2k()."""
     if cupy_is_fake:
         return r2k(alpha, a._data, b._data, beta, c._data, trans)
+    
+    from cupy.cuda.stream import get_current_stream
 
     assert a.shape == b.shape
     assert c.shape[0] == a.shape[0]
@@ -393,7 +395,8 @@ def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     lda = a.strides[0] // a.itemsize
     ldb = b.strides[0] // b.itemsize
     ldc = c.strides[0] // c.itemsize
-    cgpaw.r2k_gpu(alpha,
+    cgpaw.r2k_gpu(get_current_stream().ptr,
+                  alpha,
                   a,
                   b,
                   beta,
