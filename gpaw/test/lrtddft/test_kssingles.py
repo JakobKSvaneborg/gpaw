@@ -7,6 +7,7 @@ from gpaw import GPAW
 from gpaw.lrtddft.kssingle import KSSingles
 
 
+@pytest.mark.new_gpaw_ready
 @pytest.mark.lrtddft
 def test_old_io(in_tmp_dir):
     """Test reading of old style output files"""
@@ -100,6 +101,7 @@ def test_mul(ch4_kss):
     assert (ks0.magn == ks1.magn).all()
 
 
+@pytest.mark.new_gpaw_ready
 @pytest.mark.lrtddft
 def test_add_sub(in_tmp_dir):
     """Test adding and subtracting"""
