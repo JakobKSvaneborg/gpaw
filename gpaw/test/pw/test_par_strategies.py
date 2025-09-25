@@ -56,3 +56,7 @@ def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
 
     atoms.calc.write('hli.gpw', mode='all')
     GPAW('hli.gpw', txt=None)
+
+
+if __name__ == '__main__':
+    test_pw_par_strategies(None, 1, 1, True, True)
