@@ -17,7 +17,7 @@ from gpaw.new.c import GPU_AWARE_MPI
 def test_gpu(dtype, gpu, mode, random):
     from cupy.cuda.stream import Stream
     stream = Stream(non_blocking=mode == 'pw', null=mode != 'pw')
-    if 1:
+    with stream:
         atoms = Atoms('H2')
         atoms.positions[1, 0] = 0.75
         atoms.center(vacuum=1.0)
@@ -31,8 +31,6 @@ def test_gpu(dtype, gpu, mode, random):
             mode={'name': mode,
                   'force_complex_dtype': dtype == complex},
             random=random,
-            symmetry='off',
-            mixer={'backend': 'fft'},
             convergence={'density': 1e-8},
             parallel={'gpu': gpu},
             setups='paw',
