@@ -15,8 +15,8 @@ from gpaw.new.c import GPU_AWARE_MPI
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('random', [True, False])
 def test_gpu(dtype, gpu, mode, random):
-    from cupy.cuda.stream import Stream
-    stream = Stream(non_blocking=mode == 'pw', null=mode != 'pw')
+    from gpaw.gpu import cupy
+    stream = cupy.cuda.stream.Stream(non_blocking=mode == 'pw', null=mode != 'pw')
     with stream:
         atoms = Atoms('H2')
         atoms.positions[1, 0] = 0.75
