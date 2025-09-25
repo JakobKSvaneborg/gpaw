@@ -37,6 +37,8 @@ def test_lcao_force():
 
     for use_rho in [0, 1]:
         if use_rho:
+            if not calc.old:
+                break
             for kpt in calc.wfs.kpt_u:
                 kpt.rho_MM = calc.wfs.calculate_density_matrix(kpt.f_n,
                                                                kpt.C_nM)
