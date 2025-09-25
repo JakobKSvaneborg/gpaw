@@ -5,6 +5,7 @@ from gpaw.mpi import size
 import numpy as np
 
 
+@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 def test_pawexxvv():
     from gpaw.hybrids.paw import python_pawexxvv
