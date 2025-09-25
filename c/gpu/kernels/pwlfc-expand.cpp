@@ -33,8 +33,8 @@ __global__ void calculate_residual_kernel(Tindex nG, Tindex nn,
 										  Treal* eps_n,
 										  Tcomplex* wf_nG)
 {
-    Tindex n = threadIdx.x + blockIdx.x * blockDim.x;
-    Tindex g = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex n = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
+    Tindex g = (Tindex) threadIdx.y + (Tindex) blockIdx.y * (Tindex) blockDim.y;
     if ((g < nG) && (n < nn))
     {
 		residual_nG[n*nG + g] = residual_nG[n*nG + g] - wf_nG[n*nG + g] * eps_n[n];
@@ -48,8 +48,8 @@ template <typename Tcomplex, typename Tindex>
 __global__ void pw_amend_insert_realwf(Tindex nb,
 	Tindex nx, Tindex ny, Tindex nz, Tindex n, Tindex m, Tcomplex* array_nQ)
 {
-    Tindex b = threadIdx.x + blockIdx.x * blockDim.x;
-    Tindex i = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex b = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
+    Tindex i = (Tindex) threadIdx.y + (Tindex) blockIdx.y * (Tindex) blockDim.y;
     if (b < nb)
     {
         // t[0, -m:] = t[0, m:0:-1].conj()
@@ -527,8 +527,8 @@ __global__ void pw_insert_many(Tindex nb,
 				  Treal scale,
 				  Tcomplex* tmp_nQ)
 {
-    Tindex G = threadIdx.x + blockIdx.x * blockDim.x;
-    Tindex b = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex G = (Tindex) threadIdx.x + (Tindex) tblockIdx.x * (Tindex) tblockDim.x;
+    Tindex b = (Tindex) threadIdx.y + (Tindex) tblockIdx.y * (Tindex) tblockDim.y;
     __shared__ npy_int32 locQ_G[16];
     if (threadIdx.y == 0)
 	locQ_G[threadIdx.x] = Q_G[G];
@@ -550,7 +550,7 @@ __global__ void add_to_density(Tindex nb,
 {
     constexpr bool realtype = std::is_same<Tcomplex, Treal>::value;
 
-    Tindex R = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex R = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
     if (R < nR)
     {
 	double rho = 0.0;
@@ -836,8 +836,8 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 				       int nsplines)
 
 {
-    Tindex G = threadIdx.x + blockIdx.x * blockDim.x;
-    Tindex J = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex G = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
+    Tindex J = (Tindex) threadIdx.y + (Tindex) blockIdx.y * (Tindex) blockDim.y;
 
 	__shared__ Tcomplex imag_powers[4];
 	if (threadIdx.y == 0 && threadIdx.x == 0)
@@ -861,13 +861,13 @@ __global__ void pwlfc_expand_kernel(Treal* f_Gs,
 		       	   Gk_Gv[1] * pos_av[1] +
 		           Gk_Gv[2] * pos_av[2]);
 	Tcomplex emiGR = {cos(GkPos), -sin(GkPos)};
-	Tindex s = s_J[J];
+	Tindex s = s_J[J]; // Is Tindex really needed here (and l and m)
 	Tindex l = l_s[s];
 	Y_GL += G*nL + l*l;
 	Tcomplex f1 = emiGR * eikR_a[a_J[J]] * imag_powers[l % 4] * f_Gs[s];
 	if constexpr(strided) {
 		f_GI += G*nI*2 + I_J[J];
-		for (Tindex m = 0; m < 2 * l + 1; m++) {
+		for (Tindex m = 0; m < 2 * l + 1; m++) { // here
 	    	Tcomplex f = f1 * Y_GL[m];
 	    	f_GI[0] = f.x;
 			if constexpr(cc)
@@ -898,7 +898,7 @@ __global__ void dH_aii_times_P_ani(Tindex nA, Tindex nn, Tindex nI,
 				      Tcomplex* P_ani_dev,
 				      Tcomplex* outP_ani_dev)
 {
-    Tindex n1 = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex n1 = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
     if (n1 < nn) {
 	Treal* dH_ii = dH_aii_dev;
 	Tindex I = 0;
