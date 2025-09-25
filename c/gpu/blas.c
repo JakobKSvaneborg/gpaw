@@ -395,8 +395,10 @@ static void _r2k_gpu(int n, int k,
                     (gpublasComplex*) c_gpu, ldc));
     } else {
         PyErr_SetString(PyExc_TypeError, "Unsupported dtype");
-        return;
     }
+
+    // The rest of the code assumes null stream, so being compliant to that for now
+    gpublasSetStream(_gpaw_gpublas_handle, 0);
 }
 
 

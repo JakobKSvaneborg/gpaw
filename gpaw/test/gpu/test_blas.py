@@ -98,9 +98,6 @@ def test_blas(dtype, set_device):
         assert approx(c_gpu_ref.get()) == c
         assert approx(c_ref) == c
 
-    # One more call to set cublas stream back to null
-    gpu_r2k(0.5, a_gpu, b_gpu, 0.2, c_gpu)
-
     # dotc
     check_cpu = x.conj() @ y
     check_gpu = gpu_dotc(x_gpu, y_gpu)
