@@ -1,7 +1,7 @@
 from __future__ import annotations
 from gpaw.occupations import create_occ_calc, ParallelLayout
 from gpaw.band_descriptor import BandDescriptor
-from gpaw.typing import ArrayLike2D, Array2D
+from gpaw.typing import Array2D
 
 
 class OccupationNumberCalculator:
