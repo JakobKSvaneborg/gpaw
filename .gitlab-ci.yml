@@ -462,8 +462,8 @@ test-cuda-mpi:
   script:
     - nvidia-smi
     - gpaw info
-    - mpirun -np 2 pytest -v -m gpu
-    - mpirun -np 4 pytest -v -m gpu
+    - mpirun -np 2 pytest -v -x -m gpu
+    - mpirun -np 4 pytest -v -x -m gpu
     # mpirun -np 2 gpaw-python doesn't work, see #1052
     # - mpirun -np 2 gpaw-python -m pytest -v -m gpu
 
@@ -709,7 +709,7 @@ nightly-mpi-8:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
-      "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
+      "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-1-new:

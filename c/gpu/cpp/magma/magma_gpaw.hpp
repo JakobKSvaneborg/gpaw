@@ -9,7 +9,7 @@
     #error "C++ needed for GPAW Magma wrappers"
 #endif
 
-#include "../template_utils.hpp"
+#include "../utils.hpp"
 
 #include <cassert>
 #include <cstdlib>

@@ -62,8 +62,7 @@ static MagmaPythonContext decide_solver_type(int matrix_numpy_dtype)
     return context;
 }
 
-extern "C"
-PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
 {
     PyObject *in_matrix_obj;
     char* in_uplo;
@@ -150,8 +149,7 @@ PyObject* eigh_magma_cpu(PyObject* self, PyObject* args)
 // underlying memory pointers to an internal function that does the work, ie.
 // calls MAGMA. Output is written to the buffers that were passed from Python.
 
-extern "C"
-PyObject* eigh_magma_gpu(PyObject* self, PyObject* args)
+CLINKAGE PyObject* eigh_magma_gpu(PyObject* self, PyObject* args)
 {
     PyObject* in_matrix_cupy;
     char* in_uplo;
@@ -200,9 +198,9 @@ PyObject* eigh_magma_gpu(PyObject* self, PyObject* args)
 
     const EighErrorType status = magma_eigh_gpu(
         solver_context,
-        gpaw::Array_DATA<const void*>(in_matrix_cupy),
-        gpaw::Array_DATA<void*>(inout_eigvals_cupy),
-        gpaw::Array_DATA<void*>(inout_eigvecs_cupy)
+        gpaw::Array_DATA<void>(in_matrix_cupy),
+        gpaw::Array_DATA<void>(inout_eigvals_cupy),
+        gpaw::Array_DATA<void>(inout_eigvecs_cupy)
     );
 
     assert(status != EighErrorType::eInvalidArgument && "Invalid input to MAGMA solver");

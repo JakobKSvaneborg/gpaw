@@ -20,6 +20,12 @@ Git master branch
 * MFT calculations for magnons can now be performed with LDA+U. See
   :ref:`mft`
 
+* LCAO calculations can now be done using FFTs to reciprocal space in order
+  to 1) solve the Poisson equation and 2) interpolate the density to a
+  finer grid.  This is equivalent to the way things are done in PW-mode.
+  Turn this on by using ``experimental={'pw_pot_calc': True}``.
+
+
 Version 25.7.0
 ==============
 

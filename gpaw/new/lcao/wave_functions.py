@@ -10,11 +10,10 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
 from gpaw.typing import Array2D
+from gpaw.gpu import XP
 
 
-class LCAOWaveFunctions(WaveFunctions):
-    xp = np
-
+class LCAOWaveFunctions(WaveFunctions, XP):
     def __init__(self,
                  *,
                  setups: Setups,
@@ -46,6 +45,7 @@ class LCAOWaveFunctions(WaveFunctions):
                          dtype=C_nM.dtype,
                          domain_comm=domain_comm,
                          band_comm=C_nM.dist.comm)
+        XP.__init__(self, C_nM.xp)
         self.tci_derivatives = tci_derivatives
         self.basis = basis
         self.C_nM = C_nM
@@ -128,7 +128,8 @@ class LCAOWaveFunctions(WaveFunctions):
             natoms=len(self.setups))
         return AtomArraysLayout([setup.ni for setup in self.setups],
                                 atomdist=atomdist,
-                                dtype=self.dtype)
+                                dtype=self.dtype,
+                                xp=self.xp)
 
     @property
     def P_ani(self):
@@ -185,6 +186,7 @@ class LCAOWaveFunctions(WaveFunctions):
             f_n = self.weight * self.spin_degeneracy * self.myocc_n
             if eigs:
                 f_n *= self.myeig_n
+            f_n = self.xp.asarray(f_n)
             TempC_nM = self.C_nM.copy()
             TempC_nM.data *= f_n[:, None]
             rho_MM = TempC_nM.multiply(self.C_nM, opa='C')
