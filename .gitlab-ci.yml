@@ -669,7 +669,7 @@ nightly-mpi-1:
     - gpaw info
     - pytest --cache-show
     - >
-      pytest -n 8 --instafail -r s --durations 30
+      pytest -n 8 --instafail -r s --durations 30 -We
       --cov=gpaw --cov-report=html --cov-report=term
   artifacts:
     paths:
