@@ -272,6 +272,10 @@ class DFTCalculation:
         # Force from projector functions (and basis set):
         F_av = self.ibzwfs.forces(self.potential)
 
+        self.scf.hamiltonian.apply_orbital_dependent(
+            self.ibzwfs, self.density.D_asii, psit_nG, spin, out,
+            calculate_energy=False, F_av=F_av)
+
         getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
 
         pot_calc = self.pot_calc
