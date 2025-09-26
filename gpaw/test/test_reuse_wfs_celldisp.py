@@ -22,7 +22,7 @@ def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new):
         kwargs = {}
         if not gpaw_new:
             kwargs['experimental'] = {
-                'reuse_wfs_method': 'paw' if reuse else None)}
+                'reuse_wfs_method': 'paw' if reuse else None}
 
         calc = GPAW(mode='pw',
                     txt=f'gpaw-{reuse}.txt',
