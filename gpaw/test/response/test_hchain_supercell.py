@@ -7,7 +7,6 @@ from gpaw.test import findpeak
 import numpy as np
 
 
-@pytest.mark.filterwarnings('ignore:unclosed file')
 def get_hydrogen_chain_dielectric_function(NH, NK):
     a = Atoms('H', cell=[1, 1, 2], pbc=True)
     a.center()
@@ -31,6 +30,7 @@ def get_hydrogen_chain_dielectric_function(NH, NK):
     return omega_w, eps_LF
 
 
+@pytest.mark.filterwarnings('ignore:unclosed file')
 @pytest.mark.dielectricfunction
 @pytest.mark.serial
 @pytest.mark.response
