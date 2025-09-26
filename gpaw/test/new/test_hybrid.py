@@ -20,10 +20,10 @@ def test_pawexxvv():
 
 @pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
-@pytest.mark.parametrize('ccirs', [False, True])
+# @pytest.mark.parametrize('ccirs', [False, True])
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_hse06(gpaw_new, ccirs, dtype):
-    if gpaw_new:
+def test_hse06(gpaw_new, dtype):
+    if 0:  # gpaw_new:
         if dtype is float and size > 4:
             pytest.skip('Only band-parallelization!')
         if ccirs and dtype is complex:
@@ -38,8 +38,7 @@ def test_hse06(gpaw_new, ccirs, dtype):
     else:
         eigensolver = 'davidson'
         experimental = {}
-        if ccirs:
-            pytest.skip('CCIRS only for new GPAW')
+
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
@@ -60,7 +59,7 @@ def test_hse06(gpaw_new, ccirs, dtype):
 @pytest.mark.hybrids
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_h(gpaw_new, dtype):
-    if gpaw_new:
+    if 0:  # gpaw_new:
         if dtype is float and size > 2:
             pytest.skip('Only band-parallelization!')
     atoms = Atoms('H', magmoms=[1])

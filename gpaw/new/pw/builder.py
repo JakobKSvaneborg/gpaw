@@ -174,7 +174,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:
             if self.xc.exx_fraction == 0.0:
-                return PWHamiltonian(self.grid, self.wf_desc, self.xp)
+                return PWHamiltonian(self.grid, self.dtype, self.xp)
             if 0:  # self.dtype is float:
                 assert self.communicators['d'].size == 1
                 assert self.communicators['k'].size == 1

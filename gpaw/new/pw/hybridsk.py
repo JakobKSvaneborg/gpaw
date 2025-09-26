@@ -12,7 +12,7 @@ from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
-from gpaw.new.pw.hybrids import fft, truncated_coulomb
+from gpaw.new.pw.hybrids import truncated_coulomb
 from gpaw.new.pw.nschse import Psit, ibz2bz
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.setup import Setups
@@ -33,7 +33,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                  kpt_comm,
                  band_comm,
                  comm):
-        super().__init__(grid.new(dtype=complex), pw)
+        super().__init__(grid, pw.dtype)
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
@@ -42,11 +42,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
         self.band_comm = band_comm
         self.comm = comm
         self.log = log
-        self.cgrid = grid.new(dtype=complex, comm=None)
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
-        xp = np
-        self.plan = self.cgrid.fft_plans(xp=xp)
-
         self.relpos_ac = relpos_ac
         self.setups = setups
 
@@ -57,17 +53,14 @@ class PWHybridHamiltonianK(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.VV_app = [setup.M_pp * self.exx_fraction for setup in setups]
 
-        self.ghat_aLG = setups.create_compensation_charges(
-            pw, relpos_ac, atomdist)
-
         self.mypsits: list[Psit] = []
         self.nbzk = 0
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions):
-        """Compute BZ from IBZ and distribute."""
+        """Compute BZ from IBZ and distribute over the entire world!"""
         self.mypsits, _ = ibz2bz(
-            ibzwfs, self.setups, self.relpos_ac, self.cgrid, self.plan,
+            ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
             self.log if self.nbzk == 0 else None)
         self.nbzk = len(ibzwfs.ibz.bz)
         self.xc.energies = {'hybrid_xc': 0.0,

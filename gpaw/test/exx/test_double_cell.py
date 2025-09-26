@@ -27,7 +27,6 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
         kwargs['symmetry'] = 'off'
     if gpaw_new:
         kwargs |= dict(spinpol=False,
-                       # setups='ae',
                        eigensolver='rmm-diis')
 
     a.calc = GPAW(
