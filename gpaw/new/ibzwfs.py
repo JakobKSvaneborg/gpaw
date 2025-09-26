@@ -299,11 +299,19 @@ class IBZWaveFunctions(Generic[WFT]):
             self.comm.broadcast(occ_skn, 0)
         return eig_skn, occ_skn
 
-    def forces(self, potential: Potential) -> Array2D:
+    def forces(self,
+               potential: Potential,
+               hamiltonian,
+               D_asii) -> Array2D:
         self.make_sure_wfs_are_read_from_gpw_file()
         F_av = self.xp.zeros((len(potential.dH_asii), 3))
         for wfs in self:
             wfs.force_contribution(potential, F_av)
+        for wfs in self:
+            hamiltonian.apply_orbital_dependent(
+                self, D_asii, wfs.psit_nX, wfs.spin,
+                calculate_energy=False, F_av=F_av)
+
         self.kpt_band_comm.sum(F_av)
         return F_av
 

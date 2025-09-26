@@ -71,8 +71,9 @@ class PWHybridHamiltonianK(PWHamiltonian):
                                 D_asii,
                                 psit2_nG: XArray,
                                 spin: int,
-                                Htpsit2_nG: XArray,
-                                calculate_energy: bool = False) -> None:
+                                Htpsit2_nG: XArray | None = None,
+                                calculate_energy: bool = False,
+                                F_av: np.ndarray | None = None) -> None:
         assert isinstance(psit2_nG, PWArray)
         assert isinstance(Htpsit2_nG, PWArray)
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
@@ -161,6 +162,8 @@ class PWHybridHamiltonianK(PWHamiltonian):
                 V_ani.data[:] = 0.0
                 e += self._apply2(psit2_nG, P2_ani, s, V_nG, V_ani, f2_n,
                                   calculate_energy, F_av)
+                if F_av is not None:
+                    continue
                 comm.sum(V_nG.data, root=rank)
                 comm.sum(V_ani.data, root=rank)
                 if krank == self.kpt_comm.rank:

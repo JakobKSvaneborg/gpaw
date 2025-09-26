@@ -50,6 +50,7 @@ def test_hse06(gpaw_new, dtype):
         parallel={'domain': min(2, size) if dtype is complex else 1},
         nbands=4)
     e = atoms.get_potential_energy()
+    f = atoms.get_forces()
     eigs = atoms.calc.get_eigenvalues(spin=0)
     assert e == pytest.approx(-5.633278, abs=1e-3)
     assert eigs[0] == pytest.approx(-4.67477532, abs=1e-3)
