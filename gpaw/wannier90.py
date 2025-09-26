@@ -225,21 +225,21 @@ class Wannier90:
 
         spinors = False
 
-        win_file = open(seed + '.win')
-        for line in win_file.readlines():
-            l_e = line.split()
-            if len(l_e) > 0:
-                if l_e[0] == 'spinors':
-                    spinors = l_e[2]
-                    if spinors in ['T', 'true', '1', 'True']:
-                        spinors = True
-                    else:
-                        spinors = False
-                if l_e[0] == 'num_wann':
-                    Nw = int(l_e[2])
-                if l_e[0] == 'mp_grid':
-                    Nk = int(l_e[2]) * int(l_e[3]) * int(l_e[4])
-                    assert Nk == len(calc.get_bz_k_points())
+        with open(seed + '.win') as win_file:
+            for line in win_file.readlines():
+                l_e = line.split()
+                if len(l_e) > 0:
+                    if l_e[0] == 'spinors':
+                        spinors = l_e[2]
+                        if spinors in ['T', 'true', '1', 'True']:
+                            spinors = True
+                        else:
+                            spinors = False
+                    if l_e[0] == 'num_wann':
+                        Nw = int(l_e[2])
+                    if l_e[0] == 'mp_grid':
+                        Nk = int(l_e[2]) * int(l_e[3]) * int(l_e[4])
+                        assert Nk == len(calc.get_bz_k_points())
 
         Na = len(calc.atoms)
         if orbitals_ai is None:
@@ -343,14 +343,15 @@ class Wannier90:
         kpts_kc = calc.get_bz_k_points()
         Nk = len(kpts_kc)
 
-        nnkp = open(seed + '.nnkp')
-        lines = nnkp.readlines()
-        for il, line in enumerate(lines):
-            if len(line.split()) > 1:
-                if line.split()[0] == 'begin' and line.split()[1] == 'nnkpts':
-                    Nb = eval(lines[il + 1].split()[0])
-                    i0 = il + 2
-                    break
+        with open(seed + '.nnkp') as nnkp:
+            lines = nnkp.readlines()
+            for il, line in enumerate(lines):
+                if len(line.split()) > 1:
+                    if (line.split()[0] == 'begin' and
+                        line.split()[1] == 'nnkpts'):
+                        Nb = eval(lines[il + 1].split()[0])
+                        i0 = il + 2
+                        break
 
         f = open(seed + '.mmn', 'w')
 
