@@ -216,7 +216,6 @@ def get_density_fdm(ksd, fdm, kind):
     return rho_wg
 
 
-@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
 @pytest.fixture(scope='module')
 @only_on_master(world, broadcast=broadcast)
 def density_reference(ksd_reference):
