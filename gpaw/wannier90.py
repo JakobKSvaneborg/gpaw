@@ -142,7 +142,7 @@ class Wannier90:
         print('num_bands       = %d' % len(bands), file=f)
 
         if search_shells is not None:
-            print(f"search_shells = {search_shells}", file=f)
+            print(f'search_shells = {search_shells}', file=f)
 
         maxn = max(bands)
         if maxn + 1 != len(bands):
@@ -516,28 +516,28 @@ def read_umat(seed, kd, dis=False):
     """
     Reads wannier transformation matrix
     """
-    if ".mat" not in seed:
+    if '.mat' not in seed:
         if dis:
-            seed += "_u_dis.mat"
+            seed += '_u_dis.mat'
         else:
-            seed += "_u.mat"
-    f = open(seed, "r")
-    f.readline()  # first line is a comment
-    nk, nw1, nw2 = [int(i) for i in f.readline().split()]
-    assert nk == kd.nbzkpts
-    uwan = np.empty([nw1, nw2, nk], dtype=complex)
-    iklist = []  # list to store found iks
-    for ik1 in range(nk):
-        f.readline()  # empty line
-        K_c = [float(rdum) for rdum in f.readline().split()]
-        ik = kd.where_is_q(K_c, kd.bzk_kc)
-        assert np.allclose(np.array(K_c), kd.bzk_kc[ik])
-        iklist.append(ik)
-        for ib1 in range(nw1):
-            for ib2 in range(nw2):
-                rdum1, rdum2 = [float(rdum) for rdum in
-                                f.readline().split()]
-                uwan[ib1, ib2, ik] = complex(rdum1, rdum2)
+            seed += '_u.mat'
+    with open(seed, 'r') as f:
+        f.readline()  # first line is a comment
+        nk, nw1, nw2 = [int(i) for i in f.readline().split()]
+        assert nk == kd.nbzkpts
+        uwan = np.empty([nw1, nw2, nk], dtype=complex)
+        iklist = []  # list to store found iks
+        for ik1 in range(nk):
+            f.readline()  # empty line
+            K_c = [float(rdum) for rdum in f.readline().split()]
+            ik = kd.where_is_q(K_c, kd.bzk_kc)
+            assert np.allclose(np.array(K_c), kd.bzk_kc[ik])
+            iklist.append(ik)
+            for ib1 in range(nw1):
+                for ib2 in range(nw2):
+                    rdum1, rdum2 = [float(rdum) for rdum in
+                                    f.readline().split()]
+                    uwan[ib1, ib2, ik] = complex(rdum1, rdum2)
     assert set(iklist) == set(range(nk))  # check that all k:s were found
     return uwan, nk, nw1, nw2
 
