@@ -1,6 +1,7 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW, PW
+from gpaw.dft import Davidson
 
 
 @pytest.mark.libxc
@@ -27,7 +28,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
         kwargs['symmetry'] = 'off'
     if gpaw_new:
         kwargs |= dict(spinpol=False,
-                       eigensolver='rmm-diis')
+                       )#eigensolver='rmm-diis')
 
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
@@ -50,6 +51,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     a.calc = GPAW(
         kpts={'size': (1, 1, 2), 'gamma': True},
         txt='H4-new.txt',
+        eigensolver=Davidson(niter=4),
         **kwargs)
     e2 = a.get_potential_energy()
     eig2_kn = a.calc.eigenvalues()[0]
