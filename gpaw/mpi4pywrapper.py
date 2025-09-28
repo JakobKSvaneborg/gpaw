@@ -138,8 +138,7 @@ class MPI4PYWrapper:
                                                   other.comm.Get_group()))
 
     def get_members(self):
-        from gpaw.mpi import world
-        return self.translate_ranks(world, np.arange(self.size))
+        return self.translate_ranks(self.parent, np.arange(self.size))
 
     def get_c_object(self):
         return _addressof(self.comm)
