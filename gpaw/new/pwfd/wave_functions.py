@@ -316,11 +316,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             F_nvi *= myocc_n[:, np.newaxis, np.newaxis]
             dH_ii = dH_asii[a][self.spin]
             P_ni = self.P_ani[a]
-            F_vii = xp.einsum('nvi, nj, jk -> vik', F_nvi, P_ni, dH_ii)
+            F_av[a] += 2 * xp.einsum('nvi, nj, ji -> v', F_nvi, P_ni, dH_ii,
+                                     optimize=True).real
             F_nvi *= myeig_n[:, np.newaxis, np.newaxis]
             dO_ii = xp.asarray(self.setups[a].dO_ii)
-            F_vii -= xp.einsum('nvi, nj, jk -> vik', F_nvi, P_ni, dO_ii)
-            F_av[a] += 2 * F_vii.real.trace(0, 1, 2)
+            F_av[a] -= 2 * xp.einsum('nvi, nj, ji -> v', F_nvi, P_ni, dO_ii,
+                                     optimize=True).real
 
     def _non_collinear_force_contribution(self,
                                           dH_asii,
