@@ -381,7 +381,7 @@ Jun 9, 2023: :git:`23.6.0 <../23.6.0>`
   See the :class:`gpaw.convergence_criteria.Energy` class.
 
 * The PW-mode now includes an ``interpolation`` flag.  See
-  :class:`gpaw.wavefunctions.pw.PW` for details.
+  :class:`gpaw.old.wavefunctions.pw.PW` for details.
 
 * The LCAO implementation of direct optimization for variational calculations
   of excited electronic states now includes
@@ -1005,7 +1005,7 @@ Jan 11, 2019: :git:`1.5.0 <../1.5.0>`
   defects: :ref:`defects`.
 
 * Default for FFTW planning has been changed from ``ESTIMATE`` to ``MEASURE``.
-  See :class:`gpaw.wavefunctions.pw.PW`.
+  See :class:`gpaw.old.wavefunctions.pw.PW`.
 
 
 Version 1.4.0

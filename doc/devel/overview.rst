@@ -76,7 +76,7 @@ method with the correct arguments.  This will trigger:
    set up the objects needed for a calculation:
    :class:`~gpaw.old.density.Density`,
    :class:`~gpaw.old.hamiltonian.Hamiltonian`,
-   :class:`~gpaw.wavefunctions.base.WaveFunctions`,
+   :class:`~gpaw.old.wavefunctions.base.WaveFunctions`,
    :class:`~gpaw.setup.Setups` and a few more (see figure above).
 
 2) A call to the :meth:`~gpaw.calculator.GPAW.set_positions` method, which will
@@ -120,13 +120,13 @@ WaveFunctions
 We currently have two representations for the wave functions: uniform
 3-d grids and expansions in atom centered basis functions as
 implemented in the two classes
-:class:`~gpaw.wavefunctions.fd.FDWaveFunctions` and
-:class:`~gpaw.wavefunctions.lcao.LCAOWaveFunctions`.  Both inherit from the
-:class:`~gpaw.wavefunctions.base.WaveFunctions` class, so the wave
+:class:`~gpaw.old.wavefunctions.fd.FDWaveFunctions` and
+:class:`~gpaw.old.wavefunctions.lcao.LCAOWaveFunctions`.  Both inherit from the
+:class:`~gpaw.old.wavefunctions.base.WaveFunctions` class, so the wave
 functions object will always have a
 :class:`~gpaw.old.grid_descriptor.GridDescriptor`, an
 :class:`~gpaw.eigensolvers.eigensolver.Eigensolver`, a
-:class:`~gpaw.setup.Setups` object and a list of :class:`~gpaw.kpoint.KPoint`
+:class:`~gpaw.setup.Setups` object and a list of :class:`~gpaw.old.kpoint.KPoint`
 objects.
 
 ::
