@@ -56,13 +56,13 @@ unset PYTHONPATH
 module load GPAW-setups/24.11.0
 module load ELPA/2023.05.001-{fullchain}
 module load Wannier90/3.1.0-{fullchain}
-module load Python-bundle-PyPI/2023.06-{corechain}
 module load Tkinter/3.11.3-{corechain}
 module load libxc/6.2.2-{compchain}
 """
 
 # These modules are not loaded if --piponly is specified
 module_cmds_easybuild = """\
+module load Python-bundle-PyPI/2023.06-{corechain}
 module load matplotlib/3.7.2-{mathchain}
 module load scikit-learn/1.3.1-{mathchain}
 module load spglib-python/2.1.0-{mathchain}
@@ -76,6 +76,7 @@ module load libvdwxc/0.4.0-{fullchain}
     'intel': ""
 }
 
+# Arch dependend modules for GPU stuff - not loaded with --piponly
 module_cmds_arch_dependent = """\
 if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2023a" ];\
 then module load CuPy/13.0.0-{fullchain}-CUDA-12.1.1;fi
@@ -244,8 +245,9 @@ def main():
             **toolchains[args.toolchain])
     module_cmds += module_cmds_tc[args.toolchain].format(
         **toolchains[args.toolchain])
-    module_cmds += module_cmds_arch_dependent.format(
-        **toolchains[args.toolchain])
+    if not args.piponly:
+        module_cmds += module_cmds_arch_dependent.format(
+            **toolchains[args.toolchain])
     cmds = (' && '.join(module_cmds.splitlines()) +
             f' && python3 -m venv --system-site-packages {args.venv}')
     run(cmds)
@@ -259,7 +261,11 @@ def main():
 
     # Fix venv so pytest etc work
     pythonroot = None
-    for ebrootvar in ('EBROOTPYTHON', 'EBROOTPYTHONMINBUNDLEMINPYPI'):
+    if args.piponly:
+        ebrootvars = ('EBROOTPYTHON',)
+    else:
+        ebrootvars = ('EBROOTPYTHON', 'EBROOTPYTHONMINBUNDLEMINPYPI')
+    for ebrootvar in ebrootvars:
         # Note that we need the environment variable from the newly
         # created venv, NOT from this process!
         comm = run(f'. {activate} && echo ${ebrootvar}',
