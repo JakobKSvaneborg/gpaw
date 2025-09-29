@@ -5,7 +5,7 @@ import functools
 import numpy as np
 from ase.units import Ha
 
-from gpaw.arraydict import ArrayDict
+from gpaw.old.arraydict import ArrayDict
 from gpaw.external import create_external_potential
 from gpaw.lfc import LFC
 from gpaw.poisson import PoissonSolver

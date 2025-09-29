@@ -13,8 +13,8 @@ from gpaw.lfc import BasisFunctions
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import mmm, gemmdot
 from gpaw.utilities.tools import tri2full
-from gpaw.wavefunctions.base import WaveFunctions
-from gpaw.wavefunctions.mode import Mode
+from gpaw.old.wavefunctions.base import WaveFunctions
+from gpaw.old.wavefunctions.mode import Mode
 
 
 class LCAO(Mode):
@@ -299,7 +299,7 @@ class LCAOWaveFunctions(WaveFunctions):
 
         (This may or may not work in band-parallel case!)
         """
-        from gpaw.wavefunctions.arrays import UniformGridWaveFunctions
+        from gpaw.old.wavefunctions.arrays import UniformGridWaveFunctions
         bfs = self.basis_functions
         for kpt in self.kpt_u:
             kpt.psit = UniformGridWaveFunctions(
@@ -500,7 +500,7 @@ class LCAOforces:
         self.atom_indices = bfs.atom_indices
         self.dH_asp = hamiltonian.dH_asp
 
-        from gpaw.kohnsham_layouts import BlacsOrbitalLayouts
+        from gpaw.old.kohnsham_layouts import BlacsOrbitalLayouts
         self.isblacs = isinstance(self.ksl, BlacsOrbitalLayouts)
 
         if not self.isblacs:

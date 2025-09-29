@@ -1,7 +1,7 @@
 import numpy as np
 from ase.units import Ha
 
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.utilities import pack_density
 from gpaw.utilities.blas import axpy, mmm
 from gpaw.utilities.partition import AtomPartition

@@ -1,11 +1,11 @@
 import numpy as np
-from gpaw.arraydict import ArrayDict
-from gpaw.density import Density
+from gpaw.old.arraydict import ArrayDict
+from gpaw.old.density import Density
 from gpaw.external import NoExternalPotential
-from gpaw.hamiltonian import Hamiltonian
-from gpaw.pw.lfc import PWLFC
-from gpaw.pw.poisson import (ChargedReciprocalSpacePoissonSolver,
-                             ReciprocalSpacePoissonSolver)
+from gpaw.old.hamiltonian import Hamiltonian
+from gpaw.old.pw.lfc import PWLFC
+from gpaw.old.pw.poisson import (ChargedReciprocalSpacePoissonSolver,
+                                 ReciprocalSpacePoissonSolver)
 from gpaw.typing import Array3D
 
 

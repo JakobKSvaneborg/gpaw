@@ -589,7 +589,7 @@ class LCAODOS:
         eps_skn = np.zeros((kd.nspins, kd.nibzkpts, bd.nbands))
         for u, kpt in enumerate(wfs.kpt_u):
             C_nM = kpt.C_nM
-            from gpaw.kohnsham_layouts import BlacsOrbitalLayouts
+            from gpaw.old.kohnsham_layouts import BlacsOrbitalLayouts
             if isinstance(wfs.ksl, BlacsOrbitalLayouts):
                 raise NotImplementedError('Something not quite working.  '
                                           'FIXME.')

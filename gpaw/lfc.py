@@ -5,7 +5,7 @@ from ase.units import Bohr
 
 import gpaw.cgpaw as cgpaw
 from gpaw import debug
-from gpaw.grid_descriptor import GridDescriptor, GridBoundsError
+from gpaw.old.grid_descriptor import GridDescriptor, GridBoundsError
 from gpaw.gpu import cupy_is_fake, as_numpy, as_np, as_xp
 from gpaw.new import trace
 from gpaw.utilities import smallest_safe_grid_spacing
@@ -1258,7 +1258,7 @@ def LFC(gd, spline_aj, kd=None,
 
 
 def test():
-    from gpaw.grid_descriptor import GridDescriptor
+    from gpaw.old.grid_descriptor import GridDescriptor
 
     ngpts = 40
     h = 1 / ngpts

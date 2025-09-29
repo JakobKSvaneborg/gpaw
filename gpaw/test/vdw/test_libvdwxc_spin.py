@@ -2,7 +2,7 @@ import pytest
 from gpaw.utilities import compiled_with_libvdwxc
 import itertools
 import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.xc import XC
 from gpaw.xc.libvdwxc import vdw_df_cx
 from gpaw.mpi import world

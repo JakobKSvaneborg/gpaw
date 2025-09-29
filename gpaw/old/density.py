@@ -12,12 +12,12 @@ from gpaw import debug
 from gpaw.mixer import get_mixer_from_keywords, MixerWrapper
 from gpaw.transformers import Transformer
 from gpaw.lfc import LFC, BasisFunctions
-from gpaw.wavefunctions.lcao import LCAOWaveFunctions
+from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
 from gpaw.utilities import (unpack_density, unpack_atomic_matrices,
                             pack_atomic_matrices)
 from gpaw.utilities.partition import AtomPartition
 from gpaw.utilities.timing import nulltimer
-from gpaw.arraydict import ArrayDict
+from gpaw.old.arraydict import ArrayDict
 
 
 class CompensationChargeExpansionCoefficients:

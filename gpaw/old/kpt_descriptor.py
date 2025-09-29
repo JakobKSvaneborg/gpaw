@@ -14,7 +14,7 @@ import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
 from gpaw import KPointError
 from gpaw.typing import Array1D
-from gpaw.kpoint import KPoint
+from gpaw.old.kpoint import KPoint
 
 
 def to1bz(bzk_kc, cell_cv):
