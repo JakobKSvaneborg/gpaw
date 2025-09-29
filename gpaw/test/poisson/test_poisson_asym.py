@@ -1,6 +1,6 @@
 """Test poisson solver for asymmetric charges."""
 from gpaw.utilities.gauss import Gaussian
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.poisson import PoissonSolver
 
 

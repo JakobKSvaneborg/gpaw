@@ -17,12 +17,12 @@ import numpy as np
 from ase.units import Bohr, Ha, _c, _e, _hplanck
 
 from gpaw.calculator import GPAW
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.typing import Array1D, Array2D, Array4D
 from gpaw.hyperfine import alpha  # fine-structure constant: ~ 1 / 137
 from gpaw.setup import Setup
-from gpaw.pw.lfc import PWLFC
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.mpi import serial_comm
 
 

@@ -25,7 +25,7 @@ from gpaw.tddft.tdopers import \
     TimeDependentWaveFunctions, \
     TimeDependentDensity, \
     AbsorptionKickHamiltonian
-from gpaw.wavefunctions.fd import FD
+from gpaw.old.wavefunctions.fd import FD
 
 from gpaw.tddft.spectrum import photoabsorption_spectrum
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter

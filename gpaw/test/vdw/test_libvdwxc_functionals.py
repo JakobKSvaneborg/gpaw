@@ -1,7 +1,7 @@
 import pytest
 from gpaw.utilities import compiled_with_libvdwxc
 import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.xc.libvdwxc import vdw_df, vdw_df2, vdw_df_cx, \
     vdw_optPBE, vdw_optB88, vdw_C09, vdw_beef, \
     libvdwxc_has_mpi, libvdwxc_has_pfft

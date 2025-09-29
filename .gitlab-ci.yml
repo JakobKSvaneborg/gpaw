@@ -670,7 +670,7 @@ nightly-mpi-1:
     - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30
-      --cov=gpaw --cov-report=html --cov-report=term
+      --cov=gpaw --cov-report=html
   artifacts:
     paths:
       - htmlcov/
@@ -709,7 +709,7 @@ nightly-mpi-8:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
-      "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
+      "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-1-new:
@@ -720,7 +720,7 @@ nightly-mpi-1-new:
     - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30 -m
-      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
+      "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-2-new:

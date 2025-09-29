@@ -3,7 +3,7 @@ from collections.abc import Mapping
 
 import numpy as np
 
-from gpaw.matrix import Matrix
+from gpaw.old.matrix import Matrix
 from gpaw.mpi import serial_comm
 from gpaw.utilities.partition import AtomPartition
 from gpaw.typing import Array2D, ArrayLike1D

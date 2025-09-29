@@ -20,7 +20,7 @@ from scipy.ndimage import map_coordinates
 
 import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
-from gpaw.domain import Domain
+from gpaw.old.domain import Domain
 from gpaw.new import prod
 from gpaw.typing import Array1D, Array3D, Vector
 from gpaw.utilities.blas import mmm, r2k, rk

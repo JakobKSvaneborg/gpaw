@@ -1,6 +1,6 @@
 import numpy as np
 
-from gpaw.matrix import Matrix, create_distribution
+from gpaw.old.matrix import Matrix, create_distribution
 
 
 class MatrixInFile:

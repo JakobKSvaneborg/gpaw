@@ -7,7 +7,7 @@ import numpy as np
 from gpaw.utilities import unpack_hermitian
 from gpaw.fd_operators import Laplace, Gradient
 from gpaw.overlap import Overlap
-from gpaw.wavefunctions.fd import FDWaveFunctions
+from gpaw.old.wavefunctions.fd import FDWaveFunctions
 
 
 class TimeDependentHamiltonian:

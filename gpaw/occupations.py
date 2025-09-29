@@ -9,7 +9,7 @@ import numpy as np
 from ase.units import Ha
 from scipy.special import erf
 
-from gpaw.band_descriptor import BandDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.mpi import MPIComm, broadcast_float, serial_comm
 from gpaw.typing import Array1D, Array2D
 

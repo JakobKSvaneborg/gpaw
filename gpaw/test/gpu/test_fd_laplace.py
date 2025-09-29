@@ -3,7 +3,7 @@ import pytest
 
 from gpaw.fd_operators import Laplace
 from gpaw.gpu import cupy as cp, cupy_is_fake
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.mpi import world
 
 
