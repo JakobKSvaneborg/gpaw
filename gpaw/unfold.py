@@ -190,8 +190,8 @@ class Unfold:
         world = mpi.world
         if filename is None:
             try:
-                e_mK, P_mK = pickle.load(open('weights_' + self.name +
-                                              '.pckl', 'rb'))
+                with open('weights_' + self.name + '.pckl', 'rb') as fd:
+                    e_mK, P_mK = pickle.load(fd)
             except OSError:
                 e_Km = []
                 P_Km = []
@@ -216,10 +216,11 @@ class Unfold:
                 e_mK = np.array(e_Km).T
                 P_mK = np.array(P_Km).T
                 if world.rank == 0:
-                    pickle.dump((e_mK, P_mK),
-                                open('weights_' + self.name + '.pckl', 'wb'))
+                    with open('weights_' + self.name + '.pckl', 'wb') as fd:
+                        pickle.dump((e_mK, P_mK), fd)
         else:
-            e_mK, P_mK = pickle.load(open(filename, 'rb'))
+            with open(filename, 'rb') as fd:
+                e_mK, P_mK = pickle.load(fd)
 
         return e_mK, P_mK
 
@@ -254,8 +255,8 @@ class Unfold:
                 D = (width / 2 / np.pi) / ((e - e0)**2 + (width / 2)**2)
                 A_ke[ik] += P_mK[ie, ik] * D
         if world.rank == 0:
-            pickle.dump((e * Hartree, A_ke, x, X, points_name),
-                        open('sf_' + self.name + '.pckl', 'wb'))
+            with open('sf_' + self.name + '.pckl', 'wb') as fd:
+                pickle.dump((e * Hartree, A_ke, x, X, points_name), fd)
             print('Spectral Function calculation completed!')
         return
 
@@ -326,8 +327,8 @@ def plot_spectral_function(filename, color='blue', eref=None,
     along the kpoints path."""
 
     try:
-        e, A_ke, x, X, points_name = pickle.load(open(filename + '.pckl',
-                                                      'rb'))
+        with open(filename + '.pckl', 'rb') as fd:
+            e, A_ke, x, X, points_name = pickle.load(fd)
     except OSError:
         print('You Need to Calculate the SF first!')
         raise SystemExit()

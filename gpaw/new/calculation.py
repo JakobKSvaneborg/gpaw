@@ -272,6 +272,8 @@ class DFTCalculation:
         # Force from projector functions (and basis set):
         F_av = self.ibzwfs.forces(self.potential)
 
+        getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
+
         pot_calc = self.pot_calc
         Q_aL = self.density.calculate_compensation_charge_coefficients()
         Fcc_av, Fnct_av, Ftauct_av, Fvbar_av, Fext_av = \
@@ -442,6 +444,7 @@ class DFTCalculation:
 
         potential, energies, _ = pot_calc.calculate(density)
 
+        ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         old_ibzwfs = ibzwfs
 
         def create_wfs(spin, q, k, kpt_c, weight):

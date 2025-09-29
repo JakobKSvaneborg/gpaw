@@ -36,7 +36,8 @@ class LCAO(Mode):
 
     def todict(self):
         dct = Mode.todict(self)
-        dct['interpolation'] = self.interpolation
+        if self.interpolation != 3:
+            dct['interpolation'] = self.interpolation
         return dct
 
 
