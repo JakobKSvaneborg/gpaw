@@ -70,6 +70,7 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
     assert err < 1e-4
 
 
+@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
 @pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
@@ -306,6 +307,7 @@ def initialize_system_spinpol(nacl_spin):
                                do_fdm=True)
 
 
+@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
 @pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 def test_spinpol_dipole_moment(initialize_system, initialize_system_spinpol,
@@ -317,6 +319,7 @@ def test_spinpol_dipole_moment(initialize_system, initialize_system_spinpol,
                    atol=1.0001e-12)
 
 
+@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
 @pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)

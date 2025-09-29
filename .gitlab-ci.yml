@@ -670,7 +670,7 @@ nightly-mpi-1:
     - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30
-      --cov=gpaw --cov-report=html --cov-report=term
+      --cov=gpaw --cov-report=html
   artifacts:
     paths:
       - htmlcov/
