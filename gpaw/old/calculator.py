@@ -6,38 +6,40 @@ The central object that glues everything together.
 import warnings
 from typing import Any, Dict
 
-import gpaw
-import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import Calculator, kpts2ndarray
 from ase.units import Bohr, Ha
 from ase.utils import plural
 from ase.utils.timing import Timer
-from gpaw.old.band_descriptor import BandDescriptor
+
+import gpaw
+import gpaw.mpi as mpi
 from gpaw.convergence_criteria import dict2criterion
-from gpaw.old.density import RealSpaceDensity
 from gpaw.dos import DOSCalculator
 from gpaw.eigensolvers import get_eigensolver
 from gpaw.external import PointChargePotential
+from gpaw.hybrids import HybridXC
+from gpaw.io import Reader, Writer
+from gpaw.jellium import create_background_charge
+from gpaw.occupations import ParallelLayout, create_occ_calc
+from gpaw.old.band_descriptor import BandDescriptor
+from gpaw.old.density import RealSpaceDensity
 from gpaw.old.forces import calculate_forces
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.old.hamiltonian import RealSpaceHamiltonian
-from gpaw.hybrids import HybridXC
-from gpaw.io import Reader, Writer
-from gpaw.old.logger import GPAWLogger
-from gpaw.jellium import create_background_charge
 from gpaw.old.kohnsham_layouts import get_KohnSham_layouts
 from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.logger import GPAWLogger
 from gpaw.old.matrix import suggest_blocking
-from gpaw.occupations import ParallelLayout, create_occ_calc
 from gpaw.old.output import (print_cell, print_parallelization_details,
-                         print_positions)
+                             print_positions)
 from gpaw.old.pw.density import ReciprocalSpaceDensity
 from gpaw.old.pw.hamiltonian import ReciprocalSpaceHamiltonian
-from gpaw.scf import SCFLoop, SCFEvent
-from gpaw.setup import Setups
 from gpaw.old.stress import calculate_stress
+from gpaw.old.wavefunctions.mode import create_wave_function_mode
+from gpaw.scf import SCFEvent, SCFLoop
+from gpaw.setup import Setups
 from gpaw.symmetry import Symmetry
 from gpaw.typing import Array1D
 from gpaw.utilities import check_atoms_too_close, compiled_with_sl
@@ -45,7 +47,6 @@ from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.utilities.grid import GridRedistributor
 from gpaw.utilities.memory import MemNode, maxrss
 from gpaw.utilities.partition import AtomPartition
-from gpaw.old.wavefunctions.mode import create_wave_function_mode
 from gpaw.xc import XC
 from gpaw.xc.kernel import XCKernel
 from gpaw.xc.sic import SIC

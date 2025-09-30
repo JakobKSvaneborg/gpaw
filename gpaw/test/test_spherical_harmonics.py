@@ -2,8 +2,9 @@ from math import pi
 
 import numpy as np
 import pytest
-from gpaw.sphere.spherical_harmonics import (YL, Y, Yl, gam, print_YL_table_code,
-                                      write_c_code)
+
+from gpaw.sphere.spherical_harmonics import (YL, Y, Yl, gam,
+                                             print_YL_table_code, write_c_code)
 
 
 def yLL(L1, L2):
