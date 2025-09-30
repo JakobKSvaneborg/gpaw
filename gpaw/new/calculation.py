@@ -270,7 +270,7 @@ class DFTCalculation:
         assert not hasattr(xc.xc, 'setup_force_corrections')
 
         # Force from projector functions (and basis set, hybrids):
-        F_av = self.ibzwfs.forces(self.potential, self.scf.hamiltonian,
+        F_av = self.ibzwfs.forces(self.potential, self.scf_loop.hamiltonian,
                                   self.density.D_asii)
 
         getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA

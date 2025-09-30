@@ -57,11 +57,12 @@ class PWHybridHamiltonianK(PWHamiltonian):
         self.nbzk = 0
 
     def update_wave_functions(self,
-                              ibzwfs: PWFDIBZWaveFunctions):
+                              ibzwfs: PWFDIBZWaveFunctions,
+                              forces=False):
         """Compute BZ from IBZ and distribute over the entire world!"""
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
-            self.log if self.nbzk == 0 else None)
+            self.log if self.nbzk == 0 else None, forces)
         self.nbzk = len(ibzwfs.ibz.bz)
         self.xc.energies = {'hybrid_xc': 0.0,
                             'hybrid_kinetic_correction': 0.0}
@@ -75,7 +76,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
                                 calculate_energy: bool = False,
                                 F_av: np.ndarray | None = None) -> None:
         assert isinstance(psit2_nG, PWArray)
-        assert isinstance(Htpsit2_nG, PWArray)
+        assert Htpsit2_nG is None or isinstance(Htpsit2_nG, PWArray)
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
         assert len(ibzwfs.ibz) % self.kpt_comm.size == 0
 
@@ -95,7 +96,7 @@ class PWHybridHamiltonianK(PWHamiltonian):
 
         evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
                                       psit2_nG, Htpsit2_nG,
-                                      wfs.myocc_n, calculate_energy)
+                                      wfs.myocc_n, calculate_energy, F_av)
         if calculate_energy:
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
@@ -239,7 +240,11 @@ class PWHybridHamiltonianK(PWHamiltonian):
             if not calculate_energy:
                 rhot_nG.data *= v_G
                 if F_av is not None:
-                    forces(ghat_aLG, rhot_nG, Q_anL, dP_aniv, F_av)
+                    forces(ghat_aLG, rhot_nG, P2_ani,
+                           Q_anL,
+                           f1_n[n1], f2_n, self.delta_aiiL,
+                           psit1.dP_anvi,
+                           n1, F_av)
                     continue
             else:
                 for rhot_G, f2 in zip(rhot_nG, f2_n):
@@ -259,16 +264,18 @@ class PWHybridHamiltonianK(PWHamiltonian):
         return e
 
 
-def forces(ghat_aLG, vrhot2_nG, Q2_anL, dP_aniv, f1, f2_n, F_av):
-    for a, F_nLv in ghat_aLG.derivative(vrhot2_nG).items():
-        F_av[a] -= np.einsum('n, nL, nLv -> v',
-                             f1 * f2_n,
+def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, delta_aiiL,
+           dP_anvi, n1, F_av):
+    f12_n = f1 * f2_n
+    for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
+        F_av[a] -= np.einsum('n, nL, nvL -> v',
+                             f12_n,
                              Q2_anL[a].conj(),
-                             F_nLv).real
-    for a, F_nLv in ghat_aLG.integrate(vrhot2_nG).items():
-        v_iin = paw.Delta_aiiL[a].dot(v_nL.T)
-        F_av[a] -= np.einsum('ijn, iv, nj, n -> v',
-                             v_iin,
-                             k1.dPdR_aniv[a][n1].conj(),
-                             k2.proj[a][n2a:n2b],
-                             ff_n).real * 2
+                             F_nvL).real
+    for a, F_nL in ghat_aLG.integrate(vrhot2_nG).items():
+        F_iin = delta_aiiL[a] @ F_nL.T
+        F_av[a] -= np.einsum('ijn, vi, nj, n -> v',
+                             F_iin,
+                             dP_anvi[a][n1].conj(),
+                             P2_ani[a],
+                             f12_n).real * 2

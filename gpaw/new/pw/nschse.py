@@ -246,7 +246,8 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            relpos_ac: np.ndarray,
            grid: UGDesc,
            plan,  # FFT-plan
-           log: Logger | None = None) -> tuple[list[Psit], int]:
+           log: Logger | None = None,
+           forces: bool = False) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
     log = log or Logger(None)
     nocc = number_of_non_empty_bands(ibzwfs)
@@ -336,6 +337,8 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             k = ibz.bz2ibz_K[K]
             f_n = occ_skn[spin, k, na:nb]
             psit = Psit(psit_nR, P_ani, f_n, psit_nG.desc.kpt_c, Q_aniL, spin)
+            if forces:
+                psit.dP_anvi = pt_aiG.derivative(psit_nG)
             mypsits.append(psit)
 
     comm.waitall(requests)

@@ -307,6 +307,7 @@ class IBZWaveFunctions(Generic[WFT]):
         F_av = self.xp.zeros((len(potential.dH_asii), 3))
         for wfs in self:
             wfs.force_contribution(potential, F_av)
+        hamiltonian.update_wave_functions(self, forces=True)
         for wfs in self:
             hamiltonian.apply_orbital_dependent(
                 self, D_asii, wfs.psit_nX, wfs.spin,
