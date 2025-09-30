@@ -10,7 +10,7 @@ from gpaw.core.atom_arrays import AtomArrays, AtomArraysLayout
 from gpaw.core.uniform_grid import UGArray
 from gpaw.setup import Setups
 from gpaw.spline import Spline
-from gpaw.spherical_harmonics import Y
+from gpaw.sphere.spherical_harmonics import Y
 from gpaw.typing import Array1D, Array3D, Vector, Array2D
 from gpaw.new import zips as zip
 

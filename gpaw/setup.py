@@ -8,7 +8,7 @@ from ase.data import chemical_symbols
 
 from gpaw import debug
 from gpaw.basis_data import Basis, BasisFunction
-from gpaw.gaunt import gaunt, nabla
+from gpaw.sphere.gaunt import gaunt, nabla
 from gpaw.overlap import OverlapCorrections
 from gpaw.setup_data import SetupData, search_for_file
 from gpaw.spline import Spline
@@ -1367,7 +1367,7 @@ class Setups(list):
         """Find rotation matrices for spherical harmonics."""
         # XXX It is ugly that we set self.atomrotations from here;
         # it would be better to return it to the caller.
-        from gpaw.atomrotations import AtomRotations
+        from gpaw.old.atomrotations import AtomRotations
         self.atomrotations = AtomRotations(self.setups, self.id_a, symmetry)
 
     def empty_atomic_matrix(self, ns, atom_partition, dtype=float):

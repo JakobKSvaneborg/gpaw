@@ -5,10 +5,10 @@ from math import pi, sqrt
 
 import numpy as np
 
-from gpaw.gaunt import gaunt
+from gpaw.sphere.gaunt import gaunt
 # load points and weights for the angular integration
 from gpaw.sphere.lebedev import R_nv, Y_nL, weight_n
-from gpaw.spherical_harmonics import nablarlYL
+from gpaw.sphere.spherical_harmonics import nablarlYL
 
 r"""
                            3
