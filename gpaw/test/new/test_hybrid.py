@@ -24,46 +24,33 @@ def test_pawexxvv():
 # @pytest.mark.parametrize('ccirs', [False, True])
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_hse06(gpaw_new, dtype):
-    if 0:  # gpaw_new:
-        if dtype is float and size > 4:
-            pytest.skip('Only band-parallelization!')
-        if ccirs and dtype is complex:
-            pytest.skip('not implemented')
-        experimental = {'ccirs': ccirs}
-        # Low max_buffer_mem to test that this value is overwritten due to
-        # the non band-local hybrid-xc hamiltonian.
-        eigensolver = {'name': 'davidson',
-                       'max_buffer_mem': 1024 * 4}
-        if ccirs:
-            pytest.skip('CCIRS only for new GPAW????????????????????????')
-    else:
-        eigensolver = 'davidson'
-        experimental = {}
-
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
         mode=dict(name='pw',
                   force_complex_dtype=dtype is complex),
         xc='HSE06',
-        experimental=experimental,
-        eigensolver=eigensolver,
+        # convergence={'density': 1e-6},
         parallel={'domain': min(2, size) if dtype is complex else 1},
         nbands=4)
     e = atoms.get_potential_energy()
-    f = atoms.get_forces()
-    eigs = atoms.calc.get_eigenvalues(spin=0)
     assert e == pytest.approx(-5.633278, abs=1e-3)
+    eigs = atoms.calc.get_eigenvalues(spin=0)
     assert eigs[0] == pytest.approx(-4.67477532, abs=1e-3)
+    f = atoms.get_forces()
+    atoms.set_distance(0, 1, 2.005)
+    ep = atoms.get_potential_energy()
+    atoms.set_distance(0, 1, 1.995)
+    em = atoms.get_potential_energy()
+    print((ep - em) / 0.01)
+    f0 = 2.3454
+    assert f == pytest.approx([[0, 0, -f0], [0, 0, f0]])
 
 
 @pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_h(gpaw_new, dtype):
-    if 0:  # gpaw_new:
-        if dtype is float and size > 2:
-            pytest.skip('Only band-parallelization!')
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(mode=dict(name='pw',

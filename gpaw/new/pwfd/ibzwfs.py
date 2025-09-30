@@ -1,8 +1,9 @@
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.move_wfs import move_wave_functions
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
-class PWFDIBZWaveFunctions(IBZWaveFunctions):
+class PWFDIBZWaveFunctions(IBZWaveFunctions[PWFDWaveFunctions]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.move_wave_functions = move_wave_functions

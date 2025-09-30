@@ -8,7 +8,7 @@ from typing import IO
 
 import numpy as np
 from ase.units import Ha
-from gpaw.core import PWArray, UGArray, UGDesc
+from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
@@ -32,6 +32,7 @@ class Psit:
     kpt_c: np.ndarray
     Q_aniL: dict[int, np.ndarray]
     spin: int
+    dP_anvi: AtomArrays | None = None
 
 
 class NonSelfConsistentHSE06:
@@ -180,14 +181,15 @@ class NonSelfConsistentHSE06:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = truncated_coulomb(pw, self.hse06_omega)
-                eig_n += self._exx_part(v_G, psit1, ut2_nR, P2_ani)
+                eig_n += self._exx_part(pw, v_G, psit1, ut2_nR, P2_ani)
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
 
         return (deig_n + eig_n) * Ha
 
     def _exx_part(self,
-                  v_G: PWArray,
+                  pw: PWDesc,
+                  v_G: np.ndarray,
                   psit1: Psit,
                   ut2_nR: UGArray,
                   P2_ani: AtomArrays) -> np.ndarray:
@@ -195,9 +197,9 @@ class NonSelfConsistentHSE06:
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
-        phase_a = np.exp(-2j * np.pi * (self.relpos_ac @ v_G.desc.kpt_c))
+        phase_a = np.exp(-2j * np.pi * (self.relpos_ac @ pw.kpt_c))
         ghat_aLG = self.setups.create_compensation_charges(
-            v_G.desc, self.relpos_ac)
+            pw, self.relpos_ac)
         e_n = np.zeros(len(ut2_nR))
         for n1, ut1_R in enumerate(ut1_nR.data):
             rhot_nR = ut2_nR.copy()
@@ -206,16 +208,16 @@ class NonSelfConsistentHSE06:
             if 1:
                 for a, Q1_niL in Q1_aniL.items():
                     Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
-                rhot_nG = v_G.desc.empty(len(rhot_nR))
+                rhot_nG = pw.empty(len(rhot_nR))
                 fft(rhot_nR, rhot_nG, plan=self.plan)
                 ghat_aLG.add_to(rhot_nG, Q_anL)
             else:
                 for a, Q1_niL in Q1_aniL.items():
                     Q_anL[a] = P2_ani[a] @ Q1_niL[n1] * phase_a[a]
                 self.ghat_aLR.add_to(rhot_nR, Q_anL)
-                rhot_nG = v_G.desc.empty(len(rhot_nR))
+                rhot_nG = pw.empty(len(rhot_nR))
                 fft(rhot_nR, rhot_nG, plan=self.plan)
-            rhot_nG.data *= v_G.data.real**0.5
+            rhot_nG.data *= v_G**0.5
             e_n += rhot_nG.norm2() * f1_n[n1]
         return e_n
 
@@ -263,8 +265,8 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     rank_K = np.zeros(nbzk, int)
     kpt_Kc = np.zeros((nbzk, 3))
     psit_KsnG = {}
-    for wfs_s in ibzwfs.wfs_qs:
-        wfs_s = [wfs.collect(0, nocc) for wfs in wfs_s]
+    for wfs1_s in ibzwfs.wfs_qs:
+        wfs_s = [wfs.collect(0, nocc) for wfs in wfs1_s]
         if wfs_s[0] is None:
             continue
         for K, k in enumerate(ibz.bz2ibz_K):
@@ -277,6 +279,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             psit_snG = []
             for wfs in wfs_s:
                 psit1_nG = wfs.psit_nX
+                assert isinstance(psit1_nG, PWArray)
                 psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
                 psit_snG.append(psit2_nG)
                 kpt_Kc[K] = psit2_nG.desc.kpt_c

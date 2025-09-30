@@ -27,8 +27,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     if not use_sym:
         kwargs['symmetry'] = 'off'
     if gpaw_new:
-        kwargs |= dict(spinpol=False,
-                       )#eigensolver='rmm-diis')
+        kwargs |= dict(spinpol=False)
 
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
@@ -37,9 +36,8 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
         **kwargs)
     e1 = a.get_potential_energy()
     eig1_kn = a.calc.eigenvalues()[0]
-    if not gpaw_new:
-        f1 = a.get_forces()
-        assert abs(f1[1, 0] - 9.60644) < 0.0005
+    f1 = a.get_forces()
+    assert abs(f1[1, 0] - 9.60644) < 0.0005
     if 0:
         # To check against numeric calculation of the forces, but it takes
         # more time
@@ -55,12 +53,11 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
         **kwargs)
     e2 = a.get_potential_energy()
     eig2_kn = a.calc.eigenvalues()[0]
-    if not gpaw_new:
-        f2 = a.get_forces()
+    f2 = a.get_forces()
 
-        f2[:2] -= f1
-        f2[2:] -= f1
-        assert abs(f2).max() < 0.00085
+    f2[:2] -= f1
+    f2[2:] -= f1
+    assert abs(f2).max() < 0.00085
 
     assert abs(e2 - 2 * e1) < 0.002
 
