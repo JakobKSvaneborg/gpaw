@@ -16,12 +16,13 @@ from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
 from gpaw.new.logger import Logger
-from gpaw.new.pw.hybrids import fft, pawexxvv, truncated_coulomb
+from gpaw.hybrids.paw import pawexxvv
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
+from gpaw.new.pw.hybridsk import truncated_coulomb
 
 
 @dataclass
@@ -209,14 +210,14 @@ class NonSelfConsistentHSE06:
                 for a, Q1_niL in Q1_aniL.items():
                     Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
                 rhot_nG = pw.empty(len(rhot_nR))
-                fft(rhot_nR, rhot_nG, plan=self.plan)
+                rhot_nR.fft(out=rhot_nG, plan=self.plan)
                 ghat_aLG.add_to(rhot_nG, Q_anL)
             else:
                 for a, Q1_niL in Q1_aniL.items():
                     Q_anL[a] = P2_ani[a] @ Q1_niL[n1] * phase_a[a]
                 self.ghat_aLR.add_to(rhot_nR, Q_anL)
                 rhot_nG = pw.empty(len(rhot_nR))
-                fft(rhot_nR, rhot_nG, plan=self.plan)
+                rhot_nR.fft(out=rhot_nG, plan=self.plan)
             rhot_nG.data *= v_G**0.5
             e_n += rhot_nG.norm2() * f1_n[n1]
         return e_n

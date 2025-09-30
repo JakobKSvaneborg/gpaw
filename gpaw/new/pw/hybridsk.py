@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import nan
+from math import nan, pi
 
 import numpy as np
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
@@ -12,14 +12,44 @@ from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
-from gpaw.new.pw.hybrids import truncated_coulomb
 from gpaw.new.pw.nschse import Psit, ibz2bz
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 
 
-class PWHybridHamiltonianK(PWHamiltonian):
+def truncated_coulomb(pw: PWDesc,
+                      omega: float = 0.11,
+                      yukawa: bool = False) -> np.ndarray:
+    """Fourier transform of truncated Coulomb.
+
+    Real space:::
+
+        erfc(ωr)
+        --------.
+           r
+
+    Reciprocal space:::
+
+        4π             _ _ 2     2
+      ------(1 - exp(-(G+k) /(4 ω )))
+       _ _ 2
+      (G+k)
+
+    (G+k=0 limit is pi/ω^2).
+    """
+    G2_G = pw.ekin_G * 2
+    if yukawa:
+        v_G = 4 * pi / (G2_G + omega**2)
+    else:
+        v_G = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
+        ok_G = G2_G > 1e-10
+        v_G[ok_G] /= G2_G[ok_G]
+        v_G[~ok_G] = pi / omega**2
+    return v_G
+
+
+class PWHybridHamiltonian(PWHamiltonian):
     band_local = False
 
     def __init__(self,
