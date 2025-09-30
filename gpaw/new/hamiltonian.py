@@ -43,9 +43,9 @@ class Hamiltonian:
                                 D_asii,
                                 psit_nG: XArray,
                                 spin: int,
-                                out: XArray,
-                                calculate_energy: bool,
-                                F_an: np.ndarray | None = None) -> None:
+                                out: XArray | None = None,
+                                calculate_energy: bool = False,
+                                F_av: np.ndarray | None = None) -> None:
         pass
 
     def create_preconditioner(self, blocksize, xp=np):
