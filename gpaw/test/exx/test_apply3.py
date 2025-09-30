@@ -1,4 +1,4 @@
-from gpaw.new.pw.hybridsk import PWHybridHamiltonianK, Psit
+from gpaw.new.pw.hybrids import PWHybridHamiltonian, Psit
 from gpaw.core import UGDesc, PWDesc
 from gpaw.setup import Setups
 from gpaw.core.atom_arrays import AtomDistribution, AtomArraysLayout
@@ -16,7 +16,7 @@ def test_apply3(a=5.0, N=10, dtype=float):
     relpos_ac[:] = np.linspace(0, 1.0, N, False)[:, np.newaxis]
     xc = type('XC', (), {'exx_fraction': 0.25,
                          'exx_omega': 0.2})()
-    ham = PWHybridHamiltonianK(
+    ham = PWHybridHamiltonian(
         grid, pw, xc,
         Setups([6] * N, 'paw', {}, 'LDA'),
         relpos_ac,

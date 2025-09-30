@@ -8,21 +8,23 @@ from typing import IO
 
 import numpy as np
 from ase.units import Ha
+
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomArrays
+from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
 from gpaw.new.logger import Logger
-from gpaw.hybrids.paw import pawexxvv
+from gpaw.new.pw.hybrids import truncated_coulomb
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
-from gpaw.new.pw.hybridsk import truncated_coulomb
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 @dataclass
@@ -267,8 +269,12 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     kpt_Kc = np.zeros((nbzk, 3))
     psit_KsnG = {}
     for wfs1_s in ibzwfs.wfs_qs:
-        wfs_s = [wfs.collect(0, nocc) for wfs in wfs1_s]
-        if wfs_s[0] is None:
+        wfs_s: list[PWFDWaveFunctions] = []
+        for wfs1 in wfs1_s:
+            wfs = wfs1.collect(0, nocc)
+            if wfs is not None:
+                wfs_s.append(wfs)
+        if len(wfs_s) == 0:
             continue
         for K, k in enumerate(ibz.bz2ibz_K):
             if k != wfs_s[0].k:
