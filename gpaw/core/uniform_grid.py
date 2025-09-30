@@ -10,7 +10,7 @@ from gpaw.core.arrays import DistributedArrays
 from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
 from gpaw.core.domain import Domain
 from gpaw.gpu import as_np, cupy_is_fake
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
 from gpaw.typing import (Array1D, Array2D, Array3D, Array4D, ArrayLike1D,

@@ -4,8 +4,8 @@ import numpy as np
 from ase.utils import seterr
 from scipy.special import erf
 
-from gpaw.pw.density import ReciprocalSpaceDensity
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.pw.density import ReciprocalSpaceDensity
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.typing import Array1D
 
 

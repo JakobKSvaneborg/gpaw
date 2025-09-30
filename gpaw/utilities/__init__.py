@@ -5,7 +5,6 @@
 
 import io
 import os
-import re
 import sys
 import time
 from contextlib import contextmanager
@@ -301,32 +300,6 @@ def element_from_packed(M, i, j):
         return .5 * np.conjugate(M[p])
 
 
-def logfile(name, rank=0):
-    """Create file object from name.
-
-    Use None for /dev/null and '-' for sys.stdout.  Ranks > 0 will
-    get /dev/null."""
-
-    if rank == 0:
-        if name is None:
-            fd = devnull
-        elif name == '-':
-            fd = sys.stdout
-        elif isinstance(name, str):
-            fd = open(name, 'w')
-        else:
-            fd = name
-    else:
-        fd = devnull
-    return fd
-
-
-def uncamelcase(name):
-    """Convert a CamelCase name to a string of space-seperated words."""
-    words = re.split('([A-Z]{1}[a-z]+)', name)
-    return ' '.join([word for word in words if word != ''])
-
-
 def divrl(a_g, l, r_g):
     """Return array divided by r to the l'th power."""
     b_g = a_g.copy()
@@ -344,29 +317,6 @@ def compiled_with_sl():
 
 def compiled_with_libvdwxc():
     return hasattr(cgpaw, 'libvdwxc_create')
-
-
-def load_balance(paw, atoms):
-    try:
-        paw.initialize(atoms)
-    except SystemExit:
-        pass
-    atoms_r = np.zeros(paw.wfs.world.size)
-    rnk_a = paw.wfs.gd.get_ranks_from_positions(paw.spos_ac)
-    for rnk in rnk_a:
-        atoms_r[rnk] += 1
-    max_atoms = max(atoms_r)
-    min_atoms = min(atoms_r)
-    ave_atoms = atoms_r.sum() / paw.wfs.world.size
-    stddev_atoms = sqrt((atoms_r**2).sum() / paw.wfs.world.size - ave_atoms**2)
-    print("Information about load balancing")
-    print("--------------------------------")
-    print("Number of atoms:", len(paw.spos_ac))
-    print("Number of CPUs:", paw.wfs.world.size)
-    print("Max. number of atoms/CPU:   ", max_atoms)
-    print("Min. number of atoms/CPU:   ", min_atoms)
-    print("Average number of atoms/CPU:", ave_atoms)
-    print("    standard deviation:     %5.1f" % stddev_atoms)
 
 
 if not debug and not GPAW_NO_C_EXTENSION:

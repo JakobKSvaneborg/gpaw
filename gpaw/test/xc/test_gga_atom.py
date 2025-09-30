@@ -2,7 +2,7 @@ import numpy as np
 import numpy.random as ra
 import pytest
 from gpaw.setup import create_setup
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LFC
 from gpaw.spline import Spline
 from gpaw.xc import XC

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from functools import cached_property
 
-from gpaw.projections import Projections, serial_comm
+from gpaw.old.projections import Projections, serial_comm
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
 from gpaw.response.pw_parallelization import Blocks1D
 

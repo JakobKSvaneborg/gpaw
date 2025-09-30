@@ -6,19 +6,19 @@ from ase.units import Bohr, Ha
 from ase.utils.timing import timer
 import numpy as np
 
-from gpaw.band_descriptor import BandDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
 from gpaw.lfc import BasisFunctions
-from gpaw.matrix_descriptor import MatrixDescriptor
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.lfc import PWLFC
+from gpaw.old.matrix_descriptor import MatrixDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
 from gpaw.typing import Array2D
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import axpy
 from gpaw.utilities.progressbar import ProgressBar
-from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
-from gpaw.wavefunctions.fdpw import FDPWWaveFunctions
-from gpaw.wavefunctions.mode import Mode
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.old.wavefunctions.fdpw import FDPWWaveFunctions
+from gpaw.old.wavefunctions.mode import Mode
 import gpaw
 import gpaw.cgpaw as cgpaw
 import gpaw.fftw as fftw

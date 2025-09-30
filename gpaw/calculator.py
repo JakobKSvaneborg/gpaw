@@ -14,31 +14,30 @@ from ase.calculators.calculator import Calculator, kpts2ndarray
 from ase.units import Bohr, Ha
 from ase.utils import plural
 from ase.utils.timing import Timer
-from gpaw.band_descriptor import BandDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.convergence_criteria import dict2criterion
-from gpaw.density import RealSpaceDensity
+from gpaw.old.density import RealSpaceDensity
 from gpaw.dos import DOSCalculator
 from gpaw.eigensolvers import get_eigensolver
 from gpaw.external import PointChargePotential
-from gpaw.forces import calculate_forces
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.hamiltonian import RealSpaceHamiltonian
+from gpaw.old.forces import calculate_forces
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.hamiltonian import RealSpaceHamiltonian
 from gpaw.hybrids import HybridXC
 from gpaw.io import Reader, Writer
-from gpaw.io.logger import GPAWLogger
+from gpaw.old.logger import GPAWLogger
 from gpaw.jellium import create_background_charge
-from gpaw.kohnsham_layouts import get_KohnSham_layouts
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.kpt_refine import create_kpoint_descriptor_with_refinement
-from gpaw.matrix import suggest_blocking
+from gpaw.old.kohnsham_layouts import get_KohnSham_layouts
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.matrix import suggest_blocking
 from gpaw.occupations import ParallelLayout, create_occ_calc
 from gpaw.output import (print_cell, print_parallelization_details,
                          print_positions)
-from gpaw.pw.density import ReciprocalSpaceDensity
-from gpaw.pw.hamiltonian import ReciprocalSpaceHamiltonian
+from gpaw.old.pw.density import ReciprocalSpaceDensity
+from gpaw.old.pw.hamiltonian import ReciprocalSpaceHamiltonian
 from gpaw.scf import SCFLoop, SCFEvent
 from gpaw.setup import Setups
-from gpaw.stress import calculate_stress
+from gpaw.old.stress import calculate_stress
 from gpaw.symmetry import Symmetry
 from gpaw.typing import Array1D
 from gpaw.utilities import check_atoms_too_close, compiled_with_sl
@@ -46,7 +45,7 @@ from gpaw.utilities.gpts import get_number_of_grid_points
 from gpaw.utilities.grid import GridRedistributor
 from gpaw.utilities.memory import MemNode, maxrss
 from gpaw.utilities.partition import AtomPartition
-from gpaw.wavefunctions.mode import create_wave_function_mode
+from gpaw.old.wavefunctions.mode import create_wave_function_mode
 from gpaw.xc import XC
 from gpaw.xc.kernel import XCKernel
 from gpaw.xc.sic import SIC
@@ -1234,7 +1233,7 @@ class GPAW(Calculator):
 
             xc_redist = None
             if self.parallel['augment_grids']:
-                from gpaw.grid_descriptor import BadGridError
+                from gpaw.old.grid_descriptor import BadGridError
                 try:
                     aux_gd = gd.new_descriptor(comm=self.world)
                 except BadGridError as err:
@@ -1264,26 +1263,11 @@ class GPAW(Calculator):
                       pbc=self.atoms.pbc)
         bzkpts_kc = kpts2ndarray(par.kpts, atoms)
 
-        kpt_refine = par.experimental.get('kpt_refine')
-        if kpt_refine is None:
-            kd = KPointDescriptor(bzkpts_kc, nspins)
+        kd = KPointDescriptor(bzkpts_kc, nspins)
 
-            self.timer.start('Set symmetry')
-            kd.set_symmetry(self.atoms, self.symmetry, comm=self.world)
-            self.timer.stop('Set symmetry')
-
-        else:
-            self.timer.start('Set k-point refinement')
-            kd = create_kpoint_descriptor_with_refinement(
-                kpt_refine,
-                bzkpts_kc, nspins, self.atoms,
-                self.symmetry, comm=self.world,
-                timer=self.timer)
-            self.timer.stop('Set k-point refinement')
-            # Update quantities which might have changed, if symmetry
-            # was changed
-            self.symmetry = kd.symmetry
-            self.setups.set_symmetry(kd.symmetry)
+        self.timer.start('Set symmetry')
+        kd.set_symmetry(self.atoms, self.symmetry, comm=self.world)
+        self.timer.stop('Set symmetry')
 
         self.log(kd)
 

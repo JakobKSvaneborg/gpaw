@@ -4,7 +4,7 @@ import numpy as np
 
 from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import check_convergence
-from gpaw.forces import calculate_forces
+from gpaw.old.forces import calculate_forces
 from gpaw.directmin.scf_helper import do_if_converged, check_eigensolver_state
 
 

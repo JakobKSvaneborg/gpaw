@@ -1,6 +1,6 @@
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
-from gpaw.kpt_descriptor import KPointDescriptor, to1bz
+from gpaw.old.kpt_descriptor import KPointDescriptor, to1bz
 
 
 def test_kpt():
