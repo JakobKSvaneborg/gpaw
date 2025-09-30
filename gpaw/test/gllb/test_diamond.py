@@ -13,7 +13,7 @@ import pytest
 from ase.build import bulk
 from gpaw import GPAW, Davidson, Mixer
 from gpaw.mpi import world
-from gpaw.calculator import DeprecatedParameterWarning
+from gpaw.old.calculator import DeprecatedParameterWarning
 
 
 @pytest.mark.gllb
