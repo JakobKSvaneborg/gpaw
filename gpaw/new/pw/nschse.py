@@ -1,7 +1,6 @@
 """Non self-consistent HSE06 eigenvalues."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from time import time
 from typing import IO
@@ -9,7 +8,7 @@ from typing import IO
 import numpy as np
 from ase.units import Ha
 
-from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
+from gpaw.core import PWArray, PWDesc, UGArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
@@ -18,24 +17,12 @@ from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
 from gpaw.new.logger import Logger
-from gpaw.new.pw.hybrids import truncated_coulomb
+from gpaw.new.pw.hybrids import truncated_coulomb, Psit, ibz2bz
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
-from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-
-
-@dataclass
-class Psit:
-    ut_nR: UGArray
-    P_ani: AtomArrays
-    f_n: np.ndarray
-    kpt_c: np.ndarray
-    Q_aniL: dict[int, np.ndarray]
-    spin: int
-    dP_anvi: AtomArrays | None = None
 
 
 class NonSelfConsistentHSE06:
@@ -236,127 +223,6 @@ class NonSelfConsistentHSE06:
                 add_to_density(1.0, ut_R, nt_R.data)
                 eig_n[n] = dvxc_R.integrate(nt_R)
         return eig_n
-
-
-def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,
-                              tolerance: float = 1e-5) -> int:
-    nocc = 0
-    for wfs in ibzwfs:
-        nocc = max(nocc, int((wfs.occ_n > tolerance).sum()))
-    return int(ibzwfs.kpt_comm.max_scalar(nocc))
-
-
-def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
-           setups: Setups,
-           relpos_ac: np.ndarray,
-           grid: UGDesc,
-           plan,  # FFT-plan
-           log: Logger | None = None,
-           forces: bool = False) -> tuple[list[Psit], int]:
-    """Compute BZ from IBZ and distribute."""
-    log = log or Logger(None)
-    nocc = number_of_non_empty_bands(ibzwfs)
-    ibz = ibzwfs.ibz
-    log(ibz)
-    log('Occupied bands:', nocc)
-
-    log('Transforming wave functions from IBZ to BZ: ', end='')
-    t1 = time()
-    nbzk = len(ibz.bz)
-    comm = ibzwfs.comm
-    symmetries = ibzwfs.ibz.symmetries
-    rank_K = np.zeros(nbzk, int)
-    kpt_Kc = np.zeros((nbzk, 3))
-    psit_KsnG = {}
-    for wfs1_s in ibzwfs.wfs_qs:
-        wfs_s: list[PWFDWaveFunctions] = []
-        for wfs1 in wfs1_s:
-            wfs = wfs1.collect(0, nocc)
-            if wfs is not None:
-                wfs_s.append(wfs)
-        if len(wfs_s) == 0:
-            continue
-        for K, k in enumerate(ibz.bz2ibz_K):
-            if k != wfs_s[0].k:
-                continue
-            rank_K[K] = comm.rank
-            s = ibz.s_K[K]
-            U_cc = symmetries.rotation_scc[s]
-            complex_conjugate = ibz.time_reversal_K[K]
-            psit_snG = []
-            for wfs in wfs_s:
-                psit1_nG = wfs.psit_nX
-                assert isinstance(psit1_nG, PWArray)
-                psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
-                psit_snG.append(psit2_nG)
-                kpt_Kc[K] = psit2_nG.desc.kpt_c
-            psit_KsnG[K] = psit_snG
-    comm.sum(rank_K)
-    comm.sum(kpt_Kc)
-    t2 = time()
-    log(f'{t2 - t1:.3f} seconds')
-
-    nocc_total = nocc * nbzk
-    blocksize = (nocc_total + comm.size - 1) // comm.size
-    blocks = []
-    for rank in range(comm.size):
-        Ka, na = divmod(rank * blocksize, nocc)
-        Kb, nb = divmod((rank + 1) * blocksize, nocc)
-        for K in range(Ka, min(Kb, nbzk)):
-            blocks.append((rank, K, (na, nocc)))
-            na = 0
-        if nb > na and Kb < nbzk:
-            blocks.append((rank, Kb, (na, nb)))
-
-    log('Distributing wave functions and iFFT-ing to real space: ', end='')
-    t1 = time()
-    requests = []
-    for K, psit_snG in psit_KsnG.items():
-        for rank, KK, (na, nb) in blocks:
-            if KK != K:
-                continue
-            if rank != comm.rank:
-                for psit_nG in psit_snG:
-                    requests.append(
-                        comm.send(psit_nG.data[na:nb], rank,
-                                  block=False, tag=K))
-
-    pw = ibzwfs.wfs_qs[0][0].psit_nX.desc.new(comm=None)
-    _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
-
-    mypsits = []
-    for rank, K, (na, nb) in blocks:
-        if rank != comm.rank:
-            continue
-        pt_aiG = None
-        for spin in range(ibzwfs.nspins):
-            if rank_K[K] == rank:
-                psit_nG = psit_KsnG[K][spin][na:nb]
-            else:
-                psit_nG = pw.new(kpt=kpt_Kc[K]).empty(nb - na)
-                comm.receive(psit_nG.data, rank_K[K], tag=K)
-            pt_aiG = pt_aiG or psit_nG.desc.atom_centered_functions(
-                [setup.pt_j for setup in setups],
-                relpos_ac)
-            P_ani = pt_aiG.integrate(psit_nG)
-
-            psit_nR = psit_nG.ifft(grid=grid, plan=plan, periodic=False)
-            Q_aniL = {a: np.einsum('ijL, nj -> niL',
-                                   setup.Delta_iiL, P_ani[a].conj())
-                      for a, setup in enumerate(setups)}
-            k = ibz.bz2ibz_K[K]
-            f_n = occ_skn[spin, k, na:nb]
-            psit = Psit(psit_nR, P_ani, f_n, psit_nG.desc.kpt_c, Q_aniL, spin)
-            if forces:
-                psit.dP_anvi = pt_aiG.derivative(psit_nG)
-            mypsits.append(psit)
-
-    comm.waitall(requests)
-
-    t2 = time()
-    log(f'{t2 - t1:.3f} seconds')
-
-    return mypsits, nocc
 
 
 def nsc_corrections(density: Density,
