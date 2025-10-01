@@ -14,12 +14,13 @@ if version_info < (3, 9):
     raise ValueError('Please use Python-3.9 or later')
 
 # Python version in the venv that we are creating
-version = '3.11'
-fversion = 'cpython-311'
+version = '3.13'
+fversion = 'cpython-313'
 
 # Niflheim login hosts, with the oldest architecture as the first
 nifllogin = [
     'slid2',  # broadwell_el8 (xeon24el8)
+    # XXXXX
     # 'thul',  # skylake_el8 (xeon40el8)
     # 'surt',  # icelake (xeon56)
     # 'fjorm',  # epyc9004 (epyc96)
@@ -125,17 +126,30 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     """Compile for all architectures: xeon24, xeon40, ..."""
     # Remove targets:
     for path in gpaw.glob('build/lib.linux-x86_64-*/_gpaw.*.so'):
+        print('Removing', path)
+        path.unlink()
+    for path in gpaw.glob('niflheim_build/*/_gpaw*.so'):
+        print('Removing', path)
         path.unlink()
 
     # Compile:
     for host in nifllogin:
         if host == 'fjorm' and intel_only:
             continue
-        run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
-
+        run(f'ssh {host} ". {activate} && pip install -v -e {gpaw}"')
+        # Save compiled file
+        remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
+        print(f'Host {host} has CPU_ARCH={remote_arch}')
+        paths = list(gpaw.glob('_gpaw.*.so'))
+        assert len(paths) == 1, f'Expected one shared library, found {str(paths)}'
+        path = paths[0]
+        targetpath = gpaw / 'niflheim_build' / remote_arch
+        targetpath.mkdir(parents=True, exist_ok=True)
+        path.rename(targetpath / path.name)
+        
     # Clean up:
     for path in gpaw.glob('_gpaw.*.so'):
-        path.unlink()
+        raise RuntimeError(f'Found unexpected {path}')
     for path in gpaw.glob('build/temp.linux-x86_64-*'):
         shutil.rmtree(path)
 
@@ -322,15 +336,18 @@ def main():
 
     for fro, to in [('nahelem', 'icelake'),
                     ('sapphirelake', 'icelake')]:
-        f = gpaw / f'build/lib.linux-x86_64-{fro}-{fversion}'
-        t = gpaw / f'build/lib.linux-x86_64-{to}-{fversion}'
-        f.symlink_to(t)
+        f = gpaw / f'niflheim_build/{fro}'
+        t = gpaw / f'niflheim_build/{to}'
+        try:
+            f.symlink_to(t)
+        except:
+            print('Cannot symlink {fro} to {to} as it is missing.')
 
     # Create .pth file to load correct .so file:
     pth = (
         'import sys, os; '
         'arch = os.environ["CPU_ARCH"]; '
-        f"path = f'{venv}/gpaw/build/lib.linux-x86_64-{{arch}}-{fversion}'; "
+        f"path = f'{venv}/gpaw/niflheim_build/{{arch}}'; "
         'sys.path.append(path)\n')
     Path(f'lib/python{version}/site-packages/niflheim.pth').write_text(pth)
 
