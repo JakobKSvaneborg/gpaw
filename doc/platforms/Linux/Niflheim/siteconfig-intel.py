@@ -34,4 +34,4 @@ if elpa:
     include_dirs.append(os.path.join(elpa, 'include', 'elpa-' + elpaversion))
 
 # Now add a EasyBuild "cover-all-bases" library_dirs
-library_dirs = os.getenv('LD_LIBRARY_PATH').split(':')
+library_dirs += os.getenv('LD_LIBRARY_PATH').split(':')
