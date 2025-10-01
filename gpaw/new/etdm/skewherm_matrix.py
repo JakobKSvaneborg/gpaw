@@ -4,7 +4,7 @@ from gpaw.directmin.tools import d_matrix, expm_ed
 
 class SkewHermitian:
     """
-    Class for working with skew-Hermitian matrices A (i.e., A^{dagger} = -A).
+    Class for working with skew-Hermitian matrices A (i.e., A^\\dagger = -A).
 
     Only the independent upper-triangular elements are stored in a 1D vector (`self.data`).
     
@@ -280,7 +280,7 @@ def vec2skewmat(a_vec, dim, ind_up, dtype):
     Returns
     -------
     a_mat : ndarray
-        Full skew-Hermitian matrix with A^\dagger = -A.
+        Full skew-Hermitian matrix with A^\\dagger = -A.
     """
     a_mat = np.zeros((dim, dim), dtype=dtype)
     a_mat[ind_up] = a_vec
