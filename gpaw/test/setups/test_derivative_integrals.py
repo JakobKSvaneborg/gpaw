@@ -6,7 +6,7 @@ from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.fd_operators import Gradient
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.setup import Setup, Setups
-from gpaw.spherical_harmonics import YL
+from gpaw.sphere.spherical_harmonics import YL
 from gpaw.utilities.tools import coordinates
 
 

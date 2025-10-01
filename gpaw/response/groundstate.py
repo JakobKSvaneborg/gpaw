@@ -11,7 +11,7 @@ from ase.units import Ha, Bohr
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
-from gpaw.calculator import GPAW as OldGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
 

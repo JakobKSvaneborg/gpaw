@@ -1,6 +1,6 @@
 from ase import Atoms
 
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.typing import Array3D
 
 

@@ -9,7 +9,7 @@ from math import log
 import numpy as np
 
 from gpaw import GPAW_NEW
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.mixer import DummyMixer
 from gpaw.preconditioner import Preconditioner
 from gpaw.tddft.units import (attosec_to_autime, autime_to_attosec,
