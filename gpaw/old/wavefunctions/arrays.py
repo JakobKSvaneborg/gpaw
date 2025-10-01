@@ -260,6 +260,7 @@ class PlaneWaveExpansionWaveFunctions(ArrayWaveFunctions):
 
 
 def operate_and_multiply(psit1, dv, out, operator, psit2):
+    from time import time
     if psit1.comm:
         if psit2 is not None:
             assert psit2.comm is psit1.comm
@@ -296,7 +297,11 @@ def operate_and_multiply(psit1, dv, out, operator, psit2):
 
         if r == 0:
             if operator:
-                operator(psit1.array, psit2.array)
+                from cProfile import Profile
+                with Profile() as p:
+                    operator(psit1.array, psit2.array)
+                p.dump_stats('0.prof')
+                raise SystemExit
             else:
                 psit2 = psit
 
