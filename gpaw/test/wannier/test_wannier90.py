@@ -2,7 +2,7 @@ import pytest
 import os
 import numpy as np
 from gpaw import GPAW
-from gpaw.wannier90 import Wannier90
+from gpaw.wannier.wannier90 import Wannier90
 from gpaw.wannier.w90 import read_wout_all
 from pathlib import Path
 from subprocess import PIPE, run

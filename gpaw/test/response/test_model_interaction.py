@@ -5,7 +5,7 @@ from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.modelinteraction import initialize_w_model
 from gpaw.response.chi0 import Chi0Calculator
-from gpaw.wannier90 import Wannier90
+from gpaw.wannier.wannier90 import Wannier90
 import os
 from gpaw.mpi import world, serial_comm
 from subprocess import PIPE, run
