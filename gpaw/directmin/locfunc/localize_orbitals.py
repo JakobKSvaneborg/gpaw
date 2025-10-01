@@ -3,14 +3,15 @@ from gpaw.directmin.locfunc.etdm_localization_lcao import LCAOETDMLocalize
 from gpaw.directmin.fdpw.er_localization import ERLocalization as ERL
 from gpaw.directmin.functional.fdpw import get_functional \
     as get_functional_fdpw
-from gpaw.wannier.pipekmezey.pipek_mezey_wannier import PipekMezey
-from gpaw.wannier.pipekmezey.wannier_basic import WannierLocalization
 import numpy as np
 
 
 def localize_orbitals(
         wfs, dens, ham, log, localizationtype, tol=None, seed=None,
         func_settings=None):
+    from gpaw.wannier.pipekmezey.pipek_mezey_wannier import PipekMezey
+    from gpaw.wannier.pipekmezey.wannier_basic import WannierLocalization
+
     io = localizationtype
 
     if io is None:
