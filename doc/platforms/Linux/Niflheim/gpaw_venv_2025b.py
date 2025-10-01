@@ -146,7 +146,7 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
         targetpath = gpaw / 'niflheim_build' / remote_arch
         targetpath.mkdir(parents=True, exist_ok=True)
         path.rename(targetpath / path.name)
-        
+
     # Clean up:
     for path in gpaw.glob('_gpaw.*.so'):
         raise RuntimeError(f'Found unexpected {path}')
@@ -338,10 +338,7 @@ def main():
                     ('sapphirelake', 'icelake')]:
         f = gpaw / f'niflheim_build/{fro}'
         t = gpaw / f'niflheim_build/{to}'
-        try:
-            f.symlink_to(t)
-        except:
-            print('Cannot symlink {fro} to {to} as it is missing.')
+        f.symlink_to(t)
 
     # Create .pth file to load correct .so file:
     pth = (
