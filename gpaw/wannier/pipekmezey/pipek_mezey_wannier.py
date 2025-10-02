@@ -47,15 +47,18 @@ r"""
     All integrals are performed over the course gd.
 
 """
-import numpy as np
-from scipy.linalg import inv, sqrtm
 from math import pi
-from ase.transport.tools import dagger
-from gpaw.pipekmezey.weightfunction import WeightFunc, WignerSeitz
-from gpaw.pipekmezey.wannier_basic import md_min, get_atoms_object_from_wfs
-from ase.dft.wannier import calculate_weights
+
+import numpy as np
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
+from ase.dft.wannier import calculate_weights
 from ase.parallel import world
+from ase.transport.tools import dagger
+from scipy.linalg import inv, sqrtm
+
+from gpaw.wannier.pipekmezey.wannier_basic import (get_atoms_object_from_wfs,
+                                                   md_min)
+from gpaw.wannier.pipekmezey.weightfunction import WeightFunc, WignerSeitz
 
 
 def random_orthogonal(rng, s, dtype=float):
@@ -98,7 +101,7 @@ class PipekMezey:
     def __init__(self, wfs=None, calc=None,
                  method='W', penalty=2.0, spin=0,
                  mu=None, dtype=None, seed=None):
-        from ase.dft.wannier import get_kklst, get_invkklst
+        from ase.dft.wannier import get_invkklst, get_kklst
 
         assert wfs or calc is not None
 
