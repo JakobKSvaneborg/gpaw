@@ -25,8 +25,7 @@ from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.command.develop import develop as _develop
 from setuptools.command.install import install as _install
 
-from config import (build_gpu, build_interpreter, check_dependencies,
-                    write_configuration)
+from config import build_gpu, check_dependencies, write_configuration
 
 python_min_version = (3, 9)
 assert sys.version_info >= python_min_version, sys.version_info
@@ -408,7 +407,7 @@ sources += Path('c').glob('*.c')
 if gpu:
     sources += Path('c/gpu').glob('*.c')
 sources += Path('c/xc').glob('*.c')
-sources.remove(Path('c/main.c'))  # For gpaw-python executable only
+
 if nolibxc:  # Cleanup: remove stale refrerences to LibXC
     for name in ['libxc.c', 'm06l.c',
                  'tpss.c', 'revtpss.c', 'revtpss_c_pbe.c',
