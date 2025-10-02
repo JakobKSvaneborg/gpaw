@@ -351,8 +351,9 @@ class HPMTimer(Timer):
 
 class CrayPAT_timer(Timer):
     """Interface to CrayPAT API. In addition to regular timers,
-    the corresponding regions are profiled by CrayPAT. The gpaw-python has
-    to be compiled under CrayPAT.
+    the corresponding regions are profiled by CrayPAT. The gpaw-python had
+    to be compiled under CrayPAT, so maybe this does not work now that
+    gpaw-python is no longer a thing.
     """
 
     def __init__(self, print_levels=4):
