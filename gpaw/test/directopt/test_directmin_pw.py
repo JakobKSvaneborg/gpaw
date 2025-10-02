@@ -29,11 +29,11 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
                 xc='PBE',
                 occupations={'name': 'fixed-uniform'},
                 eigensolver={'name': 'etdm-fdpw',
-                             'converge_unocc': not gpaw_new},
+                             'converge_unocc': True},  # not gpaw_new},
                 mixer={'backend': 'no-mixing'},
                 spinpol=True,
                 symmetry='off',
-                nbands=-5,
+                nbands=-3,
                 convergence={'eigenstates': 4.0e-6})
     atoms.calc = calc
     energy = atoms.get_potential_energy()
