@@ -110,17 +110,6 @@ def get_libraries() -> dict[str, str]:
 def parse_arguments(argv):
     from argparse import (ArgumentParser, REMAINDER,
                           RawDescriptionHelpFormatter)
-    # With gpaw-python BLAS symbols are in global scope and we need to
-    # ensure that NumPy and SciPy use symbols from their own dependencies
-    if is_gpaw_python:
-        warnings.warn("`gpaw-python` is deprecated. Please use `gpaw python` "
-                      "or plain `python` instead.", FutureWarning)
-
-        old_dlopen_flags = sys.getdlopenflags()
-        sys.setdlopenflags(old_dlopen_flags | os.RTLD_DEEPBIND)
-
-    if is_gpaw_python:
-        sys.setdlopenflags(old_dlopen_flags)
 
     version = sys.version.replace('\n', '')
     p = ArgumentParser(usage='%(prog)s [OPTION ...] [-c | -m] SCRIPT'

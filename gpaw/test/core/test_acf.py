@@ -57,8 +57,6 @@ def test_acf_fd(grid, xp):
 def test_acf_pw(grid, xp):
     if world.size > 1 and xp is cp:
         pytest.skip()
-    if xp is cp and '_gpaw' in sys.builtin_module_names:
-        pytest.skip()
     if xp is cp and cupy_is_fake or not GPU_AWARE_MPI:
         from gpaw.gpu.mpi import CuPyMPI
         comm = CuPyMPI(world)
