@@ -52,7 +52,7 @@ def test_wannier90(gpw_files, mode, in_tmp_dir, wannier90):
 
 @pytest.mark.wannier
 @pytest.mark.serial
-def test_wannier90_soc(gpw_files, in_tmp_dir):
+def test_wannier90_soc(gpw_files, in_tmp_dir, wannier90):
     calc = GPAW(gpw_files['fe_pw_nosym'])
     seed = 'Fe'
     assert calc.wfs.kd.nbzkpts == calc.wfs.kd.nibzkpts
@@ -82,7 +82,6 @@ def test_wannier90_soc(gpw_files, in_tmp_dir):
 
 
 def check_wavefunctions():
-
     test1 = [[20, 20, 20, 1, 4], [20, 20, 20, 2, 4], [20, 20, 20, 3, 4]]
     test2 = [0.0656, 0.0634, 0.0437]
     for i in range(3):
