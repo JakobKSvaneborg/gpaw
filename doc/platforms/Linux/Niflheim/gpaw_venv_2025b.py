@@ -136,14 +136,14 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     for host in nifllogin:
         if host == 'fjorm' and intel_only:
             continue
-        run(f'ssh {host} ". {activate} && pip install -v -e {gpaw}"')
+        run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
         # Save compiled file
         remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
-        print(f'Host {host} has CPU_ARCH={remote_arch}')
         paths = list(gpaw.glob('_gpaw.*.so'))
         assert len(paths) == 1, f'Expected one shared library, found {str(paths)}'
         path = paths[0]
         targetpath = gpaw / 'niflheim_build' / remote_arch
+        print(f'Moving {path} to {targetpath}')
         targetpath.mkdir(parents=True, exist_ok=True)
         path.rename(targetpath / path.name)
 
