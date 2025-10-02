@@ -189,6 +189,8 @@ class DirOptPWFD(PWFDEigensolver):
 
         if not self.converge_unocc:
             return
+        # following our discussion 02/10/2025 converge_unocc
+        # should be discouraged completely in pwfd
 
         # reset search direction
         self.search_dir = LBFGS()

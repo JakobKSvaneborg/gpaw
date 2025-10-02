@@ -29,7 +29,7 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
                 xc='PBE',
                 occupations={'name': 'fixed-uniform'},
                 eigensolver={'name': 'etdm-fdpw',
-                             'converge_unocc': True},  # not gpaw_new},
+                             'converge_unocc': False},
                 mixer={'backend': 'no-mixing'},
                 spinpol=True,
                 symmetry='off',
