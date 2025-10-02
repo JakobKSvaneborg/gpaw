@@ -112,7 +112,8 @@ class DirOptPWFD(PWFDEigensolver):
             # Grab the first wave function data to infer array properties
             first = psit_unX[0].data
 
-            # The new LBFGS optimizer works on NumPy arrays, so we need the full shape
+            # The new LBFGS optimizer works on NumPy arrays, so we need the
+            # full shape
             array_shape = (len(psit_unX),) + first.shape
 
             # Data type of the wave function
@@ -170,7 +171,6 @@ class DirOptPWFD(PWFDEigensolver):
             grad_nX.data *= weight_n[:, np.newaxis]
 
         return 0.0, error, energies
-
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
 
@@ -283,6 +283,7 @@ def project_gradient(grad_nX: XArray,
     M_nn += M_nn.T.conj()
     M_nn *= 0.5
 
+    # Reshape is needed here for FD-mode:
     grad_nX.data -= (M_nn @ psit_nX.data.reshape((nocc, -1))).reshape(
         grad_nX.data.shape)
 
