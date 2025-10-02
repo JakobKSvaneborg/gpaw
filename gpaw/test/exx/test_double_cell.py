@@ -1,7 +1,6 @@
 import pytest
 from ase import Atoms
 from gpaw import GPAW, PW
-from gpaw.dft import Davidson
 
 
 @pytest.mark.libxc
@@ -37,19 +36,20 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     e1 = a.get_potential_energy()
     eig1_kn = a.calc.eigenvalues()[0]
     f1 = a.get_forces()
-    assert abs(f1[1, 0] - 9.60644) < 0.0005
+    f1n = 9.60644
     if 0:
         # To check against numeric calculation of the forces, but it takes
         # more time
         from gpaw.test import calculate_numerical_forces
         f1n = calculate_numerical_forces(a, 0.001, [1], [0])[0, 0]
-        assert abs(f1[1, 0] - f1n) < 0.0005
+    assert abs(f1[0, 0] + f1n) < 0.0005
+    assert abs(f1[1, 0] - f1n) < 0.0005
 
     a *= (1, 1, 2)
     a.calc = GPAW(
         kpts={'size': (1, 1, 2), 'gamma': True},
         txt='H4-new.txt',
-        eigensolver=Davidson(niter=4),
+        eigensolver={'name': 'davidson', 'niter': 4},
         **kwargs)
     e2 = a.get_potential_energy()
     eig2_kn = a.calc.eigenvalues()[0]
