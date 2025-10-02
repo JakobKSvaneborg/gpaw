@@ -495,36 +495,7 @@ class build_ext(_build_ext):
 
     def build_extensions(self):
         set_compiler_executables(self.compiler)
-
         super().build_extensions()
-
-        if 0:  # parallel_python_interpreter:
-            global parallel_python_exefile
-
-            assert len(self.extensions) == 1, \
-                'Fix gpaw-python build for multiple extensions'
-            extension = self.extensions[0]
-
-            # Path for the bin (analogous to build_lib)
-            build_bin = Path(str(self.build_lib).replace('lib', 'bin'))
-
-            # List of object files already built for the extension
-            objects = []
-            for src in sources:
-                # Do not include _gpaw_so.o in the gpaw-python executable
-                if src == 'c/_gpaw_so.c':
-                    continue
-                obj = Path(self.build_temp) / Path(src).with_suffix('.o')
-                objects.append(str(obj))
-
-            # Build gpaw-python
-            parallel_python_exefile = build_interpreter(
-                self.compiler, extension, objects,
-                link_extra_preargs=parallel_python_interpreter_link_extra_preargs,  # noqa: E501
-                link_extra_postargs=parallel_python_interpreter_link_extra_postargs,  # noqa: E501
-                build_temp=self.build_temp,
-                build_bin=build_bin,
-                debug=self.debug)
 
         print("Build temp:", self.build_temp)
         print("Build lib: ", self.build_lib)
