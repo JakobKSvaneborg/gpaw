@@ -22,8 +22,6 @@ from distutils.errors import CCompilerError
 from distutils.sysconfig import customize_compiler
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext as _build_ext
-from setuptools.command.develop import develop as _develop
-from setuptools.command.install import install as _install
 
 from config import build_gpu, check_dependencies, write_configuration
 
@@ -489,20 +487,6 @@ class build_ext(_build_ext):
         print("Build lib: ", self.build_lib)
 
 
-class install(_install):
-    def run(self):
-        super().run()
-
-
-class develop(_develop):
-    def run(self):
-        super().run()
-
-
-cmdclass = {'build_ext': build_ext,
-            'install': install,
-            'develop': develop}
-
 files = ['gpaw-analyse-basis', 'gpaw-basis',
          'gpaw-plot-parallel-timings', 'gpaw-runscript',
          'gpaw-setup', 'gpaw-upfplot']
@@ -542,7 +526,7 @@ setup(name='gpaw',
                     'pytest-xdist']},
       ext_modules=extensions,
       scripts=scripts,
-      cmdclass=cmdclass,
+      cmdclass={'build_ext': build_ext},
       classifiers=[
           'Development Status :: 6 - Mature',
           'License :: OSI Approved :: '
