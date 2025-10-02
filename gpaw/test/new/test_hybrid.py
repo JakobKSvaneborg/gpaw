@@ -30,7 +30,7 @@ def test_hse06(gpaw_new, dtype):
         mode=dict(name='pw',
                   force_complex_dtype=dtype is complex),
         xc='HSE06',
-        # convergence={'density': 1e-6},
+        convergence={'density': 1e-6},
         parallel={'domain': min(2, size) if dtype is complex else 1},
         nbands=4)
     e = atoms.get_potential_energy()
@@ -38,13 +38,14 @@ def test_hse06(gpaw_new, dtype):
     eigs = atoms.calc.get_eigenvalues(spin=0)
     assert eigs[0] == pytest.approx(-4.67477532, abs=1e-3)
     f = atoms.get_forces()
-    atoms.set_distance(0, 1, 2.005)
-    ep = atoms.get_potential_energy()
-    atoms.set_distance(0, 1, 1.995)
-    em = atoms.get_potential_energy()
-    print((ep - em) / 0.01)
+    if 0:
+        atoms.set_distance(0, 1, 2.005)
+        ep = atoms.get_potential_energy()
+        atoms.set_distance(0, 1, 1.995)
+        em = atoms.get_potential_energy()
+        print((ep - em) / 0.01)
     f0 = 2.3454
-    assert f == pytest.approx([[0, 0, -f0], [0, 0, f0]])
+    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]))
 
 
 @pytest.mark.new_gpaw_ready

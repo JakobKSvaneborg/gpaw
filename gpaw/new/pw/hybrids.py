@@ -255,20 +255,29 @@ class PWHybridHamiltonian(PWHamiltonian):
             if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
                 pt_aiG = wfs.pt_aiX
                 assert isinstance(pt_aiG, PWAtomCenteredFunctions)
-                weight = wfs.weight
+                kweight = wfs.weight
                 break
         else:  # no break
             assert False, f'k-point not found: {psit2_nG.desc.kpt_c}'
 
+        if F_av is not None:
+            F1_av = np.zeros_like(F_av)
+        else:
+            F1_av = None
+
         evv, evc, ekin = self._apply1(spin, D_aii, pt_aiG,
                                       psit2_nG, Htpsit2_nG,
-                                      wfs.myocc_n, calculate_energy, F_av)
+                                      wfs.myocc_n, calculate_energy, F1_av)
         if calculate_energy:
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
-                e *= ibzwfs.spin_degeneracy * weight
+                e *= ibzwfs.spin_degeneracy * kweight
                 self.xc.energies[name] += e
             self.xc.energies['hybrid_xc'] += self.exx_cc
+
+        if F_av is not None:
+            print(ibzwfs.spin_degeneracy, kweight)
+            F_av += ibzwfs.spin_degeneracy * kweight * F1_av
 
     def _apply1(self,
                 spin: int,
@@ -278,7 +287,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 Htpsit_nG: PWArray | None,
                 f_n: np.ndarray,
                 calculate_energy: bool,
-                F_av=None) -> tuple[float, float, float]:
+                F1_av=None) -> tuple[float, float, float]:
         comm = self.comm
         band_comm = self.band_comm
         domain_comm = psit_nG.desc.comm
@@ -301,11 +310,11 @@ class PWHybridHamiltonian(PWHamiltonian):
                 ekin += ec + 2 * ev
                 evv -= ev
                 evc -= ec
-            elif F_av is not None:
+            elif F1_av is not None:
                 for psit in self.mypsits:
                     dP_anvi = psit.dP_anvi
                     assert dP_anvi is not None
-                    F_av[a] += 4 * np.einsum(
+                    F1_av[a] += 2 * np.einsum(
                         'ni, nvi, n -> v',
                         psit.P_ani[a] @ V_ii,
                         dP_anvi[a].conj(),
@@ -334,7 +343,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V_ani = P2_ani.new()
                 V_ani.data[:] = 0.0
                 e += self._apply2(psit2_nG, P2_ani, s, V_nG, V_ani, f2_n,
-                                  calculate_energy, F_av)
+                                  calculate_energy, F1_av)
                 if Htpsit_nG is None:
                     continue
                 comm.sum(V_nG.data, root=rank)
@@ -370,7 +379,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V2_ani,
                 f2_n: np.ndarray,
                 calculate_energy: bool,
-                F_av=None) -> float:
+                F1_av=None) -> float:
         ut2_nR = self.grid_local.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
@@ -382,7 +391,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 v_G = truncated_coulomb(pw, self.exx_omega)
                 e += self._apply3(
                     pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
-                    calculate_energy, F_av)
+                    calculate_energy, F1_av)
 
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
@@ -397,7 +406,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V2_ani,
                 f2_n: np.ndarray,
                 calculate_energy: bool,
-                F_av: np.ndarray | None) -> float:
+                F1_av: np.ndarray | None) -> float:
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
@@ -415,12 +424,12 @@ class PWHybridHamiltonian(PWHamiltonian):
             ghat_aLG.add_to(rhot_nG, Q_anL)
             if not calculate_energy:
                 rhot_nG.data *= v_G
-                if F_av is not None:
+                if F1_av is not None:
                     forces(ghat_aLG, rhot_nG, P2_ani,
                            Q_anL,
                            f1_n[n1], f2_n, self.delta_aiiL,
                            psit1.dP_anvi,
-                           n1, F_av)
+                           n1, F1_av)
                     continue
             else:
                 for rhot_G, f2 in zip(rhot_nG, f2_n):
@@ -442,17 +451,16 @@ class PWHybridHamiltonian(PWHamiltonian):
 
 def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, delta_aiiL,
            dP_anvi, n1, F_av):
-    # k-point weight????????
     f12_n = f1 * f2_n
     for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
-        F_av[a] -= np.einsum('n, nL, nvL -> v',
-                             f12_n,
-                             Q2_anL[a].conj(),
-                             F_nvL).real
+        F_av[a] -= 0.25 * np.einsum('n, nL, nvL -> v',
+                                   f12_n,
+                                   Q2_anL[a].conj(),
+                                   F_nvL).real
     for a, F_nL in ghat_aLG.integrate(vrhot2_nG).items():
         F_iin = delta_aiiL[a] @ F_nL.T
-        F_av[a] -= np.einsum('ijn, vi, nj, n -> v',
-                             F_iin,
-                             dP_anvi[a][n1].conj(),
-                             P2_ani[a],
-                             f12_n).real
+        F_av[a] -= 0.5 * np.einsum('ijn, vi, nj, n -> v',
+                                   F_iin,
+                                   dP_anvi[a][n1].conj(),
+                                   P2_ani[a],
+                                   f12_n).real
