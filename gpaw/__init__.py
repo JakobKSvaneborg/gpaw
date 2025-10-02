@@ -3,7 +3,6 @@
 """Main gpaw module."""
 from __future__ import annotations
 import os
-import sys
 import contextlib
 from pathlib import Path
 from typing import List, Any, TYPE_CHECKING
@@ -269,7 +268,6 @@ initialize_data_paths()
 
 
 def RMM_DIIS(*args, **kwargs):
-    import warnings
     from gpaw import RMMDIIS
     warnings.warn('Please use RMMDIIS instead of RMM_DIIS')
     return RMMDIIS(*args, **kwargs)
