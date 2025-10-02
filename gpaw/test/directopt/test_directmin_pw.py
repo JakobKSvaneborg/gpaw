@@ -1,16 +1,16 @@
 import pytest
 import numpy as np
 
-from gpaw import GPAW, PW
+from gpaw import GPAW, PW, FD
 from ase.build import molecule
 from gpaw.mpi import world
 
 
 @pytest.mark.new_gpaw_ready
 @pytest.mark.do
-@pytest.mark.parametrize('mode', ['pw'])
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
-    if gpaw_new and (world.size > 1 or mode != 'pw'):
+    if gpaw_new and world.size > 1:
         pytest.skip('Does not work yet for new GPAW')
 
     atoms = molecule('H2')
@@ -23,7 +23,10 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
         f0 = np.array([[0., 0., 0.61711],
                        [0., 0., -0.61711]])
     else:
-        pass
+        kwargs = dict(mode=FD(force_complex_dtype=True))
+        e0 = -6.733991
+        f0 = np.array([[0., 0., 0.48365],
+                       [0., 0., -0.48365]])
 
     calc = GPAW(**kwargs,
                 xc='PBE',

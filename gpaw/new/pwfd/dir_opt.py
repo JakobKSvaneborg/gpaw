@@ -115,10 +115,10 @@ class DirOptPWFD(PWFDEigensolver):
             # The new LBFGS optimizer works on NumPy arrays, so we need the full shape
             array_shape = (len(psit_unX),) + first.shape
 
-            # Data type of the wave function 
+            # Data type of the wave function
             dtype = first.dtype
 
-            # Communication object 
+            # Communication object
             kpt_comm = getattr(ibzwfs, 'kpt_comm', None)
 
             # Create the adapter that bridges ETDM’s vector-based interface
@@ -283,7 +283,8 @@ def project_gradient(grad_nX: XArray,
     M_nn += M_nn.T.conj()
     M_nn *= 0.5
 
-    grad_nX.data -= M_nn @ psit_nX.data
+    grad_nX.data -= (M_nn @ psit_nX.data.reshape((nocc, -1))).reshape(
+        grad_nX.data.shape)
 
     # dS_aii contribution only for gradient not for search direction
     if dS_aii:
