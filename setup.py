@@ -103,17 +103,6 @@ nolibxc = None
 compiler_args = None
 linker_so_args = None
 linker_exe_args = None
-# Advanced args for linking gpaw-python;
-# override if needed:
-# Note: LDFLAGS and LIBS go together, but depending on the platform,
-# it might be unnecessary to include them
-parallel_python_interpreter_link_extra_preargs \
-    = config_args('LDFLAGS')
-parallel_python_interpreter_link_extra_postargs \
-    = (config_args('BLDLIBRARY')
-       + config_args('LIBS')
-       + config_args('LIBM')
-       + config_args('LINKFORSHARED'))
 
 
 # Search and store current git hash if possible
