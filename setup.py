@@ -81,7 +81,8 @@ gpu_compiler = None
 gpu_compile_args = []
 gpu_include_dirs = []
 
-parallel_python_interpreter = False
+PLACEHOLDER = object()
+parallel_python_interpreter = PLACEHOLDER
 compiler = None
 mpi = None
 fftw = False
@@ -207,18 +208,12 @@ for key in ['libraries', 'library_dirs', 'include_dirs',
         locals()[key] += locals()[mpi_key]
 
 
-if parallel_python_interpreter:
-    warn_deprecated("Option `parallel_python_interpreter` is deprecated "
-                    "along with the `gpaw-python` interpreter. "
-                    "Please modify your siteconfig.py accordingly.")
-    parallel_python_exefile = None
-    if not mpi:
-        raise_error('MPI is needed for parallel_python_interpreter.'
-                    ' Define in siteconfig:'
-                    '\n\nparallel_python_interpreter = True'
-                    '\nmpi = True'
-                    "\ncompiler = ...  # MPI compiler, e.g., 'mpicc'"
-                    )
+if parallel_python_interpreter is not PLACEHOLDER:
+    warn_deprecated('Option "parallel_python_interpreter" is deprecated '
+                    'and its value is ignored.  '
+                    'The "gpaw-python" interpreter is no longer compiled.  '
+                    'Please modify your siteconfig.py accordingly.')
+
 
 if mpi:
     print('Building GPAW with MPI support.')
@@ -503,7 +498,7 @@ class build_ext(_build_ext):
 
         super().build_extensions()
 
-        if parallel_python_interpreter:
+        if 0:  # parallel_python_interpreter:
             global parallel_python_exefile
 
             assert len(self.extensions) == 1, \
@@ -533,22 +528,16 @@ class build_ext(_build_ext):
 
         print("Build temp:", self.build_temp)
         print("Build lib: ", self.build_lib)
-        if parallel_python_interpreter:
-            print("Build bin: ", build_bin)
 
 
 class install(_install):
     def run(self):
         super().run()
-        if parallel_python_interpreter:
-            self.copy_file(parallel_python_exefile, self.install_scripts)
 
 
 class develop(_develop):
     def run(self):
         super().run()
-        if parallel_python_interpreter:
-            self.copy_file(parallel_python_exefile, self.script_dir)
 
 
 cmdclass = {'build_ext': build_ext,
