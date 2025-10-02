@@ -455,8 +455,6 @@ test-cuda-mpi:
     - gpaw info
     - mpirun -np 2 pytest -v -x -m gpu
     - mpirun -np 4 pytest -v -x -m gpu
-    # mpirun -np 2 gpaw-python doesn't work, see #1052
-    # - mpirun -np 2 gpaw-python -m pytest -v -m gpu
 
 test-hip-cuda:
   image: $IMAGE_CUDA
