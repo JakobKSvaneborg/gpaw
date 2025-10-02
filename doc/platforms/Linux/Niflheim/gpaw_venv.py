@@ -281,7 +281,6 @@ def main():
 
     packages = ['myqueue',
                 'graphviz',
-                'qeh',
                 'sphinx_rtd_theme',
                 'sphinxcontrib-jquery']
     if args.piponly:
