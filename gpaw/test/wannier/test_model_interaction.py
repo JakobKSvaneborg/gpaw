@@ -10,10 +10,11 @@ import os
 from gpaw.mpi import world, serial_comm
 
 
+@pytest.mark.serial  # See issue 1447
 @pytest.mark.old_gpaw_only
 @pytest.mark.parametrize('symm', [True, False])
 @pytest.mark.response
-def test_w(in_tmp_dir, gpw_files, symm):
+def test_w(in_tmp_dir, gpw_files, symm, wannier90):
 
     if not symm and world.size < 2:
         pytest.skip('Skip nosymm test in serial')
