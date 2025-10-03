@@ -195,10 +195,10 @@ for key in ['libraries', 'library_dirs', 'include_dirs',
 
 
 if parallel_python_interpreter is not PLACEHOLDER:
-    warn_deprecated('Option "parallel_python_interpreter" is deprecated '
-                    'and its value is ignored.  '
-                    'The "gpaw-python" interpreter is no longer compiled.  '
-                    'Please modify your siteconfig.py accordingly.')
+    raise RuntimeError(
+        'The "parallel_python_interpreter" keyword has been removed '
+        'and the "gpaw-python" interpreter is no longer compiled.  '
+        'Please modify your siteconfig.py accordingly.')
 
 
 if mpi:
