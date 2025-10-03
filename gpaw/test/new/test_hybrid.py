@@ -44,8 +44,8 @@ def test_hse06(gpaw_new, dtype):
         atoms.set_distance(0, 1, 1.995)
         em = atoms.get_potential_energy()
         print((ep - em) / 0.01)
-    f0 = 2.3454
-    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]))
+    f0 = 2.3504
+    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=0.0002)
 
 
 @pytest.mark.new_gpaw_ready

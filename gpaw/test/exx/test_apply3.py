@@ -62,7 +62,8 @@ def test_apply3(a=5.0, N=10, dtype=float):
         Htpsit2_nG,
         V2_ani,
         f2_n=np.ones(n2),
-        calculate_energy=True)
+        calculate_energy=True,
+        F1_av=None)
     t = time() - t
     print(t)
 
