@@ -47,7 +47,6 @@ stages:
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
     - |
       cat << EOF > siteconfig.py
-      parallel_python_interpreter = True
       mpi = True
       compiler = 'mpicc'
       libraries = []
@@ -270,7 +269,6 @@ build-lumi-g:
     - module load buildtools-python/24.03-cray-python3.11
     - |
       cat << EOF > siteconfig.py
-      parallel_python_interpreter = True
       mpi = True
       compiler = 'cc'
       compiler_args = []
