@@ -279,7 +279,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                 self.xc.energies[name] += e
             self.xc.energies['hybrid_xc'] += self.exx_cc
 
-        if F_av is not None:
+        if F1_av is not None:
+            assert F_av is not None
             F_av += ibzwfs.spin_degeneracy * kweight * F1_av
 
     def _apply1(self,
