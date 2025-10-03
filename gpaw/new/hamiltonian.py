@@ -53,3 +53,6 @@ class Hamiltonian:
 
     def update_wave_functions(self, ibzwfs, forces=False):
         return
+
+    def move(self, relpos_av: np.ndarray) -> None:
+        pass

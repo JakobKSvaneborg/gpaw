@@ -171,6 +171,7 @@ class DFTCalculation:
         if self.ibzwfs.has_wave_functions():
             self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
+        self.scf_loop.hamiltonian.move(self.relpos_ac)
 
         self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)

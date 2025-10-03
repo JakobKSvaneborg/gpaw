@@ -29,7 +29,7 @@ class Psit:
     kpt_c: np.ndarray
     Q_aniL: dict[int, np.ndarray]
     spin: int
-    dP_anvi: AtomArrays | None = None
+    dP_anvi: AtomArrays | None = None  # used for forces
 
 
 def truncated_coulomb(pw: PWDesc,
@@ -231,6 +231,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.nbzk = len(ibzwfs.ibz.bz)
         self.xc.energies = {'hybrid_xc': 0.0,
                             'hybrid_kinetic_correction': 0.0}
+
+    def move(self, relpos_av: np.ndarray) -> None:
+        self.relpos_ac = relpos_av
 
     def apply_orbital_dependent(self,
                                 ibzwfs: IBZWaveFunctions,
@@ -454,9 +457,9 @@ def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
     f12_n = f1 * f2_n
     for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
         F_av[a] -= 0.25 / nbzk * np.einsum('n, nL, nvL -> v',
-                                          f12_n,
-                                          Q2_anL[a].conj(),
-                                          F_nvL).real
+                                           f12_n,
+                                           Q2_anL[a].conj(),
+                                           F_nvL).real
     for a, F_nL in ghat_aLG.integrate(vrhot2_nG).items():
         F_iin = delta_aiiL[a] @ F_nL.T
         F_av[a] -= 0.5 / nbzk * np.einsum('ijn, vi, nj, n -> v',

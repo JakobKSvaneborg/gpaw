@@ -25,8 +25,6 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
         xc='HSE06')
     if not use_sym:
         kwargs['symmetry'] = 'off'
-    if gpaw_new:
-        kwargs |= dict(spinpol=False)
 
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
@@ -36,7 +34,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     e1 = a.get_potential_energy()
     eig1_kn = a.calc.eigenvalues()[0]
     f1 = a.get_forces()
-    f1n = 9.60644
+    f1n = 9.606279587183408
     if 0:
         # To check against numeric calculation of the forces, but it takes
         # more time
