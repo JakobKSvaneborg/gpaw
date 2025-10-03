@@ -1548,7 +1548,7 @@ class GPAW(Calculator):
         # NOTE.  This should work with "--dry-run=N"
         #
         # However, the initial overhead estimate is wrong if this method
-        # is called within a real mpirun/gpaw-python context.
+        # is called within a real mpirun context.
         if log is None:
             log = self.log
         log('Memory estimate:')

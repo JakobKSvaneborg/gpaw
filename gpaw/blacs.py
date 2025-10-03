@@ -177,8 +177,8 @@ class BlacsGrid:
                 raise AttributeError(
                     'BLACS is unavailable.  '
                     'GPAW must be compiled with BLACS/ScaLAPACK, '
-                    'and must run in MPI-enabled interpreter '
-                    '(gpaw-python).  Original error: %s' % e)
+                    'and must run inside a real MPI process.  '
+                    'Original error: %s' % e)
 
             self.context = new(comm.get_c_object(), npcol, nprow, order)
             assert (self.context != INACTIVE) == (comm.rank < nprow * npcol)

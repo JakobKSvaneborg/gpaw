@@ -3,7 +3,6 @@
 """Main gpaw module."""
 from __future__ import annotations
 import os
-import sys
 import contextlib
 from pathlib import Path
 from typing import List, Any, TYPE_CHECKING
@@ -36,7 +35,6 @@ allowed_envvars = {
     'GPAW_MPI',
     'GPAW_SETUP_PATH'}
 
-is_gpaw_python = '_gpaw' in sys.builtin_module_names
 dry_run = 0
 
 
@@ -105,67 +103,6 @@ def get_libraries() -> dict[str, str]:
     else:
         libraries['libxc'] = ''
     return libraries
-
-
-def parse_arguments(argv):
-    from argparse import (ArgumentParser, REMAINDER,
-                          RawDescriptionHelpFormatter)
-    # With gpaw-python BLAS symbols are in global scope and we need to
-    # ensure that NumPy and SciPy use symbols from their own dependencies
-    if is_gpaw_python:
-        warnings.warn("`gpaw-python` is deprecated. Please use `gpaw python` "
-                      "or plain `python` instead.", FutureWarning)
-
-        old_dlopen_flags = sys.getdlopenflags()
-        sys.setdlopenflags(old_dlopen_flags | os.RTLD_DEEPBIND)
-
-    if is_gpaw_python:
-        sys.setdlopenflags(old_dlopen_flags)
-
-    version = sys.version.replace('\n', '')
-    p = ArgumentParser(usage='%(prog)s [OPTION ...] [-c | -m] SCRIPT'
-                       ' [ARG ...]',
-                       description='Run a parallel GPAW calculation.\n\n'
-                       f'Compiled with:\n  Python {version}',
-                       formatter_class=RawDescriptionHelpFormatter)
-
-    p.add_argument('--command', '-c', action='store_true',
-                   help='execute Python string given as SCRIPT')
-    p.add_argument('--module', '-m', action='store_true',
-                   help='run library module given as SCRIPT')
-    p.add_argument('-W', metavar='argument',
-                   action='append', default=[], dest='warnings',
-                   help='warning control.  See the documentation of -W for '
-                   'the Python interpreter')
-    p.add_argument('script', metavar='SCRIPT',
-                   help='calculation script')
-    p.add_argument('options', metavar='ARG',
-                   help='arguments forwarded to SCRIPT', nargs=REMAINDER)
-
-    args = p.parse_args(argv[1:])
-
-    if args.command and args.module:
-        p.error('-c and -m are mutually exclusive')
-
-    sys.argv = [args.script] + args.options
-
-    for w in args.warnings:
-        # Need to convert between python -W syntax to call
-        # warnings.filterwarnings():
-        warn_args = w.split(':')
-        assert len(warn_args) <= 5
-
-        if warn_args[0] == 'all':
-            warn_args[0] = 'always'
-        if len(warn_args) >= 3:
-            # e.g. 'UserWarning' (string) -> UserWarning (class)
-            warn_args[2] = globals().get(warn_args[2])
-        if len(warn_args) == 5:
-            warn_args[4] = int(warn_args[4])
-
-        warnings.filterwarnings(*warn_args, append=True)
-
-    return args
 
 
 def __getattr__(attr: str) -> Any:
@@ -256,32 +193,6 @@ class BroadcastImports:
 broadcast_imports = BroadcastImports()
 
 
-def main():
-    with broadcast_imports:
-        import runpy
-
-        # Apparently we need the scipy.linalg import for compatibility?
-        import scipy.linalg  # noqa: F401
-
-        for attr in all_lazy_imports:
-            __getattr__(attr)
-
-        gpaw_args = parse_arguments(sys.argv)
-    # The normal Python interpreter puts . in sys.path, so we also do that:
-    sys.path.insert(0, '.')
-    # Stacktraces can be shortened by running script with
-    # PyExec_AnyFile and friends.  Might be nicer
-    if gpaw_args.command:
-        d = {'__name__': '__main__'}
-        exec(gpaw_args.script, d, d)
-    elif gpaw_args.module:
-        # Python has: python [-m MOD] [-c CMD] [SCRIPT]
-        # We use a much better way: gpaw-python [-m | -c] SCRIPT
-        runpy.run_module(gpaw_args.script, run_name='__main__')
-    else:
-        runpy.run_path(gpaw_args.script, run_name='__main__')
-
-
 if debug:
     import numpy as np
     np.seterr(over='raise', divide='raise', invalid='raise', under='ignore')
@@ -357,7 +268,6 @@ initialize_data_paths()
 
 
 def RMM_DIIS(*args, **kwargs):
-    import warnings
     from gpaw import RMMDIIS
     warnings.warn('Please use RMMDIIS instead of RMM_DIIS')
     return RMMDIIS(*args, **kwargs)
