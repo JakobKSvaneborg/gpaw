@@ -23,14 +23,10 @@ from distutils.errors import CCompilerError
 from distutils.sysconfig import customize_compiler
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext as _build_ext
-from setuptools.command.develop import develop as _develop
-from setuptools.command.install import install as _install
-
 
 config = runpy.run_path(Path(__file__).parent / 'config.py')
 
 build_gpu = config['build_gpu']
-build_interpreter = config['build_interpreter']
 check_dependencies = config['check_dependencies']
 write_configuration = config['write_configuration']
 
@@ -75,7 +71,8 @@ gpu_compiler = None
 gpu_compile_args = []
 gpu_include_dirs = []
 
-parallel_python_interpreter = False
+PLACEHOLDER = object()
+parallel_python_interpreter = PLACEHOLDER
 compiler = None
 mpi = None
 fftw = False
@@ -96,17 +93,6 @@ nolibxc = None
 compiler_args = None
 linker_so_args = None
 linker_exe_args = None
-# Advanced args for linking gpaw-python;
-# override if needed:
-# Note: LDFLAGS and LIBS go together, but depending on the platform,
-# it might be unnecessary to include them
-parallel_python_interpreter_link_extra_preargs \
-    = config_args('LDFLAGS')
-parallel_python_interpreter_link_extra_postargs \
-    = (config_args('BLDLIBRARY')
-       + config_args('LIBS')
-       + config_args('LIBM')
-       + config_args('LINKFORSHARED'))
 
 
 # Search and store current git hash if possible
@@ -201,15 +187,12 @@ for key in ['libraries', 'library_dirs', 'include_dirs',
         locals()[key] += locals()[mpi_key]
 
 
-if parallel_python_interpreter:
-    parallel_python_exefile = None
-    if not mpi:
-        raise_error('MPI is needed for parallel_python_interpreter.'
-                    ' Define in siteconfig:'
-                    '\n\nparallel_python_interpreter = True'
-                    '\nmpi = True'
-                    "\ncompiler = ...  # MPI compiler, e.g., 'mpicc'"
-                    )
+if parallel_python_interpreter is not PLACEHOLDER:
+    raise RuntimeError(
+        'The "parallel_python_interpreter" keyword has been removed '
+        'and the "gpaw-python" interpreter is no longer compiled.  '
+        'Please modify your siteconfig.py accordingly.')
+
 
 if mpi:
     print('Building GPAW with MPI support.')
@@ -415,7 +398,7 @@ sources += Path('c').glob('*.c')
 if gpu:
     sources += Path('c/gpu').glob('*.c')
 sources += Path('c/xc').glob('*.c')
-sources.remove(Path('c/main.c'))  # For gpaw-python executable only
+
 if nolibxc:  # Cleanup: remove stale refrerences to LibXC
     for name in ['libxc.c', 'm06l.c',
                  'tpss.c', 'revtpss.c', 'revtpss_c_pbe.c',
@@ -491,62 +474,13 @@ class build_ext(_build_ext):
 
     def build_extensions(self):
         set_compiler_executables(self.compiler)
-
         super().build_extensions()
-
-        if parallel_python_interpreter:
-            global parallel_python_exefile
-
-            assert len(self.extensions) == 1, \
-                'Fix gpaw-python build for multiple extensions'
-            extension = self.extensions[0]
-
-            # Path for the bin (analogous to build_lib)
-            build_bin = Path(str(self.build_lib).replace('lib', 'bin'))
-
-            # List of object files already built for the extension
-            objects = []
-            for src in sources:
-                # Do not include _gpaw_so.o in the gpaw-python executable
-                if src == 'c/_gpaw_so.c':
-                    continue
-                obj = Path(self.build_temp) / Path(src).with_suffix('.o')
-                objects.append(str(obj))
-
-            # Build gpaw-python
-            parallel_python_exefile = build_interpreter(
-                self.compiler, extension, objects,
-                link_extra_preargs=parallel_python_interpreter_link_extra_preargs,  # noqa: E501
-                link_extra_postargs=parallel_python_interpreter_link_extra_postargs,  # noqa: E501
-                build_temp=self.build_temp,
-                build_bin=build_bin,
-                debug=self.debug)
 
         print("Build temp:", self.build_temp)
         print("Build lib: ", self.build_lib)
-        if parallel_python_interpreter:
-            print("Build bin: ", build_bin)
 
-
-class install(_install):
-    def run(self):
-        super().run()
-        if parallel_python_interpreter:
-            self.copy_file(parallel_python_exefile, self.install_scripts)
-
-
-class develop(_develop):
-    def run(self):
-        super().run()
-        if parallel_python_interpreter:
-            self.copy_file(parallel_python_exefile, self.script_dir)
-
-
-cmdclass = {'build_ext': build_ext,
-            'install': install,
-            'develop': develop}
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
 setup(ext_modules=extensions,
-      cmdclass=cmdclass)
+      cmdclass={'build_ext': build_ext})
 # platforms=['unix'],

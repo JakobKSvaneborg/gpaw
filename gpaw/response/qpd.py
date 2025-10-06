@@ -1,8 +1,8 @@
 from math import pi
 import numpy as np
 
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
 import gpaw.fftw as fftw
 
 

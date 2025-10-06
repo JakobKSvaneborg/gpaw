@@ -12,6 +12,8 @@ pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')
 
 
+@pytest.mark.filterwarnings(
+    'ignore:libxc should be compiled with --disable-fhc')
 @pytest.mark.old_gpaw_only
 @pytest.mark.mgga
 def test_vdw_libvdwxc_mbeef():

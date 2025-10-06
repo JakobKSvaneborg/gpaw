@@ -1,22 +1,22 @@
 Wave functions
 ==============
 
-.. autoclass:: gpaw.wavefunctions.base.WaveFunctions
+.. autoclass:: gpaw.old.wavefunctions.base.WaveFunctions
    :members:
 
-.. autoclass:: gpaw.wavefunctions.fd.FDWaveFunctions
+.. autoclass:: gpaw.old.wavefunctions.fd.FDWaveFunctions
    :members:
 
-.. autoclass:: gpaw.wavefunctions.pw.PWWaveFunctions
+.. autoclass:: gpaw.old.wavefunctions.pw.PWWaveFunctions
    :members:
 
-.. autoclass:: gpaw.wavefunctions.pw.PW
+.. autoclass:: gpaw.old.wavefunctions.pw.PW
    :members:
 
-.. autoclass:: gpaw.wavefunctions.lcao.LCAOWaveFunctions
+.. autoclass:: gpaw.old.wavefunctions.lcao.LCAOWaveFunctions
    :members:
 
-.. autoclass:: gpaw.kpoint.KPoint
+.. autoclass:: gpaw.old.kpoint.KPoint
    :members:
 
 .. autoclass:: gpaw.eigensolvers.eigensolver.Eigensolver

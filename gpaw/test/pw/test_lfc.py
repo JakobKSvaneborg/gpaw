@@ -2,11 +2,11 @@ import numpy as np
 import pytest
 
 import gpaw.mpi as mpi
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.lfc import PWLFC
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
 from gpaw.spline import Spline
 
 

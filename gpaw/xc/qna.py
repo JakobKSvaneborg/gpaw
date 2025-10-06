@@ -160,11 +160,15 @@ class QNA(GGA):
         spline = Spline.from_data(l=0, rmax=rcut, f_g=g_g)
         spline_j = [[spline]] * len(self.atoms)
         self.Pa = LFC(gd, spline_j)
+        self._pos_set = False
 
     def set_positions(self, spos_ac, atom_partition=None):
         self.Pa.set_positions(spos_ac)
+        self._pos_set = True
 
     def calculate_spatial_parameters(self, atoms):
+        if not self._pos_set:
+            self.set_positions(atoms.get_scaled_positions())
         mu_g = self.gd.zeros()
         beta_g = self.gd.zeros()
         denominator = self.gd.zeros()

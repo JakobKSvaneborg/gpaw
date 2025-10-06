@@ -12,7 +12,7 @@ void calculate_residual_launch_kernel(int dtypenum,
                                       void* residual_ng,
                                       void* eps_n,
                                       void* wf_nG,
-                                      gpuStream_t stream = 0);
+                                      gpuStream_t stream);
 
 void pwlfc_expand_gpu_launch_kernel(int dtypenum,
                                     void* f_Gs,
@@ -627,6 +627,7 @@ CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
     void *wf_nG = pinner.borrow_array_data<void>(wf_nG_obj);
     int nn = gpaw::Array_DIM(residual_nG_obj, 0);
     int nG = 1;
+    // nG is required to be below 2**31 here, which should be ok.
     for (int d=1; d<gpaw::Array_NDIM(residual_nG_obj); d++)
     {
         nG *= gpaw::Array_DIM(residual_nG_obj, d);
@@ -640,7 +641,7 @@ CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
 
     pinner.commit();
 
-    calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG);
+    calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG, 0);
     pinner.schedule_unpin(0);
 
     if (PyErr_Occurred())

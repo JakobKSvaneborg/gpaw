@@ -3,7 +3,6 @@ import pytest
 from gpaw import GPAW
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_sic_scfsic_h2(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['h2_sic_scfsic'])

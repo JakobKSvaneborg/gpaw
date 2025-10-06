@@ -4,9 +4,9 @@ import pytest
 from gpaw.mpi import world
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.fd_operators import Gradient
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.setup import Setup, Setups
-from gpaw.spherical_harmonics import YL
+from gpaw.sphere.spherical_harmonics import YL
 from gpaw.utilities.tools import coordinates
 
 

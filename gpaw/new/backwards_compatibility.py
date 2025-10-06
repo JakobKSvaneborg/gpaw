@@ -7,10 +7,10 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 
-from gpaw.band_descriptor import BandDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.densities import Densities
 from gpaw.fftw import MEASURE
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
 from gpaw.new.density import Density
 from gpaw.new.gpw import GPWFlags
@@ -18,12 +18,12 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.projections import Projections
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.projections import Projections
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.utilities import pack_density
 from gpaw.utilities.timing import nulltimer
-from gpaw.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
-                                       UniformGridWaveFunctions)
+from gpaw.old.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
+                                           UniformGridWaveFunctions)
 
 
 class PT:
@@ -159,7 +159,7 @@ class FakeWFS:
 
     @cached_property
     def work_matrix_nn(self):
-        from gpaw.matrix import Matrix
+        from gpaw.old.matrix import Matrix
         return Matrix(
             self.bd.nbands, self.bd.nbands,
             dtype=self.dtype,
@@ -181,7 +181,7 @@ class FakeWFS:
 
     def make_preconditioner(self, blocksize):
         if self.mode == 'pw':
-            from gpaw.wavefunctions.pw import Preconditioner
+            from gpaw.old.wavefunctions.pw import Preconditioner
             return Preconditioner(self.pd.G2_qG, self.pd,
                                   _scale=self.ngpts**2)
         from gpaw.preconditioner import Preconditioner
