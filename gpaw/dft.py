@@ -306,6 +306,9 @@ class LCAOEigensolver(Eigensolver):
         from gpaw.new.lcao.eigensolver import LCAOEigensolver as LCAOES
         return LCAOES(basis)
 
+    def todict(self):
+        return {}
+
 
 class HybridLCAOEigensolver(LCAOEigensolver):
     def build_lcao(self, basis, relpos_ac, cell_cv, symmetries):
