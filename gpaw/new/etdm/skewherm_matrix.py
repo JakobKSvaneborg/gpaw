@@ -7,13 +7,13 @@ class SkewHermitian:
     Class for working with skew-Hermitian matrices A (i.e., A^\\dagger = -A).
 
     Only the independent upper-triangular elements are stored in a 1D vector (`self.data`).
-    
+
     Attributes
     ----------
     ndim : int
         Dimension of the square matrix (number of rows/columns).
     dtype : type
-        Either float or complex. 
+        Either float or complex.
         - float → real skew-symmetric matrices
         - complex → skew-Hermitian matrices
     data : ndarray
@@ -72,16 +72,6 @@ class SkewHermitian:
         """Return the parameter vector (upper-triangular entries)."""
         return self._data
 
-    @property
-    def dtype(self):
-        """Return matrix data type (float or complex)."""
-        return self._dtype
-
-    @property
-    def representation(self):
-        """Return storage representation (always 'full')."""
-        return self._representation
-
     @data.setter
     def data(self, array):
         """
@@ -102,6 +92,16 @@ class SkewHermitian:
         self._evecs = None
         self._evals = None
         self._rotation_mat = None
+
+    @property
+    def dtype(self):
+        """Return matrix data type (float or complex)."""
+        return self._dtype
+
+    @property
+    def representation(self):
+        """Return storage representation (always 'full')."""
+        return self._representation
 
     # ------------------------
     # Eigen-decomposition and rotation
