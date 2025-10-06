@@ -327,7 +327,6 @@ def as_xp(array, xp):
         return cupy.asnumpy(array)
     if isinstance(array, np.ndarray):
         return cupy.asarray(array)
-    1 / 0
     return array
 
 

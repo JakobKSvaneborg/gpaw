@@ -5,6 +5,7 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.dipolemomentwriter import VelocityGaugeWriter
 
 
+@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
 @pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 @pytest.mark.parametrize('propagator', ['sicn', 'ecn'])

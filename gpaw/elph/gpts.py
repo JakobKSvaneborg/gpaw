@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 from ase import Atoms
 from gpaw.utilities.gpts import get_number_of_grid_points
-from gpaw.wavefunctions.lcao import LCAO
-from gpaw.wavefunctions.pw import PW
+from gpaw.old.wavefunctions.lcao import LCAO
+from gpaw.old.wavefunctions.pw import PW
 
 
 def obtain_gpts_suggestion(cell_cv, ecut, h, print_suggestions=False):

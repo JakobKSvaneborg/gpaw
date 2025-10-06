@@ -12,7 +12,7 @@ commands = [
     ('gpw', 'gpaw.cli.gpw'),
     ('completion', 'gpaw.cli.completion'),
     ('atom', 'gpaw.atom.aeatom'),
-    ('diag', 'gpaw.fulldiag'),
+    ('diag', 'gpaw.cli.fulldiag'),
     # ('quick', 'gpaw.cli.quick'),
     ('python', 'gpaw.cli.python'),
     ('sbatch', 'gpaw.cli.sbatch'),

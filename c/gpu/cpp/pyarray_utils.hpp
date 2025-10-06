@@ -90,6 +90,9 @@ T* Array_DATA(PyObject* obj)
     return ptr;
 }
 
+
+bool Array_32BIT(PyObject* obj);
+
 // Number of dimensions
 int32_t Array_NDIM(PyObject* a);
 

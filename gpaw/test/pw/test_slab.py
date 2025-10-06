@@ -4,7 +4,7 @@ from ase.optimize import BFGS
 
 from gpaw import PW
 from gpaw.new.ase_interface import GPAW as NewGPAW
-from gpaw.calculator import GPAW as OldGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.mpi import world
 
 

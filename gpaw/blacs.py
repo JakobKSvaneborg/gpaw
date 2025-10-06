@@ -92,7 +92,7 @@ import numpy as np
 
 import gpaw
 from gpaw.mpi import SerialCommunicator
-from gpaw.matrix_descriptor import MatrixDescriptor
+from gpaw.old.matrix_descriptor import MatrixDescriptor
 from gpaw.utilities.scalapack import scalapack_inverse_cholesky, \
     scalapack_diagonalize_ex, scalapack_general_diagonalize_ex, \
     scalapack_diagonalize_dc, scalapack_general_diagonalize_dc, \

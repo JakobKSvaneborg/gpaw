@@ -32,7 +32,7 @@ from ase.phonons import Phonons
 from ase.utils.filecache import MultiFileJSONCache
 from ase.utils.timing import Timer, timer
 
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.mpi import world
 from gpaw.typing import ArrayND
 

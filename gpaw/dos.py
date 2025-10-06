@@ -10,7 +10,7 @@ from gpaw.spinorbit import soc_eigenstates, BZWaveFunctions
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayLike1D
 
 if TYPE_CHECKING:
-    from gpaw.calculator import GPAW
+    from gpaw.old.calculator import GPAW
     from gpaw.new.ase_interface import ASECalculator
 
 
@@ -163,7 +163,7 @@ class DOSCalculator:
         filename: str
             Name of restart-file or GPAW calculator object.
         """
-        from gpaw.calculator import GPAW
+        from gpaw.old.calculator import GPAW
         if not isinstance(filename, (str, Path)):
             calc = filename
         else:

@@ -305,7 +305,7 @@ class DistributedArrays(Generic[DomainType], XP):
 
             (domain.comm, comm2).
         """
-        result = domain.empty(self.dims)
+        result = domain.empty(self.dims, xp=self.xp)
         if comm1.rank == 0:
             a = self.gather()
         else:

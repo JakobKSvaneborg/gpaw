@@ -12,7 +12,7 @@ from ase.utils import seterr
 
 import gpaw.cgpaw as cgpaw
 from gpaw.xc import XC
-from gpaw.gaunt import gaunt
+from gpaw.sphere.gaunt import gaunt
 from gpaw.atom.configurations import configurations
 from gpaw.atom.radialgd import (AERadialGridDescriptor,
                                 AbinitRadialGridDescriptor)

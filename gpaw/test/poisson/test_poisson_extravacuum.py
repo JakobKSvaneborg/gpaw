@@ -5,7 +5,7 @@ import numpy as np
 
 from gpaw.poisson import PoissonSolver
 from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 pytestmark = pytest.mark.skipif(world.size > 4,
