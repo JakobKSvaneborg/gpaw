@@ -481,6 +481,4 @@ class build_ext(_build_ext):
 
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(ext_modules=extensions,
-      cmdclass={'build_ext': build_ext})
-# platforms=['unix'],
+setup(ext_modules=extensions, cmdclass={'build_ext': build_ext})
