@@ -145,8 +145,11 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
         def create_wfs(spin, q, k, kpt_c, weight):
             desc = self.wf_desc.new(kpt=kpt_c)
+            dims = (self.nbands,)
+            if self.ncomponents == 4:
+                dims = (self.nbands, 2)
             psit_nX = desc.empty(
-                dims=(self.nbands,),
+                dims=dims,
                 comm=self.communicators['b'],
                 xp=self.xp)
             psit_nX.randomize()
