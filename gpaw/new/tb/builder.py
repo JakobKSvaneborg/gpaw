@@ -189,7 +189,7 @@ class DummyXC:
     def __init__(self, xc):
         self.xc = xc
 
-    def calculate_paw_correction(self, setup, D_sp, dH_sp):
+    def calculate_paw_correction(self, setup, D_sp, dH_sp, a=None):
         return self.xc.calculate_paw_correction(setup, D_sp, dH_sp)
 
 

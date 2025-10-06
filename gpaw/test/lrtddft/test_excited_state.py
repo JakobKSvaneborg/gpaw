@@ -131,8 +131,8 @@ def test_io(in_tmp_dir):
     parprint('----------- write trajectory')
     ftraj = 'H2exst.traj'
     F = H2.get_forces()
-    traj = io.Trajectory(ftraj, 'w')
-    traj.write(H2)
+    with io.Trajectory(ftraj, 'w') as traj:
+        traj.write(H2)
 
     parprint('----------- write')
     fname = 'exst_test_io'

@@ -62,19 +62,26 @@ class Mode(Parameter):
         dct = self._not_none('dtype')
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
+        if 'dtype' in dct:
+            dct['dtype'] = np.dtype(self.dtype).name
         return dct
 
     @classmethod
     def from_param(cls, mode) -> Mode:
+        if isinstance(mode, Mode):
+            return mode
         if isinstance(mode, str):
             mode = {'name': mode}
-        if isinstance(mode, dict):
-            mode = mode.copy()
-            return {'pw': PW,
-                    'lcao': LCAO,
-                    'fd': FD,
-                    'tb': TB}[mode.pop('name')](**mode)
-        return mode
+        elif not isinstance(mode, dict):
+            mode = mode.todict()
+        mode = mode.copy()
+        if 'dtype' in mode:
+            if isinstance(mode['dtype'], str):
+                mode['dtype'] = np.dtype(mode['dtype'])
+        return {'pw': PW,
+                'lcao': LCAO,
+                'fd': FD,
+                'tb': TB}[mode.pop('name')](**mode)
 
     def dft_components_builder(self, atoms, params, *, log=None, comm=None):
         module = importlib.import_module(f'gpaw.new.{self.name}.builder')
@@ -544,10 +551,10 @@ class XC(Parameter):
     def todict(self):
         return {'name': self.name, **self.kwargs}
 
-    def functional(self, collinear):
+    def functional(self, *, collinear: bool, atoms: Atoms | None = None):
         from gpaw.xc import XC as xc
         return xc({'name': self.name, **self.kwargs},
-                  collinear=collinear)
+                  collinear=collinear, atoms=atoms)
 
     @classmethod
     def from_param(cls, xc):

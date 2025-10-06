@@ -38,7 +38,6 @@ def numeric_stress(atoms, d=1e-6, component=None):
     raise ValueError(f'Invalid component {component}')
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.skipif(world.size > 1, reason='See #898')
 def test_xc_qna_stress(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['Cu3Au_qna'])

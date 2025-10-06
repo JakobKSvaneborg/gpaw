@@ -17,7 +17,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.typing import Array1D, Array2D, Self
-from gpaw.utilities import pack_density
+from gpaw.utilities import pack_density, as_complex_dtype
 
 if TYPE_CHECKING:
     from gpaw.new.density import Density
@@ -373,7 +373,8 @@ class IBZWaveFunctions(Generic[WFT]):
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
         shape = spin_k_shape + (self.nbands,) + xshape
-        dtype = complex if self.mode == 'pw' else self.dtype
+        dtype = (as_complex_dtype(self.dtype) if self.mode == 'pw'
+                 else self.dtype)
         dtype_write = flags.storage_dtype(dtype)
         c = 1.0 if self.mode == 'lcao' else Bohr**-1.5
 
