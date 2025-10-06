@@ -20,10 +20,9 @@ fversion = 'cpython-313'
 # Niflheim login hosts, with the oldest architecture as the first
 nifllogin = [
     'slid2',  # broadwell_el8 (xeon24el8)
-    # XXXXX
-    # 'thul',  # skylake_el8 (xeon40el8)
-    # 'surt',  # icelake (xeon56)
-    # 'fjorm',  # epyc9004 (epyc96)
+    'thul',  # skylake_el8 (xeon40el8, sm3090el8)
+    'surt',  # icelake (xeon56, a100, h200)
+    'fjorm',  # epyc9004 (epyc96)
 ]
 
 # Easybuild uses a hierarchy of toolchains for the main foss and intel
@@ -79,7 +78,7 @@ module load libvdwxc/0.5.0-{fullchain}
 }
 
 # Arch dependend modules for GPU stuff - not loaded with --piponly
-module_cmds_arch_dependent = """\
+module_cmds_gpu = """\
 if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2025b" ];\
 then module load CuPy/13.6.0-{fullchain}-CUDA-12.1.1;fi
 if [ "$CPU_ARCH" == "skylake_el8" ] && [ {fullchain} == "foss-2025b" ];\
@@ -136,7 +135,7 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     for host in nifllogin:
         if host == 'fjorm' and intel_only:
             continue
-        run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
+        run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')  # XXXX -q / -v
         # Save compiled file
         remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
         paths = list(gpaw.glob('_gpaw.*.so'))
@@ -225,6 +224,8 @@ def main():
     parser.add_argument('--piponly', action='store_true',
                         help='Do not use EasyBuild python modules, '
                         'install from pip (may affect performance).')
+    parser.add_argument('--no-gpu', action='store_true',
+                        help='Do not build with GPU support.')
     args = parser.parse_args()
 
     # if args.toolchain == 'intel':
@@ -260,8 +261,8 @@ def main():
             **toolchains[args.toolchain])
     module_cmds += module_cmds_tc[args.toolchain].format(
         **toolchains[args.toolchain])
-    if not args.piponly:
-        module_cmds += module_cmds_arch_dependent.format(
+    if not args.piponly and not args.no_gpu:
+        module_cmds += module_cmds_gpu.format(
             **toolchains[args.toolchain])
     cmds = (' && '.join(module_cmds.splitlines()) +
             f' && python3 -m venv --system-site-packages {args.venv}')
