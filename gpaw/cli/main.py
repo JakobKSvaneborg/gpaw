@@ -49,7 +49,7 @@ def hook(parser, args):
         if have_mpi and world.size == 1 and args.parallel > 1:
             py = sys.executable
         elif not have_mpi:
-            py = 'gpaw-python'
+            raise SystemExit('MPI not available')
         else:
             py = ''
 

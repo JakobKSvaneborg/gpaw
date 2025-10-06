@@ -47,7 +47,6 @@ stages:
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
     - |
       cat << EOF > siteconfig.py
-      parallel_python_interpreter = True
       mpi = True
       compiler = 'mpicc'
       libraries = []
@@ -140,7 +139,6 @@ build:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
     - gpaw -P 1 info
-    - gpaw-python -m gpaw info
   cache:
     key: cache-build-oldest
     paths:
@@ -183,7 +181,6 @@ build-latest:
     - pip install --user --upgrade mpi4py
     - pip install --user --editable .
     - gpaw -P 1 info
-    - gpaw-python -m gpaw info
   cache:
     key: cache-build-latest
     paths:
@@ -272,7 +269,6 @@ build-lumi-g:
     - module load buildtools-python/24.03-cray-python3.11
     - |
       cat << EOF > siteconfig.py
-      parallel_python_interpreter = True
       mpi = True
       compiler = 'cc'
       compiler_args = []
@@ -377,11 +373,6 @@ test-oldest:
     # We may want to identify a limited set of tests that must work
     # with OpenMP, but so far we just have it in this job.
 
-    - gpaw-python -m gpaw info
-    - >
-      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-fd
-      gpaw/test/test_fuzz.py
-
 
 test-latest:
   image: $IMAGE_MAIN_LATEST
@@ -447,8 +438,6 @@ test-cuda:
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
     - pytest -v -m gpu
 
-    - gpaw-python -m gpaw info
-    - gpaw-python -m pytest -v -m gpu
 
 test-cuda-mpi:
   image: $IMAGE_CUDA
@@ -464,8 +453,6 @@ test-cuda-mpi:
     - gpaw info
     - mpirun -np 2 pytest -v -x -m gpu
     - mpirun -np 4 pytest -v -x -m gpu
-    # mpirun -np 2 gpaw-python doesn't work, see #1052
-    # - mpirun -np 2 gpaw-python -m pytest -v -m gpu
 
 test-hip-cuda:
   image: $IMAGE_CUDA

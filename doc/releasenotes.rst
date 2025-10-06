@@ -25,6 +25,10 @@ Git master branch
   finer grid.  This is equivalent to the way things are done in PW-mode.
   Turn this on by using ``experimental={'pw_pot_calc': True}``.
 
+* The parallel ``gpaw-python`` interpreter has been removed.
+  You can use ``gpaw python`` as a replacement. The variable
+  ``parallel_python_interpreter`` in ``siteconfig.py``
+  should not be used.
 
 Version 25.7.0
 ==============
