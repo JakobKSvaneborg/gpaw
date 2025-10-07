@@ -325,7 +325,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 f_n: np.ndarray,
                 V_aii,
                 calculate_energy: bool,
-                F1_av=None) -> tuple[float, float, float]:
+                F1_av=None) -> float:
         comm = self.comm
         band_comm = self.band_comm
         domain_comm = psit_nG.desc.comm
