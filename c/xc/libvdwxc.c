@@ -204,7 +204,6 @@ PyObject* libvdwxc_free(PyObject* self, PyObject* args)
 #ifdef PARALLEL
 MPI_Comm unpack_gpaw_comm(PyObject* gpaw_mpi_obj)
 {
-    //MPIObject* gpaw_comm = (MPIObject *)gpaw_mpi_obj;
     return *((MPI_Comm*) PyLong_AsVoidPtr(gpaw_mpi_obj));
 }
 #endif
