@@ -171,6 +171,7 @@ class DFTCalculation:
         if self.ibzwfs.has_wave_functions():
             self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
+        self.scf_loop.hamiltonian.move(self.relpos_ac)
 
         self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
@@ -269,8 +270,9 @@ class DFTCalculation:
         xc = self.pot_calc.xc
         assert not hasattr(xc.xc, 'setup_force_corrections')
 
-        # Force from projector functions (and basis set):
-        F_av = self.ibzwfs.forces(self.potential)
+        # Force from projector functions (and basis set, hybrids):
+        F_av = self.ibzwfs.forces(self.potential, self.scf_loop.hamiltonian,
+                                  self.density.D_asii)
 
         getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
 
