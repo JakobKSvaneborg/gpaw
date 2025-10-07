@@ -6,7 +6,7 @@ from ase.units import Bohr, Hartree
 
 from gpaw.fftw import get_efficient_fft_size
 from gpaw.utilities import h2gpts
-from gpaw.wavefunctions.fd import FD
+from gpaw.old.wavefunctions.fd import FD
 
 
 def get_number_of_grid_points(cell_cv,

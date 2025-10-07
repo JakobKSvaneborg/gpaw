@@ -201,9 +201,13 @@ class LCAOWaveFunctions(WaveFunctions, XP):
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
-                                       basis):
+                                       basis,
+                                       *,
+                                       xp=None):
+        if xp is None:
+            xp = self.xp
         grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
-        psit_nR = grid.zeros(self.nbands, self.band_comm)
+        psit_nR = grid.zeros(self.nbands, self.band_comm, xp=xp)
         basis.lcao_to_grid(self.C_nM.data, psit_nR.data, self.q)
 
         wfs = PWFDWaveFunctions.from_wfs(self, psit_nR)

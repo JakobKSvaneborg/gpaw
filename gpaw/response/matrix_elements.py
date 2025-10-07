@@ -5,7 +5,7 @@ from functools import cached_property
 import numpy as np
 
 from gpaw.sphere.integrate import spherical_truncation_function_collection
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 
 from gpaw.response import timer
 from gpaw.response.kspair import KohnShamKPointPair

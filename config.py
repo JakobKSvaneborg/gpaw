@@ -80,42 +80,6 @@ def write_configuration(define_macros, include_dirs, libraries, library_dirs,
     out.close()
 
 
-def build_interpreter(
-        compiler, extension, extension_objects, *,
-        link_extra_preargs, link_extra_postargs,
-        build_temp, build_bin, debug):
-    exename = compiler.executable_filename('gpaw-python')
-    print(f'building {repr(exename)} executable', flush=True)
-
-    macros = extension.define_macros.copy()
-    for undef in extension.undef_macros:
-        macros.append((undef,))
-
-    # Compile the sources that define GPAW_INTERPRETER
-    sources = ['c/main.c']
-    objects = compiler.compile(
-        sources,
-        output_dir=str(build_temp),
-        macros=macros,
-        include_dirs=extension.include_dirs,
-        debug=debug,
-        extra_postargs=extension.extra_compile_args)
-    objects += extension_objects
-
-    # Link the custom interpreter
-    compiler.link_executable(
-        objects, exename,
-        output_dir=str(build_bin),
-        extra_preargs=link_extra_preargs,
-        libraries=extension.libraries,
-        library_dirs=extension.library_dirs,
-        runtime_library_dirs=extension.runtime_library_dirs,
-        extra_postargs=link_extra_postargs + extension.extra_link_args,
-        debug=debug,
-        target_lang=extension.language)
-    return build_bin / exename
-
-
 def build_gpu(gpu_compiler, gpu_compile_args, gpu_include_dirs,
               define_macros, undef_macros, build_temp):
     print("building gpu code", flush=True)

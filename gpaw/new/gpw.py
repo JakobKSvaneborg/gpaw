@@ -39,7 +39,7 @@ from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
-from gpaw.utilities import unpack_hermitian, unpack_density
+from gpaw.utilities import unpack_hermitian, unpack_density, as_dtype_precision
 from gpaw.new.energies import DFTEnergies
 from gpaw.dft import Parameters
 
@@ -51,7 +51,7 @@ def as_single_precision(array):
     array([1., 1., 1.], dtype=float32)
     """
     assert array.dtype in [np.float64, np.complex128]
-    dtype = np.float32 if array.dtype == np.float64 else np.complex64
+    dtype = as_dtype_precision(array.dtype, 'single')
     return np.array(array, dtype=dtype)
 
 
@@ -64,10 +64,7 @@ def as_double_precision(array):
     if array is None:
         return None
     assert array.dtype in [np.float32, np.complex64]
-    if array.dtype == np.float32:
-        dtype = np.float64
-    else:
-        dtype = complex
+    dtype = as_dtype_precision(array.dtype, 'double')
     return np.array(array, dtype=dtype)
 
 
@@ -82,22 +79,10 @@ class GPWFlags:
             raise ValueError('precision must be either "single" or "double"')
 
     def storage_dtype(self, dtype):
-        dtype = np.dtype(dtype)
-        if self.precision == 'double':
-            return dtype
-
-        if dtype == float:
-            return np.dtype(np.float32)
-
-        if dtype == complex:
-            return np.dtype(np.complex64)
-
-        raise ValueError(f'Unexpected dtype: {dtype}')
+        return as_dtype_precision(dtype, self.precision)
 
     def to_storage_dtype(self, array: np.ndarray) -> np.ndarray:
-        if self.precision == 'double':
-            return array
-        return array.astype(self.storage_dtype(array.dtype))
+        return np.asarray(array, dtype=self.storage_dtype(array.dtype))
 
 
 def write_gpw(filename: str | Path,
@@ -129,7 +114,11 @@ def write_gpw(filename: str | Path,
         p.pop('parallel', None)
         # ULM does not know about numpy dtypes:
         if 'dtype' in p:
-            p['dtype'] = np.dtype(p['dtype']).name
+            if isinstance(p['dtype'], type):
+                p['dtype'] = p['dtype'].__name__
+            else:
+                p['dtype'] = np.dtype(p['dtype']).name
+
         writer.child('parameters').write(**p)
 
         write_dft_state(writer, dft.params,
@@ -178,7 +167,7 @@ def write_wave_function_indices(writer, ibzwfs, grid):
 
     index_G = np.zeros(nG, np.int32)
     size = tuple(grid.size)
-    if ibzwfs.dtype == float:
+    if np.issubdtype(ibzwfs.dtype, np.floating):
         size = (size[0], size[1], size[2] // 2 + 1)
 
     for k, rank in enumerate(ibzwfs.rank_k):

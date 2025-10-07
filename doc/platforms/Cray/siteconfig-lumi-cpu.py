@@ -1,7 +1,5 @@
 """Custom GPAW siteconfig for LUMI-C."""
 
-parallel_python_interpreter = True
-
 mpi = True
 compiler = 'cc'
 compiler_args = []  # remove all default args
