@@ -99,6 +99,7 @@ class PWFDEigensolver(Eigensolver):
                                                     wfs.xp)
 
         ibzwfs.orthonormalize()
+        ibzwfs = kpad(ibzwfs)
         hamiltonian.update_wave_functions(ibzwfs)
 
         apply = partial(hamiltonian.apply,

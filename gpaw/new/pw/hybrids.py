@@ -416,6 +416,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
         ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
+        ghat_MG = ghat_aLG.expand()
         v2_G = Htpsit2_nG.desc.empty()
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
@@ -426,7 +427,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                 Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
             rhot_nG = pw.empty(len(rhot_nR))
             rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            ghat_aLG.add_to(rhot_nG, Q_anL)
+            mmm(Q, ghat, rhot)
+            #ghat_aLG.add_to(rhot_nG, Q_anL)
             if not calculate_energy:
                 rhot_nG.data *= v_G
                 if F1_av is not None:
