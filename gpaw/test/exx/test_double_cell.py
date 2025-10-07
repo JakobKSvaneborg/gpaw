@@ -21,6 +21,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     kwargs = dict(
         mode=PW(400),
         convergence={'density': 1e-6},
+        mixer={'beta': 0.25},
         spinpol=True,
         xc='HSE06')
     if not use_sym:
@@ -28,7 +29,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
 
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
-        txt='H2-new.txt',
+        # txt='H2-new.txt',
         parallel={'kpt': 1},
         **kwargs)
     e1 = a.get_potential_energy()
@@ -47,7 +48,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     a *= (1, 1, 2)
     a.calc = GPAW(
         kpts={'size': (1, 1, 2), 'gamma': True},
-        txt='H4-new.txt',
+        # txt='H4-new.txt',
         eigensolver={'name': 'davidson', 'niter': 4},
         **kwargs)
     e2 = a.get_potential_energy()
@@ -70,4 +71,4 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
 
 
 if __name__ == '__main__':
-    test_exx_double_cell(1, 1, 0)
+    test_exx_double_cell(1, 1, 1)
