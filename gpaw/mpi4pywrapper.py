@@ -1,6 +1,6 @@
 try:
     from mpi4py.MPI import (Request, SUM, MAX, MIN, IN_PLACE, IDENT,
-                            CONGRUENT, SIMILAR, UNEQUAL, _addressof)
+                            CONGRUENT, SIMILAR, UNEQUAL, PROD, _addressof)
 except ImportError:
     pass
 
@@ -58,6 +58,9 @@ class MPI4PYWrapper:
 
     def min(self, a, root=-1):
         self.min(a, root=-1, _op=MIN)
+
+    def product(self, a, root=-1):
+        self.sum(a, root=-1, _op=PROD)
 
     def scatter(self, a, b, root):
         maybe_sync(a)
