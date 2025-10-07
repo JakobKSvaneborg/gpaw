@@ -4,7 +4,7 @@
 """This module is an example of good coding style.
 
 This docstring should begin with a one-line description followed by a
-blank line, and then this paragraph describing in more word what kind
+blank line, and then this paragraph describing in more words what kind
 of functionality this module implements.
 
 After this docstring we have import statements in this order:
@@ -21,6 +21,13 @@ from ase.units import Ha
 
 from gpaw import debug
 import gpaw.mpi as mpi
+
+
+# Use upper case for constants:
+CONSTANT = [
+    'A',
+    'B',
+    'C']  # notice: no trailing comma and no hanging end-parenthesis!
 
 
 class SimpleExample:

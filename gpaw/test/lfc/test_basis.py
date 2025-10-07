@@ -5,7 +5,7 @@ import pytest
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.matrix import Matrix
 from gpaw.lfc import BasisFunctions
-from gpaw.spherical_harmonics import Y
+from gpaw.sphere.spherical_harmonics import Y
 from gpaw.spline import Spline
 
 

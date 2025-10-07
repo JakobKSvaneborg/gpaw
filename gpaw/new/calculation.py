@@ -491,7 +491,7 @@ def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
                 grid: UGDesc,
                 log) -> None:
-    from gpaw.output import print_cell, print_positions
+    from gpaw.old.output import print_cell, print_positions
     print_positions(atoms, log, magmom_av)
     print_cell(grid._gd, grid.pbc, log)
 

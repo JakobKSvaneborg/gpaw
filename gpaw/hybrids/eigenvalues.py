@@ -7,7 +7,7 @@ from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
 from ase.units import Ha
-from gpaw.calculator import GPAW as GPAWOld
+from gpaw.old.calculator import GPAW as GPAWOld
 from gpaw import GPAW
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.old.kpt_descriptor import KPointDescriptor

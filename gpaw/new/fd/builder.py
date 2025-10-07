@@ -115,13 +115,13 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         else:
             return ibzwfs
 
-        singlep = reader.get('precision', 'double') == 'single'
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # old gpw file
+        singlep = reader.get('precision', 'double') == 'single'
 
         for wfs in ibzwfs:
-            grid = self.wf_desc.new(kpt=wfs.kpt_c)
+            grid = self.wf_desc.new(kpt=wfs.kpt_c, dtype=self.dtype)
             index = (wfs.spin, wfs.k)
             data = reader.wave_functions.proxy(name, *index)
             data.scale = c

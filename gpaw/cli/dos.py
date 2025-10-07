@@ -6,7 +6,7 @@ import numpy as np
 
 from gpaw import GPAW
 from gpaw.setup import Setup
-from gpaw.spherical_harmonics import names as ylmnames
+from gpaw.sphere.spherical_harmonics import names as ylmnames
 from gpaw.dos import DOSCalculator
 
 

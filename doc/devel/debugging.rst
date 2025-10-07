@@ -200,7 +200,7 @@ tracking down the source of the memory leak (in this case line 123 of ``myfile.c
 can be done using Valgrind_ as follows::
 
    sepeli ~/gpaw/trunk/test> valgrind --tool=memcheck --leak-check=yes \
-   --show-reachable=yes --num-callers=20 --track-fds=yes gpaw-python test.py
+   --show-reachable=yes --num-callers=20 --track-fds=yes gpaw python test.py
 
    ==16442== 6,587,460 bytes in 29,943 blocks are definitely lost in loss record 85 of 85
    ==16442==    at 0x40053C0: malloc (vg_replace_malloc.c:149)

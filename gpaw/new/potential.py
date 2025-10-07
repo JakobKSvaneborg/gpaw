@@ -96,8 +96,9 @@ class Potential:
         if dH_asp is None:
             return
 
+        converted_potential = flags.to_storage_dtype(vt_sR.data * Ha)
         writer.write(
-            potential=flags.to_storage_dtype(vt_sR.data * Ha),
+            potential=converted_potential,
             atomic_hamiltonian_matrices=dH_asp.data * Ha)
         if self.vHt_x is not None:
             vHt_x_data = flags.to_storage_dtype(vHt_x.data * Ha)

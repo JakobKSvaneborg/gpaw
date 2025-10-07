@@ -593,9 +593,9 @@ def pad(array, N):
     if n == N:
         return array
     if isinstance(array, np.ndarray):
-        b = np.empty(N, complex)
+        b = np.empty(N, array.dtype)
     else:
-        b = cp.empty(N, complex)
+        b = cp.empty(N, array.dtype)
     b[:n] = array
     b[n:] = 0
     return b
