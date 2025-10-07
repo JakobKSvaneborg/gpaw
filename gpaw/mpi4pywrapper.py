@@ -3,7 +3,7 @@ try:
                             CONGRUENT, SIMILAR, UNEQUAL, PROD, _addressof)
 except ImportError:
     SUM = MAX = MIN = IN_PLACE = IDENT = \
-        CONGRUENT = SIMILAR = UNEQUAL = PROD = None
+        CONGRUENT = SIMILAR = UNEQUAL = PROD = None  # noqa
 
 import numpy as np
 
