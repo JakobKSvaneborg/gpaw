@@ -282,10 +282,9 @@ class PWHybridHamiltonian(PWHamiltonian):
                         psit.P_ani[a] @ V_ii,
                         dP_anvi[a].conj(),
                         psit.f_n).real
-
         if calculate_energy:
-            evv = domain_comm.sum_scalar(evv)
-            evc = domain_comm.sum_scalar(evc)
+            evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size
+            evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size
         ekin = -evc - 2 * evv
 
         # Find projectors and k-point weight for psit2_nG:
@@ -315,7 +314,7 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         if F1_av is not None:
             assert F_av is not None
-            F_av += ibzwfs.spin_degeneracy * kweight / self.comm.size * domain_comm.size * self.band_comm.size * F1_av
+            F_av += ibzwfs.spin_degeneracy * kweight * F1_av
 
     def _apply1(self,
                 spin: int,
