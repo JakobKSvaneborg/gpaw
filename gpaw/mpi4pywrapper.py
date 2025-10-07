@@ -2,7 +2,8 @@ try:
     from mpi4py.MPI import (Request, SUM, MAX, MIN, IN_PLACE, IDENT,
                             CONGRUENT, SIMILAR, UNEQUAL, PROD, _addressof)
 except ImportError:
-    pass
+    SUM = MAX = MIN = IN_PLACE = IDENT = \
+        CONGRUENT = SIMILAR = UNEQUAL = PROD = None
 
 import numpy as np
 
