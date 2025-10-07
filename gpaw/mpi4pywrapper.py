@@ -7,6 +7,12 @@ except ImportError:
 import numpy as np
 
 
+def maybe_sync(arr):
+    from gpaw.gpu import cupy, cupy_is_fake
+    if not cupy_is_fake and isinstance(arr, cupy.ndarray):
+        cupy.cuda.deviceSynchronize()
+
+
 class MPI4PYWrapper:
     def __init__(self, comm, parent=None):
         self.comm = comm
@@ -37,62 +43,60 @@ class MPI4PYWrapper:
         else:
             return self.comm.reduce(a, root=root, op=_op)
 
-    def sum(self, a, root=-1):
+    def sum(self, a, root=-1, _op=SUM):
+        maybe_sync(a)
         if root == -1:
-            self.comm.Allreduce(IN_PLACE, a, op=SUM)
+            self.comm.Allreduce(IN_PLACE, a, op=_op)
         else:
             if root == self.rank:
-                self.comm.Reduce(IN_PLACE, a, root=root, op=SUM)
+                self.comm.Reduce(IN_PLACE, a, root=root, op=_op)
             else:
-                self.comm.Reduce(a, None, root=root, op=SUM)
+                self.comm.Reduce(a, None, root=root, op=_op)
 
     def max(self, a, root=-1):
-        if root == -1:
-            self.comm.Allreduce(IN_PLACE, a, op=MAX)
-        else:
-            if root == self.rank:
-                self.comm.Reduce(IN_PLACE, a, root=root, op=MAX)
-            else:
-                self.comm.Reduce(a, None, root=root, op=MAX)
+        self.sum(a, root=-1, _op=MAX)
 
     def min(self, a, root=-1):
-        if root == -1:
-            self.comm.Allreduce(IN_PLACE, a, op=MIN)
-        else:
-            if root == self.rank:
-                self.comm.Reduce(IN_PLACE, a, root=root, op=MIN)
-            else:
-                self.comm.Reduce(a, None, root=root, op=MIN)
+        self.min(a, root=-1, _op=MIN)
 
     def scatter(self, a, b, root):
+        maybe_sync(a)
         self.comm.Scatter(a, b, root)
 
     def alltoallv(self, sbuffer, scounts, sdispls, rbuffer, rcounts, rdispls):
+        maybe_sync(sbuffer)
         self.comm.Alltoallv((sbuffer, (scounts, sdispls), sbuffer.dtype.char),
                             (rbuffer, (rcounts, rdispls), rbuffer.dtype.char))
 
     def all_gather(self, a, b):
+        maybe_sync(a)
         self.comm.Allgather(a, b)
 
     def gather(self, a, root, b=None):
+        maybe_sync(a)
         self.comm.Gather(a, b, root)
 
     def broadcast(self, a, root):
+        maybe_sync(a)
         self.comm.Bcast(a, root)
 
     def sendreceive(self, a, dest, b, src, sendtag=123, recvtag=123):
+        maybe_sync(a)
         return self.comm.Sendrecv(a, dest, sendtag, b, src, recvtag)
 
     def send(self, a, dest, tag=123, block=True):
+        maybe_sync(a)
         if block:
             self.comm.Send(a, dest, tag)
         else:
             return self.comm.Isend(a, dest, tag)
 
     def ssend(self, a, dest, tag=123):
+        maybe_sync(a)
         return self.comm.Ssend(a, dest, tag)
 
     def receive(self, a, src, tag=123, block=True):
+        maybe_sync(a)
         if block:
             self.comm.Recv(a, src, tag)
         else:
