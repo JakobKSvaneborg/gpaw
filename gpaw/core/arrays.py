@@ -182,7 +182,6 @@ class DistributedArrays(Generic[DomainType], XP):
                         function=None,
                         domain_sum=True,
                         cc: bool = False) -> Matrix:
-        from time import time
         if symmetric == '_default':
             symmetric = self is other
 
@@ -198,11 +197,7 @@ class DistributedArrays(Generic[DomainType], XP):
             assert other.comm.size == 1
             if function:
                 assert symmetric
-                from cProfile import Profile
-                with Profile() as p:
-                    other = function(other)
-                p.dump_stats('1.prof')
-                raise SystemExit
+                other = function(other)
 
             M1 = self.matrix
             M2 = other.matrix

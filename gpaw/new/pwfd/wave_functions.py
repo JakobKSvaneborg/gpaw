@@ -109,7 +109,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 self.relpos_ac,
                 atomdist=self.atomdist,
                 qspiral_v=self.qspiral_v,
-                xp=self.psit_nX.xp)
+                xp=self.psit_nX.xp,
+                save_memory=False)
         return self._pt_aiX
 
     @property
