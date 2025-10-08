@@ -416,7 +416,8 @@ class PWHybridHamiltonian(PWHamiltonian):
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
-        ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
+        ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac,
+                                                           save_memory=False)
         ghat_aLG._lazy_init()
         ghat_GA = ghat_aLG._lfc.expand()
         N2 = len(f2_n)
