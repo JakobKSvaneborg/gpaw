@@ -68,5 +68,20 @@ def test_apply3(a=5.0, N=10, dtype=float):
     print(t)
 
 
+def mmmi_test(A=16):
+    from gpaw.utilities.blas import mmm
+    from time import time
+    r_nG = np.ones((A * 3, 2300), dtype=complex) + 0.7j
+    g_GI = np.ones((2300, A * 9), dtype=complex) + 0.3j
+    Q_nI = np.ones((A * 3, A * 9), dtype=complex) - 0.1j
+    t = time()
+    #mmm(1.0, r_nG, 'N', g_GI, 'N', 0.0, Q_nI)
+    mmm(0.23, Q_nI, 'N', g_GI, 'T', 1.0, r_nG)
+    return (time() - t) / A**2
+
 if __name__ == '__main__':
-    test_apply3(9.5, 20, dtype=complex)
+    # test_apply3(9.5, 20, dtype=complex)
+    T = 0.0
+    for i in range(50):
+        T += mmmi_test(8)
+    print(T / 50)

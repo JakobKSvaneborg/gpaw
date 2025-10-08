@@ -19,6 +19,7 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.new.logger import Logger
+from gpaw.utilities.blas import mmm
 
 
 @dataclass
@@ -416,19 +417,19 @@ class PWHybridHamiltonian(PWHamiltonian):
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
         ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
-        ghat_MG = ghat_aLG.expand()
+        ghat_GA = ghat_aLG.expand()
+        Q_anL = ...
         v2_G = Htpsit2_nG.desc.empty()
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
             rhot_nR = ut2_nR.copy()
             rhot_nR.data *= ut1_R.conj()
-            Q_anL = {}
             for a, Q1_niL in Q1_aniL.items():
                 Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
             rhot_nG = pw.empty(len(rhot_nR))
             rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            mmm(Q, ghat, rhot)
-            #ghat_aLG.add_to(rhot_nG, Q_anL)
+            mmm(..., Q_anL.data, 'N', ghat_GA, 'T', 1.0, rhot_nG.data)
+            # ghat_aLG.add_to(rhot_nG, Q_anL)
             if not calculate_energy:
                 rhot_nG.data *= v_G
                 if F1_av is not None:
@@ -444,7 +445,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                     rhot_G.data *= v_G
                     e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
                     e += e12
-            V2_anL = ghat_aLG.integrate(rhot_nG)
+            # V2_anL = ghat_aLG.integrate(rhot_nG)
+            mmm(1.0, rhot_nG.data, 'N', ghat_GA, 'N', 0.0, Q_anL.data)
             rhot_nG.ifft(out=rhot_nR)
             rhot_nR.data *= ut1_R.data
             x = self.exx_fraction * f1_n[n1] / self.nbzk
