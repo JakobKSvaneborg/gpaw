@@ -80,8 +80,9 @@ def mmmi_test(A=16):
     return (time() - t) / A**2
 
 if __name__ == '__main__':
-    # test_apply3(9.5, 20, dtype=complex)
-    T = 0.0
-    for i in range(50):
-        T += mmmi_test(8)
-    print(T / 50)
+    test_apply3(4.5, 8, dtype=complex)
+    if 0:
+        T = 0.0
+        for i in range(50):
+            T += mmmi_test(8)
+        print(T / 50)

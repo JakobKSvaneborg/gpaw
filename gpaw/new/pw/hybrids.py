@@ -417,44 +417,50 @@ class PWHybridHamiltonian(PWHamiltonian):
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
         ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
-        ghat_GA = ghat_aLG.expand()
-        Q_anL = ...
-        v2_G = Htpsit2_nG.desc.empty()
+        ghat_aLG._lazy_init()
+        ghat_GA = ghat_aLG._lfc.expand()
+        N2 = len(f2_n)
+        Q_anL = ghat_aLG.layout.empty(N2)
+        rhot2_nG = pw.empty(N2)
+        tmp_Q = self.plan.tmp_Q
+        tmp_R = self.plan.tmp_R
+        NR = tmp_R.size
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
-            rhot_nR = ut2_nR.copy()
-            rhot_nR.data *= ut1_R.conj()
             for a, Q1_niL in Q1_aniL.items():
                 Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
-            rhot_nG = pw.empty(len(rhot_nR))
-            rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            mmm(..., Q_anL.data, 'N', ghat_GA, 'T', 1.0, rhot_nG.data)
-            # ghat_aLG.add_to(rhot_nG, Q_anL)
+            for rhot_G, ut2_R in zip(rhot2_nG, ut2_nR):
+                tmp_R[:] = ut2_R.data
+                tmp_R *= ut1_R.conj()
+                self.plan.fft()
+                rhot_G.data[:] = pw.cut(tmp_Q)
+            mmm(NR / pw.dv, Q_anL.data, 'N', ghat_GA, 'T', 1.0, rhot2_nG.data)
             if not calculate_energy:
                 rhot_nG.data *= v_G
                 if F1_av is not None:
-                    forces(ghat_aLG, rhot_nG, P2_ani,
+                    forces(ghat_aLG, rhot2_nG, P2_ani,
                            Q_anL,
                            f1_n[n1], f2_n, self.nbzk, self.delta_aiiL,
                            psit1.dP_anvi,
                            n1, F1_av)
                     continue
             else:
-                for rhot_G, f2 in zip(rhot_nG, f2_n):
+                for rhot_G, f2 in zip(rhot2_nG, f2_n):
                     a_G = rhot_G.copy()
                     rhot_G.data *= v_G
                     e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
                     e += e12
             # V2_anL = ghat_aLG.integrate(rhot_nG)
-            mmm(1.0, rhot_nG.data, 'N', ghat_GA, 'N', 0.0, Q_anL.data)
-            rhot_nG.ifft(out=rhot_nR)
-            rhot_nR.data *= ut1_R.data
+            mmm(1.0 / NR, rhot2_nG.data, 'N', ghat_GA, 'N', 0.0, Q_anL.data)
             x = self.exx_fraction * f1_n[n1] / self.nbzk
-            for v2_R, Htpsit2_G in zip(rhot_nR, Htpsit2_nG):
-                v2_R.fft(out=v2_G)
-                Htpsit2_G.data -= v2_G.data * x
+            for rhot_G, Htpsit2_G in zip(rhot2_nG, Htpsit2_nG):
+                pw.paste(rhot_G.data, tmp_Q)
+                self.plan.ifft()
+                tmp_R *= ut1_R.data
+                self.plan.fft()
+                Htpsit2_G.data -= x * pw.cut(tmp_Q)
             for a, Q1_niL in Q1_aniL.items():
-                V2_ani[a][:] -= x * V2_anL[a] @ Q1_niL[n1].T.conj()
+                V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj()
         return e
 
 
