@@ -8,20 +8,14 @@ from collections.abc import Iterable
 from gpaw.new.timer import trace
 
 import numpy as np
-import warnings
 
-from gpaw.cgpaw import have_magma
-from gpaw import debug, ENVVAR_GPAW_NO_GPU_MPI
+from gpaw import ENVVAR_GPAW_NO_GPU_MPI
 
 device_id = None
 """Device id"""
 
 device_count: int = 0
 """Number of GPUs visible to this process"""
-
-
-def gpu_gemm(*args, **kwargs):
-    raise NotImplementedError('gpu_gemm: You are not using GPAW with GPUs.')
 
 
 if TYPE_CHECKING:
