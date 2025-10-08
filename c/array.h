@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 // In the code, one utilizes calls equvalent to PyArray API,
 // except instead of PyArray_BYTES one uses Array_BYTES.
 // Then, if GPAW is built with GPAW_GPU_AWARE_MPI define, these macros are rewritten with wrappers.
