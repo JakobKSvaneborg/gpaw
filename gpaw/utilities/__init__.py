@@ -356,6 +356,7 @@ def file_barrier(path: Union[str, Path], world=None):
 
     This will remove the file, write the file and wait for the file.
     """
+    import gpaw.mpi as mpi
 
     if isinstance(path, str):
         path = Path(path)
