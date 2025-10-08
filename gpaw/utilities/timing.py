@@ -51,7 +51,6 @@ nulltimer = NullTimer()
 class DebugTimer(Timer):
     def __init__(self, print_levels=1000, comm=None, txt=sys.stdout):
         import gpaw.mpi as mpi
-
         comm = comm or mpi.world
         Timer.__init__(self, print_levels)
         ndigits = 1 + int(math.log10(comm.size))
@@ -175,7 +174,6 @@ class ParallelTimer(DebugTimer):
     See the tool gpaw-plot-parallel-timings."""
     def __init__(self, prefix='timings', flush=False):
         import gpaw.mpi as mpi
-
         fname = f'{prefix}.{ranktxt(mpi.world)}.txt'
         txt = open(fname, 'w', buffering=1 if flush else -1)
         DebugTimer.__init__(self, comm=mpi.world, txt=txt)
@@ -204,7 +202,6 @@ class Profiler(Timer):
     def __init__(self, prefix, comm=None):
         import atexit
         import gpaw.mpi as mpi
-
         self.prefix = prefix
         self.comm = comm or mpi.world
         self.ranktxt = ranktxt(self.comm)
@@ -263,7 +260,6 @@ class Profiler(Timer):
 class GPUProfiler(Profiler, GPUTimerBase):
     def __init__(self, prefix, comm=None):
         import gpaw.mpi as mpi
-
         Profiler.__init__(self, prefix, comm=comm or mpi.world)
         GPUTimerBase.__init__(self)
 
