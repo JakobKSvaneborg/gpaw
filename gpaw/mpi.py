@@ -1275,6 +1275,30 @@ def print_mpi_stack_trace(type, value, tb):
         sys.stderr.write(f'rank={rankstring} L{lineno}: {line}\n')
 
 
+def pretty_print_parallel_traceback_file(path: Path) -> None:
+    """Pretty-print rank-0 part of tracback files.
+
+    See print_mpi_stack_trace() exception hook.
+    """
+    lines = []
+    with path.open() as fd:
+        for line in fd:
+            if line.startswith('rank='):
+                x, line = line.split(': ', 1)
+                rank = int(x[5:].split()[0])
+                if rank == 0:
+                    lines.append(line)
+    text = ''.join(lines)
+    try:
+        from pygments import highlight
+        from pygments.lexers.python import PythonTracebackLexer
+        from pygments.formatters import TerminalFormatter
+    except ImportError:
+        print(text)
+    else:
+        print(highlight(text, PythonTracebackLexer(), TerminalFormatter()))
+
+
 if world.size > 1:  # Triggers for dry-run communicators too, but we care not.
     sys.excepthook = print_mpi_stack_trace
 
@@ -1297,20 +1321,7 @@ atexit.register(cleanup)
 
 
 if __name__ == '__main__':
-    lines = []
-    with Path(sys.argv[1]).open() as fd:
-        for line in fd:
-            if line.startswith('rank='):
-                x, line = line.split(': ', 1)
-                rank = int(x[5:].split()[0])
-                if rank == 0:
-                    lines.append(line)
-    text = ''.join(lines)
-    try:
-        from pygments import highlight
-        from pygments.lexers.python import PythonTracebackLexer
-        from pygments.formatters import TerminalFormatter
-    except ImportError:
-        print(text)
-    else:
-        print(highlight(text, PythonTracebackLexer(), TerminalFormatter()))
+    # Usage:
+    #
+    #   python -m gpaw.mpi script.2340987.err
+    pretty_print_parallel_traceback_file(Path(sys.argv[1]))
