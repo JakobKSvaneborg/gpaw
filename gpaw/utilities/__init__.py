@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Union
 
 import gpaw.cgpaw as cgpaw
-import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
@@ -326,6 +325,7 @@ if not debug and not GPAW_NO_C_EXTENSION:
 
 def unlink(path: Union[str, Path], world=None):
     """Safely unlink path (delete file or symbolic link)."""
+    import gpaw.mpi as mpi
 
     if isinstance(path, str):
         path = Path(path)
@@ -356,6 +356,7 @@ def file_barrier(path: Union[str, Path], world=None):
 
     This will remove the file, write the file and wait for the file.
     """
+    import gpaw.mpi as mpi
 
     if isinstance(path, str):
         path = Path(path)
@@ -438,6 +439,38 @@ def as_real_dtype(dtype: DTypeLike) -> np.dtype:
     [dtype('float32'), dtype('float64'), dtype('float64')]
     """
     return np.dtype(_real_float[np.dtype(dtype).type])
+
+
+def get_dtype_precision(dtype: DTypeLike) -> str:
+    """Convert dtype to 'single' or 'double'.
+
+    >>> [get_dtype_precision(dt) for dt in
+    ...  [np.float32, np.float64, complex]]
+    ['single', 'double', 'double']
+    """
+    dt = np.dtype(dtype).type
+    if dt in (np.float32, np.complex64):
+        return 'single'
+    else:
+        return 'double'
+
+
+def as_dtype_precision(dtype: DTypeLike, precision: str) -> np.dtype:
+    """Convert dtype to specified precision.
+    >>> as_dtype_precision(np.float32, 'double')
+    dtype('float64')
+    >>> as_dtype_precision(np.complex128, 'single')
+    dtype('complex64')
+    >>> as_dtype_precision(np.float64, 'double')
+    dtype('float64')
+    """
+    dt = np.dtype(dtype).type
+    is_complex = dt in (np.complex64, np.complex128, complex)
+
+    if precision == 'single':
+        return np.dtype(np.complex64 if is_complex else np.float32)
+    else:
+        return np.dtype(np.complex128 if is_complex else np.float64)
 
 
 def reconstruct_atoms(grid, setups, relpos_ac) -> Atoms:

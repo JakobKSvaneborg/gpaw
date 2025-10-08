@@ -5,7 +5,7 @@ from typing import Optional, List, Dict
 import numpy as np
 from ase.units import Bohr, Ha
 
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.fftw import get_efficient_fft_size
 from gpaw.old.grid_descriptor import GridDescriptor

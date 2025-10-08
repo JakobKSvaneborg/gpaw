@@ -5,27 +5,16 @@ from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.modelinteraction import initialize_w_model
 from gpaw.response.chi0 import Chi0Calculator
-from gpaw.wannier90 import Wannier90
+from gpaw.wannier.wannier90 import Wannier90
 import os
 from gpaw.mpi import world, serial_comm
-from subprocess import PIPE, run
 
 
-def out():
-    result = run('wannier90.x --version',
-                 stdout=PIPE,
-                 stderr=PIPE,
-                 universal_newlines=True,
-                 shell=True)
-    return result.stdout
-
-
+@pytest.mark.serial  # See issue 1447
 @pytest.mark.old_gpaw_only
 @pytest.mark.parametrize('symm', [True, False])
 @pytest.mark.response
-@pytest.mark.skipif(': 3.' not in out(),
-                    reason="requires at least Wannier90 version 3.0")
-def test_w(in_tmp_dir, gpw_files, symm):
+def test_w(in_tmp_dir, gpw_files, symm, wannier90):
 
     if not symm and world.size < 2:
         pytest.skip('Skip nosymm test in serial')

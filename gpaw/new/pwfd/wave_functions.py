@@ -361,7 +361,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         if band_comm.rank == 0:
             if domain_comm.rank == 0:
                 psit_nX = self.psit_nX.desc.new(comm=None).empty(
-                    (n2 - n1, *spinors))
+                    (n2 - n1, *spinors), xp=self.psit_nX.xp)
             rank = rank1
             ba = b1
             na = n1
@@ -387,7 +387,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                     self,
                     psit_nX,
                     atomdist=self.atomdist.gather())
-                wfs._eig_n = self.eig_n[n1:n2]
+                if self._eig_n is not None:
+                    wfs._eig_n = self.eig_n[n1:n2]
                 return wfs
         else:
             rank = band_comm.rank
@@ -508,12 +509,16 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
-                                       basis):
+                                       basis,
+                                       *,
+                                       xp=None):
         if isinstance(self.psit_nX, UGArray):
             return self
 
+        if xp is None:
+            xp = self.xp
         grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
-        psit_nR = grid.zeros(self.nbands, self.band_comm)
+        psit_nR = grid.zeros(self.nbands, self.band_comm, xp=xp)
         self.psit_nX.ifft(out=psit_nR)
         return PWFDWaveFunctions.from_wfs(self, psit_nR)
 

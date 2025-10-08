@@ -28,7 +28,7 @@ def gaunt(lmax: int = 2) -> Array3D:
     Lmax = (lmax + 1)**2
     L2max = (2 * lmax + 1)**2
 
-    from gpaw.spherical_harmonics import YL, gam
+    from gpaw.sphere.spherical_harmonics import YL, gam
     G_LLL = np.zeros((Lmax, L2max, L2max))
     for L1 in range(Lmax):
         for L2 in range(L2max):
@@ -61,7 +61,7 @@ def nabla(lmax: int = 2) -> Array3D:
         return _nabla[lmax]
 
     Lmax = (lmax + 1)**2
-    from gpaw.spherical_harmonics import YL, gam
+    from gpaw.sphere.spherical_harmonics import YL, gam
     Y_LLv = np.zeros((Lmax, Lmax, 3))
     # Insert new values
     for L1 in range(Lmax):

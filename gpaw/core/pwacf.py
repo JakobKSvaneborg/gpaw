@@ -14,7 +14,7 @@ from gpaw.gpu import cupy_is_fake, gpu_gemm
 # from gpaw.lfc import BaseLFC
 from gpaw.new import prod, trace, tracectx
 from gpaw.new.c import pwlfc_expand, pwlfc_expand_gpu
-from gpaw.spherical_harmonics import Y, nablarlYL
+from gpaw.sphere.spherical_harmonics import Y, nablarlYL
 from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 from gpaw.utilities import as_complex_dtype, as_real_dtype

@@ -11,7 +11,7 @@ import numpy as np
 import warnings
 
 from gpaw.cgpaw import have_magma
-from gpaw import debug
+from gpaw import debug, ENVVAR_GPAW_NO_GPU_MPI
 
 device_id = None
 
@@ -251,6 +251,9 @@ def set_device(log):
             device_id = f'{nodename}:{bus_id}'
 
     log(f'mpi rank {rank} has GPU device {device_id}', parallel=True)
+    if ENVVAR_GPAW_NO_GPU_MPI:
+        log('Running without GPU aware MPI because \'GPAW_NO_GPU_MPI\' is'
+            ' set in the environment. Comms will be staged through host.')
 
 
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
@@ -327,7 +330,6 @@ def as_xp(array, xp):
         return cupy.asnumpy(array)
     if isinstance(array, np.ndarray):
         return cupy.asarray(array)
-    1 / 0
     return array
 
 

@@ -9,7 +9,7 @@ import gpaw.fftw as fftw
 from gpaw.core.arrays import DistributedArrays
 from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
 from gpaw.core.domain import Domain
-from gpaw.gpu import as_np, cupy_is_fake
+from gpaw.gpu import as_np, cupy_is_fake, as_xp
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
@@ -217,7 +217,7 @@ class UGDesc(Domain['UGArray']):
 
         return transform
 
-    def eikr(self, kpt_c: Vector | None = None) -> Array3D:
+    def eikr(self, kpt_c: Vector | None = None, xp=np) -> Array3D:
         """Plane wave.
 
         :::
@@ -234,7 +234,8 @@ class UGDesc(Domain['UGArray']):
         if kpt_c is None:
             kpt_c = self.kpt_c
         index_Rc = np.indices(self.mysize_c).T + self.start_c
-        return np.exp(2j * pi * (index_Rc @ (kpt_c / self.size_c))).T
+        arr = np.exp(2j * pi * (index_Rc @ (kpt_c / self.size_c))).T
+        return as_xp(arr, xp)
 
     @property
     def _gd(self):
@@ -574,7 +575,7 @@ class UGArray(DistributedArrays[UGDesc]):
         else:
             kpt_c = np.asarray(kpt_c)
         if kpt_c.any():
-            self.data *= self.desc.eikr(kpt_c)
+            self.data *= self.desc.eikr(kpt_c, xp=self.xp)
 
     def interpolate(self,
                     plan1: fftw.FFTPlans | None = None,

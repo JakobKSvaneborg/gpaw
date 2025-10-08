@@ -1,6 +1,6 @@
 import numpy as np
 
-from gpaw.gaunt import gaunt
+from gpaw.sphere.gaunt import gaunt
 from gpaw.hubbard import aoom
 from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
 from gpaw.sphere.integrate import radial_truncation_function

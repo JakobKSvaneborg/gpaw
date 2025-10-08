@@ -24,8 +24,8 @@ from gpaw import get_scipy_version
 from gpaw.atom.aeatom import Channel
 from gpaw.atom.configurations import configurations
 from gpaw.atom.radialgd import RadialGridDescriptor
-from gpaw.calculator import GPAW
-from gpaw.gaunt import gaunt
+from gpaw.old.calculator import GPAW
+from gpaw.sphere.gaunt import gaunt
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.setup import Setup

@@ -62,6 +62,8 @@ class Mode(Parameter):
         dct = self._not_none('dtype')
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
+        if 'dtype' in dct:
+            dct['dtype'] = np.dtype(self.dtype).name
         return dct
 
     @classmethod
@@ -73,6 +75,9 @@ class Mode(Parameter):
         elif not isinstance(mode, dict):
             mode = mode.todict()
         mode = mode.copy()
+        if 'dtype' in mode:
+            if isinstance(mode['dtype'], str):
+                mode['dtype'] = np.dtype(mode['dtype'])
         return {'pw': PW,
                 'lcao': LCAO,
                 'fd': FD,
