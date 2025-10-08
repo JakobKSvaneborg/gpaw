@@ -1,12 +1,14 @@
 from typing import TYPE_CHECKING
 
 import gpaw.cgpaw as cgpaw
-from gpaw import GPAW_NO_C_EXTENSION
+from gpaw import GPAW_NO_C_EXTENSION, ENVVAR_GPAW_NO_GPU_MPI
 from gpaw.new.timer import trace
 
 __all__ = ['GPU_AWARE_MPI']
 
-GPU_AWARE_MPI = getattr(cgpaw, 'gpu_aware_mpi', False)
+# Use GPU aware MPI if it's available, unless disabled by envvar.
+GPU_AWARE_MPI = (getattr(cgpaw, 'gpu_aware_mpi', False)
+                 and not bool(ENVVAR_GPAW_NO_GPU_MPI))
 GPU_ENABLED = getattr(cgpaw, 'GPU_ENABLED', False)
 
 if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
