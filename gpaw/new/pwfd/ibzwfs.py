@@ -8,5 +8,10 @@ class PWFDIBZWaveFunctions(IBZWaveFunctions[PWFDWaveFunctions]):
         super().__init__(*args, **kwargs)
         self.move_wave_functions = move_wave_functions
 
+        # Allow sharing of PAW-projectors between spin up and down:
+        if self.nspins == 2:
+            for wfs1, wfs2 in self.wfs_qs:
+                wfs1.other_spin = wfs2
+
     def has_wave_functions(self):
         return self.wfs_qs[0][0].psit_nX.data is not None
