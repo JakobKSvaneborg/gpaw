@@ -117,7 +117,7 @@ static inline char* Array_BYTES(PyObject* obj)
     Py_DECREF(ndarray_data);
     if (ptr_data == NULL) return NULL;
 
-    char* ptr = (char*) PyLong_AS_LONG(ptr_data);
+    char* ptr = (char*) PyLong_AsVoidPtr(ptr_data);
     Py_DECREF(ptr_data);
     return ptr;
 }

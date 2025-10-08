@@ -62,19 +62,26 @@ class Mode(Parameter):
         dct = self._not_none('dtype')
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
+        if 'dtype' in dct:
+            dct['dtype'] = np.dtype(self.dtype).name
         return dct
 
     @classmethod
     def from_param(cls, mode) -> Mode:
+        if isinstance(mode, Mode):
+            return mode
         if isinstance(mode, str):
             mode = {'name': mode}
-        if isinstance(mode, dict):
-            mode = mode.copy()
-            return {'pw': PW,
-                    'lcao': LCAO,
-                    'fd': FD,
-                    'tb': TB}[mode.pop('name')](**mode)
-        return mode
+        elif not isinstance(mode, dict):
+            mode = mode.todict()
+        mode = mode.copy()
+        if 'dtype' in mode:
+            if isinstance(mode['dtype'], str):
+                mode['dtype'] = np.dtype(mode['dtype'])
+        return {'pw': PW,
+                'lcao': LCAO,
+                'fd': FD,
+                'tb': TB}[mode.pop('name')](**mode)
 
     def dft_components_builder(self, atoms, params, *, log=None, comm=None):
         module = importlib.import_module(f'gpaw.new.{self.name}.builder')
@@ -210,12 +217,14 @@ class PPCG(PWFDEigensolverParamater):
 
     def __init__(self,
                  niter: int = 2,
+                 min_niter: int | None = None,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
+        self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
@@ -224,6 +233,7 @@ class PPCG(PWFDEigensolverParamater):
 
     def todict(self):
         return {'niter': self.niter,
+                'min_niter': self.min_niter,
                 'max_buffer_mem': self.max_buffer_mem,
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
@@ -245,6 +255,7 @@ class PPCG(PWFDEigensolverParamater):
             hamiltonian,
             converge_bands,
             niter=self.niter,
+            min_niter=self.min_niter,
             max_buffer_mem=self.max_buffer_mem,
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
@@ -540,10 +551,10 @@ class XC(Parameter):
     def todict(self):
         return {'name': self.name, **self.kwargs}
 
-    def functional(self, collinear):
+    def functional(self, *, collinear: bool, atoms: Atoms | None = None):
         from gpaw.xc import XC as xc
         return xc({'name': self.name, **self.kwargs},
-                  collinear=collinear)
+                  collinear=collinear, atoms=atoms)
 
     @classmethod
     def from_param(cls, xc):
@@ -624,7 +635,7 @@ class Parameters:
             (three integers).
         h:
             Grid-spacing for wave-function grid (Å).  Default value is
-            0.2 Å for LCAO or FD mode calculations.  For a PW-mode
+            0.2 Å for LCAO and FD mode calculations.  For a PW-mode
             calculation, we use the formula `h=γh_0` with `γ \simeq 1.4` and:
 
             .. math::
@@ -786,7 +797,8 @@ def _parse_experimental(experimental: dict | None,
         magmoms = experimental.pop('magmoms')
     unknown = experimental.keys() - {'backwards_compatible',
                                      'ccirs',
-                                     'fast_pw_init'}
+                                     'fast_pw_init',
+                                     'pw_pot_calc'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)

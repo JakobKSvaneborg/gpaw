@@ -18,7 +18,7 @@ from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, pw_insert,
                         pw_insert_gpu)
-from gpaw.pw.descriptor import pad
+from gpaw.old.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
 from gpaw.fftw import get_efficient_fft_size
@@ -988,7 +988,8 @@ def find_reciprocal_vectors(ecut: float,
 def abs_square_gpu(psit_nG, weight_n, nt_R):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
-    plan = nt_R.desc.fft_plans(xp=cp, dtype=complex)
+    dtype = as_complex_dtype(psit_nG.data.dtype)
+    plan = nt_R.desc.fft_plans(xp=cp, dtype=dtype)
     Q_G = cp.asarray(plan.indices(pw))
     weight_n = cp.asarray(weight_n)
     N = len(weight_n)

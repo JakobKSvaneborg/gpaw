@@ -17,7 +17,7 @@ from gpaw.gpu.diagonalization import suggest_diagonalizer
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
 
-def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int]:
+def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int | None]:
     """Suggest blocking of ``NxN`` matrix.
 
     Returns rows, columns, blocksize tuple.
@@ -25,6 +25,9 @@ def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int]:
     >>> suggest_blocking(10, 6)
     (3, 2, 2)
     """
+
+    if ncpus == 1:
+        return 1, 1, None
 
     nprow = ncpus
     npcol = 1
@@ -59,7 +62,8 @@ class MatrixWithNoData:
                  N: int,
                  *,
                  dtype=None,
-                 dist: MatrixDistribution | tuple | None = None):
+                 dist: MatrixDistribution | tuple | None = None,
+                 xp=np):
         self.shape = (M, N)
         self.dtype = dtype
         self.data = np.empty((0, 0), dtype)
@@ -69,9 +73,11 @@ class MatrixWithNoData:
                                                    dist)}
             dist = create_distribution(M, N, **kwargs)
         self.dist = dist
+        self.xp = xp
 
     def create(self) -> Matrix:
-        return Matrix(*self.shape, dtype=self.dtype, dist=self.dist)
+        return Matrix(
+            *self.shape, dtype=self.dtype, dist=self.dist, xp=self.xp)
 
 
 class Matrix(XP):
@@ -119,9 +125,9 @@ class Matrix(XP):
 
         self.xp: ModuleType
         if xp is None:
-            if isinstance(dist, CuPyDistribution):
-                xp = cp
-            elif data is not None and not isinstance(data, np.ndarray):
+            if data is not None:
+                xp = np if isinstance(data, np.ndarray) else cp
+            elif isinstance(dist, CuPyDistribution):
                 xp = cp
             else:
                 xp = np
@@ -134,6 +140,7 @@ class Matrix(XP):
             dist = create_distribution(M, N, xp=self.xp, **kwargs)
         else:
             assert self.shape == dist.full_shape
+            dist = dist.to_xp(xp)  # make sure xp and dist match
         self.dist = dist
 
         self.data: Array2D
@@ -458,6 +465,10 @@ class Matrix(XP):
         limit:
             Number of eigenvector and values to find.  Defaults to all.
         """
+        if self.xp is cp:
+            # use MAGMA here?
+            scalapack = None, 1, 1, None
+
         slcomm, rows, columns, blocksize = scalapack
         slcomm = slcomm or self.dist.comm
         dist = (slcomm, rows, columns, blocksize)
@@ -623,9 +634,7 @@ class Matrix(XP):
                 self.data *= scale
             self.data += self.data.conj().T
             return
-        tmp = self.copy()
-        cgpaw.pblas_tran(*self.shape, scale, tmp.data, scale, self.data,
-                         self.dist.desc, self.dist.desc, True)
+        self.dist.add_hermitian_conjugate(self, scale)
 
     def tril2full(self) -> None:
         """Fill in upper triangle from lower triangle.
@@ -708,9 +717,7 @@ def create_distribution(M: int,
                         b: int | None = None,
                         xp=None) -> MatrixDistribution:
     if xp is cp:
-        assert b is None
-        if r == 1 and c == 1:
-            pass  # comm = None
+        b = None  # blocking not implemented
         comm = comm or serial_comm
         return CuPyDistribution(M, N, comm,
                                 r if r != -1 else comm.size,
@@ -748,6 +755,9 @@ class MatrixDistribution:
     def new(self, M, N):
         raise NotImplementedError
 
+    def to_xp(self, xp) -> MatrixDistribution:
+        raise NotImplementedError
+
     def my_row_range(self) -> tuple[int, int]:
         """Return indices for range of my rows.
 
@@ -765,6 +775,11 @@ class MatrixDistribution:
         n2 = min(n1 + b, M)
         return n1, n2
 
+    def add_hermitian_conjugate(self,
+                                a: Matrix,
+                                scale: float) -> None:
+        raise NotImplementedError
+
 
 class NoDistribution(MatrixDistribution):
     comm = serial_comm
@@ -778,6 +793,11 @@ class NoDistribution(MatrixDistribution):
 
     def __str__(self):
         return 'NoDistribution({}x{})'.format(*self.shape)
+
+    def to_xp(self, xp) -> MatrixDistribution:
+        if xp is np:
+            return self
+        return CuPyDistribution(*self.shape, serial_comm, 1, 1, None)
 
     def global_index(self, n):
         return n
@@ -913,6 +933,20 @@ class BLACSDistribution(MatrixDistribution):
                              opb, opa)
         return c
 
+    def add_hermitian_conjugate(self,
+                                a: Matrix,
+                                scale: float) -> None:
+        tmp = a.copy()
+        cgpaw.pblas_tran(*self.full_shape, scale, tmp.data, scale, a.data,
+                         self.desc, self.desc, True)
+
+    def to_xp(self, xp) -> MatrixDistribution:
+        if xp is np:
+            return self
+        return CuPyDistribution(
+            *self.full_shape,
+            self.comm, self.rows, self.columns, self.blocksize)
+
 
 def cublas_mmm(alpha, a, opa, b, opb, beta, c):
     if c.size == 0:
@@ -941,6 +975,15 @@ class CuPyDistribution(MatrixDistribution):
         m, N = self.shape
         return f'CuPyDistribution(global={M}x{N}, local={m}x{N})'
 
+    def to_xp(self, xp):
+        if xp is not np:
+            return self
+        if self.comm.size == 1:
+            return NoDistribution(*self.full_shape)
+        return BLACSDistribution(
+            *self.full_shape,
+            self.comm, self.rows, self.columns, self.blocksize)
+
     def global_index(self, n):
         1 / 0
         return n
@@ -961,37 +1004,55 @@ class CuPyDistribution(MatrixDistribution):
                         return mmm_nc_sym(a, b, c, alpha, cublas_mmm)
                 else:
                     return mmm_nc(a, b, c, alpha, beta, cublas_mmm)
+            if opa == 'C' and opb == 'T' and beta == 0.0:
+                # Quick'n'dirty hack:
+                a = a.gather()
+                b = b.gather()
+                c0 = b.new()
+                if self.comm.rank == 0:
+                    cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c0.data)
+                c0.redist(c)
+                return c
             1 / 0
 
         if symmetric:
             if opa == 'N':
-                assert opb == 'C' or opb == 'T' and a.dtype == float
+                assert opb == 'C' or opb == 'T' \
+                    and np.issubdtype(a.dtype, np.floating)
                 if a is b:
-                    gpu_gemm('N', 'H',
-                             a.data, a.data, c.data,
-                             alpha, beta)
-                    # cp.cublas.syrk('N', a.data, c.data, alpha, beta, True)
+                    blas.gpu_r2k(0.5 * alpha,
+                                 a.data,
+                                 a.data,
+                                 beta,
+                                 c.data)
                 else:
                     if beta == 1.0 and a.shape[1] == 0:
                         return
                     if c.data.size > 0:
                         assert beta in [0.0, 1.0]
                         # CuPy doesn't have dsyrk, so we roll our own:
-                        gpu_gemm('N', 'H',
-                                 a.data, b.data, c.data,
-                                 0.5 * alpha, beta)
-                        gpu_gemm('N', 'H',
-                                 b.data, a.data, c.data,
-                                 0.5 * alpha, 1.0)
+                        blas.gpu_r2k(0.5 * alpha,
+                                     a.data,
+                                     b.data,
+                                     beta,
+                                     c.data)
             else:
                 1 / 0
                 assert opa == 'C' and opb == 'N'
                 assert a is not b
                 raise NotImplementedError
-                blas.r2k(0.5 * alpha, a.data, b.data, beta, c.data, 'n')
+                blas.gpu_r2k(0.5 * alpha, a.data, b.data, beta, c.data, 'n')
 
         else:
             cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c.data)
+
+    def add_hermitian_conjugate(self,
+                                a: Matrix,
+                                scale: float) -> None:
+        # Quick'n'dirty hack:
+        b = a.to_cpu()
+        b.add_hermitian_conjugate(scale)
+        a.data[:] = b.to_xp(cp).data
 
     def eighl(self, H, L):
         """

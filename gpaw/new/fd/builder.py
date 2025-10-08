@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-
 from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
@@ -102,7 +101,8 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
         psit_nR = grid.zeros(self.nbands, self.communicators['b'])
         mynbands = len(C_nM.data)
-        basis_set.lcao_to_grid(C_nM.data, psit_nR.data[:mynbands], q)
+        basis_set.lcao_to_grid(C_nM.to_xp(np).data,
+                               psit_nR.data[:mynbands], q)
         return psit_nR.to_xp(self.xp)
 
     def read_ibz_wave_functions(self, reader):
@@ -115,13 +115,13 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         else:
             return ibzwfs
 
-        singlep = reader.get('precision', 'double') == 'single'
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # old gpw file
+        singlep = reader.get('precision', 'double') == 'single'
 
         for wfs in ibzwfs:
-            grid = self.wf_desc.new(kpt=wfs.kpt_c)
+            grid = self.wf_desc.new(kpt=wfs.kpt_c, dtype=self.dtype)
             index = (wfs.spin, wfs.k)
             data = reader.wave_functions.proxy(name, *index)
             data.scale = c

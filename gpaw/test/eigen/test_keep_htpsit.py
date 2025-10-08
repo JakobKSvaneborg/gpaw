@@ -4,6 +4,7 @@ from ase import Atoms
 import pytest
 
 
+@pytest.mark.legacy
 def test_eigen_keep_htpsit():
     atoms = Atoms('H')
     atoms.center(3.0)

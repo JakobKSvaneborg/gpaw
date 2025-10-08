@@ -7,7 +7,7 @@ from gpaw.response.screened_interaction import initialize_w_calculator
 from gpaw.response import timer
 from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.pair import KPointPairFactory
-from gpaw.wannier90 import read_uwan
+from gpaw.wannier.wannier90 import read_uwan
 from gpaw.response.screened_interaction import GammaIntegrationMode
 
 

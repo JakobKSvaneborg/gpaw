@@ -5,6 +5,7 @@ from glob import glob
 from ase.build import mx2, molecule
 from gpaw import GPAW
 from gpaw.borncharges import born_charges_wf
+from gpaw.mpi import world
 
 
 def test_born_charges_wf(in_tmp_dir, gpw_files, cleanup=True):
@@ -20,6 +21,7 @@ def test_born_charges_wf(in_tmp_dir, gpw_files, cleanup=True):
     assert Z_t == pytest.approx(Z_avv, abs=1e-2)
 
     if cleanup:
+        world.barrier()  # Wait that files have been removed
         flist = glob('disp*.gpw')
         assert len(flist) == 0
 

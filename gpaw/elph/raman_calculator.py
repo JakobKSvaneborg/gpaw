@@ -9,7 +9,7 @@ import numpy as np
 
 from ase.units import invcm, Hartree
 from ase.utils.filecache import MultiFileJSONCache
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.typing import ArrayND
 
 # TODO: only take kd, don't need whole calculator

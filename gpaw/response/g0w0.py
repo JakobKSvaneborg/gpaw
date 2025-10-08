@@ -13,7 +13,7 @@ from ase.units import Ha
 from gpaw import GPAW, debug
 import gpaw.mpi as mpi
 from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
-from gpaw.pw.descriptor import (count_reciprocal_vectors, PWMapping)
+from gpaw.old.pw.descriptor import (count_reciprocal_vectors, PWMapping)
 from gpaw.utilities.progressbar import ProgressBar
 
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter

@@ -1,7 +1,7 @@
 """Test correctness of vdW-DF potential."""
 import pytest
 from math import pi
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 import numpy as np
 from gpaw.xc import XC
 from gpaw.mpi import world

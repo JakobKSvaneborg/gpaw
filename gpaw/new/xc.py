@@ -83,8 +83,8 @@ class Functional:
                                                            UGArray | None]:
         raise NotImplementedError
 
-    def calculate_paw_correction(self, setup, d, h=None):
-        return self.xc.calculate_paw_correction(setup, d, h)
+    def calculate_paw_correction(self, setup, d, h=None, a=None):
+        return self.xc.calculate_paw_correction(setup, d, h, a=a)
 
     def get_setup_name(self) -> str:
         return self.name

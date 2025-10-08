@@ -2,18 +2,16 @@ from __future__ import annotations
 import contextlib
 import atexit
 from time import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 from types import ModuleType
 from collections.abc import Iterable
 from gpaw.new.timer import trace
 
 import numpy as np
+import warnings
 
-cupy_is_fake = True
-"""True if :mod:`cupy` has been replaced by ``gpaw.gpu.cpupy``"""
-
-is_hip = False
-"""True if we are using HIP"""
+from gpaw.cgpaw import have_magma
+from gpaw import debug, ENVVAR_GPAW_NO_GPU_MPI
 
 device_id = None
 """Device id"""
@@ -29,12 +27,18 @@ def gpu_gemm(*args, **kwargs):
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
     import gpaw.gpu.cpupyx as cupyx
+    cupy_is_fake = True
+    is_hip = False
+
+    def gpu_gemm(*args, **kwargs):
+        raise ValueError('GPU gemm not available while type checking')
 else:
+    # First try to import GPU libraries and set important booleans
+    # is_hip and cupy_is_fake.
     try:
         import gpaw.cgpaw as cgpaw
         if not hasattr(cgpaw, 'gpaw_gpu_init'):
             raise ImportError
-
         import cupy
         from cupy_backends.cuda.api.runtime import CUDARuntimeError \
             as CUDAError
@@ -43,11 +47,22 @@ else:
                 raise ImportError('No GPUs')
         except CUDAError:
             raise ImportError('No GPU backend')
+        import cupyx
+        from cupy.cuda import runtime
+        is_hip = runtime.is_hip
+        cupy_is_fake = False
+    except ImportError:
+        cupy_is_fake = True
+        is_hip = False
+        import gpaw.gpu.cpupy as cupy
+        import gpaw.gpu.cpupyx as cupyx
+        from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm  # noqa
 
-        # Cupy gemm wrapper (does extra copying):
-        # from cupy import cublas
-        # gpu_gemm = trace(gpu=True)(cublas.gemm)  # noqa: F811
 
+# Now that we have established all of the important global booleans
+# we can start importing other GPAW things relying it
+if not TYPE_CHECKING:
+    if not cupy_is_fake:
         # Homerolled gemm wrapper and helper functions:
         from cupy.cublas import (_get_scalar_ptr, _trans_to_cublas_op,
                                  _change_order_if_necessary, device)
@@ -113,6 +128,12 @@ else:
                 assert out.ndim == 2
                 assert out.shape == (m, n)
                 assert out.dtype == dtype
+            if a.size == 0 or b.size == 0:
+                if beta == 0.0:
+                    out[:] = 0
+                else:
+                    out *= beta
+                return out
 
             alpha, alpha_ptr = _get_scalar_ptr(alpha, a.dtype)
             beta, beta_ptr = _get_scalar_ptr(beta, a.dtype)
@@ -179,8 +200,6 @@ else:
                 cupy._core.elementwise_copy(c, out)
             return out
 
-        import cupyx
-        from cupy.cuda import runtime
         numpy2 = np.__version__.split('.')[0] == '2'
 
         def fftshift_patch(x, axes=None):
@@ -203,9 +222,16 @@ else:
             cupy.fft.fftshift = fftshift_patch
             cupy.fft.ifftshift = ifftshift_patch
 
-        is_hip = runtime.is_hip
-        cupy_is_fake = False
 
+def set_device(log):
+    global device_id
+    from gpaw.mpi import rank
+    if cupy_is_fake:
+        device_id = 'CPU emulation of GPU'
+        log(f'mpi rank {rank} has no GPU device!', parallel=True)
+        return
+
+    if device_id is None:
         # Check the number of devices
         # Do not fail when calling `gpaw info` on a login node without GPUs
         try:
@@ -220,7 +246,6 @@ else:
         if device_count > 0:
             # select GPU device (round-robin based on MPI rank)
             # if not set, all MPI ranks will use the same default device
-            from gpaw.mpi import rank
             runtime.setDevice(rank % device_count)
 
             # initialise C parameters and memory buffers
@@ -234,10 +259,10 @@ else:
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
 
-    except ImportError:
-        import gpaw.gpu.cpupy as cupy
-        import gpaw.gpu.cpupyx as cupyx
-        from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm  # noqa
+    log(f'mpi rank {rank} has GPU device {device_id}', parallel=True)
+    if ENVVAR_GPAW_NO_GPU_MPI:
+        log('Running without GPU aware MPI because \'GPAW_NO_GPU_MPI\' is'
+            ' set in the environment. Comms will be staged through host.')
 
 
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
@@ -247,7 +272,6 @@ __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
 try:
     from gpaw.cgpaw import _flush_pending_decrefs
 
-    @trace
     def flush_pinned_arrays() -> None:
         """Flushes the list of arrays that are currently pinned by GPAW's
         'GPU array life support' system.
@@ -272,6 +296,18 @@ except ImportError:
 def synchronize():
     if not cupy_is_fake:
         cupy.cuda.runtime.deviceSynchronize()
+
+
+@contextlib.contextmanager
+def as_numpy(a: np.ndarray | cupy.ndarray
+             ) -> Generator[np.ndarray, None, None]:
+    """Copy array to CPU and back to GPU when done."""
+    if isinstance(a, np.ndarray):
+        yield a
+        return
+    b = a.get()
+    yield b
+    a[:] = cupy.asarray(b)
 
 
 def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
@@ -303,7 +339,6 @@ def as_xp(array, xp):
         return cupy.asnumpy(array)
     if isinstance(array, np.ndarray):
         return cupy.asarray(array)
-    1 / 0
     return array
 
 
