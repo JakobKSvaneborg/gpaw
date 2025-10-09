@@ -81,9 +81,10 @@ def mmmi_test(A=16):
     g_GI = np.ones((2300, A * 9), dtype=complex) + 0.3j
     Q_nI = np.ones((A * 3, A * 9), dtype=complex) - 0.1j
     t = time()
-    #mmm(1.0, r_nG, 'N', g_GI, 'N', 0.0, Q_nI)
+    # mmm(1.0, r_nG, 'N', g_GI, 'N', 0.0, Q_nI)
     mmm(0.23, Q_nI, 'N', g_GI, 'T', 1.0, r_nG)
     return (time() - t) / A**2
+
 
 if __name__ == '__main__':
     test_apply3(4.5, 8, dtype=complex)
