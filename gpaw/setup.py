@@ -1415,12 +1415,13 @@ class Setups(list):
     def create_pseudo_core_ked(self,
                                domain,
                                positions,
-                               atomdist):
+                               atomdist,
+                               xp=np):
         return domain.atom_centered_functions(
             [[setup.tauct] for setup in self],
             positions,
             atomdist=atomdist,
-            cut=True)
+            cut=True, xp=xp)
 
     def create_local_potentials(self, domain, positions, atomdist, xp=np):
         return domain.atom_centered_functions(

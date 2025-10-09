@@ -66,9 +66,12 @@ class PWHamiltonian(Hamiltonian):
                    psit_nG: XArray,
                    vt_nG: XArray) -> None:
         pw = psit_nG.desc
-        dpsit_R = dedtaut_R.desc.new(dtype=pw.dtype).empty()
+        xp = psit_nG.xp
+        dpsit_R = dedtaut_R.desc.new(dtype=pw.dtype).empty(xp=xp)
         Gplusk1_Gv = pw.reciprocal_vectors()
-        tmp_G = pw.empty()
+        from gpaw.gpu import as_xp
+        Gplusk1_Gv = as_xp(Gplusk1_Gv, xp=xp)
+        tmp_G = pw.empty(xp=xp)
 
         for psit_G, vt_G in zips(psit_nG, vt_nG):
             for v in range(3):

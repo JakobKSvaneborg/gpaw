@@ -827,15 +827,18 @@ class PWArray(DistributedArrays[PWDesc]):
                 taut_R: UGArray) -> None:
         psit_nG = self
         pw = psit_nG.desc
+        xp = psit_nG.xp
         domain_comm = pw.comm
 
         # Undistributed work arrays:
-        dpsit1_R = taut_R.desc.new(comm=None, dtype=pw.dtype).empty()
+        dpsit1_R = taut_R.desc.new(comm=None, dtype=pw.dtype).empty(xp=xp)
         pw1 = pw.new(comm=None)
-        psit1_G = pw1.empty()
-        iGpsit1_G = pw1.empty()
-        taut1_R = taut_R.desc.new(comm=None).zeros()
+        psit1_G = pw1.empty(xp=xp)
+        iGpsit1_G = pw1.empty(xp=xp)
+        taut1_R = taut_R.desc.new(comm=None).zeros(xp=xp)
         Gplusk1_Gv = pw1.reciprocal_vectors()
+        from gpaw.gpu import as_xp
+        Gplusk1_Gv = as_xp(Gplusk1_Gv, xp=xp)
 
         (N,) = psit_nG.mydims
         for n1 in range(0, N, domain_comm.size):
@@ -851,7 +854,10 @@ class PWArray(DistributedArrays[PWDesc]):
                 iGpsit1_G.data[:] = psit1_G.data
                 iGpsit1_G.data *= 1j * Gplusk1_Gv[:, v]
                 iGpsit1_G.ifft(out=dpsit1_R)
-                add_to_density(0.5 * f, dpsit1_R.data, taut1_R.data)
+                if xp==np:
+                    add_to_density(0.5 * f, dpsit1_R.data, taut1_R.data)
+                else:
+                    taut_R.data += float(0.5 * f) * xp.abs(dpsit1_R.data)**2
         domain_comm.sum(taut1_R.data)
         tmp_R = taut_R.new()
         tmp_R.scatter_from(taut1_R)
