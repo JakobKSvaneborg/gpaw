@@ -142,7 +142,7 @@ class FFTPlans:
         """
         raise NotImplementedError
 
-    def ifft_sphere(self, coef_G, pw, out_R):
+    def ifft_sphere(self, coef_G, pw, out_R=None):
         if coef_G is None:
             out_R.scatter_from(None)
             return
@@ -150,13 +150,16 @@ class FFTPlans:
 
         if np.issubdtype(pw.dtype, np.floating):
             t = self.tmp_Q[:, :, 0]
-            n, m = (s // 2 - 1 for s in out_R.desc.size_c[:2])
+            if out_R is not None:
+                assert (out_R.desc.size_c[:2] == self.tmp_R.shape[:2]).all()
+            n, m = (s // 2 - 1 for s in self.tmp_R.shape[:2])
             t[0, -m:] = t[0, m:0:-1].conj()
             t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
             t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
             t[-n:, 0] = t[n:0:-1, 0].conj()
         self.ifft()
-        out_R.scatter_from(self.tmp_R)
+        if out_R is not None:
+            out_R.scatter_from(self.tmp_R)
 
     def fft_sphere(self, in_R, pw):
         self.tmp_R[:] = in_R.data

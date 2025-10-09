@@ -44,16 +44,21 @@ def test_apply3(a=5.0, N=10, dtype=float):
         kpt_c=kpt1_c,
         Q_aniL={a: np.ones((n1, 13, 9), dtype=dtype) for a in range(N)},
         spin=0)
+    psit1.ut_nR.data[:] = 0.1
+    psit1.P_ani.data[:] = 0.1
     v_G = 1.0 / (0.1 + pw12.ekin_G)
     ut2_nR = grid.empty(n2)
     P2_ani = layout.empty(n2)
     V2_ani = P2_ani.new()
-    Htpsit2_nG = pw2.empty(n2)
+    ut2_nR.data[:] = 0.1
+    P2_ani.data[:] = 1.0
+    V2_ani.data[:] = 0.0
+    Htpsit2_nG = pw2.zeros(n2)
     print(psit1.ut_nR.data.shape)
     print(Htpsit2_nG.data.shape)
     ham.nbzk = 1
     t = time()
-    ham._apply3(
+    e = ham._apply3(
         pw12,
         v_G,
         psit1,
@@ -65,6 +70,7 @@ def test_apply3(a=5.0, N=10, dtype=float):
         calculate_energy=True,
         F1_av=None)
     t = time() - t
+    print(e)
     print(t)
 
 

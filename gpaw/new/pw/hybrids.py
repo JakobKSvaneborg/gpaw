@@ -221,6 +221,7 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         self.mypsits: list[Psit] = []
         self.nbzk = 0
+        self.real = np.issubdtype(pw.dtype, np.floating)
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
@@ -418,7 +419,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         f1_n = psit1.f_n
         ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
         ghat_aLG._lazy_init()
-        ghat_GA = ghat_aLG._lfc.expand()
+        ghat_GA = ghat_aLG._lfc.expand(cc=not self.real)
         N2 = len(f2_n)
         Q_anL = ghat_aLG.layout.empty(N2)
         rhot2_nG = pw.empty(N2)
@@ -434,7 +435,13 @@ class PWHybridHamiltonian(PWHamiltonian):
                 tmp_R *= ut1_R.conj()
                 self.plan.fft()
                 rhot_G.data[:] = pw.cut(tmp_Q)
-            mmm(NR / pw.dv, Q_anL.data, 'N', ghat_GA, 'T', 1.0, rhot2_nG.data)
+                rhot_G.data[:] *= 1.0 / NR
+            if self.real:
+                mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'T',
+                    1.0, rhot2_nG.data.view(float))
+            else:
+                mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'C',
+                    1.0, rhot2_nG.data)
             if not calculate_energy:
                 rhot2_nG.data *= v_G
                 if F1_av is not None:
@@ -450,15 +457,19 @@ class PWHybridHamiltonian(PWHamiltonian):
                     rhot_G.data *= v_G
                     e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
                     e += e12
-            # V2_anL = ghat_aLG.integrate(rhot_nG)
-            mmm(1.0 / NR, rhot2_nG.data, 'N', ghat_GA, 'N', 0.0, Q_anL.data)
+            if self.real:
+                ghat_GA[0] *= 0.5
+                mmm(2.0, rhot2_nG.data.view(float), 'N', ghat_GA, 'N',
+                    0.0, Q_anL.data)
+                ghat_GA[0] *= 2.0
+            else:
+                mmm(1.0, rhot2_nG.data, 'N', ghat_GA, 'N', 0.0, Q_anL.data)
             x = self.exx_fraction * f1_n[n1] / self.nbzk
             for rhot_G, Htpsit2_G in zip(rhot2_nG, Htpsit2_nG):
-                pw.paste(rhot_G.data, tmp_Q)
-                self.plan.ifft()
+                self.plan.ifft_sphere(rhot_G.data, pw)
                 tmp_R *= ut1_R.data
                 self.plan.fft()
-                Htpsit2_G.data -= x * pw.cut(tmp_Q)
+                Htpsit2_G.data -= x / NR * pw.cut(tmp_Q)
             for a, Q1_niL in Q1_aniL.items():
                 V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj()
         return e
