@@ -425,11 +425,12 @@ class PWHybridHamiltonian(PWHamiltonian):
         rhot2_nG = pw.empty(N2)
         tmp_Q = self.plan.tmp_Q
         tmp_R = self.plan.tmp_R
+        eikR_a = ghat_aLG._lfc.eikR_a
         NR = tmp_R.size
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
             for a, Q1_niL in Q1_aniL.items():
-                Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
+                Q_anL[a][:] = P2_ani[a] @ Q1_niL[n1] * eikR_a[a].conj()
             for rhot_G, ut2_R in zip(rhot2_nG, ut2_nR):
                 tmp_R[:] = ut2_R.data
                 tmp_R *= ut1_R.conj()
@@ -471,7 +472,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 self.plan.fft()
                 Htpsit2_G.data -= x / NR * Htpsit2_G.desc.cut(tmp_Q)
             for a, Q1_niL in Q1_aniL.items():
-                V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj()
+                V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj() * eikR_a[a]
         return e
 
 
