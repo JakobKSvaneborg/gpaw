@@ -11,7 +11,7 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
-from gpaw.new import zips as zip
+#from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
@@ -20,6 +20,7 @@ from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.new.logger import Logger
 from gpaw.utilities.blas import mmm
+from line_profiler import profile
 
 
 @dataclass
@@ -403,6 +404,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
 
+    @profile
     def _apply3(self,
                 pw: PWDesc,
                 v_G: np.ndarray,
@@ -426,6 +428,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         tmp_Q = self.plan.tmp_Q
         tmp_R = self.plan.tmp_R
         eikR_a = ghat_aLG._lfc.eikR_a
+        pw2 = Htpsit2_nG.desc
         NR = tmp_R.size
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
@@ -466,11 +469,14 @@ class PWHybridHamiltonian(PWHamiltonian):
             else:
                 mmm(1.0, rhot2_nG.data, 'N', ghat_GA, 'N', 0.0, Q_anL.data)
             x = self.exx_fraction * f1_n[n1] / self.nbzk
-            for rhot_G, Htpsit2_G in zip(rhot2_nG, Htpsit2_nG):
-                self.plan.ifft_sphere(rhot_G.data, pw)
+            for rhot_G, Htpsit2_G in zip(rhot2_nG.data, Htpsit2_nG.data):
+                self.plan.ifft_sphere(rhot_G, pw)
                 tmp_R *= ut1_R.data
                 self.plan.fft()
-                Htpsit2_G.data -= x / NR * Htpsit2_G.desc.cut(tmp_Q)
+                Htpsit2_G -= x / NR * pw2.cut(tmp_Q)
+                axpy = scipy.linalg.blas.get_blas_funcs("axpy", arrays=(x, y))
+                axpy(x, y, n, a)
+                return y
             for a, Q1_niL in Q1_aniL.items():
                 V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj() * eikR_a[a]
         return e
