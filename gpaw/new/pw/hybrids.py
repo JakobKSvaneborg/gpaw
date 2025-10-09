@@ -469,7 +469,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 self.plan.ifft_sphere(rhot_G.data, pw)
                 tmp_R *= ut1_R.data
                 self.plan.fft()
-                Htpsit2_G.data -= x / NR * pw.cut(tmp_Q)
+                Htpsit2_G.data -= x / NR * Htpsit2_G.desc.cut(tmp_Q)
             for a, Q1_niL in Q1_aniL.items():
                 V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj()
         return e
