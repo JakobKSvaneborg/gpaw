@@ -107,20 +107,26 @@ def test_5x5():
         pbc=(1, 1, 0),
         tolerance=1e-7,
         _backwards_compatible=True)
-    sym2 = sym.analyze_positions(
-        [[0.33333333, 0.3333333, 0.50058348],
-         [0.66666666, 0.6666666, 0.55294505],
-         [0.0, 0.0, 0.44741016],
-         [0.0, 0.0, 0.68013199],
-         [0.33333333, 0.33333333, 0.31908923],
-         [0.66666667, 0.66666667, 0.64723956],
-         [0.0, 0.0, 0.35260054]],
-        ids=[0, 1, 1, 1, 1, 2, 2],
-        symmorphic=True)
-    print(sym2)
-    print(sym2.op_scc)
-    print(np.linalg.inv(sym2.op_scc[3]))
+    if 1:
+        sym = sym.analyze_positions(
+            [[0.33333333, 0.3333333, 0.50058348],
+             [0.66666666, 0.6666666, 0.55294505],
+             [0.0, 0.0, 0.44741016],
+             [0.0, 0.0, 0.68013199],
+             [0.33333333, 0.33333333, 0.31908923],
+             [0.66666667, 0.66666667, 0.64723956],
+             [0.0, 0.0, 0.35260054]],
+            ids=[0, 1, 1, 1, 1, 2, 2],
+            symmorphic=True)
+    else:
+        sym = sym.analyze_positions(
+            [[1 / 3, 1 / 3, 50058348],
+             [2 / 3, 2 / 3, 0.44741016],
+             [0.0, 0.0, 0.68013199]],
+            ids=[0, 1, 2],
+            symmorphic=True)
+
     mp = MonkhorstPackKPoints((5, 5, 1))
-    ibz = mp.reduce(sym2)
+    ibz = mp.reduce(sym)
     print(ibz)
     assert (ibz.weight_k > 0.0).all()

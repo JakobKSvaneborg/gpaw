@@ -319,6 +319,21 @@ class Symmetries:
 
         return a_a
 
+    def group_check(self):
+        for U1_cc, t1_c in zip(self.rotation_scc, self.translation_sc):
+            for U2_cc, t2_c in zip(self.rotation_scc, self.translation_sc):
+                U_cc = U1_cc @ U2_cc
+                t_c = t1_c @ U2_cc + t2_c
+                for U3_cc, t3_c in zip(self.rotation_scc, self.translation_sc):
+                    dt_c = t_c - t3_c
+                    if abs(dt_c - dt_c.round()).max() > 1e-10:
+                        break
+                    if (U_cc != U3_cc).any():
+                        break
+                else:  # no break
+                    continue
+                raise ValueError
+
 
 def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
     """Determine list of symmetry operations."""
@@ -409,6 +424,9 @@ def prune_symmetries(sym: Symmetries,
                      _backwards_compatible=sym._backwards_compatible)
     if debug:
         sym.check_positions(relpos_ac)
+
+    sym.group_check()
+
     return sym
 
 
