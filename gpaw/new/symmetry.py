@@ -327,12 +327,12 @@ class Symmetries:
                 for U3_cc, t3_c in zip(self.rotation_scc, self.translation_sc):
                     dt_c = t_c - t3_c
                     if abs(dt_c - dt_c.round()).max() > 1e-10:
-                        break
+                        continue
                     if (U_cc != U3_cc).any():
-                        break
+                        continue
+                    break
                 else:  # no break
-                    continue
-                raise ValueError
+                    raise ValueError
 
 
 def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
