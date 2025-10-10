@@ -432,39 +432,41 @@ class PWHybridHamiltonian(PWHamiltonian):
         eikR_a = ghat_aLG._lfc.eikR_a
         pw2 = Htpsit2_nG.desc
         NR = tmp_R.size
+        NG = pw.myshape[0]
         NG2 = pw2.myshape[0]
-        Q_G = pw2.indices(tmp_Q.shape)
+        Q_G = pw.indices(tmp_Q.shape)
+        Q2_G = pw2.indices(tmp_Q.shape)
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
+            f1 = f1_n[n1]
             for a, Q1_niL in Q1_aniL.items():
                 Q_anL[a] = P2_ani[a] @ Q1_niL[n1] * eikR_a[a].conj()
-            for rhot_G, ut2_R in zip(rhot2_nG.data, ut2_nR.data):
+            if self.real:
+                mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'T',
+                    0.0, rhot2_nG.data.view(float))
+            else:
+                mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'C',
+                    0.0, rhot2_nG.data)
+            for f2, rhot_G, ut2_R in zip(f2_n, rhot2_nG.data, ut2_nR.data):
                 tmp_R[:] = ut2_R
                 tmp_R *= ut1_R.conj()
                 self.plan.fft()
-                rhot_G[:] = pw.cut(tmp_Q)
-                rhot_G[:] *= 1.0 / NR
-            if self.real:
-                mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'T',
-                    1.0, rhot2_nG.data.view(float))
-            else:
-                mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'C',
-                    1.0, rhot2_nG.data)
-            if not calculate_energy:
-                rhot2_nG.data *= v_G
-                if F1_av is not None:
-                    forces(ghat_aLG, rhot2_nG, P2_ani,
-                           Q_anL,
-                           f1_n[n1], f2_n, self.nbzk, self.delta_aiiL,
-                           psit1.dP_anvi,
-                           n1, eikR_a, F1_av)
-                    continue
-            else:
-                for rhot_G, f2 in zip(rhot2_nG, f2_n):
+                a_G = tmp_Q.ravel()[Q_G]
+                self.zaxpy(a_G, rhot_G, NG, 1.0 / NR)
+                if not calculate_energy:
+                    rhot_G *= v_G
+                else:
                     a_G = rhot_G.copy()
-                    rhot_G.data *= v_G
-                    e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
+                    rhot_G *= v_G
+                    e12 = a_G.integrate(rhot_G).real * f2 * f1
                     e += e12
+            if F1_av is not None:
+                forces(ghat_aLG, rhot2_nG, P2_ani,
+                       Q_anL,
+                       f1, f2_n, self.nbzk, self.delta_aiiL,
+                       psit1.dP_anvi,
+                       n1, eikR_a, F1_av)
+                continue
             if self.real:
                 ghat_GA[0] *= 0.5
                 mmm(2.0, rhot2_nG.data.view(float), 'N', ghat_GA, 'N',
@@ -472,13 +474,13 @@ class PWHybridHamiltonian(PWHamiltonian):
                 ghat_GA[0] *= 2.0
             else:
                 mmm(1.0, rhot2_nG.data, 'N', ghat_GA, 'N', 0.0, Q_anL.data)
-            x = self.exx_fraction * f1_n[n1] / self.nbzk
+            x = self.exx_fraction * f1 / self.nbzk
             for rhot_G, Htpsit2_G in zip(rhot2_nG.data, Htpsit2_nG.data):
                 self.plan.ifft_sphere(rhot_G, pw)
                 tmp_R *= ut1_R.data
                 self.plan.fft()
                 # Htpsit2_G -= x / NR * pw2.cut(tmp_Q)
-                v2_G = tmp_Q.ravel()[Q_G]
+                v2_G = tmp_Q.ravel()[Q2_G]
                 self.zaxpy(v2_G, Htpsit2_G, NG2, -x / NR)
             for a, Q1_niL in Q1_aniL.items():
                 V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj() * eikR_a[a]
