@@ -21,7 +21,7 @@ from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.new.logger import Logger
 from gpaw.utilities.blas import mmm
-from line_profiler import profile
+# from line_profiler import profile
 
 
 @dataclass
@@ -224,7 +224,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.mypsits: list[Psit] = []
         self.nbzk = 0
         self.real = np.issubdtype(pw.dtype, np.floating)
-        self.axpy = get_blas_funcs('axpy', dtype=pw.dtype)
+        self.zaxpy = get_blas_funcs('axpy', dtype=complex)
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
@@ -406,7 +406,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
 
-    @profile
+    # @profile
     def _apply3(self,
                 pw: PWDesc,
                 v_G: np.ndarray,
@@ -479,7 +479,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 self.plan.fft()
                 # Htpsit2_G -= x / NR * pw2.cut(tmp_Q)
                 v2_G = tmp_Q.ravel()[Q_G]
-                self.axpy(v2_G, Htpsit2_G, NG2, - x / NR)
+                self.zaxpy(v2_G, Htpsit2_G, NG2, -x / NR)
             for a, Q1_niL in Q1_aniL.items():
                 V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj() * eikR_a[a]
         return e
