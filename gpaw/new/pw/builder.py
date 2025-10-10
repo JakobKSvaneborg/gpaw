@@ -116,7 +116,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def get_pseudo_core_ked(self):
         if self._tauct_ag is None:
             self._tauct_ag = self.setups.create_pseudo_core_ked(
-                self.interpolation_desc, self.relpos_ac, self.atomdist, xp=self.xp)
+                self.interpolation_desc, self.relpos_ac, self.atomdist,
+                xp=self.xp)
         return self._tauct_ag
 
     def create_poisson_solver(self, extensions):

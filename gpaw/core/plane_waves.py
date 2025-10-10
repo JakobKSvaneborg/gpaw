@@ -854,7 +854,7 @@ class PWArray(DistributedArrays[PWDesc]):
                 iGpsit1_G.data[:] = psit1_G.data
                 iGpsit1_G.data *= 1j * Gplusk1_Gv[:, v]
                 iGpsit1_G.ifft(out=dpsit1_R)
-                if xp==np:
+                if xp is np:
                     add_to_density(0.5 * f, dpsit1_R.data, taut1_R.data)
                 else:
                     taut_R.data += float(0.5 * f) * xp.abs(dpsit1_R.data)**2

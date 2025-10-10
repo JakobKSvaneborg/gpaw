@@ -313,7 +313,6 @@ class MGGAFunctional(GGAFunctional):
                                                            UGArray | None]:
         xp = nt_sr.xp
         nt_sr = nt_sr.to_xp(np)
-        taut_sr = taut_sr.to_xp(np)
 
         gradn_svr, sigma_xr = gradient_and_sigma(self.grad_v, nt_sr)
         if isinstance(self.xc, VDWXC):
@@ -323,6 +322,8 @@ class MGGAFunctional(GGAFunctional):
         e_r = self.grid.empty()
         if taut_sr is None:
             taut_sr = nt_sr.new(zeroed=True)
+        else:
+            taut_sr = taut_sr.to_xp(np)
         dedtaut_sr = taut_sr.new()
         vxct_sr = taut_sr.new()
         vxct_sr.data[:] = 0.0
