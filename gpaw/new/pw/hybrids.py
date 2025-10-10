@@ -457,7 +457,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                            Q_anL,
                            f1_n[n1], f2_n, self.nbzk, self.delta_aiiL,
                            psit1.dP_anvi,
-                           n1, F1_av)
+                           n1, eikR_a, F1_av)
                     continue
             else:
                 for rhot_G, f2 in zip(rhot2_nG, f2_n):
@@ -486,12 +486,12 @@ class PWHybridHamiltonian(PWHamiltonian):
 
 
 def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
-           dP_anvi, n1, F_av):
+           dP_anvi, n1, eikR_a, F_av):
     f12_n = f1 * f2_n
     for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
         F_av[a] -= 0.25 / nbzk * np.einsum('n, nL, nvL -> v',
                                            f12_n,
-                                           Q2_anL[a].conj(),
+                                           (Q2_anL[a] * eikR_a[a]).conj(),
                                            F_nvL).real
     for a, F_nL in ghat_aLG.integrate(vrhot2_nG).items():
         F_iin = delta_aiiL[a] @ F_nL.T
