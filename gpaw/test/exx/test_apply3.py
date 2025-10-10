@@ -7,7 +7,7 @@ from gpaw.mpi import world
 from time import time
 
 
-def test_apply3(a=5.0, N=10, dtype=float):
+def test_apply3(a=5.0, N=10, dtype=float, calculate_energy=True):
     c = 4.0
     grid = UGDesc.from_cell_and_grid_spacing([a, a, c, 90, 90, 120], 0.3,
                                              dtype=dtype)
@@ -67,7 +67,7 @@ def test_apply3(a=5.0, N=10, dtype=float):
         Htpsit2_nG,
         V2_ani,
         f2_n=np.ones(n2),
-        calculate_energy=True,
+        calculate_energy=calculate_energy,
         F1_av=None)
     t = time() - t
     print(e)
@@ -88,6 +88,7 @@ def mmmi_test(A=16):
 
 if __name__ == '__main__':
     test_apply3(4.5, 8, dtype=complex)
+    test_apply3(4.5, 8, dtype=complex, calculate_energy=False)
     if 0:
         T = 0.0
         for i in range(50):

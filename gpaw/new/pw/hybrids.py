@@ -5,13 +5,14 @@ from math import pi
 from time import time
 
 import numpy as np
+from scipy.linalg.blas import get_blas_funcs
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
-#from gpaw.new import zips as zip
+# from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
@@ -223,6 +224,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.mypsits: list[Psit] = []
         self.nbzk = 0
         self.real = np.issubdtype(pw.dtype, np.floating)
+        self.axpy = get_blas_funcs('axpy', dtype=pw.dtype)
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
@@ -430,16 +432,18 @@ class PWHybridHamiltonian(PWHamiltonian):
         eikR_a = ghat_aLG._lfc.eikR_a
         pw2 = Htpsit2_nG.desc
         NR = tmp_R.size
+        NG2 = pw2.myshape[0]
+        Q_G = pw2.indices(tmp_Q.shape)
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
             for a, Q1_niL in Q1_aniL.items():
-                Q_anL[a][:] = P2_ani[a] @ Q1_niL[n1] * eikR_a[a].conj()
-            for rhot_G, ut2_R in zip(rhot2_nG, ut2_nR):
-                tmp_R[:] = ut2_R.data
+                Q_anL[a] = P2_ani[a] @ Q1_niL[n1] * eikR_a[a].conj()
+            for rhot_G, ut2_R in zip(rhot2_nG.data, ut2_nR.data):
+                tmp_R[:] = ut2_R
                 tmp_R *= ut1_R.conj()
                 self.plan.fft()
-                rhot_G.data[:] = pw.cut(tmp_Q)
-                rhot_G.data[:] *= 1.0 / NR
+                rhot_G[:] = pw.cut(tmp_Q)
+                rhot_G[:] *= 1.0 / NR
             if self.real:
                 mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'T',
                     1.0, rhot2_nG.data.view(float))
@@ -473,10 +477,9 @@ class PWHybridHamiltonian(PWHamiltonian):
                 self.plan.ifft_sphere(rhot_G, pw)
                 tmp_R *= ut1_R.data
                 self.plan.fft()
-                Htpsit2_G -= x / NR * pw2.cut(tmp_Q)
-                axpy = scipy.linalg.blas.get_blas_funcs("axpy", arrays=(x, y))
-                axpy(x, y, n, a)
-                return y
+                # Htpsit2_G -= x / NR * pw2.cut(tmp_Q)
+                v2_G = tmp_Q.ravel()[Q_G]
+                self.axpy(v2_G, Htpsit2_G, NG2, - x / NR)
             for a, Q1_niL in Q1_aniL.items():
                 V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj() * eikR_a[a]
         return e
