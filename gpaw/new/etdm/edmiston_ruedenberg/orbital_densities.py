@@ -28,7 +28,8 @@ def calc_orbital_densities_real_space(psit_nX: PWArray, h: float):
 
     """
     grid = psit_nX.desc.uniform_grid_with_grid_spacing(h)
-    # take Fourier transform of the wave-functions and calculate the integral in real space
+    # take Fourier transform of the wave-functions and
+    # calculate the integral in real space
     psit_nR = grid.empty(psit_nX.dims)
     psit_nX.ifft(out=psit_nR)
 
