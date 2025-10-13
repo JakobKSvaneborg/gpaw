@@ -190,4 +190,3 @@ class LBFGSAdapter:
             p_unX_new.append(new_vec)
 
         return p_unX_new
-    
