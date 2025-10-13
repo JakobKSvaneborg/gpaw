@@ -69,9 +69,6 @@ class ETDM:
         Iteratively updates `a_u` using LBFGS search directions until
         the gradient norm is below tolerance or maximum iterations are reached.
         """
-        # Print initial state
-        print(self.iter, self.energy, self.error)
-
         while (not self.is_converged) and self.iter < self._max_iter:
             # Update the search direction using LBFGS
             self.searchdir_algo.update(self.a_u, self.gradient)
