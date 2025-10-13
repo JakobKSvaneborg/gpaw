@@ -172,7 +172,8 @@ class LBFGSAdapter:
 
     def update(self, psit_unX, pg_unX):
         """
-        Convert old-style vectors to NumPy arrays, call new L-BFGS, and convert back.
+        Convert old-style vectors to NumPy arrays,
+        call new L-BFGS, and convert back.
         """
         # Convert old vectors to NumPy arrays
         a_cur = np.stack([x.data for x in psit_unX])
