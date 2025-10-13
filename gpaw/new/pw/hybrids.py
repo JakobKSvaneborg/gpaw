@@ -406,6 +406,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
 
+    # from line_profiler import profile
     # @profile
     def _apply3(self,
                 pw: PWDesc,
@@ -434,6 +435,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         NR = tmp_R.size
         NG = pw.myshape[0]
         NG2 = pw2.myshape[0]
+        tmp_G = np.empty(NG, complex)
         Q_G = pw.indices(tmp_Q.shape)
         Q2_G = pw2.indices(tmp_Q.shape)
         e = 0.0
@@ -456,10 +458,12 @@ class PWHybridHamiltonian(PWHamiltonian):
                 if not calculate_energy:
                     rhot_G *= v_G
                 else:
-                    a_G = rhot_G.copy()
+                    tmp_G[:] = rhot_G
                     rhot_G *= v_G
-                    e12 = a_G.integrate(rhot_G).real * f2 * f1
-                    e += e12
+                    e12 = tmp_G.view(float) @ rhot_G.view(float)
+                    if self.real:
+                        e12 = 2 * e12 - (tmp_G[0] * rhot_G[0]).real
+                    e += e12 * f2 * f1 * pw.dv
             if F1_av is not None:
                 forces(ghat_aLG, rhot2_nG, P2_ani,
                        Q_anL,

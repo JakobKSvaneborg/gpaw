@@ -87,8 +87,12 @@ def mmmi_test(A=16):
 
 
 if __name__ == '__main__':
-    test_apply3(4.5, 8, dtype=complex)
-    test_apply3(4.5, 8, dtype=complex, calculate_energy=False)
+    if 0:
+        test_apply3(4.5, 8, dtype=complex)
+        test_apply3(4.5, 8, dtype=complex, calculate_energy=False)
+    else:
+        test_apply3(10.5, 80, dtype=float)
+        test_apply3(10.5, 80, dtype=float, calculate_energy=False)
     if 0:
         T = 0.0
         for i in range(50):
