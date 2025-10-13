@@ -97,11 +97,6 @@ class LBFGS:
                 self.rho[m] = 1.0e20
 
             # Step 3: Stability check
-            # The quantity rho[m] = 1 / (y^T s) is a weighting factor for the two-loop recursion.
-            # If y^T s <= 0, it indicates a violation of the curvature condition (the approximate Hessian
-            # would not be positive definite). In that case, L-BFGS cannot safely use past steps.
-            # To maintain stability, we reset the iteration counter and clear memory arrays,
-            # then restart the L-BFGS update with the current gradient and variables.
             if self.rho[m] < 0:
                 self.local_iter = 0
                 self.rho *= 0
