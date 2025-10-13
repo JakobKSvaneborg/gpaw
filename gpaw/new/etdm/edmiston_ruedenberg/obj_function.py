@@ -60,7 +60,8 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
         return self._ibzwfs.kpt_comm
 
     def _calc_obf_value_and_matrix_elements(self):
-        """Calculate value of the objective function (energy) and hamiltonian matrix elements
+        """Calculate value of the objective function (energy)
+        and hamiltonian matrix elements
         at self._a_vec_u
 
         Parameters
