@@ -21,7 +21,8 @@ class SkewHermitian:
         1D array storing the independent upper-triangular
         entries of the matrix.
     representation : str
-        Currently only "full" is supported, meaning we store all upper-triangular entries.
+        Currently only "full" is supported, meaning we store
+        all upper-triangular entries.
     """
 
     def __init__(self, ndim: int, dtype: type,
