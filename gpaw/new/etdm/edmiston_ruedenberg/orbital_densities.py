@@ -169,8 +169,13 @@ def orbital_compensation_charges(setups: Setups, wfs: WaveFunctions):
 
     for a, P_ni in P_ani.items():
         Q_anL[a] = np.einsum(
-            "ni,nj,ijL->nnL", P_ni.conj(), P_ni, setups[a].Delta_iiL, optimize=True
+            "ni,nj,ijL->nnL",
+            P_ni.conj(),
+            P_ni,
+            setups[a].Delta_iiL,
+            optimize=True,
         )
+
 
     return Q_anL
 
