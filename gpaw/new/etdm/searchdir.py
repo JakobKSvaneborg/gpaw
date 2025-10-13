@@ -163,7 +163,8 @@ class LBFGS:
 
 class LBFGSAdapter:
     """
-    Adapter to allow the new NumPy-based L-BFGS to replace the Vector-based LBFGS.
+    Adapter to allow the new NumPy-based L-BFGS
+    to replace the Vector-based LBFGS.
     """
 
     def __init__(self, array_shape, kpt_comm, dtype, memory=5):
