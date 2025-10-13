@@ -22,7 +22,7 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
             ndim = ibzwfs.nbands
             self._indices = range(ndim)
         elif indices == "occupied":
-            f_n = ibzwfs.get_eigs_and_occs(0, 0)[1]
+            f_n = ibzwfs.get_all_eigs_and_occs(broadcast=True)[1]
             if ibzwfs.domain_comm.rank != 0:
                 f_n = np.zeros(ibzwfs.nbands)
             ibzwfs.domain_comm.broadcast(f_n, 0)
