@@ -11,7 +11,7 @@ class LBFGS:
         array_shape : tuple
             Shape of the parameter array.
         kpt_comm : object
-            Communication object for summing quantities over k-points (parallelization support).
+            Communication object for summing quantities over k-points
         dtype : type
             Data type of arrays (float or complex).
         memory : int
