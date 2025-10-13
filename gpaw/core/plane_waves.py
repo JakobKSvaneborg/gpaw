@@ -500,7 +500,7 @@ class PWArray(DistributedArrays[PWDesc]):
         pw = self.desc
         comm = pw.comm
         if comm.size == 1:
-            out.data[:] = self.data[0]
+            out[:] = self.data[0]
             return
 
         N = self.dims[0]
@@ -514,7 +514,7 @@ class PWArray(DistributedArrays[PWDesc]):
             comm, N, ng, myng, maxmyng)
 
         comm.alltoallv(self.data, ssize_r, soffset_r,
-                       out.data, rsize_r, roffset_r)
+                       out, rsize_r, roffset_r)
 
     def scatter_from(self, data: Array1D | PWArray | None = None) -> None:
         """Scatter plane-wave coefficients from rank-0 to all ranks."""
@@ -557,7 +557,7 @@ class PWArray(DistributedArrays[PWDesc]):
         pw = self.desc
         comm = pw.comm
         if comm.size == 1:
-            self.data[:] = a_G.data
+            self.data[:] = a_G
             return
 
         N = self.dims[0]
@@ -570,7 +570,7 @@ class PWArray(DistributedArrays[PWDesc]):
         rsize_r, roffset_r, ssize_r, soffset_r = a2a_stuff(
             comm, N, ng, myng, maxmyng)
 
-        comm.alltoallv(a_G.data, ssize_r, soffset_r,
+        comm.alltoallv(a_G, ssize_r, soffset_r,
                        self.data, rsize_r, roffset_r)
 
     def integrate(self, other: PWArray | None = None) -> np.ndarray:

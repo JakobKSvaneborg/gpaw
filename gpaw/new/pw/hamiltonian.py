@@ -35,7 +35,9 @@ class PWHamiltonian(Hamiltonian):
         if xp is not np and pw.comm.size == 1:
             return apply_local_potential_gpu(vt_R, psit_nG, out_nG)
         vt_R = vt_R.gather(broadcast=True)
-        tmp_R = self.grid_local.empty(xp=xp)
+        plan = self.plan
+        tmp_R = plan.tmp_R  # self.grid_local.empty(xp=xp)
+        tmp_Q = plan.tmp_Q
         if pw.comm.size == 1:
             pw_local = pw
         else:
@@ -44,21 +46,22 @@ class PWHamiltonian(Hamiltonian):
             if pw_local is None:
                 pw_local = pw.new(comm=None)
                 self.pw_cache[key] = pw_local
-        psit_G = pw_local.empty(xp=xp)
-        e_kin_G = xp.asarray(psit_G.desc.ekin_G)
+        psit_G = pw_local.empty(xp=xp).data
+        e_kin_G = xp.asarray(pw_local.ekin_G)
         domain_comm = psit_nG.desc.comm
         mynbands = psit_nG.mydims[0]
-        vtpsit_G = pw_local.empty(xp=xp)
+        Q_G = pw_local.indices(tmp_Q.shape)
 
         for n1 in range(0, mynbands, domain_comm.size):
             n2 = min(n1 + domain_comm.size, mynbands)
             psit_nG[n1:n2].gather_all(psit_G)
             if domain_comm.rank < n2 - n1:
-                psit_G.ifft(out=tmp_R, plan=self.plan)
-                tmp_R.data *= vt_R.data
-                tmp_R.fft(out=vtpsit_G, plan=self.plan)
-                psit_G.data *= e_kin_G
-                vtpsit_G.data += psit_G.data
+                plan.ifft_sphere(psit_G, pw_local)
+                tmp_R *= vt_R.data
+                plan.fft()
+                vtpsit_G = tmp_Q.ravel()[Q_G]
+                psit_G *= e_kin_G
+                vtpsit_G += psit_G
             out_nG[n1:n2].scatter_from_all(vtpsit_G)
 
     def apply_mgga(self,
