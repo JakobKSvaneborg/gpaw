@@ -160,6 +160,7 @@ class LBFGS:
             # Return updated search direction
             return self.search_dir
 
+
 class LBFGSAdapter:
     """
     Adapter to allow the new NumPy-based L-BFGS to replace the Vector-based LBFGS.
