@@ -50,7 +50,7 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
 
         for wfs in ibzwfs:
             self._rpsi_unX.append(wfs.psit_nX.copy())
-            P2_ani = wfs.P_ani.new()
+            P2_ani = wfs.P_ani.copy()
             for a, P_ni in wfs.P_ani.items():
                 P2_ani[a] = P_ni.copy()
             self._rP_uani.append(P2_ani)
