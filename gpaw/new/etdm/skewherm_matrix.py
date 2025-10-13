@@ -222,7 +222,8 @@ class SkewHermitian:
     # ------------------------
     def calc_gradient(self, h_nn):
         """
-        Compute gradient with respect to the skew-Hermitian parameters given a matrix h_nn.
+        Compute gradient with respect to the skew-Hermitian
+        parameters given a matrix h_nn.
 
         Parameters
         ----------
