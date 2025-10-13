@@ -197,18 +197,6 @@ if parallel_python_interpreter is not PLACEHOLDER:
 if mpi:
     print('Building GPAW with MPI support.')
 
-# On Niflheim, with older toolchains, the PYTHON_HOST_PLATFORM must be
-# changed to keep versions belonging to different CPU architectures separate.
-platform_id = os.getenv('CPU_ARCH')
-if platform_id:
-    hackplatform = False
-    for tchain_ver_var in ('EBVERSIONFOSS', 'EBVERSIONINTEL'):
-        if tchain_ver_var in os.environ:
-            hackplatform = os.getenv(tchain_ver_var) < '2025a'
-            continue
-    if hackplatform:
-        os.environ['_PYTHON_HOST_PLATFORM'] = get_platform() + '-' + platform_id
-
 if gpu:
     valid_gpu_targets = ['cuda', 'hip-amd', 'hip-cuda']
     if gpu_target not in valid_gpu_targets:
@@ -489,6 +477,4 @@ class build_ext(_build_ext):
 
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(ext_modules=extensions,
-      cmdclass={'build_ext': build_ext})
-# platforms=['unix'],
+setup(ext_modules=extensions, cmdclass={'build_ext': build_ext})

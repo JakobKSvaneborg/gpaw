@@ -17,7 +17,6 @@ from gpaw.new.builder import create_uniform_grid
 from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
-from gpaw.new.pw.hybridsk import PWHybridHamiltonianK
 from gpaw.new.pw.paw_poisson import SlowPAWPoissonSolver
 from gpaw.new.pw.poisson import make_poisson_solver
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
@@ -174,23 +173,13 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:
             if self.xc.exx_fraction == 0.0:
-                return PWHamiltonian(self.grid, self.wf_desc, self.xp)
-            if self.dtype is float:
-                assert self.communicators['d'].size == 1
-                assert self.communicators['k'].size == 1
-                assert self.nbands % self.communicators['b'].size == 0
-                return PWHybridHamiltonian(
-                    self.grid, self.wf_desc, self.xc, self.setups,
-                    self.relpos_ac, self.atomdist,
-                    comp_charge_in_real_space=self.params.experimental.get(
-                        'ccirs'))
-            else:
-                return PWHybridHamiltonianK(
-                    self.grid, self.wf_desc, self.xc, self.setups,
-                    self.relpos_ac, self.atomdist, self.log,
-                    self.communicators['k'],
-                    self.communicators['b'],
-                    self.communicators['w'])
+                return PWHamiltonian(self.grid, self.dtype, self.xp)
+            return PWHybridHamiltonian(
+                self.grid, self.wf_desc, self.xc, self.setups,
+                self.relpos_ac, self.atomdist, self.log,
+                self.communicators['k'],
+                self.communicators['b'],
+                self.communicators['w'])
         return SpinorPWHamiltonian(self.qspiral_v)
 
     def convert_wave_functions_from_uniform_grid(self,

@@ -732,6 +732,14 @@ nightly-mpi-8-new:
     GPAW_MPI_NPROCS: "8"
 
 
+nightly-mpi4py-4:
+  extends:
+    - .nightly-mpi-new
+  variables:
+    GPAW_MPI4PY: "1"
+    GPAW_MPI_NPROCS: "4"
+    GPAW_DEBUG: "1"
+
 pages:
   image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)
   stage: deploy
