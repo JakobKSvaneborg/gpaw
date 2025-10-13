@@ -18,7 +18,8 @@ class SkewHermitian:
         - float → real skew-symmetric matrices
         - complex → skew-Hermitian matrices
     data : ndarray
-        1D array storing the independent upper-triangular entries of the matrix.
+        1D array storing the independent upper-triangular
+        entries of the matrix.
     representation : str
         Currently only "full" is supported, meaning we store all upper-triangular entries.
     """
