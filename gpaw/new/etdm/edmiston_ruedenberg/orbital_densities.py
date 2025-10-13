@@ -176,7 +176,6 @@ def orbital_compensation_charges(setups: Setups, wfs: WaveFunctions):
             optimize=True,
         )
 
-
     return Q_anL
 
 
@@ -234,7 +233,13 @@ def self_hartree_paw(
     dG_nm = np.zeros(shape=(n, n), dtype=wfs.dtype)
     for a, P_ni in P_ani.items():
         dH_nii = np.array([unpack_hermitian(dH_p) for dH_p in dH_anp[a]])
-        dG_nm -= np.einsum("ni,mij,mj->nm", P_ni.conj(), dH_nii, P_ni, optimize=True)
+        dG_nm -= np.einsum(
+            "ni,mij,mj->nm",
+            P_ni.conj(),
+            dH_nii,
+            P_ni,
+            optimize=True,
+        )
 
     if domian_sum:
         wfs.domain_comm.sum(dG_nm)
