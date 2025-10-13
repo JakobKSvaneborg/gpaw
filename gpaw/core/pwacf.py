@@ -262,8 +262,6 @@ class PWLFC:  # (BaseLFC)
     def expand(self, G1=0, G2=None, cc=False):
         """Expand functions in plane-waves.
 
-        q: int
-            k-point index.
         G1: int
             Start G-vector index.
         G2: int
