@@ -179,7 +179,6 @@ class LBFGSAdapter:
         a_cur = np.stack([x.data for x in psit_unX])
         g_cur = np.stack([g.data for g in pg_unX])
 
-
         # Call the new LBFGS
         p_cur = self.lbfgs_new.update(a_cur, g_cur)
 
