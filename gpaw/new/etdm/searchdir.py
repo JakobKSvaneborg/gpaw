@@ -129,7 +129,8 @@ class LBFGS:
             # Step 5: Scale by initial Hessian approximation
             yy = np.sum(self.dy[m].conj() * self.dy[m]).real
             yy = self.kpt_comm.sum_scalar(yy)
-            devis = np.maximum(self.rho[m] * yy, 1.0e-20)  # avoid divide by zero
+            # avoid divide by zero
+            devis = np.maximum(self.rho[m] * yy, 1.0e-20)  
             self.search_dir = q / devis
 
             # Second loop: forward over stored vectors
