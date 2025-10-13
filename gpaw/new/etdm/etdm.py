@@ -138,7 +138,7 @@ class ETDM:
     @property
     def energy(self):
         """
-        Current energy of the objective function, computed lazily.
+        Current energy of the objective function
 
         Returns
         -------
@@ -151,7 +151,7 @@ class ETDM:
     @property
     def gradient(self):
         """
-        Current gradient of the objective function w.r.t. `a_u`, computed lazily.
+        Current gradient of the objective function w.r.t. `a_u`
 
         Returns
         -------
