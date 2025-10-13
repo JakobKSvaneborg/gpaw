@@ -61,21 +61,20 @@ def create_symmetries_object(atoms: Atoms,
     if rotations is None:
         # Find symmetries from cell, ids and positions:
         if point_group:
-            sym = Symmetries.from_cell(
+            sym = Symmetries.from_cell_and_atoms(
                 cell_cv,
                 pbc=atoms.pbc,
                 tolerance=tolerance,
-                _backwards_compatible=_backwards_compatible)
+                _backwards_compatible=_backwards_compatible,
+                reelative_positions=atoms.get_scaled_positions(),
+                ids=ids,
+                symmorphic=symmorphic)
         else:
             # No symmetries (identity only):
             sym = Symmetries(cell=cell_cv,
                              tolerance=tolerance,
                              _backwards_compatible=_backwards_compatible)
 
-        sym = sym.analyze_positions(
-            atoms.get_scaled_positions(),
-            ids=ids,
-            symmorphic=symmorphic)
     else:
         sym = Symmetries(cell=cell_cv,
                          rotations=rotations,
@@ -188,6 +187,35 @@ class Symmetries:
                           symmorphic: bool = True) -> Symmetries:
         return prune_symmetries(
             self, np.asarray(relative_positions), ids, symmorphic)
+
+    @classmethod
+    def from_cell_and_atoms(cls,
+                            cell: ArrayLike1D | ArrayLike2D,
+                            *,
+                            pbc: ArrayLike1D = (True, True, True),
+                            tolerance: float | None = None,
+                            _backwards_compatible=False,
+                            relative_positions: ArrayLike2D,
+                            ids: Sequence[int],
+                            symmorphic: bool = True) -> Symmetries:
+        if 1:
+            from spglib import get_symmetry_dataset, standardize_cell
+            cell_cv = normalize_cell(cell)
+            s = get_symmetry_dataset((cell_cv, relative_positions, ids),
+                                     symprec=tolerance)
+            print(s);asdg
+            s = standardize_cell((cell_cv, relative_positions, ids),
+                                 symprec=tolerance,
+                                 no_idealize=True)
+            print(repr(s))
+            print(s[1] - 1 / 3)
+            asdg
+        return cls.from_cell(
+            cell,
+            pbc=pbc,
+            tolerance=tolerance,
+            _backwards_compatible=_backwards_compatible).analyze_positions(
+            relative_positions, ids, symmorphic=symmorphic)
 
     def with_atom_maps(self,
                        relative_positions: Array2D,
