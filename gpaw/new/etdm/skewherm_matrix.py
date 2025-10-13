@@ -6,8 +6,9 @@ class SkewHermitian:
     """
     Class for working with skew-Hermitian matrices A (i.e., A^\\dagger = -A).
 
-    Only the independent upper-triangular elements are stored in a 1D vector (`self.data`).
-
+    Only the independent upper-triangular elements are stored 
+    in a 1D vector (`self.data`).
+    
     Attributes
     ----------
     ndim : int
