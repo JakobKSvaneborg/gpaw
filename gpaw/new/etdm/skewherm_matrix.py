@@ -244,8 +244,10 @@ class SkewHermitian:
 
         # Step 3: Weight matrix in the eigenbasis by D, which encodes
         # the derivative of the matrix exponential:
-        # D_{ij} = i * (exp(-i*(omega_i - omega_j)) - 1) / (omega_i - omega_j),  with D_{ii} = 1
-        # This corresponds to the derivative of exp(A) w.r.t. the skew-Hermitian parameters
+        # D_{ij} = i * (exp(-i*(omega_i - omega_j)) - 1) / (omega_i - omega_j),
+        # with D_{ii} = 1
+        # This corresponds to the derivative of exp(A)
+        # w.r.t. the skew-Hermitian parameters
         g_mat = g_mat * d_matrix(evals)
 
         # Step 4: transform back to original basis
