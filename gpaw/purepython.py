@@ -293,3 +293,33 @@ def XCFunctional(xcid: int):
         return PurePythonLDAKernel()
 
     raise ValueError(f'Unsupported XC for GPAW_NO_C_EXTENSION=1: {xcid}')
+
+
+def GG_shuffle(G_G, sign, A_GG, tmp_GG):
+    if sign == 1:
+        tmp_GG += A_GG[G_G, :][:, G_G]
+    elif sign == -1:
+        tmp_GG += A_GG[G_G, :][:, G_G].T
+    else:
+        raise ValueError(f'Invalid sign {sign}')
+
+
+def adjust_positions(*args):
+    raise NotImplementedError
+
+
+def evaluate_mpa_poly(*args):
+    raise NotImplementedError
+
+
+def adjust_momenta(*args):
+    raise NotImplementedError
+
+
+def calculate_forces_H2O(*args):
+    raise NotImplementedError
+
+
+class Operator:
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError
