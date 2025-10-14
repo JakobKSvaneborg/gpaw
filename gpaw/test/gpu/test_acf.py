@@ -6,11 +6,14 @@ from gpaw.gpu import cupy as cp
 from gpaw.mpi import world
 from gpaw.spline import Spline
 from gpaw.new.c import GPU_AWARE_MPI
-
+from gpaw import GPAW_NO_C_EXTENSION
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_acf(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
+
     if world.size > 1 and not GPU_AWARE_MPI:
         pytest.skip('MPI not GPU-aware')
     s = Spline.from_data(0, 1.0, [1.0, 0.5, 0.0])

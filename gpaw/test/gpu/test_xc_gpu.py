@@ -1,12 +1,14 @@
 import pytest
 from gpaw.xc import XC
 from gpaw.gpu import cupy as cp, cupy_is_fake
+from gpaw import GPAW_NO_C_EXTENSION
 
 
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('nspins', [1, 2])
 def test_gpu_pbe(nspins):
+
     from gpaw.cgpaw import evaluate_pbe_gpu
     ng = 10000
     n_sg = cp.exp(cp.log(10) * 5 * (cp.random.rand(nspins, ng) - 0.5))
@@ -22,7 +24,11 @@ def test_gpu_pbe(nspins):
     cpue_g = cp.asnumpy(e_g)
     cpusigma_xg = cp.asnumpy(sigma_xg)
     cpudedsigma_xg = cp.asnumpy(dedsigma_xg)
-    xc = XC('PBE')
+
+    # The implementation are different and give different numbers!
+    # Therefore one needs to use the exact functional
+    xc = XC('pyPBE') if GPAW_NO_C_EXTENSION else XC('PBE')
+
     import time
     start = time.time()
     xc.kernel.calculate(cpue_g, cpun_sg, cpuv_sg, cpusigma_xg, cpudedsigma_xg)
