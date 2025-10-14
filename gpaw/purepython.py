@@ -345,7 +345,7 @@ class Operator:
 def spherical_harmonics(l, R_v, rlY_m):
     from gpaw.sphere.spherical_harmonics import Y
     for m in range(2 * l + 1):
-        rlY_m[m] = Y((l**2)+m, R_v[0], R_v[1], R_v[2])
+        rlY_m[m] = Y(l**2 + m, R_v[0], R_v[1], R_v[2])
 
 
 def tci_overlap(*args, **kwargs):

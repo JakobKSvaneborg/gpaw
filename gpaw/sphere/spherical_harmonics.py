@@ -23,7 +23,7 @@ import numpy as np
 
 from math import pi
 from collections import defaultdict
-from gpaw import debug, GPAW_NO_C_EXTENSION
+from gpaw import debug
 
 __all__ = ['Y', 'YL', 'nablarlYL', 'Yl']
 
