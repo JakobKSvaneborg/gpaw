@@ -15,6 +15,10 @@ from gpaw import GPAW_NO_C_EXTENSION
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('random', [False, True])
 def test_gpu(dtype, gpu, mode, random):
+    if GPAW_NO_C_EXTENSION and not random:
+        pytest.skip('No LCAO Initialization with GPAW_NO_C_EXTENSION')
+    if GPAW_NO_C_EXTENSION and mode == 'fd':
+        pytest.skip('No FD mode with GPAW_NO_C_EXTENSION')
     atoms = Atoms('H2')
     atoms.positions[1, 0] = 0.75
     atoms.center(vacuum=1.0)
@@ -28,6 +32,8 @@ def test_gpu(dtype, gpu, mode, random):
         mode={'name': mode,
               'force_complex_dtype': dtype == complex},
         random=random,
+        mixer={'backend': 'fft'},  # avoid FD-stencil in mixer-metric
+        **{'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
         convergence={'density': 1e-8},
         parallel={'gpu': gpu},
         setups='paw',
@@ -48,6 +54,11 @@ def test_gpu(dtype, gpu, mode, random):
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('xc', ['LDA', 'PBE'])
 def test_gpu_k(gpu, par, mode, xc):
+    if GPAW_NO_C_EXTENSION and mode == 'fd':
+        pytest.skip('No FD mode with GPAW_NO_C_EXTENSION')
+    if GPAW_NO_C_EXTENSION and xc == 'PBE':
+        pytest.skip('No GGA with GPAW_NO_C_EXTENSION')
+
     if gpu and size > 1 and not GPU_AWARE_MPI:
         if mode == 'fd' and par == 'domain':
             pytest.skip('Domain decomposition needs GPU-aware MPI')
@@ -79,8 +90,10 @@ def test_gpu_k(gpu, par, mode, xc):
         spinpol=True,
         xc=xc,
         h=h,
+        mixer={'backend': 'fft'},  # avoid FD-stencil in mixer-metric
         convergence={'density': 1e-8},
         kpts=(4, 1, 1),
+        **{'random': 'True', 'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
         poissonsolver=poisson,
         parallel={'gpu': gpu,
                   par: size},
@@ -89,7 +102,8 @@ def test_gpu_k(gpu, par, mode, xc):
     dft.energy()
     if mode == 'pw':
         dft.forces()
-        dft.stress()
+        if not GPAW_NO_C_EXTENSION:
+            dft.stress()
     energy = dft.results['energy'] * Ha
     ref = {'LDAfd': -17.685022604078714,
            'PBEfd': -17.336991943070384,
