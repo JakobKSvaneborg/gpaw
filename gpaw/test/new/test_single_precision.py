@@ -68,7 +68,8 @@ def run_single_precision(dtype, gpu):
                                    'forces': 1e-3,
                                    'eigenstates': 1e-6},
                       eigensolver={'name': 'ppcg', 'include_cg': True},
-                      **{'mixer': {'backend': 'fft'}} if GPAW_NO_C_EXTENSION else {},
+                      **{'mixer': {'backend': 'fft'}}
+                      if GPAW_NO_C_EXTENSION else {},
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
@@ -95,7 +96,8 @@ def run_single_precision_rmmdiis(dtype):
                             'ecut': 200.0,
                             'dtype': dtype},
                       **{'random': True,
-                         'mixer': {'backend': 'fft'}} if GPAW_NO_C_EXTENSION else {},
+                         'mixer': {'backend': 'fft'}}
+                      if GPAW_NO_C_EXTENSION else {},
                       eigensolver={'name': 'rmm-diis'},
                       parallel={'gpu': True}
                       )
