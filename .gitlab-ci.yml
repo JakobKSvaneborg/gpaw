@@ -452,6 +452,9 @@ test-cuda-no-c:
     - gpaw info
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
     - pwd
+    - ls
+    - rm *.so
+    - ls
     - GPAW_NO_C_EXTENSION=1 pytest -v -m gpu gpaw/test/gpu gpaw/test/core
 
 
