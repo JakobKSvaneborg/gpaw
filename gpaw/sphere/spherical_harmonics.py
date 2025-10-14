@@ -27,17 +27,14 @@ from gpaw import debug, GPAW_NO_C_EXTENSION
 
 __all__ = ['Y', 'YL', 'nablarlYL', 'Yl']
 
-if GPAW_NO_C_EXTENSION:
-    Yl = None
+from gpaw.cgpaw import spherical_harmonics
+if debug:
+    def Yl(l: int, R_v: np.ndarray, rlY_m: np.ndarray) -> None:
+        assert R_v.dtype == float and R_v.shape == (3,)
+        assert rlY_m.dtype == float and rlY_m.shape == (2 * l + 1,)
+        spherical_harmonics(l, R_v, rlY_m)
 else:
-    from gpaw.cgpaw import spherical_harmonics
-    if debug:
-        def Yl(l: int, R_v: np.ndarray, rlY_m: np.ndarray) -> None:
-            assert R_v.dtype == float and R_v.shape == (3,)
-            assert rlY_m.dtype == float and rlY_m.shape == (2 * l + 1,)
-            spherical_harmonics(l, R_v, rlY_m)
-    else:
-        Yl = spherical_harmonics
+    Yl = spherical_harmonics
 
 names = [['1'],
          ['y', 'z', 'x'],

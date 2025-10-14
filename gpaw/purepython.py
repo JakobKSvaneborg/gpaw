@@ -245,6 +245,11 @@ def r2k_gpu(alpha, a, b, beta, c, lda, ldb, ldc):
     # These are cupy arrays so cupy will have correct strides
     # the r2k wrapper would take the cupy arrays as flat,
     # and then require lda, ldb and ldc in addition
+
+    # Guard against nans on uninitialized arrays
+    if beta == 0.0:
+        c[:] = 0.0
+
     c[:] = c * beta + alpha * a @ b.conj().T + np.conj(alpha) * b @ a.conj().T
 
 
@@ -257,6 +262,10 @@ def axpy_gpu(alpha, xptr, xshape,
     ymem = UnownedMemory(yptr, np.prod(yshape) * dtype.itemsize, None)
     x = cupy.ndarray(shape=xshape, dtype=dtype, memptr=MemoryPointer(xmem, 0))
     y = cupy.ndarray(shape=yshape, dtype=dtype, memptr=MemoryPointer(ymem, 0))
+
+    if alpha == 0.0:
+        return
+
     y += alpha * x
 
 
@@ -284,6 +293,11 @@ def mmm_gpu(alpha, aptr, lda, opa, bptr, ldb, opb,
                    memptr=MemoryPointer(bmem, 0))[:, :k]
     c = cp.ndarray(shape=(m, ldc), dtype=dtype,
                    memptr=MemoryPointer(cmem, 0))[:, :m]
+
+    # Guard against nans on uninitialized arrays
+    if beta == 0.0:
+        c[:] = 0.0
+
     c[:] = c * beta + alpha * a @ b
 
 
@@ -291,6 +305,9 @@ def XCFunctional(xcid: int):
     if xcid == -1:
         from gpaw.xc.lda import PurePythonLDAKernel
         return PurePythonLDAKernel()
+    elif xcid == 0:
+        from gpaw.xc.gga import PurePythonGGAKernel
+        return PurePythonGGAKernel('pyPBE')
 
     raise ValueError(f'Unsupported XC for GPAW_NO_C_EXTENSION=1: {xcid}')
 
@@ -305,21 +322,31 @@ def GG_shuffle(G_G, sign, A_GG, tmp_GG):
 
 
 def adjust_positions(*args):
-    raise NotImplementedError
+    raise NotImplementedError('adjust_positions')
 
 
 def evaluate_mpa_poly(*args):
-    raise NotImplementedError
+    raise NotImplementedError('evaluate_mpa_poly')
 
 
 def adjust_momenta(*args):
-    raise NotImplementedError
+    raise NotImplementedError('adjust_momenta')
 
 
 def calculate_forces_H2O(*args):
-    raise NotImplementedError
+    raise NotImplementedError('calculate_forces_H2O')
 
 
 class Operator:
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError
+        raise NotImplementedError('Operator')
+
+
+def spherical_harmonics(l, R_v, rlY_m):
+    from gpaw.sphere.spherical_harmonics import Y
+    for m in range(2 * l + 1):
+        rlY_m[m] = Y((l**2)+m, R_v[0], R_v[1], R_v[2])
+
+
+def tci_overlap(*args, **kwargs):
+    raise NotImplementedError('tci_overlap')
