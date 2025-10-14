@@ -7,6 +7,7 @@ import numpy as np
 from gpaw.mpi import broadcast
 from gpaw.utilities import (pack_atomic_matrices, unpack_atomic_matrices,
                             unpack_density, unpack_hermitian, packed_index)
+from gpaw import GPAW_NO_C_EXTENSION
 
 
 class PAWThings(NamedTuple):
@@ -69,7 +70,8 @@ pawexxvv = python_pawexxvv
 
 if not TYPE_CHECKING:
     try:
-        from _gpaw import pawexxvv  # noqa: F811
+        if not GPAW_NO_C_EXTENSION:
+            from _gpaw import pawexxvv  # noqa: F811
     except ImportError:
         import warnings
         warnings.warn('Please recompile GPAW binary. Using python '
