@@ -6,6 +6,7 @@ from gpaw.mpi import size
 from gpaw.gpu import cupy_is_fake
 from gpaw import GPAW_NO_C_EXTENSION
 
+
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.skipif(size == 8, reason='Fails at the moment for size=8')

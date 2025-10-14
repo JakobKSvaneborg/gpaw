@@ -213,7 +213,6 @@ def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
     kernel = PurePythonGGAKernel('pyPBE')
     from gpaw.gpu import cupy_is_fake
     if cupy_is_fake:
-        from gpaw.xc.kernel import XCKernel
         kernel.calculate(e_r._data, nt_sr._data, vxct_sr._data,
                          sigma_xr._data, dedsigma_xr._data)
     else:
@@ -237,15 +236,17 @@ def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
     else:
         result_x[:] = cp.sum(cp.abs(a_xG)**2 * kin_G[None, :], axis=1)
 
+
 def r2k_gpu(alpha, a, b, beta, c, lda, ldb, ldc):
-    #assert a.shape[-1] == lda
-    #assert b.shape[-1] == ldb
-    #assert c.shape[-1] == ldc
+    # assert a.shape[-1] == lda
+    # assert b.shape[-1] == ldb
+    # assert c.shape[-1] == ldc
     # Note, lda, ldb and ldc are not respected on purpose
     # These are cupy arrays so cupy will have correct strides
     # the r2k wrapper would take the cupy arrays as flat,
     # and then require lda, ldb and ldc in addition
     c[:] = c * beta + alpha * a @ b.conj().T + np.conj(alpha) * b @ a.conj().T
+
 
 def axpy_gpu(alpha, xptr, xshape,
              yptr, yshape,
@@ -258,7 +259,9 @@ def axpy_gpu(alpha, xptr, xshape,
     y = cupy.ndarray(shape=yshape, dtype=dtype, memptr=MemoryPointer(ymem, 0))
     y += alpha * x
 
-def mmm_gpu(alpha, aptr, lda, opa, bptr, ldb, opb, beta, cptr, ldc, itemsize, m, n, k):
+
+def mmm_gpu(alpha, aptr, lda, opa, bptr, ldb, opb,
+            beta, cptr, ldc, itemsize, m, n, k):
     assert opa == 'N'
     assert opb == 'N'
     from gpaw.gpu import cupy as cp
@@ -272,7 +275,13 @@ def mmm_gpu(alpha, aptr, lda, opa, bptr, ldb, opb, beta, cptr, ldc, itemsize, m,
         dtype = cp.float64
     else:
         raise ValueError('Unknown itemsize', itemsize)
-    a = cp.ndarray(shape=(m, lda), dtype=dtype, memptr=MemoryPointer(amem, 0))[:, :n]
-    b = cp.ndarray(shape=(n, ldb), dtype=dtype, memptr=MemoryPointer(bmem, 0))[:, :k]
-    c = cp.ndarray(shape=(m, ldc), dtype=dtype, memptr=MemoryPointer(cmem, 0))[:, :m]
+
+    # NOTE: The test_blas.py test is not qualified to test this
+    # so this is essentially untested.
+    a = cp.ndarray(shape=(m, lda), dtype=dtype,
+                   memptr=MemoryPointer(amem, 0))[:, :n]
+    b = cp.ndarray(shape=(n, ldb), dtype=dtype,
+                   memptr=MemoryPointer(bmem, 0))[:, :k]
+    c = cp.ndarray(shape=(m, ldc), dtype=dtype,
+                   memptr=MemoryPointer(cmem, 0))[:, :m]
     c[:] = c * beta + alpha * a @ b

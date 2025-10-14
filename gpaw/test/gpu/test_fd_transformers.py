@@ -6,6 +6,7 @@ from gpaw.mpi import world
 from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw import GPAW_NO_C_EXTENSION
 
+
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('pbc', [True, False])

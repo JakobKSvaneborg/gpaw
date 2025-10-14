@@ -8,6 +8,7 @@ from gpaw.poisson import FDPoissonSolver
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw import GPAW_NO_C_EXTENSION
 
+
 @pytest.mark.gpu
 @pytest.mark.serial
 @pytest.mark.parametrize('dtype', [float, complex])
@@ -112,7 +113,6 @@ def test_gpu_k(gpu, par, mode, xc):
     assert energy == pytest.approx(ref, abs=1e-6)
 
 
-
 @pytest.mark.gpu
 def test_2d():
     atoms = Atoms('H', pbc=[True, True, False], cell=[1, 1, 5])
@@ -141,4 +141,3 @@ def test_2d():
         S = dft.results['stress']
         assert S == pytest.approx([-0.0110, -0.0110, 0.0002,
                                    0.0, 0.0, 0.0], abs=0.001)
-

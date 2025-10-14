@@ -8,6 +8,7 @@ from gpaw.spline import Spline
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw import GPAW_NO_C_EXTENSION
 
+
 @pytest.mark.gpu
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_acf(dtype):

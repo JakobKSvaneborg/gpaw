@@ -7,6 +7,7 @@ from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.mpi import world
 from gpaw import GPAW_NO_C_EXTENSION
 
+
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('pbc', [True, False])
