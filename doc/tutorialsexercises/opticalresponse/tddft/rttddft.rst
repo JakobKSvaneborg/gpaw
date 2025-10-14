@@ -53,7 +53,7 @@ in :ref:`LCAO mode <lcao>`:
 
 Some important points are:
 
-* :ref:`LCAO mode <lcao>`, the grid spacing is only used to calculate
+* In :ref:`LCAO mode <lcao>`, the grid spacing is only used to calculate
   the Hamiltonian matrix and therefore a coarser grid than usual can be used.
 * Completely unoccupied bands should be left out of the calculation,
   since they are not needed.
