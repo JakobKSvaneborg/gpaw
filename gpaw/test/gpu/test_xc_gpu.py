@@ -67,7 +67,7 @@ def test_gpu_lda(nspins):
     cpun_sg = cp.asnumpy(n_sg)
     cpuv_sg = cp.asnumpy(v_sg)
     cpue_g = cp.asnumpy(e_g)
-    xc = XC('LDA')
+    xc = XC('PPLDA') if GPAW_NO_C_EXTENSION else XC('LDA')
     import time
     start = time.time()
     xc.calculate_impl(None, cpun_sg, cpuv_sg, cpue_g)

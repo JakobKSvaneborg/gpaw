@@ -285,3 +285,11 @@ def mmm_gpu(alpha, aptr, lda, opa, bptr, ldb, opb,
     c = cp.ndarray(shape=(m, ldc), dtype=dtype,
                    memptr=MemoryPointer(cmem, 0))[:, :m]
     c[:] = c * beta + alpha * a @ b
+
+
+def XCFunctional(xcid: int):
+    if xcid == -1:
+        from gpaw.xc.lda import PurePythonLDAKernel
+        return PurePythonLDAKernel()
+
+    raise ValueError(f'Unsupported XC for GPAW_NO_C_EXTENSION=1: {xcid}')
