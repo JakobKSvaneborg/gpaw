@@ -186,8 +186,9 @@ def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
 
 
 def add_to_density_gpu(weight_n, psit_nR, nt_R):
+    from gpaw.gpu import cupy as cp
     for weight, psit_R in zip(weight_n, psit_nR):
-        nt_R += float(weight) * abs(psit_R).abs()**2
+        nt_R += float(weight) * cp.abs(psit_R)**2
 
 
 def symmetrize_ft(a_R, b_R, r_cc, t_c, offset_c):

@@ -6,7 +6,7 @@ from gpaw.dft import DFT
 from gpaw.mpi import size
 from gpaw.poisson import FDPoissonSolver
 from gpaw.new.c import GPU_AWARE_MPI
-
+from gpaw import GPAW_NO_C_EXTENSION
 
 @pytest.mark.gpu
 @pytest.mark.serial
@@ -98,6 +98,7 @@ def test_gpu_k(gpu, par, mode, xc):
     assert energy == pytest.approx(ref, abs=1e-6)
 
 
+
 @pytest.mark.gpu
 def test_2d():
     atoms = Atoms('H', pbc=[True, True, False], cell=[1, 1, 5])
@@ -109,6 +110,7 @@ def test_2d():
         spinpol=True,
         random=True,
         xc='LDA',
+        **{'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
         convergence={'density': 1e-8},
         kpts=(2, 2, 1),
         parallel={'gpu': True})
@@ -116,11 +118,13 @@ def test_2d():
     assert dft.potential.get_vacuum_level() == pytest.approx(2.9436, 1e-2)
     dft.energy()
     dft.forces()
-    dft.stress()
     E = dft.results['energy']
     F = dft.results['forces']
-    S = dft.results['stress']
     assert E == pytest.approx(0.1769, 1e-2)
-    assert F[0] == pytest.approx([0, 0, 0], 1e-6)
-    assert S == pytest.approx([-0.0110, -0.0110, 0.0002,
-                               0.0, 0.0, 0.0], abs=0.001)
+    assert F[0] == pytest.approx([0, 0, 0], abs=1e-8)
+    if not GPAW_NO_C_EXTENSION:
+        dft.stress()
+        S = dft.results['stress']
+        assert S == pytest.approx([-0.0110, -0.0110, 0.0002,
+                                   0.0, 0.0, 0.0], abs=0.001)
+
