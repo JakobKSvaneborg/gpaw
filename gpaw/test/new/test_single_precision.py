@@ -19,11 +19,11 @@ from gpaw import GPAW_NO_C_EXTENSION
 @pytest.mark.parametrize('gpu', [False, True])
 def test_single_precision(dtype, gpu):
     try:
-        result = subprocess.run(
-            'GPAW_NO_C_EXTENSION=1 GPAW_CPUPY=1 '
-            f'python {__file__} {dtype} {gpu}',
-            shell=True, capture_output=True,
-            text=True, check=True)
+        cmd = ('GPAW_NO_C_EXTENSION=1 GPAW_CPUPY=1 '
+               f'python {__file__} {dtype} {gpu}')
+        print(cmd)
+        result = subprocess.run(cmd, shell=True, capture_output=True,
+                                text=True, check=True)
     except subprocess.CalledProcessError as e:
         print(e.output)
         print(e.stderr)
@@ -95,6 +95,7 @@ def run_single_precision_rmmdiis(dtype):
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
+                      nbands=125,
                       **{'random': True,
                          'mixer': {'backend': 'fft'}}
                       if GPAW_NO_C_EXTENSION else {},
