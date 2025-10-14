@@ -107,6 +107,7 @@ def test_2d():
         mode={'name': 'pw'},
         mixer={'backend': 'fft'},  # avoid FD-stencil in mixer-metric
         spinpol=True,
+        random=True,
         xc='LDA',
         convergence={'density': 1e-8},
         kpts=(2, 2, 1),
