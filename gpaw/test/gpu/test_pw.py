@@ -33,8 +33,7 @@ def test_gpu(dtype, gpu, mode, random):
         mode={'name': mode,
               'force_complex_dtype': dtype == complex},
         random=random,
-        mixer={'backend': 'fft'},  # avoid FD-stencil in mixer-metric
-        **{'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
+        **{'symmetry': 'off', 'mixer': {'backend': 'fft'}} if GPAW_NO_C_EXTENSION else {},
         convergence={'density': 1e-8},
         parallel={'gpu': gpu},
         setups='paw',
@@ -91,10 +90,9 @@ def test_gpu_k(gpu, par, mode, xc):
         spinpol=True,
         xc=xc,
         h=h,
-        mixer={'backend': 'fft'},  # avoid FD-stencil in mixer-metric
         convergence={'density': 1e-8},
         kpts=(4, 1, 1),
-        **{'random': 'True', 'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
+        **{'random': 'True', 'mixer': {'bankend': 'fft'}, 'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
         poissonsolver=poisson,
         parallel={'gpu': gpu,
                   par: size},
