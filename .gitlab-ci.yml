@@ -451,10 +451,8 @@ test-cuda-no-c:
     - nvidia-smi
     - gpaw info
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
-    - pwd
-    - ls
-    - rm *.so
-    - ls
+    - rm _gpaw.cpython-311-x86_64-linux-gnu.so
+    - python -c "import importlib; assert not importlib.util.find_spec('_gpaw'), '_gpaw module found'"
     - GPAW_NO_C_EXTENSION=1 pytest -v -m gpu gpaw/test/gpu gpaw/test/core
 
 
