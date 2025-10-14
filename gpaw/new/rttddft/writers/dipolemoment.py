@@ -1,3 +1,4 @@
+import json
 
 from ase.utils import IOContext
 
@@ -23,7 +24,7 @@ class DipoleMomentWriter:
         MPI communicator corresponding to world. By default,
         the actual world is used.
     """
-    version = 1
+    version = 2
 
     def __init__(self,
                  filename: str, *,
@@ -48,29 +49,29 @@ class DipoleMomentWriter:
 
     def _write_header(self):
         line = f'# {self.__class__.__name__}[version={self.version}]\n'
-        line += ('# %15s %15s %22s %22s %22s\n' %
-                 ('time', 'norm', 'dmx', 'dmy', 'dmz'))
+        line += '# Using Hartree atomic units for time and dipole moment\n'
+        line += '# %20s %22s %22s %22s\n' % ('time', 'dmx', 'dmy', 'dmz')
         self._write(line)
 
-    def write_start(self,
-                    history: RTTDDFTHistory):
-        """ Write comment to mark the start or restart.
+    def write_comment(self,
+                      comment: str):
+        """ Write comment to the dipole moment file.
 
         Parameters
         ----------
-        history
-            RTTDDFT history object.
+        comment
+            Comment string. A comment character (#) is prepended to
+            every line of the comment and trailing newline is added.
         """
-        line = '# Start; Time = %.8lf\n' % history.time
+        lines = ['# ' + line for line in comment.split('\n')]
+        lines.append('')  # Add one traling newline
+        line = '\n'.join(lines)
         self._write(line)
 
     def _write_kick(self,
                     kick: RTTDDFTKick):
-        line = ('# Kick = [%22.12le, %22.12le, %22.12le];'
-                % tuple(kick.strength))
-        line += 'Gauge = %s; ' % kick.gauge
-        line += 'Time = %.8lf\n' % kick.time
-        self._write(line)
+        comment = f'Kick = {json.dumps(kick.todict())}'
+        self.write_comment(comment)
 
     def write_dm(self,
                  history: RTTDDFTHistory,
@@ -100,9 +101,8 @@ class DipoleMomentWriter:
                 continue
             self._write_kick(kick)
 
-        norm = 0  # Zeros are included for compatibility with old GPAW
-        data = (history.time, norm) + tuple(dipolemoment)
-        line = '%20.8lf %20.8le %22.12le %22.12le %22.12le\n' % data
+        data = (history.time, ) + tuple(dipolemoment)
+        line = '%20.8lf %22.12le %22.12le %22.12le\n' % data
 
         self._write(line)
 

@@ -100,5 +100,9 @@ class RTTDDFTKick:
         if self.gauge not in ['length', 'velocity']:
             raise ValueError('Only length and velocity gauge supported')
 
+        if len(self.strength) > 3:
+            raise ValueError('Strength must be given as a vector of length 3')
+        self.strength = list(self.strength)  # Convert to list
+
     def todict(self):
         return asdict(self)

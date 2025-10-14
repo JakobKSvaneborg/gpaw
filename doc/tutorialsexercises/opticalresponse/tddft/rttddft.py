@@ -31,8 +31,8 @@ td_calc = RTTDDFT.from_file('gs.gpw', td_algorithm='sicn')
 
 # Open dipole moment file
 with DipoleMomentWriter('dm.dat') as dmwriter:
-    # Optionally, write start
-    dmwriter.write_start(td_calc.history)
+    # Optionally, write a comment to signify (re)start
+    dmwriter.write_comment(f'Start at {td_calc.history.time:.8f}')
 
     # Kick and write the dipole moment
     td_calc.absorption_kick([0.0, 0.0, 1e-5])
