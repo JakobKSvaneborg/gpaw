@@ -26,6 +26,7 @@
 #define gpuDoubleComplex          cuDoubleComplex
 #define gpuFloatComplex           cuFloatComplex
 #define gpublasDoubleComplex      cuDoubleComplex
+#define gpublasComplex            cuFloatComplex
 #define make_gpuDoubleComplex     make_cuDoubleComplex
 #define make_gpuFloatComplex      make_cuFloatComplex
 #define gpuCreal                  cuCreal
@@ -106,6 +107,9 @@
 #define gpublasDdot               cublasDdot
 #define gpublasZdotc              cublasZdotc
 #define gpublasZdotu              cublasZdotu
+#define gpublasSsyr2k             cublasSsyr2k
+#define gpublasCher2k             cublasCher2k
+
 
 #define GPUBLAS_OP_N                     CUBLAS_OP_N
 #define GPUBLAS_OP_T                     CUBLAS_OP_T

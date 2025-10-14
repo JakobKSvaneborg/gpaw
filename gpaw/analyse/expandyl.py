@@ -5,7 +5,7 @@ from ase.atoms import string2vector
 from ase.units import Bohr, Hartree
 from ase.utils import IOContext
 
-from gpaw.spherical_harmonics import Y
+from gpaw.sphere.spherical_harmonics import Y
 from gpaw.utilities.tools import coordinates
 from gpaw.mpi import serial_comm
 

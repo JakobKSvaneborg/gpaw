@@ -4,7 +4,7 @@ import numpy as np
 
 from ase.units import Ha
 
-from gpaw.pw.descriptor import PWMapping
+from gpaw.old.pw.descriptor import PWMapping
 
 from gpaw.response.pw_parallelization import (Blocks1D,
                                               PlaneWaveBlockDistributor)

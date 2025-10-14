@@ -38,15 +38,20 @@ def test_ofdft_ofdft(in_tmp_dir):
                     txt='-',
                     xc=xcname,
                     setups=setups,
-                    eigensolver='cg', mixer=mixer, charge=charge)
+                    eigensolver='rmm-diis',
+                    mixer=mixer,
+                    charge=charge)
 
         atom.calc = calc
 
         E = atom.get_total_energy()
-        n = calc.get_all_electron_density()
 
-        dv = atom.get_volume() / calc.get_number_of_grid_points().prod()
-        I = n.sum() * dv / 2**3
+        if calc.old:
+            dv = atom.get_volume() / calc.get_number_of_grid_points().prod()
+            n = calc.get_all_electron_density()
+            I = n.sum() * dv / 2**3
+        else:
+            I = calc.dft.densities().all_electron_densities().integrate()[0]
 
         assert I == pytest.approx(e, abs=1.0e-6)
         assert result == pytest.approx(E, abs=1.0e-2)

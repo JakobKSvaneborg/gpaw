@@ -10,7 +10,7 @@ from gpaw import GPAW
 from gpaw.fdtd.polarizable_material import PolarizableMaterial
 from gpaw.fdtd.potential_couplers import (RefinerPotentialCoupler,
                                           MultipolesPotentialCoupler)
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.mpi import world, serial_comm
 from gpaw.poisson import PoissonSolver
 from gpaw.poisson_moment import MomentCorrectionPoissonSolver

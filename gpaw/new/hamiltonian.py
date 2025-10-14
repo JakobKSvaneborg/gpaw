@@ -43,12 +43,16 @@ class Hamiltonian:
                                 D_asii,
                                 psit_nG: XArray,
                                 spin: int,
-                                out: XArray,
-                                calculate_energy: bool) -> None:
+                                out: XArray | None = None,
+                                calculate_energy: bool = False,
+                                F_av: np.ndarray | None = None) -> None:
         pass
 
     def create_preconditioner(self, blocksize, xp=np):
         raise NotImplementedError
 
-    def update_wave_functions(self, ibzwfs):
+    def update_wave_functions(self, ibzwfs, forces=False):
         return
+
+    def move(self, relpos_av: np.ndarray) -> None:
+        pass

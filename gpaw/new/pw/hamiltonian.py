@@ -10,12 +10,12 @@ from gpaw.gpu import cupy as cp
 from gpaw.new import trace, zips
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.c import pw_precond, pw_insert_gpu
-from gpaw.utilities import as_complex_dtype
+from gpaw.utilities import as_complex_dtype, as_real_dtype
 
 
 class PWHamiltonian(Hamiltonian):
-    def __init__(self, grid, pw, xp=np):
-        self.grid_local = grid.new(comm=None, dtype=pw.dtype)
+    def __init__(self, grid, dtype, xp=np):
+        self.grid_local = grid.new(comm=None, dtype=dtype)
         self.plan = self.grid_local.fft_plans(xp=xp)
         # It's a bit too expensive to create all the local PW-descriptors
         # for all the k-points every time we apply the Hamiltonian, so we
@@ -203,9 +203,10 @@ def apply_local_potential_gpu(vt_R,
                               blocksize=10):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
-    e_kin_G = cp.asarray(pw.ekin_G)
+    e_kin_G = cp.asarray(pw.ekin_G, dtype=as_real_dtype(pw.dtype))
     mynbands = psit_nG.mydims[0]
     size_c = vt_R.desc.size_c
+    vt_R_data = cp.asarray(vt_R.data, dtype=as_real_dtype(pw.dtype))
     w = trace(gpu=True)
     if np.issubdtype(pw.dtype, np.floating):
         shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
@@ -235,7 +236,7 @@ def apply_local_potential_gpu(vt_R,
             tuple(size_c),
             norm='forward',
             overwrite_x=True)
-        psit_bR *= vt_R.data
+        psit_bR *= vt_R_data
         vtpsit_bQ = fftn(
             psit_bR,
             tuple(size_c),

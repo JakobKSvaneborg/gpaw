@@ -45,10 +45,12 @@ public:
     #ifdef GPAW_GPU_ARRAY_DEBUG
         assert(data && "Not a Python array object");
     #endif
+    #ifdef GPAW_GPU_LIFETIME_GUARD
         if (data)
         {
             objects.push_back(obj);
         }
+    #endif
         return data;
     }
 

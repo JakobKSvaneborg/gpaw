@@ -1,5 +1,5 @@
 import pytest
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw import PoissonSolver
 from gpaw.spline import Spline
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
@@ -7,7 +7,7 @@ from gpaw.response.qpd import SingleQPWDescriptor
 import numpy as np
 from gpaw.response.coulomb_kernels import (get_coulomb_kernel,
                                            get_integrated_kernel)
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
 from gpaw.poisson_moment import MomentCorrectionPoissonSolver
 

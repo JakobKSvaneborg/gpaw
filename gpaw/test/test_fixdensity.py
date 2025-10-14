@@ -2,7 +2,7 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.calculator import DeprecatedParameterWarning as OldDPW
+from gpaw.old.calculator import DeprecatedParameterWarning as OldDPW
 from gpaw.dft import DeprecatedParameterWarning as NewDPW
 
 

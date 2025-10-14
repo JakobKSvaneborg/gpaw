@@ -67,6 +67,10 @@ To build GPAW with GPU support, siteconfig.py needs to be updated. To see how to
     5. ``gpu_compile_args`` is essential, and proper target architecture needs to be supplied in most cases.
 
 
+If you intend to go to really large systems, you need to enable 64-bit array indexing in kernels. This is done by adding `define_macros += [('GPAW_64_BIT_INDEXING', None)]` to the `siteconfig.py`.
+Note: In GPAW master, GPAW's MPI wrappers are only equiped to send int32 messages (the int64 MPI is coming, but not yet merged to master.
+
+
 In addition, libraries list should be appended by GPU blas and GPU runtime librarires. See the examples below for examples of how to utilize these commands.
 
 Example piece of siteconfig to build with HIP (AMD MI250X)::

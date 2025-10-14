@@ -57,7 +57,8 @@ class Density:
                            charge=0.0,
                            hund=False,
                            mgga=False):
-        nt_sR = grid.zeros(ncomponents)
+        xp = nct_aX.xp
+        nt_sR = grid.zeros(ncomponents, xp=xp)
         atom_array_layout = AtomArraysLayout(
             [(setup.ni, setup.ni) for setup in setups],
             atomdist=atomdist, dtype=float if ncomponents < 4 else complex)
@@ -74,8 +75,6 @@ class Density:
             D_sii[:] = unpack_density(
                 setups[a].initialize_density_matrix(f_asi[a]))
 
-        xp = nct_aX.xp
-        nt_sR = nt_sR.to_xp(xp)
         density = cls.from_data_and_setups(nt_sR,
                                            None,
                                            D_asii.to_xp(xp),

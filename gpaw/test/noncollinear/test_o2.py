@@ -15,6 +15,7 @@ def test_noncollinear_o2(in_tmp_dir, gpaw_new):
     a = Atoms('OO', [[0, 0, 0], [0, 0, 1.1]], magmoms=[1, 1], pbc=(1, 0, 0))
     a.center(vacuum=2.5)
     a.calc = GPAW(mode='pw',
+                  convergence={'density': 1e-5},
                   kpts=(2, 1, 1))
     f0 = a.get_forces()
     e0 = a.calc.get_eigenvalues(0, 0)[5]
@@ -23,7 +24,8 @@ def test_noncollinear_o2(in_tmp_dir, gpaw_new):
     a.calc = GPAW(mode='pw',
                   kpts=(2, 1, 1),
                   symmetry='off',
-                  experimental={'magmoms': [[0, 0.5, 0.5], [0, 0, 1]]})
+                  convergence={'density': 1e-5},
+                  magmoms=[[0, 0.5, 0.5], [0, 0, 1]])
     f = a.get_forces()
     e = a.calc.get_eigenvalues(0, 0)[10]
     p = a.calc.get_pseudo_wave_function(10, periodic=True)

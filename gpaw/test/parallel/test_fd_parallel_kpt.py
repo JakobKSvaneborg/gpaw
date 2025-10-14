@@ -7,7 +7,7 @@ from gpaw.utilities import devnull
 from gpaw import GPAW, FermiDirac
 from gpaw import KohnShamConvergenceError
 from gpaw.utilities import compiled_with_sl
-from gpaw.forces import calculate_forces
+from gpaw.old.forces import calculate_forces
 
 from ase.build import molecule
 

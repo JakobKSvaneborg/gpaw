@@ -6,7 +6,7 @@ from gpaw.utilities import devnull
 
 from gpaw import GPAW, LCAO, FermiDirac, KohnShamConvergenceError
 from gpaw.utilities import compiled_with_sl
-from gpaw.forces import calculate_forces
+from gpaw.old.forces import calculate_forces
 from gpaw.mpi import world
 
 # Calculates energy and forces for various parallelizations

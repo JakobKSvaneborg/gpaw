@@ -1,6 +1,6 @@
 from gpaw.transformers import Transformer
 import numpy.random as ra
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 def test_fd_ops_non_periodic():

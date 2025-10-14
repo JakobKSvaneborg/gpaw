@@ -3,9 +3,9 @@ from typing import Any, Dict
 import numpy as np
 from ase.units import Ha
 
-from gpaw.density import Density
+from gpaw.old.density import Density
 from gpaw.external import NoExternalPotential
-from gpaw.pw.hamiltonian import ReciprocalSpaceHamiltonian
+from gpaw.old.pw.hamiltonian import ReciprocalSpaceHamiltonian
 from gpaw.typing import Array1D, Array2D, ArrayLike1D
 
 
