@@ -94,7 +94,7 @@ def test_gpu_k(gpu, par, mode, xc):
         convergence={'density': 1e-8},
         kpts=(4, 1, 1),
         **{'random': 'True',
-           'mixer': {'bankend': 'fft'},
+           'mixer': {'backend': 'fft'},
            'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
         poissonsolver=poisson,
         parallel={'gpu': gpu,
