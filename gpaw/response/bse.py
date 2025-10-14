@@ -274,7 +274,7 @@ class BSEBackend:
                  mode='BSE',
                  q_c=[0.0, 0.0, 0.0],
                  direction=0,
-                 discard_inplane_offdiagonal=False,
+                 diagW=False,
                  save_W=False,
                  ):
 
@@ -286,7 +286,7 @@ class BSEBackend:
         self.context = context
         self.add_soc = add_soc
         self.scale = scale
-        self.discard_inplane_offdiagonal = discard_inplane_offdiagonal
+        self.diagW = diagW
         if q0_correction is None:
             q0_correction = (truncation == '2D')
         self.q0_correction = q0_correction
@@ -774,7 +774,7 @@ class BSEBackend:
             chi0 = self._chi0calc.calculate(q_c)
             W_wGG = self._wcalc.calculate_W_wGG(chi0)
             W_GG = W_wGG[0]
-            if self.discard_inplane_offdiagonal:
+            if self.diagW:
                 G_Gv = chi0.qpd.get_reciprocal_vectors(add_q=False)
                 Gxy_Gv = G_Gv[:, :2]
                 mask_GG = np.all(np.isclose(Gxy_Gv[:, None, :],
