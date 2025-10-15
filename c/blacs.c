@@ -14,6 +14,9 @@
 #include <structmember.h>
 #include "extensions.h"
 #include "mympi.h"
+#ifdef GPAW_WITH_INTEL_MKL
+#include "mkl_scalapack.h"
+#endif
 
 // BLACS
 #define BLOCK_CYCLIC_2D 1
