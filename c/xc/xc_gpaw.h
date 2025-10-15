@@ -5,6 +5,8 @@
 #ifndef _XC_GPAW_H
 #define _XC_GPAW_H
 
+#include <stdbool.h>
+
 /*
 BETA = 0.066725
 MU = BETA * pi * pi / 3
@@ -31,8 +33,6 @@ C0 = 4 * pi / 3
 #define C0     4.1887902047863905
 #define THIRD  0.33333333333333333
 #define NMIN   1.0E-10
-
-typedef int bool;
 
 typedef struct
 {

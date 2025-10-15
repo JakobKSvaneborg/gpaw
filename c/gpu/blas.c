@@ -347,7 +347,7 @@ PyObject* rk_gpu(PyObject *self, PyObject *args)
 
 static void _r2k_gpu(int n, int k,
                      Py_complex alpha, void *a_gpu,
-                     int lda, void *b_gpu, 
+                     int lda, void *b_gpu,
                      int ldb, double beta,
                      void *c_gpu, int ldc, int dtypenum)
 {
