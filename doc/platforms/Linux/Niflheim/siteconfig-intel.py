@@ -11,13 +11,15 @@ else:
 
 # Use Intel MKL
 libraries = ['xc', 'mkl_sequential', 'mkl_core', 'fftw3xc_intel_pic', 'mkl_rt']
+mkl = os.getenv('MKLROOT')
+include_dirs = [os.path.join(mkl, 'include')]
 
 # Use EasyBuild scalapack from the active toolchain
 libraries += ['mkl_scalapack_lp64', 'mkl_blacs_intelmpi_lp64']
 
 # Use EasyBuild libxc
 libxc = os.getenv('EBROOTLIBXC')
-include_dirs = [os.path.join(libxc, 'include')]
+include_dirs += [os.path.join(libxc, 'include')]
 
 # libvdwxc:
 # Use EasyBuild libvdwxc
