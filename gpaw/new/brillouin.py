@@ -1,11 +1,14 @@
 """Brillouin-zone sampling."""
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from gpaw.mpi import MPIComm
-from gpaw.typing import Array1D, ArrayLike2D
 from gpaw.symmetry import reduce_kpts
+from gpaw.typing import Array1D, Array2D, ArrayLike2D
+
 if TYPE_CHECKING:
     from gpaw.new.symmetry import Symmetries
 
@@ -135,9 +138,9 @@ class IBZ:
             k += 1
         return txt
 
-    def ranks(self, comm: MPIComm) -> Array1D:
+    def ranks(self, comm: MPIComm, nspins: int = 1) -> Array2D:
         """Distribute k-points over MPI-communicator."""
-        return ranks(comm.size, len(self))
+        return ranks(comm.size, len(self) * nspins).reshape((-1, nspins))
 
 
 def ranks(N, K) -> Array1D:
