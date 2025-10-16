@@ -808,7 +808,6 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
     def initialize_from_lcao_coefficients(self,
                                           basis_functions: BasisFunctions,
                                           block_size: int = 10,
-                                          reset_C_nM=True,
                                           lazy=False) -> None:
         """Convert from LCAO to PW coefficients."""
         nlcao = len(self.kpt_qs[0][0].C_nM)
@@ -841,7 +840,7 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                                              block_size)
                 for psit_R, psit_G in zip(psit_nR, psit_nG[n1:n2]):
                     psit_G[:] = self.pd.fft(psit_R * emikr_R, kpt.q)
-            if reset_C_nM:
+            if not lazy:
                 kpt.C_nM = None
             return psit
         
