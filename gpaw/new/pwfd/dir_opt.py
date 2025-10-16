@@ -118,10 +118,10 @@ class DirOptPWFD(PWFDEigensolver):
             # we need the full shape
             array_shape = (len(psit_unX),) + first.shape
 
-            # Data type of the wave function 
+            # Data type of the wave function
             dtype = first.dtype
 
-            # Communication object 
+            # Communication object
             kpt_comm = getattr(ibzwfs, 'kpt_comm', None)
 
             # Create the adapter that bridges ETDM’s vector-based interface
