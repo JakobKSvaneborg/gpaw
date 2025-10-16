@@ -18,5 +18,7 @@ class DirectOptimization(Eigensolver):
               converge_bands,
               setups,
               atoms):
-        return DirOptPWFD(converge_unocc=self.converge_unocc,
-                    hamiltonian=hamiltonian)
+        return DirOptPWFD(
+            converge_unocc=self.converge_unocc,
+            hamiltonian=hamiltonian,
+        )
