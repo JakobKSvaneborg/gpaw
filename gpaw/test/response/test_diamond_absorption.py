@@ -19,19 +19,19 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     calc = GPAW(mode=mode,
                 kpts=(3, 3, 3),
                 eigensolver='rmm-diis' if mode == 'pw' else None,
-                occupations=FermiDirac(0.001))
+                occupations=FermiDirac(0.001), txt='out.txt')
 
     atoms.calc = calc
     atoms.get_potential_energy()
     calc.write('C.gpw', 'all')
 
     if eshift is None:
-        eM1_ = 9.727
-        eM2_ = 9.548
-        w0_ = 10.7782
-        I0_ = 5.47
-        w_ = 10.7532
-        I_ = 5.98
+        eM1_ = 9.727 if mode=='pw' else 4.410
+        eM2_ = 9.548 if mode=='pw' else 4.409
+        w0_ = 10.7782 if mode=='pw' else 12.058
+        I0_ = 5.47  if mode=='pw' else 1.957
+        w_ = 10.7532 if mode=='pw' else 12.0380
+        I_ = 5.98 if mode=='pw' else 2.06
     else:
         eM1_ = 6.993
         eM2_ = 6.904
@@ -42,7 +42,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     # Test the old interface to the dielectric constant
     df = DielectricFunction('C.gpw', frequencies=(0.,), eta=0.001, ecut=50,
-                            hilbert=False, eshift=eshift)
+                            hilbert=False, eshift=eshift,txt='df.txt')
     eM1, eM2 = df.get_macroscopic_dielectric_constant()
     assert eM1 == pytest.approx(eM1_, abs=0.01)
     assert eM2 == pytest.approx(eM2_, abs=0.01)
@@ -89,8 +89,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     # Absorption spectrum calculation ALDA
     if eshift is None:
-        w_ = 10.7562
-        I_ = 5.8803
+        w_ = 10.7562 if mode=='pw' else 12.0376
+        I_ = 5.8803 if mode=='pw' else 2.0193 
     else:
         w_ = 14.7615
         I_ = 5.7946
@@ -108,8 +108,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     # Absorption spectrum calculation long-range kernel
     if eshift is None:
-        w_ = 10.2906
-        I_ = 5.6955
+        w_ = 10.2906 if mode=='pw' else 11.9129
+        I_ = 5.6955 if mode =='pw' else 1.9579
     else:
         w_ = 14.2901
         I_ = 5.5508
@@ -124,8 +124,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     # Absorption spectrum calculation Bootstrap
     if eshift is None:
-        w_ = 10.4600
-        I_ = 6.0263
+        w_ = 10.4600 if mode=='pw' else 10.8208
+        I_ = 6.0263 if mode=='pw' else 2.4016
     else:
         w_ = 14.2626
         I_ = 5.3896

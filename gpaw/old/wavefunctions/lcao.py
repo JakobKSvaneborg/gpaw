@@ -261,8 +261,8 @@ class LCAOWaveFunctions(WaveFunctions):
     def planewavefy(self, *, ecut):
         print(f'Converting LCAO wave functions to PW wave functions with cut off {ecut}')
         import gpaw.fftw as fftw
-        from gpaw.pw.descriptor import PWDescriptor
-        from gpaw.wavefunctions.pw import PWWaveFunctions
+        from gpaw.old.pw.descriptor import PWDescriptor
+        from gpaw.old.wavefunctions.pw import PWWaveFunctions
         self.pd = PWDescriptor(ecut, self.gd, self.dtype, self.kd,
                                fftw.MEASURE)
         PWWaveFunctions.initialize_from_lcao_coefficients(self, self.basis_functions,
