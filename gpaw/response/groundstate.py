@@ -58,6 +58,7 @@ class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator):
 
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
+        self.gs_info = f""
 
         if isinstance(wfs, LCAOWaveFunctions):
             calc.initialize_positions()
@@ -65,7 +66,7 @@ class ResponseGroundStateAdapter:
                 assert kpt.C_nM is not None
             ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
             wfs.planewavefy(ecut=ecut_pw/Ha)
-
+            self.gs_info = f"Converting LCAO wf to PW wf with cutoff of Ecut={ecut_pw:.3f} eV"
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object
         self.world = calc.world  # _Communicator object from gpaw.mpi
