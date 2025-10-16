@@ -5,11 +5,13 @@ from gpaw import PW
 a = 3.567
 atoms = bulk('C', 'diamond', a=a)
 
+# Make sure we store all bands
 calc = GPAW(mode='lcao',
             basis='dzp',
             kpts={'size': (8, 8, 8), 'gamma': True},
             xc='LDA',
-            occupations=FermiDirac(0.001),
+            nbands='nao',
+            occupations=FermiDirac(0.0),
             txt='C_lcao_groundstate.txt')
 
 atoms.calc = calc
