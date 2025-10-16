@@ -1301,7 +1301,7 @@ class G0W0(G0W0Calculator):
         # (calc can not actually be a calculator at all.)
         gpwfile = Path(calc)
 
-        output_prefix = filename or output_prefix
+        output_prefix = output_prefix or filename
         context = ResponseContext(txt=output_prefix + '.txt',
                                   comm=world, timer=timer)
         gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
