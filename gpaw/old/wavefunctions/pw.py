@@ -808,7 +808,8 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
     def initialize_from_lcao_coefficients(self,
                                           basis_functions: BasisFunctions,
                                           block_size: int = 10,
-                                          reset_C_nM=True) -> None:
+                                          reset_C_nM=True,
+                                          lazy=False) -> None:
         """Convert from LCAO to PW coefficients."""
         nlcao = len(self.kpt_qs[0][0].C_nM)
 
@@ -816,32 +817,46 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
         # It's too expensive to allocate one big real-space array:
         block_size = min(max(nlcao, 1), block_size)
         psit_nR = self.gd.empty(block_size, self.dtype)
-
+        if 1:
+            def createPsit(kpt):
+                if self.kd.gamma:
+                    emikr_R = 1.0
+                else:
+                    k_c = self.kd.ibzk_kc[kpt.k]
+                    emikr_R = self.gd.plane_wave(-k_c)
+                psit = PlaneWaveExpansionWaveFunctions(
+                    self.bd.nbands, self.pd, self.dtype, kpt=kpt.q,
+                    dist=(self.bd.comm, -1, 1),
+                    spin=kpt.s, collinear=self.collinear)
+                psit_nG = psit.array
+                if psit_nG.ndim == 3:  # non-collinear calculation
+                    N, S, G = psit_nG.shape
+                    psit_nG = psit_nG.reshape((N * S, G))
+                for n1 in range(0, nlcao, block_size):
+                    n2 = min(n1 + block_size, nlcao)
+                    psit_nR[:] = 0.0
+                    basis_functions.lcao_to_grid(kpt.C_nM[n1:n2],
+                                                 psit_nR[:n2 - n1],
+                                                 kpt.q,
+                                                 block_size)
+                    for psit_R, psit_G in zip(psit_nR, psit_nG[n1:n2]):
+                        psit_G[:] = self.pd.fft(psit_R * emikr_R, kpt.q)
+                if reset_C_nM:
+                    kpt.C_nM = None
+                return psit
         for kpt in self.kpt_u:
-            if self.kd.gamma:
-                emikr_R = 1.0
+            if lazy:
+                class LazyPsit:
+                    def __init__(self,kpt):
+                        self.kpt = kpt
+                        pass
+                    @property
+                    def array(self):
+                        return createPsit(self.kpt).array
+                kpt.psit = LazyPsit(kpt)
+                continue
             else:
-                k_c = self.kd.ibzk_kc[kpt.k]
-                emikr_R = self.gd.plane_wave(-k_c)
-            kpt.psit = PlaneWaveExpansionWaveFunctions(
-                self.bd.nbands, self.pd, self.dtype, kpt=kpt.q,
-                dist=(self.bd.comm, -1, 1),
-                spin=kpt.s, collinear=self.collinear)
-            psit_nG = kpt.psit.array
-            if psit_nG.ndim == 3:  # non-collinear calculation
-                N, S, G = psit_nG.shape
-                psit_nG = psit_nG.reshape((N * S, G))
-            for n1 in range(0, nlcao, block_size):
-                n2 = min(n1 + block_size, nlcao)
-                psit_nR[:] = 0.0
-                basis_functions.lcao_to_grid(kpt.C_nM[n1:n2],
-                                             psit_nR[:n2 - n1],
-                                             kpt.q,
-                                             block_size)
-                for psit_R, psit_G in zip(psit_nR, psit_nG[n1:n2]):
-                    psit_G[:] = self.pd.fft(psit_R * emikr_R, kpt.q)
-            if reset_C_nM:
-                kpt.C_nM = None
+                kpt.psit = createPsit(kpt)
 
     def random_wave_functions(self, mynao):
         rs = np.random.RandomState(self.world.rank)
