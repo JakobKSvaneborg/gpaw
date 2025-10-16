@@ -259,7 +259,6 @@ class LCAOWaveFunctions(WaveFunctions):
         self.set_orthonormalized(False)
     
     def planewavefy(self, lazy=False, *, ecut):
-        print(f'Converting LCAO wave functions to PW wave functions with cut off {ecut}')
         import gpaw.fftw as fftw
         from gpaw.old.pw.descriptor import PWDescriptor
         from gpaw.old.wavefunctions.pw import PWWaveFunctions
