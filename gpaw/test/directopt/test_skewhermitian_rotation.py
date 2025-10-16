@@ -3,7 +3,14 @@ import pytest
 from gpaw.new.etdm.skewherm_matrix import SkewHermitian
 from scipy.linalg import expm
 
-@pytest.mark.parametrize("ndim,dtype", [(2, float), (2, complex), (3, complex)])
+@pytest.mark.parametrize(
+    "ndim,dtype",
+    [
+        (2, float),
+        (2, complex),
+        (3, complex),
+    ],
+)
 def test_skewhermitian_rotation(ndim, dtype):
     """
     Test that SkewHermitian rotation_mat correctly computes
@@ -24,11 +31,16 @@ def test_skewhermitian_rotation(ndim, dtype):
     print(param_vec)
 
     # Step 2: Manually reconstruct full skew-Hermitian matrix
-    ind_up = np.triu_indices(ndim, 1) if dtype == float else np.triu_indices(ndim)
+    ind_up = (
+        np.triu_indices(ndim, 1)
+        if dtype == float
+        else np.triu_indices(ndim)
+    )
     a_mat_manual = np.zeros((ndim, ndim), dtype=dtype)
     a_mat_manual[ind_up] = param_vec
     a_mat_manual -= a_mat_manual.T.conj()
-    np.fill_diagonal(a_mat_manual, a_mat_manual.diagonal() * 0.5)  # match vec2skewmat
+    # match vec2skewmat
+    np.fill_diagonal(a_mat_manual, a_mat_manual.diagonal() * 0.5)
 
     print("\n=== Manual skew-Hermitian matrix ===")
     print(a_mat_manual)
