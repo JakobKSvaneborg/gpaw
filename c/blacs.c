@@ -101,6 +101,9 @@ int Csys2blacs_handle_(MPI_Comm SysCtxt);
 #endif
 
 // tools
+#ifndef GPAW_WITH_INTEL_MKL
+// These should almost certainly not be defined here, even with a non-Intel scalapack.
+// Instead, the proper header file should be included
 int numroc_(int* n, int* nb, int* iproc, int* isrcproc, int* nprocs);
 
 void Cpdgemr2d_(int m, int n,
@@ -224,6 +227,7 @@ void pzhengst_(int* ibtype, char* uplo, int* n,
                void* a, int* ia, int* ja, int* desca,
                void* b, int* ib, int* jb, int* descb,
                double* scale, void* work, int* lwork, int* info);
+#endif // GPAW_WITH_INTEL_MKL
 
 #ifdef GPAW_MR3
 void pdsyevr_(char* jobz, char* range,
