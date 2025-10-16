@@ -172,7 +172,6 @@ class DirOptPWFD(PWFDEigensolver):
 
         return 0.0, error, energies
 
-
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
 
         dH = potential.dH
