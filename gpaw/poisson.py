@@ -10,7 +10,7 @@ from scipy.fftpack import dst as scipydst
 
 from gpaw import PoissonConvergenceError
 from gpaw.dipole_correction import DipoleCorrection, dipole_correction
-from gpaw.domain import decompose_domain
+from gpaw.old.domain import decompose_domain
 from gpaw.fd_operators import Laplace, LaplaceA, LaplaceB
 from gpaw.transformers import Transformer
 from gpaw.utilities.gauss import Gaussian

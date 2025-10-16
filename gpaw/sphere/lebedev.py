@@ -4,7 +4,7 @@ import numpy as np
 
 
 def run():
-    from gpaw.spherical_harmonics import Y
+    from gpaw.sphere.spherical_harmonics import Y
     weight_n = np.zeros(50)
     Y_nL = np.zeros((50, 25))
     R_nv = np.zeros((50, 3))

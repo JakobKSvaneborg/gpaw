@@ -3,7 +3,7 @@ from gpaw.directmin.tools import get_n_occ, get_indices, random_a, \
     sort_orbitals_according_to_occ, sort_orbitals_according_to_energies
 from ase.units import Hartree
 from gpaw.mpi import world
-from gpaw.io.logger import GPAWLogger
+from gpaw.old.logger import GPAWLogger
 from gpaw.typing import RNG
 from copy import deepcopy
 from typing import Any, Dict, Union

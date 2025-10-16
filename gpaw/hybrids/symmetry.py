@@ -3,7 +3,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from .kpts import RSKPoint, to_real_space
 
 

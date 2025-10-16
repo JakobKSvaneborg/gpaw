@@ -11,7 +11,8 @@ void calculate_residual_launch_kernel(int dtypenum,
                                       int nn,
                                       void* residual_ng,
                                       void* eps_n,
-                                      void* wf_nG);
+                                      void* wf_nG,
+                                      gpuStream_t stream);
 
 void pwlfc_expand_gpu_launch_kernel(int dtypenum,
                                     void* f_Gs,
@@ -30,7 +31,8 @@ void pwlfc_expand_gpu_launch_kernel(int dtypenum,
                                     int nI,
                                     int natoms,
                                     int nsplines,
-                                    bool cc);
+                                    bool cc,
+                                    gpuStream_t stream = 0);
 
 void pw_insert_gpu_launch_kernel(
                              int dtypenum,
@@ -41,18 +43,21 @@ void pw_insert_gpu_launch_kernel(
                              npy_int32* Q_G,
                              double scale,
                              void* tmp_nQ,
-                             int rx, int ry, int rz);
+                             int rx, int ry, int rz,
+                             gpuStream_t stream = 0);
 
 void pw_norm_gpu_launch_kernel(int dtypenum,
                                int nx, int nG,
                                void* result_x,
-                               void* C_xG);
+                               void* C_xG,
+                               gpuStream_t stream = 0);
 
 void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
                                        int nx, int nG,
                                        void* result_x,
                                        void* C_xG,
-                                       void* kin_G);
+                                       void* kin_G,
+                                       gpuStream_t stream = 0);
 
 void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int nb,
@@ -61,14 +66,16 @@ void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
                                               int nz,
                                               int n,
                                               int m,
-                                              void* array_nQ);
+                                              void* array_nQ,
+                                              gpuStream_t stream = 0);
 
 void add_to_density_gpu_launch_kernel(int nb,
                                       int nR,
                                       void* f_n,
                                       void* psit_nR,
                                       void* rho_R,
-                                      int dtypenum);
+                                      int dtypenum,
+                                      gpuStream_t stream = 0);
 
 
 void dH_aii_times_P_ani_launch_kernel(int dtypenum,
@@ -76,19 +83,22 @@ void dH_aii_times_P_ani_launch_kernel(int dtypenum,
                                       int nI, npy_int32* ni_a,
                                       void* dH_aii_dev,
                                       void* P_ani_dev,
-                                      void* outP_ani_dev);
+                                      void* outP_ani_dev,
+                                      gpuStream_t stream = 0);
 
 void evaluate_pbe_launch_kernel(int nspin, int ng,
                                 double* n,
                                 double* v,
                                 double* e,
                                 double* sigma,
-                                double* dedsigma);
+                                double* dedsigma,
+                                gpuStream_t stream = 0);
 
 void evaluate_lda_launch_kernel(int nspin, int ng,
                                 double* n,
                                 double* v,
-                                double* e);
+                                double* e,
+                                gpuStream_t stream = 0);
 
 } // CLINKAGE
 
@@ -156,6 +166,11 @@ CLINKAGE PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args)
 
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -188,6 +203,7 @@ CLINKAGE PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
     double* e_ptr = pinner.borrow_array_data<double>(e_obj);
     double* sigma_ptr = pinner.borrow_array_data<double>(sigma_obj);
     double* dedsigma_ptr = pinner.borrow_array_data<double>(dedsigma_obj);
+
     if (PyErr_Occurred())
     {
         return NULL;
@@ -202,8 +218,12 @@ CLINKAGE PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args)
                                sigma_ptr,
                                dedsigma_ptr);
 
-
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }
@@ -272,6 +292,11 @@ CLINKAGE PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args)
 
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -332,6 +357,11 @@ CLINKAGE PyObject* pwlfc_expand_gpu(PyObject* self, PyObject* args)
 
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -389,6 +419,11 @@ CLINKAGE PyObject* pw_insert_gpu(PyObject* self, PyObject* args)
 
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -433,6 +468,11 @@ CLINKAGE PyObject* pw_norm_gpu(PyObject* self, PyObject* args)
                               C_xG);
 
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }
@@ -481,6 +521,12 @@ CLINKAGE PyObject* pw_norm_kinetic_gpu(PyObject* self, PyObject* args)
                                       kin_G);
 
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -517,6 +563,12 @@ CLINKAGE PyObject* pw_amend_insert_realwf_gpu(PyObject* self, PyObject* args)
     pw_amend_insert_realwf_gpu_launch_kernel(dtypenum, nb, nx, ny, nz, n, m, array_nQ);
 
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -553,6 +605,11 @@ CLINKAGE PyObject* add_to_density_gpu(PyObject* self, PyObject* args)
     add_to_density_gpu_launch_kernel(nb, nR, f_n, psit_nR, rho_R, dtypenum);
     pinner.schedule_unpin(0);
 
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -570,6 +627,7 @@ CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
     void *wf_nG = pinner.borrow_array_data<void>(wf_nG_obj);
     int nn = gpaw::Array_DIM(residual_nG_obj, 0);
     int nG = 1;
+    // nG is required to be below 2**31 here, which should be ok.
     for (int d=1; d<gpaw::Array_NDIM(residual_nG_obj); d++)
     {
         nG *= gpaw::Array_DIM(residual_nG_obj, d);
@@ -583,8 +641,13 @@ CLINKAGE PyObject* calculate_residual_gpu(PyObject* self, PyObject* args)
 
     pinner.commit();
 
-    calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG);
+    calculate_residual_launch_kernel(dtypenum, nG, nn, residual_nG, eps_n, wf_nG, 0);
     pinner.schedule_unpin(0);
+
+    if (PyErr_Occurred())
+    {
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }

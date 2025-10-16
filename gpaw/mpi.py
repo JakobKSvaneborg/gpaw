@@ -10,11 +10,12 @@ import traceback
 from contextlib import contextmanager
 from typing import Any
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
 import warnings
 from ase.parallel import MPI as ASE_MPI
 from ase.parallel import world as aseworld
+from gpaw.gpu import is_hip, cupy
+from gpaw.new.c import GPU_AWARE_MPI
 
 import gpaw
 
@@ -26,6 +27,53 @@ MASTER = 0
 def is_contiguous(*args, **kwargs):
     from gpaw.utilities import is_contiguous
     return is_contiguous(*args, **kwargs)
+
+
+class RegisteredPointer:
+    """This is a workaround for the MPI race condition in LUMI with MI250X.
+
+       MPI Transferred data will be corrupted including data which is never
+       even sent trough MPI. If one performs a direct hipMalloc (as done
+       by doing Memory, and doing GPU-GPU transfer, this works around this
+       behaviour (for a currently unknown reason, but perhaps open-mpi or hip
+       has problems identifying GPU pointers, but the reason could also be
+       somewhere in GPAW equally well).
+    """
+    def __init__(self, a, _input=True, _output=True, enabled=True):
+        enabled = enabled and is_hip  # Disable extra transfer on cuda
+
+        self.enabled = enabled
+        if not enabled:
+            self.array = a
+            return
+
+        self.a = a
+        self._output = _output
+        if isinstance(a, cupy.ndarray):
+            if 1:
+                from cupy.cuda.memory import Memory, MemoryPointer
+                mem = Memory(a.nbytes)  # Direct malloc
+                memptr = MemoryPointer(mem, 0)
+                self.array = cupy.ndarray(a.shape,
+                                          memptr=memptr,
+                                          dtype=a.dtype,
+                                          strides=a.strides)
+                if _input:
+                    self.array[...] = a
+            else:
+                self.array = a.copy()  # This SEGFAULTS!
+        else:
+            self.array = a
+
+    def __enter__(self):
+        return self.array
+
+    def __exit__(self, *args):
+        if not self.enabled:
+            return
+
+        if self._output and isinstance(self.a, cupy.ndarray):
+            self.a[...] = self.array
 
 
 @contextmanager
@@ -130,7 +178,14 @@ class _Communicator:
             tc = a.dtype
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            self.comm.sum(a, root)
+            # Right now comm.sum is the only place where one needs this
+            # extra malloc + intradevice memory copies for HIP and
+            # gpu-aware MPI
+            with RegisteredPointer(a, enabled=GPU_AWARE_MPI,
+                                   _input=True,
+                                   _output=((root == -1) or
+                                            (root == self.rank))) as a:
+                self.comm.sum(a, root)
 
     def sum_scalar(self, a, root=-1):
         assert isinstance(a, (int, float, complex))
@@ -225,7 +280,8 @@ class _Communicator:
             assert tc == int or tc == float
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            self.comm.min(a, root)
+            with RegisteredPointer(a, enabled=False) as a:
+                self.comm.min(a, root)
 
     def min_scalar(self, a, root=-1):
         assert isinstance(a, (int, float))
@@ -575,7 +631,7 @@ class _Communicator:
         This method corresponds to MPI_Comm_compare."""
         if isinstance(self.comm, SerialCommunicator):
             return self.comm.compare(othercomm.comm)  # argh!
-        result = self.comm.compare(othercomm.get_c_object())
+        result = self.comm.compare(othercomm.comm)
         assert result in ['ident', 'congruent', 'similar', 'unequal']
         return result
 
@@ -593,7 +649,7 @@ class _Communicator:
         assert all(rank < self.size for rank in ranks)
         if isinstance(self.comm, SerialCommunicator):
             return self.comm.translate_ranks(other.comm, ranks)  # argh!
-        otherranks = self.comm.translate_ranks(other.get_c_object(), ranks)
+        otherranks = self.comm.translate_ranks(other.comm, ranks)
         assert all(-1 <= rank for rank in otherranks)
         assert ranks.dtype == otherranks.dtype
         return otherranks
@@ -629,10 +685,7 @@ class _Communicator:
         implementation which returns itself; thus, always call
         comm.get_c_object() and pass the resulting object to the C code.
         """
-        c_obj = self.comm.get_c_object()
-        if isinstance(c_obj, cgpaw.Communicator):
-            return c_obj
-        return c_obj.get_c_object()
+        return self.comm.get_c_object()
 
 
 MPIComm = _Communicator  # for type hints
@@ -746,7 +799,7 @@ class SerialCommunicator:
     def get_c_object(self):
         if gpaw.dry_run:
             return None  # won't actually be passed to C
-        return _world
+        return _world.get_c_object()
 
 
 _serial_comm = SerialCommunicator()
@@ -764,7 +817,10 @@ if gpaw.debug:
         world = _Communicator(_world)
 else:
     serial_comm = _serial_comm  # type: ignore
-    world = _world  # type: ignore
+    if is_hip:
+        world = _Communicator(_world)
+    else:
+        world = _world  # type: ignore
 
 rank = world.rank
 size = world.size

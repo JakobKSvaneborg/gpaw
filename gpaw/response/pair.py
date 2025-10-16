@@ -450,7 +450,7 @@ def phase_shifted_fft_indices(k1_c, k2_c, qpd, coordinate_transformation=None):
 def get_gs_and_context(calc, txt, world, timer):
     """Interface to initialize gs and context from old input arguments.
     Should be phased out in the future!"""
-    from gpaw.calculator import GPAW as OldGPAW
+    from gpaw.old.calculator import GPAW as OldGPAW
     from gpaw.new.ase_interface import ASECalculator as NewGPAW
 
     context = ResponseContext(txt=txt, timer=timer, comm=world)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from functools import cached_property
 from typing import Any, TYPE_CHECKING
 
 import numpy as np
@@ -25,7 +24,6 @@ from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
-from gpaw.utilities.partition import AtomPartition
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -173,6 +171,7 @@ class DFTCalculation:
         if self.ibzwfs.has_wave_functions():
             self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
+        self.scf_loop.hamiltonian.move(self.relpos_ac)
 
         self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
@@ -271,8 +270,11 @@ class DFTCalculation:
         xc = self.pot_calc.xc
         assert not hasattr(xc.xc, 'setup_force_corrections')
 
-        # Force from projector functions (and basis set):
-        F_av = self.ibzwfs.forces(self.potential)
+        # Force from projector functions (and basis set, hybrids):
+        F_av = self.ibzwfs.forces(self.potential, self.scf_loop.hamiltonian,
+                                  self.density.D_asii)
+
+        getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
 
         pot_calc = self.pot_calc
         Q_aL = self.density.calculate_compensation_charge_coefficients()
@@ -399,12 +401,6 @@ class DFTCalculation:
             psit_nR = bcast(psit_nR, 0, self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    @cached_property
-    def _atom_partition(self):
-        # Backwards compatibility helper
-        atomdist = self.density.D_asii.layout.atomdist
-        return AtomPartition(atomdist.comm, atomdist.rank_a)
-
     def new(self,
             atoms: Atoms,
             params: Parameters,
@@ -450,6 +446,7 @@ class DFTCalculation:
 
         potential, energies, _ = pot_calc.calculate(density)
 
+        ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         old_ibzwfs = ibzwfs
 
         def create_wfs(spin, q, k, kpt_c, weight):
@@ -494,7 +491,7 @@ def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
                 grid: UGDesc,
                 log) -> None:
-    from gpaw.output import print_cell, print_positions
+    from gpaw.old.output import print_cell, print_positions
     print_positions(atoms, log, magmom_av)
     print_cell(grid._gd, grid.pbc, log)
 

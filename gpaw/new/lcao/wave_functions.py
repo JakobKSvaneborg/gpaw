@@ -10,11 +10,10 @@ from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
 from gpaw.typing import Array2D
+from gpaw.gpu import XP
 
 
-class LCAOWaveFunctions(WaveFunctions):
-    xp = np
-
+class LCAOWaveFunctions(WaveFunctions, XP):
     def __init__(self,
                  *,
                  setups: Setups,
@@ -46,6 +45,7 @@ class LCAOWaveFunctions(WaveFunctions):
                          dtype=C_nM.dtype,
                          domain_comm=domain_comm,
                          band_comm=C_nM.dist.comm)
+        XP.__init__(self, C_nM.xp)
         self.tci_derivatives = tci_derivatives
         self.basis = basis
         self.C_nM = C_nM
@@ -128,7 +128,8 @@ class LCAOWaveFunctions(WaveFunctions):
             natoms=len(self.setups))
         return AtomArraysLayout([setup.ni for setup in self.setups],
                                 atomdist=atomdist,
-                                dtype=self.dtype)
+                                dtype=self.dtype,
+                                xp=self.xp)
 
     @property
     def P_ani(self):
@@ -185,6 +186,7 @@ class LCAOWaveFunctions(WaveFunctions):
             f_n = self.weight * self.spin_degeneracy * self.myocc_n
             if eigs:
                 f_n *= self.myeig_n
+            f_n = self.xp.asarray(f_n)
             TempC_nM = self.C_nM.copy()
             TempC_nM.data *= f_n[:, None]
             rho_MM = TempC_nM.multiply(self.C_nM, opa='C')
@@ -199,9 +201,13 @@ class LCAOWaveFunctions(WaveFunctions):
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
-                                       basis):
+                                       basis,
+                                       *,
+                                       xp=None):
+        if xp is None:
+            xp = self.xp
         grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
-        psit_nR = grid.zeros(self.nbands, self.band_comm)
+        psit_nR = grid.zeros(self.nbands, self.band_comm, xp=xp)
         basis.lcao_to_grid(self.C_nM.data, psit_nR.data, self.q)
 
         wfs = PWFDWaveFunctions.from_wfs(self, psit_nR)
@@ -239,6 +245,26 @@ class LCAOWaveFunctions(WaveFunctions):
         from gpaw.new.lcao.forces import add_force_contributions
         add_force_contributions(self, potential, F_av)
         return F_av
+
+    def copy(self) -> LCAOWaveFunctions:
+        wfs = LCAOWaveFunctions(setups=self.setups,
+                                tci_derivatives=self.tci_derivatives,
+                                basis=self.basis,
+                                C_nM=self.C_nM.copy(),  # Copy buffer
+                                S_MM=self.S_MM,
+                                T_MM=self.T_MM,
+                                P_aMi=self.P_aMi,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist,
+                                kpt_c=self.kpt_c,
+                                spin=self.spin,
+                                q=self.q,
+                                k=self.k,
+                                weight=self.weight,
+                                ncomponents=self.ncomponents)
+        wfs._eig_n = self._eig_n
+        wfs._occ_n = self._occ_n
+        return wfs
 
     def send(self, rank, comm):
         stuff = (self.kpt_c,

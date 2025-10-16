@@ -50,6 +50,10 @@ def ones(*args, **kwargs):
     return ndarray(np.ones(*args, **kwargs))
 
 
+def copy(a: ndarray, order: str = 'K') -> ndarray:
+    return ndarray(data=np.copy(a._data, order))  # type: ignore
+
+
 def asnumpy(a, out=None):
     if out is None:
         return a._data.copy()
@@ -98,14 +102,15 @@ def negative(a, b):
     np.negative(a._data, b._data)
 
 
-def einsum(indices, *args, **kwargs):
+def einsum(indices, *args, optimize=False, **kwargs):
     for k in kwargs:
         kwargs[k] = kwargs[k]._data
     return ndarray(
         np.einsum(
             indices,
             *(arg._data for arg in args),
-            **kwargs))
+            **kwargs,
+            optimize=optimize))
 
 
 def diag(a):
@@ -135,6 +140,14 @@ def eye(n):
 def triu_indices(n, k=0, m=None):
     i, j = np.triu_indices(n, k, m)
     return ndarray(i), ndarray(j)
+
+
+def triu(m: ndarray, k=0) -> ndarray:
+    return ndarray(np.triu(m._data, k=k))
+
+
+def tril(m: ndarray, k=0) -> ndarray:
+    return ndarray(np.tril(m._data, k=k))
 
 
 def tri(n, k=0, dtype=float):
@@ -169,7 +182,12 @@ def isnan(a):
     return ndarray(np.isnan(a._data))
 
 
+def real(a: ndarray) -> ndarray:
+    return ndarray(np.real(a._data))
+
+
 class ndarray:
+
     def __init__(self, data):
         if isinstance(data, (float, complex, int, np.int32, np.int64,
                              np.bool_, np.float64, np.float32,

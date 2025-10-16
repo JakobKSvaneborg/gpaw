@@ -7,7 +7,7 @@ from ase.io.cube import read_cube_data, write_cube
 from ase.dft.stm import STM
 
 import gpaw.mpi as mpi
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 class SimpleStm(STM):

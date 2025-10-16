@@ -271,7 +271,8 @@ class CuPyFFTPlans(FFTPlans):
 
     @trace
     def ifft_sphere(self, coef_G, pw, out_R):
-        from gpaw.gpu import cupyx
+        from gpaw.gpu import cupyx, cupy
+        assert isinstance(out_R.data, cupy.ndarray)
 
         if coef_G is None:
             out_R.scatter_from(None)

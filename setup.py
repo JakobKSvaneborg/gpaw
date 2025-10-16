@@ -6,6 +6,7 @@ from __future__ import annotations
 import functools
 import os
 import re
+import runpy
 import shlex
 import sys
 import tempfile
@@ -22,15 +23,12 @@ from distutils.errors import CCompilerError
 from distutils.sysconfig import customize_compiler
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext as _build_ext
-from setuptools.command.develop import develop as _develop
-from setuptools.command.install import install as _install
 
-from config import (build_gpu, build_interpreter, check_dependencies,
-                    write_configuration)
+config = runpy.run_path(Path(__file__).parent / 'config.py')
 
-python_min_version = (3, 9)
-assert sys.version_info >= python_min_version, sys.version_info
-python_requires = '>=' + '.'.join(str(num) for num in python_min_version)
+build_gpu = config['build_gpu']
+check_dependencies = config['check_dependencies']
+write_configuration = config['write_configuration']
 
 
 def warn_deprecated(msg):
@@ -46,14 +44,6 @@ def raise_error(msg):
 def config_args(key):
     return shlex.split(get_config_var(key))
 
-
-# Get the current version number:
-txt = Path('gpaw/__init__.py').read_text()
-version = re.search("__version__ = '(.*)'", txt)[1]
-ase_version_required = re.search("__ase_version_required__ = '(.*)'", txt)[1]
-
-description = 'GPAW: DFT and beyond within the projector-augmented wave method'
-long_description = Path('README.rst').read_text()
 
 # Deprecation check
 for i, arg in enumerate(sys.argv):
@@ -81,7 +71,8 @@ gpu_compiler = None
 gpu_compile_args = []
 gpu_include_dirs = []
 
-parallel_python_interpreter = False
+PLACEHOLDER = object()
+parallel_python_interpreter = PLACEHOLDER
 compiler = None
 mpi = None
 fftw = False
@@ -102,17 +93,6 @@ nolibxc = None
 compiler_args = None
 linker_so_args = None
 linker_exe_args = None
-# Advanced args for linking gpaw-python;
-# override if needed:
-# Note: LDFLAGS and LIBS go together, but depending on the platform,
-# it might be unnecessary to include them
-parallel_python_interpreter_link_extra_preargs \
-    = config_args('LDFLAGS')
-parallel_python_interpreter_link_extra_postargs \
-    = (config_args('BLDLIBRARY')
-       + config_args('LIBS')
-       + config_args('LIBM')
-       + config_args('LINKFORSHARED'))
 
 
 # Search and store current git hash if possible
@@ -207,22 +187,15 @@ for key in ['libraries', 'library_dirs', 'include_dirs',
         locals()[key] += locals()[mpi_key]
 
 
-if parallel_python_interpreter:
-    parallel_python_exefile = None
-    if not mpi:
-        raise_error('MPI is needed for parallel_python_interpreter.'
-                    ' Define in siteconfig:'
-                    '\n\nparallel_python_interpreter = True'
-                    '\nmpi = True'
-                    "\ncompiler = ...  # MPI compiler, e.g., 'mpicc'"
-                    )
+if parallel_python_interpreter is not PLACEHOLDER:
+    raise RuntimeError(
+        'The "parallel_python_interpreter" keyword has been removed '
+        'and the "gpaw-python" interpreter is no longer compiled.  '
+        'Please modify your siteconfig.py accordingly.')
+
 
 if mpi:
     print('Building GPAW with MPI support.')
-
-platform_id = os.getenv('CPU_ARCH')
-if platform_id:
-    os.environ['_PYTHON_HOST_PLATFORM'] = get_platform() + '-' + platform_id
 
 if gpu:
     valid_gpu_targets = ['cuda', 'hip-amd', 'hip-cuda']
@@ -257,6 +230,7 @@ if gpu:
 
     # GPU code needs to link to c++ stdlib
     libraries += ['stdc++']
+
 
 def set_compiler_executables(cc: CCompiler) -> None:
     # Override the compiler executables
@@ -420,7 +394,7 @@ sources += Path('c').glob('*.c')
 if gpu:
     sources += Path('c/gpu').glob('*.c')
 sources += Path('c/xc').glob('*.c')
-sources.remove(Path('c/main.c'))  # For gpaw-python executable only
+
 if nolibxc:  # Cleanup: remove stale refrerences to LibXC
     for name in ['libxc.c', 'm06l.c',
                  'tpss.c', 'revtpss.c', 'revtpss_c_pbe.c',
@@ -496,105 +470,11 @@ class build_ext(_build_ext):
 
     def build_extensions(self):
         set_compiler_executables(self.compiler)
-
         super().build_extensions()
-
-        if parallel_python_interpreter:
-            global parallel_python_exefile
-
-            assert len(self.extensions) == 1, \
-                'Fix gpaw-python build for multiple extensions'
-            extension = self.extensions[0]
-
-            # Path for the bin (analogous to build_lib)
-            build_bin = Path(str(self.build_lib).replace('lib', 'bin'))
-
-            # List of object files already built for the extension
-            objects = []
-            for src in sources:
-                # Do not include _gpaw_so.o in the gpaw-python executable
-                if src == 'c/_gpaw_so.c':
-                    continue
-                obj = Path(self.build_temp) / Path(src).with_suffix('.o')
-                objects.append(str(obj))
-
-            # Build gpaw-python
-            parallel_python_exefile = build_interpreter(
-                self.compiler, extension, objects,
-                link_extra_preargs=parallel_python_interpreter_link_extra_preargs,  # noqa: E501
-                link_extra_postargs=parallel_python_interpreter_link_extra_postargs,  # noqa: E501
-                build_temp=self.build_temp,
-                build_bin=build_bin,
-                debug=self.debug)
 
         print("Build temp:", self.build_temp)
         print("Build lib: ", self.build_lib)
-        if parallel_python_interpreter:
-            print("Build bin: ", build_bin)
 
-
-class install(_install):
-    def run(self):
-        super().run()
-        if parallel_python_interpreter:
-            self.copy_file(parallel_python_exefile, self.install_scripts)
-
-
-class develop(_develop):
-    def run(self):
-        super().run()
-        if parallel_python_interpreter:
-            self.copy_file(parallel_python_exefile, self.script_dir)
-
-
-cmdclass = {'build_ext': build_ext,
-            'install': install,
-            'develop': develop}
-
-files = ['gpaw-analyse-basis', 'gpaw-basis',
-         'gpaw-plot-parallel-timings', 'gpaw-runscript',
-         'gpaw-setup', 'gpaw-upfplot']
-scripts = [str(Path('tools') / script) for script in files]
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(name='gpaw',
-      version=version,
-      description=description,
-      long_description=long_description,
-      maintainer='GPAW-community',
-      maintainer_email='gpaw-users@listserv.fysik.dtu.dk',
-      url='https://gpaw.readthedocs.io/',
-      license='GPLv3+',
-      platforms=['unix'],
-      packages=find_packages(),
-      package_data={'gpaw': ['py.typed']},
-      entry_points={
-          'console_scripts': ['gpaw = gpaw.cli.main:main']},
-      setup_requires=['numpy'],
-      python_requires=python_requires,
-      install_requires=[f'ase>={ase_version_required}',
-                        'numpy',
-                        'scipy>=1.6.0',
-                        'gpaw-data'],
-      extras_require={
-          'docs': ['sphinx-rtd-theme',
-                   'sphinxcontrib-jquery',
-                   'plotly',
-                   'kaleido',
-                   'graphviz',
-                   'scikit-image',
-                   f'gpaw-web-page-data @ {data}'],
-          'devel': ['flake8',
-                    'mypy',
-                    'pytest>=7.0.0',
-                    'pytest-xdist']},
-      ext_modules=extensions,
-      scripts=scripts,
-      cmdclass=cmdclass,
-      classifiers=[
-          'Development Status :: 6 - Mature',
-          'License :: OSI Approved :: '
-          'GNU General Public License v3 or later (GPLv3+)',
-          'Operating System :: OS Independent',
-          'Programming Language :: Python :: 3',
-          'Topic :: Scientific/Engineering :: Physics'])
+setup(ext_modules=extensions, cmdclass={'build_ext': build_ext})

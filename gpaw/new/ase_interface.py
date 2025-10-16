@@ -35,7 +35,7 @@ LOGO = """\
 
 
 def write_header(log: Logger, params: Parameters) -> None:
-    from gpaw.io.logger import write_header as header
+    from gpaw.old.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
     with log.indent('input parameters:'):
@@ -518,15 +518,20 @@ class ASECalculator:
     @property
     def density(self):
         from gpaw.new.backwards_compatibility import FakeDensity
-        return FakeDensity(self.dft)
+        return FakeDensity(ibzwfs=self.dft.ibzwfs,
+                           density=self.dft.density,
+                           potential=self.dft.potential,
+                           pot_calc=self.dft.pot_calc,
+                           densities=self.dft.densities())
 
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
         return FakeHamiltonian(
             self.dft.ibzwfs, self.dft.density, self.dft.potential,
-            self.dft.pot_calc, self.dft.results.get('free_energy'),
-            self.dft.energies._energies['xc'])
+            self.dft.pot_calc,
+            e_total_free=self.dft.results.get('free_energy'),
+            e_xc=self.dft.energies._energies['xc'])
 
     @property
     def spos_ac(self):
@@ -610,6 +615,7 @@ class ASECalculator:
                       txt='-',
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
+        kwargs.pop('communicator', None)  # Ignore silently
         kwargs = {**self.params.todict(), **kwargs}
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)

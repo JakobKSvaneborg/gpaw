@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import numbers
-from typing import Sequence, overload, Literal
+from typing import Literal, Sequence, overload
 
 import numpy as np
+from gpaw import debug
 from gpaw.core.matrix import Matrix
-from gpaw.gpu import cupy as cp, XP
+from gpaw.gpu import XP
+from gpaw.gpu import cupy as cp
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
-from gpaw.typing import Array1D, ArrayLike1D
 from gpaw.new.c import dH_aii_times_P_ani_gpu
+from gpaw.typing import Array1D, ArrayLike1D
 from gpaw.utilities import as_real_dtype
 
 
@@ -48,6 +50,14 @@ class AtomArraysLayout(XP):
             self.myindices.append((a, I1, I2))
             self.mysize += I2 - I1
             I1 = I2
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AtomArraysLayout):
+            return NotImplemented
+        return (self.shape_a == other.shape_a and
+                self.atomdist == other.atomdist and
+                self.dtype == other.dtype and
+                self.xp is other.xp)
 
     def __len__(self):
         return len(self.shape_a)
@@ -119,6 +129,11 @@ class AtomDistribution:
 
     def __len__(self) -> int:
         return len(self.rank_a)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AtomDistribution):
+            return NotImplemented
+        return (self.rank_a == other.rank_a).all()
 
     @classmethod
     def from_number_of_atoms(cls,
@@ -548,6 +563,11 @@ class AtomArrays:
         If index is not None, ``block_diag_matrix_axii`` must have an extra
         dimension: :math:`B_{ij}^{ax}` and x=index is used.
         """
+        if debug:
+            assert self.layout == out_ani.layout
+            assert (block_diag_matrix_axii.layout.atomdist ==
+                    self.layout.atomdist)
+
         xp = self.layout.xp
         if xp is np:
             if index is not None:

@@ -9,6 +9,7 @@ Optical response
 
    tddft/timepropagation
    tddft/lcaotddft
+   tddft/rttddft
    tddft/linear_response
    tddft/linear_response2
    tddft/inducedfield/inducedfield

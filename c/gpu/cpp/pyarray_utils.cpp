@@ -1,8 +1,21 @@
 #include "pyarray_utils.hpp"
-#include "template_utils.hpp"
+#include "utils.hpp"
 
 namespace gpaw
 {
+
+bool Array_32BIT(PyObject* obj)
+{
+    PyObject* index_32_bits = PyObject_GetAttrString(obj, "_index_32_bits");
+    if (index_32_bits == nullptr)
+    {
+        return false; // PySetErr will have been called, just return
+    }
+    bool value = PyObject_IsTrue(index_32_bits);
+    Py_DECREF(index_32_bits);
+    return value;
+}
+
 
 int32_t Array_NDIM(PyObject* obj)
 {
