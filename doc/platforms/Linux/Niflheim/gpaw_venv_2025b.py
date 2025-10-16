@@ -135,7 +135,7 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     for host in nifllogin:
         if host == 'fjorm' and intel_only:
             continue
-        run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
+        run(f'ssh {host} ". {activate} && pip install -v -e {gpaw}"')
         # Save compiled file
         remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
         paths = list(gpaw.glob('_gpaw.*.so'))
@@ -313,7 +313,7 @@ def main():
     branch = '' if args.gpaw_branch == 'master' else f'-b {args.gpaw_branch} '
     run(f'git clone -q {branch}https://gitlab.com/gpaw/gpaw.git')
 
-    run(f'. {activate} && pip install -q -e ase/')
+    run(f'. {activate} && pip install -v -e ase/')
 
     if args.dftd3:
         run(' && '.join(dftd3.format(venv=venv,

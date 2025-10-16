@@ -15,7 +15,7 @@
 #include "extensions.h"
 #include "mympi.h"
 #ifdef GPAW_WITH_INTEL_MKL
-#include "mkl_scalapack.h"
+#include <mkl_scalapack.h>
 #endif
 
 // BLACS
