@@ -22,7 +22,7 @@ def test_skewhermitian_rotation(ndim, dtype):
         vec_len = (ndim * (ndim - 1)) // 2
     else:
         vec_len = (ndim * (ndim + 1)) // 2
-    
+
     np.random.seed(42)
     param_vec = np.random.random(vec_len).astype(dtype)
     if dtype == complex:
