@@ -1304,7 +1304,7 @@ class G0W0(G0W0Calculator):
         output_prefix = output_prefix or filename
         context = ResponseContext(txt=output_prefix + '.txt',
                                   comm=world, timer=timer)
-        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
+        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile, lazy=True)
         # Check if nblocks is compatible, adjust if not
         if nblocksmax:
             nblocks = get_max_nblocks(context.comm, gpwfile, ecut)
@@ -1411,8 +1411,16 @@ class EXXVXCCalculator:
         self._snapshotfile_prefix = snapshotfile_prefix
 
     def calculate(self, n1, n2, kpt_indices):
+        calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1})
+
+        # To convert the LCAO wave functions, we need to add the
+        # custom psit to all k-points which know how to convert
+        # the wave functions. Initializing the ResponseGroundStateAdapter
+        # establishes that.
+        # TODO: Now we call this for all files, not just LCAO
+        ResponseGroundStateAdapter(calc, lazy=False)
         _, vxc_skn, exx_skn = non_self_consistent_eigenvalues(
-            self._gpwfile,
+            calc,
             'EXX',
             n1, n2,
             kpt_indices=kpt_indices,
