@@ -1,7 +1,10 @@
 from ase.units import Bohr, Ha
-from gpaw.new.etdm.edmiston_ruedenberg.orbital_densities import calc_self_hartree_derivative
-from gpaw.new.etdm.edmiston_ruedenberg.orbital_densities import self_hartree_paw
-
+from gpaw.new.etdm.edmiston_ruedenberg.orbital_densities import (
+    calc_self_hartree_derivative,
+)
+from gpaw.new.etdm.edmiston_ruedenberg.orbital_densities import (
+    self_hartree_paw,
+)
 from gpaw.utilities.tools import cutoff2gridspacing
 
 from gpaw.new.etdm.objfunc_etdm import ObjectiveFunctionETDM
