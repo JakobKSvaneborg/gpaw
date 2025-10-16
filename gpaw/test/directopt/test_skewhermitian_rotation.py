@@ -67,7 +67,13 @@ def test_skewhermitian_rotation(ndim, dtype):
     print(np.sort(e_manual))
     print("=== Eigenvalues (class) ===")
     print(np.sort(sk.evals))
-    np.testing.assert_allclose(np.sort(e_manual), np.sort(sk.evals), rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(
+        np.sort(e_manual),
+        np.sort(sk.evals),
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
 
 if __name__ == "__main__":
     pytest.main([__file__])
