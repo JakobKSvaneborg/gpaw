@@ -1,6 +1,5 @@
 from ase.build import bulk
 from gpaw import GPAW, FermiDirac
-from gpaw import PW
 
 a = 3.567
 atoms = bulk('C', 'diamond', a=a)

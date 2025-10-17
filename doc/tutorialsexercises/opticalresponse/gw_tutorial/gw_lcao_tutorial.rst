@@ -32,6 +32,7 @@ First, we need to do a regular LCAO groundstate calculation, and save all of the
 wave functions. The basis-set is chosen using the ``basis`` keyword, and  
 ``nbands=`` is set to ``nao``, reflecting the maximum nbands value taht can be used in LCAO,
 which is the same number of bands as there are atomic orbitals. 
+
 .. literalinclude:: C_lcao_groundstate.py
 
 G0W0 calculation using LCAO basis functions
@@ -40,24 +41,22 @@ G0W0 calculation using LCAO basis functions
 We can now set up the G0W0 calculation similar to the PW case, passing the LCAO groundstate 
 calculation ``C_lcao_groundstate.gpw`` to the G0W0 calculator, which is then internally converted
 to PW. 
-However, there are a few major differences. `ecut_extrapolation` is disabled,
+However, there are a few major differences. ``ecut_extrapolation`` is disabled,
 because the convergence wrt. G-bands and chi0 bands is unknown with LCAO-basis set,
 whereas in PW mode, the number of bands can be just directly chosen from
 the plane wave cut off.
+
 .. literalinclude:: C_lcao_gw.py
+
 The results are stored in ``C-g0w0-lcao_results.pckl``.  
 
 GW self-energy for Diamond (C)
-==============================
+------------------------------
 
 We plot the results stored in ``C-g0w0-lcao_results.pckl`` as the imaginary and real part of the 
 GW self-energy :math:`\Sigma(\omega)` depending on the frequency using the script 
 :download:`plot_C_lcao_gw.py`. We compare the LCAO results to PW ones computed 
 using :download:`C_pw_groundstate.py` and :download:`C_pw_gw.py`. 
-
-.. include:: C_lcao_groundstate.py
-.. include:: C_lcao_gw.py
-.. include:: plot_C_lcao_gw.py
 
 .. figure:: C_Im.png
    :align: center
