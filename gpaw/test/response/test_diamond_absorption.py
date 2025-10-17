@@ -7,6 +7,7 @@ from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
 
+@pytest.mark.ci
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.parametrize('eshift', [None, 4])
@@ -18,6 +19,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     calc = GPAW(mode=mode,
                 kpts=(3, 3, 3),
+                nbands='nao' if mode == 'lcao' else 100,
+                basis='aug.dzp',
                 eigensolver='rmm-diis' if mode == 'pw' else None,
                 occupations=FermiDirac(0.001), txt='out.txt')
 
@@ -41,7 +44,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
         I_ = 5.998
 
     # Test the old interface to the dielectric constant
-    df = DielectricFunction('C.gpw', frequencies=(0.,), eta=0.001, ecut=50,
+    df = DielectricFunction('C.gpw', frequencies=(0.,), eta=0.001, ecut=800,
                             hilbert=False, eshift=eshift,txt='df.txt')
     eM1, eM2 = df.get_macroscopic_dielectric_constant()
     assert eM1 == pytest.approx(eM1_, abs=0.01)

@@ -264,7 +264,7 @@ class LCAOWaveFunctions(WaveFunctions):
         from gpaw.old.wavefunctions.pw import PWWaveFunctions
         self.pd = PWDescriptor(ecut, self.gd, self.dtype, self.kd,
                                fftw.MEASURE)
-        PWWaveFunctions.initialize_from_lcao_coefficients(self, self.basis_functions,lazy=lazy)
+        PWWaveFunctions.initialize_from_lcao_coefficients(self, self.basis_functions, lazy=lazy, reset_C_nM=False)
 
     def initialize(self, density, hamiltonian, spos_ac):
         # Note: The above line exists also in set_positions.

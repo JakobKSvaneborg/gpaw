@@ -60,13 +60,14 @@ class ResponseGroundStateAdapter:
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
         self.gs_info = f""
 
-        if isinstance(wfs, LCAOWaveFunctions):
+        if isinstance(wfs, LCAOWaveFunctions) and not getattr(calc, 'planewavefy_completed', False):
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None
             ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
             wfs.planewavefy(ecut=ecut_pw/Ha, lazy=lazy)
             self.gs_info = f"Converting LCAO wf to PW wf with cutoff of Ecut={ecut_pw:.3f} eV"
+            calc.planewavefy_completed = True
 
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object
