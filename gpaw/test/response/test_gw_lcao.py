@@ -6,7 +6,6 @@ def test_lcao_gw(in_tmp_dir):
     from ase.build import bulk
     from gpaw import GPAW
     from gpaw.response.g0w0 import G0W0
-    import numpy as np
     
     atoms = bulk('C')
     atoms.calc = GPAW(mode='lcao',
