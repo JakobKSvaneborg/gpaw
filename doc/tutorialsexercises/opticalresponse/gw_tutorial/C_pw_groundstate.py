@@ -5,6 +5,7 @@ from gpaw import PW
 a = 3.567
 atoms = bulk('C', 'diamond', a=a)
 
+# Make sure we store all bands
 calc = GPAW(mode=PW(ecut=500),
             kpts={'size': (8, 8, 8), 'gamma': True},
             xc='LDA',

@@ -1,4 +1,5 @@
 from gpaw.response.g0w0 import G0W0
+import numpy as np
 
 gw = G0W0('C_pw_groundstate.gpw',
           integrate_gamma='WS',

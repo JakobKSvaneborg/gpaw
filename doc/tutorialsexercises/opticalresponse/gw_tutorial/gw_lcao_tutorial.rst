@@ -30,7 +30,7 @@ Groundstate LCAO calculation
 
 First, we need to do a regular LCAO groundstate calculation, and save all of the
 wave functions. The basis-set is chosen using the ``basis`` keyword, and  
-``nbands=`` is set to ``nao``, reflecting the maximum nbands value taht can be used in LCAO,
+``nbands`` is set to ``nao``, reflecting the maximum nbands value that can be used in LCAO,
 which is the same number of bands as there are atomic orbitals. 
 
 .. literalinclude:: C_lcao_groundstate.py
@@ -60,11 +60,11 @@ using :download:`C_pw_groundstate.py` and :download:`C_pw_gw.py`.
 
 .. figure:: C_Im.png
    :align: center
-   :width: 80%
+   :width: 50%
 
 .. figure:: C_Re.png
    :align: center
-   :width: 80%
+   :width: 50%
 
 
 
