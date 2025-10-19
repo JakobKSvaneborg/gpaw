@@ -134,10 +134,9 @@ class PPCG(PWFDEigensolver):
             self._allocate_work_arrays(ibzwfs, shape=(1,))
         self._allocate_buffer_arrays(ibzwfs, shape=(1,))
 
-        wfs = ibzwfs.wfs_qs[0][0]
+        band_comm = ibzwfs.band_comm
+        wfs = ibzwfs._wfs_u[0]
         assert isinstance(wfs, PWFDWaveFunctions)
-        band_comm = wfs.band_comm
-
         B = ibzwfs.nbands
         b = wfs.psit_nX.mydims[0]
         self.blocksize = max(min(self.blocksize, b),

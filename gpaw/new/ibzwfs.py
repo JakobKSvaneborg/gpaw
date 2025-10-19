@@ -246,7 +246,9 @@ class IBZWaveFunctions(Generic[WFT]):
         return psi_r
 
     def _get_wfs(self, kpt, spin):
-        return self._wfs_u[kpt * self.nspins + spin - self.u0]
+        u = kpt * self.nspins + spin - self.u0
+        assert u >= 0, (kpt, spin, self.nspins, self.u0)
+        return self._wfs_u[u]
 
     def get_wfs(self,
                 *,

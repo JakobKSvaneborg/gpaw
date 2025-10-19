@@ -42,14 +42,12 @@ class Davidson(PWFDEigensolver):
         self._allocate_work_arrays(ibzwfs, shape=(1,))
         self._allocate_buffer_arrays(ibzwfs, shape=(1,))
 
-        wfs = ibzwfs.wfs_qs[0][0]
-        assert isinstance(wfs, PWFDWaveFunctions)
-        domain_comm = wfs.psit_nX.desc.comm
-        band_comm = wfs.band_comm
+        domain_comm = ibzwfs.domain_comm
+        band_comm = ibzwfs.band_comm
 
         B = ibzwfs.nbands
         xp = ibzwfs.xp
-        dtype = wfs.psit_nX.desc.dtype
+        dtype = ibzwfs.dtype
         if domain_comm.rank == 0 and band_comm.rank == 0:
             self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
             self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)

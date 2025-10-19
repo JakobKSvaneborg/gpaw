@@ -560,7 +560,7 @@ class ASECalculator:
         xc = create_functional(xcparams, pot_calc.fine_grid)
         if xc.type == 'MGGA' and density.taut_sR is None:
             dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-            if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, XArrayWithNoData):
+            if not dft.ibzwfs.has_wave_functions():
                 builder = self.params.dft_component_builder(self.atoms,
                                                             log=dft.log)
                 basis_set = builder.create_basis_set()
