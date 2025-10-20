@@ -123,6 +123,10 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     """Compile for all architectures: xeon24, xeon40, ..."""
     # Remove targets:
     for path in gpaw.glob('build/lib.linux-x86_64-*/_gpaw.*.so'):
+        print('Removing', path)
+        path.unlink()
+    for path in gpaw.glob('niflheim_build/*/_gpaw*.so'):
+        print('Removing', path)
         path.unlink()
 
     # Compile:
@@ -130,10 +134,19 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
         if host == 'fjorm' and intel_only:
             continue
         run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
+        # Save compiled file
+        remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
+        paths = list(gpaw.glob('_gpaw.*.so'))
+        assert len(paths) == 1, f'Expected one shared library, found {str(paths)}'
+        path = paths[0]
+        targetpath = gpaw / 'niflheim_build' / remote_arch
+        print(f'Moving {path} to {targetpath}')
+        targetpath.mkdir(parents=True, exist_ok=True)
+        path.rename(targetpath / path.name)
 
     # Clean up:
     for path in gpaw.glob('_gpaw.*.so'):
-        path.unlink()
+        raise RuntimeError(f'Found unexpected {path}')
     for path in gpaw.glob('build/temp.linux-x86_64-*'):
         shutil.rmtree(path)
 
@@ -222,7 +235,10 @@ def main():
 
     def run_benchmarks():
         benchmarkworkflow = gpaw / 'gpaw/benchmark/niflheim-myqueue.py'
-        run(f'. {activate} && mkdir benchmarks-{args.gpaw_branch} && cd benchmarks-{args.gpaw_branch} && mq workflow {benchmarkworkflow}')
+        run(f'. {activate} && '
+            f'mkdir benchmarks-{args.gpaw_branch} && '
+            f'cd benchmarks-{args.gpaw_branch} && '
+            f'mq workflow {benchmarkworkflow}')
 
     if args.recompile:
         compile_gpaw_c_code(gpaw, activate, intel_only)
@@ -312,15 +328,15 @@ def main():
 
     for fro, to in [('ivybridge', 'sandybridge'),
                     ('nahelem', 'icelake')]:
-        f = gpaw / f'build/lib.linux-x86_64-{fro}-{fversion}'
-        t = gpaw / f'build/lib.linux-x86_64-{to}-{fversion}'
+        f = gpaw / f'niflheim_build/{fro}'
+        t = gpaw / f'niflheim_build/{to}'
         f.symlink_to(t)
 
     # Create .pth file to load correct .so file:
     pth = (
         'import sys, os; '
         'arch = os.environ["CPU_ARCH"]; '
-        f"path = f'{venv}/gpaw/build/lib.linux-x86_64-{{arch}}-{fversion}'; "
+        f"path = f'{venv}/gpaw/niflheim_build/{{arch}}'; "
         'sys.path.append(path)\n')
     Path(f'lib/python{version}/site-packages/niflheim.pth').write_text(pth)
 
@@ -332,19 +348,10 @@ def main():
 
     # Tab completion:
     for cmd in ['ase', 'gpaw', 'mq', 'pip']:
-        if cmd == 'gpaw':
-            # Currently, running the "gpaw" command writes warning message
-            # to stdout, so "gpaw completion" does not work!
-            continue
         txt = run(f'. {activate} && {cmd} completion' +
                   (' --bash' if cmd == 'pip' else ''),
                   capture_output=True).stdout.decode()
         extra += txt
-
-    # gpaw-hack:
-    python = venv / 'bin/python3'
-    complete = venv / 'gpaw/gpaw/cli/complete.py'
-    extra += f'complete -o default -C "{python} {complete}" gpaw\n'
 
     activate.write_text(activate.read_text() + extra)
 

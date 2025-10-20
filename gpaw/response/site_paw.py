@@ -1,8 +1,10 @@
 import numpy as np
 
-from gpaw.gaunt import gaunt
+from gpaw.sphere.gaunt import gaunt
+from gpaw.hubbard import aoom
 from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
 from gpaw.sphere.integrate import radial_truncation_function
+from gpaw.utilities import unpack_density
 
 
 def calculate_site_matrix_element_correction(
@@ -83,3 +85,70 @@ def calculate_site_matrix_element_correction(
             i2_counter += 2 * l2 + 1
         i1_counter += 2 * l1 + 1
     return F_pii
+
+
+def calculate_nonlocal_hubbard_potential(D_sp, pawdata):
+    r"""Calculate the Hubbard correction to the spin pair energy.
+
+    The Hubbard correction to the site spin pair energy is given by
+
+                     U^a
+    Δd^(xc,a)_nn' = -‾‾‾  <ψ_n|m^a|ψ_n'>,
+                      2
+
+    where m^a is the nonlocal partial wave magnetization magnitude of the
+    Hubbard corrected orbital subspace. To compute the correction we therefore
+    need the nonlocal magnetic Hubbard potential
+
+     U,a       U^a /  a,↑↑    a,↓↓ \ _   _a
+    W      = - ‾‾‾ | ρ     - ρ     | e ⋅ u
+     z,ii'      2  \  ii'     ii'  /  z
+
+    for each pair of partial waves i and i' in the subspace.
+    """
+    # Extract the Hubbard corrected angular momentum and U-value (we allow only
+    # Hubbard corrections of a single angular momentum per atom) along with the
+    # applied Hubbard scaling
+    assert pawdata.hubbard_u is not None
+    assert len(pawdata.hubbard_u.l) == 1
+    assert len(pawdata.hubbard_u.U) == 1
+    hubbardl = pawdata.hubbard_u.l[0]
+    hubbardU = pawdata.hubbard_u.U[0]
+    scale = pawdata.hubbard_u.scale[0]
+
+    # Extract data about the angular part of the partial waves
+    ni = pawdata.ni  # Number of partial waves
+    l_j = pawdata.l_j  # l-index for each radial function index j
+    nm_j = 2 * np.array(l_j) + 1  # number of m-indices for each l(j)
+
+    # Unpack the density matrix and allocate the output array
+    D_sii = unpack_density(D_sp)
+    assert D_sii.shape[1:] == (ni, ni)
+    WzU_ii = np.zeros_like(D_sii[0])
+
+    # Get atomic orbital occupation matrices (aoom) and calculate the nonlocal
+    # magnetization matrix in the Hubbard corrected subspace (m-indices for the
+    # given angular momentum l)
+    N0_mm, _ = aoom(
+        D_sii[0], hubbardl, l_j, pawdata.n_j, pawdata.N0_q, scale)
+    N1_mm, dHU_ii = aoom(
+        D_sii[1], hubbardl, l_j, pawdata.n_j, pawdata.N0_q, scale)
+    M_mm = N0_mm.T - N1_mm.T  # ρ^(↑↑) - ρ^(↓↓)
+
+    # Multiply with (e_z ⋅ u) to get the nonlocal magnetization *magnitude*
+    M_mm *= np.sign(np.trace(M_mm))
+
+    # Loop over radial function indices for partial waves i and i' and map each
+    # l-specific (m,m') subspace to the global partial wave indices (i,i')
+    for j1, l1 in enumerate(l_j):
+        i1_m = slice(nm_j[:j1].sum(), nm_j[:(j1 + 1)].sum())
+        for j2, l2 in enumerate(l_j):
+            i2_m = slice(nm_j[:j2].sum(), nm_j[:(j2 + 1)].sum())
+            if not (l1 == l2 == hubbardl):
+                continue  # no correction
+            # Apply scaling to appropriately account for the norm of
+            # bounded/unbounded radial functions and add to output
+            WzU_ii[i1_m, i2_m] = M_mm * dHU_ii[i1_m, i2_m]
+
+    WzU_ii *= -hubbardU / 2
+    return WzU_ii

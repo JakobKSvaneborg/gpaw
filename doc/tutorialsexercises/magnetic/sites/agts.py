@@ -11,3 +11,5 @@ def workflow():
         run(script='Co_plot_hsp_magnons_vs_rc.py')
         run(script='Co_plot_dispersion.py')
         run(script='test_Co_hsp_magnons.py')
+    with run(script='nio_dispersion.py', cores=120, tmax='20h'):
+        run(script='plot_nio_dispersion.py')

@@ -7,12 +7,12 @@ Finding lattice constants
 .. seealso::
 
    * `ASE EOS tutorial
-     <https://wiki.fysik.dtu.dk/ase/tutorials/eos/eos.html>`_
+     <https://ase-lib.org/tutorials/eos/eos.html>`_
    * `ASE Finding lattice constants tutorial
-     <https://wiki.fysik.dtu.dk/ase/tutorials/lattice_constant.html>`_
+     <https://ase-lib.org/tutorials/lattice_constant.html>`_
 
    * `ASE equation of state module
-     <https://wiki.fysik.dtu.dk/ase/ase/utils.html#equation-of-state>`_
+     <https://ase-lib.org/ase/utils.html#equation-of-state>`_
 
 
 Fcc Aluminium

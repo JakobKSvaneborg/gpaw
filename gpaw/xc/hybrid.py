@@ -9,7 +9,7 @@ from math import exp, ceil
 import numpy as np
 
 from gpaw.atom.configurations import core_states
-from gpaw.gaunt import gaunt
+from gpaw.sphere.gaunt import gaunt
 from gpaw.lfc import LFC
 from gpaw.poisson import PoissonSolver
 from gpaw.helmholtz import HelmholtzSolver

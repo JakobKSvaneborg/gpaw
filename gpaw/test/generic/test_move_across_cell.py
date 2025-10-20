@@ -22,13 +22,15 @@ from gpaw import GPAW, Davidson, MixerSum
           experimental={'reuse_wfs_method': 'lcao'}),
      dict(mode='lcao', basis='sz(dzp)', h=0.3)])
 def test_generic_move_across_cell(gpaw_new, params):
+    if not gpaw_new and 'parallel' in params:
+        pytest.skip('No GPU-mode for old GPAW')
+    if gpaw_new:
+        params.pop('experimental', None)
     params.update(
         xc='oldLDA',
         # make sure MixerSum works for spin-paired system also:
         mixer=MixerSum(0.7),
         kpts=[1, 1, 2])
-    if not gpaw_new and 'parallel' in params:
-        params.pop('parallel')
     calc = GPAW(**params)
     atoms = molecule('H2O', vacuum=2.5)
     atoms.pbc = 1
@@ -47,7 +49,7 @@ def test_generic_move_across_cell(gpaw_new, params):
     atoms.get_potential_energy()
 
     # We should be within the convergence criterion.
-    # It runs a minimum of three iterations:
+    # It runs a minimum of two/three iterations:
     if gpaw_new:
         assert calc.dft.scf_loop.niter == 2
     else:

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Callable, Generator, Generic, TypeVar
 import numpy as np
 from ase.io.ulm import Writer
 from ase.units import Bohr, Ha
-from gpaw.gpu import as_np, synchronize
+from gpaw.gpu import as_np
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
@@ -17,7 +17,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.typing import Array1D, Array2D, Self
-from gpaw.utilities import pack_density
+from gpaw.utilities import pack_density, as_complex_dtype
 
 if TYPE_CHECKING:
     from gpaw.new.density import Density
@@ -210,9 +210,6 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.add_to_density(nt_sR, D_asii)
 
-        if self.xp is not np:
-            synchronize()
-
         # This should be done in a more efficient way!!!
         # Also: where do we want the density?
         self.kpt_comm.sum(nt_sR.data)
@@ -226,8 +223,6 @@ class IBZWaveFunctions(Generic[WFT]):
     def add_to_ked(self, taut_sR) -> None:
         for wfs in self:
             wfs.add_to_ked(taut_sR)
-        if self.xp is not np:
-            synchronize()
         self.kpt_comm.sum(taut_sR.data)
         self.band_comm.sum(taut_sR.data)
 
@@ -304,13 +299,20 @@ class IBZWaveFunctions(Generic[WFT]):
             self.comm.broadcast(occ_skn, 0)
         return eig_skn, occ_skn
 
-    def forces(self, potential: Potential) -> Array2D:
+    def forces(self,
+               potential: Potential,
+               hamiltonian,
+               D_asii) -> Array2D:
         self.make_sure_wfs_are_read_from_gpw_file()
         F_av = self.xp.zeros((len(potential.dH_asii), 3))
         for wfs in self:
             wfs.force_contribution(potential, F_av)
-        if self.xp is not np:
-            synchronize()
+        hamiltonian.update_wave_functions(self, forces=True)
+        for wfs in self:
+            if isinstance(wfs, PWFDWaveFunctions):
+                hamiltonian.apply_orbital_dependent(
+                    self, D_asii, wfs.psit_nX, wfs.spin,
+                    calculate_energy=False, F_av=F_av)
         self.kpt_band_comm.sum(F_av)
         return F_av
 
@@ -380,7 +382,8 @@ class IBZWaveFunctions(Generic[WFT]):
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
         shape = spin_k_shape + (self.nbands,) + xshape
-        dtype = complex if self.mode == 'pw' else self.dtype
+        dtype = (as_complex_dtype(self.dtype) if self.mode == 'pw'
+                 else self.dtype)
         dtype_write = flags.storage_dtype(dtype)
         c = 1.0 if self.mode == 'lcao' else Bohr**-1.5
 

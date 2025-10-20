@@ -2,7 +2,7 @@ from gpaw.utilities.scalapack import mkl_scalapack_diagonalize_non_symmetric
 from gpaw.utilities.scalapack import have_mkl
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import world
-from gpaw.matrix import suggest_blocking
+from gpaw.old.matrix import suggest_blocking
 
 import numpy as np
 

@@ -15,7 +15,7 @@ Webpage: https://gpaw.readthedocs.io/
 Requirements
 ------------
 
-* Python_ 3.9 or later
+* Python_ 3.10 or later
 * ASE_
 * NumPy_
 * SciPy_
@@ -99,7 +99,7 @@ look at the GPAW exercises_ and tutorials_.
 
 
 .. _Python: https://www.python.org/
-.. _ASE: https://wiki.fysik.dtu.dk/ase/
+.. _ASE: https://ase-lib.org/
 .. _NumPy: https://docs.scipy.org/doc/numpy/reference/
 .. _SciPy: https://docs.scipy.org/doc/scipy/reference/
 .. _LibXC: https://libxc.gitlab.io/

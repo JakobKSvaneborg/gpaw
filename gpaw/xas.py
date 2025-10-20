@@ -8,7 +8,7 @@ from ase.units import Hartree
 
 from gpaw.overlap import Overlap
 from gpaw.utilities.cg import CG
-from gpaw.gaunt import gaunt
+from gpaw.sphere.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
 import gpaw.mpi as mpi
 

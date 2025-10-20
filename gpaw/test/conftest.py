@@ -4,7 +4,7 @@ from functools import cached_property
 
 import numpy as np
 import pytest
-from gpaw import setup_paths, GPAW_NEW
+from gpaw import setup_paths, GPAW_NEW, debug
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -30,6 +30,16 @@ def execute_in_tmp_path(request, tmp_path_factory):
         yield path
     finally:
         os.chdir(cwd)
+
+
+@pytest.fixture(scope='module')
+def set_device():
+    from gpaw.gpu import set_device
+
+    def log(*args, **kwargs):
+        kwargs.pop('parallel', None)
+        print(*args, **kwargs)
+    set_device(log)
 
 
 @pytest.fixture(scope='module')
@@ -312,6 +322,7 @@ class GPAWPlugin:
         from gpaw.mpi import size
         terminalreporter.section('GPAW-MPI stuff')
         terminalreporter.write(f'size: {size}\n')
+        terminalreporter.write(f'debug-mode: {debug}\n')
 
 
 @pytest.fixture

@@ -1,15 +1,19 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from functools import cached_property
 
 import numpy as np
 
 from gpaw.sphere.integrate import spherical_truncation_function_collection
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 
 from gpaw.response import timer
 from gpaw.response.kspair import KohnShamKPointPair
 from gpaw.response.pair import phase_shifted_fft_indices
-from gpaw.response.site_paw import calculate_site_matrix_element_correction
+from gpaw.response.site_paw import (
+    calculate_site_matrix_element_correction,
+    calculate_nonlocal_hubbard_potential,
+)
 from gpaw.response.localft import calculate_LSDA_Wxc, add_LSDA_trans_fxc
 from gpaw.response.site_data import AtomicSiteData
 
@@ -592,3 +596,47 @@ class SiteSpinPairEnergyCalculator(SiteMatrixElementCalculator):
     """
     def add_f(self, gd, n_sx, f_x):
         f_x[:] += - np.abs(calculate_LSDA_Wxc(gd, n_sx))
+
+    def _add_paw_correction(self, P1_Amyti, P2_Amyti, matrix_element):
+        # Add usual PAW correction to d^(xc,ap)
+        super()._add_paw_correction(P1_Amyti, P2_Amyti, matrix_element)
+        # If relevant, add Hubbard correction to the matrix element
+        if self.gs.pawdatasets.includes_hubbard_corrections:
+            self._add_hubbard_correction(P1_Amyti, P2_Amyti, matrix_element)
+
+    def _add_hubbard_correction(self, P1_Amyti, P2_Amyti,
+                                matrix_element: SiteMatrixElement):
+        r"""Add the correction to the matrix elements required in MFT
+        calculations based on DTF+U.
+
+        The correction is given by:
+                        __
+                        \   ˷     ˷                      ˷     ˷
+        Δd^(xc,a)_kt =  /  <ψ_nks|p_ai> W^(U,a)_(z,ii') <p_ai'|ψ_n'k+qs'>
+                        ‾‾
+                        i,i'
+
+        where W^(U,a)_(z,ii') = - U^a m^a_(ii') / 2 is the nonlocal magnetic
+        Hubbard potential and m^a_(ii') is the nonlocal magnetization matrix
+        magnitude.
+        """
+        d_mytap = matrix_element.local_array_view
+        for a, A in enumerate(self.sites.A_a):
+            if a in self.WzU_aii:  # Hubbard corrected sites
+                WzU_ii = self.WzU_aii[a]
+                # Make outer product of the projector overlaps
+                P1ccP2_mytii = P1_Amyti[A].conj()[..., np.newaxis] \
+                    * P2_Amyti[A][:, np.newaxis]
+                # Sum over partial wave indices and add correction
+                Ddxc_myt = np.einsum('tij, ij -> t', P1ccP2_mytii, WzU_ii)
+                d_mytap[:, a] += Ddxc_myt[:, np.newaxis]
+
+    @cached_property
+    def WzU_aii(self) -> dict[int, np.ndarray]:
+        WzU_aii: dict[int, np.ndarray] = {}
+        for a, A in enumerate(self.sites.A_a):
+            pawdata = self.gs.pawdatasets.by_atom[A]
+            if pawdata.hubbard_u is not None:
+                WzU_aii[a] = calculate_nonlocal_hubbard_potential(
+                    self.gs.density.D_asp[A], pawdata)
+        return WzU_aii

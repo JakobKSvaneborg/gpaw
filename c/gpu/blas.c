@@ -3,6 +3,11 @@
 #define NO_IMPORT_ARRAY
 #include <numpy/arrayobject.h>
 
+#define GPAW_ARRAY_DISABLE_NUMPY
+#define GPAW_ARRAY_ALLOW_CUPY
+#include "../array.h"
+#undef GPAW_ARRAY_DISABLE_NUMPY
+
 #include "gpu.h"
 #include "gpu-complex.h"
 
@@ -341,25 +346,55 @@ PyObject* rk_gpu(PyObject *self, PyObject *args)
 
 
 static void _r2k_gpu(int n, int k,
-                     Py_complex alpha, void *a_gpu, int lda,
-                     void *b_gpu, double beta,
-                     void *c_gpu, int ldc, int real)
+                     Py_complex alpha, void *a_gpu,
+                     int lda, void *b_gpu,
+                     int ldb, double beta,
+                     void *c_gpu, int ldc, int dtypenum)
 {
-    if (real) {
+    if (dtypenum == NP_DOUBLE) {
         gpublasSafeCall(
                 gpublasDsyr2k(_gpaw_gpublas_handle,
                     GPUBLAS_FILL_MODE_UPPER, GPUBLAS_OP_T, n, k,
-                    &alpha.real, (double*) a_gpu, lda,
-                    (double*) b_gpu, lda,
-                    &beta, (double*) c_gpu, ldc));
-    } else {
+                    &alpha.real,
+                    (double*) a_gpu, lda,
+                    (double*) b_gpu, ldb,
+                    &beta,
+                    (double*) c_gpu, ldc));
+    } else if (dtypenum == NP_DOUBLE_COMPLEX) {
         gpublasDoubleComplex alpha_gpu = {alpha.real, alpha.imag};
         gpublasSafeCall(
                 gpublasZher2k(_gpaw_gpublas_handle,
                     GPUBLAS_FILL_MODE_UPPER, GPUBLAS_OP_C, n, k,
-                    &alpha_gpu, (gpublasDoubleComplex*) a_gpu, lda,
-                    (gpublasDoubleComplex*) b_gpu, lda,
-                    &beta, (gpublasDoubleComplex*) c_gpu, ldc));
+                    &alpha_gpu,
+                    (gpublasDoubleComplex*) a_gpu, lda,
+                    (gpublasDoubleComplex*) b_gpu, ldb,
+                    &beta,
+                    (gpublasDoubleComplex*) c_gpu, ldc));
+    } else if (dtypenum == NP_FLOAT) {
+        float alpha_gpu = alpha.real;
+        float beta_gpu = beta;
+        gpublasSafeCall(
+                gpublasSsyr2k(_gpaw_gpublas_handle,
+                    GPUBLAS_FILL_MODE_UPPER, GPUBLAS_OP_T, n, k,
+                    &alpha_gpu,
+                    (float*) a_gpu, lda,
+                    (float*) b_gpu, ldb,
+                    &beta_gpu,
+                    (float*) c_gpu, ldc));
+    } else if (dtypenum == NP_FLOAT_COMPLEX) {
+        gpublasComplex alpha_gpu = {alpha.real, alpha.imag};
+        float beta_gpu = beta;
+        gpublasSafeCall(
+                gpublasCher2k(_gpaw_gpublas_handle,
+                    GPUBLAS_FILL_MODE_UPPER, GPUBLAS_OP_C, n, k,
+                    &alpha_gpu,
+                    (gpublasComplex*) a_gpu, lda,
+                    (gpublasComplex*) b_gpu, ldb,
+                    &beta_gpu,
+                    (gpublasComplex*) c_gpu, ldc));
+    } else {
+        PyErr_SetString(PyExc_TypeError, "Unsupported dtype");
+        return;
     }
 }
 
@@ -368,31 +403,25 @@ PyObject* r2k_gpu(PyObject *self, PyObject *args)
 {
     Py_complex alpha;
     double beta;
+    int lda, ldb, ldc;
 
-    void *a_gpu;
-    void *b_gpu;
-    void *c_gpu;
-    PyObject *a_shape, *b_shape, *c_shape;
-    PyArray_Descr *type;
+    PyObject *a_obj, *b_obj, *c_obj;
+    // PyArray_Descr *type;
 
-    if (!PyArg_ParseTuple(args, "DnOnOdnOO|i", &alpha, &a_gpu, &a_shape,
-                          &b_gpu, &b_shape, &beta, &c_gpu, &c_shape,
-                          &type))
+    if (!PyArg_ParseTuple(args, "DOOdOii|i", &alpha, &a_obj, &b_obj, &beta, &c_obj, &lda, &ldb, &ldc))
         return NULL;
 
-    int real = 0;
-    if (type->type_num == NPY_DOUBLE) {
-        real = 1;
-    }
+    void *a_gpu = (void*) Array_DATA(a_obj);
+    void *b_gpu = (void*) Array_DATA(b_obj);
+    void *c_gpu = (void*) Array_DATA(c_obj);
+    int dtypenum = Array_TYPE(a_obj);
 
-    int n = (int) PyLong_AsLong(PyTuple_GetItem(a_shape, 0));
-    int k = (int) PyLong_AsLong(PyTuple_GetItem(a_shape, 1));
-    for (int d=2; d < PyTuple_Size(a_shape); d++)
-        k *= (int) PyLong_AsLong(PyTuple_GetItem(a_shape, d));
-    int ldc = n;
-    int lda = k;
+    int n = Array_DIM(c_obj, 0);
+    int k = Array_DIM(a_obj, 1);
+    for (int d = 2; d < Array_NDIM(a_obj); d++)
+        k *= Array_DIM(a_obj, d);
 
-    _r2k_gpu(n, k, alpha, a_gpu, lda, b_gpu, beta, c_gpu, ldc, real);
+    _r2k_gpu(n, k, alpha, a_gpu, lda, b_gpu, ldb, beta, c_gpu, ldc, dtypenum);
 
     if (PyErr_Occurred())
         return NULL;

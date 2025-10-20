@@ -16,7 +16,7 @@ from scipy.spatial import Voronoi
 import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.gpu import cupy_is_fake
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.typing import Array2D, ArrayLike2D
 
 if TYPE_CHECKING:

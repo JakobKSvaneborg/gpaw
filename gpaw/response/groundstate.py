@@ -11,7 +11,7 @@ from ase.units import Ha, Bohr
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
-from gpaw.calculator import GPAW as OldGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
 
@@ -36,6 +36,13 @@ class PAWDatasetCollection:
         self.by_atom = by_atom
         self.id_by_atom = id_by_atom
 
+    @property
+    def includes_hubbard_corrections(self):
+        for setup in self.by_atom:
+            if setup.hubbard_u is not None:
+                return True
+        return False
+
 
 GPAWCalculator = Union[OldGPAW, NewGPAW]
 GPWFilename = Union[Path, str]
@@ -46,26 +53,26 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator):
-        wfs = calc.wfs  # wavefunction object from gpaw.wavefunctions
+        wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
 
         self.atoms = calc.atoms
-        self.kd = wfs.kd  # KPointDescriptor object from gpaw.kpt_descriptor.
+        self.kd = wfs.kd  # KPointDescriptor object
         self.world = calc.world  # _Communicator object from gpaw.mpi
 
-        # GridDescriptor from gpaw.grid_descriptor.
+        # GridDescriptor from gpaw.old.grid_descriptor.
         # Describes a grid in real space
         self.gd = wfs.gd
 
         # Also a GridDescriptor, with a finer grid...
         self.finegd = calc.density.finegd
-        self.bd = wfs.bd  # BandDescriptor from gpaw.band_descriptor
+        self.bd = wfs.bd  # BandDescriptor from gpaw.old.band_descriptor
         self.nspins = wfs.nspins  # number of spins: int
         self.dtype = wfs.dtype  # data type of wavefunctions, real or complex
 
         self.spos_ac = calc.spos_ac  # scaled position vector: np.ndarray
 
-        self.kpt_u = wfs.kpt_u  # kpoints: list of Kpoint from gpaw.kpoint
-        self.kpt_qs = wfs.kpt_qs  # kpoints: list of Kpoint from gpaw.kpoint
+        self.kpt_u = wfs.kpt_u  # list of Kpoint from gpaw.old.kpoint
+        self.kpt_qs = wfs.kpt_qs  # list of Kpoint from gpaw.old.kpoint
 
         self.fermi_level = wfs.fermi_level  # float
         self.atoms = calc.atoms  # ASE Atoms object
@@ -125,7 +132,7 @@ class ResponseGroundStateAdapter:
         on all k-points in the case where calc is parallelized over k-points,
         see gpaw.response.kspair
         """
-        from gpaw.pw.descriptor import PWDescriptor
+        from gpaw.old.pw.descriptor import PWDescriptor
 
         assert self.gd.comm.size == 1
         kd = self.kd.copy()  # global KPointDescriptor without a comm

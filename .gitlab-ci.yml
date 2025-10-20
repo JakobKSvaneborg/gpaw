@@ -47,7 +47,6 @@ stages:
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
     - |
       cat << EOF > siteconfig.py
-      parallel_python_interpreter = True
       mpi = True
       compiler = 'mpicc'
       libraries = []
@@ -140,7 +139,6 @@ build:
     - cat siteconfig.py
     - pip install --user --log build.log --editable .
     - gpaw -P 1 info
-    - gpaw-python -m gpaw info
   cache:
     key: cache-build-oldest
     paths:
@@ -183,7 +181,6 @@ build-latest:
     - pip install --user --upgrade mpi4py
     - pip install --user --editable .
     - gpaw -P 1 info
-    - gpaw-python -m gpaw info
   cache:
     key: cache-build-latest
     paths:
@@ -215,6 +212,7 @@ build-cuda:
 
 build-hip-cuda:
   image: $IMAGE_CUDA
+  when: manual
   extends:
     - .build
     - .gpu-job
@@ -225,7 +223,8 @@ build-hip-cuda:
       gpu_target = 'hip-cuda'
       gpu_compiler = 'hipcc'
       gpu_compile_args = ['-O3',
-                          '-g']
+                          '-g',
+                          '-v']
       libraries += ['cudart', 'hipblas']
 
       # Suppress warnings from hip-cuda headers
@@ -239,6 +238,9 @@ build-hip-cuda:
       libraries += ['magma']
       EOF
     - cat siteconfig.py
+     # Set env variable for HIPCC because otherwise it fails to pass the -std
+    # flag to underlying nvcc/cicc... and may default to c++14.
+    - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
     - pip install -v --user --log build.log --editable .
 
 
@@ -267,7 +269,6 @@ build-lumi-g:
     - module load buildtools-python/24.03-cray-python3.11
     - |
       cat << EOF > siteconfig.py
-      parallel_python_interpreter = True
       mpi = True
       compiler = 'cc'
       compiler_args = []
@@ -372,11 +373,6 @@ test-oldest:
     # We may want to identify a limited set of tests that must work
     # with OpenMP, but so far we just have it in this job.
 
-    - gpaw-python -m gpaw info
-    - >
-      OMP_NUM_THREADS=2 gpaw-python -m pytest -v -We -k 0-fd
-      gpaw/test/test_fuzz.py
-
 
 test-latest:
   image: $IMAGE_MAIN_LATEST
@@ -395,7 +391,7 @@ test-latest:
       EOF
 
     - >
-      pytest -v -m "ci or gpu"
+      GPAW_DEBUG=1 pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
 
   artifacts:
@@ -413,7 +409,7 @@ test-latest-new:
     - build-latest
   script:
     - gpaw info
-    - GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
+    - GPAW_DEBUG=1 GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
 
 
 test-minimal:
@@ -442,8 +438,6 @@ test-cuda:
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
     - pytest -v -m gpu
 
-    - gpaw-python -m gpaw info
-    - gpaw-python -m pytest -v -m gpu
 
 test-cuda-mpi:
   image: $IMAGE_CUDA
@@ -457,10 +451,8 @@ test-cuda-mpi:
   script:
     - nvidia-smi
     - gpaw info
-    - mpirun -np 2 pytest -v -m gpu
-    - mpirun -np 4 pytest -v -m gpu
-    # mpirun -np 2 gpaw-python doesn't work, see #1052
-    # - mpirun -np 2 gpaw-python -m pytest -v -m gpu
+    - mpirun -np 2 pytest -v -x -m gpu
+    - mpirun -np 4 pytest -v -x -m gpu
 
 test-hip-cuda:
   image: $IMAGE_CUDA
@@ -665,7 +657,7 @@ nightly-mpi-1:
     - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30
-      --cov=gpaw --cov-report=html --cov-report=term
+      --cov=gpaw --cov-report=html
   artifacts:
     paths:
       - htmlcov/
@@ -682,6 +674,7 @@ nightly-mpi-2:
 nightly-mpi-4:
   variables:
     GPAW_MPI_NPROCS: "4"
+    GPAW_DEBUG: "1"
   extends:
     - .nightly
 
@@ -703,7 +696,7 @@ nightly-mpi-8:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
-      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
+      "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-1-new:
@@ -714,7 +707,7 @@ nightly-mpi-1-new:
     - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30 -m
-      "not (old_gpaw_only or dscf or gllb or ofdft or do or legacy or lrtddft or rttddft or hybrids or pipekmezey) or new_gpaw_ready"
+      "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-2-new:
@@ -729,6 +722,7 @@ nightly-mpi-4-new:
     - .nightly-mpi-new
   variables:
     GPAW_MPI_NPROCS: "4"
+    GPAW_DEBUG: "1"
 
 
 nightly-mpi-8-new:
@@ -737,6 +731,14 @@ nightly-mpi-8-new:
   variables:
     GPAW_MPI_NPROCS: "8"
 
+
+nightly-mpi4py-4:
+  extends:
+    - .nightly-mpi-new
+  variables:
+    GPAW_MPI4PY: "1"
+    GPAW_MPI_NPROCS: "4"
+    GPAW_DEBUG: "1"
 
 pages:
   image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)

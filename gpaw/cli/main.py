@@ -12,7 +12,7 @@ commands = [
     ('gpw', 'gpaw.cli.gpw'),
     ('completion', 'gpaw.cli.completion'),
     ('atom', 'gpaw.atom.aeatom'),
-    ('diag', 'gpaw.fulldiag'),
+    ('diag', 'gpaw.cli.fulldiag'),
     # ('quick', 'gpaw.cli.quick'),
     ('python', 'gpaw.cli.python'),
     ('sbatch', 'gpaw.cli.sbatch'),
@@ -49,7 +49,7 @@ def hook(parser, args):
         if have_mpi and world.size == 1 and args.parallel > 1:
             py = sys.executable
         elif not have_mpi:
-            py = 'gpaw-python'
+            raise SystemExit('MPI not available')
         else:
             py = ''
 
@@ -59,8 +59,6 @@ def hook(parser, args):
             if sys.version_info >= (3, 11):
                 # Don't prepend a potentially unsafe path to sys.path
                 pyargs.append('-P')
-            if args.command == 'python' and args.debug:
-                pyargs.append('-d')
             arguments = ['mpiexec',
                          *os.environ.get('GPAW_MPI_OPTIONS', '').split(),
                          '-np',
