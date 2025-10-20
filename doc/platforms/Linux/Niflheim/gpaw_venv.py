@@ -269,7 +269,7 @@ def main():
     activate.write_text(module_cmds +
                         activate.read_text())
 
-    run(f'. {activate} && pip install --upgrade pip -q')
+    run(f'. {activate} && pip install --upgrade pip setuptools -q')
 
     # Fix venv so pytest etc work
     pythonroot = None
