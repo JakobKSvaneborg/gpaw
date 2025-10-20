@@ -55,7 +55,10 @@ if cupy:
     if cpuarch == 'icelake':  # Also covers sapphirelake
         gpu_compile_args = ['-O3',
                             '-g',
-                            '-gencode', 'arch=compute_80,code=sm_80',
+                            '-gencode', 'arch=compute_80,code=sm_80']
+    elif cpuarch == 'saphirerapids':
+        gpu_compile_args = ['-O3',
+                            '-g',
                             '-gencode', 'arch=compute_90,code=sm_90']
     elif cpuarch == 'skylake_el8':
         gpu_compile_args = ['-O3',

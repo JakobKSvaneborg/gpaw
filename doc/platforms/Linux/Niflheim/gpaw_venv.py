@@ -21,7 +21,8 @@ fversion = 'cpython-311'
 nifllogin = ['slid2',  # broadwell_el8 (xeon24el8)
              'thul',  # skylake_el8 (xeon40el8)
              'surt',  # icelake (xeon56)
-             'fjorm']  # epyc9004 (epyc96)
+             'fjorm',  # epyc9004 (epyc96)
+             'sara']  # saphirerapids (xeon32)
 
 
 # Easybuild uses a hierarchy of toolchains for the main foss and intel
@@ -332,8 +333,7 @@ def main():
     compile_gpaw_c_code(gpaw, activate, intel_only)
 
     for fro, to in [('ivybridge', 'sandybridge'),
-                    ('nahelem', 'icelake'),
-                    ('sapphirelake', 'icelake')]:
+                    ('nahelem', 'icelake')]:
         f = gpaw / f'niflheim_build/{fro}'
         t = gpaw / f'niflheim_build/{to}'
         f.symlink_to(t)
