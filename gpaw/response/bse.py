@@ -285,7 +285,8 @@ class BSEBackend:
         self.scale = scale
         self.q0_correction = q0_correction
         if q0_correction and truncation != '2D':
-            raise ValueError('q0_correction should only be used with truncation=\'2D\'.')
+            raise ValueError('q0_correction should only be used with '
+                             'truncation=\'2D\'.')
         assert mode in ['RPA', 'BSE']
 
         if deps_max is None:
