@@ -23,7 +23,7 @@ nifllogin = [
     'thul',  # skylake_el8 (xeon40el8, sm3090el8)
     'surt',  # icelake (xeon56, a100, h200)
     'fjorm',  # epyc9004 (epyc96)
-]
+    'sara']  # saphirerapids (xeon32)
 
 # Easybuild uses a hierarchy of toolchains for the main foss and intel
 # chains.  The order in the tuples before are

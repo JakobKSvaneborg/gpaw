@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3'
 """Install gpaw on Niflheim in a virtual environment.
 
 Also installs ase, ase-ext, spglib, sklearn and myqueue.
@@ -21,9 +21,7 @@ fversion = 'cpython-311'
 nifllogin = ['slid2',  # broadwell_el8 (xeon24el8)
              'thul',  # skylake_el8 (xeon40el8)
              'surt',  # icelake (xeon56)
-             'fjorm',  # epyc9004 (epyc96)
-             'sara']  # saphirerapids (xeon32)
-
+             'fjorm']  # epyc9004 (epyc96)
 
 # Easybuild uses a hierarchy of toolchains for the main foss and intel
 # chains.  The order in the tuples before are
