@@ -442,7 +442,7 @@ class ASECalculator:
         return None if n_sr is None else n_r.data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
-        eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
+        eig_n = self.dft.ibzwfs.get_eigs_and_occs(kpt=kpt, spin=spin)[0] * Ha
         if broadcast:
             if self.comm.rank != 0:
                 eig_n = np.empty(self.dft.ibzwfs.nbands)
@@ -452,7 +452,7 @@ class ASECalculator:
     def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True,
                                raw=False):
         ibzwfs = self.dft.ibzwfs
-        occ_n = ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1]
+        occ_n = ibzwfs.get_eigs_and_occs(kpt=kpt, spin=spin)[1]
         if not raw:
             weight = ibzwfs.ibz.weight_k[kpt] * ibzwfs.spin_degeneracy
             occ_n *= weight

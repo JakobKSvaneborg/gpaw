@@ -49,9 +49,7 @@ class IBZWaveFunctions(Generic[WFT]):
         self._wfs_u = wfs_u
         wfs = wfs_u[0]
         self.u0 = wfs.k * self.nspins + wfs.spin
-        # self.q_k = {}  # IBZ-index to local index
-        # for wfs in self:
-        #     self.q_k[wfs.k] = wfs.q
+        self.u_q = {wfs.q: u for u, wfs in enumerate(wfs_u)}
 
         self.band_comm = wfs.band_comm
         self.domain_comm = wfs.domain_comm
