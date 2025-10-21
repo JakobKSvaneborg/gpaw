@@ -16,7 +16,7 @@ from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
 from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
 
-from gpaw.utilities.gpts  import  pw_ecut_from_lcao_grid
+from gpaw.utilities.gpts import pw_ecut_from_lcao_grid
 
 if TYPE_CHECKING:
     from gpaw.setup import Setups, LeanSetup
@@ -58,15 +58,17 @@ class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator, lazy=False):
 
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
-        self.gs_info = f""
+        self.gs_info = ""
 
-        if isinstance(wfs, LCAOWaveFunctions) and not getattr(calc, 'planewavefy_completed', False):
+        if (isinstance(wfs, LCAOWaveFunctions)
+            and not getattr(calc, 'planewavefy_completed', False)):
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None
             ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
-            wfs.planewavefy(ecut=ecut_pw/Ha, lazy=lazy)
-            self.gs_info = f"Converting LCAO wf to PW wf with cutoff of Ecut={ecut_pw:.3f} eV"
+            wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
+            self.gs_info = f"""Converting LCAO wf to PW wf
+                         with cutoff of Ecut={ecut_pw:.3f} eV"""
             calc.planewavefy_completed = True
 
         self.atoms = calc.atoms
@@ -118,7 +120,6 @@ class ResponseGroundStateAdapter:
             return ResponseGroundStateAdapter.from_gpw_file(gpw=gs)
         raise ValueError('Expected ResponseGroundStateAdaptable, got', gs)
 
-
     @classmethod
     def from_gpw_file(cls, gpw, lazy=False) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
@@ -127,7 +128,6 @@ class ResponseGroundStateAdapter:
         with disable_dry_run():
             calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
         return cls(calc, lazy=lazy)
-
 
     @property
     def pd(self):

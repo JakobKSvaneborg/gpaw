@@ -844,7 +844,7 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
             if reset_C_nM:
                 kpt.C_nM = None
             return psit
-        
+
         class LazyPsit:
             def __init__(self, kpt):
                 self.kpt = kpt
@@ -852,7 +852,6 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
             @property
             def array(self):
                 return create_psit(self.kpt).array
-
 
         for kpt in self.kpt_u:
             kpt.psit = LazyPsit(kpt) if lazy else create_psit(kpt)
