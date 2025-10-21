@@ -133,7 +133,7 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     for host in nifllogin:
         if host == 'fjorm' and intel_only:
             continue
-        run(f'ssh {host} ". {activate} && pip install -q --no-build-isolation -e {gpaw}"')
+        run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
         # Save compiled file
         remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
         paths = list(gpaw.glob('_gpaw.*.so'))
@@ -269,7 +269,7 @@ def main():
     activate.write_text(module_cmds +
                         activate.read_text())
 
-    run(f'. {activate} && pip install --upgrade pip setuptools -q')
+    run(f'. {activate} && pip install --upgrade pip -q')
 
     # Fix venv so pytest etc work
     pythonroot = None
