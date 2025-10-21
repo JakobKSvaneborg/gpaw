@@ -18,6 +18,6 @@ or you can compile it yourself (the latter is mainly for GPAW developpers).
   :ref:`Loading GPAW modules on Niflheim <load on niflheim>`.
 
 
-If you want to learn how to run GPU version of GPAW, plese read
+If you want to learn how to run GPU version of GPAW, please read
 :ref:`Running with A100 nodes on Niflheim <gpu on niflheim>`.
 Ffor now, there are now precompiled modules, so you need to build GPAW yourself.
