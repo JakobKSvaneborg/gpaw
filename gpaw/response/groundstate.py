@@ -116,8 +116,8 @@ class ResponseGroundStateAdapter:
     def kpt_ks(self):
         assert self.kd.comm.size == 1
         return [[self.kpt_u[k * self.nspins + s]
-                 for k in range(self.kd.nibzkpts)]
-                for s in range(self.nspins)]
+                 for s in range(self.nspins)]
+                for k in range(self.kd.nibzkpts)]
 
     @property
     def pd(self):
