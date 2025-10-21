@@ -28,7 +28,8 @@ def calc_orbital_densities_real_space(psit_nX: PWArray, h: float):
 
     """
     grid = psit_nX.desc.uniform_grid_with_grid_spacing(h)
-    # take Fourier transform of the wave-functions and calculate the integral in real space
+    # take Fourier transform of the wave-functions and
+    # calculate the integral in real space
     psit_nR = grid.empty(psit_nX.dims)
     psit_nX.ifft(out=psit_nR)
 
@@ -168,7 +169,11 @@ def orbital_compensation_charges(setups: Setups, wfs: WaveFunctions):
 
     for a, P_ni in P_ani.items():
         Q_anL[a] = np.einsum(
-            "ni,nj,ijL->nnL", P_ni.conj(), P_ni, setups[a].Delta_iiL, optimize=True
+            "ni,nj,ijL->nnL",
+            P_ni.conj(),
+            P_ni,
+            setups[a].Delta_iiL,
+            optimize=True,
         )
 
     return Q_anL
@@ -228,7 +233,13 @@ def self_hartree_paw(
     dG_nm = np.zeros(shape=(n, n), dtype=wfs.dtype)
     for a, P_ni in P_ani.items():
         dH_nii = np.array([unpack_hermitian(dH_p) for dH_p in dH_anp[a]])
-        dG_nm -= np.einsum("ni,mij,mj->nm", P_ni.conj(), dH_nii, P_ni, optimize=True)
+        dG_nm -= np.einsum(
+            "ni,mij,mj->nm",
+            P_ni.conj(),
+            dH_nii,
+            P_ni,
+            optimize=True,
+        )
 
     if domian_sum:
         wfs.domain_comm.sum(dG_nm)

@@ -1,6 +1,8 @@
 from ase.units import Bohr, Ha
-from .orbital_densities import (
+from gpaw.new.etdm.edmiston_ruedenberg.orbital_densities import (
     calc_self_hartree_derivative,
+)
+from gpaw.new.etdm.edmiston_ruedenberg.orbital_densities import (
     self_hartree_paw,
 )
 from gpaw.utilities.tools import cutoff2gridspacing
@@ -23,7 +25,7 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
             ndim = ibzwfs.nbands
             self._indices = range(ndim)
         elif indices == "occupied":
-            f_n = ibzwfs.get_eigs_and_occs(0, 0)[1]
+            f_n = ibzwfs.get_all_eigs_and_occs(broadcast=True)[1]
             if ibzwfs.domain_comm.rank != 0:
                 f_n = np.zeros(ibzwfs.nbands)
             ibzwfs.domain_comm.broadcast(f_n, 0)
@@ -51,7 +53,7 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
 
         for wfs in ibzwfs:
             self._rpsi_unX.append(wfs.psit_nX.copy())
-            P2_ani = wfs.P_ani.new()
+            P2_ani = wfs.P_ani.copy()
             for a, P_ni in wfs.P_ani.items():
                 P2_ani[a] = P_ni.copy()
             self._rP_uani.append(P2_ani)
@@ -61,7 +63,8 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
         return self._ibzwfs.kpt_comm
 
     def _calc_obf_value_and_matrix_elements(self):
-        """Calculate value of the objective function (energy) and hamiltonian matrix elements
+        """Calculate value of the objective function (energy)
+        and hamiltonian matrix elements
         at self._a_vec_u
 
         Parameters
@@ -138,7 +141,8 @@ class EdmistonRuedenbergUpdateRef(EdmistonRuedenberg):
                 P_ni[self._indices] = u_nn.T @ P_ni[self._indices]
 
     def _calc_energy_and_gradient(self, a_u: np.ndarray = None):
-        """Calculate value of the objective function (energy) and gradient at a_u
+        """Calculate value of the objective function
+        (energy) and gradient at a_u
 
         Parameters
         ----------

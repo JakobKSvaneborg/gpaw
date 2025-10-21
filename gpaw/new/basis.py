@@ -1,7 +1,7 @@
 import numpy as np
 from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import PWDesc, UGDesc
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.lfc import BasisFunctions
 from gpaw.mpi import serial_comm
 from gpaw.new.brillouin import IBZ

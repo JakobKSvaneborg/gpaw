@@ -1,9 +1,11 @@
 import numpy as np
 from gpaw.mpi import world
 
-from .etdm import ETDM
-from .edmiston_ruedenberg.obj_function import EdmistonRuedenbergUpdateRef as ER
-from .skewherm_matrix import random_a
+from gpaw.new.etdm.etdm import ETDM
+from gpaw.new.etdm.edmiston_ruedenberg.obj_function import (
+    EdmistonRuedenbergUpdateRef as ER,
+)
+from gpaw.new.etdm.skewherm_matrix import random_a
 
 
 def er_localize(ibzwfs, state2opt="all"):

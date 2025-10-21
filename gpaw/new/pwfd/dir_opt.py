@@ -112,8 +112,8 @@ class DirOptPWFD(PWFDEigensolver):
             # Grab the first wave function data to infer array properties
             first = psit_unX[0].data
 
-            # The new LBFGS optimizer works on NumPy arrays, so we need the
-            # full shape
+            # The new LBFGS optimizer works on NumPy arrays
+            # we need the full shape
             array_shape = (len(psit_unX),) + first.shape
 
             # Data type of the wave function

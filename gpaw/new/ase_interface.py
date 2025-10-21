@@ -35,7 +35,7 @@ LOGO = """\
 
 
 def write_header(log: Logger, params: Parameters) -> None:
-    from gpaw.io.logger import write_header as header
+    from gpaw.old.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
     with log.indent('input parameters:'):

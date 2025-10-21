@@ -142,7 +142,8 @@ class ObjectiveFunctionETDM(ABC):
         gradient : ndarray
             Gradient with respect to each independent parameter in `_a_vec_u`.
         """
-        # If a new parameter vector is given, update the internal SkewHermitian objects
+        # If a new parameter vector is given,
+        # update the internal SkewHermitian objects
         if a_u is not None:
             self.a_vec_u = a_u
 
@@ -150,7 +151,8 @@ class ObjectiveFunctionETDM(ABC):
         energy, h_unn = self._calc_obf_value_and_matrix_elements()
 
         # Compute gradient for each SkewHermitian matrix
-        # h_unn - h_unn.T.conj() ensures a skew-Hermitian matrix for derivative
+        # h_unn - h_unn.T.conj() ensures a skew-Hermitian
+        # matrix for derivative
         gradient = np.array(
             [
                 a.calc_gradient(h_nn - h_nn.T.conj())

@@ -1,5 +1,3 @@
-parallel_python_interpreter = True
-
 mpi = True
 compiler = 'mpicc'
 libraries = []

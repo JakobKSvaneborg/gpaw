@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 from gpaw.spline import Spline
 from gpaw.ffbt import rescaled_fourier_bessel_transform
-from gpaw.gaunt import gaunt, super_gaunt
-from gpaw.spherical_harmonics import Y
+from gpaw.sphere.gaunt import gaunt, super_gaunt
+from gpaw.sphere.spherical_harmonics import Y
 from gpaw.atom.radialgd import RadialGridDescriptor
 from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
 from gpaw.response.pw_parallelization import Blocks1D

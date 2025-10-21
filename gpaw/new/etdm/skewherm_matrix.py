@@ -6,20 +6,23 @@ class SkewHermitian:
     """
     Class for working with skew-Hermitian matrices A (i.e., A^\\dagger = -A).
 
-    Only the independent upper-triangular elements are stored in a 1D vector (`self.data`).
-    
+    Only the independent upper-triangular elements are stored
+    in a 1D vector (`self.data`).
+
     Attributes
     ----------
     ndim : int
         Dimension of the square matrix (number of rows/columns).
     dtype : type
-        Either float or complex. 
+        Either float or complex.
         - float → real skew-symmetric matrices
         - complex → skew-Hermitian matrices
     data : ndarray
-        1D array storing the independent upper-triangular entries of the matrix.
+        1D array storing the independent upper-triangular
+        entries of the matrix.
     representation : str
-        Currently only "full" is supported, meaning we store all upper-triangular entries.
+        Currently only "full" is supported, meaning we store
+        all upper-triangular entries.
     """
 
     def __init__(self, ndim: int, dtype: type,
@@ -72,16 +75,6 @@ class SkewHermitian:
         """Return the parameter vector (upper-triangular entries)."""
         return self._data
 
-    @property
-    def dtype(self):
-        """Return matrix data type (float or complex)."""
-        return self._dtype
-
-    @property
-    def representation(self):
-        """Return storage representation (always 'full')."""
-        return self._representation
-
     @data.setter
     def data(self, array):
         """
@@ -102,6 +95,16 @@ class SkewHermitian:
         self._evecs = None
         self._evals = None
         self._rotation_mat = None
+
+    @property
+    def dtype(self):
+        """Return matrix data type (float or complex)."""
+        return self._dtype
+
+    @property
+    def representation(self):
+        """Return storage representation (always 'full')."""
+        return self._representation
 
     # ------------------------
     # Eigen-decomposition and rotation
@@ -219,7 +222,8 @@ class SkewHermitian:
     # ------------------------
     def calc_gradient(self, h_nn):
         """
-        Compute gradient with respect to the skew-Hermitian parameters given a matrix h_nn.
+        Compute gradient with respect to the skew-Hermitian
+        parameters given a matrix h_nn.
 
         Parameters
         ----------
@@ -240,8 +244,10 @@ class SkewHermitian:
 
         # Step 3: Weight matrix in the eigenbasis by D, which encodes
         # the derivative of the matrix exponential:
-        # D_{ij} = i * (exp(-i*(omega_i - omega_j)) - 1) / (omega_i - omega_j),  with D_{ii} = 1
-        # This corresponds to the derivative of exp(A) w.r.t. the skew-Hermitian parameters
+        # D_{ij} = i * (exp(-i*(omega_i - omega_j)) - 1) / (omega_i - omega_j),
+        # with D_{ii} = 1
+        # This corresponds to the derivative of exp(A)
+        # w.r.t. the skew-Hermitian parameters
         g_mat = g_mat * d_matrix(evals)
 
         # Step 4: transform back to original basis

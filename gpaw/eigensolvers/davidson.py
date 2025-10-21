@@ -8,7 +8,7 @@ from gpaw.eigensolvers.diagonalizerbackend import (ScalapackDiagonalizer,
                                                    ScipyDiagonalizer)
 from gpaw.eigensolvers.eigensolver import Eigensolver
 from gpaw.hybrids import HybridXC
-from gpaw.matrix import matrix_matrix_multiply as mmm
+from gpaw.old.matrix import matrix_matrix_multiply as mmm
 
 
 class DummyArray:

@@ -5,7 +5,7 @@ import pytest
 def test_pair_density_paw_correction():
     import numpy as np
     from gpaw.lfc import LocalizedFunctionsCollection as LFC
-    from gpaw.grid_descriptor import GridDescriptor
+    from gpaw.old.grid_descriptor import GridDescriptor
     from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
     from gpaw.spline import Spline
     from gpaw.response.paw import (calculate_pair_density_correction,

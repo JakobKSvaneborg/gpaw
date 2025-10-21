@@ -11,7 +11,7 @@ class LBFGS:
         array_shape : tuple
             Shape of the parameter array.
         kpt_comm : object
-            Communication object for summing quantities over k-points (parallelization support).
+            Communication object for summing quantities over k-points
         dtype : type
             Data type of arrays (float or complex).
         memory : int
@@ -97,11 +97,6 @@ class LBFGS:
                 self.rho[m] = 1.0e20
 
             # Step 3: Stability check
-            # The quantity rho[m] = 1 / (y^T s) is a weighting factor for the two-loop recursion.
-            # If y^T s <= 0, it indicates a violation of the curvature condition (the approximate Hessian
-            # would not be positive definite). In that case, L-BFGS cannot safely use past steps.
-            # To maintain stability, we reset the iteration counter and clear memory arrays,
-            # then restart the L-BFGS update with the current gradient and variables.
             if self.rho[m] < 0:
                 self.local_iter = 0
                 self.rho *= 0
@@ -134,7 +129,8 @@ class LBFGS:
             # Step 5: Scale by initial Hessian approximation
             yy = np.sum(self.dy[m].conj() * self.dy[m]).real
             yy = self.kpt_comm.sum_scalar(yy)
-            devis = np.maximum(self.rho[m] * yy, 1.0e-20)  # avoid divide by zero
+            # avoid divide by zero
+            devis = np.maximum(self.rho[m] * yy, 1.0e-20)
             self.search_dir = q / devis
 
             # Second loop: forward over stored vectors
@@ -164,9 +160,11 @@ class LBFGS:
             # Return updated search direction
             return self.search_dir
 
+
 class LBFGSAdapter:
     """
-    Adapter to allow the new NumPy-based L-BFGS to replace the Vector-based LBFGS.
+    Adapter to allow the new NumPy-based L-BFGS
+    to replace the Vector-based LBFGS.
     """
 
     def __init__(self, array_shape, kpt_comm, dtype, memory=5):
@@ -174,12 +172,12 @@ class LBFGSAdapter:
 
     def update(self, psit_unX, pg_unX):
         """
-        Convert old-style vectors to NumPy arrays, call new L-BFGS, and convert back.
+        Convert old-style vectors to NumPy arrays,
+        call new L-BFGS, and convert back.
         """
         # Convert old vectors to NumPy arrays
         a_cur = np.stack([x.data for x in psit_unX])
         g_cur = np.stack([g.data for g in pg_unX])
-
 
         # Call the new LBFGS
         p_cur = self.lbfgs_new.update(a_cur, g_cur)
