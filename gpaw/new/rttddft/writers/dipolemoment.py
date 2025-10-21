@@ -50,7 +50,7 @@ class DipoleMomentWriter:
     def _write_header(self):
         line = f'# {self.__class__.__name__}[version={self.version}]\n'
         line += '# Using Hartree atomic units for time and dipole moment\n'
-        line += '# %20s %22s %22s %22s\n' % ('time', 'dmx', 'dmy', 'dmz')
+        line += '# %18s %22s %22s %22s\n' % ('time', 'dmx', 'dmy', 'dmz')
         self._write(line)
 
     def write_comment(self,

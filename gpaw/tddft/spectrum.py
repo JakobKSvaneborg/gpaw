@@ -83,7 +83,7 @@ def read_td_file_data(fname, remove_duplicates=True):
     return time_t, data_ti
 
 
-def _parse_kick_line_version_1(line) -> RTTDDFTKick:
+def _parse_kick_line_version_1(line: str) -> RTTDDFTKick:
     """
     Parse a kick formatted according to version 1 (old GPAW).
 
@@ -116,7 +116,7 @@ def _parse_kick_line_version_1(line) -> RTTDDFTKick:
     return kick
 
 
-def _parse_kick_line_version_2(line) -> RTTDDFTKick:
+def _parse_kick_line_version_2(line: str) -> RTTDDFTKick:
     """
     Parse a kick formatted according to version 2 (new GPAW).
 
@@ -127,18 +127,70 @@ def _parse_kick_line_version_2(line) -> RTTDDFTKick:
     where {kick} is a JSON formatted dictionary from which an
     RTTDDFTKick can be created.
     """
-    data = json.loads(line.removeprefix('Kick = '))
+    data = json.loads(line.removeprefix('# Kick = '))
     kick = RTTDDFTKick(**data)
     return kick
 
 
-def read_td_file_kicks(fname):
+def parse_kick_line(line: str,
+                    version: int = 1) -> RTTDDFTKick:
+    """
+    Parse a kick formatted according to the specified version.
+
+    Parameters
+    ----------
+    line
+        Line containing the kick
+    version
+        Version of the DipoleMomentWriter used when writing the file.
+
+    Returns
+    -------
+    Parsed kick.
+    """
+    if version == 1:
+        return _parse_kick_line_version_1(line)
+    elif version == 2:
+        return _parse_kick_line_version_2(line)
+    else:
+        raise ValueError(f'Version {version} unknown')
+
+
+def determine_td_file_version(fname):
+    """ Open time-dependent data file and parse header to determine version.
+
+    Parameters
+    ----------
+    fname
+        File path
+
+    Returns
+    -------
+    Version of the DipoleMomentWriter used.
+    """
+    regexp = re.compile(r"DipoleMomentWriter\[version\=(?P<version>[0-9]+)\]")
+    with open(fname) as f:
+        for line in f:
+            m = regexp.search(line)
+            if m is None:
+                continue
+            version = int(m['version'])
+            return version
+
+    # No version header found, raise error
+    raise ValueError('Version could not be determined')
+
+
+def read_td_file_kicks(fname: str,
+                       version: int = 1):
     """Read kicks from time-dependent data file.
 
     Parameters
     ----------
     fname
         File path
+    version
+        Version of the DipoleMomentWriter used when writing the file.
 
     Returns
     -------
@@ -150,28 +202,11 @@ def read_td_file_kicks(fname):
     # Search kicks
     kick_i = []
     with open(fname) as f:
-        # Determine version
-        version = None
         for line in f:
-            regexp = re.compile(r"DipoleMomentWriter\[(?P<version>[0-9]+)\]")
-            m = regexp.search(line)
-        try:
-            version = int(m)
-        except ValueError:
-            raise ValueError('Version could not be determined')
-
-        if version == 1:
-            parse_kick_line = _parse_kick_line_version_1
-        elif version == 2:
-            parse_kick_line = _parse_kick_line_version_2
-        else:
-            raise ValueError(f'Version {version} unknown')
-
-        for line in f:
-            print(line)
             if line.startswith('# Kick'):
-                kick = parse_kick_line(line)
-                kick_i.append({'strength_v': kick.strength, 'time': kick.time,
+                kick = parse_kick_line(line, version=version)
+                kick_i.append({'strength_v': np.array(kick.strength),
+                               'time': kick.time,
                               'velocity': kick.gauge == 'velocity'})
     return kick_i
 
@@ -248,10 +283,16 @@ def read_dipole_moment_file(fname, remove_duplicates=True):
     dm_tv
         Array of dipole moment values
     """
+    version = determine_td_file_version(fname)
     time_t, data_ti = read_td_file_data(fname, remove_duplicates)
-    kick_i = read_td_file_kicks(fname)
-    norm_t = data_ti[:, 0]
-    dm_tv = data_ti[:, 1:]
+    kick_i = read_td_file_kicks(fname, version=version)
+    if version == 1:
+        norm_t = data_ti[:, 0]
+        dm_tv = data_ti[:, 1:]
+    else:
+        # No norm written in version 2
+        norm_t = None
+        dm_tv = data_ti
     return kick_i, time_t, norm_t, dm_tv
 
 
