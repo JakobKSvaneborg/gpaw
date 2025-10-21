@@ -6,9 +6,9 @@ gw = G0W0('C_lcao_groundstate.gpw',
           nbands=26,
           ecut=200,
           kpts=[0],
-          eta=0.1, 
-          bands=(3,5),
-          evaluate_sigma=np.linspace(-50,75, 500),
+          eta=0.1,
+          bands=(3, 5),
+          evaluate_sigma=np.linspace(-50, 75, 500),
           filename='C-g0w0-lcao'
           )
 
