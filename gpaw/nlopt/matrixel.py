@@ -87,7 +87,7 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     return np.array(p_qvnn)
 
 
-def gather_to_master(p_qvnn, ibzwfs):
+def gather_to_master(p_qvnn, ibzwfs, spin):
     kpt_comm = ibzwfs.kpt_comm
     master = (kpt_comm.rank == 0)
     shape = p_qvnn.shape[1:4]
@@ -96,7 +96,7 @@ def gather_to_master(p_qvnn, ibzwfs):
         kpt_comm.send(p_qvnn, 0)
         return np.empty((0,) + shape, complex)
     else:
-        rank_k = ibzwfs.rank_k
+        rank_k = ibzwfs.rank_ks[:, spin]
         nk = len(rank_k)
 
         p_kvnn = np.empty((nk,) + shape, complex)

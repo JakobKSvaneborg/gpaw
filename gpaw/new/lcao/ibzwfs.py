@@ -26,7 +26,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
             basis, self.ibz, self.domain_comm, self.band_comm, self.kpt_comm,
             relpos_ac, atomdist,
             self.grid, self.dtype, setups, self.xp,
-            nspins=self.nspind)
+            nspins=self.nspin)
 
         for wfs in self:
             wfs.tci_derivatives = tci_derivatives
