@@ -10,7 +10,7 @@ from gpaw.mpi import world
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
-    if gpaw_new and (world.size > 1 or mode == 'fd'):
+    if gpaw_new and (world.size > 1):
         pytest.skip('Does not work yet for new GPAW')
     atoms = Atoms('CCHHHH',
                   positions=[
