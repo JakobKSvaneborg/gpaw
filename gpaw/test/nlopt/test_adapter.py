@@ -1,20 +1,19 @@
 import pytest
 
-from gpaw.mpi import serial_comm, world
 from gpaw.new.ase_interface import GPAW
 from gpaw.nlopt.adapters import CollinearGSInfo
 
 
-@pytest.mark.skipif(world.size > 1, reason='Serial only')
+@pytest.mark.serial
 def test_adapter_pseudo_wfs(gpw_files):
     # Indices
     k = 2
     s = 0
     bands = slice(3, 4)
 
-    calc = GPAW(gpw_files['sic_pw'], communicator=serial_comm)
+    calc = GPAW(gpw_files['sic_pw'])
 
-    wfs_fromcalc = calc.dft.ibzwfs.wfs_qs[k][s]
+    wfs_fromcalc = calc.dft.ibzwfs._get_wfs(k, s)
     u_G_fromcalc = wfs_fromcalc.psit_nX[bands].data
 
     gs = CollinearGSInfo(calc)

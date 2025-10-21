@@ -10,7 +10,6 @@ from ase.units import Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
-from gpaw.core.arrays import XArrayWithNoData
 from gpaw.dft import GPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
