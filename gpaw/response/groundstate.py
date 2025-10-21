@@ -59,12 +59,15 @@ class ResponseGroundStateAdapter:
 
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
         self.gs_info = ""
+        self.nao = None
 
         if (isinstance(wfs, LCAOWaveFunctions)
             and not getattr(calc, 'planewavefy_completed', False)):
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None
+            self.nao = wfs.kpt_u[0].C_nM.shape[1]
+            setattr(calc,"nao",self.nao)
             ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
             wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
             self.gs_info = f"""Converting LCAO wf to PW wf

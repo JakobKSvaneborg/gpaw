@@ -19,7 +19,7 @@ def test_lcao_gw(in_tmp_dir):
     atoms.get_potential_energy()
     atoms.calc.write('gs.gpw', mode='all')
     gw = G0W0('gs.gpw',
-              nbands=((1 + 3) * 2 + 5) * 2,
+              nbands='nao',
               integrate_gamma='WS',
               ecut=100,
               eta=0.1, bands=(0, 8))

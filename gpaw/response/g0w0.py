@@ -1189,10 +1189,10 @@ class G0W0(G0W0Calculator):
             for the cutoff energy.
             If an array is given, the extrapolation will be performed based on
             the cutoff energies given in the array.
-        nbands: int
+        nbands: int / String
             Number of bands to use in the calculation. If None, the number will
             be determined from :ecut: to yield a number close to the number of
-            plane waves used.
+            plane waves used. If in LCAO, nao can be used 
         ppa: bool
             Sets whether the Godby-Needs plasmon-pole approximation for the
             dielectric function should be used.
@@ -1314,6 +1314,9 @@ class G0W0(G0W0Calculator):
         kpts = list(select_kpts(kpts, gs.kd))
 
         ecut, ecut_e = choose_ecut_things(ecut, ecut_extrapolation)
+
+        if nbands == 'nao':
+            nbands = gs.nao
 
         if nbands is None:
             nbands = int(gs.volume * (ecut / Ha)**1.5 * 2**0.5 / 3 / pi**2)
