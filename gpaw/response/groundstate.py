@@ -69,7 +69,7 @@ class ResponseGroundStateAdapter:
             wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
             self.gs_info = f"""Converting LCAO wf to PW wf
                          with cutoff of Ecut={ecut_pw:.3f} eV"""
-            calc.planewavefy_completed = True
+            setattr(calc, "planewavefy_completed", True)
 
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object
