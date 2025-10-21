@@ -541,7 +541,8 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
     if eigenvalues is not None:
         assert eigenvalues.shape == (kd.nspins, kd.nibzkpts, n2 - n1)
 
-    ibzwfs = extract_ibz_wave_functions(calc.wfs.kpt_qs,
+    kpt_qs = get_both_spins(calc.wfs)
+    ibzwfs = extract_ibz_wave_functions(kpt_qs,
                                         bd, gd, n1, n2, eigenvalues)
     ibz2bzmaps = IBZ2BZMaps.from_calculator(calc)
 
@@ -935,3 +936,37 @@ def get_L_vlmm():
     f[4, 2] = -1.0j
     _L_vlmm.append([s, p, d, f])
     return _L_vlmm
+
+
+def get_both_spins(wfs):
+    if hasattr(wfs, 'kpt_qs'):
+        return wfs.kpt_qs
+    if wfs.nspins == 1:
+        return [[wfs] for wfs in wfs.kpt_u]
+    kpt_u = wfs.kpt_u.copy()
+    kpt1 = kpt_u[0]
+    kpt2 = kpt_u[-1]
+    kpt_comm = wfs.kd.comm
+    if kpt1.s == 1:
+        reqs = [
+            kpt_comm.send(kpt1.f_n, kpt_comm.rank - 1, block=False),
+            kpt_comm.send(kpt1.eps_n, kpt_comm.rank - 1, block=False),
+            kpt_comm.send(kpt1._projections.array, kpt_comm.rank - 1,
+                          block=False)]
+        del kpt_u[0]
+    if kpt2.s == 0:
+        kpt3 = KPoint(kpt2.weightk,
+                      kpt2.weight,
+                      1,
+                      kpt2.k,
+                      kpt2.q,
+                      kpt2.phase_cd)
+        kpt3._projections = kpt2._projections.new()
+        kpt_comm.receive(kpt3.f_n, kpt_comm.rank + 1)
+        kpt_comm.receive(kpt3.eps_n, kpt_comm.rank + 1)
+        kpt_comm.receive(kpt3._projections.array, kpt_comm.rank + 1)
+        kpt_u.append(kpt3)
+    if kpt1.s == 1:
+        kpt_comm.waitall(reqs)
+    kpt_qs = [[up, dn] for up, dn in zip(kpt_u[::2], kpt_u[1::2])]
+    return kpt_qs

@@ -809,7 +809,7 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                                           basis_functions: BasisFunctions,
                                           block_size: int = 10) -> None:
         """Convert from LCAO to PW coefficients."""
-        nlcao = len(self.kpt_qs[0][0].C_nM)
+        nlcao = len(self.kpt_u[0].C_nM)
 
         # We go from LCAO to real-space and then to PW's.
         # It's too expensive to allocate one big real-space array:

@@ -17,7 +17,7 @@ def test_adapter_pseudo_wfs(gpw_files):
     u_G_fromcalc = wfs_fromcalc.psit_nX[bands].data
 
     gs = CollinearGSInfo(calc)
-    wfs_s = gs.ibzwfs.wfs_qs[k]
+    wfs_s = [gs.ibzwfs._wfs_u[k]]
     wfs = gs.get_wfs(wfs_s, s)
     _, u_G = gs.get_plane_wave_coefficients(wfs, bands=bands, spin=s)
 

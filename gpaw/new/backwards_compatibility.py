@@ -240,7 +240,7 @@ class FakeWFS:
                 for wfs in self.ibzwfs._wfs_u]
 
     @cached_property
-    def kpt_qs(self):
+    def _____kpt_qs(self):
         1 / 0
         return [[KPT(self.mode, wfs, self.atom_partition, self.scale,
                      self.pd, self.gd)

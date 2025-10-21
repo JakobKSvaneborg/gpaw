@@ -115,7 +115,9 @@ class ResponseGroundStateAdapter:
     @cached_property
     def kpt_ks(self):
         assert self.kd.comm.size == 1
-        return self._wfs.kpt_qs  # list of Kpoint from gpaw.old.kpoint
+        return [[self.kpt_u[k * self.nspins + s]
+                 for k in range(self.kd.nibzkpts)]
+                for s in range(self.nspins)]
 
     @property
     def pd(self):

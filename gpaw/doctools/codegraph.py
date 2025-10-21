@@ -188,7 +188,7 @@ def code():
     pw.get_potential_energy(a)
     lcao.get_potential_energy(a)
     ibzwfs = fd.dft.ibzwfs
-    ibzwfs._wfs_u = ibzwfs.Uwfs_u[0]
+    ibzwfs._wfs_u = ibzwfs._wfs_u[0]
 
     colors = {'BZPoints': '#ddffdd',
               'PotentialCalculator': '#ffdddd',
