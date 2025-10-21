@@ -11,7 +11,7 @@ def test_lcao_gw(in_tmp_dir):
     atoms.calc = GPAW(mode='lcao',
                     basis='dzp',
                     nbands='nao',
-                    kpts={'gamma': True, 'size': (1,1,1)})
+                    kpts={'gamma': True, 'size': (2,2,2)})
     atoms.get_potential_energy()
     atoms.calc.write('gs.gpw', mode='all')
     gw = G0W0('gs.gpw',
@@ -29,12 +29,18 @@ def test_lcao_gw(in_tmp_dir):
 
     eps_0 = eps[0][0][0]
     f_0 = f[0][0][0]
-
-    expected_eps_0 = -8.532558620475898
+    qp_0 = qp[0][0][0]
+    Z_0 = Z[0][0][0]
+    
+    expected_eps_0 = -9.35566765642537
     expected_f_0 = 1.00000000
+    expected_qp_0 = -9.96584878
+    expected_Z_0 =  0.34982126
 
     assert eps_0 == pytest.approx(expected_eps_0, abs=0.01)
     assert f_0 == pytest.approx(expected_f_0, abs=0.01)
+    assert Z_0 == pytest.approx(expected_Z_0, abs=0.01)
+    assert qp_0 == pytest.approx(expected_qp_0, abs=0.01)
 
 if __name__ == "__main__":
     test_lcao_gw(None)
