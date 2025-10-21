@@ -24,7 +24,12 @@ def workflow():
             run(script='check_gw.py')
 
     with run(script='C_lcao_groundstate.py', cores=24, tmax='1h'):
-        pass
+        run(script='C_lcao_gw.py')
+        with run(script='C_pw_groundstate.py',cores=24, tmax='1h'):
+            run(script='C_pw_gw.py')
+            run(script='plot_C_lcao_gw.py')
+
+
 
 def check_mpa():
     """Check numbers in ReST file."""
