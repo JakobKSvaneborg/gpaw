@@ -11,7 +11,7 @@ from scipy.special import erf
 
 from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.mpi import MPIComm, broadcast_float, serial_comm
-from gpaw.typing import Array1D, Array2D
+from gpaw.typing import Array1D, Array2D, ArrayLike2D
 
 
 class ParallelLayout(NamedTuple):
@@ -191,7 +191,7 @@ class OccupationNumberCalculator:
 
     def _calculate(self,
                    nelectrons: float,
-                   eig_qn: List[Array1D],
+                   eig_qn: ArrayLike2D,
                    weight_q: Array1D,
                    spin_q,
                    f_qn: Array2D,
