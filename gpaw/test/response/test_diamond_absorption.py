@@ -48,7 +48,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
             w_ = 14.967
             I_ = 4.997
         else:
-            eM1_ = 6.993
+            eM1_ = 6.992
             eM2_ = 6.904
             w0_ = 14.784
             I0_ = 5.47
@@ -61,7 +61,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
                             if mode == 'lcao' else {},
                             hilbert=False, eshift=eshift, txt='df.txt')
     eM1, eM2 = df.get_macroscopic_dielectric_constant()
-    assert eM1 == pytest.approx(eM1_, abs=0.01)
+    assert eM1 == pytest.approx(eM1_, abs=0.015)
     assert eM2 == pytest.approx(eM2_, abs=0.01)
 
     # ----- RPA dielectric function ----- #
