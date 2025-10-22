@@ -23,8 +23,10 @@ def workflow():
             run(script='MoS2_bs_plot.py')
             run(script='check_gw.py')
 
-    with run(script='C_lcao_groundstate.py', cores=24, tmax='1h'), run(script='C_pw_groundstate.py', cores=24, tmax='1h'):
-        with run(script='C_lcao_gw.py', cores=24, tmax='1h'), run(script='C_pw_gw.py', cores=24, tmax='1h'):
+    with run(script='C_lcao_groundstate.py', cores=24, tmax='1h'), \
+         run(script='C_pw_groundstate.py', cores=24, tmax='1h'):
+        with run(script='C_lcao_gw.py', cores=24, tmax='1h'), \
+             run(script='C_pw_gw.py', cores=24, tmax='1h'):
             run(script='plot_C_lcao_gw.py')
 
 
