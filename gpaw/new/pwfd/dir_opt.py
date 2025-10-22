@@ -193,7 +193,7 @@ class DirOptPWFD(PWFDEigensolver):
         # should be discouraged completely in pwfd
 
         # reset search direction
-        self.search_dir = LBFGS()
+        self.search_dir = LBFGSAdapter()
 
         grad_unX = []
         psit_unX = []
