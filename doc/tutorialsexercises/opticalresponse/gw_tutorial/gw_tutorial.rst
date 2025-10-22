@@ -1,5 +1,5 @@
 .. module:: gpaw.response.g0w0
-.. _gw_tutorial:
+.. _gw tutorial:
 
 =========================================================
 Quasi-particle spectrum in the GW approximation: tutorial
