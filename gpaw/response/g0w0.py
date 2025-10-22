@@ -1307,6 +1307,12 @@ class G0W0(G0W0Calculator):
         context = ResponseContext(txt=output_prefix + '.txt',
                                   comm=world, timer=timer)
         gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile, lazy=True)
+
+        if gs.is_lcao:
+            if ecut_extrapolation:
+                raise ValueError('ecut_extrapolation is '
+                                 'disabled in LCAO mode.')
+
         context.print(gs.gs_info)
 
         # Check if nblocks is compatible, adjust if not
