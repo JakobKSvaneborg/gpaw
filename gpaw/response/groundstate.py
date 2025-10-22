@@ -15,6 +15,7 @@ from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
 from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
+from gpaw.old.wavefunctions.pw import PWWaveFunctions
 
 from gpaw.utilities.gpts import pw_ecut_from_lcao_grid
 
@@ -59,20 +60,17 @@ class ResponseGroundStateAdapter:
 
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
         self.gs_info = ""
-        self.nao = None
 
-        if (isinstance(wfs, LCAOWaveFunctions)
-            and not getattr(calc, 'planewavefy_completed', False)):
+        if isinstance(wfs, LCAOWaveFunctions):
+            # and not getattr(calc, 'planewavefy_completed', False)):
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None
-            self.nao = wfs.kpt_u[0].C_nM.shape[1]
-            setattr(calc, "nao", self.nao)
             ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
             wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
             self.gs_info = f"""Converting LCAO wf to PW wf
                          with cutoff of Ecut={ecut_pw:.3f} eV"""
-            setattr(calc, "planewavefy_completed", True)
+            # calc = planewavefy_completed
 
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object
@@ -111,6 +109,14 @@ class ResponseGroundStateAdapter:
         self._density = calc.density
         self._hamiltonian = calc.hamiltonian
         self._calc = calc
+
+    @property
+    def is_planewave(self):
+        return isinstance(self._wfs, PWWaveFunctions)
+
+    @property
+    def is_lcao(self):
+        return isinstance(self._wfs, LCAOWaveFunctions)
 
     @staticmethod
     def from_input(

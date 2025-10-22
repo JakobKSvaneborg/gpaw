@@ -507,10 +507,12 @@ class G0W0Calculator:
             (see :ref:`frequency grid`).
         ecut_e: array(float)
             Plane wave cut-off energies in eV. Defined with choose_ecut_things
-        nbands: int
-            Number of bands to use in the calculation. If None, the number will
-            be determined from :ecut: to yield a number close to the number of
-            plane waves used.
+        nbands: int | None
+            Number of bands to use in the calculation. If None, and groundstate
+            gpw file is a plane wave calculations, the number will be
+            determined from :ecut: to yield a number close to the number of
+            plane waves used. If None, and LCAO, the number of bands will be
+            determined by the number of total bands in the gpw-file.
         do_GW_too: bool
             When carrying out a calculation including vertex corrections, it
             is possible to get the standard GW results at the same time
@@ -1315,11 +1317,14 @@ class G0W0(G0W0Calculator):
 
         ecut, ecut_e = choose_ecut_things(ecut, ecut_extrapolation)
 
-        if nbands == 'nao':
-            nbands = gs.nao
-
         if nbands is None:
-            nbands = int(gs.volume * (ecut / Ha)**1.5 * 2**0.5 / 3 / pi**2)
+            if gs.is_planewave:
+                nbands = int(gs.volume * (ecut / Ha)**1.5 * 2**0.5 / 3 / pi**2)
+            elif gs.is_lcao:
+                nbands = gs.nbands
+            else:
+                raise ValueError('Unknown type of gpw calclations for'
+                                 ' response.')
         else:
             if ecut_extrapolation:
                 raise RuntimeError(
