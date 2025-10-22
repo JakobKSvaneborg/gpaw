@@ -14,8 +14,6 @@ from gpaw.ibz2bz import IBZ2BZMaps
 from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
-from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
-from gpaw.old.wavefunctions.pw import PWWaveFunctions
 
 from gpaw.utilities.gpts import pw_ecut_from_lcao_grid
 
